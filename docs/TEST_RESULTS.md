@@ -172,6 +172,10 @@ aprobación quedó auditada. Duración: 12,7 s.
 | `npm run test:db` tras la migración 0011 | ✅ 143 | — | — |
 | `npm run test:e2e` (final) | ✅ 41 | — | — |
 | `npm run verify` (final) | ✅ | — | — |
+| `supabase db push --dry-run` al remoto | ✅ solo `0011` pendiente | — | — |
+| `supabase db push --yes` al remoto | ✅ `0011` aplicada | — | — |
+| Verificación de `profiles_select` en el remoto | ✅ | — | Ya no exige `m_target.is_active`; sigue acotada por `is_org_staff` |
+| 7 verificaciones estructurales en el remoto | ✅ 7/7 en cero filas | — | — |
 
 ### Avisos de lint que se mantienen a propósito
 

@@ -29,9 +29,8 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 3. **Levantar el entorno** y comprobar que todo pasa antes de tocar nada:
    `npx supabase start` → `npm run db:reset && npm run seed:local` → `npm run test:db` (143 ✅) →
    `npm run verify` (✅) → `npm run test:e2e` (41 ✅).
-4. **Aplicar la migración `0011` al proyecto real** si aún no se ha hecho
-   (`npx supabase db push --db-url "$SUPABASE_DB_URL"`). Está en local, no en el remoto. Sin ella,
-   desactivar a un usuario lo hace desaparecer del listado (I-011).
+4. **Las 11 migraciones están aplicadas en local y en el proyecto real.** Si añades una nueva:
+   `npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"` para revisarla y luego `--yes`.
 5. **Reutilizar lo que ya existe** en vez de duplicarlo: `DataTable`, `StatusBadge`, `EmptyState`,
    `ConfirmDialog`, `MoneyInput`, `TicketNumberInput`, `PageHeader`, `MetricCard`,
    `DataTablePagination`. El portal del vendedor debe verse igual que el administrativo.
@@ -231,7 +230,8 @@ Las 10 de la Fase 2 **más**:
 |---|---|
 | `0011_profiles_visible_when_inactive.sql` | Rehace `profiles_select`: el personal ve los perfiles de su organización aunque la membresía objetivo esté inactiva (I-011) |
 
-**Aplicada en local. Pendiente de aplicar en el proyecto real** (ver `KNOWN_ISSUES.md` §4).
+**Aplicada en local y en el proyecto Supabase real**, con verificación estructural posterior
+(`KNOWN_ISSUES.md` §4).
 
 ### Variables de entorno requeridas
 
@@ -242,7 +242,6 @@ Las mismas de las fases 1 y 2. Ninguna nueva. `npm run dev:local` y las pruebas 
 
 | ID | Problema | Impacto |
 |---|---|---|
-| I-011 | La migración `0011` no está aplicada al proyecto real | **Medio**: en producción, desactivar a un usuario lo oculta del listado. Un solo comando lo resuelve |
 | I-004 | `CLAUDE.md` y `CLAUDE.md.txt` coexisten | Bajo. Pendiente de que el usuario autorice borrar el `.txt` |
 | I-013 | `.env.local` apunta al proyecto real | Bajo con `npm run dev:local`; alto si alguien lo olvida |
 | DT-12 | 3 vulnerabilidades altas de `npm audit` | Dentro de dependencias internas de Next.js. Sin cambios desde la Fase 2 |

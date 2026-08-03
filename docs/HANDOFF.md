@@ -14,7 +14,7 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 | Rama / commit / etiqueta | `main` · `439e64d` · `fase-3` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
 | App | Next.js 16: autenticación + **portal administrativo completo** (rifas, usuarios, vendedores, boletas, carga masiva, clientes, dashboard) |
-| Base de datos | 11 migraciones. Las 10 primeras en local **y** en el proyecto real; la **`0011` solo en local** (ver §3 y `KNOWN_ISSUES.md` §4) |
+| Base de datos | **11 migraciones aplicadas en local y en el proyecto Supabase real** |
 | Pruebas | 55 unitarias + **143 de base de datos** + **41 end-to-end**, todas en verde |
 
 **Lo que existe hoy:** autenticación, base de datos completa y el portal de Owner/Admin funcionando
@@ -74,9 +74,7 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-⚠️ **Migración pendiente en el proyecto real.** `0011_profiles_visible_when_inactive.sql` está
-aplicada en local pero no en el remoto. Sin ella, desactivar a un usuario desde el portal lo hace
-desaparecer del listado y no se puede reactivar (I-011):
+Para aplicar migraciones nuevas al proyecto real (las 11 actuales ya lo están):
 
 ```bash
 npx supabase db push --db-url "$SUPABASE_DB_URL"
@@ -243,3 +241,4 @@ solo el servidor con `npm run dev:local`; **exigen la base local recién sembrad
 | Un `UPDATE` bloqueado por RLS **no** da error | Afecta cero filas en silencio: hay que comprobar `data.length === 0` (así se detecta que un Admin no pudo tocar al Owner) | BD `F3-03` |
 | El desarrollo escribe en el proyecto real | `npm run dev` usa `.env.local`. Usa `npm run dev:local` | I-013 · D-047 |
 | Un usuario desactivado desaparece del listado | Falta la migración `0011` en ese entorno | I-011 |
+| Aplicar migraciones al remoto sin ver la contraseña | `npx supabase db push --dry-run` primero, y `--yes` para no quedarse esperando la confirmación | §3 |

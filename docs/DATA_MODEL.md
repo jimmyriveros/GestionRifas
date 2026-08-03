@@ -1,9 +1,8 @@
 # MODELO DE DATOS
 
 - **Versión:** 2.1 · **Fase:** 3 · **Actualizado:** 2026-08-03
-- **Estado:** IMPLEMENTADO y verificado. El esquema vive en `supabase/migrations/0001` a `0011`.
-  Las 10 primeras están aplicadas en la instancia local **y** en el proyecto Supabase real; la
-  `0011` (Fase 3) solo en local — ver `KNOWN_ISSUES.md` §4.
+- **Estado:** IMPLEMENTADO y verificado. El esquema vive en `supabase/migrations/0001` a `0011`,
+  aplicado tanto en la instancia local como en el proyecto Supabase real.
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
   tipos generados en `src/types/database.types.ts`. Las 143 pruebas de `tests/db/` verifican que el
   esquema real cumple lo aquí descrito.

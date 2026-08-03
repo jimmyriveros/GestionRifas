@@ -21,11 +21,11 @@ Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 | I-008 | `invalid_credentials` con la contraseña correcta | Info | Límite de intentos de Supabase Auth tras varios fallos seguidos. Esperable en desarrollo, no en operación normal |
 | I-009 | Clic en viewport móvil no automatizable con la herramienta de este entorno | Info | La estructura a 375px se verificó por árbol de accesibilidad. Validar en dispositivo real o con Playwright (F7) |
 | I-010 | Un `\r` dentro de un valor de `.env.local` | ✅ Resuelto (F2) | Se generó con `openssl … > archivo` en Git Bash sobre Windows; `tr -d '\n'` dejó el retorno de carro. Efecto: contraseña imposible de teclear, login OK por API y fallido en navegador. **Nunca construir valores de `.env` con redirecciones de shell en Windows** |
-| I-011 | Al desactivar a un usuario, desaparecía del listado y era imposible reactivarlo | ✅ Resuelto (F3) | La política `profiles_select` de 0001 exigía `m_target.is_active`: sin perfil visible, `listOrgMembers` descartaba la fila. Corregido por la migración **`0011_profiles_visible_when_inactive.sql`**. Lo detectó una prueba end-to-end, no una revisión de código. Pendiente de aplicar al proyecto real (ver §4) |
+| I-011 | Al desactivar a un usuario, desaparecía del listado y era imposible reactivarlo | ✅ Resuelto (F3) | La política `profiles_select` de 0001 exigía `m_target.is_active`: sin perfil visible, `listOrgMembers` descartaba la fila. Corregido por la migración **`0011_profiles_visible_when_inactive.sql`**, aplicada en local **y en el proyecto real**. Lo detectó una prueba end-to-end, no una revisión de código |
 | I-012 | La vista previa del navegador integrado no revela el contenido en Suspense | Info | React revela los límites de Suspense con `requestAnimationFrame`; si el panel no está visible, no compone fotogramas y el esqueleto se queda fijo. El servidor sí devuelve el HTML completo (200). No afecta a usuarios reales ni a Playwright |
 | I-013 | `.env.local` apunta al proyecto **real**, no al local | Mitigado | `npm run dev` usaría producción para desarrollar. Usar `npm run dev:local` (D-047) para desarrollar y para las pruebas E2E |
 
-**Sin bloqueantes para la Fase 4**, salvo aplicar `0011` al proyecto real (§4).
+**Sin bloqueantes para la Fase 4.**
 
 ---
 
@@ -72,18 +72,23 @@ Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 
 ---
 
-## 4. Acción pendiente sobre el proyecto Supabase real
+## 4. Estado del proyecto Supabase real
 
-La migración **`0011_profiles_visible_when_inactive.sql`** está aplicada en **local** pero **no** en
-el proyecto real. Sin ella, desactivar a un usuario desde el portal lo hace desaparecer del listado
-y no hay forma de reactivarlo (I-011).
+Las **11 migraciones** están aplicadas. La `0011` se aplicó el 2026-08-03 con:
 
 ```bash
 npx supabase db push --db-url "$SUPABASE_DB_URL"
 ```
 
-`SUPABASE_DB_URL` debe ser la cadena del **session pooler** (I-005). Es un cambio de política de
-lectura: no altera datos ni estructura, y es reversible con la nota del propio archivo.
+`SUPABASE_DB_URL` debe ser la cadena del **session pooler** (I-005). Fue un cambio de política de
+lectura: no alteró datos ni estructura, y es reversible con la nota del propio archivo.
+
+Comprobado tras aplicarla, contra el proyecto real:
+
+- `profiles_select` ya no exige `m_target.is_active` y sigue acotada por `is_org_staff`.
+- Las 7 verificaciones estructurales siguen en cero filas: tablas sin RLS · sin `FORCE RLS` ·
+  funciones `SECURITY DEFINER` sin `search_path` · vistas sin `security_invoker` · políticas de
+  `DELETE` · `DELETE` concedido a `authenticated` · columnas monetarias que no sean `bigint`.
 
 ---
 
