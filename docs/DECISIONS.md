@@ -380,6 +380,91 @@ políticas no podrían probarse de extremo a extremo sin la interfaz que las eje
 **Consecuencia.** Hoy, `organizations`, `profiles` y `memberships` solo se escriben desde
 `scripts/seed-users.ts` con la service role, que omite RLS por diseño.
 
+## D-037 — Privilegios `GRANT` explícitos, no heredados del entorno
+**Fase:** 2
+**Contexto.** Supabase concede privilegios a `anon`/`authenticated`/`service_role` con
+`ALTER DEFAULT PRIVILEGES`. Ese mecanismo depende del rol que aplica la migración y **no se comporta
+igual en todos los entornos**: verificado en la Fase 2, la instancia local dejó las tablas nuevas sin
+`SELECT`/`INSERT`/`UPDATE` (el seed falló con «permission denied»), mientras que el proyecto alojado
+sí las concedía —y de más: también `DELETE`.
+**Decisión.** Declarar los privilegios explícitamente por tabla (`0009_grants.sql`) y, dado que
+`GRANT` solo agrega, revocar primero para partir de un estado conocido (`0010_harden_grants.sql`).
+**Alternativas.** Confiar en los valores por defecto (descartada: el mismo esquema se comportaba
+distinto en local y en el proyecto real, que es exactamente el tipo de divergencia que causa
+incidentes en producción).
+**Consecuencia.** El estado de privilegios es idéntico y reproducible en cualquier entorno, y está
+cubierto por pruebas de catálogo.
+
+## D-038 — Ninguna tabla concede `DELETE` a `authenticated`
+**Fase:** 2
+**Contexto.** El borrado físico está prohibido por reglas de negocio (BR-C06 archivar, BR-F09 anular,
+BR-D02 bitácora inalterable). La RLS ya lo impide al no definir ninguna política de `DELETE`.
+**Decisión.** Además, no conceder el privilegio `DELETE` (ni `TRUNCATE`) sobre ninguna tabla.
+**Alternativas.** Confiar solo en la ausencia de políticas (descartada: una única capa; si alguien
+agregara mañana una política `DELETE` por error, el borrado quedaría abierto de inmediato).
+**Consecuencia.** Dos capas independientes. Para borrar habría que modificar privilegios **y** añadir
+una política, dos actos deliberados y visibles en una migración.
+
+## D-039 — `short_code` e `internal_code` con `DEFAULT ''` + `CHECK <> ''`
+**Fase:** 2
+**Contexto.** Ambos los genera un trigger `BEFORE INSERT`. Declarados `NOT NULL` sin `DEFAULT`, el
+generador de tipos los marca como **obligatorios** al insertar, obligando a que la aplicación envíe
+un valor que en realidad produce la base de datos.
+**Decisión.** Declararlos `NOT NULL DEFAULT '' CHECK (<columna> <> '')`. El `DEFAULT` los vuelve
+opcionales para quien inserta (y así lo reflejan los tipos generados); el `CHECK` garantiza que el
+trigger efectivamente los rellenó.
+**Alternativas.** Hacerlos `NULL` (descartada: debilita la garantía). Castear los tipos en la
+aplicación (descartada: repartiría el parche por todo el código de las fases 3 y 4).
+**Consecuencia.** Si alguien deshabilitara el trigger, la fila se rechaza en vez de guardarse sin
+código.
+
+## D-040 — Las agregaciones monetarias de las vistas se castean a `bigint`
+**Fase:** 2
+**Contexto.** `sum(bigint)` devuelve `numeric` en PostgreSQL. `numeric` es exacto (no es punto
+flotante, así que no viola `CLAUDE.md` §6), pero PostgREST lo serializa distinto que un `bigint`, de
+modo que la misma cantidad llegaría al frontend con un tipo desde una tabla y con otro desde una
+vista.
+**Decisión.** Castear explícitamente a `bigint` toda agregación monetaria de las vistas.
+**Consecuencia.** El tipo del dinero es uniforme en todo el sistema. Cubierto por una prueba de
+catálogo que exige `bigint`/`integer` en toda columna con `amount` o `price` en el nombre, tablas y
+vistas incluidas.
+
+## D-041 — La bitácora ignora columnas de infraestructura y derivadas
+**Fase:** 2
+**Contexto.** El trigger genérico de auditoría registraba cada `UPDATE`. Crear boletas incrementa
+`raffles.ticket_counter` una vez por boleta: un lote de 1.000 generaría 1.000 entradas
+`raffle.update` que no describen ninguna decisión humana. Lo mismo con `paid_amount`, cuyo origen
+real ya queda registrado como `payment.create`/`payment.void`.
+**Decisión.** Excluir del diff `updated_at`, `ticket_counter`, `raffle_counter`, `paid_amount` y
+`payment_status`. Si tras el filtro no cambió nada, no se registra la entrada.
+**Alternativas.** Registrarlo todo (descartada: el ruido ahogaría la información útil y haría crecer
+la bitácora sin control).
+**Consecuencia.** La bitácora describe acciones, no efectos secundarios. Verificado por prueba.
+
+## D-042 — Seed unificado en `scripts/seed.ts`, no en `supabase/seed.sql`
+**Fase:** 2
+**Contexto.** El plan de la Fase 0 preveía `supabase/seed.sql`. Pero los usuarios de `auth.users` no
+deben crearse con SQL plano (D-026), y `supabase db reset` ejecuta `seed.sql` **antes** de que exista
+ningún usuario, por lo que los datos de negocio no tendrían a quién pertenecer.
+**Decisión.** Un único `scripts/seed.ts` que crea usuarios, organizaciones y datos de negocio en
+orden. Las asignaciones y los pagos se ejecutan **iniciando sesión como el vendedor real y llamando a
+las RPC**, no insertando filas con la clave de servicio.
+**Alternativas.** Insertar los datos de negocio directamente con `service_role` (descartada: el seed
+podría producir estados que la aplicación real nunca podría crear, ocultando defectos).
+**Consecuencia.** El seed es también una prueba de humo del camino real. Se ejecuta con
+`npm run seed` (proyecto de `.env.local`) o `npm run seed:local`.
+
+## D-043 — Las pruebas de base de datos usan sesiones reales, nunca `service_role`
+**Fase:** 2
+**Contexto.** Es tentador preparar y verificar todo con la clave de servicio porque es más cómodo.
+**Decisión.** La clave de servicio solo se usa para **preparar** datos y para **comprobar** el estado
+final. El acto que se está probando siempre se ejecuta con una sesión real
+(`signInWithPassword`) y la clave pública.
+**Alternativas.** Usar `service_role` en las pruebas (descartada: omite RLS, así que una prueba de
+aislamiento pasaría incluso con todas las políticas borradas — probaría exactamente nada).
+**Consecuencia.** Las 111 pruebas de `tests/db/` reproducen lo que haría un atacante con acceso al
+navegador.
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

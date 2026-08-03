@@ -3,9 +3,11 @@
 Aplicación web para administrar la operación de una empresa de rifas: organizaciones, rifas,
 vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y auditoría.
 
-> **Estado actual: Fase 1 completada — proyecto base y autenticación.**
-> Login, logout, recuperación de contraseña y navegación por rol funcionan sobre una base de datos
-> real. Todavía no existen rifas, boletas, clientes ni pagos: esas fases no han sido autorizadas.
+> **Estado actual: Fase 2 completada — base de datos, restricciones y RLS.**
+> El modelo de datos completo está implementado y verificado con 111 pruebas contra una base de datos
+> real: numeración de boletas, aislamiento entre vendedores y organizaciones, pagos atómicos sin
+> sobrepago y auditoría. Las **interfaces** de rifas, boletas, clientes y pagos llegan en las fases
+> 3 a 5, que aún no han sido autorizadas.
 
 ---
 
@@ -43,11 +45,11 @@ Toda la documentación vive en [`docs/`](docs/). Orden de lectura recomendado:
 
 ---
 
-## Stack previsto
+## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript 5.9 estricto · Tailwind CSS 4 · shadcn/ui ·
-Supabase (PostgreSQL, Auth, RLS) · React Hook Form · Zod · TanStack Table · date-fns ·
-Vitest · Playwright.
+Supabase (PostgreSQL 17, Auth, RLS) · React Hook Form · Zod · date-fns · Vitest.
+TanStack Table y Playwright se incorporan en las fases 3 y 7.
 
 Versiones exactas y su justificación en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §2.
 
@@ -82,7 +84,17 @@ Detalle de cada una en [`.env.example`](.env.example).
 Para tener usuarios de prueba (Owner, Admin, 2 Sellers) sobre una base de datos ya migrada:
 
 ```bash
-npm run seed:users
+npm run seed
+```
+
+Para desarrollar contra una base de datos local (necesita Docker):
+
+```bash
+npx supabase start
+```
+
+```bash
+npm run db:reset && npm run seed:local
 ```
 
 Comandos disponibles:
@@ -91,11 +103,14 @@ Comandos disponibles:
 npm run dev           # desarrollo (Turbopack)
 npm run build         # build de producción
 npm run typecheck     # tsc --noEmit
-npm run lint           # eslint
-npm run test           # vitest (unitarias)
-npm run format:check   # prettier --check
-npm run verify         # typecheck + lint + test + build
-npm run seed:users     # crea org + Owner/Admin/2 Sellers de desarrollo
+npm run lint          # eslint
+npm run test          # vitest (unitarias)
+npm run test:db       # 111 pruebas contra la base de datos local
+npm run format:check  # prettier --check
+npm run verify        # typecheck + lint + test + build
+npm run seed          # datos de desarrollo en el proyecto de .env.local
+npm run seed:local    # datos de desarrollo en la instancia local
+npm run db:reset      # reaplica todas las migraciones desde cero (local)
 ```
 
 ---
@@ -114,8 +129,8 @@ El proyecto avanza **por fases** y cada una requiere autorización explícita
 |------|--------|--------|
 | 0 | Arquitectura y planificación | ✅ Completada |
 | 1 | Proyecto base y autenticación | ✅ Completada |
-| 2 | Base de datos, restricciones y RLS | ⬜ Pendiente de autorización |
-| 3 | Portal Owner y Admin | ⬜ |
+| 2 | Base de datos, restricciones y RLS | ✅ Completada |
+| 3 | Portal Owner y Admin | ⬜ Pendiente de autorización |
 | 4 | Portal Seller y clientes | ⬜ |
 | 5 | Pagos, abonos y saldos | ⬜ |
 | 6 | Dashboards, reportes y UI/UX | ⬜ |

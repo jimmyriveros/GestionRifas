@@ -1,8 +1,21 @@
 # SEGURIDAD
 
-- **Versión:** 1.0 · **Fase:** 0 (diseño) · **Actualizado:** 2026-08-02
-- **Estado:** las políticas de este documento están **diseñadas, no implementadas**. Se implementan
-  y se prueban en la Fase 2.
+- **Versión:** 2.0 · **Fase:** 2 (implementado) · **Actualizado:** 2026-08-03
+- **Estado:** IMPLEMENTADO y verificado. Las políticas viven en
+  `supabase/migrations/0005_rls_policies.sql` y los privilegios en `0009`/`0010`.
+- Verificado con **111 pruebas** en `tests/db/`, todas ejecutadas con sesiones reales por rol y la
+  clave pública, nunca con `service_role`: una prueba de aislamiento hecha con la clave de servicio
+  omitiría RLS y pasaría aunque no hubiera ninguna política (D-043).
+
+### Refuerzos añadidos al implementar (Fase 2)
+
+| Refuerzo | Efecto |
+|---|---|
+| Sin `DELETE` ni política ni privilegio en ninguna tabla | El borrado físico exige dos cambios deliberados y visibles (D-038) |
+| `anon` sin ningún privilegio de tabla | Un visitante sin sesión no puede leer nada, ni siquiera si fallara una política |
+| Privilegios `GRANT` explícitos | Estado idéntico en local y en el proyecto real, sin depender del entorno (D-037) |
+| Trigger `tickets_guard_paid_amount` | `paid_amount` solo acepta el valor derivado real: un vendedor no puede declararse pagado |
+| Política `payments_update_staff` con `voided_at is null` en `USING` | Un pago anulado deja de ser actualizable: la anulación es irreversible por RLS (D-013) |
 
 ---
 

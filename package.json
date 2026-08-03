@@ -16,9 +16,12 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:users": "tsx scripts/seed-users.ts",
     "check:env": "tsx scripts/check-env.ts",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "seed": "tsx scripts/seed.ts",
+    "seed:local": "tsx scripts/seed.ts --local",
+    "db:reset": "supabase db reset",
+    "test:db": "vitest run --config vitest.db.config.mts"
   },
   "dependencies": {
     "@date-fns/tz": "1.5.0",
@@ -44,6 +47,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "26.1.2",
+    "@types/pg": "8.20.3",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@types/ws": "8.18.1",
@@ -53,6 +57,7 @@
     "eslint-config-next": "16.2.12",
     "eslint-config-prettier": "10.1.8",
     "jsdom": "29.1.1",
+    "pg": "8.22.0",
     "postcss": "8.5.25",
     "prettier": "3.9.6",
     "prettier-plugin-tailwindcss": "0.8.1",

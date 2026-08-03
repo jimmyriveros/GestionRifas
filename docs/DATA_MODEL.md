@@ -1,10 +1,21 @@
 # MODELO DE DATOS
 
-- **Versión:** 1.0 · **Fase:** 0 (diseño) · **Actualizado:** 2026-08-02
-- **Estado:** diseño normativo. **No hay migraciones creadas todavía**; se implementan en la Fase 2.
-- El SQL de este documento es *de referencia*: define la intención exacta que deben cumplir las
-  migraciones. Si durante la Fase 2 alguna construcción resulta inviable, se corrige aquí y se
-  registra la razón en `docs/DECISIONS.md`.
+- **Versión:** 2.0 · **Fase:** 2 (implementado) · **Actualizado:** 2026-08-03
+- **Estado:** IMPLEMENTADO y verificado. El esquema vive en `supabase/migrations/0001` a `0010` y
+  está aplicado tanto en la instancia local como en el proyecto Supabase real.
+- Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
+  tipos generados en `src/types/database.types.ts`. Las 111 pruebas de `tests/db/` verifican que el
+  esquema real cumple lo aquí descrito.
+
+### Ajustes introducidos al implementar (Fase 2)
+
+| Cambio | Motivo | Decisión |
+|---|---|---|
+| `short_code` e `internal_code` con `DEFAULT ''` + `CHECK <> ''` | Los genera un trigger; sin DEFAULT los tipos los exigían al insertar | D-039 |
+| Agregaciones monetarias de las vistas casteadas a `bigint` | `sum(bigint)` devuelve `numeric` y rompía la consistencia de tipos | D-040 |
+| Trigger `tickets_guard_paid_amount` | Impide escribir un `paid_amount` inventado, aunque se tenga permiso sobre la fila | — |
+| Migraciones `0009`/`0010` de privilegios | Los `GRANT` por defecto de Supabase no son iguales en todos los entornos | D-037, D-038 |
+| Auditoría con lista de exclusión | Evita miles de entradas por contadores internos y columnas derivadas | D-041 |
 
 ---
 
