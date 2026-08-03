@@ -27,21 +27,25 @@ Reemplaza el control manual en papel y hojas de cálculo por un sistema con:
 
 ## Documentación
 
-Toda la documentación vive en [`docs/`](docs/). Orden de lectura recomendado:
+**Empieza por [`docs/HANDOFF.md`](docs/HANDOFF.md).** Reúne el estado actual, el arranque, las
+credenciales necesarias y las trampas ya conocidas. Los demás documentos se consultan solo cuando la
+tarea lo pide (`HANDOFF.md` §5 indica cuál).
 
-| Documento | Contenido |
-|-----------|-----------|
-| [`CLAUDE.md`](CLAUDE.md) | **Fuente principal de verdad.** Especificación maestra y forma de trabajo por fases |
-| [`docs/MASTER_SPEC.md`](docs/MASTER_SPEC.md) | Especificación funcional consolidada, glosario y flujos |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Stack, carpetas, rutas, flujo de datos y despliegue |
-| [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Tablas, restricciones, índices, triggers y casos extremos |
-| [`docs/BUSINESS_RULES.md`](docs/BUSINESS_RULES.md) | Reglas de negocio numeradas (`BR-*`) |
-| [`docs/SECURITY.md`](docs/SECURITY.md) | Matriz de permisos, RLS, secretos y modelo de amenazas |
-| [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) | Plan detallado de las fases 0 a 9 |
-| [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) | **Estado de las fases.** Leer antes de iniciar cualquier fase |
-| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Registro de decisiones técnicas (`D-*`) |
-| [`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md) | Problemas abiertos, riesgos y deuda técnica |
-| [`docs/TESTING.md`](docs/TESTING.md) | Estrategia y matriz de pruebas |
+| Documento | Contenido | Cuándo leerlo |
+|-----------|-----------|---------------|
+| [`docs/HANDOFF.md`](docs/HANDOFF.md) | Estado, arranque, credenciales, trampas | **Siempre, primero** |
+| [`CLAUDE.md`](CLAUDE.md) | Especificación maestra y forma de trabajo por fases | **Siempre** |
+| [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) | Qué quedó hecho por fase y qué revisar antes de empezar | **Siempre** |
+| [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Tablas, restricciones, índices, triggers | Al tocar el esquema o escribir consultas |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Matriz de permisos, RLS, secretos, amenazas | Al escribir RLS o Server Actions |
+| [`docs/BUSINESS_RULES.md`](docs/BUSINESS_RULES.md) | Reglas numeradas (`BR-*`) | Al implementar una regla concreta |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Stack, carpetas, rutas, despliegue | Al crear componentes o rutas |
+| [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) | Alcance por fase (0 a 9) | Solo la sección de tu fase |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Decisiones técnicas (`D-*`) | Al preguntarte por qué algo está así |
+| [`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md) | Problemas, riesgos y deuda técnica | Ante un comportamiento raro |
+| [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) | Resultados de pruebas por fase | Al revisar qué se probó |
+| [`docs/TESTING.md`](docs/TESTING.md) | Estrategia de pruebas | Al escribir pruebas nuevas |
+| [`docs/MASTER_SPEC.md`](docs/MASTER_SPEC.md) | Especificación funcional consolidada | Para contexto de producto |
 
 ---
 

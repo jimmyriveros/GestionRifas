@@ -1,8 +1,9 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 1.0 · **Fase:** 0 (estrategia) · **Actualizado:** 2026-08-02
-- **Estado actual:** no existe código ejecutable ni suites de prueba. Las herramientas se configuran
-  en la Fase 1 y las suites crecen fase a fase.
+- **Versión:** 2.0 · **Actualizado:** 2026-08-03 (Fase 2)
+- Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
+- **Implementado:** unitarias (Vitest) y base de datos (Vitest + Supabase local). E2E con Playwright
+  llega en fases posteriores.
 
 ---
 
@@ -204,42 +205,10 @@ npm run verify        # typecheck + lint + test + build
 
 ---
 
-## 9. Registro de ejecuciones
+## 9. Resultados
 
-Se completa al cierre de cada fase. Fase 0: no aplica (no hay código ejecutable).
+Los resultados de cada fase (con los errores encontrados y como se corrigieron) viven en
+[`TEST_RESULTS.md`](TEST_RESULTS.md), para que este documento describa solo la ESTRATEGIA y no
+crezca en cada fase.
 
-| Fecha | Fase | Comando | Resultado | Errores | Corrección |
-|-------|------|---------|-----------|---------|------------|
-| 2026-08-02 | 0 | `npm view <paquete> version` (13 paquetes) | Versiones estables verificadas | Incompatibilidad `typescript-eslint` ↔ TypeScript 7.x | Se fija TypeScript 5.9.3 (D-002) |
-| 2026-08-03 | 1 | `npm install` | 456 paquetes instalados | `@supabase/supabase-js`/`jsdom` exigían Node ≥22 | Se fijan versiones compatibles con Node 20 (D-029, D-030) |
-| 2026-08-03 | 1 | `npm run typecheck` | 0 errores | 2 errores iniciales por `noUncheckedIndexedAccess` en `lib/errors.ts` | Variable intermedia antes de retornar el valor indexado |
-| 2026-08-03 | 1 | `npm run lint` | 0 errores | `eslint@10` incompatible con `eslint-plugin-react` interno de `eslint-config-next` | Se fija `eslint@9.39.5` (D-031) |
-| 2026-08-03 | 1 | `npm run test` (vitest) | 14/14 pruebas en verde (money, dates, errors) | Ninguno | — |
-| 2026-08-03 | 1 | `npm run build` | Build de producción exitoso, 10 rutas | `typedRoutes: true` rompía un `href` calculado dinámicamente | Se desactiva `typedRoutes` (D-032) |
-| 2026-08-03 | 1 | `npm run format:check` / `npm run format` | 31 archivos reformateados (orden de clases Tailwind, comillas) | Ninguno | — |
-| 2026-08-03 | 1 | `supabase db push --db-url <pooler>` | Migración `0001_core_identity.sql` aplicada | Conexión directa (`db.*.supabase.co:5432`) no resolvía por DNS | Se usa el Session pooler (I-005) |
-| 2026-08-03 | 1 | Verificación de catálogo (RLS, funciones, triggers, políticas, enum, índices) vía `pg` directo | Todo coincide exactamente con el diseño | Ninguno | — |
-| 2026-08-03 | 1 | `npm run seed:users` | Organización + 4 usuarios creados, idempotente en 2ª ejecución | `auth.admin.createUser` no dejaba una contraseña utilizable de inmediato | Se agrega `updateUserById` de confirmación (D-035, I-007) |
-| 2026-08-03 | 1 | Login manual en navegador — Owner, Admin, Seller | Los 3 llegan al dashboard correcto con datos reales de sesión | Error de React "functions cannot be passed to Client Components" al pasar iconos de navegación | Los íconos se pasan pre-renderizados (`ReactNode`), no como referencia de componente |
-| 2026-08-03 | 1 | Login manual — credenciales inválidas | Mensaje "Correo o contraseña incorrectos" | Ninguno | — |
-| 2026-08-03 | 1 | Acceso de Seller a `/owner/dashboard` | Redirigido a `/denied` con mensaje claro | Ninguno | — |
-| 2026-08-03 | 1 | Acceso no autenticado a `/seller/dashboard` y `/owner/dashboard` | Redirigido a `/login` | Ninguno | — |
-| 2026-08-03 | 1 | Desactivación de membresía + intento de login | Bloqueado con "Tu cuenta está inactiva" | Bug real: error de PostgREST por relación ambigua (`memberships` tiene 2 FK hacia `profiles`) se interpretaba como cuenta inactiva | Se desambigua el embed (`profiles!memberships_profile_id_fkey`) y se registra el error real en el servidor |
-| 2026-08-03 | 1 | Logout + verificación de sesión cerrada | Cookie de sesión invalidada, `/owner/dashboard` vuelve a redirigir a `/login` | Ninguno | — |
-| 2026-08-03 | 1 | Persistencia de sesión tras re-navegación | Sesión se mantiene, dashboard renderiza sin pedir login de nuevo | Ninguno | — |
-| 2026-08-03 | 1 | Recuperación de contraseña (`/forgot-password`) | Acción responde `ok` sin revelar si el correo existe | Ninguno | — |
-| 2026-08-03 | 1 | Interacción en viewport móvil (375px) vía herramienta de navegador | Estructura de accesibilidad correcta; el clic del botón "Ingresar" no disparó el submit con esta herramienta específica | No reproducido en escritorio (mismo flujo exitoso repetidas veces) | Se documenta como limitación de la herramienta, no de la app (I-009); pendiente de repetir en dispositivo real o Playwright |
-| 2026-08-03 | 2 | `npx supabase start` | Instancia local levantada (PostgreSQL 17.6) | Ninguno | — |
-| 2026-08-03 | 2 | `npm run db:reset` (múltiples veces) | Las 10 migraciones aplican limpio desde cero — **prueba obligatoria 13** | Ninguno | — |
-| 2026-08-03 | 2 | `npm run seed:local` | 2 orgs, 6 usuarios, 2 rifas, 6 clientes, 33 boletas, 4 pagos — **prueba obligatoria 14** | `service_role` sin privilegios DML en local: Supabase no los concede igual en todos los entornos | Migración `0009_grants.sql` con privilegios explícitos (D-037) |
-| 2026-08-03 | 2 | `npm run test:db` | **111/111 pruebas en verde** con sesiones reales por rol | Ver filas siguientes | — |
-| 2026-08-03 | 2 | Pruebas de numeración (24) | Duplicados, dígitos, ceros iniciales y estados — obligatorias 1-6 y 12 | Ninguno | — |
-| 2026-08-03 | 2 | Pruebas de aislamiento (26) | Entre vendedores y entre organizaciones — obligatorias 7, 8 y 9 | Ninguno | — |
-| 2026-08-03 | 2 | Pruebas financieras (19) | Sobrepago, atomicidad, concurrencia y anulación — obligatorias 10 y 11 | Las pruebas agotaban el inventario del seed | Cada prueba crea su propia boleta en vez de competir por un inventario finito |
-| 2026-08-03 | 2 | Pruebas de catálogo (20) | RLS, `search_path`, `security_invoker`, privilegios, integridad del dinero — obligatoria 15 | `pending_amount` salía `numeric` en las vistas (`sum(bigint)` promueve a `numeric`) | Cast explícito a `bigint` (D-040) |
-| 2026-08-03 | 2 | Pruebas de RPC (22) | Creación masiva (1.000 filas), aprobación, anulación y asignación | Una prueba tomaba una boleta sin filtrar por organización | Se filtra por organización y se añade la prueba negativa que faltaba |
-| 2026-08-03 | 2 | `supabase gen types typescript --local` | Tipos generados desde el esquema real (1.176 líneas) — cierra DT-10 | `internal_code`/`short_code` salían obligatorios al insertar | `DEFAULT ''` + `CHECK <> ''` (D-039) |
-| 2026-08-03 | 2 | `npm run verify` | typecheck + lint + 14 unitarias + build, todo en verde | Variable sin usar en una prueba | Eliminada |
-| 2026-08-03 | 2 | `supabase db push` al proyecto real | Las 9 migraciones aplicadas | `authenticated` conservaba `DELETE` en el remoto: `GRANT` solo agrega, no revoca | Migración `0010_harden_grants.sql` (D-038); ambos entornos quedan idénticos |
-| 2026-08-03 | 2 | Verificación estructural del remoto | 9/9 comprobaciones en verde (RLS, `search_path`, `security_invoker`, sin DELETE, cuadre de pagos, sin sobrepagos, dinero en `bigint`) | Ninguno tras la corrección | — |
-| 2026-08-03 | 2 | Login en navegador contra el remoto | Owner entra correctamente al panel | `invalid_credentials` pese a funcionar por API | Un `\r` dentro de `SEED_DEFAULT_PASSWORD` en `.env.local` contaminaba la contraseña (I-010); archivo normalizado y seed reejecutado |
+Estado al cierre de la Fase 2: **14 pruebas unitarias + 111 de base de datos, todas en verde**.

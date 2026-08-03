@@ -1113,3 +1113,65 @@ El proyecto se desarrolla en este orden:
 * Fase 9: Auditoría final independiente.
 
 Ejecuta solamente la fase autorizada en el prompt actual.
+
+---
+
+# 34. CONTINUIDAD ENTRE SESIONES
+
+Cada fase puede ejecutarse desde una sesión o un computador distintos. La documentación es el único
+puente entre ellas: si algo no está escrito, se pierde.
+
+## 34.1 Al iniciar una sesión
+
+Lee, en este orden:
+
+1. `CLAUDE.md` (este archivo).
+2. `docs/HANDOFF.md` — estado actual, arranque, credenciales, trampas conocidas.
+3. `docs/PHASE_STATUS.md` — qué quedó hecho y qué revisar antes de empezar.
+
+No leas el resto de `docs/` completo. Consulta cada documento solo cuando la tarea lo requiera,
+según la guía de `docs/HANDOFF.md` §5. Leerlo todo cuesta unas 40.000 fichas y casi nunca aporta.
+
+Antes de escribir código, verifica que el entorno está sano:
+
+* `npx supabase start`
+* `npm run db:reset && npm run seed:local`
+* `npm run test:db`
+* `npm run verify`
+
+Si alguno falla, arréglalo antes de continuar: la documentación puede estar desactualizada, pero las
+pruebas no mienten.
+
+## 34.2 Al cerrar una fase
+
+Actualiza **siempre**, aunque el cambio parezca menor:
+
+* `docs/PHASE_STATUS.md` — sección nueva de la fase con los seis puntos obligatorios de §34.3.
+* `docs/DECISIONS.md` — toda decisión no evidente, con su alternativa descartada y el porqué.
+* `docs/KNOWN_ISSUES.md` — problemas, riesgos verificados y deuda técnica.
+* `docs/TEST_RESULTS.md` — comandos ejecutados, resultados y errores encontrados.
+* `docs/HANDOFF.md` — estado actual, comandos nuevos y trampas nuevas.
+* Cualquier documento afectado: `DATA_MODEL.md` si cambió el esquema, `SECURITY.md` si cambió la
+  autorización, `ARCHITECTURE.md` si cambiaron rutas o dependencias, `README.md` si cambió el uso.
+
+Después: `npm run verify` y `npm run test:db` en verde, commit local y etiqueta `fase-N`.
+
+## 34.3 Contenido obligatorio por fase en `docs/PHASE_STATUS.md`
+
+1. **Funcionalidades implementadas.**
+2. **Pruebas ejecutadas y sus resultados**, incluidos los errores encontrados y corregidos.
+3. **Migraciones que existen**, con una línea de qué hace cada una.
+4. **Variables de entorno requeridas.**
+5. **Problemas reales que permanecen**, con su impacto.
+6. **Qué debe revisar el siguiente agente antes de comenzar.**
+
+## 34.4 Cómo escribir la documentación
+
+* Tablas antes que prosa. Una línea por hecho.
+* Sin repetir entre documentos: enlaza en lugar de duplicar.
+* Cita los identificadores (`D-0xx`, `BR-xxx`, `I-0xx`) en el código y en los documentos, para que
+  quien lea busque solo esa entrada y no el archivo entero.
+* Registra los errores encontrados aunque se hayan corregido: un error documentado es información,
+  uno omitido es una trampa para la siguiente sesión.
+* Los documentos que crecen en cada fase (resultados de pruebas) van en su propio archivo, para que
+  los normativos no se vuelvan ilegibles.
