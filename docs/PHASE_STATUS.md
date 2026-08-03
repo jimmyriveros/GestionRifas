@@ -11,7 +11,7 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 | 0 | Arquitectura y planificación | ✅ | `b4b991c` · `fase-0` |
 | 1 | Proyecto base y autenticación | ✅ | `34b3cb1` · `fase-1` |
 | 2 | Base de datos, restricciones y RLS | ✅ | `954531c` · `fase-2` |
-| 3 | Portal Owner y Admin | ✅ | `fase-3` |
+| 3 | Portal Owner y Admin | ✅ | `439e64d` · `fase-3` |
 | 4 | Portal Seller y clientes | ⬜ | — |
 | 5 | Pagos, abonos y saldos | ⬜ | — |
 | 6 | Dashboards, reportes y UI/UX | ⬜ | — |

@@ -11,7 +11,7 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 |---|---|
 | Última fase completada | **3 — Portal Owner y Admin** |
 | Siguiente fase | **4 — Portal Seller y clientes** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `fase-3` |
+| Rama / commit / etiqueta | `main` · `439e64d` · `fase-3` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
 | App | Next.js 16: autenticación + **portal administrativo completo** (rifas, usuarios, vendedores, boletas, carga masiva, clientes, dashboard) |
 | Base de datos | 11 migraciones. Las 10 primeras en local **y** en el proyecto real; la **`0011` solo en local** (ver §3 y `KNOWN_ISSUES.md` §4) |
