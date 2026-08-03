@@ -282,6 +282,38 @@ Reglas complementarias:
   desde la que se invocan.
 - Los Route Handlers (`auth/callback`) validan origen y parámetros.
 
+### 5.1 Ajustes de la implementación (Fase 3)
+
+**`authorizeAction(roles)` en vez de `requireRole` dentro de acciones.** `requireRole` redirige a
+`/denied`, lo que desde el envío de un formulario haría perder lo escrito y ocultaría el motivo.
+`authorizeAction` devuelve `{ membership }` o `{ error }` mostrable. Sigue siendo la primera línea,
+nunca la única: RLS y las restricciones son la frontera real.
+
+**Un `UPDATE` bloqueado por RLS no produce error: produce cero filas.** Es la trampa más importante
+que apareció al construir el portal. Si un Admin intenta editar o desactivar al Owner, la política
+sencillamente no encuentra fila que actualizar y Supabase responde sin error. Toda acción que
+dependa de una restricción de RLS **debe** comprobar el número de filas afectadas:
+
+```ts
+const { data, error } = await supabase.from('profiles').update({...}).eq('id', id).select('id')
+if (error) return { error: mapPgError(error) }
+if (!data || data.length === 0) return { error: 'No tienes permiso para editar a este usuario.' }
+```
+
+Verificado por `tests/db/phase3-admin.test.ts` (`F3-03`) y por `tests/e2e/owner-users.spec.ts`.
+
+**Alta de usuarios (D-045).** La cuenta de Supabase Auth se crea con la service role — `auth.admin`
+no existe de otra forma — y **solo** toca el esquema `auth`. La **membresía** se inserta con el
+cliente de sesión, sujeto a RLS: es `memberships_insert_staff` la que impide a un Admin crear un
+`owner`. Nunca existe una contraseña en texto plano: se invita por correo y la persona la define
+desde el enlace. Si la inserción de la membresía falla, se elimina la cuenta recién creada.
+
+**Visibilidad de usuarios inactivos (I-011, migración `0011`).** `profiles_select` exigía que la
+membresía **objetivo** estuviera activa, de modo que al desactivar a alguien desaparecía del listado
+y era imposible reactivarlo. Ahora la visibilidad depende de que **quien consulta** sea personal
+activo de la organización. El aislamiento entre organizaciones y el de vendedores no cambian, y un
+usuario inactivo sigue sin poder ingresar ni operar (BR-A04/BR-A05).
+
 ---
 
 ## 6. Auditoría

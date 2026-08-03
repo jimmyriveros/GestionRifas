@@ -3,11 +3,13 @@
 Aplicación web para administrar la operación de una empresa de rifas: organizaciones, rifas,
 vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y auditoría.
 
-> **Estado actual: Fase 2 completada — base de datos, restricciones y RLS.**
-> El modelo de datos completo está implementado y verificado con 111 pruebas contra una base de datos
-> real: numeración de boletas, aislamiento entre vendedores y organizaciones, pagos atómicos sin
-> sobrepago y auditoría. Las **interfaces** de rifas, boletas, clientes y pagos llegan en las fases
-> 3 a 5, que aún no han sido autorizadas.
+> **Estado actual: Fase 3 completada — portal de Owner y Admin.**
+> Sobre la base de datos de la Fase 2 (verificada con 143 pruebas) ya funciona el portal
+> administrativo: rifas, administradores, vendedores, boletas con filtros y búsqueda, creación
+> masiva de hasta 1.000 boletas, consulta global de clientes y dashboard con métricas reales.
+> Verificado con 41 pruebas end-to-end sobre un navegador real, en escritorio y en móvil. El
+> **portal del vendedor** y la **interfaz de pagos** llegan en las fases 4 y 5, que aún no han sido
+> autorizadas.
 
 ---
 
@@ -81,6 +83,9 @@ cp .env.example .env.local   # completar con las claves reales del proyecto Supa
 npm run dev
 ```
 
+Para **desarrollar** conviene usar `npm run dev:local`, que apunta siempre a la instancia local de
+Supabase. `npm run dev` usa lo que diga `.env.local`, que puede ser el proyecto real.
+
 `.env.local` nunca se versiona. Variables mínimas: `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SEED_DEFAULT_PASSWORD`.
 Detalle de cada una en [`.env.example`](.env.example).
@@ -104,12 +109,14 @@ npm run db:reset && npm run seed:local
 Comandos disponibles:
 
 ```bash
-npm run dev           # desarrollo (Turbopack)
+npm run dev           # desarrollo (Turbopack) contra lo que diga .env.local
+npm run dev:local     # desarrollo contra la instancia local de Supabase
 npm run build         # build de producción
 npm run typecheck     # tsc --noEmit
 npm run lint          # eslint
 npm run test          # vitest (unitarias)
-npm run test:db       # 111 pruebas contra la base de datos local
+npm run test:db       # 143 pruebas contra la base de datos local
+npm run test:e2e      # 41 pruebas end-to-end (Playwright, requiere base local sembrada)
 npm run format:check  # prettier --check
 npm run verify        # typecheck + lint + test + build
 npm run seed          # datos de desarrollo en el proyecto de .env.local
@@ -134,8 +141,8 @@ El proyecto avanza **por fases** y cada una requiere autorización explícita
 | 0 | Arquitectura y planificación | ✅ Completada |
 | 1 | Proyecto base y autenticación | ✅ Completada |
 | 2 | Base de datos, restricciones y RLS | ✅ Completada |
-| 3 | Portal Owner y Admin | ⬜ Pendiente de autorización |
-| 4 | Portal Seller y clientes | ⬜ |
+| 3 | Portal Owner y Admin | ✅ Completada |
+| 4 | Portal Seller y clientes | ⬜ Pendiente de autorización |
 | 5 | Pagos, abonos y saldos | ⬜ |
 | 6 | Dashboards, reportes y UI/UX | ⬜ |
 | 7 | Pruebas, seguridad y endurecimiento | ⬜ |

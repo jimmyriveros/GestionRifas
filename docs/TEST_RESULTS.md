@@ -11,13 +11,14 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 ## Resumen
 
-| Fase | Unitarias | Base de datos | Verify | Estado |
-|---|---|---|---|---|
-| 0 | — | — | — | ✅ (documental) |
-| 1 | 14 ✅ | — | ✅ | ✅ |
-| 2 | 14 ✅ | **111 ✅** | ✅ | ✅ |
+| Fase | Unitarias | Base de datos | E2E | Verify | Estado |
+|---|---|---|---|---|---|
+| 0 | — | — | — | — | ✅ (documental) |
+| 1 | 14 ✅ | — | — | ✅ | ✅ |
+| 2 | 14 ✅ | **111 ✅** | — | ✅ | ✅ |
+| 3 | **55 ✅** | **143 ✅** | **41 ✅** | ✅ | ✅ |
 
-Reejecución rápida: `npm run verify` y `npm run test:db`.
+Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
@@ -115,3 +116,75 @@ tablas sin RLS · tablas sin `FORCE RLS` · funciones `SECURITY DEFINER` sin `se
 descuadrados · boletas sobrepagadas · columnas monetarias que no sean `bigint`.
 
 Todas devuelven **cero filas**, que es el resultado esperado.
+
+---
+
+## Fase 3 — 2026-08-03
+
+### Totales
+
+| Suite | Comando | Resultado |
+|---|---|---|
+| Unitarias | `npm run test` | **55 ✅** (14 previas + 41 nuevas) |
+| Base de datos | `npm run test:db` | **143 ✅** (111 previas + 32 nuevas) |
+| End-to-end | `npm run test:e2e` | **41 ✅** (37 escritorio + 4 móvil) |
+| Typecheck · Lint · Build | `npm run verify` | ✅ (0 errores de lint, 2 avisos) |
+
+### Pruebas obligatorias del prompt de la Fase 3
+
+| # | Prueba | Dónde | Resultado |
+|---|--------|-------|-----------|
+| 1 | Crear rifa | E2E `owner-raffles` + BD `F3-01` | ✅ |
+| 2 | Editar rifa | E2E `owner-raffles` | ✅ |
+| 3 | Crear vendedor | E2E `owner-users` | ✅ |
+| 4 | Desactivar vendedor | E2E `owner-users` | ✅ (destapó I-011) |
+| 5 | Admin intentando modificar al Owner → bloqueado | E2E `owner-users` + BD `F3-03` | ✅ |
+| 6 | Crear boleta válida | E2E `owner-tickets` + BD `F3-04` | ✅ |
+| 7 | Rechazar más de 4 dígitos | Unitaria + E2E (`tickets` y `bulk`) | ✅ |
+| 8 | Rechazar combinación repetida | Unitaria + E2E + BD `F3-04` | ✅ |
+| 9 | Rechazar duplicado de otro vendedor | Unitaria + E2E + BD `F3-04` | ✅ |
+| 10 | Crear lote | E2E `owner-bulk` + BD `F3-06` | ✅ |
+| 11 | Guardar borrador | E2E `owner-bulk` + BD `F3-06` | ✅ |
+| 12 | Aprobar boleta | E2E `owner-tickets` (individual y en lote) + BD `F3-05` | ✅ |
+| 13 | Anular boleta | E2E `owner-tickets` + BD `F3-05` | ✅ |
+| 14 | Protección de acciones por rol | E2E `owner-tickets` + BD `F3-01`, `F3-03` | ✅ |
+| 15 | Responsive básico | E2E `owner-responsive` (Pixel 7) | ✅ |
+| 16 | Build | `npm run build` | ✅ 21 rutas |
+| 17 | Lint | `npm run lint` | ✅ 0 errores |
+| 18 | Typecheck | `npm run typecheck` | ✅ |
+
+Criterio de finalización («un Owner completa el ciclo: crear rifa → crear vendedor → generar 1.000
+boletas → aprobar») cubierto por `tests/e2e/owner-ciclo.spec.ts`, que además comprueba que la
+aprobación quedó auditada. Duración: 12,7 s.
+
+### Cronología con errores encontrados
+
+| Comando / prueba | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npm run typecheck` (primera pasada) | ❌ 3 errores | `path` como `readonly` en `z.refine`; estrechamiento de un tipo unión en `RaffleForm`; índice posiblemente `undefined` en `errors.ts` | Quitar `as const`; separar las ramas de crear/editar; `?.[1] ?? null` |
+| `npm run lint` (primera pasada) | ❌ 5 errores | `react-hooks/set-state-in-effect` en 3 componentes; `TData extends unknown`; import sin usar | Campos de búsqueda **no controlados** con `key` (la URL es la fuente de verdad); formulario del diálogo movido a un hijo que Radix monta y desmonta; `RowData` en la ampliación de tipos |
+| Sondeo de PostgREST | ✅ | `client:clients(...)` fallaba: hay **dos** FK de `tickets` a `clients` | Se usa la pista explícita `clients!tickets_client_org_fk` |
+| Revisión de `max_rows` | ✅ | PostgREST corta en **1.000 filas**: contar clientes en memoria daba cifras falsas y precargar todas las combinaciones de una rifa era inviable | Conteos con `count: 'exact', head: true`; los duplicados se consultan **solo** por los números presentes en el formulario |
+| E2E `owner-tickets` (1ª ejecución) | ❌ 2 de 13 | El formulario de boleta preseleccionaba la **última rifa creada**, no la activa, así que el duplicado se creaba en otra rifa | **Defecto real de usabilidad**: `listRaffleOptions` ordena ahora las activas primero. La prueba selecciona la rifa explícitamente |
+| E2E `owner-users` (1ª ejecución) | ❌ 2 de 8 | Al desactivar a un vendedor **desaparecía del listado** | **Defecto real de seguridad/UX (I-011)**: `profiles_select` exigía que la membresía objetivo estuviera activa. Migración `0011` + 2 pruebas de BD de regresión |
+| E2E `owner-bulk` (1ª ejecución) | ❌ 1 de 8 | `getByLabel('… fila 1')` también casaba «fila 10», «fila 11»… | Localizadores con `exact: true` |
+| E2E completo (1ª ejecución) | ❌ 2 de 45 | Las pruebas responsive se ejecutaban también en escritorio, con expectativas contrarias | `testIgnore` en el proyecto de escritorio |
+| `npm run test:db` tras la migración 0011 | ✅ 143 | — | — |
+| `npm run test:e2e` (final) | ✅ 41 | — | — |
+| `npm run verify` (final) | ✅ | — | — |
+
+### Avisos de lint que se mantienen a propósito
+
+Dos avisos de `react-hooks/incompatible-library`, en `DataTable` (`useReactTable`) y en
+`BulkTicketCreator` (`useVirtualizer`): el compilador de React no puede memoizar las funciones que
+devuelven esas API y omite la optimización. Son las librerías que exige `CLAUDE.md` §5; el aviso es
+informativo y no se silencia.
+
+### Rendimiento medido en la carga masiva
+
+| Métrica | Valor |
+|---|---|
+| Generar 1.000 filas | ~2 s |
+| Filas realmente en el DOM con 1.000 generadas | < 60 (virtualización) |
+| Guardar 1.000 boletas en lotes de 100 | ~5,4 s |
+| Validar 1.000 filas (unitaria) | < 500 ms (umbral holgado para detectar un algoritmo cuadrático) |

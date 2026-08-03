@@ -43,6 +43,29 @@ expect(data).toEqual([])   // RLS no distingue "no existe" de "sin permiso"
 expect(error).toBeNull()   // no filtra información por el tipo de error
 ```
 
+### 2.1 Pruebas end-to-end (desde la Fase 3)
+
+- **Herramienta:** Playwright (`playwright.config.ts`), proyectos `escritorio` (Desktop Chrome) y
+  `movil` (Pixel 7). Las specs `*responsive.spec.ts` solo se ejecutan en `movil`; el resto solo en
+  `escritorio`.
+- **Servidor:** el propio Playwright levanta `npm run dev:local`, que apunta **siempre** a la
+  instancia local (D-047). Nunca se ejecutan contra el proyecto real.
+- **Requisito previo:** base local sembrada (`npm run db:reset && npm run seed:local`).
+- **Sin paralelismo** (`workers: 1`): comparten una única base de datos.
+- **El inicio de sesión se hace por la interfaz**, no inyectando cookies: si el login se rompe, las
+  pruebas se enteran.
+- **`tests/e2e/db-setup.ts` usa la service role solo para PREPARAR** el estado de partida que aún no
+  se puede construir por la interfaz (por ejemplo, una boleta en `pending_approval`, que crea el
+  portal del vendedor de la Fase 4). El acto que se prueba siempre pasa por la interfaz (D-043).
+
+Trampas aprendidas escribiendo estas pruebas:
+
+| Síntoma | Causa |
+|---|---|
+| `getByLabel('… fila 1')` casa también «fila 10», «fila 11» | Coincidencia por subcadena: usar `{ exact: true }` |
+| Un nombre aparece dos veces en la página | El menú de usuario repite el nombre: acotar con `getByRole('table')` |
+| Una spec responsive falla en escritorio | Faltaba `testIgnore` en el proyecto `escritorio` |
+
 ---
 
 ## 3. Matriz de trazabilidad — pruebas mínimas de `CLAUDE.md` §30
@@ -211,4 +234,5 @@ Los resultados de cada fase (con los errores encontrados y como se corrigieron) 
 [`TEST_RESULTS.md`](TEST_RESULTS.md), para que este documento describa solo la ESTRATEGIA y no
 crezca en cada fase.
 
-Estado al cierre de la Fase 2: **14 pruebas unitarias + 111 de base de datos, todas en verde**.
+Estado al cierre de la Fase 3: **55 pruebas unitarias + 143 de base de datos + 41 end-to-end, todas
+en verde**.

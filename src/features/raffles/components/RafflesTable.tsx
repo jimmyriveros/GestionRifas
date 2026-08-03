@@ -1,0 +1,84 @@
+'use client'
+
+import type { ColumnDef } from '@tanstack/react-table'
+import Link from 'next/link'
+
+import { DataTable } from '@/components/data/DataTable'
+import { RaffleStatusBadge } from '@/components/data/StatusBadge'
+import { Button } from '@/components/ui/button'
+import { formatDateEs } from '@/lib/dates'
+import { formatCOP } from '@/lib/money'
+
+import type { RaffleSummary } from '../queries'
+
+const columns: ColumnDef<RaffleSummary>[] = [
+  {
+    accessorKey: 'shortCode',
+    header: 'Codigo',
+    cell: ({ row }) => <span className="font-mono text-xs">{row.original.shortCode}</span>,
+  },
+  {
+    accessorKey: 'name',
+    header: 'Rifa',
+    cell: ({ row }) => (
+      <Link href={`/owner/raffles/${row.original.id}`} className="font-medium hover:underline">
+        {row.original.name}
+      </Link>
+    ),
+  },
+  {
+    accessorKey: 'status',
+    header: 'Estado',
+    cell: ({ row }) => <RaffleStatusBadge status={row.original.status} />,
+  },
+  {
+    accessorKey: 'ticketPrice',
+    header: 'Precio',
+    meta: { align: 'right' },
+    cell: ({ row }) => <span className="tabular-nums">{formatCOP(row.original.ticketPrice)}</span>,
+  },
+  {
+    accessorKey: 'ticketsTotal',
+    header: 'Boletas',
+    meta: { hideOnMobile: true, align: 'right' },
+    cell: ({ row }) => <span className="tabular-nums">{row.original.ticketsTotal}</span>,
+  },
+  {
+    accessorKey: 'ticketsAssigned',
+    header: 'Asignadas',
+    meta: { hideOnMobile: true, align: 'right' },
+    cell: ({ row }) => <span className="tabular-nums">{row.original.ticketsAssigned}</span>,
+  },
+  {
+    accessorKey: 'startDate',
+    header: 'Vigencia',
+    meta: { hideOnMobile: true },
+    cell: ({ row }) => (
+      <span className="text-muted-foreground text-sm whitespace-nowrap">
+        {formatDateEs(row.original.startDate)} — {formatDateEs(row.original.endDate)}
+      </span>
+    ),
+  },
+  {
+    id: 'actions',
+    header: '',
+    enableSorting: false,
+    meta: { align: 'right' },
+    cell: ({ row }) => (
+      <Button asChild variant="ghost" size="sm">
+        <Link href={`/owner/raffles/${row.original.id}`}>Ver</Link>
+      </Button>
+    ),
+  },
+]
+
+export function RafflesTable({ raffles }: { raffles: RaffleSummary[] }) {
+  return (
+    <DataTable
+      columns={columns}
+      data={raffles}
+      getRowId={(row) => row.id}
+      caption="Listado de rifas de la organizacion"
+    />
+  )
+}

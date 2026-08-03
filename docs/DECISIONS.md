@@ -465,6 +465,74 @@ aislamiento pasaría incluso con todas las políticas borradas — probaría exa
 **Consecuencia.** Las 111 pruebas de `tests/db/` reproducen lo que haría un atacante con acceso al
 navegador.
 
+## D-044 — `mapPgError` propaga los mensajes de negocio, pero nunca los de PostgreSQL
+**Fase:** 3
+**Contexto.** Las RPC y los triggers de la Fase 2 lanzan mensajes ya redactados en español y
+pensados para el usuario final («La rifa no está activa. No se pueden asignar boletas.»).
+Traducirlos otra vez por código los degradaba a un genérico inútil.
+**Decisión.** Se propaga `error.message` cuando el código es `P0001`, `23514` o `42501` **y** el
+mensaje no coincide con la firma de los mensajes que redacta PostgreSQL
+(`violates … constraint`, `duplicate key value`, `permission denied`, …). Además, las restricciones
+con significado de negocio se traducen por **nombre de restricción** (`tickets_combo_unique` →
+«Ya existe una boleta con esa combinación…»).
+**Alternativas.** (a) Propagar todo (descartada: filtraría nombres de tablas, columnas y valores de
+fila, T14). (b) No propagar nada (descartada: convierte 20 mensajes útiles en «Ocurrió un error»).
+**Consecuencia.** Los mensajes de negocio llegan intactos a la interfaz. Cubierto por pruebas
+unitarias, incluida la que verifica que un `CHECK` real **no** se propaga.
+
+## D-045 — El alta de usuarios es por invitación por correo, no por contraseña temporal
+**Fase:** 3
+**Contexto.** `CLAUDE.md` §9 exige un proceso seguro de invitación. La Fase 2 dejó documentada una
+RPC `create_user_membership` que nunca llegó a existir, y `auth.admin` no es invocable desde SQL.
+**Decisión.** `createUser` usa `auth.admin.inviteUserByEmail` con la service role (solo toca el
+esquema `auth`) y luego inserta la **membresía con el cliente de sesión**, sujeto a RLS: es la
+política `memberships_insert_staff` la que impide a un Admin crear un `owner`, no una comprobación
+de TypeScript. Si la inserción de la membresía falla, se elimina la cuenta recién creada para que el
+correo no quede bloqueado.
+**Alternativas.** (a) `createUser` con contraseña temporal mostrada en pantalla (descartada: pone una
+contraseña en texto plano en la interfaz y en los registros del navegador). (b) Crear la RPC
+`create_user_membership` (descartada: no puede llamar a `auth.admin`, así que igualmente haría falta
+la service role desde el servidor).
+**Consecuencia.** Nunca existe una contraseña en texto plano. I-007 deja de aplicar al alta, porque
+no se crea ninguna contraseña. En desarrollo los correos se leen en Mailpit (`:54324`).
+
+## D-046 — Una boleta anulada conserva sus números; el resto sí se pueden corregir
+**Fase:** 3
+**Contexto.** La matriz de permisos permite a Owner y Admin editar los números de una boleta, sin
+precisar en qué estados.
+**Decisión.** Se pueden editar en cualquier estado **salvo `cancelled`**: una boleta anulada es
+historia y su combinación queda reservada (BR-N08). Completar un borrador con sus dos números lo
+pasa automáticamente a `available` (CLAUDE.md §15).
+**Alternativas.** Permitir la edición solo antes de vender (descartada: impediría corregir un error
+de digitación en una boleta ya asignada, un caso real del negocio).
+**Consecuencia.** `updateTicketNumbers` comprueba el estado antes de escribir; la máquina de estados
+de la base de datos sigue siendo la red final.
+
+## D-047 — `npm run dev:local` para desarrollar y probar contra la base local
+**Fase:** 3
+**Contexto.** `.env.local` apunta al proyecto Supabase **real**. Las pruebas end-to-end crean rifas,
+vendedores y miles de boletas: ejecutarlas contra ese proyecto lo llenaría de basura.
+**Decisión.** `scripts/dev-local.ts` arranca `next dev` con las variables de la instancia local
+inyectadas en el entorno del proceso (Next.js no las sobreescribe con `.env.local`). Playwright usa
+ese comando como `webServer`.
+**Alternativas.** (a) Editar `.env.local` a mano en cada cambio de contexto (descartada: propensa a
+olvidos, y el olvido escribe en producción). (b) Un `.env.development.local` versionado (descartada:
+redirigiría `npm run dev` de todo el mundo sin que se note).
+**Consecuencia.** `npm run dev` sigue apuntando a donde diga `.env.local`; `npm run dev:local` y
+`npm run test:e2e` siempre a local. Dos configuraciones en `.claude/launch.json`.
+
+## D-048 — Las tablas son responsive ocultando columnas secundarias, no cambiando de diseño
+**Fase:** 3
+**Contexto.** `CLAUDE.md` §27 pide tablas responsive; el plan sugería degradar a tarjetas en móvil.
+**Decisión.** Una sola tabla con contenedor de scroll horizontal y `meta.hideOnMobile` por columna:
+bajo `md` se ocultan las columnas secundarias (vendedor, cliente, precio, fechas) y quedan las que
+identifican la fila (código, números, estado).
+**Alternativas.** Renderizar tarjetas en móvil y tabla en escritorio (descartada: duplica cada
+celda, y la segunda versión se queda atrás en cuanto alguien toca la primera).
+**Consecuencia.** Un único juego de columnas por tabla. Verificado por
+`tests/e2e/owner-responsive.spec.ts`, que comprueba además que ninguna pantalla desborda
+horizontalmente a 412 px.
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

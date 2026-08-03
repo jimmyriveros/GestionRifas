@@ -9,18 +9,18 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 
 | | |
 |---|---|
-| Última fase completada | **2 — Base de datos, restricciones y RLS** |
-| Siguiente fase | **3 — Portal Owner y Admin** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `954531c` · `fase-2` |
-| Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas) |
-| App | Next.js 16 corriendo: login, logout, recuperación y cambio de contraseña, redirección por rol |
-| Base de datos | Esquema completo aplicado en **local y en el proyecto Supabase real** |
-| Pruebas | 14 unitarias + **111 de base de datos**, todas en verde |
+| Última fase completada | **3 — Portal Owner y Admin** |
+| Siguiente fase | **4 — Portal Seller y clientes** (requiere autorización explícita del usuario) |
+| Rama / commit / etiqueta | `main` · `fase-3` |
+| Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
+| App | Next.js 16: autenticación + **portal administrativo completo** (rifas, usuarios, vendedores, boletas, carga masiva, clientes, dashboard) |
+| Base de datos | 11 migraciones. Las 10 primeras en local **y** en el proyecto real; la **`0011` solo en local** (ver §3 y `KNOWN_ISSUES.md` §4) |
+| Pruebas | 55 unitarias + **143 de base de datos** + **41 end-to-end**, todas en verde |
 
-**Lo que existe hoy:** autenticación funcional + base de datos completa con todas las reglas de
-negocio aplicadas.
-**Lo que NO existe:** ninguna pantalla de rifas, boletas, clientes o pagos. Los dashboards son
-placeholders. Eso es exactamente el trabajo de las fases 3 a 6.
+**Lo que existe hoy:** autenticación, base de datos completa y el portal de Owner/Admin funcionando
+contra datos reales.
+**Lo que NO existe:** el portal del vendedor (dashboard placeholder), la interfaz de pagos y abonos,
+los reportes y la exportación CSV. Fases 4, 5 y 6.
 
 ---
 
@@ -39,10 +39,14 @@ npm run db:reset && npm run seed:local
 ```
 
 ```bash
-npm run dev
+npm run dev:local
 ```
 
 Requisitos: Node ≥ 20.19, Docker Desktop, y un `.env.local` (ver §3).
+
+⚠️ **`npm run dev` apunta a donde diga `.env.local`, que hoy es el proyecto REAL** (I-013). Para
+desarrollar y para las pruebas end-to-end usa **`npm run dev:local`** (D-047): inyecta las
+credenciales de la instancia local y no toca producción.
 
 ---
 
@@ -69,6 +73,14 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 ```
 
 Debe imprimir `CR: 0`.
+
+⚠️ **Migración pendiente en el proyecto real.** `0011_profiles_visible_when_inactive.sql` está
+aplicada en local pero no en el remoto. Sin ella, desactivar a un usuario desde el portal lo hace
+desaparecer del listado y no se puede reactivar (I-011):
+
+```bash
+npx supabase db push --db-url "$SUPABASE_DB_URL"
+```
 
 ---
 
@@ -106,6 +118,7 @@ No leas todo. Cuesta ~40k tokens y casi nunca hace falta.
 | Entender por qué algo está así | `docs/DECISIONS.md` (busca el `D-*` citado en el código) |
 | Ver qué falla o qué evitar | `docs/KNOWN_ISSUES.md` |
 | Ver resultados de pruebas anteriores | `docs/TEST_RESULTS.md` |
+| Escribir pruebas end-to-end | `docs/TESTING.md` §E2E + `tests/e2e/fixtures.ts` |
 
 El código cita las decisiones (`D-0xx`) y reglas (`BR-xxx`) que aplica: si un comentario dice
 `(D-039)`, busca solo esa entrada, no el documento entero.
@@ -151,6 +164,27 @@ profiles 1─1 auth.users
 
 ---
 
+## 6.b Qué reutilizar antes de escribir nada nuevo (desde la Fase 3)
+
+```
+components/data/    DataTable · DataTablePagination · StatusBadge · EmptyState
+                    PageHeader · MetricCard
+components/form/    MoneyInput · TicketNumberInput
+components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton
+lib/                action-result.ts · auth/guards.ts (authorizeAction, requireStaff)
+```
+
+Convención de cada módulo de `features/`: `schemas.ts` (Zod, cliente **y** servidor) ·
+`queries.ts` (`server-only`, lectura para RSC) · `actions.ts` (`use server`) · `components/`.
+
+Toda Server Action sigue el mismo orden: `authorizeAction` → Zod → RPC o DML sujeto a RLS →
+`mapPgError` → `revalidatePath` → `{ ok } | { error }`.
+
+Los filtros y la paginación viven en la **URL**, no en estado de React: la página es compartible y el
+RSC vuelve a consultar filtrando en SQL.
+
+---
+
 ## 7. Verificar el estado real sin leer documentación
 
 Si dudas de si la documentación está al día, pregúntale a la base de datos:
@@ -159,7 +193,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-111 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+143 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 
@@ -168,6 +202,14 @@ npm run verify
 ```
 
 typecheck + lint + unitarias + build.
+
+```bash
+npm run test:e2e
+```
+
+41 pruebas end-to-end (Playwright) que recorren el portal administrativo con sesiones reales. Levanta
+solo el servidor con `npm run dev:local`; **exigen la base local recién sembrada**
+(`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
 
 ---
 
@@ -196,3 +238,8 @@ typecheck + lint + unitarias + build.
 | DNS no resuelve `db.<ref>.supabase.co` | Usa el **session pooler** (`aws-0-<región>.pooler.supabase.com`) | I-005 |
 | Un `sum()` de dinero llega como string | `sum(bigint)` devuelve `numeric`: castea a `bigint` | D-040 |
 | Error de tipos al insertar en `tickets`/`raffles` | `internal_code`/`short_code` los pone un trigger | D-039 |
+| `Could not embed … more than one relationship` | Hay 2 FK de `tickets` a `clients`: usa la pista `clients!tickets_client_org_fk` | §6 |
+| Una consulta devuelve como mucho 1.000 filas | Límite `max_rows` de PostgREST. Para contar usa `count: 'exact', head: true`, nunca `data.length` | I-011 |
+| Un `UPDATE` bloqueado por RLS **no** da error | Afecta cero filas en silencio: hay que comprobar `data.length === 0` (así se detecta que un Admin no pudo tocar al Owner) | BD `F3-03` |
+| El desarrollo escribe en el proyecto real | `npm run dev` usa `.env.local`. Usa `npm run dev:local` | I-013 · D-047 |
+| Un usuario desactivado desaparece del listado | Falta la migración `0011` en ese entorno | I-011 |

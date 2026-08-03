@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.0 · **Fase:** 0 · **Actualizado:** 2026-08-02
+- **Versión:** 1.1 · **Fase:** 3 · **Actualizado:** 2026-08-03
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -41,12 +41,12 @@ Versiones estables verificadas en el registro de npm el 2026-08-02. Se fijan con
 | Formularios | `react-hook-form` | `7.84.0` | |
 | Validación | `zod` | `4.4.3` | Esquemas compartidos cliente/servidor |
 | Puente RHF/Zod | `@hookform/resolvers` | `5.7.1` | |
-| Tablas | `@tanstack/react-table` | `8.21.3` | |
-| Virtualización | `@tanstack/react-virtual` | `3.14.9` | Solo desde Fase 3 (carga masiva) |
+| Tablas | `@tanstack/react-table` | `8.21.3` | Instalado en F3 |
+| Virtualización | `@tanstack/react-virtual` | `3.14.9` | Instalado en F3 (carga masiva) |
 | Fechas | `date-fns` + `@date-fns/tz` | `4.4.0` | Manejo de `America/Bogota` |
 | Notificaciones | `sonner` | `2.0.7` | Toasts (usado por shadcn/ui) |
 | Pruebas unitarias | `vitest` | `4.1.10` (entorno `jsdom@29.1.1`) | jsdom 30 exige Node 22+ — ver D-030 |
-| Pruebas E2E | `@playwright/test` | (pendiente) | Se instala cuando se escriban specs E2E reales (Fase 3+) |
+| Pruebas E2E | `@playwright/test` | `1.62.1` | Instalado en F3 con Chromium; 41 specs |
 | Lint | `eslint` + `eslint-config-next` | `9.39.5` / `16.2.12` | **No** ESLint 10 — ver D-031 |
 | Formato | `prettier` + `prettier-plugin-tailwindcss` | `3.9.6` | |
 | WebSocket (Node 20) | `ws` | `8.21.1` | Runtime dep — ver D-033 |
@@ -214,19 +214,20 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/auth/callback` | público | 1 | Route Handler de intercambio de código |
 | `/denied` | autenticado | 1 | Acceso denegado |
 | `/account/password` | todos | 1 | Cambio de contraseña |
-| `/owner/dashboard` | owner, admin | 1 (placeholder) → 3 → 6 | Métricas generales |
-| `/owner/raffles` | owner, admin | 3 | Listado de rifas |
-| `/owner/raffles/new` | owner, admin | 3 | Crear rifa |
-| `/owner/raffles/[raffleId]` | owner, admin | 3 | Detalle y edición |
-| `/owner/users` | owner, admin | 3 | Administradores |
-| `/owner/sellers` | owner, admin | 3 | Vendedores |
-| `/owner/sellers/[sellerId]` | owner, admin | 3 | Detalle del vendedor |
-| `/owner/tickets` | owner, admin | 3 | Tabla global de boletas |
-| `/owner/tickets/new` | owner, admin | 3 | Creación individual |
-| `/owner/tickets/bulk` | owner, admin | 3 | Creación masiva (1–1.000) |
-| `/owner/tickets/[ticketId]` | owner, admin | 3 | Detalle, edición, anulación, aprobación |
-| `/owner/clients` | owner, admin | 3 | Consulta global de clientes |
-| `/owner/clients/[clientId]` | owner, admin | 3 | Perfil de cliente |
+| `/owner/dashboard` | owner, admin | 1 → **3 ✅** → 6 | Métricas generales |
+| `/owner/raffles` | owner, admin | **3 ✅** | Listado de rifas |
+| `/owner/raffles/new` | owner, admin | **3 ✅** | Crear rifa |
+| `/owner/raffles/[raffleId]` | owner, admin | **3 ✅** | Detalle (la edición está en `/edit`) |
+| `/owner/raffles/[raffleId]/edit` | owner, admin | **3 ✅** | Edición (bloqueada en rifas cerradas o anuladas) |
+| `/owner/users` | owner, admin | **3 ✅** | Administradores |
+| `/owner/sellers` | owner, admin | **3 ✅** | Vendedores |
+| `/owner/sellers/[sellerId]` | owner, admin | **3 ✅** | Detalle del vendedor |
+| `/owner/tickets` | owner, admin | **3 ✅** | Tabla global de boletas |
+| `/owner/tickets/new` | owner, admin | **3 ✅** | Creación individual |
+| `/owner/tickets/bulk` | owner, admin | **3 ✅** | Creación masiva (1–1.000) |
+| `/owner/tickets/[ticketId]` | owner, admin | **3 ✅** | Detalle, edición, anulación, aprobación |
+| `/owner/clients` | owner, admin | **3 ✅** | Consulta global de clientes |
+| `/owner/clients/[clientId]` | owner, admin | **3 ✅** | Perfil de cliente |
 | `/owner/payments` | owner, admin | 5 | Consulta global y anulación |
 | `/owner/reports` | owner, admin | 6 | Reportes + exportación CSV |
 | `/seller/dashboard` | seller | 1 (placeholder) → 4 → 6 | Métricas propias |
@@ -284,7 +285,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `bulk_create_tickets(p_raffle_id, p_seller_id, p_rows jsonb)` | 2 / 3 | Inserta lote, devuelve filas insertadas y conflictos por índice | Sí por lote |
 | `approve_tickets(p_ticket_ids uuid[])` | 2 / 3 | `pending_approval` → `available`, audita | Sí |
 | `cancel_ticket(p_ticket_id, p_reason)` | 2 / 3 | Anula boleta si no tiene pagos activos, audita | Sí |
-| `create_user_membership(...)` | 2 / 3 | Alta de admin/vendedor con perfil + membresía | Sí |
+| ~~`create_user_membership(...)`~~ | — | **Descartada en la Fase 3 (D-045).** Una función SQL no puede llamar a `auth.admin`, así que el alta necesitaba igualmente la service role desde el servidor. El alta la hace `features/users/actions.ts`: invitación por correo + inserción de la membresía **sujeta a RLS** | — |
 
 Funciones auxiliares de seguridad (`STABLE`, `SECURITY DEFINER`): `current_profile_id()`,
 `current_org_ids()`, `has_org_role(org uuid, roles text[])`. Detalle en `docs/SECURITY.md` §4.1.

@@ -1,10 +1,11 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.0 · **Fase:** 2 (implementado) · **Actualizado:** 2026-08-03
-- **Estado:** IMPLEMENTADO y verificado. El esquema vive en `supabase/migrations/0001` a `0010` y
-  está aplicado tanto en la instancia local como en el proyecto Supabase real.
+- **Versión:** 2.1 · **Fase:** 3 · **Actualizado:** 2026-08-03
+- **Estado:** IMPLEMENTADO y verificado. El esquema vive en `supabase/migrations/0001` a `0011`.
+  Las 10 primeras están aplicadas en la instancia local **y** en el proyecto Supabase real; la
+  `0011` (Fase 3) solo en local — ver `KNOWN_ISSUES.md` §4.
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
-  tipos generados en `src/types/database.types.ts`. Las 111 pruebas de `tests/db/` verifican que el
+  tipos generados en `src/types/database.types.ts`. Las 143 pruebas de `tests/db/` verifican que el
   esquema real cumple lo aquí descrito.
 
 ### Ajustes introducidos al implementar (Fase 2)
@@ -16,6 +17,12 @@
 | Trigger `tickets_guard_paid_amount` | Impide escribir un `paid_amount` inventado, aunque se tenga permiso sobre la fila | — |
 | Migraciones `0009`/`0010` de privilegios | Los `GRANT` por defecto de Supabase no son iguales en todos los entornos | D-037, D-038 |
 | Auditoría con lista de exclusión | Evita miles de entradas por contadores internos y columnas derivadas | D-041 |
+
+### Ajustes introducidos al implementar (Fase 3)
+
+| Cambio | Motivo | Decisión |
+|---|---|---|
+| `0011`: `profiles_select` deja de exigir que la membresía **objetivo** esté activa | Al desactivar a un usuario desaparecía del listado y no se podía reactivar | I-011 |
 
 ---
 

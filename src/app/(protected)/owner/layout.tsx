@@ -1,4 +1,11 @@
-import { LayoutDashboardIcon } from 'lucide-react'
+import {
+  LayoutDashboardIcon,
+  ShieldCheckIcon,
+  TicketIcon,
+  TrophyIcon,
+  UserRoundIcon,
+  UsersIcon,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { AppShell } from '@/components/layout/AppShell'
@@ -7,6 +14,11 @@ import { requireRole } from '@/lib/auth/guards'
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/owner/dashboard', label: 'Panel', icon: <LayoutDashboardIcon className="size-4" /> },
+  { href: '/owner/raffles', label: 'Rifas', icon: <TrophyIcon className="size-4" /> },
+  { href: '/owner/tickets', label: 'Boletas', icon: <TicketIcon className="size-4" /> },
+  { href: '/owner/sellers', label: 'Vendedores', icon: <UsersIcon className="size-4" /> },
+  { href: '/owner/clients', label: 'Clientes', icon: <UserRoundIcon className="size-4" /> },
+  { href: '/owner/users', label: 'Administradores', icon: <ShieldCheckIcon className="size-4" /> },
 ]
 
 export default async function OwnerLayout({ children }: { children: ReactNode }) {
