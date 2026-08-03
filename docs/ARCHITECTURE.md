@@ -35,8 +35,8 @@ Versiones estables verificadas en el registro de npm el 2026-08-02. Se fijan con
 | Lenguaje | `typescript` | `5.9.3` | **No** 7.x — ver D-002 |
 | Estilos | `tailwindcss` | `4.3.3` | Motor v4, configuración CSS-first |
 | Componentes | `shadcn` (CLI) | `4.16.1` | Genera componentes en el repo, no es dependencia runtime |
-| Backend | `@supabase/supabase-js` | `2.111.0` | |
-| Sesiones SSR | `@supabase/ssr` | `0.12.4` | Cookies en middleware y servidor |
+| Backend | `@supabase/supabase-js` | `2.109.0` | **No** 2.110+ — ver D-029 |
+| Sesiones SSR | `@supabase/ssr` | `0.12.0` | Cookies en proxy y servidor — ver D-029 |
 | CLI/BD local | `supabase` (devDep) | `2.111.0` | Migraciones y entorno local |
 | Formularios | `react-hook-form` | `7.84.0` | |
 | Validación | `zod` | `4.4.3` | Esquemas compartidos cliente/servidor |
@@ -45,15 +45,22 @@ Versiones estables verificadas en el registro de npm el 2026-08-02. Se fijan con
 | Virtualización | `@tanstack/react-virtual` | `3.14.9` | Solo desde Fase 3 (carga masiva) |
 | Fechas | `date-fns` + `@date-fns/tz` | `4.4.0` | Manejo de `America/Bogota` |
 | Notificaciones | `sonner` | `2.0.7` | Toasts (usado por shadcn/ui) |
-| Pruebas unitarias | `vitest` | `4.1.10` | |
-| Pruebas E2E | `@playwright/test` | `1.62.1` | |
-| Lint | `eslint` + `eslint-config-next` + `typescript-eslint` | `10.8.0` / `16.2.12` / `8.65.0` | |
+| Pruebas unitarias | `vitest` | `4.1.10` (entorno `jsdom@29.1.1`) | jsdom 30 exige Node 22+ — ver D-030 |
+| Pruebas E2E | `@playwright/test` | (pendiente) | Se instala cuando se escriban specs E2E reales (Fase 3+) |
+| Lint | `eslint` + `eslint-config-next` | `9.39.5` / `16.2.12` | **No** ESLint 10 — ver D-031 |
 | Formato | `prettier` + `prettier-plugin-tailwindcss` | `3.9.6` | |
+| WebSocket (Node 20) | `ws` | `8.21.1` | Runtime dep — ver D-033 |
 
-**Restricción de compatibilidad detectada (D-002):** `typescript-eslint@8.65.0` declara
-`peerDependencies.typescript: ">=4.8.4 <6.1.0"`. Usar TypeScript 7.x (el `latest` actual) dejaría el
-lint con tipos fuera de soporte. Se fija **TypeScript 5.9.3** y se revisará la migración a 7.x cuando
-`typescript-eslint` la soporte.
+**Restricciones de compatibilidad detectadas en la Fase 0 y la Fase 1** (mismo patrón en los tres
+casos: la versión `latest` de un paquete se adelantó a sus propias dependencias o a sus peers):
+
+| Paquete fijado | Versión | Motivo | Decisión |
+|---|---|---|---|
+| `typescript` | `5.9.3`, no 7.x | `typescript-eslint@8` exige `typescript <6.1.0` | D-002 |
+| `@supabase/supabase-js` | `2.109.0`, no 2.110+ | 2.110+ exige Node ≥22; el proyecto usa Node 20.19+ | D-029 |
+| `@supabase/ssr` | `0.12.0`, no 0.12.4 | Única versión cuyo peer acepta `supabase-js@2.109.0` | D-029 |
+| `jsdom` | `29.1.1`, no 30.x | jsdom 30 exige Node ≥22.22 / ≥24.15 / ≥26 | D-030 |
+| `eslint` | `9.39.5`, no 10.x | `eslint-plugin-react` interno de `eslint-config-next` no admite ESLint 10 | D-031 |
 
 No se usarán versiones `beta`, `rc`, `canary` ni `next` de ningún paquete.
 
@@ -81,10 +88,14 @@ No se usarán versiones `beta`, `rc`, `canary` ni `next` de ningún paquete.
 
 | Cliente | Archivo | Contexto | Clave | Uso |
 |---------|---------|----------|-------|-----|
-| Browser | `src/lib/supabase/client.ts` | Componentes cliente | `ANON` | Lecturas reactivas puntuales |
-| Server | `src/lib/supabase/server.ts` | RSC y Server Actions | `ANON` + cookies de sesión | Uso principal, sujeto a RLS |
-| Middleware | `src/lib/supabase/middleware.ts` | `middleware.ts` | `ANON` | Refresco de sesión y guardas de ruta |
+| Browser | `src/lib/supabase/client.ts` | Componentes cliente | Publishable | Lecturas reactivas puntuales |
+| Server | `src/lib/supabase/server.ts` | RSC y Server Actions | Publishable + cookies de sesión | Uso principal, sujeto a RLS |
+| Proxy | `src/lib/supabase/proxy.ts` | `src/proxy.ts` | Publishable | Refresco de sesión y guardas de ruta — ver D-027 |
 | Admin | `src/lib/supabase/admin.ts` | **Solo servidor**, invitaciones y seed | `SERVICE_ROLE` | Marcado `import 'server-only'` |
+
+**Nota (D-027):** Next.js 16 renombró `middleware.ts`/`export function middleware()` a `proxy.ts`/
+`export function proxy()`. El archivo de nivel raíz es `src/proxy.ts`; el helper de este cliente vive
+en `src/lib/supabase/proxy.ts` (antes documentado como `middleware.ts`).
 
 `src/lib/supabase/admin.ts` incluirá `import 'server-only'` para que el build falle si alguna vez se
 importa desde un componente cliente.
@@ -173,8 +184,8 @@ importa desde un componente cliente.
     │   ├── csv.ts                # exportación
     │   └── constants.ts          # DEFAULT_TICKET_PRICE = 100000, límites, etiquetas
     ├── types/
-    │   └── database.types.ts     # Generado: supabase gen types typescript
-    └── middleware.ts
+    │   └── database.types.ts     # Generado: supabase gen types typescript (D-034: manual hasta la Fase 2)
+    └── proxy.ts                  # Antes middleware.ts — ver D-027
 ```
 
 **Convención de módulo de feature** (obligatoria desde la Fase 3):
@@ -375,8 +386,8 @@ Detalle y datos exactos: `docs/IMPLEMENTATION_PLAN.md` Fase 2 y `docs/TESTING.md
 Cambios posteriores se hacen con una migración nueva. Promoción con `supabase db push` desde CI,
 nunca editando el esquema por la interfaz web.
 
-**Variables de entorno:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (públicas) y
-`SUPABASE_SERVICE_ROLE_KEY` (solo servidor, marcada como sensible en Vercel). `scripts/check-env.ts`
+**Variables de entorno:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (públicas,
+D-028) y `SUPABASE_SERVICE_ROLE_KEY` (solo servidor, marcada como sensible en Vercel). `scripts/check-env.ts`
 falla el build si falta alguna.
 
 **Reversión:** cada migración incluye una nota de reversión documentada; los datos se protegen con

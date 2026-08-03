@@ -94,7 +94,7 @@ instalación de dependencias o inicio de la Fase 1.
 `src/app/(protected)/layout.tsx` · `src/app/(protected)/owner/layout.tsx` ·
 `src/app/(protected)/owner/dashboard/page.tsx` · `src/app/(protected)/seller/layout.tsx` ·
 `src/app/(protected)/seller/dashboard/page.tsx` · `src/app/(protected)/account/password/page.tsx` ·
-`src/middleware.ts` · `src/lib/supabase/{client,server,middleware,admin}.ts` ·
+`src/proxy.ts` (antes `middleware.ts`, ver D-027) · `src/lib/supabase/{client,server,proxy,admin}.ts` ·
 `src/lib/auth/{guards.ts,session.ts}` · `src/lib/{money.ts,dates.ts,constants.ts,errors.ts}` ·
 `src/components/layout/*` · `src/components/feedback/*` · `src/features/auth/*` ·
 `supabase/config.toml` · `supabase/migrations/0001_core_identity.sql` · `scripts/seed-users.ts`

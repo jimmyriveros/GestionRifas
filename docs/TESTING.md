@@ -211,3 +211,21 @@ Se completa al cierre de cada fase. Fase 0: no aplica (no hay código ejecutable
 | Fecha | Fase | Comando | Resultado | Errores | Corrección |
 |-------|------|---------|-----------|---------|------------|
 | 2026-08-02 | 0 | `npm view <paquete> version` (13 paquetes) | Versiones estables verificadas | Incompatibilidad `typescript-eslint` ↔ TypeScript 7.x | Se fija TypeScript 5.9.3 (D-002) |
+| 2026-08-03 | 1 | `npm install` | 456 paquetes instalados | `@supabase/supabase-js`/`jsdom` exigían Node ≥22 | Se fijan versiones compatibles con Node 20 (D-029, D-030) |
+| 2026-08-03 | 1 | `npm run typecheck` | 0 errores | 2 errores iniciales por `noUncheckedIndexedAccess` en `lib/errors.ts` | Variable intermedia antes de retornar el valor indexado |
+| 2026-08-03 | 1 | `npm run lint` | 0 errores | `eslint@10` incompatible con `eslint-plugin-react` interno de `eslint-config-next` | Se fija `eslint@9.39.5` (D-031) |
+| 2026-08-03 | 1 | `npm run test` (vitest) | 14/14 pruebas en verde (money, dates, errors) | Ninguno | — |
+| 2026-08-03 | 1 | `npm run build` | Build de producción exitoso, 10 rutas | `typedRoutes: true` rompía un `href` calculado dinámicamente | Se desactiva `typedRoutes` (D-032) |
+| 2026-08-03 | 1 | `npm run format:check` / `npm run format` | 31 archivos reformateados (orden de clases Tailwind, comillas) | Ninguno | — |
+| 2026-08-03 | 1 | `supabase db push --db-url <pooler>` | Migración `0001_core_identity.sql` aplicada | Conexión directa (`db.*.supabase.co:5432`) no resolvía por DNS | Se usa el Session pooler (I-005) |
+| 2026-08-03 | 1 | Verificación de catálogo (RLS, funciones, triggers, políticas, enum, índices) vía `pg` directo | Todo coincide exactamente con el diseño | Ninguno | — |
+| 2026-08-03 | 1 | `npm run seed:users` | Organización + 4 usuarios creados, idempotente en 2ª ejecución | `auth.admin.createUser` no dejaba una contraseña utilizable de inmediato | Se agrega `updateUserById` de confirmación (D-035, I-007) |
+| 2026-08-03 | 1 | Login manual en navegador — Owner, Admin, Seller | Los 3 llegan al dashboard correcto con datos reales de sesión | Error de React "functions cannot be passed to Client Components" al pasar iconos de navegación | Los íconos se pasan pre-renderizados (`ReactNode`), no como referencia de componente |
+| 2026-08-03 | 1 | Login manual — credenciales inválidas | Mensaje "Correo o contraseña incorrectos" | Ninguno | — |
+| 2026-08-03 | 1 | Acceso de Seller a `/owner/dashboard` | Redirigido a `/denied` con mensaje claro | Ninguno | — |
+| 2026-08-03 | 1 | Acceso no autenticado a `/seller/dashboard` y `/owner/dashboard` | Redirigido a `/login` | Ninguno | — |
+| 2026-08-03 | 1 | Desactivación de membresía + intento de login | Bloqueado con "Tu cuenta está inactiva" | Bug real: error de PostgREST por relación ambigua (`memberships` tiene 2 FK hacia `profiles`) se interpretaba como cuenta inactiva | Se desambigua el embed (`profiles!memberships_profile_id_fkey`) y se registra el error real en el servidor |
+| 2026-08-03 | 1 | Logout + verificación de sesión cerrada | Cookie de sesión invalidada, `/owner/dashboard` vuelve a redirigir a `/login` | Ninguno | — |
+| 2026-08-03 | 1 | Persistencia de sesión tras re-navegación | Sesión se mantiene, dashboard renderiza sin pedir login de nuevo | Ninguno | — |
+| 2026-08-03 | 1 | Recuperación de contraseña (`/forgot-password`) | Acción responde `ok` sin revelar si el correo existe | Ninguno | — |
+| 2026-08-03 | 1 | Interacción en viewport móvil (375px) vía herramienta de navegador | Estructura de accesibilidad correcta; el clic del botón "Ingresar" no disparó el submit con esta herramienta específica | No reproducido en escritorio (mismo flujo exitoso repetidas veces) | Se documenta como limitación de la herramienta, no de la app (I-009); pendiente de repetir en dispositivo real o Playwright |

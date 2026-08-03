@@ -3,9 +3,9 @@
 Aplicación web para administrar la operación de una empresa de rifas: organizaciones, rifas,
 vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y auditoría.
 
-> **Estado actual: Fase 0 completada — planificación y arquitectura.**
-> Todavía no existe código de aplicación. El repositorio contiene la especificación y el plan
-> técnico completo. La Fase 1 (proyecto base y autenticación) aún no ha sido autorizada.
+> **Estado actual: Fase 1 completada — proyecto base y autenticación.**
+> Login, logout, recuperación de contraseña y navegación por rol funcionan sobre una base de datos
+> real. Todavía no existen rifas, boletas, clientes ni pagos: esas fases no han sido autorizadas.
 
 ---
 
@@ -66,19 +66,37 @@ Versiones exactas y su justificación en [`docs/ARCHITECTURE.md`](docs/ARCHITECT
 
 ## Puesta en marcha
 
-> Disponible **a partir de la Fase 1**. Hoy no hay `package.json` ni dependencias que instalar.
-
-Requisitos previos: Node.js ≥ 20.9, npm, Git y —desde la Fase 2— Docker Desktop para ejecutar
-Supabase en local.
+Requisitos previos: Node.js ≥ 20.19 (ver `docs/DECISIONS.md` D-030), npm, Git y —desde la Fase 2—
+Docker Desktop para ejecutar Supabase en local.
 
 ```bash
 npm install
-cp .env.example .env.local   # completar con las claves del proyecto Supabase
+cp .env.example .env.local   # completar con las claves reales del proyecto Supabase
 npm run dev
 ```
 
-Los comandos previstos (`dev`, `build`, `typecheck`, `lint`, `test`, `test:db`, `test:e2e`,
-`verify`) se definen en [`docs/TESTING.md`](docs/TESTING.md) §7.
+`.env.local` nunca se versiona. Variables mínimas: `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SEED_DEFAULT_PASSWORD`.
+Detalle de cada una en [`.env.example`](.env.example).
+
+Para tener usuarios de prueba (Owner, Admin, 2 Sellers) sobre una base de datos ya migrada:
+
+```bash
+npm run seed:users
+```
+
+Comandos disponibles:
+
+```bash
+npm run dev           # desarrollo (Turbopack)
+npm run build         # build de producción
+npm run typecheck     # tsc --noEmit
+npm run lint           # eslint
+npm run test           # vitest (unitarias)
+npm run format:check   # prettier --check
+npm run verify         # typecheck + lint + test + build
+npm run seed:users     # crea org + Owner/Admin/2 Sellers de desarrollo
+```
 
 ---
 
@@ -95,8 +113,8 @@ El proyecto avanza **por fases** y cada una requiere autorización explícita
 | Fase | Nombre | Estado |
 |------|--------|--------|
 | 0 | Arquitectura y planificación | ✅ Completada |
-| 1 | Proyecto base y autenticación | ⬜ Pendiente de autorización |
-| 2 | Base de datos, restricciones y RLS | ⬜ |
+| 1 | Proyecto base y autenticación | ✅ Completada |
+| 2 | Base de datos, restricciones y RLS | ⬜ Pendiente de autorización |
 | 3 | Portal Owner y Admin | ⬜ |
 | 4 | Portal Seller y clientes | ⬜ |
 | 5 | Pagos, abonos y saldos | ⬜ |

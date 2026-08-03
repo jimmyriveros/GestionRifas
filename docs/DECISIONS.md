@@ -258,6 +258,128 @@ enlaza por email.
 Supabase y propenso a dejar cuentas inconsistentes).
 **Consecuencia.** `supabase db reset` seguido de `npm run seed:users` reconstruye el entorno completo.
 
+## D-027 — `src/proxy.ts` en lugar de `src/middleware.ts`
+**Fase:** 1
+**Contexto.** `docs/ARCHITECTURE.md` (Fase 0) especificaba `src/middleware.ts`. Al implementar, se
+confirmó que Next.js 16 renombra la convención `middleware` a `proxy`: el archivo `middleware.ts` y
+la función exportada `middleware` quedan obsoletos en favor de `proxy.ts` / `export function proxy()`.
+**Decisión.** Usar `src/proxy.ts` con `export async function proxy(request)`, y renombrar el helper
+`lib/supabase/middleware.ts` a `lib/supabase/proxy.ts`.
+**Alternativas.** Mantener `middleware.ts` (funciona pero genera una advertencia de obsolescencia;
+contradice CLAUDE.md §29 "no silenciar advertencias sin justificación").
+**Consecuencia.** `docs/ARCHITECTURE.md` §5 y §6 actualizados para reflejar `proxy.ts`.
+
+## D-028 — Variable de entorno `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+**Fase:** 1
+**Contexto.** `docs/ARCHITECTURE.md` (Fase 0) usaba `NEXT_PUBLIC_SUPABASE_ANON_KEY`. La clave que
+entregó el usuario desde el dashboard de Supabase es del nuevo formato `sb_publishable_...`, y la
+documentación oficial actual de Supabase para Next.js usa el nombre `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+**Decisión.** Renombrar la variable en todo el proyecto. `@supabase/ssr` acepta indistintamente el
+JWT anon clásico o la nueva publishable key como segundo argumento de `createBrowserClient`/
+`createServerClient`.
+**Alternativas.** Mantener `ANON_KEY` (descartada: divergiría de la terminología actual de Supabase y
+de lo que el usuario ve literalmente en su dashboard).
+**Consecuencia.** `.env.example`, `docs/ARCHITECTURE.md` §4/§12 y `docs/SECURITY.md` §7 actualizados.
+
+## D-029 — `@supabase/supabase-js@2.109.0` + `@supabase/ssr@0.12.0` (no las últimas)
+**Fase:** 1
+**Contexto.** `@supabase/supabase-js` a partir de `2.110.0` exige Node `>=22.0.0` (confirmado con
+`npm view`); el entorno de desarrollo tiene Node 20.20.2, igual que el mínimo documentado en
+`docs/ARCHITECTURE.md` (`>=20.9.0`, ver Fase 0). Se necesitaba la última versión de `supabase-js`
+compatible con Node 20, y la versión de `@supabase/ssr` cuyo rango de peer dependency la acepte.
+**Decisión.** Fijar `@supabase/supabase-js@2.109.0` (última con `node >=20.0.0`) y
+`@supabase/ssr@0.12.0` (única versión de `ssr` cuyo peer `^2.108.0` admite `2.109.0`; versiones
+posteriores de `ssr` exigen `supabase-js >=2.110.x`).
+**Alternativas.** Exigir Node 22 en todo el proyecto (descartada: contradice el mínimo ya documentado
+y verificado en la Fase 0, y no aporta ninguna función necesaria para el MVP).
+**Consecuencia.** Mismo patrón que D-002 (TypeScript/typescript-eslint): pin explícito documentado,
+con revisión futura cuando el entorno pase a Node 22 o el ecosistema estabilice el soporte de Node 20.
+
+## D-030 — `jsdom@29.1.1` (no `30.x`)
+**Fase:** 1
+**Contexto.** `jsdom@30.0.1` (el `latest`) exige Node `^22.22.2 || ^24.15.0 || >=26.0.0` a través de
+sus propias dependencias (`@asamuzakjp/css-color`, `undici`, `whatwg-url`), incompatible con Node 20.
+**Decisión.** Fijar `jsdom@29.1.1`, la última versión cuyo rango (`^20.19.0 || ...`) incluye Node 20.
+**Consecuencia.** El mínimo real de Node para `npm install` en este repo es `20.19.0`, no `20.9.0`
+(ese es el mínimo de Next.js en solitario). `package.json.engines.node` se ajustó a `>=20.19.0`.
+
+## D-031 — ESLint 9.x, no 10.x
+**Fase:** 1
+**Contexto.** `eslint@10.8.0` rompe el lint con un `TypeError` real (`contextOrFilename.getFilename
+is not a function`) proveniente de `eslint-plugin-react@7.37.5`, empaquetado internamente por
+`eslint-config-next@16.2.12`. Esa versión de `eslint-plugin-react` declara
+`peerDependencies.eslint: "^3 || ... || ^9.7"`: no admite ESLint 10 en absoluto, pese a que
+`eslint-config-next` anuncia un peer `>=9.0.0` sin techo.
+**Decisión.** Fijar `eslint@9.39.5` (última de la línea 9.x).
+**Alternativas.** Ninguna: no existe una versión de `eslint-config-next@16.2.12` que resuelva esto sin
+cambiar la versión de ESLint.
+**Consecuencia.** Revisar cuando `eslint-config-next` actualice su `eslint-plugin-react` interno.
+
+## D-032 — `typedRoutes` desactivado
+**Fase:** 1
+**Contexto.** Next.js 16 permite `typedRoutes: true` para validar en compilación los `href` de
+`<Link>`. Al activarlo, cualquier `href` calculado en tiempo de ejecución (rutas de redirección según
+rol, listas de navegación con datos) exige anotarlo como literal o convertirlo con `as Route`, en
+cada punto donde se construye dinámicamente.
+**Decisión.** No activar `typedRoutes`. `CLAUDE.md` exige TypeScript estricto (satisfecho por
+`tsconfig.json`), no esta función opcional de Next.js.
+**Alternativas.** Activarlo y anotar cada `href` dinámico (descartada por ahora: friction
+desproporcionada frente al beneficio, y las fases siguientes multiplican los enlaces dinámicos —
+detalle de boleta, cliente, rifa por `id`).
+**Consecuencia.** Se revisará si el equipo lo pide explícitamente en una fase futura.
+
+## D-033 — `ws` como dependencia de producción
+**Fase:** 1
+**Contexto.** `@supabase/supabase-js` construye un `RealtimeClient` en `createClient()` aunque no se
+use ninguna función de tiempo real. En Node 20 (sin `WebSocket` global nativo) esto lanza
+`Error: Node.js 20 detected without native WebSocket support` de forma no capturable, incluso para
+uso exclusivo de `auth.admin`.
+**Decisión.** Agregar `ws` como dependencia (no de desarrollo, porque `lib/supabase/admin.ts` puede
+ejecutarse en el servidor de la aplicación) y pasarlo como `realtime.transport` al crear el cliente
+administrador.
+**Alternativas.** Exigir Node 22+ en todos los entornos (descartada, ver D-029).
+**Consecuencia.** Sin efecto en runtimes con `WebSocket` nativo (Node 22+, Vercel); el cliente
+administrador nunca abre conexiones de tiempo real en la práctica.
+
+## D-034 — `database.types.ts` sigue escrito a mano en la Fase 1
+**Fase:** 1
+**Contexto.** `docs/ARCHITECTURE.md` §1.7 exige tipos generados. `supabase gen types typescript
+--db-url` requiere Docker (`LegacyContainerRuntimeNotFoundError`) incluso apuntando a una base
+remota, y no había `SUPABASE_ACCESS_TOKEN` para la variante `--project-id`. Docker no está instalado
+en este entorno (ver `docs/KNOWN_ISSUES.md` I-002).
+**Decisión.** Mantener `database.types.ts` escrito a mano para las 3 tablas de la Fase 1, verificado
+manualmente columna por columna contra el esquema real aplicado (`information_schema`/`pg_catalog`).
+**Alternativas.** Bloquear la fase hasta instalar Docker (descartada: Docker se instalará de todas
+formas en la Fase 2 para Supabase local; no hay razón para bloquear la Fase 1 por esto).
+**Consecuencia.** Regenerar con la CLI real en cuanto haya Docker disponible (Fase 2), y eliminar la
+nota de advertencia del encabezado del archivo en ese momento.
+
+## D-035 — El script de seed siempre confirma la contraseña con `updateUserById`
+**Fase:** 1
+**Contexto.** Se verificó empíricamente que `auth.admin.createUser({ password })` crea el usuario
+pero deja la contraseña en un estado que rechaza `signInWithPassword` inmediatamente después
+(`invalid_credentials`), mientras que un `auth.admin.updateUserById(id, { password })` posterior con
+la misma contraseña sí permite iniciar sesión de inmediato, de forma consistente.
+**Decisión.** `scripts/seed-users.ts` llama siempre a `updateUserById` con la contraseña objetivo
+después de crear o localizar cada usuario, tanto en la primera ejecución como en las siguientes.
+**Consecuencia.** El seed es más lento (una llamada adicional por usuario) pero deja contraseñas
+utilizables de forma confiable. Documentado también como nota operativa en `docs/KNOWN_ISSUES.md`.
+
+## D-036 — RLS de la Fase 1 limitada a lectura
+**Fase:** 1
+**Contexto.** `docs/SECURITY.md` (Fase 0) diseña políticas completas de `INSERT`/`UPDATE` para
+`memberships` y `profiles`, incluida la protección del Owner ante un Admin. Ninguna pantalla de la
+Fase 1 crea ni edita usuarios: esa funcionalidad pertenece a la Fase 3.
+**Decisión.** La migración `0001_core_identity.sql` habilita y fuerza RLS en las 3 tablas, con
+políticas de `SELECT` (propio registro + lectura de personal sobre su organización) y una única
+política de `UPDATE` (perfil propio). Las políticas de gestión de usuarios (crear vendedores/admins,
+proteger al Owner) se implementan en la Fase 2 junto con su interfaz en la Fase 3.
+**Alternativas.** Implementar ya todas las políticas de `docs/SECURITY.md` (descartada: contradice
+`CLAUDE.md` §1.6 "no construyas funcionalidades pertenecientes a fases posteriores"; además esas
+políticas no podrían probarse de extremo a extremo sin la interfaz que las ejercita).
+**Consecuencia.** Hoy, `organizations`, `profiles` y `memberships` solo se escriben desde
+`scripts/seed-users.ts` con la service role, que omite RLS por diseño.
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario
