@@ -1,0 +1,51 @@
+# Dependencias
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+
+# Next.js
+.next/
+out/
+build/
+next-env.d.ts
+
+# Producción y despliegue
+.vercel
+
+# Variables de entorno — NUNCA versionar secretos
+.env
+.env.*
+!.env.example
+
+# Pruebas
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/
+
+# Supabase (artefactos locales; las migraciones y el seed SÍ se versionan)
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+
+# TypeScript
+*.tsbuildinfo
+
+# Registros
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini

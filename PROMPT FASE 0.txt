@@ -1,0 +1,671 @@
+# PROMPT FASE 0 — ARQUITECTURA Y PLANIFICACIÓN
+
+Ejecuta únicamente la Fase 0 del proyecto definido en `CLAUDE.md`.
+
+No implementes todavía las funcionalidades de la aplicación.
+
+Puedes crear la estructura documental y los archivos de configuración mínimos necesarios, pero no debes construir páginas, formularios, autenticación, migraciones definitivas ni módulos funcionales.
+
+## Objetivo
+
+Transformar la especificación maestra en un plan técnico completo, consistente y ejecutable.
+
+## Trabajo obligatorio
+
+1. Inspecciona el repositorio actual.
+2. Identifica si es un repositorio vacío o existente.
+3. Lee todos los documentos disponibles.
+4. Crea o actualiza:
+
+   * `docs/MASTER_SPEC.md`
+   * `docs/ARCHITECTURE.md`
+   * `docs/DATA_MODEL.md`
+   * `docs/BUSINESS_RULES.md`
+   * `docs/SECURITY.md`
+   * `docs/IMPLEMENTATION_PLAN.md`
+   * `docs/DECISIONS.md`
+   * `docs/PHASE_STATUS.md`
+   * `docs/KNOWN_ISSUES.md`
+   * `docs/TESTING.md`
+5. Diseña el modelo de datos completo.
+6. Define relaciones, cardinalidades y ownership.
+7. Define la estrategia multiorganización.
+8. Define la matriz de permisos para Owner, Admin y Seller.
+9. Define las políticas RLS necesarias, sin implementarlas todavía.
+10. Define las funciones transaccionales necesarias.
+11. Define la estrategia para pagos y asignaciones.
+12. Define el manejo de estados calculados.
+13. Define la arquitectura de carpetas.
+14. Define las rutas de Next.js.
+15. Define componentes y módulos principales.
+16. Define los límites de cada fase.
+17. Identifica riesgos técnicos y de seguridad.
+18. Identifica casos extremos.
+19. Define criterios de aceptación verificables por fase.
+20. Define estrategia de pruebas.
+21. Define estrategia de seed.
+22. Define estrategia de despliegue.
+
+## Revisión lógica obligatoria
+
+Comprueba especialmente:
+
+* Precio predeterminado de `$100.000 COP`.
+* Dinero almacenado como enteros.
+* Números guardados como texto.
+* Máximo cuatro dígitos.
+* Conservación de ceros iniciales.
+* Combinación única por rifa.
+* Prohibición de duplicados entre vendedores.
+* Snapshot de `sale_price`.
+* Separación entre estado de inventario y estado de pago.
+* Pagos distribuidos entre boletas.
+* Atomicidad de pagos.
+* Anulación sin eliminación física.
+* RLS para vendedores.
+* RLS entre organizaciones.
+* Auditoría.
+
+## Entregable especial
+
+En `docs/IMPLEMENTATION_PLAN.md`, crea una sección por fase con:
+
+* Objetivo.
+* Dependencias.
+* Entregables.
+* Archivos esperados.
+* Pruebas.
+* Criterio de finalización.
+* Elementos explícitamente fuera de alcance.
+
+## Restricciones
+
+* No implementes la Fase 1.
+* No instales dependencias innecesarias.
+* No construyas pantallas funcionales.
+* No crees migraciones definitivas.
+* No continúes automáticamente.
+
+Al terminar, entrega el reporte obligatorio definido en `CLAUDE.md` y detente.
+
+---
+
+# PROMPT FASE 1 — PROYECTO BASE Y AUTENTICACIÓN
+
+Ejecuta únicamente la Fase 1 del proyecto definido en `CLAUDE.md`.
+
+La Fase 0 debe estar completada.
+
+Antes de modificar código:
+
+1. Lee `CLAUDE.md`.
+2. Lee `docs/PHASE_STATUS.md`.
+3. Lee la arquitectura y el modelo de datos.
+4. Verifica que la Fase 0 esté marcada como completada.
+5. Inspecciona el repositorio.
+
+## Objetivo
+
+Crear la base técnica de la aplicación, la autenticación, los layouts y la navegación según rol.
+
+No implementes todavía módulos completos de rifas, boletas, clientes o pagos.
+
+## Implementación obligatoria
+
+1. Inicializa o ajusta Next.js con App Router.
+2. Configura TypeScript estricto.
+3. Configura Tailwind CSS.
+4. Configura shadcn/ui.
+5. Configura ESLint.
+6. Configura formateo consistente.
+7. Configura Supabase para cliente y servidor.
+8. Crea `.env.example`.
+9. Configura middleware o estrategia segura de sesiones.
+10. Implementa login con email y contraseña.
+11. Implementa logout.
+12. Implementa recuperación de contraseña.
+13. Implementa cambio de contraseña.
+14. Implementa protección de rutas.
+15. Implementa redirección por rol:
+
+    * Owner y Admin: `/owner/dashboard`
+    * Seller: `/seller/dashboard`
+16. Impide el acceso de usuarios inactivos.
+17. Crea layouts base para:
+
+    * Portal administrativo.
+    * Portal vendedor.
+18. Crea navegación responsive:
+
+    * Sidebar en escritorio.
+    * Drawer o menú compacto en móvil.
+19. Crea páginas placeholder funcionales para los dashboards.
+20. Crea componentes base de:
+
+    * Encabezado.
+    * Navegación.
+    * Cierre de sesión.
+    * Estados de carga.
+    * Errores.
+    * Acceso denegado.
+21. Configura manejo de sesión del lado del servidor.
+22. Evita depender únicamente del cliente para autorización.
+
+## Persistencia mínima permitida
+
+Implementa únicamente las tablas o migraciones mínimas necesarias para:
+
+* Organizaciones.
+* Perfiles.
+* Membresías.
+* Roles.
+* Estado activo.
+
+No implementes todavía el esquema completo de boletas y pagos.
+
+## Datos de desarrollo
+
+Crea una estrategia documentada para disponer de:
+
+* Un Owner.
+* Un Admin.
+* Un Seller.
+
+No incluyas contraseñas reales en Git.
+
+## Pruebas mínimas
+
+Comprueba:
+
+1. Login válido.
+2. Login inválido.
+3. Redirección Owner.
+4. Redirección Admin.
+5. Redirección Seller.
+6. Bloqueo de rutas de Owner para Seller.
+7. Bloqueo de rutas Seller para usuarios no autenticados.
+8. Bloqueo de usuario inactivo.
+9. Logout.
+10. Persistencia y actualización de sesión.
+11. Build de producción.
+12. Typecheck.
+13. Lint.
+
+## Restricciones
+
+* No construyas gestión completa de rifas.
+* No construyas gestión completa de vendedores.
+* No construyas boletas.
+* No construyas clientes.
+* No construyas pagos.
+* No continúes con la Fase 2.
+
+Actualiza la documentación y `docs/PHASE_STATUS.md`.
+
+Entrega el reporte obligatorio y detente.
+
+---
+
+# PROMPT FASE 2 — BASE DE DATOS, RESTRICCIONES Y RLS
+
+Ejecuta únicamente la Fase 2 del proyecto definido en `CLAUDE.md`.
+
+La Fase 1 debe estar completada.
+
+## Objetivo
+
+Implementar el modelo de datos completo, las restricciones de integridad, las políticas RLS, las funciones de seguridad y los seeds de desarrollo.
+
+No construyas todavía las interfaces completas del portal Owner o Seller.
+
+## Implementación obligatoria
+
+Crea migraciones versionadas para:
+
+* `organizations`
+* Perfiles y membresías.
+* `raffles`
+* `clients`
+* `tickets`
+* `payments`
+* `payment_allocations`
+* `audit_logs`
+
+Agrega:
+
+* UUID.
+* Foreign keys.
+* Restricciones `NOT NULL`.
+* Restricciones `CHECK`.
+* Restricciones únicas.
+* Índices.
+* Timestamps.
+* Soft delete o archivado cuando corresponda.
+
+## Reglas obligatorias de tickets
+
+Implementa:
+
+* `daily_number` como texto.
+* `weekly_number` como texto.
+* Validación de uno a cuatro dígitos.
+* Conservación de ceros iniciales.
+* Combinación única por organización y rifa.
+* Duplicados bloqueados incluso entre vendedores.
+* Combinaciones anuladas no reutilizables en el MVP.
+* Estados de inventario válidos.
+* Precio de venta como entero.
+* `sale_price` inmutable después de existir pagos, salvo procedimiento administrativo documentado.
+
+## Reglas obligatorias de pagos
+
+Implementa:
+
+* Montos enteros positivos.
+* Relación entre pagos y asignaciones.
+* Imposibilidad de asignar pago a una boleta de otro cliente.
+* Imposibilidad de asignar pago a una boleta de otro vendedor sin autorización.
+* Imposibilidad de sobrepagar.
+* Historial de anulaciones.
+* Integridad referencial.
+
+Crea el diseño y, cuando corresponda a esta fase, las funciones SQL/RPC necesarias para operaciones atómicas.
+
+La interfaz de pagos se construirá en la Fase 5.
+
+## RLS obligatorio
+
+Implementa y prueba políticas para:
+
+### Owner y Admin
+
+* Acceso autorizado a los datos de su organización.
+* Sin acceso a otras organizaciones.
+
+### Seller
+
+* Solo sus clientes.
+* Solo sus boletas.
+* Solo sus pagos.
+* Solo sus asignaciones.
+* Solo sus métricas derivadas.
+* Sin acceso a otros vendedores.
+
+Protege también:
+
+* Inserts.
+* Updates.
+* Deletes.
+* RPC.
+* Funciones con `security definer`.
+
+Configura correctamente `search_path` en funciones privilegiadas.
+
+## Auditoría
+
+Implementa la infraestructura base para registrar cambios críticos.
+
+Evita ciclos, recursión infinita o políticas RLS que bloqueen los triggers.
+
+## Seed
+
+Crea datos de desarrollo con:
+
+* Una organización.
+* Un Owner.
+* Un Admin.
+* Dos vendedores.
+* Una rifa activa de `$100.000 COP`.
+* Clientes.
+* Boletas disponibles.
+* Boletas asignadas.
+* Pagos parciales.
+* Pagos completos.
+
+No incluyas secretos reales.
+
+## Pruebas obligatorias
+
+Prueba directamente la base de datos:
+
+1. Duplicado en la misma rifa.
+2. Duplicado entre vendedores.
+3. Misma combinación en otra rifa.
+4. Más de cuatro dígitos.
+5. Caracteres no numéricos.
+6. Ceros iniciales.
+7. Aislamiento entre organizaciones.
+8. Seller consultando otro Seller.
+9. Seller modificando otro Seller.
+10. Sobrepago.
+11. Pago para boleta de otro cliente.
+12. Restricciones de estados.
+13. Migración limpia desde cero.
+14. Seed limpio.
+15. Rollback o estrategia de recuperación documentada.
+
+## Restricciones
+
+* No construyas todavía el portal Owner completo.
+* No construyas todavía el portal Seller completo.
+* No construyas la interfaz completa de pagos.
+* No continúes con la Fase 3.
+
+Actualiza la documentación.
+
+Entrega el reporte obligatorio y detente.
+
+---
+
+# PROMPT FASE 3 — PORTAL OWNER Y ADMIN
+
+Ejecuta únicamente la Fase 3 del proyecto definido en `CLAUDE.md`.
+
+La Fase 2 debe estar completada.
+
+## Objetivo
+
+Construir el portal funcional de Owner y Admin conectado a la base de datos real.
+
+No construyas todavía el portal Seller completo ni la lógica completa de pagos.
+
+## Módulos obligatorios
+
+### Dashboard administrativo inicial
+
+Crea una primera versión funcional con métricas disponibles hasta esta fase.
+
+No implementes aún todos los reportes avanzados de la Fase 6.
+
+### Rifas
+
+Implementa:
+
+* Listado.
+* Creación.
+* Edición.
+* Cambio de estado.
+* Precio.
+* Fechas.
+* Permiso de creación de boletas por vendedores.
+* Validaciones.
+* Restricciones para rifas cerradas.
+
+### Administradores
+
+Implementa:
+
+* Listado.
+* Invitación o creación.
+* Edición de información permitida.
+* Activación.
+* Desactivación.
+* Protección del Owner.
+* Restricciones de rol.
+
+### Vendedores
+
+Implementa:
+
+* Listado.
+* Búsqueda.
+* Creación.
+* Invitación.
+* Edición.
+* Activación.
+* Desactivación.
+* Vista detallada.
+* Resumen básico.
+* Acceso a sus boletas y clientes.
+
+### Boletas
+
+Implementa:
+
+* Tabla global.
+* Filtros.
+* Búsqueda por número diario.
+* Búsqueda por número semanal.
+* Búsqueda por código.
+* Filtro por rifa.
+* Filtro por vendedor.
+* Filtro por cliente.
+* Filtro por estado.
+* Vista de detalle.
+* Creación individual.
+* Edición permitida.
+* Anulación.
+* Asignación de vendedor.
+* Aprobación de boletas creadas por vendedores.
+
+### Creación masiva
+
+Implementa:
+
+1. Selección de rifa.
+2. Selección de vendedor.
+3. Cantidad entre 1 y 1.000.
+4. Generación de filas.
+5. Inputs de diario y semanal.
+6. Guardado como borrador.
+7. Validación por fila.
+8. Detección de duplicados locales.
+9. Detección de duplicados en base de datos.
+10. Guardado por lotes.
+11. Manejo de errores parciales controlado.
+12. Indicador de progreso.
+13. Paginación o virtualización.
+
+No implementes una solución que congele el navegador con 1.000 filas.
+
+## Seguridad
+
+Cada acción debe:
+
+* Verificar sesión.
+* Verificar organización.
+* Verificar rol.
+* Validar datos con Zod.
+* Manejar errores de restricción.
+* Mostrar mensajes comprensibles.
+
+## UX
+
+Implementa:
+
+* Diseño responsive.
+* Estados vacíos.
+* Cargas.
+* Confirmaciones.
+* Toasts.
+* Errores por campo.
+* Filtros fáciles de limpiar.
+* Paginación.
+* Accesibilidad básica.
+
+## Pruebas mínimas
+
+1. Crear rifa.
+2. Editar rifa.
+3. Crear vendedor.
+4. Desactivar vendedor.
+5. Admin intentando modificar Owner.
+6. Crear boleta válida.
+7. Rechazar más de cuatro dígitos.
+8. Rechazar combinación repetida.
+9. Rechazar duplicado perteneciente a otro vendedor.
+10. Crear lote.
+11. Guardar borrador.
+12. Aprobar boleta.
+13. Anular boleta.
+14. Proteger acciones por rol.
+15. Responsive básico.
+16. Build.
+17. Lint.
+18. Typecheck.
+
+## Restricciones
+
+* No construyas la experiencia completa del Seller.
+* No implementes todavía el registro completo de pagos.
+* No implementes reportes avanzados.
+* No continúes con la Fase 4.
+
+Entrega el reporte obligatorio y detente.
+
+---
+
+# PROMPT FASE 4 — PORTAL SELLER Y CLIENTES
+
+Ejecuta únicamente la Fase 4 del proyecto definido en `CLAUDE.md`.
+
+La Fase 3 debe estar completada.
+
+## Objetivo
+
+Construir el portal del vendedor, la gestión de clientes y la asignación de boletas.
+
+No implementes todavía la lógica financiera completa de pagos y abonos. Esa lógica pertenece a la Fase 5.
+
+## Dashboard Seller inicial
+
+Muestra métricas disponibles hasta esta fase:
+
+* Total de boletas.
+* Disponibles.
+* Asignadas.
+* Pendientes de aprobación.
+* Clientes.
+* Actividad reciente.
+
+Las métricas financieras completas se terminarán en la Fase 6.
+
+## Gestión de boletas
+
+Implementa:
+
+* Tabla de boletas propias.
+* Búsqueda por número diario.
+* Búsqueda por número semanal.
+* Búsqueda por código.
+* Filtro por cliente.
+* Filtro por estado.
+* Vista detallada.
+* Edición cuando esté permitida.
+* Bloqueo de edición cuando corresponda.
+* Asignación a cliente.
+* Fecha de venta.
+* Precio de venta.
+* Historial básico.
+
+## Creación por vendedor
+
+Cuando la rifa lo permita:
+
+* Crear una o varias boletas.
+* Validar los números.
+* Bloquear duplicados.
+* Dejar en `pending_approval`.
+* Mostrar estado y explicación.
+
+Cuando no esté permitido:
+
+* Ocultar o deshabilitar la acción.
+* Explicar que el administrador debe asignar las boletas.
+
+## Clientes
+
+Implementa:
+
+* Listado.
+* Búsqueda.
+* Filtros.
+* Creación.
+* Edición.
+* Archivado.
+* Vista detallada.
+
+Campos:
+
+* Nombre.
+* Alias.
+* Teléfono.
+* Email.
+* Notas.
+
+## Perfil de cliente
+
+Muestra:
+
+* Información.
+* Boletas.
+* Fecha de compra.
+* Número diario.
+* Número semanal.
+* Precio.
+* Estado de inventario.
+* Estado de pago disponible hasta esta fase.
+* Total comprado.
+* Historial disponible.
+
+La información financiera completa se conectará en la Fase 5.
+
+## Asignación
+
+Permite:
+
+* Seleccionar un cliente existente.
+* Crear un cliente desde el flujo.
+* Asignar una boleta.
+* Asignar varias boletas cuando sea seguro.
+* Registrar `sale_date`.
+* Copiar `sale_price`.
+* Cambiar estado a `assigned`.
+
+Bloquea:
+
+* Boletas incompletas.
+* Pendientes.
+* Anuladas.
+* De otro vendedor.
+* De otra organización.
+* Combinaciones inconsistentes.
+
+## Seguridad
+
+Prueba que el Seller no pueda:
+
+* Ver clientes de otro Seller.
+* Consultar boletas de otro Seller.
+* Asignarse boletas ajenas.
+* Modificar IDs para acceder a otros registros.
+* Crear boletas cuando la rifa no lo permite.
+
+## Pruebas mínimas
+
+1. Crear cliente.
+2. Editar cliente.
+3. Archivar cliente.
+4. Buscar cliente.
+5. Asignar boleta.
+6. Crear cliente durante asignación.
+7. Crear boleta cuando está permitido.
+8. Bloquear creación cuando no está permitido.
+9. Estado pendiente de aprobación.
+10. Bloquear boleta incompleta.
+11. Copiar precio de venta.
+12. Aislamiento entre vendedores.
+13. Protección de rutas y acciones.
+14. Responsive móvil.
+15. Build.
+16. Typecheck.
+17. Lint.
+
+## Restricciones
+
+* No implementes todavía pagos completos.
+* No implementes anulación de pagos.
+* No implementes reportes financieros completos.
+* No continúes con la Fase 5.
+
+Entrega el reporte obligatorio y detente.
