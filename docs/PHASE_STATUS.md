@@ -15,7 +15,7 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 | 4 | Portal Seller y clientes | ✅ | `36ef2e1` · `fase-4` |
 | 5 | Pagos, abonos y saldos | ✅ | `ecc9eac` · `fase-5` |
 | 6 | Dashboards, reportes y UI/UX | ✅ | `791e585` · `fase-6` |
-| 7 | Pruebas, seguridad y endurecimiento | ✅ | `<pendiente>` · `fase-7` |
+| 7 | Pruebas, seguridad y endurecimiento | ✅ | `caa6298` · `fase-7` |
 | 8 | Despliegue y documentación operativa | ⬜ | — |
 | 9 | Auditoría final independiente | ⬜ | — |
 
