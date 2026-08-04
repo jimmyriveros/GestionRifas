@@ -533,6 +533,46 @@ celda, y la segunda versión se queda atrás en cuanto alguien toca la primera).
 `tests/e2e/owner-responsive.spec.ts`, que comprueba además que ninguna pantalla desborda
 horizontalmente a 412 px.
 
+## D-049 — El vendedor crea como máximo 100 boletas de una vez
+**Fase:** 4
+**Contexto.** `CLAUDE.md` §16 permite al vendedor «indicar una cantidad» sin fijar un límite; §15 fija
+1–1.000 para la carga masiva del personal.
+**Decisión.** `SELLER_TICKET_MAX = 100`. La creación del vendedor **no** pasa por
+`bulk_create_tickets` —esa RPC es `is_org_staff` por dentro—, sino por un `INSERT` normal sujeto a
+`tickets_insert_seller`, y su `internal_code` lo genera un trigger fila por fila que actualiza
+`raffles.ticket_counter`: 1.000 filas serializarían ese contador (riesgo R-15).
+**Alternativas.** (a) Escribir una segunda RPC para vendedores (descartada: duplicaría la lógica de
+`bulk_create_tickets` para un caso que en la práctica son unas pocas boletas). (b) Dejar 1.000 sin
+más (descartada: reintroduce R-15 justo donde se había resuelto).
+**Consecuencia.** El formulario del vendedor no necesita virtualización. Si el negocio pide lotes
+grandes para vendedores, la salida es ampliar la RPC, no subir el límite.
+
+## D-050 — Si la asignación falla tras crear el cliente, el cliente se conserva
+**Fase:** 4
+**Contexto.** «Crear cliente y asignar» son dos operaciones: un `INSERT` en `clients` y la RPC
+`assign_ticket`. Entre ambas, otro dispositivo puede haber tomado la boleta.
+**Decisión.** No se revierte la creación del cliente. Se informa del fallo de la asignación y se
+aclara que **el cliente sí quedó guardado**.
+**Alternativas.** (a) Borrar el cliente para simular atomicidad (descartada: `clients` no concede
+`DELETE` a nadie, por diseño, y además obligaría a reescribir unos datos que la persona acaba de
+capturar delante del comprador). (b) Una RPC que hiciera las dos cosas en una transacción
+(descartada por ahora: añade una función de base de datos para un caso de borde cuyo «mal» resultado
+—un cliente registrado— es un dato legítimo y reutilizable).
+**Consecuencia.** El mensaje de error lo dice explícitamente. Un cliente sin boletas no rompe nada:
+se le asigna otra o se archiva.
+
+## D-051 — Los componentes de tabla y filtros se parametrizan, no se duplican por portal
+**Fase:** 4
+**Contexto.** El portal del vendedor necesita las mismas tablas de boletas y clientes que el
+administrativo, pero sin la columna «Vendedor», sin la aprobación en lote y enlazando a `/seller/*`.
+**Decisión.** `TicketsTable` y `ClientsTable` reciben `basePath`, `showSeller` y `enableApproval`;
+`TicketFilters` y `ClientFilters` reciben los selectores como props opcionales y ocultan los que no
+aplican.
+**Alternativas.** Duplicar cada componente por portal (descartada: son ~150 líneas de celdas cada
+uno, y la segunda copia se queda atrás en cuanto alguien toca la primera).
+**Consecuencia.** Un solo juego de columnas por entidad. La prueba
+`la tabla no muestra la columna Vendedor ni casillas de aprobacion` fija ese contrato.
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

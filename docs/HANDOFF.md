@@ -9,18 +9,19 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 
 | | |
 |---|---|
-| Última fase completada | **3 — Portal Owner y Admin** |
-| Siguiente fase | **4 — Portal Seller y clientes** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `439e64d` · `fase-3` |
+| Última fase completada | **4 — Portal Seller y clientes** |
+| Siguiente fase | **5 — Pagos, abonos y saldos** (requiere autorización explícita del usuario) |
+| Rama / commit / etiqueta | `main` · `fase-4` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
-| App | Next.js 16: autenticación + **portal administrativo completo** (rifas, usuarios, vendedores, boletas, carga masiva, clientes, dashboard) |
+| App | Next.js 16: autenticación + **portal administrativo** + **portal del vendedor**, los dos completos |
 | Base de datos | **11 migraciones aplicadas en local y en el proyecto Supabase real** |
-| Pruebas | 55 unitarias + **143 de base de datos** + **41 end-to-end**, todas en verde |
+| Pruebas | 74 unitarias + **170 de base de datos** + **72 end-to-end**, todas en verde |
 
-**Lo que existe hoy:** autenticación, base de datos completa y el portal de Owner/Admin funcionando
-contra datos reales.
-**Lo que NO existe:** el portal del vendedor (dashboard placeholder), la interfaz de pagos y abonos,
-los reportes y la exportación CSV. Fases 4, 5 y 6.
+**Lo que existe hoy:** autenticación, base de datos completa, el portal de Owner/Admin y el portal
+del vendedor (boletas, clientes y asignación con copia de precio) funcionando contra datos reales.
+**Lo que NO existe:** la interfaz de pagos y abonos, la anulación de pagos, los reportes y la
+exportación CSV. Fases 5 y 6. Las RPC `create_payment` y `void_payment` ya están escritas y probadas
+desde la Fase 2: la Fase 5 es sobre todo interfaz.
 
 ---
 
@@ -181,6 +182,10 @@ Toda Server Action sigue el mismo orden: `authorizeAction` → Zod → RPC o DML
 Los filtros y la paginación viven en la **URL**, no en estado de React: la página es compartible y el
 RSC vuelve a consultar filtrando en SQL.
 
+Las tablas y los filtros **sirven a los dos portales** y se parametrizan, no se duplican (D-051):
+`TicketsTable` y `ClientsTable` reciben `basePath` / `showSeller` / `enableApproval`;
+`TicketFilters` y `ClientFilters` ocultan los selectores que no se les pasan.
+
 ---
 
 ## 7. Verificar el estado real sin leer documentación
@@ -191,7 +196,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-143 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+170 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 
@@ -205,9 +210,9 @@ typecheck + lint + unitarias + build.
 npm run test:e2e
 ```
 
-41 pruebas end-to-end (Playwright) que recorren el portal administrativo con sesiones reales. Levanta
-solo el servidor con `npm run dev:local`; **exigen la base local recién sembrada**
-(`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
+72 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
+en móvil (Pixel 7). Levanta solo el servidor con `npm run dev:local`; **exigen la base local recién
+sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
 
 ---
 
@@ -241,4 +246,5 @@ solo el servidor con `npm run dev:local`; **exigen la base local recién sembrad
 | Un `UPDATE` bloqueado por RLS **no** da error | Afecta cero filas en silencio: hay que comprobar `data.length === 0` (así se detecta que un Admin no pudo tocar al Owner) | BD `F3-03` |
 | El desarrollo escribe en el proyecto real | `npm run dev` usa `.env.local`. Usa `npm run dev:local` | I-013 · D-047 |
 | Un usuario desactivado desaparece del listado | Falta la migración `0011` en ese entorno | I-011 |
+| Una ruta inexistente devuelve 200 en vez de 404 | El segmento tiene `loading.tsx`: la respuesta ya iba en streaming. No filtra datos | I-014 |
 | Aplicar migraciones al remoto sin ver la contraseña | `npx supabase db push --dry-run` primero, y `--yes` para no quedarse esperando la confirmación | §3 |

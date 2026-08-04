@@ -25,7 +25,10 @@ type Option = { value: string; label: string }
 
 type TicketFiltersProps = {
   raffles: Option[]
-  sellers: Option[]
+  /** Solo el portal administrativo filtra por vendedor. */
+  sellers?: Option[]
+  /** Solo el portal del vendedor filtra por cliente. */
+  clients?: Option[]
 }
 
 /** Valor centinela de shadcn/Select: no admite <SelectItem value="">. */
@@ -36,7 +39,7 @@ const ALL = 'all'
  * compartible, sobrevive a un refresco y el RSC vuelve a consultar con los
  * filtros aplicados en SQL, no en el navegador.
  */
-export function TicketFilters({ raffles, sellers }: TicketFiltersProps) {
+export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -58,9 +61,14 @@ export function TicketFilters({ raffles, sellers }: TicketFiltersProps) {
     startTransition(() => router.push(query ? `${pathname}?${query}` : pathname))
   }
 
-  const hasFilters = ['q', 'raffleId', 'sellerId', 'inventoryStatus', 'paymentStatus'].some((key) =>
-    searchParams.get(key),
-  )
+  const hasFilters = [
+    'q',
+    'raffleId',
+    'sellerId',
+    'clientId',
+    'inventoryStatus',
+    'paymentStatus',
+  ].some((key) => searchParams.get(key))
 
   return (
     <div className="space-y-3 rounded-lg border p-4">
@@ -108,15 +116,28 @@ export function TicketFilters({ raffles, sellers }: TicketFiltersProps) {
           allLabel="Todas las rifas"
           disabled={isPending}
         />
-        <FilterSelect
-          id="filter-seller"
-          label="Vendedor"
-          value={searchParams.get('sellerId') ?? ALL}
-          onChange={(value) => apply({ sellerId: value })}
-          options={sellers}
-          allLabel="Todos los vendedores"
-          disabled={isPending}
-        />
+        {sellers ? (
+          <FilterSelect
+            id="filter-seller"
+            label="Vendedor"
+            value={searchParams.get('sellerId') ?? ALL}
+            onChange={(value) => apply({ sellerId: value })}
+            options={sellers}
+            allLabel="Todos los vendedores"
+            disabled={isPending}
+          />
+        ) : null}
+        {clients ? (
+          <FilterSelect
+            id="filter-client"
+            label="Cliente"
+            value={searchParams.get('clientId') ?? ALL}
+            onChange={(value) => apply({ clientId: value })}
+            options={clients}
+            allLabel="Todos los clientes"
+            disabled={isPending}
+          />
+        ) : null}
         <FilterSelect
           id="filter-inventory"
           label="Estado de la boleta"

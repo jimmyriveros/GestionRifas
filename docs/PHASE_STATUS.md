@@ -4,7 +4,7 @@ Registro de lo entregado por fase. **Leer antes de iniciar cualquier fase.**
 Ninguna fase comienza sin autorización explícita del usuario (`CLAUDE.md` §1).
 Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 
-- **Actualizado:** 2026-08-03 · **Fase actual:** 3 completada · **Siguiente:** 4 (no autorizada)
+- **Actualizado:** 2026-08-03 · **Fase actual:** 4 completada · **Siguiente:** 5 (no autorizada)
 
 | Fase | Nombre | Estado | Commit / etiqueta |
 |---|---|---|---|
@@ -12,7 +12,7 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 | 1 | Proyecto base y autenticación | ✅ | `34b3cb1` · `fase-1` |
 | 2 | Base de datos, restricciones y RLS | ✅ | `954531c` · `fase-2` |
 | 3 | Portal Owner y Admin | ✅ | `439e64d` · `fase-3` |
-| 4 | Portal Seller y clientes | ⬜ | — |
+| 4 | Portal Seller y clientes | ✅ | `fase-4` |
 | 5 | Pagos, abonos y saldos | ⬜ | — |
 | 6 | Dashboards, reportes y UI/UX | ⬜ | — |
 | 7 | Pruebas, seguridad y endurecimiento | ⬜ | — |
@@ -21,27 +21,30 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 
 ---
 
-## ANTES DE EMPEZAR LA FASE 4 — revisar esto
+## ANTES DE EMPEZAR LA FASE 5 — revisar esto
 
-1. **Confirmar autorización explícita** del usuario para la Fase 4.
-2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y la sección «Fase 4» de `docs/IMPLEMENTATION_PLAN.md`.
+1. **Confirmar autorización explícita** del usuario para la Fase 5.
+2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y la sección «Fase 5» de `docs/IMPLEMENTATION_PLAN.md`.
    No hace falta leer los demás documentos completos (guía en `HANDOFF.md` §5).
 3. **Levantar el entorno** y comprobar que todo pasa antes de tocar nada:
-   `npx supabase start` → `npm run db:reset && npm run seed:local` → `npm run test:db` (143 ✅) →
-   `npm run verify` (✅) → `npm run test:e2e` (41 ✅).
-4. **Las 11 migraciones están aplicadas en local y en el proyecto real.** Si añades una nueva:
-   `npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"` para revisarla y luego `--yes`.
-5. **Reutilizar lo que ya existe** en vez de duplicarlo: `DataTable`, `StatusBadge`, `EmptyState`,
-   `ConfirmDialog`, `MoneyInput`, `TicketNumberInput`, `PageHeader`, `MetricCard`,
-   `DataTablePagination`. El portal del vendedor debe verse igual que el administrativo.
-6. **Usar `assign_ticket`**, no un `UPDATE` directo, para asignar boletas a clientes: copia el precio
-   vigente, valida rifa activa, cliente del mismo vendedor y estado, y audita.
-7. **Los clientes ya se leen** en `features/clients/queries.ts` (consulta global del portal admin).
-   La Fase 4 añade `schemas.ts` y `actions.ts` de ese mismo módulo; no crear otro.
+   `npx supabase start` → `npm run db:reset && npm run seed:local` → `npm run test:db` (170 ✅) →
+   `npm run verify` (✅) → `npm run test:e2e` (72 ✅).
+4. **Usar `create_payment` y `void_payment`**, no DML directo. Ya son atómicas, validan el cuadre
+   exacto, bloquean el sobrepago con bloqueo de filas y auditan. `tests/db/payments.test.ts` (19
+   pruebas de la Fase 2) ya las cubre, incluida la concurrencia: **esa lógica no se reimplementa**.
+5. **El dinero se calcula en SQL.** `paid_amount` lo mantiene un trigger y `payment_status` es una
+   columna generada. La interfaz solo formatea con `formatCOP`.
+6. **Reutilizar lo que ya existe**: `DataTable`, `StatusBadge`, `EmptyState`, `ConfirmDialog`,
+   `MoneyInput`, `PageHeader`, `MetricCard`, `DataTablePagination`, `ClientFormFields`. Y
+   parametrizar por portal en vez de duplicar (D-051).
+7. **La vista `v_payment_history` ya existe** con el detalle de asignaciones por pago, incluidos los
+   anulados con su motivo. No hace falta componer eso a mano.
 8. **Para desarrollar y probar, `npm run dev:local`** (D-047). `npm run dev` apunta al proyecto real
    según `.env.local` (I-013).
 9. **Las pruebas E2E asumen el seed recién cargado.** Si fallan de forma extraña, ejecutar
    `npm run db:reset && npm run seed:local` antes de investigar.
+10. **Al probar aislamiento por URL**, comprobar que no se filtran datos, no el código HTTP: con
+    `loading.tsx` en el segmento, `notFound()` responde 200 (I-014).
 
 ---
 
@@ -260,6 +263,73 @@ PostgreSQL (D-044); el alta de usuarios es por invitación por correo, sin contr
 
 ---
 
+## Fase 4 — Portal Seller y clientes ✅
+
+### Funcionalidades implementadas
+
+- **Dashboard del vendedor** con sus propias métricas: rifa activa, inventario por estado, cobranza,
+  clientes, ventas y clientes recientes. Las dos acciones principales («vender una boleta», «nuevo
+  cliente») van arriba y grandes, pensadas para el pulgar.
+- **Boletas propias**: tabla paginada en servidor con búsqueda (código, número diario, semanal) y
+  filtros (rifa, cliente, estado de inventario, estado de pago); detalle con historial (creada,
+  aprobada, asignada, anulada); corrección de números **solo antes de la aprobación**, con
+  explicación cuando ya no se puede.
+- **Creación de boletas por el vendedor** cuando la rifa lo permite: hasta 100 por lote (D-049),
+  validación por fila reutilizando el motor de la carga masiva, ambos números obligatorios, estado
+  `pending_approval` y reporte por fila de las combinaciones ya tomadas. Cuando la rifa no lo
+  permite, la acción no aparece y la ruta explica por qué.
+- **Clientes**: listado con búsqueda por nombre, alias, teléfono y correo; creación, edición,
+  archivado y restauración; perfil con saldos, notas y sus boletas.
+- **Asignación de boletas**: diálogo con dos caminos —elegir un cliente existente (buscador) o crear
+  uno sin salir del flujo—, fecha de venta editable y aviso explícito del precio que quedará
+  congelado. Todo sobre la RPC `assign_ticket`.
+
+### Pruebas ejecutadas y resultados
+
+| Suite | Resultado |
+|---|---|
+| Unitarias (`npm run test`) | **74 ✅** |
+| Base de datos (`npm run test:db`) | **170 ✅** |
+| End-to-end (`npm run test:e2e`) | **72 ✅** (63 escritorio + 9 móvil) |
+| `npm run verify` | ✅ (0 errores de lint; los 2 avisos conocidos de TanStack) |
+
+Las 17 pruebas obligatorias del prompt están cubiertas. Antes de escribir la interfaz se sondeó la
+base de datos con sesiones reales para confirmar cada bloqueo; el detalle, junto con el único error
+cometido (un script de sondeo que alteró el seed) y su corrección, está en
+[`TEST_RESULTS.md`](TEST_RESULTS.md).
+
+### Cambios de base de datos
+
+**No aplica.** La Fase 4 no necesitó ninguna migración: el esquema, las políticas y las RPC de la
+Fase 2 ya cubrían todo lo que el portal del vendedor requiere. Las 11 migraciones siguen aplicadas en
+local y en el proyecto real.
+
+### Variables de entorno requeridas
+
+Las mismas de las fases anteriores. Ninguna nueva.
+
+### Problemas reales que permanecen
+
+| ID | Problema | Impacto |
+|---|---|---|
+| I-004 | `CLAUDE.md` y `CLAUDE.md.txt` coexisten | Bajo. Pendiente de que el usuario autorice borrar el `.txt` |
+| I-013 | `.env.local` apunta al proyecto real | Bajo con `npm run dev:local`; alto si alguien lo olvida |
+| I-014 | `notFound()` responde 200 en segmentos con `loading.tsx` | Ninguno funcional: no filtra datos. Solo afectaría al SEO de rutas públicas, que no existen |
+| DT-12 | 3 vulnerabilidades altas de `npm audit` | Dentro de dependencias internas de Next.js. Sin cambios |
+| — | Los pagos no tienen interfaz | Por diseño: son de la Fase 5 |
+| — | Sin reportes ni exportación CSV | Por diseño: son de la Fase 6 |
+
+### Qué debe revisar el siguiente agente antes de comenzar
+
+Ver la sección «ANTES DE EMPEZAR LA FASE 5» al inicio de este documento.
+
+### Decisiones
+
+D-049 a D-051: límite de 100 boletas por lote para el vendedor; el cliente se conserva si falla la
+asignación posterior; los componentes se parametrizan por portal en vez de duplicarse.
+
+---
+
 ## Comandos
 
 ```bash
@@ -267,8 +337,8 @@ npx supabase start     # instancia local (Docker)
 npm run db:reset       # reaplica las 11 migraciones desde cero (local)
 npm run seed:local     # datos de desarrollo en local
 npm run seed           # datos de desarrollo en el proyecto de .env.local
-npm run test:db        # 143 pruebas de base de datos
-npm run test:e2e       # 41 pruebas end-to-end (Playwright)
+npm run test:db        # 170 pruebas de base de datos
+npm run test:e2e       # 72 pruebas end-to-end (Playwright)
 npm run verify         # typecheck + lint + unitarias + build
 npm run dev            # servidor de desarrollo (segun .env.local)
 npm run dev:local      # servidor de desarrollo contra la instancia local
@@ -291,3 +361,5 @@ npx supabase db push --db-url "$SUPABASE_DB_URL"
 | 2026-08-03 | 2 | Esquema de negocio, RLS, RPC, auditoría, seed y 111 pruebas de BD. Aplicado a local y remoto. |
 | 2026-08-03 | — | Documentación reestructurada para continuidad entre sesiones: se añaden `HANDOFF.md` y `TEST_RESULTS.md`, y `CLAUDE.md` §34. |
 | 2026-08-03 | 3 | Portal Owner y Admin completo: rifas, usuarios, vendedores, boletas, carga masiva de 1.000, clientes y dashboard. Migración `0011`, 41 pruebas E2E con Playwright, 32 pruebas de BD nuevas. Dos defectos reales detectados y corregidos. |
+| 2026-08-03 | — | Migración `0011` aplicada al proyecto Supabase real y verificada. Cierra I-011. |
+| 2026-08-03 | 4 | Portal Seller completo: dashboard propio, boletas, creación con aprobación, clientes y asignación con creación de cliente en el flujo. Sin migraciones. +27 pruebas de BD, +31 E2E (incluido el ciclo completo en móvil), +19 unitarias. |

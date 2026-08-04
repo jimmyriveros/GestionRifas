@@ -13,6 +13,9 @@ export const ACCOUNTS = {
   owner: 'owner@demo.test',
   admin: 'admin@demo.test',
   seller: 'vendedor1@demo.test',
+  otherSeller: 'vendedor2@demo.test',
+  /** Vendedor de «Rifas Control»: su rifa NO permite que cree boletas. */
+  controlSeller: 'vendedor@control.test',
 } as const
 
 export async function loginAs(page: Page, email: string): Promise<void> {

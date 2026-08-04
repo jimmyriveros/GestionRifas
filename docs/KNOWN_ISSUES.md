@@ -1,6 +1,6 @@
 # PROBLEMAS CONOCIDOS Y RIESGOS
 
-**Actualizado:** 2026-08-03 (Fase 3). Este documento **no oculta errores**.
+**Actualizado:** 2026-08-03 (Fase 4). Este documento **no oculta errores**.
 Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 
 ---
@@ -24,6 +24,7 @@ Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 | I-011 | Al desactivar a un usuario, desaparecía del listado y era imposible reactivarlo | ✅ Resuelto (F3) | La política `profiles_select` de 0001 exigía `m_target.is_active`: sin perfil visible, `listOrgMembers` descartaba la fila. Corregido por la migración **`0011_profiles_visible_when_inactive.sql`**, aplicada en local **y en el proyecto real**. Lo detectó una prueba end-to-end, no una revisión de código |
 | I-012 | La vista previa del navegador integrado no revela el contenido en Suspense | Info | React revela los límites de Suspense con `requestAnimationFrame`; si el panel no está visible, no compone fotogramas y el esqueleto se queda fijo. El servidor sí devuelve el HTML completo (200). No afecta a usuarios reales ni a Playwright |
 | I-013 | `.env.local` apunta al proyecto **real**, no al local | Mitigado | `npm run dev` usaría producción para desarrollar. Usar `npm run dev:local` (D-047) para desarrollar y para las pruebas E2E |
+| I-014 | `notFound()` responde **200**, no 404, en segmentos con `loading.tsx` | Info | La respuesta ya iba en streaming cuando se resolvió `notFound()`, así que el código de estado ya estaba enviado. **No es una fuga**: la página muestra «Pagina no encontrada» y no revela ningún dato del recurso ajeno, y así lo comprueban las pruebas E2E de aislamiento. Afecta al SEO de rutas públicas, que aquí no existen |
 
 **Sin bloqueantes para la Fase 4.**
 
@@ -111,3 +112,4 @@ Reglas del MVP que podrían confundirse con defectos:
 | 2026-08-03 | 1 | I-001 e I-003 resueltos. +I-005..I-009, +DT-07..DT-12. R-06 y R-13 verificados. |
 | 2026-08-03 | 2 | I-002 e I-006 resueltos. +I-010. DT-10 saldada. R-01, R-02, R-03, R-04, R-08 verificados con pruebas automatizadas. |
 | 2026-08-03 | 3 | +I-011 (resuelto con la migración 0011), +I-012, +I-013. DT-11 saldada. R-05, R-10, R-11, R-14 verificados. |
+| 2026-08-03 | 4 | +I-014. R-13 reverificado con el portal del vendedor. Sin migraciones ni deuda nueva. |

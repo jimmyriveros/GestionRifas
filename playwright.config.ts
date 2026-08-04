@@ -40,9 +40,9 @@ export default defineConfig({
     {
       name: 'escritorio',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: /responsive\.spec\.ts/,
+      testIgnore: /(responsive|movil)\.spec\.ts/,
     },
-    { name: 'movil', use: { ...devices['Pixel 7'] }, testMatch: /responsive\.spec\.ts/ },
+    { name: 'movil', use: { ...devices['Pixel 7'] }, testMatch: /(responsive|movil)\.spec\.ts/ },
   ],
 
   webServer: {

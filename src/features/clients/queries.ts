@@ -129,6 +129,39 @@ export async function getClientDetail(clientId: string): Promise<ClientDetail | 
   }
 }
 
+export type ClientOption = {
+  id: string
+  name: string
+  alias: string | null
+  phone: string
+}
+
+/**
+ * Clientes elegibles para asignar una boleta.
+ *
+ * Excluye los archivados (BR-C07) y, por RLS, un vendedor solo obtiene los
+ * suyos. Se limita a un tamano manejable para el selector: la busqueda del
+ * dialogo filtra sobre lo que ya esta cargado.
+ */
+export async function listClientOptions(limit = 200): Promise<ClientOption[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, name, alias, phone')
+    .is('archived_at', null)
+    .order('name', { ascending: true })
+    .limit(limit)
+
+  if (error) throw error
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    alias: row.alias,
+    phone: row.phone,
+  }))
+}
+
 async function sellerNameMap(): Promise<Map<string, string>> {
   const members = await listOrgMembers(['owner', 'admin', 'seller'])
   return new Map(members.map((member) => [member.profileId, member.fullName]))

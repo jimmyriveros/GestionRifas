@@ -18,7 +18,12 @@ import { Switch } from '@/components/ui/switch'
 
 const ALL = 'all'
 
-export function ClientFilters({ sellers }: { sellers: { value: string; label: string }[] }) {
+/**
+ * Filtros de clientes, compartidos por los dos portales. El selector de
+ * vendedor solo aparece si se le pasan vendedores: en el portal del vendedor
+ * todos los clientes son suyos y el filtro sobraria.
+ */
+export function ClientFilters({ sellers }: { sellers?: { value: string; label: string }[] }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -71,28 +76,30 @@ export function ClientFilters({ sellers }: { sellers: { value: string; label: st
       </form>
 
       <div className="flex flex-wrap items-end gap-4">
-        <div className="min-w-56 space-y-1.5">
-          <Label htmlFor="client-seller" className="text-xs">
-            Vendedor
-          </Label>
-          <Select
-            value={searchParams.get('sellerId') ?? ALL}
-            onValueChange={(value) => apply({ sellerId: value })}
-            disabled={isPending}
-          >
-            <SelectTrigger id="client-seller" className="w-full">
-              <SelectValue placeholder="Todos los vendedores" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos los vendedores</SelectItem>
-              {sellers.map((seller) => (
-                <SelectItem key={seller.value} value={seller.value}>
-                  {seller.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {sellers ? (
+          <div className="min-w-56 space-y-1.5">
+            <Label htmlFor="client-seller" className="text-xs">
+              Vendedor
+            </Label>
+            <Select
+              value={searchParams.get('sellerId') ?? ALL}
+              onValueChange={(value) => apply({ sellerId: value })}
+              disabled={isPending}
+            >
+              <SelectTrigger id="client-seller" className="w-full">
+                <SelectValue placeholder="Todos los vendedores" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Todos los vendedores</SelectItem>
+                {sellers.map((seller) => (
+                  <SelectItem key={seller.value} value={seller.value}>
+                    {seller.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
 
         <div className="flex items-center gap-2 pb-2">
           <Switch

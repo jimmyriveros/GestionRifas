@@ -37,6 +37,12 @@ export function isEmptyRow(row: BulkTicketRow): boolean {
 export type ValidateOptions = {
   /** Combinaciones que ya existen en la rifa, en formato `daily/weekly`. */
   existingCombos?: ReadonlySet<string>
+  /**
+   * Exige los dos numeros en todas las filas. Lo usa la creacion por parte del
+   * vendedor: sus boletas nacen en `pending_approval`, y ese estado no admite
+   * numeros vacios (BR-N09). Solo el personal puede guardar borradores.
+   */
+  requireComplete?: boolean
 }
 
 export function validateBulkRows(
@@ -68,8 +74,14 @@ export function validateBulkRows(
 
     // BR-N09: o los dos numeros, o ninguno (fila en borrador).
     if (dailyFilled !== weeklyFilled) {
-      validation.rowError =
-        'Completa los dos numeros o deja la fila vacia para guardarla como borrador.'
+      validation.rowError = options.requireComplete
+        ? 'Escribe los dos numeros.'
+        : 'Completa los dos numeros o deja la fila vacia para guardarla como borrador.'
+      return validation
+    }
+
+    if (options.requireComplete && !dailyFilled && !weeklyFilled) {
+      validation.rowError = 'Escribe los dos numeros.'
       return validation
     }
 

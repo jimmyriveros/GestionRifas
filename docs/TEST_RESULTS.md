@@ -17,6 +17,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 1 | 14 ✅ | — | — | ✅ | ✅ |
 | 2 | 14 ✅ | **111 ✅** | — | ✅ | ✅ |
 | 3 | **55 ✅** | **143 ✅** | **41 ✅** | ✅ | ✅ |
+| 4 | **74 ✅** | **170 ✅** | **72 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -192,3 +193,87 @@ informativo y no se silencia.
 | Filas realmente en el DOM con 1.000 generadas | < 60 (virtualización) |
 | Guardar 1.000 boletas en lotes de 100 | ~5,4 s |
 | Validar 1.000 filas (unitaria) | < 500 ms (umbral holgado para detectar un algoritmo cuadrático) |
+
+---
+
+## Fase 4 — 2026-08-03
+
+### Totales
+
+| Suite | Comando | Resultado |
+|---|---|---|
+| Unitarias | `npm run test` | **74 ✅** (55 previas + 19 nuevas) |
+| Base de datos | `npm run test:db` | **170 ✅** (143 previas + 27 nuevas) |
+| End-to-end | `npm run test:e2e` | **72 ✅** (41 previas + 31 nuevas; 63 escritorio + 9 móvil) |
+| Typecheck · Lint · Build | `npm run verify` | ✅ (0 errores de lint, los 2 avisos conocidos de TanStack) |
+
+### Pruebas obligatorias del prompt de la Fase 4
+
+| # | Prueba | Dónde | Resultado |
+|---|--------|-------|-----------|
+| 1 | Crear cliente | E2E `seller-clients` + BD `F4-01` | ✅ |
+| 2 | Editar cliente | E2E `seller-clients` | ✅ |
+| 3 | Archivar cliente | E2E `seller-clients` + BD `F4-01` | ✅ |
+| 4 | Buscar cliente | E2E `seller-clients` | ✅ |
+| 5 | Asignar boleta | E2E `seller-tickets` + BD `F4-04` | ✅ |
+| 6 | Crear cliente durante la asignación | E2E `seller-tickets` y `seller-ciclo-movil` | ✅ |
+| 7 | Crear boleta cuando está permitido | E2E `seller-tickets` + BD `F4-02` | ✅ |
+| 8 | Bloquear creación cuando no está permitido | E2E `seller-tickets` + BD `F4-02` | ✅ |
+| 9 | Estado pendiente de aprobación | E2E `seller-tickets` + BD `F4-02` | ✅ |
+| 10 | Bloquear boleta incompleta | E2E `seller-tickets` + BD `F4-02` | ✅ |
+| 11 | Copia de `sale_price` | E2E `seller-tickets` + BD `F4-04` | ✅ |
+| 12 | Aislamiento entre vendedores | E2E `seller-clients`, `seller-tickets` + BD `F4-01`, `F4-03`, `F4-05` | ✅ |
+| 13 | Protección de rutas y acciones | E2E `seller-tickets` (4 rutas × 3 roles) | ✅ |
+| 14 | Responsive móvil | E2E `seller-ciclo-movil` (Pixel 7) | ✅ |
+| 15 | Build | `npm run build` | ✅ 28 rutas |
+| 16 | Typecheck | `npm run typecheck` | ✅ |
+| 17 | Lint | `npm run lint` | ✅ 0 errores |
+
+Criterio de finalización («un vendedor completa el ciclo desde un teléfono: buscar boleta → crear
+cliente → asignar») cubierto por `tests/e2e/seller-ciclo-movil.spec.ts`, que además comprueba que el
+precio quedó congelado y que la venta aparece en el panel. Duración: 6,7 s.
+
+### Sondeo previo contra la base de datos
+
+Antes de escribir la interfaz se comprobaron con sesiones reales los puntos con riesgo. Todos se
+comportaron como exige el diseño:
+
+| Comprobación | Resultado |
+|---|---|
+| Insertar boletas con `allow_seller_ticket_creation = false` | ✅ rechazado (42501) |
+| Insertar directamente en `available` (saltarse la aprobación) | ✅ rechazado (42501) |
+| Insertar ya con `client_id` (auto-asignarse) | ✅ rechazado (42501) |
+| Auto-aprobarse una boleta propia | ✅ rechazado (42501) |
+| `upsert` con `ignoreDuplicates` para conflictos parciales | ✅ 1 de 2 insertadas, la duplicada reportada |
+| `assign_ticket` como vendedor | ✅ copia `sale_price`, `sale_date` y `assigned_at` |
+| Transferir un cliente propio a otro vendedor | ✅ rechazado (42501) |
+
+**Error cometido durante el sondeo, y corregido:** el script dejó
+`allow_seller_ticket_creation = false` en la rifa del seed, que el seed crea en `true`. Se detectó al
+releer `scripts/seed.ts` y se corrigió con `db:reset` + `seed:local`. Lección aplicada: los scripts
+de sondeo no restauran «al valor que creen que había», se rehace el seed.
+
+### Cronología con errores encontrados
+
+| Comando / prueba | Resultado | Error | Corrección |
+|---|---|---|---|
+| Sondeo de capacidades del vendedor | ✅ | El script alteró el seed (arriba) | `db:reset` + `seed:local` |
+| `npm run test:db` (nuevas) | ✅ 27 | — | — |
+| `npm run test` (nuevas) | ✅ 19 | — | — |
+| E2E `seller-clients` (1ª ejecución) | ❌ 1 de 9 | Se esperaba HTTP **404** al abrir el cliente de otro vendedor y llegó **200** | **No era una fuga**: la página sí muestra «Pagina no encontrada». El 200 viene del streaming con `loading.tsx` (I-014). La prueba pasó a comprobar lo que importa: que no aparezca ni el nombre ni el teléfono del cliente ajeno |
+| E2E `seller-tickets` | ✅ 17 | — | — |
+| E2E `seller-ciclo-movil` | ✅ 5 | — | — |
+| `npm run test:e2e` completo | ✅ 72 | — | — |
+| `npm run verify` | ✅ | — | — |
+
+### Aislamiento entre vendedores: qué se comprobó exactamente
+
+No basta con que la interfaz no enseñe el enlace. Se verificó, con sesión real de vendedor:
+
+- `clients`, `tickets`, `v_client_balances` y `v_ticket_balances` solo devuelven filas propias.
+- Pedir por URL el cliente o la boleta de otro vendedor devuelve «Pagina no encontrada», sin filtrar
+  nombre, teléfono ni código interno.
+- `assign_ticket` rechaza tanto la boleta ajena como el cliente ajeno.
+- Un `UPDATE` directo para auto-asignarse una boleta (saltándose la RPC, con precio inventado) deja
+  **cero filas** y la boleta sigue `available` con `sale_price` nulo.
+- Un vendedor no puede crear un cliente a nombre de otro ni transferirle el suyo.

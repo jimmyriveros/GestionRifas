@@ -3,13 +3,14 @@
 Aplicación web para administrar la operación de una empresa de rifas: organizaciones, rifas,
 vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y auditoría.
 
-> **Estado actual: Fase 3 completada — portal de Owner y Admin.**
-> Sobre la base de datos de la Fase 2 (verificada con 143 pruebas) ya funciona el portal
-> administrativo: rifas, administradores, vendedores, boletas con filtros y búsqueda, creación
-> masiva de hasta 1.000 boletas, consulta global de clientes y dashboard con métricas reales.
-> Verificado con 41 pruebas end-to-end sobre un navegador real, en escritorio y en móvil. El
-> **portal del vendedor** y la **interfaz de pagos** llegan en las fases 4 y 5, que aún no han sido
-> autorizadas.
+> **Estado actual: Fase 4 completada — los dos portales funcionando.**
+> El **portal administrativo** gestiona rifas, administradores, vendedores, boletas (con filtros,
+> búsqueda y creación masiva de hasta 1.000) y clientes. El **portal del vendedor** permite buscar
+> sus boletas, registrar clientes, asignar boletas copiando el precio vigente y —cuando la rifa lo
+> permite— crear boletas que quedan pendientes de aprobación.
+> Verificado con 170 pruebas de base de datos y 72 end-to-end sobre un navegador real, incluido el
+> ciclo completo de venta desde un teléfono. La **interfaz de pagos y abonos** llega en la Fase 5,
+> que aún no ha sido autorizada.
 
 ---
 
@@ -54,8 +55,8 @@ tarea lo pide (`HANDOFF.md` §5 indica cuál).
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript 5.9 estricto · Tailwind CSS 4 · shadcn/ui ·
-Supabase (PostgreSQL 17, Auth, RLS) · React Hook Form · Zod · date-fns · Vitest.
-TanStack Table y Playwright se incorporan en las fases 3 y 7.
+Supabase (PostgreSQL 17, Auth, RLS) · React Hook Form · Zod · date-fns · Vitest ·
+TanStack Table y Virtual · Playwright.
 
 Versiones exactas y su justificación en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §2.
 
@@ -115,8 +116,8 @@ npm run build         # build de producción
 npm run typecheck     # tsc --noEmit
 npm run lint          # eslint
 npm run test          # vitest (unitarias)
-npm run test:db       # 143 pruebas contra la base de datos local
-npm run test:e2e      # 41 pruebas end-to-end (Playwright, requiere base local sembrada)
+npm run test:db       # 170 pruebas contra la base de datos local
+npm run test:e2e      # 72 pruebas end-to-end (Playwright, requiere base local sembrada)
 npm run format:check  # prettier --check
 npm run verify        # typecheck + lint + test + build
 npm run seed          # datos de desarrollo en el proyecto de .env.local
@@ -142,8 +143,8 @@ El proyecto avanza **por fases** y cada una requiere autorización explícita
 | 1 | Proyecto base y autenticación | ✅ Completada |
 | 2 | Base de datos, restricciones y RLS | ✅ Completada |
 | 3 | Portal Owner y Admin | ✅ Completada |
-| 4 | Portal Seller y clientes | ⬜ Pendiente de autorización |
-| 5 | Pagos, abonos y saldos | ⬜ |
+| 4 | Portal Seller y clientes | ✅ Completada |
+| 5 | Pagos, abonos y saldos | ⬜ Pendiente de autorización |
 | 6 | Dashboards, reportes y UI/UX | ⬜ |
 | 7 | Pruebas, seguridad y endurecimiento | ⬜ |
 | 8 | Despliegue y documentación operativa | ⬜ |

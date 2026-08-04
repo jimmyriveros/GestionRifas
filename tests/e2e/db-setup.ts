@@ -32,6 +32,7 @@ export type SeedRefs = {
   raffleId: string
   ownerId: string
   sellerId: string
+  otherSellerId: string
 }
 
 export async function loadSeedRefs(): Promise<SeedRefs> {
@@ -56,7 +57,56 @@ export async function loadSeedRefs(): Promise<SeedRefs> {
     raffleId: raffle!.id,
     ownerId: byEmail('owner@demo.test'),
     sellerId: byEmail('vendedor1@demo.test'),
+    otherSellerId: byEmail('vendedor2@demo.test'),
   }
+}
+
+/** Un recurso que pertenece a OTRO vendedor, para probar el aislamiento. */
+export async function findOtherSellerResources(
+  refs: SeedRefs,
+): Promise<{ ticketId: string | null; clientId: string | null }> {
+  const svc = serviceClient()
+
+  const [{ data: tickets }, { data: clients }] = await Promise.all([
+    svc.from('tickets').select('id').eq('seller_id', refs.otherSellerId).limit(1),
+    svc.from('clients').select('id').eq('seller_id', refs.otherSellerId).limit(1),
+  ])
+
+  return { ticketId: tickets?.[0]?.id ?? null, clientId: clients?.[0]?.id ?? null }
+}
+
+/** Crea un cliente para el vendedor 1 y devuelve su id y nombre. */
+export async function createClientFor(
+  refs: SeedRefs,
+  name: string,
+): Promise<{ id: string; name: string }> {
+  const svc = serviceClient()
+  const { data, error } = await svc
+    .from('clients')
+    .insert({
+      organization_id: refs.organizationId,
+      seller_id: refs.sellerId,
+      name,
+      phone: '3005550000',
+    })
+    .select('id, name')
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+/** Precio vigente de la rifa del seed. */
+export async function raffleTicketPrice(refs: SeedRefs): Promise<number> {
+  const svc = serviceClient()
+  const { data, error } = await svc
+    .from('raffles')
+    .select('ticket_price')
+    .eq('id', refs.raffleId)
+    .single()
+
+  if (error) throw error
+  return data.ticket_price
 }
 
 /** Crea una boleta en el estado indicado y devuelve su codigo interno. */

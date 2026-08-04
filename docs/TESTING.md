@@ -1,9 +1,9 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.0 · **Actualizado:** 2026-08-03 (Fase 2)
+- **Versión:** 2.1 · **Actualizado:** 2026-08-03 (Fase 4)
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
-- **Implementado:** unitarias (Vitest) y base de datos (Vitest + Supabase local). E2E con Playwright
-  llega en fases posteriores.
+- **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
+  (Playwright, escritorio y móvil)** desde la Fase 3.
 
 ---
 
@@ -46,8 +46,8 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
 ### 2.1 Pruebas end-to-end (desde la Fase 3)
 
 - **Herramienta:** Playwright (`playwright.config.ts`), proyectos `escritorio` (Desktop Chrome) y
-  `movil` (Pixel 7). Las specs `*responsive.spec.ts` solo se ejecutan en `movil`; el resto solo en
-  `escritorio`.
+  `movil` (Pixel 7). Las specs `*responsive.spec.ts` y `*movil.spec.ts` solo se ejecutan en `movil`;
+  el resto solo en `escritorio`.
 - **Servidor:** el propio Playwright levanta `npm run dev:local`, que apunta **siempre** a la
   instancia local (D-047). Nunca se ejecutan contra el proyecto real.
 - **Requisito previo:** base local sembrada (`npm run db:reset && npm run seed:local`).
@@ -65,6 +65,12 @@ Trampas aprendidas escribiendo estas pruebas:
 | `getByLabel('… fila 1')` casa también «fila 10», «fila 11» | Coincidencia por subcadena: usar `{ exact: true }` |
 | Un nombre aparece dos veces en la página | El menú de usuario repite el nombre: acotar con `getByRole('table')` |
 | Una spec responsive falla en escritorio | Faltaba `testIgnore` en el proyecto `escritorio` |
+| Se espera 404 al pedir un recurso ajeno y llega 200 | Con `loading.tsx` en el segmento, `notFound()` llega cuando la respuesta ya iba en streaming (I-014). **Comprobar que no se filtran datos**, no el código de estado |
+
+**Nunca dejar el seed alterado.** Un script de sondeo de la Fase 4 restauró un valor «al que creía
+que había» y dejó la rifa demo con `allow_seller_ticket_creation = false`. Si una prueba necesita
+cambiar el seed, lo restaura en un `finally` con el valor leído antes, o se rehace con
+`npm run db:reset && npm run seed:local`.
 
 ---
 
@@ -234,5 +240,5 @@ Los resultados de cada fase (con los errores encontrados y como se corrigieron) 
 [`TEST_RESULTS.md`](TEST_RESULTS.md), para que este documento describa solo la ESTRATEGIA y no
 crezca en cada fase.
 
-Estado al cierre de la Fase 3: **55 pruebas unitarias + 143 de base de datos + 41 end-to-end, todas
+Estado al cierre de la Fase 4: **74 pruebas unitarias + 170 de base de datos + 72 end-to-end, todas
 en verde**.

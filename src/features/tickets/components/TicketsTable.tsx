@@ -16,44 +16,74 @@ import { formatCOP } from '@/lib/money'
 import { approveTickets } from '../actions'
 import type { TicketListItem } from '../queries'
 
-/**
- * Tabla global de boletas. La seleccion solo admite boletas en
- * `pending_approval`: aprobar es la unica accion en lote de esta fase
- * (BR-I09), y ofrecer casillas en filas que no se pueden aprobar seria
- * prometer algo que el servidor rechazaria.
- */
-export function TicketsTable({ tickets }: { tickets: TicketListItem[] }) {
+type TicketsTableProps = {
+  tickets: TicketListItem[]
+  /** `/owner/tickets` o `/seller/tickets`: la tabla sirve a los dos portales. */
+  basePath?: string
+  /** El vendedor no necesita la columna «Vendedor»: todas las boletas son suyas. */
+  showSeller?: boolean
+  /**
+   * Aprobacion en lote. Solo el portal administrativo la ofrece (BR-I09): un
+   * vendedor no puede aprobar ni sus propias boletas, asi que mostrarle las
+   * casillas seria prometerle algo que el servidor rechaza.
+   */
+  enableApproval?: boolean
+}
+
+export function TicketsTable({
+  tickets,
+  basePath = '/owner/tickets',
+  showSeller = true,
+  enableApproval = true,
+}: TicketsTableProps) {
   const router = useRouter()
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const selectedIds = Object.keys(rowSelection).filter((id) => rowSelection[id])
-  const approvableCount = tickets.filter(
-    (ticket) => ticket.inventoryStatus === 'pending_approval',
-  ).length
+  const approvableCount = enableApproval
+    ? tickets.filter((ticket) => ticket.inventoryStatus === 'pending_approval').length
+    : 0
 
-  const columns = useMemo<ColumnDef<TicketListItem>[]>(
-    () => [
-      {
-        id: 'select',
-        header: () => <span className="sr-only">Seleccionar</span>,
-        enableSorting: false,
-        cell: ({ row }) =>
-          row.getCanSelect() ? (
-            <Checkbox
-              checked={row.getIsSelected()}
-              onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
-              aria-label={`Seleccionar boleta ${row.original.internalCode}`}
-            />
-          ) : null,
-      },
+  const columns = useMemo<ColumnDef<TicketListItem>[]>(() => {
+    const selectColumn: ColumnDef<TicketListItem>[] = enableApproval
+      ? [
+          {
+            id: 'select',
+            header: () => <span className="sr-only">Seleccionar</span>,
+            enableSorting: false,
+            cell: ({ row }) =>
+              row.getCanSelect() ? (
+                <Checkbox
+                  checked={row.getIsSelected()}
+                  onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
+                  aria-label={`Seleccionar boleta ${row.original.internalCode}`}
+                />
+              ) : null,
+          },
+        ]
+      : []
+
+    const sellerColumn: ColumnDef<TicketListItem>[] = showSeller
+      ? [
+          {
+            accessorKey: 'sellerName',
+            header: 'Vendedor',
+            meta: { hideOnMobile: true },
+            cell: ({ row }) => <span className="text-sm">{row.original.sellerName}</span>,
+          },
+        ]
+      : []
+
+    return [
+      ...selectColumn,
       {
         accessorKey: 'internalCode',
         header: 'Codigo',
         cell: ({ row }) => (
           <Link
-            href={`/owner/tickets/${row.original.id}`}
+            href={`${basePath}/${row.original.id}`}
             className="font-mono text-xs hover:underline"
           >
             {row.original.internalCode}
@@ -80,12 +110,7 @@ export function TicketsTable({ tickets }: { tickets: TicketListItem[] }) {
           </span>
         ),
       },
-      {
-        accessorKey: 'sellerName',
-        header: 'Vendedor',
-        meta: { hideOnMobile: true },
-        cell: ({ row }) => <span className="text-sm">{row.original.sellerName}</span>,
-      },
+      ...sellerColumn,
       {
         accessorKey: 'clientName',
         header: 'Cliente',
@@ -118,9 +143,8 @@ export function TicketsTable({ tickets }: { tickets: TicketListItem[] }) {
           </span>
         ),
       },
-    ],
-    [],
-  )
+    ]
+  }, [basePath, showSeller, enableApproval])
 
   function confirmApprove() {
     startTransition(async () => {
@@ -164,21 +188,25 @@ export function TicketsTable({ tickets }: { tickets: TicketListItem[] }) {
         columns={columns}
         data={tickets}
         getRowId={(row) => row.id}
-        rowSelection={rowSelection}
-        onRowSelectionChange={setRowSelection}
-        enableRowSelection={(row) => row.inventoryStatus === 'pending_approval'}
-        caption="Boletas de la organizacion"
+        rowSelection={enableApproval ? rowSelection : undefined}
+        onRowSelectionChange={enableApproval ? setRowSelection : undefined}
+        enableRowSelection={
+          enableApproval ? (row) => row.inventoryStatus === 'pending_approval' : false
+        }
+        caption="Boletas"
       />
 
-      <ConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title="Aprobar boletas"
-        description={`Las ${selectedIds.length} boleta(s) seleccionadas pasaran a estado Disponible y podran asignarse a clientes.`}
-        confirmLabel="Aprobar"
-        pending={isPending}
-        onConfirm={confirmApprove}
-      />
+      {enableApproval ? (
+        <ConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="Aprobar boletas"
+          description={`Las ${selectedIds.length} boleta(s) seleccionadas pasaran a estado Disponible y podran asignarse a clientes.`}
+          confirmLabel="Aprobar"
+          pending={isPending}
+          onConfirm={confirmApprove}
+        />
+      ) : null}
     </div>
   )
 }

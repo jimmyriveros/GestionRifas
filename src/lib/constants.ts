@@ -19,6 +19,16 @@ export const BULK_TICKET_MAX = 1000
  */
 export const BULK_TICKET_BATCH_SIZE = 100
 
+/**
+ * Maximo de boletas que un VENDEDOR crea de una vez (CLAUDE.md 16).
+ *
+ * Mas bajo que el limite del personal a proposito: la creacion del vendedor no
+ * pasa por `bulk_create_tickets`, que reserva el bloque de codigos de una sola
+ * vez, sino por un INSERT normal cuyo trigger genera el codigo fila por fila
+ * (riesgo R-15). Cien es de sobra para el caso real y evita ese cuello (D-049).
+ */
+export const SELLER_TICKET_MAX = 100
+
 /** daily_number / weekly_number: 1 a 4 digitos (docs/BUSINESS_RULES.md BR-N02). */
 export const TICKET_NUMBER_MAX_LENGTH = 4
 export const TICKET_NUMBER_REGEX = /^[0-9]{1,4}$/
