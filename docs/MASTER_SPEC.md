@@ -194,7 +194,8 @@ Pagos (consulta global y anulación) · Reportes con exportación CSV.
 ### 9.2 Portal Seller (`/seller/*`)
 Dashboard propio · Boletas propias (búsqueda por número diario, semanal y código; filtros por estado
 y cliente) · Clientes propios (crear, editar, archivar, perfil con historial) · Asignación de boletas ·
-Registro de abonos y pagos · Consulta de saldos e historial.
+Registro de abonos y pagos · Consulta de saldos e historial · Reportes propios con exportación CSV,
+sin el que compara vendedores (D-059).
 
 ---
 

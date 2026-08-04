@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { listPayments, type PaymentListItem } from '@/features/payments/queries'
 import { listRaffleSummaries, type RaffleSummary } from '@/features/raffles/queries'
 import { listSellersWithTotals, type SellerWithTotals } from '@/features/sellers/queries'
 import { listOrgMembers } from '@/features/users/queries'
@@ -9,10 +10,9 @@ import { createClient } from '@/lib/supabase/server'
  * Metricas del dashboard administrativo (CLAUDE.md 23).
  *
  * Se apoyan en las vistas agregadas de la Fase 2, que suman en SQL: el dinero
- * jamas se calcula en el navegador ni recorriendo filas en memoria.
- *
- * Los pagos recientes y el resumen por vendedor completo llegan en las fases 5
- * y 6; aqui se muestra lo que ya existe.
+ * jamas se calcula en el navegador ni recorriendo filas en memoria. Lo unico
+ * que se suma aqui son las filas YA AGREGADAS por la base de datos: una por
+ * rifa y una por vendedor, decenas en total, nunca boletas sueltas.
  */
 
 export type AdminDashboard = {
@@ -33,21 +33,29 @@ export type AdminDashboard = {
     pendingAmount: number
   }
   recentTickets: { id: string; internalCode: string; createdAt: string; raffleShortCode: string }[]
+  /** Ultimos abonos de la organizacion (CLAUDE.md 23: «pagos recientes»). */
+  recentPayments: PaymentListItem[]
 }
 
 export async function getAdminDashboard(): Promise<AdminDashboard> {
   const supabase = await createClient()
 
-  const [raffles, sellers, members, { data: recent, error: recentError }] = await Promise.all([
-    listRaffleSummaries(),
-    listSellersWithTotals(),
-    listOrgMembers(['seller']),
-    supabase
-      .from('tickets')
-      .select('id, internal_code, created_at, raffle:raffles!tickets_raffle_org_fk ( short_code )')
-      .order('created_at', { ascending: false })
-      .limit(5),
-  ])
+  const [raffles, sellers, members, { data: recent, error: recentError }, recentPayments] =
+    await Promise.all([
+      listRaffleSummaries(),
+      listSellersWithTotals(),
+      listOrgMembers(['seller']),
+      supabase
+        .from('tickets')
+        .select(
+          'id, internal_code, created_at, raffle:raffles!tickets_raffle_org_fk ( short_code )',
+        )
+        .order('created_at', { ascending: false })
+        .limit(5),
+      // Incluye los anulados a proposito: el panel debe reflejar lo que paso,
+      // y la tabla los muestra tachados (BR-F09).
+      listPayments({ pageSize: 5 }),
+    ])
 
   if (recentError) throw recentError
 
@@ -102,5 +110,6 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
       createdAt: row.created_at,
       raffleShortCode: row.raffle?.short_code ?? '',
     })),
+    recentPayments: recentPayments.rows,
   }
 }

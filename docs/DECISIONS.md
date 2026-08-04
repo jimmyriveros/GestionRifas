@@ -614,6 +614,103 @@ esta fase — `CLAUDE.md` §1.6).
 las consultas ya lo soportan. La prueba de base de datos F5-04 verifica que un pago registrado por
 el personal se comporta bien y **es visible para el vendedor** (I-015).
 
+## D-055 — Los siete reportes de `CLAUDE.md` §24 se entregan en cinco tablas
+**Fase:** 6
+**Contexto.** §24 enumera siete reportes. Tres de ellos —ventas por vendedor, recaudo por vendedor y
+saldo pendiente por vendedor— son **la misma tabla mirada por tres columnas distintas**.
+**Decisión.** Cinco reportes: «Por vendedor» (cubre los tres primeros), «Boletas por estado»,
+«Boletas por rifa», «Clientes con saldo» y «Pagos por fecha».
+**Alternativas.** Siete pantallas literales (descartada: obliga a abrir tres veces la misma consulta
+para comparar tres columnas contiguas, y triplica el código de tablas y exportación).
+**Consecuencia.** Los siete reportes exigidos están cubiertos y verificados por
+`tests/e2e/reports.spec.ts`. Si el negocio pide las tres vistas por separado, son tres subconjuntos
+de columnas de la tabla que ya existe.
+
+## D-056 — El CSV se escribe para Excel en configuración regional de Colombia
+**Fase:** 6
+**Contexto.** El destinatario de la exportación es una persona que va a hacer doble clic en el
+archivo, no otro programa.
+**Decisión.** Separador `;`, BOM UTF-8, fin de línea CRLF, dinero ya formateado (`$100.000`) y
+fechas como `DD/MM/AAAA`.
+**Alternativas.** (a) Separador `,` (descartada: en configuración regional española/colombiana el
+separador de listas de Excel es `;`, y un archivo con comas se abre con todas las columnas
+amontonadas en la primera celda). (b) Exportar el dinero como entero crudo `100000` (descartada:
+§24 pide formato de moneda correcto, y Excel es-CO interpreta `$100.000` como número, así que la
+columna sigue siendo sumable). (c) Fechas ISO (descartada por lo mismo: `DD/MM/AAAA` es la que esa
+configuración reconoce como fecha).
+**Consecuencia.** `src/lib/csv.ts` concentra el formato y se prueba en `tests/unit/csv.test.ts`. Las
+celdas que empiezan por `=`, `+`, `-` o `@` se neutralizan con una comilla simple para impedir la
+**inyección de fórmulas** —un cliente llamado `=cmd|…` ejecutaría código en la máquina de quien abra
+el archivo—, salvo cuando el valor entero es numérico, para no estropear un teléfono `+57 …`.
+La exportación pide todas las filas con `fetchAllRows`, con un tope de 50.000 para no cargar una
+tabla entera en memoria; si alguna vez se alcanzara, el archivo **lo dice en su última línea** en
+lugar de parecer completo (R-19).
+
+> **Nota de verificación.** `response.text()` **elimina** el BOM al decodificar, por especificación.
+> Comprobar el BOM así da un falso negativo: hay que mirar los bytes (`arrayBuffer()`), como hace la
+> prueba E2E. Por lo mismo, `BOM` se construye con `String.fromCharCode(0xfeff)` y no como carácter
+> literal: siendo invisible, cualquiera podría borrarlo sin verlo, y una prueba que lo comparase con
+> otro literal invisible seguiría pasando.
+
+## D-057 — Los reportes de pagos se agregan con funciones, no con una vista
+**Fase:** 6
+**Contexto.** El resto de agregados del sistema son vistas (`v_seller_summary`, `v_raffle_summary`,
+`v_client_balances`). Para «pagos por rango de fechas» una vista no sirve: no acepta parámetros, así
+que tendría que agrupar también por vendedor, método y estado para que esas columnas siguieran
+siendo filtrables, y la cardinalidad resultante (días × vendedores × 3 × 2) supera el límite de
+1.000 filas de PostgREST.
+**Decisión.** Dos funciones `stable security invoker` en la migración `0013`:
+`report_payment_totals` (una fila con los totales exactos) y `report_payments_by_day` (una fila por
+día). Filtran **antes** de agregar.
+**Alternativas.** (a) Una vista de máxima granularidad (descartada por lo anterior). (b) Sumar en
+TypeScript las filas de `v_payment_history` (descartada: con más de 1.000 pagos el total mostrado
+sería silenciosamente falso — I-011).
+**Consecuencia.** Son las primeras funciones **`SECURITY INVOKER`** del proyecto, al contrario que
+las RPC de `0007`, que son `SECURITY DEFINER` porque existen para hacer cosas que la RLS del usuario
+prohíbe. Estas solo leen, así que heredan `payments_select` y un vendedor obtiene sus propios
+totales sin que la función filtre por `seller_id`. `p_seller_id` es una comodidad del portal
+administrativo, **no** un control de seguridad: la prueba F6-04 comprueba que pedir el id de otro
+vendedor devuelve ceros.
+
+## D-058 — Los reportes agregados no se ordenan en el navegador
+**Fase:** 6
+**Contexto.** `DataTable` ordena en el cliente. En una tabla paginada en servidor eso ordena
+**solo las filas de la página actual**, dando la impresión de un ranking completo que no lo es.
+**Decisión.** Los reportes usan `ReportTable`, un Server Component sin ordenación: el orden lo fija
+SQL (`pending_amount desc`, `total_sold desc`, `payment_date desc`).
+**Alternativas.** Reutilizar `DataTable` (descartada por lo anterior; además enviaría JavaScript al
+teléfono del vendedor para algo que no lo necesita).
+**Consecuencia.** `DataTable` sigue siendo el componente de los listados operativos; `ReportTable`
+el de los reportes. Ambos comparten la misma técnica responsive (contenedor con scroll y
+`hideOnMobile`), verificada en `tests/e2e/reports-responsive.spec.ts`.
+
+## D-059 — El portal del vendedor también tiene reportes
+**Fase:** 6
+**Contexto.** `CLAUDE.md` §22 lista cuatro rutas mínimas para el vendedor, sin `/seller/reports`.
+Pero §24 exige que «los reportes del portal Seller no expongan datos de otros vendedores», lo que
+presupone que existen, y la prueba 2 de la Fase 6 los da por hechos.
+**Decisión.** Existe `/seller/reports` con cuatro de los cinco reportes. Se excluye «Por vendedor»,
+que compara a unos vendedores con otros.
+**Alternativas.** No construirlos (descartada: la prueba 2 del plan quedaría sin objeto y el
+vendedor no podría exportar su propia cartera).
+**Consecuencia.** Ambos portales usan `ReportsView` con distintos parámetros (D-051). La exclusión
+es de producto, no de seguridad: aunque alguien pida `?report=sellers`, la pantalla cae al primer
+reporte disponible y el endpoint de exportación responde **403**; y aun si no lo hiciera, las vistas
+`security_invoker` solo devolverían sus propias filas.
+
+## D-060 — La exportación es un Route Handler fuera de `(protected)`
+**Fase:** 6
+**Contexto.** Un Route Handler **no** pasa por el `layout.tsx` de su grupo de rutas. Colocarlo en
+`(protected)/owner/` daría la falsa impresión de estar cubierto por `requireStaff()`.
+**Decisión.** Vive en `src/app/api/reports/export/route.ts`, donde nadie puede suponer que hay una
+guarda implícita, y comprueba sesión, membresía activa y rol en sus primeras líneas.
+**Alternativas.** (a) Server Action que devuelva el texto (descartada: obliga a construir el archivo
+en memoria del navegador y pierde `Content-Disposition`). (b) Ruta dentro de `(protected)`
+(descartada por lo anterior).
+**Consecuencia.** La descarga es un enlace normal: funciona con «abrir en pestaña nueva» y sin
+JavaScript. El nombre del archivo se sanea antes de entrar en la cabecera, para que no pueda
+inyectar encabezados HTTP.
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

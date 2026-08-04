@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { listOrgMembers, type OrgMember } from '@/features/users/queries'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { createClient } from '@/lib/supabase/server'
 
 /**
@@ -77,22 +78,31 @@ function addTotals(acc: SellerTotals, row: SellerSummaryRow): SellerTotals {
  * `v_seller_summary` agrupa por (organizacion, rifa, vendedor), asi que un
  * vendedor con boletas en tres rifas trae tres filas. Se suman en memoria: dos
  * consultas fijas en total, sin una por vendedor (docs/ARCHITECTURE.md 10).
+ *
+ * La lectura se pagina con `fetchAllRows`. Sin filtro de rifa la cardinalidad
+ * es rifas x vendedores y, al superar 1.000, PostgREST devolveria solo las
+ * primeras mil SIN error (I-011): los totales del panel y de los reportes se
+ * quedarian cortos en silencio, que es la peor forma de equivocarse con dinero.
  */
 export async function listSellersWithTotals(raffleId?: string): Promise<SellerWithTotals[]> {
   const supabase = await createClient()
 
-  let summaryQuery = supabase.from('v_seller_summary').select('*')
-  if (raffleId) summaryQuery = summaryQuery.eq('raffle_id', raffleId)
-
-  const [sellers, { data: summaries, error: summaryError }] = await Promise.all([
+  const [sellers, { rows: summaries }] = await Promise.all([
     listOrgMembers(['seller']),
-    summaryQuery,
+    fetchAllRows<SellerSummaryRow & { seller_id: string | null }>((from, to) => {
+      let query = supabase.from('v_seller_summary').select('*')
+      if (raffleId) query = query.eq('raffle_id', raffleId)
+      // Orden estable: sin el, dos bloques consecutivos podrian repetir u
+      // omitir filas y los totales saldrian mal.
+      return query
+        .order('seller_id', { ascending: true })
+        .order('raffle_id', { ascending: true })
+        .range(from, to)
+    }),
   ])
 
-  if (summaryError) throw summaryError
-
   const totalsBySeller = new Map<string, SellerTotals>()
-  for (const row of summaries ?? []) {
+  for (const row of summaries) {
     if (!row.seller_id) continue
     totalsBySeller.set(row.seller_id, addTotals(totalsBySeller.get(row.seller_id) ?? ZERO, row))
   }

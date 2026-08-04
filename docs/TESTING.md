@@ -15,6 +15,7 @@
 | Base de datos | Vitest + `@supabase/supabase-js` contra Supabase local | Restricciones, triggers, RPC, **RLS con sesiones reales** | `tests/db/` | segundos |
 | Componentes | Vitest + Testing Library | Formularios críticos, tabla de carga masiva, entrada de números | `tests/unit/components/` | ms |
 | E2E | Playwright | Flujos completos por rol, responsive, protección de rutas | `tests/e2e/` | minutos |
+| Volumen | Vitest + Supabase local | Que los agregados sigan en SQL y que nada se trunque en silencio con 5.000 boletas | `tests/db/volume-phase6.test.ts` | ~10 s |
 
 **Principio rector:** toda regla marcada como crítica en `docs/BUSINESS_RULES.md` tiene al menos una
 prueba **de base de datos**, no solo de interfaz. Una regla que solo se prueba en la UI no está
@@ -109,6 +110,23 @@ cambiar el seed, lo restaura en un `finally` con el valor leído antes, o se reh
 
 Al cerrar la Fase 7, las 25 filas deben estar automatizadas y en verde.
 
+### 3.1 Dos trampas al escribir pruebas E2E de esta aplicación (Fase 6)
+
+**Las lecturas que no auto-esperan corren contra el esqueleto de carga.** Las rutas con `loading.tsx`
+envían primero el esqueleto y el contenido llega en *streaming*. `page.goto()` resuelve antes, así
+que `count()`, `allInnerTexts()` o `innerText()` —que **no** auto-esperan, al contrario que
+`expect(...)`— devuelven cero elementos. Hay que anclar primero con una aserción que sí espere:
+
+```ts
+await page.goto('/owner/reports?report=sellers')
+await expect(page.getByRole('table').locator('tbody tr').first()).toBeVisible()
+const filas = await page.getByRole('table').locator('tbody tr').count() // ahora sí
+```
+
+**Para cambiar de usuario hay que cerrar sesión de verdad.** Ir a `/login` con una sesión abierta
+redirige al panel y el formulario no llega a existir; `loginAs` falla con un error confuso. Se usa
+`logout(page)` de `tests/e2e/fixtures.ts`, que pasa por el menú de usuario.
+
 ---
 
 ## 4. Casos de prueba de base de datos obligatorios (Fase 2)
@@ -200,6 +218,12 @@ Definido en la Fase 2, ejecutable con `supabase db reset && npm run seed:users`.
 Las contraseñas provienen de variables de entorno (`SEED_DEFAULT_PASSWORD`) y nunca se versionan.
 El seed es idempotente.
 
+**Lo que añade `npm run test:db`** (Fase 6): una tercera rifa, «Rifa Volumen Fase 6», en estado
+**borrador** y con 5.000 boletas, para la prueba de volumen. Es idempotente —las reutiliza en
+ejecuciones posteriores en vez de acumularlas— y está en borrador para que ninguna pantalla ni
+ninguna prueba la confunda con la rifa activa. Aun así, deja la base distinta de como la dejó el
+seed: **`db:reset` + `seed:local` antes de `test:e2e`**.
+
 ---
 
 ## 7. Comandos
@@ -230,7 +254,7 @@ npm run verify        # typecheck + lint + test + build
 | 3 | 18 pruebas del portal administrativo, incluida la carga de 1.000 filas |
 | 4 | 17 pruebas del portal del vendedor, incluido el aislamiento |
 | 5 | 13 pruebas financieras, incluidas atomicidad y concurrencia |
-| 6 | Métricas verificadas contra consultas SQL de control + responsive |
+| 6 | Métricas verificadas contra consultas SQL de control + reportes sin fuga entre vendedores + CSV + responsive y accesibilidad |
 | 7 | Las 25 pruebas mínimas de `CLAUDE.md` §30, automatizadas |
 | 8 | Prueba de humo en producción + restauración de copia de seguridad |
 | 9 | Reejecución completa + informe de auditoría |

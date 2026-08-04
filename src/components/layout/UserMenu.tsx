@@ -31,9 +31,21 @@ export function UserMenu({ fullName, email, role }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-9 gap-2 px-2">
+        {/*
+          El nombre se oculta bajo `md` para ganar espacio en el telefono, asi
+          que sin `aria-label` el boton se anunciaria solo como sus iniciales
+          ("CR"), que no significan nada para quien no ve el avatar.
+          (CLAUDE.md §27: accesible, no solo visualmente claro.)
+        */}
+        <Button
+          variant="ghost"
+          className="h-9 gap-2 px-2"
+          aria-label={`Menu de usuario: ${fullName}`}
+        >
           <Avatar className="size-7">
-            <AvatarFallback className="text-xs">{initialsFor(fullName)}</AvatarFallback>
+            <AvatarFallback className="text-xs" aria-hidden>
+              {initialsFor(fullName)}
+            </AvatarFallback>
           </Avatar>
           <span className="hidden max-w-32 truncate text-sm font-medium md:inline">{fullName}</span>
         </Button>

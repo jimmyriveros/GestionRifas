@@ -1,4 +1,5 @@
 import {
+  BarChart3Icon,
   LayoutDashboardIcon,
   ShieldCheckIcon,
   TicketIcon,
@@ -20,6 +21,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/owner/sellers', label: 'Vendedores', icon: <UsersIcon className="size-4" /> },
   { href: '/owner/clients', label: 'Clientes', icon: <UserRoundIcon className="size-4" /> },
   { href: '/owner/payments', label: 'Pagos', icon: <WalletIcon className="size-4" /> },
+  { href: '/owner/reports', label: 'Reportes', icon: <BarChart3Icon className="size-4" /> },
   { href: '/owner/users', label: 'Administradores', icon: <ShieldCheckIcon className="size-4" /> },
 ]
 

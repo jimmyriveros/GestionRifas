@@ -176,9 +176,54 @@ export default async function SellerDashboardPage() {
         </section>
       </div>
 
-      <p className="text-muted-foreground text-sm">
-        El registro de abonos y pagos llega en la Fase 5.
-      </p>
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Pagos recientes</h2>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/seller/payments">Ver todos</Link>
+          </Button>
+        </div>
+        {dashboard.recentPayments.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Todavia no has registrado ningun abono.{' '}
+            <Link href="/seller/payments/new" className="underline">
+              Registra el primero
+            </Link>
+            .
+          </p>
+        ) : (
+          <ul className="divide-y rounded-lg border">
+            {dashboard.recentPayments.map((payment) => (
+              <li key={payment.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <Link
+                    href={`/seller/clients/${payment.clientId}`}
+                    className="font-medium hover:underline"
+                  >
+                    {payment.clientName}
+                  </Link>
+                  <p className="text-muted-foreground truncate text-xs">
+                    {formatDateEs(payment.paymentDate)} ·{' '}
+                    {payment.allocations.length === 1
+                      ? '1 boleta'
+                      : `${payment.allocations.length} boletas`}
+                  </p>
+                </div>
+                <span
+                  className={
+                    payment.isActive
+                      ? 'shrink-0 text-sm font-medium tabular-nums'
+                      : 'text-muted-foreground shrink-0 text-sm tabular-nums line-through'
+                  }
+                >
+                  {formatCOP(payment.totalAmount)}
+                  {payment.isActive ? '' : ' (anulado)'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   )
 }

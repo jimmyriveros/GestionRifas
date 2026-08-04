@@ -34,6 +34,17 @@
 debe ser `LEFT JOIN` salvo que se pueda demostrar que quien ve la fila principal ve también la
 unida. Un INNER JOIN ahí no filtra columnas: elimina filas.
 
+### Ajustes introducidos al implementar (Fase 6)
+
+| Cambio | Motivo | Decisión |
+|---|---|---|
+| `0013`: funciones `report_payment_totals` y `report_payments_by_day` | El reporte de pagos necesita agregados **parametrizados** por rango, vendedor, método y estado. Una vista no acepta parámetros, y agrupar por todas esas columnas para poder filtrarlas después supera el límite de 1.000 filas de PostgREST | D-057 |
+
+**Regla que se desprende:** un agregado con parámetros es una **función `stable security invoker`**,
+no una vista. `SECURITY INVOKER` —al contrario que las RPC de escritura de `0007`, que son
+`SECURITY DEFINER`— porque solo lee: así hereda la RLS de quien consulta y el aislamiento entre
+vendedores se mantiene sin que la función filtre nada.
+
 ---
 
 ## 1. Diagrama entidad-relación
@@ -488,6 +499,20 @@ duplicados durante la carga masiva.
 | `v_seller_summary` | por vendedor: boletas por estado, vendido, recaudado, saldo | Dashboard admin, reportes |
 | `v_raffle_summary` | por rifa: totales de inventario y dinero | Dashboard admin |
 | `v_payment_history` | pagos con cliente, vendedor, método, estado activo/anulado y asignaciones | Historial y anulaciones |
+
+### 6.b Funciones de reporte (Fase 6, migración `0013`)
+
+Cuando el agregado necesita **parámetros**, una vista no sirve. Estas dos son `stable`,
+`security invoker` y `set search_path`, y filtran **antes** de agregar (D-057):
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `report_payment_totals(from, to, seller, method, status)` | **una fila**: nº de pagos, total, y el desglose vigente/anulado | Encabezado del reporte «Pagos por fecha» |
+| `report_payments_by_day(from, to, seller, method, status)` | **una fila por día**: nº de pagos, total, recaudado y anulado | Tabla del mismo reporte y su CSV |
+
+`p_seller_id` sirve para que el **personal** acote el reporte a un vendedor. No es un control de
+seguridad: la RLS de `payments` ya limita lo que cada quien puede agregar, así que un vendedor que
+pase el id de otro obtiene ceros (prueba F6-04).
 
 ---
 

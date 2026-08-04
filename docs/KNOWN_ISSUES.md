@@ -27,8 +27,10 @@ Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 | I-015 | El historial **ocultaba** los pagos que registraba un administrador para el cliente de un vendedor | ✅ Resuelto (F5) | `v_payment_history` unía `profiles` con INNER JOIN para los nombres. Como la vista es `security_invoker` y un vendedor no ve el perfil del administrador, el JOIN eliminaba la fila **entera**: el pago existía en `payments` (y su política se lo permitía) pero no en su historial. Corregido por la migración **`0012`** con LEFT JOIN. Detectado por un sondeo previo a escribir la interfaz, no por una prueba |
 | I-016 | `MoneyInput` **concatenaba** los dígitos al escribir sobre él de forma programática | ✅ Resuelto (F5) | El componente reescribía el contenido del input al enfocarlo (estado `raw`/`focused`), así que un `fill()` podía añadir en vez de reemplazar: «50000» + «30000» = «5000030000». Corregido derivando lo mostrado solo de `value` (D-053). Afectaba también a gestores de contraseñas y autocompletado móvil |
 | I-014 | `notFound()` responde **200**, no 404, en segmentos con `loading.tsx` | Info | La respuesta ya iba en streaming cuando se resolvió `notFound()`, así que el código de estado ya estaba enviado. **No es una fuga**: la página muestra «Pagina no encontrada» y no revela ningún dato del recurso ajeno, y así lo comprueban las pruebas E2E de aislamiento. Afecta al SEO de rutas públicas, que aquí no existen |
+| I-017 | Toda fecha de **día calendario** se mostraba **un día antes** | ✅ Resuelto (F6) | `payment_date`, `sale_date`, `start_date` y `end_date` son columnas `date`: PostgREST las entrega como `'AAAA-MM-DD'` y `new Date('2026-08-04')` es **medianoche UTC**, que en Bogotá (UTC-5) todavía es el día 3. Afectaba a la fecha de todo abono, toda venta y toda rifa en pantalla. Corregido en `src/lib/dates.ts`: las cadenas de solo fecha se anclan al mediodía UTC antes de formatearlas, con lo que se arreglan de golpe los 8 sitios que las mostraban. Regresión cubierta en `tests/unit/dates.test.ts` y en E2E |
+| I-018 | El helper `logout()` de las pruebas E2E nunca funcionó | ✅ Resuelto (F6) | Buscaba un botón llamado `/menu de usuario\|cuenta/i`, pero el disparador del menú no tenía nombre accesible: su contenido eran las iniciales del avatar y un nombre oculto bajo `md`. Era código muerto —ninguna prueba lo usaba— hasta que la Fase 6 necesitó cambiar de usuario dentro de una prueba. Corregido añadiendo `aria-label="Menu de usuario: <nombre>"` al disparador, que además **arregla un defecto real de accesibilidad**: en un teléfono, un lector de pantalla anunciaba solo «CR» |
 
-**Sin bloqueantes para la Fase 4.**
+**Sin bloqueantes para la Fase 7.**
 
 ---
 
@@ -45,7 +47,9 @@ Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 | R-07 | Desfase de zona horaria en pagos nocturnos | Fechas de negocio como `date` con `today_bogota()`; `TZ=UTC` | ✅ Implementado F2 |
 | R-08 | Recálculo de `paid_amount` que no cubra algún camino | Cubre INSERT/UPDATE/DELETE + cambio de `voided_at`; prueba que compara con la suma real | ✅ Verificado F2 |
 | R-09 | El índice único no aplica con números `NULL` en `draft` | Es el comportamiento buscado; obligatorios al salir de `draft` (D-017) | ✅ Por diseño |
-| R-10 | Consultas N+1 en listados | Vistas agregadas + `select` con relaciones; nombres de vendedor resueltos con **un** mapa en memoria | ✅ Verificado F3 · revisar F6 |
+| R-10 | Consultas N+1 en listados | Vistas agregadas + `select` con relaciones; nombres de vendedor resueltos con **un** mapa en memoria | ✅ Reverificado F6 con 5.000 boletas: los reportes devuelven 1–2 filas agregadas, no 5.000 |
+| R-18 | **Truncamiento silencioso de PostgREST a 1.000 filas** en agregados y exportaciones | `fetchAllRows` (bloques de 1.000 con orden estable) y `count: 'exact', head: true`; nunca `data.length` | ✅ Verificado F6 con una prueba que **demuestra** el truncamiento y luego lo evita |
+| R-19 | Una exportación que alcance el tope de 50.000 filas parecería completa | `fetchAllRows` devuelve `truncated`, y el CSV termina con una línea `AVISO;…` que dice que está incompleto | ✅ Implementado F6. No alcanzable con el volumen real de este negocio; existe para que nunca sea silencioso |
 | R-11 | Errores de PostgreSQL expuestos al usuario | `mapPgError` traduce por código y por restricción, y propaga solo los mensajes de negocio propios (D-044) | ✅ Ampliado en F3 |
 | R-12 | Deriva entre el esquema real y `DATA_MODEL.md` | Actualización obligatoria + tipos generados + pruebas de catálogo | 🔄 Permanente |
 | R-13 | Sesión de usuario recién desactivado | `is_active` verificado en cada request y en `current_org_ids()` | ✅ Verificado F1/F2 |
@@ -77,8 +81,14 @@ Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 
 ## 4. Estado del proyecto Supabase real
 
-Las migraciones `0001`–`0011` están aplicadas. **La `0012` (Fase 5) solo está en local**: sin ella,
-un vendedor no ve en su historial los pagos que registre un administrador para sus clientes (I-015).
+Las migraciones `0001`–`0011` están aplicadas. **La `0012` (Fase 5) y la `0013` (Fase 6) solo están
+en local.** Un solo comando aplica ambas.
+
+- Sin la `0012`, un vendedor no ve en su historial los pagos que registre un administrador para sus
+  clientes (I-015).
+- Sin la `0013` no existen `report_payment_totals` ni `report_payments_by_day`, así que el reporte
+  «Pagos por fecha» **falla** en producción. Los otros cuatro reportes sí funcionan: se apoyan en
+  vistas que ya están aplicadas.
 
 ```bash
 npx supabase db push --db-url "$SUPABASE_DB_URL"
@@ -123,3 +133,4 @@ Reglas del MVP que podrían confundirse con defectos:
 | 2026-08-03 | 3 | +I-011 (resuelto con la migración 0011), +I-012, +I-013. DT-11 saldada. R-05, R-10, R-11, R-14 verificados. |
 | 2026-08-03 | 4 | +I-014. R-13 reverificado con el portal del vendedor. Sin migraciones ni deuda nueva. |
 | 2026-08-03 | 5 | +I-015 y +I-016, ambos resueltos en la misma fase (migración `0012` y `MoneyInput`). R-02 y R-16 reverificados con la interfaz de pagos. |
+| 2026-08-04 | 6 | +I-017 y +I-018, ambos resueltos en la misma fase (fechas de día calendario y nombre accesible del menú de usuario). Migración `0013` **pendiente de aplicar al proyecto real**. I-011 verificado con una prueba explícita a 5.000 boletas. |

@@ -282,6 +282,28 @@ Reglas complementarias:
   desde la que se invocan.
 - Los Route Handlers (`auth/callback`) validan origen y parámetros.
 
+### 5.0 Un Route Handler NO hereda la guarda de su layout (Fase 6)
+
+Es la trampa que aparece al añadir una descarga. `layout.tsx` protege las **páginas** de su grupo de
+rutas, no los Route Handlers: un `route.ts` colocado dentro de `(protected)/owner/` **es público**,
+aunque el layout hermano llame a `requireStaff()`.
+
+Por eso la exportación de reportes vive en `src/app/api/reports/export/route.ts` —fuera del grupo,
+donde nadie puede suponer una guarda implícita— y comprueba en sus primeras líneas (D-060):
+
+1. **Sesión** (`getAuthUser`) → 401.
+2. **Membresía activa** (`getActiveMembership`) → 403. Un usuario desactivado no descarga nada, ni
+   siquiera con una sesión anterior (BR-A04).
+3. **Reporte permitido para su rol** → 403. Un vendedor no puede pedir el reporte que compara
+   vendedores.
+4. **RLS**, que es la única capa que garantiza de verdad el aislamiento: las vistas y las funciones
+   de reporte son `security_invoker`, así que el archivo solo puede contener filas que esa persona
+   ya podía ver. Las tres comprobaciones anteriores dan mensajes claros; esta es la que protege.
+
+Además, el nombre del archivo se **sanea** antes de entrar en `Content-Disposition` (lista blanca
+`[a-zA-Z0-9_-]`): sin eso, un valor con `\r\n` podría inyectar cabeceras HTTP. Y los errores se
+devuelven genéricos, sin el mensaje de PostgreSQL (D-044).
+
 ### 5.1 Ajustes de la implementación (Fase 3)
 
 **`authorizeAction(roles)` en vez de `requireRole` dentro de acciones.** `requireRole` redirige a

@@ -1003,6 +1003,39 @@ export type Database = {
         Args: { p_ticket_id: string }
         Returns: undefined
       }
+      report_payment_totals: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_method?: Database['public']['Enums']['payment_method']
+          p_seller_id?: string
+          p_status?: string
+        }
+        Returns: {
+          active_amount: number
+          active_count: number
+          payments_count: number
+          total_amount: number
+          voided_amount: number
+          voided_count: number
+        }[]
+      }
+      report_payments_by_day: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_method?: Database['public']['Enums']['payment_method']
+          p_seller_id?: string
+          p_status?: string
+        }
+        Returns: {
+          active_amount: number
+          payment_date: string
+          payments_count: number
+          total_amount: number
+          voided_amount: number
+        }[]
+      }
       require_auth: { Args: never; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { '': string }; Returns: string[] }

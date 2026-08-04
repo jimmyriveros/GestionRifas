@@ -19,6 +19,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 3 | **55 ✅** | **143 ✅** | **41 ✅** | ✅ | ✅ |
 | 4 | **74 ✅** | **170 ✅** | **72 ✅** | ✅ | ✅ |
 | 5 | **101 ✅** | **199 ✅** | **89 ✅** | ✅ | ✅ |
+| 6 | **126 ✅** | **238 ✅** | **120 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -348,3 +349,96 @@ Todas estas comprobaciones se hacen contra la base de datos, no contra la pantal
 - Anular uno de dos pagos deja intacto el saldo del otro.
 - La anulación queda en `audit_logs` con `action = 'payment.void'`.
 - `v_client_balances` cumple `pending_amount = total_purchased - total_paid` después de abonar.
+
+---
+
+## Fase 6 — 2026-08-04
+
+### Punto de partida
+
+Antes de tocar nada se levantó el entorno y se comprobó la línea base heredada de la Fase 5:
+`npm run db:reset && npm run seed:local` → `npm run test:db` **199 ✅** → `npm run verify` **✅** →
+`npm run test:e2e` **89 ✅**. Todo en verde, así que cualquier fallo posterior sería de esta fase.
+
+### Sondeo previo a escribir la interfaz
+
+Igual que en las fases 4 y 5, las funciones nuevas se probaron con **sesiones reales** antes de
+construir una sola pantalla encima. Resultados de `report_payment_totals` / `report_payments_by_day`
+recién aplicada la migración `0013`:
+
+| Quién consulta | Resultado | Esperado |
+|---|---|---|
+| Owner | 4 pagos, $310.000 (vigente $290.000, anulado $20.000) | ✅ coincide con la suma directa de `payments` |
+| Vendedor 1 | los mismos 4: son suyos | ✅ |
+| Vendedor 2 | 0 pagos, $0 | ✅ no ve los de su compañero |
+| Otra organización | 0 pagos, $0 | ✅ |
+| Anónimo | `permission denied for function` | ✅ |
+| Vendedor 2 pidiendo `p_seller_id` = Vendedor 1 | 0 pagos, $0 | ✅ **el parámetro no es una puerta**: manda la RLS |
+
+En el mismo sondeo se confirmaron dos premisas de las que dependía el diseño de los reportes:
+
+- `SUM(v_client_balances.pending_amount)` = `SUM(v_seller_summary.pending_amount)` = **$510.000**.
+  Por eso el total del reporte «Clientes con saldo» puede salir del agregado por vendedor sin
+  contradecir la tabla.
+- `v_raffle_summary` se acota sola al vendedor que consulta (21 boletas de 30), porque el `LEFT JOIN`
+  contra `tickets` hereda su RLS. No hacía falta una vista nueva para el portal Seller.
+
+### Cronología con errores encontrados
+
+| Comando / prueba | Resultado | Error | Corrección |
+|---|---|---|---|
+| Sondeo de las funciones `report_*` | ✅ 12 de 12 | — | — |
+| Verificación en navegador (owner y vendedor) | ✅ | — | Cifras contrastadas con el sondeo: $800.000 / $290.000 / $510.000 en el portal admin y $600.000 / $290.000 / $310.000 en el del vendedor |
+| Exportación CSV desde el navegador | ⚠️ | `response.text()` decía que **faltaba el BOM** | Falsa alarma: la especificación de `fetch` **elimina** el BOM al decodificar. Se comprobó con `arrayBuffer()` que los bytes `EF BB BF` sí viajan. Aun así se cambió el literal U+FEFF (invisible) por `String.fromCharCode(0xfeff)` y la prueba pasó a comparar el punto de código: **la prueba anterior habría pasado igual con el BOM borrado** |
+| `npm run test` (nuevas) | ✅ 25 | — | — |
+| `npm run test:db` (nuevas) | ✅ 39 | — | — |
+| E2E `reports` (1ª ejecución) | ❌ 6 de 31 | (a) 5 fallos por leer con `count()`/`allInnerTexts()`, que **no auto-esperan**, contra el `loading.tsx` todavía en pantalla; (b) 3 fallos en `logout()` | (a) esperar a la primera fila con `expect(...).toBeVisible()` antes de leer; (b) **`logout()` llevaba tres fases sin funcionar** (I-018) |
+| E2E `reports` (2ª ejecución) | ❌ 3 de 31 | `logout()` seguía sin encontrar el botón | El disparador del menú **no tenía nombre accesible**: su contenido eran las iniciales del avatar y un nombre oculto bajo `md`. Se le añadió `aria-label`, lo que **corrige también un defecto real de accesibilidad** |
+| E2E `reports` (final) | ✅ 31 | — | — |
+| `npm run test:e2e` completo | ✅ 120 | — | — |
+| `npx tsc --noEmit` tras escribir las pruebas de BD | ❌ 21 errores | `tsc` también cubre `tests/`: (a) `as Record<string, number>` sobre filas de vista no solapa; (b) los constructores de supabase-js son *thenables*, no `Promise`, y `timed()` exigía `Promise` | (a) helper `sumar()` que comprueba el tipo en ejecución en vez de forzar el `as`; (b) `timed()` acepta `PromiseLike` |
+| `npm run verify` (final) | ✅ | — | 126 unitarias, 0 errores de lint, build con las 3 rutas nuevas |
+
+### Los dos defectos reales de esta fase
+
+**I-017 — todas las fechas de día calendario se mostraban un día antes.** Apareció al escribir
+`formatDateCsv`: `payment_date`, `sale_date`, `start_date` y `end_date` son columnas `date`, llegan
+como `'AAAA-MM-DD'` y `new Date('2026-08-04')` es **medianoche UTC**, que en Bogotá todavía es el
+día 3. Afectaba a los 8 sitios donde se muestran fechas de negocio, incluida la tabla de pagos de la
+Fase 5. Se corrigió en `src/lib/dates.ts` —anclando las cadenas de solo fecha al mediodía UTC— en
+vez de parchear cada llamada, y se cubrió con pruebas unitarias y una E2E.
+
+**I-018 — el menú de usuario no tenía nombre accesible.** El helper `logout()` de las pruebas,
+escrito en la Fase 3 y nunca usado hasta ahora, buscaba un botón que no existía. Al investigarlo se
+vio que el disparador solo contenía el avatar y un nombre oculto en móvil: un lector de pantalla
+anunciaba «CR». Se añadió `aria-label="Menu de usuario: <nombre>"`.
+
+### Lo que se comprobó contra la base de datos, no contra la pantalla
+
+- Cada conteo y cada importe del dashboard tiene una **consulta de control independiente**, escrita
+  a mano sobre `tickets` y `payments`, sin pasar por las vistas que se están probando (F6-01, F6-02).
+- `vendido − recaudado = saldo pendiente`, y el recaudado es la suma de los pagos **no anulados**
+  (comprobado a la vez contra la suma de *todos*, que es mayor: si fueran iguales, la prueba no
+  demostraría nada).
+- El resumen por rifa y el resumen por vendedor suman lo mismo.
+- Las funciones nuevas **no** son `SECURITY DEFINER` y **sí** fijan `search_path`; `anon` no puede
+  ejecutarlas; devuelven dinero como `number` y no como texto (D-040).
+
+### Volumen: 5.000 boletas (prueba 5 del plan)
+
+`tests/db/volume-phase6.test.ts` crea una rifa en borrador con 5.000 boletas repartidas entre dos
+vendedores, de forma idempotente. Lo relevante que demuestra:
+
+| Comprobación | Resultado |
+|---|---|
+| Una consulta normal sobre 5.000 boletas | **devuelve 1.000 filas y `error: null`** — el truncamiento silencioso de PostgREST, reproducido (I-011) |
+| `count: 'exact', head: true` | devuelve el número real, > 1.000 |
+| Paginación por bloques (lo que hace `fetchAllRows`) | recupera las 5.000, sin repetidos entre bloques |
+| `v_raffle_summary` con 5.000 boletas | **1 fila**, correcta, < 5 s |
+| `v_seller_summary` con 5.000 boletas | **2 filas** (una por vendedor), suman 5.000 |
+| Aislamiento con la base cargada | el vendedor sigue viendo solo lo suyo |
+
+El presupuesto de tiempo (5 s) es deliberadamente holgado: no mide rendimiento absoluto —una portátil
+con Docker no da medidas comparables— sino que caza una regresión de orden de magnitud, como mover un
+agregado a TypeScript. Lo que sí es una aserción fuerte es el **número de filas** que devuelve cada
+agregado: si creciera con el número de boletas, la suma habría dejado de estar en SQL.

@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { listPayments, type PaymentListItem } from '@/features/payments/queries'
 import { listRaffleOptions, type RaffleOption } from '@/features/raffles/queries'
 import { createClient } from '@/lib/supabase/server'
 
@@ -39,6 +40,8 @@ export type SellerDashboard = {
     assignedAt: string
     clientName: string | null
   }[]
+  /** Sus ultimos abonos (CLAUDE.md 23: «pagos recientes»). */
+  recentPayments: PaymentListItem[]
 }
 
 const ZERO: SellerDashboard['totals'] = {
@@ -64,6 +67,7 @@ export async function getSellerDashboard(): Promise<SellerDashboard> {
     { count: clientsCount, error: clientsCountError },
     { data: recentClients, error: recentClientsError },
     { data: recentTickets, error: recentTicketsError },
+    recentPayments,
   ] = await Promise.all([
     listRaffleOptions(),
     supabase.from('v_seller_summary').select('*'),
@@ -84,6 +88,9 @@ export async function getSellerDashboard(): Promise<SellerDashboard> {
       .eq('inventory_status', 'assigned')
       .order('assigned_at', { ascending: false })
       .limit(5),
+    // `listPayments` no filtra por vendedor: `v_payment_history` es
+    // security_invoker y ya devuelve unicamente los pagos de quien consulta.
+    listPayments({ pageSize: 5 }),
   ])
 
   if (summaryError) throw summaryError
@@ -135,5 +142,6 @@ export async function getSellerDashboard(): Promise<SellerDashboard> {
           ]
         : [],
     ),
+    recentPayments: recentPayments.rows,
   }
 }

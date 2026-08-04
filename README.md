@@ -3,14 +3,14 @@
 Aplicación web para administrar la operación de una empresa de rifas: organizaciones, rifas,
 vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y auditoría.
 
-> **Estado actual: Fase 5 completada — el circuito del negocio funciona de punta a punta.**
-> Crear rifas y boletas, repartirlas entre vendedores, venderlas a clientes y **cobrarlas con
-> abonos**: el vendedor registra el pago y lo reparte entre las boletas, y Owner o Admin pueden
-> anularlo con motivo, recalculando los saldos. Los estados de pago (Sin pagar / Abonada / Pagada)
-> los calcula siempre la base de datos.
-> Verificado con 199 pruebas de base de datos y 89 end-to-end sobre un navegador real, incluido el
-> ciclo completo de venta desde un teléfono. Los **reportes con exportación CSV** y el pulido final
-> de la interfaz llegan en la Fase 6, que aún no ha sido autorizada.
+> **Estado actual: Fase 6 completada — el MVP está funcionalmente completo.**
+> Crear rifas y boletas, repartirlas entre vendedores, venderlas a clientes, **cobrarlas con
+> abonos** y **consultar y exportar** todo eso en reportes. Los estados de pago
+> (Sin pagar / Abonada / Pagada) y los saldos los calcula siempre la base de datos; ningún importe
+> se suma en el navegador.
+> Verificado con 238 pruebas de base de datos y 120 end-to-end sobre un navegador real, incluido el
+> ciclo completo de venta desde un teléfono y una prueba de volumen con 5.000 boletas. Lo que queda
+> es endurecer (Fase 7) y desplegar (Fase 8); ninguna de las dos ha sido autorizada.
 
 ---
 
@@ -24,6 +24,10 @@ Reemplaza el control manual en papel y hojas de cálculo por un sistema con:
   URLs o consultando la API directamente.
 - **Trazabilidad del dinero**: los abonos se registran, se auditan y nunca se eliminan; los saldos y
   estados de pago se calculan en la base de datos, no a mano.
+- **Reportes con exportación a CSV**: ventas, recaudo y saldo por vendedor, boletas por estado y por
+  rifa, clientes con saldo pendiente y recaudo por rango de fechas. El vendedor tiene los suyos, sin
+  ver datos de nadie más. Los archivos se abren directamente en Excel en configuración regional
+  colombiana.
 - **Operación desde el teléfono** para los vendedores.
 
 ---
@@ -116,8 +120,8 @@ npm run build         # build de producción
 npm run typecheck     # tsc --noEmit
 npm run lint          # eslint
 npm run test          # vitest (unitarias)
-npm run test:db       # 199 pruebas contra la base de datos local
-npm run test:e2e      # 89 pruebas end-to-end (Playwright, requiere base local sembrada)
+npm run test:db       # 238 pruebas contra la base de datos local (crea 5.000 boletas de volumen)
+npm run test:e2e      # 120 pruebas end-to-end (Playwright, requiere base local RECIÉN sembrada)
 npm run format:check  # prettier --check
 npm run verify        # typecheck + lint + test + build
 npm run seed          # datos de desarrollo en el proyecto de .env.local
@@ -145,8 +149,8 @@ El proyecto avanza **por fases** y cada una requiere autorización explícita
 | 3 | Portal Owner y Admin | ✅ Completada |
 | 4 | Portal Seller y clientes | ✅ Completada |
 | 5 | Pagos, abonos y saldos | ✅ Completada |
-| 6 | Dashboards, reportes y UI/UX | ⬜ Pendiente de autorización |
-| 7 | Pruebas, seguridad y endurecimiento | ⬜ |
+| 6 | Dashboards, reportes y UI/UX | ✅ Completada |
+| 7 | Pruebas, seguridad y endurecimiento | ⬜ Pendiente de autorización |
 | 8 | Despliegue y documentación operativa | ⬜ |
 | 9 | Auditoría final independiente | ⬜ |
 

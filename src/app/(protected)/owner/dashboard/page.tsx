@@ -18,7 +18,7 @@ import {
 import { getAdminDashboard } from '@/features/dashboard/queries'
 import { requireStaff } from '@/lib/auth/guards'
 import { ROLE_LABELS } from '@/lib/constants'
-import { formatDateTimeEs } from '@/lib/dates'
+import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 
 export default async function OwnerDashboardPage() {
@@ -164,32 +164,79 @@ export default async function OwnerDashboardPage() {
         )}
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Boletas creadas recientemente</h2>
-        {dashboard.recentTickets.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Todavia no se ha creado ninguna boleta.</p>
-        ) : (
-          <ul className="divide-y rounded-lg border">
-            {dashboard.recentTickets.map((ticket) => (
-              <li key={ticket.id} className="flex items-center justify-between gap-3 px-4 py-2">
-                <Link
-                  href={`/owner/tickets/${ticket.id}`}
-                  className="font-mono text-sm hover:underline"
-                >
-                  {ticket.internalCode}
-                </Link>
-                <span className="text-muted-foreground text-xs">
-                  {formatDateTimeEs(ticket.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Pagos recientes</h2>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/owner/payments">Ver todos</Link>
+            </Button>
+          </div>
+          {dashboard.recentPayments.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Todavia no se ha registrado ningun abono.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-lg border">
+              {dashboard.recentPayments.map((payment) => (
+                <li key={payment.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/owner/clients/${payment.clientId}`}
+                      className="font-medium hover:underline"
+                    >
+                      {payment.clientName}
+                    </Link>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {payment.sellerName ?? 'Otro vendedor'} · {formatDateEs(payment.paymentDate)}
+                    </p>
+                  </div>
+                  <span
+                    className={
+                      payment.isActive
+                        ? 'shrink-0 text-sm font-medium tabular-nums'
+                        : 'text-muted-foreground shrink-0 text-sm tabular-nums line-through'
+                    }
+                    // El texto es lo que informa, no el tachado (CLAUDE.md 27).
+                    title={payment.isActive ? undefined : 'Pago anulado'}
+                  >
+                    {formatCOP(payment.totalAmount)}
+                    {payment.isActive ? '' : ' (anulado)'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-      <p className="text-muted-foreground text-sm">
-        El historial de pagos y los reportes exportables llegan en las fases 5 y 6.
-      </p>
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Boletas creadas recientemente</h2>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/owner/tickets">Ver todas</Link>
+            </Button>
+          </div>
+          {dashboard.recentTickets.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Todavia no se ha creado ninguna boleta.</p>
+          ) : (
+            <ul className="divide-y rounded-lg border">
+              {dashboard.recentTickets.map((ticket) => (
+                <li key={ticket.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <Link
+                    href={`/owner/tickets/${ticket.id}`}
+                    className="font-mono text-sm hover:underline"
+                  >
+                    {ticket.internalCode}
+                  </Link>
+                  <span className="text-muted-foreground text-xs">
+                    {formatDateTimeEs(ticket.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   )
 }

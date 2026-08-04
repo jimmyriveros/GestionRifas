@@ -9,18 +9,19 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 
 | | |
 |---|---|
-| Última fase completada | **5 — Pagos, abonos y saldos** |
-| Siguiente fase | **6 — Dashboards, reportes y UI/UX** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `ecc9eac` · `fase-5` |
+| Última fase completada | **6 — Dashboards, reportes y UI/UX** |
+| Siguiente fase | **7 — Pruebas, seguridad y endurecimiento** (requiere autorización explícita del usuario) |
+| Rama / commit / etiqueta | `main` · `<pendiente>` · `fase-6` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
-| App | Next.js 16: autenticación, portal administrativo, portal del vendedor y **pagos/abonos**, todo funcionando |
-| Base de datos | 12 migraciones. Las 11 primeras en local **y** en el proyecto real; la **`0012` solo en local** (I-015) |
-| Pruebas | 101 unitarias + **199 de base de datos** + **89 end-to-end**, todas en verde |
+| App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando |
+| Base de datos | 13 migraciones. Las 11 primeras en local **y** en el proyecto real; la **`0012` y la `0013` solo en local** (I-015, §3) |
+| Pruebas | 126 unitarias + **238 de base de datos** + **120 end-to-end**, todas en verde |
 
-**Lo que existe hoy:** el circuito completo del negocio funcionando contra datos reales — crear
-rifas y boletas, repartirlas entre vendedores, venderlas a clientes y cobrarlas con abonos, con
-saldos y estados de pago calculados en la base de datos.
-**Lo que NO existe:** los reportes con exportación CSV y el pulido final de dashboards y UI. Fase 6.
+**Lo que existe hoy:** el producto completo del MVP funcionando contra datos reales — crear rifas y
+boletas, repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y
+exportar todo eso en reportes. Los saldos y los estados de pago los calcula la base de datos.
+**Lo que NO existe:** el cierre de la cobertura de pruebas de `CLAUDE.md` §30, la revisión de
+seguridad y el endurecimiento (Fase 7), y el despliegue (Fase 8).
 
 ---
 
@@ -74,8 +75,10 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-⚠️ **La migración `0012` está aplicada en local pero NO en el proyecto real** (I-015). Sin ella, un
-vendedor no ve en su historial los pagos que registre un administrador para sus clientes:
+⚠️ **Las migraciones `0012` y `0013` están aplicadas en local pero NO en el proyecto real.** Sin la
+`0013` el reporte «Pagos por fecha» **falla** en producción (no existen sus dos funciones); sin la
+`0012`, un vendedor no ve en su historial los pagos que registre un administrador para sus clientes
+(I-015). Un solo comando aplica ambas:
 
 ```bash
 npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
@@ -160,10 +163,15 @@ profiles 1─1 auth.users
 
 **Funciones a usar en vez de DML directo:**
 `assign_ticket` · `create_payment` · `void_payment` · `bulk_create_tickets` · `approve_tickets` ·
-`cancel_ticket`. Todas validan permisos internamente y auditan.
+`cancel_ticket`. Todas validan permisos internamente y auditan. Son `SECURITY DEFINER`: existen
+precisamente para hacer cosas que la RLS del usuario prohíbe.
 
 **Vistas de solo lectura:** `v_ticket_balances` · `v_client_balances` · `v_seller_summary` ·
 `v_raffle_summary` · `v_payment_history`.
+
+**Funciones de reporte** (`0013`, solo lectura): `report_payment_totals` y
+`report_payments_by_day`. Al revés que las anteriores son **`SECURITY INVOKER`**, para heredar la
+RLS de quien consulta (D-057). Úsalas para cualquier agregado de pagos que necesite parámetros.
 
 ---
 
@@ -173,9 +181,17 @@ profiles 1─1 auth.users
 components/data/    DataTable · DataTablePagination · StatusBadge · EmptyState
                     PageHeader · MetricCard
 components/form/    MoneyInput · TicketNumberInput
-components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton
+components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSkeleton
+features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
+                    ExportCsvButton
 lib/                action-result.ts · auth/guards.ts (authorizeAction, requireStaff)
+                    csv.ts (toCsv, escapeCsvCell) · supabase/paginate.ts (fetchAllRows)
 ```
+
+**`DataTable` o `ReportTable`.** `DataTable` ordena en el navegador: úsalo en los listados
+operativos. En una tabla paginada en servidor esa ordenación afectaría **solo a la página visible**,
+así que los reportes usan `ReportTable`, que es un Server Component sin ordenación y con el orden
+puesto por SQL (D-058).
 
 Convención de cada módulo de `features/`: `schemas.ts` (Zod, cliente **y** servidor) ·
 `queries.ts` (`server-only`, lectura para RSC) · `actions.ts` (`use server`) · `components/`.
@@ -192,9 +208,15 @@ Las tablas y los filtros **sirven a los dos portales** y se parametrizan, no se 
 `ClientFilters` y `PaymentFilters` ocultan los selectores que no se les pasan.
 
 **El dinero se calcula en SQL, siempre.** `paid_amount` lo mantiene un trigger, `payment_status` es
-una columna generada y los saldos salen de las vistas. Lo único que vive en la aplicación es el
-reparto de un abono entre boletas (`features/payments/allocation.ts`, funciones puras), y aun así
-`create_payment` lo revalida antes de escribir.
+una columna generada, los saldos salen de las vistas y los totales de cobranza por fechas, de las
+funciones `report_*`. Lo único que vive en la aplicación es el reparto de un abono entre boletas
+(`features/payments/allocation.ts`, funciones puras), y aun así `create_payment` lo revalida antes
+de escribir. Donde los reportes suman en TypeScript, lo hacen sobre filas **ya agregadas** por la
+base de datos —una por rifa y vendedor, decenas—, nunca sobre boletas o pagos sueltos.
+
+**Ninguna lectura que pueda superar 1.000 filas usa `data.length`.** PostgREST corta ahí sin dar
+error (I-011). Para contar, `count: 'exact', head: true`; para recorrer todo, `fetchAllRows`
+(`lib/supabase/paginate.ts`), que pide bloques con un orden estable hasta que uno viene incompleto.
 
 ---
 
@@ -206,9 +228,13 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-199 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+238 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
+
+⚠️ Esta suite crea 5.000 boletas en una rifa **en borrador** llamada «Rifa Volumen Fase 6», para la
+prueba de volumen. Es idempotente (las reutiliza en ejecuciones posteriores), pero deja la base
+distinta de como la dejó el seed: **`db:reset` + `seed:local` antes de `test:e2e`**.
 
 ```bash
 npm run verify
@@ -256,6 +282,11 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Un `UPDATE` bloqueado por RLS **no** da error | Afecta cero filas en silencio: hay que comprobar `data.length === 0` (así se detecta que un Admin no pudo tocar al Owner) | BD `F3-03` |
 | El desarrollo escribe en el proyecto real | `npm run dev` usa `.env.local`. Usa `npm run dev:local` | I-013 · D-047 |
 | Un usuario desactivado desaparece del listado | Falta la migración `0011` en ese entorno | I-011 |
+| Una fecha de pago, venta o rifa aparece **un día antes** | `new Date('2026-08-04')` es medianoche **UTC**, que en Bogotá aún es el día 3. Usa `formatDateEs`/`formatDateCsv`, que ya lo tratan | I-017 |
+| El reporte «Pagos por fecha» falla en producción | Falta la migración `0013` en ese entorno | §3 |
+| Una prueba E2E lee 0 filas de una tabla que sí está | `count()` y `allInnerTexts()` **no auto-esperan** y corren contra el `loading.tsx`. Ancla antes con `expect(...).toBeVisible()` | TESTING §3.1 |
+| `loginAs` falla al cambiar de usuario en una prueba | Con sesión abierta, `/login` redirige al panel. Usa `logout(page)` | TESTING §3.1 |
+| Un Route Handler dentro de `(protected)` es público | Los layouts no protegen `route.ts`. Comprobar sesión y rol dentro | D-060 |
 | Una ruta inexistente devuelve 200 en vez de 404 | El segmento tiene `loading.tsx`: la respuesta ya iba en streaming. No filtra datos | I-014 |
 | Una vista `security_invoker` pierde filas enteras | Un `JOIN` interno contra una tabla que quien consulta no ve borra la fila. **Usa LEFT JOIN** para los nombres | I-015 |
 | Un pago registrado por un admin no aparece en el historial del vendedor | Falta la migración `0012` en ese entorno | I-015 |

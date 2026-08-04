@@ -1,4 +1,4 @@
-import { LayoutDashboardIcon, TicketIcon, UsersIcon, WalletIcon } from 'lucide-react'
+import { BarChart3Icon, LayoutDashboardIcon, TicketIcon, UsersIcon, WalletIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { AppShell } from '@/components/layout/AppShell'
@@ -10,6 +10,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/seller/tickets', label: 'Mis boletas', icon: <TicketIcon className="size-4" /> },
   { href: '/seller/clients', label: 'Mis clientes', icon: <UsersIcon className="size-4" /> },
   { href: '/seller/payments', label: 'Mis pagos', icon: <WalletIcon className="size-4" /> },
+  { href: '/seller/reports', label: 'Reportes', icon: <BarChart3Icon className="size-4" /> },
 ]
 
 export default async function SellerLayout({ children }: { children: ReactNode }) {

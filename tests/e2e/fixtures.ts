@@ -26,8 +26,15 @@ export async function loginAs(page: Page, email: string): Promise<void> {
   await page.waitForURL(/\/(owner|seller)\/dashboard/)
 }
 
+/**
+ * Cierra la sesion por la interfaz.
+ *
+ * Es necesario para cambiar de usuario dentro de una misma prueba: ir a
+ * `/login` con una sesion abierta redirige al panel y el formulario no llega a
+ * aparecer.
+ */
 export async function logout(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /menu de usuario|cuenta/i }).click()
+  await page.getByRole('button', { name: /menu de usuario/i }).click()
   await page.getByRole('menuitem', { name: /cerrar sesion/i }).click()
   await page.waitForURL(/\/login/)
 }

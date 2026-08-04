@@ -176,12 +176,12 @@ importa desde un componente cliente.
     │   ├── reports/
     │   └── audit/
     ├── lib/
-    │   ├── supabase/             # client | server | middleware | admin
+    │   ├── supabase/             # client | server | proxy | admin | paginate (fetchAllRows, I-011)
     │   ├── auth/                 # getSession, requireRole, guards de servidor
     │   ├── money.ts              # formatCOP, parseCOP — enteros
-    │   ├── dates.ts              # zona America/Bogota
+    │   ├── dates.ts              # zona America/Bogota; distingue día calendario de instante (I-017)
     │   ├── errors.ts             # AppError, mapeo de códigos PG a mensajes en español
-    │   ├── csv.ts                # exportación
+    │   ├── csv.ts                # exportación: separador ;, BOM, anti-inyección de fórmulas (D-056)
     │   └── constants.ts          # DEFAULT_TICKET_PRICE = 100000, límites, etiquetas
     ├── types/
     │   └── database.types.ts     # Generado: supabase gen types typescript (D-034: manual hasta la Fase 2)
@@ -214,7 +214,7 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/auth/callback` | público | 1 | Route Handler de intercambio de código |
 | `/denied` | autenticado | 1 | Acceso denegado |
 | `/account/password` | todos | 1 | Cambio de contraseña |
-| `/owner/dashboard` | owner, admin | 1 → **3 ✅** → 6 | Métricas generales |
+| `/owner/dashboard` | owner, admin | 1 → 3 → **6 ✅** | Métricas generales (`CLAUDE.md` §23 completo) |
 | `/owner/raffles` | owner, admin | **3 ✅** | Listado de rifas |
 | `/owner/raffles/new` | owner, admin | **3 ✅** | Crear rifa |
 | `/owner/raffles/[raffleId]` | owner, admin | **3 ✅** | Detalle (la edición está en `/edit`) |
@@ -229,8 +229,8 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/owner/clients` | owner, admin | **3 ✅** | Consulta global de clientes |
 | `/owner/clients/[clientId]` | owner, admin | **3 ✅** | Perfil de cliente |
 | `/owner/payments` | owner, admin | **5 ✅** | Consulta global y anulación |
-| `/owner/reports` | owner, admin | 6 | Reportes + exportación CSV |
-| `/seller/dashboard` | seller | 1 → **4 ✅** → 6 | Métricas propias |
+| `/owner/reports` | owner, admin | **6 ✅** | Cinco reportes con filtros + exportación CSV |
+| `/seller/dashboard` | seller | 1 → 4 → **6 ✅** | Métricas propias (`CLAUDE.md` §23 completo) |
 | `/seller/tickets` | seller | **4 ✅** | Boletas propias |
 | `/seller/tickets/new` | seller | **4 ✅** | Crear boletas (si la rifa lo permite) |
 | `/seller/tickets/[ticketId]` | seller | **4 ✅** | Detalle y asignación |
@@ -240,6 +240,8 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/seller/clients/[clientId]/edit` | seller | **4 ✅** | Edición del cliente |
 | `/seller/payments` | seller | **5 ✅** | Historial de pagos |
 | `/seller/payments/new` | seller | **5 ✅** | Registrar abono |
+| `/seller/reports` | seller | **6 ✅** | Sus reportes, sin el que compara vendedores (D-059) |
+| `/api/reports/export` | según rol | **6 ✅** | Descarga CSV. **Fuera de `(protected)` a propósito**: un Route Handler no pasa por el layout, así que se protege a mano (D-060) |
 
 **Nota de nomenclatura:** el prefijo de ruta es `/owner` para Owner **y** Admin, tal como exige
 `CLAUDE.md` §21. El segmento de URL no implica que el usuario sea Owner; el rol se verifica en cada
