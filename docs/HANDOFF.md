@@ -11,7 +11,7 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 |---|---|
 | Última fase completada | **6 — Dashboards, reportes y UI/UX** |
 | Siguiente fase | **7 — Pruebas, seguridad y endurecimiento** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `<pendiente>` · `fase-6` |
+| Rama / commit / etiqueta | `main` · `791e585` · `fase-6` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando |
 | Base de datos | 13 migraciones. Las 11 primeras en local **y** en el proyecto real; la **`0012` y la `0013` solo en local** (I-015, §3) |
