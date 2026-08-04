@@ -308,6 +308,14 @@ cliente de sesión, sujeto a RLS: es `memberships_insert_staff` la que impide a 
 `owner`. Nunca existe una contraseña en texto plano: se invita por correo y la persona la define
 desde el enlace. Si la inserción de la membresía falla, se elimina la cuenta recién creada.
 
+**Un INNER JOIN en una vista `security_invoker` borra filas, no columnas (I-015, migración `0012`).**
+`v_payment_history` unía `profiles` con INNER JOIN para resolver nombres. Como la vista hereda la RLS
+de quien consulta, un vendedor —que solo ve su propio perfil— perdía la fila **entera** de cualquier
+pago registrado por un administrador, aunque `payments_select` sí se la permitiera. La regla que se
+desprende: en una vista `security_invoker`, todo `JOIN` contra una tabla con RLS es `LEFT JOIN` salvo
+que se pueda demostrar que quien ve la fila principal ve también la unida. Un dato que no se puede
+ver debe llegar como `NULL`, nunca hacer desaparecer el registro.
+
 **Visibilidad de usuarios inactivos (I-011, migración `0011`).** `profiles_select` exigía que la
 membresía **objetivo** estuviera activa, de modo que al desactivar a alguien desaparecía del listado
 y era imposible reactivarlo. Ahora la visibilidad depende de que **quien consulta** sea personal

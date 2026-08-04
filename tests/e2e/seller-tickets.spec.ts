@@ -53,7 +53,9 @@ test.describe('Asignacion de boletas', () => {
 
     await expectToast(page, 'Boleta asignada.')
     await expect(page.getByText('Asignada').first()).toBeVisible()
-    await expect(page.getByRole('link', { name: client.name })).toBeVisible()
+    // `exact`: desde la Fase 5 el detalle tambien ofrece «Registrar un abono de
+    // <cliente>», que contiene el mismo nombre.
+    await expect(page.getByRole('link', { name: client.name, exact: true })).toBeVisible()
 
     // BR-P03: el precio de venta es el precio VIGENTE de la rifa.
     const { data: stored } = await serviceClient()

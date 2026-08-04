@@ -1,10 +1,11 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.1 · **Fase:** 3 · **Actualizado:** 2026-08-03
-- **Estado:** IMPLEMENTADO y verificado. El esquema vive en `supabase/migrations/0001` a `0011`,
-  aplicado tanto en la instancia local como en el proyecto Supabase real.
+- **Versión:** 2.2 · **Fase:** 5 · **Actualizado:** 2026-08-03
+- **Estado:** IMPLEMENTADO y verificado. El esquema vive en `supabase/migrations/0001` a `0012`.
+  Las 11 primeras están aplicadas en local **y** en el proyecto Supabase real; la `0012` solo en
+  local — ver `KNOWN_ISSUES.md` §4.
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
-  tipos generados en `src/types/database.types.ts`. Las 143 pruebas de `tests/db/` verifican que el
+  tipos generados en `src/types/database.types.ts`. Las 199 pruebas de `tests/db/` verifican que el
   esquema real cumple lo aquí descrito.
 
 ### Ajustes introducidos al implementar (Fase 2)
@@ -22,6 +23,16 @@
 | Cambio | Motivo | Decisión |
 |---|---|---|
 | `0011`: `profiles_select` deja de exigir que la membresía **objetivo** esté activa | Al desactivar a un usuario desaparecía del listado y no se podía reactivar | I-011 |
+
+### Ajustes introducidos al implementar (Fase 5)
+
+| Cambio | Motivo | Decisión |
+|---|---|---|
+| `0012`: `v_payment_history` pasa a **LEFT JOIN** sobre `profiles` y añade `voided_by_name` | Con INNER JOIN, un nombre invisible para quien consulta borraba el pago entero de su historial | I-015 |
+
+**Regla que se desprende:** en una vista `security_invoker`, todo `JOIN` contra una tabla con RLS
+debe ser `LEFT JOIN` salvo que se pueda demostrar que quien ve la fila principal ve también la
+unida. Un INNER JOIN ahí no filtra columnas: elimina filas.
 
 ---
 

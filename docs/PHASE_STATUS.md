@@ -4,7 +4,7 @@ Registro de lo entregado por fase. **Leer antes de iniciar cualquier fase.**
 Ninguna fase comienza sin autorización explícita del usuario (`CLAUDE.md` §1).
 Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 
-- **Actualizado:** 2026-08-03 · **Fase actual:** 4 completada · **Siguiente:** 5 (no autorizada)
+- **Actualizado:** 2026-08-03 · **Fase actual:** 5 completada · **Siguiente:** 6 (no autorizada)
 
 | Fase | Nombre | Estado | Commit / etiqueta |
 |---|---|---|---|
@@ -13,7 +13,7 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 | 2 | Base de datos, restricciones y RLS | ✅ | `954531c` · `fase-2` |
 | 3 | Portal Owner y Admin | ✅ | `439e64d` · `fase-3` |
 | 4 | Portal Seller y clientes | ✅ | `36ef2e1` · `fase-4` |
-| 5 | Pagos, abonos y saldos | ⬜ | — |
+| 5 | Pagos, abonos y saldos | ✅ | `fase-5` |
 | 6 | Dashboards, reportes y UI/UX | ⬜ | — |
 | 7 | Pruebas, seguridad y endurecimiento | ⬜ | — |
 | 8 | Despliegue y documentación operativa | ⬜ | — |
@@ -21,30 +21,31 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 
 ---
 
-## ANTES DE EMPEZAR LA FASE 5 — revisar esto
+## ANTES DE EMPEZAR LA FASE 6 — revisar esto
 
-1. **Confirmar autorización explícita** del usuario para la Fase 5.
-2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y la sección «Fase 5» de `docs/IMPLEMENTATION_PLAN.md`.
+1. **Confirmar autorización explícita** del usuario para la Fase 6.
+2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y la sección «Fase 6» de `docs/IMPLEMENTATION_PLAN.md`.
    No hace falta leer los demás documentos completos (guía en `HANDOFF.md` §5).
 3. **Levantar el entorno** y comprobar que todo pasa antes de tocar nada:
-   `npx supabase start` → `npm run db:reset && npm run seed:local` → `npm run test:db` (170 ✅) →
-   `npm run verify` (✅) → `npm run test:e2e` (72 ✅).
-4. **Usar `create_payment` y `void_payment`**, no DML directo. Ya son atómicas, validan el cuadre
-   exacto, bloquean el sobrepago con bloqueo de filas y auditan. `tests/db/payments.test.ts` (19
-   pruebas de la Fase 2) ya las cubre, incluida la concurrencia: **esa lógica no se reimplementa**.
-5. **El dinero se calcula en SQL.** `paid_amount` lo mantiene un trigger y `payment_status` es una
-   columna generada. La interfaz solo formatea con `formatCOP`.
-6. **Reutilizar lo que ya existe**: `DataTable`, `StatusBadge`, `EmptyState`, `ConfirmDialog`,
-   `MoneyInput`, `PageHeader`, `MetricCard`, `DataTablePagination`, `ClientFormFields`. Y
-   parametrizar por portal en vez de duplicar (D-051).
-7. **La vista `v_payment_history` ya existe** con el detalle de asignaciones por pago, incluidos los
-   anulados con su motivo. No hace falta componer eso a mano.
-8. **Para desarrollar y probar, `npm run dev:local`** (D-047). `npm run dev` apunta al proyecto real
+   `npx supabase start` → `npm run db:reset && npm run seed:local` → `npm run test:db` (199 ✅) →
+   `npm run verify` (✅) → `npm run test:e2e` (89 ✅).
+4. **Aplicar la migración `0012` al proyecto real** si aún no se ha hecho
+   (`npx supabase db push --db-url "$SUPABASE_DB_URL"`, con `--dry-run` primero). Está en local, no
+   en el remoto (I-015).
+5. **Los reportes agregan en SQL, no en TypeScript.** Ya existen `v_raffle_summary`,
+   `v_seller_summary`, `v_client_balances`, `v_ticket_balances` y `v_payment_history`. Si falta un
+   agregado, la salida es una vista nueva, no un `reduce` sobre miles de filas.
+6. **Ojo con el límite de 1.000 filas de PostgREST** al exportar CSV: hay que paginar con `range()`
+   o agregar en la base de datos. Contar siempre con `count: 'exact', head: true`.
+7. **Reutilizar lo que ya existe**: `DataTable`, `StatusBadge`, `EmptyState`, `ConfirmDialog`,
+   `MoneyInput`, `PageHeader`, `MetricCard`, `DataTablePagination`, `PaymentsTable`,
+   `TicketsTable`, `ClientsTable`. Y parametrizar por portal en vez de duplicar (D-051).
+8. **Los dashboards ya existen** (`features/dashboard/queries.ts` y `seller-queries.ts`). La Fase 6
+   los completa; no empieza otros.
+9. **Para desarrollar y probar, `npm run dev:local`** (D-047). `npm run dev` apunta al proyecto real
    según `.env.local` (I-013).
-9. **Las pruebas E2E asumen el seed recién cargado.** Si fallan de forma extraña, ejecutar
-   `npm run db:reset && npm run seed:local` antes de investigar.
-10. **Al probar aislamiento por URL**, comprobar que no se filtran datos, no el código HTTP: con
-    `loading.tsx` en el segmento, `notFound()` responde 200 (I-014).
+10. **Las pruebas E2E asumen el seed recién cargado.** Si fallan de forma extraña, ejecutar
+    `npm run db:reset && npm run seed:local` antes de investigar.
 
 ---
 
@@ -330,15 +331,93 @@ asignación posterior; los componentes se parametrizan por portal en vez de dupl
 
 ---
 
+## Fase 5 — Pagos, abonos y saldos ✅
+
+### Funcionalidades implementadas
+
+- **Registro de abonos por el vendedor**: elige el cliente (solo aparecen los que deben dinero),
+  escribe el valor recibido y el reparto entre sus boletas se sugiere solo, ajustable fila por fila.
+  Fecha, método y notas incluidos. La suma debe cuadrar **exactamente** con el total; mientras no
+  cuadre, el botón está deshabilitado y se dice cuánto falta o cuánto sobra.
+- **Previsualización del estado**: cada fila muestra cómo quedará la boleta (Sin pagar / Abonada /
+  Pagada) antes de confirmar. El estado real siempre lo calcula la base de datos.
+- **Bloqueos**: sobrepago por boleta, importes ≤ 0, reparto descuadrado y boletas de otro cliente,
+  todo rechazado en las tres capas.
+- **Historial de abonos** con los campos que exige BR-F13: fecha, valor, cliente, boletas, vendedor,
+  quién lo registró, método, notas y estado. Visible en el perfil del cliente, en el detalle de la
+  boleta y en la lista de pagos de cada portal.
+- **Anulación por Owner/Admin** con motivo obligatorio, desde el detalle del pago. Los saldos se
+  recalculan de inmediato, el pago queda tachado en el historial con su motivo, fecha y autor, y la
+  acción queda auditada. El vendedor no ve la opción.
+- **Consulta global de pagos** (`/owner/payments`) con filtros por vendedor, estado, método y rango
+  de fechas, y totales de cobranza de la organización.
+
+### Pruebas ejecutadas y resultados
+
+| Suite | Resultado |
+|---|---|
+| Unitarias (`npm run test`) | **101 ✅** |
+| Base de datos (`npm run test:db`) | **199 ✅** |
+| End-to-end (`npm run test:e2e`) | **89 ✅** |
+| `npm run verify` | ✅ (0 errores de lint; los 2 avisos conocidos de TanStack) |
+
+Las 13 pruebas obligatorias del prompt están cubiertas. **Dos defectos reales encontrados y
+corregidos en esta fase**:
+
+1. **I-015 (integridad de la información):** el historial ocultaba los pagos que un administrador
+   registrara para el cliente de un vendedor. Lo detectó el sondeo previo a escribir la interfaz.
+   Corregido con la migración `0012`.
+2. **I-016 (entrada de datos):** `MoneyInput` concatenaba los dígitos al escribir sobre él de forma
+   programática. Lo detectó una prueba end-to-end. Corregido quitándole el estado interno (D-053).
+
+Detalle cronológico completo en [`TEST_RESULTS.md`](TEST_RESULTS.md).
+
+### Migraciones que existen
+
+Las 11 anteriores **más**:
+
+| Archivo | Contenido |
+|---|---|
+| `0012_payment_history_visibility.sql` | Rehace `v_payment_history`: LEFT JOIN sobre `profiles` para que un nombre invisible no borre el pago (I-015) y añade `voided_by_name` |
+
+**Aplicada en local. Pendiente de aplicar en el proyecto real** (ver `KNOWN_ISSUES.md` §4).
+
+### Variables de entorno requeridas
+
+Las mismas de las fases anteriores. Ninguna nueva.
+
+### Problemas reales que permanecen
+
+| ID | Problema | Impacto |
+|---|---|---|
+| I-015 | La migración `0012` no está aplicada al proyecto real | **Medio**: en producción, un vendedor no vería los pagos que registre un administrador para sus clientes. Un solo comando lo resuelve |
+| I-004 | `CLAUDE.md` y `CLAUDE.md.txt` coexisten | Bajo |
+| I-013 | `.env.local` apunta al proyecto real | Bajo con `npm run dev:local` |
+| I-014 | `notFound()` responde 200 en segmentos con `loading.tsx` | Ninguno funcional: no filtra datos |
+| DT-12 | 3 vulnerabilidades altas de `npm audit` | Dentro de dependencias internas de Next.js. Sin cambios |
+| — | Sin pantalla para que el personal registre abonos | Por diseño (D-054): la capacidad existe en la acción y en la RPC |
+| — | Sin reportes ni exportación CSV | Por diseño: son de la Fase 6 |
+
+### Qué debe revisar el siguiente agente antes de comenzar
+
+Ver la sección «ANTES DE EMPEZAR LA FASE 6» al inicio de este documento.
+
+### Decisiones
+
+D-052 a D-054: el reparto se sugiere y se ajusta, pero decide la RPC; `MoneyInput` sin estado
+interno; en esta fase solo el vendedor tiene pantalla para registrar abonos.
+
+---
+
 ## Comandos
 
 ```bash
 npx supabase start     # instancia local (Docker)
-npm run db:reset       # reaplica las 11 migraciones desde cero (local)
+npm run db:reset       # reaplica las 12 migraciones desde cero (local)
 npm run seed:local     # datos de desarrollo en local
 npm run seed           # datos de desarrollo en el proyecto de .env.local
-npm run test:db        # 170 pruebas de base de datos
-npm run test:e2e       # 72 pruebas end-to-end (Playwright)
+npm run test:db        # 199 pruebas de base de datos
+npm run test:e2e       # 89 pruebas end-to-end (Playwright)
 npm run verify         # typecheck + lint + unitarias + build
 npm run dev            # servidor de desarrollo (segun .env.local)
 npm run dev:local      # servidor de desarrollo contra la instancia local
@@ -363,3 +442,4 @@ npx supabase db push --db-url "$SUPABASE_DB_URL"
 | 2026-08-03 | 3 | Portal Owner y Admin completo: rifas, usuarios, vendedores, boletas, carga masiva de 1.000, clientes y dashboard. Migración `0011`, 41 pruebas E2E con Playwright, 32 pruebas de BD nuevas. Dos defectos reales detectados y corregidos. |
 | 2026-08-03 | — | Migración `0011` aplicada al proyecto Supabase real y verificada. Cierra I-011. |
 | 2026-08-03 | 4 | Portal Seller completo: dashboard propio, boletas, creación con aprobación, clientes y asignación con creación de cliente en el flujo. Sin migraciones. +27 pruebas de BD, +31 E2E (incluido el ciclo completo en móvil), +19 unitarias. |
+| 2026-08-03 | 5 | Pagos y abonos: registro con reparto entre boletas, historial, anulación administrativa y consulta global. Migración `0012`. Dos defectos reales detectados y corregidos (I-015, I-016). +29 pruebas de BD, +17 E2E, +27 unitarias. |

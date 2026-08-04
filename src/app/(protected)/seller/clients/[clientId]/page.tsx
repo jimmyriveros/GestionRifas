@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ClientArchiveButton } from '@/features/clients/components/ClientArchiveButton'
 import { getClientDetail } from '@/features/clients/queries'
+import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
+import { listClientPayments } from '@/features/payments/queries'
 import { TicketsTable } from '@/features/tickets/components/TicketsTable'
 import { listTickets } from '@/features/tickets/queries'
 import { formatDateEs } from '@/lib/dates'
@@ -26,7 +28,10 @@ export default async function SellerClientDetailPage({
   // «no existe» de «no es tuyo» (BR-U07, docs/SECURITY.md T15).
   if (!client) notFound()
 
-  const { rows: tickets } = await listTickets({ clientId, pageSize: 100 })
+  const [{ rows: tickets }, payments] = await Promise.all([
+    listTickets({ clientId, pageSize: 100 }),
+    listClientPayments(clientId),
+  ])
 
   return (
     <div className="space-y-6">
@@ -107,9 +112,23 @@ export default async function SellerClientDetailPage({
         )}
       </div>
 
-      <p className="text-muted-foreground text-sm">
-        El registro de abonos y el historial de pagos llegan en la Fase 5.
-      </p>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Historial de abonos</h2>
+          {client.pendingAmount > 0 && !client.archivedAt ? (
+            <Button asChild size="sm">
+              <Link href={`/seller/payments/new?clientId=${client.id}`}>Registrar abono</Link>
+            </Button>
+          ) : null}
+        </div>
+        {payments.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Todavia no le has registrado ningun abono.
+          </p>
+        ) : (
+          <PaymentsTable payments={payments} clientBasePath="/seller/clients" />
+        )}
+      </div>
     </div>
   )
 }

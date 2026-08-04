@@ -3,14 +3,14 @@
 Aplicación web para administrar la operación de una empresa de rifas: organizaciones, rifas,
 vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y auditoría.
 
-> **Estado actual: Fase 4 completada — los dos portales funcionando.**
-> El **portal administrativo** gestiona rifas, administradores, vendedores, boletas (con filtros,
-> búsqueda y creación masiva de hasta 1.000) y clientes. El **portal del vendedor** permite buscar
-> sus boletas, registrar clientes, asignar boletas copiando el precio vigente y —cuando la rifa lo
-> permite— crear boletas que quedan pendientes de aprobación.
-> Verificado con 170 pruebas de base de datos y 72 end-to-end sobre un navegador real, incluido el
-> ciclo completo de venta desde un teléfono. La **interfaz de pagos y abonos** llega en la Fase 5,
-> que aún no ha sido autorizada.
+> **Estado actual: Fase 5 completada — el circuito del negocio funciona de punta a punta.**
+> Crear rifas y boletas, repartirlas entre vendedores, venderlas a clientes y **cobrarlas con
+> abonos**: el vendedor registra el pago y lo reparte entre las boletas, y Owner o Admin pueden
+> anularlo con motivo, recalculando los saldos. Los estados de pago (Sin pagar / Abonada / Pagada)
+> los calcula siempre la base de datos.
+> Verificado con 199 pruebas de base de datos y 89 end-to-end sobre un navegador real, incluido el
+> ciclo completo de venta desde un teléfono. Los **reportes con exportación CSV** y el pulido final
+> de la interfaz llegan en la Fase 6, que aún no ha sido autorizada.
 
 ---
 
@@ -116,8 +116,8 @@ npm run build         # build de producción
 npm run typecheck     # tsc --noEmit
 npm run lint          # eslint
 npm run test          # vitest (unitarias)
-npm run test:db       # 170 pruebas contra la base de datos local
-npm run test:e2e      # 72 pruebas end-to-end (Playwright, requiere base local sembrada)
+npm run test:db       # 199 pruebas contra la base de datos local
+npm run test:e2e      # 89 pruebas end-to-end (Playwright, requiere base local sembrada)
 npm run format:check  # prettier --check
 npm run verify        # typecheck + lint + test + build
 npm run seed          # datos de desarrollo en el proyecto de .env.local
@@ -144,8 +144,8 @@ El proyecto avanza **por fases** y cada una requiere autorización explícita
 | 2 | Base de datos, restricciones y RLS | ✅ Completada |
 | 3 | Portal Owner y Admin | ✅ Completada |
 | 4 | Portal Seller y clientes | ✅ Completada |
-| 5 | Pagos, abonos y saldos | ⬜ Pendiente de autorización |
-| 6 | Dashboards, reportes y UI/UX | ⬜ |
+| 5 | Pagos, abonos y saldos | ✅ Completada |
+| 6 | Dashboards, reportes y UI/UX | ⬜ Pendiente de autorización |
 | 7 | Pruebas, seguridad y endurecimiento | ⬜ |
 | 8 | Despliegue y documentación operativa | ⬜ |
 | 9 | Auditoría final independiente | ⬜ |

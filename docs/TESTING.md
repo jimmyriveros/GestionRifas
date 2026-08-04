@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.1 · **Actualizado:** 2026-08-03 (Fase 4)
+- **Versión:** 2.2 · **Actualizado:** 2026-08-03 (Fase 5)
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -66,6 +66,9 @@ Trampas aprendidas escribiendo estas pruebas:
 | Un nombre aparece dos veces en la página | El menú de usuario repite el nombre: acotar con `getByRole('table')` |
 | Una spec responsive falla en escritorio | Faltaba `testIgnore` en el proyecto `escritorio` |
 | Se espera 404 al pedir un recurso ajeno y llega 200 | Con `loading.tsx` en el segmento, `notFound()` llega cuando la respuesta ya iba en streaming (I-014). **Comprobar que no se filtran datos**, no el código de estado |
+| `fill()` sobre un campo de dinero deja los dígitos concatenados | Un componente que reescribe su propio valor al enfocar compite con la escritura. Era un defecto real del componente, no de la prueba (I-016) |
+| Un título de tarjeta no aparece como `heading` | `CardTitle` de shadcn/ui renderiza un `div`. Usar `getByText` para los títulos de tarjeta y `getByRole('heading')` solo para los `h1`/`h2` de sección |
+| Un localizador que funcionaba empieza a ser ambiguo | Una fase posterior añadió un botón que repite el mismo texto. Acotar con `exact: true` o con el contenedor |
 
 **Nunca dejar el seed alterado.** Un script de sondeo de la Fase 4 restauró un valor «al que creía
 que había» y dejó la rifa demo con `allow_seller_ticket_creation = false`. Si una prueba necesita
@@ -240,5 +243,5 @@ Los resultados de cada fase (con los errores encontrados y como se corrigieron) 
 [`TEST_RESULTS.md`](TEST_RESULTS.md), para que este documento describa solo la ESTRATEGIA y no
 crezca en cada fase.
 
-Estado al cierre de la Fase 4: **74 pruebas unitarias + 170 de base de datos + 72 end-to-end, todas
+Estado al cierre de la Fase 5: **101 pruebas unitarias + 199 de base de datos + 89 end-to-end, todas
 en verde**.

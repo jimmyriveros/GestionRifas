@@ -5,6 +5,8 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
+import { listClientPayments } from '@/features/payments/queries'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
 import { TicketActions } from '@/features/tickets/components/TicketActions'
 import { getTicketDetail } from '@/features/tickets/queries'
@@ -23,6 +25,8 @@ export default async function TicketDetailPage({
   ])
 
   if (!ticket) notFound()
+
+  const payments = ticket.clientId ? await listClientPayments(ticket.clientId) : []
 
   return (
     <div className="space-y-6">
@@ -96,6 +100,10 @@ export default async function TicketDetailPage({
           </Field>
         </CardContent>
       </Card>
+
+      {ticket.inventoryStatus === 'assigned' ? (
+        <TicketPaymentsCard payments={payments} ticketId={ticket.id} />
+      ) : null}
 
       {ticket.cancelReason ? (
         <Card>

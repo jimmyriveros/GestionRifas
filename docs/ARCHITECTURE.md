@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.2 · **Fase:** 4 · **Actualizado:** 2026-08-03
+- **Versión:** 1.3 · **Fase:** 5 · **Actualizado:** 2026-08-03
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -46,7 +46,7 @@ Versiones estables verificadas en el registro de npm el 2026-08-02. Se fijan con
 | Fechas | `date-fns` + `@date-fns/tz` | `4.4.0` | Manejo de `America/Bogota` |
 | Notificaciones | `sonner` | `2.0.7` | Toasts (usado por shadcn/ui) |
 | Pruebas unitarias | `vitest` | `4.1.10` (entorno `jsdom@29.1.1`) | jsdom 30 exige Node 22+ — ver D-030 |
-| Pruebas E2E | `@playwright/test` | `1.62.1` | Instalado en F3 con Chromium; 72 specs (escritorio y móvil) |
+| Pruebas E2E | `@playwright/test` | `1.62.1` | Instalado en F3 con Chromium; 89 specs (escritorio y móvil) |
 | Lint | `eslint` + `eslint-config-next` | `9.39.5` / `16.2.12` | **No** ESLint 10 — ver D-031 |
 | Formato | `prettier` + `prettier-plugin-tailwindcss` | `3.9.6` | |
 | WebSocket (Node 20) | `ws` | `8.21.1` | Runtime dep — ver D-033 |
@@ -228,7 +228,7 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/owner/tickets/[ticketId]` | owner, admin | **3 ✅** | Detalle, edición, anulación, aprobación |
 | `/owner/clients` | owner, admin | **3 ✅** | Consulta global de clientes |
 | `/owner/clients/[clientId]` | owner, admin | **3 ✅** | Perfil de cliente |
-| `/owner/payments` | owner, admin | 5 | Consulta global y anulación |
+| `/owner/payments` | owner, admin | **5 ✅** | Consulta global y anulación |
 | `/owner/reports` | owner, admin | 6 | Reportes + exportación CSV |
 | `/seller/dashboard` | seller | 1 → **4 ✅** → 6 | Métricas propias |
 | `/seller/tickets` | seller | **4 ✅** | Boletas propias |
@@ -238,8 +238,8 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/seller/clients/new` | seller | **4 ✅** | Crear cliente |
 | `/seller/clients/[clientId]` | seller | **4 ✅** | Perfil con boletas |
 | `/seller/clients/[clientId]/edit` | seller | **4 ✅** | Edición del cliente |
-| `/seller/payments` | seller | 5 | Registro e historial de pagos |
-| `/seller/payments/new` | seller | 5 | Registrar abono/pago |
+| `/seller/payments` | seller | **5 ✅** | Historial de pagos |
+| `/seller/payments/new` | seller | **5 ✅** | Registrar abono |
 
 **Nota de nomenclatura:** el prefijo de ruta es `/owner` para Owner **y** Admin, tal como exige
 `CLAUDE.md` §21. El segmento de URL no implica que el usuario sea Owner; el rol se verifica en cada

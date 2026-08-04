@@ -5,6 +5,7 @@ import {
   TrophyIcon,
   UserRoundIcon,
   UsersIcon,
+  WalletIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -18,6 +19,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/owner/tickets', label: 'Boletas', icon: <TicketIcon className="size-4" /> },
   { href: '/owner/sellers', label: 'Vendedores', icon: <UsersIcon className="size-4" /> },
   { href: '/owner/clients', label: 'Clientes', icon: <UserRoundIcon className="size-4" /> },
+  { href: '/owner/payments', label: 'Pagos', icon: <WalletIcon className="size-4" /> },
   { href: '/owner/users', label: 'Administradores', icon: <ShieldCheckIcon className="size-4" /> },
 ]
 

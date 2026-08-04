@@ -6,6 +6,8 @@ import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/Stat
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { listClientOptions } from '@/features/clients/queries'
+import { listClientPayments } from '@/features/payments/queries'
+import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
 import { AssignTicketDialog } from '@/features/tickets/assign/components/AssignTicketDialog'
 import { getTicketDetail } from '@/features/tickets/queries'
 import { SellerTicketActions } from '@/features/tickets/seller/components/SellerTicketActions'
@@ -35,7 +37,11 @@ export default async function SellerTicketDetailPage({
   const ticket = await getTicketDetail(ticketId)
   if (!ticket) notFound()
 
-  const clients = ticket.inventoryStatus === 'available' ? await listClientOptions() : []
+  const [clients, payments] = await Promise.all([
+    ticket.inventoryStatus === 'available' ? listClientOptions() : Promise.resolve([]),
+    ticket.clientId ? listClientPayments(ticket.clientId) : Promise.resolve([]),
+  ])
+
   const reason = blockedReason(ticket.inventoryStatus, ticket.raffleStatus)
   const canAssign = ticket.inventoryStatus === 'available' && reason === null
   const canEditNumbers =
@@ -120,6 +126,19 @@ export default async function SellerTicketDetailPage({
           </Field>
         </CardContent>
       </Card>
+
+      {ticket.inventoryStatus === 'assigned' ? (
+        <>
+          <TicketPaymentsCard payments={payments} ticketId={ticket.id} />
+          {ticket.salePrice !== null && ticket.salePrice > ticket.paidAmount ? (
+            <Button asChild>
+              <Link href={`/seller/payments/new?clientId=${ticket.clientId}`}>
+                Registrar un abono de {ticket.clientName}
+              </Link>
+            </Button>
+          ) : null}
+        </>
+      ) : null}
 
       <Card>
         <CardHeader>

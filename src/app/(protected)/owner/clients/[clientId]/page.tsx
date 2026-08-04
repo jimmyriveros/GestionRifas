@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getClientDetail } from '@/features/clients/queries'
+import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
+import { listClientPayments } from '@/features/payments/queries'
 import { TicketsTable } from '@/features/tickets/components/TicketsTable'
 import { listTickets } from '@/features/tickets/queries'
 import { formatDateEs } from '@/lib/dates'
@@ -22,7 +24,10 @@ export default async function ClientDetailPage({
 
   if (!client) notFound()
 
-  const { rows: tickets } = await listTickets({ clientId, pageSize: 100 })
+  const [{ rows: tickets }, payments] = await Promise.all([
+    listTickets({ clientId, pageSize: 100 }),
+    listClientPayments(clientId),
+  ])
 
   return (
     <div className="space-y-6">
@@ -65,6 +70,17 @@ export default async function ClientDetailPage({
           <p className="text-muted-foreground text-sm">Este cliente todavia no tiene boletas.</p>
         ) : (
           <TicketsTable tickets={tickets} />
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">Historial de abonos</h2>
+        {payments.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Este cliente todavia no tiene abonos registrados.
+          </p>
+        ) : (
+          <PaymentsTable payments={payments} clientBasePath="/owner/clients" showSeller canVoid />
         )}
       </div>
     </div>

@@ -96,6 +96,60 @@ export async function createClientFor(
   return data
 }
 
+/**
+ * Boleta YA VENDIDA a un cliente, lista para recibir abonos.
+ *
+ * Se inserta directamente con la service role en vez de llamar a
+ * `assign_ticket`: esa RPC necesita `auth.uid()`, que no existe con la clave de
+ * servicio. Es PREPARACION del estado de partida; el acto que se prueba —el
+ * registro del abono— pasa siempre por la interfaz (D-043).
+ */
+export async function createAssignedTicket(
+  refs: SeedRefs,
+  options: { dailyNumber: string; weeklyNumber: string; clientId: string; salePrice: number },
+): Promise<{ id: string; internalCode: string }> {
+  const svc = serviceClient()
+  const { data, error } = await svc
+    .from('tickets')
+    .insert({
+      organization_id: refs.organizationId,
+      raffle_id: refs.raffleId,
+      seller_id: refs.sellerId,
+      client_id: options.clientId,
+      daily_number: options.dailyNumber,
+      weekly_number: options.weeklyNumber,
+      inventory_status: 'assigned',
+      sale_price: options.salePrice,
+      sale_date: new Date().toISOString().slice(0, 10),
+      assigned_at: new Date().toISOString(),
+      created_by: refs.ownerId,
+    })
+    .select('id, internal_code')
+    .single()
+
+  if (error) throw error
+  return { id: data.id, internalCode: data.internal_code }
+}
+
+/** Saldo pendiente actual de una boleta, leido de la vista de saldos. */
+export async function ticketBalance(
+  ticketId: string,
+): Promise<{ paidAmount: number; pendingAmount: number; paymentStatus: string }> {
+  const svc = serviceClient()
+  const { data, error } = await svc
+    .from('v_ticket_balances')
+    .select('paid_amount, pending_amount, payment_status')
+    .eq('ticket_id', ticketId)
+    .single()
+
+  if (error) throw error
+  return {
+    paidAmount: data.paid_amount ?? 0,
+    pendingAmount: data.pending_amount ?? 0,
+    paymentStatus: data.payment_status ?? 'unpaid',
+  }
+}
+
 /** Precio vigente de la rifa del seed. */
 export async function raffleTicketPrice(refs: SeedRefs): Promise<number> {
   const svc = serviceClient()

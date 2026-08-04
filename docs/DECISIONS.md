@@ -573,6 +573,47 @@ uno, y la segunda copia se queda atrás en cuanto alguien toca la primera).
 **Consecuencia.** Un solo juego de columnas por entidad. La prueba
 `la tabla no muestra la columna Vendedor ni casillas de aprobacion` fija ese contrato.
 
+## D-052 — El reparto del abono se sugiere solo y se puede ajustar; la RPC decide
+**Fase:** 5
+**Contexto.** Un abono puede repartirse entre varias boletas del mismo cliente y la suma debe cuadrar
+**exactamente** con el total (BR-F05). Obligar a teclear el reparto boleta por boleta convierte el
+caso normal —«me dio $50.000»— en un ejercicio de aritmética delante del comprador.
+**Decisión.** Al escribir el total se reparte automáticamente de la primera boleta a la última sin
+pasarse del saldo de ninguna, y cada fila queda editable. Cambiar el total **rehace** el reparto.
+El botón de guardar solo se habilita cuando la suma cuadra y ninguna boleta se sobrepasa.
+**Alternativas.** (a) Reparto proporcional al saldo (descartada: produce importes con decimales que
+habría que redondear, y el dinero es entero — BR-P02). (b) Sin sugerencia (descartada: obliga a
+calcular a mano lo más común).
+**Consecuencia.** `distributeAmount` y `validateAllocations` son funciones puras en
+`features/payments/allocation.ts`, cubiertas por pruebas unitarias. **No deciden nada**: la palabra
+final la tiene `create_payment`, que revalida el cuadre y el sobrepago dentro de la transacción.
+
+## D-053 — `MoneyInput` deriva lo que muestra de `value`, sin estado propio
+**Fase:** 5
+**Contexto.** La primera versión guardaba estado interno (`raw`, `focused`) para mostrar los dígitos
+crudos mientras el campo tenía el foco y el valor formateado al salir.
+**Decisión.** El input muestra **siempre** el valor formateado, derivado únicamente de `value`. Sin
+estado interno y sin cambiar de representación al enfocar.
+**Alternativas.** Mantener el estado y esperar a que React se estabilice (descartada: no elimina la
+condición de carrera, solo la hace menos frecuente).
+**Consecuencia.** Se elimina una condición de carrera real (I-016): al enfocar, el componente
+reescribía el contenido del input, de modo que una escritura programática —una prueba automatizada,
+un gestor de contraseñas, el autocompletado de un teclado móvil— podía **concatenar** los dígitos en
+vez de reemplazarlos («50000» + «30000» = «5000030000»). Lo destapó una prueba end-to-end.
+
+## D-054 — En esta fase solo el vendedor tiene pantalla para registrar abonos
+**Fase:** 5
+**Contexto.** La matriz de permisos (`SECURITY.md` §2) permite a Owner y Admin registrar pagos, y la
+RPC `create_payment` lo acepta. Pero el entregable 1 de la Fase 5 describe el registro **por el
+vendedor**, y el 6 la **consulta** global del personal.
+**Decisión.** El portal administrativo consulta y anula; no registra. La capacidad existe en la base
+de datos y en la Server Action (que autoriza `owner`, `admin` y `seller`), pero no hay pantalla.
+**Alternativas.** Construir también el registro administrativo (descartada: es alcance no pedido en
+esta fase — `CLAUDE.md` §1.6).
+**Consecuencia.** Si el negocio lo pide, es añadir una ruta reutilizando `PaymentForm`: la acción y
+las consultas ya lo soportan. La prueba de base de datos F5-04 verifica que un pago registrado por
+el personal se comporta bien y **es visible para el vendedor** (I-015).
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

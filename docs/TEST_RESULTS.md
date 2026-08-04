@@ -18,6 +18,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 2 | 14 ✅ | **111 ✅** | — | ✅ | ✅ |
 | 3 | **55 ✅** | **143 ✅** | **41 ✅** | ✅ | ✅ |
 | 4 | **74 ✅** | **170 ✅** | **72 ✅** | ✅ | ✅ |
+| 5 | **101 ✅** | **199 ✅** | **89 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -277,3 +278,73 @@ No basta con que la interfaz no enseñe el enlace. Se verificó, con sesión rea
 - Un `UPDATE` directo para auto-asignarse una boleta (saltándose la RPC, con precio inventado) deja
   **cero filas** y la boleta sigue `available` con `sale_price` nulo.
 - Un vendedor no puede crear un cliente a nombre de otro ni transferirle el suyo.
+
+---
+
+## Fase 5 — 2026-08-03
+
+### Totales
+
+| Suite | Comando | Resultado |
+|---|---|---|
+| Unitarias | `npm run test` | **101 ✅** (74 previas + 27 nuevas) |
+| Base de datos | `npm run test:db` | **199 ✅** (170 previas + 29 nuevas) |
+| End-to-end | `npm run test:e2e` | **89 ✅** (72 previas + 17 nuevas) |
+| Typecheck · Lint · Build | `npm run verify` | ✅ (0 errores de lint, los 2 avisos conocidos de TanStack) |
+
+### Pruebas obligatorias del prompt de la Fase 5
+
+| # | Prueba | Dónde | Resultado |
+|---|--------|-------|-----------|
+| 1 | Abono parcial → Abonada | E2E `payments` + BD `F5-01` | ✅ |
+| 2 | Completar el pago → Pagada | E2E `payments` + BD `F5-01` | ✅ |
+| 3 | Bloqueo de sobrepago | Unitaria + E2E + BD `F5-01` | ✅ |
+| 4 | Pago repartido entre varias boletas | Unitaria + E2E + BD `F5-01` | ✅ |
+| 5 | Suma distinta al total → rechazado | Unitaria + E2E + BD `F5-01` | ✅ |
+| 6 | Atomicidad (fallo parcial no deja rastro) | BD `F5-01` | ✅ |
+| 7 | Pago concurrente sobre la misma boleta | BD `payments.test.ts` (Fase 2, 2 pagos reales en paralelo) | ✅ |
+| 8 | Anulación → recálculo de saldo y estado | E2E `payments` + BD `F5-02` | ✅ |
+| 9 | Vendedor intentando anular → bloqueado | E2E `payments` + BD `F5-02` (42501) | ✅ |
+| 10 | Bloqueo de cambio de cliente con pagos | BD `F5-03` | ✅ |
+| 11 | Pago a boleta sin cliente → rechazado | BD `F5-01` | ✅ |
+| 12 | Pago a boleta de otro cliente → rechazado | BD `F5-01` | ✅ |
+| 13 | Build, typecheck y lint | `npm run verify` | ✅ 30 rutas |
+
+### Sondeo previo contra la base de datos
+
+Antes de escribir la interfaz se recorrieron con sesiones reales los caminos financieros. Todos se
+comportaron como exige el diseño (sobrepago, cuadre, anulación por el personal, doble anulación,
+boleta sin cliente, anulación de boleta con pagos, cambio de cliente con pagos)… **menos uno**:
+
+| Comprobación | Resultado |
+|---|---|
+| El vendedor ve en su historial el pago que registró él | ✅ |
+| El vendedor ve en `payments` el pago que registró un Owner | ✅ |
+| El vendedor ve **en `v_payment_history`** ese mismo pago | ❌ **la fila desaparecía** |
+
+Ese hallazgo (I-015) motivó la migración `0012` **antes** de escribir una sola pantalla. Tras
+aplicarla, la misma comprobación devuelve el pago con `created_by_name = null`, que es lo correcto:
+el nombre del administrador no es visible para el vendedor, pero el pago sí.
+
+### Cronología con errores encontrados
+
+| Comando / prueba | Resultado | Error | Corrección |
+|---|---|---|---|
+| Sondeo de pagos | ✅ 12 de 13 | **El historial ocultaba pagos legítimos** (I-015) | Migración `0012`: LEFT JOIN sobre `profiles` + `voided_by_name`; tipos regenerados |
+| `npm run test` (nuevas) | ✅ 27 | — | — |
+| `npm run test:db` (nuevas) | ✅ 29 | — | — |
+| E2E `payments` (1ª ejecución) | ❌ 3 de 17 | (a) el reparto manual daba `5.000.030.000`; (b) un título de tarjeta no era `heading`; (c) «Camila Restrepo» aparecía también en el menú de usuario | (a) **defecto real en `MoneyInput`** (I-016): concatenaba en vez de reemplazar; corregido quitándole el estado interno (D-053). (b) y (c) localizadores de la prueba |
+| `npm run test:e2e` completo | ❌ 1 de 89 | Una prueba de la Fase 4 pasó a ser ambigua: el detalle de boleta ahora ofrece «Registrar un abono de \<cliente\>», que repite el nombre | Localizador con `exact: true` |
+| `npm run test:e2e` (final) | ✅ 89 | — | — |
+| `npm run verify` (final) | ✅ | — | — |
+
+### El dinero, comprobado donde importa
+
+Todas estas comprobaciones se hacen contra la base de datos, no contra la pantalla:
+
+- `paid_amount` y `payment_status` **nunca** los escribe la aplicación: un `UPDATE` directo de
+  `paid_amount` falla con «columna derivada».
+- Anular libera saldo y permite volver a cobrar sin sobrepasar.
+- Anular uno de dos pagos deja intacto el saldo del otro.
+- La anulación queda en `audit_logs` con `action = 'payment.void'`.
+- `v_client_balances` cumple `pending_amount = total_purchased - total_paid` después de abonar.

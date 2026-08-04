@@ -1,0 +1,103 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+
+import { authorizeAction } from '@/lib/auth/guards'
+import { mapPgError } from '@/lib/errors'
+import { createClient } from '@/lib/supabase/server'
+import type { ActionResult, ActionResultWith } from '@/lib/action-result'
+
+import { createPaymentSchema, voidPaymentSchema } from './schemas'
+
+/**
+ * Server Actions de pagos.
+ *
+ * TODA la logica financiera vive en las RPC `create_payment` y `void_payment`
+ * de la Fase 2. Son atomicas por construccion (una funcion PL/pgSQL es una
+ * transaccion), bloquean las filas en orden para que dos abonos simultaneos no
+ * puedan sobrepasar el precio, validan el cuadre exacto y auditan.
+ *
+ * Aqui no se suma, no se resta y no se decide ningun estado: eso seria
+ * reimplementar el nucleo del negocio en TypeScript, justo lo que `CLAUDE.md`
+ * 29 prohibe («evitar calculos financieros unicamente en frontend»).
+ */
+
+function revalidatePayments(clientId?: string) {
+  revalidatePath('/seller/payments')
+  revalidatePath('/seller/dashboard')
+  revalidatePath('/seller/tickets')
+  revalidatePath('/owner/payments')
+  revalidatePath('/owner/dashboard')
+  revalidatePath('/owner/tickets')
+  if (clientId) {
+    revalidatePath(`/seller/clients/${clientId}`)
+    revalidatePath(`/owner/clients/${clientId}`)
+  }
+}
+
+export async function createPayment(input: unknown): Promise<ActionResultWith<{ id: string }>> {
+  // BR-F02: el vendedor registra los pagos de sus clientes; el personal tambien
+  // puede hacerlo. Quien NO sea de la organizacion no llega ni aqui.
+  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  if ('error' in auth) return auth
+
+  const parsed = createPaymentSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
+  }
+  const values = parsed.data
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('create_payment', {
+    p_client_id: values.clientId,
+    p_total_amount: values.totalAmount,
+    p_allocations: values.allocations.map((allocation) => ({
+      ticket_id: allocation.ticketId,
+      amount: allocation.amount,
+    })),
+    p_payment_date: values.paymentDate,
+    p_payment_method: values.paymentMethod,
+    p_notes: values.notes === '' ? undefined : values.notes,
+  })
+
+  if (error) return { error: mapPgError(error) }
+
+  revalidatePayments(values.clientId)
+  return { ok: true, data: { id: data as string } }
+}
+
+/**
+ * Anulacion de un pago (BR-F09, BR-F10, BR-F11).
+ *
+ * Solo Owner y Admin: la RPC lo comprueba con `is_org_staff` y devuelve 42501
+ * si lo intenta un vendedor. El pago no se borra nunca; se marca, y el trigger
+ * de la Fase 2 recalcula el saldo de todas las boletas afectadas.
+ */
+export async function voidPayment(input: unknown): Promise<ActionResult> {
+  const auth = await authorizeAction(['owner', 'admin'])
+  if ('error' in auth) return auth
+
+  const parsed = voidPaymentSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Revisa el motivo.' }
+  }
+
+  const supabase = await createClient()
+
+  // Solo para poder revalidar el perfil del cliente afectado.
+  const { data: payment } = await supabase
+    .from('payments')
+    .select('client_id')
+    .eq('id', parsed.data.paymentId)
+    .maybeSingle()
+
+  const { error } = await supabase.rpc('void_payment', {
+    p_payment_id: parsed.data.paymentId,
+    p_reason: parsed.data.reason,
+  })
+
+  if (error) return { error: mapPgError(error) }
+
+  revalidatePayments(payment?.client_id ?? undefined)
+  return { ok: true }
+}

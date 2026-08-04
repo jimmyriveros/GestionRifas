@@ -9,19 +9,18 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 
 | | |
 |---|---|
-| Última fase completada | **4 — Portal Seller y clientes** |
-| Siguiente fase | **5 — Pagos, abonos y saldos** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `36ef2e1` · `fase-4` |
+| Última fase completada | **5 — Pagos, abonos y saldos** |
+| Siguiente fase | **6 — Dashboards, reportes y UI/UX** (requiere autorización explícita del usuario) |
+| Rama / commit / etiqueta | `main` · `fase-5` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
-| App | Next.js 16: autenticación + **portal administrativo** + **portal del vendedor**, los dos completos |
-| Base de datos | **11 migraciones aplicadas en local y en el proyecto Supabase real** |
-| Pruebas | 74 unitarias + **170 de base de datos** + **72 end-to-end**, todas en verde |
+| App | Next.js 16: autenticación, portal administrativo, portal del vendedor y **pagos/abonos**, todo funcionando |
+| Base de datos | 12 migraciones. Las 11 primeras en local **y** en el proyecto real; la **`0012` solo en local** (I-015) |
+| Pruebas | 101 unitarias + **199 de base de datos** + **89 end-to-end**, todas en verde |
 
-**Lo que existe hoy:** autenticación, base de datos completa, el portal de Owner/Admin y el portal
-del vendedor (boletas, clientes y asignación con copia de precio) funcionando contra datos reales.
-**Lo que NO existe:** la interfaz de pagos y abonos, la anulación de pagos, los reportes y la
-exportación CSV. Fases 5 y 6. Las RPC `create_payment` y `void_payment` ya están escritas y probadas
-desde la Fase 2: la Fase 5 es sobre todo interfaz.
+**Lo que existe hoy:** el circuito completo del negocio funcionando contra datos reales — crear
+rifas y boletas, repartirlas entre vendedores, venderlas a clientes y cobrarlas con abonos, con
+saldos y estados de pago calculados en la base de datos.
+**Lo que NO existe:** los reportes con exportación CSV y el pulido final de dashboards y UI. Fase 6.
 
 ---
 
@@ -75,10 +74,15 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-Para aplicar migraciones nuevas al proyecto real (las 11 actuales ya lo están):
+⚠️ **La migración `0012` está aplicada en local pero NO en el proyecto real** (I-015). Sin ella, un
+vendedor no ve en su historial los pagos que registre un administrador para sus clientes:
 
 ```bash
-npx supabase db push --db-url "$SUPABASE_DB_URL"
+npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
+```
+
+```bash
+npx supabase db push --yes --db-url "$SUPABASE_DB_URL"
 ```
 
 ---
@@ -184,7 +188,13 @@ RSC vuelve a consultar filtrando en SQL.
 
 Las tablas y los filtros **sirven a los dos portales** y se parametrizan, no se duplican (D-051):
 `TicketsTable` y `ClientsTable` reciben `basePath` / `showSeller` / `enableApproval`;
-`TicketFilters` y `ClientFilters` ocultan los selectores que no se les pasan.
+`PaymentsTable` recibe `clientBasePath` / `showSeller` / `canVoid`; `TicketFilters`,
+`ClientFilters` y `PaymentFilters` ocultan los selectores que no se les pasan.
+
+**El dinero se calcula en SQL, siempre.** `paid_amount` lo mantiene un trigger, `payment_status` es
+una columna generada y los saldos salen de las vistas. Lo único que vive en la aplicación es el
+reparto de un abono entre boletas (`features/payments/allocation.ts`, funciones puras), y aun así
+`create_payment` lo revalida antes de escribir.
 
 ---
 
@@ -196,7 +206,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-170 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+199 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 
@@ -210,7 +220,7 @@ typecheck + lint + unitarias + build.
 npm run test:e2e
 ```
 
-72 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
+89 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
 en móvil (Pixel 7). Levanta solo el servidor con `npm run dev:local`; **exigen la base local recién
 sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
 
@@ -247,4 +257,6 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | El desarrollo escribe en el proyecto real | `npm run dev` usa `.env.local`. Usa `npm run dev:local` | I-013 · D-047 |
 | Un usuario desactivado desaparece del listado | Falta la migración `0011` en ese entorno | I-011 |
 | Una ruta inexistente devuelve 200 en vez de 404 | El segmento tiene `loading.tsx`: la respuesta ya iba en streaming. No filtra datos | I-014 |
+| Una vista `security_invoker` pierde filas enteras | Un `JOIN` interno contra una tabla que quien consulta no ve borra la fila. **Usa LEFT JOIN** para los nombres | I-015 |
+| Un pago registrado por un admin no aparece en el historial del vendedor | Falta la migración `0012` en ese entorno | I-015 |
 | Aplicar migraciones al remoto sin ver la contraseña | `npx supabase db push --dry-run` primero, y `--yes` para no quedarse esperando la confirmación | §3 |
