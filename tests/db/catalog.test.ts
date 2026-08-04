@@ -136,6 +136,33 @@ describe('funciones privilegiadas', () => {
     expect(rows.map((r) => r.proname)).toEqual([])
   })
 
+  /**
+   * I-020: la comprobacion de arriba mira SOLO seis funciones por nombre. En el
+   * proyecto real, `anon` podia ejecutar TODAS las demas —incluidas las
+   * SECURITY DEFINER de seguridad— porque los GRANT por defecto de Supabase van
+   * directos al rol y `revoke ... from public` no los deshace.
+   *
+   * Esta version cubre cualquier funcion propia, tambien las que se escriban
+   * manana. Se excluyen las de extensiones (pg_trgm), que las llama la
+   * maquinaria de indices y no el usuario.
+   */
+  it('NINGUNA funcion propia es ejecutable por anon (I-020)', async () => {
+    const { rows } = await db.query(`
+      select p.proname
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and has_function_privilege('anon', p.oid, 'EXECUTE')
+        and not exists (
+          select 1 from pg_depend d
+          join pg_extension e on e.oid = d.refobjid
+          where d.objid = p.oid and d.deptype = 'e'
+        )
+      order by p.proname
+    `)
+    expect(rows.map((r) => r.proname)).toEqual([])
+  })
+
   it('las RPC de negocio SI son ejecutables por authenticated', async () => {
     const { rows } = await db.query(`
       select p.proname

@@ -26,21 +26,12 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 1. **Confirmar autorización explícita** del usuario para la Fase 8.
 2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y la sección «Fase 8» de `docs/IMPLEMENTATION_PLAN.md`.
 3. **Levantar el entorno** y comprobar que todo pasa antes de tocar nada:
-   `npx supabase start` → `npm run db:reset && npm run seed:local` → `npm run test:db` (253 ✅) →
+   `npx supabase start` → `npm run db:reset && npm run seed:local` → `npm run test:db` (254 ✅) →
    `npm run verify` (✅) → `npm run test:e2e` (142 ✅).
-4. **Aplicar `0012`, `0013` y `0014` al proyecto real.** Las tres están solo en local, y la `0014`
-   es la más importante que se haya quedado pendiente hasta ahora: sin ella, **toda** consulta con
-   RLS es unas 1.400 veces más lenta (I-019). Con el volumen real de una rifa, eso es la diferencia
-   entre una pantalla que carga y una que no:
-
-   ```bash
-   npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
-   ```
-
-   ```bash
-   npx supabase db push --yes --db-url "$SUPABASE_DB_URL"
-   ```
-
+4. **Las 15 migraciones ya están aplicadas al proyecto real** (2026-08-04) y verificadas con
+   `npm run verify:remote`. Al aplicar cualquiera nueva, el procedimiento son **tres** pasos:
+   `--dry-run`, `--yes` y **verificar el remoto después**. Ese tercer paso ha hecho falta dos veces
+   para descubrir que local y producción habían dejado de ser equivalentes (D-065, I-020).
 5. **La Fase 8 es despliegue y documentación operativa.** No añadir capacidades nuevas.
 6. **`npm run test:db` deja 5.000 boletas** en una rifa en **borrador** («Rifa Volumen Fase 6»). Es
    idempotente, pero hay que **`npm run db:reset && npm run seed:local` antes de `test:e2e`**.
@@ -537,15 +528,17 @@ el vendedor también tiene reportes; la exportación es un Route Handler fuera d
 | Archivo | Contenido |
 |---|---|
 | `0014_rls_performance.sql` | `current_staff_org_ids()` y reescritura de **22 políticas** para que la RLS deje de llamar a una función por fila (I-019, D-063) |
+| `0015_harden_function_grants.sql` | Revoca `EXECUTE` a `anon` y a `public` sobre las funciones propias. Corrige una divergencia local/remoto detectada **al verificar el proyecto real** tras aplicar las anteriores (I-020, D-065) |
 
-**Aplicada en local. Pendiente en el proyecto real**, junto con `0012` y `0013`.
+**Las 15 migraciones están aplicadas en local y en el proyecto real**, verificadas con
+`npm run verify:remote`.
 
 ### Pruebas ejecutadas y resultados
 
 | Suite | Antes | Ahora |
 |---|---|---|
 | Unitarias (`npm run test`) | 126 | **162 ✅** |
-| Base de datos (`npm run test:db`) | 238 | **253 ✅** |
+| Base de datos (`npm run test:db`) | 238 | **254 ✅** |
 | End-to-end (`npm run test:e2e`) | 120 | **142 ✅** |
 | `npm run verify` | ✅ | ✅ (0 errores de lint; los 2 avisos conocidos de TanStack) |
 | `npm audit` | 3 altas | **0 vulnerabilidades** |
@@ -596,7 +589,7 @@ Las mismas de las fases anteriores. Ninguna nueva.
 
 | ID | Problema | Impacto |
 |---|---|---|
-| I-015 | `0012`, `0013` y `0014` no están aplicadas al proyecto real | **Alto**: sin la `0014` la aplicación es ~1.400× más lenta en producción; sin la `0013` falla el reporte de pagos. Un solo comando resuelve las tres |
+| — | Ninguno pendiente sobre el proyecto real: las 15 migraciones están aplicadas y verificadas | — |
 | I-004 | `CLAUDE.md` y `CLAUDE.md.txt` coexisten | Bajo |
 | I-013 | `.env.local` apunta al proyecto real | Bajo con `npm run dev:local` |
 | I-014 | `notFound()` responde 200 en segmentos con `loading.tsx` | Ninguno funcional |
@@ -618,10 +611,10 @@ aliasado a un stub en las pruebas unitarias.
 
 ```bash
 npx supabase start     # instancia local (Docker)
-npm run db:reset       # reaplica las 14 migraciones desde cero (local)
+npm run db:reset       # reaplica las 15 migraciones desde cero (local)
 npm run seed:local     # datos de desarrollo en local
 npm run seed           # datos de desarrollo en el proyecto de .env.local
-npm run test:db        # 253 pruebas de base de datos (crea 5.000 boletas de volumen)
+npm run test:db        # 254 pruebas de base de datos (crea 5.000 boletas de volumen)
 npm run test:e2e       # 142 pruebas end-to-end (Playwright)
 npm run verify         # typecheck + lint + unitarias + build
 npm run dev            # servidor de desarrollo (segun .env.local)

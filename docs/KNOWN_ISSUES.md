@@ -1,6 +1,6 @@
 # PROBLEMAS CONOCIDOS Y RIESGOS
 
-**Actualizado:** 2026-08-03 (Fase 5). Este documento **no oculta errores**.
+**Actualizado:** 2026-08-04 (Fase 7). Este documento **no oculta errores**.
 Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 
 ---
@@ -30,6 +30,7 @@ Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 | I-017 | Toda fecha de **día calendario** se mostraba **un día antes** | ✅ Resuelto (F6) | `payment_date`, `sale_date`, `start_date` y `end_date` son columnas `date`: PostgREST las entrega como `'AAAA-MM-DD'` y `new Date('2026-08-04')` es **medianoche UTC**, que en Bogotá (UTC-5) todavía es el día 3. Afectaba a la fecha de todo abono, toda venta y toda rifa en pantalla. Corregido en `src/lib/dates.ts`: las cadenas de solo fecha se anclan al mediodía UTC antes de formatearlas, con lo que se arreglan de golpe los 8 sitios que las mostraban. Regresión cubierta en `tests/unit/dates.test.ts` y en E2E |
 | I-018 | El helper `logout()` de las pruebas E2E nunca funcionó | ✅ Resuelto (F6) | Buscaba un botón llamado `/menu de usuario\|cuenta/i`, pero el disparador del menú no tenía nombre accesible: su contenido eran las iniciales del avatar y un nombre oculto bajo `md`. Era código muerto —ninguna prueba lo usaba— hasta que la Fase 6 necesitó cambiar de usuario dentro de una prueba. Corregido añadiendo `aria-label="Menu de usuario: <nombre>"` al disparador, que además **arregla un defecto real de accesibilidad**: en un teléfono, un lector de pantalla anunciaba solo «CR» |
 | I-019 | **Toda consulta con RLS llamaba a una función por fila**: ~1,7 s con 7.278 boletas | ✅ Resuelto (F7) | Lo destapó el `EXPLAIN ANALYZE` de la revisión de rendimiento. `is_org_staff(organization_id)` recibe una **columna**, así que el planificador no puede sacarla del bucle: una llamada por fila, y cada una consulta tres tablas (44.367 accesos a buffer para 566 páginas). No se ve en desarrollo, donde el seed tiene 30 boletas, y **empeora con los datos** porque el coste es por fila. Corregido por la migración **`0014`**: `columna in (select current_staff_org_ids())` se evalúa una sola vez. Medido: **1.667 ms → 1,18 ms**. Sin cambio de permisos (D-063) |
+| I-020 | En el **proyecto real**, `anon` podía ejecutar **todas** las funciones de `public`, incluidas las 6 RPC de negocio | ✅ Resuelto (F7) | Apareció al verificar el catálogo **después** de aplicar `0012`–`0014`. Misma causa que D-038, ahora con funciones: Supabase concede por `ALTER DEFAULT PRIVILEGES` **directo al rol**, y `revoke execute … from public` no deshace eso. **No hubo fuga**: `anon` no tiene privilegios de tabla (`0010`) y toda RPC empieza por `require_auth()`, así que obtenía `permission denied for table payments` o «Debes iniciar sesion». Pero la invariante que `catalog.test.ts` daba por cierta era **falsa en producción**. Corregido por `0015` (revoca de `anon` **y** de `public`), más `npm run verify:remote` para que la divergencia no vuelva a esconderse |
 
 **Sin bloqueantes para la Fase 8.**
 
@@ -82,34 +83,41 @@ Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 
 ## 4. Estado del proyecto Supabase real
 
-Las migraciones `0001`–`0011` están aplicadas. **La `0012` (Fase 5) y la `0013` (Fase 6) solo están
-en local.** Un solo comando aplica ambas.
+**Las migraciones `0001`–`0015` están aplicadas y verificadas** (2026-08-04).
 
-- Sin la `0012`, un vendedor no ve en su historial los pagos que registre un administrador para sus
-  clientes (I-015).
-- Sin la `0013` no existen `report_payment_totals` ni `report_payments_by_day`, así que el reporte
-  «Pagos por fecha» **falla** en producción. Los otros cuatro reportes sí funcionan: se apoyan en
-  vistas que ya están aplicadas.
+Comprobación reproducible en cualquier momento, de solo lectura:
 
 ```bash
-npx supabase db push --db-url "$SUPABASE_DB_URL"
+npm run verify:remote
 ```
 
-La `0011` se aplicó el 2026-08-03 con el mismo comando:
+Ejecuta contra el proyecto real las mismas invariantes de catálogo que
+`tests/db/catalog.test.ts` comprueba en local: RLS habilitada y forzada, `search_path` en las
+funciones `SECURITY DEFINER`, `security_invoker` en las vistas, ausencia de políticas y privilegios
+de `DELETE`, `anon` sin privilegios de tabla **ni de función**, dinero en `bigint` y ninguna política
+llamando a una función por fila.
 
-```bash
-npx supabase db push --db-url "$SUPABASE_DB_URL"
-```
+**Por qué existe este script (I-020).** Dos veces ya, una invariante era cierta en local y falsa en
+el proyecto alojado, porque Supabase concede privilegios por `ALTER DEFAULT PRIVILEGES` y el
+resultado depende del rol que aplique la migración:
 
-`SUPABASE_DB_URL` debe ser la cadena del **session pooler** (I-005). Fue un cambio de política de
-lectura: no alteró datos ni estructura, y es reversible con la nota del propio archivo.
+| Cuándo | Qué divergía | Se corrigió con |
+|---|---|---|
+| Fase 2 (D-038) | `authenticated` conservaba `DELETE` en el remoto | `0010` |
+| Fase 7 (I-020) | `anon` podía ejecutar **todas** las funciones | `0015` |
 
-Comprobado tras aplicarla, contra el proyecto real:
+Las pruebas locales no podían detectarlo. Verificar el remoto es lo único que lo detecta.
 
-- `profiles_select` ya no exige `m_target.is_active` y sigue acotada por `is_org_staff`.
-- Las 7 verificaciones estructurales siguen en cero filas: tablas sin RLS · sin `FORCE RLS` ·
-  funciones `SECURITY DEFINER` sin `search_path` · vistas sin `security_invoker` · políticas de
-  `DELETE` · `DELETE` concedido a `authenticated` · columnas monetarias que no sean `bigint`.
+Historial de aplicaciones al proyecto real:
+
+| Fecha | Migraciones | Nota |
+|---|---|---|
+| 2026-08-03 | `0001`–`0010` | Alta inicial del esquema |
+| 2026-08-03 | `0011` | Corrige I-011. Cambio de política de lectura: no alteró datos ni estructura |
+| 2026-08-04 | `0012`, `0013`, `0014` | Historial de pagos, funciones de reporte y rendimiento de la RLS. `--dry-run` primero; las tres se aplicaron sin error |
+| 2026-08-04 | `0015` | Cierra I-020, detectado al verificar el catálogo **después** de aplicar las tres anteriores |
+
+Todas las verificaciones de `npm run verify:remote` quedaron en verde tras aplicar `0015`.
 
 ---
 

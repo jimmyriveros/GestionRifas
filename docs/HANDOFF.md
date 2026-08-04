@@ -14,8 +14,8 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 | Rama / commit / etiqueta | `main` · `caa6298` · `fase-7` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando |
-| Base de datos | 14 migraciones. Las 11 primeras en local **y** en el proyecto real; **`0012`, `0013` y `0014` solo en local** (I-015, I-019, §3) |
-| Pruebas | 162 unitarias + **253 de base de datos** + **142 end-to-end**, todas en verde. `npm audit`: **0 vulnerabilidades** |
+| Base de datos | 15 migraciones, **todas aplicadas en local y en el proyecto real** y verificadas con `npm run verify:remote` |
+| Pruebas | 162 unitarias + **254 de base de datos** + **142 end-to-end**, todas en verde. `npm audit`: **0 vulnerabilidades** |
 
 **Lo que existe hoy:** el producto completo del MVP funcionando contra datos reales — crear rifas y
 boletas, repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y
@@ -77,15 +77,9 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-⚠️ **Las migraciones `0012`, `0013` y `0014` están aplicadas en local pero NO en el proyecto real.**
-Un solo comando aplica las tres, y conviene no dejarlo para más adelante:
+✅ **Las 15 migraciones están aplicadas también en el proyecto real** (2026-08-04) y verificadas.
 
-- Sin la **`0014`**, cualquier consulta con RLS es unas **1.400 veces más lenta**: la política llama a
-  una función una vez por fila (I-019). Con el volumen real de una rifa, la diferencia entre una
-  pantalla que carga y una que no.
-- Sin la **`0013`**, el reporte «Pagos por fecha» **falla**: no existen sus dos funciones.
-- Sin la **`0012`**, un vendedor no ve en su historial los pagos que registre un administrador para
-  sus clientes (I-015).
+Al aplicar migraciones al proyecto real, el procedimiento completo son **tres** pasos, no dos:
 
 ```bash
 npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
@@ -94,6 +88,15 @@ npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
 ```bash
 npx supabase db push --yes --db-url "$SUPABASE_DB_URL"
 ```
+
+```bash
+npm run verify:remote
+```
+
+⚠️ **El tercero no es opcional.** Comprueba las invariantes de catálogo contra el proyecto real, y es
+lo único que detecta que local y remoto han dejado de ser equivalentes. Ha hecho falta **dos veces**:
+`authenticated` conservaba `DELETE` en el remoto (D-038) y `anon` podía ejecutar todas las funciones
+(I-020). En ambos casos las pruebas locales pasaban.
 
 ---
 
@@ -235,7 +238,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-253 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+254 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 

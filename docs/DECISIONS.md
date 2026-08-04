@@ -784,6 +784,27 @@ partir un módulo de 120 líneas en dos solo para poder probarlo).
 **Consecuencia.** No debilita nada: la frontera real la impone el build de Next, que sigue fallando
 si un Client Component importa uno de esos módulos.
 
+## D-065 — El proyecto real se verifica, no se supone
+**Fase:** 7 (posterior al despliegue de `0012`–`0014`)
+**Contexto.** `npm run test:db` comprueba las invariantes del esquema contra la instancia **local**.
+Eso deja un punto ciego que ya se ha materializado **dos veces**: Supabase concede privilegios con
+`ALTER DEFAULT PRIVILEGES`, y el resultado depende del rol que aplique la migración, así que una
+invariante puede ser cierta en local y falsa en producción sin que ninguna prueba lo note.
+
+| Cuándo | Qué divergía | Se descubrió |
+|---|---|---|
+| Fase 2 (D-038) | `authenticated` conservaba `DELETE` | Al verificar tras aplicar |
+| Fase 7 (I-020) | `anon` podía ejecutar **todas** las funciones | Al verificar tras aplicar |
+
+**Decisión.** Existe `npm run verify:remote` (`scripts/verify-remote.ts`), que ejecuta contra el
+proyecto real las mismas comprobaciones de catálogo que `catalog.test.ts` hace en local, en modo
+**solo lectura**. Se ejecuta **después** de cada `db push`, no solo antes.
+**Alternativas.** (a) Confiar en que local y remoto son equivalentes (descartada: es justo lo que
+falló dos veces). (b) Ejecutar la suite de pruebas contra producción (descartada: escribe datos).
+**Consecuencia.** `revoke … from public` **no** deshace un `GRANT` hecho nominalmente a un rol: hay
+que revocar de `anon` **y** de `public`, que es lo que hace `0015`. La regla general que queda: un
+privilegio no está quitado hasta que se ha comprobado en el entorno donde importa.
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario
