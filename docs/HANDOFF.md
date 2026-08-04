@@ -9,19 +9,21 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 
 | | |
 |---|---|
-| Última fase completada | **6 — Dashboards, reportes y UI/UX** |
-| Siguiente fase | **7 — Pruebas, seguridad y endurecimiento** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `791e585` · `fase-6` |
+| Última fase completada | **7 — Pruebas, seguridad y endurecimiento** |
+| Siguiente fase | **8 — Despliegue y documentación operativa** (requiere autorización explícita del usuario) |
+| Rama / commit / etiqueta | `main` · `<pendiente>` · `fase-7` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando |
-| Base de datos | 13 migraciones. Las 11 primeras en local **y** en el proyecto real; la **`0012` y la `0013` solo en local** (I-015, §3) |
-| Pruebas | 126 unitarias + **238 de base de datos** + **120 end-to-end**, todas en verde |
+| Base de datos | 14 migraciones. Las 11 primeras en local **y** en el proyecto real; **`0012`, `0013` y `0014` solo en local** (I-015, I-019, §3) |
+| Pruebas | 162 unitarias + **253 de base de datos** + **142 end-to-end**, todas en verde. `npm audit`: **0 vulnerabilidades** |
 
 **Lo que existe hoy:** el producto completo del MVP funcionando contra datos reales — crear rifas y
 boletas, repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y
 exportar todo eso en reportes. Los saldos y los estados de pago los calcula la base de datos.
-**Lo que NO existe:** el cierre de la cobertura de pruebas de `CLAUDE.md` §30, la revisión de
-seguridad y el endurecimiento (Fase 7), y el despliegue (Fase 8).
+Endurecido en la Fase 7: cabeceras de seguridad con CSP por nonce, limitación de intentos, las 25
+pruebas mínimas automatizadas y la RLS ~1.400× más rápida (I-019).
+**Lo que NO existe:** el despliegue a producción y la documentación operativa (Fase 8), y la
+auditoría final independiente (Fase 9).
 
 ---
 
@@ -75,10 +77,15 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-⚠️ **Las migraciones `0012` y `0013` están aplicadas en local pero NO en el proyecto real.** Sin la
-`0013` el reporte «Pagos por fecha» **falla** en producción (no existen sus dos funciones); sin la
-`0012`, un vendedor no ve en su historial los pagos que registre un administrador para sus clientes
-(I-015). Un solo comando aplica ambas:
+⚠️ **Las migraciones `0012`, `0013` y `0014` están aplicadas en local pero NO en el proyecto real.**
+Un solo comando aplica las tres, y conviene no dejarlo para más adelante:
+
+- Sin la **`0014`**, cualquier consulta con RLS es unas **1.400 veces más lenta**: la política llama a
+  una función una vez por fila (I-019). Con el volumen real de una rifa, la diferencia entre una
+  pantalla que carga y una que no.
+- Sin la **`0013`**, el reporte «Pagos por fecha» **falla**: no existen sus dos funciones.
+- Sin la **`0012`**, un vendedor no ve en su historial los pagos que registre un administrador para
+  sus clientes (I-015).
 
 ```bash
 npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
@@ -228,7 +235,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-238 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+253 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 
@@ -287,6 +294,9 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Una prueba E2E lee 0 filas de una tabla que sí está | `count()` y `allInnerTexts()` **no auto-esperan** y corren contra el `loading.tsx`. Ancla antes con `expect(...).toBeVisible()` | TESTING §3.1 |
 | `loginAs` falla al cambiar de usuario en una prueba | Con sesión abierta, `/login` redirige al panel. Usa `logout(page)` | TESTING §3.1 |
 | Un Route Handler dentro de `(protected)` es público | Los layouts no protegen `route.ts`. Comprobar sesión y rol dentro | D-060 |
+| Una consulta con RLS tarda segundos | Una política llama a una función pasándole una **columna** → una llamada por fila. Usar `columna in (select current_staff_org_ids())` | I-019 · D-063 |
+| Vitest no puede importar un módulo con `server-only` | Está aliasado a un stub en `vitest.config.mts`; si aparece el error, falta el alias | D-064 |
+| Una prueba E2E deja el seed corrupto | Restituir por base de datos en un `afterEach` (`setMembershipActive`), no por la interfaz dentro de la prueba: si agota el tiempo, el `finally` no llega a ejecutarse | TESTING §3.1 |
 | Una ruta inexistente devuelve 200 en vez de 404 | El segmento tiene `loading.tsx`: la respuesta ya iba en streaming. No filtra datos | I-014 |
 | Una vista `security_invoker` pierde filas enteras | Un `JOIN` interno contra una tabla que quien consulta no ve borra la fila. **Usa LEFT JOIN** para los nombres | I-015 |
 | Un pago registrado por un admin no aparece en el historial del vendedor | Falta la migración `0012` en ese entorno | I-015 |

@@ -73,17 +73,3 @@ export async function listOrgMembers(roles: AppRole[]): Promise<OrgMember[]> {
 
   return (data as MemberRow[] | null)?.flatMap((row) => mapMember(row) ?? []) ?? []
 }
-
-export async function getOrgMember(profileId: string): Promise<OrgMember | null> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('memberships')
-    .select(MEMBER_SELECT)
-    .eq('profile_id', profileId)
-    .maybeSingle()
-
-  if (error) throw error
-  if (!data) return null
-
-  return mapMember(data as MemberRow)
-}

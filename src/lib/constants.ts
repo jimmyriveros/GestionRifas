@@ -78,8 +78,6 @@ export const TICKET_PAYMENT_STATUS_VALUES = Object.keys(
   TICKET_PAYMENT_STATUS_LABELS,
 ) as TicketPaymentStatus[]
 
-export const RAFFLE_STATUS_VALUES = Object.keys(RAFFLE_STATUS_LABELS) as RaffleStatus[]
-
 /**
  * Transiciones de estado de rifa permitidas (BR-R03). `closed -> active`
  * existe pero es exclusiva del Owner: lo verifica la Server Action, porque la

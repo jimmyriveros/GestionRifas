@@ -20,6 +20,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 4 | **74 ✅** | **170 ✅** | **72 ✅** | ✅ | ✅ |
 | 5 | **101 ✅** | **199 ✅** | **89 ✅** | ✅ | ✅ |
 | 6 | **126 ✅** | **238 ✅** | **120 ✅** | ✅ | ✅ |
+| 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -442,3 +443,92 @@ El presupuesto de tiempo (5 s) es deliberadamente holgado: no mide rendimiento a
 con Docker no da medidas comparables— sino que caza una regresión de orden de magnitud, como mover un
 agregado a TypeScript. Lo que sí es una aserción fuerte es el **número de filas** que devuelve cada
 agregado: si creciera con el número de boletas, la suma habría dejado de estar en SQL.
+
+---
+
+## Fase 7 — 2026-08-04
+
+### Punto de partida
+
+`npm run test:db` **238 ✅** · `npm run verify` **✅** · E2E verificada en verde sobre el commit
+`eb5457a` al cerrar la Fase 6. Todo en verde antes de tocar nada.
+
+### La auditoría de la matriz: tres filas que mentían
+
+Recorrer `TESTING.md` §3 fila por fila **hasta el archivo** destapó que tres de las 25 pruebas
+mínimas se daban por cubiertas sin estarlo:
+
+| # | Decía | Realidad |
+|---|---|---|
+| 1 | E2E, Fase 1 | El helper `loginAs` espera `/owner/dashboard` **o** `/seller/dashboard`: un vendedor que aterrizara en el portal administrativo habría pasado desapercibido |
+| 2 | E2E + BD, Fase 1 | Verificado **a mano** en el navegador; sin prueba automatizada |
+| 25 | Fase 7 | Correcto: no existía |
+
+Las tres están ahora automatizadas en `tests/e2e/security.spec.ts` y
+`tests/unit/server-actions-guard.test.ts`.
+
+### El hallazgo grande: I-019
+
+El `EXPLAIN ANALYZE` del entregable 8 mostró **1,7 s** para contar 7.278 boletas. La causa:
+`is_org_staff(organization_id)` recibe una columna, así que se ejecuta una vez por fila.
+
+Comprobado aislando la función sobre la misma tabla:
+
+| Consulta | Tiempo |
+|---|---|
+| `count(*)` sin la función | 1,46 ms |
+| `count(*)` con `is_org_staff(columna)` | **1.667,24 ms** |
+| `count(*)` con el conjunto precalculado | 1,18 ms |
+
+Antes y después de la migración `0014`, con la sesión de un Owner real:
+
+| Consulta | Antes | Después |
+|---|---|---|
+| Listado de boletas paginado | 1.607,5 ms | **4,1 ms** |
+| Búsqueda por número exacto | 1,6 ms | 2,0 ms |
+| Boletas del vendedor filtradas | 1.291,5 ms | **2,4 ms** |
+| `v_seller_summary` | 1.290,7 ms | **3,9 ms** |
+| `v_raffle_summary` | 1.289,8 ms | **5,1 ms** |
+| `v_client_balances` con saldo | 24,3 ms | **2,6 ms** |
+| `v_payment_history` paginado | 53,7 ms | **7,1 ms** |
+| `report_payment_totals` | 11,4 ms | **0,8 ms** |
+| `report_payments_by_day` | 12,9 ms | **0,6 ms** |
+| Conteo exacto (paginación) | 1.225,4 ms | **1,9 ms** |
+
+Efecto colateral que confirma la medición: `npm run test:db` pasó de **38 s a 11 s**.
+
+**Índices:** se probó uno sobre `(organization_id, created_at desc)` para el listado. El planificador
+**siguió eligiendo *seq scan*** (el coste no estaba en leer las filas), así que no se añadió: habría
+penalizado las cargas masivas de 1.000 boletas sin dar nada a cambio.
+
+### Cronología con errores encontrados
+
+| Comando / prueba | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npm audit` | 3 altas | `postcss` y `sharp` dentro de Next 16.2.12 | **DT-12 saldada**: en la Fase 2 el «arreglo» era degradar Next a 2019; ahora era **subir** a `next@16.3.0`. Actualizado y fijado sin `^` |
+| `npm run verify` tras subir Next | ✅ | — | — |
+| Verificación de la CSP en navegador | ✅ | — | Login, hidratación y navegación sin una sola violación en consola |
+| `npx vitest run tests/unit/rate-limit.test.ts` | ❌ | `server-only` **lanza** al importarse en jsdom | Alias a `tests/stubs/server-only.ts` en `vitest.config.mts` (D-064) |
+| Prueba negativa del guardián de acciones | ✅ | — | Se creó a propósito una acción sin guarda y la prueba **falló**, como debía. Sin esa comprobación, una prueba estructural puede ser vacua |
+| E2E `security` (1ª ejecución) | ❌ 5 de 17 | 4 expectativas **mías** equivocadas + 1 timeout | (a) el endpoint de exportación responde **307 al login**, no 401: no hay fuga, la asertiva estaba mal; (b) `anon` recibe `permission denied`, mejor que `[]`; (c) `textContent` incluye el payload RSC de desarrollo; (d) el botón no se llamaba como yo suponía |
+| E2E `security` (2ª ejecución) | ❌ 1 de 17 | `loginAs` esperando 60 s un panel que nunca llegaría | Rellenar el formulario a mano en ese caso |
+| **Seed corrompido** | ⚠️ | El timeout impidió que corriera el `finally`, y **`vendedor2` quedó inactivo** | Restituido, y la prueba pasó a restituir por **base de datos en un `afterEach`** (`setMembershipActive`), no por la interfaz: un `finally` no se ejecuta si la prueba agota su tiempo |
+| E2E `security` (final) | ✅ 22 | — | — |
+| `npm run test:db` tras reescribir 22 políticas RLS | ✅ 253 | — | Ninguna prueba de aislamiento cambió de resultado |
+| `npm run test:e2e` completa | ✅ 142 | — | — |
+| `npm run verify` (final) | ✅ | — | 162 unitarias, 0 errores de lint |
+
+### Cómo se comprobó que la reescritura de la RLS no cambió permisos
+
+No basta con que las pruebas sigan pasando; se comprueba la **equivalencia** directamente
+(`F7-01`): para **cada** usuario del seed y **cada** organización, `current_staff_org_ids()` contiene
+esa organización si y solo si `is_org_staff()` devolvía verdadero. Cero discrepancias.
+
+Además, `F7-03` impide la regresión: falla si alguna política vuelve a usar `is_org_staff(` o deja
+un `current_profile_id()` sin envolver.
+
+### Código muerto eliminado
+
+8 exports sin un solo uso en todo el repositorio: `ErrorState` (archivo completo), `useConfirmDialog`,
+`AppError`, `isActionError`, `RAFFLE_STATUS_VALUES`, `getPaymentDetail`, `countPendingApproval` y
+`getOrgMember`.

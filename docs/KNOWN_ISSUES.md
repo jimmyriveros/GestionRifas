@@ -29,8 +29,9 @@ Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 | I-014 | `notFound()` responde **200**, no 404, en segmentos con `loading.tsx` | Info | La respuesta ya iba en streaming cuando se resolvió `notFound()`, así que el código de estado ya estaba enviado. **No es una fuga**: la página muestra «Pagina no encontrada» y no revela ningún dato del recurso ajeno, y así lo comprueban las pruebas E2E de aislamiento. Afecta al SEO de rutas públicas, que aquí no existen |
 | I-017 | Toda fecha de **día calendario** se mostraba **un día antes** | ✅ Resuelto (F6) | `payment_date`, `sale_date`, `start_date` y `end_date` son columnas `date`: PostgREST las entrega como `'AAAA-MM-DD'` y `new Date('2026-08-04')` es **medianoche UTC**, que en Bogotá (UTC-5) todavía es el día 3. Afectaba a la fecha de todo abono, toda venta y toda rifa en pantalla. Corregido en `src/lib/dates.ts`: las cadenas de solo fecha se anclan al mediodía UTC antes de formatearlas, con lo que se arreglan de golpe los 8 sitios que las mostraban. Regresión cubierta en `tests/unit/dates.test.ts` y en E2E |
 | I-018 | El helper `logout()` de las pruebas E2E nunca funcionó | ✅ Resuelto (F6) | Buscaba un botón llamado `/menu de usuario\|cuenta/i`, pero el disparador del menú no tenía nombre accesible: su contenido eran las iniciales del avatar y un nombre oculto bajo `md`. Era código muerto —ninguna prueba lo usaba— hasta que la Fase 6 necesitó cambiar de usuario dentro de una prueba. Corregido añadiendo `aria-label="Menu de usuario: <nombre>"` al disparador, que además **arregla un defecto real de accesibilidad**: en un teléfono, un lector de pantalla anunciaba solo «CR» |
+| I-019 | **Toda consulta con RLS llamaba a una función por fila**: ~1,7 s con 7.278 boletas | ✅ Resuelto (F7) | Lo destapó el `EXPLAIN ANALYZE` de la revisión de rendimiento. `is_org_staff(organization_id)` recibe una **columna**, así que el planificador no puede sacarla del bucle: una llamada por fila, y cada una consulta tres tablas (44.367 accesos a buffer para 566 páginas). No se ve en desarrollo, donde el seed tiene 30 boletas, y **empeora con los datos** porque el coste es por fila. Corregido por la migración **`0014`**: `columna in (select current_staff_org_ids())` se evalúa una sola vez. Medido: **1.667 ms → 1,18 ms**. Sin cambio de permisos (D-063) |
 
-**Sin bloqueantes para la Fase 7.**
+**Sin bloqueantes para la Fase 8.**
 
 ---
 
@@ -75,7 +76,7 @@ Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 | DT-09 | `eslint@9`, no 10 | El `eslint-plugin-react` interno de `eslint-config-next` no admite 10 (D-031) | Al actualizarse |
 | ~~DT-10~~ | ~~`database.types.ts` a mano~~ | **Saldada en F2**: se genera con `gen types --local` | — |
 | ~~DT-11~~ | ~~Playwright no instalado~~ | **Saldada en F3**: `@playwright/test` + Chromium instalados, 41 specs en `tests/e2e/` | — |
-| DT-12 | 3 vulnerabilidades altas de `npm audit` | `postcss` y `sharp` **internos de Next 16**, no del proyecto. El único «fix» degradaría Next a la versión de 2019. `postcss` solo procesa CSS propio en build; `sharp` es la ruta opcional de `next/image`, hoy sin imágenes remotas | Reevaluar al habilitar `next/image` con imágenes remotas o de usuarios |
+| DT-12 | ~~3 vulnerabilidades altas de `npm audit`~~ | ✅ **Saldada en la Fase 7.** En la Fase 2 el único «arreglo» que ofrecía npm era degradar Next a la versión de 2019, así que se aceptó como deuda. Al reevaluarla en la Fase 7 la situación había cambiado: el arreglo pasó a ser **subir** a `next@16.3.0`, dentro de la misma major | Hecho: Next y `eslint-config-next` a 16.3.0 (versiones fijas, sin `^`), `npm audit` en **0 vulnerabilidades**, y las tres suites en verde tras la subida |
 
 ---
 
@@ -134,3 +135,4 @@ Reglas del MVP que podrían confundirse con defectos:
 | 2026-08-03 | 4 | +I-014. R-13 reverificado con el portal del vendedor. Sin migraciones ni deuda nueva. |
 | 2026-08-03 | 5 | +I-015 y +I-016, ambos resueltos en la misma fase (migración `0012` y `MoneyInput`). R-02 y R-16 reverificados con la interfaz de pagos. |
 | 2026-08-04 | 6 | +I-017 y +I-018, ambos resueltos en la misma fase (fechas de día calendario y nombre accesible del menú de usuario). Migración `0013` **pendiente de aplicar al proyecto real**. I-011 verificado con una prueba explícita a 5.000 boletas. |
+| 2026-08-04 | 7 | +I-019 (**RLS llamando a una función por fila**, ~1.400× más lenta), resuelto con la migración `0014`. DT-12 saldada subiendo Next a 16.3.0: `npm audit` en 0. Cabeceras de seguridad con CSP por nonce, limitación de intentos, y las 25 pruebas mínimas automatizadas por fin (la 1, la 2 y la 25 no lo estaban). R-03, R-04 y R-11 reverificados. |

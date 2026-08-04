@@ -4,7 +4,7 @@ Registro de lo entregado por fase. **Leer antes de iniciar cualquier fase.**
 Ninguna fase comienza sin autorización explícita del usuario (`CLAUDE.md` §1).
 Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 
-- **Actualizado:** 2026-08-04 · **Fase actual:** 6 completada · **Siguiente:** 7 (no autorizada)
+- **Actualizado:** 2026-08-04 · **Fase actual:** 7 completada · **Siguiente:** 8 (no autorizada)
 
 | Fase | Nombre | Estado | Commit / etiqueta |
 |---|---|---|---|
@@ -15,23 +15,23 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 | 4 | Portal Seller y clientes | ✅ | `36ef2e1` · `fase-4` |
 | 5 | Pagos, abonos y saldos | ✅ | `ecc9eac` · `fase-5` |
 | 6 | Dashboards, reportes y UI/UX | ✅ | `791e585` · `fase-6` |
-| 7 | Pruebas, seguridad y endurecimiento | ⬜ | — |
+| 7 | Pruebas, seguridad y endurecimiento | ✅ | `<pendiente>` · `fase-7` |
 | 8 | Despliegue y documentación operativa | ⬜ | — |
 | 9 | Auditoría final independiente | ⬜ | — |
 
 ---
 
-## ANTES DE EMPEZAR LA FASE 7 — revisar esto
+## ANTES DE EMPEZAR LA FASE 8 — revisar esto
 
-1. **Confirmar autorización explícita** del usuario para la Fase 7.
-2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y la sección «Fase 7» de `docs/IMPLEMENTATION_PLAN.md`.
-   No hace falta leer los demás documentos completos (guía en `HANDOFF.md` §5).
+1. **Confirmar autorización explícita** del usuario para la Fase 8.
+2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y la sección «Fase 8» de `docs/IMPLEMENTATION_PLAN.md`.
 3. **Levantar el entorno** y comprobar que todo pasa antes de tocar nada:
-   `npx supabase start` → `npm run db:reset && npm run seed:local` → `npm run test:db` (238 ✅) →
-   `npm run verify` (✅) → `npm run test:e2e` (120 ✅).
-4. **Aplicar las migraciones `0012` y `0013` al proyecto real.** Ambas están solo en local. Sin la
-   `0013` el reporte «Pagos por fecha» **falla** en producción, porque las dos funciones que agrega
-   no existen allí (`KNOWN_ISSUES.md` §4):
+   `npx supabase start` → `npm run db:reset && npm run seed:local` → `npm run test:db` (253 ✅) →
+   `npm run verify` (✅) → `npm run test:e2e` (142 ✅).
+4. **Aplicar `0012`, `0013` y `0014` al proyecto real.** Las tres están solo en local, y la `0014`
+   es la más importante que se haya quedado pendiente hasta ahora: sin ella, **toda** consulta con
+   RLS es unas 1.400 veces más lenta (I-019). Con el volumen real de una rifa, eso es la diferencia
+   entre una pantalla que carga y una que no:
 
    ```bash
    npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
@@ -41,20 +41,19 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
    npx supabase db push --yes --db-url "$SUPABASE_DB_URL"
    ```
 
-5. **`npm run test:db` deja 5.000 boletas** en una rifa en **borrador** llamada «Rifa Volumen Fase 6»
-   (`tests/db/volume-phase6.test.ts`). Es idempotente: repetir la suite las reutiliza en vez de
-   acumular. Aun así, **ejecutar `npm run db:reset && npm run seed:local` antes de `test:e2e`**.
-6. **La Fase 7 es la de endurecer, no la de construir.** Su alcance son las 25 pruebas mínimas de
-   `CLAUDE.md` §30, la revisión de seguridad y el manejo de errores. No añadir capacidades nuevas.
-7. **Dos defectos reales aparecieron en la Fase 6** (I-017 fechas, I-018 nombre accesible). Ambos
-   estaban en código de fases anteriores que nadie había mirado con lupa. Merece la pena repetir el
-   ejercicio en la Fase 7 sobre las zonas que aún no tienen pruebas propias.
-8. **Para desarrollar y probar, `npm run dev:local`** (D-047). `npm run dev` apunta al proyecto real
-   según `.env.local` (I-013).
-9. **Nada de agregar dinero en TypeScript.** Si un número nuevo hace falta, sale de SQL: vistas
-   (`v_*`) o funciones de reporte (`report_*`). Ver D-057.
-10. **Las lecturas que puedan superar 1.000 filas usan `fetchAllRows`** (`src/lib/supabase/paginate.ts`)
-    o `count: 'exact', head: true`. Nunca `data.length` (I-011, R-18).
+5. **La Fase 8 es despliegue y documentación operativa.** No añadir capacidades nuevas.
+6. **`npm run test:db` deja 5.000 boletas** en una rifa en **borrador** («Rifa Volumen Fase 6»). Es
+   idempotente, pero hay que **`npm run db:reset && npm run seed:local` antes de `test:e2e`**.
+7. **En producción hay que confirmar dos cosas que en local no se pueden comprobar:** que HSTS
+   aparece (solo se envía cuando `NODE_ENV=production`) y que la CSP no rompe nada servida desde el
+   dominio real. Un `curl -I` a la portada basta para lo primero.
+8. **La limitación de intentos es en memoria por instancia** (D-062). Si Vercel escala a varias, el
+   límite efectivo se multiplica. Está documentado en `SECURITY.md` §10.2 y la sustitución natural
+   es un contador compartido, sin cambiar la firma de `checkRateLimit`.
+9. **Nada de agregar dinero en TypeScript**, y ninguna política RLS puede llamar a una función
+   pasándole una columna (D-057, D-063).
+10. **Las lecturas que puedan superar 1.000 filas usan `fetchAllRows`** o
+    `count: 'exact', head: true`. Nunca `data.length` (I-011, R-18).
 
 ---
 
@@ -511,15 +510,119 @@ el vendedor también tiene reportes; la exportación es un Route Handler fuera d
 
 ---
 
+## Fase 7 — Pruebas, seguridad y endurecimiento ✅
+
+### Funcionalidades implementadas
+
+- **Las 25 pruebas mínimas de `CLAUDE.md` §30, automatizadas de verdad.** Auditar la matriz fila por
+  fila destapó que **tres** se daban por cubiertas sin estarlo (detalle en `TESTING.md` §3.0):
+  la 1 (nadie comprobaba el destino **por rol**: `loginAs` acepta cualquiera de los dos paneles),
+  la 2 (verificada a mano en la Fase 1, nunca automatizada) y la 25 (diferida a esta fase).
+- **Cabeceras de seguridad**: CSP con **nonce por request** + `strict-dynamic`, HSTS (solo en
+  producción), `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy`.
+- **Limitación de intentos** en login, recuperación de contraseña e invitaciones, con su alcance real
+  documentado sin adornos (D-062).
+- **Protección de APIs y Server Actions** comprobada en dos niveles: una prueba **estructural** que
+  falla si alguien añade una acción sin guarda —y que seguirá funcionando para las acciones que aún
+  no existen— y una E2E que comprueba las guardas de verdad sobre HTTP, con sesiones reales.
+- **Revisión de errores**: ningún mensaje expone estructura interna, ni con un id inexistente, ni con
+  uno malformado, ni al iniciar sesión, ni al pedir recuperación de contraseña.
+- **`npm audit` en 0 vulnerabilidades**: DT-12 saldada subiendo Next a 16.3.0.
+- **Código muerto eliminado**: 8 exports sin un solo uso (`ErrorState`, `useConfirmDialog`,
+  `AppError`, `isActionError`, `RAFFLE_STATUS_VALUES`, `getPaymentDetail`, `countPendingApproval`,
+  `getOrgMember`).
+
+### Cambios de base de datos
+
+| Archivo | Contenido |
+|---|---|
+| `0014_rls_performance.sql` | `current_staff_org_ids()` y reescritura de **22 políticas** para que la RLS deje de llamar a una función por fila (I-019, D-063) |
+
+**Aplicada en local. Pendiente en el proyecto real**, junto con `0012` y `0013`.
+
+### Pruebas ejecutadas y resultados
+
+| Suite | Antes | Ahora |
+|---|---|---|
+| Unitarias (`npm run test`) | 126 | **162 ✅** |
+| Base de datos (`npm run test:db`) | 238 | **253 ✅** |
+| End-to-end (`npm run test:e2e`) | 120 | **142 ✅** |
+| `npm run verify` | ✅ | ✅ (0 errores de lint; los 2 avisos conocidos de TanStack) |
+| `npm audit` | 3 altas | **0 vulnerabilidades** |
+
+### El hallazgo de la fase: I-019
+
+`EXPLAIN ANALYZE` sobre las consultas principales —el entregable 8— mostró que **toda** consulta
+sobre `tickets` tardaba ~1,7 s con solo 7.278 filas:
+
+```
+Seq Scan on tickets (actual time=2.512..1724.794 rows=7273)
+  Filter: (... AND (is_org_staff(organization_id) OR seller_id = current_profile_id()))
+  Buffers: shared hit=44367        <- 44.367 accesos para una tabla de 566 paginas
+```
+
+`is_org_staff(organization_id)` recibe una **columna**, así que PostgreSQL no puede sacarla del bucle
+y la ejecuta **una vez por fila**; cada llamada consulta tres tablas.
+
+| Medición sobre la misma consulta | Tiempo |
+|---|---|
+| `count(*)` sin la función | 1,46 ms |
+| `count(*)` con `is_org_staff(columna)` | **1.667 ms** |
+| `count(*)` con el conjunto precalculado | 1,18 ms |
+
+Efecto en la aplicación tras la migración `0014`:
+
+| Consulta | Antes | Después |
+|---|---|---|
+| Listado de boletas paginado | 1.607 ms | **4,1 ms** |
+| Boletas del vendedor filtradas | 1.292 ms | **2,4 ms** |
+| `v_seller_summary` (panel) | 1.291 ms | **3,9 ms** |
+| `v_payment_history` paginado | 53,7 ms | **7,1 ms** |
+| Conteo exacto (paginación) | 1.225 ms | **1,9 ms** |
+
+No cambia **ningún** permiso: la prueba `F7-01` comprueba la equivalencia entre
+`current_staff_org_ids()` e `is_org_staff()` para cada combinación de usuario y organización, y
+`F7-03` impide que el patrón lento vuelva a entrar.
+
+**Índices:** no se añadió ninguno. Se probó uno sobre `(organization_id, created_at desc)` para el
+listado y el planificador **siguió eligiendo *seq scan***, porque el coste no estaba en leer las
+filas. Añadirlo solo habría penalizado las cargas masivas de 1.000 boletas.
+
+### Variables de entorno requeridas
+
+Las mismas de las fases anteriores. Ninguna nueva.
+
+### Problemas reales que permanecen
+
+| ID | Problema | Impacto |
+|---|---|---|
+| I-015 | `0012`, `0013` y `0014` no están aplicadas al proyecto real | **Alto**: sin la `0014` la aplicación es ~1.400× más lenta en producción; sin la `0013` falla el reporte de pagos. Un solo comando resuelve las tres |
+| I-004 | `CLAUDE.md` y `CLAUDE.md.txt` coexisten | Bajo |
+| I-013 | `.env.local` apunta al proyecto real | Bajo con `npm run dev:local` |
+| I-014 | `notFound()` responde 200 en segmentos con `loading.tsx` | Ninguno funcional |
+| — | La limitación de intentos es por instancia | Documentado (D-062). Supabase Auth sigue siendo el límite duro del login |
+
+### Qué debe revisar el siguiente agente antes de comenzar
+
+Ver la sección «ANTES DE EMPEZAR LA FASE 8» al inicio de este documento.
+
+### Decisiones
+
+D-061 a D-064: CSP con nonce por request en vez de `unsafe-inline`; limitación de intentos en memoria
+con su alcance declarado; las políticas RLS no pueden llamar a una función por fila; `server-only`
+aliasado a un stub en las pruebas unitarias.
+
+---
+
 ## Comandos
 
 ```bash
 npx supabase start     # instancia local (Docker)
-npm run db:reset       # reaplica las 13 migraciones desde cero (local)
+npm run db:reset       # reaplica las 14 migraciones desde cero (local)
 npm run seed:local     # datos de desarrollo en local
 npm run seed           # datos de desarrollo en el proyecto de .env.local
-npm run test:db        # 238 pruebas de base de datos (crea 5.000 boletas de volumen)
-npm run test:e2e       # 120 pruebas end-to-end (Playwright)
+npm run test:db        # 253 pruebas de base de datos (crea 5.000 boletas de volumen)
+npm run test:e2e       # 142 pruebas end-to-end (Playwright)
 npm run verify         # typecheck + lint + unitarias + build
 npm run dev            # servidor de desarrollo (segun .env.local)
 npm run dev:local      # servidor de desarrollo contra la instancia local
@@ -546,3 +649,4 @@ npx supabase db push --db-url "$SUPABASE_DB_URL"
 | 2026-08-03 | 4 | Portal Seller completo: dashboard propio, boletas, creación con aprobación, clientes y asignación con creación de cliente en el flujo. Sin migraciones. +27 pruebas de BD, +31 E2E (incluido el ciclo completo en móvil), +19 unitarias. |
 | 2026-08-03 | 5 | Pagos y abonos: registro con reparto entre boletas, historial, anulación administrativa y consulta global. Migración `0012`. Dos defectos reales detectados y corregidos (I-015, I-016). +29 pruebas de BD, +17 E2E, +27 unitarias. |
 | 2026-08-04 | 6 | Dashboards completos, cinco reportes con filtros y exportación a CSV en los dos portales, y pulido de UX y accesibilidad. Migración `0013` (dos funciones de agregación de pagos). Dos defectos reales detectados y corregidos (I-017 fechas un día antes, I-018 menú de usuario sin nombre accesible). +39 pruebas de BD (incluida la de volumen a 5.000 boletas), +31 E2E, +25 unitarias. |
+| 2026-08-04 | 7 | Endurecimiento: cabeceras de seguridad con CSP por nonce, limitación de intentos y las 25 pruebas mínimas automatizadas por fin (la 1, la 2 y la 25 se daban por cubiertas sin estarlo). Migración `0014`: la RLS deja de llamar a una función por fila y pasa de ~1.667 ms a ~1,2 ms (I-019). DT-12 saldada subiendo Next a 16.3.0: `npm audit` en 0. Código muerto eliminado. +15 pruebas de BD, +22 E2E, +36 unitarias. |

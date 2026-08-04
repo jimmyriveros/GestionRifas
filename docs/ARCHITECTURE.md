@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.3 · **Fase:** 5 · **Actualizado:** 2026-08-03
+- **Versión:** 1.5 · **Fase:** 7 · **Actualizado:** 2026-08-04
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -30,7 +30,7 @@ Versiones estables verificadas en el registro de npm el 2026-08-02. Se fijan con
 | Componente | Paquete | Versión objetivo | Nota |
 |------------|---------|------------------|------|
 | Runtime | Node.js | `>=20.9.0` (local: 20.20.2) | Requisito de Next 16 |
-| Framework | `next` | `16.2.12` | App Router |
+| Framework | `next` | `16.3.0` | App Router. Subido en F7: resuelve 3 avisos altos de `npm audit` (DT-12) |
 | UI | `react`, `react-dom` | `19.2.8` | |
 | Lenguaje | `typescript` | `5.9.3` | **No** 7.x — ver D-002 |
 | Estilos | `tailwindcss` | `4.3.3` | Motor v4, configuración CSS-first |
@@ -46,8 +46,8 @@ Versiones estables verificadas en el registro de npm el 2026-08-02. Se fijan con
 | Fechas | `date-fns` + `@date-fns/tz` | `4.4.0` | Manejo de `America/Bogota` |
 | Notificaciones | `sonner` | `2.0.7` | Toasts (usado por shadcn/ui) |
 | Pruebas unitarias | `vitest` | `4.1.10` (entorno `jsdom@29.1.1`) | jsdom 30 exige Node 22+ — ver D-030 |
-| Pruebas E2E | `@playwright/test` | `1.62.1` | Instalado en F3 con Chromium; 89 specs (escritorio y móvil) |
-| Lint | `eslint` + `eslint-config-next` | `9.39.5` / `16.2.12` | **No** ESLint 10 — ver D-031 |
+| Pruebas E2E | `@playwright/test` | `1.62.1` | Instalado en F3 con Chromium; 142 specs (escritorio y móvil) |
+| Lint | `eslint` + `eslint-config-next` | `9.39.5` / `16.3.0` | **No** ESLint 10 — ver D-031 |
 | Formato | `prettier` + `prettier-plugin-tailwindcss` | `3.9.6` | |
 | WebSocket (Node 20) | `ws` | `8.21.1` | Runtime dep — ver D-033 |
 
@@ -162,7 +162,7 @@ importa desde un componente cliente.
     │   ├── ui/                   # shadcn/ui generado
     │   ├── layout/               # AppShell, Sidebar, MobileNav, Header, UserMenu
     │   ├── data/                 # DataTable, DataTableToolbar, Pagination, EmptyState
-    │   ├── feedback/             # Skeletons, ErrorState, ConfirmDialog, Toaster
+    │   ├── feedback/             # Skeletons, ConfirmDialog, Toaster
     │   └── form/                 # FormField, MoneyInput, TicketNumberInput, DatePicker
     ├── features/
     │   ├── auth/                 # actions.ts, schemas.ts, queries.ts, components/
@@ -180,8 +180,10 @@ importa desde un componente cliente.
     │   ├── auth/                 # getSession, requireRole, guards de servidor
     │   ├── money.ts              # formatCOP, parseCOP — enteros
     │   ├── dates.ts              # zona America/Bogota; distingue día calendario de instante (I-017)
-    │   ├── errors.ts             # AppError, mapeo de códigos PG a mensajes en español
+    │   ├── errors.ts             # mapeo de códigos PG a mensajes en español (D-044)
     │   ├── csv.ts                # exportación: separador ;, BOM, anti-inyección de fórmulas (D-056)
+    │   ├── rate-limit.ts         # limitación de intentos, en memoria (D-062)
+    │   ├── security-headers.ts   # CSP con nonce + cabeceras estáticas (D-061)
     │   └── constants.ts          # DEFAULT_TICKET_PRICE = 100000, límites, etiquetas
     ├── types/
     │   └── database.types.ts     # Generado: supabase gen types typescript (D-034: manual hasta la Fase 2)

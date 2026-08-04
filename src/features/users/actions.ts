@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { authorizeAction } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult } from '@/lib/action-result'
@@ -45,6 +46,17 @@ export async function createUser(input: unknown): Promise<ActionResult> {
     return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
   }
   const values = parsed.data
+
+  // Cada invitacion envia un correo y consume cuota de Auth. Se limita por
+  // ORGANIZACION, no por quien invita: si no, bastaria con alternar entre dos
+  // administradores para duplicar el cupo (D-062).
+  const rate = checkRateLimit(
+    `invitation:${auth.membership.organizationId}`,
+    RATE_LIMITS.invitation,
+  )
+  if (!rate.allowed) {
+    return { error: rate.message }
+  }
 
   const admin = createAdminClient()
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
@@ -182,6 +194,15 @@ export async function resendInvitation(input: unknown): Promise<ActionResult> {
 
   if (readError) return { error: mapPgError(readError) }
   if (!member?.profile?.email) return { error: 'El usuario no existe o no tienes acceso a el.' }
+
+  // Reenviar tambien envia correo: comparte cupo con las invitaciones nuevas.
+  const rate = checkRateLimit(
+    `invitation:${auth.membership.organizationId}`,
+    RATE_LIMITS.invitation,
+  )
+  if (!rate.allowed) {
+    return { error: rate.message }
+  }
 
   const admin = createAdminClient()
   const { error } = await admin.auth.resetPasswordForEmail(member.profile.email, {

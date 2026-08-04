@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.0 · **Actualizado:** 2026-08-02
+- **Versión:** 1.7 · **Actualizado:** 2026-08-04 (D-001 a D-064)
 
 ---
 
@@ -710,6 +710,79 @@ en memoria del navegador y pierde `Content-Disposition`). (b) Ruta dentro de `(p
 **Consecuencia.** La descarga es un enlace normal: funciona con «abrir en pestaña nueva» y sin
 JavaScript. El nombre del archivo se sanea antes de entrar en la cabecera, para que no pueda
 inyectar encabezados HTTP.
+
+## D-061 — CSP con nonce por request, no `unsafe-inline`
+**Fase:** 7
+**Contexto.** Next inyecta el payload de hidratación en scripts **en línea**. Una CSP que los permita
+necesita `'unsafe-inline'` en `script-src`, que es tanto como no tener CSP para lo que más importa:
+la inyección de scripts.
+**Decisión.** `proxy.ts` genera un nonce aleatorio por request, lo pone en la cabecera CSP **del
+request** —de ahí lo lee Next para firmar sus propios scripts— y en la de la respuesta. La política
+usa `nonce` + `'strict-dynamic'`. Las cabeceras que no dependen del request (HSTS, X-Frame-Options,
+Referrer-Policy, Permissions-Policy) van en `next.config.ts`, para que las reciban también los
+archivos estáticos que el matcher del proxy excluye.
+**Alternativas.** (a) CSP estática con `'unsafe-inline'` (descartada: deja pasar exactamente el
+ataque del que protege). (b) No poner CSP (descartada: es un entregable de la fase).
+**Consecuencia.** `style-src` **sí** conserva `'unsafe-inline'`: Next y `next/font` inyectan estilos
+en línea y un estilo no ejecuta código. `'unsafe-eval'` se añade **solo** en desarrollo, porque
+Turbopack lo necesita. HSTS se omite en desarrollo a propósito: anclar `localhost` a https deja el
+navegador de quien programa roto durante meses, y el navegador lo recuerda aunque se quite la
+cabecera.
+
+> **Trampa al integrarlo.** La respuesta se construye leyendo `request.headers` **en cada llamada**,
+> no una vez al principio: `request.cookies.set()` actualiza la cabecera `cookie`, y capturarla antes
+> dejaría fuera la sesión que Supabase acaba de refrescar, con cierres de sesión intermitentes.
+
+## D-062 — La limitación de intentos es en memoria, y se dice qué protege y qué no
+**Fase:** 7
+**Contexto.** El plan pide limitar los intentos de inicio de sesión y de las acciones sensibles. Sin
+Redis ni servicios externos, lo único disponible es memoria del proceso.
+**Decisión.** Ventana deslizante en memoria (`src/lib/rate-limit.ts`) aplicada a login (10 / 5 min,
+por **correo**), recuperación de contraseña (3 / 15 min) e invitaciones (20 / hora, por
+**organización**).
+**Alternativas.** (a) Contador en PostgreSQL (descartada por ahora: añade una escritura a cada
+intento de login; la firma de `checkRateLimit` permite cambiarlo sin tocar los llamadores).
+(b) No implementarlo (descartada: es un entregable).
+**Consecuencia y límites honestos.** En un despliegue con varias instancias cada una lleva su cuenta,
+y un reinicio la borra. Por eso **no es la defensa principal del login**: esa es la de Supabase Auth,
+que es global y persistente (I-008). Esta capa cubre lo que aquella no: frenar el goteo de correos
+de recuperación y de invitaciones —que salen hacia terceros y cuestan cuota— y dar un mensaje claro
+antes de que el proveedor devuelva uno opaco.
+Se limita por correo y no por IP porque en una oficina o tras un dato móvil todos comparten IP, y
+bloquear por IP dejaría fuera a un equipo entero por culpa de uno. Un login correcto **devuelve** el
+cupo, para que unos fallos previos no bloqueen el siguiente intento legítimo.
+
+## D-063 — Las políticas RLS no pueden llamar a una función por fila
+**Fase:** 7
+**Contexto.** `EXPLAIN ANALYZE` durante la revisión de rendimiento destapó que **toda** consulta
+sobre `tickets` tardaba ~1,7 s con solo 7.278 filas. La causa: `is_org_staff(organization_id)` recibe
+una **columna**, así que PostgreSQL no puede sacarla del bucle y la ejecuta una vez por fila; cada
+llamada consulta `memberships`, `profiles` y `organizations`. 44.367 accesos a buffer para una tabla
+de 566 páginas.
+**Decisión.** Migración `0014`: se añade `current_staff_org_ids()` —el equivalente en conjunto de
+`is_org_staff()`— y las 22 políticas afectadas pasan a `columna in (select current_staff_org_ids())`.
+Por el mismo motivo, `current_profile_id()` se envuelve en `(select …)`.
+**Alternativas.** (a) Marcar las funciones como `STABLE` (ya lo estaban: no era el problema).
+(b) Añadir índices (medido: el planificador sigue eligiendo *seq scan*, porque el coste no estaba en
+leer las filas sino en la función). (c) Dejarlo (descartada: el coste es **por fila**, así que crece
+con los datos; con 100.000 boletas la aplicación sería inusable).
+**Consecuencia.** Medido sobre la misma consulta: **1.667 ms → 1,18 ms**. En la aplicación, el
+listado de boletas pasa de 1.607 ms a 4 ms y el conteo de 1.225 ms a 1,9 ms.
+**No cambia ningún permiso**: `current_staff_org_ids()` devuelve exactamente las organizaciones donde
+`is_org_staff()` decía que sí, y la prueba `F7-01` lo comprueba por equivalencia para cada
+combinación de usuario y organización. La prueba `F7-03` impide que el patrón lento vuelva a entrar.
+
+## D-064 — `server-only` se sustituye por un stub en las pruebas unitarias
+**Fase:** 7
+**Contexto.** `rate-limit.ts` es lógica pura y merece pruebas unitarias, pero importa `server-only`,
+que **lanza** al cargarse fuera de un Server Component, de modo que Vitest (jsdom) no puede ni
+importar el módulo.
+**Decisión.** `vitest.config.mts` sustituye `server-only` por `tests/stubs/server-only.ts`.
+**Alternativas.** (a) Quitar `import 'server-only'` del módulo (descartada: es la marca que impide
+que acabe en el bundle del navegador). (b) Extraer la lógica a otro archivo sin la marca (descartada:
+partir un módulo de 120 líneas en dos solo para poder probarlo).
+**Consecuencia.** No debilita nada: la frontera real la impone el build de Next, que sigue fallando
+si un Client Component importa uno de esos módulos.
 
 ---
 

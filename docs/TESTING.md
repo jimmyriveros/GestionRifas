@@ -80,35 +80,49 @@ cambiar el seed, lo restaura en un `finally` con el valor leído antes, o se reh
 
 ## 3. Matriz de trazabilidad — pruebas mínimas de `CLAUDE.md` §30
 
-| # | Prueba mínima | Regla | Nivel | Fase |
-|---|---------------|-------|-------|------|
-| 1 | Login y redirección por rol | BR-A01, BR-A02 | E2E | 1 |
-| 2 | Bloqueo de usuarios inactivos | BR-A04, BR-A05 | E2E + BD | 1 |
-| 3 | Aislamiento entre organizaciones | BR-O02, BR-O03 | BD | 2 |
-| 4 | Aislamiento entre vendedores | BR-U07 | BD | 2 |
-| 5 | Creación de rifas | BR-R04, BR-R07 | E2E | 3 |
-| 6 | Creación masiva de boletas | BR-N10 | E2E | 3 |
-| 7 | Límite de cuatro dígitos | BR-N02 | Unit + BD | 2 |
-| 8 | Conservación de ceros iniciales | BR-N03 | Unit + BD | 2 |
-| 9 | Detección de combinaciones duplicadas | BR-N04 | BD | 2 |
-| 10 | Duplicados entre vendedores | BR-N05 | BD | 2 |
-| 11 | Asignación de boleta | BR-I07, BR-P03 | E2E + BD | 4 |
-| 12 | Creación de cliente | BR-C02 | E2E | 4 |
-| 13 | Registro de abono | BR-F02, BR-F06 | E2E + BD | 5 |
-| 14 | Cambio a estado Abonada | BR-F07 | BD | 5 |
-| 15 | Cambio a estado Pagada | BR-F07 | BD | 5 |
-| 16 | Bloqueo de sobrepago | BR-F12 | BD | 2 |
-| 17 | Pago entre varias boletas | BR-F02, BR-F05 | BD | 5 |
-| 18 | Atomicidad de pagos | BR-F06 | BD | 5 |
-| 19 | Anulación de pago | BR-F09, BR-F10 | E2E + BD | 5 |
-| 20 | Recálculo de saldo | BR-F11 | BD | 5 |
-| 21 | Bloqueo de cambio de cliente con pagos | BR-I12 | BD | 5 |
-| 22 | Aprobación de boletas creadas por vendedor | BR-I09 | E2E | 3 |
-| 23 | Restricciones de rifas cerradas | BR-R08, BR-R09 | BD | 3 |
-| 24 | RLS | SECURITY §4 | BD | 2 |
-| 25 | Protección de APIs y Server Actions | SECURITY §5 | E2E + integración | 7 |
+Las 25 filas están **automatizadas y en verde** desde la Fase 7. La columna «Dónde» cita el archivo,
+para poder ir directo a la prueba en vez de buscarla.
 
-Al cerrar la Fase 7, las 25 filas deben estar automatizadas y en verde.
+| # | Prueba mínima | Regla | Dónde | Fase |
+|---|---------------|-------|-------|------|
+| 1 | Login y redirección por rol | BR-A01, BR-A02 | `e2e/security.spec.ts` | **7** |
+| 2 | Bloqueo de usuarios inactivos | BR-A04, BR-A05 | `e2e/security.spec.ts` | **7** |
+| 3 | Aislamiento entre organizaciones | BR-O02, BR-O03 | `db/rls-isolation.test.ts` | 2 |
+| 4 | Aislamiento entre vendedores | BR-U07 | `db/rls-isolation.test.ts`, `db/seller-isolation.test.ts` | 2 |
+| 5 | Creación de rifas | BR-R04, BR-R07 | `e2e/owner-raffles.spec.ts` | 3 |
+| 6 | Creación masiva de boletas | BR-N10 | `e2e/owner-bulk.spec.ts` | 3 |
+| 7 | Límite de cuatro dígitos | BR-N02 | `unit/schemas.test.ts`, `db/tickets-numbering.test.ts` | 2 |
+| 8 | Conservación de ceros iniciales | BR-N03 | `db/tickets-numbering.test.ts` | 2 |
+| 9 | Detección de combinaciones duplicadas | BR-N04 | `db/tickets-numbering.test.ts` | 2 |
+| 10 | Duplicados entre vendedores | BR-N05 | `db/tickets-numbering.test.ts` | 2 |
+| 11 | Asignación de boleta | BR-I07, BR-P03 | `e2e/seller-tickets.spec.ts`, `db/rpc.test.ts` | 4 |
+| 12 | Creación de cliente | BR-C02 | `e2e/seller-clients.spec.ts` | 4 |
+| 13 | Registro de abono | BR-F02, BR-F06 | `e2e/payments.spec.ts`, `db/payments-phase5.test.ts` | 5 |
+| 14 | Cambio a estado Abonada | BR-F07 | `db/payments.test.ts` | 5 |
+| 15 | Cambio a estado Pagada | BR-F07 | `db/payments.test.ts` | 5 |
+| 16 | Bloqueo de sobrepago | BR-F12 | `db/payments.test.ts` (incluye concurrencia) | 2 |
+| 17 | Pago entre varias boletas | BR-F02, BR-F05 | `db/payments-phase5.test.ts` | 5 |
+| 18 | Atomicidad de pagos | BR-F06 | `db/payments.test.ts` | 5 |
+| 19 | Anulación de pago | BR-F09, BR-F10 | `e2e/payments.spec.ts`, `db/payments-phase5.test.ts` | 5 |
+| 20 | Recálculo de saldo | BR-F11 | `db/payments-phase5.test.ts` | 5 |
+| 21 | Bloqueo de cambio de cliente con pagos | BR-I12 | `db/payments-phase5.test.ts` | 5 |
+| 22 | Aprobación de boletas creadas por vendedor | BR-I09 | `e2e/seller-tickets.spec.ts` | 3 |
+| 23 | Restricciones de rifas cerradas | BR-R08, BR-R09 | `db/phase3-admin.test.ts` | 3 |
+| 24 | RLS | SECURITY §4 | `db/catalog.test.ts`, `db/rls-isolation.test.ts`, `db/security-phase7.test.ts` | 2 |
+| 25 | Protección de APIs y Server Actions | SECURITY §5 | `unit/server-actions-guard.test.ts`, `e2e/security.spec.ts` | **7** |
+
+### 3.0 Lo que la Fase 7 encontró al auditar esta matriz
+
+Tres filas se daban por cubiertas y **no lo estaban**:
+
+| # | Qué decía la matriz | Qué había en realidad |
+|---|---|---|
+| 1 | E2E, Fase 1 | Ninguna prueba comprobaba el destino **por rol**: el helper `loginAs` acepta `/owner/dashboard` **o** `/seller/dashboard`, así que un vendedor que aterrizara en el portal administrativo habría pasado desapercibido |
+| 2 | E2E + BD, Fase 1 | Verificado **a mano** en el navegador durante la Fase 1; no existía prueba automatizada. Es además el caso difícil: la sesión ya estaba abierta cuando se desactivó la cuenta |
+| 25 | Diferida a la Fase 7 | Correcto: no existía |
+
+Es la razón de ser de una fase de endurecimiento. Una matriz que se marca sola a sí misma como
+cubierta no prueba nada; hay que ir fila por fila hasta el archivo.
 
 ### 3.1 Dos trampas al escribir pruebas E2E de esta aplicación (Fase 6)
 

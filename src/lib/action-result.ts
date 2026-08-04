@@ -8,9 +8,3 @@
 export type ActionResult = { ok: true } | { error: string }
 
 export type ActionResultWith<T> = { ok: true; data: T } | { error: string }
-
-export function isActionError<T>(
-  result: ActionResult | ActionResultWith<T>,
-): result is { error: string } {
-  return 'error' in result
-}

@@ -3,14 +3,14 @@
 Aplicación web para administrar la operación de una empresa de rifas: organizaciones, rifas,
 vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y auditoría.
 
-> **Estado actual: Fase 6 completada — el MVP está funcionalmente completo.**
+> **Estado actual: Fase 7 completada — el MVP está funcionalmente completo y endurecido.**
 > Crear rifas y boletas, repartirlas entre vendedores, venderlas a clientes, **cobrarlas con
 > abonos** y **consultar y exportar** todo eso en reportes. Los estados de pago
 > (Sin pagar / Abonada / Pagada) y los saldos los calcula siempre la base de datos; ningún importe
 > se suma en el navegador.
-> Verificado con 238 pruebas de base de datos y 120 end-to-end sobre un navegador real, incluido el
+> Verificado con 253 pruebas de base de datos y 142 end-to-end sobre un navegador real, incluido el
 > ciclo completo de venta desde un teléfono y una prueba de volumen con 5.000 boletas. Lo que queda
-> es endurecer (Fase 7) y desplegar (Fase 8); ninguna de las dos ha sido autorizada.
+> es desplegar (Fase 8) y la auditoría final (Fase 9); ninguna de las dos ha sido autorizada.
 
 ---
 
@@ -120,8 +120,8 @@ npm run build         # build de producción
 npm run typecheck     # tsc --noEmit
 npm run lint          # eslint
 npm run test          # vitest (unitarias)
-npm run test:db       # 238 pruebas contra la base de datos local (crea 5.000 boletas de volumen)
-npm run test:e2e      # 120 pruebas end-to-end (Playwright, requiere base local RECIÉN sembrada)
+npm run test:db       # 253 pruebas contra la base de datos local (crea 5.000 boletas de volumen)
+npm run test:e2e      # 142 pruebas end-to-end (Playwright, requiere base local RECIÉN sembrada)
 npm run format:check  # prettier --check
 npm run verify        # typecheck + lint + test + build
 npm run seed          # datos de desarrollo en el proyecto de .env.local
@@ -150,8 +150,8 @@ El proyecto avanza **por fases** y cada una requiere autorización explícita
 | 4 | Portal Seller y clientes | ✅ Completada |
 | 5 | Pagos, abonos y saldos | ✅ Completada |
 | 6 | Dashboards, reportes y UI/UX | ✅ Completada |
-| 7 | Pruebas, seguridad y endurecimiento | ⬜ Pendiente de autorización |
-| 8 | Despliegue y documentación operativa | ⬜ |
+| 7 | Pruebas, seguridad y endurecimiento | ✅ Completada |
+| 8 | Despliegue y documentación operativa | ⬜ Pendiente de autorización |
 | 9 | Auditoría final independiente | ⬜ |
 
 ---
@@ -161,5 +161,9 @@ El proyecto avanza **por fases** y cada una requiere autorización explícita
 - `SUPABASE_SERVICE_ROLE_KEY` **nunca** llega al navegador.
 - Ningún secreto se versiona: solo se publica `.env.example` con valores de marcador.
 - RLS activo en todas las tablas de negocio; el frontend no es frontera de seguridad.
+- Cabeceras de endurecimiento en toda respuesta: CSP con **nonce por request**, HSTS (en producción),
+  `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy`.
+- Limitación de intentos en inicio de sesión, recuperación de contraseña e invitaciones.
+- `npm audit`: **0 vulnerabilidades**.
 
 Detalle completo en [`docs/SECURITY.md`](docs/SECURITY.md).

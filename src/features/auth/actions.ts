@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { dashboardPathForRole } from '@/lib/auth/guards'
 import { getActiveMembership } from '@/lib/auth/session'
 import { mapPgError } from '@/lib/errors'
+import { checkRateLimit, RATE_LIMITS, resetRateLimit } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
 
 import {
@@ -30,6 +31,16 @@ export async function login(input: unknown): Promise<ActionResult> {
   }
   const { email, password, next } = parsed.data
 
+  // Se limita por CORREO y no por IP: detras de una misma oficina o de un dato
+  // movil todos comparten IP, y bloquear por IP dejaria fuera a un equipo
+  // entero de vendedores por culpa de uno. El limite duro y global sigue
+  // siendolo el de Supabase Auth (D-062).
+  const rateKey = `login:${email.toLowerCase()}`
+  const rate = checkRateLimit(rateKey, RATE_LIMITS.login)
+  if (!rate.allowed) {
+    return { error: rate.message }
+  }
+
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) {
@@ -41,6 +52,10 @@ export async function login(input: unknown): Promise<ActionResult> {
     await supabase.auth.signOut()
     return { error: 'Tu cuenta esta inactiva. Contacta a tu administrador.' }
   }
+
+  // Entro bien: se le devuelve el cupo, para que unos fallos previos no lo
+  // dejen bloqueado en su proximo intento legitimo.
+  resetRateLimit(rateKey)
 
   redirect(safeNextPath(next) ?? dashboardPathForRole(membership.role))
 }
@@ -55,6 +70,17 @@ export async function requestPasswordReset(input: unknown): Promise<ActionResult
   const parsed = forgotPasswordSchema.safeParse(input)
   if (!parsed.success) {
     return { error: 'Ingresa un correo valido.' }
+  }
+
+  // Cada intento envia un correo real. Al superar el limite se responde `ok`
+  // igual que siempre: decir «demasiados intentos» revelaria que ese correo
+  // existe, que es justo lo que este flujo evita.
+  const rate = checkRateLimit(
+    `password-reset:${parsed.data.email.toLowerCase()}`,
+    RATE_LIMITS.passwordReset,
+  )
+  if (!rate.allowed) {
+    return { ok: true }
   }
 
   const supabase = await createClient()

@@ -991,6 +991,7 @@ export type Database = {
       }
       current_org_ids: { Args: never; Returns: string[] }
       current_profile_id: { Args: never; Returns: string }
+      current_staff_org_ids: { Args: never; Returns: string[] }
       has_org_role: {
         Args: {
           p_org: string

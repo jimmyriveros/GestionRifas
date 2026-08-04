@@ -190,3 +190,30 @@ export async function createTicket(
   if (error) throw error
   return { id: data.id, internalCode: data.internal_code }
 }
+
+/**
+ * Devuelve una membresia a su estado activo.
+ *
+ * Se usa para RESTITUIR el seed despues de una prueba que desactiva a alguien
+ * (BR-A04). Va por la service role a proposito: si la restitucion dependiera de
+ * la interfaz, un fallo o un timeout en mitad de la prueba dejaria al vendedor
+ * inactivo y las DEMAS pruebas empezarian a fallar por un motivo que no tiene
+ * nada que ver con ellas. Preparar y restituir estado es justo para lo que se
+ * admite la service role (docs/TESTING.md §2.1).
+ */
+export async function setMembershipActive(email: string, isActive: boolean): Promise<void> {
+  const svc = serviceClient()
+
+  const { data: profile, error: profileError } = await svc
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .single()
+  if (profileError) throw profileError
+
+  const { error } = await svc
+    .from('memberships')
+    .update({ is_active: isActive })
+    .eq('profile_id', profile.id)
+  if (error) throw error
+}

@@ -143,20 +143,6 @@ export async function listPayments(
   }
 }
 
-export async function getPaymentDetail(paymentId: string): Promise<PaymentListItem | null> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('v_payment_history')
-    .select('*')
-    .eq('payment_id', paymentId)
-    .maybeSingle()
-
-  if (error) throw error
-  if (!data) return null
-
-  return mapPayment(data as HistoryRow)
-}
-
 /** Historial de un cliente concreto, para su perfil (BR-C09, BR-F13). */
 export async function listClientPayments(clientId: string): Promise<PaymentListItem[]> {
   const { rows } = await listPayments({ clientId, pageSize: 100 })

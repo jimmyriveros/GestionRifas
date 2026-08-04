@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 
 import {
   AlertDialog,
@@ -75,7 +75,3 @@ export function ConfirmDialog({
 }
 
 /** Estado minimo para abrir/cerrar un ConfirmDialog sin repetirlo en cada pantalla. */
-export function useConfirmDialog() {
-  const [open, setOpen] = useState(false)
-  return { open, setOpen, openDialog: () => setOpen(true), closeDialog: () => setOpen(false) }
-}

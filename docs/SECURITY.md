@@ -152,6 +152,20 @@ $$;
 CREATE FUNCTION is_org_staff(p_org uuid) RETURNS boolean  -- owner o admin
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp
 AS $$ SELECT has_org_role(p_org, ARRAY['owner','admin']::app_role[]) $$;
+
+-- Fase 7: el equivalente en CONJUNTO de is_org_staff(). Misma semántica, pero
+-- utilizable como subselect, que es lo que permite evaluarlo una sola vez.
+CREATE FUNCTION current_staff_org_ids() RETURNS SETOF uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+  SELECT m.organization_id
+  FROM memberships m
+  JOIN profiles p      ON p.id = m.profile_id
+  JOIN organizations o ON o.id = m.organization_id
+  WHERE m.profile_id = auth.uid()
+    AND m.role IN ('owner','admin')
+    AND m.is_active AND p.is_active AND o.is_active
+$$;
 ```
 
 `REVOKE EXECUTE … FROM PUBLIC` y `GRANT EXECUTE … TO authenticated` en todas ellas.
@@ -168,9 +182,18 @@ ALTER TABLE <tabla> FORCE ROW LEVEL SECURITY;  -- aplica también al dueño de l
 CREATE POLICY <tabla>_select ON <tabla> FOR SELECT TO authenticated
 USING (
   organization_id IN (SELECT current_org_ids())
-  AND (is_org_staff(organization_id) OR seller_id = current_profile_id())
+  AND (
+    organization_id IN (SELECT current_staff_org_ids())
+    OR seller_id = (SELECT current_profile_id())
+  )
 );
 ```
+
+> ⚠️ **Toda llamada a función va dentro de un `SELECT`.** Escribir
+> `is_org_staff(organization_id)` —pasándole una columna— obliga a PostgreSQL a ejecutarla **una vez
+> por fila**: medido en la Fase 7, 1,46 ms pasaron a 1.667 ms sobre 7.278 boletas, y el factor crece
+> con los datos (I-019, D-063). Envuelto en un subselect se evalúa una sola vez.
+> La prueba `F7-03` de `tests/db/security-phase7.test.ts` falla si alguien reintroduce el patrón.
 
 Sin política aplicable, PostgreSQL **deniega**. Es el comportamiento deseado: se conceden permisos
 de forma explícita, nunca por omisión.
@@ -425,7 +448,74 @@ Controles:
 | Validar operaciones sensibles en servidor | §5 |
 | Evitar acceso por identificadores manipulados | §8 T4 |
 | Evitar mass assignment | §8 T5 |
-| Proteger Server Actions y Route Handlers | §5 |
+| Proteger Server Actions y Route Handlers | §5 y §5.0; verificado por `tests/unit/server-actions-guard.test.ts` y `tests/e2e/security.spec.ts` |
 | Verificar organización y rol en cada operación sensible | §5 pasos 1–3 |
 | Implementar restricciones de base de datos | `docs/DATA_MODEL.md` §4 |
-| Manejar errores sin exponer información sensible | §8 T14 |
+| Manejar errores sin exponer información sensible | §8 T14; verificado en `tests/e2e/security.spec.ts` |
+| Endurecer cabeceras HTTP | §10.1 |
+| Limitar intentos en operaciones sensibles | §10.2 |
+
+---
+
+## 10. Endurecimiento HTTP (Fase 7)
+
+### 10.1 Cabeceras
+
+| Cabecera | Valor | Qué tapa |
+|---|---|---|
+| `Content-Security-Policy` | nonce por request + `strict-dynamic` | Inyección de scripts |
+| `X-Frame-Options` | `DENY` | Clickjacking (junto con `frame-ancestors 'none'`) |
+| `X-Content-Type-Options` | `nosniff` | Que el navegador ejecute como script algo servido como texto |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Filtrar a terceros las rutas, que llevan ids de boletas, clientes y pagos |
+| `Permissions-Policy` | cámara, micrófono, ubicación y pagos apagados | Capacidades que la aplicación no usa |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Degradación a http. **Solo en producción** |
+
+Las que no dependen del request las declara `next.config.ts`, para que las reciban también los
+archivos estáticos que el matcher del proxy excluye. La CSP la pone `proxy.ts`, porque su nonce
+cambia en cada respuesta (D-061).
+
+**Por qué el nonce y no `'unsafe-inline'`.** Next inyecta el payload de hidratación en scripts en
+línea. Permitirlos con `'unsafe-inline'` dejaría pasar exactamente el ataque del que la CSP protege.
+Con nonce + `'strict-dynamic'`, solo se ejecuta lo que Next firma en esa respuesta.
+
+`style-src` **sí** admite `'unsafe-inline'`, a propósito: `next/font` y el propio Next inyectan
+estilos en línea, y un estilo no ejecuta código.
+
+### 10.2 Limitación de intentos
+
+| Operación | Límite | Clave | Por qué |
+|---|---|---|---|
+| Login | 10 / 5 min | correo | Equivocarse de contraseña es normal; el límite duro lo pone Supabase Auth |
+| Recuperación de contraseña | 3 / 15 min | correo | Cada intento envía un correo real |
+| Invitaciones | 20 / hora | organización | Cada una envía correo y consume cuota de Auth |
+
+**Alcance real, sin adornos.** Es un contador **en memoria del proceso**: con varias instancias cada
+una lleva la suya, y un reinicio la borra. No es la defensa principal del login —esa es la de
+Supabase Auth, global y persistente (I-008)—, sino la capa que frena el goteo de correos hacia
+terceros y da un mensaje claro antes de que el proveedor devuelva uno opaco (D-062).
+
+Se limita por **correo y no por IP**: en una oficina o tras un dato móvil todos comparten IP, y
+bloquear por IP dejaría fuera a un equipo entero de vendedores por culpa de uno.
+
+Al superar el límite, la recuperación de contraseña sigue respondiendo `ok`: decir «demasiados
+intentos» revelaría que ese correo existe, que es justo lo que ese flujo evita.
+
+### 10.3 Rendimiento de la RLS: una regla de seguridad, no de estilo
+
+Una política **no puede llamar a una función pasándole una columna**. PostgreSQL no puede sacarla del
+bucle y la ejecuta una vez por fila; medido en la Fase 7, eso multiplicó por 1.400 el tiempo de
+cualquier consulta sobre `tickets` (I-019).
+
+```sql
+-- MAL: una llamada por fila
+using ( is_org_staff(organization_id) )
+
+-- BIEN: el conjunto se calcula una vez
+using ( organization_id in (select current_staff_org_ids()) )
+```
+
+Lo mismo con `current_profile_id()`, que va siempre envuelto en `(select …)`.
+
+Es una regla de **seguridad** y no solo de rendimiento: una consulta que tarda segundos invita a
+quitarle la RLS «temporalmente» para salir del paso, y esa es la peor forma de romper el
+aislamiento. La prueba `F7-03` impide que el patrón lento vuelva a entrar.

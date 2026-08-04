@@ -9,6 +9,8 @@ function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
 }
 
+export type CspContext = { nonce: string; policy: string }
+
 /**
  * Refresca la sesion de Supabase en cada request y bloquea el acceso a rutas
  * protegidas cuando no hay usuario autenticado.
@@ -17,8 +19,29 @@ function isPublicPath(pathname: string) {
  * en cada request de cada asset). La redireccion por rol ocurre en `/` y en
  * los layouts de servidor de cada portal (docs/SECURITY.md §1, capa 2 y 3).
  */
-export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+export async function updateSession(request: NextRequest, csp?: CspContext) {
+  /**
+   * Construye la respuesta reenviando las cabeceras ACTUALES del request.
+   *
+   * Se leen en cada llamada y no una sola vez al principio porque
+   * `request.cookies.set()` actualiza la cabecera `cookie`: capturarlas antes
+   * dejaria fuera la sesion que Supabase acaba de refrescar, y el usuario
+   * aparecería como no autenticado de forma intermitente.
+   *
+   * La CSP se inyecta tambien en el REQUEST, no solo en la respuesta: de ahi es
+   * de donde Next lee el nonce para ponerselo a sus propios scripts de
+   * hidratacion. Sin eso, la politica bloquearia la propia aplicacion.
+   */
+  const buildResponse = () => {
+    const headers = new Headers(request.headers)
+    if (csp) {
+      headers.set('x-nonce', csp.nonce)
+      headers.set('Content-Security-Policy', csp.policy)
+    }
+    return NextResponse.next({ request: { headers } })
+  }
+
+  let supabaseResponse = buildResponse()
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,7 +55,7 @@ export async function updateSession(request: NextRequest) {
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value)
           }
-          supabaseResponse = NextResponse.next({ request })
+          supabaseResponse = buildResponse()
           for (const { name, value, options } of cookiesToSet) {
             supabaseResponse.cookies.set(name, value, options)
           }
@@ -51,8 +74,11 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('next', request.nextUrl.pathname)
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+    if (csp) redirectResponse.headers.set('Content-Security-Policy', csp.policy)
+    return redirectResponse
   }
 
+  if (csp) supabaseResponse.headers.set('Content-Security-Policy', csp.policy)
   return supabaseResponse
 }

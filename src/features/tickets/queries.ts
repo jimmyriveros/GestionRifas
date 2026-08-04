@@ -172,20 +172,6 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
   }
 }
 
-/** Boletas pendientes de aprobacion, para el aviso del dashboard. */
-export async function countPendingApproval(raffleId?: string): Promise<number> {
-  const supabase = await createClient()
-  let query = supabase
-    .from('tickets')
-    .select('id', { count: 'exact', head: true })
-    .eq('inventory_status', 'pending_approval')
-  if (raffleId) query = query.eq('raffle_id', raffleId)
-
-  const { count, error } = await query
-  if (error) throw error
-  return count ?? 0
-}
-
 // El vendedor de una boleta apunta a `memberships`, no a `profiles`, asi que no
 // puede incrustarse en la consulta. Los miembros de una organizacion son pocos:
 // se traen una vez y se cruzan en memoria (sin N+1).

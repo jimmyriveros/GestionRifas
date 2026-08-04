@@ -106,10 +106,3 @@ export function mapPgError(error: unknown): string {
 
   return GENERIC_MESSAGE
 }
-
-export class AppError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'AppError'
-  }
-}
