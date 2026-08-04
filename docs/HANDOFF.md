@@ -11,7 +11,7 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 |---|---|
 | Última fase completada | **4 — Portal Seller y clientes** |
 | Siguiente fase | **5 — Pagos, abonos y saldos** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `fase-4` |
+| Rama / commit / etiqueta | `main` · `36ef2e1` · `fase-4` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
 | App | Next.js 16: autenticación + **portal administrativo** + **portal del vendedor**, los dos completos |
 | Base de datos | **11 migraciones aplicadas en local y en el proyecto Supabase real** |
