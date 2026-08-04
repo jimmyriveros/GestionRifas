@@ -11,7 +11,7 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 |---|---|
 | Última fase completada | **5 — Pagos, abonos y saldos** |
 | Siguiente fase | **6 — Dashboards, reportes y UI/UX** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `fase-5` |
+| Rama / commit / etiqueta | `main` · `ecc9eac` · `fase-5` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor y **pagos/abonos**, todo funcionando |
 | Base de datos | 12 migraciones. Las 11 primeras en local **y** en el proyecto real; la **`0012` solo en local** (I-015) |
