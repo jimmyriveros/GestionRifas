@@ -21,6 +21,8 @@
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
     "seed": "tsx scripts/seed.ts",
     "seed:local": "tsx scripts/seed.ts --local",
+    "create-org": "tsx scripts/create-organization.ts",
+    "create-org:local": "tsx scripts/create-organization.ts --local",
     "db:reset": "supabase db reset",
     "test:db": "vitest run --config vitest.db.config.mts",
     "test:e2e": "playwright test",

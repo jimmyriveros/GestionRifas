@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.7 · **Actualizado:** 2026-08-04 (D-001 a D-064)
+- **Versión:** 1.9 · **Actualizado:** 2026-08-04 (D-001 a D-070)
 
 ---
 
@@ -804,6 +804,116 @@ falló dos veces). (b) Ejecutar la suite de pruebas contra producción (descarta
 **Consecuencia.** `revoke … from public` **no** deshace un `GRANT` hecho nominalmente a un rol: hay
 que revocar de `anon` **y** de `public`, que es lo que hace `0015`. La regla general que queda: un
 privilegio no está quitado hasta que se ha comprobado en el entorno donde importa.
+
+---
+
+## D-066 — Un solo proyecto Supabase (producción), sin staging separado
+**Fase:** 8
+**Contexto.** `ARCHITECTURE.md` §12 (Fase 0) diseñó un proyecto Supabase de staging para los Preview
+de Vercel, distinto del de producción. En la práctica solo se aprovisionó uno — "el proyecto real" —
+usado durante las Fases 2 a 7 para todas las verificaciones contra datos reales.
+**Decisión.** Para la Fase 8, mantenerlo como el único proyecto y usarlo directamente como
+producción. Confirmado explícitamente con el usuario antes de diseñar el resto de la fase.
+**Alternativas.** (a) Aprovisionar un segundo proyecto Supabase para staging, aplicarle las 15
+migraciones, sembrarlo y apuntar los Preview de Vercel ahí (descartada por el usuario: más
+aprovisionamiento y mantenimiento sin necesidad inmediata).
+**Consecuencia.** Las variables de Supabase en Vercel solo se ponen en el scope Production, nunca en
+Preview — si no, un Pull Request escribiría sobre datos reales (I-022). Migrar a un esquema de
+staging real queda como trabajo futuro si el negocio lo necesita.
+
+---
+
+## D-067 — Reutilizar el proyecto Vercel existente en vez de crear uno nuevo
+**Fase:** 8
+**Contexto.** Al iniciar la Fase 8 ya existía un proyecto Vercel `gestion-rifas` (equipo
+`jimmyriveros-projects`), creado automáticamente al conectar la cuenta de GitHub
+(`importSource: "import-suggestions"`), conectado al repo `jimmyriveros/GestionRifas` rama `main`.
+Su único despliegue a producción había fallado (`npm run build` salió con error 1, sin variables de
+entorno configuradas) y apuntaba a un commit de varias fases atrás.
+**Decisión.** Reutilizarlo — mismo nombre, ya conectado al repositorio correcto — en vez de crear un
+proyecto Vercel nuevo. Confirmado con el usuario.
+**Alternativas.** (a) Crear un proyecto nuevo y dejar el existente huérfano (descartada: duplica
+configuración sin beneficio, y el nombre ya es el correcto).
+**Consecuencia.** Solo hace falta configurar las variables de entorno (`docs/DEPLOYMENT.md` §3.1) y
+disparar un despliegue con el código actual — no hay que reconectar nada en GitHub ni en Vercel.
+
+---
+
+## D-068 — `create-organization.ts` inserta la membresía de Owner con el cliente admin
+**Fase:** 8
+**Contexto.** Dar de alta la primera organización y su primer Owner (entregable explícito de la
+Fase 8) no se puede hacer con una sesión de staff, porque la política `memberships_insert_staff`
+exige `organization_id in (select current_org_ids())` — imposible para una organización que todavía
+no existe para nadie.
+**Decisión.** `scripts/create-organization.ts` usa el cliente de SERVICE ROLE para las tres
+escrituras (organización, invitación, membresía), igual que ya hace `scripts/seed.ts`. Es el único
+caso legítimo de alta de un `owner` sin sesión de staff previa; fuera de este bootstrap puntual, la
+aplicación nunca inserta membresías sin pasar por RLS.
+**Alternativas.** (a) Exigir que alguien inserte la fila a mano por SQL en el dashboard de Supabase
+(descartada: propensa a errores, sin las validaciones ni la invitación por correo real). (b)
+Construir una pantalla de "primer registro" en la aplicación (descartada: es una funcionalidad de
+producto nueva, fuera del alcance de la Fase 8 — las organizaciones las da de alta el operador, no un
+flujo de registro público).
+**Consecuencia.** El script queda documentado como herramienta operativa (`docs/OPERATIONS.md` §1),
+no como parte de la aplicación desplegada. El índice único `memberships_one_owner_per_org` respalda
+en la base de datos la regla de un solo Owner por organización que el script ya comprueba antes de
+escribir.
+
+---
+
+## D-069 — El CI cubre typecheck/lint/tests/build y la base de datos, no `test:e2e`
+**Fase:** 8
+**Contexto.** `docs/IMPLEMENTATION_PLAN.md` lista `.github/workflows/ci.yml` como entregable opcional
+("si se habilita"). Dos de las pruebas que la Fase 8 exige —"despliegue limpio en un entorno nuevo" y
+"migraciones aplicadas desde cero"— se demuestran automáticamente si el CI aplica las 15 migraciones
+desde cero en cada corrida.
+**Decisión.** Dos jobs paralelos. `verify` corre lo mismo que `npm run verify` (typecheck, lint,
+unitarias, build). `db` levanta Supabase local con la CLI oficial (`supabase/setup-cli`), aplica las
+15 migraciones desde cero y corre las 254 pruebas de base de datos. `test:e2e` (Playwright, 142
+pruebas) queda fuera del pipeline por defecto.
+**Alternativas.** (a) Incluir también `test:e2e` en CI (descartada por ahora: Playwright + Chromium +
+servidor completo alarga notablemente cada corrida en runners compartidos, y ya se corre en local
+antes de cerrar cada fase). (b) No tener CI (descartada: es la única forma de demostrar
+automáticamente, en cada cambio, que el proyecto se puede levantar limpio desde cero — justo lo que
+un tercero necesitaría para desplegarlo).
+**Consecuencia.** Si `test:e2e` empieza a fallar solo en un entorno y no en otro, seguirá dependiendo
+de que alguien lo corra en local — no hay red de seguridad automática para esa suite todavía.
+
+---
+
+## D-070 — Respaldo lógico manual (`supabase db dump`) mientras el proyecto sea plan Free
+**Fase:** 8
+**Contexto.** Al revisar Database → Backups del proyecto real se confirmó que está en el plan **Free**
+de Supabase: sin scheduled backups, sin Point-in-Time Recovery (requiere Pro + add-on) y sin
+restore-to-new-project (requiere Pro). No existe ningún backup restaurable desde el dashboard. El
+usuario dio instrucciones explícitas y detalladas de cómo adaptar la estrategia de recuperación de la
+Fase 8 a esta realidad.
+**Decisión.** Respaldo lógico manual con la Supabase CLI: `supabase db dump` genera tres archivos
+separados — `roles.sql` (`--role-only`), `schema.sql` (sin restringir esquema, porque restringirlo a
+`public` rompe la recreación de la extensión `pg_trgm`) y `data.sql` (`--schema public --data-only`,
+para excluir por completo el esquema `auth`). Los tres se guardan **fuera del repositorio Git y fuera
+de Supabase**. La restauración se **prueba solo en local** (Docker); restaurar contra el proyecto real
+exige mostrar el procedimiento exacto y recibir autorización explícita cada vez — nunca autorización
+general de una conversación anterior. Verificado de punta a punta en la Fase 8: los tres archivos
+recrean 9 tablas, 25 políticas RLS, 35 triggers, 5 vistas, 5 enums y todas las filas de negocio en una
+instancia local limpia, sin errores.
+**Hallazgo real durante la implementación:** la primera versión del volcado de datos, generada sin
+`--schema public`, incluyó el esquema `auth` **completo** — `auth.users` con `encrypted_password` y
+los tokens de recuperación/confirmación/reautenticación de cada cuenta real. Se detectó al restaurar
+en local (un `ERROR` de restricción única de `auth.users`, no de ninguna tabla de negocio), se borraron
+los tres archivos contaminados de inmediato y se regeneraron correctamente. Ninguno de los archivos
+contaminados salió de la máquina local. Ver I-024.
+**Alternativas.** (a) Confiar en backups automáticos de Supabase (descartada: no existen en este
+plan). (b) Migrar a Pro inmediatamente para tener PITR (descartada por ahora: es una decisión de costo
+del usuario, no técnica; queda como prerrequisito documentado antes de operar con datos reales). (c)
+Incluir `auth` en el respaldo para tener una recuperación 100% autónoma (descartada: expondría
+contraseñas y tokens en archivos de texto plano, justo lo que se pidió evitar).
+**Consecuencia.** Restaurar este respaldo recupera el 100% de los datos de negocio pero **ninguna**
+identidad de acceso: cada perfil recuperado necesita que se le reinvite o se le recupere el acceso por
+separado (no hay auto-login posible con datos que nunca incluyeron contraseñas). Es el costo aceptado
+de no guardar secretos en el respaldo. Mientras el proyecto siga en plan Free, este respaldo manual es
+la única red de seguridad real — I-024 lo deja como requisito abierto antes de operar con dinero o
+clientes reales.
 
 ---
 

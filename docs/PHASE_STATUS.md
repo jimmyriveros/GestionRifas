@@ -4,7 +4,7 @@ Registro de lo entregado por fase. **Leer antes de iniciar cualquier fase.**
 Ninguna fase comienza sin autorización explícita del usuario (`CLAUDE.md` §1).
 Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 
-- **Actualizado:** 2026-08-04 · **Fase actual:** 7 completada · **Siguiente:** 8 (no autorizada)
+- **Actualizado:** 2026-08-05 · **Fase actual:** 8 completada · **Siguiente:** 9 (no autorizada)
 
 | Fase | Nombre | Estado | Commit / etiqueta |
 |---|---|---|---|
@@ -16,35 +16,31 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 | 5 | Pagos, abonos y saldos | ✅ | `ecc9eac` · `fase-5` |
 | 6 | Dashboards, reportes y UI/UX | ✅ | `791e585` · `fase-6` |
 | 7 | Pruebas, seguridad y endurecimiento | ✅ | `caa6298` · `fase-7` |
-| 8 | Despliegue y documentación operativa | ⬜ | — |
+| 8 | Despliegue y documentación operativa | ✅ | `fase-8` (hash pendiente de registrar) |
 | 9 | Auditoría final independiente | ⬜ | — |
 
 ---
 
-## ANTES DE EMPEZAR LA FASE 8 — revisar esto
+## ANTES DE EMPEZAR LA FASE 9 — revisar esto
 
-1. **Confirmar autorización explícita** del usuario para la Fase 8.
-2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y la sección «Fase 8» de `docs/IMPLEMENTATION_PLAN.md`.
-3. **Levantar el entorno** y comprobar que todo pasa antes de tocar nada:
-   `npx supabase start` → `npm run db:reset && npm run seed:local` → `npm run test:db` (254 ✅) →
-   `npm run verify` (✅) → `npm run test:e2e` (142 ✅).
-4. **Las 15 migraciones ya están aplicadas al proyecto real** (2026-08-04) y verificadas con
-   `npm run verify:remote`. Al aplicar cualquiera nueva, el procedimiento son **tres** pasos:
-   `--dry-run`, `--yes` y **verificar el remoto después**. Ese tercer paso ha hecho falta dos veces
-   para descubrir que local y producción habían dejado de ser equivalentes (D-065, I-020).
-5. **La Fase 8 es despliegue y documentación operativa.** No añadir capacidades nuevas.
-6. **`npm run test:db` deja 5.000 boletas** en una rifa en **borrador** («Rifa Volumen Fase 6»). Es
-   idempotente, pero hay que **`npm run db:reset && npm run seed:local` antes de `test:e2e`**.
-7. **En producción hay que confirmar dos cosas que en local no se pueden comprobar:** que HSTS
-   aparece (solo se envía cuando `NODE_ENV=production`) y que la CSP no rompe nada servida desde el
-   dominio real. Un `curl -I` a la portada basta para lo primero.
-8. **La limitación de intentos es en memoria por instancia** (D-062). Si Vercel escala a varias, el
-   límite efectivo se multiplica. Está documentado en `SECURITY.md` §10.2 y la sustitución natural
-   es un contador compartido, sin cambiar la firma de `checkRateLimit`.
-9. **Nada de agregar dinero en TypeScript**, y ninguna política RLS puede llamar a una función
-   pasándole una columna (D-057, D-063).
-10. **Las lecturas que puedan superar 1.000 filas usan `fetchAllRows`** o
-    `count: 'exact', head: true`. Nunca `data.length` (I-011, R-18).
+1. **Confirmar autorización explícita** del usuario para la Fase 9.
+2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y la sección «Fase 9» de `docs/IMPLEMENTATION_PLAN.md`.
+3. **La aplicación está en producción**: `https://gestion-rifas.vercel.app`, proyecto Vercel
+   `gestion-rifas`, contra el mismo proyecto Supabase usado desde la Fase 2 (no hay staging, D-066).
+   Las cuentas de demostración (`owner@demo.test`, etc.) siguen activas ahí — ver I-021 antes de
+   asumir que cualquier dato que se vea es real.
+4. **El proyecto Supabase real está en plan Free: sin backups automáticos, sin PITR** (I-024). La
+   única red de seguridad es el respaldo lógico manual (`docs/RUNBOOK.md` §5) — generarlo antes de
+   cualquier acción destructiva sobre el proyecto remoto, y **nunca restaurar ni resetear el remoto
+   sin mostrar el procedimiento exacto y recibir autorización explícita**, sin excepción.
+5. **CI corre en cada push/PR a `main`** (`.github/workflows/ci.yml`): typecheck/lint/test/build +
+   migraciones desde cero contra una instancia Supabase efímera. `test:e2e` queda fuera (D-069).
+6. Como siempre: `npx supabase start` → `npm run db:reset && npm run seed:local` →
+   `npm run test:db` (254 ✅) → `npm run verify` (✅) → `npm run test:e2e` (142 ✅) antes de tocar nada.
+7. **La limitación de intentos es en memoria por instancia** (D-062) y **las políticas RLS no llaman
+   a una función pasándole una columna** (D-057, D-063). **Nada de dinero calculado en TypeScript.**
+8. **Las lecturas que puedan superar 1.000 filas usan `fetchAllRows`** o
+   `count: 'exact', head: true`. Nunca `data.length` (I-011, R-18).
 
 ---
 
@@ -607,6 +603,106 @@ aliasado a un stub en las pruebas unitarias.
 
 ---
 
+## Fase 8 — Despliegue y documentación operativa ✅
+
+### Funcionalidades implementadas
+
+- **Aplicación en producción**: `https://gestion-rifas.vercel.app` (proyecto Vercel `gestion-rifas`,
+  reutilizado — ya existía, importado automáticamente por Vercel al conectar GitHub, con un despliegue
+  fallido desde antes de esta fase). Sin entorno de staging separado: el mismo proyecto Supabase de
+  las Fases 2–7 hace de producción (**D-066**, decisión explícita del usuario).
+- **`scripts/create-organization.ts`**: alta operativa de una organización nueva y su primer Owner por
+  invitación real (nunca contraseña en texto plano), el único bootstrap legítimo fuera de RLS
+  (**D-068**). Probado en local: idempotente, rechaza un segundo Owner (BR-U04 + índice único
+  `memberships_one_owner_per_org`).
+- **Documentación operativa nueva**: `docs/DEPLOYMENT.md` (procedimiento de despliegue, variables,
+  reversión), `docs/OPERATIONS.md` (manual de operación del negocio), `docs/RUNBOOK.md` (problemas
+  frecuentes). `README.md` y `docs/ARCHITECTURE.md` §12 actualizados a la arquitectura real de dos
+  niveles.
+- **CI** (`.github/workflows/ci.yml`, **D-069**): job `verify` (typecheck/lint/test/build) + job `db`
+  que aplica las 15 migraciones desde cero contra Supabase efímero y corre las 254 pruebas de base de
+  datos, en cada push/PR a `main`. `test:e2e` queda fuera del pipeline por ahora.
+- **Estrategia de backups adaptada a la realidad del plan Free** (**D-070**, instrucción explícita del
+  usuario tras confirmar en el dashboard que no hay scheduled backups, PITR ni restore-to-new-project):
+  respaldo lógico manual con `supabase db dump` (roles/schema/datos de `public`, nunca `auth`),
+  guardado fuera del repositorio y fuera de Supabase, con restauración probada **solo en local**.
+- **Cabeceras y variables verificadas en producción real**: HSTS, CSP con nonce apuntando al proyecto
+  Supabase correcto, `X-Frame-Options`, todas presentes (`curl -I` contra el dominio real). Ningún
+  secreto en el HTML servido ni en el bundle JS del navegador (`.next/static`).
+
+### Pruebas ejecutadas y resultados
+
+| Prueba | Resultado |
+|---|---|
+| `npm run test:db` (local) | **254 ✅** |
+| `npm run test:e2e` (local) | **142 ✅** |
+| `npm run verify` | ✅ (0 errores; los 2 avisos conocidos de TanStack) |
+| `scripts/create-organization.ts` contra local | ✅ organización + Owner creados, login funcional tras fijar contraseña, segundo Owner rechazado |
+| Cabeceras de producción (`curl -I` al dominio real) | ✅ HSTS, CSP con nonce, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` |
+| Rutas protegidas sin sesión en producción | ✅ `/owner/dashboard`, `/seller/dashboard`, `/api/reports/export` → 307 a `/login` |
+| Fuga de secretos al navegador | ✅ ninguna, ni en HTML servido ni en `.next/static` |
+| Restauración del respaldo lógico en local | ✅ 9 tablas, 25 políticas RLS, 35 triggers, 5 vistas, 5 enums y todas las filas de negocio recreadas sin error |
+| Prueba de humo de los 3 roles en producción | ✅ **la ejecutó el usuario** (login con contraseña está prohibido para un agente — ver Decisiones) |
+
+**Cuatro problemas reales encontrados y corregidos durante la fase, ninguno oculto:**
+
+1. El primer despliegue a producción falló: `NEXT_PUBLIC_SUPABASE_URL` no llegaba al build. Causa
+   raíz, en dos capas: (a) el proyecto Vercel preexistente no tenía ninguna variable configurada, y
+   (b) tras configurarlas, un **error de tipeo** (`NEXT_PUBLIC_SUPABASE_UR` sin la "L" final) lo
+   siguió rompiendo. Detectado leyendo el log de build real, no adivinando.
+2. Generar el respaldo lógico con `require('dotenv').config()` corrompió `SUPABASE_DB_URL`: el aviso
+   promocional que ese paquete imprime por `stdout` se coló dentro del valor capturado por `$(...)`,
+   y `supabase db dump` reportó `LegacyDbConfigParseUrlError`. Corregido leyendo el archivo
+   directamente con `fs.readFileSync` en vez de `dotenv`.
+3. **El volcado de datos, sin restringir el esquema, incluyó `auth.users` completo** —
+   `encrypted_password`, tokens de recuperación/confirmación/reautenticación de cada cuenta real—,
+   violando directamente la instrucción del usuario de no guardar secretos en el respaldo. Detectado
+   al restaurar en local (un error de restricción única ajeno a cualquier tabla de negocio), los tres
+   archivos contaminados se borraron de inmediato -nunca salieron de la máquina- y se regeneraron con
+   `--schema public --data-only`. Ver I-024 y D-070.
+4. Restringir también `schema.sql` a `--schema public` rompía la restauración
+   (`operator class "public.gin_trgm_ops" does not exist`): la extensión `pg_trgm` no se recreaba.
+   Corregido dejando `schema.sql` sin restringir esquema (solo trae una referencia inofensiva a
+   `auth`, la FK de `profiles`, no datos).
+
+Detalle cronológico completo en [`TEST_RESULTS.md`](TEST_RESULTS.md).
+
+### Cambios de base de datos
+
+**No aplica.** La Fase 8 no agregó ni modificó ninguna migración. Las 15 siguen siendo las mismas de
+la Fase 7, aplicadas y verificadas en el proyecto real.
+
+### Variables de entorno requeridas
+
+Las mismas de las fases anteriores, ahora también configuradas en Vercel (scope Production
+únicamente, `SUPABASE_SERVICE_ROLE_KEY` marcada Sensitive) — detalle exacto en `docs/DEPLOYMENT.md`
+§3.1. Sin variables nuevas.
+
+### Problemas reales que permanecen
+
+| ID | Problema | Impacto |
+|---|---|---|
+| I-024 | El proyecto real está en plan Free: sin backups automáticos ni PITR | **Alto antes de operar con datos reales.** Mitigado con respaldo lógico manual (D-070); requiere upgrade a Pro o automatización externa como prerrequisito — ver `RUNBOOK.md` §5.3 |
+| I-021 | Cuentas de demostración conviven con producción, contraseña compartida | Medio. Recomendación operativa en `OPERATIONS.md` §5, no resuelto automáticamente por diseño (decisión del negocio) |
+| I-022 | Sin entorno de staging real | Bajo mientras las variables de Supabase solo estén en scope Production de Vercel (ya verificado) |
+| I-023 | Enlaces de invitación/recuperación pueden aterrizar en la portada si la URL de producción no está en la lista blanca de Supabase Auth | Resuelto para esta URL: el usuario ya configuró Authentication → URL Configuration con `https://gestion-rifas.vercel.app` |
+| I-004 | `CLAUDE.md` y `CLAUDE.md.txt` coexisten | Bajo. Sin cambios |
+| DT-12 | — | Cerrado desde la Fase 7 |
+
+### Qué debe revisar el siguiente agente antes de comenzar
+
+Ver la sección «ANTES DE EMPEZAR LA FASE 9» al inicio de este documento.
+
+### Decisiones
+
+D-066 a D-070: un solo proyecto Supabase como producción, sin staging (D-066); reutilizar el proyecto
+Vercel existente (D-067); `create-organization.ts` inserta la membresía de Owner con el cliente admin,
+único bootstrap legítimo sin sesión de staff previa (D-068); CI cubre typecheck/lint/test/build y base
+de datos, no `test:e2e` (D-069); respaldo lógico manual mientras el proyecto sea plan Free, con
+restauración probada solo en local y nunca en el remoto sin autorización explícita cada vez (D-070).
+
+---
+
 ## Comandos
 
 ```bash
@@ -619,12 +715,23 @@ npm run test:e2e       # 142 pruebas end-to-end (Playwright)
 npm run verify         # typecheck + lint + unitarias + build
 npm run dev            # servidor de desarrollo (segun .env.local)
 npm run dev:local      # servidor de desarrollo contra la instancia local
+npm run create-org -- --name "..." --owner-email ... --owner-name ... --owner-phone ...
+                       # alta de una organizacion nueva y su primer Owner (docs/OPERATIONS.md)
 ```
 
 Aplicar migraciones al proyecto real:
 
 ```bash
 npx supabase db push --db-url "$SUPABASE_DB_URL"
+```
+
+Respaldo lógico manual (plan Free, sin backups automáticos — procedimiento completo y advertencias en
+`docs/RUNBOOK.md` §5):
+
+```bash
+npx supabase db dump -f "<carpeta-fuera-del-repo>/roles.sql" --role-only --db-url "$SUPABASE_DB_URL"
+npx supabase db dump -f "<carpeta-fuera-del-repo>/schema.sql" --db-url "$SUPABASE_DB_URL"
+npx supabase db dump -f "<carpeta-fuera-del-repo>/data.sql" --schema public --data-only --db-url "$SUPABASE_DB_URL"
 ```
 
 ---
@@ -643,3 +750,4 @@ npx supabase db push --db-url "$SUPABASE_DB_URL"
 | 2026-08-03 | 5 | Pagos y abonos: registro con reparto entre boletas, historial, anulación administrativa y consulta global. Migración `0012`. Dos defectos reales detectados y corregidos (I-015, I-016). +29 pruebas de BD, +17 E2E, +27 unitarias. |
 | 2026-08-04 | 6 | Dashboards completos, cinco reportes con filtros y exportación a CSV en los dos portales, y pulido de UX y accesibilidad. Migración `0013` (dos funciones de agregación de pagos). Dos defectos reales detectados y corregidos (I-017 fechas un día antes, I-018 menú de usuario sin nombre accesible). +39 pruebas de BD (incluida la de volumen a 5.000 boletas), +31 E2E, +25 unitarias. |
 | 2026-08-04 | 7 | Endurecimiento: cabeceras de seguridad con CSP por nonce, limitación de intentos y las 25 pruebas mínimas automatizadas por fin (la 1, la 2 y la 25 se daban por cubiertas sin estarlo). Migración `0014`: la RLS deja de llamar a una función por fila y pasa de ~1.667 ms a ~1,2 ms (I-019). DT-12 saldada subiendo Next a 16.3.0: `npm audit` en 0. Código muerto eliminado. +15 pruebas de BD, +22 E2E, +36 unitarias. |
+| 2026-08-05 | 8 | Despliegue real a producción: `https://gestion-rifas.vercel.app`, mismo proyecto Supabase de siempre como producción (D-066, sin staging). `scripts/create-organization.ts` para el bootstrap de organización/Owner (D-068). CI con GitHub Actions (D-069). Estrategia de backups reescrita de cero al descubrir que el proyecto real está en plan Free: respaldo lógico manual verificado (D-070, I-024) — un intento inicial expuso `auth.users` completo y se corrigió antes de salir de la máquina. Cabeceras, aislamiento de rutas y ausencia de secretos verificados contra producción real; los tres roles los probó el usuario (login está prohibido para un agente). Sin migraciones nuevas. |

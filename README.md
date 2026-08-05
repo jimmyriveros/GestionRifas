@@ -3,14 +3,15 @@
 Aplicación web para administrar la operación de una empresa de rifas: organizaciones, rifas,
 vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y auditoría.
 
-> **Estado actual: Fase 7 completada — el MVP está funcionalmente completo y endurecido.**
-> Crear rifas y boletas, repartirlas entre vendedores, venderlas a clientes, **cobrarlas con
-> abonos** y **consultar y exportar** todo eso en reportes. Los estados de pago
-> (Sin pagar / Abonada / Pagada) y los saldos los calcula siempre la base de datos; ningún importe
-> se suma en el navegador.
-> Verificado con 253 pruebas de base de datos y 142 end-to-end sobre un navegador real, incluido el
-> ciclo completo de venta desde un teléfono y una prueba de volumen con 5.000 boletas. Lo que queda
-> es desplegar (Fase 8) y la auditoría final (Fase 9); ninguna de las dos ha sido autorizada.
+> **Estado actual: Fase 8 en curso — despliegue y documentación operativa.**
+> El MVP está funcionalmente completo y endurecido desde la Fase 7: crear rifas y boletas,
+> repartirlas entre vendedores, venderlas a clientes, **cobrarlas con abonos** y **consultar y
+> exportar** todo eso en reportes. Los estados de pago (Sin pagar / Abonada / Pagada) y los saldos
+> los calcula siempre la base de datos; ningún importe se suma en el navegador.
+> Verificado con 254 pruebas de base de datos y 142 end-to-end sobre un navegador real, incluido el
+> ciclo completo de venta desde un teléfono y una prueba de volumen con 5.000 boletas. Procedimiento
+> de despliegue en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Queda pendiente la auditoría final
+> independiente (Fase 9); no ha sido autorizada.
 
 ---
 
@@ -53,6 +54,9 @@ tarea lo pide (`HANDOFF.md` §5 indica cuál).
 | [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) | Resultados de pruebas por fase | Al revisar qué se probó |
 | [`docs/TESTING.md`](docs/TESTING.md) | Estrategia de pruebas | Al escribir pruebas nuevas |
 | [`docs/MASTER_SPEC.md`](docs/MASTER_SPEC.md) | Especificación funcional consolidada | Para contexto de producto |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Procedimiento de despliegue, variables de Vercel y reversión | Al desplegar o promover una migración a producción |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Manual de operación del negocio (alta de organización, rifas, anulaciones) | Para operar la aplicación, no para programar |
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Problemas frecuentes en producción y cómo resolverlos | Ante un incidente en producción |
 
 ---
 
@@ -120,13 +124,15 @@ npm run build         # build de producción
 npm run typecheck     # tsc --noEmit
 npm run lint          # eslint
 npm run test          # vitest (unitarias)
-npm run test:db       # 253 pruebas contra la base de datos local (crea 5.000 boletas de volumen)
+npm run test:db       # 254 pruebas contra la base de datos local (crea 5.000 boletas de volumen)
 npm run test:e2e      # 142 pruebas end-to-end (Playwright, requiere base local RECIÉN sembrada)
 npm run format:check  # prettier --check
 npm run verify        # typecheck + lint + test + build
 npm run seed          # datos de desarrollo en el proyecto de .env.local
 npm run seed:local    # datos de desarrollo en la instancia local
 npm run db:reset      # reaplica todas las migraciones desde cero (local)
+npm run create-org -- --name "..." --owner-email ... --owner-name ... --owner-phone ...
+                      # alta operativa de una organizacion y su primer Owner (docs/OPERATIONS.md)
 ```
 
 ---
@@ -151,8 +157,22 @@ El proyecto avanza **por fases** y cada una requiere autorización explícita
 | 5 | Pagos, abonos y saldos | ✅ Completada |
 | 6 | Dashboards, reportes y UI/UX | ✅ Completada |
 | 7 | Pruebas, seguridad y endurecimiento | ✅ Completada |
-| 8 | Despliegue y documentación operativa | ⬜ Pendiente de autorización |
+| 8 | Despliegue y documentación operativa | 🔄 En curso |
 | 9 | Auditoría final independiente | ⬜ |
+
+---
+
+## Producción
+
+Desplegada en Vercel (proyecto `gestion-rifas`) contra el proyecto Supabase real, sin un entorno de
+staging separado — decisión documentada en `docs/DECISIONS.md` D-066. Procedimiento completo,
+variables de entorno y reversión en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md); manual de operación
+del día a día en [`docs/OPERATIONS.md`](docs/OPERATIONS.md); problemas frecuentes en
+[`docs/RUNBOOK.md`](docs/RUNBOOK.md).
+
+Un `push` a `main` construye y despliega automáticamente (integración de Vercel con GitHub). Las
+migraciones **no** se aplican solas — se promueven a mano con el procedimiento de tres pasos de
+`DEPLOYMENT.md` §2.2.
 
 ---
 

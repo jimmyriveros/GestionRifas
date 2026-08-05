@@ -1,0 +1,82 @@
+name: CI
+
+# Fase 8: dos jobs en paralelo. `db` prueba en cada corrida lo que la Fase 8
+# exige comprobar a mano — "despliegue limpio en un entorno nuevo" y
+# "migraciones aplicadas desde cero" (docs/IMPLEMENTATION_PLAN.md Fase 8) —
+# aplicando las 15 migraciones sobre una instancia de Supabase efimera.
+#
+# test:e2e (Playwright) queda fuera de este pipeline (D-069): duracion y
+# complejidad en runners compartidos. Se sigue corriendo en local antes de
+# cerrar cada fase (docs/HANDOFF.md 7).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Las claves de aqui abajo son las de la instancia LOCAL de Supabase: un JWT
+# de demostracion publico e identico en toda instalacion de `supabase start`,
+# que solo sirve contra 127.0.0.1 (ver scripts/supabase-target.ts). No son
+# secretos y no dan acceso a nada real.
+env:
+  NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+  SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+  NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+  TZ: UTC
+  SEED_DEFAULT_PASSWORD: CiPruebaSolo2026
+
+jobs:
+  verify:
+    name: Typecheck, lint, unitarias, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+
+      # check:env (prebuild) solo exige que las tres variables no esten
+      # vacias; next build no necesita una instancia de Supabase alcanzable
+      # porque ninguna ruta se genera estaticamente contra datos reales.
+      - run: npm run build
+
+  db:
+    name: Migraciones desde cero + pruebas de base de datos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Sin proyecto vinculado: opera sobre Docker local, igual que en una
+      # maquina de desarrollo nueva.
+      - name: Levantar Supabase local
+        run: supabase start
+
+      - name: Aplicar las 15 migraciones desde cero
+        run: npm run db:reset
+
+      - name: Sembrar datos de desarrollo
+        run: npm run seed:local
+
+      - name: Pruebas de base de datos (254)
+        run: npm run test:db

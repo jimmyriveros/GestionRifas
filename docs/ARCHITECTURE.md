@@ -382,22 +382,45 @@ Detalle y datos exactos: `docs/IMPLEMENTATION_PLAN.md` Fase 2 y `docs/TESTING.md
 
 ## 12. Estrategia de despliegue
 
+**Actualizado en la Fase 8 (D-066).** El diseño original de esta sección (Fase 0) separaba un
+proyecto Supabase de "staging" para los Preview de Vercel de uno de producción. En la práctica, desde
+la Fase 2 hasta la Fase 7 solo existió un proyecto Supabase remoto — "el proyecto real" — usado para
+todas las verificaciones contra datos reales. La Fase 8 decidió, de forma explícita y consciente,
+**no** aprovisionar un segundo proyecto: mantener uno solo y usarlo como producción.
+
 | Entorno | Frontend | Base de datos | Propósito |
 |---------|----------|---------------|-----------|
-| Local | `next dev` | Supabase local (Docker) | Desarrollo y pruebas de BD/RLS |
-| Preview | Vercel Preview (por rama) | Proyecto Supabase de staging | Revisión funcional |
-| Producción | Vercel Production | Proyecto Supabase de producción | Operación real |
+| Local | `next dev` (`npm run dev:local`) | Supabase local (Docker) | Desarrollo y pruebas de BD/RLS/E2E |
+| Producción | Vercel Production (proyecto `gestion-rifas`) | El proyecto Supabase real | Operación real |
+
+No hay un entorno de Preview con base de datos propia. Riesgo aceptado y documentado en
+`docs/KNOWN_ISSUES.md` I-022: si alguna vez se activan las variables de Supabase en el scope
+"Preview" de Vercel, un Pull Request escribiría sobre la misma base que usan las personas reales.
+Mitigación actual: esas variables solo están puestas en el scope "Production" (`docs/DEPLOYMENT.md`
+§3.1).
 
 **Migraciones:** versionadas en `supabase/migrations`, inmutables una vez aplicadas a producción.
-Cambios posteriores se hacen con una migración nueva. Promoción con `supabase db push` desde CI,
-nunca editando el esquema por la interfaz web.
+Cambios posteriores se hacen con una migración nueva. Promoción manual con el procedimiento de tres
+pasos de `docs/DEPLOYMENT.md` §2.2 (`--dry-run`, `--yes`, `verify:remote`) — no hay CI que la aplique
+sola todavía; el job `db` del pipeline (`.github/workflows/ci.yml`) valida que las migraciones se
+aplican limpias desde cero, pero contra una instancia efímera, no contra el proyecto real.
 
 **Variables de entorno:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (públicas,
-D-028) y `SUPABASE_SERVICE_ROLE_KEY` (solo servidor, marcada como sensible en Vercel). `scripts/check-env.ts`
-falla el build si falta alguna.
+D-028), `SUPABASE_SERVICE_ROLE_KEY` (solo servidor, marcada como sensible en Vercel) y
+`NEXT_PUBLIC_SITE_URL`/`TZ`. `scripts/check-env.ts` falla el build si falta alguna de las tres
+primeras. Detalle completo en `docs/DEPLOYMENT.md` §3.1.
 
-**Reversión:** cada migración incluye una nota de reversión documentada; los datos se protegen con
-backups automáticos de Supabase (PITR en producción). Detalle en Fase 8.
+**Reversión:** cada migración incluye una nota de reversión documentada (manual, no ejecutable); los
+despliegues de Vercel se revierten con "Instant Rollback" o un `git revert`.
+
+**Backups:** el proyecto real está en el plan **Free** de Supabase — confirmado en el dashboard
+(2026-08-04): sin scheduled backups, sin Point-in-Time Recovery, sin restore-to-new-project (D-070,
+I-024). Mientras siga en ese plan, la recuperación ante desastres depende de un **respaldo lógico
+manual** (`supabase db dump`, tres archivos: roles/schema/datos de `public`, guardados fuera del repo
+y fuera de Supabase) que hay que generar a mano antes de cualquier migración o cambio riesgoso.
+Procedimiento exacto, verificado, y sus dos advertencias reales (el aviso de `dotenv` que corrompe la
+variable de conexión, y por qué el volcado de datos necesita `--schema public` mientras que el de
+esquema no) en `docs/RUNBOOK.md` §5.
 
 ---
 

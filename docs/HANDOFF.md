@@ -9,21 +9,22 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 
 | | |
 |---|---|
-| Última fase completada | **7 — Pruebas, seguridad y endurecimiento** |
-| Siguiente fase | **8 — Despliegue y documentación operativa** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `caa6298` · `fase-7` |
-| Remoto | `github.com/jimmyriveros/GestionRifas` (main y etiquetas subidas hasta `fase-2`) |
-| App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando |
-| Base de datos | 15 migraciones, **todas aplicadas en local y en el proyecto real** y verificadas con `npm run verify:remote` |
-| Pruebas | 162 unitarias + **254 de base de datos** + **142 end-to-end**, todas en verde. `npm audit`: **0 vulnerabilidades** |
+| Última fase completada | **8 — Despliegue y documentación operativa** |
+| Siguiente fase | **9 — Auditoría final independiente** (requiere autorización explícita del usuario) |
+| Rama / commit / etiqueta | `main` · `fase-8` (ver el hash exacto en `PHASE_STATUS.md`) |
+| Remoto | `github.com/jimmyriveros/GestionRifas` — `main` al día hasta la Fase 7 (empujado en la Fase 8); el commit de cierre de la Fase 8 en sí, ver estado real con `git log` |
+| **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
+| App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
+| Base de datos | 15 migraciones, **todas aplicadas en local y en el proyecto real** (el mismo que hace de producción, D-066) y verificadas con `npm run verify:remote`. **Plan Free: sin backups automáticos** (I-024) — respaldo lógico manual, ver §3.b |
+| Pruebas | 162 unitarias + **254 de base de datos** + **142 end-to-end**, todas en verde. `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
 
-**Lo que existe hoy:** el producto completo del MVP funcionando contra datos reales — crear rifas y
-boletas, repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y
-exportar todo eso en reportes. Los saldos y los estados de pago los calcula la base de datos.
-Endurecido en la Fase 7: cabeceras de seguridad con CSP por nonce, limitación de intentos, las 25
-pruebas mínimas automatizadas y la RLS ~1.400× más rápida (I-019).
-**Lo que NO existe:** el despliegue a producción y la documentación operativa (Fase 8), y la
-auditoría final independiente (Fase 9).
+**Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
+repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
+eso en reportes. Los saldos y los estados de pago los calcula la base de datos. Endurecido en la
+Fase 7 (CSP por nonce, limitación de intentos, RLS ~1.400× más rápida) y desplegado en la Fase 8, con
+`docs/DEPLOYMENT.md`, `docs/OPERATIONS.md` y `docs/RUNBOOK.md` nuevos.
+**Lo que NO existe:** backups automáticos de Supabase (plan Free — I-024, prerrequisito antes de datos
+reales) y la auditoría final independiente (Fase 9).
 
 ---
 
@@ -97,6 +98,29 @@ npm run verify:remote
 lo único que detecta que local y remoto han dejado de ser equivalentes. Ha hecho falta **dos veces**:
 `authenticated` conservaba `DELETE` en el remoto (D-038) y `anon` podía ejecutar todas las funciones
 (I-020). En ambos casos las pruebas locales pasaban.
+
+---
+
+## 3.b Copias de seguridad — el proyecto real está en plan Free (I-024)
+
+**Sin scheduled backups, sin Point-in-Time Recovery, sin restore-to-new-project.** Confirmado en el
+dashboard (Database → Backups) en la Fase 8. La única red de seguridad es un respaldo lógico manual:
+
+```bash
+npx supabase db dump -f "<fuera-del-repo>/roles.sql" --role-only --db-url "$SUPABASE_DB_URL"
+npx supabase db dump -f "<fuera-del-repo>/schema.sql" --db-url "$SUPABASE_DB_URL"
+npx supabase db dump -f "<fuera-del-repo>/data.sql" --schema public --data-only --db-url "$SUPABASE_DB_URL"
+```
+
+⚠️ El `--schema public` de la **tercera** línea es obligatorio (sin él, el volcado trae `auth.users`
+completo — contraseñas cifradas y tokens). La **segunda** va **sin** restringir esquema a propósito
+(restringirla rompe la extensión `pg_trgm`). Procedimiento completo, sus dos advertencias reales y
+cómo restaurar (**solo en local**, nunca en el remoto sin mostrar el procedimiento exacto y recibir
+autorización explícita) en `docs/RUNBOOK.md` §5.
+
+**Generar un respaldo antes de cualquier migración o acción destructiva sobre el proyecto real.**
+Antes de operar con dinero o clientes reales: actualizar a Pro o automatizar este procedimiento desde
+fuera de Supabase (`docs/RUNBOOK.md` §5.3).
 
 ---
 
@@ -304,3 +328,7 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Una vista `security_invoker` pierde filas enteras | Un `JOIN` interno contra una tabla que quien consulta no ve borra la fila. **Usa LEFT JOIN** para los nombres | I-015 |
 | Un pago registrado por un admin no aparece en el historial del vendedor | Falta la migración `0012` en ese entorno | I-015 |
 | Aplicar migraciones al remoto sin ver la contraseña | `npx supabase db push --dry-run` primero, y `--yes` para no quedarse esperando la confirmación | §3 |
+| Un despliegue de Vercel falla con `Faltan variables de entorno obligatorias` | Revisa el **nombre exacto** de cada variable (un solo carácter de más o de menos rompe `check:env`) y que el scope **Production** esté marcado | I-021·§3.b |
+| Un volcado de `supabase db dump` sale con `LegacyDbConfigParseUrlError` | `require('dotenv').config()` imprime un aviso por `stdout` que se cuela en `$(...)` y corrompe la URL capturada. Lee el `.env.local` con `fs.readFileSync` en vez de `dotenv` | §3.b |
+| Un volcado de datos (`db dump --data-only`) incluye contraseñas cifradas | Sin `--schema public`, arrastra `auth.users` completo. Con `--schema public` en el volcado de **esquema** en cambio, se rompe `pg_trgm` al restaurar — restríngelo solo en el de datos | §3.b · I-024 |
+| Un enlace de invitación real cae en la portada al hacer clic, con `otp_expired` | La URL de destino no está en Authentication → URL Configuration del proyecto Supabase (local o real) | I-023 |
