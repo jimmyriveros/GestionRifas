@@ -9,18 +9,24 @@
 
 ## Vista general
 
+Este documento describe el **plan**; lo que de verdad se entregó en cada fase está en
+[`PHASE_STATUS.md`](PHASE_STATUS.md), que es la fuente autoritativa. Esta tabla solo dice si la fase
+ya ocurrió.
+
+**Las 10 fases están completadas** (2026-08-05).
+
 | Fase | Nombre | Estado | Depende de |
 |------|--------|--------|-----------|
-| 0 | Arquitectura y planificación | **Completada** | — |
-| 1 | Proyecto base y autenticación | Pendiente | 0 |
-| 2 | Base de datos, restricciones y RLS | Pendiente | 1 |
-| 3 | Portal Owner y Admin | Pendiente | 2 |
-| 4 | Portal Seller y clientes | Pendiente | 3 |
-| 5 | Pagos, abonos y saldos | Pendiente | 4 |
-| 6 | Dashboards, reportes y UI/UX | Pendiente | 5 |
-| 7 | Pruebas, seguridad y endurecimiento | Pendiente | 6 |
-| 8 | Despliegue y documentación operativa | Pendiente | 7 |
-| 9 | Auditoría final independiente | Pendiente | 8 |
+| 0 | Arquitectura y planificación | ✅ Completada | — |
+| 1 | Proyecto base y autenticación | ✅ Completada | 0 |
+| 2 | Base de datos, restricciones y RLS | ✅ Completada | 1 |
+| 3 | Portal Owner y Admin | ✅ Completada | 2 |
+| 4 | Portal Seller y clientes | ✅ Completada | 3 |
+| 5 | Pagos, abonos y saldos | ✅ Completada | 4 |
+| 6 | Dashboards, reportes y UI/UX | ✅ Completada | 5 |
+| 7 | Pruebas, seguridad y endurecimiento | ✅ Completada | 6 |
+| 8 | Despliegue y documentación operativa | ✅ Completada | 7 |
+| 9 | Auditoría final independiente | ✅ Completada | 8 |
 
 ---
 

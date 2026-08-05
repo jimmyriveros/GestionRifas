@@ -9,22 +9,44 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 
 | | |
 |---|---|
-| Última fase completada | **8 — Despliegue y documentación operativa** |
-| Siguiente fase | **9 — Auditoría final independiente** (requiere autorización explícita del usuario) |
-| Rama / commit / etiqueta | `main` · `bcd6dc0` · `fase-8` |
-| Remoto | `github.com/jimmyriveros/GestionRifas` — `main` empujado hasta la Fase 7 en la Fase 8 (12 commits, autorizado explícitamente). El commit `bcd6dc0` de cierre de la Fase 8 (este) sigue **solo en local** — pedir autorización antes de empujarlo también |
+| Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
+| Siguiente fase | Ninguna. Lo que queda son **decisiones del usuario**, no trabajo de ingeniería (ver §1.b) |
+| Rama / commit / etiqueta | `main` · `<pendiente>` · `fase-9` |
+| Remoto | `github.com/jimmyriveros/GestionRifas` — `main` empujado hasta la Fase 7. Los commits de cierre de las Fases 8 y 9 siguen **solo en local** — pedir autorización antes de empujarlos |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | 15 migraciones, **todas aplicadas en local y en el proyecto real** (el mismo que hace de producción, D-066) y verificadas con `npm run verify:remote`. **Plan Free: sin backups automáticos** (I-024) — respaldo lógico manual, ver §3.b |
-| Pruebas | 162 unitarias + **254 de base de datos** + **142 end-to-end**, todas en verde. `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **16 migraciones.** Las `0001`–`0015` aplicadas en local **y en el proyecto real**, reverificadas en la Fase 9 (`verify:remote` 13/13). ⚠️ **La `0016` está solo en local** (I-025) — ver §1.b. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | 163 unitarias + **266 de base de datos** + **142 end-to-end**, todas en verde. `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
 eso en reportes. Los saldos y los estados de pago los calcula la base de datos. Endurecido en la
-Fase 7 (CSP por nonce, limitación de intentos, RLS ~1.400× más rápida) y desplegado en la Fase 8, con
-`docs/DEPLOYMENT.md`, `docs/OPERATIONS.md` y `docs/RUNBOOK.md` nuevos.
+Fase 7 (CSP por nonce, limitación de intentos, RLS ~1.400× más rápida), desplegado en la Fase 8 y
+auditado en la Fase 9 con **47 intentos deliberados de romperlo**, ninguno de los cuales consiguió
+leer ni escribir un dato ajeno. Informe: `docs/AUDIT_REPORT.md`.
 **Lo que NO existe:** backups automáticos de Supabase (plan Free — I-024, prerrequisito antes de datos
-reales) y la auditoría final independiente (Fase 9).
+reales).
+
+---
+
+## 1.b Lo único pendiente: aplicar la migración `0016` al proyecto real
+
+La auditoría encontró (**A-02 / I-025**) que un Owner puede degradarse o desactivarse a sí mismo con
+una llamada directa a PostgREST y dejar su organización **sin ningún Owner activo**. Reproducido: 1
+fila afectada, 0 Owners después, y **nadie desde la aplicación puede repararlo** — el ex-Owner ya no
+es staff y un Admin no puede ascender a nadie a Owner (BR-U03, correctamente). Solo un script con
+`service_role` lo arregla.
+
+`memberships_one_owner_per_org` garantizaba «como máximo un Owner», nunca «al menos uno». La
+migración **`0016`** cierra ese hueco con un constraint trigger diferido (D-071), y está **aplicada y
+probada solo en local**.
+
+**Aplicarla al proyecto real requiere autorización explícita del usuario.** Procedimiento completo,
+con el respaldo lógico previo que exige I-024, en `docs/AUDIT_REPORT.md` §8.1.
+
+Las demás cosas abiertas son decisiones del negocio, no de ingeniería: subir a Supabase Pro para
+tener backups (I-024), desactivar las cuentas de demostración de producción (I-021) y autorizar el
+borrado de `CLAUDE.md.txt` (I-004).
 
 ---
 
@@ -78,7 +100,8 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-✅ **Las 15 migraciones están aplicadas también en el proyecto real** (2026-08-04) y verificadas.
+✅ **Las migraciones `0001`–`0015` están aplicadas también en el proyecto real**, reverificadas el
+2026-08-05 (`npm run verify:remote`, 13/13). ⚠️ **La `0016` no** — ver §1.b.
 
 Al aplicar migraciones al proyecto real, el procedimiento completo son **tres** pasos, no dos:
 
@@ -158,6 +181,7 @@ No leas todo. Cuesta ~40k tokens y casi nunca hace falta.
 | Entender por qué algo está así | `docs/DECISIONS.md` (busca el `D-*` citado en el código) |
 | Ver qué falla o qué evitar | `docs/KNOWN_ISSUES.md` |
 | Ver resultados de pruebas anteriores | `docs/TEST_RESULTS.md` |
+| Saber qué se auditó, qué se intentó romper y qué quedó aceptado | `docs/AUDIT_REPORT.md` |
 | Escribir pruebas end-to-end | `docs/TESTING.md` §E2E + `tests/e2e/fixtures.ts` |
 
 El código cita las decisiones (`D-0xx`) y reglas (`BR-xxx`) que aplica: si un comentario dice
@@ -194,6 +218,7 @@ profiles 1─1 auth.users
 - Sobrepago imposible; pago y asignaciones cuadran exactamente; todo o nada.
 - Ningún `DELETE` en ninguna tabla (ni política ni privilegio).
 - Aislamiento por organización y por vendedor vía RLS forzada.
+- Una organización nunca se queda sin Owner activo — **solo donde esté aplicada `0016`**, hoy únicamente en local (§1.b).
 
 **Funciones a usar en vez de DML directo:**
 `assign_ticket` · `create_payment` · `void_payment` · `bulk_create_tickets` · `approve_tickets` ·
@@ -262,7 +287,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-254 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+266 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 
@@ -280,7 +305,7 @@ typecheck + lint + unitarias + build.
 npm run test:e2e
 ```
 
-89 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
+142 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
 en móvil (Pixel 7). Levanta solo el servidor con `npm run dev:local`; **exigen la base local recién
 sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
 
@@ -332,3 +357,6 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Un volcado de `supabase db dump` sale con `LegacyDbConfigParseUrlError` | `require('dotenv').config()` imprime un aviso por `stdout` que se cuela en `$(...)` y corrompe la URL capturada. Lee el `.env.local` con `fs.readFileSync` en vez de `dotenv` | §3.b |
 | Un volcado de datos (`db dump --data-only`) incluye contraseñas cifradas | Sin `--schema public`, arrastra `auth.users` completo. Con `--schema public` en el volcado de **esquema** en cambio, se rompe `pg_trgm` al restaurar — restríngelo solo en el de datos | §3.b · I-024 |
 | Un enlace de invitación real cae en la portada al hacer clic, con `otp_expired` | La URL de destino no está en Authentication → URL Configuration del proyecto Supabase (local o real) | I-023 |
+| El seed falla con `AuthRetryableFetchError` (502) justo después de `db:reset` | GoTrue tarda más que Postgres en arrancar tras reiniciar los contenedores. Espera a que `curl http://127.0.0.1:54321/auth/v1/health` dé 200, o reintenta: el seed es idempotente | I-028 |
+| Una Server Action nueva en un módulo anidado parece no tener red de pruebas | Ya la tiene: desde la Fase 9 el recorrido de `server-actions-guard.test.ts` es recursivo | I-026 |
+| `F6-04` empieza a fallar después de tocar el seed o las pruebas de pagos | Depende de que `vendedor2` **no** tenga ningún pago. `F9-02` le crea uno y lo **borra** al terminar | TESTING §6.1 |

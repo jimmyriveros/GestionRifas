@@ -569,3 +569,121 @@ Los tres archivos con `auth.users` completo existieron únicamente en
 se versionaron (esa carpeta está fuera del repositorio a propósito) y se borraron en el mismo turno en
 que se detectó el problema, antes de generar los archivos correctos. Ninguna de las contraseñas
 cifradas ni los tokens llegó a mostrarse en la conversación ni en ninguna salida capturada.
+
+---
+
+## Fase 9 — 2026-08-05
+
+### Punto de partida
+
+Entorno verificado antes de auditar nada (`CLAUDE.md` §34.1): `npx supabase start`,
+`db:reset` + `seed:local`, `test:db` **254 ✅**, `verify` ✅, `test:e2e` **142 ✅**.
+La documentación decía la verdad.
+
+### Método: probar, no releer
+
+La auditoría se hizo **ejecutando el sistema**, no leyéndolo. Releer el código encuentra lo que su
+autor ya sabía; ejecutarlo encuentra lo que creía y no era cierto — que es exactamente cómo
+aparecieron I-011, I-015, I-019 e I-020 en fases anteriores.
+
+| Instrumento | Qué hizo |
+|---|---|
+| Volcado del catálogo | 15 consultas escritas desde cero a `pg_class`, `pg_policies`, `pg_proc`, `pg_constraint`, `pg_indexes`, `pg_trigger` e `information_schema`, sin reutilizar las aserciones de `catalog.test.ts` |
+| Sonda adversaria (2 tandas) | **47 intentos** con sesiones reales y clave pública, nunca `service_role` |
+| `npm run verify:remote` | 13 invariantes de catálogo contra el **proyecto real**, solo lectura |
+
+### La sonda adversaria: 47 intentos, 45 bloqueados
+
+Los 2 «no bloqueados» se investigaron uno a uno y **ninguno era una fuga**:
+
+| Intento | Parecía | Era |
+|---|---|---|
+| Vendedor1 lee 39 `payment_allocations` | fuga entre vendedores | Las 39 son suyas: `vendedor2` no tiene ninguna en el seed |
+| `report_payment_totals` devuelve el total de la organización | fuga de cobranza | Los 36 pagos de la organización son suyos |
+| Reutilizar la combinación de una boleta anulada | restricción ausente | La RPC la devolvió como **conflicto**, `inserted: 0`. Es su diseño (R-14, BR-N08) |
+
+Los dos primeros tenían la misma raíz —el seed deja a `vendedor2` sin pagos— y de ahí salió **A-03**.
+La lección de la tanda: *una sonda mal diseñada produce falsos positivos, y publicarlos sin
+verificarlos habría sido peor que no haberla escrito*.
+
+Verificación dirigida del aislamiento, ya con pagos en **ambos** vendedores:
+
+| Superficie | vendedor1 ve | vendedor2 ve | Filas ajenas |
+|---|---|---|---|
+| `payments` | 36 | 1 | **0** |
+| `payment_allocations` | 39 | 1 | **0** |
+| `v_payment_history` | 36 | 1 | **0** |
+| `report_payment_totals` | 1.592.001 | 7.777 | cada uno su verdad |
+
+### Los dos hallazgos reales
+
+**A-01 — 6 de las 28 Server Actions estaban fuera de la red estructural.**
+`tests/unit/server-actions-guard.test.ts` recorría `features/<módulo>/actions.ts` a un solo nivel; el
+código ya tenía tres módulos anidados (`tickets/assign`, `tickets/bulk`, `tickets/seller`). Las 6
+acciones tienen su guarda correcta —se verificó una por una—, así que **no hubo vulnerabilidad**: lo
+que faltaba era la red, y precisamente su valor declarado está en el futuro.
+
+*Comprobado, no supuesto*: se inyectó temporalmente una acción sin guarda en
+`tickets/assign/actions.ts`.
+
+| Versión de la prueba | Resultado con la acción sin guarda |
+|---|---|
+| Anterior (un nivel) | habría pasado inadvertida |
+| Corregida (recursiva) | **falla**: `acciones sin autorizacion: expected [ Array(1) ] to deeply equal []` |
+
+El archivo se restauró de inmediato (`git status` limpio).
+
+**A-02 — Una organización podía quedarse sin Owner.**
+Reproducido con la clave pública y la sesión real del Owner:
+
+| Paso | Resultado |
+|---|---|
+| `update memberships set role = 'seller' where profile_id = <owner>` | **1 fila afectada** |
+| El ex-Owner intenta restaurarse | 0 filas — ya no es staff |
+| El Admin intenta ascenderse a Owner | `42501` — BR-U03, correctamente |
+| El Admin intenta restaurar al ex-Owner | `42501` |
+| Owners activos restantes | **0** |
+
+`memberships_one_owner_per_org` garantizaba «como máximo uno», nunca «al menos uno». Corregido con la
+migración `0016` (constraint trigger **diferido**, D-071) y cubierto por `F9-01`, que incluye la
+prueba de que la transferencia de propiedad en **una** transacción sigue siendo posible — la razón de
+que el trigger sea diferido y no inmediato.
+
+### Cronología con errores encontrados
+
+| Paso | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx supabase start` | ❌ | `failed to connect to the docker API` | Docker Desktop no estaba arrancado. Se inició desde `%LOCALAPPDATA%\Programs\DockerDesktop` (no está en `C:\Program Files`) |
+| Sondas escritas en el scratchpad | ❌ | `ERR_MODULE_NOT_FOUND: Cannot find package 'pg'` | Un script fuera del proyecto no resuelve sus dependencias. Se importó por ruta absoluta a `node_modules` |
+| Primera sonda | ⚠️ 2 falsos positivos | — | Investigados y descartados con verificación dirigida (ver arriba) |
+| `db:reset` + `seed:local` inmediato | ❌ | `AuthRetryableFetchError` (502) en `createUser` | GoTrue tarda más que Postgres en aceptar peticiones tras reiniciar los contenedores. Se espera a que `/auth/v1/health` devuelva 200. Registrado como **I-028** |
+| `test:db` con `F9-02` recién escrita | ❌ 2 fallos | `F6-04` esperaba que `vendedor2` no tuviera pagos ni desglose diario | La limpieza por **anulación** no bastaba: un pago anulado sigue apareciendo en `report_payments_by_day`. Se cambió a borrado real en una sola transacción con la conexión de superusuario, que es lo único que devuelve el seed a su estado exacto |
+| `test:db` dos veces seguidas sin resembrar | ✅ 266 / ✅ 266 | — | Confirma que la limpieza de `F9-02` es exacta y las pruebas siguen siendo idempotentes |
+
+### Resultados finales
+
+| Suite | Antes (Fase 8) | Ahora |
+|---|---|---|
+| Unitarias (`npm run test`) | 162 | **163 ✅** |
+| Base de datos (`npm run test:db`) | 254 | **266 ✅** |
+| End-to-end (`npm run test:e2e`) | 142 | **142 ✅** (reejecutadas tras la migración `0016`) |
+| `npm run verify` | ✅ | ✅ (0 errores de lint; los 2 avisos conocidos de TanStack) |
+| `npm run verify:remote` | 13/13 | **13/13 ✅** |
+
+### Lo que se comprobó y NO falló
+
+Un ataque que falla también es un resultado. Sin esta sección, «no encontré nada» no se distingue de
+«no busqué».
+
+| Área | Comprobación | Resultado |
+|---|---|---|
+| RLS | 9 tablas habilitada **y forzada**, 22 políticas, **0** de `DELETE` | ✅ |
+| Privilegios | `anon` sin privilegios de tabla ni de función propia; `DELETE`/`TRUNCATE` solo para `postgres` y `service_role` | ✅ |
+| Funciones | Las 25 propias con `search_path`; las 2 de reporte `SECURITY INVOKER` (D-057) | ✅ |
+| Vistas | Las 5 con `security_invoker = true` | ✅ |
+| Integridad | 27 `CHECK`, 22 índices únicos, 26 FK, 21 triggers, 1 columna generada | ✅ |
+| Aislamiento | Entre vendedores y entre organizaciones, en lectura y escritura, por tabla, vista y RPC | ✅ |
+| Dinero | Sobrepago, descuadre, importe cero, pago a boleta de otro cliente | ✅ rechazados |
+| Rifa cerrada | Crear y asignar boletas | ✅ rechazados |
+| Secretos | Ninguna vía al navegador: 15 módulos con `server-only`, y los 12 componentes cliente que tocan `queries.ts` lo hacen con `import type` | ✅ |
+| Calidad | 1 `any` justificado, 0 `@ts-ignore`, 0 N+1, 0 `data.length` para contar | ✅ |

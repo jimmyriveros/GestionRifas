@@ -3,15 +3,21 @@
 Aplicación web para administrar la operación de una empresa de rifas: organizaciones, rifas,
 vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y auditoría.
 
-> **Estado actual: Fase 8 en curso — despliegue y documentación operativa.**
+> **Estado actual: las 10 fases están completadas.** La aplicación está **en producción** y auditada.
 > El MVP está funcionalmente completo y endurecido desde la Fase 7: crear rifas y boletas,
 > repartirlas entre vendedores, venderlas a clientes, **cobrarlas con abonos** y **consultar y
 > exportar** todo eso en reportes. Los estados de pago (Sin pagar / Abonada / Pagada) y los saldos
 > los calcula siempre la base de datos; ningún importe se suma en el navegador.
-> Verificado con 254 pruebas de base de datos y 142 end-to-end sobre un navegador real, incluido el
-> ciclo completo de venta desde un teléfono y una prueba de volumen con 5.000 boletas. Procedimiento
-> de despliegue en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Queda pendiente la auditoría final
-> independiente (Fase 9); no ha sido autorizada.
+> Verificado con **266 pruebas de base de datos** y **142 end-to-end** sobre un navegador real,
+> incluido el ciclo completo de venta desde un teléfono y una prueba de volumen con 5.000 boletas.
+> La auditoría final (Fase 9) sometió el sistema a **47 intentos deliberados de romperlo** con
+> sesiones reales y sin privilegios especiales: ninguno consiguió leer ni escribir un dato ajeno, ni
+> descuadrar un peso. Informe completo en [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md);
+> procedimiento de despliegue en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+>
+> ⚠️ **Antes de operar con dinero real** quedan dos requisitos, ambos decisión del dueño del negocio:
+> aplicar la migración `0016` al proyecto real (`AUDIT_REPORT.md` §8.1) y resolver la ausencia de
+> backups automáticos del plan Free de Supabase (`docs/RUNBOOK.md` §5.3).
 
 ---
 
@@ -57,6 +63,7 @@ tarea lo pide (`HANDOFF.md` §5 indica cuál).
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Procedimiento de despliegue, variables de Vercel y reversión | Al desplegar o promover una migración a producción |
 | [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Manual de operación del negocio (alta de organización, rifas, anulaciones) | Para operar la aplicación, no para programar |
 | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Problemas frecuentes en producción y cómo resolverlos | Ante un incidente en producción |
+| [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md) | Auditoría final: hallazgos, evidencia y lo que se intentó romper sin conseguirlo | Al evaluar el estado real del sistema |
 
 ---
 
@@ -124,7 +131,7 @@ npm run build         # build de producción
 npm run typecheck     # tsc --noEmit
 npm run lint          # eslint
 npm run test          # vitest (unitarias)
-npm run test:db       # 254 pruebas contra la base de datos local (crea 5.000 boletas de volumen)
+npm run test:db       # 266 pruebas contra la base de datos local (crea 5.000 boletas de volumen)
 npm run test:e2e      # 142 pruebas end-to-end (Playwright, requiere base local RECIÉN sembrada)
 npm run format:check  # prettier --check
 npm run verify        # typecheck + lint + test + build
@@ -157,8 +164,8 @@ El proyecto avanza **por fases** y cada una requiere autorización explícita
 | 5 | Pagos, abonos y saldos | ✅ Completada |
 | 6 | Dashboards, reportes y UI/UX | ✅ Completada |
 | 7 | Pruebas, seguridad y endurecimiento | ✅ Completada |
-| 8 | Despliegue y documentación operativa | 🔄 En curso |
-| 9 | Auditoría final independiente | ⬜ |
+| 8 | Despliegue y documentación operativa | ✅ Completada |
+| 9 | Auditoría final independiente | ✅ Completada |
 
 ---
 

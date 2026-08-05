@@ -4,7 +4,8 @@ Registro de lo entregado por fase. **Leer antes de iniciar cualquier fase.**
 Ninguna fase comienza sin autorización explícita del usuario (`CLAUDE.md` §1).
 Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 
-- **Actualizado:** 2026-08-05 · **Fase actual:** 8 completada · **Siguiente:** 9 (no autorizada)
+- **Actualizado:** 2026-08-05 · **Fase actual:** 9 completada · **Siguiente:** ninguna — el plan de
+  10 fases está terminado
 
 | Fase | Nombre | Estado | Commit / etiqueta |
 |---|---|---|---|
@@ -17,14 +18,19 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 | 6 | Dashboards, reportes y UI/UX | ✅ | `791e585` · `fase-6` |
 | 7 | Pruebas, seguridad y endurecimiento | ✅ | `caa6298` · `fase-7` |
 | 8 | Despliegue y documentación operativa | ✅ | `bcd6dc0` · `fase-8` |
-| 9 | Auditoría final independiente | ⬜ | — |
+| 9 | Auditoría final independiente | ✅ | `<pendiente>` · `fase-9` |
 
 ---
 
-## ANTES DE EMPEZAR LA FASE 9 — revisar esto
+## LO PRIMERO, SI RETOMAS ESTE PROYECTO
 
-1. **Confirmar autorización explícita** del usuario para la Fase 9.
-2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y la sección «Fase 9» de `docs/IMPLEMENTATION_PLAN.md`.
+1. ⚠️ **La migración `0016` NO está aplicada al proyecto real** (I-025). Es la única acción técnica
+   pendiente del proyecto entero y **requiere autorización explícita del usuario**. Procedimiento —con
+   respaldo lógico previo, obligatorio por I-024— en `docs/AUDIT_REPORT.md` §8.1. Mientras no se
+   aplique, el Owner de producción puede dejar la organización sin propietario y hará falta un script
+   con `service_role` para repararlo.
+2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y `docs/AUDIT_REPORT.md` (los hallazgos y lo que quedó
+   aceptado).
 3. **La aplicación está en producción**: `https://gestion-rifas.vercel.app`, proyecto Vercel
    `gestion-rifas`, contra el mismo proyecto Supabase usado desde la Fase 2 (no hay staging, D-066).
    Las cuentas de demostración (`owner@demo.test`, etc.) siguen activas ahí — ver I-021 antes de
@@ -36,11 +42,16 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 5. **CI corre en cada push/PR a `main`** (`.github/workflows/ci.yml`): typecheck/lint/test/build +
    migraciones desde cero contra una instancia Supabase efímera. `test:e2e` queda fuera (D-069).
 6. Como siempre: `npx supabase start` → `npm run db:reset && npm run seed:local` →
-   `npm run test:db` (254 ✅) → `npm run verify` (✅) → `npm run test:e2e` (142 ✅) antes de tocar nada.
+   `npm run test:db` (266 ✅) → `npm run verify` (✅) → `npm run test:e2e` (142 ✅) antes de tocar nada.
+   Si el seed falla con `AuthRetryableFetchError`, espera a que GoTrue arranque (I-028).
 7. **La limitación de intentos es en memoria por instancia** (D-062) y **las políticas RLS no llaman
    a una función pasándole una columna** (D-057, D-063). **Nada de dinero calculado en TypeScript.**
 8. **Las lecturas que puedan superar 1.000 filas usan `fetchAllRows`** o
    `count: 'exact', head: true`. Nunca `data.length` (I-011, R-18).
+9. **Si añades una Server Action**, `tests/unit/server-actions-guard.test.ts` la encontrará esté donde
+   esté (desde la Fase 9 el recorrido es recursivo) y fallará si se le olvida `authorizeAction`.
+10. **Si tocas el seed**, lee `docs/TESTING.md` §6.1: `F6-04` y `F9-02` dependen de que `vendedor2`
+    no tenga pagos.
 
 ---
 
@@ -703,14 +714,105 @@ restauración probada solo en local y nunca en el remoto sin autorización expl�
 
 ---
 
+## Fase 9 — Auditoría final independiente ✅
+
+Informe completo, con la evidencia de cada hallazgo: [`AUDIT_REPORT.md`](AUDIT_REPORT.md).
+
+### Funcionalidades implementadas
+
+La Fase 9 no añade producto: audita el que existe. Lo entregado es evidencia y dos correcciones.
+
+- **`docs/AUDIT_REPORT.md`**: informe con los 4 entregables de auditoría (seguridad, integridad,
+  funcional y calidad), los hallazgos clasificados por severidad con su recomendación, y **lo que se
+  intentó romper y no cedió** — porque sin eso, «no encontré nada» no se distingue de «no busqué».
+- **Auditoría por ejecución, no por lectura**: 15 consultas al catálogo escritas desde cero (sin
+  reutilizar `catalog.test.ts`), **47 intentos adversarios** con sesiones reales y clave pública
+  (nunca `service_role`, D-043), y `npm run verify:remote` contra el proyecto real.
+- **Corrección A-01** (`tests/unit/server-actions-guard.test.ts`): el recorrido pasa a ser recursivo.
+  Antes analizaba 22 de las 28 Server Actions; las 6 de `tickets/assign`, `tickets/bulk` y
+  `tickets/seller` quedaban fuera de la red.
+- **Corrección A-02** (migración `0016`): una organización ya no puede quedarse sin Owner activo.
+- **`tests/db/audit-phase9.test.ts`**: 12 pruebas nuevas (`F9-01`, `F9-02`) que cubren los dos
+  hallazgos y el aislamiento de cobranza en **ambas** direcciones.
+
+### Pruebas ejecutadas y resultados
+
+| Suite | Antes | Ahora |
+|---|---|---|
+| Unitarias (`npm run test`) | 162 | **163 ✅** |
+| Base de datos (`npm run test:db`) | 254 | **266 ✅** |
+| End-to-end (`npm run test:e2e`) | 142 | **142 ✅** (reejecutadas tras `0016`) |
+| `npm run verify` | ✅ | ✅ (0 errores de lint; los 2 avisos conocidos de TanStack) |
+| `npm run verify:remote` (proyecto **real**, solo lectura) | 13/13 | **13/13 ✅** |
+| Sonda adversaria | — | **47 intentos · 45 bloqueados · 2 falsos positivos verificados** |
+
+**Errores encontrados durante la fase, ninguno oculto:**
+
+1. **A-01 — 6 de las 28 Server Actions estaban fuera de la prueba estructural.** No hubo
+   vulnerabilidad: las 6 tienen su `authorizeAction`. Faltaba la red que impide olvidarla mañana.
+   Comprobado inyectando temporalmente una acción sin guarda: antes pasaba inadvertida, ahora falla.
+2. **A-02 — Una organización podía quedarse sin Owner, irrecuperablemente.** Reproducido con la
+   sesión real del Owner: 1 fila afectada, 0 Owners activos después, y ni el ex-Owner ni un Admin
+   pueden repararlo. Corregido con `0016`.
+3. **Dos falsos positivos de mi propia sonda**, investigados y descartados: las 39 asignaciones y los
+   36 pagos que «veía de más» un vendedor eran todos **suyos**. De ahí salió A-03.
+4. **`F9-02` rompió `F6-04` al primer intento**: anular el pago de prueba no bastaba, porque un pago
+   anulado sigue apareciendo en `report_payments_by_day`. Corregido borrándolo de verdad, en una sola
+   transacción. Verificado ejecutando `test:db` dos veces sin resembrar: 266 ✅ las dos veces.
+5. **El seed falla si se lanza justo tras `db:reset`** (`AuthRetryableFetchError` 502): GoTrue tarda
+   más que Postgres en arrancar. Registrado como I-028.
+
+Cronología completa en [`TEST_RESULTS.md`](TEST_RESULTS.md).
+
+### Migraciones que existen
+
+Las 15 anteriores **más**:
+
+| Archivo | Contenido |
+|---|---|
+| `0016_organization_keeps_owner.sql` | Constraint trigger **diferido** sobre `memberships`: rechaza al COMMIT todo cambio de `role` o `is_active` que deje la organización sin Owner activo. Diferido a propósito, para que transferir la propiedad en **una** transacción siga siendo posible (I-025, D-071) |
+
+⚠️ **Aplicada y probada solo en LOCAL.** Las `0001`–`0015` siguen aplicadas y verificadas en el
+proyecto real. Aplicar `0016` al remoto requiere autorización explícita del usuario —
+`AUDIT_REPORT.md` §8.1.
+
+### Variables de entorno requeridas
+
+Las mismas de las fases anteriores. Ninguna nueva.
+
+### Problemas reales que permanecen
+
+| ID | Problema | Impacto |
+|---|---|---|
+| I-025 | `0016` sin aplicar al proyecto real | **Medio.** En producción, el Owner puede dejar la organización sin propietario; repararlo exige un script con `service_role`. Un solo comando lo resuelve, pero necesita autorización |
+| I-024 | Plan Free: sin backups automáticos ni PITR | **Alto antes de operar con datos reales.** Sin cambios desde la Fase 8 |
+| I-021 | Cuentas de demostración en producción con contraseña compartida | Medio. Decisión del negocio (`OPERATIONS.md` §5) |
+| I-022 | Sin staging real | Bajo mientras las variables de Supabase solo estén en scope Production |
+| I-004 | `CLAUDE.md` y `CLAUDE.md.txt` coexisten | Bajo. Pendiente de que el usuario autorice borrar el `.txt` |
+| I-014 | `notFound()` responde 200 en segmentos con `loading.tsx` | Ninguno funcional: no filtra datos |
+| A-04 | 25 tipos exportados sin consumidor | Ninguno. Aceptado: es una convención uniforme, se borran al compilar |
+
+### Qué debe revisar el siguiente agente antes de comenzar
+
+Ver «LO PRIMERO, SI RETOMAS ESTE PROYECTO» al inicio de este documento. El plan de 10 fases está
+terminado; lo que queda son decisiones del usuario, no trabajo pendiente de ingeniería.
+
+### Decisiones
+
+D-071: el «al menos un Owner» se garantiza con un constraint trigger **diferido**, no endureciendo la
+política ni comprobándolo en la Server Action. Diferido porque transferir la propiedad obliga a pasar
+por un estado intermedio sin Owner, y un trigger inmediato lo haría imposible para siempre.
+
+---
+
 ## Comandos
 
 ```bash
 npx supabase start     # instancia local (Docker)
-npm run db:reset       # reaplica las 15 migraciones desde cero (local)
+npm run db:reset       # reaplica las 16 migraciones desde cero (local)
 npm run seed:local     # datos de desarrollo en local
 npm run seed           # datos de desarrollo en el proyecto de .env.local
-npm run test:db        # 254 pruebas de base de datos (crea 5.000 boletas de volumen)
+npm run test:db        # 266 pruebas de base de datos (crea 5.000 boletas de volumen)
 npm run test:e2e       # 142 pruebas end-to-end (Playwright)
 npm run verify         # typecheck + lint + unitarias + build
 npm run dev            # servidor de desarrollo (segun .env.local)

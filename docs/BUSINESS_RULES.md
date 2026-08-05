@@ -46,6 +46,14 @@
 | BR-U06 | Desactivar a un usuario no borra sus datos históricos: sus boletas, clientes y pagos permanecen. | S, D | 3 |
 | BR-U07 | Un vendedor nunca accede a información de otro vendedor por UI, URL, ID manipulado, request directo, API o cliente Supabase. | S, D | 2 |
 | BR-U08 | El campo teléfono es obligatorio para todo usuario; el alias es opcional. | C, S, D | 3 |
+| BR-U09 | Una organización tiene **siempre** un Owner activo: nadie, ni el propio Owner, puede dejarla sin propietario. | D | **9** |
+
+**BR-U09 nació de un hueco real (A-02, I-025).** El índice `memberships_one_owner_per_org` garantiza
+«como máximo un Owner», nunca «al menos uno», así que hasta la Fase 9 un Owner podía degradarse o
+desactivarse a sí mismo con una llamada directa a PostgREST y dejar la organización **sin
+propietario y sin forma de repararlo desde la aplicación** — el ex-Owner deja de ser staff y un Admin
+no puede ascender a nadie a Owner (BR-U03). Lo cierra el trigger diferido de la migración `0016`
+(D-071). Es **diferido** para que transferir la propiedad en una sola transacción siga siendo posible.
 
 ---
 

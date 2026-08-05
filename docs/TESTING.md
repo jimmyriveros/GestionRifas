@@ -88,7 +88,7 @@ para poder ir directo a la prueba en vez de buscarla.
 | 1 | Login y redirección por rol | BR-A01, BR-A02 | `e2e/security.spec.ts` | **7** |
 | 2 | Bloqueo de usuarios inactivos | BR-A04, BR-A05 | `e2e/security.spec.ts` | **7** |
 | 3 | Aislamiento entre organizaciones | BR-O02, BR-O03 | `db/rls-isolation.test.ts` | 2 |
-| 4 | Aislamiento entre vendedores | BR-U07 | `db/rls-isolation.test.ts`, `db/seller-isolation.test.ts` | 2 |
+| 4 | Aislamiento entre vendedores | BR-U07 | `db/rls-isolation.test.ts`, `db/seller-isolation.test.ts`, `db/audit-phase9.test.ts` (cobranza, **ambas direcciones**) | 2 · **9** |
 | 5 | Creación de rifas | BR-R04, BR-R07 | `e2e/owner-raffles.spec.ts` | 3 |
 | 6 | Creación masiva de boletas | BR-N10 | `e2e/owner-bulk.spec.ts` | 3 |
 | 7 | Límite de cuatro dígitos | BR-N02 | `unit/schemas.test.ts`, `db/tickets-numbering.test.ts` | 2 |
@@ -123,6 +123,20 @@ Tres filas se daban por cubiertas y **no lo estaban**:
 
 Es la razón de ser de una fase de endurecimiento. Una matriz que se marca sola a sí misma como
 cubierta no prueba nada; hay que ir fila por fila hasta el archivo.
+
+### 3.0.b Lo que la Fase 9 encontró al reauditarla
+
+Esta vez las 25 filas apuntan a pruebas que existen y comprueban lo que dicen. Aparecieron dos
+debilidades **en las pruebas mismas**, no en el producto (`AUDIT_REPORT.md` A-01 y A-03):
+
+| Fila | Qué fallaba | Corrección |
+|---|---|---|
+| 25 | `server-actions-guard.test.ts` recorría `features/<módulo>/actions.ts` a **un solo nivel**: 6 de las 28 acciones —las de `tickets/assign`, `tickets/bulk` y `tickets/seller`— nunca se analizaban. Las 6 tenían su guarda; lo que faltaba era la red | Recorrido recursivo, mínimo elevado de 15 a 28, y una prueba que compara la lista analizada contra el listado real de archivos |
+| 4 | El aislamiento de **cobranza** entre vendedores solo se probaba en la dirección débil: como el seed deja a `vendedor2` sin pagos, «el total de vendedor1» y «el total de la organización» son el mismo número, y esa igualdad no distingue filtrado de no filtrado | `F9-02` monta el escenario con pagos en ambos y añade la aserción que faltaba: el total propio es **estrictamente menor** que el de la organización |
+
+**Cómo se comprobó que la corrección de la fila 25 sirve:** inyectando temporalmente una acción sin
+guarda en `tickets/assign/actions.ts`. Con la versión anterior habría pasado inadvertida; con la
+corregida, falla. Una prueba que nunca se ha visto fallar no es una prueba: es una esperanza.
 
 ### 3.1 Dos trampas al escribir pruebas E2E de esta aplicación (Fase 6)
 
@@ -237,6 +251,25 @@ El seed es idempotente.
 ejecuciones posteriores en vez de acumularlas— y está en borrador para que ninguna pantalla ni
 ninguna prueba la confunda con la rifa activa. Aun así, deja la base distinta de como la dejó el
 seed: **`db:reset` + `seed:local` antes de `test:e2e`**.
+
+### 6.1 Una asimetría del seed de la que dependen dos pruebas (Fase 9)
+
+**`vendedor2` no tiene ningún pago.** Los 36 pagos de «Rifas Demo» son de `vendedor1`. Dos pruebas
+dependen de ese equilibrio en direcciones opuestas:
+
+| Prueba | Qué asume |
+|---|---|
+| `F6-04` | Que `vendedor2` ve **cero** pagos y un desglose diario **vacío** |
+| `F9-02` | Que puede darle un pago a `vendedor2` y **devolver el seed exactamente a su estado** |
+
+Por eso `F9-02` no anula su pago de prueba, lo **borra**: un pago anulado sigue apareciendo en
+`report_payments_by_day` con su `voided_amount`, y `F6-04` fallaría. El borrado va en una sola
+transacción (asignaciones y pago) con la conexión de superusuario que las pruebas ya usan para leer
+la verdad de referencia — `DELETE` está revocado para la aplicación (`0010`) precisamente para que
+esto solo sea posible ahí.
+
+Quien toque el seed o el orden de los archivos debe tener esto presente. Se comprueba solo: ejecutar
+`npm run test:db` **dos veces seguidas sin resembrar** debe dar 266 ✅ las dos veces.
 
 ---
 

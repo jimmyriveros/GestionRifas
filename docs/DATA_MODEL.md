@@ -173,11 +173,22 @@ ALTER TABLE memberships ADD CONSTRAINT memberships_org_profile_key
 ALTER TABLE memberships ADD CONSTRAINT memberships_profile_org_key
   UNIQUE (profile_id, organization_id);
 
--- Exactamente un Owner activo por organización
+-- COMO MÁXIMO un Owner activo por organización.
+-- Un índice único no puede exigir «al menos una fila»: ver más abajo.
 CREATE UNIQUE INDEX memberships_one_owner_per_org
   ON memberships (organization_id)
   WHERE role = 'owner' AND is_active;
 ```
+
+⚠️ **Este índice garantiza «como máximo uno», no «exactamente uno».** Durante siete fases esta
+sección decía «exactamente un Owner activo», y el resto del modelo lo daba por cierto — hasta que la
+auditoría de la Fase 9 comprobó que un Owner podía degradarse o desactivarse a sí mismo y dejar la
+organización sin propietario, de forma irrecuperable desde la aplicación (A-02, I-025).
+
+La otra mitad la aporta el trigger diferido `memberships_require_active_owner` (`0016`, D-071), que
+rechaza al COMMIT cualquier cambio de `role` o `is_active` que deje la organización sin Owner activo.
+**Las dos piezas juntas** —índice para el techo, trigger para el suelo— son las que hacen cierto
+«exactamente uno». ⚠️ `0016` está aplicada solo en local: ver `AUDIT_REPORT.md` §8.1.
 
 **Acceso efectivo** = `profiles.is_active` **AND** `memberships.is_active` **AND**
 `organizations.is_active`. Cualquiera de los tres en `false` bloquea el ingreso y la operación.
@@ -531,7 +542,16 @@ pase el id de otro obtiene ceros (prueba F6-04).
 | `recalc_ticket_paid_amount` | `payment_allocations` | `AFTER INSERT/UPDATE/DELETE` | Recalcula `tickets.paid_amount` |
 | `recalc_on_payment_void` | `payments` | `AFTER UPDATE OF voided_at` | Recalcula las boletas afectadas |
 | `payments_balance_check` | `payments`, `payment_allocations` | `CONSTRAINT … DEFERRABLE` | Cuadre suma = total |
+| `memberships_require_active_owner` | `memberships` | `CONSTRAINT … DEFERRABLE`, `AFTER UPDATE OF role, is_active` | La organización nunca queda sin Owner activo (Fase 9, `0016`, D-071) |
 | `audit_*` | tablas críticas | `AFTER INSERT/UPDATE` | Escribe en `audit_logs` |
+
+**Por qué dos de ellos son diferidos.** `payments_balance_check` y `memberships_require_active_owner`
+validan un estado que solo tiene sentido al final de la operación: un pago se escribe antes que sus
+asignaciones, y transferir la propiedad obliga a degradar a un Owner antes de ascender al siguiente
+—el índice único `memberships_one_owner_per_org` impide que existan dos a la vez—. Comprobarlos de
+inmediato haría imposibles ambas operaciones legítimas. Diferidos, el estado intermedio existe dentro
+de la transacción y el descuido se sigue rechazando, porque PostgREST hace una petición por
+transacción.
 
 **Prevención de recursión:** los triggers de auditoría escriben en `audit_logs` mediante una función
 `SECURITY DEFINER` que no dispara triggers adicionales, y `audit_logs` no tiene triggers propios.

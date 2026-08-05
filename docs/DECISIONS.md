@@ -917,6 +917,37 @@ clientes reales.
 
 ---
 
+## D-071 — El «al menos un Owner» se garantiza con un trigger diferido, no con el índice único
+**Fase:** 9
+**Contexto.** La auditoría final encontró (A-02) que `memberships_one_owner_per_org` garantiza **como
+máximo** un Owner activo por organización, pero nunca garantizó **al menos uno**. Un Owner puede
+degradarse o desactivarse a sí mismo con una llamada directa a PostgREST —la política
+`memberships_update_staff` lo permite porque el rol resultante ya no es `owner`— y el estado es
+irrecuperable desde la aplicación: el ex-Owner deja de ser staff y un Admin no puede ascender a nadie
+a Owner (BR-U03). Reproducido y confirmado en local: quedan **0** Owners activos y solo `service_role`
+puede repararlo.
+**Decisión.** Migración `0016`: un *constraint trigger* `DEFERRABLE INITIALLY DEFERRED` sobre
+`memberships`, disparado `after update of role, is_active`, que rechaza al COMMIT cualquier cambio que
+deje la organización sin Owner activo.
+**Por qué diferido.** Transferir la propiedad obliga a pasar por un estado intermedio sin Owner: el
+índice único impide que existan dos Owners activos a la vez, así que hay que degradar a uno **antes**
+de ascender al otro. Un trigger inmediato haría la transferencia imposible para siempre. Diferirlo la
+permite dentro de **una** transacción y sigue rechazando el descuido, porque PostgREST ejecuta una
+petición por transacción. Es el mismo mecanismo que `check_payment_balance` (D-012).
+**Alternativas.** (a) Endurecer la política `memberships_update_staff` para que un Owner no pueda
+tocar su propia fila (descartada: dejaría al Owner sin poder corregir su propio teléfono o nombre, y
+no cubre el caso de desactivación desde otra ruta). (b) Comprobarlo solo en la Server Action
+(descartada: el frontend no es una frontera de seguridad, `CLAUDE.md` §26, y el hallazgo se reprodujo
+precisamente saltándose la interfaz). (c) Convertir el índice parcial en algo que exija exactamente
+uno (descartada: un índice no puede expresar «al menos una fila»).
+**Consecuencia.** Un Owner ya no puede quedarse sin organización por accidente. La transferencia de
+propiedad —fuera del MVP como interfaz, BR-U04— sigue siendo posible desde un script o una RPC que
+haga las dos actualizaciones en la misma transacción. Cubierto por `F9-01` en
+`tests/db/audit-phase9.test.ts`, incluida la comprobación de que la transferencia en una transacción
+**sí** funciona.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

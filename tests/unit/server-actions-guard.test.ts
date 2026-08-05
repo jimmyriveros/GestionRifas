@@ -48,24 +48,41 @@ const SIN_GUARDA_JUSTIFICADA: Record<string, string> = {
 
 type Accion = { modulo: string; nombre: string; cuerpo: string }
 
+/**
+ * Todos los `<nombre>.ts` bajo `src/features`, a CUALQUIER profundidad.
+ *
+ * Recorrer un solo nivel dejaba fuera `tickets/assign/`, `tickets/bulk/` y
+ * `tickets/seller/`: 6 de las 28 acciones quedaban sin analizar, justo las que
+ * asignan boletas y las crean en lote (hallazgo A-01 de la Fase 9). Estaban
+ * bien protegidas, pero la red que impide olvidarse de la guarda no las cubria.
+ */
+function buscarArchivos(nombre: string, dir = FEATURES_DIR): string[] {
+  const encontrados: string[] = []
+  for (const entrada of readdirSync(dir, { withFileTypes: true })) {
+    const ruta = join(dir, entrada.name)
+    if (entrada.isDirectory()) encontrados.push(...buscarArchivos(nombre, ruta))
+    else if (entrada.name === nombre) encontrados.push(ruta)
+  }
+  return encontrados
+}
+
+/** Identifica el modulo por su ruta relativa: `tickets/bulk`, no solo `tickets`. */
+function moduloDe(archivo: string): string {
+  return archivo
+    .slice(FEATURES_DIR.length + 1)
+    .replace(/\\/g, '/')
+    .replace(/\/actions\.ts$/, '')
+}
+
 /** Extrae cada Server Action exportada con su cuerpo. */
 function leerAcciones(): Accion[] {
   const acciones: Accion[] = []
 
-  for (const feature of readdirSync(FEATURES_DIR, { withFileTypes: true })) {
-    if (!feature.isDirectory()) continue
+  for (const archivo of buscarArchivos('actions.ts')) {
+    const modulo = moduloDe(archivo)
+    const fuente = readFileSync(archivo, 'utf8')
 
-    const archivo = join(FEATURES_DIR, feature.name, 'actions.ts')
-    let fuente: string
-    try {
-      fuente = readFileSync(archivo, 'utf8')
-    } catch {
-      continue // Un modulo sin acciones no tiene por que tener el archivo.
-    }
-
-    expect(fuente.startsWith("'use server'"), `${feature.name}/actions.ts sin 'use server'`).toBe(
-      true,
-    )
+    expect(fuente.startsWith("'use server'"), `${modulo}/actions.ts sin 'use server'`).toBe(true)
 
     const regex = /export async function (\w+)\s*\(/g
     const posiciones: { nombre: string; desde: number }[] = []
@@ -77,7 +94,7 @@ function leerAcciones(): Accion[] {
     posiciones.forEach((posicion, indice) => {
       const hasta = posiciones[indice + 1]?.desde ?? fuente.length
       acciones.push({
-        modulo: feature.name,
+        modulo,
         nombre: posicion.nombre,
         cuerpo: fuente.slice(posicion.desde, hasta),
       })
@@ -93,7 +110,20 @@ describe('F7-25 toda Server Action se autoriza a si misma', () => {
   it('se encontraron acciones que analizar', () => {
     // Si un cambio de estructura dejara la lista vacia, las comprobaciones de
     // abajo pasarian sin mirar nada. Esto lo impide.
-    expect(ACCIONES.length).toBeGreaterThanOrEqual(15)
+    expect(ACCIONES.length).toBeGreaterThanOrEqual(28)
+  })
+
+  it('se analizan TODOS los actions.ts, tambien los anidados (A-01)', () => {
+    // La version anterior leia solo `features/<modulo>/actions.ts` y se dejaba
+    // fuera los tres modulos anidados de boletas. Comparar contra el listado
+    // recursivo impide que el descuido vuelva.
+    const modulos = [...new Set(ACCIONES.map((accion) => accion.modulo))].sort()
+    const archivos = buscarArchivos('actions.ts').map(moduloDe).sort()
+
+    expect(modulos).toEqual(archivos)
+    expect(modulos).toContain('tickets/assign')
+    expect(modulos).toContain('tickets/bulk')
+    expect(modulos).toContain('tickets/seller')
   })
 
   it('ninguna accion de negocio se salta `authorizeAction`', () => {
@@ -142,25 +172,18 @@ describe('F7-25 toda Server Action se autoriza a si misma', () => {
     expect(nombres.length).toBe(5)
   })
 
-  it('ninguna accion recibe `organization_id` o `seller_id` del cliente', () => {
-    // docs/SECURITY.md §5: se derivan de la sesion en el servidor. Si un esquema
-    // Zod los aceptara, un vendedor podria escribir en otra organizacion.
-    const schemasDir = readdirSync(FEATURES_DIR, { withFileTypes: true })
-      .filter((entrada) => entrada.isDirectory())
-      .map((entrada) => join(FEATURES_DIR, entrada.name, 'schemas.ts'))
-
-    const sospechosos: string[] = []
-    for (const archivo of schemasDir) {
-      let fuente: string
-      try {
-        fuente = readFileSync(archivo, 'utf8')
-      } catch {
-        continue
-      }
-      if (/\b(organizationId|organization_id)\s*:/.test(fuente)) {
-        sospechosos.push(archivo)
-      }
-    }
+  it('ningun esquema acepta `organization_id` del cliente', () => {
+    // docs/SECURITY.md §5: la organizacion se deriva de la sesion en el
+    // servidor. Si un esquema Zod la aceptara, un vendedor podria intentar
+    // escribir en otra organizacion.
+    //
+    // `sellerId` SI viaja desde el cliente y es correcto que lo haga: el
+    // personal elige a que vendedor asigna una boleta. No es un control de
+    // seguridad — lo valida la FK compuesta contra `memberships(profile_id,
+    // organization_id)`, comprobado en Q-01 y Q-03 de la Fase 9 (A-05).
+    const sospechosos = buscarArchivos('schemas.ts').filter((archivo) =>
+      /\b(organizationId|organization_id)\s*:/.test(readFileSync(archivo, 'utf8')),
+    )
 
     expect(sospechosos, 'esquemas que aceptan organizationId del cliente').toEqual([])
   })

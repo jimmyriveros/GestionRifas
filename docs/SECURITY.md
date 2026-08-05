@@ -89,6 +89,11 @@ Acciones exclusivas del Owner (BR-U02, BR-U03, BR-U04): eliminar o desactivar al
 rol `owner`, transferir la propiedad, editar la configuración de la organización y reabrir rifas
 cerradas.
 
+**Lo que ni siquiera el Owner puede hacer (BR-U09, desde la Fase 9).** Dejar su organización sin
+Owner activo. La política permitía que se degradara o se desactivara a sí mismo, y el resultado era
+irrecuperable desde la aplicación: nadie más puede asignar el rol `owner`. Lo impide el trigger
+diferido `memberships_require_active_owner` (`0016`, D-071). Ver `AUDIT_REPORT.md` A-02.
+
 ---
 
 ## 3. Autenticación y sesión
@@ -431,6 +436,8 @@ Controles:
 | T13 | Fuerza bruta de contraseñas | Intentos repetidos en `/login` | Límites de Supabase Auth + limitación de intentos en la aplicación (Fase 7) | Prueba manual |
 | T14 | Mensajes de error que revelan estructura | Error de PostgreSQL mostrado tal cual | `mapPgError` traduce a mensajes genéricos en español | Revisión de UI |
 | T15 | Enumeración de recursos | Respuestas distintas para "no existe" y "sin permiso" | RLS hace que ambos casos devuelvan vacío | Prueba de BD |
+| T16 | **Organización sin propietario** | El Owner se degrada o se desactiva a sí mismo con una llamada directa a PostgREST; nadie puede restaurarlo después | Trigger diferido `memberships_require_active_owner` (`0016`) | `F9-01` en `db/audit-phase9.test.ts`. **Encontrado por la auditoría de la Fase 9 (A-02), no por revisión de código** |
+| T17 | Server Action nueva sin guarda | Alguien añade una acción y olvida `authorizeAction` | Prueba estructural que recorre **recursivamente** `src/features` y falla sola | `unit/server-actions-guard.test.ts`. Su recorrido a un solo nivel dejaba fuera 6 de 28 acciones hasta la Fase 9 (A-01) |
 
 ---
 
