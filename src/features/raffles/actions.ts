@@ -79,7 +79,7 @@ export async function updateRaffle(input: unknown): Promise<ActionResult> {
   // se reescriben. Para corregirla, primero hay que reabrirla (solo el Owner).
   if (current.status === 'closed' || current.status === 'cancelled') {
     return {
-      error: 'La rifa esta cerrada o anulada y no se puede editar. Reabrela antes de modificarla.',
+      error: 'La rifa está cerrada o anulada y no se puede editar. Reábrela antes de modificarla.',
     }
   }
 
@@ -127,14 +127,14 @@ export async function changeRaffleStatus(input: unknown): Promise<ActionResult> 
 
   // BR-R03: transiciones permitidas.
   if (!RAFFLE_STATUS_TRANSITIONS[current.status].includes(status)) {
-    return { error: 'Ese cambio de estado no esta permitido para la rifa.' }
+    return { error: 'Ese cambio de estado no está permitido para la rifa.' }
   }
 
   // BR-R03: reabrir una rifa cerrada es exclusivo del Owner. La base de datos
   // no distingue owner de admin al actualizar `raffles` (ambos son staff), asi
   // que esta regla vive necesariamente aqui.
   if (isOwnerOnlyRaffleTransition(current.status, status) && auth.membership.role !== 'owner') {
-    return { error: 'Solo el dueno de la organizacion puede reabrir una rifa cerrada.' }
+    return { error: 'Solo el dueño de la organización puede reabrir una rifa cerrada.' }
   }
 
   const { error } = await supabase

@@ -108,8 +108,8 @@ export function BulkTicketCreator({
       const found = await checkAgainstDatabase()
       toast[found.size === 0 ? 'success' : 'warning'](
         found.size === 0
-          ? 'Ninguna combinacion existe todavia en la rifa.'
-          : `${found.size} combinacion(es) ya existen en la rifa.`,
+          ? 'Ninguna combinación existe todavía en la rifa.'
+          : `${found.size} combinación(es) ya existen en la rifa.`,
       )
     })
   }
@@ -178,7 +178,7 @@ export function BulkTicketCreator({
       setRows(rows.filter((row) => conflicts.has(comboKey(row.dailyNumber, row.weeklyNumber))))
       setExistingCombos(conflicts)
       toast.warning(
-        `Se crearon ${inserted} boleta(s). Quedaron ${conflicts.size} con la combinacion ya usada.`,
+        `Se crearon ${inserted} boleta(s). Quedaron ${conflicts.size} con la combinación ya usada.`,
       )
       router.refresh()
     })
@@ -250,7 +250,7 @@ export function BulkTicketCreator({
       {rows.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           Indica cuantas boletas necesitas y genera las filas. Puedes dejar filas vacias: se guardan
-          como borrador para completarlas despues.
+          como borrador para completarlas después.
         </p>
       ) : (
         <>
@@ -300,8 +300,8 @@ export function BulkTicketCreator({
           <div className="rounded-lg border">
             <div className="text-muted-foreground grid grid-cols-[3rem_1fr_1fr] gap-2 border-b px-3 py-2 text-xs font-medium">
               <span>#</span>
-              <span>Numero diario</span>
-              <span>Numero semanal</span>
+              <span>Número diario</span>
+              <span>Número semanal</span>
             </div>
             <div ref={scrollRef} className="h-[28rem] overflow-y-auto">
               <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
@@ -333,7 +333,7 @@ export function BulkTicketCreator({
                       </span>
                       <div>
                         <TicketNumberInput
-                          aria-label={`Numero diario de la fila ${index + 1}`}
+                          aria-label={`Número diario de la fila ${index + 1}`}
                           aria-invalid={Boolean(validation?.dailyError)}
                           value={row.dailyNumber}
                           onChange={(value) => updateRow(index, { dailyNumber: value })}
@@ -345,7 +345,7 @@ export function BulkTicketCreator({
                       </div>
                       <div>
                         <TicketNumberInput
-                          aria-label={`Numero semanal de la fila ${index + 1}`}
+                          aria-label={`Número semanal de la fila ${index + 1}`}
                           aria-invalid={Boolean(validation?.weeklyError)}
                           value={row.weeklyNumber}
                           onChange={(value) => updateRow(index, { weeklyNumber: value })}

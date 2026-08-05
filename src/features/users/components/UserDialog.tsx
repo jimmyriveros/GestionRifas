@@ -69,8 +69,8 @@ export function UserDialog({ open, onOpenChange, role, user }: UserDialogProps) 
           <DialogTitle>{isEdit ? 'Editar datos' : `Nuevo ${roleLabel}`}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? 'El correo no se puede cambiar desde aqui.'
-              : 'Se enviara una invitacion por correo. La contrasena la define la propia persona.'}
+              ? 'El correo no se puede cambiar desde aquí.'
+              : 'Se enviará una invitación por correo. La contraseña la define la propia persona.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -121,7 +121,7 @@ function UserDialogForm({
       toast.success(
         user
           ? 'Datos actualizados.'
-          : `Invitacion enviada a ${values.email}. La persona definira su contrasena desde el enlace.`,
+          : `Invitación enviada a ${values.email}. La persona definirá su contraseña desde el enlace.`,
       )
       onDone()
       router.refresh()
@@ -173,7 +173,7 @@ function UserDialogForm({
           name="phone"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Telefono</FormLabel>
+              <FormLabel>Teléfono</FormLabel>
               <FormControl>
                 <Input
                   type="tel"
@@ -194,7 +194,7 @@ function UserDialogForm({
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Correo electronico</FormLabel>
+              <FormLabel>Correo electrónico</FormLabel>
               <FormControl>
                 <Input
                   type="email"
@@ -205,7 +205,7 @@ function UserDialogForm({
                 />
               </FormControl>
               {!isEdit ? (
-                <FormDescription>A esta direccion llegara la invitacion.</FormDescription>
+                <FormDescription>A esta dirección llegará la invitación.</FormDescription>
               ) : null}
               <FormMessage />
             </FormItem>
@@ -217,7 +217,7 @@ function UserDialogForm({
             Cancelar
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Enviar invitacion'}
+            {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Enviar invitación'}
           </Button>
         </DialogFooter>
       </form>

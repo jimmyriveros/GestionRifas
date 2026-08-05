@@ -271,7 +271,7 @@ type ClientBalanceRow = {
 }
 
 /**
- * Clientes que todavia deben dinero, del que mas debe al que menos.
+ * Clientes que todavia deben dinero, del que más debe al que menos.
  *
  * Incluye a los ARCHIVADOS que tengan saldo: archivar a un cliente lo saca de
  * los selectores (BR-C07), no le perdona la deuda. Excluirlos aqui haria que la

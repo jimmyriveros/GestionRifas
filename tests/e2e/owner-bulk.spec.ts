@@ -24,21 +24,21 @@ async function generateRows(page: Page, quantity: number) {
   await expect(page.getByText(`${quantity} fila(s).`)).toBeVisible()
 }
 
-test.describe('Creacion masiva', () => {
+test.describe('Creación masiva', () => {
   test.beforeEach(async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
   })
 
-  test('crea un lote pequeno con numeros validos (prueba 10)', async ({ page }) => {
+  test('crea un lote pequeno con números válidos (prueba 10)', async ({ page }) => {
     await generateRows(page, 3)
 
     const numbers = [randomTicketNumbers(), randomTicketNumbers(), randomTicketNumbers()]
     for (let index = 0; index < numbers.length; index += 1) {
       await page
-        .getByLabel(`Numero diario de la fila ${index + 1}`, { exact: true })
+        .getByLabel(`Número diario de la fila ${index + 1}`, { exact: true })
         .fill(numbers[index]!.daily)
       await page
-        .getByLabel(`Numero semanal de la fila ${index + 1}`, { exact: true })
+        .getByLabel(`Número semanal de la fila ${index + 1}`, { exact: true })
         .fill(numbers[index]!.weekly)
     }
 
@@ -63,19 +63,19 @@ test.describe('Creacion masiva', () => {
     await expect(page.getByText('Borrador').first()).toBeVisible()
   })
 
-  test('exige los dos numeros o ninguno (BR-N09)', async ({ page }) => {
+  test('exige los dos números o ninguno (BR-N09)', async ({ page }) => {
     await generateRows(page, 1)
 
-    await page.getByLabel('Numero diario de la fila 1', { exact: true }).fill('1234')
-    await expect(page.getByText(/Completa los dos numeros o deja la fila vacia/)).toBeVisible()
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill('1234')
+    await expect(page.getByText(/Completa los dos números o deja la fila vacía/)).toBeVisible()
     await expect(page.getByText('1 con error')).toBeVisible()
     await expect(page.getByRole('button', { name: /Guardar 1 boleta/ })).toBeDisabled()
 
-    await page.getByLabel('Numero semanal de la fila 1', { exact: true }).fill('5678')
+    await page.getByLabel('Número semanal de la fila 1', { exact: true }).fill('5678')
     await expect(page.getByText('Sin errores')).toBeVisible()
   })
 
-  test('detecta una combinacion repetida dentro del formulario (prueba 8, BR-N04)', async ({
+  test('detecta una combinación repetida dentro del formulario (prueba 8, BR-N04)', async ({
     page,
   }) => {
     await generateRows(page, 2)
@@ -83,18 +83,18 @@ test.describe('Creacion masiva', () => {
 
     for (const index of [1, 2]) {
       await page
-        .getByLabel(`Numero diario de la fila ${index}`, { exact: true })
+        .getByLabel(`Número diario de la fila ${index}`, { exact: true })
         .fill(numbers.daily)
       await page
-        .getByLabel(`Numero semanal de la fila ${index}`, { exact: true })
+        .getByLabel(`Número semanal de la fila ${index}`, { exact: true })
         .fill(numbers.weekly)
     }
 
-    await expect(page.getByText('Combinacion repetida en la fila 1.')).toBeVisible()
+    await expect(page.getByText('Combinación repetida en la fila 1.')).toBeVisible()
     await expect(page.getByRole('button', { name: /Guardar 2 boleta/ })).toBeDisabled()
   })
 
-  test('detecta una combinacion que ya existe en la base de datos (prueba 9, BR-N05)', async ({
+  test('detecta una combinación que ya existe en la base de datos (prueba 9, BR-N05)', async ({
     page,
   }) => {
     const numbers = randomTicketNumbers()
@@ -105,18 +105,18 @@ test.describe('Creacion masiva', () => {
     })
 
     await generateRows(page, 1)
-    await page.getByLabel('Numero diario de la fila 1', { exact: true }).fill(numbers.daily)
-    await page.getByLabel('Numero semanal de la fila 1', { exact: true }).fill(numbers.weekly)
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill(numbers.daily)
+    await page.getByLabel('Número semanal de la fila 1', { exact: true }).fill(numbers.weekly)
 
     await page.getByRole('button', { name: 'Verificar duplicados' }).click()
-    await expectToast(page, /1 combinacion\(es\) ya existen/)
-    await expect(page.getByText('Esa combinacion ya existe en esta rifa.')).toBeVisible()
+    await expectToast(page, /1 combinación\(es\) ya existen/)
+    await expect(page.getByText('Esa combinación ya existe en esta rifa.')).toBeVisible()
     await expect(page.getByRole('button', { name: /Guardar 1 boleta/ })).toBeDisabled()
   })
 
-  test('no permite mas de 4 digitos por campo (prueba 7)', async ({ page }) => {
+  test('no permite mas de 4 dígitos por campo (prueba 7)', async ({ page }) => {
     await generateRows(page, 1)
-    const daily = page.getByLabel('Numero diario de la fila 1', { exact: true })
+    const daily = page.getByLabel('Número diario de la fila 1', { exact: true })
     await daily.pressSequentially('98765')
     await expect(daily).toHaveValue('9876')
   })
@@ -129,14 +129,14 @@ test.describe('Creacion masiva', () => {
     const generation = Date.now() - started
 
     // Virtualizacion: solo se renderiza un punado de filas, nunca 1.000.
-    const rendered = await page.getByLabel(/Numero diario de la fila/).count()
+    const rendered = await page.getByLabel(/Número diario de la fila/).count()
     expect(rendered).toBeGreaterThan(0)
     expect(rendered).toBeLessThan(60)
 
     // La pagina sigue respondiendo: se puede escribir en la primera fila.
     const numbers = randomTicketNumbers()
-    await page.getByLabel('Numero diario de la fila 1', { exact: true }).fill(numbers.daily)
-    await page.getByLabel('Numero semanal de la fila 1', { exact: true }).fill(numbers.weekly)
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill(numbers.daily)
+    await page.getByLabel('Número semanal de la fila 1', { exact: true }).fill(numbers.weekly)
     await expect(page.getByText('Sin errores')).toBeVisible()
 
     expect(generation).toBeLessThan(30_000)

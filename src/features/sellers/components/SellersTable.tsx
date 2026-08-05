@@ -101,7 +101,7 @@ export function SellersTable({ sellers, currentRole, currentProfileId }: Sellers
       columns={columns}
       data={sellers}
       getRowId={(row) => row.profileId}
-      caption="Vendedores de la organizacion con sus indicadores"
+      caption="Vendedores de la organización con sus indicadores"
     />
   )
 }

@@ -22,7 +22,7 @@ export default async function NewSellerTicketsPage() {
         <EmptyState
           icon={<InfoIcon className="size-8" aria-hidden />}
           title="Ninguna rifa activa te permite crear boletas"
-          description="Es una decision de tu administrador, rifa por rifa. Pidele que te asigne boletas o que habilite la opcion."
+          description="Es una decisión de tu administrador, rifa por rifa. Pídele que te asigne boletas o que habilite la opción."
           action={
             <Button asChild variant="outline">
               <Link href="/seller/tickets">Volver a mis boletas</Link>
@@ -37,7 +37,7 @@ export default async function NewSellerTicketsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Crear boletas"
-        description="Escribe los dos numeros de cada boleta. Quedaran pendientes de aprobacion hasta que tu administrador las revise."
+        description="Escribe los dos números de cada boleta. Quedarán pendientes de aprobación hasta que tu administrador las revise."
       />
       <SellerTicketForm
         raffles={allowed.map((raffle) => ({

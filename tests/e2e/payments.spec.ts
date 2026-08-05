@@ -138,13 +138,13 @@ test.describe('Registro de abonos por el vendedor', () => {
 
     // Y al revés: repartir de mas tampoco pasa.
     await page.getByLabel(`Valor abonado a la boleta ${ticket.internalCode}`).fill('60000')
-    await expect(page.getByText(/de mas/)).toBeVisible()
+    await expect(page.getByText(/de más/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Registrar abono' })).toBeDisabled()
 
     expect((await ticketBalance(ticket.id)).paidAmount).toBe(0)
   })
 
-  test('el formulario previsualiza como quedara cada boleta', async ({ page }) => {
+  test('el formulario previsualiza como quedará cada boleta', async ({ page }) => {
     const { client, ticket } = await clientWithDebt('Previsualizador')
 
     await page.goto(`/seller/payments/new?clientId=${client.id}`)
@@ -180,8 +180,8 @@ test.describe('Registro de abonos por el vendedor', () => {
     await expect(page.getByText('$25.000').first()).toBeVisible()
   })
 
-  test('un vendedor no ve la accion de anular (prueba 9, BR-F10)', async ({ page }) => {
-    const { client } = await clientWithDebt('Sin anulacion')
+  test('un vendedor no ve la acción de anular (prueba 9, BR-F10)', async ({ page }) => {
+    const { client } = await clientWithDebt('Sin anulación')
 
     await page.goto(`/seller/payments/new?clientId=${client.id}`)
     await page.getByLabel('Valor del abono').fill('10000')
@@ -206,7 +206,7 @@ test.describe('Registro de abonos por el vendedor', () => {
   })
 })
 
-test.describe('Anulacion de pagos por el personal', () => {
+test.describe('Anulación de pagos por el personal', () => {
   test('el Admin anula con motivo y el saldo se recalcula (prueba 8)', async ({ page }) => {
     const { client, ticket } = await clientWithDebt('Anulable')
 
@@ -230,14 +230,14 @@ test.describe('Anulacion de pagos por el personal', () => {
     await page.getByRole('button', { name: 'Anular pago' }).click()
 
     // Motivo demasiado corto: no avanza.
-    await page.getByLabel('Motivo de la anulacion (obligatorio)').fill('ups')
-    await page.getByRole('button', { name: 'Confirmar anulacion' }).click()
+    await page.getByLabel('Motivo de la anulación (obligatorio)').fill('ups')
+    await page.getByRole('button', { name: 'Confirmar anulación' }).click()
     await expect(page.getByText('Explica el motivo con al menos 5 caracteres.')).toBeVisible()
 
     await page
-      .getByLabel('Motivo de la anulacion (obligatorio)')
+      .getByLabel('Motivo de la anulación (obligatorio)')
       .fill('El cheque fue devuelto por el banco')
-    await page.getByRole('button', { name: 'Confirmar anulacion' }).click()
+    await page.getByRole('button', { name: 'Confirmar anulación' }).click()
 
     await expectToast(page, /Pago anulado/)
 
@@ -266,9 +266,9 @@ test.describe('Anulacion de pagos por el personal', () => {
       .click()
     await page.getByRole('button', { name: 'Anular pago' }).click()
     await page
-      .getByLabel('Motivo de la anulacion (obligatorio)')
+      .getByLabel('Motivo de la anulación (obligatorio)')
       .fill('Se registro dos veces por error')
-    await page.getByRole('button', { name: 'Confirmar anulacion' }).click()
+    await page.getByRole('button', { name: 'Confirmar anulación' }).click()
     await expectToast(page, /Pago anulado/)
 
     // Sigue listado, marcado como anulado.
@@ -322,7 +322,7 @@ test.describe('Consulta global de pagos', () => {
     await expect(page).toHaveURL('/owner/payments')
   })
 
-  test('muestra los totales de cobranza de la organizacion', async ({ page }) => {
+  test('muestra los totales de cobranza de la organización', async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/payments')
 
@@ -351,7 +351,7 @@ test.describe('Proteccion de rutas de pagos (prueba 13)', () => {
     }
   })
 
-  test('sin sesion, los pagos redirigen al login', async ({ page }) => {
+  test('sin sesión, los pagos redirigen al login', async ({ page }) => {
     await page.context().clearCookies()
     await page.goto('/owner/payments')
     await expect(page).toHaveURL(/\/login/)

@@ -117,7 +117,7 @@ describe('validateAllocations: cuadre exacto (BR-F05)', () => {
       tickets,
     )
     expect(result.valid).toBe(false)
-    expect(result.error).toContain('de mas')
+    expect(result.error).toContain('de más')
   })
 
   it('rechaza un total de cero o negativo (BR-F03)', () => {

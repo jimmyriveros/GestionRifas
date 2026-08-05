@@ -9,7 +9,7 @@ export default function DeniedPage() {
       <ShieldAlertIcon className="text-muted-foreground size-12" aria-hidden="true" />
       <div>
         <h1 className="text-xl font-semibold">Acceso denegado</h1>
-        <p className="text-muted-foreground">No tienes permiso para ver esta pagina.</p>
+        <p className="text-muted-foreground">No tienes permiso para ver esta página.</p>
       </div>
       <Button asChild>
         <Link href="/">Ir a mi panel</Link>

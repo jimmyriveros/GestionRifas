@@ -37,7 +37,7 @@ reales).
 |---|---|
 | **I-024** — plan Free sin backups automáticos ni PITR | Subir a Supabase Pro o automatizar el respaldo externo. **Prerrequisito antes de operar con dinero o clientes reales** (`RUNBOOK.md` §5.3) |
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
-| **I-004** — `CLAUDE.md.txt` coexiste con `CLAUDE.md` | Autorizar el borrado del `.txt` |
+| **I-030** — los ~46 mensajes que lanza la base de datos siguen sin tildes | Autorizar una migración `0017` que reescriba esas funciones y aplicarla al proyecto real. Es lo único que quedó fuera de la revisión de textos del 2026-08-05 (D-073) |
 
 La última acción de ingeniería fue aplicar la migración `0016` al proyecto real (2026-08-05,
 autorizada explícitamente): cierra I-025 —un Owner podía dejar su organización sin propietario, de
@@ -179,6 +179,7 @@ No leas todo. Cuesta ~40k tokens y casi nunca hace falta.
 | Ver resultados de pruebas anteriores | `docs/TEST_RESULTS.md` |
 | Saber qué se auditó, qué se intentó romper y qué quedó aceptado | `docs/AUDIT_REPORT.md` |
 | Escribir pruebas end-to-end | `docs/TESTING.md` §E2E + `tests/e2e/fixtures.ts` |
+| **Escribir o cambiar cualquier texto que vea un usuario** | `docs/UX_COPY_GUIDELINES.md` — ya está en tu contexto: `CLAUDE.md` §35 la importa |
 
 El código cita las decisiones (`D-0xx`) y reglas (`BR-xxx`) que aplica: si un comentario dice
 `(D-039)`, busca solo esa entrada, no el documento entero.
@@ -356,3 +357,5 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | El seed falla con `AuthRetryableFetchError` (502) justo después de `db:reset` | GoTrue tarda más que Postgres en arrancar tras reiniciar los contenedores. Espera a que `curl http://127.0.0.1:54321/auth/v1/health` dé 200, o reintenta: el seed es idempotente | I-028 |
 | Una Server Action nueva en un módulo anidado parece no tener red de pruebas | Ya la tiene: desde la Fase 9 el recorrido de `server-actions-guard.test.ts` es recursivo | I-026 |
 | `F6-04` empieza a fallar después de tocar el seed o las pruebas de pagos | Depende de que `vendedor2` **no** tenga ningún pago. `F9-02` le crea uno y lo **borra** al terminar | TESTING §6.1 |
+| Cambias un texto de la interfaz y las E2E fallan pese a haber actualizado las cadenas | Las pruebas también lo buscan dentro de **expresiones regulares** (`/menú de usuario/i`, `/de más/`), que ningún reemplazo de cadenas encuentra. Búscalas aparte con `grep -oE "/[^/]*palabra[^/]*/i?"` | D-073 |
+| Un reemplazo masivo de textos rompe el `typecheck` con `Cannot find name` | El script confundió una línea de código con prosa y renombró un **identificador** (`numeros` → `números`). Pasó dos veces. Por eso el orden es corregir → `typecheck` → `lint` → unitarias → BD → E2E | D-073 · I-029 |

@@ -55,7 +55,7 @@ export default async function RaffleDetailPage({
           <CardTitle className="text-base">Datos de la rifa</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Codigo">
+          <Field label="Código">
             <span className="font-mono">{raffle.shortCode}</span>
           </Field>
           <Field label="Estado">
@@ -76,7 +76,7 @@ export default async function RaffleDetailPage({
           <MetricCard label="Total" value={raffle.ticketsTotal} />
           <MetricCard label="Disponibles" value={raffle.ticketsAvailable} />
           <MetricCard label="Asignadas" value={raffle.ticketsAssigned} />
-          <MetricCard label="Pendientes de aprobacion" value={raffle.ticketsPendingApproval} />
+          <MetricCard label="Pendientes de aprobación" value={raffle.ticketsPendingApproval} />
           <MetricCard label="Anuladas" value={raffle.ticketsCancelled} />
         </div>
       </div>

@@ -27,17 +27,17 @@ const TRANSITION_COPY: Record<RaffleStatus, { action: string; description: strin
   active: {
     action: 'Activar rifa',
     description:
-      'Una rifa activa admite creacion y asignacion de boletas. Podras cerrarla cuando termine.',
+      'Una rifa activa admite creación y asignación de boletas. Podrás cerrarla cuando termine.',
   },
   closed: {
     action: 'Cerrar rifa',
     description:
-      'Al cerrarla no se podran crear ni asignar mas boletas. Los pagos pendientes si podran seguir registrandose.',
+      'Al cerrarla no se podrán crear ni asignar más boletas. Los pagos pendientes sí podrán seguir registrándose.',
   },
   cancelled: {
     action: 'Anular rifa',
     description:
-      'Anular es definitivo: la rifa no podra reabrirse, ni admitir boletas ni pagos. Los datos historicos se conservan.',
+      'Anular es definitivo: la rifa no podrá reabrirse, ni admitir boletas ni pagos. Los datos históricos se conservan.',
   },
 }
 

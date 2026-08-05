@@ -160,7 +160,7 @@ export function ReportFilters({ report, raffles, sellers }: ReportFiltersProps) 
         {showMethod ? (
           <div className="space-y-1.5">
             <Label htmlFor="report-method" className="text-xs">
-              Metodo
+              Método
             </Label>
             <Select
               value={searchParams.get('method') ?? ALL}
@@ -168,10 +168,10 @@ export function ReportFilters({ report, raffles, sellers }: ReportFiltersProps) 
               disabled={isPending}
             >
               <SelectTrigger id="report-method" className="w-full">
-                <SelectValue placeholder="Todos los metodos" />
+                <SelectValue placeholder="Todos los métodos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>Todos los metodos</SelectItem>
+                <SelectItem value={ALL}>Todos los métodos</SelectItem>
                 {METHODS.map((method) => (
                   <SelectItem key={method} value={method}>
                     {PAYMENT_METHOD_LABELS[method]}

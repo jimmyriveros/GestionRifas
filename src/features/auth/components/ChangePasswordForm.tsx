@@ -36,7 +36,7 @@ export function ChangePasswordForm() {
         toast.error(result.error)
         return
       }
-      toast.success('Contrasena actualizada correctamente.')
+      toast.success('Contraseña actualizada correctamente.')
       form.reset()
     })
   }
@@ -49,7 +49,7 @@ export function ChangePasswordForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nueva contrasena</FormLabel>
+              <FormLabel>Nueva contraseña</FormLabel>
               <FormControl>
                 <Input
                   type="password"
@@ -67,7 +67,7 @@ export function ChangePasswordForm() {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirmar contrasena</FormLabel>
+              <FormLabel>Confirmar contraseña</FormLabel>
               <FormControl>
                 <Input
                   type="password"
@@ -81,7 +81,7 @@ export function ChangePasswordForm() {
           )}
         />
         <Button type="submit" disabled={isPending}>
-          {isPending ? 'Guardando...' : 'Cambiar contrasena'}
+          {isPending ? 'Guardando...' : 'Cambiar contraseña'}
         </Button>
       </form>
     </Form>

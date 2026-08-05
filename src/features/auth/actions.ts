@@ -50,7 +50,7 @@ export async function login(input: unknown): Promise<ActionResult> {
   const membership = await getActiveMembership()
   if (!membership) {
     await supabase.auth.signOut()
-    return { error: 'Tu cuenta esta inactiva. Contacta a tu administrador.' }
+    return { error: 'Tu cuenta está inactiva. Contacta a tu administrador.' }
   }
 
   // Entro bien: se le devuelve el cupo, para que unos fallos previos no lo
@@ -69,7 +69,7 @@ export async function logout(): Promise<never> {
 export async function requestPasswordReset(input: unknown): Promise<ActionResult> {
   const parsed = forgotPasswordSchema.safeParse(input)
   if (!parsed.success) {
-    return { error: 'Ingresa un correo valido.' }
+    return { error: 'Ingresa un correo válido.' }
   }
 
   // Cada intento envia un correo real. Al superar el limite se responde `ok`

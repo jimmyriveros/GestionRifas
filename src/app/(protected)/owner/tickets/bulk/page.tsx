@@ -55,7 +55,7 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
     <div className="space-y-6">
       <PageHeader
         title="Crear boletas en lote"
-        description={`Hasta ${BULK_TICKET_MAX} boletas por lote. Las filas sin numeros se guardan como borrador para completarlas despues.`}
+        description={`Hasta ${BULK_TICKET_MAX} boletas por lote. Las filas sin números se guardan como borrador para completarlas después.`}
       />
       <BulkTicketCreator
         raffles={openRaffles.map((raffle) => ({

@@ -93,7 +93,7 @@ export function PaymentFilters({ sellers }: { sellers?: Option[] }) {
 
         <div className="space-y-1.5">
           <Label htmlFor="filter-payment-method" className="text-xs">
-            Metodo
+            Método
           </Label>
           <Select
             value={searchParams.get('method') ?? ALL}
@@ -101,10 +101,10 @@ export function PaymentFilters({ sellers }: { sellers?: Option[] }) {
             disabled={isPending}
           >
             <SelectTrigger id="filter-payment-method" className="w-full">
-              <SelectValue placeholder="Todos los metodos" />
+              <SelectValue placeholder="Todos los métodos" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL}>Todos los metodos</SelectItem>
+              <SelectItem value={ALL}>Todos los métodos</SelectItem>
               {METHODS.map((method) => (
                 <SelectItem key={method} value={method}>
                   {PAYMENT_METHOD_LABELS[method]}

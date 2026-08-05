@@ -55,7 +55,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
     <div className="space-y-6">
       <PageHeader
         title="Boletas"
-        description="Todas las boletas de la organizacion, con su vendedor, su cliente y su estado."
+        description="Todas las boletas de la organización, con su vendedor, su cliente y su estado."
         actions={
           <>
             <Button asChild variant="outline">
@@ -85,10 +85,10 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
       {rows.length === 0 ? (
         <EmptyState
           icon={<TicketIcon className="size-8" aria-hidden />}
-          title={hasFilters ? 'Ninguna boleta coincide con los filtros' : 'Todavia no hay boletas'}
+          title={hasFilters ? 'Ninguna boleta coincide con los filtros' : 'Todavía no hay boletas'}
           description={
             hasFilters
-              ? 'Prueba a limpiar los filtros o a buscar por otro numero.'
+              ? 'Prueba a limpiar los filtros o a buscar por otro número.'
               : 'Crea boletas en lote para repartirlas entre tus vendedores.'
           }
           action={

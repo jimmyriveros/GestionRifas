@@ -97,7 +97,7 @@ export function PaymentsTable({
       },
       {
         accessorKey: 'paymentMethod',
-        header: 'Metodo',
+        header: 'Método',
         meta: { hideOnMobile: true },
         cell: ({ row }) => (
           <span className="text-sm">{PAYMENT_METHOD_LABELS[row.original.paymentMethod]}</span>

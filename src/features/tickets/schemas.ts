@@ -14,7 +14,7 @@ import { BULK_TICKET_MAX, BULK_TICKET_MIN, TICKET_NUMBER_REGEX } from '@/lib/con
 export const ticketNumberSchema = z
   .string()
   .trim()
-  .regex(TICKET_NUMBER_REGEX, 'Debe tener entre 1 y 4 digitos, sin letras ni simbolos.')
+  .regex(TICKET_NUMBER_REGEX, 'Debe tener entre 1 y 4 dígitos, sin letras ni símbolos.')
 
 /** Numero que puede quedar vacio: solo valido en boletas en borrador (BR-N09). */
 export const optionalTicketNumberSchema = z.union([z.literal(''), ticketNumberSchema])
@@ -38,14 +38,14 @@ export const createTicketSchema = z.object({
 export type CreateTicketInput = z.infer<typeof createTicketSchema>
 
 export const updateTicketNumbersSchema = z.object({
-  ticketId: z.uuid('Boleta no valida.'),
+  ticketId: z.uuid('Boleta no válida.'),
   dailyNumber: ticketNumberSchema,
   weeklyNumber: ticketNumberSchema,
 })
 export type UpdateTicketNumbersInput = z.infer<typeof updateTicketNumbersSchema>
 
 export const reassignTicketSellerSchema = z.object({
-  ticketId: z.uuid('Boleta no valida.'),
+  ticketId: z.uuid('Boleta no válida.'),
   sellerId: z.uuid('Selecciona un vendedor.'),
 })
 export type ReassignTicketSellerInput = z.infer<typeof reassignTicketSellerSchema>
@@ -53,7 +53,7 @@ export type ReassignTicketSellerInput = z.infer<typeof reassignTicketSellerSchem
 // El motivo minimo de 5 caracteres lo exige tambien cancel_ticket en la base de
 // datos; se repite aqui para dar el mensaje antes de ir al servidor.
 export const cancelTicketSchema = z.object({
-  ticketId: z.uuid('Boleta no valida.'),
+  ticketId: z.uuid('Boleta no válida.'),
   reason: z
     .string()
     .trim()
@@ -83,7 +83,7 @@ export const bulkCreateTicketsSchema = z.object({
   rows: z
     .array(bulkTicketRowSchema)
     .min(BULK_TICKET_MIN, 'Indica al menos una boleta.')
-    .max(BULK_TICKET_MAX, `No se pueden crear mas de ${BULK_TICKET_MAX} boletas por lote.`),
+    .max(BULK_TICKET_MAX, `No se pueden crear más de ${BULK_TICKET_MAX} boletas por lote.`),
 })
 export type BulkCreateTicketsInput = z.infer<typeof bulkCreateTicketsSchema>
 
@@ -93,7 +93,7 @@ export const bulkGenerateSchema = z.object({
   quantity: z
     .number()
     .int('Indica una cantidad entera.')
-    .min(BULK_TICKET_MIN, 'La cantidad minima es 1.')
+    .min(BULK_TICKET_MIN, 'La cantidad mínima es 1.')
     .max(BULK_TICKET_MAX, `La cantidad maxima es ${BULK_TICKET_MAX}.`),
 })
 export type BulkGenerateInput = z.infer<typeof bulkGenerateSchema>

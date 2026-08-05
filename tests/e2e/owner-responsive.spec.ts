@@ -58,7 +58,7 @@ test.describe('Portal administrativo en movil', () => {
     await page.goto('/owner/tickets')
 
     // El codigo y los numeros se ven siempre; el vendedor solo en escritorio.
-    await expect(page.getByRole('columnheader', { name: 'Codigo' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Código' })).toBeVisible()
     await expect(page.getByRole('columnheader', { name: 'Diario / Semanal' })).toBeVisible()
     await expect(page.getByRole('columnheader', { name: 'Vendedor' })).toBeHidden()
   })
@@ -66,7 +66,7 @@ test.describe('Portal administrativo en movil', () => {
   test('el formulario de boleta es usable con teclado numerico', async ({ page }) => {
     await page.goto('/owner/tickets/new')
 
-    const daily = page.getByLabel('Numero diario')
+    const daily = page.getByLabel('Número diario')
     await expect(daily).toHaveAttribute('inputmode', 'numeric')
     await daily.fill('0007')
     await expect(daily).toHaveValue('0007')

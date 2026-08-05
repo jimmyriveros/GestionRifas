@@ -20,8 +20,8 @@ export const ACCOUNTS = {
 
 export async function loginAs(page: Page, email: string): Promise<void> {
   await page.goto('/login')
-  await page.getByLabel('Correo electronico').fill(email)
-  await page.getByLabel('Contrasena').fill(SEED_PASSWORD)
+  await page.getByLabel('Correo electrónico').fill(email)
+  await page.getByLabel('Contraseña').fill(SEED_PASSWORD)
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await page.waitForURL(/\/(owner|seller)\/dashboard/)
 }
@@ -34,8 +34,8 @@ export async function loginAs(page: Page, email: string): Promise<void> {
  * aparecer.
  */
 export async function logout(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /menu de usuario/i }).click()
-  await page.getByRole('menuitem', { name: /cerrar sesion/i }).click()
+  await page.getByRole('button', { name: /menú de usuario/i }).click()
+  await page.getByRole('menuitem', { name: /cerrar sesión/i }).click()
   await page.waitForURL(/\/login/)
 }
 

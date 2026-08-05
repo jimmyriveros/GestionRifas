@@ -66,22 +66,22 @@ export function validateBulkRows(
     const weeklyFilled = row.weeklyNumber !== ''
 
     if (dailyFilled && !TICKET_NUMBER_REGEX.test(row.dailyNumber)) {
-      validation.dailyError = 'Entre 1 y 4 digitos.'
+      validation.dailyError = 'Entre 1 y 4 dígitos.'
     }
     if (weeklyFilled && !TICKET_NUMBER_REGEX.test(row.weeklyNumber)) {
-      validation.weeklyError = 'Entre 1 y 4 digitos.'
+      validation.weeklyError = 'Entre 1 y 4 dígitos.'
     }
 
     // BR-N09: o los dos numeros, o ninguno (fila en borrador).
     if (dailyFilled !== weeklyFilled) {
       validation.rowError = options.requireComplete
-        ? 'Escribe los dos numeros.'
-        : 'Completa los dos numeros o deja la fila vacia para guardarla como borrador.'
+        ? 'Escribe los dos números.'
+        : 'Completa los dos números o deja la fila vacía para guardarla como borrador.'
       return validation
     }
 
     if (options.requireComplete && !dailyFilled && !weeklyFilled) {
-      validation.rowError = 'Escribe los dos numeros.'
+      validation.rowError = 'Escribe los dos números.'
       return validation
     }
 
@@ -93,14 +93,14 @@ export function validateBulkRows(
     // BR-N04: duplicado dentro del propio formulario.
     const first = firstSeen.get(key)
     if (first !== undefined && first !== index) {
-      validation.rowError = `Combinacion repetida en la fila ${first + 1}.`
+      validation.rowError = `Combinación repetida en la fila ${first + 1}.`
       return validation
     }
 
     // BR-N05/BR-N08: la combinacion ya existe en la rifa, sin importar de que
     // vendedor sea ni si esa boleta fue anulada.
     if (existing.has(key)) {
-      validation.rowError = 'Esa combinacion ya existe en esta rifa.'
+      validation.rowError = 'Esa combinación ya existe en esta rifa.'
     }
 
     return validation

@@ -48,7 +48,7 @@ export function ClientPicker({ clients }: { clients: ClientWithBalance[] }) {
           id="payment-client-search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Nombre, alias o telefono"
+          placeholder="Nombre, alias o teléfono"
           inputMode="search"
           disabled={isPending}
         />
@@ -56,7 +56,7 @@ export function ClientPicker({ clients }: { clients: ClientWithBalance[] }) {
 
       {filtered.length === 0 ? (
         <p className="text-muted-foreground py-6 text-center text-sm">
-          Ningun cliente con saldo pendiente coincide con la busqueda.
+          Ningún cliente con saldo pendiente coincide con la búsqueda.
         </p>
       ) : (
         <ul className="divide-y rounded-lg border" role="listbox">

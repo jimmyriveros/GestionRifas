@@ -60,7 +60,7 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
       weeklyNumber: weekly,
     })
     if (!parsed.success) {
-      setNumbersError(parsed.error.issues[0]?.message ?? 'Revisa los numeros.')
+      setNumbersError(parsed.error.issues[0]?.message ?? 'Revisa los números.')
       return
     }
     setNumbersError(null)
@@ -71,7 +71,7 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
         setNumbersError(result.error)
         return
       }
-      toast.success('Numeros actualizados.')
+      toast.success('Números actualizados.')
       setNumbersOpen(false)
       router.refresh()
     })
@@ -96,7 +96,7 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
       if ('error' in result) {
         toast.error(result.error)
       } else {
-        toast.success('Boleta aprobada. Ya esta disponible para asignarse.')
+        toast.success('Boleta aprobada. Ya está disponible para asignarse.')
         router.refresh()
       }
     })
@@ -132,7 +132,7 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
 
       {!isCancelled ? (
         <Button type="button" variant="outline" onClick={() => setNumbersOpen(true)}>
-          Editar numeros
+          Editar números
         </Button>
       ) : null}
 
@@ -151,9 +151,9 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
       <Dialog open={numbersOpen} onOpenChange={setNumbersOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Editar numeros</DialogTitle>
+            <DialogTitle>Editar números</DialogTitle>
             <DialogDescription>
-              Entre 1 y 4 digitos. Los ceros iniciales importan: 007 no es lo mismo que 7.
+              Entre 1 y 4 dígitos. Los ceros iniciales importan: 007 no es lo mismo que 7.
             </DialogDescription>
           </DialogHeader>
 
@@ -168,11 +168,11 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="daily-number">Numero diario</Label>
+              <Label htmlFor="daily-number">Número diario</Label>
               <TicketNumberInput id="daily-number" value={daily} onChange={setDaily} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="weekly-number">Numero semanal</Label>
+              <Label htmlFor="weekly-number">Número semanal</Label>
               <TicketNumberInput id="weekly-number" value={weekly} onChange={setWeekly} />
             </div>
           </div>
@@ -231,7 +231,7 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
           if (!open) setCancelError(null)
         }}
         title="Anular boleta"
-        description="La boleta deja de ser utilizable y su combinacion de numeros no podra reutilizarse en esta rifa. Es una accion definitiva."
+        description="La boleta deja de ser utilizable y su combinación de números no podrá reutilizarse en esta rifa. Es una acción definitiva."
         confirmLabel="Anular"
         destructive
         pending={isPending}
@@ -244,7 +244,7 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
             rows={3}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Explica por que se anula esta boleta"
+            placeholder="Explica por qué se anula esta boleta"
           />
           {cancelError ? (
             <p role="alert" className="text-destructive text-sm">

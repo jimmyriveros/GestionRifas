@@ -38,7 +38,7 @@ export default async function OwnerDashboardPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950">
           <p className="flex items-center gap-2 text-sm">
             <AlertTriangleIcon className="size-4 shrink-0" aria-hidden />
-            Hay {totals.ticketsPendingApproval} boleta(s) pendientes de aprobacion.
+            Hay {totals.ticketsPendingApproval} boleta(s) pendientes de aprobación.
           </p>
           <Button asChild size="sm" variant="outline">
             <Link href="/owner/tickets?inventoryStatus=pending_approval">Revisar</Link>
@@ -72,7 +72,7 @@ export default async function OwnerDashboardPage() {
             </div>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-muted-foreground text-sm">Todavia no hay ninguna rifa creada.</p>
+              <p className="text-muted-foreground text-sm">Todavía no hay ninguna rifa creada.</p>
               <Button asChild size="sm">
                 <Link href="/owner/raffles/new">Crear la primera rifa</Link>
               </Button>
@@ -88,7 +88,7 @@ export default async function OwnerDashboardPage() {
           <MetricCard label="Total de boletas" value={totals.ticketsTotal} />
           <MetricCard label="Disponibles" value={totals.ticketsAvailable} />
           <MetricCard label="Asignadas" value={totals.ticketsAssigned} />
-          <MetricCard label="Pendientes de aprobacion" value={totals.ticketsPendingApproval} />
+          <MetricCard label="Pendientes de aprobación" value={totals.ticketsPendingApproval} />
         </div>
       </section>
 
@@ -113,7 +113,7 @@ export default async function OwnerDashboardPage() {
         </div>
         {dashboard.sellers.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            Todavia no hay vendedores.{' '}
+            Todavía no hay vendedores.{' '}
             <Link href="/owner/sellers" className="underline">
               Invita al primero
             </Link>
@@ -174,7 +174,7 @@ export default async function OwnerDashboardPage() {
           </div>
           {dashboard.recentPayments.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              Todavia no se ha registrado ningun abono.
+              Todavía no se ha registrado ningún abono.
             </p>
           ) : (
             <ul className="divide-y rounded-lg border">
@@ -217,7 +217,7 @@ export default async function OwnerDashboardPage() {
             </Button>
           </div>
           {dashboard.recentTickets.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Todavia no se ha creado ninguna boleta.</p>
+            <p className="text-muted-foreground text-sm">Todavía no se ha creado ninguna boleta.</p>
           ) : (
             <ul className="divide-y rounded-lg border">
               {dashboard.recentTickets.map((ticket) => (

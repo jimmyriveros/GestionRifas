@@ -144,13 +144,13 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
             {canVoid && payment.isActive ? (
               confirming ? (
                 <div className="space-y-2">
-                  <Label htmlFor="void-reason">Motivo de la anulacion (obligatorio)</Label>
+                  <Label htmlFor="void-reason">Motivo de la anulación (obligatorio)</Label>
                   <Textarea
                     id="void-reason"
                     rows={3}
                     value={reason}
                     onChange={(event) => setReason(event.target.value)}
-                    placeholder="Explica por que se anula este pago"
+                    placeholder="Explica por qué se anula este pago"
                     disabled={isPending}
                   />
                   <p className="text-muted-foreground text-xs">
@@ -173,7 +173,7 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
                     onClick={confirmVoid}
                     disabled={isPending}
                   >
-                    {isPending ? 'Anulando...' : 'Confirmar anulacion'}
+                    {isPending ? 'Anulando...' : 'Confirmar anulación'}
                   </Button>
                 ) : (
                   <Button type="button" variant="destructive" onClick={() => setConfirming(true)}>

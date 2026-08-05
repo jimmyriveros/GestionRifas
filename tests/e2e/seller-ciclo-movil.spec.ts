@@ -23,7 +23,7 @@ test.beforeAll(async () => {
   refs = await loadSeedRefs()
 })
 
-test('ciclo completo del vendedor desde el telefono', async ({ page }) => {
+test('ciclo completo del vendedor desde el teléfono', async ({ page }) => {
   const numbers = randomTicketNumbers()
   const ticket = await createTicket(refs, {
     dailyNumber: numbers.daily,
@@ -40,7 +40,7 @@ test('ciclo completo del vendedor desde el telefono', async ({ page }) => {
   await page.waitForURL(/\/seller\/tickets/)
 
   // 2. Buscar la boleta por su numero.
-  await page.getByPlaceholder('Codigo interno, numero diario o semanal').fill(numbers.daily)
+  await page.getByPlaceholder('Código interno, número diario o semanal').fill(numbers.daily)
   await page.getByRole('button', { name: 'Buscar' }).click()
   await page.getByRole('link', { name: ticket.internalCode }).click()
   await page.waitForURL(/\/seller\/tickets\/[0-9a-f-]+$/)
@@ -49,7 +49,7 @@ test('ciclo completo del vendedor desde el telefono', async ({ page }) => {
   await page.getByRole('button', { name: 'Asignar a un cliente' }).click()
   await page.getByRole('tab', { name: 'Cliente nuevo' }).click()
   await page.getByLabel('Nombre').fill(clientName)
-  await page.getByLabel('Telefono').fill('3001112222')
+  await page.getByLabel('Teléfono').fill('3001112222')
   await page.getByRole('button', { name: 'Crear cliente y asignar' }).click()
 
   await expectToast(page, new RegExp(`${clientName} registrado y boleta asignada`))
@@ -112,7 +112,7 @@ test.describe('Portal del vendedor en movil (prueba 14)', () => {
     }
   })
 
-  test('el dialogo de asignacion cabe en la pantalla y es usable', async ({ page }) => {
+  test('el dialogo de asignación cabe en la pantalla y es usable', async ({ page }) => {
     const numbers = randomTicketNumbers()
     const ticket = await createTicket(refs, {
       dailyNumber: numbers.daily,
@@ -140,11 +140,11 @@ test.describe('Portal del vendedor en movil (prueba 14)', () => {
     await page.getByLabel(/Cuantas/).fill('1')
     await page.getByRole('button', { name: 'Generar' }).click()
 
-    await expect(page.getByLabel('Numero diario de la fila 1', { exact: true })).toHaveAttribute(
+    await expect(page.getByLabel('Número diario de la fila 1', { exact: true })).toHaveAttribute(
       'inputmode',
       'numeric',
     )
     await page.goto('/seller/clients/new')
-    await expect(page.getByLabel('Telefono')).toHaveAttribute('inputmode', 'tel')
+    await expect(page.getByLabel('Teléfono')).toHaveAttribute('inputmode', 'tel')
   })
 })

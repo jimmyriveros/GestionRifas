@@ -84,8 +84,8 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
       if (conflicts.length === 0) {
         toast.success(
           inserted === 1
-            ? 'Boleta creada. Queda pendiente de aprobacion.'
-            : `${inserted} boletas creadas. Quedan pendientes de aprobacion.`,
+            ? 'Boleta creada. Queda pendiente de aprobación.'
+            : `${inserted} boletas creadas. Quedan pendientes de aprobación.`,
         )
         router.push('/seller/tickets?inventoryStatus=pending_approval')
         router.refresh()
@@ -97,7 +97,7 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
       setRows(rows.filter((row) => conflictSet.has(comboKey(row.dailyNumber, row.weeklyNumber))))
       setTakenCombos(conflictSet)
       toast.warning(
-        `Se crearon ${inserted} boleta(s). ${conflicts.length} combinacion(es) ya estaban tomadas en la rifa.`,
+        `Se crearon ${inserted} boleta(s). ${conflicts.length} combinación(es) ya estaban tomadas en la rifa.`,
       )
       router.refresh()
     })
@@ -164,8 +164,8 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
       <div className="rounded-lg border">
         <div className="text-muted-foreground grid grid-cols-[2.5rem_1fr_1fr] gap-2 border-b px-3 py-2 text-xs font-medium">
           <span>#</span>
-          <span>Numero diario</span>
-          <span>Numero semanal</span>
+          <span>Número diario</span>
+          <span>Número semanal</span>
         </div>
 
         <ul className="divide-y">
@@ -185,7 +185,7 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
                 <span className="text-muted-foreground pt-2 text-xs tabular-nums">{index + 1}</span>
                 <div>
                   <TicketNumberInput
-                    aria-label={`Numero diario de la fila ${index + 1}`}
+                    aria-label={`Número diario de la fila ${index + 1}`}
                     aria-invalid={Boolean(validation?.dailyError)}
                     value={row.dailyNumber}
                     onChange={(value) => updateRow(index, { dailyNumber: value })}
@@ -197,7 +197,7 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
                 </div>
                 <div>
                   <TicketNumberInput
-                    aria-label={`Numero semanal de la fila ${index + 1}`}
+                    aria-label={`Número semanal de la fila ${index + 1}`}
                     aria-invalid={Boolean(validation?.weeklyError)}
                     value={row.weeklyNumber}
                     onChange={(value) => updateRow(index, { weeklyNumber: value })}

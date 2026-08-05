@@ -17,12 +17,12 @@ import { formatCOP } from '@/lib/money'
 /** Explica por que una boleta no se puede asignar todavia (BR-I07). */
 function blockedReason(status: string, raffleStatus: string): string | null {
   if (status === 'assigned') return null
-  if (status === 'cancelled') return 'Esta boleta esta anulada y ya no se puede usar.'
+  if (status === 'cancelled') return 'Esta boleta está anulada y ya no se puede usar.'
   if (status === 'pending_approval')
     return 'Tu administrador debe aprobar esta boleta antes de que puedas venderla.'
   if (status === 'draft') return 'A esta boleta le faltan datos. Tu administrador debe completarla.'
   if (raffleStatus !== 'active')
-    return 'La rifa no esta activa: no se pueden asignar boletas en este momento.'
+    return 'La rifa no está activa: no se pueden asignar boletas en este momento.'
   return null
 }
 
@@ -84,10 +84,10 @@ export default async function SellerTicketDetailPage({
           <CardTitle className="text-base">Boleta</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Numero diario">
+          <Field label="Número diario">
             <span className="font-mono text-lg tabular-nums">{ticket.dailyNumber ?? '—'}</span>
           </Field>
-          <Field label="Numero semanal">
+          <Field label="Número semanal">
             <span className="font-mono text-lg tabular-nums">{ticket.weeklyNumber ?? '—'}</span>
           </Field>
           <Field label="Estado">
@@ -148,7 +148,7 @@ export default async function SellerTicketDetailPage({
           <HistoryLine label="Creada" value={formatDateTimeEs(ticket.createdAt)} />
           <HistoryLine
             label="Aprobada"
-            value={ticket.approvedAt ? formatDateTimeEs(ticket.approvedAt) : 'Todavia no'}
+            value={ticket.approvedAt ? formatDateTimeEs(ticket.approvedAt) : 'Todavía no'}
           />
           <HistoryLine
             label="Asignada"
@@ -157,7 +157,7 @@ export default async function SellerTicketDetailPage({
                 ? `${formatDateTimeEs(ticket.assignedAt)}${
                     ticket.clientName ? ` a ${ticket.clientName}` : ''
                   }`
-                : 'Todavia no'
+                : 'Todavía no'
             }
           />
           {ticket.cancelledAt ? (

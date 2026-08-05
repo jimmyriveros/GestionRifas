@@ -137,7 +137,7 @@ export function TicketForm({
             name="dailyNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Numero diario</FormLabel>
+                <FormLabel>Número diario</FormLabel>
                 <FormControl>
                   <TicketNumberInput
                     value={field.value}
@@ -157,7 +157,7 @@ export function TicketForm({
             name="weeklyNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Numero semanal</FormLabel>
+                <FormLabel>Número semanal</FormLabel>
                 <FormControl>
                   <TicketNumberInput
                     value={field.value}
@@ -174,7 +174,7 @@ export function TicketForm({
         </div>
 
         <p className="text-muted-foreground text-sm">
-          Entre 1 y 4 digitos cada uno. Los ceros iniciales se conservan y la combinacion completa
+          Entre 1 y 4 dígitos cada uno. Los ceros iniciales se conservan y la combinación completa
           no puede repetirse dentro de la misma rifa, ni siquiera entre vendedores.
         </p>
 

@@ -95,7 +95,7 @@ describe('validateBulkRows con requireComplete (creacion por el vendedor, BR-N09
     const result = validateBulkRows([{ dailyNumber: '', weeklyNumber: '' }], {
       requireComplete: true,
     })
-    expect(result[0]?.rowError).toBe('Escribe los dos numeros.')
+    expect(result[0]?.rowError).toBe('Escribe los dos números.')
   })
 
   it('sin requireComplete, esa misma fila vacia es un borrador valido', () => {
@@ -107,7 +107,7 @@ describe('validateBulkRows con requireComplete (creacion por el vendedor, BR-N09
     const result = validateBulkRows([{ dailyNumber: '1234', weeklyNumber: '' }], {
       requireComplete: true,
     })
-    expect(result[0]?.rowError).toBe('Escribe los dos numeros.')
+    expect(result[0]?.rowError).toBe('Escribe los dos números.')
   })
 
   it('sigue detectando duplicados dentro del formulario', () => {
@@ -119,7 +119,7 @@ describe('validateBulkRows con requireComplete (creacion por el vendedor, BR-N09
       { requireComplete: true },
     )
     expect(countErrors(result)).toBe(1)
-    expect(result[1]?.rowError).toBe('Combinacion repetida en la fila 1.')
+    expect(result[1]?.rowError).toBe('Combinación repetida en la fila 1.')
   })
 
   it('acepta un lote completo y valido', () => {
@@ -150,7 +150,7 @@ describe('createSellerTicketsSchema (CLAUDE.md 16, D-049)', () => {
     expect(createSellerTicketsSchema.safeParse({ raffleId: UUID, rows }).success).toBe(false)
   })
 
-  it('exige los dos numeros en cada fila', () => {
+  it('exige los dos números en cada fila', () => {
     expect(
       createSellerTicketsSchema.safeParse({
         raffleId: UUID,

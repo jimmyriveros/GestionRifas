@@ -100,7 +100,7 @@ export async function setClientArchived(input: unknown): Promise<ActionResult> {
 
   const parsed = setClientArchivedSchema.safeParse(input)
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Cliente no valido.' }
+    return { error: parsed.error.issues[0]?.message ?? 'Cliente no válido.' }
   }
   const { clientId, archived } = parsed.data
 

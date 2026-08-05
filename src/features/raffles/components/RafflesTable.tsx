@@ -14,7 +14,7 @@ import type { RaffleSummary } from '../queries'
 const columns: ColumnDef<RaffleSummary>[] = [
   {
     accessorKey: 'shortCode',
-    header: 'Codigo',
+    header: 'Código',
     cell: ({ row }) => <span className="font-mono text-xs">{row.original.shortCode}</span>,
   },
   {
@@ -78,7 +78,7 @@ export function RafflesTable({ raffles }: { raffles: RaffleSummary[] }) {
       columns={columns}
       data={raffles}
       getRowId={(row) => row.id}
-      caption="Listado de rifas de la organizacion"
+      caption="Listado de rifas de la organización"
     />
   )
 }

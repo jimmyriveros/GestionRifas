@@ -35,7 +35,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
     <div className="space-y-6">
       <PageHeader
         title="Clientes"
-        description="Consulta global. Cada cliente pertenece a un vendedor; su creacion y edicion se hace desde el portal del vendedor."
+        description="Consulta global. Cada cliente pertenece a un vendedor; su creación y edición se hace desde el portal del vendedor."
       />
 
       <ClientFilters
@@ -45,11 +45,11 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
       {rows.length === 0 ? (
         <EmptyState
           icon={<UsersIcon className="size-8" aria-hidden />}
-          title={hasFilters ? 'Ningun cliente coincide con los filtros' : 'Todavia no hay clientes'}
+          title={hasFilters ? 'Ningún cliente coincide con los filtros' : 'Todavía no hay clientes'}
           description={
             hasFilters
               ? 'Prueba a limpiar los filtros o a buscar por otro dato.'
-              : 'Los clientes aparecen aqui cuando un vendedor los registra al vender una boleta.'
+              : 'Los clientes aparecen aquí cuando un vendedor los registra al vender una boleta.'
           }
         />
       ) : (

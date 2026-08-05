@@ -6,7 +6,7 @@ export default function NewClientPage() {
     <div className="space-y-6">
       <PageHeader
         title="Nuevo cliente"
-        description="Solo el nombre y el telefono son obligatorios. Podras completar el resto despues."
+        description="Solo el nombre y el teléfono son obligatorios. Podrás completar el resto después."
       />
       <ClientForm />
     </div>

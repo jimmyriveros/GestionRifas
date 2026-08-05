@@ -46,10 +46,10 @@ export default async function TicketDetailPage({
           <CardTitle className="text-base">Boleta</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Numero diario">
+          <Field label="Número diario">
             <span className="font-mono text-lg tabular-nums">{ticket.dailyNumber ?? '—'}</span>
           </Field>
-          <Field label="Numero semanal">
+          <Field label="Número semanal">
             <span className="font-mono text-lg tabular-nums">{ticket.weeklyNumber ?? '—'}</span>
           </Field>
           <Field label="Estado">
@@ -108,7 +108,7 @@ export default async function TicketDetailPage({
       {ticket.cancelReason ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Motivo de anulacion</CardTitle>
+            <CardTitle className="text-base">Motivo de anulación</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm">{ticket.cancelReason}</p>

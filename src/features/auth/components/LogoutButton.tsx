@@ -20,7 +20,7 @@ export function LogoutButton() {
       }}
     >
       <LogOutIcon />
-      Cerrar sesion
+      Cerrar sesión
     </DropdownMenuItem>
   )
 }

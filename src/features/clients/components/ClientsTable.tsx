@@ -37,7 +37,7 @@ export function ClientsTable({ clients, basePath, showSeller = false }: ClientsT
       },
       {
         accessorKey: 'phone',
-        header: 'Telefono',
+        header: 'Teléfono',
         cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.phone}</span>,
       },
     ]

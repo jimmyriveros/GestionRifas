@@ -7,18 +7,18 @@ import { z } from 'zod'
  * decimal desde el navegador (BR-P02).
  */
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Selecciona una fecha valida.')
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Selecciona una fecha válida.')
 
 const money = z
   .number({ error: 'Ingresa un valor.' })
-  .int('El valor debe ser un numero entero de pesos.')
+  .int('El valor debe ser un número entero de pesos.')
   .positive('El valor debe ser mayor que cero.')
   .max(1_000_000_000, 'El valor es demasiado alto.')
 
 export const paymentMethodSchema = z.enum(['cash', 'transfer', 'other'])
 
 export const paymentAllocationSchema = z.object({
-  ticketId: z.uuid('Boleta no valida.'),
+  ticketId: z.uuid('Boleta no válida.'),
   amount: money,
 })
 export type PaymentAllocationInput = z.infer<typeof paymentAllocationSchema>
@@ -46,7 +46,7 @@ export const createPaymentSchema = z
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>
 
 export const voidPaymentSchema = z.object({
-  paymentId: z.uuid('Pago no valido.'),
+  paymentId: z.uuid('Pago no válido.'),
   // El mismo minimo que exige `void_payment` en la base de datos.
   reason: z
     .string()

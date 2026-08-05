@@ -21,7 +21,7 @@ export function MobileNav({ orgName, items }: MobileNavProps) {
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden">
           <MenuIcon />
-          <span className="sr-only">Abrir menu</span>
+          <span className="sr-only">Abrir menú</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 gap-0 p-0">

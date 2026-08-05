@@ -88,14 +88,14 @@ export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps)
       >
         <div className="flex-1">
           <Label htmlFor="ticket-search" className="sr-only">
-            Buscar por codigo o numero
+            Buscar por código o número
           </Label>
           <Input
             id="ticket-search"
             key={currentSearch}
             name="q"
             defaultValue={currentSearch}
-            placeholder="Codigo interno, numero diario o semanal"
+            placeholder="Código interno, número diario o semanal"
             inputMode="search"
             disabled={isPending}
           />

@@ -58,16 +58,16 @@ export default async function SellerClientDetailPage({
 
       {client.archivedAt ? (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-950">
-          Este cliente esta archivado: no aparece al asignar boletas. Su historial se conserva.
+          Este cliente está archivado: no aparece al asignar boletas. Su historial se conserva.
         </p>
       ) : null}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Informacion general</CardTitle>
+          <CardTitle className="text-base">Información general</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Telefono">
+          <Field label="Teléfono">
             <a href={`tel:${client.phone}`} className="hover:underline">
               {client.phone}
             </a>
@@ -96,7 +96,7 @@ export default async function SellerClientDetailPage({
         <h2 className="text-lg font-semibold">Boletas de este cliente</h2>
         {tickets.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            Todavia no le has asignado ninguna boleta.{' '}
+            Todavía no le has asignado ninguna boleta.{' '}
             <Link href="/seller/tickets?inventoryStatus=available" className="underline">
               Ver boletas disponibles
             </Link>
@@ -123,7 +123,7 @@ export default async function SellerClientDetailPage({
         </div>
         {payments.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            Todavia no le has registrado ningun abono.
+            Todavía no le has registrado ningún abono.
           </p>
         ) : (
           <PaymentsTable payments={payments} clientBasePath="/seller/clients" />

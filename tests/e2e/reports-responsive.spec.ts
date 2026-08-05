@@ -20,7 +20,7 @@ test.describe('Reportes en movil', () => {
     await loginAs(page, ACCOUNTS.owner)
   })
 
-  test('ningun reporte desborda horizontalmente la pagina', async ({ page }) => {
+  test('ningún reporte desborda horizontalmente la página', async ({ page }) => {
     for (const reporte of REPORTES) {
       await page.goto(`/owner/reports?report=${reporte}`)
       await page.waitForLoadState('networkidle')
@@ -32,7 +32,7 @@ test.describe('Reportes en movil', () => {
     }
   })
 
-  test('la tabla ancha hace scroll dentro de su contenedor, no en la pagina', async ({ page }) => {
+  test('la tabla ancha hace scroll dentro de su contenedor, no en la página', async ({ page }) => {
     await page.goto('/owner/reports?report=raffles')
 
     // El contenedor de la tabla es quien puede desplazarse: eso es lo que
@@ -123,7 +123,7 @@ test.describe('Accesibilidad basica de los reportes (prueba 7)', () => {
   test('cada filtro tiene su etiqueta asociada', async ({ page }) => {
     await page.goto('/owner/reports?report=payments')
 
-    for (const etiqueta of ['Vendedor', 'Desde', 'Hasta', 'Metodo', 'Estado del pago']) {
+    for (const etiqueta of ['Vendedor', 'Desde', 'Hasta', 'Método', 'Estado del pago']) {
       await expect(page.getByLabel(etiqueta)).toBeVisible()
     }
   })
@@ -131,7 +131,7 @@ test.describe('Accesibilidad basica de los reportes (prueba 7)', () => {
   test('los estados vacios explican que hacer, no solo que no hay nada', async ({ page }) => {
     await page.goto('/owner/reports?report=payments&dateFrom=2000-01-01&dateTo=2000-12-31')
 
-    await expect(page.getByText('Ningun pago en este rango')).toBeVisible()
+    await expect(page.getByText('Ningún pago en este rango')).toBeVisible()
     await expect(page.getByText(/ampliar las fechas/i)).toBeVisible()
   })
 })

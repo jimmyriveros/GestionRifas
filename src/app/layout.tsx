@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Gestion de Rifas',
-  description: 'Sistema de gestion de rifas, vendedores, boletas, abonos y pagos.',
+  title: 'Gestión de Rifas',
+  description: 'Sistema de gestión de rifas, vendedores, boletas, abonos y pagos.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

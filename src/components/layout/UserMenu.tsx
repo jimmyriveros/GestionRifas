@@ -40,7 +40,7 @@ export function UserMenu({ fullName, email, role }: UserMenuProps) {
         <Button
           variant="ghost"
           className="h-9 gap-2 px-2"
-          aria-label={`Menu de usuario: ${fullName}`}
+          aria-label={`Menú de usuario: ${fullName}`}
         >
           <Avatar className="size-7">
             <AvatarFallback className="text-xs" aria-hidden>
@@ -62,7 +62,7 @@ export function UserMenu({ fullName, email, role }: UserMenuProps) {
         <DropdownMenuItem asChild>
           <Link href="/account/password">
             <KeyRoundIcon />
-            Cambiar contrasena
+            Cambiar contraseña
           </Link>
         </DropdownMenuItem>
         <LogoutButton />

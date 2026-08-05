@@ -319,6 +319,10 @@ Funciones auxiliares de seguridad (`STABLE`, `SECURITY DEFINER`): `current_profi
 
 ### 8.3 Etiquetas en español (fuente única: `lib/constants.ts`)
 
+Esta tabla fija **solo** las etiquetas de estado. La redacción del resto de la interfaz —botones,
+errores, confirmaciones, estados vacíos, ayudas de formulario— se rige por
+[`UX_COPY_GUIDELINES.md`](UX_COPY_GUIDELINES.md), importada desde `CLAUDE.md` §35.
+
 | Valor en BD | Etiqueta |
 |-------------|----------|
 | `draft` | Borrador |

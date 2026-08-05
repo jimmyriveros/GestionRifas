@@ -58,7 +58,7 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
     <div className="space-y-6">
       <PageHeader
         title="Mis boletas"
-        description="Busca por codigo o por numero, y asigna las que ya vendiste."
+        description="Busca por código o por número, y asigna las que ya vendiste."
         actions={
           canCreate ? (
             <Button asChild>
@@ -83,14 +83,14 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
         <EmptyState
           icon={<TicketIcon className="size-8" aria-hidden />}
           title={
-            hasFilters ? 'Ninguna boleta coincide con los filtros' : 'Todavia no tienes boletas'
+            hasFilters ? 'Ninguna boleta coincide con los filtros' : 'Todavía no tienes boletas'
           }
           description={
             hasFilters
-              ? 'Prueba a limpiar los filtros o a buscar por otro numero.'
+              ? 'Prueba a limpiar los filtros o a buscar por otro número.'
               : canCreate
-                ? 'Puedes crear tus propias boletas: quedaran pendientes de aprobacion.'
-                : 'Tu administrador todavia no te ha asignado boletas. Pideselas cuando las necesites.'
+                ? 'Puedes crear tus propias boletas: quedarán pendientes de aprobación.'
+                : 'Tu administrador todavía no te ha asignado boletas. Pídeselas cuando las necesites.'
           }
           action={
             !hasFilters && canCreate ? (

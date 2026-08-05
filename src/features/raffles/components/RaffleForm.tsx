@@ -58,7 +58,7 @@ export function RaffleForm({ raffle }: RaffleFormProps) {
           setServerError(result.error)
           return
         }
-        toast.success('Rifa creada. Activala cuando este lista para vender.')
+        toast.success('Rifa creada. Actívala cuando esté lista para vender.')
         router.push(`/owner/raffles/${result.data.id}`)
       }
       router.refresh()
@@ -86,7 +86,7 @@ export function RaffleForm({ raffle }: RaffleFormProps) {
               <FormControl>
                 <Input placeholder="Rifa Navidad 2026" disabled={isPending} {...field} />
               </FormControl>
-              <FormDescription>Debe ser unico dentro de la organizacion.</FormDescription>
+              <FormDescription>Debe ser único dentro de la organización.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -97,7 +97,7 @@ export function RaffleForm({ raffle }: RaffleFormProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Descripcion (opcional)</FormLabel>
+              <FormLabel>Descripción (opcional)</FormLabel>
               <FormControl>
                 <Textarea rows={3} disabled={isPending} {...field} />
               </FormControl>
@@ -168,7 +168,7 @@ export function RaffleForm({ raffle }: RaffleFormProps) {
               <div className="space-y-1">
                 <FormLabel>Permitir que los vendedores creen boletas</FormLabel>
                 <FormDescription>
-                  Las boletas que cree un vendedor quedan pendientes de aprobacion hasta que un
+                  Las boletas que cree un vendedor quedan pendientes de aprobación hasta que un
                   administrador las apruebe.
                 </FormDescription>
               </div>

@@ -10,8 +10,8 @@ import { DEFAULT_TICKET_PRICE } from '@/lib/constants'
 
 const isoDate = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Selecciona una fecha valida.')
-  .refine((value) => !Number.isNaN(Date.parse(value)), 'Selecciona una fecha valida.')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Selecciona una fecha válida.')
+  .refine((value) => !Number.isNaN(Date.parse(value)), 'Selecciona una fecha válida.')
 
 export const raffleStatusSchema = z.enum(['draft', 'active', 'closed', 'cancelled'])
 
@@ -21,7 +21,7 @@ const raffleFields = z.object({
     .trim()
     .min(2, 'El nombre debe tener al menos 2 caracteres.')
     .max(120, 'El nombre no puede superar 120 caracteres.'),
-  description: z.string().trim().max(1000, 'La descripcion no puede superar 1.000 caracteres.'),
+  description: z.string().trim().max(1000, 'La descripción no puede superar 1.000 caracteres.'),
   // BR-P02: pesos ENTEROS. Nunca decimales ni punto flotante.
   ticketPrice: z
     .number({ error: 'Ingresa el precio de la boleta.' })
@@ -45,12 +45,12 @@ export const createRaffleSchema = raffleFields.refine(datesInOrder, datesError)
 export type CreateRaffleInput = z.infer<typeof createRaffleSchema>
 
 export const updateRaffleSchema = raffleFields
-  .extend({ id: z.uuid('Rifa no valida.') })
+  .extend({ id: z.uuid('Rifa no válida.') })
   .refine(datesInOrder, datesError)
 export type UpdateRaffleInput = z.infer<typeof updateRaffleSchema>
 
 export const changeRaffleStatusSchema = z.object({
-  id: z.uuid('Rifa no valida.'),
+  id: z.uuid('Rifa no válida.'),
   status: raffleStatusSchema,
 })
 export type ChangeRaffleStatusInput = z.infer<typeof changeRaffleStatusSchema>

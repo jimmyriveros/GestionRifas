@@ -46,7 +46,7 @@ export async function createSellerTickets(
   // Segunda capa de la validacion por fila (BR-N10): el navegador ya la hizo,
   // pero una Server Action puede invocarse sin pasar por la interfaz.
   if (hasErrors(validateBulkRows(rows, { requireComplete: true }))) {
-    return { error: 'Hay filas con numeros invalidos o repetidos entre si.' }
+    return { error: 'Hay filas con números inválidos o repetidos entre sí.' }
   }
 
   const supabase = await createClient()
@@ -61,11 +61,11 @@ export async function createSellerTickets(
   if (!raffle) return { error: 'La rifa no existe o no tienes acceso a ella.' }
 
   if (raffle.status !== 'active') {
-    return { error: 'La rifa no esta activa. No se pueden crear boletas.' }
+    return { error: 'La rifa no está activa. No se pueden crear boletas.' }
   }
   if (!raffle.allow_seller_ticket_creation) {
     return {
-      error: 'Esta rifa no permite que los vendedores creen boletas. Pidelas a tu administrador.',
+      error: 'Esta rifa no permite que los vendedores creen boletas. Pídelas a tu administrador.',
     }
   }
 
@@ -129,7 +129,7 @@ export async function updateSellerTicketNumbers(input: unknown): Promise<ActionR
 
   const parsed = updateSellerTicketNumbersSchema.safeParse(input)
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Revisa los numeros.' }
+    return { error: parsed.error.issues[0]?.message ?? 'Revisa los números.' }
   }
   const { ticketId, dailyNumber, weeklyNumber } = parsed.data
 
@@ -144,7 +144,7 @@ export async function updateSellerTicketNumbers(input: unknown): Promise<ActionR
 
   if (!data || data.length === 0) {
     return {
-      error: 'Solo puedes cambiar los numeros de una boleta que todavia no ha sido aprobada.',
+      error: 'Solo puedes cambiar los números de una boleta que todavía no ha sido aprobada.',
     }
   }
 

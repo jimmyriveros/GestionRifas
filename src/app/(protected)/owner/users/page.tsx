@@ -12,7 +12,7 @@ export default async function UsersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Administradores"
-        description="Personas con acceso al portal administrativo. Un administrador no puede editar ni desactivar al dueno de la organizacion."
+        description="Personas con acceso al portal administrativo. Un administrador no puede editar ni desactivar al dueño de la organización."
         actions={<CreateUserButton role="admin" label="Nuevo administrador" />}
       />
 

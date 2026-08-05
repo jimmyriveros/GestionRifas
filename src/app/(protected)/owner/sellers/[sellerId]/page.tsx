@@ -43,7 +43,7 @@ export default async function SellerDetailPage({
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Correo">{seller.email}</Field>
-          <Field label="Telefono">{seller.phone}</Field>
+          <Field label="Teléfono">{seller.phone}</Field>
           <Field label="Estado">
             <ActiveBadge isActive={seller.isActive} />
           </Field>
@@ -57,7 +57,7 @@ export default async function SellerDetailPage({
           <MetricCard label="Boletas" value={seller.ticketsTotal} />
           <MetricCard label="Disponibles" value={seller.ticketsAvailable} />
           <MetricCard label="Asignadas" value={seller.ticketsAssigned} />
-          <MetricCard label="Pendientes de aprobacion" value={seller.ticketsPendingApproval} />
+          <MetricCard label="Pendientes de aprobación" value={seller.ticketsPendingApproval} />
           <MetricCard label="Borradores" value={seller.ticketsDraft} />
           <MetricCard label="Clientes" value={seller.clientsCount} />
         </div>

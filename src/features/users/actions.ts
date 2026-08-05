@@ -179,7 +179,7 @@ export async function resendInvitation(input: unknown): Promise<ActionResult> {
 
   const parsed = resendInvitationSchema.safeParse(input)
   if (!parsed.success) {
-    return { error: 'Usuario no valido.' }
+    return { error: 'Usuario no válido.' }
   }
 
   // La consulta pasa por RLS: si el usuario no es de la organizacion de quien

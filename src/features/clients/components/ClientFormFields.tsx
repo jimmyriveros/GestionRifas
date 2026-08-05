@@ -51,7 +51,7 @@ export function ClientFormFields({
         name="phone"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Telefono</FormLabel>
+            <FormLabel>Teléfono</FormLabel>
             <FormControl>
               <Input
                 type="tel"

@@ -45,7 +45,7 @@ export function SellerTicketActions({
       weeklyNumber: weekly,
     })
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Revisa los numeros.')
+      setError(parsed.error.issues[0]?.message ?? 'Revisa los números.')
       return
     }
     setError(null)
@@ -56,7 +56,7 @@ export function SellerTicketActions({
         setError(result.error)
         return
       }
-      toast.success('Numeros actualizados.')
+      toast.success('Números actualizados.')
       setOpen(false)
       router.refresh()
     })
@@ -65,13 +65,13 @@ export function SellerTicketActions({
   return (
     <>
       <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-        Corregir numeros
+        Corregir números
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Corregir numeros</DialogTitle>
+            <DialogTitle>Corregir números</DialogTitle>
             <DialogDescription>
               Solo puedes hacerlo mientras la boleta no este aprobada. Los ceros iniciales importan:
               007 no es lo mismo que 7.
@@ -89,11 +89,11 @@ export function SellerTicketActions({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="seller-daily">Numero diario</Label>
+              <Label htmlFor="seller-daily">Número diario</Label>
               <TicketNumberInput id="seller-daily" value={daily} onChange={setDaily} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="seller-weekly">Numero semanal</Label>
+              <Label htmlFor="seller-weekly">Número semanal</Label>
               <TicketNumberInput id="seller-weekly" value={weekly} onChange={setWeekly} />
             </div>
           </div>

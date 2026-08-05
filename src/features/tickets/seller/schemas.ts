@@ -24,7 +24,7 @@ export type SellerTicketRow = z.infer<typeof sellerTicketRowSchema>
  * `tickets_update_seller` lo impone con USING y WITH CHECK.
  */
 export const updateSellerTicketNumbersSchema = z.object({
-  ticketId: z.uuid('Boleta no valida.'),
+  ticketId: z.uuid('Boleta no válida.'),
   dailyNumber: ticketNumberSchema,
   weeklyNumber: ticketNumberSchema,
 })
@@ -35,6 +35,6 @@ export const createSellerTicketsSchema = z.object({
   rows: z
     .array(sellerTicketRowSchema)
     .min(1, 'Indica al menos una boleta.')
-    .max(SELLER_TICKET_MAX, `No puedes crear mas de ${SELLER_TICKET_MAX} boletas de una vez.`),
+    .max(SELLER_TICKET_MAX, `No puedes crear más de ${SELLER_TICKET_MAX} boletas de una vez.`),
 })
 export type CreateSellerTicketsInput = z.infer<typeof createSellerTicketsSchema>

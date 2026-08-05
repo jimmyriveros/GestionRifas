@@ -61,7 +61,7 @@ const ticketStatusColumns: CsvColumn<TicketStatusReportRow>[] = [
 type RaffleReportRow = Awaited<ReturnType<typeof getRaffleReport>>['rows'][number]
 
 const raffleColumns: CsvColumn<RaffleReportRow>[] = [
-  { header: 'Codigo', value: (row) => row.shortCode },
+  { header: 'Código', value: (row) => row.shortCode },
   { header: 'Rifa', value: (row) => row.name },
   { header: 'Estado', value: (row) => RAFFLE_STATUS_LABELS[row.status] },
   { header: 'Precio de boleta', value: (row) => formatCOP(row.ticketPrice) },
@@ -80,7 +80,7 @@ const raffleColumns: CsvColumn<RaffleReportRow>[] = [
 const clientBalanceColumns: CsvColumn<ClientBalanceReportRow>[] = [
   { header: 'Cliente', value: (row) => row.name },
   { header: 'Alias', value: (row) => row.alias },
-  { header: 'Telefono', value: (row) => row.phone },
+  { header: 'Teléfono', value: (row) => row.phone },
   { header: 'Vendedor', value: (row) => row.sellerName },
   { header: 'Boletas', value: (row) => row.ticketsCount },
   { header: 'Total comprado', value: (row) => formatCOP(row.totalPurchased) },
@@ -119,7 +119,7 @@ export function reportFilePrefix(report: ReportKey): string {
  * linea (I-011, R-18).
  */
 function truncationNotice(): string {
-  return `\r\nAVISO;El archivo alcanzo el limite de ${EXPORT_ROW_LIMIT} filas y esta INCOMPLETO. Filtra el reporte para exportarlo por partes.\r\n`
+  return `\r\nAVISO;El archivo alcanzó el límite de ${EXPORT_ROW_LIMIT} filas y está INCOMPLETO. Filtra el reporte para exportarlo por partes.\r\n`
 }
 
 /**

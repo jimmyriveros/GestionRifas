@@ -35,7 +35,7 @@ export default async function SellerPaymentsPage({ searchParams }: { searchParam
     <div className="space-y-6">
       <PageHeader
         title="Mis pagos"
-        description="Todos los abonos que has registrado. Los anulados siguen aqui, marcados."
+        description="Todos los abonos que has registrado. Los anulados siguen aquí, marcados."
         actions={
           <Button asChild>
             <Link href="/seller/payments/new">
@@ -59,7 +59,7 @@ export default async function SellerPaymentsPage({ searchParams }: { searchParam
       {rows.length === 0 ? (
         <EmptyState
           icon={<WalletIcon className="size-8" aria-hidden />}
-          title="Todavia no has registrado abonos"
+          title="Todavía no has registrado abonos"
           description="Cuando un cliente te pague, registra el abono y el saldo se actualiza solo."
           action={
             <Button asChild>

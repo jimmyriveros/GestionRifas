@@ -63,7 +63,7 @@ export function LoginForm({ next, initialError }: LoginFormProps) {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Correo electronico</FormLabel>
+              <FormLabel>Correo electrónico</FormLabel>
               <FormControl>
                 <Input
                   type="email"
@@ -84,12 +84,12 @@ export function LoginForm({ next, initialError }: LoginFormProps) {
           render={({ field }) => (
             <FormItem>
               <div className="flex items-center justify-between">
-                <FormLabel>Contrasena</FormLabel>
+                <FormLabel>Contraseña</FormLabel>
                 <Link
                   href="/forgot-password"
                   className="text-muted-foreground hover:text-foreground text-sm"
                 >
-                  Olvidaste tu contrasena?
+                  ¿Olvidaste tu contraseña?
                 </Link>
               </div>
               <FormControl>

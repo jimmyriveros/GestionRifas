@@ -51,11 +51,11 @@ export default async function SellerClientsPage({ searchParams }: { searchParams
         <EmptyState
           icon={<UsersIcon className="size-8" aria-hidden />}
           title={
-            hasFilters ? 'Ningun cliente coincide con la busqueda' : 'Todavia no tienes clientes'
+            hasFilters ? 'Ningún cliente coincide con la búsqueda' : 'Todavía no tienes clientes'
           }
           description={
             hasFilters
-              ? 'Prueba con otro nombre, alias, telefono o correo.'
+              ? 'Prueba con otro nombre, alias, teléfono o correo.'
               : 'Registra a tu primer cliente para poder asignarle boletas.'
           }
           action={

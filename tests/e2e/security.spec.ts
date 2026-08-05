@@ -43,8 +43,8 @@ test.describe('Login y redireccion por rol (prueba 1)', () => {
   for (const { cuenta, destino, prohibido } of DESTINOS) {
     test(`${cuenta} aterriza exactamente en ${destino}`, async ({ page }) => {
       await page.goto('/login')
-      await page.getByLabel('Correo electronico').fill(cuenta)
-      await page.getByLabel('Contrasena').fill(SEED_PASSWORD)
+      await page.getByLabel('Correo electrónico').fill(cuenta)
+      await page.getByLabel('Contraseña').fill(SEED_PASSWORD)
       await page.getByRole('button', { name: 'Ingresar' }).click()
 
       await page.waitForURL(new RegExp(destino))
@@ -65,13 +65,13 @@ test.describe('Login y redireccion por rol (prueba 1)', () => {
     await expect(page).toHaveURL(/\/owner\/dashboard/)
   })
 
-  test('con credenciales incorrectas no se entra a ningun portal', async ({ page }) => {
+  test('con credenciales incorrectas no se entra a ningún portal', async ({ page }) => {
     await page.goto('/login')
-    await page.getByLabel('Correo electronico').fill(ACCOUNTS.owner)
-    await page.getByLabel('Contrasena').fill('ContrasenaEquivocada1')
+    await page.getByLabel('Correo electrónico').fill(ACCOUNTS.owner)
+    await page.getByLabel('Contraseña').fill('ContrasenaEquivocada1')
     await page.getByRole('button', { name: 'Ingresar' }).click()
 
-    await expect(page.getByText(/correo o contrasena incorrectos/i)).toBeVisible()
+    await expect(page.getByText(/correo o contraseña incorrectos/i)).toBeVisible()
     await expect(page).toHaveURL(/\/login/)
   })
 })
@@ -133,7 +133,7 @@ test.describe('Cabeceras de seguridad', () => {
   })
 })
 
-test.describe('Proteccion de rutas sin sesion (prueba 25)', () => {
+test.describe('Proteccion de rutas sin sesión (prueba 25)', () => {
   test('toda ruta protegida redirige al login', async ({ page }) => {
     for (const ruta of RUTAS_PROTEGIDAS) {
       await page.goto(ruta)
@@ -141,12 +141,12 @@ test.describe('Proteccion de rutas sin sesion (prueba 25)', () => {
     }
   })
 
-  test('el destino se conserva para volver despues de entrar', async ({ page }) => {
+  test('el destino se conserva para volver después de entrar', async ({ page }) => {
     await page.goto('/owner/payments')
     await expect(page).toHaveURL(/next=%2Fowner%2Fpayments/)
   })
 
-  test('la descarga de reportes no entrega NADA sin sesion', async ({ playwright, baseURL }) => {
+  test('la descarga de reportes no entrega NADA sin sesión', async ({ playwright, baseURL }) => {
     // Contexto NUEVO, sin cookies: un Route Handler no pasa por el layout, asi
     // que si no se protegiera solo, aqui saldria el CSV entero (D-060).
     const contexto = await playwright.request.newContext({ baseURL })
@@ -200,7 +200,7 @@ test.describe('Aislamiento por rol sobre HTTP (prueba 25)', () => {
   })
 })
 
-test.describe('La API de datos respeta la RLS con la sesion real del navegador', () => {
+test.describe('La API de datos respeta la RLS con la sesión real del navegador', () => {
   test('un vendedor consultando la API directamente solo obtiene sus boletas', async ({ page }) => {
     // Se toma el token REAL que el navegador guarda tras iniciar sesion por la
     // interfaz y se llama a PostgREST sin pasar por la aplicacion, que es lo
@@ -212,7 +212,7 @@ test.describe('La API de datos respeta la RLS con la sesion real del navegador',
         .split(';')
         .map((c) => c.trim())
         .find((c) => c.startsWith('sb-') && c.includes('-auth-token='))
-      if (!cookie) return { error: 'sin cookie de sesion' }
+      if (!cookie) return { error: 'sin cookie de sesión' }
 
       const raw = decodeURIComponent(cookie.split('=').slice(1).join('='))
       const json = raw.startsWith('base64-') ? atob(raw.slice('base64-'.length)) : raw
@@ -288,38 +288,38 @@ test.describe('Los errores no revelan estructura interna (prueba 25)', () => {
 
     const texto = await textoVisible(page)
     for (const fuga of FUGAS) {
-      expect(texto, `la pagina menciona "${fuga}"`).not.toContain(fuga)
+      expect(texto, `la página menciona "${fuga}"`).not.toContain(fuga)
     }
   })
 
-  test('un id con formato invalido tampoco', async ({ page }) => {
+  test('un id con formato inválido tampoco', async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/clients/no-es-un-uuid')
 
     const texto = await textoVisible(page)
     for (const fuga of FUGAS) {
-      expect(texto, `la pagina menciona "${fuga}"`).not.toContain(fuga)
+      expect(texto, `la página menciona "${fuga}"`).not.toContain(fuga)
     }
   })
 
   test('el login no revela si un correo existe', async ({ page }) => {
     await page.goto('/login')
-    await page.getByLabel('Correo electronico').fill('noexiste@demo.test')
-    await page.getByLabel('Contrasena').fill('ContrasenaIncorrecta1')
+    await page.getByLabel('Correo electrónico').fill('noexiste@demo.test')
+    await page.getByLabel('Contraseña').fill('ContrasenaIncorrecta1')
     await page.getByRole('button', { name: 'Ingresar' }).click()
 
-    const error = page.getByText(/correo o contrasena incorrectos/i)
+    const error = page.getByText(/correo o contraseña incorrectos/i)
     await expect(error).toBeVisible()
   })
 
-  test('la recuperacion de contrasena responde igual exista o no el correo', async ({ page }) => {
+  test('la recuperación de contraseña responde igual exista o no el correo', async ({ page }) => {
     const mensajes: string[] = []
 
     for (const correo of ['owner@demo.test', 'noexiste@demo.test']) {
       await page.goto('/forgot-password')
-      await page.getByLabel('Correo electronico').fill(correo)
-      await page.getByRole('button', { name: 'Enviar enlace de recuperacion' }).click()
-      const confirmacion = page.getByText(/si el correo esta registrado/i)
+      await page.getByLabel('Correo electrónico').fill(correo)
+      await page.getByRole('button', { name: 'Enviar enlace de recuperación' }).click()
+      const confirmacion = page.getByText(/si el correo está registrado/i)
       await expect(confirmacion).toBeVisible()
       mensajes.push(await confirmacion.innerText())
     }
@@ -338,7 +338,7 @@ test.describe('Los errores no revelan estructura interna (prueba 25)', () => {
  * cuando se desactivo la cuenta— y el que de verdad importa: ocultar el menu no
  * sirve de nada si el token anterior sigue funcionando.
  */
-test.describe('Sesion de usuario desactivado (BR-A04, prueba 2)', () => {
+test.describe('Sesión de usuario desactivado (BR-A04, prueba 2)', () => {
   const NOMBRE = 'Laura Moreno'
 
   /**
@@ -364,7 +364,7 @@ test.describe('Sesion de usuario desactivado (BR-A04, prueba 2)', () => {
     await expect(fila.getByText(accion === 'Desactivar' ? 'Inactivo' : 'Activo')).toBeVisible()
   }
 
-  test('desactivar a un vendedor invalida la sesion que ya tenia abierta', async ({
+  test('desactivar a un vendedor invalida la sesión que ya tenia abierta', async ({
     page,
     browser,
   }) => {
@@ -387,8 +387,8 @@ test.describe('Sesion de usuario desactivado (BR-A04, prueba 2)', () => {
       // de usar `loginAs`, que espera un dashboard que aqui no va a llegar y se
       // comeria el tiempo de la prueba entero esperandolo.
       await paginaVendedor.goto('/login')
-      await paginaVendedor.getByLabel('Correo electronico').fill(ACCOUNTS.otherSeller)
-      await paginaVendedor.getByLabel('Contrasena').fill(SEED_PASSWORD)
+      await paginaVendedor.getByLabel('Correo electrónico').fill(ACCOUNTS.otherSeller)
+      await paginaVendedor.getByLabel('Contraseña').fill(SEED_PASSWORD)
       await paginaVendedor.getByRole('button', { name: 'Ingresar' }).click()
 
       await expect(paginaVendedor.getByText(/inactiva/i)).toBeVisible()

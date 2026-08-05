@@ -14,9 +14,9 @@ export const clientFormSchema = z.object({
     .min(2, 'El nombre debe tener al menos 2 caracteres.')
     .max(120, 'El nombre no puede superar 120 caracteres.'),
   alias: z.string().trim().max(60, 'El alias no puede superar 60 caracteres.'),
-  phone: z.string().trim().regex(PHONE_REGEX, 'Ingresa un telefono valido (7 a 20 digitos).'),
+  phone: z.string().trim().regex(PHONE_REGEX, 'Ingresa un teléfono válido (7 a 20 dígitos).'),
   // Opcional de verdad: se acepta la cadena vacia y se guarda como NULL.
-  email: z.union([z.literal(''), z.email('Ingresa un correo valido.')]),
+  email: z.union([z.literal(''), z.email('Ingresa un correo válido.')]),
   notes: z.string().trim().max(1000, 'Las notas no pueden superar 1.000 caracteres.'),
 })
 export type ClientFormInput = z.infer<typeof clientFormSchema>
@@ -25,12 +25,12 @@ export const createClientSchema = clientFormSchema
 export type CreateClientInput = z.infer<typeof createClientSchema>
 
 export const updateClientSchema = clientFormSchema.extend({
-  clientId: z.uuid('Cliente no valido.'),
+  clientId: z.uuid('Cliente no válido.'),
 })
 export type UpdateClientInput = z.infer<typeof updateClientSchema>
 
 export const setClientArchivedSchema = z.object({
-  clientId: z.uuid('Cliente no valido.'),
+  clientId: z.uuid('Cliente no válido.'),
   archived: z.boolean(),
 })
 export type SetClientArchivedInput = z.infer<typeof setClientArchivedSchema>

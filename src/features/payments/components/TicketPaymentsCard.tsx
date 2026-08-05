@@ -32,7 +32,7 @@ export function TicketPaymentsCard({
       </CardHeader>
       <CardContent>
         {applied.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Todavia no tiene abonos registrados.</p>
+          <p className="text-muted-foreground text-sm">Todavía no tiene abonos registrados.</p>
         ) : (
           <ul className="divide-y">
             {applied.map(({ payment, amount }) => (

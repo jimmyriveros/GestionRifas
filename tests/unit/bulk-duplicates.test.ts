@@ -27,7 +27,7 @@ describe('comboKey', () => {
 })
 
 describe('isComplete / isEmptyRow', () => {
-  it('una fila con los dos numeros esta completa', () => {
+  it('una fila con los dos números esta completa', () => {
     expect(isComplete(row('1234', '5678'))).toBe(true)
     expect(isEmptyRow(row('1234', '5678'))).toBe(false)
   })
@@ -57,10 +57,10 @@ describe('validateBulkRows: formato de los numeros', () => {
     expect(result[2]?.dailyError).toBeDefined()
   })
 
-  it('exige los dos numeros o ninguno (BR-N09)', () => {
+  it('exige los dos números o ninguno (BR-N09)', () => {
     const result = validateBulkRows([row('1234', ''), row('', '5678')])
-    expect(result[0]?.rowError).toContain('los dos numeros')
-    expect(result[1]?.rowError).toContain('los dos numeros')
+    expect(result[0]?.rowError).toContain('los dos números')
+    expect(result[1]?.rowError).toContain('los dos números')
   })
 
   it('acepta filas completamente vacias como borrador', () => {
@@ -73,7 +73,7 @@ describe('validateBulkRows: duplicados dentro del formulario (prueba obligatoria
   it('marca la segunda aparicion e indica la fila original', () => {
     const result = validateBulkRows([row('1234', '5678'), row('0001', '0002'), row('1234', '5678')])
     expect(result[0]?.rowError).toBeUndefined()
-    expect(result[2]?.rowError).toBe('Combinacion repetida en la fila 1.')
+    expect(result[2]?.rowError).toBe('Combinación repetida en la fila 1.')
   })
 
   it('no considera duplicado un numero individual repetido (BR-N07)', () => {
@@ -96,7 +96,7 @@ describe('validateBulkRows: duplicados ya existentes en la base de datos (prueba
   it('marca la combinacion que ya existe en la rifa, sea de quien sea', () => {
     const existingCombos = new Set(['1234/5678'])
     const result = validateBulkRows([row('1234', '5678'), row('1234', '0001')], { existingCombos })
-    expect(result[0]?.rowError).toBe('Esa combinacion ya existe en esta rifa.')
+    expect(result[0]?.rowError).toBe('Esa combinación ya existe en esta rifa.')
     expect(result[1]?.rowError).toBeUndefined()
   })
 

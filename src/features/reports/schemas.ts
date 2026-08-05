@@ -40,10 +40,10 @@ export const REPORT_LABELS: Record<ReportKey, string> = {
 
 export const REPORT_DESCRIPTIONS: Record<ReportKey, string> = {
   sellers: 'Boletas, ventas, recaudo y saldo pendiente de cada vendedor.',
-  'ticket-status': 'Cuantas boletas hay en cada estado de inventario y de pago.',
+  'ticket-status': 'Cuántas boletas hay en cada estado de inventario y de pago.',
   raffles: 'Inventario y dinero de cada rifa.',
-  'client-balances': 'Clientes que todavia deben dinero, del que mas debe al que menos.',
-  payments: 'Recaudo dia a dia dentro del rango de fechas elegido.',
+  'client-balances': 'Clientes que todavía deben dinero, del que más debe al que menos.',
+  payments: 'Recaudo día a día dentro del rango de fechas elegido.',
 }
 
 /** Reportes disponibles en el portal del vendedor (CLAUDE.md §24: sin datos ajenos). */

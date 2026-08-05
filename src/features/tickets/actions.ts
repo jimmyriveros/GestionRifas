@@ -55,7 +55,7 @@ export async function createTicket(input: unknown): Promise<ActionResultWith<{ i
   // creacion masiva lo comprueba en SQL; el INSERT directo no, asi que la regla
   // se aplica aqui.
   if (raffle.status !== 'draft' && raffle.status !== 'active') {
-    return { error: 'La rifa esta cerrada o anulada y no admite boletas nuevas.' }
+    return { error: 'La rifa está cerrada o anulada y no admite boletas nuevas.' }
   }
 
   const { data, error } = await supabase
@@ -103,7 +103,7 @@ export async function updateTicketNumbers(input: unknown): Promise<ActionResult>
   // BR-I06: una boleta anulada conserva sus numeros tal como quedaron; es
   // historia y no se reescribe (D-046).
   if (ticket.inventory_status === 'cancelled') {
-    return { error: 'La boleta esta anulada y sus numeros ya no se pueden cambiar.' }
+    return { error: 'La boleta está anulada y sus números ya no se pueden cambiar.' }
   }
 
   const { error } = await supabase
@@ -148,7 +148,7 @@ export async function reassignTicketSeller(input: unknown): Promise<ActionResult
   // compuesta tickets_client_seller_fk lo impediria de todas formas.
   if (ticket.inventory_status === 'assigned' || ticket.inventory_status === 'cancelled') {
     return {
-      error: 'Solo se puede cambiar el vendedor de una boleta que no este asignada ni anulada.',
+      error: 'Solo se puede cambiar el vendedor de una boleta que no esté asignada ni anulada.',
     }
   }
 

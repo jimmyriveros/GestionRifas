@@ -46,7 +46,7 @@ export function UsersTable({ members, currentRole, currentProfileId }: UsersTabl
       },
       {
         accessorKey: 'phone',
-        header: 'Telefono',
+        header: 'Teléfono',
         meta: { hideOnMobile: true },
         cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.phone}</span>,
       },
@@ -87,7 +87,7 @@ export function UsersTable({ members, currentRole, currentProfileId }: UsersTabl
       columns={columns}
       data={members}
       getRowId={(row) => row.profileId}
-      caption="Usuarios administrativos de la organizacion"
+      caption="Usuarios administrativos de la organización"
     />
   )
 }

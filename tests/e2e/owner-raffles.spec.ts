@@ -49,7 +49,7 @@ test.describe('Rifas', () => {
     await expect(page).toHaveURL(/\/owner\/raffles\/new/)
   })
 
-  test('rechaza un nombre de rifa repetido en la organizacion (BR-R11)', async ({ page }) => {
+  test('rechaza un nombre de rifa repetido en la organización (BR-R11)', async ({ page }) => {
     const name = unique('Rifa repetida')
 
     for (const attempt of [1, 2]) {
@@ -65,7 +65,7 @@ test.describe('Rifas', () => {
     }
 
     await expect(
-      page.getByText('Ya existe una rifa con ese nombre en la organizacion.'),
+      page.getByText('Ya existe una rifa con ese nombre en la organización.'),
     ).toBeVisible()
   })
 
@@ -125,7 +125,7 @@ test.describe('Rifas', () => {
 })
 
 test.describe('Rifas como Admin', () => {
-  test('un Admin no ve la accion de reabrir una rifa cerrada (BR-R03)', async ({ page }) => {
+  test('un Admin no ve la acción de reabrir una rifa cerrada (BR-R03)', async ({ page }) => {
     const name = unique('Rifa admin')
 
     await loginAs(page, ACCOUNTS.owner)

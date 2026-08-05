@@ -65,7 +65,7 @@ export function AssignTicketDialog({
             <DialogTitle>Asignar la boleta {ticketCode}</DialogTitle>
             <DialogDescription>
               Se registrara la venta por {formatCOP(rafflePrice)}, el precio vigente de la rifa. Ese
-              valor queda fijo aunque la rifa cambie de precio despues.
+              valor queda fijo aunque la rifa cambie de precio después.
             </DialogDescription>
           </DialogHeader>
 
@@ -181,7 +181,7 @@ function AssignTicketForm({
               id="client-search-assign"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Nombre, alias o telefono"
+              placeholder="Nombre, alias o teléfono"
               inputMode="search"
               disabled={isPending}
             />
@@ -189,7 +189,7 @@ function AssignTicketForm({
 
           {filtered.length === 0 ? (
             <p className="text-muted-foreground py-4 text-center text-sm">
-              Ningun cliente coincide. Usa la pestana «Cliente nuevo».
+              Ningún cliente coincide. Usa la pestaña «Cliente nuevo».
             </p>
           ) : (
             <ul className="max-h-56 divide-y overflow-y-auto rounded-md border" role="listbox">

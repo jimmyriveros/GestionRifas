@@ -977,6 +977,9 @@ Etiquetas en español:
 * Abonada.
 * Pagada.
 
+Estas ocho etiquetas y su redacción exacta se definen una sola vez en `src/lib/constants.ts`
+(`docs/ARCHITECTURE.md` §8.3). **Cualquier otro texto visible se redacta según §35.**
+
 ---
 
 # 28. DOCUMENTACIÓN OBLIGATORIA
@@ -995,6 +998,7 @@ Mantén actualizados:
 * `docs/PHASE_STATUS.md`
 * `docs/KNOWN_ISSUES.md`
 * `docs/TESTING.md`
+* `docs/UX_COPY_GUIDELINES.md`
 * `.env.example`
 
 Nunca incluyas secretos reales.
@@ -1175,6 +1179,47 @@ Después: `npm run verify` y `npm run test:db` en verde, commit local y etiqueta
   uno omitido es una trampa para la siguiente sesión.
 * Los documentos que crecen en cada fase (resultados de pruebas) van en su propio archivo, para que
   los normativos no se vuelvan ilegibles.
+
+---
+
+# 35. UX WRITING Y REDACCIÓN DE TEXTOS
+
+La guía permanente de redacción es `docs/UX_COPY_GUIDELINES.md` y se importa aquí, de modo que está
+cargada en toda sesión:
+
+@docs/UX_COPY_GUIDELINES.md
+
+## 35.1 Cuándo aplica
+
+**Siempre que una tarea cree, modifique, revise o proponga un texto que un usuario pueda leer.** Eso
+incluye, sin ser una lista cerrada:
+
+* Recorridos guiados (product tours), popups y tooltips.
+* Botones, enlaces y elementos de menú.
+* Etiquetas, textos de ejemplo y ayudas de formulario.
+* Mensajes de confirmación y advertencias.
+* Mensajes de error, incluidos los que devuelven el servidor y la base de datos.
+* Estados vacíos, alertas, mensajes de éxito e instrucciones.
+* Encabezados, títulos de pantalla y descripciones.
+
+Aplica igual a los **textos nuevos** y a los **textos existentes que se modifiquen**.
+
+## 35.2 Reglas obligatorias
+
+1. **Revisa antes de cerrar.** Ningún cambio de interfaz se considera terminado sin pasar la lista de
+   comprobación de la §14 de la guía. Es parte de la definición de terminado (§32), no un extra.
+2. **No reemplaces un texto existente sin entender su contexto**: en qué pantalla aparece, qué acción
+   acompaña, qué rol lo lee y qué pasa si el usuario se equivoca. Un texto que suena mejor pero
+   describe peor la acción es un retroceso.
+3. **Un término, un nombre.** Antes de nombrar algo, consulta el glosario del Anexo A de la guía. Si
+   hace falta un término nuevo, se añade primero al glosario.
+4. **Si un texto solicitado contradice la guía**, prioriza en este orden: prevención de errores,
+   facilidad de comprensión, claridad. Después señala la contradicción en una o dos frases y sigue
+   adelante; no bloquees la tarea por esto.
+5. **Las etiquetas de estado no se improvisan.** Las ocho de §27 viven en `src/lib/constants.ts`.
+   Cambiar una es cambiar ese archivo.
+6. **Esta guía es la fuente principal** en materia de redacción. Si otro documento del proyecto dice
+   algo distinto sobre cómo escribir un texto, manda la guía y el otro documento se corrige.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

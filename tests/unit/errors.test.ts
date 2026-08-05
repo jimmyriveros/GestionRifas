@@ -11,7 +11,7 @@ describe('mapPgError', () => {
 
   it('traduce insufficient_privilege (42501), tipico de un bloqueo por RLS', () => {
     expect(mapPgError({ code: '42501', message: 'permission denied' })).toBe(
-      'No tienes permiso para realizar esta accion.',
+      'No tienes permiso para realizar esta acción.',
     )
   })
 
@@ -77,7 +77,7 @@ describe('mapPgError', () => {
           code: '23505',
           message: 'duplicate key value violates unique constraint "tickets_combo_unique"',
         }),
-      ).toBe('Ya existe una boleta con esa combinacion de numero diario y semanal en esta rifa.')
+      ).toBe('Ya existe una boleta con esa combinación de número diario y semanal en esta rifa.')
     })
 
     it('traduce el nombre de rifa repetido (BR-R11)', () => {
@@ -86,7 +86,7 @@ describe('mapPgError', () => {
           code: '23505',
           message: 'duplicate key value violates unique constraint "raffles_org_name_key"',
         }),
-      ).toBe('Ya existe una rifa con ese nombre en la organizacion.')
+      ).toBe('Ya existe una rifa con ese nombre en la organización.')
     })
 
     it('cae al mensaje generico si la restriccion no esta traducida', () => {

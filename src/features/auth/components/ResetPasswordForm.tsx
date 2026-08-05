@@ -55,7 +55,7 @@ export function ResetPasswordForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nueva contrasena</FormLabel>
+              <FormLabel>Nueva contraseña</FormLabel>
               <FormControl>
                 <Input
                   type="password"
@@ -73,7 +73,7 @@ export function ResetPasswordForm() {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirmar contrasena</FormLabel>
+              <FormLabel>Confirmar contraseña</FormLabel>
               <FormControl>
                 <Input
                   type="password"
@@ -87,7 +87,7 @@ export function ResetPasswordForm() {
           )}
         />
         <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending ? 'Guardando...' : 'Guardar nueva contrasena'}
+          {isPending ? 'Guardando...' : 'Guardar nueva contraseña'}
         </Button>
       </form>
     </Form>

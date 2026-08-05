@@ -21,7 +21,7 @@ test.beforeAll(async () => {
   refs = await loadSeedRefs()
 })
 
-test('ciclo completo del Owner: rifa, vendedor, 1.000 boletas y aprobacion', async ({ page }) => {
+test('ciclo completo del Owner: rifa, vendedor, 1.000 boletas y aprobación', async ({ page }) => {
   test.setTimeout(300_000)
 
   await loginAs(page, ACCOUNTS.owner)
@@ -44,10 +44,10 @@ test('ciclo completo del Owner: rifa, vendedor, 1.000 boletas y aprobacion', asy
   await page.goto('/owner/sellers')
   await page.getByRole('button', { name: 'Nuevo vendedor' }).click()
   await page.getByLabel('Nombre completo').fill(sellerName)
-  await page.getByLabel('Telefono').fill('3005554433')
-  await page.getByLabel('Correo electronico').fill(`ciclo.${Date.now().toString(36)}@demo.test`)
-  await page.getByRole('button', { name: 'Enviar invitacion' }).click()
-  await expectToast(page, /Invitacion enviada/)
+  await page.getByLabel('Teléfono').fill('3005554433')
+  await page.getByLabel('Correo electrónico').fill(`ciclo.${Date.now().toString(36)}@demo.test`)
+  await page.getByRole('button', { name: 'Enviar invitación' }).click()
+  await expectToast(page, /Invitación enviada/)
   await expect(page.getByRole('link', { name: sellerName })).toBeVisible()
 
   // -------------------------------------------------- 3. 1.000 boletas
@@ -79,7 +79,7 @@ test('ciclo completo del Owner: rifa, vendedor, 1.000 boletas y aprobacion', asy
   })
 
   await page.goto(`/owner/tickets/${pending.id}`)
-  await expect(page.getByText('Pendiente de aprobacion').first()).toBeVisible()
+  await expect(page.getByText('Pendiente de aprobación').first()).toBeVisible()
   await page.getByRole('button', { name: 'Aprobar boleta' }).click()
   await expectToast(page, /aprobada/i)
   await expect(page.getByText('Disponible').first()).toBeVisible()

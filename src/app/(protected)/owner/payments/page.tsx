@@ -58,7 +58,7 @@ export default async function OwnerPaymentsPage({ searchParams }: { searchParams
     <div className="space-y-6">
       <PageHeader
         title="Pagos"
-        description="Todos los abonos de la organizacion. Anular un pago recalcula los saldos y queda auditado."
+        description="Todos los abonos de la organización. Anular un pago recalcula los saldos y queda auditado."
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -78,11 +78,11 @@ export default async function OwnerPaymentsPage({ searchParams }: { searchParams
       {rows.length === 0 ? (
         <EmptyState
           icon={<WalletIcon className="size-8" aria-hidden />}
-          title={hasFilters ? 'Ningun pago coincide con los filtros' : 'Todavia no hay pagos'}
+          title={hasFilters ? 'Ningún pago coincide con los filtros' : 'Todavía no hay pagos'}
           description={
             hasFilters
               ? 'Prueba a limpiar los filtros o a ampliar el rango de fechas.'
-              : 'Los abonos aparecen aqui en cuanto los vendedores empiecen a registrarlos.'
+              : 'Los abonos aparecen aquí en cuanto los vendedores empiecen a registrarlos.'
           }
         />
       ) : (

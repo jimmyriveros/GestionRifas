@@ -37,7 +37,7 @@ export const TICKET_NUMBER_REGEX = /^[0-9]{1,4}$/
 export const PAGE_SIZE = 25
 
 export const ROLE_LABELS: Record<AppRole, string> = {
-  owner: 'Dueno',
+  owner: 'Dueño',
   admin: 'Administrador',
   seller: 'Vendedor',
 }
@@ -45,7 +45,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 /** Etiquetas de estado en espanol (docs/ARCHITECTURE.md 8.3). */
 export const TICKET_INVENTORY_STATUS_LABELS: Record<TicketInventoryStatus, string> = {
   draft: 'Borrador',
-  pending_approval: 'Pendiente de aprobacion',
+  pending_approval: 'Pendiente de aprobación',
   available: 'Disponible',
   assigned: 'Asignada',
   cancelled: 'Anulada',

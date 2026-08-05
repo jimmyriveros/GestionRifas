@@ -58,16 +58,16 @@ export async function authorizeAction(
 ): Promise<{ membership: ActiveMembership } | { error: string }> {
   const user = await getAuthUser()
   if (!user) {
-    return { error: 'Tu sesion expiro. Vuelve a ingresar.' }
+    return { error: 'Tu sesión expiró. Vuelve a ingresar.' }
   }
 
   const membership = await getActiveMembership()
   if (!membership) {
-    return { error: 'Tu cuenta esta inactiva. Contacta a tu administrador.' }
+    return { error: 'Tu cuenta está inactiva. Contacta a tu administrador.' }
   }
 
   if (!allowedRoles.includes(membership.role)) {
-    return { error: 'No tienes permiso para realizar esta accion.' }
+    return { error: 'No tienes permiso para realizar esta acción.' }
   }
 
   return { membership }

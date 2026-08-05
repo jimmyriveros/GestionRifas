@@ -19,7 +19,7 @@ const fullName = z
 const alias = z.string().trim().max(60, 'El alias no puede superar 60 caracteres.')
 
 // BR-U08: telefono obligatorio, alias opcional.
-const phone = z.string().trim().regex(PHONE_REGEX, 'Ingresa un telefono valido (7 a 20 digitos).')
+const phone = z.string().trim().regex(PHONE_REGEX, 'Ingresa un teléfono válido (7 a 20 dígitos).')
 
 export const manageableRoleSchema = z.enum(['admin', 'seller'])
 export type ManageableRole = z.infer<typeof manageableRoleSchema>
@@ -33,7 +33,7 @@ export const userFormSchema = z.object({
   fullName,
   alias,
   phone,
-  email: z.email('Ingresa un correo valido.').trim().toLowerCase(),
+  email: z.email('Ingresa un correo válido.').trim().toLowerCase(),
 })
 export type UserFormInput = z.infer<typeof userFormSchema>
 
@@ -41,7 +41,7 @@ export const createUserSchema = userFormSchema.extend({ role: manageableRoleSche
 export type CreateUserInput = z.infer<typeof createUserSchema>
 
 export const updateUserSchema = z.object({
-  profileId: z.uuid('Usuario no valido.'),
+  profileId: z.uuid('Usuario no válido.'),
   fullName,
   alias,
   phone,
@@ -49,13 +49,13 @@ export const updateUserSchema = z.object({
 export type UpdateUserInput = z.infer<typeof updateUserSchema>
 
 export const setUserActiveSchema = z.object({
-  profileId: z.uuid('Usuario no valido.'),
+  profileId: z.uuid('Usuario no válido.'),
   isActive: z.boolean(),
 })
 export type SetUserActiveInput = z.infer<typeof setUserActiveSchema>
 
 export const resendInvitationSchema = z.object({
-  profileId: z.uuid('Usuario no valido.'),
+  profileId: z.uuid('Usuario no válido.'),
 })
 
 export const userFormDefaults: UserFormInput = {

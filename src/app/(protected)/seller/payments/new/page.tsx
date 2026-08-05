@@ -33,7 +33,7 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: S
           <EmptyState
             icon={<CheckIcon className="size-8" aria-hidden />}
             title="Nadie te debe dinero"
-            description="Todas tus boletas vendidas estan pagadas. Cuando asignes una nueva, aparecera aqui."
+            description="Todas tus boletas vendidas están pagadas. Cuando asignes una nueva, aparecerá aquí."
             action={
               <Button asChild variant="outline">
                 <Link href="/seller/tickets?inventoryStatus=available">
@@ -61,7 +61,7 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: S
         <PageHeader title="Registrar abono" />
         <EmptyState
           title="Cliente no encontrado"
-          description="Ese cliente no existe o no esta en tu cartera."
+          description="Ese cliente no existe o no está en tu cartera."
           action={
             <Button asChild variant="outline">
               <Link href="/seller/payments/new">Elegir otro cliente</Link>
@@ -79,7 +79,7 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: S
         <EmptyState
           icon={<CheckIcon className="size-8" aria-hidden />}
           title={`${client.name} no tiene saldo pendiente`}
-          description="Todas sus boletas estan pagadas."
+          description="Todas sus boletas están pagadas."
           action={
             <Button asChild variant="outline">
               <Link href="/seller/payments/new">Elegir otro cliente</Link>

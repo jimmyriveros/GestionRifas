@@ -6,7 +6,7 @@ export default function NewRafflePage() {
     <div className="space-y-6">
       <PageHeader
         title="Nueva rifa"
-        description="La rifa se crea en estado borrador. Activala cuando puedas empezar a vender."
+        description="La rifa se crea en estado borrador. Actívala cuando puedas empezar a vender."
       />
       <RaffleForm />
     </div>

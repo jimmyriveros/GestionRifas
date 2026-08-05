@@ -54,8 +54,8 @@ export default async function SellerDashboardPage() {
       {totals.ticketsPendingApproval > 0 ? (
         <p className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-950">
           <AlertTriangleIcon className="size-4 shrink-0" aria-hidden />
-          Tienes {totals.ticketsPendingApproval} boleta(s) esperando la aprobacion de tu
-          administrador. Todavia no puedes venderlas.
+          Tienes {totals.ticketsPendingApproval} boleta(s) esperando la aprobación de tu
+          administrador. Todavía no puedes venderlas.
         </p>
       ) : null}
 
@@ -93,7 +93,7 @@ export default async function SellerDashboardPage() {
           <MetricCard label="Total" value={totals.ticketsTotal} />
           <MetricCard label="Disponibles" value={totals.ticketsAvailable} />
           <MetricCard label="Vendidas" value={totals.ticketsAssigned} />
-          <MetricCard label="Pendientes de aprobacion" value={totals.ticketsPendingApproval} />
+          <MetricCard label="Pendientes de aprobación" value={totals.ticketsPendingApproval} />
           <MetricCard label="Clientes" value={dashboard.clientsCount} />
         </div>
       </section>
@@ -119,7 +119,7 @@ export default async function SellerDashboardPage() {
             </Button>
           </div>
           {dashboard.recentTickets.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Todavia no has vendido ninguna boleta.</p>
+            <p className="text-muted-foreground text-sm">Todavía no has vendido ninguna boleta.</p>
           ) : (
             <ul className="divide-y rounded-lg border">
               {dashboard.recentTickets.map((ticket) => (
@@ -152,7 +152,7 @@ export default async function SellerDashboardPage() {
             </Button>
           </div>
           {dashboard.recentClients.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Todavia no tienes clientes.</p>
+            <p className="text-muted-foreground text-sm">Todavía no tienes clientes.</p>
           ) : (
             <ul className="divide-y rounded-lg border">
               {dashboard.recentClients.map((client) => (
@@ -185,7 +185,7 @@ export default async function SellerDashboardPage() {
         </div>
         {dashboard.recentPayments.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            Todavia no has registrado ningun abono.{' '}
+            Todavía no has registrado ningún abono.{' '}
             <Link href="/seller/payments/new" className="underline">
               Registra el primero
             </Link>

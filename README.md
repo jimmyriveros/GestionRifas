@@ -64,6 +64,7 @@ tarea lo pide (`HANDOFF.md` §5 indica cuál).
 | [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Manual de operación del negocio (alta de organización, rifas, anulaciones) | Para operar la aplicación, no para programar |
 | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Problemas frecuentes en producción y cómo resolverlos | Ante un incidente en producción |
 | [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md) | Auditoría final: hallazgos, evidencia y lo que se intentó romper sin conseguirlo | Al evaluar el estado real del sistema |
+| [`docs/UX_COPY_GUIDELINES.md`](docs/UX_COPY_GUIDELINES.md) | Guía de UX Writing: tono, glosario y reglas de redacción de todo texto visible | Al escribir o cambiar cualquier texto de la interfaz |
 
 ---
 

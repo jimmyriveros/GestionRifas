@@ -25,12 +25,12 @@ test.describe('Clientes del vendedor', () => {
     await loginAs(page, ACCOUNTS.seller)
   })
 
-  test('crea un cliente con lo minimo: nombre y telefono (prueba 1)', async ({ page }) => {
+  test('crea un cliente con lo mínimo: nombre y teléfono (prueba 1)', async ({ page }) => {
     const name = unique('Cliente E2E')
 
     await page.goto('/seller/clients/new')
     await page.getByLabel('Nombre').fill(name)
-    await page.getByLabel('Telefono').fill('3001234567')
+    await page.getByLabel('Teléfono').fill('3001234567')
     await page.getByRole('button', { name: 'Crear cliente' }).click()
 
     await page.waitForURL(/\/seller\/clients\/[0-9a-f-]+$/)
@@ -38,24 +38,24 @@ test.describe('Clientes del vendedor', () => {
     await expect(page.getByText('3001234567')).toBeVisible()
   })
 
-  test('rechaza un cliente sin telefono valido (BR-C02)', async ({ page }) => {
+  test('rechaza un cliente sin teléfono válido (BR-C02)', async ({ page }) => {
     await page.goto('/seller/clients/new')
-    await page.getByLabel('Nombre').fill(unique('Cliente sin telefono'))
-    await page.getByLabel('Telefono').fill('123')
+    await page.getByLabel('Nombre').fill(unique('Cliente sin teléfono'))
+    await page.getByLabel('Teléfono').fill('123')
     await page.getByRole('button', { name: 'Crear cliente' }).click()
 
-    await expect(page.getByText('Ingresa un telefono valido (7 a 20 digitos).')).toBeVisible()
+    await expect(page.getByText('Ingresa un teléfono válido (7 a 20 dígitos).')).toBeVisible()
     await expect(page).toHaveURL(/\/seller\/clients\/new/)
   })
 
-  test('rechaza un correo con formato invalido, pero lo acepta vacio', async ({ page }) => {
+  test('rechaza un correo con formato inválido, pero lo acepta vacio', async ({ page }) => {
     await page.goto('/seller/clients/new')
     await page.getByLabel('Nombre').fill(unique('Cliente correo'))
-    await page.getByLabel('Telefono').fill('3001234567')
+    await page.getByLabel('Teléfono').fill('3001234567')
     await page.getByLabel('Correo (opcional)').fill('esto-no-es-un-correo')
     await page.getByRole('button', { name: 'Crear cliente' }).click()
 
-    await expect(page.getByText('Ingresa un correo valido.')).toBeVisible()
+    await expect(page.getByText('Ingresa un correo válido.')).toBeVisible()
 
     await page.getByLabel('Correo (opcional)').fill('')
     await page.getByRole('button', { name: 'Crear cliente' }).click()
@@ -86,7 +86,7 @@ test.describe('Clientes del vendedor', () => {
     await page.getByRole('button', { name: 'Archivar', exact: true }).click()
 
     await expectToast(page, 'Cliente archivado.')
-    await expect(page.getByText(/Este cliente esta archivado/)).toBeVisible()
+    await expect(page.getByText(/Este cliente está archivado/)).toBeVisible()
 
     // Desaparece del listado por defecto y vuelve con el interruptor.
     await page.goto('/seller/clients')
@@ -102,21 +102,21 @@ test.describe('Clientes del vendedor', () => {
     await expectToast(page, 'Cliente restaurado.')
   })
 
-  test('busca por nombre, alias y telefono (prueba 4, BR-C08)', async ({ page }) => {
+  test('busca por nombre, alias y teléfono (prueba 4, BR-C08)', async ({ page }) => {
     const name = unique('Buscable')
     const client = await createClientFor(refs, name)
 
     await page.goto('/seller/clients')
-    await page.getByPlaceholder('Nombre, alias, telefono o correo').fill(name)
+    await page.getByPlaceholder('Nombre, alias, teléfono o correo').fill(name)
     await page.getByRole('button', { name: 'Buscar' }).click()
 
     await page.waitForURL(/q=/)
     await expect(page.getByRole('link', { name: client.name })).toBeVisible()
 
     // Una busqueda que no coincide con nada deja el estado vacio explicito.
-    await page.getByPlaceholder('Nombre, alias, telefono o correo').fill('zzz-no-existe-zzz')
+    await page.getByPlaceholder('Nombre, alias, teléfono o correo').fill('zzz-no-existe-zzz')
     await page.getByRole('button', { name: 'Buscar' }).click()
-    await expect(page.getByText('Ningun cliente coincide con la busqueda')).toBeVisible()
+    await expect(page.getByText('Ningún cliente coincide con la búsqueda')).toBeVisible()
   })
 
   test('el listado no ofrece eliminar clientes, solo archivar (BR-C06)', async ({ page }) => {
@@ -146,7 +146,7 @@ test.describe('Aislamiento entre vendedores (prueba 12)', () => {
     // Se comprueba lo que importa: la pagina no revela NADA del cliente ajeno.
     // El codigo HTTP es 200 y no 404 porque el segmento tiene `loading.tsx`: la
     // respuesta ya iba en streaming cuando se resolvio `notFound()` (I-014).
-    await expect(page.getByRole('heading', { name: 'Pagina no encontrada' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Página no encontrada' })).toBeVisible()
     await expect(page.getByText(ajeno!.name)).toHaveCount(0)
     await expect(page.getByText(ajeno!.phone)).toHaveCount(0)
   })

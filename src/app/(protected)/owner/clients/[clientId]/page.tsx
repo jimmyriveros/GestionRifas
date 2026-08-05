@@ -43,10 +43,10 @@ export default async function ClientDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Informacion general</CardTitle>
+          <CardTitle className="text-base">Información general</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Telefono">{client.phone}</Field>
+          <Field label="Teléfono">{client.phone}</Field>
           <Field label="Correo">{client.email ?? '—'}</Field>
           <Field label="Vendedor">{client.sellerName}</Field>
           <Field label="Alta">{formatDateEs(client.createdAt)}</Field>
@@ -67,7 +67,7 @@ export default async function ClientDetailPage({
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Boletas del cliente</h2>
         {tickets.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Este cliente todavia no tiene boletas.</p>
+          <p className="text-muted-foreground text-sm">Este cliente todavía no tiene boletas.</p>
         ) : (
           <TicketsTable tickets={tickets} />
         )}
@@ -77,7 +77,7 @@ export default async function ClientDetailPage({
         <h2 className="text-lg font-semibold">Historial de abonos</h2>
         {payments.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            Este cliente todavia no tiene abonos registrados.
+            Este cliente todavía no tiene abonos registrados.
           </p>
         ) : (
           <PaymentsTable payments={payments} clientBasePath="/owner/clients" showSeller canVoid />

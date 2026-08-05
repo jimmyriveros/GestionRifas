@@ -20,24 +20,24 @@ test.describe('Vendedores', () => {
     await page.getByRole('button', { name: 'Nuevo vendedor' }).click()
 
     await page.getByLabel('Nombre completo').fill(name)
-    await page.getByLabel('Telefono').fill('3009998877')
-    await page.getByLabel('Correo electronico').fill(email)
-    await page.getByRole('button', { name: 'Enviar invitacion' }).click()
+    await page.getByLabel('Teléfono').fill('3009998877')
+    await page.getByLabel('Correo electrónico').fill(email)
+    await page.getByRole('button', { name: 'Enviar invitación' }).click()
 
-    await expectToast(page, /Invitacion enviada/)
+    await expectToast(page, /Invitación enviada/)
     await expect(page.getByRole('link', { name })).toBeVisible()
   })
 
-  test('rechaza un telefono invalido (BR-U08)', async ({ page }) => {
+  test('rechaza un teléfono inválido (BR-U08)', async ({ page }) => {
     await page.goto('/owner/sellers')
     await page.getByRole('button', { name: 'Nuevo vendedor' }).click()
 
-    await page.getByLabel('Nombre completo').fill(unique('Vendedor telefono'))
-    await page.getByLabel('Telefono').fill('123')
-    await page.getByLabel('Correo electronico').fill(`t.${Date.now().toString(36)}@demo.test`)
-    await page.getByRole('button', { name: 'Enviar invitacion' }).click()
+    await page.getByLabel('Nombre completo').fill(unique('Vendedor teléfono'))
+    await page.getByLabel('Teléfono').fill('123')
+    await page.getByLabel('Correo electrónico').fill(`t.${Date.now().toString(36)}@demo.test`)
+    await page.getByRole('button', { name: 'Enviar invitación' }).click()
 
-    await expect(page.getByText('Ingresa un telefono valido (7 a 20 digitos).')).toBeVisible()
+    await expect(page.getByText('Ingresa un teléfono válido (7 a 20 dígitos).')).toBeVisible()
   })
 
   test('desactiva y reactiva a un vendedor (prueba 4, BR-U06)', async ({ page }) => {
@@ -47,10 +47,10 @@ test.describe('Vendedores', () => {
     await page.goto('/owner/sellers')
     await page.getByRole('button', { name: 'Nuevo vendedor' }).click()
     await page.getByLabel('Nombre completo').fill(name)
-    await page.getByLabel('Telefono').fill('3007776655')
-    await page.getByLabel('Correo electronico').fill(email)
-    await page.getByRole('button', { name: 'Enviar invitacion' }).click()
-    await expectToast(page, /Invitacion enviada/)
+    await page.getByLabel('Teléfono').fill('3007776655')
+    await page.getByLabel('Correo electrónico').fill(email)
+    await page.getByRole('button', { name: 'Enviar invitación' }).click()
+    await expectToast(page, /Invitación enviada/)
 
     const row = page.getByRole('row').filter({ hasText: name })
     await row.getByRole('button', { name: `Acciones para ${name}` }).click()

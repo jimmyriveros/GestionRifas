@@ -118,8 +118,8 @@ export function UserRowActions({ member, currentRole, currentProfileId }: UserRo
         title={member.isActive ? 'Desactivar usuario' : 'Activar usuario'}
         description={
           member.isActive
-            ? `${member.fullName} dejara de poder ingresar de inmediato, incluso con una sesion abierta. Sus boletas, clientes y pagos se conservan.`
-            : `${member.fullName} podra volver a ingresar con su correo y contrasena.`
+            ? `${member.fullName} dejará de poder ingresar de inmediato, incluso con una sesión abierta. Sus boletas, clientes y pagos se conservan.`
+            : `${member.fullName} podrá volver a ingresar con su correo y contraseña.`
         }
         confirmLabel={member.isActive ? 'Desactivar' : 'Activar'}
         destructive={member.isActive}

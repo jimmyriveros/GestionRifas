@@ -7,7 +7,7 @@ export default function ForgotPasswordPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recuperar contrasena</CardTitle>
+        <CardTitle>Recuperar contraseña</CardTitle>
         <CardDescription>Te enviaremos un enlace a tu correo para restablecerla.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -16,7 +16,7 @@ export default function ForgotPasswordPage() {
           href="/login"
           className="text-muted-foreground hover:text-foreground block text-center text-sm"
         >
-          Volver a iniciar sesion
+          Volver a iniciar sesión
         </Link>
       </CardContent>
     </Card>

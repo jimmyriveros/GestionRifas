@@ -39,7 +39,7 @@ export function ForgotPasswordForm() {
   if (sent) {
     return (
       <p className="bg-muted text-muted-foreground rounded-md px-3 py-2 text-sm">
-        Si el correo esta registrado, te enviamos un enlace para restablecer tu contrasena.
+        Si el correo está registrado, te enviamos un enlace para restablecer tu contraseña.
       </p>
     )
   }
@@ -52,7 +52,7 @@ export function ForgotPasswordForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Correo electronico</FormLabel>
+              <FormLabel>Correo electrónico</FormLabel>
               <FormControl>
                 <Input
                   type="email"
@@ -67,7 +67,7 @@ export function ForgotPasswordForm() {
           )}
         />
         <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending ? 'Enviando...' : 'Enviar enlace de recuperacion'}
+          {isPending ? 'Enviando...' : 'Enviar enlace de recuperación'}
         </Button>
       </form>
     </Form>

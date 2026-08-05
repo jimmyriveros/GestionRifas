@@ -78,7 +78,7 @@ test.describe('Reportes del portal administrativo', () => {
     expect(aNumero(totalMostrado)).toBe(suma)
   })
 
-  test('el filtro por rifa cambia los numeros y se puede limpiar', async ({ page }) => {
+  test('el filtro por rifa cambia los números y se puede limpiar', async ({ page }) => {
     await abrirReporte(page, 'report=sellers')
 
     const totalSinFiltro = await page
@@ -120,12 +120,12 @@ test.describe('Reportes del portal administrativo', () => {
     await expect(page.getByText('0 pago(s) anulado(s)')).toBeVisible()
   })
 
-  test('un rango de fechas sin pagos lo explica en vez de mostrar una tabla vacia', async ({
+  test('un rango de fechas sin pagos lo explica en vez de mostrar una tabla vacía', async ({
     page,
   }) => {
     await page.goto('/owner/reports?report=payments&dateFrom=2000-01-01&dateTo=2000-12-31')
 
-    await expect(page.getByText('Ningun pago en este rango')).toBeVisible()
+    await expect(page.getByText('Ningún pago en este rango')).toBeVisible()
   })
 
   test('el reporte de clientes con saldo ordena de mayor a menor deuda', async ({ page }) => {
@@ -195,8 +195,8 @@ test.describe('Exportacion a CSV (prueba 3)', () => {
     for (const [reporte, encabezado] of [
       ['sellers', 'Vendedor;Alias;Estado'],
       ['ticket-status', 'Grupo;Estado;Boletas'],
-      ['raffles', 'Codigo;Rifa;Estado'],
-      ['client-balances', 'Cliente;Alias;Telefono'],
+      ['raffles', 'Código;Rifa;Estado'],
+      ['client-balances', 'Cliente;Alias;Teléfono'],
       ['payments', 'Fecha;Pagos;Recaudado'],
     ] as const) {
       const { status, body } = await fetchCsv(page, `report=${reporte}`)
@@ -277,7 +277,7 @@ test.describe('Reportes del vendedor: sin datos ajenos (prueba 2)', () => {
     }
   })
 
-  test('sus totales son menores que los de la organizacion', async ({ page }) => {
+  test('sus totales son menores que los de la organización', async ({ page }) => {
     const totalDe = async (texto: string) => Number(texto.replace(/[^0-9]/g, '') || '0')
 
     await loginAs(page, ACCOUNTS.owner)
@@ -319,7 +319,7 @@ test.describe('Dashboards completos (CLAUDE.md §23)', () => {
     await expect(page.getByRole('heading', { name: 'Pagos recientes' })).toBeVisible()
   })
 
-  test('ningun panel anuncia ya funciones de fases futuras', async ({ page }) => {
+  test('ningún panel anuncia ya funciones de fases futuras', async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/dashboard')
     await expect(page.getByRole('heading', { name: 'Pagos recientes' })).toBeVisible()
@@ -332,7 +332,7 @@ test.describe('Dashboards completos (CLAUDE.md §23)', () => {
     await expect(page.getByText(/llegan? en (la|las) fase/i)).toHaveCount(0)
   })
 
-  test('las fechas de pago no se muestran un dia antes (I-017)', async ({ page }) => {
+  test('las fechas de pago no se muestran un día antes (I-017)', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
 
     // La fecha que la aplicacion muestra en el historial debe coincidir con la

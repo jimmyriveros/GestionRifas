@@ -22,13 +22,13 @@ export default async function AccountPasswordPage() {
       </Link>
 
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Cambiar contrasena</h1>
-        <p className="text-muted-foreground">Actualiza la contrasena de tu cuenta.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Cambiar contraseña</h1>
+        <p className="text-muted-foreground">Actualiza la contraseña de tu cuenta.</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Nueva contrasena</CardTitle>
+          <CardTitle>Nueva contraseña</CardTitle>
           <CardDescription>Debe tener al menos 8 caracteres.</CardDescription>
         </CardHeader>
         <CardContent>

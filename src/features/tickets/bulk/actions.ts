@@ -48,7 +48,7 @@ export async function bulkCreateTickets(
   // Segunda capa de la validacion por fila (BR-N10): el navegador ya la hizo,
   // pero una Server Action puede invocarse sin pasar por la interfaz.
   if (hasErrors(validateBulkRows(values.rows))) {
-    return { error: 'El lote tiene filas con numeros invalidos o repetidos entre si.' }
+    return { error: 'El lote tiene filas con números inválidos o repetidos entre sí.' }
   }
 
   const supabase = await createClient()

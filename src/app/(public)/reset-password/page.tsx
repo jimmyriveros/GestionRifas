@@ -13,8 +13,8 @@ export default async function ResetPasswordPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Nueva contrasena</CardTitle>
-        <CardDescription>Elige una contrasena segura para tu cuenta.</CardDescription>
+        <CardTitle>Nueva contraseña</CardTitle>
+        <CardDescription>Elige una contraseña segura para tu cuenta.</CardDescription>
       </CardHeader>
       <CardContent>
         <ResetPasswordForm />

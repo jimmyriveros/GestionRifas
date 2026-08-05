@@ -53,11 +53,11 @@ export function ClientArchiveButton({
         title={archived ? 'Restaurar cliente' : 'Archivar cliente'}
         description={
           archived
-            ? `${clientName} volvera a aparecer en la lista y podras asignarle boletas de nuevo.`
-            : `${clientName} dejara de aparecer al asignar boletas. ${
+            ? `${clientName} volverá a aparecer en la lista y podrás asignarle boletas de nuevo.`
+            : `${clientName} dejará de aparecer al asignar boletas. ${
                 ticketsCount > 0
                   ? `Sus ${ticketsCount} boleta(s) y todo su historial se conservan.`
-                  : 'Podras restaurarlo cuando quieras.'
+                  : 'Podrás restaurarlo cuando quieras.'
               }`
         }
         confirmLabel={archived ? 'Restaurar' : 'Archivar'}

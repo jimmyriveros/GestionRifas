@@ -118,7 +118,7 @@ async function SellersReport({ filters, basePath }: { filters: ReportFilters; ba
     return (
       <EmptyState
         icon={<BarChart3Icon className="size-8" aria-hidden />}
-        title="Todavia no hay vendedores"
+        title="Todavía no hay vendedores"
         description="Invita al primer vendedor para empezar a medir ventas y recaudo."
       />
     )
@@ -224,7 +224,7 @@ async function TicketStatusReport({ filters }: { filters: ReportFilters }) {
 
       <p className="text-muted-foreground text-sm">
         Los estados de cobranza (Sin pagar, Abonada y Pagada) solo cuentan boletas vendidas: una
-        boleta disponible todavia no debe dinero.
+        boleta disponible todavía no debe dinero.
       </p>
 
       <ReportTable
@@ -246,7 +246,7 @@ async function RafflesReport() {
     return (
       <EmptyState
         icon={<BarChart3Icon className="size-8" aria-hidden />}
-        title="Todavia no hay rifas"
+        title="Todavía no hay rifas"
         description="Crea una rifa para empezar a registrar boletas y ventas."
       />
     )
@@ -347,7 +347,7 @@ async function ClientBalancesReport({
       <EmptyState
         icon={<BarChart3Icon className="size-8" aria-hidden />}
         title="Nadie debe dinero"
-        description="Todas las boletas vendidas estan pagadas por completo."
+        description="Todas las boletas vendidas están pagadas por completo."
       />
     )
   }
@@ -479,14 +479,14 @@ async function PaymentsReport({ filters }: { filters: ReportFilters }) {
           value={formatCOP(totals.voidedAmount)}
           hint={`${totals.voidedCount} pago(s) anulado(s)`}
         />
-        <MetricCard label="Dias con recaudo" value={total} />
+        <MetricCard label="Días con recaudo" value={total} />
       </div>
 
       {total === 0 ? (
         <EmptyState
           icon={<BarChart3Icon className="size-8" aria-hidden />}
-          title="Ningun pago en este rango"
-          description="Prueba a ampliar las fechas o a quitar los demas filtros."
+          title="Ningún pago en este rango"
+          description="Prueba a ampliar las fechas o a quitar los demás filtros."
         />
       ) : (
         <>
@@ -494,7 +494,7 @@ async function PaymentsReport({ filters }: { filters: ReportFilters }) {
             columns={columns}
             rows={rows}
             getRowId={(row) => row.paymentDate}
-            caption={`${REPORT_LABELS.payments}: recaudo dia a dia`}
+            caption={`${REPORT_LABELS.payments}: recaudo día a día`}
             showFooter
             footerLabel="Total del rango"
           />

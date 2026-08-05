@@ -234,6 +234,7 @@ más de `$100.000` → operación rechazada.
 | BR-X05 | Existen estados vacíos, skeletons de carga, toasts y mensajes de error comprensibles. | C | 1+ |
 | BR-X06 | Los errores de restricción de la base de datos se traducen a mensajes en español entendibles, sin exponer detalles internos. | S, C | 3 |
 | BR-X07 | Los filtros son fáciles de limpiar; siempre hay una acción visible de «Limpiar filtros». | C | 3 |
+| BR-X08 | Todo texto visible se redacta según [`UX_COPY_GUIDELINES.md`](UX_COPY_GUIDELINES.md) (tuteo, palabras comunes, consecuencias explicadas, glosario del Anexo A). | C | Permanente |
 
 ---
 

@@ -44,7 +44,7 @@ export function DataTablePagination({ total, page, pageSize }: DataTablePaginati
   return (
     <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
       <p className="text-muted-foreground text-sm" aria-live="polite">
-        {total === 0 ? 'Sin resultados' : `Mostrando ${from}–${to} de ${total}`}
+        {total === 0 ? 'Nada para mostrar' : `Mostrando ${from}–${to} de ${total}`}
       </p>
       <div className="flex items-center gap-2">
         <Button

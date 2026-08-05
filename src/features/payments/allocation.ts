@@ -134,7 +134,7 @@ export function validateAllocations(
     error =
       difference > 0
         ? `Faltan por repartir ${difference} pesos.`
-        : `Se repartieron ${Math.abs(difference)} pesos de mas.`
+        : `Se repartieron ${Math.abs(difference)} pesos de más.`
   }
 
   return {

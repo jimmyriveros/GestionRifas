@@ -28,7 +28,7 @@ export default async function RafflesPage() {
       {raffles.length === 0 ? (
         <EmptyState
           icon={<TicketIcon className="size-8" aria-hidden />}
-          title="Todavia no hay rifas"
+          title="Todavía no hay rifas"
           description="Crea la primera rifa para empezar a generar boletas y asignarlas a tus vendedores."
           action={
             <Button asChild>

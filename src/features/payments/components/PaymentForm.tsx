@@ -162,7 +162,7 @@ export function PaymentForm({ clientId, clientName, tickets, returnTo }: Payment
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="payment-method">Metodo</Label>
+          <Label htmlFor="payment-method">Método</Label>
           <Select
             value={method}
             onValueChange={(value) => setMethod(value as PaymentMethod)}
@@ -217,7 +217,7 @@ export function PaymentForm({ clientId, clientName, tickets, returnTo }: Payment
                 <th className="hidden h-10 px-3 text-right font-medium sm:table-cell">Abonado</th>
                 <th className="h-10 px-3 text-right font-medium">Debe</th>
                 <th className="h-10 px-3 text-right font-medium">Abona ahora</th>
-                <th className="h-10 px-3 text-left font-medium">Quedara</th>
+                <th className="h-10 px-3 text-left font-medium">Quedará</th>
               </tr>
             </thead>
             <tbody>

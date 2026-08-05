@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.9 · **Actualizado:** 2026-08-04 (D-001 a D-070)
+- **Versión:** 1.11 · **Actualizado:** 2026-08-05 (D-001 a D-073)
 
 ---
 
@@ -945,6 +945,75 @@ propiedad —fuera del MVP como interfaz, BR-U04— sigue siendo posible desde u
 haga las dos actualizaciones en la misma transacción. Cubierto por `F9-01` en
 `tests/db/audit-phase9.test.ts`, incluida la comprobación de que la transferencia en una transacción
 **sí** funciona.
+
+---
+
+## D-072 — Guía de UX Writing importada desde `CLAUDE.md`, con anexos propios del proyecto
+**Fase:** posterior a la 9 (mantenimiento; instrucción explícita del usuario, 2026-08-05)
+**Contexto.** Las reglas de redacción estaban repartidas y eran incompletas: `CLAUDE.md` §27 fijaba
+ocho etiquetas de estado y pedía «mensajes de error comprensibles», `ARCHITECTURE.md` §8.3 repetía
+las etiquetas y `BUSINESS_RULES.md` BR-X05/X06 las mencionaba de pasada. Nada decía cómo escribir un
+botón, una confirmación o un estado vacío para un vendedor con poca experiencia digital, que es el
+usuario real.
+**Decisión.** Crear `docs/UX_COPY_GUIDELINES.md` como fuente única de redacción e **importarla**
+desde `CLAUDE.md` §35 con `@docs/UX_COPY_GUIDELINES.md`, para que esté en contexto en toda sesión sin
+depender de que alguien recuerde abrirla. §35 añade cuándo aplica y seis reglas obligatorias
+(revisión antes de cerrar, no reemplazar textos sin contexto, un término un nombre, cómo resolver
+contradicciones, etiquetas de estado inmutables, primacía de la guía).
+**Anexos añadidos a la guía.** El texto que entregó el usuario es normativo pero genérico; se le
+sumaron cuatro anexos para que sea accionable aquí: A (glosario canónico), B (dónde vive cada texto
+en el código), C (contradicciones detectadas y su resolución) y D (estado de aplicación).
+**Contradicciones resueltas.** El ejemplo de la §8 de la guía dice «Eliminar vendedor», pero el
+sistema **no borra nada** —no hay política ni privilegio de `DELETE` en ninguna tabla (D-038, `0010`)—:
+se conserva la estructura del ejemplo y se cambian los verbos por desactivar, archivar y anular. La
+§11 usa «comprador» y la §2 «Owner», mientras la interfaz dice **cliente** y **dueño**: manda el
+glosario. Ambas quedan anotadas dentro de la propia guía, no en un documento aparte, para que quien
+lea el ejemplo vea la corrección al lado.
+**Alternativas.** (a) Dejar la guía en `docs/` sin importarla y citarla desde `HANDOFF.md` §5
+(descartada: §5 existe precisamente para lo que **no** se lee siempre, y la redacción sí aplica
+siempre). (b) Copiar la guía dentro de `CLAUDE.md` (descartada: duplica el contenido y contradice
+§34.4, «enlaza en lugar de duplicar»). (c) Reescribir de una vez los textos actuales para cumplirla
+(descartada: el usuario pidió explícitamente crear y configurar la guía sin tocar todavía la
+aplicación).
+**Consecuencia.** Cada sesión carga ~2,5k fichas más. A cambio, ninguna tarea de interfaz puede
+alegar que no conocía las reglas. Los textos existentes **no** se han auditado contra la guía: lo
+pendiente está registrado como I-029.
+
+---
+
+## D-073 — La revisión de textos corrige la aplicación, no la base de datos
+**Fase:** posterior a la 9 (mantenimiento; autorizada por el usuario, 2026-08-05)
+**Contexto.** Al crear la guía (D-072) quedó registrado que los textos visibles estaban escritos sin
+tildes ni «ñ» (I-029). El usuario autorizó corregirlos. El problema es que esos textos viven en dos
+sitios muy distintos: la aplicación (`src/`, ~300 cadenas) y el cuerpo de las funciones y triggers de
+PostgreSQL (~46 `raise exception` en `0004`, `0007` y `0016`), que `mapPgError` propaga tal cual al
+usuario porque son mensajes de negocio ya redactados en español (D-044).
+**Decisión.** Corregir toda la capa de aplicación en este cambio y **dejar los mensajes de la base de
+datos para un cambio propio**, registrado como I-030.
+**Por qué se separan.** Las migraciones aplicadas son inmutables (`HANDOFF.md` §8.2): cambiar un
+mensaje obliga a una migración `0017` que reescriba las funciones enteras, y a aplicarla al proyecto
+real. Eso es una operación sobre producción —con respaldo previo y autorización explícita, D-070— y
+su riesgo funcional no es cero: se reescribe el cuerpo de seis RPC para un cambio cosmético. Mezclarlo
+con una corrección de ortografía del frontend habría convertido un cambio sin riesgo en uno con él.
+Además, dejar `0017` creada pero sin aplicar reproduce exactamente la trampa de I-015: local y
+producción divergiendo en silencio.
+**Cómo se hizo la corrección.** Con un script que solo toca cadenas de texto y texto JSX —nunca
+identificadores, rutas de importación, clases de Tailwind ni comentarios— y una lista de palabras
+revisada a mano. Las palabras cuya tilde depende del significado (`esta`/`está`, `mas`/`más`,
+`si`/`sí`, `este`/`esté`, `por que`/`por qué`) **no** se automatizaron: se listaron sus 292
+ocurrencias y se corrigieron una por una las 25 que lo necesitaban. Aun así el script tocó dos
+identificadores (`numeros`, `ultimo`) dentro de líneas que parecían prosa; los detectó `tsc` y se
+revirtieron. De ahí que el orden fuera: corregir → `typecheck` → `lint` → unitarias → base de datos →
+end-to-end.
+**Alternativas.** (a) Corregir a mano archivo por archivo (descartada: 88 archivos, y el ojo humano
+se salta justo las palabras frecuentes). (b) Añadir una regla de lint que prohíba palabras sin tilde
+(descartada: no existe un diccionario fiable en el tooling y produciría falsos positivos en los
+comentarios y en el código en inglés). (c) Incluir la migración `0017` aquí mismo (descartada: ver
+arriba).
+**Consecuencia.** La interfaz está escrita en español correcto. Un usuario que provoque un error de
+negocio de la base de datos —sobrepago, boleta ajena, rifa cerrada— todavía leerá un mensaje sin
+tildes; se distingue a simple vista de los demás, y esa inconsistencia es visible hasta que se
+resuelva I-030.
 
 ---
 

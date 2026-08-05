@@ -250,6 +250,7 @@ Las ambigüedades encontradas se resolvieron y quedaron registradas en `docs/DEC
 | §25 Auditoría | `docs/SECURITY.md` §6 |
 | §26 Seguridad | `docs/SECURITY.md` completo |
 | §27 UX | `docs/ARCHITECTURE.md` §8 |
+| §35 UX Writing y redacción | `docs/UX_COPY_GUIDELINES.md` (fuente única de todo texto visible) |
 | §28 Documentación | Este conjunto de documentos |
 | §30 Pruebas mínimas | `docs/TESTING.md` §3 (matriz de trazabilidad) |
 | §33 Orden de fases | `docs/IMPLEMENTATION_PLAN.md` |

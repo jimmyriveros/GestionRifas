@@ -30,12 +30,12 @@ import { todayBogota } from '@/lib/dates'
 export async function GET(request: NextRequest) {
   const user = await getAuthUser()
   if (!user) {
-    return NextResponse.json({ error: 'Debes iniciar sesion.' }, { status: 401 })
+    return NextResponse.json({ error: 'Debes iniciar sesión.' }, { status: 401 })
   }
 
   const membership = await getActiveMembership()
   if (!membership) {
-    return NextResponse.json({ error: 'Tu cuenta esta inactiva.' }, { status: 403 })
+    return NextResponse.json({ error: 'Tu cuenta está inactiva.' }, { status: 403 })
   }
 
   const filters = parseReportFilters(request.nextUrl.searchParams)
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     // Nunca se devuelve el error de PostgreSQL: revelaria nombres de tablas y
     // estructura interna (CLAUDE.md §26, D-044).
     return NextResponse.json(
-      { error: 'No se pudo generar el reporte. Intentalo de nuevo.' },
+      { error: 'No se pudo generar el reporte. Inténtalo de nuevo.' },
       { status: 500 },
     )
   }

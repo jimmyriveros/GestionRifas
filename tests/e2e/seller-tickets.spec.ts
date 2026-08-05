@@ -32,7 +32,7 @@ async function availableTicket() {
   })
 }
 
-test.describe('Asignacion de boletas', () => {
+test.describe('Asignación de boletas', () => {
   test.beforeEach(async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
   })
@@ -68,7 +68,7 @@ test.describe('Asignacion de boletas', () => {
     expect(stored!.client_id).toBe(client.id)
   })
 
-  test('crea el cliente dentro del flujo de asignacion (prueba 6)', async ({ page }) => {
+  test('crea el cliente dentro del flujo de asignación (prueba 6)', async ({ page }) => {
     const ticket = await availableTicket()
     const name = unique('Cliente al vuelo')
 
@@ -77,7 +77,7 @@ test.describe('Asignacion de boletas', () => {
 
     await page.getByRole('tab', { name: 'Cliente nuevo' }).click()
     await page.getByLabel('Nombre').fill(name)
-    await page.getByLabel('Telefono').fill('3007654321')
+    await page.getByLabel('Teléfono').fill('3007654321')
     await page.getByRole('button', { name: 'Crear cliente y asignar' }).click()
 
     await expectToast(page, new RegExp(`${name} registrado y boleta asignada`))
@@ -85,14 +85,14 @@ test.describe('Asignacion de boletas', () => {
 
     // Y el cliente queda en su cartera para reutilizarlo (BR-C04).
     await page.goto('/seller/clients')
-    await page.getByPlaceholder('Nombre, alias, telefono o correo').fill(name)
+    await page.getByPlaceholder('Nombre, alias, teléfono o correo').fill(name)
     await page.getByRole('button', { name: 'Buscar' }).click()
     await expect(page.getByRole('link', { name })).toBeVisible()
   })
 
-  test('una boleta ya asignada no vuelve a ofrecer la asignacion (BR-I08)', async ({ page }) => {
+  test('una boleta ya asignada no vuelve a ofrecer la asignación (BR-I08)', async ({ page }) => {
     const ticket = await availableTicket()
-    const client = await createClientFor(refs, unique('Comprador unico'))
+    const client = await createClientFor(refs, unique('Comprador único'))
 
     await page.goto(`/seller/tickets/${ticket.id}`)
     await page.getByRole('button', { name: 'Asignar a un cliente' }).click()
@@ -104,7 +104,7 @@ test.describe('Asignacion de boletas', () => {
     await expect(page.getByRole('button', { name: 'Asignar a un cliente' })).toHaveCount(0)
   })
 
-  test('una boleta pendiente de aprobacion no se puede asignar y lo explica (prueba 10)', async ({
+  test('una boleta pendiente de aprobación no se puede asignar y lo explica (prueba 10)', async ({
     page,
   }) => {
     const numbers = randomTicketNumbers()
@@ -121,7 +121,7 @@ test.describe('Asignacion de boletas', () => {
     ).toBeVisible()
   })
 
-  test('un cliente archivado no aparece en el selector de asignacion (BR-C07)', async ({
+  test('un cliente archivado no aparece en el selector de asignación (BR-C07)', async ({
     page,
   }) => {
     const ticket = await availableTicket()
@@ -140,12 +140,12 @@ test.describe('Asignacion de boletas', () => {
   })
 })
 
-test.describe('Boletas propias: busqueda y filtros', () => {
+test.describe('Boletas propias: búsqueda y filtros', () => {
   test.beforeEach(async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
   })
 
-  test('busca por numero exacto conservando los ceros (BR-N03)', async ({ page }) => {
+  test('busca por número exacto conservando los ceros (BR-N03)', async ({ page }) => {
     const ticket = await createTicket(refs, {
       dailyNumber: '0042',
       weeklyNumber: randomTicketNumbers().weekly,
@@ -153,7 +153,7 @@ test.describe('Boletas propias: busqueda y filtros', () => {
     })
 
     await page.goto('/seller/tickets')
-    await page.getByPlaceholder('Codigo interno, numero diario o semanal').fill('0042')
+    await page.getByPlaceholder('Código interno, número diario o semanal').fill('0042')
     await page.getByRole('button', { name: 'Buscar' }).click()
 
     await page.waitForURL(/q=0042/)
@@ -168,17 +168,17 @@ test.describe('Boletas propias: busqueda y filtros', () => {
     await expect(page).toHaveURL('/seller/tickets')
   })
 
-  test('la tabla no muestra la columna Vendedor ni casillas de aprobacion', async ({ page }) => {
+  test('la tabla no muestra la columna Vendedor ni casillas de aprobación', async ({ page }) => {
     await page.goto('/seller/tickets')
 
-    await expect(page.getByRole('columnheader', { name: 'Codigo' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Código' })).toBeVisible()
     await expect(page.getByRole('columnheader', { name: 'Vendedor' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Aprobar seleccionadas' })).toHaveCount(0)
   })
 })
 
-test.describe('Creacion de boletas por el vendedor', () => {
-  test('crea boletas que quedan pendientes de aprobacion (pruebas 7 y 9)', async ({ page }) => {
+test.describe('Creación de boletas por el vendedor', () => {
+  test('crea boletas que quedan pendientes de aprobación (pruebas 7 y 9)', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
 
     await page.goto('/seller/tickets/new')
@@ -187,37 +187,37 @@ test.describe('Creacion de boletas por el vendedor', () => {
 
     const first = randomTicketNumbers()
     const second = randomTicketNumbers()
-    await page.getByLabel('Numero diario de la fila 1', { exact: true }).fill(first.daily)
-    await page.getByLabel('Numero semanal de la fila 1', { exact: true }).fill(first.weekly)
-    await page.getByLabel('Numero diario de la fila 2', { exact: true }).fill(second.daily)
-    await page.getByLabel('Numero semanal de la fila 2', { exact: true }).fill(second.weekly)
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill(first.daily)
+    await page.getByLabel('Número semanal de la fila 1', { exact: true }).fill(first.weekly)
+    await page.getByLabel('Número diario de la fila 2', { exact: true }).fill(second.daily)
+    await page.getByLabel('Número semanal de la fila 2', { exact: true }).fill(second.weekly)
 
     await expect(page.getByText('Sin errores')).toBeVisible()
     await page.getByRole('button', { name: /Crear 2 boleta/ }).click()
 
     await expectToast(page, /2 boletas creadas/)
     await page.waitForURL(/inventoryStatus=pending_approval/)
-    await expect(page.getByText('Pendiente de aprobacion').first()).toBeVisible()
+    await expect(page.getByText('Pendiente de aprobación').first()).toBeVisible()
   })
 
-  test('exige los dos numeros: no admite borradores (BR-N09)', async ({ page }) => {
+  test('exige los dos números: no admite borradores (BR-N09)', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
 
     await page.goto('/seller/tickets/new')
     await page.getByLabel(/Cuantas/).fill('1')
     await page.getByRole('button', { name: 'Generar' }).click()
 
-    await expect(page.getByText('Escribe los dos numeros.')).toBeVisible()
+    await expect(page.getByText('Escribe los dos números.')).toBeVisible()
     await expect(page.getByRole('button', { name: /Crear 1 boleta/ })).toBeDisabled()
 
-    await page.getByLabel('Numero diario de la fila 1', { exact: true }).fill('1234')
-    await expect(page.getByText('Escribe los dos numeros.')).toBeVisible()
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill('1234')
+    await expect(page.getByText('Escribe los dos números.')).toBeVisible()
 
-    await page.getByLabel('Numero semanal de la fila 1', { exact: true }).fill('5678')
+    await page.getByLabel('Número semanal de la fila 1', { exact: true }).fill('5678')
     await expect(page.getByText('Sin errores')).toBeVisible()
   })
 
-  test('detecta numeros repetidos dentro del formulario', async ({ page }) => {
+  test('detecta números repetidos dentro del formulario', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
 
     await page.goto('/seller/tickets/new')
@@ -226,17 +226,17 @@ test.describe('Creacion de boletas por el vendedor', () => {
 
     const numbers = randomTicketNumbers()
     for (const row of [1, 2]) {
-      await page.getByLabel(`Numero diario de la fila ${row}`, { exact: true }).fill(numbers.daily)
+      await page.getByLabel(`Número diario de la fila ${row}`, { exact: true }).fill(numbers.daily)
       await page
-        .getByLabel(`Numero semanal de la fila ${row}`, { exact: true })
+        .getByLabel(`Número semanal de la fila ${row}`, { exact: true })
         .fill(numbers.weekly)
     }
 
-    await expect(page.getByText('Combinacion repetida en la fila 1.')).toBeVisible()
+    await expect(page.getByText('Combinación repetida en la fila 1.')).toBeVisible()
     await expect(page.getByRole('button', { name: /Crear 2 boleta/ })).toBeDisabled()
   })
 
-  test('informa cuando la combinacion ya esta tomada en la rifa', async ({ page }) => {
+  test('informa cuando la combinación ya esta tomada en la rifa', async ({ page }) => {
     // La toma OTRO vendedor: el vendedor no puede verla (BR-U07), asi que solo
     // la base de datos puede avisar del choque.
     const numbers = randomTicketNumbers()
@@ -254,15 +254,15 @@ test.describe('Creacion de boletas por el vendedor', () => {
     await page.goto('/seller/tickets/new')
     await page.getByLabel(/Cuantas/).fill('1')
     await page.getByRole('button', { name: 'Generar' }).click()
-    await page.getByLabel('Numero diario de la fila 1', { exact: true }).fill(numbers.daily)
-    await page.getByLabel('Numero semanal de la fila 1', { exact: true }).fill(numbers.weekly)
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill(numbers.daily)
+    await page.getByLabel('Número semanal de la fila 1', { exact: true }).fill(numbers.weekly)
     await page.getByRole('button', { name: /Crear 1 boleta/ }).click()
 
     await expectToast(page, /ya estaban tomadas/)
-    await expect(page.getByText('Esa combinacion ya existe en esta rifa.')).toBeVisible()
+    await expect(page.getByText('Esa combinación ya existe en esta rifa.')).toBeVisible()
   })
 
-  test('un vendedor cuya rifa no lo permite no ve la opcion (prueba 8, BR-R10)', async ({
+  test('un vendedor cuya rifa no lo permite no ve la opción (prueba 8, BR-R10)', async ({
     page,
   }) => {
     // La rifa de «Rifas Control» tiene allow_seller_ticket_creation = false.
@@ -292,7 +292,7 @@ test.describe('Aislamiento y proteccion de rutas (pruebas 12 y 13)', () => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto(`/seller/tickets/${ticketId}`)
 
-    await expect(page.getByRole('heading', { name: 'Pagina no encontrada' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Página no encontrada' })).toBeVisible()
     await expect(page.getByText(ajena!.internal_code)).toHaveCount(0)
   })
 
@@ -314,7 +314,7 @@ test.describe('Aislamiento y proteccion de rutas (pruebas 12 y 13)', () => {
     }
   })
 
-  test('sin sesion, el portal del vendedor redirige al login', async ({ page }) => {
+  test('sin sesión, el portal del vendedor redirige al login', async ({ page }) => {
     await page.context().clearCookies()
     await page.goto('/seller/tickets')
     await expect(page).toHaveURL(/\/login/)

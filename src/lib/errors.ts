@@ -12,19 +12,19 @@ const PG_ERROR_MESSAGES: Record<string, string> = {
   '23505': 'Ya existe un registro con estos datos.',
   '23503': 'El registro relacionado no existe o no tienes acceso a el.',
   '23514': 'Los datos no cumplen las reglas del sistema.',
-  '42501': 'No tienes permiso para realizar esta accion.',
+  '42501': 'No tienes permiso para realizar esta acción.',
   '22P02': 'Uno de los valores enviados no tiene el formato esperado.',
 }
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  invalid_credentials: 'Correo o contrasena incorrectos.',
+  invalid_credentials: 'Correo o contraseña incorrectos.',
   email_not_confirmed: 'Debes confirmar tu correo antes de ingresar.',
   user_not_found: 'No existe una cuenta con ese correo.',
-  weak_password: 'La contrasena no cumple los requisitos minimos de seguridad.',
-  same_password: 'La nueva contrasena debe ser diferente a la actual.',
+  weak_password: 'La contraseña no cumple los requisitos mínimos de seguridad.',
+  same_password: 'La nueva contraseña debe ser diferente a la actual.',
   over_request_rate_limit: 'Demasiados intentos. Espera unos minutos e intenta de nuevo.',
   email_exists: 'Ya existe una cuenta con ese correo.',
-  email_address_invalid: 'El correo electronico no es valido.',
+  email_address_invalid: 'El correo electrónico no es válido.',
 }
 
 /**
@@ -35,23 +35,23 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
  */
 const CONSTRAINT_MESSAGES: Record<string, string> = {
   tickets_combo_unique:
-    'Ya existe una boleta con esa combinacion de numero diario y semanal en esta rifa.',
-  tickets_org_internal_code_key: 'Ya existe una boleta con ese codigo interno.',
-  raffles_org_name_key: 'Ya existe una rifa con ese nombre en la organizacion.',
-  raffles_org_short_code_key: 'Ya existe una rifa con ese codigo en la organizacion.',
+    'Ya existe una boleta con esa combinación de número diario y semanal en esta rifa.',
+  tickets_org_internal_code_key: 'Ya existe una boleta con ese código interno.',
+  raffles_org_name_key: 'Ya existe una rifa con ese nombre en la organización.',
+  raffles_org_short_code_key: 'Ya existe una rifa con ese código en la organización.',
   raffles_dates_check: 'La fecha de fin no puede ser anterior a la de inicio.',
-  memberships_org_profile_key: 'Esa persona ya pertenece a la organizacion.',
-  memberships_one_owner_per_org: 'La organizacion ya tiene un dueno activo.',
+  memberships_org_profile_key: 'Esa persona ya pertenece a la organización.',
+  memberships_one_owner_per_org: 'La organización ya tiene un dueño activo.',
   tickets_numbers_required_unless_draft:
-    'Una boleta que no es borrador debe tener numero diario y semanal.',
+    'Una boleta que no es borrador debe tener número diario y semanal.',
   tickets_paid_amount_range: 'El valor supera el saldo pendiente de la boleta.',
   alloc_payment_ticket_key: 'Ese pago ya tiene un valor aplicado a esa boleta.',
-  clients_seller_org_fk: 'El vendedor indicado no pertenece a la organizacion.',
-  profiles_phone_check: 'El telefono no tiene un formato valido.',
-  clients_phone_check: 'El telefono no tiene un formato valido.',
+  clients_seller_org_fk: 'El vendedor indicado no pertenece a la organización.',
+  profiles_phone_check: 'El teléfono no tiene un formato válido.',
+  clients_phone_check: 'El teléfono no tiene un formato válido.',
 }
 
-const GENERIC_MESSAGE = 'Ocurrio un error. Intenta de nuevo.'
+const GENERIC_MESSAGE = 'Ocurrió un error. Intenta de nuevo.'
 
 /**
  * Codigos cuyos mensajes SI se propagan: los generan nuestras funciones RPC y

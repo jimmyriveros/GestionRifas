@@ -64,7 +64,7 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
             key={currentSearch}
             name="q"
             defaultValue={currentSearch}
-            placeholder="Nombre, alias, telefono o correo"
+            placeholder="Nombre, alias, teléfono o correo"
             inputMode="search"
             disabled={isPending}
           />

@@ -80,7 +80,7 @@ export function TicketsTable({
       ...selectColumn,
       {
         accessorKey: 'internalCode',
-        header: 'Codigo',
+        header: 'Código',
         cell: ({ row }) => (
           <Link
             href={`${basePath}/${row.original.id}`}
@@ -154,7 +154,7 @@ export function TicketsTable({
       } else {
         toast.success(
           result.data.count === 1
-            ? 'Se aprobo 1 boleta.'
+            ? 'Se aprobó 1 boleta.'
             : `Se aprobaron ${result.data.count} boletas.`,
         )
         setRowSelection({})
@@ -170,7 +170,7 @@ export function TicketsTable({
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-muted-foreground text-sm" aria-live="polite">
             {selectedIds.length === 0
-              ? `${approvableCount} boleta(s) pendientes de aprobacion en esta pagina.`
+              ? `${approvableCount} boleta(s) pendientes de aprobación en esta página.`
               : `${selectedIds.length} seleccionada(s).`}
           </p>
           <Button
@@ -201,7 +201,7 @@ export function TicketsTable({
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
           title="Aprobar boletas"
-          description={`Las ${selectedIds.length} boleta(s) seleccionadas pasaran a estado Disponible y podran asignarse a clientes.`}
+          description={`Las ${selectedIds.length} boleta(s) seleccionadas pasarán a estado Disponible y podrán asignarse a clientes.`}
           confirmLabel="Aprobar"
           pending={isPending}
           onConfirm={confirmApprove}
