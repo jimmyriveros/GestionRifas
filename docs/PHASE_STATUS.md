@@ -24,11 +24,9 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 
 ## LO PRIMERO, SI RETOMAS ESTE PROYECTO
 
-1. ⚠️ **La migración `0016` NO está aplicada al proyecto real** (I-025). Es la única acción técnica
-   pendiente del proyecto entero y **requiere autorización explícita del usuario**. Procedimiento —con
-   respaldo lógico previo, obligatorio por I-024— en `docs/AUDIT_REPORT.md` §8.1. Mientras no se
-   aplique, el Owner de producción puede dejar la organización sin propietario y hará falta un script
-   con `service_role` para repararlo.
+1. **No hay acciones técnicas pendientes.** Las 16 migraciones están aplicadas en local y en el
+   proyecto real. Lo que queda abierto (I-024 backups, I-021 cuentas demo, I-004 `CLAUDE.md.txt`) son
+   decisiones del dueño del negocio — `HANDOFF.md` §1.b.
 2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y `docs/AUDIT_REPORT.md` (los hallazgos y lo que quedó
    aceptado).
 3. **La aplicación está en producción**: `https://gestion-rifas.vercel.app`, proyecto Vercel
@@ -772,9 +770,11 @@ Las 15 anteriores **más**:
 |---|---|
 | `0016_organization_keeps_owner.sql` | Constraint trigger **diferido** sobre `memberships`: rechaza al COMMIT todo cambio de `role` o `is_active` que deje la organización sin Owner activo. Diferido a propósito, para que transferir la propiedad en **una** transacción siga siendo posible (I-025, D-071) |
 
-⚠️ **Aplicada y probada solo en LOCAL.** Las `0001`–`0015` siguen aplicadas y verificadas en el
-proyecto real. Aplicar `0016` al remoto requiere autorización explícita del usuario —
-`AUDIT_REPORT.md` §8.1.
+✅ **Las 16 migraciones están aplicadas en local y en el proyecto real.** `0016` se aplicó el
+2026-08-05 con autorización explícita del usuario, tras respaldo lógico previo, y se verificó allí en
+dos niveles: catálogo (9/9, incluida la comprobación de que `anon` y `public` no pueden ejecutar la
+función nueva) y **comportamiento** — degradar al Owner en producción es rechazado, comprobado dentro
+de una transacción revertida que no dejó ningún cambio.
 
 ### Variables de entorno requeridas
 
@@ -784,7 +784,6 @@ Las mismas de las fases anteriores. Ninguna nueva.
 
 | ID | Problema | Impacto |
 |---|---|---|
-| I-025 | `0016` sin aplicar al proyecto real | **Medio.** En producción, el Owner puede dejar la organización sin propietario; repararlo exige un script con `service_role`. Un solo comando lo resuelve, pero necesita autorización |
 | I-024 | Plan Free: sin backups automáticos ni PITR | **Alto antes de operar con datos reales.** Sin cambios desde la Fase 8 |
 | I-021 | Cuentas de demostración en producción con contraseña compartida | Medio. Decisión del negocio (`OPERATIONS.md` §5) |
 | I-022 | Sin staging real | Bajo mientras las variables de Supabase solo estén en scope Production |

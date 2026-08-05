@@ -687,3 +687,36 @@ Un ataque que falla también es un resultado. Sin esta sección, «no encontré 
 | Rifa cerrada | Crear y asignar boletas | ✅ rechazados |
 | Secretos | Ninguna vía al navegador: 15 módulos con `server-only`, y los 12 componentes cliente que tocan `queries.ts` lo hacen con `import type` | ✅ |
 | Calidad | 1 `any` justificado, 0 `@ts-ignore`, 0 N+1, 0 `data.length` para contar | ✅ |
+
+### Aplicación de `0016` al proyecto real — 2026-08-05
+
+Autorizada explícitamente por el usuario tras la entrega de la Fase 9.
+
+| Paso | Comando | Resultado | Errores |
+|---|---|---|---|
+| Respaldo lógico previo (obligatorio, I-024) | `supabase db dump` × 3 a `Rifas-backups/2026-08-05-pre-0016/` | ✅ 9 tablas de negocio, 228 líneas | — |
+| Comprobación del respaldo | `grep -c '"auth"' data.sql` | ✅ **0** — ningún rastro de contraseñas ni tokens | — |
+| Comprobación de secretos | `grep -ci "encrypted_password\|recovery_token\|..."` | ✅ **0** | — |
+| Comparación con el respaldo de la Fase 8 | `md5sum` + `diff` | `roles.sql` y `schema.sql` **idénticos**; `data.sql` difiere solo en el token aleatorio de `pg_dump` → **los datos de producción no habían cambiado desde la Fase 8** | — |
+| Ensayo en seco | `npx supabase db push --dry-run` | ✅ Una sola migración pendiente: `0016`. Ninguna otra | — |
+| Aplicación | `npx supabase db push --yes` | ✅ `Applying migration 0016_organization_keeps_owner.sql` | — |
+| Verificación de catálogo | `npm run verify:remote` | ✅ **13/13** | — |
+| Verificación específica de `0016` (solo lectura) | Consulta directa al catálogo remoto | ✅ **9/9** | — |
+| Verificación de **comportamiento** en producción | Transacción revertida con `SET CONSTRAINTS ALL IMMEDIATE` | ✅ `La organizacion quedaria sin ningun Owner activo.` → `ROLLBACK` | — |
+| Estado tras la prueba de comportamiento | Owners antes vs. después | ✅ **Idéntico**: «Rifas Demo» y «Rifas Control» con 1 Owner activo cada una | — |
+
+**Las 9 comprobaciones específicas de `0016` en el remoto:** la función existe · es `SECURITY
+DEFINER` · declara `search_path=public, pg_temp` · **no es ejecutable por `anon` ni `public`** · el
+trigger existe sobre `memberships` · es un `CONSTRAINT` trigger · es `DEFERRABLE INITIALLY DEFERRED` ·
+la migración está registrada · toda organización tiene exactamente un Owner activo.
+
+La cuarta es la que no se podía dar por hecha: las dos divergencias local/remoto anteriores de este
+proyecto (D-038, I-020) fueron **ambas de privilegios**, ciertas en local y falsas en producción.
+
+**Por qué se probó el comportamiento y no solo la estructura.** Que el objeto exista no demuestra que
+proteja. La prueba se hizo contra producción dentro de una transacción que **nunca se confirma**: se
+fuerza la validación del trigger diferido con `SET CONSTRAINTS ALL IMMEDIATE` —lo que aborta la
+transacción con el error— y además se ejecuta `ROLLBACK` explícito. Se leyó el estado antes y después
+para demostrar que no quedó ningún cambio.
+
+Migraciones en el remoto tras esta operación: `0001`–`0016`, las mismas que en local.

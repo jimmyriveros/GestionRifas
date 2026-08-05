@@ -15,9 +15,9 @@ vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y a
 > descuadrar un peso. Informe completo en [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md);
 > procedimiento de despliegue en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 >
-> ⚠️ **Antes de operar con dinero real** quedan dos requisitos, ambos decisión del dueño del negocio:
-> aplicar la migración `0016` al proyecto real (`AUDIT_REPORT.md` §8.1) y resolver la ausencia de
-> backups automáticos del plan Free de Supabase (`docs/RUNBOOK.md` §5.3).
+> ⚠️ **Antes de operar con dinero real** queda un requisito, y es decisión del dueño del negocio:
+> resolver la ausencia de copias de seguridad automáticas del plan Free de Supabase
+> (`docs/RUNBOOK.md` §5.3). No hay acciones de ingeniería pendientes.
 
 ---
 

@@ -32,7 +32,7 @@ en modo lectura.
 | ID | Hallazgo | Severidad | Estado |
 |---|---|---|---|
 | **A-01** | La red estructural de la prueba 25 dejaba fuera **6 de las 28** Server Actions | Media | ✅ **Corregido** en esta fase |
-| **A-02** | Un Owner puede dejar su organización **sin ningún Owner**, de forma irrecuperable desde la aplicación | Media | ✅ **Corregido** en local (migración `0016`) · ⚠️ **pendiente de aplicar al proyecto real** |
+| **A-02** | Un Owner puede dejar su organización **sin ningún Owner**, de forma irrecuperable desde la aplicación | Media | ✅ **Corregido** (migración `0016`), aplicada en local **y en producción** |
 | **A-03** | El aislamiento de pagos entre vendedores solo se probaba en **una dirección** | Baja | ✅ **Corregido** en esta fase (F9-02) |
 | **A-04** | 25 tipos exportados sin ningún consumidor | Baja | Aceptado — es una convención uniforme, no un defecto |
 | **A-05** | El título de una prueba prometía más de lo que comprobaba | Informativa | ✅ Corregido (título y comentario) |
@@ -124,8 +124,17 @@ al otro—. Un trigger inmediato haría la transferencia imposible. Uno diferido
 **una** transacción y sigue rechazando el descuido, porque PostgREST hace una petición por
 transacción. Es el mismo mecanismo que ya usa `check_payment_balance` (D-012).
 
-⚠️ **Pendiente:** la migración está aplicada y probada **en local**. Aplicarla al proyecto real
-requiere autorización explícita del usuario — ver §8.
+**Aplicada al proyecto real el 2026-08-05**, con autorización explícita del usuario y respaldo lógico
+previo. Verificada allí en dos niveles, porque las dos divergencias local/remoto anteriores de este
+proyecto (D-038, I-020) fueron ambas de **privilegios**, invisibles a simple vista:
+
+| Nivel | Comprobación | Resultado |
+|---|---|---|
+| Catálogo | Función existe · `SECURITY DEFINER` · `search_path` fijo · **no ejecutable por `anon` ni `public`** · trigger existe · es `CONSTRAINT` · es `DEFERRABLE INITIALLY DEFERRED` · migración registrada · toda organización con exactamente un Owner | **9/9** |
+| Comportamiento | Degradar al Owner de «Rifas Demo» **en producción**, forzando el trigger con `SET CONSTRAINTS ALL IMMEDIATE` dentro de una transacción | `La organizacion quedaria sin ningun Owner activo.` → `ROLLBACK`, estado idéntico antes y después |
+
+La segunda comprobación es la que importa: la primera dice que el objeto está, la segunda dice que
+**protege**. La alternativa era suponerlo, que es justo lo que esta auditoría existe para evitar.
 
 ---
 
@@ -396,36 +405,43 @@ autorización o manejo de error (§32).
 
 ## 8. Qué queda pendiente
 
+**No queda ninguna acción de ingeniería.** Lo abierto son decisiones del dueño del negocio:
+
 | Asunto | Quién decide | Acción |
 |---|---|---|
-| ⚠️ **Aplicar `0016` al proyecto real** | **Usuario** | Requiere autorización explícita. Procedimiento en §8.1 |
 | **I-024** — plan Free sin backups automáticos | Usuario | Subir a Pro o automatizar el respaldo externo **antes de operar con dinero real** (`RUNBOOK.md` §5.3) |
 | **I-021** — cuentas de demostración en producción | Usuario | Desactivarlas o rotar su contraseña (`OPERATIONS.md` §5) |
 | **I-004 / A-06** — `CLAUDE.md.txt` | Usuario | Autorizar el borrado |
 | **A-04** — tipos sin consumidor | — | Aceptado, no se actúa |
 
-### 8.1 Procedimiento para aplicar `0016` al proyecto real
+### 8.1 Cómo se aplicó `0016` al proyecto real (2026-08-05)
 
-**Generar primero el respaldo lógico** (`RUNBOOK.md` §5), porque el plan Free no tiene red de
-seguridad (I-024). Después, los tres pasos de siempre:
+Registrado aquí porque es el procedimiento a repetir para cualquier migración futura.
 
-```bash
-npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
-```
+| Paso | Comando | Resultado |
+|---|---|---|
+| 1. Respaldo lógico previo, **obligatorio** por I-024 | `supabase db dump` × 3 a `Rifas-backups/2026-08-05-pre-0016/` | 9 tablas de negocio, 228 líneas. `grep -c '"auth"' data.sql` → **0** |
+| 2. Ensayo en seco | `npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"` | Una sola migración a aplicar: `0016`. Ninguna otra |
+| 3. Aplicación | `npx supabase db push --yes --db-url "$SUPABASE_DB_URL"` | Sin error |
+| 4. Verificación de catálogo | `npm run verify:remote` | **13/13** |
+| 5. Verificación específica de `0016` | Consulta de solo lectura al catálogo remoto | **9/9** (ver A-02) |
+| 6. Verificación de **comportamiento** | Transacción revertida contra producción | El trigger rechaza; estado intacto |
 
-```bash
-npx supabase db push --yes --db-url "$SUPABASE_DB_URL"
-```
+**Dos advertencias que ya costaron tiempo antes** y volvieron a aplicarse aquí:
 
-```bash
-npm run verify:remote
-```
+* **No leer `SUPABASE_DB_URL` con `dotenv`.** Su aviso promocional por `stdout` se cuela dentro del
+  valor capturado con `$(...)` y produce `LegacyDbConfigParseUrlError`. Usar `fs.readFileSync`
+  (`RUNBOOK.md` §5.1).
+* **`--schema public` es obligatorio en el volcado de DATOS**, y está prohibido en el de esquema. Sin
+  él, `data.sql` arrastra `auth.users` completo con contraseñas cifradas y tokens; con él en
+  `schema.sql`, la restauración se rompe por `pg_trgm`.
 
-El tercero no es opcional: es lo único que detecta que local y remoto han dejado de ser equivalentes.
+**El respaldo de la Fase 8 no se sobrescribió**: el nuevo fue a una carpeta con fecha. Comparados,
+solo difieren en un token aleatorio que `pg_dump` genera por ejecución — es decir, **los datos de
+producción no habían cambiado desde la Fase 8**.
 
-**Riesgo de aplicarla: bajo.** Añade una función y un trigger; no modifica datos, ni políticas, ni
-privilegios existentes. **Riesgo de no aplicarla:** el Owner de producción puede dejar la
-organización sin propietario y hará falta un script con `service_role` para repararlo.
+**Riesgo de la migración: bajo, y así resultó.** Añade una función y un trigger; no modifica datos, ni
+políticas, ni privilegios existentes.
 
 ---
 
@@ -439,7 +455,11 @@ otras funcionen.
 Los dos hallazgos que importan comparten una forma: **no son fallos de lo que se construyó, sino de
 lo que se dio por garantizado**. A-01 era una red que había dejado de cubrir un código que creció por
 debajo de ella. A-02 era una restricción que aseguraba «como máximo uno» donde el modelo entero
-suponía «exactamente uno». Ninguno se ve leyendo el código; los dos aparecen a la primera si se le
-pregunta al sistema en vez de a la documentación.
+suponía «exactamente uno» —y la documentación llevaba siete fases afirmando lo segundo—. Ninguno se ve
+leyendo el código; los dos aparecen a la primera si se le pregunta al sistema en vez de a la
+documentación.
 
-Queda una sola acción técnica pendiente y depende del usuario: **aplicar `0016` al proyecto real**.
+Los dos están corregidos, y `0016` está aplicada y verificada también en producción. **No queda
+ninguna acción de ingeniería pendiente.** Lo que resta son decisiones del dueño del negocio, y la más
+importante es la de siempre: **el proyecto sigue en el plan Free de Supabase, sin ninguna copia de
+seguridad automática. Eso hay que resolverlo antes de que entre el primer peso real** (I-024).

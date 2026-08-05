@@ -15,7 +15,7 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 | Remoto | `github.com/jimmyriveros/GestionRifas` — `main` empujado hasta la Fase 7. Los commits de cierre de las Fases 8 y 9 siguen **solo en local** — pedir autorización antes de empujarlos |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **16 migraciones.** Las `0001`–`0015` aplicadas en local **y en el proyecto real**, reverificadas en la Fase 9 (`verify:remote` 13/13). ⚠️ **La `0016` está solo en local** (I-025) — ver §1.b. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Base de datos | **16 migraciones, todas aplicadas en local y en el proyecto real** y verificadas (2026-08-05: `verify:remote` 13/13 + 9 comprobaciones de `0016`). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
 | Pruebas | 163 unitarias + **266 de base de datos** + **142 end-to-end**, todas en verde. `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
@@ -29,24 +29,20 @@ reales).
 
 ---
 
-## 1.b Lo único pendiente: aplicar la migración `0016` al proyecto real
+## 1.b Qué queda abierto (nada de ingeniería)
 
-La auditoría encontró (**A-02 / I-025**) que un Owner puede degradarse o desactivarse a sí mismo con
-una llamada directa a PostgREST y dejar su organización **sin ningún Owner activo**. Reproducido: 1
-fila afectada, 0 Owners después, y **nadie desde la aplicación puede repararlo** — el ex-Owner ya no
-es staff y un Admin no puede ascender a nadie a Owner (BR-U03, correctamente). Solo un script con
-`service_role` lo arregla.
+**No hay acciones técnicas pendientes.** Lo que queda son decisiones del dueño del negocio:
 
-`memberships_one_owner_per_org` garantizaba «como máximo un Owner», nunca «al menos uno». La
-migración **`0016`** cierra ese hueco con un constraint trigger diferido (D-071), y está **aplicada y
-probada solo en local**.
+| Asunto | Qué hace falta |
+|---|---|
+| **I-024** — plan Free sin backups automáticos ni PITR | Subir a Supabase Pro o automatizar el respaldo externo. **Prerrequisito antes de operar con dinero o clientes reales** (`RUNBOOK.md` §5.3) |
+| **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
+| **I-004** — `CLAUDE.md.txt` coexiste con `CLAUDE.md` | Autorizar el borrado del `.txt` |
 
-**Aplicarla al proyecto real requiere autorización explícita del usuario.** Procedimiento completo,
-con el respaldo lógico previo que exige I-024, en `docs/AUDIT_REPORT.md` §8.1.
-
-Las demás cosas abiertas son decisiones del negocio, no de ingeniería: subir a Supabase Pro para
-tener backups (I-024), desactivar las cuentas de demostración de producción (I-021) y autorizar el
-borrado de `CLAUDE.md.txt` (I-004).
+La última acción de ingeniería fue aplicar la migración `0016` al proyecto real (2026-08-05,
+autorizada explícitamente): cierra I-025 —un Owner podía dejar su organización sin propietario, de
+forma irrecuperable desde la aplicación— con un constraint trigger diferido (D-071). Verificada allí
+por catálogo **y por comportamiento**: el intento de degradar al Owner en producción es rechazado.
 
 ---
 
@@ -100,8 +96,8 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-✅ **Las migraciones `0001`–`0015` están aplicadas también en el proyecto real**, reverificadas el
-2026-08-05 (`npm run verify:remote`, 13/13). ⚠️ **La `0016` no** — ver §1.b.
+✅ **Las 16 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-05
+(`npm run verify:remote`, 13/13).
 
 Al aplicar migraciones al proyecto real, el procedimiento completo son **tres** pasos, no dos:
 
@@ -218,7 +214,7 @@ profiles 1─1 auth.users
 - Sobrepago imposible; pago y asignaciones cuadran exactamente; todo o nada.
 - Ningún `DELETE` en ninguna tabla (ni política ni privilegio).
 - Aislamiento por organización y por vendedor vía RLS forzada.
-- Una organización nunca se queda sin Owner activo — **solo donde esté aplicada `0016`**, hoy únicamente en local (§1.b).
+- Una organización nunca se queda sin Owner activo (`0016`, aplicada en local y en producción).
 
 **Funciones a usar en vez de DML directo:**
 `assign_ticket` · `create_payment` · `void_payment` · `bulk_create_tickets` · `approve_tickets` ·

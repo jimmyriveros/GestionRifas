@@ -188,7 +188,7 @@ organización sin propietario, de forma irrecuperable desde la aplicación (A-02
 La otra mitad la aporta el trigger diferido `memberships_require_active_owner` (`0016`, D-071), que
 rechaza al COMMIT cualquier cambio de `role` o `is_active` que deje la organización sin Owner activo.
 **Las dos piezas juntas** —índice para el techo, trigger para el suelo— son las que hacen cierto
-«exactamente uno». ⚠️ `0016` está aplicada solo en local: ver `AUDIT_REPORT.md` §8.1.
+«exactamente uno». Aplicado en local y en el proyecto real (2026-08-05).
 
 **Acceso efectivo** = `profiles.is_active` **AND** `memberships.is_active` **AND**
 `organizations.is_active`. Cualquiera de los tres en `false` bloquea el ingreso y la operación.
