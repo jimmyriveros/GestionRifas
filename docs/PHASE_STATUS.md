@@ -16,7 +16,7 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 | 5 | Pagos, abonos y saldos | ✅ | `ecc9eac` · `fase-5` |
 | 6 | Dashboards, reportes y UI/UX | ✅ | `791e585` · `fase-6` |
 | 7 | Pruebas, seguridad y endurecimiento | ✅ | `caa6298` · `fase-7` |
-| 8 | Despliegue y documentación operativa | ✅ | `fase-8` (hash pendiente de registrar) |
+| 8 | Despliegue y documentación operativa | ✅ | `bcd6dc0` · `fase-8` |
 | 9 | Auditoría final independiente | ⬜ | — |
 
 ---
