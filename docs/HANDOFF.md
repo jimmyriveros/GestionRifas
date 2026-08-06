@@ -11,7 +11,7 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Lo que queda son **decisiones del usuario**, no trabajo de ingeniería (ver §1.b) |
-| Rama / commit / etiqueta | `main` · `a8c4083` · `fase-9` |
+| Rama / commit / etiqueta | `main` · `0fc71f4` (usabilidad de tablas y listas, 2026-08-06) · última etiqueta `fase-9` en `a8c4083` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` — `main` empujado hasta la Fase 7. Los commits de cierre de las Fases 8 y 9 siguen **solo en local** — pedir autorización antes de empujarlos |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
