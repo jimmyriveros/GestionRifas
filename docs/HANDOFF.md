@@ -11,8 +11,8 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Lo que queda son **decisiones del usuario**, no trabajo de ingeniería (ver §1.b) |
-| Rama / commit / etiqueta | `main` · `0fc71f4` (usabilidad de tablas y listas, 2026-08-06) · última etiqueta `fase-9` en `a8c4083` |
-| Remoto | `github.com/jimmyriveros/GestionRifas` — `main` empujado hasta la Fase 7. Los commits de cierre de las Fases 8 y 9 siguen **solo en local** — pedir autorización antes de empujarlos |
+| Rama / commit / etiqueta | `main` · `5e061d0` (usabilidad de tablas y listas, 2026-08-06) · última etiqueta `fase-9` en `a8c4083` |
+| Remoto | `github.com/jimmyriveros/GestionRifas` — **`main` al día: local y remoto idénticos** (empujado el 2026-08-06 con autorización del usuario). De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
 | Base de datos | **16 migraciones, todas aplicadas en local y en el proyecto real** y verificadas (2026-08-05: `verify:remote` 13/13 + 9 comprobaciones de `0016`). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
