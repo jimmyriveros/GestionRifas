@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getSellerDashboard } from '@/features/dashboard/seller-queries'
+import { tourTarget } from '@/features/tour/tours'
 import { requireRole } from '@/lib/auth/guards'
 import { ROLE_LABELS } from '@/lib/constants'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
@@ -26,7 +27,7 @@ export default async function SellerDashboardPage() {
       />
 
       {/* Acciones principales, arriba y grandes: es lo que se usa desde el telefono. */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div {...tourTarget('quick-actions')} className="grid gap-3 sm:grid-cols-2">
         <Button asChild size="lg" className="h-auto justify-start py-4">
           <Link href="/seller/tickets?inventoryStatus=available">
             <SearchIcon className="size-5" aria-hidden />
@@ -59,7 +60,7 @@ export default async function SellerDashboardPage() {
         </p>
       ) : null}
 
-      <Card>
+      <Card {...tourTarget('active-raffle')}>
         <CardHeader>
           <CardTitle className="text-base">Rifa activa</CardTitle>
         </CardHeader>
@@ -89,7 +90,10 @@ export default async function SellerDashboardPage() {
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Mis boletas</h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <div
+          {...tourTarget('metrics-inventory')}
+          className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5"
+        >
           <MetricCard label="Total" value={totals.ticketsTotal} />
           <MetricCard label="Disponibles" value={totals.ticketsAvailable} />
           <MetricCard label="Vendidas" value={totals.ticketsAssigned} />
@@ -100,7 +104,10 @@ export default async function SellerDashboardPage() {
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Cobranza</h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+        <div
+          {...tourTarget('metrics-collection')}
+          className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6"
+        >
           <MetricCard label="Sin pagar" value={totals.ticketsUnpaid} />
           <MetricCard label="Abonadas" value={totals.ticketsPartial} />
           <MetricCard label="Pagadas" value={totals.ticketsPaid} />

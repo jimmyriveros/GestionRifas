@@ -334,7 +334,29 @@ errores, confirmaciones, estados vacíos, ayudas de formulario— se rige por
 | `partial` | Abonada |
 | `paid` | Pagada |
 
-### 8.4 Accesibilidad
+### 8.4 Recorrido guiado (`src/features/tour/`)
+
+Onboarding por pantalla: resalta un elemento y lo explica en un globo. Sin librería de tours (D-074).
+
+| Archivo | Responsabilidad |
+|---|---|
+| `tours.ts` | **Configuración central**: qué recorrido corre en cada ruta y rol, y **todo** su texto |
+| `storage.ts` | Qué recorridos ya vio cada perfil (`localStorage`, D-075) |
+| `use-tour.ts` | Lógica: paso actual, descarte de pasos sin elemento, scroll y seguimiento de posición |
+| `components/TourProvider.tsx` | Arranque automático, contexto y reinicio |
+| `components/TourOverlay.tsx` | Presentación: foco sobre el elemento y globo (Radix Popover) |
+| `components/TourLauncher.tsx` | «Ver recorrido guiado» en el menú de usuario |
+
+Los pasos apuntan a atributos **`data-tour`**, nunca a clases ni a la estructura del HTML. El
+vocabulario (`TourTarget`) está puesto en componentes compartidos —`PageHeader`, `DataTable`, los
+tres componentes de filtros, `AppShell`—, así que una pantalla nueva hereda los puntos de anclaje sin
+escribir nada.
+
+Un paso cuyo elemento no exista o no esté visible **se descarta al arrancar**: así el paso de la
+barra lateral desaparece solo en el teléfono y cede el turno al del botón de menú, sin preguntar por
+el ancho de la pantalla. Por eso el contador dice «Paso 2 de 5» y no siempre el mismo total.
+
+### 8.5 Accesibilidad
 Contraste AA · foco visible · etiquetas asociadas a inputs · errores anunciados con `aria-live` ·
 navegación por teclado · nunca depender solo del color (siempre texto o icono acompañante).
 

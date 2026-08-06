@@ -220,6 +220,21 @@ Las tres consultas deben devolver cero filas.
 | `lib/dates.ts` | Un pago del 31 a las 23:00 en Bogotá pertenece al día 31, no al 1 |
 | Detección de duplicados en el formulario masivo | Detecta repetidos entre 1.000 filas sin bloquear la interfaz |
 | `lib/errors.ts` | Cada código de error de PostgreSQL se traduce a un mensaje en español sin filtrar detalles internos |
+| `features/tour/tours.ts` | Ids únicos y estables; cada recorrido termina con el cierre; ningún recorrido del portal administrativo alcanza a un vendedor; los textos cumplen la guía de redacción (títulos de 2 a 7 palabras, glosario, tuteo) |
+| `features/tour/use-tour.ts` + `storage.ts` | Un paso cuyo elemento falta, mide cero o está oculto se descarta sin romper el resto; el cierre sobrevive siempre; la memoria es por perfil y por recorrido, y no se repite si el navegador bloquea el almacenamiento |
+
+### 5.1 El recorrido guiado y las demás pruebas E2E
+
+El recorrido se abre **solo** la primera vez y su capa bloquea los clics, así que taparía cualquier
+prueba que entre a un panel. `loginAs` lo da por visto escribiendo en `localStorage` las claves
+reales (`rifas.tour.<perfil>.<recorrido>`), con los ids de perfil leídos de la base: **no hay ningún
+interruptor de pruebas en el código de producción**. Las pruebas del recorrido piden verlo con
+`loginAs(page, email, { withTour: true })`.
+
+| Archivo | Cubre |
+|---|---|
+| `e2e/tour.spec.ts` (F10-01) | Aparece la primera vez, avanza y retrocede, termina con el cierre, se recuerda al omitirlo, se reinicia desde el menú, cada pantalla trae el suyo, el vendedor no ve pasos del portal administrativo, el globo cabe en la pantalla |
+| `e2e/tour-responsive.spec.ts` (F10-02) | En teléfono se descarta el paso de la barra lateral y toma su lugar el del botón de menú; el globo cabe en pantalla en todos los pasos |
 
 ---
 

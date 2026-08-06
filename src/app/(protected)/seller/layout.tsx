@@ -20,6 +20,7 @@ export default async function SellerLayout({ children }: { children: ReactNode }
     <AppShell
       orgName={membership.organizationName}
       role={membership.role}
+      profileId={membership.profileId}
       fullName={membership.fullName}
       email={membership.email}
       navItems={NAV_ITEMS}

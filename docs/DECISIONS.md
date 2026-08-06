@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.11 · **Actualizado:** 2026-08-05 (D-001 a D-073)
+- **Versión:** 1.12 · **Actualizado:** 2026-08-05 (D-001 a D-075)
 
 ---
 
@@ -1014,6 +1014,46 @@ arriba).
 negocio de la base de datos —sobrepago, boleta ajena, rifa cerrada— todavía leerá un mensaje sin
 tildes; se distingue a simple vista de los demás, y esa inconsistencia es visible hasta que se
 resuelva I-030.
+
+---
+
+## D-074 — El recorrido guiado se construye con Radix, sin librería de tours
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-05)
+**Contexto.** Hacía falta un recorrido guiado que resalte elementos y explique cada uno en un globo.
+Lo habitual es añadir `driver.js`, `react-joyride` o `shepherd.js`. Lo difícil de un recorrido no es
+pintar el globo: es **colocarlo** —voltearlo cuando no cabe, mantenerlo dentro de la pantalla, seguir
+al elemento mientras la página hace scroll—, y eso ya está resuelto en el proyecto.
+**Decisión.** Construirlo con lo que ya hay: `radix-ui` (que trae `@radix-ui/react-popover`, y este a
+su vez Floating UI) para posicionar el globo, y CSS para el foco. Cero dependencias nuevas.
+**Cómo se resuelve cada parte.** El globo se ancla a un recuadro invisible del tamaño del elemento y
+Radix se encarga de voltearlo y de no salirse (`collisionPadding`). El oscurecido lo dibuja la
+**sombra** de ese mismo recuadro (`box-shadow: 0 0 0 9999px`), así que el hueco coincide exactamente
+con el elemento sin recortar nada. La posición se sigue con un bucle de `requestAnimationFrame`, que
+cubre de una vez el scroll suave, el giro del teléfono y cualquier cambio de tamaño; encadenar
+`scroll` + `resize` + `ResizeObserver` habría sido más código y se habría perdido la animación del
+scroll.
+**Alternativas.** (a) `react-joyride` (descartada: ~40 kB, su propio motor de posicionamiento
+duplicando el de Radix, y arrastra estilos que no siguen el tema de la aplicación). (b) `driver.js`
+(descartada: la misma duplicación, y su recorte del foco es un SVG que hay que sincronizar aparte).
+(c) Calcular la posición a mano (descartada: es justo la parte que se rompe en pantallas estrechas).
+**Consecuencia.** El recorrido pesa lo que pesan sus textos. Si algún día hace falta algo que Radix
+no dé —por ejemplo esperar a que el usuario haga clic en el elemento antes de avanzar—, se revisa.
+
+## D-075 — Lo que ya se vio del recorrido se guarda en el navegador, no en la base de datos
+**Fase:** posterior a la 9 (mantenimiento)
+**Contexto.** El recorrido debe aparecer solo la primera vez. Eso exige recordar quién ya lo vio.
+**Decisión.** Guardarlo en `localStorage`, con la clave `rifas.tour.<perfil>.<recorrido>`. Incluye el
+id del perfil para que dos personas que compartan un teléfono no se hereden el recorrido.
+**Por qué no en la base de datos.** Habría significado una columna nueva en `profiles`, una migración
+`0017` y aplicarla al proyecto real (D-070: respaldo previo y autorización explícita cada vez), más
+una Server Action por cada «ya lo vi». Todo eso para una preferencia de interfaz que no es un dato
+del negocio, que no se audita y que no pasa nada si se pierde.
+**Lo que se pierde.** Es **por dispositivo**: quien entre desde el teléfono y luego desde el
+computador verá el recorrido dos veces. Para un recorrido de bienvenida es aceptable, y verlo de más
+molesta menos que no verlo nunca. Si el negocio pide que sea por cuenta, se migra a `profiles` sin
+tocar nada más que `storage.ts`.
+**Detalle.** `localStorage` lanza excepción en el modo privado de Safari y con el almacenamiento
+bloqueado; ahí se asume «ya lo vio» para no repetirlo en cada navegación.
 
 ---
 

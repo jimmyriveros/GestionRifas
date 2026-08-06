@@ -7,6 +7,7 @@ import { NavLinks } from '@/components/layout/NavLinks'
 import type { NavItem } from '@/components/layout/nav-items'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { tourTarget } from '@/features/tour/tours'
 
 type MobileNavProps = {
   orgName: string
@@ -19,7 +20,7 @@ export function MobileNav({ orgName, items }: MobileNavProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
+        <Button variant="ghost" size="icon" className="md:hidden" {...tourTarget('nav-mobile')}>
           <MenuIcon />
           <span className="sr-only">Abrir menú</span>
         </Button>

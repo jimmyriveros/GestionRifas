@@ -369,6 +369,7 @@ cambiar ese archivo, nunca escribirla suelta en una pantalla.
 | Estados vacíos | `EmptyState` (`src/components/data/`) |
 | Confirmaciones de acciones sensibles | `ConfirmDialog` (`src/components/feedback/`) |
 | Mensajes de éxito | El `toast` de cada Server Action, en su componente cliente |
+| Pasos del recorrido guiado (título y explicación) | `src/features/tour/tours.ts`, **todos juntos** |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

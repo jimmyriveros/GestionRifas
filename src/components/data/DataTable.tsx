@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { tourTarget } from '@/features/tour/tours'
 import { cn } from '@/lib/utils'
 
 /**
@@ -90,7 +91,7 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg border">
+    <div {...tourTarget('data-table')} className="w-full overflow-x-auto rounded-lg border">
       <Table>
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <TableHeader>

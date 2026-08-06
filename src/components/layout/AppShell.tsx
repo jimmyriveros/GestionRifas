@@ -4,21 +4,58 @@ import { MobileNav } from '@/components/layout/MobileNav'
 import { NavLinks } from '@/components/layout/NavLinks'
 import type { NavItem } from '@/components/layout/nav-items'
 import { UserMenu } from '@/components/layout/UserMenu'
+import { TourProvider } from '@/features/tour/components/TourProvider'
+import { tourTarget } from '@/features/tour/tours'
 import type { AppRole } from '@/lib/constants'
 
 type AppShellProps = {
   orgName: string
   role: AppRole
+  profileId: string
   fullName: string
   email: string
   navItems: NavItem[]
   children: ReactNode
 }
 
-export function AppShell({ orgName, role, fullName, email, navItems, children }: AppShellProps) {
+export function AppShell({
+  orgName,
+  role,
+  profileId,
+  fullName,
+  email,
+  navItems,
+  children,
+}: AppShellProps) {
+  return (
+    <TourProvider role={role} profileId={profileId}>
+      <AppShellLayout
+        orgName={orgName}
+        role={role}
+        fullName={fullName}
+        email={email}
+        navItems={navItems}
+      >
+        {children}
+      </AppShellLayout>
+    </TourProvider>
+  )
+}
+
+function AppShellLayout({
+  orgName,
+  role,
+  fullName,
+  email,
+  navItems,
+  children,
+}: Omit<AppShellProps, 'profileId'>) {
   return (
     <div className="flex min-h-svh flex-col md:flex-row">
-      <aside className="bg-background hidden w-64 shrink-0 border-r md:flex md:flex-col">
+      <aside
+        {...tourTarget('nav-sidebar')}
+        className="bg-background hidden w-64 shrink-0 border-r md:flex md:flex-col"
+      >
         <div className="flex h-14 items-center border-b px-4">
           <span className="truncate font-semibold">{orgName}</span>
         </div>

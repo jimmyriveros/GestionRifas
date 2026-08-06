@@ -12,6 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { TourLauncher } from '@/features/tour/components/TourLauncher'
+import { tourTarget } from '@/features/tour/tours'
 import { ROLE_LABELS, type AppRole } from '@/lib/constants'
 
 type UserMenuProps = {
@@ -41,6 +43,7 @@ export function UserMenu({ fullName, email, role }: UserMenuProps) {
           variant="ghost"
           className="h-9 gap-2 px-2"
           aria-label={`Menú de usuario: ${fullName}`}
+          {...tourTarget('user-menu')}
         >
           <Avatar className="size-7">
             <AvatarFallback className="text-xs" aria-hidden>
@@ -59,6 +62,7 @@ export function UserMenu({ fullName, email, role }: UserMenuProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <TourLauncher />
         <DropdownMenuItem asChild>
           <Link href="/account/password">
             <KeyRoundIcon />

@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getAdminDashboard } from '@/features/dashboard/queries'
+import { tourTarget } from '@/features/tour/tours'
 import { requireStaff } from '@/lib/auth/guards'
 import { ROLE_LABELS } from '@/lib/constants'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
@@ -46,7 +47,7 @@ export default async function OwnerDashboardPage() {
         </div>
       ) : null}
 
-      <Card>
+      <Card {...tourTarget('active-raffle')}>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Rifa activa</CardTitle>
           {activeRaffle ? <RaffleStatusBadge status={activeRaffle.status} /> : null}
@@ -83,7 +84,10 @@ export default async function OwnerDashboardPage() {
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Inventario</h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <div
+          {...tourTarget('metrics-inventory')}
+          className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5"
+        >
           <MetricCard label="Vendedores activos" value={dashboard.activeSellers} />
           <MetricCard label="Total de boletas" value={totals.ticketsTotal} />
           <MetricCard label="Disponibles" value={totals.ticketsAvailable} />
@@ -94,7 +98,10 @@ export default async function OwnerDashboardPage() {
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Cobranza</h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+        <div
+          {...tourTarget('metrics-collection')}
+          className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6"
+        >
           <MetricCard label="Sin pagar" value={totals.ticketsUnpaid} />
           <MetricCard label="Abonadas" value={totals.ticketsPartial} />
           <MetricCard label="Pagadas" value={totals.ticketsPaid} />
@@ -104,7 +111,7 @@ export default async function OwnerDashboardPage() {
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section {...tourTarget('seller-summary')} className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Resumen por vendedor</h2>
           <Button asChild variant="ghost" size="sm">

@@ -1,5 +1,8 @@
 import { expect, type Page } from '@playwright/test'
 
+import { serviceClient } from './db-setup'
+import { TOURS } from '../../src/features/tour/tours'
+
 /**
  * Utilidades compartidas de las pruebas end-to-end.
  *
@@ -18,7 +21,46 @@ export const ACCOUNTS = {
   controlSeller: 'vendedor@control.test',
 } as const
 
-export async function loginAs(page: Page, email: string): Promise<void> {
+/**
+ * Ids de perfil de las cuentas del seed, leidos una sola vez.
+ *
+ * Sirven para construir la clave real con la que el recorrido guiado recuerda
+ * lo que ya se vio (`rifas.tour.<perfil>.<recorrido>`). Se consulta la base en
+ * vez de dejar un interruptor de pruebas en el codigo de produccion.
+ */
+let profileIdsPromise: Promise<string[]> | null = null
+
+async function seedProfileIds(): Promise<string[]> {
+  profileIdsPromise ??= (async () => {
+    const { data } = await serviceClient().from('profiles').select('id')
+    return (data ?? []).map((row) => row.id)
+  })()
+  return profileIdsPromise
+}
+
+/**
+ * Da por visto el recorrido guiado antes de que cargue la pagina.
+ *
+ * Sin esto, el recorrido se abriria automaticamente en cada prueba que entra a
+ * un panel y su capa taparia la pantalla. Las pruebas del recorrido en si
+ * (`tour.spec.ts`) usan `loginAs(page, email, { withTour: true })`.
+ */
+async function silenceTours(page: Page): Promise<void> {
+  const profileIds = await seedProfileIds()
+  const keys = profileIds.flatMap((profileId) =>
+    TOURS.map((tour) => `rifas.tour.${profileId}.${tour.id}`),
+  )
+  await page.addInitScript((storageKeys: string[]) => {
+    for (const key of storageKeys) window.localStorage.setItem(key, 'e2e')
+  }, keys)
+}
+
+export async function loginAs(
+  page: Page,
+  email: string,
+  options: { withTour?: boolean } = {},
+): Promise<void> {
+  if (!options.withTour) await silenceTours(page)
   await page.goto('/login')
   await page.getByLabel('Correo electrónico').fill(email)
   await page.getByLabel('Contraseña').fill(SEED_PASSWORD)

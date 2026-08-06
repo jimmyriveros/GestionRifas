@@ -7,6 +7,7 @@ import { useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { tourTarget } from '@/features/tour/tours'
 import {
   Select,
   SelectContent,
@@ -44,7 +45,7 @@ export function PaymentFilters({ sellers }: { sellers?: Option[] }) {
   )
 
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div {...tourTarget('filters')} className="space-y-3 rounded-lg border p-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {sellers ? (
           <div className="space-y-1.5">

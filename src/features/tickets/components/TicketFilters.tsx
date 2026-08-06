@@ -7,6 +7,7 @@ import { useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { tourTarget } from '@/features/tour/tours'
 import {
   Select,
   SelectContent,
@@ -71,7 +72,7 @@ export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps)
   ].some((key) => searchParams.get(key))
 
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div {...tourTarget('filters')} className="space-y-3 rounded-lg border p-4">
       {/*
         El campo es NO controlado y se remonta con `key` cuando cambia el
         parametro de la URL (por ejemplo al limpiar filtros). Asi la URL sigue

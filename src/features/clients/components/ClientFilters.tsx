@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { tourTarget } from '@/features/tour/tours'
 
 const ALL = 'all'
 
@@ -44,7 +45,7 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
   const hasFilters = ['q', 'sellerId', 'archived'].some((key) => searchParams.get(key))
 
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div {...tourTarget('filters')} className="space-y-3 rounded-lg border p-4">
       {/* Campo no controlado, remontado con `key`: la URL es la fuente de
           verdad (mismo criterio que TicketFilters). */}
       <form
