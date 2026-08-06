@@ -146,6 +146,7 @@ export function PaymentsTable({
         columns={columns}
         data={payments}
         getRowId={(row) => row.id}
+        onRowActivate={(row) => setSelected(row)}
         caption="Historial de pagos"
       />
 

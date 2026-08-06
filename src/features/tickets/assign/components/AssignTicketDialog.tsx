@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
+import { OptionList, OptionListItem } from '@/components/form/OptionList'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -28,7 +29,6 @@ import {
 import type { ClientOption } from '@/features/clients/queries'
 import { todayBogota } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
-import { cn } from '@/lib/utils'
 
 import { assignTicket, assignTicketToNewClient } from '../actions'
 
@@ -192,36 +192,18 @@ function AssignTicketForm({
               Ningún cliente coincide. Usa la pestaña «Cliente nuevo».
             </p>
           ) : (
-            <ul className="max-h-56 divide-y overflow-y-auto rounded-md border" role="listbox">
+            <OptionList label="Clientes" className="max-h-56 overflow-y-auto">
               {filtered.map((client) => (
-                <li key={client.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={selectedId === client.id}
-                    onClick={() => setSelectedId(client.id)}
-                    disabled={isPending}
-                    className={cn(
-                      'hover:bg-accent w-full px-3 py-3 text-left text-sm transition-colors',
-                      selectedId === client.id && 'bg-primary text-primary-foreground',
-                    )}
-                  >
-                    <span className="font-medium">{client.name}</span>
-                    <span
-                      className={cn(
-                        'block text-xs',
-                        selectedId === client.id
-                          ? 'text-primary-foreground/80'
-                          : 'text-muted-foreground',
-                      )}
-                    >
-                      {client.alias ? `${client.alias} · ` : ''}
-                      {client.phone}
-                    </span>
-                  </button>
-                </li>
+                <OptionListItem
+                  key={client.id}
+                  title={client.name}
+                  description={`${client.alias ? `${client.alias} · ` : ''}${client.phone}`}
+                  selected={selectedId === client.id}
+                  disabled={isPending}
+                  onSelect={() => setSelectedId(client.id)}
+                />
               ))}
-            </ul>
+            </OptionList>
           )}
 
           <DialogFooter>

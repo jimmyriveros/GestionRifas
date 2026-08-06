@@ -12,8 +12,14 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+import { useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 
+import {
+  hasTextSelection,
+  isActivationKey,
+  shouldActivateRow,
+} from '@/components/data/row-activation'
 import {
   Table,
   TableBody,
@@ -35,6 +41,13 @@ import { cn } from '@/lib/utils'
  * Responsive: contenedor con scroll horizontal y columnas secundarias ocultas
  * bajo `md` mediante `meta.hideOnMobile`, en vez de encoger la tabla hasta
  * hacerla ilegible en un telefono.
+ *
+ * Fila seleccionable (`rowHref` / `onRowActivate`): toda la fila abre el
+ * detalle, no solo el enlace de la primera columna. En un telefono ese enlace
+ * es una diana de pocos milimetros; la fila entera se acierta con el pulgar.
+ * El enlace se conserva —da el menu contextual, «abrir en otra pestana» y una
+ * parada de teclado con nombre—, y las reglas de `row-activation.ts` evitan que
+ * el mismo clic cuente dos veces.
  */
 
 declare module '@tanstack/react-table' {
@@ -57,6 +70,13 @@ type DataTableProps<TData, TValue> = {
   onRowSelectionChange?: OnChangeFn<RowSelectionState>
   enableRowSelection?: boolean | ((row: TData) => boolean)
   caption?: string
+  /**
+   * Direccion que abre la fila al pulsarla. Devolver `null` deja esa fila sin
+   * accion: la tabla no promete algo que luego no ocurre.
+   */
+  rowHref?: (row: TData) => string | null
+  /** Alternativa a `rowHref` cuando la fila abre un dialogo en vez de navegar. */
+  onRowActivate?: (row: TData) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -68,7 +88,10 @@ export function DataTable<TData, TValue>({
   onRowSelectionChange,
   enableRowSelection,
   caption,
+  rowHref,
+  onRowActivate,
 }: DataTableProps<TData, TValue>) {
+  const router = useRouter()
   const [sorting, setSorting] = useState<SortingState>([])
 
   const table = useReactTable({
@@ -88,6 +111,37 @@ export function DataTable<TData, TValue>({
 
   if (data.length === 0 && empty) {
     return <>{empty}</>
+  }
+
+  function activate(rowData: TData, href: string | null) {
+    if (onRowActivate) {
+      onRowActivate(rowData)
+      return
+    }
+    if (href) router.push(href)
+  }
+
+  function handleRowClick(
+    event: MouseEvent<HTMLTableRowElement>,
+    rowData: TData,
+    href: string | null,
+  ) {
+    if (!shouldActivateRow(event.target, event.currentTarget)) return
+    if (hasTextSelection(window.getSelection())) return
+    activate(rowData, href)
+  }
+
+  function handleRowKeyDown(
+    event: KeyboardEvent<HTMLTableRowElement>,
+    rowData: TData,
+    href: string | null,
+  ) {
+    // Con el foco en el enlace o en la casilla de la fila manda ese elemento:
+    // si no, `Enter` navegaria dos veces y `Space` marcaria y navegaria a la vez.
+    if (event.target !== event.currentTarget) return
+    if (!isActivationKey(event.key)) return
+    event.preventDefault() // `Space` desplazaria la pagina.
+    activate(rowData, href)
   }
 
   return (
@@ -153,24 +207,40 @@ export function DataTable<TData, TValue>({
               </TableCell>
             </TableRow>
           ) : (
-            table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id} data-state={row.getIsSelected() ? 'selected' : undefined}>
-                {row.getVisibleCells().map((cell) => {
-                  const meta = cell.column.columnDef.meta
-                  return (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(
-                        meta?.hideOnMobile && 'hidden md:table-cell',
-                        meta?.align === 'right' && 'text-right',
-                      )}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  )
-                })}
-              </TableRow>
-            ))
+            table.getRowModel().rows.map((row) => {
+              const href = rowHref ? rowHref(row.original) : null
+              const clickable = Boolean(onRowActivate) || href !== null
+
+              return (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                  data-clickable={clickable ? 'true' : undefined}
+                  tabIndex={clickable ? 0 : undefined}
+                  onClick={
+                    clickable ? (event) => handleRowClick(event, row.original, href) : undefined
+                  }
+                  onKeyDown={
+                    clickable ? (event) => handleRowKeyDown(event, row.original, href) : undefined
+                  }
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    const meta = cell.column.columnDef.meta
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          meta?.hideOnMobile && 'hidden md:table-cell',
+                          meta?.align === 'right' && 'text-right',
+                        )}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    )
+                  })}
+                </TableRow>
+              )
+            })
           )}
         </TableBody>
       </Table>

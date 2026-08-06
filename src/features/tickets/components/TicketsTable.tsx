@@ -193,6 +193,7 @@ export function TicketsTable({
         enableRowSelection={
           enableApproval ? (row) => row.inventoryStatus === 'pending_approval' : false
         }
+        rowHref={(row) => `${basePath}/${row.id}`}
         caption="Boletas"
       />
 

@@ -1055,6 +1055,58 @@ tocar nada más que `storage.ts`.
 **Detalle.** `localStorage` lanza excepción en el modo privado de Safari y con el almacenamiento
 bloqueado; ahí se asume «ya lo vio» para no repetirlo en cada navegación.
 
+## D-076 — La fila entera abre el detalle, pero el enlace de la primera columna se queda
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-06)
+**Contexto.** Para abrir una boleta o un cliente había que acertarle al enlace de la primera celda.
+En un teléfono es una diana de pocos milímetros dentro de una fila de 40 px de alto.
+**Decisión.** `DataTable` acepta `rowHref(row)` —o `onRowActivate(row)` cuando la fila abre un
+diálogo en vez de navegar— y da a la fila `cursor-pointer`, hover propio, `tabIndex={0}` y activación
+con `Enter` y `Espacio`. **El enlace de la primera columna se conserva.**
+**Por qué conservarlo.** Es lo único que da menú contextual, «abrir en otra pestaña», arrastrar el
+enlace y una parada de teclado **con nombre** para un lector de pantalla. Un `<tr>` con `onClick` no
+da nada de eso. El clic en la fila es una comodidad añadida, no un reemplazo.
+**Por qué no envolver cada celda en un `<a>`** (la alternativa «correcta» de HTML): multiplica los
+enlaces por columna, rompe la selección de texto, arrastra estilos a cada celda y obliga a que cada
+tabla sepa construir su URL en todas partes. Se descartó.
+**Cómo se evita el clic doble.** `src/components/data/row-activation.ts`: si el objetivo del clic
+tiene un ancestro interactivo **dentro de la fila** (enlace, botón, casilla, `[role=menuitem]`), la
+fila no hace nada. Y si el objetivo **no está dentro de la fila en el DOM**, tampoco: los menús de
+Radix viven en un portal, pero React propaga su clic por el árbol de componentes y llegaba igual al
+`onClick` de la fila. Ese caso —comprobar `row.contains(target)` **antes** de mirar si es
+interactivo— es el que no es evidente y por eso está probado aparte.
+**Detalles que parecen menores y no lo son.** Con el foco dentro de la fila (en el enlace o en la
+casilla) la tecla la atiende ese elemento, no la fila: si no, `Enter` navegaría dos veces y `Espacio`
+marcaría y navegaría a la vez. Y si hay texto seleccionado no se navega: arrastrar para copiar un
+número de boleta termina en un `click`.
+**Alcance.** La reciben las tablas que tienen a dónde ir: boletas, clientes, rifas, vendedores y
+pagos (esta abre su diálogo). `UsersTable` **no**: no existe pantalla de detalle de usuario, y una
+fila con puntero que no lleva a ninguna parte es peor que ninguna.
+
+## D-077 — Los estados visuales se escriben excluyentes, no apilados
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-06)
+**Contexto.** El cliente elegido al asignar una boleta se volvía ilegible al pasar el cursor: fondo
+claro con texto claro (I-033). La causa: `hover:bg-accent` y `bg-primary text-primary-foreground`
+escritos en la misma lista de clases. `:hover` añade una pseudoclase, así que gana al fondo de la
+selección; el color del texto, que no tiene rival, se queda. Resultado: el fondo de un estado con el
+texto de otro.
+**Decisión.** Los estados se escriben como **ramas excluyentes**, y cada rama trae su propio hover:
+elegido → `bg-primary text-primary-foreground hover:bg-primary/90`; sin elegir →
+`hover:bg-accent hover:text-accent-foreground`. Nunca ambas.
+**Por qué no resolverlo con especificidad** (`data-[selected]:hover:…`, `!important`, orden de
+clases): funciona, pero deja la corrección a merced de cómo Tailwind ordene el CSS y de que quien
+añada la siguiente clase entienda la jerarquía. Dos listas que no se tocan no pueden mezclarse.
+**Dónde vive.** `src/components/form/OptionList.tsx`, usado por el diálogo de asignación y por el
+selector de cliente de los abonos. `NavLinks` y `ReportNav` ya eran excluyentes; se les añadió el
+hover que le faltaba a la rama activa.
+**Donde sí hace falta la especificidad.** En `TableRow` los estados vienen de atributos
+(`data-clickable`, `data-state=selected`) y no de un ternario, así que las reglas que deben ganar
+llevan dos condiciones (`data-[state=selected]:hover:…`) y se imponen por especificidad, no por
+orden. Queda anotado en el propio componente.
+**Comprobación.** Se mide el contraste **calculado por el navegador**, no las clases escritas
+(`tests/e2e/filas-seleccionables.spec.ts`): el fallo original era justamente que las clases parecían
+correctas. Verificado además al revés — con el CSS defectuoso restaurado a propósito, las dos pruebas
+de contraste fallan (1,01 y 1,04 sobre un mínimo de 4,5).
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

@@ -40,12 +40,31 @@ function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>) {
   )
 }
 
+/**
+ * Los estados de la fila se escalonan de menos a mas especifico para que no
+ * compitan entre si: normal, hover, seleccionable, foco y marcada. Las reglas
+ * que deben ganar llevan dos condiciones (`data-[...]:hover:`), asi que se
+ * imponen por especificidad y no por el orden en que Tailwind emita el CSS.
+ */
 function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
   return (
     <tr
       data-slot="table-row"
       className={cn(
-        'hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors',
+        'border-b transition-colors outline-none',
+        'hover:bg-muted/50 has-aria-expanded:bg-muted/50',
+        // Fila seleccionable (DataTable con `rowHref` u `onRowActivate`): se
+        // anuncia con el puntero y con un hover algo mas marcado que el de una
+        // fila cualquiera. Solo cambia el fondo: nada de bordes ni tamanos que
+        // muevan el contenido al pasar por encima.
+        'data-[clickable=true]:hover:bg-muted data-[clickable=true]:cursor-pointer',
+        // Solo las filas seleccionables reciben el foco, asi que este contorno
+        // nunca aparece donde no hay accion. `outline` y no `ring`: el navegador
+        // lo dibuja alrededor de la fila sin depender del colapso de bordes.
+        'focus-visible:outline-ring focus-visible:outline-2 focus-visible:-outline-offset-2',
+        // Fila marcada con la casilla: el hover la varia sin devolverla nunca al
+        // aspecto de una fila sin marcar.
+        'data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted-foreground/20',
         className,
       )}
       {...props}

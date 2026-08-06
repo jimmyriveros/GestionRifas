@@ -78,6 +78,7 @@ export function RafflesTable({ raffles }: { raffles: RaffleSummary[] }) {
       columns={columns}
       data={raffles}
       getRowId={(row) => row.id}
+      rowHref={(row) => `/owner/raffles/${row.id}`}
       caption="Listado de rifas de la organización"
     />
   )

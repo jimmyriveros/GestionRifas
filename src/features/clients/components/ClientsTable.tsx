@@ -106,6 +106,12 @@ export function ClientsTable({ clients, basePath, showSeller = false }: ClientsT
   }, [basePath, showSeller])
 
   return (
-    <DataTable columns={columns} data={clients} getRowId={(row) => row.id} caption="Clientes" />
+    <DataTable
+      columns={columns}
+      data={clients}
+      getRowId={(row) => row.id}
+      rowHref={(row) => `${basePath}/${row.id}`}
+      caption="Clientes"
+    />
   )
 }

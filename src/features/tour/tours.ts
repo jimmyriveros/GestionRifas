@@ -229,7 +229,7 @@ const OWNER_TOURS: Tour[] = [
         target: 'data-table',
         side: 'top',
         title: 'Cómo va cada vendedor',
-        body: 'Aquí ves cuántas boletas tiene, cuánto vendió y cuánto le falta por cobrar. Toca su nombre para entrar a su detalle y asignarle boletas.',
+        body: 'Aquí ves cuántas boletas tiene, cuánto vendió y cuánto le falta por cobrar. Toca su fila para entrar a su detalle y asignarle boletas.',
       },
       closingStep(),
     ],

@@ -236,6 +236,22 @@ interruptor de pruebas en el código de producción**. Las pruebas del recorrido
 | `e2e/tour.spec.ts` (F10-01) | Aparece la primera vez, avanza y retrocede, termina con el cierre, se recuerda al omitirlo, se reinicia desde el menú, cada pantalla trae el suyo, el vendedor no ve pasos del portal administrativo, el globo cabe en la pantalla |
 | `e2e/tour-responsive.spec.ts` (F10-02) | En teléfono se descarta el paso de la barra lateral y toma su lugar el del botón de menú; el globo cabe en pantalla en todos los pasos |
 
+### 5.2 Pruebas de comportamiento visual
+
+| Archivo | Cubre |
+|---|---|
+| `unit/row-activation.test.ts` | Qué clic abre una fila y cuál lo atiende otro elemento: zona libre, enlace, casilla, botón, contenido de un botón, **menú en portal**, selección de texto, teclas de activación |
+| `e2e/filas-seleccionables.spec.ts` | La fila abre el detalle desde cualquier celda y con `Enter`; la casilla y el menú de acciones **no** lo abren; y los estados de la lista de clientes (hover, elegido, elegido+hover) conservan contraste, marcan la elección con algo más que color y no desplazan el contenido |
+
+**Cómo se mide el color, y por qué así** (I-034): pintando el color en un `canvas` y leyendo los
+píxeles, no leyendo `getComputedStyle`. Con Tailwind 4 el navegador devuelve los colores en
+`lab()`/`oklab()`, y leer sus números como canales RGB da contrastes falsos de 1,00 en textos
+perfectamente legibles. Hay que esperar además a que termine `transition-colors`: medir justo después
+de un `hover()` captura un fotograma intermedio.
+
+**Estas pruebas se comprobaron al revés.** Con el CSS defectuoso restaurado a propósito, las dos de
+contraste fallan (1,01 y 1,04). Una prueba visual que no se ha visto fallar no demuestra nada.
+
 ---
 
 ## 6. Datos de prueba (seed)

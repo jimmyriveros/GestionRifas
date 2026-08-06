@@ -720,3 +720,57 @@ transacción con el error— y además se ejecuta `ROLLBACK` explícito. Se ley�
 para demostrar que no quedó ningún cambio.
 
 Migraciones en el remoto tras esta operación: `0001`–`0016`, las mismas que en local.
+
+---
+
+## Usabilidad de tablas y listas — 2026-08-06
+
+Trabajo de mantenimiento posterior a la Fase 9, solicitado por el usuario: fila seleccionable en las
+tablas (D-076) y corrección de los estados visuales de la lista de clientes (D-077, I-033).
+
+| Comando | Resultado | Notas |
+|---|---|---|
+| `npm run typecheck` | ✅ Sin errores | — |
+| `npm run lint` | ✅ 0 errores | 2 avisos preexistentes de `react-hooks/incompatible-library` (TanStack Table y TanStack Virtual), ajenos a este cambio |
+| `npm run test` | ✅ **207/207** en 14 archivos | +15 de `row-activation.test.ts` |
+| `npm run build` | ✅ Compila | 34 rutas |
+| `npm run db:reset && npm run seed:local` | ✅ 16 migraciones + 6 cuentas | Estado limpio antes de las E2E |
+| `npx playwright test` (suite anterior completa) | ✅ **152/152** | Escritorio y Pixel 7 |
+| `npx playwright test filas-seleccionables` | ✅ **9/9** | Suite nueva |
+| Suite completa tras añadir la nueva | ✅ **161/161** | — |
+
+### Errores encontrados durante el trabajo, y qué se hizo
+
+| # | Qué pasó | Corrección |
+|---|---|---|
+| 1 | **El defecto reportado** (I-033): el cliente elegido se volvía ilegible al pasar el cursor. Contraste medido: **1,01** sobre un mínimo de 4,5 | Estados reescritos como ramas excluyentes en `OptionList` (D-077) |
+| 2 | Las tres primeras pruebas de contraste daban ~1,00 **en textos perfectamente legibles** | El navegador devuelve los colores en `lab()`/`oklab()` con Tailwind 4, no en `rgb()`. Se pasó a pintarlos en un `canvas` y leer los píxeles (I-034) |
+| 3 | La prueba de «no hay desplazamiento» comparaba 453 px contra 460 px | Medía durante la animación de entrada del diálogo. Se espera a que la caja deje de moverse |
+| 4 | La prueba del nombre pasaba **con el CSS defectuoso puesto** | `transition-colors` seguía en marcha: medía un fondo intermedio. Se espera a que el color deje de cambiar |
+
+### Comprobación inversa: las pruebas se vieron fallar
+
+Con el CSS defectuoso restaurado a propósito (`hover:bg-accent` acumulado con
+`bg-primary text-primary-foreground`), las dos pruebas de contraste **fallan**: 1,04 el nombre y
+1,01 el teléfono. Restaurado el arreglo, 9/9 en verde. Una prueba visual que nunca se ha visto fallar
+no demuestra nada.
+
+### Verificación visual
+
+Cuatro capturas de los estados —fila con el cursor encima, cliente sin elegir con el cursor encima,
+cliente elegido, y cliente elegido con el cursor encima— tomadas con Playwright, que inicia sesión
+con sus propias credenciales de prueba. **Un agente no inicia sesión a mano** (Fase 8): la sesión la
+abre el arnés de pruebas, no el agente escribiendo una contraseña en un formulario.
+
+### Dos fallos de pruebas destapados al certificar, ambos corregidos
+
+Ninguno era un defecto del producto; los dos eran fragilidades reales de las pruebas y llevaban ahí
+desde antes de este trabajo.
+
+| Prueba | Qué pasaba | Corrección |
+|---|---|---|
+| `seller-tickets.spec.ts:93` (BR-I08) | Falla si la suite se corre varias veces sin `db:reset`: elige un cliente **sin escribir en el buscador** y el selector muestra solo los primeros 50 (I-035) | La suite nueva crea **un** cliente para sus cuatro pruebas y lo borra al terminar. Con el seed limpio: 161/161 |
+| `tour-responsive.spec.ts:29` | El fallo intermitente de I-032, ahora **reproducido**: `boundingBox()` no auto-espera y la tarjeta del recorrido se reemplaza al cambiar de paso, así que a veces mide `null` | Medida reintentada con `expect.poll`. Verificado con 4 corridas seguidas y una suite completa |
+
+**Corrida final, con la base recién sembrada:** `verify` ✅ · 207 unitarias ✅ · 266 de base de datos
+✅ · **161 E2E ✅**.

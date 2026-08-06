@@ -3,10 +3,10 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
+import { OptionList, OptionListItem } from '@/components/form/OptionList'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatCOP } from '@/lib/money'
-import { cn } from '@/lib/utils'
 
 import type { ClientWithBalance } from '../queries'
 
@@ -59,33 +59,20 @@ export function ClientPicker({ clients }: { clients: ClientWithBalance[] }) {
           Ningún cliente con saldo pendiente coincide con la búsqueda.
         </p>
       ) : (
-        <ul className="divide-y rounded-lg border" role="listbox">
+        // Sin `selected`: aqui elegir un cliente lleva al paso siguiente, asi
+        // que no hay una eleccion que quede marcada en la lista.
+        <OptionList label="Clientes con saldo pendiente" className="rounded-lg">
           {filtered.map((client) => (
-            <li key={client.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={false}
-                onClick={() => select(client.id)}
-                disabled={isPending}
-                className={cn(
-                  'hover:bg-accent flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors',
-                )}
-              >
-                <span className="min-w-0">
-                  <span className="block font-medium">{client.name}</span>
-                  <span className="text-muted-foreground block text-xs">
-                    {client.alias ? `${client.alias} · ` : ''}
-                    {client.phone} · {client.ticketsCount} boleta(s)
-                  </span>
-                </span>
-                <span className="shrink-0 text-sm tabular-nums">
-                  debe {formatCOP(client.pendingAmount)}
-                </span>
-              </button>
-            </li>
+            <OptionListItem
+              key={client.id}
+              title={client.name}
+              description={`${client.alias ? `${client.alias} · ` : ''}${client.phone} · ${client.ticketsCount} boleta(s)`}
+              trailing={`debe ${formatCOP(client.pendingAmount)}`}
+              disabled={isPending}
+              onSelect={() => select(client.id)}
+            />
           ))}
-        </ul>
+        </OptionList>
       )}
     </div>
   )

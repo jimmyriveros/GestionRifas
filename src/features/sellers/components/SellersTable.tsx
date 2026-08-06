@@ -101,6 +101,7 @@ export function SellersTable({ sellers, currentRole, currentProfileId }: Sellers
       columns={columns}
       data={sellers}
       getRowId={(row) => row.profileId}
+      rowHref={(row) => `/owner/sellers/${row.profileId}`}
       caption="Vendedores de la organización con sus indicadores"
     />
   )

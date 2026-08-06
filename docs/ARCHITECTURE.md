@@ -308,7 +308,9 @@ Funciones auxiliares de seguridad (`STABLE`, `SECURITY DEFINER`): `current_profi
 
 | Componente | Propósito |
 |------------|-----------|
-| `DataTable` | Envoltura de TanStack Table: ordenamiento, paginación, selección, estado vacío, skeleton |
+| `DataTable` | Envoltura de TanStack Table: ordenamiento, paginación, selección, estado vacío, skeleton y **fila seleccionable** (`rowHref` / `onRowActivate`, D-076) |
+| `row-activation.ts` | Reglas de la fila seleccionable: qué clic la abre y cuál ya lo atiende otro elemento (D-076) |
+| `OptionList` / `OptionListItem` | Lista de opciones elegibles (clientes). Estados **excluyentes** normal/hover/foco/elegido/elegido+hover/deshabilitado, con visto además del color (D-077) |
 | `FilterBar` | Filtros con chips y botón «Limpiar filtros» siempre visible |
 | `MoneyInput` / `formatCOP` | Entrada y presentación de enteros COP |
 | `TicketNumberInput` | Solo dígitos, máx. 4, preserva ceros, `inputMode="numeric"` |
@@ -316,6 +318,11 @@ Funciones auxiliares de seguridad (`STABLE`, `SECURITY DEFINER`): `current_profi
 | `ConfirmDialog` | Confirmación de acciones sensibles (anular, desactivar, aprobar) |
 | `EmptyState` | Estado vacío con acción sugerida |
 | `PageSkeleton` | Carga mediante `loading.tsx` por segmento |
+
+**Fila seleccionable — a qué tablas se aplica** (D-076): boletas, clientes, rifas y vendedores abren
+su detalle; pagos abre su diálogo. `UsersTable` **no** la lleva: no hay pantalla de detalle de
+usuario. El enlace de la primera columna se conserva siempre: es lo único que da menú contextual,
+«abrir en otra pestaña» y una parada de teclado con nombre.
 
 ### 8.3 Etiquetas en español (fuente única: `lib/constants.ts`)
 
