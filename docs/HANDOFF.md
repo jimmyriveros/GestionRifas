@@ -11,12 +11,12 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Lo que queda son **decisiones del usuario**, no trabajo de ingeniería (ver §1.b) |
-| Rama / commit / etiqueta | `main` · `5ba750b` (búsqueda híbrida, 2026-08-06) · última etiqueta `fase-9` en `a8c4083` |
+| Rama / commit / etiqueta | `main` · `670004a` (búsqueda híbrida, 2026-08-07) · última etiqueta `fase-9` en `a8c4083` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` — **`main` al día: local y remoto idénticos** (empujado el 2026-08-06 con autorización del usuario). De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
 | Base de datos | **17 migraciones, todas aplicadas en local y en el proyecto real** y verificadas (2026-08-07: `verify:remote` 13/13 + 13 comprobaciones de `0017` + prueba de comportamiento revertida). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **226 unitarias** + **292 de base de datos** + **174 end-to-end**, todas en verde (2026-08-06). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
+| Pruebas | **228 unitarias** + **292 de base de datos** + **176 end-to-end**, todas en verde (2026-08-07). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -45,6 +45,15 @@ trigramas de la búsqueda (D-079). Respaldo previo en `Rifas-backups/2026-08-07-
 Verificada allí por catálogo (13 comprobaciones) **y por comportamiento**: se insertó «Jesús Peña
 Ñuñez» dentro de una transacción, se comprobó que aparece buscando «jesus», «pena», «nunez», el alias
 sin tilde y el teléfono en dos formatos, y se revirtió — 6 clientes antes y 6 después.
+
+Verificar después la búsqueda **desde el camino de datos de la aplicación** (no con SQL a mano) sacó a
+la luz I-039: un teléfono guardado sin indicativo no se encontraba escribiéndolo con «+57». Corregido
+sin migración nueva. Merece la pena repetir esa comprobación tras cualquier cambio de esquema: es
+además la que demuestra que PostgREST recargó su caché y expone las columnas nuevas.
+
+**Lo que falta y no puede hacer un agente:** entrar a producción por el navegador con los tres roles y
+escribir en los buscadores. `login está prohibido para un agente` (Fase 8), así que esa pasada la hace
+el usuario.
 
 Antes de esa se aplicó la `0016` (2026-08-05): cierra I-025 —un Owner podía dejar su organización sin
 propietario, de forma irrecuperable desde la aplicación— con un constraint trigger diferido (D-071).
