@@ -55,13 +55,36 @@ async function silenceTours(page: Page): Promise<void> {
   }, keys)
 }
 
+/**
+ * Va al login tolerando que otra navegacion nos gane la carrera.
+ *
+ * `page.goto` falla con `ERR_ABORTED` cuando la pagina anterior tenia una
+ * peticion en vuelo. Pasa sobre todo despues de `clearCookies()`: las
+ * peticiones RSC que quedaban se encuentran sin sesion, el navegador redirige
+ * por su cuenta al login, y ESA redireccion aborta la nuestra. La pagina de
+ * login acaba pintada igual —se ve en la captura del fallo—, asi que no es un
+ * defecto del producto sino una carrera del arnes.
+ *
+ * Era la causa de I-038: fallaba de forma intermitente en el bloque de
+ * anulacion de pagos, y con mas frecuencia cuanto mas larga era la suite.
+ * Reintentar una vez basta: la segunda navegacion ya no compite con nada.
+ */
+async function gotoLogin(page: Page): Promise<void> {
+  try {
+    await page.goto('/login')
+  } catch (error) {
+    if (!String(error).includes('ERR_ABORTED')) throw error
+    await page.goto('/login')
+  }
+}
+
 export async function loginAs(
   page: Page,
   email: string,
   options: { withTour?: boolean } = {},
 ): Promise<void> {
   if (!options.withTour) await silenceTours(page)
-  await page.goto('/login')
+  await gotoLogin(page)
   await page.getByLabel('Correo electrónico').fill(email)
   await page.getByLabel('Contraseña').fill(SEED_PASSWORD)
   await page.getByRole('button', { name: 'Ingresar' }).click()

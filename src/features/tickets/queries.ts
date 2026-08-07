@@ -2,6 +2,7 @@ import 'server-only'
 
 import { listOrgMembers } from '@/features/users/queries'
 import { PAGE_SIZE, type TicketInventoryStatus, type TicketPaymentStatus } from '@/lib/constants'
+import { isTicketNumberTerm, normalizeSearchTerm } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
 /**
@@ -80,10 +81,14 @@ type TicketRow = {
 
 /**
  * PostgREST rechaza `.or()` si un valor trae comas o parentesis: se escaparia
- * la propia sintaxis del filtro. Se limita la busqueda a caracteres inocuos.
+ * la propia sintaxis del filtro. Se quitan tambien `%` y `_`, que son comodines
+ * de `ilike` y harian que el termino signifique otra cosa.
+ *
+ * Un codigo interno («R001-000123») no lleva acentos —lo genera el trigger de
+ * 0004—, asi que aqui no hace falta normalizarlos como en clientes.
  */
 function sanitizeSearch(value: string): string {
-  return value.replace(/[(),."'\\*%]/g, '').trim()
+  return normalizeSearchTerm(value).replace(/[(),."'\\*%_]/g, '')
 }
 
 export async function listTickets(
@@ -105,8 +110,9 @@ export async function listTickets(
   if (search !== '') {
     const conditions = [`internal_code.ilike.%${search}%`]
     // Los numeros se comparan como TEXTO EXACTO: buscar "07" no debe traer
-    // "0007" ni "7" (BR-N03).
-    if (/^[0-9]{1,4}$/.test(search)) {
+    // "0007" ni "7" (BR-N03). Nada de busqueda parcial ni difusa sobre un
+    // identificador numerico: «12» no significa «1234».
+    if (isTicketNumberTerm(search)) {
       conditions.push(`daily_number.eq.${search}`, `weekly_number.eq.${search}`)
     }
     query = query.or(conditions.join(','))

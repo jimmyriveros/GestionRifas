@@ -29,6 +29,15 @@ export const updateClientSchema = clientFormSchema.extend({
 })
 export type UpdateClientInput = z.infer<typeof updateClientSchema>
 
+/**
+ * Termino de busqueda que llega a una Server Action.
+ *
+ * El tope de 100 caracteres no es una regla de negocio: es no dejar que alguien
+ * mande un texto enorme y obligue a la base de datos a comparar trigramas
+ * contra el. Nadie busca a un cliente con cien caracteres.
+ */
+export const searchTermSchema = z.string().trim().min(1).max(100)
+
 export const setClientArchivedSchema = z.object({
   clientId: z.uuid('Cliente no válido.'),
   archived: z.boolean(),

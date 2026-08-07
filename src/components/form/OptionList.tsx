@@ -26,13 +26,30 @@ import { cn } from '@/lib/utils'
 type OptionListProps = {
   /** Que se esta eligiendo, para los lectores de pantalla. Ej.: «Clientes». */
   label: string
+  /**
+   * La lista se esta actualizando. Lo que se ve sigue siendo valido —por eso no
+   * se vacia— pero puede estar a punto de cambiar, y `aria-busy` es la forma de
+   * decirlo sin interrumpir a quien usa un lector de pantalla.
+   */
+  busy?: boolean
   className?: string
   children: ReactNode
 }
 
-export function OptionList({ label, className, children }: OptionListProps) {
+export function OptionList({ label, busy = false, className, children }: OptionListProps) {
   return (
-    <ul role="listbox" aria-label={label} className={cn('divide-y rounded-md border', className)}>
+    <ul
+      role="listbox"
+      aria-label={label}
+      aria-busy={busy}
+      className={cn(
+        'divide-y rounded-md border transition-opacity',
+        // Atenuar es suficiente para que se note la actualizacion sin ocultar
+        // nada ni mover la lista de sitio.
+        busy && 'opacity-60',
+        className,
+      )}
+    >
       {children}
     </ul>
   )

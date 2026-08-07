@@ -15,8 +15,8 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 | Remoto | `github.com/jimmyriveros/GestionRifas` — **`main` al día: local y remoto idénticos** (empujado el 2026-08-06 con autorización del usuario). De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **16 migraciones, todas aplicadas en local y en el proyecto real** y verificadas (2026-08-05: `verify:remote` 13/13 + 9 comprobaciones de `0016`). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **207 unitarias** + **266 de base de datos** + **161 end-to-end**, todas en verde (2026-08-06). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **17 migraciones. Las 16 primeras están en local y en el proyecto real; la `0017` SOLO EN LOCAL** ⚠️ (ver §1.b). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **226 unitarias** + **292 de base de datos** + **174 end-to-end**, todas en verde (2026-08-06). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -37,7 +37,8 @@ reales).
 |---|---|
 | **I-024** — plan Free sin backups automáticos ni PITR | Subir a Supabase Pro o automatizar el respaldo externo. **Prerrequisito antes de operar con dinero o clientes reales** (`RUNBOOK.md` §5.3) |
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
-| **I-030** — los ~46 mensajes que lanza la base de datos siguen sin tildes | Autorizar una migración `0017` que reescriba esas funciones y aplicarla al proyecto real. Es lo único que quedó fuera de la revisión de textos del 2026-08-05 (D-073) |
+| **I-030** — los ~46 mensajes que lanza la base de datos siguen sin tildes | Autorizar una migración que reescriba esas funciones y aplicarla al proyecto real. Es lo único que quedó fuera de la revisión de textos del 2026-08-05 (D-073) |
+| ⚠️ **La migración `0017` está solo en local** | Es la de la búsqueda (columna generada `clients.search_text` + dos índices de trigramas, D-079). **En producción la búsqueda sigue sin acentos ni formatos de teléfono, y la de boletas sigue haciendo barrido secuencial.** Aplicarla es el procedimiento de tres pasos de §3 y exige respaldo previo y autorización explícita (D-070). Añade una columna generada a `clients`: reescribe la tabla, que hoy es pequeña |
 
 La última acción de ingeniería fue aplicar la migración `0016` al proyecto real (2026-08-05,
 autorizada explícitamente): cierra I-025 —un Owner podía dejar su organización sin propietario, de
@@ -362,6 +363,11 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Un reemplazo masivo de textos rompe el `typecheck` con `Cannot find name` | El script confundió una línea de código con prosa y renombró un **identificador** (`numeros` → `números`). Pasó dos veces. Por eso el orden es corregir → `typecheck` → `lint` → unitarias → BD → E2E | D-073 · I-029 |
 | Muchas pruebas E2E fallan de golpe con la pantalla tapada | El **recorrido guiado** se abre solo la primera vez y su capa bloquea los clics. `loginAs` lo desactiva por `localStorage`; si escribes una prueba que no lo use, pásale `{ withTour: true }` a propósito | D-074 · `tests/e2e/fixtures.ts` |
 | Al añadir un paso al recorrido, el contador no cuadra o el paso no aparece | Un paso cuyo `data-tour` no exista **o no esté visible** se descarta al arrancar. Comprueba que el atributo esté en el DOM en esa ruta y ese rol | `ARCHITECTURE.md` §8.4 |
+| Buscas «Jose» en producción y no encuentra a «José» | La migración `0017` no está aplicada allí. En local sí | §1.b · D-079 |
+| Una prueba espera a `aria-busy="false"` y sigue antes de tiempo | Durante la pausa del debounce **todavía no se está buscando**, así que vale `false` sin que haya terminado nada. Espera al resultado real: que la lista se estreche | D-078 |
+| Una función nueva resulta ejecutable por `anon` pese a las default privileges de `0015` | PostgreSQL concede EXECUTE a PUBLIC por defecto y aquella regla no lo alcanza. Añade `revoke execute … from anon, public` explícito en tu migración | I-020 · `0017` |
+| Cambias `foldForSearch()` y la búsqueda de clientes deja de encontrar | Hay una copia de esa misma regla en SQL (`search_normalize`, `0017`). Las dos tienen que coincidir; lo comprueba `tests/db/search.test.ts` | D-079 |
+| Una prueba E2E falla con `page.goto: net::ERR_ABORTED at /login` y en la captura el login SÍ aparece | Otra navegación ganó la carrera: tras `clearCookies()` las peticiones RSC pendientes redirigen solas. `loginAs` ya lo reintenta; si aparece en otro `goto`, haz lo mismo | I-038 · `fixtures.ts` |
 | Una prueba mide un contraste de **1,00** en un texto que se lee perfectamente | Con Tailwind 4 el navegador devuelve el color en `lab()`/`oklab()`, no en `rgb()`: leer sus números como canales de 0 a 255 da basura. Píntalo en un `canvas` y lee los píxeles | I-034 · `filas-seleccionables.spec.ts` |
 | Un estado visual «se pierde» al pasar el cursor: texto claro sobre fondo claro | `hover:*` añade una pseudoclase y gana al fondo del estado elegido, pero el color del texto se queda. Escribe los estados como **ramas excluyentes**, cada una con su propio hover | D-077 · I-033 |
 | Un clic en un menú de Radix dispara además la acción de la fila que lo contiene | El menú vive en un portal, pero React propaga el evento por el **árbol de componentes**. Comprueba `fila.contains(objetivo)` antes de mirar si el objetivo es interactivo | D-076 · `row-activation.ts` |

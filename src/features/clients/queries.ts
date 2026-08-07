@@ -2,6 +2,7 @@ import 'server-only'
 
 import { listOrgMembers } from '@/features/users/queries'
 import { PAGE_SIZE } from '@/lib/constants'
+import { SEARCH_OPTIONS_LIMIT, searchNeedle } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
 /**
@@ -36,8 +37,22 @@ export type ClientFilters = {
   pageSize?: number
 }
 
+/**
+ * Deja el termino listo para `ilike` contra `search_text`.
+ *
+ * Dos cosas distintas, en este orden:
+ *
+ * 1. `searchNeedle` lo normaliza como lo esta la columna —minusculas, sin
+ *    acentos, y solo digitos si parece un telefono—. Es la misma funcion que
+ *    usa el navegador, para que las dos capas busquen exactamente lo mismo.
+ * 2. Se quitan los caracteres que romperian el filtro: `%` y `_` son comodines
+ *    de `ilike`, y coma, parentesis y comillas son sintaxis de PostgREST.
+ *
+ * No es defensa contra inyeccion —de eso se encarga PostgREST, que envia el
+ * valor como parametro—, es evitar que el termino signifique otra cosa.
+ */
 function sanitizeSearch(value: string): string {
-  return value.replace(/[(),."'\\*%]/g, '').trim()
+  return searchNeedle(value).replace(/[(),."'\\*%_]/g, '')
 }
 
 export async function listClients(
@@ -52,17 +67,13 @@ export async function listClients(
   if (filters.sellerId) query = query.eq('seller_id', filters.sellerId)
   if (!filters.includeArchived) query = query.is('archived_at', null)
 
-  // BR-C08: la busqueda opera sobre nombre, alias, telefono y correo.
+  // BR-C08: nombre, alias, telefono y correo. Los cuatro estan concatenados y
+  // normalizados en `search_text` (migracion 0017), asi que un solo `ilike`
+  // sustituye al `or` de cuatro ramas de antes y ademas encuentra «José»
+  // escribiendo «jose» y el telefono con cualquier formato.
   const search = filters.search ? sanitizeSearch(filters.search) : ''
   if (search !== '') {
-    query = query.or(
-      [
-        `name.ilike.%${search}%`,
-        `alias.ilike.%${search}%`,
-        `phone.ilike.%${search}%`,
-        `email.ilike.%${search}%`,
-      ].join(','),
-    )
+    query = query.ilike('search_text', `%${search}%`)
   }
 
   const { data, error, count } = await query
@@ -137,20 +148,38 @@ export type ClientOption = {
 }
 
 /**
+ * Tope del desplegable «Cliente» de los filtros de boletas.
+ *
+ * Ese desplegable NO tiene buscador: es una lista fija, asi que su tope es un
+ * limite real de lo que se puede filtrar. Se conserva el que ya tenia (200)
+ * para no recortar nada al pasar los selectores a busqueda en servidor; que un
+ * desplegable fijo tenga techo es una limitacion anterior y aparte (I-037).
+ */
+export const CLIENT_FILTER_OPTIONS_LIMIT = 200
+
+/**
  * Clientes elegibles para asignar una boleta.
  *
  * Excluye los archivados (BR-C07) y, por RLS, un vendedor solo obtiene los
- * suyos. Se limita a un tamano manejable para el selector: la busqueda del
- * dialogo filtra sobre lo que ya esta cargado.
+ * suyos.
+ *
+ * Sin `search` devuelve el PRIMER bloque alfabetico, que es lo que se ve al
+ * abrir el dialogo. Con `search` la consulta va a la base de datos entera: ese
+ * es el punto. Antes se traian 200 clientes al navegador y se filtraban en
+ * memoria, asi que a partir del cliente 201 no habia forma de encontrarlo
+ * (I-036) — y el vendedor no recibia ningun aviso de que faltaban.
  */
-export async function listClientOptions(limit = 200): Promise<ClientOption[]> {
+export async function listClientOptions(
+  search?: string,
+  limit = SEARCH_OPTIONS_LIMIT,
+): Promise<ClientOption[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('clients')
-    .select('id, name, alias, phone')
-    .is('archived_at', null)
-    .order('name', { ascending: true })
-    .limit(limit)
+  let query = supabase.from('clients').select('id, name, alias, phone').is('archived_at', null)
+
+  const needle = search ? sanitizeSearch(search) : ''
+  if (needle !== '') query = query.ilike('search_text', `%${needle}%`)
+
+  const { data, error } = await query.order('name', { ascending: true }).limit(limit)
 
   if (error) throw error
 

@@ -5,7 +5,7 @@ import { DataTablePagination } from '@/components/data/DataTablePagination'
 import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
-import { listClientOptions } from '@/features/clients/queries'
+import { CLIENT_FILTER_OPTIONS_LIMIT, listClientOptions } from '@/features/clients/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { TicketFilters } from '@/features/tickets/components/TicketFilters'
 import { TicketsTable } from '@/features/tickets/components/TicketsTable'
@@ -39,7 +39,9 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
       page: Number.isNaN(requestedPage) ? 1 : requestedPage,
     }),
     listRaffleOptions(),
-    listClientOptions(),
+    // Alimenta el desplegable «Cliente» de los filtros, que no tiene buscador:
+    // su tope es el de siempre, no el pequeno de los selectores con busqueda.
+    listClientOptions(undefined, CLIENT_FILTER_OPTIONS_LIMIT),
   ])
 
   const canCreate = raffles.some(

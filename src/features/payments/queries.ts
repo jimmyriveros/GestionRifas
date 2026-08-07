@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { PAGE_SIZE, type PaymentMethod } from '@/lib/constants'
+import { SEARCH_OPTIONS_LIMIT, searchNeedle } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
 import type { PayableTicket } from './allocation'
@@ -203,15 +204,29 @@ export type ClientWithBalance = {
   ticketsCount: number
 }
 
-export async function listClientsWithBalance(): Promise<ClientWithBalance[]> {
+/**
+ * Clientes con saldo pendiente, para elegir a quien se le abona.
+ *
+ * Sin `search` devuelve el primer bloque alfabetico; con `search` consulta
+ * contra todos los que el vendedor puede ver. Como en los selectores de
+ * asignacion, antes se traian 200 y se filtraban en memoria: el cliente 201 no
+ * aparecia por mucho que se escribiera su nombre (I-036).
+ */
+export async function listClientsWithBalance(
+  search?: string,
+  limit = SEARCH_OPTIONS_LIMIT,
+): Promise<ClientWithBalance[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('v_client_balances')
     .select('client_id, name, alias, phone, pending_amount, tickets_count')
     .is('archived_at', null)
     .gt('pending_amount', 0)
-    .order('name', { ascending: true })
-    .limit(200)
+
+  const needle = search ? searchNeedle(search).replace(/[(),."'\\*%_]/g, '') : ''
+  if (needle !== '') query = query.ilike('search_text', `%${needle}%`)
+
+  const { data, error } = await query.order('name', { ascending: true }).limit(limit)
 
   if (error) throw error
 

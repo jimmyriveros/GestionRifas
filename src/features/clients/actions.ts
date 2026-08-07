@@ -2,13 +2,16 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { listClientsWithBalance, type ClientWithBalance } from '@/features/payments/queries'
 import { authorizeAction } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult, ActionResultWith } from '@/lib/action-result'
 
+import { listClientOptions, type ClientOption } from './queries'
 import {
   createClientSchema,
+  searchTermSchema,
   setClientArchivedSchema,
   toClientRow,
   updateClientSchema,
@@ -118,4 +121,48 @@ export async function setClientArchived(input: unknown): Promise<ActionResult> {
 
   revalidateClients(clientId)
   return { ok: true }
+}
+
+/**
+ * Busca clientes para un selector, contra la base de datos entera.
+ *
+ * Existe para que los dialogos no tengan que precargar la cartera completa: la
+ * busqueda ocurre en SQL, con RLS aplicada, y sin techo de registros (I-036).
+ *
+ * Devuelve lista vacia en vez de error cuando el termino no sirve: un selector
+ * que se queja de que escribiste una sola letra es mas molesto que util.
+ */
+export async function searchClientOptions(
+  term: unknown,
+): Promise<ActionResultWith<ClientOption[]>> {
+  // Cualquier rol con selector de cliente. La RLS decide QUE clientes ve cada
+  // uno: el vendedor los suyos, el personal los de su organizacion.
+  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  if ('error' in auth) return auth
+
+  const parsed = searchTermSchema.safeParse(term)
+  if (!parsed.success) return { ok: true, data: [] }
+
+  try {
+    return { ok: true, data: await listClientOptions(parsed.data) }
+  } catch (error) {
+    return { error: mapPgError(error) }
+  }
+}
+
+/** Lo mismo, pero solo con quienes deben dinero: selector de abonos. */
+export async function searchClientsWithBalance(
+  term: unknown,
+): Promise<ActionResultWith<ClientWithBalance[]>> {
+  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  if ('error' in auth) return auth
+
+  const parsed = searchTermSchema.safeParse(term)
+  if (!parsed.success) return { ok: true, data: [] }
+
+  try {
+    return { ok: true, data: await listClientsWithBalance(parsed.data) }
+  } catch (error) {
+    return { error: mapPgError(error) }
+  }
 }

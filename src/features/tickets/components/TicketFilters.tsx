@@ -1,12 +1,13 @@
 'use client'
 
-import { SearchIcon, XIcon } from 'lucide-react'
+import { XIcon } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTransition } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { SearchInput } from '@/features/search/components/SearchInput'
+import { useUrlSearch } from '@/features/search/use-url-search'
 import { tourTarget } from '@/features/tour/tours'
 import {
   Select,
@@ -21,6 +22,7 @@ import {
   TICKET_PAYMENT_STATUS_LABELS,
   TICKET_PAYMENT_STATUS_VALUES,
 } from '@/lib/constants'
+import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 type Option = { value: string; label: string }
 
@@ -39,13 +41,17 @@ const ALL = 'all'
  * Filtros de la tabla de boletas. Todo el estado vive en la URL: la pagina es
  * compartible, sobrevive a un refresco y el RSC vuelve a consultar con los
  * filtros aplicados en SQL, no en el navegador.
+ *
+ * La busqueda es hibrida (`useUrlSearch`): sale sola tras la pausa al escribir,
+ * o al momento con `Enter` o con el boton. El boton se conserva porque no todo
+ * el mundo da por hecho que la busqueda pasa sola.
  */
 export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
-  const currentSearch = searchParams.get('q') ?? ''
+  const search = useUrlSearch({ minChars: SEARCH_MIN_CHARS.tickets })
 
   function apply(changes: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString())
@@ -73,39 +79,19 @@ export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps)
 
   return (
     <div {...tourTarget('filters')} className="space-y-3 rounded-lg border p-4">
-      {/*
-        El campo es NO controlado y se remonta con `key` cuando cambia el
-        parametro de la URL (por ejemplo al limpiar filtros). Asi la URL sigue
-        siendo la unica fuente de verdad, sin duplicar su valor en un estado que
-        habria que sincronizar con un efecto.
-      */}
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          const value = new FormData(event.currentTarget).get('q')
-          apply({ q: typeof value === 'string' ? value : null })
-        }}
-        className="flex gap-2"
-      >
-        <div className="flex-1">
-          <Label htmlFor="ticket-search" className="sr-only">
-            Buscar por código o número
-          </Label>
-          <Input
-            id="ticket-search"
-            key={currentSearch}
-            name="q"
-            defaultValue={currentSearch}
-            placeholder="Código interno, número diario o semanal"
-            inputMode="search"
-            disabled={isPending}
-          />
-        </div>
-        <Button type="submit" variant="secondary" disabled={isPending}>
-          <SearchIcon className="size-4" aria-hidden />
-          <span className="sr-only sm:not-sr-only">Buscar</span>
-        </Button>
-      </form>
+      <SearchInput
+        id="ticket-search"
+        label="Buscar por código o número"
+        hideLabel
+        placeholder="Código interno, número diario o semanal"
+        value={search.value}
+        onChange={search.onChange}
+        onSubmit={search.submitNow}
+        onClear={search.clear}
+        loading={search.showSpinner}
+        showSubmitButton
+        hint={search.hint}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <FilterSelect

@@ -154,6 +154,23 @@ async function backgroundOf(locator: Locator): Promise<string> {
   return previous
 }
 
+/**
+ * Fondo despues de un cambio de estado, esperando primero a que el cambio
+ * OCURRA.
+ *
+ * `backgroundOf` por si solo devuelve en cuanto dos lecturas coinciden, y con
+ * la maquina cargada las dos primeras pueden caer antes de que el hover surta
+ * efecto: devolveria el color anterior y la prueba fallaria diciendo que el
+ * hover no se nota. Aqui se espera a que el valor deje de ser el de antes y
+ * solo entonces se deja reposar.
+ */
+async function backgroundAfterChange(locator: Locator, previous: string): Promise<string> {
+  await expect
+    .poll(() => locator.evaluate((element) => getComputedStyle(element).backgroundColor))
+    .not.toBe(previous)
+  return backgroundOf(locator)
+}
+
 async function firstRow(page: Page): Promise<Locator> {
   const row = page.locator('tbody tr').first()
   await expect(row).toBeVisible()
@@ -225,8 +242,8 @@ test.describe('Fila seleccionable en las tablas', () => {
 
     const restBackground = await backgroundOf(row)
     await row.hover()
+    await backgroundAfterChange(row, restBackground)
 
-    expect(await backgroundOf(row)).not.toBe(restBackground)
     expect(await textContrast(nameCell)).toBeGreaterThanOrEqual(4.5)
   })
 })
@@ -258,9 +275,22 @@ test.describe('Estados de la lista de clientes al asignar una boleta', () => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto(`/seller/tickets/${ticket.id}`)
     await page.getByRole('button', { name: 'Asignar a un cliente' }).click()
-    await page.getByLabel('Buscar').fill(client.name)
+    await page.getByRole('searchbox', { name: 'Buscar', exact: true }).fill(client.name)
 
+    /*
+      Hay que esperar a que la busqueda TERMINE, no solo a que el cliente
+      aparezca. Desde que la busqueda va al servidor (D-078) el nombre puede
+      verse porque venia en el bloque inicial, con la consulta todavia en
+      camino; cuando esa consulta vuelve, la lista se encoge y la opcion que se
+      estaba midiendo se mueve de sitio —el cursor deja de estar encima y el
+      hover se pierde a mitad de la comprobacion—.
+
+      `aria-busy` no sirve para esperar: durante el debounce todavia no se esta
+      buscando, asi que vale `false` sin que haya terminado nada. El nombre es
+      unico, asi que la senal fiable es que quede UNA sola opcion.
+    */
     const option = page.getByRole('option', { name: new RegExp(client.name) })
+    await expect(page.getByRole('option')).toHaveCount(1)
     await expect(option).toBeVisible()
     return { option, name: client.name }
   }
@@ -283,7 +313,7 @@ test.describe('Estados de la lista de clientes al asignar una boleta', () => {
     expect(await textContrast(nameText)).toBeGreaterThanOrEqual(4.5)
 
     await option.hover()
-    const selectedHover = await backgroundOf(option)
+    const selectedHover = await backgroundAfterChange(option, selected)
 
     // Sigue viéndose elegido —el fondo no vuelve al de una opción cualquiera—,
     // el hover se nota, y el nombre nunca se acerca a su propio fondo.

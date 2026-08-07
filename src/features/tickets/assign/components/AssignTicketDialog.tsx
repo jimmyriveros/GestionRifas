@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState, useTransition } from 'react'
+import { useCallback, useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
@@ -20,6 +20,7 @@ import { Form } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { searchClientOptions } from '@/features/clients/actions'
 import { ClientFormFields } from '@/features/clients/components/ClientFormFields'
 import {
   clientFormDefaults,
@@ -27,8 +28,11 @@ import {
   type ClientFormInput,
 } from '@/features/clients/schemas'
 import type { ClientOption } from '@/features/clients/queries'
+import { SearchInput } from '@/features/search/components/SearchInput'
+import { useRemoteSearch } from '@/features/search/use-remote-search'
 import { todayBogota } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 import { assignTicket, assignTicketToNewClient } from '../actions'
 
@@ -88,7 +92,6 @@ function AssignTicketForm({
   const router = useRouter()
   const [tab, setTab] = useState<'existing' | 'new'>(clients.length > 0 ? 'existing' : 'new')
   const [saleDate, setSaleDate] = useState(todayBogota())
-  const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -98,19 +101,30 @@ function AssignTicketForm({
     defaultValues: clientFormDefaults,
   })
 
-  // BR-C08: se busca por nombre, alias y telefono. La lista ya viene filtrada
-  // por RLS a la cartera del vendedor, asi que filtrar en memoria es correcto.
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    if (term === '') return clients.slice(0, 50)
-    return clients
-      .filter((client) =>
-        [client.name, client.alias ?? '', client.phone].some((value) =>
-          value.toLowerCase().includes(term),
-        ),
-      )
-      .slice(0, 50)
-  }, [clients, search])
+  /**
+   * Un fallo del servidor tiene que llegar al hook como excepcion: es lo que
+   * dispara su estado de error y el boton de reintentar. Devolver una lista
+   * vacia haria creer que no hay clientes con ese nombre.
+   */
+  const searchClients = useCallback(async (term: string) => {
+    const result = await searchClientOptions(term)
+    if ('error' in result) throw new Error(result.error)
+    return result.data
+  }, [])
+
+  /**
+   * BR-C08: se busca por nombre, alias y telefono, EN EL SERVIDOR.
+   *
+   * Antes se filtraba en memoria sobre los clientes precargados, y como esa
+   * precarga tenia tope, un vendedor con muchos clientes no podia encontrar a
+   * los ultimos por mucho que escribiera su nombre (I-036). La RLS sigue
+   * limitando el resultado a su cartera; lo que cambia es que ya no hay techo.
+   */
+  const search = useRemoteSearch({
+    search: searchClients,
+    initialResults: clients,
+    minChars: SEARCH_MIN_CHARS.people,
+  })
 
   function assignExisting() {
     if (!selectedId) {
@@ -175,25 +189,41 @@ function AssignTicketForm({
         </TabsList>
 
         <TabsContent value="existing" className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="client-search-assign">Buscar</Label>
-            <Input
-              id="client-search-assign"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Nombre, alias o teléfono"
-              inputMode="search"
-              disabled={isPending}
-            />
-          </div>
+          <SearchInput
+            id="client-search-assign"
+            label="Buscar"
+            placeholder="Nombre, alias o teléfono"
+            value={search.term}
+            onChange={search.onTermChange}
+            onSubmit={search.submitNow}
+            onClear={search.clear}
+            loading={search.showSpinner}
+            hint={search.hint}
+          />
 
-          {filtered.length === 0 ? (
+          {search.status === 'error' ? (
+            <div className="space-y-2 py-4 text-center">
+              <p className="text-destructive text-sm">{search.error}</p>
+              <Button type="button" variant="outline" size="sm" onClick={search.retry}>
+                Reintentar
+              </Button>
+            </div>
+          ) : search.isEmpty ? (
             <p className="text-muted-foreground py-4 text-center text-sm">
               Ningún cliente coincide. Usa la pestaña «Cliente nuevo».
             </p>
           ) : (
-            <OptionList label="Clientes" className="max-h-56 overflow-y-auto">
-              {filtered.map((client) => (
+            /*
+              La lista anterior se mantiene mientras llega la nueva: vaciarla en
+              cada tecla haria que el dialogo pegara saltos. `aria-busy` avisa a
+              un lector de pantalla de que lo que hay se esta actualizando.
+            */
+            <OptionList
+              label="Clientes"
+              className="max-h-56 overflow-y-auto"
+              busy={search.status === 'searching'}
+            >
+              {search.results.map((client) => (
                 <OptionListItem
                   key={client.id}
                   title={client.name}

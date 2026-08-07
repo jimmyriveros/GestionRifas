@@ -311,6 +311,10 @@ Funciones auxiliares de seguridad (`STABLE`, `SECURITY DEFINER`): `current_profi
 | `DataTable` | Envoltura de TanStack Table: ordenamiento, paginación, selección, estado vacío, skeleton y **fila seleccionable** (`rowHref` / `onRowActivate`, D-076) |
 | `row-activation.ts` | Reglas de la fila seleccionable: qué clic la abre y cuál ya lo atiende otro elemento (D-076) |
 | `OptionList` / `OptionListItem` | Lista de opciones elegibles (clientes). Estados **excluyentes** normal/hover/foco/elegido/elegido+hover/deshabilitado, con visto además del color (D-077) |
+| `SearchInput` | Campo de búsqueda compartido: etiqueta, limpiar, indicador retrasado, `aria-busy` (D-078) |
+| `useUrlSearch` | Búsqueda híbrida para listas paginadas: el término va a la URL y el RSC reconsulta |
+| `useRemoteSearch` | Búsqueda híbrida para diálogos y selectores, contra una Server Action, con testigo de secuencia |
+| `lib/search.ts` | Normalización del término y valores por defecto (pausa, mínimos). Lo usan navegador y servidor |
 | `FilterBar` | Filtros con chips y botón «Limpiar filtros» siempre visible |
 | `MoneyInput` / `formatCOP` | Entrada y presentación de enteros COP |
 | `TicketNumberInput` | Solo dígitos, máx. 4, preserva ceros, `inputMode="numeric"` |
@@ -318,6 +322,20 @@ Funciones auxiliares de seguridad (`STABLE`, `SECURITY DEFINER`): `current_profi
 | `ConfirmDialog` | Confirmación de acciones sensibles (anular, desactivar, aprobar) |
 | `EmptyState` | Estado vacío con acción sugerida |
 | `PageSkeleton` | Carga mediante `loading.tsx` por segmento |
+
+**Búsqueda — dónde y con qué valores** (D-078). No hay capa de fetch en el navegador: en las listas
+la búsqueda **es** una navegación al Server Component, y por eso no hay ni hace falta
+`AbortController`.
+
+| Pantalla | Tipo | Busca en | Pausa | Mínimo |
+|---|---|---|---|---|
+| `/owner/tickets`, `/seller/tickets` | URL → RSC | código interno (parcial), número diario y semanal (exacto) | 350 ms | 2 |
+| `/owner/clients`, `/seller/clients` | URL → RSC | nombre, alias, teléfono, correo | 350 ms | 2 |
+| Asignar boleta → «Cliente existente» | Server Action | nombre, alias, teléfono | 350 ms | 2 |
+| Registrar abono → selector de cliente | Server Action | nombre, alias, teléfono | 350 ms | 2 |
+
+`Enter` y el botón «Buscar» se saltan el mínimo. Los números de boleta se comparan **exactos** y como
+texto (BR-N03): «07» no trae «0007». Sobre un identificador no se hace búsqueda parcial ni difusa.
 
 **Fila seleccionable — a qué tablas se aplica** (D-076): boletas, clientes, rifas y vendedores abren
 su detalle; pagos abre su diálogo. `UsersTable` **no** la lleva: no hay pantalla de detalle de

@@ -477,6 +477,8 @@ triggers y funciones `SECURITY DEFINER`. Eventos mínimos registrados: `docs/SEC
 | `raffles` | `(organization_id, status)` | Rifa activa y listados |
 | `clients` | `(organization_id, seller_id) WHERE archived_at IS NULL` | Cartera del vendedor |
 | `clients` | GIN `pg_trgm` sobre `name`, `alias`, `phone`, `email` | Búsqueda por texto parcial |
+| `clients` | GIN `pg_trgm` sobre `search_text` (`0017`) | Búsqueda normalizada: acentos y formatos de teléfono (D-079) |
+| `tickets` | GIN `pg_trgm` sobre `internal_code` (`0017`) | `ilike '%texto%'` sobre el código: antes era barrido secuencial |
 | `tickets` | `(organization_id, raffle_id, inventory_status)` | Tabla global con filtros |
 | `tickets` | `(seller_id, raffle_id, inventory_status)` | Portal Seller |
 | `tickets` | `(organization_id, raffle_id, daily_number)` | Búsqueda por número diario |
@@ -494,6 +496,15 @@ triggers y funciones `SECURITY DEFINER`. Eventos mínimos registrados: `docs/SEC
 
 La unicidad de `tickets_combo_unique` genera su propio índice, que además sirve para detectar
 duplicados durante la carga masiva.
+
+**`clients.search_text`** (`0017`, D-079) es una columna **generada** con nombre, alias, teléfono
+—con separadores y sin ellos— y correo, todo en minúsculas y sin acentos mediante
+`search_normalize()`. Nunca se muestra: existe solo para buscar, y por ser generada no puede quedar
+desincronizada del dato real. `search_normalize()` tiene que dar exactamente lo mismo que
+`foldForSearch()` de `src/lib/search.ts`; lo comprueba `tests/db/search.test.ts`.
+
+Los cuatro índices trigrama de `0003` se conservan pese a que la búsqueda ya no los usa: no se retira
+un índice sin evidencia de que sobra (`pg_stat_user_indexes.idx_scan` tras un tiempo en producción).
 
 ---
 

@@ -774,3 +774,71 @@ desde antes de este trabajo.
 
 **Corrida final, con la base recién sembrada:** `verify` ✅ · 207 unitarias ✅ · 266 de base de datos
 ✅ · **161 E2E ✅**.
+
+---
+
+## Búsqueda híbrida — 2026-08-06
+
+Trabajo de mantenimiento posterior a la Fase 9, solicitado por el usuario (D-078, D-079).
+
+| Comando | Resultado | Notas |
+|---|---|---|
+| `npm run typecheck` | ✅ Sin errores | — |
+| `npm run lint` | ✅ 0 errores | 2 avisos preexistentes de `react-hooks/incompatible-library` |
+| `npm run test` | ✅ **226/226** en 15 archivos | +19 de `search.test.ts` |
+| `npm run build` | ✅ Compila | 34 rutas |
+| `npm run test:db` | ✅ **292/292** en 13 archivos | +26 de `search.test.ts` (incluida la migración `0017`) |
+| `npx playwright test` | ✅ **174/174** | Escritorio y Pixel 7, con la base recién sembrada |
+
+### Medición del índice de boletas
+
+Con 20.000 boletas insertadas a propósito, buscando `internal_code ilike '%000123%'`:
+
+| | Tiempo | Páginas leídas |
+|---|---|---|
+| Sin índice (barrido secuencial) | 13,9 ms | 446 |
+| Con `tickets_internal_code_trgm_idx` | **0,9 ms** | **89** |
+
+La diferencia crece con la tabla: el barrido es lineal y el índice no.
+
+### Errores encontrados durante el trabajo, y qué se hizo
+
+| # | Qué pasó | Corrección |
+|---|---|---|
+| 1 | **El defecto de fondo** (I-036): los selectores de cliente precargaban 200 registros y filtraban en memoria; el cliente 201 era inencontrable | Búsqueda en servidor por Server Action, sin techo |
+| 2 | El React Compiler rechazó tres cosas de los hooks nuevos: un `setState` síncrono en el cuerpo de un efecto y dos escrituras de `ref` durante el render | El apagado del indicador pasa a la limpieza del efecto; las refs se actualizan en efectos |
+| 3 | `search_normalize()` nacía **ejecutable por `anon`**, rompiendo la invariante I-020 | `revoke execute … from anon, public` explícito en `0017`. **Lo destapó una prueba nueva**, no una revisión a ojo |
+| 4 | El botón de limpiar se anunciaba «Limpiar buscar por código o número», que no es español | Nombre propio y corto: «Limpiar búsqueda» |
+| 5 | Dos pruebas nuevas resultaron **vacías**: comparaban el `textContent` de una opción con su nombre accesible, que nunca coinciden, así que el `toHaveCount(0)` pasaba siempre | Reescritas contra el número de opciones. Comprobadas al revés: con el filtro roto, fallan |
+| 6 | Al medir el hover, el ayudante devolvía el color **anterior** si las dos primeras lecturas caían antes de que el hover surtiera efecto | `backgroundAfterChange`: primero espera a que el valor cambie, después lo deja reposar |
+| 7 | `aria-busy` no sirve para esperar a que termine una búsqueda: durante la pausa vale `false` sin que haya terminado nada | Las pruebas esperan al resultado real (que la lista se estreche), no al atributo |
+
+### Comprobación inversa: las pruebas se vieron fallar
+
+- Con el filtro del selector desactivado, «encuentra un cliente que no viene en el bloque inicial»
+  falla (el cliente no aparece) y «encuentra un nombre con tildes» falla (12 opciones en vez de 1).
+- Restaurado el filtro, 13/13 en verde.
+
+### Una fragilidad ajena que salió a la luz (I-038)
+
+`payments.spec.ts` **falla si la base ya trae pagos de una corrida anterior**, y el síntoma no es una
+aserción sino `page.goto: net::ERR_ABORTED at /login`: una navegación en vuelo aborta a la siguiente.
+
+Se aisló la causa con tres experimentos, no por descarte:
+
+| Experimento | Resultado |
+|---|---|
+| `db:reset` + seed → `payments.spec.ts` dos veces seguidas, **con el código intacto** | 1.ª corrida 17/17 · 2.ª corrida **3 fallos** |
+| Suite completa **sin** `busqueda-hibrida.spec.ts` | **161/161** |
+| Suite completa **con** ella | 2 de 4 corridas con fallos en `payments` y `reports` |
+
+Reducir la huella de la suite nueva no bastó: seguía fallando la mitad de las veces. La causa real
+estaba en **`loginAs`**, el helper compartido. Tras `clearCookies()`, las peticiones RSC que quedaban
+en vuelo se encuentran sin sesión, el navegador redirige al login por su cuenta y esa redirección
+**aborta** el `page.goto('/login')` del helper. La captura del fallo mostraba la página de login ya
+pintada: el producto estaba bien, la prueba perdía una carrera. Depende del tiempo total —la corrida
+que pasó tardó 7,9 min y la que falló, 10,5—, y por eso aparecía al alargar la suite.
+
+Corregido reintentando la navegación una vez ante `ERR_ABORTED` (`gotoLogin`, en `fixtures.ts`): la
+segunda ya no compite con nada. Se conserva también la huella reducida de la suite nueva. Con las dos
+cosas, la corrida completa da **174/174**. Los fallos de `reports.spec.ts` eran arrastre de estos.

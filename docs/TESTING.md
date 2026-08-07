@@ -241,6 +241,9 @@ interruptor de pruebas en el código de producción**. Las pruebas del recorrido
 | Archivo | Cubre |
 |---|---|
 | `unit/row-activation.test.ts` | Qué clic abre una fila y cuál lo atiende otro elemento: zona libre, enlace, casilla, botón, contenido de un botón, **menú en portal**, selección de texto, teclas de activación |
+| `unit/search.test.ts` | Normalización del término: espacios, acentos, ñ, teléfonos en cualquier formato, mínimos por pantalla, números de boleta |
+| `db/search.test.ts` | Que `search_normalize()` en SQL dé **lo mismo** que `foldForSearch()` en TypeScript, la columna generada, los índices y que la vista siga siendo `security_invoker` |
+| `e2e/busqueda-hibrida.spec.ts` | Una sola consulta para ocho teclas; `Enter` inmediato; `Enter`+pausa no duplican; el mínimo no encierra; limpiar restaura; no se pierde el foco; la página vuelve a la primera; convive con los filtros; **una respuesta lenta no pisa a la actual**; y que se encuentre a un cliente que no viene en el bloque inicial |
 | `e2e/filas-seleccionables.spec.ts` | La fila abre el detalle desde cualquier celda y con `Enter`; la casilla y el menú de acciones **no** lo abren; y los estados de la lista de clientes (hover, elegido, elegido+hover) conservan contraste, marcan la elección con algo más que color y no desplazan el contenido |
 
 **Cómo se mide el color, y por qué así** (I-034): pintando el color en un `canvas` y leyendo los

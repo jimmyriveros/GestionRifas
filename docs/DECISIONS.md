@@ -1107,6 +1107,61 @@ orden. Queda anotado en el propio componente.
 correctas. Verificado además al revés — con el CSS defectuoso restaurado a propósito, las dos pruebas
 de contraste fallan (1,01 y 1,04 sobre un mínimo de 4,5).
 
+## D-078 — La búsqueda híbrida se monta sobre la URL, no sobre un `fetch`
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-06)
+**Contexto.** Se pidió una búsqueda que salga sola al escribir, con debounce,
+`AbortController` para cancelar la anterior y estados de carga. Esa receta da por supuesta una capa
+de fetch en el navegador, y **este proyecto no la tiene**: el término vive en la URL, la pantalla es
+un Server Component y `router.replace` **es** la petición.
+**Decisión.** Traducir cada requisito al mecanismo equivalente en vez de construir la capa que
+faltaba: el debounce retrasa la navegación; la cancelación la hace el router, que descarta la
+navegación superada; el estado de carga es el `isPending` de `useTransition`.
+**Por qué no añadir una capa de fetch.** Habría duplicado el camino de datos: la lista se seguiría
+pintando desde el servidor y la búsqueda desde el navegador, con dos fuentes de verdad para la misma
+tabla, dos formas de paginar y dos sitios donde aplicar los filtros. Y la dirección dejaría de ser
+compartible, que es una propiedad que el proyecto ya tenía.
+**`replace` y no `push`.** Con `push`, cada pausa al escribir dejaría una entrada en el historial y
+el botón «atrás» iría devolviendo letra a letra.
+**Dónde sí hace falta cancelar de verdad.** En los selectores de cliente, que llaman a una Server
+Action. Una Server Action **no se puede abortar** —la petición la gestiona el runtime, no nuestro
+código—, así que se usa un **testigo de secuencia**: cada consulta lleva un número y al volver se
+compara con el último emitido; si no coincide, la respuesta se descarta. Es lo que pide el Paso 4 del
+encargo cuando la cancelación no es posible, y está probado con una respuesta retrasada a propósito.
+**Valores.** 350 ms de pausa; mínimo 2 caracteres para personas y códigos, 3 para texto libre;
+`Enter` y el botón se saltan el mínimo. Centralizados en `src/lib/search.ts`, ajustables por pantalla.
+**Consecuencia.** No hay `AbortController` en el proyecto y no debería aparecer uno sin cambiar antes
+esta decisión: en las listas no hay nada que abortar, y en los selectores no se puede.
+
+## D-079 — La normalización para buscar se guarda en la base de datos, con `translate`
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-06)
+**Contexto.** Buscar «Jose» no encontraba a «José», y un teléfono escrito «300 555-0000» no encontraba
+al mismo número guardado como «3005550000» (la columna `phone` admite `+`, espacios, paréntesis y
+guion desde `0002`). Normalizar solo el término no arregla nada: hay que comparar contra algo
+igualmente normalizado.
+**Decisión.** Una columna **generada** `clients.search_text` con nombre, alias, teléfono —con y sin
+separadores— y correo, todo en minúsculas y sin acentos, más un índice de trigramas sobre ella. La
+consulta pasa de un `or` de cuatro ramas a un solo `ilike`.
+**Generada y no mantenida por un trigger:** la calcula PostgreSQL en cada inserción y actualización,
+no se puede desincronizar y no hay código que recordar.
+**Por qué `translate` y no la extensión `unaccent`.** `unaccent` es la respuesta habitual, pero se
+instala en un esquema y **ese esquema no es el mismo en local que en Supabase alojado** (aquí
+`pg_trgm` quedó en `public`; en Supabase lo normal es `extensions`). Una columna generada que
+referencia `public.unaccent` se rompería al aplicar la migración sobre datos reales, que es el peor
+momento para descubrirlo. `translate` es built-in, `IMMUTABLE`, no depende de ningún esquema y cubre
+el español entero, que es el único idioma de la aplicación.
+**La `ñ` se pliega a `n`** a propósito: quien escribe «munoz» espera encontrar a «Muñoz», y
+`unaccent` hace lo mismo.
+**La invariante que hay que cuidar.** `search_normalize()` en SQL y `foldForSearch()` en TypeScript
+son dos implementaciones de la misma regla en dos lenguajes. Si una cambia y la otra no, la búsqueda
+deja de encontrar y nadie se entera hasta que un vendedor no puede cobrar. Por eso hay una prueba que
+compara las dos contra la misma lista de palabras (`tests/db/search.test.ts`).
+**Índices.** Se añade además trigramas sobre `tickets.internal_code`, que se buscaba con
+`ilike '%texto%'` **sin ningún índice**: barrido secuencial de la tabla más grande. Medido con 20.000
+boletas: **13,9 ms y 446 páginas → 0,9 ms y 89**. Los cuatro índices trigrama de `0003` **no se
+eliminan**: la regla del proyecto es no retirar un índice sin evidencia de que sobra.
+**Pendiente.** La migración `0017` está aplicada **solo en local**. Aplicarla al proyecto real exige
+autorización explícita y respaldo previo (D-070).
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

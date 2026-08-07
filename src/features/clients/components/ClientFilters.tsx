@@ -1,11 +1,10 @@
 'use client'
 
-import { SearchIcon, XIcon } from 'lucide-react'
+import { XIcon } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTransition } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -15,7 +14,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { SearchInput } from '@/features/search/components/SearchInput'
+import { useUrlSearch } from '@/features/search/use-url-search'
 import { tourTarget } from '@/features/tour/tours'
+import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 const ALL = 'all'
 
@@ -29,7 +31,8 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
-  const currentSearch = searchParams.get('q') ?? ''
+  // Personas: dos caracteres ya descartan casi toda la cartera.
+  const search = useUrlSearch({ minChars: SEARCH_MIN_CHARS.people })
 
   function apply(changes: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString())
@@ -46,35 +49,19 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
 
   return (
     <div {...tourTarget('filters')} className="space-y-3 rounded-lg border p-4">
-      {/* Campo no controlado, remontado con `key`: la URL es la fuente de
-          verdad (mismo criterio que TicketFilters). */}
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          const value = new FormData(event.currentTarget).get('q')
-          apply({ q: typeof value === 'string' ? value : null })
-        }}
-        className="flex gap-2"
-      >
-        <div className="flex-1">
-          <Label htmlFor="client-search" className="sr-only">
-            Buscar cliente
-          </Label>
-          <Input
-            id="client-search"
-            key={currentSearch}
-            name="q"
-            defaultValue={currentSearch}
-            placeholder="Nombre, alias, teléfono o correo"
-            inputMode="search"
-            disabled={isPending}
-          />
-        </div>
-        <Button type="submit" variant="secondary" disabled={isPending}>
-          <SearchIcon className="size-4" aria-hidden />
-          <span className="sr-only sm:not-sr-only">Buscar</span>
-        </Button>
-      </form>
+      <SearchInput
+        id="client-search"
+        label="Buscar cliente"
+        hideLabel
+        placeholder="Nombre, alias, teléfono o correo"
+        value={search.value}
+        onChange={search.onChange}
+        onSubmit={search.submitNow}
+        onClear={search.clear}
+        loading={search.showSpinner}
+        showSubmitButton
+        hint={search.hint}
+      />
 
       <div className="flex flex-wrap items-end gap-4">
         {sellers ? (
