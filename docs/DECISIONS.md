@@ -1159,8 +1159,13 @@ compara las dos contra la misma lista de palabras (`tests/db/search.test.ts`).
 `ilike '%texto%'` **sin ningún índice**: barrido secuencial de la tabla más grande. Medido con 20.000
 boletas: **13,9 ms y 446 páginas → 0,9 ms y 89**. Los cuatro índices trigrama de `0003` **no se
 eliminan**: la regla del proyecto es no retirar un índice sin evidencia de que sobra.
-**Pendiente.** La migración `0017` está aplicada **solo en local**. Aplicarla al proyecto real exige
-autorización explícita y respaldo previo (D-070).
+**Aplicada al proyecto real el 2026-08-07** con autorización explícita del usuario, tras respaldo
+lógico previo (`Rifas-backups/2026-08-07-antes-0017/`, verificado sin `auth.users`). Comprobada allí
+de las dos formas: por catálogo (13 comprobaciones, incluida la de que `anon` y `public` no pueden
+ejecutar `search_normalize` — la clase de divergencia de D-038 e I-020) y **por comportamiento**,
+insertando «Jesús Peña Ñuñez» dentro de una transacción, comprobando que se encuentra por «jesus»,
+«pena», «nunez», el alias sin tilde y el teléfono en dos formatos, y revirtiendo: 6 clientes antes y
+6 después.
 
 ---
 

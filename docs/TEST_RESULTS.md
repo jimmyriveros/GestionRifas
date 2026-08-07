@@ -842,3 +842,39 @@ que pasó tardó 7,9 min y la que falló, 10,5—, y por eso aparecía al alarga
 Corregido reintentando la navegación una vez ante `ERR_ABORTED` (`gotoLogin`, en `fixtures.ts`): la
 segunda ya no compite con nada. Se conserva también la huella reducida de la suite nueva. Con las dos
 cosas, la corrida completa da **174/174**. Los fallos de `reports.spec.ts` eran arrastre de estos.
+
+### Aplicación de la migración `0017` al proyecto real — 2026-08-07
+
+Autorizada explícitamente por el usuario. Procedimiento de `RUNBOOK.md` §5 y `HANDOFF.md` §3.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo lógico previo (roles, esquema, datos) | ✅ `Rifas-backups/2026-08-07-antes-0017/` |
+| `grep -c '"auth"' data.sql` | ✅ **0** — sin contraseñas ni tokens |
+| Estado previo de producción | 16 migraciones · 6 clientes · 33 boletas · 4 pagos |
+| `supabase db push --dry-run` | ✅ Solo `0017` |
+| `supabase db push --yes` | ✅ Aplicada |
+| `npm run verify:remote` | ✅ **13/13** |
+| Comprobaciones específicas de `0017` | ✅ **13/13** |
+| Prueba de comportamiento (revertida) | ✅ Encuentra por «jesus», «pena», «nunez», «chucho» y el teléfono en dos formatos |
+| Estado tras la prueba de comportamiento | ✅ **6 clientes antes, 6 después** |
+
+**Las 13 comprobaciones específicas:** la migración está registrada · `clients.search_text` existe y
+es **generada** (`attgenerated = 's'`) · `search_normalize` es `IMMUTABLE` · no es `SECURITY DEFINER` ·
+**no es ejecutable por `anon`** · **ni por `public`** · sí por `authenticated` · los dos índices de
+trigramas existen con `gin_trgm_ops` · `v_client_balances` conserva `security_invoker` tras
+reescribirse · y expone `search_text` · los cuatro índices de `0003` siguen ahí · todas las filas
+existentes quedaron con `search_text` poblado.
+
+Las tres de privilegios son las que no se podían dar por hechas: las dos divergencias local/remoto
+anteriores de este proyecto (D-038, I-020) fueron **ambas de privilegios**, ciertas en local y falsas
+en producción. Aquí además había motivo concreto para dudar — en local esta misma función nació
+ejecutable por `anon` pese a las default privileges de `0015`, y hubo que revocar a mano.
+
+**Por qué se probó también el comportamiento.** Que la columna exista no demuestra que encuentre. La
+prueba se hizo contra producción dentro de una transacción que **nunca se confirma**, con `ROLLBACK`
+explícito, y se leyó el número de clientes antes y después para demostrar que no quedó nada.
+
+**CI:** el push de `f2002f7` falló primero con `Failed to resolve latest Supabase CLI release: rate
+limit exceeded` —la acción `supabase/setup-cli` no pudo descargar la CLI, nada que ver con el
+código—. Se relanzó y quedó en verde **antes** de tocar producción.
