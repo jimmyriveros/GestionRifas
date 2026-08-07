@@ -878,3 +878,40 @@ explícito, y se leyó el número de clientes antes y después para demostrar qu
 **CI:** el push de `f2002f7` falló primero con `Failed to resolve latest Supabase CLI release: rate
 limit exceeded` —la acción `supabase/setup-cli` no pudo descargar la CLI, nada que ver con el
 código—. Se relanzó y quedó en verde **antes** de tocar producción.
+
+### Verificación de la búsqueda en producción, desde el camino de datos de la app — 2026-08-07
+
+**Un agente no inicia sesión en producción** (práctica fijada en la Fase 8), así que la comprobación
+final por navegador con las tres cuentas la hace el usuario. Lo que sí se verificó aquí es todo el
+camino que recorre la aplicación, que es donde estaba el riesgo tras un cambio de esquema.
+
+| Comprobación | Resultado |
+|---|---|
+| PostgREST expone `clients.search_text` | ✅ 200 — la caché de esquema se recargó |
+| PostgREST expone `v_client_balances.search_text` | ✅ 200 |
+| Filtro `search_text=ilike.*…*` (el que envía la app) | ✅ 200 |
+| Nombre exacto de un cliente real | ✅ lo encuentra |
+| El mismo nombre en MAYÚSCULAS | ✅ lo encuentra |
+| El mismo nombre con tildes añadidas («áná Tórrés») | ✅ lo encuentra |
+| El mismo nombre con espacios sobrantes | ✅ lo encuentra |
+| Control «zzzznoexiste» | ✅ 0 resultados |
+
+Se usó la función real `searchNeedle` de `src/lib/search.ts` y el mismo saneado que
+`src/features/clients/queries.ts`, contra la API REST de producción — no SQL a mano.
+
+**Esta verificación encontró un defecto real: I-039.** El teléfono de un cliente está guardado como
+`3101112233`; buscarlo como `+57 (310) 111-2233` **no lo encontraba**, porque el término normalizado
+(`573101112233`) no es subcadena de lo guardado. Corregido reduciendo el término a su número nacional.
+Tras el arreglo, los cinco formatos encuentran al cliente y el control sigue en cero:
+
+| Escrito | Término | Resultado |
+|---|---|---|
+| `3101112233` | `3101112233` | ✅ |
+| `+57 310 111-2233` | `3101112233` | ✅ |
+| `+57 (310) 1112233` | `3101112233` | ✅ |
+| `573101112233` | `3101112233` | ✅ |
+| `310 111 2233` | `3101112233` | ✅ |
+| `+57 (999) 999-9999` (ajeno) | — | ✅ 0 resultados |
+
+La afirmación anterior —«encuentra el teléfono con cualquier formato»— era **más fuerte de lo que se
+había probado**, y así queda anotado en I-039.

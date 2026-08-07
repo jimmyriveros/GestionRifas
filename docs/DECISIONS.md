@@ -1143,6 +1143,14 @@ separadores— y correo, todo en minúsculas y sin acentos, más un índice de t
 consulta pasa de un `or` de cuatro ramas a un solo `ilike`.
 **Generada y no mantenida por un trigger:** la calcula PostgreSQL en cada inserción y actualización,
 no se puede desincronizar y no hay código que recordar.
+**Corregido después (I-039).** La columna era necesaria pero no suficiente: normalizar el término a
+*todos* sus dígitos dejaba fuera un caso real. Un teléfono guardado como `3101112233` no se
+encontraba escribiendo `+57 (310) 111-2233`, porque el término resultante (`573101112233`) no es
+subcadena de lo guardado. El fallo era **asimétrico** —al revés sí funcionaba— y por eso la prueba
+original, que probaba justo la dirección que ya andaba, no lo vio; se descubrió verificando contra
+producción. El término se reduce ahora a su número **nacional** (los últimos 10 dígitos), que sí es
+subcadena de las dos formas de guardado. Sin migración nueva: el arreglo es del término, no de la
+columna.
 **Por qué `translate` y no la extensión `unaccent`.** `unaccent` es la respuesta habitual, pero se
 instala en un esquema y **ese esquema no es el mismo en local que en Supabase alojado** (aquí
 `pg_trgm` quedó en `public`; en Supabase lo normal es `extensions`). Una columna generada que

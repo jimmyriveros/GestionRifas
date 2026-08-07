@@ -87,12 +87,34 @@ describe('isPhoneLikeTerm', () => {
 })
 
 describe('searchNeedle', () => {
-  it('un telefono se reduce a sus digitos, sea cual sea el formato', () => {
-    // Los tres formatos tienen que producir EXACTAMENTE el mismo termino: es lo
-    // que permite encontrar el mismo telefono escrito de tres maneras.
-    expect(searchNeedle('+57 300 555-0000')).toBe('573005550000')
-    expect(searchNeedle('57 (300) 5550000')).toBe('573005550000')
-    expect(searchNeedle('573005550000')).toBe('573005550000')
+  it('un telefono se reduce a su numero nacional, sea cual sea el formato', () => {
+    // Los cuatro formatos tienen que producir EXACTAMENTE el mismo termino: es
+    // lo que permite encontrar el mismo telefono escrito de cuatro maneras.
+    for (const escrito of ['+57 300 555-0000', '57 (300) 5550000', '573005550000', '3005550000']) {
+      expect(searchNeedle(escrito)).toBe('3005550000')
+    }
+  })
+
+  /**
+   * La regresion de I-039, en las DOS direcciones.
+   *
+   * El fallo original solo se veia en una: buscar con indicativo un telefono
+   * guardado sin el. La prueba anterior probaba la contraria, que ya funcionaba,
+   * y por eso el defecto llego a produccion.
+   */
+  it('el termino es subcadena del teléfono guardado, se guarde con indicativo o sin él', () => {
+    const guardadoSinIndicativo = '3005550000'
+    const guardadoConIndicativo = '573005550000'
+
+    for (const escrito of ['+57 (300) 555-0000', '3005550000', '300 555 0000']) {
+      const needle = searchNeedle(escrito)
+      expect(guardadoSinIndicativo).toContain(needle)
+      expect(guardadoConIndicativo).toContain(needle)
+    }
+  })
+
+  it('un teléfono más corto que el nacional se deja tal cual (fijos de 7 dígitos)', () => {
+    expect(searchNeedle('2345678')).toBe('2345678')
   })
 
   it('un nombre se dobla a minusculas y sin acentos', () => {

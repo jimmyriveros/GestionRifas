@@ -98,15 +98,42 @@ export function isPhoneLikeTerm(term: string): boolean {
   return digitsOnly(trimmed).length >= 3
 }
 
+/** Digitos de un numero de telefono nacional en Colombia (CLAUDE.md 6). */
+const NATIONAL_PHONE_DIGITS = 10
+
+/**
+ * Digitos con los que buscar un telefono, sin el indicativo del pais.
+ *
+ * Los telefonos se guardan de las dos maneras segun quien los escribiera:
+ * «3101112233» a secas o «+57 (310) 111-2233». Reducir el termino a sus digitos
+ * no basta, y falla de forma asimetrica:
+ *
+ *   guardado 3101112233 · buscado «+57 (310) 111-2233» -> 573101112233
+ *   «%573101112233%» NO esta dentro de «3101112233»  ->  no lo encuentra
+ *
+ * Al reves si funcionaba —un termino corto es subcadena del guardado largo—, y
+ * por eso el fallo se colo: la prueba original guardaba el telefono CON
+ * separadores y lo buscaba en digitos, justo la direccion que ya andaba.
+ * Reproducido contra produccion (I-039).
+ *
+ * La solucion es quedarse con el numero NACIONAL: los ultimos diez digitos.
+ * Asi el mismo termino encuentra las dos formas de guardado, porque diez
+ * digitos son subcadena tanto de «3101112233» como de «573101112233».
+ */
+function phoneNeedle(term: string): string {
+  const digits = digitsOnly(term)
+  return digits.length > NATIONAL_PHONE_DIGITS ? digits.slice(-NATIONAL_PHONE_DIGITS) : digits
+}
+
 /**
  * Texto con el que buscar de verdad.
  *
- * Un telefono se reduce a sus digitos para que dé igual como lo escriba quien
- * busca; lo demas solo se dobla a minusculas y sin acentos. En ambos casos el
- * dato GUARDADO no se toca: esto es solo el termino.
+ * Un telefono se reduce a sus digitos nacionales para que dé igual como lo
+ * escriba quien busca; lo demas solo se dobla a minusculas y sin acentos. En
+ * ambos casos el dato GUARDADO no se toca: esto es solo el termino.
  */
 export function searchNeedle(term: string): string {
-  return isPhoneLikeTerm(term) ? digitsOnly(term) : foldForSearch(term)
+  return isPhoneLikeTerm(term) ? phoneNeedle(term) : foldForSearch(term)
 }
 
 /** `true` si el termino da para buscar solo, sin que nadie pulse nada. */

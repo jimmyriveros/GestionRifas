@@ -193,28 +193,54 @@ test.describe('Listas paginadas: boletas y clientes', () => {
     await expect(page).toHaveURL(/inventoryStatus=available/)
   })
 
-  test('busca clientes por nombre sin tildes y por teléfono con otro formato', async ({ page }) => {
+  test('busca clientes por nombre sin tildes', async ({ page }) => {
     const nombre = clienteDePrueba('Jesús Peña')
-    const cliente = await createClientFor(refs, nombre)
-    await serviceClient()
-      .from('clients')
-      .update({ phone: '+57 (301) 999-8877' })
-      .eq('id', cliente.id)
+    await createClientFor(refs, nombre)
 
     await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/clients')
 
     // Sin tildes: la columna normalizada de 0017 es la que lo permite.
-    await page.goto('/seller/clients')
     const input = page.getByRole('searchbox', { name: 'Buscar cliente' })
     await input.fill(nombre.replace('Jesús', 'jesus').replace('Peña', 'pena'))
     await input.press('Enter')
     await expect(page.getByRole('cell', { name: new RegExp(nombre) })).toBeVisible()
-
-    // El mismo telefono escrito solo con digitos.
-    await input.fill('573019998877')
-    await input.press('Enter')
-    await expect(page.getByRole('cell', { name: new RegExp(nombre) })).toBeVisible()
   })
+
+  /**
+   * Regresion de I-039, en las DOS direcciones de guardado.
+   *
+   * El defecto original solo se veia en una: buscar CON indicativo un telefono
+   * guardado SIN el. La prueba anterior guardaba el telefono con separadores y
+   * lo buscaba en digitos —la direccion que ya funcionaba—, y por eso el fallo
+   * llego a produccion. Aqui se prueban los dos guardados contra los mismos
+   * cuatro formatos de busqueda.
+   */
+  for (const guardado of ['3019998877', '+57 (301) 999-8877']) {
+    test(`encuentra el teléfono guardado como «${guardado}» escrito de cuatro formas`, async ({
+      page,
+    }) => {
+      const nombre = clienteDePrueba('Telefonista')
+      const cliente = await createClientFor(refs, nombre)
+      await serviceClient().from('clients').update({ phone: guardado }).eq('id', cliente.id)
+
+      await loginAs(page, ACCOUNTS.seller)
+      await page.goto('/seller/clients')
+      const input = page.getByRole('searchbox', { name: 'Buscar cliente' })
+      const fila = page.getByRole('cell', { name: new RegExp(nombre) })
+
+      for (const escrito of ['3019998877', '+57 301 999-8877', '573019998877', '301 999 8877']) {
+        await input.fill(escrito)
+        await input.press('Enter')
+        await expect(fila, `buscando «${escrito}»`).toBeVisible()
+      }
+
+      // Control: otro teléfono no debe traerlo.
+      await input.fill('+57 (999) 999-9999')
+      await input.press('Enter')
+      await expect(fila).toHaveCount(0)
+    })
+  }
 })
 
 /**
