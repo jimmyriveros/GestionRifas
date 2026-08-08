@@ -15,7 +15,7 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 | Remoto | `github.com/jimmyriveros/GestionRifas` — **`main` al día: local y remoto idénticos** (empujado el 2026-08-06 con autorización del usuario). De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **18 migraciones. Las 17 primeras están aplicadas en local y en el proyecto real** y verificadas (2026-08-07: `verify:remote` 13/13 + 13 comprobaciones de `0017` + prueba de comportamiento revertida). **La `0018` está solo en local** y el código ya la llama: ver §1.b e I-040. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Base de datos | **18 migraciones, todas aplicadas en local y en el proyecto real** y verificadas (2026-08-08: `verify:remote` 13/13 + comprobación de comportamiento de `0018` contra producción). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
 | Pruebas | **238 unitarias** + **311 de base de datos** + **178 end-to-end**, todas en verde (2026-08-08). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
@@ -29,15 +29,9 @@ reales).
 
 ---
 
-## 1.b Qué queda abierto
+## 1.b Qué queda abierto (nada de ingeniería)
 
-⚠️ **Lo primero: la migración `0018` no está en el proyecto real, y el código ya la llama.**
-Introduce `search_tickets`, que es por donde pasa ahora la búsqueda de boletas (BR-N11, D-080).
-Desplegar el frontend sin aplicarla deja **la búsqueda de boletas rota en producción**; el resto de
-la aplicación, incluido el listado sin buscar, sigue funcionando. Aplicarla requiere respaldo lógico
-previo (§3.b) y **autorización explícita del usuario**, como la `0016` y la `0017`. Ver I-040.
-
-El resto son decisiones del dueño del negocio, no trabajo de ingeniería:
+**No hay acciones técnicas pendientes.** Lo que queda son decisiones del dueño del negocio:
 
 | Asunto | Qué hace falta |
 |---|---|
@@ -45,7 +39,16 @@ El resto son decisiones del dueño del negocio, no trabajo de ingeniería:
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
 | **I-030** — los ~46 mensajes que lanza la base de datos siguen sin tildes | Autorizar una migración que reescriba esas funciones y aplicarla al proyecto real. Es lo único que quedó fuera de la revisión de textos del 2026-08-05 (D-073) |
 
-La última acción de ingeniería fue aplicar la migración **`0017`** al proyecto real (2026-08-07,
+La última acción de ingeniería fue aplicar la migración **`0018`** al proyecto real (2026-08-08,
+autorizada explícitamente): añade `search_tickets` y los dos índices de trigramas sobre los números
+de la boleta (BR-N11, D-080). Respaldo previo en `Rifas-backups/2026-08-08-antes-0018/`, comprobado
+sin `auth.users`. Verificada allí por catálogo (`verify:remote` 13/13) **y por comportamiento**
+contra los datos reales: el número diario y el semanal encuentran la boleta enteros y en parte; el
+código interno, entero o en prefijo, no encuentra nada; las coincidencias del diario salen primero; y
+`anon` recibe `42501` al invocar la función por PostgREST, que además demuestra que la caché de
+esquema se recargó.
+
+Antes de esa se aplicó la **`0017`** (2026-08-07,
 autorizada explícitamente): añade la normalización de acentos y teléfonos y los dos índices de
 trigramas de la búsqueda (D-079). Respaldo previo en `Rifas-backups/2026-08-07-antes-0017/`.
 Verificada allí por catálogo (13 comprobaciones) **y por comportamiento**: se insertó «Jesús Peña
@@ -117,8 +120,8 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-✅ **Las 17 primeras migraciones están aplicadas también en el proyecto real** y verificadas el
-2026-08-07 (`npm run verify:remote`, 13/13). ⚠️ **La `0018` no**: ver §1.b e I-040.
+✅ **Las 18 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-08
+(`npm run verify:remote`, 13/13).
 
 Al aplicar migraciones al proyecto real, el procedimiento completo son **tres** pasos, no dos:
 
