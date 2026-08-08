@@ -20,6 +20,7 @@ import { SELLER_TICKET_MAX } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 import { comboKey, countErrors, validateBulkRows } from '../../bulk/duplicates'
+import { TicketImportDialog } from '../../import/components/TicketImportDialog'
 import { createSellerTickets } from '../actions'
 import type { SellerTicketRow } from '../schemas'
 
@@ -142,6 +143,20 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* La misma pantalla, la otra forma de llenarla: subir el archivo. La
+          rifa sale del selector de arriba y el vendedor, de la sesion: el
+          archivo solo lleva los dos números (BR-N12). */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed p-4">
+        <p className="text-muted-foreground text-sm">
+          ¿Ya tienes las boletas en un archivo? Súbelo y las revisamos antes de guardar.
+        </p>
+        <TicketImportDialog
+          raffleId={raffleId}
+          disabled={isPending || !raffleId}
+          successHref="/seller/tickets?inventoryStatus=pending_approval"
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

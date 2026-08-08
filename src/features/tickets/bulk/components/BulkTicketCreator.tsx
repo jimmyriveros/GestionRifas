@@ -20,6 +20,7 @@ import {
 import { BULK_TICKET_BATCH_SIZE, BULK_TICKET_MAX, BULK_TICKET_MIN } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
+import { TicketImportDialog } from '../../import/components/TicketImportDialog'
 import type { BulkTicketRow } from '../../schemas'
 import { bulkCreateTickets, findExistingCombinations } from '../actions'
 import { comboKey, countErrors, selectSendableRows, validateBulkRows } from '../duplicates'
@@ -245,6 +246,21 @@ export function BulkTicketCreator({
             Generar filas
           </Button>
         </div>
+      </div>
+
+      {/* La otra forma de llenar el lote: subir el archivo que ya se tiene en
+          Excel. La rifa y el vendedor salen de los selectores de arriba, asi
+          que el archivo solo lleva los dos números (BR-N12). */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed p-4">
+        <p className="text-muted-foreground text-sm">
+          ¿Ya tienes las boletas en un archivo? Súbelo y las revisamos antes de guardar.
+        </p>
+        <TicketImportDialog
+          raffleId={raffleId}
+          sellerId={sellerId}
+          disabled={isPending || !raffleId || !sellerId}
+          successHref={`/owner/tickets?raffleId=${raffleId}&sellerId=${sellerId}`}
+        />
       </div>
 
       {rows.length === 0 ? (

@@ -15,8 +15,8 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 | Remoto | `github.com/jimmyriveros/GestionRifas` — **`main` al día: local y remoto idénticos** (empujado el 2026-08-06 con autorización del usuario). De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **18 migraciones, todas aplicadas en local y en el proyecto real** y verificadas (2026-08-08: `verify:remote` 13/13 + comprobación de comportamiento de `0018` contra producción). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **238 unitarias** + **311 de base de datos** + **178 end-to-end**, todas en verde (2026-08-08). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **19 migraciones. Las 18 primeras están en local y en el proyecto real**, verificadas el 2026-08-08 (`verify:remote` 13/13 + comprobación de comportamiento de `0018` contra producción). **La `0019` está solo en local** — I-042. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **264 unitarias** + **325 de base de datos** + **186 end-to-end**, todas en verde (2026-08-08). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -29,9 +29,15 @@ reales).
 
 ---
 
-## 1.b Qué queda abierto (nada de ingeniería)
+## 1.b Qué queda abierto
 
-**No hay acciones técnicas pendientes.** Lo que queda son decisiones del dueño del negocio:
+⚠️ **La migración `0019` no está en el proyecto real** (I-042). Añade las dos funciones del
+importador de archivos. Sin ella, en producción la vista previa no avisaría de combinaciones ya
+tomadas y la importación no quedaría en la bitácora; **las boletas se crearían igual** y la
+restricción única seguiría protegiendo, así que es un fallo de aviso, no de integridad. Aplicarla
+requiere respaldo previo (§3.b) y autorización explícita, como las tres anteriores.
+
+El resto son decisiones del dueño del negocio, no trabajo de ingeniería:
 
 | Asunto | Qué hace falta |
 |---|---|
@@ -120,8 +126,8 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-✅ **Las 18 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-08
-(`npm run verify:remote`, 13/13).
+✅ **Las 18 primeras migraciones están aplicadas también en el proyecto real** y verificadas el
+2026-08-08 (`npm run verify:remote`, 13/13). ⚠️ **La `0019` no**: ver §1.b e I-042.
 
 Al aplicar migraciones al proyecto real, el procedimiento completo son **tres** pasos, no dos:
 
@@ -262,6 +268,9 @@ components/data/    DataTable · DataTablePagination · StatusBadge · EmptyStat
                     PageHeader · MetricCard
 components/form/    MoneyInput · TicketNumberInput
 components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSkeleton
+features/tickets/import/  importador de archivos CSV/JSON: UN componente para los tres
+                    roles, parametrizado por contexto (D-081). Antes de escribir otro
+                    lector de archivos, míralo: separa columnas/csv/json/rows/review
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
 features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
                     ExportCsvButton
@@ -314,7 +323,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-311 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+325 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 
@@ -332,7 +341,7 @@ typecheck + lint + unitarias + build.
 npm run test:e2e
 ```
 
-178 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
+186 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
 en móvil (Pixel 7). Levanta solo el servidor con `npm run dev:local`; **exigen la base local recién
 sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
 
@@ -396,6 +405,8 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Cambias `foldForSearch()` y la búsqueda de clientes deja de encontrar | Hay una copia de esa misma regla en SQL (`search_normalize`, `0017`). Las dos tienen que coincidir; lo comprueba `tests/db/search.test.ts` | D-079 |
 | Buscas una boleta por su código interno y no aparece nada | Es lo esperado desde BR-N11: se busca por número diario o semanal, nunca por el código. La pantalla lo explica; el código sigue estando en el detalle de la boleta | D-080 |
 | Una búsqueda de boletas devuelve las filas en un orden que parece aleatorio | Dentro del mismo escalón de relevancia el orden es **por número**, no por fecha. Si vuelve a verse desordenado, alguien tocó el `order by` de `search_tickets` | D-080 |
+| Un CSV exportado de Excel «no funciona» y el encabezado parece correcto | La marca **BOM** va pegada al primer encabezado y es invisible. `parseCsv` ya la quita; si escribes otro lector, quítala tú | `import/csv.ts` |
+| La comprobación previa del importador falla entera por una fila mala | La Server Action valida lo que recibe: mandarle un «12345» tumba la llamada completa. Manda solo las filas con formato válido — las demás no pueden existir en la base de datos igualmente | D-081 |
 | Una prueba nueva sobre boletas del seed falla solo al correr la suite entera | Otras suites de `tests/db` dejan boletas creadas —la de volumen, 5.000—. Afirma sobre boletas que cree la propia prueba, o acota por `p_raffle_id`, en vez de contar filas del seed | I-035 · `ticket-search.test.ts` |
 | Una prueba E2E falla con `page.goto: net::ERR_ABORTED at /login` y en la captura el login SÍ aparece | Otra navegación ganó la carrera: tras `clearCookies()` las peticiones RSC pendientes redirigen solas. `loginAs` ya lo reintenta; si aparece en otro `goto`, haz lo mismo | I-038 · `fixtures.ts` |
 | Una prueba mide un contraste de **1,00** en un texto que se lee perfectamente | Con Tailwind 4 el navegador devuelve el color en `lab()`/`oklab()`, no en `rgb()`: leer sus números como canales de 0 a 255 da basura. Píntalo en un `canvas` y lee los píxeles | I-034 · `filas-seleccionables.spec.ts` |

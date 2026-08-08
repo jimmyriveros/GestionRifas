@@ -1235,6 +1235,77 @@ guardando, conserva su índice único y su índice de trigramas de `0017`, y sig
 identifica la boleta en la base de datos, en la auditoría y en las URL. Las claves primarias y las
 relaciones no se han tocado. Este cambio es de búsqueda y de presentación.
 
+## D-081 — Importar boletas desde un archivo, reutilizando la carga masiva que ya existía
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-08)
+**Contexto.** El usuario lleva sus boletas en Excel y las estaba tecleando una a una en la carga
+masiva. Pedía poder subirlas en CSV o JSON, con un solo importador para los tres roles.
+**Decisión.** BR-N12: un módulo `src/features/tickets/import/` con la lectura de archivos, la
+revisión y la interfaz, montado sobre lo que ya existía. **No hay reglas de boletas nuevas**: la
+validación por fila es `validateBulkRows` —el mismo motor de la carga manual y de la creación por el
+vendedor— y el guardado usa `bulk_create_tickets` (personal) o el `insert` sujeto a
+`tickets_insert_seller` (vendedor).
+
+**Un componente, no tres.** `TicketImportDialog` no recibe el rol: recibe el **contexto** (rifa,
+vendedor cuando aplica, a dónde volver). Quién puede hacer qué lo decide la Server Action y lo vuelve
+a decidir la base de datos. Un vendedor no puede mandar `sellerId`: la acción lo ignora y usa el de
+la sesión.
+
+**Por qué hizo falta una migración para algo que parece de interfaz.** Dos cosas que la aplicación no
+puede resolver por su cuenta:
+
+* **`taken_ticket_combinations`.** La vista previa tiene que decir «esta combinación ya existe»
+  *antes* de guardar. Para el personal basta una consulta normal, pero un vendedor **no ve las
+  boletas de otros** (`tickets_select`): preguntando por su cuenta obtendría «disponible» para una
+  combinación tomada y se llevaría la sorpresa al confirmar. La función es `SECURITY DEFINER` y
+  devuelve **solo la combinación**: ni de quién es, ni en qué estado está. Es exactamente lo que el
+  vendedor averiguaría igualmente al chocar contra la restricción única, pero sin gastar el intento
+  y sin revelar nada de nadie.
+* **`log_ticket_import`.** `authenticated` solo tiene `SELECT` sobre `audit_logs`; la bitácora la
+  escriben funciones `SECURITY DEFINER` (0006).
+
+**Auditoría en `audit_logs`, sin tabla nueva.** La pregunta era `audit_logs` o una tabla
+`ticket_imports`. Los per-boleta ya existían (`ticket.create`, trigger de 0006); lo que faltaba era
+el hecho administrativo, y eso es **una fila**: actor, organización, entidad (`raffle`) y un `jsonb`
+con origen, vendedor y recuentos. Una tabla nueva habría traído su propia RLS, sus grants y su
+mantenimiento para guardar lo mismo. **No se guarda el archivo**: solo el recuento.
+**Se escribe después de guardar y no dentro de la misma transacción**, a propósito: lo que no puede
+fallar es la creación de las boletas. Si el registro fallara, la pantalla lo dice —«las boletas
+quedaron guardadas, pero no pudimos registrar la importación en el historial»— en vez de callarlo.
+
+**Todo o nada, y qué significa aquí.** El envío final es **una sola llamada** con todas las filas, no
+lotes de 100 como la carga manual. Una función de PostgreSQL es una transacción: si algo inesperado
+falla, no queda media importación. Lo comprueba una prueba que hace fallar el lote a mitad y verifica
+que **el contador de códigos de la rifa volvió a su sitio** — si no fuera transaccional, se habría
+quedado gastado. Una combinación **ya tomada** no es un error inesperado: `on conflict do nothing` la
+salta, se informa una por una, y eso es lo contrario de una importación parcial silenciosa. La carga
+manual conserva sus lotes de 100 porque ahí sirven para mover una barra de progreso mientras alguien
+teclea 1.000 filas; en una importación el archivo ya está listo y lo que importa es que entre entero.
+
+**Doble envío: la garantía real es la base de datos.** El botón se deshabilita y un `ref` cierra la
+ventana entre el clic y el render, pero lo que hace imposible duplicar es
+`tickets_combo_unique`: reenviar el mismo archivo encuentra todas las combinaciones ya tomadas e
+inserta cero. No hizo falta inventar una clave de idempotencia.
+
+**Parser propio de CSV, sin librería.** Lo que hay que soportar es una tabla de dos columnas de
+dígitos. Lo que de verdad rompe un CSV de Excel es la marca BOM, el salto de línea de Windows y el
+separador `;` de la configuración regional colombiana, y eso cabe en un archivo de 170 líneas que
+además respeta las comillas de RFC 4180. Una dependencia habría pesado más que el problema.
+
+**El archivo de ejemplo usa `;`, no `,`.** El encargo lo pedía con comas, pero se genera con `toCsv`,
+el mismo escritor de los reportes, que usa `;` y BOM porque es lo que Excel en configuración
+colombiana abre **en columnas** (D-056). Un ejemplo separado por comas se abriría ahí con todo
+amontonado en la primera celda, que es justo lo que un ejemplo no debe hacer. El importador acepta
+las dos formas, así que no cierra ninguna puerta.
+
+**Sin Web Worker ni virtualización.** Con 1.000 filas, revisar el archivo entero tarda milisegundos
+(hay una prueba que lo mide) y la vista previa se pagina de 50 en 50. Añadir un worker habría sido
+complejidad por adelantado para un problema que no existe.
+
+**Un cambio en código compartido, y es aditivo.** `RowValidation` gana un campo `problem`
+(`format` | `incomplete` | `duplicate` | `taken`). La importación necesita separar «repetida en el
+archivo» de «ya existe en la rifa» para contarlas aparte, y deducirlo comparando textos de mensajes
+sería frágil. Ni las reglas ni los mensajes cambian, y quien no lo mire funciona igual que antes.
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

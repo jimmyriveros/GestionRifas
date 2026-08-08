@@ -385,6 +385,7 @@ Eventos mínimos registrados en `audit_logs` (BR-D01):
 | `ticket.create`, `ticket.update`, `ticket.number_change` | `ticket` | Trigger |
 | `ticket.assign_seller`, `ticket.assign_client` | `ticket` | RPC |
 | `ticket.approve`, `ticket.cancel` | `ticket` | RPC |
+| `ticket.import` | `raffle` | RPC (`log_ticket_import`, 0019). Quién, cuándo, rifa, vendedor, tipo de archivo y recuentos. **Nunca el archivo** |
 | `payment.create`, `payment.void` | `payment` | RPC |
 | `client.create`, `client.update`, `client.archive` | `client` | Trigger |
 

@@ -1004,6 +1004,17 @@ export type Database = {
         Returns: boolean
       }
       is_org_staff: { Args: { p_org: string }; Returns: boolean }
+      log_ticket_import: {
+        Args: {
+          p_inserted: number
+          p_raffle_id: string
+          p_requested: number
+          p_seller_id: string
+          p_skipped: number
+          p_source: string
+        }
+        Returns: undefined
+      }
       recalc_ticket_paid_amount: {
         Args: { p_ticket_id: string }
         Returns: undefined
@@ -1076,6 +1087,13 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { '': string }; Returns: string[] }
+      taken_ticket_combinations: {
+        Args: { p_combos: Json; p_raffle_id: string }
+        Returns: {
+          daily_number: string
+          weekly_number: string
+        }[]
+      }
       today_bogota: { Args: never; Returns: string }
       void_payment: {
         Args: { p_payment_id: string; p_reason: string }

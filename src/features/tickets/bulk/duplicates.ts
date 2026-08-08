@@ -14,11 +14,31 @@ import type { BulkTicketRow } from '../schemas'
  * DISTINTAS y ambas pueden existir (BR-N03).
  */
 
+/**
+ * Por que falla una fila, aparte del mensaje.
+ *
+ * El mensaje esta escrito para leerse; esto es para decidir. La importacion de
+ * archivos necesita separar «repetida dentro del archivo» de «ya existe en la
+ * rifa» para contarlas por separado y ofrecer acciones distintas, y deducirlo
+ * comparando textos seria fragil. Es informacion ANADIDA: las reglas y los
+ * mensajes no cambian, y quien no lo mire sigue funcionando igual.
+ */
+export type RowProblem =
+  /** Un numero no cumple el formato de 1 a 4 digitos. */
+  | 'format'
+  /** Falta uno de los dos numeros. */
+  | 'incomplete'
+  /** La combinacion se repite dentro del mismo lote o archivo. */
+  | 'duplicate'
+  /** La combinacion ya existe en la rifa, sea de quien sea. */
+  | 'taken'
+
 export type RowValidation = {
   index: number
   dailyError?: string
   weeklyError?: string
   rowError?: string
+  problem?: RowProblem
 }
 
 export function comboKey(dailyNumber: string, weeklyNumber: string): string {
@@ -67,9 +87,11 @@ export function validateBulkRows(
 
     if (dailyFilled && !TICKET_NUMBER_REGEX.test(row.dailyNumber)) {
       validation.dailyError = 'Entre 1 y 4 dígitos.'
+      validation.problem = 'format'
     }
     if (weeklyFilled && !TICKET_NUMBER_REGEX.test(row.weeklyNumber)) {
       validation.weeklyError = 'Entre 1 y 4 dígitos.'
+      validation.problem = 'format'
     }
 
     // BR-N09: o los dos numeros, o ninguno (fila en borrador).
@@ -77,11 +99,13 @@ export function validateBulkRows(
       validation.rowError = options.requireComplete
         ? 'Escribe los dos números.'
         : 'Completa los dos números o deja la fila vacía para guardarla como borrador.'
+      validation.problem = 'incomplete'
       return validation
     }
 
     if (options.requireComplete && !dailyFilled && !weeklyFilled) {
       validation.rowError = 'Escribe los dos números.'
+      validation.problem = 'incomplete'
       return validation
     }
 
@@ -94,6 +118,7 @@ export function validateBulkRows(
     const first = firstSeen.get(key)
     if (first !== undefined && first !== index) {
       validation.rowError = `Combinación repetida en la fila ${first + 1}.`
+      validation.problem = 'duplicate'
       return validation
     }
 
@@ -101,6 +126,7 @@ export function validateBulkRows(
     // vendedor sea ni si esa boleta fue anulada.
     if (existing.has(key)) {
       validation.rowError = 'Esa combinación ya existe en esta rifa.'
+      validation.problem = 'taken'
     }
 
     return validation

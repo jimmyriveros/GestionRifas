@@ -559,6 +559,23 @@ nombre (I-015).
 Sin término de búsqueda, el listado **no** pasa por aquí: sigue por PostgREST, ordenado por fecha de
 creación.
 
+### 6.d Importación de boletas (migración `0019`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `taken_ticket_combinations(raffle, combos)` | De la lista dada, **cuáles ya existen** en la rifa. Nada más: ni de quién son, ni en qué estado | La vista previa del importador, en **una** llamada por archivo |
+| `log_ticket_import(raffle, seller, source, requested, inserted, skipped)` | — | Deja una fila `ticket.import` en `audit_logs` |
+
+`taken_ticket_combinations` es `SECURITY DEFINER` **a propósito**, al revés que las de reporte: un
+vendedor no ve las boletas de otros, así que heredando su RLS respondería «disponible» a una
+combinación tomada. Mirando por encima de la RLS puede ocultar el **detalle** en vez de ocultar la
+fila, que es justo lo que BR-U07 pide. Comprueba que quien llama pertenece a la organización de la
+rifa, y su salida está acotada por la **entrada** (como mucho, tantas filas como combinaciones se
+pregunten), no por el tamaño de la rifa.
+
+`log_ticket_import` existe porque `authenticated` solo tiene `SELECT` sobre `audit_logs`: la bitácora
+la escriben funciones `SECURITY DEFINER` (0006). No guarda el archivo, solo el recuento (D-081).
+
 ---
 
 ## 7. Triggers

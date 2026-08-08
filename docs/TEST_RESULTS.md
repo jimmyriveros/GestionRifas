@@ -982,3 +982,77 @@ sigue apareciendo en el detalle de la boleta y sigue siendo lo que identifica la
 datos y en la auditoría. **Las claves primarias y las relaciones no se tocaron**: la fila de la tabla
 se abre por `id`, igual que antes, y las 178 pruebas E2E —incluidas las de fila seleccionable— lo
 confirman.
+
+---
+
+## Importar boletas desde CSV y JSON — 2026-08-08
+
+Trabajo de mantenimiento posterior a la Fase 9, solicitado por el usuario (BR-N12, D-081).
+
+| Comando | Resultado | Notas |
+|---|---|---|
+| `npm run typecheck` | ✅ Sin errores | — |
+| `npm run lint` | ✅ 0 errores | Los 2 avisos preexistentes de `react-hooks/incompatible-library` |
+| `npm run test` | ✅ **264/264** en 16 archivos | +26 del nuevo `ticket-import.test.ts` |
+| `npm run build` | ✅ Compila | 34 rutas |
+| `npm run test:db` | ✅ **325/325** en 15 archivos | +14 del nuevo `ticket-import.test.ts` |
+| `npx playwright test` | ✅ **186/186** | +8 de `importar-boletas.spec.ts`, escritorio y Pixel 7 |
+
+### Los 24 casos del encargo, y dónde se comprueban
+
+| # | Caso | Dónde |
+|---|---|---|
+| 1 | CSV válido | `unit` |
+| 2 | CSV con columna `#` | `unit` + `e2e` |
+| 3 | CSV exportado de Excel (BOM + CRLF) | `unit` |
+| 4 | CSV separado por `;` | `unit` + `e2e` |
+| 5 | JSON válido | `unit` + `e2e` |
+| 6 | JSON inválido | `unit` + `e2e` |
+| 7 | Encabezado desconocido | `unit` + `e2e` |
+| 8 | Mapeo manual | `unit` + `e2e` |
+| 9, 10 | Falta el diario / el semanal | `unit` + `e2e` |
+| 11 | Más de cuatro dígitos | `unit` + `e2e` |
+| 12 | Letras y símbolos | `unit` |
+| 13 | Ceros iniciales | `unit` + `e2e` (comprobado **en la base de datos** tras importar) |
+| 14 | Duplicado dentro del archivo | `unit` + `e2e` |
+| 15 | Duplicado existente en la rifa | `unit` + `db` + `e2e` |
+| 16 | Duplicado de **otro vendedor** | `db` (y que no se revele de quién es) |
+| 17 | 1.000 registros | `unit` (revisión medida) |
+| 18 | Vendedor sin permiso | `db` |
+| 19 | Owner/Admin | `e2e` |
+| 20 | Constraint concurrente | `db` (conflicto dentro del mismo lote, informado sin tumbarlo) |
+| 21 | Doble envío | `e2e` |
+| 22 | Importación fallida sin datos parciales | `db` |
+| 23 | Importación correcta | `e2e` |
+| 24 | Auditoría | `db` |
+
+### La prueba de «todo o nada», y por qué la primera versión no valía
+
+El primer intento hacía fallar el lote pasando un vendedor inexistente. **Pasaba sin probar nada**:
+`bulk_create_tickets` valida el vendedor *antes* de tocar la base de datos, así que no había nada que
+deshacer. Reescrita para que falle **después** de haber empezado a escribir: la función reserva el
+bloque de códigos (`raffles.ticket_counter`) y solo entonces inserta, de modo que un número de cinco
+cifras revienta contra el CHECK con el contador ya subido.
+
+| Comprobación | Resultado |
+|---|---|
+| Lote correcto de 3 filas (1 en conflicto) | 2 creadas, 1 informada, contador **+3** |
+| Lote que falla a mitad | 0 creadas y contador **sin mover** |
+
+La primera fila es la que da sentido a la segunda: si el contador no se moviera nunca, comprobar que
+«no se movió» no demostraría nada.
+
+### Errores encontrados durante el trabajo, y qué se hizo
+
+| # | Qué pasó | Corrección |
+|---|---|---|
+| 1 | **La comprobación previa se rechazaba entera si el archivo traía un solo número mal escrito**, y la pantalla mostraba un mensaje de validación desconcertante. La Server Action valida lo que recibe —como debe—, pero se le estaban mandando también las filas inválidas | Se envían solo las filas con formato válido: un «12345» no cabe en la columna, así que preguntar por él no aporta nada. **Lo destapó una captura de pantalla**, no una prueba |
+| 2 | El botón decía «Importando...» mientras aún estaba **comprobando** contra la rifa: las dos esperas compartían el mismo `useTransition` | Estado propio para el guardado; ahora dice «Comprobando...» y solo después «Importando...» |
+| 3 | La prueba de «sin datos parciales» pasaba sin probar nada (ver arriba) | Reescrita contra el contador de códigos |
+| 4 | El diálogo duplicaba `tableToRows` con una copia local | Se usa la función del módulo |
+
+### Comprobación visual
+
+Capturas del importador en escritorio (1280) y en teléfono (375). En el teléfono el resumen va
+primero, la tabla pierde las columnas «Fila» y «Problema», y el motivo de cada fila pasa a leerse
+debajo de su estado. Ninguna tabla obliga a desplazarse en horizontal.

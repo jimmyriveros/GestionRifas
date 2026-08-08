@@ -107,6 +107,26 @@ no puede ascender a nadie a Owner (BR-U03). Lo cierra el trigger diferido de la 
 | BR-N10 | La validación de duplicados ocurre en las tres capas: dentro del formulario, contra la base de datos y como restricción física. | C, S, D | 3 |
 | BR-N11 | **Una boleta se busca por su número diario y, en segundo lugar, por su número semanal.** El código interno no participa en ninguna búsqueda de la interfaz y solo se muestra dentro del detalle de la boleta. | C, S, D | post-9 |
 
+| BR-N12 | **Las boletas se pueden importar desde un archivo CSV o JSON.** El archivo solo lleva los dos números; la rifa y el vendedor los pone la pantalla. Siempre hay vista previa y confirmación antes de guardar. | C, S, D | post-9 |
+
+**BR-N12 en detalle** (migración `0019`, D-081). La importación **no añade ni relaja ninguna regla
+de boletas**: valida con `validateBulkRows` —el mismo motor que la carga manual— y guarda por los
+mismos caminos, así que BR-N01 a BR-N10 se aplican íntegras.
+
+| Aspecto | Regla |
+|---|---|
+| Formatos | CSV (recomendado) y JSON (avanzado). Hasta **1.000** boletas por archivo, y hasta 1 MB |
+| Columnas del CSV | «Premio semanal» y «Premio diario». Se reconocen también `premio_semanal`, `weekly_number`, `weekly number` y sus equivalentes del diario, sin distinguir mayúsculas, acentos ni guiones bajos |
+| Columnas de más | Se ignoran, incluida la numeración `#` |
+| Sin reconocer | **No se rechaza el archivo**: se pide elegir a mano qué columna es cada número |
+| Claves del JSON | `daily_number` / `weekly_number`, o `premio_diario` / `premio_semanal`, o sus versiones camelCase |
+| Números | **Texto siempre.** Ni `Number()`, ni `parseInt()`, ni relleno con ceros: «46» se guarda «46» y «0046» se guarda «0046» (BR-N03) |
+| Qué se rechaza | Solo el archivo ilegible: vacío, sin dos columnas, JSON roto o sin ningún campo reconocible. Un problema de **fila** se muestra en la vista previa junto a las filas que sí sirven |
+| Estado de las boletas | El de siempre: `available` si las crea el personal, `pending_approval` si las crea un vendedor (BR-I03, BR-R10) |
+| Vista previa | Obligatoria. Elegir el archivo **no escribe nada** |
+| Importación parcial | Permitida y **nunca silenciosa**: se dice cuántas quedan fuera antes de confirmar, y cuáles después |
+| Auditoría | Una fila `ticket.import` en `audit_logs` con quién, cuándo, rifa, vendedor, tipo de archivo y recuentos. **No se guarda el archivo** |
+
 **BR-N11 en detalle** (migración `0018`, D-080). Es la regla que gobierna búsqueda y presentación:
 
 | Aspecto | Regla |
