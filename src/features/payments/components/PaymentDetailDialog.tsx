@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { ticketLabel } from '@/lib/tickets'
 
 import { voidPayment } from '../actions'
 import type { PaymentListItem } from '../queries'
@@ -120,12 +121,7 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
                     key={allocation.ticketId}
                     className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
                   >
-                    <span>
-                      <span className="font-mono text-xs">{allocation.internalCode}</span>
-                      <span className="text-muted-foreground block font-mono text-xs tabular-nums">
-                        {allocation.dailyNumber} / {allocation.weeklyNumber}
-                      </span>
-                    </span>
+                    <span className="font-mono tabular-nums">{ticketLabel(allocation)}</span>
                     <span className="tabular-nums">{formatCOP(allocation.amount)}</span>
                   </li>
                 ))}

@@ -34,7 +34,6 @@ export type SellerDashboard = {
   recentClients: { id: string; name: string; phone: string; createdAt: string }[]
   recentTickets: {
     id: string
-    internalCode: string
     dailyNumber: string | null
     weeklyNumber: string | null
     assignedAt: string
@@ -83,7 +82,7 @@ export async function getSellerDashboard(): Promise<SellerDashboard> {
     supabase
       .from('tickets')
       .select(
-        'id, internal_code, daily_number, weekly_number, assigned_at, client:clients!tickets_client_org_fk ( name )',
+        'id, daily_number, weekly_number, assigned_at, client:clients!tickets_client_org_fk ( name )',
       )
       .eq('inventory_status', 'assigned')
       .order('assigned_at', { ascending: false })
@@ -133,7 +132,6 @@ export async function getSellerDashboard(): Promise<SellerDashboard> {
         ? [
             {
               id: row.id,
-              internalCode: row.internal_code,
               dailyNumber: row.daily_number,
               weeklyNumber: row.weekly_number,
               assignedAt: row.assigned_at,

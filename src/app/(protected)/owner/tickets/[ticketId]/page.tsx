@@ -12,6 +12,7 @@ import { TicketActions } from '@/features/tickets/components/TicketActions'
 import { getTicketDetail } from '@/features/tickets/queries'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { ticketLabel } from '@/lib/tickets'
 
 export default async function TicketDetailPage({
   params,
@@ -30,8 +31,10 @@ export default async function TicketDetailPage({
 
   return (
     <div className="space-y-6">
+      {/* La boleta se nombra por sus numeros; el codigo interno baja a la
+          informacion administrativa del final (BR-N11). */}
       <PageHeader
-        title={ticket.internalCode}
+        title={ticketLabel(ticket)}
         description={`${ticket.raffleShortCode} — ${ticket.raffleName}`}
         actions={
           <TicketActions
@@ -98,6 +101,21 @@ export default async function TicketDetailPage({
           <Field label="Anulada">
             {ticket.cancelledAt ? formatDateTimeEs(ticket.cancelledAt) : '—'}
           </Field>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Información administrativa</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Field label="Código interno">
+            <span className="text-muted-foreground font-mono">{ticket.internalCode}</span>
+          </Field>
+          <p className="text-muted-foreground mt-2 text-xs">
+            Lo genera el sistema para identificar la boleta por dentro. Para buscarla, usa sus
+            números.
+          </p>
         </CardContent>
       </Card>
 

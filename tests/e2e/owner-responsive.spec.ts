@@ -57,9 +57,9 @@ test.describe('Portal administrativo en movil', () => {
   test('las columnas secundarias se ocultan y la tabla sigue siendo legible', async ({ page }) => {
     await page.goto('/owner/tickets')
 
-    // El codigo y los numeros se ven siempre; el vendedor solo en escritorio.
-    await expect(page.getByRole('columnheader', { name: 'Código' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Diario / Semanal' })).toBeVisible()
+    // Los dos numeros se ven siempre; el vendedor solo en escritorio.
+    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Número semanal' })).toBeVisible()
     await expect(page.getByRole('columnheader', { name: 'Vendedor' })).toBeHidden()
   })
 

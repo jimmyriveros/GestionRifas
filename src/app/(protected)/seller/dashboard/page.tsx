@@ -12,6 +12,7 @@ import { requireRole } from '@/lib/auth/guards'
 import { ROLE_LABELS } from '@/lib/constants'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { ticketLabel } from '@/lib/tickets'
 
 export default async function SellerDashboardPage() {
   const membership = await requireRole(['seller'])
@@ -136,7 +137,7 @@ export default async function SellerDashboardPage() {
                       href={`/seller/tickets/${ticket.id}`}
                       className="font-mono text-sm hover:underline"
                     >
-                      {ticket.dailyNumber} / {ticket.weeklyNumber}
+                      {ticketLabel(ticket)}
                     </Link>
                     <p className="text-muted-foreground truncate text-xs">
                       {ticket.clientName ?? 'Sin cliente'}

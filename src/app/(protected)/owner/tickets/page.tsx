@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
+import { ticketSearchEmptyDescription } from '@/features/search/hints'
 import { TicketFilters } from '@/features/tickets/components/TicketFilters'
 import { TicketsTable } from '@/features/tickets/components/TicketsTable'
 import { listTickets } from '@/features/tickets/queries'
@@ -51,6 +52,8 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
     single(params.paymentStatus),
   )
 
+  const emptyDescription = ticketSearchEmptyDescription(single(params.q), hasFilters)
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -87,9 +90,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
           icon={<TicketIcon className="size-8" aria-hidden />}
           title={hasFilters ? 'Ninguna boleta coincide con los filtros' : 'Todavía no hay boletas'}
           description={
-            hasFilters
-              ? 'Prueba a limpiar los filtros o a buscar por otro número.'
-              : 'Crea boletas en lote para repartirlas entre tus vendedores.'
+            emptyDescription ?? 'Crea boletas en lote para repartirlas entre tus vendedores.'
           }
           action={
             hasFilters ? null : (

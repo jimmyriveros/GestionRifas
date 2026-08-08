@@ -145,19 +145,20 @@ test.describe('Boletas propias: búsqueda y filtros', () => {
     await loginAs(page, ACCOUNTS.seller)
   })
 
-  test('busca por número exacto conservando los ceros (BR-N03)', async ({ page }) => {
-    const ticket = await createTicket(refs, {
+  test('busca por número conservando los ceros (BR-N03)', async ({ page }) => {
+    const weekly = randomTicketNumbers().weekly
+    await createTicket(refs, {
       dailyNumber: '0042',
-      weeklyNumber: randomTicketNumbers().weekly,
+      weeklyNumber: weekly,
       inventoryStatus: 'available',
     })
 
     await page.goto('/seller/tickets')
-    await page.getByPlaceholder('Código interno, número diario o semanal').fill('0042')
+    await page.getByPlaceholder('Número diario o semanal').fill('0042')
     await page.getByRole('button', { name: 'Buscar' }).click()
 
     await page.waitForURL(/q=0042/)
-    await expect(page.getByRole('link', { name: ticket.internalCode })).toBeVisible()
+    await expect(page.getByRole('link', { name: `Ver la boleta 0042 / ${weekly}` })).toBeVisible()
   })
 
   test('filtra por estado y limpia los filtros', async ({ page }) => {
@@ -171,7 +172,9 @@ test.describe('Boletas propias: búsqueda y filtros', () => {
   test('la tabla no muestra la columna Vendedor ni casillas de aprobación', async ({ page }) => {
     await page.goto('/seller/tickets')
 
-    await expect(page.getByRole('columnheader', { name: 'Código' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    // El codigo interno dejo de ser columna: vive en el detalle (BR-N11).
+    await expect(page.getByRole('columnheader', { name: 'Código' })).toHaveCount(0)
     await expect(page.getByRole('columnheader', { name: 'Vendedor' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Aprobar seleccionadas' })).toHaveCount(0)
   })

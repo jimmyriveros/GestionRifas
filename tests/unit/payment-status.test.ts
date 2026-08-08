@@ -23,8 +23,13 @@ const UUID_A = '11111111-2222-4333-8444-555555555551'
 const UUID_B = '11111111-2222-4333-8444-555555555552'
 const UUID_C = '11111111-2222-4333-8444-555555555553'
 
-function ticket(ticketId: string, pendingAmount: number, code = 'R001-000001'): PayableTicket {
-  return { ticketId, internalCode: code, pendingAmount }
+function ticket(
+  ticketId: string,
+  pendingAmount: number,
+  daily = '0001',
+  weekly = '1001',
+): PayableTicket {
+  return { ticketId, dailyNumber: daily, weeklyNumber: weekly, pendingAmount }
 }
 
 describe('previewPaymentStatus (BR-F07, BR-F08)', () => {
@@ -84,7 +89,7 @@ describe('distributeAmount', () => {
 })
 
 describe('validateAllocations: cuadre exacto (BR-F05)', () => {
-  const tickets = [ticket(UUID_A, 100_000, 'R001-000001'), ticket(UUID_B, 50_000, 'R001-000002')]
+  const tickets = [ticket(UUID_A, 100_000, '0001', '1001'), ticket(UUID_B, 50_000, '0002', '1002')]
 
   it('acepta un reparto que cuadra', () => {
     const result = validateAllocations(
@@ -142,7 +147,7 @@ describe('validateAllocations: cuadre exacto (BR-F05)', () => {
 })
 
 describe('validateAllocations: sobrepago por boleta (BR-F12)', () => {
-  const tickets = [ticket(UUID_A, 100_000, 'R001-000001')]
+  const tickets = [ticket(UUID_A, 100_000, '0001', '1001')]
 
   it('marca la boleta que recibe mas de lo que debe', () => {
     const result = validateAllocations(150_000, [{ ticketId: UUID_A, amount: 150_000 }], tickets)
@@ -150,7 +155,8 @@ describe('validateAllocations: sobrepago por boleta (BR-F12)', () => {
     expect(result.valid).toBe(false)
     expect(result.issues).toHaveLength(1)
     expect(result.issues[0]?.ticketId).toBe(UUID_A)
-    expect(result.issues[0]?.message).toContain('R001-000001')
+    // La boleta se nombra por sus numeros, no por su codigo interno (BR-N11).
+    expect(result.issues[0]?.message).toContain('0001 / 1001')
   })
 
   it('acepta pagar exactamente el saldo pendiente', () => {

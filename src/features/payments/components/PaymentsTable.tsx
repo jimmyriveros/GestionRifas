@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { ticketLabel } from '@/lib/tickets'
 
 import type { PaymentListItem } from '../queries'
 import { PaymentDetailDialog } from './PaymentDetailDialog'
@@ -88,9 +89,9 @@ export function PaymentsTable({
         enableSorting: false,
         meta: { hideOnMobile: true },
         cell: ({ row }) => (
-          <span className="text-muted-foreground text-sm">
-            {row.original.allocations.length === 1
-              ? row.original.allocations[0]?.internalCode
+          <span className="text-muted-foreground font-mono text-sm tabular-nums">
+            {row.original.allocations.length === 1 && row.original.allocations[0]
+              ? ticketLabel(row.original.allocations[0])
               : `${row.original.allocations.length} boletas`}
           </span>
         ),

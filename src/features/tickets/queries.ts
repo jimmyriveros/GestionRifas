@@ -17,7 +17,7 @@ export type TicketFilters = {
   clientId?: string
   inventoryStatus?: TicketInventoryStatus
   paymentStatus?: TicketPaymentStatus
-  /** Codigo interno o numero exacto. */
+  /** Numero diario o semanal, entero o en parte (BR-N11). El codigo interno no. */
   search?: string
   page?: number
   pageSize?: number
@@ -79,25 +79,16 @@ type TicketRow = {
   client: { id: string; name: string } | null
 }
 
-/**
- * PostgREST rechaza `.or()` si un valor trae comas o parentesis: se escaparia
- * la propia sintaxis del filtro. Se quitan tambien `%` y `_`, que son comodines
- * de `ilike` y harian que el termino signifique otra cosa.
- *
- * Un codigo interno («R001-000123») no lleva acentos —lo genera el trigger de
- * 0004—, asi que aqui no hace falta normalizarlos como en clientes.
- */
-function sanitizeSearch(value: string): string {
-  return normalizeSearchTerm(value).replace(/[(),."'\\*%_]/g, '')
-}
-
 export async function listTickets(
   filters: TicketFilters,
 ): Promise<{ rows: TicketListItem[]; total: number; page: number; pageSize: number }> {
-  const supabase = await createClient()
   const pageSize = filters.pageSize ?? PAGE_SIZE
   const page = Math.max(1, filters.page ?? 1)
 
+  const search = filters.search ? normalizeSearchTerm(filters.search) : ''
+  if (search !== '') return searchTicketsByNumber(filters, search, page, pageSize)
+
+  const supabase = await createClient()
   let query = supabase.from('tickets').select(TICKET_SELECT, { count: 'exact' })
 
   if (filters.raffleId) query = query.eq('raffle_id', filters.raffleId)
@@ -105,18 +96,6 @@ export async function listTickets(
   if (filters.clientId) query = query.eq('client_id', filters.clientId)
   if (filters.inventoryStatus) query = query.eq('inventory_status', filters.inventoryStatus)
   if (filters.paymentStatus) query = query.eq('payment_status', filters.paymentStatus)
-
-  const search = filters.search ? sanitizeSearch(filters.search) : ''
-  if (search !== '') {
-    const conditions = [`internal_code.ilike.%${search}%`]
-    // Los numeros se comparan como TEXTO EXACTO: buscar "07" no debe traer
-    // "0007" ni "7" (BR-N03). Nada de busqueda parcial ni difusa sobre un
-    // identificador numerico: «12» no significa «1234».
-    if (isTicketNumberTerm(search)) {
-      conditions.push(`daily_number.eq.${search}`, `weekly_number.eq.${search}`)
-    }
-    query = query.or(conditions.join(','))
-  }
 
   const { data, error, count } = await query
     .order('created_at', { ascending: false })
@@ -129,6 +108,75 @@ export async function listTickets(
   return {
     rows: ((data ?? []) as TicketRow[]).map((row) => mapTicketRow(row, sellerNames)),
     total: count ?? 0,
+    page,
+    pageSize,
+  }
+}
+
+/**
+ * Busqueda por numero diario y semanal, ordenada por relevancia (BR-N11).
+ *
+ * Va por la funcion `search_tickets` (migracion 0018) y no por PostgREST
+ * porque el orden depende del termino buscado —el numero diario manda sobre el
+ * semanal— y eso no es una columna por la que se pueda ordenar. Reordenar en el
+ * navegador tampoco vale: la lista esta paginada en servidor, asi que solo
+ * reacomodaria las filas de la pagina que ya se esta viendo.
+ *
+ * La funcion es `security invoker`: hereda `tickets_select`, de modo que un
+ * vendedor sigue encontrando unicamente sus boletas.
+ */
+async function searchTicketsByNumber(
+  filters: TicketFilters,
+  search: string,
+  page: number,
+  pageSize: number,
+): Promise<{ rows: TicketListItem[]; total: number; page: number; pageSize: number }> {
+  // Un termino que no es un numero de boleta no puede coincidir con ninguna:
+  // se responde sin ir a la base de datos. La funcion aplica la misma regla,
+  // asi que esto es un atajo, no la unica defensa.
+  if (!isTicketNumberTerm(search)) {
+    return { rows: [], total: 0, page, pageSize }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('search_tickets', {
+    p_search: search,
+    p_raffle_id: filters.raffleId,
+    p_seller_id: filters.sellerId,
+    p_client_id: filters.clientId,
+    p_inventory_status: filters.inventoryStatus,
+    p_payment_status: filters.paymentStatus,
+    p_limit: pageSize,
+    p_offset: (page - 1) * pageSize,
+  })
+
+  if (error) throw error
+
+  const rows = data ?? []
+  const sellerNames = await sellerNameMap()
+
+  return {
+    // `total_count` viaja repetido en cada fila; sin filas, no hay resultados.
+    total: rows[0]?.total_count ?? 0,
+    rows: rows.map((row) => ({
+      id: row.id,
+      internalCode: row.internal_code,
+      dailyNumber: row.daily_number,
+      weeklyNumber: row.weekly_number,
+      inventoryStatus: row.inventory_status,
+      paymentStatus: row.payment_status,
+      salePrice: row.sale_price,
+      paidAmount: row.paid_amount,
+      saleDate: row.sale_date,
+      createdAt: row.created_at,
+      raffleId: row.raffle_id,
+      raffleName: row.raffle_name ?? '',
+      raffleShortCode: row.raffle_short_code ?? '',
+      sellerId: row.seller_id,
+      sellerName: sellerNames.get(row.seller_id) ?? 'Vendedor',
+      clientId: row.client_id,
+      clientName: row.client_name,
+    })),
     page,
     pageSize,
   }

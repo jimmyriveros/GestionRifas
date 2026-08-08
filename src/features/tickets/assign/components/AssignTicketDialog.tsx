@@ -38,7 +38,8 @@ import { assignTicket, assignTicketToNewClient } from '../actions'
 
 type AssignTicketDialogProps = {
   ticketId: string
-  ticketCode: string
+  /** Los dos numeros, ya formateados: «1234 / 5678» (BR-N11). */
+  ticketNumbers: string
   /** Precio VIGENTE de la rifa: es el que quedara congelado en la boleta. */
   rafflePrice: number
   clients: ClientOption[]
@@ -51,7 +52,7 @@ type AssignTicketDialogProps = {
  */
 export function AssignTicketDialog({
   ticketId,
-  ticketCode,
+  ticketNumbers,
   rafflePrice,
   clients,
 }: AssignTicketDialogProps) {
@@ -66,7 +67,7 @@ export function AssignTicketDialog({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Asignar la boleta {ticketCode}</DialogTitle>
+            <DialogTitle>Asignar la boleta {ticketNumbers}</DialogTitle>
             <DialogDescription>
               Se registrara la venta por {formatCOP(rafflePrice)}, el precio vigente de la rifa. Ese
               valor queda fijo aunque la rifa cambie de precio después.

@@ -33,7 +33,7 @@ async function clientWithDebt(label: string, salePrice = PRICE) {
     clientId: client.id,
     salePrice,
   })
-  return { client, ticket }
+  return { client, ticket, numbers }
 }
 
 test.describe('Registro de abonos por el vendedor', () => {
@@ -83,11 +83,11 @@ test.describe('Registro de abonos por el vendedor', () => {
   })
 
   test('el sobrepago se bloquea antes de enviar (prueba 3, BR-F12)', async ({ page }) => {
-    const { client, ticket } = await clientWithDebt('Sobrepagador')
+    const { client, ticket, numbers } = await clientWithDebt('Sobrepagador')
 
     await page.goto(`/seller/payments/new?clientId=${client.id}`)
     await page
-      .getByLabel(`Valor abonado a la boleta ${ticket.internalCode}`)
+      .getByLabel(`Valor abonado a la boleta ${numbers.daily} / ${numbers.weekly}`)
       .fill(String(PRICE + 50_000))
 
     await expect(page.getByText(/Supera el saldo pendiente/)).toBeVisible()
@@ -121,23 +121,40 @@ test.describe('Registro de abonos por el vendedor', () => {
     await page.getByRole('button', { name: 'Registrar abono' }).click()
     await expectToast(page, /registrado/)
 
-    expect((await ticketBalance(ticketA.id)).paidAmount).toBe(100_000)
-    expect((await ticketBalance(ticketB.id)).paidAmount).toBe(50_000)
+    /*
+      «La primera» es la primera de la TABLA, y la tabla se ordena por numero
+      diario y semanal (BR-N11): antes se ordenaba por codigo interno, que era
+      el orden de creacion, y por eso bastaba con dar por hecho que ticketA iba
+      delante. Con numeros aleatorios ya no. Se calcula aqui el mismo orden que
+      aplica la consulta, en vez de fijar numeros —que chocarian entre corridas,
+      porque esta suite no borra sus boletas—.
+    */
+    const [primera, segunda] =
+      `${first.daily}${first.weekly}` <= `${second.daily}${second.weekly}`
+        ? [ticketA, ticketB]
+        : [ticketB, ticketA]
+
+    expect((await ticketBalance(primera.id)).paidAmount).toBe(100_000)
+    expect((await ticketBalance(segunda.id)).paidAmount).toBe(50_000)
   })
 
   test('una suma distinta al total no deja guardar (prueba 5, BR-F05)', async ({ page }) => {
-    const { client, ticket } = await clientWithDebt('Descuadrado')
+    const { client, ticket, numbers } = await clientWithDebt('Descuadrado')
 
     await page.goto(`/seller/payments/new?clientId=${client.id}`)
     await page.getByLabel('Valor del abono').fill('50000')
     // Se rebaja lo repartido a mano: ahora falta dinero por asignar.
-    await page.getByLabel(`Valor abonado a la boleta ${ticket.internalCode}`).fill('30000')
+    await page
+      .getByLabel(`Valor abonado a la boleta ${numbers.daily} / ${numbers.weekly}`)
+      .fill('30000')
 
     await expect(page.getByText(/Faltan por repartir/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Registrar abono' })).toBeDisabled()
 
     // Y al revés: repartir de mas tampoco pasa.
-    await page.getByLabel(`Valor abonado a la boleta ${ticket.internalCode}`).fill('60000')
+    await page
+      .getByLabel(`Valor abonado a la boleta ${numbers.daily} / ${numbers.weekly}`)
+      .fill('60000')
     await expect(page.getByText(/de más/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Registrar abono' })).toBeDisabled()
 
@@ -145,10 +162,10 @@ test.describe('Registro de abonos por el vendedor', () => {
   })
 
   test('el formulario previsualiza como quedará cada boleta', async ({ page }) => {
-    const { client, ticket } = await clientWithDebt('Previsualizador')
+    const { client, ticket, numbers } = await clientWithDebt('Previsualizador')
 
     await page.goto(`/seller/payments/new?clientId=${client.id}`)
-    const row = page.getByRole('row').filter({ hasText: ticket.internalCode })
+    const row = page.getByRole('row').filter({ hasText: numbers.daily })
 
     await expect(row.getByText('Sin pagar')).toBeVisible()
 

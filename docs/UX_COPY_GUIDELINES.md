@@ -350,6 +350,10 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Quitar el acceso a una persona | **Desactivar** | Eliminar, borrar, dar de baja |
 | Sacar un cliente del listado sin perder su historial | **Archivar** | Eliminar, ocultar, borrar |
 
+**Cómo se nombra una boleta en pantalla:** por sus **dos números**, «1234 / 5678» (BR-N11). El
+**código interno** es información administrativa: aparece solo dentro del detalle de la boleta y
+nunca se ofrece como forma de buscar. Un texto que diga «busca por código» está mal.
+
 **Roles en el habla del usuario:** dentro del código y de la documentación técnica se usan `owner`,
 `admin` y `seller`. En pantalla son siempre **Dueño**, **Administrador** y **Vendedor**.
 
@@ -367,6 +371,7 @@ cambiar ese archivo, nunca escribirla suelta en una pantalla.
 | Errores devueltos por el servidor | `src/lib/errors.ts` (`mapPgError`) y los `RAISE` de las migraciones |
 | Títulos y descripciones de pantalla | `PageHeader` de cada `page.tsx` |
 | Estados vacíos | `EmptyState` (`src/components/data/`) |
+| Pistas y avisos de los buscadores | `src/features/search/hints.ts`, **todos juntos** |
 | Confirmaciones de acciones sensibles | `ConfirmDialog` (`src/components/feedback/`) |
 | Mensajes de éxito | El `toast` de cada Server Action, en su componente cliente |
 | Pasos del recorrido guiado (título y explicación) | `src/features/tour/tours.ts`, **todos juntos** |

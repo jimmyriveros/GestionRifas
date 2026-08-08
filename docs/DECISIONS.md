@@ -1175,6 +1175,66 @@ insertando «Jesús Peña Ñuñez» dentro de una transacción, comprobando que 
 «pena», «nunez», el alias sin tilde y el teléfono en dos formatos, y revirtiendo: 6 clientes antes y
 6 después.
 
+## D-080 — Una boleta se busca por sus números, y el orden lo decide SQL
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-08)
+**Contexto.** La búsqueda de boletas miraba tres columnas: `internal_code` (parcial) y los dos
+números (**exactos**). Eso no es como se trabaja. Vendedores y administradores identifican una boleta
+diciendo «el 1234 con el 5678»; «R001-000019» lo genera el sistema y no lo memoriza nadie. Además, la
+comparación exacta obligaba a escribir el número entero: escribir «123» no encontraba `1234`.
+**Decisión.** BR-N11: se busca **solo** por `daily_number` y `weekly_number`, por coincidencia
+**parcial**, y los resultados se ordenan por relevancia con el diario por delante del semanal. El
+código interno sale de la búsqueda y de las listas; se conserva en el detalle, bajo «Información
+administrativa».
+
+**Por qué una función de base de datos y no PostgREST.** Dos exigencias que un `.or()` no cumple a la
+vez: coincidencia parcial y orden por relevancia. PostgREST solo ordena por **columnas**, y la
+relevancia depende del término buscado, así que no es una columna. La alternativa —reordenar en el
+navegador— no sirve con paginación de servidor: solo recolocaría las filas de la página que ya se
+está viendo, dejando la coincidencia más relevante escondida en la página 7. Lo decide SQL, en
+`search_tickets` (migración `0018`), y por eso la búsqueda sigue siendo server-side cuando la tabla
+crezca.
+
+**`SECURITY INVOKER`, como las funciones de reporte de `0013` y al revés que las RPC de `0007`.** Solo
+lee: hereda `tickets_select` y un vendedor sigue encontrando únicamente sus boletas. Los parámetros
+(`p_seller_id`, `p_raffle_id`, …) son de usabilidad, no de seguridad; pasar el id de otro vendedor
+devuelve cero filas porque la RLS ya lo impide, y hay una prueba que lo comprueba.
+
+**Un término que no es un número devuelve cero filas, no «todo».** Los números son de 1 a 4 dígitos
+(BR-N02), así que «R001», «12A4» o un código interno completo no pueden coincidir con ninguno. Se
+podría haber extraído los dígitos de «R001» y buscar «001», pero eso reintroduciría por la puerta de
+atrás justo lo que se quitaba: encontrar boletas escribiendo un código. La pantalla dice por qué no
+hay resultados en vez de dejar una lista vacía sin explicación.
+
+**Dos rutas de consulta, a propósito.** Sin término de búsqueda, el listado sigue por el camino de
+PostgREST de siempre (orden por fecha de creación, conteo exacto, paginación). La función se usa
+**solo** cuando hay término. Es la ruta más caliente de la pantalla y no había ninguna razón para
+reescribirla: el cambio se queda contenido en lo que de verdad cambia.
+
+**Orden dentro del mismo escalón de relevancia: por número, no por fecha.** La primera versión
+ordenaba por `created_at desc` y una búsqueda de «010» devolvía «0100, 0103, 0109, 0105…» —el orden
+en que se crearon, que para quien mira la lista es ninguno—. Se vio en pantalla, no en una prueba.
+
+**Índices.** Se añaden trigramas sobre `daily_number` y `weekly_number`: el patrón pasa a llevar
+comodín inicial (`%123%`) y los B-tree de `0003` no sirven para eso. Medido con 7.278 boletas: con
+**tres o más** cifras el planificador usa el índice (búsqueda de «123»: *bitmap index scan*, 58
+páginas); con **dos** («00») no puede extraer ningún trigrama completo y vuelve al barrido secuencial
+(165 páginas, 1,2 ms). Es una mejora parcial y conocida, no un remedio universal. Los B-tree de
+`0003` **no se eliminan**: siguen sirviendo a la restricción de unicidad y a las comparaciones
+exactas, y la regla del proyecto es no retirar un índice sin evidencia de que sobra.
+
+**Efecto lateral que hay que conocer: cambia el orden del reparto de un abono.** Las boletas por
+cobrar de un cliente se ordenaban por `internal_code`, es decir por antigüedad sin decirlo. Al salir
+el código de esa consulta pasan a ordenarse por número, que es como se muestran en el formulario, y
+el reparto automático —que llena de la primera fila a la última— sigue ese mismo orden. El
+comportamiento es el mismo («llena la de arriba y pasa el resto a la siguiente»); lo que cambia es
+cuál queda arriba. Lo destapó la prueba E2E «reparte un abono entre varias boletas», que daba por
+hecho el orden de creación.
+
+**Lo que NO cambia, y conviene decirlo:** `internal_code` se sigue generando por trigger, se sigue
+guardando, conserva su índice único y su índice de trigramas de `0017`, y sigue siendo lo que
+identifica la boleta en la base de datos, en la auditoría y en las URL. Las claves primarias y las
+relaciones no se han tocado. Este cambio es de búsqueda y de presentación.
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

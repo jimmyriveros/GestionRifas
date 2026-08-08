@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
 import { CLIENT_FILTER_OPTIONS_LIMIT, listClientOptions } from '@/features/clients/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
+import { ticketSearchEmptyDescription } from '@/features/search/hints'
 import { TicketFilters } from '@/features/tickets/components/TicketFilters'
 import { TicketsTable } from '@/features/tickets/components/TicketsTable'
 import { listTickets } from '@/features/tickets/queries'
@@ -60,7 +61,7 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
     <div className="space-y-6">
       <PageHeader
         title="Mis boletas"
-        description="Busca por código o por número, y asigna las que ya vendiste."
+        description="Busca por el número diario o el semanal, y asigna las que ya vendiste."
         actions={
           canCreate ? (
             <Button asChild>
@@ -88,11 +89,10 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
             hasFilters ? 'Ninguna boleta coincide con los filtros' : 'Todavía no tienes boletas'
           }
           description={
-            hasFilters
-              ? 'Prueba a limpiar los filtros o a buscar por otro número.'
-              : canCreate
-                ? 'Puedes crear tus propias boletas: quedarán pendientes de aprobación.'
-                : 'Tu administrador todavía no te ha asignado boletas. Pídeselas cuando las necesites.'
+            ticketSearchEmptyDescription(single(params.q), hasFilters) ??
+            (canCreate
+              ? 'Puedes crear tus propias boletas: quedarán pendientes de aprobación.'
+              : 'Tu administrador todavía no te ha asignado boletas. Pídeselas cuando las necesites.')
           }
           action={
             !hasFilters && canCreate ? (

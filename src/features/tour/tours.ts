@@ -200,7 +200,7 @@ const OWNER_TOURS: Tour[] = [
         body: 'Con «Crear en lote» generas hasta 1.000 boletas de una vez y las repartes a un vendedor. La opción individual sirve para casos sueltos.',
       },
       ticketFilterStep(
-        'Busca por código interno o por los números de la boleta, o filtra por rifa, vendedor y estado. El botón «Limpiar filtros» deja la lista como estaba.',
+        'Escribe el número diario o el semanal, o filtra por rifa, vendedor y estado. El botón «Limpiar filtros» deja la lista como estaba.',
       ),
       {
         id: 'table',
@@ -303,7 +303,7 @@ const SELLER_TOURS: Tour[] = [
     roles: ['seller'],
     steps: [
       ticketFilterStep(
-        'Busca por código interno o por los números de la boleta, o filtra por estado y por cliente. El botón «Limpiar filtros» deja la lista como estaba.',
+        'Escribe el número diario o el semanal, o filtra por estado y por cliente. El botón «Limpiar filtros» deja la lista como estaba.',
       ),
       {
         id: 'table',

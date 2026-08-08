@@ -478,12 +478,14 @@ triggers y funciones `SECURITY DEFINER`. Eventos mínimos registrados: `docs/SEC
 | `clients` | `(organization_id, seller_id) WHERE archived_at IS NULL` | Cartera del vendedor |
 | `clients` | GIN `pg_trgm` sobre `name`, `alias`, `phone`, `email` | Búsqueda por texto parcial |
 | `clients` | GIN `pg_trgm` sobre `search_text` (`0017`) | Búsqueda normalizada: acentos y formatos de teléfono (D-079) |
-| `tickets` | GIN `pg_trgm` sobre `internal_code` (`0017`) | `ilike '%texto%'` sobre el código: antes era barrido secuencial |
+| `tickets` | GIN `pg_trgm` sobre `internal_code` (`0017`) | Quedó **sin uso en la interfaz** desde `0018` (BR-N11); se conserva porque el código sigue siendo el identificador administrativo |
+| `tickets` | GIN `pg_trgm` sobre `daily_number` (`0018`) | `like '%123%'`: el comodín inicial impide usar el B-tree |
+| `tickets` | GIN `pg_trgm` sobre `weekly_number` (`0018`) | Igual, para el número semanal |
 | `tickets` | `(organization_id, raffle_id, inventory_status)` | Tabla global con filtros |
 | `tickets` | `(seller_id, raffle_id, inventory_status)` | Portal Seller |
-| `tickets` | `(organization_id, raffle_id, daily_number)` | Búsqueda por número diario |
-| `tickets` | `(organization_id, raffle_id, weekly_number)` | Búsqueda por número semanal |
-| `tickets` | `(organization_id, internal_code)` (único) | Búsqueda por código |
+| `tickets` | `(organization_id, raffle_id, daily_number)` | Comparación exacta y por prefijo del número diario |
+| `tickets` | `(organization_id, raffle_id, weekly_number)` | Comparación exacta y por prefijo del número semanal |
+| `tickets` | `(organization_id, internal_code)` (único) | Unicidad del código; ya no lo usa ninguna búsqueda de la interfaz |
 | `tickets` | `(client_id) WHERE client_id IS NOT NULL` | Perfil de cliente |
 | `tickets` | `(organization_id, raffle_id, payment_status)` | Métricas y reportes |
 | `payments` | `(organization_id, payment_date DESC) WHERE voided_at IS NULL` | Pagos recientes y por rango |
@@ -505,6 +507,13 @@ desincronizada del dato real. `search_normalize()` tiene que dar exactamente lo 
 
 Los cuatro índices trigrama de `0003` se conservan pese a que la búsqueda ya no los usa: no se retira
 un índice sin evidencia de que sobra (`pg_stat_user_indexes.idx_scan` tras un tiempo en producción).
+Lo mismo vale para el de `internal_code` desde `0018`.
+
+**Los trigramas sobre los números (`0018`) ayudan a partir de tres cifras, no antes.** Medido con
+7.278 boletas: `like '%123%'` usa el índice (*bitmap index scan*, 58 páginas); `like '%00%'` no puede
+extraer ningún trigrama completo y vuelve al barrido secuencial (165 páginas, 1,2 ms). Como el
+mínimo para buscar sola son dos caracteres, una parte de las búsquedas seguirá recorriendo la tabla:
+es una mejora parcial y conocida, no un remedio universal.
 
 ---
 
@@ -535,6 +544,20 @@ Cuando el agregado necesita **parámetros**, una vista no sirve. Estas dos son `
 `p_seller_id` sirve para que el **personal** acote el reporte a un vendedor. No es un control de
 seguridad: la RLS de `payments` ya limita lo que cada quien puede agregar, así que un vendedor que
 pase el id de otro obtiene ceros (prueba F6-04).
+
+### 6.c Búsqueda de boletas (migración `0018`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `search_tickets(search, raffle, seller, client, inventory, payment, limit, offset)` | Boletas que coinciden por número diario o semanal, **ordenadas por relevancia**, con `total_count` en cada fila | `listTickets` de `src/features/tickets/queries.ts`, cuando hay término de búsqueda |
+
+`stable`, `security invoker` y `set search_path`, igual que las de reporte: hereda `tickets_select`,
+de modo que un vendedor solo encuentra sus boletas (BR-N11, D-080). Usa `LEFT JOIN` contra `raffles`
+y `clients` — un `join` interno borraría la boleta entera cuando quien consulta no puede ver el
+nombre (I-015).
+
+Sin término de búsqueda, el listado **no** pasa por aquí: sigue por PostgREST, ordenado por fecha de
+creación.
 
 ---
 

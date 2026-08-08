@@ -217,31 +217,90 @@ test.describe('Boletas', () => {
     await expect(page.getByText(replacement.daily).first()).toBeVisible()
   })
 
-  test('busca por número exacto sin confundir ceros iniciales (BR-N03)', async ({ page }) => {
+  test('busca por número conservando los ceros iniciales (BR-N03)', async ({ page }) => {
     // Dos boletas que solo se distinguen por los ceros iniciales del diario.
-    const padded = await createTicket(refs, {
+    const paddedWeekly = randomTicketNumbers().weekly
+    const bareWeekly = randomTicketNumbers().weekly
+    await createTicket(refs, {
       dailyNumber: '0007',
-      weeklyNumber: randomTicketNumbers().weekly,
+      weeklyNumber: paddedWeekly,
       inventoryStatus: 'available',
     })
-    const bare = await createTicket(refs, {
+    await createTicket(refs, {
       dailyNumber: '7',
-      weeklyNumber: randomTicketNumbers().weekly,
+      weeklyNumber: bareWeekly,
       inventoryStatus: 'available',
     })
 
     await page.goto('/owner/tickets')
-    await page.getByPlaceholder('Código interno, número diario o semanal').fill('0007')
+    await page.getByPlaceholder('Número diario o semanal').fill('0007')
     await page.getByRole('button', { name: 'Buscar' }).click()
     await page.waitForURL(/q=0007/)
 
-    await expect(page.getByRole('link', { name: padded.internalCode })).toBeVisible()
-    // "7" no es "0007": la busqueda por numero es exacta y como texto.
-    await expect(page.getByRole('link', { name: bare.internalCode })).toHaveCount(0)
+    await expect(
+      page.getByRole('link', { name: `Ver la boleta 0007 / ${paddedWeekly}` }),
+    ).toBeVisible()
+    // Los numeros se comparan como TEXTO, nunca convertidos a entero: «0007» no
+    // esta dentro de «7», asi que la boleta sin ceros no aparece aqui.
+    await expect(page.getByRole('link', { name: `Ver la boleta 7 / ${bareWeekly}` })).toHaveCount(0)
+  })
+
+  test('el código interno ya no encuentra la boleta, y se explica (BR-N11)', async ({ page }) => {
+    const numeros = randomTicketNumbers()
+    const { internalCode } = await createTicket(refs, {
+      dailyNumber: numeros.daily,
+      weeklyNumber: numeros.weekly,
+      inventoryStatus: 'available',
+    })
+
+    await page.goto('/owner/tickets')
+    await page.getByPlaceholder('Número diario o semanal').fill(internalCode)
+    await page.getByRole('button', { name: 'Buscar' }).click()
+    await page.waitForURL(/q=/)
+
+    await expect(page.getByText('Ninguna boleta coincide con los filtros')).toBeVisible()
+    // Una lista vacia sin motivo se lee como «la aplicacion no funciona».
+    await expect(page.getByText(/El código interno no sirve para buscar/)).toBeVisible()
+  })
+
+  test('las coincidencias del número diario van antes que las del semanal (BR-N11)', async ({
+    page,
+  }) => {
+    // El MISMO numero en posiciones distintas: manda el diario. Los tres
+    // numeros son aleatorios porque esta suite no borra lo que crea, y una
+    // combinacion fija chocaria con la restriccion de unicidad al repetir.
+    const buscado = randomTicketNumbers().daily
+    const acompañaAlDiario = randomTicketNumbers().weekly
+    const acompañaAlSemanal = randomTicketNumbers().daily
+
+    await createTicket(refs, {
+      dailyNumber: buscado,
+      weeklyNumber: acompañaAlDiario,
+      inventoryStatus: 'available',
+    })
+    await createTicket(refs, {
+      dailyNumber: acompañaAlSemanal,
+      weeklyNumber: buscado,
+      inventoryStatus: 'available',
+    })
+
+    await page.goto(`/owner/tickets?q=${buscado}`)
+
+    const filas = page.locator('tbody tr')
+    // `allInnerTexts` no auto-espera (TESTING 3.1): hay que anclar antes.
+    await expect(filas.first()).toBeVisible()
+    const textos = await filas.allInnerTexts()
+
+    const posicionDiario = textos.findIndex((fila) => fila.includes(acompañaAlDiario))
+    const posicionSemanal = textos.findIndex((fila) => fila.includes(acompañaAlSemanal))
+
+    // Ambas aparecen; la que coincide por el semanal va despues, no se descarta.
+    expect(posicionDiario).toBeGreaterThanOrEqual(0)
+    expect(posicionSemanal).toBeGreaterThan(posicionDiario)
   })
 
   test('los filtros se limpian y vuelven a mostrarlo todo', async ({ page }) => {
-    await page.goto('/owner/tickets?inventoryStatus=cancelled&q=R001')
+    await page.goto('/owner/tickets?inventoryStatus=cancelled&q=0100')
     await page.getByRole('button', { name: 'Limpiar filtros' }).click()
     await expect(page).toHaveURL('/owner/tickets')
   })

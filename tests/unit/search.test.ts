@@ -10,6 +10,8 @@ import {
   normalizeSearchTerm,
   searchNeedle,
 } from '@/lib/search'
+import { ticketSearchEmptyDescription, ticketSearchHint } from '@/features/search/hints'
+import { ticketLabel } from '@/lib/tickets'
 
 /**
  * Normalizacion del termino de busqueda (D-078).
@@ -147,5 +149,55 @@ describe('isTicketNumberTerm', () => {
     for (const term of ['12345', '12A4', '-123', '12.5', 'R001']) {
       expect(isTicketNumberTerm(term)).toBe(false)
     }
+  })
+
+  it('rechaza un codigo interno: dejo de servir para buscar (BR-N11)', () => {
+    expect(isTicketNumberTerm('R001-000019')).toBe(false)
+    expect(isTicketNumberTerm('000019')).toBe(false)
+  })
+})
+
+describe('ticketLabel (BR-N11)', () => {
+  it('nombra la boleta por sus dos numeros, no por su codigo', () => {
+    expect(ticketLabel({ dailyNumber: '1234', weeklyNumber: '5678' })).toBe('1234 / 5678')
+  })
+
+  it('conserva los ceros de delante', () => {
+    expect(ticketLabel({ dailyNumber: '0017', weeklyNumber: '0042' })).toBe('0017 / 0042')
+  })
+
+  it('una boleta en borrador puede no tener numeros todavia', () => {
+    expect(ticketLabel({ dailyNumber: null, weeklyNumber: null })).toBe('Sin números')
+    expect(ticketLabel({ dailyNumber: '0400', weeklyNumber: null })).toBe('0400 / —')
+  })
+})
+
+describe('ticketSearchHint', () => {
+  it('no dice nada cuando el termino sirve', () => {
+    expect(ticketSearchHint('1234')).toBeUndefined()
+    expect(ticketSearchHint('')).toBeUndefined()
+  })
+
+  it('avisa cuando se escribe algo que no es un numero', () => {
+    expect(ticketSearchHint('R001')).toContain('solo cifras')
+  })
+
+  it('avisa cuando se pasa de cuatro cifras', () => {
+    expect(ticketSearchHint('12345')).toContain('4 cifras')
+  })
+})
+
+describe('ticketSearchEmptyDescription', () => {
+  it('explica que el codigo interno no sirve para buscar', () => {
+    const texto = ticketSearchEmptyDescription('R001-000019', true)
+    expect(texto).toContain('código interno')
+  })
+
+  it('con un numero valido y sin resultados, invita a probar otro', () => {
+    expect(ticketSearchEmptyDescription('1234', true)).toContain('otro número')
+  })
+
+  it('sin busqueda ni filtros deja hablar a la pantalla', () => {
+    expect(ticketSearchEmptyDescription(undefined, false)).toBeUndefined()
   })
 })

@@ -15,7 +15,11 @@ import type { PayableTicket } from './allocation'
 
 export type PaymentAllocationRow = {
   ticketId: string
-  internalCode: string
+  /**
+   * La boleta se nombra por sus dos numeros (BR-N11). `v_payment_history`
+   * sigue trayendo `internal_code` en su JSON —es informacion administrativa
+   * legitima—, pero ninguna pantalla lo muestra, asi que no se mapea.
+   */
   dailyNumber: string | null
   weeklyNumber: string | null
   amount: number
@@ -81,7 +85,6 @@ function mapAllocations(value: unknown): PaymentAllocationRow[] {
     return [
       {
         ticketId: row.ticket_id,
-        internalCode: typeof row.internal_code === 'string' ? row.internal_code : '',
         dailyNumber: typeof row.daily_number === 'string' ? row.daily_number : null,
         weeklyNumber: typeof row.weekly_number === 'string' ? row.weekly_number : null,
         amount: typeof row.amount === 'number' ? row.amount : 0,
@@ -151,8 +154,6 @@ export async function listClientPayments(clientId: string): Promise<PaymentListI
 }
 
 export type PayableTicketDetail = PayableTicket & {
-  dailyNumber: string | null
-  weeklyNumber: string | null
   salePrice: number
   paidAmount: number
 }
@@ -168,12 +169,13 @@ export async function listPayableTickets(clientId: string): Promise<PayableTicke
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('v_ticket_balances')
-    .select(
-      'ticket_id, internal_code, daily_number, weekly_number, sale_price, paid_amount, pending_amount',
-    )
+    .select('ticket_id, daily_number, weekly_number, sale_price, paid_amount, pending_amount')
     .eq('client_id', clientId)
     .eq('inventory_status', 'assigned')
-    .order('internal_code', { ascending: true })
+    // Por numero diario, que es como se reconocen (BR-N11). El codigo interno
+    // ordenaba por antigüedad sin decirlo, que no ayuda a encontrar una fila.
+    .order('daily_number', { ascending: true })
+    .order('weekly_number', { ascending: true })
 
   if (error) throw error
 
@@ -183,7 +185,6 @@ export async function listPayableTickets(clientId: string): Promise<PayableTicke
     return [
       {
         ticketId: row.ticket_id,
-        internalCode: row.internal_code ?? '',
         dailyNumber: row.daily_number,
         weeklyNumber: row.weekly_number,
         salePrice: row.sale_price ?? 0,

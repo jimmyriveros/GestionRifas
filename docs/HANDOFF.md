@@ -15,8 +15,8 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 | Remoto | `github.com/jimmyriveros/GestionRifas` — **`main` al día: local y remoto idénticos** (empujado el 2026-08-06 con autorización del usuario). De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **17 migraciones, todas aplicadas en local y en el proyecto real** y verificadas (2026-08-07: `verify:remote` 13/13 + 13 comprobaciones de `0017` + prueba de comportamiento revertida). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **228 unitarias** + **292 de base de datos** + **176 end-to-end**, todas en verde (2026-08-07). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **18 migraciones. Las 17 primeras están aplicadas en local y en el proyecto real** y verificadas (2026-08-07: `verify:remote` 13/13 + 13 comprobaciones de `0017` + prueba de comportamiento revertida). **La `0018` está solo en local** y el código ya la llama: ver §1.b e I-040. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **238 unitarias** + **311 de base de datos** + **178 end-to-end**, todas en verde (2026-08-08). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -29,9 +29,15 @@ reales).
 
 ---
 
-## 1.b Qué queda abierto (nada de ingeniería)
+## 1.b Qué queda abierto
 
-**No hay acciones técnicas pendientes.** Lo que queda son decisiones del dueño del negocio:
+⚠️ **Lo primero: la migración `0018` no está en el proyecto real, y el código ya la llama.**
+Introduce `search_tickets`, que es por donde pasa ahora la búsqueda de boletas (BR-N11, D-080).
+Desplegar el frontend sin aplicarla deja **la búsqueda de boletas rota en producción**; el resto de
+la aplicación, incluido el listado sin buscar, sigue funcionando. Aplicarla requiere respaldo lógico
+previo (§3.b) y **autorización explícita del usuario**, como la `0016` y la `0017`. Ver I-040.
+
+El resto son decisiones del dueño del negocio, no trabajo de ingeniería:
 
 | Asunto | Qué hace falta |
 |---|---|
@@ -111,8 +117,8 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-✅ **Las 17 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-07
-(`npm run verify:remote`, 13/13).
+✅ **Las 17 primeras migraciones están aplicadas también en el proyecto real** y verificadas el
+2026-08-07 (`npm run verify:remote`, 13/13). ⚠️ **La `0018` no**: ver §1.b e I-040.
 
 Al aplicar migraciones al proyecto real, el procedimiento completo son **tres** pasos, no dos:
 
@@ -258,7 +264,12 @@ features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav �
                     ExportCsvButton
 lib/                action-result.ts · auth/guards.ts (authorizeAction, requireStaff)
                     csv.ts (toCsv, escapeCsvCell) · supabase/paginate.ts (fetchAllRows)
+                    tickets.ts (ticketLabel: «1234 / 5678», BR-N11)
 ```
+
+**Una boleta se nombra con `ticketLabel`, nunca escribiendo `${daily} / ${weekly}` a mano.** Es lo que
+evita acabar con cinco formatos para lo mismo, y lo que hace que el código interno no se vuelva a
+colar en una lista (BR-N11, D-080).
 
 **`DataTable` o `ReportTable`.** `DataTable` ordena en el navegador: úsalo en los listados
 operativos. En una tabla paginada en servidor esa ordenación afectaría **solo a la página visible**,
@@ -300,7 +311,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-266 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+311 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 
@@ -318,7 +329,7 @@ typecheck + lint + unitarias + build.
 npm run test:e2e
 ```
 
-142 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
+178 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
 en móvil (Pixel 7). Levanta solo el servidor con `npm run dev:local`; **exigen la base local recién
 sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
 
@@ -380,6 +391,9 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Una prueba espera a `aria-busy="false"` y sigue antes de tiempo | Durante la pausa del debounce **todavía no se está buscando**, así que vale `false` sin que haya terminado nada. Espera al resultado real: que la lista se estreche | D-078 |
 | Una función nueva resulta ejecutable por `anon` pese a las default privileges de `0015` | PostgreSQL concede EXECUTE a PUBLIC por defecto y aquella regla no lo alcanza. Añade `revoke execute … from anon, public` explícito en tu migración | I-020 · `0017` |
 | Cambias `foldForSearch()` y la búsqueda de clientes deja de encontrar | Hay una copia de esa misma regla en SQL (`search_normalize`, `0017`). Las dos tienen que coincidir; lo comprueba `tests/db/search.test.ts` | D-079 |
+| Buscas una boleta por su código interno y no aparece nada | Es lo esperado desde BR-N11: se busca por número diario o semanal, nunca por el código. La pantalla lo explica; el código sigue estando en el detalle de la boleta | D-080 |
+| Una búsqueda de boletas devuelve las filas en un orden que parece aleatorio | Dentro del mismo escalón de relevancia el orden es **por número**, no por fecha. Si vuelve a verse desordenado, alguien tocó el `order by` de `search_tickets` | D-080 |
+| Una prueba nueva sobre boletas del seed falla solo al correr la suite entera | Otras suites de `tests/db` dejan boletas creadas —la de volumen, 5.000—. Afirma sobre boletas que cree la propia prueba, o acota por `p_raffle_id`, en vez de contar filas del seed | I-035 · `ticket-search.test.ts` |
 | Una prueba E2E falla con `page.goto: net::ERR_ABORTED at /login` y en la captura el login SÍ aparece | Otra navegación ganó la carrera: tras `clearCookies()` las peticiones RSC pendientes redirigen solas. `loginAs` ya lo reintenta; si aparece en otro `goto`, haz lo mismo | I-038 · `fixtures.ts` |
 | Una prueba mide un contraste de **1,00** en un texto que se lee perfectamente | Con Tailwind 4 el navegador devuelve el color en `lab()`/`oklab()`, no en `rgb()`: leer sus números como canales de 0 a 255 da basura. Píntalo en un `canvas` y lee los píxeles | I-034 · `filas-seleccionables.spec.ts` |
 | Un estado visual «se pierde» al pasar el cursor: texto claro sobre fondo claro | `hover:*` añade una pseudoclase y gana al fondo del estado elegido, pero el color del texto se queda. Escribe los estados como **ramas excluyentes**, cada una con su propio hover | D-077 · I-033 |

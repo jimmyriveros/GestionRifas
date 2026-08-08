@@ -96,6 +96,7 @@ export type Database = {
           notes: string | null
           organization_id: string
           phone: string
+          search_text: string | null
           seller_id: string
           updated_at: string
         }
@@ -109,6 +110,7 @@ export type Database = {
           notes?: string | null
           organization_id: string
           phone: string
+          search_text?: string | null
           seller_id: string
           updated_at?: string
         }
@@ -122,6 +124,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           phone?: string
+          search_text?: string | null
           seller_id?: string
           updated_at?: string
         }
@@ -664,6 +667,7 @@ export type Database = {
           organization_id: string | null
           pending_amount: number | null
           phone: string | null
+          search_text: string | null
           seller_id: string | null
           tickets_count: number | null
           total_paid: number | null
@@ -1038,6 +1042,38 @@ export type Database = {
         }[]
       }
       require_auth: { Args: never; Returns: string }
+      search_normalize: { Args: { value: string }; Returns: string }
+      search_tickets: {
+        Args: {
+          p_client_id?: string
+          p_inventory_status?: Database['public']['Enums']['ticket_inventory_status']
+          p_limit?: number
+          p_offset?: number
+          p_payment_status?: Database['public']['Enums']['ticket_payment_status']
+          p_raffle_id?: string
+          p_search: string
+          p_seller_id?: string
+        }
+        Returns: {
+          client_id: string
+          client_name: string
+          created_at: string
+          daily_number: string
+          id: string
+          internal_code: string
+          inventory_status: Database['public']['Enums']['ticket_inventory_status']
+          paid_amount: number
+          payment_status: Database['public']['Enums']['ticket_payment_status']
+          raffle_id: string
+          raffle_name: string
+          raffle_short_code: string
+          sale_date: string
+          sale_price: number
+          seller_id: string
+          total_count: number
+          weekly_number: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { '': string }; Returns: string[] }
       today_bogota: { Args: never; Returns: string }

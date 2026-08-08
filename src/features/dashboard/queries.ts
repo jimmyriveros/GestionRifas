@@ -32,7 +32,13 @@ export type AdminDashboard = {
     totalCollected: number
     pendingAmount: number
   }
-  recentTickets: { id: string; internalCode: string; createdAt: string; raffleShortCode: string }[]
+  recentTickets: {
+    id: string
+    dailyNumber: string | null
+    weeklyNumber: string | null
+    createdAt: string
+    raffleShortCode: string
+  }[]
   /** Ultimos abonos de la organizacion (CLAUDE.md 23: «pagos recientes»). */
   recentPayments: PaymentListItem[]
 }
@@ -48,7 +54,9 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
       supabase
         .from('tickets')
         .select(
-          'id, internal_code, created_at, raffle:raffles!tickets_raffle_org_fk ( short_code )',
+          // Los dos numeros, no el codigo interno: es como se reconoce una
+          // boleta de un vistazo (BR-N11).
+          'id, daily_number, weekly_number, created_at, raffle:raffles!tickets_raffle_org_fk ( short_code )',
         )
         .order('created_at', { ascending: false })
         .limit(5),
@@ -106,7 +114,8 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
     totals,
     recentTickets: (recent ?? []).map((row) => ({
       id: row.id,
-      internalCode: row.internal_code,
+      dailyNumber: row.daily_number,
+      weeklyNumber: row.weekly_number,
       createdAt: row.created_at,
       raffleShortCode: row.raffle?.short_code ?? '',
     })),

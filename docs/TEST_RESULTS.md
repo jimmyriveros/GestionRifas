@@ -915,3 +915,70 @@ Tras el arreglo, los cinco formatos encuentran al cliente y el control sigue en 
 
 La afirmación anterior —«encuentra el teléfono con cualquier formato»— era **más fuerte de lo que se
 había probado**, y así queda anotado en I-039.
+
+---
+
+## Búsqueda de boletas por número — 2026-08-08
+
+Trabajo de mantenimiento posterior a la Fase 9, solicitado por el usuario (BR-N11, D-080): la boleta
+se busca por sus dos números y el código interno sale de la búsqueda y de las listas.
+
+| Comando | Resultado | Notas |
+|---|---|---|
+| `npm run typecheck` | ✅ Sin errores | — |
+| `npm run lint` | ✅ 0 errores | Los 2 avisos preexistentes de `react-hooks/incompatible-library` |
+| `npm run test` | ✅ **238/238** en 15 archivos | +10: `ticketLabel`, las pistas del buscador y el rechazo del código interno |
+| `npm run build` | ✅ Compila | 34 rutas |
+| `npm run test:db` | ✅ **311/311** en 14 archivos | +19 del nuevo `ticket-search.test.ts` |
+| `npx playwright test` | ✅ **178/178** | Escritorio y Pixel 7, con la base recién sembrada. +2 en `owner-tickets.spec.ts` |
+
+### Los 8 casos del encargo, y dónde se comprueban
+
+| Caso | Qué pide | Dónde |
+|---|---|---|
+| 1 | El número diario completo encuentra la boleta | `db/ticket-search.test.ts` |
+| 2 | Parte del número diario también | `db/ticket-search.test.ts` |
+| 3 | El número semanal completo | `db/ticket-search.test.ts` |
+| 4 | Parte del número semanal | `db/ticket-search.test.ts` |
+| 5 | El código interno **no** encuentra nada | `db/ticket-search.test.ts` (3 formas) + `e2e/owner-tickets.spec.ts` |
+| 6 | El diario va antes que el semanal | `db/ticket-search.test.ts` (los 6 escalones) + `e2e/owner-tickets.spec.ts` |
+| 7 | «00» encuentra «0017»: ceros conservados | `db/ticket-search.test.ts` + `unit/search.test.ts` |
+| 8 | Limpiar restaura la lista | `e2e/busqueda-hibrida.spec.ts` (ya existía) |
+
+Además, cuatro pruebas de que la función **hereda la RLS**: un vendedor no encuentra por número la
+boleta de otro, ni pasando su `seller_id` como filtro; el personal sí las encuentra todas; y dos
+organizaciones con la **misma combinación** de números no se cruzan.
+
+### Rendimiento de los índices nuevos
+
+Con 7.278 boletas, tras `analyze tickets`:
+
+| Búsqueda | Plan | Páginas leídas |
+|---|---|---|
+| `%123%` (tres cifras) | **Bitmap Index Scan** sobre los dos índices de trigramas | 58 |
+| `%00%` (dos cifras) | Barrido secuencial | 165 (1,2 ms) |
+
+Con dos cifras PostgreSQL no puede extraer ningún trigrama completo del patrón. Queda anotado como
+I-041: es una mejora parcial y conocida, no un remedio universal.
+
+La función completa, medida de punta a punta: **4,6 ms** para «123» y **11,6 ms** para «00» —el peor
+caso, 5.165 filas coincidentes que hay que ordenar—, ambas devolviendo una página de 20.
+
+### Errores encontrados durante el trabajo, y qué se hizo
+
+| # | Qué pasó | Corrección |
+|---|---|---|
+| 1 | **El orden de los resultados no tenía sentido para quien mira la lista**: buscar «010» devolvía «0100, 0103, 0109, 0105…» porque dentro del mismo escalón de relevancia ordenaba por fecha de creación | `order by relevancia, daily_number, weekly_number, id`. **Visto en pantalla**, en una captura de la tabla, no por una prueba |
+| 2 | En un teléfono, «Número diario» y «Número semanal» en una sola línea empujaban la columna «Estado» fuera de la pantalla | El encabezado se deja partir en dos líneas (`whitespace-normal` gana al `nowrap` de la celda). Comprobado a 375 px |
+| 3 | **La regla nueva se numeró dos veces mal**: `BR-N06` y `BR-N10` ya estaban ocupadas (misma combinación en otra rifa; validación en tres capas). Es BR-N11 | Renumerado en las 33 referencias, respetando las preexistentes |
+| 4 | Cuatro pruebas nuevas de base de datos **pasaban solas y fallaban en la suite completa**: afirmaban sobre boletas del seed, y otras suites dejan miles creadas (la de volumen, 5.000) | Crean sus propias boletas con números aleatorios y las borran al terminar; las de orden acotan por `p_raffle_id` |
+| 5 | **Cambió el orden del reparto de un abono** (efecto lateral real, no de las pruebas): al salir `internal_code` de la consulta de boletas por cobrar, el orden pasa de «por antigüedad» a «por número», que es el que se ve en el formulario | Se acepta —es el orden que el usuario ve— y se documenta en D-080. La prueba E2E que daba por hecho el orden de creación calcula ahora el mismo orden que la consulta |
+| 6 | Una corrida completa falló en `payments.spec.ts:210` con `waitForURL` tras `clearCookies()` | **No es de este cambio**: es I-038, ya documentado. Pasa al ejecutarla sola y no volvió a aparecer en la corrida siguiente, 178/178 |
+
+### Lo que NO cambió, comprobado
+
+`internal_code` se sigue generando por trigger, conserva su índice único y su índice de trigramas,
+sigue apareciendo en el detalle de la boleta y sigue siendo lo que identifica la fila en la base de
+datos y en la auditoría. **Las claves primarias y las relaciones no se tocaron**: la fila de la tabla
+se abre por `id`, igual que antes, y las 178 pruebas E2E —incluidas las de fila seleccionable— lo
+confirman.

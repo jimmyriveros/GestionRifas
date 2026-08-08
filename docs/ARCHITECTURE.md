@@ -329,13 +329,19 @@ la búsqueda **es** una navegación al Server Component, y por eso no hay ni hac
 
 | Pantalla | Tipo | Busca en | Pausa | Mínimo |
 |---|---|---|---|---|
-| `/owner/tickets`, `/seller/tickets` | URL → RSC | código interno (parcial), número diario y semanal (exacto) | 350 ms | 2 |
+| `/owner/tickets`, `/seller/tickets` | URL → RSC | número diario y semanal (parcial), por relevancia. **No** el código interno (BR-N11) | 350 ms | 2 |
 | `/owner/clients`, `/seller/clients` | URL → RSC | nombre, alias, teléfono, correo | 350 ms | 2 |
 | Asignar boleta → «Cliente existente» | Server Action | nombre, alias, teléfono | 350 ms | 2 |
 | Registrar abono → selector de cliente | Server Action | nombre, alias, teléfono | 350 ms | 2 |
 
-`Enter` y el botón «Buscar» se saltan el mínimo. Los números de boleta se comparan **exactos** y como
-texto (BR-N03): «07» no trae «0007». Sobre un identificador no se hace búsqueda parcial ni difusa.
+`Enter` y el botón «Buscar» se saltan el mínimo.
+
+**Boletas** (BR-N11, D-080): se busca por los dos números, por coincidencia **parcial** y siempre
+como **texto** —«123» encuentra `1234` y `0123`; «00» encuentra `0017`—, nunca convertidos a entero,
+que perdería los ceros de delante (BR-N03). El orden lo decide SQL, no el navegador: la función
+`search_tickets` de la migración `0018` pone las coincidencias del número diario por delante de las
+del semanal. Reordenar en el cliente no serviría, porque la lista está paginada en servidor. Un
+término que no sea de 1 a 4 dígitos devuelve cero resultados y la pantalla explica por qué.
 
 **Fila seleccionable — a qué tablas se aplica** (D-076): boletas, clientes, rifas y vendedores abren
 su detalle; pagos abre su diálogo. `UsersTable` **no** la lleva: no hay pantalla de detalle de

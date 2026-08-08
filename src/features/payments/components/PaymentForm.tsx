@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/constants'
 import { todayBogota } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { ticketLabel } from '@/lib/tickets'
 import { cn } from '@/lib/utils'
 
 import {
@@ -227,10 +228,7 @@ export function PaymentForm({ clientId, clientName, tickets, returnTo }: Payment
                 return (
                   <tr key={ticket.ticketId} className={cn('border-b', issue && 'bg-destructive/5')}>
                     <td className="px-3 py-2">
-                      <span className="font-mono text-xs">{ticket.internalCode}</span>
-                      <span className="text-muted-foreground block font-mono text-xs tabular-nums">
-                        {ticket.dailyNumber} / {ticket.weeklyNumber}
-                      </span>
+                      <span className="font-mono tabular-nums">{ticketLabel(ticket)}</span>
                     </td>
                     <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">
                       {formatCOP(ticket.salePrice)}
@@ -243,7 +241,7 @@ export function PaymentForm({ clientId, clientName, tickets, returnTo }: Payment
                     </td>
                     <td className="px-3 py-2">
                       <MoneyInput
-                        aria-label={`Valor abonado a la boleta ${ticket.internalCode}`}
+                        aria-label={`Valor abonado a la boleta ${ticketLabel(ticket)}`}
                         aria-invalid={Boolean(issue)}
                         value={amount === 0 ? null : amount}
                         onChange={(value) => setAmount(ticket.ticketId, value)}

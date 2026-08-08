@@ -10,9 +10,13 @@
  * entre 3 boletas da 33.334 + 33.333 + 33.333, nunca 33.333,33 (BR-P02).
  */
 
+import { ticketLabel } from '@/lib/tickets'
+
 export type PayableTicket = {
   ticketId: string
-  internalCode: string
+  /** Los dos numeros: con ellos se nombra la boleta al avisar de un error (BR-N11). */
+  dailyNumber: string | null
+  weeklyNumber: string | null
   /** Saldo pendiente de esta boleta, en pesos enteros. */
   pendingAmount: number
 }
@@ -93,7 +97,7 @@ export function validateAllocations(
   tickets: readonly PayableTicket[],
 ): AllocationValidation {
   const pendingByTicket = new Map(tickets.map((ticket) => [ticket.ticketId, ticket.pendingAmount]))
-  const codeByTicket = new Map(tickets.map((ticket) => [ticket.ticketId, ticket.internalCode]))
+  const labelByTicket = new Map(tickets.map((ticket) => [ticket.ticketId, ticketLabel(ticket)]))
   const issues: AllocationIssue[] = []
 
   for (const allocation of allocations) {
@@ -117,7 +121,7 @@ export function validateAllocations(
       issues.push({
         ticketId: allocation.ticketId,
         message:
-          `Supera el saldo pendiente de la boleta ${codeByTicket.get(allocation.ticketId) ?? ''}.`.trim(),
+          `Supera el saldo pendiente de la boleta ${labelByTicket.get(allocation.ticketId) ?? ''}.`.trim(),
       })
     }
   }

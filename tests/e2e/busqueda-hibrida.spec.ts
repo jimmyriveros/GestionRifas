@@ -71,30 +71,31 @@ test.describe('Listas paginadas: boletas y clientes', () => {
     await page.goto('/owner/tickets')
 
     const tracker = trackSearchNavigations(page)
-    const input = page.getByRole('searchbox', { name: 'Buscar por código o número' })
+    const input = page.getByRole('searchbox', { name: 'Buscar por número diario o semanal' })
 
-    // Ocho teclas seguidas, mas rapido que el debounce.
-    await input.pressSequentially('R001-001', { delay: 30 })
+    // Cuatro teclas seguidas, mas rapido que el debounce. Son cuatro y no ocho
+    // porque un numero de boleta tiene cuatro cifras como maximo (BR-N02).
+    await input.pressSequentially('0100', { delay: 30 })
     await expect.poll(() => tracker.count()).toBeGreaterThan(0)
     await page.waitForTimeout(600)
 
-    // Una sola busqueda para ocho teclas. Sin debounce serian ocho.
+    // Una sola busqueda para cuatro teclas. Sin debounce serian tres.
     expect(tracker.count()).toBe(1)
-    expect(tracker.terms()[0]).toBe('R001-001')
-    await expect(page).toHaveURL(/q=R001-001/)
+    expect(tracker.terms()[0]).toBe('0100')
+    await expect(page).toHaveURL(/q=0100/)
   })
 
   test('Enter dispara la búsqueda por su cuenta, sin pasar por la pausa', async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/tickets')
 
-    const input = page.getByRole('searchbox', { name: 'Buscar por código o número' })
+    const input = page.getByRole('searchbox', { name: 'Buscar por número diario o semanal' })
     // `fill` pone el texto de una vez, sin teclear: no programa ningun debounce.
     // Asi la unica ruta posible hasta la busqueda es la de `Enter`.
-    await input.fill('R001')
+    await input.fill('0100')
     await input.press('Enter')
 
-    await expect(page).toHaveURL(/q=R001/)
+    await expect(page).toHaveURL(/q=0100/)
 
     /*
       Aqui NO se cronometra. Medir «llegó antes de 350 ms» seria echar una
@@ -114,9 +115,9 @@ test.describe('Listas paginadas: boletas y clientes', () => {
     await page.goto('/owner/tickets')
 
     const tracker = trackSearchNavigations(page)
-    const input = page.getByRole('searchbox', { name: 'Buscar por código o número' })
+    const input = page.getByRole('searchbox', { name: 'Buscar por número diario o semanal' })
 
-    await input.pressSequentially('R001', { delay: 30 })
+    await input.pressSequentially('0100', { delay: 30 })
     await input.press('Enter')
     // Tiempo de sobra para que el debounce hubiera saltado tambien.
     await page.waitForTimeout(800)
@@ -129,29 +130,29 @@ test.describe('Listas paginadas: boletas y clientes', () => {
     await page.goto('/owner/tickets')
 
     const tracker = trackSearchNavigations(page)
-    const input = page.getByRole('searchbox', { name: 'Buscar por código o número' })
+    const input = page.getByRole('searchbox', { name: 'Buscar por número diario o semanal' })
 
-    await input.fill('R')
+    await input.fill('7')
     await page.waitForTimeout(700)
     expect(tracker.count()).toBe(0)
     await expect(page.getByText(/Escribe al menos 2 caracteres/)).toBeVisible()
 
     // Quien tiene prisa no se queda encerrado por el minimo.
     await input.press('Enter')
-    await expect(page).toHaveURL(/q=R/)
+    await expect(page).toHaveURL(/q=7/)
   })
 
   test('limpiar restaura la lista y quita el término de la dirección', async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
-    await page.goto('/owner/tickets?q=R001')
+    await page.goto('/owner/tickets?q=0100')
 
     const totalFiltrado = await page.locator('tbody tr').count()
     await page.getByRole('button', { name: 'Limpiar búsqueda' }).click()
 
     await expect(page).not.toHaveURL(/q=/)
-    await expect(page.getByRole('searchbox', { name: 'Buscar por código o número' })).toHaveValue(
-      '',
-    )
+    await expect(
+      page.getByRole('searchbox', { name: 'Buscar por número diario o semanal' }),
+    ).toHaveValue('')
     await expect.poll(() => page.locator('tbody tr').count()).toBeGreaterThanOrEqual(totalFiltrado)
   })
 
@@ -159,25 +160,25 @@ test.describe('Listas paginadas: boletas y clientes', () => {
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/tickets')
 
-    const input = page.getByRole('searchbox', { name: 'Buscar por código o número' })
+    const input = page.getByRole('searchbox', { name: 'Buscar por número diario o semanal' })
     await input.click()
-    await input.pressSequentially('R001', { delay: 30 })
-    await expect(page).toHaveURL(/q=R001/)
+    await input.pressSequentially('010', { delay: 30 })
+    await expect(page).toHaveURL(/q=010/)
 
     // Perder el foco aqui se traduce en teclas que no llegan al campo.
     await expect(input).toBeFocused()
-    await input.pressSequentially('-0', { delay: 30 })
-    await expect(input).toHaveValue('R001-0')
+    await input.pressSequentially('9', { delay: 30 })
+    await expect(input).toHaveValue('0109')
   })
 
   test('cambiar el término vuelve a la primera página', async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/tickets?page=2')
 
-    await page.getByRole('searchbox', { name: 'Buscar por código o número' }).fill('R001')
-    await page.getByRole('searchbox', { name: 'Buscar por código o número' }).press('Enter')
+    await page.getByRole('searchbox', { name: 'Buscar por número diario o semanal' }).fill('0100')
+    await page.getByRole('searchbox', { name: 'Buscar por número diario o semanal' }).press('Enter')
 
-    await expect(page).toHaveURL(/q=R001/)
+    await expect(page).toHaveURL(/q=0100/)
     // Quedarse en la pagina 2 de otra busqueda muestra una lista vacia sin motivo.
     await expect(page).not.toHaveURL(/page=2/)
   })
@@ -186,10 +187,10 @@ test.describe('Listas paginadas: boletas y clientes', () => {
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/tickets?inventoryStatus=available')
 
-    await page.getByRole('searchbox', { name: 'Buscar por código o número' }).fill('R001')
-    await page.getByRole('searchbox', { name: 'Buscar por código o número' }).press('Enter')
+    await page.getByRole('searchbox', { name: 'Buscar por número diario o semanal' }).fill('0100')
+    await page.getByRole('searchbox', { name: 'Buscar por número diario o semanal' }).press('Enter')
 
-    await expect(page).toHaveURL(/q=R001/)
+    await expect(page).toHaveURL(/q=0100/)
     await expect(page).toHaveURL(/inventoryStatus=available/)
   })
 

@@ -40,9 +40,11 @@ test('ciclo completo del vendedor desde el teléfono', async ({ page }) => {
   await page.waitForURL(/\/seller\/tickets/)
 
   // 2. Buscar la boleta por su numero.
-  await page.getByPlaceholder('Código interno, número diario o semanal').fill(numbers.daily)
+  await page.getByPlaceholder('Número diario o semanal').fill(numbers.daily)
   await page.getByRole('button', { name: 'Buscar' }).click()
-  await page.getByRole('link', { name: ticket.internalCode }).click()
+  await page
+    .getByRole('link', { name: `Ver la boleta ${numbers.daily} / ${numbers.weekly}` })
+    .click()
   await page.waitForURL(/\/seller\/tickets\/[0-9a-f-]+$/)
 
   // 3. Crear el cliente y asignar, sin salir del flujo.

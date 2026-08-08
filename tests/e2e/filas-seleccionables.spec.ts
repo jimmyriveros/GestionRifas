@@ -184,21 +184,24 @@ test.describe('Fila seleccionable en las tablas', () => {
     const ticket = await availableTicket()
 
     await loginAs(page, ACCOUNTS.seller)
-    await page.goto(`/seller/tickets?q=${ticket.internalCode}`)
+    // Se busca por el número diario: el código interno ya no busca (BR-N11).
+    await page.goto(`/seller/tickets?q=${ticket.numbers.daily}`)
 
     const row = await firstRow(page)
-    // La celda de los números: texto suelto, sin enlace ni botón dentro.
-    await row.getByText(`${ticket.numbers.daily} / ${ticket.numbers.weekly}`).click()
+    // La celda del número semanal: texto suelto, sin enlace ni botón dentro.
+    await row.getByText(ticket.numbers.weekly, { exact: true }).click()
 
     await page.waitForURL(`**/seller/tickets/${ticket.id}`)
-    await expect(page.getByRole('heading', { name: ticket.internalCode })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: `${ticket.numbers.daily} / ${ticket.numbers.weekly}` }),
+    ).toBeVisible()
   })
 
   test('la fila se abre con el teclado: Enter sobre la fila enfocada', async ({ page }) => {
     const ticket = await availableTicket()
 
     await loginAs(page, ACCOUNTS.seller)
-    await page.goto(`/seller/tickets?q=${ticket.internalCode}`)
+    await page.goto(`/seller/tickets?q=${ticket.numbers.daily}`)
 
     await (await firstRow(page)).focus()
     await page.keyboard.press('Enter')
@@ -210,7 +213,7 @@ test.describe('Fila seleccionable en las tablas', () => {
     const ticket = await availableTicket('pending_approval')
 
     await loginAs(page, ACCOUNTS.owner)
-    await page.goto(`/owner/tickets?q=${ticket.internalCode}`)
+    await page.goto(`/owner/tickets?q=${ticket.numbers.daily}`)
 
     const row = await firstRow(page)
     await row.getByRole('checkbox').click()

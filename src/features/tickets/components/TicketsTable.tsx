@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { formatCOP } from '@/lib/money'
+import { ticketLabel } from '@/lib/tickets'
 
 import { approveTickets } from '../actions'
 import type { TicketListItem } from '../queries'
@@ -58,7 +59,7 @@ export function TicketsTable({
                 <Checkbox
                   checked={row.getIsSelected()}
                   onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
-                  aria-label={`Seleccionar boleta ${row.original.internalCode}`}
+                  aria-label={`Seleccionar la boleta ${ticketLabel(row.original)}`}
                 />
               ) : null,
           },
@@ -78,25 +79,40 @@ export function TicketsTable({
 
     return [
       ...selectColumn,
+      /*
+        Los dos numeros son lo primero que se ve, y en columnas separadas: asi
+        se recorre la lista con la vista por una sola de ellas, que es como se
+        busca de verdad. El codigo interno no aparece aqui —vive en el detalle,
+        junto al resto de la informacion administrativa (BR-N11)—, pero la fila
+        se sigue abriendo por su `id`, igual que antes.
+
+        El enlace se conserva sobre el numero diario, aunque la fila entera sea
+        pulsable: da el menu contextual, «abrir en otra pestana» y una parada de
+        teclado con nombre (ver DataTable).
+      */
       {
-        accessorKey: 'internalCode',
-        header: 'Código',
+        accessorKey: 'dailyNumber',
+        // El encabezado se deja partir en dos lineas (`whitespace-normal` gana
+        // al `nowrap` de la celda): en un telefono, «Número diario» y «Número
+        // semanal» en una sola linea empujan la columna «Estado» fuera de la
+        // pantalla.
+        header: () => <span className="whitespace-normal">Número diario</span>,
         cell: ({ row }) => (
           <Link
             href={`${basePath}/${row.original.id}`}
-            className="font-mono text-xs hover:underline"
+            className="font-mono text-base font-medium tabular-nums hover:underline"
+            aria-label={`Ver la boleta ${ticketLabel(row.original)}`}
           >
-            {row.original.internalCode}
+            {row.original.dailyNumber ?? '—'}
           </Link>
         ),
       },
       {
-        id: 'numbers',
-        header: 'Diario / Semanal',
-        enableSorting: false,
+        accessorKey: 'weeklyNumber',
+        header: () => <span className="whitespace-normal">Número semanal</span>,
         cell: ({ row }) => (
-          <span className="font-mono tabular-nums">
-            {row.original.dailyNumber ?? '—'} / {row.original.weeklyNumber ?? '—'}
+          <span className="font-mono text-base tabular-nums">
+            {row.original.weeklyNumber ?? '—'}
           </span>
         ),
       },

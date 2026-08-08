@@ -142,11 +142,17 @@ export function meetsMinChars(term: string, minChars: number): boolean {
 }
 
 /**
- * `true` si el termino es un numero de boleta completo (1 a 4 digitos).
+ * `true` si el termino puede ser un numero de boleta o parte de uno.
  *
- * Los numeros diario y semanal se comparan EXACTOS y como texto (BR-N03):
- * buscar «07» no puede traer «0007» ni «7». Por eso se distinguen aqui, en vez
- * de dejarlos caer en la busqueda parcial junto al resto.
+ * Los numeros diario y semanal son texto de 1 a 4 digitos (BR-N02), asi que un
+ * termino con cualquier otro caracter —«R001», «12A4», un codigo interno
+ * entero— no puede coincidir con ninguno: no hay nada que consultar (BR-N11).
+ *
+ * Se comparan SIEMPRE como texto, nunca convertidos a numero: «00» tiene que
+ * poder encontrar «0017», y `parseInt('0017')` perderia los ceros de delante.
+ *
+ * La misma regla vive en SQL, dentro de `search_tickets` (migracion 0018): si
+ * cambia una, tiene que cambiar la otra.
  */
 export function isTicketNumberTerm(term: string): boolean {
   return /^[0-9]{1,4}$/.test(term.trim())

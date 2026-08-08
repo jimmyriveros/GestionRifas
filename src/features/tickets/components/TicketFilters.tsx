@@ -7,6 +7,7 @@ import { useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { SearchInput } from '@/features/search/components/SearchInput'
+import { ticketSearchHint } from '@/features/search/hints'
 import { useUrlSearch } from '@/features/search/use-url-search'
 import { tourTarget } from '@/features/tour/tours'
 import {
@@ -79,18 +80,20 @@ export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps)
 
   return (
     <div {...tourTarget('filters')} className="space-y-3 rounded-lg border p-4">
+      {/* Se busca por los dos numeros, nunca por el codigo interno (BR-N11):
+          es como se identifica una boleta al trabajar con ella. */}
       <SearchInput
         id="ticket-search"
-        label="Buscar por código o número"
+        label="Buscar por número diario o semanal"
         hideLabel
-        placeholder="Código interno, número diario o semanal"
+        placeholder="Número diario o semanal"
         value={search.value}
         onChange={search.onChange}
         onSubmit={search.submitNow}
         onClear={search.clear}
         loading={search.showSpinner}
         showSubmitButton
-        hint={search.hint}
+        hint={ticketSearchHint(search.value) ?? search.hint}
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -21,6 +21,7 @@ import { requireStaff } from '@/lib/auth/guards'
 import { ROLE_LABELS } from '@/lib/constants'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { ticketLabel } from '@/lib/tickets'
 
 export default async function OwnerDashboardPage() {
   const membership = await requireStaff()
@@ -233,7 +234,7 @@ export default async function OwnerDashboardPage() {
                     href={`/owner/tickets/${ticket.id}`}
                     className="font-mono text-sm hover:underline"
                   >
-                    {ticket.internalCode}
+                    {ticketLabel(ticket)}
                   </Link>
                   <span className="text-muted-foreground text-xs">
                     {formatDateTimeEs(ticket.createdAt)}

@@ -105,6 +105,21 @@ no puede ascender a nadie a Owner (BR-U03). Lo cierra el trigger diferido de la 
 | BR-N08 | En el MVP, una combinación de una boleta **anulada no puede reutilizarse** dentro de la misma rifa. | D | 2 |
 | BR-N09 | Una boleta fuera de `draft` debe tener ambos números; un campo vacío en una boleta disponible es inválido. | S, D | 2 |
 | BR-N10 | La validación de duplicados ocurre en las tres capas: dentro del formulario, contra la base de datos y como restricción física. | C, S, D | 3 |
+| BR-N11 | **Una boleta se busca por su número diario y, en segundo lugar, por su número semanal.** El código interno no participa en ninguna búsqueda de la interfaz y solo se muestra dentro del detalle de la boleta. | C, S, D | post-9 |
+
+**BR-N11 en detalle** (migración `0018`, D-080). Es la regla que gobierna búsqueda y presentación:
+
+| Aspecto | Regla |
+|---|---|
+| Dónde se busca | `daily_number` y `weekly_number`. **Nunca** `internal_code` |
+| Cómo se compara | Como **texto** y por **coincidencia parcial**: «123» encuentra `1234`, `0123` y `1237`; «00» encuentra `0017` |
+| Qué término se acepta | De 1 a 4 dígitos (BR-N02). Cualquier otra cosa —letras, un código interno, 5 cifras— devuelve **cero resultados** y la pantalla explica por qué |
+| Orden de los resultados | Diario exacto → diario empieza → diario contiene → semanal exacto → semanal empieza → semanal contiene. Dentro del mismo escalón, por número ascendente |
+| Dónde se muestra el código | Solo en el detalle de la boleta, bajo «Información administrativa» |
+| Qué NO cambia | El código interno sigue siendo el identificador administrativo, se sigue generando, se sigue guardando y se sigue indexando. Las claves primarias y las relaciones no se tocan |
+
+BR-N03 (los ceros iniciales se conservan) manda también aquí: el término **no** se convierte a entero
+en ninguna capa, porque `parseInt('0017')` perdería justo lo que distingue una boleta de otra.
 
 Ejemplos normativos:
 
