@@ -11,7 +11,7 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Queda **una acción técnica pendiente** —aplicar la migración `0020` al proyecto real, que bloquea el despliegue— y, aparte, decisiones del usuario (ver §1.b) |
-| Rama / commit / etiqueta | `main` · selección múltiple y acciones masivas de boletas (2026-08-08) — **solo local, sin desplegar** · última etiqueta `fase-9` en `a8c4083` |
+| Rama / commit / etiqueta | **`feature/seleccion-multiple-boletas`** · `1697305` (selección múltiple y acciones masivas, 2026-08-08) — **solo local, sin desplegar y sin fusionar a `main`** · última etiqueta `fase-9` en `a8c4083` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` — **el local va por delante**: la selección múltiple (2026-08-08) está solo aquí. De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
