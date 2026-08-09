@@ -12,6 +12,10 @@ import { TicketFilters } from '@/features/tickets/components/TicketFilters'
 import { TicketsTable } from '@/features/tickets/components/TicketsTable'
 import { listTickets } from '@/features/tickets/queries'
 import { inventoryStatusSchema, paymentStatusSchema } from '@/features/tickets/schemas'
+import { TicketListSlot } from '@/features/tickets/selection/components/SelectedTicketsView'
+import { TicketSelectionToolbar } from '@/features/tickets/selection/components/TicketSelectionToolbar'
+import { TicketSelectionProvider } from '@/features/tickets/selection/TicketSelectionContext'
+import { SEARCH_OPTIONS_LIMIT } from '@/lib/search'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -57,6 +61,24 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
     single(params.paymentStatus),
   )
 
+  // Los mismos filtros que la consulta, para que «seleccionar todas las que
+  // coinciden» seleccione exactamente lo que hay en pantalla (seccion 16).
+  const selectionFilters = {
+    raffleId: single(params.raffleId),
+    clientId: single(params.clientId),
+    inventoryStatus: inventoryStatus.success ? inventoryStatus.data : undefined,
+    paymentStatus: paymentStatus.success ? paymentStatus.data : undefined,
+    search: single(params.q),
+  }
+
+  // Precio vigente de cada rifa: el total de una venta se suma boleta a boleta,
+  // nunca con una cifra fija (seccion 30).
+  const rafflePrices = Object.fromEntries(raffles.map((raffle) => [raffle.id, raffle.ticketPrice]))
+
+  // Primeros clientes del vendedor para el selector del dialogo; a partir de
+  // ahi se busca en el servidor (I-036).
+  const clientOptions = clients.slice(0, SEARCH_OPTIONS_LIMIT)
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -74,45 +96,56 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
         }
       />
 
-      <TicketFilters
-        raffles={raffles.map((raffle) => ({
-          value: raffle.id,
-          label: `${raffle.shortCode} — ${raffle.name}`,
-        }))}
-        clients={clients.map((client) => ({ value: client.id, label: client.name }))}
-      />
-
-      {rows.length === 0 ? (
-        <EmptyState
-          icon={<TicketIcon className="size-8" aria-hidden />}
-          title={
-            hasFilters ? 'Ninguna boleta coincide con los filtros' : 'Todavía no tienes boletas'
-          }
-          description={
-            ticketSearchEmptyDescription(single(params.q), hasFilters) ??
-            (canCreate
-              ? 'Puedes crear tus propias boletas: quedarán pendientes de aprobación.'
-              : 'Tu administrador todavía no te ha asignado boletas. Pídeselas cuando las necesites.')
-          }
-          action={
-            !hasFilters && canCreate ? (
-              <Button asChild>
-                <Link href="/seller/tickets/new">Crear mis primeras boletas</Link>
-              </Button>
-            ) : null
-          }
-        />
-      ) : (
-        <>
-          <TicketsTable
-            tickets={rows}
-            basePath="/seller/tickets"
-            showSeller={false}
-            enableApproval={false}
+      {/* La seleccion multiple envuelve filtros y tabla a la vez: buscar
+          varias veces y quedarse con boletas de cada busqueda es justo el caso
+          de un vendedor que atiende a un cliente (seccion 11). */}
+      <TicketSelectionProvider storageKey="seller-tickets" pageIds={rows.map((row) => row.id)}>
+        <div className="space-y-6">
+          <TicketFilters
+            raffles={raffles.map((raffle) => ({
+              value: raffle.id,
+              label: `${raffle.shortCode} — ${raffle.name}`,
+            }))}
+            clients={clients.map((client) => ({ value: client.id, label: client.name }))}
           />
-          <DataTablePagination total={total} page={page} pageSize={pageSize} />
-        </>
-      )}
+
+          {rows.length === 0 ? (
+            <EmptyState
+              icon={<TicketIcon className="size-8" aria-hidden />}
+              title={
+                hasFilters ? 'Ninguna boleta coincide con los filtros' : 'Todavía no tienes boletas'
+              }
+              description={
+                ticketSearchEmptyDescription(single(params.q), hasFilters) ??
+                (canCreate
+                  ? 'Puedes crear tus propias boletas: quedarán pendientes de aprobación.'
+                  : 'Tu administrador todavía no te ha asignado boletas. Pídeselas cuando las necesites.')
+              }
+              action={
+                !hasFilters && canCreate ? (
+                  <Button asChild>
+                    <Link href="/seller/tickets/new">Crear mis primeras boletas</Link>
+                  </Button>
+                ) : null
+              }
+            />
+          ) : (
+            <>
+              <TicketSelectionToolbar
+                portal="seller"
+                total={total}
+                filters={selectionFilters}
+                clients={clientOptions}
+                rafflePrices={rafflePrices}
+              />
+              <TicketListSlot basePath="/seller/tickets" showSeller={false}>
+                <TicketsTable tickets={rows} basePath="/seller/tickets" showSeller={false} />
+                <DataTablePagination total={total} page={page} pageSize={pageSize} />
+              </TicketListSlot>
+            </>
+          )}
+        </div>
+      </TicketSelectionProvider>
     </div>
   )
 }

@@ -189,6 +189,34 @@ Cualquier transición no listada se rechaza en el trigger `tickets_validate_stat
 
 ---
 
+## 7.b Selección múltiple y acciones masivas (BR-B)
+
+Añadidas después de la Fase 9, a petición del usuario. Detalle de las decisiones en
+[`DECISIONS.md`](DECISIONS.md) D-082 a D-085; las funciones viven en la migración `0020`.
+
+| ID | Regla | Capas | Fase |
+|----|-------|-------|------|
+| BR-B01 | Se pueden seleccionar varias boletas de la lista y actuar sobre todas a la vez. La selección se identifica **siempre** por `ticket.id`, nunca por posición, y admite como máximo **1.000** boletas por operación. | C, S, D | post-9 |
+| BR-B02 | **Asignación múltiple (vendedor):** varias boletas se venden al mismo cliente en una sola operación, con las mismas reglas de BR-I07 y BR-P03 aplicadas a cada una. | C, S, D | post-9 |
+| BR-B03 | **Anulación múltiple (Dueño/Administrador):** un único motivo cubre el lote. Mismas condiciones que BR-I10 y BR-I11. | C, S, D | post-9 |
+| BR-B04 | **Cambio de vendedor múltiple (Dueño/Administrador):** ni asignadas ni anuladas (BR-C05), y el destino debe ser un vendedor activo de la organización. | C, S, D | post-9 |
+| BR-B05 | **Eliminación (Dueño/Administrador):** borrado **físico**, solo para registros cargados por error. Exige estado `draft`, `pending_approval` o `available`, sin cliente, sin `sale_price` y sin ninguna asignación de pago —ni siquiera de un pago anulado—. **Una boleta anulada nunca se elimina**: su combinación queda reservada (BR-N08). Motivo obligatorio. | C, S, D | post-9 |
+| BR-B06 | Antes de ejecutar, la pantalla dice cuántas boletas admiten la acción y **cuáles no y por qué**. Si una sola no la admite, la acción se deshabilita para el grupo entero. | C, S | post-9 |
+| BR-B07 | **Todo o nada.** El servidor revalida rol, organización, propiedad y estado de cada boleta con las filas bloqueadas; si falta una sola condición, no se modifica ninguna. Nunca hay resultados parciales silenciosos. | S, D | post-9 |
+| BR-B08 | Toda acción masiva queda auditada dos veces: la fila de cada boleta (`ticket.cancel`, `ticket.assign_client`, `ticket.update`, `ticket.delete`) y una del lote (`ticket.bulk_*`) con el recuento y el motivo. En una eliminación, el detalle —rifa, vendedor, id y los dos números— se guarda **antes** de borrar. | D | post-9 |
+
+**Anular y eliminar no son lo mismo, y la diferencia importa:**
+
+| | Anular | Eliminar |
+|---|---|---|
+| Para qué | Retirar de circulación una boleta que existió | Corregir un registro que nunca debió existir |
+| Qué pasa con la fila | Se conserva, en estado `cancelled` | Se borra físicamente |
+| Qué pasa con la combinación | Queda **reservada** para siempre en esa rifa (BR-N08) | Vuelve a estar libre |
+| Con cliente o abonos | Se puede (tras anular los abonos) | **Nunca** |
+| Estado de partida | Cualquiera menos `cancelled` | Solo `draft`, `pending_approval` o `available` |
+
+---
+
 ## 8. Precio de venta (BR-P)
 
 | ID | Regla | Capas | Fase |

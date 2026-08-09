@@ -123,6 +123,15 @@ export async function updateTicketNumbers(input: unknown): Promise<ActionResult>
   return { ok: true }
 }
 
+/**
+ * Cambia el vendedor de UNA boleta.
+ *
+ * Va por `bulk_change_ticket_seller` con un solo id: es la misma funcion que
+ * usa el cambio en lote, asi que las reglas —ni asignada ni anulada (BR-C05),
+ * destino vendedor activo de la organizacion— se escriben una sola vez y en
+ * SQL, donde ademas quedan protegidas de una llamada directa a la API
+ * (seccion 43 del encargo). Antes vivian aqui, en un UPDATE sujeto a RLS.
+ */
 export async function reassignTicketSeller(input: unknown): Promise<ActionResult> {
   const auth = await authorizeAction(['owner', 'admin'])
   if ('error' in auth) return auth
@@ -134,28 +143,10 @@ export async function reassignTicketSeller(input: unknown): Promise<ActionResult
   const values = parsed.data
 
   const supabase = await createClient()
-  const { data: ticket, error: readError } = await supabase
-    .from('tickets')
-    .select('id, inventory_status')
-    .eq('id', values.ticketId)
-    .maybeSingle()
-
-  if (readError) return { error: mapPgError(readError) }
-  if (!ticket) return { error: 'La boleta no existe o no tienes acceso a ella.' }
-
-  // Una boleta ya vendida arrastra al cliente, que pertenece al vendedor
-  // original (BR-C05). Cambiar de vendedor romperia esa cadena, y la FK
-  // compuesta tickets_client_seller_fk lo impediria de todas formas.
-  if (ticket.inventory_status === 'assigned' || ticket.inventory_status === 'cancelled') {
-    return {
-      error: 'Solo se puede cambiar el vendedor de una boleta que no esté asignada ni anulada.',
-    }
-  }
-
-  const { error } = await supabase
-    .from('tickets')
-    .update({ seller_id: values.sellerId })
-    .eq('id', values.ticketId)
+  const { error } = await supabase.rpc('bulk_change_ticket_seller', {
+    p_ticket_ids: [values.ticketId],
+    p_seller_id: values.sellerId,
+  })
 
   if (error) return { error: mapPgError(error) }
 

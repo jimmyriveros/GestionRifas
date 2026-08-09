@@ -576,6 +576,34 @@ pregunten), no por el tamaño de la rifa.
 `log_ticket_import` existe porque `authenticated` solo tiene `SELECT` sobre `audit_logs`: la bitácora
 la escriben funciones `SECURITY DEFINER` (0006). No guarda el archivo, solo el recuento (D-081).
 
+### 6.e Acciones masivas de boletas (migración `0020`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `ticket_bulk_eligibility(ids)` | Por boleta: sus dos números, su estado, si tiene cliente o abonos, y qué acciones admite | La barra de selección y los diálogos, para decir qué se puede y qué no (BR-B06) |
+| `bulk_assign_tickets(ids, client, date)` | Cuántas se asignaron | `assignTickets`, la única acción de asignación, con una boleta o con veinte |
+| `bulk_cancel_tickets(ids, reason)` | Cuántas se anularon | `bulkCancelTickets` |
+| `bulk_change_ticket_seller(ids, seller)` | Cuántas cambiaron | `bulkChangeTicketSeller` **y** el cambio individual del detalle |
+| `bulk_delete_tickets(ids, reason)` | Cuántas se eliminaron | `bulkDeleteTickets` **y** el botón «Eliminar boleta» del detalle |
+
+Tres piezas internas, **sin `EXECUTE` para nadie** salvo el dueño: `assign_ticket_row` y
+`cancel_ticket_row` —el cuerpo que `assign_ticket` y `cancel_ticket` tenían en `0007`, ahora extraído
+y compartido— y `lock_ticket_batch`, que normaliza la lista y bloquea las filas en orden de id.
+
+`ticket_bulk_eligibility` es `SECURITY INVOKER`, como las de reporte: solo lee y hereda
+`tickets_select`, así que un vendedor únicamente recibe las suyas. Las cuatro que escriben son
+`SECURITY DEFINER` y validan rol, organización, propiedad y estado por su cuenta (D-082, D-083).
+
+**`bulk_delete_tickets` es el único punto del sistema donde se borra una fila de negocio.** El
+proyecto sigue sin conceder `DELETE` a ningún rol (D-038): el borrado ocurre dentro de esta función,
+solo para boletas sin cliente, sin `sale_price` y sin ninguna asignación de pago, nunca para una
+anulada —su combinación queda reservada por BR-N08— y siempre con motivo y bitacora (D-084).
+`payment_allocations.alloc_ticket_client_fk` es `on delete restrict`, así que la base de datos lo
+impediría igual aunque la función se equivocara.
+
+**Índices: ninguno nuevo.** Todo se busca por `tickets.id` (clave primaria) o por
+`payment_allocations.ticket_id`, que ya tenía índice desde `0003`.
+
 ---
 
 ## 7. Triggers

@@ -19,6 +19,12 @@ export type TicketFilters = {
   paymentStatus?: TicketPaymentStatus
   /** Numero diario o semanal, entero o en parte (BR-N11). El codigo interno no. */
   search?: string
+  /**
+   * Boletas concretas por su id: lo usa la seleccion multiple, que se acumula
+   * entre busquedas distintas y por tanto no se puede describir con filtros
+   * (BR-B01). Convive con el resto de filtros, aunque en la practica se usa sola.
+   */
+  ticketIds?: readonly string[]
   page?: number
   pageSize?: number
 }
@@ -91,6 +97,7 @@ export async function listTickets(
   const supabase = await createClient()
   let query = supabase.from('tickets').select(TICKET_SELECT, { count: 'exact' })
 
+  if (filters.ticketIds) query = query.in('id', [...filters.ticketIds])
   if (filters.raffleId) query = query.eq('raffle_id', filters.raffleId)
   if (filters.sellerId) query = query.eq('seller_id', filters.sellerId)
   if (filters.clientId) query = query.eq('client_id', filters.clientId)

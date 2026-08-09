@@ -20,6 +20,7 @@ import {
   isActivationKey,
   shouldActivateRow,
 } from '@/components/data/row-activation'
+import { useLongPress } from '@/components/data/use-long-press'
 import {
   Table,
   TableBody,
@@ -77,6 +78,14 @@ type DataTableProps<TData, TValue> = {
   rowHref?: (row: TData) => string | null
   /** Alternativa a `rowHref` cuando la fila abre un dialogo en vez de navegar. */
   onRowActivate?: (row: TData) => void
+  /**
+   * Modo seleccion: mientras esta activo, pulsar la fila la marca o la desmarca
+   * en vez de abrir su detalle (seccion 3 del encargo). Es lo que convierte la
+   * fila entera en la diana, para no obligar a acertar sobre la casilla.
+   */
+  onRowSelect?: (row: TData) => void
+  /** Pulsacion larga con el dedo: atajo para entrar en modo seleccion. */
+  onRowLongPress?: (row: TData) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -90,9 +99,12 @@ export function DataTable<TData, TValue>({
   caption,
   rowHref,
   onRowActivate,
+  onRowSelect,
+  onRowLongPress,
 }: DataTableProps<TData, TValue>) {
   const router = useRouter()
   const [sorting, setSorting] = useState<SortingState>([])
+  const longPress = useLongPress(onRowLongPress)
 
   const table = useReactTable({
     data,
@@ -113,7 +125,15 @@ export function DataTable<TData, TValue>({
     return <>{empty}</>
   }
 
+  /**
+   * En modo seleccion la fila marca, no abre. Es lo que evita que un toque mal
+   * dado saque a la persona de la lista que estaba revisando.
+   */
   function activate(rowData: TData, href: string | null) {
+    if (onRowSelect) {
+      onRowSelect(rowData)
+      return
+    }
     if (onRowActivate) {
       onRowActivate(rowData)
       return
@@ -126,6 +146,9 @@ export function DataTable<TData, TValue>({
     rowData: TData,
     href: string | null,
   ) {
+    // Una pulsacion larga ya hizo su trabajo: el `click` que el navegador emite
+    // despues no debe contar otra vez.
+    if (longPress.consumeSuppressedClick()) return
     if (!shouldActivateRow(event.target, event.currentTarget)) return
     if (hasTextSelection(window.getSelection())) return
     activate(rowData, href)
@@ -209,13 +232,14 @@ export function DataTable<TData, TValue>({
           ) : (
             table.getRowModel().rows.map((row) => {
               const href = rowHref ? rowHref(row.original) : null
-              const clickable = Boolean(onRowActivate) || href !== null
+              const clickable = Boolean(onRowSelect) || Boolean(onRowActivate) || href !== null
 
               return (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
                   data-clickable={clickable ? 'true' : undefined}
+                  aria-selected={rowSelection ? row.getIsSelected() : undefined}
                   tabIndex={clickable ? 0 : undefined}
                   onClick={
                     clickable ? (event) => handleRowClick(event, row.original, href) : undefined
@@ -223,6 +247,7 @@ export function DataTable<TData, TValue>({
                   onKeyDown={
                     clickable ? (event) => handleRowKeyDown(event, row.original, href) : undefined
                   }
+                  {...longPress.getHandlers(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => {
                     const meta = cell.column.columnDef.meta

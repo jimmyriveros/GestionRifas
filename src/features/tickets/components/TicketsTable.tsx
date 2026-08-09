@@ -2,19 +2,15 @@
 
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useMemo, useState, useTransition } from 'react'
-import { toast } from 'sonner'
+import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
 import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/StatusBadge'
-import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
+import { SelectionCheckbox } from '@/components/form/SelectionCheckbox'
+import { useOptionalTicketSelection } from '@/features/tickets/selection/TicketSelectionContext'
 import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
 
-import { approveTickets } from '../actions'
 import type { TicketListItem } from '../queries'
 
 type TicketsTableProps = {
@@ -23,45 +19,58 @@ type TicketsTableProps = {
   basePath?: string
   /** El vendedor no necesita la columna «Vendedor»: todas las boletas son suyas. */
   showSeller?: boolean
-  /**
-   * Aprobacion en lote. Solo el portal administrativo la ofrece (BR-I09): un
-   * vendedor no puede aprobar ni sus propias boletas, asi que mostrarle las
-   * casillas seria prometerle algo que el servidor rechaza.
-   */
-  enableApproval?: boolean
 }
 
+/**
+ * Tabla de boletas de los dos portales.
+ *
+ * La seleccion multiple es OPCIONAL: la columna de casillas aparece solo si la
+ * tabla esta dentro de un `TicketSelectionProvider`. Las boletas de un cliente,
+ * que se listan con esta misma tabla dentro de su ficha, no la necesitan y no
+ * la muestran.
+ *
+ * En escritorio la columna esta siempre y la fila sigue abriendo el detalle. En
+ * el telefono la columna aparece solo en modo seleccion, y entonces la fila
+ * entera marca en vez de abrir (secciones 3 y 19 del encargo). Que la columna se
+ * vea o no lo decide Tailwind, no JavaScript: asi no parpadea al cargar.
+ */
 export function TicketsTable({
   tickets,
   basePath = '/owner/tickets',
   showSeller = true,
-  enableApproval = true,
 }: TicketsTableProps) {
-  const router = useRouter()
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [isPending, startTransition] = useTransition()
-
-  const selectedIds = Object.keys(rowSelection).filter((id) => rowSelection[id])
-  const approvableCount = enableApproval
-    ? tickets.filter((ticket) => ticket.inventoryStatus === 'pending_approval').length
-    : 0
+  const selection = useOptionalTicketSelection()
 
   const columns = useMemo<ColumnDef<TicketListItem>[]>(() => {
-    const selectColumn: ColumnDef<TicketListItem>[] = enableApproval
+    const selectColumn: ColumnDef<TicketListItem>[] = selection
       ? [
           {
             id: 'select',
-            header: () => <span className="sr-only">Seleccionar</span>,
             enableSorting: false,
-            cell: ({ row }) =>
-              row.getCanSelect() ? (
-                <Checkbox
-                  checked={row.getIsSelected()}
-                  onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
-                  aria-label={`Seleccionar la boleta ${ticketLabel(row.original)}`}
-                />
-              ) : null,
+            // La columna esta siempre en escritorio y, en el telefono, solo en
+            // modo seleccion. Se reutiliza `hideOnMobile`, que ya existe: es una
+            // clase de Tailwind, asi que la decide el navegador sin JavaScript.
+            meta: { hideOnMobile: !selection.selectionMode },
+            header: () => (
+              <SelectionCheckbox
+                checked={
+                  selection.pageAllSelected
+                    ? true
+                    : selection.pageSomeSelected
+                      ? 'indeterminate'
+                      : false
+                }
+                onCheckedChange={(checked) => selection.togglePage(checked)}
+                label="Seleccionar las boletas de esta página"
+              />
+            ),
+            cell: ({ row }) => (
+              <SelectionCheckbox
+                checked={selection.isSelected(row.original.id)}
+                onCheckedChange={() => selection.toggle(row.original.id)}
+                label={`Seleccionar la boleta ${ticketLabel(row.original)}`}
+              />
+            ),
           },
         ]
       : []
@@ -160,70 +169,33 @@ export function TicketsTable({
         ),
       },
     ]
-  }, [basePath, showSeller, enableApproval])
+  }, [basePath, showSeller, selection])
 
-  function confirmApprove() {
-    startTransition(async () => {
-      const result = await approveTickets({ ticketIds: selectedIds })
-      if ('error' in result) {
-        toast.error(result.error)
-      } else {
-        toast.success(
-          result.data.count === 1
-            ? 'Se aprobó 1 boleta.'
-            : `Se aprobaron ${result.data.count} boletas.`,
-        )
-        setRowSelection({})
-        router.refresh()
-      }
-      setConfirmOpen(false)
-    })
-  }
+  // TanStack necesita el mapa `{ id: true }` para pintar `data-state=selected`;
+  // la verdad sigue siendo la lista de ids del contexto.
+  const rowSelection = useMemo<RowSelectionState | undefined>(() => {
+    if (!selection) return undefined
+    const state: RowSelectionState = {}
+    for (const ticket of tickets) {
+      if (selection.isSelected(ticket.id)) state[ticket.id] = true
+    }
+    return state
+  }, [selection, tickets])
 
   return (
-    <div className="space-y-3">
-      {approvableCount > 0 ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-muted-foreground text-sm" aria-live="polite">
-            {selectedIds.length === 0
-              ? `${approvableCount} boleta(s) pendientes de aprobación en esta página.`
-              : `${selectedIds.length} seleccionada(s).`}
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            disabled={selectedIds.length === 0 || isPending}
-            onClick={() => setConfirmOpen(true)}
-          >
-            Aprobar seleccionadas
-          </Button>
-        </div>
-      ) : null}
-
-      <DataTable
-        columns={columns}
-        data={tickets}
-        getRowId={(row) => row.id}
-        rowSelection={enableApproval ? rowSelection : undefined}
-        onRowSelectionChange={enableApproval ? setRowSelection : undefined}
-        enableRowSelection={
-          enableApproval ? (row) => row.inventoryStatus === 'pending_approval' : false
-        }
-        rowHref={(row) => `${basePath}/${row.id}`}
-        caption="Boletas"
-      />
-
-      {enableApproval ? (
-        <ConfirmDialog
-          open={confirmOpen}
-          onOpenChange={setConfirmOpen}
-          title="Aprobar boletas"
-          description={`Las ${selectedIds.length} boleta(s) seleccionadas pasarán a estado Disponible y podrán asignarse a clientes.`}
-          confirmLabel="Aprobar"
-          pending={isPending}
-          onConfirm={confirmApprove}
-        />
-      ) : null}
-    </div>
+    <DataTable
+      columns={columns}
+      data={tickets}
+      getRowId={(row) => row.id}
+      rowSelection={rowSelection}
+      rowHref={(row) => `${basePath}/${row.id}`}
+      onRowSelect={selection?.rowClickSelects ? (row) => selection.toggle(row.id) : undefined}
+      onRowLongPress={
+        selection && selection.compact && !selection.selectionMode
+          ? (row) => selection.startSelectionMode(row.id)
+          : undefined
+      }
+      caption="Boletas"
+    />
   )
 }

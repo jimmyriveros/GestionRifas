@@ -1308,6 +1308,157 @@ sería frágil. Ni las reglas ni los mensajes cambian, y quien no lo mire funcio
 
 ---
 
+## D-082 — La selección múltiple guarda identificadores, con un tope de 1.000
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-08)
+
+**Contexto.** El encargo pedía evaluar un modelo de selección escalable y sugería, como idea, dos
+modos: una selección explícita (`Set` de ids) y otra global descrita por un *filtro guardado* más una
+lista de exclusiones, para que «seleccionar 1.000» no obligara a descargar 1.000 filas.
+
+**Decisión.** Un solo modelo: **una lista de `ticket.id`**, con tope de `BULK_SELECTION_MAX = 1000`.
+«Seleccionar las 537 que coinciden» se resuelve en el servidor y devuelve **solo los identificadores**.
+
+**Por qué no el filtro guardado con exclusiones.** Suena más escalable y en este sistema es peor:
+
+* **La pantalla no podría dibujarse.** Para pintar una fila marcada habría que saber si esa boleta
+  pertenece al filtro guardado, y eso es una consulta al servidor por cada página que se mire. Con la
+  lista de ids es una comprobación en memoria.
+* **La operación necesita los ids de todas formas.** Todo es *todo o nada* (BR-B07): antes de tocar
+  nada hay que bloquear las filas y revalidarlas una por una. El conjunto exacto acaba
+  materializándose sí o sí; la única pregunta es dónde.
+* **El coste que se quería evitar no era el de los ids.** Mil identificadores son unas decenas de
+  kilobytes; mil filas completas, del orden de un megabyte. Lo que viaja al navegador son los ids.
+
+**Por qué 1.000 y no «sin límite».** Es el mismo tope que ya usaban `bulk_create_tickets` y
+`taken_ticket_combinations`, así que no añade un número nuevo que recordar. Y por encima de mil, ni
+la persona puede revisar lo que va a cambiar ni tiene sentido resolverlo en una sola llamada. Cuando
+el filtro devuelve más, se dice con todas las letras y se pide acotar, en vez de seleccionar un trozo
+en silencio.
+
+**Dónde vive la selección: fuera de React.** En `selection-store.ts`, sobre `sessionStorage` y leído
+con `useSyncExternalStore`. Con `useState` bastaba **casi** siempre, y ese «casi» es el problema:
+cualquier desmontaje —una recarga, un `loading.tsx` que se interponga— la borraría sin avisar, y la
+sección 11 del encargo es tajante en que la selección debe sobrevivir a buscar y filtrar.
+`sessionStorage` muere con la pestaña, así que tampoco persiste entre sesiones del navegador.
+`getServerSnapshot` devuelve la lista vacía, de modo que no hay desajuste de hidratación.
+
+**Resolver «todas las que coinciden» reutiliza la consulta del listado**, con el tope como tamaño de
+página, en vez de escribir otra. Si filtrara aunque fuera un poco distinto de lo que la persona está
+viendo, seleccionaría cosas que no aparecen en pantalla.
+
+---
+
+## D-083 — Una acción masiva es la individual repetida dentro de una transacción
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-08)
+
+**Contexto.** El encargo lo pedía explícitamente: «una acción masiva utiliza las mismas reglas de
+dominio que una acción individual». El riesgo evidente es escribir las reglas dos veces y que se
+separen con el tiempo.
+
+**Decisión.** Se **extrae** el cuerpo de `assign_ticket` y `cancel_ticket` (0007) a
+`assign_ticket_row` y `cancel_ticket_row`, con el mismo texto y los mismos mensajes. A partir de ahí:
+
+* `assign_ticket` y `cancel_ticket` **delegan** en ellas. Su firma y sus mensajes no cambian: lo
+  comprueban las pruebas de la Fase 2 que ya existían.
+* `bulk_assign_tickets` y `bulk_cancel_tickets` las llaman **en bucle** dentro de una sola
+  transacción.
+
+El cambio de vendedor va al revés: sus reglas vivían en TypeScript, en la Server Action. Ahora viven
+en `bulk_change_ticket_seller` y la acción individual llama a esa misma función con un solo id. Es
+mejor que antes: la regla deja de estar donde una llamada directa a la API podría saltársela.
+
+**Todo o nada, y de dos maneras.** Una función PL/pgSQL es una transacción, así que cualquier `raise`
+deshace lo hecho. Además, cada función **cuenta primero** cuántas boletas cumplen todas las
+condiciones y aborta antes de tocar nada si falta una: eso es lo que permite dar el mensaje agregado
+—«2 de las 12 ya no se pueden anular»— en vez de un error sobre una boleta suelta.
+
+**Concurrencia.** `lock_ticket_batch` bloquea las filas **en orden de id** antes de comprobar nada.
+El orden no es decorativo: dos lotes simultáneos que se solapen bloquean las filas comunes en la
+misma secuencia y por tanto no pueden quedarse esperándose el uno al otro.
+
+**La aprobación en lote se suma al mismo cuadro.** Existía desde la Fase 3 con sus propias casillas.
+Se le quitan y pasa a compartir la única selección de la pantalla: dos formas distintas de marcar
+boletas en la misma tabla serían una trampa. `approve_tickets` no se toca —salta por su cuenta lo que
+no está pendiente—, pero el botón solo se habilita cuando todas las seleccionadas se pueden aprobar,
+así que el resultado es el que la persona vio antes de confirmar.
+
+---
+
+## D-084 — Eliminar existe, es borrado físico, y no reemplaza a anular
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-08)
+
+**Contexto.** El encargo pide una acción **Eliminar** para Dueño y Administrador, distinta de anular
+y reservada a «registros agregados por error: importación incorrecta, archivo incorrecto, números
+cargados accidentalmente». Choca de frente con dos cosas del proyecto: D-038 («ningún `DELETE`, ni
+política ni privilegio») y el glosario, que hasta ahora prohibía la palabra «eliminar».
+
+**Decisión.** Se implementa el borrado físico, acotado a lo que el propio encargo describe, y se
+señala aquí la tensión en vez de resolverla por cuenta propia.
+
+**Qué NO cambia.** `authenticated` sigue sin privilegio de `DELETE` sobre ninguna tabla y no hay
+ninguna política de `DELETE`. El borrado ocurre **solo** dentro de `bulk_delete_tickets`, que es
+`SECURITY DEFINER`. Eso es exactamente lo que D-038 pedía: «el borrado físico exige dos cambios
+deliberados y visibles». Una prueba comprueba que un `DELETE` directo del Owner sigue fallando.
+
+**Una boleta anulada nunca se elimina, y no por prudencia.** BR-N08 dice que la combinación de una
+boleta anulada no puede reutilizarse dentro de la misma rifa. Borrar la fila liberaría la combinación
+y rompería esa regla en silencio. Por eso `cancelled` queda fuera de los estados eliminables, junto
+con cualquier boleta que tenga cliente, precio de venta o asignaciones de pago —incluso de un pago
+anulado, porque eso es historial financiero—.
+
+**La autorización es la que la aplicación ya usa para lo definitivo**: ser Dueño o Administrador,
+confirmar en un diálogo y escribir un motivo de al menos cinco caracteres. El encargo pedía reutilizar
+«el mismo mecanismo fuerte» que la anulación, y ese es. **Este proyecto no tiene reautenticación por
+contraseña, PIN ni código**, así que no hay nada más fuerte que reutilizar: inventar uno solo para
+esta acción habría sido una pieza nueva sin el resto del sistema que la sostiene (recuperación,
+bloqueo por intentos, rotación). Queda anotado por si el negocio lo pide.
+
+**Rastro.** El trigger `audit_tickets` (0006) ya escribía `ticket.delete` con la fila entera en
+`old_values`; encima, `bulk_delete_tickets` añade una fila `ticket.bulk_delete` con el recuento, el
+motivo y el detalle de cada boleta —rifa, vendedor, id y los dos números—, tomado **antes** de
+borrar. No se guarda ninguna credencial porque aquí no se maneja ninguna.
+
+**El glosario cambia, y primero.** «Eliminar» pasa a ser un término propio del Anexo A, con su
+significado acotado, en vez de una palabra prohibida. La regla de la guía sigue viva: anular,
+desactivar y archivar **no** se llaman eliminar.
+
+---
+
+## D-085 — El modo selección es del teléfono; en escritorio las casillas están siempre
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-08)
+
+**Contexto.** El encargo insiste en que en un teléfono la diana no puede ser una casilla de veinte
+píxeles, y que la fila entera debe poder tocarse. En escritorio, en cambio, quiere el patrón de
+siempre: columna de casillas y la fila que abre el detalle.
+
+**Decisión.** Dos comportamientos y una sola implementación.
+
+* **Qué se ve** lo decide **Tailwind**, no JavaScript: la columna de casillas reutiliza el
+  `hideOnMobile` que ya existía (`hidden md:table-cell`), y en modo selección deja de estar oculta.
+  Así no parpadea al cargar ni depende de la hidratación.
+* **Qué hace un toque** sí necesita JavaScript, y ahí se usa `useMediaQuery` con
+  `useSyncExternalStore`, cuyo `getServerSnapshot` devuelve la rama móvil: la aplicación es
+  mobile-first y equivocarse hacia el teléfono es lo barato.
+* El modo se **deduce** (`compact && solicitado`) en vez de apagarse desde un efecto al ensanchar la
+  ventana. Mismo criterio que `TourProvider` (D-074) y una razón concreta: el compilador de React
+  marca como error llamar a `setState` dentro de un efecto, y con razón — cuesta un render de más.
+
+**La casilla se ve de 20 px y se toca en 44.** `SelectionCheckbox` envuelve la casilla en un
+contenedor de 44 px con margen negativo, de modo que ocupa lo mismo en la maqueta pero recibe el
+toque en toda esa área. Lo comprueba una prueba que mide las dos cajas por separado.
+
+**La pulsación larga es un atajo, nunca el camino.** El botón «Seleccionar» está siempre a la vista
+(sección 4 del encargo). El gesto solo se dispara con el dedo —con ratón no significa nada— y se
+cancela si el dedo se mueve más de 10 px, porque si no, bajar despacio por una lista larga acabaría
+seleccionando filas solo. El `click` que el navegador emite después queda anulado para que la misma
+pulsación no seleccione y además abra el detalle.
+
+**Las seleccionadas no se suben arriba** (sección 9): mover una fila bajo el dedo provoca toques
+equivocados. En su lugar, «Ver seleccionadas» cambia la lista entera y temporalmente, sin tocar los
+filtros, que viven en la URL.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

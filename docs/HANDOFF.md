@@ -11,12 +11,12 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Lo que queda son **decisiones del usuario**, no trabajo de ingeniería (ver §1.b) |
-| Rama / commit / etiqueta | `main` · `3f63668` (importar boletas desde CSV/JSON, 2026-08-08) — **empujado a producción** · última etiqueta `fase-9` en `a8c4083` |
-| Remoto | `github.com/jimmyriveros/GestionRifas` — **`main` al día: local y remoto idénticos** (empujado el 2026-08-06 con autorización del usuario). De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
+| Rama / commit / etiqueta | **`feature/seleccion-multiple-boletas`** · `1697305` (selección múltiple y acciones masivas, 2026-08-08) — **solo local, sin desplegar y sin fusionar a `main`** · última etiqueta `fase-9` en `a8c4083` |
+| Remoto | `github.com/jimmyriveros/GestionRifas` — **el local va por delante**: la selección múltiple (2026-08-08) está solo aquí. De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **19 migraciones, todas aplicadas en local y en el proyecto real** y verificadas el 2026-08-08 (`verify:remote` 13/13 + comprobación de comportamiento de `0018` y `0019` contra producción). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **264 unitarias** + **325 de base de datos** + **186 end-to-end**, todas en verde (2026-08-08). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **20 migraciones, todas aplicadas en local y en el proyecto real** y verificadas el 2026-08-08 (`verify:remote` 13/13 + comprobación de comportamiento de `0018` y `0019` contra producción). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **286 unitarias** + **371 de base de datos** + **212 end-to-end**, todas en verde (2026-08-08). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -24,12 +24,14 @@ eso en reportes. Los saldos y los estados de pago los calcula la base de datos. 
 Fase 7 (CSP por nonce, limitación de intentos, RLS ~1.400× más rápida), desplegado en la Fase 8 y
 auditado en la Fase 9 con **47 intentos deliberados de romperlo**, ninguno de los cuales consiguió
 leer ni escribir un dato ajeno. Informe: `docs/AUDIT_REPORT.md`.
+Desde el 2026-08-08 la lista de boletas admite **selección múltiple y acciones masivas** (BR-B01..
+BR-B08), ya **en producción**.
 **Lo que NO existe:** backups automáticos de Supabase (plan Free — I-024, prerrequisito antes de datos
 reales).
 
 ---
 
-## 1.b Qué queda abierto (nada de ingeniería)
+## 1.b Qué queda abierto
 
 **No hay acciones técnicas pendientes.** Lo que queda son decisiones del dueño del negocio:
 
@@ -39,7 +41,25 @@ reales).
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
 | **I-030** — los ~46 mensajes que lanza la base de datos siguen sin tildes | Autorizar una migración que reescriba esas funciones y aplicarla al proyecto real. Es lo único que quedó fuera de la revisión de textos del 2026-08-05 (D-073) |
 
-La última acción de ingeniería fue aplicar la migración **`0019`** al proyecto real (2026-08-08,
+La última acción de ingeniería fue aplicar la migración **`0020`** al proyecto real (2026-08-08,
+autorizada explícitamente) y desplegar la **selección múltiple y las acciones masivas de boletas** (
+BR-B01..BR-B08, D-082 a D-085). Se marcan varias boletas de la lista y se actúa sobre todas: el
+vendedor las vende a un cliente de una vez; el Dueño y el Administrador aprueban, anulan, cambian de
+vendedor y **eliminan** las que se cargaron por error. Lo que conviene saber antes de tocarlo:
+
+* **No hay reglas de boletas nuevas.** El cuerpo de `assign_ticket` y `cancel_ticket` se extrajo a
+  `assign_ticket_row` y `cancel_ticket_row`, que ahora usan tanto la acción individual como la
+  masiva. Si cambias una regla de asignación o anulación, cámbiala **ahí** y afecta a las dos.
+* **Eliminar sí es nuevo** y es borrado físico, acotado a boletas sin cliente, sin venta y sin
+  abonos, y **nunca a una anulada** (su combinación queda reservada, BR-N08). Sigue sin haber
+  privilegio de `DELETE` para nadie: ocurre dentro de una función `SECURITY DEFINER` (D-084).
+* **La selección vive fuera de React**, en `sessionStorage` leído con `useSyncExternalStore`. Es lo
+  que la hace sobrevivir a buscar, filtrar y recargar (D-082).
+* **Al escribir pruebas E2E que pulsan lo primero al entrar a una pantalla**, usa `toggleCheckbox`
+  de `fixtures.ts` o el mismo patrón: sin reintentar, el clic cae antes de la hidratación y la
+  prueba culpa al producto (`TESTING.md` §5.3).
+
+Antes de eso, la última acción sobre producción fue aplicar la migración **`0019`** (2026-08-08,
 autorizada explícitamente): añade `taken_ticket_combinations` y `log_ticket_import`, las dos piezas
 del importador de archivos (BR-N12, D-081). Respaldo previo en
 `Rifas-backups/2026-08-08-antes-0019/`, comprobado sin `auth.users`. Verificada por catálogo
@@ -131,7 +151,7 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-✅ **Las 19 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-08
+✅ **Las 20 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-08
 (`npm run verify:remote`, 13/13).
 
 Al aplicar migraciones al proyecto real, el procedimiento completo son **tres** pasos, no dos:
@@ -248,14 +268,21 @@ profiles 1─1 auth.users
 - Números como texto, 1–4 dígitos, ceros iniciales conservados.
 - Dinero en `bigint`; `paid_amount` derivado por trigger; `payment_status` columna generada.
 - Sobrepago imposible; pago y asignaciones cuadran exactamente; todo o nada.
-- Ningún `DELETE` en ninguna tabla (ni política ni privilegio).
+- Ningún `DELETE` en ninguna tabla (ni política ni privilegio). La **única** excepción controlada es
+  `bulk_delete_tickets` (`0020`), que borra boletas cargadas por error desde dentro de una función
+  `SECURITY DEFINER`; nadie gana el privilegio (D-084).
 - Aislamiento por organización y por vendedor vía RLS forzada.
 - Una organización nunca se queda sin Owner activo (`0016`, aplicada en local y en producción).
 
 **Funciones a usar en vez de DML directo:**
 `assign_ticket` · `create_payment` · `void_payment` · `bulk_create_tickets` · `approve_tickets` ·
-`cancel_ticket`. Todas validan permisos internamente y auditan. Son `SECURITY DEFINER`: existen
+`cancel_ticket` · `bulk_assign_tickets` · `bulk_cancel_tickets` · `bulk_change_ticket_seller` ·
+`bulk_delete_tickets`. Todas validan permisos internamente y auditan. Son `SECURITY DEFINER`: existen
 precisamente para hacer cosas que la RLS del usuario prohíbe.
+
+⚠️ **`assign_ticket` y `cancel_ticket` ya no llevan las reglas dentro**: delegan en
+`assign_ticket_row` y `cancel_ticket_row`, que comparten con las masivas. Si cambias una regla,
+cámbiala ahí (D-083).
 
 **Vistas de solo lectura:** `v_ticket_balances` · `v_client_balances` · `v_seller_summary` ·
 `v_raffle_summary` · `v_payment_history`.
@@ -276,6 +303,11 @@ components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSke
 features/tickets/import/  importador de archivos CSV/JSON: UN componente para los tres
                     roles, parametrizado por contexto (D-081). Antes de escribir otro
                     lector de archivos, míralo: separa columnas/csv/json/rows/review
+features/tickets/selection/  selección múltiple y acciones masivas (D-082..D-085):
+                    contexto + almacén fuera de React + elegibilidad + diálogos
+components/form/    SelectionCheckbox (20 px a la vista, 44 px de diana)
+lib/use-media-query.ts  consulta de medios sin romper la hidratación. Solo para
+                    COMPORTAMIENTO; lo que se ve lo decide Tailwind
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
 features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
                     ExportCsvButton
@@ -328,7 +360,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-325 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+371 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 
@@ -346,7 +378,7 @@ typecheck + lint + unitarias + build.
 npm run test:e2e
 ```
 
-186 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
+212 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
 en móvil (Pixel 7). Levanta solo el servidor con `npm run dev:local`; **exigen la base local recién
 sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
 
@@ -419,3 +451,7 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Un clic en un menú de Radix dispara además la acción de la fila que lo contiene | El menú vive en un portal, pero React propaga el evento por el **árbol de componentes**. Comprueba `fila.contains(objetivo)` antes de mirar si el objetivo es interactivo | D-076 · `row-activation.ts` |
 | Una medida de color o de tamaño sale distinta cada vez que se ejecuta la prueba | `transition-colors` y la animación de entrada del diálogo: estás midiendo un fotograma intermedio. Espera a que el valor deje de cambiar | I-034 |
 | `seller-tickets.spec.ts` (BR-I08) empieza a fallar tras correr la suite varias veces sin `db:reset` | El selector de cliente del diálogo muestra los **primeros 50** cuando no se ha escrito nada en el buscador, y esa prueba no escribe. Cada ejecución que deja clientes nuevos acerca el límite. Una prueba que cree clientes debe borrarlos al terminar | I-035 |
+| Una prueba E2E pulsa un botón y **no pasa nada**, pero a mano funciona | El clic cayó entre que el HTML del servidor está pintado —Playwright ya lo cree pulsable— y que React lo hidrató. Reintenta el gesto con `toggleCheckbox` (`fixtures.ts`) o el mismo patrón | `TESTING.md` §5.3 |
+| En el teléfono, un toque se pierde en silencio al aparecer una barra o un aviso | `page.touchscreen.tap(x, y)` toca coordenadas de pantalla y no desplaza nada. Usa `locator.tap()`, que lleva el elemento a la vista y espera | `TESTING.md` §5.3 |
+| Cambias una regla de asignación o anulación de boletas y la versión masiva no se entera | Desde `0020` la regla vive en `assign_ticket_row` / `cancel_ticket_row`; `assign_ticket` y `cancel_ticket` delegan. Cámbiala ahí, no en las funciones públicas | D-083 |
+| Un `setState` dentro de un `useEffect` rompe el lint con «cascading renders» | El compilador de React lo rechaza. Deduce el estado en vez de sincronizarlo, o mueve el `setState` al `.then()` de una promesa | D-085 · `TicketSelectionContext.tsx` |

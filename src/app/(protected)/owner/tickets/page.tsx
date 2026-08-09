@@ -12,6 +12,9 @@ import { TicketFilters } from '@/features/tickets/components/TicketFilters'
 import { TicketsTable } from '@/features/tickets/components/TicketsTable'
 import { listTickets } from '@/features/tickets/queries'
 import { inventoryStatusSchema, paymentStatusSchema } from '@/features/tickets/schemas'
+import { TicketListSlot } from '@/features/tickets/selection/components/SelectedTicketsView'
+import { TicketSelectionToolbar } from '@/features/tickets/selection/components/TicketSelectionToolbar'
+import { TicketSelectionProvider } from '@/features/tickets/selection/TicketSelectionContext'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -54,6 +57,21 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
 
   const emptyDescription = ticketSearchEmptyDescription(single(params.q), hasFilters)
 
+  // Los mismos filtros que la consulta, para que «seleccionar todas las que
+  // coinciden» seleccione exactamente lo que hay en pantalla (seccion 16).
+  const selectionFilters = {
+    raffleId: single(params.raffleId),
+    sellerId: single(params.sellerId),
+    clientId: single(params.clientId),
+    inventoryStatus: inventoryStatus.success ? inventoryStatus.data : undefined,
+    paymentStatus: paymentStatus.success ? paymentStatus.data : undefined,
+    search: single(params.q),
+  }
+
+  // Precio vigente de cada rifa: el total de una venta se suma boleta a boleta,
+  // nunca con una cifra fija (seccion 30).
+  const rafflePrices = Object.fromEntries(raffles.map((raffle) => [raffle.id, raffle.ticketPrice]))
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -77,35 +95,53 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
         }
       />
 
-      <TicketFilters
-        raffles={raffles.map((raffle) => ({
-          value: raffle.id,
-          label: `${raffle.shortCode} — ${raffle.name}`,
-        }))}
-        sellers={sellers.map((seller) => ({ value: seller.id, label: seller.fullName }))}
-      />
+      {/* La seleccion multiple envuelve filtros y tabla a la vez: los filtros
+          viven en la URL, asi que buscar vuelve a consultar en el servidor sin
+          desmontar este componente y sin perder lo marcado (seccion 11). */}
+      <TicketSelectionProvider storageKey="owner-tickets" pageIds={rows.map((row) => row.id)}>
+        <div className="space-y-6">
+          <TicketFilters
+            raffles={raffles.map((raffle) => ({
+              value: raffle.id,
+              label: `${raffle.shortCode} — ${raffle.name}`,
+            }))}
+            sellers={sellers.map((seller) => ({ value: seller.id, label: seller.fullName }))}
+          />
 
-      {rows.length === 0 ? (
-        <EmptyState
-          icon={<TicketIcon className="size-8" aria-hidden />}
-          title={hasFilters ? 'Ninguna boleta coincide con los filtros' : 'Todavía no hay boletas'}
-          description={
-            emptyDescription ?? 'Crea boletas en lote para repartirlas entre tus vendedores.'
-          }
-          action={
-            hasFilters ? null : (
-              <Button asChild>
-                <Link href="/owner/tickets/bulk">Crear boletas en lote</Link>
-              </Button>
-            )
-          }
-        />
-      ) : (
-        <>
-          <TicketsTable tickets={rows} />
-          <DataTablePagination total={total} page={page} pageSize={pageSize} />
-        </>
-      )}
+          {rows.length === 0 ? (
+            <EmptyState
+              icon={<TicketIcon className="size-8" aria-hidden />}
+              title={
+                hasFilters ? 'Ninguna boleta coincide con los filtros' : 'Todavía no hay boletas'
+              }
+              description={
+                emptyDescription ?? 'Crea boletas en lote para repartirlas entre tus vendedores.'
+              }
+              action={
+                hasFilters ? null : (
+                  <Button asChild>
+                    <Link href="/owner/tickets/bulk">Crear boletas en lote</Link>
+                  </Button>
+                )
+              }
+            />
+          ) : (
+            <>
+              <TicketSelectionToolbar
+                portal="owner"
+                total={total}
+                filters={selectionFilters}
+                sellers={sellers.map((seller) => ({ id: seller.id, fullName: seller.fullName }))}
+                rafflePrices={rafflePrices}
+              />
+              <TicketListSlot basePath="/owner/tickets" showSeller>
+                <TicketsTable tickets={rows} />
+                <DataTablePagination total={total} page={page} pageSize={pageSize} />
+              </TicketListSlot>
+            </>
+          )}
+        </div>
+      </TicketSelectionProvider>
     </div>
   )
 }

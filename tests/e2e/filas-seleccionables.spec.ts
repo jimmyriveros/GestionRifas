@@ -7,7 +7,7 @@ import {
   serviceClient,
   type SeedRefs,
 } from './db-setup'
-import { ACCOUNTS, loginAs, randomTicketNumbers, unique } from './fixtures'
+import { ACCOUNTS, loginAs, randomTicketNumbers, toggleCheckbox, unique } from './fixtures'
 
 /**
  * Fila seleccionable de las tablas y estados visuales de la lista de clientes.
@@ -209,18 +209,18 @@ test.describe('Fila seleccionable en las tablas', () => {
     await page.waitForURL(`**/seller/tickets/${ticket.id}`)
   })
 
-  test('la casilla de aprobación marca la boleta sin abrir su detalle', async ({ page }) => {
+  test('la casilla de selección marca la boleta sin abrir su detalle', async ({ page }) => {
     const ticket = await availableTicket('pending_approval')
 
     await loginAs(page, ACCOUNTS.owner)
     await page.goto(`/owner/tickets?q=${ticket.numbers.daily}`)
 
     const row = await firstRow(page)
-    await row.getByRole('checkbox').click()
+    await toggleCheckbox(row.getByRole('checkbox'), true)
 
     await expect(page).toHaveURL(/\/owner\/tickets\?/)
     await expect(row.getByRole('checkbox')).toBeChecked()
-    await expect(page.getByRole('button', { name: 'Aprobar seleccionadas' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: /^Aprobar boletas/ })).toBeEnabled()
   })
 
   test('el menú de acciones de un vendedor no abre su detalle', async ({ page }) => {

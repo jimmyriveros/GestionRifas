@@ -28,6 +28,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { approveTickets, cancelTicket, reassignTicketSeller, updateTicketNumbers } from '../actions'
 import type { TicketDetail } from '../queries'
 import { cancelTicketSchema, updateTicketNumbersSchema } from '../schemas'
+import { bulkDeleteTickets } from '../selection/actions'
 
 type TicketActionsProps = {
   ticket: TicketDetail
@@ -50,8 +51,24 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
   const [reason, setReason] = useState('')
   const [cancelError, setCancelError] = useState<string | null>(null)
 
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteReason, setDeleteReason] = useState('')
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
   const isCancelled = ticket.inventoryStatus === 'cancelled'
   const canChangeSeller = !isCancelled && ticket.inventoryStatus !== 'assigned'
+  /**
+   * BR-B05: eliminar es para una boleta cargada por error, que nunca entro a la
+   * operacion. La base de datos lo vuelve a comprobar; esto solo evita ofrecer
+   * un boton que iba a fallar.
+   */
+  const canDelete =
+    ticket.clientId === null &&
+    ticket.salePrice === null &&
+    ticket.paidAmount === 0 &&
+    (ticket.inventoryStatus === 'draft' ||
+      ticket.inventoryStatus === 'pending_approval' ||
+      ticket.inventoryStatus === 'available')
 
   function saveNumbers() {
     const parsed = updateTicketNumbersSchema.safeParse({
@@ -122,6 +139,28 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
     })
   }
 
+  function confirmDelete() {
+    if (deleteReason.trim().length < 5) {
+      setDeleteError('Explica el motivo con al menos 5 caracteres.')
+      return
+    }
+    setDeleteError(null)
+
+    startTransition(async () => {
+      const result = await bulkDeleteTickets({
+        ticketIds: [ticket.id],
+        reason: deleteReason,
+      })
+      if ('error' in result) {
+        setDeleteError(result.error)
+        return
+      }
+      toast.success('Boleta eliminada.')
+      setDeleteOpen(false)
+      router.push('/owner/tickets')
+    })
+  }
+
   return (
     <>
       {ticket.inventoryStatus === 'pending_approval' ? (
@@ -145,6 +184,12 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
       {!isCancelled ? (
         <Button type="button" variant="destructive" onClick={() => setCancelOpen(true)}>
           Anular boleta
+        </Button>
+      ) : null}
+
+      {canDelete ? (
+        <Button type="button" variant="outline" onClick={() => setDeleteOpen(true)}>
+          Eliminar boleta
         </Button>
       ) : null}
 
@@ -249,6 +294,42 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
           {cancelError ? (
             <p role="alert" className="text-destructive text-sm">
               {cancelError}
+            </p>
+          ) : null}
+        </div>
+      </ConfirmDialog>
+
+      {/* Eliminar no es anular: borra una boleta que nunca debio existir y
+          libera sus numeros. Por eso el texto insiste en la diferencia antes de
+          confirmar (seccion 25 del encargo, BR-B05). */}
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open)
+          if (!open) setDeleteError(null)
+        }}
+        title="Eliminar boleta"
+        description="Esta boleta se borra para siempre y sus números quedan libres otra vez. Úsalo solo si se cargó por error; si ya salió a la calle, anúlala."
+        confirmLabel="Eliminar boleta"
+        destructive
+        pending={isPending}
+        onConfirm={confirmDelete}
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="delete-reason">Motivo (obligatorio)</Label>
+          <Textarea
+            id="delete-reason"
+            rows={3}
+            value={deleteReason}
+            onChange={(event) => setDeleteReason(event.target.value)}
+            placeholder="Explica por qué se elimina esta boleta"
+          />
+          <p className="text-muted-foreground text-xs">
+            Queda registrado quién la eliminó, cuándo, qué números tenía y por qué.
+          </p>
+          {deleteError ? (
+            <p role="alert" className="text-destructive text-sm">
+              {deleteError}
             </p>
           ) : null}
         </div>

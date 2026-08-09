@@ -29,6 +29,17 @@ export const BULK_TICKET_BATCH_SIZE = 100
  */
 export const SELLER_TICKET_MAX = 100
 
+/**
+ * Maximo de boletas que se pueden seleccionar a la vez para una accion masiva
+ * (BR-B01, D-082).
+ *
+ * Es el mismo tope que ya usan `bulk_create_tickets` y
+ * `taken_ticket_combinations`: mil boletas es de sobra para cualquier operacion
+ * real, y por encima de eso ni la persona puede revisar lo que va a cambiar ni
+ * tiene sentido resolver la seleccion en una sola llamada.
+ */
+export const BULK_SELECTION_MAX = 1000
+
 /** daily_number / weekly_number: 1 a 4 digitos (docs/BUSINESS_RULES.md BR-N02). */
 export const TICKET_NUMBER_MAX_LENGTH = 4
 export const TICKET_NUMBER_REGEX = /^[0-9]{1,4}$/

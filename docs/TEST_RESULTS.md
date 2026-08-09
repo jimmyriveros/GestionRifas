@@ -1056,3 +1056,95 @@ La primera fila es la que da sentido a la segunda: si el contador no se moviera 
 Capturas del importador en escritorio (1280) y en teléfono (375). En el teléfono el resumen va
 primero, la tabla pierde las columnas «Fila» y «Problema», y el motivo de cada fila pasa a leerse
 debajo de su estado. Ninguna tabla obliga a desplazarse en horizontal.
+
+---
+
+## Selección múltiple y acciones masivas de boletas — 2026-08-08
+
+Solicitado por el usuario después de la Fase 9, sin abrir fase nueva.
+Reglas: BR-B01 a BR-B08. Decisiones: D-082 a D-085. Migración: `0020`.
+
+### Suites
+
+| Comando | Antes | Ahora |
+|---|---|---|
+| `npm run test` (unitarias) | 264 | **286 ✅** (+22 de `ticket-selection.test.ts`) |
+| `npm run test:db` | 325 | **371 ✅** (+46 de `bulk-actions.test.ts`) |
+| `npm run test:e2e` | 186 | **212 ✅** (+19 escritorio, +7 teléfono) |
+| `npm run verify` | ✅ | ✅ (0 errores de lint; los 2 avisos conocidos de TanStack) |
+
+### Qué cubre cada suite
+
+Las tres capas prueban cosas distintas a propósito:
+
+| Capa | Qué demuestra |
+|---|---|
+| Unitarias | Los recuentos y el **motivo** que se le enseña a la persona, y que el almacén de la selección aguanta lo raro: contenido corrupto, tope superado, referencias estables |
+| Base de datos | Que el servidor decide. Todo o nada, concurrencia real, propiedad, organización y rol, con sesiones reales y clave pública |
+| End-to-end | Que la selección sobrevive a buscar y filtrar, que la fila no se mueve, que el teléfono se puede usar con el dedo, y que llamar a las funciones **a mano** no sirve de nada |
+
+### Concurrencia: cómo se probó de verdad
+
+No basta con afirmar que el servidor revalida. Las pruebas simulan lo que pasa entre seleccionar y
+confirmar: con el lote ya elegido, **otra sesión** (`admin`) anula una de las boletas, y solo entonces
+se confirma. Resultado en las dos acciones probadas —anular y asignar—: error, y las demás boletas
+**intactas**.
+
+### Los 55 puntos del encargo (§47)
+
+| Bloque | Dónde |
+|---|---|
+| Selección (1–18) | `e2e/seleccion-multiple.spec.ts` y `e2e/seleccion-movil.spec.ts`; el almacén, en `unit/ticket-selection.test.ts` |
+| Admin (19–29) | `db/bulk-actions.test.ts` + `e2e/seleccion-multiple.spec.ts` |
+| Vendedor (30–41) | `db/bulk-actions.test.ts` + los dos `e2e` |
+| Seguridad (42–47) | `db/bulk-actions.test.ts` (sesiones reales) + tres pruebas E2E que llaman a las funciones **saltándose la pantalla**, con el token real del navegador |
+| Rendimiento (48–50) | `db/bulk-actions.test.ts`: 100, 500 y **1.000** boletas, cada una en **una sola llamada** |
+| Calidad (51–55) | Doble envío (botón deshabilitado + `pending`), `typecheck`, `lint`, `test`, `build` |
+
+### Errores encontrados durante el trabajo, y qué se hizo
+
+| # | Qué pasó | Corrección |
+|---|---|---|
+| 1 | **13 de 16 pruebas E2E fallaban a la primera** y el producto estaba bien: el clic caía en el hueco entre que el HTML del servidor está pintado —Playwright ya lo considera pulsable— y que React lo hidrata. La misma prueba pasaba si antes se tocaba cualquier otra cosa | `toggleCheckbox` y `activarModoSeleccion` reintentan el gesto con una espera corta dentro, para que un fallo real siga fallando rápido. Documentado en `TESTING.md` §5.3 |
+| 2 | En el teléfono, los toques se perdían en silencio en cuanto la barra de selección empujaba la tabla hacia abajo | `locator.tap()` en vez de `touchscreen.tap(x, y)`: el primero desplaza a la vista y espera |
+| 3 | Una prueba localizaba la fila por el **número diario**, y dos boletas distintas compartían ese número —lo único único es la pareja (BR-N04)— | Se localiza por el nombre accesible de la casilla, que lleva la combinación completa |
+| 4 | Una preparación de datos llamaba a `cancel_ticket` con la clave de servicio; la RPC necesita `auth.uid()` y no hacía nada, así que la prueba comprobaba un escenario que no existía | La preparación pasa a ser un `UPDATE` directo (D-043: la service role prepara, no actúa) |
+| 5 | Cambiar el texto de un `toast` rompió dos pruebas de fases anteriores: «X registrado y boleta asignada» pasó a «X registrado. Boleta asignada» | Se recuperó la redacción original y se extendió al plural: «X registrado y 6 boletas asignadas» |
+| 6 | El compilador de React rechazó cuatro `setState` dentro de efectos | Se dedujeron los estados en vez de sincronizarlos: el modo selección sale de `compact && solicitado`, y «se está consultando» sale de comparar la lista de ids con la que produjo el resultado |
+
+### Lo que se decidió no cambiar, y por qué
+
+| Asunto | Decisión |
+|---|---|
+| `approve_tickets` no es todo-o-nada en la base de datos | Se deja como estaba desde la Fase 3. La pantalla lo compensa habilitando el botón solo cuando todas se pueden aprobar. Registrado como I-044 |
+| Eliminar no pide contraseña ni PIN | Este proyecto no tiene reautenticación; se usa el mismo mecanismo que anular (rol + confirmación + motivo). Registrado como I-045 y D-084 |
+| La `0020` no se aplicó al proyecto real | Requiere autorización explícita y respaldo previo, como todas. **Desplegar sin aplicarla rompe la selección múltiple y el cambio de vendedor individual** — I-043 |
+
+### Aplicación de la `0020` al proyecto real — 2026-08-08
+
+Autorizada explícitamente por el usuario para poder probar la función en Vercel.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo lógico previo (`Rifas-backups/2026-08-08-antes-0020/`) | ✅ 9 tablas de negocio · **0** referencias a `"auth"` · **0** `encrypted_password` |
+| `db push --dry-run` | ✅ solo `0020` pendiente (las 19 anteriores ya estaban) |
+| `db push --yes` | ✅ aplicada |
+| `npm run verify:remote` | ✅ **13/13**, incluidas «Políticas de DELETE», «DELETE concedido a authenticated» y «Funciones propias ejecutables por anon», todas en cero |
+| Privilegios de las 8 funciones nuevas | ✅ las 4 que escriben son `SECURITY DEFINER` con `search_path`, ejecutables por `authenticated` y **no** por `anon`/`public`; `ticket_bulk_eligibility` es `SECURITY INVOKER`; las 3 piezas internas **no las puede ejecutar nadie** |
+| `assign_ticket` y `cancel_ticket` tras la sustitución | ✅ siguen ejecutables por `authenticated` y su definición delega en los helpers |
+| Comportamiento, con sesión simulada en transacción revertida | ✅ elegibilidad, delegación intacta, una anulada no se elimina (BR-N08), todo-o-nada, y las cuatro acciones masivas responden |
+| Estado de producción tras revertir | ✅ **95 boletas antes y 95 después**, 0 filas de bitácora de la prueba |
+| Exposición por PostgREST con la clave pública | ✅ las cinco funciones devuelven **401 / `42501`**: están expuestas (la caché de esquema se recargó) y `anon` no puede ejecutarlas |
+
+**Un error propio durante la verificación, y por qué importa.** La primera sonda de PostgREST mandó
+el cuerpo vacío (`{}`) y las cinco funciones respondieron `404 PGRST202`. Lo interpreté como «la
+caché de esquema no se ha recargado», que habría significado que la función estaría rota en
+producción. Era falso: **PostgREST resuelve una función por su nombre y por las claves del cuerpo**,
+así que con `{}` no encontraba ninguna sobrecarga sin argumentos. Repitiendo con los parámetros
+correctos, las cinco dan `42501`. La lección para la próxima migración con funciones: sondear siempre
+con los argumentos reales, porque `PGRST202` y «no está expuesta» se parecen mucho y significan cosas
+distintas.
+
+También quedó corregida una comprobación demasiado amplia: contar `action like 'ticket.bulk_%'` para
+verificar que la prueba no dejó rastro incluye `ticket.bulk_create`, que existe desde la Fase 2 y es
+de una carga real del usuario. Se acotó a las cuatro acciones nuevas.
