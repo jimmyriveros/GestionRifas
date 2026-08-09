@@ -10,12 +10,12 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| Siguiente fase | Ninguna. Queda **una acción técnica pendiente** —aplicar la migración `0020` al proyecto real, que bloquea el despliegue— y, aparte, decisiones del usuario (ver §1.b) |
+| Siguiente fase | Ninguna. Lo que queda son **decisiones del usuario**, no trabajo de ingeniería (ver §1.b) |
 | Rama / commit / etiqueta | **`feature/seleccion-multiple-boletas`** · `1697305` (selección múltiple y acciones masivas, 2026-08-08) — **solo local, sin desplegar y sin fusionar a `main`** · última etiqueta `fase-9` en `a8c4083` |
 | Remoto | `github.com/jimmyriveros/GestionRifas` — **el local va por delante**: la selección múltiple (2026-08-08) está solo aquí. De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **20 migraciones. Las 19 primeras están en local y en el proyecto real**; la **`0020` solo en local** (I-043). Verificado el 2026-08-08 (`verify:remote` 13/13 + comprobación de comportamiento de `0018` y `0019` contra producción). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Base de datos | **20 migraciones, todas aplicadas en local y en el proyecto real** y verificadas el 2026-08-08 (`verify:remote` 13/13 + comprobación de comportamiento de `0018` y `0019` contra producción). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
 | Pruebas | **286 unitarias** + **371 de base de datos** + **212 end-to-end**, todas en verde (2026-08-08). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
@@ -25,7 +25,7 @@ Fase 7 (CSP por nonce, limitación de intentos, RLS ~1.400× más rápida), desp
 auditado en la Fase 9 con **47 intentos deliberados de romperlo**, ninguno de los cuales consiguió
 leer ni escribir un dato ajeno. Informe: `docs/AUDIT_REPORT.md`.
 Desde el 2026-08-08 la lista de boletas admite **selección múltiple y acciones masivas** (BR-B01..
-BR-B08), pero eso **todavía no está en producción**: falta aplicar la `0020` (I-043).
+BR-B08), ya **en producción**.
 **Lo que NO existe:** backups automáticos de Supabase (plan Free — I-024, prerrequisito antes de datos
 reales).
 
@@ -33,14 +33,7 @@ reales).
 
 ## 1.b Qué queda abierto
 
-**Hay una acción técnica pendiente, y bloquea el despliegue** (I-043): la migración **`0020`** está
-aplicada solo en local. El código ya llama a sus funciones, así que desplegar sin ella **rompe en
-producción la selección múltiple entera y también el cambio de vendedor de una sola boleta**, que
-ahora pasa por `bulk_change_ticket_seller`. Aplicarla exige respaldo lógico previo y autorización
-explícita del usuario, como la `0016` a la `0019` (§3 y §3.b). Asignar y anular una boleta suelta
-seguirían funcionando: esas funciones siguen existiendo, solo que ahora delegan.
-
-Lo demás son decisiones del dueño del negocio:
+**No hay acciones técnicas pendientes.** Lo que queda son decisiones del dueño del negocio:
 
 | Asunto | Qué hace falta |
 |---|---|
@@ -48,7 +41,8 @@ Lo demás son decisiones del dueño del negocio:
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
 | **I-030** — los ~46 mensajes que lanza la base de datos siguen sin tildes | Autorizar una migración que reescriba esas funciones y aplicarla al proyecto real. Es lo único que quedó fuera de la revisión de textos del 2026-08-05 (D-073) |
 
-Lo último construido fue la **selección múltiple y las acciones masivas de boletas** (2026-08-08,
+La última acción de ingeniería fue aplicar la migración **`0020`** al proyecto real (2026-08-08,
+autorizada explícitamente) y desplegar la **selección múltiple y las acciones masivas de boletas** (
 BR-B01..BR-B08, D-082 a D-085). Se marcan varias boletas de la lista y se actúa sobre todas: el
 vendedor las vende a un cliente de una vez; el Dueño y el Administrador aprueban, anulan, cambian de
 vendedor y **eliminan** las que se cargaron por error. Lo que conviene saber antes de tocarlo:
@@ -157,7 +151,7 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-✅ **Las 19 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-08
+✅ **Las 20 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-08
 (`npm run verify:remote`, 13/13).
 
 Al aplicar migraciones al proyecto real, el procedimiento completo son **tres** pasos, no dos:

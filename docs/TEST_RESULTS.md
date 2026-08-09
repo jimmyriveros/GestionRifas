@@ -1119,3 +1119,32 @@ se confirma. Resultado en las dos acciones probadas —anular y asignar—: erro
 | `approve_tickets` no es todo-o-nada en la base de datos | Se deja como estaba desde la Fase 3. La pantalla lo compensa habilitando el botón solo cuando todas se pueden aprobar. Registrado como I-044 |
 | Eliminar no pide contraseña ni PIN | Este proyecto no tiene reautenticación; se usa el mismo mecanismo que anular (rol + confirmación + motivo). Registrado como I-045 y D-084 |
 | La `0020` no se aplicó al proyecto real | Requiere autorización explícita y respaldo previo, como todas. **Desplegar sin aplicarla rompe la selección múltiple y el cambio de vendedor individual** — I-043 |
+
+### Aplicación de la `0020` al proyecto real — 2026-08-08
+
+Autorizada explícitamente por el usuario para poder probar la función en Vercel.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo lógico previo (`Rifas-backups/2026-08-08-antes-0020/`) | ✅ 9 tablas de negocio · **0** referencias a `"auth"` · **0** `encrypted_password` |
+| `db push --dry-run` | ✅ solo `0020` pendiente (las 19 anteriores ya estaban) |
+| `db push --yes` | ✅ aplicada |
+| `npm run verify:remote` | ✅ **13/13**, incluidas «Políticas de DELETE», «DELETE concedido a authenticated» y «Funciones propias ejecutables por anon», todas en cero |
+| Privilegios de las 8 funciones nuevas | ✅ las 4 que escriben son `SECURITY DEFINER` con `search_path`, ejecutables por `authenticated` y **no** por `anon`/`public`; `ticket_bulk_eligibility` es `SECURITY INVOKER`; las 3 piezas internas **no las puede ejecutar nadie** |
+| `assign_ticket` y `cancel_ticket` tras la sustitución | ✅ siguen ejecutables por `authenticated` y su definición delega en los helpers |
+| Comportamiento, con sesión simulada en transacción revertida | ✅ elegibilidad, delegación intacta, una anulada no se elimina (BR-N08), todo-o-nada, y las cuatro acciones masivas responden |
+| Estado de producción tras revertir | ✅ **95 boletas antes y 95 después**, 0 filas de bitácora de la prueba |
+| Exposición por PostgREST con la clave pública | ✅ las cinco funciones devuelven **401 / `42501`**: están expuestas (la caché de esquema se recargó) y `anon` no puede ejecutarlas |
+
+**Un error propio durante la verificación, y por qué importa.** La primera sonda de PostgREST mandó
+el cuerpo vacío (`{}`) y las cinco funciones respondieron `404 PGRST202`. Lo interpreté como «la
+caché de esquema no se ha recargado», que habría significado que la función estaría rota en
+producción. Era falso: **PostgREST resuelve una función por su nombre y por las claves del cuerpo**,
+así que con `{}` no encontraba ninguna sobrecarga sin argumentos. Repitiendo con los parámetros
+correctos, las cinco dan `42501`. La lección para la próxima migración con funciones: sondear siempre
+con los argumentos reales, porque `PGRST202` y «no está expuesta» se parecen mucho y significan cosas
+distintas.
+
+También quedó corregida una comprobación demasiado amplia: contar `action like 'ticket.bulk_%'` para
+verificar que la prueba no dejó rastro incluye `ticket.bulk_create`, que existe desde la Fase 2 y es
+de una carga real del usuario. Se acotó a las cuatro acciones nuevas.
