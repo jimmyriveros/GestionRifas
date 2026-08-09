@@ -11,7 +11,7 @@
 
 | Refuerzo | Efecto |
 |---|---|
-| Sin `DELETE` ni política ni privilegio en ninguna tabla | El borrado físico exige dos cambios deliberados y visibles (D-038) |
+| Sin `DELETE` ni política ni privilegio en ninguna tabla | El borrado físico exige dos cambios deliberados y visibles (D-038). **Sigue siendo cierto**: desde 2026-08-08 se pueden eliminar boletas cargadas por error, pero solo dentro de `bulk_delete_tickets`, que es `SECURITY DEFINER`; `authenticated` no ganó ningún privilegio y una prueba comprueba que un `DELETE` directo del Owner sigue fallando (D-084) |
 | `anon` sin ningún privilegio de tabla | Un visitante sin sesión no puede leer nada, ni siquiera si fallara una política |
 | Privilegios `GRANT` explícitos | Estado idéntico en local y en el proyecto real, sin depender del entorno (D-037) |
 | Trigger `tickets_guard_paid_amount` | `paid_amount` solo acepta el valor derivado real: un vendedor no puede declararse pagado |
@@ -70,6 +70,8 @@ registro ajeno.
 | Anular boletas | ✓ | ✓ | ✗ |
 | Asignar boleta a un vendedor | ✓ | ✓ | ✗ |
 | Asignar boleta a un cliente | ✓ | ✓ | P |
+| **Eliminar boletas físicamente** (solo sin cliente, sin venta y sin abonos — BR-B05) | ✓ | ✓ | ✗ |
+| Seleccionar varias boletas y actuar sobre todas (BR-B01) | ✓ | ✓ | P, solo asignar a un cliente |
 | **Clientes** |
 | Ver todos los clientes de la organización | ✓ | ✓ | ✗ |
 | Ver / crear / editar clientes propios | ✓ | ✓ | P |
@@ -277,6 +279,32 @@ Reglas obligatorias para todas ellas:
 4. Parámetros tipados; nunca SQL construido por concatenación de texto.
 5. Sin `RAISE` de detalles internos: los mensajes de error son genéricos y traducibles.
 6. Auditoría de la acción antes de retornar.
+
+### 4.6 Acciones masivas de boletas (`0020`, BR-B01..BR-B08)
+
+Cinco funciones nuevas, con una propiedad común: **el navegador no aporta ninguna autoridad**. Recibe
+una lista de identificadores y nada más; el rol sale de la sesión y la organización, de la propia
+boleta. Enviar los ids de otro vendedor o de otra organización no cambia nada, y el mensaje de
+rechazo es el mismo en los dos casos, de modo que tampoco revela si esos ids existen.
+
+| Función | Quién | Qué comprueba, con las filas ya bloqueadas |
+|---|---|---|
+| `ticket_bulk_eligibility` | Cualquier rol | `SECURITY INVOKER`: hereda `tickets_select`, así que un vendedor solo recibe las suyas. Solo lee |
+| `bulk_assign_tickets` | Vendedor (las suyas) o personal | Propiedad, estado `available`, rifa activa, cliente de la misma cartera y no archivado |
+| `bulk_cancel_tickets` | Owner / Admin | `is_org_staff`, no anulada, sin abonos activos, motivo ≥ 5 caracteres |
+| `bulk_change_ticket_seller` | Owner / Admin | `is_org_staff`, ni asignada ni anulada, destino vendedor activo de la organización |
+| `bulk_delete_tickets` | Owner / Admin | `is_org_staff`, estado sin vender, sin cliente, sin `sale_price`, sin ninguna asignación de pago. Motivo obligatorio |
+
+Tres piezas internas (`assign_ticket_row`, `cancel_ticket_row`, `lock_ticket_batch`) **no se conceden
+a `authenticated`**: solo las ejecutan las funciones públicas, que son `SECURITY DEFINER` y corren con
+el dueño. Menos superficie sin perder nada.
+
+**Todo o nada.** Cada función cuenta primero cuántas boletas cumplen todo y aborta antes de tocar
+nada si falta una. Como una función PL/pgSQL es una transacción, un `raise` deshace lo hecho: no
+existen resultados parciales silenciosos (BR-B07).
+
+**Sin deadlocks.** `lock_ticket_batch` bloquea las filas **en orden de id**, de modo que dos lotes
+simultáneos que se solapen las toman en la misma secuencia.
 
 ---
 

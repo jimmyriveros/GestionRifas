@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 import { serviceClient } from './db-setup'
 import { TOURS } from '../../src/features/tour/tours'
@@ -117,4 +117,22 @@ export function randomTicketNumbers(): { daily: string; weekly: string } {
 
 export async function expectToast(page: Page, text: string | RegExp): Promise<void> {
   await expect(page.locator('[data-sonner-toast]').filter({ hasText: text })).toBeVisible()
+}
+
+/**
+ * Marca o desmarca una casilla, reintentando hasta que el clic surta efecto.
+ *
+ * Un clic sobre un componente cliente puede caer en el hueco entre que el HTML
+ * del servidor esta pintado —y por tanto Playwright lo considera pulsable— y
+ * que React haya terminado de hidratarlo. Entonces el clic no hace nada y la
+ * prueba falla en la comprobacion siguiente, echandole la culpa al producto.
+ *
+ * `toPass` con una espera corta dentro distingue las dos cosas: si el clic se
+ * perdio, se repite; si la casilla de verdad no cambia, la prueba falla igual.
+ */
+export async function toggleCheckbox(box: Locator, expected: boolean): Promise<void> {
+  await expect(async () => {
+    await box.click()
+    await expect(box).toBeChecked({ checked: expected, timeout: 1500 })
+  }).toPass({ timeout: 20_000 })
 }

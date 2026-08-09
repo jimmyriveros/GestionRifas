@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 import { createTicket, loadSeedRefs, type SeedRefs } from './db-setup'
-import { ACCOUNTS, expectToast, loginAs, randomTicketNumbers } from './fixtures'
+import { ACCOUNTS, expectToast, loginAs, randomTicketNumbers, toggleCheckbox } from './fixtures'
 
 /**
  * Pruebas 6, 7, 8, 12, 13 y 14 de la Fase 3: creacion individual, limites de
@@ -159,15 +159,18 @@ test.describe('Boletas', () => {
     })
 
     await page.goto('/owner/tickets?inventoryStatus=pending_approval')
-    const checkboxes = page.getByRole('checkbox')
-    await expect(checkboxes.first()).toBeVisible()
+    await expect(page.getByRole('checkbox').first()).toBeVisible()
 
-    await checkboxes.nth(0).click()
-    await checkboxes.nth(1).click()
+    // La casilla del encabezado marca las boletas visibles: todas las de este
+    // filtro estan pendientes de aprobacion (seccion 16 del encargo).
+    await toggleCheckbox(
+      page.getByRole('checkbox', { name: 'Seleccionar las boletas de esta página' }),
+      true,
+    )
 
-    await page.getByRole('button', { name: 'Aprobar seleccionadas' }).click()
-    await page.getByRole('button', { name: 'Aprobar', exact: true }).click()
-    await expectToast(page, /Se aprobaron 2 boletas/)
+    await page.getByRole('button', { name: /^Aprobar boletas/ }).click()
+    await page.getByRole('dialog').getByRole('button', { name: /^Aprobar \d+ boleta/ }).click()
+    await expectToast(page, /Se aprobaron \d+ boletas/)
   })
 
   test('anula una boleta exigiendo motivo (prueba 13, BR-I10)', async ({ page }) => {

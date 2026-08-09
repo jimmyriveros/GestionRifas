@@ -6,74 +6,93 @@ import { toClientRow } from '@/features/clients/schemas'
 import { authorizeAction } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
-import type { ActionResult } from '@/lib/action-result'
+import type { ActionResultWith } from '@/lib/action-result'
 
-import { assignTicketSchema, assignTicketToNewClientSchema } from './schemas'
+import { assignTicketsSchema, assignTicketsToNewClientSchema } from './schemas'
 
 /**
  * Asignacion de boletas a clientes.
  *
- * TODA la logica vive en la RPC `assign_ticket` de la Fase 2, que en una sola
- * transaccion: comprueba que la boleta sea del vendedor (o que quien llama sea
- * personal), que este `available`, que el cliente sea de esa misma cartera y no
- * este archivado, que la rifa este activa, COPIA el precio vigente a
- * `sale_price` (BR-P03) y audita el cambio.
+ * TODA la logica vive en la RPC `bulk_assign_tickets` (migracion 0020), que a
+ * su vez aplica boleta por boleta las reglas de `assign_ticket_row` —las mismas
+ * de siempre, extraidas de la Fase 2—: comprueba que la boleta sea del vendedor
+ * (o que quien llama sea personal), que este `available`, que el cliente sea de
+ * esa misma cartera y no este archivado, que la rifa este activa, COPIA el
+ * precio vigente a `sale_price` (BR-P03) y audita el cambio.
+ *
+ * UNA boleta o VEINTE recorren exactamente el mismo camino (seccion 29 del
+ * encargo). Y como una funcion de PostgreSQL es una transaccion, veinte boletas
+ * se venden todas o no se vende ninguna: nunca quedan siete asignadas y trece
+ * sueltas.
  *
  * Reimplementar cualquiera de esas reglas aqui seria duplicarlas y perder la
  * atomicidad. Estas acciones solo traducen el resultado a la interfaz.
  */
 
-function revalidateAssignment(ticketId: string) {
+function revalidateAssignment() {
   revalidatePath('/seller/tickets')
-  revalidatePath(`/seller/tickets/${ticketId}`)
+  revalidatePath('/seller/tickets/[ticketId]', 'page')
   revalidatePath('/seller/clients')
   revalidatePath('/seller/dashboard')
   revalidatePath('/owner/tickets')
-  revalidatePath(`/owner/tickets/${ticketId}`)
+  revalidatePath('/owner/tickets/[ticketId]', 'page')
   revalidatePath('/owner/dashboard')
 }
 
-export async function assignTicket(input: unknown): Promise<ActionResult> {
+function assignedMessage(count: number): string {
+  return count === 1 ? 'Boleta asignada.' : `Se asignaron ${count} boletas.`
+}
+
+export async function assignTickets(
+  input: unknown,
+): Promise<ActionResultWith<{ count: number; message: string }>> {
   const auth = await authorizeAction(['owner', 'admin', 'seller'])
   if ('error' in auth) return auth
 
-  const parsed = assignTicketSchema.safeParse(input)
+  const parsed = assignTicketsSchema.safeParse(input)
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
   }
-  const { ticketId, clientId, saleDate } = parsed.data
+  const { ticketIds, clientId, saleDate } = parsed.data
 
   const supabase = await createClient()
-  const { error } = await supabase.rpc('assign_ticket', {
-    p_ticket_id: ticketId,
+  const { data, error } = await supabase.rpc('bulk_assign_tickets', {
+    p_ticket_ids: ticketIds,
     p_client_id: clientId,
     p_sale_date: saleDate,
   })
 
   if (error) return { error: mapPgError(error) }
 
-  revalidateAssignment(ticketId)
-  return { ok: true }
+  revalidateAssignment()
+  const count = data ?? ticketIds.length
+  return { ok: true, data: { count, message: assignedMessage(count) } }
 }
 
 /**
- * Crea el cliente y le asigna la boleta sin salir del flujo.
+ * Crea el cliente y le asigna las boletas sin salir del flujo.
  *
- * No son atomicos entre si a proposito: si la asignacion falla (por ejemplo,
- * porque otro dispositivo tomo la boleta un segundo antes), el cliente recien
- * creado SE CONSERVA. Es un dato legitimo que la persona acaba de capturar y
- * borrarlo la obligaria a escribirlo otra vez; basta con elegir otra boleta.
- * El mensaje de error lo dice explicitamente (D-050).
+ * El alta del cliente y la asignacion no son atomicas ENTRE SI a proposito: si
+ * la asignacion falla (por ejemplo, porque otro dispositivo tomo una boleta un
+ * segundo antes), el cliente recien creado SE CONSERVA. Es un dato legitimo que
+ * la persona acaba de capturar y borrarlo la obligaria a escribirlo otra vez;
+ * basta con elegir otras boletas. El mensaje de error lo dice explicitamente
+ * (D-050).
+ *
+ * La asignacion en si sigue siendo todo o nada: o se venden todas las boletas
+ * del lote o no se vende ninguna.
  */
-export async function assignTicketToNewClient(input: unknown): Promise<ActionResult> {
+export async function assignTicketsToNewClient(
+  input: unknown,
+): Promise<ActionResultWith<{ count: number; message: string }>> {
   const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
-  const parsed = assignTicketToNewClientSchema.safeParse(input)
+  const parsed = assignTicketsToNewClientSchema.safeParse(input)
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos del cliente.' }
   }
-  const { ticketId, saleDate, client } = parsed.data
+  const { ticketIds, saleDate, client } = parsed.data
 
   const supabase = await createClient()
 
@@ -89,19 +108,20 @@ export async function assignTicketToNewClient(input: unknown): Promise<ActionRes
 
   if (clientError) return { error: mapPgError(clientError) }
 
-  const { error } = await supabase.rpc('assign_ticket', {
-    p_ticket_id: ticketId,
+  const { data, error } = await supabase.rpc('bulk_assign_tickets', {
+    p_ticket_ids: ticketIds,
     p_client_id: created.id,
     p_sale_date: saleDate,
   })
 
   if (error) {
-    revalidateAssignment(ticketId)
+    revalidateAssignment()
     return {
-      error: `${mapPgError(error)} El cliente si quedo guardado: puedes asignarle otra boleta.`,
+      error: `${mapPgError(error)} El cliente sí quedó guardado: puedes asignarle otras boletas.`,
     }
   }
 
-  revalidateAssignment(ticketId)
-  return { ok: true }
+  revalidateAssignment()
+  const count = data ?? ticketIds.length
+  return { ok: true, data: { count, message: assignedMessage(count) } }
 }

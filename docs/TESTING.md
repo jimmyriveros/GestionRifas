@@ -249,6 +249,10 @@ interruptor de pruebas en el código de producción**. Las pruebas del recorrido
 | `db/ticket-search.test.ts` | Los 7 casos del encargo de BR-N11: encuentra por número diario y semanal, entero o en parte; **no** encuentra por código interno ni por texto; el orden por relevancia en sus seis escalones; los ceros de delante; el total exacto de la paginación; y que la función hereda la RLS (un vendedor no encuentra la boleta de otro ni pasando su id, ni se cruzan dos organizaciones con la misma combinación) |
 | `e2e/busqueda-hibrida.spec.ts` | Una sola consulta para cuatro teclas; `Enter` inmediato; `Enter`+pausa no duplican; el mínimo no encierra; limpiar restaura; no se pierde el foco; la página vuelve a la primera; convive con los filtros; **una respuesta lenta no pisa a la actual**; y que se encuentre a un cliente que no viene en el bloque inicial |
 | `e2e/filas-seleccionables.spec.ts` | La fila abre el detalle desde cualquier celda y con `Enter`; la casilla y el menú de acciones **no** lo abren; y los estados de la lista de clientes (hover, elegido, elegido+hover) conservan contraste, marcan la elección con algo más que color y no desplazan el contenido |
+| `unit/ticket-selection.test.ts` | Las dos piezas puras de la selección múltiple (BR-B01): los recuentos de elegibilidad, la lista de incompatibles y el **motivo concreto** de cada una; y el almacén de la selección — que separa portales, avisa a quien esté suscrito, aguanta contenido corrupto, respeta el tope de 1.000 y **devuelve siempre la misma referencia cuando está vacío**, que es lo que evita un bucle infinito en `useSyncExternalStore` |
+| `db/bulk-actions.test.ts` | Lo que solo se puede probar contra PostgreSQL (BR-B01..BR-B08): elegibilidad heredando la RLS; **todo o nada** en las cuatro acciones; concurrencia real (otra sesión anula una mientras el lote está abierto); que un vendedor no anule, no elimine y no se reparta boletas; que otra organización no toque nada ni con los ids exactos; que una boleta con cliente, con abonos —aunque estén anulados— o **anulada** no se pueda eliminar; que el `DELETE` directo siga prohibido (D-038); la bitácora por boleta y del lote; e ids repetidos, inventados, lista vacía y **1.000 en una sola llamada** |
+| `e2e/seleccion-multiple.spec.ts` | El recorrido en escritorio: marcar, desmarcar y limpiar; que la selección **sobreviva a buscar, filtrar y cambiar de página**; que «Limpiar filtros» no la borre; que marcar **no mueva la fila de sitio**; la casilla del encabezado y el segundo paso explícito para «todas las que coinciden»; «Ver seleccionadas»; anular, cambiar vendedor, eliminar y aprobar en lote; y tres llamadas **directas a la API**, saltándose la pantalla, con los ids de otro vendedor |
+| `e2e/seleccion-movil.spec.ts` | Lo táctil (proyecto `movil`): en modo normal no hay casillas y la fila abre el detalle; en modo selección la **fila entera** marca y ya no abre; la casilla se ve de 20 px y **se toca en 44**; la pulsación larga entra en el modo; la barra se queda pegada abajo tras hacer scroll y sobrevive a la búsqueda; «Cancelar» limpia y devuelve el comportamiento normal |
 
 **Cómo se mide el color, y por qué así** (I-034): pintando el color en un `canvas` y leyendo los
 píxeles, no leyendo `getComputedStyle`. Con Tailwind 4 el navegador devuelve los colores en
@@ -258,6 +262,33 @@ de un `hover()` captura un fotograma intermedio.
 
 **Estas pruebas se comprobaron al revés.** Con el CSS defectuoso restaurado a propósito, las dos de
 contraste fallan (1,01 y 1,04). Una prueba visual que no se ha visto fallar no demuestra nada.
+
+### 5.3 Una trampa más de las E2E: pulsar antes de que React hidrate
+
+Entre que el HTML del servidor está pintado —y por tanto Playwright ya considera el botón
+pulsable— y que React le engancha su manejador, hay un hueco. Un clic ahí **no hace nada**, y la
+comprobación siguiente falla culpando al producto de una carrera del arnés. Apareció al escribir las
+pruebas de selección múltiple: la misma prueba fallaba sola y pasaba si antes se tocaba cualquier
+otra cosa.
+
+La solución es reintentar el gesto hasta que surta efecto, con una espera **corta** dentro para que
+un fallo real siga fallando rápido:
+
+```ts
+await expect(async () => {
+  await box.click()
+  await expect(box).toBeChecked({ timeout: 1500 })
+}).toPass({ timeout: 20_000 })
+```
+
+Vive en `toggleCheckbox` (`tests/e2e/fixtures.ts`) y en `activarModoSeleccion`
+(`seleccion-movil.spec.ts`). Si escribes una prueba que pulsa lo primero al entrar a una pantalla,
+usa el mismo patrón.
+
+**Y en el teléfono, `locator.tap()` en vez de `touchscreen.tap(x, y)`.** El primero desplaza el
+elemento a la vista y espera a que sea pulsable; el segundo toca unas coordenadas de pantalla y, en
+cuanto la barra de selección empuja la tabla hacia abajo, el toque cae fuera del viewport y se pierde
+sin decir nada.
 
 ---
 

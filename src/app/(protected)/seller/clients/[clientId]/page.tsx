@@ -107,7 +107,6 @@ export default async function SellerClientDetailPage({
             tickets={tickets}
             basePath="/seller/tickets"
             showSeller={false}
-            enableApproval={false}
           />
         )}
       </div>

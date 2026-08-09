@@ -974,11 +974,39 @@ export type Database = {
         Args: { p_client_id: string; p_sale_date?: string; p_ticket_id: string }
         Returns: undefined
       }
+      assign_ticket_row: {
+        Args: { p_client_id: string; p_sale_date?: string; p_ticket_id: string }
+        Returns: undefined
+      }
+      bulk_assign_tickets: {
+        Args: {
+          p_client_id: string
+          p_sale_date?: string
+          p_ticket_ids: string[]
+        }
+        Returns: number
+      }
+      bulk_cancel_tickets: {
+        Args: { p_reason: string; p_ticket_ids: string[] }
+        Returns: number
+      }
+      bulk_change_ticket_seller: {
+        Args: { p_seller_id: string; p_ticket_ids: string[] }
+        Returns: number
+      }
       bulk_create_tickets: {
         Args: { p_raffle_id: string; p_rows: Json; p_seller_id: string }
         Returns: Json
       }
+      bulk_delete_tickets: {
+        Args: { p_reason: string; p_ticket_ids: string[] }
+        Returns: number
+      }
       cancel_ticket: {
+        Args: { p_reason: string; p_ticket_id: string }
+        Returns: undefined
+      }
+      cancel_ticket_row: {
         Args: { p_reason: string; p_ticket_id: string }
         Returns: undefined
       }
@@ -1004,6 +1032,7 @@ export type Database = {
         Returns: boolean
       }
       is_org_staff: { Args: { p_org: string }; Returns: boolean }
+      lock_ticket_batch: { Args: { p_ticket_ids: string[] }; Returns: string[] }
       log_ticket_import: {
         Args: {
           p_inserted: number
@@ -1091,6 +1120,26 @@ export type Database = {
         Args: { p_combos: Json; p_raffle_id: string }
         Returns: {
           daily_number: string
+          weekly_number: string
+        }[]
+      }
+      ticket_bulk_eligibility: {
+        Args: { p_ticket_ids: string[] }
+        Returns: {
+          can_approve: boolean
+          can_assign: boolean
+          can_cancel: boolean
+          can_change_seller: boolean
+          can_delete: boolean
+          daily_number: string
+          has_active_payments: boolean
+          has_client: boolean
+          has_payments: boolean
+          inventory_status: Database['public']['Enums']['ticket_inventory_status']
+          raffle_active: boolean
+          raffle_id: string
+          seller_id: string
+          ticket_id: string
           weekly_number: string
         }[]
       }

@@ -58,6 +58,10 @@ function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
         // fila cualquiera. Solo cambia el fondo: nada de bordes ni tamanos que
         // muevan el contenido al pasar por encima.
         'data-[clickable=true]:hover:bg-muted data-[clickable=true]:cursor-pointer',
+        // Alto suficiente para el pulgar en el telefono (seccion 7 del encargo:
+        // 56-64 px). En escritorio se deja como estaba: alli se apunta con el
+        // raton y una lista mas compacta se recorre mejor.
+        'data-[clickable=true]:[&>td]:py-3.5 md:data-[clickable=true]:[&>td]:py-2',
         // Solo las filas seleccionables reciben el foco, asi que este contorno
         // nunca aparece donde no hay accion. `outline` y no `ring`: el navegador
         // lo dibuja alrededor de la fila sin depender del colapso de bordes.

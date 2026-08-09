@@ -291,6 +291,14 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `approve_tickets(p_ticket_ids uuid[])` | 2 / 3 | `pending_approval` → `available`, audita | Sí |
 | `cancel_ticket(p_ticket_id, p_reason)` | 2 / 3 | Anula boleta si no tiene pagos activos, audita | Sí |
 | ~~`create_user_membership(...)`~~ | — | **Descartada en la Fase 3 (D-045).** Una función SQL no puede llamar a `auth.admin`, así que el alta necesitaba igualmente la service role desde el servidor. El alta la hace `features/users/actions.ts`: invitación por correo + inserción de la membresía **sujeta a RLS** | — |
+| `bulk_assign_tickets(ids, client, date)` · `bulk_cancel_tickets(ids, reason)` · `bulk_change_ticket_seller(ids, seller)` · `bulk_delete_tickets(ids, reason)` | post-9 | Acciones masivas (BR-B01..BR-B08). Bloquean las filas en orden de id, revalidan todo y aplican o abortan | Sí — **todo o nada** |
+| `ticket_bulk_eligibility(ids)` | post-9 | Qué admite cada boleta seleccionada. **`SECURITY INVOKER`**: solo lee y hereda `tickets_select` | — |
+
+**`assign_ticket` y `cancel_ticket` ya no llevan las reglas dentro: delegan** (D-083). Su cuerpo se
+extrajo a `assign_ticket_row` y `cancel_ticket_row`, que también usan las versiones masivas en bucle.
+Firma, resultado y mensajes no cambian. El cambio de vendedor recorrió el camino inverso: sus reglas
+vivían en la Server Action y ahora están en `bulk_change_ticket_seller`, que usan tanto el cambio
+individual como el masivo.
 
 Funciones auxiliares de seguridad (`STABLE`, `SECURITY DEFINER`): `current_profile_id()`,
 `current_org_ids()`, `has_org_role(org uuid, roles text[])`. Detalle en `docs/SECURITY.md` §4.1.
@@ -308,8 +316,11 @@ Funciones auxiliares de seguridad (`STABLE`, `SECURITY DEFINER`): `current_profi
 
 | Componente | Propósito |
 |------------|-----------|
-| `DataTable` | Envoltura de TanStack Table: ordenamiento, paginación, selección, estado vacío, skeleton y **fila seleccionable** (`rowHref` / `onRowActivate`, D-076) |
+| `DataTable` | Envoltura de TanStack Table: ordenamiento, paginación, selección, estado vacío, skeleton y **fila seleccionable** (`rowHref` / `onRowActivate`, D-076). En modo selección, `onRowSelect` hace que la fila marque en vez de abrir, y `onRowLongPress` da el atajo táctil (D-085) |
 | `row-activation.ts` | Reglas de la fila seleccionable: qué clic la abre y cuál ya lo atiende otro elemento (D-076) |
+| `use-long-press.ts` | Pulsación larga con el dedo: solo táctil, se cancela si el dedo se mueve, y anula el `click` posterior (D-085) |
+| `SelectionCheckbox` | Casilla de 20 px con diana de 44 px. Cuadrada, nunca circular: un círculo se lee como «elige uno» (D-085) |
+| `useMediaQuery` / `useIsCompactScreen` | Consulta de medios sin romper la hidratación. Solo para decidir **comportamiento**; lo que se ve lo decide Tailwind |
 | `OptionList` / `OptionListItem` | Lista de opciones elegibles (clientes). Estados **excluyentes** normal/hover/foco/elegido/elegido+hover/deshabilitado, con visto además del color (D-077) |
 | `SearchInput` | Campo de búsqueda compartido: etiqueta, limpiar, indicador retrasado, `aria-busy` (D-078) |
 | `useUrlSearch` | Búsqueda híbrida para listas paginadas: el término va a la URL y el RSC reconsulta |
@@ -347,6 +358,31 @@ término que no sea de 1 a 4 dígitos devuelve cero resultados y la pantalla exp
 su detalle; pagos abre su diálogo. `UsersTable` **no** la lleva: no hay pantalla de detalle de
 usuario. El enlace de la primera columna se conserva siempre: es lo único que da menú contextual,
 «abrir en otra pestaña» y una parada de teclado con nombre.
+
+### 8.2.b Selección múltiple de boletas (`src/features/tickets/selection/`, D-082 a D-085)
+
+```
+TicketSelectionProvider          contexto: ids marcados, modo, «ver seleccionadas»
+├── selection-store.ts           donde vive la lista, fuera de React (sessionStorage)
+├── eligibility.ts               recuentos, incompatibles y el porqué. Código puro
+├── queries.ts / actions.ts      elegibilidad, resolver «todas», y las cuatro acciones
+├── TicketSelectionToolbar       contar, ver, limpiar, «seleccionar todas» y las acciones
+│   ├── (escritorio) botones en línea
+│   └── (teléfono) «Seleccionar» arriba + barra pegada abajo con menú
+├── TicketListSlot               cambia la lista por «solo las seleccionadas»
+└── Bulk*Dialog                  aprobar · anular · cambiar vendedor · eliminar · asignar
+```
+
+| Decisión | Dónde |
+|---|---|
+| La selección se guarda por `ticket.id`, tope 1.000, fuera de React | `selection-store.ts` (D-082) |
+| La regla de qué se puede hacer está en SQL; aquí solo se cuenta y se explica | `eligibility.ts` (D-083) |
+| En escritorio la columna de casillas está siempre; en el teléfono, solo en modo selección | `TicketsTable` con `hideOnMobile` (D-085) |
+| La fila entera marca solo en modo selección; el resto del tiempo abre el detalle | `DataTable.onRowSelect` (D-085) |
+| Asignar una boleta o veinte usa **un solo** formulario | `AssignTicketsForm` |
+
+`TicketsTable` funciona **con y sin** proveedor: la usan también las fichas de cliente, donde no hay
+selección múltiple y por tanto no aparece la columna de casillas.
 
 ### 8.3 Etiquetas en español (fuente única: `lib/constants.ts`)
 

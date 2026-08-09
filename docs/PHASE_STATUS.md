@@ -4,7 +4,7 @@ Registro de lo entregado por fase. **Leer antes de iniciar cualquier fase.**
 Ninguna fase comienza sin autorización explícita del usuario (`CLAUDE.md` §1).
 Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 
-- **Actualizado:** 2026-08-05 · **Fase actual:** 9 completada · **Siguiente:** ninguna — el plan de
+- **Actualizado:** 2026-08-08 · **Fase actual:** 9 completada · **Siguiente:** ninguna — el plan de
   10 fases está terminado
 
 | Fase | Nombre | Estado | Commit / etiqueta |
@@ -24,9 +24,12 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 
 ## LO PRIMERO, SI RETOMAS ESTE PROYECTO
 
-1. **No hay acciones técnicas pendientes.** Las 16 migraciones están aplicadas en local y en el
-   proyecto real. Lo que queda abierto (I-024 backups, I-021 cuentas demo, I-004 `CLAUDE.md.txt`) son
-   decisiones del dueño del negocio — `HANDOFF.md` §1.b.
+1. **Hay una acción técnica pendiente y bloquea el despliegue:** la migración **`0020`** (selección
+   múltiple y acciones masivas) está aplicada **solo en local**. El código ya llama a sus funciones,
+   así que desplegar sin ella rompe la selección múltiple y el cambio de vendedor individual —
+   I-043. Las 19 anteriores sí están en el proyecto real. Lo demás que queda abierto (I-024 backups,
+   I-021 cuentas demo, I-030 tildes en los mensajes de la base de datos) son decisiones del dueño del
+   negocio — `HANDOFF.md` §1.b.
 2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y `docs/AUDIT_REPORT.md` (los hallazgos y lo que quedó
    aceptado).
 3. **La aplicación está en producción**: `https://gestion-rifas.vercel.app`, proyecto Vercel
@@ -40,7 +43,7 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
 5. **CI corre en cada push/PR a `main`** (`.github/workflows/ci.yml`): typecheck/lint/test/build +
    migraciones desde cero contra una instancia Supabase efímera. `test:e2e` queda fuera (D-069).
 6. Como siempre: `npx supabase start` → `npm run db:reset && npm run seed:local` →
-   `npm run test:db` (266 ✅) → `npm run verify` (✅) → `npm run test:e2e` (142 ✅) antes de tocar nada.
+   `npm run test:db` (371 ✅) → `npm run verify` (✅) → `npm run test:e2e` (212 ✅) antes de tocar nada.
    Si el seed falla con `AuthRetryableFetchError`, espera a que GoTrue arranque (I-028).
 7. **La limitación de intentos es en memoria por instancia** (D-062) y **las políticas RLS no llaman
    a una función pasándole una columna** (D-057, D-063). **Nada de dinero calculado en TypeScript.**
@@ -50,6 +53,11 @@ Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
    esté (desde la Fase 9 el recorrido es recursivo) y fallará si se le olvida `authorizeAction`.
 10. **Si tocas el seed**, lee `docs/TESTING.md` §6.1: `F6-04` y `F9-02` dependen de que `vendedor2`
     no tenga pagos.
+11. **Si cambias una regla de asignación o anulación de boletas**, cámbiala en `assign_ticket_row` o
+    `cancel_ticket_row` (`0020`): desde ahí la comparten la acción individual y la masiva (D-083).
+12. **Si escribes una prueba E2E que pulsa lo primero al entrar a una pantalla**, usa
+    `toggleCheckbox` de `fixtures.ts` o su mismo patrón de reintento: sin él, el clic cae antes de
+    que React hidrate y la prueba falla culpando al producto (`TESTING.md` §5.3).
 
 ---
 
@@ -808,11 +816,11 @@ por un estado intermedio sin Owner, y un trigger inmediato lo haría imposible p
 
 ```bash
 npx supabase start     # instancia local (Docker)
-npm run db:reset       # reaplica las 16 migraciones desde cero (local)
+npm run db:reset       # reaplica las 20 migraciones desde cero (local)
 npm run seed:local     # datos de desarrollo en local
 npm run seed           # datos de desarrollo en el proyecto de .env.local
-npm run test:db        # 266 pruebas de base de datos (crea 5.000 boletas de volumen)
-npm run test:e2e       # 142 pruebas end-to-end (Playwright)
+npm run test:db        # 371 pruebas de base de datos (crea 5.000 boletas de volumen)
+npm run test:e2e       # 212 pruebas end-to-end (Playwright)
 npm run verify         # typecheck + lint + unitarias + build
 npm run dev            # servidor de desarrollo (segun .env.local)
 npm run dev:local      # servidor de desarrollo contra la instancia local
@@ -860,3 +868,4 @@ npx supabase db dump -f "<carpeta-fuera-del-repo>/data.sql" --schema public --da
 | 2026-08-07 | — | **Migración `0017` aplicada al proyecto real**, con autorización explícita del usuario y respaldo lógico previo (D-070). Producción pasa a tener la búsqueda normalizada: «Jose» encuentra a «José», el teléfono se halla escrito de cualquier forma, y la búsqueda de boletas deja de hacer barrido secuencial. Verificada allí de las dos maneras: por catálogo —`verify:remote` 13/13 más 13 comprobaciones propias de `0017`, tres de ellas de privilegios, que es justo donde este proyecto ya tuvo dos divergencias local/remoto (D-038, I-020)— y **por comportamiento**, insertando un cliente con tildes y ñ dentro de una transacción, comprobando que se encuentra escribiéndolo sin ellas y revirtiendo: 6 clientes antes y 6 después. Las 17 migraciones están ahora en local y en producción. |
 | 2026-08-08 | — | **Una boleta se busca por sus números, no por su código** (BR-N11, D-080), a petición del usuario y sin abrir fase nueva. La búsqueda deja de mirar `internal_code` y pasa a ser **parcial** sobre los dos números, **ordenada por relevancia** —diario exacto, diario empieza, diario contiene, y después lo mismo con el semanal—. El orden lo decide SQL y no el navegador, porque la lista está paginada en servidor: reordenar la página visible dejaría la mejor coincidencia escondida en la página 7. El código interno sale de todas las listas (tabla de boletas, panel, pagos, reparto de abonos) y baja al detalle, bajo «Información administrativa». Migración `0018`: la función `search_tickets` (`security invoker`, hereda `tickets_select`) y dos índices de trigramas sobre los números. **+19 de base de datos, +10 unitarias y +2 E2E**: 238 unitarias ✅, 311 de base de datos ✅, **178 E2E ✅** y `verify` ✅. Seis errores propios encontrados por el camino, incluidos un orden de resultados sin sentido —visto en una captura de la tabla, no en una prueba— y el cambio de orden del reparto de abonos, que es un efecto lateral real y queda documentado. **La `0018` está aplicada solo en local** y el código ya la llama: desplegar sin aplicarla rompe la búsqueda de boletas en producción (I-040). |
 | 2026-08-08 | — | **Importar boletas desde CSV y JSON** (BR-N12, D-081), a petición del usuario y sin abrir fase nueva. Un solo importador para los tres roles: no recibe el rol, recibe el contexto —rifa, vendedor, a dónde volver— y quién puede hacer qué lo deciden la Server Action y la base de datos. El recorrido nunca se salta la parada: elegir archivo → mapear columnas si hace falta → **vista previa** → confirmar → resultado; elegir el archivo no escribe nada. Lee CSV de Excel (marca BOM, saltos de Windows, separador `;`, comillas) y JSON, con reconocimiento automático de encabezados y mapeo manual cuando no los reconoce. **Sin reglas de boletas nuevas**: valida con `validateBulkRows`, el mismo motor de la carga manual, y guarda por los mismos caminos. Migración `0019`: `taken_ticket_combinations` —para que un vendedor sepa que una combinación está tomada **sin ver de quién es**— y `log_ticket_import`, que deja la importación en `audit_logs` sin guardar el archivo. **+26 unitarias, +14 de base de datos y +8 E2E**: 264 unitarias ✅, 325 de base de datos ✅, **186 E2E ✅** y `verify` ✅. Cuatro errores propios corregidos por el camino, dos de ellos destapados por una captura de pantalla y no por una prueba. **La `0019` está aplicada solo en local** (I-042). |
+| 2026-08-08 | — | **Selección múltiple y acciones masivas en la lista de boletas** (BR-B01..BR-B08, D-082 a D-085), a petición del usuario y sin abrir fase nueva. Se pueden marcar varias boletas y actuar sobre todas: el vendedor las **vende a un cliente de una vez**; el Dueño y el Administrador **aprueban, anulan, cambian de vendedor y eliminan**. La selección se identifica por `ticket.id`, tope de 1.000, y **sobrevive a buscar, filtrar, ordenar y cambiar de página** porque vive fuera de React, en `sessionStorage` leído con `useSyncExternalStore`; «Limpiar filtros» y «Limpiar selección» son botones distintos que no se tocan. En escritorio, columna de casillas de siempre y barra de acciones en línea; en el teléfono, **modo selección explícito** donde la fila entera es la diana —la casilla se ve de 20 px y se toca en 44—, con pulsación larga como atajo y barra pegada abajo. Las seleccionadas **no se suben arriba** (mueve las filas bajo el dedo): en su lugar, «Ver seleccionadas» cambia la lista sin tocar los filtros. **Ninguna regla nueva de boletas**: el cuerpo de `assign_ticket` y `cancel_ticket` se extrae a dos helpers que usan tanto la acción individual como la masiva, y el cambio de vendedor pasa de TypeScript a SQL, donde una llamada directa a la API ya no puede saltárselo. **Eliminar es lo único nuevo**, y es borrado físico acotado a boletas cargadas por error —sin cliente, sin venta, sin abonos y **nunca anuladas**, cuya combinación queda reservada por BR-N08—; el proyecto sigue sin conceder `DELETE` a nadie (D-038). Migración `0020`: cinco funciones públicas y tres piezas internas sin `EXECUTE` para nadie. **+22 unitarias, +46 de base de datos y +26 E2E**: 286 unitarias ✅, 371 de base de datos ✅, **212 E2E ✅** y `verify` ✅. Seis errores propios corregidos por el camino, el mayor de ellos una carrera de hidratación que hacía fallar 13 pruebas culpando al producto. **La `0020` está aplicada solo en local** (I-043). |
