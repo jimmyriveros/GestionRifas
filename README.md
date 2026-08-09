@@ -15,9 +15,10 @@ vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y a
 > descuadrar un peso. Informe completo en [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md);
 > procedimiento de despliegue en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 >
-> ⚠️ **Antes de operar con dinero real** queda un requisito, y es decisión del dueño del negocio:
-> resolver la ausencia de copias de seguridad automáticas del plan Free de Supabase
-> (`docs/RUNBOOK.md` §5.3). No hay acciones de ingeniería pendientes.
+> ⚠️ **Antes de operar con dinero o clientes reales** hay tres controles del dueño del negocio:
+> resolver los backups del plan Free (I-024), desactivar o rotar las cuentas demo (I-021) y confirmar
+> la URL canónica de invitaciones en Supabase Auth (I-023). No hay trabajo técnico activo autorizado;
+> los demás riesgos y límites están en [`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md).
 
 ---
 
@@ -35,6 +36,8 @@ Reemplaza el control manual en papel y hojas de cálculo por un sistema con:
   rifa, clientes con saldo pendiente y recaudo por rango de fechas. El vendedor tiene los suyos, sin
   ver datos de nadie más. Los archivos se abren directamente en Excel en configuración regional
   colombiana.
+- **Importación de boletas desde CSV o JSON**: vista previa, mapeo de columnas y la misma validación
+  de la carga manual antes de guardar.
 - **Selección múltiple y acciones masivas**: se marcan varias boletas y se actúa sobre todas a la
   vez —venderlas al mismo cliente, aprobarlas, anularlas, cambiarles el vendedor o eliminar las que
   se cargaron por error—. En el teléfono hay un modo selección donde la fila entera es la diana.
@@ -44,29 +47,30 @@ Reemplaza el control manual en papel y hojas de cálculo por un sistema con:
 
 ## Documentación
 
-**Empieza por [`docs/HANDOFF.md`](docs/HANDOFF.md).** Reúne el estado actual, el arranque, las
-credenciales necesarias y las trampas ya conocidas. Los demás documentos se consultan solo cuando la
-tarea lo pide (`HANDOFF.md` §5 indica cuál).
+Cada agente empieza por sus instrucciones: Codex en [`AGENTS.md`](AGENTS.md) y Claude Code en
+[`CLAUDE.md`](CLAUDE.md). Después sigue el mismo núcleo: `HANDOFF` para el relevo operativo,
+`PHASE_STATUS` para el estado del producto y las fuentes normativas indicadas por `HANDOFF` §5.
 
 | Documento | Contenido | Cuándo leerlo |
 |-----------|-----------|---------------|
-| [`docs/HANDOFF.md`](docs/HANDOFF.md) | Estado, arranque, credenciales, trampas | **Siempre, primero** |
-| [`CLAUDE.md`](CLAUDE.md) | Especificación maestra y forma de trabajo por fases | **Siempre** |
-| [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) | Qué quedó hecho por fase y qué revisar antes de empezar | **Siempre** |
+| [`AGENTS.md`](AGENTS.md) | Protocolo conciso, seguridad Git y continuidad | **Codex: primero** |
+| [`CLAUDE.md`](CLAUDE.md) | Prompt histórico, reglas por fases e instrucciones propias | **Claude Code: primero** |
+| [`docs/HANDOFF.md`](docs/HANDOFF.md) | Relevo, arranque, contexto operativo y trampas | **Núcleo común** |
+| [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) | Estado del producto y snapshots de cierre por fase | **Núcleo común** |
+| [`docs/MASTER_SPEC.md`](docs/MASTER_SPEC.md) | Especificación funcional consolidada | **Núcleo común** |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Stack, carpetas, rutas y patrones | **Núcleo común** |
+| [`docs/BUSINESS_RULES.md`](docs/BUSINESS_RULES.md) | Reglas numeradas (`BR-*`) | **Núcleo común** |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Decisiones técnicas (`D-*`) | **Núcleo común; entradas relacionadas** |
 | [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Tablas, restricciones, índices, triggers | Al tocar el esquema o escribir consultas |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Matriz de permisos, RLS, secretos, amenazas | Al escribir RLS o Server Actions |
-| [`docs/BUSINESS_RULES.md`](docs/BUSINESS_RULES.md) | Reglas numeradas (`BR-*`) | Al implementar una regla concreta |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Stack, carpetas, rutas, despliegue | Al crear componentes o rutas |
 | [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) | Alcance por fase (0 a 9) | Solo la sección de tu fase |
-| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Decisiones técnicas (`D-*`) | Al preguntarte por qué algo está así |
 | [`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md) | Problemas, riesgos y deuda técnica | Ante un comportamiento raro |
 | [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) | Resultados de pruebas por fase | Al revisar qué se probó |
 | [`docs/TESTING.md`](docs/TESTING.md) | Estrategia de pruebas | Al escribir pruebas nuevas |
-| [`docs/MASTER_SPEC.md`](docs/MASTER_SPEC.md) | Especificación funcional consolidada | Para contexto de producto |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Procedimiento de despliegue, variables de Vercel y reversión | Al desplegar o promover una migración a producción |
 | [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Manual de operación del negocio (alta de organización, rifas, anulaciones) | Para operar la aplicación, no para programar |
 | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Problemas frecuentes en producción y cómo resolverlos | Ante un incidente en producción |
-| [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md) | Auditoría final: hallazgos, evidencia y lo que se intentó romper sin conseguirlo | Al evaluar el estado real del sistema |
+| [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md) | Snapshot de la auditoría final de Fase 9: hallazgos, evidencia e intentos adversarios | Al revisar esa auditoría histórica; para estado vigente usa `HANDOFF` y `KNOWN_ISSUES` |
 | [`docs/UX_COPY_GUIDELINES.md`](docs/UX_COPY_GUIDELINES.md) | Guía de UX Writing: tono, glosario y reglas de redacción de todo texto visible | Al escribir o cambiar cualquier texto de la interfaz |
 
 ---
@@ -106,9 +110,10 @@ npm run dev
 Para **desarrollar** conviene usar `npm run dev:local`, que apunta siempre a la instancia local de
 Supabase. `npm run dev` usa lo que diga `.env.local`, que puede ser el proyecto real.
 
-`.env.local` nunca se versiona. Variables mínimas: `NEXT_PUBLIC_SUPABASE_URL`,
-`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SEED_DEFAULT_PASSWORD`.
-Detalle de cada una en [`.env.example`](.env.example).
+`.env.local` nunca se versiona. Variables de la aplicación: `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL` y `TZ`.
+El seed requiere además `SEED_DEFAULT_PASSWORD`. Detalle en [`.env.example`](.env.example); hoy el
+prebuild no valida `NEXT_PUBLIC_SITE_URL`, por lo que debe revisarse manualmente (I-049).
 
 Para tener usuarios de prueba (Owner, Admin, 2 Sellers) sobre una base de datos ya migrada:
 
@@ -150,13 +155,13 @@ npm run create-org -- --name "..." --owner-email ... --owner-name ... --owner-ph
 
 ## Forma de trabajo
 
-El proyecto avanza **por fases** y cada una requiere autorización explícita
-(ver `CLAUDE.md` §1). Antes de iniciar una fase:
+Las fases 0 a 9 están cerradas. Cualquier fase nueva o mantenimiento requiere autorización explícita.
+Antes de implementar:
 
-1. Leer `CLAUDE.md`.
-2. Leer la documentación de `docs/`.
-3. Revisar `docs/PHASE_STATUS.md`.
-4. Ejecutar únicamente la fase autorizada.
+1. Leer `AGENTS.md` (Codex) o `CLAUDE.md` (Claude Code).
+2. Revisar Git, `HANDOFF`, `PHASE_STATUS` y el núcleo documental común.
+3. Inspeccionar el código, las migraciones y las pruebas relacionadas.
+4. Ejecutar únicamente el alcance autorizado, con la política `REUSE → EXTEND → CREATE` (D-086).
 
 | Fase | Nombre | Estado |
 |------|--------|--------|

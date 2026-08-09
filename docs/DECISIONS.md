@@ -4,7 +4,11 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.12 · **Actualizado:** 2026-08-05 (D-001 a D-075)
+- **Versión:** 1.13 · **Actualizado:** 2026-08-09 (D-001 a D-086)
+
+Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
+solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
+de vigencia se añaden sin reescribir el contexto histórico.
 
 ---
 
@@ -37,6 +41,11 @@ tocarlo, como constancia del original.
 **Alternativas.** Renombrar el archivo (descartada: elimina el original del usuario sin permiso).
 **Consecuencia.** `CLAUDE.md` es la fuente de verdad operativa. Si el usuario lo prefiere, puede
 borrar el `.txt` en cualquier momento; conviene no editar ambos por separado.
+
+**Vigencia (2026-08-09).** La copia `.txt` se eliminó con autorización el 2026-08-05 (I-004). D-086
+sustituye la consecuencia operativa: `CLAUDE.md` es la entrada de Claude Code, `AGENTS.md` la de
+Codex y las fuentes funcionales comunes viven en `docs/`; ninguno de los dos archivos raíz es una
+segunda especificación independiente.
 
 ## D-004 — Inicialización de Git en la Fase 0
 **Fase:** 0
@@ -1456,6 +1465,45 @@ pulsación no seleccione y además abra el detalle.
 **Las seleccionadas no se suben arriba** (sección 9): mover una fila bajo el dedo provoca toques
 equivocados. En su lugar, «Ver seleccionadas» cambia la lista entera y temporalmente, sin tocar los
 filtros, que viven en la URL.
+
+---
+
+## D-086 — Un protocolo común de continuidad para Claude Code y Codex
+
+**Fase:** mantenimiento posterior a la Fase 9 (auditoría documental, 2026-08-09)
+
+**Contexto.** `AGENTS.md` apareció como una copia sin seguimiento de 1.232 líneas de `CLAUDE.md`,
+mientras `HANDOFF`, `PHASE_STATUS`, `README` y las instrucciones preexistentes daban órdenes incompatibles sobre qué
+leer y cuál archivo era canónico. El historial demuestra además que Claude Code construyó una
+arquitectura consistente que otro agente no debe sustituir por sus preferencias. El plan terminó,
+pero el repositorio no tenía reglas explícitas para mantenimiento posterior a la Fase 9.
+
+**Decisión.** Se adopta un solo protocolo con seis piezas:
+
+1. **Entradas separadas, fuentes comunes.** Codex entra por `AGENTS.md`; Claude Code conserva
+   `CLAUDE.md`. Producto y comportamiento se consultan en `MASTER_SPEC`, `BUSINESS_RULES`,
+   `DECISIONS`, arquitectura, código, migraciones y pruebas.
+2. **Jerarquía:** solicitud actual → comportamiento demostrado por código/BD/pruebas → especificación,
+   reglas y decisiones → documentación técnica → estado/relevo → suposiciones. Una contradicción se
+   investiga y se reporta; no se resuelve en silencio.
+3. **REUSE → EXTEND → CREATE.** Antes de crear una pieza se busca y reutiliza o amplía la existente.
+   No se introduce una capa paralela (`services`, repositorio, store, wrapper, formulario) por gusto.
+4. **Minimal Change Policy.** Sin refactors, renombramientos, movimientos, dependencias,
+   reformateos ni limpieza fuera de alcance.
+5. **Protección del trabajo ajeno.** `git status` se revisa antes de implementar. Todo cambio sin
+   commit se presume del usuario u otro agente y no se resetea, descarta ni sobrescribe.
+6. **Propiedad documental.** `PHASE_STATUS` es estado de producto; `HANDOFF` es relevo operativo;
+   `KNOWN_ISSUES` registra problemas; `TEST_RESULTS`, evidencia; los snapshots históricos se
+   conservan. Cada archivo se actualiza solo cuando cambia su materia.
+
+**Alternativas.** (a) Mantener `AGENTS.md` como copia de `CLAUDE.md` (descartada: crea dos verdades y
+deriva inevitable). (b) Reemplazar `CLAUDE.md` por una importación de `AGENTS.md` (descartada: borra
+instrucciones específicas e historia útil de Claude Code). (c) Crear `/docs/ai` o un handbook nuevo
+(descartada expresamente por el usuario: duplica el sistema existente).
+
+**Consecuencia.** Un agente nuevo debe continuar la arquitectura real antes que imponer su estilo.
+El mantenimiento posterior al plan usa autorización explícita, pruebas proporcionales, documentación
+selectiva y commit local, pero no inventa una fase ni una etiqueta. `HANDOFF.md` §0 define el relevo.
 
 ---
 

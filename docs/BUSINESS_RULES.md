@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.0 · **Fase:** 0 · **Actualizado:** 2026-08-02
+- **Versión:** 1.1 · **Estado:** normativo · **Actualizado:** 2026-08-09
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -204,6 +204,11 @@ Añadidas después de la Fase 9, a petición del usuario. Detalle de las decisio
 | BR-B06 | Antes de ejecutar, la pantalla dice cuántas boletas admiten la acción y **cuáles no y por qué**. Si una sola no la admite, la acción se deshabilita para el grupo entero. | C, S | post-9 |
 | BR-B07 | **Todo o nada.** El servidor revalida rol, organización, propiedad y estado de cada boleta con las filas bloqueadas; si falta una sola condición, no se modifica ninguna. Nunca hay resultados parciales silenciosos. | S, D | post-9 |
 | BR-B08 | Toda acción masiva queda auditada dos veces: la fila de cada boleta (`ticket.cancel`, `ticket.assign_client`, `ticket.update`, `ticket.delete`) y una del lote (`ticket.bulk_*`) con el recuento y el motivo. En una eliminación, el detalle —rifa, vendedor, id y los dos números— se guarda **antes** de borrar. | D | post-9 |
+
+> **Decisión pendiente:** `approve_tickets`, anterior a BR-B07, omite las boletas que ya no están
+> pendientes y puede producir un resultado parcial; la interfaz evita ofrecer ese lote, pero la base
+> de datos no garantiza «todo o nada» para esa acción (I-044). No se considera resuelta la
+> contradicción hasta que el dueño del producto confirme si BR-B07 también debe cubrir aprobación.
 
 **Anular y eliminar no son lo mismo, y la diferencia importa:**
 

@@ -1,11 +1,12 @@
 # SEGURIDAD
 
-- **Versión:** 2.0 · **Fase:** 2 (implementado) · **Actualizado:** 2026-08-03
-- **Estado:** IMPLEMENTADO y verificado. Las políticas viven en
-  `supabase/migrations/0005_rls_policies.sql` y los privilegios en `0009`/`0010`.
-- Verificado con **111 pruebas** en `tests/db/`, todas ejecutadas con sesiones reales por rol y la
-  clave pública, nunca con `service_role`: una prueba de aislamiento hecha con la clave de servicio
-  omitiría RLS y pasaría aunque no hubiera ninguna política (D-043).
+- **Versión:** 2.1 · **Estado:** implementado · **Actualizado:** 2026-08-09
+- **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
+  `0015`, `0016`, `0019` y `0020`; los privilegios base se fijan en `0009`/`0010`.
+- Verificado en Supabase **local** con 371 pruebas: la operación cuya RLS se prueba usa sesiones
+  reales por rol y clave pública, nunca `service_role`. La clave de servicio sí puede preparar,
+  comprobar o limpiar el escenario y las pruebas de catálogo usan PostgreSQL directo (D-043).
+  Producción se comprueba por separado con `verify:remote` y sondas específicas.
 
 ### Refuerzos añadidos al implementar (Fase 2)
 
@@ -26,7 +27,7 @@ Cuatro capas, cada una capaz de detener un ataque por sí sola:
 | Capa | Responsabilidad | Qué **no** hace |
 |------|-----------------|-----------------|
 | 1. Interfaz | Ocultar acciones no disponibles, guiar al usuario | No es frontera de seguridad |
-| 2. Middleware / layout de servidor | Refrescar sesión, exigir autenticación y rol para el segmento de ruta | No sustituye la verificación por operación |
+| 2. Proxy / layout de servidor | Refrescar sesión, exigir autenticación y rol para el segmento de ruta | No sustituye la verificación por operación |
 | 3. Server Action / RPC | Verificar sesión, membresía activa, organización, rol y validar la entrada con Zod | No confía en IDs ni roles enviados por el cliente |
 | 4. PostgreSQL (RLS + restricciones) | Última palabra: nadie ve ni escribe lo que no le corresponde | — |
 
@@ -104,12 +105,12 @@ diferido `memberships_require_active_owner` (`0016`, D-071). Ver `AUDIT_REPORT.m
 |---------|----------|
 | Proveedor | Supabase Auth, email + contraseña |
 | Transporte de sesión | Cookies HTTP-only gestionadas por `@supabase/ssr` |
-| Refresco | En `middleware.ts` en cada request |
+| Refresco | En `src/proxy.ts` y `src/lib/supabase/proxy.ts` en cada request protegido |
 | Verificación de identidad en servidor | `supabase.auth.getUser()` (valida contra el servidor de Auth). **Nunca** `getSession()` para decisiones de autorización, porque su contenido proviene de la cookie y no está verificado |
 | Origen del rol | Tabla `memberships` consultada en el servidor. No se confía en `app_metadata` del JWT para autorizar (D-006) |
 | Usuario inactivo | El layout protegido y las políticas RLS verifican `is_active` en cada request; una sesión previa deja de servir de inmediato |
 | Contraseñas | Gestionadas por Supabase Auth; la aplicación nunca las almacena, registra ni transmite a terceros |
-| Alta de usuarios | Invitación por correo o contraseña temporal generada con `SERVICE_ROLE` en el servidor; obligación de cambiarla en el primer ingreso |
+| Alta de usuarios | Invitación por correo mediante `SERVICE_ROLE` solo en servidor; la persona define su contraseña desde el enlace |
 | Cierre de sesión | Invalida la sesión en el servidor y limpia cookies |
 
 ---
@@ -175,7 +176,7 @@ AS $$
 $$;
 ```
 
-`REVOKE EXECUTE … FROM PUBLIC` y `GRANT EXECUTE … TO authenticated` en todas ellas.
+`REVOKE EXECUTE … FROM PUBLIC, anon` y `GRANT EXECUTE … TO authenticated` en todas ellas.
 
 ### 4.2 Patrón general de política
 
@@ -196,11 +197,12 @@ USING (
 );
 ```
 
-> ⚠️ **Toda llamada a función va dentro de un `SELECT`.** Escribir
-> `is_org_staff(organization_id)` —pasándole una columna— obliga a PostgreSQL a ejecutarla **una vez
-> por fila**: medido en la Fase 7, 1,46 ms pasaron a 1.667 ms sobre 7.278 boletas, y el factor crece
-> con los datos (I-019, D-063). Envuelto en un subselect se evalúa una sola vez.
-> La prueba `F7-03` de `tests/db/security-phase7.test.ts` falla si alguien reintroduce el patrón.
+> ⚠️ **En políticas que recorren tablas, los valores de sesión se calculan con un `SELECT` o como
+> conjunto.** Escribir `is_org_staff(organization_id)` obliga a PostgreSQL a ejecutarla **una vez por
+> fila**: medido en la Fase 7, 1,46 ms pasaron a 1.667 ms sobre 7.278 boletas (I-019, D-063).
+> `has_org_role` se conserva únicamente en el `WITH CHECK` de inserción del Seller: allí valida cada
+> fila nueva y el lote ya está acotado (D-049). La prueba `F7-03` impide reintroducir el patrón lento
+> en políticas de lectura/actualización.
 
 Sin política aplicable, PostgreSQL **deniega**. Es el comportamiento deseado: se conceden permisos
 de forma explícita, nunca por omisión.
@@ -226,7 +228,10 @@ Ejemplo completo para la tabla más sensible:
 CREATE POLICY tickets_select ON tickets FOR SELECT TO authenticated
 USING (
   organization_id IN (SELECT current_org_ids())
-  AND (is_org_staff(organization_id) OR seller_id = current_profile_id())
+  AND (
+    organization_id IN (SELECT current_staff_org_ids())
+    OR seller_id = (SELECT current_profile_id())
+  )
 );
 
 -- tickets: el vendedor solo crea boletas propias, pendientes de aprobación
@@ -234,7 +239,7 @@ USING (
 CREATE POLICY tickets_insert_seller ON tickets FOR INSERT TO authenticated
 WITH CHECK (
   organization_id IN (SELECT current_org_ids())
-  AND seller_id = current_profile_id()
+  AND seller_id = (SELECT current_profile_id())
   AND has_org_role(organization_id, ARRAY['seller']::app_role[])
   AND inventory_status = 'pending_approval'
   AND EXISTS (
@@ -253,7 +258,10 @@ USING (
     SELECT 1 FROM payments p
     WHERE p.id = payment_allocations.payment_id
       AND p.organization_id IN (SELECT current_org_ids())
-      AND (is_org_staff(p.organization_id) OR p.seller_id = current_profile_id())
+      AND (
+        p.organization_id IN (SELECT current_staff_org_ids())
+        OR p.seller_id = (SELECT current_profile_id())
+      )
   )
 );
 ```
@@ -274,18 +282,20 @@ verificación es un punto obligatorio de la revisión de la Fase 2 y de la audit
 Reglas obligatorias para todas ellas:
 
 1. `SET search_path = public, pg_temp` explícito (evita secuestro de esquema).
-2. Validación interna de permisos: la función **no** asume que quien la llama está autorizado.
-3. `REVOKE EXECUTE FROM PUBLIC` + `GRANT EXECUTE TO authenticated`.
-4. Parámetros tipados; nunca SQL construido por concatenación de texto.
-5. Sin `RAISE` de detalles internos: los mensajes de error son genéricos y traducibles.
-6. Auditoría de la acción antes de retornar.
+2. `REVOKE EXECUTE FROM PUBLIC, anon`; `GRANT` solo al rol que realmente deba invocarla.
+3. Parámetros tipados; nunca SQL construido por concatenación de texto.
+4. Sin `RAISE` de detalles internos: los mensajes de error son genéricos y traducibles.
+
+Las funciones de negocio que **mutan** datos además validan permisos internamente y auditan la
+acción. Los helpers de sesión/lectura (`current_*`, `has_org_role`, `taken_ticket_combinations`) no
+escriben una fila de auditoría por consulta; hacerlo convertiría cada lectura en una mutación.
 
 ### 4.6 Acciones masivas de boletas (`0020`, BR-B01..BR-B08)
 
-Cinco funciones nuevas, con una propiedad común: **el navegador no aporta ninguna autoridad**. Recibe
-una lista de identificadores y nada más; el rol sale de la sesión y la organización, de la propia
-boleta. Enviar los ids de otro vendedor o de otra organización no cambia nada, y el mensaje de
-rechazo es el mismo en los dos casos, de modo que tampoco revela si esos ids existen.
+Cinco funciones nuevas, con una propiedad común: **el navegador no aporta rol ni organización como
+autoridad**. Reciben identificadores y, según la acción, cliente/fecha, motivo o vendedor de destino;
+la sesión y la base revalidan todos esos valores. Enviar ids ajenos no cambia la autorización ni
+revela si existen.
 
 | Función | Quién | Qué comprueba, con las filas ya bloqueadas |
 |---|---|---|
@@ -310,18 +320,21 @@ simultáneos que se solapen las toman en la misma secuencia.
 
 ## 5. Protección de Server Actions y Route Handlers
 
-Toda Server Action sigue esta secuencia, sin excepciones:
+Toda Server Action parametrizada de negocio debe seguir esta secuencia. Las acciones públicas de
+autenticación y `logout` tienen guardas propias; I-051 registra una excepción de negocio que todavía
+debe endurecerse y no es un patrón para copiar:
 
 ```ts
 'use server'
 export async function accion(input: unknown) {
-  const { user, membership } = await requireActiveMembership()   // 1 sesión + activo
-  requireRole(membership, ['owner', 'admin'])                    // 2 rol
-  const data = schema.parse(input)                               // 3 Zod: allowlist de campos
-  const supabase = await createServerClient()                    // 4 cliente con RLS
-  const { error } = await supabase.rpc('...', { ... })           // 5 operación atómica
-  if (error) return { error: mapPgError(error) }                 // 6 error legible
-  revalidatePath('...')                                          // 7 refresco
+  const auth = await authorizeAction(['owner', 'admin'])         // 1 sesión + activo + rol
+  if ('error' in auth) return auth
+  const parsed = schema.safeParse(input)                         // 2 Zod: allowlist de campos
+  if (!parsed.success) return { error: 'Revisa los datos ingresados.' }
+  const supabase = await createClient()                          // 3 cliente con RLS
+  const { error } = await supabase.rpc('...', { ... })           // 4 operación atómica
+  if (error) return { error: mapPgError(error) }                 // 5 error legible
+  revalidatePath('...')                                          // 6 refresco
   return { ok: true }
 }
 ```
@@ -332,8 +345,10 @@ Reglas complementarias:
   *spread* de la entrada del cliente hacia un `insert`/`update`.
 - **IDs siempre verificados:** cualquier `id` recibido se usa dentro de consultas sujetas a RLS; no
   se confía en él como prueba de propiedad.
-- **`organization_id` y `seller_id` nunca vienen del cliente**: se derivan de la sesión en el
-  servidor. Si la entrada los trae, se ignoran.
+- **`organization_id` nunca se acepta del cliente**: sale de la membresía activa. Un `seller_id`
+  enviado por una pantalla administrativa puede ser parte explícita del esquema Zod, pero nunca se
+  confía en él: RLS/RPC verifica que sea un vendedor válido de la misma organización. Para Seller,
+  el identificador siempre se deriva de la sesión.
 - Las Server Actions son endpoints públicos por diseño: se autorizan una por una, no por la ruta
   desde la que se invocan.
 - Los Route Handlers (`auth/callback`) validan origen y parámetros.
@@ -430,7 +445,7 @@ Eventos mínimos registrados en `audit_logs` (BR-D01):
 | Variable | Ámbito | Riesgo si se filtra |
 |----------|--------|---------------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Público | Ninguno |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Público (sujeta a RLS) | Bajo: sin RLS correcta, sería total |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Público (sujeta a RLS) | Bajo: sin RLS correcta, sería total |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Solo servidor** | **Crítico**: omite RLS por completo |
 
 Controles:
@@ -538,9 +553,10 @@ intentos» revelaría que ese correo existe, que es justo lo que ese flujo evita
 
 ### 10.3 Rendimiento de la RLS: una regla de seguridad, no de estilo
 
-Una política **no puede llamar a una función pasándole una columna**. PostgreSQL no puede sacarla del
-bucle y la ejecuta una vez por fila; medido en la Fase 7, eso multiplicó por 1.400 el tiempo de
-cualquier consulta sobre `tickets` (I-019).
+Una política que recorre filas existentes **no debe llamar a una función de sesión pasándole una
+columna**. PostgreSQL no puede sacarla del bucle y la ejecuta una vez por fila; medido en la Fase 7,
+eso multiplicó por 1.400 el tiempo de cualquier consulta sobre `tickets` (I-019). La excepción
+acotada de inserción del Seller está explicada en §4.2.
 
 ```sql
 -- MAL: una llamada por fila

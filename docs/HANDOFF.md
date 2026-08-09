@@ -1,7 +1,27 @@
 # HANDOFF — punto de entrada para una sesión nueva
 
-**Lee este archivo primero. Es lo único obligatorio junto con `CLAUDE.md`.**
-Los demás documentos se leen **solo si la fase autorizada los necesita** (ver §5).
+Memoria operativa compartida entre Claude Code y Codex. Lee primero las instrucciones de tu agente
+(`CLAUDE.md` o `AGENTS.md`), revisa Git y continúa aquí. `PHASE_STATUS.md` responde qué estado tiene el
+producto; este archivo responde qué necesita saber el siguiente agente para trabajar sin romper la
+continuidad.
+
+## 0. Cómo entregar el relevo
+
+Después de trabajo significativo, actualiza el bloque §1.a con una sola fotografía vigente:
+
+| Campo | Contenido obligatorio |
+|---|---|
+| Resultado | Qué se terminó y qué quedó deliberadamente fuera |
+| Archivos | Archivos o carpetas realmente tocados |
+| Reutilización | Patrones y piezas existentes que se conservaron o ampliaron |
+| Decisiones | `D-*`, `BR-*`, suposiciones y alternativas descartadas |
+| Verificación | Comandos, resultados, errores encontrados y correcciones |
+| Advertencias | Trampas, precondiciones y acciones que no deben ejecutarse sin autorización |
+| Pendiente | Problemas, bloqueos, confirmación humana y siguiente acción exacta |
+| Git | Rama, commit base observado y cambios sin commit. El hash de entrega puede quedar en el reporte final; no crees otro commit solo para que un documento cite a su propio commit |
+
+No conviertas este archivo en otro historial: el detalle cronológico vive en `TEST_RESULTS.md`,
+`KNOWN_ISSUES.md` y el historial de Git. No copies aquí el estado completo de las fases.
 
 ---
 
@@ -10,13 +30,15 @@ Los demás documentos se leen **solo si la fase autorizada los necesita** (ver �
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| Siguiente fase | Ninguna. Lo que queda son **decisiones del usuario**, no trabajo de ingeniería (ver §1.b) |
-| Rama / commit / etiqueta | `main` · `0b8f06e` (selección múltiple y acciones masivas, 2026-08-08) — **empujado y desplegado a producción** · última etiqueta `fase-9` en `a8c4083` |
-| Remoto | `github.com/jimmyriveros/GestionRifas` — **`main` al día: local y remoto idénticos**. De las etiquetas solo están en el remoto `fase-0`, `fase-1` y `fase-2`: **`fase-3` a `fase-9` siguen solo en local** (`git push origin --tags` las subiría, pero eso se pide aparte). Sigue vigente la regla: no empujar sin que el usuario lo pida (`CLAUDE.md` §1.15) |
+| Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
+| Último cambio funcional desplegado | `0b8f06e` — selección múltiple y acciones masivas, 2026-08-08 |
+| Punto de partida de esta auditoría | `main` en `929684d`, igual a `origin/main`; `AGENTS.md` era el único archivo sin seguimiento |
+| Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
+| Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **20 migraciones, todas aplicadas en local y en el proyecto real** y verificadas el 2026-08-08 (`verify:remote` 13/13 + comprobación de comportamiento de `0018` y `0019` contra producción). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **286 unitarias** + **371 de base de datos** + **212 end-to-end**, todas en verde (2026-08-08). `npm audit`: **0 vulnerabilidades**. CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **20 migraciones, todas aplicadas en local y en el proyecto real** y verificadas el 2026-08-08 (`verify:remote` 13/13 + comprobaciones de privilegios y comportamiento para `0018`–`0020`). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **286 unitarias** y **371 de base de datos** revalidadas el 2026-08-09; última E2E funcional: **212/212** el 2026-08-08. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -31,15 +53,38 @@ reales).
 
 ---
 
+## 1.a Último relevo significativo — auditoría de continuidad (2026-08-09)
+
+| Campo | Estado |
+|---|---|
+| Resultado | Protocolo Claude Code ↔ Codex unificado, sin cambios funcionales; `AGENTS.md` deja de duplicar la especificación y pasa a ser el índice de Codex |
+| Archivos | `AGENTS.md`, `CLAUDE.md`, `README.md` y 13 documentos existentes en `docs/`: `MASTER_SPEC`, `ARCHITECTURE`, `BUSINESS_RULES`, `DATA_MODEL`, `SECURITY`, `DECISIONS`, `HANDOFF`, `PHASE_STATUS`, `KNOWN_ISSUES`, `DEPLOYMENT`, `TESTING`, `TEST_RESULTS` y `UX_COPY_GUIDELINES`. Sin código, esquema ni configuración ejecutable |
+| Reutilización | Se conservan la arquitectura feature-first, el mapa de §6.b, los identificadores `BR-*`/`D-*`/`I-*` y los snapshots históricos |
+| Decisiones | D-086 fija jerarquía de fuentes, `REUSE → EXTEND → CREATE`, política de cambio mínimo, seguridad Git y propiedad de cada documento |
+| Verificación | Base local reconstruida con 20 migraciones; `verify` en verde (286 unitarias, typecheck, lint y build; 0 errores y 2 avisos conocidos de TanStack) y 371/371 de base de datos en dos corridas. Prettier dirigido a los 16 documentos, verde; `format:check` global falla en 60 archivos existentes de código/pruebas (I-052) |
+| Error encontrado | Docker Desktop no estaba iniciado; se arrancó desde `%LOCALAPPDATA%\Programs\DockerDesktop` y `npx supabase start` pasó al reintentar |
+| Advertencia | Confirmar en Vercel y Supabase Auth que `https://gestion-rifas.vercel.app/**` es la URL canónica autorizada; `DEPLOYMENT.md` conservaba un alias largo distinto (I-023) |
+| Pendiente | Siguiente acción: el usuario confirma I-021/I-023/I-024 y decide si autoriza alguna corrección de I-030, I-037 o I-046–I-052. Hasta entonces no iniciar implementación |
+| Git | `main`; base observada `929684d`. Antes de entregar solo están pendientes los archivos documentales enumerados arriba; el reporte final comunica el commit y el estado resultante |
+
 ## 1.b Qué queda abierto
 
-**No hay acciones técnicas pendientes.** Lo que queda son decisiones del dueño del negocio:
+**No hay trabajo técnico activo autorizado.** El plan de fases terminó, pero sí quedan decisiones del
+dueño, deuda aceptada y límites verificados; no deben describirse como si no existieran:
 
 | Asunto | Qué hace falta |
 |---|---|
 | **I-024** — plan Free sin backups automáticos ni PITR | Subir a Supabase Pro o automatizar el respaldo externo. **Prerrequisito antes de operar con dinero o clientes reales** (`RUNBOOK.md` §5.3) |
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
-| **I-030** — los ~46 mensajes que lanza la base de datos siguen sin tildes | Autorizar una migración que reescriba esas funciones y aplicarla al proyecto real. Es lo único que quedó fuera de la revisión de textos del 2026-08-05 (D-073) |
+| **I-023** — la URL permitida de Auth debe coincidir con la canónica de Vercel | Confirmar `https://gestion-rifas.vercel.app/**` en Vercel y Supabase antes de enviar invitaciones (`DEPLOYMENT.md` §2.1) |
+| **I-030** — persisten mensajes de base de datos sin tildes | Autorizar una migración nueva que reescriba las definiciones vigentes y aplicarla al proyecto real (D-073) |
+| **I-037** — filtro fijo de clientes topado en 200 | Priorizar un selector con búsqueda cuando el volumen lo justifique |
+| **I-046 a I-053** — límites y derivas encontrados por esta auditoría | Revisar `KNOWN_ISSUES.md`: no se modificó código para corregirlos porque esta tarea es solo documental |
+
+## 1.c Contexto histórico preservado
+
+Las siguientes notas explican decisiones recientes de producción que siguen siendo trampas útiles;
+no sustituyen el relevo vigente de §1.a ni el historial propietario de Git/`TEST_RESULTS`.
 
 La última acción de ingeniería fue aplicar la migración **`0020`** al proyecto real (2026-08-08,
 autorizada explícitamente) y desplegar la **selección múltiple y las acciones masivas de boletas** (
@@ -154,7 +199,8 @@ Debe imprimir `CR: 0`.
 ✅ **Las 20 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-08
 (`npm run verify:remote`, 13/13).
 
-Al aplicar migraciones al proyecto real, el procedimiento completo son **tres** pasos, no dos:
+Al aplicar migraciones al proyecto real, primero exige autorización explícita y genera el respaldo
+de §3.b. Después, la promoción de base de datos tiene **tres** pasos, no dos:
 
 ```bash
 npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
@@ -219,22 +265,48 @@ combinaciones de números que la de «Rifas Demo».
 
 ## 5. Qué documento leer y cuándo
 
-No leas todo. Cuesta ~40k tokens y casi nunca hace falta.
+El núcleo es obligatorio para ambos agentes, pero los documentos acumulativos se consultan por sus
+secciones actuales y por los identificadores relacionados; no hace falta releer cada snapshot
+histórico en una tarea sin relación.
 
-| Vas a... | Lee |
+### 5.1 Núcleo común
+
+| Orden | Documento | Responsabilidad única |
+|---|---|---|
+| 1 | `AGENTS.md` **o** `CLAUDE.md` | Instrucciones del agente que trabaja |
+| 2 | Este archivo | Relevo y contexto operativo actual |
+| 3 | `PHASE_STATUS.md` | Estado del producto y de las fases |
+| 4 | `MASTER_SPEC.md` | Alcance funcional consolidado |
+| 5 | `ARCHITECTURE.md` | Diseño técnico y patrones vigentes |
+| 6 | `BUSINESS_RULES.md` | Reglas normativas `BR-*` |
+| 7 | `DECISIONS.md` | Decisiones `D-*`; lee las entradas relacionadas y sus notas de vigencia |
+
+### 5.2 Según el cambio
+
+| Vas a... | Lee además |
 |---|---|
-| **Siempre** | `CLAUDE.md` + este archivo + `docs/PHASE_STATUS.md` |
-| Tocar el esquema o escribir consultas | `docs/DATA_MODEL.md` |
-| Escribir RLS, permisos o Server Actions | `docs/SECURITY.md` §2 (matriz) y §5 |
-| Implementar reglas de negocio | `docs/BUSINESS_RULES.md` (busca el `BR-*` concreto) |
-| Crear componentes o rutas | `docs/ARCHITECTURE.md` §5 y §6 |
-| Saber el alcance exacto de tu fase | `docs/IMPLEMENTATION_PLAN.md` (solo tu sección) |
-| Entender por qué algo está así | `docs/DECISIONS.md` (busca el `D-*` citado en el código) |
-| Ver qué falla o qué evitar | `docs/KNOWN_ISSUES.md` |
-| Ver resultados de pruebas anteriores | `docs/TEST_RESULTS.md` |
-| Saber qué se auditó, qué se intentó romper y qué quedó aceptado | `docs/AUDIT_REPORT.md` |
-| Escribir pruebas end-to-end | `docs/TESTING.md` §E2E + `tests/e2e/fixtures.ts` |
-| **Escribir o cambiar cualquier texto que vea un usuario** | `docs/UX_COPY_GUIDELINES.md` — ya está en tu contexto: `CLAUDE.md` §35 la importa |
+| Tocar esquema, consulta, índice o migración | `DATA_MODEL.md`, migraciones y `database.types.ts` |
+| Escribir auth, RLS, permisos, RPC, Server Action o Route Handler | `SECURITY.md` y pruebas de aislamiento |
+| Crear o modificar UI responsive | `ARCHITECTURE.md` §8 y `UX_COPY_GUIDELINES.md` |
+| Escribir o cambiar cualquier texto visible | `UX_COPY_GUIDELINES.md` completa y `src/lib/constants.ts` |
+| Escribir pruebas | `TESTING.md`; `TEST_RESULTS.md` si buscas una regresión o trampa conocida |
+| Ejecutar una fase formal | `IMPLEMENTATION_PLAN.md`, solo la sección autorizada |
+| Desplegar o tocar producción | `DEPLOYMENT.md`, `OPERATIONS.md`, `RUNBOOK.md` y `KNOWN_ISSUES.md` |
+| Operar el negocio | `OPERATIONS.md` |
+| Diagnosticar un incidente | `KNOWN_ISSUES.md`, `RUNBOOK.md` y, si aplica, el snapshot de `AUDIT_REPORT.md` |
+
+### 5.3 Propiedad de la información
+
+| Hecho | Documento propietario |
+|---|---|
+| Estado operativo y próximo relevo | `HANDOFF.md` |
+| Estado de fase/producto | `PHASE_STATUS.md` |
+| Problema, riesgo o deuda | `KNOWN_ISSUES.md` |
+| Evidencia de pruebas | `TEST_RESULTS.md` |
+| Procedimiento de producción | `DEPLOYMENT.md` / `RUNBOOK.md` |
+| Razón estable | `DECISIONS.md` |
+| Regla funcional | `BUSINESS_RULES.md` |
+| Patrón técnico | `ARCHITECTURE.md` |
 
 El código cita las decisiones (`D-0xx`) y reglas (`BR-xxx`) que aplica: si un comentario dice
 `(D-039)`, busca solo esa entrada, no el documento entero.
@@ -293,7 +365,7 @@ RLS de quien consulta (D-057). Úsalas para cualquier agregado de pagos que nece
 
 ---
 
-## 6.b Qué reutilizar antes de escribir nada nuevo (desde la Fase 3)
+## 6.b REUSE → EXTEND → CREATE: qué reutilizar antes de escribir nada nuevo
 
 ```
 components/data/    DataTable · DataTablePagination · StatusBadge · EmptyState
@@ -328,8 +400,10 @@ puesto por SQL (D-058).
 Convención de cada módulo de `features/`: `schemas.ts` (Zod, cliente **y** servidor) ·
 `queries.ts` (`server-only`, lectura para RSC) · `actions.ts` (`use server`) · `components/`.
 
-Toda Server Action sigue el mismo orden: `authorizeAction` → Zod → RPC o DML sujeto a RLS →
-`mapPgError` → `revalidatePath` → `{ ok } | { error }`.
+Toda Server Action parametrizada de negocio debe seguir el mismo orden: `authorizeAction` → Zod →
+RPC o DML sujeto a RLS → `mapPgError` → `revalidatePath` → `{ ok } | { error }`. Autenticación y
+`logout` tienen guardas propias. I-051 registra una excepción preexistente; no debe copiarse y queda
+pendiente de endurecimiento.
 
 Los filtros y la paginación viven en la **URL**, no en estado de React: la página es compartible y el
 RSC vuelve a consultar filtrando en SQL.
@@ -346,9 +420,10 @@ funciones `report_*`. Lo único que vive en la aplicación es el reparto de un a
 de escribir. Donde los reportes suman en TypeScript, lo hacen sobre filas **ya agregadas** por la
 base de datos —una por rifa y vendedor, decenas—, nunca sobre boletas o pagos sueltos.
 
-**Ninguna lectura que pueda superar 1.000 filas usa `data.length`.** PostgREST corta ahí sin dar
-error (I-011). Para contar, `count: 'exact', head: true`; para recorrer todo, `fetchAllRows`
+Para contar, usa `count: 'exact', head: true`; para recorrer todo, `fetchAllRows`
 (`lib/supabase/paginate.ts`), que pide bloques con un orden estable hasta que uno viene incompleto.
+No supongas que todos los caminos actuales ya cumplen esta regla: la auditoría de continuidad encontró
+lecturas auxiliares e historiales todavía acotados o sujetos al límite de PostgREST (I-046).
 
 ---
 
@@ -389,12 +464,25 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 1. **Una fase a la vez, solo con autorización explícita.** No adelantar trabajo de fases siguientes.
 2. **Migraciones inmutables** una vez aplicadas al proyecto real: los cambios van en una migración
    nueva (así nacieron `0009` y `0010`).
-3. **Las pruebas de RLS nunca usan `service_role`** — omitiría RLS y pasarían aunque no existiera
-   ninguna política (D-043).
+3. **El acto cuya RLS se prueba nunca usa `service_role`** — omitiría RLS y pasaría aunque no
+   existiera ninguna política. La clave de servicio puede preparar/comprobar/limpiar el escenario
+   fuera de ese acto (D-043).
 4. **El dinero se calcula en SQL**, nunca en el frontend.
 5. **`SUPABASE_SERVICE_ROLE_KEY` jamás llega al navegador** (`import 'server-only'`).
 6. Al cerrar la fase: actualizar documentación, ejecutar `npm run verify` y `npm run test:db`,
-   commit local + etiqueta `fase-N`. Detalle en `CLAUDE.md` §34.
+   commit local + etiqueta `fase-N`. Detalle en las instrucciones del agente.
+7. **Revisar Git antes de implementar.** Todo cambio sin commit se presume del usuario u otro agente;
+   no se resetea, descarta, sobrescribe ni reformatea sin necesidad.
+8. **REUSE → EXTEND → CREATE.** Buscar primero las piezas de §6.b y los patrones del código real. No
+   crear capas `services`, stores globales, wrappers o componentes paralelos por preferencia.
+9. **Política de cambio mínimo.** Sin refactors, renombramientos, movimientos, dependencias ni limpieza
+   fuera del alcance autorizado.
+10. **Continuar el trabajo del otro agente.** Leer `HANDOFF`, `PHASE_STATUS`, diff, commits y archivos
+    tocados; no reimplementar ni sustituir silenciosamente una decisión arquitectónica.
+11. **Documentar por propiedad.** Actualizar solo el documento cuyo tema cambió; los snapshots
+    históricos se conservan. D-086 fija la jerarquía y el protocolo común.
+12. **Mantenimiento no es una fase.** Después de la Fase 9 se usan pruebas proporcionales, commit local
+    y relevo; no se crea una etiqueta `fase-*` nueva sin autorización.
 
 ---
 

@@ -1,11 +1,12 @@
 # MASTER SPEC — Sistema de Gestión de Rifas
 
-> Documento consolidado de especificación funcional. Deriva de `CLAUDE.md` (fuente principal de verdad).
-> En caso de conflicto entre este documento y `CLAUDE.md`, prevalece `CLAUDE.md`.
+> Especificación funcional consolidada. `AGENTS.md` y `CLAUDE.md` son instrucciones de agente, no
+> especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
+> diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.0
+- **Versión del documento:** 1.1
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-08-02
+- **Última actualización:** 2026-08-09 (alineación con mantenimiento posterior a la Fase 9)
 
 ---
 
@@ -163,6 +164,23 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
 4. Sus asignaciones dejan de contar; saldos y estados se recalculan.
 5. Queda registro en `audit_logs`.
 
+### F8 — Importación de boletas desde archivo
+1. Owner/Admin o Seller elige CSV o JSON, mapea columnas si hace falta y revisa una vista previa.
+2. Elegir el archivo no escribe nada; guardar exige una confirmación posterior.
+3. Se reutilizan el parser, la validación por fila y los caminos de creación masiva existentes.
+4. Un vendedor solo importa cuando la rifa permite crear boletas; quedan `pending_approval`.
+5. La base de datos detecta combinaciones tomadas sin revelar de qué vendedor son. Después de crear
+   las boletas intenta registrar el evento sin guardar el archivo; si esa bitácora falla, conserva
+   las boletas e informa `auditFailed` (BR-N12, D-081).
+
+### F9 — Selección y acciones masivas sobre boletas
+1. La selección usa `ticket.id`, admite hasta 1.000 y sobrevive a búsqueda, filtros y paginación.
+2. Seller puede vender varias boletas elegibles al mismo cliente en una operación atómica.
+3. Owner/Admin puede aprobar, anular, cambiar vendedor y eliminar boletas cargadas por error, según
+   elegibilidad y permisos.
+4. La interfaz explica incompatibles; PostgreSQL bloquea filas, revalida y aplica todo o nada en las
+   acciones que declara atómicas (BR-B01..BR-B08, D-082..D-085; excepción conocida I-044).
+
 ---
 
 ## 8. Reglas críticas (resumen ejecutable)
@@ -181,6 +199,13 @@ Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
 10. Los pagos se anulan, nunca se borran.
 11. Una boleta con pagos activos no puede cambiar de cliente.
 12. RLS activo en todas las tablas de negocio; el frontend no es frontera de seguridad.
+13. Una boleta se busca por número diario o semanal, entero o parcial, nunca por código interno
+    (BR-N11).
+14. Importar reutiliza las mismas reglas y validadores de la carga manual; la vista previa no escribe
+    (BR-N12).
+15. Selección, filtros y paginación son estados separados; limpiar uno no borra el otro (BR-B01).
+16. Las acciones masivas sensibles se autorizan y revalidan en base de datos; la UI no es su frontera
+    de seguridad (BR-B07, con la salvedad documentada en I-044).
 
 ---
 
@@ -188,14 +213,16 @@ Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
 
 ### 9.1 Portal Owner/Admin (`/owner/*`)
 Dashboard general · Rifas · Administradores · Vendedores · Boletas (tabla global, detalle, creación
-individual y masiva, aprobación, anulación, asignación de vendedor) · Clientes (consulta global) ·
-Pagos (consulta global y anulación) · Reportes con exportación CSV.
+individual, masiva y por archivo; selección, aprobación, anulación, cambio de vendedor y eliminación
+controlada) · Clientes (consulta global) · Pagos (consulta global y anulación) · Reportes con
+exportación CSV.
 
 ### 9.2 Portal Seller (`/seller/*`)
-Dashboard propio · Boletas propias (búsqueda por número diario, semanal y código; filtros por estado
-y cliente) · Clientes propios (crear, editar, archivar, perfil con historial) · Asignación de boletas ·
-Registro de abonos y pagos · Consulta de saldos e historial · Reportes propios con exportación CSV,
-sin el que compara vendedores (D-059).
+Dashboard propio · Boletas propias (búsqueda parcial por número diario o semanal; filtros por estado y
+cliente; creación manual o por archivo cuando la rifa lo permite; selección y venta múltiple) ·
+Clientes propios (crear, editar, archivar, perfil con historial) · Asignación de boletas · Registro de
+abonos y pagos · Consulta de saldos e historial · Reportes propios con exportación CSV, sin el que
+compara vendedores (D-059, D-080 a D-085).
 
 ---
 
@@ -237,7 +264,10 @@ Las ambigüedades encontradas se resolvieron y quedaron registradas en `docs/DEC
 
 ---
 
-## 12. Trazabilidad con `CLAUDE.md`
+## 12. Trazabilidad histórica con la especificación original (`CLAUDE.md`)
+
+Esta tabla conserva la relación con el prompt que originó la Fase 0. No convierte `CLAUDE.md` en una
+segunda fuente funcional ni incluye por sí sola el mantenimiento posterior; para eso rige D-086.
 
 | Sección de `CLAUDE.md` | Documento que la desarrolla |
 |------------------------|-----------------------------|

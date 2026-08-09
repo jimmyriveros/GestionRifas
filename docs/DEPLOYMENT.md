@@ -1,6 +1,6 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-08-04 (Fase 8). Procedimiento de despliegue y reversión. Para el manual de
+**Actualizado:** 2026-08-09. Procedimiento de despliegue y reversión. Para el manual de
 operación del negocio ver [`OPERATIONS.md`](OPERATIONS.md); para problemas frecuentes,
 [`RUNBOOK.md`](RUNBOOK.md).
 
@@ -27,7 +27,7 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 
 | Elemento | Estado |
 |---|---|
-| Migraciones (15) | Aplicadas y verificadas con `npm run verify:remote` |
+| Migraciones (20) | Aplicadas y verificadas con `npm run verify:remote` |
 | RLS, RPC, vistas, auditoría | Igual que en local (mismo código, mismas migraciones) |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 
@@ -37,8 +37,14 @@ Dashboard de Supabase → **Authentication → URL Configuration**:
 
 | Campo | Debe incluir |
 |---|---|
-| Site URL | La URL de producción (`https://gestion-rifas-jimmyriveros-projects.vercel.app`, o el dominio propio si se conecta uno) |
-| Redirect URLs | La misma URL con comodín: `https://gestion-rifas-jimmyriveros-projects.vercel.app/**` |
+| Site URL | La URL canónica de producción: `https://gestion-rifas.vercel.app` |
+| Redirect URLs | La misma URL con comodín: `https://gestion-rifas.vercel.app/**` |
+
+> **Verificación humana pendiente de esta auditoría:** una versión anterior de este documento usaba
+> `https://gestion-rifas-jimmyriveros-projects.vercel.app`, mientras `HANDOFF.md`, el estado de Fase
+> 8 y las comprobaciones de producción registran `https://gestion-rifas.vercel.app`. Confirma en los
+> paneles de Vercel y Supabase Auth que la URL canónica y el comodín anteriores siguen configurados;
+> si el alias largo todavía se usa, autorízalo además, no en sustitución del canónico (I-023).
 
 **Por qué importa:** los enlaces de invitación y de recuperación de contraseña llevan un
 `redirect_to` (`/auth/callback?next=/reset-password`, ver `src/features/users/actions.ts:70` y
@@ -51,8 +57,9 @@ este mismo comportamiento en local durante la Fase 8: `supabase/config.toml` sol
 
 ### 2.2 Promoción de migraciones futuras
 
-Las 15 actuales ya están aplicadas. Para cualquier migración **nueva**, el procedimiento son tres
-pasos — nunca dos (ya hizo falta el tercero dos veces: D-038, D-065/I-020):
+Las 20 actuales ya están aplicadas. Para cualquier migración **nueva**, exige autorización explícita
+y genera primero el respaldo de §4.2/`RUNBOOK.md` §5. Después la promoción son tres pasos —nunca dos
+(ya hizo falta el tercero dos veces: D-038, D-065/I-020):
 
 ```bash
 npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
@@ -84,11 +91,10 @@ instancia local efímera, ver §5).
 | Dominio | El subdominio gratuito de Vercel (`*.vercel.app`). Se puede añadir un dominio propio después, sin volver a desplegar nada |
 
 Este proyecto ya existía antes de la Fase 8: Vercel lo creó automáticamente al importar el repo
-(`importSource: "import-suggestions"`) y su único intento de despliegue a producción **falló**
-(`npm run build` salió con error 1) porque no tenía ninguna variable de entorno configurada.
-Apuntaba además a un commit de hace varias fases — el remoto de GitHub no se ha actualizado desde
-`fase-2` (`HANDOFF.md` §1). Reutilizarlo es correcto: mismo nombre, ya conectado: solo falta
-configurar las variables y desplegar el código actual.
+(`importSource: "import-suggestions"`). El primer intento falló porque no tenía variables de entorno;
+ese es un antecedente histórico, ya corregido. La aplicación actual está desplegada y verificada en
+producción. Antes de un despliegue futuro se consulta `HANDOFF.md` y se compara Git, sin inferir el
+estado actual a partir de aquel primer intento.
 
 ### 3.1 Variables de entorno (hacerlo en el dashboard de Vercel — no lo hace un agente)
 
@@ -103,8 +109,8 @@ Settings → Environment Variables del proyecto `gestion-rifas`, scope **Product
 | `NEXT_PUBLIC_SITE_URL` | Plain | La URL de producción, la misma de §2.1 |
 | `TZ` | Plain | `UTC` (D-022 — la conversión a Bogotá es explícita en la presentación) |
 
-`scripts/check-env.ts` (el `prebuild`) corta el build si faltan las tres primeras — es exactamente
-lo que le pasó al despliegue fallido existente.
+`scripts/check-env.ts` (el `prebuild`) corta el build si falta alguna de las tres claves de Supabase.
+Hoy no valida `NEXT_PUBLIC_SITE_URL`; comprobarla en Vercel sigue siendo un paso manual (I-049).
 
 ### 3.2 Primer despliegue real
 
@@ -161,7 +167,7 @@ verificado en `docs/RUNBOOK.md` §5.
 | Job | Qué hace | Por qué |
 |---|---|---|
 | `verify` | `typecheck` + `lint` + `test` + `build` | Espejo exacto de `npm run verify` |
-| `db` | Levanta Supabase local con la CLI, aplica las 15 migraciones **desde cero**, siembra y corre `test:db` | Prueba en cada corrida lo que la Fase 8 exige a mano: "despliegue limpio en un entorno nuevo" y "migraciones aplicadas desde cero" |
+| `db` | Levanta Supabase local con la CLI, aplica las 20 migraciones **desde cero**, siembra y corre `test:db` | Prueba en cada corrida lo que la Fase 8 exige a mano: "despliegue limpio en un entorno nuevo" y "migraciones aplicadas desde cero" |
 
 `test:e2e` (Playwright) queda **fuera** del CI por defecto — decisión **D-069** — por duración y
 complejidad en runners compartidos. Se sigue corriendo en local antes de cerrar cada fase.
@@ -175,6 +181,6 @@ complejidad en runners compartidos. Se sigue corriendo en local antes de cerrar 
 | Cabeceras de seguridad | `curl -I https://<dominio-real>` — confirmar `Strict-Transport-Security` (solo aparece con `NODE_ENV=production`, que Vercel fija solo) y `Content-Security-Policy` |
 | Ningún secreto llega al navegador | Estático: `npm run build` local + buscar `SERVICE_ROLE` en `.next/` (no debe aparecer). En vivo: DevTools → Network → confirmar que ninguna respuesta ni el HTML/JS servido contienen la service role key |
 | Los tres roles funcionan | Login como `owner@demo.test`, `admin@demo.test`, `vendedor1@demo.test` (contraseña de `SEED_DEFAULT_PASSWORD` del proyecto real) y confirmar la redirección de cada uno a su portal |
-| Variables de entorno completas | El build de Vercel ya lo garantiza (`prebuild: check:env` lo corta si falta alguna) |
+| Variables de entorno completas | El build comprueba las tres claves de Supabase; revisar además `NEXT_PUBLIC_SITE_URL` y `TZ` en el panel (I-049) |
 
 Detalle de qué hacer si algo de esto falla en `RUNBOOK.md`.

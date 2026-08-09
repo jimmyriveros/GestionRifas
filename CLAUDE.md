@@ -4,7 +4,10 @@ Actúa como arquitecto de software, desarrollador full-stack senior, especialist
 
 Estás trabajando en una aplicación web para automatizar la operación de una empresa que actualmente administra manualmente sus rifas, vendedores, clientes, boletas, abonos y pagos.
 
-Este documento es la fuente principal de verdad del proyecto.
+Este documento conserva la especificación original y las instrucciones propias de Claude Code.
+La jerarquía vigente de fuentes y el protocolo compartido con Codex están en §36 y D-086.
+Los detalles funcionales que una regla `BR-*` o decisión `D-*` posterior haya sustituido se conservan
+como contexto histórico; no prevalecen sobre esas fuentes vigentes.
 
 Debes cumplir todas sus reglas durante cada fase de implementación.
 
@@ -19,9 +22,9 @@ Nunca debes adelantarte a una fase que no haya sido autorizada expresamente por 
 Cuando recibas el prompt de una fase:
 
 1. Lee completamente este archivo.
-2. Lee toda la documentación existente dentro de `/docs`.
-3. Inspecciona el código actual antes de modificarlo.
-4. Revisa `docs/PHASE_STATUS.md`.
+2. Revisa `git status --short --branch` y protege cualquier cambio existente.
+3. Consulta el núcleo documental y los documentos específicos en el orden de §34.1.
+4. Inspecciona el código, las migraciones y las pruebas reales antes de modificarlo.
 5. Ejecuta únicamente la fase solicitada.
 6. No construyas funcionalidades pertenecientes a fases posteriores.
 7. No reemplaces funcionalidades ya completadas sin una razón técnica válida.
@@ -809,9 +812,7 @@ Rutas mínimas:
 Funciones:
 
 * Consultar sus boletas.
-* Buscar por número diario.
-* Buscar por número semanal.
-* Buscar por código.
+* Buscar por número diario o semanal, con coincidencia parcial; no por código interno (BR-N11).
 * Filtrar por estado.
 * Filtrar por cliente.
 * Crear clientes.
@@ -982,11 +983,14 @@ Estas ocho etiquetas y su redacción exacta se definen una sola vez en `src/lib/
 
 ---
 
-# 28. DOCUMENTACIÓN OBLIGATORIA
+# 28. DOCUMENTACIÓN DEL PROYECTO
 
-Mantén actualizados:
+Mantén actualizado **solo el documento cuyo tema cambió**; no dupliques el detalle en varios
+archivos. Un resumen corto puede enlazar al documento propietario. El mapa de responsabilidades está
+en `docs/HANDOFF.md` §5 y la higiene de actualización en §34.2.
 
 * `README.md`
+* `AGENTS.md`
 * `CLAUDE.md`
 * `docs/MASTER_SPEC.md`
 * `docs/ARCHITECTURE.md`
@@ -996,8 +1000,14 @@ Mantén actualizados:
 * `docs/IMPLEMENTATION_PLAN.md`
 * `docs/DECISIONS.md`
 * `docs/PHASE_STATUS.md`
+* `docs/HANDOFF.md`
 * `docs/KNOWN_ISSUES.md`
 * `docs/TESTING.md`
+* `docs/TEST_RESULTS.md`
+* `docs/DEPLOYMENT.md`
+* `docs/OPERATIONS.md`
+* `docs/RUNBOOK.md`
+* `docs/AUDIT_REPORT.md`
 * `docs/UX_COPY_GUIDELINES.md`
 * `.env.example`
 
@@ -1130,11 +1140,17 @@ puente entre ellas: si algo no está escrito, se pierde.
 Lee, en este orden:
 
 1. `CLAUDE.md` (este archivo).
-2. `docs/HANDOFF.md` — estado actual, arranque, credenciales, trampas conocidas.
-3. `docs/PHASE_STATUS.md` — qué quedó hecho y qué revisar antes de empezar.
+2. `git status --short --branch` — cualquier cambio sin commit puede pertenecer al usuario u otro
+   agente; no se descarta ni se sobrescribe.
+3. `docs/HANDOFF.md` — relevo operativo, arranque y trampas actuales.
+4. `docs/PHASE_STATUS.md` — estado del producto y de las fases.
+5. Núcleo normativo: `docs/MASTER_SPEC.md`, `docs/ARCHITECTURE.md`,
+   `docs/BUSINESS_RULES.md` y `docs/DECISIONS.md`.
+6. Código, migraciones, pruebas y commits relacionados con la tarea.
+7. Documentos especializados según `docs/HANDOFF.md` §5.
 
-No leas el resto de `docs/` completo. Consulta cada documento solo cuando la tarea lo requiera,
-según la guía de `docs/HANDOFF.md` §5. Leerlo todo cuesta unas 40.000 fichas y casi nunca aporta.
+El núcleo es de consulta obligatoria; en los archivos acumulativos extensos se leen el encabezado,
+el estado actual y las entradas `BR-*`/`D-*` relacionadas, no cada snapshot histórico sin relación.
 
 Antes de escribir código, verifica que el entorno está sano:
 
@@ -1148,17 +1164,22 @@ pruebas no mienten.
 
 ## 34.2 Al cerrar una fase
 
-Actualiza **siempre**, aunque el cambio parezca menor:
+Actualiza de forma selectiva:
 
-* `docs/PHASE_STATUS.md` — sección nueva de la fase con los seis puntos obligatorios de §34.3.
-* `docs/DECISIONS.md` — toda decisión no evidente, con su alternativa descartada y el porqué.
-* `docs/KNOWN_ISSUES.md` — problemas, riesgos verificados y deuda técnica.
-* `docs/TEST_RESULTS.md` — comandos ejecutados, resultados y errores encontrados.
-* `docs/HANDOFF.md` — estado actual, comandos nuevos y trampas nuevas.
-* Cualquier documento afectado: `DATA_MODEL.md` si cambió el esquema, `SECURITY.md` si cambió la
-  autorización, `ARCHITECTURE.md` si cambiaron rutas o dependencias, `README.md` si cambió el uso.
+| Documento | Cuándo se actualiza |
+|---|---|
+| `PHASE_STATUS.md` | cambió el estado de la fase o del producto; incluye los seis puntos de §34.3 |
+| `HANDOFF.md` | terminó trabajo significativo o cambió el contexto operativo |
+| `DECISIONS.md` | hubo una decisión no evidente que afectará trabajo futuro |
+| `KNOWN_ISSUES.md` | se verificó, cambió o resolvió un problema o riesgo real |
+| `TEST_RESULTS.md` | se ejecutaron verificaciones significativas o apareció un error |
+| Documentos técnicos | cambió exactamente su materia: modelo, seguridad, arquitectura, uso, etc. |
 
 Después: `npm run verify` y `npm run test:db` en verde, commit local y etiqueta `fase-N`.
+
+Para mantenimiento posterior al plan, no se inventa una fase ni una etiqueta: autorización
+explícita, pruebas proporcionales, documentación afectada, `HANDOFF` si el trabajo fue significativo y
+commit local. Nunca se hace push sin autorización.
 
 ## 34.3 Contenido obligatorio por fase en `docs/PHASE_STATUS.md`
 
@@ -1172,13 +1193,16 @@ Después: `npm run verify` y `npm run test:db` en verde, commit local y etiqueta
 ## 34.4 Cómo escribir la documentación
 
 * Tablas antes que prosa. Una línea por hecho.
-* Sin repetir entre documentos: enlaza en lugar de duplicar.
+* Sin duplicar el detalle entre documentos: resume lo necesario y enlaza al propietario.
 * Cita los identificadores (`D-0xx`, `BR-xxx`, `I-0xx`) en el código y en los documentos, para que
   quien lea busque solo esa entrada y no el archivo entero.
 * Registra los errores encontrados aunque se hayan corregido: un error documentado es información,
   uno omitido es una trampa para la siguiente sesión.
 * Los documentos que crecen en cada fase (resultados de pruebas) van en su propio archivo, para que
   los normativos no se vuelvan ilegibles.
+* `AUDIT_REPORT.md`, las secciones cerradas de `PHASE_STATUS.md` y las ejecuciones anteriores de
+  `TEST_RESULTS.md` son snapshots históricos: se preservan y se añade una nota posterior en el
+  documento vivo correspondiente.
 
 ---
 
@@ -1220,6 +1244,50 @@ Aplica igual a los **textos nuevos** y a los **textos existentes que se modifiqu
    Cambiar una es cambiar ese archivo.
 6. **Esta guía es la fuente principal** en materia de redacción. Si otro documento del proyecto dice
    algo distinto sobre cómo escribir un texto, manda la guía y el otro documento se corrige.
+
+---
+
+# 36. CONTINUIDAD CLAUDE CODE ↔ CODEX
+
+Los dos agentes trabajan sobre una sola arquitectura y una sola documentación. Claude Code entra por
+`CLAUDE.md`; Codex, por `AGENTS.md`. Ninguno reemplaza el trabajo del otro por preferencia personal.
+
+## 36.1 Jerarquía de fuentes
+
+1. Solicitud explícita actual del usuario.
+2. Código, migraciones, esquema y pruebas que demuestren el comportamiento real.
+3. `MASTER_SPEC`, `BUSINESS_RULES` y decisiones `D-*` aceptadas.
+4. Arquitectura y documentación técnica especializada.
+5. `PHASE_STATUS` y `HANDOFF`, como estado y contexto.
+6. Suposiciones del agente.
+
+Una contradicción entre código y documentación se investiga y se reporta; no se corrige
+silenciosamente ni se cambia el comportamiento basándose en una suposición.
+
+## 36.2 REUSE → EXTEND → CREATE
+
+Antes de crear componentes, hooks, servicios, helpers, utilidades, validadores, wrappers, acceso a
+datos, estado, tipos, modales o formularios: busca una implementación equivalente; reutilízala;
+extiéndela si hace falta; crea una nueva solo si las dos opciones anteriores no cubren el caso.
+`docs/HANDOFF.md` §6.b enumera las piezas compartidas actuales.
+
+## 36.3 Cambio mínimo y protección de trabajo ajeno
+
+* Revisa Git antes de implementar. Los cambios sin commit se presumen del usuario u otro agente.
+* No los resetees, descartes, sobrescribas ni reformatees sin necesidad.
+* Evita refactors, renombramientos, movimientos, actualizaciones de dependencias y limpiezas fuera de
+  alcance.
+* Si otro agente empezó una función, lee `HANDOFF`, `PHASE_STATUS`, el diff, los commits y los archivos
+  tocados; continúa la implementación. No la reescribas desde cero ni introduzcas una segunda capa.
+* Si una decisión arquitectónica parece incorrecta, reúne evidencia y repórtala antes de cambiarla.
+
+Al cerrar trabajo significativo, `HANDOFF` deja resultado, archivos, patrones reutilizados,
+decisiones, pruebas y errores, pendientes, advertencias y estado Git. `PHASE_STATUS` registra estado
+del producto; no es la memoria operativa del último agente.
+
+El bloque siguiente pertenece a Next.js. Next actualiza `AGENTS.md` y omite este archivo cuando ambos
+existen; después de actualizar Next se copia aquí **solo** el bloque delimitado por
+`BEGIN/END:nextjs-agent-rules`, sin reemplazar las instrucciones propias de Claude Code (I-053).
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -1,61 +1,52 @@
 # ESTADO DE LAS FASES
 
-Registro de lo entregado por fase. **Leer antes de iniciar cualquier fase.**
-Ninguna fase comienza sin autorización explícita del usuario (`CLAUDE.md` §1).
-Para arrancar una sesión nueva, empieza por [`HANDOFF.md`](HANDOFF.md).
+Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
+las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-08-08 · **Fase actual:** 9 completada · **Siguiente:** ninguna — el plan de
-  10 fases está terminado
+- **Actualizado:** 2026-08-09
+- **Estado global:** plan de 10 fases completado
+- **Fase siguiente:** ninguna autorizada
 
-| Fase | Nombre | Estado | Commit / etiqueta |
-|---|---|---|---|
-| 0 | Arquitectura y planificación | ✅ | `b4b991c` · `fase-0` |
-| 1 | Proyecto base y autenticación | ✅ | `34b3cb1` · `fase-1` |
-| 2 | Base de datos, restricciones y RLS | ✅ | `954531c` · `fase-2` |
-| 3 | Portal Owner y Admin | ✅ | `439e64d` · `fase-3` |
-| 4 | Portal Seller y clientes | ✅ | `36ef2e1` · `fase-4` |
-| 5 | Pagos, abonos y saldos | ✅ | `ecc9eac` · `fase-5` |
-| 6 | Dashboards, reportes y UI/UX | ✅ | `791e585` · `fase-6` |
-| 7 | Pruebas, seguridad y endurecimiento | ✅ | `caa6298` · `fase-7` |
-| 8 | Despliegue y documentación operativa | ✅ | `bcd6dc0` · `fase-8` |
-| 9 | Auditoría final independiente | ✅ | `a8c4083` · `fase-9` |
+## Resumen de fases y mantenimiento
+
+| Clasificación | Estado actual |
+|---|---|
+| **Completada** | Fases 0 a 9 |
+| **En curso** | Ninguna |
+| **Pendiente** | Ninguna fase. Mantenimiento sin autorización activa: I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
+| **Bloqueada** | Ninguna fase |
+
+`Bloqueada` describe una fase autorizada que no puede avanzar. Los controles para operar con datos
+reales y los defectos sin tarea activa se muestran como pendientes y se detallan en
+`KNOWN_ISSUES.md`; no se ocultan bajo el cierre del plan.
+
+| Fase | Nombre | Estado | Entrega funcional | Etiqueta (destino real) |
+|---|---|---|---|---|
+| 0 | Arquitectura y planificación | Completada | `b4b991c` | `fase-0` → `b4b991c` |
+| 1 | Proyecto base y autenticación | Completada | `34b3cb1` | `fase-1` → `34b3cb1` |
+| 2 | Base de datos, restricciones y RLS | Completada | `954531c` | `fase-2` → `954531c` |
+| 3 | Portal Owner y Admin | Completada | `439e64d` | `fase-3` → `d37ed01` |
+| 4 | Portal Seller y clientes | Completada | `36ef2e1` | `fase-4` → `5ff2084` |
+| 5 | Pagos, abonos y saldos | Completada | `ecc9eac` | `fase-5` → `3b3bd13` |
+| 6 | Dashboards, reportes y UI/UX | Completada | `791e585` | `fase-6` → `791e585` |
+| 7 | Pruebas, seguridad y endurecimiento | Completada | `caa6298` | `fase-7` → `caa6298` |
+| 8 | Despliegue y documentación operativa | Completada | `bcd6dc0` | `fase-8` → `bcd6dc0` |
+| 9 | Auditoría final independiente | Completada | `a8c4083` | `fase-9` → `0becc47` |
+
+Las etiquetas 3, 4, 5 y 9 apuntan a checkpoints documentales posteriores al commit funcional. Es
+historia válida; no deben moverse para hacer coincidir las columnas.
 
 ---
 
-## LO PRIMERO, SI RETOMAS ESTE PROYECTO
+## Cómo leer las secciones siguientes
 
-1. **No hay acciones técnicas pendientes.** Las 20 migraciones están aplicadas en local y en el
-   proyecto real. Lo que queda abierto (I-024 backups,
-   I-021 cuentas demo, I-030 tildes en los mensajes de la base de datos) son decisiones del dueño del
-   negocio — `HANDOFF.md` §1.b.
-2. **Leer** `CLAUDE.md`, `docs/HANDOFF.md` y `docs/AUDIT_REPORT.md` (los hallazgos y lo que quedó
-   aceptado).
-3. **La aplicación está en producción**: `https://gestion-rifas.vercel.app`, proyecto Vercel
-   `gestion-rifas`, contra el mismo proyecto Supabase usado desde la Fase 2 (no hay staging, D-066).
-   Las cuentas de demostración (`owner@demo.test`, etc.) siguen activas ahí — ver I-021 antes de
-   asumir que cualquier dato que se vea es real.
-4. **El proyecto Supabase real está en plan Free: sin backups automáticos, sin PITR** (I-024). La
-   única red de seguridad es el respaldo lógico manual (`docs/RUNBOOK.md` §5) — generarlo antes de
-   cualquier acción destructiva sobre el proyecto remoto, y **nunca restaurar ni resetear el remoto
-   sin mostrar el procedimiento exacto y recibir autorización explícita**, sin excepción.
-5. **CI corre en cada push/PR a `main`** (`.github/workflows/ci.yml`): typecheck/lint/test/build +
-   migraciones desde cero contra una instancia Supabase efímera. `test:e2e` queda fuera (D-069).
-6. Como siempre: `npx supabase start` → `npm run db:reset && npm run seed:local` →
-   `npm run test:db` (371 ✅) → `npm run verify` (✅) → `npm run test:e2e` (212 ✅) antes de tocar nada.
-   Si el seed falla con `AuthRetryableFetchError`, espera a que GoTrue arranque (I-028).
-7. **La limitación de intentos es en memoria por instancia** (D-062) y **las políticas RLS no llaman
-   a una función pasándole una columna** (D-057, D-063). **Nada de dinero calculado en TypeScript.**
-8. **Las lecturas que puedan superar 1.000 filas usan `fetchAllRows`** o
-   `count: 'exact', head: true`. Nunca `data.length` (I-011, R-18).
-9. **Si añades una Server Action**, `tests/unit/server-actions-guard.test.ts` la encontrará esté donde
-   esté (desde la Fase 9 el recorrido es recursivo) y fallará si se le olvida `authorizeAction`.
-10. **Si tocas el seed**, lee `docs/TESTING.md` §6.1: `F6-04` y `F9-02` dependen de que `vendedor2`
-    no tenga pagos.
-11. **Si cambias una regla de asignación o anulación de boletas**, cámbiala en `assign_ticket_row` o
-    `cancel_ticket_row` (`0020`): desde ahí la comparten la acción individual y la masiva (D-083).
-12. **Si escribes una prueba E2E que pulsa lo primero al entrar a una pantalla**, usa
-    `toggleCheckbox` de `fixtures.ts` o su mismo patrón de reintento: sin él, el clic cae antes de
-    que React hidrate y la prueba falla culpando al producto (`TESTING.md` §5.3).
+Cada fase conserva la fotografía que era cierta al cerrarse. Por eso una sección antigua puede decir
+«15 migraciones» o mostrar I-004 como abierto: no es el estado actual y no se reescribe. Para el
+estado vigente usa la tabla superior, `HANDOFF.md` §1 y `KNOWN_ISSUES.md`; para ejecutar comandos o
+tocar producción, usa `HANDOFF.md`, `DEPLOYMENT.md` y `RUNBOOK.md`.
+
+El mantenimiento posterior a la Fase 9 se registra en el historial de este documento solo cuando
+cambia el producto. El contexto del último trabajo pertenece a `HANDOFF.md`.
 
 ---
 
@@ -810,36 +801,18 @@ por un estado intermedio sin Owner, y un trigger inmediato lo haría imposible p
 
 ---
 
-## Comandos
+## Referencias operativas
 
-```bash
-npx supabase start     # instancia local (Docker)
-npm run db:reset       # reaplica las 20 migraciones desde cero (local)
-npm run seed:local     # datos de desarrollo en local
-npm run seed           # datos de desarrollo en el proyecto de .env.local
-npm run test:db        # 371 pruebas de base de datos (crea 5.000 boletas de volumen)
-npm run test:e2e       # 212 pruebas end-to-end (Playwright)
-npm run verify         # typecheck + lint + unitarias + build
-npm run dev            # servidor de desarrollo (segun .env.local)
-npm run dev:local      # servidor de desarrollo contra la instancia local
-npm run create-org -- --name "..." --owner-email ... --owner-name ... --owner-phone ...
-                       # alta de una organizacion nueva y su primer Owner (docs/OPERATIONS.md)
-```
+| Necesidad | Fuente vigente |
+|---|---|
+| Arrancar, sembrar y verificar local | `HANDOFF.md` §2 y §7 |
+| Comandos npm | `README.md` |
+| Promover una migración | `DEPLOYMENT.md` §2.2 — respaldo, `--dry-run`, `--yes` y `verify:remote` |
+| Respaldar o restaurar | `RUNBOOK.md` §5 |
+| Alta de organización y primer Owner | `OPERATIONS.md` §1 |
 
-Aplicar migraciones al proyecto real:
-
-```bash
-npx supabase db push --db-url "$SUPABASE_DB_URL"
-```
-
-Respaldo lógico manual (plan Free, sin backups automáticos — procedimiento completo y advertencias en
-`docs/RUNBOOK.md` §5):
-
-```bash
-npx supabase db dump -f "<carpeta-fuera-del-repo>/roles.sql" --role-only --db-url "$SUPABASE_DB_URL"
-npx supabase db dump -f "<carpeta-fuera-del-repo>/schema.sql" --db-url "$SUPABASE_DB_URL"
-npx supabase db dump -f "<carpeta-fuera-del-repo>/data.sql" --schema public --data-only --db-url "$SUPABASE_DB_URL"
-```
+No copies comandos de producción desde un snapshot de fase: usa siempre el procedimiento propietario
+anterior. En particular, un `db push` aislado no es el procedimiento autorizado.
 
 ---
 

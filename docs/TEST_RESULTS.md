@@ -21,6 +21,9 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 5 | **101 ✅** | **199 ✅** | **89 ✅** | ✅ | ✅ |
 | 6 | **126 ✅** | **238 ✅** | **120 ✅** | ✅ | ✅ |
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
+| 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
+| 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
+| Post-9 vigente | **286 ✅** | **371 ✅** | **212 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -1148,3 +1151,21 @@ distintas.
 También quedó corregida una comprobación demasiado amplia: contar `action like 'ticket.bulk_%'` para
 verificar que la prueba no dejó rastro incluye `ticket.bulk_create`, que existe desde la Fase 2 y es
 de una carga real del usuario. Se acotó a las cuatro acciones nuevas.
+
+---
+
+## Auditoría de contexto y continuidad — 2026-08-09
+
+Mantenimiento documental posterior a la Fase 9 (D-086). No cambió código, esquema, configuración
+ejecutable ni comportamiento; por eso no se reejecutó Playwright. La última suite E2E funcional
+registrada sigue siendo 212/212.
+
+| Comando / verificación | Resultado | Error encontrado | Corrección o decisión |
+|---|---|---|---|
+| `npx supabase start` | ✅ al reintentar | Primer intento: Docker Desktop no estaba iniciado y la CLI no pudo abrir su *pipe* | Se inició Docker Desktop y se repitió el comando |
+| `npm run db:reset; npm run seed:local` | ✅ 20 migraciones + seed idempotente | La CLI avisa que `supabase/seed.sql` no existe | El seed real es `scripts/seed.ts`; deriva registrada como I-048, sin tocar configuración fuera de alcance |
+| `npm run verify` | ✅ typecheck, lint, 286 unitarias y build de producción | 2 avisos conocidos de React Compiler por `useReactTable` y `useVirtualizer`; 0 errores | Sin cambio: las librerías son incompatibles con memoización automática y React omite esa optimización de forma segura |
+| `npm run test:db` (dos corridas sin resembrar) | ✅ ambas: 16 archivos, 371/371 | — | Confirma que la suite actual conserva la idempotencia descrita en `TESTING.md` §6.1 |
+| `npm run format:check` | ❌ 60 archivos existentes de código/pruebas | El árbol funcional actual no cumple el check global; ningún documento de esta auditoría apareció entre los fallos | No se hizo un reformateo masivo fuera de alcance; registrado como I-052 |
+| `npx prettier --check <16 documentos modificados>` | ✅ | — | Confirma que la documentación de esta auditoría sí cumple Prettier |
+| `git diff --check` | ✅ | — | Sin errores de espacios ni marcadores de conflicto |

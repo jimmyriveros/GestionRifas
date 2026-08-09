@@ -1,12 +1,12 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.2 · **Fase:** 5 · **Actualizado:** 2026-08-03
-- **Estado:** IMPLEMENTADO y verificado. El esquema vive en `supabase/migrations/0001` a `0012`.
-  Las 11 primeras están aplicadas en local **y** en el proyecto Supabase real; la `0012` solo en
-  local — ver `KNOWN_ISSUES.md` §4.
+- **Versión:** 2.3 · **Estado:** implementado · **Actualizado:** 2026-08-09
+- **Estado:** el esquema ejecutable vive en las 20 migraciones `0001`–`0020`, aplicadas y
+  verificadas tanto en local como en el proyecto Supabase real; ver `KNOWN_ISSUES.md` §4.
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
-  tipos generados en `src/types/database.types.ts`. Las 199 pruebas de `tests/db/` verifican que el
-  esquema real cumple lo aquí descrito.
+  tipos generados en `src/types/database.types.ts`. Las 371 pruebas de `tests/db/` verifican el
+  esquema local; producción se comprueba con `verify:remote` y las sondas registradas en
+  `TEST_RESULTS.md`.
 
 ### Ajustes introducidos al implementar (Fase 2)
 
@@ -80,7 +80,7 @@ erDiagram
 | Propagación | **Todas** las tablas de negocio llevan `organization_id` propio y `NOT NULL`. |
 | Consistencia | Claves foráneas **compuestas** que incluyen `organization_id` (ver §4.3). Es imposible que una boleta apunte a una rifa de otra organización. |
 | Pertenencia de usuario | Tabla `memberships` (usuario × organización × rol). Un usuario puede, en el futuro, pertenecer a varias organizaciones. |
-| Organización activa | En el MVP se deriva de la única membresía activa del usuario. Si en el futuro hay varias, se elegirá explícitamente y se guardará en cookie firmada; las políticas RLS no cambian. |
+| Organización activa | En el MVP se deriva de la única membresía activa del usuario. Antes de permitir varias, se elegirá explícitamente con contexto firmado y sesión, consultas y RLS deberán compartir ese alcance (I-047). |
 
 ---
 

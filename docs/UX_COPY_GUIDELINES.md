@@ -1,8 +1,8 @@
 # Guía de UX Writing y lenguaje de la aplicación
 
-**Fuente única de verdad para todo texto visible por un usuario.** Se importa desde `CLAUDE.md` §35,
-así que está cargada en cada sesión: no hace falta abrirla para que aplique, pero sí releerla antes
-de escribir o cambiar textos.
+**Fuente única de verdad para todo texto visible por un usuario.** Claude Code la importa desde
+`CLAUDE.md` §35 y Codex la recibe como lectura obligatoria desde `AGENTS.md`; ambos deben releerla
+antes de escribir o cambiar textos.
 
 Las secciones 1 a 14 son la guía normativa. Los **anexos** del final son la aplicación concreta de
 esa guía a este proyecto: glosario, dónde vive cada texto y las contradicciones ya detectadas.
@@ -122,7 +122,7 @@ Por ejemplo, no alternar entre:
 * Vendedor, colaborador y usuario.
 * Rifa, campaña y sorteo.
 
-Antes de crear nuevos textos, Claude debe revisar los términos ya utilizados en el proyecto y mantener consistencia. El glosario canónico está en el **Anexo A**.
+Antes de crear nuevos textos, cualquier agente debe revisar los términos ya utilizados en el proyecto y mantener consistencia. El glosario canónico está en el **Anexo A**.
 
 ## 5. Product tours, popups y tooltips
 
@@ -306,7 +306,7 @@ La claridad tiene prioridad sobre cumplir estrictamente un número de palabras.
 
 ## 14. Revisión obligatoria
 
-Antes de finalizar cualquier cambio que incluya textos visibles, Claude debe comprobar:
+Antes de finalizar cualquier cambio que incluya textos visibles, el agente debe comprobar:
 
 * ¿Una persona con poca experiencia tecnológica puede entenderlo?
 * ¿Explica claramente qué debe hacer?
@@ -408,7 +408,7 @@ aplicó a los textos existentes (D-073). Estado real:
 | Interfaz (`src/`): pantallas, botones, formularios, estados vacíos, confirmaciones, toasts | ✅ Revisada. **302 correcciones en 89 archivos**, más 18 archivos de pruebas ajustados |
 | Etiquetas de estado y roles (`src/lib/constants.ts`) | ✅ «Dueño», «Pendiente de aprobación» |
 | Errores de validación (Zod) y errores traducidos (`src/lib/errors.ts`) | ✅ Revisados |
-| **Mensajes que lanza la base de datos** (`raise exception` de `0004`, `0007`, `0016`) | ❌ **Siguen sin tildes.** ~46 mensajes. Cambiarlos exige una migración nueva y aplicarla al proyecto real — `I-030` |
+| **Mensajes que lanza la base de datos** (`raise exception` en migraciones aplicadas) | ❌ Persisten textos sin tildes. Cambiarlos exige una migración nueva y aplicarla al proyecto real — `I-030` |
 | Tono: tuteo de §3 | ✅ Ya se cumplía; no hizo falta rehacerlo |
 
 **Lo que no se cambió, a propósito:** «solo» adverbio no lleva tilde (norma actual de la RAE);

@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.2 · **Actualizado:** 2026-08-03 (Fase 5)
+- **Versión:** 2.3 · **Actualizado:** 2026-08-09
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -13,13 +13,12 @@
 |-------|-------------|-----------|------------|-----------|
 | Unitarias | Vitest | Formato de dinero, validadores Zod, cálculo de estados, transformaciones de fecha, utilidades | `tests/unit/` | ms |
 | Base de datos | Vitest + `@supabase/supabase-js` contra Supabase local | Restricciones, triggers, RPC, **RLS con sesiones reales** | `tests/db/` | segundos |
-| Componentes | Vitest + Testing Library | Formularios críticos, tabla de carga masiva, entrada de números | `tests/unit/components/` | ms |
 | E2E | Playwright | Flujos completos por rol, responsive, protección de rutas | `tests/e2e/` | minutos |
-| Volumen | Vitest + Supabase local | Que los agregados sigan en SQL y que nada se trunque en silencio con 5.000 boletas | `tests/db/volume-phase6.test.ts` | ~10 s |
+| Volumen | Vitest + Supabase local | Agregados, reportes y CSV sin truncamiento silencioso con 5.000 boletas | `tests/db/volume-phase6.test.ts` | ~10 s |
 
-**Principio rector:** toda regla marcada como crítica en `docs/BUSINESS_RULES.md` tiene al menos una
-prueba **de base de datos**, no solo de interfaz. Una regla que solo se prueba en la UI no está
-probada: el atacante no usa la UI.
+**Principio rector:** las reglas críticas de integridad, dinero y autorización tienen prueba de base
+de datos, no solo de interfaz. Navegación, selección, responsive y UX se cubren en la capa
+unitaria/E2E que corresponde; el detalle trazable está en `TEST_RESULTS.md`.
 
 ---
 
@@ -28,9 +27,10 @@ probada: el atacante no usa la UI.
 - **Base de datos:** instancia local de Supabase (`supabase start`), reconstruida con
   `supabase db reset` antes de la suite de base de datos. Nunca se ejecutan pruebas contra
   producción.
-- **Sesiones reales por rol:** las pruebas de RLS **no** usan `SERVICE_ROLE`. Cada prueba inicia
-  sesión con `signInWithPassword` como Owner, Admin, Seller A o Seller B y opera con la clave
-  pública, exactamente como lo haría un atacante con acceso al navegador.
+- **Sesiones reales por rol:** el acto cuya RLS se comprueba inicia sesión como Owner, Admin, Seller
+  A o Seller B y opera con la clave pública. `service_role`/PostgreSQL directo se reservan para
+  preparar, comprobar o limpiar el escenario, nunca para la operación autorizada que se afirma
+  probar (D-043).
 - **Aislamiento:** cada archivo de prueba parte de un estado conocido (seed) y limpia lo que crea.
 - **Datos de otra organización:** el seed incluye una segunda organización con su propio Owner y
   vendedor, exclusivamente para probar el aislamiento.
@@ -57,7 +57,9 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
   pruebas se enteran.
 - **`tests/e2e/db-setup.ts` usa la service role solo para PREPARAR** el estado de partida que aún no
   se puede construir por la interfaz (por ejemplo, una boleta en `pending_approval`, que crea el
-  portal del vendedor de la Fase 4). El acto que se prueba siempre pasa por la interfaz (D-043).
+  portal del vendedor de la Fase 4). Los flujos ordinarios pasan por la interfaz; algunas pruebas
+  adversarias llaman RPC directamente con el token real del navegador para demostrar que saltarse
+  la pantalla tampoco evita autorización (D-043).
 
 Trampas aprendidas escribiendo estas pruebas:
 
@@ -294,7 +296,8 @@ sin decir nada.
 
 ## 6. Datos de prueba (seed)
 
-Definido en la Fase 2, ejecutable con `supabase db reset && npm run seed:users`.
+Definido en la Fase 2 y unificado después por D-042. Estado conocido local:
+`npm run db:reset && npm run seed:local`.
 
 **Organización 1 — «Rifas Demo»**
 - Owner: `owner@demo.test`
@@ -338,7 +341,7 @@ la verdad de referencia — `DELETE` está revocado para la aplicación (`0010`)
 esto solo sea posible ahí.
 
 Quien toque el seed o el orden de los archivos debe tener esto presente. Se comprueba solo: ejecutar
-`npm run test:db` **dos veces seguidas sin resembrar** debe dar 266 ✅ las dos veces.
+`npm run test:db` **dos veces seguidas sin resembrar** debe dar 371 ✅ las dos veces.
 
 ---
 
@@ -383,5 +386,5 @@ Los resultados de cada fase (con los errores encontrados y como se corrigieron) 
 [`TEST_RESULTS.md`](TEST_RESULTS.md), para que este documento describa solo la ESTRATEGIA y no
 crezca en cada fase.
 
-Estado al cierre de la Fase 5: **101 pruebas unitarias + 199 de base de datos + 89 end-to-end, todas
-en verde**.
+Estado vigente registrado el 2026-08-09: **286 pruebas unitarias + 371 de base de datos + 212
+end-to-end**. Los resultados y errores de cada ejecución viven en `TEST_RESULTS.md`.

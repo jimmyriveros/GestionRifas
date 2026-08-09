@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.5 · **Fase:** 7 · **Actualizado:** 2026-08-04
+- **Versión:** 1.6 · **Estado:** implementado · **Actualizado:** 2026-08-09
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -29,7 +29,7 @@ Versiones estables verificadas en el registro de npm el 2026-08-02. Se fijan con
 
 | Componente | Paquete | Versión objetivo | Nota |
 |------------|---------|------------------|------|
-| Runtime | Node.js | `>=20.9.0` (local: 20.20.2) | Requisito de Next 16 |
+| Runtime | Node.js | `>=20.19.0` | Requisito declarado en `package.json` |
 | Framework | `next` | `16.3.0` | App Router. Subido en F7: resuelve 3 avisos altos de `npm audit` (DT-12) |
 | UI | `react`, `react-dom` | `19.2.8` | |
 | Lenguaje | `typescript` | `5.9.3` | **No** 7.x — ver D-002 |
@@ -46,7 +46,7 @@ Versiones estables verificadas en el registro de npm el 2026-08-02. Se fijan con
 | Fechas | `date-fns` + `@date-fns/tz` | `4.4.0` | Manejo de `America/Bogota` |
 | Notificaciones | `sonner` | `2.0.7` | Toasts (usado por shadcn/ui) |
 | Pruebas unitarias | `vitest` | `4.1.10` (entorno `jsdom@29.1.1`) | jsdom 30 exige Node 22+ — ver D-030 |
-| Pruebas E2E | `@playwright/test` | `1.62.1` | Instalado en F3 con Chromium; 142 specs (escritorio y móvil) |
+| Pruebas E2E | `@playwright/test` | `1.62.1` | Chromium; 212 pruebas (escritorio y móvil) |
 | Lint | `eslint` + `eslint-config-next` | `9.39.5` / `16.3.0` | **No** ESLint 10 — ver D-031 |
 | Formato | `prettier` + `prettier-plugin-tailwindcss` | `3.9.6` | |
 | WebSocket (Node 20) | `ws` | `8.21.1` | Runtime dep — ver D-033 |
@@ -73,7 +73,7 @@ No se usarán versiones `beta`, `rc`, `canary` ni `next` de ningún paquete.
 │  Navegador   │──────────▶ │  Next.js en Vercel        │─────────────▶│  Supabase        │
 │ (móvil/desk) │            │  · RSC (lectura)          │              │  · PostgreSQL    │
 └──────────────┘            │  · Server Actions (escr.) │              │  · RLS           │
-                            │  · Middleware (sesión)    │              │  · Auth          │
+                            │  · Proxy (sesión)         │              │  · Auth          │
                             └───────────────────────────┘              │  · RPC / SQL     │
                                                                        └──────────────────┘
 ```
@@ -106,23 +106,23 @@ importa desde un componente cliente.
 
 ```
 /
-├── CLAUDE.md                     # Fuente principal de verdad
+├── AGENTS.md                     # Instrucciones operativas para Codex
+├── CLAUDE.md                     # Especificación original e instrucciones para Claude Code
 ├── README.md
 ├── .env.example
 ├── .gitignore
 ├── next.config.ts
 ├── tsconfig.json
 ├── eslint.config.mjs
-├── vitest.config.ts
+├── vitest.config.mts
+├── vitest.db.config.mts
 ├── playwright.config.ts
-├── docs/                         # Documentación obligatoria (§28 CLAUDE.md)
+├── docs/                         # Fuentes del proyecto; mapa en HANDOFF.md §5
 ├── supabase/
 │   ├── config.toml
-│   ├── migrations/               # NNNN_nombre.sql versionadas, inmutables una vez aplicadas
-│   ├── functions/                # (reservado) Edge Functions si llegaran a necesitarse
-│   └── seed.sql                  # Datos de desarrollo, sin secretos
+│   └── migrations/               # 0001–0020; inmutables una vez aplicadas
 ├── scripts/
-│   ├── seed-users.ts             # Crea usuarios de auth con service role (contraseñas por env)
+│   ├── seed.ts                   # Seed unificado e idempotente; local o remoto explícito
 │   └── check-env.ts              # Verifica variables requeridas antes de build
 ├── tests/
 │   ├── unit/                     # Vitest: dinero, validadores, cálculo de estados
@@ -161,12 +161,11 @@ importa desde un componente cliente.
     ├── components/
     │   ├── ui/                   # shadcn/ui generado
     │   ├── layout/               # AppShell, Sidebar, MobileNav, Header, UserMenu
-    │   ├── data/                 # DataTable, DataTableToolbar, Pagination, EmptyState
-    │   ├── feedback/             # Skeletons, ConfirmDialog, Toaster
-    │   └── form/                 # FormField, MoneyInput, TicketNumberInput, DatePicker
+    │   ├── data/                 # DataTable, Pagination, MetricCard, StatusBadge, EmptyState
+    │   ├── feedback/             # Skeletons y ConfirmDialog
+    │   └── form/                 # MoneyInput, TicketNumberInput, OptionList, SelectionCheckbox
     ├── features/
-    │   ├── auth/                 # actions.ts, schemas.ts, queries.ts, components/
-    │   ├── organizations/
+    │   ├── auth/                 # actions.ts y schemas.ts
     │   ├── raffles/
     │   ├── users/                # admins + perfiles
     │   ├── sellers/
@@ -174,10 +173,11 @@ importa desde un componente cliente.
     │   ├── tickets/              # incluye bulk/
     │   ├── payments/
     │   ├── reports/
-    │   └── audit/
+    │   ├── search/               # Búsqueda híbrida compartida
+    │   └── tour/                 # Recorridos guiados
     ├── lib/
     │   ├── supabase/             # client | server | proxy | admin | paginate (fetchAllRows, I-011)
-    │   ├── auth/                 # getSession, requireRole, guards de servidor
+    │   ├── auth/                 # getAuthUser, getActiveMembership y guardas de servidor
     │   ├── money.ts              # formatCOP, parseCOP — enteros
     │   ├── dates.ts              # zona America/Bogota; distingue día calendario de instante (I-017)
     │   ├── errors.ts             # mapeo de códigos PG a mensajes en español (D-044)
@@ -186,20 +186,23 @@ importa desde un componente cliente.
     │   ├── security-headers.ts   # CSP con nonce + cabeceras estáticas (D-061)
     │   └── constants.ts          # DEFAULT_TICKET_PRICE = 100000, límites, etiquetas
     ├── types/
-    │   └── database.types.ts     # Generado: supabase gen types typescript (D-034: manual hasta la Fase 2)
+    │   └── database.types.ts     # Generado con supabase gen types typescript
     └── proxy.ts                  # Antes middleware.ts — ver D-027
 ```
 
-**Convención de módulo de feature** (obligatoria desde la Fase 3):
+**Convención de módulo de feature** (aplicada según lo que necesite cada dominio):
 
 ```
 features/<dominio>/
 ├── schemas.ts      # Zod, compartido cliente/servidor. Única fuente de validación.
 ├── queries.ts      # Lecturas para RSC ('server-only')
 ├── actions.ts      # Server Actions ('use server'): auth → zod → RPC/DML → revalidate
-├── mappers.ts      # Fila de BD → tipo de vista
 └── components/     # UI del dominio
 ```
+
+No se crea por defecto una capa paralela de `services`, `repositories`, estado global o `hooks`
+genéricos. Primero se reutilizan las consultas, acciones y componentes existentes; una abstracción
+nueva solo se justifica cuando resuelve repetición real en más de un consumidor (D-086).
 
 ---
 
@@ -267,14 +270,13 @@ cláusulas explícitas para eficiencia y claridad.
 ```
 Componente cliente (RHF + Zod)
   └─ Server Action ('use server')
-       1. requireUser()            → sesión válida
-       2. requireActiveMembership() → membresía activa (bloquea usuarios inactivos)
-       3. requireRole([...])        → rol autorizado
-       4. schema.parse(input)       → Zod, sin mass assignment (allowlist de campos)
-       5. supabase.rpc(...) o DML   → RLS + CHECK + FK como red final
-       6. mapPgError(e)             → mensaje comprensible en español
-       7. revalidatePath(...)
-       8. return { ok } | { error }
+       1. authorizeAction([...])    → sesión, membresía activa y rol
+       2. schema.safeParse(input)   → Zod, sin mass assignment (allowlist de campos)
+       3. createClient()            → cliente de la sesión, sujeto a RLS
+       4. supabase.rpc(...) o DML   → RLS + CHECK + FK como red final
+       5. mapPgError(e)             → mensaje comprensible en español
+       6. revalidatePath(...)
+       7. return { ok } | { error }
 ```
 
 ### 7.3 Funciones transaccionales (RPC)
@@ -288,7 +290,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `void_payment(p_payment_id, p_reason)` | 2 / 5 | Marca anulación, recalcula saldos, audita | Sí |
 | `assign_ticket(p_ticket_id, p_client_id, p_sale_date)` | 2 / 4 | Valida disponibilidad y propiedad, copia `sale_price`, cambia estado, audita | Sí |
 | `bulk_create_tickets(p_raffle_id, p_seller_id, p_rows jsonb)` | 2 / 3 | Inserta lote, devuelve filas insertadas y conflictos por índice | Sí por lote |
-| `approve_tickets(p_ticket_ids uuid[])` | 2 / 3 | `pending_approval` → `available`, audita | Sí |
+| `approve_tickets(p_ticket_ids uuid[])` | 2 / 3 | `pending_approval` → `available`, audita | Una transacción, pero omite inelegibles (I-044) |
 | `cancel_ticket(p_ticket_id, p_reason)` | 2 / 3 | Anula boleta si no tiene pagos activos, audita | Sí |
 | ~~`create_user_membership(...)`~~ | — | **Descartada en la Fase 3 (D-045).** Una función SQL no puede llamar a `auth.admin`, así que el alta necesitaba igualmente la service role desde el servidor. El alta la hace `features/users/actions.ts`: invitación por correo + inserción de la membresía **sujeta a RLS** | — |
 | `bulk_assign_tickets(ids, client, date)` · `bulk_cancel_tickets(ids, reason)` · `bulk_change_ticket_seller(ids, seller)` · `bulk_delete_tickets(ids, reason)` | post-9 | Acciones masivas (BR-B01..BR-B08). Bloquean las filas en orden de id, revalidan todo y aplican o abortan | Sí — **todo o nada** |
@@ -301,16 +303,19 @@ vivían en la Server Action y ahora están en `bulk_change_ticket_seller`, que u
 individual como el masivo.
 
 Funciones auxiliares de seguridad (`STABLE`, `SECURITY DEFINER`): `current_profile_id()`,
-`current_org_ids()`, `has_org_role(org uuid, roles text[])`. Detalle en `docs/SECURITY.md` §4.1.
+`current_org_ids()`, `has_org_role(org uuid, roles app_role[])`. Detalle en `docs/SECURITY.md` §4.1.
+
+El flujo anterior es la norma de las acciones parametrizadas de negocio. Autenticación y `logout`
+usan guardas propias; I-051 registra una acción auxiliar que todavía no valida con Zod.
 
 ---
 
 ## 8. Arquitectura de UI
 
 ### 8.1 Estructura visual
-- **Escritorio:** `AppShell` con sidebar fijo, header con selector de rifa activa y menú de usuario.
+- **Escritorio:** `AppShell` con sidebar fijo, nombre de la organización y menú de usuario.
 - **Móvil (mobile-first):** header compacto + drawer de navegación; acciones primarias accesibles con
-  el pulgar; tablas degradan a listas de tarjetas.
+  el pulgar; las tablas conservan su estructura y ocultan columnas secundarias (D-048).
 
 ### 8.2 Componentes transversales
 
@@ -326,7 +331,7 @@ Funciones auxiliares de seguridad (`STABLE`, `SECURITY DEFINER`): `current_profi
 | `useUrlSearch` | Búsqueda híbrida para listas paginadas: el término va a la URL y el RSC reconsulta |
 | `useRemoteSearch` | Búsqueda híbrida para diálogos y selectores, contra una Server Action, con testigo de secuencia |
 | `lib/search.ts` | Normalización del término y valores por defecto (pausa, mínimos). Lo usan navegador y servidor |
-| `FilterBar` | Filtros con chips y botón «Limpiar filtros» siempre visible |
+| Filtros de cada dominio | Controles en URL, paginación y acción «Limpiar filtros» |
 | `MoneyInput` / `formatCOP` | Entrada y presentación de enteros COP |
 | `TicketNumberInput` | Solo dígitos, máx. 4, preserva ceros, `inputMode="numeric"` |
 | `StatusBadge` | Badge **con texto** (nunca solo color) para estados de inventario y pago |
@@ -457,17 +462,15 @@ navegación por teclado · nunca depender solo del color (siempre texto o icono 
 
 ## 11. Estrategia de datos de desarrollo (seed)
 
-Dos piezas separadas, porque los usuarios de `auth.users` no deben crearse desde SQL plano:
+El seed vive en una sola pieza: **`scripts/seed.ts`** (D-042). Usa la clave de servicio únicamente
+en servidor, crea usuarios de Auth y luego los datos de negocio requeridos por las pruebas. Contra
+el remoto, la contraseña viene de `SEED_DEFAULT_PASSWORD`; contra local usa la constante pública de
+desarrollo `LOCAL_SEED_PASSWORD`, válida solo para `127.0.0.1`.
 
-1. **`scripts/seed-users.ts`** — usa `SERVICE_ROLE` (solo local) y
-   `auth.admin.createUser()` para crear Owner, Admin y dos Sellers. Las contraseñas se leen de
-   variables de entorno (`SEED_OWNER_PASSWORD`, …). **Nunca** se versionan contraseñas.
-2. **`supabase/seed.sql`** — crea la organización, membresías, una rifa activa de `$100.000`,
-   clientes, boletas disponibles/asignadas y pagos parciales y completos, referenciando a los usuarios
-   por email.
-
-Ejecución: `supabase db reset` (aplica migraciones + `seed.sql`) seguido de `npm run seed:users`.
-El seed es idempotente: si el dato existe, no se duplica.
+Ejecución local: `npm run db:reset && npm run seed:local`. El primer comando aplica las 20
+migraciones; el segundo siembra el estado conocido. `supabase/config.toml` todavía menciona un
+`supabase/seed.sql` inexistente y por eso la CLI muestra una advertencia inocua (I-048). El seed real
+es idempotente: si el dato existe, no lo duplica.
 
 Detalle y datos exactos: `docs/IMPLEMENTATION_PLAN.md` Fase 2 y `docs/TESTING.md` §6.
 
