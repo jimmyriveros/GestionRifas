@@ -8,7 +8,7 @@ vendedores, clientes, boletas, asignaciones, abonos, pagos, saldos, reportes y a
 > repartirlas entre vendedores, venderlas a clientes, **cobrarlas con abonos** y **consultar y
 > exportar** todo eso en reportes. Los estados de pago (Sin pagar / Abonada / Pagada) y los saldos
 > los calcula siempre la base de datos; ningún importe se suma en el navegador.
-> Verificado con **371 pruebas de base de datos** y **212 end-to-end** sobre un navegador real,
+> Verificado con **378 pruebas de base de datos** y **213 end-to-end** sobre un navegador real,
 > incluido el ciclo completo de venta desde un teléfono y una prueba de volumen con 5.000 boletas.
 > La auditoría final (Fase 9) sometió el sistema a **47 intentos deliberados de romperlo** con
 > sesiones reales y sin privilegios especiales: ninguno consiguió leer ni escribir un dato ajeno, ni
@@ -37,7 +37,8 @@ Reemplaza el control manual en papel y hojas de cálculo por un sistema con:
   ver datos de nadie más. Los archivos se abren directamente en Excel en configuración regional
   colombiana.
 - **Importación de boletas desde CSV o JSON**: vista previa, mapeo de columnas y la misma validación
-  de la carga manual antes de guardar.
+  de la carga manual. En la versión local, Owner/Admin puede añadir cliente + celular obligatorio por
+  fila; `0021` debe promoverse antes de desplegar esa extensión (I-054).
 - **Selección múltiple y acciones masivas**: se marcan varias boletas y se actúa sobre todas a la
   vez —venderlas al mismo cliente, aprobarlas, anularlas, cambiarles el vendedor o eliminar las que
   se cargaron por error—. En el teléfono hay un modo selección donde la fila entera es la diana.
@@ -140,8 +141,8 @@ npm run build         # build de producción
 npm run typecheck     # tsc --noEmit
 npm run lint          # eslint
 npm run test          # vitest (unitarias)
-npm run test:db       # 371 pruebas contra la base de datos local (crea 5.000 boletas de volumen)
-npm run test:e2e      # 212 pruebas end-to-end (Playwright, requiere base local RECIÉN sembrada)
+npm run test:db       # 378 pruebas contra la base de datos local (crea 5.000 boletas de volumen)
+npm run test:e2e      # 213 pruebas end-to-end (Playwright, requiere base local RECIÉN sembrada)
 npm run format:check  # prettier --check
 npm run verify        # typecheck + lint + test + build
 npm run seed          # datos de desarrollo en el proyecto de .env.local

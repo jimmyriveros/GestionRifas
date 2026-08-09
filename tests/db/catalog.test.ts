@@ -129,7 +129,8 @@ describe('funciones privilegiadas', () => {
       join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public'
         and p.proname in ('create_payment','void_payment','assign_ticket',
-                          'bulk_create_tickets','approve_tickets','cancel_ticket')
+                          'bulk_create_tickets','approve_tickets','cancel_ticket',
+                          'match_ticket_import_clients','import_tickets_with_clients')
         and (has_function_privilege('anon', p.oid, 'EXECUTE'))
       order by p.proname
     `)
@@ -170,11 +171,12 @@ describe('funciones privilegiadas', () => {
       join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public'
         and p.proname in ('create_payment','void_payment','assign_ticket',
-                          'bulk_create_tickets','approve_tickets','cancel_ticket')
+                          'bulk_create_tickets','approve_tickets','cancel_ticket',
+                          'match_ticket_import_clients','import_tickets_with_clients')
         and has_function_privilege('authenticated', p.oid, 'EXECUTE')
       order by p.proname
     `)
-    expect(rows.length).toBe(6)
+    expect(rows.length).toBe(8)
   })
 })
 

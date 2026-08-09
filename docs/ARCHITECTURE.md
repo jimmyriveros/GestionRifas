@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.6 · **Estado:** implementado · **Actualizado:** 2026-08-09
+- **Versión:** 1.7 · **Estado:** implementado · **Actualizado:** 2026-08-09
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -120,7 +120,7 @@ importa desde un componente cliente.
 ├── docs/                         # Fuentes del proyecto; mapa en HANDOFF.md §5
 ├── supabase/
 │   ├── config.toml
-│   └── migrations/               # 0001–0020; inmutables una vez aplicadas
+│   └── migrations/               # 0001–0021; inmutables una vez aplicadas
 ├── scripts/
 │   ├── seed.ts                   # Seed unificado e idempotente; local o remoto explícito
 │   └── check-env.ts              # Verifica variables requeridas antes de build
@@ -295,6 +295,8 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | ~~`create_user_membership(...)`~~ | — | **Descartada en la Fase 3 (D-045).** Una función SQL no puede llamar a `auth.admin`, así que el alta necesitaba igualmente la service role desde el servidor. El alta la hace `features/users/actions.ts`: invitación por correo + inserción de la membresía **sujeta a RLS** | — |
 | `bulk_assign_tickets(ids, client, date)` · `bulk_cancel_tickets(ids, reason)` · `bulk_change_ticket_seller(ids, seller)` · `bulk_delete_tickets(ids, reason)` | post-9 | Acciones masivas (BR-B01..BR-B08). Bloquean las filas en orden de id, revalidan todo y aplican o abortan | Sí — **todo o nada** |
 | `ticket_bulk_eligibility(ids)` | post-9 | Qué admite cada boleta seleccionada. **`SECURITY INVOKER`**: solo lee y hereda `tickets_select` | — |
+| `import_tickets_with_clients(raffle, seller, rows)` | post-9 | Importación Owner/Admin: crea boletas, resuelve un cliente conservadoramente y reutiliza `assign_ticket_row` | Sí — clientes, boletas, asignaciones y contador |
+| `match_ticket_import_clients(raffle, seller, clients)` | post-9 | Coincidencias acotadas a una cartera para la vista previa; no escribe | — |
 
 **`assign_ticket` y `cancel_ticket` ya no llevan las reglas dentro: delegan** (D-083). Su cuerpo se
 extrajo a `assign_ticket_row` y `cancel_ticket_row`, que también usan las versiones masivas en bucle.

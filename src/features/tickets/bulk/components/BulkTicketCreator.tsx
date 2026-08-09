@@ -250,7 +250,8 @@ export function BulkTicketCreator({
 
       {/* La otra forma de llenar el lote: subir el archivo que ya se tiene en
           Excel. La rifa y el vendedor salen de los selectores de arriba, asi
-          que el archivo solo lleva los dos números (BR-N12). */}
+          que el archivo no aporta contexto. Cliente y celular son columnas
+          opcionales, pero siempre aparecen juntos (BR-N12). */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed p-4">
         <p className="text-muted-foreground text-sm">
           ¿Ya tienes las boletas en un archivo? Súbelo y las revisamos antes de guardar.

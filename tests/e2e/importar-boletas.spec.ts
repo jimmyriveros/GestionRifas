@@ -19,6 +19,7 @@ let refs: SeedRefs
 
 /** Boletas creadas por esta suite, para no dejarlas acumuladas (I-035). */
 const creadas: string[] = []
+const clientesCreados: string[] = []
 
 test.beforeAll(async () => {
   refs = await loadSeedRefs()
@@ -27,6 +28,9 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   if (creadas.length > 0) {
     await serviceClient().from('tickets').delete().in('id', creadas)
+  }
+  if (clientesCreados.length > 0) {
+    await serviceClient().from('clients').delete().in('id', clientesCreados)
   }
 })
 
@@ -80,6 +84,63 @@ test.describe('Importar boletas — portal administrativo', () => {
     await recordar([a.daily, b.daily])
   })
 
+  test('mezcla boletas con y sin cliente, exige celular y crea una sola identidad', async ({
+    page,
+  }) => {
+    const a = randomTicketNumbers()
+    const b = randomTicketNumbers()
+    const sinCliente = randomTicketNumbers()
+    const incompleta = randomTicketNumbers()
+    const phone = `31${String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0')}`
+    const name = `Cliente CSV ${phone}`
+
+    await subir(
+      page,
+      'boletas-con-clientes.csv',
+      [
+        'Premio semanal,Premio diario,Cliente,Celular',
+        `${a.weekly},${a.daily},${name},${phone}`,
+        `${b.weekly},${b.daily},${name.toUpperCase()},+57 ${phone}`,
+        `${sinCliente.weekly},${sinCliente.daily},,`,
+        `${incompleta.weekly},${incompleta.daily},Cliente sin celular,`,
+      ].join('\n'),
+    )
+
+    await expect(page.getByText('4 boletas encontradas')).toBeVisible()
+    await expect(page.getByText('3 se pueden importar')).toBeVisible()
+    await expect(page.getByText(/2 con cliente/)).toBeVisible()
+    await expect(page.getByText(/1 sin cliente/)).toBeVisible()
+    await expect(page.getByText('1 con datos incompletos o mal escritos')).toBeVisible()
+    await expect(page.getByText('1 cliente único detectado')).toBeVisible()
+    await expect(page.getByText(/2 boletas · Cliente nuevo/)).toBeVisible()
+
+    await page.getByRole('button', { name: /Importar solo las 3 que sirven/ }).click()
+    await expect(page.getByText('Se crearon 3 boletas.')).toBeVisible()
+    await expect(page.getByText('2 boletas quedaron asignadas a sus clientes.')).toBeVisible()
+    await expect(page.getByText('1 cliente nuevo · 0 existentes reutilizados')).toBeVisible()
+
+    const { data } = await serviceClient()
+      .from('tickets')
+      .select('id, daily_number, client_id, inventory_status')
+      .eq('raffle_id', refs.raffleId)
+      .in('daily_number', [a.daily, b.daily, sinCliente.daily, incompleta.daily])
+
+    expect(data).toHaveLength(3)
+    for (const ticket of data ?? []) creadas.push(ticket.id)
+    const assigned = data?.filter((ticket) => ticket.inventory_status === 'assigned') ?? []
+    const available = data?.find((ticket) => ticket.daily_number === sinCliente.daily)
+    expect(assigned).toHaveLength(2)
+    expect(new Set(assigned.map((ticket) => ticket.client_id)).size).toBe(1)
+    expect(available).toMatchObject({ inventory_status: 'available', client_id: null })
+    clientesCreados.push(assigned[0]!.client_id!)
+
+    const { count } = await serviceClient()
+      .from('clients')
+      .select('id', { count: 'exact', head: true })
+      .eq('name', 'Cliente sin celular')
+    expect(count).toBe(0)
+  })
+
   test('la columna «#» se ignora y los ceros de delante se conservan', async ({ page }) => {
     const daily = '0042'
     const weekly = '0007'
@@ -131,7 +192,7 @@ test.describe('Importar boletas — portal administrativo', () => {
     await expect(page.getByText('5 boletas encontradas')).toBeVisible()
     await expect(page.getByText('2 se pueden importar')).toBeVisible()
     await expect(page.getByText('1 repetidas dentro del archivo')).toBeVisible()
-    await expect(page.getByText('2 con números mal escritos')).toBeVisible()
+    await expect(page.getByText('2 con datos incompletos o mal escritos')).toBeVisible()
 
     // Se avisa de lo que quedara fuera ANTES de confirmar: nada silencioso.
     await expect(page.getByText(/Las otras 3 quedarán fuera/)).toBeVisible()

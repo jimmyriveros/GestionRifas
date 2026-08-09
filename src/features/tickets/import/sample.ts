@@ -13,7 +13,7 @@ import { toCsv } from '@/lib/csv'
  * ningun problema: el separador se detecta al leer.
  */
 
-type Ejemplo = { semanal: string; diario: string }
+type Ejemplo = { semanal: string; diario: string; cliente?: string; celular?: string }
 
 const FILAS: Ejemplo[] = [
   { semanal: '7607', diario: '3332' },
@@ -28,8 +28,39 @@ export const SAMPLE_CSV = toCsv<Ejemplo>(
   FILAS,
 )
 
+const FILAS_CON_CLIENTE: Ejemplo[] = [
+  {
+    semanal: '7607',
+    diario: '3332',
+    cliente: 'Carlos Gómez',
+    celular: '3001234567',
+  },
+  { semanal: '3929', diario: '9654', cliente: '', celular: '' },
+]
+
+export const SAMPLE_CSV_WITH_CLIENTS = toCsv<Ejemplo>(
+  [
+    { header: 'Premio semanal', value: (fila) => fila.semanal },
+    { header: 'Premio diario', value: (fila) => fila.diario },
+    { header: 'Cliente', value: (fila) => fila.cliente ?? '' },
+    { header: 'Celular', value: (fila) => fila.celular ?? '' },
+  ],
+  FILAS_CON_CLIENTE,
+)
+
 export const SAMPLE_JSON = JSON.stringify(
   FILAS.map((fila) => ({ weekly_number: fila.semanal, daily_number: fila.diario })),
+  null,
+  2,
+)
+
+export const SAMPLE_JSON_WITH_CLIENTS = JSON.stringify(
+  FILAS_CON_CLIENTE.map((fila) => ({
+    weekly_number: fila.semanal,
+    daily_number: fila.diario,
+    client_name: fila.cliente,
+    client_phone: fila.celular,
+  })),
   null,
   2,
 )

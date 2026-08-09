@@ -1,9 +1,9 @@
 # SEGURIDAD
 
-- **Versión:** 2.1 · **Estado:** implementado · **Actualizado:** 2026-08-09
+- **Versión:** 2.2 · **Estado:** implementado · **Actualizado:** 2026-08-09
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
-  `0015`, `0016`, `0019` y `0020`; los privilegios base se fijan en `0009`/`0010`.
-- Verificado en Supabase **local** con 371 pruebas: la operación cuya RLS se prueba usa sesiones
+  `0015`, `0016`, `0019`, `0020` y `0021`; los privilegios base se fijan en `0009`/`0010`.
+- Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
   reales por rol y clave pública, nunca `service_role`. La clave de servicio sí puede preparar,
   comprobar o limpiar el escenario y las pruebas de catálogo usan PostgreSQL directo (D-043).
   Producción se comprueba por separado con `verify:remote` y sondas específicas.
@@ -315,6 +315,26 @@ existen resultados parciales silenciosos (BR-B07).
 
 **Sin deadlocks.** `lock_ticket_batch` bloquea las filas **en orden de id**, de modo que dos lotes
 simultáneos que se solapen las toman en la misma secuencia.
+
+### 4.7 Importación administrativa con clientes (`0021`, BR-N12, D-087)
+
+`match_ticket_import_clients` e `import_tickets_with_clients` son `SECURITY DEFINER`, fijan
+`search_path` y revocan `EXECUTE` a `PUBLIC` y `anon`. Las dos exigen sesión, personal activo de la
+organización de la rifa y un vendedor activo de esa misma organización. La primera solo devuelve
+coincidencias de la **cartera indicada**; no consulta ni expone clientes de otro vendedor u otra
+organización.
+
+La RPC de escritura vuelve a validar el formato, el par obligatorio nombre/celular, los duplicados,
+el estado de la rifa y la identidad existente. No acepta `organization_id`: lo deriva de la rifa y
+comprueba el `seller_id` recibido. Solo Owner/Admin puede usarla; Seller conserva la creación
+`pending_approval` sin cliente, de modo que el archivo no se convierte en una vía para saltarse la
+aprobación (BR-I03/BR-I09).
+
+La resolución es deliberadamente estricta: solo reutiliza una coincidencia activa y única de nombre
+normalizado + celular nacional dentro de la cartera. El mismo celular con otro nombre, un cliente
+archivado o más de una coincidencia producen error. Toda la función es una transacción y delega la
+venta en `assign_ticket_row`; por tanto, una llamada manual tampoco puede dejar un cliente, una
+boleta o un contador parcial.
 
 ---
 

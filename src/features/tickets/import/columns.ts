@@ -12,8 +12,8 @@ import { foldForSearch } from '@/lib/search'
  * tocan nunca: son texto y conservan sus ceros de delante (BR-N03).
  */
 
-/** Cual de los dos numeros de la boleta representa una columna. */
-export type TicketColumn = 'daily' | 'weekly'
+/** Que dato del importador representa una columna. */
+export type TicketColumn = 'daily' | 'weekly' | 'clientName' | 'clientPhone'
 
 /**
  * Encabezado comparable: sin acentos, en minusculas, y con guiones bajos y
@@ -37,6 +37,18 @@ export function normalizeHeader(raw: string): string {
 const ALIASES: Record<TicketColumn, readonly string[]> = {
   weekly: ['premio semanal', 'numero semanal', 'semanal', 'weekly number', 'weekly'],
   daily: ['premio diario', 'numero diario', 'diario', 'daily number', 'daily'],
+  clientName: ['cliente', 'nombre cliente', 'nombre del cliente', 'client', 'client name'],
+  clientPhone: [
+    'celular',
+    'celular cliente',
+    'celular del cliente',
+    'telefono',
+    'telefono cliente',
+    'telefono del cliente',
+    'client phone',
+    'phone',
+    'mobile',
+  ],
 }
 
 /** Que columna representa este encabezado, o `null` si no se reconoce. */
@@ -49,7 +61,12 @@ export function matchColumn(header: string): TicketColumn | null {
 }
 
 /** Indice de cada columna dentro del encabezado. `-1` si no se reconocio. */
-export type ColumnMapping = { daily: number; weekly: number }
+export type ColumnMapping = {
+  daily: number
+  weekly: number
+  clientName: number
+  clientPhone: number
+}
 
 /**
  * Intenta emparejar los encabezados con los dos numeros.
@@ -60,7 +77,7 @@ export type ColumnMapping = { daily: number; weekly: number }
  * simplemente no entran en el mapeo, que es la forma de ignorarlas.
  */
 export function detectMapping(headers: readonly string[]): ColumnMapping {
-  const mapping: ColumnMapping = { daily: -1, weekly: -1 }
+  const mapping: ColumnMapping = { daily: -1, weekly: -1, clientName: -1, clientPhone: -1 }
   headers.forEach((header, index) => {
     const column = matchColumn(header)
     if (column && mapping[column] === -1) mapping[column] = index
@@ -71,4 +88,9 @@ export function detectMapping(headers: readonly string[]): ColumnMapping {
 /** `true` si ya se sabe de que columna sale cada numero. */
 export function isMappingComplete(mapping: ColumnMapping): boolean {
   return mapping.daily >= 0 && mapping.weekly >= 0
+}
+
+/** `true` si el archivo reconocio solo una de las dos columnas del cliente. */
+export function hasPartialClientMapping(mapping: ColumnMapping): boolean {
+  return mapping.clientName >= 0 !== mapping.clientPhone >= 0
 }

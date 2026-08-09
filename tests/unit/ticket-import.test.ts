@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import {
   detectMapping,
+  hasPartialClientMapping,
   isMappingComplete,
   matchColumn,
   normalizeHeader,
 } from '@/features/tickets/import/columns'
+import { clientIdentityKey } from '@/features/tickets/import/clients'
 import { parseCsv } from '@/features/tickets/import/csv'
 import { ImportParseError } from '@/features/tickets/import/errors'
 import { parseJsonTickets } from '@/features/tickets/import/json'
@@ -70,6 +72,20 @@ describe('normalizeHeader y matchColumn', () => {
     expect(matchColumn('#')).toBeNull()
     expect(matchColumn('Observaciones')).toBeNull()
     expect(matchColumn('')).toBeNull()
+  })
+
+  it('reconoce las columnas opcionales de cliente y celular', () => {
+    expect(matchColumn('Cliente')).toBe('clientName')
+    expect(matchColumn('Nombre del cliente')).toBe('clientName')
+    expect(matchColumn('Celular')).toBe('clientPhone')
+    expect(matchColumn('Teléfono del cliente')).toBe('clientPhone')
+
+    const complete = detectMapping(['Premio diario', 'Premio semanal', 'Cliente', 'Celular'])
+    expect(complete).toMatchObject({ daily: 0, weekly: 1, clientName: 2, clientPhone: 3 })
+    expect(hasPartialClientMapping(complete)).toBe(false)
+
+    const partial = detectMapping(['Premio diario', 'Premio semanal', 'Cliente'])
+    expect(hasPartialClientMapping(partial)).toBe(true)
   })
 })
 
@@ -137,9 +153,37 @@ describe('CSV', () => {
   it('CASO 8 — con el mapeo puesto a mano, las filas salen bien', () => {
     const table = parseCsv('Columna A,Columna B\n7607,3332')
     // La persona eligio: A es el semanal, B es el diario.
-    const filas = tableToRows(table, { weekly: 0, daily: 1 })
+    const filas = tableToRows(table, {
+      weekly: 0,
+      daily: 1,
+      clientName: -1,
+      clientPhone: -1,
+    })
 
     expect(filas[0]).toEqual({ rowNumber: 1, dailyNumber: '3332', weeklyNumber: '7607' })
+  })
+
+  it('lee una mezcla de boletas con y sin cliente sin duplicar columnas', () => {
+    const filas = filasDe(
+      'Premio semanal;Premio diario;Cliente;Celular\n7821;0046;Carlos Gómez;3001234567\n7720;0389;;',
+    )
+
+    expect(filas).toEqual([
+      {
+        rowNumber: 1,
+        dailyNumber: '0046',
+        weeklyNumber: '7821',
+        clientName: 'Carlos Gómez',
+        clientPhone: '3001234567',
+      },
+      {
+        rowNumber: 2,
+        dailyNumber: '0389',
+        weeklyNumber: '7720',
+        clientName: '',
+        clientPhone: '',
+      },
+    ])
   })
 })
 
@@ -183,6 +227,18 @@ describe('JSON', () => {
 
     expect(filas).toHaveLength(2)
     expect(filas[1]).toEqual({ rowNumber: 2, dailyNumber: '', weeklyNumber: '3929' })
+  })
+
+  it('acepta cliente y celular opcionales en JSON y conserva el formato visible', () => {
+    const filas = parseJsonTickets(
+      '[{"weekly_number":"7821","daily_number":"0046","client_name":"Carlos Gómez","client_phone":"+57 300 123-4567"},{"weekly_number":"7720","daily_number":"0389"}]',
+    )
+
+    expect(filas[0]).toMatchObject({
+      clientName: 'Carlos Gómez',
+      clientPhone: '+57 300 123-4567',
+    })
+    expect(filas[1]).not.toHaveProperty('clientName')
   })
 })
 
@@ -243,10 +299,9 @@ describe('Revision de las filas', () => {
   })
 
   it('CASO 15 — combinacion que ya existe en la rifa', () => {
-    const review = reviewRows(
-      [fila(1, '3332', '7607'), fila(2, '9654', '3929')],
-      new Set(['3332/7607']),
-    )
+    const review = reviewRows([fila(1, '3332', '7607'), fila(2, '9654', '3929')], {
+      existingCombos: new Set(['3332/7607']),
+    })
 
     expect(review.taken).toBe(1)
     expect(review.valid).toBe(1)
@@ -266,7 +321,7 @@ describe('Revision de las filas', () => {
         fila(4, '12345', '9999'),
         fila(5, '0001', '0002'),
       ],
-      new Set(['0001/0002']),
+      { existingCombos: new Set(['0001/0002']) },
     )
 
     expect(review.total).toBe(5)
@@ -291,5 +346,103 @@ describe('Revision de las filas', () => {
     expect(review.valid).toBe(1000)
     // Holgado a proposito: lo que se comprueba es que no sea cuadratico.
     expect(tardanza).toBeLessThan(500)
+  })
+
+  it('exige nombre y celular juntos cuando una fila tiene cliente', () => {
+    const review = reviewRows([
+      { ...fila(1, '0046', '7821'), clientName: 'Carlos Gómez', clientPhone: '' },
+      { ...fila(2, '0158', '9014'), clientName: '', clientPhone: '3001234567' },
+    ])
+
+    expect(review).toMatchObject({ valid: 0, invalid: 2, withClient: 0 })
+    expect(review.rows[0]?.problem).toMatch(/nombre y el celular/i)
+  })
+
+  it('agrupa varias boletas del mismo cliente normalizando nombre y celular', () => {
+    const rows = [
+      {
+        ...fila(1, '0046', '7821'),
+        clientName: 'Carlos Gómez',
+        clientPhone: '300 123-4567',
+      },
+      {
+        ...fila(2, '0158', '9014'),
+        clientName: '  carlos   gomez ',
+        clientPhone: '+57 3001234567',
+      },
+      fila(3, '0389', '7720'),
+    ]
+    const key = clientIdentityKey('Carlos Gómez', '3001234567')
+    const review = reviewRows(rows, {
+      allowClientAssignments: true,
+      clientResolutions: new Map([
+        [
+          key,
+          {
+            key,
+            name: 'Carlos Gómez',
+            phone: '3001234567',
+            status: 'existing' as const,
+            clientId: '11111111-2222-4333-8444-555555555555',
+          },
+        ],
+      ]),
+    })
+
+    expect(review).toMatchObject({ valid: 3, withClient: 2, withoutClient: 1 })
+    expect(review.clients).toHaveLength(1)
+    expect(review.clients[0]).toMatchObject({ status: 'existing', tickets: 2 })
+  })
+
+  it('bloquea un conflicto de identidad y el flujo de cliente desde Seller', () => {
+    const row = {
+      ...fila(1, '0046', '7821'),
+      clientName: 'Carlos Gómez',
+      clientPhone: '3001234567',
+    }
+    const key = clientIdentityKey(row.clientName, row.clientPhone)
+
+    const conflict = reviewRows([row], {
+      allowClientAssignments: true,
+      clientResolutions: new Map([
+        [
+          key,
+          {
+            key,
+            name: row.clientName,
+            phone: row.clientPhone,
+            status: 'conflict' as const,
+            problem: 'Este celular ya está registrado con otro nombre.',
+          },
+        ],
+      ]),
+    })
+    expect(conflict).toMatchObject({ valid: 0, clientConflicts: 1 })
+
+    const seller = reviewRows([row], { allowClientAssignments: false })
+    expect(seller).toMatchObject({ valid: 0, clientConflicts: 1 })
+    expect(seller.rows[0]?.problem).toMatch(/portal administrativo/i)
+  })
+
+  it('marca como conflicto dos nombres distintos con el mismo celular dentro del archivo', () => {
+    const review = reviewRows(
+      [
+        {
+          ...fila(1, '0046', '7821'),
+          clientName: 'Carlos Gómez',
+          clientPhone: '3001234567',
+        },
+        {
+          ...fila(2, '0158', '9014'),
+          clientName: 'Carolina Gómez',
+          clientPhone: '+57 300 123 4567',
+        },
+      ],
+      { allowClientAssignments: true },
+    )
+
+    expect(review).toMatchObject({ valid: 0, clientConflicts: 2 })
+    expect(review.rows[0]?.problem).toMatch(/mismo celular.+nombres diferentes/i)
+    expect(review.rows[1]?.status).toBe('client-conflict')
   })
 })

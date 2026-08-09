@@ -167,7 +167,7 @@ verificado en `docs/RUNBOOK.md` §5.
 | Job | Qué hace | Por qué |
 |---|---|---|
 | `verify` | `typecheck` + `lint` + `test` + `build` | Espejo exacto de `npm run verify` |
-| `db` | Levanta Supabase local con la CLI, aplica las 20 migraciones **desde cero**, siembra y corre `test:db` | Prueba en cada corrida lo que la Fase 8 exige a mano: "despliegue limpio en un entorno nuevo" y "migraciones aplicadas desde cero" |
+| `db` | Levanta Supabase local con la CLI, aplica las 21 migraciones **desde cero**, siembra y corre `test:db` | Prueba en cada corrida lo que la Fase 8 exige a mano: "despliegue limpio en un entorno nuevo" y "migraciones aplicadas desde cero" |
 
 `test:e2e` (Playwright) queda **fuera** del CI por defecto — decisión **D-069** — por duración y
 complejidad en runners compartidos. Se sigue corriendo en local antes de cerrar cada fase.

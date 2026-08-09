@@ -67,11 +67,12 @@ Los hallazgos de la auditoría final, con su evidencia, están en
 | I-051 | La validación de entradas del servidor no es uniforme en consultas auxiliares y filtros URL | Abierto | `findExistingCombinations` es la única Server Action parametrizada que no recibe `unknown` ni valida con Zod. Varias listas pasan UUID/fechas de la URL directamente a PostgREST; una URL manipulada puede terminar en error de consulta en vez de una respuesta controlada. RLS, RPC y restricciones siguen siendo la frontera de seguridad, pero falta endurecer la capa de servidor |
 | I-052 | `npm run format:check` no está en verde sobre el árbol funcional actual | Abierto, no bloqueante | Prettier reporta 60 archivos de código/pruebas existentes; ninguno de los documentos modificados por esta auditoría aparece en la lista. `verify` no incluye esta comprobación y sigue siendo la puerta de calidad actual. No se reformatearon archivos fuera de alcance: hacerlo requiere una tarea mecánica separada para no mezclar un diff masivo con trabajo funcional |
 | I-053 | Next.js actualiza su bloque de reglas solo en `AGENTS.md` cuando también existe `CLAUDE.md` | Mitigado con protocolo manual | El generador de Next prioriza `AGENTS.md`; por eso una actualización de la dependencia puede dejar el bloque duplicado de `CLAUDE.md` obsoleto. Tras actualizar Next se ejecuta `next dev` y se copia únicamente el bloque `BEGIN/END:nextjs-agent-rules` de `AGENTS.md` a `CLAUDE.md`. No se importa un archivo raíz completo dentro del otro, porque contienen instrucciones distintas |
+| I-054 | **La migración `0021` está solo en local; desplegar el frontend actual sin ella rompe la importación con cliente** | Abierto, bloquea este despliegue | Añade `match_ticket_import_clients`, `import_tickets_with_clients`, helpers de identidad e índice (BR-N12, D-087). Los archivos antiguos siguen usando `0019`/`bulk_create_tickets`, pero cualquier fila con cliente llama a las funciones nuevas. Para producción: autorización explícita, respaldo lógico según D-070, `db push --dry-run`, aplicar `0021`, verificar catálogo y comportamiento, y solo entonces desplegar el frontend. No se hizo ningún cambio remoto en esta entrega |
 
 **No hay trabajo técnico activo autorizado.** Para operar con datos o dinero reales deben resolverse
 o aceptarse expresamente I-021, I-023 e I-024. I-030, I-037 e I-046–I-052 son trabajo de ingeniería
-pendiente priorizable; I-053 queda mitigado por el protocolo de sincronía. Ninguno se corrigió
-silenciosamente durante esta auditoría documental.
+pendiente priorizable; I-053 queda mitigado por el protocolo de sincronía. I-054 debe resolverse
+antes de desplegar este cambio. Ninguno se corrige con un cambio remoto sin autorización.
 
 ---
 
@@ -126,7 +127,9 @@ silenciosamente durante esta auditoría documental.
 (última comprobación registrada: 2026-08-08, `npm run verify:remote` en **13/13** más sondas de
 privilegios y comportamiento para las funciones nuevas).
 
-Local y remoto son equivalentes: mismo conjunto de migraciones, mismas invariantes de catálogo.
+Local tiene además `0021_ticket_import_clients.sql`, todavía no aplicada al proyecto real (I-054).
+Por tanto, local y remoto ya no tienen el mismo conjunto de migraciones; las invariantes anteriores
+a `0021` sí siguen verificadas en ambos.
 
 Comprobación reproducible en cualquier momento, de solo lectura:
 
@@ -199,3 +202,4 @@ Reglas del MVP que podrían confundirse con defectos:
 | 2026-08-08 | — | **Importación de boletas desde CSV y JSON** (BR-N12, D-081). Módulo `src/features/tickets/import/` montado sobre la carga masiva existente, con parser de CSV propio (170 líneas, sin dependencia nueva). Migración `0019`: dos funciones pequeñas. +I-042 (**la `0019` está solo en local**). Cambio aditivo en código compartido: `RowValidation` gana un campo `problem` para poder contar «repetida en el archivo» aparte de «ya existe en la rifa» sin comparar textos. +26 unitarias, +14 de base de datos, +8 E2E |
 | 2026-08-08 | — | Selección múltiple y acciones masivas (BR-B01..BR-B08, D-082 a D-085), migración `0020` aplicada en local y producción. Totales: 286 unitarias, 371 de base de datos y 212 E2E. I-043 resuelto; I-044 e I-045 documentados |
 | 2026-08-09 | — | Auditoría documental de continuidad Claude Code ↔ Codex (D-086), sin cambios funcionales. Registra I-046–I-053, corrige el estado vivo a 20 migraciones y preserva los snapshots históricos |
+| 2026-08-09 | — | Clientes opcionales por fila en CSV/JSON, con celular obligatorio, identidad conservadora y persistencia atómica (BR-N12, D-087). Migración `0021` solo en local: +I-054 hasta autorizar respaldo, promoción y despliegue |

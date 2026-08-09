@@ -32,13 +32,13 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
 | Último cambio funcional desplegado | `0b8f06e` — selección múltiple y acciones masivas, 2026-08-08 |
-| Punto de partida de esta auditoría | `main` en `929684d`, igual a `origin/main`; `AGENTS.md` era el único archivo sin seguimiento |
+| Punto de partida del último mantenimiento | `main` en `65f790b`, igual a `origin/main`, con árbol limpio antes de implementar |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **20 migraciones, todas aplicadas en local y en el proyecto real** y verificadas el 2026-08-08 (`verify:remote` 13/13 + comprobaciones de privilegios y comportamiento para `0018`–`0020`). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **286 unitarias** y **371 de base de datos** revalidadas el 2026-08-09; última E2E funcional: **212/212** el 2026-08-08. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **21 migraciones en local**; `0001`–`0020` también están aplicadas en el proyecto real y verificadas el 2026-08-08. `0021` está solo en local: no desplegar este frontend sin promoverla primero (I-054). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **293 unitarias**, **378 de base de datos** y **213 E2E**, todas revalidadas el 2026-08-09; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -48,24 +48,26 @@ auditado en la Fase 9 con **47 intentos deliberados de romperlo**, ninguno de lo
 leer ni escribir un dato ajeno. Informe: `docs/AUDIT_REPORT.md`.
 Desde el 2026-08-08 la lista de boletas admite **selección múltiple y acciones masivas** (BR-B01..
 BR-B08), ya **en producción**.
+En local, el importador CSV/JSON admite además filas opcionales con cliente + celular obligatorio
+(D-087). Ese cambio **todavía no está en producción** porque requiere promover `0021` (I-054).
 **Lo que NO existe:** backups automáticos de Supabase (plan Free — I-024, prerrequisito antes de datos
 reales).
 
 ---
 
-## 1.a Último relevo significativo — auditoría de continuidad (2026-08-09)
+## 1.a Último relevo significativo — clientes en la importación CSV/JSON (2026-08-09)
 
 | Campo | Estado |
 |---|---|
-| Resultado | Protocolo Claude Code ↔ Codex unificado, sin cambios funcionales; `AGENTS.md` deja de duplicar la especificación y pasa a ser el índice de Codex |
-| Archivos | `AGENTS.md`, `CLAUDE.md`, `README.md` y 13 documentos existentes en `docs/`: `MASTER_SPEC`, `ARCHITECTURE`, `BUSINESS_RULES`, `DATA_MODEL`, `SECURITY`, `DECISIONS`, `HANDOFF`, `PHASE_STATUS`, `KNOWN_ISSUES`, `DEPLOYMENT`, `TESTING`, `TEST_RESULTS` y `UX_COPY_GUIDELINES`. Sin código, esquema ni configuración ejecutable |
-| Reutilización | Se conservan la arquitectura feature-first, el mapa de §6.b, los identificadores `BR-*`/`D-*`/`I-*` y los snapshots históricos |
-| Decisiones | D-086 fija jerarquía de fuentes, `REUSE → EXTEND → CREATE`, política de cambio mínimo, seguridad Git y propiedad de cada documento |
-| Verificación | Base local reconstruida con 20 migraciones; `verify` en verde (286 unitarias, typecheck, lint y build; 0 errores y 2 avisos conocidos de TanStack) y 371/371 de base de datos en dos corridas. Prettier dirigido a los 16 documentos, verde; `format:check` global falla en 60 archivos existentes de código/pruebas (I-052) |
-| Error encontrado | Docker Desktop no estaba iniciado; se arrancó desde `%LOCALAPPDATA%\Programs\DockerDesktop` y `npx supabase start` pasó al reintentar |
-| Advertencia | Confirmar en Vercel y Supabase Auth que `https://gestion-rifas.vercel.app/**` es la URL canónica autorizada; `DEPLOYMENT.md` conservaba un alias largo distinto (I-023) |
-| Pendiente | Siguiente acción: el usuario confirma I-021/I-023/I-024 y decide si autoriza alguna corrección de I-030, I-037 o I-046–I-052. Hasta entonces no iniciar implementación |
-| Git | `main`; base observada `929684d`. Antes de entregar solo están pendientes los archivos documentales enumerados arriba; el reporte final comunica el commit y el estado resultante |
+| Resultado | Importador CSV/JSON extendido con filas mixtas. Cliente es opcional por fila, pero si aparece exige nombre + celular. Owner/Admin crea o reutiliza una identidad inequívoca y deja las boletas asignadas; Seller conserva el flujo sin cliente y `pending_approval` |
+| Archivos | `src/features/tickets/import/`, ajuste contextual en `BulkTicketCreator`, tipos de base, migración `0021`, pruebas unitarias/DB/E2E y documentación normativa/operativa relacionada |
+| Reutilización | `validateBulkRows`, esquemas de cliente, normalización de búsqueda, `bulk_create_tickets` para archivos antiguos, `assign_ticket_row` para asignar, mismo `TicketImportDialog` parametrizado y auditoría de D-081 |
+| Decisiones | D-087: celular obligatorio; identidad = nombre + celular nacional dentro de una cartera; coincidencia activa, exacta y única se reutiliza; ambigüedad/archivado/mismo celular con otro nombre se bloquea. Solo personal importa con cliente para no saltarse BR-I03/BR-I09. Sin `client_ref` |
+| Verificación | Base reconstruida con 21 migraciones; `test:db` 378/378; `verify` verde (293 unitarias, typecheck, lint y build; 0 errores y 2 avisos conocidos de TanStack); spec de importación 9/9; E2E completa 213/213; `git diff --check` verde antes del cierre |
+| Errores encontrados | Playwright no tenía Chromium tras actualizar dependencias: se instaló con `npx playwright install chromium`. Primera E2E completa: 212/213 porque una prueba esperaba el texto antiguo «números mal escritos»; se actualizó a «datos incompletos o mal escritos», la spec pasó 9/9 y la suite completa 213/213. Un reintento sin reset eligió una rifa creada por la suite anterior; al restaurar el seed pasó |
+| Advertencia | `0021` está **solo en local**. Promover requiere autorización explícita, respaldo, `db push --dry-run`, verificación remota y despliegue coordinado; desplegar el código antes rompe las filas con cliente (I-054). Los archivos antiguos sin cliente siguen compatibles |
+| Pendiente | Trabajo funcional terminado. Siguiente acción externa, solo si el usuario la autoriza: respaldar y promover `0021`, verificarla en producción y desplegar el frontend. Permanecen además los riesgos operativos I-021/I-023/I-024 |
+| Git | `main`; base observada `65f790b`, igual a `origin/main`, y árbol limpio al iniciar. El commit de entrega se comunica en el reporte final; no hubo push, despliegue ni cambio remoto |
 
 ## 1.b Qué queda abierto
 
@@ -75,6 +77,7 @@ dueño, deuda aceptada y límites verificados; no deben describirse como si no e
 | Asunto | Qué hace falta |
 |---|---|
 | **I-024** — plan Free sin backups automáticos ni PITR | Subir a Supabase Pro o automatizar el respaldo externo. **Prerrequisito antes de operar con dinero o clientes reales** (`RUNBOOK.md` §5.3) |
+| **I-054** — `0021` está solo en local | Antes de desplegar esta versión: autorización, respaldo, `db push --dry-run`, promoción de la migración, sondas de catálogo/comportamiento y despliegue coordinado |
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
 | **I-023** — la URL permitida de Auth debe coincidir con la canónica de Vercel | Confirmar `https://gestion-rifas.vercel.app/**` en Vercel y Supabase antes de enviar invitaciones (`DEPLOYMENT.md` §2.1) |
 | **I-030** — persisten mensajes de base de datos sin tildes | Autorizar una migración nueva que reescriba las definiciones vigentes y aplicarla al proyecto real (D-073) |
@@ -86,7 +89,7 @@ dueño, deuda aceptada y límites verificados; no deben describirse como si no e
 Las siguientes notas explican decisiones recientes de producción que siguen siendo trampas útiles;
 no sustituyen el relevo vigente de §1.a ni el historial propietario de Git/`TEST_RESULTS`.
 
-La última acción de ingeniería fue aplicar la migración **`0020`** al proyecto real (2026-08-08,
+La última acción de ingeniería **sobre producción** fue aplicar la migración **`0020`** al proyecto real (2026-08-08,
 autorizada explícitamente) y desplegar la **selección múltiple y las acciones masivas de boletas** (
 BR-B01..BR-B08, D-082 a D-085). Se marcan varias boletas de la lista y se actúa sobre todas: el
 vendedor las vende a un cliente de una vez; el Dueño y el Administrador aprueban, anulan, cambian de
@@ -352,6 +355,10 @@ profiles 1─1 auth.users
 `bulk_delete_tickets`. Todas validan permisos internamente y auditan. Son `SECURITY DEFINER`: existen
 precisamente para hacer cosas que la RLS del usuario prohíbe.
 
+**Importación con cliente (`0021`, solo local):** `match_ticket_import_clients` acota la vista previa
+a una cartera e `import_tickets_with_clients` crea/reutiliza clientes y llama a `assign_ticket_row`
+en una sola transacción (D-087). No desplegar el consumidor sin la migración (I-054).
+
 ⚠️ **`assign_ticket` y `cancel_ticket` ya no llevan las reglas dentro**: delegan en
 `assign_ticket_row` y `cancel_ticket_row`, que comparten con las masivas. Si cambias una regla,
 cámbiala ahí (D-083).
@@ -373,8 +380,8 @@ components/data/    DataTable · DataTablePagination · StatusBadge · EmptyStat
 components/form/    MoneyInput · TicketNumberInput
 components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSkeleton
 features/tickets/import/  importador de archivos CSV/JSON: UN componente para los tres
-                    roles, parametrizado por contexto (D-081). Antes de escribir otro
-                    lector de archivos, míralo: separa columnas/csv/json/rows/review
+                    roles, parametrizado por contexto (D-081/D-087). Antes de escribir otro
+                    lector o resolver clientes, míralo: columnas/csv/json/clients/rows/review
 features/tickets/selection/  selección múltiple y acciones masivas (D-082..D-085):
                     contexto + almacén fuera de React + elegibilidad + diálogos
 components/form/    SelectionCheckbox (20 px a la vista, 44 px de diana)
@@ -435,7 +442,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-371 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+378 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 

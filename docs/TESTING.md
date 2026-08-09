@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.3 · **Actualizado:** 2026-08-09
+- **Versión:** 2.4 · **Actualizado:** 2026-08-09
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -245,9 +245,9 @@ interruptor de pruebas en el código de producción**. Las pruebas del recorrido
 | `unit/row-activation.test.ts` | Qué clic abre una fila y cuál lo atiende otro elemento: zona libre, enlace, casilla, botón, contenido de un botón, **menú en portal**, selección de texto, teclas de activación |
 | `unit/search.test.ts` | Normalización del término: espacios, acentos, ñ, teléfonos en cualquier formato, mínimos por pantalla, números de boleta |
 | `db/search.test.ts` | Que `search_normalize()` en SQL dé **lo mismo** que `foldForSearch()` en TypeScript, la columna generada, los índices y que la vista siga siendo `security_invoker` |
-| `unit/ticket-import.test.ts` | Lectura de archivos y revisión (BR-N12): CSV mínimo, con columna `#`, tal como lo exporta Excel (BOM + CRLF), separado por `;`, con comillas y con espacios sobrantes; JSON canónico, con alias en español y con números sin comillas; encabezados desconocidos y mapeo manual; y por fila: falta un número, más de 4 dígitos, letras, ceros de delante, repetida en el archivo y ya existente en la rifa. Incluye 1.000 filas para comprobar que la revisión no es cuadrática |
-| `db/ticket-import.test.ts` | Lo que solo se puede probar contra PostgreSQL (BR-N12): que un **vendedor** sepa que una combinación está tomada **sin poder ver de quién es**, que no se crucen organizaciones, que la bitácora no se pueda escribir a nombre de otro vendedor y siga siendo de solo anexado, y que un lote que falla a mitad **no deje nada** — ni boletas ni códigos gastados |
-| `e2e/importar-boletas.spec.ts` | El recorrido entero por la interfaz, en los dos portales: elegir archivo → vista previa → confirmar → resultado; que elegir el archivo **no guarde nada**; importar solo las válidas avisando de las que quedan fuera; el mapeo manual de columnas; un archivo ilegible; el doble clic; y que la boleta del vendedor nazca `pending_approval` |
+| `unit/ticket-import.test.ts` | Lectura de archivos y revisión (BR-N12): CSV mínimo, con columna `#`, tal como lo exporta Excel (BOM + CRLF), separado por `;`, con comillas y con espacios sobrantes; JSON canónico, alias en español y números sin comillas; encabezados desconocidos y mapeo manual; por fila: falta un número, más de 4 dígitos, letras, ceros de delante, repetida y ya existente. Añade CSV/JSON con cliente, aliases de nombre/celular, par obligatorio, filas mezcladas, agrupación normalizada y bloqueo del flujo Seller. Incluye 1.000 filas para comprobar que la revisión no es cuadrática |
+| `db/ticket-import.test.ts` | Lo que solo se puede probar contra PostgreSQL (BR-N12): un **vendedor** conoce una combinación tomada **sin ver de quién es**, aislamiento, bitácora y rollback de códigos; para `0021`, lote mixto, una identidad → un cliente, reutilización exacta, vista previa acotada a la cartera, celular con otro nombre y nombre sin celular con rollback total, Seller rechazado y otra organización aislada |
+| `e2e/importar-boletas.spec.ts` | El recorrido entero en los dos portales: elegir archivo → vista previa → confirmar → resultado; no escribir antes de confirmar; importar válidas avisando descartes; mapeo manual; archivo ilegible; doble clic; Seller `pending_approval`; y lote administrativo mixto donde dos filas normalizadas crean un cliente, una queda sin asignar y una cuarta se excluye por faltar el celular |
 | `db/ticket-search.test.ts` | Los 7 casos del encargo de BR-N11: encuentra por número diario y semanal, entero o en parte; **no** encuentra por código interno ni por texto; el orden por relevancia en sus seis escalones; los ceros de delante; el total exacto de la paginación; y que la función hereda la RLS (un vendedor no encuentra la boleta de otro ni pasando su id, ni se cruzan dos organizaciones con la misma combinación) |
 | `e2e/busqueda-hibrida.spec.ts` | Una sola consulta para cuatro teclas; `Enter` inmediato; `Enter`+pausa no duplican; el mínimo no encierra; limpiar restaura; no se pierde el foco; la página vuelve a la primera; convive con los filtros; **una respuesta lenta no pisa a la actual**; y que se encuentre a un cliente que no viene en el bloque inicial |
 | `e2e/filas-seleccionables.spec.ts` | La fila abre el detalle desde cualquier celda y con `Enter`; la casilla y el menú de acciones **no** lo abren; y los estados de la lista de clientes (hover, elegido, elegido+hover) conservan contraste, marcan la elección con algo más que color y no desplazan el contenido |
@@ -341,7 +341,7 @@ la verdad de referencia — `DELETE` está revocado para la aplicación (`0010`)
 esto solo sea posible ahí.
 
 Quien toque el seed o el orden de los archivos debe tener esto presente. Se comprueba solo: ejecutar
-`npm run test:db` **dos veces seguidas sin resembrar** debe dar 371 ✅ las dos veces.
+`npm run test:db` **dos veces seguidas sin resembrar** debe dar 378 ✅ las dos veces.
 
 ---
 
@@ -386,5 +386,5 @@ Los resultados de cada fase (con los errores encontrados y como se corrigieron) 
 [`TEST_RESULTS.md`](TEST_RESULTS.md), para que este documento describa solo la ESTRATEGIA y no
 crezca en cada fase.
 
-Estado vigente registrado el 2026-08-09: **286 pruebas unitarias + 371 de base de datos + 212
+Estado vigente registrado el 2026-08-09: **293 pruebas unitarias + 378 de base de datos + 213
 end-to-end**. Los resultados y errores de cada ejecución viven en `TEST_RESULTS.md`.

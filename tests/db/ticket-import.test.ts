@@ -23,6 +23,7 @@ let otraOrg: Client
 
 /** Boletas creadas por esta suite. Se borran al terminar (I-035). */
 const creadas: string[] = []
+const clientesCreados: string[] = []
 
 /** Numeros aleatorios de 4 digitos, para no chocar entre ejecuciones. */
 function numeros() {
@@ -63,6 +64,9 @@ beforeAll(async () => {
 afterAll(async () => {
   if (creadas.length > 0) {
     await serviceClient().from('tickets').delete().in('id', creadas)
+  }
+  if (clientesCreados.length > 0) {
+    await serviceClient().from('clients').delete().in('id', clientesCreados)
   }
 })
 
@@ -314,6 +318,237 @@ describe('Guardado del lote importado', () => {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller2,
       p_rows: [{ daily_number: n.daily, weekly_number: n.weekly }],
+    })
+
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/permiso/i)
+  })
+})
+
+describe('Importacion administrativa con clientes (0021)', () => {
+  type ResultadoImportacion = {
+    requested: number
+    inserted: number
+    conflicts: Array<{ daily_number: string; weekly_number: string }>
+    assigned: number
+    clients_created: number
+    clients_reused: number
+  }
+
+  function celularUnico() {
+    return `31${String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0')}`
+  }
+
+  async function crearCliente(name: string, phone: string, sellerId = seed.ids.seller1) {
+    const { data, error } = await seed.svc
+      .from('clients')
+      .insert({
+        organization_id: seed.demoOrg.id,
+        seller_id: sellerId,
+        name,
+        phone,
+      })
+      .select('id')
+      .single()
+
+    if (error) throw error
+    clientesCreados.push(data.id)
+    return data.id
+  }
+
+  async function recordarBoletas(dailies: string[]) {
+    const { data, error } = await seed.svc
+      .from('tickets')
+      .select('id, daily_number, client_id, inventory_status')
+      .eq('raffle_id', seed.demoRaffle.id)
+      .in('daily_number', dailies)
+
+    if (error) throw error
+    for (const ticket of data) creadas.push(ticket.id)
+    return data
+  }
+
+  it('mezcla filas con y sin cliente y agrupa una identidad en un solo cliente', async () => {
+    const conCliente1 = numeros()
+    const conCliente2 = numeros()
+    const sinCliente = numeros()
+    const phone = celularUnico()
+    const name = `Cliente importado ${phone}`
+
+    const { data, error } = await owner.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: conCliente1.daily,
+          weekly_number: conCliente1.weekly,
+          client_name: name,
+          client_phone: phone,
+        },
+        {
+          daily_number: conCliente2.daily,
+          weekly_number: conCliente2.weekly,
+          client_name: name.toUpperCase(),
+          client_phone: `+57 ${phone.slice(0, 3)} ${phone.slice(3)}`,
+        },
+        { daily_number: sinCliente.daily, weekly_number: sinCliente.weekly },
+      ],
+    })
+
+    expect(error).toBeNull()
+    expect(data as ResultadoImportacion).toMatchObject({
+      requested: 3,
+      inserted: 3,
+      conflicts: [],
+      assigned: 2,
+      clients_created: 1,
+      clients_reused: 0,
+    })
+
+    const tickets = await recordarBoletas([conCliente1.daily, conCliente2.daily, sinCliente.daily])
+    const asignadas = tickets.filter((ticket) => ticket.inventory_status === 'assigned')
+    const disponible = tickets.find((ticket) => ticket.daily_number === sinCliente.daily)
+
+    expect(asignadas).toHaveLength(2)
+    expect(new Set(asignadas.map((ticket) => ticket.client_id)).size).toBe(1)
+    expect(disponible).toMatchObject({ inventory_status: 'available', client_id: null })
+
+    const clientId = asignadas[0]!.client_id!
+    clientesCreados.push(clientId)
+    const { count } = await seed.svc
+      .from('clients')
+      .select('id', { count: 'exact', head: true })
+      .eq('id', clientId)
+    expect(count).toBe(1)
+  })
+
+  it('reutiliza una coincidencia unica de nombre y celular de la cartera indicada', async () => {
+    const number = numeros()
+    const phone = celularUnico()
+    const name = `Cliente existente ${phone}`
+    const clientId = await crearCliente(name, phone)
+
+    const { data, error } = await owner.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: number.daily,
+          weekly_number: number.weekly,
+          client_name: name.toUpperCase(),
+          client_phone: `+57 ${phone}`,
+        },
+      ],
+    })
+
+    expect(error).toBeNull()
+    expect(data as ResultadoImportacion).toMatchObject({
+      inserted: 1,
+      assigned: 1,
+      clients_created: 0,
+      clients_reused: 1,
+    })
+
+    const [ticket] = await recordarBoletas([number.daily])
+    expect(ticket).toMatchObject({ client_id: clientId, inventory_status: 'assigned' })
+  })
+
+  it('la vista previa solo devuelve coincidencias de la cartera seleccionada', async () => {
+    const phone = celularUnico()
+    const ownId = await crearCliente(`Cartera uno ${phone}`, phone, seed.ids.seller1)
+    await crearCliente(`Cartera dos ${phone}`, phone, seed.ids.seller2)
+
+    const { data, error } = await owner.rpc('match_ticket_import_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_clients: [{ client_key: 'grupo-1', name: `Cartera uno ${phone}`, phone }],
+    })
+
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+    expect(data?.[0]).toMatchObject({ client_key: 'grupo-1', client_id: ownId })
+  })
+
+  it('un celular existente con otro nombre revierte boletas, cliente y contador', async () => {
+    const phone = celularUnico()
+    await crearCliente(`Nombre registrado ${phone}`, phone)
+    const withClient = numeros()
+    const withoutClient = numeros()
+    const ticketsBefore = await contarBoletas()
+    const counterBefore = await contadorDeCodigos()
+
+    const { error } = await owner.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: withClient.daily,
+          weekly_number: withClient.weekly,
+          client_name: `Nombre diferente ${phone}`,
+          client_phone: phone,
+        },
+        { daily_number: withoutClient.daily, weekly_number: withoutClient.weekly },
+      ],
+    })
+
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/celular.+otro nombre/i)
+    expect(await contarBoletas()).toBe(ticketsBefore)
+    expect(await contadorDeCodigos()).toBe(counterBefore)
+    const { count } = await seed.svc
+      .from('clients')
+      .select('id', { count: 'exact', head: true })
+      .eq('name', `Nombre diferente ${phone}`)
+    expect(count).toBe(0)
+  })
+
+  it('rechaza de forma atomica una fila con nombre pero sin celular', async () => {
+    const number = numeros()
+    const ticketsBefore = await contarBoletas()
+    const counterBefore = await contadorDeCodigos()
+
+    const { error } = await owner.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: number.daily,
+          weekly_number: number.weekly,
+          client_name: 'Cliente sin celular',
+        },
+      ],
+    })
+
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/datos de cliente inv.lidos/i)
+    expect(await contarBoletas()).toBe(ticketsBefore)
+    expect(await contadorDeCodigos()).toBe(counterBefore)
+  })
+
+  it('un vendedor no puede ejecutar la importacion administrativa con clientes', async () => {
+    const number = numeros()
+    const { error } = await seller1.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: number.daily,
+          weekly_number: number.weekly,
+          client_name: 'Cliente sin permiso',
+          client_phone: celularUnico(),
+        },
+      ],
+    })
+
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/permiso/i)
+  })
+
+  it('no permite consultar clientes de otra organizacion', async () => {
+    const { error } = await otraOrg.rpc('match_ticket_import_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_clients: [{ client_key: 'grupo-1', name: 'Cliente externo', phone: celularUnico() }],
     })
 
     expect(error).not.toBeNull()

@@ -31,6 +31,14 @@ const ticketObjectSchema = z.object({
   daily_number: rawNumber.optional(),
   premio_diario: rawNumber.optional(),
   dailyNumber: rawNumber.optional(),
+  client_name: z.string().optional(),
+  nombre_cliente: z.string().optional(),
+  cliente: z.string().optional(),
+  clientName: z.string().optional(),
+  client_phone: rawNumber.optional(),
+  celular: rawNumber.optional(),
+  telefono: rawNumber.optional(),
+  clientPhone: rawNumber.optional(),
 })
 
 const importJsonSchema = z
@@ -53,6 +61,8 @@ function pick(object: TicketObject, keys: readonly (keyof TicketObject)[]): stri
 
 const DAILY_KEYS = ['daily_number', 'premio_diario', 'dailyNumber'] as const
 const WEEKLY_KEYS = ['weekly_number', 'premio_semanal', 'weeklyNumber'] as const
+const CLIENT_NAME_KEYS = ['client_name', 'nombre_cliente', 'cliente', 'clientName'] as const
+const CLIENT_PHONE_KEYS = ['client_phone', 'celular', 'telefono', 'clientPhone'] as const
 
 /**
  * Convierte el contenido de un archivo JSON en filas del importador.
@@ -83,11 +93,20 @@ export function parseJsonTickets(content: string): ImportRow[] {
     )
   }
 
-  const rows = parsed.data.map((object, index) => ({
-    rowNumber: index + 1,
-    dailyNumber: pick(object, DAILY_KEYS),
-    weeklyNumber: pick(object, WEEKLY_KEYS),
-  }))
+  const rows = parsed.data.map((object, index) => {
+    const clientName = pick(object, CLIENT_NAME_KEYS)
+    const clientPhone = pick(object, CLIENT_PHONE_KEYS)
+    const hasClientFields = CLIENT_NAME_KEYS.some((key) => object[key] !== undefined)
+    const hasPhoneFields = CLIENT_PHONE_KEYS.some((key) => object[key] !== undefined)
+
+    return {
+      rowNumber: index + 1,
+      dailyNumber: pick(object, DAILY_KEYS),
+      weeklyNumber: pick(object, WEEKLY_KEYS),
+      ...(hasClientFields ? { clientName } : {}),
+      ...(hasPhoneFields ? { clientPhone } : {}),
+    }
+  })
 
   if (rows.every((row) => row.dailyNumber === '' && row.weeklyNumber === '')) {
     throw new ImportParseError(

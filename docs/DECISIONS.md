@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.13 · **Actualizado:** 2026-08-09 (D-001 a D-086)
+- **Versión:** 1.14 · **Actualizado:** 2026-08-09 (D-001 a D-087)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -1504,6 +1504,54 @@ instrucciones específicas e historia útil de Claude Code). (c) Crear `/docs/ai
 **Consecuencia.** Un agente nuevo debe continuar la arquitectura real antes que imponer su estilo.
 El mantenimiento posterior al plan usa autorización explícita, pruebas proporcionales, documentación
 selectiva y commit local, pero no inventa una fase ni una etiqueta. `HANDOFF.md` §0 define el relevo.
+
+---
+
+## D-087 — La importación con cliente exige celular y resuelve identidades de forma conservadora
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-09)
+
+**Contexto.** El importador de D-081 solo admitía los dos números de la boleta. El usuario pidió
+extender CSV y JSON con datos de cliente, permitir filas mezcladas y evitar clientes duplicados. La
+primera propuesta dejaba el celular opcional, pero eso contradecía BR-C02, D-024 y el `NOT NULL` de
+`clients.phone`; el usuario confirmó expresamente que el celular debe seguir siendo obligatorio en
+la carga masiva.
+
+**Decisión.** «Cliente» y «Celular» son columnas opcionales para el archivo, pero **obligatorias
+juntas por fila**. Si ambas faltan, la boleta sigue el comportamiento anterior. Si falta una, la
+vista previa marca la fila y el esquema Zod y la RPC vuelven a rechazarla aunque se salte la
+interfaz. Los alias equivalentes existen en CSV y JSON; el formato antiguo no cambia.
+
+**Identidad conservadora dentro de una sola cartera.** Las filas se agrupan comparando nombre sin
+acentos/mayúsculas/espacios redundantes y celular por sus dígitos nacionales; el texto visible no se
+reescribe. En la cartera del vendedor seleccionado:
+
+1. una coincidencia activa, exacta y única de nombre + celular reutiliza `clients.id`;
+2. ninguna coincidencia por celular crea un cliente;
+3. varias coincidencias exactas, un cliente archivado o el mismo celular con otro nombre son un
+   conflicto: se pide corregir o resolver manualmente;
+4. nunca se busca ni reutiliza un cliente de otro vendedor u otra organización.
+
+No se añadió `client_ref`: al ser obligatorio el celular ya existe una clave operacional para este
+alcance, y agregar otro identificador ampliaría esquema, reglas y UX sin una necesidad demostrada.
+
+**Solo el portal administrativo asigna desde archivo.** Una boleta creada por Seller debe nacer
+`pending_approval` y sin cliente (BR-I03/BR-I09); una boleta con cliente debe quedar `assigned`.
+Permitir ambas cosas a la vez saltaría la aprobación. Por eso Seller conserva íntegro el importador
+de dos números y una fila con cliente se marca como conflicto; Owner/Admin puede importarla para el
+vendedor seleccionado.
+
+**Una nueva RPC, no una segunda implementación de venta.** `import_tickets_with_clients` reserva
+códigos e inserta el lote como `bulk_create_tickets`, resuelve o crea cada cliente una sola vez y
+llama a `assign_ticket_row` para cada boleta con cliente. Todo ocurre en la misma transacción: un
+conflicto de identidad o una asignación inválida revierte clientes, boletas y contador. Las
+combinaciones ya tomadas conservan la semántica de D-081: se omiten y se informan, sin crear un
+cliente que no haya recibido ninguna boleta. `match_ticket_import_clients` alimenta la vista previa
+con el mismo ámbito y sin exponer otras carteras.
+
+**Consecuencia operativa.** La migración `0021_ticket_import_clients.sql` es necesaria antes de
+desplegar este código. En esta entrega se aplicó y verificó **solo en Supabase local**; no se hizo
+`db push`, despliegue ni cambio remoto sin autorización expresa.
 
 ---
 

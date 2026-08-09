@@ -1,10 +1,11 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.3 · **Estado:** implementado · **Actualizado:** 2026-08-09
-- **Estado:** el esquema ejecutable vive en las 20 migraciones `0001`–`0020`, aplicadas y
-  verificadas tanto en local como en el proyecto Supabase real; ver `KNOWN_ISSUES.md` §4.
+- **Versión:** 2.4 · **Estado:** implementado · **Actualizado:** 2026-08-09
+- **Estado:** el esquema ejecutable local vive en las 21 migraciones `0001`–`0021`. Las primeras
+  20 están aplicadas y verificadas también en el proyecto Supabase real; `0021` está solo en local y
+  no se debe desplegar sin autorización y respaldo.
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
-  tipos generados en `src/types/database.types.ts`. Las 371 pruebas de `tests/db/` verifican el
+  tipos generados en `src/types/database.types.ts`. Las 378 pruebas de `tests/db/` verifican el
   esquema local; producción se comprueba con `verify:remote` y las sondas registradas en
   `TEST_RESULTS.md`.
 
@@ -603,6 +604,25 @@ impediría igual aunque la función se equivocara.
 
 **Índices: ninguno nuevo.** Todo se busca por `tickets.id` (clave primaria) o por
 `payment_allocations.ticket_id`, que ya tenía índice desde `0003`.
+
+### 6.f Clientes en la importación de boletas (migración `0021`)
+
+| Función o pieza | Responsabilidad | Consumidor |
+|---|---|---|
+| `match_ticket_import_clients(raffle, seller, clients)` | Devuelve coincidencias por celular **solo** de la organización y cartera seleccionadas; nombre y estado permiten decidir coincidencia exacta, archivada o ambigua | Vista previa administrativa, una llamada por archivo |
+| `import_tickets_with_clients(raffle, seller, rows)` | Crea las boletas no tomadas, reutiliza o crea un cliente por identidad y asigna mediante `assign_ticket_row`; devuelve insertadas, conflictos, asignadas y clientes creados/reutilizados | Confirmación del importador Owner/Admin |
+| `ticket_import_name_key(text)` / `ticket_import_phone_key(text)` | Claves comparables de nombre y celular; no cambian el valor visible | Las dos RPC y el índice funcional |
+| `clients_seller_import_phone_idx` | Evita recorrer la cartera completa al resolver los celulares del archivo | `match_ticket_import_clients` e importación |
+
+El cliente sigue siendo la misma fila de `clients`, con `phone NOT NULL` (BR-C02), y la boleta sigue
+apuntando por `tickets.client_id`. No existe tabla de importaciones ni identidad paralela. Nombre y
+celular deben estar los dos o ninguno en cada elemento JSON. Un grupo sin coincidencias crea una
+sola fila; una coincidencia activa, exacta y única la reutiliza. El mismo celular con otro nombre,
+una coincidencia archivada o varias coincidencias abortan para no fusionar personas por adivinación.
+
+La función es transaccional: reserva los códigos, inserta, resuelve clientes y llama al helper
+vigente `assign_ticket_row`. Un error revierte también `raffles.ticket_counter`. Un grupo cuyas
+boletas chocaron todas con `tickets_combo_unique` no crea un cliente huérfano (D-087).
 
 ---
 

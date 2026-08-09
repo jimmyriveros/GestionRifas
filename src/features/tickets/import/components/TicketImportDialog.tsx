@@ -13,14 +13,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-import { detectMapping, isMappingComplete } from '../columns'
+import { detectMapping, hasPartialClientMapping, isMappingComplete } from '../columns'
+import { hasAnyClientData, hasCompleteClientData } from '../clients'
 import { parseCsv, type CsvTable } from '../csv'
 import { ImportParseError } from '../errors'
 import { parseJsonTickets } from '../json'
 import { importableRows, reviewRows, type ImportReview } from '../review'
 import { tableToRows, type ImportRow } from '../rows'
 import type { ImportSource } from '../schemas'
-import { checkTakenCombinations, importTickets, type ImportTicketsResult } from '../actions'
+import { checkImportPreview, importTickets, type ImportTicketsResult } from '../actions'
 import { ColumnMapper } from './ColumnMapper'
 import { ImportDropzone } from './ImportDropzone'
 import { ImportPreview } from './ImportPreview'
@@ -81,6 +82,7 @@ export function TicketImportDialog({
    */
   const [guardando, setGuardando] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const allowClientAssignments = Boolean(sellerId)
 
   /**
    * Cerrojo contra el doble envio.
@@ -108,34 +110,50 @@ export function TicketImportDialog({
   function revisar(filas: ImportRow[]) {
     // Primera pasada, sin base de datos: formato y repeticiones dentro del
     // archivo. Se pinta ya, para no dejar la pantalla en blanco esperando.
-    const primera = reviewRows(filas)
+    const primera = reviewRows(filas, { allowClientAssignments })
     setReview(primera)
     setComprobado(false)
     setPaso('vista-previa')
 
     startTransition(async () => {
-      const respuesta = await checkTakenCombinations({
+      const respuesta = await checkImportPreview({
         raffleId,
+        ...(sellerId ? { sellerId } : {}),
         // Solo las que pueden existir. Un «12345» no cabe en la columna, asi
         // que preguntarlo no aporta nada y ademas tumbaria la comprobacion
         // entera: la accion valida lo que recibe, como debe.
-        combos: primera.rows
-          .filter((fila) => fila.status !== 'invalid')
-          .map((fila) => ({ dailyNumber: fila.dailyNumber, weeklyNumber: fila.weeklyNumber })),
+        rows: primera.rows
+          .filter((fila) => fila.status === 'valid')
+          .map((fila) => ({
+            dailyNumber: fila.dailyNumber,
+            weeklyNumber: fila.weeklyNumber,
+            ...(hasCompleteClientData(fila)
+              ? { clientName: fila.clientName, clientPhone: fila.clientPhone }
+              : {}),
+          })),
       })
 
       if ('error' in respuesta) {
         // La vista previa sigue siendo util sin esto: formato y repeticiones
         // dentro del archivo ya estan revisados, y la base de datos tiene la
         // ultima palabra igualmente. Se dice, no se calla.
+        const includesClients = filas.some(hasAnyClientData)
         setError(
-          `${respuesta.error} Puedes continuar: al guardar se comprobará de nuevo contra la rifa.`,
+          includesClients
+            ? `${respuesta.error} Vuelve a intentarlo antes de importar filas con cliente.`
+            : `${respuesta.error} Puedes continuar: al guardar se comprobará de nuevo contra la rifa.`,
         )
-        setComprobado(true)
+        setComprobado(!includesClients)
         return
       }
 
-      setReview(reviewRows(filas, new Set(respuesta.data)))
+      setReview(
+        reviewRows(filas, {
+          allowClientAssignments,
+          existingCombos: new Set(respuesta.data.taken),
+          clientResolutions: new Map(respuesta.data.clients.map((client) => [client.key, client])),
+        }),
+      )
       setComprobado(true)
     })
   }
@@ -159,7 +177,7 @@ export function TicketImportDialog({
       setTabla(leida)
 
       const mapeo = detectMapping(leida.headers)
-      if (!isMappingComplete(mapeo)) {
+      if (!isMappingComplete(mapeo) || hasPartialClientMapping(mapeo)) {
         setPaso('mapeo')
         return
       }
@@ -191,6 +209,9 @@ export function TicketImportDialog({
         rows: filas.map((fila) => ({
           dailyNumber: fila.dailyNumber,
           weeklyNumber: fila.weeklyNumber,
+          ...(hasCompleteClientData(fila)
+            ? { clientName: fila.clientName, clientPhone: fila.clientPhone }
+            : {}),
         })),
       })
 
@@ -242,7 +263,12 @@ export function TicketImportDialog({
           </DialogHeader>
 
           {paso === 'archivo' ? (
-            <ImportDropzone onFile={leerArchivo} disabled={isPending} error={error} />
+            <ImportDropzone
+              onFile={leerArchivo}
+              disabled={isPending}
+              error={error}
+              allowClientAssignments={allowClientAssignments}
+            />
           ) : null}
 
           {paso === 'mapeo' && tabla ? (
@@ -321,6 +347,23 @@ export function TicketImportDialog({
                       {resultado.conflicts.length} quedaron fuera porque su combinación ya existe en
                       la rifa: {resultado.conflicts.slice(0, 10).join(', ')}
                       {resultado.conflicts.length > 10 ? '…' : ''}
+                    </p>
+                  ) : null}
+                  {resultado.assigned > 0 ? (
+                    <p className="text-muted-foreground">
+                      {resultado.assigned === 1
+                        ? '1 boleta quedó asignada a su cliente.'
+                        : `${resultado.assigned} boletas quedaron asignadas a sus clientes.`}
+                    </p>
+                  ) : null}
+                  {resultado.clientsCreated > 0 || resultado.clientsReused > 0 ? (
+                    <p className="text-muted-foreground">
+                      {resultado.clientsCreated}{' '}
+                      {resultado.clientsCreated === 1 ? 'cliente nuevo' : 'clientes nuevos'} ·{' '}
+                      {resultado.clientsReused}{' '}
+                      {resultado.clientsReused === 1
+                        ? 'existente reutilizado'
+                        : 'existentes reutilizados'}
                     </p>
                   ) : null}
                   {resultado.auditFailed ? (

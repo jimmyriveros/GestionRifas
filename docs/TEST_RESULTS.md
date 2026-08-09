@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **286 ✅** | **371 ✅** | **212 ✅** | ✅ | ✅ |
+| Post-9 vigente | **293 ✅** | **378 ✅** | **213 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -1169,3 +1169,50 @@ registrada sigue siendo 212/212.
 | `npm run format:check` | ❌ 60 archivos existentes de código/pruebas | El árbol funcional actual no cumple el check global; ningún documento de esta auditoría apareció entre los fallos | No se hizo un reformateo masivo fuera de alcance; registrado como I-052 |
 | `npx prettier --check <16 documentos modificados>` | ✅ | — | Confirma que la documentación de esta auditoría sí cumple Prettier |
 | `git diff --check` | ✅ | — | Sin errores de espacios ni marcadores de conflicto |
+
+---
+
+## Clientes en la importación CSV/JSON — 2026-08-09
+
+Mantenimiento funcional posterior a la Fase 9, solicitado por el usuario (BR-N12, D-087).
+Migración `0021_ticket_import_clients.sql`, aplicada **solo en local**.
+
+### Resultado verificado
+
+- CSV y JSON admiten filas mezcladas con y sin cliente. Cuando hay cliente, nombre y celular son
+  obligatorios juntos; una fila incompleta queda fuera antes de confirmar.
+- Varias boletas con el mismo nombre + celular normalizados crean o reutilizan un solo cliente.
+  Coincidencia archivada/múltiple o el mismo celular con otro nombre se bloquea; el ámbito nunca
+  cruza vendedor u organización.
+- Owner/Admin importa y asigna dentro de una transacción que reutiliza `assign_ticket_row`. Seller
+  conserva la ruta anterior: sin cliente y `pending_approval`.
+- Los archivos antiguos de dos columnas conservan parser, vista previa y persistencia anteriores.
+
+### Comandos y resultados
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| Baseline: `npm run db:reset; npm run seed:local; npm run test:db; npm run verify` | ✅ 20 migraciones, 371/371 DB y 286 unitarias | Árbol limpio antes de implementar; 2 avisos conocidos de TanStack |
+| `npx vitest run tests/unit/ticket-import.test.ts` | ✅ 33/33 | Alias CSV/JSON, par obligatorio, filas mixtas, normalización, conflictos y Seller |
+| `npx vitest run --config vitest.db.config.mts tests/db/catalog.test.ts tests/db/ticket-import.test.ts` | ✅ 41/41 | Privilegios, ámbito, creación/reutilización, rollback y celular obligatorio |
+| `npm run db:reset; npm run seed:local; npm run test:db` | ✅ 21 migraciones; 16 archivos, **378/378** | `0021` aplica desde cero y la suite usa sesiones reales |
+| `npm run verify` | ✅ typecheck, lint, **293 unitarias** y build | 0 errores; los mismos 2 avisos conocidos de React Compiler/TanStack |
+| `npx playwright test tests/e2e/importar-boletas.spec.ts --project=escritorio` tras reset + seed | ✅ **9/9** | Incluye lote mixto, un cliente para dos boletas y fila sin celular excluida |
+| `npm run db:reset; npm run seed:local; npm run test:e2e` (corrida final) | ✅ **213/213** en 11,0 min | Escritorio + Pixel 7, un worker y base compartida |
+| `npx supabase gen types typescript --local` comparado con `database.types.ts` | ✅ | Las cuatro funciones de `0021` están representadas; `archived_at` se conserva nullable por comportamiento real |
+| `git diff --check` | ✅ | Sin espacios inválidos ni marcadores de conflicto antes del cierre |
+
+### Errores encontrados y correcciones
+
+| Hallazgo | Evidencia | Corrección / decisión |
+|---|---|---|
+| Playwright no pudo abrir Chromium después de la versión instalada | `Executable doesn't exist ... chromium_headless_shell-1234` antes de ejecutar el caso | `npx playwright install chromium`; el caso nuevo pasó inmediatamente después |
+| La primera suite completa quedó **212/213** | La pantalla decía «2 con datos incompletos o mal escritos», pero la prueba histórica esperaba «2 con números mal escritos» | Se actualizó la expectativa: ahora el texto cubre números **y** cliente. Spec 9/9 y repetición completa 213/213 |
+| Un reintento de la spec sin `db:reset` dio 5 falsos fallos de consultas | La suite completa anterior dejó rifas adicionales; la pantalla eligió una y el helper consultó la rifa original del seed | Se respetó la precondición de `TESTING.md`: reset + seed antes de E2E. Los 9 casos pasaron. No se cambió producto para acomodar datos contaminados |
+| Dos nombres distintos con el mismo celular dentro del archivo podían verse como dos clientes nuevos hasta confirmar | La RPC abortaba de forma segura, pero la primera vista previa era demasiado optimista | La revisión local marca ambas filas como `client-conflict`; la RPC mantiene el rollback como última frontera |
+
+### Estado de promoción
+
+No se ejecutó `db push`, `verify:remote`, despliegue ni operación sobre el Supabase real. El frontend
+con filas de cliente depende de `0021`; promoverlo antes de desplegar requiere autorización expresa,
+respaldo y verificación remota (I-054). Los archivos sin cliente siguen usando el camino anterior.

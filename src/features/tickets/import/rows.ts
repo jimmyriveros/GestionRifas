@@ -17,6 +17,9 @@ export type ImportRow = {
   rowNumber: number
   dailyNumber: string
   weeklyNumber: string
+  /** Opcionales para conservar intactos los archivos antiguos de dos columnas. */
+  clientName?: string
+  clientPhone?: string
 }
 
 /** Celda de una fila, recortada por los extremos y como texto. */
@@ -32,9 +35,16 @@ function cell(row: readonly string[], index: number): string {
  * otra— no se leen: ignorarlas es no mirarlas.
  */
 export function tableToRows(table: CsvTable, mapping: ColumnMapping): ImportRow[] {
-  return table.rows.map((row, index) => ({
-    rowNumber: index + 1,
-    dailyNumber: cell(row, mapping.daily),
-    weeklyNumber: cell(row, mapping.weekly),
-  }))
+  return table.rows.map((row, index) => {
+    const clientName = cell(row, mapping.clientName)
+    const clientPhone = cell(row, mapping.clientPhone)
+
+    return {
+      rowNumber: index + 1,
+      dailyNumber: cell(row, mapping.daily),
+      weeklyNumber: cell(row, mapping.weekly),
+      ...(mapping.clientName >= 0 ? { clientName } : {}),
+      ...(mapping.clientPhone >= 0 ? { clientPhone } : {}),
+    }
+  })
 }

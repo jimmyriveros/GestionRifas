@@ -6,7 +6,12 @@ import { useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { BULK_TICKET_MAX } from '@/lib/constants'
 
-import { SAMPLE_CSV, SAMPLE_JSON } from '../sample'
+import {
+  SAMPLE_CSV,
+  SAMPLE_CSV_WITH_CLIENTS,
+  SAMPLE_JSON,
+  SAMPLE_JSON_WITH_CLIENTS,
+} from '../sample'
 
 /**
  * Primer paso: elegir el archivo.
@@ -23,6 +28,7 @@ type ImportDropzoneProps = {
   disabled?: boolean
   /** Mensaje del intento anterior, si el archivo no se pudo leer. */
   error?: string | null
+  allowClientAssignments?: boolean
 }
 
 /** 1 MB. Mil boletas ocupan unos 15 KB: nada legitimo se acerca a este tope. */
@@ -37,7 +43,12 @@ function descargar(nombre: string, contenido: string, tipo: string) {
   URL.revokeObjectURL(url)
 }
 
-export function ImportDropzone({ onFile, disabled, error }: ImportDropzoneProps) {
+export function ImportDropzone({
+  onFile,
+  disabled,
+  error,
+  allowClientAssignments,
+}: ImportDropzoneProps) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const [verJson, setVerJson] = useState(false)
@@ -62,6 +73,12 @@ export function ImportDropzone({ onFile, disabled, error }: ImportDropzoneProps)
           Necesitamos dos columnas: <strong>Premio semanal</strong> y <strong>Premio diario</strong>
           . Hasta {BULK_TICKET_MAX} boletas por archivo.
         </p>
+        {allowClientAssignments ? (
+          <p className="text-muted-foreground">
+            Puedes añadir <strong>Cliente</strong> y <strong>Celular</strong>. Si incluyes uno,
+            necesitas ambos.
+          </p>
+        ) : null}
       </div>
 
       {/* El area de arrastre es una comodidad; el boton y el campo son lo que
@@ -128,7 +145,13 @@ export function ImportDropzone({ onFile, disabled, error }: ImportDropzoneProps)
           type="button"
           variant="secondary"
           size="sm"
-          onClick={() => descargar('boletas-ejemplo.csv', SAMPLE_CSV, 'text/csv;charset=utf-8')}
+          onClick={() =>
+            descargar(
+              'boletas-ejemplo.csv',
+              allowClientAssignments ? SAMPLE_CSV_WITH_CLIENTS : SAMPLE_CSV,
+              'text/csv;charset=utf-8',
+            )
+          }
         >
           Descargar archivo de ejemplo
         </Button>
@@ -143,7 +166,9 @@ export function ImportDropzone({ onFile, disabled, error }: ImportDropzoneProps)
             Opción avanzada. Escribe los números <strong>entre comillas</strong> para no perder los
             ceros de delante.
           </p>
-          <pre className="bg-muted overflow-x-auto rounded-md p-3 text-xs">{SAMPLE_JSON}</pre>
+          <pre className="bg-muted overflow-x-auto rounded-md p-3 text-xs">
+            {allowClientAssignments ? SAMPLE_JSON_WITH_CLIENTS : SAMPLE_JSON}
+          </pre>
         </div>
       ) : null}
     </div>

@@ -31,6 +31,7 @@ const ETIQUETAS: Record<ImportRowStatus, string> = {
   duplicate: 'Repetida en el archivo',
   taken: 'Ya existe en la rifa',
   invalid: 'No se puede usar',
+  'client-conflict': 'Conflicto de cliente',
 }
 
 /** El estado se dice con TEXTO, no solo con color (CLAUDE.md 27). */
@@ -40,6 +41,7 @@ function EstadoBadge({ status }: { status: ImportRowStatus }) {
     duplicate: 'border-amber-300 text-amber-900 dark:text-amber-200',
     taken: 'border-amber-300 text-amber-900 dark:text-amber-200',
     invalid: 'border-rose-300 text-rose-900 dark:text-rose-200',
+    'client-conflict': 'border-rose-300 text-rose-900 dark:text-rose-200',
   }
   return (
     <Badge variant="outline" className={cn('whitespace-nowrap', estilos[status])}>
@@ -75,6 +77,10 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
           <li>
             <strong className="text-foreground">{review.valid}</strong> se pueden importar
           </li>
+          <li>
+            <strong className="text-foreground">{review.withClient}</strong> con cliente ·{' '}
+            <strong className="text-foreground">{review.withoutClient}</strong> sin cliente
+          </li>
           {review.duplicates > 0 ? (
             <li>
               <strong className="text-foreground">{review.duplicates}</strong> repetidas dentro del
@@ -88,7 +94,14 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
           ) : null}
           {review.invalid > 0 ? (
             <li>
-              <strong className="text-foreground">{review.invalid}</strong> con números mal escritos
+              <strong className="text-foreground">{review.invalid}</strong> con datos incompletos o
+              mal escritos
+            </li>
+          ) : null}
+          {review.clientConflicts > 0 ? (
+            <li>
+              <strong className="text-foreground">{review.clientConflicts}</strong> con conflicto de
+              cliente
             </li>
           ) : null}
         </ul>
@@ -98,6 +111,38 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
           </p>
         ) : null}
       </div>
+
+      {review.clients.length > 0 ? (
+        <div className="space-y-2 rounded-lg border p-4">
+          <p className="font-medium">
+            {review.clients.length === 1
+              ? '1 cliente único detectado'
+              : `${review.clients.length} clientes únicos detectados`}
+          </p>
+          <ul className="divide-y text-sm">
+            {review.clients.slice(0, 8).map((client) => (
+              <li
+                key={client.key}
+                className="flex flex-wrap items-center justify-between gap-2 py-2"
+              >
+                <span>
+                  <strong>{client.name}</strong>
+                  <span className="text-muted-foreground"> · {client.phone}</span>
+                </span>
+                <span className="text-muted-foreground">
+                  {client.tickets === 1 ? '1 boleta' : `${client.tickets} boletas`} ·{' '}
+                  {client.status === 'existing' ? 'Cliente existente' : 'Cliente nuevo'}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {review.clients.length > 8 ? (
+            <p className="text-muted-foreground text-xs">
+              Hay {review.clients.length - 8} clientes más en el archivo.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {conProblema > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
@@ -123,6 +168,8 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
               <th className="hidden h-10 px-3 text-left font-medium sm:table-cell">Fila</th>
               <th className="h-10 px-3 text-left font-medium">Premio semanal</th>
               <th className="h-10 px-3 text-left font-medium">Premio diario</th>
+              <th className="hidden h-10 px-3 text-left font-medium lg:table-cell">Cliente</th>
+              <th className="hidden h-10 px-3 text-left font-medium lg:table-cell">Celular</th>
               <th className="h-10 px-3 text-left font-medium">Estado</th>
               <th className="hidden h-10 px-3 text-left font-medium md:table-cell">Problema</th>
             </tr>
@@ -138,8 +185,17 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
                 </td>
                 <td className="px-3 py-2 font-mono tabular-nums">{row.weeklyNumber || '—'}</td>
                 <td className="px-3 py-2 font-mono tabular-nums">{row.dailyNumber || '—'}</td>
+                <td className="hidden px-3 py-2 lg:table-cell">{row.clientName || '—'}</td>
+                <td className="hidden px-3 py-2 tabular-nums lg:table-cell">
+                  {row.clientPhone || '—'}
+                </td>
                 <td className="px-3 py-2">
                   <EstadoBadge status={row.status} />
+                  {row.clientName || row.clientPhone ? (
+                    <p className="text-muted-foreground mt-1 text-xs lg:hidden">
+                      {row.clientName || 'Sin nombre'} · {row.clientPhone || 'Sin celular'}
+                    </p>
+                  ) : null}
                   {/* En pantallas estrechas no hay columna «Problema»: el
                       motivo va debajo del estado, que es donde se mira. */}
                   {row.problem ? (

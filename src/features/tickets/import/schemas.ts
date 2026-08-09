@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { BULK_TICKET_MAX, BULK_TICKET_MIN } from '@/lib/constants'
+import { clientFormSchema } from '@/features/clients/schemas'
 
 import { ticketNumberSchema } from '../schemas'
 
@@ -17,10 +18,21 @@ import { ticketNumberSchema } from '../schemas'
  * personal, donde es una decision consciente; en un archivo es un error.
  */
 
-export const importTicketRowSchema = z.object({
-  dailyNumber: ticketNumberSchema,
-  weeklyNumber: ticketNumberSchema,
+export const importClientSchema = z.object({
+  name: clientFormSchema.shape.name,
+  phone: clientFormSchema.shape.phone,
 })
+
+export const importTicketRowSchema = z
+  .object({
+    dailyNumber: ticketNumberSchema,
+    weeklyNumber: ticketNumberSchema,
+    clientName: importClientSchema.shape.name.optional(),
+    clientPhone: importClientSchema.shape.phone.optional(),
+  })
+  .refine((row) => Boolean(row.clientName) === Boolean(row.clientPhone), {
+    message: 'Escribe el nombre y el celular del cliente, o deja ambos campos vacíos.',
+  })
 export type ImportTicketRow = z.infer<typeof importTicketRowSchema>
 
 /** De donde salio el archivo. Se guarda en la bitacora (BR-N12). */
@@ -44,7 +56,8 @@ export type ImportTicketsInput = z.infer<typeof importTicketsSchema>
 
 export const checkCombinationsSchema = z.object({
   raffleId: z.uuid('Selecciona una rifa.'),
-  combos: z
+  sellerId: z.uuid('Selecciona un vendedor.').optional(),
+  rows: z
     .array(importTicketRowSchema)
     .max(BULK_TICKET_MAX, `No se pueden comprobar más de ${BULK_TICKET_MAX} boletas a la vez.`),
 })

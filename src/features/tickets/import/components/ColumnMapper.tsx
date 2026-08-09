@@ -45,8 +45,20 @@ export function ColumnMapper({
 }: ColumnMapperProps) {
   const [daily, setDaily] = useState(initial.daily >= 0 ? String(initial.daily) : SIN_ELEGIR)
   const [weekly, setWeekly] = useState(initial.weekly >= 0 ? String(initial.weekly) : SIN_ELEGIR)
+  const [clientName, setClientName] = useState(
+    initial.clientName >= 0 ? String(initial.clientName) : SIN_ELEGIR,
+  )
+  const [clientPhone, setClientPhone] = useState(
+    initial.clientPhone >= 0 ? String(initial.clientPhone) : SIN_ELEGIR,
+  )
 
-  const listo = daily !== SIN_ELEGIR && weekly !== SIN_ELEGIR && daily !== weekly
+  const selected = [daily, weekly, clientName, clientPhone].filter((value) => value !== SIN_ELEGIR)
+  const noRepeatedColumns = new Set(selected).size === selected.length
+  const completeClientPair =
+    (clientName === SIN_ELEGIR && clientPhone === SIN_ELEGIR) ||
+    (clientName !== SIN_ELEGIR && clientPhone !== SIN_ELEGIR)
+  const listo =
+    daily !== SIN_ELEGIR && weekly !== SIN_ELEGIR && noRepeatedColumns && completeClientPair
 
   /** «Columna A — 7607, 3929…»: el nombre y un par de valores de muestra. */
   function etiqueta(index: number): string {
@@ -97,11 +109,51 @@ export function ColumnMapper({
             </SelectContent>
           </Select>
         </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="map-client-name">¿Cuál columna es el nombre del cliente?</Label>
+          <Select value={clientName} onValueChange={setClientName}>
+            <SelectTrigger id="map-client-name" className="w-full">
+              <SelectValue placeholder="No incluir cliente" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SIN_ELEGIR}>No incluir cliente</SelectItem>
+              {headers.map((_, index) => (
+                <SelectItem key={index} value={String(index)}>
+                  {etiqueta(index)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="map-client-phone">¿Cuál columna es el celular del cliente?</Label>
+          <Select value={clientPhone} onValueChange={setClientPhone}>
+            <SelectTrigger id="map-client-phone" className="w-full">
+              <SelectValue placeholder="No incluir celular" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SIN_ELEGIR}>No incluir celular</SelectItem>
+              {headers.map((_, index) => (
+                <SelectItem key={index} value={String(index)}>
+                  {etiqueta(index)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {daily !== SIN_ELEGIR && daily === weekly ? (
+      {!noRepeatedColumns ? (
         <p role="alert" className="text-destructive text-sm">
-          Los dos números no pueden salir de la misma columna.
+          Cada dato debe salir de una columna diferente.
+        </p>
+      ) : null}
+
+      {!completeClientPair ? (
+        <p role="alert" className="text-destructive text-sm">
+          Para incluir clientes, elige las columnas de nombre y celular.
         </p>
       ) : null}
 
@@ -109,7 +161,14 @@ export function ColumnMapper({
         <Button
           type="button"
           disabled={!listo}
-          onClick={() => onConfirm({ daily: Number(daily), weekly: Number(weekly) })}
+          onClick={() =>
+            onConfirm({
+              daily: Number(daily),
+              weekly: Number(weekly),
+              clientName: clientName === SIN_ELEGIR ? -1 : Number(clientName),
+              clientPhone: clientPhone === SIN_ELEGIR ? -1 : Number(clientPhone),
+            })
+          }
         >
           Continuar
         </Button>

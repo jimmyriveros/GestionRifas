@@ -1032,6 +1032,10 @@ export type Database = {
         Returns: boolean
       }
       is_org_staff: { Args: { p_org: string }; Returns: boolean }
+      import_tickets_with_clients: {
+        Args: { p_raffle_id: string; p_rows: Json; p_seller_id: string }
+        Returns: Json
+      }
       lock_ticket_batch: { Args: { p_ticket_ids: string[] }; Returns: string[] }
       log_ticket_import: {
         Args: {
@@ -1043,6 +1047,16 @@ export type Database = {
           p_source: string
         }
         Returns: undefined
+      }
+      match_ticket_import_clients: {
+        Args: { p_clients: Json; p_raffle_id: string; p_seller_id: string }
+        Returns: {
+          archived_at: string | null
+          client_id: string
+          client_key: string
+          name: string
+          phone: string
+        }[]
       }
       recalc_ticket_paid_amount: {
         Args: { p_ticket_id: string }
@@ -1143,6 +1157,8 @@ export type Database = {
           weekly_number: string
         }[]
       }
+      ticket_import_name_key: { Args: { value: string }; Returns: string }
+      ticket_import_phone_key: { Args: { value: string }; Returns: string }
       today_bogota: { Args: never; Returns: string }
       void_payment: {
         Args: { p_payment_id: string; p_reason: string }

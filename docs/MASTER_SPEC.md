@@ -4,7 +4,7 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.1
+- **Versión del documento:** 1.2
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
 - **Última actualización:** 2026-08-09 (alineación con mantenimiento posterior a la Fase 9)
 
@@ -167,11 +167,18 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
 ### F8 — Importación de boletas desde archivo
 1. Owner/Admin o Seller elige CSV o JSON, mapea columnas si hace falta y revisa una vista previa.
 2. Elegir el archivo no escribe nada; guardar exige una confirmación posterior.
-3. Se reutilizan el parser, la validación por fila y los caminos de creación masiva existentes.
-4. Un vendedor solo importa cuando la rifa permite crear boletas; quedan `pending_approval`.
-5. La base de datos detecta combinaciones tomadas sin revelar de qué vendedor son. Después de crear
+3. Cada fila puede incluir cliente; cuando lo hace, nombre y celular son obligatorios juntos. Las
+   filas sin cliente y los archivos antiguos de dos columnas siguen admitidos.
+4. Owner/Admin puede crear o reutilizar un cliente inequívoco de la cartera seleccionada y dejar la
+   boleta asignada. Un celular con otro nombre, un cliente archivado o varias coincidencias bloquean
+   esas filas; no se adivina la identidad ni se cruza vendedor u organización.
+5. Un vendedor solo importa cuando la rifa permite crear boletas; quedan `pending_approval` y, por
+   tanto, su archivo no admite cliente.
+6. Cliente, boletas y asignaciones administrativas se guardan en una sola transacción y reutilizan
+   las reglas de `assign_ticket_row`.
+7. La base de datos detecta combinaciones tomadas sin revelar de qué vendedor son. Después de crear
    las boletas intenta registrar el evento sin guardar el archivo; si esa bitácora falla, conserva
-   las boletas e informa `auditFailed` (BR-N12, D-081).
+   las boletas e informa `auditFailed` (BR-N12, D-081, D-087).
 
 ### F9 — Selección y acciones masivas sobre boletas
 1. La selección usa `ticket.id`, admite hasta 1.000 y sobrevive a búsqueda, filtros y paginación.
@@ -201,8 +208,8 @@ Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
 12. RLS activo en todas las tablas de negocio; el frontend no es frontera de seguridad.
 13. Una boleta se busca por número diario o semanal, entero o parcial, nunca por código interno
     (BR-N11).
-14. Importar reutiliza las mismas reglas y validadores de la carga manual; la vista previa no escribe
-    (BR-N12).
+14. Importar reutiliza las mismas reglas y validadores; si una fila incluye cliente, nombre y celular
+    son obligatorios juntos y la persistencia administrativa es atómica (BR-N12).
 15. Selección, filtros y paginación son estados separados; limpiar uno no borra el otro (BR-B01).
 16. Las acciones masivas sensibles se autorizan y revalidan en base de datos; la UI no es su frontera
     de seguridad (BR-B07, con la salvedad documentada en I-044).
