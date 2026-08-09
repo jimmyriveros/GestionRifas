@@ -1216,3 +1216,21 @@ Migración `0021_ticket_import_clients.sql`, aplicada **solo en local**.
 No se ejecutó `db push`, `verify:remote`, despliegue ni operación sobre el Supabase real. El frontend
 con filas de cliente depende de `0021`; promoverlo antes de desplegar requiere autorización expresa,
 respaldo y verificación remota (I-054). Los archivos sin cliente siguen usando el camino anterior.
+
+### Nota posterior — promoción de `0021` al proyecto real
+
+El usuario autorizó el 2026-08-09 el push a `main` para probar el cambio en Vercel. Como el frontend
+depende de las RPC nuevas, se promovió primero la migración siguiendo D-070 y el procedimiento de
+`DEPLOYMENT.md` §2.2.
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| Respaldo lógico externo | ✅ | `D:\Claude\Personal\Rifas-backups\2026-08-09-antes-0021`: `roles.sql`, `schema.sql` y `data.sql`; validación de datos: 0 referencias a `auth`, contraseñas o tokens |
+| `npx supabase db push --dry-run` | ✅ | Mostró únicamente `0021_ticket_import_clients.sql` pendiente |
+| `npx supabase db push --yes` | ✅ | `0021` aplicada al proyecto Supabase real |
+| `npm run verify:remote` | ✅ **13/13** | RLS/FORCE RLS, vistas, `search_path`, privilegios de tablas y funciones, y ausencia de `DELETE` directo |
+| Sonda de catálogo de `0021` | ✅ | Migración, cuatro funciones, las dos RPC `SECURITY DEFINER`, `search_path`, privilegios e índice verificados; `anon`/`PUBLIC` sin ejecución |
+| Sonda transaccional como Owner | ✅ | Importó 3 filas: 2 asignadas al mismo cliente y 1 disponible; la vista previa encontró la coincidencia exacta |
+| Rollback y comprobación posterior | ✅ **0 residuos** | 0 clientes y 0 boletas de la sonda en el proyecto real |
+
+I-054 queda resuelto. La base se promovió antes del push del consumidor a `main`.

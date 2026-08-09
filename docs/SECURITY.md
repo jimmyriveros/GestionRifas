@@ -6,7 +6,8 @@
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
   reales por rol y clave pública, nunca `service_role`. La clave de servicio sí puede preparar,
   comprobar o limpiar el escenario y las pruebas de catálogo usan PostgreSQL directo (D-043).
-  Producción se comprueba por separado con `verify:remote` y sondas específicas.
+  Producción pasó `verify:remote` 13/13 y la sonda específica de `0021` el 2026-08-09; la sonda se
+  revirtió completa y dejó 0 clientes y 0 boletas residuales.
 
 ### Refuerzos añadidos al implementar (Fase 2)
 

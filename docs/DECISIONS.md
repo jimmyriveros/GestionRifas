@@ -1549,9 +1549,9 @@ combinaciones ya tomadas conservan la semántica de D-081: se omiten y se inform
 cliente que no haya recibido ninguna boleta. `match_ticket_import_clients` alimenta la vista previa
 con el mismo ámbito y sin exponer otras carteras.
 
-**Consecuencia operativa.** La migración `0021_ticket_import_clients.sql` es necesaria antes de
-desplegar este código. En esta entrega se aplicó y verificó **solo en Supabase local**; no se hizo
-`db push`, despliegue ni cambio remoto sin autorización expresa.
+**Consecuencia operativa.** La migración `0021_ticket_import_clients.sql` debe preceder al frontend
+que consume estas funciones. Se aplicó al proyecto real el 2026-08-09, con autorización expresa,
+respaldo lógico externo, `db push --dry-run`, verificación remota y sonda transaccional revertida.
 
 ---
 

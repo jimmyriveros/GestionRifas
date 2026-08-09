@@ -27,7 +27,7 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 
 | Elemento | Estado |
 |---|---|
-| Migraciones (20) | Aplicadas y verificadas con `npm run verify:remote` |
+| Migraciones (21) | Aplicadas y verificadas con `npm run verify:remote` |
 | RLS, RPC, vistas, auditoría | Igual que en local (mismo código, mismas migraciones) |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 
@@ -57,7 +57,7 @@ este mismo comportamiento en local durante la Fase 8: `supabase/config.toml` sol
 
 ### 2.2 Promoción de migraciones futuras
 
-Las 20 actuales ya están aplicadas. Para cualquier migración **nueva**, exige autorización explícita
+Las 21 actuales ya están aplicadas. Para cualquier migración **nueva**, exige autorización explícita
 y genera primero el respaldo de §4.2/`RUNBOOK.md` §5. Después la promoción son tres pasos —nunca dos
 (ya hizo falta el tercero dos veces: D-038, D-065/I-020):
 

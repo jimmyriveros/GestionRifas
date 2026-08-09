@@ -31,13 +31,13 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
-| Último cambio funcional desplegado | `0b8f06e` — selección múltiple y acciones masivas, 2026-08-08 |
+| Último cambio funcional promovido | `74136d1` — clientes con celular obligatorio en importación CSV/JSON, 2026-08-09; el push de `main` activa su despliegue en Vercel |
 | Punto de partida del último mantenimiento | `main` en `65f790b`, igual a `origin/main`, con árbol limpio antes de implementar |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **21 migraciones en local**; `0001`–`0020` también están aplicadas en el proyecto real y verificadas el 2026-08-08. `0021` está solo en local: no desplegar este frontend sin promoverla primero (I-054). **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Base de datos | **21 migraciones en local y en el proyecto real**; `0021` se promovió y verificó el 2026-08-09 después del respaldo externo requerido. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
 | Pruebas | **293 unitarias**, **378 de base de datos** y **213 E2E**, todas revalidadas el 2026-08-09; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
@@ -48,8 +48,8 @@ auditado en la Fase 9 con **47 intentos deliberados de romperlo**, ninguno de lo
 leer ni escribir un dato ajeno. Informe: `docs/AUDIT_REPORT.md`.
 Desde el 2026-08-08 la lista de boletas admite **selección múltiple y acciones masivas** (BR-B01..
 BR-B08), ya **en producción**.
-En local, el importador CSV/JSON admite además filas opcionales con cliente + celular obligatorio
-(D-087). Ese cambio **todavía no está en producción** porque requiere promover `0021` (I-054).
+El importador CSV/JSON admite además filas opcionales con cliente + celular obligatorio (D-087).
+La base real ya tiene `0021`; el push coordinado de `main` activa el frontend correspondiente.
 **Lo que NO existe:** backups automáticos de Supabase (plan Free — I-024, prerrequisito antes de datos
 reales).
 
@@ -63,11 +63,11 @@ reales).
 | Archivos | `src/features/tickets/import/`, ajuste contextual en `BulkTicketCreator`, tipos de base, migración `0021`, pruebas unitarias/DB/E2E y documentación normativa/operativa relacionada |
 | Reutilización | `validateBulkRows`, esquemas de cliente, normalización de búsqueda, `bulk_create_tickets` para archivos antiguos, `assign_ticket_row` para asignar, mismo `TicketImportDialog` parametrizado y auditoría de D-081 |
 | Decisiones | D-087: celular obligatorio; identidad = nombre + celular nacional dentro de una cartera; coincidencia activa, exacta y única se reutiliza; ambigüedad/archivado/mismo celular con otro nombre se bloquea. Solo personal importa con cliente para no saltarse BR-I03/BR-I09. Sin `client_ref` |
-| Verificación | Base reconstruida con 21 migraciones; `test:db` 378/378; `verify` verde (293 unitarias, typecheck, lint y build; 0 errores y 2 avisos conocidos de TanStack); spec de importación 9/9; E2E completa 213/213; `git diff --check` verde antes del cierre |
+| Verificación | Base reconstruida con 21 migraciones; `test:db` 378/378; `verify` verde (293 unitarias, typecheck, lint y build; 0 errores y 2 avisos conocidos de TanStack); spec de importación 9/9; E2E completa 213/213. En el proyecto real: dry-run limitado a `0021`, `db push` correcto, `verify:remote` 13/13 y sonda transaccional de catálogo/comportamiento con rollback y 0 residuos |
 | Errores encontrados | Playwright no tenía Chromium tras actualizar dependencias: se instaló con `npx playwright install chromium`. Primera E2E completa: 212/213 porque una prueba esperaba el texto antiguo «números mal escritos»; se actualizó a «datos incompletos o mal escritos», la spec pasó 9/9 y la suite completa 213/213. Un reintento sin reset eligió una rifa creada por la suite anterior; al restaurar el seed pasó |
-| Advertencia | `0021` está **solo en local**. Promover requiere autorización explícita, respaldo, `db push --dry-run`, verificación remota y despliegue coordinado; desplegar el código antes rompe las filas con cliente (I-054). Los archivos antiguos sin cliente siguen compatibles |
-| Pendiente | Trabajo funcional terminado. Siguiente acción externa, solo si el usuario la autoriza: respaldar y promover `0021`, verificarla en producción y desplegar el frontend. Permanecen además los riesgos operativos I-021/I-023/I-024 |
-| Git | `main`; base observada `65f790b`, igual a `origin/main`, y árbol limpio al iniciar. El commit de entrega se comunica en el reporte final; no hubo push, despliegue ni cambio remoto |
+| Advertencia | Supabase sigue en plan Free y no ofrece backups automáticos ni PITR (I-024). El respaldo previo a `0021` está fuera del repositorio en `D:\Claude\Personal\Rifas-backups\2026-08-09-antes-0021`. Los archivos antiguos sin cliente siguen compatibles |
+| Pendiente | Trabajo funcional y promoción de base terminados. Confirmar el despliegue de Vercel iniciado por el push y hacer la prueba manual solicitada. Permanecen los riesgos operativos I-021/I-023/I-024 |
+| Git | `main`; cambio funcional en `74136d1`. Este relevo registra la promoción y el push autorizado a `origin/main`; comprobar el hash vigente con Git en vez de mantenerlo duplicado aquí |
 
 ## 1.b Qué queda abierto
 
@@ -77,7 +77,6 @@ dueño, deuda aceptada y límites verificados; no deben describirse como si no e
 | Asunto | Qué hace falta |
 |---|---|
 | **I-024** — plan Free sin backups automáticos ni PITR | Subir a Supabase Pro o automatizar el respaldo externo. **Prerrequisito antes de operar con dinero o clientes reales** (`RUNBOOK.md` §5.3) |
-| **I-054** — `0021` está solo en local | Antes de desplegar esta versión: autorización, respaldo, `db push --dry-run`, promoción de la migración, sondas de catálogo/comportamiento y despliegue coordinado |
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
 | **I-023** — la URL permitida de Auth debe coincidir con la canónica de Vercel | Confirmar `https://gestion-rifas.vercel.app/**` en Vercel y Supabase antes de enviar invitaciones (`DEPLOYMENT.md` §2.1) |
 | **I-030** — persisten mensajes de base de datos sin tildes | Autorizar una migración nueva que reescriba las definiciones vigentes y aplicarla al proyecto real (D-073) |
@@ -89,9 +88,11 @@ dueño, deuda aceptada y límites verificados; no deben describirse como si no e
 Las siguientes notas explican decisiones recientes de producción que siguen siendo trampas útiles;
 no sustituyen el relevo vigente de §1.a ni el historial propietario de Git/`TEST_RESULTS`.
 
-La última acción de ingeniería **sobre producción** fue aplicar la migración **`0020`** al proyecto real (2026-08-08,
-autorizada explícitamente) y desplegar la **selección múltiple y las acciones masivas de boletas** (
-BR-B01..BR-B08, D-082 a D-085). Se marcan varias boletas de la lista y se actúa sobre todas: el
+La última acción de ingeniería **sobre producción** fue aplicar la migración **`0021`** al proyecto
+real (2026-08-09, autorizada explícitamente) y activar desde `main` el despliegue de los **clientes
+con celular obligatorio en la importación CSV/JSON** (BR-N12, D-087). La selección múltiple y las
+acciones masivas de boletas (BR-B01..BR-B08, D-082 a D-085) siguen disponibles: se marcan varias
+boletas de la lista y se actúa sobre todas: el
 vendedor las vende a un cliente de una vez; el Dueño y el Administrador aprueban, anulan, cambian de
 vendedor y **eliminan** las que se cargaron por error. Lo que conviene saber antes de tocarlo:
 
@@ -199,8 +200,8 @@ node -e "const b=require('fs').readFileSync('.env.local');console.log('CR:',[...
 
 Debe imprimir `CR: 0`.
 
-✅ **Las 20 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-08
-(`npm run verify:remote`, 13/13).
+✅ **Las 21 migraciones están aplicadas también en el proyecto real** y verificadas el 2026-08-09
+(`npm run verify:remote`, 13/13, más sonda específica de `0021` con rollback y 0 residuos).
 
 Al aplicar migraciones al proyecto real, primero exige autorización explícita y genera el respaldo
 de §3.b. Después, la promoción de base de datos tiene **tres** pasos, no dos:
@@ -355,9 +356,9 @@ profiles 1─1 auth.users
 `bulk_delete_tickets`. Todas validan permisos internamente y auditan. Son `SECURITY DEFINER`: existen
 precisamente para hacer cosas que la RLS del usuario prohíbe.
 
-**Importación con cliente (`0021`, solo local):** `match_ticket_import_clients` acota la vista previa
-a una cartera e `import_tickets_with_clients` crea/reutiliza clientes y llama a `assign_ticket_row`
-en una sola transacción (D-087). No desplegar el consumidor sin la migración (I-054).
+**Importación con cliente (`0021`, local y producción):** `match_ticket_import_clients` acota la
+vista previa a una cartera e `import_tickets_with_clients` crea/reutiliza clientes y llama a
+`assign_ticket_row` en una sola transacción (D-087).
 
 ⚠️ **`assign_ticket` y `cancel_ticket` ya no llevan las reglas dentro**: delegan en
 `assign_ticket_row` y `cancel_ticket_row`, que comparten con las masivas. Si cambias una regla,

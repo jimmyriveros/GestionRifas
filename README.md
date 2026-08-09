@@ -37,8 +37,8 @@ Reemplaza el control manual en papel y hojas de cálculo por un sistema con:
   ver datos de nadie más. Los archivos se abren directamente en Excel en configuración regional
   colombiana.
 - **Importación de boletas desde CSV o JSON**: vista previa, mapeo de columnas y la misma validación
-  de la carga manual. En la versión local, Owner/Admin puede añadir cliente + celular obligatorio por
-  fila; `0021` debe promoverse antes de desplegar esa extensión (I-054).
+  de la carga manual. Owner/Admin puede añadir cliente + celular obligatorio por fila; la migración
+  `0021` que soporta esa extensión está aplicada en local y producción.
 - **Selección múltiple y acciones masivas**: se marcan varias boletas y se actúa sobre todas a la
   vez —venderlas al mismo cliente, aprobarlas, anularlas, cambiarles el vendedor o eliminar las que
   se cargaron por error—. En el teléfono hay un modo selección donde la fila entera es la diana.
