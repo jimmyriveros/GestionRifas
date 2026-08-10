@@ -55,19 +55,19 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — limpieza autorizada de boletas demo (2026-08-09)
+## 1.a Último relevo significativo — cierre y publicación estable (2026-08-10)
 
 | Campo | Estado |
 |---|---|
-| Resultado | Se eliminaron las ocho boletas que quedaban en estado `cancelled`, todas pertenecientes al inventario demo y con motivos de anulación que las identificaban como tales. Producción quedó con 0 boletas anuladas. No se tocaron clientes, pagos, otras boletas, esquema ni código |
-| Archivos | Solo documentación operativa. La mutación fue sobre 8 filas `tickets` del proyecto Supabase real; los triggers existentes registraron 8 `ticket.delete` en `audit_logs` |
-| Reutilización | Respaldo lógico de `RUNBOOK.md` §5.1, restricciones/FK existentes, triggers de auditoría y verificación remota del catálogo. Transacción PostgreSQL `SERIALIZABLE` con bloqueos y aserciones del conjunto completo antes del borrado |
-| Decisiones | Excepción puntual autorizada por el usuario a BR-N08 para retirar el inventario demo inicial. No cambia la regla del producto: las boletas anuladas normales se conservan y sus combinaciones no se reutilizan. Solo se continuó tras resolver exactamente 8 filas, todas sin cliente, venta, saldo ni asignaciones |
-| Verificación | Inspección previa de las 8 filas y sus relaciones; respaldo completo posterior a la corrección anterior; comprobaciones dentro de la transacción y después del commit desde una conexión nueva; 8/8 eventos de auditoría; `verify:remote` 13/13; producción HTTP 200 |
-| Errores encontrados | Ninguno. El conjunto observado coincidió exactamente con las ocho boletas demo solicitadas |
-| Advertencia | Respaldo fuera del repositorio: `D:\Claude\Personal\Rifas-backups\2026-08-09-antes-eliminar-8-boletas-demo`. El borrado libera esas combinaciones para una carga futura; no copiar esta excepción como flujo normal. Supabase sigue sin backups automáticos ni PITR (I-024) |
-| Pendiente | Ninguno para esta limpieza. La persona operadora debe refrescar la lista para confirmar visualmente que ya no hay anuladas. Permanecen los riesgos operativos I-021/I-023/I-024 |
-| Git | `main` estaba limpio en `6de006a`, un commit documental por delante de `origin/main`, antes de registrar esta intervención. No hubo cambio funcional, migración, push ni despliegue |
+| Resultado | Se revisó y publicó como versión estable todo lo pendiente en `main`: el registro operativo de la corrección de clientes/boletas y de la limpieza del inventario demo. Esos cambios de datos ya estaban aplicados y auditados en Supabase; la publicación Git contiene solo documentación y no modifica comportamiento, esquema ni datos |
+| Archivos | `docs/HANDOFF.md` y `docs/TEST_RESULTS.md`. No hay cambios pendientes en `src/`, `tests/`, dependencias, configuración o migraciones |
+| Reutilización | Puertas existentes de entrega: `npm run verify`, `npm run verify:remote`, `supabase db push --dry-run`, Prettier dirigido, `git diff --check`, CI de GitHub y despliegue automático de Vercel desde `main` |
+| Decisiones | No se creó migración ni se tocó Supabase durante esta publicación: el dry-run confirmó que las 21 migraciones ya estaban alineadas. No se repitió Playwright porque los únicos commits pendientes eran documentales; la última suite funcional completa permanece en 213/213 |
+| Verificación | `verify` verde: typecheck, lint con 0 errores y 2 avisos conocidos de TanStack, 293/293 unitarias y build de producción. `verify:remote` 13/13; base remota al día; Prettier y `git diff --check` verdes. Después del push se confirmaron Vercel, ambos trabajos de CI y HTTP de producción antes de cerrar |
+| Errores encontrados | Ninguno. El build tardó más que una revisión documental por compilar la aplicación completa, pero terminó correctamente |
+| Advertencia | Los respaldos de las dos intervenciones permanecen fuera del repositorio en `D:\Claude\Personal\Rifas-backups`. Supabase sigue sin backups automáticos ni PITR (I-024). Los riesgos operativos I-021 e I-023 también siguen abiertos |
+| Pendiente | Ninguno para esta publicación. Permanecen únicamente los riesgos operativos I-021, I-023 e I-024 |
+| Git | Todos los commits locales de `main` se publicaron con autorización y `main == origin/main` quedó confirmado. El hash propio de este relevo no se duplica dentro del documento; verificar el estado vigente con Git |
 
 ## 1.b Qué queda abierto
 

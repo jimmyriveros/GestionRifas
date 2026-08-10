@@ -1276,3 +1276,23 @@ esquema ni reglas del producto.
 
 El borrado físico fue una excepción explícita para retirar el inventario demo inicial, no una
 modificación de BR-N08. Las boletas anuladas durante la operación normal se siguen conservando.
+
+---
+
+## Preflight de publicación estable — 2026-08-10
+
+El usuario autorizó revisar y publicar todo lo pendiente en `main`. La comparación contra
+`origin/main` encontró únicamente los dos commits documentales que registran las intervenciones de
+datos del 2026-08-09; no había archivos sin commit ni cambios ejecutables.
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| `git diff --check origin/main..HEAD` | ✅ | Dos archivos documentales; sin cambios en código, pruebas, dependencias, configuración o migraciones |
+| `npm run verify` | ✅ | Typecheck; lint con 0 errores y 2 avisos conocidos de TanStack; **293/293** unitarias; build de producción exitoso |
+| `npm run verify:remote` | ✅ **13/13** | Invariantes de seguridad y catálogo del proyecto Supabase real en verde |
+| `npx supabase db push --dry-run` | ✅ | `Remote database is up to date`; 0 migraciones, seeds o roles pendientes |
+| `npx prettier --check docs/HANDOFF.md docs/TEST_RESULTS.md` | ✅ | Los documentos de cierre cumplen el formato del repositorio |
+
+No se repitió `test:e2e`: los commits pendientes son exclusivamente documentales y no cambian rutas,
+UI, autenticación, autorización ni integraciones. La última suite funcional completa permanece en
+**213/213** y el CI vuelve a reconstruir el proyecto y la base desde cero después del push.
