@@ -1234,3 +1234,25 @@ depende de las RPC nuevas, se promovió primero la migración siguiendo D-070 y 
 | Rollback y comprobación posterior | ✅ **0 residuos** | 0 clientes y 0 boletas de la sonda en el proyecto real |
 
 I-054 queda resuelto. La base se promovió antes del push del consumidor a `main`.
+
+---
+
+## Corrección autorizada de datos en producción — 2026-08-09
+
+Intervención operativa solicitada explícitamente después de probar la importación con clientes. No
+cambió código, esquema ni reglas del producto. Los nombres y celulares del cliente real no se copian
+a este registro; la bitácora autoritativa de las filas vive en `audit_logs`.
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| Inspección de clientes, boletas, pagos, asignaciones y FK | ✅ | Dos boletas erróneas sin pagos; cliente duplicado con solo esas dos boletas; cliente demo con exactamente dos boletas anuladas, motivo demo y 0 pagos |
+| Respaldo lógico externo | ✅ | `D:\Claude\Personal\Rifas-backups\2026-08-09-antes-correccion-clientes`: `roles.sql`, `schema.sql` y `data.sql`; archivos no vacíos y 0 referencias a Auth, contraseñas o tokens en datos |
+| Transacción `SERIALIZABLE` con bloqueos de fila | ✅ | 2 reasignaciones al cliente correcto, 1 cliente duplicado eliminado, 2 boletas demo eliminadas y 1 cliente demo eliminado; cualquier deriva de identidad, estado, cantidad o pagos abortaba todo |
+| Auditoría dentro de la transacción | ✅ **6/6** | 2 `ticket.update`, 2 `ticket.delete` y 2 `client.delete` generados por los triggers existentes |
+| Verificación posterior desde una conexión nueva | ✅ | 2/2 boletas asignadas al destino correcto; 0 clientes objetivo residuales y 0 boletas demo residuales |
+| `npm run verify:remote` | ✅ **13/13** | Las invariantes de seguridad y catálogo del proyecto real permanecen en verde |
+| `https://gestion-rifas.vercel.app` | ✅ HTTP 200 | La aplicación siguió disponible; no hizo falta despliegue |
+
+La eliminación física fue una excepción explícita para corregir datos erróneos/demo sin movimientos,
+no una modificación de BR-C06 ni BR-N08. El flujo normal sigue siendo archivar clientes y conservar
+boletas anuladas.

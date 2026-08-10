@@ -55,19 +55,19 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — clientes en la importación CSV/JSON (2026-08-09)
+## 1.a Último relevo significativo — corrección autorizada de datos en producción (2026-08-09)
 
 | Campo | Estado |
 |---|---|
-| Resultado | Importador CSV/JSON extendido con filas mixtas. Cliente es opcional por fila, pero si aparece exige nombre + celular. Owner/Admin crea o reutiliza una identidad inequívoca y deja las boletas asignadas; Seller conserva el flujo sin cliente y `pending_approval` |
-| Archivos | `src/features/tickets/import/`, ajuste contextual en `BulkTicketCreator`, tipos de base, migración `0021`, pruebas unitarias/DB/E2E y documentación normativa/operativa relacionada |
-| Reutilización | `validateBulkRows`, esquemas de cliente, normalización de búsqueda, `bulk_create_tickets` para archivos antiguos, `assign_ticket_row` para asignar, mismo `TicketImportDialog` parametrizado y auditoría de D-081 |
-| Decisiones | D-087: celular obligatorio; identidad = nombre + celular nacional dentro de una cartera; coincidencia activa, exacta y única se reutiliza; ambigüedad/archivado/mismo celular con otro nombre se bloquea. Solo personal importa con cliente para no saltarse BR-I03/BR-I09. Sin `client_ref` |
-| Verificación | Base reconstruida con 21 migraciones; `test:db` 378/378; `verify` verde (293 unitarias, typecheck, lint y build; 0 errores y 2 avisos conocidos de TanStack); spec de importación 9/9; E2E completa 213/213. En el proyecto real: dry-run limitado a `0021`, `db push` correcto, `verify:remote` 13/13 y sonda transaccional de catálogo/comportamiento con rollback y 0 residuos |
-| Errores encontrados | Playwright no tenía Chromium tras actualizar dependencias: se instaló con `npx playwright install chromium`. Primera E2E completa: 212/213 porque una prueba esperaba el texto antiguo «números mal escritos»; se actualizó a «datos incompletos o mal escritos», la spec pasó 9/9 y la suite completa 213/213. Un reintento sin reset eligió una rifa creada por la suite anterior; al restaurar el seed pasó |
-| Advertencia | Supabase sigue en plan Free y no ofrece backups automáticos ni PITR (I-024). El respaldo previo a `0021` está fuera del repositorio en `D:\Claude\Personal\Rifas-backups\2026-08-09-antes-0021`. Los archivos antiguos sin cliente siguen compatibles |
-| Pendiente | Trabajo funcional y promoción de base terminados. Confirmar el despliegue de Vercel iniciado por el push y hacer la prueba manual solicitada. Permanecen los riesgos operativos I-021/I-023/I-024 |
-| Git | `main`; cambio funcional en `74136d1`. Este relevo registra la promoción y el push autorizado a `origin/main`; comprobar el hash vigente con Git en vez de mantenerlo duplicado aquí |
+| Resultado | Dos boletas recién importadas se reasignaron al cliente correcto; después se eliminó el cliente duplicado que quedó sin dependencias. También se retiraron un cliente del seed y sus dos únicas boletas anuladas marcadas como demo. No se tocaron pagos, otras boletas, esquema ni código |
+| Archivos | Solo documentación operativa. La mutación fue sobre seis filas de negocio del proyecto Supabase real: 2 `ticket.update`, 2 `ticket.delete` y 2 `client.delete`, todas registradas por los triggers de auditoría |
+| Reutilización | Respaldo lógico de `RUNBOOK.md` §5.1, restricciones/FK existentes, protección de cambio de cliente, triggers de auditoría y verificación remota del catálogo. Transacción PostgreSQL `SERIALIZABLE` con bloqueos y aserciones antes de cada cambio |
+| Decisiones | Excepción puntual autorizada por el usuario a BR-C06/BR-N08 para retirar datos erróneos y demo. No cambia la regla del producto: los clientes con historial se archivan y las boletas anuladas se conservan. El borrado físico solo continuó tras comprobar exactamente 0 pagos y 0 asignaciones |
+| Verificación | Inspección previa de identidad, organización, vendedor, estados y relaciones; respaldo completo validado; comprobaciones dentro de la transacción y después del commit desde una conexión nueva; `verify:remote` 13/13; producción HTTP 200 |
+| Errores encontrados | El cliente demo estaba guardado sin tilde, por lo que la búsqueda exacta inicial no lo mostró. La búsqueda por variantes lo resolvió de forma única: dos boletas anuladas, ambas con motivo demo y sin pagos |
+| Advertencia | Respaldo fuera del repositorio: `D:\Claude\Personal\Rifas-backups\2026-08-09-antes-correccion-clientes`. Supabase sigue en plan Free, sin backups automáticos ni PITR (I-024). No copiar esta excepción como un flujo normal de borrado |
+| Pendiente | Ninguno para esta corrección. La persona operadora debe refrescar la aplicación y confirmar visualmente las dos reasignaciones. Permanecen los riesgos operativos I-021/I-023/I-024 |
+| Git | `main` estaba limpio y alineado con `origin/main` en `fc5be7c` antes de registrar esta intervención. No hubo cambio funcional, migración, push ni despliegue |
 
 ## 1.b Qué queda abierto
 
