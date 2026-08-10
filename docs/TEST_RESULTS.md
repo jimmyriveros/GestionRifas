@@ -1256,3 +1256,23 @@ a este registro; la bitácora autoritativa de las filas vive en `audit_logs`.
 La eliminación física fue una excepción explícita para corregir datos erróneos/demo sin movimientos,
 no una modificación de BR-C06 ni BR-N08. El flujo normal sigue siendo archivar clientes y conservar
 boletas anuladas.
+
+---
+
+## Eliminación autorizada de las ocho boletas demo anuladas — 2026-08-09
+
+Seguimiento operativo solicitado explícitamente después de la corrección anterior. No cambió código,
+esquema ni reglas del producto.
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| Inspección de todas las boletas `cancelled` | ✅ **8 exactas** | Códigos consecutivos `R001-000024`–`R001-000031`; todas con motivo demo, cliente/precio nulos, saldo cero y 0 asignaciones de pago |
+| Respaldo lógico externo | ✅ | `D:\Claude\Personal\Rifas-backups\2026-08-09-antes-eliminar-8-boletas-demo`: `roles.sql`, `schema.sql` y `data.sql`; archivos no vacíos y 0 referencias a Auth, contraseñas o tokens en datos |
+| Transacción `SERIALIZABLE` con bloqueos de fila | ✅ **8/8** | El conjunto completo se volvió a validar antes del `DELETE`; cualquier novena fila, dependencia o cambio de estado abortaba todo |
+| Auditoría dentro de la transacción | ✅ **8/8** | Ocho `ticket.delete` generados por el trigger existente |
+| Verificación posterior desde una conexión nueva | ✅ | 0 boletas `cancelled` y 0 filas con los ocho códigos retirados |
+| `npm run verify:remote` | ✅ **13/13** | Las invariantes de seguridad y catálogo permanecen en verde |
+| `https://gestion-rifas.vercel.app` | ✅ HTTP 200 | La aplicación siguió disponible; no hizo falta despliegue |
+
+El borrado físico fue una excepción explícita para retirar el inventario demo inicial, no una
+modificación de BR-N08. Las boletas anuladas durante la operación normal se siguen conservando.

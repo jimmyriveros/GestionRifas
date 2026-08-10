@@ -55,19 +55,19 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — corrección autorizada de datos en producción (2026-08-09)
+## 1.a Último relevo significativo — limpieza autorizada de boletas demo (2026-08-09)
 
 | Campo | Estado |
 |---|---|
-| Resultado | Dos boletas recién importadas se reasignaron al cliente correcto; después se eliminó el cliente duplicado que quedó sin dependencias. También se retiraron un cliente del seed y sus dos únicas boletas anuladas marcadas como demo. No se tocaron pagos, otras boletas, esquema ni código |
-| Archivos | Solo documentación operativa. La mutación fue sobre seis filas de negocio del proyecto Supabase real: 2 `ticket.update`, 2 `ticket.delete` y 2 `client.delete`, todas registradas por los triggers de auditoría |
-| Reutilización | Respaldo lógico de `RUNBOOK.md` §5.1, restricciones/FK existentes, protección de cambio de cliente, triggers de auditoría y verificación remota del catálogo. Transacción PostgreSQL `SERIALIZABLE` con bloqueos y aserciones antes de cada cambio |
-| Decisiones | Excepción puntual autorizada por el usuario a BR-C06/BR-N08 para retirar datos erróneos y demo. No cambia la regla del producto: los clientes con historial se archivan y las boletas anuladas se conservan. El borrado físico solo continuó tras comprobar exactamente 0 pagos y 0 asignaciones |
-| Verificación | Inspección previa de identidad, organización, vendedor, estados y relaciones; respaldo completo validado; comprobaciones dentro de la transacción y después del commit desde una conexión nueva; `verify:remote` 13/13; producción HTTP 200 |
-| Errores encontrados | El cliente demo estaba guardado sin tilde, por lo que la búsqueda exacta inicial no lo mostró. La búsqueda por variantes lo resolvió de forma única: dos boletas anuladas, ambas con motivo demo y sin pagos |
-| Advertencia | Respaldo fuera del repositorio: `D:\Claude\Personal\Rifas-backups\2026-08-09-antes-correccion-clientes`. Supabase sigue en plan Free, sin backups automáticos ni PITR (I-024). No copiar esta excepción como un flujo normal de borrado |
-| Pendiente | Ninguno para esta corrección. La persona operadora debe refrescar la aplicación y confirmar visualmente las dos reasignaciones. Permanecen los riesgos operativos I-021/I-023/I-024 |
-| Git | `main` estaba limpio y alineado con `origin/main` en `fc5be7c` antes de registrar esta intervención. No hubo cambio funcional, migración, push ni despliegue |
+| Resultado | Se eliminaron las ocho boletas que quedaban en estado `cancelled`, todas pertenecientes al inventario demo y con motivos de anulación que las identificaban como tales. Producción quedó con 0 boletas anuladas. No se tocaron clientes, pagos, otras boletas, esquema ni código |
+| Archivos | Solo documentación operativa. La mutación fue sobre 8 filas `tickets` del proyecto Supabase real; los triggers existentes registraron 8 `ticket.delete` en `audit_logs` |
+| Reutilización | Respaldo lógico de `RUNBOOK.md` §5.1, restricciones/FK existentes, triggers de auditoría y verificación remota del catálogo. Transacción PostgreSQL `SERIALIZABLE` con bloqueos y aserciones del conjunto completo antes del borrado |
+| Decisiones | Excepción puntual autorizada por el usuario a BR-N08 para retirar el inventario demo inicial. No cambia la regla del producto: las boletas anuladas normales se conservan y sus combinaciones no se reutilizan. Solo se continuó tras resolver exactamente 8 filas, todas sin cliente, venta, saldo ni asignaciones |
+| Verificación | Inspección previa de las 8 filas y sus relaciones; respaldo completo posterior a la corrección anterior; comprobaciones dentro de la transacción y después del commit desde una conexión nueva; 8/8 eventos de auditoría; `verify:remote` 13/13; producción HTTP 200 |
+| Errores encontrados | Ninguno. El conjunto observado coincidió exactamente con las ocho boletas demo solicitadas |
+| Advertencia | Respaldo fuera del repositorio: `D:\Claude\Personal\Rifas-backups\2026-08-09-antes-eliminar-8-boletas-demo`. El borrado libera esas combinaciones para una carga futura; no copiar esta excepción como flujo normal. Supabase sigue sin backups automáticos ni PITR (I-024) |
+| Pendiente | Ninguno para esta limpieza. La persona operadora debe refrescar la lista para confirmar visualmente que ya no hay anuladas. Permanecen los riesgos operativos I-021/I-023/I-024 |
+| Git | `main` estaba limpio en `6de006a`, un commit documental por delante de `origin/main`, antes de registrar esta intervención. No hubo cambio funcional, migración, push ni despliegue |
 
 ## 1.b Qué queda abierto
 
