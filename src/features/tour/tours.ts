@@ -29,7 +29,7 @@ export type TourTarget =
   | 'filters'
   | 'data-table'
   // Paneles
-  | 'active-raffle'
+  | 'financial-summary'
   | 'metrics-inventory'
   | 'metrics-collection'
   | 'quick-actions'
@@ -156,11 +156,11 @@ const OWNER_TOURS: Tour[] = [
     steps: [
       ...navigationSteps('las rifas, las boletas, tus vendedores y los pagos'),
       {
-        id: 'active-raffle',
-        target: 'active-raffle',
+        id: 'financial-summary',
+        target: 'financial-summary',
         side: 'bottom',
-        title: 'La rifa que está en curso',
-        body: 'Aquí ves cuál rifa está activa y a qué precio quedó cada boleta. El botón te lleva a sus boletas.',
+        title: 'El dinero de la rifa',
+        body: 'Lo vendido es a cuánto se comprometieron tus clientes; lo recaudado, lo que ya pagaron. El saldo pendiente es lo que falta por cobrar.',
       },
       {
         id: 'metrics-inventory',
@@ -173,8 +173,8 @@ const OWNER_TOURS: Tour[] = [
         id: 'metrics-collection',
         target: 'metrics-collection',
         side: 'top',
-        title: 'El dinero de la rifa',
-        body: 'Lo vendido es a cuánto se comprometieron tus clientes; lo recaudado, lo que ya pagaron. El saldo pendiente es lo que falta por cobrar.',
+        title: 'Cómo va el pago de cada boleta',
+        body: '«Sin pagar» significa que ese cliente no ha pagado nada; «Abonada», que pagó una parte; «Pagada», que ya completó el valor.',
       },
       {
         id: 'seller-summary',
@@ -273,11 +273,11 @@ const SELLER_TOURS: Tour[] = [
         body: '«Vender una boleta» te muestra las que tienes libres. «Nuevo cliente» guarda los datos de quien te compra, para no volver a escribirlos.',
       },
       {
-        id: 'active-raffle',
-        target: 'active-raffle',
+        id: 'financial-summary',
+        target: 'financial-summary',
         side: 'bottom',
-        title: 'La rifa de la que vendes',
-        body: 'Aquí ves su nombre y cuánto cuesta cada boleta. Ese precio queda fijo en la boleta el día que la vendes.',
+        title: 'Cómo va tu cobranza',
+        body: 'Lo vendido es a cuánto se comprometieron tus clientes; lo recaudado, lo que ya te pagaron. El saldo pendiente es lo que te falta por cobrar.',
       },
       {
         id: 'metrics-inventory',
@@ -290,8 +290,8 @@ const SELLER_TOURS: Tour[] = [
         id: 'metrics-collection',
         target: 'metrics-collection',
         side: 'top',
-        title: 'Cómo va tu cobranza',
-        body: 'Lo vendido es a cuánto se comprometieron tus clientes; lo recaudado, lo que ya te pagaron. El saldo pendiente es lo que te falta por cobrar.',
+        title: 'Cómo va el pago de tus boletas',
+        body: '«Sin pagar» es la que no te han pagado nada; «Abonada», la que te dieron una parte; «Pagada», la que ya te completaron el valor.',
       },
       helpStep(),
       closingStep(),

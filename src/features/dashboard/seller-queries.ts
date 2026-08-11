@@ -1,7 +1,6 @@
 import 'server-only'
 
 import { listPayments, type PaymentListItem } from '@/features/payments/queries'
-import { listRaffleOptions, type RaffleOption } from '@/features/raffles/queries'
 import { createClient } from '@/lib/supabase/server'
 
 /**
@@ -14,9 +13,6 @@ import { createClient } from '@/lib/supabase/server'
  */
 
 export type SellerDashboard = {
-  activeRaffle: RaffleOption | null
-  /** Rifas activas que le permiten crear boletas (BR-R10). */
-  canCreateTickets: boolean
   totals: {
     ticketsTotal: number
     ticketsAvailable: number
@@ -61,14 +57,12 @@ export async function getSellerDashboard(): Promise<SellerDashboard> {
   const supabase = await createClient()
 
   const [
-    raffles,
     { data: summary, error: summaryError },
     { count: clientsCount, error: clientsCountError },
     { data: recentClients, error: recentClientsError },
     { data: recentTickets, error: recentTicketsError },
     recentPayments,
   ] = await Promise.all([
-    listRaffleOptions(),
     supabase.from('v_seller_summary').select('*'),
     // Conteo EXACTO en SQL: contar filas en memoria seria erroneo porque
     // PostgREST corta las respuestas en 1.000 filas.
@@ -114,11 +108,7 @@ export async function getSellerDashboard(): Promise<SellerDashboard> {
     { ...ZERO },
   )
 
-  const activeRaffles = raffles.filter((raffle) => raffle.status === 'active')
-
   return {
-    activeRaffle: activeRaffles[0] ?? null,
-    canCreateTickets: activeRaffles.some((raffle) => raffle.allowSellerTicketCreation),
     totals,
     clientsCount: clientsCount ?? 0,
     recentClients: (recentClients ?? []).map((row) => ({

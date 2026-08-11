@@ -1,12 +1,11 @@
 import { AlertTriangleIcon } from 'lucide-react'
 import Link from 'next/link'
 
+import { CollectionSummaryCard } from '@/components/data/CollectionSummaryCard'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
-import { RaffleStatusBadge } from '@/components/data/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -26,7 +25,7 @@ import { ticketLabel } from '@/lib/tickets'
 export default async function OwnerDashboardPage() {
   const membership = await requireStaff()
   const dashboard = await getAdminDashboard()
-  const { totals, activeRaffle } = dashboard
+  const { totals } = dashboard
 
   return (
     <div className="space-y-6">
@@ -48,40 +47,12 @@ export default async function OwnerDashboardPage() {
         </div>
       ) : null}
 
-      <Card {...tourTarget('active-raffle')}>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Rifa activa</CardTitle>
-          {activeRaffle ? <RaffleStatusBadge status={activeRaffle.status} /> : null}
-        </CardHeader>
-        <CardContent>
-          {activeRaffle ? (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <Link
-                  href={`/owner/raffles/${activeRaffle.id}`}
-                  className="text-lg font-semibold hover:underline"
-                >
-                  {activeRaffle.name}
-                </Link>
-                <p className="text-muted-foreground text-sm">
-                  Boleta a {formatCOP(activeRaffle.ticketPrice)} · {activeRaffle.ticketsTotal}{' '}
-                  boleta(s)
-                </p>
-              </div>
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/owner/tickets?raffleId=${activeRaffle.id}`}>Ver sus boletas</Link>
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-muted-foreground text-sm">Todavía no hay ninguna rifa creada.</p>
-              <Button asChild size="sm">
-                <Link href="/owner/raffles/new">Crear la primera rifa</Link>
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <CollectionSummaryCard
+        totalSold={totals.totalSold}
+        totalCollected={totals.totalCollected}
+        pendingAmount={totals.pendingAmount}
+        pendingTicketsCount={totals.ticketsUnpaid + totals.ticketsPartial}
+      />
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Inventario</h2>
@@ -99,16 +70,10 @@ export default async function OwnerDashboardPage() {
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Cobranza</h2>
-        <div
-          {...tourTarget('metrics-collection')}
-          className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6"
-        >
+        <div {...tourTarget('metrics-collection')} className="grid grid-cols-3 gap-4">
           <MetricCard label="Sin pagar" value={totals.ticketsUnpaid} />
           <MetricCard label="Abonadas" value={totals.ticketsPartial} />
           <MetricCard label="Pagadas" value={totals.ticketsPaid} />
-          <MetricCard label="Total vendido" value={formatCOP(totals.totalSold)} />
-          <MetricCard label="Total recaudado" value={formatCOP(totals.totalCollected)} />
-          <MetricCard label="Saldo pendiente" value={formatCOP(totals.pendingAmount)} />
         </div>
       </section>
 

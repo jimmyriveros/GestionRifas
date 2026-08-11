@@ -16,7 +16,6 @@ import { createClient } from '@/lib/supabase/server'
  */
 
 export type AdminDashboard = {
-  activeRaffle: RaffleSummary | null
   raffles: RaffleSummary[]
   sellers: SellerWithTotals[]
   activeSellers: number
@@ -67,10 +66,6 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
 
   if (recentError) throw recentError
 
-  // La rifa "activa" del encabezado: la primera activa; si no hay ninguna, la
-  // mas reciente, para que el panel nunca quede vacio sin explicacion.
-  const activeRaffle = raffles.find((raffle) => raffle.status === 'active') ?? raffles[0] ?? null
-
   const totals = raffles.reduce(
     (acc, raffle) => ({
       ticketsTotal: acc.ticketsTotal + raffle.ticketsTotal,
@@ -107,7 +102,6 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
   }
 
   return {
-    activeRaffle,
     raffles,
     sellers,
     activeSellers: members.filter((member) => member.isActive).length,

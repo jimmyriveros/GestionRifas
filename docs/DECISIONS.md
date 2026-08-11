@@ -1656,6 +1656,54 @@ interceptar su propio `router.back()`/`backHref` antes de navegar, no vivir dent
 
 ---
 
+## D-090 — El panel reemplaza «Rifa activa» por un resumen de cobranza, con una sola fuente de verdad
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-11)
+
+**Contexto.** El negocio opera una sola rifa activa a la vez (mismo supuesto que D-088), así que la
+tarjeta «Rifa activa» de los dos paneles (nombre, precio, botón) dejó de aportar información que el
+usuario no tuviera ya en otro sitio. Pidió sustituirla por un resumen ejecutivo de cobranza
+(recaudado, pendiente, barra de progreso, porcentaje, boletas por cobrar), con la condición explícita
+de que usara la misma fuente de verdad que las tarjetas de cobranza existentes, sin duplicar cálculos
+ni disparar consultas nuevas.
+
+**Decisión.** El nuevo `CollectionSummaryCard` (`src/components/data/CollectionSummaryCard.tsx`) no
+calcula nada financiero: recibe `totalSold`, `totalCollected`, `pendingAmount` y
+`pendingTicketsCount` — los mismos campos de `dashboard.totals` que ya alimentaban las tarjetas
+«Total vendido/recaudado/Saldo pendiente» y que alimentan «Boletas por cobrar» en `/owner/payments` y
+`/seller/payments` (`ticketsUnpaid + ticketsPartial`, la misma fórmula reutilizada aquí). Un helper
+puro, `calculateCollectionSummary` (`src/features/dashboard/collection-summary.ts`), deriva el
+porcentaje y acota `pendingAmount` a `[0, ∞)` y el porcentaje a `[0, 100]` — defensa de presentación,
+no detección de inconsistencias: la base de datos ya impide el sobrepago (trigger + constraint), así
+que no se construyó infraestructura nueva de auditoría para un caso que no puede ocurrir.
+
+Se retiraron por redundancia las tres tarjetas de dinero (Total vendido/recaudado/Saldo pendiente) de
+la fila «Cobranza» de ambos paneles: mostraban exactamente los mismos números que la tarjeta nueva,
+más pequeños. Se conservan las tres de conteo (Sin pagar/Abonadas/Pagadas), que no son redundantes.
+
+El botón «Crear boletas» de la tarjeta del vendedor se retiró sin reemplazo: ya es una acción fija en
+el encabezado de `/seller/tickets` y vuelve a aparecer en su estado vacío (CLAUDE.md §16), así que el
+panel no perdía ninguna capacidad real. Por simetría se retiró también el estado «no hay rifas
+todavía» del panel del Dueño: `/owner/raffles` ya ofrece «Nueva rifa» siempre en su encabezado y en su
+propio estado vacío.
+
+Como consecuencia directa, `activeRaffle` y `canCreateTickets` (`SellerDashboard`) y `activeRaffle`
+(`AdminDashboard`) se quedaron sin ningún consumidor: se retiraron de
+`src/features/dashboard/queries.ts` y `seller-queries.ts`, junto con la consulta
+`listRaffleOptions()` que solo existía para calcularlos en el panel del vendedor — una petición menos
+por carga de `/seller/dashboard`.
+
+**Alternativas.** (a) Mantener las tres tarjetas de dinero de «Cobranza» además del resumen nuevo
+(descartada: el propio encargo señala el riesgo a evitar —dos números iguales en dos sitios que un
+cambio futuro podría dejar de mostrar igual, aunque la fuente sea la misma—). (b) Calcular el resumen
+con una consulta propia (descartada: exactamente la duplicación de lógica financiera que CLAUDE.md
+§26/§29 prohíbe, y la que crea el riesgo de que un panel muestre un número distinto al otro).
+
+**Consecuencia.** Si el negocio vuelve a operar varias rifas activas a la vez, este resumen no
+necesita cambiar: ya agrega dinero de **todas** las rifas de la organización o del vendedor, igual que
+las tarjetas de cobranza que reemplaza — nunca dependió de «cuál es la rifa activa».
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

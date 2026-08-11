@@ -1,11 +1,11 @@
 import { AlertTriangleIcon, PlusIcon, SearchIcon } from 'lucide-react'
 import Link from 'next/link'
 
+import { CollectionSummaryCard } from '@/components/data/CollectionSummaryCard'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getSellerDashboard } from '@/features/dashboard/seller-queries'
 import { tourTarget } from '@/features/tour/tours'
 import { requireRole } from '@/lib/auth/guards'
@@ -17,7 +17,7 @@ import { ticketLabel } from '@/lib/tickets'
 export default async function SellerDashboardPage() {
   const membership = await requireRole(['seller'])
   const dashboard = await getSellerDashboard()
-  const { totals, activeRaffle } = dashboard
+  const { totals } = dashboard
 
   return (
     <div className="space-y-6">
@@ -61,33 +61,12 @@ export default async function SellerDashboardPage() {
         </p>
       ) : null}
 
-      <Card {...tourTarget('active-raffle')}>
-        <CardHeader>
-          <CardTitle className="text-base">Rifa activa</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {activeRaffle ? (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-lg font-semibold">{activeRaffle.name}</p>
-                <p className="text-muted-foreground text-sm">
-                  Boleta a {formatCOP(activeRaffle.ticketPrice)}
-                  {dashboard.canCreateTickets ? ' · puedes crear tus propias boletas' : ''}
-                </p>
-              </div>
-              {dashboard.canCreateTickets ? (
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/seller/tickets/new">Crear boletas</Link>
-                </Button>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              No hay ninguna rifa activa en este momento.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <CollectionSummaryCard
+        totalSold={totals.totalSold}
+        totalCollected={totals.totalCollected}
+        pendingAmount={totals.pendingAmount}
+        pendingTicketsCount={totals.ticketsUnpaid + totals.ticketsPartial}
+      />
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Mis boletas</h2>
@@ -105,16 +84,10 @@ export default async function SellerDashboardPage() {
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Cobranza</h2>
-        <div
-          {...tourTarget('metrics-collection')}
-          className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6"
-        >
+        <div {...tourTarget('metrics-collection')} className="grid grid-cols-3 gap-4">
           <MetricCard label="Sin pagar" value={totals.ticketsUnpaid} />
           <MetricCard label="Abonadas" value={totals.ticketsPartial} />
           <MetricCard label="Pagadas" value={totals.ticketsPaid} />
-          <MetricCard label="Total vendido" value={formatCOP(totals.totalSold)} />
-          <MetricCard label="Total recaudado" value={formatCOP(totals.totalCollected)} />
-          <MetricCard label="Saldo pendiente" value={formatCOP(totals.pendingAmount)} />
         </div>
       </section>
 

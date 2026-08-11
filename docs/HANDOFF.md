@@ -32,13 +32,13 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
 | Último cambio funcional promovido | `a25a289` — flecha de volver en las pantallas de detalle (BR-X09, D-089), 2026-08-10; desplegado en Vercel y verificado. No necesitó migración |
-| Punto de partida del último mantenimiento | `main` en `2043108`, igual a `origin/main`, con árbol limpio antes de implementar |
+| Punto de partida del último mantenimiento | `main` en `c49ccc2`, igual a `origin/main`, con árbol limpio antes de implementar (2026-08-11) |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
 | Base de datos | **21 migraciones en local y en el proyecto real**; `0021` se promovió y verificó el 2026-08-09 después del respaldo externo requerido. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **293 unitarias**, **378 de base de datos** y **224 E2E**, todas revalidadas el 2026-08-10; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
+| Pruebas | **299 unitarias**, **378 de base de datos** y **227 E2E**, todas revalidadas el 2026-08-11; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -55,28 +55,28 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — flecha de volver en las pantallas de detalle (2026-08-10)
+## 1.a Último relevo significativo — resumen de cobranza en el panel (2026-08-11)
 
 | Campo | Estado |
 |---|---|
-| Resultado | Patrón global de navegación hacia atrás (BR-X09, D-089), a petición explícita del usuario. Las 8 pantallas de detalle/edición y 2 más (crear boletas del vendedor, cambiar contraseña) reemplazan sus botones/enlaces «Volver a…» —o, en 6 de los 10 casos, no tenían ninguno— por una flecha junto al título. Prefiere el historial real de la sesión (conserva búsqueda, filtro, página y scroll **sin código nuevo**, porque ya viven en la URL) y cae en un destino de repuesto por entidad cuando no hay pantalla anterior real. **No se tocó base de datos, esquema, RLS ni consultas.** **Pendiente de publicar**: queda en commit(s) local(es) sin push, a la espera de autorización |
-| Archivos | Nuevos: `BackButton.tsx`, `navigation-history.ts`, `NavigationHistoryTracker.tsx`, `tests/e2e/back-navigation.spec.ts`, `tests/e2e/back-navigation-movil.spec.ts`. Modificados: `PageHeader.tsx`, `layout.tsx` (raíz), y las 10 pantallas de detalle/edición/creación/cuenta. Documentación: `DECISIONS.md` (D-089), `ARCHITECTURE.md` §8.2/§8.6, `BUSINESS_RULES.md` (BR-X09), `TESTING.md` §5.2, `PHASE_STATUS.md`, `TEST_RESULTS.md` |
-| Reutilización | `PageHeader` se extendió (`backHref`/`backLabel`), no se creó un `DetailHeader` aparte: la parte interactiva vive en `BackButton` (`'use client'`), así que `PageHeader` sigue sirviendo a Server Components y las 23 pantallas que no pasan `backHref` no cambian. El botón reutiliza el patrón de diana de 44 px de `SelectionCheckbox` (D-085) |
-| Decisiones | **D-089**, con su historia completa en el documento: la primera versión detectaba el historial con una marca en `sessionStorage`, y una prueba E2E la tumbó —sobrevivía a la carga dura del login, así que abrir una boleta por URL directa justo después de iniciar sesión heredaba el historial *del login*—. Se sustituyó por un contador de **variable de módulo**, que una carga dura reinicia sola. Ver también §8.6 de `ARCHITECTURE.md` |
-| Verificación | `typecheck` ✅ · `lint` ✅ 0 errores · **293/293** unitarias ✅ · `build` ✅ · **378/378** de base de datos ✅ · **224/224** E2E ✅ (213 anteriores + 11 nuevas: 9 escritorio + 2 móvil), incluida la suite completa tras `db:reset`+`seed:local` en 11,4 min |
-| Errores encontrados | El diseño con `sessionStorage` (arriba) — encontrado por una prueba E2E propia, no en producción ni por el usuario, y corregido antes de proponerlo. Aparte, dos textos de columna equivocados en las pruebas nuevas («Nombre» en vez de «Cliente»/«Rifa») y un timeout de compilación en frío de Turbopack en la primera pasada de un archivo de pruebas nuevo — ninguno de los dos era un defecto del producto |
-| Advertencia | El navegador integrado de este entorno no compone fotogramas si el panel no está visible (I-012): las pantallas detrás de `loading.tsx` —es decir, casi todas— se quedan con el esqueleto pegado ahí, aunque el servidor ya envió el HTML completo. No sirve para verificar visualmente este tipo de cambio; Playwright sí |
-| Publicación | **Desplegado en producción el 2026-08-10 con autorización expresa.** `--dry-run` confirmó 0 migraciones pendientes antes del push. Después: CI 2/2, despliegue de Vercel `READY` sobre el SHA `a25a289`, y `https://gestion-rifas.vercel.app/login` en HTTP 200 con sus cabeceras |
-| Pendiente | Nada de este trabajo. Siguen abiertos los riesgos operativos I-021, I-023 e I-024, y la deuda I-030, I-037 e I-046–I-052 |
-| Git | Rama `main`, de `e9d3444` a `a25a289`; `main == origin/main`. Se empujó **solo la rama**: las etiquetas `fase-3`…`fase-9` siguen sin subir |
+| Resultado | Se reemplazó el bloque «Rifa activa» de los dos paneles (Dueño y Vendedor) por un resumen ejecutivo de cobranza (`CollectionSummaryCard`, D-090): recaudado, pendiente, barra de progreso, porcentaje y boletas por cobrar. No usa datos nuevos: reutiliza exactamente `dashboard.totals`, la misma fuente que ya alimentaba las tarjetas de «Cobranza» y las de `/owner/payments`/`/seller/payments`. Se retiraron por redundancia las 3 tarjetas de dinero de esa fila (quedan las 3 de conteo: Sin pagar/Abonadas/Pagadas) y el botón «Crear boletas» del panel del vendedor (ya vive en `/seller/tickets`, encabezado + estado vacío). **No se tocó base de datos, esquema, RLS ni consultas de negocio.** **Pendiente de publicar**: queda en commit(s) local(es) sin push, a la espera de autorización |
+| Archivos | Nuevos: `CollectionSummaryCard.tsx`, `collection-summary.ts`, `tests/unit/collection-summary.test.ts`, `tests/e2e/dashboard-collection-summary.spec.ts`. Modificados: `owner/dashboard/page.tsx`, `seller/dashboard/page.tsx`, `dashboard/queries.ts`, `dashboard/seller-queries.ts`, `tour/tours.ts`. Documentación: `DECISIONS.md` (D-090), `ARCHITECTURE.md` §8.2 |
+| Reutilización | `dashboard.totals` tal cual, sin ninguna consulta nueva; la barra de progreso copia el patrón accesible que ya existía en `BulkTicketCreator.tsx` (`role="progressbar"` + dos `div`, sin librería nueva); `MetricCard`, `Card`, `formatCOP` y `tourTarget` de siempre |
+| Decisiones | **D-090**. La consistencia con `/owner/payments` y `/seller/payments` se verificó **end-to-end** (la prueba E2E lee ambas pantallas y compara los números), no solo revisando el código. `activeRaffle` y `canCreateTickets` (`SellerDashboard`/`AdminDashboard`) se retiraron por quedarse sin ningún consumidor tras el cambio — junto con la consulta `listRaffleOptions()` que solo existía para calcularlos en el panel del vendedor, una petición menos por carga |
+| Verificación | `typecheck` ✅ · `lint` ✅ 0 errores · **299/299** unitarias ✅ (293 + 6 nuevas) · `build` ✅ · **378/378** de base de datos ✅ (sin cambios de esquema) · **227/227** E2E ✅ (224 anteriores + 3 nuevas). La primera pasada completa marcó 5 fallos en archivos que este trabajo no toca (`back-navigation`, `filas-seleccionables`, `importar-boletas`); repetidos solos tras `db:reset`+`seed:local` pasaron 27/27 — contaminación entre archivos de una corrida larga sin resets intermedios, no una regresión (mismo patrón que I-035/I-055) |
+| Errores encontrados | Una prueba E2E propia asumía que `CardTitle` expone rol `heading`; en este sistema de diseño es un `<div>` sin rol ARIA — corregido antes de proponerlo, no era un defecto del producto |
+| Advertencia | Mismo límite que en relevos anteriores: el navegador integrado de este entorno no compone fotogramas fuera de las pantallas más simples (I-012). El panel se leyó por texto sin problema, pero `/owner/payments` se quedó pegado al esqueleto en la vista previa aunque el servidor ya había respondido 200 — la verificación real fue con Playwright, que sí compara ambas pantallas |
+| Publicación | Ninguna todavía: cambios solo en commit(s) local(es), a la espera de autorización expresa del usuario |
+| Pendiente | Nada de este trabajo. Siguen abiertos los mismos riesgos operativos I-021, I-023 e I-024, y la deuda I-030, I-037 e I-046–I-052 |
+| Git | Rama `main`, desde `c49ccc2`; ver el commit de cierre en el historial de Git. No se hizo push |
 
-## 1.a.1 Relevo anterior — «Mis boletas» sin rifa, y dos derivas documentales (2026-08-10)
+## 1.a.1 Relevo anterior — flecha de volver en las pantallas de detalle (2026-08-10)
 
-Contexto histórico: ya publicado y verificado en producción (`7b1bff5`, más `bb6db5f` y `e9d3444`
-documentales/de corrección). Resumen: `/seller/tickets` dejó de mostrar el filtro y la columna «Rifa»
-(D-088); en el mismo trabajo apareció y se corrigió **I-055**, una prueba de la importación que se
-identificaba por el número diario solo y podía afirmar sobre la boleta de otra prueba. Detalle
-completo en `TEST_RESULTS.md` y en el historial de Git (`7b1bff5`, `bb6db5f`, `e9d3444`).
+Contexto histórico: ya publicado y verificado en producción (`a25a289`, con `e9d3444`/`bb6db5f`
+previos de corrección/documentación). Resumen: patrón global de navegación hacia atrás (BR-X09,
+D-089) en las 8 pantallas de detalle/edición y 2 más; prefiere el historial real de la sesión y cae en
+un destino de repuesto por entidad cuando no hay pantalla anterior real. Detalle completo en
+`DECISIONS.md` (D-089) y en el historial de Git.
 
 ## 1.b Qué queda abierto
 
