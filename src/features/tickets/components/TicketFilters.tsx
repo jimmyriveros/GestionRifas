@@ -28,7 +28,8 @@ import { SEARCH_MIN_CHARS } from '@/lib/search'
 type Option = { value: string; label: string }
 
 type TicketFiltersProps = {
-  raffles: Option[]
+  /** Se omite donde se opera una sola rifa: el portal del vendedor (D-088). */
+  raffles?: Option[]
   /** Solo el portal administrativo filtra por vendedor. */
   sellers?: Option[]
   /** Solo el portal del vendedor filtra por cliente. */
@@ -69,6 +70,9 @@ export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps)
     startTransition(() => router.push(query ? `${pathname}?${query}` : pathname))
   }
 
+  // `raffleId` sigue en la lista aunque el selector no se muestre: un enlace
+  // compartido puede traerlo, y entonces «Limpiar filtros» tiene que aparecer y
+  // saber quitarlo. Ocultar el control no deja el filtro sin salida (D-088).
   const hasFilters = [
     'q',
     'raffleId',
@@ -97,15 +101,17 @@ export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps)
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <FilterSelect
-          id="filter-raffle"
-          label="Rifa"
-          value={searchParams.get('raffleId') ?? ALL}
-          onChange={(value) => apply({ raffleId: value })}
-          options={raffles}
-          allLabel="Todas las rifas"
-          disabled={isPending}
-        />
+        {raffles ? (
+          <FilterSelect
+            id="filter-raffle"
+            label="Rifa"
+            value={searchParams.get('raffleId') ?? ALL}
+            onChange={(value) => apply({ raffleId: value })}
+            options={raffles}
+            allLabel="Todas las rifas"
+            disabled={isPending}
+          />
+        ) : null}
         {sellers ? (
           <FilterSelect
             id="filter-seller"

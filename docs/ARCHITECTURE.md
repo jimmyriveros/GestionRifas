@@ -46,7 +46,7 @@ Versiones estables verificadas en el registro de npm el 2026-08-02. Se fijan con
 | Fechas | `date-fns` + `@date-fns/tz` | `4.4.0` | Manejo de `America/Bogota` |
 | Notificaciones | `sonner` | `2.0.7` | Toasts (usado por shadcn/ui) |
 | Pruebas unitarias | `vitest` | `4.1.10` (entorno `jsdom@29.1.1`) | jsdom 30 exige Node 22+ — ver D-030 |
-| Pruebas E2E | `@playwright/test` | `1.62.1` | Chromium; 212 pruebas (escritorio y móvil) |
+| Pruebas E2E | `@playwright/test` | `1.62.1` | Chromium; 213 pruebas (escritorio y móvil) |
 | Lint | `eslint` + `eslint-config-next` | `9.39.5` / `16.3.0` | **No** ESLint 10 — ver D-031 |
 | Formato | `prettier` + `prettier-plugin-tailwindcss` | `3.9.6` | |
 | WebSocket (Node 20) | `ws` | `8.21.1` | Runtime dep — ver D-033 |
@@ -469,7 +469,7 @@ en servidor, crea usuarios de Auth y luego los datos de negocio requeridos por l
 el remoto, la contraseña viene de `SEED_DEFAULT_PASSWORD`; contra local usa la constante pública de
 desarrollo `LOCAL_SEED_PASSWORD`, válida solo para `127.0.0.1`.
 
-Ejecución local: `npm run db:reset && npm run seed:local`. El primer comando aplica las 20
+Ejecución local: `npm run db:reset && npm run seed:local`. El primer comando aplica las 21
 migraciones; el segundo siembra el estado conocido. `supabase/config.toml` todavía menciona un
 `supabase/seed.sql` inexistente y por eso la CLI muestra una advertencia inocua (I-048). El seed real
 es idempotente: si el dato existe, no lo duplica.

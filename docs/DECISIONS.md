@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.14 · **Actualizado:** 2026-08-09 (D-001 a D-087)
+- **Versión:** 1.15 · **Actualizado:** 2026-08-10 (D-001 a D-088)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -1552,6 +1552,48 @@ con el mismo ámbito y sin exponer otras carteras.
 **Consecuencia operativa.** La migración `0021_ticket_import_clients.sql` debe preceder al frontend
 que consume estas funciones. Se aplicó al proyecto real el 2026-08-09, con autorización expresa,
 respaldo lógico externo, `db push --dry-run`, verificación remota y sonda transaccional revertida.
+
+---
+
+## D-088 — «Mis boletas» oculta rifa; se parametriza, no se borra
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-10)
+
+**Contexto.** El negocio operará **una sola rifa**. En `/seller/tickets` el filtro «Rifa» ofrecía
+elegir entre una única opción y la columna «Rifa» repetía ese mismo valor en todas las filas: dos
+controles que ocupan sitio —el filtro, uno de cuatro huecos; la columna, ancho en una tabla que en el
+teléfono ya va justa— sin acotar ni distinguir nada.
+
+**Decisión.** Se ocultan los dos **solo en el portal del vendedor**, reutilizando el mecanismo que ya
+existía en vez de crear uno nuevo:
+
+* `TicketFilters` pasa a recibir `raffles` como **opcional**, igual que `sellers` y `clients`. Era ya
+  la convención del componente —«oculta los selectores que no se le pasan»—, así que no hay bandera
+  nueva ni rama de rol dentro del componente.
+* `TicketsTable` gana `showRaffle`, hermano exacto de `showSeller`, con el mismo valor por defecto
+  `true`. Quien no diga nada sigue viendo la columna.
+* `TicketListSlot` lo propaga a «Ver seleccionadas»: es la misma pantalla y debe enseñar las mismas
+  columnas.
+
+**El portal administrativo no cambia.** Owner y Admin conservan filtro y columna: son quienes crean
+rifas y siguen necesitando distinguirlas. Esto no es una regla de negocio nueva —no toca BR-N ni
+BR-B— sino una elección de presentación por portal, y por eso vive en las props y no en la consulta.
+
+**La consulta sigue aceptando `raffleId` por la URL.** Ocultar el control no lo desconecta:
+`listTickets` recibe el parámetro igual que antes, así que un enlace guardado sigue funcionando y
+`/seller/tickets?raffleId=…` sigue filtrando. Por eso `raffleId` se queda además en la lista que
+enciende «Limpiar filtros» y en la que ese botón borra: si un enlace trae el parámetro, el vendedor
+tiene que poder quitárselo de encima. Un filtro invisible **y** sin salida sería peor que el filtro.
+
+**Alternativas.** (a) Borrar el filtro y la columna del componente compartido (descartada: los usa
+también el portal administrativo, que sí los necesita — habría hecho falta duplicar la tabla,
+justo lo que D-051 evita). (b) Decidirlo dentro del componente mirando el rol (descartada: mete
+autorización en una pieza de presentación y contradice el patrón `basePath`/`showSeller`).
+(c) Ocultarlo cuando la organización tenga una sola rifa (descartada: la interfaz cambiaría sola al
+crear la segunda, sin que nadie lo pidiera; hoy la regla es del negocio, no del dato).
+
+**Consecuencia.** Si algún día el vendedor vuelve a manejar varias rifas, se revierte pasándole
+`raffles` a `TicketFilters` y `showRaffle` a la tabla en `seller/tickets/page.tsx`; no hay que tocar
+componentes compartidos ni consultas.
 
 ---
 

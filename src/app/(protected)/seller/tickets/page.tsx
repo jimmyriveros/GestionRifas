@@ -101,11 +101,10 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
           de un vendedor que atiende a un cliente (seccion 11). */}
       <TicketSelectionProvider storageKey="seller-tickets" pageIds={rows.map((row) => row.id)}>
         <div className="space-y-6">
+          {/* Sin selector de rifa: el negocio opera una sola y elegirla no
+              acota nada. La consulta sigue aceptando `raffleId` por URL, asi
+              que un enlace antiguo sigue funcionando (D-088). */}
           <TicketFilters
-            raffles={raffles.map((raffle) => ({
-              value: raffle.id,
-              label: `${raffle.shortCode} — ${raffle.name}`,
-            }))}
             clients={clients.map((client) => ({ value: client.id, label: client.name }))}
           />
 
@@ -138,8 +137,13 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
                 clients={clientOptions}
                 rafflePrices={rafflePrices}
               />
-              <TicketListSlot basePath="/seller/tickets" showSeller={false}>
-                <TicketsTable tickets={rows} basePath="/seller/tickets" showSeller={false} />
+              <TicketListSlot basePath="/seller/tickets" showSeller={false} showRaffle={false}>
+                <TicketsTable
+                  tickets={rows}
+                  basePath="/seller/tickets"
+                  showSeller={false}
+                  showRaffle={false}
+                />
                 <DataTablePagination total={total} page={page} pageSize={pageSize} />
               </TicketListSlot>
             </>

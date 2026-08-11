@@ -32,13 +32,13 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
 | Último cambio funcional promovido | `74136d1` — clientes con celular obligatorio en importación CSV/JSON, 2026-08-09; el push de `main` activa su despliegue en Vercel |
-| Punto de partida del último mantenimiento | `main` en `65f790b`, igual a `origin/main`, con árbol limpio antes de implementar |
+| Punto de partida del último mantenimiento | `main` en `2043108`, igual a `origin/main`, con árbol limpio antes de implementar |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
 | Base de datos | **21 migraciones en local y en el proyecto real**; `0021` se promovió y verificó el 2026-08-09 después del respaldo externo requerido. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **293 unitarias**, **378 de base de datos** y **213 E2E**, todas revalidadas el 2026-08-09; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
+| Pruebas | **293 unitarias**, **378 de base de datos** y **213 E2E**, todas revalidadas el 2026-08-10; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -55,19 +55,19 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — cierre y publicación estable (2026-08-10)
+## 1.a Último relevo significativo — «Mis boletas» sin rifa, y dos derivas documentales (2026-08-10)
 
 | Campo | Estado |
 |---|---|
-| Resultado | Se revisó y publicó como versión estable todo lo pendiente en `main`: el registro operativo de la corrección de clientes/boletas y de la limpieza del inventario demo. Esos cambios de datos ya estaban aplicados y auditados en Supabase; la publicación Git contiene solo documentación y no modifica comportamiento, esquema ni datos |
-| Archivos | `docs/HANDOFF.md` y `docs/TEST_RESULTS.md`. No hay cambios pendientes en `src/`, `tests/`, dependencias, configuración o migraciones |
-| Reutilización | Puertas existentes de entrega: `npm run verify`, `npm run verify:remote`, `supabase db push --dry-run`, Prettier dirigido, `git diff --check`, CI de GitHub y despliegue automático de Vercel desde `main` |
-| Decisiones | No se creó migración ni se tocó Supabase durante esta publicación: el dry-run confirmó que las 21 migraciones ya estaban alineadas. No se repitió Playwright porque los únicos commits pendientes eran documentales; la última suite funcional completa permanece en 213/213 |
-| Verificación | `verify` verde: typecheck, lint con 0 errores y 2 avisos conocidos de TanStack, 293/293 unitarias y build de producción. `verify:remote` 13/13; base remota al día; Prettier y `git diff --check` verdes. Después del push se confirmaron Vercel, ambos trabajos de CI y HTTP de producción antes de cerrar |
-| Errores encontrados | Ninguno. El build tardó más que una revisión documental por compilar la aplicación completa, pero terminó correctamente |
-| Advertencia | Los respaldos de las dos intervenciones permanecen fuera del repositorio en `D:\Claude\Personal\Rifas-backups`. Supabase sigue sin backups automáticos ni PITR (I-024). Los riesgos operativos I-021 e I-023 también siguen abiertos |
-| Pendiente | Ninguno para esta publicación. Permanecen únicamente los riesgos operativos I-021, I-023 e I-024 |
-| Git | Todos los commits locales de `main` se publicaron con autorización y `main == origin/main` quedó confirmado. El hash propio de este relevo no se duplica dentro del documento; verificar el estado vigente con Git |
+| Resultado | Dos encargos del usuario. (a) Se corrigieron las dos derivas que la revisión previa había detectado: el conteo de E2E (212 → 213) en `HANDOFF` §7 y `ARCHITECTURE` §2, y «las 20 migraciones» → 21 en `ARCHITECTURE` §11. (b) `/seller/tickets` deja de mostrar el filtro «Rifa» y la columna «Rifa», porque el negocio operará una sola rifa (D-088). El portal administrativo no cambia. **No se tocó base de datos, esquema, RLS, consultas ni producción** |
+| Archivos | `TicketFilters.tsx`, `TicketsTable.tsx`, `selection/components/SelectedTicketsView.tsx`, `seller/tickets/page.tsx`, `tests/e2e/seller-tickets.spec.ts`; documentación en `DECISIONS.md` (D-088), `HANDOFF.md`, `ARCHITECTURE.md`, `PHASE_STATUS.md` y `TEST_RESULTS.md` |
+| Reutilización | El mecanismo ya existía y no se creó ninguno nuevo: `TicketFilters` oculta los selectores que no se le pasan (por eso `raffles` pasa a opcional, como `sellers` y `clients`), y `showRaffle` es el hermano exacto de `showSeller` en `TicketsTable`. Se respetó D-051: la tabla se parametriza, no se duplica por portal |
+| Decisiones | **D-088**. Se ocultó por props y no borrando la columna del componente compartido, que el portal administrativo sí necesita. La consulta sigue aceptando `raffleId` por URL, así que un enlace guardado sigue filtrando; por eso `raffleId` se queda en la lista que enciende y que limpia «Limpiar filtros». Se descartó decidirlo por rol dentro del componente y también hacerlo automático según cuántas rifas existan |
+| Verificación | `typecheck` ✅ · `lint` ✅ 0 errores (2 avisos conocidos de TanStack) · **293/293** unitarias ✅ · `build` ✅ · **378/378** de base de datos ✅ · **213/213** E2E ✅ tras `db:reset` + `seed:local` (10,7 min). Comprobación visual de las dos pantallas con el propio arnés de Playwright: el vendedor ya no ve rifa; Dueño/Administrador sí |
+| Errores encontrados | Ninguno en el cambio. Docker Desktop no estaba iniciado al empezar y hubo que levantarlo antes de `supabase start` (trampa ya conocida, I-028) |
+| Advertencia | `npx prettier --check` marca 4 de los archivos tocados, pero **ya fallaban en `HEAD` antes de este trabajo**: es I-052 preexistente y no se reformateó nada fuera de alcance. Supabase sigue sin backups automáticos ni PITR (I-024); I-021 e I-023 siguen abiertos |
+| Pendiente | **Este trabajo no está desplegado.** Es solo commit local: no se hizo push ni se tocó Vercel. Publicarlo requiere autorización expresa; no necesita migración, porque no hay cambios de base de datos |
+| Git | Rama `main`, partiendo de `2043108` con árbol limpio. Commit local nuevo; sin push. Verificar el estado vigente con Git, no por este texto |
 
 ## 1.b Qué queda abierto
 
@@ -417,9 +417,14 @@ Los filtros y la paginación viven en la **URL**, no en estado de React: la pág
 RSC vuelve a consultar filtrando en SQL.
 
 Las tablas y los filtros **sirven a los dos portales** y se parametrizan, no se duplican (D-051):
-`TicketsTable` y `ClientsTable` reciben `basePath` / `showSeller` / `enableApproval`;
+`TicketsTable` y `ClientsTable` reciben `basePath` / `showSeller` / `showRaffle` / `enableApproval`;
 `PaymentsTable` recibe `clientBasePath` / `showSeller` / `canVoid`; `TicketFilters`,
 `ClientFilters` y `PaymentFilters` ocultan los selectores que no se les pasan.
+
+En `/seller/tickets` no hay filtro ni columna «Rifa»: el negocio opera una sola (D-088). Se consigue
+**no pasando** `raffles` a `TicketFilters` y pasando `showRaffle={false}` a la tabla y a
+`TicketListSlot` —«Ver seleccionadas» es la misma pantalla y debe enseñar las mismas columnas—. El
+portal administrativo los conserva, y la consulta sigue aceptando `raffleId` por la URL.
 
 **El dinero se calcula en SQL, siempre.** `paid_amount` lo mantiene un trigger, `payment_status` es
 una columna generada, los saldos salen de las vistas y los totales de cobranza por fechas, de las
@@ -461,7 +466,7 @@ typecheck + lint + unitarias + build.
 npm run test:e2e
 ```
 
-212 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
+213 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
 en móvil (Pixel 7). Levanta solo el servidor con `npm run dev:local`; **exigen la base local recién
 sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
 

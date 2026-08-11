@@ -178,6 +178,9 @@ test.describe('Boletas propias: búsqueda y filtros', () => {
     // El codigo interno dejo de ser columna: vive en el detalle (BR-N11).
     await expect(page.getByRole('columnheader', { name: 'Código' })).toHaveCount(0)
     await expect(page.getByRole('columnheader', { name: 'Vendedor' })).toHaveCount(0)
+    // El negocio opera una sola rifa: ni columna ni filtro de rifa (D-088).
+    await expect(page.getByRole('columnheader', { name: 'Rifa' })).toHaveCount(0)
+    await expect(page.getByLabel('Rifa')).toHaveCount(0)
     // El vendedor si tiene casillas —vende varias boletas de una vez— pero no
     // aprueba, ni anula, ni elimina (BR-B07).
     await expect(page.getByRole('button', { name: /^Aprobar boletas/ })).toHaveCount(0)

@@ -1296,3 +1296,45 @@ datos del 2026-08-09; no había archivos sin commit ni cambios ejecutables.
 No se repitió `test:e2e`: los commits pendientes son exclusivamente documentales y no cambian rutas,
 UI, autenticación, autorización ni integraciones. La última suite funcional completa permanece en
 **213/213** y el CI vuelve a reconstruir el proyecto y la base desde cero después del push.
+
+---
+
+## «Mis boletas» sin filtro ni columna de rifa — 2026-08-10
+
+Mantenimiento de interfaz posterior a la Fase 9, solicitado por el usuario (D-088). **Sin cambios de
+base de datos, esquema, RLS ni consultas**: solo props de componentes que ya se parametrizaban.
+En el mismo trabajo se corrigieron dos derivas documentales detectadas en la revisión previa.
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| `npm run typecheck` | ✅ | Sin errores |
+| `npm run lint` | ✅ **0 errores** | Los 2 avisos de siempre: `useReactTable` y `useVirtualizer` (React Compiler / TanStack) |
+| `npm run test` | ✅ **293/293** | 17 archivos; sin pruebas unitarias nuevas: el cambio es de composición de columnas |
+| `npm run build` | ✅ | Build de producción completo |
+| `npm run db:reset; npm run seed:local` | ✅ 21 migraciones + seed | Precondición de las E2E (`TESTING.md`) |
+| `npx playwright test` (4 specs del vendedor) | ✅ **52/52** | Primera pasada dirigida: `seller-tickets`, `seleccion-multiple`, `seleccion-movil`, `filas-seleccionables` |
+| `npm run test:e2e` (suite completa tras resembrar) | ✅ **213/213** en 10,7 min | Escritorio + Pixel 7. Confirma que el portal administrativo conserva filtro y columna |
+| `npm run test:db` | ✅ **378/378** | 16 archivos. Se ejecuta como puerta del proyecto aunque el cambio no toque SQL |
+| Comprobación visual de las dos pantallas | ✅ | Capturas de `/seller/tickets` y `/owner/tickets` generadas con el propio arnés de Playwright (`loginAs`), contra la base local |
+
+### Qué se comprobó exactamente
+
+- En `/seller/tickets` quedan tres filtros —Cliente, Estado de la boleta, Estado de pago— y seis
+  columnas: número diario, número semanal, cliente, estado, pago y precio.
+- «Ver seleccionadas» enseña las mismas columnas que la lista de detrás: es la misma pantalla, y por
+  eso `TicketListSlot` recibe también `showRaffle`.
+- `/owner/tickets` mantiene el filtro «Rifa» y la columna «Rifa» intactos.
+- La prueba `seller-tickets.spec.ts` («la tabla no muestra la columna Vendedor…») gana dos
+  aserciones: ni `columnheader` «Rifa» ni control etiquetado «Rifa».
+
+### Errores encontrados y correcciones
+
+| Hallazgo | Evidencia | Corrección / decisión |
+|---|---|---|
+| Docker Desktop no estaba iniciado al comenzar | `failed to connect to the docker API at npipe:…` | Se localizó el ejecutable en `%LOCALAPPDATA%\Programs\DockerDesktop` y se esperó al daemon antes de `supabase start`. Es la trampa ya registrada como I-028 |
+| `prettier --check` marca 4 de los archivos tocados | `TicketsTable.tsx`, `SelectedTicketsView.tsx`, `seller/tickets/page.tsx`, `seller-tickets.spec.ts` | **Ya fallaban en `HEAD`**, comprobado ejecutando Prettier sobre las versiones originales extraídas con `git show`. Es I-052 preexistente; no se reformateó nada fuera de alcance |
+
+### Estado de promoción
+
+No se ejecutó `db push`, `verify:remote`, despliegue ni ninguna operación sobre el Supabase real: este
+cambio no necesita migración. Queda como commit local, sin push.

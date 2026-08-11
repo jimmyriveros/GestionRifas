@@ -24,10 +24,13 @@ import { useTicketSelection } from '../TicketSelectionContext'
 export function TicketListSlot({
   basePath,
   showSeller,
+  showRaffle = true,
   children,
 }: {
   basePath: string
   showSeller: boolean
+  /** Debe coincidir con la lista de detras: es la misma pantalla (D-088). */
+  showRaffle?: boolean
   /** La lista normal, ya renderizada en el servidor. */
   children: ReactNode
 }) {
@@ -35,12 +38,20 @@ export function TicketListSlot({
 
   if (!selection.viewingSelected) return <>{children}</>
 
-  return <SelectedTickets basePath={basePath} showSeller={showSeller} />
+  return <SelectedTickets basePath={basePath} showSeller={showSeller} showRaffle={showRaffle} />
 }
 
 type Loaded = { key: string; rows: TicketListItem[]; error: string | null }
 
-function SelectedTickets({ basePath, showSeller }: { basePath: string; showSeller: boolean }) {
+function SelectedTickets({
+  basePath,
+  showSeller,
+  showRaffle,
+}: {
+  basePath: string
+  showSeller: boolean
+  showRaffle: boolean
+}) {
   const selection = useTicketSelection()
   const [loaded, setLoaded] = useState<Loaded | null>(null)
 
@@ -113,7 +124,12 @@ function SelectedTickets({ basePath, showSeller }: { basePath: string; showSelle
       <p className="text-muted-foreground text-sm">
         Estás viendo solo las boletas seleccionadas. Tus filtros siguen guardados.
       </p>
-      <TicketsTable tickets={tickets} basePath={basePath} showSeller={showSeller} />
+      <TicketsTable
+        tickets={tickets}
+        basePath={basePath}
+        showSeller={showSeller}
+        showRaffle={showRaffle}
+      />
     </div>
   )
 }
