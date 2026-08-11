@@ -356,16 +356,35 @@ describe('Importacion administrativa con clientes (0021)', () => {
     return data.id
   }
 
-  async function recordarBoletas(dailies: string[]) {
+  /**
+   * Devuelve las boletas del lote recien importado, acotando por la
+   * COMBINACION completa.
+   *
+   * Filtrar solo por el numero diario no vale: un diario puede repetirse en
+   * otra combinacion (BR-N07), asi que la consulta llegaba a devolver la boleta
+   * de otra prueba —anulada, por ejemplo— y la afirmacion caia sobre la fila
+   * equivocada. Fallaba una de cada tantas corridas, porque `numeros()` sortea
+   * los digitos. Lo unico que es unico dentro de la rifa es el par (BR-N04).
+   *
+   * Filtrar tambien evita que la limpieza borre boletas que no son de esta
+   * prueba (misma familia que I-035).
+   */
+  async function recordarBoletas(pares: { daily: string; weekly: string }[]) {
     const { data, error } = await seed.svc
       .from('tickets')
-      .select('id, daily_number, client_id, inventory_status')
+      .select('id, daily_number, weekly_number, client_id, inventory_status')
       .eq('raffle_id', seed.demoRaffle.id)
-      .in('daily_number', dailies)
+      .in(
+        'daily_number',
+        pares.map((par) => par.daily),
+      )
 
     if (error) throw error
-    for (const ticket of data) creadas.push(ticket.id)
-    return data
+    const delLote = data.filter((ticket) =>
+      pares.some((par) => par.daily === ticket.daily_number && par.weekly === ticket.weekly_number),
+    )
+    for (const ticket of delLote) creadas.push(ticket.id)
+    return delLote
   }
 
   it('mezcla filas con y sin cliente y agrupa una identidad en un solo cliente', async () => {
@@ -405,9 +424,12 @@ describe('Importacion administrativa con clientes (0021)', () => {
       clients_reused: 0,
     })
 
-    const tickets = await recordarBoletas([conCliente1.daily, conCliente2.daily, sinCliente.daily])
+    const tickets = await recordarBoletas([conCliente1, conCliente2, sinCliente])
     const asignadas = tickets.filter((ticket) => ticket.inventory_status === 'assigned')
-    const disponible = tickets.find((ticket) => ticket.daily_number === sinCliente.daily)
+    const disponible = tickets.find(
+      (ticket) =>
+        ticket.daily_number === sinCliente.daily && ticket.weekly_number === sinCliente.weekly,
+    )
 
     expect(asignadas).toHaveLength(2)
     expect(new Set(asignadas.map((ticket) => ticket.client_id)).size).toBe(1)
@@ -449,7 +471,7 @@ describe('Importacion administrativa con clientes (0021)', () => {
       clients_reused: 1,
     })
 
-    const [ticket] = await recordarBoletas([number.daily])
+    const [ticket] = await recordarBoletas([number])
     expect(ticket).toMatchObject({ client_id: clientId, inventory_status: 'assigned' })
   })
 

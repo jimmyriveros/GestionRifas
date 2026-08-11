@@ -1349,3 +1349,43 @@ real**: este cambio no lleva migración, y el `--dry-run` lo confirmó antes de 
 
 **Verificación manual pendiente del usuario:** entrar a producción como vendedor y confirmar la
 pantalla. Un agente no inicia sesión en producción (Fase 8).
+
+---
+
+## I-055 — la prueba de importación afirmaba sobre la boleta equivocada — 2026-08-10
+
+Corrección solicitada por el usuario tras ver el CI en rojo. **Solo pruebas**: no cambia producto,
+esquema ni consultas.
+
+### Cómo apareció, y por qué no era una regresión
+
+El CI del commit `bb6db5f` —**solo documentación**— falló en `tests/db/ticket-import.test.ts:414`
+con `expected 'available', received 'cancelled'`. El commit funcional anterior (`7b1bff5`) había
+pasado 2/2 y la suite pasaba en local, así que la diferencia no podía estar en el código: el diff
+entre ambos commits es prosa. Eso apuntaba a azar, no a regresión — pero no se cerró como
+«intermitente» sin encontrar el mecanismo.
+
+### Mecanismo
+
+`recordarBoletas()` consultaba `.in('daily_number', …)` **sin el número semanal**, y `numeros()`
+sortea los dígitos. Un número diario puede repetirse en otra combinación (BR-N07), así que el
+`find()` podía quedarse con una boleta de otra prueba en vez de la recién importada.
+
+Reproducido de forma determinista plantando dos boletas con el mismo diario:
+
+```
+datos plantados: 4242/1111:cancelled   4242/2222:available
+la consulta devuelve las dos; find() elige -> 4242/1111 -> cancelled
+```
+
+### Corrección y comprobación al revés
+
+Se acota por la **combinación completa**, que es lo único único dentro de una rifa (BR-N04). Efecto
+secundario bueno: la limpieza del `afterAll` ya no puede borrar boletas de otras pruebas (I-035).
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| Comprobación al revés con los mismos datos | ✅ | Lógica vieja → `cancelled`; lógica nueva → `available` |
+| `npm run typecheck` · `npm run lint` | ✅ 0 errores | Los 2 avisos conocidos de TanStack |
+| `npm run db:reset; npm run seed:local; npm run test:db` | ✅ **378/378** | Base recién sembrada, la condición del CI |
+| `npm run test:db` ×3 más, **sin resembrar** | ✅ 378/378 cada una | Es el escenario donde la colisión era más probable |
