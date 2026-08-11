@@ -1336,5 +1336,16 @@ En el mismo trabajo se corrigieron dos derivas documentales detectadas en la rev
 
 ### Estado de promoción
 
-No se ejecutó `db push`, `verify:remote`, despliegue ni ninguna operación sobre el Supabase real: este
-cambio no necesita migración. Queda como commit local, sin push.
+El usuario autorizó publicarlo el mismo día. **No se ejecutó ninguna escritura sobre el Supabase
+real**: este cambio no lleva migración, y el `--dry-run` lo confirmó antes de empujar nada.
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| `npx supabase db push --dry-run` | ✅ | `Remote database is up to date`; 0 migraciones, seeds o roles pendientes. Es lo que descarta desplegar un frontend por delante de su base |
+| `git push origin main` | ✅ `2043108..7b1bff5` | **Solo la rama.** Las etiquetas `fase-3`…`fase-9` siguen sin subir, como estaban |
+| CI de GitHub Actions | ✅ **2/2** | «Typecheck, lint, unitarias, build» y «Migraciones desde cero + pruebas de base de datos» |
+| Despliegue de Vercel | ✅ `READY` | `dpl_7tYWrsjYivbwybtFtKbAErA3rf5M`, target `production`, sobre el SHA `7b1bff5`; se comprobó el SHA en vez de fiarse de que la URL respondiera |
+| `https://gestion-rifas.vercel.app/login` | ✅ HTTP 200 | Cabeceras intactas: CSP con nonce, HSTS con `preload`, `X-Content-Type-Options`, `X-Frame-Options: DENY` |
+
+**Verificación manual pendiente del usuario:** entrar a producción como vendedor y confirmar la
+pantalla. Un agente no inicia sesión en producción (Fase 8).

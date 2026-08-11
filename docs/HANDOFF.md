@@ -31,7 +31,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
-| Último cambio funcional promovido | `74136d1` — clientes con celular obligatorio en importación CSV/JSON, 2026-08-09; el push de `main` activa su despliegue en Vercel |
+| Último cambio funcional promovido | `7b1bff5` — «Mis boletas» sin filtro ni columna de rifa, 2026-08-10; desplegado en Vercel y verificado. No necesitó migración |
 | Punto de partida del último mantenimiento | `main` en `2043108`, igual a `origin/main`, con árbol limpio antes de implementar |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
@@ -66,8 +66,9 @@ reales).
 | Verificación | `typecheck` ✅ · `lint` ✅ 0 errores (2 avisos conocidos de TanStack) · **293/293** unitarias ✅ · `build` ✅ · **378/378** de base de datos ✅ · **213/213** E2E ✅ tras `db:reset` + `seed:local` (10,7 min). Comprobación visual de las dos pantallas con el propio arnés de Playwright: el vendedor ya no ve rifa; Dueño/Administrador sí |
 | Errores encontrados | Ninguno en el cambio. Docker Desktop no estaba iniciado al empezar y hubo que levantarlo antes de `supabase start` (trampa ya conocida, I-028) |
 | Advertencia | `npx prettier --check` marca 4 de los archivos tocados, pero **ya fallaban en `HEAD` antes de este trabajo**: es I-052 preexistente y no se reformateó nada fuera de alcance. Supabase sigue sin backups automáticos ni PITR (I-024); I-021 e I-023 siguen abiertos |
-| Pendiente | **Este trabajo no está desplegado.** Es solo commit local: no se hizo push ni se tocó Vercel. Publicarlo requiere autorización expresa; no necesita migración, porque no hay cambios de base de datos |
-| Git | Rama `main`, partiendo de `2043108` con árbol limpio. Commit local nuevo; sin push. Verificar el estado vigente con Git, no por este texto |
+| Publicación | **Desplegado en producción el 2026-08-10 con autorización expresa.** Antes del push, `supabase db push --dry-run` confirmó `Remote database is up to date` (0 migraciones pendientes), que es lo que descarta desplegar un frontend por delante de su base. Después: los **dos** trabajos de CI en verde, despliegue de Vercel `READY` sobre el SHA `7b1bff5`, y `https://gestion-rifas.vercel.app/login` en HTTP 200 con sus cabeceras (CSP con nonce, HSTS, `X-Frame-Options: DENY`) |
+| Pendiente | Nada de este trabajo. Siguen abiertos los riesgos operativos I-021, I-023 e I-024, y la deuda I-030, I-037 e I-046–I-052 |
+| Git | Rama `main`, de `2043108` a `7b1bff5`; `main == origin/main`. Se empujó **solo la rama**: las etiquetas `fase-3`…`fase-9` siguen sin subir, como estaban |
 
 ## 1.b Qué queda abierto
 
