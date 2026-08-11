@@ -31,7 +31,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
-| Último cambio funcional promovido | `7b1bff5` — «Mis boletas» sin filtro ni columna de rifa, 2026-08-10; desplegado en Vercel y verificado. No necesitó migración |
+| Último cambio funcional promovido | `a25a289` — flecha de volver en las pantallas de detalle (BR-X09, D-089), 2026-08-10; desplegado en Vercel y verificado. No necesitó migración |
 | Punto de partida del último mantenimiento | `main` en `2043108`, igual a `origin/main`, con árbol limpio antes de implementar |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
@@ -66,8 +66,9 @@ reales).
 | Verificación | `typecheck` ✅ · `lint` ✅ 0 errores · **293/293** unitarias ✅ · `build` ✅ · **378/378** de base de datos ✅ · **224/224** E2E ✅ (213 anteriores + 11 nuevas: 9 escritorio + 2 móvil), incluida la suite completa tras `db:reset`+`seed:local` en 11,4 min |
 | Errores encontrados | El diseño con `sessionStorage` (arriba) — encontrado por una prueba E2E propia, no en producción ni por el usuario, y corregido antes de proponerlo. Aparte, dos textos de columna equivocados en las pruebas nuevas («Nombre» en vez de «Cliente»/«Rifa») y un timeout de compilación en frío de Turbopack en la primera pasada de un archivo de pruebas nuevo — ninguno de los dos era un defecto del producto |
 | Advertencia | El navegador integrado de este entorno no compone fotogramas si el panel no está visible (I-012): las pantallas detrás de `loading.tsx` —es decir, casi todas— se quedan con el esqueleto pegado ahí, aunque el servidor ya envió el HTML completo. No sirve para verificar visualmente este tipo de cambio; Playwright sí |
-| Pendiente | Publicar (push) con autorización explícita del usuario. Sin migración: no hace falta tocar Supabase |
-| Git | Rama `main`, sobre `e9d3444` (última publicación estable). Commit(s) local(es) de este trabajo, sin push |
+| Publicación | **Desplegado en producción el 2026-08-10 con autorización expresa.** `--dry-run` confirmó 0 migraciones pendientes antes del push. Después: CI 2/2, despliegue de Vercel `READY` sobre el SHA `a25a289`, y `https://gestion-rifas.vercel.app/login` en HTTP 200 con sus cabeceras |
+| Pendiente | Nada de este trabajo. Siguen abiertos los riesgos operativos I-021, I-023 e I-024, y la deuda I-030, I-037 e I-046–I-052 |
+| Git | Rama `main`, de `e9d3444` a `a25a289`; `main == origin/main`. Se empujó **solo la rama**: las etiquetas `fase-3`…`fase-9` siguen sin subir |
 
 ## 1.a.1 Relevo anterior — «Mis boletas» sin rifa, y dos derivas documentales (2026-08-10)
 

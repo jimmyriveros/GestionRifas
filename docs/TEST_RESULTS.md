@@ -1446,5 +1446,16 @@ con las alternativas descartadas, en `docs/DECISIONS.md` D-089.
 
 ### Estado de promoción
 
-No se ejecutó `db push`, `verify:remote` ni ninguna operación sobre el Supabase real: este cambio no
-lleva migración. Queda en commit(s) local(es), sin push, a la espera de autorización explícita.
+El usuario autorizó publicarlo el mismo día. No se ejecutó `db push` ni `verify:remote`: este cambio
+no lleva migración, y el `--dry-run` lo confirmó antes de empujar nada.
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| `npx supabase db push --dry-run` | ✅ | `Remote database is up to date`; 0 migraciones, seeds o roles pendientes |
+| `git push origin main` | ✅ `e9d3444..a25a289` | Solo la rama; las etiquetas `fase-3`…`fase-9` siguen sin subir |
+| CI de GitHub Actions | ✅ **2/2** | «Typecheck, lint, unitarias, build» y «Migraciones desde cero + pruebas de base de datos» |
+| Despliegue de Vercel | ✅ `READY` | `dpl_DKSiVvf3YFDKd5HKLmwxkCEYqmQD`, target `production`, sobre el SHA `a25a289`; comprobado el SHA, no solo que la URL respondiera |
+| `https://gestion-rifas.vercel.app/login` | ✅ HTTP 200 | CSP con nonce, HSTS, `X-Frame-Options: DENY` intactas |
+
+**Verificación manual pendiente del usuario:** entrar a producción con los tres roles y comprobar la
+flecha en cada pantalla de detalle. Un agente no inicia sesión en producción (Fase 8).
