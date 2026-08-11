@@ -38,6 +38,7 @@ export default async function SellerClientDetailPage({
       <PageHeader
         title={client.name}
         description={client.alias ?? undefined}
+        backHref="/seller/clients"
         actions={
           <>
             <Button asChild variant="outline">
@@ -103,11 +104,7 @@ export default async function SellerClientDetailPage({
             .
           </p>
         ) : (
-          <TicketsTable
-            tickets={tickets}
-            basePath="/seller/tickets"
-            showSeller={false}
-          />
+          <TicketsTable tickets={tickets} basePath="/seller/tickets" showSeller={false} />
         )}
       </div>
 

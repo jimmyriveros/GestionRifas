@@ -38,7 +38,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
 | Base de datos | **21 migraciones en local y en el proyecto real**; `0021` se promovió y verificó el 2026-08-09 después del respaldo externo requerido. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **293 unitarias**, **378 de base de datos** y **213 E2E**, todas revalidadas el 2026-08-10; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
+| Pruebas | **293 unitarias**, **378 de base de datos** y **224 E2E**, todas revalidadas el 2026-08-10; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -55,20 +55,27 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — «Mis boletas» sin rifa, y dos derivas documentales (2026-08-10)
+## 1.a Último relevo significativo — flecha de volver en las pantallas de detalle (2026-08-10)
 
 | Campo | Estado |
 |---|---|
-| Resultado | Dos encargos del usuario. (a) Se corrigieron las dos derivas que la revisión previa había detectado: el conteo de E2E (212 → 213) en `HANDOFF` §7 y `ARCHITECTURE` §2, y «las 20 migraciones» → 21 en `ARCHITECTURE` §11. (b) `/seller/tickets` deja de mostrar el filtro «Rifa» y la columna «Rifa», porque el negocio operará una sola rifa (D-088). El portal administrativo no cambia. **No se tocó base de datos, esquema, RLS, consultas ni producción** |
-| Archivos | `TicketFilters.tsx`, `TicketsTable.tsx`, `selection/components/SelectedTicketsView.tsx`, `seller/tickets/page.tsx`, `tests/e2e/seller-tickets.spec.ts`; documentación en `DECISIONS.md` (D-088), `HANDOFF.md`, `ARCHITECTURE.md`, `PHASE_STATUS.md` y `TEST_RESULTS.md` |
-| Reutilización | El mecanismo ya existía y no se creó ninguno nuevo: `TicketFilters` oculta los selectores que no se le pasan (por eso `raffles` pasa a opcional, como `sellers` y `clients`), y `showRaffle` es el hermano exacto de `showSeller` en `TicketsTable`. Se respetó D-051: la tabla se parametriza, no se duplica por portal |
-| Decisiones | **D-088**. Se ocultó por props y no borrando la columna del componente compartido, que el portal administrativo sí necesita. La consulta sigue aceptando `raffleId` por URL, así que un enlace guardado sigue filtrando; por eso `raffleId` se queda en la lista que enciende y que limpia «Limpiar filtros». Se descartó decidirlo por rol dentro del componente y también hacerlo automático según cuántas rifas existan |
-| Verificación | `typecheck` ✅ · `lint` ✅ 0 errores (2 avisos conocidos de TanStack) · **293/293** unitarias ✅ · `build` ✅ · **378/378** de base de datos ✅ · **213/213** E2E ✅ tras `db:reset` + `seed:local` (10,7 min). Comprobación visual de las dos pantallas con el propio arnés de Playwright: el vendedor ya no ve rifa; Dueño/Administrador sí |
-| Errores encontrados | Ninguno en el cambio. Docker Desktop no estaba iniciado al empezar (trampa conocida, I-028). Después de publicar, el CI del commit **documental** salió rojo por **I-055**: una prueba de la importación que se identificaba por el número diario solo y podía afirmar sobre la boleta de otra prueba. No era regresión —el commit funcional había pasado 2/2— pero tampoco se cerró como «intermitente»: se reprodujo, se corrigió y se comprobó al revés |
-| Advertencia | `npx prettier --check` marca 4 de los archivos tocados, pero **ya fallaban en `HEAD` antes de este trabajo**: es I-052 preexistente y no se reformateó nada fuera de alcance. Supabase sigue sin backups automáticos ni PITR (I-024); I-021 e I-023 siguen abiertos |
-| Publicación | **Desplegado en producción el 2026-08-10 con autorización expresa.** Antes del push, `supabase db push --dry-run` confirmó `Remote database is up to date` (0 migraciones pendientes), que es lo que descarta desplegar un frontend por delante de su base. Después: los **dos** trabajos de CI en verde, despliegue de Vercel `READY` sobre el SHA `7b1bff5`, y `https://gestion-rifas.vercel.app/login` en HTTP 200 con sus cabeceras (CSP con nonce, HSTS, `X-Frame-Options: DENY`) |
-| Pendiente | Nada de este trabajo. Siguen abiertos los riesgos operativos I-021, I-023 e I-024, y la deuda I-030, I-037 e I-046–I-052 |
-| Git | Rama `main`, de `2043108` a `7b1bff5`; `main == origin/main`. Se empujó **solo la rama**: las etiquetas `fase-3`…`fase-9` siguen sin subir, como estaban |
+| Resultado | Patrón global de navegación hacia atrás (BR-X09, D-089), a petición explícita del usuario. Las 8 pantallas de detalle/edición y 2 más (crear boletas del vendedor, cambiar contraseña) reemplazan sus botones/enlaces «Volver a…» —o, en 6 de los 10 casos, no tenían ninguno— por una flecha junto al título. Prefiere el historial real de la sesión (conserva búsqueda, filtro, página y scroll **sin código nuevo**, porque ya viven en la URL) y cae en un destino de repuesto por entidad cuando no hay pantalla anterior real. **No se tocó base de datos, esquema, RLS ni consultas.** **Pendiente de publicar**: queda en commit(s) local(es) sin push, a la espera de autorización |
+| Archivos | Nuevos: `BackButton.tsx`, `navigation-history.ts`, `NavigationHistoryTracker.tsx`, `tests/e2e/back-navigation.spec.ts`, `tests/e2e/back-navigation-movil.spec.ts`. Modificados: `PageHeader.tsx`, `layout.tsx` (raíz), y las 10 pantallas de detalle/edición/creación/cuenta. Documentación: `DECISIONS.md` (D-089), `ARCHITECTURE.md` §8.2/§8.6, `BUSINESS_RULES.md` (BR-X09), `TESTING.md` §5.2, `PHASE_STATUS.md`, `TEST_RESULTS.md` |
+| Reutilización | `PageHeader` se extendió (`backHref`/`backLabel`), no se creó un `DetailHeader` aparte: la parte interactiva vive en `BackButton` (`'use client'`), así que `PageHeader` sigue sirviendo a Server Components y las 23 pantallas que no pasan `backHref` no cambian. El botón reutiliza el patrón de diana de 44 px de `SelectionCheckbox` (D-085) |
+| Decisiones | **D-089**, con su historia completa en el documento: la primera versión detectaba el historial con una marca en `sessionStorage`, y una prueba E2E la tumbó —sobrevivía a la carga dura del login, así que abrir una boleta por URL directa justo después de iniciar sesión heredaba el historial *del login*—. Se sustituyó por un contador de **variable de módulo**, que una carga dura reinicia sola. Ver también §8.6 de `ARCHITECTURE.md` |
+| Verificación | `typecheck` ✅ · `lint` ✅ 0 errores · **293/293** unitarias ✅ · `build` ✅ · **378/378** de base de datos ✅ · **224/224** E2E ✅ (213 anteriores + 11 nuevas: 9 escritorio + 2 móvil), incluida la suite completa tras `db:reset`+`seed:local` en 11,4 min |
+| Errores encontrados | El diseño con `sessionStorage` (arriba) — encontrado por una prueba E2E propia, no en producción ni por el usuario, y corregido antes de proponerlo. Aparte, dos textos de columna equivocados en las pruebas nuevas («Nombre» en vez de «Cliente»/«Rifa») y un timeout de compilación en frío de Turbopack en la primera pasada de un archivo de pruebas nuevo — ninguno de los dos era un defecto del producto |
+| Advertencia | El navegador integrado de este entorno no compone fotogramas si el panel no está visible (I-012): las pantallas detrás de `loading.tsx` —es decir, casi todas— se quedan con el esqueleto pegado ahí, aunque el servidor ya envió el HTML completo. No sirve para verificar visualmente este tipo de cambio; Playwright sí |
+| Pendiente | Publicar (push) con autorización explícita del usuario. Sin migración: no hace falta tocar Supabase |
+| Git | Rama `main`, sobre `e9d3444` (última publicación estable). Commit(s) local(es) de este trabajo, sin push |
+
+## 1.a.1 Relevo anterior — «Mis boletas» sin rifa, y dos derivas documentales (2026-08-10)
+
+Contexto histórico: ya publicado y verificado en producción (`7b1bff5`, más `bb6db5f` y `e9d3444`
+documentales/de corrección). Resumen: `/seller/tickets` dejó de mostrar el filtro y la columna «Rifa»
+(D-088); en el mismo trabajo apareció y se corrigió **I-055**, una prueba de la importación que se
+identificaba por el número diario solo y podía afirmar sobre la boleta de otra prueba. Detalle
+completo en `TEST_RESULTS.md` y en el historial de Git (`7b1bff5`, `bb6db5f`, `e9d3444`).
 
 ## 1.b Qué queda abierto
 
@@ -378,7 +385,9 @@ RLS de quien consulta (D-057). Úsalas para cualquier agregado de pagos que nece
 
 ```
 components/data/    DataTable · DataTablePagination · StatusBadge · EmptyState
-                    PageHeader · MetricCard
+                    PageHeader (backHref = flecha de volver, D-089) · BackButton · MetricCard
+lib/navigation-history.ts  detecta si hay historial real en esta pestaña, para
+                    BackButton. Contador de modulo, no sessionStorage (D-089)
 components/form/    MoneyInput · TicketNumberInput
 components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSkeleton
 features/tickets/import/  importador de archivos CSV/JSON: UN componente para los tres

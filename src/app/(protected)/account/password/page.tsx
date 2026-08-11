@@ -1,6 +1,4 @@
-import { ArrowLeftIcon } from 'lucide-react'
-import Link from 'next/link'
-
+import { PageHeader } from '@/components/data/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChangePasswordForm } from '@/features/auth/components/ChangePasswordForm'
 import { dashboardPathForRole } from '@/lib/auth/guards'
@@ -13,18 +11,12 @@ export default async function AccountPasswordPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-6 p-4 md:p-6">
-      <Link
-        href={backHref}
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
-      >
-        <ArrowLeftIcon className="size-4" />
-        Volver al panel
-      </Link>
-
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Cambiar contraseña</h1>
-        <p className="text-muted-foreground">Actualiza la contraseña de tu cuenta.</p>
-      </div>
+      <PageHeader
+        title="Cambiar contraseña"
+        description="Actualiza la contraseña de tu cuenta."
+        backHref={backHref}
+        backLabel="Volver al panel"
+      />
 
       <Card>
         <CardHeader>

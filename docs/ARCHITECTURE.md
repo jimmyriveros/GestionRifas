@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.7 · **Estado:** implementado · **Actualizado:** 2026-08-09
+- **Versión:** 1.8 · **Estado:** implementado · **Actualizado:** 2026-08-10
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -340,6 +340,9 @@ usan guardas propias; I-051 registra una acción auxiliar que todavía no valida
 | `ConfirmDialog` | Confirmación de acciones sensibles (anular, desactivar, aprobar) |
 | `EmptyState` | Estado vacío con acción sugerida |
 | `PageSkeleton` | Carga mediante `loading.tsx` por segmento |
+| `PageHeader` | Título, descripción y acciones de toda pantalla. `backHref` activa la flecha de volver de las pantallas de detalle (§8.6, D-089) |
+| `BackButton` | Flecha de volver: historial real con destino de repuesto. La usa `PageHeader`, no se llama suelta |
+| `navigation-history.ts` | Cuenta los cambios de ruta reales de esta pestaña, para que `BackButton` sepa si el historial es de fiar (D-089) |
 
 **Búsqueda — dónde y con qué valores** (D-078). No hay capa de fetch en el navegador: en las listas
 la búsqueda **es** una navegación al Server Component, y por eso no hay ni hace falta
@@ -433,6 +436,64 @@ el ancho de la pantalla. Por eso el contador dice «Paso 2 de 5» y no siempre e
 ### 8.5 Accesibilidad
 Contraste AA · foco visible · etiquetas asociadas a inputs · errores anunciados con `aria-live` ·
 navegación por teclado · nunca depender solo del color (siempre texto o icono acompañante).
+
+### 8.6 Flecha de volver en las pantallas de detalle (D-089)
+
+Toda pantalla de detalle —boleta, cliente, vendedor, rifa, editar rifa, editar cliente, crear
+boletas del vendedor, cambiar contraseña— usa `<PageHeader backHref="…">` en vez de un botón o
+enlace de texto «Volver a…». La flecha vive **dentro** de `PageHeader`, a la izquierda del título; no
+es una pieza suelta que cada pantalla arme por su cuenta.
+
+```
+BackButton (src/components/data/BackButton.tsx)
+  · Botón de icono, 44 px de diana (mismo patrón que SelectionCheckbox, D-085)
+  · onClick: hasInternalHistory() ? router.back() : router.push(fallbackHref)
+
+navigation-history.ts (src/lib/)
+  · Un contador de MÓDULO, no de sessionStorage
+  · NavigationHistoryTracker (montado una vez en el layout raíz) lo incrementa
+    cada vez que cambia el pathname, salvo el primer montaje
+```
+
+**Por qué el historial se conserva solo, sin código nuevo.** Búsqueda, filtros, página y orden ya
+viven en la URL (§6.b). Cuando el usuario entra a un detalle desde una lista filtrada, esa URL
+filtrada queda como la entrada anterior real del historial del navegador: `router.back()` vuelve
+exactamente ahí, con el scroll que el propio navegador restaura en una navegación atrás. No hay
+ningún sistema nuevo de estado para recordar filtros o posición; sería redundante con lo que la URL
+y el historial ya hacen.
+
+**Por qué el contador es una variable de módulo y no `sessionStorage`.** La primera versión usaba una
+marca en `sessionStorage` («cuántas entradas de historial había al llegar a esta pestaña»), y parecía
+correcta hasta probarla contra el login real: `sessionStorage` sobrevive a una carga dura, así que
+abrir una boleta por URL directa justo después de iniciar sesión heredaba el historial *del login* y
+la flecha mandaba al panel en vez de al listado de boletas. Una variable de módulo no tiene ese
+problema: una carga dura (URL escrita a mano, marcador, refrescar) reinicia todo el contexto de
+JavaScript y dejaba el contador en 0 sola, sin código adicional. El costo aceptado: si alguien
+refresca la página de detalle y *entonces* pulsa la flecha, usa el destino de repuesto en vez del
+historial exacto —el botón físico Atrás del navegador sigue funcionando perfecto en ese caso, porque
+ese no depende de JavaScript—.
+
+**Destino de repuesto por entidad**, usado solo cuando no hay historial real en esta pestaña:
+
+| Detalle | `backHref` |
+|---|---|
+| Boleta (Owner/Admin) | `/owner/tickets?raffleId=<rifa de la boleta>` |
+| Boleta (Seller) | `/seller/tickets` |
+| Cliente (Owner/Admin) | `/owner/clients` |
+| Cliente (Seller) | `/seller/clients` |
+| Editar cliente (Seller) | El detalle de ese cliente, no el listado |
+| Vendedor (Owner/Admin) | `/owner/sellers` |
+| Rifa (Owner/Admin) | `/owner/raffles` |
+| Editar rifa (Owner/Admin) | El detalle de esa rifa, no el listado |
+| Crear boletas (Seller) | `/seller/tickets` |
+| Cambiar contraseña | El panel del rol (`dashboardPathForRole`) |
+
+**Deliberadamente sin tocar:** el botón «Volver a los resultados» de `TicketSelectionToolbar` (D-082)
+alterna un estado local —qué lista se ve, seleccionadas o todas—, no navega entre pantallas. Los
+botones «Cancelar» de `RaffleForm`/`ClientForm`/`PaymentForm`/`TicketForm` cancelan una edición en
+curso con `router.back()` directo, un propósito distinto al de esta flecha; no se tocaron porque nadie
+pidió endurecerlos y este proyecto no tiene protección de cambios sin guardar que preservar ni romper.
+`forgot-password` es una pantalla pública fuera del portal, no una pantalla de detalle.
 
 ---
 

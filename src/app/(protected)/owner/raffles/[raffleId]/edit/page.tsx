@@ -25,6 +25,7 @@ export default async function EditRafflePage({
       <PageHeader
         title={`Editar ${raffle.name}`}
         description="Cambiar el precio no modifica las boletas que ya se vendieron."
+        backHref={`/owner/raffles/${raffle.id}`}
       />
       <RaffleForm
         raffle={{

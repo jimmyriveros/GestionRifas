@@ -18,7 +18,7 @@ export default async function NewSellerTicketsPage() {
   if (allowed.length === 0) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Crear boletas" />
+        <PageHeader title="Crear boletas" backHref="/seller/tickets" />
         <EmptyState
           icon={<InfoIcon className="size-8" aria-hidden />}
           title="Ninguna rifa activa te permite crear boletas"
@@ -38,6 +38,7 @@ export default async function NewSellerTicketsPage() {
       <PageHeader
         title="Crear boletas"
         description="Escribe los dos números de cada boleta. Quedarán pendientes de aprobación hasta que tu administrador las revise."
+        backHref="/seller/tickets"
       />
       <SellerTicketForm
         raffles={allowed.map((raffle) => ({

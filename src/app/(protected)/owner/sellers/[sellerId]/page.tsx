@@ -28,6 +28,7 @@ export default async function SellerDetailPage({
       <PageHeader
         title={seller.fullName}
         description={seller.alias ?? undefined}
+        backHref="/owner/sellers"
         actions={
           <UserRowActions
             member={seller}

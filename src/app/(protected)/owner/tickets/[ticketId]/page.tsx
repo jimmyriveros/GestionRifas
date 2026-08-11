@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation'
 
 import { PageHeader } from '@/components/data/PageHeader'
 import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/StatusBadge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
 import { listClientPayments } from '@/features/payments/queries'
@@ -36,6 +35,7 @@ export default async function TicketDetailPage({
       <PageHeader
         title={ticketLabel(ticket)}
         description={`${ticket.raffleShortCode} — ${ticket.raffleName}`}
+        backHref={`/owner/tickets?raffleId=${ticket.raffleId}`}
         actions={
           <TicketActions
             ticket={ticket}
@@ -133,10 +133,6 @@ export default async function TicketDetailPage({
           </CardContent>
         </Card>
       ) : null}
-
-      <Button asChild variant="outline">
-        <Link href={`/owner/tickets?raffleId=${ticket.raffleId}`}>Volver a las boletas</Link>
-      </Button>
     </div>
   )
 }

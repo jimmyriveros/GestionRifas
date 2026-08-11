@@ -16,7 +16,7 @@ export default async function EditClientPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Editar ${client.name}`} />
+      <PageHeader title={`Editar ${client.name}`} backHref={`/seller/clients/${client.id}`} />
       <ClientForm
         client={{
           id: client.id,

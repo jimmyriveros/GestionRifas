@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.4 · **Actualizado:** 2026-08-09
+- **Versión:** 2.5 · **Actualizado:** 2026-08-10
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -255,6 +255,8 @@ interruptor de pruebas en el código de producción**. Las pruebas del recorrido
 | `db/bulk-actions.test.ts` | Lo que solo se puede probar contra PostgreSQL (BR-B01..BR-B08): elegibilidad heredando la RLS; **todo o nada** en las cuatro acciones; concurrencia real (otra sesión anula una mientras el lote está abierto); que un vendedor no anule, no elimine y no se reparta boletas; que otra organización no toque nada ni con los ids exactos; que una boleta con cliente, con abonos —aunque estén anulados— o **anulada** no se pueda eliminar; que el `DELETE` directo siga prohibido (D-038); la bitácora por boleta y del lote; e ids repetidos, inventados, lista vacía y **1.000 en una sola llamada** |
 | `e2e/seleccion-multiple.spec.ts` | El recorrido en escritorio: marcar, desmarcar y limpiar; que la selección **sobreviva a buscar, filtrar y cambiar de página**; que «Limpiar filtros» no la borre; que marcar **no mueva la fila de sitio**; la casilla del encabezado y el segundo paso explícito para «todas las que coinciden»; «Ver seleccionadas»; anular, cambiar vendedor, eliminar y aprobar en lote; y tres llamadas **directas a la API**, saltándose la pantalla, con los ids de otro vendedor |
 | `e2e/seleccion-movil.spec.ts` | Lo táctil (proyecto `movil`): en modo normal no hay casillas y la fila abre el detalle; en modo selección la **fila entera** marca y ya no abre; la casilla se ve de 20 px y **se toca en 44**; la pulsación larga entra en el modo; la barra se queda pegada abajo tras hacer scroll y sobrevive a la búsqueda; «Cancelar» limpia y devuelve el comportamiento normal |
+| `e2e/back-navigation.spec.ts` | Flecha de volver de las pantallas de detalle (BR-X09, D-089): boletas, clientes y rifas conservan filtro/búsqueda al volver por historial real; editar rifa vuelve al detalle, no al listado; abrir una boleta o un cliente por URL directa (o en una pestaña nueva) cae en el destino de repuesto sin salir de la aplicación; se activa con teclado (foco + `Enter`); y ya no queda ningún enlace textual «Volver a…» |
+| `e2e/back-navigation-movil.spec.ts` | Lo táctil (proyecto `movil`): la flecha mide al menos 44×44 y responde a `tap()`; un título largo no produce scroll horizontal ni empuja la flecha fuera de la pantalla |
 
 **Cómo se mide el color, y por qué así** (I-034): pintando el color en un `canvas` y leyendo los
 píxeles, no leyendo `getComputedStyle`. Con Tailwind 4 el navegador devuelve los colores en

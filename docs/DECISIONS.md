@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.15 · **Actualizado:** 2026-08-10 (D-001 a D-088)
+- **Versión:** 1.16 · **Actualizado:** 2026-08-10 (D-001 a D-089)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -1594,6 +1594,65 @@ crear la segunda, sin que nadie lo pidiera; hoy la regla es del negocio, no del 
 **Consecuencia.** Si algún día el vendedor vuelve a manejar varias rifas, se revierte pasándole
 `raffles` a `TicketFilters` y `showRaffle` a la tabla en `seller/tickets/page.tsx`; no hay que tocar
 componentes compartidos ni consultas.
+
+---
+
+## D-089 — Flecha de volver en las pantallas de detalle, con historial real y destino de repuesto
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-10)
+
+**Contexto.** Cada pantalla de detalle (boleta, cliente, vendedor, rifa) tenía, cuando tenía algo, un
+botón o enlace de texto suelto tipo «Volver a las boletas» al final de la página, con una URL fija que
+además perdía los filtros que traía el listado de origen (`owner/tickets/[ticketId]` solo conservaba
+`raffleId`, nunca `sellerId`, `q`, `inventoryStatus` ni `paymentStatus`). El usuario pidió un patrón
+único: una flecha junto al título, arriba, con la consecuencia adicional explícita de que abrir el
+detalle por URL directa —sin pantalla anterior real— nunca debía sacar de la aplicación ni fallar en
+silencio.
+
+**Decisión.** Se extiende `PageHeader` con `backHref` (destino de repuesto) y `backLabel` (nombre
+accesible opcional), en vez de crear un componente `DetailHeader` aparte. `PageHeader` sigue siendo
+usable desde Server Components: la parte interactiva vive en `BackButton`
+(`src/components/data/BackButton.tsx`, `'use client'`), que `PageHeader` renderiza solo si `backHref`
+llega. Las 23 pantallas que no lo pasan no cambian de aspecto ni de comportamiento.
+
+**El historial se prefiere sobre el destino de repuesto**, y se detecta con un contador de módulo
+—`navigation-history.ts`—, no con `sessionStorage`. El diseño y el motivo del cambio están en
+`ARCHITECTURE.md` §8.6; en resumen: `sessionStorage` sobrevive a una carga dura y eso es exactamente
+lo que NO hace falta aquí —hacía que abrir un detalle por URL justo después de iniciar sesión
+heredara el historial del login—; una variable de módulo se reinicia sola en cada carga dura, sin
+código adicional.
+
+**Un solo mecanismo, sin distinguir por entidad.** `BackButton` no sabe si está en una boleta o un
+vendedor; solo recibe `fallbackHref`. Elegir el destino de repuesto correcto por pantalla es
+responsabilidad de quien llama a `PageHeader`, no del componente compartido.
+
+**Se migró también `account/password`**, que ya tenía a mano una flecha (`ArrowLeftIcon` + «Volver al
+panel») pero como bloque separado ARRIBA del título —el anti-patrón exacto que el encargo pedía
+evitar («← Volver, salto de línea, Detalle de boleta»)—. Usar `PageHeader` ahí también corrige esa
+estructura de regalo y deja un solo patrón en toda la aplicación, no dos.
+
+**Deliberadamente sin tocar** (con el porqué, no solo la lista):
+
+| Caso | Por qué no |
+|---|---|
+| «Volver a los resultados» de `TicketSelectionToolbar` (D-082) | Alterna un estado local —qué lista se ve—, no navega entre pantallas |
+| «Cancelar» de `RaffleForm`/`ClientForm`/`PaymentForm`/`TicketForm` | Cancela una edición en curso con `router.back()` directo; semántica distinta, y este proyecto no tiene protección de cambios sin guardar que preservar ni romper al tocarlo |
+| El botón «Volver a mis boletas» dentro del `EmptyState` de `seller/tickets/new` | Es la guía de qué hacer cuando no hay nada que hacer aquí, como cualquier otra acción de `EmptyState`; el encabezado de esa misma pantalla sí gana la flecha |
+| `forgot-password` («Volver a iniciar sesión») | Pantalla pública fuera del portal, no una pantalla de detalle |
+
+**Alternativas.** (a) Un componente `DetailHeader` separado de `PageHeader` (descartada: o duplica el
+bloque título/descripción, o produce dos piezas visualmente desconectadas —justo lo que el encargo
+pide evitar en la sección de jerarquía del header—). (b) Detectar el historial con
+`window.history.length` comparado contra una marca guardada al iniciar la pestaña (descartada:
+probada primero, falla exactamente en el caso más pedido por el encargo —abrir por URL directa—
+cuando ya hubo cualquier navegación previa en la pestaña, incluida la del propio login). (c) Un
+sistema de navegación con pila propia en `sessionStorage`, replicando el historial del navegador
+(descartada: exactamente el «sistema de estado innecesariamente complejo» que el encargo pide evitar,
+cuando el historial real del navegador ya hace ese trabajo).
+
+**Consecuencia.** Si una pantalla nueva necesita este patrón, pasa `backHref` (y opcionalmente
+`backLabel`) a su `PageHeader`; no hace falta tocar `BackButton` ni `navigation-history.ts`. Si
+alguna vez este proyecto añade protección de cambios sin guardar a un formulario, esa protección debe
+interceptar su propio `router.back()`/`backHref` antes de navegar, no vivir dentro de `BackButton`.
 
 ---
 

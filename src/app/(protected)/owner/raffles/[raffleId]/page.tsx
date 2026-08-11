@@ -31,6 +31,7 @@ export default async function RaffleDetailPage({
       <PageHeader
         title={raffle.name}
         description={raffle.description ?? undefined}
+        backHref="/owner/raffles"
         actions={
           <>
             {editable ? (

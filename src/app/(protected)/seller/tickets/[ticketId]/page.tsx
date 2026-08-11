@@ -55,6 +55,7 @@ export default async function SellerTicketDetailPage({
       <PageHeader
         title={ticketLabel(ticket)}
         description={`${ticket.raffleShortCode} — ${ticket.raffleName}`}
+        backHref="/seller/tickets"
         actions={
           <>
             {canAssign ? (
@@ -188,10 +189,6 @@ export default async function SellerTicketDetailPage({
           </p>
         </CardContent>
       </Card>
-
-      <Button asChild variant="outline">
-        <Link href="/seller/tickets">Volver a mis boletas</Link>
-      </Button>
     </div>
   )
 }

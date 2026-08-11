@@ -1389,3 +1389,62 @@ secundario bueno: la limpieza del `afterAll` ya no puede borrar boletas de otras
 | `npm run typecheck` · `npm run lint` | ✅ 0 errores | Los 2 avisos conocidos de TanStack |
 | `npm run db:reset; npm run seed:local; npm run test:db` | ✅ **378/378** | Base recién sembrada, la condición del CI |
 | `npm run test:db` ×3 más, **sin resembrar** | ✅ 378/378 cada una | Es el escenario donde la colisión era más probable |
+
+---
+
+## Flecha de volver en las pantallas de detalle — 2026-08-10
+
+Mantenimiento posterior a la Fase 9, a petición explícita del usuario (BR-X09, D-089). Patrón de
+navegación hacia atrás compartido para las pantallas de detalle. **Sin migraciones ni cambios de
+esquema, RLS o consultas.**
+
+### Comandos y resultados
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| `npm run typecheck` | ✅ | Sin errores, en cada iteración del diseño |
+| `npm run lint` | ✅ **0 errores** | Los 2 avisos de siempre: `useReactTable` y `useVirtualizer` |
+| `npm run test` | ✅ **293/293** | Sin pruebas unitarias nuevas: el mecanismo se verifica de punta a punta con Playwright, que es lo único que puede probar historial real del navegador |
+| `npm run build` | ✅ | Build de producción completo |
+| `npm run db:reset; npm run seed:local; npm run test:db` | ✅ **378/378** | Puerta del proyecto para cambios funcionales, aunque este no toque SQL |
+| `npx playwright test tests/e2e/back-navigation.spec.ts --project=escritorio` | ✅ **9/9** | Historial real con filtro conservado, listado→detalle→volver en boletas/clientes/rifas, editar rifa vuelve al detalle, URL directa (misma pestaña y pestaña nueva), teclado, cambiar contraseña |
+| `npx playwright test tests/e2e/back-navigation-movil.spec.ts --project=movil` | ✅ **2/2** | Diana de 44×44 con `tap()`, título largo sin desbordamiento horizontal |
+| `npm run db:reset; npm run seed:local; npm run test:e2e` (suite completa) | ✅ **224/224** en 11,4 min | 213 anteriores + 11 nuevas (9 escritorio + 2 móvil); confirma que ninguna pantalla existente se rompió |
+| `npx prettier --write` sobre 3 archivos con estilo pendiente | ✅ | Solo formato (indentación/salto de línea); recomprobado con `--check` y con las mismas 11 pruebas E2E después de escribir |
+
+### Los 8 casos del encargo, y dónde se comprueban
+
+| Caso | Qué pide | Dónde |
+|---|---|---|
+| A — Mis boletas → detalle → ← | Vuelve a Mis boletas | `back-navigation.spec.ts`, «boletas del vendedor» |
+| B — Clientes → detalle → ← | Vuelve a Clientes | `back-navigation.spec.ts`, «clientes: vuelve al listado» |
+| C — Lista con búsqueda y filtro → detalle → ← | Conserva el contexto | `back-navigation.spec.ts`, «Caso C, BR-N11» — literal: la URL de vuelta es bit a bit la misma, y el campo de búsqueda conserva el término escrito |
+| D — Lista con scroll → detalle → ← | Restaura la posición aproximada | No tiene una prueba dedicada: lo hace la restauración de scroll nativa de Next.js/el navegador en una navegación con historial real (`router.back()`), y este trabajo no construye ningún mecanismo propio de scroll — hacerlo habría sido el «sistema de estado innecesariamente complejo» que el encargo pide evitar |
+| E — URL directa → ← | Usa el destino de repuesto, nunca saca de la app | `back-navigation.spec.ts`, «sin historial real», dos pruebas: misma pestaña tras iniciar sesión, y una pestaña nueva de la misma sesión |
+| F — Teclado | Foco + `Enter` activa | `back-navigation.spec.ts`, «teclado» |
+| G — Móvil | Diana cómoda, título sin desbordar | `back-navigation-movil.spec.ts`, las dos pruebas |
+| H — Cambios sin guardar | La flecha no debe saltarse la protección | No aplicable: este proyecto no tiene ninguna protección de cambios sin guardar en ningún formulario (comprobado con una búsqueda exhaustiva de `beforeunload`/`isDirty`/`formState` antes de tocar nada); no había nada que preservar ni nada que romper |
+
+### El defecto de diseño que encontró la propia prueba del Caso E
+
+La primera versión de `hasInternalHistory()` comparaba `window.history.length` contra una marca
+guardada en `sessionStorage` al llegar a la pestaña. Parecía correcta hasta que la prueba «una boleta
+abierta por URL directa usa el destino de repuesto» la desmintió: después de `loginAs()` (que hace un
+`page.goto('/login')` real y luego una redirección), abrir el detalle directamente y pulsar «Volver»
+terminaba en `/owner/dashboard`, no en el listado de boletas. `sessionStorage` sobrevive a una carga
+dura, así que el historial que el detector encontraba era el del propio flujo de login, no nada
+relacionado con la boleta. Corregido con un contador de **variable de módulo**: una carga dura
+reinicia todo el contexto de JavaScript y lo deja en 0 sola, sin código adicional. Detalle completo,
+con las alternativas descartadas, en `docs/DECISIONS.md` D-089.
+
+### Otros dos hallazgos, menores
+
+| Hallazgo | Corrección |
+|---|---|
+| Dos pruebas nuevas esperaban el encabezado de columna «Nombre» en clientes y en rifas | Los encabezados reales son «Cliente» y «Rifa»; se corrigió la prueba, no el producto |
+| La primera pasada sobre `/owner/tickets` con filtro agotó el tiempo (60 s) | Compilación en frío de esa ruta bajo Turbopack en modo desarrollo, la primera vez que se visitaba en esa sesión del servidor. Aislada repitiendo la prueba sola (pasó en 4,6 s) y confirmada al repetir la suite completa con las rutas ya calientes (9/9) |
+
+### Estado de promoción
+
+No se ejecutó `db push`, `verify:remote` ni ninguna operación sobre el Supabase real: este cambio no
+lleva migración. Queda en commit(s) local(es), sin push, a la espera de autorización explícita.

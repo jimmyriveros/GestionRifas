@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 
+import { NavigationHistoryTracker } from '@/components/layout/NavigationHistoryTracker'
 import { Toaster } from '@/components/ui/sonner'
 
 import './globals.css'
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <NavigationHistoryTracker />
         {children}
         <Toaster />
       </body>

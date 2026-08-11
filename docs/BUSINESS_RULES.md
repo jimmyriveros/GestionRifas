@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.2 · **Estado:** normativo · **Actualizado:** 2026-08-09
+- **Versión:** 1.3 · **Estado:** normativo · **Actualizado:** 2026-08-10
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -307,6 +307,7 @@ más de `$100.000` → operación rechazada.
 | BR-X06 | Los errores de restricción de la base de datos se traducen a mensajes en español entendibles, sin exponer detalles internos. | S, C | 3 |
 | BR-X07 | Los filtros son fáciles de limpiar; siempre hay una acción visible de «Limpiar filtros». | C | 3 |
 | BR-X08 | Todo texto visible se redacta según [`UX_COPY_GUIDELINES.md`](UX_COPY_GUIDELINES.md) (tuteo, palabras comunes, consecuencias explicadas, glosario del Anexo A). | C | Permanente |
+| BR-X09 | Las pantallas de detalle usan una flecha de navegación hacia atrás junto al título, no un botón o enlace de texto «Volver a…». Vuelve al contexto real desde el que llegó el usuario cuando existe; si no, usa una ruta de repuesto segura que nunca saca de la aplicación. | C, S | post-9 |
 
 ---
 

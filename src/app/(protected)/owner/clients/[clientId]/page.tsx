@@ -34,6 +34,7 @@ export default async function ClientDetailPage({
       <PageHeader
         title={client.name}
         description={client.alias ?? undefined}
+        backHref="/owner/clients"
         actions={
           <Button asChild variant="outline">
             <Link href={`/owner/sellers/${client.sellerId}`}>Ver vendedor</Link>
