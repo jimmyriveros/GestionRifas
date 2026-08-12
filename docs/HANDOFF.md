@@ -32,7 +32,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
 | Último cambio funcional promovido | `45759f6` — resumen de cobranza en el panel, en vez de «Rifa activa» (D-090), 2026-08-11; desplegado en Vercel y verificado. No necesitó migración |
-| Punto de partida del último mantenimiento | `main` en `c49ccc2`, igual a `origin/main`, con árbol limpio antes de implementar (2026-08-11) |
+| Punto de partida del último mantenimiento | `main` en `e8df01c`, igual a `origin/main`, con árbol limpio antes de implementar (2026-08-11) |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
@@ -55,20 +55,28 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — resumen de cobranza en el panel (2026-08-11)
+## 1.a Último relevo significativo — resumen compacto en «Asignar boletas» (2026-08-11)
 
 | Campo | Estado |
 |---|---|
-| Resultado | Se reemplazó el bloque «Rifa activa» de los dos paneles (Dueño y Vendedor) por un resumen ejecutivo de cobranza (`CollectionSummaryCard`, D-090): recaudado, pendiente, barra de progreso, porcentaje y boletas por cobrar. No usa datos nuevos: reutiliza exactamente `dashboard.totals`, la misma fuente que ya alimentaba las tarjetas de «Cobranza» y las de `/owner/payments`/`/seller/payments`. Se retiraron por redundancia las 3 tarjetas de dinero de esa fila (quedan las 3 de conteo: Sin pagar/Abonadas/Pagadas) y el botón «Crear boletas» del panel del vendedor (ya vive en `/seller/tickets`, encabezado + estado vacío). **No se tocó base de datos, esquema, RLS ni consultas de negocio** |
-| Archivos | Nuevos: `CollectionSummaryCard.tsx`, `collection-summary.ts`, `tests/unit/collection-summary.test.ts`, `tests/e2e/dashboard-collection-summary.spec.ts`. Modificados: `owner/dashboard/page.tsx`, `seller/dashboard/page.tsx`, `dashboard/queries.ts`, `dashboard/seller-queries.ts`, `tour/tours.ts`. Documentación: `DECISIONS.md` (D-090), `ARCHITECTURE.md` §8.2 |
-| Reutilización | `dashboard.totals` tal cual, sin ninguna consulta nueva; la barra de progreso copia el patrón accesible que ya existía en `BulkTicketCreator.tsx` (`role="progressbar"` + dos `div`, sin librería nueva); `MetricCard`, `Card`, `formatCOP` y `tourTarget` de siempre |
-| Decisiones | **D-090**. La consistencia con `/owner/payments` y `/seller/payments` se verificó **end-to-end** (la prueba E2E lee ambas pantallas y compara los números), no solo revisando el código. `activeRaffle` y `canCreateTickets` (`SellerDashboard`/`AdminDashboard`) se retiraron por quedarse sin ningún consumidor tras el cambio — junto con la consulta `listRaffleOptions()` que solo existía para calcularlos en el panel del vendedor, una petición menos por carga |
-| Verificación | `typecheck` ✅ · `lint` ✅ 0 errores · **299/299** unitarias ✅ (293 + 6 nuevas) · `build` ✅ · **378/378** de base de datos ✅ (sin cambios de esquema) · **227/227** E2E ✅ (224 anteriores + 3 nuevas). La primera pasada completa marcó 5 fallos en archivos que este trabajo no toca (`back-navigation`, `filas-seleccionables`, `importar-boletas`); repetidos solos tras `db:reset`+`seed:local` pasaron 27/27 — contaminación entre archivos de una corrida larga sin resets intermedios, no una regresión (mismo patrón que I-035/I-055) |
-| Errores encontrados | Una prueba E2E propia asumía que `CardTitle` expone rol `heading`; en este sistema de diseño es un `<div>` sin rol ARIA — corregido antes de proponerlo, no era un defecto del producto |
-| Advertencia | Mismo límite que en relevos anteriores: el navegador integrado de este entorno no compone fotogramas fuera de las pantallas más simples (I-012). El panel se leyó por texto sin problema, pero `/owner/payments` se quedó pegado al esqueleto en la vista previa aunque el servidor ya había respondido 200 — la verificación real fue con Playwright, que sí compara ambas pantallas |
-| Publicación | **Desplegado en producción el 2026-08-11 con autorización expresa.** Sin migraciones que aplicar (`git diff` del commit confirma 0 archivos tocados bajo `supabase/migrations`). Después del push: CI 2/2 (`31529067336`), despliegue de Vercel `READY` sobre el SHA `45759f6` (`dpl_9i6SLt1vhEp6EfcA8jaFHxbmKg6d`, verificado por API, no solo porque la URL respondiera), y `https://gestion-rifas.vercel.app/login` en HTTP 200 con sus cabeceras; `/owner/dashboard` y `/seller/dashboard` en 307 hacia el login, como corresponde sin sesión |
-| Pendiente | Verificación visual manual con sesión real (un agente no inicia sesión en producción). Aparte de eso, nada de este trabajo. Siguen abiertos los mismos riesgos operativos I-021, I-023 e I-024, y la deuda I-030, I-037 e I-046–I-052 |
-| Git | Rama `main`, de `c49ccc2` a `45759f6`. Se empujó **solo la rama**: las etiquetas `fase-3`…`fase-9` siguen sin subir |
+| Resultado | El modal de asignación múltiple (`BulkAssignDialog`, dentro de «Mis boletas») reemplaza la barra inferior duplicada «N boletas — $XXX.XXX» por un resumen de dos columnas justo debajo de la descripción del modal: «Boletas seleccionadas» (cantidad) y «Total a asignar» (dinero), ambos calculados sobre las boletas ELEGIBLES, nunca sobre la selección bruta. La sección «Boletas seleccionadas» con los números individuales se conserva debajo, sin cambio de comportamiento. **No se tocó lógica de negocio**: ni precios, ni asignación, ni creación de clientes, ni el formulario compartido con la asignación de una sola boleta |
+| Archivos | Modificados: `BulkAssignDialog.tsx` (nuevo `SelectionSummary`, `SelectedNumbers` simplificado a encabezado estático + lista), `AssignTicketsForm.tsx` (prop `showSummary`, por defecto `true`), `tests/e2e/seleccion-multiple.spec.ts` |
+| Reutilización | `AssignTicketsForm` es el MISMO formulario que usa `AssignTicketDialog` (una sola boleta, sin resumen superior que duplicar): se le añadió `showSummary` en vez de bifurcar el formulario o tocar esa otra pantalla, que no tenía redundancia que resolver y no se pidió cambiar |
+| Decisiones | El total y la cantidad del resumen nuevo usan `row.can.assign` (boletas elegibles), no la selección bruta: si alguna quedó bloqueada, el resumen nunca muestra un total inflado con lo que no se puede asignar |
+| Verificación | `typecheck` ✅ · `lint` ✅ 0 errores · **299/299** unitarias ✅ · `build` ✅ · **378/378** de base de datos ✅ (sin cambios de esquema) · **59/59** E2E relevantes ✅ (`seleccion-multiple`, `seleccion-movil`, `owner-tickets`, `seller-tickets` — cubre los dos únicos consumidores reales de `AssignTicketsForm`) |
+| Errores encontrados | Ninguno nuevo. Una aserción E2E existente comprobaba «N boletas seleccionadas» como un solo nodo de texto; se actualizó porque el nuevo diseño separa la cantidad («N boletas») de la etiqueta («Boletas seleccionadas») en dos elementos distintos |
+| Advertencia | Ninguna nueva |
+| Publicación | Ninguna todavía: cambios solo en commit(s) local(es), a la espera de autorización expresa del usuario |
+| Pendiente | Nada de este trabajo |
+| Git | Rama `main`, desde `e8df01c`; el hash de cierre queda en el reporte de la tarea, no aquí. No se hizo push |
+
+## 1.a.1 Relevo anterior — resumen de cobranza en el panel (2026-08-11)
+
+Contexto histórico: ya publicado y verificado en producción (`45759f6`, con `e8df01c` documental de
+cierre). Resumen: la tarjeta «Rifa activa» de ambos paneles se reemplazó por un resumen ejecutivo de
+cobranza (`CollectionSummaryCard`, D-090) que reutiliza `dashboard.totals` sin consultas nuevas; se
+retiraron las tarjetas de dinero duplicadas de la fila «Cobranza» y el botón «Crear boletas» del panel
+del vendedor. Detalle completo en `DECISIONS.md` (D-090) y en el historial de Git.
 
 ## 1.a.1 Relevo anterior — flecha de volver en las pantallas de detalle (2026-08-10)
 

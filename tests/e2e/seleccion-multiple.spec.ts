@@ -361,9 +361,12 @@ test.describe('Asignación múltiple del vendedor', () => {
 
     await page.getByRole('button', { name: 'Asignar a un cliente' }).click()
     const dialog = page.getByRole('dialog')
-    await expect(dialog.getByText('3 boletas seleccionadas')).toBeVisible()
+    await expect(dialog.getByText('3 boletas', { exact: true })).toBeVisible()
     // El total sale del precio vigente de la rifa, no de una cifra fija.
     await expect(dialog.getByText('$300.000')).toBeVisible()
+    // El resumen inferior duplicado ya no existe: el texto combinado de antes
+    // ya no aparece como un solo nodo.
+    await expect(dialog.getByText('3 boletas seleccionadas')).toHaveCount(0)
 
     await dialog.getByRole('option').first().click()
     await dialog.getByRole('button', { name: 'Asignar 3 boletas' }).click()

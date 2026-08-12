@@ -46,12 +46,16 @@ export function AssignTicketsForm({
   totalAmount,
   clients,
   onDone,
+  showSummary = true,
 }: {
   ticketIds: string[]
   /** Suma del precio vigente de la rifa de cada boleta. */
   totalAmount: number
   clients: ClientOption[]
   onDone: () => void
+  /** Oculta el resumen de cantidad/total antes de los botones: quien llama ya
+   *  lo muestra en otro lugar (BulkAssignDialog, seccion superior del modal). */
+  showSummary?: boolean
 }) {
   const router = useRouter()
   const [tab, setTab] = useState<'existing' | 'new'>(clients.length > 0 ? 'existing' : 'new')
@@ -206,7 +210,7 @@ export function AssignTicketsForm({
             </OptionList>
           )}
 
-          <SaleSummary count={count} totalAmount={totalAmount} />
+          {showSummary ? <SaleSummary count={count} totalAmount={totalAmount} /> : null}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>
@@ -223,7 +227,7 @@ export function AssignTicketsForm({
             <form onSubmit={form.handleSubmit(assignNew)} className="space-y-4" noValidate>
               <ClientFormFields form={form} disabled={isPending} compact />
 
-              <SaleSummary count={count} totalAmount={totalAmount} />
+              {showSummary ? <SaleSummary count={count} totalAmount={totalAmount} /> : null}
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import type { ClientOption } from '@/features/clients/queries'
 import { AssignTicketsForm } from '@/features/tickets/assign/components/AssignTicketsForm'
+import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
 
 import { allEligible, ineligibleFor, whyNot } from '../eligibility'
@@ -49,6 +50,12 @@ export function BulkAssignDialog({
 
   const total = rows.reduce((sum, row) => sum + (rafflePrices[row.raffleId] ?? 0), 0)
 
+  // Lo que de verdad se puede asignar ahora mismo: el resumen y la lista de
+  // arriba muestran esto, no el total bruto de la seleccion (una boleta
+  // bloqueada no debe sumar al "total a asignar" que ve el vendedor).
+  const eligibleRows = rows.filter((row) => row.can.assign)
+  const eligibleTotal = eligibleRows.reduce((sum, row) => sum + (rafflePrices[row.raffleId] ?? 0), 0)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -66,7 +73,8 @@ export function BulkAssignDialog({
           </p>
         ) : (
           <>
-            <SelectedNumbers rows={rows.filter((row) => row.can.assign)} />
+            <SelectionSummary count={eligibleRows.length} totalAmount={eligibleTotal} />
+            <SelectedNumbers rows={eligibleRows} />
 
             {!ready ? (
               <div
@@ -102,6 +110,7 @@ export function BulkAssignDialog({
             ticketIds={selection.selectedIds}
             totalAmount={total}
             clients={clients}
+            showSummary={false}
             onDone={() => {
               onOpenChange(false)
               selection.clear()
@@ -119,6 +128,27 @@ export function BulkAssignDialog({
   )
 }
 
+/**
+ * Cuántas boletas y por cuánto dinero, antes de elegir el cliente: el resumen
+ * ejecutivo de la operación (reemplaza la barra inferior duplicada).
+ */
+function SelectionSummary({ count, totalAmount }: { count: number; totalAmount: number }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 rounded-md border p-3 sm:grid-cols-2 sm:gap-4">
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-xs">Boletas seleccionadas</p>
+        <p className="text-base font-semibold tabular-nums">
+          {count === 1 ? '1 boleta' : `${count} boletas`}
+        </p>
+      </div>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-xs">Total a asignar</p>
+        <p className="text-base font-semibold tabular-nums">{formatCOP(totalAmount)}</p>
+      </div>
+    </div>
+  )
+}
+
 /** Los dos numeros de cada boleta. Pocas se leen de un vistazo; muchas, con
  *  desplazamiento (seccion 31). */
 function SelectedNumbers({ rows }: { rows: { ticketId: string; dailyNumber: string | null; weeklyNumber: string | null }[] }) {
@@ -128,9 +158,7 @@ function SelectedNumbers({ rows }: { rows: { ticketId: string; dailyNumber: stri
 
   return (
     <div className="space-y-1">
-      <p className="text-sm font-medium">
-        {rows.length === 1 ? '1 boleta seleccionada' : `${rows.length} boletas seleccionadas`}
-      </p>
+      <p className="text-sm font-medium">Boletas seleccionadas</p>
       <ul className="max-h-40 overflow-y-auto rounded-md border p-2 text-sm">
         {rows.map((row) => (
           <li key={row.ticketId} className="font-mono tabular-nums">
