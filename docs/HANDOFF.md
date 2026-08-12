@@ -37,7 +37,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **21 migraciones en local y en el proyecto real**; `0021` se promovió y verificó el 2026-08-09 después del respaldo externo requerido. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Base de datos | **23 migraciones en local; las 21 primeras también en el proyecto real.** `0022` (equipos) y `0023` (avisos) están **solo en local** y no se han promovido: exigen autorización explícita y respaldo previo (§3.b). `0021` se promovió y verificó el 2026-08-09. **Plan Free: sin backups automáticos** (I-024) |
 | Pruebas | **299 unitarias**, **378 de base de datos** y **227 E2E**, todas revalidadas el 2026-08-11; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
@@ -339,7 +339,9 @@ El código cita las decisiones (`D-0xx`) y reglas (`BR-xxx`) que aplica: si un c
 Evita leer `DATA_MODEL.md` (~5k tokens) solo para recordar nombres.
 
 ```
-organizations ─┬─ memberships (profile_id, organization_id, role, is_active)
+organizations ─┬─ memberships (profile_id, organization_id, role, is_active,
+               │                parent_seller_id → equipos, 0022)
+               ├─ notifications (recipient_profile_id, kind, data, read_at; 0023)
                ├─ raffles     (short_code, name, ticket_price, status, allow_seller_ticket_creation)
                ├─ clients     (seller_id, name, phone, archived_at)
                ├─ tickets     (raffle_id, seller_id, client_id, internal_code,
@@ -415,6 +417,9 @@ features/team/      equipos de vendedores (D-091): queries.ts, actions.ts y las
                     porque `tickets_select` NO se amplio (D-092)
 features/users/invite.ts  invitacion por correo + membresia bajo RLS. UN solo camino
                     para crear un vendedor, lo cree el personal o su vendedor padre
+features/notifications/  avisos (D-093): campanita en el armazon, tabla escrita
+                    SOLO por triggers, y el TEXTO en text.ts —nunca en la base de
+                    datos, para no repetir I-030—
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
 features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
                     ExportCsvButton

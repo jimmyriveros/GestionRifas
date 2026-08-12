@@ -73,6 +73,10 @@ La diferencia entre un vendedor con equipo y uno sin equipo es solo que el prime
 | BR-E07 | La visibilidad es **en un solo sentido**: un integrante no ve las ventas de su vendedor padre ni las de sus compañeros de equipo. | D | post-9 |
 | BR-E08 | El Dueño y el Administrador conservan visibilidad y control totales: ven todos los equipos, pueden crear un vendedor ya dentro de un equipo y pueden moverlo de equipo. | S, D | post-9 |
 | BR-E09 | Desactivar a un integrante no lo borra del equipo ni de su historial: sus ventas siguen contando para lo ya ocurrido y su vendedor padre las sigue viendo (mismo criterio que BR-U06). | D | post-9 |
+| BR-E10 | Los avisos son **correspondencia dirigida**: cada persona ve solo los suyos, ni siquiera el Dueño ve la bandeja de otro. Nadie los escribe a mano; los crea la base de datos al ocurrir el hecho, en la misma transacción. Lo único que puede hacer el destinatario es marcarlos como leídos. | S, D | post-9 |
+| BR-E11 | **Se avisa cuando alguien agrega un vendedor a su equipo.** Destinatarios: el Dueño y los Administradores. El primero de un equipo se cuenta distinto del resto («armó su equipo» / «agregó a»). | D | post-9 |
+| BR-E12 | **Se avisa cuando se vende una boleta.** Destinatarios: el vendedor padre de quien vendió, si lo tiene, y el Dueño y los Administradores. A quien vende **no** se le avisa su propia venta. | D | post-9 |
+| BR-E13 | El **texto** de un aviso no se guarda en la base de datos: se guarda qué pasó y con qué datos, y la frase la arma la aplicación (I-030, D-093). | S | post-9 |
 
 **Por qué la excepción de BR-E05 es tan estrecha.** Abrir la RLS es la parte irreversible de esta
 funcionalidad: una vez que un rol ve una fila, cualquier pantalla —incluidas las que nadie ha escrito

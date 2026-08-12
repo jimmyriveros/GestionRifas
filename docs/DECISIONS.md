@@ -1819,6 +1819,57 @@ habrá cambiado de significado sin que nadie lo note.
 
 ---
 
+## D-093 — Avisos: tabla propia, campanita, sin tiempo real, y el texto fuera de la base de datos
+**Fase:** posterior a la 9 (mantenimiento, 2026-08-12)
+
+**Contexto.** El encargo repetía cuatro veces «reutiliza el sistema de notificaciones existente, no
+crees uno paralelo». **No existía ninguno.** La aplicación tenía *toasts* (`sonner`) —un mensaje
+efímero en la pantalla que ya estás mirando, que no sobrevive a una recarga y solo lo ve quien acaba
+de actuar— y `audit_logs`, que es una bitácora técnica para el personal, no la bandeja de nadie. Se
+le presentó al usuario y eligió, entre tres opciones: **tabla + campanita, sin tiempo real**.
+
+**Decisión.** Migración `0023`: tabla `notifications` con una fila por destinatario, escrita
+únicamente por `notify_profiles` (`SECURITY DEFINER`, mismo diseño que `write_audit_log`: la tabla no
+concede `INSERT` a ningún rol). Se dispara desde **triggers**, no desde las Server Actions, por dos
+razones: el aviso ocurre en la misma transacción que el hecho, y no depende del camino —una boleta
+llega a vendida por asignación individual, masiva o importación, y las tres avisan sin tener que
+acordarse—.
+
+**El texto no vive en la base de datos.** La fila guarda `kind` y un `data` con los nombres y números
+ya resueltos; la frase la arma `features/notifications/text.ts`. No es preferencia de estilo: I-030
+documenta que los mensajes escritos dentro de migraciones quedaron sin tildes y corregirlos exige una
+migración nueva **y aplicarla a producción**. Con el texto en la aplicación, mejorar una redacción es
+cambiar un archivo, como todo lo demás que lee un usuario (`UX_COPY_GUIDELINES`, Anexo B). Guardar el
+nombre y los números en `data` tiene además una consecuencia necesaria: el vendedor padre **no puede
+leer la boleta** de su equipo (D-092), así que el dato tiene que viajar con el aviso.
+
+**Privilegio acotado a una columna.** `authenticated` recibe `grant update (read_at)`, no `update`.
+Aunque la política dejara pasar la fila, no hay forma de reescribir el texto ni el destinatario de un
+aviso propio. La acción `markNotificationsRead` no recibe ids: marca los del propio usuario, así que
+no hay nada que validar ni nada que manipular.
+
+**Quién recibe qué.** Agregar un integrante → el Dueño y los Administradores. Vender una boleta → el
+vendedor padre de quien vendió, si lo tiene, **y** el personal. Quien vende no recibe aviso de su
+propia venta.
+
+⚠️ **Riesgo aceptado y fácil de revertir: volumen.** Avisar al personal de **cada** venta es lo que
+pide literalmente el encargo (su prueba de notificaciones exige que la venta de un sub-vendedor llegue
+al Admin), pero en una rifa de mil boletas son mil avisos por persona del personal. El Dueño y el
+Administrador ya ven todas las ventas en su panel y en sus reportes, así que el aviso les aporta poco
+y les cuesta atención. **Si molesta, se quita una línea**: `v_recipients := org_staff_profile_ids(...)`
+en `notify_ticket_sold`, y el vendedor padre —que es quien no tiene otra forma de enterarse— sigue
+recibiendo el suyo. Se deja implementado como se pidió y anotado aquí para que sea una decisión del
+dueño, no un olvido.
+
+**Alternativas.** (a) Supabase Realtime (descartada por el usuario: infraestructura y conexiones del
+plan Free a cambio de que el número baje solo). (b) Reutilizar `audit_logs` como bandeja (descartada:
+es de solo anexado, la lee únicamente el personal (BR-D04) y no tiene destinatario ni estado de
+lectura; habría que ampliarle la RLS a todos los vendedores, justo el error que corrigió D-092).
+(c) Notificar desde las Server Actions (descartada: tres caminos distintos llegan a una venta y el
+aviso quedaría fuera de la transacción).
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

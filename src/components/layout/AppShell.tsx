@@ -4,6 +4,7 @@ import { MobileNav } from '@/components/layout/MobileNav'
 import { NavLinks } from '@/components/layout/NavLinks'
 import type { NavItem } from '@/components/layout/nav-items'
 import { UserMenu } from '@/components/layout/UserMenu'
+import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import { TourProvider } from '@/features/tour/components/TourProvider'
 import { tourTarget } from '@/features/tour/tours'
 import type { AppRole } from '@/lib/constants'
@@ -68,7 +69,8 @@ function AppShellLayout({
         <header className="bg-background sticky top-0 z-40 flex h-14 items-center gap-2 border-b px-4">
           <MobileNav orgName={orgName} items={navItems} />
           <span className="truncate font-semibold md:hidden">{orgName}</span>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1">
+            <NotificationBell />
             <UserMenu fullName={fullName} email={email} role={role} />
           </div>
         </header>

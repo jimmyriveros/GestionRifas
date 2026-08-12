@@ -397,6 +397,7 @@ cambiar ese archivo, nunca escribirla suelta en una pantalla.
 | Confirmaciones de acciones sensibles | `ConfirmDialog` (`src/components/feedback/`) |
 | Mensajes de éxito | El `toast` de cada Server Action, en su componente cliente |
 | Pasos del recorrido guiado (título y explicación) | `src/features/tour/tours.ts`, **todos juntos** |
+| Texto de los avisos de la campanita | `src/features/notifications/text.ts`, **todos juntos** (D-093) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

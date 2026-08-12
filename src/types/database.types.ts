@@ -210,6 +210,74 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          actor_profile_id: string | null
+          created_at: string
+          data: Json
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          kind: string
+          organization_id: string
+          read_at: string | null
+          recipient_profile_id: string
+        }
+        Insert: {
+          actor_profile_id?: string | null
+          created_at?: string
+          data?: Json
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          kind: string
+          organization_id: string
+          read_at?: string | null
+          recipient_profile_id: string
+        }
+        Update: {
+          actor_profile_id?: string | null
+          created_at?: string
+          data?: Json
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          kind?: string
+          organization_id?: string
+          read_at?: string | null
+          recipient_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notifications_actor_profile_id_fkey'
+            columns: ['actor_profile_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notifications_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notifications_recipient_org_fk'
+            columns: ['recipient_profile_id', 'organization_id']
+            isOneToOne: false
+            referencedRelation: 'memberships'
+            referencedColumns: ['profile_id', 'organization_id']
+          },
+          {
+            foreignKeyName: 'notifications_recipient_profile_id_fkey'
+            columns: ['recipient_profile_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
@@ -1070,6 +1138,19 @@ export type Database = {
           phone: string
         }[]
       }
+      notify_profiles: {
+        Args: {
+          p_actor?: string
+          p_data?: Json
+          p_entity_id?: string
+          p_entity_type?: string
+          p_kind: string
+          p_organization_id: string
+          p_recipients: string[]
+        }
+        Returns: undefined
+      }
+      org_staff_profile_ids: { Args: { p_org: string }; Returns: string[] }
       recalc_ticket_paid_amount: {
         Args: { p_ticket_id: string }
         Returns: undefined

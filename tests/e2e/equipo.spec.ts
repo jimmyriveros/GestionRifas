@@ -149,6 +149,95 @@ test.describe('Mi equipo', () => {
     await expect(page.getByRole('heading', { name: 'Página no encontrada' })).toBeVisible()
   })
 
+  test('el aviso de la venta de un integrante llega a la campanita del padre', async ({ page }) => {
+    const svc = serviceClient()
+    const email = uniqueEmail('aviso-e2e')
+
+    const { data: parent } = await svc
+      .from('profiles')
+      .select('id')
+      .eq('email', ACCOUNTS.seller)
+      .single()
+    const { data: pm } = await svc
+      .from('memberships')
+      .select('organization_id')
+      .eq('profile_id', parent!.id)
+      .single()
+    const { data: raffle } = await svc
+      .from('raffles')
+      .select('id')
+      .eq('name', 'Rifa Navidad 2026')
+      .single()
+
+    const { data: created } = await svc.auth.admin.createUser({
+      email,
+      password: 'DesarrolloLocal2026',
+      email_confirm: true,
+      user_metadata: { full_name: 'Sofía Aviso E2E', phone: '3001112233' },
+    })
+    const member = created?.user
+    expect(member, 'no se pudo crear la cuenta del integrante').toBeTruthy()
+    await svc.from('memberships').insert({
+      organization_id: pm!.organization_id,
+      profile_id: member!.id,
+      role: 'seller',
+      parent_seller_id: parent!.id,
+    })
+
+    const { data: cliente } = await svc
+      .from('clients')
+      .insert({
+        organization_id: pm!.organization_id,
+        seller_id: member!.id,
+        name: 'Cliente de Sofía',
+        phone: '3004445555',
+      })
+      .select('id')
+      .single()
+
+    const { data: ticket } = await svc
+      .from('tickets')
+      .insert({
+        organization_id: pm!.organization_id,
+        raffle_id: raffle!.id,
+        seller_id: member!.id,
+        created_by: parent!.id,
+        daily_number: '4321',
+        weekly_number: '8765',
+        inventory_status: 'available',
+      })
+      .select('id')
+      .single()
+
+    await svc
+      .from('tickets')
+      .update({
+        client_id: cliente!.id,
+        inventory_status: 'assigned',
+        sale_price: 100000,
+        sale_date: '2026-08-12',
+        assigned_at: new Date().toISOString(),
+      })
+      .eq('id', ticket!.id)
+
+    await loginAs(page, ACCOUNTS.seller)
+
+    await page.getByRole('button', { name: /Novedades:/ }).click()
+    await expect(page.getByText('Sofía Aviso E2E vendió la boleta 4321 / 8765.')).toBeVisible()
+
+    // Y se pueden marcar como leídas. Se comprueba que la acción desaparece, no
+    // el nombre del botón de la campanita: mientras el menú está abierto, Radix
+    // deja el resto de la página fuera del árbol de accesibilidad.
+    await page.getByRole('button', { name: 'Marcar como leídas' }).click()
+    await expect(page.getByRole('button', { name: 'Marcar como leídas' })).toHaveCount(0)
+
+    // El aviso llegó también al personal: se limpia por la boleta, no por el
+    // destinatario, para no dejar ninguna copia detrás (I-035).
+    await svc.from('notifications').delete().eq('entity_id', ticket!.id)
+    await svc.from('tickets').delete().eq('id', ticket!.id)
+    await svc.from('clients').delete().eq('id', cliente!.id)
+  })
+
   test('un integrante no puede formar su propio equipo (BR-E03)', async ({ page }) => {
     // Se prepara el escenario con la service role: quien se prueba es la
     // PANTALLA del integrante, no el alta que ya cubre la prueba anterior.
