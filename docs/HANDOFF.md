@@ -31,7 +31,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
-| Último cambio funcional promovido | `45759f6` — resumen de cobranza en el panel, en vez de «Rifa activa» (D-090), 2026-08-11; desplegado en Vercel y verificado. No necesitó migración |
+| Último cambio funcional promovido | `836457c` — resumen compacto en el modal «Asignar boletas», 2026-08-11; desplegado en Vercel y verificado. No necesitó migración |
 | Punto de partida del último mantenimiento | `main` en `e8df01c`, igual a `origin/main`, con árbol limpio antes de implementar (2026-08-11) |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
@@ -66,9 +66,9 @@ reales).
 | Verificación | `typecheck` ✅ · `lint` ✅ 0 errores · **299/299** unitarias ✅ · `build` ✅ · **378/378** de base de datos ✅ (sin cambios de esquema) · **59/59** E2E relevantes ✅ (`seleccion-multiple`, `seleccion-movil`, `owner-tickets`, `seller-tickets` — cubre los dos únicos consumidores reales de `AssignTicketsForm`) |
 | Errores encontrados | Ninguno nuevo. Una aserción E2E existente comprobaba «N boletas seleccionadas» como un solo nodo de texto; se actualizó porque el nuevo diseño separa la cantidad («N boletas») de la etiqueta («Boletas seleccionadas») en dos elementos distintos |
 | Advertencia | Ninguna nueva |
-| Publicación | Ninguna todavía: cambios solo en commit(s) local(es), a la espera de autorización expresa del usuario |
-| Pendiente | Nada de este trabajo |
-| Git | Rama `main`, desde `e8df01c`; el hash de cierre queda en el reporte de la tarea, no aquí. No se hizo push |
+| Publicación | **Desplegado en producción el 2026-08-11 con autorización expresa.** Sin migraciones que aplicar (`git diff` del commit confirma 0 archivos tocados bajo `supabase/migrations`). Después del push: CI 2/2 (`31549029537`), despliegue de Vercel `READY` sobre el SHA `836457c` (`dpl_FVgLshhMw3JdUErtzCHz6uM9WSff`, verificado por API), y `https://gestion-rifas.vercel.app/login` en HTTP 200 con sus cabeceras; `/seller/tickets` en 307 hacia el login, como corresponde sin sesión |
+| Pendiente | Verificación visual manual con sesión real (un agente no inicia sesión en producción). Aparte de eso, nada de este trabajo |
+| Git | Rama `main`, de `e8df01c` a `836457c`. Se empujó **solo la rama** |
 
 ## 1.a.1 Relevo anterior — resumen de cobranza en el panel (2026-08-11)
 
