@@ -33,16 +33,13 @@
 --
 -- QUE VE UN VENDEDOR PADRE (decision del producto, alcance minimo)
 --
---   SI  -> las BOLETAS de sus integrantes (sus ventas) y sus indicadores.
+--   SI  -> las VENTAS de sus integrantes y sus indicadores, por las funciones
+--          `team_sales_summary` y `team_member_sales` del final de este archivo.
 --   NO  -> sus clientes, sus pagos, ni permiso para modificarles nada.
 --
--- Por eso aqui solo se amplia `tickets_select`. `clients_select` y
--- `payments_select` quedan EXACTAMENTE como estaban: un vendedor padre no ve la
--- cartera ni el dinero cobrado de su equipo. `v_client_balances` parte de
--- `clients` y `v_payment_history` de `payments`, asi que ninguna de las dos
--- filtra nada nuevo; `v_seller_summary` y `v_ticket_balances` parten de
--- `tickets` y por eso empiezan a devolver las filas del equipo solas, que es
--- justo lo que necesitan el panel y el detalle del equipo.
+-- Ninguna politica de `tickets`, `clients` o `payments` cambia. Solo se amplian
+-- `profiles_select` y `memberships_select`, que es lo minimo para poder mostrar
+-- el nombre y el estado de un integrante, y no llevan dinero.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -147,6 +144,9 @@ create trigger memberships_validate_parent_seller
 -- Devuelve los integrantes DIRECTOS, que hoy son el equipo entero (dos niveles).
 -- Incluye a los desactivados a proposito: sus ventas siguen existiendo y el
 -- vendedor padre debe seguir viendo su historial (mismo criterio que BR-U06).
+--
+-- Se usa en `profiles_select` y `memberships_select`, NO en `tickets_select`:
+-- las ventas del equipo van por `team_sales_summary` / `team_member_sales`.
 -- -----------------------------------------------------------------------------
 create function current_team_seller_ids()
 returns setof uuid
@@ -262,27 +262,127 @@ using (
   or organization_id in (select current_staff_org_ids())
 );
 
--- -----------------------------------------------------------------------------
--- tickets — LA politica sensible (BR-U07)
+-- =============================================================================
+-- Las ventas del equipo — por funcion, NO ampliando `tickets_select`
 --
--- Se agrega una tercera via de acceso y ni una mas: las ventas del equipo. El
--- aislamiento entre vendedores SIN parentesco no cambia en absoluto, y el
--- aislamiento entre organizaciones sigue siendo la primera condicion.
+-- POR QUE NO SE TOCA LA POLITICA DE BOLETAS
+--
+-- La primera version de esta migracion agregaba una tercera via a
+-- `tickets_select` (`or seller_id in (select current_team_seller_ids())`).
+-- Funcionaba, pero cambiaba el significado de una invariante de la que dependia
+-- en silencio medio portal del vendedor: «lo que devuelve la RLS es lo mio».
+-- Al probarlo se vio el alcance real del cambio — «Mis boletas», el panel, los
+-- reportes, la busqueda y la seleccion multiple habrian empezado a incluir
+-- boletas del equipo sin que nadie lo pidiera, y cada consulta NUEVA que
+-- alguien escribiera en el futuro heredaria la misma trampa.
+--
+-- Aqui el acceso del vendedor padre es explicito: dos funciones que solo pueden
+-- responder por su propio equipo. La autorizacion no es un parametro que se
+-- pueda manipular, es el `where m.parent_seller_id = auth.uid()` del cuerpo: no
+-- existe forma de preguntar por el equipo de otro. Es el mismo patron que usa
+-- todo el proyecto para lo que la RLS no expresa bien (`assign_ticket`,
+-- `bulk_*`, `report_*`).
+--
+-- Consecuencia buscada: `tickets_select` sigue diciendo exactamente lo que
+-- decia, y ninguna pantalla existente cambia de comportamiento.
+-- =============================================================================
+
 -- -----------------------------------------------------------------------------
-drop policy tickets_select on tickets;
+-- team_sales_summary — como va cada integrante, en UNA consulta
+--
+-- Una fila por integrante. Sin N+1: el panel del equipo no consulta por
+-- vendedor, pide esto una vez (encargo del usuario, seccion PERFORMANCE).
+--
+-- `tickets_paid` cuenta las boletas PAGADAS por completo, que son las que
+-- cuentan para la comision (decision del usuario). Se devuelve junto a
+-- `tickets_assigned` —las vendidas— para que la pantalla pueda decir las dos
+-- cosas sin mezclarlas.
+-- -----------------------------------------------------------------------------
+create function team_sales_summary(p_raffle_id uuid default null)
+returns table (
+  seller_id        uuid,
+  tickets_total    bigint,
+  tickets_assigned bigint,
+  tickets_paid     bigint,
+  total_sold       bigint,
+  total_collected  bigint,
+  pending_amount   bigint
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select
+    t.seller_id,
+    count(*)::bigint,
+    count(*) filter (where t.inventory_status = 'assigned')::bigint,
+    count(*) filter (where t.inventory_status = 'assigned' and t.payment_status = 'paid')::bigint,
+    coalesce(sum(t.sale_price)  filter (where t.inventory_status = 'assigned'), 0)::bigint,
+    coalesce(sum(t.paid_amount) filter (where t.inventory_status = 'assigned'), 0)::bigint,
+    coalesce(sum(t.sale_price - t.paid_amount)
+               filter (where t.inventory_status = 'assigned'), 0)::bigint
+  from tickets t
+  join memberships m
+    on m.profile_id = t.seller_id
+   and m.organization_id = t.organization_id
+  where m.parent_seller_id = auth.uid()
+    -- Quien llama tiene que seguir siendo miembro activo: la funcion omite RLS,
+    -- asi que una sesion desactivada no puede colarse por aqui (BR-A04).
+    and t.organization_id in (select current_org_ids())
+    and (p_raffle_id is null or t.raffle_id = p_raffle_id)
+  group by t.seller_id
+$$;
 
-create policy tickets_select on tickets for select to authenticated
-using (
-  organization_id in (select current_org_ids())
-  and (
-    organization_id in (select current_staff_org_ids())
-    or seller_id = (select current_profile_id())
-    or seller_id in (select current_team_seller_ids())
-  )
-);
+comment on function team_sales_summary is
+  'Indicadores de los integrantes del equipo de quien consulta, una fila por vendedor (BR-E05). No admite preguntar por un equipo ajeno.';
 
-comment on table tickets is
-  'Boleta con dos numeros (diario y semanal). Cada vendedor ve solo las suyas y las de su equipo (0022); el personal, las de toda la organizacion.';
+revoke execute on function team_sales_summary(uuid) from anon, public;
+grant execute on function team_sales_summary(uuid) to authenticated;
+
+-- -----------------------------------------------------------------------------
+-- team_member_sales — las ventas de UN integrante
+--
+-- Devuelve la boleta y su dinero, nunca el cliente: el equipo comparte ventas,
+-- no cartera (BR-E05). Si `p_member_id` no es del equipo de quien llama, el
+-- resultado es vacio; no hace falta un error distinto porque no revela nada.
+-- -----------------------------------------------------------------------------
+create function team_member_sales(p_member_id uuid, p_limit integer default 20)
+returns table (
+  ticket_id      uuid,
+  daily_number   text,
+  weekly_number  text,
+  sale_price     bigint,
+  paid_amount    bigint,
+  payment_status ticket_payment_status,
+  sale_date      date,
+  assigned_at    timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select
+    t.id, t.daily_number, t.weekly_number, t.sale_price, t.paid_amount,
+    t.payment_status, t.sale_date, t.assigned_at
+  from tickets t
+  join memberships m
+    on m.profile_id = t.seller_id
+   and m.organization_id = t.organization_id
+  where m.parent_seller_id = auth.uid()
+    and t.seller_id = p_member_id
+    and t.inventory_status = 'assigned'
+    and t.organization_id in (select current_org_ids())
+  order by t.assigned_at desc nulls last, t.daily_number
+  limit greatest(1, least(coalesce(p_limit, 20), 100))
+$$;
+
+comment on function team_member_sales is
+  'Ventas de un integrante del equipo de quien consulta, sin datos del cliente (BR-E05).';
+
+revoke execute on function team_member_sales(uuid, integer) from anon, public;
+grant execute on function team_member_sales(uuid, integer) to authenticated;
 
 -- -----------------------------------------------------------------------------
 -- memberships — alta de integrantes por un vendedor (BR-E04)
@@ -314,16 +414,8 @@ with check (
 -- Nota de reversion (manual, no ejecutable)
 --
 -- drop policy memberships_insert_seller on memberships;
---
--- drop policy tickets_select on tickets;
--- create policy tickets_select on tickets for select to authenticated
--- using (
---   organization_id in (select current_org_ids())
---   and (
---     organization_id in (select current_staff_org_ids())
---     or seller_id = (select current_profile_id())
---   )
--- );
+-- drop function team_member_sales(uuid, integer);
+-- drop function team_sales_summary(uuid);
 --
 -- Las dos siguientes restauran la version de 0014 (la vigente antes de esta
 -- migracion), NO la de 0001/0011: usar aquel texto reintroduciria I-019.

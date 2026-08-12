@@ -40,6 +40,7 @@ let memberTicketId: string
 /** Todo lo creado aqui, para dejar la base como estaba (I-035). */
 const createdProfileIds: string[] = []
 const createdTicketIds: string[] = []
+const createdClientIds: string[] = []
 
 /**
  * Crea una cuenta de Auth utilizable. `createUser` no deja la contrasena en
@@ -103,10 +104,13 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  // Orden obligatorio: las boletas referencian al vendedor y las membresias al
-  // perfil, ambas con `on delete restrict`.
+  // Orden obligatorio: las boletas referencian al cliente y al vendedor, y las
+  // membresias al perfil, todas con `on delete restrict`.
   if (createdTicketIds.length > 0) {
     await ctx.svc.from('tickets').delete().in('id', createdTicketIds)
+  }
+  if (createdClientIds.length > 0) {
+    await ctx.svc.from('clients').delete().in('id', createdClientIds)
   }
   if (createdProfileIds.length > 0) {
     await ctx.svc.from('memberships').delete().in('profile_id', createdProfileIds)
@@ -255,22 +259,72 @@ describe('E1 — modelo de equipos', () => {
 })
 
 describe('E1 — visibilidad del equipo', () => {
-  it('E1-10: el vendedor padre ve las boletas de su integrante', async () => {
+  it('E1-10: la RLS de boletas NO cambio: ni el padre las ve por consulta directa', async () => {
+    // Es deliberado, y es la parte importante de la migracion. Si esto empezara
+    // a devolver 1, «Mis boletas», el panel, los reportes y la busqueda del
+    // vendedor habrian pasado a incluir boletas ajenas sin que nadie lo pidiera.
     const { data, error } = await seller1.from('tickets').select('id').eq('id', memberTicketId)
 
     expect(error).toBeNull()
-    expect(data).toHaveLength(1)
+    expect(data).toHaveLength(0)
   })
 
-  it('E1-11: un vendedor sin parentesco NO ve esas boletas', async () => {
+  it('E1-11: el padre ve las ventas del equipo por `team_sales_summary`', async () => {
+    // La boleta creada en beforeAll esta `available`: se vende para que el
+    // resumen tenga algo que contar.
+    const { data: cliente } = await ctx.svc
+      .from('clients')
+      .insert({
+        organization_id: ctx.demoOrg.id,
+        seller_id: memberId,
+        name: 'Cliente resumen equipo',
+        phone: '3005559999',
+      })
+      .select('id')
+      .single()
+    createdClientIds.push(cliente!.id)
+
+    await ctx.svc
+      .from('tickets')
+      .update({
+        client_id: cliente!.id,
+        inventory_status: 'assigned',
+        sale_price: 100000,
+        sale_date: '2026-08-12',
+        assigned_at: new Date().toISOString(),
+      })
+      .eq('id', memberTicketId)
+
+    const { data, error } = await seller1.rpc('team_sales_summary')
+
+    expect(error).toBeNull()
+    const fila = data?.find((row) => row.seller_id === memberId)
+    expect(fila).toBeDefined()
+    expect(Number(fila!.tickets_assigned)).toBe(1)
+    expect(Number(fila!.total_sold)).toBe(100000)
+  })
+
+  it('E1-11b: quien no tiene equipo recibe un resumen vacio, nunca el de otro', async () => {
     for (const [nombre, client] of [
       ['vendedor2', seller2],
       ['vendedor de otra organizacion', controlSeller],
+      ['el propio integrante', member],
     ] as const) {
-      const { data, error } = await client.from('tickets').select('id').eq('id', memberTicketId)
+      const { data, error } = await client.rpc('team_sales_summary')
       expect(error, nombre).toBeNull()
       expect(data, nombre).toHaveLength(0)
     }
+  })
+
+  it('E1-11c: `team_member_sales` no responde por un integrante ajeno', async () => {
+    // vendedor2 pregunta por el integrante de vendedor1, con su id exacto.
+    const { data, error } = await seller2.rpc('team_member_sales', {
+      p_member_id: memberId,
+      p_limit: 20,
+    })
+
+    expect(error).toBeNull()
+    expect(data).toHaveLength(0)
   })
 
   it('E1-12: la visibilidad es en un solo sentido: el integrante no ve las del padre', async () => {

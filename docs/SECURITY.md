@@ -250,7 +250,7 @@ de forma explícita, nunca por omisión.
 | `memberships` | El propio registro; **los de su equipo** (`0022`); personal ve los de su organización | Personal, sin poder crear rol `owner` (solo Owner) · **Seller: solo integrantes de su propio equipo** (`0022`, BR-E04) | Personal; un Admin no puede tocar la membresía del Owner ni ascender a nadie a `owner`. **Un vendedor no tiene UPDATE**: no puede cambiar de equipo a nadie, ni a sí mismo (BR-E06) | ✗ |
 | `raffles` | Todos los miembros activos de la organización | Personal | Personal | ✗ |
 | `clients` | Personal: toda la organización · Seller: `seller_id = current_profile_id()` | Personal · Seller solo con `seller_id` propio | Igual que SELECT | ✗ (se archiva) |
-| `tickets` | Personal: toda la organización · Seller: propias **y las de su equipo** (`0022`, BR-E05) | Personal · Seller solo si `allow_seller_ticket_creation` y estado `pending_approval` con `seller_id` propio | Personal · Seller: solo sus boletas y solo campos permitidos según estado. **La lectura del equipo no da escritura** | ✗ |
+| `tickets` | Personal: toda la organización · Seller: **solo las propias** (sin cambios; las del equipo van por función, D-092) | Personal · Seller solo si `allow_seller_ticket_creation` y estado `pending_approval` con `seller_id` propio | Personal · Seller: solo sus boletas y solo campos permitidos según estado | ✗ |
 | `payments` | Personal: toda la organización · Seller: propios | Personal · Seller con `seller_id` propio y cliente propio | Solo personal (anulación). Seller: ✗ | ✗ |
 | `payment_allocations` | Vía `EXISTS` sobre el pago padre | Igual que el pago padre | ✗ | ✗ |
 | `audit_logs` | Solo personal de la organización | Solo funciones `SECURITY DEFINER` | ✗ | ✗ |
@@ -258,14 +258,14 @@ de forma explícita, nunca por omisión.
 Ejemplo completo para la tabla más sensible:
 
 ```sql
--- tickets: lectura (tercera vía agregada en 0022: las ventas del propio equipo)
+-- tickets: lectura. NO cambió al llegar los equipos, y es deliberado (D-092):
+-- medio portal del vendedor depende de que esto signifique «lo mío».
 CREATE POLICY tickets_select ON tickets FOR SELECT TO authenticated
 USING (
   organization_id IN (SELECT current_org_ids())
   AND (
     organization_id IN (SELECT current_staff_org_ids())
     OR seller_id = (SELECT current_profile_id())
-    OR seller_id IN (SELECT current_team_seller_ids())
   )
 );
 
@@ -339,6 +339,8 @@ revela si existen.
 | `bulk_cancel_tickets` | Owner / Admin | `is_org_staff`, no anulada, sin abonos activos, motivo ≥ 5 caracteres |
 | `bulk_change_ticket_seller` | Owner / Admin | `is_org_staff`, ni asignada ni anulada, destino vendedor activo de la organización |
 | `bulk_delete_tickets` | Owner / Admin | `is_org_staff`, estado sin vender, sin cliente, sin `sale_price`, sin ninguna asignación de pago. Motivo obligatorio |
+| `team_sales_summary` | Vendedor con equipo | Solo lee. **La autorización no es un parámetro**: el cuerpo filtra por `parent_seller_id = auth.uid()`, así que no existe forma de preguntar por un equipo ajeno (D-092) |
+| `team_member_sales` | Vendedor con equipo | Igual, y además acota a un integrante. Devuelve boleta y dinero, **nunca el cliente** (BR-E05) |
 
 Tres piezas internas (`assign_ticket_row`, `cancel_ticket_row`, `lock_ticket_batch`) **no se conceden
 a `authenticated`**: solo las ejecutan las funciones públicas, que son `SECURITY DEFINER` y corren con

@@ -87,6 +87,68 @@ test.describe('Mi equipo', () => {
     await expect(page.getByText('Pedro Martínez E2E')).toHaveCount(0)
   })
 
+  test('el panel resume el equipo y se entra al detalle de un integrante', async ({ page }) => {
+    const svc = serviceClient()
+    const email = uniqueEmail('detalle-e2e')
+
+    const { data: parent } = await svc
+      .from('profiles')
+      .select('id')
+      .eq('email', ACCOUNTS.seller)
+      .single()
+    const { data: parentMembership } = await svc
+      .from('memberships')
+      .select('organization_id')
+      .eq('profile_id', parent!.id)
+      .single()
+
+    const { data: created } = await svc.auth.admin.createUser({
+      email,
+      password: 'DesarrolloLocal2026',
+      email_confirm: true,
+      user_metadata: { full_name: 'Andrea Rojas E2E', phone: '3009998877' },
+    })
+    const member = created?.user
+    expect(member, 'no se pudo crear la cuenta del integrante').toBeTruthy()
+    await svc.from('memberships').insert({
+      organization_id: parentMembership!.organization_id,
+      profile_id: member!.id,
+      role: 'seller',
+      parent_seller_id: parent!.id,
+    })
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/team')
+
+    // El resumen del equipo aparece con los integrantes, no antes.
+    await expect(page.getByText('Vendedores', { exact: true })).toBeVisible()
+
+    await page.getByRole('link', { name: /Andrea Rojas E2E/ }).click()
+    await expect(page.getByRole('heading', { name: 'Andrea Rojas E2E' })).toBeVisible()
+    await expect(page.getByText('Todavía no ha vendido boletas')).toBeVisible()
+  })
+
+  test('no se puede ver a un vendedor de otro equipo por la URL (BR-E05)', async ({ page }) => {
+    const svc = serviceClient()
+    const { data: otro } = await svc
+      .from('profiles')
+      .select('id')
+      .eq('email', ACCOUNTS.otherSeller)
+      .single()
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/team/${otro!.id}`)
+
+    // «No encontrada», no «acceso denegado»: un vendedor de otro equipo no debe
+    // distinguirse de un id inexistente.
+    //
+    // El codigo HTTP es 200 y no 404 porque el segmento tiene `loading.tsx` y la
+    // respuesta ya iba en streaming cuando se decidio el 404 (I-014). No filtra
+    // nada: lo que se pinta es la pagina de no encontrada, y eso es lo que se
+    // comprueba, igual que en seller-clients.spec.ts.
+    await expect(page.getByRole('heading', { name: 'Página no encontrada' })).toBeVisible()
+  })
+
   test('un integrante no puede formar su propio equipo (BR-E03)', async ({ page }) => {
     // Se prepara el escenario con la service role: quien se prueba es la
     // PANTALLA del integrante, no el alta que ya cubre la prueba anterior.

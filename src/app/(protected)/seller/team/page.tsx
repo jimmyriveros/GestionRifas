@@ -1,11 +1,13 @@
 import { UsersIcon } from 'lucide-react'
 
 import { EmptyState } from '@/components/data/EmptyState'
+import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
 import { AddTeamMemberButton } from '@/features/team/components/AddTeamMemberButton'
 import { TeamMemberList } from '@/features/team/components/TeamMemberList'
-import { isTeamMember, listTeamMembers } from '@/features/team/queries'
+import { isTeamMember, listTeamWithTotals } from '@/features/team/queries'
 import { requireRole } from '@/lib/auth/guards'
+import { formatCOP } from '@/lib/money'
 
 /**
  * «Mi equipo» — visible para TODO vendedor, tenga equipo o no (BR-E01).
@@ -18,11 +20,13 @@ export default async function TeamPage() {
   const membership = await requireRole(['seller'])
 
   const [members, belongsToTeam] = await Promise.all([
-    listTeamMembers(membership.profileId),
+    listTeamWithTotals(membership.profileId),
     isTeamMember(membership.profileId),
   ])
 
   const canAdd = !belongsToTeam
+  const teamSales = members.reduce((total, member) => total + member.ticketsAssigned, 0)
+  const teamCollected = members.reduce((total, member) => total + member.totalCollected, 0)
 
   return (
     <div className="space-y-6">
@@ -48,7 +52,15 @@ export default async function TeamPage() {
           />
         )
       ) : (
-        <TeamMemberList members={members} />
+        <>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <MetricCard label="Vendedores" value={members.length} />
+            <MetricCard label="Boletas vendidas" value={teamSales} />
+            <MetricCard label="Recaudado" value={formatCOP(teamCollected)} />
+          </div>
+
+          <TeamMemberList members={members} />
+        </>
       )}
     </div>
   )

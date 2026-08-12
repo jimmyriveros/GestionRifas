@@ -1733,14 +1733,10 @@ siguen valiendo. Se eligió la función **no recursiva** a propósito: se evalú
 `tickets`, la tabla más grande del sistema, y un CTE recursivo ahí cuesta en cada consulta para
 sostener una profundidad que hoy no existe (evitar sobre-ingeniería, encargo del usuario).
 
-**Alcance de la visibilidad: solo ventas** (BR-E05, elegido por el usuario entre tres opciones). Se
-amplió `tickets_select` y nada más. `clients_select` y `payments_select` quedan intactas, así que el
+**Alcance de la visibilidad: solo ventas** (BR-E05, elegido por el usuario entre tres opciones). El
 vendedor padre puede responder «cuánto vendió Pedro» pero no «a quién» ni «cuánto dinero recogió».
-Ampliar la RLS es la parte difícil de deshacer de esta funcionalidad: una vez que un rol ve una fila,
-cualquier pantalla futura puede enseñarla. Como efecto secundario deseado, `v_seller_summary` y
-`v_ticket_balances` —que son `security_invoker` sobre `tickets`— empiezan a devolver las filas del
-equipo solas, sin vistas nuevas; `v_client_balances` y `v_payment_history` parten de `clients` y
-`payments` y por eso no filtran nada nuevo.
+
+**Y se accede por función, no ampliando la RLS de boletas** — ver D-092, que corrige el primer diseño.
 
 **Alta por el propio vendedor.** La política `memberships_insert_seller` abre una puerta estrecha: rol
 `seller`, padre igual a quien llama, y quien llama debe ser un vendedor activo sin padre propio. La
@@ -1765,6 +1761,61 @@ aislamiento por organización en sus propias políticas). (b) Rol `team_leader` 
 a revisar cada política que discrimina por rol). (c) Filtrar el equipo en el servidor sin tocar RLS
 (descartada: el frontend y la Server Action no son frontera de seguridad; sin RLS, un `select` directo
 a PostgREST seguiría sin devolver las boletas del equipo, o peor, habría que abrirlas del todo).
+
+---
+
+## D-092 — Las ventas del equipo se leen por función, no ampliando la RLS de boletas
+**Fase:** posterior a la 9 (mantenimiento, 2026-08-12). **Corrige el primer diseño de D-091.**
+
+**Qué se intentó primero.** La versión inicial de `0022` agregaba una tercera vía a `tickets_select`:
+
+```sql
+or seller_id in (select current_team_seller_ids())
+```
+
+Funcionaba, pasaba sus 15 pruebas y parecía la solución natural: `v_seller_summary` y
+`v_ticket_balances` son `security_invoker` sobre `tickets`, así que el panel y el detalle del equipo
+habrían funcionado **sin escribir una sola consulta nueva**.
+
+**Por qué se descartó.** Al ir a construir la pantalla del equipo se revisó qué más leía boletas, y
+apareció el problema real: media docena de caminos del portal del vendedor no filtran por vendedor
+**a propósito**, porque hasta ahora la RLS ya lo hacía. Sus comentarios lo dicen con todas las letras
+—«No se filtra por `sellerId`: `tickets_select` ya limita las filas»—. Con la política ampliada, todos
+habrían empezado a incluir boletas del equipo sin que nadie lo pidiera:
+
+| Camino | Qué habría pasado |
+|---|---|
+| `/seller/tickets` | «Mis boletas» mostrando también las del equipo |
+| `/seller/dashboard` | Sus totales e indicadores sumando los del equipo |
+| `/seller/reports` | Los cinco reportes contando boletas ajenas |
+| `search_tickets` (`0018`) | La búsqueda encontrando boletas de otros |
+| Selección múltiple | «Seleccionar todas» abarcando boletas que no puede operar |
+| `/seller/tickets/[id]` | El detalle de una boleta del equipo, con botón «Asignar» incluido |
+
+Y lo más grave no es la lista, sino que es **abierta**: cualquier consulta futura del portal del
+vendedor heredaría la misma trampa, y el fallo sería silencioso —números de más, no un error—.
+
+**Decisión.** `tickets_select` **no se toca**. El acceso del vendedor padre es explícito y acotado:
+`team_sales_summary(raffle)` y `team_member_sales(member, limit)`, `SECURITY DEFINER`, cuya
+autorización no es un parámetro manipulable sino el `where m.parent_seller_id = auth.uid()` de su
+cuerpo: **no existe forma de preguntar por el equipo de otro**. Es el patrón que el proyecto ya usa
+para todo lo que la RLS no expresa bien (`assign_ticket`, `bulk_*`, `report_*`, D-057).
+
+Sí se amplían `profiles_select` y `memberships_select`, que es lo mínimo para mostrar el nombre y el
+estado de un integrante y no llevan dinero. Se comprobó que ningún camino del vendedor lee esas dos
+tablas esperando «solo yo»: `getActiveMembership` filtra por `profile_id` explícitamente y
+`sellerNameMap` solo resuelve nombres.
+
+**Coste aceptado.** El panel del equipo no puede reutilizar `v_seller_summary` ni `listTickets`, y
+necesita una lista propia (`TeamMemberSales`) en vez de `TicketsTable`. Se consideró peor
+reutilización: aquella tabla lleva columna de cliente —que el vendedor padre no ve—, enlace al detalle
+de la boleta —que no debe abrir— y casillas de selección —que no debe operar—. Una tabla con la mitad
+de las columnas vacías no es reutilizar, es disfrazar.
+
+**Regla que queda.** `E1-10` afirma explícitamente que un vendedor padre **no** ve las boletas de su
+equipo por consulta directa. Es una prueba que parece decir lo contrario de la funcionalidad, y por eso
+lleva escrito el motivo: si algún día empieza a devolver una fila, la mitad del portal del vendedor
+habrá cambiado de significado sin que nadie lo note.
 
 ---
 

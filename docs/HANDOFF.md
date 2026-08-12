@@ -409,7 +409,10 @@ lib/use-media-query.ts  consulta de medios sin romper la hidratación. Solo para
                     COMPORTAMIENTO; lo que se ve lo decide Tailwind
 features/team/      equipos de vendedores (D-091): queries.ts, actions.ts y las
                     tarjetas de «Mi equipo». El ALTA no vive aqui: es la misma de
-                    features/users/invite.ts, compartida con el portal administrativo
+                    features/users/invite.ts, compartida con el portal administrativo.
+                    Las ventas del equipo NO salen de listTickets ni de
+                    v_seller_summary: van por team_sales_summary / team_member_sales,
+                    porque `tickets_select` NO se amplio (D-092)
 features/users/invite.ts  invitacion por correo + membresia bajo RLS. UN solo camino
                     para crear un vendedor, lo cree el personal o su vendedor padre
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
@@ -581,3 +584,5 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Cambias una regla de asignación o anulación de boletas y la versión masiva no se entera | Desde `0020` la regla vive en `assign_ticket_row` / `cancel_ticket_row`; `assign_ticket` y `cancel_ticket` delegan. Cámbiala ahí, no en las funciones públicas | D-083 |
 | Un `setState` dentro de un `useEffect` rompe el lint con «cascading renders» | El compilador de React lo rechaza. Deduce el estado en vez de sincronizarlo, o mueve el `setState` al `.then()` de una promesa | D-085 · `TicketSelectionContext.tsx` |
 | Una prueba de boletas falla sola de vez en cuando, con un estado que no pusiste tú | Buscar una boleta por **el número diario solo** no la identifica: puede repetirse en otra combinación (BR-N07), así que `find()` acaba en la boleta de otra prueba. Acota siempre por el **par completo**, que es lo único único en la rifa (BR-N04) | I-055 · I-035 |
+| Vas a dar visibilidad nueva a un rol y piensas ampliar una política de `SELECT` | Mira antes **quién depende de que esa política signifique lo que significa**. Media docena de consultas del portal del vendedor no filtran por vendedor a propósito, porque `tickets_select` ya lo hacía; ampliarla las habría cambiado todas en silencio. La vía segura es una función `SECURITY DEFINER` que se autorice sola | D-092 |
+| Necesitas los números del equipo de un vendedor | `team_sales_summary()` (una fila por integrante, sin N+1) y `team_member_sales(id)`. **No** existen en `v_seller_summary` ni en `listTickets` para un vendedor | D-092 |

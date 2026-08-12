@@ -1033,6 +1033,7 @@ export type Database = {
       }
       current_org_ids: { Args: never; Returns: string[] }
       current_profile_id: { Args: never; Returns: string }
+      current_profile_leads_team: { Args: { p_org: string }; Returns: boolean }
       current_staff_org_ids: { Args: never; Returns: string[] }
       current_team_seller_ids: { Args: never; Returns: string[] }
       has_org_role: {
@@ -1146,6 +1147,31 @@ export type Database = {
         Returns: {
           daily_number: string
           weekly_number: string
+        }[]
+      }
+      team_member_sales: {
+        Args: { p_limit?: number; p_member_id: string }
+        Returns: {
+          assigned_at: string
+          daily_number: string
+          paid_amount: number
+          payment_status: Database['public']['Enums']['ticket_payment_status']
+          sale_date: string
+          sale_price: number
+          ticket_id: string
+          weekly_number: string
+        }[]
+      }
+      team_sales_summary: {
+        Args: { p_raffle_id?: string }
+        Returns: {
+          pending_amount: number
+          seller_id: string
+          tickets_assigned: number
+          tickets_paid: number
+          tickets_total: number
+          total_collected: number
+          total_sold: number
         }[]
       }
       ticket_bulk_eligibility: {
