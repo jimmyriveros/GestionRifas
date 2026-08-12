@@ -24,18 +24,29 @@ import {
 } from './helpers'
 
 let ctx: Awaited<ReturnType<typeof loadSeedContext>>
-let seller1: Client
+
+/**
+ * Vendedor padre PROPIO de esta suite.
+ *
+ * No se usa `vendedor1` a proposito: montarle equipo a una cuenta del seed la
+ * cambia para todas las demas suites —`phase3-admin` comprueba a quien ve un
+ * vendedor— y el resultado dependeria del orden de ejecucion (I-035).
+ */
+let parentId: string
+let parentEmail: string
+let parent: Client
 let seller2: Client
 let owner: Client
 let controlSeller: Client
 
-/** Sub-vendedor real del equipo de vendedor1, creado por estas pruebas. */
+/** Integrante real del equipo, creado por estas pruebas. */
 let memberEmail: string
 let memberId: string
 let member: Client
 
-/** Boleta vendida por el sub-vendedor; sirve para comprobar la visibilidad. */
+/** Boleta del integrante y boleta del padre: sirven para probar la visibilidad. */
 let memberTicketId: string
+let parentTicketId: string
 
 /** Todo lo creado aqui, para dejar la base como estaba (I-035). */
 const createdProfileIds: string[] = []
@@ -62,7 +73,17 @@ async function createAuthUser(email: string, fullName: string): Promise<string> 
 
 beforeAll(async () => {
   ctx = await loadSeedContext()
-  seller1 = await signInAs(USERS.seller1)
+
+  parentEmail = `padre-${Date.now().toString(36)}@demo.test`
+  parentId = await createAuthUser(parentEmail, 'Carlos Padre')
+  const { error: parentError } = await ctx.svc.from('memberships').insert({
+    organization_id: ctx.demoOrg.id,
+    profile_id: parentId,
+    role: 'seller',
+  })
+  if (parentError) throw parentError
+  parent = await signInAs(parentEmail)
+
   seller2 = await signInAs(USERS.seller2)
   owner = await signInAs(USERS.owner)
   controlSeller = await signInAs(USERS.otherOrgSeller)
@@ -73,12 +94,12 @@ beforeAll(async () => {
 
   // El alta la hace el VENDEDOR con su propia sesion: es el acto que se prueba
   // en E1-02 y, a la vez, el escenario del resto del archivo.
-  const { error } = await seller1.from('memberships').insert({
+  const { error } = await parent.from('memberships').insert({
     organization_id: ctx.demoOrg.id,
     profile_id: memberId,
     role: 'seller',
-    parent_seller_id: ctx.ids.seller1,
-    invited_by: ctx.ids.seller1,
+    parent_seller_id: parentId,
+    invited_by: parentId,
   })
   if (error) throw new Error(`El vendedor no pudo crear su equipo: ${error.message}`)
 
@@ -100,6 +121,25 @@ beforeAll(async () => {
     .single()
   if (ticketError) throw ticketError
   memberTicketId = ticket.id
+
+  // Una boleta del PADRE, para comprobar que el integrante no la ve (E1-12).
+  const propios = randomNumbers()
+  const { data: propia, error: propiaError } = await ctx.svc
+    .from('tickets')
+    .insert({
+      organization_id: ctx.demoOrg.id,
+      raffle_id: ctx.demoRaffle.id,
+      seller_id: parentId,
+      daily_number: propios.daily,
+      weekly_number: propios.weekly,
+      inventory_status: 'available',
+      created_by: ctx.ids.owner,
+    })
+    .select('id')
+    .single()
+  if (propiaError) throw propiaError
+  parentTicketId = propia.id
+  createdTicketIds.push(propia.id)
   createdTicketIds.push(ticket.id)
 })
 
@@ -127,6 +167,7 @@ describe('E1 — modelo de equipos', () => {
     const { data, error } = await ctx.svc
       .from('memberships')
       .select('profile_id, parent_seller_id')
+      // Las cuentas DEL SEED: son las que existian antes de la migracion.
       .in('profile_id', [ctx.ids.seller1, ctx.ids.seller2, ctx.ids.owner, ctx.ids.admin])
 
     expect(error).toBeNull()
@@ -135,7 +176,7 @@ describe('E1 — modelo de equipos', () => {
   })
 
   it('E1-02: un vendedor crea un integrante y queda colgado de el', async () => {
-    // El INSERT lo hizo `seller1` en beforeAll con su sesion real.
+    // El INSERT lo hizo el vendedor padre en beforeAll, con su sesion real.
     const { data, error } = await ctx.svc
       .from('memberships')
       .select('role, parent_seller_id, invited_by, is_active')
@@ -144,14 +185,14 @@ describe('E1 — modelo de equipos', () => {
 
     expect(error).toBeNull()
     expect(data!.role).toBe('seller')
-    expect(data!.parent_seller_id).toBe(ctx.ids.seller1)
+    expect(data!.parent_seller_id).toBe(parentId)
     expect(data!.is_active).toBe(true)
   })
 
   it('E1-03: un vendedor no puede meter a nadie en el equipo de otro', async () => {
     const id = await createAuthUser(`ajeno-${Date.now()}@demo.test`, 'Intruso Ajeno')
 
-    const { error } = await seller1.from('memberships').insert({
+    const { error } = await parent.from('memberships').insert({
       organization_id: ctx.demoOrg.id,
       profile_id: id,
       role: 'seller',
@@ -166,11 +207,11 @@ describe('E1 — modelo de equipos', () => {
     const id = await createAuthUser(`escalada-${Date.now()}@demo.test`, 'Escalada Prueba')
 
     for (const role of ['admin', 'owner'] as const) {
-      const { error } = await seller1.from('memberships').insert({
+      const { error } = await parent.from('memberships').insert({
         organization_id: ctx.demoOrg.id,
         profile_id: id,
         role,
-        parent_seller_id: ctx.ids.seller1,
+        parent_seller_id: parentId,
       })
       expect(error).not.toBeNull()
       expect(error!.code).toBe('42501')
@@ -182,7 +223,7 @@ describe('E1 — modelo de equipos', () => {
     // alguien que no es personal: eso sigue siendo exclusivo de BR-U01.
     const id = await createAuthUser(`suelto-${Date.now()}@demo.test`, 'Suelto Prueba')
 
-    const { error } = await seller1.from('memberships').insert({
+    const { error } = await parent.from('memberships').insert({
       organization_id: ctx.demoOrg.id,
       profile_id: id,
       role: 'seller',
@@ -240,7 +281,7 @@ describe('E1 — modelo de equipos', () => {
   it('E1-09: un vendedor no puede cambiarse de equipo ni cambiar el de nadie', async () => {
     // No hay politica de UPDATE sobre memberships para quien no es personal:
     // la fila no se actualiza y PostgREST no devuelve error (BD F3-03).
-    const { data, error } = await seller1
+    const { data, error } = await parent
       .from('memberships')
       .update({ parent_seller_id: null })
       .eq('profile_id', memberId)
@@ -254,7 +295,7 @@ describe('E1 — modelo de equipos', () => {
       .select('parent_seller_id')
       .eq('profile_id', memberId)
       .single()
-    expect(after!.parent_seller_id).toBe(ctx.ids.seller1)
+    expect(after!.parent_seller_id).toBe(parentId)
   })
 })
 
@@ -263,7 +304,7 @@ describe('E1 — visibilidad del equipo', () => {
     // Es deliberado, y es la parte importante de la migracion. Si esto empezara
     // a devolver 1, «Mis boletas», el panel, los reportes y la busqueda del
     // vendedor habrian pasado a incluir boletas ajenas sin que nadie lo pidiera.
-    const { data, error } = await seller1.from('tickets').select('id').eq('id', memberTicketId)
+    const { data, error } = await parent.from('tickets').select('id').eq('id', memberTicketId)
 
     expect(error).toBeNull()
     expect(data).toHaveLength(0)
@@ -295,7 +336,7 @@ describe('E1 — visibilidad del equipo', () => {
       })
       .eq('id', memberTicketId)
 
-    const { data, error } = await seller1.rpc('team_sales_summary')
+    const { data, error } = await parent.rpc('team_sales_summary')
 
     expect(error).toBeNull()
     const fila = data?.find((row) => row.seller_id === memberId)
@@ -317,7 +358,7 @@ describe('E1 — visibilidad del equipo', () => {
   })
 
   it('E1-11c: `team_member_sales` no responde por un integrante ajeno', async () => {
-    // vendedor2 pregunta por el integrante de vendedor1, con su id exacto.
+    // Un vendedor de otro equipo pregunta por este integrante, con su id exacto.
     const { data, error } = await seller2.rpc('team_member_sales', {
       p_member_id: memberId,
       p_limit: 20,
@@ -328,27 +369,18 @@ describe('E1 — visibilidad del equipo', () => {
   })
 
   it('E1-12: la visibilidad es en un solo sentido: el integrante no ve las del padre', async () => {
-    const { data: propias } = await ctx.svc
-      .from('tickets')
-      .select('id')
-      .eq('seller_id', ctx.ids.seller1)
-      .limit(1)
-
-    const delPadre = propias?.[0]
-    expect(delPadre).toBeDefined()
-
-    const { data, error } = await member.from('tickets').select('id').eq('id', delPadre!.id)
+    const { data, error } = await member.from('tickets').select('id').eq('id', parentTicketId)
 
     expect(error).toBeNull()
     expect(data).toHaveLength(0)
   })
 
   it('E1-13: el vendedor padre ve el perfil y la membresia de su integrante', async () => {
-    const { data: perfil } = await seller1.from('profiles').select('full_name').eq('id', memberId)
+    const { data: perfil } = await parent.from('profiles').select('full_name').eq('id', memberId)
     expect(perfil).toHaveLength(1)
     expect(perfil?.[0]?.full_name).toBe('Pedro Martinez')
 
-    const { data: membresia } = await seller1
+    const { data: membresia } = await parent
       .from('memberships')
       .select('is_active')
       .eq('profile_id', memberId)
@@ -372,7 +404,7 @@ describe('E1 — visibilidad del equipo', () => {
       .select('id')
       .single()
 
-    const { data: vistos, error } = await seller1.from('clients').select('id').eq('id', cliente!.id)
+    const { data: vistos, error } = await parent.from('clients').select('id').eq('id', cliente!.id)
     expect(error).toBeNull()
     expect(vistos).toHaveLength(0)
 

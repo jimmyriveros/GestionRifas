@@ -1870,6 +1870,71 @@ aviso quedaría fuera de la transacción).
 
 ---
 
+## D-094 — La comisión se deriva del estado, y el ledger la explica sin originarla
+**Fase:** posterior a la 9 (mantenimiento, 2026-08-12)
+
+**Contexto.** Comisiones por tramos retroactivos, con ajustes al subir y al bajar de nivel, y con la
+exigencia explícita de que **nunca** haya doble comisión bajo reintentos, doble clic o eventos
+repetidos. `CLAUDE.md` §31 las listaba como fuera del MVP; el usuario las pidió y eso cambia el
+alcance (registrado aquí, no en silencio).
+
+**La decisión de fondo: el dinero no se acumula sumando eventos.** El importe correcto es una función
+del estado actual —`n × tarifa(n)`, con `n` = boletas pagadas por completo—, así que el motor
+**recuenta y registra la diferencia** contra lo ya anotado, en vez de ir sumando incrementos. De ahí
+salen dos propiedades que no hay que programar ni vigilar:
+
+* **Idempotencia por construcción.** Un evento repetido vuelve a calcular el mismo `n × tarifa(n)`, la
+  diferencia da cero y no se escribe nada. La doble comisión no es «improbable»: es imposible. Una
+  prueba llama diez veces seguidas al recálculo y comprueba que no aparece ninguna fila nueva.
+* **Autocorrección.** Si una fila del ledger se perdiera, el siguiente movimiento del vendedor volvería
+  a cuadrar el total.
+
+**El ledger es la explicación, no el origen** (BR-G09). Y aun así tiene que cuadrar exactamente:
+`SUM(ledger) = earned` se comprueba en **cada** escenario de la suite, incluidos los que bajan de
+tramo. La descomposición es la que pidió el encargo y la que entiende un vendedor —al pasar de 20 a
+21: `sale +$25.000` y `tier_adjustment +$100.000`—, y cuadra por álgebra, no por casualidad:
+`d·tarifa_nueva + n_antes·(tarifa_nueva − tarifa_vieja) = ganado_después − ganado_antes`.
+
+**«Pagada», no «vendida»** (BR-G01), decisión del dueño entre tres opciones. Consecuencia que conviene
+tener presente: la comisión **baja** cuando se anula un pago, que es el único camino real por el que
+hoy puede caer —una boleta con abonos activos no se puede anular (BR-I11)—.
+
+**Estado materializado + ledger.** `seller_commissions` existe por dos motivos distintos: el panel lee
+una fila en vez de recorrer la historia (rendimiento), y **es la fila que se bloquea** (`for update`)
+para serializar dos ventas simultáneas del mismo vendedor. Sin ella, dos transacciones podrían leer
+«20 boletas» a la vez y creerse las dos la número 21. Es el mismo patrón que `tickets.paid_amount`
+(D-009): derivado, mantenido por trigger, sin privilegio de escritura para nadie.
+
+**Disparo por trigger sobre `tickets`**, no dentro de las funciones de negocio: el estado que importa
+—«esta boleta está pagada»— cambia al registrar un abono, al anularlo, al anular la boleta y al
+cambiarla de vendedor, y todos acaban en un `UPDATE` de `tickets`.
+
+**Los tramos van en tabla, no en código** (BR-G03), por organización. Cambiar cuánto se paga es
+cambiar filas. Un trigger sobre `organizations` los siembra en cada organización nueva: sin él, una
+empresa nueva tendría comisión cero y nadie se enteraría hasta que alguien reclamara su dinero.
+
+**Saldo de partida honesto.** Al instalar la migración ya hay boletas pagadas. No se inventa una
+historia de ventas que nadie registró: se anota **un** movimiento `initial_balance` por vendedor y
+rifa con lo que le corresponde hoy. Dice «aquí empezamos a contar» y deja la invariante cierta desde
+el primer momento.
+
+**Dos errores encontrados al implementarlo**, los dos por pruebas:
+
+1. `coalesce(p_movement, case … then 'sale' … end)` falló con *«COALESCE types commission_movement and
+   text cannot be matched»*: los literales de un `case` son `text` hasta que se castean al enum.
+2. **La reasignación de una boleta vendida no es posible**, y no por la regla BR-B04 sino por el
+   esquema: `tickets_client_seller_fk` es compuesta y no diferible (detalle en la nota de BR-G07). La
+   prueba que iba a demostrar el recálculo acabó demostrando —con la *service role*, saltándose RLS y
+   funciones— que **ni siquiera por debajo de la aplicación** se puede.
+
+**Alternativas.** (a) Acumular incrementos en el ledger y leer el saldo de su suma (descartada: es la
+que produce doble comisión bajo reintentos y no se autocorrige). (b) Calcular al vuelo sin estado
+materializado (descartada: sin fila que bloquear no hay forma de serializar dos ventas simultáneas del
+mismo vendedor, y el panel recorrería la historia en cada carga). (c) Tramos en código (descartada:
+cambiar cuánto cobra la gente exigiría un despliegue).
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

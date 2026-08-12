@@ -145,6 +145,102 @@ export type Database = {
           },
         ]
       }
+      commission_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          movement: Database['public']['Enums']['commission_movement']
+          organization_id: string
+          raffle_id: string
+          rate: number
+          seller_id: string
+          ticket_id: string | null
+          tickets_paid: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          movement: Database['public']['Enums']['commission_movement']
+          organization_id: string
+          raffle_id: string
+          rate: number
+          seller_id: string
+          ticket_id?: string | null
+          tickets_paid: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          movement?: Database['public']['Enums']['commission_movement']
+          organization_id?: string
+          raffle_id?: string
+          rate?: number
+          seller_id?: string
+          ticket_id?: string | null
+          tickets_paid?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'commission_ledger_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'commission_ledger_raffle_org_fk'
+            columns: ['raffle_id', 'organization_id']
+            isOneToOne: false
+            referencedRelation: 'raffles'
+            referencedColumns: ['id', 'organization_id']
+          },
+          {
+            foreignKeyName: 'commission_ledger_raffle_org_fk'
+            columns: ['raffle_id', 'organization_id']
+            isOneToOne: false
+            referencedRelation: 'v_raffle_summary'
+            referencedColumns: ['raffle_id', 'organization_id']
+          },
+        ]
+      }
+      commission_tiers: {
+        Row: {
+          created_at: string
+          id: string
+          min_tickets: number
+          organization_id: string
+          rate: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_tickets: number
+          organization_id: string
+          rate: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_tickets?: number
+          organization_id?: string
+          rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'commission_tiers_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       memberships: {
         Row: {
           created_at: string
@@ -587,6 +683,65 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'organizations'
             referencedColumns: ['id']
+          },
+        ]
+      }
+      seller_commissions: {
+        Row: {
+          earned: number
+          organization_id: string
+          raffle_id: string
+          rate: number
+          seller_id: string
+          tickets_paid: number
+          updated_at: string
+        }
+        Insert: {
+          earned?: number
+          organization_id: string
+          raffle_id: string
+          rate?: number
+          seller_id: string
+          tickets_paid?: number
+          updated_at?: string
+        }
+        Update: {
+          earned?: number
+          organization_id?: string
+          raffle_id?: string
+          rate?: number
+          seller_id?: string
+          tickets_paid?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'seller_commissions_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'seller_commissions_raffle_org_fk'
+            columns: ['raffle_id', 'organization_id']
+            isOneToOne: false
+            referencedRelation: 'raffles'
+            referencedColumns: ['id', 'organization_id']
+          },
+          {
+            foreignKeyName: 'seller_commissions_raffle_org_fk'
+            columns: ['raffle_id', 'organization_id']
+            isOneToOne: false
+            referencedRelation: 'v_raffle_summary'
+            referencedColumns: ['raffle_id', 'organization_id']
+          },
+          {
+            foreignKeyName: 'seller_commissions_seller_org_fk'
+            columns: ['seller_id', 'organization_id']
+            isOneToOne: false
+            referencedRelation: 'memberships'
+            referencedColumns: ['profile_id', 'organization_id']
           },
         ]
       }
@@ -1088,6 +1243,24 @@ export type Database = {
         Args: { p_reason: string; p_ticket_id: string }
         Returns: undefined
       }
+      commission_rate_for: {
+        Args: { p_count: number; p_org: string }
+        Returns: number
+      }
+      commission_summary: {
+        Args: { p_raffle_id?: string }
+        Returns: {
+          earned: number
+          next_min_tickets: number
+          next_rate: number
+          projected_earned: number
+          raffle_id: string
+          rate: number
+          seller_id: string
+          tickets_paid: number
+          tickets_to_next: number
+        }[]
+      }
       create_payment: {
         Args: {
           p_allocations: Json
@@ -1151,6 +1324,16 @@ export type Database = {
         Returns: undefined
       }
       org_staff_profile_ids: { Args: { p_org: string }; Returns: string[] }
+      recalc_seller_commission: {
+        Args: {
+          p_movement?: Database['public']['Enums']['commission_movement']
+          p_organization_id: string
+          p_raffle_id: string
+          p_seller_id: string
+          p_ticket_id?: string
+        }
+        Returns: undefined
+      }
       recalc_ticket_paid_amount: {
         Args: { p_ticket_id: string }
         Returns: undefined
@@ -1296,6 +1479,8 @@ export type Database = {
     }
     Enums: {
       app_role: 'owner' | 'admin' | 'seller'
+      commission_movement:
+        'sale' | 'sale_reverted' | 'tier_adjustment' | 'seller_change' | 'initial_balance'
       payment_method: 'cash' | 'transfer' | 'other'
       raffle_status: 'draft' | 'active' | 'closed' | 'cancelled'
       ticket_inventory_status: 'draft' | 'pending_approval' | 'available' | 'assigned' | 'cancelled'
@@ -1425,6 +1610,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ['owner', 'admin', 'seller'],
+      commission_movement: [
+        'sale',
+        'sale_reverted',
+        'tier_adjustment',
+        'seller_change',
+        'initial_balance',
+      ],
       payment_method: ['cash', 'transfer', 'other'],
       raffle_status: ['draft', 'active', 'closed', 'cancelled'],
       ticket_inventory_status: ['draft', 'pending_approval', 'available', 'assigned', 'cancelled'],

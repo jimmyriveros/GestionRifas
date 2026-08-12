@@ -251,9 +251,18 @@ describe('F3-03 proteccion del Owner frente al Admin (BR-U02, BR-U03)', () => {
 
   it('un vendedor desactivado NO gana visibilidad sobre perfiles ajenos', async () => {
     // La correccion de I-011 solo afecta a quien CONSULTA siendo personal
-    // activo; un vendedor sigue viendo unicamente su propio perfil.
+    // activo. Un vendedor ve su propio perfil y, desde 0022, los de SU EQUIPO
+    // (BR-E05) — nada mas. Se comprueba por lo que NO debe ver, que es la
+    // propiedad de seguridad real: afirmar «solo se ve a si mismo» dejaria de
+    // ser cierto en cuanto un vendedor tuviera equipo, sin que hubiera pasado
+    // nada malo.
     const { data } = await seller1.from('profiles').select('id')
-    expect(data!.every((row) => row.id === ctx.ids.seller1)).toBe(true)
+    const visibles = new Set((data ?? []).map((row) => row.id))
+
+    expect(visibles.has(ctx.ids.seller1)).toBe(true)
+    for (const ajeno of [ctx.ids.owner, ctx.ids.admin, ctx.ids.seller2, ctx.ids.otherOrgSeller]) {
+      expect(visibles.has(ajeno), `no debe ver el perfil de ${ajeno}`).toBe(false)
+    }
   })
 
   it('un vendedor no puede tocar ninguna membresia', async () => {

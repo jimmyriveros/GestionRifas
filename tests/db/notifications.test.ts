@@ -5,11 +5,11 @@
  * no. La jerarquia del encargo, montada de verdad:
  *
  *   Dueño / Administrador
- *     └─ vendedor1 ─ integrante A
- *     └─ vendedor2 ─ integrante B
+ *     └─ Carlos ─ Pedro
+ *     └─ Juan   ─ Felipe
  *
- * Cuando A vende, el aviso debe llegar a vendedor1 y al personal, y NO a
- * vendedor2 ni a B.
+ * Cuando Pedro vende, el aviso debe llegar a Carlos y al personal, y NO a Juan
+ * ni a Felipe.
  *
  * Cada quien consulta su bandeja con su propia sesion (D-043); la service role
  * solo prepara y limpia el escenario.
@@ -25,15 +25,25 @@ import {
   type Client,
 } from './helpers'
 
+/**
+ * ⚠️ Esta suite NO usa `vendedor1` ni `vendedor2` como vendedores padre.
+ *
+ * Montarle equipo a una cuenta del seed la cambia para todas las demas suites:
+ * `phase3-admin` comprueba a quien ve un vendedor, y `seller-teams` cuenta
+ * integrantes. Con vendedores propios, cada archivo es independiente del orden
+ * en que se ejecuten (I-035).
+ */
 let ctx: Awaited<ReturnType<typeof loadSeedContext>>
 let owner: Client
-let seller1: Client
-let seller2: Client
+let parentAId: string
+let parentA: Client
+let parentBId: string
+let parentB: Client
 
-/** Integrante de vendedor1 y su sesion. */
+/** Integrante del equipo A y su sesion. */
 let memberAId: string
 let memberA: Client
-/** Integrante de vendedor2: existe para comprobar a quien NO llegan los avisos. */
+/** Integrante del equipo B: existe para comprobar a quien NO llegan los avisos. */
 let memberB: Client
 
 let clientId: string
@@ -42,7 +52,12 @@ const createdProfileIds: string[] = []
 const createdTicketIds: string[] = []
 const createdClientIds: string[] = []
 
-async function createMember(email: string, name: string, parentId: string): Promise<string> {
+/** Crea un vendedor. Con `parentId`, queda dentro de ese equipo. */
+async function createSeller(
+  email: string,
+  name: string,
+  parentId: string | null,
+): Promise<string> {
   const { data, error } = await ctx.svc.auth.admin.createUser({
     email,
     password: SEED_PASSWORD,
@@ -113,12 +128,17 @@ async function inboxOf(client: Client, kind: string) {
 beforeAll(async () => {
   ctx = await loadSeedContext()
   owner = await signInAs(USERS.owner)
-  seller1 = await signInAs(USERS.seller1)
-  seller2 = await signInAs(USERS.seller2)
 
   const stamp = Date.now().toString(36)
-  memberAId = await createMember(`aviso-a-${stamp}@demo.test`, 'Pedro Aviso', ctx.ids.seller1)
-  await createMember(`aviso-b-${stamp}@demo.test`, 'Felipe Aviso', ctx.ids.seller2)
+
+  // Dos vendedores padre PROPIOS de esta suite: «Carlos» y «Juan» del encargo.
+  parentAId = await createSeller(`padre-a-${stamp}@demo.test`, 'Carlos Padre', null)
+  parentBId = await createSeller(`padre-b-${stamp}@demo.test`, 'Juan Padre', null)
+  parentA = await signInAs(`padre-a-${stamp}@demo.test`)
+  parentB = await signInAs(`padre-b-${stamp}@demo.test`)
+
+  memberAId = await createSeller(`aviso-a-${stamp}@demo.test`, 'Pedro Aviso', parentAId)
+  await createSeller(`aviso-b-${stamp}@demo.test`, 'Felipe Aviso', parentBId)
   memberA = await signInAs(`aviso-a-${stamp}@demo.test`)
   memberB = await signInAs(`aviso-b-${stamp}@demo.test`)
 
@@ -180,7 +200,7 @@ describe('E4 — avisos de equipo', () => {
 
     expect(delEquipo).toHaveLength(1)
     const data = delEquipo[0]!.data as Record<string, unknown>
-    expect(data.parent_name).toBe('Julian Vargas')
+    expect(data.parent_name).toBe('Carlos Padre')
     // Fue el primero de ese equipo: la aplicacion dira «armó su equipo» en vez
     // de «agregó a».
     expect(data.is_first).toBe(true)
@@ -188,7 +208,7 @@ describe('E4 — avisos de equipo', () => {
 
   it('E4-02: el segundo integrante ya no es «armó su equipo»', async () => {
     const email = `aviso-a2-${Date.now().toString(36)}@demo.test`
-    await createMember(email, 'Andrea Aviso', ctx.ids.seller1)
+    await createSeller(email, 'Andrea Aviso', parentAId)
 
     const avisos = await inboxOf(owner, 'team.member_added')
     const segundo = avisos.find(
@@ -201,9 +221,9 @@ describe('E4 — avisos de equipo', () => {
 
   it('E4-03: un vendedor NO se entera de los equipos de los demas', async () => {
     // vendedor2 no debe ver que vendedor1 armo equipo.
-    const avisos = await inboxOf(seller2, 'team.member_added')
+    const avisos = await inboxOf(parentB, 'team.member_added')
     const ajenos = avisos.filter(
-      (aviso) => (aviso.data as Record<string, unknown>).parent_name === 'Julian Vargas',
+      (aviso) => (aviso.data as Record<string, unknown>).parent_name === 'Carlos Padre',
     )
 
     expect(ajenos).toHaveLength(0)
@@ -215,7 +235,7 @@ describe('E4 — avisos de venta', () => {
     await sellTicket(memberAId)
 
     for (const [nombre, client] of [
-      ['el vendedor padre', seller1],
+      ['el vendedor padre', parentA],
       ['el Dueño', owner],
     ] as const) {
       const avisos = await inboxOf(client, 'team.sale')
@@ -228,7 +248,7 @@ describe('E4 — avisos de venta', () => {
 
   it('E4-05: NO llega al vendedor de otro equipo ni a los companeros', async () => {
     for (const [nombre, client] of [
-      ['el vendedor de otro equipo', seller2],
+      ['el vendedor de otro equipo', parentB],
       ['un integrante de otro equipo', memberB],
     ] as const) {
       const avisos = await inboxOf(client, 'team.sale')
@@ -245,7 +265,7 @@ describe('E4 — avisos de venta', () => {
   })
 
   it('E4-07: el aviso lleva los dos numeros de la boleta, no su codigo interno', async () => {
-    const avisos = await inboxOf(seller1, 'team.sale')
+    const avisos = await inboxOf(parentA, 'team.sale')
     const data = avisos[0]!.data as Record<string, unknown>
 
     expect(typeof data.daily_number).toBe('string')
@@ -254,14 +274,14 @@ describe('E4 — avisos de venta', () => {
   })
 
   it('E4-08: un abono posterior no vuelve a avisar la misma venta', async () => {
-    const antes = (await inboxOf(seller1, 'team.sale')).length
+    const antes = (await inboxOf(parentA, 'team.sale')).length
 
     await ctx.svc
       .from('tickets')
       .update({ sale_date: '2026-08-11' })
       .eq('id', createdTicketIds[createdTicketIds.length - 1]!)
 
-    const despues = (await inboxOf(seller1, 'team.sale')).length
+    const despues = (await inboxOf(parentA, 'team.sale')).length
     expect(despues).toBe(antes)
   })
 })
@@ -279,7 +299,7 @@ describe('E4 — la bandeja es privada', () => {
   it('E4-10: nadie puede escribir un aviso a mano', async () => {
     const { error } = await owner.from('notifications').insert({
       organization_id: ctx.demoOrg.id,
-      recipient_profile_id: ctx.ids.seller1,
+      recipient_profile_id: parentAId,
       kind: 'team.sale',
       data: { seller_name: 'Inventado' },
     })
@@ -289,21 +309,21 @@ describe('E4 — la bandeja es privada', () => {
   })
 
   it('E4-11: se pueden marcar como leidos los propios avisos, y solo eso', async () => {
-    const { error } = await seller1
+    const { error } = await parentA
       .from('notifications')
       .update({ read_at: new Date().toISOString() })
       .is('read_at', null)
     expect(error).toBeNull()
 
-    const { data } = await seller1.from('notifications').select('read_at').is('read_at', null)
+    const { data } = await parentA.from('notifications').select('read_at').is('read_at', null)
     expect(data).toHaveLength(0)
 
     // Reescribir el contenido no es posible: `authenticated` solo tiene
     // privilegio sobre la columna `read_at`.
-    const { error: rewriteError } = await seller1
+    const { error: rewriteError } = await parentA
       .from('notifications')
       .update({ kind: 'team.member_added' })
-      .eq('recipient_profile_id', ctx.ids.seller1)
+      .eq('recipient_profile_id', parentAId)
 
     expect(rewriteError).not.toBeNull()
     expect(rewriteError!.code).toBe('42501')

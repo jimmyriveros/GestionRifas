@@ -37,7 +37,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **23 migraciones en local; las 21 primeras también en el proyecto real.** `0022` (equipos) y `0023` (avisos) están **solo en local** y no se han promovido: exigen autorización explícita y respaldo previo (§3.b). `0021` se promovió y verificó el 2026-08-09. **Plan Free: sin backups automáticos** (I-024) |
+| Base de datos | **24 migraciones en local; las 21 primeras también en el proyecto real.** `0022` (equipos), `0023` (avisos) y `0024` (comisiones) están **solo en local** y no se han promovido: exigen autorización explícita y respaldo previo (§3.b). `0021` se promovió y verificó el 2026-08-09. **Plan Free: sin backups automáticos** (I-024) |
 | Pruebas | **299 unitarias**, **378 de base de datos** y **227 E2E**, todas revalidadas el 2026-08-11; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
@@ -342,6 +342,9 @@ Evita leer `DATA_MODEL.md` (~5k tokens) solo para recordar nombres.
 organizations ─┬─ memberships (profile_id, organization_id, role, is_active,
                │                parent_seller_id → equipos, 0022)
                ├─ notifications (recipient_profile_id, kind, data, read_at; 0023)
+               ├─ commission_tiers    (min_tickets, rate; 0024)
+               ├─ seller_commissions  (raffle_id, seller_id, tickets_paid, rate, earned)
+               └─ commission_ledger   (movement, amount, tickets_paid, rate; solo anexado)
                ├─ raffles     (short_code, name, ticket_price, status, allow_seller_ticket_creation)
                ├─ clients     (seller_id, name, phone, archived_at)
                ├─ tickets     (raffle_id, seller_id, client_id, internal_code,
@@ -591,3 +594,6 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Una prueba de boletas falla sola de vez en cuando, con un estado que no pusiste tú | Buscar una boleta por **el número diario solo** no la identifica: puede repetirse en otra combinación (BR-N07), así que `find()` acaba en la boleta de otra prueba. Acota siempre por el **par completo**, que es lo único único en la rifa (BR-N04) | I-055 · I-035 |
 | Vas a dar visibilidad nueva a un rol y piensas ampliar una política de `SELECT` | Mira antes **quién depende de que esa política signifique lo que significa**. Media docena de consultas del portal del vendedor no filtran por vendedor a propósito, porque `tickets_select` ya lo hacía; ampliarla las habría cambiado todas en silencio. La vía segura es una función `SECURITY DEFINER` que se autorice sola | D-092 |
 | Necesitas los números del equipo de un vendedor | `team_sales_summary()` (una fila por integrante, sin N+1) y `team_member_sales(id)`. **No** existen en `v_seller_summary` ni en `listTickets` para un vendedor | D-092 |
+| Vas a tocar algo de comisiones | El importe **no se acumula sumando eventos**: es `n × tarifa(n)` recalculado. Si añades un camino que cambie el estado de pago de una boleta, no escribas ledger a mano — deja que el trigger `tickets_sync_commission` recuente | D-094 |
+| Una prueba de comisiones falla con un total que no cuadra | Comprueba primero la invariante `SUM(commission_ledger) = seller_commissions.earned`. Si esa cuadra, el error está en la expectativa de la prueba, no en el motor | BR-G10 |
+| Una prueba tuya le monta equipo a `vendedor1` o `vendedor2` | No lo hagas: son cuentas compartidas y `phase3-admin` comprueba a quién ve un vendedor. Crea tu propio vendedor padre en la suite, o el resultado dependerá del orden de ejecución | I-035 |

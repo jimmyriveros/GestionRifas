@@ -87,6 +87,37 @@ dinero recogió», y su propio «Mis boletas» sigue siendo exactamente el suyo.
 
 ---
 
+## 3.c Comisiones del vendedor (BR-G)
+
+| ID | Regla | Capas | Fase |
+|----|-------|-------|------|
+| BR-G01 | La comisión se gana **por boleta pagada por completo** (`payment_status = 'paid'`), no por boleta vendida. Así la empresa nunca debe comisión por dinero que no entró. | D | post-9 |
+| BR-G02 | La tarifa sube por tramos y es **retroactiva**: al alcanzar un tramo, **todas** las boletas acumuladas pasan a la tarifa nueva. 21 boletas son 21 × $25.000, no 20 × $20.000 + 1 × $25.000. | D | post-9 |
+| BR-G03 | Tramos por defecto: **1–20 → $20.000 · 21–30 → $25.000 · 31–50 → $30.000 · 51+ → $40.000**. Viven en la tabla `commission_tiers`, por organización; cambiarlos es cambiar filas, no desplegar. | D | post-9 |
+| BR-G04 | El ámbito es **la rifa**: el acumulado no se reinicia cada semana, y cada rifa lleva su propio conteo y su propio tramo. | D | post-9 |
+| BR-G05 | El importe es **una función del estado actual** (`n × tarifa(n)`), no una suma de incrementos. El motor recuenta y registra la diferencia. | D | post-9 |
+| BR-G06 | La comisión **baja sola** cuando deja de haber cobro: al anular un pago, la boleta deja de contar y el tramo se recalcula hacia atrás. | D | post-9 |
+| BR-G07 | Si una boleta cambia de vendedor, deja de contar para uno y empieza a contar para el otro, y **ambos** se recalculan. En el esquema actual esto solo puede ocurrir con boletas **sin vender**: mover una vendida es imposible (ver nota). | D | post-9 |
+| BR-G08 | **Nunca hay doble comisión.** Un evento repetido, un reintento o un doble clic recalculan el mismo `n × tarifa(n)`: la diferencia es cero y no se escribe nada. | D | post-9 |
+| BR-G09 | Todo movimiento queda en `commission_ledger`, **solo anexado**: vendedor, rifa, boleta, fecha, tramo, monto y motivo. Nunca se modifica una cifra histórica en silencio. | D | post-9 |
+| BR-G10 | **`SUM(commission_ledger.amount) = seller_commissions.earned`**, siempre. Es la invariante que comprueban las pruebas en cada escenario: si se rompe, el historial dejó de explicar el saldo. | D | post-9 |
+| BR-G11 | Un vendedor **no puede modificar** su comisión, su tramo, su recuento ni su ganancia: no existe privilegio de escritura sobre las tres tablas para ninguna sesión. Todo lo escribe una función `SECURITY DEFINER`. | D | post-9 |
+| BR-G12 | Cada quien ve su comisión; el vendedor padre, la de su equipo; el Dueño y el Administrador, la de toda la organización. El **detalle de movimientos** es de cada quien y del personal. | D | post-9 |
+
+**Nota sobre BR-G07 — reasignar una boleta vendida es imposible, no solo prohibido.**
+`tickets_client_seller_fk` es una FK compuesta `(client_id, seller_id) → clients (id, seller_id)` y
+**no es diferible**. Una boleta vendida siempre tiene cliente, y el cliente pertenece a su vendedor
+(BR-C05): mover la boleta rompe la FK, mover el cliente primero rompe la de todas sus boletas, y no
+hay transacción que lo salve. Comprobado con la *service role*, que se salta la RLS y las funciones de
+negocio. El motor conserva su rama de cambio de vendedor porque cubre las boletas **sin vender**
+(BR-B04) y deja el camino listo si algún día el negocio permite trasladar una cartera completa.
+
+**Todavía no existe comisión del vendedor padre sobre las ventas de su equipo.** Es una regla
+comercial que el dueño aún no ha definido. La arquitectura queda preparada —el ledger tiene tipo de
+movimiento y el estado es por vendedor—, pero no se implementa nada de eso.
+
+---
+
 ## 4. Rifas (BR-R)
 
 | ID | Regla | Capas | Fase |
