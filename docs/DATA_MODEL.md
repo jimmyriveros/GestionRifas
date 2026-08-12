@@ -160,6 +160,7 @@ CREATE TYPE payment_method      AS ENUM ('cash', 'transfer', 'other');
 | `role` | `app_role` | `NOT NULL` |
 | `is_active` | `boolean` | `NOT NULL DEFAULT true` |
 | `invited_by` | `uuid` | FK → `profiles(id)`, `NULL` |
+| `parent_seller_id` | `uuid` | `NULL`, FK compuesta → `memberships(profile_id, organization_id)` (`0022`, BR-E01) |
 | `created_at` / `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` |
 
 Restricciones clave:
@@ -178,7 +179,24 @@ ALTER TABLE memberships ADD CONSTRAINT memberships_profile_org_key
 CREATE UNIQUE INDEX memberships_one_owner_per_org
   ON memberships (organization_id)
   WHERE role = 'owner' AND is_active;
+
+-- Equipos de vendedores (0022, D-091). La FK es COMPUESTA y se apoya en la
+-- unicidad de arriba: hace imposible un vendedor padre de otra organización.
+ALTER TABLE memberships ADD CONSTRAINT memberships_parent_seller_fk
+  FOREIGN KEY (parent_seller_id, organization_id)
+  REFERENCES memberships (profile_id, organization_id) ON DELETE RESTRICT;
+
+ALTER TABLE memberships ADD CONSTRAINT memberships_parent_not_self
+  CHECK (parent_seller_id IS NULL OR parent_seller_id <> profile_id);
+
+ALTER TABLE memberships ADD CONSTRAINT memberships_parent_only_for_sellers
+  CHECK (parent_seller_id IS NULL OR role = 'seller');
 ```
+
+**`parent_seller_id`** (BR-E01): nulo = vendedor a cargo del Dueño o el Administrador; con valor =
+integrante del equipo de ese vendedor. Lo que un `CHECK` no puede ver —que el padre esté activo, sea
+vendedor y no pertenezca a otro equipo— lo impone el trigger `memberships_validate_parent_seller`.
+Hoy la jerarquía tiene dos niveles (BR-E03); el modelo admite más sin cambiar de forma.
 
 ⚠️ **Este índice garantiza «como máximo uno», no «exactamente uno».** Durante siete fases esta
 sección decía «exactamente un Owner activo», y el resto del modelo lo daba por cierto — hasta que la

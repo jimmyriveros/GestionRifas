@@ -175,9 +175,42 @@ AS $$
     AND m.role IN ('owner','admin')
     AND m.is_active AND p.is_active AND o.is_active
 $$;
+
+-- 0022: el equipo del usuario actual (integrantes directos). Como conjunto, por
+-- el mismo motivo que current_staff_org_ids(): se usa dentro de tickets_select.
+-- Incluye a los desactivados: sus ventas siguen existiendo (BR-E09).
+CREATE FUNCTION current_team_seller_ids() RETURNS SETOF uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+  SELECT m.profile_id FROM memberships m WHERE m.parent_seller_id = auth.uid()
+$$;
+
+-- 0022: ¿quien llama puede tener equipo propio? Vendedor activo de ESA
+-- organización y sin vendedor padre (BR-E03, BR-E04). Recibe la organización
+-- como argumento, igual que has_org_role(): se evalúa sobre la fila que se
+-- inserta, no sobre una tabla entera.
+CREATE FUNCTION current_profile_leads_team(p_org uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM memberships m
+    JOIN profiles p      ON p.id = m.profile_id
+    JOIN organizations o ON o.id = m.organization_id
+    WHERE m.profile_id = auth.uid()
+      AND m.organization_id = p_org
+      AND m.role = 'seller'
+      AND m.parent_seller_id IS NULL
+      AND m.is_active AND p.is_active AND o.is_active
+  )
+$$;
 ```
 
 `REVOKE EXECUTE … FROM PUBLIC, anon` y `GRANT EXECUTE … TO authenticated` en todas ellas.
+
+⚠️ **Una función nueva nace ejecutable por `anon`** aunque las *default privileges* de `0015` digan lo
+contrario (I-020): el `REVOKE` explícito es obligatorio en cada migración, **incluidas las funciones
+de trigger**. Lo comprueba `tests/db/catalog.test.ts`.
 
 ### 4.2 Patrón general de política
 
@@ -213,11 +246,11 @@ de forma explícita, nunca por omisión.
 | Tabla | SELECT | INSERT | UPDATE | DELETE |
 |-------|--------|--------|--------|--------|
 | `organizations` | Miembros activos de la organización | ✗ (solo `SERVICE_ROLE`) | Solo Owner | ✗ |
-| `profiles` | El propio perfil; el personal (owner/admin) ve los perfiles de su organización | ✗ (trigger de Auth) | El propio perfil (campos limitados); personal sobre perfiles de su organización salvo el Owner si es Admin | ✗ |
-| `memberships` | El propio registro; personal ve los de su organización | Personal, sin poder crear rol `owner` (solo Owner) | Personal; un Admin no puede tocar la membresía del Owner ni ascender a nadie a `owner` | ✗ |
+| `profiles` | El propio perfil; **el de su equipo** (`0022`); el personal (owner/admin) ve los de su organización | ✗ (trigger de Auth) | El propio perfil (campos limitados); personal sobre perfiles de su organización salvo el Owner si es Admin | ✗ |
+| `memberships` | El propio registro; **los de su equipo** (`0022`); personal ve los de su organización | Personal, sin poder crear rol `owner` (solo Owner) · **Seller: solo integrantes de su propio equipo** (`0022`, BR-E04) | Personal; un Admin no puede tocar la membresía del Owner ni ascender a nadie a `owner`. **Un vendedor no tiene UPDATE**: no puede cambiar de equipo a nadie, ni a sí mismo (BR-E06) | ✗ |
 | `raffles` | Todos los miembros activos de la organización | Personal | Personal | ✗ |
 | `clients` | Personal: toda la organización · Seller: `seller_id = current_profile_id()` | Personal · Seller solo con `seller_id` propio | Igual que SELECT | ✗ (se archiva) |
-| `tickets` | Personal: toda la organización · Seller: propias | Personal · Seller solo si `allow_seller_ticket_creation` y estado `pending_approval` con `seller_id` propio | Personal · Seller: solo sus boletas y solo campos permitidos según estado | ✗ |
+| `tickets` | Personal: toda la organización · Seller: propias **y las de su equipo** (`0022`, BR-E05) | Personal · Seller solo si `allow_seller_ticket_creation` y estado `pending_approval` con `seller_id` propio | Personal · Seller: solo sus boletas y solo campos permitidos según estado. **La lectura del equipo no da escritura** | ✗ |
 | `payments` | Personal: toda la organización · Seller: propios | Personal · Seller con `seller_id` propio y cliente propio | Solo personal (anulación). Seller: ✗ | ✗ |
 | `payment_allocations` | Vía `EXISTS` sobre el pago padre | Igual que el pago padre | ✗ | ✗ |
 | `audit_logs` | Solo personal de la organización | Solo funciones `SECURITY DEFINER` | ✗ | ✗ |
@@ -225,13 +258,14 @@ de forma explícita, nunca por omisión.
 Ejemplo completo para la tabla más sensible:
 
 ```sql
--- tickets: lectura
+-- tickets: lectura (tercera vía agregada en 0022: las ventas del propio equipo)
 CREATE POLICY tickets_select ON tickets FOR SELECT TO authenticated
 USING (
   organization_id IN (SELECT current_org_ids())
   AND (
     organization_id IN (SELECT current_staff_org_ids())
     OR seller_id = (SELECT current_profile_id())
+    OR seller_id IN (SELECT current_team_seller_ids())
   )
 );
 

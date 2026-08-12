@@ -44,7 +44,7 @@
 | BR-U04 | Solo el Owner puede transferir la propiedad de la organización (fuera del MVP como interfaz; la restricción sí existe). | D | 2 |
 | BR-U05 | Un usuario tiene un único rol por organización. | D | 2 |
 | BR-U06 | Desactivar a un usuario no borra sus datos históricos: sus boletas, clientes y pagos permanecen. | S, D | 3 |
-| BR-U07 | Un vendedor nunca accede a información de otro vendedor por UI, URL, ID manipulado, request directo, API o cliente Supabase. | S, D | 2 |
+| BR-U07 | Un vendedor nunca accede a información de otro vendedor por UI, URL, ID manipulado, request directo, API o cliente Supabase. **Única excepción, acotada: las ventas de su propio equipo (BR-E05).** | S, D | 2 |
 | BR-U08 | El campo teléfono es obligatorio para todo usuario; el alias es opcional. | C, S, D | 3 |
 | BR-U09 | Una organización tiene **siempre** un Owner activo: nadie, ni el propio Owner, puede dejarla sin propietario. | D | **9** |
 
@@ -54,6 +54,30 @@ desactivarse a sí mismo con una llamada directa a PostgREST y dejar la organiza
 propietario y sin forma de repararlo desde la aplicación** — el ex-Owner deja de ser staff y un Admin
 no puede ascender a nadie a Owner (BR-U03). Lo cierra el trigger diferido de la migración `0016`
 (D-071). Es **diferido** para que transferir la propiedad en una sola transacción siga siendo posible.
+
+---
+
+## 3.b Equipos de vendedores (BR-E)
+
+Cualquier vendedor puede formar su equipo: no existe una categoría especial de «vendedor supervisor».
+La diferencia entre un vendedor con equipo y uno sin equipo es solo que el primero creó integrantes.
+
+| ID | Regla | Capas | Fase |
+|----|-------|-------|------|
+| BR-E01 | Un integrante de equipo **es** una membresía con rol `seller` y `parent_seller_id` apuntando a su vendedor padre. No hay rol nuevo, ni tabla nueva, ni entidad separada. `parent_seller_id` nulo = vendedor a cargo del Dueño o el Administrador. | D | post-9 |
+| BR-E02 | El vendedor padre debe ser un vendedor **activo de la misma organización**. La FK compuesta contra `(profile_id, organization_id)` lo hace imposible de violar entre organizaciones. | D | post-9 |
+| BR-E03 | **Dos niveles.** Un vendedor que ya pertenece al equipo de alguien no puede formar el suyo. El modelo admite más profundidad; lo que la limita son el trigger `memberships_validate_parent_seller` y la política de alta. | S, D | post-9 |
+| BR-E04 | Un vendedor solo crea integrantes **para su propio equipo** y **siempre con rol vendedor**. No puede crear administradores ni dueños, ni meter gente en el equipo de otro, ni crear vendedores sueltos a cargo del Dueño (eso sigue siendo BR-U01). | S, D | post-9 |
+| BR-E05 | El vendedor padre ve las **boletas** de su equipo y los indicadores que salen de ellas. **No** ve sus clientes, **no** ve sus pagos y **no** puede modificarles nada. Es la única excepción a BR-U07 y no se amplía sin una decisión explícita. | S, D | post-9 |
+| BR-E06 | Un vendedor no puede cambiar su propio `parent_seller_id` ni el de nadie. Reorganizar equipos es exclusivo del Dueño y el Administrador. | D | post-9 |
+| BR-E07 | La visibilidad es **en un solo sentido**: un integrante no ve las ventas de su vendedor padre ni las de sus compañeros de equipo. | D | post-9 |
+| BR-E08 | El Dueño y el Administrador conservan visibilidad y control totales: ven todos los equipos, pueden crear un vendedor ya dentro de un equipo y pueden moverlo de equipo. | S, D | post-9 |
+| BR-E09 | Desactivar a un integrante no lo borra del equipo ni de su historial: sus ventas siguen contando para lo ya ocurrido y su vendedor padre las sigue viendo (mismo criterio que BR-U06). | D | post-9 |
+
+**Por qué la excepción de BR-E05 es tan estrecha.** Abrir la RLS es la parte irreversible de esta
+funcionalidad: una vez que un rol ve una fila, cualquier pantalla futura puede enseñarla. Por eso solo
+se amplió `tickets_select`, y `clients_select` y `payments_select` quedaron intactas. Un vendedor
+padre puede responder «cuánto vendió Pedro», no «a quién se lo vendió» ni «cuánto dinero recogió».
 
 ---
 

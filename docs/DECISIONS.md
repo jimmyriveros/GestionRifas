@@ -1704,6 +1704,70 @@ las tarjetas de cobranza que reemplaza — nunca dependió de «cuál es la rifa
 
 ---
 
+## D-091 — Equipos de vendedores: una columna en `memberships`, no una entidad nueva
+**Fase:** posterior a la 9 (mantenimiento; solicitado por el usuario, 2026-08-12)
+
+**Contexto.** El usuario pidió que cualquier vendedor pueda formar su propio equipo creando otros
+vendedores, verlos, ver sus ventas, recibir avisos y —en fases siguientes— ganar comisión por tramos.
+El encargo insistía en dos cosas: reutilizar `Seller`/`User` en vez de inventar una entidad paralela, y
+dejar el modelo preparado para más niveles sin tener que reconstruirlo.
+
+**Decisión.** Un integrante de equipo **es** una membresía con rol `seller`; lo único que se agrega es
+`memberships.parent_seller_id` (migración `0022`, BR-E01). Nulo significa lo que significaba antes de
+que existiera la columna: un vendedor a cargo del Dueño o el Administrador. Ningún vendedor existente
+cambia de estado al desplegar.
+
+La integridad se apoya en el esquema, no en comprobaciones repetidas por consulta:
+
+* **FK compuesta** `(parent_seller_id, organization_id) → memberships (profile_id, organization_id)`.
+  Hace estructuralmente imposible un padre de otra organización — no es una condición que haya que
+  acordarse de escribir cada vez.
+* **CHECK** para «nadie es su propio jefe» y «solo un vendedor tiene vendedor padre».
+* **Trigger** para lo que necesita mirar otra fila: el padre está activo, tiene rol vendedor y no
+  pertenece a ningún equipo (BR-E03).
+
+**Dos niveles hoy, más mañana.** La profundidad no está grabada en el modelo: la limitan una condición
+del trigger y una de la política de alta. Ampliarla significa relajar esas dos y cambiar
+`current_team_seller_ids()` por una versión recursiva; la columna, las FK, los índices y las pantallas
+siguen valiendo. Se eligió la función **no recursiva** a propósito: se evalúa dentro de la RLS de
+`tickets`, la tabla más grande del sistema, y un CTE recursivo ahí cuesta en cada consulta para
+sostener una profundidad que hoy no existe (evitar sobre-ingeniería, encargo del usuario).
+
+**Alcance de la visibilidad: solo ventas** (BR-E05, elegido por el usuario entre tres opciones). Se
+amplió `tickets_select` y nada más. `clients_select` y `payments_select` quedan intactas, así que el
+vendedor padre puede responder «cuánto vendió Pedro» pero no «a quién» ni «cuánto dinero recogió».
+Ampliar la RLS es la parte difícil de deshacer de esta funcionalidad: una vez que un rol ve una fila,
+cualquier pantalla futura puede enseñarla. Como efecto secundario deseado, `v_seller_summary` y
+`v_ticket_balances` —que son `security_invoker` sobre `tickets`— empiezan a devolver las filas del
+equipo solas, sin vistas nuevas; `v_client_balances` y `v_payment_history` parten de `clients` y
+`payments` y por eso no filtran nada nuevo.
+
+**Alta por el propio vendedor.** La política `memberships_insert_seller` abre una puerta estrecha: rol
+`seller`, padre igual a quien llama, y quien llama debe ser un vendedor activo sin padre propio. La
+cuenta de Auth se sigue creando por invitación desde el servidor con la service role (D-045): la
+política gobierna el dato de negocio, que es lo que decide quién manda sobre quién.
+
+**Dos errores reales encontrados al implementarla**, ambos detectados por las pruebas y no por lectura:
+
+1. La primera versión de la política llevaba dentro un `not exists (select … from memberships …)` y
+   PostgreSQL respondió `infinite recursion detected in policy for relation "memberships"`. Es el
+   motivo por el que existen `current_org_ids()` y `has_org_role()` desde `0001`. Se resolvió con
+   `current_profile_leads_team(org)`, `SECURITY DEFINER` como sus hermanas.
+2. `profiles_select` y `memberships_select` se reescribieron partiendo del texto de `0001`/`0011` en
+   vez del vigente de `0014`, lo que **reintrodujo I-019** —`is_org_staff(<columna>)` y
+   `current_profile_id()` sin envolver, es decir una llamada por fila—. Lo cazaron las comprobaciones
+   de catálogo F7-03. Lección para cualquier migración futura que toque una política: partir de la
+   **definición vigente**, que puede no estar en la migración que la creó.
+
+**Alternativas.** (a) Tabla `seller_teams` (descartada: dos fuentes para el mismo hecho y repetir el
+aislamiento por organización en sus propias políticas). (b) Rol `team_leader` en el enum `app_role`
+(descartada: contradice la regla principal del encargo —todos los vendedores son iguales— y obligaría
+a revisar cada política que discrimina por rol). (c) Filtrar el equipo en el servidor sin tocar RLS
+(descartada: el frontend y la Server Action no son frontera de seguridad; sin RLS, un `select` directo
+a PostgREST seguiría sin devolver las boletas del equipo, o peor, habría que abrirlas del todo).
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

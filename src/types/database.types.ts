@@ -152,6 +152,7 @@ export type Database = {
           invited_by: string | null
           is_active: boolean
           organization_id: string
+          parent_seller_id: string | null
           profile_id: string
           role: Database['public']['Enums']['app_role']
           updated_at: string
@@ -162,6 +163,7 @@ export type Database = {
           invited_by?: string | null
           is_active?: boolean
           organization_id: string
+          parent_seller_id?: string | null
           profile_id: string
           role: Database['public']['Enums']['app_role']
           updated_at?: string
@@ -172,6 +174,7 @@ export type Database = {
           invited_by?: string | null
           is_active?: boolean
           organization_id?: string
+          parent_seller_id?: string | null
           profile_id?: string
           role?: Database['public']['Enums']['app_role']
           updated_at?: string
@@ -190,6 +193,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'organizations'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'memberships_parent_seller_fk'
+            columns: ['parent_seller_id', 'organization_id']
+            isOneToOne: false
+            referencedRelation: 'memberships'
+            referencedColumns: ['profile_id', 'organization_id']
           },
           {
             foreignKeyName: 'memberships_profile_id_fkey'
@@ -1024,6 +1034,7 @@ export type Database = {
       current_org_ids: { Args: never; Returns: string[] }
       current_profile_id: { Args: never; Returns: string }
       current_staff_org_ids: { Args: never; Returns: string[] }
+      current_team_seller_ids: { Args: never; Returns: string[] }
       has_org_role: {
         Args: {
           p_org: string
@@ -1031,11 +1042,11 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_org_staff: { Args: { p_org: string }; Returns: boolean }
       import_tickets_with_clients: {
         Args: { p_raffle_id: string; p_rows: Json; p_seller_id: string }
         Returns: Json
       }
+      is_org_staff: { Args: { p_org: string }; Returns: boolean }
       lock_ticket_batch: { Args: { p_ticket_ids: string[] }; Returns: string[] }
       log_ticket_import: {
         Args: {
@@ -1051,7 +1062,7 @@ export type Database = {
       match_ticket_import_clients: {
         Args: { p_clients: Json; p_raffle_id: string; p_seller_id: string }
         Returns: {
-          archived_at: string | null
+          archived_at: string
           client_id: string
           client_key: string
           name: string
