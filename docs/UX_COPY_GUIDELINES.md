@@ -345,6 +345,9 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Empresa que opera las rifas | **Organización** | Cuenta, tenant, empresa |
 | Pago parcial de una boleta | **Abono** | Cuota, adelanto, parcialidad |
 | Dinero que falta por cobrar | **Saldo pendiente** | Deuda, mora, pasivo |
+| Conjunto de vendedores a cargo de otro vendedor | **Equipo** | Red, grupo, downline, sucursal |
+| Vendedor que pertenece al equipo de otro | **Vendedor** (a secas), o **integrante** del equipo | Sub-vendedor, hijo, subordinado, mini admin |
+| Incorporar un vendedor a tu equipo | **Agregar vendedor** | Crear sub-vendedor, reclutar, vincular |
 | Entregar boletas a un vendedor o a un cliente | **Asignar** | Adjudicar, vincular, ligar |
 | Quitar de circulación una boleta o un pago | **Anular** | Eliminar, borrar, cancelar |
 | Borrar para siempre una boleta cargada por error, que nunca se vendió | **Eliminar** | Anular, cancelar, quitar |
@@ -366,6 +369,15 @@ también.
 
 **Roles en el habla del usuario:** dentro del código y de la documentación técnica se usan `owner`,
 `admin` y `seller`. En pantalla son siempre **Dueño**, **Administrador** y **Vendedor**.
+
+**Nadie es un «sub-vendedor» en pantalla.** Dentro del código existe `parent_seller_id` y la
+documentación habla de jerarquía, pero para el usuario todos son **vendedores**: unos tienen equipo y
+otros no (BR-E01). Cuando haga falta distinguirlo, se dice **«los vendedores de tu equipo»** o
+**«integrantes»**, nunca «sub-vendedor», «hijo» ni «subordinado». En el portal del vendedor la
+pantalla se llama **«Mi equipo»**, en la misma familia que «Mis boletas», «Mis clientes» y «Mis
+pagos»; el verbo para incorporar a alguien es **agregar**, y el del portal administrativo para dar de
+alta a un vendedor de la organización sigue siendo **invitar** o **nuevo vendedor**: son dos acciones
+distintas hechas por personas distintas, y por eso conservan verbos distintos.
 
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada.

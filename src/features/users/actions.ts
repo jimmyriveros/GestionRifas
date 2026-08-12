@@ -9,6 +9,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult } from '@/lib/action-result'
 
+import { inviteMember } from './invite'
 import {
   createUserSchema,
   resendInvitationSchema,
@@ -19,13 +20,10 @@ import {
 /**
  * Alta y mantenimiento de administradores y vendedores.
  *
- * Reparto de responsabilidades (D-045):
- *   * La cuenta de Supabase Auth se crea con la SERVICE ROLE, porque
- *     `auth.admin` no existe de otra forma. Solo toca `auth`, jamas datos de
- *     negocio.
- *   * La MEMBRESIA se inserta con el cliente de sesion, sujeto a RLS: es la
- *     politica `memberships_insert_staff` la que impide a un Admin crear un
- *     owner (BR-U03), no una comprobacion de TypeScript.
+ * El alta en si —invitacion por correo + membresia bajo RLS— vive en
+ * `./invite.ts`, compartida con el alta de integrantes de equipo
+ * (`features/team/actions.ts`, BR-E04): no puede haber dos formas distintas de
+ * crear un vendedor. Alli esta explicado el reparto de responsabilidades D-045.
  *
  * El alta es por INVITACION por correo: nunca existe una contrasena en texto
  * plano, ni en la interfaz ni en la base de datos (CLAUDE.md 9 y 26). La
@@ -58,40 +56,13 @@ export async function createUser(input: unknown): Promise<ActionResult> {
     return { error: rate.message }
   }
 
-  const admin = createAdminClient()
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
-    values.email,
-    {
-      data: {
-        full_name: values.fullName,
-        alias: values.alias === '' ? null : values.alias,
-        phone: values.phone,
-      },
-      redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
-    },
-  )
-
-  if (inviteError || !invited?.user) {
-    return { error: mapPgError(inviteError) }
-  }
-
-  const profileId = invited.user.id
-
-  const supabase = await createClient()
-  const { error: membershipError } = await supabase.from('memberships').insert({
-    organization_id: auth.membership.organizationId,
-    profile_id: profileId,
+  const result = await inviteMember({
+    organizationId: auth.membership.organizationId,
+    invitedBy: auth.membership.profileId,
     role: values.role,
-    invited_by: auth.membership.profileId,
+    values,
   })
-
-  if (membershipError) {
-    // Compensacion: sin membresia la cuenta no sirve para nada y dejaria un
-    // correo bloqueado para siempre. Se elimina la cuenta recien creada para
-    // que el alta pueda reintentarse.
-    await admin.auth.admin.deleteUser(profileId)
-    return { error: mapPgError(membershipError) }
-  }
+  if ('error' in result) return result
 
   revalidatePath('/owner/users')
   revalidatePath('/owner/sellers')

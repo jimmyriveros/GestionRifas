@@ -43,38 +43,62 @@ export type EditableUser = {
   email: string
 }
 
+/**
+ * Alta con otro destino y otras palabras, mismo formulario.
+ *
+ * Lo usa el alta de integrantes de equipo (BR-E04), donde quien crea es un
+ * vendedor y no el personal: cambia la Server Action y el texto, no los campos
+ * ni su validacion. Es un solo prop opcional a proposito — el encargo pedia que
+ * NO existieran dos formularios distintos para crear un vendedor.
+ */
+export type CreateOverride = {
+  submit: (values: UserFormInput) => Promise<{ ok: true } | { error: string }>
+  title: string
+  description: string
+  success: (email: string) => string
+}
+
 type UserDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   role: ManageableRole
   /** Presente en modo edicion. */
   user?: EditableUser
+  /** Presente cuando el alta no es la del portal administrativo. */
+  create?: CreateOverride
 }
 
 /**
- * Alta e edicion de usuarios.
+ * Alta y edicion de usuarios.
  *
  * El formulario vive en un componente aparte que Radix monta y desmonta con el
  * dialogo: cada apertura empieza con valores frescos sin necesidad de
  * sincronizar estado con un efecto.
  */
-export function UserDialog({ open, onOpenChange, role, user }: UserDialogProps) {
+export function UserDialog({ open, onOpenChange, role, user, create }: UserDialogProps) {
   const isEdit = user !== undefined
   const roleLabel = ROLE_LABELS[role].toLowerCase()
+
+  const title = isEdit ? 'Editar datos' : (create?.title ?? `Nuevo ${roleLabel}`)
+  const description = isEdit
+    ? 'El correo no se puede cambiar desde aquí.'
+    : (create?.description ??
+      'Se enviará una invitación por correo. La contraseña la define la propia persona.')
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar datos' : `Nuevo ${roleLabel}`}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? 'El correo no se puede cambiar desde aquí.'
-              : 'Se enviará una invitación por correo. La contraseña la define la propia persona.'}
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <UserDialogForm role={role} user={user} onDone={() => onOpenChange(false)} />
+        <UserDialogForm
+          role={role}
+          user={user}
+          create={create}
+          onDone={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   )
@@ -83,10 +107,12 @@ export function UserDialog({ open, onOpenChange, role, user }: UserDialogProps) 
 function UserDialogForm({
   role,
   user,
+  create,
   onDone,
 }: {
   role: ManageableRole
   user?: EditableUser
+  create?: CreateOverride
   onDone: () => void
 }) {
   const router = useRouter()
@@ -111,7 +137,9 @@ function UserDialogForm({
             alias: values.alias,
             phone: values.phone,
           })
-        : await createUser({ ...values, role })
+        : create
+          ? await create.submit(values)
+          : await createUser({ ...values, role })
 
       if ('error' in result) {
         setServerError(result.error)
@@ -121,7 +149,9 @@ function UserDialogForm({
       toast.success(
         user
           ? 'Datos actualizados.'
-          : `Invitación enviada a ${values.email}. La persona definirá su contraseña desde el enlace.`,
+          : create
+            ? create.success(values.email)
+            : `Invitación enviada a ${values.email}. La persona definirá su contraseña desde el enlace.`,
       )
       onDone()
       router.refresh()

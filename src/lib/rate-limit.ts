@@ -59,6 +59,13 @@ export const RATE_LIMITS = {
   passwordReset: { limit: 3, windowMs: 15 * 60_000 },
   /** Invitaciones: cada una envia un correo y consume cuota de Auth. */
   invitation: { limit: 20, windowMs: 60 * 60_000 },
+  /**
+   * Integrantes de equipo, POR VENDEDOR (BR-E04). Desde que un vendedor puede
+   * crear vendedores, uno solo podria vaciar el cupo de la organizacion entera
+   * en una rafaga. Cinco por hora es holgado para el uso real —un equipo se
+   * arma una vez— y deja el resto del cupo para el personal y para los demas.
+   */
+  teamInvitation: { limit: 5, windowMs: 60 * 60_000 },
 } as const satisfies Record<string, RateLimitRule>
 
 export type RateLimitResult =

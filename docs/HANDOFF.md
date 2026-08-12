@@ -407,6 +407,11 @@ features/tickets/selection/  selección múltiple y acciones masivas (D-082..D-0
 components/form/    SelectionCheckbox (20 px a la vista, 44 px de diana)
 lib/use-media-query.ts  consulta de medios sin romper la hidratación. Solo para
                     COMPORTAMIENTO; lo que se ve lo decide Tailwind
+features/team/      equipos de vendedores (D-091): queries.ts, actions.ts y las
+                    tarjetas de «Mi equipo». El ALTA no vive aqui: es la misma de
+                    features/users/invite.ts, compartida con el portal administrativo
+features/users/invite.ts  invitacion por correo + membresia bajo RLS. UN solo camino
+                    para crear un vendedor, lo cree el personal o su vendedor padre
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
 features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
                     ExportCsvButton

@@ -243,6 +243,7 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/seller/clients/new` | seller | **4 ✅** | Crear cliente |
 | `/seller/clients/[clientId]` | seller | **4 ✅** | Perfil con boletas |
 | `/seller/clients/[clientId]/edit` | seller | **4 ✅** | Edición del cliente |
+| `/seller/team` | seller | post-9 ✅ | **Mi equipo.** Siempre en el menú, tenga equipo o no (BR-E01) |
 | `/seller/payments` | seller | **5 ✅** | Historial de pagos |
 | `/seller/payments/new` | seller | **5 ✅** | Registrar abono |
 | `/seller/reports` | seller | **6 ✅** | Sus reportes, sin el que compara vendedores (D-059) |
