@@ -104,12 +104,15 @@ const ZERO: TeamMemberTotals = {
  * (encargo del usuario, seccion PERFORMANCE). Quien puede preguntar y por quien
  * lo decide la propia funcion, no este archivo.
  */
-export async function listTeamWithTotals(parentSellerId: string): Promise<TeamMemberWithTotals[]> {
+export async function listTeamWithTotals(
+  parentSellerId: string,
+  raffleId?: string,
+): Promise<TeamMemberWithTotals[]> {
   const supabase = await createClient()
 
   const [members, { data: summary, error }] = await Promise.all([
     listTeamMembers(parentSellerId),
-    supabase.rpc('team_sales_summary'),
+    supabase.rpc('team_sales_summary', { p_raffle_id: raffleId }),
   ])
 
   if (error) throw error
@@ -141,8 +144,9 @@ export async function listTeamWithTotals(parentSellerId: string): Promise<TeamMe
 export async function getTeamMember(
   parentSellerId: string,
   memberId: string,
+  raffleId?: string,
 ): Promise<TeamMemberWithTotals | null> {
-  const members = await listTeamWithTotals(parentSellerId)
+  const members = await listTeamWithTotals(parentSellerId, raffleId)
   return members.find((member) => member.profileId === memberId) ?? null
 }
 

@@ -35,6 +35,46 @@ test.afterAll(async () => {
   }
 })
 
+test.describe('Mi ganancia', () => {
+  test('el panel muestra lo ganado y separa la proyección de lo que ya es suyo', async ({
+    page,
+  }) => {
+    // El seed deja a este vendedor con 2 boletas cobradas por completo en la
+    // rifa activa: 2 × $20.000. Son cifras reales, no preparadas por la prueba.
+    await loginAs(page, ACCOUNTS.seller)
+
+    // Se acota a la tarjeta: «$40.000» tambien aparece en «Pagos recientes», y
+    // sin acotar la prueba pasaria mirando el numero equivocado.
+    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Tu ganancia' })
+
+    await expect(tarjeta.getByText('$40.000', { exact: true })).toBeVisible()
+    await expect(tarjeta.getByText(/2 boletas cobradas/)).toBeVisible()
+    await expect(tarjeta.getByText(/\$20\.000 por boleta/)).toBeVisible()
+
+    // El siguiente nivel, con su barra y su cuenta atras.
+    await expect(tarjeta.getByText('Te faltan 19 boletas para subir de nivel')).toBeVisible()
+    await expect(tarjeta.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuetext',
+      '2 de 21 boletas cobradas',
+    )
+
+    // Y lo que mas importa: la proyeccion NO se confunde con lo ganado.
+    await expect(tarjeta.getByText(/tu ganancia sería de/)).toBeVisible()
+    await expect(
+      tarjeta.getByText('Esa cifra todavía no es tuya: es lo que ganarías si llegas.'),
+    ).toBeVisible()
+  })
+
+  test('un vendedor no ve la ganancia de otro', async ({ page }) => {
+    // vendedor2 no tiene boletas cobradas: su tarjeta explica la regla y no
+    // muestra el dinero de nadie mas.
+    await loginAs(page, ACCOUNTS.otherSeller)
+
+    await expect(page.getByText(/Ganas \$20\.000 por cada boleta/)).toBeVisible()
+    await expect(page.getByText('$40.000', { exact: true })).toHaveCount(0)
+  })
+})
+
 test.describe('Mi equipo', () => {
   test('todo vendedor tiene el menú, aunque no tenga equipo', async ({ page }) => {
     await loginAs(page, ACCOUNTS.otherSeller)

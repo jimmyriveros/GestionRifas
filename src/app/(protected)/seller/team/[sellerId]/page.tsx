@@ -5,6 +5,7 @@ import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
 import { ActiveBadge } from '@/components/data/StatusBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { getCurrentCommissionRaffle, getTeamCommissions } from '@/features/commissions/queries'
 import { TeamMemberSales } from '@/features/team/components/TeamMemberSales'
 import { getTeamMember, listTeamMemberSales } from '@/features/team/queries'
 import { requireRole } from '@/lib/auth/guards'
@@ -26,10 +27,16 @@ export default async function TeamMemberPage({
   const { sellerId } = await params
   const membership = await requireRole(['seller'])
 
-  const member = await getTeamMember(membership.profileId, sellerId)
+  const raffle = await getCurrentCommissionRaffle()
+
+  const member = await getTeamMember(membership.profileId, sellerId, raffle?.id)
   if (!member) notFound()
 
-  const sales = await listTeamMemberSales(sellerId)
+  const [sales, commissions] = await Promise.all([
+    listTeamMemberSales(sellerId),
+    raffle ? getTeamCommissions(raffle.id) : Promise.resolve(new Map()),
+  ])
+  const commission = commissions.get(sellerId) ?? null
 
   return (
     <div className="space-y-6">
@@ -56,11 +63,30 @@ export default async function TeamMemberPage({
         <h2 className="mb-3 text-lg font-semibold">Cómo va</h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <MetricCard label="Boletas vendidas" value={member.ticketsAssigned} />
-          <MetricCard label="Ya pagadas" value={member.ticketsPaid} />
+          <MetricCard label="Ya cobradas" value={member.ticketsPaid} />
           <MetricCard label="Total vendido" value={formatCOP(member.totalSold)} />
           <MetricCard label="Falta por cobrar" value={formatCOP(member.pendingAmount)} />
         </div>
       </div>
+
+      {commission !== null && commission.ticketsPaid > 0 ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Lo que lleva ganado</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <p className="text-2xl font-semibold tabular-nums">{formatCOP(commission.earned)}</p>
+            <p className="text-muted-foreground text-sm">
+              {commission.ticketsPaid}{' '}
+              {commission.ticketsPaid === 1 ? 'boleta cobrada' : 'boletas cobradas'} ·{' '}
+              {formatCOP(commission.rate)} por boleta
+              {commission.ticketsToNext !== null && commission.nextRate !== null
+                ? ` · le faltan ${commission.ticketsToNext} para llegar a ${formatCOP(commission.nextRate)}`
+                : ''}
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div>
         <h2 className="mb-3 text-lg font-semibold">Sus ventas</h2>

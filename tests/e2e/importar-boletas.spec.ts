@@ -17,6 +17,9 @@ import { ACCOUNTS, loginAs, randomTicketNumbers } from './fixtures'
 
 let refs: SeedRefs
 
+/** Una boleta se identifica por su combinacion COMPLETA, nunca por un numero. */
+type Par = { daily: string; weekly: string }
+
 /** Boletas creadas por esta suite, para no dejarlas acumuladas (I-035). */
 const creadas: string[] = []
 const clientesCreados: string[] = []
@@ -34,14 +37,32 @@ test.afterAll(async () => {
   }
 })
 
-/** Apunta para borrar despues las boletas de una rifa con estos numeros. */
-async function recordar(dailyNumbers: string[]) {
+/**
+ * Boletas de la rifa que coinciden con estas combinaciones COMPLETAS.
+ *
+ * Por el par, nunca por el numero diario suelto: ese se repite en otras
+ * combinaciones (BR-N07), asi que buscar solo por el acaba encontrando boletas
+ * de otras pruebas —contandolas de mas, o peor, apuntandolas para borrar—. Es
+ * I-055, y aqui se manifesto como un fallo intermitente de CASO 19.
+ */
+async function buscarPares(pares: Par[]) {
   const { data } = await serviceClient()
     .from('tickets')
-    .select('id')
+    .select('id, daily_number, weekly_number')
     .eq('raffle_id', refs.raffleId)
-    .in('daily_number', dailyNumbers)
-  for (const fila of data ?? []) creadas.push(fila.id)
+    .in(
+      'daily_number',
+      pares.map((par) => par.daily),
+    )
+
+  return (data ?? []).filter((fila) =>
+    pares.some((par) => par.daily === fila.daily_number && par.weekly === fila.weekly_number),
+  )
+}
+
+/** Apunta para borrar despues las boletas con estas combinaciones. */
+async function recordar(pares: Par[]) {
+  for (const fila of await buscarPares(pares)) creadas.push(fila.id)
 }
 
 async function subir(page: Page, nombre: string, contenido: string, tipo = 'text/csv') {
@@ -73,15 +94,15 @@ test.describe('Importar boletas — portal administrativo', () => {
     // Nada se ha guardado todavia: primero hay que ver la vista previa.
     await expect(page.getByText('2 boletas encontradas')).toBeVisible()
     await expect(page.getByText('2 se pueden importar')).toBeVisible()
-    expect(await contarEnRifa([a.daily, b.daily])).toBe(0)
+    expect(await contarEnRifa([a, b])).toBe(0)
 
     const confirmar = page.getByRole('button', { name: /Importar 2 boleta/ })
     await expect(confirmar).toBeEnabled()
     await confirmar.click()
 
     await expect(page.getByText('Se crearon 2 boletas.')).toBeVisible()
-    expect(await contarEnRifa([a.daily, b.daily])).toBe(2)
-    await recordar([a.daily, b.daily])
+    expect(await contarEnRifa([a, b])).toBe(2)
+    await recordar([a, b])
   })
 
   test('mezcla boletas con y sin cliente, exige celular y crea una sola identidad', async ({
@@ -119,11 +140,19 @@ test.describe('Importar boletas — portal administrativo', () => {
     await expect(page.getByText('2 boletas quedaron asignadas a sus clientes.')).toBeVisible()
     await expect(page.getByText('1 cliente nuevo · 0 existentes reutilizados')).toBeVisible()
 
-    const { data } = await serviceClient()
+    // Por el par completo, no por el numero diario suelto (I-055).
+    const esperadas = [a, b, sinCliente, incompleta]
+    const { data: filas } = await serviceClient()
       .from('tickets')
-      .select('id, daily_number, client_id, inventory_status')
+      .select('id, daily_number, weekly_number, client_id, inventory_status')
       .eq('raffle_id', refs.raffleId)
-      .in('daily_number', [a.daily, b.daily, sinCliente.daily, incompleta.daily])
+      .in(
+        'daily_number',
+        esperadas.map((par) => par.daily),
+      )
+    const data = (filas ?? []).filter((fila) =>
+      esperadas.some((par) => par.daily === fila.daily_number && par.weekly === fila.weekly_number),
+    )
 
     expect(data).toHaveLength(3)
     for (const ticket of data ?? []) creadas.push(ticket.id)
@@ -200,7 +229,7 @@ test.describe('Importar boletas — portal administrativo', () => {
     await page.getByRole('button', { name: /Importar solo las 2 que sirven/ }).click()
     await expect(page.getByText('Se crearon 2 boletas.')).toBeVisible()
 
-    await recordar([buena.daily, repetida.daily])
+    await recordar([buena, repetida])
   })
 
   test('una combinación que ya existe en la rifa se marca antes de confirmar', async ({ page }) => {
@@ -259,8 +288,8 @@ test.describe('Importar boletas — portal administrativo', () => {
     await boton.click({ force: true, timeout: 2000 }).catch(() => {})
 
     await expect(page.getByText('Se creó 1 boleta.')).toBeVisible()
-    expect(await contarEnRifa([n.daily])).toBe(1)
-    await recordar([n.daily])
+    expect(await contarEnRifa([n])).toBe(1)
+    await recordar([n])
   })
 })
 
@@ -295,11 +324,6 @@ test.describe('Importar boletas — portal del vendedor', () => {
   })
 })
 
-async function contarEnRifa(dailyNumbers: string[]): Promise<number> {
-  const { count } = await serviceClient()
-    .from('tickets')
-    .select('id', { count: 'exact', head: true })
-    .eq('raffle_id', refs.raffleId)
-    .in('daily_number', dailyNumbers)
-  return count ?? 0
+async function contarEnRifa(pares: Par[]): Promise<number> {
+  return (await buscarPares(pares)).length
 }

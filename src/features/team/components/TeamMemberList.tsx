@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { ActiveBadge } from '@/components/data/StatusBadge'
+import type { CommissionSummary } from '@/features/commissions/queries'
 import { formatCOP } from '@/lib/money'
 
 import type { TeamMemberWithTotals } from '../queries'
@@ -16,7 +17,14 @@ import type { TeamMemberWithTotals } from '../queries'
  * La tarjeta ENTERA es el enlace al detalle: es la diana mas grande posible en
  * un telefono, y evita el problema de poner acciones pequenas y juntas.
  */
-export function TeamMemberList({ members }: { members: TeamMemberWithTotals[] }) {
+export function TeamMemberList({
+  members,
+  commissions,
+}: {
+  members: TeamMemberWithTotals[]
+  /** Comision de cada integrante en la rifa activa, por id de vendedor. */
+  commissions: Map<string, CommissionSummary>
+}) {
   return (
     <ul className="grid gap-3 sm:grid-cols-2">
       {members.map((member) => (
@@ -37,14 +45,44 @@ export function TeamMemberList({ members }: { members: TeamMemberWithTotals[] })
 
             <dl className="mt-3 grid grid-cols-2 gap-3">
               <Figure label="Boletas vendidas" value={String(member.ticketsAssigned)} />
-              <Figure label="Ya pagadas" value={String(member.ticketsPaid)} />
+              <Figure label="Ya cobradas" value={String(member.ticketsPaid)} />
               <Figure label="Total vendido" value={formatCOP(member.totalSold)} />
               <Figure label="Falta por cobrar" value={formatCOP(member.pendingAmount)} />
             </dl>
+
+            <TeamMemberEarnings commission={commissions.get(member.profileId)} />
           </Link>
         </li>
       ))}
     </ul>
+  )
+}
+
+/**
+ * Lo que lleva ganado un integrante, en la rifa activa.
+ *
+ * Se separa del resto con una linea porque es de otra naturaleza: arriba esta el
+ * dinero de la EMPRESA (vendido, por cobrar) y aqui el dinero de la PERSONA. Sin
+ * esa separacion las cuatro cifras se leen como si fueran lo mismo.
+ */
+function TeamMemberEarnings({ commission }: { commission: CommissionSummary | undefined }) {
+  if (!commission || commission.ticketsPaid === 0) {
+    return (
+      <p className="text-muted-foreground mt-3 border-t pt-3 text-sm">
+        Todavía no ha cobrado ninguna boleta completa.
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 border-t pt-3">
+      <span className="text-sm">
+        Lleva ganado <span className="font-medium">{formatCOP(commission.earned)}</span>
+      </span>
+      <span className="text-muted-foreground text-xs tabular-nums">
+        {formatCOP(commission.rate)} por boleta
+      </span>
+    </div>
   )
 }
 

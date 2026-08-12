@@ -3,6 +3,7 @@ import { UsersIcon } from 'lucide-react'
 import { EmptyState } from '@/components/data/EmptyState'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
+import { getCurrentCommissionRaffle, getTeamCommissions } from '@/features/commissions/queries'
 import { AddTeamMemberButton } from '@/features/team/components/AddTeamMemberButton'
 import { TeamMemberList } from '@/features/team/components/TeamMemberList'
 import { isTeamMember, listTeamWithTotals } from '@/features/team/queries'
@@ -19,9 +20,16 @@ import { formatCOP } from '@/lib/money'
 export default async function TeamPage() {
   const membership = await requireRole(['seller'])
 
-  const [members, belongsToTeam] = await Promise.all([
-    listTeamWithTotals(membership.profileId),
+  const [belongsToTeam, raffle] = await Promise.all([
     isTeamMember(membership.profileId),
+    getCurrentCommissionRaffle(),
+  ])
+
+  // Ventas y ganancia, de LA MISMA rifa (BR-G04). Mezclar «vendidas en todas
+  // las rifas» con «ganado en esta» daria dos cifras que no se pueden comparar.
+  const [members, commissions] = await Promise.all([
+    listTeamWithTotals(membership.profileId, raffle?.id),
+    raffle ? getTeamCommissions(raffle.id) : Promise.resolve(new Map()),
   ])
 
   const canAdd = !belongsToTeam
@@ -32,7 +40,11 @@ export default async function TeamPage() {
     <div className="space-y-6">
       <PageHeader
         title="Mi equipo"
-        description="Los vendedores que agregas trabajan con sus propias boletas y tú ves cómo les va."
+        description={
+          raffle
+            ? `Cómo va tu equipo en ${raffle.name}. Cada vendedor trabaja con sus propias boletas.`
+            : 'Los vendedores que agregas trabajan con sus propias boletas y tú ves cómo les va.'
+        }
         actions={canAdd && members.length > 0 ? <AddTeamMemberButton /> : undefined}
       />
 
@@ -59,7 +71,7 @@ export default async function TeamPage() {
             <MetricCard label="Recaudado" value={formatCOP(teamCollected)} />
           </div>
 
-          <TeamMemberList members={members} />
+          <TeamMemberList members={members} commissions={commissions} />
         </>
       )}
     </div>

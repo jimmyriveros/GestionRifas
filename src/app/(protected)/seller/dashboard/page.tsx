@@ -6,6 +6,12 @@ import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { CommissionCard } from '@/features/commissions/components/CommissionCard'
+import {
+  getCurrentCommissionRaffle,
+  getFirstTierRate,
+  getMyCommission,
+} from '@/features/commissions/queries'
 import { getSellerDashboard } from '@/features/dashboard/seller-queries'
 import { tourTarget } from '@/features/tour/tours'
 import { requireRole } from '@/lib/auth/guards'
@@ -16,8 +22,17 @@ import { ticketLabel } from '@/lib/tickets'
 
 export default async function SellerDashboardPage() {
   const membership = await requireRole(['seller'])
-  const dashboard = await getSellerDashboard()
+
+  const [dashboard, raffle, firstTierRate] = await Promise.all([
+    getSellerDashboard(),
+    getCurrentCommissionRaffle(),
+    getFirstTierRate(),
+  ])
   const { totals } = dashboard
+
+  // La comision es por rifa (BR-G04): sin rifa activa no hay ninguna de la que
+  // hablar, y la tarjeta explica la regla en vez de mostrar un cero enganoso.
+  const commission = raffle ? await getMyCommission(membership.profileId, raffle.id) : null
 
   return (
     <div className="space-y-6">
@@ -60,6 +75,14 @@ export default async function SellerDashboardPage() {
           administrador. Todavía no puedes venderlas.
         </p>
       ) : null}
+
+      {/* Lo primero que quiere saber un vendedor es cuanto lleva ganado, asi que
+          va antes que el resumen de cobranza (encargo, Fase 8). */}
+      <CommissionCard
+        commission={commission}
+        firstTierRate={firstTierRate}
+        raffleName={raffle?.name ?? null}
+      />
 
       <CollectionSummaryCard
         totalSold={totals.totalSold}

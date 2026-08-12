@@ -1935,6 +1935,36 @@ cambiar cuánto cobra la gente exigiría un despliegue).
 
 ---
 
+## D-095 — «De qué rifa hablamos» es una decisión, no un detalle
+**Fase:** posterior a la 9 (mantenimiento, 2026-08-12)
+
+**Contexto.** La comisión se cuenta **por rifa** (BR-G04), así que la tarjeta «Tu ganancia» y el panel
+del equipo tienen que elegir una. La primera versión usó la regla obvia: «la rifa activa más
+reciente», ordenando por `short_code`.
+
+**Por qué se cambió: falló en la primera prueba visual.** La base de las pruebas acumula rifas creadas
+por las E2E, varias de ellas activas. La regla eligió una rifa activa **sin ventas** y la pantalla le
+mostró **$0** a un vendedor que tenía **$80.000**. En producción hoy hay una sola rifa activa (D-088) y
+el error habría sido invisible hasta el día en que hubiera dos — mostrándole cero a alguien que ha
+cobrado, que es de los errores que cuestan confianza.
+
+**Decisión.** `getCurrentCommissionRaffle()` elige, entre las **activas**, aquella donde quien
+consulta acumula **más boletas cobradas**; con una sola activa devuelve esa y no hace nada más. Y la
+pantalla **dice de qué rifa habla**: con una rifa es redundante, con varias es la diferencia entre
+informar y confundir.
+
+**El panel del equipo se acotó a esa misma rifa**, incluidas las ventas —antes venían de todas las
+rifas—. Mezclar «vendidas en todas» con «ganado en esta» pone dos cifras juntas que no se pueden
+comparar, y nadie lee una tarjeta pensando que cada línea habla de un periodo distinto.
+
+**Sobre la tarjeta.** La regla que ordena su diseño es que **lo ganado y lo proyectado no se mezclan**
+(sección PROYECCIÓN del encargo): el importe grande es dinero suyo; el siguiente nivel vive bajo una
+línea, con otro tamaño, y termina con «Esa cifra todavía no es tuya: es lo que ganarías si llegas».
+La barra de progreso lleva su valor en `aria-valuetext` además de en el texto visible: un porcentaje
+que solo se ve no existe para quien usa un lector de pantalla.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.
