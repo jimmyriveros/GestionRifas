@@ -31,14 +31,14 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
-| Último cambio funcional promovido | `836457c` — resumen compacto en el modal «Asignar boletas», 2026-08-11; desplegado en Vercel y verificado. No necesitó migración |
+| Último cambio funcional promovido | `6ce988f` — **equipos de vendedores, avisos y comisiones**, 2026-08-13; con las migraciones `0022`–`0024` aplicadas al proyecto real, CI 2/2 y despliegue verificado por SHA |
 | Punto de partida del último mantenimiento | `main` en `e8df01c`, igual a `origin/main`, con árbol limpio antes de implementar (2026-08-11) |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **24 migraciones en local; las 21 primeras también en el proyecto real.** `0022` (equipos), `0023` (avisos) y `0024` (comisiones) están **solo en local** y no se han promovido: exigen autorización explícita y respaldo previo (§3.b). `0021` se promovió y verificó el 2026-08-09. **Plan Free: sin backups automáticos** (I-024) |
-| Pruebas | **299 unitarias**, **378 de base de datos** y **227 E2E**, todas revalidadas el 2026-08-11; `verify` en verde. `npm audit`: **0 vulnerabilidades** en la última comprobación registrada. CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **24 migraciones en local y en el proyecto real.** `0022`–`0024` (equipos, avisos y comisiones) se promovieron y verificaron el 2026-08-13, con respaldo previo en `Rifas-backups/2026-08-13-pre-0022-0024/`. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **299 unitarias**, **429 de base de datos** y **242 E2E**, todas revalidadas el 2026-08-13; `verify` en verde. La suite de base de datos pasa **dos veces seguidas sobre la misma base**, que es como se comprueba que las suites no se contaminan. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -55,7 +55,20 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — resumen compacto en «Asignar boletas» (2026-08-11)
+## 1.a Último relevo significativo — equipos, avisos y comisiones (2026-08-13)
+
+| Campo | Estado |
+|---|---|
+| Resultado | Encargo completo del dueño (`Equipo.txt`), sus doce fases. **Equipos:** cualquier vendedor forma el suyo; un integrante **es** una membresía con rol `seller` y `parent_seller_id`, sin rol ni entidad nueva (BR-E01). **Avisos:** tabla `notifications` + campanita, sin tiempo real; no existía ningún sistema que reutilizar. **Comisiones:** tramos retroactivos sobre boletas **cobradas**, motor derivado y ledger auditable. **Fuera a propósito:** comisión del vendedor padre sobre las ventas de su equipo — regla comercial sin definir |
+| Archivos | Migraciones `0022`–`0024`; `features/team/`, `features/notifications/`, `features/commissions/`; `features/users/invite.ts` (alta compartida); rutas `/seller/team[/:id]`; `AppShell`, `SellersTable`, panel del vendedor y detalle del vendedor. Pruebas: `seller-teams`, `notifications`, `commissions`, `equipo.spec.ts`, `equipo-movil.spec.ts` |
+| Reutilización | El alta de un integrante usa el **mismo** formulario y el **mismo** camino de invitación que el portal administrativo (`UserDialog` + `inviteMember`). El mapeo de membresías es uno solo, compartido entre `features/users` y `features/team` |
+| Decisiones | D-091 (modelo), **D-092 (no ampliar `tickets_select`)**, D-093 (avisos), D-094 (motor derivado), D-095 (de qué rifa se habla). Reglas BR-E01..BR-E13 y BR-G01..BR-G12 |
+| Verificación | **429/429** de base de datos (dos pasadas sobre la misma base) · **242/242** E2E · `verify` en verde · revisión visual en 320–430 px. Nueve errores encontrados y corregidos, detallados en `TEST_RESULTS.md` |
+| Advertencias | **1)** `tickets_select` NO se amplió, y es deliberado (D-092): abrirla cambia media docena de pantallas del vendedor en silencio; la prueba `E1-10` existe para avisarlo. **2)** El dinero no se acumula sumando eventos (D-094): no escribas en el ledger a mano. **3)** Toda ejecución E2E empieza por `db:reset && seed:local`, también —y sobre todo— justo después de `test:db` |
+| Pendiente | Verificación visual con sesión real en producción (un agente no inicia sesión allí). **Decisión del dueño en pausa:** si el aviso al personal por *cada* venta resulta ruidoso, se quita una línea de `notify_ticket_sold` (D-093) |
+| Git | Rama `main`, de `8f4821c` a `6ce988f` (8 commits). Se empujó **solo la rama**. Migraciones `0022`–`0024` promovidas con respaldo previo |
+
+## 1.a.0 Relevo anterior — resumen compacto en «Asignar boletas» (2026-08-11)
 
 | Campo | Estado |
 |---|---|

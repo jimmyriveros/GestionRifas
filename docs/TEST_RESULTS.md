@@ -1502,3 +1502,30 @@ Todos salieron de las pruebas o de la revisión visual, no de releer el código.
 * **La jerarquía del encargo entera**: Carlos ve a Pedro y Andrea y no a Felipe; Juan ve a Felipe y no a los de Carlos; el personal los ve a todos.
 * **Los avisos llegan a quien deben y a nadie más**, y ni el Dueño puede leer la bandeja de otro.
 * **El teléfono**: 320–430 px sin desbordamiento, el importe sin cortarse, la campanita y «Agregar vendedor» alcanzables.
+
+### Promoción a producción — 2026-08-13
+
+Autorizada explícitamente por el dueño del producto. Es la primera promoción de esta funcionalidad, y
+la primera que lleva **tres** migraciones a la vez.
+
+| Paso | Resultado |
+|---|---|
+| **Respaldo lógico previo** (obligatorio, plan Free — I-024) | ✅ `Rifas-backups/2026-08-13-pre-0022-0024/`: 2 organizaciones, 6 perfiles, 6 membresías, 2 rifas, 48 clientes, 140 boletas, 4 pagos. **0 referencias a `auth`**, ningún `encrypted_password` |
+| `supabase db push --dry-run` | ✅ exactamente `0022`, `0023` y `0024`; nada más |
+| `supabase db push --yes` | ✅ las tres aplicadas |
+| `npm run verify:remote` | ✅ **13/13** sobre el proyecto real |
+| CI de GitHub Actions | ✅ **2/2**, incluido «Migraciones desde cero + pruebas de base de datos» con las 24 |
+| Despliegue de Vercel | ✅ `READY`, `dpl_5BAQgGXJvKpFKvpRK22hnKfPN6th`, target `production`, **SHA `6ce988f` comprobado** |
+| `https://gestion-rifas.vercel.app/login` | ✅ HTTP 200; raíz 307. CSP con nonce, HSTS y `X-Frame-Options: DENY` intactas |
+
+**Sonda de comportamiento sobre los datos reales**, además del catálogo:
+
+| Comprobación | Resultado |
+|---|---|
+| Tramos sembrados por organización | ✅ 4 en «Rifas Demo» y 4 en «Rifas Control», de $20.000 a $40.000 |
+| **Ningún vendedor convertido en sub-vendedor** | ✅ 0 membresías con `parent_seller_id` — la propiedad que más importaba de `0022` |
+| Saldo de partida | ✅ Un vendedor con 2 boletas cobradas → `$40.000` a tarifa `$20.000` |
+| `SUM(commission_ledger) = seller_commissions.earned` | ✅ cuadra en producción |
+
+**Verificación manual pendiente del usuario:** entrar con los tres roles y recorrer «Mi equipo», la
+tarjeta «Tu ganancia» y la campanita. Un agente no inicia sesión en producción (Fase 8).

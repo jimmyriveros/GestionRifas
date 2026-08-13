@@ -881,8 +881,9 @@ Detalle completo, con los nueve errores encontrados y corregidos, en
 | `0023_notifications.sql` | `notifications`, `notify_profiles()`, y los dos triggers que avisan. El texto **no** se guarda aquí (BR-E13) |
 | `0024_commissions.sql` | `commission_tiers`, `seller_commissions`, `commission_ledger`, `recalc_seller_commission()`, el trigger sobre `tickets` y `commission_summary()`. Incluye saldo de partida |
 
-⚠️ **Las tres están solo en local.** No se han promovido al proyecto real: exigen autorización
-explícita y respaldo previo (I-024, `RUNBOOK.md` §5).
+✅ **Las tres se promovieron al proyecto real el 2026-08-13**, con autorización explícita y respaldo
+previo en `Rifas-backups/2026-08-13-pre-0022-0024/`. Verificadas por catálogo (`verify:remote` 13/13)
+y por comportamiento sobre los datos reales. Detalle en `TEST_RESULTS.md`.
 
 ### 4. Variables de entorno requeridas
 
@@ -900,4 +901,4 @@ Ninguna nueva.
 
 1. **`tickets_select` no se amplió, y es deliberado** (D-092). Si alguien la abre, media docena de pantallas del vendedor cambian de significado en silencio. La prueba `E1-10` existe para avisarlo.
 2. **El dinero no se acumula sumando eventos** (D-094): `recalc_seller_commission` recuenta. No escribas en el ledger a mano.
-3. Las tres migraciones **no están en producción**. Promoverlas exige respaldo previo y autorización.
+3. Las tres migraciones **ya están en producción** (2026-08-13). Cualquier corrección sobre ellas exige una migración nueva: son inmutables.
