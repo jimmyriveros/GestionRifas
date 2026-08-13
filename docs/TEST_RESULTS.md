@@ -1553,3 +1553,19 @@ vigente de la rifa** (D-096, BR-G13..BR-G16). Migración `0025`.
 | 3 | **La bandeja de avisos se salía 42 px a 320 px** | `equipo-movil.spec.ts` | Tope de ancho; `w-80` son 320 px exactos y no dejaba margen |
 | 4 | **La limpieza de las pruebas E2E fallaba en silencio**: cada ejecución dejaba **9 cuentas** sin borrar | El recorrido guiado empezó a fallar en la suite completa: el panel del Dueño crecía y el globo quedaba fuera de la pantalla | Causa de fondo: borrar las asignaciones sin su pago rompe el cuadre diferido, y borrar el pago primero choca con `alloc_payment_client_fk`; como cada petición de PostgREST es una transacción, no se podían agrupar. Nuevo `purgeSellers()` con conexión directa, en **una** transacción, y con los errores propagados. Comprobado: tras la suite quedan **3 vendedores, los del seed** |
 | 5 | **`/owner/dashboard` se desplaza en horizontal a 320 px** | La misma prueba móvil | **Preexistente y ajeno**: tabla sin contenedor con `overflow-x`, en un archivo no tocado. Registrado como **I-056**; la prueba se acotó a la bandeja para no fallar por un defecto que no introduce ni arregla |
+
+### Promoción a producción — 2026-08-13 (migración `0025`)
+
+| Paso | Resultado |
+|---|---|
+| Respaldo lógico previo | ✅ `Rifas-backups/2026-08-13-pre-0025/`: 13 tablas con datos, **0 referencias a `auth`**, ningún `encrypted_password` |
+| `db push --dry-run` | ✅ únicamente `0025_commission_modes.sql` |
+| `db push --yes` | ✅ aplicada |
+| `npm run verify:remote` | ✅ 13/13 |
+| CI de GitHub Actions | ✅ 2/2 |
+| Despliegue de Vercel | ✅ `READY`, `dpl_CGKfmRnTaXn5ttMaGWkJNgqB1Nnp`, **SHA `4138d20` comprobado** |
+| `https://gestion-rifas.vercel.app/login` | ✅ HTTP 200; raíz 307; CSP, HSTS y `X-Frame-Options` intactas |
+
+**Recálculo sobre datos reales, comprobado:** el único vendedor con boletas cobradas —sin equipo—
+pasó de `$40.000` (tramos) a **`$100.000`** (2 boletas × la mitad de $100.000), y
+`SUM(commission_ledger) = seller_commissions.earned` sigue cuadrando en producción.

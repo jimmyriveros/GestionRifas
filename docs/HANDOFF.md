@@ -31,14 +31,14 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
-| Último cambio funcional promovido | `6ce988f` — **equipos de vendedores, avisos y comisiones**, 2026-08-13; con las migraciones `0022`–`0024` aplicadas al proyecto real, CI 2/2 y despliegue verificado por SHA |
+| Último cambio funcional promovido | `4138d20` — **dos formas de pago de la comisión** (D-096), 2026-08-13; migración `0025` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
 | Punto de partida del último mantenimiento | `main` en `e8df01c`, igual a `origin/main`, con árbol limpio antes de implementar (2026-08-11) |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **24 migraciones en local y en el proyecto real.** `0022`–`0024` (equipos, avisos y comisiones) se promovieron y verificaron el 2026-08-13, con respaldo previo en `Rifas-backups/2026-08-13-pre-0022-0024/`. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **299 unitarias**, **429 de base de datos** y **242 E2E**, todas revalidadas el 2026-08-13; `verify` en verde. La suite de base de datos pasa **dos veces seguidas sobre la misma base**, que es como se comprueba que las suites no se contaminan. CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **25 migraciones en local y en el proyecto real.** `0022`–`0025` (equipos, avisos y comisiones, con sus DOS formas de pago) se promovieron y verificaron el 2026-08-13, con respaldo previo en `Rifas-backups/`. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **299 unitarias**, **435 de base de datos** y **243 E2E**, todas revalidadas el 2026-08-13; `verify` en verde. La suite de base de datos pasa **dos veces seguidas sobre la misma base**, que es como se comprueba que las suites no se contaminan. CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
