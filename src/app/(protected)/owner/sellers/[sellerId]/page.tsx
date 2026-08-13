@@ -6,7 +6,9 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { ActiveBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { getCommissionsBySeller, getCurrentCommissionRaffle } from '@/features/commissions/queries'
 import { getSellerWithTotals } from '@/features/sellers/queries'
+import { listOrgMembers } from '@/features/users/queries'
 import { UserRowActions } from '@/features/users/components/UserRowActions'
 import { requireStaff } from '@/lib/auth/guards'
 import { formatDateEs } from '@/lib/dates'
@@ -22,6 +24,18 @@ export default async function SellerDetailPage({
   const seller = await getSellerWithTotals(sellerId)
 
   if (!seller) notFound()
+
+  // Su lugar en la estructura comercial y lo que lleva ganado (BR-E08, BR-G12).
+  const [raffle, orgSellers] = await Promise.all([
+    getCurrentCommissionRaffle(),
+    listOrgMembers(['seller']),
+  ])
+  const commission = raffle ? ((await getCommissionsBySeller(raffle.id)).get(sellerId) ?? null) : null
+
+  const team = orgSellers.filter((member) => member.parentSellerId === sellerId)
+  const parent = seller.parentSellerId
+    ? (orgSellers.find((member) => member.profileId === seller.parentSellerId) ?? null)
+    : null
 
   return (
     <div className="space-y-6">
@@ -72,6 +86,64 @@ export default async function SellerDetailPage({
           <MetricCard label="Saldo pendiente" value={formatCOP(seller.pendingAmount)} />
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Equipo y comisión</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Vendedor a cargo">
+              {parent ? (
+                <Link href={`/owner/sellers/${parent.profileId}`} className="hover:underline">
+                  {parent.fullName}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">
+                  Depende del Dueño o el Administrador
+                </span>
+              )}
+            </Field>
+            <Field label={raffle ? `Ganancia en ${raffle.name}` : 'Ganancia'}>
+              {commission && commission.ticketsPaid > 0 ? (
+                <span>
+                  <span className="font-medium tabular-nums">{formatCOP(commission.earned)}</span>
+                  <span className="text-muted-foreground">
+                    {' '}
+                    · {commission.ticketsPaid} cobradas a {formatCOP(commission.rate)}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-muted-foreground">Todavía no ha cobrado ninguna boleta</span>
+              )}
+            </Field>
+          </div>
+
+          <div>
+            <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
+              Su equipo
+            </p>
+            {team.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                No tiene vendedores a su cargo. Cualquier vendedor puede armar el suyo.
+              </p>
+            ) : (
+              <ul className="flex flex-wrap gap-2">
+                {team.map((member) => (
+                  <li key={member.profileId}>
+                    <Link
+                      href={`/owner/sellers/${member.profileId}`}
+                      className="bg-muted hover:bg-accent inline-flex rounded-md px-2 py-1 text-sm"
+                    >
+                      {member.fullName}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">

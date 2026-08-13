@@ -1,8 +1,8 @@
 import 'server-only'
 
-import type { OrgMember } from '@/features/users/queries'
+import { mapMember, MEMBER_SELECT, type MemberRow, type OrgMember } from '@/features/users/queries'
 import { createClient } from '@/lib/supabase/server'
-import type { AppRole, TicketPaymentStatus } from '@/lib/constants'
+import type { TicketPaymentStatus } from '@/lib/constants'
 
 /**
  * El equipo del vendedor que consulta (BR-E01).
@@ -20,57 +20,18 @@ import type { AppRole, TicketPaymentStatus } from '@/lib/constants'
 
 export type TeamMember = OrgMember
 
-const TEAM_SELECT = `
-  id,
-  role,
-  is_active,
-  created_at,
-  profile:profiles!memberships_profile_id_fkey ( id, full_name, alias, phone, email, is_active )
-`
-
-type TeamRow = {
-  id: string
-  role: AppRole
-  is_active: boolean
-  created_at: string
-  profile: {
-    id: string
-    full_name: string
-    alias: string | null
-    phone: string
-    email: string
-    is_active: boolean
-  } | null
-}
-
-function mapMember(row: TeamRow): TeamMember | null {
-  if (!row.profile) return null
-  return {
-    membershipId: row.id,
-    profileId: row.profile.id,
-    role: row.role,
-    // BR-A05: el acceso efectivo exige membresia Y perfil activos.
-    isActive: row.is_active && row.profile.is_active,
-    fullName: row.profile.full_name,
-    alias: row.profile.alias,
-    phone: row.profile.phone,
-    email: row.profile.email,
-    createdAt: row.created_at,
-  }
-}
-
 /** Integrantes del equipo de `parentSellerId`, en el orden en que se agregaron. */
 export async function listTeamMembers(parentSellerId: string): Promise<TeamMember[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('memberships')
-    .select(TEAM_SELECT)
+    .select(MEMBER_SELECT)
     .eq('parent_seller_id', parentSellerId)
     .order('created_at', { ascending: true })
 
   if (error) throw error
 
-  return (data as TeamRow[] | null)?.flatMap((row) => mapMember(row) ?? []) ?? []
+  return (data as MemberRow[] | null)?.flatMap((row) => mapMember(row) ?? []) ?? []
 }
 
 export type TeamMemberTotals = {
@@ -167,10 +128,7 @@ export type TeamMemberSale = {
  * (BR-E05). La funcion tampoco los devuelve, asi que no es una omision de esta
  * pantalla que otra pudiera deshacer por descuido.
  */
-export async function listTeamMemberSales(
-  memberId: string,
-  limit = 20,
-): Promise<TeamMemberSale[]> {
+export async function listTeamMemberSales(memberId: string, limit = 20): Promise<TeamMemberSale[]> {
   const supabase = await createClient()
   const { data, error } = await supabase.rpc('team_member_sales', {
     p_member_id: memberId,

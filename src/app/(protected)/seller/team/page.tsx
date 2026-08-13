@@ -3,7 +3,7 @@ import { UsersIcon } from 'lucide-react'
 import { EmptyState } from '@/components/data/EmptyState'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
-import { getCurrentCommissionRaffle, getTeamCommissions } from '@/features/commissions/queries'
+import { getCurrentCommissionRaffle, getCommissionsBySeller } from '@/features/commissions/queries'
 import { AddTeamMemberButton } from '@/features/team/components/AddTeamMemberButton'
 import { TeamMemberList } from '@/features/team/components/TeamMemberList'
 import { isTeamMember, listTeamWithTotals } from '@/features/team/queries'
@@ -29,7 +29,7 @@ export default async function TeamPage() {
   // las rifas» con «ganado en esta» daria dos cifras que no se pueden comparar.
   const [members, commissions] = await Promise.all([
     listTeamWithTotals(membership.profileId, raffle?.id),
-    raffle ? getTeamCommissions(raffle.id) : Promise.resolve(new Map()),
+    raffle ? getCommissionsBySeller(raffle.id) : Promise.resolve(new Map()),
   ])
 
   const canAdd = !belongsToTeam

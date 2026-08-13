@@ -177,6 +177,20 @@ async function firstRow(page: Page): Promise<Locator> {
   return row
 }
 
+/**
+ * La fila de UNA boleta concreta, identificada por su numero semanal.
+ *
+ * No vale `first()`: la busqueda es por el numero diario, y ese numero se
+ * repite en otras combinaciones (BR-N07), asi que la primera fila puede ser la
+ * boleta de otra prueba. Es I-055, y aqui se manifestaba como un timeout
+ * intermitente esperando un texto que estaba en la fila de al lado.
+ */
+async function rowOfTicket(page: Page, weekly: string): Promise<Locator> {
+  const row = page.locator('tbody tr').filter({ hasText: weekly }).first()
+  await expect(row).toBeVisible()
+  return row
+}
+
 test.describe('Fila seleccionable en las tablas', () => {
   test('abre el detalle pulsando cualquier parte de la fila, no solo el código', async ({
     page,
@@ -187,7 +201,7 @@ test.describe('Fila seleccionable en las tablas', () => {
     // Se busca por el número diario: el código interno ya no busca (BR-N11).
     await page.goto(`/seller/tickets?q=${ticket.numbers.daily}`)
 
-    const row = await firstRow(page)
+    const row = await rowOfTicket(page, ticket.numbers.weekly)
     // La celda del número semanal: texto suelto, sin enlace ni botón dentro.
     await row.getByText(ticket.numbers.weekly, { exact: true }).click()
 
@@ -203,7 +217,7 @@ test.describe('Fila seleccionable en las tablas', () => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto(`/seller/tickets?q=${ticket.numbers.daily}`)
 
-    await (await firstRow(page)).focus()
+    await (await rowOfTicket(page, ticket.numbers.weekly)).focus()
     await page.keyboard.press('Enter')
 
     await page.waitForURL(`**/seller/tickets/${ticket.id}`)
@@ -215,7 +229,7 @@ test.describe('Fila seleccionable en las tablas', () => {
     await loginAs(page, ACCOUNTS.owner)
     await page.goto(`/owner/tickets?q=${ticket.numbers.daily}`)
 
-    const row = await firstRow(page)
+    const row = await rowOfTicket(page, ticket.numbers.weekly)
     await toggleCheckbox(row.getByRole('checkbox'), true)
 
     await expect(page).toHaveURL(/\/owner\/tickets\?/)

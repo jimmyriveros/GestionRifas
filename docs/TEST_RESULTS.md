@@ -1459,3 +1459,46 @@ no lleva migración, y el `--dry-run` lo confirmó antes de empujar nada.
 
 **Verificación manual pendiente del usuario:** entrar a producción con los tres roles y comprobar la
 flecha en cada pantalla de detalle. Un agente no inicia sesión en producción (Fase 8).
+
+---
+
+## Equipos, avisos y comisiones (post-9) — 2026-08-12
+
+Funcionalidad completa de equipos de vendedores, avisos y comisiones por tramos
+(D-091 a D-095, BR-E01..BR-E13, BR-G01..BR-G12). Migraciones `0022`, `0023` y `0024`,
+**solo en local**: no se han promovido al proyecto real.
+
+### Resultados
+
+| Verificación | Resultado |
+|---|---|
+| `npm run test:db` | ✅ **429/429** (19 archivos). 51 pruebas nuevas: 21 de equipos, 11 de avisos, 19 de comisiones |
+| `npm run test:db` **dos veces sobre la misma base** | ✅ 429/429 las dos pasadas — comprueba que las suites no se contaminan entre sí |
+| `npm run verify` | ✅ typecheck · lint 0 errores (2 avisos preexistentes) · **299/299** unitarias · build |
+| `npx playwright test` | ✅ **242/242** tras `db:reset` + `seed:local` (15 nuevas: 10 de equipo y comisión, 5 de móvil) |
+| Revisión visual | ✅ 320, 375, 390, 430 px y escritorio, sin desbordamiento horizontal |
+
+### Errores encontrados y corregidos
+
+Todos salieron de las pruebas o de la revisión visual, no de releer el código.
+
+| # | Error | Cómo se encontró | Corrección |
+|---|---|---|---|
+| 1 | **Recursión infinita de RLS**: la política de alta consultaba `memberships` dentro de una política de `memberships` | Primera ejecución de las pruebas de equipos | Función `current_profile_leads_team()` `SECURITY DEFINER`, como `current_org_ids()` (D-091) |
+| 2 | **I-019 reintroducido**: `profiles_select` y `memberships_select` se reescribieron sobre el texto de `0001`/`0011` en vez del vigente de `0014`, volviendo a llamar una función por fila | Comprobaciones de catálogo F7-03 | Reescritas sobre la definición vigente. Lección anotada en D-091 |
+| 3 | **Una función nueva nace ejecutable por `anon`** pese a las *default privileges* de `0015` | `catalog.test.ts` | `revoke execute … from anon, public` explícito, también en funciones de trigger (I-020) |
+| 4 | **Ampliar `tickets_select` habría cambiado media docena de pantallas del vendedor** en silencio: «Mis boletas», panel, reportes, búsqueda, selección múltiple y detalle de boleta | Revisión de consumidores antes de construir la pantalla del equipo | Se revirtió: las ventas del equipo van por funciones que se autorizan solas (D-092) |
+| 5 | `coalesce(p_movement, case … 'sale' … end)` — los literales de un `case` son `text` hasta castearlos al enum | Seed, al aplicar `0024` | Cast explícito a `commission_movement` |
+| 6 | **Reasignar una boleta vendida es imposible**, y no por BR-B04 sino por el esquema: `tickets_client_seller_fk` es compuesta y no diferible | La prueba que iba a demostrar el recálculo | La prueba ahora afirma la realidad; el motor conserva su rama para boletas sin vender (nota de BR-G07) |
+| 7 | **Contaminación entre suites**: mis pruebas montaban equipo sobre `vendedor1`, cuenta compartida del seed, y hacían fallar `phase3-admin` según el orden | Suite completa de base de datos | Cada suite crea sus propios vendedores padre (I-035) |
+| 8 | **«La rifa activa más reciente» era una regla mala**: con varias activas eligió una sin ventas y mostró **$0 a un vendedor que tenía $80.000** | Primera revisión visual de la tarjeta | `getCurrentCommissionRaffle()` elige donde está el trabajo, y la pantalla dice de qué rifa habla (D-095) |
+| 9 | **I-055 en dos suites preexistentes**: `importar-boletas` y `filas-seleccionables` identificaban boletas por el número diario suelto, que se repite entre combinaciones | Fallos intermitentes de la suite completa | Ambas identifican por el par completo. Eran defectos previos que este trabajo destapó |
+
+### Lo que estas pruebas comprueban y antes no existía
+
+* **Los tramos, uno por uno**: 0, 1, 20, **21**, 30, **31**, 50, **51** — y las bajadas 51→50, 31→30, 21→20.
+* **La invariante del dinero**: `SUM(commission_ledger) = seller_commissions.earned` en **cada** escenario.
+* **No hay doble comisión**: diez recálculos seguidos no escriben ni una fila.
+* **La jerarquía del encargo entera**: Carlos ve a Pedro y Andrea y no a Felipe; Juan ve a Felipe y no a los de Carlos; el personal los ve a todos.
+* **Los avisos llegan a quien deben y a nadie más**, y ni el Dueño puede leer la bandeja de otro.
+* **El teléfono**: 320–430 px sin desbordamiento, el importe sin cortarse, la campanita y «Agregar vendedor» alcanzables.

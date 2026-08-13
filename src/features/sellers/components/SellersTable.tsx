@@ -16,9 +16,22 @@ type SellersTableProps = {
   sellers: SellerWithTotals[]
   currentRole: AppRole
   currentProfileId: string
+  /** Cuantos integrantes tiene el equipo de cada vendedor (BR-E08). */
+  teamSizes: Map<string, number>
+  /** Nombre del vendedor a cargo, para quien pertenece al equipo de alguien. */
+  parentNames: Map<string, string>
+  /** Ganancia acumulada por vendedor en la rifa actual, ya calculada en SQL. */
+  earnings: Map<string, number>
 }
 
-export function SellersTable({ sellers, currentRole, currentProfileId }: SellersTableProps) {
+export function SellersTable({
+  sellers,
+  currentRole,
+  currentProfileId,
+  teamSizes,
+  parentNames,
+  earnings,
+}: SellersTableProps) {
   const columns = useMemo<ColumnDef<SellerWithTotals>[]>(
     () => [
       {
@@ -42,6 +55,31 @@ export function SellersTable({ sellers, currentRole, currentProfileId }: Sellers
         accessorKey: 'isActive',
         header: 'Estado',
         cell: ({ row }) => <ActiveBadge isActive={row.original.isActive} />,
+      },
+      {
+        id: 'team',
+        header: 'Equipo',
+        enableSorting: false,
+        // Tres situaciones distintas y ninguna ambigua: tiene equipo, pertenece
+        // al de alguien, o ni una cosa ni la otra (BR-E08).
+        cell: ({ row }) => {
+          const size = teamSizes.get(row.original.profileId) ?? 0
+          if (size > 0) {
+            return (
+              <span className="text-sm">
+                {size} {size === 1 ? 'vendedor' : 'vendedores'}
+              </span>
+            )
+          }
+          const parent = row.original.parentSellerId
+            ? parentNames.get(row.original.parentSellerId)
+            : undefined
+          return parent ? (
+            <span className="text-muted-foreground text-sm">Con {parent}</span>
+          ) : (
+            <span className="text-muted-foreground text-sm">Sin equipo</span>
+          )
+        },
       },
       {
         accessorKey: 'ticketsTotal',
@@ -80,6 +118,16 @@ export function SellersTable({ sellers, currentRole, currentProfileId }: Sellers
         ),
       },
       {
+        id: 'earned',
+        header: 'Ganancia',
+        meta: { align: 'right', hideOnMobile: true },
+        cell: ({ row }) => (
+          <span className="tabular-nums">
+            {formatCOP(earnings.get(row.original.profileId) ?? 0)}
+          </span>
+        ),
+      },
+      {
         id: 'actions',
         header: '',
         enableSorting: false,
@@ -93,7 +141,7 @@ export function SellersTable({ sellers, currentRole, currentProfileId }: Sellers
         ),
       },
     ],
-    [currentRole, currentProfileId],
+    [currentRole, currentProfileId, teamSizes, parentNames, earnings],
   )
 
   return (

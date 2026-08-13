@@ -418,3 +418,105 @@ describe('E1 — visibilidad del equipo', () => {
     expect(data).toHaveLength(1)
   })
 })
+
+/**
+ * La jerarquia completa del encargo, montada de verdad (seccion TESTS DE
+ * JERARQUIA):
+ *
+ *   Dueño / Administrador
+ *     └─ Carlos ─ Pedro, Andrea
+ *     └─ Juan   ─ Felipe
+ *
+ * Carlos ve a Pedro y a Andrea, y NO ve a Felipe. Juan ve a Felipe y no ve a
+ * los de Carlos. El personal los ve a todos.
+ */
+describe('E1 — la jerarquia del encargo, entera', () => {
+  let carlos: Client
+  let juan: Client
+  let carlosId: string
+  let juanId: string
+  let pedroId: string
+  let andreaId: string
+  let felipeId: string
+
+  beforeAll(async () => {
+    const stamp = Date.now().toString(36)
+
+    const alta = async (nombre: string, padre: string | null) => {
+      const email = `${nombre.toLowerCase()}-${stamp}@demo.test`
+      const id = await createAuthUser(email, nombre)
+      const { error } = await ctx.svc.from('memberships').insert({
+        organization_id: ctx.demoOrg.id,
+        profile_id: id,
+        role: 'seller',
+        parent_seller_id: padre,
+      })
+      if (error) throw error
+      return { id, email }
+    }
+
+    const c = await alta('Carlos', null)
+    const j = await alta('Juan', null)
+    carlosId = c.id
+    juanId = j.id
+
+    pedroId = (await alta('Pedro', carlosId)).id
+    andreaId = (await alta('Andrea', carlosId)).id
+    felipeId = (await alta('Felipe', juanId)).id
+
+    carlos = await signInAs(c.email)
+    juan = await signInAs(j.email)
+  }, 60_000)
+
+  /** Los integrantes de equipo que ESE usuario alcanza a ver. */
+  async function equipoDe(client: Client): Promise<string[]> {
+    const { data, error } = await client
+      .from('memberships')
+      .select('profile_id, parent_seller_id')
+      .not('parent_seller_id', 'is', null)
+    if (error) throw error
+    return (data ?? []).map((row) => row.profile_id)
+  }
+
+  it('E1-16: Carlos ve a Pedro y a Andrea, y NO ve a Felipe', async () => {
+    const visibles = await equipoDe(carlos)
+
+    expect(visibles).toContain(pedroId)
+    expect(visibles).toContain(andreaId)
+    expect(visibles).not.toContain(felipeId)
+  })
+
+  it('E1-17: Juan ve a Felipe, y NO ve a los de Carlos', async () => {
+    const visibles = await equipoDe(juan)
+
+    expect(visibles).toContain(felipeId)
+    expect(visibles).not.toContain(pedroId)
+    expect(visibles).not.toContain(andreaId)
+  })
+
+  it('E1-18: los resumenes tampoco cruzan equipos', async () => {
+    const { data: deCarlos } = await carlos.rpc('team_sales_summary')
+    const { data: deJuan } = await juan.rpc('team_sales_summary')
+
+    // `team_sales_summary` solo devuelve fila de quien tiene boletas, asi que
+    // lo que importa aqui es que NUNCA aparezca alguien del otro equipo.
+    expect((deCarlos ?? []).map((row) => row.seller_id)).not.toContain(felipeId)
+    expect((deJuan ?? []).map((row) => row.seller_id)).not.toContain(pedroId)
+
+    // Y preguntar por un integrante ajeno con su id exacto devuelve vacio.
+    const { data: intento } = await carlos.rpc('team_member_sales', {
+      p_member_id: felipeId,
+      p_limit: 20,
+    })
+    expect(intento).toHaveLength(0)
+  })
+
+  it('E1-19: el personal los ve a todos', async () => {
+    const { data } = await owner
+      .from('memberships')
+      .select('profile_id')
+      .in('profile_id', [carlosId, juanId, pedroId, andreaId, felipeId])
+
+    expect(data).toHaveLength(5)
+  })
+})

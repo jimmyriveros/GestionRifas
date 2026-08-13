@@ -5,7 +5,7 @@ import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
 import { ActiveBadge } from '@/components/data/StatusBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getCurrentCommissionRaffle, getTeamCommissions } from '@/features/commissions/queries'
+import { getCurrentCommissionRaffle, getCommissionsBySeller } from '@/features/commissions/queries'
 import { TeamMemberSales } from '@/features/team/components/TeamMemberSales'
 import { getTeamMember, listTeamMemberSales } from '@/features/team/queries'
 import { requireRole } from '@/lib/auth/guards'
@@ -34,7 +34,7 @@ export default async function TeamMemberPage({
 
   const [sales, commissions] = await Promise.all([
     listTeamMemberSales(sellerId),
-    raffle ? getTeamCommissions(raffle.id) : Promise.resolve(new Map()),
+    raffle ? getCommissionsBySeller(raffle.id) : Promise.resolve(new Map()),
   ])
   const commission = commissions.get(sellerId) ?? null
 

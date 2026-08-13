@@ -226,7 +226,7 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/owner/raffles/[raffleId]/edit` | owner, admin | **3 ✅** | Edición (bloqueada en rifas cerradas o anuladas) |
 | `/owner/users` | owner, admin | **3 ✅** | Administradores |
 | `/owner/sellers` | owner, admin | **3 ✅** | Vendedores |
-| `/owner/sellers/[sellerId]` | owner, admin | **3 ✅** | Detalle del vendedor |
+| `/owner/sellers/[sellerId]` | owner, admin | **3 ✅** · post-9 | Detalle del vendedor, su equipo y su comisión (BR-E08) |
 | `/owner/tickets` | owner, admin | **3 ✅** | Tabla global de boletas |
 | `/owner/tickets/new` | owner, admin | **3 ✅** | Creación individual |
 | `/owner/tickets/bulk` | owner, admin | **3 ✅** | Creación masiva (1–1.000) |

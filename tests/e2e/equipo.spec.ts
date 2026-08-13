@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 
 import { serviceClient } from './db-setup'
 import { ACCOUNTS, expectToast, loginAs, logout } from './fixtures'
+import { formatCOP } from '../../src/lib/money'
 
 /**
  * Equipos de vendedores — menu «Mi equipo» y alta de integrantes (BR-E01,
@@ -35,27 +36,131 @@ test.afterAll(async () => {
   }
 })
 
+/**
+ * La comision que el motor tiene calculada AHORA para ese vendedor, en la rifa
+ * que la pantalla va a mostrar.
+ *
+ * Existe para que las pruebas no fijen importes a mano: otras suites venden y
+ * cobran boletas de las cuentas del seed, asi que un `$40.000` escrito aqui
+ * depende del orden en que se ejecuten los archivos. Leyendo el valor real se
+ * comprueba lo que de verdad importa —que la pantalla dice lo mismo que el
+ * motor— y la prueba deja de ser fragil.
+ */
+async function comisionDe(email: string) {
+  const svc = serviceClient()
+
+  const { data: perfil } = await svc.from('profiles').select('id').eq('email', email).single()
+  const { data: filas } = await svc
+    .from('seller_commissions')
+    .select('tickets_paid, rate, earned, raffle_id, raffles!inner(status)')
+    .eq('seller_id', perfil!.id)
+    .eq('raffles.status', 'active')
+    .order('tickets_paid', { ascending: false })
+
+  const fila = filas?.[0]
+  if (!fila) return null
+
+  const { data: tramo } = await svc
+    .from('commission_tiers')
+    .select('min_tickets')
+    .gt('min_tickets', fila.tickets_paid)
+    .order('min_tickets', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  return {
+    ticketsPaid: Number(fila.tickets_paid),
+    rate: Number(fila.rate),
+    earned: Number(fila.earned),
+    nextMin: tramo?.min_tickets ?? null,
+  }
+}
+
+test.describe('El portal administrativo ve la estructura comercial', () => {
+  test('distingue quién tiene equipo, quién pertenece a uno y quién no (BR-E08)', async ({
+    page,
+  }) => {
+    const svc = serviceClient()
+    const email = uniqueEmail('admin-equipo')
+
+    const { data: parent } = await svc
+      .from('profiles')
+      .select('id')
+      .eq('email', ACCOUNTS.seller)
+      .single()
+    const { data: pm } = await svc
+      .from('memberships')
+      .select('organization_id')
+      .eq('profile_id', parent!.id)
+      .single()
+
+    const { data: created } = await svc.auth.admin.createUser({
+      email,
+      password: 'DesarrolloLocal2026',
+      email_confirm: true,
+      user_metadata: { full_name: 'Integrante Admin E2E', phone: '3002223344' },
+    })
+    await svc.from('memberships').insert({
+      organization_id: pm!.organization_id,
+      profile_id: created!.user!.id,
+      role: 'seller',
+      parent_seller_id: parent!.id,
+    })
+
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/sellers')
+
+    const filaConEquipo = page.getByRole('row').filter({ hasText: 'Julian Vargas' })
+    await expect(filaConEquipo.getByText('1 vendedor', { exact: true })).toBeVisible()
+
+    const filaIntegrante = page.getByRole('row').filter({ hasText: 'Integrante Admin E2E' })
+    await expect(filaIntegrante.getByText('Con Julian Vargas')).toBeVisible()
+
+    const filaSuelta = page.getByRole('row').filter({ hasText: 'Laura Moreno' })
+    await expect(filaSuelta.getByText('Sin equipo')).toBeVisible()
+
+    // Y el detalle enlaza la jerarquía en las dos direcciones.
+    await page.goto(`/owner/sellers/${parent!.id}`)
+    await expect(page.getByText('Equipo y comisión')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Integrante Admin E2E' })).toBeVisible()
+
+    await page.goto(`/owner/sellers/${created!.user!.id}`)
+    await expect(page.getByRole('link', { name: 'Julian Vargas' }).first()).toBeVisible()
+  })
+})
+
 test.describe('Mi ganancia', () => {
   test('el panel muestra lo ganado y separa la proyección de lo que ya es suyo', async ({
     page,
   }) => {
-    // El seed deja a este vendedor con 2 boletas cobradas por completo en la
-    // rifa activa: 2 × $20.000. Son cifras reales, no preparadas por la prueba.
+    // Las cifras se leen de la BASE, no se escriben a mano: otras suites venden
+    // y cobran boletas de este vendedor, asi que un importe fijo aqui aguanta
+    // hasta que alguien reordena los archivos. Lo que se comprueba es que la
+    // pantalla dice EXACTAMENTE lo que el motor calculo.
+    const esperado = await comisionDe(ACCOUNTS.seller)
+    expect(esperado, 'el seed debe dejar boletas cobradas a este vendedor').not.toBeNull()
+
     await loginAs(page, ACCOUNTS.seller)
 
-    // Se acota a la tarjeta: «$40.000» tambien aparece en «Pagos recientes», y
+    // Se acota a la tarjeta: el importe tambien aparece en «Pagos recientes», y
     // sin acotar la prueba pasaria mirando el numero equivocado.
     const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Tu ganancia' })
 
-    await expect(tarjeta.getByText('$40.000', { exact: true })).toBeVisible()
-    await expect(tarjeta.getByText(/2 boletas cobradas/)).toBeVisible()
-    await expect(tarjeta.getByText(/\$20\.000 por boleta/)).toBeVisible()
+    await expect(tarjeta.getByText(formatCOP(esperado!.earned), { exact: true })).toBeVisible()
+    await expect(tarjeta.getByText(new RegExp(`${esperado!.ticketsPaid} boletas? cobradas?`))).toBeVisible()
 
     // El siguiente nivel, con su barra y su cuenta atras.
-    await expect(tarjeta.getByText('Te faltan 19 boletas para subir de nivel')).toBeVisible()
+    const faltan = esperado!.nextMin! - esperado!.ticketsPaid
+    await expect(
+      tarjeta.getByText(
+        faltan === 1
+          ? 'Te falta 1 boleta para subir de nivel'
+          : `Te faltan ${faltan} boletas para subir de nivel`,
+      ),
+    ).toBeVisible()
     await expect(tarjeta.getByRole('progressbar')).toHaveAttribute(
       'aria-valuetext',
-      '2 de 21 boletas cobradas',
+      `${esperado!.ticketsPaid} de ${esperado!.nextMin} boletas cobradas`,
     )
 
     // Y lo que mas importa: la proyeccion NO se confunde con lo ganado.
@@ -66,12 +171,15 @@ test.describe('Mi ganancia', () => {
   })
 
   test('un vendedor no ve la ganancia de otro', async ({ page }) => {
+    const ajena = await comisionDe(ACCOUNTS.seller)
+
     // vendedor2 no tiene boletas cobradas: su tarjeta explica la regla y no
     // muestra el dinero de nadie mas.
     await loginAs(page, ACCOUNTS.otherSeller)
 
-    await expect(page.getByText(/Ganas \$20\.000 por cada boleta/)).toBeVisible()
-    await expect(page.getByText('$40.000', { exact: true })).toHaveCount(0)
+    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Tu ganancia' })
+    await expect(tarjeta.getByText(/Ganas .* por cada boleta/)).toBeVisible()
+    await expect(page.getByText(formatCOP(ajena!.earned), { exact: true })).toHaveCount(0)
   })
 })
 

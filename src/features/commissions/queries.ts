@@ -137,13 +137,18 @@ export async function getMyCommission(
 }
 
 /**
- * La comision de cada integrante del equipo en una rifa, indexada por vendedor.
+ * La comision de cada vendedor en una rifa, indexada por vendedor.
+ *
+ * Devuelve lo que quien consulta tiene derecho a ver, y eso lo decide la RLS:
+ * un vendedor con equipo recibe el suyo y el de sus integrantes; el Dueño y el
+ * Administrador, el de toda la organizacion (BR-G12). La misma consulta sirve a
+ * «Mi equipo» y al portal administrativo.
  *
  * Acotada a UNA rifa a proposito: la comision es por rifa (BR-G04), asi que un
  * mapa por vendedor sin rifa mezclaria tramos de rifas distintas y mostraria un
  * numero que no significa nada.
  */
-export async function getTeamCommissions(
+export async function getCommissionsBySeller(
   raffleId: string,
 ): Promise<Map<string, CommissionSummary>> {
   const rows = await listCommissions(raffleId)

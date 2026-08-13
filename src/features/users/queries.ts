@@ -19,21 +19,30 @@ export type OrgMember = {
   phone: string
   email: string
   createdAt: string
+  /** Vendedor a cargo, si pertenece al equipo de alguien (BR-E01). */
+  parentSellerId: string | null
 }
 
-const MEMBER_SELECT = `
+/**
+ * Exportados para que «Mi equipo» lea las membresias EXACTAMENTE igual
+ * (`features/team/queries.ts`): un integrante y un vendedor de la organizacion
+ * son la misma fila, y tener dos mapeos era garantizar que algun dia divergieran.
+ */
+export const MEMBER_SELECT = `
   id,
   role,
   is_active,
   created_at,
+  parent_seller_id,
   profile:profiles!memberships_profile_id_fkey ( id, full_name, alias, phone, email, is_active )
 `
 
-type MemberRow = {
+export type MemberRow = {
   id: string
   role: AppRole
   is_active: boolean
   created_at: string
+  parent_seller_id: string | null
   profile: {
     id: string
     full_name: string
@@ -44,7 +53,7 @@ type MemberRow = {
   } | null
 }
 
-function mapMember(row: MemberRow): OrgMember | null {
+export function mapMember(row: MemberRow): OrgMember | null {
   if (!row.profile) return null
   return {
     membershipId: row.id,
@@ -58,6 +67,7 @@ function mapMember(row: MemberRow): OrgMember | null {
     phone: row.profile.phone,
     email: row.profile.email,
     createdAt: row.created_at,
+    parentSellerId: row.parent_seller_id,
   }
 }
 
