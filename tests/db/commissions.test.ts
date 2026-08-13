@@ -22,6 +22,8 @@ import { loadSeedContext, SEED_PASSWORD, signInAs, type Client } from './helpers
 
 let ctx: Awaited<ReturnType<typeof loadSeedContext>>
 let sellerId: string
+/** Su vendedor padre: sin el, cobraria la mitad y no los tramos (BR-G13). */
+let parentId: string
 let seller: Client
 let clientId: string
 
@@ -34,23 +36,42 @@ let numberBase = 0
 
 const PRICE = 100_000
 
+/**
+ * El vendedor de esta suite pertenece a un EQUIPO, y no es un detalle: desde
+ * `0025` los tramos son de quien fue creado dentro de un equipo. Un vendedor
+ * suelto cobra la mitad del precio de la rifa (BR-G13) y no probaria nada de lo
+ * que hay aqui. Esa otra forma de pago tiene su propio archivo,
+ * `commission-modes.test.ts`.
+ */
 async function setupSeller(): Promise<void> {
-  const email = `comision-${Date.now().toString(36)}@demo.test`
+  const stamp = Date.now().toString(36)
 
-  const { data, error } = await ctx.svc.auth.admin.createUser({
-    email,
-    password: SEED_PASSWORD,
-    email_confirm: true,
-    user_metadata: { full_name: 'Vendedor Comision', phone: '3001234567' },
+  const crear = async (email: string, nombre: string) => {
+    const { data, error } = await ctx.svc.auth.admin.createUser({
+      email,
+      password: SEED_PASSWORD,
+      email_confirm: true,
+      user_metadata: { full_name: nombre, phone: '3001234567' },
+    })
+    if (error) throw new Error(`No se pudo crear ${email}: ${error.message}`)
+    await ctx.svc.auth.admin.updateUserById(data.user.id, { password: SEED_PASSWORD })
+    return data.user.id
+  }
+
+  parentId = await crear(`jefe-comision-${stamp}@demo.test`, 'Jefe Comision')
+  await ctx.svc.from('memberships').insert({
+    organization_id: ctx.demoOrg.id,
+    profile_id: parentId,
+    role: 'seller',
   })
-  if (error) throw new Error(`No se pudo crear ${email}: ${error.message}`)
-  sellerId = data.user.id
 
-  await ctx.svc.auth.admin.updateUserById(sellerId, { password: SEED_PASSWORD })
+  const email = `comision-${stamp}@demo.test`
+  sellerId = await crear(email, 'Vendedor Comision')
   await ctx.svc.from('memberships').insert({
     organization_id: ctx.demoOrg.id,
     profile_id: sellerId,
     role: 'seller',
+    parent_seller_id: parentId,
   })
 
   seller = await signInAs(email)
@@ -185,8 +206,11 @@ afterAll(async () => {
   await ctx.svc.from('seller_commissions').delete().eq('seller_id', sellerId)
   await ctx.svc.from('clients').delete().eq('id', clientId)
   await ctx.svc.from('notifications').delete().eq('recipient_profile_id', sellerId)
+  // El integrante primero: la FK del vendedor padre es `on delete restrict`.
   await ctx.svc.from('memberships').delete().eq('profile_id', sellerId)
+  await ctx.svc.from('memberships').delete().eq('profile_id', parentId)
   await ctx.svc.auth.admin.deleteUser(sellerId)
+  await ctx.svc.auth.admin.deleteUser(parentId)
 }, 60_000)
 
 describe('E5 — los tramos, uno por uno', () => {

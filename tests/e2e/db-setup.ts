@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { Client as PgClient } from 'pg'
 import WebSocket from 'ws'
 
 import type { Database } from '../../src/types/database.types'
@@ -19,12 +20,105 @@ const LOCAL_URL = 'http://127.0.0.1:54321'
 const LOCAL_SERVICE_ROLE_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
 
+const DB_URL = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+
+const LOCAL_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+
 export function serviceClient(): SupabaseClient<Database> {
   return createClient<Database>(LOCAL_URL, LOCAL_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     realtime: { transport: WebSocket as any },
   })
+}
+
+/**
+ * Cliente con la SESION REAL de una persona, para preparar escenarios que solo
+ * existen pasando por una regla de negocio.
+ *
+ * Lo necesita el cobro de boletas: `create_payment` empieza por `require_auth()`
+ * y el cuadre pago/asignaciones es un constraint diferido, asi que no se puede
+ * imitar con inserciones sueltas de service role. Sigue siendo PREPARACION —lo
+ * que la prueba comprueba ocurre por la interfaz—, pero por el camino real.
+ */
+export async function signedInClient(
+  email: string,
+  password = 'DesarrolloLocal2026',
+): Promise<SupabaseClient<Database>> {
+  const client = createClient<Database>(LOCAL_URL, LOCAL_ANON_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    realtime: { transport: WebSocket as any },
+  })
+  const { error } = await client.auth.signInWithPassword({ email, password })
+  if (error) throw new Error(`No se pudo iniciar sesion como ${email}: ${error.message}`)
+  return client
+}
+
+/**
+ * Borra TODO lo que cuelga de unos vendedores, en UNA transaccion.
+ *
+ * No se puede hacer con PostgREST, y el motivo es de diseño del esquema, no una
+ * limitacion del cliente:
+ *
+ *   * Borrar las asignaciones de un pago SIN borrar el pago deja la suma en
+ *     cero y el cuadre diferido `check_payment_balance` lo rechaza al COMMIT.
+ *   * Borrar el pago primero choca con `alloc_payment_client_fk`, que es
+ *     RESTRICT: sus asignaciones todavia lo referencian.
+ *
+ * Como cada peticion de PostgREST es una transaccion propia, las dos cosas
+ * tienen que ocurrir juntas. Por eso aqui va una conexion directa.
+ *
+ * Se descubrio porque la limpieza fallaba EN SILENCIO: las cuentas de prueba se
+ * acumulaban, el panel del Dueño crecia y acababa tumbando la prueba del
+ * recorrido guiado, que mide donde cae el globo.
+ */
+export async function purgeSellers(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    await db.query('begin')
+    // Pagos y sus asignaciones, juntos: es la unica forma de que cuadre.
+    await db.query(
+      `delete from payment_allocations pa using payments p
+        where pa.payment_id = p.id and p.seller_id = any($1)`,
+      [ids],
+    )
+    await db.query('delete from payments where seller_id = any($1)', [ids])
+
+    await db.query(
+      `delete from payment_allocations
+        where ticket_id in (select id from tickets where seller_id = any($1))`,
+      [ids],
+    )
+    await db.query(
+      `delete from notifications
+        where entity_id in (select id from tickets where seller_id = any($1))
+           or entity_id in (select id from memberships where profile_id = any($1))
+           or recipient_profile_id = any($1)`,
+      [ids],
+    )
+    await db.query('delete from tickets where seller_id = any($1)', [ids])
+    await db.query('delete from clients where seller_id = any($1)', [ids])
+    await db.query('delete from commission_ledger where seller_id = any($1)', [ids])
+    await db.query('delete from seller_commissions where seller_id = any($1)', [ids])
+
+    // Integrantes antes que sus jefes: la FK del vendedor padre es RESTRICT.
+    await db.query(
+      'delete from memberships where profile_id = any($1) and parent_seller_id is not null',
+      [ids],
+    )
+    await db.query('delete from memberships where profile_id = any($1)', [ids])
+    await db.query('commit')
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  } finally {
+    await db.end()
+  }
 }
 
 export type SeedRefs = {

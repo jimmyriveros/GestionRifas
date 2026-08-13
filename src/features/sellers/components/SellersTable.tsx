@@ -121,6 +121,9 @@ export function SellersTable({
         id: 'earned',
         header: 'Ganancia',
         meta: { align: 'right', hideOnMobile: true },
+        // Todos ganan; lo que cambia es CON QUE REGLA (BR-G13). El importe se
+        // muestra igual para los dos, y el detalle del vendedor explica cual se
+        // le aplica: aqui una raya seria esconder dinero que si se debe.
         cell: ({ row }) => (
           <span className="tabular-nums">
             {formatCOP(earnings.get(row.original.profileId) ?? 0)}

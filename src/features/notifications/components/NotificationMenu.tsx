@@ -64,7 +64,12 @@ export function NotificationMenu({ items, unreadCount, icon }: NotificationMenuP
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-80">
+      {/*
+        `w-80` son 320 px exactos: en un telefono de 320 la bandeja se salia 42
+        px por el lado. El tope la deja caber siempre, dejando margen a los dos
+        lados, y en pantallas grandes no cambia nada.
+      */}
+      <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-1.5rem)]">
         <DropdownMenuLabel className="flex items-center justify-between gap-2">
           <span>Novedades</span>
           {unreadCount > 0 ? (

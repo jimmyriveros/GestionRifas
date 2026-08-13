@@ -19,6 +19,13 @@ import { createClient } from '@/lib/supabase/server'
 export type CommissionSummary = {
   sellerId: string
   raffleId: string
+  /**
+   * Como se le paga (BR-G13). `true`: por tramos, porque pertenece a un equipo.
+   * `false`: la mitad del precio vigente de la rifa por cada boleta cobrada.
+   * La pantalla lo necesita porque a quien cobra la mitad no se le puede hablar
+   * de «subir de nivel»: no hay niveles que subir.
+   */
+  byTiers: boolean
   /** Boletas pagadas por completo: las que cuentan para la comision (BR-G01). */
   ticketsPaid: number
   /** Lo que vale hoy cada boleta pagada. */
@@ -36,6 +43,7 @@ export type CommissionSummary = {
 function mapRow(row: {
   seller_id: string
   raffle_id: string
+  by_tiers: boolean
   tickets_paid: number
   rate: number
   earned: number
@@ -47,6 +55,7 @@ function mapRow(row: {
   return {
     sellerId: row.seller_id,
     raffleId: row.raffle_id,
+    byTiers: row.by_tiers,
     ticketsPaid: Number(row.tickets_paid ?? 0),
     rate: Number(row.rate ?? 0),
     earned: Number(row.earned ?? 0),

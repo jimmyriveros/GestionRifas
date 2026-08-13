@@ -1247,9 +1247,19 @@ export type Database = {
         Args: { p_count: number; p_org: string }
         Returns: number
       }
+      commission_rate_for_seller: {
+        Args: {
+          p_count: number
+          p_organization_id: string
+          p_raffle_id: string
+          p_seller_id: string
+        }
+        Returns: number
+      }
       commission_summary: {
         Args: { p_raffle_id?: string }
         Returns: {
+          by_tiers: boolean
           earned: number
           next_min_tickets: number
           next_rate: number

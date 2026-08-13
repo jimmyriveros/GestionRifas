@@ -18,12 +18,18 @@ export function CommissionCard({
   commission,
   firstTierRate,
   raffleName,
+  byTiers,
+  halfRate,
 }: {
   commission: CommissionSummary | null
   /** Lo que se paga por la primera boleta, para quien todavia no ha cobrado ninguna. */
   firstTierRate: number
   /** De que rifa habla. La comision se cuenta por rifa (BR-G04). */
   raffleName: string | null
+  /** Su forma de pago (BR-G13). Hace falta aunque todavia no haya cobrado nada. */
+  byTiers: boolean
+  /** La mitad del precio de la rifa, para quien cobra asi y aun no tiene fila. */
+  halfRate: number
 }) {
   if (commission === null || commission.ticketsPaid === 0) {
     return (
@@ -35,8 +41,17 @@ export function CommissionCard({
         <CardContent className="space-y-1">
           <p className="text-3xl font-semibold tabular-nums">{formatCOP(0)}</p>
           <p className="text-muted-foreground text-sm">
-            Ganas {formatCOP(firstTierRate)} por cada boleta que te paguen completa. Cuantas más
-            cobres, más vale cada una.
+            {byTiers ? (
+              <>
+                Ganas {formatCOP(firstTierRate)} por cada boleta que te paguen completa. Cuantas
+                más cobres, más vale cada una.
+              </>
+            ) : (
+              <>
+                Ganas {formatCOP(halfRate)} por cada boleta que te paguen completa: la mitad de su
+                precio.
+              </>
+            )}
           </p>
         </CardContent>
       </Card>
@@ -62,7 +77,17 @@ export function CommissionCard({
           </p>
         </div>
 
-        {nextMinTickets !== null && nextRate !== null && ticketsToNext !== null ? (
+        {/*
+          Tres finales distintos, y ninguno intercambiable: quien sube de nivel
+          ve cuanto le falta; quien ya llego arriba, que llego; y quien cobra la
+          mitad del precio no ve niveles, porque no los tiene (BR-G13).
+        */}
+        {!commission.byTiers ? (
+          <p className="text-muted-foreground border-t pt-4 text-sm">
+            Ganas la mitad del precio de cada boleta que cobres completa. No hay niveles: cada
+            boleta vale lo mismo.
+          </p>
+        ) : nextMinTickets !== null && nextRate !== null && ticketsToNext !== null ? (
           <NextLevel
             ticketsPaid={ticketsPaid}
             nextMinTickets={nextMinTickets}

@@ -100,9 +100,7 @@ export default async function SellerDetailPage({
                   {parent.fullName}
                 </Link>
               ) : (
-                <span className="text-muted-foreground">
-                  Depende del Dueño o el Administrador
-                </span>
+                <span className="text-muted-foreground">Depende del Dueño o el Administrador</span>
               )}
             </Field>
             <Field label={raffle ? `Ganancia en ${raffle.name}` : 'Ganancia'}>
@@ -116,6 +114,16 @@ export default async function SellerDetailPage({
                 </span>
               ) : (
                 <span className="text-muted-foreground">Todavía no ha cobrado ninguna boleta</span>
+              )}
+            </Field>
+
+            {/* BR-G13: dos formas de pago. Decirlo aquí evita que el Dueño tenga
+                que deducirla del número. */}
+            <Field label="Cómo se le paga">
+              {parent === null ? (
+                <span>La mitad del precio de cada boleta que cobre completa</span>
+              ) : (
+                <span>Por niveles, según el total de boletas que lleve cobradas</span>
               )}
             </Field>
           </div>

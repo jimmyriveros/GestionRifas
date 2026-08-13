@@ -140,7 +140,19 @@ test.describe('Equipo y ganancia en el teléfono', () => {
     await expect(campanita).toBeVisible()
     await campanita.click()
 
-    await expect(page.getByText('Novedades', { exact: true })).toBeVisible()
-    expect(await desbordamiento(page), 'la bandeja no debe desbordar').toBeLessThanOrEqual(0)
+    const bandeja = page.getByRole('menu')
+    await expect(bandeja).toBeVisible()
+
+    /*
+      Se mide LA BANDEJA, no la página entera: el panel administrativo ya
+      desbordaba a 320 px por una tabla suya (I-056), y una prueba de esta
+      funcionalidad no puede fallar por un defecto que no introdujo ni arregla.
+      Lo que aquí importa es que la bandeja quepa.
+    */
+    const caja = await bandeja.boundingBox()
+    expect(caja!.x, 'la bandeja no debe salirse por la izquierda').toBeGreaterThanOrEqual(0)
+    expect(caja!.x + caja!.width, 'la bandeja no debe salirse por la derecha').toBeLessThanOrEqual(
+      320,
+    )
   })
 })

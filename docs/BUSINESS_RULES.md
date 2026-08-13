@@ -92,6 +92,10 @@ dinero recogió», y su propio «Mis boletas» sigue siendo exactamente el suyo.
 | ID | Regla | Capas | Fase |
 |----|-------|-------|------|
 | BR-G01 | La comisión se gana **por boleta pagada por completo** (`payment_status = 'paid'`), no por boleta vendida. Así la empresa nunca debe comisión por dinero que no entró. | D | post-9 |
+| BR-G13 | **Hay dos formas de pago, y la decide el equipo.** Quien fue creado **dentro de un equipo** (`parent_seller_id` no nulo) cobra por **tramos** (BR-G02, BR-G03). Quien **no depende de nadie** —incluido el vendedor que armó su propio equipo— cobra **la mitad del precio vigente de la rifa** por cada boleta cobrada completa. | D | post-9 |
+| BR-G14 | En la forma «mitad del precio» **no hay niveles**: todas las boletas valen lo mismo y no existe «próximo nivel». La pantalla no puede hablarle de subir de nivel a quien no tiene niveles. | C, S | post-9 |
+| BR-G15 | Esa mitad se calcula sobre el **precio vigente de la rifa**, no sobre el `sale_price` congelado en la boleta (BR-P04). Consecuencia buscada: **cambiar el precio de la rifa cambia lo que se debe** por ventas ya cobradas, y el sistema lo recalcula solo. | D | post-9 |
+| BR-G16 | Entrar o salir de un equipo **cambia la forma de pago y se aplica hacia atrás**: el sistema recalcula todas las rifas de esa persona en el momento del cambio, sin esperar a su próxima venta. | D | post-9 |
 | BR-G02 | La tarifa sube por tramos y es **retroactiva**: al alcanzar un tramo, **todas** las boletas acumuladas pasan a la tarifa nueva. 21 boletas son 21 × $25.000, no 20 × $20.000 + 1 × $25.000. | D | post-9 |
 | BR-G03 | Tramos por defecto: **1–20 → $20.000 · 21–30 → $25.000 · 31–50 → $30.000 · 51+ → $40.000**. Viven en la tabla `commission_tiers`, por organización; cambiarlos es cambiar filas, no desplegar. | D | post-9 |
 | BR-G04 | El ámbito es **la rifa**: el acumulado no se reinicia cada semana, y cada rifa lleva su propio conteo y su propio tramo. | D | post-9 |

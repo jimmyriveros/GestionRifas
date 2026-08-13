@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { CommissionCard } from '@/features/commissions/components/CommissionCard'
 import { getCommissionContext, getFirstTierRate } from '@/features/commissions/queries'
 import { getSellerDashboard } from '@/features/dashboard/seller-queries'
+import { isTeamMember } from '@/features/team/queries'
 import { tourTarget } from '@/features/tour/tours'
 import { requireRole } from '@/lib/auth/guards'
 import { ROLE_LABELS } from '@/lib/constants'
@@ -19,10 +20,14 @@ import { ticketLabel } from '@/lib/tickets'
 export default async function SellerDashboardPage() {
   const membership = await requireRole(['seller'])
 
-  const [dashboard, comisiones, firstTierRate] = await Promise.all([
+  const [dashboard, comisiones, firstTierRate, perteneceAEquipo] = await Promise.all([
     getSellerDashboard(),
     getCommissionContext(),
     getFirstTierRate(),
+    // BR-G13: quien pertenece a un equipo cobra por tramos; quien no, la mitad
+    // del precio de la rifa. Hace falta saberlo aunque todavia no haya cobrado
+    // ninguna boleta, que es justo cuando no hay fila de comision que leer.
+    isTeamMember(membership.profileId),
   ])
   const { totals } = dashboard
 
@@ -78,6 +83,8 @@ export default async function SellerDashboardPage() {
         commission={commission}
         firstTierRate={firstTierRate}
         raffleName={comisiones.raffle?.name ?? null}
+        byTiers={perteneceAEquipo}
+        halfRate={Math.floor((comisiones.raffle?.ticketPrice ?? 0) / 2)}
       />
 
       <CollectionSummaryCard

@@ -1529,3 +1529,27 @@ la primera que lleva **tres** migraciones a la vez.
 
 **Verificación manual pendiente del usuario:** entrar con los tres roles y recorrer «Mi equipo», la
 tarjeta «Tu ganancia» y la campanita. Un agente no inicia sesión en producción (Fase 8).
+
+---
+
+## Dos formas de pago (post-9) — 2026-08-13
+
+Corrección de alcance pedida por el dueño del producto al ver la pantalla en producción: los tramos
+son de quien fue creado dentro de un equipo; quien no depende de nadie cobra **la mitad del precio
+vigente de la rifa** (D-096, BR-G13..BR-G16). Migración `0025`.
+
+| Verificación | Resultado |
+|---|---|
+| `npm run test:db` | ✅ **435/435** (20 archivos; 6 nuevas en `commission-modes.test.ts`) |
+| `npm run verify` | ✅ typecheck · lint 0 errores · 299/299 unitarias · build |
+| Revisión visual | ✅ las dos tarjetas a 390 px: la de la mitad sin niveles ni barra, la de tramos con progreso y proyección |
+
+### Errores encontrados y corregidos
+
+| # | Error | Cómo se encontró | Corrección |
+|---|---|---|---|
+| 1 | **Primera lectura equivocada de la regla**: se ocultó la tarjeta a quien no pertenece a un equipo | La segunda respuesta del dueño: no es que no ganen, es que ganan con otra regla | Se implementaron las **dos** formas de pago; ocultarla habría escondido dinero que sí se debe |
+| 2 | La suite de tramos usaba un vendedor **sin equipo**, que desde `0025` cobra la mitad | 14 fallos en `commissions.test.ts` | Su vendedor pasa a pertenecer a un equipo; la otra forma vive en su propio archivo |
+| 3 | **La bandeja de avisos se salía 42 px a 320 px** | `equipo-movil.spec.ts` | Tope de ancho; `w-80` son 320 px exactos y no dejaba margen |
+| 4 | **La limpieza de las pruebas E2E fallaba en silencio**: cada ejecución dejaba **9 cuentas** sin borrar | El recorrido guiado empezó a fallar en la suite completa: el panel del Dueño crecía y el globo quedaba fuera de la pantalla | Causa de fondo: borrar las asignaciones sin su pago rompe el cuadre diferido, y borrar el pago primero choca con `alloc_payment_client_fk`; como cada petición de PostgREST es una transacción, no se podían agrupar. Nuevo `purgeSellers()` con conexión directa, en **una** transacción, y con los errores propagados. Comprobado: tras la suite quedan **3 vendedores, los del seed** |
+| 5 | **`/owner/dashboard` se desplaza en horizontal a 320 px** | La misma prueba móvil | **Preexistente y ajeno**: tabla sin contenedor con `overflow-x`, en un archivo no tocado. Registrado como **I-056**; la prueba se acotó a la bandeja para no fallar por un defecto que no introduce ni arregla |

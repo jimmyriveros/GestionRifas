@@ -1970,6 +1970,54 @@ que solo se ve no existe para quien usa un lector de pantalla.
 
 ---
 
+## D-096 — Dos formas de pago, y las decide el equipo
+**Fase:** posterior a la 9 (mantenimiento, 2026-08-13). **Corrige el alcance de D-094.**
+
+**Cómo se encontró.** El dueño del producto abrió la aplicación recién desplegada y vio que a
+`vendedor1` —que no pertenece a ningún equipo— la tarjeta le decía «Te faltan 19 boletas para subir de
+nivel». La corrección que pidió reveló una regla de negocio que **no estaba en el encargo original**:
+los tramos son de quien fue creado dentro de un equipo; quien no depende de nadie cobra distinto.
+
+**La regla** (BR-G13):
+
+| Quién | Cómo cobra |
+|---|---|
+| `parent_seller_id` **no nulo** — creado dentro de un equipo | Tramos: 1–20 $20.000 · 21–30 $25.000 · 31–50 $30.000 · 51+ $40.000 |
+| `parent_seller_id` **nulo** — trabaja para el Dueño, **o armó su propio equipo** | **La mitad del precio vigente de la rifa** por cada boleta cobrada completa |
+
+**Por qué el jefe de equipo se queda en la mitad.** Lo confirmó el dueño tras plantearle la
+consecuencia: si al agregar a su primer integrante pasara a tramos, su pago por boleta caería de
+$50.000 a $20.000 y armar equipo lo castigaría. Con la regla elegida, formar equipo no le toca el
+bolsillo.
+
+⚠️ **Con el precio actual, la mitad ($50.000) es MÁS que el tramo más alto ($40.000).** Se le señaló
+al dueño antes de implementarlo; es su decisión de negocio y queda anotada aquí porque un lector
+futuro se hará la misma pregunta.
+
+**«Precio vigente», no el congelado** (BR-G15), también elegido explícitamente entre las dos opciones.
+Tiene una consecuencia que obliga a código: cambiar `raffles.ticket_price` cambia lo que se debe por
+ventas **ya cobradas**. Por eso `0025` añade un trigger sobre `raffles`; sin él, el precio cambiaría y
+las comisiones se quedarían con el importe viejo hasta la siguiente venta de cada quien, sin que nadie
+lo notara. Un segundo trigger sobre `memberships` cubre el otro cambio de forma de pago: entrar o
+salir de un equipo (BR-G16).
+
+**Lo que NO cambió, y es lo importante.** El motor sigue siendo el de D-094: el importe es
+`n × tarifa` **recalculado**, nunca una suma de eventos. Lo único que se movió es de dónde sale
+`tarifa` —una función, `commission_rate_for_seller`—. Por eso el ledger, el bloqueo de fila, la
+idempotencia y la invariante `sum(ledger) = earned` siguen valiendo tal cual, y las dos formas de pago
+comparten las mismas garantías sin escribir ninguna otra vez.
+
+**En pantalla** (BR-G14): a quien cobra la mitad no se le habla de niveles, porque no los tiene — ni
+barra de progreso, ni proyección, ni «te faltan N». La ficha del vendedor en el portal administrativo
+gana un campo «Cómo se le paga», para que el Dueño no tenga que deducir la regla del número.
+
+**Alternativas.** (a) Ocultarle la tarjeta a quien no cobra por tramos (fue mi primera implementación,
+antes de saber que también cobran: habría escondido dinero que sí se debe). (b) Guardar la forma de
+pago en `seller_commissions` (descartada: es un hecho derivado de `parent_seller_id`, y duplicarlo
+crea dos fuentes que pueden discrepar).
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

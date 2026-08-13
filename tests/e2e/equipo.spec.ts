@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { serviceClient } from './db-setup'
+import { purgeSellers, serviceClient, signedInClient } from './db-setup'
 import { ACCOUNTS, expectToast, loginAs, logout } from './fixtures'
 import { formatCOP } from '../../src/lib/money'
 
@@ -33,23 +33,15 @@ test.afterAll(async () => {
   const ids = (perfiles ?? []).map((fila) => fila.id)
   if (ids.length === 0) return
 
-  // Los avisos que provocaron estas altas quedan en la bandeja del personal:
-  // se borran por la entidad, no por el destinatario (I-035).
-  const { data: membresias } = await svc.from('memberships').select('id').in('profile_id', ids)
-  const entidades = (membresias ?? []).map((fila) => fila.id)
-  if (entidades.length > 0) {
-    await svc.from('notifications').delete().in('entity_id', entidades)
-  }
-  await svc.from('notifications').delete().in('recipient_profile_id', ids)
-  await svc.from('seller_commissions').delete().in('seller_id', ids)
-
-  // Primero los INTEGRANTES y despues sus jefes: `memberships_parent_seller_fk`
-  // es `on delete restrict`, asi que borrar al jefe con equipo vivo falla.
-  await svc.from('memberships').delete().in('profile_id', ids).not('parent_seller_id', 'is', null)
-  await svc.from('memberships').delete().in('profile_id', ids)
+  // Todo lo que cuelga de estas personas, en UNA transacción: pagos y sus
+  // asignaciones no se pueden separar sin romper el cuadre diferido, y PostgREST
+  // no puede agruparlos. Los errores se propagan a propósito: una limpieza que
+  // falla en silencio deja cuentas acumulándose y acaba rompiendo otra suite.
+  await purgeSellers(ids)
 
   for (const id of ids) {
-    await svc.auth.admin.deleteUser(id)
+    const { error } = await svc.auth.admin.deleteUser(id)
+    if (error) throw new Error(`No se pudo borrar la cuenta ${id}: ${error.message}`)
   }
 })
 
@@ -160,50 +152,160 @@ test.describe('El portal administrativo ve la estructura comercial', () => {
     await expect(page.getByText('Equipo y comisión')).toBeVisible()
     await expect(page.getByRole('link', { name: integranteNombre })).toBeVisible()
 
+    // BR-G13: la ficha dice CON QUÉ REGLA se le paga a cada quien, para que el
+    // Dueño no tenga que deducirlo del número.
+    await expect(
+      page.getByText('La mitad del precio de cada boleta que cobre completa'),
+    ).toBeVisible()
+
     await page.goto(`/owner/sellers/${integranteId}`)
     await expect(page.getByRole('link', { name: jefeNombre }).first()).toBeVisible()
+    await expect(
+      page.getByText('Por niveles, según el total de boletas que lleve cobradas'),
+    ).toBeVisible()
   })
 })
 
 test.describe('Mi ganancia', () => {
-  test('el panel muestra lo ganado y separa la proyección de lo que ya es suyo', async ({
-    page,
-  }) => {
-    // Las cifras se leen de la BASE, no se escriben a mano: otras suites venden
-    // y cobran boletas de este vendedor, asi que un importe fijo aqui aguanta
-    // hasta que alguien reordena los archivos. Lo que se comprueba es que la
-    // pantalla dice EXACTAMENTE lo que el motor calculo.
+  /**
+   * Un vendedor SIN equipo cobra la mitad del precio (BR-G13), y por tanto NO
+   * ve niveles. Es el caso que reportó el dueño del producto al ver la pantalla
+   * en producción: a `vendedor1`, que no pertenece a ningún equipo, le salía
+   * «Te faltan 19 boletas para subir de nivel».
+   */
+  test('sin equipo: cobra la mitad del precio y NO se le habla de niveles', async ({ page }) => {
+    // Las cifras se leen de la BASE, no se escriben a mano: otras suites cobran
+    // boletas de esta cuenta, así que un importe fijo dependería del orden de
+    // los archivos. Se comprueba que la pantalla dice lo que el motor calculó.
     const esperado = await comisionDe(ACCOUNTS.seller)
     expect(esperado, 'el seed debe dejar boletas cobradas a este vendedor').not.toBeNull()
 
     await loginAs(page, ACCOUNTS.seller)
 
-    // Se acota a la tarjeta: el importe tambien aparece en «Pagos recientes», y
-    // sin acotar la prueba pasaria mirando el numero equivocado.
+    // Se acota a la tarjeta: el importe también aparece en «Pagos recientes».
     const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Tu ganancia' })
 
     await expect(tarjeta.getByText(formatCOP(esperado!.earned), { exact: true })).toBeVisible()
-    await expect(tarjeta.getByText(new RegExp(`${esperado!.ticketsPaid} boletas? cobradas?`))).toBeVisible()
-
-    // El siguiente nivel, con su barra y su cuenta atras.
-    const faltan = esperado!.nextMin! - esperado!.ticketsPaid
     await expect(
-      tarjeta.getByText(
-        faltan === 1
-          ? 'Te falta 1 boleta para subir de nivel'
-          : `Te faltan ${faltan} boletas para subir de nivel`,
-      ),
+      tarjeta.getByText(new RegExp(`${esperado!.ticketsPaid} boletas? cobradas?`)),
     ).toBeVisible()
+    await expect(tarjeta.getByText(/Ganas la mitad del precio/)).toBeVisible()
+
+    // Y lo que motivó la corrección: ni niveles, ni barra, ni proyección.
+    await expect(tarjeta.getByText(/subir de nivel/)).toHaveCount(0)
+    await expect(tarjeta.getByRole('progressbar')).toHaveCount(0)
+    await expect(tarjeta.getByText(/tu ganancia sería de/)).toHaveCount(0)
+  })
+
+  test('en un equipo: cobra por niveles, con proyección separada de lo ganado', async ({
+    page,
+  }) => {
+    const svc = serviceClient()
+    const stamp = Date.now().toString(36)
+
+    const { data: refSeller } = await svc
+      .from('profiles')
+      .select('id')
+      .eq('email', ACCOUNTS.seller)
+      .single()
+    const { data: pm } = await svc
+      .from('memberships')
+      .select('organization_id')
+      .eq('profile_id', refSeller!.id)
+      .single()
+    const { data: raffle } = await svc
+      .from('raffles')
+      .select('id, ticket_price')
+      .eq('name', 'Rifa Navidad 2026')
+      .single()
+
+    const alta = async (nombre: string, padre: string | null) => {
+      const email = uniqueEmail(nombre)
+      const { data } = await svc.auth.admin.createUser({
+        email,
+        password: 'DesarrolloLocal2026',
+        email_confirm: true,
+        user_metadata: { full_name: `${nombre} ${stamp}`, phone: '3001234567' },
+      })
+      await svc.auth.admin.updateUserById(data!.user!.id, { password: 'DesarrolloLocal2026' })
+      await svc.from('memberships').insert({
+        organization_id: pm!.organization_id,
+        profile_id: data!.user!.id,
+        role: 'seller',
+        parent_seller_id: padre,
+      })
+      return { id: data!.user!.id, email }
+    }
+
+    const jefe = await alta('jefe-nivel', null)
+    const integrante = await alta('integrante-nivel', jefe.id)
+
+    // Tres boletas cobradas por el camino real: el Dueño registra el pago.
+    const precio = raffle!.ticket_price
+    const { data: cliente } = await svc
+      .from('clients')
+      .insert({
+        organization_id: pm!.organization_id,
+        seller_id: integrante.id,
+        name: `Cliente nivel ${stamp}`,
+        phone: '3005552222',
+      })
+      .select('id')
+      .single()
+
+    const base = 30 + Math.floor(Math.random() * 50)
+    const ids: string[] = []
+    for (let i = 0; i < 3; i++) {
+      const numero = `${base}${String(i).padStart(2, '0')}`
+      const { data: t } = await svc
+        .from('tickets')
+        .insert({
+          organization_id: pm!.organization_id,
+          raffle_id: raffle!.id,
+          seller_id: integrante.id,
+          created_by: refSeller!.id,
+          daily_number: numero,
+          weekly_number: numero,
+          inventory_status: 'assigned',
+          client_id: cliente!.id,
+          sale_price: precio,
+          sale_date: '2026-08-13',
+          assigned_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single()
+      if (t) ids.push(t.id)
+    }
+
+    const owner = await signedInClient(ACCOUNTS.owner)
+    const { error } = await owner.rpc('create_payment', {
+      p_client_id: cliente!.id,
+      p_total_amount: ids.length * precio,
+      p_allocations: ids.map((id) => ({ ticket_id: id, amount: precio })),
+      p_payment_date: '2026-08-13',
+      p_payment_method: 'cash',
+    })
+    expect(error, 'no se pudo cobrar el escenario').toBeNull()
+
+    await loginAs(page, integrante.email)
+    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Tu ganancia' })
+
+    // 3 boletas en el primer tramo: 3 × $20.000.
+    await expect(tarjeta.getByText(formatCOP(60_000), { exact: true })).toBeVisible()
+    await expect(tarjeta.getByText(/3 boletas cobradas/)).toBeVisible()
+    await expect(tarjeta.getByText('Te faltan 18 boletas para subir de nivel')).toBeVisible()
     await expect(tarjeta.getByRole('progressbar')).toHaveAttribute(
       'aria-valuetext',
-      `${esperado!.ticketsPaid} de ${esperado!.nextMin} boletas cobradas`,
+      '3 de 21 boletas cobradas',
     )
 
-    // Y lo que mas importa: la proyeccion NO se confunde con lo ganado.
+    // Y lo que más importa: la proyección NO se confunde con lo ganado.
     await expect(tarjeta.getByText(/tu ganancia sería de/)).toBeVisible()
     await expect(
       tarjeta.getByText('Esa cifra todavía no es tuya: es lo que ganarías si llegas.'),
     ).toBeVisible()
+
+    // La limpieza la hace  en el afterAll, en una transaccion.
   })
 
   test('un vendedor no ve la ganancia de otro', async ({ page }) => {
