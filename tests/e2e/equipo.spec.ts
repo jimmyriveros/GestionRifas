@@ -28,11 +28,28 @@ function uniqueEmail(prefix: string): string {
 
 test.afterAll(async () => {
   const svc = serviceClient()
-  for (const email of created) {
-    const { data: profile } = await svc.from('profiles').select('id').eq('email', email).maybeSingle()
-    if (!profile) continue
-    await svc.from('memberships').delete().eq('profile_id', profile.id)
-    await svc.auth.admin.deleteUser(profile.id)
+
+  const { data: perfiles } = await svc.from('profiles').select('id').in('email', created)
+  const ids = (perfiles ?? []).map((fila) => fila.id)
+  if (ids.length === 0) return
+
+  // Los avisos que provocaron estas altas quedan en la bandeja del personal:
+  // se borran por la entidad, no por el destinatario (I-035).
+  const { data: membresias } = await svc.from('memberships').select('id').in('profile_id', ids)
+  const entidades = (membresias ?? []).map((fila) => fila.id)
+  if (entidades.length > 0) {
+    await svc.from('notifications').delete().in('entity_id', entidades)
+  }
+  await svc.from('notifications').delete().in('recipient_profile_id', ids)
+  await svc.from('seller_commissions').delete().in('seller_id', ids)
+
+  // Primero los INTEGRANTES y despues sus jefes: `memberships_parent_seller_fk`
+  // es `on delete restrict`, asi que borrar al jefe con equipo vivo falla.
+  await svc.from('memberships').delete().in('profile_id', ids).not('parent_seller_id', 'is', null)
+  await svc.from('memberships').delete().in('profile_id', ids)
+
+  for (const id of ids) {
+    await svc.auth.admin.deleteUser(id)
   }
 })
 
@@ -81,9 +98,9 @@ test.describe('El portal administrativo ve la estructura comercial', () => {
     page,
   }) => {
     const svc = serviceClient()
-    const email = uniqueEmail('admin-equipo')
+    const marca = Date.now().toString(36)
 
-    const { data: parent } = await svc
+    const { data: refSeller } = await svc
       .from('profiles')
       .select('id')
       .eq('email', ACCOUNTS.seller)
@@ -91,41 +108,60 @@ test.describe('El portal administrativo ve la estructura comercial', () => {
     const { data: pm } = await svc
       .from('memberships')
       .select('organization_id')
-      .eq('profile_id', parent!.id)
+      .eq('profile_id', refSeller!.id)
       .single()
 
-    const { data: created } = await svc.auth.admin.createUser({
-      email,
-      password: 'DesarrolloLocal2026',
-      email_confirm: true,
-      user_metadata: { full_name: 'Integrante Admin E2E', phone: '3002223344' },
-    })
-    await svc.from('memberships').insert({
-      organization_id: pm!.organization_id,
-      profile_id: created!.user!.id,
-      role: 'seller',
-      parent_seller_id: parent!.id,
-    })
+    /**
+     * Las TRES cuentas son de esta prueba, no del seed.
+     *
+     * Afirmar «Julian Vargas tiene 1 vendedor» dependía de que ninguna otra
+     * prueba le agregara gente — y otra de este mismo archivo lo hace. Con
+     * cuentas propias el resultado no depende del orden de ejecución (I-035).
+     */
+    const alta = async (nombre: string, padre: string | null) => {
+      const email = uniqueEmail(nombre.toLowerCase().replace(/\s+/g, '-'))
+      const { data: created } = await svc.auth.admin.createUser({
+        email,
+        password: 'DesarrolloLocal2026',
+        email_confirm: true,
+        user_metadata: { full_name: nombre, phone: '3002223344' },
+      })
+      await svc.from('memberships').insert({
+        organization_id: pm!.organization_id,
+        profile_id: created!.user!.id,
+        role: 'seller',
+        parent_seller_id: padre,
+      })
+      return created!.user!.id
+    }
+
+    const jefeNombre = `Jefe ${marca}`
+    const integranteNombre = `Integrante ${marca}`
+    const sueltoNombre = `Suelto ${marca}`
+
+    const jefeId = await alta(jefeNombre, null)
+    const integranteId = await alta(integranteNombre, jefeId)
+    await alta(sueltoNombre, null)
 
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/sellers')
 
-    const filaConEquipo = page.getByRole('row').filter({ hasText: 'Julian Vargas' })
+    const filaConEquipo = page.getByRole('row').filter({ hasText: jefeNombre })
     await expect(filaConEquipo.getByText('1 vendedor', { exact: true })).toBeVisible()
 
-    const filaIntegrante = page.getByRole('row').filter({ hasText: 'Integrante Admin E2E' })
-    await expect(filaIntegrante.getByText('Con Julian Vargas')).toBeVisible()
+    const filaIntegrante = page.getByRole('row').filter({ hasText: integranteNombre })
+    await expect(filaIntegrante.getByText(`Con ${jefeNombre}`)).toBeVisible()
 
-    const filaSuelta = page.getByRole('row').filter({ hasText: 'Laura Moreno' })
+    const filaSuelta = page.getByRole('row').filter({ hasText: sueltoNombre })
     await expect(filaSuelta.getByText('Sin equipo')).toBeVisible()
 
     // Y el detalle enlaza la jerarquía en las dos direcciones.
-    await page.goto(`/owner/sellers/${parent!.id}`)
+    await page.goto(`/owner/sellers/${jefeId}`)
     await expect(page.getByText('Equipo y comisión')).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Integrante Admin E2E' })).toBeVisible()
+    await expect(page.getByRole('link', { name: integranteNombre })).toBeVisible()
 
-    await page.goto(`/owner/sellers/${created!.user!.id}`)
-    await expect(page.getByRole('link', { name: 'Julian Vargas' }).first()).toBeVisible()
+    await page.goto(`/owner/sellers/${integranteId}`)
+    await expect(page.getByRole('link', { name: jefeNombre }).first()).toBeVisible()
   })
 })
 

@@ -43,11 +43,17 @@ export function TeamMemberList({
               <ActiveBadge isActive={member.isActive} />
             </div>
 
-            <dl className="mt-3 grid grid-cols-2 gap-3">
-              <Figure label="Boletas vendidas" value={String(member.ticketsAssigned)} />
-              <Figure label="Ya cobradas" value={String(member.ticketsPaid)} />
-              <Figure label="Total vendido" value={formatCOP(member.totalSold)} />
-              <Figure label="Falta por cobrar" value={formatCOP(member.pendingAmount)} />
+            {/*
+              «Cuántas lleva cobradas» NO se pinta aquí, aunque
+              `team_sales_summary` lo devuelva: lo dice la línea de ganancia, y
+              esa lo toma de `seller_commissions`, que es la fuente que gobierna
+              el dinero. Dos cálculos independientes del mismo número, a dos
+              centímetros uno del otro, es una contradicción esperando a pasar.
+            */}
+            <dl className="mt-3 grid grid-cols-3 gap-3">
+              <Figure label="Vendidas" value={String(member.ticketsAssigned)} />
+              <Figure label="Vendido" value={formatCOP(member.totalSold)} />
+              <Figure label="Por cobrar" value={formatCOP(member.pendingAmount)} />
             </dl>
 
             <TeamMemberEarnings commission={commissions.get(member.profileId)} />

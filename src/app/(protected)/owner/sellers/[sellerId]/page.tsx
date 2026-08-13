@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { ActiveBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getCommissionsBySeller, getCurrentCommissionRaffle } from '@/features/commissions/queries'
+import { getCommissionContext } from '@/features/commissions/queries'
 import { getSellerWithTotals } from '@/features/sellers/queries'
 import { listOrgMembers } from '@/features/users/queries'
 import { UserRowActions } from '@/features/users/components/UserRowActions'
@@ -26,11 +26,12 @@ export default async function SellerDetailPage({
   if (!seller) notFound()
 
   // Su lugar en la estructura comercial y lo que lleva ganado (BR-E08, BR-G12).
-  const [raffle, orgSellers] = await Promise.all([
-    getCurrentCommissionRaffle(),
+  const [comisiones, orgSellers] = await Promise.all([
+    getCommissionContext(),
     listOrgMembers(['seller']),
   ])
-  const commission = raffle ? ((await getCommissionsBySeller(raffle.id)).get(sellerId) ?? null) : null
+  const raffle = comisiones.raffle
+  const commission = comisiones.bySeller.get(sellerId) ?? null
 
   const team = orgSellers.filter((member) => member.parentSellerId === sellerId)
   const parent = seller.parentSellerId

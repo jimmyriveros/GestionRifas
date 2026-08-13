@@ -3,7 +3,7 @@ import { UsersIcon } from 'lucide-react'
 import { EmptyState } from '@/components/data/EmptyState'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
-import { getCurrentCommissionRaffle, getCommissionsBySeller } from '@/features/commissions/queries'
+import { getCommissionContext } from '@/features/commissions/queries'
 import { AddTeamMemberButton } from '@/features/team/components/AddTeamMemberButton'
 import { TeamMemberList } from '@/features/team/components/TeamMemberList'
 import { isTeamMember, listTeamWithTotals } from '@/features/team/queries'
@@ -20,19 +20,22 @@ import { formatCOP } from '@/lib/money'
 export default async function TeamPage() {
   const membership = await requireRole(['seller'])
 
-  const [belongsToTeam, raffle] = await Promise.all([
+  const [belongsToTeam, comisiones] = await Promise.all([
     isTeamMember(membership.profileId),
-    getCurrentCommissionRaffle(),
+    getCommissionContext(),
   ])
+  const raffle = comisiones.raffle
 
   // Ventas y ganancia, de LA MISMA rifa (BR-G04). Mezclar «vendidas en todas
   // las rifas» con «ganado en esta» daria dos cifras que no se pueden comparar.
-  const [members, commissions] = await Promise.all([
-    listTeamWithTotals(membership.profileId, raffle?.id),
-    raffle ? getCommissionsBySeller(raffle.id) : Promise.resolve(new Map()),
-  ])
+  const members = await listTeamWithTotals(membership.profileId, raffle?.id)
 
   const canAdd = !belongsToTeam
+  // Se suman aqui los totales que SQL ya calculo por integrante, igual que
+  // `listSellersWithTotals` suma sus filas por rifa. No es calcular dinero en el
+  // navegador —esto corre en el servidor y los sumandos vienen de la base—, y es
+  // correcto porque la lista no esta paginada: un equipo cabe entero. Si algun
+  // dia se pagina, estos dos totales tienen que pasar a SQL.
   const teamSales = members.reduce((total, member) => total + member.ticketsAssigned, 0)
   const teamCollected = members.reduce((total, member) => total + member.totalCollected, 0)
 
@@ -71,7 +74,7 @@ export default async function TeamPage() {
             <MetricCard label="Recaudado" value={formatCOP(teamCollected)} />
           </div>
 
-          <TeamMemberList members={members} commissions={commissions} />
+          <TeamMemberList members={members} commissions={comisiones.bySeller} />
         </>
       )}
     </div>

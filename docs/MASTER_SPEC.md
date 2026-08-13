@@ -236,10 +236,14 @@ compara vendedores (D-059, D-080 a D-085).
 ## 10. Fuera de alcance del MVP
 
 Pagos en línea · Portal de clientes · Integración con loterías · Sorteos automáticos · Números
-ganadores · WhatsApp · SMS · Facturación electrónica · Comisiones de vendedores · App móvil nativa ·
-Integraciones contables.
+ganadores · WhatsApp · SMS · Facturación electrónica · ~~Comisiones de vendedores~~ · App móvil
+nativa · Integraciones contables.
 
 Estas funciones **no** se construyen durante las fases 0 a 9.
+
+⚠️ **Las comisiones de vendedores salieron de esta lista el 2026-08-12**, por encargo explícito del
+dueño del producto y junto con los equipos de vendedores (D-091, D-094). Están implementadas y
+probadas; su regla vive en BR-G01..BR-G12. El resto de la lista sigue fuera de alcance.
 
 ---
 

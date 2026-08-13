@@ -5,7 +5,7 @@ import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
 import { ActiveBadge } from '@/components/data/StatusBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getCurrentCommissionRaffle, getCommissionsBySeller } from '@/features/commissions/queries'
+import { getCommissionContext } from '@/features/commissions/queries'
 import { TeamMemberSales } from '@/features/team/components/TeamMemberSales'
 import { getTeamMember, listTeamMemberSales } from '@/features/team/queries'
 import { requireRole } from '@/lib/auth/guards'
@@ -27,16 +27,14 @@ export default async function TeamMemberPage({
   const { sellerId } = await params
   const membership = await requireRole(['seller'])
 
-  const raffle = await getCurrentCommissionRaffle()
+  const comisiones = await getCommissionContext()
+  const raffle = comisiones.raffle
 
   const member = await getTeamMember(membership.profileId, sellerId, raffle?.id)
   if (!member) notFound()
 
-  const [sales, commissions] = await Promise.all([
-    listTeamMemberSales(sellerId),
-    raffle ? getCommissionsBySeller(raffle.id) : Promise.resolve(new Map()),
-  ])
-  const commission = commissions.get(sellerId) ?? null
+  const sales = await listTeamMemberSales(sellerId)
+  const commission = comisiones.bySeller.get(sellerId) ?? null
 
   return (
     <div className="space-y-6">
@@ -61,9 +59,10 @@ export default async function TeamMemberPage({
 
       <div>
         <h2 className="mb-3 text-lg font-semibold">Cómo va</h2>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {/* Cuántas lleva cobradas lo dice la tarjeta de ganancia, desde
+            `seller_commissions`: aquí se repetiría con otro origen. */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <MetricCard label="Boletas vendidas" value={member.ticketsAssigned} />
-          <MetricCard label="Ya cobradas" value={member.ticketsPaid} />
           <MetricCard label="Total vendido" value={formatCOP(member.totalSold)} />
           <MetricCard label="Falta por cobrar" value={formatCOP(member.pendingAmount)} />
         </div>

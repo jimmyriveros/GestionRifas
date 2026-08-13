@@ -7,11 +7,7 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CommissionCard } from '@/features/commissions/components/CommissionCard'
-import {
-  getCurrentCommissionRaffle,
-  getFirstTierRate,
-  getMyCommission,
-} from '@/features/commissions/queries'
+import { getCommissionContext, getFirstTierRate } from '@/features/commissions/queries'
 import { getSellerDashboard } from '@/features/dashboard/seller-queries'
 import { tourTarget } from '@/features/tour/tours'
 import { requireRole } from '@/lib/auth/guards'
@@ -23,16 +19,16 @@ import { ticketLabel } from '@/lib/tickets'
 export default async function SellerDashboardPage() {
   const membership = await requireRole(['seller'])
 
-  const [dashboard, raffle, firstTierRate] = await Promise.all([
+  const [dashboard, comisiones, firstTierRate] = await Promise.all([
     getSellerDashboard(),
-    getCurrentCommissionRaffle(),
+    getCommissionContext(),
     getFirstTierRate(),
   ])
   const { totals } = dashboard
 
   // La comision es por rifa (BR-G04): sin rifa activa no hay ninguna de la que
   // hablar, y la tarjeta explica la regla en vez de mostrar un cero enganoso.
-  const commission = raffle ? await getMyCommission(membership.profileId, raffle.id) : null
+  const commission = comisiones.bySeller.get(membership.profileId) ?? null
 
   return (
     <div className="space-y-6">
@@ -81,7 +77,7 @@ export default async function SellerDashboardPage() {
       <CommissionCard
         commission={commission}
         firstTierRate={firstTierRate}
-        raffleName={raffle?.name ?? null}
+        raffleName={comisiones.raffle?.name ?? null}
       />
 
       <CollectionSummaryCard

@@ -81,24 +81,45 @@ async function listCommissions(raffleId?: string): Promise<CommissionSummary[]> 
  * Y la pantalla dice de que rifa habla: con una sola es redundante, con varias
  * es la diferencia entre informar y confundir.
  */
-export async function getCurrentCommissionRaffle(): Promise<RaffleOption | null> {
+export type CommissionContext = {
+  /** De qué rifa hablan las cifras. `null` si no hay ninguna activa. */
+  raffle: RaffleOption | null
+  /** Comisión de cada vendedor visible EN ESA rifa, por id de vendedor. */
+  bySeller: Map<string, CommissionSummary>
+}
+
+/**
+ * Todo lo que una pantalla necesita para hablar de comisión, en dos consultas.
+ *
+ * Elegir la rifa y leer las cifras salen de la MISMA lectura: pedirlas por
+ * separado significaba llamar a `commission_summary` dos veces por pantalla
+ * —una para decidir y otra para mostrar— y nada garantizaba que las dos vieran
+ * lo mismo.
+ */
+export async function getCommissionContext(): Promise<CommissionContext> {
   const [rows, raffles] = await Promise.all([listCommissions(), listRaffleOptions()])
 
   const active = raffles.filter((raffle) => raffle.status === 'active')
-  if (active.length <= 1) return active[0] ?? null
 
-  const paidByRaffle = new Map<string, number>()
-  for (const row of rows) {
-    paidByRaffle.set(row.raffleId, (paidByRaffle.get(row.raffleId) ?? 0) + row.ticketsPaid)
+  let elegida: RaffleOption | null = active[0] ?? null
+  if (active.length > 1) {
+    const paidByRaffle = new Map<string, number>()
+    for (const row of rows) {
+      paidByRaffle.set(row.raffleId, (paidByRaffle.get(row.raffleId) ?? 0) + row.ticketsPaid)
+    }
+    elegida =
+      [...active].sort(
+        (a, b) =>
+          (paidByRaffle.get(b.id) ?? 0) - (paidByRaffle.get(a.id) ?? 0) ||
+          b.shortCode.localeCompare(a.shortCode),
+      )[0] ?? null
   }
 
-  return (
-    [...active].sort(
-      (a, b) =>
-        (paidByRaffle.get(b.id) ?? 0) - (paidByRaffle.get(a.id) ?? 0) ||
-        b.shortCode.localeCompare(a.shortCode),
-    )[0] ?? null
+  const bySeller = new Map<string, CommissionSummary>(
+    rows.filter((row) => row.raffleId === elegida?.id).map((row) => [row.sellerId, row]),
   )
+
+  return { raffle: elegida, bySeller }
 }
 
 /**
@@ -122,35 +143,12 @@ export async function getFirstTierRate(): Promise<number> {
 }
 
 /**
- * La comision de quien consulta, en la rifa indicada.
+ * Quien aparece en `bySeller` lo decide la RLS, no este archivo: un vendedor
+ * recibe lo suyo y lo de su equipo; el Dueño y el Administrador, lo de toda la
+ * organizacion (BR-G12). La misma lectura sirve al panel del vendedor, a «Mi
+ * equipo» y al portal administrativo.
  *
- * Devuelve `null` cuando todavia no tiene ninguna boleta pagada en esa rifa: no
- * hay fila que leer, y eso es distinto de tener cero por haberla perdido. La
- * pantalla lo trata como «aun no has cobrado ninguna boleta».
+ * Que un vendedor no tenga fila NO es lo mismo que tener cero: significa que
+ * todavia no ha cobrado ninguna boleta en esa rifa, y la pantalla lo dice con
+ * palabras en vez de pintar un importe.
  */
-export async function getMyCommission(
-  profileId: string,
-  raffleId: string,
-): Promise<CommissionSummary | null> {
-  const rows = await listCommissions(raffleId)
-  return rows.find((row) => row.sellerId === profileId) ?? null
-}
-
-/**
- * La comision de cada vendedor en una rifa, indexada por vendedor.
- *
- * Devuelve lo que quien consulta tiene derecho a ver, y eso lo decide la RLS:
- * un vendedor con equipo recibe el suyo y el de sus integrantes; el Dueño y el
- * Administrador, el de toda la organizacion (BR-G12). La misma consulta sirve a
- * «Mi equipo» y al portal administrativo.
- *
- * Acotada a UNA rifa a proposito: la comision es por rifa (BR-G04), asi que un
- * mapa por vendedor sin rifa mezclaria tramos de rifas distintas y mostraria un
- * numero que no significa nada.
- */
-export async function getCommissionsBySeller(
-  raffleId: string,
-): Promise<Map<string, CommissionSummary>> {
-  const rows = await listCommissions(raffleId)
-  return new Map(rows.map((row) => [row.sellerId, row]))
-}

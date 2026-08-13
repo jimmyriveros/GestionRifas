@@ -3,15 +3,15 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-08-10
-- **Estado global:** plan de 10 fases completado
+- **Actualizado:** 2026-08-12
+- **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso
 - **Fase siguiente:** ninguna autorizada
 
 ## Resumen de fases y mantenimiento
 
 | Clasificación | Estado actual |
 |---|---|
-| **Completada** | Fases 0 a 9 |
+| **Completada** | Fases 0 a 9, y el mantenimiento de equipos, avisos y comisiones (2026-08-12) |
 | **En curso** | Ninguna |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
@@ -843,3 +843,61 @@ anterior. En particular, un `db push` aislado no es el procedimiento autorizado.
 | 2026-08-09 | — | **Clientes opcionales en la importación CSV/JSON** (BR-N12, D-087), a petición del usuario y sin abrir fase. Si una fila incluye cliente, nombre y **celular son obligatorios juntos**; el archivo puede mezclar otras sin cliente y los formatos antiguos siguen iguales. Owner/Admin agrupa por nombre + celular normalizados, reutiliza solo una coincidencia activa/exacta/única de la cartera seleccionada y bloquea archivados, duplicados o el mismo celular con otro nombre. Seller conserva `pending_approval` sin cliente. Migración `0021`: vista previa acotada a cartera e importación transaccional que reutiliza `assign_ticket_row`; cliente, boletas, asignaciones y contador se revierten juntos. **+7 unitarias, +7 de base de datos y +1 E2E**: 293 unitarias ✅, 378 de base de datos ✅, **213 E2E ✅** y `verify` ✅. La primera corrida E2E quedó 212/213 por una frase antigua en la prueba; corregida, la spec pasó 9/9 y la repetición completa 213/213. `0021` se promovió al proyecto real el mismo día, con respaldo y verificaciones remotas; I-054 quedó resuelto y el push de `main` activó el despliegue coordinado. |
 | 2026-08-10 | — | **«Mis boletas» del vendedor deja de mostrar la rifa** (D-088), a petición del usuario y sin abrir fase nueva. El negocio operará una sola rifa, así que el filtro «Rifa» ofrecía una única opción y la columna «Rifa» repetía el mismo valor en todas las filas. Se ocultan los dos **solo en el portal del vendedor**, reutilizando el mecanismo que ya existía —`TicketFilters` oculta los selectores que no se le pasan, y `showRaffle` es el hermano de `showSeller` en `TicketsTable`—; «Ver seleccionadas» recibe la misma opción porque es la misma pantalla. El portal administrativo conserva filtro y columna, y la consulta sigue aceptando `raffleId` por la URL, de modo que un enlace guardado sigue filtrando y «Limpiar filtros» sabe quitarlo. Sin migraciones, sin cambios de esquema, RLS ni consultas. **+2 aserciones** en `seller-tickets.spec.ts`: 293 unitarias ✅, 378 de base de datos ✅, **213 E2E ✅** y `verify` ✅, más comprobación visual de las dos pantallas. En el mismo trabajo se corrigieron dos derivas documentales: el conteo de E2E (212 → 213) en `HANDOFF` §7 y `ARCHITECTURE` §2, y «las 20 migraciones» → 21 en `ARCHITECTURE` §11. **Publicado en producción el mismo día** con autorización expresa: `--dry-run` sin migraciones pendientes, CI 2/2, despliegue de Vercel `READY` sobre el SHA del commit y producción en HTTP 200. |
 | 2026-08-10 | — | **Flecha de volver en las pantallas de detalle** (BR-X09, D-089), a petición del usuario y sin abrir fase nueva. Un botón/enlace textual «Volver a…» —o, en 6 de 10 pantallas, ninguno— se reemplaza por una flecha junto al título, compartida vía `PageHeader backHref`. Prefiere el historial real de la sesión y no construye ningún sistema propio de filtros/scroll: como esos datos ya viven en la URL (§6.b de `HANDOFF`), `router.back()` los conserva solo. Cuando no hay pantalla anterior real —URL directa, pestaña nueva— cae en un destino de repuesto por entidad, sin salir nunca de la aplicación. Componentes nuevos: `BackButton` (mismo patrón de diana de 44 px que `SelectionCheckbox`, D-085) y `navigation-history.ts` (contador de variable de módulo, no `sessionStorage`: una prueba E2E propia del Caso E encontró que la versión con `sessionStorage` heredaba el historial del login al abrir un detalle por URL directa justo después de iniciar sesión). Sin migraciones, sin cambios de esquema, RLS ni consultas. **+2 specs E2E nuevos**: 293 unitarias ✅, 378 de base de datos ✅, **224 E2E ✅** (213 anteriores + 11 nuevas) y `verify` ✅. **Publicado en producción el mismo día** con autorización expresa: `--dry-run` sin migraciones pendientes, CI 2/2, despliegue de Vercel `READY` sobre el SHA del commit y producción en HTTP 200. |
+
+---
+
+## Mantenimiento post-9 — Equipos, avisos y comisiones ✅
+
+**2026-08-12.** Encargo completo del dueño del producto (`Equipo.txt`), ejecutado en sus doce fases.
+No es una fase del plan: es mantenimiento autorizado, sin etiqueta `fase-N` (§34.2).
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué quedó |
+|---|---|
+| **Equipos** | Cualquier vendedor puede formar el suyo. Un integrante **es** una membresía con rol `seller` y `parent_seller_id`; no hay rol ni entidad nueva (BR-E01). Dos niveles hoy, más sin rehacer el modelo |
+| **«Mi equipo»** | Siempre en el menú del vendedor, tenga equipo o no. Estado vacío que explica; alta por el **mismo** formulario y el **mismo** camino de invitación que el portal administrativo |
+| **Panel y detalle del equipo** | Totales del equipo, tarjeta por integrante y sus ventas. Un id ajeno responde «no encontrada», no «denegado» |
+| **Avisos** | Tabla `notifications` + campanita, **sin tiempo real**. Se avisa al agregar un integrante (al personal) y al venderse una boleta (al vendedor padre y al personal) |
+| **Comisiones** | Tramos retroactivos 1–20/21–30/31–50/51+ sobre boletas **cobradas**, motor derivado, ledger que cuadra, y tarjeta «Tu ganancia» que separa lo ganado de la proyección |
+| **Portal administrativo** | Quién tiene equipo, quién pertenece a uno y quién no; ganancia por vendedor; jerarquía enlazada en las dos direcciones |
+
+### 2. Pruebas ejecutadas
+
+Detalle completo, con los nueve errores encontrados y corregidos, en
+[`TEST_RESULTS.md`](TEST_RESULTS.md) § «Equipos, avisos y comisiones».
+
+| Comando | Resultado |
+|---|---|
+| `npm run test:db` | ✅ **429/429**, y **429/429 otra vez sobre la misma base** (independencia entre suites) |
+| `npm run verify` | ✅ typecheck · lint 0 errores · 299/299 unitarias · build |
+| `npx playwright test` | ✅ **242/242** tras `db:reset` + `seed:local` |
+
+### 3. Migraciones que existen
+
+| Migración | Qué hace |
+|---|---|
+| `0022_seller_teams.sql` | `parent_seller_id`, sus restricciones y su trigger; `current_team_seller_ids()`, `current_profile_leads_team()`; alta de integrantes por el vendedor; `team_sales_summary()` y `team_member_sales()`. **No toca `tickets_select`** (D-092) |
+| `0023_notifications.sql` | `notifications`, `notify_profiles()`, y los dos triggers que avisan. El texto **no** se guarda aquí (BR-E13) |
+| `0024_commissions.sql` | `commission_tiers`, `seller_commissions`, `commission_ledger`, `recalc_seller_commission()`, el trigger sobre `tickets` y `commission_summary()`. Incluye saldo de partida |
+
+⚠️ **Las tres están solo en local.** No se han promovido al proyecto real: exigen autorización
+explícita y respaldo previo (I-024, `RUNBOOK.md` §5).
+
+### 4. Variables de entorno requeridas
+
+Ninguna nueva.
+
+### 5. Problemas reales que permanecen
+
+| Problema | Impacto |
+|---|---|
+| Avisar al personal de **cada** venta puede ser mucho ruido en una rifa grande | El Dueño y el Administrador ya ven todas las ventas en su panel. Se implementó así porque el encargo lo pedía; quitarlo es una línea de `notify_ticket_sold` (D-093) |
+| No existe comisión del vendedor padre sobre las ventas de su equipo | Regla comercial **sin definir** por el dueño. La arquitectura queda lista; no se implementó nada |
+| Reasignar una boleta vendida sigue siendo imposible | Es del esquema, no de esta funcionalidad (nota de BR-G07). Si el negocio lo necesita, exige rediseñar la relación cliente–vendedor |
+
+### 6. Qué debe revisar el siguiente agente
+
+1. **`tickets_select` no se amplió, y es deliberado** (D-092). Si alguien la abre, media docena de pantallas del vendedor cambian de significado en silencio. La prueba `E1-10` existe para avisarlo.
+2. **El dinero no se acumula sumando eventos** (D-094): `recalc_seller_commission` recuenta. No escribas en el ledger a mano.
+3. Las tres migraciones **no están en producción**. Promoverlas exige respaldo previo y autorización.

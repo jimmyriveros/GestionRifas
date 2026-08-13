@@ -1927,6 +1927,11 @@ el primer momento.
    prueba que iba a demostrar el recálculo acabó demostrando —con la *service role*, saltándose RLS y
    funciones— que **ni siquiera por debajo de la aplicación** se puede.
 
+**El recuento está indexado, y se comprobó.** Cada cambio de estado de pago dispara un `count(*)`
+sobre las boletas de ese vendedor en esa rifa. Medido con 20.000 boletas: **índice
+`tickets_seller_raffle_status_idx`, 0,56 ms**. No hace falta índice nuevo; el que ya existía
+`(seller_id, raffle_id, inventory_status)` cubre exactamente ese filtro.
+
 **Alternativas.** (a) Acumular incrementos en el ledger y leer el saldo de su suma (descartada: es la
 que produce doble comisión bajo reintentos y no se autocorrige). (b) Calcular al vuelo sin estado
 materializado (descartada: sin fila que bloquear no hay forma de serializar dos ventas simultáneas del
