@@ -1693,3 +1693,39 @@ no esconder un fallo de verdad detrás de un reintento.
 | `test:db`, **10 pasadas seguidas** sobre la misma base | ✅ 457/457 en todas. Antes fallaba entre la segunda y la cuarta |
 | `commission-modes` aislado, 5 pasadas | ✅ 6/6 en todas |
 | `npm run verify` | ✅ typecheck · lint 0 errores · 309/309 · build |
+
+---
+
+## Retirada autorizada de los datos de prueba de un vendedor — 2026-08-14
+
+Petición explícita del dueño del producto: borrar los clientes y las boletas de
+`vendedor1@demo.test` (**Armando Gordillo**) en el proyecto real, por ser datos de demostración.
+No cambió código, esquema ni reglas del producto.
+
+**Lo que se comprobó antes de tocar nada.** Los datos eran, sin ambigüedad, el seed inicial: clientes
+Ana Torres, Carlos Díaz y Beatriz Rojas, códigos `R001-000001`–`R001-000006` y fecha de venta
+2026-08-03. Las seis boletas estaban **vendidas**, así que arrastraban dinero: se le explicó al dueño
+que el borrado se llevaba por delante 4 pagos ($310.000 asignados) y su comisión de $100.000, y lo
+autorizó con esa consecuencia a la vista. No era evitable: `payment_allocations.ticket_id` es
+`on delete restrict` y un pago sin sus asignaciones rompe el cuadre diferido.
+
+| Comando / verificación | Resultado | Nota |
+|---|---|---|
+| Inspección previa de dependencias cruzadas | ✅ | Las 5 asignaciones salen de sus propios pagos; 0 pagos suyos apuntan a boletas ajenas; 0 clientes suyos tienen pagos de otro vendedor |
+| Respaldo lógico externo | ✅ | `Rifas-backups/2026-08-14-antes-purgar-armando/`: 13 tablas con datos, **0** referencias a `auth`, **0** credenciales, y las seis boletas presentes en el volcado |
+| **Ensayo** en transacción `SERIALIZABLE` con `rollback` | ✅ | Mismo recuento que la ejecución real. Nada cambió |
+| Ejecución con `commit` | ✅ | 5 asignaciones · 4 pagos · 6 boletas · 3 clientes · 5 filas de ledger · 1 de comisión |
+| Verificación desde conexión **nueva** | ✅ | Armando en 0/0/0/0. Jaydin Fernando conserva sus 118 boletas y 44 clientes; Mateo Suárez sus 3 y 1 |
+| Integridad del dinero restante | ✅ | 0 asignaciones huérfanas, 0 sin boleta, 0 boletas con cliente fantasma, 0 ledger sin resumen |
+| Rastro en la bitácora | ✅ | 6 `ticket.delete` y 3 `client.delete` de los triggers de `0006`, más una fila `seller.purge_demo_data` que explica **por qué**, con el motivo y la ruta del respaldo |
+| `npm run verify:remote` | ✅ 13/13 | Las invariantes de seguridad y catálogo siguen en verde |
+| `https://gestion-rifas.vercel.app/login` | ✅ HTTP 200 | No hizo falta desplegar: no cambió código |
+
+**Dos detalles que conviene no confundir en el futuro.** (1) El orden importa: la comisión se borra
+**después** de las boletas, porque `tickets_sync_commission` se dispara `after delete` y volvería a
+escribirla; por eso el ledger pasó de 2 filas a 5 durante la transacción antes de quedar en 0.
+(2) Quedan tres boletas con códigos `R001-000001`–`R001-000003`, y **no son suyas**: los códigos
+internos son por organización, así que esas son de Mateo Suárez en «Rifas Control».
+
+La persona, su membresía, su cuenta y su equipo **no se tocaron**: Armando sigue activo y con Juan
+Hernández a su cargo.
