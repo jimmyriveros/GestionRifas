@@ -21,6 +21,12 @@ export type OrgMember = {
   createdAt: string
   /** Vendedor a cargo, si pertenece al equipo de alguien (BR-E01). */
   parentSellerId: string | null
+  /**
+   * Cuando configuro su contrasena. `null` = invitacion pendiente: la cuenta
+   * existe pero todavia no se puede usar (BR-E14). No es lo mismo que
+   * `isActive`, que dice si el personal le quito el acceso.
+   */
+  activatedAt: string | null
 }
 
 /**
@@ -34,7 +40,7 @@ export const MEMBER_SELECT = `
   is_active,
   created_at,
   parent_seller_id,
-  profile:profiles!memberships_profile_id_fkey ( id, full_name, alias, phone, email, is_active )
+  profile:profiles!memberships_profile_id_fkey ( id, full_name, alias, phone, email, is_active, activated_at )
 `
 
 export type MemberRow = {
@@ -50,6 +56,7 @@ export type MemberRow = {
     phone: string
     email: string
     is_active: boolean
+    activated_at: string | null
   } | null
 }
 
@@ -68,6 +75,7 @@ export function mapMember(row: MemberRow): OrgMember | null {
     email: row.profile.email,
     createdAt: row.created_at,
     parentSellerId: row.parent_seller_id,
+    activatedAt: row.profile.activated_at,
   }
 }
 

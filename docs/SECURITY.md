@@ -341,6 +341,22 @@ revela si existen.
 | `bulk_delete_tickets` | Owner / Admin | `is_org_staff`, estado sin vender, sin cliente, sin `sale_price`, sin ninguna asignación de pago. Motivo obligatorio |
 | `team_sales_summary` | Vendedor con equipo | Solo lee. **La autorización no es un parámetro**: el cuerpo filtra por `parent_seller_id = auth.uid()`, así que no existe forma de preguntar por un equipo ajeno (D-092) |
 | `team_member_sales` | Vendedor con equipo | Igual, y además acota a un integrante. Devuelve boleta y dinero, **nunca el cliente** (BR-E05) |
+| `team_update_member` | Vendedor padre | `team_member_guard`: el integrante es de **su** equipo y él sigue liderando uno. Escribe solo nombre, alias y celular. Autoriza el cambio de correo únicamente si `activated_at` es nulo y el correo está libre; **no lo escribe** (BR-E15, BR-E16) |
+| `team_confirm_email_change` | Vendedor padre | Igual, y vuelve a comprobar que la cuenta siga pendiente. Solo escribe en `audit_logs`, después de que Auth ya cambió (BR-E16, BR-E19) |
+| `team_delete_member` | Vendedor padre | Igual, más: cuenta nunca activada, sin boletas, sin clientes y sin pagos. Borra la membresía (BR-E17) |
+
+**Por qué las tres del equipo son funciones y no políticas (`0026`, D-097).** `authenticated` tiene
+`UPDATE` sobre **todas** las columnas de `profiles` (§4.5, `0009`/`0010`). Una política de escritura
+para el vendedor padre le habría dejado además reescribir `is_active` de un integrante —expulsarlo de
+la aplicación— o su `email` sin pasar por Auth. Por función el permiso es exactamente el pedido y ni
+una columna más; la prueba BD **E2-08** comprueba que el `UPDATE` directo sobre `profiles` sigue
+afectando cero filas. `team_member_guard` es interna: **no se concede a `authenticated`**.
+
+**El correo lo cambia Auth, no la base de datos.** `profiles.email` es una copia; la fuente de verdad
+es `auth.users` y el trigger `sync_profile_email` la propaga. Por eso el cambio necesita la service
+role desde el servidor (D-045) y la decisión de **si se puede** vive en la base, evaluada con
+`auth.uid()`. Que no queden dos invitaciones válidas lo garantiza el propio Auth al reinvitar a una
+cuenta sin confirmar, comprobado extremo a extremo en BD **E2-10**.
 
 Tres piezas internas (`assign_ticket_row`, `cancel_ticket_row`, `lock_ticket_batch`) **no se conceden
 a `authenticated`**: solo las ejecutan las funciones públicas, que son `SECURITY DEFINER` y corren con

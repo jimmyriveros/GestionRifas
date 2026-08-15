@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 import { purgeSellers, serviceClient, signedInClient } from './db-setup'
 import { ACCOUNTS, expectToast, loginAs, logout } from './fixtures'
@@ -564,5 +564,129 @@ test.describe('Mi equipo', () => {
 
     await expect(page.getByText('Formas parte del equipo de otro vendedor')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Agregar vendedor' })).toHaveCount(0)
+  })
+})
+
+/**
+ * Corregir un alta equivocada (BR-E14..BR-E18).
+ *
+ * Lo que se prueba aqui es lo que ve el vendedor padre: que la pantalla
+ * distinga «Invitación pendiente» de «Cuenta activa», y que ofrezca exactamente
+ * las acciones que corresponden a cada estado. Que la invitacion anterior quede
+ * invalidada de verdad se prueba contra Auth en
+ * `tests/db/team-member-lifecycle.test.ts` (BD E2-10): eso no se puede ver en
+ * una pantalla.
+ */
+test.describe('Corregir a un integrante', () => {
+  /** Agrega un integrante por la interfaz y entra a su detalle. */
+  async function agregarYAbrir(page: Page, nombre: string, email: string): Promise<void> {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/team')
+
+    await page.getByRole('button', { name: 'Agregar vendedor' }).first().click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('Nombre completo').fill(nombre)
+    await dialog.getByLabel('Teléfono').fill('3001234567')
+    await dialog.getByLabel('Correo electrónico').fill(email)
+    await dialog.getByRole('button', { name: 'Enviar invitación' }).click()
+
+    await expectToast(page, /Ya está en tu equipo/i)
+    await page.getByRole('link', { name: new RegExp(nombre) }).click()
+    await expect(page.getByRole('heading', { name: nombre })).toBeVisible()
+  }
+
+  test('quien no ha ingresado aparece como invitación pendiente, y se puede corregir', async ({
+    page,
+  }) => {
+    const email = uniqueEmail('pendiente-e2e')
+    await agregarYAbrir(page, 'Sofía Pendiente E2E', email)
+
+    await expect(page.getByText('Invitación pendiente').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Editar datos' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Eliminar vendedor' })).toBeVisible()
+
+    // El correo se puede corregir, y la pantalla avisa de la consecuencia justo
+    // cuando deja de ser el de siempre.
+    const nuevo = uniqueEmail('corregido-e2e')
+    await page.getByRole('button', { name: 'Editar datos' }).click()
+
+    const dialog = page.getByRole('dialog')
+    const campo = dialog.getByLabel('Correo electrónico')
+    await expect(campo).toBeEditable()
+    await expect(dialog.getByText(/el enlace anterior dejará de funcionar/i)).toHaveCount(0)
+
+    await campo.fill(nuevo)
+    await expect(dialog.getByText(/el enlace anterior dejará de funcionar/i)).toBeVisible()
+
+    await dialog.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, /Enviamos una invitación nueva/i)
+
+    // El de la ficha de contacto: el correo tambien aparece dentro del aviso de
+    // invitacion pendiente y del toast, y ahi va acompañado de mas texto.
+    await expect(page.getByText(nuevo, { exact: true })).toBeVisible()
+  })
+
+  test('quien ya ingresó tiene cuenta activa, correo bloqueado y sin eliminar', async ({
+    page,
+  }) => {
+    const svc = serviceClient()
+    const email = uniqueEmail('activo-e2e')
+
+    const { data: parent } = await svc
+      .from('profiles')
+      .select('id')
+      .eq('email', ACCOUNTS.seller)
+      .single()
+    const { data: parentMembership } = await svc
+      .from('memberships')
+      .select('organization_id')
+      .eq('profile_id', parent!.id)
+      .single()
+
+    // Creada CON contraseña: nace activada, como quien ya terminó de configurarse.
+    const { data: created } = await svc.auth.admin.createUser({
+      email,
+      password: 'DesarrolloLocal2026',
+      email_confirm: true,
+      user_metadata: { full_name: 'Marcos Activo E2E', phone: '3005551234' },
+    })
+    expect(created?.user, 'no se pudo crear la cuenta del integrante').toBeTruthy()
+    await svc.from('memberships').insert({
+      organization_id: parentMembership!.organization_id,
+      profile_id: created!.user!.id,
+      role: 'seller',
+      parent_seller_id: parent!.id,
+    })
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/team/${created!.user!.id}`)
+
+    await expect(page.getByText('Cuenta activa').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Eliminar vendedor' })).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Editar datos' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByLabel('Correo electrónico')).not.toBeEditable()
+
+    // Nombre, alias y celular siguen siendo suyos para corregir.
+    await dialog.getByLabel('Nombre completo').fill('Marcos Corregido E2E')
+    await dialog.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, /Datos actualizados/i)
+    await expect(page.getByRole('heading', { name: 'Marcos Corregido E2E' })).toBeVisible()
+  })
+
+  test('eliminar a un integrante pendiente lo saca del equipo', async ({ page }) => {
+    const email = uniqueEmail('eliminar-e2e')
+    await agregarYAbrir(page, 'Error de Dedo E2E', email)
+
+    await page.getByRole('button', { name: 'Eliminar vendedor' }).click()
+
+    const confirm = page.getByRole('alertdialog')
+    await expect(confirm.getByText(/dejará de funcionar/i)).toBeVisible()
+    await confirm.getByRole('button', { name: 'Eliminar vendedor' }).click()
+
+    await expectToast(page, /ya no está en tu equipo/i)
+    await page.waitForURL(/\/seller\/team$/)
+    await expect(page.getByText('Error de Dedo E2E')).toHaveCount(0)
   })
 })

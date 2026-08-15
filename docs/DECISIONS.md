@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.16 · **Actualizado:** 2026-08-10 (D-001 a D-089)
+- **Versión:** 1.17 · **Actualizado:** 2026-08-14 (D-001 a D-097)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -2015,6 +2015,92 @@ gana un campo «Cómo se le paga», para que el Dueño no tenga que deducir la r
 antes de saber que también cobran: habría escondido dinero que sí se debe). (b) Guardar la forma de
 pago en `seller_commissions` (descartada: es un hecho derivado de `parent_seller_id`, y duplicarlo
 crea dos fuentes que pueden discrepar).
+
+---
+
+## D-097 — «Activada» lo marca la aplicación, y corregir el correo rehace la invitación
+**Fase:** posterior a la 9 (mantenimiento, 2026-08-14). **Amplía D-091 y D-045.**
+
+**Contexto.** Un vendedor padre da de alta a alguien de su equipo escribiendo su correo a mano
+(BR-E04). Si se equivocaba —`gmial.com` por `gmail.com`— no había arreglo posible: `updateUser` nunca
+tocó el correo, ninguna política deja a un vendedor escribir el perfil de otro, y en este proyecto
+las personas no se borran (D-038). El alta quedaba muerta y con un correo ocupado para siempre.
+
+### 1. Qué significa «pendiente», y por qué no era deducible
+
+`memberships.is_active` y `profiles.is_active` ya existían, pero dicen otra cosa: «el personal le
+quitó el acceso». Un integrante recién invitado está **activo** y a la vez **sin cuenta utilizable**.
+No había ningún dato que los distinguiera, así que se agrega `profiles.activated_at` (nulo =
+invitación pendiente).
+
+**El primer diseño fue incorrecto y lo demostró una prueba.** La idea era copiar el hecho desde Auth
+con un trigger sobre `auth.users.encrypted_password`, igual que 0001 copia el correo: una cuenta
+invitada nace sin contraseña. La prueba BD **E2-02** falló a la primera y explicó por qué: **al
+verificar el enlace de la invitación, GoTrue escribe un hash aleatorio en `encrypted_password`**. Con
+ese criterio, abrir el correo activaba la cuenta — exactamente lo que el encargo prohibía («No bases
+esta lógica simplemente en si el usuario abrió el email»).
+
+Así que el momento lo marca la aplicación, que es la única que lo sabe con certeza:
+`mark_profile_activated()` se llama al terminar de definir la contraseña en `/reset-password` y al
+entrar con contraseña. La función no recibe argumentos y escribe donde `id = auth.uid()`: nadie puede
+marcar la cuenta de otro, y lo peor que puede hacer alguien llamándola a mano es declarar activada la
+suya, que es lo que la pantalla hace por él un segundo después.
+
+El *backfill* de la migración sí usa `encrypted_password`, y es correcto: para las cuentas que ya
+existían el criterio solo se equivoca en un sentido —dar por activado a quien abrió el enlace y nunca
+puso contraseña—, y ese error **quita** permisos al vendedor padre en vez de dar acceso a nadie.
+
+### 2. Corregir el correo: es Auth quien invalida la invitación anterior
+
+El requisito crítico era que no quedaran **dos invitaciones válidas a la vez**. Se comprobó
+empíricamente contra la instancia local antes de escribir nada:
+
+| Intento | Resultado |
+|---|---|
+| Cambiar el correo con `admin.updateUserById({ email })` y reenviar acceso con `resetPasswordForEmail` | ❌ El token de invitación original **sobrevive intacto**. El enlace enviado a la dirección equivocada seguía dando sesión, ya con el correo nuevo |
+| Cambiar el correo y volver a **invitar** con `inviteUserByEmail` | ✅ La cuenta sigue sin confirmar, así que Auth acepta la invitación y **reescribe el token en la misma ranura**. El enlace anterior pasa a «Email link is invalid or has expired» |
+
+Se eligió lo segundo, que además es el **mismo camino del alta** (`sendInvitation`, extraída de
+`inviteMember`): no hay una segunda forma de invitar a nadie. La alternativa —limpiar a mano
+`auth.users.confirmation_token` y `auth.one_time_tokens` desde una función `SECURITY DEFINER`— se
+descartó: funciona, pero ata el proyecto a las tablas internas de GoTrue y se rompería en silencio en
+una actualización. La garantía la da Auth, y la prueba **BD E2-10** recorre el camino entero —invitar,
+guardar el enlace, corregir, reinvitar, verificar los dos enlaces— para que una versión futura que
+deje de rotar el token haga fallar la suite en vez de abrir un agujero.
+
+**El orden y su deshacer.** Auth primero, invitación después, bitácora al final. Si el envío falla, el
+correo vuelve al anterior: dejarlo cambiado sin invitación válida sería una cuenta a la que nadie
+puede entrar y que nadie puede reparar, porque su correo ya no sería el que el vendedor padre
+recuerda. Es la misma compensación que `inviteMember` aplica desde D-045.
+
+**Y deshacer no deja ningún enlace suelto**, lo que también se comprobó en vez de suponerse. El único
+caso en que la bitácora falla por sí sola es la carrera que ella misma detecta —que la persona
+configure su contraseña justo en ese instante—, y **confirmar una cuenta invalida su token
+pendiente**: la invitación que acababa de salir a la dirección nueva queda inservible sin que la
+aplicación tenga que limpiarla. Por eso el camino de deshacer no necesita maquinaria extra.
+
+### 3. Por función, no por política
+
+Las tres operaciones nuevas (`team_update_member`, `team_confirm_email_change`, `team_delete_member`)
+son funciones `SECURITY DEFINER`, no políticas de RLS. El motivo es concreto: `authenticated` tiene
+`UPDATE` sobre **todas** las columnas de `profiles` (0009/0010), así que una política de escritura
+para el vendedor padre le habría permitido de paso reescribir `is_active` de un integrante —dejarlo
+fuera de la aplicación— o su correo sin pasar por Auth. Por función el permiso es exactamente el
+pedido y ni una columna más. Es el criterio de `assign_ticket` y `bulk_*`, y la prueba BD **E2-08**
+comprueba que la puerta directa a `profiles` sigue cerrada.
+
+### 4. Eliminar es el verbo de BR-B05, no un atajo para dar de baja
+
+`team_delete_member` borra físicamente, y solo un alta que nunca llegó a ser una cuenta: sin
+contraseña, sin boletas, sin clientes y sin pagos. A quien ya ingresó se le **desactiva**, y eso sigue
+siendo del personal (BR-U06, D-038). La cuenta de Auth la borra después la aplicación, y el perfil se
+va en cascada con cualquier invitación pendiente dentro (BD **E2-17**).
+
+**Alcance deliberado.** El encargo era el flujo del vendedor padre, y ahí se quedó: el portal
+administrativo no gana «eliminar» ni «cambiar correo». Lo que sí cambió es la etiqueta de estado de
+las personas —**«Invitación pendiente» / «Cuenta activa» / «Inactivo»**, en `constants.ts`—, porque
+`ActiveBadge` decía «Activo» de alguien que no había entrado nunca: dejarla habría hecho que dos
+pantallas del mismo producto se contradijeran.
 
 ---
 

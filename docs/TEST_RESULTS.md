@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **293 ✅** | **378 ✅** | **213 ✅** | ✅ | ✅ |
+| Post-9 vigente | **309 ✅** | **457 ✅** | **246 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -1569,3 +1569,69 @@ vigente de la rifa** (D-096, BR-G13..BR-G16). Migración `0025`.
 **Recálculo sobre datos reales, comprobado:** el único vendedor con boletas cobradas —sin equipo—
 pasó de `$40.000` (tramos) a **`$100.000`** (2 boletas × la mitad de $100.000), y
 `SUM(commission_ledger) = seller_commissions.earned` sigue cuadrando en producción.
+
+---
+
+## Corregir a un integrante pendiente (post-9) — 2026-08-14
+
+Encargo del dueño del producto (`Equipo.txt`): mientras un integrante no haya activado su cuenta, su
+vendedor padre puede corregirle los datos —**incluido el correo**— y eliminar el alta; después ya no.
+Migración `0026`, decisión **D-097**, reglas **BR-E14..BR-E19**.
+
+### Comprobaciones previas al diseño
+
+Antes de escribir código se sondeó la instancia local para responder la pregunta de la que dependía
+todo: **¿basta con cambiar el correo y reenviar para que el enlace anterior deje de servir?**
+
+| Sonda | Resultado |
+|---|---|
+| Invitar → `admin.updateUserById({ email })` → `resetPasswordForEmail` | ❌ `confirmation_token` **intacto**. El enlace enviado al correo equivocado **seguía dando sesión**, ya con el correo nuevo. Quedaban DOS enlaces válidos |
+| Invitar → `admin.updateUserById({ email })` → `inviteUserByEmail` | ✅ Auth reescribe el token en la misma ranura: el anterior pasa a «Email link is invalid or has expired» y solo funciona el nuevo |
+
+El diseño se construyó sobre el segundo, y la prueba **E2-10** lo recorre entero para que una versión
+futura de GoTrue que deje de rotar el token rompa la suite en vez de abrir un agujero.
+
+### Verificaciones ejecutadas
+
+| Comando | Resultado |
+|---|---|
+| `npm run test:db` | ✅ **457/457** (21 archivos; **22 nuevas** en `team-member-lifecycle.test.ts`) sobre base recién sembrada. Repetirlo es intermitente por un problema previo de aislamiento — ver la observación al final |
+| `npm run verify` | ✅ typecheck · lint **0 errores, 2 avisos preexistentes** · **309/309** unitarias (10 nuevas) · build |
+| `npx playwright test` | ✅ **246/246** (3 nuevas en `equipo.spec.ts`) |
+
+### Errores encontrados y corregidos
+
+| # | Error | Cómo se encontró | Corrección |
+|---|---|---|---|
+| 1 | **El primer diseño de «activada» era falso**: un trigger sobre `auth.users.encrypted_password` daba por activada la cuenta con solo **abrir** el correo | La prueba **E2-02**, escrita justo para esa condición del encargo, falló a la primera: GoTrue **escribe un hash aleatorio** al verificar el enlace de invitación | El momento lo marca la aplicación (`mark_profile_activated()`), llamada al definir la contraseña y al entrar con contraseña. El trigger se eliminó del diseño (D-097) |
+| 2 | `form.watch()` en `UserDialog` desactivaba la memorización del componente entero | `lint` — aviso nuevo `react-hooks/incompatible-library` | Se cambió por `useWatch`, que sí es memorizable. Vuelta a los 2 avisos preexistentes |
+| 3 | Un correo pegado **con un espacio al final** se rechazaba con «Ingresa un correo válido» | La prueba unitaria de normalización del esquema | `z.string().trim().toLowerCase().pipe(z.email())`: se limpia **antes** de validar. Afecta también al alta, y solo acepta más |
+| 4 | La nota de reversión de `0026` llevaba tilde y `catalog.test.ts` busca «Nota de reversion» | `test:db` — DB-15 | Se adoptó la convención existente del resto de migraciones |
+| 5 | **Dos pruebas E2E existentes afirmaban «Activo»** de cuentas recién invitadas | La suite completa, tras cambiar la etiqueta | `security.spec.ts` pasa a «Cuenta activa» (su vendedor es del seed, con contraseña). En `owner-users.spec.ts` la aserción era **incorrecta de raíz**: ese vendedor se acaba de crear por invitación, así que lo correcto es **«Invitación pendiente»** — el cambio de etiqueta lo dejó a la vista |
+| 6 | Una aserción nueva de E2E chocaba con el modo estricto: el correo aparece en tres sitios | La propia prueba | `{ exact: true }` para apuntar a la ficha de contacto, no al aviso ni al toast |
+
+### Observación registrada, no introducida por este trabajo
+
+Repetir `test:db` sobre la misma base falla de forma **intermitente**, y conviene decirlo con
+precisión porque contradice en parte lo que este documento venía afirmando.
+
+| Qué se hizo | Resultado |
+|---|---|
+| `db:reset` + `seed:local`, dos pasadas seguidas | ✅ 457/457 y 457/457 — dos veces que se intentó |
+| Otro `db:reset` + `seed:local`, dos pasadas seguidas | ⚠️ 457/457 y luego **11 fallos** |
+| Pasadas 3 y 4 **excluyendo** la suite nueva | ⚠️ Fallan igual (11 y 2 fallos) |
+| Solo la suite nueva y después `commission-modes` + `ticket-search` | ✅ 25/25 — la suite nueva **no** contamina |
+
+Dos causas, las dos de aislamiento entre suites y ninguna del producto:
+
+1. **El precio de la rifa compartida.** `payments.test.ts` lo sube a `250.000` y
+   `commission-modes.test.ts` a `120.000`, cada uno restaurándolo al terminar. Cuando algo se cruza,
+   otras pruebas leen el precio equivocado: `expected 60000 to be 50000` es exactamente la mitad de
+   `120.000` en vez de la mitad de `100.000`. Se comprobó que el estado **queda limpio** entre
+   pasadas (precio y tramos idénticos antes y después), así que no es residuo sino cruce.
+2. **Combinaciones sorteadas.** `randomNumbers()` sortea cuatro dígitos y con las boletas acumuladas
+   acaba chocando: `duplicate key value violates unique constraint "tickets_combo_unique"` revienta
+   un `beforeAll` y salta el archivo entero.
+
+**La primera pasada tras `db:reset && seed:local` siempre fue verde**, que es como se ejecuta en CI y
+como está documentado el arranque. Registrado como **I-057**.

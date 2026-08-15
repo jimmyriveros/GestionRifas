@@ -583,6 +583,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          activated_at: string | null
           alias: string | null
           created_at: string
           email: string
@@ -593,6 +594,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          activated_at?: string | null
           alias?: string | null
           created_at?: string
           email: string
@@ -603,6 +605,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          activated_at?: string | null
           alias?: string | null
           created_at?: string
           email?: string
@@ -1311,6 +1314,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_profile_activated: { Args: never; Returns: undefined }
       match_ticket_import_clients: {
         Args: { p_clients: Json; p_raffle_id: string; p_seller_id: string }
         Returns: {
@@ -1423,6 +1427,16 @@ export type Database = {
           weekly_number: string
         }[]
       }
+      team_confirm_email_change: {
+        Args: {
+          p_member_id: string
+          p_new_email: string
+          p_previous_email: string
+        }
+        Returns: undefined
+      }
+      team_delete_member: { Args: { p_member_id: string }; Returns: undefined }
+      team_member_guard: { Args: { p_member_id: string }; Returns: string }
       team_member_sales: {
         Args: { p_limit?: number; p_member_id: string }
         Returns: {
@@ -1446,6 +1460,19 @@ export type Database = {
           tickets_total: number
           total_collected: number
           total_sold: number
+        }[]
+      }
+      team_update_member: {
+        Args: {
+          p_alias: string
+          p_email?: string
+          p_full_name: string
+          p_member_id: string
+          p_phone: string
+        }
+        Returns: {
+          previous_email: string
+          rotate_invitation: boolean
         }[]
       }
       ticket_bulk_eligibility: {

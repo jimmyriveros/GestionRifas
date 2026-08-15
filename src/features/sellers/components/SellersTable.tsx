@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
-import { ActiveBadge } from '@/components/data/StatusBadge'
+import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import { UserRowActions } from '@/features/users/components/UserRowActions'
 import type { AppRole } from '@/lib/constants'
 import { formatCOP } from '@/lib/money'
@@ -54,7 +54,12 @@ export function SellersTable({
       {
         accessorKey: 'isActive',
         header: 'Estado',
-        cell: ({ row }) => <ActiveBadge isActive={row.original.isActive} />,
+        cell: ({ row }) => (
+          <AccountStatusBadge
+            isActive={row.original.isActive}
+            activatedAt={row.original.activatedAt}
+          />
+        ),
       },
       {
         id: 'team',

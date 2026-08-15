@@ -65,7 +65,11 @@ test.describe('Vendedores', () => {
     await page.getByRole('button', { name: 'Activar', exact: true }).click()
 
     await expectToast(page, 'Usuario activado.')
-    await expect(row.getByText('Activo')).toBeVisible()
+    // Recupera el acceso, pero sigue sin haber entrado nunca: se acaba de crear
+    // por invitación y nadie ha definido su contraseña. La etiqueta lo dice tal
+    // cual desde 0026 — antes ponía «Activo» y sugería una cuenta en uso (BR-E14).
+    await expect(row.getByText('Inactivo')).toHaveCount(0)
+    await expect(row.getByText('Invitación pendiente')).toBeVisible()
   })
 
   test('edita los datos de un vendedor', async ({ page }) => {

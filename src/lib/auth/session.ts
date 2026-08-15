@@ -13,6 +13,11 @@ export type ActiveMembership = {
   fullName: string
   email: string
   alias: string | null
+  /**
+   * Cuando configuro su contrasena (BR-E14). `null` = entro por un enlace de
+   * invitacion pero todavia no termino de configurar su cuenta.
+   */
+  activatedAt: string | null
 }
 
 /**
@@ -47,7 +52,7 @@ export const getActiveMembership = cache(async (): Promise<ActiveMembership | nu
       organization_id,
       role,
       is_active,
-      profile:profiles!memberships_profile_id_fkey ( full_name, email, alias, is_active ),
+      profile:profiles!memberships_profile_id_fkey ( full_name, email, alias, is_active, activated_at ),
       organization:organizations ( name, is_active )
     `,
     )
@@ -72,5 +77,6 @@ export const getActiveMembership = cache(async (): Promise<ActiveMembership | nu
     fullName: active.profile.full_name,
     email: active.profile.email,
     alias: active.profile.alias,
+    activatedAt: active.profile.activated_at,
   }
 })

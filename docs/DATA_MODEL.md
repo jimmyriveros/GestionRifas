@@ -145,10 +145,19 @@ CREATE TYPE payment_method      AS ENUM ('cash', 'transfer', 'other');
 | `phone` | `text` | `NOT NULL`, `CHECK (phone ~ '^[0-9+ ()-]{7,20}$')` |
 | `email` | `text` | `NOT NULL` — copia desnormalizada de `auth.users.email` para búsqueda |
 | `is_active` | `boolean` | `NOT NULL DEFAULT true` — desactivación global de la persona |
+| `activated_at` | `timestamptz` | `NULL` = **invitación pendiente**: nunca configuró su contraseña (`0026`, BR-E14) |
 | `created_at` / `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` |
 
-- Se crea automáticamente con un trigger `AFTER INSERT ON auth.users`.
+- Se crea automáticamente con un trigger `AFTER INSERT ON auth.users`. Si la cuenta nace **con**
+  contraseña (`auth.admin.createUser`, seed y pruebas), nace también con `activated_at`.
 - `email` se sincroniza con un trigger sobre `auth.users`; la fuente de verdad sigue siendo Auth.
+- `activated_at` **no** se deduce de `auth.users`: lo escribe `mark_profile_activated()` cuando la
+  persona termina de definir su contraseña o entra con una. GoTrue escribe un hash aleatorio en
+  `encrypted_password` con solo abrir el enlace de la invitación, así que esa columna no distingue
+  «abrió el correo» de «configuró su cuenta» (D-097, prueba BD E2-02). Índice parcial
+  `profiles_pending_activation_idx` para la única pregunta que se le hace: quién sigue pendiente.
+- `is_active` y `activated_at` responden cosas distintas y no se mezclan: la primera, «¿le quitaron
+  el acceso?»; la segunda, «¿llegó a tener cuenta?».
 
 ### 4.3 `memberships` (usuario × organización × rol)
 

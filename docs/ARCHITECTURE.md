@@ -416,6 +416,19 @@ errores, confirmaciones, estados vacíos, ayudas de formulario— se rige por
 | `partial` | Abonada |
 | `paid` | Pagada |
 
+**Estado de una persona** (`accountStatus()` + `ACCOUNT_STATUS_LABELS`, BR-E14). No sale de una sola
+columna: lo derivan `memberships.is_active` y `profiles.activated_at`, en este orden.
+
+| Situación | Etiqueta |
+|---|---|
+| `is_active` en falso | Inactivo |
+| Activo, `activated_at` nulo | Invitación pendiente |
+| Activo y con `activated_at` | Cuenta activa |
+
+Lo pinta `AccountStatusBadge`, que sustituyó a `ActiveBadge` en todas las pantallas que muestran
+personas: aquella decía «Activo» de alguien que nunca había entrado. `ActiveBadge` sigue existiendo
+para lo que de verdad es un interruptor y no tiene invitación de por medio.
+
 ### 8.4 Recorrido guiado (`src/features/tour/`)
 
 Onboarding por pantalla: resalta un elemento y lo explica en un globo. Sin librería de tours (D-074).

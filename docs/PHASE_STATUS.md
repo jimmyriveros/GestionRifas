@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-08-12
+- **Actualizado:** 2026-08-14
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso
 - **Fase siguiente:** ninguna autorizada
 
@@ -11,7 +11,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 
 | Clasificación | Estado actual |
 |---|---|
-| **Completada** | Fases 0 a 9, y el mantenimiento de equipos, avisos y comisiones (2026-08-12) |
+| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13) y corregir a un integrante pendiente (2026-08-14) |
 | **En curso** | Ninguna |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
@@ -902,3 +902,62 @@ Ninguna nueva.
 1. **`tickets_select` no se amplió, y es deliberado** (D-092). Si alguien la abre, media docena de pantallas del vendedor cambian de significado en silencio. La prueba `E1-10` existe para avisarlo.
 2. **El dinero no se acumula sumando eventos** (D-094): `recalc_seller_commission` recuenta. No escribas en el ledger a mano.
 3. Las tres migraciones **ya están en producción** (2026-08-13). Cualquier corrección sobre ellas exige una migración nueva: son inmutables.
+
+---
+
+## Mantenimiento post-9 — Corregir a un integrante pendiente ✅
+
+**2026-08-14.** Encargo del dueño del producto (`Equipo.txt`, segunda entrega). Mantenimiento
+autorizado, sin etiqueta `fase-N` (§34.2). Decisión **D-097**, reglas **BR-E14..BR-E19**.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué quedó |
+|---|---|
+| **Estado de la cuenta** | `profiles.activated_at` distingue **«Invitación pendiente»** de **«Cuenta activa»**. Lo marca la aplicación al definir la contraseña o al entrar con contraseña; **abrir el correo no activa nada** (BR-E14). Nada que ver con `is_active`, que sigue significando «le quitaron el acceso» |
+| **Etiqueta única** | `AccountStatusBadge` sustituye a `ActiveBadge` en todas las pantallas de personas —equipo, vendedores y usuarios—, para que dos pantallas no se contradigan. Textos en `constants.ts`, como las otras ocho |
+| **Corregir datos** | El vendedor padre corrige nombre, alias y celular de los integrantes de **su** equipo, siempre. Por función (`team_update_member`), no por política: `authenticated` tiene UPDATE sobre todas las columnas de `profiles` |
+| **Corregir el correo** | Solo mientras la invitación siga pendiente. Cambia en Auth, se reenvía la invitación —lo que **invalida la anterior**, garantía del propio Auth— y se anota en la bitácora. Si el envío falla, el correo vuelve al anterior (BR-E16) |
+| **Eliminar el alta** | Solo si nunca se activó y no tiene boletas, clientes ni pagos. Borra la membresía y la cuenta de Auth; el perfil y cualquier invitación pendiente se van en cascada (BR-E17, BR-E18). A quien ya entró se le **desactiva**, y eso sigue siendo del personal |
+| **En pantalla** | Aviso ámbar en el detalle del integrante pendiente, «Editar datos» y «Eliminar vendedor» según el estado, correo de solo lectura tras activar, y advertencia en el momento en que el correo deja de ser el de siempre |
+
+### 2. Pruebas ejecutadas
+
+Detalle, con los seis errores encontrados y corregidos y las dos sondas previas al diseño, en
+[`TEST_RESULTS.md`](TEST_RESULTS.md) § «Corregir a un integrante pendiente».
+
+| Comando | Resultado |
+|---|---|
+| `npm run test:db` | ✅ **457/457** (22 nuevas) sobre base recién sembrada. Repetirlo sin `db:reset` es intermitente por I-057, previo a este trabajo |
+| `npm run verify` | ✅ typecheck · lint 0 errores · **309/309** unitarias (10 nuevas) · build |
+| `npx playwright test` | ✅ **246/246** (3 nuevas) tras `db:reset` + `seed:local` |
+
+### 3. Migraciones que existen
+
+| Migración | Qué hace |
+|---|---|
+| `0026_team_member_lifecycle.sql` | `profiles.activated_at` con su backfill e índice parcial; `mark_profile_activated()`; `handle_new_auth_user` estampa la activación cuando la cuenta nace con contraseña; `team_member_guard()` (interna) y las tres funciones del vendedor padre: `team_update_member`, `team_confirm_email_change` y `team_delete_member` |
+
+⚠️ **Solo está en local.** No se ha aplicado al proyecto real; el frontend ya la usa, así que
+desplegar sin ella rompería «Mi equipo». Aplicar con autorización expresa y respaldo previo, siguiendo
+`RUNBOOK.md` §5.
+
+### 4. Variables de entorno requeridas
+
+Ninguna nueva.
+
+### 5. Problemas reales que permanecen
+
+| Problema | Impacto |
+|---|---|
+| **I-057** — `test:db` falla de forma intermitente al repetirlo sobre la misma base | Preexistente y reproducido sin la suite nueva: dos suites mueven el precio de la rifa compartida y `randomNumbers()` acaba chocando. La primera pasada tras `db:reset && seed:local` siempre fue verde |
+| **I-058** — el CSV de vendedores conserva «Activo» | Cosmético. Incluir «Invitación pendiente» exige devolver `activated_at` desde las funciones de reporte |
+| Quien abre el enlace y **no** define contraseña sigue contando como pendiente | Es lo que pidió el encargo, y significa que su vendedor padre podría corregirle el correo mientras esa persona tiene una sesión abierta. Ventana estrecha y sin pérdida de datos; la carrera con la activación sí está cerrada (BD E2-15) |
+| El portal administrativo **no** gana «eliminar» ni «cambiar correo» | Alcance deliberado: el encargo era el flujo del vendedor padre. El personal conserva exactamente lo que tenía (BR-E08) |
+
+### 6. Qué debe revisar el siguiente agente
+
+1. **`0026` no está en producción.** Es lo primero que hay que mirar antes de desplegar nada.
+2. **«Activada» no se puede deducir de `auth.users`** (D-097). GoTrue escribe un hash aleatorio en `encrypted_password` con solo abrir el enlace de la invitación; la prueba `E2-02` existe para que nadie vuelva a intentarlo.
+3. **Que no queden dos invitaciones válidas lo garantiza Auth**, al reinvitar a una cuenta sin confirmar (`sendInvitation`). La prueba `E2-10` recorre el camino entero: si una versión futura de GoTrue deja de rotar el token, falla ahí y no en producción.
+4. Las tres funciones del equipo son **funciones y no políticas** a propósito: `authenticated` tiene UPDATE sobre todas las columnas de `profiles`. La prueba `E2-08` comprueba que esa puerta sigue cerrada.

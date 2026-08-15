@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -58,6 +58,23 @@ export type CreateOverride = {
   success: (email: string) => string
 }
 
+/**
+ * Edicion con otro destino, mismo formulario. Gemelo de `CreateOverride`, y por
+ * el mismo motivo: el encargo pedia que no existieran dos formularios distintos
+ * para lo mismo.
+ *
+ * `emailEditable` es la unica diferencia real de comportamiento: mientras la
+ * invitacion siga pendiente, el correo se puede corregir (BR-E16). Es una
+ * comodidad de la interfaz, no una barrera —quien decide es
+ * `team_update_member`—, asi que la pantalla puede reflejarla sin cargar con la
+ * responsabilidad de defenderla.
+ */
+export type EditOverride = {
+  submit: (values: UserFormInput) => Promise<{ ok: true } | { error: string }>
+  emailEditable: boolean
+  description: string
+}
+
 type UserDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -66,6 +83,8 @@ type UserDialogProps = {
   user?: EditableUser
   /** Presente cuando el alta no es la del portal administrativo. */
   create?: CreateOverride
+  /** Presente cuando la edicion no es la del portal administrativo. */
+  edit?: EditOverride
 }
 
 /**
@@ -75,13 +94,13 @@ type UserDialogProps = {
  * dialogo: cada apertura empieza con valores frescos sin necesidad de
  * sincronizar estado con un efecto.
  */
-export function UserDialog({ open, onOpenChange, role, user, create }: UserDialogProps) {
+export function UserDialog({ open, onOpenChange, role, user, create, edit }: UserDialogProps) {
   const isEdit = user !== undefined
   const roleLabel = ROLE_LABELS[role].toLowerCase()
 
   const title = isEdit ? 'Editar datos' : (create?.title ?? `Nuevo ${roleLabel}`)
   const description = isEdit
-    ? 'El correo no se puede cambiar desde aquí.'
+    ? (edit?.description ?? 'El correo no se puede cambiar desde aquí.')
     : (create?.description ??
       'Se enviará una invitación por correo. La contraseña la define la propia persona.')
 
@@ -97,6 +116,7 @@ export function UserDialog({ open, onOpenChange, role, user, create }: UserDialo
           role={role}
           user={user}
           create={create}
+          edit={edit}
           onDone={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -108,17 +128,20 @@ function UserDialogForm({
   role,
   user,
   create,
+  edit,
   onDone,
 }: {
   role: ManageableRole
   user?: EditableUser
   create?: CreateOverride
+  edit?: EditOverride
   onDone: () => void
 }) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const isEdit = user !== undefined
+  const emailLocked = isEdit && edit?.emailEditable !== true
 
   const form = useForm<UserFormInput>({
     resolver: zodResolver(userFormSchema),
@@ -127,16 +150,31 @@ function UserDialogForm({
       : userFormDefaults,
   })
 
+  // El correo que se esta escribiendo, para avisar EN EL MOMENTO en que deja de
+  // ser el de siempre. Un aviso permanente se lee como decorado; uno que
+  // aparece justo al cambiar el dato se lee como lo que es.
+  //
+  // `useWatch` y no `form.watch()`: el segundo devuelve una funcion que el
+  // compilador de React no puede memorizar, y usarlo hacia que este componente
+  // dejara de memorizarse entero (aviso `react-hooks/incompatible-library`).
+  const emailValue = useWatch({ control: form.control, name: 'email' })
+  const emailChanged =
+    isEdit &&
+    edit?.emailEditable === true &&
+    emailValue.trim().toLowerCase() !== user.email.toLowerCase()
+
   function onSubmit(values: UserFormInput) {
     setServerError(null)
     startTransition(async () => {
       const result = user
-        ? await updateUser({
-            profileId: user.profileId,
-            fullName: values.fullName,
-            alias: values.alias,
-            phone: values.phone,
-          })
+        ? edit
+          ? await edit.submit(values)
+          : await updateUser({
+              profileId: user.profileId,
+              fullName: values.fullName,
+              alias: values.alias,
+              phone: values.phone,
+            })
         : create
           ? await create.submit(values)
           : await createUser({ ...values, role })
@@ -148,7 +186,9 @@ function UserDialogForm({
 
       toast.success(
         user
-          ? 'Datos actualizados.'
+          ? emailChanged
+            ? `Datos actualizados. Enviamos una invitación nueva a ${values.email}.`
+            : 'Datos actualizados.'
           : create
             ? create.success(values.email)
             : `Invitación enviada a ${values.email}. La persona definirá su contraseña desde el enlace.`,
@@ -229,13 +269,19 @@ function UserDialogForm({
                 <Input
                   type="email"
                   autoComplete="email"
-                  disabled={isPending || isEdit}
-                  readOnly={isEdit}
+                  disabled={isPending || emailLocked}
+                  readOnly={emailLocked}
                   {...field}
                 />
               </FormControl>
               {!isEdit ? (
                 <FormDescription>A esta dirección llegará la invitación.</FormDescription>
+              ) : null}
+              {emailChanged ? (
+                <p className="rounded-md bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                  Se enviará una invitación nueva a este correo y el enlace anterior dejará de
+                  funcionar.
+                </p>
               ) : null}
               <FormMessage />
             </FormItem>

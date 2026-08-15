@@ -32,13 +32,13 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
 | Último cambio funcional promovido | `4138d20` — **dos formas de pago de la comisión** (D-096), 2026-08-13; migración `0025` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
-| Punto de partida del último mantenimiento | `main` en `e8df01c`, igual a `origin/main`, con árbol limpio antes de implementar (2026-08-11) |
+| Punto de partida del último mantenimiento | `main` en `d5bc351`, con árbol limpio antes de implementar (2026-08-14) |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **25 migraciones en local y en el proyecto real.** `0022`–`0025` (equipos, avisos y comisiones, con sus DOS formas de pago) se promovieron y verificaron el 2026-08-13, con respaldo previo en `Rifas-backups/`. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **299 unitarias**, **435 de base de datos** y **243 E2E**, todas revalidadas el 2026-08-13; `verify` en verde. La suite de base de datos pasa **dos veces seguidas sobre la misma base**, que es como se comprueba que las suites no se contaminan. CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **26 migraciones en local, 25 en el proyecto real.** `0022`–`0025` se promovieron y verificaron el 2026-08-13, con respaldo previo en `Rifas-backups/`. ⚠️ **`0026` (corregir a un integrante pendiente) está SOLO en local** y el frontend ya la usa: desplegar sin aplicarla rompe «Mi equipo». **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **309 unitarias**, **457 de base de datos** y **246 E2E**, todas revalidadas el 2026-08-14; `verify` en verde. La suite de base de datos es fiable **en la primera pasada tras `db:reset && seed:local`**; repetirla sobre la misma base falla de forma intermitente por un problema de aislamiento entre suites anterior a este trabajo (I-057). CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -55,7 +55,20 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — equipos, avisos y comisiones (2026-08-13)
+## 1.a Último relevo significativo — corregir a un integrante pendiente (2026-08-14)
+
+| Campo | Estado |
+|---|---|
+| Resultado | Segunda entrega del encargo del dueño (`Equipo.txt`): mientras un integrante **no** haya activado su cuenta, su vendedor padre puede corregirle nombre, alias, celular y **correo**, y eliminar el alta; en cuanto entra, el correo queda bloqueado y «Eliminar» desaparece. Corregir el correo **invalida la invitación anterior**. Nueva etiqueta de estado de las personas: **«Invitación pendiente» / «Cuenta activa» / «Inactivo»**, aplicada también al portal administrativo para que dos pantallas no se contradigan. **Fuera a propósito:** el personal no gana «eliminar» ni «cambiar correo» — el encargo era el flujo del vendedor padre |
+| Archivos | Migración `0026`; `features/team/` (`actions.ts`, `schemas.ts`, `TeamMemberActions.tsx`, `TeamMemberList.tsx`), `features/users/` (`invite.ts` con `sendInvitation` extraída, `queries.ts`, `schemas.ts`, `UserDialog.tsx`, `UsersTable.tsx`), `features/auth/actions.ts`, `features/sellers/SellersTable.tsx`, `lib/auth/session.ts`, `lib/constants.ts`, `components/data/StatusBadge.tsx`, detalle del integrante y del vendedor. Pruebas: `tests/db/team-member-lifecycle.test.ts` (22), `tests/unit/account-status.test.ts` (10), `equipo.spec.ts` (3), y dos aserciones corregidas en `security.spec.ts` y `owner-users.spec.ts` |
+| Reutilización | El correo nuevo se envía por el **mismo** camino del alta: `sendInvitation`, extraída de `inviteMember` sin cambiarle el comportamiento. El diálogo de edición es el **mismo** `UserDialog`, con un `edit` override gemelo del `create` que ya existía. El esquema extiende `userFormSchema`; el mapeo de membresías sigue siendo uno solo |
+| Decisiones | **D-097**. Reglas BR-E14..BR-E19 |
+| Verificación | **457/457** de base de datos (base recién sembrada) · **246/246** E2E · `verify` en verde (309 unitarias). **Seis** errores encontrados y corregidos, y **dos sondas empíricas** contra Auth antes de diseñar nada, detalladas en `TEST_RESULTS.md` |
+| Advertencias | **1)** **`0026` está SOLO en local** y el frontend ya la usa: desplegar sin aplicarla rompe «Mi equipo». **2)** «Activada» **no** se deduce de `auth.users`: GoTrue escribe un hash aleatorio en `encrypted_password` con solo abrir el enlace (D-097); la prueba `E2-02` existe para que nadie lo reintente. **3)** Que no haya dos invitaciones válidas lo garantiza **Auth** al reinvitar a una cuenta sin confirmar, no una limpieza nuestra; la prueba `E2-10` recorre el camino entero. **4)** Las tres funciones del equipo son funciones y **no** políticas porque `authenticated` tiene UPDATE sobre **todas** las columnas de `profiles`; `E2-08` vigila esa puerta. **5)** `test:db` solo es fiable en la **primera** pasada tras `db:reset`; repetirlo falla de forma intermitente (I-057, preexistente y reproducido sin la suite nueva) |
+| Pendiente | Aplicar `0026` al proyecto real, con autorización expresa y respaldo previo. Verificación visual con sesión real en producción (un agente no inicia sesión allí) |
+| Git | Rama `main`, partiendo de `d5bc351` con el árbol limpio |
+
+## 1.a.0 Relevo anterior — equipos, avisos y comisiones (2026-08-13)
 
 | Campo | Estado |
 |---|---|
@@ -106,6 +119,8 @@ dueño, deuda aceptada y límites verificados; no deben describirse como si no e
 
 | Asunto | Qué hace falta |
 |---|---|
+| **Migración `0026` sin promover** | Aplicarla al proyecto real con autorización expresa y respaldo previo (`RUNBOOK.md` §5). **Es lo primero que hay que mirar antes de desplegar**: el frontend ya la usa |
+| **I-057** — `test:db` falla de forma intermitente al repetirlo | Que cada prueba de dinero use su propia rifa en vez de mover el precio de la compartida, y que los helpers reserven combinaciones libres. Preexistente; la primera pasada tras `db:reset` siempre fue verde |
 | **I-024** — plan Free sin backups automáticos ni PITR | Subir a Supabase Pro o automatizar el respaldo externo. **Prerrequisito antes de operar con dinero o clientes reales** (`RUNBOOK.md` §5.3) |
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
 | **I-023** — la URL permitida de Auth debe coincidir con la canónica de Vercel | Confirmar `https://gestion-rifas.vercel.app/**` en Vercel y Supabase antes de enviar invitaciones (`DEPLOYMENT.md` §2.1) |
@@ -411,7 +426,9 @@ RLS de quien consulta (D-057). Úsalas para cualquier agregado de pagos que nece
 ## 6.b REUSE → EXTEND → CREATE: qué reutilizar antes de escribir nada nuevo
 
 ```
-components/data/    DataTable · DataTablePagination · StatusBadge · EmptyState
+components/data/    DataTable · DataTablePagination · EmptyState
+                    StatusBadge: badges de boleta, rifa y AccountStatusBadge, que es
+                    el estado de una PERSONA (pendiente/activa/inactivo, BR-E14)
                     PageHeader (backHref = flecha de volver, D-089) · BackButton · MetricCard
 lib/navigation-history.ts  detecta si hay historial real en esta pestaña, para
                     BackButton. Contador de modulo, no sessionStorage (D-089)
@@ -432,7 +449,12 @@ features/team/      equipos de vendedores (D-091): queries.ts, actions.ts y las
                     v_seller_summary: van por team_sales_summary / team_member_sales,
                     porque `tickets_select` NO se amplio (D-092)
 features/users/invite.ts  invitacion por correo + membresia bajo RLS. UN solo camino
-                    para crear un vendedor, lo cree el personal o su vendedor padre
+                    para crear un vendedor, lo cree el personal o su vendedor padre.
+                    sendInvitation() es ademas lo que INVALIDA una invitacion
+                    anterior al corregir un correo: reinvitar rota el token (D-097)
+features/users/components/UserDialog  UN formulario para el alta Y la edicion, en los
+                    dos portales. Se parametriza con `create` o `edit` (que decide si
+                    el correo se puede corregir), no se bifurca
 features/commissions/  comision (D-094/D-095): TODO sale de commission_summary,
                     ninguna pantalla suma ni decide tramos. getCurrentCommissionRaffle()
                     elige de que rifa se habla, y la pantalla lo dice
@@ -616,3 +638,7 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Vas a tocar algo de comisiones | El importe **no se acumula sumando eventos**: es `n × tarifa(n)` recalculado. Si añades un camino que cambie el estado de pago de una boleta, no escribas ledger a mano — deja que el trigger `tickets_sync_commission` recuente | D-094 |
 | Una prueba de comisiones falla con un total que no cuadra | Comprueba primero la invariante `SUM(commission_ledger) = seller_commissions.earned`. Si esa cuadra, el error está en la expectativa de la prueba, no en el motor | BR-G10 |
 | Una prueba tuya le monta equipo a `vendedor1` o `vendedor2` | No lo hagas: son cuentas compartidas y `phase3-admin` comprueba a quién ve un vendedor. Crea tu propio vendedor padre en la suite, o el resultado dependerá del orden de ejecución | I-035 |
+| Quieres saber si alguien «ya activó su cuenta» y miras `auth.users` | No hay forma de deducirlo ahí. GoTrue **escribe un hash aleatorio** en `encrypted_password` al verificar el enlace de la invitación, así que esa columna dice «abrió el correo», no «configuró su cuenta». El dato vive en `profiles.activated_at` y lo marca la aplicación | D-097 · BD `E2-02` |
+| Cambias el correo de una cuenta invitada y crees que el enlace anterior murió | No murió. Cambiar el correo **no toca** `confirmation_token`: el enlace viejo sigue dando sesión, ya con el correo nuevo. Lo que sí lo invalida es **volver a invitar** —Auth reescribe el token en la misma ranura—, y por eso el cambio de correo pasa siempre por `sendInvitation` | D-097 · BD `E2-10` |
+| Vas a dejar que un rol escriba en `profiles` con una política | `authenticated` tiene `UPDATE` sobre **todas** sus columnas (`0009`/`0010`): la política le daría de paso `is_active` y `email`. Usa una función `SECURITY DEFINER` que escriba solo lo que toca | D-097 · BD `E2-08` |
+| `test:db` empieza a fallar en archivos que no tocaste | ¿Estás repitiéndolo sin `db:reset`? Dos suites mueven el **precio de la rifa compartida** para probar recálculos, y al cruzarse otras leen un precio que no es el suyo; además `randomNumbers()` acaba chocando con las boletas acumuladas. Reinicia la base y siembra | I-057 |

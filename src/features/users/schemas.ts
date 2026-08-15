@@ -33,7 +33,11 @@ export const userFormSchema = z.object({
   fullName,
   alias,
   phone,
-  email: z.email('Ingresa un correo válido.').trim().toLowerCase(),
+  // Se limpia ANTES de validar. Escrito al reves —`z.email().trim()`— un correo
+  // pegado con un espacio al final se rechazaba con «Ingresa un correo válido»,
+  // que es un mensaje que no ayuda a arreglar nada. Importa sobre todo al
+  // CORREGIR un correo mal escrito (BR-E16): ahi la gente pega, no teclea.
+  email: z.string().trim().toLowerCase().pipe(z.email('Ingresa un correo válido.')),
 })
 export type UserFormInput = z.infer<typeof userFormSchema>
 

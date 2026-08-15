@@ -48,27 +48,52 @@ function siteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL ?? ''
 }
 
+/** Los datos que la invitacion deja en Auth para que el trigger arme el perfil. */
+type InvitationMetadata = {
+  full_name: string
+  alias: string | null
+  phone: string
+}
+
+/**
+ * El envio de la invitacion, aislado porque lo usan DOS momentos distintos: el
+ * alta y la CORRECCION del correo de una invitacion pendiente (BR-E16).
+ *
+ * Que la correccion pase por aqui no es solo higiene. Volver a invitar a una
+ * cuenta sin confirmar reescribe el token en la misma ranura de Auth, de modo
+ * que el enlace anterior deja de servir en el acto: es Auth quien garantiza que
+ * nunca haya dos invitaciones validas a la vez, no una limpieza nuestra
+ * (D-097). Si esta llamada cambiara, esa garantia cambiaria con ella.
+ */
+export async function sendInvitation(
+  email: string,
+  metadata: InvitationMetadata,
+): Promise<{ profileId: string } | { error: string }> {
+  const admin = createAdminClient()
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: metadata,
+    redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
+  })
+
+  if (error || !data?.user) {
+    return { error: mapPgError(error) }
+  }
+
+  return { profileId: data.user.id }
+}
+
 export async function inviteMember(input: InviteMemberInput): Promise<ActionResult> {
   const { organizationId, invitedBy, role, values, parentSellerId } = input
 
+  const invited = await sendInvitation(values.email, {
+    full_name: values.fullName,
+    alias: values.alias === '' ? null : values.alias,
+    phone: values.phone,
+  })
+  if ('error' in invited) return invited
+
   const admin = createAdminClient()
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
-    values.email,
-    {
-      data: {
-        full_name: values.fullName,
-        alias: values.alias === '' ? null : values.alias,
-        phone: values.phone,
-      },
-      redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
-    },
-  )
-
-  if (inviteError || !invited?.user) {
-    return { error: mapPgError(inviteError) }
-  }
-
-  const profileId = invited.user.id
+  const profileId = invited.profileId
 
   const supabase = await createClient()
   const { error: membershipError } = await supabase.from('memberships').insert({

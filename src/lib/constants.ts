@@ -68,6 +68,35 @@ export const TICKET_PAYMENT_STATUS_LABELS: Record<TicketPaymentStatus, string> =
   paid: 'Pagada',
 }
 
+/**
+ * Estado de la cuenta de una persona (BR-E14).
+ *
+ * No se deriva de un solo dato, y por eso vive aqui y no en la base:
+ *
+ *   inactive -> el personal le quito el acceso (`is_active`).
+ *   pending  -> la invitacion sigue sin usarse; nunca configuro su contrasena.
+ *   active   -> puede entrar.
+ *
+ * «Invitación pendiente» y «Cuenta activa» son las palabras que pidio el
+ * encargo y estan en el glosario (UX_COPY_GUIDELINES, Anexo A). Cambiarlas es
+ * cambiar este archivo, como las otras ocho etiquetas de estado (CLAUDE.md §27).
+ */
+export type AccountStatus = 'active' | 'pending' | 'inactive'
+
+export const ACCOUNT_STATUS_LABELS: Record<AccountStatus, string> = {
+  active: 'Cuenta activa',
+  pending: 'Invitación pendiente',
+  inactive: 'Inactivo',
+}
+
+export function accountStatus(member: {
+  isActive: boolean
+  activatedAt: string | null
+}): AccountStatus {
+  if (!member.isActive) return 'inactive'
+  return member.activatedAt === null ? 'pending' : 'active'
+}
+
 export const RAFFLE_STATUS_LABELS: Record<RaffleStatus, string> = {
   draft: 'Borrador',
   active: 'Activa',

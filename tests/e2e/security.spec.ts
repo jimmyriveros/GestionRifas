@@ -361,7 +361,11 @@ test.describe('Sesión de usuario desactivado (BR-A04, prueba 2)', () => {
     await fila.getByRole('button', { name: `Acciones para ${NOMBRE}` }).click()
     await page.getByRole('menuitem', { name: accion }).click()
     await page.getByRole('button', { name: accion, exact: true }).click()
-    await expect(fila.getByText(accion === 'Desactivar' ? 'Inactivo' : 'Activo')).toBeVisible()
+    // «Cuenta activa», no «Activo»: desde 0026 la etiqueta distingue a quien
+    // todavía no ha entrado nunca de quien sí (BR-E14).
+    await expect(
+      fila.getByText(accion === 'Desactivar' ? 'Inactivo' : 'Cuenta activa'),
+    ).toBeVisible()
   }
 
   test('desactivar a un vendedor invalida la sesión que ya tenia abierta', async ({

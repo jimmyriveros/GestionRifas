@@ -3,9 +3,10 @@ import { notFound } from 'next/navigation'
 import { EmptyState } from '@/components/data/EmptyState'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
-import { ActiveBadge } from '@/components/data/StatusBadge'
+import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getCommissionContext } from '@/features/commissions/queries'
+import { TeamMemberActions } from '@/features/team/components/TeamMemberActions'
 import { TeamMemberSales } from '@/features/team/components/TeamMemberSales'
 import { getTeamMember, listTeamMemberSales } from '@/features/team/queries'
 import { requireRole } from '@/lib/auth/guards'
@@ -42,7 +43,15 @@ export default async function TeamMemberPage({
         title={member.fullName}
         description={member.alias ?? 'Vendedor de tu equipo'}
         backHref="/seller/team"
+        actions={<TeamMemberActions member={member} />}
       />
+
+      {member.activatedAt === null ? (
+        <p className="rounded-lg border border-amber-300 bg-amber-100 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          Le enviamos la invitación a {member.email} y todavía no ha creado su contraseña. Mientras
+          tanto puedes corregir sus datos o eliminar el vendedor.
+        </p>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -52,7 +61,7 @@ export default async function TeamMemberPage({
           <Field label="Teléfono">{member.phone}</Field>
           <Field label="Correo">{member.email}</Field>
           <Field label="Estado">
-            <ActiveBadge isActive={member.isActive} />
+            <AccountStatusBadge isActive={member.isActive} activatedAt={member.activatedAt} />
           </Field>
         </CardContent>
       </Card>

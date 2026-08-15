@@ -4,7 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
-import { ActiveBadge } from '@/components/data/StatusBadge'
+import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { ROLE_LABELS, type AppRole } from '@/lib/constants'
 import { formatDateEs } from '@/lib/dates'
@@ -53,7 +53,12 @@ export function UsersTable({ members, currentRole, currentProfileId }: UsersTabl
       {
         accessorKey: 'isActive',
         header: 'Estado',
-        cell: ({ row }) => <ActiveBadge isActive={row.original.isActive} />,
+        cell: ({ row }) => (
+          <AccountStatusBadge
+            isActive={row.original.isActive}
+            activatedAt={row.original.activatedAt}
+          />
+        ),
       },
       {
         accessorKey: 'createdAt',

@@ -354,6 +354,9 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Marcar varias boletas para trabajar con todas a la vez | **Seleccionar** | Marcar, elegir, tildar |
 | Quitar el acceso a una persona | **Desactivar** | Eliminar, borrar, dar de baja |
 | Sacar un cliente del listado sin perder su historial | **Archivar** | Eliminar, ocultar, borrar |
+| Cuenta creada a la que su dueña todavía no ha entrado | **Invitación pendiente** | Pendiente de activación, sin confirmar, inactivo |
+| Cuenta cuya dueña ya configuró su contraseña | **Cuenta activa** | Activado, confirmado, verificado |
+| Correo con el enlace para crear la contraseña | **Invitación** | Enlace mágico, token, activación |
 
 **Cómo se nombra una boleta en pantalla:** por sus **dos números**, «1234 / 5678» (BR-N11). El
 **código interno** es información administrativa: aparece solo dentro del detalle de la boleta y
@@ -380,9 +383,17 @@ alta a un vendedor de la organización sigue siendo **invitar** o **nuevo vended
 distintas hechas por personas distintas, y por eso conservan verbos distintos.
 
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
-aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada.
-Fuente única: `src/lib/constants.ts` (`docs/ARCHITECTURE.md` §8.3). Cambiar una etiqueta significa
-cambiar ese archivo, nunca escribirla suelta en una pantalla.
+aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
+las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**. Fuente única:
+`src/lib/constants.ts` (`docs/ARCHITECTURE.md` §8.3). Cambiar una etiqueta significa cambiar ese
+archivo, nunca escribirla suelta en una pantalla.
+
+**«Invitación pendiente» no es «Inactivo», y la diferencia importa** (BR-E14). *Inactivo* significa
+que alguien le quitó el acceso a esa persona; *invitación pendiente*, que todavía no ha entrado
+ninguna vez. Se ven parecidos en pantalla y no lo son: mientras la invitación esté pendiente, quien
+la agregó puede corregirle el correo o eliminar el alta, y en cuanto entra ya no. Llamar «Inactivo» a
+un integrante recién agregado —que es lo que hacía la aplicación antes de 2026-08-14— sugería un
+castigo donde solo había una espera.
 
 ## Anexo B — Dónde vive cada texto
 

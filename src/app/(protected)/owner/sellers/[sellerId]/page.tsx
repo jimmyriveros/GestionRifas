@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
-import { ActiveBadge } from '@/components/data/StatusBadge'
+import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getCommissionContext } from '@/features/commissions/queries'
@@ -61,7 +61,7 @@ export default async function SellerDetailPage({
           <Field label="Correo">{seller.email}</Field>
           <Field label="Teléfono">{seller.phone}</Field>
           <Field label="Estado">
-            <ActiveBadge isActive={seller.isActive} />
+            <AccountStatusBadge isActive={seller.isActive} activatedAt={seller.activatedAt} />
           </Field>
           <Field label="Alta">{formatDateEs(seller.createdAt)}</Field>
         </CardContent>

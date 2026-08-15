@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { ActiveBadge } from '@/components/data/StatusBadge'
+import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import type { CommissionSummary } from '@/features/commissions/queries'
 import { formatCOP } from '@/lib/money'
 
@@ -40,7 +40,7 @@ export function TeamMemberList({
                   <p className="text-muted-foreground truncate text-sm">{member.alias}</p>
                 ) : null}
               </div>
-              <ActiveBadge isActive={member.isActive} />
+              <AccountStatusBadge isActive={member.isActive} activatedAt={member.activatedAt} />
             </div>
 
             {/*

@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.3 · **Estado:** normativo · **Actualizado:** 2026-08-10
+- **Versión:** 1.4 · **Estado:** normativo · **Actualizado:** 2026-08-14
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -77,6 +77,12 @@ La diferencia entre un vendedor con equipo y uno sin equipo es solo que el prime
 | BR-E11 | **Se avisa cuando alguien agrega un vendedor a su equipo.** Destinatarios: el Dueño y los Administradores. El primero de un equipo se cuenta distinto del resto («armó su equipo» / «agregó a»). | D | post-9 |
 | BR-E12 | **Se avisa cuando se vende una boleta.** Destinatarios: el vendedor padre de quien vendió, si lo tiene, y el Dueño y los Administradores. A quien vende **no** se le avisa su propia venta. | D | post-9 |
 | BR-E13 | El **texto** de un aviso no se guarda en la base de datos: se guarda qué pasó y con qué datos, y la frase la arma la aplicación (I-030, D-093). | S | post-9 |
+| BR-E14 | Una cuenta está **activada** cuando su dueña configuró su contraseña, y eso lo marca la aplicación en `profiles.activated_at`. **Abrir el enlace de la invitación no activa nada**, aunque Auth dé el correo por confirmado y escriba un hash en `encrypted_password` (D-097). `activated_at` nulo = **invitación pendiente**, que es distinto de `is_active`: aquello dice si el personal le quitó el acceso. | S, D | post-9 |
+| BR-E15 | El vendedor padre puede corregir **nombre, alias y celular** de los integrantes de **su** equipo, siempre, esté la cuenta pendiente o activa. Se hace por función (`team_update_member`), no por política: `authenticated` tiene UPDATE sobre todas las columnas de `profiles`, así que abrirla habría dejado además reescribir `is_active` de un integrante. | S, D | post-9 |
+| BR-E16 | El **correo** solo se corrige mientras la invitación siga pendiente. Corregirlo obliga a rehacer la invitación, y la anterior queda **invalidada**: nunca hay dos válidas a la vez. Una vez activada la cuenta, el correo es de solo lectura para todos —es la credencial de esa persona—. Si el envío falla, el correo vuelve al anterior. | C, S, D | post-9 |
+| BR-E17 | El vendedor padre puede **eliminar** un alta equivocada de su equipo: solo si nunca se activó y no tiene boletas, clientes ni pagos. Es el mismo verbo acotado de BR-B05, no un atajo para dar de baja: a quien ya ingresó se le **desactiva**, y eso sigue siendo del personal (BR-U06, D-038). | C, S, D | post-9 |
+| BR-E18 | Eliminar borra la membresía y la cuenta de Auth; el perfil se va en cascada y con él cualquier invitación pendiente. No queda ningún enlace utilizable. | S, D | post-9 |
+| BR-E19 | Corregir datos, cambiar de correo y eliminar quedan en `audit_logs` con el vendedor padre como actor (`user.update`, `user.email_change`, `user.delete`). El cambio de correo se anota **después** de ocurrir, nunca al autorizarlo. | D | post-9 |
 
 **Por qué la excepción de BR-E05 es tan estrecha.** Abrir la RLS es la parte irreversible de esta
 funcionalidad: una vez que un rol ve una fila, cualquier pantalla —incluidas las que nadie ha escrito
@@ -84,6 +90,13 @@ todavía— puede enseñarla. Por eso ninguna política de `tickets`, `clients` 
 ventas del equipo se leen por dos funciones que solo saben responder por el equipo de quien llama
 (D-092). Un vendedor padre puede responder «cuánto vendió Pedro», no «a quién se lo vendió» ni «cuánto
 dinero recogió», y su propio «Mis boletas» sigue siendo exactamente el suyo.
+
+**Por qué «activada» no se puede deducir de `auth.users` (BR-E14).** El primer diseño miraba
+`encrypted_password`, porque una cuenta invitada nace sin contraseña. La prueba BD E2-02 lo desmontó:
+al verificar el enlace de la invitación, GoTrue **escribe un hash aleatorio** en esa columna, así que
+con ese criterio bastaba abrir el correo para quedar activado —justo lo que el encargo prohibía—.
+El momento lo marca la aplicación, que es la única que lo sabe: al terminar de definir la contraseña
+en `/reset-password` y al entrar con contraseña (D-097).
 
 ---
 

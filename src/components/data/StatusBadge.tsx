@@ -1,8 +1,11 @@
 import { Badge } from '@/components/ui/badge'
 import {
+  accountStatus,
+  ACCOUNT_STATUS_LABELS,
   RAFFLE_STATUS_LABELS,
   TICKET_INVENTORY_STATUS_LABELS,
   TICKET_PAYMENT_STATUS_LABELS,
+  type AccountStatus,
   type RaffleStatus,
   type TicketInventoryStatus,
   type TicketPaymentStatus,
@@ -76,6 +79,40 @@ export function ActiveBadge({ isActive }: { isActive: boolean }) {
       className={cn(BASE, isActive ? RAFFLE_CLASSES.active : RAFFLE_CLASSES.cancelled)}
     >
       {isActive ? 'Activo' : 'Inactivo'}
+    </Badge>
+  )
+}
+
+/**
+ * El estado de la cuenta de una persona: activa, con la invitacion pendiente o
+ * sin acceso (BR-E14).
+ *
+ * Reemplaza a `ActiveBadge` en todas las pantallas que muestran personas.
+ * Aquella decia «Activo» de alguien que todavia no habia entrado nunca, que es
+ * justo la confusion que este trabajo venia a resolver.
+ *
+ * El ambar es el mismo que ya usan «Pendiente de aprobación» y «Abonada»: en
+ * esta aplicacion ese color significa siempre «falta un paso». Y como en el
+ * resto, el color acompaña al texto, nunca lo sustituye (CLAUDE.md §27).
+ */
+const ACCOUNT_CLASSES: Record<AccountStatus, string> = {
+  active: RAFFLE_CLASSES.active,
+  pending:
+    'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800',
+  inactive: RAFFLE_CLASSES.cancelled,
+}
+
+export function AccountStatusBadge({
+  isActive,
+  activatedAt,
+}: {
+  isActive: boolean
+  activatedAt: string | null
+}) {
+  const status = accountStatus({ isActive, activatedAt })
+  return (
+    <Badge variant="outline" className={cn(BASE, ACCOUNT_CLASSES[status])}>
+      {ACCOUNT_STATUS_LABELS[status]}
     </Badge>
   )
 }
