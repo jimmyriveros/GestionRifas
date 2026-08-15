@@ -1662,3 +1662,34 @@ como está documentado el arranque. Registrado como **I-057**.
 Armando Gordillo, con `last_sign_in_at` y `email_confirmed_at` nulos y sin boletas, clientes ni pagos.
 Nunca abrió su invitación, así que la aplicación se lo muestra a Armando como «Invitación pendiente»
 y le deja corregir el correo o eliminar el alta. Es la funcionalidad operando sobre datos reales.
+
+### I-057 — el CI de un commit documental destapó un defecto previo de las pruebas — 2026-08-14
+
+El commit `8e88e81`, que es **solo documentación**, tumbó el CI: 4 fallos en
+`commission-modes.test.ts` sobre una base **recién creada**. El log dijo la causa sin rodeos:
+`duplicate key value violates unique constraint "tickets_combo_unique"`.
+
+**Qué pasaba.** Dos suites de comisiones construían los números de sus boletas a partir de una base de
+dos cifras **sorteada**, y solo hay noventa:
+
+| Archivo | Cómo sorteaba | Consecuencia al chocar |
+|---|---|---|
+| `commission-modes.test.ts` | Una base nueva en **cada** llamada, sin recordar las anteriores. Seis llamadas ⇒ ~15% de colisión por ejecución | Moría la prueba en curso. Si era antes de que E6-04 restaurase el precio, la rifa se quedaba en `$120.000` y hacía fallar la **ejecución siguiente** con `expected 60000 to be 50000` |
+| `commissions.test.ts` | Una base para reservar un bloque de 60 boletas. Su comentario decía «sin azar», y no lo era | Reventaba el `beforeAll` y sus **19 casos salían como «skipped»** sin explicación |
+
+El síntoma más visible —los importes que no cuadraban— apuntaba al precio de la rifa compartida, y en
+un primer diagnóstico se registró así. Era la cascada, no la causa: **el log del CI, con el error de
+clave duplicada, es lo que la identificó**.
+
+**No lo introdujo `0026`.** El defecto vive en dos archivos que esa migración no toca, y se reprodujo
+con la suite nueva excluida.
+
+**Corrección.** En los dos archivos, el número se **busca** hasta encontrar uno libre en vez de
+sortearse a ciegas, y solo se reintenta ante `23505`; cualquier otro error se propaga tal cual, para
+no esconder un fallo de verdad detrás de un reintento.
+
+| Verificación | Resultado |
+|---|---|
+| `test:db`, **10 pasadas seguidas** sobre la misma base | ✅ 457/457 en todas. Antes fallaba entre la segunda y la cuarta |
+| `commission-modes` aislado, 5 pasadas | ✅ 6/6 en todas |
+| `npm run verify` | ✅ typecheck · lint 0 errores · 309/309 · build |

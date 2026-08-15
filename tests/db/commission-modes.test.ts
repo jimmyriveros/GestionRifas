@@ -59,34 +59,72 @@ async function alta(nombre: string, padre: string | null, stamp: string): Promis
   return data.user.id
 }
 
+/**
+ * Numeros ya usados EN ESTA EJECUCION, para no repetirlos entre llamadas.
+ *
+ * La version anterior sorteaba UNA base de dos cifras por llamada
+ * (`Math.random() * 90 + 10`) y no recordaba nada. Con seis llamadas sobre
+ * noventa valores posibles, la probabilidad de que dos coincidieran rondaba el
+ * 15%: una de cada siete ejecuciones moria con `duplicate key value violates
+ * unique constraint "tickets_combo_unique"` y arrastraba consigo las pruebas
+ * siguientes —incluida la restauracion del precio de E6-04, que dejaba la rifa
+ * en $120.000 y hacia fallar a la ejecucion posterior por un motivo que no
+ * tenia nada que ver—. Le paso al CI del commit `8e88e81`, que era SOLO
+ * documentacion (I-057, misma familia que I-055 e I-035).
+ */
+const numerosUsados = new Set<string>()
+
 /** Vende `n` boletas a nombre de `sellerId`, a SU cliente, y las cobra enteras. */
 async function venderYCobrar(sellerId: string, n: number): Promise<void> {
   const clienteId = clientes.get(sellerId)!
-  const base = Math.floor(Math.random() * 90) + 10
   const ids: string[] = []
 
   for (let i = 0; i < n; i++) {
-    const numero = `${base}${String(i).padStart(2, '0')}`
-    const { data, error } = await ctx.svc
-      .from('tickets')
-      .insert({
-        organization_id: ctx.demoOrg.id,
-        raffle_id: ctx.demoRaffle.id,
-        seller_id: sellerId,
-        created_by: ctx.ids.owner,
-        daily_number: numero,
-        weekly_number: numero,
-        inventory_status: 'assigned',
-        client_id: clienteId,
-        sale_price: PRICE,
-        sale_date: '2026-08-13',
-        assigned_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single()
-    if (error) throw error
-    ids.push(data.id)
-    boletas.push(data.id)
+    // El reintento cubre lo que el conjunto no puede saber: estos numeros
+    // comparten espacio con los del seed y los de otras suites (BR-N04).
+    let insertado: { id: string } | null = null
+    let ultimoError: { code?: string | null; message?: string | null } | null = null
+
+    for (let intento = 0; intento < 20 && insertado === null; intento++) {
+      let numero = String(Math.floor(Math.random() * 9000) + 1000)
+      while (numerosUsados.has(numero)) numero = String(Math.floor(Math.random() * 9000) + 1000)
+
+      const { data, error } = await ctx.svc
+        .from('tickets')
+        .insert({
+          organization_id: ctx.demoOrg.id,
+          raffle_id: ctx.demoRaffle.id,
+          seller_id: sellerId,
+          created_by: ctx.ids.owner,
+          daily_number: numero,
+          weekly_number: numero,
+          inventory_status: 'assigned',
+          client_id: clienteId,
+          sale_price: PRICE,
+          sale_date: '2026-08-13',
+          assigned_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single()
+
+      if (error) {
+        ultimoError = error
+        // Solo se reintenta la combinacion ocupada; cualquier otro error es un
+        // fallo de verdad y debe salir a la luz de inmediato.
+        if (error.code !== '23505') throw error
+        continue
+      }
+
+      numerosUsados.add(numero)
+      insertado = data
+    }
+
+    if (insertado === null) {
+      throw new Error(`No se encontro una combinacion libre: ${ultimoError?.message}`)
+    }
+
+    ids.push(insertado.id)
+    boletas.push(insertado.id)
   }
 
   const { data: pagoId, error: pagoError } = await owner.rpc('create_payment', {
@@ -166,7 +204,10 @@ afterAll(async () => {
   }
   await ctx.svc.from('commission_ledger').delete().in('seller_id', ids)
   await ctx.svc.from('seller_commissions').delete().in('seller_id', ids)
-  await ctx.svc.from('clients').delete().in('id', [...clientes.values()])
+  await ctx.svc
+    .from('clients')
+    .delete()
+    .in('id', [...clientes.values()])
   await ctx.svc.from('notifications').delete().in('recipient_profile_id', ids)
 
   // El integrante primero: la FK del vendedor padre es `on delete restrict`.
@@ -235,10 +276,7 @@ describe('E6 — dos formas de pago', () => {
     expect(Number(dentro.earned)).toBe(3 * 20_000)
     await expectLedgerMatches(sueltoId)
 
-    await ctx.svc
-      .from('memberships')
-      .update({ parent_seller_id: null })
-      .eq('profile_id', sueltoId)
+    await ctx.svc.from('memberships').update({ parent_seller_id: null }).eq('profile_id', sueltoId)
 
     const fuera = await comisionDe(sueltoId)
     expect(Number(fuera.rate)).toBe(50_000)

@@ -93,31 +93,51 @@ async function setupSeller(): Promise<void> {
 /**
  * 60 boletas vendidas al mismo cliente y sin pagar.
  *
- * Los numeros se generan sin azar, a partir de un prefijo unico por ejecucion:
- * una colision con otra prueba haria fallar el lote entero por la restriccion
- * de combinacion (BR-N04), y buscar boletas por un solo numero puede tropezar
- * con las de otra suite (I-055).
+ * Todas comparten un prefijo de dos cifras, para que el lote sea reconocible y
+ * para que buscar una boleta por un solo numero no tropiece con las de otra
+ * suite (I-055).
+ *
+ * El prefijo se BUSCA hasta encontrar uno libre, no se sortea y ya. Solo hay
+ * noventa posibles y el espacio se comparte con el seed y con las demas suites,
+ * asi que un sorteo a ciegas chocaba de vez en cuando contra la restriccion de
+ * combinacion (BR-N04) y tumbaba el `beforeAll` entero: los 19 casos de este
+ * archivo aparecian como «skipped» sin explicacion. Es la misma familia que
+ * I-055 e I-035, y el mismo arreglo que se aplico a `commission-modes` (I-057).
  */
 async function createSoldTickets(): Promise<void> {
-  numberBase = Math.floor(Math.random() * 90) + 10 // 10..99
-  const base = numberBase
-  const rows = Array.from({ length: 60 }, (_, i) => ({
-    organization_id: ctx.demoOrg.id,
-    raffle_id: ctx.demoRaffle.id,
-    seller_id: sellerId,
-    created_by: ctx.ids.owner,
-    daily_number: `${base}${String(i).padStart(2, '0')}`,
-    weekly_number: `${base}${String(i).padStart(2, '0')}`,
-    inventory_status: 'assigned' as const,
-    client_id: clientId,
-    sale_price: PRICE,
-    sale_date: '2026-08-12',
-    assigned_at: new Date().toISOString(),
-  }))
+  const filas = (base: number) =>
+    Array.from({ length: 60 }, (_, i) => ({
+      organization_id: ctx.demoOrg.id,
+      raffle_id: ctx.demoRaffle.id,
+      seller_id: sellerId,
+      created_by: ctx.ids.owner,
+      daily_number: `${base}${String(i).padStart(2, '0')}`,
+      weekly_number: `${base}${String(i).padStart(2, '0')}`,
+      inventory_status: 'assigned' as const,
+      client_id: clientId,
+      sale_price: PRICE,
+      sale_date: '2026-08-12',
+      assigned_at: new Date().toISOString(),
+    }))
 
-  const { data, error } = await ctx.svc.from('tickets').insert(rows).select('id')
-  if (error) throw error
-  ticketIds.push(...data.map((row) => row.id))
+  const candidatos = Array.from({ length: 90 }, (_, i) => i + 10).sort(() => Math.random() - 0.5)
+
+  for (const base of candidatos) {
+    const { data, error } = await ctx.svc.from('tickets').insert(filas(base)).select('id')
+
+    if (error) {
+      // Solo se prueba otro prefijo si el problema es que ya estaba ocupado;
+      // cualquier otro error es real y tiene que salir a la luz.
+      if (error.code !== '23505') throw error
+      continue
+    }
+
+    numberBase = base
+    ticketIds.push(...data.map((row) => row.id))
+    return
+  }
+
+  throw new Error('No quedaba ningun prefijo de dos cifras libre para las 60 boletas.')
 }
 
 /** Paga por completo las siguientes `n` boletas, con la sesion del vendedor. */
