@@ -1007,7 +1007,7 @@ Sin cambios.
 
 | Asunto | Impacto |
 |---|---|
-| **El código del precio aún no está desplegado** | `0027` **sí** se aplicó al proyecto real el 2026-08-15, pero Vercel corre el commit anterior. Efecto acotado: el formulario de **rifa nueva** ofrece `$100.000` sobre una base que ya vale `$120.000`; si alguien crea una rifa hoy sin cambiar el campo, nacerá a `$100.000`. Todo lo demás lee el precio de la base y ya es correcto. Se cierra desplegando `main` |
+| Ninguno abierto de este trabajo | `0027` se aplicó al proyecto real y el código se desplegó el mismo día (2026-08-15), con CI 2/2 y despliegue verificado por SHA. Queda solo la comprobación visual con sesión real, que un agente no puede hacer |
 | `organizations.default_ticket_price` no la lee ningún código | Configuración inerte. `DATA_MODEL` afirmaba que el formulario tomaba de ahí su valor y era falso: se corrigió la documentación, no el comportamiento |
 | Sin migración inversa | Deliberado: bajar el precio después de que existan cobros a `$120.000` rompería invariantes o dejaría boletas «Pagadas» que no lo están. La vuelta atrás es restaurar (`RUNBOOK.md` §5.4) |
 | **I-059** — limpiar pagos por PostgREST falla en silencio | Encontrado aquí y **corregido en la suite nueva**. `commissions.test.ts` y `commission-modes.test.ts` conservan el patrón y acumulan pagos y boletas en la rifa del seed en cada pasada: es lo que degrada `test:db` al repetirlo. No se tocaron, por alcance |

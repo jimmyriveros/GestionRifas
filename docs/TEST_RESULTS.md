@@ -1859,8 +1859,18 @@ hay nada que recalcular y salir. No implica dinero —la invariante `sum(ledger)
 rama que «sin fila», así que el vendedor sigue viendo «Ganas … por cada boleta que te paguen
 completa», ahora con la mitad del precio corregido ($60.000).
 
-**Lo que falta:** desplegar el código. Hasta entonces, el formulario de rifa nueva ofrece $100.000
-sobre una base que ya vale $120.000.
+### 6. Despliegue del código (mismo día, con autorización expresa)
+
+| Comprobación | Resultado |
+|---|---|
+| `git push origin main` | ✅ `66ca9a7..f6b0df9`, **solo la rama** (las etiquetas `fase-*` siguen en local) |
+| CI de GitHub Actions (`31887615583`) | ✅ **2/2** — «Migraciones desde cero + pruebas de base de datos» y «Typecheck, lint, unitarias, build» |
+| Despliegue de Vercel | ✅ `READY` — `dpl_DzRHxqoFERdnLzLhwiuMohgjhebZ` sobre el SHA **`f6b0df9`**, con el alias `gestion-rifas.vercel.app` |
+| `https://gestion-rifas.vercel.app/login` | ✅ HTTP **200** con CSP por nonce, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy` |
+| Rutas protegidas sin sesión | ✅ `/owner/raffles/new`, `/owner/dashboard` y `/seller/tickets` en **307** hacia `/login?next=…` |
+
+**Lo que falta y no puede hacer un agente:** entrar con sesión real y ver que el detalle de una
+boleta dice **$120.000** y que «Nueva rifa» llega con **$120.000** puesto.
 
 ### 6. Dos defectos de las propias pruebas, encontrados por el camino
 
