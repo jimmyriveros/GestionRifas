@@ -10,7 +10,7 @@ const COP_FORMATTER = new Intl.NumberFormat('es-CO', {
 const CURRENCY_WHITESPACE_RE = /\p{White_Space}/gu
 
 /**
- * Formatea un entero de pesos colombianos como "$100.000", sin espacio entre
+ * Formatea un entero de pesos colombianos como "$120.000", sin espacio entre
  * el simbolo y la cifra (CLAUDE.md, seccion 6), sin importar el entorno.
  */
 export function formatCOP(amount: number): string {

@@ -30,7 +30,7 @@
 | BR-O02 | Ningún usuario puede leer ni escribir datos de otra organización por ninguna vía. | S, D | 2 |
 | BR-O03 | Las relaciones entre entidades no pueden cruzar organizaciones (FK compuestas con `organization_id`). | D | 2 |
 | BR-O04 | Cada organización tiene exactamente un Owner activo. | D | 2 |
-| BR-O05 | La moneda del MVP es COP; el precio predeterminado de la organización es `100000`. | D | 2 |
+| BR-O05 | La moneda del MVP es COP; el precio predeterminado de la organización es `120000` (D-098). La columna `organizations.default_ticket_price` existe y se mantiene coherente, pero **hoy no la lee ningún camino de código**: el formulario de rifa nueva usa `DEFAULT_TICKET_PRICE`. | D | 2 · post-9 |
 
 ---
 
@@ -142,7 +142,7 @@ movimiento y el estado es por vendedor—, pero no se implementa nada de eso.
 | BR-R01 | Una organización puede tener varias rifas. | D | 2 |
 | BR-R02 | Estados válidos: `draft`, `active`, `closed`, `cancelled`. | D | 2 |
 | BR-R03 | Transiciones permitidas: `draft → active`, `active → closed`, cualquiera → `cancelled`. `closed → active` solo por el Owner y queda auditado. | S, D | 3 |
-| BR-R04 | Una rifa nueva usa `100000` como precio predeterminado. | C, S, D | 3 |
+| BR-R04 | Una rifa nueva usa `120000` como precio predeterminado (D-098). | C, S, D | 3 · post-9 |
 | BR-R05 | Owner o Admin puede definir un precio distinto para una rifa futura. | S | 3 |
 | BR-R06 | Cambiar el precio de la rifa **no** modifica el `sale_price` de boletas ya vendidas. | D | 2 |
 | BR-R07 | `end_date` no puede ser anterior a `start_date`. | C, S, D | 3 |
@@ -308,12 +308,14 @@ Añadidas después de la Fase 9, a petición del usuario. Detalle de las decisio
 
 | ID | Regla | Capas | Fase |
 |----|-------|-------|------|
-| BR-P01 | El precio predeterminado de una boleta es `100000` COP. | D | 2 |
+| BR-P01 | El precio predeterminado de una boleta es `120000` COP. **Corregido desde `100000` el 2026-08-15 (D-098): la cifra anterior era un dato equivocado, no un precio anterior.** | D | 2 · post-9 |
 | BR-P02 | Todo valor monetario se almacena y opera como entero de pesos. Prohibido punto flotante. | C, S, D | 2 |
 | BR-P03 | Al asignar o vender una boleta se copia el precio vigente de la rifa a `sale_price`. | S, D | 4 |
 | BR-P04 | `sale_price` no cambia si después se modifica el precio de la rifa. | D | 2 |
 | BR-P05 | `sale_price` es inmutable cuando la boleta tiene pagos activos, salvo procedimiento administrativo documentado (anular pagos → corregir → volver a registrar). | S, D | 2 |
 | BR-P06 | Los saldos y estados se calculan usando `sale_price`, nunca el precio actual de la rifa. | D | 2 |
+| BR-P07 | **Corregir un precio mal configurado no es subirlo.** Cuando el precio guardado nunca fue el correcto, se arrastra el `sale_price` de las boletas de esa rifa por migración versionada (excepción de BR-P05 prevista ahí mismo), y **nunca** se tocan `payments.total_amount` ni `payment_allocations.amount`: lo pagado sigue siendo lo pagado y la diferencia queda como saldo pendiente. Una subida real de precio se rige por BR-P04 y no toca nada anterior. | D | post-9 |
+| BR-P08 | No existen descuentos ni precio efectivo aparte: `sale_price` **es** lo que debe el cliente. Una boleta puede tener un precio propio distinto del de su rifa, y ninguna corrección masiva puede pisarlo. | D | post-9 |
 
 ---
 
@@ -346,8 +348,12 @@ Añadidas después de la Fase 9, a petición del usuario. Detalle de las decisio
 | `paid_amount = sale_price` | `paid` | Pagada |
 | `paid_amount > sale_price` | — | **Imposible**: la operación se bloquea |
 
-Para una boleta de `$100.000`: `$0` → Sin pagar; `$1`–`$99.999` → Abonada; `$100.000` → Pagada;
-más de `$100.000` → operación rechazada.
+Para una boleta al precio vigente de `$120.000`: `$0` → Sin pagar; `$1`–`$119.999` → Abonada;
+`$120.000` → Pagada; más de `$120.000` → operación rechazada.
+
+⚠️ **`$100.000` sobre una boleta de `$120.000` es Abonada, con `$20.000` pendientes** — no Pagada. Es
+el caso que dejó la corrección de precio de D-098 y el que más fácil se rompe al tocar esta lógica.
+El límite siempre es `sale_price`, nunca una cifra escrita en el código.
 
 ---
 
@@ -396,7 +402,8 @@ más de `$100.000` → operación rechazada.
 | X1 | El vendedor no tiene boletas y la rifa permite crearlas | Se muestra una acción clara para crear boletas |
 | X2 | El vendedor no tiene boletas y la rifa **no** permite crearlas | Se explica que el administrador debe asignarlas; la acción se oculta o deshabilita |
 | X3 | Abono exactamente igual al saldo pendiente | Válido; la boleta pasa a Pagada |
-| X4 | Abono de $1 sobre una boleta de $100.000 | Válido; la boleta pasa a Abonada |
+| X4 | Abono de $1 sobre una boleta de $120.000 | Válido; la boleta pasa a Abonada |
+| X4b | Abono de $100.000 sobre una boleta de $120.000 | Válido; queda **Abonada** con $20.000 pendientes, nunca Pagada (D-098) |
 | X5 | Pago que cubre varias boletas y sobra dinero | Rechazado: la suma debe coincidir exactamente con el total |
 | X6 | Dos abonos concurrentes que juntos exceden el saldo | El segundo falla con mensaje de saldo insuficiente |
 | X7 | Anulación del único pago de una boleta | La boleta vuelve a Sin pagar |

@@ -184,7 +184,7 @@ importa desde un componente cliente.
     │   ├── csv.ts                # exportación: separador ;, BOM, anti-inyección de fórmulas (D-056)
     │   ├── rate-limit.ts         # limitación de intentos, en memoria (D-062)
     │   ├── security-headers.ts   # CSP con nonce + cabeceras estáticas (D-061)
-    │   └── constants.ts          # DEFAULT_TICKET_PRICE = 100000, límites, etiquetas
+    │   └── constants.ts          # DEFAULT_TICKET_PRICE = 120000 (D-098), límites, etiquetas
     ├── types/
     │   └── database.types.ts     # Generado con supabase gen types typescript
     └── proxy.ts                  # Antes middleware.ts — ver D-027

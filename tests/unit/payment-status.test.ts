@@ -33,11 +33,30 @@ function ticket(
 }
 
 describe('previewPaymentStatus (BR-F07, BR-F08)', () => {
-  it('los tres estados del prompt para una boleta de $100.000', () => {
-    expect(previewPaymentStatus(100_000, 0)).toBe('unpaid')
-    expect(previewPaymentStatus(100_000, 1)).toBe('partial')
-    expect(previewPaymentStatus(100_000, 99_999)).toBe('partial')
+  it('los tres estados para una boleta al precio vigente de $120.000', () => {
+    expect(previewPaymentStatus(120_000, 0)).toBe('unpaid')
+    expect(previewPaymentStatus(120_000, 1)).toBe('partial')
+    expect(previewPaymentStatus(120_000, 50_000)).toBe('partial')
+    expect(previewPaymentStatus(120_000, 119_999)).toBe('partial')
+    expect(previewPaymentStatus(120_000, 120_000)).toBe('paid')
+  })
+
+  /**
+   * El caso que motivo la correccion de precio (D-098). Antes, $100.000 era el
+   * precio entero y dejaba la boleta Pagada; ahora es un abono al que le faltan
+   * $20.000. Que esta linea exista es lo que impide volver atras sin darse
+   * cuenta.
+   */
+  it('CASO CRITICO: $100.000 sobre una boleta de $120.000 es Abonada, no Pagada', () => {
+    expect(previewPaymentStatus(120_000, 100_000)).toBe('partial')
+    expect(previewPaymentStatus(120_000, 100_000)).not.toBe('paid')
+  })
+
+  it('el estado se mide contra el precio de la boleta, no contra una cifra fija', () => {
+    // La misma cantidad pagada da un estado distinto segun lo que costo.
     expect(previewPaymentStatus(100_000, 100_000)).toBe('paid')
+    expect(previewPaymentStatus(50_000, 50_000)).toBe('paid')
+    expect(previewPaymentStatus(120_000, 100_000)).toBe('partial')
   })
 
   it('una boleta sin vender no tiene estado de pago', () => {

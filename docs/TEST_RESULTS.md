@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **309 ✅** | **457 ✅** | **246 ✅** | ✅ | ✅ |
+| Post-9 vigente | **312 ✅** | **471 ✅** | **247 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -1729,3 +1729,128 @@ internos son por organización, así que esas son de Mateo Suárez en «Rifas Co
 
 La persona, su membresía, su cuenta y su equipo **no se tocaron**: Armando sigue activo y con Juan
 Hernández a su cargo.
+
+---
+
+## Mantenimiento post-9 — corrección del precio de la boleta a $120.000 (2026-08-15)
+
+Encargo del dueño: el precio real de la rifa siempre fue **$120.000**, no $100.000. Decisión y
+criterio en **D-098**; reglas en **BR-P07** y **BR-P08**.
+
+### 1. Sonda previa de SOLO LECTURA contra el proyecto real
+
+Antes de escribir una línea, para no diseñar la migración sobre suposiciones. Sesión con
+`default_transaction_read_only = on`.
+
+| Hecho medido en producción | Valor |
+|---|---|
+| Organizaciones | 2 — «Rifas Demo» y «Rifas Control», ambas con `default_ticket_price = 100000` |
+| Rifas | 2 — «Rifa Navidad 2026» (**$100.000**, `active`, 118 boletas, 57 vendidas) y «Rifa Control 2026» ($50.000, 3 boletas, 0 vendidas) |
+| Boletas a corregir | **57**, todas con `sale_price = 100000` y `paid_amount = 0` |
+| Boletas sin vender | 61 en la rifa afectada (`sale_price is null`) |
+| **Pagos registrados** | **0** — ninguno, ni anulado. Recaudado vigente: **$0** |
+| Boletas antes Pagadas a $100.000 | **0** |
+| Boletas con `sale_price` distinto de 100000 | **0** |
+| Pagos por encima de $100.000 o de $120.000 | **0** |
+| Boletas anuladas con precio | **0** |
+| Filas de comisión (`seller_commissions`, `commission_ledger`) | **0** |
+| Defaults en el catálogo | `raffles.ticket_price` y `organizations.default_ticket_price` en `100000` |
+
+**Consecuencia para el diseño:** en producción la corrección es aritméticamente trivial —no hay
+dinero que respetar— pero la migración **no** se escribió para ese caso particular. El caso difícil
+(boletas con abonos, incluida una con exactamente $100.000 pagados) se montó en local y se probó ahí,
+porque es el que puede aparecer si se vende y se cobra entre hoy y el momento de aplicarla.
+
+### 2. Lo que se ejecutó
+
+| Comando | Resultado | Errores encontrados | Corrección |
+|---|---|---|---|
+| `npm run db:reset` (aplica `0027`) | ✅ 27 migraciones | Ninguno | — |
+| `npm run seed:local` | ✅ rifa a $120.000 con los cuatro escenarios | Ninguno | — |
+| `npm run test:db` (primera pasada) | ❌ **9 fallos** | Ver §3 | Ver §3 |
+| `npm run test:db` (tras corregir) | ✅ **471/471** | — | — |
+| `npm run typecheck` | ✅ | 10 errores `TS2345` en la suite nueva: `Record<string, string>` devuelve `string \| undefined` con `noUncheckedIndexedAccess` | Se tipó el mapa de boletas con claves literales |
+| `npm run lint` | ✅ 0 errores | 2 avisos preexistentes de `useVirtualizer` | — |
+| `npm test` | ✅ **312/312** | — | — |
+| `npm run build` | ✅ | — | — |
+| `npm run test:e2e` (primera pasada) | ❌ **1 fallo** de 246 | Ver §3 | Ver §3 |
+| `npm run test:e2e` (tras corregir) | ✅ **247/247** (+1: el caso crítico en pantalla) | — | — |
+
+### 3. Los diez fallos, y por qué ninguno era un fallo del producto
+
+Todos tenían la misma causa: **una cifra de precio escrita a mano** en la prueba, comparada contra el
+comportamiento correcto del sistema. Es exactamente el patrón que el encargo pedía erradicar, y
+aparecer así lo hizo visible.
+
+| Prueba | Síntoma | Causa real | Corrección |
+|---|---|---|---|
+| `catalog.test.ts` DB-15 | «0027 sin nota de reversion» | La comprobación busca `/Nota de reversion/i` **sin tilde**; la migración la escribió con tilde | Se ajustó el encabezado de `0027` a la convención del resto |
+| `payments.test.ts` DB-10 ×4 | «expected null not to be null», «expected partial to be paid» | `$100.001` ya no es sobrepago y `$70.000 + $30.000` ya no completa la boleta | `PRICE` se lee de `raffles.ticket_price` y los importes se expresan relativos a él |
+| `payments.test.ts` reparto | «expected partial to be paid» | El reparto de $130.000 dejaba la primera boleta incompleta | Total y asignaciones relativos a `PRICE` |
+| `payments.test.ts` anulación | «expected partial to be paid» | Pagaba $100.000 y esperaba Pagada | Paga `PRICE` |
+| `payments.test.ts` BR-P04 | «expected 120000 to be 100000» | Afirmaba el precio congelado como literal, y **restauraba la rifa a $100.000 al terminar** | Lee y restaura `PRICE` |
+| `rpc.test.ts` BR-P03 | «expected 120000 to be 100000» | Comprobaba que `assign_ticket` copia $100.000 | Ahora comprueba que copia **el precio vigente leído de la rifa**, que es la regla |
+| `seleccion-multiple.spec.ts` | No encuentra `$300.000` en el modal | 3 boletas × $100.000, con un comentario que decía «el total sale del precio vigente, no de una cifra fija» justo encima de la cifra fija | `formatCOP(3 × raffleTicketPrice(refs))` |
+
+Además, sin llegar a fallar, se quitaron precios escritos a mano que habrían dejado boletas de
+$100.000 dentro de una rifa de $120.000: `commissions`, `commission-modes`, `notifications`,
+`seller-teams` y `equipo.spec.ts`.
+
+### 4. La suite nueva: `tests/db/price-migration.test.ts` (14 pruebas)
+
+`db reset` aplica `0027` sobre una base **vacía**, así que la corrección de datos no toca nada y no
+demuestra nada. Esta suite monta el escenario que la migración se encontraría con dinero de por medio,
+**lee el bloque `do $$ … $$` del propio archivo `.sql`** y lo ejecuta dentro de una transacción que
+después revierte.
+
+| Prueba | Qué demuestra |
+|---|---|
+| `E7-01` | Los defaults de `raffles.ticket_price` y `organizations.default_ticket_price` ya son `120000` |
+| `E7-02` | Ninguna organización conserva $100.000 como precio base |
+| `E7-03` | El escenario **parte del estado equivocado**: la boleta figura `paid` con $100.000 y saldo $0 |
+| `E7-04` | La rifa afectada pasa a $120.000 |
+| `E7-05` | Boleta sin pagos: sube de precio y sigue Sin pagar, con $120.000 pendientes |
+| `E7-06` | Abono de $50.000: el abono no se mueve y el saldo pasa a $70.000 |
+| **`E7-07`** | **CASO CRÍTICO**: $100.000 sobre $120.000 queda **Abonada** con $20.000 pendientes |
+| `E7-08` | Fotografía de `payments` + `payment_allocations` **idéntica** antes y después |
+| `E7-09` | No se creó ni un pago ni una asignación |
+| `E7-10` | Intactas: boleta sin vender, boleta con precio legítimo distinto, boleta anulada y rifa cerrada |
+| `E7-11` | La rifa de la otra organización sigue a $50.000 |
+| `E7-12` | Las tres boletas corregidas dejaron su entrada `ticket.update` con el valor anterior y el nuevo |
+| `E7-13` | El guardián `tickets_protect_sale_price` queda **otra vez activo** y sigue rechazando el UPDATE |
+| `E7-14` | Ejecutarla dos veces no cambia nada |
+
+**Por qué la transacción se revierte:** el criterio de la migración es `ticket_price = 100000` en toda
+la base, no «las rifas de esta prueba», y otras suites (`rpc`, `phase3-admin`, `volume-phase6`) crean
+rifas a ese precio. Dejar la corrección confirmada las habría modificado a su espalda, con fallos
+intermitentes en archivos que nadie tocó — la familia de I-035, I-055 e I-057.
+
+### 5. Estado del proyecto real
+
+**`0027` NO se ha aplicado.** Requiere autorización expresa y respaldo previo (`RUNBOOK.md` §5.1). La
+sonda de §1 fue de solo lectura y no escribió nada.
+
+### 6. Dos defectos de las propias pruebas, encontrados por el camino
+
+Ninguno afecta al producto; los dos afectan a la fiabilidad de `test:db` y se documentan porque
+ocultarlos sería dejar una trampa.
+
+**I-059 — la limpieza de pagos por PostgREST falla en silencio.** El `afterAll` de la suite nueva
+dejó **4 rifas y 28 boletas** en la base sin decir nada. `payments_balanced` es un constraint trigger
+diferido; PostgREST manda cada `delete` en su propia transacción, así que borrar
+`payment_allocations` a solas revienta con «El pago no cuadra: la suma de las asignaciones (0) debe
+ser igual al total», y el cliente de Supabase **devuelve** el error en vez de lanzarlo. Al fallar el
+primer borrado fallan los siguientes por clave foránea. Corregido en la suite nueva: limpia por `pg`
+en una sola transacción y **afirma** que no quedó ninguna rifa suya. ⚠️ `commissions.test.ts` y
+`commission-modes.test.ts` tienen el mismo patrón y **no se tocaron**, por estar fuera del alcance.
+
+**I-060 — `ticket-search` puede insertar en una rifa y buscar en otra.** Apareció en la tercera
+pasada seguida de `test:db`, con 8 fallos del tipo `expected [] to include '1111/2222'`. `searchOver()`
+clona `select … from tickets where daily_number = '0100' limit 1` **sin `order by`**, y resuelve el
+`p_raffle_id` con otro `limit 1` idéntico; como hay más de un `'0100'` en la base (el del seed y el de
+«Rifa Volumen Fase 6»), las dos consultas pueden caer en rifas distintas. No es un defecto de
+`search_tickets`. No se corrigió, por estar fuera del alcance.
+
+**Estabilidad tras corregir I-059:** `db:reset && seed:local` y **seis pasadas seguidas** de
+`test:db` sobre la misma base, 471/471 en todas. La suite nueva deja la base exactamente como la
+encontró (30 boletas en «Rifa Navidad 2026», 3 en «Rifa Control 2026», 4 pagos).

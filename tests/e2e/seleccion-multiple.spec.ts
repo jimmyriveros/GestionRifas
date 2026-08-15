@@ -17,6 +17,7 @@ import {
   toggleCheckbox,
   unique,
 } from './fixtures'
+import { formatCOP } from '../../src/lib/money'
 
 /**
  * Seleccion multiple y acciones masivas en la lista de boletas (BR-B01..BR-B08).
@@ -362,8 +363,10 @@ test.describe('Asignación múltiple del vendedor', () => {
     await page.getByRole('button', { name: 'Asignar a un cliente' }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByText('3 boletas', { exact: true })).toBeVisible()
-    // El total sale del precio vigente de la rifa, no de una cifra fija.
-    await expect(dialog.getByText('$300.000')).toBeVisible()
+    // El total sale del precio vigente de la rifa, no de una cifra fija. Estaba
+    // escrito a mano («$300.000») y la corrección de precio lo delató (D-098).
+    const total = formatCOP(3 * (await raffleTicketPrice(refs)))
+    await expect(dialog.getByText(total)).toBeVisible()
     // El resumen inferior duplicado ya no existe: el texto combinado de antes
     // ya no aparece como un solo nodo.
     await expect(dialog.getByText('3 boletas seleccionadas')).toHaveCount(0)

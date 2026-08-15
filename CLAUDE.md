@@ -195,8 +195,14 @@ La aplicación debe utilizar:
 * Zona horaria: `America/Bogota`.
 * Moneda: COP.
 * Formato monetario colombiano.
-* Precio predeterminado de boleta: `$100.000 COP`.
-* Valor interno predeterminado: `100000`.
+* Precio predeterminado de boleta: `$120.000 COP`.
+* Valor interno predeterminado: `120000`.
+
+> **Corregido el 2026-08-15 (D-098, BR-P01).** Este documento decía `$100.000` desde el principio y
+> esa cifra **nunca fue la correcta**. No fue una subida de precio: se corrigió el dato, incluidas las
+> boletas ya vendidas, sin tocar un solo peso de los pagos registrados. Si vas a escribir una cifra de
+> precio, léela de `raffles.ticket_price`; la única constante de la aplicación es
+> `DEFAULT_TICKET_PRICE` y solo rellena el formulario de una rifa nueva.
 
 Guarda los valores monetarios como enteros en pesos colombianos.
 
@@ -206,7 +212,7 @@ Ejemplo de presentación:
 
 * `$0`
 * `$25.000`
-* `$100.000`
+* `$120.000`
 
 ---
 
@@ -339,7 +345,7 @@ Reglas:
 * Una organización puede tener varias rifas.
 * Las boletas pertenecen a una rifa específica.
 * Los reportes deben poder filtrarse por rifa.
-* Una rifa nueva utiliza como valor predeterminado `$100.000 COP`.
+* Una rifa nueva utiliza como valor predeterminado `$120.000 COP`.
 * Owner o Admin puede definir un precio diferente para una futura rifa.
 * El precio de boletas vendidas anteriormente no debe cambiar si se modifica el precio de la rifa.
 
@@ -543,7 +549,7 @@ No se puede asignar una boleta:
 
 El precio predeterminado de una boleta es:
 
-`100000 COP`
+`120000 COP`
 
 Cuando una boleta se asigna o vende a un cliente:
 
@@ -551,7 +557,12 @@ Cuando una boleta se asigna o vende a un cliente:
 * Utiliza `sale_price` para calcular pagos y saldos.
 * No modifiques `sale_price` si posteriormente cambia el precio de la rifa.
 
-Una boleta vendida inicialmente por `$100.000` mantiene ese precio histórico.
+Una boleta vendida a un precio determinado mantiene ese precio histórico.
+
+**La única excepción es corregir un precio que nunca fue correcto** (BR-P07, D-098): eso se hace por
+migración versionada y auditada, arrastra el `sale_price` de esa rifa y **no toca ningún pago
+registrado**. Una boleta con `$100.000` abonados sobre un precio corregido de `$120.000` queda
+**Abonada** con `$20.000` pendientes; la diferencia jamás se rellena con dinero inventado.
 
 ---
 
@@ -722,12 +733,14 @@ Estados:
 
 `paid_amount = sale_price`
 
-Para una boleta de `$100.000`:
+Para una boleta de `$120.000`:
 
 * `$0`: Sin pagar.
-* `$1` a `$99.999`: Abonada.
-* `$100.000`: Pagada.
-* Más de `$100.000`: bloquear operación.
+* `$1` a `$119.999`: Abonada.
+* `$120.000`: Pagada.
+* Más de `$120.000`: bloquear operación.
+
+El límite es siempre `sale_price`, nunca una cifra escrita en el código.
 
 No se permiten sobrepagos.
 

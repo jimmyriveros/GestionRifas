@@ -34,7 +34,15 @@ let paidCount = 0
 /** Prefijo unico de esta ejecucion: todas las boletas de la suite salen de aqui. */
 let numberBase = 0
 
-const PRICE = 100_000
+/**
+ * Precio VIGENTE de la rifa del seed, leido de la base en `beforeAll` (D-098).
+ *
+ * Los tramos de esta suite NO dependen del precio —$20.000, $25.000…, sea cual
+ * sea el valor de la boleta—, pero sus 60 boletas viven en la rifa del seed y
+ * deben costar lo que esa rifa cuesta hoy. Fijarlo a mano dejaba boletas a
+ * $100.000 dentro de una rifa de $120.000.
+ */
+let PRICE: number
 
 /**
  * El vendedor de esta suite pertenece a un EQUIPO, y no es un detalle: desde
@@ -205,6 +213,15 @@ async function expectLedgerMatches(profileId = sellerId): Promise<void> {
 
 beforeAll(async () => {
   ctx = await loadSeedContext()
+
+  const { data: rifa, error: rifaError } = await ctx.svc
+    .from('raffles')
+    .select('ticket_price')
+    .eq('id', ctx.demoRaffle.id)
+    .single()
+  if (rifaError) throw rifaError
+  PRICE = Number(rifa.ticket_price)
+
   await setupSeller()
   await createSoldTickets()
 }, 60_000)

@@ -2104,6 +2104,97 @@ pantallas del mismo producto se contradijeran.
 
 ---
 
+## D-098 — El precio de la boleta era $120.000: se corrige el dato, no se sube el precio
+**Fase:** posterior a la 9 (mantenimiento, 2026-08-15). **Cambia BR-P01, BR-R04 y BR-O05.**
+
+**Qué pasó.** El proyecto se construyó entero sobre `Precio de boleta = $100.000 COP`, escrito así
+desde el prompt maestro (`CLAUDE.md` §6). El dueño confirmó que esa cifra **nunca fue la correcta**:
+la rifa en operación siempre debió costar **$120.000**.
+
+**La distinción que decide todo lo demás.** No es una subida de precio, es la corrección de un dato
+mal configurado, y las dos cosas se tratan al revés:
+
+| | Subida de precio | Corrección de un dato equivocado |
+|---|---|---|
+| `raffles.ticket_price` | cambia | cambia |
+| `tickets.sale_price` ya vendidas | **se respeta** (BR-P04) | **se corrige**: ese número nunca fue el bueno |
+| Boleta con $100.000 pagados | sigue Pagada | pasa a **Abonada**, faltan $20.000 |
+
+Si esto se hubiera tratado como una subida, las 57 boletas vendidas del proyecto real habrían quedado
+cobrándose a $100.000 para siempre, que es justo el error que había que arreglar. BR-P04 sigue vigente
+para su caso —cambiar el precio de una rifa no toca ventas anteriores—; lo de aquí es la excepción
+documentada que esa misma regla contempla en BR-P05, hecha por migración y auditada.
+
+**Los movimientos de dinero no se tocan, y no es un detalle: es la regla.** `payments.total_amount` y
+`payment_allocations.amount` son pesos que alguien entregó de verdad. Corregir el precio de la boleta
+no crea ni borra un peso, así que la migración `0027` **no contiene ni un UPDATE sobre esas dos
+tablas**. Los $20.000 que ahora faltan no se inventan: se quedan como saldo pendiente, que es lo que
+son. El caso tiene prueba propia y con nombre — BD `E7-07`, unitaria «CASO CRITICO» — precisamente
+para que nadie lo «arregle» más adelante rellenando la diferencia.
+
+**Criterio exacto de selección** (el resto queda intacto y contado por `NOTICE`):
+
+| Se corrige | No se corrige |
+|---|---|
+| Rifas con `ticket_price = 100000` **y** estado `draft` o `active` | Rifas `closed` o `cancelled`: son historia terminada |
+| Sus boletas con `sale_price = 100000` exacto y no anuladas | `sale_price is null`: no se vendió; tomará $120.000 al venderse (BR-P03) |
+| | `sale_price` distinto: es un precio legítimo distinto (la rifa de control vale $50.000) |
+| | Boletas anuladas: conservan el precio con el que se anularon y no entran en ningún agregado |
+
+En el proyecto real ese criterio alcanzaba **una** rifa —«Rifa Navidad 2026»— y **57** boletas, todas
+con `paid_amount = 0`, porque en ese momento no había ni un pago registrado. La sonda previa está en
+`TEST_RESULTS.md`.
+
+**Dónde vive el precio, después de esto.** Igual que antes, y esa es la respuesta a «no distribuyas
+constantes por el código»: la fuente es `raffles.ticket_price`, la base de datos la copia a
+`tickets.sale_price` al vender (`assign_ticket_row`), y los saldos y estados salen de ahí en SQL —
+`payment_status` es una columna generada y `pending_amount` una vista—. En toda la aplicación hay
+**una** constante de precio, `DEFAULT_TICKET_PRICE`, y no decide ninguna venta: solo es el valor con
+el que llega el formulario de una rifa nueva.
+
+**No existe «precio efectivo» separado del precio, porque no existen descuentos.** Se buscó
+expresamente (descuento fijo, porcentual, precio especial, `final_price`, `payable_amount`,
+`promotion`, `adjustment`) y no hay nada de eso en el producto: `tickets.sale_price` **es** el importe
+que debe el cliente, y `pending_amount = sale_price - paid_amount` es la única resta que se hace, en
+SQL. Un precio distinto por boleta sí es posible —el campo lo admite—, y por eso la migración respeta
+cualquier `sale_price` que no sea exactamente $100.000. No se creó ninguna abstracción de precio
+efectivo: habría sido una capa nueva sin nada que abstraer (REUSE → EXTEND → CREATE).
+
+⚠️ **Consecuencia sobre las comisiones, buscada y no accidental.** Con BR-G15 la comisión de quien no
+pertenece a un equipo es la mitad del precio **vigente**, así que esta corrección le sube la tarifa de
+$50.000 a $60.000 por boleta cobrada, con ajuste retroactivo sobre las anteriores. Y una boleta que
+figuraba Pagada con $100.000 deja de estarlo, así que **deja de contar** para la comisión hasta que se
+complete el pago. Las dos cosas las recalculan solos los triggers `raffles_sync_commission` y
+`tickets_sync_commission`; la migración no escribe en el ledger. En el proyecto real esto no movió
+nada: no había ninguna fila de comisión todavía.
+
+**Cómo se prueba una migración de datos que corre sobre una base vacía.** `db reset` aplica `0027`
+antes de que exista una sola fila, así que la corrección no toca nada y no demuestra nada. La suite
+`tests/db/price-migration.test.ts` monta el escenario que la migración se encontró en producción,
+**lee el bloque `do $$ … $$` del propio archivo `.sql`** y lo ejecuta dentro de una transacción que
+después revierte. Leerlo del archivo evita que la prueba compruebe una copia que se pueda quedar
+atrás; revertir evita que el criterio (`ticket_price = 100000` en toda la base) alcance las rifas que
+otras suites crean a ese precio, que es la familia de fallos de I-035, I-055 e I-057.
+
+**El guardián del precio se conserva.** `tickets_protect_sale_price` (BR-P05) prohíbe cambiar el
+precio de una boleta con pagos. La migración lo desactiva **dentro de su propio bloque atómico** y lo
+vuelve a activar; no se debilita el trigger ni se añade una excepción permanente. BD `E7-13` comprueba
+las dos cosas: que vuelve a estar activo y que sigue rechazando el UPDATE.
+
+**Sin migración inversa, a propósito.** Bajar el precio a $100.000 después de que existan ventas o
+cobros hechos a $120.000 rompería `paid_amount <= sale_price` o dejaría boletas «Pagadas» que no lo
+están. La vuelta atrás es respaldo previo y restauración (`RUNBOOK.md` §5.4).
+
+**Alternativas.** (a) Tratarlo como subida de precio y dejar las boletas vendidas a $100.000
+(descartada: es el error que se venía a corregir). (b) Ajustar los pagos históricos para que las
+boletas siguieran «Pagadas» (descartada y prohibida: inventaría $20.000 que nadie entregó). (c)
+Seleccionar las boletas por su `id` de producción (descartada: la migración también corre en local y
+en CI, y un identificador que solo existe en un entorno la vuelve no reproducible). (d) Un `update`
+suelto sobre producción fuera del sistema de migraciones (descartada: no queda versionado, ni
+auditado, ni repetible).
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

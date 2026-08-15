@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { createRaffleSchema, changeRaffleStatusSchema } from '@/features/raffles/schemas'
+import {
+  createRaffleSchema,
+  changeRaffleStatusSchema,
+  raffleFormDefaults,
+} from '@/features/raffles/schemas'
 import {
   cancelTicketSchema,
   createTicketSchema,
@@ -8,6 +12,7 @@ import {
 } from '@/features/tickets/schemas'
 import { createUserSchema } from '@/features/users/schemas'
 import {
+  DEFAULT_TICKET_PRICE,
   RAFFLE_STATUS_TRANSITIONS,
   isOwnerOnlyRaffleTransition,
   type RaffleStatus,
@@ -71,7 +76,7 @@ describe('createRaffleSchema', () => {
   const base = {
     name: 'Rifa de prueba',
     description: '',
-    ticketPrice: 100000,
+    ticketPrice: DEFAULT_TICKET_PRICE,
     startDate: '2026-01-01',
     endDate: '2026-12-31',
     allowSellerTicketCreation: false,
@@ -79,6 +84,16 @@ describe('createRaffleSchema', () => {
 
   it('acepta una rifa valida con el precio predeterminado', () => {
     expect(createRaffleSchema.safeParse(base).success).toBe(true)
+  })
+
+  /**
+   * BR-R04 y D-098. Es la unica constante de precio de toda la aplicacion: el
+   * formulario de una rifa nueva llega con ella puesta y a partir de ahi manda
+   * `raffles.ticket_price`. Si alguien la devuelve a $100.000, esto lo dice.
+   */
+  it('una rifa nueva llega con $120.000 puestos (BR-R04)', () => {
+    expect(DEFAULT_TICKET_PRICE).toBe(120_000)
+    expect(raffleFormDefaults.ticketPrice).toBe(120_000)
   })
 
   it('rechaza que la fecha de fin sea anterior a la de inicio (BR-R07)', () => {

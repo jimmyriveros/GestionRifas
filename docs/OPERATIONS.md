@@ -55,8 +55,14 @@ crear un segundo Owner — ni por la interfaz ni manipulando la petición (refor
 
 ## 3. Rifas: crear, cerrar y anular
 
-1. **Crear**: `/owner/raffles` → "Nueva rifa". Precio predeterminado `$100.000`; se puede cambiar
+1. **Crear**: `/owner/raffles` → "Nueva rifa". Precio predeterminado `$120.000`; se puede cambiar
    para esa rifa específica sin afectar el precio de boletas ya vendidas de otras rifas.
+
+   ⚠️ **Cambiar el precio de una rifa activa mueve dinero de dos maneras** (BR-G15, D-096): a quien
+   cobra «la mitad del precio» le cambia la comisión de las boletas **ya cobradas**, y el sistema lo
+   recalcula solo. Lo que **no** cambia es el precio de las boletas ya vendidas (BR-P04): esas
+   conservan el suyo. Corregir un precio mal configurado en boletas ya vendidas es otra cosa y **no
+   se hace desde la pantalla**: exige una migración (BR-P07, D-098).
 2. **Activar**: desde el detalle de la rifa (`/owner/raffles/[id]`), botón **"Activar rifa"**. Una
    rifa activa admite creación y asignación de boletas.
 3. **Cerrar**: botón **"Cerrar rifa"**. Deja de admitir boletas nuevas o asignaciones, pero los

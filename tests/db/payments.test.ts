@@ -20,6 +20,17 @@ let seller1: Client
 let owner: Client
 
 /**
+ * Precio VIGENTE de la rifa del seed, leido de la base (D-098).
+ *
+ * Lo que estas pruebas comprueban es el LIMITE: que el sobrepago se rechace,
+ * que el importe exacto marque Pagada y que el precio congelado no se mueva.
+ * Ese limite es el precio de la boleta, no un numero concreto: escribirlo a
+ * mano convertia un cambio de precio de la rifa en nueve fallos que apuntaban
+ * a la logica de pagos, que estaba intacta.
+ */
+let PRICE: number
+
+/**
  * Crea una boleta NUEVA de vendedor1 y se la asigna al cliente indicado.
  *
  * Crea la boleta en lugar de tomar una del seed a proposito: si las pruebas
@@ -50,6 +61,14 @@ beforeAll(async () => {
   ctx = await loadSeedContext()
   seller1 = await signInAs(USERS.seller1)
   owner = await signInAs(USERS.owner)
+
+  const { data: rifa, error } = await ctx.svc
+    .from('raffles')
+    .select('ticket_price')
+    .eq('id', ctx.demoRaffle.id)
+    .single()
+  if (error) throw error
+  PRICE = Number(rifa.ticket_price)
 })
 
 describe('DB-10 bloqueo de sobrepago (BR-F12)', () => {
@@ -58,8 +77,8 @@ describe('DB-10 bloqueo de sobrepago (BR-F12)', () => {
 
     const { error } = await seller1.rpc('create_payment', {
       p_client_id: ctx.clients.ana.id,
-      p_total_amount: 100_001,
-      p_allocations: [{ ticket_id: ticketId, amount: 100_001 }],
+      p_total_amount: PRICE + 1,
+      p_allocations: [{ ticket_id: ticketId, amount: PRICE + 1 }],
     })
 
     expect(error).not.toBeNull()
@@ -79,10 +98,12 @@ describe('DB-10 bloqueo de sobrepago (BR-F12)', () => {
     })
     expect(primero.error).toBeNull()
 
+    // Justo un peso por encima de lo que falta: el sobrepago mas pequeno posible.
+    const excede = PRICE - 60_000 + 1
     const segundo = await seller1.rpc('create_payment', {
       p_client_id: ctx.clients.ana.id,
-      p_total_amount: 50_000, // 60.000 + 50.000 = 110.000 > 100.000
-      p_allocations: [{ ticket_id: ticketId, amount: 50_000 }],
+      p_total_amount: excede,
+      p_allocations: [{ ticket_id: ticketId, amount: excede }],
     })
     expect(segundo.error).not.toBeNull()
 
@@ -100,8 +121,8 @@ describe('DB-10 bloqueo de sobrepago (BR-F12)', () => {
 
     await seller1.rpc('create_payment', {
       p_client_id: ctx.clients.ana.id,
-      p_total_amount: 70_000,
-      p_allocations: [{ ticket_id: ticketId, amount: 70_000 }],
+      p_total_amount: PRICE - 30_000,
+      p_allocations: [{ ticket_id: ticketId, amount: PRICE - 30_000 }],
     })
     const { error } = await seller1.rpc('create_payment', {
       p_client_id: ctx.clients.ana.id,
@@ -115,24 +136,25 @@ describe('DB-10 bloqueo de sobrepago (BR-F12)', () => {
       .select('paid_amount, payment_status')
       .eq('id', ticketId)
       .single()
-    expect(data!.paid_amount).toBe(100_000)
+    expect(data!.paid_amount).toBe(PRICE)
     expect(data!.payment_status).toBe('paid')
   })
 
   it('dos abonos CONCURRENTES no pueden sobrepasar el precio (riesgo R-02)', async () => {
     const ticketId = await assignFreshTicket(ctx.clients.ana.id)
 
-    // 60.000 + 60.000 = 120.000 sobre una boleta de 100.000: uno debe fallar.
+    // Dos abonos que caben por separado pero no juntos: uno debe fallar.
+    const abono = PRICE - 10_000
     const [a, b] = await Promise.allSettled([
       seller1.rpc('create_payment', {
         p_client_id: ctx.clients.ana.id,
-        p_total_amount: 60_000,
-        p_allocations: [{ ticket_id: ticketId, amount: 60_000 }],
+        p_total_amount: abono,
+        p_allocations: [{ ticket_id: ticketId, amount: abono }],
       }),
       seller1.rpc('create_payment', {
         p_client_id: ctx.clients.ana.id,
-        p_total_amount: 60_000,
-        p_allocations: [{ ticket_id: ticketId, amount: 60_000 }],
+        p_total_amount: abono,
+        p_allocations: [{ ticket_id: ticketId, amount: abono }],
       }),
     ])
 
@@ -144,7 +166,7 @@ describe('DB-10 bloqueo de sobrepago (BR-F12)', () => {
       .select('paid_amount, sale_price')
       .eq('id', ticketId)
       .single()
-    expect(data!.paid_amount).toBe(60_000)
+    expect(data!.paid_amount).toBe(abono)
     expect(data!.paid_amount).toBeLessThanOrEqual(data!.sale_price!)
   })
 })
@@ -269,9 +291,9 @@ describe('cuadre y atomicidad (BR-F05, BR-F06)', () => {
 
     const { error } = await seller1.rpc('create_payment', {
       p_client_id: ctx.clients.carlos.id,
-      p_total_amount: 130_000,
+      p_total_amount: PRICE + 30_000,
       p_allocations: [
-        { ticket_id: t1, amount: 100_000 },
+        { ticket_id: t1, amount: PRICE },
         { ticket_id: t2, amount: 30_000 },
       ],
     })
@@ -286,7 +308,7 @@ describe('cuadre y atomicidad (BR-F05, BR-F06)', () => {
     const dos = data!.find((t) => t.id === t2)!
     expect(uno.payment_status).toBe('paid')
     expect(dos.payment_status).toBe('partial')
-    expect(uno.paid_amount + dos.paid_amount).toBe(130_000)
+    expect(uno.paid_amount + dos.paid_amount).toBe(PRICE + 30_000)
   })
 })
 
@@ -296,8 +318,8 @@ describe('anulacion y recalculo (BR-F09, BR-F11, D-013)', () => {
 
     const { data: paymentId } = await seller1.rpc('create_payment', {
       p_client_id: ctx.clients.beatriz.id,
-      p_total_amount: 100_000,
-      p_allocations: [{ ticket_id: ticketId, amount: 100_000 }],
+      p_total_amount: PRICE,
+      p_allocations: [{ ticket_id: ticketId, amount: PRICE }],
     })
 
     const { data: antes } = await ctx.svc
@@ -435,7 +457,7 @@ describe('snapshot del precio de venta (BR-P04)', () => {
       .select('sale_price')
       .eq('id', ticketId)
       .single()
-    expect(antes!.sale_price).toBe(100_000)
+    expect(antes!.sale_price).toBe(PRICE)
 
     await ctx.svc.from('raffles').update({ ticket_price: 250_000 }).eq('id', ctx.demoRaffle.id)
 
@@ -444,8 +466,8 @@ describe('snapshot del precio de venta (BR-P04)', () => {
       .select('sale_price')
       .eq('id', ticketId)
       .single()
-    expect(despues!.sale_price).toBe(100_000)
+    expect(despues!.sale_price).toBe(PRICE)
 
-    await ctx.svc.from('raffles').update({ ticket_price: 100_000 }).eq('id', ctx.demoRaffle.id)
+    await ctx.svc.from('raffles').update({ ticket_price: PRICE }).eq('id', ctx.demoRaffle.id)
   })
 })

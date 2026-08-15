@@ -6,7 +6,8 @@
  *
  * El jefe de un equipo cuenta como «no pertenece a ninguno»: el no fue creado
  * bajo nadie. Es deliberado — si al armar equipo pasara a tramos, su pago por
- * boleta caeria de $50.000 a $20.000 y formar equipo lo castigaria.
+ * boleta caeria de la mitad del precio a los $20.000 del primer tramo, y formar
+ * equipo lo castigaria.
  *
  * Lo que se comprueba aqui es dinero que se le debe a personas, asi que se
  * prueban las dos formas, el paso de una a otra, y que la invariante del ledger
@@ -16,7 +17,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { loadSeedContext, SEED_PASSWORD, signInAs, type Client } from './helpers'
 
-const PRICE = 100_000
+/**
+ * Precio VIGENTE de la rifa del seed, leido de la base en `beforeAll`.
+ *
+ * No se escribe a mano a proposito (D-098): la mitad del precio ES la tarifa de
+ * quien no pertenece a un equipo, asi que un numero fijado aqui convertiria
+ * cualquier cambio de precio de la rifa en un fallo de esta suite que apunta al
+ * sitio equivocado. Ya paso con `100_000`.
+ */
+let PRICE: number
 
 let ctx: Awaited<ReturnType<typeof loadSeedContext>>
 /**
@@ -166,6 +175,14 @@ beforeAll(async () => {
   ctx = await loadSeedContext()
   owner = await signInAs('owner@demo.test')
 
+  const { data: rifa, error: rifaError } = await ctx.svc
+    .from('raffles')
+    .select('ticket_price')
+    .eq('id', ctx.demoRaffle.id)
+    .single()
+  if (rifaError) throw rifaError
+  PRICE = Number(rifa.ticket_price)
+
   const stamp = Date.now().toString(36)
   jefeId = await alta('jefe', null, stamp)
   sueltoId = await alta('suelto', null, stamp)
@@ -222,9 +239,9 @@ describe('E6 — dos formas de pago', () => {
 
     const estado = await comisionDe(sueltoId)
     expect(Number(estado.tickets_paid)).toBe(3)
-    // La mitad de $100.000, no los $20.000 del primer tramo.
-    expect(Number(estado.rate)).toBe(50_000)
-    expect(Number(estado.earned)).toBe(150_000)
+    // La mitad del precio de la rifa, no los $20.000 del primer tramo.
+    expect(Number(estado.rate)).toBe(PRICE / 2)
+    expect(Number(estado.earned)).toBe(3 * (PRICE / 2))
     await expectLedgerMatches(sueltoId)
   })
 
@@ -232,8 +249,8 @@ describe('E6 — dos formas de pago', () => {
     await venderYCobrar(jefeId, 2)
 
     const estado = await comisionDe(jefeId)
-    expect(Number(estado.rate)).toBe(50_000)
-    expect(Number(estado.earned)).toBe(100_000)
+    expect(Number(estado.rate)).toBe(PRICE / 2)
+    expect(Number(estado.earned)).toBe(2 * (PRICE / 2))
     await expectLedgerMatches(jefeId)
   })
 
@@ -250,11 +267,12 @@ describe('E6 — dos formas de pago', () => {
   it('E6-04: cambiar el precio de la rifa recalcula a quien cobra la mitad', async () => {
     // La comision usa el precio VIGENTE, no el congelado en la boleta: subirlo
     // cambia lo que se debe por ventas ya cobradas (decisión del dueño).
-    await ctx.svc.from('raffles').update({ ticket_price: 120_000 }).eq('id', ctx.demoRaffle.id)
+    const subido = PRICE + 20_000
+    await ctx.svc.from('raffles').update({ ticket_price: subido }).eq('id', ctx.demoRaffle.id)
 
     const suelto = await comisionDe(sueltoId)
-    expect(Number(suelto.rate)).toBe(60_000)
-    expect(Number(suelto.earned)).toBe(180_000)
+    expect(Number(suelto.rate)).toBe(subido / 2)
+    expect(Number(suelto.earned)).toBe(3 * (subido / 2))
     await expectLedgerMatches(sueltoId)
 
     // Y NO toca a quien cobra por tramos: su tarifa no depende del precio.
@@ -279,8 +297,8 @@ describe('E6 — dos formas de pago', () => {
     await ctx.svc.from('memberships').update({ parent_seller_id: null }).eq('profile_id', sueltoId)
 
     const fuera = await comisionDe(sueltoId)
-    expect(Number(fuera.rate)).toBe(50_000)
-    expect(Number(fuera.earned)).toBe(150_000)
+    expect(Number(fuera.rate)).toBe(PRICE / 2)
+    expect(Number(fuera.earned)).toBe(3 * (PRICE / 2))
     await expectLedgerMatches(sueltoId)
   })
 

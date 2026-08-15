@@ -31,14 +31,16 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
+| **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | Último cambio funcional promovido | `7b26d99` — **corregir a un integrante pendiente** (D-097), 2026-08-14; migración `0026` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
-| Punto de partida del último mantenimiento | `main` en `d5bc351`, con árbol limpio antes de implementar (2026-08-14) |
+| **Sin promover** | **Migración `0027`** (precio a $120.000): probada en local, **pendiente de autorización** para el proyecto real |
+| Punto de partida del último mantenimiento | `main` en `66ca9a7`, con árbol limpio antes de implementar (2026-08-15) |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **26 migraciones en local y en el proyecto real.** `0022`–`0025` se promovieron el 2026-08-13 y **`0026` el 2026-08-14**, con respaldo previo en `Rifas-backups/`. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **309 unitarias**, **457 de base de datos** y **246 E2E**, todas revalidadas el 2026-08-14; `verify` en verde. La suite de base de datos aguanta **10 pasadas seguidas sobre la misma base** desde que se corrigió I-057 (dos suites de comisiones sorteaban números de boleta sobre solo 90 valores y chocaban). CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **27 migraciones en local; 26 en el proyecto real** — `0027` está pendiente de autorización. `0022`–`0025` se promovieron el 2026-08-13 y **`0026` el 2026-08-14**, con respaldo previo en `Rifas-backups/`. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **312 unitarias**, **471 de base de datos** y **247 E2E**, todas revalidadas el 2026-08-15; `verify` en verde. La suite de base de datos aguanta **seis pasadas seguidas sobre la misma base** (I-057 e I-059). CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -55,7 +57,20 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — corregir a un integrante pendiente (2026-08-14)
+## 1.a Último relevo significativo — el precio de la boleta pasa a $120.000 (2026-08-15)
+
+| Campo | Estado |
+|---|---|
+| Resultado | Corrección transversal del precio de la boleta de **$100.000 a $120.000** (D-098, BR-P01/BR-P07). **No es una subida de precio**: la cifra anterior nunca fue la correcta, así que se arrastra también el `sale_price` de las boletas ya vendidas de la rifa afectada. **Ni un peso de `payments` o `payment_allocations` se toca**: una boleta con $100.000 abonados queda **Abonada con $20.000 pendientes**, nunca Pagada. **Fuera a propósito:** la columna «Abono» del importador, que el encargo pide dejar para después |
+| Archivos | Migración **`0027_ticket_price_120000.sql`** (única pieza que cambia datos); `src/lib/constants.ts` (`DEFAULT_TICKET_PRICE`); `scripts/seed.ts` (los cuatro escenarios de cobro); comentarios de `lib/money.ts` y `features/reports/export.ts`. Pruebas: **`tests/db/price-migration.test.ts` (14, nuevo)**, `payments.test.ts`, `rpc.test.ts`, `commissions.test.ts`, `commission-modes.test.ts`, `notifications.test.ts`, `seller-teams.test.ts`, `payment-status.test.ts`, `schemas.test.ts`, `money.test.ts`, `payments.spec.ts`, `owner-raffles.spec.ts`, `seleccion-multiple.spec.ts`, `equipo.spec.ts`. Documentación: `CLAUDE.md`, `MASTER_SPEC`, `BUSINESS_RULES`, `DATA_MODEL`, `ARCHITECTURE`, `DECISIONS`, `TESTING`, `PHASE_STATUS`, `OPERATIONS`, `RUNBOOK` §5.4, `README` |
+| Reutilización | **No se creó ninguna capa de precio.** La arquitectura ya centralizaba el precio como pedía el encargo: `raffles.ticket_price` → `assign_ticket_row` lo copia a `sale_price` → los saldos y estados salen de SQL (`payment_status` es columna generada, `pending_amount` una vista). La aplicación tiene **una** constante, `DEFAULT_TICKET_PRICE`, y solo rellena el formulario de rifa nueva |
+| Decisiones | **D-098**. Reglas **BR-P07** (corregir ≠ subir) y **BR-P08** (no hay descuentos: `sale_price` es lo que se debe). Actualizadas BR-P01, BR-R04, BR-O05 |
+| Verificación | **471/471** de base de datos · **247/247** E2E · `verify` en verde (**312** unitarias). Sonda de **solo lectura** contra producción antes de escribir nada, con el mapa de impacto real |
+| Advertencias | **1)** **`0027` NO está aplicada en producción**: hace falta autorización expresa y respaldo previo (`RUNBOOK` §5.1). Hasta que se aplique, el proyecto real sigue a $100.000 y **la aplicación desplegada ya diría $120.000 en el formulario de rifa nueva**, así que conviene promover base y rama juntas. **2)** **Cambiar el precio de una rifa mueve comisiones** (BR-G15): a quien cobra «la mitad» le sube la tarifa de $50.000 a $60.000 con ajuste retroactivo, y una boleta que deja de estar Pagada deja de contar. Lo recalculan los triggers; no se escribe ledger a mano. En producción no movió nada porque no hay ni una fila de comisión. **3)** **No hay migración inversa y es deliberado**: la vuelta atrás es restaurar (`RUNBOOK` §5.4). **4)** La prueba de la migración ejecuta el bloque `do $$` **leído del `.sql`** dentro de una transacción que revierte; si la conviertes en una copia del SQL o le quitas el `rollback`, dejará de probar la migración real o pisará las rifas a $100.000 de otras suites. **5)** `organizations.default_ticket_price` **no la lee ningún código**: `DATA_MODEL` decía lo contrario y se corrigió la documentación, no el comportamiento |
+| Pendiente | **Autorización del dueño para aplicar `0027` al proyecto real** y desplegar. Después: `verify:remote` y una pasada visual con sesión real (un agente no inicia sesión en producción). El encargo continúa con la columna «Abono» del importador, que **no debe empezarse** hasta que esto esté estable |
+| Git | Rama `main`, partiendo de `66ca9a7` con el árbol limpio |
+
+## 1.a.0 Relevo anterior — corregir a un integrante pendiente (2026-08-14)
 
 | Campo | Estado |
 |---|---|
@@ -120,6 +135,8 @@ dueño, deuda aceptada y límites verificados; no deben describirse como si no e
 
 | Asunto | Qué hace falta |
 |---|---|
+| **I-059** — limpiar pagos por PostgREST falla en silencio; dos suites de comisiones dejan basura | Llevar su `afterAll` a **una** transacción por `pg`, como hace `price-migration.test.ts`, y comprobar el resultado. Es lo que degrada `test:db` al repetirlo |
+| **I-060** — `ticket-search` elige la rifa con un `limit 1` sin orden | Elegir la rifa por nombre y usar el mismo id en las dos consultas. Falla a partir de la tercera pasada seguida |
 | **I-024** — plan Free sin backups automáticos ni PITR | Subir a Supabase Pro o automatizar el respaldo externo. **Prerrequisito antes de operar con dinero o clientes reales** (`RUNBOOK.md` §5.3) |
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |
 | **I-023** — la URL permitida de Auth debe coincidir con la canónica de Vercel | Confirmar `https://gestion-rifas.vercel.app/**` en Vercel y Supabase antes de enviar invitaciones (`DEPLOYMENT.md` §2.1) |
@@ -641,3 +658,7 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Cambias el correo de una cuenta invitada y crees que el enlace anterior murió | No murió. Cambiar el correo **no toca** `confirmation_token`: el enlace viejo sigue dando sesión, ya con el correo nuevo. Lo que sí lo invalida es **volver a invitar** —Auth reescribe el token en la misma ranura—, y por eso el cambio de correo pasa siempre por `sendInvitation` | D-097 · BD `E2-10` |
 | Vas a dejar que un rol escriba en `profiles` con una política | `authenticated` tiene `UPDATE` sobre **todas** sus columnas (`0009`/`0010`): la política le daría de paso `is_active` y `email`. Usa una función `SECURITY DEFINER` que escriba solo lo que toca | D-097 · BD `E2-08` |
 | `test:db` falla en archivos que no tocaste, o un archivo entero sale «skipped» | Busca `tickets_combo_unique` en el log. Un número de boleta sorteado a ciegas choca con los que ya hay, revienta el `beforeAll` y arrastra su archivo; si muere entre el cambio y la restauración del precio de una rifa compartida, la **ejecución siguiente** falla con importes que no cuadran y apunta al sitio equivocado. Los números se buscan libres, no se sortean | I-057 · I-055 |
+| Tu `afterAll` borra pagos con el cliente de Supabase y la base se queda llena | `payments_balanced` es un constraint trigger **diferido** y PostgREST manda cada `delete` en su propia transacción: borrar las asignaciones a solas revienta con «El pago no cuadra». El cliente **devuelve** el error en vez de lanzarlo, así que no te enteras. Limpia por `pg` en UNA transacción y comprueba que no quedó nada | I-059 |
+| Escribes una cifra de precio («$100.000», `100_000`) en una prueba o en un componente | No lo hagas. Al corregir el precio a $120.000 se cayeron **once** pruebas que no tenían nada roto: comparaban contra un número escrito a mano en vez de contra `raffles.ticket_price` o `sale_price`. Léelo de la base (`raffleTicketPrice(refs)` en E2E) o exprésalo relativo al precio | D-098 |
+| Una boleta con $100.000 abonados aparece como «Pagada» | Es una regresión de verdad: con el precio vigente le faltan $20.000. Alguien comparó contra una cifra fija en vez de contra `sale_price`. Lo vigilan la unitaria «CASO CRITICO», BD `E7-07` y una E2E del mismo nombre | D-098 · BR-P07 |
+| Cambias el precio de una rifa y alguien cobra distinto de un día para otro | Es lo previsto (BR-G15): quien no está en un equipo cobra **la mitad del precio vigente**, y el trigger `raffles_sync_commission` reajusta también las boletas ya cobradas. Además, una boleta que deja de estar Pagada deja de contar para la comisión | D-096 · D-098 |

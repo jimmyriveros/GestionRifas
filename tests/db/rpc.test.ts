@@ -448,7 +448,15 @@ describe('assign_ticket — reglas de asignacion (BR-I07)', () => {
       .eq('id', creada!.id)
       .single()
 
-    expect(after!.sale_price).toBe(100_000)
+    // BR-P03: el precio VIGENTE de la rifa, sea cual sea. Leerlo de la base en
+    // vez de escribirlo a mano es lo que prueba la regla y no un numero (D-098).
+    const { data: rifa } = await ctx.svc
+      .from('raffles')
+      .select('ticket_price')
+      .eq('id', ctx.demoRaffle.id)
+      .single()
+
+    expect(after!.sale_price).toBe(Number(rifa!.ticket_price))
     expect(after!.sale_date).not.toBeNull()
     expect(after!.assigned_at).not.toBeNull()
     expect(after!.inventory_status).toBe('assigned')

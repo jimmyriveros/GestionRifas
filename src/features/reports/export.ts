@@ -26,7 +26,7 @@ import { type ReportFilters, type ReportKey } from './schemas'
  * pantalla muestra: si la tabla y el archivo se separaran, tarde o temprano
  * dirian cosas distintas.
  *
- * MONEDA Y FECHAS. Los valores salen ya formateados —`$100.000`, `04/08/2026`—
+ * MONEDA Y FECHAS. Los valores salen ya formateados —`$120.000`, `04/08/2026`—
  * porque el destinatario del archivo es una persona con Excel en configuracion
  * regional de Colombia, no otro programa. En esa configuracion ambos formatos
  * se reconocen como numero y como fecha, de modo que las columnas siguen

@@ -174,8 +174,8 @@ redirige al panel y el formulario no llega a existir; `loginAs` falla con un err
 | DB-09 | Seller A consulta boletas de Seller B | Cero filas |
 | DB-10 | Seller A actualiza una boleta de Seller B | Cero filas afectadas |
 | DB-11 | Usuario de la organización 1 consulta datos de la organización 2 | Cero filas |
-| DB-12 | Pago de $100.001 sobre una boleta de $100.000 | Error |
-| DB-13 | Dos pagos concurrentes de $60.000 sobre una boleta de $100.000 | El segundo falla |
+| DB-12 | Pago de un peso por encima del precio de la boleta | Error |
+| DB-13 | Dos pagos concurrentes que caben por separado pero no juntos | El segundo falla |
 | DB-14 | Asignación de pago a una boleta de otro cliente | Error de clave foránea |
 | DB-15 | Asignación de pago a una boleta sin cliente | Error de clave foránea |
 | DB-16 | Pago cuya suma de asignaciones no coincide con el total | Error al confirmar |
@@ -216,9 +216,9 @@ Las tres consultas deben devolver cero filas.
 
 | Módulo | Casos |
 |--------|-------|
-| `lib/money.ts` | `0 → "$0"`, `25000 → "$25.000"`, `100000 → "$100.000"`; rechazo de decimales; ida y vuelta sin pérdida |
+| `lib/money.ts` | `0 → "$0"`, `25000 → "$25.000"`, `120000 → "$120.000"`; rechazo de decimales; ida y vuelta sin pérdida |
 | `features/tickets/schemas.ts` | `'1'`, `'25'`, `'007'`, `'0000'`, `'9999'` válidos; `'12345'`, `'12A4'`, `'-123'`, `'12.5'`, `''` inválidos |
-| Cálculo de estado de pago | 0 → Sin pagar; 1..99.999 → Abonada; 100.000 → Pagada; 100.001 → error |
+| Cálculo de estado de pago | Sobre una boleta de $120.000: 0 → Sin pagar; 1..119.999 → Abonada; 120.000 → Pagada; 120.001 → error. Incluye el caso crítico de D-098: **$100.000 → Abonada**, nunca Pagada |
 | `lib/dates.ts` | Un pago del 31 a las 23:00 en Bogotá pertenece al día 31, no al 1 |
 | Detección de duplicados en el formulario masivo | Detecta repetidos entre 1.000 filas sin bloquear la interfaz |
 | `lib/errors.ts` | Cada código de error de PostgreSQL se traduce a un mensaje en español sin filtrar detalles internos |
@@ -306,11 +306,14 @@ Definido en la Fase 2 y unificado después por D-042. Estado conocido local:
 - Admin: `admin@demo.test`
 - Seller A: `vendedor1@demo.test`
 - Seller B: `vendedor2@demo.test`
-- Rifa `active` de `$100.000` con `allow_seller_ticket_creation = true`
+- Rifa `active` de `$120.000` con `allow_seller_ticket_creation = true`
 - 3 clientes de Seller A y 2 de Seller B
 - Boletas: 10 `available`, 6 `assigned`, 2 `pending_approval`, 1 `cancelled`, 3 `draft`
-- Pagos: uno parcial (`$40.000`), uno completo (`$100.000`), uno repartido entre 2 boletas y uno
-  anulado
+- Pagos: uno parcial (`$40.000`), uno completo (`$120.000`), uno repartido entre 2 boletas
+  (`$100.000` + `$50.000`) y uno anulado
+- Los cuatro estados de cobro quedan visibles a propósito (D-098): Sin pagar · Abonada con
+  `$80.000` pendientes · **Abonada con `$20.000` pendientes** —el caso crítico: `$100.000` sobre una
+  boleta de `$120.000`— · Pagada
 
 **Organización 2 — «Rifas Control»** (solo para pruebas de aislamiento)
 - Owner: `owner@control.test`, Seller: `vendedor@control.test`

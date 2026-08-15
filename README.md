@@ -93,7 +93,7 @@ Versiones exactas y su justificación en [`docs/ARCHITECTURE.md`](docs/ARCHITECT
 | Idioma | Español (es-CO) |
 | Zona horaria | `America/Bogota` |
 | Moneda | COP, almacenada como entero de pesos |
-| Precio predeterminado de boleta | `$100.000` (`100000`) |
+| Precio predeterminado de boleta | `$120.000` (`120000`) — corregido desde `$100.000` el 2026-08-15 (D-098) |
 
 ---
 

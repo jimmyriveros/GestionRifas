@@ -189,6 +189,33 @@ maneje dinero o clientes reales, elegir una de estas dos (**I-024**, requisito a
 Documentar el incidente cuando se use de verdad —qué se perdió, desde cuándo hasta cuándo, por qué se
 restauró— en `docs/KNOWN_ISSUES.md` o en un registro interno del negocio; esta guía no lo hace por ti.
 
+### 5.4 Deshacer una corrección de precio (migración `0027`, D-098)
+
+**No existe migración inversa, y es deliberado.** La corrección subió `raffles.ticket_price` y el
+`sale_price` de las boletas de una rifa de `$100.000` a `$120.000`. Volver a bajarlo con un `update`
+haría daño en cuanto haya pasado algo después:
+
+- Una boleta cobrada por completo a `$120.000` rompería `paid_amount <= sale_price`, y el `update`
+  fallaría a medias dejando unas boletas corregidas y otras no.
+- Una boleta con `$110.000` abonados pasaría a figurar **Pagada** con `$10.000` de más que nadie
+  cobró.
+- Las comisiones de quien cobra «la mitad del precio» se recalcularían hacia abajo (BR-G15), moviendo
+  dinero que ya se le comunicó a una persona.
+
+**El procedimiento es restaurar, no revertir:**
+
+1. Localizar el respaldo previo a la migración (`Rifas-backups/<fecha>-pre-0027/`, generado con §5.1
+   **antes** del `db push`; sin él no hay vuelta atrás).
+2. Restaurar siguiendo §5.2. Recordar que restaurar **descarta todo lo ocurrido después**: ventas,
+   abonos y altas incluidas. Si hubo movimiento desde la migración, hay que decidir explícitamente qué
+   pesa más, y esa decisión es del dueño, no del agente.
+3. Si solo hace falta cambiar el precio **hacia adelante** —no deshacer la corrección—, eso sí es una
+   operación normal: editar la rifa desde `/owner/raffles`. No toca las boletas ya vendidas (BR-P04).
+
+Para comprobar qué dejó la migración sin necesidad de restaurar nada, la bitácora lo tiene todo: cada
+boleta corregida escribió una entrada `ticket.update` con su `sale_price` anterior y el nuevo, y la
+rifa una `raffle.update` (actor `NULL`, porque lo ejecutó el sistema).
+
 ---
 
 ## 6. Mensajes de error raros o que exponen algo que no deberían

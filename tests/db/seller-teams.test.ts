@@ -325,12 +325,21 @@ describe('E1 — visibilidad del equipo', () => {
       .single()
     createdClientIds.push(cliente!.id)
 
+    // El precio vigente de la rifa, no una cifra escrita a mano (D-098): lo que
+    // se comprueba es que el resumen sume lo que vale la boleta.
+    const { data: rifa } = await ctx.svc
+      .from('raffles')
+      .select('ticket_price')
+      .eq('id', ctx.demoRaffle.id)
+      .single()
+    const precio = Number(rifa!.ticket_price)
+
     await ctx.svc
       .from('tickets')
       .update({
         client_id: cliente!.id,
         inventory_status: 'assigned',
-        sale_price: 100000,
+        sale_price: precio,
         sale_date: '2026-08-12',
         assigned_at: new Date().toISOString(),
       })
@@ -342,7 +351,7 @@ describe('E1 — visibilidad del equipo', () => {
     const fila = data?.find((row) => row.seller_id === memberId)
     expect(fila).toBeDefined()
     expect(Number(fila!.tickets_assigned)).toBe(1)
-    expect(Number(fila!.total_sold)).toBe(100000)
+    expect(Number(fila!.total_sold)).toBe(precio)
   })
 
   it('E1-11b: quien no tiene equipo recibe un resumen vacio, nunca el de otro', async () => {

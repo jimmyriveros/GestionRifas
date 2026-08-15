@@ -186,7 +186,8 @@ reales (D-042); las pruebas de RLS nunca usan `service_role` (D-043).
 - **Dashboard administrativo real**: rifa activa, vendedores activos, inventario por estado,
   cobranza (sin pagar / abonadas / pagadas, vendido, recaudado, saldo), resumen por vendedor,
   boletas recientes y aviso accionable de boletas pendientes de aprobación.
-- **Rifas**: listado con métricas, creación con precio predeterminado de $100.000, edición,
+- **Rifas**: listado con métricas, creación con precio predeterminado de $120.000 (D-098; era
+  $100.000 cuando se cerró esta fase), edición,
   máquina de estados completa (BR-R03) con **reapertura exclusiva del Owner**, bloqueo de edición en
   rifas cerradas o anuladas, nombre único y validación de fechas.
 - **Administradores**: listado, invitación por correo, edición, activación y desactivación, con la
@@ -430,7 +431,7 @@ interno; en esta fase solo el vendedor tiene pantalla para registrar abonos.
   | Clientes con saldo | Clientes con saldo pendiente (5) | Vendedor |
   | Pagos por fecha | Pagos por rango de fechas (6) | Vendedor, rango, método, estado |
 
-- **Exportación a CSV** de las cinco tablas, con separador `;`, BOM UTF-8, moneda `$100.000` y fechas
+- **Exportación a CSV** de las cinco tablas, con separador `;`, BOM UTF-8, moneda `$120.000` y fechas
   `DD/MM/AAAA` para que Excel en configuración regional colombiana las abra bien (D-056). Las celdas
   que empiezan por `=`, `+`, `-` o `@` se neutralizan contra **inyección de fórmulas**, sin estropear
   los teléfonos `+57 …`.
@@ -962,3 +963,64 @@ Ninguna nueva.
 2. **«Activada» no se puede deducir de `auth.users`** (D-097). GoTrue escribe un hash aleatorio en `encrypted_password` con solo abrir el enlace de la invitación; la prueba `E2-02` existe para que nadie vuelva a intentarlo.
 3. **Que no queden dos invitaciones válidas lo garantiza Auth**, al reinvitar a una cuenta sin confirmar (`sendInvitation`). La prueba `E2-10` recorre el camino entero: si una versión futura de GoTrue deja de rotar el token, falla ahí y no en producción.
 4. Las tres funciones del equipo son **funciones y no políticas** a propósito: `authenticated` tiene UPDATE sobre todas las columnas de `profiles`. La prueba `E2-08` comprueba que esa puerta sigue cerrada.
+
+---
+
+## Mantenimiento post-9 — precio de la boleta a $120.000 (2026-08-15)
+
+### 1. Funcionalidades implementadas
+
+- **El precio de la boleta pasa de `$100.000` a `$120.000`** en toda la aplicación (D-098, BR-P01).
+  No fue una subida de precio sino la corrección de un dato que nunca fue correcto, y esa distinción
+  decide el tratamiento: se arrastra también el `sale_price` de las boletas ya vendidas de la rifa
+  afectada, cosa que una subida real **no** haría (BR-P04).
+- **Los movimientos de dinero quedan intactos** (BR-P07). La migración no contiene ni un `UPDATE`
+  sobre `payments` ni sobre `payment_allocations`. Una boleta con `$100.000` abonados sobre un precio
+  corregido de `$120.000` queda **Abonada con `$20.000` pendientes**, nunca Pagada.
+- **Sin capa de precio nueva.** La fuente sigue siendo `raffles.ticket_price`; la base la copia a
+  `tickets.sale_price` al vender y calcula saldos y estados en SQL. La aplicación conserva una sola
+  constante, `DEFAULT_TICKET_PRICE`, que solo rellena el formulario de una rifa nueva.
+- **Se documentó que no existen descuentos** (BR-P08): se buscaron expresamente y no hay ninguno, así
+  que `sale_price` **es** el importe que debe el cliente y no hace falta un «precio efectivo» aparte.
+
+### 2. Pruebas ejecutadas y resultados
+
+**471** de base de datos ✅ (+14: la suite nueva `price-migration`) · **312** unitarias ✅ (+3) ·
+**247** E2E ✅ (+1) · `typecheck`, `lint` y `build` ✅.
+
+Primera pasada: **9 fallos de base de datos y 1 E2E**, todos por cifras de precio escritas a mano en
+las pruebas, no por el producto. Detalle completo, causa por causa, en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+| Migración | Qué hace |
+|---|---|
+| `0027_ticket_price_120000.sql` | Pone `DEFAULT 120000` en `raffles.ticket_price` y `organizations.default_ticket_price`; corrige a `120000` las rifas en operación que valían `100000` y el `sale_price` de sus boletas no anuladas que valían exactamente `100000`; informa por `NOTICE` de todo lo que deja fuera; se niega a correr si encuentra un pago por encima del precio corregido |
+
+Las **26** anteriores siguen sin cambios (son inmutables).
+
+### 4. Variables de entorno
+
+Sin cambios.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **`0027` no está aplicada al proyecto real** | El proyecto real sigue a `$100.000`. Requiere autorización expresa y respaldo previo. Mientras tanto, **base y rama deben promoverse juntas**: si se despliega el código sin la migración, el formulario de rifa nueva ofrecería `$120.000` sobre una base que sigue en `$100.000` |
+| `organizations.default_ticket_price` no la lee ningún código | Configuración inerte. `DATA_MODEL` afirmaba que el formulario tomaba de ahí su valor y era falso: se corrigió la documentación, no el comportamiento |
+| Sin migración inversa | Deliberado: bajar el precio después de que existan cobros a `$120.000` rompería invariantes o dejaría boletas «Pagadas» que no lo están. La vuelta atrás es restaurar (`RUNBOOK.md` §5.4) |
+| **I-059** — limpiar pagos por PostgREST falla en silencio | Encontrado aquí y **corregido en la suite nueva**. `commissions.test.ts` y `commission-modes.test.ts` conservan el patrón y acumulan pagos y boletas en la rifa del seed en cada pasada: es lo que degrada `test:db` al repetirlo. No se tocaron, por alcance |
+| **I-060** — `ticket-search` elige la rifa con un `limit 1` sin orden | Puede insertar en una rifa y buscar en otra cuando la base acumula boletas. No es un defecto de `search_tickets`. No se corrigió, por alcance |
+
+### 6. Qué debe revisar el siguiente agente
+
+1. **No escribas cifras de precio en el código ni en las pruebas.** Léelas de `raffles.ticket_price`
+   (o de `sale_price`). Once pruebas correctas fallaron por hacerlo, y ese es el coste de repetirlo.
+2. **Cambiar el precio de una rifa mueve comisiones** (BR-G15, D-096): a quien cobra «la mitad» le
+   sube la tarifa con ajuste retroactivo, y una boleta que deja de estar Pagada deja de contar. Lo
+   recalculan los triggers; no se escribe en el ledger a mano.
+3. **La prueba de la migración lee el bloque `do $$` del propio `.sql`** y lo ejecuta en una
+   transacción que revierte. Si la conviertes en una copia del SQL dejará de probar la migración; si
+   le quitas el `rollback`, pisará las rifas a `$100.000` de otras suites.
+4. **La columna «Abono» del importador sigue sin empezarse**, por indicación expresa del encargo.

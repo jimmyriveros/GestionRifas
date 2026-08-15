@@ -4,10 +4,12 @@ import {
   createAssignedTicket,
   createClientFor,
   loadSeedRefs,
+  raffleTicketPrice,
   ticketBalance,
   type SeedRefs,
 } from './db-setup'
 import { ACCOUNTS, expectToast, loginAs, randomTicketNumbers, unique } from './fixtures'
+import { formatCOP } from '../../src/lib/money'
 
 /**
  * Pruebas 1 a 13 de la Fase 5: registro de abonos, cuadre exacto, bloqueo de
@@ -15,12 +17,21 @@ import { ACCOUNTS, expectToast, loginAs, randomTicketNumbers, unique } from './f
  * (BR-F02..BR-F13, BR-I11).
  */
 
-const PRICE = 100_000
+/**
+ * Precio VIGENTE de la rifa del seed, leido de la base (D-098).
+ *
+ * Las boletas que crea esta suite viven en esa rifa y tienen que costar lo que
+ * esa rifa cuesta hoy. Escribirlo a mano dejaba boletas de $100.000 dentro de
+ * una rifa de $120.000 y volvia mentirosos los totales que se comprueban en
+ * pantalla.
+ */
+let PRICE: number
 
 let refs: SeedRefs
 
 test.beforeAll(async () => {
   refs = await loadSeedRefs()
+  PRICE = await raffleTicketPrice(refs)
 })
 
 /** Cliente nuevo con una boleta vendida sin abonos. */
@@ -82,6 +93,38 @@ test.describe('Registro de abonos por el vendedor', () => {
     await expect(page.getByRole('option', { name: new RegExp(client.name) })).toHaveCount(0)
   })
 
+  /**
+   * El caso que motivó la corrección de precio (D-098), visto por el vendedor.
+   *
+   * Con el precio anterior, $100.000 dejaba la boleta Pagada. Con el precio
+   * corregido es un abono al que le faltan $20.000, y la pantalla tiene que
+   * decirlo: si alguna vez vuelve a aparecer «Pagada» aquí, es que alguien
+   * comparó contra una cifra escrita en el código en vez de contra `sale_price`.
+   */
+  test('CASO CRITICO: $100.000 sobre una boleta de $120.000 se ve Abonada', async ({ page }) => {
+    test.skip(PRICE <= 100_000, 'Solo tiene sentido con el precio corregido de $120.000.')
+
+    const { client, ticket } = await clientWithDebt('Abonador de cien mil')
+
+    await page.goto(`/seller/payments/new?clientId=${client.id}`)
+    await page.getByLabel('Valor del abono').fill('100000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    const balance = await ticketBalance(ticket.id)
+    expect(balance.paidAmount).toBe(100_000)
+    expect(balance.paymentStatus).toBe('partial')
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await expect(page.getByText('Abonada').first()).toBeVisible()
+    await expect(page.getByText('Pagada')).toHaveCount(0)
+    // El precio de la boleta y lo abonado, tal como los muestra el detalle.
+    await expect(page.getByText(formatCOP(PRICE), { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('$100.000', { exact: true }).first()).toBeVisible()
+    // Y sigue ofreciendo cobrar lo que falta.
+    await expect(page.getByRole('link', { name: /Registrar un abono/ })).toBeVisible()
+  })
+
   test('el sobrepago se bloquea antes de enviar (prueba 3, BR-F12)', async ({ page }) => {
     const { client, ticket, numbers } = await clientWithDebt('Sobrepagador')
 
@@ -134,8 +177,9 @@ test.describe('Registro de abonos por el vendedor', () => {
         ? [ticketA, ticketB]
         : [ticketB, ticketA]
 
-    expect((await ticketBalance(primera.id)).paidAmount).toBe(100_000)
-    expect((await ticketBalance(segunda.id)).paidAmount).toBe(50_000)
+    // El reparto llena la primera hasta su precio y pasa el resto a la segunda.
+    expect((await ticketBalance(primera.id)).paidAmount).toBe(PRICE)
+    expect((await ticketBalance(segunda.id)).paidAmount).toBe(150_000 - PRICE)
   })
 
   test('una suma distinta al total no deja guardar (prueba 5, BR-F05)', async ({ page }) => {

@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 
 import { ACCOUNTS, expectToast, loginAs, unique } from './fixtures'
+import { DEFAULT_TICKET_PRICE } from '../../src/lib/constants'
+import { formatCOP } from '../../src/lib/money'
 
 /**
  * Pruebas 1 y 2 de la Fase 3: crear y editar una rifa, y las restricciones de
@@ -20,8 +22,12 @@ test.describe('Rifas', () => {
     await page.getByLabel('Fecha de inicio').fill('2026-01-01')
     await page.getByLabel('Fecha de fin').fill('2026-12-31')
 
-    // BR-R04: el formulario llega con $100.000 puesto.
-    await expect(page.getByLabel('Precio de la boleta')).toHaveValue('$100.000')
+    // BR-R04: el formulario llega con el precio predeterminado puesto y
+    // formateado (D-098). Es la cifra que ve el Dueño antes de tocar nada.
+    await expect(page.getByLabel('Precio de la boleta')).toHaveValue(
+      formatCOP(DEFAULT_TICKET_PRICE),
+    )
+    await expect(page.getByLabel('Precio de la boleta')).toHaveValue('$120.000')
 
     await page.getByRole('button', { name: 'Crear rifa' }).click()
 

@@ -69,9 +69,9 @@ Referencia normativa de permisos: `docs/SECURITY.md` §2 (Matriz de permisos).
 | Idioma de interfaz | Español (es-CO) |
 | Zona horaria de negocio | `America/Bogota` (UTC-5, sin horario de verano) |
 | Moneda | COP |
-| Formato de presentación | `$100.000`, `$25.000`, `$0` (separador de miles `.`, sin decimales) |
-| Precio predeterminado de boleta | `$100.000 COP` |
-| Valor interno predeterminado | `100000` (entero, pesos completos) |
+| Formato de presentación | `$120.000`, `$25.000`, `$0` (separador de miles `.`, sin decimales) |
+| Precio predeterminado de boleta | `$120.000 COP` (corregido desde `$100.000` el 2026-08-15 — D-098, BR-P01) |
+| Valor interno predeterminado | `120000` (entero, pesos completos) |
 
 **Regla dura:** el dinero se almacena y se opera como entero de pesos colombianos. Nunca `float`,
 `double`, `real` ni `number` con decimales. Los cálculos financieros autoritativos ocurren en
@@ -121,7 +121,7 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
 5. Un usuario inactivo no puede ingresar **ni continuar operando con una sesión previa**.
 
 ### F2 — Creación de una rifa
-1. Owner/Admin crea la rifa con precio predeterminado `100000`.
+1. Owner/Admin crea la rifa con precio predeterminado `120000`.
 2. Define fechas, estado inicial `draft` y `allow_seller_ticket_creation`.
 3. Activa la rifa (`active`) para habilitar la operación.
 4. Cambiar el precio de la rifa **no** altera el `sale_price` de boletas ya vendidas.
@@ -253,7 +253,7 @@ Checklist exigido por el prompt de Fase 0. Cada punto está resuelto en el dise�
 
 | # | Punto a verificar | Resolución de diseño | Dónde se aplica | Referencia |
 |---|-------------------|----------------------|-----------------|------------|
-| 1 | Precio predeterminado `$100.000 COP` | `raffles.ticket_price bigint NOT NULL DEFAULT 100000` | BD (default) + UI (valor inicial del formulario) | DATA_MODEL §4.4, BR-P01 |
+| 1 | Precio predeterminado `$120.000 COP` | `raffles.ticket_price bigint NOT NULL DEFAULT 120000` (migración `0027`) | BD (default) + UI (valor inicial del formulario) | DATA_MODEL §4.4, BR-P01, D-098 |
 | 2 | Dinero como enteros | Todas las columnas monetarias `bigint`; prohibido `numeric`/`float` | BD + tipos TS + Zod `z.int()` | DATA_MODEL §3.2, BR-P02 |
 | 3 | Números guardados como texto | `daily_number text`, `weekly_number text` | BD | DATA_MODEL §4.6, BR-N01 |
 | 4 | Máximo 4 dígitos | `CHECK (daily_number ~ '^[0-9]{1,4}$')` + Zod `regex` | BD + servidor + cliente | BR-N02 |

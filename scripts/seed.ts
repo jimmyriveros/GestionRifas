@@ -6,8 +6,15 @@
  *
  * Crea:
  *   - Organizacion "Rifas Demo": Owner, Admin, 2 vendedores, una rifa activa de
- *     $100.000, clientes, boletas en todos los estados y pagos parciales,
- *     completos, repartidos y anulados.
+ *     $120.000, clientes, boletas en todos los estados y pagos parciales,
+ *     completos, repartidos y anulados. Los cuatro escenarios de pago que hay
+ *     que poder ver en pantalla (D-098):
+ *
+ *       Sin pagar   $0        de $120.000
+ *       Abonada     $40.000   de $120.000  -> faltan $80.000
+ *       Abonada     $100.000  de $120.000  -> faltan $20.000  (caso critico:
+ *                   el importe que ANTES dejaba la boleta Pagada)
+ *       Pagada      $120.000  de $120.000  -> saldo $0
  *   - Organizacion "Rifas Control": Owner y vendedor propios, con una rifa cuyas
  *     boletas REUTILIZAN combinaciones de la primera organizacion. Existe para
  *     que las pruebas puedan demostrar dos cosas a la vez: que la unicidad de
@@ -263,8 +270,8 @@ async function seedDemoBusiness(orgId: string, ids: Record<string, string>) {
   const seller1 = ids['vendedor1@demo.test']!
   const seller2 = ids['vendedor2@demo.test']!
 
-  const raffleId = await createRaffle(orgId, owner, RAFFLE_DEMO, 100_000, true)
-  console.log(`  rifa creada: ${RAFFLE_DEMO} ($100.000, activa)`)
+  const raffleId = await createRaffle(orgId, owner, RAFFLE_DEMO, 120_000, true)
+  console.log(`  rifa creada: ${RAFFLE_DEMO} ($120.000, activa)`)
 
   const ana = await createClientRow(orgId, seller1, 'Ana Torres', '3101112233', 'ana@ejemplo.test')
   const carlos = await createClientRow(orgId, seller1, 'Carlos Diaz', '3102223344', null)
@@ -340,7 +347,7 @@ async function seedDemoBusiness(orgId: string, ids: Record<string, string>) {
   await v2.rpc('assign_ticket', { p_ticket_id: s2ToAssign[1]!, p_client_id: diego })
   console.log('  boletas asignadas: 6 de vendedor1, 2 de vendedor2')
 
-  // Pago PARCIAL: $40.000 sobre una boleta de $100.000 -> Abonada
+  // Pago PARCIAL: $40.000 sobre una boleta de $120.000 -> Abonada, faltan $80.000
   const parcial = await v1.rpc('create_payment', {
     p_client_id: ana,
     p_total_amount: 40_000,
@@ -350,17 +357,19 @@ async function seedDemoBusiness(orgId: string, ids: Record<string, string>) {
   })
   if (parcial.error) throw parcial.error
 
-  // Pago COMPLETO: $100.000 -> Pagada
+  // Pago COMPLETO: $120.000 -> Pagada, saldo $0
   const completo = await v1.rpc('create_payment', {
     p_client_id: carlos,
-    p_total_amount: 100_000,
-    p_allocations: [{ ticket_id: s1ToAssign[2]!, amount: 100_000 }],
+    p_total_amount: 120_000,
+    p_allocations: [{ ticket_id: s1ToAssign[2]!, amount: 120_000 }],
     p_payment_method: 'transfer',
     p_notes: 'Pago total',
   })
   if (completo.error) throw completo.error
 
-  // Pago REPARTIDO entre dos boletas: una queda Pagada y la otra Abonada
+  // Pago REPARTIDO entre dos boletas, las dos Abonadas. La de $100.000 es el
+  // CASO CRITICO de D-098: el importe que con el precio viejo la dejaba Pagada
+  // ahora deja $20.000 pendientes, y la pantalla tiene que decirlo.
   const repartido = await v1.rpc('create_payment', {
     p_client_id: beatriz,
     p_total_amount: 150_000,
@@ -390,7 +399,9 @@ async function seedDemoBusiness(orgId: string, ids: Record<string, string>) {
   })
   if (anulacion.error) throw anulacion.error
 
-  console.log('  pagos: 1 parcial, 1 completo, 1 repartido en 2 boletas, 1 anulado')
+  console.log(
+    '  pagos: 1 parcial ($40.000), 1 completo ($120.000), 1 repartido ($100.000 + $50.000), 1 anulado',
+  )
 }
 
 async function seedControlBusiness(orgId: string, ids: Record<string, string>) {

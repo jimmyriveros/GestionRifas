@@ -6,8 +6,19 @@ export type TicketInventoryStatus = Database['public']['Enums']['ticket_inventor
 export type TicketPaymentStatus = Database['public']['Enums']['ticket_payment_status']
 export type PaymentMethod = Database['public']['Enums']['payment_method']
 
-/** CLAUDE.md, seccion 6: precio predeterminado de boleta en pesos colombianos. */
-export const DEFAULT_TICKET_PRICE = 100_000
+/**
+ * Precio predeterminado de boleta en pesos colombianos (CLAUDE.md 6, BR-P01).
+ *
+ * NO es la fuente del precio de ninguna boleta: solo el valor con el que llega
+ * el formulario de una rifa NUEVA (BR-R04). El precio real de una venta sale
+ * siempre de `raffles.ticket_price`, y la base de datos lo copia a
+ * `tickets.sale_price` al vender (BR-P03). Aqui hay una sola constante para que
+ * el numero no se reparta por la interfaz.
+ *
+ * Paso de 100.000 a 120.000 el 2026-08-15 (D-098): no fue una subida de precio
+ * sino la correccion de un dato mal configurado desde el principio.
+ */
+export const DEFAULT_TICKET_PRICE = 120_000
 
 export const BULK_TICKET_MIN = 1
 export const BULK_TICKET_MAX = 1000

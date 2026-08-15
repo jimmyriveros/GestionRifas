@@ -451,7 +451,7 @@ test.describe('Mi equipo', () => {
       .single()
     const { data: raffle } = await svc
       .from('raffles')
-      .select('id')
+      .select('id, ticket_price')
       .eq('name', 'Rifa Navidad 2026')
       .single()
 
@@ -500,7 +500,8 @@ test.describe('Mi equipo', () => {
       .update({
         client_id: cliente!.id,
         inventory_status: 'assigned',
-        sale_price: 100000,
+        // El precio vigente de la rifa, no una cifra escrita a mano (D-098).
+        sale_price: raffle!.ticket_price,
         sale_date: '2026-08-12',
         assigned_at: new Date().toISOString(),
       })

@@ -128,7 +128,7 @@ CREATE TYPE payment_method      AS ENUM ('cash', 'transfer', 'other');
 |---------|------|---------------|
 | `id` | `uuid` | PK, `DEFAULT gen_random_uuid()` |
 | `name` | `text` | `NOT NULL`, `CHECK (length(btrim(name)) BETWEEN 2 AND 120)` |
-| `default_ticket_price` | `bigint` | `NOT NULL DEFAULT 100000`, `CHECK (> 0)` |
+| `default_ticket_price` | `bigint` | `NOT NULL DEFAULT 120000` (`0027`), `CHECK (> 0)` |
 | `currency` | `char(3)` | `NOT NULL DEFAULT 'COP'`, `CHECK (currency = 'COP')` (MVP) |
 | `timezone` | `text` | `NOT NULL DEFAULT 'America/Bogota'` |
 | `raffle_counter` | `int` | `NOT NULL DEFAULT 0` — genera `raffles.short_code` |
@@ -245,7 +245,7 @@ organización, incluso con `SERVICE_ROLE` o con un error de programación.
 | `short_code` | `text` | `NOT NULL`, `UNIQUE (organization_id, short_code)` — generado `R001`, `R002`… |
 | `name` | `text` | `NOT NULL`, `UNIQUE (organization_id, lower(btrim(name)))` |
 | `description` | `text` | `NULL` |
-| `ticket_price` | `bigint` | `NOT NULL DEFAULT 100000`, `CHECK (ticket_price > 0)` |
+| `ticket_price` | `bigint` | `NOT NULL DEFAULT 120000` (`0027`), `CHECK (ticket_price > 0)` |
 | `currency` | `char(3)` | `NOT NULL DEFAULT 'COP'` |
 | `start_date` | `date` | `NOT NULL` |
 | `end_date` | `date` | `NOT NULL`, `CHECK (end_date >= start_date)` |
@@ -256,8 +256,14 @@ organización, incluso con `SERVICE_ROLE` o con un error de programación.
 | `created_at` / `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` |
 | `closed_at` | `timestamptz` | `NULL` |
 
-- El precio predeterminado `100000` proviene de `organizations.default_ticket_price` al crear.
-- Cambiar `ticket_price` **no** afecta boletas ya vendidas (§4.6, `sale_price`).
+- El precio predeterminado es `120000` (BR-P01, D-098). ⚠️ **Contradicción real detectada al
+  corregirlo:** este documento decía que el valor sale de `organizations.default_ticket_price`, pero
+  **ningún camino de código lee esa columna**; el formulario de rifa nueva usa la constante
+  `DEFAULT_TICKET_PRICE` de `src/lib/constants.ts`. La columna se conserva y se mantiene coherente
+  (`0027` la actualizó también), pero hoy es configuración inerte. Se reporta en vez de cambiarse en
+  silencio (§36.1 de `CLAUDE.md`).
+- Cambiar `ticket_price` **no** afecta boletas ya vendidas (§4.6, `sale_price`). La única excepción es
+  corregir un precio que nunca fue correcto, por migración versionada y sin tocar pagos (BR-P07).
 - Transiciones de estado válidas: `draft → active → closed`; cualquier estado → `cancelled`.
   `closed → active` se permite solo a Owner (reapertura documentada en auditoría).
 
@@ -730,4 +736,4 @@ Reglas de pertenencia derivadas:
 | E17 | Vendedor desactivado con boletas activas | Los datos permanecen; el acceso se bloquea por RLS |
 | E18 | Dos Owners activos en una organización | Rechazo por índice único parcial |
 | E19 | Cliente con historial que se intenta borrar | `RESTRICT`; la UI ofrece archivar |
-| E20 | Acumulado monetario grande (1.000 boletas × $100.000) | `bigint` soporta el rango sin desborde |
+| E20 | Acumulado monetario grande (1.000 boletas × $120.000) | `bigint` soporta el rango sin desborde |

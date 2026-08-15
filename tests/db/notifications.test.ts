@@ -80,6 +80,17 @@ async function createSeller(
   return data.user.id
 }
 
+/** Precio VIGENTE de la rifa del seed: nunca una cifra escrita a mano (D-098). */
+async function precioDeLaRifa(): Promise<number> {
+  const { data, error } = await ctx.svc
+    .from('raffles')
+    .select('ticket_price')
+    .eq('id', ctx.demoRaffle.id)
+    .single()
+  if (error) throw error
+  return Number(data.ticket_price)
+}
+
 /** Vende una boleta a nombre de `sellerId` y devuelve su id. */
 async function sellTicket(sellerId: string): Promise<string> {
   const numbers = randomNumbers()
@@ -105,7 +116,8 @@ async function sellTicket(sellerId: string): Promise<string> {
     .update({
       client_id: clientId,
       inventory_status: 'assigned',
-      sale_price: 100000,
+      // El precio vigente de la rifa, no una cifra escrita a mano (D-098).
+      sale_price: await precioDeLaRifa(),
       sale_date: '2026-08-12',
       assigned_at: new Date().toISOString(),
     })
