@@ -1825,10 +1825,42 @@ la base, no «las rifas de esta prueba», y otras suites (`rpc`, `phase3-admin`,
 rifas a ese precio. Dejar la corrección confirmada las habría modificado a su espalda, con fallos
 intermitentes en archivos que nadie tocó — la familia de I-035, I-055 e I-057.
 
-### 5. Estado del proyecto real
+### 5. Promoción al proyecto real (2026-08-15, con autorización expresa)
 
-**`0027` NO se ha aplicado.** Requiere autorización expresa y respaldo previo (`RUNBOOK.md` §5.1). La
-sonda de §1 fue de solo lectura y no escribió nada.
+| Paso | Resultado |
+|---|---|
+| Respaldo previo (`RUNBOOK.md` §5.1) | ✅ `Rifas-backups/2026-08-15-pre-0027/`: 9 tablas con datos, 121 boletas, las 2 rifas a `100000`/`50000` y los 57 `sale_price` a corregir. **0** referencias a `auth` en `data.sql` y **0** credenciales; en `schema.sql` la única mención a `auth` es la FK de `profiles`, como está documentado |
+| `db push --dry-run` | ✅ Anuncia **solo** `0027` |
+| `db push --yes` | ✅ Aplicada |
+| `npm run verify:remote` | ✅ **13/13** |
+| Sonda posterior de solo lectura | ✅ Detalle abajo |
+
+**Lo que quedó en producción, medido:**
+
+| Comprobación | Resultado |
+|---|---|
+| «Rifa Navidad 2026» | **$120.000** |
+| Boletas corregidas | **57**, todas con `sale_price = 120000` |
+| «Rifa Control 2026» | **$50.000**, intacta |
+| Boletas sin vender | **61**, siguen sin precio (tomarán $120.000 al venderse) |
+| `payments` / `payment_allocations` | **0 / 0** — no había ninguno y **no se creó ninguno** |
+| `commission_ledger` | **0** movimientos |
+| `default_ticket_price` de las 2 organizaciones | **120000** |
+| Defaults de catálogo | `raffles.ticket_price` y `organizations.default_ticket_price` en **120000** |
+| Sobrepagos · rifas sin corregir · boletas sin corregir · vendidas sin precio | **0 · 0 · 0 · 0** |
+| Auditoría | **58** entradas del sistema (actor `NULL`): 1 `raffle.update` y 57 `ticket.update`, todas con `100000 → 120000` |
+
+**Un efecto secundario observado, y por qué es inofensivo.** La migración dejó **una** fila nueva en
+`seller_commissions` (Jaydin Fernando, «Rifa Navidad 2026») con `tickets_paid = 0`, `rate = 0` y
+`earned = 0`. La causa: `tickets_sync_commission` se dispara al cambiar `sale_price`, y
+`recalc_seller_commission` inserta la fila con `on conflict do nothing` **antes** de comprobar que no
+hay nada que recalcular y salir. No implica dinero —la invariante `sum(ledger) = earned` se cumple con
+`0 = 0`— y **no cambia ninguna pantalla**: `CommissionCard` trata `ticketsPaid === 0` por la misma
+rama que «sin fila», así que el vendedor sigue viendo «Ganas … por cada boleta que te paguen
+completa», ahora con la mitad del precio corregido ($60.000).
+
+**Lo que falta:** desplegar el código. Hasta entonces, el formulario de rifa nueva ofrece $100.000
+sobre una base que ya vale $120.000.
 
 ### 6. Dos defectos de las propias pruebas, encontrados por el camino
 
