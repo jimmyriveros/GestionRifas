@@ -31,13 +31,13 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
-| Último cambio funcional promovido | `4138d20` — **dos formas de pago de la comisión** (D-096), 2026-08-13; migración `0025` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
+| Último cambio funcional promovido | `7b26d99` — **corregir a un integrante pendiente** (D-097), 2026-08-14; migración `0026` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
 | Punto de partida del último mantenimiento | `main` en `d5bc351`, con árbol limpio antes de implementar (2026-08-14) |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **26 migraciones en local, 25 en el proyecto real.** `0022`–`0025` se promovieron y verificaron el 2026-08-13, con respaldo previo en `Rifas-backups/`. ⚠️ **`0026` (corregir a un integrante pendiente) está SOLO en local** y el frontend ya la usa: desplegar sin aplicarla rompe «Mi equipo». **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Base de datos | **26 migraciones en local y en el proyecto real.** `0022`–`0025` se promovieron el 2026-08-13 y **`0026` el 2026-08-14**, con respaldo previo en `Rifas-backups/`. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
 | Pruebas | **309 unitarias**, **457 de base de datos** y **246 E2E**, todas revalidadas el 2026-08-14; `verify` en verde. La suite de base de datos es fiable **en la primera pasada tras `db:reset && seed:local`**; repetirla sobre la misma base falla de forma intermitente por un problema de aislamiento entre suites anterior a este trabajo (I-057). CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
@@ -64,9 +64,10 @@ reales).
 | Reutilización | El correo nuevo se envía por el **mismo** camino del alta: `sendInvitation`, extraída de `inviteMember` sin cambiarle el comportamiento. El diálogo de edición es el **mismo** `UserDialog`, con un `edit` override gemelo del `create` que ya existía. El esquema extiende `userFormSchema`; el mapeo de membresías sigue siendo uno solo |
 | Decisiones | **D-097**. Reglas BR-E14..BR-E19 |
 | Verificación | **457/457** de base de datos (base recién sembrada) · **246/246** E2E · `verify` en verde (309 unitarias). **Seis** errores encontrados y corregidos, y **dos sondas empíricas** contra Auth antes de diseñar nada, detalladas en `TEST_RESULTS.md` |
-| Advertencias | **1)** **`0026` está SOLO en local** y el frontend ya la usa: desplegar sin aplicarla rompe «Mi equipo». **2)** «Activada» **no** se deduce de `auth.users`: GoTrue escribe un hash aleatorio en `encrypted_password` con solo abrir el enlace (D-097); la prueba `E2-02` existe para que nadie lo reintente. **3)** Que no haya dos invitaciones válidas lo garantiza **Auth** al reinvitar a una cuenta sin confirmar, no una limpieza nuestra; la prueba `E2-10` recorre el camino entero. **4)** Las tres funciones del equipo son funciones y **no** políticas porque `authenticated` tiene UPDATE sobre **todas** las columnas de `profiles`; `E2-08` vigila esa puerta. **5)** `test:db` solo es fiable en la **primera** pasada tras `db:reset`; repetirlo falla de forma intermitente (I-057, preexistente y reproducido sin la suite nueva) |
-| Pendiente | Aplicar `0026` al proyecto real, con autorización expresa y respaldo previo. Verificación visual con sesión real en producción (un agente no inicia sesión allí) |
-| Git | Rama `main`, partiendo de `d5bc351` con el árbol limpio |
+| Advertencias | **1)** `0026` **ya está en producción** (2026-08-14): cualquier corrección sobre ella exige una migración nueva. **2)** «Activada» **no** se deduce de `auth.users`: GoTrue escribe un hash aleatorio en `encrypted_password` con solo abrir el enlace (D-097); la prueba `E2-02` existe para que nadie lo reintente. **3)** Que no haya dos invitaciones válidas lo garantiza **Auth** al reinvitar a una cuenta sin confirmar, no una limpieza nuestra; la prueba `E2-10` recorre el camino entero. **4)** Las tres funciones del equipo son funciones y **no** políticas porque `authenticated` tiene UPDATE sobre **todas** las columnas de `profiles`; `E2-08` vigila esa puerta. **5)** `test:db` solo es fiable en la **primera** pasada tras `db:reset`; repetirlo falla de forma intermitente (I-057, preexistente y reproducido sin la suite nueva) |
+| Publicación | **Desplegado en producción el 2026-08-14 con autorización expresa.** Respaldo previo en `Rifas-backups/2026-08-14-pre-0026/` (13 tablas con datos, **0** referencias a `auth`, **0** credenciales); `db push --dry-run` mostró solo `0026`; `db push --yes` la aplicó; `verify:remote` 13/13; sonda de solo lectura sobre el proyecto real confirmando columna, **backfill**, privilegios de las cuatro funciones e índice. Después del push: CI 2/2 (`31857668132`), Vercel `READY` sobre el SHA `7b26d99` (`dpl_5TJFHZSTsZBYKFRdyUUUhVgeByP6`), `/login` en HTTP 200 con sus cabeceras y `/seller/team` en 307 al login |
+| Pendiente | Verificación visual con sesión real en producción (un agente no inicia sesión allí). **Dato real que conviene mirar:** `juanhernandez@gmail.com`, del equipo de Armando Gordillo, es el único que quedó como «Invitación pendiente» — nunca ingresó y no tiene boletas, clientes ni pagos, así que Armando ya puede corregirle el correo o eliminarlo |
+| Git | Rama `main`, de `d5bc351` a `7b26d99`. Se empujó **solo la rama** |
 
 ## 1.a.0 Relevo anterior — equipos, avisos y comisiones (2026-08-13)
 
@@ -119,7 +120,6 @@ dueño, deuda aceptada y límites verificados; no deben describirse como si no e
 
 | Asunto | Qué hace falta |
 |---|---|
-| **Migración `0026` sin promover** | Aplicarla al proyecto real con autorización expresa y respaldo previo (`RUNBOOK.md` §5). **Es lo primero que hay que mirar antes de desplegar**: el frontend ya la usa |
 | **I-057** — `test:db` falla de forma intermitente al repetirlo | Que cada prueba de dinero use su propia rifa en vez de mover el precio de la compartida, y que los helpers reserven combinaciones libres. Preexistente; la primera pasada tras `db:reset` siempre fue verde |
 | **I-024** — plan Free sin backups automáticos ni PITR | Subir a Supabase Pro o automatizar el respaldo externo. **Prerrequisito antes de operar con dinero o clientes reales** (`RUNBOOK.md` §5.3) |
 | **I-021** — cuentas de demostración en producción con contraseña compartida | Desactivarlas o rotarles la contraseña (`OPERATIONS.md` §5) |

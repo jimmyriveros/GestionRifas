@@ -1635,3 +1635,30 @@ Dos causas, las dos de aislamiento entre suites y ninguna del producto:
 
 **La primera pasada tras `db:reset && seed:local` siempre fue verde**, que es como se ejecuta en CI y
 como está documentado el arranque. Registrado como **I-057**.
+
+### Promoción a producción — 2026-08-14 (migración `0026`)
+
+| Paso | Resultado |
+|---|---|
+| Respaldo lógico previo | ✅ `Rifas-backups/2026-08-14-pre-0026/`: 13 tablas con datos, **0** referencias a `auth`, **0** `encrypted_password` |
+| `db push --dry-run` | ✅ únicamente `0026_team_member_lifecycle.sql` |
+| `db push --yes` | ✅ aplicada |
+| `npm run verify:remote` | ✅ 13/13 |
+| CI de GitHub Actions | ✅ 2/2 (`31857668132`) |
+| Despliegue de Vercel | ✅ `READY`, `dpl_5TJFHZSTsZBYKFRdyUUUhVgeByP6`, **SHA `7b26d99` comprobado** |
+| `https://gestion-rifas.vercel.app/login` | ✅ HTTP 200; raíz 307; `/seller/team` 307 al login; CSP, HSTS, `X-Frame-Options` y `nosniff` intactas |
+
+**Comprobado sobre los datos reales, no solo por catálogo** (sonda de solo lectura):
+
+| Qué | Resultado |
+|---|---|
+| `profiles.activated_at` | `timestamp with time zone`, nullable |
+| **Backfill** | 7 personas: **6 activadas**, 1 pendiente. Es lo que debía pasar: sin backfill, los 6 vendedores reales habrían aparecido como «Invitación pendiente» y sus vendedores padre habrían podido eliminarlos |
+| Privilegios | `mark_profile_activated`, `team_update_member`, `team_confirm_email_change` y `team_delete_member` ejecutables por `authenticated`; **`team_member_guard` por nadie**; ninguna por `anon` |
+| Índice parcial | `profiles_pending_activation_idx` presente |
+| Triggers sobre `auth.users` | Los dos de siempre (`on_auth_user_created`, `on_auth_user_email_updated`). El diseño **no** añadió ninguno: esa fue justo la corrección de D-097 |
+
+**La única cuenta pendiente es real y correcta:** `juanhernandez@gmail.com`, vendedor del equipo de
+Armando Gordillo, con `last_sign_in_at` y `email_confirmed_at` nulos y sin boletas, clientes ni pagos.
+Nunca abrió su invitación, así que la aplicación se lo muestra a Armando como «Invitación pendiente»
+y le deja corregir el correo o eliminar el alta. Es la funcionalidad operando sobre datos reales.

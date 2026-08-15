@@ -938,9 +938,10 @@ Detalle, con los seis errores encontrados y corregidos y las dos sondas previas 
 |---|---|
 | `0026_team_member_lifecycle.sql` | `profiles.activated_at` con su backfill e índice parcial; `mark_profile_activated()`; `handle_new_auth_user` estampa la activación cuando la cuenta nace con contraseña; `team_member_guard()` (interna) y las tres funciones del vendedor padre: `team_update_member`, `team_confirm_email_change` y `team_delete_member` |
 
-⚠️ **Solo está en local.** No se ha aplicado al proyecto real; el frontend ya la usa, así que
-desplegar sin ella rompería «Mi equipo». Aplicar con autorización expresa y respaldo previo, siguiendo
-`RUNBOOK.md` §5.
+✅ **Promovida al proyecto real el 2026-08-14**, con autorización explícita y respaldo previo en
+`Rifas-backups/2026-08-14-pre-0026/`. Verificada por catálogo (`verify:remote` 13/13) y por una sonda
+de solo lectura sobre los datos reales: columna, backfill, privilegios de las cuatro funciones e
+índice. Detalle en `TEST_RESULTS.md`.
 
 ### 4. Variables de entorno requeridas
 
@@ -957,7 +958,7 @@ Ninguna nueva.
 
 ### 6. Qué debe revisar el siguiente agente
 
-1. **`0026` no está en producción.** Es lo primero que hay que mirar antes de desplegar nada.
+1. **`0026` ya está en producción** (2026-08-14). Es inmutable: cualquier corrección exige una migración nueva.
 2. **«Activada» no se puede deducir de `auth.users`** (D-097). GoTrue escribe un hash aleatorio en `encrypted_password` con solo abrir el enlace de la invitación; la prueba `E2-02` existe para que nadie vuelva a intentarlo.
 3. **Que no queden dos invitaciones válidas lo garantiza Auth**, al reinvitar a una cuenta sin confirmar (`sendInvitation`). La prueba `E2-10` recorre el camino entero: si una versión futura de GoTrue deja de rotar el token, falla ahí y no en producción.
 4. Las tres funciones del equipo son **funciones y no políticas** a propósito: `authenticated` tiene UPDATE sobre todas las columnas de `profiles`. La prueba `E2-08` comprueba que esa puerta sigue cerrada.
