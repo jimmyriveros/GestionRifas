@@ -196,6 +196,15 @@ export type TicketDetail = TicketListItem & {
   assignedAt: string | null
   raffleStatus: string
   raffleTicketPrice: number
+  /**
+   * Precio oficial CONGELADO al vender (BR-P10). `null` mientras no se ha
+   * vendido, y tambien en las boletas vendidas antes de 0028 —que equivalen a
+   * rebaja cero—.
+   */
+  basePrice: number | null
+  /** Lo mas barato que se puede vender (BR-P11). Sale de SQL, no se deduce
+   *  aqui: depende de la forma de pago del vendedor de esta boleta. */
+  minSalePrice: number
 }
 
 export async function getTicketDetail(ticketId: string): Promise<TicketDetail | null> {
@@ -203,7 +212,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
   const { data, error } = await supabase
     .from('tickets')
     .select(
-      `${TICKET_SELECT}, approved_at, cancelled_at, cancel_reason, assigned_at,
+      `${TICKET_SELECT}, base_price, approved_at, cancelled_at, cancel_reason, assigned_at,
        raffle_full:raffles!tickets_raffle_org_fk ( status, ticket_price )`,
     )
     .eq('id', ticketId)
@@ -213,6 +222,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
   if (!data) return null
 
   const row = data as TicketRow & {
+    base_price: number | null
     approved_at: string | null
     cancelled_at: string | null
     cancel_reason: string | null
@@ -220,7 +230,17 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
     raffle_full: { status: string; ticket_price: number } | null
   }
 
-  const sellerNames = await sellerNameMap()
+  // El limite se pregunta a la MISMA funcion que valida la venta, en vez de
+  // recalcularlo aqui: dos formulas para el mismo limite acaban discrepando, y
+  // la que se ve en pantalla no seria la que manda (BR-P11, D-099).
+  const [sellerNames, limits] = await Promise.all([
+    sellerNameMap(),
+    supabase.rpc('ticket_sale_price_limits', { p_ticket_id: ticketId }),
+  ])
+
+  if (limits.error) throw limits.error
+
+  const rafflePrice = row.raffle_full?.ticket_price ?? 0
 
   return {
     ...mapTicketRow(row, sellerNames),
@@ -229,7 +249,9 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
     cancelReason: row.cancel_reason,
     assignedAt: row.assigned_at,
     raffleStatus: row.raffle_full?.status ?? 'draft',
-    raffleTicketPrice: row.raffle_full?.ticket_price ?? 0,
+    raffleTicketPrice: rafflePrice,
+    basePrice: row.base_price,
+    minSalePrice: Number(limits.data?.[0]?.min_sale_price ?? rafflePrice),
   }
 }
 

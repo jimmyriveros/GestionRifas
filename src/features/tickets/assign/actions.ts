@@ -17,8 +17,13 @@ import { assignTicketsSchema, assignTicketsToNewClientSchema } from './schemas'
  * su vez aplica boleta por boleta las reglas de `assign_ticket_row` —las mismas
  * de siempre, extraidas de la Fase 2—: comprueba que la boleta sea del vendedor
  * (o que quien llama sea personal), que este `available`, que el cliente sea de
- * esa misma cartera y no este archivado, que la rifa este activa, COPIA el
- * precio vigente a `sale_price` (BR-P03) y audita el cambio.
+ * esa misma cartera y no este archivado, que la rifa este activa, fija
+ * `sale_price` y audita el cambio.
+ *
+ * El precio de venta puede venir rebajado (BR-P09, D-099). Si no viene, se usa
+ * el vigente de la rifa, que es lo de siempre. Quien decide si la rebaja cabe es
+ * `assign_ticket_row`, con la fila bloqueada y contra la forma de pago real de
+ * ese vendedor: la casilla del formulario no es la frontera de seguridad.
  *
  * UNA boleta o VEINTE recorren exactamente el mismo camino (seccion 29 del
  * encargo). Y como una funcion de PostgreSQL es una transaccion, veinte boletas
@@ -53,13 +58,14 @@ export async function assignTickets(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
   }
-  const { ticketIds, clientId, saleDate } = parsed.data
+  const { ticketIds, clientId, saleDate, salePrice } = parsed.data
 
   const supabase = await createClient()
   const { data, error } = await supabase.rpc('bulk_assign_tickets', {
     p_ticket_ids: ticketIds,
     p_client_id: clientId,
     p_sale_date: saleDate,
+    p_sale_price: salePrice,
   })
 
   if (error) return { error: mapPgError(error) }
@@ -92,7 +98,7 @@ export async function assignTicketsToNewClient(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos del cliente.' }
   }
-  const { ticketIds, saleDate, client } = parsed.data
+  const { ticketIds, saleDate, salePrice, client } = parsed.data
 
   const supabase = await createClient()
 
@@ -112,6 +118,7 @@ export async function assignTicketsToNewClient(
     p_ticket_ids: ticketIds,
     p_client_id: created.id,
     p_sale_date: saleDate,
+    p_sale_price: salePrice,
   })
 
   if (error) {

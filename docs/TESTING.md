@@ -210,6 +210,40 @@ WHERE relkind = 'v' AND (reloptions IS NULL OR NOT reloptions::text LIKE '%secur
 
 Las tres consultas deben devolver cero filas.
 
+### 4.1 Precio de venta rebajado (`tests/db/sale-discount.test.ts`, 19 pruebas)
+
+Añadidas con D-099. Cubren los casos A a G que pedía el encargo, y una cosa más importante que
+cualquiera de ellos: **la identidad que garantiza que la empresa no pierde**.
+
+| ID | Caso | Resultado esperado |
+|----|------|--------------------|
+| E8-01 | Vender sin precio explícito | `sale_price = base_price = precio de la rifa` |
+| E8-02 | Vender rebajado | `sale_price` rebajado, `base_price` con el precio oficial congelado |
+| E8-03 | Vender por encima del precio oficial | Rechazado |
+| E8-04 | **Caso G** — rebajar por debajo del límite | Rechazado, y el límite es la mitad del precio para quien no tiene equipo |
+| E8-05 | Límite de un integrante de equipo | Es su tramo **más bajo**, no la tarifa vigente (BR-G18) |
+| E8-06 | **Caso A** — sin rebaja | Mitad y mitad |
+| E8-07 | **Caso B** — rebaja de $20.000 | El vendedor gana `tarifa − 20.000`; la empresa, lo mismo que sin rebaja |
+| E8-08 | **Caso C** — rebaja máxima | El vendedor gana $0; la empresa, lo mismo |
+| E8-09 | **Caso D** — otra tarifa (por tramos) | La misma regla con una tarifa que no es un porcentaje |
+| E8-10 | **La identidad**, para los dos vendedores | `cobrado − comisión = n × (precio oficial − tarifa)` |
+| E8-11 | `sum(commission_ledger) = earned` con rebajas | Se mantiene (BR-G10) |
+| E8-12 | La rebaja deja su propio movimiento | Fila `discount` con importe negativo |
+| E8-13 | Ninguna comisión negativa | Cero filas con `earned < 0` |
+| E8-14 | **Caso E** — abono parcial | Saldo contra el precio **rebajado** |
+| E8-15 | **Caso E** — abono completo | **Pagada** con menos dinero que el precio oficial |
+| E8-16 | Sobrepago | Bloqueado contra el precio rebajado |
+| E8-17 | Cambiar el precio con abonos | Rechazado (BR-P05 sigue vigente) |
+| E8-18 | **Caso F** — boleta sin `base_price` | Rebaja cero; comisión idéntica a antes de `0028` |
+| E8-19 | Importación masiva sin precio | Vende al precio oficial (el contrato del CSV no cambia) |
+
+⚠️ **Esta suite no puede borrar sus cuentas de Auth al terminar, y es correcto.** Sus vendedores
+venden con su propia sesión, así que quedan como **actores** en `audit_logs`, que es de solo anexado
+y tiene FK contra el perfil (BR-D02). Borrarlos exigiría reescribir la auditoría, que es justo lo que
+ese diseño impide. Lo que sí borra es la **membresía**: sin ella la persona desaparece de la
+organización y de todas las pantallas. Por eso el alta es **idempotente** — reutiliza la cuenta si ya
+existe—, y por eso la suite aguanta ejecutarse muchas veces seguidas.
+
 ---
 
 ## 5. Pruebas unitarias clave

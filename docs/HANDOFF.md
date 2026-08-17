@@ -32,6 +32,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
+| **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Solo en local: `0028` no está en producción** |
 | Cambio funcional anterior | `7b26d99` — **corregir a un integrante pendiente** (D-097), 2026-08-14; migración `0026` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
 | Último cambio funcional promovido | **`f6b0df9`** — **el precio de la boleta a $120.000** (D-098), 2026-08-15; migración `0027` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
 | Punto de partida del último mantenimiento | `main` en `66ca9a7`, con árbol limpio antes de implementar (2026-08-15) |
@@ -57,7 +58,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — el precio de la boleta pasa a $120.000 (2026-08-15)
+## 1.a Último relevo significativo — el vendedor puede rebajar el precio (2026-08-17)
+
+| Campo | Estado |
+|---|---|
+| Resultado | Un vendedor puede vender una boleta concreta **por debajo del precio de la rifa** (D-099, BR-P09..BR-P12, BR-G17..BR-G19). El cliente debe **lo rebajado**, y la rebaja sale **entera** de la ganancia del vendedor: lo que le queda a la empresa no se mueve. **Fuera a propósito:** ninguna métrica de rebajas en el portal administrativo (el encargo lo pide expresamente), y **no** se tocó el porcentaje histórico de comisión — ver Advertencia 3 |
+| Archivos | Migración **`0028_ticket_sale_discount.sql`**; `features/tickets/assign/` (`schemas.ts`, `actions.ts`, `AssignTicketsForm.tsx`, `AssignTicketDialog.tsx`), `features/tickets/selection/` (`eligibility.ts`, `queries.ts`, `BulkAssignDialog.tsx`), `features/tickets/queries.ts`, los dos detalles de boleta, `types/database.types.ts`. Pruebas: **`tests/db/sale-discount.test.ts` (19, nueva)**, **`tests/e2e/precio-rebajado.spec.ts` (4, nueva)**, `tests/unit/ticket-selection.test.ts` (+4). Documentación: `BUSINESS_RULES`, `DECISIONS` (D-099), `DATA_MODEL`, `TESTING`, `UX_COPY_GUIDELINES`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **No se creó ninguna capa nueva de precio ni de dinero.** `sale_price` ya era «lo que debe el cliente» (BR-P08): el saldo, el estado de pago, el tope de sobrepago y los totales ya salían de ahí, así que las secciones 8, 9, 10, 17 y 18 del encargo se cumplían solas. La rebaja viaja por el **mismo** `assign_ticket_row` que comparten la venta individual, la masiva y el importador. El límite se añadió al cuadro de elegibilidad que el diálogo **ya** pedía, sin una consulta nueva |
+| Decisiones | **D-099**. La correspondencia «participación de la empresa = precio oficial − tarifa» la **confirmó el dueño** antes de implementar: el encargo daba por supuesto un porcentaje de Admin que en este sistema no existe |
+| Verificación | **490/490** de base de datos (+19) · **316/316** unitarias (+4) · `verify` en verde · E2E completas. La suite nueva aguanta **tres pasadas seguidas** sobre la misma base |
+| Advertencias | **1)** **`raffles.ticket_price − sale_price` NO es la rebaja.** El precio de la rifa cambia (y cambió en `0027`); la rebaja se calcula **siempre** contra `base_price`. **2)** El descuento máximo es la tarifa **mínima garantizada**, no la vigente: la tarifa por tramos baja sola al anularse un pago (BR-G06), y calcular sobre la alta dejaría ventas pasadas en comisión negativa. **3)** **Hallazgo reportado y NO corregido (sección 19 del encargo):** una venta pasada **sí** puede cambiar de ganancia retroactivamente, porque no hay snapshot de la tarifa y BR-G15 lo establece a propósito. Es una decisión del dueño (D-094, D-096), no un descuido; lo único congelado es la rebaja. **4)** `commission_movement` ganó el valor `discount` con `alter type ... add value`: la migración **no puede usarlo** en su propia transacción, y por eso **no** lleva bucle de recálculo. Si algún día hace falta uno, va en una migración posterior. **5)** El cambio de comisión es **por resto**: la tercera línea del ledger anota lo que falte para cuadrar, de modo que `sum(ledger) = earned` se mantiene por construcción. No la conviertas en «diferencia de rebajas» |
+| Publicación | **NO desplegado.** `0028` está **solo en local**. Promoverla exige autorización explícita, respaldo previo (§3.b) y los tres pasos de §3 |
+| Pendiente | Autorización para promover `0028` al proyecto real. Verificación visual con sesión real (un agente no inicia sesión en producción): que la casilla «Precio de venta» llegue con **$120.000** y que rebajarla mueva el total |
+| Git | Rama `main`, partiendo de `b2db1f0` con árbol limpio |
+
+## 1.a.0 Relevo anterior — el precio de la boleta pasa a $120.000 (2026-08-15)
 
 | Campo | Estado |
 |---|---|
@@ -393,8 +408,8 @@ organizations ─┬─ memberships (profile_id, organization_id, role, is_activ
                ├─ raffles     (short_code, name, ticket_price, status, allow_seller_ticket_creation)
                ├─ clients     (seller_id, name, phone, archived_at)
                ├─ tickets     (raffle_id, seller_id, client_id, internal_code,
-               │               daily_number, weekly_number, sale_price, paid_amount,
-               │               inventory_status, payment_status)
+               │               daily_number, weekly_number, sale_price, base_price,
+               │               paid_amount, inventory_status, payment_status)
                ├─ payments    (seller_id, client_id, total_amount, payment_date, voided_at)
                └─ audit_logs  (actor_profile_id, action, entity_type, entity_id, old/new_values)
 
@@ -410,7 +425,10 @@ profiles 1─1 auth.users
 - Combinación `(org, rifa, daily, weekly)` única, incluso entre vendedores y con boletas anuladas.
 - Números como texto, 1–4 dígitos, ceros iniciales conservados.
 - Dinero en `bigint`; `paid_amount` derivado por trigger; `payment_status` columna generada.
-- Sobrepago imposible; pago y asignaciones cuadran exactamente; todo o nada.
+- Sobrepago imposible; pago y asignaciones cuadran exactamente; todo o nada. El límite es
+  **siempre** `sale_price`, que puede venir rebajado (BR-P09): una boleta vendida en $100.000 queda
+  **Pagada** con $100.000, y el peso 100.001 se rechaza.
+- `sale_price <= base_price`: se puede rebajar, nunca recargar.
 - Ningún `DELETE` en ninguna tabla (ni política ni privilegio). La **única** excepción controlada es
   `bulk_delete_tickets` (`0020`), que borra boletas cargadas por error desde dentro de una función
   `SECURITY DEFINER`; nadie gana el privilegio (D-084).
@@ -663,3 +681,8 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Escribes una cifra de precio («$100.000», `100_000`) en una prueba o en un componente | No lo hagas. Al corregir el precio a $120.000 se cayeron **once** pruebas que no tenían nada roto: comparaban contra un número escrito a mano en vez de contra `raffles.ticket_price` o `sale_price`. Léelo de la base (`raffleTicketPrice(refs)` en E2E) o exprésalo relativo al precio | D-098 |
 | Una boleta con $100.000 abonados aparece como «Pagada» | Es una regresión de verdad: con el precio vigente le faltan $20.000. Alguien comparó contra una cifra fija en vez de contra `sale_price`. Lo vigilan la unitaria «CASO CRITICO», BD `E7-07` y una E2E del mismo nombre | D-098 · BR-P07 |
 | Cambias el precio de una rifa y alguien cobra distinto de un día para otro | Es lo previsto (BR-G15): quien no está en un equipo cobra **la mitad del precio vigente**, y el trigger `raffles_sync_commission` reajusta también las boletas ya cobradas. Además, una boleta que deja de estar Pagada deja de contar para la comisión | D-096 · D-098 |
+| Necesitas saber cuánto rebajó un vendedor y calculas `raffles.ticket_price − sale_price` | Da una cifra falsa en cuanto la rifa cambie de precio, y ya cambió una vez (`0027`): convertiría en «rebaja» ventas hechas al precio correcto y hundiría la comisión de todos a la vez. La rebaja es `base_price − sale_price`, **siempre** | D-099 · BR-P10 |
+| Vas a permitir una rebaja mayor y piensas usar la tarifa que cobra hoy el vendedor | La tarifa por tramos **baja sola** al anularse un pago (BR-G06). Con la tarifa alta como límite, esa venta pasada se quedaría en comisión negativa sin que nadie la tocara. El tope es la tarifa **mínima garantizada** | D-099 · BR-G18 |
+| Añades un valor a un `enum` en una migración y revienta al usarlo | `alter type … add value` deja el valor inutilizable **hasta que la transacción confirma**. Por eso `0028` no lleva bucle de recálculo: si hace falta uno, va en una migración posterior | D-099 |
+| Tocas el motor de comisión y la invariante del ledger deja de cuadrar | La línea de la rebaja se calcula **por resto** (lo que falte para cuadrar), no como «diferencia de rebajas». Es lo que hace que `sum(ledger) = earned` se mantenga por construcción y no dependa de que tres fórmulas sigan siendo consistentes | D-099 · BR-G10 |
+| Añades un campo a un diálogo y una prueba reintenta el clic decenas de veces contra un botón «visible y habilitado» | El botón se salió de la pantalla: `DialogContent` **no tiene altura máxima ni scroll**, así que un modal alto crece más que la ventana y su pie queda inalcanzable —para la prueba y para la persona—. Los dos modales de asignación llevan ya `max-h-[calc(100dvh-2rem)] overflow-y-auto`; los demás **no** | D-099 |

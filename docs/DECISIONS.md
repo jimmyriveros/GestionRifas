@@ -2195,6 +2195,76 @@ auditado, ni repetible).
 
 ---
 
+## D-099 — El vendedor puede rebajar el precio de una boleta, y la rebaja la paga él
+
+**Fecha:** 2026-08-17 · **Estado:** aceptada · **Encargo:** `PriceChangeSeller.txt` ·
+**Migración:** `0028_ticket_sale_discount.sql` · **Reglas:** BR-P09..BR-P12, BR-G17..BR-G19
+
+**Contexto.** El dueño pidió que cada vendedor pueda vender una boleta concreta por debajo del precio
+oficial —descuentos, clientes frecuentes, compras en volumen— con dos condiciones tajantes: el
+cliente debe únicamente lo rebajado, y **la empresa no puede perder ni un peso por esa rebaja**.
+
+**El encargo asumía una pieza que no existe.** Lo planteaba como
+`adminAmount = officialPrice × adminPercentage`. En este sistema **no hay ningún porcentaje del Admin
+configurado**: se configura al revés, lo que gana el vendedor (BR-G13, D-096), y lo de la empresa es
+lo que sobra. Las dos formas de pago no son simétricas: la mitad del precio equivale exactamente al
+«Admin 50 %» del encargo, pero los tramos son un importe fijo por boleta —$20.000 a $40.000— que **no
+es un porcentaje de nada**. Se consultó al dueño antes de implementar y confirmó la correspondencia:
+
+```
+participación de la empresa = precio oficial − tarifa del vendedor   (no cambia nunca)
+ganancia del vendedor       = precio de venta − participación = tarifa − rebaja
+```
+
+Con eso la regla del encargo deja de ser una cifra y pasa a ser una identidad comprobable:
+`cobrado − comisión = n × (precio oficial − tarifa)`. La rebaja no aparece en el lado derecho.
+Lo comprueba `E8-10`.
+
+**Casi nada hubo que construir, y eso fue el hallazgo principal.** `tickets.sale_price` ya era «lo que
+debe el cliente» (BR-P08) y de ahí ya salían el saldo, el estado de pago —columna generada—, el
+bloqueo de sobrepago y los totales de las tres vistas de resumen. Las secciones 8, 9, 10, 17 y 18 del
+encargo se cumplían solas en cuanto `sale_price` pudiera nacer más bajo. **No hay
+`effectiveSalePrice`, ni columna con fallback, ni migración de datos.**
+
+**Decisiones tomadas:**
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 1 | **`base_price`**: el precio oficial congelado al vender | Deducir la rebaja de `raffles.ticket_price` la haría cambiar sola: el precio de la rifa cambia (BR-P04, y cambió en `0027`), así que una subida convertiría retroactivamente en «rebaja» ventas hechas al precio correcto y hundiría la comisión de todo el mundo a la vez |
+| 2 | La rebaja **no se guarda**: es `base_price − sale_price` | Sección 18 del encargo. Un tercer número que puede desincronizarse de los otros dos. Mismo criterio que `pending_amount` |
+| 3 | El descuento máximo es la tarifa **mínima garantizada**, no la vigente | La tarifa por tramos es retroactiva y **baja sola** al anularse un pago (BR-G06). Alguien que hoy cobra $40.000 y rebajara $40.000 quedaría en comisión negativa al volver al tramo de $20.000: una venta pasada convertida en deuda sin que nadie la tocara. Con el suelo, la rebaja cabe siempre dentro de la comisión |
+| 4 | `greatest(0, …)` en el motor, además del límite | Cinturón, no regla. Cubre el único camino que quedaba: bajar el precio de la rifa a la mitad **después** de una venta rebajada (BR-G15) |
+| 5 | El límite vive en **una** función, `ticket_sale_price_limits` | La usan la validación, el diálogo de venta y el detalle. Dos fórmulas para el mismo límite acaban discrepando, y la que se ve en pantalla no sería la que manda |
+| 6 | La rebaja deja su **propio movimiento** en el ledger, calculado como resto | `sum(ledger) = earned` (BR-G10) se mantiene **por construcción**: las dos líneas de siempre explican volumen y tramo, y la tercera anota exactamente lo que falte para cuadrar. La invariante no depende de que tres fórmulas sigan siendo consistentes entre sí |
+| 7 | La casilla se ofrece solo si **todas** las boletas del lote comparten precio y límite | Una selección de varias rifas no tiene un precio único que proponer. Quien decide sigue siendo `assign_ticket_row`, boleta a boleta |
+| 8 | El importador CSV/JSON **no cambia** | Sección 16. La ausencia de precio significa precio oficial, y lo garantiza el valor por defecto del parámetro, no una línea del importador |
+
+**Sección 19 del encargo (porcentaje histórico): hallazgo que se reporta y NO se corrige.** El encargo
+pedía comprobar si una venta pasada puede cambiar de ganancia retroactivamente. **Puede, y es
+deliberado.** No existe snapshot de la tarifa en la boleta: `earned = n × tarifa(n)` se recalcula
+entero, y BR-G15 establece **explícitamente** que cambiar el precio de la rifa cambia lo que se debe
+por ventas ya cobradas. Es una decisión del dueño (D-094, D-096), no un descuido. Lo único que este
+trabajo congela es la **rebaja**, que no se recalcula nunca.
+
+**Sección 13 del encargo (cambiar el precio después de cobrar): ya estaba resuelto.**
+`tickets_protect_sale_price` (`0004`, BR-P05) rechaza cambiar el precio de una boleta con abonos, así
+que no hay forma de producir un saldo negativo ni un estado `paid` incoherente. No se tocó.
+
+**Alternativas descartadas.** (a) Derivar la rebaja del precio actual de la rifa, sin `base_price`
+(rompe con cualquier cambio de precio, ver decisión 1). (b) Guardar `discount`, `adminAmount` y
+`sellerEarning` como columnas (sección 18 del encargo lo prohíbe, y se desincronizan). (c) Dejar que
+la rebaja no toque la comisión (contradice las secciones 3, 5 y 10: la empresa la absorbería entera).
+(d) Permitir rebajar hasta la tarifa vigente (produce comisión negativa, ver decisión 3). (e) Cambiar
+el motor de comisión para acumular eventos en vez de recalcular (rompería D-094, la idempotencia y la
+autocorrección).
+
+**Sin migración inversa, a propósito.** Deshacerlo con boletas ya vendidas rebajadas obligaría a
+decidir qué precio pasan a deber esos clientes, y eso no lo decide un script. Cerrar solo la entrada
+de rebajas nuevas sí es trivial: dejar de enviar `p_sale_price` desde la aplicación devuelve cada
+venta al precio oficial sin cambiar una sola fila.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

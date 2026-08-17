@@ -345,6 +345,9 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Empresa que opera las rifas | **Organización** | Cuenta, tenant, empresa |
 | Pago parcial de una boleta | **Abono** | Cuota, adelanto, parcialidad |
 | Dinero que falta por cobrar | **Saldo pendiente** | Deuda, mora, pasivo |
+| Precio que la rifa fija para todas sus boletas | **Precio de la rifa** | Precio oficial, precio base, tarifa |
+| Vender una boleta por debajo de ese precio | **Rebajar** el precio; la **rebaja** | Descuento, promoción, oferta, rebajar la boleta |
+| Lo que gana el vendedor por cada boleta cobrada | **Ganancia** | Comisión, participación, utilidad |
 | Conjunto de vendedores a cargo de otro vendedor | **Equipo** | Red, grupo, downline, sucursal |
 | Vendedor que pertenece al equipo de otro | **Vendedor** (a secas), o **integrante** del equipo | Sub-vendedor, hijo, subordinado, mini admin |
 | Incorporar un vendedor a tu equipo | **Agregar vendedor** | Crear sub-vendedor, reclutar, vincular |
@@ -357,6 +360,14 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Cuenta creada a la que su dueña todavía no ha entrado | **Invitación pendiente** | Pendiente de activación, sin confirmar, inactivo |
 | Cuenta cuya dueña ya configuró su contraseña | **Cuenta activa** | Activado, confirmado, verificado |
 | Correo con el enlace para crear la contraseña | **Invitación** | Enlace mágico, token, activación |
+
+**«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
+eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
+porque en una rifa suena a promoción del negocio —algo que la empresa ofrece a todo el mundo— y esto
+es exactamente lo contrario: un trato que hace **una** persona con **un** cliente y que **paga de su
+propia ganancia**. Esa consecuencia se dice siempre que aparezca la casilla; es lo único que quien la
+usa no puede deducir mirando la pantalla. Y una venta al precio normal **no** menciona la rebaja:
+anunciar «rebaja de $0» es ruido en la pantalla que más se usa.
 
 **Cómo se nombra una boleta en pantalla:** por sus **dos números**, «1234 / 5678» (BR-N11). El
 **código interno** es información administrativa: aparece solo dentro del detalle de la boleta y

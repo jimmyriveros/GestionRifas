@@ -753,6 +753,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           assigned_at: string | null
+          base_price: number | null
           cancel_reason: string | null
           cancelled_at: string | null
           client_id: string | null
@@ -776,6 +777,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           assigned_at?: string | null
+          base_price?: number | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           client_id?: string | null
@@ -799,6 +801,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           assigned_at?: string | null
+          base_price?: number | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           client_id?: string | null
@@ -1211,13 +1214,19 @@ export type Database = {
         Returns: undefined
       }
       assign_ticket_row: {
-        Args: { p_client_id: string; p_sale_date?: string; p_ticket_id: string }
+        Args: {
+          p_client_id: string
+          p_sale_date?: string
+          p_sale_price?: number
+          p_ticket_id: string
+        }
         Returns: undefined
       }
       bulk_assign_tickets: {
         Args: {
           p_client_id: string
           p_sale_date?: string
+          p_sale_price?: number
           p_ticket_ids: string[]
         }
         Returns: number
@@ -1245,6 +1254,14 @@ export type Database = {
       cancel_ticket_row: {
         Args: { p_reason: string; p_ticket_id: string }
         Returns: undefined
+      }
+      commission_floor_rate: {
+        Args: {
+          p_organization_id: string
+          p_raffle_id: string
+          p_seller_id: string
+        }
+        Returns: number
       }
       commission_rate_for: {
         Args: { p_count: number; p_org: string }
@@ -1290,6 +1307,7 @@ export type Database = {
       current_profile_leads_team: { Args: { p_org: string }; Returns: boolean }
       current_staff_org_ids: { Args: never; Returns: string[] }
       current_team_seller_ids: { Args: never; Returns: string[] }
+      format_cop: { Args: { p_amount: number }; Returns: string }
       has_org_role: {
         Args: {
           p_org: string
@@ -1478,6 +1496,7 @@ export type Database = {
       ticket_bulk_eligibility: {
         Args: { p_ticket_ids: string[] }
         Returns: {
+          base_price: number
           can_approve: boolean
           can_assign: boolean
           can_cancel: boolean
@@ -1488,6 +1507,7 @@ export type Database = {
           has_client: boolean
           has_payments: boolean
           inventory_status: Database['public']['Enums']['ticket_inventory_status']
+          min_sale_price: number
           raffle_active: boolean
           raffle_id: string
           seller_id: string
@@ -1497,6 +1517,13 @@ export type Database = {
       }
       ticket_import_name_key: { Args: { value: string }; Returns: string }
       ticket_import_phone_key: { Args: { value: string }; Returns: string }
+      ticket_sale_price_limits: {
+        Args: { p_ticket_id: string }
+        Returns: {
+          base_price: number
+          min_sale_price: number
+        }[]
+      }
       today_bogota: { Args: never; Returns: string }
       void_payment: {
         Args: { p_payment_id: string; p_reason: string }
@@ -1517,7 +1544,12 @@ export type Database = {
     Enums: {
       app_role: 'owner' | 'admin' | 'seller'
       commission_movement:
-        'sale' | 'sale_reverted' | 'tier_adjustment' | 'seller_change' | 'initial_balance'
+        | 'sale'
+        | 'sale_reverted'
+        | 'tier_adjustment'
+        | 'seller_change'
+        | 'initial_balance'
+        | 'discount'
       payment_method: 'cash' | 'transfer' | 'other'
       raffle_status: 'draft' | 'active' | 'closed' | 'cancelled'
       ticket_inventory_status: 'draft' | 'pending_approval' | 'available' | 'assigned' | 'cancelled'
@@ -1653,6 +1685,7 @@ export const Constants = {
         'tier_adjustment',
         'seller_change',
         'initial_balance',
+        'discount',
       ],
       payment_method: ['cash', 'transfer', 'other'],
       raffle_status: ['draft', 'active', 'closed', 'cancelled'],

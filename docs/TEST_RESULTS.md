@@ -1896,3 +1896,70 @@ clona `select … from tickets where daily_number = '0100' limit 1` **sin `order
 **Estabilidad tras corregir I-059:** `db:reset && seed:local` y **seis pasadas seguidas** de
 `test:db` sobre la misma base, 471/471 en todas. La suite nueva deja la base exactamente como la
 encontró (30 boletas en «Rifa Navidad 2026», 3 en «Rifa Control 2026», 4 pagos).
+
+---
+
+## Mantenimiento post-9 — el vendedor puede rebajar el precio (2026-08-17)
+
+Encargo `PriceChangeSeller.txt`. Decisión **D-099**, migración `0028_ticket_sale_discount.sql`.
+
+### Resultado
+
+| Suite | Resultado | Variación |
+|---|---|---|
+| Base de datos | **490/490** ✅ | +19 (`sale-discount.test.ts`, nueva) |
+| Unitarias | **316/316** ✅ | +4 (`commonPriceRange`) |
+| `typecheck` · `lint` · `build` | ✅ | 0 errores; 2 avisos preexistentes de TanStack |
+| End-to-end | ver abajo | +4 (`precio-rebajado.spec.ts`, nueva) |
+
+La suite nueva de base de datos se ejecutó **tres veces seguidas** sobre la misma base sin fallar
+(I-057, I-059).
+
+### Sonda empírica previa, antes de escribir nada de frontend
+
+El motor se comprobó primero en SQL puro contra la base local, porque una regla financiera mal
+traducida no la destapa un `typecheck`:
+
+| Comprobación | Resultado |
+|---|---|
+| Suelo de quien no tiene equipo | `$60.000` = la mitad del precio → precio mínimo `$60.000` |
+| Suelo de un integrante | El tramo más bajo, no la tarifa vigente |
+| Vender en `$130.000` | Rechazado: «no puede ser mayor que el precio de la rifa ($120.000)» |
+| Vender en `$50.000` | Rechazado: «puedes vender desde $60.000 hasta $120.000» |
+| Vender en `$100.000` | `sale_price=100000`, `base_price=120000`, rebaja `20000` |
+| Cobrar los `$100.000` | Boleta **Pagada**, con `$20.000` menos que el precio oficial |
+| Un peso más | Rechazado: «supera su saldo pendiente (0)» |
+| Comisión | 2 cobradas × `$60.000` − `$20.000` = **`$100.000`** |
+| Ledger | `sale +60.000` y `discount −20.000`; `sum(ledger) = earned` |
+
+### Errores encontrados y corregidos
+
+| # | Error | Cómo apareció | Corrección |
+|---|---|---|---|
+| 1 | `create or replace view` sobre `v_ticket_balances` habría fallado: las columnas nuevas iban en medio y se perdían `assigned_at` y `created_at` | Al comparar con la definición original de `0008` antes de aplicar | Se retiró el cambio de vista entero. Ningún consumidor lo necesitaba y el detalle lee de `tickets` |
+| 2 | `raffles.start_date` y `end_date` son `NOT NULL` | `beforeAll` de la suite nueva | Se añaden al alta de la rifa de prueba |
+| 3 | El `afterAll` borraba clientes por una lista fijada de antemano y dejaba fuera el que crea la prueba del importador; la membresía ya no se podía borrar | Primera ejecución completa | Se borra **por vendedor**, no por lista |
+| 4 | Las cuentas de Auth de la suite **no se pueden borrar**: son actores de `audit_logs`, que tiene FK contra el perfil (BR-D02) | La limpieza revirtió entera y dejó residuos, que hicieron fallar la ejecución siguiente con `raffles_org_name_key` | El alta es idempotente (reutiliza la cuenta) y se borra la **membresía**. La auditoría no se toca |
+| 5 | El pago del CASO F lo intentaba un vendedor ajeno al cliente: fallaba en silencio, la boleta nunca quedaba pagada y la aserción medía cero | `E8-18` con un delta de `0` en vez de la tarifa | Lo registra el Dueño (BR-F02) y ahora se comprueba el error del pago |
+| 6 | Vocabulario inconsistente entre capas: la base de datos decía «descuento» y la interfaz «rebaja» | Al repasar los textos contra `UX_COPY_GUIDELINES` §35.3 | Unificado en **rebaja**; añadido al glosario del Anexo A |
+| 7 | `format_cop` dependía del locale: `to_char` con `G` usa `lc_numeric`, y el `replace(',', '.')` habría dejado el separador equivocado en un servidor con otro locale | Repaso del `.sql` antes de cerrar | `translate(…, ',. ', '...')`, que lleva coma, punto y espacio al punto colombiano. Y la función pasa a `stable`, que es lo que de verdad es |
+| 8 | Con rebajas, «Tu ganancia» decía «2 boletas cobradas · $60.000 por boleta» encima de un total de `$100.000`: la cuenta no cuadraba a la vista | Repaso de la sección 11 del encargo | Línea «Menos $X de las rebajas que hiciste», derivada de las cifras que ya llegaban. Aplicada también al detalle del integrante y del vendedor |
+| 9 | **El botón de confirmar del modal de venta múltiple quedaba FUERA de la pantalla.** `DialogContent` no tiene altura máxima ni scroll; el campo de precio nuevo empujó el modal —resumen + lista de números + precio + buscador + lista de clientes— por encima del alto de la ventana | E2E `seleccion-multiple`, con 106 reintentos de clic contra un elemento «visible, enabled and stable» pero *outside of the viewport* | `max-h-[calc(100dvh-2rem)] overflow-y-auto` en ese modal y en el de una sola boleta |
+
+**El defecto 9 merece leerse dos veces.** No era un problema de la prueba: con esa selección **una
+persona tampoco habría podido confirmar la venta**. El botón existía, se veía habilitado y no
+respondía. Es justo lo que la lista de la §14 de `UX_COPY_GUIDELINES` pregunta con «¿el texto cabe
+correctamente en móvil?», y lo que ninguna prueba unitaria ni de base de datos podía encontrar.
+`DialogContent` sigue sin techo propio: **cualquier diálogo al que se le añada un campo puede repetir
+esto**. Los dos de asignación ya lo tienen; el resto, no.
+
+### Una ejecución E2E que hubo que descartar
+
+La primera pasada completa de Playwright se lanzó **antes** de terminar los ajustes de interfaz, y las
+ediciones posteriores recompilaron el servidor de desarrollo en caliente. Resultado: **4 fallos**, los
+cuatro en el hook de inicio de sesión (`page.waitForURL` navegando a `/login` en bucle), ninguno en la
+funcionalidad. Se descartó la ejecución, se detuvieron los procesos, y se repitió desde
+`db:reset` + `seed:local` **sin tocar ni un archivo mientras corría**.
+
+Es la misma familia de trampa que ya recoge `TESTING.md` §5.3: un resultado E2E solo vale si el árbol
+estuvo quieto durante toda la ejecución.

@@ -43,6 +43,13 @@ export default async function SellerTicketDetailPage({
     ticket.clientId ? listClientPayments(ticket.clientId) : Promise.resolve([]),
   ])
 
+  // BR-P10: `base_price` es nulo en las boletas vendidas antes de existir la
+  // rebaja, que equivalen a rebaja cero.
+  const discount =
+    ticket.salePrice !== null && ticket.basePrice !== null
+      ? ticket.basePrice - ticket.salePrice
+      : 0
+
   const reason = blockedReason(ticket.inventoryStatus, ticket.raffleStatus)
   const canAssign = ticket.inventoryStatus === 'available' && reason === null
   const canEditNumbers =
@@ -63,6 +70,7 @@ export default async function SellerTicketDetailPage({
                 ticketId={ticket.id}
                 ticketNumbers={ticketLabel(ticket)}
                 rafflePrice={ticket.raffleTicketPrice}
+                minSalePrice={ticket.minSalePrice}
                 clients={clients}
               />
             ) : null}
@@ -119,7 +127,18 @@ export default async function SellerTicketDetailPage({
                 Sin vender (precio vigente {formatCOP(ticket.raffleTicketPrice)})
               </span>
             ) : (
-              formatCOP(ticket.salePrice)
+              <>
+                {formatCOP(ticket.salePrice)}
+                {/* La rebaja solo se nombra cuando la hubo: una venta al precio
+                    normal no necesita que le anuncien «rebaja de $0»
+                    (seccion 11 del encargo). */}
+                {discount > 0 ? (
+                  <span className="text-muted-foreground block text-xs">
+                    Precio de la rifa {formatCOP(ticket.basePrice ?? 0)} · rebaja de{' '}
+                    {formatCOP(discount)}
+                  </span>
+                ) : null}
+              </>
             )}
           </Field>
           <Field label="Abonado">

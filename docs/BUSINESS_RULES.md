@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.4 · **Estado:** normativo · **Actualizado:** 2026-08-14
+- **Versión:** 1.5 · **Estado:** normativo · **Actualizado:** 2026-08-17
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -120,6 +120,22 @@ en `/reset-password` y al entrar con contraseña (D-097).
 | BR-G10 | **`SUM(commission_ledger.amount) = seller_commissions.earned`**, siempre. Es la invariante que comprueban las pruebas en cada escenario: si se rompe, el historial dejó de explicar el saldo. | D | post-9 |
 | BR-G11 | Un vendedor **no puede modificar** su comisión, su tramo, su recuento ni su ganancia: no existe privilegio de escritura sobre las tres tablas para ninguna sesión. Todo lo escribe una función `SECURITY DEFINER`. | D | post-9 |
 | BR-G12 | Cada quien ve su comisión; el vendedor padre, la de su equipo; el Dueño y el Administrador, la de toda la organización. El **detalle de movimientos** es de cada quien y del personal. | D | post-9 |
+| BR-G17 | **La rebaja que concede un vendedor la asume él, entera.** Su comisión pasa a ser `n × tarifa(n) − Σ rebajas de sus boletas cobradas`. Lo que le queda a la empresa —`precio oficial − tarifa` por boleta— **no cambia nunca** por una rebaja. | D | post-9 |
+| BR-G18 | El **descuento máximo** es la tarifa **mínima garantizada** de esa persona en esa rifa, no la que cobra hoy: el tramo más bajo de la organización para quien cobra por tramos, la mitad del precio para quien no. La tarifa por tramos baja sola al anularse un pago (BR-G06), así que una rebaja calculada sobre la tarifa alta dejaría esa venta en comisión negativa. | C, S, D | post-9 |
+| BR-G19 | La comisión **nunca es negativa**. `commission_floor_rate` ya lo impide por diseño; el recorte a cero del motor cubre el único camino que quedaba —bajar el precio de la rifa después de una venta rebajada (BR-G15)—. Este negocio no tiene deudas del vendedor hacia la empresa. | D | post-9 |
+
+**Por qué BR-G17 es la traducción correcta del encargo.** El encargo pedía «el Admin nunca pierde
+dinero por el descuento» y lo expresaba como `adminAmount = officialPrice × adminPercentage`. **Aquí
+no se configura ningún porcentaje del Admin**: se configura al revés, lo que gana el vendedor
+(BR-G13), y la parte de la empresa es lo que sobra. Con esa correspondencia la regla sale sola y se
+comprueba como una identidad, no como una cifra:
+
+```
+cobrado a los clientes − comisión del vendedor = n × (precio oficial − tarifa)
+```
+
+El lado derecho **no contiene la rebaja**. Da igual cuánto rebaje el vendedor: lo que le queda a la
+empresa depende solo del precio oficial y de la tarifa pactada. Lo comprueba `E8-10`.
 
 **Nota sobre BR-G07 — reasignar una boleta vendida es imposible, no solo prohibido.**
 `tickets_client_seller_fk` es una FK compuesta `(client_id, seller_id) → clients (id, seller_id)` y
@@ -315,7 +331,17 @@ Añadidas después de la Fase 9, a petición del usuario. Detalle de las decisio
 | BR-P05 | `sale_price` es inmutable cuando la boleta tiene pagos activos, salvo procedimiento administrativo documentado (anular pagos → corregir → volver a registrar). | S, D | 2 |
 | BR-P06 | Los saldos y estados se calculan usando `sale_price`, nunca el precio actual de la rifa. | D | 2 |
 | BR-P07 | **Corregir un precio mal configurado no es subirlo.** Cuando el precio guardado nunca fue el correcto, se arrastra el `sale_price` de las boletas de esa rifa por migración versionada (excepción de BR-P05 prevista ahí mismo), y **nunca** se tocan `payments.total_amount` ni `payment_allocations.amount`: lo pagado sigue siendo lo pagado y la diferencia queda como saldo pendiente. Una subida real de precio se rige por BR-P04 y no toca nada anterior. | D | post-9 |
-| BR-P08 | No existen descuentos ni precio efectivo aparte: `sale_price` **es** lo que debe el cliente. Una boleta puede tener un precio propio distinto del de su rifa, y ninguna corrección masiva puede pisarlo. | D | post-9 |
+| BR-P08 | No existe un «precio efectivo» aparte: `sale_price` **es** lo que debe el cliente. Una boleta puede tener un precio propio distinto del de su rifa, y ninguna corrección masiva puede pisarlo. **Actualizada el 2026-08-17 (D-099):** desde entonces ese precio propio puede nacer de una rebaja del vendedor; lo que sigue sin existir es un segundo número que se calcule aparte. | D | post-9 |
+| BR-P09 | **El vendedor puede vender una boleta por debajo del precio oficial.** La rebaja pertenece a **esa** venta: no cambia el precio de la rifa, ni el de las demás boletas, ni el de ninguna venta anterior. Sin precio explícito se vende al precio vigente de la rifa, que sigue siendo el camino normal. | C, S, D | post-9 |
+| BR-P10 | Al vender se congela también el **precio oficial** en `tickets.base_price`. La rebaja concedida es `base_price - sale_price` y **no se guarda**: se deriva. `base_price` nulo —toda boleta vendida antes de D-099— equivale a rebaja cero. | D | post-9 |
+| BR-P11 | El precio de venta debe estar entre el **mínimo** y el precio oficial. El mínimo lo calcula `ticket_sale_price_limits`, que es la **única** definición del límite y la comparten la validación, el diálogo de venta y el detalle de la boleta. Vender por encima del precio oficial se rechaza: esto es para rebajar, no para recargar. | C, S, D | post-9 |
+| BR-P12 | Rebajar **no cambia nada más**: el saldo del cliente sigue siendo `sale_price - paid_amount`, la boleta queda **Pagada** al completar el precio rebajado —aunque sea menor que el oficial— y el sobrepago se bloquea contra el precio rebajado. Con abonos registrados el precio sigue siendo inmutable (BR-P05): para corregirlo hay que anular los pagos primero. | D | post-9 |
+
+**BR-P12 y la trampa de D-098 son opuestas y conviene no confundirlas.** Una boleta de `$120.000`
+con `$100.000` abonados está **Abonada**, y darla por Pagada es un defecto. Una boleta **vendida en**
+`$100.000` con `$100.000` abonados está **Pagada**, y no darla por Pagada es otro defecto. La
+diferencia está en `sale_price`, que es —y siempre fue— el único límite. Ninguna capa compara contra
+una cifra escrita en el código.
 
 ---
 

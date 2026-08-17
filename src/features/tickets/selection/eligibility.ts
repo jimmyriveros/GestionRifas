@@ -28,6 +28,32 @@ export type TicketEligibility = {
   hasPayments: boolean
   raffleActive: boolean
   can: Record<BulkAction, boolean>
+  /** Precio oficial vigente de su rifa (BR-P10). */
+  basePrice: number
+  /** Lo mas barato que se puede vender esta boleta (BR-P11). Lo calcula SQL a
+   *  partir de la forma de pago de SU vendedor; la pantalla no lo deduce. */
+  minSalePrice: number
+}
+
+/**
+ * El precio de venta que puede ofrecerse para TODO el lote (BR-P09, D-099).
+ *
+ * Solo existe si las boletas coinciden en las dos cifras: una seleccion que
+ * mezcle rifas de precios distintos —o vendedores con formas de pago
+ * distintas— no tiene un unico precio que proponer, y en ese caso la pantalla
+ * no ofrece la casilla y cada boleta se vende al precio de su rifa.
+ */
+export function commonPriceRange(
+  rows: readonly TicketEligibility[],
+): { basePrice: number; minSalePrice: number } | null {
+  const first = rows[0]
+  if (!first) return null
+
+  const igual = rows.every(
+    (row) => row.basePrice === first.basePrice && row.minSalePrice === first.minSalePrice,
+  )
+
+  return igual ? { basePrice: first.basePrice, minSalePrice: first.minSalePrice } : null
 }
 
 /** Como se llama cada accion en pantalla. Un termino, un nombre (Anexo A). */

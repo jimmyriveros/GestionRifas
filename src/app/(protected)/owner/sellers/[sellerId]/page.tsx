@@ -110,6 +110,13 @@ export default async function SellerDetailPage({
                   <span className="text-muted-foreground">
                     {' '}
                     · {commission.ticketsPaid} cobradas a {formatCOP(commission.rate)}
+                    {/* No es una métrica de rebajas (el encargo pide no
+                        añadirlas al portal administrativo): está para que la
+                        cuenta cuadre a la vista cuando el vendedor rebajó
+                        alguna boleta. La participación de la empresa no cambia. */}
+                    {commission.discounts > 0
+                      ? `, menos ${formatCOP(commission.discounts)} de rebajas`
+                      : ''}
                   </span>
                 </span>
               ) : (

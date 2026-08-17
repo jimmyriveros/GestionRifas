@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { ClientOption } from '@/features/clients/queries'
-import { formatCOP } from '@/lib/money'
 
 import { AssignTicketsForm } from './AssignTicketsForm'
 
@@ -19,8 +18,11 @@ type AssignTicketDialogProps = {
   ticketId: string
   /** Los dos numeros, ya formateados: «1234 / 5678» (BR-N11). */
   ticketNumbers: string
-  /** Precio VIGENTE de la rifa: es el que quedara congelado en la boleta. */
+  /** Precio VIGENTE de la rifa: el que llega precargado en el formulario. */
   rafflePrice: number
+  /** Lo mas barato que se puede vender esta boleta (BR-P11). Lo calcula SQL a
+   *  partir de la forma de pago de su vendedor. */
+  minSalePrice: number
   clients: ClientOption[]
 }
 
@@ -36,6 +38,7 @@ export function AssignTicketDialog({
   ticketId,
   ticketNumbers,
   rafflePrice,
+  minSalePrice,
   clients,
 }: AssignTicketDialogProps) {
   const [open, setOpen] = useState(false)
@@ -47,12 +50,17 @@ export function AssignTicketDialog({
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
+        {/* Mismo techo que el modal de venta multiple: este es mas corto y hoy
+            cabe, pero crece con la lista de clientes del vendedor. */}
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Asignar la boleta {ticketNumbers}</DialogTitle>
+            {/* La cifra ya no se nombra aqui: la escribe el formulario, y
+                repetirla arriba dejaria un numero desactualizado en cuanto
+                alguien rebajara el precio. */}
             <DialogDescription>
-              Se registrará la venta por {formatCOP(rafflePrice)}, el precio vigente de la rifa. Ese
-              valor queda fijo aunque la rifa cambie de precio después.
+              Elige el cliente que la compró. El precio que registres queda fijo aunque la rifa
+              cambie de precio después.
             </DialogDescription>
           </DialogHeader>
 
@@ -60,6 +68,7 @@ export function AssignTicketDialog({
             ticketIds={[ticketId]}
             totalAmount={rafflePrice}
             clients={clients}
+            priceRange={{ basePrice: rafflePrice, minSalePrice }}
             onDone={() => setOpen(false)}
           />
         </DialogContent>

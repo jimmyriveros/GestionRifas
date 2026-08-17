@@ -46,7 +46,8 @@ dinero.
 | **Pago** (`payment`) | Dinero recibido de un cliente en una fecha, repartido entre una o varias boletas. |
 | **Asignación de pago** (`payment_allocation`) | Porción de un pago aplicada a una boleta concreta. |
 | **Anulación** (`void`) | Marcar un pago como no válido sin borrarlo. Sus asignaciones dejan de contar. |
-| **Snapshot de precio** | Copia del precio de la rifa en `tickets.sale_price` al momento de la venta. |
+| **Snapshot de precio** | Al vender se congelan dos cifras: `tickets.sale_price` (lo que debe el cliente) y `tickets.base_price` (el precio de la rifa en ese momento). |
+| **Rebaja** | Vender una boleta por debajo del precio de la rifa. Es `base_price - sale_price`, no se guarda, y sale íntegra de la ganancia del vendedor (BR-P09, D-099). |
 
 ---
 
@@ -147,7 +148,9 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
    (o existir autorización administrativa).
 2. El vendedor selecciona o crea un cliente en el mismo flujo.
 3. Se registran `client_id`, `assigned_at`, `sale_date`.
-4. Se copia el precio vigente de la rifa a `sale_price` (snapshot).
+4. Se congelan `sale_price` (lo que debe el cliente) y `base_price` (el precio vigente de la rifa).
+   Sin precio explícito los dos valen lo mismo; el vendedor puede **rebajar** `sale_price` hasta un
+   mínimo que su propia ganancia pueda absorber (BR-P09..BR-P11).
 5. El estado pasa a `assigned`.
 
 ### F6 — Registro de abono o pago
@@ -198,7 +201,8 @@ Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
 2. La combinación (`organization_id`, `raffle_id`, `daily_number`, `weekly_number`) es **única**.
 3. La unicidad aplica **entre vendedores** y también a combinaciones **anuladas** (no se reutilizan en el MVP).
 4. La misma combinación **sí** puede existir en otra rifa.
-5. `sale_price` es un snapshot inmutable del precio de la rifa al vender.
+5. `sale_price` es un snapshot inmutable de lo que debe el cliente, fijado al vender: el precio de
+   la rifa, o menos si el vendedor concedió una rebaja (BR-P09).
 6. Estado de inventario y estado de pago son **dimensiones separadas**.
 7. El estado de pago se **calcula**; nunca se selecciona.
 8. No se permiten sobrepagos, montos ≤ 0, ni pagos a boletas sin cliente.

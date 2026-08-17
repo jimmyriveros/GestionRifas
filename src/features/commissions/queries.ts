@@ -30,8 +30,23 @@ export type CommissionSummary = {
   ticketsPaid: number
   /** Lo que vale hoy cada boleta pagada. */
   rate: number
-  /** Ganancia acumulada YA conseguida. */
+  /** Ganancia acumulada YA conseguida, con las rebajas ya restadas (BR-G17). */
   earned: number
+  /**
+   * Lo que se ha dejado de ganar por rebajar boletas (BR-G17, D-099).
+   *
+   * Se DERIVA de las otras tres cifras, no se consulta: por definicion
+   * `earned = ticketsPaid × rate − rebajas`, asi que la resta es exacta. Y es
+   * ademas la unica forma segura de obtenerla aqui: `commission_summary` es
+   * `security invoker`, de modo que un `join` contra `tickets` devolveria cero
+   * para los integrantes de un equipo —su vendedor padre no ve sus boletas
+   * (D-092)— sin que nada avisara (misma trampa que I-015).
+   *
+   * Cuando la ganancia toca su suelo de cero (BR-G19) esta cifra se queda corta:
+   * lo rebajado de verdad fue mas. Solo sirve para explicar una ganancia, nunca
+   * como dato contable.
+   */
+  discounts: number
   /** Cuantas boletas hacen falta para el siguiente nivel; null si no hay mas. */
   nextMinTickets: number | null
   nextRate: number | null
@@ -52,13 +67,18 @@ function mapRow(row: {
   tickets_to_next: number | null
   projected_earned: number | null
 }): CommissionSummary {
+  const ticketsPaid = Number(row.tickets_paid ?? 0)
+  const rate = Number(row.rate ?? 0)
+  const earned = Number(row.earned ?? 0)
+
   return {
     sellerId: row.seller_id,
     raffleId: row.raffle_id,
     byTiers: row.by_tiers,
-    ticketsPaid: Number(row.tickets_paid ?? 0),
-    rate: Number(row.rate ?? 0),
-    earned: Number(row.earned ?? 0),
+    ticketsPaid,
+    rate,
+    earned,
+    discounts: Math.max(0, ticketsPaid * rate - earned),
     nextMinTickets: row.next_min_tickets,
     nextRate: row.next_rate === null ? null : Number(row.next_rate),
     ticketsToNext: row.tickets_to_next,

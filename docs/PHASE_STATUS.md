@@ -11,7 +11,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 
 | Clasificación | Estado actual |
 |---|---|
-| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13) y corregir a un integrante pendiente (2026-08-14) |
+| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15) y la rebaja del vendedor (2026-08-17, **solo en local**) |
 | **En curso** | Ninguna |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
@@ -1024,3 +1024,78 @@ Sin cambios.
    transacción que revierte. Si la conviertes en una copia del SQL dejará de probar la migración; si
    le quitas el `rollback`, pisará las rifas a `$100.000` de otras suites.
 4. **La columna «Abono» del importador sigue sin empezarse**, por indicación expresa del encargo.
+
+---
+
+## Mantenimiento post-9 — el vendedor puede rebajar el precio (2026-08-17)
+
+Encargo `PriceChangeSeller.txt`. Decisión **D-099**; reglas **BR-P09..BR-P12** y **BR-G17..BR-G19**.
+**No está en producción**: `0028` vive solo en local.
+
+### 1. Funcionalidades implementadas
+
+- Al vender una boleta, el vendedor puede **rebajar el precio** por debajo del de la rifa. La casilla
+  llega precargada con el precio oficial: quien no quiera rebajar nada no toca nada.
+- El cliente debe **lo rebajado**. Saldo, estado de pago y tope de sobrepago ya se calculaban contra
+  `sale_price`, así que no hizo falta cambiarlos: una boleta vendida en `$100.000` queda **Pagada**
+  con `$100.000`.
+- La rebaja **la asume entera la ganancia del vendedor**. Lo que le queda a la empresa —`precio
+  oficial − tarifa`— no cambia nunca.
+- **Límite inferior**: no se puede rebajar más de lo que la comisión puede absorber. Se valida en la
+  pantalla, en la Server Action y en la base de datos, con la fila bloqueada.
+- El detalle de la boleta explica un precio distinto al de la rifa; una venta normal **no** menciona
+  la rebaja.
+- La venta múltiple ofrece la casilla solo si todas las boletas comparten precio y límite.
+
+### 2. Pruebas ejecutadas y resultados
+
+**490** de base de datos ✅ (+19: la suite nueva `sale-discount`) · **316** unitarias ✅ (+4) ·
+**4** E2E nuevas (`precio-rebajado`) ✅ · `typecheck`, `lint` y `build` ✅.
+
+Errores encontrados y corregidos durante el trabajo:
+
+| # | Error | Corrección |
+|---|---|---|
+| 1 | `create or replace view` sobre `v_ticket_balances` habría fallado: las columnas nuevas iban en medio y faltaban dos del final | Se retiró el cambio de vista entero: ningún consumidor lo necesitaba y el detalle lee de `tickets` |
+| 2 | El `afterAll` de la suite nueva no borraba el cliente que crea la prueba del importador, y la membresía quedaba sin poder borrarse | Se borra por **vendedor**, no por una lista de clientes fijada de antemano |
+| 3 | El pago del CASO F lo intentaba un vendedor ajeno al cliente y fallaba en silencio: la boleta nunca quedaba pagada y la aserción medía cero | Lo registra el Dueño, y ahora se comprueba el error del pago |
+| 4 | Las cuentas de la suite no se podían borrar: son actores de `audit_logs` (FK, BR-D02) | El alta es idempotente y se borra la **membresía**, no la cuenta. La auditoría no se toca |
+| 5 | Vocabulario inconsistente entre capas: la base de datos decía «descuento» y la interfaz «rebaja» | Unificado en **rebaja**, y añadido al glosario del Anexo A |
+| 6 | **El botón de confirmar del modal de venta múltiple quedaba fuera de la pantalla**: el campo nuevo lo empujó por encima del alto de la ventana y `DialogContent` no tiene techo ni scroll. Afectaba a la persona, no solo a la prueba | `max-h-[calc(100dvh-2rem)] overflow-y-auto` en los dos modales de asignación. El componente compartido sigue sin techo: **cualquier otro diálogo al que se le añada un campo puede repetirlo** |
+
+### 3. Migraciones
+
+| Migración | Qué hace |
+|---|---|
+| `0028_ticket_sale_discount.sql` | Añade `tickets.base_price` (nullable) y el `CHECK sale_price <= base_price`; añade el valor `discount` al enum `commission_movement`; crea `format_cop`, `commission_floor_rate` y `ticket_sale_price_limits`; recrea `assign_ticket_row` y `bulk_assign_tickets` con `p_sale_price` opcional; hace que `recalc_seller_commission` reste las rebajas con suelo en cero; amplía `ticket_bulk_eligibility` con los dos límites |
+
+Las **27** anteriores siguen sin cambios (son inmutables).
+
+**No hay backfill ni recálculo**, y es deliberado: al instalarla no existe ninguna rebaja, así que
+nadie cobra un peso distinto. Además `alter type ... add value` deja el valor nuevo inutilizable
+hasta que la transacción confirma, de modo que un bucle de recálculo aquí habría reventado.
+
+### 4. Variables de entorno
+
+Sin cambios.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **`0028` no está en producción** | La funcionalidad no existe para el usuario real hasta promoverla con autorización, respaldo previo y los tres pasos de `HANDOFF` §3 |
+| Sin migración inversa | Deliberado: deshacerlo con boletas ya vendidas rebajadas obligaría a decidir qué precio pasan a deber esos clientes. Cerrar solo la **entrada** de rebajas nuevas sí es trivial (dejar de enviar `p_sale_price`) |
+| **La ganancia de una venta pasada sigue siendo recalculable** (sección 19 del encargo) | Reportado, **no corregido**: no hay snapshot de la tarifa y BR-G15 establece a propósito que cambiar el precio de la rifa cambia lo ya devengado. Es decisión del dueño (D-094, D-096). Lo único congelado por este trabajo es la rebaja |
+| **I-059** e **I-060** | Siguen abiertos: fuera del alcance de este encargo |
+
+### 6. Qué debe revisar el siguiente agente
+
+1. **La rebaja es `base_price − sale_price`, nunca `raffles.ticket_price − sale_price`.** El precio de
+   la rifa cambia, y ya cambió una vez (`0027`).
+2. **El tope de rebaja es la tarifa mínima garantizada**, no la vigente: la tarifa por tramos baja
+   sola al anularse un pago (BR-G06).
+3. **La línea de rebaja del ledger se calcula por resto.** Es lo que mantiene `sum(ledger) = earned`
+   por construcción; no la conviertas en «diferencia de rebajas».
+4. **No escribas cifras de precio** en el código ni en las pruebas (sigue vigente de D-098).
+5. **La columna «Abono» del importador sigue sin empezarse**, por indicación expresa del encargo
+   anterior.

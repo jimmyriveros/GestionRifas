@@ -46,6 +46,8 @@ export async function listTicketEligibility(
       changeSeller: row.can_change_seller,
       delete: row.can_delete,
     },
+    basePrice: Number(row.base_price ?? 0),
+    minSalePrice: Number(row.min_sale_price ?? 0),
   }))
 }
 

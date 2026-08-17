@@ -94,6 +94,7 @@ Versiones exactas y su justificación en [`docs/ARCHITECTURE.md`](docs/ARCHITECT
 | Zona horaria | `America/Bogota` |
 | Moneda | COP, almacenada como entero de pesos |
 | Precio predeterminado de boleta | `$120.000` (`120000`) — corregido desde `$100.000` el 2026-08-15 (D-098) |
+| Rebaja del vendedor | Una boleta puede venderse por debajo del precio de la rifa. La rebaja sale íntegra de la ganancia del vendedor; lo que le queda a la empresa no cambia (D-099) |
 
 ---
 

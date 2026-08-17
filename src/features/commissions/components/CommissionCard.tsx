@@ -58,8 +58,16 @@ export function CommissionCard({
     )
   }
 
-  const { ticketsPaid, rate, earned, nextMinTickets, nextRate, ticketsToNext, projectedEarned } =
-    commission
+  const {
+    ticketsPaid,
+    rate,
+    earned,
+    discounts,
+    nextMinTickets,
+    nextRate,
+    ticketsToNext,
+    projectedEarned,
+  } = commission
 
   return (
     <Card>
@@ -75,6 +83,16 @@ export function CommissionCard({
             {ticketsPaid} {ticketsPaid === 1 ? 'boleta cobrada' : 'boletas cobradas'} ·{' '}
             {formatCOP(rate)} por boleta
           </p>
+          {/*
+            Sin esta linea la tarjeta no cuadraria: diria «2 boletas cobradas ·
+            $60.000 por boleta» encima de un total de $100.000, y quien la lee
+            pensaria que falta dinero. Solo aparece si hubo rebajas (BR-G17).
+          */}
+          {discounts > 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Menos {formatCOP(discounts)} de las rebajas que hiciste.
+            </p>
+          ) : null}
         </div>
 
         {/*

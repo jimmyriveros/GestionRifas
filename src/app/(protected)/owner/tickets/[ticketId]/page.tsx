@@ -28,6 +28,13 @@ export default async function TicketDetailPage({
 
   const payments = ticket.clientId ? await listClientPayments(ticket.clientId) : []
 
+  // BR-P10: nulo en las boletas vendidas antes de existir la rebaja, que
+  // equivalen a rebaja cero.
+  const discount =
+    ticket.salePrice !== null && ticket.basePrice !== null
+      ? ticket.basePrice - ticket.salePrice
+      : 0
+
   return (
     <div className="space-y-6">
       {/* La boleta se nombra por sus numeros; el codigo interno baja a la
@@ -85,7 +92,18 @@ export default async function TicketDetailPage({
                 Sin vender (precio vigente {formatCOP(ticket.raffleTicketPrice)})
               </span>
             ) : (
-              formatCOP(ticket.salePrice)
+              <>
+                {formatCOP(ticket.salePrice)}
+                {/* Aqui la rebaja no es una metrica del negocio (el reparto de
+                    la empresa no cambia): esta para que un precio distinto al
+                    de la rifa se explique solo y no parezca un error. */}
+                {discount > 0 ? (
+                  <span className="text-muted-foreground block text-xs">
+                    Precio de la rifa {formatCOP(ticket.basePrice ?? 0)} · rebaja de{' '}
+                    {formatCOP(discount)}
+                  </span>
+                ) : null}
+              </>
             )}
           </Field>
           <Field label="Abonado">

@@ -92,6 +92,13 @@ export default async function TeamMemberPage({
                 ? ` · le faltan ${commission.ticketsToNext} para llegar a ${formatCOP(commission.nextRate)}`
                 : ''}
             </p>
+            {/* Sin esto la cuenta no cuadraria a la vista: «2 cobradas a
+                $60.000» encima de un total de $100.000 (BR-G17). */}
+            {commission.discounts > 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Menos {formatCOP(commission.discounts)} de las rebajas que hizo.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}

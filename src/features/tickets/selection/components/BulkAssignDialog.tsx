@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -14,7 +16,7 @@ import { AssignTicketsForm } from '@/features/tickets/assign/components/AssignTi
 import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
 
-import { allEligible, ineligibleFor, whyNot } from '../eligibility'
+import { allEligible, commonPriceRange, ineligibleFor, whyNot } from '../eligibility'
 import { useTicketSelection } from '../TicketSelectionContext'
 
 /**
@@ -56,9 +58,27 @@ export function BulkAssignDialog({
   const eligibleRows = rows.filter((row) => row.can.assign)
   const eligibleTotal = eligibleRows.reduce((sum, row) => sum + (rafflePrices[row.raffleId] ?? 0), 0)
 
+  // El precio se puede rebajar solo si TODAS coinciden en precio oficial y
+  // limite (BR-P09). Con boletas de rifas distintas no hay un precio unico que
+  // proponer, asi que no se ofrece la casilla y cada una se vende a la suya.
+  const priceRange = commonPriceRange(eligibleRows)
+
+  // Espejo del precio que el formulario tiene dentro, solo para que el resumen
+  // de arriba diga la verdad. El valor lo sigue gobernando el formulario.
+  const [unitPrice, setUnitPrice] = useState<number | null>(null)
+  const precioVigente = unitPrice ?? priceRange?.basePrice ?? null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      {/*
+        Este modal es el mas alto de la aplicacion: resumen, lista de numeros,
+        precio, buscador y lista de clientes, uno debajo de otro. Sin techo,
+        `DialogContent` crece mas que la ventana y el boton de confirmar queda
+        FUERA de la pantalla —visible y habilitado, pero imposible de pulsar—.
+        Lo destapo una prueba E2E al añadir el campo de precio: 106 reintentos
+        de clic contra un elemento «outside of the viewport».
+      */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Asignar boletas</DialogTitle>
           <DialogDescription>
@@ -73,7 +93,17 @@ export function BulkAssignDialog({
           </p>
         ) : (
           <>
-            <SelectionSummary count={eligibleRows.length} totalAmount={eligibleTotal} />
+            <SelectionSummary
+              count={eligibleRows.length}
+              totalAmount={
+                priceRange && precioVigente !== null
+                  ? precioVigente * eligibleRows.length
+                  : eligibleTotal
+              }
+              discount={
+                priceRange && precioVigente !== null ? priceRange.basePrice - precioVigente : 0
+              }
+            />
             <SelectedNumbers rows={eligibleRows} />
 
             {!ready ? (
@@ -111,6 +141,8 @@ export function BulkAssignDialog({
             totalAmount={total}
             clients={clients}
             showSummary={false}
+            priceRange={priceRange}
+            onUnitPriceChange={setUnitPrice}
             onDone={() => {
               onOpenChange(false)
               selection.clear()
@@ -132,7 +164,17 @@ export function BulkAssignDialog({
  * Cuántas boletas y por cuánto dinero, antes de elegir el cliente: el resumen
  * ejecutivo de la operación (reemplaza la barra inferior duplicada).
  */
-function SelectionSummary({ count, totalAmount }: { count: number; totalAmount: number }) {
+function SelectionSummary({
+  count,
+  totalAmount,
+  discount,
+}: {
+  count: number
+  totalAmount: number
+  /** Rebaja por boleta. Solo se nombra cuando existe: anunciar «$0» en la venta
+   *  normal seria ruido (seccion 11 del encargo). */
+  discount: number
+}) {
   return (
     <div className="grid grid-cols-1 gap-3 rounded-md border p-3 sm:grid-cols-2 sm:gap-4">
       <div className="space-y-1">
@@ -144,6 +186,11 @@ function SelectionSummary({ count, totalAmount }: { count: number; totalAmount: 
       <div className="space-y-1">
         <p className="text-muted-foreground text-xs">Total a asignar</p>
         <p className="text-base font-semibold tabular-nums">{formatCOP(totalAmount)}</p>
+        {discount > 0 ? (
+          <p className="text-muted-foreground text-xs">
+            Con {formatCOP(discount)} de rebaja {count === 1 ? 'en la boleta' : 'en cada boleta'}.
+          </p>
+        ) : null}
       </div>
     </div>
   )

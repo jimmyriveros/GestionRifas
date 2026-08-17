@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   allEligible,
+  commonPriceRange,
   countEligible,
   ineligibleFor,
   whyNot,
   type BulkAction,
   type TicketEligibility,
 } from '../../src/features/tickets/selection/eligibility'
+import { DEFAULT_TICKET_PRICE } from '../../src/lib/constants'
 import {
   emptySelection,
   readSelection,
@@ -37,6 +39,11 @@ function boleta(overrides: Partial<TicketEligibility> = {}): TicketEligibility {
     hasPayments: false,
     raffleActive: true,
     can: { approve: false, assign: true, cancel: true, changeSeller: true, delete: true },
+    // El precio se lee de la constante, no se escribe a mano: una cifra fija
+    // aqui volveria a caerse el dia que cambie el precio (D-098). La mitad es
+    // el suelo de quien no pertenece a un equipo (BR-G13).
+    basePrice: DEFAULT_TICKET_PRICE,
+    minSalePrice: DEFAULT_TICKET_PRICE / 2,
     ...overrides,
   }
 }
@@ -198,5 +205,42 @@ describe('almacen de la seleccion', () => {
     window.sessionStorage.setItem('rifas.ticket-selection:tope', JSON.stringify(muchas))
 
     expect(readSelection('tope')).toHaveLength(1000)
+  })
+})
+
+/**
+ * El precio comun de un lote (BR-P09, D-099).
+ *
+ * Decide si el dialogo de venta puede ofrecer la casilla «Precio de venta». Un
+ * lote sin precio comun no tiene un unico precio que proponer, y entonces no se
+ * ofrece: cada boleta se vende al de su rifa.
+ */
+describe('precio comun de un lote de boletas', () => {
+  it('sin boletas no hay precio que proponer', () => {
+    expect(commonPriceRange([])).toBeNull()
+  })
+
+  it('devuelve el precio cuando todas coinciden', () => {
+    const lote = [boleta(), boleta(), boleta()]
+
+    expect(commonPriceRange(lote)).toEqual({
+      basePrice: DEFAULT_TICKET_PRICE,
+      minSalePrice: DEFAULT_TICKET_PRICE / 2,
+    })
+  })
+
+  it('no propone precio si las boletas son de rifas con precios distintos', () => {
+    const lote = [boleta(), boleta({ basePrice: 50_000, minSalePrice: 25_000 })]
+
+    expect(commonPriceRange(lote)).toBeNull()
+  })
+
+  it('no propone precio si el limite difiere aunque el precio oficial coincida', () => {
+    // Pasa de verdad: dos vendedores de la misma rifa con formas de pago
+    // distintas —uno por tramos, otro a la mitad del precio— tienen suelos
+    // distintos (BR-G13).
+    const lote = [boleta(), boleta({ minSalePrice: DEFAULT_TICKET_PRICE - 20_000 })]
+
+    expect(commonPriceRange(lote)).toBeNull()
   })
 })

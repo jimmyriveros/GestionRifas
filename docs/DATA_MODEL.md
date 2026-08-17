@@ -301,7 +301,8 @@ Adicional: `UNIQUE (id, organization_id)`, `UNIQUE (id, seller_id)` (habilitan F
 | `internal_code` | `text` | `NOT NULL`, `UNIQUE (organization_id, internal_code)` — `R001-000123` |
 | `daily_number` | `text` | `NULL` solo en `draft`; `CHECK (daily_number ~ '^[0-9]{1,4}$')` |
 | `weekly_number` | `text` | `NULL` solo en `draft`; `CHECK (weekly_number ~ '^[0-9]{1,4}$')` |
-| `sale_price` | `bigint` | `NULL` hasta la venta; `CHECK (sale_price > 0)` |
+| `sale_price` | `bigint` | `NULL` hasta la venta; `CHECK (sale_price > 0)`. Es **lo que debe el cliente** |
+| `base_price` | `bigint` | `NULL` hasta la venta y en toda boleta vendida antes de `0028`; `CHECK (base_price > 0)`. Precio de la rifa congelado al vender (BR-P10) |
 | `inventory_status` | `ticket_inventory_status` | `NOT NULL DEFAULT 'draft'` |
 | `paid_amount` | `bigint` | `NOT NULL DEFAULT 0`, materializada por trigger |
 | `payment_status` | `ticket_payment_status` | Columna **generada** (§4.6.4) |
@@ -331,11 +332,28 @@ CONSTRAINT tickets_weekly_number_format CHECK (weekly_number ~ '^[0-9]{1,4}$'),
 
 #### 4.6.2 Snapshot de precio
 
-- `sale_price` se copia desde `raffles.ticket_price` **en el momento de asignar** la boleta.
+Al vender se congelan **dos** cifras, y hace falta distinguirlas (BR-P09..BR-P12, D-099):
+
+| Columna | Qué es | Para qué sirve |
+|---|---|---|
+| `sale_price` | Lo que **debe el cliente** | Saldo, estado de pago, tope de sobrepago, totales de ventas |
+| `base_price` | El **precio de la rifa** en ese momento | Calcular la rebaja concedida |
+
+- Las dos las escribe `assign_ticket_row`. Sin precio explícito, `sale_price = base_price =
+  raffles.ticket_price`, que es el comportamiento de siempre.
+- `CHECK (sale_price <= base_price)`: esto es para rebajar, nunca para recargar.
+- **La rebaja no se guarda**: es `base_price - sale_price`. Guardarla sería un tercer número capaz de
+  desincronizarse de los otros dos (mismo criterio que `pending_amount`).
+- `base_price` **nulo** = boleta vendida antes de `0028`. En todas partes se lee
+  `coalesce(base_price, sale_price)`, así que equivale a rebaja cero y se comporta como antes.
 - Trigger `tickets_protect_sale_price`: si `paid_amount > 0`, cualquier `UPDATE` de `sale_price`
   se rechaza. Solo un procedimiento administrativo documentado (anular pagos → corregir → volver a
   registrar) puede cambiarlo.
 - Modificar `raffles.ticket_price` no propaga cambios a boletas existentes.
+
+⚠️ **`raffles.ticket_price - sale_price` NO es la rebaja.** El precio de la rifa cambia (BR-P04, y
+cambió en `0027`), así que esa resta convertiría en «rebaja» ventas hechas al precio correcto. La
+rebaja se calcula **siempre** contra `base_price`.
 
 #### 4.6.3 Restricciones de integridad y unicidad
 
