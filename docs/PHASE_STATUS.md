@@ -1030,7 +1030,7 @@ Sin cambios.
 ## Mantenimiento post-9 — el vendedor puede rebajar el precio (2026-08-17)
 
 Encargo `PriceChangeSeller.txt`. Decisión **D-099**; reglas **BR-P09..BR-P12** y **BR-G17..BR-G19**.
-**No está en producción**: `0028` vive solo en local.
+**Desplegado en producción el 2026-08-17** con autorización expresa (`0028` + commit `01df211`).
 
 ### 1. Funcionalidades implementadas
 
@@ -1071,6 +1071,11 @@ Errores encontrados y corregidos durante el trabajo:
 
 Las **27** anteriores siguen sin cambios (son inmutables).
 
+**Comprobado en producción antes y después de aplicarla, que es lo que importaba:** la comisión viva
+(1 boleta, `$60.000`, `$60.000`), el ledger (1 fila `sale +60.000`), los 3 pagos y el reparto de
+boletas (1 Pagada · 2 Abonadas · 55 Sin pagar) quedaron **idénticos**. `base_price` nació con **0**
+filas no nulas.
+
 **No hay backfill ni recálculo**, y es deliberado: al instalarla no existe ninguna rebaja, así que
 nadie cobra un peso distinto. Además `alter type ... add value` deja el valor nuevo inutilizable
 hasta que la transacción confirma, de modo que un bucle de recálculo aquí habría reventado.
@@ -1083,7 +1088,8 @@ Sin cambios.
 
 | Asunto | Impacto |
 |---|---|
-| **`0028` no está en producción** | La funcionalidad no existe para el usuario real hasta promoverla con autorización, respaldo previo y los tres pasos de `HANDOFF` §3 |
+| Ninguno abierto de este trabajo | `0028` se aplicó al proyecto real y el código se desplegó el mismo día (2026-08-17). Queda la comprobación visual con sesión real, que un agente no puede hacer |
+| **`DialogContent` sigue sin techo** | Los dos modales de asignación llevan el suyo, pero el componente compartido no: cualquier otro diálogo al que se le añada un campo puede volver a dejar su botón fuera de la pantalla |
 | Sin migración inversa | Deliberado: deshacerlo con boletas ya vendidas rebajadas obligaría a decidir qué precio pasan a deber esos clientes. Cerrar solo la **entrada** de rebajas nuevas sí es trivial (dejar de enviar `p_sale_price`) |
 | **La ganancia de una venta pasada sigue siendo recalculable** (sección 19 del encargo) | Reportado, **no corregido**: no hay snapshot de la tarifa y BR-G15 establece a propósito que cambiar el precio de la rifa cambia lo ya devengado. Es decisión del dueño (D-094, D-096). Lo único congelado por este trabajo es la rebaja |
 | **I-059** e **I-060** | Siguen abiertos: fuera del alcance de este encargo |
