@@ -259,6 +259,22 @@ existe—, y por eso la suite aguanta ejecutarse muchas veces seguidas.
 | `features/tour/tours.ts` | Ids únicos y estables; cada recorrido termina con el cierre; ningún recorrido del portal administrativo alcanza a un vendedor; los textos cumplen la guía de redacción (títulos de 2 a 7 palabras, glosario, tuteo) |
 | `features/tour/use-tour.ts` + `storage.ts` | Un paso cuyo elemento falta, mide cero o está oculto se descarta sin romper el resto; el cierre sobrevive siempre; la memoria es por perfil y por recorrido, y no se repite si el navegador bloquea el almacenamiento |
 
+### 5.0 Los diálogos y sus botones (`dialogos-alcanzables.spec.ts`)
+
+Cuatro diálogos × dos tamaños de ventana (1280×720 y **390×620**). Nació de un defecto real: un
+diálogo alto crecía más que la ventana y su pie —confirmar y cancelar— quedaba **fuera de la
+pantalla**, sin nada que desplazar (D-099).
+
+Lo que afirma no es que el diálogo sea bajo, sino que **su última acción se alcanza**:
+`scrollIntoViewIfNeeded()` y después `toBeInViewport()`. Es la única formulación que distingue el
+antes del después, porque en el diseño roto el desplazamiento no existía.
+
+No usa el proyecto `movil` de Playwright —solo recoge `*-movil` y `*responsive`— porque esto no es
+emulación táctil sino geometría: basta con `test.use({ viewport })`.
+
+⚠️ **Al tocar `DialogContent`, comprueba que esta suite falla si retiras el arreglo.** Se validó así
+al escribirla (2 de 8 se caen). Una prueba de regresión que pasa en los dos casos no vigila nada.
+
 ### 5.1 El recorrido guiado y las demás pruebas E2E
 
 El recorrido se abre **solo** la primera vez y su capa bloquea los clics, así que taparía cualquier

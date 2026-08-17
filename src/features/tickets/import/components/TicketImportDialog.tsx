@@ -252,7 +252,11 @@ export function TicketImportDialog({
           }
         }}
       >
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
+        {/* El techo de alto ya no se pone aqui: lo trae `DialogContent` para
+            todos los dialogos. Este fue el primero que lo necesito y lo
+            resolvio por su cuenta con `max-h-[90dvh]`; dejarlo mantendria dos
+            limites distintos para el mismo problema. */}
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Importar boletas desde un archivo</DialogTitle>
             <DialogDescription>

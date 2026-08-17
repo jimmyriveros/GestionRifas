@@ -39,6 +39,29 @@ function DialogOverlay({
   )
 }
 
+/**
+ * Contenedor de un dialogo.
+ *
+ * EL ALTO ESTA ACOTADO A PROPOSITO, y no es un detalle estetico.
+ *
+ * Sin techo, un dialogo alto crece mas que la ventana y su parte inferior
+ * —donde viven SIEMPRE los botones de confirmar y cancelar— queda fuera de la
+ * pantalla: visible para el navegador, habilitado, y **imposible de pulsar**.
+ * No hay forma de recuperarlo, porque sin `overflow` tampoco hay nada que
+ * desplazar.
+ *
+ * Ha pasado dos veces. `TicketImportDialog` lo parcheo por su cuenta con
+ * `max-h-[90dvh]`, y en 2026-08-17 volvio a ocurrir en el modal de venta
+ * multiple al añadirle el campo de precio (D-099): una prueba E2E reintento el
+ * clic 106 veces contra un boton «visible, enabled and stable» pero *outside of
+ * the viewport*. Un vendedor con esa seleccion tampoco habria podido vender.
+ *
+ * `dvh` y no `vh`: en el telefono la barra del navegador aparece y desaparece, y
+ * `vh` se queda con la altura mayor —justo la que no cabe—.
+ *
+ * Un dialogo puede seguir imponiendo su propio alto: `cn` usa `tailwind-merge`,
+ * asi que la clase de quien llama gana sobre esta.
+ */
 function DialogContent({
   className,
   children,
@@ -54,6 +77,7 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           'bg-background data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 outline-none sm:max-w-lg',
+          'max-h-[calc(100dvh-2rem)] overflow-y-auto',
           className,
         )}
         {...props}

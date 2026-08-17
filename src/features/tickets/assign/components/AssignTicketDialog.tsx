@@ -50,9 +50,7 @@ export function AssignTicketDialog({
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        {/* Mismo techo que el modal de venta multiple: este es mas corto y hoy
-            cabe, pero crece con la lista de clientes del vendedor. */}
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Asignar la boleta {ticketNumbers}</DialogTitle>
             {/* La cifra ya no se nombra aqui: la escribe el formulario, y

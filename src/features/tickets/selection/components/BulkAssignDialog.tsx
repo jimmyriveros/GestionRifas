@@ -70,15 +70,11 @@ export function BulkAssignDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/*
-        Este modal es el mas alto de la aplicacion: resumen, lista de numeros,
-        precio, buscador y lista de clientes, uno debajo de otro. Sin techo,
-        `DialogContent` crece mas que la ventana y el boton de confirmar queda
-        FUERA de la pantalla —visible y habilitado, pero imposible de pulsar—.
-        Lo destapo una prueba E2E al añadir el campo de precio: 106 reintentos
-        de clic contra un elemento «outside of the viewport».
-      */}
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+      {/* Este es el modal mas alto de la aplicacion —resumen, lista de numeros,
+          precio, buscador y lista de clientes— y el que destapo que
+          `DialogContent` no acotaba su alto. El techo vive ahi desde entonces,
+          para todos; aqui no hace falta repetirlo. */}
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Asignar boletas</DialogTitle>
           <DialogDescription>

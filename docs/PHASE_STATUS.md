@@ -1089,7 +1089,6 @@ Sin cambios.
 | Asunto | Impacto |
 |---|---|
 | Ninguno abierto de este trabajo | `0028` se aplicó al proyecto real y el código se desplegó el mismo día (2026-08-17). Queda la comprobación visual con sesión real, que un agente no puede hacer |
-| **`DialogContent` sigue sin techo** | Los dos modales de asignación llevan el suyo, pero el componente compartido no: cualquier otro diálogo al que se le añada un campo puede volver a dejar su botón fuera de la pantalla |
 | Sin migración inversa | Deliberado: deshacerlo con boletas ya vendidas rebajadas obligaría a decidir qué precio pasan a deber esos clientes. Cerrar solo la **entrada** de rebajas nuevas sí es trivial (dejar de enviar `p_sale_price`) |
 | **La ganancia de una venta pasada sigue siendo recalculable** (sección 19 del encargo) | Reportado, **no corregido**: no hay snapshot de la tarifa y BR-G15 establece a propósito que cambiar el precio de la rifa cambia lo ya devengado. Es decisión del dueño (D-094, D-096). Lo único congelado por este trabajo es la rebaja |
 | **I-059** e **I-060** | Siguen abiertos: fuera del alcance de este encargo |
@@ -1105,3 +1104,56 @@ Sin cambios.
 4. **No escribas cifras de precio** en el código ni en las pruebas (sigue vigente de D-098).
 5. **La columna «Abono» del importador sigue sin empezarse**, por indicación expresa del encargo
    anterior.
+
+---
+
+## Mantenimiento post-9 — el alto de los diálogos, resuelto en el componente (2026-08-17)
+
+Continuación pedida por el dueño tras ver el defecto que destapó D-099.
+
+### 1. Funcionalidades implementadas
+
+No hay funcionalidad nueva: se cierra una clase entera de defecto. `DialogContent` acota su alto a
+`calc(100dvh - 2rem)` y desplaza su contenido, así que **ningún diálogo puede volver a dejar sus
+botones fuera de la pantalla**.
+
+Se retiran los tres parches locales que existían para lo mismo —`BulkAssignDialog`,
+`AssignTicketDialog` y `TicketImportDialog`, este último con un límite distinto (`max-h-[90dvh]`)
+desde antes—. Un solo límite para un solo problema.
+
+Un diálogo puede seguir imponiendo el suyo: `cn` usa `tailwind-merge` y la clase de quien llama gana.
+
+### 2. Pruebas ejecutadas y resultados
+
+Suite nueva **`tests/e2e/dialogos-alcanzables.spec.ts`**: cuatro diálogos (venta de una boleta, venta
+múltiple, alta de vendedor e importación) × **dos tamaños de ventana** — 1280×720 y **390×620**, corta
+a propósito porque el defecto depende del alto—. Ocho pruebas.
+
+No comprueba que el diálogo sea bajo, sino que **su última acción se alcanza**: `scrollIntoViewIfNeeded()`
+y luego `toBeInViewport()`. En el diseño roto no había a dónde desplazar, y ahí está la diferencia.
+
+**Se comprobó que la prueba falla sin el arreglo**, que es lo único que demuestra que protege algo:
+al retirar la clase del componente, 2 de las 8 se cayeron; restaurada, 8/8. Una prueba de regresión
+que pasa en los dos casos no vigila nada.
+
+`verify` en verde (316 unitarias) · E2E completas.
+
+### 3. Migraciones
+
+No aplica.
+
+### 4. Variables de entorno
+
+Sin cambios.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| El botón de cerrar (la X) se desplaza con el contenido | En un diálogo muy alto deja de verse al bajar. No atrapa a nadie: `Esc`, el botón «Cancelar» —que esta aplicación pone siempre (Anexo C)— y pulsar fuera siguen cerrando |
+
+### 6. Qué debe revisar el siguiente agente
+
+1. **No vuelvas a poner `max-h` + `overflow-y-auto` en un diálogo concreto.** Ya lo trae el
+   componente; repetirlo esconde el comportamiento compartido y multiplica los límites.
+2. Si un diálogo nuevo necesita otro alto, pásale solo su `max-h-*`.

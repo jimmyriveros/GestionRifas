@@ -1950,8 +1950,42 @@ traducida no la destapa un `typecheck`:
 persona tampoco habría podido confirmar la venta**. El botón existía, se veía habilitado y no
 respondía. Es justo lo que la lista de la §14 de `UX_COPY_GUIDELINES` pregunta con «¿el texto cabe
 correctamente en móvil?», y lo que ninguna prueba unitaria ni de base de datos podía encontrar.
-`DialogContent` sigue sin techo propio: **cualquier diálogo al que se le añada un campo puede repetir
-esto**. Los dos de asignación ya lo tienen; el resto, no.
+
+> **Cerrado el mismo día, en el componente compartido.** Ver la sección siguiente.
+
+---
+
+## Mantenimiento post-9 — el alto de los diálogos, resuelto en el componente (2026-08-17)
+
+`DialogContent` pasa a acotar su alto (`max-h-[calc(100dvh-2rem)] overflow-y-auto`), de modo que la
+clase entera de defecto desaparece en vez de parchearse diálogo a diálogo.
+
+**Ya había pasado antes y nadie lo había visto como un problema del componente:**
+`TicketImportDialog` llevaba desde su creación un `max-h-[90dvh] overflow-y-auto` propio. Eran dos
+soluciones distintas al mismo problema, con límites distintos. Ahora hay una.
+
+### La prueba se validó al revés, que es la única forma de que valga
+
+`tests/e2e/dialogos-alcanzables.spec.ts` — cuatro diálogos × dos tamaños de ventana (1280×720 y
+390×620) = 8 pruebas. No afirma que el diálogo sea bajo: afirma que **su última acción se alcanza**,
+con `scrollIntoViewIfNeeded()` seguido de `toBeInViewport()`. En el diseño roto no había a dónde
+desplazar.
+
+| Estado del código | Resultado |
+|---|---|
+| Con el arreglo | **8/8** ✅ |
+| **Retirando la clase del componente** | **2 fallos** ✅ *(la prueba sí detecta la regresión)* |
+| Restaurado | **8/8** ✅ |
+
+Una prueba de regresión que pasa con y sin el arreglo no vigila nada. Esta se comprobó en los dos
+sentidos antes de darla por buena.
+
+### Lo que se aceptó a cambio
+
+El botón de cerrar (la X) es `absolute` dentro del contenedor que ahora desplaza, así que en un
+diálogo muy alto deja de verse al bajar. No atrapa a nadie —`Esc`, «Cancelar» y pulsar fuera siguen
+cerrando— y arreglarlo exigiría partir `DialogContent` en cabecera fija y cuerpo desplazable, que es
+un cambio estructural de un componente compartido por nueve diálogos.
 
 ### Una ejecución E2E que hubo que descartar
 
