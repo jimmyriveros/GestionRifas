@@ -40,7 +40,7 @@ test('ciclo completo del vendedor desde el teléfono', async ({ page }) => {
   await page.waitForURL(/\/seller\/tickets/)
 
   // 2. Buscar la boleta por su numero.
-  await page.getByPlaceholder('Número diario o semanal').fill(numbers.daily)
+  await page.getByPlaceholder('Número de boleta o cliente').fill(numbers.daily)
   await page.getByRole('button', { name: 'Buscar' }).click()
   await page
     .getByRole('link', { name: `Ver la boleta ${numbers.daily} / ${numbers.weekly}` })

@@ -6,6 +6,7 @@ import {
   foldForSearch,
   isPhoneLikeTerm,
   isTicketNumberTerm,
+  isTicketSearchTerm,
   meetsMinChars,
   normalizeSearchTerm,
   searchNeedle,
@@ -172,18 +173,52 @@ describe('ticketLabel (BR-N11)', () => {
   })
 })
 
+/**
+ * El buscador de boletas entiende numeros Y nombres (BR-N13, D-100). La regla
+ * que se prueba aqui es de que se avisa mientras se escribe: solo de lo que no
+ * puede funcionar de ninguna de las dos maneras.
+ */
+describe('isTicketSearchTerm', () => {
+  it('acepta un numero de boleta, incluso de una sola cifra', () => {
+    for (const term of ['7', '07', '0855', '9999']) {
+      expect(isTicketSearchTerm(term)).toBe(true)
+    }
+  })
+
+  it('acepta un nombre de cliente, entero o en parte', () => {
+    for (const term of ['Ana', 'Jimmy Riveros', 'ri', 'Muñoz']) {
+      expect(isTicketSearchTerm(term)).toBe(true)
+    }
+  })
+
+  it('rechaza una sola letra: devolveria media tabla sin ayudar a nadie', () => {
+    expect(isTicketSearchTerm('a')).toBe(false)
+    expect(isTicketSearchTerm(' ñ ')).toBe(false)
+  })
+
+  it('un numero de mas de cuatro cifras deja de ser boleta y pasa por texto', () => {
+    // No es un numero de boleta (BR-N02), pero puede ser el telefono de un
+    // cliente: se deja llegar a la consulta en vez de descartarlo aqui.
+    expect(isTicketNumberTerm('3101112233')).toBe(false)
+    expect(isTicketSearchTerm('3101112233')).toBe(true)
+  })
+})
+
 describe('ticketSearchHint', () => {
   it('no dice nada cuando el termino sirve', () => {
     expect(ticketSearchHint('1234')).toBeUndefined()
     expect(ticketSearchHint('')).toBeUndefined()
   })
 
-  it('avisa cuando se escribe algo que no es un numero', () => {
-    expect(ticketSearchHint('R001')).toContain('solo cifras')
+  it('ya NO avisa por escribir letras: un nombre de cliente es una busqueda valida', () => {
+    expect(ticketSearchHint('Jimmy')).toBeUndefined()
+    expect(ticketSearchHint('R001')).toBeUndefined()
   })
 
-  it('avisa cuando se pasa de cuatro cifras', () => {
-    expect(ticketSearchHint('12345')).toContain('4 cifras')
+  it('avisa cuando se pasa de cuatro cifras, y dice que entonces busca el telefono', () => {
+    const texto = ticketSearchHint('12345')
+    expect(texto).toContain('4 cifras')
+    expect(texto).toContain('teléfono')
   })
 })
 
@@ -193,8 +228,10 @@ describe('ticketSearchEmptyDescription', () => {
     expect(texto).toContain('código interno')
   })
 
-  it('con un numero valido y sin resultados, invita a probar otro', () => {
-    expect(ticketSearchEmptyDescription('1234', true)).toContain('otro número')
+  it('sin resultados, nombra las DOS formas de buscar', () => {
+    const texto = ticketSearchEmptyDescription('1234', true)
+    expect(texto).toContain('número')
+    expect(texto).toContain('cliente')
   })
 
   it('sin busqueda ni filtros deja hablar a la pantalla', () => {

@@ -355,7 +355,7 @@ la búsqueda **es** una navegación al Server Component, y por eso no hay ni hac
 
 | Pantalla | Tipo | Busca en | Pausa | Mínimo |
 |---|---|---|---|---|
-| `/owner/tickets`, `/seller/tickets` | URL → RSC | número diario y semanal (parcial), por relevancia. **No** el código interno (BR-N11) | 350 ms | 2 |
+| `/owner/tickets`, `/seller/tickets` | URL → RSC | número diario y semanal (parcial), por relevancia; **y el cliente que tiene la boleta** (BR-N13). **No** el código interno (BR-N11) | 350 ms | 2 |
 | `/owner/clients`, `/seller/clients` | URL → RSC | nombre, alias, teléfono, correo | 350 ms | 2 |
 | Asignar boleta → «Cliente existente» | Server Action | nombre, alias, teléfono | 350 ms | 2 |
 | Registrar abono → selector de cliente | Server Action | nombre, alias, teléfono | 350 ms | 2 |
@@ -366,8 +366,13 @@ la búsqueda **es** una navegación al Server Component, y por eso no hay ni hac
 como **texto** —«123» encuentra `1234` y `0123`; «00» encuentra `0017`—, nunca convertidos a entero,
 que perdería los ceros de delante (BR-N03). El orden lo decide SQL, no el navegador: la función
 `search_tickets` de la migración `0018` pone las coincidencias del número diario por delante de las
-del semanal. Reordenar en el cliente no serviría, porque la lista está paginada en servidor. Un
-término que no sea de 1 a 4 dígitos devuelve cero resultados y la pantalla explica por qué.
+del semanal. Reordenar en el cliente no serviría, porque la lista está paginada en servidor.
+
+**El mismo campo encuentra también por el cliente** (BR-N13, D-100, migración `0029`): si lo escrito
+no son de 1 a 4 dígitos, se busca contra `clients.search_text` —la **misma** columna del buscador de
+clientes— y se devuelven las boletas de quien coincida, ordenadas por relevancia del nombre. No hay
+un segundo buscador ni un selector: la consulta distingue sola. El resultado sigue siendo una lista
+de boletas, y el código interno sigue sin participar en ninguna de las dos ramas.
 
 **Fila seleccionable — a qué tablas se aplica** (D-076): boletas, clientes, rifas y vendedores abren
 su detalle; pagos abre su diálogo. `UsersTable` **no** la lleva: no hay pantalla de detalle de

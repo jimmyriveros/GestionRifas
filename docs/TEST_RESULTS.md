@@ -1997,3 +1997,80 @@ funcionalidad. Se descartó la ejecución, se detuvieron los procesos, y se repi
 
 Es la misma familia de trampa que ya recoge `TESTING.md` §5.3: un resultado E2E solo vale si el árbol
 estuvo quieto durante toda la ejecución.
+
+---
+
+# Mantenimiento post-9 — buscar boletas por el cliente, y llegar a su ficha (2026-08-21)
+
+Decisiones **D-100** y **D-101**, regla **BR-N13**, migración `0029_ticket_search_by_client.sql`.
+
+## Resumen
+
+| Suite | Antes | Después | Resultado |
+|---|---|---|---|
+| Base de datos | 490 | **512** | ✅ (+21 de `ticket-search-client`, +1 al desglosar una prueba reescrita) |
+| Unitarias | 316 | **320** | ✅ (+4 de `isTicketSearchTerm`) |
+| E2E | 259 | **274** | ✅ (+15 de `boleta-cliente`) |
+| `typecheck` · `lint` · `build` | — | — | ✅ (los 2 avisos de lint son los de siempre, de TanStack) |
+
+La suite de base de datos se ejecutó **dos veces seguidas sobre la misma base** y dio 512/512 en las
+dos: las pruebas nuevas trabajan dentro de transacciones que revierten, o borran lo que crean.
+
+## Medición antes de decidir: se comprobó el plan, no se supuso
+
+Antes de escribir la migración se midió con `explain (analyze, buffers)` sobre la base local, y
+después sobre una base inflada dentro de una transacción revertida — **5.006 clientes y 20.033
+boletas**, de ellas 20.008 vendidas:
+
+| Búsqueda | Plan observado | Tiempo |
+|---|---|---|
+| Nombre de un cliente concreto (444 boletas de 111 clientes) | `Nested Loop` → `Seq Scan on clients` → **`Index Scan using tickets_client_idx`** | **1,4 ms** |
+| `search_tickets('Zfalso Apellido42')`, extremo a extremo | — | **9 ms** |
+| Término que coincide con **las 20.000** (peor caso imaginable) | El mismo plan + el recuento exacto | 181–229 ms |
+
+**Conclusión que decidió el diseño:** la tabla grande (`tickets`) se alcanza siempre por índice. Los
+5.000 clientes se recorren enteros porque a ese tamaño el planificador lo prefiere a su índice de
+trigramas — es la tabla pequeña —, y `clients_search_text_trgm_idx` (de `0017`) sigue disponible para
+cuando deje de serlo. **No se creó ningún índice nuevo**: añadir uno «por si acaso» cuesta en cada
+inserción de boleta, y no había evidencia de que hiciera falta.
+
+El peor caso es el precio del total exacto de la paginación (`count(*) over ()`), que la búsqueda por
+número ya pagaba desde `0018`. No se cambió: un total aproximado haría que la paginación mintiera.
+
+## Errores encontrados y corregidos
+
+| # | Qué falló | Diagnóstico | Corrección |
+|---|---|---|---|
+| 1 | `ticket-search.test.ts` › «más de cuatro cifras no devuelve nada»: devolvía **3 filas** | No es un defecto. `12345` ya no se descarta: pasa por la rama de texto y encuentra al cliente cuyo **teléfono** contiene esas cifras, porque `clients.search_text` lo incluye (igual que el buscador de «Clientes», BR-C08) | Se corrigió **la prueba y el texto de la pantalla**, no la consulta. La pista del campo pasa a decir «Con más cifras buscamos el teléfono del cliente»: un resultado que la persona no sabe explicar parece un fallo |
+| 2 | Tres pruebas del código interno afirmaban «devuelve cero filas» | Esa afirmación describía el mundo en el que un texto no podía encontrar nada. Con BR-N13 depende de qué clientes existan, así que era una prueba frágil disfrazada de regla | Reescritas para afirmar lo que de verdad importa: **escribir el código de una boleta no lleva a esa boleta**, comprobado con el código real de una boleta real y sus dos recortes |
+| 3 | `seller-tickets.spec.ts` › «asigna una boleta a un cliente existente»: no encontraba el enlace | Consecuencia directa de D-101: el nombre accesible del enlace pasó de ser el nombre del cliente a «Cliente ‹nombre› ‹teléfono›», y la prueba lo pedía con `exact: true` | Se ancla en el rótulo (`^Cliente\s+‹nombre›`), que además la distingue del otro enlace con el mismo nombre («Registrar un abono de…») |
+| 4 | La regla nueva se numeró primero **BR-N12** | Ya estaba tomada por la importación CSV/JSON desde D-081 | Renumerada a **BR-N13** en las 15 referencias de código, pruebas y migración |
+
+Ninguno de los cuatro llegó a la aplicación: los tres primeros los destapó la propia suite en la
+primera ejecución completa, y el cuarto una revisión de la documentación antes de escribirla.
+
+## Lo que se probó del aislamiento, y cómo
+
+El punto que no podía fallar es que **ampliar por dónde se busca no ampliara qué se puede ver**. Se
+probó con sesiones reales y clave pública (nunca con service role), y con el escenario más incómodo
+posible: **tres clientes que se llaman exactamente igual**, uno del vendedor 1, otro del vendedor 2 y
+otro en la organización «Rifas Control».
+
+| Quién busca ese nombre | Qué obtiene |
+|---|---|
+| Vendedor 1 | Solo su boleta. La del vendedor 2 **no aparece**, y su cliente homónimo tampoco se insinúa |
+| Vendedor 2 | Solo la suya |
+| Vendedor 1 pasando `p_seller_id` del vendedor 2 | **Cero filas**: el filtro acota, no abre |
+| Dueño de «Rifas Demo» | Las dos de su organización; **nunca** la de «Rifas Control» |
+| Dueño de «Rifas Control» | Solo la suya |
+| Visitante anónimo | Error: no puede ejecutar la función (privilegios de `0018`, conservados por `create or replace`) |
+
+Y en la interfaz: un vendedor que busca por el nombre del cliente de otro ve «Ninguna boleta coincide
+con los filtros», mientras el personal encuentra esa misma boleta por el mismo camino.
+
+## Una limitación conocida que se deja escrita
+
+Desde «Boletas», un teléfono escrito **con separadores** no es simétrico: el término se compara tal
+cual contra `search_text`, sin la reducción a número nacional que sí hace «Clientes» (`searchNeedle`,
+regresión I-039). Buscar por **nombre** —que es la regla BR-N13— no se ve afectado, y por eso no se
+añadió una segunda normalización solo para este camino.

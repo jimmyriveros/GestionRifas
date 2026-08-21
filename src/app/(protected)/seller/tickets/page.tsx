@@ -83,7 +83,7 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
     <div className="space-y-6">
       <PageHeader
         title="Mis boletas"
-        description="Busca por el número diario o el semanal, y asigna las que ya vendiste."
+        description="Busca por el número de la boleta o por el nombre del cliente, y asigna las que ya vendiste."
         actions={
           canCreate ? (
             <Button asChild>

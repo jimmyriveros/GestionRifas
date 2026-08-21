@@ -1157,3 +1157,90 @@ Sin cambios.
 1. **No vuelvas a poner `max-h` + `overflow-y-auto` en un diálogo concreto.** Ya lo trae el
    componente; repetirlo esconde el comportamiento compartido y multiplica los límites.
 2. Si un diálogo nuevo necesita otro alto, pásale solo su `max-h-*`.
+
+---
+
+## Mantenimiento post-9 — buscar boletas por el cliente, y llegar a su ficha (2026-08-21)
+
+Encargo del dueño: reducir pasos en «Boletas» y conectar Boleta ↔ Cliente.
+Decisiones **D-100** y **D-101**; regla **BR-N13**. **Todavía NO desplegado.**
+
+### 1. Funcionalidades implementadas
+
+- **Un solo buscador en «Boletas», que ahora también encuentra por el cliente.** De 1 a 4 dígitos
+  siguen siendo los números de la boleta (BR-N11, sin un solo cambio); cualquier otro texto busca el
+  cliente que la tiene. No hay pestañas, ni un segundo campo, ni un selector «buscar por…».
+- El resultado **sigue siendo una lista de boletas**: dos números, cliente, estado, pago y precio, y
+  tocar una abre **esa** boleta. Un cliente con varias boletas devuelve todas, no una ficha suya.
+- **Relevancia del nombre**: exacto → empieza → una de sus palabras empieza → el resto. Las boletas
+  de una misma persona salen juntas y por número.
+- Funciona en los **dos portales**, con los permisos de cada uno y sin ninguna regla nueva.
+- **El cliente del detalle de una boleta es una fila pulsable entera** (rótulo, nombre, teléfono y
+  flecha `›`) que lleva a la ficha de cliente **que ya existía**. Una boleta sin vender pinta el
+  mismo hueco sin enlace ni flecha.
+- Volver desde la ficha regresa a la boleta, y otra vez a la lista **con su búsqueda y sus filtros**.
+  No hizo falta código: `BackButton` (D-089) ya usaba el historial real.
+
+### 2. Pruebas ejecutadas y resultados
+
+**512** de base de datos ✅ (+22: `ticket-search-client` nueva, 21, y una reescrita en
+`ticket-search`) · **320** unitarias ✅ (+4) · **15** E2E nuevas (`boleta-cliente`) ✅ ·
+`typecheck`, `lint` y `build` ✅. La suite de base de datos aguanta **dos pasadas seguidas** sobre la
+misma base.
+
+Errores encontrados y corregidos durante el trabajo:
+
+| # | Error | Corrección |
+|---|---|---|
+| 1 | La prueba «más de cuatro cifras no devuelve nada» empezó a fallar: `12345` sí encuentra al cliente cuyo **teléfono** contiene esas cifras, porque `clients.search_text` incluye el teléfono | Es comportamiento correcto y deseado (mismo criterio que el buscador de «Clientes», BR-C08). Se corrigió **la prueba y el texto de la pantalla**, no la consulta: la pista del campo ahora dice «Con más cifras buscamos el teléfono del cliente» |
+| 2 | Tres pruebas del código interno afirmaban «devuelve cero filas», algo que dejó de describir la regla al aceptarse texto | Reescritas para afirmar lo que de verdad importa y no depende de qué datos haya: **escribir el código de una boleta NO lleva a esa boleta** |
+| 3 | La nueva regla se numeró primero como BR-N12, que ya estaba tomada por la importación CSV/JSON | Renumerada a **BR-N13** en las 15 referencias de código, pruebas y migración |
+
+### 3. Migraciones
+
+| Migración | Qué hace |
+|---|---|
+| `0029_ticket_search_by_client.sql` | `create or replace` de `search_tickets`: la rama de números queda **idéntica** a `0018` y se añade una segunda rama que cruza `tickets` con `clients` por `search_text` y ordena por relevancia del nombre. No crea ni borra ningún objeto, no cambia la firma ni las columnas devueltas, y por tanto **conserva los privilegios** y no obliga a regenerar tipos |
+
+Las **28** anteriores siguen sin cambios (son inmutables).
+
+**No se creó ningún índice**, y se comprobó con `explain (analyze)` antes de decidirlo, sobre una base
+inflada a **5.006 clientes y 20.033 boletas** dentro de una transacción revertida:
+
+| Búsqueda | Plan | Tiempo |
+|---|---|---|
+| Nombre que encuentra 444 boletas de 111 clientes | `Nested Loop` → `clients` → **`Index Scan using tickets_client_idx`** | **1,4 ms** |
+| Término que encuentra las 20.000 boletas (peor caso) | El mismo, más el recuento exacto de `count(*) over ()` | 181–229 ms |
+
+La tabla grande se alcanza **siempre por índice**. `clients` se recorre entero a 5.000 filas porque el
+planificador lo considera más barato que su índice de trigramas —es la tabla pequeña—; el índice de
+`0017` sigue ahí para cuando deje de serlo. El peor caso es el coste del total exacto de la
+paginación, idéntico al que ya tenía la búsqueda por número.
+
+### 4. Variables de entorno
+
+Sin cambios.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **`0029` no está en el proyecto real** | Local sí, producción no. Hasta que se aplique, buscar por nombre en producción devolverá cero resultados: el código llama a la función nueva y la vieja descarta el texto. **Migración y despliegue van juntos** |
+| Un término de 2 caracteres no usa el índice de trigramas de `clients` | Limitación conocida y heredada de `0017`/`0018`: con dos caracteres no se puede extraer un trigrama completo. Afecta a la tabla pequeña, y el mínimo de la pantalla son 2 |
+| El teléfono con separadores no es simétrico desde «Boletas» | El término se compara tal cual contra `search_text`, que guarda el teléfono con y sin separadores; no se aplica la reducción a número nacional que sí hace «Clientes» (`searchNeedle`, I-039). Buscar por nombre —que es la regla— no se ve afectado |
+| **I-059** e **I-060** | Siguen abiertos: fuera del alcance. La suite nueva es **inmune a I-060** porque afirma solo sobre los clientes que ella misma crea, no sobre una rifa concreta |
+
+### 6. Qué debe revisar el siguiente agente
+
+1. **La rama de números de `search_tickets` es intocable sin motivo.** Se dejó byte a byte como en
+   `0018` justamente para que ampliar la búsqueda no pudiera cambiar un resultado antiguo; sus
+   pruebas (`tests/db/ticket-search.test.ts`) son la red que lo demuestra.
+2. **No añadas columnas al retorno de `search_tickets` a la ligera.** Cambiar las columnas obliga a
+   `drop function` + `create` en vez de un `create or replace`, y con ello a rehacer privilegios y
+   tipos generados. Por eso el teléfono del cliente se pide con un segundo alias en `getTicketDetail`
+   y **no** viaja en `TicketListItem`.
+3. **Los permisos se heredan, no se filtran.** `search_tickets` es `security invoker`; no le añadas
+   filtros «de seguridad» por `seller_id`: los que tiene son de usabilidad, y la protección real son
+   `tickets_select` y `clients_select`.
+4. **Un mismo mensaje no se escribe dos veces.** Las pistas del buscador viven todas en
+   `src/features/search/hints.ts`, y la ficha de cliente enlazable en `ClientLinkCard`.

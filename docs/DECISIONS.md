@@ -2265,6 +2265,97 @@ venta al precio oficial sin cambiar una sola fila.
 
 ---
 
+## D-100 — Un solo buscador en «Boletas»: los números y el cliente, sin que nadie elija cuál
+
+**Fecha:** 2026-08-21 · **Estado:** aceptada · **Migración:** `0029_ticket_search_by_client.sql` ·
+**Regla:** BR-N13 · Amplía D-080 (BR-N11)
+
+**Contexto.** Para ver qué tiene un cliente, el vendedor tenía que salir de «Boletas», entrar en
+«Clientes», buscar a la persona, abrir su ficha y leer la tabla de boletas. Cuatro pantallas para la
+pregunta más frecuente del día: «qué tiene Jimmy». La información ya estaba toda; lo que faltaba era
+el camino corto.
+
+**Decisión.** El campo de búsqueda de «Boletas» sigue siendo **uno** y ahora entiende dos cosas: de 1
+a 4 dígitos se buscan como números de boleta (BR-N11, sin cambio alguno) y cualquier otro texto se
+busca contra el cliente que tiene la boleta. El resultado **no cambia de naturaleza**: sigue siendo
+una lista de boletas, con sus dos números, su cliente y su estado, y tocar una abre esa boleta.
+
+**Por qué no un segundo buscador, una pestaña o un selector «buscar por…».** Los tres obligan a la
+persona a clasificar lo que va a escribir antes de escribirlo, que es justo el trabajo que se quería
+quitar. Quien busca no piensa «voy a hacer una búsqueda por cliente»: piensa «Jimmy». Un selector
+además duplica estados en la URL y en la pantalla, y multiplica por dos los caminos que hay que
+probar. La ambigüedad real es mínima: un nombre y un número de boleta no se parecen en nada, y la
+propia consulta los distingue con una expresión regular.
+
+**Por qué dos ramas separadas dentro de la misma función SQL, y no un `or`.** Con un `or` que mezcle
+números y nombre, PostgreSQL tiene que planificar una consulta que sirva para los dos casos y acaba
+barriendo `tickets` entera. Separadas, cada una conserva su plan: los trigramas de los números por un
+lado, y por el otro el trigrama de `clients.search_text` seguido de `tickets_client_idx`. Se comprobó
+con `explain` sobre 5.000 clientes y 20.000 boletas vendidas: la tabla grande se alcanza **siempre**
+por índice, nunca por barrido. Como efecto secundario, la rama de números queda **idéntica** a la de
+`0018`, así que ampliar la búsqueda no puede cambiar un resultado que ya funcionaba.
+
+**Por qué `clients.search_text` y no una comparación nueva contra `name`.** Esa columna generada ya
+existe desde `0017`, ya está normalizada sin tildes ni mayúsculas, ya tiene su índice de trigramas y
+**ya es la que usa el buscador de «Clientes»**. Reutilizarla es lo que hace que «jose» encuentre a
+«José» en las dos pantallas por la misma razón, en vez de por dos implementaciones que algún día
+divergirán. Trae de propina que un teléfono también encuentre las boletas de su dueño; se documenta
+y se dice en la pista del campo, porque un resultado que la persona no sabe explicar parece un fallo.
+
+**Por qué los permisos no necesitaron ni una línea.** `search_tickets` es `security invoker`: lee
+`tickets` bajo `tickets_select` y ahora también `clients` bajo `clients_select`. Las dos políticas
+son simétricas —organización, y dentro de ella personal o vendedor propietario—, de modo que la
+ampliación no puede alcanzar una fila que antes estuviera cerrada. Buscar por un camino distinto no
+abre una puerta distinta. Se comprueba con tres clientes que **se llaman igual**, uno por vendedor y
+uno en otra organización.
+
+**Qué se descartó.** (a) Traer los clientes al navegador y cruzarlos ahí: deja de funcionar en cuanto
+hay más de una página de clientes, que es exactamente el defecto I-036 ya corregido. (b) Ordenar la
+relevancia en el navegador: la lista está paginada en servidor, así que solo reacomodaría la página
+visible. (c) Devolver clientes junto a boletas en una lista mixta: rompe la promesa de la pantalla y
+obliga a dos presentaciones distintas en la misma tabla.
+
+**Lo que NO cambió:** el código interno sigue sin servir para buscar (BR-N11), los ceros de delante
+se conservan, el debounce y la paginación son los mismos, y no se tocó ni un cálculo de dinero.
+
+---
+
+## D-101 — El cliente de una boleta es una fila pulsable, no un enlace escondido
+
+**Fecha:** 2026-08-21 · **Estado:** aceptada · **Sin migración** · Complementa D-089
+
+**Contexto.** En el detalle de una boleta, el cliente era un enlace de texto dentro de una celda de
+la rejilla de datos, idéntico al resto de campos salvo por el subrayado al pasar el ratón. En un
+teléfono —donde no hay ratón— no se distinguía de nada, y la diana era el ancho exacto del nombre.
+
+**Decisión.** El cliente sale de la rejilla y ocupa su propia fila a lo ancho: rótulo «Cliente»,
+nombre, teléfono y una flecha `›` a la derecha. **La fila entera es el enlace.** Se reutilizan las
+clases de las tarjetas de «Mi equipo» (`TeamMemberList`), para que «esto se puede tocar» se vea igual
+en toda la aplicación, y el componente es uno solo (`ClientLinkCard`) compartido por los dos
+portales.
+
+**A dónde lleva: a la ficha que ya existe.** `/owner/clients/:id` o `/seller/clients/:id` según el
+portal. No se creó una segunda ficha de cliente ni una versión «para boletas»; lo único que cambia es
+desde dónde se llega.
+
+**La vuelta ya estaba resuelta.** `BackButton` (D-089) prefiere el historial real de la sesión, así
+que Boleta → Cliente → atrás devuelve a esa boleta, y otra vez atrás devuelve al listado con su
+búsqueda, sus filtros y su página intactos, porque todo eso vive en la URL. No hizo falta código
+nuevo, y por eso el recorrido completo se cubre con una prueba en vez de con un mecanismo.
+
+**Boleta sin cliente.** Se pinta el mismo hueco con borde discontinuo y sin flecha ni enlace: la
+diferencia entre «toca aquí» y «aquí no hay nada» tiene que verse **antes** de tocar. No se navega a
+un cliente que no existe.
+
+**Qué se descartó.** (a) Un botón «Ver detalle del cliente»: ocupa una línea entera para decir lo que
+la flecha dice sin gastar ninguna. (b) Dejar el enlace azul sobre el nombre: es lo que había, y es
+justo lo que no se ve en un teléfono. (c) Añadir el teléfono a `TicketListItem` para no pedirlo
+aparte: obligaría a cambiar las columnas que devuelve `search_tickets`, y eso ya no es un `create or
+replace`. Se pide con un segundo alias de la misma relación, el mismo patrón que `raffle_full` usaba
+desde antes.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

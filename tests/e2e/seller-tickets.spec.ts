@@ -53,9 +53,13 @@ test.describe('Asignación de boletas', () => {
 
     await expectToast(page, 'Boleta asignada.')
     await expect(page.getByText('Asignada').first()).toBeVisible()
-    // `exact`: desde la Fase 5 el detalle tambien ofrece «Registrar un abono de
-    // <cliente>», que contiene el mismo nombre.
-    await expect(page.getByRole('link', { name: client.name, exact: true })).toBeVisible()
+    // Desde D-101 el cliente es una fila pulsable cuyo nombre accesible empieza
+    // por su rotulo: «Cliente <nombre> <telefono>». El ancla en «Cliente» la
+    // distingue del otro enlace que lleva el mismo nombre desde la Fase 5,
+    // «Registrar un abono de <cliente>».
+    await expect(
+      page.getByRole('link', { name: new RegExp(`^Cliente\\s+${client.name}`) }),
+    ).toBeVisible()
 
     // BR-P03: el precio de venta es el precio VIGENTE de la rifa.
     const { data: stored } = await serviceClient()
@@ -154,7 +158,7 @@ test.describe('Boletas propias: búsqueda y filtros', () => {
     })
 
     await page.goto('/seller/tickets')
-    await page.getByPlaceholder('Número diario o semanal').fill('0042')
+    await page.getByPlaceholder('Número de boleta o cliente').fill('0042')
     await page.getByRole('button', { name: 'Buscar' }).click()
 
     await page.waitForURL(/q=0042/)

@@ -84,13 +84,15 @@ export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps)
 
   return (
     <div {...tourTarget('filters')} className="space-y-3 rounded-lg border p-4">
-      {/* Se busca por los dos numeros, nunca por el codigo interno (BR-N11):
-          es como se identifica una boleta al trabajar con ella. */}
+      {/* UN solo campo para las dos formas de llegar a una boleta: sus numeros
+          (BR-N11) o el nombre del cliente que la tiene (BR-N13). Nunca por el
+          codigo interno. Quien busca no elige entre las dos: escribe lo que
+          recuerda y la consulta distingue sola (D-100). */}
       <SearchInput
         id="ticket-search"
-        label="Buscar por número diario o semanal"
+        label="Buscar por número de boleta o por cliente"
         hideLabel
-        placeholder="Número diario o semanal"
+        placeholder="Número de boleta o cliente"
         value={search.value}
         onChange={search.onChange}
         onSubmit={search.submitNow}

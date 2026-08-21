@@ -596,16 +596,30 @@ Cuando el agregado necesita **parámetros**, una vista no sirve. Estas dos son `
 seguridad: la RLS de `payments` ya limita lo que cada quien puede agregar, así que un vendedor que
 pase el id de otro obtiene ceros (prueba F6-04).
 
-### 6.c Búsqueda de boletas (migración `0018`)
+### 6.c Búsqueda de boletas (migraciones `0018` y `0029`)
 
 | Función | Devuelve | Consumidor |
 |---|---|---|
-| `search_tickets(search, raffle, seller, client, inventory, payment, limit, offset)` | Boletas que coinciden por número diario o semanal, **ordenadas por relevancia**, con `total_count` en cada fila | `listTickets` de `src/features/tickets/queries.ts`, cuando hay término de búsqueda |
+| `search_tickets(search, raffle, seller, client, inventory, payment, limit, offset)` | Boletas que coinciden por número diario o semanal, **o por el cliente que las tiene**, ordenadas por relevancia, con `total_count` en cada fila | `listTickets` de `src/features/tickets/queries.ts`, cuando hay término de búsqueda |
 
-`stable`, `security invoker` y `set search_path`, igual que las de reporte: hereda `tickets_select`,
-de modo que un vendedor solo encuentra sus boletas (BR-N11, D-080). Usa `LEFT JOIN` contra `raffles`
-y `clients` — un `join` interno borraría la boleta entera cuando quien consulta no puede ver el
-nombre (I-015).
+`stable`, `security invoker` y `set search_path`, igual que las de reporte: hereda `tickets_select`
+—y, desde `0029`, también `clients_select`—, de modo que un vendedor solo encuentra sus boletas y
+solo por el nombre de sus clientes (BR-N11, BR-N13, D-080, D-100).
+
+**Dos ramas, un solo parámetro** (`0029`). El término decide cuál:
+
+| Término | Rama | Contra qué compara | `join` a `clients` |
+|---|---|---|---|
+| `^[0-9]{1,4}$` | Números (idéntica a `0018`) | `daily_number`, `weekly_number` | `LEFT` — un `join` interno borraría la boleta entera cuando quien consulta no puede ver el nombre (I-015) |
+| Cualquier otro texto, ≥ 2 caracteres | Cliente | `clients.search_text` (columna generada de `0017`) | **`INNER`** — aquí el cliente es la condición de búsqueda: una boleta sin cliente no puede coincidir con ningún nombre |
+
+Están separadas a propósito y no unidas con un `or`: mezclarlas obligaría al planificador a una
+consulta que sirva para los dos casos, y acabaría barriendo `tickets` entera. Así cada una conserva
+su plan y la tabla grande se alcanza siempre por índice (`tickets_daily_number_trgm_idx` y su gemelo
+en una; `clients_search_text_trgm_idx` → `tickets_client_idx` en la otra).
+
+`%`, `_` y `\` se **borran** del término de texto antes de comparar: dentro de `like` significarían
+«lo que sea». En la rama de números no hace falta, porque el término ya son solo dígitos.
 
 Sin término de búsqueda, el listado **no** pasa por aquí: sigue por PostgREST, ordenado por fecha de
 creación.

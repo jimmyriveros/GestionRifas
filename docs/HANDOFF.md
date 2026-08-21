@@ -33,15 +33,16 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
+| **Buscar en «Boletas»** | Desde el 2026-08-21 (D-100, BR-N13) el **único** campo de búsqueda encuentra por los números de la boleta **y** por el nombre del cliente que la tiene, devolviendo siempre boletas. Migración **`0029`**. **NO desplegado**: hasta que se aplique, buscar por nombre en producción devuelve cero resultados |
 | Cambio funcional anterior | `7b26d99` — **corregir a un integrante pendiente** (D-097), 2026-08-14; migración `0026` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
 | Último cambio funcional promovido | **`01df211`** — **la rebaja del vendedor** (D-099), 2026-08-17; migración `0028` aplicada al proyecto real, despliegue verificado por SHA. Ni un peso de comisión o de pagos se movió al aplicarla |
-| Punto de partida del último mantenimiento | `main` en `66ca9a7`, con árbol limpio antes de implementar (2026-08-15) |
+| Punto de partida del último mantenimiento | `main` en `3f82c42`, con árbol limpio antes de implementar (2026-08-21) |
 | Etiquetas | La última es `fase-9`, que apunta a `0becc47`. Solo `fase-0`, `fase-1` y `fase-2` están en el remoto; `fase-3` a `fase-9` siguen solo en local. No mover ni empujar etiquetas sin autorización |
 | Remoto | `github.com/jimmyriveros/GestionRifas`. La igualdad local/remoto se comprobó en `929684d`; después de ese punto debe verificarse de nuevo con Git, no asumirse por este texto |
 | **Producción** | **`https://gestion-rifas.vercel.app`** — proyecto Vercel `gestion-rifas`, desplegado y verificado (cabeceras, aislamiento de rutas, los 3 roles probados por el usuario) |
 | App | Next.js 16: autenticación, portal administrativo, portal del vendedor, pagos/abonos y **reportes con exportación CSV**, todo funcionando **en producción** |
-| Base de datos | **28 migraciones en local y en el proyecto real.** `0028` se promovió el **2026-08-17** con respaldo previo en `Rifas-backups/2026-08-17-pre-0028/`. `0027` se promovió el **2026-08-15** con respaldo previo en `Rifas-backups/2026-08-15-pre-0027/`. `0022`–`0025` se promovieron el 2026-08-13 y **`0026` el 2026-08-14**, con respaldo previo en `Rifas-backups/`. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
-| Pruebas | **312 unitarias**, **471 de base de datos** y **247 E2E**, todas revalidadas el 2026-08-15; `verify` en verde. La suite de base de datos aguanta **seis pasadas seguidas sobre la misma base** (I-057 e I-059). CI en GitHub Actions desde la Fase 8 |
+| Base de datos | **29 migraciones en local, 28 en el proyecto real.** **`0029` está solo en local** (2026-08-21) y espera autorización para promoverse. `0028` se promovió el **2026-08-17** con respaldo previo en `Rifas-backups/2026-08-17-pre-0028/`. `0027` se promovió el **2026-08-15** con respaldo previo en `Rifas-backups/2026-08-15-pre-0027/`. `0022`–`0025` se promovieron el 2026-08-13 y **`0026` el 2026-08-14**, con respaldo previo en `Rifas-backups/`. **Plan Free: sin backups automáticos** (I-024), respaldo lógico manual en §3.b |
+| Pruebas | **320 unitarias**, **512 de base de datos** y **274 E2E**, todas revalidadas el 2026-08-21; `verify` en verde. La suite de base de datos aguanta pasadas seguidas sobre la misma base (I-057 e I-059). CI en GitHub Actions desde la Fase 8 |
 
 **Lo que existe hoy:** el producto completo del MVP **en producción real** — crear rifas y boletas,
 repartirlas entre vendedores, venderlas a clientes, cobrarlas con abonos, y consultar y exportar todo
@@ -58,7 +59,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — el vendedor puede rebajar el precio (2026-08-17)
+## 1.a Último relevo significativo — buscar boletas por el cliente, y llegar a su ficha (2026-08-21)
+
+| Campo | Estado |
+|---|---|
+| Resultado | Dos cosas, y las dos en «Boletas». **(1)** El buscador —que sigue siendo **uno**— encuentra también por el **cliente** que tiene la boleta (D-100, BR-N13): de 1 a 4 dígitos son los números (BR-N11, sin un solo cambio) y cualquier otro texto es el cliente; el resultado sigue siendo una lista de **boletas**. **(2)** En el detalle de una boleta, el cliente pasa a ser una **fila pulsable entera** con su teléfono y una flecha, que lleva a la ficha de cliente **que ya existía** (D-101). **Fuera a propósito:** no se tocó ni un cálculo de dinero, ni precios, ni comisiones, ni estados, ni la importación. **NO desplegado todavía** |
+| Archivos | Migración **`0029_ticket_search_by_client.sql`**; `lib/search.ts` (`isTicketSearchTerm`), `features/tickets/queries.ts`, `features/search/hints.ts`, `features/tickets/components/TicketFilters.tsx`, `features/tour/tours.ts`, las dos pantallas de listado y los dos detalles de boleta, y **`features/clients/components/ClientLinkCard.tsx` (nuevo)**. Pruebas: **`tests/db/ticket-search-client.test.ts` (21, nueva)**, **`tests/e2e/boleta-cliente.spec.ts` (15, nueva)**, `tests/db/ticket-search.test.ts` (bloque reescrito), `tests/unit/search.test.ts` (+4), y ajustes de rótulo en `busqueda-hibrida`, `owner-tickets`, `seller-tickets`, `seller-ciclo-movil` y `back-navigation`. Documentación: `BUSINESS_RULES`, `DECISIONS` (D-100, D-101), `DATA_MODEL`, `ARCHITECTURE`, `TESTING`, `TEST_RESULTS`, `UX_COPY_GUIDELINES`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **No se creó ninguna capa de búsqueda nueva.** Se amplía la función `search_tickets` que ya existía (`0018`) y se compara contra **`clients.search_text`**, la misma columna generada y el mismo índice que usa el buscador de «Clientes» desde `0017`: por eso «jose» encuentra a «José» en las dos pantallas por la misma razón. El debounce, la paginación, el estado en la URL y la selección múltiple funcionaron **sin tocarlos**, porque todos pasan por `listTickets`. La vuelta atrás tampoco necesitó código: `BackButton` (D-089) ya usaba el historial real. La tarjeta del cliente reutiliza las clases de `TeamMemberList` |
+| Decisiones | **D-100** (un solo buscador, dos ramas SQL separadas) y **D-101** (el cliente como fila pulsable). Regla **BR-N13** |
+| Verificación | **512/512** de base de datos (+22, **dos pasadas seguidas** sobre la misma base) · **320/320** unitarias (+4) · **274/274** E2E (+15) · `verify` en verde. **Cuatro errores** encontrados y corregidos, detallados en `TEST_RESULTS.md`. El plan de la consulta se midió con `explain (analyze)` sobre **5.006 clientes y 20.033 boletas** antes de decidir el diseño |
+| Advertencias | **1)** **`0029` NO está en producción.** El código llama a la función nueva; con la vieja, buscar por nombre devuelve cero resultados. **Migración y despliegue van juntos.** **2)** **La rama de números de `search_tickets` se dejó idéntica a `0018` a propósito**, para que ampliar la búsqueda no pudiera cambiar un resultado antiguo; `tests/db/ticket-search.test.ts` es la red que lo vigila. **3)** **No añadas columnas al retorno de `search_tickets` sin pensarlo**: cambiar las columnas obliga a `drop function` + `create` en vez de `create or replace`, y con ello a rehacer privilegios y tipos. Por eso el teléfono del cliente se pide con un segundo alias en `getTicketDetail` y **no** viaja en `TicketListItem`. **4)** **Los permisos se heredan, no se filtran**: la función es `security invoker` y la protección real son `tickets_select` y `clients_select`, que son simétricas. No le añadas filtros «de seguridad». **5)** **Un término numérico de más de 4 cifras encuentra al cliente por su teléfono**, porque `search_text` lo incluye. Es deliberado y está dicho en la pista del campo; si alguien lo «arregla», tiene que cambiar también ese texto |
+| Publicación | **Nada publicado.** No se hizo `db push`, ni `push` de la rama, ni despliegue. Antes de promover: respaldo lógico previo (`RUNBOOK` §3.b), `db push --dry-run` mostrando **solo `0029`**, `verify:remote`, y **la migración y el commit del frontend en la misma ventana** |
+| Pendiente | **1)** Autorización del dueño para aplicar `0029` al proyecto real y desplegar. **2)** Verificación visual con sesión real (un agente no inicia sesión en producción): que escribir «Ana» en «Mis boletas» traiga sus boletas, y que la fila del cliente del detalle se vea pulsable en el teléfono. **3)** La columna «Abono» del importador **sigue sin empezarse**, por indicación expresa de un encargo anterior |
+| Git | Rama `main`, partiendo de `3f82c42` con árbol limpio |
+
+## 1.a.0 Relevo anterior — el vendedor puede rebajar el precio (2026-08-17)
 
 | Campo | Estado |
 |---|---|
@@ -496,6 +511,15 @@ features/commissions/  comision (D-094/D-095): TODO sale de commission_summary,
 features/notifications/  avisos (D-093): campanita en el armazon, tabla escrita
                     SOLO por triggers, y el TEXTO en text.ts —nunca en la base de
                     datos, para no repetir I-030—
+features/search/    busqueda hibrida (D-078/D-079): useUrlSearch (listas paginadas en
+                    servidor) · useRemoteSearch (dialogos) · SearchInput · hints.ts,
+                    donde viven TODAS las pistas de los buscadores. El termino se
+                    normaliza en lib/search.ts, que tiene que seguir coincidiendo con
+                    search_normalize() de la migracion 0017
+features/clients/components/ClientLinkCard  el cliente como fila pulsable entera, con
+                    su telefono y su flecha, hacia la ficha de cliente QUE YA EXISTE
+                    (D-101). Un solo componente para los dos portales; el href es lo
+                    unico que cambia. ClientEmptyCard es el mismo hueco sin enlace
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
 features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
                     ExportCsvButton

@@ -200,6 +200,7 @@ movimiento y el estado es por vendedor—, pero no se implementa nada de eso.
 | BR-N09 | Una boleta fuera de `draft` debe tener ambos números; un campo vacío en una boleta disponible es inválido. | S, D | 2 |
 | BR-N10 | La validación de duplicados ocurre en las tres capas: dentro del formulario, contra la base de datos y como restricción física. | C, S, D | 3 |
 | BR-N11 | **Una boleta se busca por su número diario y, en segundo lugar, por su número semanal.** El código interno no participa en ninguna búsqueda de la interfaz y solo se muestra dentro del detalle de la boleta. | C, S, D | post-9 |
+| BR-N13 | **El mismo buscador encuentra también por el cliente que tiene la boleta.** Un solo campo: si se escriben de 1 a 4 dígitos busca por número (BR-N11); si se escribe texto, busca por el cliente. El resultado es **siempre una lista de boletas**. | C, S, D | post-9 |
 
 | BR-N12 | **Las boletas se pueden importar desde un archivo CSV o JSON.** La rifa y el vendedor los pone la pantalla. Cada fila lleva los dos números y puede añadir cliente, pero en ese caso **nombre y celular son obligatorios juntos**. Siempre hay vista previa y confirmación antes de guardar. | C, S, D | post-9 |
 
@@ -231,13 +232,28 @@ mismos caminos, así que BR-N01 a BR-N10 se aplican íntegras.
 |---|---|
 | Dónde se busca | `daily_number` y `weekly_number`. **Nunca** `internal_code` |
 | Cómo se compara | Como **texto** y por **coincidencia parcial**: «123» encuentra `1234`, `0123` y `1237`; «00» encuentra `0017` |
-| Qué término se acepta | De 1 a 4 dígitos (BR-N02). Cualquier otra cosa —letras, un código interno, 5 cifras— devuelve **cero resultados** y la pantalla explica por qué |
+| Qué término va por aquí | Exactamente de 1 a 4 dígitos (BR-N02). Cualquier otra cosa —letras, un código interno, 5 cifras— **ya no se descarta**: desde `0029` pasa por la búsqueda del cliente (BR-N13). Lo que sigue siendo cierto es que **no se interpreta como un número de boleta** |
 | Orden de los resultados | Diario exacto → diario empieza → diario contiene → semanal exacto → semanal empieza → semanal contiene. Dentro del mismo escalón, por número ascendente |
 | Dónde se muestra el código | Solo en el detalle de la boleta, bajo «Información administrativa» |
 | Qué NO cambia | El código interno sigue siendo el identificador administrativo, se sigue generando, se sigue guardando y se sigue indexando. Las claves primarias y las relaciones no se tocan |
 
 BR-N03 (los ceros iniciales se conservan) manda también aquí: el término **no** se convierte a entero
 en ninguna capa, porque `parseInt('0017')` perdería justo lo que distingue una boleta de otra.
+
+**BR-N13 en detalle** (migración `0029`, D-100). Amplía BR-N11 **sin tocar nada de lo que ya hacía**:
+la rama de números quedó idéntica, y sus pruebas son la red que lo demuestra.
+
+| Aspecto | Regla |
+|---|---|
+| Cuántos buscadores hay | **Uno.** No hay pestañas, ni selector de «buscar por…», ni pantalla intermedia. Quien busca escribe lo que recuerda y la consulta distingue sola |
+| Cómo se decide la rama | `^[0-9]{1,4}$` → números (BR-N11). Cualquier otro texto → cliente. Un dígito suelto sigue siendo una boleta; una sola letra no busca nada |
+| Contra qué se compara | `clients.search_text` (migración `0017`): nombre, alias, teléfono —con y sin separadores— y correo, normalizados sin tildes ni mayúsculas. Es **la misma columna** que usa el buscador de «Clientes»; no hay una segunda forma de normalizar |
+| Consecuencia buscada | Escribir «Jimmy» en «Boletas» devuelve **las boletas de Jimmy**, cada una con sus dos números, su cliente y su estado. **No** devuelve una ficha de Jimmy: seguimos en «Boletas», y tocar un resultado abre **esa** boleta |
+| Orden de los resultados | Nombre completo exacto → el nombre empieza por lo escrito → una de sus palabras empieza por lo escrito (así «Riveros» encuentra a «Jimmy Riveros») → el resto. Dentro del mismo escalón: por nombre, y las boletas de una misma persona **juntas** y por número |
+| Nombres repetidos | Dos personas pueden llamarse igual y salen **las boletas de las dos**. Se agrupan y se navega **por `id`**; el nombre nunca identifica a nadie |
+| Boleta sin cliente | No puede coincidir con ningún nombre y no aparece. Por su número se sigue encontrando igual |
+| Permisos | Los mismos de siempre, sin una línea nueva: `search_tickets` es `security invoker` y lee `tickets` bajo `tickets_select` y `clients` bajo `clients_select`, que son simétricas. Un vendedor solo encuentra **sus** boletas por el nombre de **sus** clientes, y el cliente de otro vendedor no se revela ni existiendo con el mismo nombre |
+| Comodines | `%`, `_` y `\` se **borran** del término antes de comparar: se escriben, no se ejecutan |
 
 Ejemplos normativos:
 

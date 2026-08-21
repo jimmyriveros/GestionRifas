@@ -35,20 +35,25 @@ export function searchHint({
 /**
  * Pista propia del buscador de boletas.
  *
- * Una boleta se busca por sus numeros, y esos numeros son de 1 a 4 digitos
- * (BR-N02, BR-N11). Escribir un codigo interno o una letra no encuentra nada, y
- * una lista vacia sin explicacion se lee como «la aplicacion no funciona». Se
- * avisa mientras se escribe, antes de que la busqueda salga en vano.
+ * El campo entiende DOS cosas (BR-N13, D-100): los numeros de la boleta y el
+ * cliente que la tiene. Casi cualquier cosa que se escriba es una de las dos,
+ * asi que ya no se avisa por escribir letras —antes si, cuando solo valian las
+ * cifras—.
+ *
+ * Queda un aviso, y es el util: mas de cuatro cifras seguidas no puede ser un
+ * numero de boleta (BR-N02), y quien las escribe suele estar copiando un codigo
+ * interno. Se le dice mientras escribe, y se le dice tambien que con esas
+ * cifras se esta buscando el telefono del cliente, que es lo que de verdad
+ * ocurre: si no lo supiera, un resultado inesperado pareceria un fallo.
  *
  * Devuelve `undefined` cuando el termino si sirve: ahi manda `searchHint`.
  */
 export function ticketSearchHint(term: string): string | undefined {
   const trimmed = term.trim()
   if (trimmed === '') return undefined
-  if (!/^[0-9]+$/.test(trimmed)) {
-    return 'Las boletas se buscan por sus números. Escribe solo cifras, por ejemplo 1234.'
+  if (/^[0-9]{5,}$/.test(trimmed)) {
+    return 'Los números de una boleta tienen 4 cifras como máximo. Con más cifras buscamos el teléfono del cliente.'
   }
-  if (trimmed.length > 4) return 'Los números de una boleta tienen 4 cifras como máximo.'
   return undefined
 }
 
@@ -63,11 +68,14 @@ export function ticketSearchEmptyDescription(
   term: string | undefined,
   hasFilters: boolean,
 ): string | undefined {
-  const hint = term ? ticketSearchHint(term) : undefined
-  // Quien escribio un codigo interno merece saber por que no aparece nada, en
-  // vez de concluir que la boleta se perdio.
-  if (hint)
-    return `${hint} El código interno no sirve para buscar: está en el detalle de cada boleta.`
+  if (term) {
+    // Quien escribio un codigo interno merece saber por que no aparece nada, en
+    // vez de concluir que la boleta se perdio.
+    const hint = ticketSearchHint(term)
+    if (hint)
+      return `${hint} El código interno no sirve para buscar: está en el detalle de cada boleta.`
+    return 'Revisa el número de la boleta o el nombre del cliente. El código interno no sirve para buscar: está en el detalle de cada boleta.'
+  }
   if (hasFilters) return 'Prueba a limpiar los filtros o a buscar por otro número.'
   return undefined
 }

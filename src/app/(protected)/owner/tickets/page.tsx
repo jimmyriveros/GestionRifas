@@ -76,7 +76,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
     <div className="space-y-6">
       <PageHeader
         title="Boletas"
-        description="Todas las boletas de la organización, con su vendedor, su cliente y su estado."
+        description="Todas las boletas de la organización. Búscalas por su número o por el nombre del cliente."
         actions={
           <>
             <Button asChild variant="outline">

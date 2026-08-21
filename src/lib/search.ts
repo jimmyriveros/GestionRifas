@@ -157,3 +157,24 @@ export function meetsMinChars(term: string, minChars: number): boolean {
 export function isTicketNumberTerm(term: string): boolean {
   return /^[0-9]{1,4}$/.test(term.trim())
 }
+
+/**
+ * `true` si el termino da para buscar una boleta, por el camino que sea.
+ *
+ * El buscador de «Boletas» es uno solo y entiende dos cosas (BR-N13, D-100):
+ *
+ *   * un numero de boleta, de 1 a 4 digitos, y
+ *   * el nombre del cliente que la tiene.
+ *
+ * Solo se descarta lo que no puede ser ninguna de las dos: una sola letra, que
+ * devolveria media tabla sin ayudar a nadie. El minimo es el mismo que aplica
+ * el campo en pantalla (`SEARCH_MIN_CHARS.tickets`), y `search_tickets`
+ * (migracion 0029) lo repite en SQL: esto es un atajo para no ir a la base de
+ * datos, no la unica defensa.
+ *
+ * Un numero de UNA cifra si pasa: «7» es una busqueda legitima de boleta.
+ */
+export function isTicketSearchTerm(term: string): boolean {
+  if (isTicketNumberTerm(term)) return true
+  return foldForSearch(term).length >= SEARCH_MIN_CHARS.tickets
+}

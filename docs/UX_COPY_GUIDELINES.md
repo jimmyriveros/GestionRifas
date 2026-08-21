@@ -373,6 +373,18 @@ anunciar «rebaja de $0» es ruido en la pantalla que más se usa.
 **código interno** es información administrativa: aparece solo dentro del detalle de la boleta y
 nunca se ofrece como forma de buscar. Un texto que diga «busca por código» está mal.
 
+**En «Boletas» hay UN buscador, y encuentra dos cosas** (BR-N13, D-100). Desde el 2026-08-21 el mismo
+campo acepta el número de la boleta **o** el nombre del cliente que la tiene. Los textos que lo
+rodean tienen que nombrar las dos, siempre en este orden —primero la boleta, porque seguimos en
+«Boletas»—: «Número de boleta o cliente». Lo que **no** se debe escribir es un texto que obligue a
+elegir («¿buscar por boleta o por cliente?»): la aplicación lo distingue sola, y hacer esa pregunta
+devuelve al usuario justo el trabajo que se le quitó. Tampoco se anuncia que se busca «por cliente»
+como si fuera otro modo: es el mismo buscador.
+
+Si alguien escribe **más de cuatro cifras** —normalmente, copiando un código interno—, se le dice lo
+que de verdad está pasando: «Los números de una boleta tienen 4 cifras como máximo. Con más cifras
+buscamos el teléfono del cliente». Un resultado que la persona no sabe explicar parece un fallo.
+
 **Anular no es eliminar, y los textos no pueden mezclarlos** (BR-B05, D-084). **Anular** retira de
 circulación una boleta que existió: se queda en la lista, marcada como Anulada, y su combinación de
 números no vuelve a estar libre. **Eliminar** borra una boleta que nunca debió existir —una

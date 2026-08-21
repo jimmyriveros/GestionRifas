@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { PageHeader } from '@/components/data/PageHeader'
 import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/StatusBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ClientEmptyCard, ClientLinkCard } from '@/features/clients/components/ClientLinkCard'
 import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
 import { listClientPayments } from '@/features/payments/queries'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
@@ -77,15 +78,20 @@ export default async function TicketDetailPage({
               {ticket.sellerName}
             </Link>
           </Field>
-          <Field label="Cliente">
+          {/* El cliente ocupa su propia fila y es una tarjeta pulsable entera,
+              no un enlace escondido en una celda (D-101). Lleva a la MISMA
+              ficha de «Clientes», no a una version propia de esta pantalla. */}
+          <div className="sm:col-span-2 lg:col-span-4">
             {ticket.clientId ? (
-              <Link href={`/owner/clients/${ticket.clientId}`} className="hover:underline">
-                {ticket.clientName}
-              </Link>
+              <ClientLinkCard
+                href={`/owner/clients/${ticket.clientId}`}
+                name={ticket.clientName ?? 'Cliente'}
+                phone={ticket.clientPhone}
+              />
             ) : (
-              <span className="text-muted-foreground">Sin asignar</span>
+              <ClientEmptyCard description="Esta boleta todavía no se ha vendido." />
             )}
-          </Field>
+          </div>
           <Field label="Precio de venta">
             {ticket.salePrice === null ? (
               <span className="text-muted-foreground">

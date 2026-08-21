@@ -2,7 +2,7 @@ import 'server-only'
 
 import { listOrgMembers } from '@/features/users/queries'
 import { PAGE_SIZE, type TicketInventoryStatus, type TicketPaymentStatus } from '@/lib/constants'
-import { isTicketNumberTerm, normalizeSearchTerm } from '@/lib/search'
+import { isTicketSearchTerm, normalizeSearchTerm } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
 /**
@@ -17,7 +17,11 @@ export type TicketFilters = {
   clientId?: string
   inventoryStatus?: TicketInventoryStatus
   paymentStatus?: TicketPaymentStatus
-  /** Numero diario o semanal, entero o en parte (BR-N11). El codigo interno no. */
+  /**
+   * Un solo termino para las dos formas de buscar una boleta: sus numeros
+   * —diario o semanal, enteros o en parte (BR-N11)— o el nombre del cliente
+   * que la tiene (BR-N13). El codigo interno no participa en ninguna.
+   */
   search?: string
   /**
    * Boletas concretas por su id: lo usa la seleccion multiple, que se acumula
@@ -92,7 +96,7 @@ export async function listTickets(
   const page = Math.max(1, filters.page ?? 1)
 
   const search = filters.search ? normalizeSearchTerm(filters.search) : ''
-  if (search !== '') return searchTicketsByNumber(filters, search, page, pageSize)
+  if (search !== '') return searchTicketsMatching(filters, search, page, pageSize)
 
   const supabase = await createClient()
   let query = supabase.from('tickets').select(TICKET_SELECT, { count: 'exact' })
@@ -121,27 +125,39 @@ export async function listTickets(
 }
 
 /**
- * Busqueda por numero diario y semanal, ordenada por relevancia (BR-N11).
+ * Busqueda de boletas con UN solo termino, ordenada por relevancia.
  *
- * Va por la funcion `search_tickets` (migracion 0018) y no por PostgREST
- * porque el orden depende del termino buscado —el numero diario manda sobre el
- * semanal— y eso no es una columna por la que se pueda ordenar. Reordenar en el
- * navegador tampoco vale: la lista esta paginada en servidor, asi que solo
- * reacomodaria las filas de la pagina que ya se esta viendo.
+ * El termino puede ser el numero de la boleta —diario o semanal, entero o en
+ * parte (BR-N11)— o el nombre del cliente que la tiene (BR-N13). Quien busca no
+ * tiene que decir cual de las dos cosas escribio: lo distingue la propia
+ * funcion. El resultado es siempre una lista de BOLETAS; estamos en «Boletas».
  *
- * La funcion es `security invoker`: hereda `tickets_select`, de modo que un
- * vendedor sigue encontrando unicamente sus boletas.
+ * Va por la funcion `search_tickets` (migraciones 0018 y 0029) y no por
+ * PostgREST por dos razones que no han cambiado:
+ *
+ *   * El ORDEN depende del termino buscado —el numero diario manda sobre el
+ *     semanal; el nombre completo, sobre la coincidencia suelta— y eso no es
+ *     una columna por la que se pueda ordenar. Reordenar en el navegador no
+ *     vale: la lista esta paginada en servidor, asi que solo reacomodaria las
+ *     filas de la pagina que ya se esta viendo.
+ *   * Buscar por nombre exige cruzar `tickets` con `clients`, y ese cruce se
+ *     resuelve en SQL. Traerse los clientes al navegador para compararlos ahi
+ *     dejaria de funcionar en cuanto haya mas de una pagina de ellos (I-036).
+ *
+ * La funcion es `security invoker`: hereda `tickets_select` y `clients_select`,
+ * de modo que un vendedor sigue encontrando unicamente sus boletas, tambien
+ * cuando busca por el nombre de un cliente.
  */
-async function searchTicketsByNumber(
+async function searchTicketsMatching(
   filters: TicketFilters,
   search: string,
   page: number,
   pageSize: number,
 ): Promise<{ rows: TicketListItem[]; total: number; page: number; pageSize: number }> {
-  // Un termino que no es un numero de boleta no puede coincidir con ninguna:
-  // se responde sin ir a la base de datos. La funcion aplica la misma regla,
-  // asi que esto es un atajo, no la unica defensa.
-  if (!isTicketNumberTerm(search)) {
+  // Un termino que no puede ser ni un numero de boleta ni un nombre —una sola
+  // letra— se responde sin ir a la base de datos. La funcion aplica la misma
+  // regla, asi que esto es un atajo, no la unica defensa.
+  if (!isTicketSearchTerm(search)) {
     return { rows: [], total: 0, page, pageSize }
   }
 
@@ -205,6 +221,12 @@ export type TicketDetail = TicketListItem & {
   /** Lo mas barato que se puede vender (BR-P11). Sale de SQL, no se deduce
    *  aqui: depende de la forma de pago del vendedor de esta boleta. */
   minSalePrice: number
+  /**
+   * Telefono del cliente, para la tarjeta que lleva a su ficha (D-101). Solo
+   * en el DETALLE: el listado no lo necesita, y anadirlo alli obligaria a
+   * cambiar las columnas que devuelve `search_tickets`.
+   */
+  clientPhone: string | null
 }
 
 export async function getTicketDetail(ticketId: string): Promise<TicketDetail | null> {
@@ -212,8 +234,12 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
   const { data, error } = await supabase
     .from('tickets')
     .select(
+      // `client_contact` es un segundo alias de la MISMA relacion que ya trae
+      // `TICKET_SELECT`: se pide aparte para no cargar el telefono en cada fila
+      // del listado, igual que `raffle_full` hace con la rifa.
       `${TICKET_SELECT}, base_price, approved_at, cancelled_at, cancel_reason, assigned_at,
-       raffle_full:raffles!tickets_raffle_org_fk ( status, ticket_price )`,
+       raffle_full:raffles!tickets_raffle_org_fk ( status, ticket_price ),
+       client_contact:clients!tickets_client_org_fk ( phone )`,
     )
     .eq('id', ticketId)
     .maybeSingle()
@@ -228,6 +254,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
     cancel_reason: string | null
     assigned_at: string | null
     raffle_full: { status: string; ticket_price: number } | null
+    client_contact: { phone: string } | null
   }
 
   // El limite se pregunta a la MISMA funcion que valida la venta, en vez de
@@ -252,6 +279,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
     raffleTicketPrice: rafflePrice,
     basePrice: row.base_price,
     minSalePrice: Number(limits.data?.[0]?.min_sale_price ?? rafflePrice),
+    clientPhone: row.client_contact?.phone ?? null,
   }
 }
 

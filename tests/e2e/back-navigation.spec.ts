@@ -45,7 +45,7 @@ test.describe('Flecha de volver: historial real (Casos A, B, C)', () => {
     await back.click()
 
     await expect(page).toHaveURL(listUrl)
-    await expect(page.getByPlaceholder('Número diario o semanal')).toHaveValue(numbers.daily)
+    await expect(page.getByPlaceholder('Número de boleta o cliente')).toHaveValue(numbers.daily)
   })
 
   test('clientes: vuelve al listado de clientes (Caso B)', async ({ page }) => {

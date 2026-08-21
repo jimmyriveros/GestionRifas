@@ -113,34 +113,44 @@ describe('search_tickets: que encuentra', () => {
   })
 })
 
-describe('search_tickets: que NO encuentra (el codigo interno se retiro)', () => {
-  it('CASO 5 — el prefijo de un codigo interno no devuelve nada', async () => {
-    const { rows } = await db.query('select * from search_tickets($1)', ['R001'])
-    expect(rows).toHaveLength(0)
-  })
-
-  it('el consecutivo de un codigo interno no devuelve nada', async () => {
-    const { rows } = await db.query('select * from search_tickets($1)', ['000019'])
-    expect(rows).toHaveLength(0)
-  })
-
-  /**
-   * `000019` tiene seis cifras y ademas supera el limite de cuatro (BR-N02):
-   * este caso comprueba lo otro, que un codigo interno ENTERO tampoco cuela.
-   */
-  it('un codigo interno completo no devuelve nada', async () => {
-    const { rows: existentes } = await db.query<{ internal_code: string }>(
-      'select internal_code from tickets limit 1',
+/**
+ * El codigo interno se retiro de la busqueda en 0018 y sigue fuera en 0029
+ * (BR-N11).
+ *
+ * Lo que cambio al escribirse 0029 es COMO se comprueba. Antes bastaba con
+ * «este termino no devuelve nada», porque un texto no podia encontrar nada;
+ * ahora el mismo campo busca tambien por el cliente (BR-N13), asi que un
+ * termino puede no llevar a una boleta por su codigo y aun asi traer otras por
+ * su cliente. La regla que importa se afirma directamente: escribir el codigo
+ * de una boleta NO lleva a esa boleta.
+ */
+describe('search_tickets: el codigo interno no lleva a su boleta (BR-N11)', () => {
+  /** Busca un recorte del codigo de una boleta real y devuelve que salio. */
+  async function buscarPorCodigo(recorte: (code: string) => string) {
+    const { rows: boletas } = await db.query<{ id: string; internal_code: string }>(
+      'select id, internal_code from tickets order by internal_code limit 1',
     )
-    const { rows } = await db.query('select * from search_tickets($1)', [
-      existentes[0]!.internal_code,
-    ])
-    expect(rows).toHaveLength(0)
+    const boleta = boletas[0]!
+    const { rows } = await db.query<{ id: string }>(
+      'select id from search_tickets($1, p_limit => 500)',
+      [recorte(boleta.internal_code)],
+    )
+    return { boleta, encontrados: rows.map((row) => row.id) }
+  }
+
+  it('CASO 5 — el prefijo de un codigo interno no lleva a su boleta', async () => {
+    const { boleta, encontrados } = await buscarPorCodigo((code) => code.split('-')[0]!)
+    expect(encontrados).not.toContain(boleta.id)
   })
 
-  it('un termino con letras no devuelve nada', async () => {
-    const { rows } = await db.query('select * from search_tickets($1)', ['12A4'])
-    expect(rows).toHaveLength(0)
+  it('el consecutivo de un codigo interno no lleva a su boleta', async () => {
+    const { boleta, encontrados } = await buscarPorCodigo((code) => code.split('-')[1]!)
+    expect(encontrados).not.toContain(boleta.id)
+  })
+
+  it('un codigo interno completo no lleva a su boleta', async () => {
+    const { boleta, encontrados } = await buscarPorCodigo((code) => code)
+    expect(encontrados).not.toContain(boleta.id)
   })
 
   it('un termino vacio no devuelve nada: buscar «todo» no es buscar', async () => {
@@ -148,10 +158,20 @@ describe('search_tickets: que NO encuentra (el codigo interno se retiro)', () =>
     expect(rows).toHaveLength(0)
   })
 
-  it('mas de cuatro cifras no devuelve nada: ningun numero es tan largo', async () => {
-    const { rows } = await db.query('select * from search_tickets($1)', ['12345'])
-    expect(rows).toHaveLength(0)
-  })
+  /**
+   * Un termino que no es un numero de boleta (BR-N02) no puede buscarse como
+   * si lo fuera. Desde 0029 pasa por texto, y por texto solo se llega a una
+   * boleta A TRAVES de su cliente: si algo sale, tiene cliente.
+   */
+  for (const termino of ['12A4', '12345', '-123']) {
+    it(`«${termino}» no se interpreta como un numero de boleta`, async () => {
+      const { rows } = await db.query<{ client_id: string | null }>(
+        'select client_id from search_tickets($1, p_limit => 500)',
+        [termino],
+      )
+      for (const row of rows) expect(row.client_id).not.toBeNull()
+    })
+  }
 })
 
 describe('search_tickets: orden por relevancia (BR-N11)', () => {

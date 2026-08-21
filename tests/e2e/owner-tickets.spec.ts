@@ -236,7 +236,7 @@ test.describe('Boletas', () => {
     })
 
     await page.goto('/owner/tickets')
-    await page.getByPlaceholder('Número diario o semanal').fill('0007')
+    await page.getByPlaceholder('Número de boleta o cliente').fill('0007')
     await page.getByRole('button', { name: 'Buscar' }).click()
     await page.waitForURL(/q=0007/)
 
@@ -257,7 +257,7 @@ test.describe('Boletas', () => {
     })
 
     await page.goto('/owner/tickets')
-    await page.getByPlaceholder('Número diario o semanal').fill(internalCode)
+    await page.getByPlaceholder('Número de boleta o cliente').fill(internalCode)
     await page.getByRole('button', { name: 'Buscar' }).click()
     await page.waitForURL(/q=/)
 
