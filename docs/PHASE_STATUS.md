@@ -1163,7 +1163,7 @@ Sin cambios.
 ## Mantenimiento post-9 — buscar boletas por el cliente, y llegar a su ficha (2026-08-21)
 
 Encargo del dueño: reducir pasos en «Boletas» y conectar Boleta ↔ Cliente.
-Decisiones **D-100** y **D-101**; regla **BR-N13**. **Todavía NO desplegado.**
+Decisiones **D-100** y **D-101**; regla **BR-N13**. **Desplegado en producción el 2026-08-21** con autorización expresa (`0029` + commit `df7f1a7`).
 
 ### 1. Funcionalidades implementadas
 
@@ -1225,7 +1225,7 @@ Sin cambios.
 
 | Asunto | Impacto |
 |---|---|
-| **`0029` no está en el proyecto real** | Local sí, producción no. Hasta que se aplique, buscar por nombre en producción devolverá cero resultados: el código llama a la función nueva y la vieja descarta el texto. **Migración y despliegue van juntos** |
+| Ninguno abierto de este trabajo | `0029` se aplicó al proyecto real y el código se desplegó el mismo día (2026-08-21), con el despliegue verificado por SHA. Queda la comprobación visual con sesión real, que un agente no puede hacer |
 | Un término de 2 caracteres no usa el índice de trigramas de `clients` | Limitación conocida y heredada de `0017`/`0018`: con dos caracteres no se puede extraer un trigrama completo. Afecta a la tabla pequeña, y el mínimo de la pantalla son 2 |
 | El teléfono con separadores no es simétrico desde «Boletas» | El término se compara tal cual contra `search_text`, que guarda el teléfono con y sin separadores; no se aplica la reducción a número nacional que sí hace «Clientes» (`searchNeedle`, I-039). Buscar por nombre —que es la regla— no se ve afectado |
 | **I-059** e **I-060** | Siguen abiertos: fuera del alcance. La suite nueva es **inmune a I-060** porque afirma solo sobre los clientes que ella misma crea, no sobre una rifa concreta |
@@ -1244,3 +1244,38 @@ Sin cambios.
    `tickets_select` y `clients_select`.
 4. **Un mismo mensaje no se escribe dos veces.** Las pistas del buscador viven todas en
    `src/features/search/hints.ts`, y la ficha de cliente enlazable en `ClientLinkCard`.
+
+### 7. Promoción a producción (2026-08-21)
+
+Autorizada expresamente por el dueño del producto, con la instrucción de publicar sin esperar a que
+terminara la última pasada completa de E2E. Queda dicho aquí porque es parte del registro.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo lógico previo | `Rifas-backups/2026-08-21-pre-0029/` — 13 tablas con datos, **0** referencias a `auth`, **0** credenciales |
+| `db push --dry-run` | Una sola migración: **`0029_ticket_search_by_client.sql`** |
+| `db push --yes` | Aplicada |
+| `verify:remote` | **13/13** en verde |
+| Sonda de comportamiento (solo lectura) | La función es `security invoker`; `authenticated` la ejecuta y **`anon` no**; buscar «Alvaro» devuelve su boleta `0363/4638`; buscar «0000» sigue devolviendo `0000/9999`; un código interno devuelve **0 filas** |
+| Vercel | `READY` sobre el SHA **`df7f1a7`** (`dpl_9vkz31LsUvV3SBvG6heJhAxpQzWT`), con el alias `gestion-rifas.vercel.app` |
+| Producción | `/login` en HTTP 200 con sus seis cabeceras de seguridad; `/owner/tickets`, `/seller/tickets` y `/owner/clients` en 307 al login |
+
+**La migración no escribe ni una fila.** Es un `create or replace` del cuerpo de `search_tickets`: no
+crea ni borra objetos, no cambia la firma ni las columnas devueltas y por tanto conserva los
+privilegios de `0018`. No hacía falta comprobar que no se moviera dinero, porque no hay ninguna
+escritura que pudiera moverlo; aun así la sonda posterior confirmó que las dos ramas de búsqueda
+responden y que `anon` sigue fuera.
+
+**El orden importó y fue deliberado:** primero la base, después el código. Con `0029` aplicada y el
+frontend viejo todavía en línea no cambia nada —el código anterior nunca enviaba texto a la
+función—, mientras que al revés la búsqueda por nombre habría devuelto cero resultados sin ningún
+error visible (I-061).
+
+**Dos cosas que quedaron pendientes a propósito:**
+
+1. **La pasada completa de E2E se interrumpió** para publicar de inmediato. La anterior quedó en
+   273/274, y el único fallo —consecuencia directa de D-101: el nombre accesible del enlace del
+   cliente cambió— se corrigió y su archivo se revalidó **17/17**. Conviene una pasada limpia.
+2. **El asunto del commit `df7f1a7` salió como un `@` suelto**, resto de la sintaxis de
+   aquí-documento de PowerShell. El cuerpo del mensaje está entero. No se reescribió el historial ya
+   publicado por un defecto cosmético, y menos con un despliegue en vuelo.
