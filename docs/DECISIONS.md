@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.17 · **Actualizado:** 2026-08-14 (D-001 a D-097)
+- **Versión:** 1.18 · **Actualizado:** 2026-08-22 (D-001 a D-103)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -2355,6 +2355,148 @@ replace`. Se pide con un segundo alias de la misma relación, el mismo patrón q
 desde antes.
 
 ---
+
+## D-102 — El volumen se midió antes de tocar nada, y lo que estaba mal eran cuatro barridos de tabla
+
+**Fecha:** 2026-08-22 · **Estado:** aceptada · **Migración `0030_read_performance.sql`** · Origen:
+auditoría de rendimiento encargada por el usuario
+
+**Contexto.** El producto funciona con las decenas de boletas del seed y con las miles de la
+organización real, pero está pensado para llegar a cientos de miles. La pregunta del encargo no era
+«¿va rápido hoy?» sino «¿seguirá yendo rápido con 100.000 clientes, 300.000 boletas y 1.000.000 de
+abonos?».
+
+**Cómo se respondió: midiendo, no opinando.** Se cargó una base **local** con exactamente ese
+volumen —nunca se tocó producción— y se ejecutó cada pantalla con `explain (analyze, buffers)` usando
+la sesión real de un Dueño y la de un vendedor con 15.000 boletas. Sin esa carga, las cuatro
+consultas que resultaron ser el problema **parecen instantáneas**: el coste es por fila y con treinta
+filas no se ve.
+
+**Lo que apareció.** Cuatro consultas y una sola causa: *se ordena o se agrega sobre la tabla entera
+y solo después se recortan 25 filas.*
+
+| Consulta | Antes | Qué hacía |
+|---|---:|---|
+| Listado de boletas, página 1 | 1.040 ms | barrido de 300.000 boletas + ordenación |
+| Historial de pagos, página 1 | 1.161 ms | cruce de 1.000.000 de pagos + ordenación |
+| Listado de clientes, página 1 | 566 ms | agregado de 100.000 fichas, 35 MB de ordenación **en disco** |
+| Recuento de comisión (en **cada** abono) | 12 ms · 5.015 buffers | contar boletas cobradas sin índice que lo cubra |
+
+**Decisión — seis índices y dos vistas reescritas. Ni una regla de negocio tocada.**
+
+1. `tickets (created_at desc)` — el orden por defecto del listado. **Sin `organization_id` delante**:
+   se probaron las dos formas y el compuesto NO sirve para ordenar, porque la política compara la
+   columna contra un CONJUNTO (`organization_id in (select current_org_ids())`) y un índice solo
+   conserva el orden cuando su primera columna está fijada a un valor. Medido: con el compuesto
+   seguía siendo un barrido de 120 ms; con `(created_at desc)` a secas, 2 ms.
+2. `tickets (assigned_at desc) where inventory_status = 'assigned'` — «ventas recientes». La
+   condición va en el `where` del índice, no en sus columnas: así se resuelve al planificar y lo que
+   queda es un recorrido ya ordenado que se detiene en la quinta fila (77 ms → 1,6 ms). Con
+   `(inventory_status, assigned_at desc)` el planificador seguía prefiriendo un mapa de bits.
+3. `payments (payment_date desc, created_at desc)` — el historial. El de 0003 no servía por dos
+   motivos a la vez: es parcial (`where voided_at is null`, y el listado sin filtro de estado muestra
+   también los anulados) y empieza por `organization_id`. No se toca: sigue siendo el bueno para
+   «pagos vigentes de la organización por fecha».
+4. `clients (name) where archived_at is null` y `clients (created_at desc) where archived_at is
+   null` — orden alfabético y clientes recientes.
+5. `tickets (seller_id, raffle_id, payment_status) where inventory_status = 'assigned'` — el
+   recuento de `recalc_seller_commission`, que corre en cada abono, cada venta y cada anulación.
+   Termina en `payment_status` para que sea un *index only scan*: cuenta sin tocar la tabla
+   (12,0 ms y 5.015 buffers → 0,96 ms y 16 buffers).
+6. **`v_client_balances`** pasa de `left join tickets + group by` a `left join lateral`. Es la misma
+   cuenta escrita de otra forma, pero ahora el agregado depende de la fila de `clients`, así que el
+   planificador puede ordenar y recortar PRIMERO y calcular los saldos solo de los 25 que
+   sobreviven. Para `count(*)` ni siquiera lo ejecuta: un `left join lateral` no puede añadir ni
+   quitar filas (429 ms → 3,5 ms la página; 191 ms → 27 ms el conteo).
+7. **`v_payment_history`** cruza el cliente con `left join` en vez de `join` interno.
+
+**El cambio de `v_payment_history` es primero de corrección y después de rendimiento.** Un `join`
+interno bajo RLS no oculta un NOMBRE: borra la FILA ENTERA. Si alguna vez alguien pudiera ver un pago
+pero no su cliente, el pago desaparecería del historial sin que nada avisara —y un historial de
+dinero que omite pagos en silencio es peor que uno con un hueco donde va un nombre (mismo
+razonamiento que I-015)—. Hoy no puede ocurrir, porque `payments_client_org_fk` y
+`payments_client_seller_fk` atan el pago y el cliente a la misma organización y al mismo vendedor;
+el cambio hace que deje de depender de esa coincidencia. Y, de paso, contar el historial ya no
+obliga a cruzar el millón de pagos con los cien mil clientes (394 ms → 231 ms).
+
+**Se comprobó que las vistas devuelven lo mismo, no que «deberían».** Sobre las 100.000 fichas
+cargadas se comparó fila a fila la vista nueva contra la formulación con `group by`: **0 diferencias**
+en las cuatro columnas de dinero, y los mismos tipos (`bigint`). La comprobación quedó como prueba
+permanente en `tests/db/read-performance.test.ts`, junto con la de que los seis índices conservan la
+definición que los hace útiles —media migración es una condición parcial que alguien puede quitar
+«limpiando», y el índice seguiría ahí sin servir para nada—.
+
+**Resultado medido** (tiempo de respuesta del servidor por pantalla completa, mismos datos, mismo
+equipo):
+
+| Pantalla | Antes | Después |
+|---|---:|---:|
+| Boletas | 1.088 ms | 151 ms |
+| Pagos | 1.364 ms | 290 ms |
+| Panel administrativo | 1.291 ms | 306 ms |
+| Clientes | 629 ms | 108 ms |
+| Panel del vendedor | 414 ms | 239 ms |
+
+**Qué se descartó.** (a) Contar con `count=estimated` de PostgREST: haría aproximado el «Mostrando
+1–25 de N» y, peor, el número de páginas. (b) Un índice de cobertura para el reporte de saldos: se
+midió y no cambia nada (316 ms frente a 298 ms). (c) Quitar los cuatro índices de trigramas sueltos
+de 0003 que `search_text` dejó sin uso: es una decisión aparte, con su propia evidencia
+(`pg_stat_user_indexes` tras un tiempo en producción), y quitar un índice no acelera ninguna lectura.
+
+---
+
+## D-103 — Una pantalla no pide dos veces lo mismo, ni pide un panel entero para cuatro cifras
+
+**Fecha:** 2026-08-22 · **Estado:** aceptada · **Sin migración** · Complementa D-102
+
+**Contexto.** Con las consultas ya arregladas (D-102), quedaba la otra mitad del encargo: qué pide
+cada pantalla al abrirse. Cuatro cosas se repetían sin necesidad.
+
+**1. `listOrgMembers` se consultaba dos y tres veces por pantalla.** Casi todas las pantallas
+necesitan la lista de personas de la organización más de una vez: el listado de boletas la pide para
+poner el nombre del vendedor en cada fila y otra vez para llenar el desplegable «Vendedor»; la ficha
+de un cliente, una por cada bloque que la usa. Ahora está memoizada **por petición** con `cache()` de
+React.
+
+*La clave del memo es el TEXTO de los roles, no el arreglo.* `cache()` compara los argumentos por
+identidad y `['seller']` es un arreglo nuevo en cada llamada: con el arreglo como clave, el memo no
+acertaría jamás y el cambio no serviría de nada. Los roles se ordenan antes de unirlos, para que
+`['admin','owner']` y `['owner','admin']` compartan entrada.
+
+**2. `/owner/payments` cargaba el panel administrativo entero para pintar cuatro tarjetas.** Llamaba
+a `getAdminDashboard()`, que además trae el resumen por vendedor, las boletas creadas recientemente y
+otra página de pagos que esa pantalla no muestra. Ahora hay `getOrganizationTotals()`: una sola
+lectura de `v_seller_summary` con las diez cifras de inventario y dinero de la organización.
+
+**3. El panel administrativo agregaba la tabla de boletas DOS veces.** Una por `v_raffle_summary`
+—para el dinero— y otra por `v_seller_summary` —para los estados de pago—. Ahora las diez cifras
+salen de la misma lectura, memoizada por petición (`readSellerSummary`), que el resumen por vendedor
+ya necesitaba. Como `v_seller_summary` es un agregado sobre la tabla entera, cuesta lo mismo traer
+una fila que todas y lo caro es pedirlo dos veces.
+
+**Y eso además corrige una inconsistencia latente.** Los estados de pago se sumaban recorriendo la
+lista de vendedores, mientras que el dinero venía del total por rifa: las boletas de alguien que
+hubiera dejado de tener el rol `seller` habrían dejado de contarse en unas cifras mientras seguían
+contando en otras. Se verificó que las dos fuentes dan hoy exactamente lo mismo sobre 300.000
+boletas antes de unificarlas; con una sola fuente ya no pueden discrepar.
+
+**4. «Seleccionar todas las que coinciden» traía mil filas completas para quedarse con su id.**
+`listTicketIdsMatching` llamaba al listado con tamaño de página 1.000 y se quedaba con `row.id`: el
+servidor pedía mil boletas con el nombre de su rifa y el de su cliente para tirar el 95 % de cada
+una. Ahora `listTicketIds` pide UNA columna. Los filtros no se duplican: se extrajeron a
+`applyTicketFilters`, compartida con el listado, porque si la resolución filtrara aunque fuera un
+poco distinto de lo que la persona está viendo, seleccionaría cosas que no aparecen en pantalla.
+Cuando hay término de búsqueda no hay atajo: el orden por relevancia lo decide `search_tickets`, así
+que ese camino sigue pasando por el listado.
+
+**`AdminDashboard.raffles` se elimina.** Ninguna pantalla lo consumía; `/owner/raffles` tiene su
+propia consulta. Era un agregado sobre la tabla entera que nadie miraba.
+
+**Qué se descartó.** Memoizar entre peticiones (`unstable_cache`, `revalidate`): son cifras de dinero
+y estados de boleta, exactamente lo que el encargo prohíbe cachear. `cache()` de React vive **dentro
+de una sola petición** y desaparece con ella: cada carga de pantalla vuelve a preguntar a la base de
+datos, y dos vendedores que trabajen a la vez nunca se ven datos del otro momento.
+
 
 ## Ambigüedades pendientes de confirmación del usuario
 

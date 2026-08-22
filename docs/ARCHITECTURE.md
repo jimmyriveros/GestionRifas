@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.8 · **Estado:** implementado · **Actualizado:** 2026-08-10
+- **Versión:** 1.9 · **Estado:** implementado · **Actualizado:** 2026-08-22
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -536,13 +536,41 @@ pidió endurecerlos y este proyecto no tiene protección de cambios sin guardar 
 
 ## 10. Rendimiento
 
-- Índices para todo filtro frecuente (ver `docs/DATA_MODEL.md` §5).
+- Índices para todo filtro frecuente **y para todo orden por defecto** (ver `docs/DATA_MODEL.md` §5).
 - Sin N+1: las vistas de listado consultan con `join`/vistas agregadas, no en bucle.
 - `paid_amount` **materializado** en `tickets` y mantenido por trigger → los listados no agregan en
   tiempo real y los saldos son indexables.
 - Paginación en servidor (`range`) para todas las tablas grandes.
 - Creación masiva: virtualización de filas + envío en lotes de 100 con indicador de progreso.
 - `revalidatePath` selectivo tras cada mutación; sin sobre-invalidar.
+
+### 10.1 Reglas que salieron de medir con volumen real (D-102, D-103)
+
+La auditoría del 2026-08-22 cargó una base local con 100.000 clientes, 300.000 boletas y 1.000.000
+de abonos y midió cada pantalla. Cuatro reglas para no repetir lo que encontró:
+
+1. **Un `order by` sin índice es un barrido de la tabla, aunque haya `limit 25`.** Paginar en
+   servidor no basta: PostgreSQL tiene que ordenar todo lo que cumple el filtro antes de recortar.
+   Toda columna por la que un listado ordene **por defecto** necesita su índice.
+2. **Los índices de orden no pueden empezar por `organization_id`.** La política compara esa columna
+   contra un conjunto y eso rompe el orden del índice. Es la contrapartida de D-063.
+3. **Agregar y luego recortar es al revés.** Una vista que agrupe la tabla entera para devolver 25
+   filas se paga entera en cada carga. Con `left join lateral`, el agregado depende de la fila
+   exterior y el planificador recorta primero (`v_client_balances`, D-102).
+4. **Memoización por PETICIÓN, nunca entre peticiones.** `cache()` de React evita que una pantalla
+   pida dos veces la misma lista dentro de la misma pasada y desaparece al terminar la respuesta.
+   Cachear entre peticiones está prohibido para dinero, saldos y estados de boleta.
+
+**Lo que sigue sin resolver, con el volumen al que empieza a doler:** I-062 (la búsqueda por texto no
+puede usar su índice bajo RLS, ~1 s con 1.000.000 de clientes), I-063 (los agregados por rifa y
+vendedor son lineales, ~500 ms con 1.000.000 de boletas), I-064 (conteo exacto del historial de
+pagos) e I-065 (actualizaciones masivas sobre `tickets` y los índices GIN).
+
+### 10.2 Cómo se mide
+
+`docs/TEST_RESULTS.md` guarda las cifras y el procedimiento. En resumen: base **local** cargada con
+volumen sintético, `explain (analyze, buffers)` con la sesión real de cada rol para el porqué, y
+tiempo de respuesta del servidor por pantalla completa para el cuánto. Nunca contra el proyecto real.
 
 ---
 

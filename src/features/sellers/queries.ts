@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { cache } from 'react'
+
 import { listOrgMembers, type OrgMember } from '@/features/users/queries'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { createClient } from '@/lib/supabase/server'
@@ -75,30 +77,52 @@ function addTotals(acc: SellerTotals, row: SellerSummaryRow): SellerTotals {
 }
 
 /**
- * `v_seller_summary` agrupa por (organizacion, rifa, vendedor), asi que un
- * vendedor con boletas en tres rifas trae tres filas. Se suman en memoria: dos
- * consultas fijas en total, sin una por vendedor (docs/ARCHITECTURE.md 10).
+ * `v_seller_summary` en crudo: una fila por (organizacion, rifa, vendedor).
+ *
+ * Es un AGREGADO sobre la tabla de boletas entera, asi que cuesta lo mismo
+ * traer una fila que todas y lo caro es pedirlo dos veces. El panel
+ * administrativo lo necesitaba dos veces en la misma pasada —para el resumen
+ * por vendedor y para los totales de la organizacion—, asi que se memoiza POR
+ * PETICION con `cache()` de React y la segunda llamada no vuelve a la base de
+ * datos (D-103).
+ *
+ * La clave del memo es el argumento, y `cache()` distingue `f()` de
+ * `f(undefined)`: por eso la rifa se pasa SIEMPRE, como `null` cuando no hay
+ * filtro. Quien lo llame con azucar (`raffleId?: string`) es la envoltura.
  *
  * La lectura se pagina con `fetchAllRows`. Sin filtro de rifa la cardinalidad
  * es rifas x vendedores y, al superar 1.000, PostgREST devolveria solo las
  * primeras mil SIN error (I-011): los totales del panel y de los reportes se
  * quedarian cortos en silencio, que es la peor forma de equivocarse con dinero.
  */
-export async function listSellersWithTotals(raffleId?: string): Promise<SellerWithTotals[]> {
-  const supabase = await createClient()
+export const readSellerSummary = cache(
+  async (raffleId: string | null): Promise<(SellerSummaryRow & { seller_id: string | null })[]> => {
+    const supabase = await createClient()
+    const { rows } = await fetchAllRows<SellerSummaryRow & { seller_id: string | null }>(
+      (from, to) => {
+        let query = supabase.from('v_seller_summary').select('*')
+        if (raffleId) query = query.eq('raffle_id', raffleId)
+        // Orden estable: sin el, dos bloques consecutivos podrian repetir u
+        // omitir filas y los totales saldrian mal.
+        return query
+          .order('seller_id', { ascending: true })
+          .order('raffle_id', { ascending: true })
+          .range(from, to)
+      },
+    )
+    return rows
+  },
+)
 
-  const [sellers, { rows: summaries }] = await Promise.all([
+/**
+ * Los vendedores de la organizacion con sus indicadores, en dos consultas
+ * fijas: la lista de personas y el agregado; nunca una por vendedor
+ * (docs/ARCHITECTURE.md 10).
+ */
+export async function listSellersWithTotals(raffleId?: string): Promise<SellerWithTotals[]> {
+  const [sellers, summaries] = await Promise.all([
     listOrgMembers(['seller']),
-    fetchAllRows<SellerSummaryRow & { seller_id: string | null }>((from, to) => {
-      let query = supabase.from('v_seller_summary').select('*')
-      if (raffleId) query = query.eq('raffle_id', raffleId)
-      // Orden estable: sin el, dos bloques consecutivos podrian repetir u
-      // omitir filas y los totales saldrian mal.
-      return query
-        .order('seller_id', { ascending: true })
-        .order('raffle_id', { ascending: true })
-        .range(from, to)
-    }),
+    readSellerSummary(raffleId ?? null),
   ])
 
   const totalsBySeller = new Map<string, SellerTotals>()

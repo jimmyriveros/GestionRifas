@@ -1285,3 +1285,97 @@ error visible (I-061).
    colgando. La rama de respaldo se creó para la maniobra y **se borró después**, a petición del
    dueño: los SHA viejos ya no son recuperables, y las menciones que quedan a `df7f1a7` son
    registro de lo que ocurrió, no enlaces vivos.
+
+---
+
+## Mantenimiento post-9 — auditoría de rendimiento y escalabilidad (2026-08-22)
+
+Encargo del dueño: comprobar, **midiendo antes de tocar nada**, que la plataforma seguirá
+sintiéndose rápida con cientos de miles de clientes, boletas y abonos; corregir lo que se pueda
+corregir sin riesgo y documentar lo que no. Decisiones **D-102** (base de datos) y **D-103**
+(aplicación). Problemas abiertos nuevos: **I-062** a **I-065**. **No desplegado**: `0030` está solo
+en local.
+
+### 1. Funcionalidades implementadas
+
+No hay funcionalidad nueva **a propósito**: el encargo era de rendimiento y la regla que lo
+encabezaba era «performance nunca por delante de la integridad de los datos». Lo que cambió:
+
+- **Seis índices** (`0030`) para los órdenes por defecto que no tenían ninguno: listado de boletas,
+  historial de pagos, listado de clientes, «boletas recientes», «ventas recientes» y «clientes
+  recientes», más el recuento de comisión que corre en **cada** abono.
+- **`v_client_balances`** calcula los saldos con `left join lateral`: el mismo resultado, pero
+  agregando 25 clientes en vez de 100.000 para pintar una página.
+- **`v_payment_history`** cruza el cliente con `left join`. Es primero una corrección —bajo RLS un
+  `join` interno borra el pago entero, no solo el nombre (I-015)— y de paso abarata el conteo.
+- **Ninguna pantalla pide dos veces lo mismo** dentro de la misma carga: `listOrgMembers` y la
+  lectura de `v_seller_summary` están memoizadas **por petición** con `cache()` de React.
+- **`/owner/payments` deja de cargar el panel administrativo entero** para pintar cuatro tarjetas.
+- **«Seleccionar todas las que coinciden»** pide una columna en vez de mil filas completas.
+- Se corrigió una **inconsistencia latente** del panel: sus diez cifras venían de dos fuentes
+  distintas y ahora vienen de una sola (detalle en D-103).
+
+Lo que **no** se tocó, y se comprobó que sigue igual: estados de boleta, precios, precio rebajado,
+abonos, saldos, comisiones, ganancias, equipos, permisos, roles, autenticación, importación y
+auditoría.
+
+### 2. Pruebas ejecutadas y resultados
+
+**518** de base de datos ✅ (+6: `read-performance` nueva) · **320** unitarias ✅ · suite E2E
+completa ✅ · `typecheck`, `lint` y `build` ✅.
+
+Además, y por primera vez en el proyecto, una **medición con volumen real**: 100.005 clientes,
+300.033 boletas y 1.000.006 pagos en la base local. Procedimiento, instrumentos y las tablas
+completas de antes/después están en `TEST_RESULTS.md`; el resumen es que las cinco pantallas más
+usadas pasaron de **0,6–1,4 s** a **0,1–0,3 s** de tiempo de respuesta del servidor.
+
+Errores encontrados durante el trabajo (los cuatro están detallados en `TEST_RESULTS.md`):
+
+| # | Error | Corrección |
+|---|---|---|
+| 1 | Actualizar `paid_amount` en 200.000 boletas tardaba **más de 12 minutos** | No es un defecto de la aplicación: `payment_status` es una columna generada e indexada, así que ninguna actualización puede ser HOT y hay que reescribir catorce índices por fila, tres GIN. Anotado como **I-065** para futuras migraciones masivas |
+| 2 | El primer índice del listado de boletas no sirvió: seguía siendo un barrido | `(organization_id, created_at desc)` no conserva el orden bajo una política que compara contra un conjunto. Se cambió a `(created_at desc)` |
+| 3 | El primer índice de «ventas recientes» tampoco | Se cambió a índice **parcial** por `inventory_status` |
+| 4 | Un índice de cobertura para el reporte de saldos no mejoró nada | Se descartó en vez de dejarlo «por si acaso» |
+
+### 3. Migraciones
+
+| Migración | Qué hace | Estado |
+|---|---|---|
+| `0030_read_performance.sql` | Seis índices de lectura; `v_client_balances` con `left join lateral`; `v_payment_history` con `left join` al cliente | **Solo en local.** Pendiente de autorización para el proyecto real |
+
+**Es la migración más segura de las últimas.** No escribe ni una fila, no cambia ninguna columna, no
+toca privilegios y **desplegar el código sin ella no rompe nada**: las pantallas seguirían tardando
+lo que tardaban. Todo lo contrario que `0029` (I-061) o `0027`.
+
+Reversión: la propia migración la documenta al final. Volver atrás no cambia ningún dato ni ningún
+permiso; solo devuelve los planes lentos.
+
+### 4. Variables de entorno
+
+Sin cambios.
+
+### 5. Problemas reales que permanecen
+
+| ID | Qué es | A qué volumen empieza a doler |
+|---|---|---|
+| **I-062** | La búsqueda por texto de clientes no puede usar su índice de trigramas mientras haya RLS (`like`/`ilike` no son *leakproof*). 97 ms con 100.000 fichas | ~1 s con 1.000.000 de clientes. **Necesita decisión del usuario**: las dos salidas tocan seguridad o comportamiento |
+| **I-063** | `v_seller_summary` y `v_raffle_summary` agregan la tabla de boletas entera. 160–180 ms con 300.000 | ~500 ms por panel con 1.000.000 de boletas. La salida es una tabla de resumen mantenida por disparadores, como ya hace `seller_commissions` |
+| **I-064** | El conteo exacto del historial de pagos recorre la tabla. 231 ms con 1.000.000 | Aceptado a propósito: la alternativa vuelve aproximado el número de páginas |
+| **I-065** | Un `update` masivo sobre `tickets` es desproporcionadamente caro por los índices GIN | No afecta a la operación normal; es una precaución para migraciones futuras |
+
+Sigue todo lo anterior: I-021, I-023, I-024 antes de operar con datos reales.
+
+### 6. Qué debe revisar el siguiente agente
+
+1. **`0030` no está en producción.** Aplicarla con el procedimiento de `RUNBOOK` §3.b cuando el
+   dueño lo autorice. A diferencia de `0029`, el orden con el despliegue del código **no importa**.
+2. **No «mejores» los índices de orden añadiéndoles `organization_id` delante.** Es lo primero que
+   parece correcto y es justo lo que no funciona; el porqué está en `DATA_MODEL.md` §5 y en D-102.
+3. **`cache()` de React memoiza dentro de UNA petición.** No lo conviertas en `unstable_cache` ni le
+   pongas `revalidate`: son cifras de dinero y estados de boleta.
+4. **Si tocas `v_client_balances` o `v_payment_history`, vuelve a declarar `security_invoker`.**
+   `create or replace view` no lo hereda, y perderlo las deja leyendo sin RLS.
+   `tests/db/read-performance.test.ts` lo vigila.
+5. Antes de dar por buena cualquier optimización futura, **cárgale volumen**: con las treinta
+   boletas del seed, las cuatro consultas que motivaron esta migración parecían instantáneas.

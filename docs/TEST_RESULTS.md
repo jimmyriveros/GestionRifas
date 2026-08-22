@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **312 ✅** | **471 ✅** | **247 ✅** | ✅ | ✅ |
+| Post-9 vigente | **320 ✅** | **518 ✅** | **274 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -2125,3 +2125,130 @@ procesos de Chrome se filtraron por su ruta, no por su nombre.
 Lo único que no puede comprobar un agente y sigue abierto: **la pasada visual con sesión real en
 producción**. Concretamente, que escribir un nombre en «Mis boletas» traiga sus boletas y que la fila
 del cliente del detalle se sienta pulsable en el teléfono.
+---
+
+## Auditoría de rendimiento con volumen real (2026-08-22)
+
+Encargo del usuario: comprobar que la plataforma seguirá sintiéndose rápida con cientos de miles de
+registros, **midiendo antes de cambiar nada**. Decisiones resultantes: D-102 (base de datos) y D-103
+(aplicación). Problemas que quedan abiertos: I-062 a I-065.
+
+### a. Cómo se midió
+
+No se tocó el proyecto real en ningún momento. Todo ocurrió sobre la base **local** de
+`npx supabase start`, cargada con volumen sintético:
+
+| | |
+|---|---|
+| Clientes | 100.005 |
+| Boletas | 300.033 (200.008 vendidas, 100.020 disponibles) |
+| Pagos | 1.000.006 |
+| Asignaciones de pago | 1.000.005 |
+| Vendedores | 20 sintéticos, 15.000 boletas y 5.000 clientes cada uno |
+
+Tres instrumentos, cada uno para una pregunta distinta:
+
+1. **`explain (analyze, buffers)`** con la sesión real de un Dueño y la de un vendedor
+   (`set role authenticated` + `request.jwt.claims`) → *por qué* tarda.
+2. **Consulta por consulta desde el cliente de Supabase**, tal como las escribe cada `queries.ts`
+   → cuánto tarda el camino completo hasta PostgREST, con su conteo y sus relaciones incrustadas.
+3. **Tiempo de respuesta del servidor por pantalla completa**, con `next build` + `next start`
+   contra la base cargada y una sesión iniciada por la interfaz real → lo que espera una persona.
+
+Cada cifra es el **mejor de 3 a 5 intentos**, para que el resultado no dependa de una pausa del
+recolector de basura o de un fallo de caché. La comparación «antes/después» se hizo sobre el **mismo
+equipo, la misma base y los mismos datos**, revirtiendo los cambios y volviéndolos a aplicar.
+
+### b. Antes y después, por pantalla (tiempo de respuesta del servidor)
+
+| Pantalla | Antes | Después | Mejora |
+|---|---:|---:|---:|
+| Pagos (Dueño) | 1.364 ms | 290 ms | **4,7×** |
+| Panel administrativo | 1.291 ms | 306 ms | **4,2×** |
+| Boletas (Dueño) | 1.088 ms | 151 ms | **7,2×** |
+| Boletas · filtro por estado | 920 ms | 129 ms | **7,1×** |
+| Clientes (Dueño) | 629 ms | 108 ms | **5,8×** |
+| Reportes · saldos pendientes | 645 ms | 537 ms | 1,2× |
+| Panel del vendedor | 414 ms | 239 ms | **1,7×** |
+| Mis pagos (vendedor) | 394 ms | 217 ms | **1,8×** |
+| Mis boletas (vendedor) | 220 ms | 138 ms | 1,6× |
+| Mis clientes (vendedor) | 209 ms | 104 ms | **2,0×** |
+| Vendedores | 257 ms | 262 ms | = |
+| Reportes · por vendedor | 259 ms | 274 ms | = |
+| Boletas · buscar «1234» | 179 ms | 182 ms | = |
+| Boletas · buscar por cliente | 200 ms | 209 ms | = |
+| Clientes · buscar | 258 ms | 268 ms | = |
+
+Las filas marcadas `=` están dentro del ruido de la medición (±10 %): son pantallas cuyo cuello de
+botella no era el orden ni el agregado, sino la búsqueda por texto (I-062) o los agregados por
+vendedor (I-063), que esta tanda no resuelve.
+
+### c. Antes y después, por consulta
+
+| Consulta | Antes | Después |
+|---|---:|---:|
+| Listado de boletas, página 1 | 1.040 ms | 72 ms |
+| Listado de boletas con filtro de estado | 859 ms | 61 ms |
+| Historial de pagos, página 1 | 1.161 ms | 192 ms |
+| Listado de clientes, página 1 | 566 ms | 27 ms |
+| Boletas creadas recientemente (panel) | 331 ms | 4 ms |
+| Ventas recientes (panel del vendedor) | 479 ms | 5 ms |
+| Clientes recientes (panel) | 35 ms | 3 ms |
+| Selector de cliente (primeros 50) | 37 ms | 4 ms |
+| Recuento de comisión (**en cada abono**) | 12,0 ms · 5.015 buffers | 0,96 ms · 16 buffers |
+
+Y dentro de la base de datos, con el plan a la vista:
+
+| | Antes | Después |
+|---|---:|---:|
+| `tickets order by created_at desc limit 25` | 120 ms (barrido de 300.030 filas + ordenación) | 2,1 ms (recorrido por índice) |
+| `v_payment_history … limit 25` | 1.170 ms (cruce de 1.000.004 filas + ordenación) | 9,3 ms (bucles anidados sobre 25) |
+| `v_client_balances … limit 25` | 429 ms (agregado de 100.005, **35 MB en disco**) | 3,5 ms |
+| `count(*)` de `v_client_balances` | 191 ms | 27 ms |
+| `count(*)` del historial de pagos | 394 ms | 231 ms |
+
+### d. Lo que NO mejoró, y por qué se deja así
+
+| Consulta | Después | Motivo |
+|---|---:|---|
+| Buscar clientes por nombre | 97 ms con 100.000 fichas | **I-062**: `like`/`ilike` no son *leakproof* y con RLS el índice de trigramas no puede usarse. La misma consulta sin RLS tarda 2,7 ms. Las dos salidas tocan seguridad o comportamiento |
+| `v_seller_summary` / `v_raffle_summary` | 160 ms / 180 ms | **I-063**: agregar la tabla de boletas entera es lineal. D-103 lo redujo de dos lecturas a una por pantalla; eliminarlo exige una tabla de resumen mantenida por disparadores |
+| Conteo exacto del historial de pagos | 231 ms | **I-064**: se aceptó a propósito; `count=estimated` volvería aproximado el número de páginas |
+| Buscar una boleta por **una** cifra («1») | 323 ms | `like '%1%'` coincide con un tercio de la tabla y el orden por relevancia obliga a materializarla. Solo ocurre pulsando «Buscar» a propósito: el mínimo para que salga sola son dos caracteres |
+
+### e. Errores encontrados durante la propia medición
+
+| Qué pasó | Diagnóstico | Qué se hizo |
+|---|---|---|
+| Un `update` de `paid_amount` sobre 200.000 boletas llevaba **más de 12 minutos** y hubo que cancelarlo | `payment_status` es una columna generada e indexada que depende de `paid_amount`, así que ninguna actualización puede ser HOT y hay que reescribir las catorce entradas de índice de cada fila, tres de ellas GIN | Se borraron los tres índices GIN, se hizo el `update` y se recrearon: **menos de 2 segundos** en total. Anotado como **I-065**, que es una precaución para futuras migraciones masivas, no un defecto de la operación normal |
+| El primer índice probado para el listado de boletas no sirvió de nada | `(organization_id, created_at desc)` no conserva el orden, porque la política compara la organización contra un conjunto | Se cambió a `(created_at desc)` a secas: 120 ms → 2 ms. Documentado en `DATA_MODEL.md` §5 para que nadie lo «mejore» al revés |
+| El primer índice probado para «ventas recientes» tampoco | Con `(inventory_status, assigned_at desc)` el planificador seguía prefiriendo un mapa de bits y ordenaba 200.000 filas | Se cambió a índice **parcial** `(assigned_at desc) where inventory_status = 'assigned'`: 77 ms → 1,6 ms |
+| Se probó un índice de cobertura para el reporte de saldos | 316 ms frente a 298 ms sin él | Se descartó: un índice más en la tabla que más escribe, a cambio de nada |
+
+### f. Correcciones funcionales que salieron de la auditoría
+
+Aunque el encargo era de rendimiento, dos cosas se arreglaron porque eran defectos latentes:
+
+1. **`v_payment_history` cruzaba el cliente con `join` interno.** Bajo RLS eso no oculta un nombre:
+   borra el pago entero del historial. Es exactamente la trampa de I-015, que en 2026 se corrigió
+   para los perfiles y quedó sin corregir para el cliente. Hoy no puede dispararse —las claves
+   foráneas y las políticas coinciden—, pero dependía de esa coincidencia. Ahora es `left join`.
+2. **El panel administrativo mezclaba dos fuentes para sus diez cifras.** El dinero venía del total
+   por rifa y los estados de pago de recorrer la lista de vendedores: las boletas de alguien que
+   hubiera dejado de tener el rol `seller` habrían contado en unas cifras y no en otras. Se
+   comprobó que ambas fuentes daban lo mismo sobre 300.000 boletas y se unificó en una.
+
+### g. Verificación
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ (los dos avisos de siempre, de TanStack Virtual) |
+| `npm run test` (unitarias) | ✅ **320/320** |
+| `npm run test:db` | ✅ **518/518** (512 anteriores + 6 nuevas de `read-performance`) |
+| `npm run build` | ✅ |
+| `v_client_balances` nueva vs. antigua, fila a fila sobre 100.005 clientes | ✅ **0 diferencias** en las cuatro columnas de dinero, mismos tipos |
+| `v_payment_history`: filas de la vista vs. `payments` | ✅ **1.000.006 = 1.000.006** |
+| Aislamiento: un vendedor solo ve su cartera y sus pagos en las vistas nuevas | ✅ |
+| Errores y advertencias de consola en las 16 pantallas medidas | ✅ **ninguno** |
+| Peticiones 4xx/5xx o recursos que no cargan | ✅ **ninguna** |

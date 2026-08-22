@@ -4,7 +4,7 @@ import { DataTablePagination } from '@/components/data/DataTablePagination'
 import { EmptyState } from '@/components/data/EmptyState'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
-import { getAdminDashboard } from '@/features/dashboard/queries'
+import { getOrganizationTotals } from '@/features/dashboard/queries'
 import { PaymentFilters } from '@/features/payments/components/PaymentFilters'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
 import { listPayments } from '@/features/payments/queries'
@@ -31,7 +31,11 @@ export default async function OwnerPaymentsPage({ searchParams }: { searchParams
   const method = paymentMethodSchema.safeParse(single(params.method))
   const requestedPage = Number.parseInt(single(params.page) ?? '1', 10)
 
-  const [{ rows, total, page, pageSize }, sellers, dashboard] = await Promise.all([
+  // Las cuatro tarjetas de arriba necesitan CUATRO cifras, no el panel entero:
+  // antes se llamaba a `getAdminDashboard()`, que ademas trae el resumen por
+  // vendedor, las boletas recientes y otra pagina de pagos que esta pantalla no
+  // usa (D-103).
+  const [{ rows, total, page, pageSize }, sellers, totals] = await Promise.all([
     listPayments({
       sellerId: single(params.sellerId),
       clientId: single(params.clientId),
@@ -42,7 +46,7 @@ export default async function OwnerPaymentsPage({ searchParams }: { searchParams
       page: Number.isNaN(requestedPage) ? 1 : requestedPage,
     }),
     listActiveSellerOptions(),
-    getAdminDashboard(),
+    getOrganizationTotals(),
   ])
 
   const hasFilters = Boolean(
@@ -62,12 +66,12 @@ export default async function OwnerPaymentsPage({ searchParams }: { searchParams
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MetricCard label="Total vendido" value={formatCOP(dashboard.totals.totalSold)} />
-        <MetricCard label="Total recaudado" value={formatCOP(dashboard.totals.totalCollected)} />
-        <MetricCard label="Saldo pendiente" value={formatCOP(dashboard.totals.pendingAmount)} />
+        <MetricCard label="Total vendido" value={formatCOP(totals.totalSold)} />
+        <MetricCard label="Total recaudado" value={formatCOP(totals.totalCollected)} />
+        <MetricCard label="Saldo pendiente" value={formatCOP(totals.pendingAmount)} />
         <MetricCard
           label="Boletas por cobrar"
-          value={dashboard.totals.ticketsUnpaid + dashboard.totals.ticketsPartial}
+          value={totals.ticketsUnpaid + totals.ticketsPartial}
         />
       </div>
 

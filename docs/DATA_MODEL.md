@@ -1,10 +1,11 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.4 · **Estado:** implementado · **Actualizado:** 2026-08-09
-- **Estado:** el esquema ejecutable vive en las 21 migraciones `0001`–`0021`, aplicadas y
-  verificadas tanto en local como en el proyecto Supabase real.
+- **Versión:** 2.5 · **Estado:** implementado · **Actualizado:** 2026-08-22
+- **Estado:** el esquema ejecutable vive en las 30 migraciones `0001`–`0030`. `0001`–`0029` están
+  aplicadas y verificadas en local y en el proyecto Supabase real; **`0030` solo en local**
+  (I-062 a I-065, D-102).
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
-  tipos generados en `src/types/database.types.ts`. Las 378 pruebas de `tests/db/` verifican el
+  tipos generados en `src/types/database.types.ts`. Las pruebas de `tests/db/` verifican el
   esquema local; producción se comprueba con `verify:remote` y las sondas registradas en
   `TEST_RESULTS.md`.
 
@@ -537,8 +538,14 @@ triggers y funciones `SECURITY DEFINER`. Eventos mínimos registrados: `docs/SEC
 | `tickets` | `(organization_id, raffle_id, daily_number)` | Comparación exacta y por prefijo del número diario |
 | `tickets` | `(organization_id, raffle_id, weekly_number)` | Comparación exacta y por prefijo del número semanal |
 | `tickets` | `(organization_id, internal_code)` (único) | Unicidad del código; ya no lo usa ninguna búsqueda de la interfaz |
-| `tickets` | `(client_id) WHERE client_id IS NOT NULL` | Perfil de cliente |
+| `tickets` | `(client_id) WHERE client_id IS NOT NULL` | Perfil de cliente; también los saldos de `v_client_balances` desde `0030` |
 | `tickets` | `(organization_id, raffle_id, payment_status)` | Métricas y reportes |
+| `tickets` | `(created_at DESC)` (`0030`) | Orden por defecto del listado de boletas (D-102) |
+| `tickets` | `(assigned_at DESC) WHERE inventory_status = 'assigned'` (`0030`) | «Ventas recientes» del panel (D-102) |
+| `tickets` | `(seller_id, raffle_id, payment_status) WHERE inventory_status = 'assigned'` (`0030`) | Recuento de comisión que corre en **cada** abono (D-102) |
+| `clients` | `(name) WHERE archived_at IS NULL` (`0030`) | Orden alfabético del listado de clientes (D-102) |
+| `clients` | `(created_at DESC) WHERE archived_at IS NULL` (`0030`) | «Clientes recientes» del panel (D-102) |
+| `payments` | `(payment_date DESC, created_at DESC)` (`0030`) | Orden del historial, **incluidos los anulados** (D-102) |
 | `payments` | `(organization_id, payment_date DESC) WHERE voided_at IS NULL` | Pagos recientes y por rango |
 | `payments` | `(seller_id, payment_date DESC)` | Portal Seller |
 | `payments` | `(client_id, payment_date DESC)` | Historial del cliente |
@@ -566,6 +573,21 @@ extraer ningún trigrama completo y vuelve al barrido secuencial (165 páginas, 
 mínimo para buscar sola son dos caracteres, una parte de las búsquedas seguirá recorriendo la tabla:
 es una mejora parcial y conocida, no un remedio universal.
 
+**Los índices de trigramas sobre `clients` no se usan mientras haya RLS.** Medido con 100.000 fichas
+(D-102): la misma búsqueda tarda 2,7 ms con el índice sin RLS y 97 ms con `Seq Scan` desde la sesión
+de un usuario, y no cambia forzando `enable_seqscan = off`. `like` e `ilike` no están marcadas
+`leakproof` en PostgreSQL, y con RLS una condición no *leakproof* no puede evaluarse antes que la
+política —que es lo que haría un recorrido por índice—. No es un fallo del esquema y no se corrigió
+aquí: ver **I-062**, que documenta las dos salidas posibles y por qué las dos son una decisión del
+usuario.
+
+**Por qué los índices de orden (`0030`) NO empiezan por `organization_id`.** Porque la política
+compara esa columna contra un CONJUNTO (`organization_id in (select current_org_ids())`) y un índice
+compuesto solo conserva el orden cuando su primera columna está fijada a un **valor**. Se probaron
+las dos formas: con el compuesto, el listado de boletas seguía siendo un barrido de 120 ms; con
+`(created_at desc)` a secas, 2 ms. Es la contrapartida del patrón de D-063, y conviene recordarla
+antes de «mejorar» uno de estos índices añadiéndole la organización delante.
+
 ---
 
 ## 6. Vistas
@@ -581,6 +603,22 @@ es una mejora parcial y conocida, no un remedio universal.
 | `v_seller_summary` | por vendedor: boletas por estado, vendido, recaudado, saldo | Dashboard admin, reportes |
 | `v_raffle_summary` | por rifa: totales de inventario y dinero | Dashboard admin |
 | `v_payment_history` | pagos con cliente, vendedor, método, estado activo/anulado y asignaciones | Historial y anulaciones |
+
+**Dos de ellas se reescribieron en `0030` sin cambiar ni una fila de su resultado (D-102):**
+
+* **`v_client_balances`** calcula los saldos con `left join lateral` en vez de `left join tickets` +
+  `group by`. Misma cuenta, pero el agregado depende ahora de la fila de `clients`, así que el
+  planificador puede ordenar y recortar la página **antes** de sumar y solo calcula los saldos de los
+  25 clientes que sobreviven. Para `count(*)` ni siquiera ejecuta la subconsulta, porque un
+  `left join lateral` no puede añadir ni quitar filas.
+* **`v_payment_history`** cruza el cliente con `left join`, como ya hacía con los tres perfiles desde
+  `0012`. El motivo principal es de corrección —bajo RLS un `join` interno borra la fila entera, no
+  solo el nombre (I-015)—; el efecto secundario es que contar el historial deja de cruzar la tabla
+  de pagos con la de clientes.
+
+La equivalencia no se supone: `tests/db/read-performance.test.ts` compara fila a fila la vista nueva
+contra la formulación anterior y comprueba que las dos conservan `security_invoker` —que
+`create or replace view` **no** hereda—.
 
 ### 6.b Funciones de reporte (Fase 6, migración `0013`)
 

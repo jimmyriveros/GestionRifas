@@ -3,7 +3,7 @@ import 'server-only'
 import { BULK_SELECTION_MAX } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/server'
 
-import { listTickets, type TicketFilters, type TicketListItem } from '../queries'
+import { listTicketIds, listTickets, type TicketFilters, type TicketListItem } from '../queries'
 import type { TicketEligibility } from './eligibility'
 
 /**
@@ -78,25 +78,19 @@ export async function listTicketsByIds(ticketIds: readonly string[]): Promise<Ti
  * Los ids de TODAS las boletas que coinciden con los filtros actuales
  * (seccion 16 del encargo: «Seleccionar las 537 boletas»).
  *
- * Reutiliza la MISMA consulta del listado con el tope como tamano de pagina, en
- * vez de escribir otra. No es por comodidad: si la resolucion filtrara aunque
- * fuera un poco distinto de lo que la persona esta viendo, seleccionaria cosas
- * que no aparecen en pantalla. Compartir la consulta hace que eso no pueda
- * pasar.
+ * Aplica los MISMOS filtros que el listado —los comparte, no los repite— en vez
+ * de escribir otra consulta. No es por comodidad: si la resolucion filtrara
+ * aunque fuera un poco distinto de lo que la persona esta viendo, seleccionaria
+ * cosas que no aparecen en pantalla. Compartirlos hace que eso no pueda pasar.
  *
- * Al navegador solo viajan los ids (seccion 17 del encargo): mil identificadores
- * son unas decenas de kilobytes, mientras que mil filas completas serian del
- * orden de un megabyte.
+ * Al navegador solo viajan los ids (seccion 17 del encargo). Desde D-103,
+ * tampoco viaja de mas entre la base de datos y el servidor: `listTicketIds`
+ * pide UNA columna, no las mil filas completas que antes se traian para
+ * quedarse solo con su identificador.
  */
 export async function listTicketIdsMatching(filters: TicketFilters): Promise<{
   ids: string[]
   total: number
 }> {
-  const { rows, total } = await listTickets({
-    ...filters,
-    page: 1,
-    pageSize: BULK_SELECTION_MAX,
-  })
-
-  return { ids: rows.map((row) => row.id), total }
+  return listTicketIds(filters, BULK_SELECTION_MAX)
 }

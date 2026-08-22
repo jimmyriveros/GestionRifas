@@ -244,6 +244,26 @@ ese diseño impide. Lo que sí borra es la **membresía**: sin ella la persona d
 organización y de todas las pantallas. Por eso el alta es **idempotente** — reutiliza la cuenta si ya
 existe—, y por eso la suite aguanta ejecutarse muchas veces seguidas.
 
+### 4.2 Índices y vistas de lectura (`tests/db/read-performance.test.ts`, 6 pruebas)
+
+Añadidas con D-102. **No miden tiempos**: un banco de rendimiento sobre las treinta boletas del seed
+no diría nada, y las medidas reales —con 300.000 boletas— están en `TEST_RESULTS.md`. Lo que cubren
+es lo que puede romperse sin que nadie se entere.
+
+| ID | Caso | Resultado esperado |
+|----|------|--------------------|
+| E9-01 | Los seis índices de `0030` existen **con su definición exacta** | Media migración es una condición parcial; si alguien la quita «limpiando», el índice sigue ahí y la pantalla vuelve a tardar un segundo **sin ningún síntoma visible** |
+| E9-02 | `v_client_balances` coincide fila a fila con la formulación anterior (`group by`) | 0 diferencias en `tickets_count`, `total_purchased`, `total_paid` y `pending_amount` |
+| E9-03 | `v_client_balances` sigue devolviendo también los clientes sin boletas | Tantas filas como clientes: el `left join lateral` no puede perder ninguno |
+| E9-04 | `v_payment_history` no pierde ningún pago al cruzar con el cliente | Tantas filas como pagos |
+| E9-05 | Las dos vistas conservan `security_invoker` | `create or replace view` **no** hereda las opciones: perderlo las dejaría leyendo sin RLS |
+| E9-06 | Un vendedor sigue viendo solo su cartera y sus pagos en las dos vistas | Sesión real de vendedor, no service role |
+
+**Por qué E9-01 compara el texto del índice y no solo su nombre.** Los tres índices parciales de esta
+migración dependen por completo de su cláusula `where`: es lo único que permite al planificador
+usarlos para ordenar. Un índice con el nombre correcto y la condición quitada pasa cualquier
+comprobación de existencia y no sirve para nada.
+
 ---
 
 ## 5. Pruebas unitarias clave

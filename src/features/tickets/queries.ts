@@ -89,6 +89,35 @@ type TicketRow = {
   client: { id: string; name: string } | null
 }
 
+/**
+ * Los filtros del listado, aplicados a una consulta ya empezada.
+ *
+ * Vive aparte porque lo usan DOS lecturas: la que pinta la tabla y la que
+ * resuelve «seleccionar todas las que coinciden» (`listTicketIdsMatching`). Si
+ * cada una escribiera sus propios `eq`, bastaria con que alguien anadiera un
+ * filtro en un sitio para que la seleccion marcara boletas que no estan en
+ * pantalla.
+ *
+ * El tipo es generico y auto-referente (`Q extends TicketQuery<Q>`) para que
+ * valga igual sobre una consulta que pide todas las columnas y sobre una que
+ * pide solo `id`, sin convertir nada a `any`.
+ */
+type TicketQuery<Q> = {
+  in(column: 'id', values: string[]): Q
+  eq(column: string, value: string): Q
+}
+
+function applyTicketFilters<Q extends TicketQuery<Q>>(query: Q, filters: TicketFilters): Q {
+  let next = query
+  if (filters.ticketIds) next = next.in('id', [...filters.ticketIds])
+  if (filters.raffleId) next = next.eq('raffle_id', filters.raffleId)
+  if (filters.sellerId) next = next.eq('seller_id', filters.sellerId)
+  if (filters.clientId) next = next.eq('client_id', filters.clientId)
+  if (filters.inventoryStatus) next = next.eq('inventory_status', filters.inventoryStatus)
+  if (filters.paymentStatus) next = next.eq('payment_status', filters.paymentStatus)
+  return next
+}
+
 export async function listTickets(
   filters: TicketFilters,
 ): Promise<{ rows: TicketListItem[]; total: number; page: number; pageSize: number }> {
@@ -99,14 +128,10 @@ export async function listTickets(
   if (search !== '') return searchTicketsMatching(filters, search, page, pageSize)
 
   const supabase = await createClient()
-  let query = supabase.from('tickets').select(TICKET_SELECT, { count: 'exact' })
-
-  if (filters.ticketIds) query = query.in('id', [...filters.ticketIds])
-  if (filters.raffleId) query = query.eq('raffle_id', filters.raffleId)
-  if (filters.sellerId) query = query.eq('seller_id', filters.sellerId)
-  if (filters.clientId) query = query.eq('client_id', filters.clientId)
-  if (filters.inventoryStatus) query = query.eq('inventory_status', filters.inventoryStatus)
-  if (filters.paymentStatus) query = query.eq('payment_status', filters.paymentStatus)
+  const query = applyTicketFilters(
+    supabase.from('tickets').select(TICKET_SELECT, { count: 'exact' }),
+    filters,
+  )
 
   const { data, error, count } = await query
     .order('created_at', { ascending: false })
@@ -203,6 +228,45 @@ async function searchTicketsMatching(
     page,
     pageSize,
   }
+}
+
+/**
+ * Solo los IDENTIFICADORES de las boletas que coinciden, y cuantas hay.
+ *
+ * Lo usa «seleccionar todas las que coinciden». Antes se resolvia llamando a
+ * `listTickets` con tamano de pagina 1.000 y quedandose con `row.id`: el
+ * servidor traia mil filas completas —con el nombre de la rifa y el del
+ * cliente— para tirar el 95 % de cada una. Ahora se pide una sola columna
+ * (D-103).
+ *
+ * Los filtros son los MISMOS gracias a `applyTicketFilters`, que es justo lo
+ * que garantiza que se seleccione lo que se esta viendo. Cuando hay termino de
+ * busqueda no hay atajo posible: el orden por relevancia lo decide
+ * `search_tickets`, asi que ese camino sigue pasando por `listTickets`.
+ */
+export async function listTicketIds(
+  filters: TicketFilters,
+  limit: number,
+): Promise<{ ids: string[]; total: number }> {
+  const search = filters.search ? normalizeSearchTerm(filters.search) : ''
+  if (search !== '') {
+    const { rows, total } = await listTickets({ ...filters, page: 1, pageSize: limit })
+    return { ids: rows.map((row) => row.id), total }
+  }
+
+  const supabase = await createClient()
+  const query = applyTicketFilters(
+    supabase.from('tickets').select('id', { count: 'exact' }),
+    filters,
+  )
+
+  const { data, error, count } = await query
+    .order('created_at', { ascending: false })
+    .range(0, limit - 1)
+
+  if (error) throw error
+
+  return { ids: (data ?? []).map((row) => row.id), total: count ?? 0 }
 }
 
 export type TicketDetail = TicketListItem & {
