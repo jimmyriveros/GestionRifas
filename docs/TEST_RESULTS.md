@@ -2399,3 +2399,49 @@ Se comprobó a mano que la aplicación responde **404** con «Página no encontr
 salió mal», sin filtrar ninguna firma de PostgreSQL. El arnés pasa a leer el `body`, que cubre las
 dos pantallas y **comprueba más, no menos**: si alguna vez se filtrara un mensaje fuera de `main`,
 antes no se habría visto.
+
+### i. Después de activar Fluid Compute (2026-08-22)
+
+El dueño activó **Fluid Compute** en el proyecto de Vercel al leer el diagnóstico de I-067. La
+opción **solo se aplica a despliegues nuevos**, y no caer en ello costó una tanda entera de
+mediciones contradictorias —45 s daba 805 ms en una muestra y 4.196 ms en la siguiente—. Tras
+redesplegar (`a854e8a`), y **esperando a que el despliegue se asentara** —medir en el minuto
+siguiente da todo frío y tampoco sirve—, el resultado es consistente.
+
+**Seis ciclos de «pausa de 60 s + una navegación», que es el patrón que producía los 3 segundos:**
+
+| Ciclo | Ruta | TTFB |
+|---|---|---:|
+| 1 | `/owner/tickets` | 486 ms |
+| 2 | `/owner/clients` | 747 ms |
+| 3 | `/owner/payments` | 561 ms |
+| 4 | `/owner/tickets` | 475 ms |
+| 5 | `/owner/clients` | 690 ms |
+| 6 | `/owner/payments` | 438 ms |
+
+**mediana 561 ms · 0 de 6 por encima de 2 s.** Antes: 3.594–4.276 ms de forma sistemática.
+
+**Navegación completa (clic → pantalla utilizable) en producción:**
+
+| Escenario | Antes de todo | Ahora |
+|---|---:|---:|
+| Encadenada, sin pausas | ~840 ms | **~350 ms** |
+| Con la ruta ya visitada | — | **490–511 ms** |
+| Tras 60 s de lectura (mediana de 6) | 2.900–5.900 ms | **847 ms** |
+| Peor caso de esos 6 | 5.965 ms | **1.357 ms** |
+| Reacción visual al clic | 33–43 ms | **12–26 ms** |
+| Render tras recibir la respuesta | ~300 ms | **14 ms** |
+
+El desglose de una navegación tras pausa, con el waterfall: clic → petición **23 ms**, TTFB
+**278 ms**, fin de la respuesta **476 ms**, título **y** tabla en pantalla **490 ms**. El título y la
+cabecera de la tabla aparecen en el **mismo instante**: no hay coste de render de tabla, algo que se
+sospechó y quedó descartado midiéndolo.
+
+**Objetivos del encargo, contra estas cifras:**
+
+| Objetivo | Estado |
+|---|---|
+| Feedback visual al clic < 100 ms | ✅ 12–26 ms |
+| Navegación normal 300–500 ms | ✅ encadenada (~350) y con ruta visitada (~490) |
+| Pantallas pesadas < 1 s | ✅ mediana 847 ms tras pausa; 1 de 6 en 1.357 ms |
+| ~3 s no aceptable | ✅ **0 de 6 por encima de 2 s** |

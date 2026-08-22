@@ -1477,3 +1477,27 @@ Sin cambios.
    escribes una prueba sobre ella, lee el `body`, no `main`.
 4. **Mide desde el clic, no desde el servidor.** El procedimiento y el arnés están descritos en
    `TEST_RESULTS.md`; un TTFB bueno no significa una navegación buena.
+
+### 7. Fluid Compute y medición final (2026-08-22)
+
+El dueño activó **Fluid Compute** en el proyecto de Vercel al leer el diagnóstico de I-067, y se
+redesplegó (`a854e8a`) porque **la opción solo se aplica a despliegues nuevos**.
+
+| Escenario en producción | Antes de todo | Ahora |
+|---|---:|---:|
+| TTFB tras 45–90 s de pausa | 3.594–4.276 ms | **438–747 ms** (mediana 561) |
+| Navegación completa tras 60 s de lectura | 2.900–5.900 ms | **847 ms** (mediana de 6; peor caso 1.357) |
+| Navegación encadenada | ~840 ms | **~350 ms** |
+| Reacción visual al clic | 33–43 ms | **12–26 ms** |
+| Render tras recibir la respuesta | ~300 ms | **14 ms** |
+
+**Ninguna de las seis navegaciones medidas superó los 2 s.** El síntoma que motivó el encargo
+—«espero unos 3 segundos al cambiar de menú»— ha desaparecido.
+
+**Dos trampas de medición que costaron tiempo y conviene no repetir:** medir en el minuto siguiente a
+un despliegue (todo está frío y las cifras no valen) y medir con ráfagas de peticiones seguidas, que
+fuerzan escalado horizontal y fabrican arranques en frío que el uso real no produce. El escenario
+que sí informa es «pausa humana + una navegación», repetido varias veces.
+
+**Fluid Compute pasa a ser requisito de despliegue**, no un consejo: `DEPLOYMENT.md` §3.1.b. Si
+alguien lo desactiva, los tres segundos vuelven y ningún cambio de código los quitará.
