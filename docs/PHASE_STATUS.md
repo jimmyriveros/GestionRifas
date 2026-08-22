@@ -1184,7 +1184,7 @@ Decisiones **D-100** y **D-101**; regla **BR-N13**. **Desplegado en producción 
 ### 2. Pruebas ejecutadas y resultados
 
 **512** de base de datos ✅ (+22: `ticket-search-client` nueva, 21, y una reescrita en
-`ticket-search`) · **320** unitarias ✅ (+4) · **15** E2E nuevas (`boleta-cliente`) ✅ ·
+`ticket-search`) · **320** unitarias ✅ (+4) · **15** E2E nuevas (`boleta-cliente`) ✅ · suite E2E completa **274/274** ✅ ·
 `typecheck`, `lint` y `build` ✅. La suite de base de datos aguanta **dos pasadas seguidas** sobre la
 misma base.
 
@@ -1273,9 +1273,9 @@ error visible (I-061).
 
 **Dos cosas que quedaron pendientes a propósito:**
 
-1. **La pasada completa de E2E se interrumpió** para publicar de inmediato. La anterior quedó en
-   273/274, y el único fallo —consecuencia directa de D-101: el nombre accesible del enlace del
-   cliente cambió— se corrigió y su archivo se revalidó **17/17**. Conviene una pasada limpia.
+1. **La pasada completa de E2E se interrumpió** para publicar de inmediato, y se repitió después:
+   **274/274 en 13,7 min** sobre una base recién sembrada. Detalle del desvío y de su causa real en
+   `TEST_RESULTS.md`.
 2. **El asunto del commit `df7f1a7` salió como un `@` suelto**, resto de la sintaxis de
    aquí-documento de PowerShell. El cuerpo del mensaje está entero. No se reescribió el historial ya
    publicado por un defecto cosmético, y menos con un despliegue en vuelo.

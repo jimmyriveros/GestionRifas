@@ -2074,3 +2074,38 @@ Desde «Boletas», un teléfono escrito **con separadores** no es simétrico: el
 cual contra `search_text`, sin la reducción a número nacional que sí hace «Clientes» (`searchNeedle`,
 regresión I-039). Buscar por **nombre** —que es la regla BR-N13— no se ve afectado, y por eso no se
 añadió una segunda normalización solo para este camino.
+
+## La pasada E2E completa, y las 3,8 horas que hubo que descartar antes
+
+Al publicar (2026-08-21) la suite E2E se interrumpió a petición expresa. Después se pidió correrla
+entera. El primer intento **no vale y se descarta**; el segundo dio **274/274 en 13,7 minutos**.
+
+### Qué salió mal en el primer intento
+
+| Síntoma | Dato |
+|---|---|
+| Duración | **3,8 horas** (lo normal son ~14 minutos) |
+| Resultado | **86 pasaron**, ~188 no llegaron a ejecutarse |
+
+**La causa no estaba en el producto ni en las pruebas.** `TaskStop` sobre la ejecución anterior mató
+la consola pero **no el árbol de procesos**: la suite huérfana siguió viva. Al lanzar la nueva había
+**dos Playwright y tres servidores de desarrollo** compitiendo por la misma base local, el mismo
+puerto y la misma CPU. Se comprobó enumerando los procesos por su línea de órdenes:
+
+```
+node … @playwright/test/cli.js test      <- suite huerfana, todavia corriendo
+npm run dev:local                        <- servidor de la vista previa, "detenido" pero vivo
+npx next dev                             <- webServer de Playwright
+```
+
+Tras detenerlos por PID —y comprobando **0** navegadores de `ms-playwright` y el puerto 3000 libre—,
+la repetición sobre una base recién sembrada dio 274/274. El navegador del usuario no se tocó: los
+procesos de Chrome se filtraron por su ruta, no por su nombre.
+
+### Dos lecciones que conviene no volver a aprender
+
+1. **`TaskStop` no basta para una suite E2E.** Detiene la consola, no los procesos hijos. Hay que
+   comprobar después que no quedan `@playwright/test`, `next dev` ni `dev:local` vivos.
+2. **No canalizar la salida de Playwright por `tail`.** `npm run test:e2e | tail -40` devuelve el
+   código de salida de `tail`, no el de Playwright: la primera ejecución terminó «con éxito» según
+   la consola mientras 188 pruebas no se habían ejecutado. El resumen se lee del archivo completo.
