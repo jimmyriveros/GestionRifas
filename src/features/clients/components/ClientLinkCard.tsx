@@ -1,4 +1,4 @@
-import { ChevronRightIcon } from 'lucide-react'
+import { ChevronRightIcon, UserRoundIcon } from 'lucide-react'
 import Link from 'next/link'
 
 /**
@@ -34,12 +34,24 @@ export function ClientLinkCard({
   return (
     <Link
       href={href}
-      className="bg-card hover:bg-accent focus-visible:ring-ring flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className="bg-muted/40 hover:bg-accent focus-visible:ring-ring flex h-full items-center justify-between gap-3 rounded-lg border p-3 transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
-      <div className="min-w-0">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Cliente</p>
-        <p className="truncate font-medium">{name}</p>
-        {phone ? <p className="text-muted-foreground truncate text-sm">{phone}</p> : null}
+      <div className="flex min-w-0 items-center gap-3">
+        {/* El circulo no aporta informacion: esta para que la fila se lea de un
+            vistazo como «una persona» entre las cifras de la boleta. */}
+        <span
+          aria-hidden
+          className="bg-background text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full border"
+        >
+          <UserRoundIcon className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+            Cliente
+          </p>
+          <p className="truncate font-medium">{name}</p>
+          {phone ? <p className="text-muted-foreground truncate text-sm">{phone}</p> : null}
+        </div>
       </div>
       <ChevronRightIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
     </Link>
@@ -55,9 +67,17 @@ export function ClientLinkCard({
  */
 export function ClientEmptyCard({ description }: { description: string }) {
   return (
-    <div className="rounded-lg border border-dashed p-3">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Cliente</p>
-      <p className="text-muted-foreground text-sm">{description}</p>
+    <div className="flex h-full items-center gap-3 rounded-lg border border-dashed p-3">
+      <span
+        aria-hidden
+        className="text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full border border-dashed"
+      >
+        <UserRoundIcon className="size-5" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Cliente</p>
+        <p className="text-muted-foreground text-sm">{description}</p>
+      </div>
     </div>
   )
 }

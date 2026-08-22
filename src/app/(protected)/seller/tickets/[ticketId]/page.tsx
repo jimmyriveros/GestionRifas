@@ -1,8 +1,8 @@
+import { CalendarDaysIcon, PlusIcon, TagIcon } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { PageHeader } from '@/components/data/PageHeader'
-import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ClientEmptyCard, ClientLinkCard } from '@/features/clients/components/ClientLinkCard'
@@ -10,6 +10,7 @@ import { listClientOptions } from '@/features/clients/queries'
 import { listClientPayments } from '@/features/payments/queries'
 import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
 import { AssignTicketDialog } from '@/features/tickets/assign/components/AssignTicketDialog'
+import { TicketPaymentSummary } from '@/features/tickets/components/TicketPaymentSummary'
 import { getTicketDetail } from '@/features/tickets/queries'
 import { SellerTicketActions } from '@/features/tickets/seller/components/SellerTicketActions'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
@@ -47,25 +48,46 @@ export default async function SellerTicketDetailPage({
   // BR-P10: `base_price` es nulo en las boletas vendidas antes de existir la
   // rebaja, que equivalen a rebaja cero.
   const discount =
-    ticket.salePrice !== null && ticket.basePrice !== null
-      ? ticket.basePrice - ticket.salePrice
-      : 0
+    ticket.salePrice !== null && ticket.basePrice !== null ? ticket.basePrice - ticket.salePrice : 0
 
   const reason = blockedReason(ticket.inventoryStatus, ticket.raffleStatus)
   const canAssign = ticket.inventoryStatus === 'available' && reason === null
   const canEditNumbers =
     ticket.inventoryStatus === 'draft' || ticket.inventoryStatus === 'pending_approval'
+  // El mismo criterio de siempre: solo se ofrece cobrar lo que de verdad falta.
+  const canRegisterPayment =
+    ticket.inventoryStatus === 'assigned' &&
+    ticket.clientId !== null &&
+    ticket.salePrice !== null &&
+    ticket.salePrice > ticket.paidAmount
 
   return (
-    <div className="space-y-6">
-      {/* La boleta se nombra por sus numeros; el codigo interno baja a la
-          informacion administrativa del final (BR-N11). */}
+    <div className="space-y-5 md:space-y-6">
+      {/* La boleta se nombra por sus numeros; el codigo interno baja al final
+          (BR-N11). Cobrar es la accion principal de esta pantalla y por eso
+          sube al encabezado, donde se alcanza sin recorrer el historial. */}
       <PageHeader
         title={ticketLabel(ticket)}
         description={`${ticket.raffleShortCode} — ${ticket.raffleName}`}
         backHref="/seller/tickets"
         actions={
           <>
+            {/* En el telefono la accion principal ocupa el ancho y mide 44 px
+                de alto, la diana minima comoda que ya usan la flecha de volver
+                y las casillas de seleccion (D-085). */}
+            {canRegisterPayment ? (
+              <Button asChild className="h-11 w-full sm:h-9 sm:w-auto">
+                <Link
+                  href={`/seller/payments/new?clientId=${ticket.clientId}`}
+                  // En pantalla dice «Registrar abono», que es lo que cabe en un
+                  // telefono; quien lo oye necesita saber de quien es el abono.
+                  aria-label={`Registrar un abono de ${ticket.clientName ?? 'este cliente'}`}
+                >
+                  <PlusIcon className="size-4" aria-hidden />
+                  Registrar abono
+                </Link>
+              </Button>
+            ) : null}
             {canAssign ? (
               <AssignTicketDialog
                 ticketId={ticket.id}
@@ -92,31 +114,20 @@ export default async function SellerTicketDetailPage({
         </p>
       ) : null}
 
+      {/* Quien es esta boleta: sus dos numeros, cuanto costo y quien la tiene.
+          El orden del HTML es el del telefono —numeros, cliente, precio—; en
+          escritorio la rejilla recoloca el cliente a la derecha sin repetir
+          nada (seccion 7 del encargo). */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Boleta</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Número diario">
-            <span className="font-mono text-lg tabular-nums">{ticket.dailyNumber ?? '—'}</span>
-          </Field>
-          <Field label="Número semanal">
-            <span className="font-mono text-lg tabular-nums">{ticket.weeklyNumber ?? '—'}</span>
-          </Field>
-          <Field label="Estado">
-            <InventoryStatusBadge status={ticket.inventoryStatus} />
-          </Field>
-          <Field label="Estado de pago">
-            {ticket.inventoryStatus === 'assigned' ? (
-              <PaymentStatusBadge status={ticket.paymentStatus} />
-            ) : (
-              <span className="text-muted-foreground">Sin venta</span>
-            )}
-          </Field>
-          {/* El cliente ocupa su propia fila y es una tarjeta pulsable entera,
-              no un enlace escondido en una celda (D-101): desde una boleta,
-              «quien la tiene» es lo que mas se consulta. */}
-          <div className="sm:col-span-2 lg:col-span-4">
+        <CardContent className="grid gap-6 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] xl:gap-8">
+          <div className="grid grid-cols-2 gap-3 sm:col-start-1 sm:row-start-1 xl:col-start-1">
+            <TicketNumber label="Número diario" value={ticket.dailyNumber} />
+            <TicketNumber label="Número semanal" value={ticket.weeklyNumber} />
+          </div>
+
+          {/* La fila entera del cliente es el enlace, y en escritorio ocupa toda
+              la altura de su columna: es la diana mas grande posible (D-101). */}
+          <div className="sm:col-span-2 sm:row-start-2 xl:col-span-1 xl:col-start-3 xl:row-start-1 xl:border-l xl:pl-8">
             {ticket.clientId ? (
               <ClientLinkCard
                 href={`/seller/clients/${ticket.clientId}`}
@@ -127,90 +138,91 @@ export default async function SellerTicketDetailPage({
               <ClientEmptyCard description="Todavía no la has vendido." />
             )}
           </div>
-          <Field label="Precio de venta">
-            {ticket.salePrice === null ? (
-              <span className="text-muted-foreground">
-                Sin vender (precio vigente {formatCOP(ticket.raffleTicketPrice)})
-              </span>
-            ) : (
-              <>
-                {formatCOP(ticket.salePrice)}
-                {/* La rebaja solo se nombra cuando la hubo: una venta al precio
-                    normal no necesita que le anuncien «rebaja de $0»
-                    (seccion 11 del encargo). */}
-                {discount > 0 ? (
-                  <span className="text-muted-foreground block text-xs">
-                    Precio de la rifa {formatCOP(ticket.basePrice ?? 0)} · rebaja de{' '}
-                    {formatCOP(discount)}
-                  </span>
-                ) : null}
-              </>
-            )}
-          </Field>
-          <Field label="Abonado">
-            {ticket.salePrice === null ? '—' : formatCOP(ticket.paidAmount)}
-          </Field>
-          <Field label="Fecha de venta">
-            {ticket.saleDate ? formatDateEs(ticket.saleDate) : '—'}
-          </Field>
+
+          <div className="space-y-4 sm:col-start-2 sm:row-start-1 xl:col-start-2 xl:border-l xl:pl-8">
+            <Field icon={<TagIcon className="size-4" aria-hidden />} label="Precio de venta">
+              {ticket.salePrice === null ? (
+                <p className="text-muted-foreground text-sm">
+                  Sin vender (precio vigente {formatCOP(ticket.raffleTicketPrice)})
+                </p>
+              ) : (
+                <>
+                  <p className="text-lg font-semibold tabular-nums">
+                    {formatCOP(ticket.salePrice)}
+                  </p>
+                  {/* La rebaja solo se nombra cuando la hubo: una venta al precio
+                      normal no necesita que le anuncien «rebaja de $0» (seccion
+                      11 del encargo). */}
+                  {discount > 0 ? (
+                    <p className="text-muted-foreground mt-0.5 text-xs">
+                      {`Precio de la rifa ${formatCOP(ticket.basePrice ?? 0)} · rebaja de ${formatCOP(discount)}`}
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </Field>
+
+            <Field
+              icon={<CalendarDaysIcon className="size-4" aria-hidden />}
+              label="Fecha de venta"
+            >
+              <p className="text-sm">
+                {ticket.saleDate ? formatDateEs(ticket.saleDate) : 'Todavía no'}
+              </p>
+            </Field>
+          </div>
         </CardContent>
       </Card>
+
+      <TicketPaymentSummary
+        inventoryStatus={ticket.inventoryStatus}
+        paymentStatus={ticket.paymentStatus}
+        salePrice={ticket.salePrice}
+        paidAmount={ticket.paidAmount}
+      />
 
       {ticket.inventoryStatus === 'assigned' ? (
-        <>
-          <TicketPaymentsCard payments={payments} ticketId={ticket.id} />
-          {ticket.salePrice !== null && ticket.salePrice > ticket.paidAmount ? (
-            <Button asChild>
-              <Link href={`/seller/payments/new?clientId=${ticket.clientId}`}>
-                Registrar un abono de {ticket.clientName}
-              </Link>
-            </Button>
-          ) : null}
-        </>
+        <TicketPaymentsCard payments={payments} ticketId={ticket.id} />
       ) : null}
 
+      {/* Lo administrativo, al final y en voz baja: hace falta alguna vez, pero
+          no compite con la boleta, el cliente ni el cobro (seccion 15). */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Historial</CardTitle>
+          <CardTitle className="text-muted-foreground text-sm font-medium">
+            Detalles de la boleta
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <HistoryLine label="Creada" value={formatDateTimeEs(ticket.createdAt)} />
-          <HistoryLine
-            label="Aprobada"
-            value={ticket.approvedAt ? formatDateTimeEs(ticket.approvedAt) : 'Todavía no'}
-          />
-          <HistoryLine
-            label="Asignada"
-            value={
-              ticket.assignedAt
-                ? `${formatDateTimeEs(ticket.assignedAt)}${
-                    ticket.clientName ? ` a ${ticket.clientName}` : ''
-                  }`
-                : 'Todavía no'
-            }
-          />
-          {ticket.cancelledAt ? (
-            <HistoryLine
-              label="Anulada"
-              value={`${formatDateTimeEs(ticket.cancelledAt)}${
-                ticket.cancelReason ? ` — ${ticket.cancelReason}` : ''
-              }`}
+        <CardContent className="text-sm">
+          <dl className="divide-y">
+            <DetailLine label="Creada" value={formatDateTimeEs(ticket.createdAt)} />
+            <DetailLine
+              label="Aprobada"
+              value={ticket.approvedAt ? formatDateTimeEs(ticket.approvedAt) : 'Todavía no'}
             />
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Información administrativa</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Field label="Código interno">
-            <span className="text-muted-foreground font-mono">{ticket.internalCode}</span>
-          </Field>
-          <p className="text-muted-foreground mt-2 text-xs">
-            Lo genera el sistema para identificar la boleta por dentro. Para buscarla, usa sus
-            números.
+            <DetailLine
+              label="Asignada"
+              value={
+                ticket.assignedAt
+                  ? `${formatDateTimeEs(ticket.assignedAt)}${
+                      ticket.clientName ? ` a ${ticket.clientName}` : ''
+                    }`
+                  : 'Todavía no'
+              }
+            />
+            {ticket.cancelledAt ? (
+              <DetailLine
+                label="Anulada"
+                value={`${formatDateTimeEs(ticket.cancelledAt)}${
+                  ticket.cancelReason ? ` — ${ticket.cancelReason}` : ''
+                }`}
+              />
+            ) : null}
+            <DetailLine label="Código interno" value={ticket.internalCode} mono />
+          </dl>
+          <p className="text-muted-foreground mt-3 text-xs">
+            El código interno lo genera el sistema para identificar la boleta por dentro. Para
+            buscarla, usa sus números.
           </p>
         </CardContent>
       </Card>
@@ -218,20 +230,53 @@ export default async function SellerTicketDetailPage({
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** Uno de los dos numeros, con su nombre encima: cual es cual importa. */
+function TicketNumber({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="space-y-1">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
-      <div className="text-sm">{children}</div>
+    <div className="bg-muted/40 min-w-0 rounded-lg border px-3 py-2">
+      {/* Sin recortar: en una columna estrecha el rotulo baja de linea, pero
+          «cuál de los dos números es este» no se puede esconder. */}
+      <p className="text-muted-foreground text-xs font-medium">{label}</p>
+      <p className="mt-0.5 font-mono text-2xl font-semibold tabular-nums">{value ?? '—'}</p>
     </div>
   )
 }
 
-function HistoryLine({ label, value }: { label: string; value: string }) {
+function Field({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode
+  label: string
+  children: React.ReactNode
+}) {
   return (
-    <div className="flex flex-wrap justify-between gap-2 border-b pb-2 last:border-0 last:pb-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">{value}</span>
+    <div className="flex items-start gap-3">
+      <span className="text-muted-foreground mt-0.5 shrink-0">{icon}</span>
+      <div className="min-w-0 space-y-0.5">
+        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function DetailLine({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+}) {
+  return (
+    <div className="flex flex-wrap justify-between gap-2 py-2 first:pt-0 last:pb-0">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={mono ? 'text-muted-foreground text-right font-mono' : 'text-right'}>
+        {value}
+      </dd>
     </div>
   )
 }

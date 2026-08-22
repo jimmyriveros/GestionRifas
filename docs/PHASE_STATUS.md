@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-08-14
+- **Actualizado:** 2026-08-22
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso
 - **Fase siguiente:** ninguna autorizada
 
@@ -11,7 +11,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 
 | Clasificación | Estado actual |
 |---|---|
-| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15) y la rebaja del vendedor (2026-08-17, **solo en local**) |
+| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22) y el **rediseño del detalle de boleta** (2026-08-22, solo en local) |
 | **En curso** | Ninguna |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
@@ -1501,3 +1501,64 @@ que sí informa es «pausa humana + una navegación», repetido varias veces.
 
 **Fluid Compute pasa a ser requisito de despliegue**, no un consejo: `DEPLOYMENT.md` §3.1.b. Si
 alguien lo desactiva, los tres segundos vuelven y ningún cambio de código los quitará.
+
+---
+
+## Mantenimiento post-9 — rediseño del detalle de boleta (2026-08-22)
+
+Encargo del dueño: acercar la pantalla **Detalle de boleta** del portal del vendedor a un diseño de
+referencia, **sin tocar la lógica**, con el teléfono como prioridad. Decisión **D-105**. Sin
+migraciones. **No desplegado**: queda como commit local.
+
+### 1. Funcionalidades implementadas
+
+Ninguna nueva, y es a propósito: es un cambio de presentación. Lo que cambia:
+
+- **La acción de cobrar sube al encabezado.** «Registrar abono» estaba *debajo* del historial de
+  abonos, que es lo último que se lee. Mismo destino (`/seller/payments/new?clientId=…`) y misma
+  condición que antes: boleta asignada, con cliente y con saldo pendiente.
+- **Cuatro bloques en orden de uso**: identidad (los dos números, precio con su rebaja, fecha y
+  cliente) · estado y cobro (estado, estado de pago, anillo de progreso, abonado y pendiente) ·
+  abonos de esta boleta · detalles administrativos, al final y en voz baja.
+- **El historial de abonos muestra ya «Registrado por» y «Nota»**, que venían en los datos y no se
+  enseñaban. En el teléfono cada abono es una tarjeta apilada; desde `lg`, columnas alineadas.
+- **Lo administrativo se junta en una sola tarjeta final** (creada, aprobada, asignada, anulada y
+  código interno), en lugar de dos tarjetas con el mismo peso visual que el resto.
+- **El color solo donde significa algo**: verde lo abonado, ámbar lo pendiente, y ninguno cuando la
+  cifra es cero. Los estados siguen siendo los badges con texto de `constants.ts`.
+
+**Lo que se dejó fuera del diseño de referencia a propósito:** «Notas rápidas» y el menú `···` de
+cada abono (no existen; un botón que no hace nada es peor que ninguno) y la hora del abono
+(`payment_date` es una fecha sin hora).
+
+### 2. Pruebas ejecutadas y resultados
+
+**320** unitarias ✅ · `typecheck`, `lint` y `build` ✅ · E2E **239/239 escritorio** y **35/35
+móvil** · capturas a 320, 390, 768, 1024 y 1440 px sin desbordamiento horizontal · **0 errores de
+consola**. Tres errores de maquetación encontrados y corregidos durante la propia verificación, y una
+trampa de Turbopack que costó un ciclo de capturas: detalle en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+Ninguna. La base de datos no se toca: `pending_amount` y el porcentaje se derivan de `sale_price` y
+`paid_amount`, que la pantalla ya recibía.
+
+### 4. Variables de entorno
+
+Sin cambios.
+
+### 5. Problemas reales que permanecen
+
+Los de antes (I-066, I-062, I-063 y la columna «Abono» del importador). Este trabajo no abre ninguno
+nuevo. Queda **pendiente de decisión** si el detalle de boleta del **portal administrativo** —que
+sigue con la rejilla de cuatro columnas— debe recibir la misma disposición.
+
+### 6. Qué debe revisar el siguiente agente
+
+1. El corte de tres columnas es **`xl`, no `lg`**, y el porqué está medido: `ARCHITECTURE.md` §8.7.
+2. `TicketPaymentsCard` la comparten los **dos** portales: al tocarla, mira también
+   `/owner/tickets/[ticketId]`.
+3. El botón dice «Registrar abono» y su `aria-label` es «Registrar un abono de \<cliente\>»; hay
+   pruebas que lo buscan por ese nombre.
+4. Antes de dibujar otro porcentaje, mira `ProgressRing` y la barra de `CollectionSummaryCard`: el
+   porcentaje va **escrito**, nunca solo en el color.

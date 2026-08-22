@@ -61,7 +61,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — la navegación, medida desde el clic (2026-08-22)
+## 1.a Último relevo significativo — rediseño del detalle de boleta (2026-08-22)
+
+| Campo | Estado |
+|---|---|
+| Resultado | La pantalla que más usa un vendedor desde el teléfono —el detalle de una boleta— se reordenó por **jerarquía de uso**: encabezado con los dos números y **«Registrar abono»** como acción principal (antes vivía *debajo* del historial), tarjeta de identidad (números · precio y rebaja · cliente), tarjeta de estado y cobro con **anillo de progreso, abonado y pendiente**, historial de abonos y, al final y en voz baja, fechas y código interno. **Cambio solo de presentación:** ni una consulta nueva, ni una regla de negocio distinta, ni una columna más (D-105) |
+| Archivos | **`src/components/data/ProgressRing.tsx` (nuevo)** · **`src/features/tickets/components/TicketPaymentSummary.tsx` (nuevo)** · `app/(protected)/seller/tickets/[ticketId]/page.tsx` (reescrito) · `features/payments/components/TicketPaymentsCard.tsx` (lista responsive con «Registrado por» y «Nota», que ya venían en los datos y no se mostraban) · `features/clients/components/ClientLinkCard.tsx` (avatar y alto completo) · `features/tickets/assign/components/AssignTicketDialog.tsx` (botón de 44 px a lo ancho en el teléfono). Documentación: `DECISIONS` (D-105), `ARCHITECTURE` §8.2 y **§8.7**, `TEST_RESULTS`, `HANDOFF` |
+| Reutilización | `PageHeader`, `Card`, `Badge`, `Button`, `ClientLinkCard`, `StatusBadge` y `formatCOP`/`formatDateEs` tal cual. El porcentaje lo calcula **`calculateCollectionSummary`**, la misma función del panel, en vez de una segunda división. **Sin dependencias nuevas:** el anillo es un `<svg>` con `stroke-dasharray` |
+| Decisiones | **D-105**. Incluye lo que **no** se copió del diseño de referencia y por qué: «Notas rápidas» y el menú `···` no existen, la hora del abono no existe en los datos, y el título de la tarjeta sigue siendo **«Abonos de esta boleta»** —no «Historial de abonos», que es el del cliente entero (BR-F13)— |
+| Verificación | **320/320** unitarias · `typecheck`, `lint` y `build` ✅ · E2E **239/239 escritorio** y **35/35 móvil** · capturas a **320, 390, 768, 1024 y 1440 px** con `scrollWidth == innerWidth` en todas (cero desbordamiento horizontal) · **0 errores de consola** · comprobados por prueba el `aria-valuenow` del anillo, el nombre accesible de «Registrar un abono de …» y los 44 px de la fila del cliente |
+| Advertencias | **1)** El corte de tres columnas es **`xl`, no `lg`**: con la barra lateral, 1.024 px dejan 672 px y el nombre del cliente se corta (`ARCHITECTURE` §8.7). **2)** El botón dice «Registrar abono» pero su `aria-label` es «Registrar un abono de \<cliente\>»; hay pruebas que lo buscan por ese nombre. **3)** `TicketPaymentsCard` la comparten los **dos** portales: al tocarla, mira también `/owner/tickets/[ticketId]`. **4)** El detalle del portal administrativo **no** se rediseñó; sigue con la rejilla de cuatro columnas |
+| Publicación | **No desplegado.** Sin migraciones y sin cambios de servidor; queda como commit local a la espera de autorización |
+| Pendiente | Lo de siempre (I-066, I-062, I-063, columna «Abono» del importador) y, si se quiere, llevar la misma disposición al detalle de boleta del portal administrativo |
+| Git | Rama `main`, commit local sobre `c73dc9d`. Sin push |
+
+## 1.a.0 Relevo anterior — la navegación, medida desde el clic (2026-08-22)
 
 | Campo | Estado |
 |---|---|
@@ -547,9 +561,19 @@ features/search/    busqueda hibrida (D-078/D-079): useUrlSearch (listas paginad
                     normaliza en lib/search.ts, que tiene que seguir coincidiendo con
                     search_normalize() de la migracion 0017
 features/clients/components/ClientLinkCard  el cliente como fila pulsable entera, con
-                    su telefono y su flecha, hacia la ficha de cliente QUE YA EXISTE
-                    (D-101). Un solo componente para los dos portales; el href es lo
-                    unico que cambia. ClientEmptyCard es el mismo hueco sin enlace
+                    su avatar, su telefono y su flecha, hacia la ficha de cliente QUE YA
+                    EXISTE (D-101). Un solo componente para los dos portales; el href es
+                    lo unico que cambia. ClientEmptyCard es el mismo hueco sin enlace
+components/data/ProgressRing  anillo de progreso accesible, sin librerias (D-105).
+                    Antes de dibujar otro porcentaje, mira este y la barra de
+                    CollectionSummaryCard: el porcentaje SIEMPRE va escrito, no solo
+                    en el color
+features/tickets/components/TicketPaymentSummary  estado, estado de pago, anillo,
+                    abonado y pendiente de UNA boleta (D-105). No calcula: pide el
+                    porcentaje a calculateCollectionSummary, la cuenta del panel
+features/payments/components/TicketPaymentsCard  los abonos de UNA boleta, en los dos
+                    portales: apilados en el telefono, en columnas desde lg. Un solo
+                    arbol de HTML, no una tabla escondida y otra visible
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
 features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
                     ExportCsvButton
@@ -741,3 +765,5 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Tocas el motor de comisión y la invariante del ledger deja de cuadrar | La línea de la rebaja se calcula **por resto** (lo que falte para cuadrar), no como «diferencia de rebajas». Es lo que hace que `sum(ledger) = earned` se mantenga por construcción y no dependa de que tres fórmulas sigan siendo consistentes | D-099 · BR-G10 |
 | Añades un campo a un diálogo y una prueba reintenta el clic decenas de veces contra un botón «visible y habilitado» | El botón se salía de la pantalla porque `DialogContent` no acotaba su alto. **Resuelto en el componente compartido** (`max-h-[calc(100dvh-2rem)] overflow-y-auto`), así que ya no puede repetirse en ningún diálogo. Lo vigila `tests/e2e/dialogos-alcanzables.spec.ts`, que corre los mismos escenarios en dos tamaños de ventana | D-099 |
 | Necesitas que un diálogo concreto sea más bajo o más alto | Pásale su propia clase `max-h-*`: `cn` usa `tailwind-merge`, así que la de quien llama gana sobre la del componente. No hace falta —ni conviene— volver a declarar `overflow-y-auto` | D-099 |
+| Cambias una clase de Tailwind **con valor entre corchetes** y en `npm run dev` no pasa nada | La caché de Turbopack se queda con la clase **anterior** y no genera la nueva: la rejilla se ve de una sola columna y parece un error de maquetación. Compruébalo en el CSS generado (`.next/dev/static/chunks/src_app_globals_css_*.css`); si la clase vieja sigue ahí, `rm -rf .next/dev` y reinicia. El `build` de producción sí la genera | D-105 |
+| El servidor de desarrollo empieza a devolver **500 en todas las rutas** sin haber tocado nada | Ocurre después de un `Finished filesystem cache database compaction` en el log de Turbopack. Reiniciar `npm run dev:local` lo arregla; no es la aplicación | D-105 |

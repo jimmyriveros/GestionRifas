@@ -2445,3 +2445,57 @@ sospechó y quedó descartado midiéndolo.
 | Navegación normal 300–500 ms | ✅ encadenada (~350) y con ruta visitada (~490) |
 | Pantallas pesadas < 1 s | ✅ mediana 847 ms tras pausa; 1 de 6 en 1.357 ms |
 | ~3 s no aceptable | ✅ **0 de 6 por encima de 2 s** |
+
+---
+
+## Rediseño del detalle de boleta (2026-08-22)
+
+Cambio **solo de presentación** en `/seller/tickets/[ticketId]` (D-105). Como no toca consultas,
+reglas ni base de datos, la verificación se concentró en dos preguntas: *¿se rompió algo que ya
+funcionaba?* y *¿se ve y se usa bien en un teléfono?*
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npm run test` | **320/320 ✅** | — | — |
+| `npx tsc --noEmit` | ✅ | Una vez: `Expected '</', got 'ident'`. Un comentario `{/* … */}` colocado como primer elemento **dentro** de un ternario `cond ? ( … )`, que es posición de expresión, no de hijos | El comentario sube a la posición de hijos, encima del `{cond ? (` |
+| `npm run lint` | ✅ 0 errores | 2 advertencias, las mismas de antes (`BulkTicketCreator`, librería incompatible con el compilador de React) | Ninguna: preexistentes y ajenas |
+| `npm run build` | ✅ | — | — |
+| `npx playwright test --project=escritorio` | **239/239 ✅** (12,6 min) | — | — |
+| `npx playwright test --project=movil` | **35/35 ✅** | — | — |
+
+**Sin desbordamiento horizontal, medido y no supuesto.** Con la sesión de un vendedor real, en cinco
+anchos, comparando `document.documentElement.scrollWidth` contra `window.innerWidth`:
+
+| Ancho | scrollWidth / innerWidth | Qué se comprobó además |
+|---|---|---|
+| 320 px | 320 / 320 ✅ | Los rótulos «Número diario/semanal» **bajan de línea** en vez de recortarse, y las dos cifras de dinero caben junto al anillo |
+| 390 px | 390 / 390 ✅ | La acción principal ocupa el ancho y mide **44 px** de alto |
+| 768 px (tableta, con barra lateral) | 768 / 768 ✅ | Es el ancho útil **más estrecho** de todos: 464 px de contenido |
+| 1024 px | 1024 / 1024 ✅ | El nombre del cliente **completo**, sin `…` |
+| 1440 px | 1440 / 1440 ✅ | Las tres columnas y el historial en columnas alineadas |
+
+**Comprobaciones de accesibilidad y de que nada se perdió** (prueba temporal, con sesión real):
+
+| Qué | Resultado |
+|---|---|
+| La boleta sigue nombrándose por sus dos números | `heading "7 / 1004"` visible ✅ |
+| El anillo publica su valor, no solo su color | `role="progressbar"`, `aria-valuenow="83"`, `aria-label="Abonado el 83% del precio de venta"` ✅ |
+| El botón corto sigue teniendo nombre completo para quien lo oye | `link "Registrar un abono de Beatriz Rojas"` ✅ |
+| La fila del cliente sigue siendo una diana cómoda y enfocable | 44 px de alto, recibe foco ✅ |
+| Errores de consola | **0** ✅ |
+
+**Tres errores encontrados durante la propia verificación**, todos de maquetación y corregidos antes
+de cerrar:
+
+| Síntoma | Causa | Corrección |
+|---|---|---|
+| La fecha del abono se montaba encima del icono del método | La columna «Fecha» medía 6 rem y «22 de ago de 2026» necesita ~7,5 | Columna a 9 rem |
+| «Número semanal» y el nombre del cliente salían recortados a 768 y 1024 px | El corte de tres columnas estaba en `lg`: con la barra lateral, 1.024 px dejan 672 px de contenido | El corte pasa a `xl`, y el rótulo pierde `truncate` para poder bajar de línea |
+| La palabra «abonado» se salía del anillo en el teléfono | El anillo encoge a 64 px y el texto no | El texto encoge con él (9 px en móvil, 11 desde `sm`) |
+
+**Y una trampa de herramientas, no de código** (anotada en `HANDOFF.md` §9): al cambiar una clase de
+Tailwind con valor entre corchetes, Turbopack sirvió la CSS **anterior** durante todo un ciclo de
+capturas —la rejilla se veía de una sola columna— mientras el `build` de producción sí generaba la
+clase nueva. Se confirmó leyendo el CSS generado y se resolvió con `rm -rf .next/dev`. El mismo
+servidor de desarrollo empezó después a devolver 500 en todas las rutas tras un *cache compaction*
+de Turbopack; reiniciarlo lo arregló.

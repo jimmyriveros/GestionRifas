@@ -346,6 +346,8 @@ usan guardas propias; I-051 registra una acción auxiliar que todavía no valida
 | `EmptyState` | Estado vacío con acción sugerida |
 | `RowLink` | Enlace de una **fila** de tabla: un `Link` con `prefetch={false}`. Veinticinco filas precargadas son veinticinco invocaciones del servidor que casi nadie usa, y en Vercel enfrían la función que atenderá el clic siguiente (D-104) |
 | `NavLinks` → `NavPending` | El menú lateral y su aviso de «se está abriendo», con `useLinkStatus`. Sustituye a los `loading.tsx`, que costaban ~300 ms de espera por fallback de Suspense (D-104) |
+| `ProgressRing` | Anillo de progreso accesible (D-105): un `<svg>` con `stroke-dasharray`, sin librería de gráficas. Lleva el porcentaje **escrito** en el centro y `role="progressbar"`; es la versión compacta de la barra de `CollectionSummaryCard`, para cuando el porcentaje comparte fila con cifras de dinero |
+| `TicketPaymentSummary` | Estado, estado de pago y —si ya se vendió— anillo, abonado y pendiente de UNA boleta (D-105). No consulta ni calcula: recibe `sale_price` y `paid_amount` y pide el porcentaje a `calculateCollectionSummary`, la misma cuenta del panel |
 | `PageHeader` | Título, descripción y acciones de toda pantalla. `backHref` activa la flecha de volver de las pantallas de detalle (§8.6, D-089) |
 | `BackButton` | Flecha de volver: historial real con destino de repuesto. La usa `PageHeader`, no se llama suelta |
 | `navigation-history.ts` | Cuenta los cambios de ruta reales de esta pestaña, para que `BackButton` sepa si el historial es de fiar (D-089) |
@@ -518,6 +520,26 @@ botones «Cancelar» de `RaffleForm`/`ClientForm`/`PaymentForm`/`TicketForm` can
 curso con `router.back()` directo, un propósito distinto al de esta flecha; no se tocaron porque nadie
 pidió endurecerlos y este proyecto no tiene protección de cambios sin guardar que preservar ni romper.
 `forgot-password` es una pantalla pública fuera del portal, no una pantalla de detalle.
+
+### 8.7 Disposición del detalle de una boleta (D-105)
+
+Un solo árbol de HTML para todos los tamaños. El orden del marcado es el del **teléfono** y la
+rejilla lo recoloca en pantallas anchas con `col-start`; no hay bloques `hidden` que repitan el
+mismo texto ni una tabla encogida.
+
+| Bloque | Teléfono (base) | Tableta (`sm`) | Escritorio |
+|---|---|---|---|
+| Identidad (números · precio · cliente) | apilado: números → cliente → precio → fecha | 2 columnas, cliente a lo ancho debajo | 3 columnas desde **`xl`**, cliente a la derecha |
+| Estado y cobro | estados arriba, dinero debajo de una línea | igual | una fila desde `lg` |
+| Abonos de esta boleta | cada abono, una tarjeta apilada | igual | columnas alineadas con su encabezado desde `lg` |
+
+**Por qué el corte grande es `xl` y no `lg`.** Con la barra lateral de 256 px, una ventana de 1.024
+px deja 672 px de contenido: una tableta de 768 px tiene **menos** ancho útil que un teléfono
+apaisado de 640 px. Comprobado con capturas a 320, 390, 768, 1024 y 1440 px.
+
+**El encabezado de columnas del historial va `aria-hidden`**, y cada fila lleva su propio rótulo
+`lg:sr-only` («Registrado por», «Nota»): en escritorio el rótulo se oculta a la vista pero el lector
+de pantalla lo sigue leyendo, que es justo lo que un `<div>` en rejilla no da gratis.
 
 ---
 

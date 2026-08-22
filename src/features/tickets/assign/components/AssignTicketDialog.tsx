@@ -45,7 +45,9 @@ export function AssignTicketDialog({
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
+      {/* En el telefono ocupa el ancho y mide 44 px de alto: es la accion
+          principal de la pantalla y se pulsa con el dedo (D-085). */}
+      <Button type="button" className="h-11 w-full sm:h-9 sm:w-auto" onClick={() => setOpen(true)}>
         Asignar a un cliente
       </Button>
 

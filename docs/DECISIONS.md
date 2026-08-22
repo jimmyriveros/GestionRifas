@@ -1,10 +1,10 @@
-# REGISTRO DE DECISIONES
+﻿# REGISTRO DE DECISIONES
 
 Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión → alternativas
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.19 · **Actualizado:** 2026-08-22 (D-001 a D-104)
+- **Versión:** 1.20 · **Actualizado:** 2026-08-22 (D-001 a D-105)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -2610,6 +2610,79 @@ página— cuesta unos 80 ms y se podría evitar, pero es la validación de sesi
 deliberadamente en capas (`SECURITY.md` §1). No se toca la autenticación para ganar 80 ms cuando el
 problema real es de 3.000.
 
+
+
+---
+
+## D-105 — El detalle de una boleta se ordena por lo que se mira, y el teléfono manda
+
+**Fecha:** 2026-08-22 · **Estado:** aceptada · **Sin migración** · Solo interfaz · Continúa D-101
+
+**Contexto.** El detalle de boleta del vendedor presentaba todo con la misma voz: una rejilla de
+cuatro columnas donde el precio, el estado, la fecha y los dos números pesaban igual, el código
+interno tenía tarjeta propia y la acción de cobrar aparecía **debajo** del historial de abonos, que
+es lo último que se lee. Es la pantalla que más usa un vendedor desde un teléfono, y era la que menos
+jerarquía tenía. El dueño pidió acercarla a un diseño de referencia sin tocar nada de lo que ya
+funciona.
+
+**Decisión.** Cambio **solo de presentación**: ni una consulta nueva, ni una regla de negocio
+distinta, ni una columna más. La pantalla pasa a cuatro bloques en orden de uso:
+
+| Bloque | Qué contiene | Por qué ahí |
+|---|---|---|
+| Encabezado | Los dos números como título, la rifa, y **«Registrar abono»** | Cobrar es a lo que se viene; ya no se llega a esa acción bajando por el historial |
+| Identidad | Número diario y semanal, precio (con su rebaja si la hubo), fecha, y el cliente | Qué boleta es y quién la tiene |
+| Estado y cobro | Estado, estado de pago, anillo de progreso, abonado y pendiente | La pregunta que sigue: cuánto falta |
+| Abonos y detalles | Historial de abonos y, al final y en voz baja, fechas y código interno | Consulta, no operación |
+
+**El orden del HTML es el del teléfono.** Números → cliente → precio → fecha. En escritorio la
+rejilla recoloca el cliente a la derecha con `col-start`, sin duplicar marcado ni pintar dos árboles
+distintos. Lo mismo en el historial: **una sola lista** que en el móvil apila cada abono y a partir
+de `lg` se reordena en columnas alineadas con su encabezado. No hay una tabla encogida ni un bloque
+`hidden` con el mismo texto repetido.
+
+**Dónde cambia la maquetación, y por qué ahí.** El corte de tres columnas es `xl`, no `lg`: con la
+barra lateral de 256 px, una ventana de 1.024 px deja 672 px de contenido y el nombre del cliente se
+cortaba. Una tableta de 768 px tiene **menos** ancho útil que un teléfono de 640 px, y por eso hasta
+`xl` manda la disposición apilada.
+
+**El color solo donde significa algo** (encargo §5). Gris para todo; verde para lo abonado, ámbar
+para lo pendiente, y ninguno de los dos cuando la cifra es cero, porque entonces no hay nada que
+señalar. Los estados siguen siendo los badges de `constants.ts`, con su texto: el anillo lleva el
+porcentaje escrito en el centro y `role="progressbar"`, nunca solo el color (CLAUDE.md §27).
+
+**Qué NO se copió del diseño de referencia, y por qué.**
+
+* **«Notas rápidas»** y el menú `···` de cada abono: no existen. Dibujar un botón que no hace nada es
+  peor que no dibujarlo.
+* **«Historial de abonos»** como título: se conserva **«Abonos de esta boleta»**. La tarjeta muestra
+  solo la parte de cada pago que toca *esta* boleta (BR-F13); «historial de abonos» es el nombre del
+  historial completo del cliente, en su ficha. Un texto que suena mejor pero describe peor es un
+  retroceso (CLAUDE.md §35.2).
+* **La hora del abono**: `payments.payment_date` es una fecha sin hora. Se muestra lo que hay.
+* **El verde de marca en el botón principal**: el primario de esta aplicación es el negro de
+  `--primary`. Repintar un botón de una pantalla habría dejado la única acción verde de la
+  aplicación justo donde el resto son negras.
+
+**«Registrar abono» dice dos cosas distintas a la vez.** En pantalla, dos palabras, que es lo que
+cabe en un teléfono; para quien lo oye, `aria-label="Registrar un abono de <cliente>"`, que es lo que
+hace falta saber. La condición para mostrarlo no cambió: boleta asignada, con cliente y con saldo
+pendiente.
+
+**El porcentaje reutiliza `calculateCollectionSummary`.** Es la misma división que hace el panel, ya
+probada para el caso sin ventas, el cobro completo y un pendiente negativo que la base impide pero
+que la interfaz nunca debe pintar. Escribir aparte `paid / price` habría sido una segunda fórmula
+para la misma cifra.
+
+**Componentes nuevos, dos, y ambos genéricos.** `ProgressRing` (anillo accesible, sin dependencias:
+un `<svg>` y `stroke-dasharray`) y `TicketPaymentSummary`. Se descartó instalar una librería de
+gráficas para dibujar un círculo.
+
+**Qué se descartó.** (a) Poner el título en «Detalle de boleta» y los números grandes dentro de la
+tarjeta, como la referencia: en esta aplicación el `h1` de una ficha es **el registro** —el nombre
+del cliente, el de la rifa—, y los dos números son el nombre de una boleta (BR-N11). (b) Un
+`<details>` plegable para lo administrativo: no existe ese patrón en el proyecto y no se introduce
+uno por una tarjeta. (c) Repetir la acción de cobrar arriba y abajo.
 
 ## Ambigüedades pendientes de confirmación del usuario
 
