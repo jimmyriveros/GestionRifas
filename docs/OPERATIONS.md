@@ -113,3 +113,22 @@ del dueño del negocio. Ver **I-021**.
 **Rifa e inventario de prueba.** «Rifa Navidad 2026» y «Rifa Control 2026» (y sus boletas, clientes y
 pagos) son datos de demostración del mismo seed. Anúlalas (§3) cuando la operación real empiece, en
 vez de dejarlas activas mezcladas con datos reales.
+
+---
+
+## 6. Si la aplicación tarda segundos al cambiar de pantalla
+
+Lo primero que hay que mirar **no** es la base de datos: es si **Fluid Compute** sigue activo en el
+proyecto de Vercel (Settings → Functions, `DEPLOYMENT.md` §3.1.b). Sin él, la función que sirve las
+pantallas arranca en frío tras un rato sin tráfico y la primera navegación cuesta 3–5 segundos
+(I-067).
+
+Cómo distinguirlo en treinta segundos, sin herramientas:
+
+1. Abre una pantalla, espera un minuto sin tocar nada y pulsa otro menú. Si **esa** navegación es
+   lenta y las siguientes van bien, es arranque en frío.
+2. Si **todas** van lentas por igual, entonces sí toca mirar los datos (`KNOWN_ISSUES.md` I-062 e
+   I-063 dicen a qué volumen empieza a doler cada cosa).
+
+Y recuerda que **activar Fluid Compute no cambia el despliegue que ya está en línea**: hay que volver
+a desplegar para que tome efecto.

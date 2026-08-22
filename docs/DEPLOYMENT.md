@@ -112,6 +112,20 @@ Settings → Environment Variables del proyecto `gestion-rifas`, scope **Product
 `scripts/check-env.ts` (el `prebuild`) corta el build si falta alguna de las tres claves de Supabase.
 Hoy no valida `NEXT_PUBLIC_SITE_URL`; comprobarla en Vercel sigue siendo un paso manual (I-049).
 
+### 3.1.b Fluid Compute (Settings → Functions) — obligatorio para que la navegación no tarde segundos
+
+**Debe estar activado.** Sin él, la función que sirve las pantallas arranca en frío cada vez que pasa
+un rato sin tráfico, y la primera navegación después de leer una pantalla cuesta **3–5 segundos**
+(I-067, D-104). Medido sobre la misma ruta y la misma sesión: 261–333 ms con la función caliente
+frente a 3.594–4.276 ms tras 45–90 s de pausa.
+
+**No es una optimización de la aplicación y ningún cambio de código lo arregla**: se comprobó que
+`/login`, que no consulta nada, sufre el mismo pico, y que `/denied`, que se sirve desde el CDN, no
+lo sufre nunca.
+
+⚠️ **Se aplica a los despliegues NUEVOS.** Activarlo no cambia el despliegue que ya está en línea:
+hay que volver a desplegar para que surta efecto. Está disponible también en el plan Hobby.
+
 ### 3.2 Primer despliegue real
 
 1. Confirmar que las variables de §3.1 están puestas (Production).
