@@ -2252,3 +2252,37 @@ Aunque el encargo era de rendimiento, dos cosas se arreglaron porque eran defect
 | Aislamiento: un vendedor solo ve su cartera y sus pagos en las vistas nuevas | ✅ |
 | Errores y advertencias de consola en las 16 pantallas medidas | ✅ **ninguno** |
 | Peticiones 4xx/5xx o recursos que no cargan | ✅ **ninguna** |
+
+### h. Promoción a producción y verificación en el proyecto real (2026-08-22)
+
+Autorizada por el dueño el mismo día. Procedimiento de `RUNBOOK` §5.1 y `DEPLOYMENT` §2.2.
+
+| Comprobación | Resultado |
+|---|---|
+| Respaldo previo `Rifas-backups/2026-08-22-pre-0030/` | ✅ 13 tablas con datos · `grep -c '"auth"'` = **0** · `grep -c encrypted_password` = **0** |
+| `db push --dry-run` | ✅ solo `0030_read_performance.sql` |
+| `db push --yes` | ✅ aplicada |
+| `npm run verify:remote` | ✅ **13/13** |
+| Catálogo real: los 6 índices | ✅ los seis, con su definición exacta (las tres condiciones parciales incluidas) |
+| Catálogo real: las 2 vistas | ✅ `security_invoker=true` en ambas |
+| `schema_migrations` | ✅ `0030, 0029, 0028, 0027` |
+| Equivalencia **sobre datos reales**: `v_client_balances` | ✅ **0 filas distintas** frente a la formulación con `group by`, sobre los 46 clientes |
+| Equivalencia **sobre datos reales**: `v_payment_history` | ✅ **3 pagos = 3 filas** |
+| Plan real del listado de boletas | ✅ `Index Scan using tickets_created_at_idx` |
+| Despliegue | ✅ Vercel `READY`, `dpl_8C6NRgGVxUVwe5n7VMsj6dESGjVB` sobre `d15d386`, alias `gestion-rifas.vercel.app` |
+| `/login` y cabeceras | ✅ 200 con las seis cabeceras; `/owner/*` y `/seller/*` en 307 al login |
+| Pasada con sesión real (solo lectura), 9 pantallas | ✅ todas renderizan · **0 errores de consola** · **0 respuestas 4xx/5xx** |
+| Clientes (vista reescrita) | ✅ 25 filas, «Mostrando 1–25 de 45» |
+| Pagos (vista reescrita) | ✅ los 3 pagos, con cliente, boletas y estado |
+| Ficha de cliente | ✅ «1 boleta · $120.000 comprado · $0 pagado · $120.000 pendiente» |
+
+**No hay mejora de velocidad visible en producción, y es lo correcto.** La organización real tiene 46
+clientes, 121 boletas y 3 pagos: con ese tamaño PostgreSQL elige un barrido secuencial porque *es* lo
+más rápido, y así se ve en el plan del historial de pagos. `0030` es preventiva.
+
+**Un error cometido en la verificación, registrado como I-066.** La primera sonda con sesión real
+pulsó «Ingresar» antes de que React hidratara —la trampa de §5.3 de `TESTING.md`, cometida por quien
+la había leído— y el formulario cayó a su envío nativo por `GET`: la contraseña de las cuentas
+`@demo.test` viajó en la URL hasta Vercel. Se rehízo la sonda esperando la hidratación **y**
+abortando cualquier petición con `password=` en la dirección; en la segunda pasada ese bloqueo no se
+disparó ni una vez. Recomendación: rotar esa contraseña (I-021, I-066).

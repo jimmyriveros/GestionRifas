@@ -2358,7 +2358,7 @@ desde antes.
 
 ## D-102 — El volumen se midió antes de tocar nada, y lo que estaba mal eran cuatro barridos de tabla
 
-**Fecha:** 2026-08-22 · **Estado:** aceptada · **Migración `0030_read_performance.sql`** · Origen:
+**Fecha:** 2026-08-22 · **Estado:** aceptada · **Migración `0030_read_performance.sql`, aplicada al proyecto real el 2026-08-22** · Origen:
 auditoría de rendimiento encargada por el usuario
 
 **Contexto.** El producto funciona con las decenas de boletas del seed y con las miles de la

@@ -1,6 +1,6 @@
 # PROBLEMAS CONOCIDOS Y RIESGOS
 
-**Actualizado:** 2026-08-22 (auditoría de rendimiento y escalabilidad; I-062 a I-065). Este
+**Actualizado:** 2026-08-22 (auditoría de rendimiento y escalabilidad, I-062 a I-065; promoción de `0030` e I-066). Este
 documento **no oculta errores**.
 Las trampas más frecuentes están resumidas en [`HANDOFF.md`](HANDOFF.md) §9.
 Los hallazgos de la auditoría final, con su evidencia, están en
@@ -83,11 +83,15 @@ Los hallazgos de la auditoría final, con su evidencia, están en
 | I-063 | **Los agregados por rifa y por vendedor recorren la tabla de boletas entera: es el techo de escalabilidad que queda** | ⚠️ Abierto (2026-08-22) | `v_seller_summary` y `v_raffle_summary` agrupan **todas** las boletas de la organización cada vez que se abre un panel, la pantalla de vendedores, la de pagos o un reporte. Medido con 300.000 boletas: **160 ms** y **180 ms**. Es coste lineal: con 3.000.000 serían del orden de 1,5–2 s. D-103 redujo de dos lecturas a una por pantalla, que es la mitad del gasto, pero no cambia la naturaleza del cálculo. **La salida existe y el proyecto ya la usa en otro sitio**: una tabla de resumen mantenida por disparadores, exactamente como `seller_commissions` (0024), que hoy responde en 5 ms porque no cuenta nada al leer. No se implementó aquí: es un cambio de arquitectura sobre las cifras de dinero del panel y necesita autorización expresa, su propia migración y su propio juego de pruebas de consistencia. **Volumen en el que empieza a doler: ~1.000.000 de boletas por organización** (≈ 500 ms por panel) |
 | I-064 | **El conteo exacto del historial de pagos recorre la tabla de pagos entera en cada página** | ⚠️ Abierto (2026-08-22) | El «Mostrando 1–25 de N» se pide con `count: 'exact'`, y contar un millón de pagos son **221 ms** aunque las 25 filas ya se resuelvan en 9 ms (D-102 arregló las filas, no el conteo). Solo pesa en el historial **sin filtros**; con un rango de fechas o un cliente, el índice acota el conteo. Se descartó `count=estimated` de PostgREST porque volvería aproximado el total **y el número de páginas**, y una lista de dinero que dice «página 7 de 39.000±» no informa: es preferible el cuarto de segundo. Alternativa futura, si molesta: contar solo en la primera página y no en cada salto |
 | I-065 | **Un `update` masivo sobre `tickets` es desproporcionadamente caro por los tres índices GIN de trigramas** | ⚠️ Abierto (2026-08-22) | Se descubrió cargando la base de pruebas: actualizar `paid_amount` en 200.000 boletas tardó **más de 12 minutos** y se canceló; con los tres índices GIN (`daily_number`, `weekly_number`, `internal_code`) borrados, la misma actualización más la reconstrucción de los tres índices tardó **menos de 2 segundos**. La causa es que `payment_status` es una columna generada e indexada que depende de `paid_amount`: cualquier cambio de `paid_amount` impide la actualización HOT y obliga a reescribir las **catorce** entradas de índice de la fila, tres de ellas GIN. **No afecta a la operación normal**: la aplicación actualiza de una en una (un abono son 33–49 ms de extremo a extremo, medido con este volumen) y las acciones masivas están topadas en 1.000 boletas (BR-B01). Importa para **mantenimiento**: una migración que toque el `sale_price` o el `paid_amount` de muchas boletas —como hizo `0027`— debe borrar y recrear los índices GIN dentro de la propia migración, no confiar en el `update` a secas |
+| I-066 | **La contraseña de las cuentas de demostración viajó en una URL hasta producción durante una verificación** | ⚠️ Abierto (2026-08-22) | Al comprobar `0030` en producción con sesión real, la sonda pulsó «Ingresar» **antes de que React hidratara** —exactamente la trampa que `TESTING.md` §5.3 documenta—, el formulario cayó a su envío nativo por `GET` y el navegador pidió `/login?email=owner%40demo.test&password=…`. Esa petición **llegó a Vercel**, así que la contraseña puede haber quedado en su registro de accesos; también quedó en el historial del navegador efímero de la sonda, que se cerró al terminar. **Qué NO es**: ni una credencial de un cliente real, ni un dato de negocio, ni un acceso a otra organización — es `SEED_DEFAULT_PASSWORD`, compartida por las cuentas `@demo.test` que **I-021** ya señalaba como superficie innecesaria. **Qué hacer**: rotar esa contraseña (o desactivar las cuentas de demostración, que es lo que I-021 recomienda desde la Fase 8); mientras tanto, el riesgo real es el mismo que I-021 ya describía, ni mayor ni menor. **Corregido en el arnés**: la sonda ahora espera la hidratación y, además, **aborta cualquier petición que lleve `password=` en la dirección**, de modo que la carrera no puede volver a filtrarla aunque se repita. Cualquier automatización futura que inicie sesión por la interfaz debe llevar las dos precauciones |
 
 **No hay trabajo técnico activo autorizado.** Para operar con datos o dinero reales deben resolverse
 o aceptarse expresamente I-021, I-023 e I-024. I-061 quedó resuelto el mismo día en que se abrió. I-030, I-037 e I-046–I-052 son trabajo de ingeniería
 pendiente priorizable; I-053 queda mitigado por el protocolo de sincronía e I-054 está resuelto.
 Ninguno de los asuntos abiertos se corrige con un cambio remoto sin autorización.
+
+**I-066 es lo único de esta tanda que pide una acción concreta y pronta**: rotar la contraseña de las
+cuentas de demostración, o desactivarlas, que es lo que I-021 recomienda desde la Fase 8.
 
 **I-062 a I-065 son techos de escala, no defectos de hoy.** Salieron de la auditoría de rendimiento
 del 2026-08-22 (D-102, D-103), que midió la aplicación con 100.000 clientes, 300.000 boletas y
@@ -97,10 +101,10 @@ problema. Los dos que exigirían una decisión del usuario son I-062 (búsqueda 
 (tabla de resumen); I-064 es un compromiso aceptado a propósito e I-065 es una precaución de
 mantenimiento.
 
-**La migración `0030` está solo en local.** Como `0027` y `0029` antes que ella, hay que aplicarla al
-proyecto real con el procedimiento de `RUNBOOK` §3.b. A diferencia de aquellas, **desplegar el código
-sin la migración no rompe nada**: los índices solo aceleran y las dos vistas reescritas devuelven lo
-mismo. Lo único que ocurriría es que las pantallas seguirían tardando lo que tardaban.
+**La migración `0030` se aplicó al proyecto real el 2026-08-22**, con respaldo previo en
+`Rifas-backups/2026-08-22-pre-0030/`, `dry-run` mostrando solo `0030`, `verify:remote` 13/13 y una
+sonda de equivalencia sobre los datos reales (0 diferencias). El código correspondiente se desplegó
+el mismo día (`d15d386`, Vercel `READY`). Detalle en `PHASE_STATUS.md` §7.
 
 ---
 

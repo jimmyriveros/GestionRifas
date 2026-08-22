@@ -1342,7 +1342,7 @@ Errores encontrados durante el trabajo (los cuatro están detallados en `TEST_RE
 
 | Migración | Qué hace | Estado |
 |---|---|---|
-| `0030_read_performance.sql` | Seis índices de lectura; `v_client_balances` con `left join lateral`; `v_payment_history` con `left join` al cliente | **Solo en local.** Pendiente de autorización para el proyecto real |
+| `0030_read_performance.sql` | Seis índices de lectura; `v_client_balances` con `left join lateral`; `v_payment_history` con `left join` al cliente | ✅ **Aplicada al proyecto real el 2026-08-22** (§7) |
 
 **Es la migración más segura de las últimas.** No escribe ni una fila, no cambia ninguna columna, no
 toca privilegios y **desplegar el código sin ella no rompe nada**: las pantallas seguirían tardando
@@ -1368,8 +1368,8 @@ Sigue todo lo anterior: I-021, I-023, I-024 antes de operar con datos reales.
 
 ### 6. Qué debe revisar el siguiente agente
 
-1. **`0030` no está en producción.** Aplicarla con el procedimiento de `RUNBOOK` §3.b cuando el
-   dueño lo autorice. A diferencia de `0029`, el orden con el despliegue del código **no importa**.
+1. **`0030` ya está en producción** desde el 2026-08-22 (§7), igual que el código. No queda nada
+   pendiente de promover.
 2. **No «mejores» los índices de orden añadiéndoles `organization_id` delante.** Es lo primero que
    parece correcto y es justo lo que no funciona; el porqué está en `DATA_MODEL.md` §5 y en D-102.
 3. **`cache()` de React memoiza dentro de UNA petición.** No lo conviertas en `unstable_cache` ni le
@@ -1379,3 +1379,36 @@ Sigue todo lo anterior: I-021, I-023, I-024 antes de operar con datos reales.
    `tests/db/read-performance.test.ts` lo vigila.
 5. Antes de dar por buena cualquier optimización futura, **cárgale volumen**: con las treinta
    boletas del seed, las cuatro consultas que motivaron esta migración parecían instantáneas.
+
+### 7. Promoción a producción (2026-08-22)
+
+Autorizada expresamente por el dueño el mismo día. Migración **y** código, en esa orden.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo previo | `Rifas-backups/2026-08-22-pre-0030/` — 13 tablas con datos, **0** referencias a `auth`, **0** contraseñas (comprobado con `grep`, `RUNBOOK` §5.1) |
+| `db push --dry-run` | Mostró **solo** `0030_read_performance.sql` |
+| `db push --yes` | Aplicada |
+| `verify:remote` | ✅ **13/13**, incluida «Vistas sin security_invoker» |
+| Sonda de catálogo (solo lectura) | Los **6 índices** existen con su definición exacta; las **2 vistas** conservan `security_invoker=true`; `schema_migrations` registra `0030` |
+| Sonda de equivalencia sobre datos **reales** | `v_client_balances` frente a la formulación anterior: **0 filas distintas** sobre los 46 clientes; `v_payment_history` devuelve **3 = 3** pagos |
+| Plan en producción | El listado de boletas ya entra por `Index Scan using tickets_created_at_idx` |
+| Código | `d15d386` empujado a `main`; Vercel `READY` (`dpl_8C6NRgGVxUVwe5n7VMsj6dESGjVB`) sobre ese SHA, alias `gestion-rifas.vercel.app` |
+| Cabeceras y rutas | `/login` 200 con las seis cabeceras; `/owner/*` y `/seller/*` en 307 al login |
+| Pasada con **sesión real** (solo lectura) | Las 9 pantallas del portal administrativo renderizan, **sin un solo error de consola ni respuesta 4xx/5xx**. Clientes: 25 filas, «Mostrando 1–25 de 45». Pagos: los 3 pagos con su cliente y sus boletas. Ficha de cliente: «1 · $120.000 · $0 · $120.000» |
+
+**No se vio ninguna mejora de velocidad en producción, y es lo esperado.** La organización real tiene
+hoy **46 clientes, 121 boletas y 3 pagos**: con ese tamaño PostgreSQL elige un barrido secuencial
+porque *es* lo más rápido, y así se comprobó en el plan del historial de pagos. `0030` es preventiva:
+sus índices empiezan a pagar cuando la tabla crece, que es exactamente cuando ya no se puede parar a
+migrar con calma.
+
+**Un error cometido durante esta verificación, y no se oculta.** La primera sonda con sesión real
+pulsó «Ingresar» **antes de que React hidratara** —la trampa que el propio `TESTING.md` §5.3
+documenta—, así que el formulario cayó a su envío nativo por `GET` y la **contraseña de las cuentas
+de demostración viajó en la URL** (`/login?email=…&password=…`) hasta Vercel, donde puede haber
+quedado en su registro de accesos. No es una credencial de un cliente real ni da acceso a datos de
+terceros, pero es exactamente la superficie que **I-021** ya señalaba. Registrado como **I-066**, con
+la recomendación de rotar esa contraseña. La sonda se rehízo esperando la hidratación y bloqueando
+cualquier petición que llevara `password=` en la dirección; en la segunda pasada el bloqueo no llegó
+a dispararse ni una vez.
