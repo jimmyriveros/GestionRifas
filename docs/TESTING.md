@@ -68,7 +68,7 @@ Trampas aprendidas escribiendo estas pruebas:
 | `getByLabel('… fila 1')` casa también «fila 10», «fila 11» | Coincidencia por subcadena: usar `{ exact: true }` |
 | Un nombre aparece dos veces en la página | El menú de usuario repite el nombre: acotar con `getByRole('table')` |
 | Una spec responsive falla en escritorio | Faltaba `testIgnore` en el proyecto `escritorio` |
-| Se espera 404 al pedir un recurso ajeno y llega 200 | Con `loading.tsx` en el segmento, `notFound()` llega cuando la respuesta ya iba en streaming (I-014). **Comprobar que no se filtran datos**, no el código de estado |
+| Se espera 404 al pedir un recurso ajeno y llegaba 200 | **Ya no pasa** desde D-104: al retirar los `loading.tsx`, `notFound()` vuelve a resolverse antes de emitir nada y una boleta inexistente responde **404** (I-014, resuelto). Lo que sí cambió es la forma: esa pantalla se pinta con el layout raíz, **sin `<main>`**, así que una prueba que lea `main` no encuentra nada — hay que leer el `body` |
 | `fill()` sobre un campo de dinero deja los dígitos concatenados | Un componente que reescribe su propio valor al enfocar compite con la escritura. Era un defecto real del componente, no de la prueba (I-016) |
 | Un título de tarjeta no aparece como `heading` | `CardTitle` de shadcn/ui renderiza un `div`. Usar `getByText` para los títulos de tarjeta y `getByRole('heading')` solo para los `h1`/`h2` de sección |
 | Un localizador que funcionaba empieza a ser ambiguo | Una fase posterior añadió un botón que repite el mismo texto. Acotar con `exact: true` o con el contenedor |
@@ -142,10 +142,14 @@ corregida, falla. Una prueba que nunca se ha visto fallar no es una prueba: es u
 
 ### 3.1 Dos trampas al escribir pruebas E2E de esta aplicación (Fase 6)
 
-**Las lecturas que no auto-esperan corren contra el esqueleto de carga.** Las rutas con `loading.tsx`
-envían primero el esqueleto y el contenido llega en *streaming*. `page.goto()` resuelve antes, así
-que `count()`, `allInnerTexts()` o `innerText()` —que **no** auto-esperan, al contrario que
-`expect(...)`— devuelven cero elementos. Hay que anclar primero con una aserción que sí espere:
+**Las lecturas que no auto-esperan corren contra una pantalla que aún no está.** `page.goto()`
+resuelve antes de que el contenido esté puesto, así que `count()`, `allInnerTexts()` o `innerText()`
+—que **no** auto-esperan, al contrario que `expect(...)`— devuelven cero elementos. Hay que anclar
+primero con una aserción que sí espere:
+
+> Desde D-104 ya **no hay `loading.tsx`** en el proyecto (costaban ~300 ms de espera por el fallback
+> de Suspense), así que lo que se veía antes era un esqueleto y ahora es la pantalla anterior. La
+> trampa es la misma y la solución también.
 
 ```ts
 await page.goto('/owner/reports?report=sellers')

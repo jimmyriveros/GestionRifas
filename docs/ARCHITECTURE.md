@@ -344,7 +344,8 @@ usan guardas propias; I-051 registra una acción auxiliar que todavía no valida
 | `NotificationBell` / `NotificationMenu` | Campanita del encabezado (D-093). El servidor lee la bandeja al pintar la pantalla; sin peticiones desde el navegador ni tiempo real. El contador va también en el `aria-label`, no solo en el punto rojo |
 | `ConfirmDialog` | Confirmación de acciones sensibles (anular, desactivar, aprobar) |
 | `EmptyState` | Estado vacío con acción sugerida |
-| `PageSkeleton` | Carga mediante `loading.tsx` por segmento |
+| `RowLink` | Enlace de una **fila** de tabla: un `Link` con `prefetch={false}`. Veinticinco filas precargadas son veinticinco invocaciones del servidor que casi nadie usa, y en Vercel enfrían la función que atenderá el clic siguiente (D-104) |
+| `NavLinks` → `NavPending` | El menú lateral y su aviso de «se está abriendo», con `useLinkStatus`. Sustituye a los `loading.tsx`, que costaban ~300 ms de espera por fallback de Suspense (D-104) |
 | `PageHeader` | Título, descripción y acciones de toda pantalla. `backHref` activa la flecha de volver de las pantallas de detalle (§8.6, D-089) |
 | `BackButton` | Flecha de volver: historial real con destino de repuesto. La usa `PageHeader`, no se llama suelta |
 | `navigation-history.ts` | Cuenta los cambios de ruta reales de esta pestaña, para que `BackButton` sepa si el historial es de fiar (D-089) |
@@ -549,6 +550,9 @@ pidió endurecerlos y este proyecto no tiene protección de cambios sin guardar 
 La auditoría del 2026-08-22 cargó una base local con 100.000 clientes, 300.000 boletas y 1.000.000
 de abonos y midió cada pantalla. Cuatro reglas para no repetir lo que encontró:
 
+0. **La métrica es lo que espera una persona, no lo que tarda el servidor.** Un TTFB de 150 ms
+   convive perfectamente con tres segundos de espera. Se mide en un build de producción, desde el
+   clic hasta que la pantalla se puede usar (D-104).
 1. **Un `order by` sin índice es un barrido de la tabla, aunque haya `limit 25`.** Paginar en
    servidor no basta: PostgreSQL tiene que ordenar todo lo que cumple el filtro antes de recortar.
    Toda columna por la que un listado ordene **por defecto** necesita su índice.
@@ -560,6 +564,13 @@ de abonos y midió cada pantalla. Cuatro reglas para no repetir lo que encontró
 4. **Memoización por PETICIÓN, nunca entre peticiones.** `cache()` de React evita que una pantalla
    pida dos veces la misma lista dentro de la misma pasada y desaparece al terminar la respuesta.
    Cachear entre peticiones está prohibido para dinero, saldos y estados de boleta.
+5. **Nada de `loading.tsx` en este proyecto** (D-104). Un fallback de Suspense obliga a React a
+   mantenerlo unos 300 ms aunque los datos ya hayan llegado. El aviso de «se está abriendo» lo da
+   `useLinkStatus` dentro de la entrada del menú, que no crea ningún fallback. Medido: 352 → 106 ms.
+6. **Los enlaces de FILA no precargan** (`RowLink`). Veinticinco filas son veinticinco invocaciones
+   del servidor que casi nadie va a usar, y en Vercel esa ráfaga reparte el trabajo entre instancias
+   nuevas que luego atienden el clic siguiente en frío. El menú lateral sí precarga: son ocho
+   destinos predecibles.
 
 **Lo que sigue sin resolver, con el volumen al que empieza a doler:** I-062 (la búsqueda por texto no
 puede usar su índice bajo RLS, ~1 s con 1.000.000 de clientes), I-063 (los agregados por rifa y

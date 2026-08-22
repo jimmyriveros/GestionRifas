@@ -2286,3 +2286,116 @@ la había leído— y el formulario cayó a su envío nativo por `GET`: la contr
 `@demo.test` viajó en la URL hasta Vercel. Se rehízo la sonda esperando la hidratación **y**
 abortando cualquier petición con `password=` en la dirección; en la segunda pasada ese bloqueo no se
 disparó ni una vez. Recomendación: rotar esa contraseña (I-021, I-066).
+
+---
+
+## Medición de la navegación completa (2026-08-22)
+
+El dueño reportó que, pese a D-102 y D-103, seguía esperando **unos tres segundos** al cambiar de
+menú. Tenía razón: aquellas mediciones eran del **tiempo de respuesta del servidor**, no del tiempo
+que espera una persona. Esta tanda mide la cadena entera. Decisión: **D-104**. Problemas: **I-067**
+abierto, **I-014** resuelto.
+
+### a. Cómo se midió
+
+Build de producción (`next build` + `next start`), sesión real iniciada por la interfaz, y un arnés
+que cronometra dentro del navegador: clic → primera mutación del DOM → petición RSC → TTFB →
+descarga → contenido de la pantalla visible. La petición se identifica por su **pathname de
+destino**, no como «la primera»: con varias precargas en vuelo, la primera no es la de la
+navegación —ese fue el primer error del arnés y falseaba el reparto—.
+
+Dos escenarios, porque responden a preguntas distintas: **local** aísla el código (sin red ni
+plataforma) y **Vercel** reproduce lo que sufre el usuario. Además se instrumentó temporalmente el
+cliente de Supabase del servidor para contar **todas** sus llamadas de red por navegación.
+
+### b. De dónde salían los tres segundos
+
+| Etapa | Antes | Problema encontrado | Después |
+|---|---:|---|---:|
+| Clic → petición | 15–45 ms | — | 14–40 ms |
+| Reacción visual | 33–43 ms | — | 14–40 ms (indicador en el menú) |
+| Proxy + auth | ~80 ms | Dos `getUser()` por petición | ~80 ms (**no se tocó**) |
+| Servidor + consultas (TTFB) | 47–51 ms local · 261–333 ms Vercel | — | igual |
+| Descarga | 15–90 ms | — | igual |
+| **Render** | **~300 ms** | **Fallback de Suspense de `loading.tsx`** | **12 ms** |
+| **Arranque en frío** | **+1.600 a +5.000 ms** | **Plataforma (I-067)** | sin cambio |
+| **TOTAL local** | **~840 ms** | | **~124–236 ms** |
+| **TOTAL Vercel caliente** | **~840 ms** | | **~350 ms** |
+| **TOTAL Vercel en frío** | **2.900–5.900 ms** | | 3.400–5.500 ms |
+
+### c. La prueba de que el pico NO es la base de datos
+
+| Ruta | Caliente | Tras 75–90 s de pausa |
+|---|---:|---:|
+| `/login` — dinámica, **no consulta nada** | 140–188 ms | **3.125 ms** |
+| `/denied` — estática, desde el CDN | 103–131 ms | **115 ms** |
+| `/owner/tickets` — dinámica con datos | 261–333 ms | 3.594–4.276 ms |
+
+Una ruta que no toca la base de datos sufre el mismo pico. Una servida por el CDN no lo sufre nunca.
+
+### d. La espera de 300 ms, aislada
+
+| Pantalla | Respuesta completa | Esqueleto visible | Contenido visible | Espera |
+|---|---:|---:|---:|---:|
+| Boletas | 92 ms | 36 ms | 354 ms | 318 ms |
+| Clientes | 95 ms | 43 ms | 350 ms | 307 ms |
+| Pagos | 142 ms | 42 ms | 351 ms | 309 ms |
+
+Siempre ~310 ms desde el esqueleto, llegara la respuesta a los 92 o a los 142. Prueba definitiva:
+quitar el archivo bajó la misma navegación de **352 ms a 106 ms**.
+
+### e. Lo que hacía el servidor en una sesión con dos navegaciones
+
+| | Antes |
+|---|---:|
+| Invocaciones del proxy | **42** |
+| Llamadas a `/auth/v1/user` | **41** |
+| Consultas de datos reales | 25 |
+| Precargas de fichas de boleta concretas | **16** |
+| Ejecuciones de `ProtectedLayout` / `OwnerLayout` / campanita | **1 / 1 / 1** |
+
+Los layouts **no** se vuelven a ejecutar al cambiar de menú: la sospecha de que cada navegación
+reconsultaba usuario, organización y permisos era razonable y quedó descartada con evidencia.
+
+### f. Navegación en Vercel, por pantalla (mediana de 3 vueltas)
+
+| Pantalla | Antes | Después (caliente) |
+|---|---:|---:|
+| Boletas | 844 ms | **361 ms** |
+| Clientes | 853 ms | **343 ms** |
+| Rifas | 841 ms | 247–341 ms |
+| Pagos | 837 ms | 365 ms |
+| Vendedores | 857 ms | 352 ms |
+
+Y en local, donde no hay red ni plataforma de por medio: Boletas 826 → **124 ms**, Rifas 873 →
+**118 ms**, Clientes 829 → **137 ms**, Panel 857 → **233 ms**, Pagos 855 → **233 ms**, Reportes
+840 → **236 ms**.
+
+### g. Errores cometidos durante esta medición
+
+| # | Error | Corrección |
+|---|---|---|
+| 1 | El arnés tomaba «la primera petición RSC tras el clic» como la de la navegación | Con precargas en vuelo esa no es la correcta. Se identifica por pathname de destino |
+| 2 | Los selectores de contenido (`text=Rifas`, `text=Clientes`) coincidían con los **enlaces del menú**, así que cuatro pantallas parecían cargar en 30 ms sin haber cargado | Anclados dentro de `main` |
+| 3 | La capa del recorrido guiado interceptaba los clics del menú | Se da por visto, como en las E2E |
+| 4 | Se atribuyó el hueco de 250 ms a «trabajo de render» antes de comprobar que no había CPU | Se midió `longtask`: **0 ms**. Era una espera, no trabajo |
+
+### h. Verificación
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run typecheck` · `lint` · `build` | ✅ |
+| `npm run test` | ✅ **320/320** |
+| `npm run test:db` | ✅ **518/518** |
+| `npm run test:e2e` | **269/274**, y las **5** afectadas **48/48 en aislado** (ver abajo) |
+| Carga dura con F5 | 271 → 253 ms: **sin degradación** |
+| Errores de consola en producción | **ninguno** |
+
+**Las cinco E2E.** Tres eran las inestables ya conocidas (`back-navigation` «editar rifa»,
+`importar-boletas`, `tour`), que pasan en aislado y ya fallaban antes de estos cambios. **Dos eran
+consecuencia real del cambio y merecen explicación**: `security.spec.ts` leía el texto de `main`, y
+sin `loading.tsx` la pantalla de «no encontrado» se pinta con el layout raíz, que no tiene `<main>`.
+Se comprobó a mano que la aplicación responde **404** con «Página no encontrada» y **500** con «Algo
+salió mal», sin filtrar ninguna firma de PostgreSQL. El arnés pasa a leer el `body`, que cubre las
+dos pantallas y **comprueba más, no menos**: si alguna vez se filtrara un mensaje fuera de `main`,
+antes no se habría visto.

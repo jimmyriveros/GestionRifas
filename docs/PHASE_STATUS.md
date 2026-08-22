@@ -1412,3 +1412,68 @@ terceros, pero es exactamente la superficie que **I-021** ya señalaba. Registra
 la recomendación de rotar esa contraseña. La sonda se rehízo esperando la hidratación y bloqueando
 cualquier petición que llevara `password=` en la dirección; en la segunda pasada el bloqueo no llegó
 a dispararse ni una vez.
+
+---
+
+## Mantenimiento post-9 — la navegación, medida desde el clic (2026-08-22)
+
+Encargo del dueño, después de D-102 y D-103: «en uso real espero ~3 segundos al cambiar de menú, y
+eso no es aceptable». Tenía razón, y el fallo era de método: las cifras anteriores medían el
+**tiempo de respuesta del servidor**, no lo que espera una persona. Decisión **D-104**. Problema
+nuevo: **I-067**. Problema resuelto de rebote: **I-014**. **Ya en producción** (`97e1984`).
+
+### 1. Funcionalidades implementadas
+
+Ninguna: es trabajo de rendimiento, y ninguna regla de negocio cambia. Lo que cambia:
+
+- **Se retiran los catorce `loading.tsx`.** Un fallback de Suspense obliga a React a mantenerlo unos
+  300 ms aunque los datos ya estén. El aviso de «se está abriendo» lo da ahora `useLinkStatus` en la
+  entrada del menú pulsada, que no crea ningún fallback.
+- **Los enlaces de fila de las tablas dejan de precargarse** (`RowLink`). El menú lateral sigue
+  precargando: ocho destinos predecibles sí compensan.
+- **`listOrgMembers` hace una consulta por pantalla en vez de dos.**
+- Tres componentes de esqueleto quedaron huérfanos y se retiran (CLAUDE.md §29).
+
+**Cambio visible que el dueño eligió expresamente:** durante la carga ya no se ve un esqueleto de
+tabla, sino la pantalla anterior con la entrada del menú marcada como «abriendo».
+
+### 2. Pruebas ejecutadas y resultados
+
+**320** unitarias ✅ · **518** de base de datos ✅ · `typecheck`, `lint` y `build` ✅ · E2E
+**269/274**, y las **5 afectadas 48/48 en aislado**.
+
+De esas cinco, tres eran las inestables ya conocidas. **Dos eran consecuencia real del cambio**:
+`security.spec.ts` leía el texto de `main` y, sin `loading.tsx`, la pantalla de «no encontrado» se
+pinta con el layout raíz, que no tiene `<main>`. Se comprobó a mano que la aplicación responde
+**404** y **500** sin filtrar ninguna firma de PostgreSQL, y el arnés pasa a leer el `body`, que
+cubre las dos pantallas y comprueba **más**, no menos.
+
+Errores cometidos durante la propia medición —cuatro, detallados en `TEST_RESULTS.md` §g—: el arnés
+tomaba la petición equivocada cuando había precargas en vuelo; los selectores de contenido
+coincidían con los enlaces del menú; la capa del recorrido guiado interceptaba los clics; y se
+atribuyó el hueco de 250 ms a «render» antes de comprobar que el hilo principal estaba parado.
+
+### 3. Migraciones
+
+Ninguna. Este trabajo no toca la base de datos.
+
+### 4. Variables de entorno
+
+Sin cambios.
+
+### 5. Problemas reales que permanecen
+
+| ID | Qué es | Quién lo resuelve |
+|---|---|---|
+| **I-067** | El arranque en frío de la función en Vercel: 1.600–5.000 ms tras 45–90 s de inactividad. Es **lo que queda de los 3 segundos** | **El dueño**, activando Fluid Compute en el proyecto de Vercel. No es código y un agente no puede activarlo |
+| I-066 | La contraseña de demostración viajó en una URL | El dueño, rotándola |
+| I-062 / I-063 | Techos de escala de D-102 | Decisión del dueño |
+
+### 6. Qué debe revisar el siguiente agente
+
+1. **No añadas un `loading.tsx`** sin medir antes: cuesta ~300 ms de espera por el fallback.
+2. **No pongas `<Link>` a pelo en una fila de tabla**: usa `RowLink`.
+3. Una pantalla de «no encontrado» ahora responde **404** y se pinta **sin menú lateral**. Si
+   escribes una prueba sobre ella, lee el `body`, no `main`.
+4. **Mide desde el clic, no desde el servidor.** El procedimiento y el arnés están descritos en
+   `TEST_RESULTS.md`; un TTFB bueno no significa una navegación buena.

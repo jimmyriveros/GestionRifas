@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.18 · **Actualizado:** 2026-08-22 (D-001 a D-103)
+- **Versión:** 1.19 · **Actualizado:** 2026-08-22 (D-001 a D-104)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -2496,6 +2496,119 @@ propia consulta. Era un agregado sobre la tabla entera que nadie miraba.
 y estados de boleta, exactamente lo que el encargo prohíbe cachear. `cache()` de React vive **dentro
 de una sola petición** y desaparece con ella: cada carga de pantalla vuelve a preguntar a la base de
 datos, y dos vendedores que trabajen a la vez nunca se ven datos del otro momento.
+
+---
+
+## D-104 — La navegación se mide desde el clic, no desde el servidor
+
+**Fecha:** 2026-08-22 · **Estado:** aceptada · **Sin migración** · Corrige el alcance de D-102 y
+D-103 · Cierra **I-014**
+
+**Contexto.** D-102 y D-103 dejaron el tiempo de respuesta del servidor entre 100 y 300 ms, y con eso
+se dio el rendimiento por bueno. El dueño respondió que en uso real seguía esperando **unos tres
+segundos** al cambiar de menú. Tenía razón, y el error era de método: *tiempo de respuesta del
+servidor* y *tiempo que espera una persona* no son lo mismo, y lo segundo es lo único que importa.
+
+**Cómo se midió esta vez.** En un build de producción, con sesión real, cronometrando la cadena
+completa: clic → primera reacción visual → petición RSC → TTFB → descarga → render → pantalla
+utilizable. Y en los dos sitios: una instancia local (para aislar el código) y el despliegue de
+Vercel (para reproducir lo que sufre el usuario). Además se instrumentó temporalmente el cliente de
+Supabase del servidor para contar **todas** sus llamadas de red por navegación.
+
+**Los tres segundos tenían tres causas superpuestas, y la mayor no es código.**
+
+### 1. Arranque en frío de la función en Vercel — de 1.600 a 5.000 ms
+
+La causa dominante. Medido sobre la misma ruta y la misma sesión:
+
+| Situación | TTFB |
+|---|---:|
+| Peticiones seguidas, función caliente | 261–333 ms |
+| Tras 15 s de pausa | 656–2.076 ms |
+| Tras 45 s de pausa | 3.594–4.064 ms |
+| Tras 90 s de pausa | 4.154–4.276 ms |
+
+Es exactamente el patrón de uso real: se lee una pantalla medio minuto y se pulsa otro menú.
+
+**No es la base de datos ni la aplicación, y se comprobó**: `/login`, que es dinámica pero **no
+consulta nada**, pasa de 172 ms a 3.125 ms tras una pausa; `/denied`, que es estática y se sirve
+desde el CDN, se mantiene en 103–131 ms siempre. Si fueran las consultas, `/login` no se enteraría.
+Queda como **I-067**: es plataforma, y su solución también.
+
+### 2. El `loading.tsx` imponía ~300 ms de espera — corregido
+
+Un `loading.tsx` es un fallback de Suspense, y React mantiene un fallback un mínimo de unos 300 ms
+antes de reemplazarlo, para que no parpadee. Medido en tres pantallas distintas, con la CPU parada y
+los datos ya en el navegador:
+
+| Pantalla | Respuesta completa | Esqueleto en pantalla | Contenido en pantalla |
+|---|---:|---:|---:|
+| Boletas | 92 ms | 36 ms | 354 ms |
+| Clientes | 95 ms | 43 ms | 350 ms |
+| Pagos | 142 ms | 42 ms | 351 ms |
+
+Siempre ~310 ms después del esqueleto, llegara la respuesta a los 92 o a los 142. La comprobación
+definitiva fue quitar el archivo: la misma navegación pasó de **352 ms a 106 ms**.
+
+**Decisión: se retiran los catorce `loading.tsx` y el aviso lo da `useLinkStatus`** dentro de la
+entrada del menú pulsada. Es la solución que la propia documentación de Next señala para este caso
+—«la ruta de destino es dinámica y no incluye un `loading.js`»—: enciende un indicador en el mismo
+clic, sin crear ningún fallback, así que la pantalla nueva se pinta en cuanto llega. Mientras tanto
+se sigue viendo la pantalla anterior, que es como se comportaban ya las fichas de detalle.
+
+Se eligió con el dueño entre esta opción y conservar el esqueleto pagando los 300 ms.
+
+### 3. Next precargaba la ficha de cada fila de las tablas — corregido
+
+Contado con el servidor instrumentado, en **una sola sesión con dos navegaciones**:
+
+| | |
+|---|---:|
+| Invocaciones del servidor | **42** |
+| Llamadas a `/auth/v1/user` (validación de sesión) | **41** |
+| Consultas de datos reales | 25 |
+| Precargas de fichas de boleta concretas | **16** |
+
+La mayor parte del tráfico de la aplicación contra Supabase no eran datos: era validar la sesión de
+precargas que nadie pidió. Y en Vercel cada precarga es una invocación; la ráfaga obliga a repartir
+el trabajo entre instancias nuevas, y la instancia nueva es la que arranca **en frío** cuando la
+persona pulsa el menú siguiente. Es decir, la causa 3 alimentaba la causa 1.
+
+**Decisión: `RowLink`** (`prefetch={false}`) para los enlaces de fila de las cinco tablas. El menú
+lateral **sigue** precargando: ocho destinos predecibles sí compensan.
+
+### 4. Una consulta de más por pantalla — corregido
+
+`listOrgMembers(['seller'])` y `listOrgMembers(['owner','admin','seller'])` son claves distintas, así
+que el memo de D-103 no podía compartirlas y cada pantalla hacía dos consultas iguales. Ahora se pide
+siempre lo mismo y el rol se filtra en memoria: los miembros de una organización son decenas.
+
+**Lo que se descartó por no ser el problema, comprobado y no supuesto.** Los layouts **no** se
+vuelven a ejecutar al cambiar de menú: en la sesión instrumentada, `ProtectedLayout`, `OwnerLayout` y
+la campanita aparecen **una sola vez** cada uno. La sospecha de que cada navegación reconsultaba
+usuario, organización y permisos era razonable y resultó falsa.
+
+**Efecto secundario comprobado, y es una mejora: cierra I-014.** Sin `loading.tsx`, `notFound()` ya
+no se resuelve con la respuesta en streaming, así que una boleta inexistente responde **404** en vez
+de 200. A cambio, esa pantalla se pinta con el layout raíz y no con el del portal: sin menú lateral.
+Es el comportamiento estándar de Next y afecta solo a identificadores inexistentes o ajenos.
+
+**Resultado medido.**
+
+| | Antes | Después |
+|---|---:|---:|
+| Navegación local (Boletas) | 826 ms | **124 ms** |
+| Navegación local (mediana de 7 pantallas) | ~840 ms | **~200 ms** |
+| Navegación en Vercel, función caliente | ~840 ms | **~350 ms** |
+| Reacción visual al clic | 30–45 ms | 14–40 ms |
+| Render tras recibir la respuesta | ~300 ms | **12 ms** |
+| Navegación en Vercel con arranque en frío | 2.900–5.900 ms | 3.400–5.500 ms (**sin cambio: I-067**) |
+| Carga dura con F5 | 271 ms | 253 ms (sin degradación) |
+
+**Lo que NO se tocó, y por qué.** El doble `getUser()` por petición —uno en el proxy y otro en la
+página— cuesta unos 80 ms y se podría evitar, pero es la validación de sesión y el proyecto la tiene
+deliberadamente en capas (`SECURITY.md` §1). No se toca la autenticación para ganar 80 ms cuando el
+problema real es de 3.000.
 
 
 ## Ambigüedades pendientes de confirmación del usuario
