@@ -1257,7 +1257,7 @@ terminara la última pasada completa de E2E. Queda dicho aquí porque es parte d
 | `db push --yes` | Aplicada |
 | `verify:remote` | **13/13** en verde |
 | Sonda de comportamiento (solo lectura) | La función es `security invoker`; `authenticated` la ejecuta y **`anon` no**; buscar «Alvaro» devuelve su boleta `0363/4638`; buscar «0000» sigue devolviendo `0000/9999`; un código interno devuelve **0 filas** |
-| Vercel | `READY` sobre el SHA **`df7f1a7`** (`dpl_9vkz31LsUvV3SBvG6heJhAxpQzWT`), con el alias `gestion-rifas.vercel.app`. Ese SHA quedó huérfano al reescribir el historial (punto 2 de abajo) y Vercel reconstruyó sobre el nuevo |
+| Vercel | Primero `READY` sobre `df7f1a7` (`dpl_9vkz31LsUvV3SBvG6heJhAxpQzWT`). Ese SHA quedó huérfano al reescribir el historial (punto 2 de abajo), y la reconstrucción dejó el despliegue vigente: **`READY` sobre `16a1b74`** (`dpl_HvXmiCUr1XkEZqa1m5Qphg2WtyCr`), con el alias `gestion-rifas.vercel.app`. **Mismo contenido en los dos** |
 | Producción | `/login` en HTTP 200 con sus seis cabeceras de seguridad; `/owner/tickets`, `/seller/tickets` y `/owner/clients` en 307 al login |
 
 **La migración no escribe ni una fila.** Es un `create or replace` del cuerpo de `search_tickets`: no
@@ -1281,4 +1281,7 @@ error visible (I-061).
    y menos con un despliegue en vuelo. **Se corrigió después, a petición del dueño**: los tres
    commits cambiaron de SHA (`df7f1a7`→`e1b2fe1`, `ebe797b`→`0ebc3e7`, `5267107`→`463b0ef`), y el
    árbol resultante es **idéntico byte a byte**, comprobado comparando el hash del árbol antes y
-   después. Rama de respaldo local: `respaldo-antes-de-reescribir`.
+   después (`a93b181`). Un cuarto commit, `16a1b74`, actualizó las referencias que quedaron
+   colgando. La rama de respaldo se creó para la maniobra y **se borró después**, a petición del
+   dueño: los SHA viejos ya no son recuperables, y las menciones que quedan a `df7f1a7` son
+   registro de lo que ocurrió, no enlaces vivos.

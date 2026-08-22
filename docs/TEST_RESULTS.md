@@ -2109,3 +2109,19 @@ procesos de Chrome se filtraron por su ruta, no por su nombre.
 2. **No canalizar la salida de Playwright por `tail`.** `npm run test:e2e | tail -40` devuelve el
    código de salida de `tail`, no el de Playwright: la primera ejecución terminó «con éxito» según
    la consola mientras 188 pruebas no se habían ejecutado. El resumen se lee del archivo completo.
+
+### Estado final del trabajo (2026-08-21)
+
+| | |
+|---|---|
+| Base de datos | **512/512** ✅ (dos pasadas seguidas sobre la misma base) |
+| Unitarias | **320/320** ✅ |
+| E2E | **274/274** ✅ en 13,7 min, pasada completa y limpia |
+| `typecheck` · `lint` · `build` | ✅ (los dos avisos de lint son los de siempre, de TanStack) |
+| CI en GitHub Actions | ✅ sobre el commit vigente |
+| Migraciones | **29** en local y en el proyecto real |
+| Producción | `https://gestion-rifas.vercel.app` — `READY` sobre `16a1b74` |
+
+Lo único que no puede comprobar un agente y sigue abierto: **la pasada visual con sesión real en
+producción**. Concretamente, que escribir un nombre en «Mis boletas» traiga sus boletas y que la fila
+del cliente del detalle se sienta pulsable en el teléfono.
