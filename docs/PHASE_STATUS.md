@@ -1163,7 +1163,7 @@ Sin cambios.
 ## Mantenimiento post-9 — buscar boletas por el cliente, y llegar a su ficha (2026-08-21)
 
 Encargo del dueño: reducir pasos en «Boletas» y conectar Boleta ↔ Cliente.
-Decisiones **D-100** y **D-101**; regla **BR-N13**. **Desplegado en producción el 2026-08-21** con autorización expresa (`0029` + commit `df7f1a7`).
+Decisiones **D-100** y **D-101**; regla **BR-N13**. **Desplegado en producción el 2026-08-21** con autorización expresa (`0029` + commit `e1b2fe1`).
 
 ### 1. Funcionalidades implementadas
 
@@ -1257,7 +1257,7 @@ terminara la última pasada completa de E2E. Queda dicho aquí porque es parte d
 | `db push --yes` | Aplicada |
 | `verify:remote` | **13/13** en verde |
 | Sonda de comportamiento (solo lectura) | La función es `security invoker`; `authenticated` la ejecuta y **`anon` no**; buscar «Alvaro» devuelve su boleta `0363/4638`; buscar «0000» sigue devolviendo `0000/9999`; un código interno devuelve **0 filas** |
-| Vercel | `READY` sobre el SHA **`df7f1a7`** (`dpl_9vkz31LsUvV3SBvG6heJhAxpQzWT`), con el alias `gestion-rifas.vercel.app` |
+| Vercel | `READY` sobre el SHA **`df7f1a7`** (`dpl_9vkz31LsUvV3SBvG6heJhAxpQzWT`), con el alias `gestion-rifas.vercel.app`. Ese SHA quedó huérfano al reescribir el historial (punto 2 de abajo) y Vercel reconstruyó sobre el nuevo |
 | Producción | `/login` en HTTP 200 con sus seis cabeceras de seguridad; `/owner/tickets`, `/seller/tickets` y `/owner/clients` en 307 al login |
 
 **La migración no escribe ni una fila.** Es un `create or replace` del cuerpo de `search_tickets`: no
@@ -1276,6 +1276,9 @@ error visible (I-061).
 1. **La pasada completa de E2E se interrumpió** para publicar de inmediato, y se repitió después:
    **274/274 en 13,7 min** sobre una base recién sembrada. Detalle del desvío y de su causa real en
    `TEST_RESULTS.md`.
-2. **El asunto del commit `df7f1a7` salió como un `@` suelto**, resto de la sintaxis de
-   aquí-documento de PowerShell. El cuerpo del mensaje está entero. No se reescribió el historial ya
-   publicado por un defecto cosmético, y menos con un despliegue en vuelo.
+2. **El asunto del commit de la funcionalidad salió como un `@` suelto**, resto de la sintaxis de
+   aquí-documento de PowerShell. Al publicar no se reescribió el historial por un defecto cosmético,
+   y menos con un despliegue en vuelo. **Se corrigió después, a petición del dueño**: los tres
+   commits cambiaron de SHA (`df7f1a7`→`e1b2fe1`, `ebe797b`→`0ebc3e7`, `5267107`→`463b0ef`), y el
+   árbol resultante es **idéntico byte a byte**, comprobado comparando el hash del árbol antes y
+   después. Rama de respaldo local: `respaldo-antes-de-reescribir`.
