@@ -71,9 +71,9 @@ reales).
 | Decisiones | **D-105**. Incluye lo que **no** se copió del diseño de referencia y por qué: «Notas rápidas» y el menú `···` no existen, la hora del abono no existe en los datos, y el título de la tarjeta sigue siendo **«Abonos de esta boleta»** —no «Historial de abonos», que es el del cliente entero (BR-F13)— |
 | Verificación | **320/320** unitarias · `typecheck`, `lint` y `build` ✅ · E2E **239/239 escritorio** y **35/35 móvil** · capturas a **320, 390, 768, 1024 y 1440 px** con `scrollWidth == innerWidth` en todas (cero desbordamiento horizontal) · **0 errores de consola** · comprobados por prueba el `aria-valuenow` del anillo, el nombre accesible de «Registrar un abono de …» y los 44 px de la fila del cliente |
 | Advertencias | **1)** El corte de tres columnas es **`xl`, no `lg`**: con la barra lateral, 1.024 px dejan 672 px y el nombre del cliente se corta (`ARCHITECTURE` §8.7). **2)** El botón dice «Registrar abono» pero su `aria-label` es «Registrar un abono de \<cliente\>»; hay pruebas que lo buscan por ese nombre. **3)** `TicketPaymentsCard` la comparten los **dos** portales: al tocarla, mira también `/owner/tickets/[ticketId]`. **4)** El detalle del portal administrativo **no** se rediseñó; sigue con la rejilla de cuatro columnas |
-| Publicación | **No desplegado.** Sin migraciones y sin cambios de servidor; queda como commit local a la espera de autorización |
-| Pendiente | Lo de siempre (I-066, I-062, I-063, columna «Abono» del importador) y, si se quiere, llevar la misma disposición al detalle de boleta del portal administrativo |
-| Git | Rama `main`, commit local sobre `c73dc9d`. Sin push |
+| Publicación | **Desplegado el 2026-08-22 con autorización expresa.** Vercel `READY` sobre **`be4a8be`** (`dpl_vzGmPGBx3X6r8gwyYXgXCKXfVd6J`), alias `gestion-rifas.vercel.app`. CI **2/2** (verify y migraciones desde cero). `/login` en 200 con sus seis cabeceras, `/seller/tickets`, `/owner/dashboard` y `/seller/dashboard` en 307, y **ninguna clave de servicio** en el paquete del navegador. **Sin migraciones:** este relevo no toca la base de datos, así que el orden con el despliegue no importaba |
+| Pendiente | Lo de siempre (I-066, I-062, I-063, columna «Abono» del importador) y, **a decisión del dueño**, llevar la misma disposición al detalle de boleta del portal administrativo |
+| Git | Rama `main`, de `c73dc9d` a **`be4a8be`**, empujado a `origin/main` |
 
 ## 1.a.0 Relevo anterior — la navegación, medida desde el clic (2026-08-22)
 

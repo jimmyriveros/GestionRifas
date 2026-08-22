@@ -1508,7 +1508,7 @@ alguien lo desactiva, los tres segundos vuelven y ningún cambio de código los 
 
 Encargo del dueño: acercar la pantalla **Detalle de boleta** del portal del vendedor a un diseño de
 referencia, **sin tocar la lógica**, con el teléfono como prioridad. Decisión **D-105**. Sin
-migraciones. **No desplegado**: queda como commit local.
+migraciones. **Ya en producción** (`be4a8be`, 2026-08-22).
 
 ### 1. Funcionalidades implementadas
 
@@ -1562,3 +1562,20 @@ sigue con la rejilla de cuatro columnas— debe recibir la misma disposición.
    pruebas que lo buscan por ese nombre.
 4. Antes de dibujar otro porcentaje, mira `ProgressRing` y la barra de `CollectionSummaryCard`: el
    porcentaje va **escrito**, nunca solo en el color.
+
+### 7. Promoción a producción (2026-08-22)
+
+Desplegada con autorización expresa del dueño, para verla en Vercel antes de decidir si el portal
+administrativo recibe la misma disposición.
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`be4a8be`** (`dpl_vzGmPGBx3X6r8gwyYXgXCKXfVd6J`), *target* producción, alias `gestion-rifas.vercel.app`, región `iad1` |
+| CI en GitHub Actions | **2/2** — `verify` (typecheck · lint · 320 unitarias · build) y migraciones desde cero + pruebas de base de datos |
+| `/login` | **200**, con las seis cabeceras: CSP por nonce, HSTS `max-age=63072000; includeSubDomains; preload`, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy` |
+| Rutas protegidas | `/seller/tickets`, `/owner/dashboard` y `/seller/dashboard` → **307** sin sesión |
+| Secretos en el navegador | **Ninguna** aparición de `SERVICE_ROLE` en `.next/static` |
+| Base de datos | **Sin tocar.** Este cambio no lleva migraciones, así que el orden entre despliegue y base no importaba |
+
+La comprobación visual con sesión real la hace el dueño: no se inician sesiones en producción con
+las cuentas de demostración desde aquí, y menos con **I-066** abierto.

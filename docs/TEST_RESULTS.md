@@ -2499,3 +2499,8 @@ capturas —la rejilla se veía de una sola columna— mientras el `build` de pr
 clase nueva. Se confirmó leyendo el CSS generado y se resolvió con `rm -rf .next/dev`. El mismo
 servidor de desarrollo empezó después a devolver 500 en todas las rutas tras un *cache compaction*
 de Turbopack; reiniciarlo lo arregló.
+
+**Verificación en producción (2026-08-22).** Vercel `READY` sobre `be4a8be`
+(`dpl_vzGmPGBx3X6r8gwyYXgXCKXfVd6J`), CI 2/2, `/login` en 200 con sus seis cabeceras, las tres rutas
+protegidas en 307 y ninguna clave de servicio en el paquete del navegador. Detalle en
+`PHASE_STATUS.md` §7 del mantenimiento del rediseño.
