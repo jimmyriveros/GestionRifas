@@ -1,7 +1,7 @@
 'use client'
 
 import type { ColumnDef } from '@tanstack/react-table'
-import Link from 'next/link'
+import { RowLink } from '@/components/data/RowLink'
 import { useMemo, useState } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
@@ -61,12 +61,12 @@ export function PaymentsTable({
         accessorKey: 'clientName',
         header: 'Cliente',
         cell: ({ row }) => (
-          <Link
+          <RowLink
             href={`${clientBasePath}/${row.original.clientId}`}
             className="font-medium hover:underline"
           >
             {row.original.clientName}
-          </Link>
+          </RowLink>
         ),
       },
       ...sellerColumn,

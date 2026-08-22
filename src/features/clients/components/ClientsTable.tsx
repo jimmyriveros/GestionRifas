@@ -1,7 +1,7 @@
 'use client'
 
 import type { ColumnDef } from '@tanstack/react-table'
-import Link from 'next/link'
+import { RowLink } from '@/components/data/RowLink'
 import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
@@ -26,9 +26,9 @@ export function ClientsTable({ clients, basePath, showSeller = false }: ClientsT
         header: 'Cliente',
         cell: ({ row }) => (
           <div className="min-w-40">
-            <Link href={`${basePath}/${row.original.id}`} className="font-medium hover:underline">
+            <RowLink href={`${basePath}/${row.original.id}`} className="font-medium hover:underline">
               {row.original.name}
-            </Link>
+            </RowLink>
             {row.original.alias ? (
               <p className="text-muted-foreground text-xs">{row.original.alias}</p>
             ) : null}
@@ -48,12 +48,12 @@ export function ClientsTable({ clients, basePath, showSeller = false }: ClientsT
         header: 'Vendedor',
         meta: { hideOnMobile: true },
         cell: ({ row }) => (
-          <Link
+          <RowLink
             href={`/owner/sellers/${row.original.sellerId}`}
             className="text-sm hover:underline"
           >
             {row.original.sellerName}
-          </Link>
+          </RowLink>
         ),
       })
     }

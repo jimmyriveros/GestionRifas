@@ -1,6 +1,7 @@
 'use client'
 
-import Link from 'next/link'
+import { Loader2Icon } from 'lucide-react'
+import Link, { useLinkStatus } from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import type { NavItem } from '@/components/layout/nav-items'
@@ -9,6 +10,36 @@ import { cn } from '@/lib/utils'
 type NavLinksProps = {
   items: NavItem[]
   onNavigate?: () => void
+}
+
+/**
+ * Señal de «esta pantalla se está abriendo», dentro de la entrada pulsada.
+ *
+ * POR QUE AQUI Y NO UN `loading.tsx` (D-104)
+ *
+ * Un `loading.tsx` es un fallback de Suspense, y React impone una espera minima
+ * de unos 300 ms desde que muestra un fallback hasta que lo reemplaza —para que
+ * no parpadee—. Medido en un build de produccion: la respuesta del servidor
+ * estaba lista a los 85 ms y la pantalla no aparecia hasta los 352 ms. Los 250
+ * ms de diferencia eran espera pura, con la CPU parada y los datos ya en el
+ * navegador.
+ *
+ * `useLinkStatus` da el mismo aviso inmediato —se enciende en el mismo clic—
+ * sin crear ningun fallback, asi que la pantalla nueva se pinta en cuanto
+ * llega. La pantalla anterior sigue visible mientras tanto, que es como se
+ * comporta la web de siempre y lo que ya hacian las fichas de detalle.
+ */
+function NavPending() {
+  const { pending } = useLinkStatus()
+
+  if (!pending) return null
+
+  return (
+    <>
+      <Loader2Icon className="ml-auto size-4 shrink-0 animate-spin" aria-hidden />
+      <span className="sr-only">Abriendo…</span>
+    </>
+  )
 }
 
 export function NavLinks({ items, onNavigate }: NavLinksProps) {
@@ -36,6 +67,7 @@ export function NavLinks({ items, onNavigate }: NavLinksProps) {
           >
             {item.icon}
             {item.label}
+            <NavPending />
           </Link>
         )
       })}

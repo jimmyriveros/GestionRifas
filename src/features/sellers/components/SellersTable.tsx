@@ -1,7 +1,7 @@
 'use client'
 
 import type { ColumnDef } from '@tanstack/react-table'
-import Link from 'next/link'
+import { RowLink } from '@/components/data/RowLink'
 import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
@@ -39,12 +39,12 @@ export function SellersTable({
         header: 'Vendedor',
         cell: ({ row }) => (
           <div className="min-w-40">
-            <Link
+            <RowLink
               href={`/owner/sellers/${row.original.profileId}`}
               className="font-medium hover:underline"
             >
               {row.original.fullName}
-            </Link>
+            </RowLink>
             <p className="text-muted-foreground text-xs">
               {row.original.alias ?? row.original.email}
             </p>

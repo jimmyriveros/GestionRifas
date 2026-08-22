@@ -82,7 +82,8 @@ export function mapMember(row: MemberRow): OrgMember | null {
 }
 
 /**
- * Memoizado POR PETICION con `cache()` de React (D-103).
+ * TODOS los miembros de la organizacion, memoizados POR PETICION con `cache()`
+ * de React (D-103, D-104).
  *
  * Casi todas las pantallas necesitan esta lista mas de una vez: el listado de
  * boletas la pide para poner el nombre del vendedor en cada fila y otra vez
@@ -90,21 +91,22 @@ export function mapMember(row: MemberRow): OrgMember | null {
  * cada bloque que la usa. Eran dos y tres consultas identicas en la misma
  * pasada.
  *
- * La clave del memo es el TEXTO de los roles, no el arreglo: `cache()` compara
- * los argumentos por identidad, y `['seller']` es un arreglo nuevo en cada
- * llamada, con lo que nunca acertaria. Por eso la funcion memoizada recibe una
- * cadena y la envoltura publica conserva la firma de siempre.
+ * NO SE FILTRA POR ROL EN LA CONSULTA, y es deliberado (D-104). Cuando cada
+ * llamada pedia sus propios roles habia dos consultas distintas por pantalla
+ * —una de `['seller']` y otra de `['owner','admin','seller']`— que el memo no
+ * podia compartir por tener claves distintas. Pidiendo siempre lo mismo, la
+ * pantalla entera se resuelve con UNA. Los miembros de una organizacion son
+ * decenas, asi que traer los tres roles no cuesta mas que traer uno; el ahorro
+ * de una ida y vuelta a la base de datos, si.
  *
- * Se memoiza dentro de UNA peticion, no entre peticiones: no hay cache de datos
- * que pueda quedarse vieja: cada carga de pantalla vuelve a preguntar.
+ * Quien decide que filas se ven sigue siendo `memberships_select`, no esta
+ * consulta: un vendedor que llame a esto se ve unicamente a si mismo.
  */
-const listOrgMembersCached = cache(async (rolesKey: string): Promise<OrgMember[]> => {
-  const roles = rolesKey.split(',') as AppRole[]
+const listAllOrgMembers = cache(async (): Promise<OrgMember[]> => {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('memberships')
     .select(MEMBER_SELECT)
-    .in('role', roles)
     .order('created_at', { ascending: true })
 
   if (error) throw error
@@ -112,8 +114,11 @@ const listOrgMembersCached = cache(async (rolesKey: string): Promise<OrgMember[]
   return (data as MemberRow[] | null)?.flatMap((row) => mapMember(row) ?? []) ?? []
 })
 
+/**
+ * Los miembros con alguno de esos roles. La firma no cambia; lo que cambia es
+ * que el filtro se aplica en memoria sobre una lista que ya esta en la mano.
+ */
 export async function listOrgMembers(roles: AppRole[]): Promise<OrgMember[]> {
-  // Ordenados: `['admin','owner']` y `['owner','admin']` piden lo mismo y deben
-  // compartir el memo.
-  return listOrgMembersCached([...roles].sort().join(','))
+  const members = await listAllOrgMembers()
+  return members.filter((member) => roles.includes(member.role))
 }

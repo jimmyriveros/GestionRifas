@@ -1,7 +1,7 @@
 'use client'
 
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
-import Link from 'next/link'
+import { RowLink } from '@/components/data/RowLink'
 import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
@@ -125,13 +125,13 @@ export function TicketsTable({
         // pantalla.
         header: () => <span className="whitespace-normal">Número diario</span>,
         cell: ({ row }) => (
-          <Link
+          <RowLink
             href={`${basePath}/${row.original.id}`}
             className="font-mono text-base font-medium tabular-nums hover:underline"
             aria-label={`Ver la boleta ${ticketLabel(row.original)}`}
           >
             {row.original.dailyNumber ?? '—'}
-          </Link>
+          </RowLink>
         ),
       },
       {

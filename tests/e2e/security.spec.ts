@@ -267,8 +267,18 @@ test.describe('Los errores no revelan estructura interna (prueba 25)', () => {
    * rutas de modulos internos. Eso no se le muestra a nadie y no es una fuga;
    * incluirlo daria falsos positivos permanentes.
    */
+  /**
+   * TODO el texto de la pantalla, no solo el de `main`.
+   *
+   * Leia `main` hasta que se quitaron los `loading.tsx` (D-104): sin ellos, un
+   * id inexistente ya no se pinta dentro del portal —Next resuelve `notFound()`
+   * antes de emitir nada y renderiza la pagina de error con el layout raiz, que
+   * no tiene `<main>`—. Leer el `body` cubre los dos casos y ademas comprueba
+   * MAS: si alguna vez se filtrara el mensaje de PostgreSQL fuera de `main`,
+   * antes no se habria visto.
+   */
   const textoVisible = async (page: import('@playwright/test').Page) =>
-    (await page.locator('main').innerText()).toLowerCase()
+    (await page.locator('body').innerText()).toLowerCase()
 
   /** Firmas de mensajes que redacta PostgreSQL, no la aplicacion. */
   const FUGAS = [

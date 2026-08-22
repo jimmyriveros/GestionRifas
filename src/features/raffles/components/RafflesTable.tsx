@@ -1,7 +1,7 @@
 'use client'
 
 import type { ColumnDef } from '@tanstack/react-table'
-import Link from 'next/link'
+import { RowLink } from '@/components/data/RowLink'
 
 import { DataTable } from '@/components/data/DataTable'
 import { RaffleStatusBadge } from '@/components/data/StatusBadge'
@@ -21,9 +21,9 @@ const columns: ColumnDef<RaffleSummary>[] = [
     accessorKey: 'name',
     header: 'Rifa',
     cell: ({ row }) => (
-      <Link href={`/owner/raffles/${row.original.id}`} className="font-medium hover:underline">
+      <RowLink href={`/owner/raffles/${row.original.id}`} className="font-medium hover:underline">
         {row.original.name}
-      </Link>
+      </RowLink>
     ),
   },
   {
@@ -66,7 +66,7 @@ const columns: ColumnDef<RaffleSummary>[] = [
     meta: { align: 'right' },
     cell: ({ row }) => (
       <Button asChild variant="ghost" size="sm">
-        <Link href={`/owner/raffles/${row.original.id}`}>Ver</Link>
+        <RowLink href={`/owner/raffles/${row.original.id}`}>Ver</RowLink>
       </Button>
     ),
   },
