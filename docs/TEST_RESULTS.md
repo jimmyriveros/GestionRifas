@@ -2577,3 +2577,47 @@ La pasada completa sobre base recién sembrada dio **241/242**, y el único fall
 `page.goto('/owner/tickets/new')` agotando su plazo: una ruta que este trabajo **no toca**, y con el
 servidor de desarrollo compartido con otra sesión de navegador. En aislado, `owner-tickets.spec.ts`
 da **16/16**, ese caso incluido. Resultado real de escritorio: **242/242**.
+
+### Verificación en producción (2026-08-23)
+
+Vercel `READY` sobre **`79e107b`** (`dpl_JDjCmJxuV69GTAUpwyBMaVwpCUcX`), CI **2/2**, `/login` en 200
+con sus seis cabeceras, las tres rutas protegidas en 307 y **0 apariciones** de `SERVICE_ROLE`,
+`service_role` o `sb_secret` en los 15 fragmentos de JavaScript servidos (981 KB).
+
+**La CSS de producción demuestra que el código nuevo está servido**, no solo desplegado:
+`--bottom-nav-height: 3.5rem`, `--bottom-nav-space` con su `env(safe-area-inset-bottom, 0px)`, la
+anulación a `0px` desde `md`, y las tres clases que **solo** existen en el código nuevo
+—`height:var(--bottom-nav-height)`, `padding-bottom:env(safe-area-inset-bottom,0px)` y
+`bottom:var(--bottom-nav-space)`—. Tailwind solo emite lo que encuentra en el código.
+
+#### Un falso positivo de rendimiento, y cómo se descartó
+
+Al comprobar que **Fluid Compute** seguía cumpliendo (I-067), las primeras medidas dieron picos de
+**3,4 s** tras pausas de 45–90 s. Coincidían con el rango que D-104 midió como arranque en frío
+(3.594–4.276 ms), así que se dio por bueno el parecido. **Era falso**, y hubo que tirar de dos
+comprobaciones para verlo:
+
+1. **El control de la propia D-104:** `/denied` se sirve desde el CDN y «no lo sufre nunca». Pues lo
+   sufrió —3,43 s— en un ciclo en el que `/login`, que sí pasa por la función, salió en 344 ms. Una
+   función arrancando en frío no puede ralentizar un archivo estático.
+2. **El desglose por fases**, sobre diez ciclos con pausa de 45 s:
+
+| Ciclo | Conexión completa (TLS lista) | **Servidor** (`ttfb − appconnect`) |
+|---|---:|---:|
+| c1 | 1.210 ms | **132 ms** |
+| c2 | 301 ms | **265 ms** |
+| c3 | 211 ms | **159 ms** |
+| c4 | 298 ms | **153 ms** |
+| c5 | 229 ms | **176 ms** |
+| **c6** | **3.232 ms** | **173 ms** |
+| c7 | 187 ms | **154 ms** |
+| c8 | 277 ms | **162 ms** |
+| c9 | 225 ms | **162 ms** |
+| **c10** | **3.263 ms** | **173 ms** |
+
+El servidor respondió entre **132 y 265 ms en los diez**, incluidos los dos que en total tardaron
+3,4 s. Lo que se dispara es `time_connect`, y lo hace clavado en ~3,1 s: el plazo inicial de
+retransmisión del SYN de TCP en Windows. **Es la red de la máquina que mide, no Vercel.**
+
+**El error de método fue leer `time_starttransfer` como tiempo de servidor.** No lo es: incluye DNS,
+TCP y TLS. Queda anotado en `HANDOFF.md` §9 para que la próxima medición empiece por el desglose.

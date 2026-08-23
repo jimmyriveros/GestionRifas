@@ -1659,3 +1659,43 @@ primitiva de shadcn/ui, no código del proyecto, y borrarla es una limpieza fuer
 4. Las descripciones de la Fase 3 —`IMPLEMENTATION_PLAN.md` §89 y este documento, línea 74— siguen
    diciendo «drawer móvil». Son **fotografías históricas** de aquella fase y se conservan tal cual;
    lo vigente es esta entrada y `ARCHITECTURE.md` §8.8.
+
+### 7. Promoción a producción (2026-08-23)
+
+Desplegada con autorización expresa del dueño. **Sin migraciones**, así que el orden entre despliegue
+y base de datos no importaba.
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`79e107b`** (`dpl_JDjCmJxuV69GTAUpwyBMaVwpCUcX`), *target* producción, alias `gestion-rifas.vercel.app`, región `iad1`. Build de 23 s con caché caliente |
+| CI en GitHub Actions | **2/2** — `verify` (typecheck · lint · 325 unitarias · build) y migraciones desde cero + pruebas de base de datos |
+| `/login` | **200**, con las seis cabeceras: CSP por nonce, HSTS `max-age=63072000; includeSubDomains; preload`, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy` |
+| Rutas protegidas | `/seller/tickets`, `/owner/dashboard` y `/seller/dashboard` → **307** sin sesión |
+| Secretos en el navegador | **0 apariciones** de `SERVICE_ROLE`, `service_role` o `sb_secret` en los 15 fragmentos de JavaScript servidos (981 KB) |
+| **El código nuevo está de verdad servido** | La CSS de producción trae `--bottom-nav-height: 3.5rem`, `--bottom-nav-space` con su `env(safe-area-inset-bottom, 0px)`, la anulación a `0px` desde `md`, y las tres clases que **solo** existen en el código nuevo: `height:var(--bottom-nav-height)`, `padding-bottom:env(safe-area-inset-bottom,0px)` y `bottom:var(--bottom-nav-space)`. Tailwind solo emite las clases que encuentra en el código, así que su presencia demuestra que `BottomNav.tsx` entró en el build |
+| Base de datos | **Sin tocar** |
+
+**Por qué no se comprobó con sesión real desde aquí:** **I-066** sigue abierto —la contraseña de las
+cuentas de demostración pudo quedar registrada— y `HANDOFF` §1.a ya fija que esa comprobación la hace
+el dueño. La barra inferior se verificó con sesión real **en local**, con capturas a 320, 390, 430 y
+1280 px.
+
+**Latencia comprobada tras desplegar, y un falso positivo que conviene no repetir.** Se midió el
+tiempo de respuesta con pausas de 45–90 s para confirmar que **Fluid Compute** seguía haciendo su
+trabajo (I-067, requisito de `DEPLOYMENT.md` §3.1.b). Las primeras medidas dieron picos de **3,4 s**
+y se interpretaron como arranque en frío. **Era falso.** Desglosando la petición en sus fases sobre
+diez ciclos:
+
+| Fase | Resultado |
+|---|---|
+| Tiempo del **servidor** (`time_starttransfer − time_appconnect`) | **132–265 ms en los 10 ciclos**, incluidos los dos que en total tardaron 3,4 s |
+| Establecimiento de **conexión** en los dos ciclos lentos | ~3,1 s, clavado — el reintento del SYN de TCP, cuyo plazo inicial en Windows es ~3 s |
+
+**Fluid Compute está bien y el despliegue está bien.** El error fue leer `time_starttransfer` como si
+fuera tiempo de servidor: incluye DNS, TCP y TLS. Lo que tumbó la hipótesis fue el control que la
+propia D-104 propone —`/denied`, servido por CDN, **también** sufría el pico, y una función en frío no
+puede ralentizar un archivo estático—.
+
+**Regla para la próxima medición en producción:** desglosar siempre
+`time_namelookup` / `time_connect` / `time_appconnect` / `time_starttransfer`, y comparar contra
+`/denied`. El número agregado no distingue un arranque en frío de un mal camino de red.

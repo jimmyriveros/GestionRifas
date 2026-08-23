@@ -2687,7 +2687,7 @@ uno por una tarjeta. (c) Repetir la acción de cobrar arriba y abajo.
 ## D-106 — En el teléfono la navegación baja, y solo bajan cuatro cosas
 
 **Fecha:** 2026-08-23 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio, rutas ni
-permisos** · Sustituye el cajón lateral de D-048 en móvil
+permisos** · Sustituye el cajón lateral de D-048 en móvil · **En producción** (`79e107b`, 2026-08-23)
 
 **Contexto.** El negocio se opera desde el teléfono. Hasta ahora el móvil recibía el menú de
 escritorio encogido: un botón de menú arriba a la izquierda que abría un cajón con las ocho entradas
