@@ -1641,9 +1641,9 @@ Sin cambios.
 
 ### 5. Problemas reales que permanecen
 
-Los de antes (I-066, I-062, I-063 y la columna «Abono» del importador). Este trabajo no abre ninguno.
-Queda **pendiente de decisión del dueño** si «Mi equipo» debería ocupar el sitio de alguna de las
-cuatro opciones primarias del portal del vendedor.
+Los de antes (I-066, I-062, I-063 y la columna «Abono» del importador). Este trabajo no abre ninguno,
+y **no deja nada pendiente de decidir**: el dueño confirmó el 2026-08-23 que «Mi equipo» se queda en
+el menú de usuario y no baja a la barra.
 
 `src/components/ui/sheet.tsx` quedó **sin uso** al eliminar el cajón. Se conserva a propósito: es una
 primitiva de shadcn/ui, no código del proyecto, y borrarla es una limpieza fuera de alcance.

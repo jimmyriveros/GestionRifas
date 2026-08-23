@@ -2704,6 +2704,11 @@ lateral de siempre, y la barra inferior no existe. **Las dos nunca conviven**: l
 sin convertir la barra en un menú, que es justo de lo que se venía. Una barra con seis u ocho iconos
 a 320 px deja ~40 px por opción: por debajo de los 44 px que necesita un dedo.
 
+**«Mi equipo» no baja, y está confirmado.** Al entregar el trabajo se preguntó si debía ocupar el
+sitio de alguna de las cuatro en el portal del vendedor. El dueño respondió el **2026-08-23** que se
+queda donde está, en el menú de usuario. La barra son cuatro y no se negocia una quinta: quien manda
+sobre esa lista es la frecuencia de uso diario, no lo importante que parezca una pantalla.
+
 **Lo que no entra en la barra no desaparece: se lee desde el menú de usuario.** Reportes en los dos
 portales; además Rifas, Vendedores y Administradores en el administrativo, y Mi equipo en el del
 vendedor. **Mismas rutas, mismos permisos, mismas pantallas.** Se extendió el desplegable que ya
