@@ -54,15 +54,23 @@ test.describe('Reportes en movil', () => {
     await expect(encabezados.filter({ hasText: 'Recaudado' })).toBeHidden()
   })
 
-  test('se llega a los reportes desde el drawer', async ({ page }) => {
+  /**
+   * Reportes no entra en la barra inferior: son cuatro sitios de uso diario y
+   * este no lo es (D-106). Se lee desde el menu de usuario, con la MISMA ruta y
+   * los mismos permisos; lo unico que cambio es desde donde se entra.
+   */
+  test('se llega a los reportes desde el menú de usuario', async ({ page }) => {
     await page.goto('/owner/dashboard')
 
-    await page
-      .getByRole('button', { name: /menu|abrir/i })
-      .first()
-      .click()
+    await expect(
+      page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', {
+        name: 'Reportes',
+      }),
+    ).toHaveCount(0)
 
-    const enlace = page.getByRole('link', { name: 'Reportes' })
+    await page.getByRole('button', { name: /Menú de usuario/ }).tap()
+
+    const enlace = page.getByRole('menuitem', { name: 'Reportes' })
     await expect(enlace).toBeVisible()
     await enlace.click()
 

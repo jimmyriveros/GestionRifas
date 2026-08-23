@@ -76,21 +76,18 @@ test.describe('Portal del vendedor en movil (prueba 14)', () => {
     await loginAs(page, ACCOUNTS.seller)
   })
 
-  test('la navegacion se abre desde el drawer', async ({ page }) => {
+  // El detalle de la barra inferior vive en `navegacion-movil.spec.ts` (D-106).
+  test('la navegacion se hace desde la barra inferior', async ({ page }) => {
     await page.goto('/seller/dashboard')
 
-    await expect(
-      page.getByRole('navigation').getByRole('link', { name: 'Mis boletas' }),
-    ).toBeHidden()
+    await expect(page.locator('[data-tour="nav-sidebar"]')).toBeHidden()
 
-    await page
-      .getByRole('button', { name: /menu|abrir/i })
-      .first()
-      .click()
+    const barra = page.getByRole('navigation', { name: 'Navegación principal' })
+    await expect(barra).toBeVisible()
 
-    const drawerLink = page.getByRole('link', { name: 'Mis clientes' })
-    await expect(drawerLink).toBeVisible()
-    await drawerLink.click()
+    // En la barra la etiqueta va sin el posesivo —«Clientes»—, pero es la
+    // misma pantalla: su titulo sigue diciendo «Mis clientes».
+    await barra.getByRole('link', { name: 'Clientes', exact: true }).tap()
 
     await page.waitForURL(/\/seller\/clients/)
     await expect(page.getByRole('heading', { name: 'Mis clientes' })).toBeVisible()

@@ -120,13 +120,18 @@ test.describe('Equipo y ganancia en el teléfono', () => {
     expect(caja!.x + caja!.width).toBeLessThanOrEqual(320)
   })
 
-  test('se llega a «Mi equipo» desde el menú del teléfono', async ({ page }) => {
+  /**
+   * «Mi equipo» tampoco entra en la barra inferior, que se reserva a los cuatro
+   * sitios de uso diario (D-106). Sigue siendo visible tenga equipo o no
+   * (BR-E01): lo que cambio es que ahora se lee en el menu de usuario.
+   */
+  test('se llega a «Mi equipo» desde el menú de usuario', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
     await page.setViewportSize({ width: 390, height: 800 })
     await page.goto('/seller/dashboard')
 
-    await page.getByRole('button', { name: /abrir menú|menú/i }).first().click()
-    await page.getByRole('link', { name: 'Mi equipo' }).click()
+    await page.getByRole('button', { name: /Menú de usuario/ }).tap()
+    await page.getByRole('menuitem', { name: 'Mi equipo' }).click()
 
     await expect(page.getByRole('heading', { name: 'Mi equipo' })).toBeVisible()
   })

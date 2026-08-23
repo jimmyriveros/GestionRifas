@@ -2,11 +2,13 @@ import { KeyRoundIcon } from 'lucide-react'
 import Link from 'next/link'
 
 import { LogoutButton } from '@/features/auth/components/LogoutButton'
+import type { NavItem } from '@/components/layout/nav-items'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -20,6 +22,16 @@ type UserMenuProps = {
   fullName: string
   email: string
   role: AppRole
+  /**
+   * Lo que no cabe en la barra inferior del telefono (D-106): reportes, y en el
+   * portal administrativo tambien rifas, vendedores y administradores.
+   *
+   * Se pinta SOLO bajo `md`. En escritorio estas mismas entradas siguen en la
+   * barra lateral, y repetirlas aqui seria pedirle al usuario que elija entre
+   * dos caminos identicos. Las rutas y los permisos son los de siempre: esto
+   * cambia desde donde se entra, nada mas.
+   */
+  navItems?: NavItem[]
 }
 
 function initialsFor(name: string) {
@@ -29,7 +41,7 @@ function initialsFor(name: string) {
   return (first + second).toUpperCase() || '?'
 }
 
-export function UserMenu({ fullName, email, role }: UserMenuProps) {
+export function UserMenu({ fullName, email, role, navItems = [] }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -61,6 +73,24 @@ export function UserMenu({ fullName, email, role }: UserMenuProps) {
             <span className="text-muted-foreground text-xs">{ROLE_LABELS[role]}</span>
           </div>
         </DropdownMenuLabel>
+        {navItems.length > 0 ? (
+          <>
+            <DropdownMenuSeparator className="md:hidden" />
+            <DropdownMenuGroup className="md:hidden">
+              <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+                Ir a
+              </DropdownMenuLabel>
+              {navItems.map((item) => (
+                <DropdownMenuItem key={item.href} asChild>
+                  <Link href={item.href} className="[&>svg]:size-4">
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </>
+        ) : null}
         <DropdownMenuSeparator />
         <TourLauncher />
         <DropdownMenuItem asChild>

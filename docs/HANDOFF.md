@@ -34,6 +34,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
 | **Buscar en «Boletas»** | Desde el 2026-08-21 (D-100, BR-N13) el **único** campo de búsqueda encuentra por los números de la boleta **y** por el nombre del cliente que la tiene, devolviendo siempre boletas. Migración **`0029`**. **Ya en producción** (`e1b2fe1`, 2026-08-21) |
+| **Navegación en el teléfono** | Desde el 2026-08-23 (D-106) el móvil **no tiene cajón lateral**: tiene una **barra inferior fija** con Panel · Boletas · Clientes · Pagos, y el resto del menú se lee desde el **menú de usuario**. Escritorio sigue igual. Ninguna ruta ni permiso cambió. **Sin desplegar**, pendiente de autorización |
 | Cambio funcional anterior | `7b26d99` — **corregir a un integrante pendiente** (D-097), 2026-08-14; migración `0026` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
 | Último cambio funcional promovido | **`e1b2fe1`** — **buscar boletas por el cliente** (D-100, D-101), 2026-08-21; migración `0029` aplicada al proyecto real, despliegue verificado por SHA. La migración no escribe ni una fila |
 | Punto de partida del último mantenimiento | `main` en `3f82c42`, con árbol limpio antes de implementar (2026-08-21) |
@@ -61,7 +62,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — rediseño del detalle de boleta (2026-08-22)
+## 1.a Último relevo significativo — la navegación del teléfono baja (2026-08-23)
+
+| Campo | Estado |
+|---|---|
+| Resultado | En móvil el **cajón lateral desaparece** y lo sustituye una **barra inferior fija** con cuatro opciones: **Panel · Boletas · Clientes · Pagos**. Escritorio **no cambia**: sigue su barra lateral, y la inferior no existe ahí; las dos nunca conviven. Lo que no cabe abajo —**Reportes** en los dos portales, y además **Rifas, Vendedores y Administradores** en el administrativo y **Mi equipo** en el del vendedor— se lee desde el **menú de usuario**, solo en móvil. **Cambio de navegación y presentación:** `Route changes: None` · `Business logic changes: None` · `New API calls: None` · `New dependencies: None` (D-106) |
+| Archivos | **`src/components/layout/BottomNav.tsx` (nuevo)** · **`src/components/layout/nav-active.ts` (nuevo)** · **`src/components/layout/MobileNav.tsx` (borrado)** · `components/layout/AppShell.tsx` · `components/layout/NavLinks.tsx` · `components/layout/UserMenu.tsx` · `components/layout/nav-items.ts` (`primary`, `shortLabel`) · `app/(protected)/owner/layout.tsx` y `.../seller/layout.tsx` · `app/globals.css` (`--bottom-nav-height`, `--bottom-nav-space`) · `features/tickets/selection/components/TicketSelectionToolbar.tsx` (se posa sobre la barra) · `features/tour/tours.ts` · `next.config.ts` (`devIndicators.position`). Pruebas: **`tests/unit/nav-active.test.ts`**, **`tests/e2e/navegacion-movil.spec.ts`** y **`tests/e2e/navegacion.spec.ts`** nuevas; adaptadas `owner-responsive`, `reports-responsive`, `seller-ciclo-movil`, `equipo-movil` y `tour-responsive`. Documentación: `DECISIONS` (D-106), `ARCHITECTURE` §8.1, §8.2 y **§8.8**, `UX_COPY_GUIDELINES` anexos A y B, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Una sola lista de rutas**: los `navItems` que ya declaraba cada portal, con una marca `primary` en cuatro. De ahí salen las tres barras. Se **extendió** el desplegable de usuario que ya existía en vez de construir un segundo menú. `isNavItemActive` se extrajo de `NavLinks` y ahora la comparten las dos barras. El aviso de «se está abriendo» sigue siendo `useLinkStatus` (D-104). Iconos de `lucide-react`, ya instalado |
+| Decisiones | **D-106**. Lo no evidente: **(a)** el encargo nombró cuatro opciones pensando en el vendedor, pero el portal administrativo tiene **ocho** entradas; las otras cuatro se mandaron al menú de usuario en vez de eliminarlas o de añadir un quinto botón «Más», que habría dejado dos navegaciones vivas. **(b)** «Mis boletas» pasa a «Boletas» abajo vía `shortLabel`: a 320 px cada opción tiene ~72 px. **(c)** **No** se activó `viewport-fit=cover` |
+| Verificación | **325/325** unitarias (5 nuevas) · `typecheck`, `lint` y `build` ✅ · E2E **44/44 móvil** (9 nuevas) y **242/242 escritorio** (3 nuevas) · **0 errores y 0 avisos de consola**, medidos en las 14 rutas de los dos portales · anchos **320, 375, 390 y 430 px** sin desbordamiento horizontal, con etiquetas enteras y dianas ≥ 44 × 44 px · comprobado que el final de la página termina **por encima** del borde de la barra · capturas a 320, 390, 430 y 1280 px |
+| Advertencias | **1)** El indicador de `next dev` se movió a **`top-left`**: por defecto se dibuja abajo a la izquierda, **encima de «Panel»**, y se comía el toque. Solo afecta a desarrollo. **2)** Los márgenes inferiores **no se ponen pantalla por pantalla**: el hueco lo reserva `AppShell` con `--bottom-nav-space`. Si añades otra barra fija abajo, ánclala a esa variable como hizo la de selección múltiple. **3)** En una pantalla fuera de la barra —Mi equipo, Rifas— **no se enciende ninguna opción**, y es lo correcto. **4)** `components/ui/sheet.tsx` quedó **sin uso**; se conserva a propósito por ser una primitiva de shadcn/ui. **5)** Cuatro pruebas de móvil buscaban el botón del cajón y ya no existe: si aparece una nueva con `getByRole('button', { name: /menu/i })`, está copiada del patrón viejo |
+| Publicación | **No desplegado.** Trabajo local, sin migraciones y sin tocar la base de datos. Requiere autorización expresa del dueño para promoverlo |
+| Pendiente | Lo de siempre (I-066, I-062, I-063, columna «Abono» del importador). **A decisión del dueño:** si «Mi equipo» debería ocupar el sitio de alguna de las cuatro primarias en el portal del vendedor |
+| Git | Rama `main`, base observada `c9b72a7`, árbol limpio antes de empezar |
+
+## 1.a.0 Relevo anterior — rediseño del detalle de boleta (2026-08-22)
 
 | Campo | Estado |
 |---|---|
@@ -526,6 +541,14 @@ components/data/    DataTable · DataTablePagination · EmptyState
                     PageHeader (backHref = flecha de volver, D-089) · BackButton · MetricCard
 lib/navigation-history.ts  detecta si hay historial real en esta pestaña, para
                     BackButton. Contador de modulo, no sessionStorage (D-089)
+components/layout/  AppShell · NavLinks (lateral, escritorio) · BottomNav (barra
+                    inferior del telefono, D-106) · UserMenu. UNA sola lista de rutas
+                    por portal: los navItems del layout, con `primary` en las cuatro
+                    que bajan. Antes de anadir un menu, mira si te basta esa marca.
+                    nav-active.ts dice que entrada se enciende, y lo comparten las dos
+                    barras. El hueco de la barra inferior lo reserva AppShell con
+                    --bottom-nav-space (globals.css): NO pongas margenes abajo
+                    pantalla por pantalla
 components/form/    MoneyInput · TicketNumberInput
 components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSkeleton
 features/tickets/import/  importador de archivos CSV/JSON: UN componente para los tres

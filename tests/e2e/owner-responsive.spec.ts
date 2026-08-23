@@ -15,20 +15,19 @@ test.describe('Portal administrativo en movil', () => {
     await loginAs(page, ACCOUNTS.owner)
   })
 
-  test('la navegacion se abre desde el drawer', async ({ page }) => {
+  // El detalle de la barra inferior —cuantas opciones, cual queda marcada,
+  // que no tapa nada— vive en `navegacion-movil.spec.ts` (D-106). Aqui solo se
+  // comprueba que desde el panel se llega a otro modulo con el pulgar.
+  test('la navegacion se hace desde la barra inferior', async ({ page }) => {
     await page.goto('/owner/dashboard')
 
-    // En movil la barra lateral esta oculta y hay un boton de menu.
-    await expect(page.getByRole('navigation').getByRole('link', { name: 'Rifas' })).toBeHidden()
+    // La barra lateral esta oculta bajo `md`; lo que se ve es la de abajo.
+    await expect(page.locator('[data-tour="nav-sidebar"]')).toBeHidden()
 
-    await page
-      .getByRole('button', { name: /menu|abrir/i })
-      .first()
-      .click()
-    const drawerLink = page.getByRole('link', { name: 'Boletas' })
-    await expect(drawerLink).toBeVisible()
+    const barra = page.getByRole('navigation', { name: 'Navegación principal' })
+    await expect(barra).toBeVisible()
 
-    await drawerLink.click()
+    await barra.getByRole('link', { name: 'Boletas', exact: true }).tap()
     await page.waitForURL(/\/owner\/tickets/)
     await expect(page.getByRole('heading', { name: 'Boletas' })).toBeVisible()
   })

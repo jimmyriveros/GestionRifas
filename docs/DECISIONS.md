@@ -2684,6 +2684,86 @@ del cliente, el de la rifa—, y los dos números son el nombre de una boleta (B
 `<details>` plegable para lo administrativo: no existe ese patrón en el proyecto y no se introduce
 uno por una tarjeta. (c) Repetir la acción de cobrar arriba y abajo.
 
+## D-106 — En el teléfono la navegación baja, y solo bajan cuatro cosas
+
+**Fecha:** 2026-08-23 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio, rutas ni
+permisos** · Sustituye el cajón lateral de D-048 en móvil
+
+**Contexto.** El negocio se opera desde el teléfono. Hasta ahora el móvil recibía el menú de
+escritorio encogido: un botón de menú arriba a la izquierda que abría un cajón con las ocho entradas
+del portal administrativo o las seis del vendedor. Eso obliga a **dos toques y una lectura** para
+cambiar de pantalla, y pone la navegación en la esquina superior, que es la más lejana al pulgar. El
+dueño pidió que en móvil se comportara como una aplicación nativa.
+
+**Decisión.** En móvil la barra lateral desaparece y la sustituye una **barra inferior fija** con
+**cuatro** opciones: Panel · Boletas · Clientes · Pagos. En escritorio no cambia nada: sigue la barra
+lateral de siempre, y la barra inferior no existe. **Las dos nunca conviven**: la lateral es
+`hidden md:flex` y la inferior `md:hidden`.
+
+**Cuatro, y por qué esas cuatro.** Son los sitios a los que se vuelve todo el día. Lo demás no cabe
+sin convertir la barra en un menú, que es justo de lo que se venía. Una barra con seis u ocho iconos
+a 320 px deja ~40 px por opción: por debajo de los 44 px que necesita un dedo.
+
+**Lo que no entra en la barra no desaparece: se lee desde el menú de usuario.** Reportes en los dos
+portales; además Rifas, Vendedores y Administradores en el administrativo, y Mi equipo en el del
+vendedor. **Mismas rutas, mismos permisos, mismas pantallas.** Se extendió el desplegable que ya
+existía en vez de construir un segundo menú, y ese bloque es `md:hidden`: en escritorio esas entradas
+ya están en la lateral y repetirlas sería ofrecer dos caminos idénticos al mismo sitio.
+
+**Una sola lista de rutas.** `navItems` sigue declarándose una vez por portal. Lo nuevo es una marca
+`primary` en cuatro entradas: de ahí salen la barra inferior (las primarias), la lateral (todas) y el
+menú de usuario del teléfono (las demás). No hay una segunda lista que mantener en sincronía, que es
+como estas cosas se desincronizan.
+
+**«Mis boletas» pasa a «Boletas» abajo, y nada más.** A 320 px cada opción dispone de ~72 px. El
+`shortLabel` quita el posesivo sin cambiar el término del glosario —boleta, cliente, pago siguen
+siendo eso—, y el título de la pantalla sigue diciendo «Mis boletas» cuando entras.
+
+**Lo activo lo decide la ruta, no la igualdad de cadenas.** `isNavItemActive` vive aparte y lo usan
+**las dos** barras: si cada una tuviera su copia, el mismo detalle de boleta acabaría encendido en una
+y apagado en la otra. La regla es prefijo **con separador**, para que `/seller/tickets/<id>` y
+`/owner/tickets/bulk` sigan siendo «Boletas» y un futuro `/owner/reports-v2` no encienda «Reportes».
+En una pantalla que no está en la barra —Mi equipo, Rifas— **no se enciende ninguna**: fingir lo
+contrario sería mentir sobre dónde estás.
+
+**El hueco lo reserva el armazón, una vez.** `--bottom-nav-height` (56 px, el mismo alto que el
+encabezado) y `--bottom-nav-space` (ese alto más el área segura) viven en `globals.css`. De esa
+variable salen tres cosas que **tienen** que coincidir: el alto real de la barra, el `padding-bottom`
+que `AppShell` le da al contenido, y la altura a la que se posa la barra de selección múltiple. Sobre
+`md` la variable vale `0px`. Ninguna pantalla tiene que acordarse de dejar margen abajo, que era la
+forma segura de que una se olvidara.
+
+**Área segura sin `viewport-fit=cover`.** Se escribe `env(safe-area-inset-bottom, 0px)`. Hoy el valor
+de repuesto es el correcto: sin `viewport-fit=cover` el navegador ya mantiene los elementos fijos por
+encima del indicador del iPhone. **No se activó esa opción** porque afectaría a todas las pantallas
+—incluido el login— y metería el contenido bajo la muesca en horizontal, una regresión fuera de
+alcance por un problema que hoy no existe. Si algún día se activa, la barra se separa sola.
+
+**La barra de selección múltiple se apila encima, no se excluye.** Cuando hay boletas marcadas, su
+barra se posa sobre la de navegación (`bottom: var(--bottom-nav-space)`). Se descartó esconder la
+navegación mientras dura la selección: la selección **sobrevive al cambio de pantalla** (D-082), así
+que esconderla dejaría al vendedor encerrado en la lista sin ganar nada.
+
+**El verde solo como marca de «estás aquí».** El resto de la barra es blanco, negro y grises. Lo
+activo se reconoce por tres cosas a la vez —una raya verde de 2 px arriba, la etiqueta en negrita y
+`aria-current="page"`—, nunca solo por el color (CLAUDE.md §27). Se descartó el rectángulo negro
+sólido que usa la barra lateral: ahí es una entrada entre ocho, pero en una barra de cuatro celdas
+pinta de negro una cuarta parte de ella y pesa demasiado para lo que dice.
+
+**Sin peticiones ni dependencias.** La barra lee `usePathname()`, que Next ya tiene en memoria: sin
+estado, sin efectos, sin red. Conserva el aviso de «se está abriendo» con `useLinkStatus` (D-104),
+ocupando el sitio del icono, porque en la barra inferior no sobra un pixel al lado. Iconos de
+`lucide-react`, ya instalado. `New dependencies: None`.
+
+**Efecto colateral en desarrollo.** El indicador de `next dev` se dibuja por defecto abajo a la
+izquierda, es decir **encima de «Panel»**, y se comía el toque. Se movió a `top-left` en
+`next.config.ts`. Solo existe en desarrollo y no llega a producción.
+
+**Qué se descartó.** (a) Una quinta opción «Más» que abriera el cajón: el encargo pide cuatro
+accesos, y habría dejado dos navegaciones vivas en el teléfono. (b) Repetir en escritorio las
+entradas del menú de usuario. (c) Borrar `components/ui/sheet.tsx` al quedarse sin uso: es una
+primitiva de shadcn/ui, no código del proyecto, y quitarla es una limpieza fuera de alcance.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

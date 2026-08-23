@@ -396,6 +396,19 @@ también.
 **Roles en el habla del usuario:** dentro del código y de la documentación técnica se usan `owner`,
 `admin` y `seller`. En pantalla son siempre **Dueño**, **Administrador** y **Vendedor**.
 
+**En la barra inferior del teléfono cae el posesivo, y solo ahí** (D-106). El menú lateral y el
+título de la pantalla siguen diciendo **«Mis boletas»**, **«Mis clientes»** y **«Mis pagos»**; la
+barra de abajo dice **«Boletas»**, **«Clientes»** y **«Pagos»**, porque a 320 px cada opción dispone
+de unos 72 px. No es un término nuevo —boleta, cliente y pago son los del glosario—, es la misma
+palabra sin el «Mis» que ahí no cabe. Se escribe en el `shortLabel` de esa entrada, nunca inventando
+una etiqueta suelta dentro de la barra. Y al revés: **no se le quita el posesivo al título de la
+pantalla** para que «coincida» con la barra; el título dice de quién son las boletas, que es
+justamente lo que un vendedor necesita leer al entrar.
+
+**La barra de abajo dice dónde estás, no dónde estuviste.** En una pantalla que no está entre las
+cuatro —Mi equipo, Rifas, Reportes— **no se enciende ninguna opción**. Dejar «Panel» encendido
+mientras se lee un reporte sería más cómodo de mirar y falso.
+
 **Nadie es un «sub-vendedor» en pantalla.** Dentro del código existe `parent_seller_id` y la
 documentación habla de jerarquía, pero para el usuario todos son **vendedores**: unos tienen equipo y
 otros no (BR-E01). Cuando haga falta distinguirlo, se dice **«los vendedores de tu equipo»** o
@@ -423,6 +436,7 @@ castigo donde solo había una espera.
 | Tipo de texto | Dónde se escribe |
 |---|---|
 | Etiquetas de estado, roles y métodos de pago | `src/lib/constants.ts` |
+| Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | Errores de validación de formularios | `schemas.ts` de cada módulo de `src/features/` (mensajes de Zod) |
 | Errores devueltos por el servidor | `src/lib/errors.ts` (`mapPgError`) y los `RAISE` de las migraciones |
 | Títulos y descripciones de pantalla | `PageHeader` de cada `page.tsx` |

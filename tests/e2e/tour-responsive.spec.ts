@@ -6,8 +6,9 @@ import { ACCOUNTS, loginAs } from './fixtures'
  * Recorrido guiado en telefono (F10-02).
  *
  * En movil no hay barra lateral, asi que el paso que la explica debe
- * descartarse solo y ceder el turno al del boton de menu. Es la prueba de que
- * un paso cuyo elemento no esta visible no rompe el recorrido ni deja un hueco.
+ * descartarse solo y ceder el turno al de la barra inferior (D-106). Es la
+ * prueba de que un paso cuyo elemento no esta visible no rompe el recorrido ni
+ * deja un hueco.
  */
 
 const dialog = (page: import('@playwright/test').Page) =>
@@ -34,7 +35,7 @@ async function dialogBox(page: import('@playwright/test').Page) {
 }
 
 test.describe('Recorrido guiado en móvil', () => {
-  test('explica el menú del teléfono, no la barra lateral', async ({ page }) => {
+  test('explica la barra inferior, no la barra lateral', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller, { withTour: true })
     await expect(dialog(page)).toBeVisible()
 
@@ -42,7 +43,7 @@ test.describe('Recorrido guiado en móvil', () => {
     await expect(page.locator('[data-tour="nav-sidebar"]')).toBeHidden()
     await expect(page.locator('[data-tour="nav-mobile"]')).toBeVisible()
 
-    await expect(dialog(page).getByRole('heading')).toHaveText('Tu menú está aquí')
+    await expect(dialog(page).getByRole('heading')).toHaveText('Tu menú está abajo')
     await expect(dialog(page).getByText(/^Paso 1 de \d+$/)).toBeVisible()
   })
 

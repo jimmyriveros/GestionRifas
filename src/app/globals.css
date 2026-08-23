@@ -96,4 +96,33 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /*
+   * Barra de navegacion inferior del telefono (D-106).
+   *
+   * `--bottom-nav-height` es lo que se ve: 56 px, el mismo alto del encabezado.
+   * `--bottom-nav-space` es lo que el contenido tiene que dejar libre debajo, y
+   * suma el area segura del sistema —el indicador inferior del iPhone—.
+   *
+   * Estan aqui, en una variable y no repartidas por las pantallas, porque las
+   * usan tres sitios que deben coincidir siempre: el alto real de la barra, el
+   * hueco que reserva `AppShell` para que no tape nada, y la altura a la que se
+   * posa la barra de seleccion multiple cuando hay boletas marcadas.
+   *
+   * `env(..., 0px)` lleva valor de repuesto a proposito: sin `viewport-fit=cover`
+   * el navegador ya mantiene los elementos fijos por encima del indicador, asi
+   * que 0 es la respuesta correcta hoy. Si algun dia se activa esa opcion, la
+   * barra se separa sola sin tocar nada mas.
+   */
+  :root {
+    --bottom-nav-height: 3.5rem;
+    --bottom-nav-space: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Desde `md` no hay barra inferior: nadie debe reservarle sitio. */
+  @media (width >= 48rem) {
+    :root {
+      --bottom-nav-space: 0px;
+    }
+  }
 }

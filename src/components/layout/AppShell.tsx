@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { MobileNav } from '@/components/layout/MobileNav'
+import { BottomNav } from '@/components/layout/BottomNav'
 import { NavLinks } from '@/components/layout/NavLinks'
 import type { NavItem } from '@/components/layout/nav-items'
 import { UserMenu } from '@/components/layout/UserMenu'
@@ -43,6 +43,20 @@ export function AppShell({
   )
 }
 
+/**
+ * Armazon de los dos portales.
+ *
+ * ESCRITORIO: barra lateral fija + contenido, como siempre.
+ * TELEFONO:   contenido + barra inferior fija. Las dos NO conviven (D-106): la
+ *             lateral esta oculta bajo `md` y la inferior sobre `md`.
+ *
+ * De la MISMA lista `navItems` salen las dos barras y el menu de usuario. Las
+ * cuatro entradas marcadas `primary` son la barra inferior; el resto —reportes
+ * siempre, y ademas rifas, vendedores y administradores en el portal
+ * administrativo— se lee en el telefono desde el menu de usuario, que en
+ * escritorio no las repite porque ya estan en la lateral. No hay una segunda
+ * lista de rutas que mantener en sincronia.
+ */
 function AppShellLayout({
   orgName,
   role,
@@ -51,6 +65,9 @@ function AppShellLayout({
   navItems,
   children,
 }: Omit<AppShellProps, 'profileId'>) {
+  const primaryItems = navItems.filter((item) => item.primary)
+  const secondaryItems = navItems.filter((item) => !item.primary)
+
   return (
     <div className="flex min-h-svh flex-col md:flex-row">
       <aside
@@ -67,16 +84,26 @@ function AppShellLayout({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="bg-background sticky top-0 z-40 flex h-14 items-center gap-2 border-b px-4">
-          <MobileNav orgName={orgName} items={navItems} />
           <span className="truncate font-semibold md:hidden">{orgName}</span>
           <div className="ml-auto flex items-center gap-1">
             <NotificationBell />
-            <UserMenu fullName={fullName} email={email} role={role} />
+            <UserMenu fullName={fullName} email={email} role={role} navItems={secondaryItems} />
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        {/*
+          El hueco de la barra inferior se reserva AQUI, una sola vez, y sale de
+          la misma variable que fija su alto (`globals.css`). Asi ninguna
+          pantalla tiene que acordarse de dejar margen abajo, y la ultima fila de
+          una lista o el ultimo boton de un formulario nunca quedan tapados.
+          Sobre `md` la variable vale 0 y manda `md:p-6`.
+        */}
+        <main className="flex-1 p-4 pb-[calc(1rem_+_var(--bottom-nav-space))] md:p-6">
+          {children}
+        </main>
       </div>
+
+      <BottomNav items={primaryItems} />
     </div>
   )
 }

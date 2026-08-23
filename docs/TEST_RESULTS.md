@@ -2504,3 +2504,76 @@ de Turbopack; reiniciarlo lo arregló.
 (`dpl_vzGmPGBx3X6r8gwyYXgXCKXfVd6J`), CI 2/2, `/login` en 200 con sus seis cabeceras, las tres rutas
 protegidas en 307 y ninguna clave de servicio en el paquete del navegador. Detalle en
 `PHASE_STATUS.md` §7 del mantenimiento del rediseño.
+
+---
+
+## Navegación inferior en el teléfono (2026-08-23)
+
+Verificación del cambio de navegación móvil (D-106). Entorno: Supabase local, `npm run dev:local`,
+Playwright con perfil **Pixel 7** para móvil y **Desktop Chrome** para escritorio.
+
+| Comando | Resultado | Errores | Corrección |
+|---|---|---|---|
+| `npm run typecheck` | ✅ | — | — |
+| `npm run lint` | ✅ (2 avisos preexistentes de `react-hooks/incompatible-library` en `DataTable` y `BulkTicketCreator`) | — | — |
+| `npm run test` | **325/325 ✅** (5 nuevas) | — | — |
+| `npm run build` | ✅ | — | — |
+| `npx playwright test --project=movil` | **44/44 ✅** | 4 al principio | Ver más abajo |
+| `npx playwright test --project=escritorio` | **242/242 ✅** (11,7 min) | 1 intermitente | Ver más abajo |
+| Errores de consola (14 rutas, los dos portales, viewport de teléfono) | **0 errores y 0 avisos**, en crudo | — | — |
+
+### Lo que se comprobó, y no solo que la barra existiera
+
+| Qué | Cómo | Resultado |
+|---|---|---|
+| Escritorio conserva su barra lateral **completa** | Las ocho entradas del portal administrativo, visibles | ✅ |
+| Escritorio **no** muestra la barra inferior | `toBeHidden()` sobre `nav[aria-label="Navegación principal"]` | ✅ |
+| Móvil **no** muestra la barra lateral | `[data-tour="nav-sidebar"]` oculto | ✅ |
+| Exactamente **cuatro** opciones, en los **dos** portales | `toHaveCount(4)` y las cuatro por nombre | ✅ |
+| El cajón lateral ya no existe | `getByRole('button', { name: 'Abrir menú' })` → 0 | ✅ |
+| Cada opción lleva a **su ruta de siempre** y queda marcada | Recorridas las cuatro con `tap()`, leyendo `aria-current` | ✅ |
+| Una **ruta hija** mantiene su módulo activo | Dentro de `/seller/tickets/<id>`: activo «Boletas», barra visible | ✅ |
+| Una pantalla **fuera** de la barra no enciende ninguna | `/seller/team` → 0 opciones con `aria-current` | ✅ |
+| El contenido **no queda tapado** | Con la página al final, el último elemento de `main` termina por encima del borde superior de la barra | ✅ |
+| Reportes conserva ruta y permisos | Desde el menú de usuario → `/seller/reports`, pantalla real | ✅ |
+| El menú de usuario **no repite** en escritorio | «Reportes» oculto ahí bajo `md` | ✅ |
+
+**Errores de consola: medidos, no supuestos.** Con sesión real de vendedor y de dueño, viewport de
+teléfono, recorriendo las **14 rutas** de los dos portales y además tocando las cuatro opciones de la
+barra y abriendo el menú de usuario, escuchando `console` (`error` y `warning`) y `pageerror`:
+**0 en crudo**, sin necesidad de filtrar ni un aviso.
+
+**Los cuatro anchos del encargo**, con la sesión de un vendedor real:
+
+| Ancho | `scrollWidth − clientWidth` | Diana de cada opción | «Clientes» sin cortar |
+|---|---|---|---|
+| 320 px | 0 ✅ | 80 × 56 px ✅ | ✅ |
+| 375 px | 0 ✅ | 93 × 56 px ✅ | ✅ |
+| 390 px | 0 ✅ | 97 × 56 px ✅ | ✅ |
+| 430 px | 0 ✅ | 107 × 56 px ✅ | ✅ |
+
+El corte se mide de verdad (`label.scrollWidth > label.clientWidth`), no a ojo: la etiqueta lleva
+`truncate` como red de seguridad y sin esa comprobación un recorte pasaría inadvertido.
+
+### Errores encontrados durante la verificación
+
+| Síntoma | Causa | Corrección |
+|---|---|---|
+| «Panel» no respondía al toque: `<nextjs-portal> intercepts pointer events` | El **indicador de `next dev`** se dibuja por defecto abajo a la izquierda, justo encima de la primera opción de la barra. Solo existe en desarrollo | `devIndicators.position: 'top-left'` en `next.config.ts`. Arriba a la izquierda solo hay el nombre de la organización, que no se pulsa |
+| 4 pruebas de móvil fallaban buscando el botón del cajón | Describían la navegación anterior: `owner-responsive`, `reports-responsive`, `seller-ciclo-movil` y `equipo-movil` | Reescritas contra la navegación nueva. Ninguna comprobación se perdió: las de Reportes y «Mi equipo» ahora entran por el menú de usuario |
+
+### Una trampa del arnés, no del producto
+
+La primera pasada de escritorio dio **235/242**, con 7 fallos en `importar-boletas`, `seller-clients`
+y `seller-tickets`. **No eran del cambio**: las dos suites comparten una sola base de datos y esa
+pasada arrancó sobre los datos que había dejado la suite de móvil, así que los selectores de cliente
+llegaban con más filas de las que esperaban las pruebas.
+
+Con `npm run db:reset && npm run seed:local` antes de correr, **35/35** en esos tres archivos. Es el
+requisito que ya declara la cabecera de `playwright.config.ts`; queda escrito aquí porque el síntoma
+—siete fallos repartidos por módulos sin relación entre sí— invita a buscar la causa en el código.
+
+La pasada completa sobre base recién sembrada dio **241/242**, y el único fallo fue un
+`page.goto('/owner/tickets/new')` agotando su plazo: una ruta que este trabajo **no toca**, y con el
+servidor de desarrollo compartido con otra sesión de navegador. En aislado, `owner-tickets.spec.ts`
+da **16/16**, ese caso incluido. Resultado real de escritorio: **242/242**.

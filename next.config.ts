@@ -11,6 +11,19 @@ const nextConfig: NextConfig = {
   },
 
   /**
+   * El indicador de desarrollo, fuera de la esquina inferior izquierda (D-106).
+   *
+   * Solo existe en `next dev` y nunca llega a produccion, pero desde que la
+   * navegacion del telefono vive abajo su sitio por defecto —`bottom-left`— cae
+   * justo encima de «Panel»: tapa la primera opcion de la barra y se come el
+   * toque. Arriba a la izquierda solo hay el nombre de la organizacion, que no
+   * se pulsa.
+   */
+  devIndicators: {
+    position: 'top-left',
+  },
+
+  /**
    * Cabeceras de seguridad que no dependen del request (Fase 7).
    *
    * Se declaran aqui y no en `proxy.ts` para que las reciba TODA respuesta,

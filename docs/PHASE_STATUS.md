@@ -1579,3 +1579,83 @@ administrativo recibe la misma disposición.
 
 La comprobación visual con sesión real la hace el dueño: no se inician sesiones en producción con
 las cuentas de demostración desde aquí, y menos con **I-066** abierto.
+
+---
+
+## Mantenimiento post-9 — la navegación del teléfono baja (2026-08-23)
+
+Encargo del dueño: en móvil, que la aplicación se comporte como una **aplicación nativa** y no como
+un escritorio encogido. Decisión **D-106**. Sin migraciones. **Sin desplegar.**
+
+`Route changes: None` · `Business logic changes: None` · `New API calls: None` ·
+`New dependencies: None`
+
+### 1. Funcionalidades implementadas
+
+Ninguna nueva, y es a propósito: es un cambio de navegación y presentación.
+
+- **Barra inferior fija en móvil**, con cuatro opciones: **Panel · Boletas · Clientes · Pagos**.
+  Sustituye al cajón lateral, que se eliminó. Escritorio conserva su barra lateral intacta, y las dos
+  **nunca conviven** (`hidden md:flex` frente a `md:hidden`).
+- **Lo que no cabe abajo se lee desde el menú de usuario**, y solo en móvil: **Reportes** en los dos
+  portales, más **Rifas, Vendedores y Administradores** en el administrativo y **Mi equipo** en el
+  del vendedor. Se extendió el desplegable que ya existía; no hay un segundo menú.
+- **Una sola lista de rutas por portal.** Los `navItems` de siempre, con una marca `primary` en
+  cuatro entradas: de ahí salen las tres barras.
+- **El hueco lo reserva el armazón, una vez**, con `--bottom-nav-height` y `--bottom-nav-space` en
+  `globals.css`. Ninguna pantalla añade margen inferior por su cuenta. La barra de selección múltiple
+  se ancla a la misma variable y se posa **encima** de la de navegación.
+- **Lo activo lo decide la ruta**, con `isNavItemActive` compartida por las dos barras: el detalle de
+  una boleta y `/owner/tickets/bulk` siguen siendo «Boletas». En una pantalla que no está en la barra
+  no se enciende ninguna opción.
+- **El recorrido guiado** dejó de explicar un botón que ya no existe y ahora explica la barra.
+
+### 2. Pruebas ejecutadas y resultados
+
+**325** unitarias ✅ (5 nuevas, `nav-active.test.ts`) · `typecheck`, `lint` y `build` ✅ ·
+E2E **44/44 móvil** (9 nuevas en `navegacion-movil.spec.ts`) y **242/242 escritorio** (3 nuevas en
+`navegacion.spec.ts`) · **0 errores y 0 avisos de consola** medidos en las 14 rutas de los dos
+portales. Comprobados por prueba: cuatro opciones y solo cuatro en los dos portales, la
+ruta y la marca de activo de cada una, la barra visible dentro de una ficha de detalle, el final de la
+página **por encima** del borde de la barra, y a **320, 375, 390 y 430 px** cero desbordamiento
+horizontal con dianas ≥ 44 × 44 px y etiquetas sin cortar.
+
+**Errores encontrados y corregidos durante la verificación** (detalle en `TEST_RESULTS.md`):
+
+1. El indicador de `next dev` se dibuja por defecto **abajo a la izquierda, encima de «Panel»**, y se
+   comía el toque. Movido a `top-left` en `next.config.ts`. Solo afecta a desarrollo.
+2. Cuatro pruebas de móvil buscaban el botón del cajón lateral, que ya no existe. Reescritas para la
+   navegación nueva; ninguna comprobación se perdió.
+3. **Ni el fallo de la primera pasada de escritorio ni los 7 anteriores eran del cambio**: los 7
+   fueron datos acumulados por correr la suite de móvil antes contra la **misma** base, y el último,
+   un `goto` agotando su plazo en una ruta que este trabajo no toca. Confirmado corriendo en aislado.
+   Antes de una pasada E2E, `npm run db:reset && npm run seed:local`.
+
+### 3. Migraciones
+
+Ninguna. Este trabajo no toca la base de datos.
+
+### 4. Variables de entorno
+
+Sin cambios.
+
+### 5. Problemas reales que permanecen
+
+Los de antes (I-066, I-062, I-063 y la columna «Abono» del importador). Este trabajo no abre ninguno.
+Queda **pendiente de decisión del dueño** si «Mi equipo» debería ocupar el sitio de alguna de las
+cuatro opciones primarias del portal del vendedor.
+
+`src/components/ui/sheet.tsx` quedó **sin uso** al eliminar el cajón. Se conserva a propósito: es una
+primitiva de shadcn/ui, no código del proyecto, y borrarla es una limpieza fuera de alcance.
+
+### 6. Qué debe revisar el siguiente agente
+
+1. `ARCHITECTURE.md` **§8.8** antes de tocar cualquier menú: hay **una sola lista de rutas** por
+   portal y basta con marcar `primary`.
+2. **No pongas márgenes inferiores pantalla por pantalla.** El hueco sale de `--bottom-nav-space` y lo
+   reserva `AppShell`. Si añades otra barra fija abajo, ánclala a esa variable.
+3. Si escribes una prueba de móvil, **no copies** el patrón viejo
+   `getByRole('button', { name: /menu/i })`: ese botón ya no existe.
+4. Las descripciones de la Fase 3 —`IMPLEMENTATION_PLAN.md` §89 y este documento, línea 74— siguen
+   diciendo «drawer móvil». Son **fotografías históricas** de aquella fase y se conservan tal cual;
+   lo vigente es esta entrada y `ARCHITECTURE.md` §8.8.

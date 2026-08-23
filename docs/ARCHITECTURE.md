@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.9 · **Estado:** implementado · **Actualizado:** 2026-08-22
+- **Versión:** 1.10 · **Estado:** implementado · **Actualizado:** 2026-08-23
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -160,7 +160,7 @@ importa desde un componente cliente.
     │   └── denied/page.tsx                # Acceso denegado
     ├── components/
     │   ├── ui/                   # shadcn/ui generado
-    │   ├── layout/               # AppShell, Sidebar, MobileNav, Header, UserMenu
+    │   ├── layout/               # AppShell, NavLinks, BottomNav, UserMenu
     │   ├── data/                 # DataTable, Pagination, MetricCard, StatusBadge, EmptyState
     │   ├── feedback/             # Skeletons y ConfirmDialog
     │   └── form/                 # MoneyInput, TicketNumberInput, OptionList, SelectionCheckbox
@@ -318,8 +318,11 @@ usan guardas propias; I-051 registra una acción auxiliar que todavía no valida
 
 ### 8.1 Estructura visual
 - **Escritorio:** `AppShell` con sidebar fijo, nombre de la organización y menú de usuario.
-- **Móvil (mobile-first):** header compacto + drawer de navegación; acciones primarias accesibles con
-  el pulgar; las tablas conservan su estructura y ocultan columnas secundarias (D-048).
+- **Móvil (mobile-first):** header compacto + **barra de navegación inferior** (§8.8, D-106);
+  acciones primarias accesibles con el pulgar; las tablas conservan su estructura y ocultan columnas
+  secundarias (D-048). El **drawer** que había hasta el 2026-08-23 ya no existe.
+
+Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior, `md:hidden`.
 
 ### 8.2 Componentes transversales
 
@@ -346,6 +349,8 @@ usan guardas propias; I-051 registra una acción auxiliar que todavía no valida
 | `EmptyState` | Estado vacío con acción sugerida |
 | `RowLink` | Enlace de una **fila** de tabla: un `Link` con `prefetch={false}`. Veinticinco filas precargadas son veinticinco invocaciones del servidor que casi nadie usa, y en Vercel enfrían la función que atenderá el clic siguiente (D-104) |
 | `NavLinks` → `NavPending` | El menú lateral y su aviso de «se está abriendo», con `useLinkStatus`. Sustituye a los `loading.tsx`, que costaban ~300 ms de espera por fallback de Suspense (D-104) |
+| `BottomNav` | La barra de navegación del teléfono (§8.8, D-106). Solo las entradas `primary`, solo bajo `md`. No consulta nada: `usePathname()` y ya. Conserva el aviso de «se está abriendo» de `NavPending`, en el sitio del icono |
+| `nav-active.ts` | `isNavItemActive(pathname, href)`: qué entrada se enciende. La comparten la barra lateral y la inferior, para que no puedan discrepar (D-106) |
 | `ProgressRing` | Anillo de progreso accesible (D-105): un `<svg>` con `stroke-dasharray`, sin librería de gráficas. Lleva el porcentaje **escrito** en el centro y `role="progressbar"`; es la versión compacta de la barra de `CollectionSummaryCard`, para cuando el porcentaje comparte fila con cifras de dinero |
 | `TicketPaymentSummary` | Estado, estado de pago y —si ya se vendió— anillo, abonado y pendiente de UNA boleta (D-105). No consulta ni calcula: recibe `sale_price` y `paid_amount` y pide el porcentaje a `calculateCollectionSummary`, la misma cuenta del panel |
 | `PageHeader` | Título, descripción y acciones de toda pantalla. `backHref` activa la flecha de volver de las pantallas de detalle (§8.6, D-089) |
@@ -545,6 +550,52 @@ no con `divide-x`, porque en esta rejilla el orden del marcado no siempre es el 
 **El encabezado de columnas del historial va `aria-hidden`**, y cada fila lleva su propio rótulo
 `lg:sr-only` («Registrado por», «Nota»): en escritorio el rótulo se oculta a la vista pero el lector
 de pantalla lo sigue leyendo, que es justo lo que un `<div>` en rejilla no da gratis.
+
+### 8.8 Navegación del teléfono: barra inferior (D-106)
+
+En móvil no hay barra lateral ni drawer. Hay una **barra inferior fija** con cuatro opciones, y el
+resto del menú se lee desde el menú de usuario.
+
+```
+                 navItems  (una sola lista por portal)
+                     │
+        ┌────────────┼──────────────┐
+        │            │              │
+   NavLinks      BottomNav      UserMenu
+   (todas)       (primary)      (el resto, md:hidden)
+   hidden md:flex  md:hidden
+```
+
+| Portal | Barra inferior (`primary`) | Menú de usuario, solo en móvil |
+|---|---|---|
+| Owner / Admin | Panel · Boletas · Clientes · Pagos | Rifas · Vendedores · Reportes · Administradores |
+| Seller | Panel · Boletas · Clientes · Pagos | Mi equipo · Reportes |
+
+**Las rutas y los permisos no cambiaron**: solo cambió desde dónde se entra en el teléfono.
+
+| Regla | Dónde vive |
+|---|---|
+| Qué entrada es primaria y su etiqueta corta | `NavItem.primary` / `NavItem.shortLabel`, declarados en el `layout.tsx` de cada portal |
+| Qué entrada se enciende | `isNavItemActive` (`nav-active.ts`), compartida con la barra lateral |
+| Alto de la barra y hueco que debe dejar el contenido | `--bottom-nav-height` / `--bottom-nav-space` (`globals.css`) |
+| Reserva de ese hueco | `AppShell`, **una vez**; ninguna pantalla añade margen por su cuenta |
+| Altura de la barra de selección múltiple | `bottom: var(--bottom-nav-space)`: se apila encima, no la sustituye |
+
+En el portal del vendedor la barra dice **«Boletas»**, **«Clientes»** y **«Pagos»** (`shortLabel`),
+mientras el título de la pantalla sigue diciendo «Mis boletas». A 320 px cada opción dispone de
+~72 px y el posesivo no cabe; el término del glosario es el mismo.
+
+**En una pantalla que no está en la barra —Mi equipo, Rifas, Reportes— no se enciende ninguna
+opción.** Es lo correcto: la barra dice dónde estás, no dónde estuviste.
+
+**Área segura.** `env(safe-area-inset-bottom, 0px)`. No se activó `viewport-fit=cover`: sin ella el
+navegador ya mantiene los elementos fijos por encima del indicador del iPhone, y activarla metería el
+contenido bajo la muesca en **todas** las pantallas. El valor de repuesto deja el cambio preparado
+por si algún día se activa.
+
+**El icono llega sin tamaño** desde el `layout.tsx`: lo pone quien lo pinta —16 px en la lateral y en
+el menú de usuario, 24 px en la barra inferior—, porque el mismo elemento de React se usa en los
+tres sitios.
 
 ---
 

@@ -90,11 +90,16 @@ export type Tour = {
 // ---------------------------------------------------------------------------
 
 /**
- * La barra lateral solo existe en escritorio y el boton de menu solo en movil.
+ * La barra lateral solo existe en escritorio y la barra inferior solo en movil.
  * Se declaran los dos: el que no este visible se descarta al arrancar, sin
  * necesidad de preguntar por el tamano de la pantalla.
+ *
+ * `items` describe el menu lateral completo; `bottomItems`, las cuatro opciones
+ * que caben en la barra del telefono (D-106). Son textos distintos porque son
+ * dos menus distintos, y prometerle al usuario algo que no ve seria peor que no
+ * explicarlo.
  */
-function navigationSteps(items: string): TourStep[] {
+function navigationSteps(items: string, bottomItems: string): TourStep[] {
   return [
     {
       id: 'nav-sidebar',
@@ -106,9 +111,9 @@ function navigationSteps(items: string): TourStep[] {
     {
       id: 'nav-mobile',
       target: 'nav-mobile',
-      side: 'bottom',
-      title: 'Tu menú está aquí',
-      body: `Toca este botón para abrir el menú y moverte entre ${items}.`,
+      side: 'top',
+      title: 'Tu menú está abajo',
+      body: `Esta barra te lleva a ${bottomItems}. Lo demás está en tu menú, arriba a la derecha.`,
     },
   ]
 }
@@ -154,7 +159,10 @@ const OWNER_TOURS: Tour[] = [
     path: '/owner/dashboard',
     roles: ['owner', 'admin'],
     steps: [
-      ...navigationSteps('las rifas, las boletas, tus vendedores y los pagos'),
+      ...navigationSteps(
+        'las rifas, las boletas, tus vendedores y los pagos',
+        'el panel, las boletas, los clientes y los pagos',
+      ),
       {
         id: 'financial-summary',
         target: 'financial-summary',
@@ -264,7 +272,10 @@ const SELLER_TOURS: Tour[] = [
     path: '/seller/dashboard',
     roles: ['seller'],
     steps: [
-      ...navigationSteps('tus boletas, tus clientes y tus pagos'),
+      ...navigationSteps(
+        'tus boletas, tus clientes y tus pagos',
+        'el panel, tus boletas, tus clientes y tus pagos',
+      ),
       {
         id: 'quick-actions',
         target: 'quick-actions',

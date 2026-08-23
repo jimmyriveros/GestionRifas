@@ -4,6 +4,7 @@ import { Loader2Icon } from 'lucide-react'
 import Link, { useLinkStatus } from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import { isNavItemActive } from '@/components/layout/nav-active'
 import type { NavItem } from '@/components/layout/nav-items'
 import { cn } from '@/lib/utils'
 
@@ -48,7 +49,7 @@ export function NavLinks({ items, onNavigate }: NavLinksProps) {
   return (
     <nav className="flex flex-col gap-1">
       {items.map((item) => {
-        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+        const isActive = isNavItemActive(pathname, item.href)
         return (
           <Link
             key={item.href}
@@ -57,6 +58,9 @@ export function NavLinks({ items, onNavigate }: NavLinksProps) {
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              // El icono llega sin tamano desde el layout del portal: aqui son
+              // 16 px, en la barra inferior del telefono son 24 (D-106).
+              '[&>svg]:size-4 [&>svg]:shrink-0',
               // Estados excluyentes: el enlace de la pantalla actual trae su
               // propio hover, para que pasar por encima no lo devuelva nunca al
               // aspecto de un enlace cualquiera (misma regla que `OptionList`).

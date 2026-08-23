@@ -221,9 +221,7 @@ export function TicketSelectionToolbar({
 
         {offerSelectAll ? (
           <div className="bg-muted/50 flex flex-wrap items-center gap-3 rounded-md border px-3 py-2 text-sm">
-            <span>
-              Están seleccionadas las {selection.pageIds.length} boletas de esta página.
-            </span>
+            <span>Están seleccionadas las {selection.pageIds.length} boletas de esta página.</span>
             <Button
               type="button"
               variant="outline"
@@ -247,12 +245,19 @@ export function TicketSelectionToolbar({
       </div>
 
       {/* Barra pegada abajo: telefono (seccion 14). Deja de estorbar sola
-          cuando no hay nada seleccionado. */}
+          cuando no hay nada seleccionado.
+
+          Se apoya JUSTO ENCIMA de la barra de navegacion inferior, sin taparla
+          (D-106): `--bottom-nav-space` es la misma medida que usa el armazon
+          para reservar el hueco, asi que las dos no pueden descuadrarse. Se
+          apilan en vez de excluirse porque la seleccion sobrevive al cambio de
+          pantalla, y esconder la navegacion mientras hay boletas marcadas
+          dejaria al vendedor atrapado en la lista. */}
       {count > 0 ? (
         <>
           {/* Hueco para que la ultima fila no quede tapada por la barra. */}
           <div className="h-20 md:hidden" aria-hidden />
-          <div className="bg-background fixed inset-x-0 bottom-0 z-40 border-t p-3 shadow-lg md:hidden">
+          <div className="bg-background fixed inset-x-0 bottom-[var(--bottom-nav-space)] z-40 border-t p-3 shadow-lg md:hidden">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium tabular-nums">
                 {count} {count === 1 ? 'seleccionada' : 'seleccionadas'}
