@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { calculateCollectionSummary } from '@/features/dashboard/collection-summary'
 import type { TicketInventoryStatus, TicketPaymentStatus } from '@/lib/constants'
 import { formatCOP } from '@/lib/money'
+import { cn } from '@/lib/utils'
 
 type TicketPaymentSummaryProps = {
   inventoryStatus: TicketInventoryStatus
@@ -25,6 +26,13 @@ type TicketPaymentSummaryProps = {
  * aparte: es la misma cuenta que hace el panel, ya probada para los casos
  * limite (sin ventas, cobro completo y un pendiente negativo que la base
  * impide pero que la interfaz nunca debe pintar).
+ *
+ * **Disposicion.** En escritorio son TRES secciones hermanas separadas por una
+ * linea vertical —estado · estado de pago · resumen de pago—, y la tercera
+ * reparte a su vez el anillo, lo abonado y lo pendiente en horizontal. En el
+ * telefono los dos estados comparten fila y el resumen entero baja debajo,
+ * separado por una linea horizontal. Es la misma rejilla en los dos casos: solo
+ * cambia donde cae cada sección y de que lado se dibuja su linea.
  */
 export function TicketPaymentSummary({
   inventoryStatus,
@@ -42,74 +50,82 @@ export function TicketPaymentSummary({
 
   return (
     <Card>
-      <CardContent className="grid gap-5 lg:flex lg:items-center lg:gap-8">
-        <div className="grid grid-cols-2 gap-4 lg:flex-1 lg:gap-8">
-          <Cell label="Estado">
-            <InventoryStatusBadge status={inventoryStatus} />
-          </Cell>
-          <Cell label="Estado de pago">
-            {inventoryStatus === 'assigned' ? (
-              <PaymentStatusBadge status={paymentStatus} />
-            ) : (
-              <span className="text-muted-foreground text-sm">Sin venta</span>
-            )}
-          </Cell>
-        </div>
+      {/* Las dos primeras columnas se miden por su ROTULO, no por el badge:
+          con menos ancho, «Estado de pago» parte en dos lineas a 1.024 px. */}
+      <CardContent className="grid grid-cols-2 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2.2fr)] lg:gap-8">
+        <Cell label="Estado" className="lg:col-start-1 lg:row-start-1">
+          <InventoryStatusBadge status={inventoryStatus} />
+        </Cell>
+
+        <Cell label="Estado de pago" className="lg:col-start-2 lg:row-start-1 lg:border-l lg:pl-8">
+          {inventoryStatus === 'assigned' ? (
+            <PaymentStatusBadge status={paymentStatus} />
+          ) : (
+            <span className="text-muted-foreground text-sm">Sin venta</span>
+          )}
+        </Cell>
 
         {sold ? (
-          // En movil el bloque del dinero baja debajo de los estados, separado
-          // por una linea; en escritorio pasa a ser la parte derecha de la
-          // misma fila.
-          <div className="border-t pt-5 lg:ml-auto lg:min-w-0 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
+          // La linea que lo separa es horizontal en el telefono —porque el
+          // bloque baja— y vertical en escritorio, donde es la tercera columna.
+          <section className="col-span-2 border-t pt-5 lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:flex lg:flex-col lg:justify-center lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
             <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
               Resumen de pago
             </p>
-            <div className="mt-3 flex items-center gap-4 sm:gap-6">
+            {/* Tres columnas: el anillo ocupa lo que mide, y las dos cifras se
+                reparten el resto por igual para que no bailen entre boletas. */}
+            <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-4 sm:gap-6">
               <ProgressRing
                 percentage={percentage}
                 caption="abonado"
                 label={`Abonado el ${percentage}% del precio de venta`}
               />
-              <div className="grid min-w-0 flex-1 grid-cols-2 gap-4 sm:gap-8">
-                <Cell label="Abonado">
-                  {/* El color solo aparece cuando dice algo: en cero no hay
-                      dinero cobrado que destacar. */}
-                  <p
-                    className={
-                      paidAmount > 0
-                        ? 'text-base font-semibold text-emerald-700 tabular-nums sm:text-lg dark:text-emerald-400'
-                        : 'text-muted-foreground text-base font-semibold tabular-nums sm:text-lg'
-                    }
-                  >
-                    {formatCOP(paidAmount)}
-                  </p>
-                </Cell>
-                <Cell label="Pendiente">
-                  {/* El ambar dice «falta algo», igual que en «Abonada» y
-                      «Pendiente de aprobación»; en cero no queda nada que
-                      señalar y la cifra vuelve al gris de siempre. */}
-                  <p
-                    className={
-                      safePendingAmount > 0
-                        ? 'text-base font-semibold text-amber-700 tabular-nums sm:text-lg dark:text-amber-400'
-                        : 'text-muted-foreground text-base font-semibold tabular-nums sm:text-lg'
-                    }
-                  >
-                    {formatCOP(safePendingAmount)}
-                  </p>
-                </Cell>
-              </div>
+              <Cell label="Abonado">
+                {/* El color solo aparece cuando dice algo: en cero no hay
+                    dinero cobrado que destacar. */}
+                <p
+                  className={
+                    paidAmount > 0
+                      ? 'text-base font-semibold text-emerald-700 tabular-nums sm:text-lg dark:text-emerald-400'
+                      : 'text-muted-foreground text-base font-semibold tabular-nums sm:text-lg'
+                  }
+                >
+                  {formatCOP(paidAmount)}
+                </p>
+              </Cell>
+              <Cell label="Pendiente">
+                {/* El ambar dice «falta algo», igual que en «Abonada» y
+                    «Pendiente de aprobación»; en cero no queda nada que
+                    señalar y la cifra vuelve al gris de siempre. */}
+                <p
+                  className={
+                    safePendingAmount > 0
+                      ? 'text-base font-semibold text-amber-700 tabular-nums sm:text-lg dark:text-amber-400'
+                      : 'text-muted-foreground text-base font-semibold tabular-nums sm:text-lg'
+                  }
+                >
+                  {formatCOP(safePendingAmount)}
+                </p>
+              </Cell>
             </div>
-          </div>
+          </section>
         ) : null}
       </CardContent>
     </Card>
   )
 }
 
-function Cell({ label, children }: { label: string; children: React.ReactNode }) {
+function Cell({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: React.ReactNode
+  className?: string
+}) {
   return (
-    <div className="min-w-0 space-y-1.5">
+    <div className={cn('min-w-0 space-y-1.5 lg:flex lg:flex-col lg:justify-center', className)}>
       <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
       {children}
     </div>

@@ -530,12 +530,17 @@ mismo texto ni una tabla encogida.
 | Bloque | Teléfono (base) | Tableta (`sm`) | Escritorio |
 |---|---|---|---|
 | Identidad (números · precio · cliente) | apilado: números → cliente → precio → fecha | 2 columnas, cliente a lo ancho debajo | 3 columnas desde **`xl`**, cliente a la derecha |
-| Estado y cobro | estados arriba, dinero debajo de una línea | igual | una fila desde `lg` |
+| Estado y cobro | los dos estados en una fila; el resumen baja debajo, tras una línea horizontal | igual | **tres secciones hermanas** separadas por línea vertical desde `lg` — estado · estado de pago · resumen —, y la tercera reparte anillo, abonado y pendiente en horizontal |
 | Abonos de esta boleta | cada abono, una tarjeta apilada | igual | columnas alineadas con su encabezado desde `lg` |
 
 **Por qué el corte grande es `xl` y no `lg`.** Con la barra lateral de 256 px, una ventana de 1.024
 px deja 672 px de contenido: una tableta de 768 px tiene **menos** ancho útil que un teléfono
 apaisado de 640 px. Comprobado con capturas a 320, 390, 768, 1024 y 1440 px.
+
+**Las tres secciones de «estado y cobro» se miden por su ROTULO, no por su contenido.** El reparto
+es `1fr · 1fr · 2.2fr`: con menos ancho en las dos primeras, «Estado de pago» parte en dos líneas a
+1.024 px aunque el badge quepa de sobra. Las líneas divisorias van en cada sección (`lg:border-l`),
+no con `divide-x`, porque en esta rejilla el orden del marcado no siempre es el orden visual.
 
 **El encabezado de columnas del historial va `aria-hidden`**, y cada fila lleva su propio rótulo
 `lg:sr-only` («Registrado por», «Nota»): en escritorio el rótulo se oculta a la vista pero el lector

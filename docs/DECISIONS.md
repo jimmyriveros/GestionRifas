@@ -2632,7 +2632,7 @@ distinta, ni una columna más. La pantalla pasa a cuatro bloques en orden de uso
 |---|---|---|
 | Encabezado | Los dos números como título, la rifa, y **«Registrar abono»** | Cobrar es a lo que se viene; ya no se llega a esa acción bajando por el historial |
 | Identidad | Número diario y semanal, precio (con su rebaja si la hubo), fecha, y el cliente | Qué boleta es y quién la tiene |
-| Estado y cobro | Estado, estado de pago, anillo de progreso, abonado y pendiente | La pregunta que sigue: cuánto falta |
+| Estado y cobro | Tres secciones con línea divisoria: estado · estado de pago · resumen de pago (anillo, abonado y pendiente, repartidos en horizontal) | La pregunta que sigue: cuánto falta |
 | Abonos y detalles | Historial de abonos y, al final y en voz baja, fechas y código interno | Consulta, no operación |
 
 **El orden del HTML es el del teléfono.** Números → cliente → precio → fecha. En escritorio la
