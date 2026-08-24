@@ -2621,3 +2621,35 @@ retransmisión del SYN de TCP en Windows. **Es la red de la máquina que mide, n
 
 **El error de método fue leer `time_starttransfer` como tiempo de servidor.** No lo es: incluye DNS,
 TCP y TLS. Queda anotado en `HANDOFF.md` §9 para que la próxima medición empiece por el desglose.
+
+### Fluid Compute declarado en `vercel.json` (2026-08-23)
+
+Vercel `READY` sobre **`ded4181`** (`dpl_DLMzuufXZyqJig9535s7jhzgA2XF`), CI **2/2**. La clave `fluid`
+fue aceptada: si no lo fuera, el build habría fallado.
+
+**Lo que había que comprobar de verdad al crear un `vercel.json` por primera vez** es que no pisara
+la configuración existente — el formato admite una clave `headers`, y ahí se podía haber roto la
+seguridad en silencio:
+
+| Comprobación | Resultado |
+|---|---|
+| Cabeceras de seguridad | **6 de 6**, todas siguen viniendo de `next.config.ts` y `src/proxy.ts` |
+| Rutas protegidas | `/seller/tickets` y `/owner/dashboard` → **307** |
+| Código de D-106 servido | `--bottom-nav-height: 3.5rem` sigue en la CSS de producción |
+
+**Latencia, medida ya con el método correcto** (seis ciclos, pausa de 60 s, tiempo de servidor
+aislado como `time_starttransfer − time_appconnect`):
+
+| Ciclo | **Servidor** | Conexión |
+|---|---:|---:|
+| c1 | **254 ms** | 239 ms |
+| c2 | **198 ms** | 221 ms |
+| c3 | **200 ms** | **3.225 ms** |
+| c4 | **149 ms** | 261 ms |
+| c5 | **169 ms** | **3.265 ms** |
+| c6 | **182 ms** | 213 ms |
+
+Servidor entre **149 y 254 ms en los seis**, incluidos los dos cuya conexión tardó 3,2 s. Fluid
+Compute cumple. Los picos vuelven a aparecer clavados en ~3,2 s del lado de la conexión, en ~1 de
+cada 3 muestras: es el reintento del SYN de TCP de la máquina que mide, y **no** algo que se pueda
+arreglar en el proyecto.

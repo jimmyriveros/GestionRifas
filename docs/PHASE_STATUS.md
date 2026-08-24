@@ -1699,3 +1699,30 @@ puede ralentizar un archivo estático—.
 **Regla para la próxima medición en producción:** desglosar siempre
 `time_namelookup` / `time_connect` / `time_appconnect` / `time_starttransfer`, y comparar contra
 `/denied`. El número agregado no distingue un arranque en frío de un mal camino de red.
+
+### 8. Fluid Compute declarado en el repositorio (2026-08-23)
+
+A raíz de la verificación anterior se vio que un **requisito duro de despliegue** —Fluid Compute,
+`DEPLOYMENT.md` §3.1.b— vivía **solo** como interruptor del panel de Vercel: no aparecía en ninguna
+revisión de código y apagarlo no dejaba rastro. Se declara en `vercel.json`, con autorización del
+dueño.
+
+```json
+{ "$schema": "https://openapi.vercel.sh/vercel.json", "fluid": true }
+```
+
+**Solo `fluid`.** `vercel.json` anula únicamente lo que declara; el formato admite `headers`, pero
+las cabeceras de seguridad siguen en `next.config.ts` y la CSP con nonce en `src/proxy.ts`, porque
+tenerlas en dos sitios sería peor que en uno.
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`ded4181`** (`dpl_DLMzuufXZyqJig9535s7jhzgA2XF`) — la clave fue aceptada |
+| CI | **2/2** |
+| Cabeceras tras crear el archivo | **6 de 6** |
+| Rutas protegidas | 307 |
+| Tiempo de **servidor** en 6 ciclos con pausa de 60 s | **149–254 ms** |
+
+**Lo que debe revisar el siguiente agente:** `vercel.json` es ahora la fuente de Fluid Compute. No le
+añadas `headers`, `redirects` ni `rewrites` sin leer antes `DEPLOYMENT.md` §3.1.b: duplicarían lo que
+ya hacen `next.config.ts` y `src/proxy.ts`.
