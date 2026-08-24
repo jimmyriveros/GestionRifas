@@ -2083,3 +2083,21 @@ Los de siempre (I-066, I-062, I-063, columna «Abono» del importador). **De est
    otra barra, envuélvela igual.
 3. **La suite E2E de escritorio se corrió parcial** (61 de 242) porque bajo `md` este cambio no
    existe. Antes de promover, deja que CI corra las dos completas.
+
+### 7. Promoción a producción (2026-08-24)
+
+Desplegada con autorización expresa del dueño, el mismo día. **Sin migraciones.**
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`ef6bcb2`** (`dpl_KkU3vKAFr169yzRhfA5VBrPpxB7A`), alias `gestion-rifas.vercel.app` |
+| CI de GitHub | **2/2** — `verify` y `migraciones desde cero + test:db` |
+| `/login` | **200**, con las **6** cabeceras de seguridad |
+| Rutas protegidas sin sesión | `/seller/tickets`, `/owner/tickets`, `/owner/dashboard`, `/seller/dashboard` → **307** |
+| Clave de servicio en el navegador | **0** apariciones en el HTML ni en los **27** recursos que sirve `/login` |
+| **El código nuevo está servido de verdad** | La CSS de producción trae la regla entera `body:has([data-selection-bar]){--selection-bar-space:var(--selection-bar-height)}`, el `padding-bottom:calc(1rem + var(--bottom-nav-space) + var(--selection-bar-space))` de `AppShell` y el **único** `display:contents` de la aplicación |
+| Tiempo de **servidor** (3 ciclos, `time_starttransfer − time_appconnect`) | **150, 169 y 202 ms** — en línea con los 185–208 ms de D-109. Fluid Compute sigue cumpliendo |
+
+**Lo que debe revisar el dueño a mano:** entrar como vendedor desde un teléfono real, marcar una
+boleta y confirmar dos cosas: que la lista empieza justo debajo del recuento y que, al final de la
+lista, se puede tocar «Siguiente» sin que la barra lo tape.

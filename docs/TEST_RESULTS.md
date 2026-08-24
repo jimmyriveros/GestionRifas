@@ -2942,3 +2942,20 @@ borde inferior pasó de `y = 732` a `y = 756`, exactamente los 24 px.
 «tanto en escritorio como en móvil», y a 1.280 y 1.440 px no ocurre —el espaciador es `md:hidden`—.
 Sí ocurría en cualquier ventana de escritorio estrechada por debajo de `md`, que es como estaban
 hechas las capturas del reporte.
+
+### Verificación tras desplegar (2026-08-24)
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`ef6bcb2`** (`dpl_KkU3vKAFr169yzRhfA5VBrPpxB7A`), alias `gestion-rifas.vercel.app` |
+| CI | **2/2** en verde |
+| `/login` | **200** con las 6 cabeceras (`CSP`, `HSTS`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) |
+| Rutas protegidas sin sesión | 4 de 4 en **307** |
+| Clave de servicio | **0** apariciones en el HTML y en los **27** recursos estáticos que sirve `/login` |
+| CSS de producción | Trae las tres huellas del cambio: `body:has([data-selection-bar])`, el `calc` de tres sumandos en el `padding-bottom` de `<main>` y el único `display:contents` de la aplicación |
+| Tiempo de servidor (3 ciclos) | **150, 169 y 202 ms** |
+
+**Lo que no se puede verificar desde aquí:** el comportamiento con sesión iniciada. Entrar exige una
+contraseña de producción, y eso no lo maneja un agente. Queda para el dueño, en un teléfono real: al
+marcar una boleta, la lista debe empezar justo debajo del recuento, y al final de la lista
+«Siguiente» debe poder tocarse sin que la barra lo tape.

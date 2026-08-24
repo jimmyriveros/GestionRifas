@@ -3031,7 +3031,8 @@ limpia (`?v=n`), no con `location.reload()`,** y si algo sigue sin cuadrar, rein
 ## D-110 — El hueco de una barra fija se reserva al final de la página, no donde está escrita
 
 **Fecha:** 2026-08-24 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio,
-consultas, rutas ni permisos** · Solo presentación · Corrige dos defectos de D-082
+consultas, rutas ni permisos** · Solo presentación · Corrige dos defectos de D-082 ·
+**En producción** (`ef6bcb2`, 2026-08-24)
 
 **Contexto.** Al marcar una boleta en «Boletas» aparecían dos huecos que nadie pidió:
 
