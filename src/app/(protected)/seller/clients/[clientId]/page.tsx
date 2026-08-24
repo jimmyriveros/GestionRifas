@@ -11,7 +11,7 @@ import { ClientArchiveButton } from '@/features/clients/components/ClientArchive
 import { getClientDetail } from '@/features/clients/queries'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
 import { listClientPayments } from '@/features/payments/queries'
-import { TicketsTable } from '@/features/tickets/components/TicketsTable'
+import { TicketsList } from '@/features/tickets/components/TicketsList'
 import { listTickets } from '@/features/tickets/queries'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
@@ -104,7 +104,7 @@ export default async function SellerClientDetailPage({
             .
           </p>
         ) : (
-          <TicketsTable tickets={tickets} basePath="/seller/tickets" showSeller={false} />
+          <TicketsList tickets={tickets} basePath="/seller/tickets" showSeller={false} />
         )}
       </div>
 

@@ -1726,3 +1726,91 @@ tenerlas en dos sitios sería peor que en uno.
 **Lo que debe revisar el siguiente agente:** `vercel.json` es ahora la fuente de Fluid Compute. No le
 añadas `headers`, `redirects` ni `rewrites` sin leer antes `DEPLOYMENT.md` §3.1.b: duplicarían lo que
 ya hacen `next.config.ts` y `src/proxy.ts`.
+
+---
+
+## Mantenimiento post-9 — «Boletas» en el teléfono deja de ser una tabla (2026-08-23)
+
+Encargo del dueño: en el móvil, la lista de boletas **perdía datos importantes** para caber. Decisión
+**D-107**. Sin migraciones. **Sin desplegar.**
+
+`Route changes: None` · `Business logic changes: None` · `New API calls: None` ·
+`Query changes: None` · `New dependencies: None`
+
+### 1. Funcionalidades implementadas
+
+Ninguna nueva, y es a propósito: es un cambio de presentación. Lo que cambió es **cuánto se ve**.
+
+- **La lista de boletas del teléfono son tarjetas.** Una por boleta, de **95–115 px**, con los
+  **seis** datos: los dos números (`1234 / 5678`), la leyenda «Diario · Semanal», el cliente, el
+  precio y las dos insignias de estado. Antes la tabla ocultaba bajo `md` justo **Cliente, Pago y
+  Precio**, que es lo que un vendedor mira para saber a quién le cobra y cuánto le falta.
+- **Escritorio no cambió.** Misma tabla, mismas columnas, mismo orden. Las dos presentaciones se
+  renderizan y el navegador oculta una con `md:hidden` / `hidden md:block`; no lo decide JavaScript,
+  así que no parpadea al cargar.
+- **Una sola fuente de datos.** `listTickets()` → `TicketListItem[]` → las dos. Ninguna consulta
+  nueva, ningún efecto, ninguna petición por tarjeta: **no hay N+1**.
+- **Los filtros del móvil caben en un botón.** El buscador sigue siempre visible; los desplegables se
+  guardan detrás de **«Filtros (n)»**, que dice cuántos hay puestos, y se abren en una hoja inferior
+  (`ui/sheet.tsx`, la primitiva que D-106 dejó sin uso). «Limpiar filtros» cierra la hoja.
+- **La selección múltiple es la de siempre**, con el mismo contexto y los mismos módulos:
+  `row-activation.ts` y `useLongPress`. Toda la tarjeta abre el detalle; en modo selección marca, y
+  entonces la flecha desaparece. La casilla de «toda esta página» se conserva en una barra propia
+  sobre la lista.
+- **Alcance:** las cuatro pantallas que listan boletas —los dos listados, «Ver seleccionadas» y las
+  boletas de la ficha de un cliente—. `TicketsTable` no se llama ya desde ninguna pantalla.
+
+### 2. Pruebas ejecutadas y resultados
+
+**325/325** unitarias ✅ (ninguna nueva: no hay lógica nueva que probar) · `typecheck` y `lint` ✅ ·
+E2E **49/49 móvil** (5 nuevas en `boletas-movil.spec.ts`) y **242/242 escritorio**, con
+`db:reset` + `seed:local` antes de la pasada.
+
+Comprobado además en el navegador, a **320 y 375 px**: alto de tarjeta **95–115 px**,
+`scrollWidth == clientWidth` (cero desbordamiento horizontal), nada dentro de una tarjeta pasa de
+**291 px** con viewport de 320, un nombre de **56 caracteres** se recorta sin estirar la tarjeta, la
+paginación termina **por encima** de la barra inferior, y cargar 25 boletas produce **una** navegación
+y **ninguna** petición por tarjeta. **0 errores de consola.**
+
+**Errores encontrados y corregidos durante la verificación** (detalle en `TEST_RESULTS.md`):
+
+1. **La casilla de «toda esta página» se había perdido.** En la tabla la pone el encabezado, y en el
+   teléfono aparecía al entrar en modo selección; la lista de tarjetas no la tenía. Con ella se
+   perdía también la oferta «Seleccionar las N boletas del filtro», que solo se ofrece cuando la
+   página está completa. Añadida a `TicketCardList` con el mismo `togglePage`.
+2. **El paso «tus boletas» del recorrido guiado habría desaparecido en silencio.** `usableSteps`
+   descarta lo que mida 0 × 0 px, y con dos presentaciones una siempre está oculta. La marca
+   `data-tour="data-table"` se puso en el **envoltorio**, que siempre mide lo que se ve.
+3. **«Limpiar filtros» dejaba la hoja abierta** encima de la lista que se acababa de destapar. Ahora
+   cierra.
+4. Tres pruebas de móvil buscaban `columnheader` o `getByRole('row')`, que en el teléfono ya no
+   existen. Reescritas por `list` / `listitem`; ninguna comprobación se perdió.
+
+### 3. Migraciones
+
+Ninguna. Este trabajo no toca la base de datos.
+
+### 4. Variables de entorno
+
+Sin cambios.
+
+### 5. Problemas reales que permanecen
+
+Los de antes (I-066, I-062, I-063 y la columna «Abono» del importador). Este trabajo no abre ninguno.
+
+Queda **a criterio del dueño** si la ficha de un cliente debería dejar de repetir su propio nombre en
+cada tarjeta. Hoy lo repite porque la tabla de escritorio también lo hace, y quitarlo solo en el
+teléfono habría dado dos listas distintas de lo mismo.
+
+### 6. Qué debe revisar el siguiente agente
+
+1. `ARCHITECTURE.md` **§8.9** antes de tocar la lista de boletas: hay **una** consulta y **dos**
+   presentaciones, y `TicketsTable` ya no se llama desde ninguna pantalla.
+2. **Las dos presentaciones están en el DOM a la vez.** `display:none` las saca del árbol de
+   accesibilidad, así que `getByRole` solo ve la del viewport actual; `getByText`, `getByLabel` y
+   `getByPlaceholder` **no filtran por visibilidad**. En una prueba nueva, ancla por rol o acota con
+   `getByRole('list', { name: 'Boletas' })`.
+3. Si mueves `data-tour="data-table"` desde el envoltorio hacia dentro, el paso «tus boletas» del
+   recorrido desaparecerá **sin error** en una de las dos pantallas.
+4. Antes de creer un fallo E2E del tipo «strict mode violation» sobre un número de boleta repetido:
+   `npm run db:reset && npm run seed:local`. Es I-055, no el cambio.

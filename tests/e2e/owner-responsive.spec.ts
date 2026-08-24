@@ -53,13 +53,20 @@ test.describe('Portal administrativo en movil', () => {
     }
   })
 
-  test('las columnas secundarias se ocultan y la tabla sigue siendo legible', async ({ page }) => {
+  test('en el telefono las boletas son tarjetas, no una tabla encogida', async ({ page }) => {
     await page.goto('/owner/tickets')
 
-    // Los dos numeros se ven siempre; el vendedor solo en escritorio.
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Número semanal' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Vendedor' })).toBeHidden()
+    // La tabla existe en el DOM pero Tailwind la oculta bajo `md` (D-107): lo
+    // que se ve es la lista de tarjetas, y con ella deja de haber encabezados.
+    const lista = page.getByRole('list', { name: 'Boletas' })
+    await expect(lista).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeHidden()
+
+    // Y no se pierde nada de lo que la tabla enseña en escritorio: los dos
+    // numeros, el vendedor, el cliente, los dos estados y el precio.
+    const tarjeta = lista.getByRole('listitem').first()
+    await expect(tarjeta.getByRole('link', { name: /Ver la boleta/ })).toBeVisible()
+    await expect(tarjeta).toContainText('Diario · Semanal')
   })
 
   test('el formulario de boleta es usable con teclado numerico', async ({ page }) => {

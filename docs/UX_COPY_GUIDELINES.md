@@ -396,6 +396,23 @@ también.
 **Roles en el habla del usuario:** dentro del código y de la documentación técnica se usan `owner`,
 `admin` y `seller`. En pantalla son siempre **Dueño**, **Administrador** y **Vendedor**.
 
+**En el teléfono cada boleta es una tarjeta, y ahí se dicen dos cosas más** (D-107). La lista
+del móvil dejó de ser una tabla encogida, así que perdió los encabezados de columna que decían cuál
+número era cuál. En su lugar, bajo los dos números va la leyenda **«Diario · Semanal»**: son los
+términos del glosario, en el mismo orden en que aparecen las cifras, y solo se escribe cuando la
+boleta tiene los dos. La otra es **«Sin cliente»**, para una boleta que todavía nadie compró: la
+tabla ahí pintaba una raya, y una raya no dice que esa boleta se puede vender. El precio, en cambio,
+**se calla** cuando no hay venta: la insignia «Disponible» ya lo explica, y un «—» en el sitio más
+visible de la tarjeta es ruido.
+
+**«Filtros», y entre paréntesis cuántos hay puestos** (D-107). En el teléfono los desplegables viven
+detrás de ese botón, que dice **«Filtros»** cuando no hay ninguno y **«Filtros (2)»** cuando hay dos.
+Se cuentan los filtros, **nunca la búsqueda**: lo que se escribió se está viendo en su campo, justo
+encima, y sumarlo al paréntesis haría que el número no cuadrara con lo que hay dentro de la hoja.
+Dentro, además de los filtros, hay dos salidas: **«Limpiar filtros»**, que los quita y cierra —quien
+vacía quiere ver la lista entera—, y **«Ver las boletas»**, que solo cierra. Ninguna de las dos dice
+«Aceptar» ni «Listo» (§6).
+
 **En la barra inferior del teléfono cae el posesivo, y solo ahí** (D-106). El menú lateral y el
 título de la pantalla siguen diciendo **«Mis boletas»**, **«Mis clientes»** y **«Mis pagos»**; la
 barra de abajo dice **«Boletas»**, **«Clientes»** y **«Pagos»**, porque a 320 px cada opción dispone
@@ -437,6 +454,7 @@ castigo donde solo había una espera.
 |---|---|
 | Etiquetas de estado, roles y métodos de pago | `src/lib/constants.ts` |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
+| Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
 | Errores de validación de formularios | `schemas.ts` de cada módulo de `src/features/` (mensajes de Zod) |
 | Errores devueltos por el servidor | `src/lib/errors.ts` (`mapPgError`) y los `RAISE` de las migraciones |
 | Títulos y descripciones de pantalla | `PageHeader` de cada `page.tsx` |

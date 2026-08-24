@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **320 ✅** | **518 ✅** | **274 ✅** | ✅ | ✅ |
+| Post-9 vigente | **325 ✅** | **518 ✅** | **291 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -2653,3 +2653,80 @@ Servidor entre **149 y 254 ms en los seis**, incluidos los dos cuya conexión ta
 Compute cumple. Los picos vuelven a aparecer clavados en ~3,2 s del lado de la conexión, en ~1 de
 cada 3 muestras: es el reintento del SYN de TCP de la máquina que mide, y **no** algo que se pueda
 arreglar en el proyecto.
+
+---
+
+## «Boletas» en el teléfono: de tabla a tarjetas (2026-08-23)
+
+Cambio de presentación (**D-107**). Sin migraciones, sin consultas nuevas y sin lógica de negocio
+nueva, así que lo que había que demostrar era otra cosa: que **no se perdió nada por el camino** y
+que **no se ganó ninguna petición**.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint .` | ✅ 0 errores | 2 avisos `react-hooks/incompatible-library` | Preexistentes: `useReactTable` y `useVirtualizer`. No son de este cambio |
+| `npx vitest run` | ✅ **325/325** | — | Ninguna nueva: no hay lógica nueva que probar |
+| `npx playwright test --project=movil` | ✅ **49/49** | 1 fallo en la primera pasada del archivo nuevo | «Limpiar filtros» dejaba la hoja abierta y su botón quedaba tras el overlay. Se corrigió el **producto**, no la prueba: limpiar cierra |
+| `npx playwright test --project=escritorio` | ✅ **242/242** | 7 fallos en una pasada previa | **No eran del cambio**: base sucia por correr móvil antes (I-055, I-060). Con `db:reset` + `seed:local`, en verde |
+
+### Lo que se midió en el navegador, y con qué números
+
+Medido sobre el servidor local con el vendedor 1 y con el dueño, a **375 px** y a **320 px**.
+
+| Comprobación | Resultado |
+|---|---:|
+| Alto de una tarjeta (objetivo: 90–120 px) | **95–115 px** |
+| Tarjetas en una página de resultados | 25 |
+| `scrollWidth − clientWidth` a 375 px | **0** |
+| `scrollWidth − clientWidth` a 320 px | **0** |
+| Borde derecho más lejano dentro de una tarjeta, con viewport de 320 | **291 px** |
+| Nombre de cliente de 56 caracteres | recortado con puntos suspensivos; alto **115 px**, sin cambio |
+| Tabla de escritorio en móvil | `display: none`, alto 0 |
+| Lista de tarjetas en escritorio (1.280 px) | `display: none`, alto 0 |
+| Columnas de la tabla en escritorio | **7 de 7 visibles** (selección, dos números, cliente, estado, pago, precio) |
+| Etiquetas de formulario duplicadas en escritorio | **0** |
+| Fin de la paginación frente al borde de la barra inferior, a 320 px | 644 px vs **663 px** — no la tapa |
+
+### Que no hay N+1, comprobado y no supuesto
+
+Cargando `/seller/tickets` con **25 boletas**, la lista de peticiones del navegador contiene la
+navegación a la página y los fragmentos estáticos de Next. **Ninguna** petición por tarjeta: ni una
+consulta de cliente, ni de pagos, ni de estados. Es lo esperado —`TicketCardList` no consulta nada—,
+pero era justamente lo que había que descartar. **0 errores de consola.**
+
+### Los cuatro errores que aparecieron durante la verificación
+
+1. **Se había perdido «seleccionar toda esta página».** En la tabla la pone la casilla del
+   encabezado, que en el teléfono aparecía al entrar en modo selección (`hideOnMobile:
+   !selectionMode`). La lista de tarjetas no la tenía, y con ella se perdía también la oferta
+   «Seleccionar las N boletas del filtro», que la barra solo muestra cuando la página está completa.
+   Añadida a `TicketCardList`, con la misma casilla y el mismo `togglePage`. Comprobado después: al
+   marcarla, «25 seleccionadas» y aparece «Seleccionar las 1000 boletas del filtro».
+
+2. **El recorrido guiado habría perdido un paso, sin dar error.** El paso «tus boletas» apunta a
+   `data-tour="data-table"` y `usableSteps` descarta lo que mida 0 × 0 px. Con dos presentaciones,
+   una siempre está oculta: si la marca hubiera quedado dentro de una de ellas, el paso habría
+   desaparecido en la otra pantalla en silencio. Se puso en el envoltorio `TicketsList`, que es el
+   primero del documento y siempre mide lo que se ve. Verificado en móvil:
+   `firstTourTargetVisible: true`.
+
+3. **«Limpiar filtros» dejaba la hoja abierta.** Lo detectó la prueba nueva, y el fallo era real:
+   quien vacía los filtros quiere ver la lista entera, y el botón «Filtros» quedaba además detrás del
+   overlay de Radix. Se corrigió el producto.
+
+4. **Tres pruebas de móvil describían la tabla que ya no existe.** `seleccion-movil` buscaba
+   `getByRole('row')` y `columnheader`; `owner-responsive` comprobaba que la columna «Vendedor»
+   estuviera oculta; `navegacion-movil` esperaba el encabezado «Número diario». Reescritas por
+   `list` / `listitem` y por lo que ahora sí se promete. Ninguna comprobación se perdió: la de
+   `owner-responsive` pasó de «se ocultan columnas» a «no hay tabla y la tarjeta trae los seis datos».
+
+### Lo que cubre la prueba nueva (`boletas-movil.spec.ts`, 5 casos)
+
+| Caso | Qué demuestra |
+|---|---|
+| Una boleta vendida enseña sus seis datos | Los dos números, la leyenda, el cliente, `$120.000`, «Asignada» y «Sin pagar», todos en la misma tarjeta |
+| Caben varias por pantalla | Tres tarjetas seguidas ocupan ≤ 400 px y ninguna se sale a lo ancho |
+| Un nombre largo se recorta | La tarjeta no se estira ni desborda |
+| Los filtros están detrás de un botón | El buscador visible, los desplegables no, y «Filtros (2)» con dos puestos |
+| La hoja trae los mismos filtros | Cliente, estado y pago dentro; ocupa ≤ 90 % del alto; «Limpiar filtros» limpia y cierra |

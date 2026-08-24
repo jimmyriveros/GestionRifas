@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import { EmptyState } from '@/components/data/EmptyState'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TicketsTable } from '@/features/tickets/components/TicketsTable'
+import { TicketsList } from '@/features/tickets/components/TicketsList'
 import type { TicketListItem } from '@/features/tickets/queries'
 
 import { getSelectedTickets } from '../actions'
@@ -101,10 +101,12 @@ function SelectedTickets({
   }
 
   if (tickets === null) {
+    // El hueco tiene la altura de lo que va a aparecer: una tarjeta en el
+    // telefono, una fila en escritorio. Si no, la lista da un salto al llegar.
     return (
       <div className="space-y-2 rounded-lg border p-4" aria-busy="true">
         {Array.from({ length: 5 }).map((_, index) => (
-          <Skeleton key={index} className="h-9 w-full" />
+          <Skeleton key={index} className="h-24 w-full md:h-9" />
         ))}
       </div>
     )
@@ -124,7 +126,7 @@ function SelectedTickets({
       <p className="text-muted-foreground text-sm">
         Estás viendo solo las boletas seleccionadas. Tus filtros siguen guardados.
       </p>
-      <TicketsTable
+      <TicketsList
         tickets={tickets}
         basePath={basePath}
         showSeller={showSeller}

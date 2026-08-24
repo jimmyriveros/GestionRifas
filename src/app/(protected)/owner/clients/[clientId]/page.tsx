@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getClientDetail } from '@/features/clients/queries'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
 import { listClientPayments } from '@/features/payments/queries'
-import { TicketsTable } from '@/features/tickets/components/TicketsTable'
+import { TicketsList } from '@/features/tickets/components/TicketsList'
 import { listTickets } from '@/features/tickets/queries'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
@@ -70,7 +70,7 @@ export default async function ClientDetailPage({
         {tickets.length === 0 ? (
           <p className="text-muted-foreground text-sm">Este cliente todavía no tiene boletas.</p>
         ) : (
-          <TicketsTable tickets={tickets} />
+          <TicketsList tickets={tickets} />
         )}
       </div>
 

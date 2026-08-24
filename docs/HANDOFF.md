@@ -35,6 +35,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
 | **Buscar en «Boletas»** | Desde el 2026-08-21 (D-100, BR-N13) el **único** campo de búsqueda encuentra por los números de la boleta **y** por el nombre del cliente que la tiene, devolviendo siempre boletas. Migración **`0029`**. **Ya en producción** (`e1b2fe1`, 2026-08-21) |
 | **Navegación en el teléfono** | Desde el 2026-08-23 (D-106) el móvil **no tiene cajón lateral**: tiene una **barra inferior fija** con Panel · Boletas · Clientes · Pagos, y el resto del menú se lee desde el **menú de usuario**. Escritorio sigue igual. Ninguna ruta ni permiso cambió. **Ya en producción** (`79e107b`, 2026-08-23) |
+| **«Boletas» en el teléfono** | Desde el 2026-08-23 (D-107) la lista de boletas del móvil son **tarjetas**, no una tabla con Cliente, Pago y Precio ocultos. Los filtros van detrás de «Filtros (n)», en una hoja inferior; el buscador sigue siempre visible. **Escritorio no cambió.** Misma consulta, mismos permisos, sin migración. **Sin desplegar** |
 | Cambio funcional anterior | `7b26d99` — **corregir a un integrante pendiente** (D-097), 2026-08-14; migración `0026` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
 | Último cambio promovido | **`ded4181`** — **Fluid Compute declarado en `vercel.json`**, 2026-08-23. Era un requisito duro de `DEPLOYMENT.md` §3.1.b que vivía solo en el panel y no dejaba rastro en Git. Se declara **solo** `fluid`: las cabeceras siguen en `next.config.ts` y `src/proxy.ts`, y se comprobó que las 6 siguen llegando |
 | Cambio promovido anterior | **`79e107b`** — **la navegación del teléfono baja a una barra inferior** (D-106), 2026-08-23; sin migración, CI 2/2 y despliegue verificado por SHA |
@@ -64,7 +65,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — la navegación del teléfono baja (2026-08-23)
+## 1.a Último relevo significativo — «Boletas» en el teléfono deja de ser una tabla (2026-08-23)
+
+| Campo | Estado |
+|---|---|
+| Resultado | En el teléfono la lista de boletas ya **no es una tabla encogida**: cada boleta es una **tarjeta de 95–115 px** con los **seis** datos —los dos números, la leyenda «Diario · Semanal», el cliente, el precio y las dos insignias de estado—. Antes se ocultaban bajo `md` precisamente **Cliente, Pago y Precio**. Los filtros del móvil se guardan detrás de **«Filtros (n)»**, en una hoja inferior, y el buscador sigue siempre visible. **Escritorio no cambió nada**: misma tabla, mismas columnas, mismo orden. `Query changes: None` · `New API calls: None` · `Business logic changes: None` · `New dependencies: None` (D-107) |
+| Archivos | **`src/features/tickets/components/TicketCardList.tsx` (nuevo)** · **`src/features/tickets/components/TicketsList.tsx` (nuevo)** · `features/tickets/components/TicketFilters.tsx` (hoja inferior + `filterFields`) · `features/tickets/components/TicketsTable.tsx` **sin tocar** · `features/tickets/selection/components/SelectedTicketsView.tsx` (esqueleto con alto de tarjeta) · los cuatro `page.tsx` que listaban boletas · `features/tour/tours.ts` (texto de dos pasos). Pruebas: **`tests/e2e/boletas-movil.spec.ts` (nueva, 5)**; adaptadas `seleccion-movil`, `owner-responsive` y `navegacion-movil`. Documentación: `DECISIONS` (D-107), `ARCHITECTURE` §8.2 y **§8.9**, `UX_COPY_GUIDELINES` anexos A y B, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **La misma consulta y el mismo contexto de selección.** `TicketCardList` no consulta, no tiene efectos y no guarda estado: recibe el `TicketListItem[]` que ya usaba la tabla. El comportamiento táctil sale entero de **`row-activation.ts`** y **`useLongPress`**, los módulos de `DataTable`; las insignias, de `StatusBadge`; la casilla, de `SelectionCheckbox`; el enlace, de `RowLink` (sigue sin precargar, D-104). La hoja de filtros usa **`components/ui/sheet.tsx`**, la primitiva que D-106 dejó sin uso y conservó a propósito |
+| Decisiones | **D-107**. Lo no evidente: **(a)** quién elige la presentación es **Tailwind**, no `useIsCompactScreen()`: el servidor no conoce el ancho y con JavaScript escritorio parpadearía en cada carga. **(b)** El precio ausente **se calla** —un «—» en el sitio más visible no informa—, pero el cliente ausente **sí** se dice («Sin cliente»): eso es una boleta que aún se puede vender. **(c)** `TicketsList` sustituyó a `TicketsTable` en **las cuatro** pantallas que listan boletas, no solo en «Mis boletas» |
+| Verificación | **325/325** unitarias · `typecheck` y `lint` ✅ (los 2 avisos de siempre, de TanStack) · E2E **movil 49/49** (5 nuevas) y **escritorio 242/242**, con `db:reset` + `seed:local` antes de la pasada · medido en el navegador a **320 y 375 px**: alto de tarjeta **95–115 px**, `scrollWidth == clientWidth` (cero desbordamiento), nada dentro de la tarjeta pasa de 291 px a 320 px de viewport, un nombre de 56 caracteres se recorta **sin** estirar la tarjeta, y la paginación termina **por encima** de la barra inferior · **0 errores de consola** y, cargando 25 boletas, **ninguna petición por tarjeta**: solo la navegación y los fragmentos estáticos |
+| Advertencias | **1)** **Las dos presentaciones están en el DOM a la vez.** `display:none` las saca del árbol de accesibilidad, así que `getByRole` solo ve la del viewport actual —pero `getByText`, `getByLabel` y `getByPlaceholder` **no filtran por visibilidad**: en una prueba nueva, ancla por rol o acota con `getByRole('list', { name: 'Boletas' })`. **2)** El recorrido guiado busca `data-tour="data-table"` y descarta lo que mida 0 × 0: la marca va en el **envoltorio** `TicketsList`, no en cada presentación. Si la mueves hacia dentro, el paso «tus boletas» desaparece en silencio en la otra pantalla. **3)** La casilla de «toda esta página» la pone `TicketCardList`, no `DataTable`: sin ella se pierde además la oferta «Seleccionar las N boletas del filtro». **4)** `TicketsTable` sigue existiendo y **no se tocó**, pero ya no se llama desde ninguna pantalla: solo desde `TicketsList`. **5)** La suite E2E **no aguanta pasadas seguidas** (I-055, I-060): siémbrala limpia antes de creer un fallo de «strict mode violation» sobre un número de boleta repetido |
+| Publicación | **No desplegado.** Sin migraciones. Requiere autorización expresa del dueño, como todo despliegue |
+| Pendiente | Lo de siempre (I-066, I-062, I-063, columna «Abono» del importador). De este trabajo: **nada bloqueante**. A criterio del dueño, si la ficha de un cliente debería dejar de repetir su propio nombre en cada tarjeta —hoy lo repite, igual que la columna «Cliente» de la tabla en escritorio— |
+| Git | Rama `main`, base observada `5000dfe`, árbol limpio antes de empezar |
+
+## 1.a.0 Relevo anterior — la navegación del teléfono baja (2026-08-23)
 
 | Campo | Estado |
 |---|---|
@@ -556,6 +571,16 @@ components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSke
 features/tickets/import/  importador de archivos CSV/JSON: UN componente para los tres
                     roles, parametrizado por contexto (D-081/D-087). Antes de escribir otro
                     lector o resolver clientes, míralo: columnas/csv/json/clients/rows/review
+features/tickets/components/TicketsList  la lista de boletas: UNA consulta, DOS
+                    presentaciones (D-107). Escritorio -> TicketsTable; telefono ->
+                    TicketCardList, tarjetas con los SEIS datos. Lo elige Tailwind,
+                    no JavaScript, y las dos reciben el mismo TicketListItem[].
+                    Antes de anadir una lista de boletas en otro sitio, usa esta:
+                    TicketsTable ya no se llama desde ninguna pantalla
+features/tickets/components/TicketFilters  el buscador SIEMPRE visible y, en el
+                    telefono, los desplegables detras de «Filtros (n)» en una hoja
+                    inferior (ui/sheet.tsx). Se escriben UNA vez y se pintan en los
+                    dos sitios con idPrefix distinto (D-107)
 features/tickets/selection/  selección múltiple y acciones masivas (D-082..D-085):
                     contexto + almacén fuera de React + elegibilidad + diálogos
 components/form/    SelectionCheckbox (20 px a la vista, 44 px de diana)

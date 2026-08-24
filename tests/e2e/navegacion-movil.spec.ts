@@ -104,7 +104,8 @@ test.describe('Navegación inferior en el teléfono', () => {
   test('no tapa el final de la página', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/tickets')
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    // En el telefono la lista son tarjetas, no una tabla (D-107).
+    await expect(page.getByRole('list', { name: 'Boletas' })).toBeVisible()
 
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
 

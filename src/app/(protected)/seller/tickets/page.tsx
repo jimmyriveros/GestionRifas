@@ -9,7 +9,7 @@ import { CLIENT_FILTER_OPTIONS_LIMIT, listClientOptions } from '@/features/clien
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { ticketSearchEmptyDescription } from '@/features/search/hints'
 import { TicketFilters } from '@/features/tickets/components/TicketFilters'
-import { TicketsTable } from '@/features/tickets/components/TicketsTable'
+import { TicketsList } from '@/features/tickets/components/TicketsList'
 import { listTickets } from '@/features/tickets/queries'
 import { inventoryStatusSchema, paymentStatusSchema } from '@/features/tickets/schemas'
 import { TicketListSlot } from '@/features/tickets/selection/components/SelectedTicketsView'
@@ -138,7 +138,7 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
                 rafflePrices={rafflePrices}
               />
               <TicketListSlot basePath="/seller/tickets" showSeller={false} showRaffle={false}>
-                <TicketsTable
+                <TicketsList
                   tickets={rows}
                   basePath="/seller/tickets"
                   showSeller={false}

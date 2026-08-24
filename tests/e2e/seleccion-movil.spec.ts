@@ -9,12 +9,17 @@ import { ACCOUNTS, loginAs, randomTicketNumbers } from './fixtures'
  * Corre con viewport de teléfono (proyecto `movil`, Pixel 7). Aquí se comprueba
  * justo lo que no se puede comprobar en escritorio:
  *
- *   * En modo normal, tocar una fila abre su detalle y no selecciona nada.
- *   * En modo selección, tocar CUALQUIER zona libre de la fila la marca, y la
- *     fila deja de abrir el detalle.
+ *   * En modo normal, tocar una boleta abre su detalle y no selecciona nada.
+ *   * En modo selección, tocar CUALQUIER zona libre de la boleta la marca, y
+ *     deja de abrir el detalle.
  *   * La casilla tiene una diana de 44 px aunque se vea de 20.
  *   * La barra de acciones se queda pegada abajo mientras se hace scroll.
  *   * Buscar no pierde la selección y «Cancelar» la limpia.
+ *
+ * DESDE D-107 EN EL TELÉFONO NO HAY TABLA: cada boleta es una tarjeta de la
+ * lista «Boletas». El comportamiento es el mismo —lo pone el mismo
+ * `row-activation` y el mismo `useLongPress`—, pero el elemento ya no es una
+ * fila, así que aquí se busca por `listitem` y no por `row`.
  */
 
 let refs: SeedRefs
@@ -37,21 +42,31 @@ function recuento(page: Page) {
   return page.getByRole('status')
 }
 
+/** La lista de tarjetas del teléfono, que es lo que sustituyó a la tabla. */
+function lista(page: Page) {
+  return page.getByRole('list', { name: 'Boletas' })
+}
+
 function filaDe(page: Page, ticketId: string) {
-  return page.getByRole('row').filter({ has: page.locator(`a[href$="${ticketId}"]`) })
+  return lista(page)
+    .getByRole('listitem')
+    .filter({ has: page.locator(`a[href$="${ticketId}"]`) })
 }
 
 /**
- * Toca la fila en una zona libre: ni la casilla ni el enlace del número.
+ * Toca la tarjeta en una zona libre: ni la casilla ni el enlace del número.
  *
  * `locator.tap` con `position` y no `touchscreen.tap` con coordenadas de
- * pantalla: el primero desplaza la fila a la vista y espera a que sea
- * pulsable. Con el segundo, en cuanto la barra de selección empuja la tabla
+ * pantalla: el primero desplaza la tarjeta a la vista y espera a que sea
+ * pulsable. Con el segundo, en cuanto la barra de selección empuja la lista
  * hacia abajo, el toque cae fuera del viewport y se pierde en silencio.
+ *
+ * El 62 % del ancho a media altura cae sobre la leyenda «Diario · Semanal» o
+ * sobre el nombre del cliente: texto suelto, sin enlace ni botón debajo.
  */
 async function tocarFila(fila: Locator) {
   const box = await fila.boundingBox()
-  if (!box) throw new Error('La fila no está visible')
+  if (!box) throw new Error('La boleta no está visible')
   await fila.tap({ position: { x: box.width * 0.62, y: box.height / 2 } })
 }
 
@@ -108,7 +123,9 @@ test.describe('Modo normal en el teléfono', () => {
     const fila = filaDe(page, boleta.id)
     await expect(fila).toBeVisible()
 
-    // La columna de casillas existe en el DOM pero Tailwind la oculta bajo `md`.
+    // Las tarjetas no llevan casilla hasta que se entra en modo selección. La
+    // tabla de escritorio sí las tiene, pero Tailwind la oculta bajo `md` y con
+    // ella salen del árbol de accesibilidad.
     await expect(page.getByRole('checkbox')).toHaveCount(0)
 
     await tocarFila(fila)
@@ -143,9 +160,11 @@ test.describe('Modo selección en el teléfono', () => {
 
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/tickets')
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(lista(page)).toBeVisible()
     await activarModoSeleccion(page)
 
+    // La primera casilla es la de «toda esta página»; la segunda ya es de una
+    // boleta, que es la que interesa medir.
     const casilla = page.getByRole('checkbox').nth(1)
     await expect(casilla).toBeVisible()
 
@@ -228,7 +247,7 @@ test.describe('Modo selección en el teléfono', () => {
 
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/tickets')
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(lista(page)).toBeVisible()
 
     await activarModoSeleccion(page)
     await tocarFila(filaDe(page, a.id))

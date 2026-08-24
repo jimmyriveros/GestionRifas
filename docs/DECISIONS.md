@@ -2784,6 +2784,100 @@ accesos, y habría dejado dos navegaciones vivas en el teléfono. (b) Repetir en
 entradas del menú de usuario. (c) Borrar `components/ui/sheet.tsx` al quedarse sin uso: es una
 primitiva de shadcn/ui, no código del proyecto, y quitarla es una limpieza fuera de alcance.
 
+## D-107 — En el teléfono las boletas son tarjetas, y los filtros caben en un botón
+
+**Fecha:** 2026-08-23 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio, consultas,
+rutas ni permisos** · Solo presentación
+
+**Contexto.** La tabla de boletas resolvía el ancho del teléfono **ocultando columnas**
+(`meta.hideOnMobile`), y las tres que ocultaba eran **Cliente**, **Pago** y **Precio**. Es decir:
+justo lo que un vendedor mira para saber a quién le cobra y cuánto le falta. Quedaban a la vista los
+dos números y el estado de inventario, de modo que la pantalla que más se usa desde un teléfono era
+la que menos contaba. Encima, los tres desplegables de filtros ocupaban tres bloques enteros **antes
+del primer resultado**.
+
+Meter la tabla completa dentro de 320 px no era la salida: seis columnas ahí no se leen.
+
+**Decisión.** La lista de boletas tiene **dos presentaciones y una sola fuente de datos**:
+
+```
+listTickets()  →  TicketListItem[]  →  ┬─ TicketsTable    (escritorio, sin cambios)
+                                       └─ TicketCardList  (teléfono, nuevo)
+```
+
+`TicketsList` es el envoltorio que las compone. **Escritorio no cambió**: misma tabla, mismas
+columnas, mismo orden. En el teléfono cada boleta es una tarjeta de 95–115 px con **los seis datos**:
+los dos números, la leyenda «Diario · Semanal», el cliente, el precio y las dos insignias de estado.
+
+**Ninguna consulta nueva, ni una.** Las dos presentaciones reciben el mismo arreglo, ya filtrado,
+ordenado y paginado en el servidor. `TicketCardList` no tiene consulta, ni efecto, ni estado propio:
+si pinta el cliente es porque `TICKET_SELECT` ya traía `client:clients(...)`, la misma columna que
+alimentaba la celda oculta. **`New API calls: None` · `Query changes: None` · `New dependencies:
+None`.** Comprobado en el navegador: cargar 25 boletas produce **una** navegación y ningún `fetch`
+por tarjeta.
+
+**Quién decide cuál se ve: Tailwind, no JavaScript.** Las dos se renderizan y el navegador oculta una
+con `md:hidden` / `hidden md:block`, antes de que exista JavaScript, así que al cargar no parpadea
+ninguna. Es lo que pide `lib/use-media-query.ts`: la consulta de medios decide **comportamiento** —si
+tocar marca o abre—, nunca lo que se ve. El coste es un DOM duplicado de 25 elementos pequeños; la
+alternativa era un salto visible en cada carga.
+
+**Y lo oculto no molesta a quien no ve la pantalla:** `display:none` saca esos elementos del árbol de
+accesibilidad, de modo que un lector encuentra **una** lista de boletas, no dos. Es también lo que
+permite que las pruebas por rol sigan distinguiendo una pantalla de la otra sin ambigüedad.
+
+**El precio ausente se calla.** Una boleta sin vender no tiene `sale_price`, y la tabla pintaba «—».
+En el sitio más visible de la tarjeta, una raya no informa de nada: se omite, y la insignia
+«Disponible» ya explica por qué no hay cifra. El cliente ausente **sí** se dice —«Sin cliente»—,
+porque eso es información: es una boleta que todavía se puede vender.
+
+**El comportamiento es el de la fila, reutilizado, no reescrito.** Toda la tarjeta abre el detalle, la
+pulsación larga entra en modo selección y, en modo selección, tocarla marca en vez de abrir. Lo
+aplican **`row-activation.ts`** y **`useLongPress`**, los mismos módulos que usa `DataTable`. El
+enlace sobre los números se conserva —da menú contextual, «abrir en otra pestaña» y una parada de
+teclado con nombre— y `RowLink` sigue sin precargar (D-104). La flecha desaparece en modo selección:
+prometería una navegación que ahí no ocurre.
+
+**La casilla de «toda esta página» tenía que existir aquí.** En la tabla la pone el encabezado, y en
+el teléfono aparecía al entrar en modo selección. Sin ella en la lista de tarjetas se perdían **dos**
+funciones: marcar la página entera y, con ella, la oferta «Seleccionar las N boletas del filtro», que
+la barra solo muestra cuando la página está completa. Va en una barra propia sobre la lista, con la
+misma casilla y el mismo `togglePage`.
+
+**Los filtros del teléfono caben en un botón.** El **buscador sigue siempre a la vista**: es la forma
+normal de llegar a una boleta (D-100) y esconderlo sería el error contrario. Los desplegables se
+guardan detrás de **«Filtros»**, que dice cuántos hay puestos —«Filtros (2)»— y los abre en una hoja
+inferior, al alcance del pulgar. Se cuentan los filtros, **no la búsqueda**: esa ya se ve escrita en
+su campo.
+
+Los desplegables se escriben **una vez** y se pintan en los dos sitios con identificadores distintos.
+La hoja solo existe en el DOM mientras está abierta y solo se puede abrir bajo `md`, así que en
+escritorio no hay una sola etiqueta duplicada.
+
+**«Limpiar filtros» cierra la hoja.** Quien la vacía quiere ver la lista entera, y no queda nada más
+que tocar ahí. En escritorio el botón sigue donde estaba, bajo los desplegables.
+
+**Se reutilizó `components/ui/sheet.tsx`, que D-106 dejó sin uso** y conservó a propósito. Era una
+primitiva de shadcn/ui esperando su caso; este es. **Ninguna dependencia nueva.**
+
+**Alcance: las cinco listas de boletas, no solo «Mis boletas».** `TicketsList` sustituyó a
+`TicketsTable` en los dos listados, en «Ver seleccionadas» y en las boletas de la ficha de un
+cliente. Dejar la tabla encogida en las otras habría dado dos formas distintas de mirar lo mismo
+según la pantalla desde la que se llega.
+
+**Efecto colateral que había que arreglar: el recorrido guiado.** El paso «tus boletas» apunta a
+`data-tour="data-table"`, y `usableSteps` descarta un elemento de 0 × 0 px. Con dos presentaciones,
+una siempre está oculta: si la marca hubiera quedado en una de las dos, el paso habría **desaparecido
+en silencio** en la otra pantalla. La marca va en el envoltorio, que es el primero del documento y
+siempre mide lo que se ve. Y se corrigió el texto de dos pasos que nombraban «Limpiar filtros» y
+«cada fila», que en el teléfono ya no describen lo que hay delante (§35 de `CLAUDE.md`).
+
+**Qué se descartó.** (a) Elegir la presentación con `useIsCompactScreen()`: el servidor no sabe el
+ancho, así que escritorio habría enseñado un instante la lista del teléfono en cada carga.
+(b) Quitar la columna «Cliente» de la tabla en la ficha de un cliente, donde es redundante: es un
+cambio de escritorio y el encargo pedía no tocarlo. (c) Un `<table>` con `display:block` reordenado
+por CSS: mantiene la semántica de tabla para algo que ya no lo es y complica cada ajuste posterior.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

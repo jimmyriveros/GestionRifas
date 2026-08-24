@@ -9,7 +9,7 @@ import { listActiveSellerOptions } from '@/features/sellers/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { ticketSearchEmptyDescription } from '@/features/search/hints'
 import { TicketFilters } from '@/features/tickets/components/TicketFilters'
-import { TicketsTable } from '@/features/tickets/components/TicketsTable'
+import { TicketsList } from '@/features/tickets/components/TicketsList'
 import { listTickets } from '@/features/tickets/queries'
 import { inventoryStatusSchema, paymentStatusSchema } from '@/features/tickets/schemas'
 import { TicketListSlot } from '@/features/tickets/selection/components/SelectedTicketsView'
@@ -135,7 +135,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
                 rafflePrices={rafflePrices}
               />
               <TicketListSlot basePath="/owner/tickets" showSeller>
-                <TicketsTable tickets={rows} />
+                <TicketsList tickets={rows} />
                 <DataTablePagination total={total} page={page} pageSize={pageSize} />
               </TicketListSlot>
             </>

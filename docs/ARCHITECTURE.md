@@ -330,6 +330,8 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | Componente | Propósito |
 |------------|-----------|
 | `DataTable` | Envoltura de TanStack Table: ordenamiento, paginación, selección, estado vacío, skeleton y **fila seleccionable** (`rowHref` / `onRowActivate`, D-076). En modo selección, `onRowSelect` hace que la fila marque en vez de abrir, y `onRowLongPress` da el atajo táctil (D-085) |
+| `TicketsList` | El envoltorio de la lista de boletas: **una fuente de datos, dos presentaciones** (§8.9, D-107). Escritorio recibe `TicketsTable`; el teléfono, `TicketCardList`. Lo elige Tailwind, no JavaScript |
+| `TicketCardList` | La lista de boletas en el teléfono (D-107): una tarjeta de 95–115 px por boleta con sus **seis** datos. Sin consulta, sin efecto, sin estado propio; reutiliza `row-activation.ts` y `useLongPress`, igual que `DataTable` |
 | `row-activation.ts` | Reglas de la fila seleccionable: qué clic la abre y cuál ya lo atiende otro elemento (D-076) |
 | `use-long-press.ts` | Pulsación larga con el dedo: solo táctil, se cancela si el dedo se mueve, y anula el `click` posterior (D-085) |
 | `SelectionCheckbox` | Casilla de 20 px con diana de 44 px. Cuadrada, nunca circular: un círculo se lee como «elige uno» (D-085) |
@@ -597,6 +599,53 @@ por si algún día se activa.
 **El icono llega sin tamaño** desde el `layout.tsx`: lo pone quien lo pinta —16 px en la lateral y en
 el menú de usuario, 24 px en la barra inferior—, porque el mismo elemento de React se usa en los
 tres sitios.
+
+---
+
+### 8.9 La lista de boletas: una fuente de datos, dos presentaciones (D-107)
+
+```
+                     listTickets()   ← filtra, ordena y pagina en SQL
+                          │
+                   TicketListItem[]  ← el MISMO arreglo para las dos
+                          │
+                    TicketsList      ← data-tour="data-table"
+                    ┌─────┴─────┐
+              md:hidden      hidden md:block
+            TicketCardList   TicketsTable
+              (teléfono)      (escritorio)
+```
+
+**Ni una consulta más.** `TicketCardList` no consulta, no tiene efectos y no guarda estado: pinta lo
+que el listado ya traía. El cliente, el estado de pago y el precio salen de las mismas columnas que
+alimentaban las celdas que la tabla ocultaba bajo `md`. **No hay N+1**: 25 boletas siguen siendo una
+sola lectura.
+
+**Quién elige cuál se ve:** Tailwind. Las dos se renderizan y el navegador oculta una con
+`display:none`, que además la saca del árbol de accesibilidad —un lector encuentra **una** lista, no
+dos—. `useIsCompactScreen()` **no** decide esto: el servidor no conoce el ancho y habría un parpadeo
+en cada carga. La consulta de medios sigue decidiendo solo comportamiento (si tocar marca o abre).
+
+| Dato | En la tabla | En la tarjeta |
+|---|---|---|
+| Números diario y semanal | dos columnas | primera línea, `1234 / 5678`, con leyenda «Diario · Semanal» |
+| Precio | columna, `—` si no hay | primera línea a la derecha; **se omite** si no hay venta |
+| Cliente | columna oculta bajo `md` | tercera línea; «Sin cliente» cuando no lo tiene |
+| Estado y estado de pago | dos columnas, `Pago` oculta bajo `md` | cuarta línea, dos insignias juntas |
+| Rifa y vendedor | columnas ocultas bajo `md` | en la leyenda, truncadas (`R001 · Ana Torres`) |
+
+**Comportamiento:** el mismo de la fila, reutilizando `row-activation.ts` y `useLongPress`. Toda la
+tarjeta abre el detalle; en modo selección marca, y entonces la flecha desaparece. La casilla de
+«toda esta página» —el equivalente al encabezado de la tabla— va en una barra propia sobre la lista,
+y sin ella se perdería también la oferta «Seleccionar las N boletas del filtro».
+
+**Filtros en el teléfono:** el buscador siempre visible; los desplegables detrás de «Filtros (n)», en
+una hoja inferior (`components/ui/sheet.tsx`). Se escriben una vez y se pintan en los dos sitios con
+`idPrefix` distinto; la hoja solo existe en el DOM mientras está abierta, así que en escritorio no
+hay etiquetas duplicadas. El contador cuenta filtros, **no** la búsqueda: esa ya se ve escrita.
+
+**Dónde se usa:** los dos listados de boletas, «Ver seleccionadas» y las boletas de la ficha de un
+cliente. `TicketsTable` ya no se llama directamente desde ninguna pantalla.
 
 ---
 
