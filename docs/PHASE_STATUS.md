@@ -1732,7 +1732,7 @@ ya hacen `next.config.ts` y `src/proxy.ts`.
 ## Mantenimiento post-9 — «Boletas» en el teléfono deja de ser una tabla (2026-08-23)
 
 Encargo del dueño: en el móvil, la lista de boletas **perdía datos importantes** para caber. Decisión
-**D-107**. Sin migraciones. **Sin desplegar.**
+**D-107**. Sin migraciones. **Desplegado a producción el 2026-08-23** (§7).
 
 `Route changes: None` · `Business logic changes: None` · `New API calls: None` ·
 `Query changes: None` · `New dependencies: None`
@@ -1814,3 +1814,26 @@ teléfono habría dado dos listas distintas de lo mismo.
    recorrido desaparecerá **sin error** en una de las dos pantallas.
 4. Antes de creer un fallo E2E del tipo «strict mode violation» sobre un número de boleta repetido:
    `npm run db:reset && npm run seed:local`. Es I-055, no el cambio.
+
+### 7. Promoción a producción (2026-08-23)
+
+Desplegada con autorización expresa del dueño. **Sin migraciones**, así que no había orden que
+respetar entre base de datos y código.
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`d3ee139`** (`dpl_CrTdZBMtj5NbXxgDQ47YyBkw8xWc`), alias `gestion-rifas.vercel.app` |
+| CI de GitHub | **2/2** — `verify` y `migraciones desde cero + test:db` |
+| `/login` | **200**, con las **6** cabeceras de seguridad |
+| Rutas protegidas sin sesión | `/seller/tickets`, `/owner/tickets`, `/owner/dashboard`, `/seller/dashboard` → **307** |
+| Clave de servicio en el navegador | **0** apariciones en los 15 fragmentos de JavaScript servidos ni en el HTML |
+| **El código nuevo está servido de verdad** | La CSS de producción trae **`85dvh`** y **`ring-inset`**, que solo generan la hoja de filtros y la tarjeta. `bottom-nav-height` (D-106) sigue ahí: nada se perdió |
+| Tiempo de **servidor** (3 ciclos, desglose `time_starttransfer − time_appconnect`) | **158–185 ms** — en línea con los 149–254 ms del despliegue anterior. Fluid Compute sigue cumpliendo |
+
+Un ciclo mostró **1.282 ms de conexión** con el servidor en 185 ms. Es el patrón ya documentado en
+`HANDOFF` §9: el control `/denied`, servido por CDN, tiene el mismo perfil de conexión, y una función
+en frío no puede ralentizar un archivo estático. **No es del despliegue.**
+
+**Lo que debe revisar el dueño a mano:** entrar como vendedor desde un teléfono real y confirmar que
+la lista se ve como debe. Es lo único que no puede comprobar un agente: las rutas están protegidas y
+verificarlas exige una contraseña, que un agente no debe manejar.

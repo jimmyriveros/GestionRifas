@@ -2730,3 +2730,35 @@ pero era justamente lo que había que descartar. **0 errores de consola.**
 | Un nombre largo se recorta | La tarjeta no se estira ni desborda |
 | Los filtros están detrás de un botón | El buscador visible, los desplegables no, y «Filtros (2)» con dos puestos |
 | La hoja trae los mismos filtros | Cliente, estado y pago dentro; ocupa ≤ 90 % del alto; «Limpiar filtros» limpia y cierra |
+
+### Verificación del despliegue (2026-08-23)
+
+`d3ee139` desplegado a producción con autorización expresa. Vercel `READY`
+(`dpl_CrTdZBMtj5NbXxgDQ47YyBkw8xWc`), CI **2/2**. Sin migraciones.
+
+| Comprobación | Resultado |
+|---|---|
+| `/login` | **200** |
+| Cabeceras de seguridad | **6 de 6** — CSP con nonce, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
+| `/seller/tickets`, `/owner/tickets`, `/owner/dashboard`, `/seller/dashboard` sin sesión | **307** |
+| Clave de servicio en los 15 fragmentos JS servidos + el HTML | **0** |
+| `85dvh` en la CSS de producción (solo lo genera la hoja de filtros) | **presente** |
+| `ring-inset` en la CSS de producción (solo lo genera la tarjeta) | **presente** |
+| `bottom-nav-height` (D-106) sigue en la CSS | **presente** |
+
+**Latencia, con el desglose correcto** (`time_starttransfer − time_appconnect`, HANDOFF §9):
+
+| Ciclo | **Servidor** | Conexión | Total |
+|---|---:|---:|---:|
+| c1 | **185 ms** | **1.282 ms** | 1.468 ms |
+| c2 | **159 ms** | 205 ms | 429 ms |
+| c3 | **158 ms** | 201 ms | 361 ms |
+| `/denied` (control, CDN) | 169 ms | 185 ms | 355 ms |
+
+Servidor entre **158 y 185 ms en los tres**, en línea con los 149–254 ms del despliegue anterior. El
+pico de c1 cae del lado de la **conexión**, y el control servido por CDN tiene el mismo perfil: no es
+arranque en frío ni tiene que ver con este cambio.
+
+**Lo que un agente no puede verificar aquí:** que la lista se vea bien ya dentro de la sesión. Las
+rutas están protegidas y entrar exige una contraseña, que un agente no debe manejar. Queda como
+comprobación manual del dueño desde un teléfono real.

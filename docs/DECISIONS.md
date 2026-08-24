@@ -2787,7 +2787,8 @@ primitiva de shadcn/ui, no código del proyecto, y quitarla es una limpieza fuer
 ## D-107 — En el teléfono las boletas son tarjetas, y los filtros caben en un botón
 
 **Fecha:** 2026-08-23 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio, consultas,
-rutas ni permisos** · Solo presentación
+rutas ni permisos** · Solo presentación ·
+**En producción** (`d3ee139`, 2026-08-23)
 
 **Contexto.** La tabla de boletas resolvía el ancho del teléfono **ocultando columnas**
 (`meta.hideOnMobile`), y las tres que ocultaba eran **Cliente**, **Pago** y **Precio**. Es decir:
