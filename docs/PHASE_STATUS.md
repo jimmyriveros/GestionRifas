@@ -2018,3 +2018,68 @@ Desplegada con autorización expresa del dueño, el mismo día que D-108. **Sin 
 
 **Lo que debe revisar el dueño a mano:** entrar como dueño desde un teléfono real y confirmar que la
 fila de «Crear en lote» y «Nueva boleta» se ve como debe.
+
+---
+
+## Mantenimiento post-9 — el hueco de la barra de selección múltiple (2026-08-24)
+
+Reporte del dueño sobre las dos pantallas de boletas: al marcar una boleta aparecía un bloque en
+blanco bajo «Ver seleccionadas» / «Limpiar selección», y abajo la barra de acciones dejaba una
+rendija sobre el menú del teléfono y tapaba la paginación. Decisión **D-110**. Sin migraciones.
+**Sin desplegar.**
+
+`Route changes: None` · `Business logic changes: None` · `New API calls: None` ·
+`Query changes: None` · `New dependencies: None`
+
+### 1. Funcionalidades implementadas
+
+Ninguna nueva: corrección de presentación. Los tres síntomas eran el mismo error —la barra es un
+elemento `fixed` escrito en medio del contenido—, así que se arreglan juntos.
+
+- **El hueco de la barra se pide, no se dibuja.** La barra se marca `data-selection-bar`,
+  `globals.css` traduce esa marca a `--selection-bar-space` bajo `md` y `AppShell` la suma al
+  `padding-bottom` del contenido, junto al de la barra inferior (D-106). Antes lo reservaba un
+  `<div className="h-20">` **escrito donde está el componente**, es decir encima de la lista: dejaba
+  80 px en blanco arriba y no reservaba nada abajo, que es donde hacía falta.
+- **La barra va envuelta en `display: contents`.** El `space-y-6` de la pantalla daba
+  `margin-bottom: 24px` a sus hijos, y en un elemento fijo colocado por `bottom` ese margen **cuenta
+  para colocarlo**: la barra flotaba 24 px sobre la navegación y por esa rendija se veía la lista.
+- **Escritorio no cambia:** la variable vale 0 px, la barra no se dibuja y las separaciones siguen
+  siendo las de siempre.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npx tsc --noEmit` | ✅ |
+| `npx eslint .` | ✅ 0 errores, 2 avisos preexistentes de TanStack |
+| `npx vitest run` | ✅ **325/325** |
+| `npm run test:db` | ✅ **518/518** |
+| `npx playwright test --project=movil` | ✅ **50/50** (1 nueva de regresión) |
+| `npx playwright test --project=escritorio` (4 archivos de selección y boletas) | ✅ **61/61** |
+| `npm run build` | ✅ |
+
+Medidas del navegador a 375, 1.280 y 1.440 px, y la **verificación al revés** de la prueba nueva
+—falla midiendo 113 px con el espaciador de vuelta— en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+**Ninguna.**
+
+### 4. Variables de entorno
+
+**Ninguna nueva.**
+
+### 5. Problemas que permanecen
+
+Los de siempre (I-066, I-062, I-063, columna «Abono» del importador). **De este cambio, ninguno.**
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **Una barra fija no reserva su hueco con un div vacío.** Se ancla a `--selection-bar-space`, igual
+   que la navegación se ancla a `--bottom-nav-space` (`ARCHITECTURE` §8.8). Un elemento en flujo se
+   queda donde está escrito, y el hueco casi siempre hace falta al final.
+2. **Un elemento `fixed` dentro de un `space-y-*` se desplaza** por el margen que hereda. Si añades
+   otra barra, envuélvela igual.
+3. **La suite E2E de escritorio se corrió parcial** (61 de 242) porque bajo `md` este cambio no
+   existe. Antes de promover, deja que CI corra las dos completas.

@@ -145,8 +145,7 @@ export function TicketSelectionToolbar({
     !selection.atLimit
 
   /** Si algo de este bloque tiene contenido visible ahora mismo. */
-  const hasStatus =
-    selection.selectionMode || count > 0 || offerSelectAll || selection.atLimit
+  const hasStatus = selection.selectionMode || count > 0 || offerSelectAll || selection.atLimit
 
   return (
     <>
@@ -241,12 +240,32 @@ export function TicketSelectionToolbar({
           para reservar el hueco, asi que las dos no pueden descuadrarse. Se
           apilan en vez de excluirse porque la seleccion sobrevive al cambio de
           pantalla, y esconder la navegacion mientras hay boletas marcadas
-          dejaria al vendedor atrapado en la lista. */}
+          dejaria al vendedor atrapado en la lista.
+
+          EL HUECO PARA QUE NO TAPE NADA SE PIDE, NO SE DIBUJA (D-110). Basta
+          con marcarse `data-selection-bar`: `globals.css` traduce esa marca a
+          `--selection-bar-space` y `AppShell` la suma al fondo de la pagina.
+          Antes lo reservaba un div vacio de 80 px escrito aqui mismo, y ese es
+          el problema: caia donde esta escrito este componente —encima de la
+          lista— en vez de al final, asi que abria un hueco en blanco entre el
+          recuento y la primera boleta y dejaba la paginacion igual de tapada. */}
       {count > 0 ? (
-        <>
-          {/* Hueco para que la ultima fila no quede tapada por la barra. */}
-          <div className="h-20 md:hidden" aria-hidden />
-          <div className="bg-background fixed inset-x-0 bottom-[var(--bottom-nav-space)] z-40 border-t p-3 shadow-lg md:hidden">
+        /* `contents` NO ES DECORACION (D-110). Este componente se dibuja dentro
+           de un `space-y-6`, que separa a sus hijos con un margen inferior, y
+           ese margen tambien le tocaba a la barra: en un elemento fijo con
+           `bottom`, el margen inferior CUENTA para colocarlo, asi que la barra
+           quedaba 24 px por encima de la navegacion y por esa rendija se veia
+           pasar la lista. La envoltura recibe el margen y, al no generar caja,
+           no hace nada con el; la barra deja de ser hija directa y se posa
+           donde dice `bottom`. Se prefiere a un `!important` —que dependeria
+           del orden de las utilidades— y a un portal, que la sacaria del orden
+           de lectura y de tabulacion, justo detras de los botones que la
+           acompanan. */
+        <div className="contents">
+          <div
+            data-selection-bar
+            className="bg-background fixed inset-x-0 bottom-[var(--bottom-nav-space)] z-40 border-t p-3 shadow-lg md:hidden"
+          >
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium tabular-nums">
                 {count} {count === 1 ? 'seleccionada' : 'seleccionadas'}
@@ -288,7 +307,7 @@ export function TicketSelectionToolbar({
               </div>
             </div>
           </div>
-        </>
+        </div>
       ) : null}
 
       {portal === 'owner' ? (

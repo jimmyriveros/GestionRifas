@@ -3028,6 +3028,75 @@ mientras el CSS ya era el nuevo. La comprobación que lo delató: un clon del mi
 mismo `className`, medía distinto que el original. **Tras editar clases, mide con una navegación
 limpia (`?v=n`), no con `location.reload()`,** y si algo sigue sin cuadrar, reinicia `next dev`.
 
+## D-110 — El hueco de una barra fija se reserva al final de la página, no donde está escrita
+
+**Fecha:** 2026-08-24 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio,
+consultas, rutas ni permisos** · Solo presentación · Corrige dos defectos de D-082
+
+**Contexto.** Al marcar una boleta en «Boletas» aparecían dos huecos que nadie pidió:
+
+1. **Entre el recuento y la lista, 80 px en blanco**, justo debajo de «Ver seleccionadas» y
+   «Limpiar selección». Medido con una boleta marcada a 375 px: de 24 px de separación se pasaba a
+   **128**.
+2. **Abajo, una rendija entre la barra de acciones y la barra de navegación**, por la que se veía
+   pasar la lista, y **la paginación tapada** por la propia barra: con una boleta marcada no había
+   forma de pasar de página.
+
+**Las dos son el mismo error, y ninguna es de CSS: son de sitio en el DOM.** La barra de acciones
+es un elemento `fixed` escrito en medio del contenido, dentro del `space-y-6` de la pantalla:
+
+| Síntoma | Causa |
+|---|---|
+| 80 px en blanco en medio | El hueco lo reservaba `<div className="h-20">`, un elemento en flujo **escrito donde está el componente** —encima de la lista— cuando lo que había que separar estaba **al final** de la página |
+| La paginación seguía tapada | Por lo mismo: el hueco estaba arriba, así que abajo no sobraba nada |
+| La rendija sobre la navegación | `space-y-6` da `margin-bottom: 24px` a sus hijos, y **en un elemento fijo colocado por `bottom`, el margen inferior cuenta para colocarlo**: la barra subía 24 px sobre la navegación |
+
+**Decisión.**
+
+**a) El hueco se pide, no se dibuja.** La barra se marca `data-selection-bar`; `globals.css` traduce
+esa marca a `--selection-bar-space` y `AppShell` la suma al fondo del contenido, en el mismo sitio
+donde ya reservaba el de la barra inferior (D-106). Un elemento en flujo no puede reservar sitio al
+final de una página en la que está escrito por el medio; una variable heredada, sí.
+
+```
+:root                     --selection-bar-space: 0px
+@media (width < 48rem)
+  body:has([data-selection-bar])   → var(--selection-bar-height)   (3.5rem)
+
+AppShell  <main … pb-[calc(1rem + --bottom-nav-space + --selection-bar-space)]>
+```
+
+**Por qué `:has()` y no un efecto de React.** Con un atributo y una consulta de medios, quien decide
+que en escritorio no hay barra —y por tanto no hay hueco— sigue siendo el navegador, como en D-106 y
+D-107. Un efecto que escribiera la variable en `document.body` tendría que reimplementar el punto de
+corte en JavaScript y podría discrepar de él.
+
+**b) La barra se envuelve en `display: contents`.** La envoltura recibe el margen del `space-y-6` y,
+al no generar caja, no hace nada con él; la barra deja de ser hija directa y se posa exactamente
+donde dice `bottom`. Se descartaron dos alternativas: `!important` sobre el margen, que dependería
+del orden en que Tailwind emita las utilidades, y un portal a `document.body`, que sacaría la barra
+del orden de lectura y de tabulación —hoy va justo detrás de los botones que la acompañan— para
+dejarla detrás de la barra de navegación.
+
+**Medidas, a 375 px y con una boleta marcada:**
+
+| | Antes | Después |
+|---|---:|---:|
+| Recuento → primera boleta | 128 px | **24 px** |
+| Hueco entre la barra y la navegación | 24 px | **0** |
+| Aire entre la paginación y la barra, al final de la lista | **−9 px** (tapada) | **15 px** |
+| Hueco reservado al fondo | 72 px | 128 px |
+
+**Escritorio no cambia**: la variable vale 0, la barra no existe y las tres separaciones siguen
+siendo las de siempre (medido a 1280 y 1440 px). El bloque en blanco de 80 px **tampoco era de
+escritorio**: aparecía en cualquier ventana de menos de 768 px, incluida una ventana de escritorio
+estrecha, que es donde se reportó.
+
+**Prueba de regresión:** `tests/e2e/seleccion-movil.spec.ts`, «marcar no abre un hueco y la
+paginación no queda debajo de la barra». Comprueba las dos cosas juntas porque son la misma
+pregunta. Verificada al revés: con el `h-20` de vuelta falla midiendo 113 px, y sin el sumando en
+`AppShell` falla por la paginación.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

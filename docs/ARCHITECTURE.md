@@ -585,6 +585,16 @@ resto del menú se lee desde el menú de usuario.
 | Alto de la barra y hueco que debe dejar el contenido | `--bottom-nav-height` / `--bottom-nav-space` (`globals.css`) |
 | Reserva de ese hueco | `AppShell`, **una vez**; ninguna pantalla añade margen por su cuenta |
 | Altura de la barra de selección múltiple | `bottom: var(--bottom-nav-space)`: se apila encima, no la sustituye |
+| Hueco de esa segunda barra | `--selection-bar-space`, que vale 0 hasta que la barra aparece (D-110) |
+
+**Dos barras apiladas, un solo sitio donde se reserva su hueco (D-110).** La de selección múltiple
+solo existe mientras hay boletas marcadas, así que su hueco tampoco es fijo: la barra se marca
+`data-selection-bar`, `globals.css` traduce esa marca a `--selection-bar-space` bajo `md`, y
+`AppShell` la suma al `padding-bottom` del contenido junto a la de navegación. **Ninguna pantalla
+dibuja un elemento vacío para hacerse sitio**: uno en flujo se queda donde está escrito —en medio de
+la lista— y el hueco hace falta al final. Además, la barra va envuelta en un `display: contents`,
+porque el margen de un `space-y-*` cuenta para colocar un elemento fijo y la levantaba 24 px sobre la
+navegación.
 
 En el portal del vendedor la barra dice **«Boletas»**, **«Clientes»** y **«Pagos»** (`shortLabel`),
 mientras el título de la pantalla sigue diciendo «Mis boletas». A 320 px cada opción dispone de

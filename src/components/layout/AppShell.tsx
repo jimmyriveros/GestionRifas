@@ -92,13 +92,21 @@ function AppShellLayout({
         </header>
 
         {/*
-          El hueco de la barra inferior se reserva AQUI, una sola vez, y sale de
-          la misma variable que fija su alto (`globals.css`). Asi ninguna
+          El hueco de las barras fijas se reserva AQUI, una sola vez, y sale de
+          las mismas variables que fijan su alto (`globals.css`). Asi ninguna
           pantalla tiene que acordarse de dejar margen abajo, y la ultima fila de
           una lista o el ultimo boton de un formulario nunca quedan tapados.
-          Sobre `md` la variable vale 0 y manda `md:p-6`.
+          Sobre `md` las dos variables valen 0 y manda `md:p-6`.
+
+          Son DOS sumandos porque son dos barras que se apilan: la navegacion
+          inferior, que esta siempre, y la de seleccion multiple, que aparece
+          solo mientras hay boletas marcadas y entonces vale su alto (D-110).
+          Antes esa segunda reservaba su hueco con un div vacio dentro de la
+          pagina, que caia donde estuviera escrito —en medio de la lista— en vez
+          de al final: dejaba 80 px en blanco arriba y seguia tapando la
+          paginacion abajo.
         */}
-        <main className="flex-1 p-4 pb-[calc(1rem_+_var(--bottom-nav-space))] md:p-6">
+        <main className="flex-1 p-4 pb-[calc(1rem_+_var(--bottom-nav-space)_+_var(--selection-bar-space))] md:p-6">
           {children}
         </main>
       </div>

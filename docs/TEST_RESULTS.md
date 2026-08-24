@@ -2885,3 +2885,60 @@ Los comentarios se reescribieron para que no quede una explicación técnica fal
 **Regla para la próxima vez:** después de editar clases, **mide con una navegación limpia
 (`?v=n`), no con `location.reload()`**; si algo sigue sin cuadrar, reinicia `next dev` antes de
 culpar a la cascada.
+
+---
+
+## El hueco de la barra de selección múltiple (2026-08-24)
+
+Corrección de presentación (**D-110**) sobre las dos pantallas de boletas. Sin migraciones, sin
+consultas nuevas y sin lógica nueva.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint .` | ✅ 0 errores | 2 avisos `react-hooks/incompatible-library` | Preexistentes (`DataTable.tsx`, `BulkTicketCreator.tsx`). No son de este cambio |
+| `npx vitest run` | ✅ **325/325** | — | — |
+| `npm run test:db` | ✅ **518/518** | — | Sin migración; se ejecuta para descartar arrastre |
+| `npx playwright test --project=movil` | ✅ **50/50** | — | 49 anteriores + 1 nueva de regresión |
+| `npx playwright test --project=escritorio` (selección, boletas de los dos portales) | ✅ **61/61** | — | `seleccion-multiple`, `filas-seleccionables`, `seller-tickets`, `owner-tickets` |
+| `npm run build` | ✅ | — | — |
+
+**La suite de escritorio se corrió parcial, a propósito:** bajo `md` la variable nueva vale 0 px, la
+barra no se dibuja y el único cambio de DOM es una envoltura alrededor de un elemento ya oculto. Se
+eligieron los cuatro archivos que tocan selección y listas de boletas. Si se promueve el cambio, CI
+corre las dos suites completas.
+
+### Lo que se midió en el navegador
+
+Vendedor, servidor local, `/seller/tickets`, con **una boleta marcada** y modo selección encendido.
+
+| Comprobación | Antes | Después |
+|---|---:|---:|
+| «Limpiar selección» → cabecera de la lista, a 375 px | **128 px** | **24 px** |
+| Hueco entre la barra de acciones y la de navegación | 24 px | **0** (−1 px: el borde de la navegación queda debajo) |
+| Paginación → barra, al final de la lista | **−9 px** (tapada) | **15 px** |
+| `padding-bottom` de `<main>` con selección | 72 px | **128 px** |
+| `padding-bottom` de `<main>` sin selección | 72 px | **72 px** (sin cambio) |
+| A 1.280 y 1.440 px: `--selection-bar-space` | — | **0px**; `padding` 24 px y separaciones de 24 px, sin cambio |
+
+### La prueba de regresión se verificó al revés
+
+No basta con que pase: se comprobó que **falla sin el arreglo**, cada mitad por su causa.
+
+| Se deshizo | Fallo obtenido |
+|---|---|
+| Devolver `<div className="h-20 md:hidden">` al componente | `expect(received).toBeLessThan(40)` — recibido **113** |
+| Quitar `--selection-bar-space` del `padding` de `AppShell` | La paginación queda por debajo de la barra |
+
+### Dos hallazgos que conviene no olvidar
+
+**1. El margen de un `space-y-*` mueve un elemento fijo.** La barra estaba 24 px por encima de donde
+decía su `bottom`. No era la variable ni el `z-index`: al ser hija directa del `space-y-6` de la
+pantalla recibía `margin-bottom: 24px`, y en un elemento posicionado por `bottom` ese margen entra en
+la ecuación que lo coloca. Se confirmó poniendo `style.marginBottom = '0px'` desde la consola: el
+borde inferior pasó de `y = 732` a `y = 756`, exactamente los 24 px.
+
+**2. El bloque de 80 px no era «de móvil»: era de menos de 768 px.** Se reportó como que ocurría
+«tanto en escritorio como en móvil», y a 1.280 y 1.440 px no ocurre —el espaciador es `md:hidden`—.
+Sí ocurría en cualquier ventana de escritorio estrechada por debajo de `md`, que es como estaban
+hechas las capturas del reporte.

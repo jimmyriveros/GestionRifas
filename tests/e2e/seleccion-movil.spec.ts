@@ -222,6 +222,40 @@ test.describe('Modo selección en el teléfono', () => {
     expect(caja!.y).toBeGreaterThan(alto / 2)
   })
 
+  /**
+   * D-110. La barra es un elemento fijo escrito en medio de la lista, y por ahí
+   * se coló el mismo error dos veces: el hueco que reservaba para no tapar nada
+   * caía donde está escrita —80 px en blanco entre el recuento y la primera
+   * boleta— y aun así la paginación quedaba debajo de la barra, de modo que no
+   * había forma de pasar de página con una boleta marcada. Se comprueban juntas
+   * porque son la misma pregunta: dónde se reserva el sitio.
+   */
+  test('marcar no abre un hueco y la paginación no queda debajo de la barra', async ({ page }) => {
+    const boleta = await nuevaBoleta()
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/tickets')
+    await expect(lista(page)).toBeVisible()
+
+    await activarModoSeleccion(page)
+    await tocarFila(filaDe(page, boleta.id))
+    await expect(recuento(page)).toHaveText('1 seleccionada')
+
+    // Entre el recuento y lo que sigue solo cabe la separación normal de la
+    // pantalla, 24 px. Si vuelve a aparecer un hueco reservado, no cabe.
+    const limpiar = (await page.getByRole('button', { name: 'Limpiar selección' }).boundingBox())!
+    const cabecera = (await page
+      .getByRole('checkbox', { name: 'Seleccionar las boletas de esta página' })
+      .boundingBox())!
+    expect(cabecera.y - (limpiar.y + limpiar.height)).toBeLessThan(40)
+
+    // Y al final del todo «Siguiente» se ve entero: la barra se posa por debajo.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    const siguiente = (await page.getByRole('button', { name: 'Siguiente' }).boundingBox())!
+    const barra = (await page.locator('[data-selection-bar]').boundingBox())!
+    expect(siguiente.y + siguiente.height).toBeLessThanOrEqual(barra.y)
+  })
+
   test('«Cancelar» sale del modo y limpia la selección', async ({ page }) => {
     const boleta = await nuevaBoleta()
 

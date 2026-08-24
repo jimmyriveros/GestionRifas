@@ -117,6 +117,27 @@
   :root {
     --bottom-nav-height: 3.5rem;
     --bottom-nav-space: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+
+    /*
+     * Barra de seleccion multiple (D-110). Se posa encima de la anterior, pero
+     * su hueco NO es fijo: solo existe mientras hay boletas marcadas, asi que
+     * vale 0 px el resto del tiempo. `--selection-bar-height` es su alto real:
+     * 12 px de aire, el boton de 32 px, 12 px de aire y el borde superior.
+     */
+    --selection-bar-height: 3.5rem;
+    --selection-bar-space: 0px;
+  }
+
+  /*
+   * La barra se anuncia con `data-selection-bar` y el hueco lo reserva el CSS,
+   * no JavaScript. Asi el navegador conoce la medida en el primer pintado, y
+   * sigue siendo la consulta de medios —no una condicion escrita en React— la
+   * que decide que en escritorio no hay barra y no hay nada que reservar.
+   */
+  @media (width < 48rem) {
+    body:has([data-selection-bar]) {
+      --selection-bar-space: var(--selection-bar-height);
+    }
   }
 
   /* Desde `md` no hay barra inferior: nadie debe reservarle sitio. */
