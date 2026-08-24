@@ -1916,3 +1916,22 @@ Los de siempre (I-066, I-062, I-063, columna «Abono» del importador). **De est
    varias».
 5. **Antes de creer un fallo E2E** del tipo «strict mode violation» sobre un número de boleta
    repetido: `npm run db:reset && npm run seed:local`. Es I-055, no el cambio.
+
+### 7. Promoción a producción (2026-08-24)
+
+Desplegada con autorización expresa del dueño. **Sin migraciones**, así que no había orden que
+respetar entre base de datos y código.
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`4381f2b`** (`dpl_2N8vtyRaxqLvzk4dPDVJKRLAb2SH`), alias `gestion-rifas.vercel.app` |
+| CI de GitHub | **2/2** — `verify` y `migraciones desde cero + test:db` |
+| `/login` | **200**, con las **6** cabeceras de seguridad |
+| Rutas protegidas sin sesión | `/seller/tickets`, `/owner/tickets`, `/owner/dashboard`, `/seller/dashboard` → **307** |
+| Clave de servicio en el navegador | **0** apariciones en el HTML ni en los **16** recursos que sirve `/login` |
+| **El código nuevo está servido de verdad** | La CSS de producción trae `grid-template-columns:minmax(0,1fr) auto`, que **solo** genera la variante `inlineActions` de `PageHeader`, y las cinco clases `md:` nuevas (`md:space-y-3`, `md:h-9`, `md:rounded-lg`, `md:border`, `md:p-4`), una vez cada una. El bundle es idéntico al del build local salvo los hashes de las fuentes |
+| Tiempo de **servidor** (3 ciclos, `time_starttransfer − time_appconnect`) | **151, 161 y 259 ms** — en línea con los 158–185 ms del despliegue anterior. Fluid Compute sigue cumpliendo |
+
+**Lo que debe revisar el dueño a mano:** entrar como vendedor desde un teléfono real y confirmar que
+la cabecera se ve como debe. Es lo único que no puede comprobar un agente: las rutas están protegidas
+y verificarlas exige una contraseña, que un agente no debe manejar.

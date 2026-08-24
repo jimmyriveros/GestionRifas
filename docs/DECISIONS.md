@@ -2882,7 +2882,8 @@ por CSS: mantiene la semántica de tabla para algo que ya no lo es y complica ca
 ## D-108 — La cabecera de «Boletas» deja de ser cuatro bloques sueltos
 
 **Fecha:** 2026-08-24 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio,
-consultas, rutas ni permisos** · Solo presentación · Pendiente de despliegue
+consultas, rutas ni permisos** · Solo presentación ·
+**En producción** (`4381f2b`, 2026-08-24)
 
 **Contexto.** D-107 arregló la lista y no la cabecera. En un teléfono de 390 px, lo que había entre el
 título y la primera boleta ocupaba **376 px de 844**: casi la mitad de la pantalla antes del primer
