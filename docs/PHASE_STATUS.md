@@ -2001,3 +2001,20 @@ Los de siempre (I-066, I-062, I-063, columna «Abono» del importador). **De est
 3. **Al medir en el navegador después de cambiar clases, navega limpio (`?v=n`).** Un
    `location.reload()` puede servirte un árbol anterior con el CSS nuevo y hacerte culpar a la
    cascada, que es exactamente lo que pasó aquí.
+
+### 7. Promoción a producción (2026-08-24)
+
+Desplegada con autorización expresa del dueño, el mismo día que D-108. **Sin migraciones.**
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`f9d5b20`** (`dpl_5jH2fZ1PhLmCX9Gr2wzX65HbcHUT`), alias `gestion-rifas.vercel.app` |
+| CI de GitHub | **2/2** — `verify` y `migraciones desde cero + test:db` |
+| `/login` | **200**, con las **6** cabeceras de seguridad |
+| Rutas protegidas sin sesión | `/seller/tickets`, `/owner/tickets`, `/owner/dashboard`, `/seller/dashboard` → **307** |
+| Clave de servicio en el navegador | **0** apariciones en el HTML ni en los **16** recursos que sirve `/login` |
+| **El código nuevo está servido de verdad** | La CSS de producción trae **`md:grow-0`**, que en toda la aplicación solo lo genera la fila de acciones de esta pantalla. Y **conserva las cuatro huellas de D-108** (`grid-template-columns:minmax(0,1fr) auto`, `md:h-9`, `md:space-y-3`, `md:rounded-lg`): no se perdió nada del despliegue anterior |
+| Tiempo de **servidor** (3 ciclos, `time_starttransfer − time_appconnect`) | **185, 207 y 208 ms** — en línea con los 151–259 ms de D-108. Fluid Compute sigue cumpliendo |
+
+**Lo que debe revisar el dueño a mano:** entrar como dueño desde un teléfono real y confirmar que la
+fila de «Crear en lote» y «Nueva boleta» se ve como debe.

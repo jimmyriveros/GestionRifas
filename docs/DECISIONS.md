@@ -2966,7 +2966,8 @@ dos botones: no caben a 320 px.
 ## D-109 — La misma cabecera en el portal administrativo, con dos acciones que no caben
 
 **Fecha:** 2026-08-24 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio,
-consultas, rutas ni permisos** · Solo presentación · Pendiente de despliegue
+consultas, rutas ni permisos** · Solo presentación ·
+**En producción** (`f9d5b20`, 2026-08-24)
 
 **Contexto.** D-108 rehizo la cabecera de «Mis boletas» y el dueño pidió lo mismo para
 `/owner/tickets`. La mitad ya estaba hecha: el buscador, el recuadro que desaparece bajo `md` y la
