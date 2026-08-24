@@ -2764,6 +2764,21 @@ ocupando el sitio del icono, porque en la barra inferior no sobra un pixel al la
 izquierda, es decir **encima de «Panel»**, y se comía el toque. Se movió a `top-left` en
 `next.config.ts`. Solo existe en desarrollo y no llega a producción.
 
+**Fluid Compute pasa a `vercel.json`.** Al verificar el despliegue se vio que un requisito duro de
+`DEPLOYMENT.md` §3.1.b vivía **solo** como interruptor del panel: no aparecía en ninguna revisión y
+apagarlo no dejaba rastro. Se declara `{ "fluid": true }` en el repositorio, donde viaja con el
+código. **Solo eso**: `vercel.json` anula únicamente lo que declara, y las cabeceras de seguridad
+siguen en `next.config.ts` y `src/proxy.ts` porque tenerlas en dos sitios sería peor que en uno.
+
+**Y una lección de medición que costó media hora.** Comprobando que Fluid Compute seguía cumpliendo,
+unos picos de **3,4 s** se tomaron por arranque en frío porque coincidían con el rango de D-104. Eran
+**falsos**: el servidor respondió entre **132 y 265 ms en los diez ciclos**, incluidos los dos que en
+total tardaron 3,4 s, y lo que se disparaba era `time_connect`, clavado en ~3,1 s —el reintento del
+SYN de TCP de la máquina que medía—. El error fue leer `time_starttransfer` como si fuera tiempo de
+servidor: incluye DNS, TCP y TLS. Lo que tumbó la hipótesis fue el control que la propia D-104
+propone: `/denied`, servido por CDN, sufría el **mismo** pico, y una función en frío no puede
+ralentizar un archivo estático. Queda en `HANDOFF` §9 y en `DEPLOYMENT` §3.1.b.
+
 **Qué se descartó.** (a) Una quinta opción «Más» que abriera el cajón: el encargo pide cuatro
 accesos, y habría dejado dos navegaciones vivas en el teléfono. (b) Repetir en escritorio las
 entradas del menú de usuario. (c) Borrar `components/ui/sheet.tsx` al quedarse sin uso: es una

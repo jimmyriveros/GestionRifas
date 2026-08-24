@@ -112,6 +112,7 @@ importa desde un componente cliente.
 ├── .env.example
 ├── .gitignore
 ├── next.config.ts
+├── vercel.json                   # Solo `fluid: true` (D-106). Las cabeceras NO van aquí
 ├── tsconfig.json
 ├── eslint.config.mjs
 ├── vitest.config.mts

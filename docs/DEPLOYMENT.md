@@ -112,19 +112,46 @@ Settings → Environment Variables del proyecto `gestion-rifas`, scope **Product
 `scripts/check-env.ts` (el `prebuild`) corta el build si falta alguna de las tres claves de Supabase.
 Hoy no valida `NEXT_PUBLIC_SITE_URL`; comprobarla en Vercel sigue siendo un paso manual (I-049).
 
-### 3.1.b Fluid Compute (Settings → Functions) — obligatorio para que la navegación no tarde segundos
+### 3.1.b Fluid Compute — obligatorio para que la navegación no tarde segundos
+
+**Está declarado en `vercel.json`** (D-106, 2026-08-23):
+
+```json
+{ "$schema": "https://openapi.vercel.sh/vercel.json", "fluid": true }
+```
+
+Antes vivía **solo** como interruptor en el panel (Settings → Functions). El problema no era que
+estuviera mal puesto, sino que un requisito de despliegue no dejaba rastro en Git: nadie lo veía en
+una revisión y nadie se enteraba si se apagaba. Declarado en el repositorio, viaja con el código y se
+revisa como cualquier otro cambio. El interruptor del panel sigue existiendo; lo que manda para cada
+despliegue es este archivo.
+
+`vercel.json` **solo anula las propiedades que declara**. Aquí no se declara ninguna otra a propósito:
+las cabeceras de seguridad viven en `next.config.ts` y la CSP con nonce en `src/proxy.ts`, y tenerlas
+en dos sitios sería peor que tenerlas en uno.
 
 **Debe estar activado.** Sin él, la función que sirve las pantallas arranca en frío cada vez que pasa
 un rato sin tráfico, y la primera navegación después de leer una pantalla cuesta **3–5 segundos**
 (I-067, D-104). Medido sobre la misma ruta y la misma sesión: 261–333 ms con la función caliente
 frente a 3.594–4.276 ms tras 45–90 s de pausa.
 
+⚠️ **Cómo se comprueba, y cómo NO.** `curl -w "%{time_starttransfer}"` **no** mide el tiempo del
+servidor: incluye DNS, TCP y TLS. Un pico ahí puede ser de tu propia red y no de Vercel — pasó el
+2026-08-23 y costó media hora de diagnóstico equivocado. Desglosa siempre, y compara contra
+`/denied`:
+
+```bash
+curl -s -o /dev/null -w "dns=%{time_namelookup} tcp=%{time_connect} tls=%{time_appconnect} ttfb=%{time_starttransfer}\n" https://gestion-rifas.vercel.app/login
+```
+
+El tiempo del servidor es `time_starttransfer − time_appconnect`. Sano ronda los **130–270 ms**.
+
 **No es una optimización de la aplicación y ningún cambio de código lo arregla**: se comprobó que
 `/login`, que no consulta nada, sufre el mismo pico, y que `/denied`, que se sirve desde el CDN, no
 lo sufre nunca.
 
-⚠️ **Se aplica a los despliegues NUEVOS.** Activarlo no cambia el despliegue que ya está en línea:
-hay que volver a desplegar para que surta efecto. Está disponible también en el plan Hobby.
+⚠️ **Se aplica a los despliegues NUEVOS.** Cambiarlo no toca el despliegue que ya está en línea: hay
+que volver a desplegar para que surta efecto. Está disponible también en el plan Hobby.
 
 ### 3.2 Primer despliegue real
 
