@@ -98,7 +98,7 @@ function escenarios() {
     // entre que el HTML está pintado y React lo hidrata (TESTING §5.3).
     const estrecha = (page.viewportSize()?.width ?? 0) < 768
     if (estrecha) {
-      const entrar = page.getByRole('button', { name: 'Seleccionar', exact: true })
+      const entrar = page.getByRole('button', { name: 'Seleccionar varias', exact: true })
       await expect(async () => {
         await entrar.click()
         await expect(page.getByRole('checkbox').first()).toBeVisible({ timeout: 1500 })

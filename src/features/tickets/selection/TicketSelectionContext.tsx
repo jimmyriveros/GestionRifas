@@ -40,9 +40,9 @@ import {
  * seleccion en ese almacen.
  *
  * MODO SELECCION. En pantallas pequenas la seleccion es un modo explicito: se
- * entra con «Seleccionar», aparecen las casillas y tocar cualquier parte libre
- * de la fila la marca. En escritorio no hace falta modo: la columna de casillas
- * esta siempre y la fila sigue abriendo el detalle.
+ * entra con «Seleccionar varias», aparecen las casillas y tocar cualquier parte
+ * libre de la fila la marca. En escritorio no hace falta modo: la columna de
+ * casillas esta siempre y la fila sigue abriendo el detalle.
  */
 
 /** Pausa antes de preguntar por la elegibilidad: marcar quince casillas seguidas

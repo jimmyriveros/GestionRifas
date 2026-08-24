@@ -354,7 +354,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Entregar boletas a un vendedor o a un cliente | **Asignar** | Adjudicar, vincular, ligar |
 | Quitar de circulación una boleta o un pago | **Anular** | Eliminar, borrar, cancelar |
 | Borrar para siempre una boleta cargada por error, que nunca se vendió | **Eliminar** | Anular, cancelar, quitar |
-| Marcar varias boletas para trabajar con todas a la vez | **Seleccionar** | Marcar, elegir, tildar |
+| Marcar varias boletas para trabajar con todas a la vez | **Seleccionar** (el botón que lo enciende dice **«Seleccionar varias»**) | Marcar, elegir, tildar |
 | Quitar el acceso a una persona | **Desactivar** | Eliminar, borrar, dar de baja |
 | Sacar un cliente del listado sin perder su historial | **Archivar** | Eliminar, ocultar, borrar |
 | Cuenta creada a la que su dueña todavía no ha entrado | **Invitación pendiente** | Pendiente de activación, sin confirmar, inactivo |
@@ -413,6 +413,13 @@ Dentro, además de los filtros, hay dos salidas: **«Limpiar filtros»**, que lo
 vacía quiere ver la lista entera—, y **«Ver las boletas»**, que solo cierra. Ninguna de las dos dice
 «Aceptar» ni «Listo» (§6).
 
+**El botón que enciende la selección dice «Seleccionar varias»** (D-108). No «Seleccionar», que
+suena a marcar *esta* boleta, ni «Seleccionar boletas», que nombra lo que ya se está mirando: estamos
+en «Boletas» y esa palabra no añade nada. Lo que hay que decir es que a partir de ese toque se pueden
+marcar **varias** para actuar sobre todas a la vez. Cuando el modo está encendido, el mismo botón
+dice **«Cancelar»** —salir descarta lo marcado— y no debe confundirse con **«Limpiar selección»**,
+que vacía lo marcado **sin** salir del modo.
+
 **En la barra inferior del teléfono cae el posesivo, y solo ahí** (D-106). El menú lateral y el
 título de la pantalla siguen diciendo **«Mis boletas»**, **«Mis clientes»** y **«Mis pagos»**; la
 barra de abajo dice **«Boletas»**, **«Clientes»** y **«Pagos»**, porque a 320 px cada opción dispone
@@ -455,6 +462,7 @@ castigo donde solo había una espera.
 | Etiquetas de estado, roles y métodos de pago | `src/lib/constants.ts` |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
+| «Seleccionar varias» y su «Cancelar» | `src/features/tickets/selection/components/TicketSelectionModeButton.tsx` (D-108) |
 | Errores de validación de formularios | `schemas.ts` de cada módulo de `src/features/` (mensajes de Zod) |
 | Errores devueltos por el servidor | `src/lib/errors.ts` (`mapPgError`) y los `RAISE` de las migraciones |
 | Títulos y descripciones de pantalla | `PageHeader` de cada `page.tsx` |

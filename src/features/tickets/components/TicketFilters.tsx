@@ -43,6 +43,18 @@ type TicketFiltersProps = {
   sellers?: Option[]
   /** Solo el portal del vendedor filtra por cliente. */
   clients?: Option[]
+  /**
+   * Segundo boton de la fila del telefono, a la derecha de «Filtros» (D-108).
+   * Hoy lo ocupa `TicketSelectionModeButton`, que necesita el contexto de
+   * seleccion y por eso no puede dibujarse desde aqui.
+   *
+   * Se recibe como nodo y no como bandera para que esta pantalla no tenga que
+   * saber nada de la seleccion multiple. Quien lo pasa decide tambien cuando
+   * NO pasarlo: sin boletas en la lista no hay nada que seleccionar.
+   *
+   * Crece hasta llenar la fila (`grow`); «Filtros» se queda con su ancho.
+   */
+  secondaryAction?: ReactNode
 }
 
 /** Valor centinela de shadcn/Select: no admite <SelectItem value="">. */
@@ -75,12 +87,23 @@ const FILTER_KEYS = [
  * El campo de busqueda NO se guarda ahi: es la forma normal de llegar a una
  * boleta y tiene que estar siempre visible.
  *
+ * EL RECUADRO TAMPOCO ES EL MISMO EN LAS DOS (D-108). En escritorio agrupa seis
+ * controles y se gana el borde. En el telefono solo quedan el buscador y una
+ * fila de dos botones, asi que el borde era una caja dentro de otra caja que
+ * ademas robaba 32 px de ancho al campo mas usado de la pantalla: bajo `md` se
+ * quita, y el buscador y los botones se alinean con las tarjetas de la lista.
+ *
  * Los desplegables se escriben UNA vez (`filterFields`) y se pintan en los dos
  * sitios, con identificadores distintos para no repetir un `id` en la pagina.
  * La hoja solo existe en el DOM mientras esta abierta, y solo se puede abrir
  * bajo `md`: en escritorio no hay etiquetas duplicadas.
  */
-export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps) {
+export function TicketFilters({
+  raffles,
+  sellers,
+  clients,
+  secondaryAction,
+}: TicketFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -189,7 +212,13 @@ export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps)
   }
 
   return (
-    <div {...tourTarget('filters')} className="space-y-3 rounded-lg border p-4">
+    <div
+      {...tourTarget('filters')}
+      // El hueco que el buscador reserva SIEMPRE para su pista (16 px, para que
+      // escribir no empuje la lista) ya separa el campo de los botones: en el
+      // telefono el espacio propio se recorta para que la fila no flote.
+      className="space-y-2 md:space-y-3 md:rounded-lg md:border md:p-4"
+    >
       {/* UN solo campo para las dos formas de llegar a una boleta: sus numeros
           (BR-N11) o el nombre del cliente que la tiene (BR-N13). Nunca por el
           codigo interno. Quien busca no elige entre las dos: escribe lo que
@@ -205,18 +234,31 @@ export function TicketFilters({ raffles, sellers, clients }: TicketFiltersProps)
         onClear={search.clear}
         loading={search.showSpinner}
         showSubmitButton
+        touchSize
         hint={ticketSearchHint(search.value) ?? search.hint}
       />
 
-      {/* Telefono: un solo boton, que ademas dice cuantos filtros hay puestos.
-          Asi los resultados empiezan casi debajo del buscador. */}
+      {/* Telefono: las dos herramientas con las que se prepara la lista, en una
+          sola fila de 44 px que va de lado a lado (D-108).
+
+          CRECEN, NO SE PARTEN POR LA MITAD. Dos mitades exactas dan 140 px a
+          320 px de pantalla y «Seleccionar varias» necesita 160: se saldria del
+          boton. Con `grow` cada uno parte de su texto y se reparte lo que
+          sobre, asi que la fila llena el ancho donde lo hay y encoge sin
+          romperse donde no. */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetTrigger asChild>
-          <Button type="button" variant="outline" size="sm" className="md:hidden">
-            <SlidersHorizontalIcon className="size-4" aria-hidden />
-            {activeCount === 0 ? 'Filtros' : `Filtros (${activeCount})`}
-          </Button>
-        </SheetTrigger>
+        <div className="flex gap-2 md:hidden">
+          <SheetTrigger asChild>
+            <Button type="button" variant="outline" className="h-11 grow">
+              <SlidersHorizontalIcon className="size-4" aria-hidden />
+              {activeCount === 0 ? 'Filtros' : `Filtros (${activeCount})`}
+            </Button>
+          </SheetTrigger>
+          {/* En su propio fragmento: el nodo lo crea un componente de servidor
+              y React no puede darlo por estatico dentro de la lista de hijos de
+              esta fila, asi que lo reclamaria con un aviso de `key`. */}
+          <>{secondaryAction}</>
+        </div>
         <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto pb-4">
           <SheetHeader>
             <SheetTitle>Filtros</SheetTitle>

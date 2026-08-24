@@ -43,6 +43,16 @@ type SearchInputProps = {
   showSubmitButton?: boolean
   /** Oculta la etiqueta visualmente. Sigue existiendo para lectores de pantalla. */
   hideLabel?: boolean
+  /**
+   * Alto tactil en el telefono: 44 px para el campo y para el boton de buscar,
+   * en vez de los 36 de siempre (D-108). En escritorio vuelve al alto normal,
+   * asi que activarlo no cambia ninguna pantalla ancha.
+   *
+   * Lo pide la lista de boletas, que es la pantalla que un vendedor usa de pie,
+   * con una mano y con el pulgar. En un dialogo, donde el campo se toca sentado
+   * y con calma, no hace falta.
+   */
+  touchSize?: boolean
   className?: string
 }
 
@@ -58,6 +68,7 @@ export function SearchInput({
   loading = false,
   showSubmitButton = false,
   hideLabel = false,
+  touchSize = false,
   className,
 }: SearchInputProps) {
   const generatedId = useId()
@@ -100,7 +111,10 @@ export function SearchInput({
             autoComplete="off"
             // El navegador ya dibuja su propia «x» en `type="search"`; se quita
             // para no tener dos botones de limpiar que hacen lo mismo.
-            className="pr-10 [&::-webkit-search-cancel-button]:appearance-none"
+            className={cn(
+              'pr-10 [&::-webkit-search-cancel-button]:appearance-none',
+              touchSize && 'h-11 md:h-9',
+            )}
             aria-describedby={hint ? hintId : undefined}
             aria-busy={loading}
           />
@@ -136,7 +150,12 @@ export function SearchInput({
         </div>
 
         {showSubmitButton ? (
-          <Button type="button" variant="secondary" onClick={onSubmit}>
+          <Button
+            type="button"
+            variant="secondary"
+            className={touchSize ? 'h-11 md:h-9' : undefined}
+            onClick={onSubmit}
+          >
             <SearchIcon className="size-4" aria-hidden />
             <span className="sr-only sm:not-sr-only">Buscar</span>
           </Button>

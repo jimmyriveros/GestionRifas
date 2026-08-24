@@ -2762,3 +2762,74 @@ arranque en frío ni tiene que ver con este cambio.
 **Lo que un agente no puede verificar aquí:** que la lista se vea bien ya dentro de la sesión. Las
 rutas están protegidas y entrar exige una contraseña, que un agente no debe manejar. Queda como
 comprobación manual del dueño desde un teléfono real.
+
+---
+
+## La cabecera de «Boletas» deja de ser cuatro bloques sueltos (2026-08-24)
+
+Cambio de presentación (**D-108**). Sin migraciones, sin consultas nuevas y sin lógica nueva: lo que
+había que demostrar era que **la pantalla ocupa menos sin perder nada** y que **escritorio no se
+movió**.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint src tests` | ✅ 0 errores | 2 avisos `react-hooks/incompatible-library` | Preexistentes (`useReactTable`, `useVirtualizer`). No son de este cambio |
+| `npx vitest run` | ✅ **325/325** | — | Ninguna nueva: no hay lógica nueva que probar |
+| `npm run build` | ✅ | — | — |
+| `npm run test:db` | ✅ **518/518** | — | El cambio no toca la base de datos; se ejecuta por protocolo |
+| `npx playwright test --project=movil` | ✅ **49/49** | — | Sembrado limpio antes (`db:reset` + `seed:local`) |
+| `npx playwright test --project=escritorio` | ✅ **242/242** | — | — |
+
+### Lo que se midió en el navegador
+
+Vendedor 1, servidor local, `/seller/tickets`.
+
+| Comprobación | Antes | Después |
+|---|---:|---:|
+| **Primera boleta, a 390 px** | y = 448 px | **y = 322 px** |
+| «Crear boletas» | fila propia, bajo la descripción | **misma fila que el título** |
+| Ancho del buscador, a 390 px | 278 px | **310 px** |
+| Alto del buscador | 36 px | **44 px** |
+| Alto de «Filtros» y del botón de selección | 32 px | **44 px** |
+| Distancia entre «Filtros» y el botón de selección | 24 px (bloques distintos) | **8 px, misma fila** |
+| `scrollWidth − clientWidth` a 320 / 390 / 430 px | 0 | **0** |
+
+**Peor caso de ancho, medido y no supuesto.** A **320 px** con **«Filtros (5)»** —el texto más largo
+que puede tener ese botón— la fila mide **114 + 8 + 166 = 288 px**, exactamente el ancho disponible,
+y ninguno de los dos botones desborda su caja (`scrollWidth == clientWidth`). Es la razón de usar
+`grow` y no mitades exactas: dos mitades dan 140 px y «Seleccionar varias» necesita 160.
+
+**Escritorio, a 1.280 px:** el recuadro de filtros conserva su borde de 1 px y su `padding` de 16 px,
+los 3 desplegables siguen visibles, el buscador vuelve a 36 px y el botón móvil mide 0 × 0. El
+encabezado del detalle de boleta —que lleva flecha de volver— conserva la descripción alineada bajo
+el título (x = 332 px), como antes.
+
+### Los tres errores que aparecieron durante la verificación
+
+1. **La descripción se desalineaba en las pantallas con flecha de volver.** El primer intento
+   convirtió `PageHeader` en una rejilla **para todas** las pantallas. En el detalle de una boleta,
+   donde el título va precedido de la flecha, la descripción dejó de estar indentada bajo el título y
+   se pegó al borde izquierdo (x = 280 en vez de 332). Se corrigió dejando **intacto** el árbol de
+   siempre y añadiendo la rejilla solo como variante `inlineActions`. Verificado después: x = 332.
+2. **Aviso de React: «Each child in a list should have a unique key prop», señalando `TicketFilters`.**
+   Lo dispara el nodo `secondaryAction`, que crea un componente de servidor y React no puede dar por
+   estático dentro de la lista de hijos de la fila. Se resolvió envolviéndolo en su propio fragmento.
+   Comprobado en una pestaña limpia: **0 errores y 0 avisos de consola**.
+3. **La barra de selección vacía dejaba 24 px de nada.** Al sacarle el botón de modo, el bloque
+   quedaba con altura 0 pero seguía cobrando los dos márgenes de `space-y-6`. No se desmontó —dentro
+   está la región `aria-live` del recuento, que debe existir antes de cambiar— sino que pasa a
+   `sr-only`, fuera del flujo y todavía anunciable. La prueba que comprueba que tras «Cancelar» el
+   recuento queda vacío sigue pasando **sin tocarla**.
+
+### Pruebas adaptadas, y por qué
+
+El botón que enciende el modo selección pasó de decir «Seleccionar» a **«Seleccionar varias»**
+(D-108). Tres localizadores lo buscaban por nombre exacto:
+
+| Archivo | Cambio |
+|---|---|
+| `tests/e2e/seleccion-movil.spec.ts` | Localizador de `activarModoSeleccion` y el título de una prueba |
+| `tests/e2e/dialogos-alcanzables.spec.ts` | Localizador de entrada al modo bajo 768 px |
+
+Ninguna afirmación cambió: solo el texto que se busca.

@@ -1837,3 +1837,82 @@ en frío no puede ralentizar un archivo estático. **No es del despliegue.**
 **Lo que debe revisar el dueño a mano:** entrar como vendedor desde un teléfono real y confirmar que
 la lista se ve como debe. Es lo único que no puede comprobar un agente: las rutas están protegidas y
 verificarlas exige una contraseña, que un agente no debe manejar.
+
+---
+
+## Mantenimiento post-9 — la cabecera de «Boletas» deja de ser cuatro bloques sueltos (2026-08-24)
+
+Encargo del dueño: rediseñar **solo** la sección intermedia de «Mis boletas» en el teléfono —título,
+«Crear boletas», descripción, buscador, «Filtros» y el botón de selección— sin tocar la cabecera de
+la aplicación, la lista de boletas ni la barra inferior. Decisión **D-108**. Sin migraciones.
+**Sin desplegar.**
+
+`Route changes: None` · `Business logic changes: None` · `New API calls: None` ·
+`Query changes: None` · `New dependencies: None`
+
+### 1. Funcionalidades implementadas
+
+Ninguna nueva: es un cambio de presentación. Lo que cambió es **cuánto ocupa** y **qué tan claro es**.
+
+- **El título y «Crear boletas» comparten fila.** `PageHeader` gana la variante **opcional**
+  `inlineActions`, una rejilla en la que título y acción ocupan la fila 1 y la descripción, entera,
+  la fila 2. Sin la bandera, el árbol de siempre: las otras 27 pantallas no cambian.
+- **El recuadro de filtros es de escritorio.** Bajo `md` no hay caja: el buscador recupera los 32 px
+  de `padding` y se alinea con las tarjetas de la lista.
+- **El buscador mide 44 px en el teléfono** (`touchSize` en `SearchInput`) y vuelve a 36 px en
+  escritorio. El hueco reservado para su pista se conserva: sin él, escribir empujaría la lista.
+- **«Filtros» y «Seleccionar varias» son una sola fila de 44 px.** Antes eran dos botones de 32 px en
+  bloques distintos, a 24 px uno del otro. Los dos crecen con `grow`, no a mitades: a 320 px una
+  mitad son 140 px y el segundo botón necesita 160.
+- **El botón dice «Seleccionar varias»**, no «Seleccionar»: lo que enciende es un modo para marcar
+  **varias** boletas y actuar sobre todas a la vez. Icono `ListChecks` en vez de una casilla suelta.
+- **La barra de selección vacía sale del flujo** (`sr-only`) en vez de cobrar dos huecos de 24 px.
+  No se desmonta: dentro está la región `aria-live` del recuento.
+- **Resultado:** a 390 px la primera boleta pasa de **y = 448 a y = 322**. Son 126 px, una tarjeta
+  entera más de lista.
+- **Alcance real:** la fila de botones y la barra de selección afectan a **los dos** listados de
+  boletas; `inlineActions` y `touchSize`, solo a «Mis boletas». El encabezado del portal
+  administrativo conserva sus dos acciones debajo del título: a 320 px no caben al lado.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npx tsc --noEmit` | ✅ |
+| `npx eslint src tests` | ✅ 0 errores, 2 avisos preexistentes de TanStack |
+| `npx vitest run` | ✅ **325/325** |
+| `npm run build` | ✅ |
+| `npm run test:db` | ✅ **518/518** |
+| `npx playwright test --project=movil` | ✅ **49/49** |
+| `npx playwright test --project=escritorio` | ✅ **242/242** |
+
+Errores encontrados y corregidos: **tres**, todos detallados en `TEST_RESULTS.md` — la descripción
+desalineada en las pantallas con flecha de volver, un aviso de `key` de React por el nodo pasado
+desde el servidor, y los 24 px muertos de la barra de selección vacía. Medidas del navegador
+(320/390/430 px, peor caso de ancho, escritorio sin mover) en el mismo archivo.
+
+### 3. Migraciones
+
+**Ninguna.** Este cambio no toca la base de datos.
+
+### 4. Variables de entorno
+
+**Ninguna nueva.**
+
+### 5. Problemas que permanecen
+
+Los de siempre (I-066, I-062, I-063, columna «Abono» del importador). **De este cambio, ninguno.**
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **`inlineActions` es opcional y debe seguir siéndolo.** No lo actives en una pantalla con dos
+   acciones: a 320 px el título dispone de 288 px y un botón con icono se lleva 132.
+2. **El botón de modo selección ya no está en `TicketSelectionToolbar`.** Vive en
+   `TicketSelectionModeButton` y lo coloca la página, dentro del hueco `secondaryAction` de
+   `TicketFilters`. Si añades una tercera pantalla que liste boletas, tendrás que pasarlo también.
+3. **La barra de selección vacía está en `sr-only`, no desmontada.** No la conviertas en
+   `{cond ? … : null}`: se perdería la región `aria-live` que anuncia el recuento.
+4. **Un localizador de `'Seleccionar'` exacto ya no encuentra nada.** El botón dice «Seleccionar
+   varias».
+5. **Antes de creer un fallo E2E** del tipo «strict mode violation» sobre un número de boleta
+   repetido: `npm run db:reset && npm run seed:local`. Es I-055, no el cambio.

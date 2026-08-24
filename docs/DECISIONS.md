@@ -2879,6 +2879,89 @@ ancho, así que escritorio habría enseñado un instante la lista del teléfono 
 cambio de escritorio y el encargo pedía no tocarlo. (c) Un `<table>` con `display:block` reordenado
 por CSS: mantiene la semántica de tabla para algo que ya no lo es y complica cada ajuste posterior.
 
+## D-108 — La cabecera de «Boletas» deja de ser cuatro bloques sueltos
+
+**Fecha:** 2026-08-24 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio,
+consultas, rutas ni permisos** · Solo presentación · Pendiente de despliegue
+
+**Contexto.** D-107 arregló la lista y no la cabecera. En un teléfono de 390 px, lo que había entre el
+título y la primera boleta ocupaba **376 px de 844**: casi la mitad de la pantalla antes del primer
+dato. Y no por tener mucho contenido, sino por cómo estaba repartido:
+
+| Lo que había | El problema |
+|---|---|
+| «Mis boletas», descripción y **«Crear boletas» debajo**, en su propia fila | El botón quedaba flotando bajo un párrafo, sin relación visible con el título |
+| Un **recuadro con borde** que en el teléfono solo envolvía el buscador y un botón | Una caja dentro de otra caja, que además robaba **32 px de ancho** al campo más usado |
+| **«Filtros»** de 32 px, dentro del recuadro | Por debajo de los 44 px de diana táctil |
+| **«Seleccionar»** de 32 px, en otro bloque a 24 px de distancia | Dos botones que hacen lo mismo —preparar la lista— a distinta altura y sin relación |
+| La barra de selección, **siempre montada** aunque estuviera vacía | Dos huecos de 24 px de nada entre los filtros y la primera boleta |
+
+**Decisión.** Los cinco elementos se ordenan como **un solo bloque** con un ritmo: título y acción
+principal · descripción · buscador · las dos herramientas de la lista.
+
+**1. El título y «Crear boletas» comparten fila.** `PageHeader` gana `inlineActions`, **opcional**.
+No se generalizó: el árbol de siempre lo comparten **27 pantallas**, y varias tienen dos acciones
+—«Crear en lote» y «Nueva boleta»— que a 320 px no caben junto a un título. Donde sí cabe, la
+diferencia medida es de **48 px**.
+
+La variante es una **rejilla**, no dos columnas anidadas: el título y la acción ocupan la primera
+fila y la descripción, entera, la segunda. Meter las tres en la misma columna habría subido el botón
+a costa de estrechar la descripción, que es justo lo contrario de lo que se buscaba. La colocación
+automática de CSS hace el resto —la descripción cae en la fila 2 porque la 1 ya está ocupada—, así
+que no hay filas declaradas a mano.
+
+**2. El recuadro es de escritorio.** Ahí agrupa seis controles y se gana el borde. Bajo `md` solo
+quedan el buscador y una fila de dos botones: el borde se quita y los dos se alinean con las tarjetas
+de la lista, con lo que el buscador recupera los 32 px de padding.
+
+**3. El buscador mide 44 px en el teléfono.** `SearchInput` gana `touchSize`, que sube el campo y su
+botón a la diana táctil y **vuelve a 36 px en escritorio**, de modo que activarlo no mueve ninguna
+pantalla ancha. Lo pide solo la lista de boletas: es la que se usa de pie y con una mano. El hueco de
+la pista se mantiene reservado (D-100) —sin él, escribir empujaría la lista— y por eso el espacio
+propio del bloque se recorta a la mitad en móvil: el hueco ya separa.
+
+**4. «Filtros» y «Seleccionar varias» son una sola fila de 44 px.** Es el cambio con más consecuencias
+de estructura, porque los dos botones vivían en componentes distintos: uno en `TicketFilters` y otro
+dentro de `TicketSelectionToolbar`. Se resolvió con un **hueco** (`secondaryAction`) en `TicketFilters`
+y un componente nuevo, **`TicketSelectionModeButton`**, que es lo único que necesita el contexto de
+selección. Así `TicketFilters` sigue sin saber nada de la selección múltiple, y quien pasa el nodo
+decide también cuándo **no** pasarlo: sin boletas en la lista no se ofrece seleccionar, que es
+exactamente la condición que tenía antes.
+
+**Crecen, no se parten por la mitad.** Dos mitades exactas dan 140 px a 320 px de pantalla y
+«Seleccionar varias» necesita 160: se saldría del botón. Con `grow` cada uno parte de su texto y se
+reparte lo que sobre. Medido en el peor caso —320 px con «Filtros (5)»—: **114 + 8 + 166 = 288 px**,
+exactamente el ancho disponible, sin desbordamiento.
+
+**5. Se llama «Seleccionar varias».** Lo que hace no es marcar una boleta: enciende un modo en el que
+se marcan varias para actuar sobre todas a la vez. El verbo sigue siendo el del glosario
+—seleccionar—; «varias» es lo único que quien lo lee no puede deducir mirando la pantalla. Se
+descartó «Seleccionar boletas» —que es donde ya estamos, así que no añade nada— y también por ancho:
+son 170 px y no caben a 320 con los filtros puestos. El icono pasa a `ListChecks`, una lista con
+varias marcas, en vez de una casilla suelta.
+
+**6. La barra de selección vacía sale del flujo, pero no del DOM.** Cuando no hay nada que decir se
+queda en `sr-only`. Desmontarla habría dejado la región `aria-live` sin montar **justo antes de
+cambiar**, que es cuando un lector de pantalla necesita encontrarla; dejarla visible con el texto
+vacío costaba los dos huecos de 24 px. Esto beneficia también a escritorio, donde el mismo hueco
+existía entre el recuadro de filtros y la tabla.
+
+**Resultado medido, a 390 px:** la primera boleta pasa de **y = 448 a y = 322**. Son **126 px**, una
+tarjeta entera más de lista antes de tener que desplazar. A 320 px no hay desbordamiento horizontal
+en ningún elemento.
+
+**Lo que NO se tocó, a propósito:** la cabecera de la aplicación, la lista de boletas, la barra
+inferior, la tabla de escritorio, el contenido de la hoja de filtros, el texto de la descripción
+(D-100 lo redactó) y el encabezado del portal administrativo, que sigue con sus dos acciones debajo
+del título en el teléfono porque no caben al lado.
+
+**Qué se descartó.** (a) Cambiar `PageHeader` para todas las pantallas: 27 tendrían que revisarse y
+las de dos acciones se romperían a 320 px. (b) Poner el botón de selección dentro de `TicketFilters`
+llamando al contexto: obligaría a que ese componente viva siempre dentro del proveedor de selección,
+que hoy no es una condición suya. (c) Quitar el botón «Buscar» del campo: se conserva por lo que dice
+`SearchInput` —no todo el mundo da por hecho que la búsqueda sale sola—. (d) Mitades exactas para los
+dos botones: no caben a 320 px.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

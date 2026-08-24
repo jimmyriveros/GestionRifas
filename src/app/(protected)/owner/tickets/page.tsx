@@ -13,6 +13,7 @@ import { TicketsList } from '@/features/tickets/components/TicketsList'
 import { listTickets } from '@/features/tickets/queries'
 import { inventoryStatusSchema, paymentStatusSchema } from '@/features/tickets/schemas'
 import { TicketListSlot } from '@/features/tickets/selection/components/SelectedTicketsView'
+import { TicketSelectionModeButton } from '@/features/tickets/selection/components/TicketSelectionModeButton'
 import { TicketSelectionToolbar } from '@/features/tickets/selection/components/TicketSelectionToolbar'
 import { TicketSelectionProvider } from '@/features/tickets/selection/TicketSelectionContext'
 
@@ -106,6 +107,9 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
               label: `${raffle.shortCode} — ${raffle.name}`,
             }))}
             sellers={sellers.map((seller) => ({ value: seller.id, label: seller.fullName }))}
+            // Junto a «Filtros», en la misma fila (D-108). Sin boletas en la
+            // lista no se ofrece: no habria nada que seleccionar.
+            secondaryAction={rows.length > 0 ? <TicketSelectionModeButton /> : null}
           />
 
           {rows.length === 0 ? (

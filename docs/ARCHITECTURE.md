@@ -337,7 +337,9 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `SelectionCheckbox` | Casilla de 20 px con diana de 44 px. Cuadrada, nunca circular: un círculo se lee como «elige uno» (D-085) |
 | `useMediaQuery` / `useIsCompactScreen` | Consulta de medios sin romper la hidratación. Solo para decidir **comportamiento**; lo que se ve lo decide Tailwind |
 | `OptionList` / `OptionListItem` | Lista de opciones elegibles (clientes). Estados **excluyentes** normal/hover/foco/elegido/elegido+hover/deshabilitado, con visto además del color (D-077) |
-| `SearchInput` | Campo de búsqueda compartido: etiqueta, limpiar, indicador retrasado, `aria-busy` (D-078) |
+| `SearchInput` | Campo de búsqueda compartido: etiqueta, limpiar, indicador retrasado, `aria-busy` (D-078). `touchSize` sube campo y botón a 44 px **solo bajo `md`** (D-108) |
+| `PageHeader` | Título, descripción y acciones de cada pantalla. `inlineActions` sube la acción a la fila del título en el teléfono; sin esa bandera, la disposición de siempre (§8.10, D-108) |
+| `TicketSelectionModeButton` | Enciende y apaga el modo selección del teléfono: «Seleccionar varias» / «Cancelar». Se pinta en la fila de «Filtros», no en la barra de selección (§8.10, D-108) |
 | `useUrlSearch` | Búsqueda híbrida para listas paginadas: el término va a la URL y el RSC reconsulta |
 | `useRemoteSearch` | Búsqueda híbrida para diálogos y selectores, contra una Server Action, con testigo de secuencia |
 | `lib/search.ts` | Normalización del término y valores por defecto (pausa, mínimos). Lo usan navegador y servidor |
@@ -646,6 +648,45 @@ hay etiquetas duplicadas. El contador cuenta filtros, **no** la búsqueda: esa y
 
 **Dónde se usa:** los dos listados de boletas, «Ver seleccionadas» y las boletas de la ficha de un
 cliente. `TicketsTable` ya no se llama directamente desde ninguna pantalla.
+
+### 8.10 La cabecera de «Boletas»: un bloque con ritmo (D-108)
+
+Lo que hay entre el título y la primera boleta ocupaba **376 px de 844** en un teléfono de 390 px.
+Ahora ocupa **322**, con este orden y sin ningún dato menos:
+
+```
+Mis boletas                       [ + Crear boletas ]   ← misma fila (inlineActions)
+Busca por el número de la boleta o por el nombre…       ← ancho completo, fila propia
+[ Número de boleta o cliente            ] [ 🔍 ]        ← 44 px (touchSize)
+[ ⚙ Filtros ] [ ☑ Seleccionar varias ]                  ← 44 px, `grow`, md:hidden
+─── las tarjetas ───
+```
+
+| Pieza | Qué cambió | Alcance |
+|---|---|---|
+| `PageHeader` | Nueva variante **opcional** `inlineActions`: rejilla donde el título y la acción comparten fila 1 y la descripción ocupa entera la fila 2. **Sin la bandera, el árbol de siempre, intacto** | Solo `/seller/tickets` la activa; las otras 27 pantallas no cambian |
+| `SearchInput` | Nueva bandera **opcional** `touchSize`: campo y botón de 44 px bajo `md`, 36 px a partir de ahí | Solo la lista de boletas |
+| `TicketFilters` | El recuadro (`border` + `p-4`) pasa a ser **de escritorio**: bajo `md` no hay caja. Nuevo hueco `secondaryAction` para el segundo botón de la fila | Los dos listados de boletas |
+| `TicketSelectionModeButton` | **Nuevo.** Lo único que necesita el contexto de selección para encender o apagar el modo | Los dos listados de boletas |
+| `TicketSelectionToolbar` | Deja de dibujar el botón de modo. Cuando no tiene nada que decir se queda en **`sr-only`**, no desmontado | Los dos listados, también en escritorio |
+
+**Por qué el botón de modo salió de la barra de selección.** Su sitio en pantalla está junto a
+«Filtros» —las dos preparan la lista— pero ese botón lo dibuja `TicketFilters`, que no vive dentro
+del proveedor de selección en todos sus usos posibles. En vez de hacerle llamar al contexto, recibe
+el nodo ya construido. Quien lo pasa decide además cuándo **no** pasarlo: `rows.length > 0`, la misma
+condición que tenía la barra.
+
+**Por qué la barra vacía queda en `sr-only` y no desmontada.** Contiene la región `aria-live` del
+recuento, que debe estar montada **antes** de cambiar para que un lector la anuncie. Visible con
+texto vacío costaba dos huecos de 24 px; `sr-only` la saca del flujo y la conserva anunciable.
+
+**Por qué los botones usan `grow` y no mitades.** A 320 px una mitad son 140 px y «Seleccionar
+varias» necesita 160. Con `grow` cada uno parte de su texto y se reparte lo que sobre. Peor caso
+medido —320 px, «Filtros (5)»—: 114 + 8 + 166 = **288 px**, justo el ancho disponible.
+
+**Escritorio no cambió**, salvo dos detalles que mejoran: el recuadro y sus desplegables siguen
+igual, y desaparecen los 24 px muertos que dejaba la barra de selección vacía entre el recuadro y la
+tabla.
 
 ---
 

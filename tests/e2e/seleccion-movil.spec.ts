@@ -78,7 +78,7 @@ async function tocarFila(fila: Locator) {
  * sin reintentar la prueba culparía al producto de una carrera del arnés.
  */
 async function activarModoSeleccion(page: Page) {
-  const boton = page.getByRole('button', { name: 'Seleccionar', exact: true })
+  const boton = page.getByRole('button', { name: 'Seleccionar varias', exact: true })
   await expect(async () => {
     await boton.tap()
     await expect(recuento(page)).toHaveText('Toca las boletas que quieras seleccionar.', {
@@ -134,7 +134,7 @@ test.describe('Modo normal en el teléfono', () => {
 })
 
 test.describe('Modo selección en el teléfono', () => {
-  test('se entra con «Seleccionar» y la fila entera pasa a marcar', async ({ page }) => {
+  test('se entra con «Seleccionar varias» y la fila entera pasa a marcar', async ({ page }) => {
     const boleta = await nuevaBoleta()
 
     await loginAs(page, ACCOUNTS.seller)

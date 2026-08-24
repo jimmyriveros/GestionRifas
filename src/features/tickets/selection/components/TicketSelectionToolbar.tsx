@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckSquareIcon, MoreHorizontalIcon, XIcon } from 'lucide-react'
+import { MoreHorizontalIcon } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
@@ -25,8 +25,9 @@ import { BulkChangeSellerDialog } from './BulkChangeSellerDialog'
 import { BulkDeleteDialog } from './BulkDeleteDialog'
 
 /**
- * Todo lo que rodea a la seleccion: entrar y salir del modo, contar, revisar y
- * actuar (secciones 4, 10, 12, 13, 14, 15 y 16 del encargo).
+ * Lo que rodea a la seleccion una vez empezada: contar, revisar y actuar
+ * (secciones 4, 10, 12, 13, 14, 15 y 16 del encargo). Entrar y salir del modo
+ * es del boton de al lado de «Filtros» (`TicketSelectionModeButton`, D-108).
  *
  * DOS PRESENTACIONES, UNA SOLA LISTA DE ACCIONES. En escritorio los botones van
  * en linea junto a la tabla; en el telefono, en una barra pegada abajo con una
@@ -143,35 +144,23 @@ export function TicketSelectionToolbar({
     count < total &&
     !selection.atLimit
 
+  /** Si algo de este bloque tiene contenido visible ahora mismo. */
+  const hasStatus =
+    selection.selectionMode || count > 0 || offerSelectAll || selection.atLimit
+
   return (
     <>
-      <div className="space-y-3">
+      {/* CUANDO NO HAY NADA QUE DECIR, ESTE BLOQUE SALE DEL FLUJO PERO NO DEL
+          DOM (D-108). Desmontarlo dejaria la region `aria-live` sin montar
+          justo antes de cambiar, que es cuando un lector de pantalla necesita
+          encontrarla; dejarlo visible con el texto vacio sumaba dos huecos de
+          24 px entre los filtros y la primera boleta. `sr-only` lo saca del
+          flujo y lo conserva anunciable. */}
+      <div className={hasStatus ? 'space-y-3' : 'sr-only'}>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Entrada visible al modo seleccion. Solo en el telefono: en
-              escritorio la columna de casillas ya esta siempre (seccion 4). */}
-          {selection.selectionMode ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="md:hidden"
-              onClick={selection.exitSelectionMode}
-            >
-              <XIcon className="size-4" aria-hidden />
-              Cancelar
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="md:hidden"
-              onClick={() => selection.startSelectionMode()}
-            >
-              <CheckSquareIcon className="size-4" aria-hidden />
-              Seleccionar
-            </Button>
-          )}
+          {/* La entrada al modo seleccion NO se dibuja aqui: vive en la fila de
+              «Filtros», que es donde esta su sitio en pantalla (D-108). Ver
+              `TicketSelectionModeButton`. */}
 
           {/* `role="status"` ademas de `aria-live`: el recuento es el unico
               aviso de que marcar una fila hizo algo, y un lector de pantalla

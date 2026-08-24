@@ -13,6 +13,7 @@ import { TicketsList } from '@/features/tickets/components/TicketsList'
 import { listTickets } from '@/features/tickets/queries'
 import { inventoryStatusSchema, paymentStatusSchema } from '@/features/tickets/schemas'
 import { TicketListSlot } from '@/features/tickets/selection/components/SelectedTicketsView'
+import { TicketSelectionModeButton } from '@/features/tickets/selection/components/TicketSelectionModeButton'
 import { TicketSelectionToolbar } from '@/features/tickets/selection/components/TicketSelectionToolbar'
 import { TicketSelectionProvider } from '@/features/tickets/selection/TicketSelectionContext'
 import { SEARCH_OPTIONS_LIMIT } from '@/lib/search'
@@ -84,6 +85,9 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
       <PageHeader
         title="Mis boletas"
         description="Busca por el número de la boleta o por el nombre del cliente, y asigna las que ya vendiste."
+        // Una sola accion y un titulo corto: en el telefono caben en la misma
+        // fila, y asi la primera boleta sube casi 50 px (D-108).
+        inlineActions
         actions={
           canCreate ? (
             <Button asChild>
@@ -106,6 +110,9 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
               que un enlace antiguo sigue funcionando (D-088). */}
           <TicketFilters
             clients={clients.map((client) => ({ value: client.id, label: client.name }))}
+            // Junto a «Filtros», en la misma fila (D-108). Sin boletas en la
+            // lista no se ofrece: no habria nada que seleccionar.
+            secondaryAction={rows.length > 0 ? <TicketSelectionModeButton /> : null}
           />
 
           {rows.length === 0 ? (
