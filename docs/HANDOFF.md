@@ -37,6 +37,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | **Navegación en el teléfono** | Desde el 2026-08-23 (D-106) el móvil **no tiene cajón lateral**: tiene una **barra inferior fija** con Panel · Boletas · Clientes · Pagos, y el resto del menú se lee desde el **menú de usuario**. Escritorio sigue igual. Ninguna ruta ni permiso cambió. **Ya en producción** (`79e107b`, 2026-08-23) |
 | **«Boletas» en el teléfono** | Desde el 2026-08-23 (D-107) la lista de boletas del móvil son **tarjetas**, no una tabla con Cliente, Pago y Precio ocultos. Los filtros van detrás de «Filtros (n)», en una hoja inferior; el buscador sigue siempre visible. **Escritorio no cambió.** Misma consulta, mismos permisos, sin migración. **Ya en producción** (`d3ee139`, 2026-08-23) |
 | **Cabecera de «Boletas»** | Desde el 2026-08-24 (D-108) el título y **«Crear boletas»** comparten fila, el recuadro de filtros es **solo de escritorio**, el buscador mide **44 px** en el móvil y **«Filtros»** y **«Seleccionar varias»** son **una sola fila** de 44 px. La primera boleta sube de y = 448 a **y = 322**. Sin migración, sin consultas nuevas. **Ya en producción** (`4381f2b`, 2026-08-24) |
+| **Cabecera del portal administrativo** | Desde el 2026-08-24 (D-109) `/owner/tickets` tiene el mismo bloque, con **una diferencia obligada**: sus **dos** acciones no caben junto al título —363 px sobre 288 a 320 px— y bajan juntas a una **fila propia de 44 px** de lado a lado. Las dos pantallas de boletas tienen encabezados distintos a propósito (`ARCHITECTURE` §8.11). **Sin desplegar** |
 | Cambio funcional anterior | `7b26d99` — **corregir a un integrante pendiente** (D-097), 2026-08-14; migración `0026` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
 | Último cambio promovido | **`4381f2b`** — **la cabecera de «Boletas» deja de ser cuatro bloques sueltos** (D-108), 2026-08-24; sin migración, CI 2/2 y despliegue verificado por SHA |
 | Cambio promovido anterior | **`d3ee139`** — **las boletas del teléfono pasan a tarjetas** (D-107), 2026-08-23; sin migración, CI 2/2 y despliegue verificado por SHA |
@@ -68,7 +69,20 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — la cabecera de «Boletas» deja de ser cuatro bloques sueltos (2026-08-24)
+## 1.a Último relevo significativo — la misma cabecera en el portal administrativo (2026-08-24)
+
+| Campo | Estado |
+|---|---|
+| Resultado | `/owner/tickets` recibe el bloque de D-108, con **una diferencia obligada**: tiene **dos** acciones y no caben junto al título, así que **bajan juntas a una fila propia de 44 px** que va de lado a lado, igual que la de «Filtros» justo debajo. El resto de la sección ya lo tenía desde D-108, porque sale de `TicketFilters`, que las dos pantallas comparten. **Escritorio no cambia**: los botones vuelven a 36 px y a su ancho, a la derecha del título. `Query changes: None` · `New API calls: None` · `Business logic changes: None` · `New dependencies: None` (D-109) |
+| Archivos | `src/app/(protected)/owner/tickets/page.tsx` (constante `HEADER_ACTION_CLASS` y las dos clases) · `components/data/PageHeader.tsx` (**solo un comentario**, sin cambio de comportamiento). Documentación: `DECISIONS` (D-109), `ARCHITECTURE` §8.2 y **§8.11**, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF`. **Ninguna prueba tocada** |
+| Reutilización | Nada nuevo. `h-11 grow md:h-9 md:grow-0` es el mismo patrón de `SearchInput` (`touchSize`) y de la fila de «Filtros». `TicketFilters` ya servía a esta pantalla desde D-108 y no se tocó |
+| Decisiones | **D-109**, y **la disposición la eligió el dueño** entre tres opciones planteadas con sus consecuencias. Lo no evidente: **(a)** las dos acciones miden 272 px y el título 79; a 320 px suman 363 sobre los 288 disponibles, y a 390 quedan 267 para 272 — solo entran a partir de 430. **(b)** Se descartó esconder «Crear en lote» tras un menú «···»: es la acción con la que se cargan las boletas de una rifa entera. **(c)** Las clases van en los botones y **no** en una segunda bandera de `PageHeader`, que comparten 27 pantallas |
+| Verificación | **325/325** unitarias · `typecheck`, `lint` y `build` ✅ (los 2 avisos de siempre) · E2E **móvil 49/49** y **escritorio 242/242**, con `db:reset` + `seed:local` antes · medido a **320 px** (139 + 8 + 141 = 288, de lado a lado, 44 px de alto), **390 px** (174 + 8 + 176 = 358) y **1.280 px** (131 y 133 px, alto 36, x = 969) · `scrollWidth == clientWidth` en móvil |
+| Advertencias | **1)** **`PageHeader` no impone tamaño a sus acciones y no debe empezar a hacerlo**: lo comparten 27 pantallas. **2)** Las dos pantallas de boletas tienen encabezados **distintos a propósito**; no las «unifiques» sin releer §8.11. **3)** ⚠️ **Al medir en el navegador tras cambiar clases, navega limpio (`?v=n`), no con `location.reload()`.** En este trabajo un árbol cacheado por el servidor de desarrollo dio dos veces medidas imposibles y llevó a escribir dos comentarios con una causa falsa —el orden de emisión del CSS— que hubo que corregir. La comprobación que lo delata: un clon del elemento, con el mismo `className`, mide distinto que el original |
+| Pendiente | Lo de siempre (I-066, I-062, I-063, columna «Abono» del importador). De este trabajo: **nada bloqueante**. **Falta autorización del dueño para desplegar** |
+| Git | Rama `main`, base observada `ab2cb07`, árbol limpio antes de empezar |
+
+## 1.a.0 Relevo anterior — la cabecera de «Boletas» deja de ser cuatro bloques sueltos (2026-08-24)
 
 | Campo | Estado |
 |---|---|

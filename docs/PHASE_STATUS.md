@@ -1935,3 +1935,69 @@ respetar entre base de datos y código.
 **Lo que debe revisar el dueño a mano:** entrar como vendedor desde un teléfono real y confirmar que
 la cabecera se ve como debe. Es lo único que no puede comprobar un agente: las rutas están protegidas
 y verificarlas exige una contraseña, que un agente no debe manejar.
+
+---
+
+## Mantenimiento post-9 — la misma cabecera en el portal administrativo (2026-08-24)
+
+Encargo del dueño, inmediatamente después de desplegar D-108: aplicar el mismo rediseño a la cabecera
+de `/owner/tickets`. Decisión **D-109**. Sin migraciones. **Sin desplegar.**
+
+`Route changes: None` · `Business logic changes: None` · `New API calls: None` ·
+`Query changes: None` · `New dependencies: None`
+
+### 1. Funcionalidades implementadas
+
+Ninguna nueva: presentación. La mitad del rediseño ya estaba en esa pantalla desde D-108, porque el
+buscador, el recuadro que desaparece bajo `md` y la fila «Filtros» + «Seleccionar varias» los pone
+`TicketFilters`, que las dos pantallas comparten. Lo que faltaba era el encabezado.
+
+- **Las dos acciones bajan juntas a una fila propia de 44 px** que va de lado a lado, con los botones
+  repartiéndose el ancho. Es el mismo tratamiento que la fila de «Filtros» justo debajo, así que la
+  pantalla conserva el ritmo de D-108 sin que nada quede flotando bajo un párrafo.
+- **No suben a la fila del título**, y no por gusto: a 320 px el título mide 79 px y las dos acciones
+  272, que con su hueco suman **363 px sobre los 288 disponibles**. A 390 px quedan 267 para 272.
+- **La disposición la eligió el dueño** entre tres opciones que se le plantearon con sus
+  consecuencias. Se descartaron subir solo «Nueva boleta» —el secundario acabaría siendo el botón más
+  ancho de la pantalla— y esconder «Crear en lote» tras un menú «···», que habría enterrado la acción
+  con la que se cargan las boletas de una rifa entera.
+- **Escritorio no cambia:** los dos botones vuelven a 36 px y a su ancho de contenido, a la derecha
+  del título.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npx tsc --noEmit` | ✅ |
+| `npx eslint src tests` | ✅ 0 errores, 2 avisos preexistentes de TanStack |
+| `npx vitest run` | ✅ **325/325** |
+| `npx playwright test --project=movil` | ✅ **49/49** |
+| `npx playwright test --project=escritorio` | ✅ **242/242** |
+| `npm run build` | ✅ |
+
+Medidas del navegador a 320, 390 y 1.280 px, y **un error de diagnóstico que hubo que corregir**
+—dos comentarios del código llegaron a explicar con una causa falsa lo que en realidad era caché del
+servidor de desarrollo— en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+**Ninguna.**
+
+### 4. Variables de entorno
+
+**Ninguna nueva.**
+
+### 5. Problemas que permanecen
+
+Los de siempre (I-066, I-062, I-063, columna «Abono» del importador). **De este cambio, ninguno.**
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **`PageHeader` no impone tamaño a sus acciones, y no debe empezar a hacerlo.** La pantalla que
+   quiera la fila táctil se lo pide a sus botones (`h-11 grow md:h-9 md:grow-0`). Lo comparten 27
+   pantallas.
+2. **Las dos pantallas de boletas tienen encabezados distintos a propósito** (`ARCHITECTURE` §8.11):
+   una acción cabe junto al título, dos no.
+3. **Al medir en el navegador después de cambiar clases, navega limpio (`?v=n`).** Un
+   `location.reload()` puede servirte un árbol anterior con el CSS nuevo y hacerte culpar a la
+   cascada, que es exactamente lo que pasó aquí.

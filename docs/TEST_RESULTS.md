@@ -2833,3 +2833,55 @@ El botón que enciende el modo selección pasó de decir «Seleccionar» a **«S
 | `tests/e2e/dialogos-alcanzables.spec.ts` | Localizador de entrada al modo bajo 768 px |
 
 Ninguna afirmación cambió: solo el texto que se busca.
+
+---
+
+## La misma cabecera en el portal administrativo (2026-08-24)
+
+Cambio de presentación (**D-109**), continuación de D-108 sobre `/owner/tickets`. Sin migraciones,
+sin consultas nuevas y sin lógica nueva.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint src tests` | ✅ 0 errores | 2 avisos `react-hooks/incompatible-library` | Preexistentes (TanStack). No son de este cambio |
+| `npx vitest run` | ✅ **325/325** | — | Ninguna nueva: no hay lógica nueva que probar |
+| `npx playwright test --project=movil` | ✅ **49/49** | — | Sembrado limpio antes (`db:reset` + `seed:local`) |
+| `npx playwright test --project=escritorio` | ✅ **242/242** | — | — |
+| `npm run build` | ✅ | — | — |
+
+### Lo que se midió en el navegador
+
+Dueño, servidor local, `/owner/tickets`.
+
+| Comprobación | Resultado |
+|---|---|
+| «Crear en lote» y «Nueva boleta» a **320 px** | 139 + 8 + 141 = **288 px**, de lado a lado, **44 px** de alto |
+| Las mismas a **390 px** | 174 + 8 + 176 = **358 px**, de lado a lado, 44 px |
+| Las mismas a **1.280 px** | **131 y 133 px**, alto **36 px**, a la derecha del título (x = 969, y = 80) — idéntico a antes |
+| `scrollWidth − clientWidth` a 320 y 390 px | **0** |
+| Recuadro de filtros en escritorio | borde 1 px, `padding` 16 px, 3 desplegables — sin cambio |
+| Fila «Filtros» + «Seleccionar varias» | **44 px** en las dos pantallas, sin cambio |
+
+**Por qué no suben a la fila del título:** a 320 px el título mide 79 px y las dos acciones 272; con
+su hueco suman **363 px** sobre los **288** disponibles. A 390 px quedan 267 para 272. Solo entran a
+partir de 430 px.
+
+### El error de diagnóstico que hubo que corregir, y cómo evitarlo
+
+Durante la verificación aparecieron **dos veces** medidas que contradecían al CSS: primero los
+botones a 44 px en escritorio (cuando `md:h-9` debía devolverlos a 36), y después a 36 px en el
+teléfono (cuando `h-11` debía subirlos a 44). Las dos veces se concluyó que la culpa era del orden en
+que Tailwind emite una variante de punto de corte combinada con un selector arbitrario, y **las dos
+veces se escribió esa explicación en un comentario del código**.
+
+**Era falso: era caché.** El servidor de desarrollo y la navegación del cliente servían un árbol
+anterior mientras el CSS ya era el nuevo. Lo delató una comprobación sencilla: **un clon del mismo
+elemento, con el mismo `className`, medía distinto que el original** — algo que la cascada no puede
+producir. Confirmado además forzando `style.height` en línea sin que la medida cambiara.
+
+Los comentarios se reescribieron para que no quede una explicación técnica falsa en el código.
+
+**Regla para la próxima vez:** después de editar clases, **mide con una navegación limpia
+(`?v=n`), no con `location.reload()`**; si algo sigue sin cuadrar, reinicia `next dev` antes de
+culpar a la cascada.

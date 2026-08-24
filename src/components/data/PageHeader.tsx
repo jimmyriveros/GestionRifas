@@ -94,6 +94,11 @@ export function PageHeader({
           {description ? <p className="text-muted-foreground text-sm">{description}</p> : null}
         </div>
       </div>
+      {/* El contenedor no impone tamano a las acciones. Una pantalla que quiera
+          la fila de ancho completo del telefono se lo pide a SUS botones
+          —`h-11 grow md:h-9 md:grow-0`, como hace `/owner/tickets` (D-109)—, y
+          asi la decision se lee junto al boton al que afecta en vez de a traves
+          de un selector de hijo en el componente que comparten 27 pantallas. */}
       {actions ? (
         <div {...tourTarget('page-actions')} className="flex flex-wrap items-center gap-2">
           {actions}

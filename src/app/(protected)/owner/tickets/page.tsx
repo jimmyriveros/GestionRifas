@@ -19,6 +19,24 @@ import { TicketSelectionProvider } from '@/features/tickets/selection/TicketSele
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
+/**
+ * Las dos acciones del encabezado, en el telefono: una fila de 44 px que va de
+ * lado a lado, con los dos botones repartiendose el ancho (D-109). En
+ * escritorio vuelven a su tamano normal, a la derecha del titulo.
+ *
+ * NO suben a la fila del titulo, como sí hace «Mis boletas». Ahi hay una sola
+ * accion; aqui son dos: a 320 px el titulo mide 79 px y las acciones 272, que
+ * con su hueco suman 363 sobre los 288 disponibles. Esconder «Crear en lote»
+ * detras de un menu para que cupieran habria enterrado la accion con la que se
+ * cargan las boletas de una rifa entera.
+ *
+ * Las clases van en los botones y no en el contenedor de `PageHeader`: es el
+ * mismo patron que ya usan `SearchInput` y la fila de «Filtros», y deja fuera
+ * del componente que comparten 27 pantallas una decision que solo afecta a
+ * esta.
+ */
+const HEADER_ACTION_CLASS = 'h-11 grow md:h-9 md:grow-0'
+
 function single(value: string | string[] | undefined): string | undefined {
   const first = Array.isArray(value) ? value[0] : value
   return first === '' ? undefined : first
@@ -80,13 +98,13 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
         description="Todas las boletas de la organización. Búscalas por su número o por el nombre del cliente."
         actions={
           <>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className={HEADER_ACTION_CLASS}>
               <Link href="/owner/tickets/bulk">
                 <LayersIcon className="size-4" aria-hidden />
                 Crear en lote
               </Link>
             </Button>
-            <Button asChild>
+            <Button asChild className={HEADER_ACTION_CLASS}>
               <Link href="/owner/tickets/new">
                 <PlusIcon className="size-4" aria-hidden />
                 Nueva boleta

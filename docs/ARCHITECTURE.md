@@ -338,7 +338,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `useMediaQuery` / `useIsCompactScreen` | Consulta de medios sin romper la hidratación. Solo para decidir **comportamiento**; lo que se ve lo decide Tailwind |
 | `OptionList` / `OptionListItem` | Lista de opciones elegibles (clientes). Estados **excluyentes** normal/hover/foco/elegido/elegido+hover/deshabilitado, con visto además del color (D-077) |
 | `SearchInput` | Campo de búsqueda compartido: etiqueta, limpiar, indicador retrasado, `aria-busy` (D-078). `touchSize` sube campo y botón a 44 px **solo bajo `md`** (D-108) |
-| `PageHeader` | Título, descripción y acciones de cada pantalla. `inlineActions` sube la acción a la fila del título en el teléfono; sin esa bandera, la disposición de siempre (§8.10, D-108) |
+| `PageHeader` | Título, descripción y acciones de cada pantalla. `inlineActions` sube la acción a la fila del título en el teléfono; sin esa bandera, la disposición de siempre (§8.10, D-108). **No impone tamaño a sus acciones**: la pantalla que quiera la fila táctil se lo pide a sus botones (§8.11, D-109) |
 | `TicketSelectionModeButton` | Enciende y apaga el modo selección del teléfono: «Seleccionar varias» / «Cancelar». Se pinta en la fila de «Filtros», no en la barra de selección (§8.10, D-108) |
 | `useUrlSearch` | Búsqueda híbrida para listas paginadas: el término va a la URL y el RSC reconsulta |
 | `useRemoteSearch` | Búsqueda híbrida para diálogos y selectores, contra una Server Action, con testigo de secuencia |
@@ -687,6 +687,27 @@ medido —320 px, «Filtros (5)»—: 114 + 8 + 166 = **288 px**, justo el ancho
 **Escritorio no cambió**, salvo dos detalles que mejoran: el recuadro y sus desplegables siguen
 igual, y desaparecen los 24 px muertos que dejaba la barra de selección vacía entre el recuadro y la
 tabla.
+
+### 8.11 Dos cabeceras de boletas, dos disposiciones (D-108, D-109)
+
+Las dos pantallas que listan boletas comparten todo menos el encabezado: el buscador, el recuadro que
+desaparece bajo `md` y la fila «Filtros» + «Seleccionar varias» salen de `TicketFilters`, que es la
+misma pieza. Lo que cambia es **cuántas acciones tiene cada una**.
+
+| | `/seller/tickets` | `/owner/tickets` |
+|---|---|---|
+| Título | «Mis boletas» (125 px) | «Boletas» (79 px) |
+| Acciones | **1** — «Crear boletas» (132 px) | **2** — «Crear en lote» + «Nueva boleta» (272 px) |
+| Disposición en el teléfono | Acción **en la fila del título** (`inlineActions`) | Acciones en **fila propia de 44 px**, de lado a lado |
+| Cabe a 320 px | 125 + 12 + 132 = **269** ≤ 288 ✅ | 79 + 12 + 272 = **363** > 288 ❌ |
+| Cómo se pide | Bandera `inlineActions` de `PageHeader` | `h-11 grow md:h-9 md:grow-0` en cada botón |
+
+**Por qué la de dos acciones no usa una bandera.** `PageHeader` lo comparten 27 pantallas y esto
+afecta a una: las clases van en los botones, donde se leen junto a lo que modifican, igual que
+`touchSize` en `SearchInput` y `h-11 grow` en la fila de «Filtros». `PageHeader` no impone tamaño a
+sus acciones y no debe empezar a hacerlo.
+
+**Escritorio es idéntico en las dos**: acciones a la derecha del título, 36 px, ancho de contenido.
 
 ---
 

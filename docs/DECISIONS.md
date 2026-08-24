@@ -2963,6 +2963,70 @@ que hoy no es una condición suya. (c) Quitar el botón «Buscar» del campo: se
 `SearchInput` —no todo el mundo da por hecho que la búsqueda sale sola—. (d) Mitades exactas para los
 dos botones: no caben a 320 px.
 
+## D-109 — La misma cabecera en el portal administrativo, con dos acciones que no caben
+
+**Fecha:** 2026-08-24 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio,
+consultas, rutas ni permisos** · Solo presentación · Pendiente de despliegue
+
+**Contexto.** D-108 rehizo la cabecera de «Mis boletas» y el dueño pidió lo mismo para
+`/owner/tickets`. La mitad ya estaba hecha: el buscador, el recuadro que desaparece bajo `md` y la
+fila «Filtros» + «Seleccionar varias» viven en `TicketFilters`, que las dos pantallas comparten. Lo
+que faltaba era el encabezado.
+
+Y ahí el encargo no se podía cumplir al pie de la letra. «Mis boletas» tiene **una** acción y por eso
+cabe junto al título; «Boletas» tiene **dos**:
+
+| A 320 px | Ancho |
+|---|---:|
+| Título «Boletas» | 79 px |
+| Hueco | 12 px |
+| «Crear en lote» + «Nueva boleta», con su hueco | 272 px |
+| **Total** | **363 px** |
+| **Disponible** | **288 px** |
+
+A 390 px tampoco: quedan 267 px para 272. Solo entran a partir de 430.
+
+**Decisión.** El título se queda con su descripción y **las dos acciones bajan juntas a una fila
+propia de 44 px que va de lado a lado**, con los dos botones repartiéndose el ancho. Es el mismo
+tratamiento que ya recibe la fila de «Filtros» justo debajo, así que la pantalla conserva el ritmo
+que D-108 buscaba —título · descripción · acciones · buscador · herramientas de lista— sin que nada
+quede flotando bajo un párrafo.
+
+```
+Boletas
+Todas las boletas de la organización…
+[ ⧉ Crear en lote ][ + Nueva boleta ]     ← 44 px, de lado a lado
+[ 🔍 Número de boleta o cliente  ][ 🔍 ]
+[ ⚙ Filtros ][ ☑ Seleccionar varias ]
+```
+
+**La eligió el dueño**, sobre dos alternativas que se le plantearon con sus consecuencias: subir solo
+«Nueva boleta» al título y dejar «Crear en lote» a ancho completo debajo —que habría hecho del
+secundario el botón más ancho de la pantalla—, o esconder «Crear en lote» tras un menú «···». Esta
+última se descartó por lo que enterraba: «Crear en lote» es la acción con la que se cargan las
+boletas de una rifa entera, y un menú de tres puntos la habría hecho invisible para quien no lo abre.
+
+**Dónde viven las clases: en los botones, no en `PageHeader`.** La alternativa era una segunda
+bandera en el componente que imponga el tamaño con un selector de hijo (`[&>*]:h-11`). Se descartó:
+`PageHeader` lo comparten **27 pantallas** y esto solo afecta a una. Con `h-11 grow md:h-9
+md:grow-0` en cada botón, la decisión se lee justo al lado del botón al que afecta, y es el mismo
+patrón que ya usan `SearchInput` (`touchSize`) y la fila de «Filtros». `PageHeader` **no cambia de
+comportamiento**: solo gana un comentario que dice dónde se pide esto.
+
+**`inlineActions` sigue existiendo y sigue siendo de «Mis boletas».** No se generalizó ni se retiró:
+cada pantalla usa la disposición que le cabe.
+
+**Escritorio no cambia.** Los dos botones vuelven a 36 px y a su ancho de contenido, a la derecha del
+título, exactamente donde estaban.
+
+**Un aviso para quien mida esto en el navegador.** Durante la verificación aparecieron dos veces
+medidas contradictorias —los botones a 44 px en escritorio, y luego a 36 px en el teléfono— que
+llevaron a diagnosticar mal la cascada de CSS y a escribir dos veces una explicación falsa. **No era
+CSS: era caché.** El servidor de desarrollo y la navegación del cliente servían un árbol anterior
+mientras el CSS ya era el nuevo. La comprobación que lo delató: un clon del mismo elemento, con el
+mismo `className`, medía distinto que el original. **Tras editar clases, mide con una navegación
+limpia (`?v=n`), no con `location.reload()`,** y si algo sigue sin cuadrar, reinicia `next dev`.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.
