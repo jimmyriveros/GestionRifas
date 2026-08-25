@@ -455,6 +455,28 @@ corresponda a la lista: boletas, clientes, pagos. En el teléfono, además, el i
 quien escucha la pantalla. Los nombres se escriben una sola vez, en `LIST_ITEM_LABELS`, con su
 singular y su plural: «1–1 de 1 boleta», nunca «1 boletas».
 
+**Cuando la etiqueta encabeza un grupo, va en plural** (D-112). «Abonadas 9», no «Abonada 9». No es
+una etiqueta nueva —esas no se improvisan—, es el plural de las de siempre, y vive donde viven ellas:
+`TICKET_PAYMENT_STATUS_PLURAL_LABELS` en `src/lib/constants.ts`. Se usa cuando el texto acompaña a un
+recuento; para el estado de **una** boleta se sigue usando el singular.
+
+**El período del panel del vendedor manda sobre lo que pasó, no sobre lo que hay** (D-112). El
+selector de arriba a la derecha dice **qué fechas** —«11 a 17 de ago de 2026»— y no el nombre de la
+opción, porque «Últimos 7 días» no responde a la pregunta que uno se hace al mirar una cifra. Lo que
+cambia con él es el dinero **recaudado** y su tendencia; el inventario y la cobranza son la foto de
+hoy y no se mueven. La comparación con el período anterior lo nombra por su duración real —«vs. los 7
+días anteriores»—, y si en ese período no entró nada se dice tal cual: **un aumento desde cero no
+tiene porcentaje** y escribir «+100 %» sería inventarlo.
+
+**«Registrar abono», también en los accesos rápidos** (D-112). El diseño de referencia decía
+«Registrar pago»; la aplicación entera dice **abono** desde el principio y ahí no se cambia. Un
+término, un nombre.
+
+**Rojo y gris no dicen lo mismo** (D-112). Rojo es «Sin pagar»: boletas de las que no ha entrado
+nada, que es lo que pide atención. El «Por cobrar» del anillo del resumen financiero es **gris**,
+porque ahí significa «todavía no»; pintar de rojo la mitad de un gráfico normal convierte una rifa
+que va bien en una alarma. Verde es dinero cobrado y azul, abonos.
+
 **«Invitación pendiente» no es «Inactivo», y la diferencia importa** (BR-E14). *Inactivo* significa
 que alguien le quitó el acceso a esa persona; *invitación pendiente*, que todavía no ha entrado
 ninguna vez. Se ven parecidos en pantalla y no lo son: mientras la invitación esté pendiente, quien
@@ -468,6 +490,9 @@ castigo donde solo había una espera.
 |---|---|
 | Etiquetas de estado, roles y métodos de pago | `src/lib/constants.ts` |
 | Nombre de lo que cuenta cada listado en su paginación | `src/lib/constants.ts` (`LIST_ITEM_LABELS`, D-111) |
+| Etiquetas de estado de pago en plural, para encabezar grupos | `src/lib/constants.ts` (`TICKET_PAYMENT_STATUS_PLURAL_LABELS`, D-112) |
+| Nombres de los períodos del panel del vendedor | `src/features/dashboard/date-range.ts` (`DASHBOARD_RANGE_LABELS`, D-112) |
+| Textos de las siete piezas del panel del vendedor | `src/features/dashboard/components/`, una por pieza (D-112) |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
 | «Seleccionar varias» y su «Cancelar» | `src/features/tickets/selection/components/TicketSelectionModeButton.tsx` (D-108) |

@@ -26,3 +26,23 @@ export function parseCOP(input: string): number | null {
   if (digits === '') return null
   return Number.parseInt(digits, 10)
 }
+
+const COP_COMPACT_FORMATTER = new Intl.NumberFormat('es-CO', {
+  style: 'currency',
+  currency: 'COP',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
+
+/**
+ * Version corta de `formatCOP`, para las etiquetas del eje de un grafico:
+ * "$1,2M" en vez de "$1.200.000" (D-112).
+ *
+ * SOLO para ejes y espacios sin ancho. Cualquier cifra que el usuario pueda
+ * necesitar leer al peso —un saldo, un abono, un total— se escribe con
+ * `formatCOP`: redondear dinero en pantalla es exactamente lo que hace que las
+ * cuentas de dos pantallas no cuadren.
+ */
+export function formatCOPCompact(amount: number): string {
+  return COP_COMPACT_FORMATTER.format(amount).replace(CURRENCY_WHITESPACE_RE, '')
+}

@@ -72,3 +72,28 @@ export function formatDateTimeEs(value: string | Date): string {
 export function formatDateCsv(value: string | Date): string {
   return csvDateFormatter.format(toBogotaDate(value))
 }
+
+// Dia y mes, sin año: para el eje de un grafico, donde el año se repite en
+// todos los puntos y no hay ancho que gastar en el (D-112).
+const dayMonthFormatter = new Intl.DateTimeFormat('es-CO', {
+  timeZone: BOGOTA_TZ,
+  day: 'numeric',
+  month: 'short',
+})
+
+/** «7 de ago». Solo para ejes y listas apretadas; una fecha completa usa `formatDateEs`. */
+export function formatDayMonthEs(value: string | Date): string {
+  return dayMonthFormatter.format(toBogotaDate(value))
+}
+
+/**
+ * Un periodo escrito de corrido: «11 a 17 de ago de 2026» (D-112).
+ *
+ * `formatRange` de Intl junta lo que las dos fechas tienen en comun, de modo
+ * que dentro de un mismo mes no se repite el mes ni el año, y entre dos años
+ * distintos los escribe los dos. Escribirlo a mano habria significado decidir
+ * eso mismo caso por caso.
+ */
+export function formatDateRangeEs(from: string | Date, to: string | Date): string {
+  return dateFormatter.formatRange(toBogotaDate(from), toBogotaDate(to))
+}

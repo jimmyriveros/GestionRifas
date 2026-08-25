@@ -100,6 +100,21 @@ export const TICKET_PAYMENT_STATUS_LABELS: Record<TicketPaymentStatus, string> =
 }
 
 /**
+ * Las mismas tres etiquetas cuando encabezan un GRUPO de boletas: «Abonadas 9»,
+ * no «Abonada 9» (D-112).
+ *
+ * No son etiquetas nuevas —eso habria que discutirlo (CLAUDE.md §27)—, es el
+ * plural de las de arriba, que los paneles ya escribian sueltos en cada
+ * pantalla. Viven aqui por la misma razon que las otras: para que cambiar una
+ * palabra siga siendo cambiar UN archivo.
+ */
+export const TICKET_PAYMENT_STATUS_PLURAL_LABELS: Record<TicketPaymentStatus, string> = {
+  unpaid: 'Sin pagar',
+  partial: 'Abonadas',
+  paid: 'Pagadas',
+}
+
+/**
  * Estado de la cuenta de una persona (BR-E14).
  *
  * No se deriva de un solo dato, y por eso vive aqui y no en la base:

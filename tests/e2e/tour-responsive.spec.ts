@@ -15,23 +15,42 @@ const dialog = (page: import('@playwright/test').Page) =>
   page.getByRole('dialog').filter({ hasText: /Paso \d+ de \d+/ })
 
 /**
- * Caja del globo, reintentando hasta obtenerla.
+ * Caja del globo YA QUIETO.
  *
- * `boundingBox()` **no auto-espera** (docs/TESTING.md §3.1) y la tarjeta del
- * recorrido se reemplaza al cambiar de paso: entre el `toBeVisible()` y la
- * medida cabe un instante en el que el elemento anterior ya no esta y el nuevo
- * todavia no, y ahi devuelve `null`. Era la causa de I-032, que fallaba una de
- * cada varias corridas sin que nada estuviera roto.
+ * Dos esperas, por dos motivos distintos:
+ *
+ * 1. `boundingBox()` **no auto-espera** (docs/TESTING.md §3.1) y la tarjeta del
+ *    recorrido se reemplaza al cambiar de paso: entre el `toBeVisible()` y la
+ *    medida cabe un instante en el que el elemento anterior ya no esta y el
+ *    nuevo todavia no, y ahi devuelve `null`. Era la causa de I-032.
+ *
+ * 2. Al cambiar de paso, el recorrido lleva el elemento a la vista con un
+ *    scroll SUAVE y el globo lo persigue cuadro a cuadro. Durante esa animacion
+ *    el globo pasa por fuera de la pantalla —es lo que tiene seguir a algo que
+ *    viene de 1.000 px mas abajo— y medir ahi no dice nada sobre si cabe. Lo
+ *    que se quiere comprobar es su posicion **en reposo**, asi que se espera a
+ *    que dos lecturas seguidas coincidan.
  */
 async function dialogBox(page: import('@playwright/test').Page) {
-  let box: Awaited<ReturnType<ReturnType<typeof dialog>['boundingBox']>> = null
+  type Box = Awaited<ReturnType<ReturnType<typeof dialog>['boundingBox']>>
+  let previous: Box = null
+  let stable: Box = null
+
   await expect
     .poll(async () => {
-      box = await dialog(page).boundingBox()
-      return box
+      const current = await dialog(page).boundingBox()
+      const quieto =
+        current !== null &&
+        previous !== null &&
+        Math.abs(current.x - previous.x) < 1 &&
+        Math.abs(current.y - previous.y) < 1
+      previous = current
+      if (quieto) stable = current
+      return quieto
     })
-    .not.toBeNull()
-  return box!
+    .toBe(true)
+
+  return stable!
 }
 
 test.describe('Recorrido guiado en móvil', () => {

@@ -57,7 +57,7 @@ test('ciclo completo del vendedor desde el teléfono', async ({ page }) => {
   await expectToast(page, new RegExp(`${clientName} registrado y boleta asignada`))
   await expect(page.getByText('Asignada').first()).toBeVisible()
 
-  // 4. El precio quedo congelado y la venta aparece en el panel.
+  // 4. El precio quedo congelado y la venta se ve en la lista de boletas.
   const { data: stored } = await serviceClient()
     .from('tickets')
     .select('sale_price, inventory_status')
@@ -66,8 +66,9 @@ test('ciclo completo del vendedor desde el teléfono', async ({ page }) => {
   expect(stored!.sale_price).toBe(price)
   expect(stored!.inventory_status).toBe('assigned')
 
-  await page.goto('/seller/dashboard')
-  await expect(page.getByRole('heading', { name: 'Ventas recientes' })).toBeVisible()
+  // El panel ya no lleva «Ventas recientes» (D-112): la venta se comprueba
+  // donde vive, que es la lista de boletas vendidas.
+  await page.goto('/seller/tickets?inventoryStatus=assigned')
   await expect(page.getByText(clientName).first()).toBeVisible()
 })
 

@@ -6,6 +6,19 @@ import type { CommissionSummary } from '../queries'
 /**
  * «Tu ganancia»: lo que el vendedor mira primero.
  *
+ * ⚠️ NO SE MONTA EN NINGUNA PANTALLA DESDE EL 2026-08-25 (D-112). El rediseño
+ * del panel del vendedor la sustituyo por el indicador «Ganancia por boleta»,
+ * que dice la tarifa, el precio de la rifa, lo ganado y cuanto falta para el
+ * siguiente tramo en cuatro lineas en vez de en media pantalla.
+ *
+ * Se conserva sin borrar porque con ella se dejaron de ver DOS cosas que aqui
+ * estan escritas y en el indicador no caben: el aviso de cuanto se dejo de
+ * ganar por rebajar boletas (BR-G17) y la advertencia de que la proyeccion del
+ * siguiente nivel «todavia no es tuya». Si el dueño del producto las echa en
+ * falta, volver a montarla es una linea en
+ * `src/app/(protected)/seller/dashboard/page.tsx`; si confirma que no las
+ * quiere, este archivo se borra.
+ *
  * Regla que ordena todo lo demas: **lo ganado y lo proyectado nunca se mezclan**
  * (encargo, seccion PROYECCION). El dinero grande de arriba es dinero suyo; la
  * cifra del siguiente nivel vive en otro bloque, con otro tamaño, y lleva escrito

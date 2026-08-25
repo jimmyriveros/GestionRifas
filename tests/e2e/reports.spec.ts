@@ -316,7 +316,10 @@ test.describe('Dashboards completos (CLAUDE.md §23)', () => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/dashboard')
 
-    await expect(page.getByRole('heading', { name: 'Pagos recientes' })).toBeVisible()
+    // Desde D-112 la seccion se llama «Actividad reciente» y su subtitulo dice
+    // que son: los ultimos pagos recibidos.
+    await expect(page.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible()
+    await expect(page.getByText('Últimos pagos recibidos')).toBeVisible()
   })
 
   test('ningún panel anuncia ya funciones de fases futuras', async ({ page }) => {
@@ -328,7 +331,7 @@ test.describe('Dashboards completos (CLAUDE.md §23)', () => {
     await logout(page)
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/dashboard')
-    await expect(page.getByRole('heading', { name: 'Pagos recientes' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible()
     await expect(page.getByText(/llegan? en (la|las) fase/i)).toHaveCount(0)
   })
 

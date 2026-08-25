@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **325 ✅** | **518 ✅** | **291 ✅** | ✅ | ✅ |
+| Post-9 vigente | **359 ✅** | **518 ✅** | **294 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -3053,3 +3053,118 @@ pareciendo un problema del despliegue.
 escribirla en el fuente. Así se confirmaron las cuatro reglas. **Antes de concluir que la CSS de
 producción no trae una clase, imprime el patrón que estás buscando:** si le falta la barra, el
 problema está en tu comando, no en el despliegue.
+
+---
+
+## El panel del vendedor, rediseñado (2026-08-25)
+
+Decisión **D-112**. Sin migraciones y sin dependencias nuevas.
+
+| Comando | Resultado | Errores | Corrección |
+|---|---|---|---|
+| `npm run typecheck` | ✅ | — | — |
+| `npm run lint` | ✅ 0 errores | `DonutChart` reasignaba un acumulador **durante el render** (`react-hooks/immutability`) | Los arcos y sus desplazamientos se calculan de una vez, antes de dibujar |
+| `npm run test` | ✅ **359/359** | — | 34 pruebas nuevas: 20 del período y 14 del reparto del dinero |
+| `npm run test:db` | ✅ **518/518** | — | Sin cambios de esquema; se ejecutó para comprobar que no los hay |
+| `npm run build` | ✅ | — | — |
+| `npx playwright test --project=escritorio` | ✅ **243/243 (1 nueva)** | Ver abajo | — |
+| `npx playwright test --project=movil` | ✅ **51/51** | — | — |
+
+### Los cinco errores que encontró la verificación en pantalla
+
+Ninguno lo habría visto una prueba unitaria: todos aparecieron midiendo la página real.
+
+**1. «Ganancia por boleta» mostraba $0 a quien no ha cobrado nada.** `commission_summary` devuelve
+fila **también** para un vendedor sin boletas cobradas, y en esa fila la tarifa vale 0 porque el
+primer tramo empieza en la boleta 1. La tarjeta «Tu ganancia» lo evitaba tratando `ticketsPaid === 0`
+como caso vacío; al pasar la cifra al indicador se perdió esa condición. Detectado con
+`vendedor@control.test`, cuyo panel debía decir **$25.000** —la mitad de una boleta de $50.000— y
+decía $0. Corregido: la fila solo manda cuando hay boletas cobradas.
+
+**2. La lista del selector de período aparecía a 1.400 px del botón.** Medido: botón en (1022, 80),
+lista en (4, 1443). La causa no es evidente: la colocación por defecto de Radix (`item-aligned`)
+alinea la opción elegida con el **texto del botón** y para eso necesita un `SelectValue` que medir;
+este botón lleva las fechas escritas a mano, así que no hay nada que medir y la colocación nunca se
+resuelve. Con `position="popper"` la lista se ancla al botón: medida después, en (1031, 112) con el
+mismo borde derecho que el botón. **El mismo componente en `/seller/reports` funcionaba bien**, lo que
+al principio apuntaba en la dirección equivocada; la diferencia es exactamente el `SelectValue`.
+
+**3. El eje del gráfico decía «$1» cuando no había entrado dinero.** Es el valor que se usa para no
+dividir por cero, y se había colado en la etiqueta. Un eje que dice «$1 · $1 · $0» sobre una línea
+plana no informa de nada. Ahora el eje escribe solo «$0» y la escala interna se queda donde debe.
+
+**4. Tres piezas se rompían en escritorio y no en el móvil.** Es el error que más veces se repitió, y
+tiene una sola causa: **estas tarjetas ocupan media pantalla en escritorio, así que el tamaño de la
+ventana no dice nada del espacio que tienen dentro.** Medido a 1.024 px:
+
+| Pieza | Qué pasaba | Arreglo |
+|---|---|---|
+| Leyenda del anillo | Los nombres tenían **0 px** de ancho: el anillo ocupaba 192 y la leyenda 66 | Container query `@min-[400px]` y el tamaño del anillo lo pasa quien lo usa |
+| «Mis boletas» | Seis columnas de **43 px**: «Disponibles» necesita 62 | Container query `@min-[400px]/tickets`, 3 × 2 por debajo |
+| Indicadores | «$2.325.000» necesita 118 px y tenía **78** | Cuatro en fila desde `xl`, no desde `lg` |
+
+**5. El nombre del cliente se quedaba en 38 px** a 320 px en «Actividad reciente», porque el importe
+y la palabra «(anulado)» se llevaban su columna. Corregido subiendo el importe a la misma línea que
+el nombre y dejando la fecha sola en la segunda: medido después, 104 px para el nombre y 162 para la
+fecha, sin desbordamiento de página.
+
+### Lo que se midió, y a qué anchos
+
+| Ancho | Comprobado |
+|---|---|
+| **320 px** | Desbordamiento horizontal **0**. Los siete bloques en una columna, con «Accesos rápidos» el primero. Ningún texto cortado salvo dos nombres de cliente de la base de pruebas —«Boleta con pagos mt7w245b523»— que no son nombres reales |
+| **375 px** | Orden del móvil verificado por coordenadas: accesos rápidos (294), indicadores, resumen financiero (1110), cobranza (1548), mis boletas (1798), tendencia (2016), actividad reciente (2259) |
+| **768 px** | Indicadores en **2 × 2**, secciones a una columna, desbordamiento 0 |
+| **1.024 px** | Indicadores 2 × 2, «Mis boletas» 3 × 2, cero textos cortados |
+| **1.280 px** | Indicadores **4 en fila**, «Mis boletas» **6 en fila** (63 px por columna), anillo junto a su leyenda, cero textos cortados |
+
+**La aritmética, comprobada contra la pantalla real** (vendedor1, base de pruebas):
+
+```
+Total a cobrar   $3.100.000
+Pagadas            $360.000  (12 %)
+Abonadas           $415.000  (13 %)
+Por cobrar       $2.325.000  (75 %)   → suman exactamente el total ✓
+
+Cobranza:  Sin pagar $1.660.000 + Abonadas $1.080.000 + Pagadas $360.000
+                                                     = $3.100.000 ✓
+Indicador «Cobranza» 25 % = 775.000 / 3.100.000 ✓
+Indicador «Por cobrar» $2.325.000 = 3.100.000 − 775.000 ✓
+```
+
+**Vendedor sin ventas** (`vendedor@control.test`): estados vacíos limpios en las tres secciones, cero
+apariciones de `NaN` o `Infinity`, y el precio leído de **su** rifa ($50.000, no $120.000), que es la
+comprobación de que la cifra no está escrita en el código.
+
+**El recorrido guiado sigue completo**: los siete pasos del panel del vendedor se recorrieron de
+principio a fin y los cuatro elementos que resaltan (`quick-actions`, `financial-summary`,
+`metrics-inventory`, `metrics-collection`) siguen existiendo en la pantalla nueva.
+
+### Dos fallos de prueba que NO eran del cambio
+
+**a) Dos pruebas del recorrido del portal administrativo fallaron en una tanda y pasaron en otra.**
+Son del panel del **dueño**, que este trabajo no toca. La causa es la trampa que `HANDOFF.md` ya
+documenta: `equipo.spec.ts` crea vendedores de verdad, el panel administrativo crece con cada uno, y
+el globo del recorrido acaba fuera de la ventana. Con la base recién sembrada, **8/8**.
+
+**b) «Un vendedor no ve la ganancia de otro» falló por una coincidencia numérica.** La prueba buscaba
+que el importe ganado por `vendedor1` —**$60.000**— no apareciera en el panel de `vendedor2`. Resulta
+que $60.000 es también la tarifa de `vendedor2`: la mitad de una boleta de $120.000. Con la tarjeta
+anterior no colisionaba porque ese número vivía dentro de una frase; en el indicador es un importe
+suelto. **No era un fallo de aislamiento** —se comprobó que el resto del panel de `vendedor2` es
+suyo—, sino una prueba que verificaba un número en vez de un significado. Reescrita para comprobar la
+frase completa («Llevas $60.000 ganados»), que solo puede aparecer si el importe se presenta como
+ganancia propia.
+
+**c) Y una tercera, en el recorrido guiado del teléfono, que sí venía de este cambio pero no era
+lo que parecía.** «El globo cabe en la pantalla en todos los pasos» falló midiendo el globo
+**1.056 px** abajo en una pantalla de 839. La causa inmediata era la medición: la prueba tomaba la
+caja en cuanto el globo existía, y al cambiar de paso el recorrido lleva el elemento a la vista
+con un **scroll suave** que el globo persigue cuadro a cuadro — o sea, se estaba midiendo un globo
+en pleno vuelo hacia algo que venía de 1.000 px más abajo. Se corrigió esperando a que **dos
+lecturas seguidas coincidan**, que es la posición en reposo, la única que dice si cabe. **Y detrás
+había algo real**: la tarjeta del resumen financiero medía **422 px** de alto en el móvil, y
+centrada en 839 px dejaba 209 libres a cada lado cuando el globo pide 226; encajaba solo tapando
+la tarjeta que estaba explicando. El anillo del teléfono bajó de 160 a **128 px** y la tarjeta a
+**374**, medido. Los dos arreglos eran necesarios: sin el primero la prueba seguiría siendo una
+lotería, y sin el segundo el recorrido taparía lo que explica.

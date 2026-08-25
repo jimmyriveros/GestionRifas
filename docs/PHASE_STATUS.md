@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-08-22
+- **Actualizado:** 2026-08-25
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso
 - **Fase siguiente:** ninguna autorizada
 
@@ -11,7 +11,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 
 | Clasificación | Estado actual |
 |---|---|
-| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22) y el **rediseño del detalle de boleta** (2026-08-22, solo en local) |
+| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) y el **rediseño del panel del vendedor** (2026-08-25, D-112, solo en local) |
 | **En curso** | Ninguna |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
@@ -2187,3 +2187,105 @@ Desplegada con autorización expresa del dueño, el mismo día. **Sin migracione
 **Lo que debe revisar el dueño a mano:** abrir «Mis boletas» en un teléfono real, bajar al final de
 la lista y comprobar tres cosas: que el recuento dice «boletas», que los dos botones se tocan sin
 apuntar, y que «Anterior» sigue ahí —apagado— en la primera página.
+
+---
+
+## Mantenimiento post-9 — el panel del vendedor, rediseñado (2026-08-25)
+
+Encargo del dueño, con un diseño de referencia: el panel eran once bloques apilados y había que
+convertirlo en una pantalla que se lea de un vistazo. Decisión **D-112**. Sin migraciones.
+**Sin desplegar.**
+
+`Route changes: None` · `Business logic changes: None` · `New dependencies: None` ·
+`Migrations: None` · `New API calls: 2 lecturas nuevas, 3 retiradas`
+
+### 1. Funcionalidades implementadas
+
+El panel pasa de once bloques a **siete piezas**, y aparecen dos cosas que antes no existían: un
+**selector de período** y un **gráfico de tendencia**.
+
+- **Selector de período** (7 días, 30 días, este mes, mes pasado) arriba a la derecha. Vive en la URL
+  (`?range=`), como los filtros de los reportes. Manda sobre **lo que pasó** —el dinero recaudado y
+  su tendencia—; el inventario y la cobranza son la foto de **hoy** y no se mueven con él.
+- **Cuatro indicadores**: Recaudado (con su comparación contra el período anterior de la misma
+  duración), Por cobrar, Cobranza (porcentaje del dinero ya cobrado) y Ganancia por boleta.
+- **Resumen financiero**: un anillo que reparte el valor de lo vendido en tres partes que **suman el
+  total** — cobrado de las boletas pagadas, abonado de las que aún deben, y lo que falta. Con enlace
+  a «Ver detalle de cobranza».
+- **Cobranza**: las tres etiquetas de estado con su recuento y **cuánto valen** esas boletas. Los tres
+  importes suman el total del anillo. Cada una enlaza a la lista ya filtrada.
+- **Mis boletas**: las seis cifras del inventario en una tarjeta, cada una enlazando a su lista.
+- **Tendencia de recaudado**: cuánto dinero entró **cada día** del período. Los días sin movimiento
+  valen $0 y se dibujan.
+- **Actividad reciente**: los últimos pagos recibidos, con la misma consulta de antes.
+- **Accesos rápidos**: vender una boleta, nuevo cliente, registrar abono y ver reportes. En el
+  teléfono suben al **primer** puesto.
+
+**Nada de esto cambia una regla de negocio.** Los estados de pago siguen saliendo de
+`v_seller_summary`, la comisión de `commission_summary` y el precio de `raffles.ticket_price`.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 errores, 2 avisos preexistentes de TanStack |
+| `npm run test` | ✅ **359/359** (34 nuevas) |
+| `npm run test:db` | ✅ **518/518** |
+| `npm run build` | ✅ |
+| `npx playwright test --project=escritorio` | ✅ **243/243** |
+| `npx playwright test --project=movil` | ✅ **51/51** |
+
+**Errores encontrados y corregidos durante el trabajo** (detalle en `TEST_RESULTS.md`):
+
+1. **«Ganancia por boleta» mostraba $0** a un vendedor sin boletas cobradas. `commission_summary`
+   devuelve fila también para él, y ahí la tarifa vale 0 porque el primer tramo empieza en la boleta
+   1. La tarjeta anterior lo evitaba tratando `ticketsPaid === 0` como caso vacío; el indicador no.
+   Detectado con `vendedor@control.test`, que debía mostrar $25.000.
+2. **La lista del selector de período aparecía a 1.400 px del botón.** La colocación por defecto de
+   Radix necesita un `SelectValue` que medir y este botón lleva las fechas escritas a mano. Se
+   resolvió con `position="popper"`.
+3. **El eje del gráfico decía «$1»** cuando en todo el período no había entrado dinero: era el valor
+   que evita la división por cero, colado en la etiqueta. Ahora el eje solo dice «$0».
+4. **Tres piezas se rompían en escritorio y no en el móvil**, porque respondían al ancho de la
+   ventana y no al de su tarjeta: la leyenda del anillo se quedaba en 66 px, «Mis boletas» en
+   columnas de 43 px y los indicadores cortaban «$2.325.000». Se resolvió con container queries y
+   subiendo los indicadores a `xl`.
+5. **El nombre del cliente se quedaba en 38 px** a 320 px en «Actividad reciente». Se resolvió
+   subiendo el importe a la misma línea que el nombre.
+6. **El globo del recorrido guiado no cabía en el teléfono** en el paso del resumen financiero. Dos
+   causas: la prueba medía el globo **en pleno vuelo** durante el scroll suave —corregido esperando
+   a que la posición se quede quieta— y la tarjeta, con 422 px de alto, no dejaba sitio al globo sin
+   taparla. El anillo del móvil bajó de 160 a 128 px y la tarjeta a 374.
+
+### 3. Migraciones
+
+**Ninguna.** Y no por evitarlas: la única cifra que faltaba —lo abonado sobre las boletas a medias—
+se lee de `v_ticket_balances`, y de ella se **deduce** todo el reparto por estado de pago. Añadir una
+columna a una vista habría obligado a promover una migración al proyecto real **antes** de desplegar
+el código, o el panel se caería en producción.
+
+### 4. Variables de entorno
+
+**Ninguna nueva.**
+
+### 5. Problemas que permanecen
+
+Los de siempre (I-066, I-062, I-063, columna «Abono» del importador). **De este cambio, uno**, y no
+es un defecto sino una decisión pendiente: **I-068** — con la tarjeta «Tu ganancia» desaparecieron el
+aviso de las rebajas (BR-G17) y la advertencia de que la proyección del siguiente nivel «todavía no
+es tuya». `CommissionCard` no se borró; volver a montarla es una línea.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **El período NO manda sobre el inventario ni sobre la cobranza**, y no es un olvido: la base
+   guarda el estado actual de cada boleta, no el que tenía hace siete días. Por eso «Por cobrar»
+   tampoco lleva comparación con el período anterior.
+2. **El anillo cuadra por construcción.** Si tocas `collection-breakdown.ts`, la prueba unitaria
+   comprueba en todos los escenarios que las tres partes suman el total. No la relajes: es lo único
+   que impide que el gráfico y la sección «Cobranza» se contradigan en pantalla.
+3. **Estas tarjetas responden al ancho de SU TARJETA, no al de la ventana.** Un `sm:` dentro de una
+   tarjeta que ocupa media pantalla de escritorio no significa lo que parece. Usa `@container`.
+4. **`getSellerDashboard` ya no trae clientes ni ventas recientes.** Si una pantalla nueva los
+   necesita, se piden aparte; no se devuelven a esa función «por si acaso».
+5. **`CommissionCard` está sin montar a propósito** (I-068). No la borres sin que el dueño confirme.

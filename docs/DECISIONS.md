@@ -3184,6 +3184,198 @@ servidor—, y unificarlos obligaría a reescribir uno de los dos.
 alcance del pulgar». Verificada al revés: con el componente anterior falla en la primera afirmación,
 porque el texto «1–25 de N boletas» no existe.
 
+## D-112 — El panel del vendedor deja de ser una lista de tarjetas y pasa a contar una historia
+
+**Fecha:** 2026-08-25 · **Encargo:** rediseño del panel del vendedor, con un diseño de referencia.
+
+### Qué había y qué hay
+
+El panel eran **once bloques apilados**: dos botones grandes, la tarjeta «Tu ganancia», la tarjeta
+«Resumen de cobranza», cinco tarjetas de inventario, tres de cobranza y **tres listas** —ventas,
+clientes y pagos recientes—. Ocupaba dos pantallas y media de escritorio para decir cosas que en su
+mayoría ya tienen su propia pantalla.
+
+Ahora son **siete piezas**: cuatro indicadores en fila, «Resumen financiero» con su anillo, la
+sección «Cobranza», «Mis boletas» en una sola tarjeta, «Tendencia de recaudado», «Actividad
+reciente» y «Accesos rápidos».
+
+### Lo que gobierna todo: qué mira el período y qué no
+
+Arriba a la derecha hay un selector de período (7 días, 30 días, este mes, mes pasado). Manda sobre
+**lo que pasó**: el dinero recaudado, su comparación con el período anterior y la tendencia día a
+día. **No manda** sobre el inventario ni sobre la cobranza, que son una foto de **hoy**.
+
+No es una simplificación: es que la base de datos guarda el estado ACTUAL de cada boleta, no el que
+tenía hace siete días. «Cuánto te deben» no se puede responder retroactivamente sin un historial de
+estados que no existe, y responderlo a ojo sería inventarse una cifra. Por la misma razón el
+indicador «Por cobrar» **no** lleva comparación con el período anterior, aunque el diseño de
+referencia insinuara una.
+
+### El anillo cuadra, y por eso no hizo falta una migración
+
+Las tres partes suman exactamente el total:
+
+```
+cobrado de las boletas pagadas
++ abonado de las que todavía deben
++ lo que falta por cobrar
+= valor de todo lo vendido
+```
+
+`v_seller_summary` da lo vendido, lo recaudado y el saldo, pero **no** los separa por estado de pago.
+Añadir esa columna significaba una migración, y una migración hay que promoverla al proyecto real
+**antes** de desplegar el código o el panel se cae en producción.
+
+No hizo falta. Basta con **una** cifra más —lo abonado sobre las boletas que están a medias— y el
+resto se deduce, porque las definiciones no dejan margen: una boleta «Sin pagar» tiene abonado 0, una
+«Pagada» tiene abonado exactamente su precio, y lo recaudado es la suma de las tres. De ahí
+`cobrado en pagadas = recaudado − abonado en las abonadas`, y el valor de venta de cada grupo sale
+por la misma resta. La aritmética y sus casos límite están en
+`src/features/dashboard/collection-breakdown.ts`, con pruebas unitarias que comprueban la igualdad de
+arriba en todos los escenarios.
+
+Esa única lectura extra son las boletas «Abonadas», leídas fila a fila. Es barato porque una boleta
+solo está a medias mientras alguien la va pagando a plazos: hay **9** en toda la base de pruebas. El
+tope es de 5.000; si se superara, la función devuelve `null` y el panel muestra el dinero **sin**
+separar «Pagadas» de «Abonadas» —dos partes en vez de tres— en lugar de unas sumas cortas (I-011).
+
+### El «95 %» del diseño de referencia no se copió
+
+El diseño mostraba «Cobranza 95 %» encima de «57 de 60 boletas por cobrar». Eso es 95 % **pendiente**,
+no cobrado. El indicador calcula `recaudado / vendido` y su línea de apoyo dice «N de M boletas
+pagadas», que es otra unidad y no se puede confundir. Lo mismo con la leyenda del anillo del diseño,
+cuyos porcentajes sumaban 109 %.
+
+De los números del diseño solo uno era coherente y ese sí se conservó como concepto: «Sin pagar 55 →
+$6.600.000» es el **valor de venta** de esas 55 boletas. La sección «Cobranza» muestra eso mismo para
+los tres estados, y por eso sus tres importes suman el total del anillo.
+
+### Dos gráficos, cero librerías
+
+El proyecto no tenía ninguna librería de gráficos y no se añadió: un anillo de tres segmentos y una
+línea de siete puntos se dibujan con SVG en el servidor, sin una línea de JavaScript en el navegador,
+igual que ya hacía `ProgressRing`. Los detalles que los mantienen legibles:
+
+* El **anillo** (`components/data/DonutChart.tsx`) reparte con `stroke-dasharray` sobre un lienzo de
+  100 × 100 y escala con CSS. Su tamaño lo decide quien lo usa: crecer por tamaño de **ventana**
+  —`sm:`— se comía la leyenda que tiene al lado dentro de una tarjeta de media pantalla.
+* La **línea** (`components/data/TrendChart.tsx`) conserva la proporción del `viewBox` y lleva
+  `vector-effect="non-scaling-stroke"`, de modo que mide lo mismo a 320 px que a 700. Los textos del
+  eje **no** van dentro del SVG —crecerían con él— sino en la misma rejilla, en HTML. Cada punto
+  lleva un `<title>`, que es el globo de ayuda nativo del navegador: el ratón encima dice el día y el
+  importe exacto sin JavaScript. Debajo, la misma información en texto para quien no ve el dibujo.
+* Un período entero **sin pagos** deja el eje con un único «$0» y la línea plana abajo. Escribir «$1»
+  arriba —el valor que evita la división por cero— sería inventarse una referencia.
+
+### El diseño responde al ancho de la TARJETA, no al de la ventana
+
+Fue el error que más veces se repitió al medir. En escritorio estas tarjetas ocupan media pantalla,
+así que un `sm:` —que mira la ventana— partía el resumen financiero en dos columnas de 192 y 66 px
+(los nombres de la leyenda desaparecían) y ponía las seis cifras de «Mis boletas» en columnas de
+43 px. Se resolvió con **container queries**, que ya usaba `card.tsx`: el anillo se pone al lado de
+su leyenda a partir de **400 px de tarjeta**, y «Mis boletas» pasa de 3 × 2 a seis en fila en el
+mismo umbral.
+
+Los cuatro indicadores, en cambio, sí miran la ventana, porque ocupan el ancho completo: cuatro en
+fila solo desde `xl`. En `lg` el contenido mide 720 px —la barra lateral se lleva 256— y cuatro
+columnas dejaban 78 px de texto para un «$2.325.000» que necesita 118.
+
+### En el teléfono, los accesos rápidos van primero
+
+El orden del móvil es: accesos rápidos, indicadores, resumen financiero, cobranza, mis boletas,
+tendencia y actividad reciente. Quien entra desde el teléfono viene a vender o a cobrar, no a leer.
+
+La rejilla es **una sola** para las siete piezas y cambia de orden con clases `order-*`. Los dos
+envoltorios de columna llevan `display: contents` —el mismo recurso de D-110—: en el teléfono
+desaparecen y sus tarjetas quedan sueltas entre las demás, de modo que `order` puede colocarlas donde
+haga falta; a partir de `lg` vuelven a existir y forman las dos columnas, que es lo que permite que
+«Mis boletas» y «Tendencia» se apilen a la izquierda mientras «Actividad reciente» y «Accesos
+rápidos» se apilan a la derecha, **cada una con su altura natural**. Con una rejilla normal las
+cuatro compartirían fila y la más corta se estiraría.
+
+### Lo que se quitó, y qué pasó con ello
+
+| Se quitó | Dónde está ahora |
+|---|---|
+| Los dos botones grandes de arriba | En «Accesos rápidos», que además añade «Registrar abono» y «Ver reportes» |
+| Tarjeta «Tu ganancia» (media pantalla) | Indicador «Ganancia por boleta»: tarifa, precio de la rifa, lo ganado y cuánto falta para el siguiente tramo |
+| Tarjeta «Resumen de cobranza» | «Resumen financiero» + el indicador «Cobranza». El portal administrativo **la conserva** |
+| Tarjeta «Pendientes de aprobación» | El aviso ámbar de arriba, que ya existía y sí se puede accionar. El estado no cambió |
+| Listas «Ventas recientes» y «Clientes recientes» | Sus pantallas: `/seller/tickets` y `/seller/clients`. Cada cifra de «Mis boletas» enlaza a la lista ya filtrada |
+| Lista «Pagos recientes» | «Actividad reciente», misma fuente y misma consulta |
+| Tarjeta «Clientes» (recuento) | No se muestra. Su consulta se retiró (abajo) |
+
+**Y con ellas, tres consultas.** `getSellerDashboard` pedía el recuento de clientes, los cinco
+clientes recientes y las cinco ventas recientes **en cada carga** del panel y de `/seller/payments`,
+que comparte la función. Ninguna de las dos pantallas las pinta ya. La función pasó de cinco
+consultas a dos.
+
+### Lo que se perdió de verdad, y está pendiente de decisión
+
+Con la tarjeta «Tu ganancia» desaparecieron **dos textos que el indicador no puede alojar**: el aviso
+de cuánto se dejó de ganar por rebajar boletas (BR-G17) y la advertencia de que la proyección del
+siguiente nivel «todavía no es tuya». El componente `CommissionCard` **no se borró**: sigue en
+`features/commissions/components/`, con una nota en su cabecera que explica que no se monta en
+ninguna pantalla y cómo volver a montarla —una línea en el `page.tsx` del panel—. Si el dueño del
+producto confirma que no las echa en falta, el archivo se borra.
+
+Lo que **sí** se conservó del cálculo: el indicador aplica la misma regla que la tarjeta ante una
+fila de comisión vacía. `commission_summary` devuelve fila también para quien no ha cobrado ninguna
+boleta, y ahí su tarifa vale 0 porque el primer tramo empieza en la boleta 1; tomar ese cero como «tu
+ganancia por boleta» le decía a un vendedor nuevo que no gana nada. Se detectó probando con
+`vendedor@control.test`, que mostraba «$0» donde le corresponden $25.000.
+
+### Detalles menores que se decidieron por el camino
+
+**a) «Registrar abono», no «Registrar pago».** El diseño decía «pago»; el resto de la aplicación dice
+«abono» desde siempre. Un término, un nombre (UX_COPY, Anexo A).
+
+**b) La tendencia no lleva su propio selector de días** aunque el diseño lo mostrara. El panel ya
+tiene uno arriba, y dos controles que hacen lo mismo en la misma pantalla obligan a averiguar cuál
+manda. El gráfico obedece al de arriba y escribe bajo el título qué período dibuja.
+
+**c) «Actividad reciente» no se filtra por el período.** Son «los últimos pagos recibidos»: dejar la
+lista vacía porque esta semana nadie pagó, teniendo pagos de la semana pasada, sería esconder
+información útil.
+
+**d) En el botón del período se leen las fechas**, no el nombre de la opción: «Últimos 7 días» no
+dice cuáles son esos siete días, y esa es justamente la duda que aparece al mirar una cifra.
+
+**e) `position="popper"` en ese desplegable no es decorativo.** La colocación por defecto de Radix
+alinea la opción elegida con el texto del botón y para eso necesita un `SelectValue` que medir; como
+el botón lleva las fechas escritas a mano, la lista aparecía en la esquina inferior izquierda de la
+página, a 1.400 px del botón.
+
+**f) La comparación nombra el período anterior por su duración real** —«vs. los 7 días anteriores»—
+en vez de «vs. período anterior». Y cuando en ese período no entró nada, se dice con palabras: un
+aumento desde cero no es «+100 %» ni «+∞ %».
+
+**g) Rojo y gris no significan lo mismo.** Rojo es «sin pagar»: boletas de las que no ha entrado
+nada, que es lo que pide atención. El «por cobrar» del anillo es gris, porque ahí es «todavía no», y
+pintar de rojo la mitad de un gráfico normal convierte una rifa que va bien en una alarma. Los cuatro
+tonos viven en `features/dashboard/tones.ts`.
+
+**h) Plural para los grupos.** «Abonadas 9», no «Abonada 9». No son etiquetas nuevas: es el plural de
+las de siempre, y vive en `constants.ts` (`TICKET_PAYMENT_STATUS_PLURAL_LABELS`) por la misma razón
+que las otras.
+
+**i) `KpiCard` es nuevo y `MetricCard` no se tocó.** La de siempre —etiqueta arriba, cifra debajo— la
+comparten ocho pantallas. La del panel lleva icono a la izquierda y una segunda línea que a veces es
+texto y a veces una barra de progreso: meterle una segunda disposición habría puesto a tocar el
+componente de ocho pantallas para rediseñar una sola.
+
+**k) El anillo mide 128 px en el teléfono y 160 en la tarjeta ancha.** No es estética: con 160, la
+tarjeta llegaba a 422 px de alto y el globo del recorrido guiado no tenía dónde ponerse. Centrada en
+una pantalla de 839 px dejaba 209 libres a cada lado y el globo pide 226 con su separación, así que
+encajaba solo tapando la tarjeta que estaba explicando. Con 128 la tarjeta baja a 374 y el globo cabe
+al lado. Es el tipo de acoplamiento que no se ve leyendo el código: la altura de una tarjeta decide
+si otra pantalla funciona.
+
+**j) Cada tarjeta lleva un `<h2>` de verdad.** `CardTitle` es un `div`, y un panel sin encabezados no
+se puede recorrer con un lector de pantalla.
+
+**Sin migraciones. Sin dependencias nuevas. Sin cambios en reglas de negocio, permisos ni rutas.**
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

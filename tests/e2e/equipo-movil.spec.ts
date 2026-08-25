@@ -90,20 +90,26 @@ test.describe('Equipo y ganancia en el teléfono', () => {
     await page.setViewportSize({ width: 320, height: 800 })
     await page.goto('/seller/dashboard')
 
-    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Tu ganancia' })
-    await expect(tarjeta).toBeVisible()
+    // Desde D-112 los cuatro importes grandes del panel son los indicadores de
+    // arriba, y la ganancia es uno de ellos. Se comprueban los cuatro: a 320 px
+    // es donde una cifra de siete digitos se corta primero.
+    const importes = page.locator('[data-slot="card"] p.text-2xl.tabular-nums')
+    await expect(importes.first()).toBeVisible()
 
-    // El importe se localiza por su sitio en la tarjeta, no por su valor: otras
-    // suites cobran boletas de esta cuenta y un numero fijo aqui dependeria del
-    // orden de ejecucion. Lo que se comprueba es que NO se corta, sea cual sea.
-    const importe = tarjeta.locator('p.text-3xl').first()
-    await expect(importe).toBeVisible()
-    await expect(importe).toHaveText(/^\$[\d.]+$/)
+    for (const etiqueta of ['Recaudado', 'Por cobrar', 'Ganancia por boleta']) {
+      const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: etiqueta })
+      // El importe se localiza por su sitio en la tarjeta, no por su valor:
+      // otras suites cobran boletas de esta cuenta y un numero fijo aqui
+      // dependeria del orden de ejecucion. Lo que se comprueba es que NO se
+      // corta, sea cual sea.
+      const importe = tarjeta.locator('p.text-2xl').first()
+      await expect(importe).toHaveText(/^\$[\d.]+$/)
 
-    const recortado = await importe.evaluate(
-      (element) => element.scrollWidth > element.clientWidth + 1,
-    )
-    expect(recortado, 'el importe no debe quedar cortado').toBe(false)
+      const recortado = await importe.evaluate(
+        (element) => element.scrollWidth > element.clientWidth + 1,
+      )
+      expect(recortado, `el importe de «${etiqueta}» no debe quedar cortado`).toBe(false)
+    }
   })
 
   test('«Agregar vendedor» se puede tocar con el dedo', async ({ page }) => {

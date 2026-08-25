@@ -182,22 +182,21 @@ test.describe('Mi ganancia', () => {
 
     await loginAs(page, ACCOUNTS.seller)
 
-    // Se acota a la tarjeta: el importe también aparece en «Pagos recientes».
-    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Tu ganancia' })
+    // Desde D-112 la ganancia vive en el indicador «Ganancia por boleta» del
+    // panel, no en una tarjeta grande. Se acota a esa tarjeta porque los mismos
+    // importes aparecen en otras partes de la pantalla.
+    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Ganancia por boleta' })
 
-    await expect(tarjeta.getByText(formatCOP(esperado!.earned), { exact: true })).toBeVisible()
-    await expect(
-      tarjeta.getByText(new RegExp(`${esperado!.ticketsPaid} boletas? cobradas?`)),
-    ).toBeVisible()
-    await expect(tarjeta.getByText(/Ganas la mitad del precio/)).toBeVisible()
+    await expect(tarjeta.locator('p.text-2xl')).toHaveText(formatCOP(esperado!.rate))
+    await expect(tarjeta.getByText(`Llevas ${formatCOP(esperado!.earned)} ganados`)).toBeVisible()
 
-    // Y lo que motivó la corrección: ni niveles, ni barra, ni proyección.
-    await expect(tarjeta.getByText(/subir de nivel/)).toHaveCount(0)
-    await expect(tarjeta.getByRole('progressbar')).toHaveCount(0)
-    await expect(tarjeta.getByText(/tu ganancia sería de/)).toHaveCount(0)
+    // Y lo que motivó la corrección: a quien cobra la mitad del precio no se le
+    // habla de niveles, porque no los tiene.
+    await expect(tarjeta.getByText(/Te falta/)).toHaveCount(0)
+    await expect(page.getByText(/subir de nivel/)).toHaveCount(0)
   })
 
-  test('en un equipo: cobra por niveles, con proyección separada de lo ganado', async ({
+  test('en un equipo: cobra por niveles y ve cuánto le falta para el siguiente', async ({
     page,
   }) => {
     const svc = serviceClient()
@@ -288,21 +287,16 @@ test.describe('Mi ganancia', () => {
     expect(error, 'no se pudo cobrar el escenario').toBeNull()
 
     await loginAs(page, integrante.email)
-    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Tu ganancia' })
+    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Ganancia por boleta' })
 
-    // 3 boletas en el primer tramo: 3 × $20.000.
-    await expect(tarjeta.getByText(formatCOP(60_000), { exact: true })).toBeVisible()
-    await expect(tarjeta.getByText(/3 boletas cobradas/)).toBeVisible()
-    await expect(tarjeta.getByText('Te faltan 18 boletas para subir de nivel')).toBeVisible()
-    await expect(tarjeta.getByRole('progressbar')).toHaveAttribute(
-      'aria-valuetext',
-      '3 de 21 boletas cobradas',
-    )
+    // 3 boletas en el primer tramo: cada una vale $20.000 y lleva $60.000.
+    await expect(tarjeta.locator('p.text-2xl')).toHaveText(formatCOP(20_000))
+    await expect(tarjeta.getByText(`Llevas ${formatCOP(60_000)} ganados`)).toBeVisible()
 
-    // Y lo que más importa: la proyección NO se confunde con lo ganado.
-    await expect(tarjeta.getByText(/tu ganancia sería de/)).toBeVisible()
+    // El siguiente nivel se dice en tarifa POR BOLETA, no como un total: una
+    // proyeccion del acumulado se confundiria con dinero ya suyo (D-112).
     await expect(
-      tarjeta.getByText('Esa cifra todavía no es tuya: es lo que ganarías si llegas.'),
+      tarjeta.getByText(`Te faltan 18 boletas para ${formatCOP(25_000)} por boleta`),
     ).toBeVisible()
 
     // La limpieza la hace  en el afterAll, en una transaccion.
@@ -315,9 +309,20 @@ test.describe('Mi ganancia', () => {
     // muestra el dinero de nadie mas.
     await loginAs(page, ACCOUNTS.otherSeller)
 
-    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Tu ganancia' })
-    await expect(tarjeta.getByText(/Ganas .* por cada boleta/)).toBeVisible()
-    await expect(page.getByText(formatCOP(ajena!.earned), { exact: true })).toHaveCount(0)
+    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Ganancia por boleta' })
+    // Ve su tarifa —la regla que le toca— y ningun importe ganado, porque
+    // todavia no ha cobrado ninguna boleta.
+    await expect(tarjeta.locator('p.text-2xl')).toHaveText(/^\$[\d.]+$/)
+    await expect(tarjeta.getByText(/Llevas .* ganados/)).toHaveCount(0)
+
+    // Y en particular, la ganancia del OTRO vendedor no aparece como suya.
+    //
+    // Se comprueba dentro de la frase, no como numero suelto: la ganancia de
+    // `vendedor1` resulto ser $60.000, que es exactamente la tarifa de
+    // `vendedor2` —la mitad de una boleta de $120.000— y por tanto un importe
+    // que su propio panel muestra con todo derecho. Una coincidencia numerica
+    // no prueba ni desmiente un problema de aislamiento; el contexto sí.
+    await expect(tarjeta.getByText(`Llevas ${formatCOP(ajena!.earned)} ganados`)).toHaveCount(0)
   })
 })
 

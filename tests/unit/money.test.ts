@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatCOP, parseCOP } from '@/lib/money'
+import { formatCOP, formatCOPCompact, parseCOP } from '@/lib/money'
 
 describe('formatCOP', () => {
   it('formatea cero', () => {
@@ -35,5 +35,21 @@ describe('parseCOP', () => {
   it('devuelve null para entrada vacia o sin digitos', () => {
     expect(parseCOP('')).toBeNull()
     expect(parseCOP('abc')).toBeNull()
+  })
+})
+
+describe('formatCOPCompact', () => {
+  it('acorta las cifras grandes para el eje de un grafico', () => {
+    // La abreviatura exacta la pone ICU y puede variar entre versiones de Node;
+    // lo que esta prueba fija es lo que la pantalla necesita: simbolo pegado a
+    // la cifra, sin espacios, y una forma MAS corta que la completa.
+    const compacto = formatCOPCompact(1_200_000)
+    expect(compacto.startsWith('$')).toBe(true)
+    expect(compacto).not.toMatch(/\s/)
+    expect(compacto.length).toBeLessThan(formatCOP(1_200_000).length)
+  })
+
+  it('el cero se escribe igual que siempre', () => {
+    expect(formatCOPCompact(0)).toBe('$0')
   })
 })

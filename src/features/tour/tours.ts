@@ -288,7 +288,7 @@ const SELLER_TOURS: Tour[] = [
         target: 'financial-summary',
         side: 'bottom',
         title: 'Cómo va tu cobranza',
-        body: 'Lo vendido es a cuánto se comprometieron tus clientes; lo recaudado, lo que ya te pagaron. El saldo pendiente es lo que te falta por cobrar.',
+        body: 'El total del centro es lo que valen tus boletas vendidas. El anillo lo reparte en lo que ya cobraste, lo que te han abonado y lo que falta.',
       },
       {
         id: 'metrics-inventory',
@@ -302,7 +302,7 @@ const SELLER_TOURS: Tour[] = [
         target: 'metrics-collection',
         side: 'top',
         title: 'Cómo va el pago de tus boletas',
-        body: '«Sin pagar» es la que no te han pagado nada; «Abonada», la que te dieron una parte; «Pagada», la que ya te completaron el valor.',
+        body: '«Sin pagar» son las que no te han pagado nada; «Abonadas», las que te dieron una parte; «Pagadas», las que ya te completaron el valor.',
       },
       helpStep(),
       closingStep(),

@@ -348,6 +348,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `MoneyInput` / `formatCOP` | Entrada y presentación de enteros COP |
 | `TicketNumberInput` | Solo dígitos, máx. 4, preserva ceros, `inputMode="numeric"` |
 | `StatusBadge` | Badge **con texto** (nunca solo color) para estados de inventario y pago |
+| `DonutChart` / `TrendChart` | Los dos gráficos del panel del vendedor: SVG dibujado en el servidor, **sin librería y sin JavaScript** en el navegador. Escalan con `viewBox`, igual que `ProgressRing` (§8.13, D-112) |
 | `CollectionSummaryCard` | Resumen de cobranza del panel (D-090): recibe `totals` ya agregado, no calcula nada; barra de progreso accesible con el mismo patrón que `BulkTicketCreator` |
 | `CommissionCard` | «Tu ganancia» del panel del vendedor (D-095). No calcula nada: recibe la fila de `commission_summary`. Separa **lo ganado** de **la proyección** deliberadamente, y la barra lleva su valor en `aria-valuetext` |
 | `NotificationBell` / `NotificationMenu` | Campanita del encabezado (D-093). El servidor lee la bandeja al pintar la pantalla; sin peticiones desde el navegador ni tiempo real. El contador va también en el `aria-label`, no solo en el punto rojo |
@@ -752,6 +753,68 @@ Teléfono (< md)                          Escritorio (≥ md, sin cambios)
 3. **El corte es `md`, no `sm`.** Era el último componente que cambiaba de forma en 640 px, cuando la
    aplicación entera se vuelve teléfono en 768 (§8.8, §8.9). El tope de 448 px (`max-w-md`) evita que
    entre 448 y 768 los botones se separen a los extremos de una ventana ancha.
+
+### 8.13 El panel del vendedor: siete piezas y un solo orden (D-112)
+
+Rediseñado el 2026-08-25. Once bloques apilados pasaron a siete piezas, y **el mismo árbol** sirve
+para el teléfono y el escritorio.
+
+```
+Escritorio (≥ lg)                              Teléfono (< lg)
+
+Hola, X                    [11 a 17 ago 2026]  Hola, X · [11 a 17 ago 2026]
+[Recaud.][Por cobrar][Cobranza][Ganancia]      Accesos rápidos
+[   Resumen financiero  ][    Cobranza    ]    Indicadores (1 col)
+[ Mis boletas   ][ Actividad reciente     ]    Resumen financiero
+[ Tendencia     ][ Accesos rápidos        ]    Cobranza · Mis boletas
+                                               Tendencia · Actividad reciente
+```
+
+**Cómo se consigue con una sola rejilla.** El contenedor es `flex flex-col` en el teléfono y
+`lg:grid lg:grid-cols-2 lg:items-start`. El orden del móvil lo fijan clases `order-*` que se anulan
+con `lg:order-none`. Las dos columnas de la tercera fila son envoltorios con **`contents`**: bajo
+`lg` desaparecen y sus tarjetas quedan sueltas entre las demás —de modo que `order` puede
+recolocarlas—; desde `lg` vuelven a existir y forman dos pilas independientes, que es lo que permite
+que cada tarjeta conserve su altura natural. Es el mismo recurso de §8.8 (D-110).
+
+**Container queries, no `sm:`.** Estas tarjetas ocupan media pantalla en escritorio, así que el
+tamaño de la **ventana** no dice nada sobre el espacio que tienen dentro. Dos piezas responden al
+ancho de su tarjeta con `@container`:
+
+| Pieza | Umbral | Por qué |
+|---|---|---|
+| Anillo junto a su leyenda (`FinancialSummaryCard`) | `@min-[400px]` | Anillo 160 px + leyenda más larga 216 px. Con `sm:` la leyenda quedaba en 66 px y los nombres desaparecían |
+| «Mis boletas» de 3×2 a seis en fila (`TicketsOverviewCard`) | `@min-[400px]/tickets` | Con `sm:` eran seis columnas de 43 px dentro de una tarjeta de media pantalla |
+
+Los cuatro indicadores sí miran la ventana (`sm:grid-cols-2 xl:grid-cols-4`) porque ocupan el ancho
+completo: en `lg` el contenido mide 720 px —la barra lateral se lleva 256— y cuatro columnas dejaban
+78 px de texto para importes de 118.
+
+**Gráficos: SVG en el servidor, sin librería.**
+
+| Componente | Cómo escala |
+|---|---|
+| `DonutChart` | `stroke-dasharray` sobre un lienzo 100 × 100. **El tamaño lo pasa quien lo usa**: crecer con la ventana se comía la leyenda de al lado. El importe del centro es `text-base` fijo — a 20 px, «$13.600.000» se salía del anillo |
+| `TrendChart` | `viewBox` con proporción conservada y `vector-effect="non-scaling-stroke"`. Los textos del eje van **fuera** del SVG, en la misma rejilla: dentro crecerían con él. Cada punto lleva `<title>` (globo nativo, cero JavaScript) y debajo va la misma información en una lista `sr-only` |
+
+**Qué depende del período y qué no.** El selector escribe `range` en la URL (`7d`, `30d`, `month`,
+`last-month`; el valor por defecto no se escribe). Manda sobre el dinero recaudado, su comparación
+con el período inmediatamente anterior y la tendencia diaria. El inventario y la cobranza son la foto
+de hoy: la base guarda el estado **actual** de cada boleta, no el que tenía hace siete días.
+
+**Consultas.** Dos nuevas, dentro del mismo `Promise.all` que ya existía:
+
+| Función | Fuente | Nota |
+|---|---|---|
+| `getSellerPartialTicketTotals` | `v_ticket_balances`, boletas `assigned` + `partial` | La **única** cifra que `v_seller_summary` no da. Todo el reparto por estado de pago se deduce de ella (`collection-breakdown.ts`), y por eso **no hizo falta migración**. Tope de 5.000 filas: por encima devuelve `null` y el anillo pasa a dos partes |
+| `getSellerActivity` | `report_payments_by_day` y `report_payment_totals` (migración `0013`) | Las mismas que alimentan el reporte de recaudo. Se lee `active_amount`: un pago anulado permanece en el historial pero no es dinero recibido |
+
+Y **tres menos**: `getSellerDashboard` dejó de pedir el recuento de clientes, los clientes recientes y
+las ventas recientes, que ninguna pantalla pinta ya y se pedían también en `/seller/payments`.
+
+**Reglas de negocio: ninguna cambió.** Los estados de pago siguen saliendo de `v_seller_summary`, la
+comisión de `commission_summary` y el precio de `raffles.ticket_price`. Sin migraciones y sin
+dependencias nuevas.
 
 ---
 
