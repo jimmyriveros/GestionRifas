@@ -3041,8 +3041,15 @@ causa en el código.
 | CSS de producción | Dentro de `@media (min-width:48rem)`: `.md\:not-sr-only`, `.md\:has-[>svg]\:px-2.5`, `.md\:max-w-none` y `.md\:flex-none` |
 | Tiempo de servidor (3 ciclos) | **149, 156 y 186 ms** |
 
-**Un apunte para la próxima verificación.** Buscar una clase de Tailwind dentro de la CSS de
-producción con `grep` cuesta más de lo que parece: en el archivo los dos puntos, los corchetes y el
-punto decimal van **escapados** (`.md\:has-\[\>svg\]\:px-2\.5`), así que un patrón escrito como se lee
-en el JSX no encuentra nada y parece que el despliegue no trae el código. Se resolvió buscando con
-`String.indexOf` sobre el archivo, sin regex.
+**Un apunte para la próxima verificación, que costó tres intentos.** En la CSS de producción los dos
+puntos, los corchetes y el punto decimal de una clase van **escapados con barra invertida**
+(`.md\:has-\[\>svg\]\:px-2\.5`), así que un patrón escrito como se lee en el JSX no encuentra nada y
+parece que el despliegue no trae el código. **Y pasar de `grep` a `String.indexOf` no basta:** entre
+el shell y Node la barra invertida del patrón se pierde por el camino —se comprobó imprimiendo el
+patrón, que llegaba sin ella—, así que la búsqueda vuelve a fallar por la misma causa y sigue
+pareciendo un problema del despliegue.
+
+**Lo que sí funciona:** construir la barra con `String.fromCharCode(92)` dentro del script, sin
+escribirla en el fuente. Así se confirmaron las cuatro reglas. **Antes de concluir que la CSS de
+producción no trae una clase, imprime el patrón que estás buscando:** si le falta la barra, el
+problema está en tu comando, no en el despliegue.
