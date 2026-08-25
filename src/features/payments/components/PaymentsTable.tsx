@@ -21,15 +21,24 @@ type PaymentsTableProps = {
   clientBasePath: string
   /** El portal del vendedor no muestra la columna «Vendedor». */
   showSeller?: boolean
+  /**
+   * Se apaga dentro de la ficha de UN cliente: ahi la columna repetiria el
+   * mismo nombre en todas las filas, y ese nombre ya esta en el titulo.
+   */
+  showClient?: boolean
   /** BR-F10: solo Owner y Admin pueden anular. */
   canVoid?: boolean
+  /** Se pasa a la tabla; sirve para aplanarla dentro de una `TableSection`. */
+  className?: string
 }
 
 export function PaymentsTable({
   payments,
   clientBasePath,
   showSeller = false,
+  showClient = true,
   canVoid = false,
+  className,
 }: PaymentsTableProps) {
   const [selected, setSelected] = useState<PaymentListItem | null>(null)
 
@@ -47,6 +56,23 @@ export function PaymentsTable({
         ]
       : []
 
+    const clientColumn: ColumnDef<PaymentListItem>[] = showClient
+      ? [
+          {
+            accessorKey: 'clientName',
+            header: 'Cliente',
+            cell: ({ row }) => (
+              <RowLink
+                href={`${clientBasePath}/${row.original.clientId}`}
+                className="font-medium hover:underline"
+              >
+                {row.original.clientName}
+              </RowLink>
+            ),
+          },
+        ]
+      : []
+
     return [
       {
         accessorKey: 'paymentDate',
@@ -57,18 +83,7 @@ export function PaymentsTable({
           </span>
         ),
       },
-      {
-        accessorKey: 'clientName',
-        header: 'Cliente',
-        cell: ({ row }) => (
-          <RowLink
-            href={`${clientBasePath}/${row.original.clientId}`}
-            className="font-medium hover:underline"
-          >
-            {row.original.clientName}
-          </RowLink>
-        ),
-      },
+      ...clientColumn,
       ...sellerColumn,
       {
         accessorKey: 'totalAmount',
@@ -139,7 +154,7 @@ export function PaymentsTable({
         ),
       },
     ]
-  }, [clientBasePath, showSeller])
+  }, [clientBasePath, showSeller, showClient])
 
   return (
     <>
@@ -149,6 +164,7 @@ export function PaymentsTable({
         getRowId={(row) => row.id}
         onRowActivate={(row) => setSelected(row)}
         caption="Historial de pagos"
+        className={className}
       />
 
       <PaymentDetailDialog

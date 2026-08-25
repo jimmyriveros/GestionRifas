@@ -1,18 +1,17 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
-import { Badge } from '@/components/ui/badge'
+import { ClientStatusBadge } from '@/components/data/StatusBadge'
+import { SECTION_TABLE_CLASSES, TableSection } from '@/components/data/TableSection'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ClientInfoCard } from '@/features/clients/components/ClientInfoCard'
+import { ClientTotals } from '@/features/clients/components/ClientTotals'
 import { getClientDetail } from '@/features/clients/queries'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
 import { listClientPayments } from '@/features/payments/queries'
 import { TicketsList } from '@/features/tickets/components/TicketsList'
 import { listTickets } from '@/features/tickets/queries'
-import { formatDateEs } from '@/lib/dates'
-import { formatCOP } from '@/lib/money'
 
 export default async function ClientDetailPage({
   params,
@@ -30,9 +29,10 @@ export default async function ClientDetailPage({
   ])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 md:space-y-6">
       <PageHeader
         title={client.name}
+        titleBadge={<ClientStatusBadge archived={client.archivedAt !== null} />}
         description={client.alias ?? undefined}
         backHref="/owner/clients"
         actions={
@@ -42,57 +42,54 @@ export default async function ClientDetailPage({
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Información general</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Teléfono">{client.phone}</Field>
-          <Field label="Correo">{client.email ?? '—'}</Field>
-          <Field label="Vendedor">{client.sellerName}</Field>
-          <Field label="Alta">{formatDateEs(client.createdAt)}</Field>
-          <Field label="Estado">
-            {client.archivedAt ? <Badge variant="secondary">Archivado</Badge> : <span>Activo</span>}
-          </Field>
-          {client.notes ? <Field label="Notas">{client.notes}</Field> : null}
-        </CardContent>
-      </Card>
+      {/* La misma tarjeta del portal del vendedor, con un dato mas: de quien es
+          este cliente. Aqui si hace falta, porque el personal ve la cartera
+          entera de la organizacion. */}
+      <ClientInfoCard
+        phone={client.phone}
+        email={client.email}
+        createdAt={client.createdAt}
+        archivedAt={client.archivedAt}
+        notes={client.notes}
+        sellerName={client.sellerName}
+      />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MetricCard label="Boletas compradas" value={client.ticketsCount} />
-        <MetricCard label="Total comprado" value={formatCOP(client.totalPurchased)} />
-        <MetricCard label="Total pagado" value={formatCOP(client.totalPaid)} />
-        <MetricCard label="Saldo pendiente" value={formatCOP(client.pendingAmount)} />
-      </div>
+      <ClientTotals
+        ticketsCount={client.ticketsCount}
+        totalPurchased={client.totalPurchased}
+        totalPaid={client.totalPaid}
+        pendingAmount={client.pendingAmount}
+      />
 
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Boletas del cliente</h2>
+      {/* Se quita «Cliente», que repetiria el nombre del titulo en todas las
+          filas. La rifa y el vendedor se quedan: un cliente puede comprar en
+          varias rifas, y el portal administrativo mira toda la organizacion. */}
+      <TableSection title="Boletas de este cliente">
         {tickets.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Este cliente todavía no tiene boletas.</p>
+          <p className="text-muted-foreground px-2 py-2 text-sm">
+            Este cliente todavía no tiene boletas.
+          </p>
         ) : (
-          <TicketsList tickets={tickets} />
+          <TicketsList tickets={tickets} showClient={false} className={SECTION_TABLE_CLASSES} />
         )}
-      </div>
+      </TableSection>
 
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Historial de abonos</h2>
+      <TableSection title="Historial de abonos">
         {payments.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground px-2 py-2 text-sm">
             Este cliente todavía no tiene abonos registrados.
           </p>
         ) : (
-          <PaymentsTable payments={payments} clientBasePath="/owner/clients" showSeller canVoid />
+          <PaymentsTable
+            payments={payments}
+            clientBasePath="/owner/clients"
+            showSeller
+            showClient={false}
+            canVoid
+            className={SECTION_TABLE_CLASSES}
+          />
         )}
-      </div>
-    </div>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
-      <div className="text-sm">{children}</div>
+      </TableSection>
     </div>
   )
 }

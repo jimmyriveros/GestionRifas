@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   accountStatus,
   ACCOUNT_STATUS_LABELS,
+  CLIENT_STATUS_LABELS,
   RAFFLE_STATUS_LABELS,
   TICKET_INVENTORY_STATUS_LABELS,
   TICKET_PAYMENT_STATUS_LABELS,
@@ -68,6 +69,24 @@ export function RaffleStatusBadge({ status }: { status: RaffleStatus }) {
   return (
     <Badge variant="outline" className={cn(BASE, RAFFLE_CLASSES[status])}>
       {RAFFLE_STATUS_LABELS[status]}
+    </Badge>
+  )
+}
+
+/**
+ * Estado del cliente: activo o archivado (BR-C06).
+ *
+ * Verde y gris pizarra, los mismos que ya significan «en marcha» y «cerrada» en
+ * una rifa. Archivar no es un error ni una anulacion, asi que no lleva el rojo
+ * de «Anulada»: es un cliente que se guardo, y se puede restaurar.
+ */
+export function ClientStatusBadge({ archived }: { archived: boolean }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(BASE, archived ? RAFFLE_CLASSES.closed : RAFFLE_CLASSES.active)}
+    >
+      {archived ? CLIENT_STATUS_LABELS.archived : CLIENT_STATUS_LABELS.active}
     </Badge>
   )
 }

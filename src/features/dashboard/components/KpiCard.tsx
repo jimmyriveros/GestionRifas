@@ -21,8 +21,12 @@ type KpiCardProps = {
  * segunda linea que a veces es texto y a veces una barra de progreso, o sea
  * otro arbol de HTML; meterle a `MetricCard` una segunda disposicion habria
  * puesto a tocar el componente de ocho pantallas para rediseñar una sola, que
- * es justo lo que pide evitar el cambio minimo (CLAUDE.md §36.3). Vive dentro
- * de `features/dashboard` porque solo el panel la usa.
+ * es justo lo que pide evitar el cambio minimo (CLAUDE.md §36.3).
+ *
+ * Se quedo en `features/dashboard`, donde nacio, aunque desde D-113 la reutilice
+ * tambien la ficha del cliente (`ClientTotals`): son las cuatro cifras de una
+ * persona presentadas igual que las del panel, y duplicar la tarjeta para no
+ * cruzar una carpeta habria sido crear la quinta forma de mostrar un indicador.
  */
 export function KpiCard({ label, value, icon, hint, className }: KpiCardProps) {
   return (

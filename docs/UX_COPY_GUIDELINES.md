@@ -444,9 +444,16 @@ distintas hechas por personas distintas, y por eso conservan verbos distintos.
 
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
-las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**. Fuente única:
+las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
+cliente: **Activo · Archivado** (`CLIENT_STATUS_LABELS`, D-113). Fuente única:
 `src/lib/constants.ts` (`docs/ARCHITECTURE.md` §8.3). Cambiar una etiqueta significa cambiar ese
 archivo, nunca escribirla suelta en una pantalla.
+
+**El estado del cliente se dice arriba, junto al nombre** (D-113). «Archivado» decide lo que se
+puede hacer en toda la pantalla —a ese cliente no se le asignan boletas—, así que va en el título y
+no en la cuarta casilla de una tarjeta. La insignia dice **qué** pasa; el aviso ámbar de debajo, **qué
+implica**, y por eso siguen estando los dos: «Este cliente está archivado: no aparece al asignar
+boletas. Su historial se conserva.»
 
 **La paginación dice qué está contando** (D-111). No «Mostrando 1–25 de 118», que deja al lector
 adivinando de qué son esos 118, sino **«1–25 de 118 boletas»**, con el término del glosario que
@@ -493,6 +500,8 @@ castigo donde solo había una espera.
 | Etiquetas de estado de pago en plural, para encabezar grupos | `src/lib/constants.ts` (`TICKET_PAYMENT_STATUS_PLURAL_LABELS`, D-112) |
 | Nombres de los períodos del panel del vendedor | `src/features/dashboard/date-range.ts` (`DASHBOARD_RANGE_LABELS`, D-112) |
 | Textos de las siete piezas del panel del vendedor | `src/features/dashboard/components/`, una por pieza (D-112) |
+| Etiquetas de estado de un cliente («Activo», «Archivado») | `src/lib/constants.ts` (`CLIENT_STATUS_LABELS`, D-113) |
+| Rótulos y textos de la ficha del cliente | `src/features/clients/components/ClientInfoCard.tsx` y `ClientTotals.tsx` (D-113) |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
 | «Seleccionar varias» y su «Cancelar» | `src/features/tickets/selection/components/TicketSelectionModeButton.tsx` (D-108) |

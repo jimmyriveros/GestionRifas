@@ -6,6 +6,15 @@ import { tourTarget } from '@/features/tour/tours'
 type PageHeaderProps = {
   title: string
   description?: string
+  /**
+   * Insignia de estado a la derecha del titulo: «Activo», «Archivado». Va junto
+   * al nombre y no perdida en una tarjeta de abajo, porque es lo que cambia el
+   * significado de todo lo demas que se ve en la pantalla.
+   *
+   * Envuelve por su cuenta cuando el nombre es largo: en un telefono, un nombre
+   * de tres palabras y la insignia no caben en la misma linea.
+   */
+  titleBadge?: ReactNode
   actions?: ReactNode
   /**
    * Telefono: la accion principal sube a la MISMA fila que el titulo, en vez de
@@ -48,11 +57,23 @@ type PageHeaderProps = {
 export function PageHeader({
   title,
   description,
+  titleBadge,
   actions,
   inlineActions = false,
   backHref,
   backLabel,
 }: PageHeaderProps) {
+  // La insignia va JUNTO al `h1`, nunca dentro: el nombre accesible del
+  // encabezado tiene que seguir siendo el nombre y nada mas. Y la fila envuelve,
+  // de modo que un nombre largo empuja la insignia a la linea de abajo en vez de
+  // estrujarla.
+  const heading = (
+    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      <h1 className="min-w-0 text-2xl font-semibold tracking-tight">{title}</h1>
+      {titleBadge}
+    </div>
+  )
+
   if (inlineActions) {
     return (
       <div
@@ -61,7 +82,7 @@ export function PageHeader({
       >
         <div className="col-start-1 row-start-1 flex min-w-0 items-start gap-2">
           {backHref ? <BackButton fallbackHref={backHref} label={backLabel} /> : null}
-          <h1 className="min-w-0 text-2xl font-semibold tracking-tight">{title}</h1>
+          {heading}
         </div>
 
         {description ? (
@@ -90,7 +111,7 @@ export function PageHeader({
       <div className="flex items-start gap-2">
         {backHref ? <BackButton fallbackHref={backHref} label={backLabel} /> : null}
         <div className="min-w-0 space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          {heading}
           {description ? <p className="text-muted-foreground text-sm">{description}</p> : null}
         </div>
       </div>

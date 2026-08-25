@@ -1,5 +1,6 @@
 'use client'
 
+import { ArchiveIcon, ArchiveRestoreIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -15,6 +16,8 @@ type ClientArchiveButtonProps = {
   archived: boolean
   /** Boletas asignadas: se avisa de que el historial se conserva. */
   ticketsCount: number
+  /** La ficha del cliente le da el alto y el ancho que necesita el telefono. */
+  className?: string
 }
 
 /** BR-C06: archivar, nunca eliminar. Es reversible. */
@@ -23,6 +26,7 @@ export function ClientArchiveButton({
   clientName,
   archived,
   ticketsCount,
+  className,
 }: ClientArchiveButtonProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -43,7 +47,18 @@ export function ClientArchiveButton({
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => setOpen(true)} disabled={isPending}>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setOpen(true)}
+        disabled={isPending}
+        className={className}
+      >
+        {archived ? (
+          <ArchiveRestoreIcon className="size-4" aria-hidden />
+        ) : (
+          <ArchiveIcon className="size-4" aria-hidden />
+        )}
         {archived ? 'Restaurar cliente' : 'Archivar cliente'}
       </Button>
 

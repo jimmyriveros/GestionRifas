@@ -1,20 +1,19 @@
-import { PencilIcon } from 'lucide-react'
+import { PencilIcon, PlusIcon } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
-import { Badge } from '@/components/ui/badge'
+import { ClientStatusBadge } from '@/components/data/StatusBadge'
+import { SECTION_TABLE_CLASSES, TableSection } from '@/components/data/TableSection'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ClientArchiveButton } from '@/features/clients/components/ClientArchiveButton'
+import { ClientInfoCard } from '@/features/clients/components/ClientInfoCard'
+import { ClientTotals } from '@/features/clients/components/ClientTotals'
 import { getClientDetail } from '@/features/clients/queries'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
 import { listClientPayments } from '@/features/payments/queries'
 import { TicketsList } from '@/features/tickets/components/TicketsList'
 import { listTickets } from '@/features/tickets/queries'
-import { formatDateEs } from '@/lib/dates'
-import { formatCOP } from '@/lib/money'
 
 export default async function SellerClientDetailPage({
   params,
@@ -33,15 +32,40 @@ export default async function SellerClientDetailPage({
     listClientPayments(clientId),
   ])
 
+  const archived = client.archivedAt !== null
+  // El mismo criterio de siempre: solo se ofrece cobrar lo que de verdad falta,
+  // y a un cliente archivado no se le cobra (BR-C07).
+  const canRegisterPayment = client.pendingAmount > 0 && !archived
+  const newPaymentHref = `/seller/payments/new?clientId=${client.id}`
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 md:space-y-6">
+      {/* Cobrar es la accion principal de esta pantalla, asi que sube al
+          encabezado y es la unica de color; editar y archivar la acompañan en
+          voz baja. En el telefono el boton principal ocupa el ancho y mide 44 px
+          de alto —la diana comoda de D-085— y los otros dos se reparten la fila
+          siguiente. */}
       <PageHeader
         title={client.name}
+        titleBadge={<ClientStatusBadge archived={archived} />}
         description={client.alias ?? undefined}
         backHref="/seller/clients"
         actions={
           <>
-            <Button asChild variant="outline">
+            {canRegisterPayment ? (
+              <Button asChild className="h-11 w-full sm:h-9 sm:w-auto">
+                <Link
+                  href={newPaymentHref}
+                  // En pantalla dice «Registrar abono», que es lo que cabe en un
+                  // telefono; quien lo oye necesita saber de quien es el abono.
+                  aria-label={`Registrar abono de ${client.name}`}
+                >
+                  <PlusIcon className="size-4" aria-hidden />
+                  Registrar abono
+                </Link>
+              </Button>
+            ) : null}
+            <Button asChild variant="outline" className="h-11 grow sm:h-9 sm:grow-0">
               <Link href={`/seller/clients/${client.id}/edit`}>
                 <PencilIcon className="size-4" aria-hidden />
                 Editar
@@ -50,53 +74,42 @@ export default async function SellerClientDetailPage({
             <ClientArchiveButton
               clientId={client.id}
               clientName={client.name}
-              archived={client.archivedAt !== null}
+              archived={archived}
               ticketsCount={client.ticketsCount}
+              className="h-11 grow sm:h-9 sm:grow-0"
             />
           </>
         }
       />
 
-      {client.archivedAt ? (
+      {archived ? (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-950">
           Este cliente está archivado: no aparece al asignar boletas. Su historial se conserva.
         </p>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Información general</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Teléfono">
-            <a href={`tel:${client.phone}`} className="hover:underline">
-              {client.phone}
-            </a>
-          </Field>
-          <Field label="Correo">{client.email ?? '—'}</Field>
-          <Field label="Alta">{formatDateEs(client.createdAt)}</Field>
-          <Field label="Estado">
-            {client.archivedAt ? <Badge variant="secondary">Archivado</Badge> : <span>Activo</span>}
-          </Field>
-          {client.notes ? (
-            <div className="sm:col-span-2 lg:col-span-4">
-              <Field label="Notas">{client.notes}</Field>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+      <ClientInfoCard
+        phone={client.phone}
+        email={client.email}
+        createdAt={client.createdAt}
+        archivedAt={client.archivedAt}
+        notes={client.notes}
+      />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MetricCard label="Boletas compradas" value={client.ticketsCount} />
-        <MetricCard label="Total comprado" value={formatCOP(client.totalPurchased)} />
-        <MetricCard label="Total pagado" value={formatCOP(client.totalPaid)} />
-        <MetricCard label="Saldo pendiente" value={formatCOP(client.pendingAmount)} />
-      </div>
+      <ClientTotals
+        ticketsCount={client.ticketsCount}
+        totalPurchased={client.totalPurchased}
+        totalPaid={client.totalPaid}
+        pendingAmount={client.pendingAmount}
+      />
 
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Boletas de este cliente</h2>
+      {/* Ni la rifa ni el cliente: la una es siempre la misma en el portal del
+          vendedor (D-088) y el otro es el dueño de esta ficha. Quitarlas deja
+          sitio para lo que se viene a mirar —estado, pago y precio—, que en un
+          telefono era justo lo que se ocultaba. */}
+      <TableSection title="Boletas de este cliente">
         {tickets.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground px-2 py-2 text-sm">
             Todavía no le has asignado ninguna boleta.{' '}
             <Link href="/seller/tickets?inventoryStatus=available" className="underline">
               Ver boletas disponibles
@@ -104,36 +117,43 @@ export default async function SellerClientDetailPage({
             .
           </p>
         ) : (
-          <TicketsList tickets={tickets} basePath="/seller/tickets" showSeller={false} />
+          <TicketsList
+            tickets={tickets}
+            basePath="/seller/tickets"
+            showSeller={false}
+            showRaffle={false}
+            showClient={false}
+            className={SECTION_TABLE_CLASSES}
+          />
         )}
-      </div>
+      </TableSection>
 
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Historial de abonos</h2>
-          {client.pendingAmount > 0 && !client.archivedAt ? (
-            <Button asChild size="sm">
-              <Link href={`/seller/payments/new?clientId=${client.id}`}>Registrar abono</Link>
+      <TableSection
+        title="Historial de abonos"
+        action={
+          canRegisterPayment ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={newPaymentHref}>
+                <PlusIcon className="size-4" aria-hidden />
+                Registrar abono
+              </Link>
             </Button>
-          ) : null}
-        </div>
+          ) : null
+        }
+      >
         {payments.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground px-2 py-2 text-sm">
             Todavía no le has registrado ningún abono.
           </p>
         ) : (
-          <PaymentsTable payments={payments} clientBasePath="/seller/clients" />
+          <PaymentsTable
+            payments={payments}
+            clientBasePath="/seller/clients"
+            showClient={false}
+            className={SECTION_TABLE_CLASSES}
+          />
         )}
-      </div>
-    </div>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
-      <div className="text-sm">{children}</div>
+      </TableSection>
     </div>
   )
 }

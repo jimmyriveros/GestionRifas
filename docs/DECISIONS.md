@@ -3376,6 +3376,90 @@ se puede recorrer con un lector de pantalla.
 
 **Sin migraciones. Sin dependencias nuevas. Sin cambios en reglas de negocio, permisos ni rutas.**
 
+## D-113 — La ficha del cliente: cuatro datos en una tira, dos listados en su propia tarjeta
+
+**Fecha:** 2026-08-25 · **Encargo:** rediseño de la pantalla de detalle del cliente, con un diseño de
+referencia y la captura de la pantalla actual.
+
+### Qué había y qué hay
+
+Había un bloque «Información general» de cuatro rótulos en mayúsculas, cuatro tarjetas de cifras, y
+dos tablas sueltas bajo un `h2` cada una. Editar y archivar vivían arriba; **cobrar**, que es a lo
+que se entra a esta pantalla, estaba abajo del todo, al lado del historial.
+
+Ahora: el nombre con su **estado al lado**, **«Registrar abono» como única acción de color** en el
+encabezado, la información general en una **tira horizontal** con icono, y los dos listados dentro de
+**tarjetas con título** (`TableSection`).
+
+Ninguna consulta cambió: la pantalla sigue pidiendo lo mismo que pedía —`getClientDetail`,
+`listTickets({ clientId })` y `listClientPayments`— y las cuatro cifras siguen saliendo de
+`v_client_balances`, que es donde ya se calculaban. No se sumó nada por segunda vez en el navegador.
+
+### Qué columnas se quitan, y por qué esas
+
+Se quita **«Cliente»** de las dos tablas: dentro de la ficha de una persona esa columna repite el
+mismo nombre en todas las filas y no distingue nada. En el portal del vendedor se quita además
+**«Rifa»**, que ahí sobra por D-088 —opera una sola rifa— y que esta ficha se había dejado encendida:
+era la única pantalla del portal que la mostraba.
+
+**En el portal administrativo «Rifa» y «Vendedor» se quedan.** La regla no es «quitar lo que se
+repite en el diseño de referencia» sino **quitar lo que es constante por construcción**: la lista
+está filtrada por `clientId`, así que el cliente es siempre el mismo; la rifa no —un cliente puede
+comprar en varias— y el vendedor es un dato propio de cada boleta. Esconder algo que puede variar es
+esconder información.
+
+### Por qué el estado del cliente sube al título
+
+«Archivado» decide el sentido de toda la pantalla —a ese cliente no se le pueden asignar boletas— y
+estaba en la cuarta casilla de una tarjeta gris. Ahora va junto al nombre, con las palabras de
+siempre y en `constants.ts` (`CLIENT_STATUS_LABELS`), no escritas sueltas en dos páginas como
+estaban. El aviso ámbar de cliente archivado **se conserva**: la insignia dice qué pasa y el aviso,
+qué implica.
+
+`PageHeader` recibió para eso un `titleBadge` opcional. Va **junto** al `h1`, nunca dentro: el nombre
+accesible de un encabezado tiene que seguir siendo el nombre. Y la fila envuelve, así que un nombre
+de siete palabras baja la insignia a la línea siguiente en vez de estrujarla.
+
+### `TableSection` y el borde que no se dibuja dos veces
+
+Una tabla dentro de una tarjeta pinta **dos** bordes concéntricos. Se resolvió dándole a `DataTable`
+—y a la lista de tarjetas del teléfono— un `className` con el que la sección la aplana
+(`SECTION_TABLE_CLASSES`). Es un prop añadido, no un cambio de comportamiento: quien no lo pasa ve
+exactamente la tabla de antes, que es lo que ocurre en las demás pantallas que la usan.
+
+El relleno está calculado para que **la primera columna quede alineada con el título**: la sección
+pone `px-2 sm:px-4` y las celdas su `px-2` de siempre, que suman los `px-4 sm:px-6` del encabezado.
+
+### Detalles que se decidieron por el camino
+
+**a) Las cifras reutilizan `KpiCard`**, la tarjeta del panel del vendedor (D-112), en vez de añadirle
+a `MetricCard` una segunda disposición. `MetricCard` la comparten ocho pantallas y el argumento de
+D-112 sigue valiendo. La tarjeta se quedó en `features/dashboard`, donde nació, con su comentario
+corregido: ya no es cierto que solo la use el panel.
+
+**b) En el teléfono, cuando no hay cliente que mostrar, la flecha se va con las insignias** en vez de
+quedarse sola ocupando un renglón entero de cada tarjeta.
+
+**c) Los separadores verticales son solo de escritorio** (`lg:border-l`), el mismo recurso que ya usa
+la ficha de la boleta. Dentro de una columna estrecha una línea vertical corta el texto en vez de
+ordenarlo.
+
+**d) No se tocó el botón «Ver» del historial ni su columna sin rótulo**, aunque el diseño de
+referencia mostrara «Acción» y un icono de ojo: esa tabla la comparten `/seller/payments` y
+`/owner/payments`, y el encargo pedía expresamente no cambiar de aspecto otras pantallas. Queda
+anotado por si se quiere hacer a propósito y en las tres a la vez.
+
+**e) Los encabezados siguen diciendo «Número diario» y «Número semanal»**, no «Núm.»: son los
+términos del glosario y esas columnas las comparten las dos pantallas de boletas.
+
+**f) El portal administrativo recibió el mismo rediseño.** Es la misma pantalla para otro rol y su
+código era una copia del otro; dejar una de las dos con el aspecto viejo habría creado justo la
+divergencia que `ARCHITECTURE` §8.11 obliga a justificar. Sus diferencias reales —«Ver vendedor», el
+vendedor en la tira, anular pagos— se conservan intactas.
+
+**Sin migraciones. Sin dependencias nuevas. Sin cambios en consultas, reglas de negocio, permisos ni
+rutas.**
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

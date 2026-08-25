@@ -11,7 +11,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 
 | Clasificación | Estado actual |
 |---|---|
-| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) y el **rediseño del panel del vendedor** (2026-08-25, D-112) |
+| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112) y el **rediseño de la ficha del cliente** (2026-08-25, D-113, sin desplegar) |
 | **En curso** | Ninguna |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
@@ -2315,3 +2315,89 @@ era eso: Tailwind escribe `@container (min-width:400px)`, no `@container (width>
 que se buscó. La lección de `c1fa849` —construir la barra invertida con `String.fromCharCode(92)`—
 sigue valiendo, pero hay que añadirle esta: **antes de concluir que falta una clase, imprime las
 reglas que sí existen** y compara. Bastó con listar los `@container` servidos para ver los tres.
+
+---
+
+## Mantenimiento post-9 — la ficha del cliente, rediseñada (2026-08-25)
+
+Encargo del dueño, con un diseño de referencia y la captura de la pantalla actual: reorganizar
+visualmente el **detalle del cliente** sin tocar lógica, consultas, rutas ni permisos. Decisión
+**D-113**. Sin migraciones. **Sin desplegar.**
+
+`Route changes: None` · `Business logic changes: None` · `New dependencies: None` ·
+`Migrations: None` · `Query changes: None` · `New API calls: None`
+
+### 1. Funcionalidades implementadas
+
+Es un cambio **visual**: la pantalla pide exactamente los mismos datos que pedía y los presenta de
+otra forma. En los **dos** portales, porque son la misma pantalla para dos roles.
+
+- **Encabezado**: el nombre lleva al lado su estado —**Activo** o **Archivado**— y **«Registrar
+  abono»** sube ahí como única acción de color; «Editar» y «Archivar cliente» la acompañan como
+  secundarias. En el teléfono la principal ocupa el ancho con 44 px de alto y las otras dos se
+  reparten la fila siguiente.
+- **Información general**: una tira horizontal —teléfono, correo, alta y estado, más el vendedor en
+  el portal administrativo— con icono, y separadores verticales **solo en escritorio**. Las notas,
+  cuando las hay, bajan a su propia línea dentro de la misma tarjeta.
+- **Cuatro cifras** (boletas compradas, total comprado, total pagado, saldo pendiente) en la tarjeta
+  de indicador del panel del vendedor (`KpiCard`, D-112), con icono.
+- **Dos listados en su propia tarjeta con título** (`TableSection`): «Boletas de este cliente» e
+  «Historial de abonos», este último con su «Registrar abono» a la derecha.
+- **Columnas retiradas**: «Cliente» en las dos tablas —repetía el nombre del título en todas las
+  filas— y, solo en el portal del vendedor, «Rifa», que ahí sobra por D-088. En el administrativo
+  «Rifa» y «Vendedor» se quedan: pueden variar.
+
+**Lo que NO cambió:** `getClientDetail`, `listTickets({ clientId })` y `listClientPayments` siguen
+siendo las tres consultas de siempre, en el mismo `Promise.all`. Las cuatro cifras siguen saliendo de
+`v_client_balances`. La condición para ofrecer el cobro es la de antes —saldo pendiente > 0 y cliente
+no archivado—, y el aviso ámbar del cliente archivado sigue donde estaba.
+
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 errores, 2 avisos preexistentes de TanStack |
+| `npm run test` | ✅ **359/359** |
+| `npm run test:db` | ✅ **518/518** |
+| `npm run build` | ✅ |
+| `npx playwright test --project=escritorio` | ✅ **243/243**, sobre base recién sembrada |
+| `npx playwright test --project=movil` | ✅ **51/51** |
+
+**Un aviso que costó una pasada entera.** La primera vuelta completa de escritorio dio **6 fallos**
+—cinco de `importar-boletas` y uno de `seller-tickets`— que **no eran del cambio**: la base venía de
+tres pasadas encadenadas. Con `db:reset` + `seed:local`, los mismos archivos dieron **26/26** y la
+suite completa **243/243**. `HANDOFF` ya lo avisa; queda aquí repetido porque vuelve a morder.
+
+**Verificación en pantalla** (detalle en `TEST_RESULTS.md`): medida a **320, 360, 390 y 1.280 px**,
+con desbordamiento horizontal **0** a 320 px (`scrollWidth == clientWidth == 320`). Probados los seis
+estados de la pantalla: con datos, sin boletas, sin abonos, sin correo, archivado y con nombre largo.
+
+### 3. Migraciones
+
+**Ninguna.** No hay cambios de esquema, de vistas ni de funciones.
+
+### 4. Variables de entorno
+
+**Ninguna nueva.**
+
+### 5. Problemas que permanecen
+
+Los de siempre (I-068, I-066, I-062, I-063 y la columna «Abono» del importador). **De este cambio,
+ninguno.**
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **Una tabla dentro de una tarjeta se aplana con `SECTION_TABLE_CLASSES`**, no quitándole el borde
+   a `DataTable`. El `className` es opcional: las demás pantallas siguen viendo la tabla de siempre.
+2. **`showClient` se apaga solo donde el cliente es constante por construcción.** No lo copies a una
+   lista que no esté filtrada por `clientId`: esconder un dato que puede variar es esconder
+   información. La misma regla vale para «Rifa» y «Vendedor».
+3. **`titleBadge` va junto al `h1`, no dentro.** El nombre accesible de un encabezado tiene que
+   seguir siendo el nombre; si lo metes dentro, un lector de pantalla anuncia «Liz Espitia Activo».
+4. **`KpiCard` ya no es solo del panel.** Vive en `features/dashboard` y la usan dos pantallas; si la
+   tocas, míralas las dos.
+5. **El botón «Ver» del historial y su columna sin rótulo se dejaron como estaban** a propósito
+   (D-113.d): esa tabla la comparten tres pantallas y el encargo pedía no cambiar las otras dos.
+

@@ -21,6 +21,10 @@ type TicketsTableProps = {
   showSeller?: boolean
   /** Se oculta donde se opera una sola rifa: el portal del vendedor (D-088). */
   showRaffle?: boolean
+  /** Se apaga en la ficha de UN cliente: ahi todas las boletas son suyas (D-113). */
+  showClient?: boolean
+  /** Se pasa al contenedor de la tabla; la aplana dentro de una tarjeta. */
+  className?: string
 }
 
 /**
@@ -41,6 +45,8 @@ export function TicketsTable({
   basePath = '/owner/tickets',
   showSeller = true,
   showRaffle = true,
+  showClient = true,
+  className,
 }: TicketsTableProps) {
   const selection = useOptionalTicketSelection()
 
@@ -104,6 +110,17 @@ export function TicketsTable({
         ]
       : []
 
+    const clientColumn: ColumnDef<TicketListItem>[] = showClient
+      ? [
+          {
+            accessorKey: 'clientName',
+            header: 'Cliente',
+            meta: { hideOnMobile: true },
+            cell: ({ row }) => <span className="text-sm">{row.original.clientName ?? '—'}</span>,
+          },
+        ]
+      : []
+
     return [
       ...selectColumn,
       /*
@@ -145,12 +162,7 @@ export function TicketsTable({
       },
       ...raffleColumn,
       ...sellerColumn,
-      {
-        accessorKey: 'clientName',
-        header: 'Cliente',
-        meta: { hideOnMobile: true },
-        cell: ({ row }) => <span className="text-sm">{row.original.clientName ?? '—'}</span>,
-      },
+      ...clientColumn,
       {
         accessorKey: 'inventoryStatus',
         header: 'Estado',
@@ -178,7 +190,7 @@ export function TicketsTable({
         ),
       },
     ]
-  }, [basePath, showSeller, showRaffle, selection])
+  }, [basePath, showSeller, showRaffle, showClient, selection])
 
   // TanStack necesita el mapa `{ id: true }` para pintar `data-state=selected`;
   // la verdad sigue siendo la lista de ids del contexto.
@@ -205,6 +217,7 @@ export function TicketsTable({
           : undefined
       }
       caption="Boletas"
+      className={className}
     />
   )
 }

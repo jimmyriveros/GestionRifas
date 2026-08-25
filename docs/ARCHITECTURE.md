@@ -352,6 +352,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `CollectionSummaryCard` | Resumen de cobranza del panel (D-090): recibe `totals` ya agregado, no calcula nada; barra de progreso accesible con el mismo patrón que `BulkTicketCreator` |
 | `CommissionCard` | «Tu ganancia» del panel del vendedor (D-095). No calcula nada: recibe la fila de `commission_summary`. Separa **lo ganado** de **la proyección** deliberadamente, y la barra lleva su valor en `aria-valuetext` |
 | `NotificationBell` / `NotificationMenu` | Campanita del encabezado (D-093). El servidor lee la bandeja al pintar la pantalla; sin peticiones desde el navegador ni tiempo real. El contador va también en el `aria-label`, no solo en el punto rojo |
+| `TableSection` | Tarjeta con título —y acción opcional— que envuelve un listado (§8.14, D-113). La tabla de dentro se aplana con `SECTION_TABLE_CLASSES` para no pintar dos bordes concéntricos; el relleno está calculado para que la primera columna quede alineada con el título |
 | `ConfirmDialog` | Confirmación de acciones sensibles (anular, desactivar, aprobar) |
 | `EmptyState` | Estado vacío con acción sugerida |
 | `RowLink` | Enlace de una **fila** de tabla: un `Link` con `prefetch={false}`. Veinticinco filas precargadas son veinticinco invocaciones del servidor que casi nadie usa, y en Vercel enfrían la función que atenderá el clic siguiente (D-104) |
@@ -448,6 +449,11 @@ columna: lo derivan `memberships.is_active` y `profiles.activated_at`, en este o
 Lo pinta `AccountStatusBadge`, que sustituyó a `ActiveBadge` en todas las pantallas que muestran
 personas: aquella decía «Activo» de alguien que nunca había entrado. `ActiveBadge` sigue existiendo
 para lo que de verdad es un interruptor y no tiene invitación de por medio.
+
+**Estado de un cliente** (`CLIENT_STATUS_LABELS`, D-113). Sale de `clients.archived_at`: con fecha,
+**Archivado**; sin ella, **Activo**. Lo pinta `ClientStatusBadge` —verde y gris pizarra, los mismos
+de una rifa en marcha y cerrada— y va junto al nombre en la ficha (§8.14). Archivar no es anular: por
+eso no lleva el rojo de «Anulada».
 
 ### 8.4 Recorrido guiado (`src/features/tour/`)
 
@@ -815,6 +821,44 @@ las ventas recientes, que ninguna pantalla pinta ya y se pedían también en `/s
 **Reglas de negocio: ninguna cambió.** Los estados de pago siguen saliendo de `v_seller_summary`, la
 comisión de `commission_summary` y el precio de `raffles.ticket_price`. Sin migraciones y sin
 dependencias nuevas.
+
+---
+
+### 8.14 La ficha del cliente: una tira de datos y dos listados con tarjeta (D-113)
+
+Rediseñada el 2026-08-25. **La misma pantalla en los dos portales**, con las diferencias que impone
+el rol y ninguna más.
+
+```
+[←] Nombre  (Activo)              [+ Registrar abono] [Editar] [Archivar cliente]
+[ Teléfono │ Correo │ Alta │ Estado ]                    ← tira, separadores solo en lg
+[ Boletas ][ Total comprado ][ Total pagado ][ Saldo pendiente ]   ← KpiCard, 4 en xl
+┌ Boletas de este cliente ─────────────────────────────┐
+│  tabla (escritorio) / tarjetas (teléfono), sin borde │
+└──────────────────────────────────────────────────────┘
+┌ Historial de abonos ──────────────[+ Registrar abono]┐
+│  tabla de pagos, sin borde                           │
+└──────────────────────────────────────────────────────┘
+```
+
+| Pieza | Dónde vive | Qué hace |
+|---|---|---|
+| `ClientInfoCard` | `features/clients/components/` | Teléfono, correo, alta y estado —más el vendedor en el portal administrativo— con icono y separadores `lg:border-l`. Las notas, cuando las hay, bajan a su propia línea |
+| `ClientTotals` | `features/clients/components/` | Las cuatro cifras de `v_client_balances` en `KpiCard`, la tarjeta del panel (D-112) |
+| `TableSection` | `components/data/` | La tarjeta con título y acción que envuelve cada listado. `SECTION_TABLE_CLASSES` aplana la tabla de dentro para no dibujar dos bordes |
+
+**Qué se oculta y qué no.** Solo se esconde lo que es **constante por construcción**: la lista está
+filtrada por `clientId`, así que la columna «Cliente» repetiría el mismo nombre en todas las filas
+(`showClient={false}` en las dos tablas). «Rifa» se apaga únicamente en el portal del vendedor, por
+D-088; en el administrativo se queda, igual que «Vendedor», porque ahí sí pueden variar.
+
+**Acciones.** «Registrar abono» es la única de color y aparece dos veces —encabezado e historial—
+bajo la **misma** condición de siempre: saldo pendiente mayor que cero y cliente no archivado. El
+portal administrativo no la tiene: registrar abonos es del vendedor. La del encabezado lleva
+`aria-label` con el nombre del cliente, para que quien la oiga sepa de quién es el abono.
+
+**Sin consultas nuevas:** `getClientDetail`, `listTickets({ clientId })` y `listClientPayments`, las
+mismas tres de antes y en el mismo `Promise.all`.
 
 ---
 

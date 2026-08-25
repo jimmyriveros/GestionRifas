@@ -86,6 +86,12 @@ type DataTableProps<TData, TValue> = {
   onRowSelect?: (row: TData) => void
   /** Pulsacion larga con el dedo: atajo para entrar en modo seleccion. */
   onRowLongPress?: (row: TData) => void
+  /**
+   * Clases del contenedor de la tabla. Existe para APLANARLA cuando ya va dentro
+   * de una tarjeta (`TableSection`): alli el borde y las esquinas los pone la
+   * tarjeta, y dibujarlos dos veces se ve como una caja dentro de otra.
+   */
+  className?: string
 }
 
 export function DataTable<TData, TValue>({
@@ -101,6 +107,7 @@ export function DataTable<TData, TValue>({
   onRowActivate,
   onRowSelect,
   onRowLongPress,
+  className,
 }: DataTableProps<TData, TValue>) {
   const router = useRouter()
   const [sorting, setSorting] = useState<SortingState>([])
@@ -168,7 +175,10 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <div {...tourTarget('data-table')} className="w-full overflow-x-auto rounded-lg border">
+    <div
+      {...tourTarget('data-table')}
+      className={cn('w-full overflow-x-auto rounded-lg border', className)}
+    >
       <Table>
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <TableHeader>

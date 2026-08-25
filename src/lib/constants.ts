@@ -143,6 +143,18 @@ export function accountStatus(member: {
   return member.activatedAt === null ? 'pending' : 'active'
 }
 
+/**
+ * Estado de un cliente en pantalla (BR-C06: se archiva, nunca se elimina).
+ *
+ * Son dos palabras que ya se escribian sueltas en la ficha y en el listado; aqui
+ * viven por la misma razon que las demas etiquetas de estado: cambiarlas debe
+ * seguir siendo cambiar UN archivo (CLAUDE.md §27).
+ */
+export const CLIENT_STATUS_LABELS = {
+  active: 'Activo',
+  archived: 'Archivado',
+} as const
+
 export const RAFFLE_STATUS_LABELS: Record<RaffleStatus, string> = {
   draft: 'Borrador',
   active: 'Activa',

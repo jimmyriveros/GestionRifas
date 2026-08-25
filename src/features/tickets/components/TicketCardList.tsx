@@ -58,6 +58,10 @@ type TicketCardListProps = {
   showSeller?: boolean
   /** Se oculta donde se opera una sola rifa: el portal del vendedor (D-088). */
   showRaffle?: boolean
+  /** Se apaga en la ficha de UN cliente: ahi todas las boletas son suyas (D-113). */
+  showClient?: boolean
+  /** Se pasa a la lista; aplana su borde cuando ya va dentro de una tarjeta. */
+  className?: string
 }
 
 export function TicketCardList({
@@ -65,6 +69,8 @@ export function TicketCardList({
   basePath = '/owner/tickets',
   showSeller = true,
   showRaffle = true,
+  showClient = true,
+  className,
 }: TicketCardListProps) {
   const router = useRouter()
   const selection = useOptionalTicketSelection()
@@ -78,6 +84,10 @@ export function TicketCardList({
   )
 
   const selecting = selection?.rowClickSelects ?? false
+
+  // La flecha es la misma dondequiera que caiga: con el nombre del cliente o,
+  // cuando ese renglon no existe, al final de las insignias.
+  const chevron = <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
 
   function activate(ticket: TicketListItem) {
     if (selecting && selection) {
@@ -129,7 +139,10 @@ export function TicketCardList({
         </div>
       ) : null}
 
-      <ul aria-label="Boletas" className="divide-y overflow-hidden rounded-lg border">
+      <ul
+        aria-label="Boletas"
+        className={cn('divide-y overflow-hidden rounded-lg border', className)}
+      >
         {tickets.map((ticket) => {
           const selected = selection?.isSelected(ticket.id) ?? false
           const label = ticketLabel(ticket)
@@ -210,30 +223,33 @@ export function TicketCardList({
                   </div>
                 ) : null}
 
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={cn(
-                      'truncate text-sm',
-                      ticket.clientName === null && 'text-muted-foreground',
-                    )}
-                  >
-                    {ticket.clientName ?? 'Sin cliente'}
-                  </span>
-                  {/* En modo seleccion la tarjeta no abre nada: la flecha se va,
-                    porque prometeria algo que ya no ocurre. */}
-                  {selecting ? null : (
-                    <ChevronRightIcon
-                      className="text-muted-foreground size-4 shrink-0"
-                      aria-hidden
-                    />
-                  )}
-                </div>
+                {/* En la ficha de un cliente el nombre no se repite en cada
+                  tarjeta (D-113): sin ese renglon, la flecha se va con las
+                  insignias en vez de quedarse sola ocupando una linea. */}
+                {showClient ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={cn(
+                        'truncate text-sm',
+                        ticket.clientName === null && 'text-muted-foreground',
+                      )}
+                    >
+                      {ticket.clientName ?? 'Sin cliente'}
+                    </span>
+                    {/* En modo seleccion la tarjeta no abre nada: la flecha se va,
+                      porque prometeria algo que ya no ocurre. */}
+                    {selecting ? null : chevron}
+                  </div>
+                ) : null}
 
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <InventoryStatusBadge status={ticket.inventoryStatus} />
-                  {ticket.inventoryStatus === 'assigned' ? (
-                    <PaymentStatusBadge status={ticket.paymentStatus} />
-                  ) : null}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <InventoryStatusBadge status={ticket.inventoryStatus} />
+                    {ticket.inventoryStatus === 'assigned' ? (
+                      <PaymentStatusBadge status={ticket.paymentStatus} />
+                    ) : null}
+                  </div>
+                  {!showClient && !selecting ? chevron : null}
                 </div>
               </div>
             </li>

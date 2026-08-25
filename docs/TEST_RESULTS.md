@@ -3189,3 +3189,60 @@ incompleto. La causa era otra: se buscaba `@container (width>=400px)` y Tailwind
 necesariamente la que emite el compilador.** Antes de concluir que falta una clase, **lista las
 reglas que sí existen** —`[...css.matchAll(/@container[^{]{0,60}/g)]`— y compara: los tres
 `@container` aparecieron a la primera.
+
+---
+
+## La ficha del cliente, rediseñada (2026-08-25)
+
+Decisión **D-113**. Sin migraciones, sin consultas nuevas y sin dependencias nuevas.
+
+| Comando | Resultado | Errores | Corrección |
+|---|---|---|---|
+| `npm run typecheck` | ✅ | — | — |
+| `npm run lint` | ✅ 0 errores | Los **2** avisos preexistentes de TanStack (`useReactTable`, `useVirtualizer`) | Ninguna: son de antes de este trabajo |
+| `npm run test` | ✅ **359/359** | — | Sin pruebas nuevas: no hay lógica nueva que probar |
+| `npm run test:db` | ✅ **518/518** | — | Sin cambios de esquema; se ejecuta para comprobar que no los hay |
+| `npm run build` | ✅ | — | — |
+| `npx playwright test --project=escritorio` | ✅ **243/243** (sobre base recién sembrada) | Ver abajo | — |
+| `npx playwright test --project=movil` | ✅ **51/51** | — | — |
+| `npx prettier --check` (archivos tocados) | ✅ | `TicketCardList.tsx` quedó sin formatear tras el último retoque | `prettier --write` |
+
+### Los 6 fallos que NO eran del cambio
+
+La primera pasada completa de escritorio dio **237 pasadas y 6 fallos**: cinco de
+`importar-boletas.spec.ts` y uno de `seller-tickets.spec.ts`. Ese último **había pasado** veinte
+minutos antes al ejecutar ese mismo archivo solo, lo que apuntaba a la causa real: la base venía de
+**tres pasadas encadenadas** más las capturas de pantalla de esta verificación, y `HANDOFF` ya avisa
+de que la suite E2E no aguanta pasadas seguidas.
+
+Comprobado en vez de supuesto: `db:reset` + `seed:local` y **los dos archivos completos otra vez** →
+**26/26**. Después, la pasada completa sobre base recién sembrada. La lección es la de siempre y
+conviene repetirla: **antes de culpar al cambio, siembra limpio**.
+
+### Lo que se verificó en pantalla, y a qué anchos
+
+Con el arnés de Playwright del proyecto —que es quien tiene las credenciales del seed— sobre
+`vendedor1@demo.test` y `owner@demo.test`.
+
+| Ancho | Comprobado |
+|---|---|
+| **320 px** | `scrollWidth == clientWidth` (**320 = 320**): ningún desbordamiento horizontal. «Registrar abono» de lado a lado con 44 px de alto; «Editar» y «Archivar cliente» se reparten la fila siguiente. La tabla de abonos hace scroll **dentro de su contenedor** |
+| **360 px** | Nombre de siete palabras: la insignia baja a su propia línea en vez de estrujarse. Estados vacíos alineados con el título |
+| **390 px** | Boletas como tarjetas dentro de la tarjeta de sección, sin doble borde. Sin el renglón del cliente, la flecha se va con las insignias |
+| **1.280 px** | Los dos portales: tira de 4 datos (vendedor: teléfono, correo, alta, estado) y de 5 (administrativo, con el vendedor), separadores verticales, cuatro indicadores en fila |
+
+### Los estados que se probaron, uno por uno
+
+| Estado | Resultado |
+|---|---|
+| Cliente con boletas y abonos | Las cinco columnas pedidas —diario, semanal, estado, pago, precio— y ninguna de «Cliente». Los ceros de delante intactos: `0001`, `0002`, `1001`, `1002` |
+| Cliente **sin boletas y sin abonos** | Las dos secciones conservan su tarjeta y su título; dentro, el texto de siempre con su enlace. «Registrar abono» **no** aparece: no hay nada que cobrar |
+| Cliente **archivado** | Insignia gris «Archivado» junto al nombre, icono de archivo en «Estado», aviso ámbar, «Restaurar cliente» y **ninguna** oferta de cobro, ni arriba ni en el historial |
+| Cliente **sin correo** | «—», como antes |
+| Pago **anulado** en el historial | Sigue apareciendo, con el importe tachado y su insignia «Anulado» (BR-F09) |
+| Nombre largo | Envuelve; la insignia lo sigue |
+
+**Las cifras, contra la pantalla real** (Ana Torres, base de pruebas): 2 boletas × $120.000 =
+**$240.000** comprado; un abono activo de **$40.000** y otro **anulado de $20.000** que no cuenta;
+**$200.000** de saldo. Cuadra, y sale de `v_client_balances` sin sumar nada en el navegador.
+
