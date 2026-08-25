@@ -3168,3 +3168,24 @@ centrada en 839 px dejaba 209 libres a cada lado cuando el globo pide 226; encaj
 la tarjeta que estaba explicando. El anillo del teléfono bajó de 160 a **128 px** y la tarjeta a
 **374**, medido. Los dos arreglos eran necesarios: sin el primero la prueba seguiría siendo una
 lotería, y sin el segundo el recorrido taparía lo que explica.
+
+### Verificación tras desplegar (2026-08-25)
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`96827dc`** (`dpl_G1ULMPZxjm83GLDyRtsTqYbcS1Xv`) |
+| CI | **2/2** en verde (4 m 37 s) |
+| `/login` | **200** con las 6 cabeceras |
+| Rutas protegidas sin sesión | 4 de 4 en **307** |
+| Clave de servicio | **0** apariciones en el HTML y en los **16** recursos estáticos |
+| CSS de producción | Las tres reglas `@container` que solo genera este panel: `(min-width:400px)`, `tickets (min-width:400px)` y `(min-width:560px)`; más `.fill-emerald-500/10` y `.stroke-blue-600` |
+| Tiempo de servidor (3 ciclos) | **240, 171 y 170 ms** |
+
+**Y una segunda lección sobre esta misma comprobación.** La nota de `c1fa849` explica cómo no perder
+la barra invertida al buscar una clase en la CSS de producción. Esta vez el patrón sí llevaba su
+barra y aun así dos de las seis huellas dieron cero, con la misma apariencia de despliegue
+incompleto. La causa era otra: se buscaba `@container (width>=400px)` y Tailwind escribe
+`@container (min-width:400px)`. **La sintaxis que uno recuerda de la especificación no es
+necesariamente la que emite el compilador.** Antes de concluir que falta una clase, **lista las
+reglas que sí existen** —`[...css.matchAll(/@container[^{]{0,60}/g)]`— y compara: los tres
+`@container` aparecieron a la primera.

@@ -11,7 +11,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 
 | Clasificación | Estado actual |
 |---|---|
-| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) y el **rediseño del panel del vendedor** (2026-08-25, D-112, solo en local) |
+| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) y el **rediseño del panel del vendedor** (2026-08-25, D-112) |
 | **En curso** | Ninguna |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
@@ -2194,7 +2194,7 @@ apuntar, y que «Anterior» sigue ahí —apagado— en la primera página.
 
 Encargo del dueño, con un diseño de referencia: el panel eran once bloques apilados y había que
 convertirlo en una pantalla que se lea de un vistazo. Decisión **D-112**. Sin migraciones.
-**Sin desplegar.**
+**Desplegado y verificado en producción** (§7).
 
 `Route changes: None` · `Business logic changes: None` · `New dependencies: None` ·
 `Migrations: None` · `New API calls: 2 lecturas nuevas, 3 retiradas`
@@ -2289,3 +2289,29 @@ es tuya». `CommissionCard` no se borró; volver a montarla es una línea.
 4. **`getSellerDashboard` ya no trae clientes ni ventas recientes.** Si una pantalla nueva los
    necesita, se piden aparte; no se devuelven a esa función «por si acaso».
 5. **`CommissionCard` está sin montar a propósito** (I-068). No la borres sin que el dueño confirme.
+
+### 7. Promoción a producción (2026-08-25)
+
+Desplegado con autorización expresa del dueño, el mismo día. **Sin migraciones**, así que no había
+orden que respetar entre base de datos y código.
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`96827dc`** (`dpl_G1ULMPZxjm83GLDyRtsTqYbcS1Xv`), alias `gestion-rifas.vercel.app` |
+| CI de GitHub | **2/2** — `verify` y `migraciones desde cero + test:db` |
+| `/login` | **200**, con las **6** cabeceras de seguridad |
+| Rutas protegidas sin sesión | `/seller/dashboard`, `/owner/dashboard`, `/seller/tickets`, `/owner/tickets` → **307** |
+| Clave de servicio en el navegador | **0** apariciones en el HTML ni en los **16** recursos que sirve `/login` |
+| **El código nuevo está servido de verdad** | La CSS de producción trae las **tres** reglas `@container` que en toda la aplicación solo genera este panel: `@container (min-width:400px)` (el anillo junto a su leyenda), `@container tickets (min-width:400px)` («Mis boletas» a seis columnas) y `@container (min-width:560px)` (el anillo grande). Además `.fill-emerald-500/10`, que solo existe en el gráfico de tendencia, y `.stroke-blue-600`, que solo existe en el anillo |
+| Tiempo de **servidor** (3 ciclos, `time_starttransfer − time_appconnect`) | **240, 171 y 170 ms** — en línea con los 149–208 ms de los despliegues anteriores |
+
+**Lo que un agente no puede comprobar:** entrar como vendedor y mirar el panel con datos reales.
+Exige una contraseña, y eso no lo maneja un agente. Queda para el dueño, preferiblemente **desde un
+teléfono**, que es donde más se usa esta pantalla.
+
+**Una nota de método que costó un intento.** Al buscar las huellas del código nuevo en la CSS de
+producción, los dos primeros patrones dieron cero y parecía que el despliegue no traía el cambio. No
+era eso: Tailwind escribe `@container (min-width:400px)`, no `@container (width>=400px)`, que fue lo
+que se buscó. La lección de `c1fa849` —construir la barra invertida con `String.fromCharCode(92)`—
+sigue valiendo, pero hay que añadirle esta: **antes de concluir que falta una clase, imprime las
+reglas que sí existen** y compara. Bastó con listar los `@container` servidos para ver los tres.
