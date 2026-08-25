@@ -11,7 +11,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 
 | Clasificación | Estado actual |
 |---|---|
-| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112) y el **rediseño de la ficha del cliente** (2026-08-25, D-113, sin desplegar) |
+| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112) y el **rediseño de la ficha del cliente** (2026-08-25, D-113) |
 | **En curso** | Ninguna |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
@@ -2322,7 +2322,7 @@ reglas que sí existen** y compara. Bastó con listar los `@container` servidos 
 
 Encargo del dueño, con un diseño de referencia y la captura de la pantalla actual: reorganizar
 visualmente el **detalle del cliente** sin tocar lógica, consultas, rutas ni permisos. Decisión
-**D-113**. Sin migraciones. **Sin desplegar.**
+**D-113**. Sin migraciones. **Desplegado y verificado en producción** (§7).
 
 `Route changes: None` · `Business logic changes: None` · `New dependencies: None` ·
 `Migrations: None` · `Query changes: None` · `New API calls: None`
@@ -2401,3 +2401,25 @@ ninguno.**
 5. **El botón «Ver» del historial y su columna sin rótulo se dejaron como estaban** a propósito
    (D-113.d): esa tabla la comparten tres pantallas y el encargo pedía no cambiar las otras dos.
 
+
+### 7. Promoción a producción (2026-08-25)
+
+Desplegado con autorización expresa del dueño, el mismo día. **Sin migraciones**, así que no había
+orden que respetar entre base de datos y código.
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`18ad9bd`** (`dpl_EEBWxXrw4zSeU4NMTdAFA6RooM5h`), alias `gestion-rifas.vercel.app` |
+| CI de GitHub | **2/2** — `verify` y `migraciones desde cero + test:db` |
+| `/login` | **200**, con las **6** cabeceras de seguridad |
+| Rutas protegidas sin sesión | `/seller/dashboard`, `/owner/dashboard`, `/seller/clients`, `/owner/clients` → **307** |
+| Clave de servicio en el navegador | **0** apariciones en el HTML ni en los **16** recursos que sirve `/login` |
+| **El código nuevo está servido de verdad** | La CSS de producción (87.842 bytes) trae las cuatro huellas que en toda la aplicación **solo** genera este cambio: `.lg\:pl-6` y `.lg\:gap-0` (la tira de «Información general»), `.sm\:grow-0` (los botones secundarios del encabezado) y `.sm\:pb-4` (`TableSection`). Trae además `.lg\:grid-cols-5`, la tira de cinco datos del portal administrativo |
+| Tiempo de **servidor** (`time_starttransfer − time_appconnect`) | **528** ms en el primer ciclo —la primera petición sobre un despliegue recién creado— y **139, 172, 172, 172 y 241 ms** en los cinco siguientes. El control `/denied`, servido por CDN, dio **132 y 147 ms**: la diferencia es la esperada y está dentro de los 130–270 ms sanos de `DEPLOYMENT` §3.1.b |
+
+**Lo que un agente no puede comprobar:** entrar como vendedor y abrir la ficha de un cliente con
+datos reales. Exige una contraseña, y eso no lo maneja un agente. Queda para el dueño,
+preferiblemente **desde un teléfono**.
+
+**Si algo va mal, la reversión es inmediata:** Instant Rollback en Vercel al despliegue anterior
+(`dpl_FydqcmL6kGEP3s3ug3ksFRYHZhrx`, sobre `3136c9d`). No hay migración que deshacer.
