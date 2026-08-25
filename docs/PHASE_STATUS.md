@@ -2169,3 +2169,21 @@ reescribir uno de los dos.
    parecía paginar pagos y pagina días.
 3. **El corte de esta pantalla es `md`, como el resto de la aplicación.** No lo devuelvas a `sm`: a
    700 px hay barra inferior y tarjetas, o sea, teléfono.
+
+### 7. Promoción a producción (2026-08-24)
+
+Desplegada con autorización expresa del dueño, el mismo día. **Sin migraciones.**
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`7d7cf18`** (`dpl_3fLMzy1uxwJYN9gfMrba7i6GQuUs`), alias `gestion-rifas.vercel.app` |
+| CI de GitHub | **2/2** — `verify` y `migraciones desde cero + test:db` |
+| `/login` | **200**, con las **6** cabeceras de seguridad |
+| Rutas protegidas sin sesión | `/seller/tickets`, `/owner/tickets`, `/owner/dashboard`, `/seller/dashboard` → **307** |
+| Clave de servicio en el navegador | **0** apariciones en el HTML ni en los **27** recursos que sirve `/login` |
+| **El código nuevo está servido de verdad** | La CSS de producción trae, dentro de `@media (min-width:48rem)`, las cuatro clases que en toda la aplicación solo genera este componente: `.md\:not-sr-only` (la palabra «Página»), `.md\:has-[>svg]\:px-2.5` (el aire lateral que devuelve el botón de escritorio), `.md\:max-w-none` y `.md\:flex-none`. El archivo cambió de nombre respecto al despliegue anterior |
+| Tiempo de **servidor** (3 ciclos, `time_starttransfer − time_appconnect`) | **149, 156 y 186 ms** — en línea con los 150–202 ms de D-110 |
+
+**Lo que debe revisar el dueño a mano:** abrir «Mis boletas» en un teléfono real, bajar al final de
+la lista y comprobar tres cosas: que el recuento dice «boletas», que los dos botones se tocan sin
+apuntar, y que «Anterior» sigue ahí —apagado— en la primera página.

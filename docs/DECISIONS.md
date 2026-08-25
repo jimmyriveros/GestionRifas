@@ -3101,7 +3101,8 @@ pregunta. Verificada al revés: con el `h-20` de vuelta falla midiendo 113 px, y
 ## D-111 — La paginación del teléfono: qué se cuenta, y dos botones que se pueden tocar
 
 **Fecha:** 2026-08-24 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio,
-consultas, rutas ni permisos** · Solo presentación
+consultas, rutas ni permisos** · Solo presentación ·
+**En producción** (`7d7cf18`, 2026-08-24)
 
 **Contexto.** La paginación era una fila de escritorio doblada en dos cuando no cabía. En un teléfono
 eso dejaba cuatro problemas:

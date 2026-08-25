@@ -3028,3 +3028,21 @@ Al arrancar el servidor local, `/seller/tickets` devolvió 500 con
 reloj del contenedor de Supabase. Se resolvió volviendo a entrar. **No es un fallo de la aplicación
 ni tiene que ver con este cambio**, pero conviene reconocerlo la próxima vez en vez de buscar la
 causa en el código.
+
+### Verificación tras desplegar (2026-08-24)
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`7d7cf18`** (`dpl_3fLMzy1uxwJYN9gfMrba7i6GQuUs`) |
+| CI | **2/2** en verde |
+| `/login` | **200** con las 6 cabeceras |
+| Rutas protegidas sin sesión | 4 de 4 en **307** |
+| Clave de servicio | **0** apariciones en el HTML y en los **27** recursos estáticos |
+| CSS de producción | Dentro de `@media (min-width:48rem)`: `.md\:not-sr-only`, `.md\:has-[>svg]\:px-2.5`, `.md\:max-w-none` y `.md\:flex-none` |
+| Tiempo de servidor (3 ciclos) | **149, 156 y 186 ms** |
+
+**Un apunte para la próxima verificación.** Buscar una clase de Tailwind dentro de la CSS de
+producción con `grep` cuesta más de lo que parece: en el archivo los dos puntos, los corchetes y el
+punto decimal van **escapados** (`.md\:has-\[\>svg\]\:px-2\.5`), así que un patrón escrito como se lee
+en el JSX no encuentra nada y parece que el despliegue no trae el código. Se resolvió buscando con
+`String.indexOf` sobre el archivo, sin regex.
