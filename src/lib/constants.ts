@@ -58,6 +58,26 @@ export const TICKET_NUMBER_REGEX = /^[0-9]{1,4}$/
 /** Filas por pagina en las tablas paginadas en servidor. */
 export const PAGE_SIZE = 25
 
+/**
+ * Que cuenta cada listado en su paginacion: «1–25 de 118 boletas» (D-111).
+ *
+ * Viven aqui, y no escritas en cada pantalla, por la misma razon que las
+ * etiquetas de estado: son terminos del glosario (Anexo A de
+ * `docs/UX_COPY_GUIDELINES.md`) y una pantalla no puede inventarse otro nombre
+ * para lo que ya tiene el suyo. Se escriben las DOS formas porque el plural
+ * espanol no siempre es +s —dia/dias lleva tilde solo en una—, asi que
+ * derivarlo en codigo daria palabras mal escritas.
+ */
+export const LIST_ITEM_LABELS = {
+  tickets: { one: 'boleta', many: 'boletas' },
+  clients: { one: 'cliente', many: 'clientes' },
+  payments: { one: 'pago', many: 'pagos' },
+  /** El reporte de recaudo pagina DIAS, no pagos: una fila es un dia. */
+  days: { one: 'día', many: 'días' },
+} as const
+
+export type ListItemKind = keyof typeof LIST_ITEM_LABELS
+
 export const ROLE_LABELS: Record<AppRole, string> = {
   owner: 'Dueño',
   admin: 'Administrador',

@@ -158,7 +158,12 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
               />
               <TicketListSlot basePath="/owner/tickets" showSeller>
                 <TicketsList tickets={rows} />
-                <DataTablePagination total={total} page={page} pageSize={pageSize} />
+                <DataTablePagination
+                  total={total}
+                  page={page}
+                  pageSize={pageSize}
+                  items="tickets"
+                />
               </TicketListSlot>
             </>
           )}

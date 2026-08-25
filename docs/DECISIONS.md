@@ -3098,6 +3098,91 @@ paginación no queda debajo de la barra». Comprueba las dos cosas juntas porque
 pregunta. Verificada al revés: con el `h-20` de vuelta falla midiendo 113 px, y sin el sumando en
 `AppShell` falla por la paginación.
 
+## D-111 — La paginación del teléfono: qué se cuenta, y dos botones que se pueden tocar
+
+**Fecha:** 2026-08-24 · **Estado:** aceptada · **Sin migración** · **Sin cambios de negocio,
+consultas, rutas ni permisos** · Solo presentación
+
+**Contexto.** La paginación era una fila de escritorio doblada en dos cuando no cabía. En un teléfono
+eso dejaba cuatro problemas:
+
+| Síntoma | Por qué molesta |
+|---|---|
+| «Mostrando 1–25 de 118» | Dice cuántos, pero no **de qué**. En una tabla lo decía el encabezado; en una lista de tarjetas no hay encabezado |
+| Botones de **32 px** | La aplicación usa 44 px para todo lo que se toca (D-108, D-109). Estos dos se habían quedado atrás |
+| Los tres controles juntos y centrados | El pulgar llega a los bordes; el centro de la pantalla es donde peor se acierta |
+| «Pagina 1 de 5» —sin tilde— apretado entre los botones | La palabra se come el ancho que los dos botones necesitan para respirar |
+
+**Decisión. Un solo componente, dos repartos del ancho.** `DataTablePagination` sigue siendo el único
+sitio donde se pagina —lo usan **ocho** listados— y sigue haciendo exactamente lo mismo: escribir
+`page` en la URL y dejar que el RSC vuelva a consultar. Lo único que cambia es cómo se reparte el
+espacio.
+
+```
+Teléfono                                Escritorio (sin cambios)
+
+      1–25 de 118 boletas               1–25 de 118 boletas   [‹ Anterior][Página 1 de 5][Siguiente ›]
+
+[‹ Anterior]    1 de 5    [Siguiente ›]
+```
+
+**a) El recuento dice qué cuenta.** «1–25 de 118 **boletas**». El nombre no se escribe en cada
+pantalla: sale de `LIST_ITEM_LABELS` (`src/lib/constants.ts`), con **singular y plural**, por lo
+mismo que las ocho etiquetas de estado viven ahí —son términos del glosario y una pantalla no puede
+inventarse otro—. El plural español no siempre es +s, así que derivarlo en código daría palabras mal
+escritas.
+
+**Y no todas las listas cuentan lo que parece.** El reporte de recaudo pagina **días**, no pagos: una
+fila es un día con su total (`getRowId={(row) => row.paymentDate}`). Un valor por defecto genérico
+—«registros»— habría escondido eso; el parámetro es **obligatorio** justamente para que cada listado
+tenga que decir qué muestra.
+
+**b) «Página» se oye aunque no se vea.** En el teléfono el indicador dice **«1 de 5»**, pero la
+palabra se queda en `sr-only` bajo `md`: un lector de pantalla sigue anunciando «Página 1 de 5» en
+las dos pantallas. «1 de 5» a secas no dice de qué son ese 1 y ese 5. De paso, la palabra recupera la
+tilde que le faltaba desde que se escribió.
+
+**c) El indicador no parece un botón**, porque no lo es: sin borde, sin fondo y sin sombra. Se centra
+con `flex-1`, que es lo único que se puede centrar de verdad cuando «Anterior» y «Siguiente» no miden
+lo mismo: queda en el medio **de lo que hay entre los dos**, que es lo que el ojo compara.
+
+**d) Los botones se deshabilitan, no desaparecen.** Medido: en la página 1 y en la 257 los dos ocupan
+exactamente las mismas coordenadas. Si «Anterior» se escondiera en la primera página, «Siguiente» se
+movería de sitio justo cuando el dedo va a buscarlo.
+
+**e) Neutrales.** Siguen siendo `outline`. El color de acento de la aplicación está reservado a
+estados y acciones primarias, y pasar de página no es ninguna de las dos.
+
+**12 px de aire lateral, no 16.** Con 16 px, a 320 px de pantalla los dos botones dejan 48 px para el
+indicador y «1 de 257» **se parte en dos líneas** justo en la pantalla más estrecha. Con 12 px quedan
+64 px, que es lo que necesita incluso «1 de 1024» en una sola línea. Es la concesión que el propio
+encargo anticipaba: reducir un poco el aire antes que perder las palabras «Anterior» y «Siguiente».
+
+**El tope de 448 px** (`max-w-md`) no lo nota ningún teléfono —el más ancho deja 398 px de contenido—
+y evita que en una ventana estrecha de escritorio, que todavía está bajo `md`, los dos botones acaben
+en extremos opuestos con el indicador perdido en medio.
+
+**El corte pasa de `sm` a `md`.** Era el único componente que cambiaba de forma en 640 px. A 700 px la
+aplicación ya es un teléfono —hay barra inferior, hay tarjetas, no hay barra lateral (D-106, D-107)—
+y la paginación era lo único que seguía creyéndose de escritorio.
+
+**Qué cambia en escritorio, dicho sin adornos:** el texto del recuento —«Mostrando 1–25 de 118» pasa
+a «1–25 de 118 boletas»— y la tilde de «Página». Nada más: medido a 1.280 px, los botones siguen
+midiendo 32 px de alto y 10 px de aire lateral, la fila mide los mismos 314 px y sigue pegada al
+margen derecho. El texto es uno solo a propósito: son una región `aria-live` y una sola frase, y
+mantener dos redacciones del mismo dato es la clase de duplicado que acaba divergiendo.
+
+**Qué se descartó.** (a) Números de página (1 2 3 …): con 257 páginas no caben, y con 5 tampoco
+aportan —nadie salta a la 3 de una lista de boletas, se avanza—. (b) Un botón «Cargar más»: rompería
+lo que hoy funciona, que el estado viva en la URL y que volver desde el detalle de una boleta te
+devuelva a la misma página. (c) Unificar de paso el paginador de la vista previa del importador
+(`ImportPreview`): es otra cosa —estado local sobre filas ya leídas del archivo, sin URL ni
+servidor—, y unificarlos obligaría a reescribir uno de los dos.
+
+**Prueba de regresión:** `tests/e2e/boletas-movil.spec.ts`, «dice qué cuenta y deja los dos botones al
+alcance del pulgar». Verificada al revés: con el componente anterior falla en la primera afirmación,
+porque el texto «1–25 de N boletas» no existe.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

@@ -151,7 +151,12 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
                   showSeller={false}
                   showRaffle={false}
                 />
-                <DataTablePagination total={total} page={page} pageSize={pageSize} />
+                <DataTablePagination
+                  total={total}
+                  page={page}
+                  pageSize={pageSize}
+                  items="tickets"
+                />
               </TicketListSlot>
             </>
           )}

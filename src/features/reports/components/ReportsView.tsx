@@ -423,7 +423,7 @@ async function ClientBalancesReport({
         caption={`${REPORT_LABELS['client-balances']}: clientes ordenados de mayor a menor deuda`}
       />
 
-      <DataTablePagination total={total} page={page} pageSize={pageSize} />
+      <DataTablePagination total={total} page={page} pageSize={pageSize} items="clients" />
     </div>
   )
 }
@@ -498,7 +498,7 @@ async function PaymentsReport({ filters }: { filters: ReportFilters }) {
             showFooter
             footerLabel="Total del rango"
           />
-          <DataTablePagination total={total} page={page} pageSize={pageSize} />
+          <DataTablePagination total={total} page={page} pageSize={pageSize} items="days" />
         </>
       )}
     </div>

@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.10 · **Estado:** implementado · **Actualizado:** 2026-08-23
+- **Versión:** 1.11 · **Estado:** implementado · **Actualizado:** 2026-08-24
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -330,6 +330,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | Componente | Propósito |
 |------------|-----------|
 | `DataTable` | Envoltura de TanStack Table: ordenamiento, paginación, selección, estado vacío, skeleton y **fila seleccionable** (`rowHref` / `onRowActivate`, D-076). En modo selección, `onRowSelect` hace que la fila marque en vez de abrir, y `onRowLongPress` da el atajo táctil (D-085) |
+| `DataTablePagination` | La paginación de los **ocho** listados. Servidor: escribe `page` en la URL. Dice qué cuenta —«1–25 de 118 boletas», con el nombre de `LIST_ITEM_LABELS`— y bajo `md` reparte la fila de otra forma: botones de 44 px en los dos márgenes e indicador centrado entre ellos (§8.12, D-111) |
 | `TicketsList` | El envoltorio de la lista de boletas: **una fuente de datos, dos presentaciones** (§8.9, D-107). Escritorio recibe `TicketsTable`; el teléfono, `TicketCardList`. Lo elige Tailwind, no JavaScript |
 | `TicketCardList` | La lista de boletas en el teléfono (D-107): una tarjeta de 95–115 px por boleta con sus **seis** datos. Sin consulta, sin efecto, sin estado propio; reutiliza `row-activation.ts` y `useLongPress`, igual que `DataTable` |
 | `row-activation.ts` | Reglas de la fila seleccionable: qué clic la abre y cuál ya lo atiende otro elemento (D-076) |
@@ -718,6 +719,39 @@ afecta a una: las clases van en los botones, donde se leen junto a lo que modifi
 sus acciones y no debe empezar a hacerlo.
 
 **Escritorio es idéntico en las dos**: acciones a la derecha del título, 36 px, ancho de contenido.
+
+---
+
+### 8.12 La paginación: un componente, dos repartos del ancho (D-111)
+
+`DataTablePagination` es el **único** sitio donde se pagina: lo usan los ocho listados (boletas,
+clientes y pagos de los dos portales, y dos reportes). Sigue siendo paginación de servidor —`page` en
+la URL, el RSC reconsulta con `range()`— y eso no cambió. Lo que cambió es cómo reparte el ancho.
+
+```
+Teléfono (< md)                          Escritorio (≥ md, sin cambios)
+
+      1–25 de 118 boletas                1–25 de 118 boletas   [‹ Anterior][Página 1 de 5][Siguiente ›]
+
+[‹ Anterior]    1 de 5    [Siguiente ›]
+```
+
+| Regla | Dónde vive |
+|---|---|
+| Nombre de lo que cuenta cada lista, en singular y plural | `LIST_ITEM_LABELS` (`src/lib/constants.ts`); el parámetro `items` es **obligatorio** |
+| Alto táctil y aire lateral solo en el teléfono | `h-11 has-[>svg]:px-3 md:h-8 md:has-[>svg]:px-2.5` en los dos botones |
+| Que el indicador quede centrado entre los botones | `flex-1 text-center md:flex-none` |
+| Que «Página» se anuncie aunque no se vea | `sr-only md:not-sr-only` |
+
+**Tres cosas que no son evidentes:**
+
+1. **El reporte de recaudo pagina días, no pagos.** Una fila es un día con su total. Por eso `items`
+   no tiene valor por defecto: un genérico habría escondido el error.
+2. **12 px de aire lateral, no 16.** A 320 px, con 16 px el indicador se queda con 48 px y «1 de 257»
+   se parte en dos líneas. Con 12 px quedan 64, suficientes hasta para «1 de 1024».
+3. **El corte es `md`, no `sm`.** Era el último componente que cambiaba de forma en 640 px, cuando la
+   aplicación entera se vuelve teléfono en 768 (§8.8, §8.9). El tope de 448 px (`max-w-md`) evita que
+   entre 448 y 768 los botones se separen a los extremos de una ventana ancha.
 
 ---
 

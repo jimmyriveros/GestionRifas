@@ -185,3 +185,58 @@ test.describe('Los filtros en el teléfono', () => {
     await expect(page.getByRole('button', { name: 'Filtros', exact: true })).toBeVisible()
   })
 })
+
+/**
+ * La paginación, tal como se ve en un teléfono (D-111).
+ *
+ * Vive aquí, con «Mis boletas», porque es la lista más larga de la aplicación y
+ * la única donde pasar de página es rutina. El componente es compartido, así
+ * que lo que se comprueba aquí vale para clientes, pagos y reportes.
+ */
+test.describe('La paginación en el teléfono', () => {
+  test('dice qué cuenta y deja los dos botones al alcance del pulgar', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/tickets')
+    await expect(lista(page)).toBeVisible()
+
+    const ancho = page.viewportSize()!.width
+
+    // 1. El recuento dice QUÉ se está contando, con el nombre del glosario.
+    await expect(page.getByText(/^\d+–\d+ de \d+ boletas$/)).toBeVisible()
+
+    // 2. «Página» se oye aunque no se vea: en la pantalla solo cabe «1 de 5»,
+    //    pero un lector de pantalla sigue anunciando la palabra.
+    const indicador = page.getByText(/^Página \d+ de \d+$/)
+    await expect(indicador).toBeVisible()
+    const palabra = (await indicador.locator('span').first().boundingBox())!
+    expect(palabra.width).toBeLessThanOrEqual(1)
+
+    // 3. Los dos botones, de 44 px, uno en cada margen y en la misma fila.
+    const anterior = page.getByRole('button', { name: 'Anterior' })
+    const siguiente = page.getByRole('button', { name: 'Siguiente' })
+    const cajaAnterior = (await anterior.boundingBox())!
+    const cajaSiguiente = (await siguiente.boundingBox())!
+    expect(cajaAnterior.height).toBeGreaterThanOrEqual(44)
+    expect(cajaSiguiente.height).toBeGreaterThanOrEqual(44)
+    expect(Math.abs(cajaAnterior.y - cajaSiguiente.y)).toBeLessThan(1)
+    expect(cajaAnterior.x).toBeLessThan(24)
+    expect(cajaSiguiente.x + cajaSiguiente.width).toBeGreaterThan(ancho - 24)
+
+    // Y el indicador, centrado en lo que queda entre los dos.
+    const cajaIndicador = (await indicador.boundingBox())!
+    const centroIndicador = cajaIndicador.x + cajaIndicador.width / 2
+    const centroHueco = (cajaAnterior.x + cajaAnterior.width + cajaSiguiente.x) / 2
+    expect(Math.abs(centroIndicador - centroHueco)).toBeLessThan(2)
+
+    // 4. En la primera página «Anterior» NO se esconde: se deshabilita. Si
+    //    desapareciera, «Siguiente» cambiaría de sitio bajo el dedo.
+    await expect(anterior).toBeVisible()
+    await expect(anterior).toBeDisabled()
+
+    // 5. Y nada de esto se sale a lo ancho.
+    const desborde = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(desborde).toBe(0)
+  })
+})

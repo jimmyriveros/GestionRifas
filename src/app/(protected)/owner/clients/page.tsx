@@ -55,7 +55,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
       ) : (
         <>
           <ClientsTable clients={rows} basePath="/owner/clients" showSeller />
-          <DataTablePagination total={total} page={page} pageSize={pageSize} />
+          <DataTablePagination total={total} page={page} pageSize={pageSize} items="clients" />
         </>
       )}
     </div>

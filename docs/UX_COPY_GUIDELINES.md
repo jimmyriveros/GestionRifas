@@ -448,6 +448,13 @@ las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**.
 `src/lib/constants.ts` (`docs/ARCHITECTURE.md` §8.3). Cambiar una etiqueta significa cambiar ese
 archivo, nunca escribirla suelta en una pantalla.
 
+**La paginación dice qué está contando** (D-111). No «Mostrando 1–25 de 118», que deja al lector
+adivinando de qué son esos 118, sino **«1–25 de 118 boletas»**, con el término del glosario que
+corresponda a la lista: boletas, clientes, pagos. En el teléfono, además, el indicador central dice
+**«1 de 5»** y no «Página 1 de 5» —no hay ancho para la palabra—, pero la palabra sigue estando para
+quien escucha la pantalla. Los nombres se escriben una sola vez, en `LIST_ITEM_LABELS`, con su
+singular y su plural: «1–1 de 1 boleta», nunca «1 boletas».
+
 **«Invitación pendiente» no es «Inactivo», y la diferencia importa** (BR-E14). *Inactivo* significa
 que alguien le quitó el acceso a esa persona; *invitación pendiente*, que todavía no ha entrado
 ninguna vez. Se ven parecidos en pantalla y no lo son: mientras la invitación esté pendiente, quien
@@ -460,6 +467,7 @@ castigo donde solo había una espera.
 | Tipo de texto | Dónde se escribe |
 |---|---|
 | Etiquetas de estado, roles y métodos de pago | `src/lib/constants.ts` |
+| Nombre de lo que cuenta cada listado en su paginación | `src/lib/constants.ts` (`LIST_ITEM_LABELS`, D-111) |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
 | «Seleccionar varias» y su «Cancelar» | `src/features/tickets/selection/components/TicketSelectionModeButton.tsx` (D-108) |

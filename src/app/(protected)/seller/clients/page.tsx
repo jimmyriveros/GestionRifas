@@ -69,7 +69,7 @@ export default async function SellerClientsPage({ searchParams }: { searchParams
       ) : (
         <>
           <ClientsTable clients={rows} basePath="/seller/clients" />
-          <DataTablePagination total={total} page={page} pageSize={pageSize} />
+          <DataTablePagination total={total} page={page} pageSize={pageSize} items="clients" />
         </>
       )}
     </div>

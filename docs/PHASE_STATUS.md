@@ -2101,3 +2101,71 @@ Desplegada con autorización expresa del dueño, el mismo día. **Sin migracione
 **Lo que debe revisar el dueño a mano:** entrar como vendedor desde un teléfono real, marcar una
 boleta y confirmar dos cosas: que la lista empieza justo debajo del recuento y que, al final de la
 lista, se puede tocar «Siguiente» sin que la barra lo tape.
+
+---
+
+## Mantenimiento post-9 — la paginación en el teléfono (2026-08-24)
+
+Encargo del dueño: la paginación funcionaba, pero en el móvil se sentía rígida y con mala jerarquía.
+Decisión **D-111**. Sin migraciones. **Sin desplegar.**
+
+`Route changes: None` · `Business logic changes: None` · `New API calls: None` ·
+`Query changes: None` · `New dependencies: None`
+
+### 1. Funcionalidades implementadas
+
+Ninguna nueva: presentación. **No se tocó nada del paginado** —ni `page`, ni `pageSize`, ni el cálculo
+del rango, ni los filtros, ni la búsqueda, ni el orden, ni los parámetros de la URL, ni volver desde
+el detalle de una boleta—. El componente sigue siendo uno solo para los ocho listados.
+
+- **El recuento dice qué cuenta:** «1–25 de 118 **boletas**», con el término del glosario que
+  corresponda, en singular o plural. Los nombres viven en `LIST_ITEM_LABELS` (`src/lib/constants.ts`)
+  y el parámetro es **obligatorio**: un genérico habría escondido que el reporte de recaudo pagina
+  **días**, no pagos.
+- **Los botones suben a 44 px** y se van a los dos márgenes de la fila, que es donde llega el pulgar.
+  Siguen siendo `outline`: pasar de página no es una acción primaria.
+- **El indicador dice «1 de 5»**, sin borde ni fondo, centrado entre los dos botones. La palabra
+  «Página» se queda en `sr-only` bajo `md`, así que un lector de pantalla la sigue anunciando.
+- **En los extremos los botones se deshabilitan, no desaparecen**, y conservan sus coordenadas
+  exactas: nada se mueve bajo el dedo.
+- **Escritorio prácticamente no cambia**: los botones siguen midiendo 32 px con 10 px de aire, y la
+  fila los mismos 314 px a la derecha del recuento. Cambian dos textos: el recuento (que ahora dice
+  qué cuenta) y la tilde de «Página», que faltaba.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npx tsc --noEmit` | ✅ |
+| `npx eslint .` | ✅ 0 errores, 2 avisos preexistentes de TanStack |
+| `npx vitest run` | ✅ **325/325** |
+| `npx playwright test --project=movil` | ✅ **51/51** (1 nueva) |
+| `npx playwright test --project=escritorio` | ✅ **242/242** |
+| `npm run build` | ✅ |
+
+Medidas a 320, 375, 700 y 1.280 px, el recuento de las cinco listas y la verificación al revés de la
+prueba nueva, en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+**Ninguna.**
+
+### 4. Variables de entorno
+
+**Ninguna nueva.**
+
+### 5. Problemas que permanecen
+
+Los de siempre (I-066, I-062, I-063, columna «Abono» del importador). **De este cambio, ninguno.**
+Queda **fuera a propósito** el paginador de la vista previa del importador (`ImportPreview`): es
+estado local sobre filas ya leídas de un archivo, sin URL ni servidor, y unificarlo obligaría a
+reescribir uno de los dos.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **`items` es obligatorio en `DataTablePagination`.** Una lista nueva tiene que decir qué muestra, y
+   el nombre sale de `LIST_ITEM_LABELS`, no de un texto escrito en la pantalla.
+2. **Comprueba qué pagina de verdad la lista** antes de elegir el nombre. El reporte de recaudo
+   parecía paginar pagos y pagina días.
+3. **El corte de esta pantalla es `md`, como el resto de la aplicación.** No lo devuelvas a `sm`: a
+   700 px hay barra inferior y tarjetas, o sea, teléfono.

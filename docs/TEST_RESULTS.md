@@ -2959,3 +2959,72 @@ hechas las capturas del reporte.
 contraseña de producción, y eso no lo maneja un agente. Queda para el dueño, en un teléfono real: al
 marcar una boleta, la lista debe empezar justo debajo del recuento, y al final de la lista
 «Siguiente» debe poder tocarse sin que la barra lo tape.
+
+---
+
+## La paginación en el teléfono (2026-08-24)
+
+Rediseño de presentación (**D-111**) sobre el componente que comparten los ocho listados. Sin
+migraciones, sin consultas nuevas y sin tocar el cálculo de páginas.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint .` | ✅ 0 errores | 2 avisos `react-hooks/incompatible-library` | Preexistentes (`DataTable.tsx`, `BulkTicketCreator.tsx`). No son de este cambio |
+| `npx vitest run` | ✅ **325/325** | — | — |
+| `npx playwright test --project=movil` | ✅ **51/51** (1 nueva) | — | `db:reset` + `seed:local` antes de la pasada |
+| `npx playwright test --project=escritorio` | ✅ **242/242** | — | Suite completa: el componente lo usan las ocho listas |
+| `npm run build` | ✅ | — | — |
+
+### Lo que se midió en el navegador
+
+Vendedor, servidor local, `/seller/tickets` con **6.410 boletas** (257 páginas): el peor caso real
+para el ancho, porque el indicador tiene que escribir tres cifras.
+
+| Comprobación | 320 px | 375 px | 1.280 px |
+|---|---|---|---|
+| Alto de los botones | **44 px** | **44 px** | **32 px** (sin cambio) |
+| Aire lateral de los botones | 12 px | 12 px | **10 px** (sin cambio) |
+| «Anterior» / «Siguiente» | 100 y 108 px, pegados a los dos márgenes | 100 y 108 px, ídem | 96 y 104 px, a la derecha |
+| Indicador | «1 de 257» en **una línea**, 64 px | «1 de 257», 119 px | «Página 1 de 257» |
+| Centrado del indicador entre los botones | exacto (156 vs 156) | exacto (183,5 vs 183,5) | n/a |
+| Ancho de la fila de controles | 288 px | 343 px | **314 px** (sin cambio) |
+| `scrollWidth − clientWidth` | **0** | **0** | 0 |
+
+**Espaciado pedido y espaciado obtenido, a 375 px:**
+
+| | Pedido | Medido |
+|---|---|---|
+| Última boleta → recuento | 24 px | **24 px** |
+| Recuento → botones | 12–16 px | **16 px** |
+| Botones → barra inferior | 24–32 px | **23 px** (8 de `pb-2` + 16 del armazón, menos el borde) |
+
+**Estados deshabilitados.** En la página 1, «Anterior» sigue visible con `opacity: 0.5` y
+`pointer-events: none`; en la 257, «Siguiente». **Las coordenadas de los dos botones son idénticas en
+ambas páginas** (x = 16 y x = 196 a 320 px): nada se mueve bajo el dedo al cambiar de página.
+
+### Lo que se comprobó en las ocho listas
+
+| Pantalla | Recuento |
+|---|---|
+| `/seller/tickets` | «1–25 de 6410 boletas» |
+| `/seller/clients` | «1–25 de 47 clientes» |
+| `/seller/payments` | «1–25 de 45 pagos» |
+| Reporte «clientes con saldo» | «1–25 de 29 clientes» |
+| Reporte de recaudo | «1–1 de **1 día**» — singular correcto, y **días**, no pagos |
+
+Ese último es el hallazgo del trabajo: el reporte de recaudo pagina **días**, no pagos. Un valor por
+defecto genérico lo habría escondido; por eso `items` no lo tiene.
+
+### La prueba de regresión se verificó al revés
+
+Con el componente anterior en su sitio, la prueba nueva falla en la primera afirmación —el texto
+«1–25 de N boletas» no existe— y no en un detalle de píxeles.
+
+### Un tropiezo del arnés, no del producto
+
+Al arrancar el servidor local, `/seller/tickets` devolvió 500 con
+`PGRST303: JWT issued at future`: la sesión guardada del navegador tenía un `iat` por delante del
+reloj del contenedor de Supabase. Se resolvió volviendo a entrar. **No es un fallo de la aplicación
+ni tiene que ver con este cambio**, pero conviene reconocerlo la próxima vez en vez de buscar la
+causa en el código.
