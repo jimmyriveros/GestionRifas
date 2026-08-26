@@ -875,7 +875,8 @@ rol que ya existía.
 | Ofrecimiento de instalar | `src/features/pwa/components/InstallPrompt.tsx` + `install-state.ts` | Tarjeta al final de los dos paneles |
 | Pantalla sin conexión | `src/app/offline/page.tsx` + `components/OfflineRetry.tsx` | `force-dynamic`, pública, precargada por el worker |
 | Constantes compartidas | `src/lib/pwa.ts` | Nombre, descripción, color y versión |
-| Iconos | `public/icons/` | SVG de origen + PNG generados. **Provisionales**, I-071 |
+| Iconos | `public/icons/` | Seis PNG **generados**, nunca editados a mano |
+| Logo, y cómo se cambia | `public/icons/source/*.svg` + `scripts/generate-icons.ts` | `npm run icons`. Soltar los SVG nuevos y ejecutar; los nombres de salida no cambian, así que el manifiesto no se toca (D-122) |
 
 **Qué guarda el worker y qué no** está en D-116, en una tabla, con la razón de cada línea. La regla
 corta: **archivos con huella de contenido, sí; cualquier cosa que lleve datos de una persona, no** —ni

@@ -3891,6 +3891,91 @@ prueba.
 **limpia**, `reactAttached: true`, y al enviar un correo inválido aparece «Ingresa un correo válido.»
 **sin que la dirección cambie**. Antes: sin mensaje y con `?email=…` en la URL.
 
+## D-122 — El logo entra por una carpeta y sale por un comando
+
+**Fecha:** 2026-08-26 · **Encargo:** el dueño entrega el logo real en cinco SVG (16, 32, 48, 180 y
+512 px) y pide **que sea fácil de reemplazar, porque no es el definitivo y habrá varias versiones**.
+
+Cierra **I-071**. Lo importante de esta decisión no es el dibujo: es que el siguiente dibujo no
+cueste nada.
+
+### Cómo se cambia el logo, de principio a fin
+
+1. Borrar los SVG de `public/icons/source/`.
+2. Dejar los nuevos ahí. **El nombre da igual.**
+3. `npm run icons`.
+4. Mirar la vista previa que imprime el script y hacer commit.
+
+No hay que recordar qué tamaños hacen falta, ni cuáles no admiten transparencia, ni tocar el
+manifiesto: los nombres de salida no cambian nunca.
+
+### Lo que el script decide solo, y por qué
+
+**Qué dibujo usa para cada salida.** Cada SVG declara en su `width` para qué tamaño está afinado, y
+el script elige el más cercano a lo que va a generar. **No** se elige por resolución —son vectores,
+cualquiera se rasteriza nítido a cualquier medida—: se elige por **afinado**, que es lo que de
+verdad distingue el SVG de 16 px del de 512. En el logo entregado, el de 16 agranda los puntos del
+billete y quita las líneas finas, que a ese tamaño solo ensucian; sería una pena perder ese trabajo
+rasterizando el de 512 a 16 px. Con **un solo** SVG también funciona: se usa para todo.
+
+**Dos archivos para el mismo tamaño paran el script.** Casi siempre significa que quedó uno de la
+versión anterior, y el resultado sería mitad logo nuevo y mitad viejo.
+
+**El color de fondo se deduce del propio dibujo.** Se mira el píxel del centro del borde superior:
+en un logo de placa cae dentro de la placa y da su color, así que al cambiar de logo no hay ninguna
+constante que tocar. Si ese píxel es transparente —el logo es una marca suelta, no una placa—, se usa
+un color de repuesto declarado en el script.
+
+### Tres variantes, porque una no vale para los tres sitios
+
+| Variante | Transparencia | Por qué |
+|---|---|---|
+| `any` (192, 512) y el `favicon.ico` | **Sí**, tal cual se dibujó | Es la pestaña del navegador y el hueco clásico de Android: las esquinas redondeadas del logo se ven como son |
+| `maskable` (192, 512) | **No**, a sangre sobre fondo opaco | Android lo **recorta** con la forma que elija el fabricante. Una esquina transparente ahí no es una esquina bonita: es un agujero |
+| `apple-touch-icon` (180) | **No**, igual | iOS rellena de **negro** cualquier transparencia antes de aplicar su máscara |
+
+El `favicon.ico` lleva 16, 32 y 48 en un solo contenedor, cada uno desde su SVG afinado.
+
+### La comprobación que se intentó tres veces y se acabó tirando
+
+La zona segura de un icono `maskable` es el círculo central del 80 %: fuera de ahí, el recorte puede
+comerse cualquier cosa. Parecía automatizable —medir cuánto ocupa el dibujo— y **no lo es**, porque
+un icono de aplicación suele ser una **placa con una marca dentro**, y la placa está justamente para
+que el recorte se la coma. Separar una de otra a ojo de píxel falló tres veces, y las tres quedan
+escritas en el script para que nadie las repita:
+
+| Premisa | Qué midió de verdad | Resultado |
+|---|---|---|
+| «lo que se aparta del color de una esquina» | la placa entera, porque su degradado hace que la esquina opuesta ya se aparte | 361 px de 362 posibles |
+| «lo que cambia al desenfocar» | su propio halo: el desenfoque reparte el contraste unos 40 px hacia fuera | 246 px |
+| «contraste entre píxeles vecinos» | el borde redondeado de la placa, que es exactamente lo que **sí** debe recortarse | 351 px |
+
+Las tres daban la misma falsa alarma sobre un logo que **está bien** —el billete llega a 185 px de
+los 205 permitidos, comprobado a mano sobre las coordenadas del SVG—. Y un aviso que salta con el
+estilo de icono más común es peor que no tener aviso: se aprende a ignorarlo.
+
+Así que el script **no opina: enseña**. Deja en `.icons-preview/` el icono recortado en círculo, que
+es lo más agresivo que hace Android, y lo nombra al terminar. Si la marca se entiende ahí, aguanta
+cualquier forma. La carpeta está en `.gitignore`: es material para mirar, no para publicar.
+
+### Una dependencia nueva, declarada
+
+**`sharp` pasa a ser `devDependency` explícita.** Ya estaba instalada, pero como dependencia
+**opcional y transitiva de Next**: un `npm ci --omit=optional` o una plataforma sin binario dejaban
+el script roto sin avisar. Es solo de desarrollo —no toca el paquete que descarga el navegador— y su
+único uso es este script.
+
+### Lo que NO cambió
+
+Ni el manifiesto, ni `theme_color`, ni `background_color`. Siguen en blanco a propósito: colorean la
+barra de estado de Android y la pantalla de arranque, y tienen que seguir coincidiendo con el
+encabezado **de la aplicación**, que es blanco. Poner ahí el azul del logo haría que el arranque
+destellara de azul a blanco.
+
+Tampoco se puso el logo dentro de ninguna pantalla. La aplicación identifica a la organización por
+su **nombre**, no por una marca, y meter el logo en el encabezado o en el inicio de sesión es una
+decisión de diseño que nadie ha pedido.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

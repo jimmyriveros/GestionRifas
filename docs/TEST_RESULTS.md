@@ -3566,3 +3566,26 @@ pequeño en los dos casos.
 sesión es exactamente lo que provocó **I-066**. Queda para el dueño: entrar como dueño,
 administrador y vendedor, y —lo específico de este cambio— **instalar la aplicación en un teléfono
 real**, comprobar que abre sin barra del navegador y que el icono se ve bien recortado en Android.
+
+---
+
+## El logo real y su tubería de iconos (2026-08-26)
+
+Cierra **I-071**. D-122.
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run verify` | ✅ `typecheck`, `lint` (0 errores), **374/374** unitarias y `build` |
+| `npm run icons` | ✅ genera las **6** salidas desde los 5 SVG, eligiendo para cada una la fuente afinada a ese tamaño |
+| Color de fondo deducido del dibujo | ✅ `#0f0642`, sin ninguna constante que tocar |
+| Las 4 direcciones del manifiesto | ✅ **200** `image/png` — 10,6 / 30,5 / 9,6 / 26,9 KB |
+| `favicon.ico` y `apple-touch-icon.png` | ✅ **200** — 4,5 KB (16/32/48 dentro) y 9,1 KB |
+| Next tomó el `.ico` nuevo | ✅ su huella cambió de `3gfhwutmq8fe0` a `04dr9ycptv9im` |
+| Consola en `/login`, pestaña limpia | ✅ **cero errores** |
+| **Zona segura del `maskable`** | ✅ mirado en la vista previa del recorte circular: el billete entra entero y con margen |
+
+**Las tres comprobaciones automáticas que se descartaron** —y por qué la zona segura acabó siendo una
+vista previa en vez de un aviso— están en D-122 con sus tres mediciones. Resumen: las tres medían la
+placa del icono en vez de la marca, y daban falsa alarma sobre un logo correcto. El dato de control,
+calculado a mano sobre las coordenadas del SVG: el billete llega a **185 px** de los **205**
+permitidos en un lienzo de 512.

@@ -149,6 +149,8 @@ npm run verify        # typecheck + lint + test + build
 npm run seed          # datos de desarrollo en el proyecto de .env.local
 npm run seed:local    # datos de desarrollo en la instancia local
 npm run db:reset      # reaplica todas las migraciones desde cero (local)
+npm run icons         # regenera TODOS los iconos desde public/icons/source/*.svg
+                      # (cambiar el logo = soltar los SVG ahí y ejecutar esto — D-122)
 npm run create-org -- --name "..." --owner-email ... --owner-name ... --owner-phone ...
                       # alta operativa de una organizacion y su primer Owner (docs/OPERATIONS.md)
 ```
