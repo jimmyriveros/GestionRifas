@@ -3878,3 +3878,60 @@ con nombre largo y mira el **detalle**, en los dos portales. Comprueba además q
 `prettier` reunió en una línea el ternario de `discount` en `seller/tickets/[ticketId]/page.tsx`.
 No es un cambio buscado: ese archivo ya estaba fuera de formato antes de tocarlo —mide exactamente
 los 100 caracteres del `printWidth`— y la pasada obligatoria lo dejó canónico. No cambia nada.
+
+## Despliegue de D-124 y D-125 a producción (2026-08-26)
+
+Autorizado expresamente por el dueño. **Sin migraciones**: cero cambios bajo `supabase/`, así que no
+había orden que respetar entre base de datos y código y la reversión es un Instant Rollback sin nada
+que deshacer en la base.
+
+| Qué | Resultado |
+|---|---|
+| Empujado | `bb48fd1..a031ae1` a `origin/main`, **2 commits** |
+| CI | ✅ **2/2** en 4 min 15 s (`verify` y el job de migraciones desde cero) |
+| Vercel | ✅ `READY` · `dpl_5LEiRyfxufAXerFkEgb3dTzNwExa` · `iad1` · build de **36 s** |
+| Alias | ✅ `gestion-rifas.vercel.app` |
+
+### En vivo
+
+| Qué | Resultado |
+|---|---|
+| Las 6 cabeceras en `/login` | ✅ con `worker-src`, `manifest-src` y `strict-dynamic` |
+| 4 rutas protegidas sin sesión | ✅ **307** las cuatro |
+| 6 rutas públicas | ✅ **200** todas, con su tipo correcto |
+| El código servido es este commit | ✅ `94f2b9706c14` en 1 de los 15 fragmentos |
+| Claves de servicio | ✅ **0** en el HTML y en los 15 fragmentos (941 KB) |
+| Tiempo de respuesta | 155, 151 y 161 ms · sin arranque en frío |
+
+### Que el rediseño está SERVIDO, no solo construido
+
+La comprobación del identificador de versión prueba que el dominio responde con este commit. Esta
+otra prueba que el cambio **concreto** llegó: la hoja de estilo de producción trae las **cuatro**
+reglas `font-size` que en toda la aplicación **solo** genera D-124, y que antes no existían porque
+nadie usaba unidades de contenedor:
+
+```
+font-size:23cqw                    el porcentaje del anillo del panel
+font-size:26cqw                    el porcentaje del anillo de una boleta
+font-size:max(.6875rem,8cqw)       «recaudado»
+font-size:max(.6875rem,9cqw)       «abonado»
+```
+
+Diez apariciones de `cqw` en 86.786 bytes de CSS, y **un** `container-type`, que es el `@container`
+de los dos anillos. Si el dominio estuviera sirviendo el build anterior, las cuatro darían cero.
+
+### Lo que un agente NO puede comprobar aquí
+
+Las dos tarjetas rediseñadas viven **detrás del inicio de sesión**, y automatizar ese acceso con las
+cuentas reales es exactamente lo que provocó **I-066**: la sonda pulsó «Ingresar» antes de que React
+hidratara y la contraseña acabó en una URL que llegó al registro de accesos de Vercel. **No se
+intentó.**
+
+La evidencia de que el rediseño está bien es la de local, con sesión real contra la base local:
+E2E **296/296**, y medición a 1280, 820, 412 y 320 px con desbordamiento **0**. La evidencia de que
+ESO es lo que está sirviendo el dominio es la de arriba. Queda para el dueño entrar y mirarlo,
+preferiblemente desde un teléfono.
+
+**Se espera además el aviso de versión nueva** en quien tenga la aplicación instalada: el service
+worker anterior detectará este build y ofrecerá «Hay una nueva versión de Rifas · Actualiza cuando
+termines lo que estás haciendo». No se recarga solo (D-116).
