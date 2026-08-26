@@ -2484,7 +2484,9 @@ Suspense de toda la aplicación y decidir vidas de caché para datos financieros
 sin conexión, vuelta a la red y ciclo completo de actualización. Detalle, cifras y **los cuatro
 errores encontrados** —tres corregidos y uno ajeno que se documentó sin tocar— en `TEST_RESULTS.md`.
 
-⚠️ **`test:db` (518) y `test:e2e` (294) NO se ejecutaron**: Docker no estaba levantado (**I-073**).
+**`test:db` 518/518 y `test:e2e` 294/294**, ejecutadas el mismo día al levantar Docker, sembrando
+limpio antes de cada pasada (I-073 cerrado). La primera pasada E2E dio 1 fallo que **no era del
+código** y que se reprodujo igual sobre el commit anterior a este trabajo: **I-075**.
 
 ### 3. Migraciones
 

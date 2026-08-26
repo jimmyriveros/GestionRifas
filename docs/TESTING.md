@@ -184,6 +184,23 @@ La salida real, no aplicada por su coste en CI, es un segundo proyecto de Playwr
 `npm run build && npm start` y ejecute un puñado de comprobaciones de humo sobre las pantallas
 públicas. Ver I-074.
 
+### 3.3 La primera prueba paga la compilación de todos los demás (2026-08-26, I-075)
+
+**Si `.next/dev` está frío, `back-navigation.spec.ts:25` falla siempre.** No es intermitencia: es
+determinista, y se reprodujo tres veces. Un solo presupuesto de 60 s tiene que pagar la compilación
+bajo demanda de **cuatro** rutas encadenadas —`/login` y `/owner/dashboard` en el `beforeEach`,
+`/owner/tickets` en el `goto`, y `/owner/tickets/[ticketId]` en el clic—, sobre un disco que el
+propio Next marca en el registro del arnés como lento.
+
+| Estado de `.next/dev` | Resultado de esa prueba |
+|---|---|
+| Frío (recién borrado) | ❌ agota los 60 s |
+| Caliente | ✅ **3,3 s** |
+
+**Antes de culpar a tu cambio, repite con la caché caliente.** Se comprobó que es ajeno al código
+haciendo el mismo experimento en frío sobre un commit anterior: falló exactamente igual. Una pasada
+completa en frío da `293 passed, 1 failed`; en caliente, `294 passed`.
+
 ---
 
 ## 4. Casos de prueba de base de datos obligatorios (Fase 2)

@@ -3468,3 +3468,48 @@ así que funciona sin JavaScript. Es la razón por la que ella y `/_not-found` s
 perfectamente ahí. Por eso el fallo cruzó la auditoría de la Fase 7 y la de la Fase 9 con 294 pruebas
 en verde. Registrado como **I-074**; mitigación parcial en `tests/unit/csp-dynamic-pages.test.ts`,
 que además hace que borrar el `export const dynamic` rompa `typecheck`.
+
+---
+
+## Las dos suites que faltaban, ejecutadas (2026-08-26)
+
+Cierra **I-073**. Docker levantado; se sembró limpio (`db:reset` + `seed:local`) **antes de cada
+pasada**, y se reinició Kong tras cada reset —la trampa del 502 de `HANDOFF` §9—.
+
+| Suite | Resultado |
+|---|---|
+| `npm run test:db` | ✅ **518/518** en 25 archivos, 35 s, sobre las 30 migraciones recién aplicadas |
+| `npm run test:e2e` | ✅ **294/294** (escritorio + móvil), 15,5 min |
+
+Con eso, el trabajo de la PWA (D-115 a D-120) y el arreglo de `/forgot-password` (D-121) quedan
+cubiertos por **las tres** suites: 374 unitarias, 518 de base de datos y 294 E2E.
+
+### El fallo de la primera pasada, y por qué no era del código
+
+La **primera** pasada completa dio `293 passed, 1 failed`:
+`back-navigation.spec.ts:25` agotó los 60 s esperando la navegación a `/owner/tickets/[ticketId]`.
+La instantánea de la caída mostraba la lista correctamente renderizada, con su enlace y su `href`
+correctos: la navegación sencillamente no había ocurrido.
+
+Se investigó antes de tocar nada, con cuatro experimentos:
+
+| Experimento | Resultado |
+|---|---|
+| Suite completa, `.next/dev` frío | 293 ✅ / **1 ❌** |
+| Solo esa spec, caché caliente | **9/9**, y la prueba en cuestión tardó **3,3 s** de sus 60 s |
+| Solo esa spec, `.next/dev` borrado a mano | **1 ❌ / 8 ✅** — determinista, no intermitente |
+| Lo mismo en frío sobre **`c2a519c`**, el commit anterior a todo este trabajo | **1 ❌ / 8 ✅**, exactamente igual |
+
+**Conclusión: es ajeno al código y anterior.** Un único presupuesto de 60 s tiene que pagar la
+compilación bajo demanda de **cuatro** rutas encadenadas —`/login` y `/owner/dashboard` en el
+`beforeEach`, `/owner/tickets` en el `goto` y el detalle en el clic— sobre un disco que el propio
+Next marca en el registro del arnés: `Slow filesystem detected. The benchmark took 259ms`. Le toca
+siempre a `back-navigation.spec.ts` porque es la **primera por orden alfabético**: paga la factura de
+todas las demás.
+
+Registrado como **I-075**, con las tres salidas posibles. **No se aplicó ninguna**: subir el
+`timeout` escondería el problema en vez de resolverlo, y un `globalSetup` que caliente las rutas
+cambia lo que la suite tolera, que es una decisión del dueño.
+
+**Cómo no volver a perder el tiempo:** una pasada en frío da `293 passed, 1 failed`; en caliente,
+`294 passed`. Antes de culpar a un cambio, repite con `.next/dev` ya poblado.
