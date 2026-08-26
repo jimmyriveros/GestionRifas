@@ -3633,3 +3633,58 @@ navegador en vez de fiarse del `grep`.
 reaccione no funciona: nada la vuelve a pintar. En la prueba del evento sintético sí reaccionaba
 —porque el evento notifica a los suscriptores—, y eso escondía el problema. Se resolvió forzando una
 navegación de cliente. **Ojo con esto al probar cualquier cosa que dependa de `navigator`.**
+
+---
+
+## Despliegue del logo y del ofrecimiento corregido (2026-08-26)
+
+`f597905` — el logo real con su tubería (D-122) y el ofrecimiento de instalar movido y ampliado
+(D-123). **Sin migraciones.**
+
+| Paso | Resultado |
+|---|---|
+| CI | ✅ **2/2** |
+| Vercel | ✅ `READY` · `dpl_9yN22Txx5nS6euMpBaRtD2cxVMUk` · `iad1` · build de **47 s** |
+| Alias | ✅ `gestion-rifas.vercel.app` |
+
+### En vivo
+
+| Qué | Resultado |
+|---|---|
+| Las 6 cabeceras, con `worker-src` y `manifest-src` | ✅ |
+| 4 rutas protegidas sin sesión | ✅ **307** |
+| 9 rutas públicas de la PWA | ✅ **200** todas |
+| **El logo servido es el generado en local** | ✅ **6 de 6** coinciden **byte a byte**: los cuatro iconos del manifiesto, el de Apple y el `favicon.ico` |
+| El código servido es este commit | ✅ `a19381d22edf` en los fragmentos |
+| Claves de servicio | ✅ **0** en el HTML y en los 15 fragmentos (941 KB) |
+| Manifiesto | ✅ «Rifas», `standalone`, 4 iconos, **2 maskable** |
+| Consola en `/login` | ✅ sin errores |
+
+### El ciclo de actualización, observado en producción
+
+No hizo falta simularlo: el navegador tenía el worker de la versión anterior y el nuevo se instaló
+solo mientras se miraba.
+
+| Momento | Estado |
+|---|---|
+| Al abrir | activo `v=f300e003e18b`, **esperando** `a19381d22edf`, **3** cachés, y el aviso «Hay una nueva versión de Rifas · Actualiza cuando termines lo que estás haciendo» |
+| Tras pulsar «Actualizar» | activo **`v=a19381d22edf`**, sin worker en espera, aviso cerrado y **`rifas-shell-f300e003e18b` borrada** |
+
+Es exactamente lo que D-116 describe, confirmado sobre el dominio real: la versión nueva **no** se
+activa sola, y al activarse limpia la anterior. En ningún momento hubo entradas ajenas en las cachés.
+
+### Tiempo de respuesta
+
+| Ciclo | `/login` | `/denied` (CDN) |
+|---|---|---|
+| 1–3, seguidos | 374, 326, 335 ms | 386, 289, 311 ms |
+| 4, tras 60 s de pausa | 418 ms | — |
+
+Sin arranque en frío. `/denied`, por CDN, marca el coste de conexión desde esta máquina.
+
+### Lo que sigue sin poder comprobar un agente
+
+La tarjeta de instalación **en producción** vive detrás del inicio de sesión, y automatizar ese
+acceso con las cuentas reales es lo que provocó **I-066**. Se verificó con sesión real **contra la
+base local** (D-123): tarjeta en `y = 274` visible sin scrollear, en los tres contextos, y la opción
+del menú. Queda para el dueño confirmarlo en su iPhone, en Safari y en Chrome.
