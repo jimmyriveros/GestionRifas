@@ -3246,3 +3246,48 @@ Con el arnés de Playwright del proyecto —que es quien tiene las credenciales 
 **$240.000** comprado; un abono activo de **$40.000** y otro **anulado de $20.000** que no cuenta;
 **$200.000** de saldo. Cuadra, y sale de `v_client_balances` sin sumar nada en el navegador.
 
+
+### Ajuste posterior: «Información general» en cuadrícula (2026-08-25)
+
+El dueño pidió, después de ver la pantalla desplegada, que en el teléfono los cuatro datos fueran
+una **cuadrícula** en vez de una lista apilada. Medido antes y después, con el mismo cliente y el
+mismo navegador:
+
+| Ancho | Alto de la tarjeta antes | Después |
+|---|---|---|
+| 320 px | **262 px** | **167 px** (−36 %) |
+| 390 px | **262 px** | **167 px** (−36 %) |
+
+Comprobado además: el teléfono cabe en **una** línea a 320 px (69 px de 80 disponibles),
+`scrollWidth == clientWidth` en 320 y 390 en los dos portales, la fila de notas conserva su línea, el
+estado archivado se ve dentro de su celda y, en el portal administrativo, el quinto dato ocupa la
+fila entera en vez de dejar media vacía.
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` · `lint` · `build` | ✅ (los 2 avisos preexistentes) |
+| `npm run test` | ✅ **359/359** |
+| E2E `seller-clients` + `boleta-cliente` + `payments` (escritorio) | ✅ **42/42**, sobre base recién sembrada |
+| E2E proyecto `movil` completo | ✅ **51/51** |
+
+### Una trampa del arnés que costó media hora, y que NO es un fallo del producto
+
+Al limpiar los datos de una prueba apareció una nota guardada como «**aga** los viernes…»: le faltaba
+la primera letra. La base de datos tenía exactamente ese texto, así que la pantalla pintaba lo que
+había; el carácter se perdió **al guardar**.
+
+Reproducido y acotado:
+
+| Cómo se escribe | Resultado |
+|---|---|
+| `campo.fill('X')` sobre un campo **vacío** | correcto |
+| `campo.fill('X')` sobre un campo **con texto** | queda `'X' + texto viejo sin su primera letra` |
+| `campo.fill('')` sobre un campo con texto | borra **un** carácter, no el contenido |
+| Clic + `Ctrl+A` + escribir (como una persona) | correcto: sobrescribe entero |
+| Clic + `Ctrl+A` + `Delete` + guardar | correcto: la columna queda en `null` |
+
+Es la interacción conocida entre `fill()` y un campo **controlado** por react-hook-form: al fijar el
+valor por DOM, React restaura el suyo. Una persona escribe tecla a tecla y cada pulsación sí llega a
+React, por eso el formulario funciona. **Consecuencia para quien escriba pruebas:** `fill()` solo es
+de fiar sobre campos vacíos; para editar un valor existente hay que usar `Ctrl+A` y escribir encima,
+o el dato que se guarda no es el que la prueba cree.

@@ -831,7 +831,7 @@ el rol y ninguna más.
 
 ```
 [←] Nombre  (Activo)              [+ Registrar abono] [Editar] [Archivar cliente]
-[ Teléfono │ Correo │ Alta │ Estado ]                    ← tira, separadores solo en lg
+[ Teléfono │ Correo │ Alta │ Estado ]      ← una fila en lg; 2 x 2 en el teléfono
 [ Boletas ][ Total comprado ][ Total pagado ][ Saldo pendiente ]   ← KpiCard, 4 en xl
 ┌ Boletas de este cliente ─────────────────────────────┐
 │  tabla (escritorio) / tarjetas (teléfono), sin borde │
@@ -843,7 +843,7 @@ el rol y ninguna más.
 
 | Pieza | Dónde vive | Qué hace |
 |---|---|---|
-| `ClientInfoCard` | `features/clients/components/` | Teléfono, correo, alta y estado —más el vendedor en el portal administrativo— con icono y separadores `lg:border-l`. Las notas, cuando las hay, bajan a su propia línea |
+| `ClientInfoCard` | `features/clients/components/` | Teléfono, correo, alta y estado —más el vendedor en el portal administrativo—, cada uno con su icono en cuadrado. **Cuadrícula 2 × 2 en el teléfono** y una sola fila desde `lg`; lo que separa las celdas son bordes, no `gap`, y por eso la tarjeta mide 167 px y no 262. Las notas, cuando las hay, bajan a su propia línea |
 | `ClientTotals` | `features/clients/components/` | Las cuatro cifras de `v_client_balances` en `KpiCard`, la tarjeta del panel (D-112) |
 | `TableSection` | `components/data/` | La tarjeta con título y acción que envuelve cada listado. `SECTION_TABLE_CLASSES` aplana la tabla de dentro para no dibujar dos bordes |
 

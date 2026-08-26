@@ -3440,9 +3440,20 @@ corregido: ya no es cierto que solo la use el panel.
 **b) En el teléfono, cuando no hay cliente que mostrar, la flecha se va con las insignias** en vez de
 quedarse sola ocupando un renglón entero de cada tarjeta.
 
-**c) Los separadores verticales son solo de escritorio** (`lg:border-l`), el mismo recurso que ya usa
-la ficha de la boleta. Dentro de una columna estrecha una línea vertical corta el texto en vez de
-ordenarlo.
+**c) En el teléfono, «Información general» va en cuadrícula 2 × 2, nunca apilada** (corregido el
+mismo día, a petición del dueño). La primera versión los apilaba de uno en uno: **262 px** de tarjeta
+—media pantalla de móvil antes de llegar a la primera cifra— para cuatro valores que caben en dos
+palabras. En 2 × 2 mide **167 px**, un 36 % menos, y se lee igual.
+
+Lo que separa las celdas son **líneas, no huecos**: la rejilla no lleva `gap` y cada celda pone su
+borde —vertical en la columna derecha, horizontal en la segunda fila—, que es lo que mantiene la
+tarjeta baja. En `lg` vuelven a una sola fila y solo queda la vertical. Cuando los datos son **cinco**
+(portal administrativo), el último ocupa la fila entera en vez de dejar media vacía.
+
+El icono va en su cuadrado gris, como en las tarjetas de cifras de debajo, para que las dos piezas se
+lean como una familia. Mide **32 px en el teléfono y 40 desde `sm`**: con 40 fijos, «3229654618» no
+cabía en 320 px. Medido: el teléfono entra en **una** línea a 320 px, y a ese ancho el correo y la
+fecha se parten en dos, que es el precio aceptado por ahorrar 95 px.
 
 **d) No se tocó el botón «Ver» del historial ni su columna sin rótulo**, aunque el diseño de
 referencia mostrara «Acción» y un icono de ojo: esa tabla la comparten `/seller/payments` y
