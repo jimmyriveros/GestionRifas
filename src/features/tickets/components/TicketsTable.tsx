@@ -40,6 +40,29 @@ type TicketsTableProps = {
  * entera marca en vez de abrir (secciones 3 y 19 del encargo). Que la columna se
  * vea o no lo decide Tailwind, no JavaScript: asi no parpadea al cargar.
  */
+/**
+ * «Núm. diario» y «Núm. semanal» en la cabecera de la tabla (D-114).
+ *
+ * SE VE abreviado y SE OYE entero. La abreviatura es lo unico que cabe en el
+ * ancho de la columna —«Número diario» partia en dos lineas y empujaba «Estado»
+ * fuera de la pantalla en un telefono—, pero el termino del glosario es «numero
+ * diario», y quien escucha la pantalla debe oir ese, no «num punto».
+ *
+ * Es el mismo recurso que la paginacion usa con «Página» (D-111): lo visible se
+ * marca `aria-hidden` y la palabra entera viaja en un `sr-only`. Como el texto
+ * `sr-only` SI cuenta para el nombre accesible, el encabezado se sigue llamando
+ * «Número diario» para un lector de pantalla —y para las pruebas que lo buscan
+ * por ese nombre.
+ */
+function NumberHeader({ cual }: { cual: 'diario' | 'semanal' }) {
+  return (
+    <span className="whitespace-normal">
+      <span aria-hidden>Núm.</span>
+      <span className="sr-only">Número</span> {cual}
+    </span>
+  )
+}
+
 export function TicketsTable({
   tickets,
   basePath = '/owner/tickets',
@@ -136,11 +159,7 @@ export function TicketsTable({
       */
       {
         accessorKey: 'dailyNumber',
-        // El encabezado se deja partir en dos lineas (`whitespace-normal` gana
-        // al `nowrap` de la celda): en un telefono, «Número diario» y «Número
-        // semanal» en una sola linea empujan la columna «Estado» fuera de la
-        // pantalla.
-        header: () => <span className="whitespace-normal">Número diario</span>,
+        header: () => <NumberHeader cual="diario" />,
         cell: ({ row }) => (
           <RowLink
             href={`${basePath}/${row.original.id}`}
@@ -153,7 +172,7 @@ export function TicketsTable({
       },
       {
         accessorKey: 'weeklyNumber',
-        header: () => <span className="whitespace-normal">Número semanal</span>,
+        header: () => <NumberHeader cual="semanal" />,
         cell: ({ row }) => (
           <span className="font-mono text-base tabular-nums">
             {row.original.weeklyNumber ?? '—'}

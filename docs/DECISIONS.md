@@ -3471,6 +3471,64 @@ vendedor en la tira, anular pagos— se conservan intactas.
 **Sin migraciones. Sin dependencias nuevas. Sin cambios en consultas, reglas de negocio, permisos ni
 rutas.**
 
+## D-114 — Una columna de acción con nombre, y dos encabezados que se ven cortos y se oyen enteros
+
+**Fecha:** 2026-08-25 · **Encargo:** aplicar a **todas** las tablas las dos diferencias que D-113
+había dejado deliberadamente fuera del diseño de referencia.
+
+### 1. La columna de acción deja de no llamarse nada
+
+Cuatro tablas tenían `header: ''` en su última columna: pagos, rifas, vendedores y administradores.
+Una columna sin rótulo es un hueco en la cabecera para quien mira, y para quien **escucha** la
+pantalla es peor: el lector anuncia cada celda con el nombre de su columna, y ahí no había ninguno.
+
+Ahora todas lo tienen, y **no todas dicen lo mismo**:
+
+| Tabla | Qué hay en la celda | Encabezado |
+|---|---|---|
+| Historial de abonos (`PaymentsTable`) | un botón «Ver» | **Acción** |
+| Rifas (`RafflesTable`) | un enlace «Ver» | **Acción** |
+| Vendedores (`SellersTable`) | un menú de varias opciones | **Acciones** |
+| Administradores (`UsersTable`) | un menú de varias opciones | **Acciones** |
+
+El singular del diseño de referencia es correcto **donde hay una sola acción**. Donde la celda abre
+un menú con «Editar datos», «Reenviar invitación» y «Desactivar», el plural es el que describe lo que
+hay — y además es la palabra que ese botón ya usaba en su propio `aria-label` («Acciones para
+María»). Uniformar a «Acción» habría hecho la tabla más simétrica y el texto menos cierto.
+
+Los dos botones «Ver» llevan además el **icono de ojo** del diseño. El icono es decorativo
+(`aria-hidden`): el nombre accesible sigue saliendo del `aria-label`, que dice de quién es el pago.
+
+### 2. «Núm. diario»: se ve abreviado, se oye entero
+
+El encabezado de las dos columnas de números pasa de «Número diario» a **«Núm. diario»**. No es solo
+estética: «Número diario» y «Número semanal» no caben en una línea en la tabla, y por eso el código
+llevaba un `whitespace-normal` para que partieran en dos y no empujaran «Estado» fuera de la pantalla
+en un teléfono. Abreviando, la cabecera vuelve a medir **una** línea (40 px).
+
+**Pero el término del glosario es «número diario», no «núm.»** (UX_COPY, Anexo A), y un lector de
+pantalla anuncia cada celda con el nombre de su columna: quien escucha oiría «num punto diario» en
+cada una de las veinticinco filas. Así que se separa lo que se ve de lo que se oye, con el **mismo
+recurso que D-111 usa para «Página»**:
+
+```tsx
+<span aria-hidden>Núm.</span>
+<span className="sr-only">Número</span> diario
+```
+
+Lo visible es la abreviatura; el texto `sr-only` **sí** cuenta para el nombre accesible, así que la
+columna se sigue llamando «Número diario» para la tecnología asistiva. Efecto lateral que confirma
+que está bien hecho: las **ocho** comprobaciones E2E que buscan `columnheader` por el nombre «Número
+diario» siguen pasando **sin tocarlas**. Si hubiera bastado con cambiar el texto, habrían fallado las
+ocho, y arreglarlas cambiando la prueba habría escondido la regresión de accesibilidad.
+
+**Dónde NO se abrevia:** en las etiquetas de los formularios (crear boleta, creación masiva, editar
+números) y en la ficha de la boleta. Ahí hay ancho de sobra y la etiqueta de un campo tiene que decir
+exactamente qué se pide; abreviar solo tiene sentido donde el ancho es el problema.
+
+**Sin migraciones, sin consultas nuevas, sin dependencias nuevas.** Cinco componentes de tabla y
+ninguna prueba modificada.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

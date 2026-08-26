@@ -337,6 +337,8 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Sorteo que agrupa las boletas | **Rifa** | Sorteo, campaña, evento |
 | Unidad que se vende | **Boleta** | Ticket, número, cupón |
 | Sus dos números | **Número diario** y **número semanal** | Combinación diaria/semanal, cifra |
+| Esos dos, en el **encabezado de una tabla**, donde no cabe la palabra entera | **Núm. diario** / **Núm. semanal**, con «Número» en `sr-only` (D-114) | «Núm.» en etiquetas de formulario o en la ficha de la boleta, donde sí cabe |
+| Columna que contiene lo que se puede hacer con la fila | **Acción** si hay una sola; **Acciones** si abre un menú (D-114) | Dejar la columna sin encabezado |
 | Identificador que genera el sistema | **Código interno** | ID, código de barras |
 | Persona que compra | **Cliente** | Comprador, usuario, participante |
 | Persona que vende | **Vendedor** | Colaborador, usuario, asesor |
@@ -368,6 +370,12 @@ es exactamente lo contrario: un trato que hace **una** persona con **un** client
 propia ganancia**. Esa consecuencia se dice siempre que aparezca la casilla; es lo único que quien la
 usa no puede deducir mirando la pantalla. Y una venta al precio normal **no** menciona la rebaja:
 anunciar «rebaja de $0» es ruido en la pantalla que más se usa.
+
+**Lo que se ve corto puede oírse entero** (D-114, y antes D-111). Cuando una palabra no cabe —«Núm.
+diario» en el encabezado de una tabla, «1 de 5» en la paginación—, se abrevia **lo visible** y la
+palabra completa viaja en un `sr-only`, que sí cuenta para el nombre accesible. Nunca se resuelve
+recortando el término para todo el mundo: quien escucha la pantalla oiría «num punto diario» en cada
+una de las veinticinco filas.
 
 **Cómo se nombra una boleta en pantalla:** por sus **dos números**, «1234 / 5678» (BR-N11). El
 **código interno** es información administrativa: aparece solo dentro del detalle de la boleta y
@@ -501,6 +509,7 @@ castigo donde solo había una espera.
 | Nombres de los períodos del panel del vendedor | `src/features/dashboard/date-range.ts` (`DASHBOARD_RANGE_LABELS`, D-112) |
 | Textos de las siete piezas del panel del vendedor | `src/features/dashboard/components/`, una por pieza (D-112) |
 | Etiquetas de estado de un cliente («Activo», «Archivado») | `src/lib/constants.ts` (`CLIENT_STATUS_LABELS`, D-113) |
+| Encabezados de columna | El `header` de cada columna, en el `*Table.tsx` de su módulo (D-114) |
 | Rótulos y textos de la ficha del cliente | `src/features/clients/components/ClientInfoCard.tsx` y `ClientTotals.tsx` (D-113) |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |

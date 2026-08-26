@@ -1,6 +1,7 @@
 'use client'
 
 import type { ColumnDef } from '@tanstack/react-table'
+import { EyeIcon } from 'lucide-react'
 import { RowLink } from '@/components/data/RowLink'
 
 import { DataTable } from '@/components/data/DataTable'
@@ -61,12 +62,17 @@ const columns: ColumnDef<RaffleSummary>[] = [
   },
   {
     id: 'actions',
-    header: '',
+    // Una sola accion en la columna: «Acción», igual que en el historial de
+    // abonos (D-114).
+    header: 'Acción',
     enableSorting: false,
     meta: { align: 'right' },
     cell: ({ row }) => (
       <Button asChild variant="ghost" size="sm">
-        <RowLink href={`/owner/raffles/${row.original.id}`}>Ver</RowLink>
+        <RowLink href={`/owner/raffles/${row.original.id}`}>
+          <EyeIcon className="size-4" aria-hidden />
+          Ver
+        </RowLink>
       </Button>
     ),
   },

@@ -348,6 +348,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `MoneyInput` / `formatCOP` | Entrada y presentación de enteros COP |
 | `TicketNumberInput` | Solo dígitos, máx. 4, preserva ceros, `inputMode="numeric"` |
 | `StatusBadge` | Badge **con texto** (nunca solo color) para estados de inventario y pago |
+| Encabezados de columna | Los cuatro con acciones llevan rótulo: **«Acción»** con una sola acción (pagos, rifas) y **«Acciones»** con menú (vendedores, administradores). Los dos números se ven abreviados —«Núm. diario»— y conservan el nombre entero en `sr-only`, así que la columna se sigue llamando «Número diario» para un lector de pantalla (D-114) |
 | `DonutChart` / `TrendChart` | Los dos gráficos del panel del vendedor: SVG dibujado en el servidor, **sin librería y sin JavaScript** en el navegador. Escalan con `viewBox`, igual que `ProgressRing` (§8.13, D-112) |
 | `CollectionSummaryCard` | Resumen de cobranza del panel (D-090): recibe `totals` ya agregado, no calcula nada; barra de progreso accesible con el mismo patrón que `BulkTicketCreator` |
 | `CommissionCard` | «Tu ganancia» del panel del vendedor (D-095). No calcula nada: recibe la fila de `commission_summary`. Separa **lo ganado** de **la proyección** deliberadamente, y la barra lleva su valor en `aria-valuetext` |

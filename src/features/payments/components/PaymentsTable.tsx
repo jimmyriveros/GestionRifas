@@ -1,6 +1,7 @@
 'use client'
 
 import type { ColumnDef } from '@tanstack/react-table'
+import { EyeIcon } from 'lucide-react'
 import { RowLink } from '@/components/data/RowLink'
 import { useMemo, useState } from 'react'
 
@@ -138,7 +139,9 @@ export function PaymentsTable({
       },
       {
         id: 'actions',
-        header: '',
+        // Una columna sin rotulo no la puede nombrar quien escucha la pantalla,
+        // y aqui hay UNA accion: «Acción», en singular (D-114).
+        header: 'Acción',
         enableSorting: false,
         meta: { align: 'right' },
         cell: ({ row }) => (
@@ -149,6 +152,7 @@ export function PaymentsTable({
             onClick={() => setSelected(row.original)}
             aria-label={`Ver el pago de ${row.original.clientName} del ${formatDateEs(row.original.paymentDate)}`}
           >
+            <EyeIcon className="size-4" aria-hidden />
             Ver
           </Button>
         ),

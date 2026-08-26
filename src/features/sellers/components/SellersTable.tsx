@@ -137,7 +137,9 @@ export function SellersTable({
       },
       {
         id: 'actions',
-        header: '',
+        // Plural: esta columna abre un MENU con varias opciones, y «Acciones»
+        // es la palabra que ya usa el propio boton (D-114).
+        header: 'Acciones',
         enableSorting: false,
         meta: { align: 'right' },
         cell: ({ row }) => (

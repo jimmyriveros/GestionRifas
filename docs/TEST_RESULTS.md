@@ -3291,3 +3291,37 @@ valor por DOM, React restaura el suyo. Una persona escribe tecla a tecla y cada 
 React, por eso el formulario funciona. **Consecuencia para quien escriba pruebas:** `fill()` solo es
 de fiar sobre campos vacíos; para editar un valor existente hay que usar `Ctrl+A` y escribir encima,
 o el dato que se guarda no es el que la prueba cree.
+
+## Las dos diferencias con el diseño de referencia, aplicadas a todas las tablas (2026-08-25)
+
+Decisión **D-114**. Sin migraciones, sin consultas nuevas y **sin modificar ninguna prueba**.
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` · `lint` · `build` | ✅ (los 2 avisos preexistentes de TanStack) |
+| `npm run test` | ✅ **359/359** |
+| E2E escritorio: `back-navigation`, `boleta-cliente`, `seleccion-multiple`, `seller-tickets`, `owner-users`, `owner-raffles`, `payments` | ✅ **92/92**, sobre base recién sembrada |
+| E2E proyecto `movil` completo | ✅ **51/51** |
+
+### La prueba que de verdad importaba
+
+Ocho comprobaciones E2E buscan la columna por su nombre accesible:
+
+```ts
+page.getByRole('columnheader', { name: 'Número diario' })
+```
+
+**Siguen pasando sin tocarlas**, y eso es exactamente lo que se quería: lo que cambió es el texto
+*visible*, no el nombre de la columna. Si se hubiera cambiado el texto a secas, habrían fallado las
+ocho — y «arreglarlas» reescribiendo la expectativa habría dejado la regresión de accesibilidad
+dentro, en silencio.
+
+Comprobado además en pantalla, no solo por consulta:
+
+| Qué | Resultado |
+|---|---|
+| Texto **visible** de la cabecera | «Núm. diario» y «Núm. semanal» — el `sr-only` no se pinta |
+| Alto de los `th` | **40 px**, una sola línea. Con la palabra entera partían en dos |
+| Nombre **accesible** | «Número diario» / «Número semanal» |
+| `/owner/payments` y `/owner/raffles` | columna **«Acción»** con el icono de ojo junto a «Ver» |
+| `/owner/users` y `/owner/sellers` | columna **«Acciones»**, la misma palabra que ya usaba el botón del menú |
