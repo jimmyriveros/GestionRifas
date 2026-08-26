@@ -259,14 +259,31 @@ responde el dominio es ese build es un paso más, y el método depende de qué c
 | Qué cambió | Cómo se comprueba | Estado |
 |---|---|---|
 | Algo que genera **CSS nueva** (una clase de Tailwind que antes no existía) | Descargar la hoja de `/login` y buscar la clase escapada —`.lg\:p-5`—, construyendo la barra invertida con `String.fromCharCode(92)`. Mejor aún: comprobar también que las huellas del build **anterior desaparecieron** (D-113, §7.b) | ✅ Fiable |
-| Solo **texto** dentro de componentes de cliente | No hay huella en la CSS. Los fragmentos de JavaScript llevan un hash **propio del build**, así que el nombre del fragmento local **no existe** en Vercel: se intentó el 2026-08-25 con D-114 y los dos dieron **404**. Las páginas que contienen esas tablas están protegidas, así que tampoco se puede leer su HTML sin sesión | ❌ No se puede desde fuera |
+| **Cualquier cambio**, desde el 2026-08-26 | Calcular el identificador de versión del commit y buscarlo en los fragmentos de JavaScript que sirve el dominio. Es el método de más abajo | ✅ **El bueno.** Vale para texto, lógica y CSS |
+| Solo **texto**, con el método antiguo | No había huella en la CSS, y los fragmentos llevan un hash propio del build, así que el nombre local **no existe** en Vercel: se intentó el 2026-08-25 con D-114 y los dos dieron **404** | ❌ Superado por la fila de arriba (I-069 cerrado) |
 
 **Cuando no se puede, no se inventa:** la evidencia es el SHA del despliegue, el alias apuntando a él
 y el CI en verde sobre ese mismo commit, y se dice así de claro en el registro. No se debe escribir
 «verificado que el código nuevo está servido» apoyándose en una comprobación que no se hizo.
 
-**Mejora pendiente para no volver a quedarse sin método** (I-069): una ruta pública mínima que
-devuelva `process.env.VERCEL_GIT_COMMIT_SHA` convertiría esto en una sola petición para **cualquier**
-cambio, sea CSS, texto o lógica. No se hizo aquí porque añadir una ruta pública a la aplicación es
-una decisión de producto, no un detalle de verificación.
+#### El método, desde 2026-08-26 (I-069 cerrado)
+
+El service worker necesitaba saber qué versión sirve, así que `next.config.ts` inyecta en el build
+`NEXT_PUBLIC_APP_BUILD_ID` = **sha256 del commit, recortado a 12 hex** (D-115). Ese valor viaja
+dentro del JavaScript servido, así que la comprobación es: calcularlo del commit local y buscarlo en
+los fragmentos que responde el dominio.
+
+Vale para **cualquier** tipo de cambio —texto, lógica o CSS— y **no publica el commit**, que era el
+reparo que dejó abierta la salida propuesta antes.
+
+```bash
+node -e "const c=require('child_process').execSync('git rev-parse HEAD').toString().trim();console.log(require('crypto').createHash('sha256').update(c).digest('hex').slice(0,12))"
+```
+
+Después se descarga `/login`, se extraen los `src` de `/_next/` y se busca esa cadena: tiene que
+aparecer al menos una vez. Estrenado en el despliegue de `cc64a99` — `f300e003e18b`, encontrado en 1
+de los 15 fragmentos servidos.
+
+**Sigue valiendo la regla de honestidad** del párrafo anterior: si algún día la comprobación no se
+puede hacer, la evidencia es el SHA del despliegue, el alias y el CI, y se dice así de claro.
 

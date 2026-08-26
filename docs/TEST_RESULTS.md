@@ -3513,3 +3513,56 @@ cambia lo que la suite tolera, que es una decisión del dueño.
 
 **Cómo no volver a perder el tiempo:** una pasada en frío da `293 passed, 1 failed`; en caliente,
 `294 passed`. Antes de culpar a un cambio, repite con `.next/dev` ya poblado.
+
+---
+
+## Despliegue a producción y verificación (2026-08-26)
+
+`cc64a99` — la aplicación instalable (D-115 a D-120), el arreglo de «Recuperar contraseña» (D-121) y
+el registro de pruebas. **Sin migraciones**: cero cambios bajo `supabase/`, así que no había orden
+que respetar entre base de datos y código, ni respaldo que generar, y la reversión es un Instant
+Rollback sin nada que deshacer en la base.
+
+| Paso | Resultado |
+|---|---|
+| CI | ✅ **2/2** — «Typecheck, lint, unitarias, build» y «Migraciones desde cero + pruebas de base de datos» |
+| Vercel | ✅ `READY` · `dpl_9asLBwX7zTRh9vesgHRbv2vSDkvw` · región `iad1` · build de **43 s** |
+| Alias | ✅ `gestion-rifas.vercel.app` apunta a ese despliegue |
+
+### Lo que se comprobó en vivo
+
+| Qué | Resultado |
+|---|---|
+| Las 6 cabeceras de seguridad en `/login` | ✅ HSTS, CSP con nonce, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy |
+| **`worker-src 'self'` y `manifest-src 'self'`** en la CSP servida | ✅ presentes — sin la primera, el navegador rechazaría el service worker |
+| Las 4 rutas protegidas sin sesión | ✅ **307** las cuatro |
+| **Las 7 rutas públicas nuevas** sin sesión | ✅ **200** todas, con su tipo correcto: `/sw.js` como `application/javascript`, `/manifest.webmanifest` como `application/manifest+json`, `/offline`, los 3 iconos y el `favicon.ico` |
+| **El código servido es el del commit** | ✅ `f300e003e18b` —sha256 de `cc64a999…` recortado— aparece en 1 de los **15** fragmentos servidos |
+| Ninguna clave de servicio | ✅ **0** apariciones de `SERVICE_ROLE`, `sb_secret_` ni `SUPABASE_DB_URL` en el HTML ni en los 15 fragmentos (941 KB) |
+| Service worker vivo | ✅ activo en `/sw.js?v=f300e003e18b`, alcance `https://gestion-rifas.vercel.app/` |
+| **Qué guardó de verdad** | ✅ 2 cachés, **19 entradas**, **0 ajenas** (todas `/_next/static/`, `/offline` o el manifiesto). Ningún payload RSC |
+| Manifiesto | ✅ `standalone`, `id: /`, `start_url: /`, 4 iconos de los que **2 son `maskable`** |
+| `/offline` | ✅ hidrata, y su «Reintentar» es un `<a href="/">` real que funciona sin JavaScript |
+| **`/forgot-password` (I-070)** | ✅ **consola limpia**, React hidrata, y un correo inválido muestra «Ingresa un correo válido.» **sin que la dirección cambie** |
+
+**El antes y el después de I-070, sobre la misma URL de producción y el mismo día:** por la mañana,
+consola llena de violaciones de CSP y `reactAttached: false`; ahora, cero errores y validación de
+cliente funcionando.
+
+### Tiempo de respuesta
+
+| Ciclo | `/login` | `/denied` (CDN) |
+|---|---|---|
+| 1–3, seguidos | 342, 378, 382 ms | 320, 344, 403 ms |
+| 4–5, **tras 60 s de pausa** | 423, 474 ms | — |
+
+Sin el pico de arranque en frío de **I-067**: Fluid Compute sigue activo. `/denied`, servido desde el
+CDN, marca el coste de conexión desde esta máquina (~330 ms), así que el tiempo real de servidor es
+pequeño en los dos casos.
+
+### Lo que un agente no puede comprobar
+
+**Entrar como los tres roles.** Exige contraseñas del proyecto real, y automatizar ese inicio de
+sesión es exactamente lo que provocó **I-066**. Queda para el dueño: entrar como dueño,
+administrador y vendedor, y —lo específico de este cambio— **instalar la aplicación en un teléfono
+real**, comprobar que abre sin barra del navegador y que el icono se ve bien recortado en Android.

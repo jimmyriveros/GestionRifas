@@ -2519,6 +2519,23 @@ mismo día con autorización expresa (D-121). Siguen abiertos I-068, I-066, I-06
 5. **No empieces a guardar respuestas autenticadas en el worker.** Hoy no hay nada que limpiar al
    cerrar sesión precisamente por eso (D-116).
 
-### 7. Promoción a producción
+### 7. Promoción a producción (2026-08-26)
 
-**No promovido.** Requiere autorización expresa, y antes las dos suites de pruebas que faltan.
+**Desplegado con autorización expresa.** Vercel `READY` sobre **`cc64a99`**
+(`dpl_9asLBwX7zTRh9vesgHRbv2vSDkvw`), alias `gestion-rifas.vercel.app`. CI **2/2**. **Sin
+migraciones**: cero cambios bajo `supabase/`, así que la reversión es un Instant Rollback sin nada
+que deshacer en la base.
+
+Verificado en vivo: las 6 cabeceras —**con `worker-src 'self'`**, sin la cual el navegador
+rechazaría el service worker—, las 4 rutas protegidas en 307, las **7 rutas públicas nuevas** en 200
+con su tipo correcto, **0** claves de servicio en el HTML y los 15 fragmentos, el worker activo en el
+alcance raíz con **19 entradas y 0 ajenas**, el manifiesto con sus 2 iconos `maskable`, y
+`/forgot-password` **con la consola limpia y React hidratando**. Tiempos: 342–382 ms en caliente y
+423–474 ms tras 60 s de pausa, sin arranque en frío. Detalle en `TEST_RESULTS.md`.
+
+**Que el código servido es este commit** quedó probado con el método nuevo: `f300e003e18b`, el
+identificador de versión derivado del commit, aparece en los fragmentos servidos. Eso cierra
+**I-069**, abierto el día anterior por no existir forma de comprobarlo.
+
+**Lo que falta y no puede hacer un agente:** entrar como los tres roles —exige contraseñas reales, y
+automatizarlo es lo que provocó I-066— e **instalar la aplicación en un teléfono real**.
