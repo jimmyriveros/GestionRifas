@@ -3425,3 +3425,46 @@ Medido sobre dos `next build` de producción completos, en la misma máquina.
   estaba medida en D-104 e I-067 con un método propio y esas cifras siguen vigentes.
 * **Tamaños comprimidos.** `next start` local no comprime; todas las cifras de arriba son sin
   comprimir. En Vercel se sirven con Brotli.
+
+---
+
+## I-070 corregido: «Recuperar contraseña» vuelve a tener JavaScript (2026-08-26)
+
+**Alcance:** D-121, autorizado expresamente tras reportar el fallo.
+
+### 1. Suite automática
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 errores (los 2 avisos de siempre) |
+| `npm run test` | ✅ **374/374** en 24 archivos (**+2**: `tests/unit/csp-dynamic-pages.test.ts`) |
+| `npm run build` | ✅ · `/forgot-password` pasa de **`○` a `ƒ`**; `/denied` y `/_not-found` siguen `○` a propósito |
+| `npm run test:db` / `test:e2e` | ❌ no ejecutados — Docker sigue sin levantar (I-073) |
+
+### 2. La comprobación que importa, sobre un build de producción
+
+En `next dev` el fallo **no se reproduce**, así que todo esto se midió con `npm run build && npm start`.
+
+| Qué | Antes | Después |
+|---|---|---|
+| Consola al abrir `/forgot-password` | violaciones de CSP para **todos** los scripts | **sin un solo error** |
+| ¿React hidrata? | `reactAttached: false` | **`true`** |
+| Correo inválido + «Enviar enlace de recuperación» | sin mensaje; la URL pasa a `?email=esto-no-es-un-correo` | **«Ingresa un correo válido.»**, y la URL **no cambia** (`search: ""`) |
+| ¿Se llamaba a la Server Action? | **no** — envío nativo por GET, ningún correo enviado | sí, la validación de cliente la protege antes |
+
+> **Por qué se probó con un correo INVÁLIDO y no con uno válido.** La única base disponible es la
+> **real** de producción: un correo válido habría llamado a la Server Action y enviado un correo de
+> recuperación de verdad. Un correo inválido lo detiene el Zod del cliente antes de cualquier
+> petición, y demuestra lo mismo —que React está vivo— sin tocar nada.
+
+`/denied` comprobada después del cambio: sigue prerenderizada y su enlace es un `<a href="/">` real,
+así que funciona sin JavaScript. Es la razón por la que ella y `/_not-found` se quedan como están.
+
+### 3. Lo que este arreglo dejó al descubierto
+
+**La suite E2E no podía verlo, y no puede ver ninguno de su familia.** El arnés arranca
+`npm run dev:local`, y en desarrollo Next renderiza todo por petición: la pantalla rota funcionaba
+perfectamente ahí. Por eso el fallo cruzó la auditoría de la Fase 7 y la de la Fase 9 con 294 pruebas
+en verde. Registrado como **I-074**; mitigación parcial en `tests/unit/csp-dynamic-pages.test.ts`,
+que además hace que borrar el `export const dynamic` rompa `typecheck`.

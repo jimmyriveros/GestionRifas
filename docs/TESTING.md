@@ -161,6 +161,29 @@ const filas = await page.getByRole('table').locator('tbody tr').count() // ahora
 redirige al panel y el formulario no llega a existir; `loginAs` falla con un error confuso. Se usa
 `logout(page)` de `tests/e2e/fixtures.ts`, que pasa por el menú de usuario.
 
+### 3.2 Lo que esta suite NO puede ver, por construcción (2026-08-26, I-074)
+
+`playwright.config.ts` arranca **`npm run dev:local`**. En `next dev`, Next renderiza **todo** por
+petición y **no prerenderiza nada**, así que cualquier fallo que solo exista en un build de
+producción es invisible para las 294 pruebas.
+
+No es teórico. Es exactamente por lo que **I-070** —la pantalla de recuperación de contraseña, sin
+JavaScript en producción porque estaba prerenderizada y la CSP por nonce le bloqueaba los scripts—
+vivió desde la **Fase 7**, pasó la auditoría de endurecimiento de esa misma fase y la auditoría
+independiente de la **Fase 9**, con las E2E en verde todo el tiempo.
+
+**Qué hacer mientras el hueco siga abierto:**
+
+1. **Todo cambio que dependa del modo de renderizado se comprueba a mano sobre `npm run build && npm
+   start`.** No sobre `next dev`, donde nunca falla.
+2. La regla concreta —una pantalla pública que necesite React va con `force-dynamic`— está en
+   `SECURITY.md` §10.1.b.2, y `tests/unit/csp-dynamic-pages.test.ts` protege la lista.
+3. Si se añade una pantalla pública con formulario, **añádela a esa lista** en la misma tanda.
+
+La salida real, no aplicada por su coste en CI, es un segundo proyecto de Playwright que arranque
+`npm run build && npm start` y ejecute un puñado de comprobaciones de humo sobre las pantallas
+públicas. Ver I-074.
+
 ---
 
 ## 4. Casos de prueba de base de datos obligatorios (Fase 2)

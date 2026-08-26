@@ -15,9 +15,9 @@ export const metadata: Metadata = {
  * esta pantalla tenga JavaScript. La política de seguridad usa
  * `'strict-dynamic'` con un nonce distinto en cada petición (D-061), y una
  * página PRERENDERIZADA no puede llevar ese nonce —se genera al construir, no al
- * pedirla—, así que el navegador bloquea todos sus scripts. Se comprobó en
- * producción sobre `/forgot-password`, que sí es estática y donde ese bloqueo es
- * un fallo real y anterior a este trabajo: ver `docs/KNOWN_ISSUES.md` I-070.
+ * pedirla—, así que el navegador bloquea todos sus scripts. Se descubrió aquí y
+ * resultó que `/forgot-password` llevaba así desde la Fase 7, con el flujo de
+ * recuperación de contraseña roto en producción: I-070, corregido en D-121.
  *
  * Con `force-dynamic` el nonce del HTML y el de la cabecera coinciden, y siguen
  * coincidiendo cuando el service worker la sirve desde la caché, porque lo que

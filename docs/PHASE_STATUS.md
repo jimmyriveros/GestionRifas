@@ -2465,6 +2465,13 @@ regla de negocio. Decisiones **D-115 a D-120**.
 | **iPhone** | `viewport-fit=cover`, áreas seguras laterales, barra de estado en `default`, `format-detection: telephone=no` (los números de 4 cifras dejaban de ser tocables al convertirse en enlaces de llamada) y las dos etiquetas `capable` que Next no escribe |
 | **Rendimiento** | `−Geist_Mono` (11 → 5 `.woff2`; 51,2 → 29,3 KB precargados), `−date-fns`, `−@date-fns/tz`, y `next/dynamic` para el recorrido guiado y los 5 diálogos masivos |
 
+**Corrección añadida con autorización expresa (D-121):** `/forgot-password` pasa a renderizarse por
+petición. Estaba **prerenderizada**, la CSP por nonce le bloqueaba todos los scripts, y llevaba **sin
+JavaScript en producción desde la Fase 7**: el formulario caía a su envío nativo por GET, no llamaba
+a la Server Action y **no enviaba ningún correo**, además de dejar el correo escrito en la URL
+(I-070). `/denied` y `/_not-found` se quedan estáticas a propósito —solo tienen un enlace— con un
+aviso en su cabecera.
+
 **Lo que NO se hizo, a propósito:** escrituras sin conexión, sincronización diferida, caché de API,
 Firebase Cloud Messaging (solo se dejó la arquitectura preparada y documentada en `ARCHITECTURE`
 §8.15.a), y `cacheComponents` / `partialPrefetching` de Next 16, que exigiría rediseñar los límites de
@@ -2472,8 +2479,8 @@ Suspense de toda la aplicación y decidir vidas de caché para datos financieros
 
 ### 2. Pruebas ejecutadas y resultados
 
-`npm run verify` **completo en verde**: `typecheck` ✅, `lint` **0 errores**, **372/372** unitarias
-(+13) y `build` ✅. Verificación manual del worker contra un build de producción: registro, cachés,
+`npm run verify` **completo en verde**: `typecheck` ✅, `lint` **0 errores**, **374/374** unitarias
+(+15) y `build` ✅. Verificación manual del worker contra un build de producción: registro, cachés,
 sin conexión, vuelta a la red y ciclo completo de actualización. Detalle, cifras y **los cuatro
 errores encontrados** —tres corregidos y uno ajeno que se documentó sin tocar— en `TEST_RESULTS.md`.
 
@@ -2491,16 +2498,19 @@ fuera de Git.
 
 ### 5. Problemas que permanecen
 
-**I-070** (grave, ajeno: «Recuperar contraseña» sin JavaScript en producción), **I-071** (iconos
-provisionales), **I-072** (`font-mono` nunca fue Geist Mono), **I-073** (dos suites sin ejecutar).
-Siguen abiertos I-068, I-066, I-062 e I-063.
+**I-071** (iconos provisionales), **I-072** (`font-mono` nunca fue Geist Mono), **I-073** (dos suites
+sin ejecutar) y **I-074** (la suite E2E corre en modo desarrollo y no puede detectar fallos de
+prerenderizado — es la razón de que I-070 sobreviviera dos auditorías). **I-070 quedó corregido** el
+mismo día con autorización expresa (D-121). Siguen abiertos I-068, I-066, I-062 e I-063.
 
 ### 6. Lo que debe revisar el siguiente agente
 
 1. **Levanta Docker y ejecuta `test:db` y `test:e2e`** antes de promover nada. Cinco pruebas E2E
    cubren justo lo que D-120 tocó.
-2. **Lee I-070 antes que nada.** Es un fallo real en producción, de autenticación, con arreglo de una
-   línea, y espera la decisión del dueño.
+2. **Lee I-074 antes que nada.** El arnés E2E arranca en modo desarrollo, donde Next renderiza todo
+   por petición: **no puede detectar ningún fallo de prerenderizado**, y por eso I-070 tuvo rota la
+   recuperación de contraseña desde la Fase 7 sin que 294 pruebas dijeran nada. Todo cambio que
+   dependa del modo de renderizado se comprueba a mano sobre `npm run build && npm start`.
 3. **Para probar el worker en local: `npm run build && npm start`.** En `next dev` se desregistra a
    propósito.
 4. **No añadas nada al matcher de `src/proxy.ts`** que no sea un archivo estático y público.

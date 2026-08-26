@@ -616,11 +616,29 @@ incluido. Sin declarar `worker-src` explícitamente, el navegador **rechaza el r
 worker** y la aplicación deja de ser instalable, sin que nada más se rompa ni dé señal. Hay prueba
 unitaria en `tests/unit/security-headers.test.ts` para que aflojarla o quitarla no pase inadvertido.
 
-**El mismo `'strict-dynamic'` tiene una consecuencia que sí es un fallo abierto:** una página
-**prerenderizada** no puede llevar el nonce del request, porque su HTML se genera al construir. El
-navegador bloquea entonces **todos** sus scripts. Afecta a `/forgot-password`, donde el flujo de
-recuperación de contraseña está roto en producción — ver **I-070**, con el arreglo de una línea y por
-qué no se aplicó aquí.
+### 10.1.b.2 REGLA: una pantalla que necesita JavaScript se renderiza por petición
+
+`'strict-dynamic'` tiene una consecuencia que hay que tener presente al crear cualquier pantalla:
+una página **prerenderizada** no puede llevar el nonce del request, porque su HTML se genera al
+construir, y entonces el navegador bloquea **todos** sus scripts. La pantalla se ve perfecta y no
+reacciona a nada.
+
+**La regla, en una línea:** si una pantalla monta un componente de cliente del que dependa su
+funcionamiento, necesita `export const dynamic = 'force-dynamic'`. Las pantallas **protegidas** ya lo
+cumplen sin hacer nada —leen la sesión, así que Next las renderiza por petición—; el riesgo está en
+las **públicas**.
+
+| Pantalla | Modo | Por qué |
+|---|---|---|
+| `/login`, `/reset-password` | `ƒ` dinámica | Leen el request |
+| `/forgot-password` | `ƒ` dinámica **desde D-121** | Estuvo **rota en producción desde la Fase 7** (I-070): el formulario caía a su envío nativo por GET y no enviaba ningún correo |
+| `/offline` | `ƒ` dinámica | Escucha la vuelta de la conexión (D-116) |
+| `/denied`, `/_not-found` | `○` estáticas, **a propósito** | Solo contienen un enlace, y un enlace funciona sin React. Hacer dinámica la de 404 despertaría una función en cada golpe de un rastreador |
+
+⚠️ **Esto NO se ve en `next dev`**, donde Next renderiza todo por petición, y **ninguna prueba E2E
+puede detectarlo**, porque el arnés arranca en modo desarrollo (**I-074**). Lo que hay es
+`tests/unit/csp-dynamic-pages.test.ts`, que cubre la regresión concreta. Al añadir una pantalla
+pública con formulario, **añádela también a esa lista**.
 
 ### 10.1.c Qué NO guarda el service worker
 

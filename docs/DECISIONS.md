@@ -3815,6 +3815,82 @@ donde va ese botón hasta que llegara el fragmento. Separarlo bien exige partir 
 toca un flujo con prueba de extremo a extremo que en esta sesión **no se pudo ejecutar** (Docker no
 está levantado). Queda recomendado, no hecho.
 
+## D-121 — «Recuperar contraseña» vuelve a tener JavaScript, y las otras dos estáticas se quedan como están
+
+**Fecha:** 2026-08-26 · **Encargo:** corregir **I-070**, autorizado expresamente después de
+reportarlo.
+
+### Qué estaba roto, exactamente
+
+`/forgot-password` no lee nada del request, así que Next la **prerenderizaba**. La CSP de este
+proyecto usa `'strict-dynamic'` con un nonce distinto en cada petición (D-061), y un HTML generado al
+construir no puede llevar ese nonce: el navegador **bloqueaba todos sus scripts** y React nunca
+hidrataba.
+
+Lo que eso significaba para una persona que hubiera olvidado su contraseña, reproducido en local:
+
+| Paso | Lo que ocurría |
+|---|---|
+| Escribe su correo y pulsa «Enviar enlace de recuperación» | El formulario no tiene `action`, solo `onSubmit` de react-hook-form. Sin React, el navegador cae a su **envío nativo por GET** |
+| Resultado | La dirección pasa a `/forgot-password?email=…`, la pantalla se recarga igual que estaba, y **no se llama a la Server Action: no se envía ningún correo** |
+| Efecto secundario | El correo escrito queda en la URL, en el historial y en el registro de accesos de Vercel — el mismo patrón de **I-066**, pero permanente en vez de una carrera |
+
+Estaba así **desde la Fase 7**, cuando se introdujo la CSP por nonce.
+
+### El arreglo, y por qué no hay otro
+
+```ts
+export const dynamic = 'force-dynamic'
+```
+
+No es un parche: es lo que documenta la propia guía de CSP de Next — «to use a nonce, your page must
+be dynamically rendered… Static pages are generated at build time, when no request or response
+headers exist—so no nonce can be injected». Con la página dinámica, Next lee el nonce de la cabecera
+`x-nonce` que pone `src/proxy.ts` y se lo pone a cada script.
+
+Se descartaron las dos alternativas:
+
+| Alternativa | Por qué no |
+|---|---|
+| `experimental.sri` (hashes en vez de nonce) | **No resuelve el problema**: pone `integrity` en los `<script src>`, pero el script **en línea** de hidratación de Next sigue necesitando nonce o hash. Y es experimental |
+| Aflojar la CSP con `'unsafe-inline'` | Sería renunciar a lo que la CSP protege, para arreglar una pantalla |
+
+`await connection()` habría sido equivalente y es lo que enseña esa misma guía. Se eligió el export
+por dos razones: es el mismo mecanismo que ya usa `/offline` (D-116), así que hay **una** forma de
+hacer esto en el proyecto, y se puede **comprobar desde una prueba**, cosa que una llamada dentro del
+cuerpo del componente no permite.
+
+### `/denied` y `/_not-found` se quedan prerenderizadas, a propósito
+
+Las dos están igual de bloqueadas, y las dos están bien así: lo único que contienen es un enlace, y
+`next/link` pinta un `<a href>` de verdad que el navegador sigue sin ayuda de nadie. Comprobado.
+
+Hacerlas dinámicas tendría un coste real y ninguna ganancia. En `/_not-found` es el peor negocio de
+los dos: la recibe **cualquier** dirección que no exista, rastreadores incluidos, y despertaría una
+función en cada golpe — justo lo que I-067 costó tanto quitar.
+
+Las dos llevan ahora un aviso en su cabecera: **si algún día necesitan un botón, necesitan también la
+línea**. Sin ese aviso, quien lo añada verá que funciona en `next dev` y se encontrará con la
+pantalla muerta en producción, que es exactamente lo que pasó aquí.
+
+### Por qué ninguna prueba lo cazó, y qué se puso en su lugar
+
+**El arnés de Playwright arranca `npm run dev:local`.** En `next dev`, Next renderiza **todo** por
+petición: no prerenderiza nada. La pantalla rota funcionaba perfectamente ahí. Por eso este fallo
+sobrevivió a la auditoría de endurecimiento de la Fase 7, a la auditoría independiente de la Fase 9 y
+a 294 pruebas de extremo a extremo en verde. Registrado como **I-074**, porque el hueco sigue abierto
+para toda la familia de fallos de prerenderizado.
+
+Lo que sí se puso: `tests/unit/csp-dynamic-pages.test.ts`, que comprueba que las pantallas públicas
+que dependen de React declaran `force-dynamic`. Cubre **la regresión concreta** —que alguien borre
+esa línea— y no la familia entera. Tiene un efecto lateral útil: como la prueba lee
+`modulo.dynamic`, borrar el export rompe además `typecheck`, con el error señalando el archivo de la
+prueba.
+
+**Verificado sobre un build de producción**, no en desarrollo, que es donde el fallo existía: consola
+**limpia**, `reactAttached: true`, y al enviar un correo inválido aparece «Ingresa un correo válido.»
+**sin que la dirección cambie**. Antes: sin mensaje y con `?email=…` en la URL.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.
