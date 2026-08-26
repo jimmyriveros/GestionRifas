@@ -2423,3 +2423,24 @@ preferiblemente **desde un teléfono**.
 
 **Si algo va mal, la reversión es inmediata:** Instant Rollback en Vercel al despliegue anterior
 (`dpl_FydqcmL6kGEP3s3ug3ksFRYHZhrx`, sobre `3136c9d`). No hay migración que deshacer.
+
+### 7.b Segunda promoción: la cuadrícula del teléfono (2026-08-25)
+
+El mismo día y con autorización expresa, tras el ajuste de «Información general» a cuadrícula 2 × 2.
+**Sin migraciones.**
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `READY` sobre **`9e72fca`** (`dpl_CQV5dU8HJnKYHgjoMt2XRdM7PwPC`), alias `gestion-rifas.vercel.app` |
+| CI de GitHub | **2/2** — `verify` y `migraciones desde cero + test:db` |
+| `/login` | **200**, **6/6** cabeceras de seguridad |
+| Rutas protegidas sin sesión | Las cuatro → **307** |
+| Clave de servicio en el navegador | **0** apariciones en el HTML ni en los **16** recursos |
+| **El código nuevo está servido** | La CSS de producción (88.088 bytes) trae `.sm\:size-10` y `.lg\:p-5`, que solo genera la cuadrícula nueva |
+| **Y el anterior ya no** | `.lg\:pl-6` y `.lg\:gap-0` —las huellas de la versión apilada, verificadas en línea hace una hora— **han desaparecido**. Es la comprobación que faltaba en los despliegues anteriores: no basta con que llegue lo nuevo, hay que ver que lo viejo se fue |
+| El resto del rediseño, intacto | `.sm\:grow-0`, `.sm\:pb-4` y `.lg\:grid-cols-5` siguen presentes |
+| Tiempo de **servidor** | **169, 236, 172 y 140 ms** en cuatro ciclos. Sin pico de arranque en frío |
+
+**Lo que un agente no puede comprobar:** abrir la ficha en un teléfono real. Queda para el dueño.
+Reversión: Instant Rollback a `dpl_AyX7pQqvqy9KjPdAyGpuk7aEufbo` (`13a9771`), sin nada que deshacer
+en la base.
