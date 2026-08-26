@@ -3529,6 +3529,292 @@ exactamente qué se pide; abreviar solo tiene sentido donde el ancho es el probl
 **Sin migraciones, sin consultas nuevas, sin dependencias nuevas.** Cinco componentes de tabla y
 ninguna prueba modificada.
 
+## D-115 — La aplicación se puede instalar, y el service worker se escribe a mano porque el que había no sirve
+
+**Fecha:** 2026-08-26 · **Encargo:** convertir el proyecto en una PWA instalable en Android y iPhone,
+sin cambiar frontend, backend, base de datos, usuarios, autenticación, rutas ni lógica de negocio.
+
+### Por qué NO se usa Serwist (ni ninguna otra integración)
+
+El encargo pedía expresamente no escribir un service worker manual complejo «si existe una solución
+moderna, estable y mantenida compatible con el framework actual». Se comprobó, y **no existe para
+este stack**:
+
+| Candidata | Qué se comprobó | Veredicto |
+|---|---|---|
+| `@serwist/next` 9.5.12 | Sus dependencias incluyen **`@serwist/webpack-plugin`**. Es un plugin de webpack | ❌ Next 16 construye con **Turbopack** (lo dice el propio log del build). Adoptarla obligaría a volver a `--webpack` |
+| `next-pwa` | Sin publicar desde hace años; misma arquitectura de webpack | ❌ |
+| Workbox a pelo | Aporta estrategias que aquí **no se van a usar**: no se cachea ni una API ni una pantalla | ❌ Peso y superficie sin beneficio |
+
+Cambiar el sistema de build entero de la aplicación por un plugin de caché es exactamente el riesgo
+que la Prioridad 1 del encargo prohíbe. Y el worker que hace falta aquí es **corto** justamente
+porque la política de caché es conservadora (D-116): sin precarga de HTML, sin caché de API y sin
+escrituras sin conexión, lo que queda son ~180 líneas legibles y auditables.
+
+### Piezas
+
+| Archivo | Qué es |
+|---|---|
+| `public/sw.js` | El service worker. Archivo estático: lo sirve el CDN, no una función |
+| `src/app/manifest.ts` | Manifiesto, en `/manifest.webmanifest`. Estático |
+| `src/lib/pwa.ts` | Nombre, descripción, color y versión, en un solo sitio |
+| `src/features/pwa/components/ServiceWorkerManager.tsx` | Registra el worker y avisa de versión nueva |
+| `public/icons/` | Iconos y su SVG de origen |
+
+### La versión viaja en la dirección del worker
+
+`public/sw.js` es un archivo estático, así que sus bytes no cambian con un despliegue. Se registra
+como **`/sw.js?v=<versión>`**: cada despliegue cambia esa dirección, el navegador la trata como un
+worker distinto y arranca el ciclo de actualización. Dentro, el worker lee su propia consulta y
+nombra con ella la caché de la versión.
+
+La versión la calcula `next.config.ts` **en tiempo de build** y la inyecta con `env`. Dos requisitos
+que no son negociables:
+
+* **Determinista dentro de un build.** `next build` reparte el trabajo entre once procesos; si el
+  valor saliera de `Date.now()`, dos fragmentos del mismo despliegue podrían llevar números distintos
+  y el navegador vería una versión nueva en cada navegación. Sale del commit, que es igual en todos.
+* **No publica el commit.** El valor acaba en el JavaScript que descarga cualquiera, así que se
+  escribe un **sha256 recortado** del hash, no el hash. Cumple lo único que se le pide —igual para
+  todos los visitantes de un despliegue, distinto en el siguiente, y no dice nada de nadie—.
+
+`APP_BUILD_ID` permite fijarlo a mano si algún día se construye fuera de Git.
+
+### Tres cambios en la frontera de seguridad, y ninguno la afloja
+
+1. **`worker-src 'self'` y `manifest-src 'self'` en la CSP.** La primera **no es opcional**: la
+   cadena de respaldo de `worker-src` pasa por `script-src`, que lleva `'strict-dynamic'`, y esa
+   palabra hace que se ignoren las listas de orígenes. Sin declararla, el navegador **rechaza** el
+   registro. Se limita al propio origen y hay prueba unitaria.
+2. **`sw.js` y `manifest.webmanifest` salen del matcher del proxy.** Los pide el navegador también
+   **sin sesión** —el worker se registra desde `/login`—, y con el proxy delante recibirían la
+   redirección a `/login`, que como service worker es un error de tipo MIME. Son archivos estáticos y
+   públicos, la misma categoría que `_next/static` y las imágenes, que ya estaban excluidos. Nada más
+   entró en esa lista.
+3. **`/offline` entra en `PUBLIC_PATHS`.** Sigue pasando por el proxy —para recibir su CSP con
+   nonce— pero no redirige. Es texto fijo: no consulta absolutamente nada.
+
+### Iconos: son provisionales y hay que decirlo
+
+El proyecto **no tenía ningún logo**, ni siquiera un favicon (cada primera visita pedía
+`/favicon.ico` y recibía un 404). Se dibujó un marcador de posición: una boleta con la línea de corte
+en el centro, porque una boleta de esta aplicación tiene dos números y esa es su única particularidad
+visible. Colores de `globals.css`: fondo `primary` del tema claro, boleta en el verde de `success`.
+
+Sustituirlo es cambiar `public/icons/icon.svg` (y su variante `-maskable`) y volver a generar los
+PNG. Ver `KNOWN_ISSUES.md` **I-071**.
+
+Los dos juegos se declaran **por separado** —`any` y `maskable`—, nunca `purpose: 'any maskable'` en
+el mismo archivo: eso obliga a un solo dibujo a servir para el recorte de Android y para el icono sin
+recortar, y sale mal en los dos.
+
+---
+
+## D-116 — El service worker no guarda ni una boleta, y eso es la decisión, no una limitación
+
+**Fecha:** 2026-08-26
+
+El encargo pedía *Network First* para el HTML. **Se implementó «solo red» con pantalla de reserva**, y
+la diferencia importa.
+
+*Network First* no significa solo «intenta la red primero»: significa **guardar** la respuesta para
+poder servirla cuando la red falle. En esta aplicación el HTML de cualquier pantalla protegida **es
+el dato**: lo renderiza el servidor con las filas de quien consulta, y dentro van boletas, clientes,
+abonos y saldos. Guardarlo en Cache Storage es guardar la información de una persona en un teléfono
+que puede usar otra, y dos vendedores compartiendo un móvil no es aquí un caso raro.
+
+El propio encargo lo zanja: «si no existe una razón fuerte para persistir determinados datos
+sensibles en Cache Storage, prefiero no cachearlos», y «si tienes que elegir entre mayor velocidad y
+datos correctos, elige siempre datos correctos».
+
+### Qué se guarda y qué no
+
+| Recurso | Estrategia | Duración | Razón |
+|---|---|---|---|
+| `/_next/static/**` (JS, CSS, fuentes) | **Cache First** | Indefinida, tope de 300 entradas | La dirección lleva la huella del contenido: si el archivo cambia, cambia la dirección. Servir de caché **no puede** devolver algo viejo |
+| Iconos, `favicon.ico`, `manifest.webmanifest` | **Cache First** en la caché de la versión | Un despliegue | No llevan huella; se refrescan solos al activarse la versión siguiente |
+| `/offline` y los archivos que necesita | Precargados al instalar | Un despliegue | Es lo único que se puede enseñar sin red |
+| **Navegaciones** (todo el HTML) | **Solo red**, con `/offline` de reserva | No se guarda | Es el dato de una persona. Ver arriba |
+| **Payloads RSC** (`RSC: 1`, `?_rsc=`) | **No se tocan** | No se guarda | Es la misma pantalla, en otro formato |
+| `/api/**`, `/auth/**` | **No se tocan** | No se guarda | Datos y sesión |
+| **POST, PUT, PATCH, DELETE** | **No se tocan** | Nunca | Cada venta, cada abono y cada anulación va SIEMPRE al servidor |
+| Supabase y cualquier origen ajeno | **No se tocan** | Nunca | Ni siquiera entran en el `fetch` |
+
+**Consecuencia honesta:** sin conexión la aplicación **no** muestra las boletas de ayer. Muestra que
+no hay conexión. Lo que sí gana es que, con red, todo el JavaScript y las fuentes salen del teléfono
+y no del servidor.
+
+### No hay nada que limpiar al cerrar sesión
+
+El encargo pedía limpiar en el cierre de sesión «cualquier caché específica del usuario que hayas
+creado». **No se creó ninguna**, así que no hay hueco donde puedan quedarse los datos del vendedor
+anterior. Se comprobó midiendo el contenido real de las cachés después de navegar: 20 entradas, todas
+de `/_next/static/…` salvo `/offline` y el manifiesto. Un `?_rsc=` pedido a mano **no** quedó
+guardado.
+
+Esto es deliberado y conviene que siga así: el día que algo empiece a guardar respuestas
+autenticadas, habrá que añadir a la vez el borrado en el cierre de sesión.
+
+### La actualización la manda la persona, nunca el reloj
+
+Una versión nueva se instala en segundo plano y **se queda esperando**. La página muestra el aviso de
+siempre —un `toast`, arriba y al centro para no tapar la barra inferior del teléfono (D-106, D-110)—:
+
+> **Hay una nueva versión de Rifas** · Actualiza cuando termines lo que estás haciendo. · **[Actualizar]**
+
+Solo al pulsar se envía `SKIP_WAITING`, el worker toma el control y la página se recarga. **Nunca**
+hay recarga automática: una recarga en mitad de un abono se lleva por delante lo que se estaba
+escribiendo.
+
+Tampoco puede haber mezcla de versiones. Como el HTML **nunca** sale de la caché, cada navegación
+trae el documento del despliegue vigente, que pide los fragmentos de ese despliegue; los del anterior
+se quedan como entradas huérfanas y caen solas al llegar al tope.
+
+### La pantalla sin conexión se renderiza por petición, y no es un capricho
+
+`/offline` lleva `force-dynamic` aunque su contenido sea fijo. Es la única forma de que tenga
+JavaScript: la CSP usa `'strict-dynamic'` con un nonce por petición (D-061), y una página
+**prerenderizada** no puede llevar ese nonce, así que el navegador bloquea todos sus scripts. Se
+descubrió comprobando esto y resultó ser un fallo **anterior y real** en `/forgot-password`: ver
+`KNOWN_ISSUES.md` **I-070**.
+
+Además, el worker no se limita a guardar su HTML: lee las direcciones de `/_next/static/…` que ese
+HTML menciona y las guarda también. Sin eso, la pantalla se vería sin conexión pero no reaccionaría,
+y con ella se perdería lo único que hace: enterarse de que volvió la red y recargar sola.
+
+Por si acaso, el botón **«Reintentar» funciona sin JavaScript**: es un enlace de verdad a `/`, que el
+navegador sigue solo. Con JavaScript hace algo mejor —recarga la dirección que se estaba abriendo,
+que el worker conserva—.
+
+---
+
+## D-117 — Instalar se ofrece una vez, al final del panel, y en iPhone se explica en vez de prometerse
+
+**Fecha:** 2026-08-26
+
+**Dónde.** Al final del contenido de los **dos paneles**, en el flujo normal de la página. Ni ventana,
+ni banda flotante, ni nada que tape lo que se estaba mirando; y como no flota, tampoco empuja nada al
+aparecer, así que no genera salto de maquetación. El encargo pedía expresamente que no saliera un
+cuadro grande nada más entrar.
+
+**Cuándo no aparece:** si ya está instalada (modo autónomo por `display-mode`, `navigator.standalone`
+en iOS, o un `appinstalled` anterior), si el navegador no ofrece instalación, o si se descartó hace
+menos de **30 días**.
+
+**Android y escritorio** usan el aviso **nativo**: se intercepta `beforeinstallprompt`, se guarda, y
+se pide el aviso del navegador solo tras una pulsación explícita. No se simula ninguna instalación.
+
+**iPhone** no tiene esa capacidad, así que se explican los dos toques: «Toca Compartir en la barra de
+Safari» y «Elige Agregar a pantalla de inicio». Y **solo** en Safari de iPhone: Chrome en iOS usa el
+mismo motor pero ese menú no está donde dicen las instrucciones, y mandar a alguien a buscar un botón
+que no existe es peor que callarse. Esas cuatro decisiones son funciones puras en
+`src/features/pwa/install-state.ts`, con **13 pruebas unitarias**.
+
+**Etiquetas de las dos etiquetas de iOS que Next no escribe.** Con `appleWebApp.capable: true`, Next
+16.3 emite `apple-mobile-web-app-title` y `apple-mobile-web-app-status-bar-style` pero **no** la de
+`capable` — comprobado sobre el build de producción. Sin ella, un iPhone con iOS anterior al soporte
+de `display: standalone` del manifiesto agrega el icono y al tocarlo abre Safari **con su barra**:
+justo lo que la instalación venía a evitar. Se escriben a mano las dos, la estándar
+(`mobile-web-app-capable`) y la de Apple.
+
+---
+
+## D-118 — Geist Mono se descargaba en todas las páginas y no lo usaba nadie
+
+**Fecha:** 2026-08-26
+
+`src/app/layout.tsx` declaraba **dos** familias, `Geist` y `Geist_Mono`, y Next precargaba las dos.
+Pero `globals.css` declara dentro de `@theme inline` únicamente `--font-sans: var(--font-geist-sans)`
+y **nunca declaró `--font-mono`**: las diez apariciones de `font-mono` de la aplicación se pintaban
+—y se pintaban ya antes de este cambio— con la pila monoespaciada del sistema. La variable
+`--font-geist-mono` se ponía en el `<body>` y no la leía nadie.
+
+Se retiró la familia. **No cambia ni un píxel de lo que se ve**, y se comprobó sobre el build:
+
+| | Antes | Después |
+|---|---|---|
+| Archivos `.woff2` generados | 11 (143,4 KB) | **5 (74,2 KB)** |
+| Fuentes **precargadas** en la ruta crítica | 2 (51,2 KB) | **1 (29,3 KB)** |
+
+**Lo que NO se hizo, a propósito:** conectar `--font-mono: var(--font-geist-mono)`. Sería la otra
+lectura posible de la intención original y **sí** cambiaría el aspecto de los números de boleta, los
+códigos internos y las cifras. Eso es una decisión de diseño del dueño, no un detalle de
+rendimiento — anotada en `KNOWN_ISSUES.md` **I-072**.
+
+También se desinstalaron **`date-fns` 4.4.0** y **`@date-fns/tz` 1.5.0**: `grep` en todo el
+repositorio —`src`, `scripts`, `tests` y configuraciones— devuelve **cero** apariciones. Las fechas
+las hace `Intl.DateTimeFormat` en `src/lib/dates.ts` desde siempre.
+
+---
+
+## D-119 — `viewport-fit=cover`, y las áreas seguras solo donde tocan un borde
+
+**Fecha:** 2026-08-26
+
+Sin `viewport-fit=cover`, un iPhone con la aplicación instalada deja franjas del color de fondo arriba
+y abajo, y la pantalla no llega a los bordes. Con él llega, y a cambio hay que apartar el contenido
+de la muesca y del indicador inferior.
+
+**Ya estaba medio hecho.** `globals.css` reservaba desde D-106 el `env(safe-area-inset-bottom)` de la
+barra de navegación con valor de repuesto `0px`, y su propio comentario decía: «si algún día se activa
+esa opción, la barra se separa sola sin tocar nada más». Era este día, y así fue.
+
+Lo que se añadió son **dos variables**, `--safe-left` y `--safe-right`, aplicadas en las **cuatro**
+caras que de verdad tocan un borde: la barra lateral, la columna de contenido, la barra inferior, la
+barra de selección múltiple y el armazón de las pantallas sin sesión. Valen **0 px** en escritorio, en
+Android y en cualquier teléfono sin muesca: no es una condición escrita en React, es el navegador
+respondiendo lo que sabe de su propia pantalla. Solo hacen algo con un iPhone **en horizontal**, donde
+sin ellas la primera y la última opción de la barra inferior quedan bajo la muesca y no se pueden
+tocar.
+
+**Arriba no hace falta ninguna**, y no se define para no dejar una variable muerta: el manifiesto
+declara `display: standalone` y la barra de estado de iOS en estilo `default`, así que ni iOS ni
+Android meten el contenido debajo del reloj. Si algún día se pasara a `black-translucent`, esa es la
+línea que habría que añadir.
+
+**No se toca el zoom.** Ni `maximumScale` ni `userScalable`: impedir ampliar rompe la accesibilidad de
+quien no ve bien. El problema que suele empujar a prohibirlo —iOS amplía solo al enfocar un campo con
+letra menor de 16 px— aquí **no existe**: `Input` y `Textarea` ya son `text-base` (16 px) en el
+teléfono y bajan a `text-sm` solo desde `md`, y los desplegables no son `<select>` nativos.
+
+Comprobado sin desbordamiento horizontal a **320, 375, 430 y 1366 px**.
+
+---
+
+## D-120 — Lo que solo se usa a veces deja de viajar con lo que se usa siempre
+
+**Fecha:** 2026-08-26
+
+El proyecto no tenía **ni un solo** `next/dynamic`. Se añadieron dos, elegidos por lo que costaban en
+las pantallas que más se abren, no por gusto.
+
+**1. El recorrido guiado sale del armazón.** `TourProvider` está en el armazón de los dos portales, o
+sea en **todas** las pantallas, y arrastraba consigo `TourOverlay` y `use-tour` —el globo, el recorte
+del fondo y el bucle que mide dónde está cada elemento—, que solo hacen falta mientras alguien mira el
+recorrido. `TourRunner` se movió a su propio archivo, **sin tocar una línea de su cuerpo**, y el
+proveedor lo pide con `next/dynamic`. Comprobado sobre el build: ese código vive ahora en un fragmento
+de **8,4 KB** que **no aparece** en el manifiesto de ninguna página.
+
+**2. Los cinco diálogos de acción masiva salen de «Boletas».** Son ~600 líneas que solo hacen falta
+después de marcar boletas **y** elegir una acción, y viajaban en el fragmento de la pantalla que más
+se abre. Ahora cada uno es su propio fragmento (7–10 KB) y ninguno aparece en el manifiesto de
+`/owner/tickets` ni de `/seller/tickets`.
+
+Dos detalles que evitan que la mejora se note como un empeoramiento:
+
+* **Se piden en cuanto hay algo marcado**, no al pulsar. A esas alturas la intención ya está
+  declarada y quedan varios segundos —los de terminar de marcar— para que lleguen. Cargarlos al pulsar
+  dejaría un hueco visible en una conexión lenta.
+* **El último diálogo abierto sigue montado** después de cerrarse (`mountedDialog`), para que su
+  animación de salida termine en vez de desaparecer de golpe. Solo puede haber uno abierto a la vez,
+  así que basta con recordar cuál.
+
+**Lo que NO se difirió y por qué.** `TicketImportDialog` (403 líneas, más `ColumnMapper`,
+`ImportPreview` e `ImportDropzone`) **contiene su propio botón**, así que diferirlo dejaría un hueco
+donde va ese botón hasta que llegara el fragmento. Separarlo bien exige partir el componente, y eso
+toca un flujo con prueba de extremo a extremo que en esta sesión **no se pudo ejecutar** (Docker no
+está levantado). Queda recomendado, no hecho.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

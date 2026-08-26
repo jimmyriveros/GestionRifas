@@ -109,14 +109,33 @@
    * hueco que reserva `AppShell` para que no tape nada, y la altura a la que se
    * posa la barra de seleccion multiple cuando hay boletas marcadas.
    *
-   * `env(..., 0px)` lleva valor de repuesto a proposito: sin `viewport-fit=cover`
-   * el navegador ya mantiene los elementos fijos por encima del indicador, asi
-   * que 0 es la respuesta correcta hoy. Si algun dia se activa esa opcion, la
-   * barra se separa sola sin tocar nada mas.
+   * `env(..., 0px)` lleva valor de repuesto a proposito. Desde el 2026-08-26
+   * (D-119) la aplicacion declara `viewport-fit=cover`, asi que en un iPhone
+   * este valor ya NO es cero: la barra se separa sola del indicador del sistema,
+   * que es exactamente lo que este comentario anticipaba.
    */
   :root {
     --bottom-nav-height: 3.5rem;
     --bottom-nav-space: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+
+    /*
+     * Areas seguras laterales (D-119).
+     *
+     * Con `viewport-fit=cover` la pagina llega a los bordes fisicos de la
+     * pantalla, y en un iPhone EN HORIZONTAL la muesca se come el borde
+     * izquierdo o el derecho. Estas dos variables valen CERO en escritorio, en
+     * Android y en cualquier telefono sin muesca, de modo que no hay un solo
+     * pixel de relleno donde no hace falta: no es una condicion escrita en
+     * React, es el navegador respondiendo lo que sabe de su propia pantalla.
+     *
+     * ARRIBA NO HACE FALTA ninguna, y no se define para no dejar una variable
+     * muerta: el manifiesto declara `display: standalone` y la barra de estado
+     * de iOS en estilo `default`, asi que ni iOS ni Android meten el contenido
+     * debajo del reloj. Si algun dia se pasara a `black-translucent`, esa es la
+     * linea que habria que anadir.
+     */
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
 
     /*
      * Barra de seleccion multiple (D-110). Se posa encima de la anterior, pero

@@ -861,6 +861,81 @@ portal administrativo no la tiene: registrar abonos es del vendedor. La del enca
 **Sin consultas nuevas:** `getClientDetail`, `listTickets({ clientId })` y `listClientPayments`, las
 mismas tres de antes y en el mismo `Promise.all`.
 
+### 8.15 Aplicación instalable: manifiesto, service worker y actualización (D-115 a D-119)
+
+La misma aplicación web, con otra puerta de entrada. **No hay un segundo enrutador, ni un segundo
+inicio de sesión, ni un segundo juego de tokens.** El manifiesto arranca en `/`, que es el reparto por
+rol que ya existía.
+
+| Pieza | Archivo | Qué es |
+|---|---|---|
+| Manifiesto | `src/app/manifest.ts` | Ruta de metadatos de Next; se sirve estática en `/manifest.webmanifest` |
+| Service worker | `public/sw.js` | Archivo **estático**, sin build. Lo sirve el CDN |
+| Registro y aviso de versión | `src/features/pwa/components/ServiceWorkerManager.tsx` | Montado una vez en el armazón raíz |
+| Ofrecimiento de instalar | `src/features/pwa/components/InstallPrompt.tsx` + `install-state.ts` | Tarjeta al final de los dos paneles |
+| Pantalla sin conexión | `src/app/offline/page.tsx` + `components/OfflineRetry.tsx` | `force-dynamic`, pública, precargada por el worker |
+| Constantes compartidas | `src/lib/pwa.ts` | Nombre, descripción, color y versión |
+| Iconos | `public/icons/` | SVG de origen + PNG generados. **Provisionales**, I-071 |
+
+**Qué guarda el worker y qué no** está en D-116, en una tabla, con la razón de cada línea. La regla
+corta: **archivos con huella de contenido, sí; cualquier cosa que lleve datos de una persona, no** —ni
+el HTML de una pantalla, ni un payload RSC, ni `/api`, ni nada que no sea `GET`.
+
+**Cómo se entera de una versión nueva.** El worker es un archivo estático, así que sus bytes no
+cambian con un despliegue. Se registra como `/sw.js?v=<versión>`, y esa versión la calcula
+`next.config.ts` en tiempo de build a partir del commit (resumida con sha256, para no publicar el
+commit) y la inyecta con `env`. Cada despliegue cambia la dirección → el navegador instala el worker
+nuevo → **se queda esperando** → la persona pulsa «Actualizar» y solo entonces se activa y se recarga.
+
+**Dos invariantes que conviene no romper:**
+
+1. **Ninguna respuesta autenticada entra en Cache Storage.** Por eso no hay nada que limpiar al
+   cerrar sesión. El día que algo empiece a guardarse, hay que añadir el borrado a la vez.
+2. **El HTML nunca sale de la caché**, así que no puede haber una mezcla de «documento de la versión
+   N+1 con fragmentos de la versión N». Cada navegación trae el documento vigente, que pide los
+   fragmentos de su propio despliegue.
+
+#### 8.15.a Por dónde entrará Firebase Cloud Messaging
+
+Todavía **no se implementa nada** de notificaciones —ni SDK, ni tokens, ni permisos, ni `push`, ni
+`notificationclick`—, pero la arquitectura se eligió para que quepan sin reescribir nada. Lo que hay
+que saber cuando llegue el momento:
+
+**Hay UN service worker y su alcance es la raíz.** Ese es el punto entero. La trampa clásica de FCM en
+web es que su documentación te lleva a crear un `firebase-messaging-sw.js` en la raíz del sitio: eso
+sería un **segundo** worker compitiendo por el mismo alcance `/`, y el navegador solo deja uno
+controlando cada página. El resultado habitual es que uno de los dos deja de recibir eventos, de forma
+intermitente y muy difícil de depurar.
+
+**La salida correcta, en tres pasos:**
+
+1. Los oyentes `push` y `notificationclick` se añaden **al final de `public/sw.js`**, en su propia
+   sección. Ese archivo ya separa por responsabilidad —caché de archivos, actualización de la
+   aplicación, reserva sin conexión— y las notificaciones son una cuarta sección, no un remiendo
+   dentro de `fetch`.
+2. Si se usa el SDK de Firebase dentro del worker, entra con `importScripts()` de los paquetes
+   `firebase-app-compat` / `firebase-messaging-compat`, **al principio del archivo**. Si se decide
+   manejar `push` a mano —el evento es estándar y el cuerpo es el que envíe el backend—, no hace falta
+   ni el SDK, y la CSP no tendría que abrirse a `gstatic.com`.
+3. En la página, `getToken()` recibe **la registración que ya existe**, nunca una nueva:
+
+   ```ts
+   const registration = await navigator.serviceWorker.getRegistration()
+   await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration })
+   ```
+
+**Cuatro cosas que habrá que tocar y conviene tener localizadas desde ahora:**
+
+| Qué | Dónde | Por qué |
+|---|---|---|
+| `connect-src` de la CSP | `src/lib/security-headers.ts` | FCM habla con `fcmregistrations.googleapis.com` y `firebaseinstallations.googleapis.com` |
+| `script-src`, solo si se usa el SDK | mismo archivo | `importScripts` desde `www.gstatic.com` |
+| La versión del worker | `?v=` de `src/lib/pwa.ts` | Cambiar el worker cambia sus bytes; el ciclo de actualización ya está montado y funciona |
+| El permiso de notificaciones | Una pantalla, **nunca** al cargar | Pedirlo sin contexto es la forma más rápida de que lo denieguen para siempre |
+
+**Lo que NO hay que hacer:** registrar un segundo worker «solo para las notificaciones», mover el
+alcance a un subdirectorio, o cachear respuestas del backend «ya que estamos». Las tres rompen algo
+que hoy funciona.
 ---
 
 ## 9. Configuración regional
@@ -918,6 +993,23 @@ de abonos y midió cada pantalla. Cuatro reglas para no repetir lo que encontró
 puede usar su índice bajo RLS, ~1 s con 1.000.000 de clientes), I-063 (los agregados por rifa y
 vendedor son lineales, ~500 ms con 1.000.000 de boletas), I-064 (conteo exacto del historial de
 pagos) e I-065 (actualizaciones masivas sobre `tickets` y los índices GIN).
+
+### 10.1.b Reglas del bundle del navegador (D-118, D-120)
+
+Hasta el 2026-08-26 la §10 solo hablaba de consultas y de servidor. Estas tres son del otro lado:
+
+7. **Una fuente declarada es una fuente descargada, la use alguien o no.** `Geist_Mono` se precargó
+   en todas las páginas durante meses sin que ni una clase la usara, porque `--font-mono` nunca se
+   declaró en `@theme inline`. Declarar una familia en `layout.tsx` **no** la conecta con Tailwind:
+   hacen falta las dos mitades, y si falta la segunda solo queda el peso (I-072).
+8. **Lo que solo se usa a veces no viaja con lo que se usa siempre.** Un diálogo que se abre después
+   de dos decisiones, o un recorrido guiado que se ve una vez, van en `next/dynamic`. El criterio no
+   es el tamaño del archivo sino **cuántas pantallas lo arrastran**: `TourOverlay` pesaba poco y
+   estaba en las treinta y siete.
+9. **Diferir algo obliga a decir cuándo se pide.** Al pulsar es tarde en una conexión lenta. Se pide
+   en la **señal de intención** anterior —marcar la primera boleta, en el caso de los diálogos
+   masivos—, que deja segundos de margen. Y si el componente tiene animación de salida, se **deja
+   montado** tras cerrarlo o desaparecerá de golpe.
 
 ### 10.2 Cómo se mide
 

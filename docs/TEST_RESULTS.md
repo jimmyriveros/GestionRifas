@@ -3325,3 +3325,103 @@ Comprobado además en pantalla, no solo por consulta:
 | Nombre **accesible** | «Número diario» / «Número semanal» |
 | `/owner/payments` y `/owner/raffles` | columna **«Acción»** con el icono de ojo junto a «Ver» |
 | `/owner/users` y `/owner/sellers` | columna **«Acciones»**, la misma palabra que ya usaba el botón del menú |
+
+---
+
+## La aplicación instalable (PWA) y el bundle del navegador (2026-08-26)
+
+**Alcance:** D-115 a D-120 — manifiesto, service worker, iconos, pantalla sin conexión, aviso de
+versión, áreas seguras, retirada de `Geist_Mono` y de dos dependencias, y `next/dynamic` para el
+recorrido guiado y los cinco diálogos de acción masiva.
+
+### 1. Suite automática
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ **0 errores**; los 2 avisos de siempre (`useReactTable` y `useVirtualizer`, librerías incompatibles con el compilador de React) |
+| `npm run test` | ✅ **372/372** en 23 archivos (**+13**: `tests/unit/pwa-install-state.test.ts`, y 1 nueva en `security-headers.test.ts`) |
+| `npm run build` | ✅ |
+| `npm run verify` | ✅ completo |
+| `npm run test:db` | ❌ **NO EJECUTADO** |
+| `npm run test:e2e` | ❌ **NO EJECUTADO** |
+
+> **Por qué faltan dos.** Docker Desktop no estaba levantado en la máquina
+> (`failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`), así que
+> `npx supabase start` no era posible. Quedan sin cubrir **518** pruebas de base de datos y **294**
+> E2E, y entre ellas las cinco que tocan justo lo que D-120 cambió: `seleccion-multiple`,
+> `seleccion-movil`, `owner-bulk`, `tour` y `tour-responsive`. Registrado como **I-073**. No se
+> presenta como verificado lo que no se ejecutó.
+
+### 2. Comprobación manual del service worker (build de producción, `npm start`)
+
+Todo lo de abajo se midió sobre `next start`, nunca en `next dev`.
+
+| Qué | Cómo se comprobó | Resultado |
+|---|---|---|
+| Se registra y toma el control | `navigator.serviceWorker.getRegistration()` | `activated`, alcance `http://localhost:3000/`, guion `/sw.js?v=efa8ad06794b` |
+| La CSP no lo bloquea | consola tras cargar `/login` | **cero errores** |
+| Manifiesto | `fetch('/manifest.webmanifest')` | 200, `application/manifest+json`, JSON completo con los 4 iconos |
+| Etiquetas del `<head>` | inspección del DOM | `viewport-fit=cover`, `theme-color`, `apple-touch-icon`, `apple-mobile-web-app-title`, `status-bar-style`, `format-detection`, y **las dos de `capable`** |
+| **Qué hay dentro de las cachés** | recorrido de `caches.keys()` y `cache.keys()` | 2 cachés, **20 entradas**: **todas** `/_next/static/…` salvo `/offline` y `/manifest.webmanifest` |
+| **Que un payload RSC no se guarda** | `fetch('/login?_rsc=abc123')` y recuento posterior | **no** quedó guardado |
+| Sin conexión | se **paró el servidor** y se navegó a `/seller/tickets?q=1234` | sirvió la pantalla de reserva, **conservando la dirección original** y con React **hidratado** |
+| Volver a estar en línea | se levantó el servidor y se repitió la navegación | `/seller/tickets` → `307` → `/login?next=%2Fseller%2Ftickets`: la guarda de sesión intacta |
+| **Aviso de versión nueva** | se modificó `public/sw.js` y se recargó | apareció «Hay una nueva versión de Rifas · Actualiza cuando termines lo que estás haciendo. · [Actualizar]», worker en `waiting`, y la página **no** se recargó sola |
+| **Activación a petición** | clic en «Actualizar» | worker `activated`, `waiting` vacío, aviso cerrado, página recargada, **cachés de la versión anterior borradas** |
+| Sin desbordamiento horizontal | `documentElement.scrollWidth` vs `innerWidth` | 320, 375, 430 y 1.366 px → **0** desbordamiento |
+
+### 3. Errores encontrados durante la verificación
+
+**a) La pantalla sin conexión se quedaba sin JavaScript.** Al principio `/offline` era una página
+**prerenderizada**, y la CSP de este proyecto usa `'strict-dynamic'` con un nonce por petición: un
+HTML generado al construir no puede llevar ese nonce, así que el navegador bloqueaba **todos** sus
+scripts. Se comprobó midiendo si React estaba montado (`reactAttached: false`). **Corregido** con
+`force-dynamic` (D-116); ahora el nonce del HTML y el de la cabecera coinciden, y siguen coincidiendo
+cuando el worker la sirve desde la caché, porque se guarda la respuesta entera con su cabecera.
+
+**b) La pantalla sin conexión se veía pero no reaccionaba.** Corregido (a), seguía sin hidratar
+**estando de verdad sin red**: su fragmento de JavaScript nunca se había descargado, así que no
+estaba guardado. **Corregido** haciendo que el worker, al instalarse, lea el HTML de `/offline` y
+guarde también las direcciones de `/_next/static/…` que menciona. Vuelto a medir sin servidor:
+`reactAttached: true`. Como red de seguridad, el botón «Reintentar» es un enlace real a `/` y
+funciona aunque no haya nada de JavaScript.
+
+**c) Next 16.3 no escribe `apple-mobile-web-app-capable`.** Con `appleWebApp.capable: true` emite el
+título y el estilo de la barra de estado, pero **no** esa etiqueta — comprobado sobre el build. Sin
+ella, un iPhone con iOS anterior al soporte de `display: standalone` abriría Safari **con su barra**.
+**Corregido** escribiéndola a mano junto con la estándar `mobile-web-app-capable`.
+
+**d) HALLAZGO GRAVE Y AJENO A ESTE TRABAJO — `/forgot-password` no ejecuta su JavaScript en
+producción.** Es el mismo mecanismo de (a) sobre una página que **ya era** estática. Comprobado en
+`https://gestion-rifas.vercel.app/forgot-password`: la consola se llena de violaciones de la CSP y
+React no hidrata. Reproducido en local qué implica: al pulsar «Enviar enlace de recuperación» el
+formulario cae a su **envío nativo por GET**, la dirección pasa a `/forgot-password?email=…`, no hay
+validación de cliente y **no se llama a la Server Action ni se envía ningún correo**. `/denied` y
+`/_not-found` están igual de bloqueadas pero solo contienen un enlace, que funciona sin JavaScript.
+**No se corrigió**: toca autenticación, que este encargo excluye. Ficha completa y arreglo de una
+línea en **I-070**.
+
+### 4. Bundle: antes y después, solo lo que se pudo medir
+
+Medido sobre dos `next build` de producción completos, en la misma máquina.
+
+| Métrica | Antes | Después |
+|---|---|---|
+| Archivos `.woff2` generados | 11 (**143,4 KB**) | 5 (**74,2 KB**) |
+| Fuentes **precargadas** (ruta crítica) | 2 (**51,2 KB**) | 1 (**29,3 KB**) |
+| Dependencias de producción | 22 | **20** (`−date-fns`, `−@date-fns/tz`) |
+| Fragmentos generados | 57 | 71 (el reparto de D-120) |
+| Recorrido guiado en el paquete inicial | **sí, en las 37 pantallas** | **no** — fragmento propio de 8,4 KB, ausente del manifiesto de toda página |
+| Diálogos masivos en «Boletas» | **sí** | **no** — 5 fragmentos de 7–10 KB, ausentes de `/owner/tickets` y `/seller/tickets` |
+| `/login`, carga completa | *no medida antes* | 17 peticiones · 1.003 KB sin comprimir (JS 869 KB, CSS 87 KB, fuente 29 KB, HTML 18 KB) |
+
+**Lo que NO se pudo medir, y por qué no se inventa:**
+
+* **Peso por ruta antes/después de las pantallas protegidas.** Requiere sesión, y la única base
+  disponible es la **real** de producción: entrar ahí con las cuentas de demostración es justo lo que
+  provocó **I-066**. Con Docker levantado y base local, esto sí se puede medir.
+* **Lighthouse, LCP, INP y CLS.** No hay forma de ejecutarlos en este entorno. La navegación ya
+  estaba medida en D-104 e I-067 con un método propio y esas cifras siguen vigentes.
+* **Tamaños comprimidos.** `next start` local no comprime; todas las cifras de arriba son sin
+  comprimir. En Vercel se sirven con Brotli.

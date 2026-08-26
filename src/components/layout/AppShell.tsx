@@ -5,6 +5,7 @@ import { NavLinks } from '@/components/layout/NavLinks'
 import type { NavItem } from '@/components/layout/nav-items'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
+import { InstallPrompt } from '@/features/pwa/components/InstallPrompt'
 import { TourProvider } from '@/features/tour/components/TourProvider'
 import { tourTarget } from '@/features/tour/tours'
 import type { AppRole } from '@/lib/constants'
@@ -70,9 +71,15 @@ function AppShellLayout({
 
   return (
     <div className="flex min-h-svh flex-col md:flex-row">
+      {/*
+        `ps-[var(--safe-left)]` en la barra lateral y `pe-[var(--safe-right)]` en
+        la columna de contenido: son las dos unicas caras que tocan el borde de
+        la pantalla (D-119). Las variables valen 0 salvo en un telefono con
+        muesca puesto en horizontal, asi que en escritorio no cambia nada.
+      */}
       <aside
         {...tourTarget('nav-sidebar')}
-        className="bg-background hidden w-64 shrink-0 border-r md:flex md:flex-col"
+        className="bg-background hidden w-64 shrink-0 border-r ps-[var(--safe-left)] md:flex md:flex-col"
       >
         <div className="flex h-14 items-center border-b px-4">
           <span className="truncate font-semibold">{orgName}</span>
@@ -82,7 +89,7 @@ function AppShellLayout({
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col ps-[var(--safe-left)] pe-[var(--safe-right)] md:ps-0">
         <header className="bg-background sticky top-0 z-40 flex h-14 items-center gap-2 border-b px-4">
           <span className="truncate font-semibold md:hidden">{orgName}</span>
           <div className="ml-auto flex items-center gap-1">
@@ -108,6 +115,14 @@ function AppShellLayout({
         */}
         <main className="flex-1 p-4 pb-[calc(1rem_+_var(--bottom-nav-space)_+_var(--selection-bar-space))] md:p-6">
           {children}
+          {/*
+            El ofrecimiento de instalar va AQUI, al final del contenido y dentro
+            del flujo normal (D-117). No es una ventana ni una banda flotante:
+            no tapa nada, no empuja nada al aparecer y se decide solo —se pinta
+            unicamente en los dos paneles, y solo si el navegador confirma que
+            la instalacion es posible—.
+          */}
+          <InstallPrompt />
         </main>
       </div>
 

@@ -2444,3 +2444,69 @@ El mismo día y con autorización expresa, tras el ajuste de «Información gene
 **Lo que un agente no puede comprobar:** abrir la ficha en un teléfono real. Queda para el dueño.
 Reversión: Instant Rollback a `dpl_AyX7pQqvqy9KjPdAyGpuk7aEufbo` (`13a9771`), sin nada que deshacer
 en la base.
+
+---
+
+## Mantenimiento post-9 — la aplicación instalable (PWA) (2026-08-26)
+
+**Encargo:** convertir el proyecto en una PWA instalable en Android y iPhone y optimizar el
+rendimiento, sin cambiar frontend, backend, base de datos, usuarios, autenticación, rutas ni una sola
+regla de negocio. Decisiones **D-115 a D-120**.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| **Instalación** | Manifiesto en `/manifest.webmanifest` (`display: standalone`, `start_url: /`, `id: /`, colores del tema, 4 iconos). Se arranca en `/`, que es el reparto por rol que ya existía: no hay un camino paralelo para la aplicación instalada |
+| **Iconos** | 192, 512, dos `maskable`, `apple-touch-icon` de 180 y un `favicon.ico` de 16/32/48 — que **no existía**: cada primera visita recibía un 404. **Provisionales**, I-071 |
+| **Service worker** | `public/sw.js`, escrito a mano (D-115 explica por qué no Serwist). Guarda archivos con huella de contenido; **no guarda ni una respuesta autenticada** |
+| **Sin conexión** | `/offline`, pública y `force-dynamic`, precargada por el worker junto con los archivos que necesita. Botón «Reintentar» que **funciona sin JavaScript** |
+| **Versión nueva** | Aviso con botón. **Nunca** recarga sola: activar recarga, y recargar en mitad de un abono se lleva lo escrito |
+| **iPhone** | `viewport-fit=cover`, áreas seguras laterales, barra de estado en `default`, `format-detection: telephone=no` (los números de 4 cifras dejaban de ser tocables al convertirse en enlaces de llamada) y las dos etiquetas `capable` que Next no escribe |
+| **Rendimiento** | `−Geist_Mono` (11 → 5 `.woff2`; 51,2 → 29,3 KB precargados), `−date-fns`, `−@date-fns/tz`, y `next/dynamic` para el recorrido guiado y los 5 diálogos masivos |
+
+**Lo que NO se hizo, a propósito:** escrituras sin conexión, sincronización diferida, caché de API,
+Firebase Cloud Messaging (solo se dejó la arquitectura preparada y documentada en `ARCHITECTURE`
+§8.15.a), y `cacheComponents` / `partialPrefetching` de Next 16, que exigiría rediseñar los límites de
+Suspense de toda la aplicación y decidir vidas de caché para datos financieros.
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` **completo en verde**: `typecheck` ✅, `lint` **0 errores**, **372/372** unitarias
+(+13) y `build` ✅. Verificación manual del worker contra un build de producción: registro, cachés,
+sin conexión, vuelta a la red y ciclo completo de actualización. Detalle, cifras y **los cuatro
+errores encontrados** —tres corregidos y uno ajeno que se documentó sin tocar— en `TEST_RESULTS.md`.
+
+⚠️ **`test:db` (518) y `test:e2e` (294) NO se ejecutaron**: Docker no estaba levantado (**I-073**).
+
+### 3. Migraciones
+
+**Ninguna.** No se tocó la base de datos.
+
+### 4. Variables de entorno
+
+**Ninguna nueva obligatoria.** `NEXT_PUBLIC_APP_BUILD_ID` la calcula `next.config.ts` a partir del
+commit y la inyecta en el build; `APP_BUILD_ID` permite fijarla a mano si algún día se construye
+fuera de Git.
+
+### 5. Problemas que permanecen
+
+**I-070** (grave, ajeno: «Recuperar contraseña» sin JavaScript en producción), **I-071** (iconos
+provisionales), **I-072** (`font-mono` nunca fue Geist Mono), **I-073** (dos suites sin ejecutar).
+Siguen abiertos I-068, I-066, I-062 e I-063.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **Levanta Docker y ejecuta `test:db` y `test:e2e`** antes de promover nada. Cinco pruebas E2E
+   cubren justo lo que D-120 tocó.
+2. **Lee I-070 antes que nada.** Es un fallo real en producción, de autenticación, con arreglo de una
+   línea, y espera la decisión del dueño.
+3. **Para probar el worker en local: `npm run build && npm start`.** En `next dev` se desregistra a
+   propósito.
+4. **No añadas nada al matcher de `src/proxy.ts`** que no sea un archivo estático y público.
+5. **No empieces a guardar respuestas autenticadas en el worker.** Hoy no hay nada que limpiar al
+   cerrar sesión precisamente por eso (D-116).
+
+### 7. Promoción a producción
+
+**No promovido.** Requiere autorización expresa, y antes las dos suites de pruebas que faltan.

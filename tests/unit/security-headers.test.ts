@@ -81,6 +81,16 @@ describe('buildContentSecurityPolicy', () => {
     expect(directive(policy, 'form-action')).toBe("form-action 'self'")
   })
 
+  it('autoriza el service worker, y solo desde el propio origen (D-115)', () => {
+    // `worker-src` NO se puede dejar al respaldo de `default-src`: la cadena
+    // pasa por `script-src`, que lleva `'strict-dynamic'`, y esa palabra hace
+    // que se ignoren las listas de origenes. Sin esta directiva declarada, el
+    // navegador rechaza el registro y la aplicacion instalable deja de serlo.
+    const policy = buildContentSecurityPolicy(PROD)
+    expect(directive(policy, 'worker-src')).toBe("worker-src 'self'")
+    expect(directive(policy, 'manifest-src')).toBe("manifest-src 'self'")
+  })
+
   it('prohibe que la aplicacion se muestre dentro de un iframe (clickjacking)', () => {
     expect(directive(buildContentSecurityPolicy(PROD), 'frame-ancestors')).toBe(
       "frame-ancestors 'none'",

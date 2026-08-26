@@ -70,7 +70,10 @@ export function BottomNav({ items }: BottomNavProps) {
     <nav
       {...tourTarget('nav-mobile')}
       aria-label="Navegación principal"
-      className="bg-background fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom,0px)] md:hidden"
+      // Los laterales solo importan con el telefono en horizontal y muesca
+      // (D-119): sin ellos, la primera y la ultima opcion quedan debajo de la
+      // muesca y no se pueden tocar. Valen 0 el resto del tiempo.
+      className="bg-background fixed inset-x-0 bottom-0 z-40 border-t ps-[var(--safe-left)] pe-[var(--safe-right)] pb-[env(safe-area-inset-bottom,0px)] md:hidden"
     >
       <ul className="grid h-[var(--bottom-nav-height)] auto-cols-fr grid-flow-col">
         {items.map((item) => {

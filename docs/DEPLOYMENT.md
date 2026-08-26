@@ -153,6 +153,31 @@ lo sufre nunca.
 ⚠️ **Se aplica a los despliegues NUEVOS.** Cambiarlo no toca el despliegue que ya está en línea: hay
 que volver a desplegar para que surta efecto. Está disponible también en el plan Hobby.
 
+### 3.1.c Qué le pasa a la aplicación instalada en cada despliegue (D-115, D-116)
+
+Desde el 2026-08-26 hay un service worker, así que un despliegue afecta a teléfonos que ya tienen la
+aplicación en su pantalla de inicio. Lo que hay que saber:
+
+| Pregunta | Respuesta |
+|---|---|
+| ¿Puede alguien quedarse con la versión vieja? | **No.** El HTML **nunca** sale de la caché: cada navegación trae el documento del despliegue vigente, que pide los fragmentos de su propio despliegue |
+| ¿Puede mezclarse `index` nuevo con fragmentos viejos? | **No**, por lo mismo. Los fragmentos del despliegue anterior quedan como entradas huérfanas y caen solas al llegar al tope de 300 |
+| ¿Cuándo se entera de la versión nueva? | Al cargar cualquier pantalla: el worker se registra como `/sw.js?v=<versión>` y esa versión cambia con el commit |
+| ¿Se actualiza sola? | **No.** Se instala en segundo plano, espera, y aparece un aviso con botón. Solo al pulsarlo se activa y recarga. Es deliberado: recargar en mitad de un abono se lleva lo escrito |
+| ¿Hay que hacer algo al desplegar? | **Nada.** No hay que purgar cachés ni avisar a nadie |
+
+**Un requisito nuevo, y es duro:** `public/sw.js` y `/manifest.webmanifest` tienen que responder
+**200 sin sesión**. Están excluidos del matcher de `src/proxy.ts` justo para eso. Si alguien los
+devuelve a ese matcher, empezarán a responder con la redirección a `/login` y la aplicación dejará de
+poder instalarse — sin que nada más falle ni dé señal.
+
+**Comprobación posterior al despliegue** (resuelve además parte de I-069, porque `/sw.js` es público
+y su versión cambia con cada commit):
+
+```bash
+curl -sI https://gestion-rifas.vercel.app/sw.js | head -3
+```
+
 ### 3.2 Primer despliegue real
 
 1. Confirmar que las variables de §3.1 están puestas (Production).
@@ -225,3 +250,23 @@ complejidad en runners compartidos. Se sigue corriendo en local antes de cerrar 
 | Variables de entorno completas | El build comprueba las tres claves de Supabase; revisar además `NEXT_PUBLIC_SITE_URL` y `TZ` en el panel (I-049) |
 
 Detalle de qué hacer si algo de esto falla en `RUNBOOK.md`.
+
+### 6.1 Comprobar que el código nuevo está SERVIDO, y cuándo no se puede
+
+Que Vercel diga `READY` sobre un SHA prueba que **construyó** ese commit. Comprobar que lo que
+responde el dominio es ese build es un paso más, y el método depende de qué cambió:
+
+| Qué cambió | Cómo se comprueba | Estado |
+|---|---|---|
+| Algo que genera **CSS nueva** (una clase de Tailwind que antes no existía) | Descargar la hoja de `/login` y buscar la clase escapada —`.lg\:p-5`—, construyendo la barra invertida con `String.fromCharCode(92)`. Mejor aún: comprobar también que las huellas del build **anterior desaparecieron** (D-113, §7.b) | ✅ Fiable |
+| Solo **texto** dentro de componentes de cliente | No hay huella en la CSS. Los fragmentos de JavaScript llevan un hash **propio del build**, así que el nombre del fragmento local **no existe** en Vercel: se intentó el 2026-08-25 con D-114 y los dos dieron **404**. Las páginas que contienen esas tablas están protegidas, así que tampoco se puede leer su HTML sin sesión | ❌ No se puede desde fuera |
+
+**Cuando no se puede, no se inventa:** la evidencia es el SHA del despliegue, el alias apuntando a él
+y el CI en verde sobre ese mismo commit, y se dice así de claro en el registro. No se debe escribir
+«verificado que el código nuevo está servido» apoyándose en una comprobación que no se hizo.
+
+**Mejora pendiente para no volver a quedarse sin método** (I-069): una ruta pública mínima que
+devuelva `process.env.VERCEL_GIT_COMMIT_SHA` convertiría esto en una sola petición para **cualquier**
+cambio, sea CSS, texto o lógica. No se hizo aquí porque añadir una ruta pública a la aplicación es
+una decisión de producto, no un detalle de verificación.
+

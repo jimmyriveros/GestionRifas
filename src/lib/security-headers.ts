@@ -76,6 +76,14 @@ export function generateNonce(): string {
  * * `form-action 'self'` impide que una inyeccion envie un formulario —y con el
  *   sus datos— a un servidor ajeno.
  * * `frame-ancestors 'none'`: esta aplicacion nunca se muestra dentro de otra.
+ * * `worker-src 'self'` es OBLIGATORIO desde que hay service worker (D-115), y
+ *   no basta con que `default-src` sea `'self'`. La cadena de respaldo de esa
+ *   directiva pasa por `script-src`, que lleva `'strict-dynamic'`, y
+ *   `'strict-dynamic'` hace que se IGNOREN las listas de origenes: sin
+ *   declararla, el navegador rechaza el registro del worker. Se limita al
+ *   propio origen, que es de donde sale `/sw.js`.
+ * * `manifest-src 'self'` se declara explicito por la misma prudencia, aunque
+ *   ahi el respaldo a `default-src` si funcionaria.
  */
 export function buildContentSecurityPolicy(options: {
   nonce: string
@@ -115,6 +123,8 @@ export function buildContentSecurityPolicy(options: {
     `img-src 'self' data: blob:`,
     `font-src 'self' data:`,
     `connect-src ${connectSrc.join(' ')}`,
+    `worker-src 'self'`,
+    `manifest-src 'self'`,
     `object-src 'none'`,
     `base-uri 'self'`,
     `form-action 'self'`,

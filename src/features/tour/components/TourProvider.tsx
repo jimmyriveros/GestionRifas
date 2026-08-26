@@ -1,19 +1,35 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { TourOverlay } from '@/features/tour/components/TourOverlay'
 import { hasSeenTour, markTourSeen } from '@/features/tour/storage'
 import { findTour, type Tour } from '@/features/tour/tours'
-import { useTourRunner, waitForTour } from '@/features/tour/use-tour'
+import { waitForTour } from '@/features/tour/use-tour'
 import type { AppRole } from '@/lib/constants'
 
 /**
  * Conecta la pantalla actual con su recorrido: decide cual corre segun la ruta
  * y el rol, lo arranca la primera vez y recuerda que ya se vio.
  */
+
+/**
+ * El recorrido en marcha llega en un fragmento aparte (D-120).
+ *
+ * Este proveedor esta en el armazon de los dos portales, o sea en todas las
+ * pantallas; el globo, el recorte del fondo y el bucle que mide donde esta cada
+ * elemento solo hacen falta mientras alguien mira el recorrido. Con
+ * `next/dynamic` ese codigo se descarga en ese momento y no antes.
+ *
+ * No hace falta `loading`: el recorrido ya espera a que la pantalla se asiente
+ * (`waitForTour`) y son unos milisegundos mas sobre esa espera, no sobre la
+ * carga inicial. Un esqueleto ahi solo pintaria un parpadeo.
+ */
+const TourRunner = dynamic(() =>
+  import('@/features/tour/components/TourRunner').then((module) => module.TourRunner),
+)
 
 type TourControls = {
   /** Hay recorrido para esta pantalla y este rol. */
@@ -89,30 +105,5 @@ export function TourProvider({ role, profileId, children }: TourProviderProps) {
         <TourRunner key={runningTour.id} tour={runningTour} onClose={handleClose} />
       ) : null}
     </TourContext.Provider>
-  )
-}
-
-/**
- * Une la logica con la presentacion. Separado del proveedor para que el hook se
- * monte solo mientras hay un recorrido corriendo: sin recorrido no hay bucle de
- * medicion ni escuchas de teclado.
- */
-function TourRunner({ tour, onClose }: { tour: Tour; onClose: (tour: Tour) => void }) {
-  const runner = useTourRunner({ tour, onClose })
-
-  if (!runner.step) return null
-
-  return (
-    <TourOverlay
-      step={runner.step}
-      index={runner.index}
-      total={runner.total}
-      isFirst={runner.isFirst}
-      isLast={runner.isLast}
-      rect={runner.rect}
-      onNext={runner.next}
-      onPrevious={runner.previous}
-      onClose={runner.close}
-    />
   )
 }

@@ -1,7 +1,8 @@
 'use client'
 
 import { MoreHorizontalIcon } from 'lucide-react'
-import { useState, useTransition } from 'react'
+import dynamic from 'next/dynamic'
+import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -18,11 +19,47 @@ import { resolveTicketSelection } from '../actions'
 import { countEligible, type BulkAction } from '../eligibility'
 import type { TicketSelectionFiltersInput } from '../schemas'
 import { useTicketSelection } from '../TicketSelectionContext'
-import { BulkApproveDialog } from './BulkApproveDialog'
-import { BulkAssignDialog } from './BulkAssignDialog'
-import { BulkCancelDialog } from './BulkCancelDialog'
-import { BulkChangeSellerDialog } from './BulkChangeSellerDialog'
-import { BulkDeleteDialog } from './BulkDeleteDialog'
+
+/**
+ * LOS CINCO DIALOGOS LLEGAN APARTE (D-120).
+ *
+ * Son ~600 lineas que solo hacen falta despues de marcar boletas Y elegir una
+ * accion, pero viajaban en el fragmento de «Boletas» —la pantalla que mas se
+ * abre y la que mas prisa tiene— y se descargaban aunque nadie seleccionara
+ * nada. Con `next/dynamic` cada uno es su propio fragmento.
+ *
+ * Cargarlos al pulsar dejaria un hueco visible en una conexion lenta, asi que se
+ * piden en cuanto hay ALGO seleccionado (`useEffect` mas abajo): a esas alturas
+ * la intencion ya esta declarada y quedan varios segundos —los de terminar de
+ * marcar— para que lleguen sin que nadie espere.
+ */
+const BulkApproveDialog = dynamic(() =>
+  import('./BulkApproveDialog').then((module) => module.BulkApproveDialog),
+)
+const BulkAssignDialog = dynamic(() =>
+  import('./BulkAssignDialog').then((module) => module.BulkAssignDialog),
+)
+const BulkCancelDialog = dynamic(() =>
+  import('./BulkCancelDialog').then((module) => module.BulkCancelDialog),
+)
+const BulkChangeSellerDialog = dynamic(() =>
+  import('./BulkChangeSellerDialog').then((module) => module.BulkChangeSellerDialog),
+)
+const BulkDeleteDialog = dynamic(() =>
+  import('./BulkDeleteDialog').then((module) => module.BulkDeleteDialog),
+)
+
+/** Los que puede necesitar cada portal. El vendedor solo asigna. */
+function preloadDialogs(portal: 'owner' | 'seller') {
+  if (portal === 'seller') {
+    void import('./BulkAssignDialog')
+    return
+  }
+  void import('./BulkApproveDialog')
+  void import('./BulkCancelDialog')
+  void import('./BulkChangeSellerDialog')
+  void import('./BulkDeleteDialog')
+}
 
 /**
  * Lo que rodea a la seleccion una vez empezada: contar, revisar y actuar
@@ -68,10 +105,27 @@ export function TicketSelectionToolbar({
 }) {
   const selection = useTicketSelection()
   const [dialog, setDialog] = useState<BulkAction | null>(null)
+  /**
+   * El ultimo dialogo que se abrio sigue MONTADO despues de cerrarse, para que
+   * su animacion de salida termine en vez de desaparecer de golpe. Solo puede
+   * haber uno abierto a la vez, asi que basta con recordar cual (D-120).
+   */
+  const [mountedDialog, setMountedDialog] = useState<BulkAction | null>(null)
   const [resolving, startResolving] = useTransition()
 
   const count = selection.selectedCount
   const rows = selection.eligibility ?? []
+
+  // Traer los dialogos en cuanto hay algo marcado. Ver la nota de arriba.
+  const hasSelection = count > 0
+  useEffect(() => {
+    if (hasSelection) preloadDialogs(portal)
+  }, [hasSelection, portal])
+
+  function openDialog(action: BulkAction) {
+    setMountedDialog(action)
+    setDialog(action)
+  }
 
   const actions: ToolbarAction[] =
     portal === 'seller'
@@ -80,28 +134,28 @@ export function TicketSelectionToolbar({
             key: 'assign',
             label: 'Asignar a un cliente',
             primary: true,
-            open: () => setDialog('assign'),
+            open: () => openDialog('assign'),
           },
         ]
       : [
-          { key: 'approve', label: 'Aprobar boletas', open: () => setDialog('approve') },
+          { key: 'approve', label: 'Aprobar boletas', open: () => openDialog('approve') },
           {
             key: 'cancel',
             label: 'Anular boletas',
             primary: true,
             destructive: true,
-            open: () => setDialog('cancel'),
+            open: () => openDialog('cancel'),
           },
           {
             key: 'changeSeller',
             label: 'Cambiar vendedor',
-            open: () => setDialog('changeSeller'),
+            open: () => openDialog('changeSeller'),
           },
           {
             key: 'delete',
             label: 'Eliminar boletas',
             destructive: true,
-            open: () => setDialog('delete'),
+            open: () => openDialog('delete'),
           },
         ]
 
@@ -264,7 +318,10 @@ export function TicketSelectionToolbar({
         <div className="contents">
           <div
             data-selection-bar
-            className="bg-background fixed inset-x-0 bottom-[var(--bottom-nav-space)] z-40 border-t p-3 shadow-lg md:hidden"
+            // Areas seguras laterales, por lo mismo que la barra de navegacion
+            // de debajo: en horizontal con muesca, el boton principal quedaria
+            // parcialmente tapado (D-119). Valen 0 en todo lo demas.
+            className="bg-background fixed inset-x-0 bottom-[var(--bottom-nav-space)] z-40 border-t p-3 ps-[calc(0.75rem_+_var(--safe-left))] pe-[calc(0.75rem_+_var(--safe-right))] shadow-lg md:hidden"
           >
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium tabular-nums">
@@ -310,34 +367,44 @@ export function TicketSelectionToolbar({
         </div>
       ) : null}
 
-      {portal === 'owner' ? (
-        <>
-          <BulkApproveDialog
-            open={dialog === 'approve'}
-            onOpenChange={(open) => setDialog(open ? 'approve' : null)}
-          />
-          <BulkCancelDialog
-            open={dialog === 'cancel'}
-            onOpenChange={(open) => setDialog(open ? 'cancel' : null)}
-          />
-          <BulkChangeSellerDialog
-            open={dialog === 'changeSeller'}
-            onOpenChange={(open) => setDialog(open ? 'changeSeller' : null)}
-            sellers={sellers}
-          />
-          <BulkDeleteDialog
-            open={dialog === 'delete'}
-            onOpenChange={(open) => setDialog(open ? 'delete' : null)}
-          />
-        </>
-      ) : (
+      {/*
+        Cada dialogo se monta la primera vez que se abre y se queda montado
+        (`mountedDialog`), de modo que sigue habiendo animacion de cierre. Lo que
+        cambia frente a antes es que ya no se monta ninguno hasta que hace falta.
+      */}
+      {mountedDialog === 'approve' ? (
+        <BulkApproveDialog
+          open={dialog === 'approve'}
+          onOpenChange={(open) => setDialog(open ? 'approve' : null)}
+        />
+      ) : null}
+      {mountedDialog === 'cancel' ? (
+        <BulkCancelDialog
+          open={dialog === 'cancel'}
+          onOpenChange={(open) => setDialog(open ? 'cancel' : null)}
+        />
+      ) : null}
+      {mountedDialog === 'changeSeller' ? (
+        <BulkChangeSellerDialog
+          open={dialog === 'changeSeller'}
+          onOpenChange={(open) => setDialog(open ? 'changeSeller' : null)}
+          sellers={sellers}
+        />
+      ) : null}
+      {mountedDialog === 'delete' ? (
+        <BulkDeleteDialog
+          open={dialog === 'delete'}
+          onOpenChange={(open) => setDialog(open ? 'delete' : null)}
+        />
+      ) : null}
+      {mountedDialog === 'assign' ? (
         <BulkAssignDialog
           open={dialog === 'assign'}
           onOpenChange={(open) => setDialog(open ? 'assign' : null)}
           clients={clients}
           rafflePrices={rafflePrices}
         />
-      )}
+      ) : null}
     </>
   )
 }

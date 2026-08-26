@@ -3,7 +3,22 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import type { Database } from '@/types/database.types'
 
-const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password', '/auth/callback', '/denied']
+/**
+ * Rutas que se sirven sin sesion.
+ *
+ * `/offline` se anadio el 2026-08-26 (D-116): es la pantalla que guarda el
+ * service worker al instalarse y que muestra cuando una navegacion no llega al
+ * servidor. Tiene que poder guardarse y verse sin sesion —el worker se instala
+ * tambien desde `/login`— y no consulta absolutamente nada: es texto fijo.
+ */
+const PUBLIC_PATHS = [
+  '/login',
+  '/forgot-password',
+  '/reset-password',
+  '/auth/callback',
+  '/denied',
+  '/offline',
+]
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))

@@ -362,6 +362,10 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Cuenta creada a la que su dueña todavía no ha entrado | **Invitación pendiente** | Pendiente de activación, sin confirmar, inactivo |
 | Cuenta cuya dueña ya configuró su contraseña | **Cuenta activa** | Activado, confirmado, verificado |
 | Correo con el enlace para crear la contraseña | **Invitación** | Enlace mágico, token, activación |
+| Poner la aplicación en la pantalla de inicio del teléfono | **Instalar** | Descargar, bajar la app, añadir acceso directo |
+| El nombre bajo el icono, donde solo caben ~12 caracteres | **Rifas** | «Gestión de…», que es como quedaría el nombre completo |
+| Estar sin internet | **Sin conexión** | Offline, desconectado, sin red |
+| Código nuevo servido tras un despliegue | **Versión** | Build, actualización del sistema, parche |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -450,6 +454,22 @@ pagos»; el verbo para incorporar a alguien es **agregar**, y el del portal admi
 alta a un vendedor de la organización sigue siendo **invitar** o **nuevo vendedor**: son dos acciones
 distintas hechas por personas distintas, y por eso conservan verbos distintos.
 
+**Sin conexión no se promete lo que no hay** (D-116). El ejemplo del encargo decía «puedes revisar
+algunas partes de Rifas»; aquí eso sería mentira, porque el service worker **no guarda ni una boleta
+ni un pago** en el teléfono, a propósito. La pantalla dice lo que pasa y qué hacer: «Estás sin
+conexión · Necesitas internet para ver tus boletas y para registrar ventas o abonos. Vuelve a
+intentarlo cuando tengas señal.» El botón es **«Reintentar»**, la misma palabra que ya usa la
+pantalla de error, no «Intentar nuevamente».
+
+**Nunca se dice que algo se guardó si no llegó al servidor.** Es la regla que ordena todo lo
+anterior: sin conexión no hay ventas ni abonos guardados «para después», y por tanto ningún texto
+puede sugerirlo.
+
+**El aviso de versión nueva no da una orden, da permiso para esperar** (D-116). «Hay una nueva
+versión de Rifas · Actualiza cuando termines lo que estás haciendo. · [Actualizar]». La segunda frase
+es la importante: actualizar recarga la pantalla, y quien esté a mitad de un abono tiene que poder
+terminarlo. Nunca se recarga sola.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
@@ -523,6 +543,10 @@ castigo donde solo había una espera.
 | Mensajes de éxito | El `toast` de cada Server Action, en su componente cliente |
 | Pasos del recorrido guiado (título y explicación) | `src/features/tour/tours.ts`, **todos juntos** |
 | Texto de los avisos de la campanita | `src/features/notifications/text.ts`, **todos juntos** (D-093) |
+| Nombre de la aplicación instalada y su descripción | `src/lib/pwa.ts` (D-115) |
+| Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/components/InstallPrompt.tsx` (D-117) |
+| Aviso de versión nueva | `src/features/pwa/components/ServiceWorkerManager.tsx` (D-116) |
+| Pantalla sin conexión | `src/app/offline/page.tsx` y `components/OfflineRetry.tsx` (D-116) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

@@ -605,6 +605,41 @@ Con nonce + `'strict-dynamic'`, solo se ejecuta lo que Next firma en esa respues
 `style-src` **sí** admite `'unsafe-inline'`, a propósito: `next/font` y el propio Next inyectan
 estilos en línea, y un estilo no ejecuta código.
 
+### 10.1.b `worker-src` y el precio de `'strict-dynamic'` (D-115)
+
+Desde el 2026-08-26 la política declara además **`worker-src 'self'`** y `manifest-src 'self'`.
+
+La primera **no es opcional ni decorativa**, y el motivo es una trampa que conviene tener escrita: la
+cadena de respaldo de `worker-src` pasa por `child-src` y luego por `script-src`, y `script-src`
+lleva `'strict-dynamic'`. Esa palabra hace que se **ignoren** las listas de orígenes, `'self'`
+incluido. Sin declarar `worker-src` explícitamente, el navegador **rechaza el registro del service
+worker** y la aplicación deja de ser instalable, sin que nada más se rompa ni dé señal. Hay prueba
+unitaria en `tests/unit/security-headers.test.ts` para que aflojarla o quitarla no pase inadvertido.
+
+**El mismo `'strict-dynamic'` tiene una consecuencia que sí es un fallo abierto:** una página
+**prerenderizada** no puede llevar el nonce del request, porque su HTML se genera al construir. El
+navegador bloquea entonces **todos** sus scripts. Afecta a `/forgot-password`, donde el flujo de
+recuperación de contraseña está roto en producción — ver **I-070**, con el arreglo de una línea y por
+qué no se aplicó aquí.
+
+### 10.1.c Qué NO guarda el service worker
+
+La aplicación instalable no abre ninguna superficie nueva de datos, y es una decisión explícita, no
+una consecuencia (D-116): **ninguna respuesta autenticada entra en Cache Storage**. Ni el HTML de una
+pantalla —que en esta aplicación ES el dato, renderizado en servidor con las filas de quien
+consulta—, ni los payloads RSC, ni `/api`, ni `/auth`, ni nada que no sea `GET`. Solo se guardan
+archivos con huella de contenido (`/_next/static/…`), los iconos y la pantalla `/offline`.
+
+Consecuencias directas, las dos deseadas:
+
+* **No hay filtración entre vendedores** que compartan teléfono, porque no hay nada que filtrar.
+* **No hay nada que limpiar al cerrar sesión.** Si algún día se empieza a guardar una respuesta
+  autenticada, el borrado en el cierre de sesión deja de ser innecesario y pasa a ser obligatorio.
+
+Del matcher del proxy solo salieron dos rutas nuevas, `sw.js` y `manifest.webmanifest`: archivos
+estáticos y públicos, la misma categoría que `_next/static` y las imágenes, que ya estaban fuera.
+`/offline` **no** salió: sigue pasando por el proxy para recibir su CSP, y solo se declaró pública.
+
 ### 10.2 Limitación de intentos
 
 | Operación | Límite | Clave | Por qué |
