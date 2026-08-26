@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { CollectionSummaryCard } from '@/components/data/CollectionSummaryCard'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
+import { InstallPrompt } from '@/features/pwa/components/InstallPrompt'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -46,6 +47,10 @@ export default async function OwnerDashboardPage() {
           </Button>
         </div>
       ) : null}
+
+      {/* Arriba, no al final (D-123). Después del aviso ámbar: aprobar boletas
+          corre más prisa que instalar nada. */}
+      <InstallPrompt />
 
       <CollectionSummaryCard
         totalSold={totals.totalSold}

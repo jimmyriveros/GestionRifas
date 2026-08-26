@@ -872,7 +872,7 @@ rol que ya existía.
 | Manifiesto | `src/app/manifest.ts` | Ruta de metadatos de Next; se sirve estática en `/manifest.webmanifest` |
 | Service worker | `public/sw.js` | Archivo **estático**, sin build. Lo sirve el CDN |
 | Registro y aviso de versión | `src/features/pwa/components/ServiceWorkerManager.tsx` | Montado una vez en el armazón raíz |
-| Ofrecimiento de instalar | `src/features/pwa/components/InstallPrompt.tsx` + `install-state.ts` | Tarjeta al final de los dos paneles |
+| Ofrecimiento de instalar | `InstallPrompt.tsx` (tarjeta, **arriba** de los dos paneles) + `InstallMenuItem.tsx` (menú de usuario) | Los textos, en `copy.ts`; quién puede instalar, en `install-store.ts`; las reglas puras, en `install-state.ts` (D-123) |
 | Pantalla sin conexión | `src/app/offline/page.tsx` + `components/OfflineRetry.tsx` | `force-dynamic`, pública, precargada por el worker |
 | Constantes compartidas | `src/lib/pwa.ts` | Nombre, descripción, color y versión |
 | Iconos | `public/icons/` | Seis PNG **generados**, nunca editados a mano |

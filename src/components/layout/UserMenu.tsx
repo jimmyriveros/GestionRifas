@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { InstallMenuItem } from '@/features/pwa/components/InstallMenuItem'
 import { TourLauncher } from '@/features/tour/components/TourLauncher'
 import { tourTarget } from '@/features/tour/tours'
 import { ROLE_LABELS, type AppRole } from '@/lib/constants'
@@ -93,6 +94,7 @@ export function UserMenu({ fullName, email, role, navItems = [] }: UserMenuProps
         ) : null}
         <DropdownMenuSeparator />
         <TourLauncher />
+        <InstallMenuItem />
         <DropdownMenuItem asChild>
           <Link href="/account/password">
             <KeyRoundIcon />

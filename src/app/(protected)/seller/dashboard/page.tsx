@@ -1,6 +1,7 @@
 import { AlertTriangleIcon } from 'lucide-react'
 
 import { PageHeader } from '@/components/data/PageHeader'
+import { InstallPrompt } from '@/features/pwa/components/InstallPrompt'
 import { percentageOf, buildCollectionBreakdown } from '@/features/dashboard/collection-breakdown'
 import { CollectionStatusCard } from '@/features/dashboard/components/CollectionStatusCard'
 import { CollectionTrendCard } from '@/features/dashboard/components/CollectionTrendCard'
@@ -129,6 +130,12 @@ export default async function SellerDashboardPage({
           administrador. Todavía no puedes venderlas.
         </p>
       ) : null}
+
+      {/* Arriba, no al final (D-123). Va DESPUÉS del aviso ámbar a propósito:
+          ese son boletas que el vendedor todavía no puede vender, y eso corre
+          más prisa que instalar nada. La tarjeta se decide sola y no se pinta
+          si ya está instalada o si alguien dijo «Ahora no» este mes. */}
+      <InstallPrompt />
 
       {/*
         UNA sola rejilla para las siete piezas, y dos ordenes distintos.

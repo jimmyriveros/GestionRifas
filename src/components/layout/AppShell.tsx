@@ -5,7 +5,6 @@ import { NavLinks } from '@/components/layout/NavLinks'
 import type { NavItem } from '@/components/layout/nav-items'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
-import { InstallPrompt } from '@/features/pwa/components/InstallPrompt'
 import { TourProvider } from '@/features/tour/components/TourProvider'
 import { tourTarget } from '@/features/tour/tours'
 import type { AppRole } from '@/lib/constants'
@@ -115,14 +114,6 @@ function AppShellLayout({
         */}
         <main className="flex-1 p-4 pb-[calc(1rem_+_var(--bottom-nav-space)_+_var(--selection-bar-space))] md:p-6">
           {children}
-          {/*
-            El ofrecimiento de instalar va AQUI, al final del contenido y dentro
-            del flujo normal (D-117). No es una ventana ni una banda flotante:
-            no tapa nada, no empuja nada al aparecer y se decide solo —se pinta
-            unicamente en los dos paneles, y solo si el navegador confirma que
-            la instalacion es posible—.
-          */}
-          <InstallPrompt />
         </main>
       </div>
 

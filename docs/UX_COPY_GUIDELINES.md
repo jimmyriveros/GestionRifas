@@ -544,7 +544,7 @@ castigo donde solo había una espera.
 | Pasos del recorrido guiado (título y explicación) | `src/features/tour/tours.ts`, **todos juntos** |
 | Texto de los avisos de la campanita | `src/features/notifications/text.ts`, **todos juntos** (D-093) |
 | Nombre de la aplicación instalada y su descripción | `src/lib/pwa.ts` (D-115) |
-| Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/components/InstallPrompt.tsx` (D-117) |
+| Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/copy.ts`, **todos juntos** — los leen la tarjeta del panel y la opción del menú de usuario (D-123) |
 | Aviso de versión nueva | `src/features/pwa/components/ServiceWorkerManager.tsx` (D-116) |
 | Pantalla sin conexión | `src/app/offline/page.tsx` y `components/OfflineRetry.tsx` (D-116) |
 

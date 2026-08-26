@@ -3589,3 +3589,47 @@ vista previa en vez de un aviso— están en D-122 con sus tres mediciones. Resu
 placa del icono en vez de la marca, y daban falsa alarma sobre un logo correcto. El dato de control,
 calculado a mano sobre las coordenadas del SVG: el billete llega a **185 px** de los **205**
 permitidos en un lienzo de 512.
+
+---
+
+## El ofrecimiento de instalar, movido y ampliado (2026-08-26)
+
+D-123, a raíz de que el dueño instalara la aplicación **a mano** en su iPhone sin que nada se lo
+ofreciera, ni en Safari ni en Chrome.
+
+### Lo que se midió ANTES de tocar nada
+
+Con sesión real contra la base local, a 390 × 844, en `/seller/dashboard`:
+
+| | |
+|---|---|
+| Posición de la tarjeta | **y = 2.646 px** |
+| Alto del panel | 2.936 px |
+| Alto de la pantalla | 844 px |
+
+Es decir: la tarjeta **funcionaba** y estaba a dos pantallas y media de scroll. El fallo no era de
+código, era de sitio — y no se ve leyendo el componente, se ve midiendo dónde cae.
+
+### Lo que se comprobó DESPUÉS
+
+| Caso | Cómo se simuló | Resultado |
+|---|---|---|
+| Navegador con instalación posible | `beforeinstallprompt` sintético | tarjeta en **y = 274**, visible sin scrollear, con botón «Instalar» |
+| **Safari en iPhone** | identificador de navegador de iOS 17.4 + navegación de cliente para forzar el repintado | tarjeta en **y = 274** con los dos pasos y **sin** botón, que es lo correcto: iOS no tiene ese aviso |
+| **Chrome en iPhone** — el caso del dueño | identificador `CriOS` | opción en el menú → aviso: «En el iPhone y el iPad esto solo se puede hacer desde Safari. Abre allí esta misma dirección…» |
+| Menú de usuario | abriendo el menú | «Instalar aplicación», entre «Ver recorrido guiado» y «Cambiar contraseña» |
+
+`npm run verify` en verde: **376/376** unitarias (**+2**, la regresión del iPhone fuera de Safari),
+`lint` 0 errores y `build`.
+
+### Dos errores propios encontrados durante la comprobación
+
+**a) Una comprobación que no comprobaba nada.** Al conectar el texto nuevo se verificó «¿aparece
+`installNote` en el archivo?» y dio verde… porque estaba en el `import`. El cuerpo seguía con el
+código viejo, y el aviso salía sin la nota. Se detectó al mirar el texto **real** del aviso en el
+navegador en vez de fiarse del `grep`.
+
+**b) Un falso «no aparece».** Cambiar el identificador del navegador y esperar que la tarjeta
+reaccione no funciona: nada la vuelve a pintar. En la prueba del evento sintético sí reaccionaba
+—porque el evento notifica a los suscriptores—, y eso escondía el problema. Se resolvió forzando una
+navegación de cliente. **Ojo con esto al probar cualquier cosa que dependa de `navigator`.**

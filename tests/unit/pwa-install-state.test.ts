@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import {
-  detectInstallContext,
+  detectPlatform,
   dismissInstallPrompt,
   INSTALL_DISMISS_DAYS,
   isInstallDismissed,
@@ -59,34 +59,32 @@ describe('isIosSafari', () => {
   })
 })
 
-describe('detectInstallContext', () => {
+describe('detectPlatform', () => {
   it('ya instalada: lo dice la consulta de medios (Android y escritorio)', () => {
-    expect(detectInstallContext(fakeNavigator(ANDROID_CHROME), fakeWindow(true))).toBe('standalone')
+    expect(detectPlatform(fakeNavigator(ANDROID_CHROME), fakeWindow(true))).toBe('standalone')
   })
 
   it('ya instalada: lo dice `navigator.standalone` (iOS antiguo)', () => {
     // iOS tardo en implementar `display-mode`, asi que hacen falta las dos
     // comprobaciones: con solo la primera, un iPhone con la aplicacion ya
     // instalada seguiria viendo el ofrecimiento dentro de ella.
-    expect(detectInstallContext(fakeNavigator(IPHONE_SAFARI, true), fakeWindow(false))).toBe(
-      'standalone',
-    )
+    expect(detectPlatform(fakeNavigator(IPHONE_SAFARI, true), fakeWindow(false))).toBe('standalone')
   })
 
   it('Safari en iPhone sin instalar: hay que explicar los dos toques', () => {
-    expect(detectInstallContext(fakeNavigator(IPHONE_SAFARI, false), fakeWindow(false))).toBe(
+    expect(detectPlatform(fakeNavigator(IPHONE_SAFARI, false), fakeWindow(false))).toBe(
       'ios-safari',
     )
   })
 
   it('el resto de navegadores esperan al aviso del propio navegador', () => {
-    expect(detectInstallContext(fakeNavigator(ANDROID_CHROME), fakeWindow(false))).toBe('browser')
-    expect(detectInstallContext(fakeNavigator(WINDOWS_CHROME), fakeWindow(false))).toBe('browser')
+    expect(detectPlatform(fakeNavigator(ANDROID_CHROME), fakeWindow(false))).toBe('other')
+    expect(detectPlatform(fakeNavigator(WINDOWS_CHROME), fakeWindow(false))).toBe('other')
   })
 
   it('no se cae si el navegador no tiene `matchMedia`', () => {
     const win = {} as unknown as Window
-    expect(() => detectInstallContext(fakeNavigator(ANDROID_CHROME), win)).not.toThrow()
+    expect(() => detectPlatform(fakeNavigator(ANDROID_CHROME), win)).not.toThrow()
   })
 })
 
@@ -120,5 +118,22 @@ describe('memoria del descarte', () => {
   it('un valor corrupto en el almacenamiento no oculta el ofrecimiento', () => {
     window.localStorage.setItem('rifas.pwa.install-dismissed-until', 'manana')
     expect(isInstallDismissed()).toBe(false)
+  })
+})
+
+describe('iPhone fuera de Safari (el caso que se escapó, D-123)', () => {
+  it('Chrome en iPhone se distingue de Safari y de Android', () => {
+    // No es un detalle: en iOS la instalación SOLO existe en Safari, así que
+    // este caso necesita un texto propio —«ábrela en Safari»— en vez del
+    // silencio absoluto que recibía antes.
+    expect(detectPlatform(fakeNavigator(IPHONE_CHROME, false), fakeWindow(false))).toBe('ios-other')
+    expect(detectPlatform(fakeNavigator(IPHONE_SAFARI, false), fakeWindow(false))).toBe(
+      'ios-safari',
+    )
+    expect(detectPlatform(fakeNavigator(ANDROID_CHROME), fakeWindow(false))).toBe('other')
+  })
+
+  it('un iPhone ya instalado no cae en ninguno de los dos', () => {
+    expect(detectPlatform(fakeNavigator(IPHONE_CHROME, true), fakeWindow(false))).toBe('standalone')
   })
 })

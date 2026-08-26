@@ -3976,6 +3976,90 @@ Tampoco se puso el logo dentro de ninguna pantalla. La aplicación identifica a 
 su **nombre**, no por una marca, y meter el logo en el encabezado o en el inicio de sesión es una
 decisión de diseño que nadie ha pedido.
 
+## D-123 — El ofrecimiento de instalar estaba, pero nadie podía verlo
+
+**Fecha:** 2026-08-26 · **Encargo:** el dueño instala la aplicación **a mano** en su iPhone y
+pregunta si se suponía que debía aparecerle algo. No le apareció ni en Safari ni en Chrome.
+
+Corrige **D-117**, que era mío y estaba mal.
+
+### Qué pasaba, medido
+
+La tarjeta funcionaba. El problema era dónde la puse: al **final** del contenido del panel, buscando
+no molestar. Medido en un teléfono de 390 × 844 con una sesión real:
+
+| | |
+|---|---|
+| Posición de la tarjeta | **y = 2.646 px** |
+| Alto del panel del vendedor | 2.936 px |
+| Alto de la pantalla | 844 px |
+
+Dos pantallas y media de scroll hasta el fondo del panel. Y además solo existía **en el panel**, o
+sea después de iniciar sesión, y **nunca** en el iPhone fuera de Safari.
+
+Tres decisiones, cada una defendible por separado, que juntas daban silencio absoluto:
+
+1. Solo en el panel → quien no inicia sesión no lo ve.
+2. Al final del contenido → quien inicia sesión tampoco, salvo que scrollee al fondo.
+3. Nada en el iPhone fuera de Safari → el caso exacto del dueño.
+
+**La lección:** «no invasivo» y «no visible» no son lo mismo, y la diferencia no se ve leyendo el
+código, se ve midiendo dónde cae el elemento en la pantalla real.
+
+### Qué cambia
+
+**a) La tarjeta sube al principio del panel**, justo después del encabezado. La montan las dos
+pantallas de panel, en vez de que el armazón la ponga al final de cualquier página. Se pinta
+**después** del aviso ámbar de boletas por aprobar: eso son boletas que todavía no se pueden vender,
+y corre más prisa que instalar nada.
+
+Sigue sin ser invasiva —una tarjeta en el flujo, no una ventana ni una banda flotante, no tapa nada y
+no empuja nada al aparecer— y sigue callándose un mes en cuanto alguien dice «Ahora no». Medido
+después: **y = 274**, visible sin scrollear.
+
+De paso, el componente deja de husmear la ruta con `usePathname`: quien decide dónde aparece es
+quien lo monta.
+
+**b) «Instalar aplicación» entra en el menú de usuario**, junto a «Ver recorrido guiado». Cubre tres
+casos que la tarjeta no puede cubrir: quien la descartó y se arrepiente, quien no pasa por el panel, y
+el iPhone fuera de Safari. **No** se oculta por el descarte —es justo lo que viene a resolver—; solo
+desaparece si ya está instalada o si no hay nada que ofrecer, con el mismo criterio que
+`TourLauncher`: una opción de menú que no hace nada confunde más que su ausencia.
+
+**c) El iPhone fuera de Safari deja de recibir silencio.** Es un caso nuevo, `ios-other`, con su
+propio texto. Antes caía en «espera a que el navegador ofrezca instalar», y Chrome de iOS **nunca**
+lo ofrece porque no puede: en iOS la instalación real solo existe en Safari.
+
+### Dos detalles que no son cosméticos
+
+**El evento se escucha desde el módulo, no desde un efecto.** `beforeinstallprompt` se dispara **una**
+vez sobre `window`, a menudo antes de que la pantalla termine de montarse, y el navegador **no lo
+repite**. Un oyente dentro del efecto de un componente puede llegar tarde y perderlo para siempre.
+Ahora vive en `install-store.ts`, que escucha al cargarse y reparte con `useSyncExternalStore` —el
+mismo recurso de `use-media-query.ts`—. Eso además resuelve que ahora haya **dos** consumidores: el
+evento no se puede consumir dos veces.
+
+**Lo que ve el iPhone fuera de Safari no es un «paso 1».** La primera versión del texto decía:
+
+> 1. En el iPhone y el iPad, esto solo se puede hacer desde Safari.
+> 2. Abre esta misma dirección en Safari…
+
+Numerarlo como paso es mentir sobre lo que hay que hacer: no es una instrucción, es el motivo por el
+que aquí no hay ninguna. Se separó en `installNote`, que se pinta como una frase y no como una lista.
+Y en ningún caso se le dice «toca Compartir» a quien no está en Safari: sería mandarlo a un botón que
+en su navegador no está donde se le dice.
+
+### Comprobado, los cuatro casos
+
+Con sesión real contra la base local, a 390 × 844:
+
+| Caso | Resultado |
+|---|---|
+| Navegador con instalación posible | tarjeta en **y = 274** con botón «Instalar» |
+| Safari en iPhone | tarjeta en **y = 274** con los dos pasos, **sin** botón (iOS no tiene ese aviso) |
+| Chrome en iPhone | opción en el menú → aviso explicando que hay que abrirla en Safari |
+| Menú de usuario | «Instalar aplicación» entre «Ver recorrido guiado» y «Cambiar contraseña» |
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.
