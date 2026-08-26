@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **376 ✅** | **518 ✅** | **294 ✅** | ✅ | ✅ |
+| Post-9 vigente | **376 ✅** | **518 ✅** | **296 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -3786,9 +3786,17 @@ el viewport del proyecto `movil`. El globo tiene ahí más sitio que antes, no m
 
 **Desbordamiento horizontal de 49–62 px a 320 px** en el detalle de una boleta. Se midió con el
 trabajo guardado en `git stash` y da **exactamente lo mismo**, así que es anterior. No sale del
-resumen de pago —que mide **0** en los cuatro anchos— sino de la tarjeta de los **dos números**: un
-`grid grid-cols-2 gap-3` que pide 328–341 px dentro de una tarjeta de 288. Registrado como
-**I-076**; requiere decidir antes si 320 px es un ancho soportado.
+resumen de pago, que mide **0** en los cuatro anchos. Registrado como **I-076**; requiere decidir
+antes si 320 px es un ancho soportado.
+
+> **Corregido el mismo día, y la causa NO era la que se escribió aquí** (D-125). Este párrafo decía
+> que salía de la tarjeta de los **dos números**, porque es el primer elemento desbordado en el orden
+> del documento. Es la **víctima**: su tamaño mínimo son 12 px. Quien fijaba la columna en 341 era la
+> **tarjeta del cliente**, cuyo nombre lleva `truncate` —o sea `white-space: nowrap`—, y un texto que
+> no se puede partir tiene por mínimo la frase entera. La rejilla no declaraba columna en el
+> teléfono, así que era `auto`, y una columna `auto` nunca baja del mínimo de su contenido.
+> **Atribuir el fallo al primer elemento desbordado es el error que conviene no repetir**: hay que
+> medir el mínimo de cada hermano.
 
 ### Trampas de esta sesión, para quien venga detrás
 
@@ -3802,3 +3810,71 @@ resumen de pago —que mide **0** en los cuatro anchos— sino de la tarjeta de 
    `prettier-plugin-tailwindcss`, que ordena las clases: la primera pasada sobre un archivo recién
    escrito no las tocó y la segunda sí. Si `format:check` señala un archivo que acabas de formatear,
    ejecútalo otra vez antes de investigar nada.
+
+## I-076 corregido: el detalle de una boleta a 320 px (2026-08-26)
+
+Continuación de la sesión anterior (**D-125**). Una clase por pantalla, una prueba nueva y ni una
+línea de lógica.
+
+### Comandos
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npm run verify` | ✅ `typecheck`, `lint` **0 errores**, **376/376** unitarias y `build` | — | — |
+| `npm run test:e2e` | ✅ **296/296** en 14,3 min (294 + las 2 nuevas) | — | — |
+
+### La causa, medida — y no era la que se registró al abrir I-076
+
+Midiendo el **tamaño mínimo** de cada elemento de la rejilla de identidad, a 320 px:
+
+| Elemento de la rejilla | Ancho pintado | Su tamaño **mínimo** |
+|---|---|---|
+| Los dos números | 341 px | **12 px** |
+| **La tarjeta del cliente** | 341 px | **341 px** ← |
+| Precio y fecha de venta | 341 px | 102 px |
+
+Los dos números pedían 12 px y se pintaban a 341 porque **otro** fijaba la columna: la tarjeta del
+cliente, cuyo nombre lleva `truncate` —`white-space: nowrap`— y por tanto no se puede partir por
+ningún sitio. La rejilla declaraba columnas solo desde `sm:`, así que en el teléfono era `auto`, y
+una columna `auto` **nunca baja del mínimo de su contenido**.
+
+Confirmado sobre una boleta **sin cliente**, donde el mínimo de esa tarjeta baja a 131 px: el
+desbordamiento es **0**. El fallo solo aparece con cliente, y crece con la longitud del nombre.
+
+### El arreglo, comprobado en los dos portales
+
+`grid-cols-1` —`repeat(1, minmax(0, 1fr))`— en las dos pantallas de detalle. Medido con sesión real:
+
+| Ancho | Vendedor | Administrativo | Nombre |
+|---|---|---|---|
+| 320 | **0** | **0** | recortado (caja 128 px, texto 231) |
+| 360 | **0** | **0** | recortado (caja 168) |
+| 412 | **0** | **0** | recortado (caja 220) |
+| 768 | **0** | **0** | cabe entero |
+| 1280 | **0** | **0** | cabe entero |
+
+### La prueba falla sin el arreglo, que es lo que la hace una prueba
+
+`tests/e2e/boleta-estrecha-movil.spec.ts` con las dos clases retiradas en `git stash`:
+
+| | Vendedor | Administrativo |
+|---|---|---|
+| Sin `grid-cols-1` | desborda **288 px** ❌ | desborda **294 px** ❌ |
+| Con `grid-cols-1` | **0** ✅ | **0** ✅ |
+
+Con el nombre largo de la prueba el daño es mucho mayor que los **49–62 px** medidos al abrir I-076
+sobre un cliente del seed: **crece con el nombre**, que era justo lo que había que demostrar.
+
+### Por qué ninguna de las 294 pruebas lo veía
+
+`seller-ciclo-movil.spec.ts` comprueba el desbordamiento horizontal y **pasaba**. Le faltaban las
+tres condiciones a la vez: recorre **listados** y no pantallas de detalle, corre a **412 px** (Pixel
+7) y usa los clientes del seed. La prueba nueva fija su propio ancho de **320 px**, crea un cliente
+con nombre largo y mira el **detalle**, en los dos portales. Comprueba además que el nombre esté
+**recortado**: sin eso, el día que cupiera de sobra pasaría sin comprobar nada.
+
+### Un detalle de formato, para que no sorprenda en el diff
+
+`prettier` reunió en una línea el ternario de `discount` en `seller/tickets/[ticketId]/page.tsx`.
+No es un cambio buscado: ese archivo ya estaba fuera de formato antes de tocarlo —mide exactamente
+los 100 caracteres del `printWidth`— y la pasada obligatoria lo dejó canónico. No cambia nada.

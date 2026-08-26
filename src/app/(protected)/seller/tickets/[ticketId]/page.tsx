@@ -119,7 +119,16 @@ export default async function SellerTicketDetailPage({
           escritorio la rejilla recoloca el cliente a la derecha sin repetir
           nada (seccion 7 del encargo). */}
       <Card>
-        <CardContent className="grid gap-6 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] xl:gap-8">
+        {/* `grid-cols-1` NO es decorativo y no se puede quitar (I-076). Sin el,
+            la unica columna del telefono es `auto`, y una columna `auto` se
+            estira hasta el tamano MINIMO de su contenido: el nombre del cliente
+            lleva `truncate` —o sea `white-space: nowrap`—, asi que su minimo es
+            la frase entera. Un nombre de 28 caracteres pedia 341 px dentro de
+            una tarjeta de 286 y arrastraba a los dos hermanos, con la pagina
+            desplazandose de lado. `grid-cols-1` fija la pista en
+            `minmax(0, 1fr)`, que ignora ese minimo y deja que `truncate` haga
+            su trabajo. Desde `sm` ya estaba bien: `grid-cols-2` lo hace solo. */}
+        <CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] xl:gap-8">
           <div className="grid grid-cols-2 gap-3 sm:col-start-1 sm:row-start-1 xl:col-start-1">
             <TicketNumber label="Número diario" value={ticket.dailyNumber} />
             <TicketNumber label="Número semanal" value={ticket.weeklyNumber} />

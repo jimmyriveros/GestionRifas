@@ -4198,6 +4198,87 @@ veinticinco filas también lo es— tenía el mismo problema esperando.
 | Anillo del panel con verde, azul y **gris** | igual | Coincide con D-112: el gris de «Por cobrar» significa «todavía no». Pintarlo de rojo convertiría una rifa que va bien en una alarma |
 | Nada sobre el ancho del bloque de cifras de la boleta | las dos columnas se reparten el ancho sobrante | En una tarjeta de 928 px queda airoso, que es la dirección visual pedida |
 
+## D-125 — Una columna `auto` se estira hasta el mínimo de su contenido, y `truncate` no tiene un mínimo pequeño
+
+**Fecha:** 2026-08-26 · **Encargo:** corregir **I-076**, el desbordamiento horizontal del detalle de
+una boleta a 320 px. Corregirlo implicaba responder antes la pregunta que la incidencia dejaba
+abierta —si 320 px es un ancho soportado—: **lo es**.
+
+### Lo que parecía y lo que era
+
+D-124 dejó escrito que el culpable era la tarjeta de los **dos números**, porque es el primer
+elemento desbordado en el orden del documento. **Era la víctima, no la causa.** Midiendo el tamaño
+mínimo de cada elemento de la rejilla, a 320 px:
+
+| Elemento de la rejilla | Ancho pintado | Su tamaño **mínimo** |
+|---|---|---|
+| Los dos números | 341 px | **12 px** |
+| **La tarjeta del cliente** | 341 px | **341 px** ← |
+| Precio y fecha de venta | 341 px | 102 px |
+
+Los dos números pedían 12 px. Se pintaban a 341 porque **alguien más** fijó la columna en 341 y ellos
+se estiraron con ella.
+
+### El mecanismo, que no es evidente
+
+La rejilla es `grid gap-6 sm:grid-cols-2 …`: a partir de `sm` declara sus columnas, pero **en el
+teléfono no declaraba ninguna**, así que tenía una sola columna `auto`. Y una columna `auto` **nunca
+baja del tamaño mínimo de su contenido**.
+
+El nombre del cliente lleva `truncate`, que es `overflow: hidden` + `text-overflow: ellipsis` +
+**`white-space: nowrap`**. Con `nowrap`, el tamaño mínimo de un texto **es el texto entero**: no hay
+ningún sitio por donde partirlo. Un nombre de 28 caracteres mide 341 px, así que la columna medía
+341 px dentro de una tarjeta de 286 y la página se podía arrastrar de lado.
+
+Lo desconcertante del caso es que la tarjeta del cliente **ya estaba bien escrita**: `min-w-0` en
+cada eslabón y `truncate` en el nombre y el teléfono. No bastaba. `min-w-0` sirve para que un
+elemento *pueda* encogerse cuando su contenedor tiene un ancho definido; no reduce lo que ese
+contenido **aporta** al calcular el mínimo de una columna `auto`. Son dos cosas distintas y se
+parecen mucho.
+
+### El arreglo: una clase, en las dos pantallas
+
+`grid-cols-1`, que en Tailwind es `repeat(1, minmax(0, 1fr))`. El `0` de ese `minmax` es todo el
+arreglo: dice que la pista **puede** bajar de cero, es decir, que ignore el mínimo del contenido. La
+columna pasa a medir los 286 px que hay, y entonces `truncate` hace por fin lo que venía a hacer.
+
+Va en las **dos** pantallas de detalle de boleta —`/seller/tickets/[ticketId]` y
+`/owner/tickets/[ticketId]`—, que tenían la misma omisión. De `sm` en adelante nunca hubo problema:
+`grid-cols-2` ya declara `minmax(0, 1fr)`.
+
+**Por qué no se arregla dentro de `ClientLinkCard`.** Sería lo deseable —un componente que no pueda
+romper a quien lo monta— y **no se puede**: un texto con `nowrap` no puede rebajar su propio mínimo
+desde dentro. Quien tiene que acotarlo es el contenedor que crea el eje restringido. Así que la
+regla, para quien venga después:
+
+> Una rejilla que declara columnas solo a partir de `sm:` **está declarando `auto` en el teléfono**.
+> Si alguno de sus elementos contiene texto con `truncate`, el teléfono es exactamente donde va a
+> romperse. Declara siempre la columna base.
+
+### La prueba que faltaba
+
+`seller-ciclo-movil.spec.ts` ya comprobaba que ninguna pantalla desborda, y **pasaba**. Le faltaban
+las tres condiciones a la vez:
+
+1. una pantalla de **detalle**, no un listado —solo recorría cinco listados—;
+2. **320 px**, no los **412** del Pixel 7 con el que corre el proyecto `movil`;
+3. un cliente con el **nombre largo**.
+
+`boleta-estrecha-movil.spec.ts` reúne las tres y comprueba **dos** cosas, no una: que la página no
+desborde **y** que el nombre esté recortado de verdad. Sin la segunda, el día que el nombre cupiera
+de sobra la prueba pasaría sin comprobar nada.
+
+Se verificó que falla sin el arreglo, que es lo que separa una prueba de regresión de una prueba
+decorativa:
+
+| | Vendedor | Administrativo |
+|---|---|---|
+| Sin `grid-cols-1` | desborda **288 px** ❌ | desborda **294 px** ❌ |
+| Con `grid-cols-1` | **0** ✅ | **0** ✅ |
+
+Con el nombre largo el desbordamiento es mucho peor que los 49–62 px que se midieron al abrir I-076
+sobre un cliente del seed: el daño **crece con el nombre**, que es justo lo que hacía falta demostrar.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

@@ -549,17 +549,27 @@ mismo texto ni una tabla encogida.
 | Bloque | Teléfono (base) | Tableta (`sm`) | Escritorio |
 |---|---|---|---|
 | Identidad (números · precio · cliente) | apilado: números → cliente → precio → fecha | 2 columnas, cliente a lo ancho debajo | 3 columnas desde **`xl`**, cliente a la derecha |
-| Estado y cobro | los dos estados en una fila; el resumen baja debajo, tras una línea horizontal | igual | **tres secciones hermanas** separadas por línea vertical desde `lg` — estado · estado de pago · resumen —, y la tercera reparte anillo, abonado y pendiente en horizontal |
+| Estado y cobro | **dos bloques apilados** y separados por una línea: los dos estados arriba, el cobro debajo, con el anillo **encima** de «Abonado» y «Pendiente» (D-124) | igual | lo mismo: desde **400 px de tarjeta** el anillo se pone **a la izquierda** de las dos cifras, y ahí acaba el cambio. La disposición ya no depende del tamaño de la ventana |
 | Abonos de esta boleta | cada abono, una tarjeta apilada | igual | columnas alineadas con su encabezado desde `lg` |
 
 **Por qué el corte grande es `xl` y no `lg`.** Con la barra lateral de 256 px, una ventana de 1.024
 px deja 672 px de contenido: una tableta de 768 px tiene **menos** ancho útil que un teléfono
 apaisado de 640 px. Comprobado con capturas a 320, 390, 768, 1024 y 1440 px.
 
-**Las tres secciones de «estado y cobro» se miden por su ROTULO, no por su contenido.** El reparto
-es `1fr · 1fr · 2.2fr`: con menos ancho en las dos primeras, «Estado de pago» parte en dos líneas a
-1.024 px aunque el badge quepa de sobra. Las líneas divisorias van en cada sección (`lg:border-l`),
-no con `divide-x`, porque en esta rejilla el orden del marcado no siempre es el orden visual.
+**«Estado y cobro» dejó de tener dos disposiciones** (D-124). Eran tres secciones hermanas en
+escritorio y dos filas en el teléfono; ahora es una sola forma —estados arriba, cobro debajo— y lo
+único que cambia con el ancho **de la tarjeta** es de qué lado cae el anillo. Dentro del anillo va
+solo el porcentaje; el dinero se lee fuera, con su «de $120.000» debajo.
+
+**La rejilla de identidad declara `grid-cols-1`, y no se puede quitar** (D-125, I-076). Una rejilla
+que declara columnas solo a partir de `sm:` está declarando `auto` en el teléfono, y **una columna
+`auto` nunca baja del tamaño mínimo de su contenido**. El nombre del cliente lleva `truncate`, que es
+`white-space: nowrap`: un texto que no se puede partir tiene por mínimo la frase entera. Un nombre de
+28 caracteres pedía 341 px dentro de una tarjeta de 286 y arrastraba a los bloques hermanos, con la
+página desplazándose de lado a 320 px. `grid-cols-1` es `repeat(1, minmax(0, 1fr))`, y ese `0` es lo
+que deja a la pista ignorar el mínimo para que `truncate` pueda actuar. `min-w-0` **no** sustituye a
+esto: sirve para que un elemento pueda encogerse, no para rebajar lo que aporta al mínimo de la
+columna. Vale para las dos pantallas de detalle, la del vendedor y la administrativa.
 
 **El encabezado de columnas del historial va `aria-hidden`**, y cada fila lleva su propio rótulo
 `lg:sr-only` («Registrado por», «Nota»): en escritorio el rótulo se oculta a la vista pero el lector

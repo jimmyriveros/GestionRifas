@@ -32,9 +32,7 @@ export default async function TicketDetailPage({
   // BR-P10: nulo en las boletas vendidas antes de existir la rebaja, que
   // equivalen a rebaja cero.
   const discount =
-    ticket.salePrice !== null && ticket.basePrice !== null
-      ? ticket.basePrice - ticket.salePrice
-      : 0
+    ticket.salePrice !== null && ticket.basePrice !== null ? ticket.basePrice - ticket.salePrice : 0
 
   return (
     <div className="space-y-6">
@@ -56,7 +54,10 @@ export default async function TicketDetailPage({
         <CardHeader>
           <CardTitle className="text-base">Boleta</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* `grid-cols-1` es obligatorio, por lo mismo que en el portal del
+            vendedor: una columna `auto` se estira hasta el minimo de su
+            contenido, y el nombre del cliente lleva `truncate` (I-076). */}
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Número diario">
             <span className="font-mono text-lg tabular-nums">{ticket.dailyNumber ?? '—'}</span>
           </Field>
