@@ -11,6 +11,18 @@ import { tourSelector, type Tour, type TourStep } from '@/features/tour/tours'
 
 export type TargetRect = { top: number; left: number; width: number; height: number }
 
+/**
+ * Hueco que hay que dejarle al globo, con su separacion del elemento.
+ *
+ * No se mide el globo real —cuando esto corre todavia no existe—: se reserva lo
+ * que mide el mas alto de todos los recorridos, 218 px, mas los 12 de su
+ * separacion y un par de holgura.
+ */
+const BALLOON_SPACE = 232
+
+/** Lo que tapa la barra superior fija (`h-14`), mas un poco de aire. */
+const STICKY_HEADER = 72
+
 function elementFor(step: TourStep): HTMLElement | null {
   if (!step.target) return null
   return document.querySelector<HTMLElement>(tourSelector(step.target))
@@ -128,17 +140,38 @@ export function useTourRunner({ tour, onClose }: UseTourRunnerOptions) {
 
   const previous = useCallback(() => setIndex((current) => Math.max(0, current - 1)), [])
 
-  // Lleva el elemento a la vista cuando no se ve completo.
+  /**
+   * Lleva el elemento a la vista cuando no se ve completo O cuando, viendose
+   * entero, no deja hueco para el globo.
+   *
+   * `center` es lo natural para un elemento pequeño y deja de serlo con uno
+   * ALTO: centrar una tarjeta de 390 px en una ventana de 720 parte el hueco
+   * libre en dos mitades de 165, y el globo pide 232 con su separacion. Como no
+   * cabe ni arriba ni abajo, Radix lo deja desbordado y el boton «Siguiente» se
+   * queda fuera de la pantalla, sin forma de continuar el recorrido (D-124).
+   *
+   * Por eso un elemento que pasa de un tercio del alto de la ventana se lleva
+   * ARRIBA en vez de al centro: todo el sobrante queda de un solo lado, que es
+   * justo donde el globo va por defecto. Se hace con `scrollBy` y no con
+   * `block: 'start'` porque la barra superior es fija y taparia la cabecera del
+   * elemento resaltado.
+   */
   useEffect(() => {
     if (!step) return
     const element = elementFor(step)
     if (!element) return
 
-    const { top, bottom } = element.getBoundingClientRect()
-    const fullyVisible = top >= 0 && bottom <= window.innerHeight
-    if (!fullyVisible) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+    const rect = element.getBoundingClientRect()
+    const fullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight
+    const roomForBalloon =
+      window.innerHeight - rect.bottom >= BALLOON_SPACE || rect.top >= BALLOON_SPACE
+    if (fullyVisible && roomForBalloon) return
+
+    if (rect.height > window.innerHeight / 3) {
+      window.scrollBy({ top: rect.top - STICKY_HEADER, behavior: 'smooth' })
+      return
     }
+    element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
   }, [step])
 
   /**

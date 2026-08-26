@@ -4060,6 +4060,144 @@ Con sesión real contra la base local, a 390 × 844:
 | Chrome en iPhone | opción en el menú → aviso explicando que hay que abrirla en Safari |
 | Menú de usuario | «Instalar aplicación» entre «Ver recorrido guiado» y «Cambiar contraseña» |
 
+## D-124 — El centro de un anillo es para porcentajes; el dinero se lee fuera
+
+**Fecha:** 2026-08-26 · **Encargo:** rediseñar dos componentes a partir de dos imágenes de
+referencia. El problema de fondo lo describía el propio encargo: los importes metidos dentro de los
+gráficos circulares quedaban pequeños, no escalaban al crecer la cifra y en el teléfono se leían mal.
+La solución pedida **no** era agrandar los gráficos.
+
+### La regla, en una línea
+
+> Dentro del anillo va solo información corta —un porcentaje—. El dinero completo se muestra fuera.
+
+Suena cosmética y no lo es: el hueco central de un anillo mide un porcentaje **fijo** de su diámetro
+(68 % en el de tres partes, 76 % en el de progreso), así que ahí solo cabe con seguridad un texto de
+longitud acotada. Un porcentaje mide siempre entre dos y cuatro caracteres. Un importe en pesos mide
+entre 2 y 14, y quien lo escribe no controla cuál.
+
+### Lo que había, medido
+
+| | Antes | Ahora |
+|---|---|---|
+| Centro del anillo del panel | «Total a cobrar» + **$6.960.000** | **26 %** + «recaudado» |
+| Tamaño de esa cifra | `text-base` **fijo, sin crecer nunca** | `23cqw`: 29 px en escritorio, 22 en el teléfono |
+| Por qué estaba fijo | lo decía un comentario del código: a 20 px, «$13.600.000» medía 118 px sobre un hueco de 112 y se salía por los lados | ya no aplica: lo que va dentro tiene largo acotado |
+| Dinero del panel | dentro del anillo | fuera, a su lado, **«Total vendido»** a 20–30 px |
+| Dinero de una boleta | dos cifras sueltas, sin decir de cuánto | **«Abonado $20.000 · de $120.000»** y **«Pendiente $100.000 · de $120.000»** |
+
+### 1. El texto se mide contra el anillo, no contra la ventana
+
+Los dos anillos se declaran `@container` y dimensionan su contenido en `cqw` —tanto por ciento del
+**propio** ancho—. Así la cifra ocupa siempre la misma proporción del hueco: el anillo puede medir
+80 px o 160 y «100 %» no se sale nunca, sin que quien lo use tenga que acordarse de ajustar la letra
+al cambiar el tamaño. El pie («abonado», «recaudado») lleva además un mínimo en `rem` para no bajar
+de 11 px en el anillo pequeño.
+
+Es la misma idea que ya aplicaba `TrendChart` al sacar los textos del eje **fuera** del SVG, resuelta
+al revés: aquí el texto tiene que quedarse dentro, así que se le enseña a medirse solo.
+
+Comprobado con el anillo más pequeño del proyecto (96 px, hueco de 65):
+
+| Porcentaje | Ancho | ¿Cabe? |
+|---|---|---|
+| `0 %` / `1 %` | 30,8 px | ✅ |
+| `50 %` / `99 %` | 43,1 px | ✅ |
+| `100 %` | 55,3 px | ✅ |
+
+### 2. «Total vendido», no «Total a cobrar»
+
+El centro del anillo era **el único sitio de la aplicación** que llamaba «Total a cobrar» al valor de
+las boletas vendidas. Los otros diez —`/owner/payments`, `/seller/payments`, la ficha de una rifa, la
+de un vendedor, la de un integrante, tres bloques de reportes y dos exportaciones a CSV— ya decían
+**«Total vendido»**. Y en la misma tarjeta, dos líneas más abajo, «Por cobrar» significa otra cosa:
+lo que **falta**. Tener las dos con nombres parecidos invitaba a leer una por la otra.
+
+Solo cambia el rótulo visible. **Ni una propiedad, consulta, DTO ni migración**: el valor sigue
+saliendo de `breakdown.totalSold`, que es `v_seller_summary.total_sold`.
+
+### 3. Ni un cálculo nuevo
+
+| Cifra | De dónde sale |
+|---|---|
+| % abonado de una boleta | `calculateCollectionSummary()`, la misma cuenta del panel, ya probada en sus casos límite |
+| % recaudado del panel | `percentageOf(cobrado, totalSold)` — **la misma definición** que ya alimenta el indicador «Cobranza» de arriba. Las dos partes cobradas del reparto son, por construcción, lo recaudado, así que las dos cifras no pueden discrepar |
+| Reparto en tres partes y sus porcentajes | `buildCollectionBreakdown()` + `percentageOf()`, sin tocar |
+| Colores | `TONE_FILL` / `TONE_STROKE` de `tones.ts`, sin tocar: verde cobrado, azul abonos, **gris** lo que falta |
+
+Sigue sin haber librería de gráficas, sin JavaScript en el navegador y sin un byte más de paquete:
+los dos anillos se dibujan en el servidor.
+
+### 4. Dos disposiciones, no una encogida
+
+**Resumen de pago de una boleta.** Pasa de tres columnas hermanas en escritorio —donde el resumen se
+quedaba con un tercio del ancho, justo donde están las cifras que se miran— a **dos bloques
+apilados**: los estados arriba, el cobro debajo, separados por una línea. Dentro del cobro, el anillo
+va **encima** de las dos cifras en el teléfono y **a su izquierda** a partir de 400 px de tarjeta.
+
+**Resumen financiero del panel.** El anillo y «Total vendido» comparten fila; el reparto en tres
+partes baja debajo, a lo ancho. La fila se convierte en columna por debajo de **280 px de tarjeta**,
+que es lo que ocurre en una pantalla de 320: ahí «$120.000.000» no cabe al lado del anillo, y
+encogerlo era exactamente lo que no se podía hacer.
+
+Los umbrales miran **la tarjeta** (`@container`), no la ventana: en escritorio esta tarjeta ocupa
+media pantalla, y un `sm:` la partía en dos columnas de 192 y 66 px.
+
+### 5. Comprobado en los cuatro anchos, con datos reales
+
+Ni un desbordamiento, en ningún ancho, con importes de hasta trece cifras:
+
+| Ancho | Panel: disposición | Anillo | Boleta: disposición |
+|---|---|---|---|
+| 1280 (escritorio) | fila · cifra a 24 px | 128 px | anillo a la izquierda |
+| 820 (tableta) | fila · 24 px | 128 px | anillo a la izquierda |
+| 412 (teléfono) | fila · 20 px | 96 px | anillo encima |
+| 320 (teléfono pequeño) | **columna** · 20 px | 96 px | anillo encima |
+
+Casos límite: boleta al **0 %** («$0 de $120.000», sin color: en cero no hay nada que destacar) y al
+**100 %**; panel **sin ventas** (estado vacío, sin anillo de ceros); `$960.000`, `$6.960.000`,
+`$16.960.000`, `$120.000.000` y `$1.200.000.000` en el mismo hueco, todos sin desbordar.
+
+**Un segmento diminuto ya no desaparece.** Con el reparto 1 % / 1 % / 98 %, restarle la separación a
+un arco de 2,5 unidades lo dejaba en 1,0 y prácticamente se borraba. Ahora hay un mínimo de 1,5: una
+parte que vale dinero no puede ser invisible.
+
+### 6. El efecto lateral que sí importaba: el globo del recorrido guiado
+
+La tarjeta del panel creció de 314 a 390 px de alto —el reparto ya no va al lado del anillo, sino
+debajo— y eso **rompió** el paso «Cómo va tu cobranza» a 1280 × 720: el globo se salía de la pantalla
+y con él su botón «Siguiente», sin forma de continuar el recorrido.
+
+No era un problema nuevo, era uno que ya estaba al borde: **con la tarjeta anterior el globo ya
+sobresalía 7 px** y solo se salvaba porque el botón no llega al borde inferior del globo.
+
+| | Alto de la tarjeta | Globo | Sobresale |
+|---|---|---|---|
+| Antes | 314 | y=529, h=198 → 727 | **7 px** |
+| Con el rediseño, sin arreglar | 390 | y=567, h=218 → 785 | **65 px** ❌ |
+| Arreglado | 390 | y=474, h=218 → 692 | ✅ cabe |
+
+**La causa es `block: 'center'`.** Centrar un elemento alto parte el hueco libre en dos mitades donde
+el globo no cabe: con 390 px de tarjeta en 720 de ventana quedan 165 px arriba y 165 abajo, y el
+globo pide 232 con su separación. Radix no puede voltearlo a ninguna parte y lo deja desbordado.
+
+`use-tour.ts` ahora lleva **arriba** —no al centro— cualquier elemento que pase de **un tercio** del
+alto de la ventana, de modo que todo el sobrante quede de un solo lado: el de abajo, que es donde el
+globo va por defecto. Se hace con `scrollBy` y no con `block: 'start'` porque la barra superior es
+fija y taparía la cabecera de lo que se está explicando. Y se comprueba además que quede hueco para
+el globo aunque el elemento se vea entero: verse no es lo mismo que caber.
+
+Beneficia a todos los recorridos, no solo a este paso: cualquier elemento alto —una tabla de
+veinticinco filas también lo es— tenía el mismo problema esperando.
+
+### Dónde me aparté de la referencia, y por qué
+
+| Referencia | Aquí | Motivo |
+|---|---|---|
+| Rótulos «Estado», «Abonado»… en minúscula y 14 px | **VERSALITAS de 12 px** | Es el patrón de rótulo de toda la ficha de la boleta —«Cliente», «Precio», «Fecha de venta», el detalle administrativo—. Adoptar el de la imagen habría dejado esta tarjeta hablando distinto de las tres que tiene al lado en la misma pantalla |
+| Anillo del panel con verde, azul y **gris** | igual | Coincide con D-112: el gris de «Por cobrar» significa «todavía no». Pintarlo de rojo convertiría una rifa que va bien en una alarma |
+| Nada sobre el ancho del bloque de cifras de la boleta | las dos columnas se reparten el ancho sobrante | En una tarjeta de 928 px queda airoso, que es la dirección visual pedida |
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

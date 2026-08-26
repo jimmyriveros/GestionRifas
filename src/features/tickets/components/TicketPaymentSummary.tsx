@@ -27,12 +27,17 @@ type TicketPaymentSummaryProps = {
  * limite (sin ventas, cobro completo y un pendiente negativo que la base
  * impide pero que la interfaz nunca debe pintar).
  *
- * **Disposicion.** En escritorio son TRES secciones hermanas separadas por una
- * linea vertical —estado · estado de pago · resumen de pago—, y la tercera
- * reparte a su vez el anillo, lo abonado y lo pendiente en horizontal. En el
- * telefono los dos estados comparten fila y el resumen entero baja debajo,
- * separado por una linea horizontal. Es la misma rejilla en los dos casos: solo
- * cambia donde cae cada sección y de que lado se dibuja su linea.
+ * **Disposicion (D-124).** Dos bloques, uno encima del otro y separados por una
+ * linea: arriba los dos estados; debajo, el cobro. Antes eran tres columnas
+ * hermanas en escritorio y dos filas en el telefono —dos disposiciones
+ * distintas que mantener—, y a cambio el resumen de pago se quedaba con un
+ * tercio del ancho de la tarjeta justo donde estan las cifras que se miran.
+ *
+ * **Dentro del anillo, solo el porcentaje.** El dinero va fuera, a su lado, con
+ * su rotulo y su «de $120.000» debajo para no tener que recordar cuanto valia
+ * la boleta. En el telefono el anillo se sube encima de las dos cifras, que se
+ * reparten el ancho en dos columnas; a partir de 400 px de tarjeta se pone a su
+ * izquierda. No es la misma disposicion encogida: es otra.
  */
 export function TicketPaymentSummary({
   inventoryStatus,
@@ -41,77 +46,112 @@ export function TicketPaymentSummary({
   paidAmount,
 }: TicketPaymentSummaryProps) {
   const sold = inventoryStatus === 'assigned' && salePrice !== null
+  const price = salePrice ?? 0
 
   const { percentage, safePendingAmount } = calculateCollectionSummary({
-    totalSold: salePrice ?? 0,
+    totalSold: price,
     totalCollected: paidAmount,
-    pendingAmount: (salePrice ?? 0) - paidAmount,
+    pendingAmount: price - paidAmount,
   })
 
   return (
     <Card>
-      {/* Las dos primeras columnas se miden por su ROTULO, no por el badge:
-          con menos ancho, «Estado de pago» parte en dos lineas a 1.024 px. */}
-      <CardContent className="grid grid-cols-2 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2.2fr)] lg:gap-8">
-        <Cell label="Estado" className="lg:col-start-1 lg:row-start-1">
-          <InventoryStatusBadge status={inventoryStatus} />
-        </Cell>
+      <CardContent className="space-y-5">
+        <div className="grid grid-cols-2 gap-4">
+          <Cell label="Estado">
+            <InventoryStatusBadge status={inventoryStatus} />
+          </Cell>
 
-        <Cell label="Estado de pago" className="lg:col-start-2 lg:row-start-1 lg:border-l lg:pl-8">
-          {inventoryStatus === 'assigned' ? (
-            <PaymentStatusBadge status={paymentStatus} />
-          ) : (
-            <span className="text-muted-foreground text-sm">Sin venta</span>
-          )}
-        </Cell>
+          <Cell label="Estado de pago">
+            {inventoryStatus === 'assigned' ? (
+              <PaymentStatusBadge status={paymentStatus} />
+            ) : (
+              <span className="text-muted-foreground text-sm">Sin venta</span>
+            )}
+          </Cell>
+        </div>
 
         {sold ? (
-          // La linea que lo separa es horizontal en el telefono —porque el
-          // bloque baja— y vertical en escritorio, donde es la tercera columna.
-          <section className="col-span-2 border-t pt-5 lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:flex lg:flex-col lg:justify-center lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
+          <section className="@container border-t pt-5">
             <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
               Resumen de pago
             </p>
-            {/* Tres columnas: el anillo ocupa lo que mide, y las dos cifras se
-                reparten el resto por igual para que no bailen entre boletas. */}
-            <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-4 sm:gap-6">
+
+            <div className="mt-4 flex flex-col gap-4 @min-[400px]:flex-row @min-[400px]:items-center @min-[400px]:gap-6">
               <ProgressRing
+                className="size-24 self-center @min-[400px]:size-28 @min-[400px]:self-auto"
                 percentage={percentage}
                 caption="abonado"
                 label={`Abonado el ${percentage}% del precio de venta`}
               />
-              <Cell label="Abonado">
-                {/* El color solo aparece cuando dice algo: en cero no hay
-                    dinero cobrado que destacar. */}
-                <p
-                  className={
-                    paidAmount > 0
-                      ? 'text-base font-semibold text-emerald-700 tabular-nums sm:text-lg dark:text-emerald-400'
-                      : 'text-muted-foreground text-base font-semibold tabular-nums sm:text-lg'
-                  }
-                >
-                  {formatCOP(paidAmount)}
-                </p>
-              </Cell>
-              <Cell label="Pendiente">
+
+              {/* Dos columnas iguales, en el telefono y en el escritorio: asi
+                  las cifras no bailan de sitio al pasar de una boleta a otra. */}
+              <div className="grid min-w-0 flex-1 grid-cols-2 gap-4 @min-[400px]:gap-6">
+                <Amount
+                  label="Abonado"
+                  amount={paidAmount}
+                  price={price}
+                  // El color solo aparece cuando dice algo: en cero no hay
+                  // dinero cobrado que destacar.
+                  className={paidAmount > 0 ? 'text-emerald-700 dark:text-emerald-400' : undefined}
+                />
                 {/* El ambar dice «falta algo», igual que en «Abonada» y
                     «Pendiente de aprobación»; en cero no queda nada que
                     señalar y la cifra vuelve al gris de siempre. */}
-                <p
+                <Amount
+                  label="Pendiente"
+                  amount={safePendingAmount}
+                  price={price}
                   className={
-                    safePendingAmount > 0
-                      ? 'text-base font-semibold text-amber-700 tabular-nums sm:text-lg dark:text-amber-400'
-                      : 'text-muted-foreground text-base font-semibold tabular-nums sm:text-lg'
+                    safePendingAmount > 0 ? 'text-amber-700 dark:text-amber-400' : undefined
                   }
-                >
-                  {formatCOP(safePendingAmount)}
-                </p>
-              </Cell>
+                  divided
+                />
+              </div>
             </div>
           </section>
         ) : null}
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * Una cifra del resumen: cuanto, y de cuanto.
+ *
+ * El «de $120.000» no es decoracion: sin el, «$20.000 pendiente» obliga a subir
+ * a buscar el precio de la boleta para saber si eso es mucho o poco.
+ */
+function Amount({
+  label,
+  amount,
+  price,
+  className,
+  divided,
+}: {
+  label: string
+  amount: number
+  price: number
+  className?: string
+  /** Dibuja la linea que la separa de la cifra anterior. */
+  divided?: boolean
+}) {
+  return (
+    <Cell label={label} className={divided ? 'border-l pl-4 @min-[400px]:pl-6' : undefined}>
+      {/* La letra crece con la TARJETA: en 240 px «$120.000.000» a 20 px se
+          saldria de su columna, y encoger la cifra principal para que quepa es
+          justo lo que no se puede hacer. */}
+      <p
+        className={cn(
+          'text-base font-semibold tabular-nums @min-[320px]:text-lg @min-[520px]:text-xl',
+          className ?? 'text-muted-foreground',
+        )}
+      >
+        {formatCOP(amount)}
+      </p>
+      <p className="text-muted-foreground text-xs tabular-nums">{`de ${formatCOP(price)}`}</p>
+    </Cell>
   )
 }
 
@@ -125,7 +165,7 @@ function Cell({
   className?: string
 }) {
   return (
-    <div className={cn('min-w-0 space-y-1.5 lg:flex lg:flex-col lg:justify-center', className)}>
+    <div className={cn('min-w-0 space-y-1.5', className)}>
       <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
       {children}
     </div>

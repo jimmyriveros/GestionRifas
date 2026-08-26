@@ -349,7 +349,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `TicketNumberInput` | Solo dígitos, máx. 4, preserva ceros, `inputMode="numeric"` |
 | `StatusBadge` | Badge **con texto** (nunca solo color) para estados de inventario y pago |
 | Encabezados de columna | Los cuatro con acciones llevan rótulo: **«Acción»** con una sola acción (pagos, rifas) y **«Acciones»** con menú (vendedores, administradores). Los dos números se ven abreviados —«Núm. diario»— y conservan el nombre entero en `sr-only`, así que la columna se sigue llamando «Número diario» para un lector de pantalla (D-114) |
-| `DonutChart` / `TrendChart` | Los dos gráficos del panel del vendedor: SVG dibujado en el servidor, **sin librería y sin JavaScript** en el navegador. Escalan con `viewBox`, igual que `ProgressRing` (§8.13, D-112) |
+| `DonutChart` / `TrendChart` | Los dos gráficos del panel del vendedor: SVG dibujado en el servidor, **sin librería y sin JavaScript** en el navegador. Escalan con `viewBox`, igual que `ProgressRing` (§8.13, D-112). En el centro del anillo va un porcentaje, nunca un importe (D-124) |
 | `CollectionSummaryCard` | Resumen de cobranza del panel (D-090): recibe `totals` ya agregado, no calcula nada; barra de progreso accesible con el mismo patrón que `BulkTicketCreator` |
 | `CommissionCard` | «Tu ganancia» del panel del vendedor (D-095). No calcula nada: recibe la fila de `commission_summary`. Separa **lo ganado** de **la proyección** deliberadamente, y la barra lleva su valor en `aria-valuetext` |
 | `NotificationBell` / `NotificationMenu` | Campanita del encabezado (D-093). El servidor lee la bandeja al pintar la pantalla; sin peticiones desde el navegador ni tiempo real. El contador va también en el `aria-label`, no solo en el punto rojo |
@@ -360,8 +360,8 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `NavLinks` → `NavPending` | El menú lateral y su aviso de «se está abriendo», con `useLinkStatus`. Sustituye a los `loading.tsx`, que costaban ~300 ms de espera por fallback de Suspense (D-104) |
 | `BottomNav` | La barra de navegación del teléfono (§8.8, D-106). Solo las entradas `primary`, solo bajo `md`. No consulta nada: `usePathname()` y ya. Conserva el aviso de «se está abriendo» de `NavPending`, en el sitio del icono |
 | `nav-active.ts` | `isNavItemActive(pathname, href)`: qué entrada se enciende. La comparten la barra lateral y la inferior, para que no puedan discrepar (D-106) |
-| `ProgressRing` | Anillo de progreso accesible (D-105): un `<svg>` con `stroke-dasharray`, sin librería de gráficas. Lleva el porcentaje **escrito** en el centro y `role="progressbar"`; es la versión compacta de la barra de `CollectionSummaryCard`, para cuando el porcentaje comparte fila con cifras de dinero |
-| `TicketPaymentSummary` | Estado, estado de pago y —si ya se vendió— anillo, abonado y pendiente de UNA boleta (D-105). No consulta ni calcula: recibe `sale_price` y `paid_amount` y pide el porcentaje a `calculateCollectionSummary`, la misma cuenta del panel |
+| `ProgressRing` | Anillo de progreso accesible (D-105): un `<svg>` con `stroke-dasharray`, sin librería de gráficas. Lleva el porcentaje **escrito** en el centro y `role="progressbar"`; es la versión compacta de la barra de `CollectionSummaryCard`, para cuando el porcentaje comparte fila con cifras de dinero. **Dentro solo va el porcentaje**, medido en `cqw` contra el propio anillo (D-124) |
+| `TicketPaymentSummary` | Estado, estado de pago y —si ya se vendió— anillo, abonado y pendiente de UNA boleta (D-105). No consulta ni calcula: recibe `sale_price` y `paid_amount` y pide el porcentaje a `calculateCollectionSummary`, la misma cuenta del panel. Dos bloques apilados y separados por una línea; el anillo se pone encima de las cifras en el teléfono y a su izquierda desde 400 px de tarjeta (D-124) |
 | `PageHeader` | Título, descripción y acciones de toda pantalla. `backHref` activa la flecha de volver de las pantallas de detalle (§8.6, D-089) |
 | `BackButton` | Flecha de volver: historial real con destino de repuesto. La usa `PageHeader`, no se llama suelta |
 | `navigation-history.ts` | Cuenta los cambios de ruta reales de esta pestaña, para que `BackButton` sepa si el historial es de fiar (D-089) |
@@ -790,7 +790,7 @@ ancho de su tarjeta con `@container`:
 
 | Pieza | Umbral | Por qué |
 |---|---|---|
-| Anillo junto a su leyenda (`FinancialSummaryCard`) | `@min-[400px]` | Anillo 160 px + leyenda más larga 216 px. Con `sm:` la leyenda quedaba en 66 px y los nombres desaparecían |
+| Anillo junto a «Total vendido» (`FinancialSummaryCard`) | `@min-[280px]` la fila · `@min-[400px]` y `@min-[560px]` el tamaño | Por debajo de 280 px de tarjeta —una pantalla de 320— «$120.000.000» no cabe al lado del anillo y la fila se vuelve columna (D-124). Con `sm:` la tarjeta quedaba partida en 192 y 66 px |
 | «Mis boletas» de 3×2 a seis en fila (`TicketsOverviewCard`) | `@min-[400px]/tickets` | Con `sm:` eran seis columnas de 43 px dentro de una tarjeta de media pantalla |
 
 Los cuatro indicadores sí miran la ventana (`sm:grid-cols-2 xl:grid-cols-4`) porque ocupan el ancho
@@ -801,7 +801,7 @@ completo: en `lg` el contenido mide 720 px —la barra lateral se lleva 256— y
 
 | Componente | Cómo escala |
 |---|---|
-| `DonutChart` | `stroke-dasharray` sobre un lienzo 100 × 100. **El tamaño lo pasa quien lo usa**: crecer con la ventana se comía la leyenda de al lado. El importe del centro es `text-base` fijo — a 20 px, «$13.600.000» se salía del anillo |
+| `DonutChart` | `stroke-dasharray` sobre un lienzo 100 × 100. **El tamaño lo pasa quien lo usa**: crecer con la ventana se comía lo que va al lado. En el centro va **solo el porcentaje recaudado**, dimensionado en `cqw` contra el propio anillo, así que no se sale nunca; el dinero se lee fuera (D-124). Un segmento diminuto conserva un arco mínimo: una parte que vale dinero no puede ser invisible |
 | `TrendChart` | `viewBox` con proporción conservada y `vector-effect="non-scaling-stroke"`. Los textos del eje van **fuera** del SVG, en la misma rejilla: dentro crecerían con él. Cada punto lleva `<title>` (globo nativo, cero JavaScript) y debajo va la misma información en una lista `sr-only` |
 
 **Qué depende del período y qué no.** El selector escribe `range` en la URL (`7d`, `30d`, `month`,

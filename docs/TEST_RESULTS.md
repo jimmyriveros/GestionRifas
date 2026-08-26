@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **359 ✅** | **518 ✅** | **294 ✅** | ✅ | ✅ |
+| Post-9 vigente | **376 ✅** | **518 ✅** | **294 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -3688,3 +3688,117 @@ La tarjeta de instalación **en producción** vive detrás del inicio de sesión
 acceso con las cuentas reales es lo que provocó **I-066**. Se verificó con sesión real **contra la
 base local** (D-123): tarjeta en `y = 274` visible sin scrollear, en los tres contextos, y la opción
 del menú. Queda para el dueño confirmarlo en su iPhone, en Safari y en Chrome.
+
+## El dinero sale de dentro de los anillos (2026-08-26)
+
+Rediseño de los dos gráficos circulares (**D-124**). Cambio visual y de rótulo: sin migraciones, sin
+consultas nuevas y sin un solo cálculo tocado.
+
+### Comandos
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npm run typecheck` | ✅ | — | — |
+| `npm run lint` | ✅ **0 errores** (los 2 avisos de siempre, de TanStack) | — | — |
+| `npm run test` | ✅ **376/376** | — | — |
+| `npm run build` | ✅ compilado | — | — |
+| `npm run test:db` | ✅ **518/518** | — | — |
+| `npm run test:e2e` | ✅ **294/294** en 14,5 min | 1 fallo real en la primera pasada, ver más abajo | Corregido en `use-tour.ts` |
+
+**Ninguna prueba se modificó.** Que las 294 pasen sin tocarlas es parte de la comprobación: si el
+rediseño hubiera cambiado un dato, una etiqueta de estado o una ruta, habrían fallado.
+
+### Medición, no impresión: los dos componentes en cuatro anchos
+
+Con sesión real contra la base local, midiendo `scrollWidth − clientWidth` de la tarjeta, de cada
+columna y del documento.
+
+**Resumen financiero del panel**
+
+| Ancho de ventana | Tarjeta | Disposición | Anillo | Hueco central | Cifra del centro | «Total vendido» | Desbordamiento |
+|---|---|---|---|---|---|---|---|
+| 1280 | 469 px | fila | 128 px | 87 px | 29,4 px | 24 px | **0** |
+| 820 | — | fila | 128 px | 87 px | 29,4 px | 24 px | **0** |
+| 412 | 380 px | fila | 96 px | 65 px | 22,1 px | 20 px | **0** |
+| 320 | 288 px | **columna** | 96 px | 65 px | 22,1 px | 20 px | **0** |
+
+**Resumen de pago de una boleta**
+
+| Ancho de ventana | Tarjeta | Disposición | Anillo | Cifra | «de $120.000» | Desbordamiento (tarjeta · columnas) |
+|---|---|---|---|---|---|---|
+| 1280 | 976 px | anillo a la izquierda | 112 px | 20 px | 12 px | **0 · 0, 0** |
+| 820 | 516 px | anillo a la izquierda | 112 px | 18 px | 12 px | **0 · 0, 0** |
+| 412 | 380 px | anillo **encima** | 96 px | 18 px | 12 px | **0 · 0, 0** |
+| 320 | 288 px | anillo **encima** | 96 px | 16 px | 12 px | **0 · 0, 0** |
+
+**El importe que crece.** Sustituyendo en vivo el texto de «Total vendido», en los dos anchos
+extremos:
+
+| Importe | 1280 px | 320 px |
+|---|---|---|
+| `$960.000` | 99 px · desbordamiento 0 | 86 px · 0 |
+| `$6.960.000` | 118 px · 0 | 98 px · 0 |
+| `$16.960.000` | 132 px · 0 | — |
+| `$120.000.000` | 145 px · 0 | 121 px · 0 |
+| `$1.200.000.000` | 164 px · 0 | 137 px · 0 |
+
+Ninguno desborda y **ninguno obliga a bajar el tamaño de letra**, que era el criterio de aceptación.
+
+**El porcentaje del centro, en el anillo más pequeño del proyecto** (96 px, hueco de 65):
+
+| Valor | Ancho | ¿Cabe? |
+|---|---|---|
+| `0 %` · `1 %` | 30,8 px | ✅ |
+| `50 %` · `99 %` | 43,1 px | ✅ |
+| `100 %` | 55,3 px | ✅ |
+
+### Casos límite
+
+| Caso | Resultado |
+|---|---|
+| Boleta al **0 %** | «0 % abonado» · Abonado **$0** en gris —en cero no hay nada que destacar— · Pendiente **$120.000** en ámbar |
+| Boleta al **100 %** | «100 % abonado» · Abonado **$120.000** en verde · Pendiente **$0** en gris |
+| Boleta **sin vender** | «Sin venta», y el resumen **no se dibuja**: `[role="progressbar"]` = **0** |
+| Vendedor **sin ventas** | Estado vacío, sin anillo de ceros y sin ningún `NaN` |
+| Reparto **1 % / 1 % / 98 %** | Los dos segmentos diminutos conservan un arco de **1,5** unidades. Sin ese mínimo se quedaban en 1,0 y desaparecían del dibujo |
+
+### El fallo que apareció, y que no era nuevo
+
+`tour.spec.ts:126` —el recorrido del vendedor— falló con `element is outside of the viewport` al
+pulsar «Siguiente» en el paso 3, «Cómo va tu cobranza». Medido a 1280 × 720:
+
+| | Alto de la tarjeta | Globo | Sobresale |
+|---|---|---|---|
+| Antes del rediseño (con el trabajo en `git stash`) | 314 px | y = 529, h = 198 → 727 | **7 px** |
+| Con el rediseño, sin corregir | 390 px | y = 567, h = 218 → 785 | **65 px** ❌ |
+| Tras corregir `use-tour.ts` | 390 px | y = 474, h = 218 → 692 | ✅ cabe |
+
+La primera fila es la que importa: **el globo ya se salía antes**, y solo pasaba las pruebas porque
+el botón no llega al borde inferior. La causa es `block: 'center'`, que al centrar un elemento alto
+deja dos mitades de 165 px donde un globo de 232 no cabe por ningún lado, y Radix no tiene adónde
+voltearlo. Corregido en `use-tour.ts` (D-124 §6) y comprobado además a 1280 × 900 y 412 × 915, con
+`tour.spec.ts` y `tour-responsive.spec.ts` en verde **sin tocar ninguna de las dos**.
+
+De paso, la tarjeta del panel **encoge** en el teléfono: 374 → **350 px** a 412 px de ancho, que es
+el viewport del proyecto `movil`. El globo tiene ahí más sitio que antes, no menos.
+
+### Lo que se encontró y NO es de este cambio
+
+**Desbordamiento horizontal de 49–62 px a 320 px** en el detalle de una boleta. Se midió con el
+trabajo guardado en `git stash` y da **exactamente lo mismo**, así que es anterior. No sale del
+resumen de pago —que mide **0** en los cuatro anchos— sino de la tarjeta de los **dos números**: un
+`grid grid-cols-2 gap-3` que pide 328–341 px dentro de una tarjeta de 288. Registrado como
+**I-076**; requiere decidir antes si 320 px es un ancho soportado.
+
+### Trampas de esta sesión, para quien venga detrás
+
+1. **La primera pasada E2E dio 6 fallos que no eran del código** (`importar-boletas` ×5, `owner-users`,
+   `owner-tickets`): la base venía de tres pasadas encadenadas y yo además reformateé dos archivos
+   **mientras la suite corría**, con el servidor de desarrollo recompilando debajo. Con `db:reset` +
+   `seed:local` antes y sin tocar nada durante la pasada: **294/294**. Es la misma trampa que ya
+   advertía el relevo de la ficha del cliente — **siembra limpio antes de culpar a tu código**, y no
+   edites fuentes con la suite en marcha.
+2. **`prettier --write` puede decir «unchanged» y `--check` marcar el mismo archivo.** Pasa con
+   `prettier-plugin-tailwindcss`, que ordena las clases: la primera pasada sobre un archivo recién
+   escrito no las tocó y la segunda sí. Si `format:check` señala un archivo que acabas de formatear,
+   ejecútalo otra vez antes de investigar nada.

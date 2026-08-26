@@ -288,7 +288,7 @@ const SELLER_TOURS: Tour[] = [
         target: 'financial-summary',
         side: 'bottom',
         title: 'Cómo va tu cobranza',
-        body: 'El total del centro es lo que valen tus boletas vendidas. El anillo lo reparte en lo que ya cobraste, lo que te han abonado y lo que falta.',
+        body: 'En el centro del anillo ves qué parte del dinero ya cobraste. Al lado está lo que valen tus boletas vendidas, repartido en lo cobrado, lo abonado y lo que falta.',
       },
       {
         id: 'metrics-inventory',

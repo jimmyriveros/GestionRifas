@@ -35,6 +35,18 @@ type Slice = { label: string; value: number; tone: MoneyTone }
  *
  * Los porcentajes se calculan sobre ese total, nunca se escriben a mano, y un
  * vendedor sin ventas no divide por cero: ve el estado vacio.
+ *
+ * DONDE VA CADA COSA (D-124). En el centro del anillo, el porcentaje
+ * recaudado —tres caracteres que miden siempre lo mismo—; el dinero, fuera y al
+ * lado, donde puede crecer hasta «$120.000.000» sin encoger la letra ni pisar
+ * el dibujo. El reparto en tres partes baja debajo, a lo ancho de la tarjeta.
+ *
+ * «TOTAL VENDIDO», NO «TOTAL A COBRAR». Es el valor de las boletas ya vendidas;
+ * lo que falta por cobrar es «Por cobrar», que es otra cifra y esta dos lineas
+ * mas abajo. El centro del anillo era el unico sitio de la aplicacion que
+ * llamaba «Total a cobrar» a lo vendido: las otras diez pantallas —Pagos,
+ * reportes, CSV— ya decian «Total vendido». Solo cambia el rotulo: ni una
+ * propiedad, consulta ni calculo.
  */
 export function FinancialSummaryCard({
   breakdown,
@@ -42,6 +54,11 @@ export function FinancialSummaryCard({
   className,
 }: FinancialSummaryCardProps) {
   const { totalSold, collectedOnPaid, collectedOnPartial, pending } = breakdown
+
+  // La MISMA definicion de «recaudado» que ya usa el indicador «Cobranza» de
+  // arriba (`percentageOf(totalCollected, totalSold)`): las dos partes cobradas
+  // del reparto son, por construccion, lo recaudado.
+  const collectedPercentage = percentageOf(collectedOnPaid + collectedOnPartial, totalSold)
 
   const slices: Slice[] = detailed
     ? [
@@ -74,48 +91,55 @@ export function FinancialSummaryCard({
             cobrado y cuánto te falta.
           </p>
         ) : (
-          <div className="@container space-y-4 @min-[400px]:space-y-6">
+          <div className="@container space-y-5 @min-[400px]:space-y-6">
             {/*
-              El anillo se pone al lado de la leyenda cuando LA TARJETA es lo
-              bastante ancha, no cuando lo es la ventana: en escritorio esta
-              tarjeta ocupa media pantalla, asi que un `sm:` —que mira la
-              ventana— la partia en dos columnas de 192 y 66 px y los nombres
-              de la leyenda desaparecian. El umbral son 400 px de TARJETA, que
-              es lo que necesitan el anillo (160) y la leyenda mas larga (216).
+              El anillo y el total se miden contra LA TARJETA, no contra la
+              ventana: en escritorio esta tarjeta ocupa media pantalla, asi que
+              un `sm:` —que mira la ventana— la partia en columnas de 192 y
+              66 px y los nombres desaparecian.
 
-              EN EL TELEFONO EL ANILLO MIDE 128 px, no 160. Con 160, la tarjeta
-              llegaba a 422 px de alto y el globo del recorrido guiado no tenia
-              donde ponerse sin taparla: centrada en una pantalla de 839 px
-              dejaba 209 px libres a cada lado y el globo pide 226 con su
-              separacion. Con 128 la tarjeta baja a ~374 y el globo cabe.
+              Los dos van SIEMPRE en la misma fila salvo en el telefono mas
+              estrecho. Con 240 px de tarjeta —una pantalla de 320— el importe
+              mas largo que puede darse, «$120.000.000», no cabe al lado del
+              anillo, y ahi es donde la fila se convierte en columna: es la
+              unica forma de no encoger la cifra hasta lo ilegible.
             */}
-            <div className="flex flex-col items-center gap-4 @min-[400px]:flex-row @min-[400px]:items-center @min-[400px]:gap-6">
+            <div className="flex flex-col items-center gap-4 text-center @min-[280px]:flex-row @min-[280px]:gap-5 @min-[280px]:text-left @min-[400px]:gap-6">
               <DonutChart
-                className="size-32 @min-[400px]:size-40 @min-[560px]:size-48"
+                className="size-24 @min-[400px]:size-32 @min-[560px]:size-40"
                 segments={segments}
                 total={totalSold}
-                centerLabel="Total a cobrar"
-                centerValue={formatCOP(totalSold)}
+                centerValue={`${collectedPercentage}%`}
+                centerCaption="recaudado"
               />
 
-              <ul className="w-full min-w-0 space-y-3">
-                {slices.map((slice) => (
-                  <li key={slice.label} className="flex items-center gap-3">
-                    <span
-                      className={cn('size-2.5 shrink-0 rounded-full', TONE_FILL[slice.tone])}
-                      aria-hidden
-                    />
-                    <span className="min-w-0 flex-1 truncate text-sm">{slice.label}</span>
-                    <span className="shrink-0 text-sm font-medium tabular-nums">
-                      {formatCOP(slice.value)}{' '}
-                      <span className="text-muted-foreground font-normal">
-                        ({percentageOf(slice.value, totalSold)}%)
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-sm font-medium">Total vendido</p>
+                {/* Crece con la tarjeta, no al reves: la cifra manda sobre el
+                    tamaño de letra que puede permitirse cada ancho. */}
+                <p className="mt-0.5 text-xl font-semibold tabular-nums @min-[400px]:text-2xl @min-[560px]:text-3xl">
+                  {formatCOP(totalSold)}
+                </p>
+              </div>
             </div>
+
+            <ul className="space-y-3">
+              {slices.map((slice) => (
+                <li key={slice.label} className="flex items-center gap-3">
+                  <span
+                    className={cn('size-2.5 shrink-0 rounded-full', TONE_FILL[slice.tone])}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm">{slice.label}</span>
+                  <span className="shrink-0 text-sm font-medium tabular-nums">
+                    {formatCOP(slice.value)}{' '}
+                    <span className="text-muted-foreground font-normal">
+                      ({percentageOf(slice.value, totalSold)}%)
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
 
             <Link
               href="/seller/reports?report=client-balances"

@@ -347,6 +347,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Empresa que opera las rifas | **Organización** | Cuenta, tenant, empresa |
 | Pago parcial de una boleta | **Abono** | Cuota, adelanto, parcialidad |
 | Dinero que falta por cobrar | **Saldo pendiente** | Deuda, mora, pasivo |
+| Valor de todas las boletas ya vendidas | **Total vendido** | Total a cobrar, total facturado, cartera |
 | Precio que la rifa fija para todas sus boletas | **Precio de la rifa** | Precio oficial, precio base, tarifa |
 | Vender una boleta por debajo de ese precio | **Rebajar** el precio; la **rebaja** | Descuento, promoción, oferta, rebajar la boleta |
 | Lo que gana el vendedor por cada boleta cobrada | **Ganancia** | Comisión, participación, utilidad |
@@ -512,6 +513,18 @@ nada, que es lo que pide atención. El «Por cobrar» del anillo del resumen fin
 porque ahí significa «todavía no»; pintar de rojo la mitad de un gráfico normal convierte una rifa
 que va bien en una alarma. Verde es dinero cobrado y azul, abonos.
 
+**Dentro de un anillo solo va un porcentaje** (D-124). Ni un importe, ni un nombre largo: el hueco
+central mide una proporción fija del dibujo, así que solo cabe con seguridad un texto de largo
+acotado, y un porcentaje siempre mide entre dos y cuatro caracteres. El dinero se escribe **fuera**,
+al lado, donde puede crecer. La consecuencia práctica: si un texto nuevo no cabe en el centro de un
+anillo, la respuesta nunca es encoger la letra ni agrandar el gráfico, es sacarlo.
+
+**«Total vendido» y «Por cobrar» no son la misma cifra, y por eso no se parecen** (D-124). *Total
+vendido* es lo que valen las boletas ya vendidas; *por cobrar*, lo que falta de ellas. El centro del
+anillo del panel llamaba «Total a cobrar» a la primera, y era el único sitio de la aplicación que lo
+hacía: las otras diez pantallas ya decían «Total vendido». Dos rótulos casi iguales para dos cifras
+distintas se leen uno por el otro.
+
 **«Invitación pendiente» no es «Inactivo», y la diferencia importa** (BR-E14). *Inactivo* significa
 que alguien le quitó el acceso a esa persona; *invitación pendiente*, que todavía no ha entrado
 ninguna vez. Se ven parecidos en pantalla y no lo son: mientras la invitación esté pendiente, quien
@@ -531,6 +544,8 @@ castigo donde solo había una espera.
 | Etiquetas de estado de un cliente («Activo», «Archivado») | `src/lib/constants.ts` (`CLIENT_STATUS_LABELS`, D-113) |
 | Encabezados de columna | El `header` de cada columna, en el `*Table.tsx` de su módulo (D-114) |
 | Rótulos y textos de la ficha del cliente | `src/features/clients/components/ClientInfoCard.tsx` y `ClientTotals.tsx` (D-113) |
+| Rótulos del resumen de pago de una boleta («Abonado», «Pendiente», «de $120.000») | `src/features/tickets/components/TicketPaymentSummary.tsx` (D-124) |
+| Lo que va dentro de un anillo: el pie bajo el porcentaje | Lo pasa quien lo usa, en `caption` / `centerCaption` (D-124) |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
 | «Seleccionar varias» y su «Cancelar» | `src/features/tickets/selection/components/TicketSelectionModeButton.tsx` (D-108) |

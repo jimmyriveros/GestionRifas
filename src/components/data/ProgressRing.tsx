@@ -11,7 +11,7 @@ type ProgressRingProps = {
 }
 
 // El circulo se dibuja sobre un lienzo de 100x100 y se escala con CSS: asi el
-// mismo componente vale para 64 px en un telefono y 96 px en un escritorio sin
+// mismo componente vale para 96 px en un telefono y 128 en un escritorio sin
 // recalcular nada.
 const RADIUS = 42
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
@@ -19,9 +19,17 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 /**
  * Anillo de progreso: una cifra de porcentaje rodeada de su proporcion.
  *
- * Es la version compacta de la barra de `CollectionSummaryCard`: la barra
- * necesita el ancho de una tarjeta y aqui el porcentaje comparte fila con dos
- * cifras de dinero, donde no hay ancho que gastar.
+ * DENTRO DEL ANILLO SOLO VA EL PORCENTAJE. Nunca un importe: «$1.200.000» no
+ * cabe en el hueco central sin encogerlo hasta lo ilegible, y el dinero se lee
+ * mucho mejor fuera, al lado, con su rotulo (D-124).
+ *
+ * EL TEXTO SE MIDE CONTRA EL ANILLO, NO CONTRA LA VENTANA. El anillo se declara
+ * `@container` y su contenido se dimensiona en `cqw` —tanto por ciento de SU
+ * propio ancho—, de modo que la cifra ocupa siempre la misma proporcion del
+ * hueco: mida 80 px o 128, «100%» no puede salirse. Quien lo usa cambia el
+ * tamaño con una sola clase y no tiene que acordarse de ajustar la letra.
+ * El pie lleva un minimo en `rem` para que la palabra no baje de 11 px aunque
+ * el anillo sea pequeño.
  *
  * El color NUNCA es la unica señal (CLAUDE.md §27): el porcentaje va escrito en
  * el centro y `role="progressbar"` lo publica para los lectores de pantalla.
@@ -36,7 +44,7 @@ export function ProgressRing({ percentage, caption, label, className }: Progress
       aria-valuemax={100}
       aria-valuenow={safe}
       aria-label={label}
-      className={cn('relative size-16 shrink-0 sm:size-24', className)}
+      className={cn('@container relative size-24 shrink-0', className)}
     >
       <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden focusable="false">
         <circle cx="50" cy="50" r={RADIUS} fill="none" strokeWidth="8" className="stroke-muted" />
@@ -53,10 +61,8 @@ export function ProgressRing({ percentage, caption, label, className }: Progress
         />
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <span className="text-base font-semibold tabular-nums sm:text-lg">{safe}%</span>
-        {/* En el anillo pequeño la palabra tiene que caber DENTRO del trazo:
-            por eso encoge más que la cifra, que es lo que de verdad se lee. */}
-        <span className="text-muted-foreground mt-0.5 text-[0.5625rem] sm:mt-1 sm:text-[0.6875rem]">
+        <span className="text-[26cqw] font-semibold tabular-nums">{safe}%</span>
+        <span className="text-muted-foreground mt-[5cqw] text-[max(0.6875rem,9cqw)]">
           {caption}
         </span>
       </span>
