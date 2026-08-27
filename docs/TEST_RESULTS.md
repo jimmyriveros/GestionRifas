@@ -4411,3 +4411,64 @@ hazlo también **después de cada `test:db`**, no solo al principio.
 Con la base **sembrada limpia** y la caché de Next caliente: **296/296 en 14,8 min**, cero fallos.
 Junto con las **545/545** de base de datos y `verify` en verde, es la evidencia de que `0032` no
 rompe ninguna llamada de la aplicación.
+
+---
+
+## Despliegue de `0032` a producción (2026-08-27)
+
+Autorización expresa del dueño, el mismo día que `0031`. Es una migración de **privilegios**: no toca
+ni un dato.
+
+### Procedimiento
+
+| Paso | Resultado |
+|---|---|
+| Respaldo `Rifas-backups/2026-08-27-pre-0032/` | `roles.sql` (370 B), `schema.sql` (235 KB), `data.sql` (490 KB) · **13 tablas con datos** · `auth` → **0** · credenciales → **0** |
+| `db push --dry-run` | Solo `0032_internal_function_grants.sql` |
+| `db push --yes` | Aplicada |
+| `verify:remote` | **14/14**, incluida la comprobación nueva |
+
+### Antes y después, sobre el proyecto real
+
+| | Antes | Después |
+|---|---|---|
+| Default ACL de `postgres` para funciones de `public` | `{postgres=X/postgres,`**`authenticated=X/postgres`**`,service_role=X/postgres}` | `{postgres=X/postgres,service_role=X/postgres}` |
+| Funciones internas ejecutables por `authenticated` | **34** | **0** |
+| Las 26 RPC de la aplicación | Conservan `EXECUTE` | **Conservan `EXECUTE`** |
+| Las 7 funciones de las políticas de RLS | Conservan `EXECUTE` | **Conservan `EXECUTE`** |
+| Las de columnas generadas e índices | Conservan `EXECUTE` | **Conservan `EXECUTE`** |
+| Funciones propias ejecutables por `anon` | 0 | 0 |
+
+`service_role` conserva el privilegio también en el default, que es lo buscado.
+
+### La comprobación que de verdad cierra esto
+
+Una sonda de catálogo dice qué privilegios hay; no dice si la aplicación funciona. Así que se ejecutó
+**asumiendo el rol `authenticated`** y fijando `request.jwt.claims` como hace PostgREST — el contexto
+exacto en el que corre la aplicación—, con **dos usuarios reales distintos**, y **todo dentro de
+transacciones revertidas**: solo lecturas, sin escribir nada y sin usar ninguna credencial.
+
+| Qué | Resultado |
+|---|---|
+| `select` sobre `tickets`, `clients`, `payments`, `memberships` | **OK** con los dos usuarios (3/1/0/2 y 118/45/3/5 filas). Es la prueba de que `current_org_ids`, `is_org_staff` y compañía conservan `EXECUTE`: sin ellas fallaría **toda** lectura |
+| Vista `v_ticket_balances` | **OK** |
+| `commission_summary()`, `search_tickets()`, `report_payment_totals()`, `team_max_fixed_commission()`, `taken_ticket_combinations()`, `ticket_bulk_eligibility()` | **OK** las seis |
+| `write_audit_log()` | **`permission denied for function write_audit_log`** ✓ |
+| `recalc_seller_commission()` | **`permission denied for function recalc_seller_commission`** ✓ |
+
+Las dos últimas son el objetivo del cambio: antes se ejecutaban.
+
+### Código
+
+El commit `f23a50c` solo toca `scripts/`, `tests/` y `docs/`: **ninguna línea de la aplicación**. Se
+empujó para que el repositorio quede consistente y CI valide las migraciones desde cero. En vivo tras
+la migración: **6/6** cabeceras de seguridad, cinco rutas protegidas en 307, `/login`,
+`/forgot-password` y `/offline` en 200, y **345 ms** de tiempo de servidor.
+
+### Un fallo de mi propia sonda, y por qué se cuenta
+
+La primera versión del guion de comportamiento llamó a `search_tickets` con una firma equivocada.
+Como no usaba **savepoints**, ese error abortó la transacción y las seis sondas siguientes
+devolvieron «current transaction is aborted» — que se lee exactamente igual que un fallo real. Se
+corrigió con un savepoint por sonda. Es la trampa a evitar si alguien repite esta verificación: **sin
+savepoint, una sonda mala hace parecer que el despliegue rompió todo lo demás.**
