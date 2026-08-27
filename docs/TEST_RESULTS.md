@@ -4060,3 +4060,72 @@ Es el modo de fallo que ya advertía `HANDOFF` §1.a: **siembra limpio antes de 
 Las **dos** pruebas ajustadas son las únicas que fijaban el encabezado viejo. Ahora comprueban
 «Detalle boleta» **y** que los números siguen visibles en la tarjeta; que la fila abrió la boleta
 correcta lo demuestra la URL, que ya se comprobaba antes.
+
+## Despliegue de D-126 a producción (2026-08-27)
+
+Autorización expresa del dueño. Vercel `READY` sobre **`c9dc8b7`**
+(`dpl_DDCfg5iTLTbJsEH2kzJGMDWT3FpY`), alias `gestion-rifas.vercel.app`, región `iad1`, build de
+**30 s**. CI **2/2**: «Typecheck, lint, unitarias, build» y «Migraciones desde cero + pruebas de base
+de datos», las dos en verde sobre este mismo commit.
+
+**Sin migraciones.** Cero cambios bajo `supabase/`, así que no había orden que respetar entre base y
+código y la reversión es un Instant Rollback sin nada que deshacer.
+
+### En vivo
+
+| Comprobación | Resultado |
+|---|---|
+| Cabeceras de seguridad en `/login` | **6/6**: CSP con nonce y `strict-dynamic`, HSTS `max-age=63072000; includeSubDomains; preload`, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` |
+| Rutas protegidas sin sesión | **4/4 en 307** — `/owner/dashboard`, `/seller/dashboard`, `/owner/tickets`, `/seller/tickets` |
+| Rutas públicas | **7/7 en 200** con su tipo correcto, incluidos `/sw.js` como `application/javascript` y `/manifest.webmanifest` como `application/manifest+json` |
+| Claves de servicio | **0** en el HTML y en los 26 recursos de `/_next/` — **1.542 KB** inspeccionados |
+| Tiempo de servidor (`ttfb − tls`) | **199, 156 y 152 ms**, contra **137 ms** del control `/denied` servido por CDN. Sin arranque en frío: Fluid Compute activo en el despliegue nuevo |
+| Manifiesto | «Gestión de Rifas» / «Rifas», `standalone` |
+
+### Que el código servido es ESTE commit
+
+Método de I-069: el identificador de versión es el sha256 del commit recortado a 12 hex, inyectado
+por `next.config.ts` y embebido en el JavaScript servido.
+
+```
+esperado          e576fc3de08d   (sha256 de c9dc8b7…, 12 hex)
+encontrado en     2 de 26 recursos servidos por el dominio
+```
+
+### Y que la corrección concreta está servida, no solo construida
+
+La hoja de producción trae las **dos** clases que en toda la aplicación genera **solo** este cambio.
+No es una elección afortunada: `-my-1.5` y `-ms-3` tienen **una sola aparición cada una** en todo
+`src/`, y es la línea de `PageHeader` que monta la flecha. Con el build anterior las dos darían cero.
+
+```
+.-my-1\.5    PRESENTE
+.-ms-3       PRESENTE
+```
+
+La barra invertida se construye con `String.fromCharCode(92)` dentro del script, que es la lección
+que costó media hora en D-113: entre el shell y Node se pierde y la búsqueda falla pareciendo que el
+despliegue no trae el código.
+
+### El renombrado no formó parte del despliegue
+
+Es la mitad del encargo que **no tiene código**. Se aplicó por `UPDATE` horas antes y se vuelve a
+comprobar después de desplegar, por si acaso:
+
+```
+organizations.name    «Rifas»   y   «Rifas Control»
+```
+
+### Lo que un agente NO puede comprobar aquí
+
+Las tres cosas visibles —«Detalle boleta», la flecha alineada y el nombre «Rifas» en la barra
+lateral— viven **tras el inicio de sesión**, y automatizar ese acceso con las cuentas reales es
+exactamente lo que provocó **I-066**. **No se intentó.**
+
+La evidencia de que están bien es la de local, con sesión real contra la base local: E2E **296/296**,
+`test:db` **518/518** y la medición de las once pantallas con flecha a tres anchos. La evidencia de
+que **eso** es lo que sirve el dominio es la de arriba. Queda para el dueño entrar y mirarlo.
+
+**Se espera además el aviso de versión nueva** en quien tenga la aplicación instalada: el worker
+anterior detectará este build y ofrecerá «Hay una nueva versión de Rifas · Actualiza cuando termines
+lo que estás haciendo». No se recarga solo (D-116).
