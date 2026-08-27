@@ -386,6 +386,16 @@ una de las veinticinco filas.
 **código interno** es información administrativa: aparece solo dentro del detalle de la boleta y
 nunca se ofrece como forma de buscar. Un texto que diga «busca por código» está mal.
 
+**Nombrar una boleta y titular una pantalla no son lo mismo** (D-126). El encabezado del detalle de
+una boleta dice **«Detalle boleta»**, a secas, en los dos portales. Decía «4593 / 8868» con
+«R001 — Rifa Navidad 2026» debajo, y las tres cosas volvían a salir a un dedo de distancia: los dos
+números, en las cajas grandes de la tarjeta siguiente. Un título repite dónde estás; no hace falta
+que además identifique el registro que ya se está mirando. Los números siguen nombrando la boleta
+**donde sí hace falta nombrarla** —el listado, el diálogo de venta, el aviso de éxito, la etiqueta
+del enlace que la abre—, así que BR-N11 no se toca. La **rifa** bajó al contenido: al vendedor, en
+«Detalles de la boleta»; al portal administrativo, junto a «Vendedor», que es donde sí distingue
+algo.
+
 **En «Boletas» hay UN buscador, y encuentra dos cosas** (BR-N13, D-100). Desde el 2026-08-21 el mismo
 campo acepta el número de la boleta **o** el nombre del cliente que la tiene. Los textos que lo
 rodean tienen que nombrar las dos, siempre en este orden —primero la boleta, porque seguimos en
@@ -552,6 +562,7 @@ castigo donde solo había una espera.
 | Errores de validación de formularios | `schemas.ts` de cada módulo de `src/features/` (mensajes de Zod) |
 | Errores devueltos por el servidor | `src/lib/errors.ts` (`mapPgError`) y los `RAISE` de las migraciones |
 | Títulos y descripciones de pantalla | `PageHeader` de cada `page.tsx` |
+| Nombre de la **organización** que se lee en la barra lateral y en el encabezado del móvil | **No es un texto: es el dato `organizations.name`** de la base de datos (D-126). No se busca en el código |
 | Estados vacíos | `EmptyState` (`src/components/data/`) |
 | Pistas y avisos de los buscadores | `src/features/search/hints.ts`, **todos juntos** |
 | Confirmaciones de acciones sensibles | `ConfirmDialog` (`src/components/feedback/`) |

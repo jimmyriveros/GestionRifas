@@ -4279,6 +4279,108 @@ decorativa:
 Con el nombre largo el desbordamiento es mucho peor que los 49–62 px que se midieron al abrir I-076
 sobre un cliente del seed: el daño **crece con el nombre**, que es justo lo que hacía falta demostrar.
 
+## D-126 — El nombre del negocio era un dato, la flecha estaba 6 px baja y el título de una boleta repetía lo de abajo
+
+**Fecha:** 2026-08-27 · **Encargo:** tres ajustes de presentación antes de que entren vendedores
+reales — quitar «Demo» del nombre visible, alinear la flecha de volver con su título en todas las
+pantallas, y simplificar el encabezado del detalle de una boleta.
+
+### a) «Rifas Demo» no estaba en el código: era una fila de la base de datos
+
+Se buscó la palabra en todo el repositorio antes de tocar nada. **Cero apariciones en `src/`**: el
+nombre de la aplicación vive en `src/lib/pwa.ts` y siempre dijo «Gestión de Rifas» / «Rifas»
+(D-115). Lo que el usuario leía era otra cosa: `AppShell` pinta el nombre de la **organización** en
+la barra lateral y en el encabezado del teléfono, y esa fila del proyecto real se llamaba
+**«Rifas Demo»** porque producción se pobló con el seed.
+
+| Dónde | Qué decía | Qué era |
+|---|---|---|
+| `src/lib/pwa.ts`, manifiesto, `<title>`, login | «Gestión de Rifas», «Rifas» | correcto desde siempre |
+| Barra lateral y encabezado del móvil | «Rifas Demo» | `organizations.name` en la base de datos |
+| `scripts/seed.ts`, `tests/db/helpers.ts`, `tests/e2e/db-setup.ts` | «Rifas Demo» | **no se toca** |
+
+**El arreglo es un `UPDATE`, no un despliegue.** Ejecutado con autorización expresa sobre la
+organización `ec88961d-…`: `name` pasa de «Rifas Demo» a **«Rifas»**. No cambia ni un archivo, no
+requiere build y se ve en la siguiente carga: `getActiveMembership` usa `cache()` de React, que
+memoriza **por petición**, no entre peticiones. Se comprobó que `default_ticket_price` (120000),
+`currency`, `timezone`, `raffle_counter` e `is_active` quedaron intactos.
+
+**Por qué el seed conserva su nombre.** «Rifas Demo» es ahí un identificador: `tests/db/helpers.ts`
+y `tests/e2e/db-setup.ts` buscan la organización **por ese nombre exacto**. Renombrarlo habría roto
+las dos suites para arreglar un texto que ningún usuario final ve. Es justo el reemplazo ciego que el
+encargo pedía evitar.
+
+> **Aviso que queda abierto, y no es de este encargo:** producción sigue siendo el **seed entero**
+> —las cuatro cuentas `@demo.test`, la organización de control «Rifas Control» y sus datos de
+> prueba—. Renombrar la organización no las retira. Ver `KNOWN_ISSUES.md` **I-077**.
+
+### b) La flecha de volver caía 6 px por debajo de su título
+
+Medido, no estimado, en `/owner/clients/[clientId]`: centro del icono en `y = 102`, centro del
+título en `y = 96`.
+
+La causa es aritmética. El contenedor alinea al borde superior (`items-start`) y sus dos piezas no
+miden lo mismo: el título es `text-2xl`, o sea una **línea de 32 px**, y el botón mide **44** para
+que la diana sea cómoda (D-085). Alineados por arriba, el icono —centrado en sus 44— queda a 22 px
+del borde y el texto a 16. La diferencia son los 6 px que se veían.
+
+**`-my-1.5` en el botón.** Saca del flujo los 6 px de arriba y los 6 de abajo: para la maquetación
+el botón ocupa los mismos 32 px que la línea, y su centro coincide con el del título. **La caja
+pintada y la pulsable siguen midiendo 44 × 44**, porque un margen negativo no encoge el elemento,
+solo su hueco — comprobado en las once pantallas.
+
+Se alinea con la **primera línea**, no con el centro del bloque. El bloque de la derecha crece con la
+descripción y con un título de dos líneas; una flecha que bajara con él dejaría de acompañar al
+nombre. A 320 px, con un nombre de cliente que ocupa dos líneas, el icono queda exactamente sobre la
+primera (medido: `arrowCy = 88`, primera línea de 72 a 104).
+
+De paso, **horizontal**: el icono mide 20 px dentro de un botón de 44, así que se pintaba 12 px por
+dentro y la flecha empezaba 12 px a la derecha del margen de la página, desalineada de las tarjetas
+de abajo. `-ms-3` devuelve esos 12 px; con la caja ya descontada, `gap-1` deja **16 px** entre la
+punta de la flecha y la primera letra, en vez de 20.
+
+**Dónde vive el arreglo.** En `PageHeader`, que es donde se declara el tamaño del título y de donde
+salen los dos números; `BackButton` solo gana un `className` y **no decide su propia colocación**.
+Una sola corrección para las **once** pantallas con flecha, ninguna clase repetida pantalla por
+pantalla.
+
+| Medida | Antes | Después |
+|---|---|---|
+| Centro del icono vs. centro de la primera línea del título | **+6 px** | **0** |
+| Caja del botón | 44 × 44 | 44 × 44 |
+| Punta de la flecha vs. margen de las tarjetas | +12 px | **0** |
+| Hueco entre la flecha y la primera letra | 20 px | **16 px** |
+| Posición vertical del título | `y = 80` | `y = 80` (sin cambio) |
+
+### c) El encabezado de una boleta decía tres cosas que ya estaban debajo
+
+Decía `4593 / 8868` con `R001 — Rifa Navidad 2026` de subtítulo. Los dos números están, a un dedo de
+distancia, en las dos cajas grandes de la tarjeta siguiente; el código de la rifa y su nombre no
+identifican **esta** boleta. El encabezado pasa a decir **«Detalle boleta»** en los dos portales.
+
+**Esto no contradice BR-N11.** Una boleta se sigue nombrando por sus dos números donde hace falta
+nombrarla —el listado, el diálogo de venta, el aviso de éxito, la etiqueta accesible del enlace—.
+Aquí no se está nombrando una boleta: se está titulando una pantalla.
+
+**La rifa no se pierde, baja.** El encargo daba por hecho que ya estaba en el contenido y **no
+estaba**: era el único sitio de las dos pantallas donde aparecía. Borrarla sin más habría eliminado
+un dato, así que se movió:
+
+| Portal | Dónde queda | Por qué ahí |
+|---|---|---|
+| Vendedor | primera línea de «Detalles de la boleta» | casi siempre trabaja una sola rifa: es contexto, no identidad |
+| Administrativo | junto a «Vendedor», en la tarjeta «Boleta», y **enlazada** a la rifa | ve varias rifas a la vez, y aquí sí distingue |
+
+**Nota de redacción (§35.4).** «Detalle boleta» es el texto que pidió el encargo y se respeta tal
+cual. La guía habría preferido «Detalle de la boleta», que además coincidiría con la tarjeta
+«Detalles de la boleta» de la misma pantalla; no se cambia porque el usuario escribió el título
+literal, y la diferencia no confunde a nadie.
+
+**Las dos pruebas E2E que fijaban el encabezado viejo** —`boleta-cliente.spec.ts` y
+`filas-seleccionables.spec.ts`— pasan a comprobar «Detalle boleta» **y** que los números siguen
+visibles en la tarjeta. Que la fila abrió la boleta correcta lo demuestra la URL, que ya se
+comprobaba antes.
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

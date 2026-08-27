@@ -63,12 +63,18 @@ export default async function SellerTicketDetailPage({
 
   return (
     <div className="space-y-5 md:space-y-6">
-      {/* La boleta se nombra por sus numeros; el codigo interno baja al final
-          (BR-N11). Cobrar es la accion principal de esta pantalla y por eso
-          sube al encabezado, donde se alcanza sin recorrer el historial. */}
+      {/* EL ENCABEZADO SOLO DICE DONDE ESTAS (D-126). Decia los dos numeros y
+          debajo la rifa, y las tres cosas se repetian a un dedo de distancia:
+          los numeros, en las dos cajas grandes de la tarjeta de abajo; la
+          rifa, ahora en «Detalles de la boleta». La boleta se sigue nombrando
+          por sus numeros donde hace falta nombrarla —el listado, el dialogo de
+          venta, el aviso de exito— (BR-N11); esto es un titulo de pantalla, no
+          un nombre.
+
+          Cobrar es la accion principal de esta pantalla y por eso sube al
+          encabezado, donde se alcanza sin recorrer el historial. */}
       <PageHeader
-        title={ticketLabel(ticket)}
-        description={`${ticket.raffleShortCode} — ${ticket.raffleName}`}
+        title="Detalle boleta"
         backHref="/seller/tickets"
         actions={
           <>
@@ -204,6 +210,10 @@ export default async function SellerTicketDetailPage({
         </CardHeader>
         <CardContent className="text-sm">
           <dl className="divide-y">
+            {/* La rifa BAJA aqui desde el encabezado (D-126). No se pierde: un
+                vendedor casi siempre trabaja una sola rifa a la vez, asi que es
+                contexto, no identidad. */}
+            <DetailLine label="Rifa" value={`${ticket.raffleShortCode} — ${ticket.raffleName}`} />
             <DetailLine label="Creada" value={formatDateTimeEs(ticket.createdAt)} />
             <DetailLine
               label="Aprobada"

@@ -12,7 +12,6 @@ import { TicketActions } from '@/features/tickets/components/TicketActions'
 import { getTicketDetail } from '@/features/tickets/queries'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
-import { ticketLabel } from '@/lib/tickets'
 
 export default async function TicketDetailPage({
   params,
@@ -36,11 +35,13 @@ export default async function TicketDetailPage({
 
   return (
     <div className="space-y-6">
-      {/* La boleta se nombra por sus numeros; el codigo interno baja a la
-          informacion administrativa del final (BR-N11). */}
+      {/* EL ENCABEZADO SOLO DICE DONDE ESTAS (D-126). Los dos numeros y la
+          rifa ya estan en la tarjeta de abajo, a un dedo de distancia; el
+          codigo interno sigue en «Informacion administrativa» del final. La
+          boleta se sigue nombrando por sus numeros donde hace falta nombrarla
+          (BR-N11) — esto es un titulo de pantalla, no un nombre. */}
       <PageHeader
-        title={ticketLabel(ticket)}
-        description={`${ticket.raffleShortCode} — ${ticket.raffleName}`}
+        title="Detalle boleta"
         backHref={`/owner/tickets?raffleId=${ticket.raffleId}`}
         actions={
           <TicketActions
@@ -77,6 +78,15 @@ export default async function TicketDetailPage({
           <Field label="Vendedor">
             <Link href={`/owner/sellers/${ticket.sellerId}`} className="hover:underline">
               {ticket.sellerName}
+            </Link>
+          </Field>
+          {/* La rifa BAJA aqui desde el encabezado (D-126). Al lado del
+              vendedor, que es la otra respuesta a «de quien es esta boleta»;
+              aqui si importa, porque el portal administrativo ve varias
+              rifas a la vez. */}
+          <Field label="Rifa">
+            <Link href={`/owner/raffles/${ticket.raffleId}`} className="hover:underline">
+              {`${ticket.raffleShortCode} — ${ticket.raffleName}`}
             </Link>
           </Field>
           {/* El cliente ocupa su propia fila y es una tarjeta pulsable entera,

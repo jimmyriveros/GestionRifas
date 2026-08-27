@@ -74,14 +74,42 @@ export function PageHeader({
     </div>
   )
 
+  // LA FLECHA SE ALINEA CON LA PRIMERA LINEA DEL TITULO, no con el bloque
+  // entero (D-126). Aqui es el sitio: el tamano del titulo se declara tres
+  // lineas mas arriba y de el salen los dos numeros.
+  //
+  //   Vertical. `text-2xl` da una linea de 32 px y el boton mide 44: con la
+  //   alineacion al borde superior el icono quedaba 6 px MAS ABAJO que el
+  //   texto —medido: centro del icono en y = 102, centro del titulo en y = 96—.
+  //   `-my-1.5` saca del flujo esos 6 px de arriba y los 6 de abajo, asi que
+  //   para la maquetacion el boton mide los mismos 32 px que la linea y su
+  //   centro coincide con el del titulo. Lo que NO cambia es la caja pintada ni
+  //   la pulsable: siguen midiendo 44 x 44 (D-085), porque un margen negativo
+  //   no encoge el elemento, solo su hueco.
+  //
+  //   Que sea la PRIMERA linea, y no el centro de todo, es deliberado: el
+  //   bloque de la derecha crece con la descripcion y con un titulo de dos
+  //   lineas, y una flecha que bajara con el ya no acompanaria al nombre.
+  //
+  //   Horizontal. El icono mide 20 px dentro de un boton de 44, o sea que se
+  //   pinta 12 px por dentro. Sin corregirlo, la flecha empezaba 12 px a la
+  //   derecha del margen de la pagina y parecia desplazada respecto de las
+  //   tarjetas de abajo; `-ms-3` devuelve esos 12 px y la deja a plomo con
+  //   ellas. Con la caja ya descontada, `gap-1` deja 16 px entre la punta de la
+  //   flecha y la primera letra —antes 20—, que es lo que hace que se lean como
+  //   una sola pieza.
+  const back = backHref ? (
+    <BackButton fallbackHref={backHref} label={backLabel} className="-my-1.5 -ms-3" />
+  ) : null
+
   if (inlineActions) {
     return (
       <div
         {...tourTarget('page-header')}
         className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1"
       >
-        <div className="col-start-1 row-start-1 flex min-w-0 items-start gap-2">
-          {backHref ? <BackButton fallbackHref={backHref} label={backLabel} /> : null}
+        <div className="col-start-1 row-start-1 flex min-w-0 items-start gap-1">
+          {back}
           {heading}
         </div>
 
@@ -108,8 +136,8 @@ export function PageHeader({
       {...tourTarget('page-header')}
       className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
     >
-      <div className="flex items-start gap-2">
-        {backHref ? <BackButton fallbackHref={backHref} label={backLabel} /> : null}
+      <div className="flex items-start gap-1">
+        {back}
         <div className="min-w-0 space-y-1">
           {heading}
           {description ? <p className="text-muted-foreground text-sm">{description}</p> : null}

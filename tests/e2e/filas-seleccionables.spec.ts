@@ -206,9 +206,11 @@ test.describe('Fila seleccionable en las tablas', () => {
     await row.getByText(ticket.numbers.weekly, { exact: true }).click()
 
     await page.waitForURL(`**/seller/tickets/${ticket.id}`)
-    await expect(
-      page.getByRole('heading', { name: `${ticket.numbers.daily} / ${ticket.numbers.weekly}` }),
-    ).toBeVisible()
+    // El encabezado dice donde estas, no que boleta es (D-126). Que la fila
+    // abrio LA boleta correcta lo demuestra la URL de arriba; que los numeros
+    // siguen en la pantalla, la tarjeta.
+    await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeVisible()
+    await expect(page.getByText(ticket.numbers.weekly, { exact: true }).first()).toBeVisible()
   })
 
   test('la fila se abre con el teclado: Enter sobre la fila enfocada', async ({ page }) => {

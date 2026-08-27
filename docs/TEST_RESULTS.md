@@ -3935,3 +3935,128 @@ preferiblemente desde un teléfono.
 **Se espera además el aviso de versión nueva** en quien tenga la aplicación instalada: el service
 worker anterior detectará este build y ofrecerá «Hay una nueva versión de Rifas · Actualiza cuando
 termines lo que estás haciendo». No se recarga solo (D-116).
+
+---
+
+## «Demo» fuera, la flecha a plomo y el encabezado de una boleta simplificado (2026-08-27)
+
+Los tres ajustes de **D-126**. Uno de ellos no tenía código que verificar; los otros dos se midieron
+con sesión real en el navegador, no a ojo.
+
+### a) Dónde estaba «Rifas Demo» — la búsqueda antes de tocar nada
+
+| Ámbito buscado | Apariciones |
+|---|---|
+| `src/` completo (`.ts`, `.tsx`, `.css`) | **0** |
+| Manifiesto, `<title>`, `applicationName`, `apple-web-app`, login | **0** — todos dicen «Gestión de Rifas» / «Rifas» desde D-115 |
+| `scripts/seed.ts`, `tests/db/helpers.ts`, `tests/e2e/db-setup.ts` | 3 — **identificadores del seed, no se tocan** |
+| `organizations.name` en el proyecto real | **1** ← era esto |
+
+Lectura de la fila antes y después del `UPDATE`, contra `zqwulwvkehjdbmshqytu`:
+
+| Campo | Antes | Después |
+|---|---|---|
+| `name` | `Rifas Demo` | **`Rifas`** |
+| `default_ticket_price` | 120000 | 120000 |
+| `currency` · `timezone` | COP · America/Bogota | COP · America/Bogota |
+| `raffle_counter` · `is_active` | 1 · true | 1 · true |
+
+No hace falta desplegar: `getActiveMembership` usa `cache()` de React, que memoriza **por petición**.
+Se ve en la siguiente carga.
+
+**Hallazgo colateral, y es el importante:** la misma lectura mostró que producción es el **seed
+entero** — dos organizaciones y cuatro perfiles `@demo.test` con sesión posible. Abierto como
+**I-077**.
+
+### b) La flecha de volver — medida, no estimada
+
+El fallo, en `/owner/clients/[clientId]` a 1280 px, antes del arreglo:
+
+| | y |
+|---|---|
+| Centro del icono de la flecha | **102** |
+| Centro de la primera línea del título | **96** |
+| **Desfase** | **+6 px** |
+
+Después, en las **once** pantallas con flecha, en los dos portales y a tres anchos:
+
+| Pantalla | 1280 px | 768 px | 320 px |
+|---|---|---|---|
+| `/owner/clients/[id]` (nombre corto) | 0 | 0 | 0 |
+| `/owner/clients/[id]` (nombre de **dos líneas**) | 0 | 0 | 0 sobre la **primera línea** |
+| `/owner/raffles/[id]` | 0 | — | — |
+| `/owner/raffles/[id]/edit` (título largo) | 0 | — | — |
+| `/owner/sellers/[id]` | 0 | — | — |
+| `/owner/tickets/[id]` | 0 | — | 0 |
+| `/account/password` (`backLabel` propio) | 0 | — | — |
+| `/seller/tickets/[id]` | 0 | — | — |
+| `/seller/tickets/new` | — | 0 | — |
+| `/seller/clients/[id]` | — | 0 | — |
+| `/seller/clients/[id]/edit` | — | 0 | — |
+
+Y lo que **no** cambió, comprobado en todas:
+
+| Medida | Antes | Después |
+|---|---|---|
+| Caja del botón (diana, D-085) | 44 × 44 | **44 × 44** |
+| Posición vertical del título | y = 80 | **y = 80** |
+| Punta de la flecha vs. margen de las tarjetas | +12 px | **0** |
+| Hueco flecha → primera letra | 20 px | **16 px** |
+| `scrollWidth − clientWidth` | 0 | **0** |
+
+El caso de las dos líneas merece su propia comprobación, porque es donde un arreglo mal hecho se
+nota: a 320 px, con el título ocupando de y = 72 a y = 104, el centro del icono queda en **88** —el
+centro exacto de la **primera** línea—, no en 104, que es el centro del bloque.
+
+### c) El encabezado de una boleta
+
+| Portal | Encabezado antes | Encabezado ahora | Dónde quedó la rifa |
+|---|---|---|---|
+| Vendedor | `6402 / 3286` + `R001 — Rifa Navidad 2026` | **«Detalle boleta»** | primera línea de «Detalles de la boleta» |
+| Administrativo | igual | **«Detalle boleta»** | junto a «Vendedor», **enlazada** a la rifa |
+
+Contenido leído en las dos pantallas después del cambio: número diario, número semanal, cliente,
+estado, estado de pago, precio de venta, abonado, fecha de venta, creada, aprobada, anulada, código
+interno y **rifa**. **No falta ninguno**, y la rifa —que antes vivía **solo** en el encabezado— sigue
+estando.
+
+### Suites
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | **0 errores**, los 2 avisos de siempre (`useReactTable`, `useVirtualizer`) |
+| `npm run test` | **376/376** en 24 archivos |
+| `npm run build` | ✅ |
+| E2E: `boleta-cliente` + `filas-seleccionables` + `back-navigation` (escritorio) | **33/33** |
+| E2E: `back-navigation-movil` + `boleta-estrecha-movil` + `seller-ciclo-movil` (móvil) | **9/9** |
+| **E2E completa**, con `db:reset` + `seed:local` antes | **296/296** en 14,7 min |
+| `npm run test:db`, con `db:reset` + `seed:local` antes | **518/518** en 25 archivos |
+
+### El falso positivo de la primera pasada, y por qué se descarta
+
+La **primera** pasada completa dio **5 fallos**, todos en `importar-boletas.spec.ts`, y **ninguno era
+del cambio**. La prueba veía «Se crearon 2 boletas.» en pantalla y acto seguido contaba **0** en la
+base:
+
+```
+CASO 19 y 23 — el recorrido completo    expect(await contarEnRifa([a, b])).toBe(2)
+                                        Expected: 2   Received: 0
+```
+
+`contarEnRifa` filtra por `refs.raffleId`, que es la rifa **del seed**. La base local tenía **10
+rifas** —2 del seed y 8 acumuladas por pasadas anteriores, con marcas de tiempo **previas a esta
+sesión**—, así que la pantalla de importación traía seleccionada otra rifa y las boletas caían fuera
+del filtro.
+
+Dos razones para descartarlo como causa, además del reseteo:
+
+1. `/owner/tickets/bulk` monta su `PageHeader` **sin `backHref`**. Sin flecha, la corrección de
+   alineación es literalmente código no ejecutado en esa pantalla.
+2. Con `db:reset` + `seed:local` antes, la pasada completa da **296/296**.
+
+Es el modo de fallo que ya advertía `HANDOFF` §1.a: **siembra limpio antes de una pasada completa**.
+
+Las **dos** pruebas ajustadas son las únicas que fijaban el encabezado viejo. Ahora comprueban
+«Detalle boleta» **y** que los números siguen visibles en la tarjeta; que la fila abrió la boleta
+correcta lo demuestra la URL, que ya se comprobaba antes.

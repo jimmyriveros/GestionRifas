@@ -176,9 +176,11 @@ test.describe('Buscar boletas por el nombre del cliente (BR-N13)', () => {
       .click()
     await page.waitForURL(/\/seller\/tickets\/[0-9a-f-]+$/)
 
-    await expect(
-      page.getByRole('heading', { name: `${elegida.daily} / ${elegida.weekly}` }),
-    ).toBeVisible()
+    // El encabezado dice donde estas, no que boleta es (D-126): los numeros se
+    // comprueban donde ahora viven, en las dos cajas grandes de la tarjeta.
+    await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeVisible()
+    await expect(page.getByText(elegida.daily, { exact: true }).first()).toBeVisible()
+    await expect(page.getByText(elegida.weekly, { exact: true }).first()).toBeVisible()
   })
 
   test('dos clientes con el mismo nombre: salen las boletas de los dos', async ({ page }) => {
