@@ -2,7 +2,7 @@ import 'server-only'
 
 import { mapMember, MEMBER_SELECT, type MemberRow, type OrgMember } from '@/features/users/queries'
 import { createClient } from '@/lib/supabase/server'
-import type { TicketPaymentStatus } from '@/lib/constants'
+import type { CommissionModel, TicketPaymentStatus } from '@/lib/constants'
 
 /**
  * El equipo del vendedor que consulta (BR-E01).
@@ -148,21 +148,45 @@ export async function listTeamMemberSales(memberId: string, limit = 20): Promise
   }))
 }
 
+export type OwnTeamStatus = {
+  /**
+   * Si pertenece al equipo de alguien. Decide dos cosas: si puede formar equipo
+   * propio (BR-E03, un integrante no puede) y con que regla cobra (BR-G13).
+   */
+  belongsToTeam: boolean
+  /** Como se le paga MIENTRAS pertenezca a un equipo (BR-G24). */
+  commissionModel: CommissionModel
+  fixedCommissionAmount: number | null
+}
+
 /**
- * Si el vendedor que consulta pertenece al equipo de alguien.
+ * La situacion del vendedor que consulta dentro de la jerarquia, en UNA lectura.
  *
- * Decide si puede formar equipo propio (BR-E03): un integrante no puede. La
- * pantalla lo usa para explicarlo en vez de ofrecer un boton que la base de
- * datos va a rechazar.
+ * Antes esto era `isTeamMember` y devolvia solo el booleano. Se amplio en vez de
+ * anadir una consulta al lado porque las dos preguntas se resuelven con la MISMA
+ * fila y las hace la misma pantalla: su panel necesita saber si pertenece a un
+ * equipo *y* cuanto gana por boleta, y con el modelo fijo lo segundo ya no se
+ * deduce de lo primero.
+ *
+ * Hace falta ademas para el caso en que `commission_summary` no devuelve fila:
+ * quien todavia no ha cobrado ninguna boleta no tiene fila en
+ * `seller_commissions`, y aun asi la pantalla tiene que poder decirle cuanto va
+ * a ganar por la primera.
  */
-export async function isTeamMember(profileId: string): Promise<boolean> {
+export async function getOwnTeamStatus(profileId: string): Promise<OwnTeamStatus> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('memberships')
-    .select('parent_seller_id')
+    .select('parent_seller_id, commission_model, fixed_commission_amount')
     .eq('profile_id', profileId)
     .maybeSingle()
 
   if (error) throw error
-  return data?.parent_seller_id != null
+
+  return {
+    belongsToTeam: data?.parent_seller_id != null,
+    commissionModel: data?.commission_model ?? 'tiered',
+    fixedCommissionAmount:
+      data?.fixed_commission_amount == null ? null : Number(data.fixed_commission_amount),
+  }
 }

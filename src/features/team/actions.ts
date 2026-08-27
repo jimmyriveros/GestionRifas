@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache'
 
 import { inviteMember, sendInvitation } from '@/features/users/invite'
-import { userFormSchema } from '@/features/users/schemas'
 import { authorizeAction } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
@@ -11,7 +10,12 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult } from '@/lib/action-result'
 
-import { deleteTeamMemberSchema, updateTeamMemberSchema } from './schemas'
+import {
+  createTeamMemberSchema,
+  deleteTeamMemberSchema,
+  setTeamCommissionSchema,
+  updateTeamMemberSchema,
+} from './schemas'
 
 /**
  * Alta de un integrante de equipo, hecha por el propio vendedor (BR-E04).
@@ -30,7 +34,7 @@ export async function createTeamMember(input: unknown): Promise<ActionResult> {
   const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
-  const parsed = userFormSchema.safeParse(input)
+  const parsed = createTeamMemberSchema.safeParse(input)
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
   }
@@ -56,6 +60,16 @@ export async function createTeamMember(input: unknown): Promise<ActionResult> {
     role: 'seller',
     values,
     parentSellerId: auth.membership.profileId,
+    // BR-G24: la membresia nace ya con su forma de pago. El tope lo comprueba
+    // el trigger sobre la fila, asi que este camino no puede saltarselo aunque
+    // inserte directamente bajo `memberships_insert_seller`.
+    commission: {
+      model: values.commissionModel,
+      amount:
+        values.commissionModel === 'fixed_per_ticket'
+          ? (values.fixedCommissionAmount ?? null)
+          : null,
+    },
   })
   if ('error' in result) return result
 
@@ -173,6 +187,56 @@ export async function updateTeamMember(input: unknown): Promise<ActionResult> {
     await restoreEmail()
     return { error: mapPgError(auditError) }
   }
+
+  refreshTeam(values.memberId)
+  return { ok: true }
+}
+
+/**
+ * Cambiar como se le paga a un integrante (BR-G24, BR-G25, D-127).
+ *
+ * ESTA ACCION NO DECIDE NADA, y esa es la propiedad importante. Todo lo de
+ * fondo vive en la base de datos, donde no se puede rodear:
+ *
+ *   * QUIEN puede    — `team_member_guard`, la misma puerta que ya gobierna
+ *                      corregir y eliminar a un integrante (0026). Un vendedor
+ *                      ajeno y uno inexistente responden igual.
+ *   * CUANTO puede   — el trigger `memberships_validate_commission`, que topa
+ *                      el valor fijo en la mitad del precio de la rifa: el
+ *                      bolsillo del propio vendedor padre (BR-G23).
+ *   * QUE PASA CON
+ *     LO YA COBRADO  — el trigger `memberships_sync_commission`, que recalcula
+ *                      todas las rifas del integrante Y la parte de su vendedor
+ *                      padre EN ESTA MISMA TRANSACCION (BR-G25).
+ *
+ * De ese ultimo punto sale lo que pedia el encargo sin escribir una linea para
+ * ello: si el recalculo falla, el cambio de configuracion no queda guardado. No
+ * hay forma de que la ficha diga «$30.000 por boleta» junto a unas cifras
+ * calculadas con el valor anterior.
+ */
+export async function setTeamCommission(input: unknown): Promise<ActionResult> {
+  const auth = await authorizeAction(['seller'])
+  if ('error' in auth) return auth
+
+  const parsed = setTeamCommissionSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
+  }
+  const values = parsed.data
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('team_set_commission_model', {
+    p_member_id: values.memberId,
+    p_model: values.commissionModel,
+    // `undefined` y no `null`: `p_amount` tiene `default null` en la funcion, y
+    // omitirlo es como se le pide a PostgREST que use ese valor por defecto.
+    p_amount:
+      values.commissionModel === 'fixed_per_ticket'
+        ? (values.fixedCommissionAmount ?? undefined)
+        : undefined,
+  })
+
+  if (error) return { error: mapPgError(error) }
 
   refreshTeam(values.memberId)
   return { ok: true }

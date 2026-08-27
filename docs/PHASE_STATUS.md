@@ -889,6 +889,14 @@ Detalle completo, con los nueve errores encontrados y corregidos, en
 previo en `Rifas-backups/2026-08-13-pre-0022-0024/`. Verificadas por catálogo (`verify:remote` 13/13)
 y por comportamiento sobre los datos reales. Detalle en `TEST_RESULTS.md`.
 
+| Migración | Qué hace |
+|---|---|
+| `0031_team_commission.sql` | El **reparto del equipo** (D-127): `commission_model` y `fixed_commission_amount` en `memberships`; `team_tickets_paid` y `team_earned` en `seller_commissions`; `team_movement` y `from_seller_id` en `commission_ledger`; `commission_team_earned()`, `team_max_fixed_commission()`, `team_set_commission_model()`; el motor con su segundo bloque y su **cascada al vendedor padre**; `commission_summary()` con `pay_model`. Recalcula lo existente al final |
+
+⚠️ **`0031` NO está desplegada al proyecto real.** Cambia lo que se le debe a la gente: a partir de
+ella cada vendedor padre cobra por las ventas de su equipo, y eso antes valía cero (BR-G20). Necesita
+autorización explícita, respaldo previo y su propia ventana.
+
 ### 4. Variables de entorno requeridas
 
 Ninguna nueva.

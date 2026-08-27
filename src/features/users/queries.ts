@@ -3,7 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 
 import { createClient } from '@/lib/supabase/server'
-import type { AppRole } from '@/lib/constants'
+import type { AppRole, CommissionModel } from '@/lib/constants'
 
 /**
  * Lecturas de usuarios de la organizacion. La politica `memberships_select`
@@ -24,6 +24,15 @@ export type OrgMember = {
   /** Vendedor a cargo, si pertenece al equipo de alguien (BR-E01). */
   parentSellerId: string | null
   /**
+   * Como se le paga MIENTRAS pertenezca a un equipo (BR-G24). Con
+   * `parentSellerId` nulo esto no aplica —cobra la mitad del precio (BR-G13)—
+   * pero se conserva: sacar a alguien del equipo y volver a meterlo lo devuelve
+   * a la configuracion que tenia, en vez de reiniciarla en silencio (D-127).
+   */
+  commissionModel: CommissionModel
+  /** Su cifra fija por boleta. `null` con `tiered`, que es lo normal. */
+  fixedCommissionAmount: number | null
+  /**
    * Cuando configuro su contrasena. `null` = invitacion pendiente: la cuenta
    * existe pero todavia no se puede usar (BR-E14). No es lo mismo que
    * `isActive`, que dice si el personal le quito el acceso.
@@ -42,6 +51,8 @@ export const MEMBER_SELECT = `
   is_active,
   created_at,
   parent_seller_id,
+  commission_model,
+  fixed_commission_amount,
   profile:profiles!memberships_profile_id_fkey ( id, full_name, alias, phone, email, is_active, activated_at )
 `
 
@@ -51,6 +62,8 @@ export type MemberRow = {
   is_active: boolean
   created_at: string
   parent_seller_id: string | null
+  commission_model: CommissionModel
+  fixed_commission_amount: number | null
   profile: {
     id: string
     full_name: string
@@ -77,6 +90,9 @@ export function mapMember(row: MemberRow): OrgMember | null {
     email: row.profile.email,
     createdAt: row.created_at,
     parentSellerId: row.parent_seller_id,
+    commissionModel: row.commission_model,
+    fixedCommissionAmount:
+      row.fixed_commission_amount === null ? null : Number(row.fixed_commission_amount),
     activatedAt: row.profile.activated_at,
   }
 }

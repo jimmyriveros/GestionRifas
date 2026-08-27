@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **376 ✅** | **518 ✅** | **296 ✅** | ✅ | ✅ |
+| Post-9 vigente | **376 ✅** | **544 ✅** | **296 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -4129,3 +4129,98 @@ que **eso** es lo que sirve el dominio es la de arriba. Queda para el dueño ent
 **Se espera además el aviso de versión nueva** en quien tenga la aplicación instalada: el worker
 anterior detectará este build y ofrecerá «Hay una nueva versión de Rifas · Actualiza cuando termines
 lo que estás haciendo». No se recarga solo (D-116).
+
+---
+
+## El equipo reparte una sola mitad: comisión del vendedor padre y ganancia fija (2026-08-27)
+
+Implementación de D-127 (BR-G20..BR-G26), migración `0031_team_commission.sql`.
+
+### Lo ejecutado
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` | ✅ Las 31 migraciones aplican en orden, sin avisos |
+| `npm run seed:local` | ✅ |
+| `npm run test:db` | ✅ **544/544** en 26 archivos (antes 518 en 25) |
+| `npm run test` | ✅ 376/376 |
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 errores (las 2 advertencias de TanStack son preexistentes) |
+| `npm run build` | ✅ |
+
+Suite nueva: `tests/db/team-commission.test.ts`, **26 pruebas** (E10-01..E10-26).
+
+### Errores encontrados y corregidos
+
+Tres. Los dos primeros son defectos reales de la migración y los encontró la suite nueva; el tercero
+era una expectativa mía equivocada.
+
+**1. El `CHECK` de la combinación válida pasaba con el importe nulo** (E10-15).
+
+```sql
+-- Lo que se escribió primero:
+(commission_model = 'fixed_per_ticket' and fixed_commission_amount > 0)
+```
+
+Con la columna nula, `fixed_commission_amount > 0` vale `NULL`, y **un CHECK se cumple cuando su
+resultado es NULL**. Una membresía `fixed_per_ticket` **sin importe** entraba en la tabla; después
+`commission_rate_for_seller` devolvía `coalesce(null, 0)` y esa persona cobraba **cero por boleta**
+mientras su vendedor padre se quedaba el bolsillo entero. Se corrige añadiendo
+`fixed_commission_amount is not null` como condición explícita.
+
+**2. El movimiento de equipo se contaba como propio al subir el precio de la rifa** (E10-24).
+
+La primera versión marcaba las filas de equipo del ledger solo con `from_seller_id`. Cuando el cambio
+afecta a **todos** los integrantes a la vez —un cambio de precio— no hay uno concreto del que venga,
+así que la fila quedaba con el campo nulo y la invariante la sumaba al lado propio:
+
+```
+el ledger propio explica `earned`: expected 640000 to be 160000
+                                   (160.000 propios + 480.000 de equipo)
+```
+
+De ahí que sean **dos** columnas y no una: `team_movement` dice **qué es** (nunca nulo, y es lo que
+separa las invariantes) y `from_seller_id` **de quién vino** (enriquece, no decide).
+
+**3. `E10-07` esperaba que la ganancia del padre subiera, y baja.** Era mi expectativa la que estaba
+mal, no el motor: la boleta 21 lleva al integrante al tramo de $25.000, que es **retroactivo**, así
+que lo que le queda al padre cae de $40.000 a $35.000 en las 21 a la vez —$800.000 pasan a $735.000—.
+El equipo vendió más y el padre cobra menos. Queda escrito en `TESTING.md` §4.3 porque es
+contraintuitivo y el próximo que lo vea pensará que es un error.
+
+### Una prueba existente cambió a propósito
+
+`E8-11` (`sale-discount.test.ts`) comprobaba `sum(commission_ledger) = earned`. En esa suite
+`sueltoId` **es el vendedor padre** de `equipoId`, así que ahora su ledger incluye lo del equipo y el
+total legítimamente no cuadra contra `earned` solo. Pasa a comprobar las **dos mitades por separado**
+(BR-G22), que es estrictamente más fuerte.
+
+En el mismo archivo se renombró el ayudante `participacionEmpresa` → `restoTrasPagarAlVendedor`: su
+nombre habría mentido a partir de ahora, porque de esa cifra sale además la parte del vendedor padre.
+Lo que mide y lo que garantiza no cambian.
+
+### Verificado en el navegador (sesión real, base local)
+
+| Qué | Resultado |
+|---|---|
+| Tarjetas de elección en el alta | Dos radios reales `name="commissionModel"`, con los tramos **leídos de `commission_tiers`** ($20.000 / $25.000 / $30.000 / $40.000) |
+| Tope mostrado | «Puedes darle hasta **$60.000**, que es lo que ganas tú por boleta» — la mitad de la rifa de $120.000 |
+| Teclado | `ArrowUp` mueve el foco, cambia la selección, oculta el campo del importe y dispara el aviso |
+| Móvil (375×812) | Diálogo de 326×694 dentro del viewport; tarjetas apiladas; `body.scrollWidth === innerWidth`, sin desbordamiento |
+| Validación de cliente | Enviar `fixed` sin importe no llega al servidor: «Escribe cuánto ganará por cada boleta que cobre completa» |
+| Tope en el servidor | $90.000 → «No puedes pagarle más de $60.000 por boleta: es lo que ganas tú por cada boleta y de ahí sale su ganancia» |
+| Guardado | $35.000 se guarda y la ficha pasa a «$35.000 por boleta» |
+| Bitácora | `user.commission_model` con modelo e importe anterior y nuevo, y `changed_by` = el vendedor padre |
+| Transaccionalidad | El intento rechazado de $90.000 **no dejó fila** en `audit_logs`: la transacción revirtió entera |
+| Consola | Sin errores |
+
+### Lo que no se probó aquí
+
+**No hay pruebas E2E nuevas.** El flujo se verificó a mano en el navegador (tabla de arriba) y las
+reglas de dinero están cubiertas por las 26 pruebas de base de datos, que es donde vive el motor. Una
+E2E de este flujo aportaría sobre todo cobertura de la interfaz; queda como pendiente razonable, no
+como hueco de corrección.
+
+**No se desplegó a producción.** Esta migración **cambia lo que se le debe a la gente**: a partir de
+ella cada vendedor padre cobra por las ventas de su equipo, y eso antes valía cero. Requiere
+autorización explícita del dueño y su propia ventana.

@@ -5,7 +5,12 @@ import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
 import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getCommissionContext } from '@/features/commissions/queries'
+import {
+  getCommissionContext,
+  getMaxFixedCommission,
+  listCommissionTiers,
+} from '@/features/commissions/queries'
+import { TeamCommissionCard } from '@/features/team/components/TeamCommissionCard'
 import { TeamMemberActions } from '@/features/team/components/TeamMemberActions'
 import { TeamMemberSales } from '@/features/team/components/TeamMemberSales'
 import { getTeamMember, listTeamMemberSales } from '@/features/team/queries'
@@ -28,7 +33,11 @@ export default async function TeamMemberPage({
   const { sellerId } = await params
   const membership = await requireRole(['seller'])
 
-  const comisiones = await getCommissionContext()
+  const [comisiones, tiers, maxFixed] = await Promise.all([
+    getCommissionContext(),
+    listCommissionTiers(),
+    getMaxFixedCommission(membership.organizationId),
+  ])
   const raffle = comisiones.raffle
 
   const member = await getTeamMember(membership.profileId, sellerId, raffle?.id)
@@ -77,31 +86,22 @@ export default async function TeamMemberPage({
         </div>
       </div>
 
-      {commission !== null && commission.ticketsPaid > 0 ? (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Lo que lleva ganado</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <p className="text-2xl font-semibold tabular-nums">{formatCOP(commission.earned)}</p>
-            <p className="text-muted-foreground text-sm">
-              {commission.ticketsPaid}{' '}
-              {commission.ticketsPaid === 1 ? 'boleta cobrada' : 'boletas cobradas'} ·{' '}
-              {formatCOP(commission.rate)} por boleta
-              {commission.ticketsToNext !== null && commission.nextRate !== null
-                ? ` · le faltan ${commission.ticketsToNext} para llegar a ${formatCOP(commission.nextRate)}`
-                : ''}
-            </p>
-            {/* Sin esto la cuenta no cuadraria a la vista: «2 cobradas a
-                $60.000» encima de un total de $100.000 (BR-G17). */}
-            {commission.discounts > 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Menos {formatCOP(commission.discounts)} de las rebajas que hizo.
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
+      {/* Sustituye a la tarjeta «Lo que lleva ganado», que decia lo mismo y
+          ademas no dejaba cambiar nada. Se pinta SIEMPRE, tambien sin ventas:
+          justo entonces es cuando conviene poder fijar la ganancia, antes de
+          que empiece a vender y cambiarla obligue a recalcular (BR-G25). */}
+      <TeamCommissionCard
+        member={{
+          profileId: member.profileId,
+          fullName: member.fullName,
+          commissionModel: member.commissionModel,
+          fixedCommissionAmount: member.fixedCommissionAmount,
+        }}
+        commission={commission}
+        tiers={tiers}
+        maxFixed={maxFixed}
+        raffleName={raffle?.name ?? null}
+      />
 
       <div>
         <h2 className="mb-3 text-lg font-semibold">Sus ventas</h2>

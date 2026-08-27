@@ -171,6 +171,8 @@ CREATE TYPE payment_method      AS ENUM ('cash', 'transfer', 'other');
 | `is_active` | `boolean` | `NOT NULL DEFAULT true` |
 | `invited_by` | `uuid` | FK → `profiles(id)`, `NULL` |
 | `parent_seller_id` | `uuid` | `NULL`, FK compuesta → `memberships(profile_id, organization_id)` (`0022`, BR-E01) |
+| `commission_model` | `commission_model` | `NOT NULL DEFAULT 'tiered'` (`0031`, BR-G24) |
+| `fixed_commission_amount` | `bigint` | `NULL`; obligatoria y `> 0` con `fixed_per_ticket` (`0031`, BR-G24) |
 | `created_at` / `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` |
 
 Restricciones clave:
@@ -201,12 +203,31 @@ ALTER TABLE memberships ADD CONSTRAINT memberships_parent_not_self
 
 ALTER TABLE memberships ADD CONSTRAINT memberships_parent_only_for_sellers
   CHECK (parent_seller_id IS NULL OR role = 'seller');
+
+-- Cómo se le paga a un integrante (0031, BR-G24). El `IS NOT NULL` NO es
+-- redundante: un CHECK se cumple cuando su resultado es NULL, y
+-- `fixed_commission_amount > 0` con la columna nula vale NULL. Sin él, la fila
+-- `fixed_per_ticket` SIN importe pasaba la restricción (D-127, prueba E10-15).
+ALTER TABLE memberships ADD CONSTRAINT memberships_commission_model_amount CHECK (
+  (commission_model = 'tiered' AND fixed_commission_amount IS NULL)
+  OR (commission_model = 'fixed_per_ticket'
+      AND fixed_commission_amount IS NOT NULL
+      AND fixed_commission_amount > 0)
+);
 ```
 
 **`parent_seller_id`** (BR-E01): nulo = vendedor a cargo del Dueño o el Administrador; con valor =
 integrante del equipo de ese vendedor. Lo que un `CHECK` no puede ver —que el padre esté activo, sea
 vendedor y no pertenezca a otro equipo— lo impone el trigger `memberships_validate_parent_seller`.
 Hoy la jerarquía tiene dos niveles (BR-E03); el modelo admite más sin cambiar de forma.
+
+**`commission_model` / `fixed_commission_amount`** (BR-G24, D-127): cómo se le paga a esta persona
+**mientras pertenezca a un equipo**. Viven aquí y no en una tabla aparte porque esta fila **es** la
+relación entre el vendedor padre y el integrante. Con `parent_seller_id` nulo quedan inertes —esa
+persona cobra la mitad del precio (BR-G13)— pero no se borran: volver a entrar a un equipo las
+reactiva tal como estaban. El **tope** del importe (la mitad del precio de la rifa, BR-G23) no cabe en
+un `CHECK` porque hay que consultar `raffles`, así que lo impone el trigger
+`memberships_validate_commission`, que cubre tanto el alta como la edición.
 
 ⚠️ **Este índice garantiza «como máximo uno», no «exactamente uno».** Durante siete fases esta
 sección decía «exactamente un Owner activo», y el resto del modelo lo daba por cierto — hasta que la

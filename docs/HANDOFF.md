@@ -93,7 +93,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — «Demo» fuera, la flecha a plomo con su título y el encabezado de una boleta simplificado (2026-08-27)
+## 1.a Último relevo significativo — el equipo reparte una sola mitad (2026-08-27)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Dos reglas, y la segunda solo existe por la primera.** (a) **El vendedor padre cobra por las ventas de su equipo** (BR-G20): cada boleta cobrada deja a la empresa la mitad de su precio, la venda quien la venda, y la otra mitad se reparte —el integrante toma su tarifa y el padre se queda con el resto—. Antes el padre ganaba **$0** por su equipo y esa ganancia salía de la empresa. (b) **El padre elige cómo pagarle a cada integrante**: por tramos (lo de siempre, y el valor por defecto) o una **cifra fija por boleta**, topada en la mitad del precio porque sale de su propio bolsillo (BR-G23, BR-G24). **⚠️ NO desplegado: cambia lo que se le debe a la gente** |
+| Archivos | Migración **`0031_team_commission.sql`**. Nuevos: `features/team/components/CommissionModelField.tsx`, `TeamCommissionDialog.tsx`, `TeamCommissionCard.tsx`, y **`tests/db/team-commission.test.ts` (26, E10-01..E10-26)**. Tocados: `features/commissions/queries.ts`, `features/team/{actions,schemas,queries}.ts`, `features/users/{invite,queries}.ts` y `components/UserDialog.tsx`, `features/dashboard/components/SellerKpis.tsx`, `lib/constants.ts`, las tres pantallas del vendedor (panel, «Mi equipo» y la ficha del integrante), `types/database.types.ts`, `tests/db/sale-discount.test.ts`. Documentación: `BUSINESS_RULES` (BR-G20..BR-G26, y BR-G13/G18/G19 actualizadas), `DECISIONS` (**D-127**), `DATA_MODEL`, `TESTING` §4.3, `TEST_RESULTS`, `UX_COPY_GUIDELINES` anexos A y B, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **El motor no cambió de principio** (D-094): sigue siendo `n × tarifa` **recontado**, nunca una suma de eventos, así que la idempotencia y el recálculo retroactivo salen gratis para el bloque nuevo igual que para el viejo. La autorización es **`team_member_guard`** (0026) sin tocar: la misma puerta que corregir y eliminar a un integrante. El formulario de alta es **el mismo** `UserDialog` con una sección opcional, no uno nuevo. El campo de dinero es `MoneyInput`, y los estados visuales de las tarjetas copian la regla de `OptionList` (excluyentes, nunca acumulables) |
+| Decisiones | **D-127**, y su parte importante **la decidió el dueño a mitad del encargo**: el archivo pedía solo elegir el modelo, y al preguntar de qué bolsillo salía el dinero del integrante contestó «del vendedor padre». Eso convirtió un ajuste de formulario en un cambio del reparto. El tope (la mitad del precio) también se preguntó y se eligió sobre otras dos opciones |
+| Verificación | **544/544** de base de datos (+26) · **376/376** unitarias · `typecheck` ✅ · `lint` **0 errores** · `build` ✅ · **Verificado en el navegador con sesión real**: tarjetas con los tramos leídos de `commission_tiers`, tope «$60.000» correcto, `ArrowUp` cambia la selección y oculta el campo, diálogo de 326×694 sin desbordamiento a 375 px, el tope del servidor llega redactado, la bitácora guarda modelo e importe anterior y nuevo, y el intento rechazado **no deja fila** (la transacción revierte). **Tres errores** encontrados, dos de ellos reales, en `TEST_RESULTS.md` |
+| Advertencias | **1) `0031` NO está en producción, y desplegarla MUEVE DINERO**: su bucle final recalcula y a partir de ahí cada vendedor padre cobra por su equipo. Necesita autorización, respaldo y su ventana. **2) La ganancia del padre BAJA cuando su integrante sube de tramo**, y no es un error: el tramo es retroactivo, así que `mitad − tarifa` cae en **todas** las boletas a la vez (E10-04, E10-07). **3) Un `CHECK` se cumple cuando su resultado es NULL.** `fixed_commission_amount > 0` con la columna nula vale NULL, no falso: por eso la restricción lleva un `is not null` que **parece** redundante y no lo es. **4) `team_movement` y `from_seller_id` son dos columnas a propósito**: marcar el movimiento de equipo solo con la segunda deja sin marcar el caso en que cambian todos los integrantes a la vez (un cambio de precio), y esas filas se cuentan como propias. **5) No conviertas la cascada en un bucle sobre los integrantes**: el motor se llama a sí mismo sobre el vendedor padre al final, con `p_team_source` de freno, y así ningún camino puede olvidarse de actualizarlo. El orden de los cerrojos es **siempre integrante antes que padre**. **6) `commission_summary` gana `pay_model` con tres valores**: `by_tiers` se conserva porque es la condición que habilita hablar de niveles, y ahora es verdadero **solo** con `tiered` |
+| Publicación | **Sin desplegar.** Commit local únicamente |
+| Pendiente | **1)** Autorizar y desplegar `0031` (respaldo previo obligatorio). **2)** **No hay E2E nuevas**: el flujo se verificó a mano en el navegador y las reglas de dinero están en las 26 pruebas de base de datos; una E2E de la interfaz queda como mejora razonable. **3)** El portal administrativo **no** ofrece esta opción: el encargo la pedía para el vendedor padre y solo para él (la RPC ya existe si algún día hace falta). **4)** Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-066, I-062, I-063 |
+| Git | Rama `main`, desde `f3cef05` |
+
+## 1.a.0 Relevo anterior — «Demo» fuera, la flecha a plomo con su título y el encabezado de una boleta simplificado (2026-08-27)
 
 | Campo | Estado |
 |---|---|
@@ -644,11 +658,14 @@ Evita leer `DATA_MODEL.md` (~5k tokens) solo para recordar nombres.
 
 ```
 organizations ─┬─ memberships (profile_id, organization_id, role, is_active,
-               │                parent_seller_id → equipos, 0022)
+               │                parent_seller_id → equipos, 0022;
+               │                commission_model, fixed_commission_amount → 0031)
                ├─ notifications (recipient_profile_id, kind, data, read_at; 0023)
                ├─ commission_tiers    (min_tickets, rate; 0024)
-               ├─ seller_commissions  (raffle_id, seller_id, tickets_paid, rate, earned)
-               └─ commission_ledger   (movement, amount, tickets_paid, rate; solo anexado)
+               ├─ seller_commissions  (raffle_id, seller_id, tickets_paid, rate, earned,
+               │                       team_tickets_paid, team_earned → 0031)
+               └─ commission_ledger   (movement, amount, tickets_paid, rate,
+                                       team_movement, from_seller_id → 0031; solo anexado)
                ├─ raffles     (short_code, name, ticket_price, status, allow_seller_ticket_creation)
                ├─ clients     (seller_id, name, phone, archived_at)
                ├─ tickets     (raffle_id, seller_id, client_id, internal_code,
@@ -954,7 +971,8 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Vas a dar visibilidad nueva a un rol y piensas ampliar una política de `SELECT` | Mira antes **quién depende de que esa política signifique lo que significa**. Media docena de consultas del portal del vendedor no filtran por vendedor a propósito, porque `tickets_select` ya lo hacía; ampliarla las habría cambiado todas en silencio. La vía segura es una función `SECURITY DEFINER` que se autorice sola | D-092 |
 | Necesitas los números del equipo de un vendedor | `team_sales_summary()` (una fila por integrante, sin N+1) y `team_member_sales(id)`. **No** existen en `v_seller_summary` ni en `listTickets` para un vendedor | D-092 |
 | Vas a tocar algo de comisiones | El importe **no se acumula sumando eventos**: es `n × tarifa(n)` recalculado. Si añades un camino que cambie el estado de pago de una boleta, no escribas ledger a mano — deja que el trigger `tickets_sync_commission` recuente | D-094 |
-| Una prueba de comisiones falla con un total que no cuadra | Comprueba primero la invariante `SUM(commission_ledger) = seller_commissions.earned`. Si esa cuadra, el error está en la expectativa de la prueba, no en el motor | BR-G10 |
+| Una prueba de comisiones falla con un total que no cuadra | Comprueba primero la invariante, que desde `0031` va **por partes**: `SUM(amount WHERE NOT team_movement) = earned` y `SUM(amount WHERE team_movement) = team_earned`. Si las dos cuadran, el error está en la expectativa de la prueba, no en el motor | BR-G10, BR-G22 |
+| Una cifra de comisión sube cuando esperabas que bajara (o al revés) en un equipo | Recuerda que los tramos son **retroactivos** y que el vendedor padre recibe `mitad − tarifa` **por cada** boleta: cuando su integrante sube de tramo, el padre cobra MENOS aunque el equipo haya vendido más. No es un error, es BR-G20 + BR-G02 (lo comprueba `E10-07`) | BR-G20 |
 | Una prueba tuya le monta equipo a `vendedor1` o `vendedor2` | No lo hagas: son cuentas compartidas y `phase3-admin` comprueba a quién ve un vendedor. Crea tu propio vendedor padre en la suite, o el resultado dependerá del orden de ejecución | I-035 |
 | Quieres saber si alguien «ya activó su cuenta» y miras `auth.users` | No hay forma de deducirlo ahí. GoTrue **escribe un hash aleatorio** en `encrypted_password` al verificar el enlace de la invitación, así que esa columna dice «abrió el correo», no «configuró su cuenta». El dato vive en `profiles.activated_at` y lo marca la aplicación | D-097 · BD `E2-02` |
 | Cambias el correo de una cuenta invitada y crees que el enlace anterior murió | No murió. Cambiar el correo **no toca** `confirmation_token`: el enlace viejo sigue dando sesión, ya con el correo nuevo. Lo que sí lo invalida es **volver a invitar** —Auth reescribe el token en la misma ranura—, y por eso el cambio de correo pasa siempre por `sendInvitation` | D-097 · BD `E2-10` |

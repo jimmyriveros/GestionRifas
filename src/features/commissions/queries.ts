@@ -16,22 +16,51 @@ import { createClient } from '@/lib/supabase/server'
  * que repetir esas condiciones.
  */
 
+/**
+ * Con que regla se le paga a este vendedor (BR-G13, BR-G24).
+ *
+ *   `half_price` — no pertenece a ningun equipo: la mitad del precio vigente de
+ *                  la rifa. Incluye al vendedor que ARMO un equipo.
+ *   `tiered`     — integrante de un equipo, por tramos.
+ *   `fixed`      — integrante de un equipo, con una cifra fija pactada con su
+ *                  vendedor padre.
+ *
+ * Las tres se explican con palabras distintas y ninguna sirve para las otras
+ * dos: a quien cobra fijo no se le puede hablar de subir de nivel, y a quien
+ * cobra la mitad tampoco, pero por motivos que no son el mismo.
+ */
+export type PayModel = 'half_price' | 'tiered' | 'fixed'
+
 export type CommissionSummary = {
   sellerId: string
   raffleId: string
+  payModel: PayModel
   /**
-   * Como se le paga (BR-G13). `true`: por tramos, porque pertenece a un equipo.
-   * `false`: la mitad del precio vigente de la rifa por cada boleta cobrada.
-   * La pantalla lo necesita porque a quien cobra la mitad no se le puede hablar
-   * de «subir de nivel»: no hay niveles que subir.
+   * Verdadero solo con `tiered`. Es exactamente la condicion que habilita
+   * hablar de «subir de nivel», y por eso sigue existiendo aparte de
+   * `payModel`: las pantallas preguntan por la capacidad, no por el nombre.
    */
   byTiers: boolean
   /** Boletas pagadas por completo: las que cuentan para la comision (BR-G01). */
   ticketsPaid: number
   /** Lo que vale hoy cada boleta pagada. */
   rate: number
-  /** Ganancia acumulada YA conseguida, con las rebajas ya restadas (BR-G17). */
+  /**
+   * Ganancia acumulada por lo que vendio EL MISMO, con sus rebajas ya restadas
+   * (BR-G17). No incluye lo que le deja su equipo: eso es `teamEarned`, y van
+   * separadas porque son dinero de distinta naturaleza y la pantalla tiene que
+   * poder decir cual es cual.
+   */
   earned: number
+  /** Boletas cobradas por los integrantes de su equipo (BR-G20). Cero sin equipo. */
+  teamTicketsPaid: number
+  /**
+   * Lo que le queda por las ventas de su equipo: por cada boleta cobrada, la
+   * mitad del precio menos la tarifa del integrante (BR-G20). Cero sin equipo.
+   */
+  teamEarned: number
+  /** Lo que se le debe en total por esta rifa. Es lo que se le paga. */
+  totalEarned: number
   /**
    * Lo que se ha dejado de ganar por rebajar boletas (BR-G17, D-099).
    *
@@ -58,10 +87,13 @@ export type CommissionSummary = {
 function mapRow(row: {
   seller_id: string
   raffle_id: string
+  pay_model: string
   by_tiers: boolean
   tickets_paid: number
   rate: number
   earned: number
+  team_tickets_paid: number
+  team_earned: number
   next_min_tickets: number | null
   next_rate: number | null
   tickets_to_next: number | null
@@ -70,14 +102,24 @@ function mapRow(row: {
   const ticketsPaid = Number(row.tickets_paid ?? 0)
   const rate = Number(row.rate ?? 0)
   const earned = Number(row.earned ?? 0)
+  const teamEarned = Number(row.team_earned ?? 0)
 
   return {
     sellerId: row.seller_id,
     raffleId: row.raffle_id,
+    // `commission_summary` solo devuelve estos tres, pero el tipo generado dice
+    // `string`: la comprobacion mantiene honesto el tipo sin confiar en un cast.
+    payModel:
+      row.pay_model === 'tiered' || row.pay_model === 'fixed' ? row.pay_model : 'half_price',
     byTiers: row.by_tiers,
     ticketsPaid,
     rate,
     earned,
+    teamTicketsPaid: Number(row.team_tickets_paid ?? 0),
+    teamEarned,
+    totalEarned: earned + teamEarned,
+    // Se deriva de lo PROPIO, nunca del total: sumarle lo del equipo daria cero
+    // rebajas en cuanto un vendedor padre tuviera equipo (BR-G20).
     discounts: Math.max(0, ticketsPaid * rate - earned),
     nextMinTickets: row.next_min_tickets,
     nextRate: row.next_rate === null ? null : Number(row.next_rate),
@@ -169,6 +211,56 @@ export async function getFirstTierRate(): Promise<number> {
 
   if (error) throw error
   return Number(data?.rate ?? 0)
+}
+
+export type CommissionTier = {
+  /** Desde cuantas boletas cobradas aplica esta tarifa. */
+  minTickets: number
+  rate: number
+}
+
+/**
+ * Los tramos vigentes de la organizacion, para poder ENSEÑARLOS.
+ *
+ * La tarjeta que ofrece «ganancia por tramos» tiene que decir cuales son, y no
+ * puede llevarlos escritos: son filas de `commission_tiers` y el negocio puede
+ * cambiarlos sin desplegar (BR-G03). Escritos en el componente, el dia que
+ * cambiaran la pantalla prometeria una cifra y la base de datos pagaria otra.
+ *
+ * La politica `commission_tiers_select` deja leerlos a todo miembro de la
+ * organizacion: son la regla del juego, no un dato de nadie.
+ */
+export async function listCommissionTiers(): Promise<CommissionTier[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('commission_tiers')
+    .select('min_tickets, rate')
+    .order('min_tickets', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []).map((row) => ({
+    minTickets: Number(row.min_tickets),
+    rate: Number(row.rate),
+  }))
+}
+
+/**
+ * El tope de la ganancia fija: la mitad del precio de la rifa (BR-G23).
+ *
+ * Sale de la misma funcion que aplica el trigger, no de una cuenta hecha aqui:
+ * si el formulario calculara su propio tope y la base de datos otro, el usuario
+ * veria un mensaje de error despues de que la pantalla le dijera que su cifra
+ * era valida. `null` significa que la organizacion no tiene ninguna rifa y no
+ * hay precio contra el que medir.
+ */
+export async function getMaxFixedCommission(organizationId: string): Promise<number | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('team_max_fixed_commission', {
+    p_organization_id: organizationId,
+  })
+
+  if (error) throw error
+  return data === null ? null : Number(data)
 }
 
 /**

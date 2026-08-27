@@ -168,6 +168,29 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   other: 'Otro',
 }
 
+/**
+ * Como se le paga a un integrante de un equipo (BR-G24, D-127).
+ *
+ * Viven aqui y no en la pantalla por lo mismo que las etiquetas de estado: son
+ * dos nombres fijos que el usuario lee en tres sitios —las tarjetas de eleccion,
+ * la ficha del integrante y el aviso de confirmacion— y cambiarlos debe seguir
+ * siendo cambiar UN archivo (CLAUDE.md §27).
+ *
+ * «Ganancia» y no «comision» a proposito: es el termino del glosario (Anexo A de
+ * la guia de UX), y es ademas el que ya usa la pantalla del propio vendedor.
+ */
+export const COMMISSION_MODEL_LABELS = {
+  tiered: 'Ganancia por tramos',
+  fixed_per_ticket: 'Ganancia fija por boleta',
+} as const
+
+export type CommissionModel = keyof typeof COMMISSION_MODEL_LABELS
+
+export const COMMISSION_MODEL_VALUES = Object.keys(COMMISSION_MODEL_LABELS) as [
+  CommissionModel,
+  ...CommissionModel[],
+]
+
 export const TICKET_INVENTORY_STATUS_VALUES = Object.keys(
   TICKET_INVENTORY_STATUS_LABELS,
 ) as TicketInventoryStatus[]

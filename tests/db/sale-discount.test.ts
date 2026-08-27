@@ -12,9 +12,16 @@
  *     cobrado_al_cliente − comision_del_vendedor = n × (precio_oficial − tarifa)
  *
  * El lado derecho no contiene el descuento. Da igual cuanto rebaje el vendedor:
- * lo que le queda a la empresa depende solo del precio oficial y de la tarifa
+ * lo que sobra tras pagarle depende solo del precio oficial y de la tarifa
  * pactada. Es la traduccion exacta de «el Admin NUNCA pierde dinero por el
  * descuento que haga el vendedor».
+ *
+ * MATIZ ANADIDO EN 0031 (BR-G20): ese lado derecho ya no es «lo de la empresa»
+ * cuando quien vende es un integrante de equipo, porque de ahi sale ademas la
+ * parte de su vendedor padre. La identidad de arriba sigue siendo cierta y
+ * sigue siendo lo que estas pruebas comprueban —la rebaja no la toca—; lo que
+ * la empresa se queda de verdad, la mitad del precio pase lo que pase, se
+ * comprueba en `tests/db/team-commission.test.ts` (E10-06).
  *
  * NINGUNA CIFRA DE PRECIO SE ESCRIBE A MANO (D-098). El precio sale de la rifa
  * y la tarifa de `seller_commissions`: una prueba que fije «$120.000» vuelve a
@@ -182,14 +189,21 @@ async function venderYCobrar(
 }
 
 /** Comision viva de un vendedor en la rifa de la suite. */
-async function comision(sellerId: string): Promise<{ n: number; rate: number; earned: number }> {
+async function comision(
+  sellerId: string,
+): Promise<{ n: number; rate: number; earned: number; teamEarned: number }> {
   const { rows } = await db.query(
-    `select tickets_paid, rate, earned from seller_commissions
+    `select tickets_paid, rate, earned, team_earned from seller_commissions
       where raffle_id = $1 and seller_id = $2`,
     [rifaId, sellerId],
   )
-  const fila = rows[0] ?? { tickets_paid: 0, rate: 0, earned: 0 }
-  return { n: fila.tickets_paid, rate: Number(fila.rate), earned: Number(fila.earned) }
+  const fila = rows[0] ?? { tickets_paid: 0, rate: 0, earned: 0, team_earned: 0 }
+  return {
+    n: fila.tickets_paid,
+    rate: Number(fila.rate),
+    earned: Number(fila.earned),
+    teamEarned: Number(fila.team_earned),
+  }
 }
 
 /** Suma de las rebajas concedidas en las boletas ya COBRADAS de un vendedor. */
@@ -204,8 +218,18 @@ async function rebajasCobradas(sellerId: string): Promise<number> {
   return Number(rows[0].total)
 }
 
-/** Lo que la empresa se queda: cobrado a los clientes menos la comision. */
-async function participacionEmpresa(sellerId: string): Promise<number> {
+/**
+ * Lo que queda de las boletas de este vendedor DESPUES DE PAGARLE A EL: cobrado
+ * a los clientes menos su comision.
+ *
+ * Se llamaba «participacionEmpresa» y desde 0031 ese nombre mentiria para un
+ * integrante de equipo: de lo que sobra tras pagarle, una parte se la lleva su
+ * vendedor padre (BR-G20) y solo el resto es de la empresa. Lo que estas pruebas
+ * comprueban con esta cifra sigue siendo cierto y sigue siendo el punto: la
+ * rebaja NO la toca, se la queda entera quien la concedio (BR-G17). Que la
+ * empresa se quede exactamente la mitad del precio lo comprueba E10-06.
+ */
+async function restoTrasPagarAlVendedor(sellerId: string): Promise<number> {
   const { rows } = await db.query(
     `select coalesce(sum(t.sale_price), 0)::bigint as cobrado
        from tickets t
@@ -308,10 +332,9 @@ describe('E8 — el precio de venta se puede rebajar', () => {
     })
     expect(error).toBeNull()
 
-    const { rows } = await db.query(
-      `select sale_price, base_price from tickets where id = $1`,
-      [ticketId],
-    )
+    const { rows } = await db.query(`select sale_price, base_price from tickets where id = $1`, [
+      ticketId,
+    ])
     expect(Number(rows[0].sale_price)).toBe(PRECIO)
     expect(Number(rows[0].base_price)).toBe(PRECIO)
   })
@@ -326,10 +349,9 @@ describe('E8 — el precio de venta se puede rebajar', () => {
       p_sale_price: rebajado,
     })
 
-    const { rows } = await db.query(
-      `select sale_price, base_price from tickets where id = $1`,
-      [ticketId],
-    )
+    const { rows } = await db.query(`select sale_price, base_price from tickets where id = $1`, [
+      ticketId,
+    ])
     expect(Number(rows[0].sale_price)).toBe(rebajado)
     expect(Number(rows[0].base_price)).toBe(PRECIO)
   })
@@ -390,12 +412,12 @@ describe('E8 — la empresa nunca pierde por la rebaja', () => {
     const { n, rate, earned } = await comision(sueltoId)
     expect(rate).toBe(Math.floor(PRECIO / 2))
     expect(earned).toBe(n * rate)
-    expect(await participacionEmpresa(sueltoId)).toBe(n * (PRECIO - rate))
+    expect(await restoTrasPagarAlVendedor(sueltoId)).toBe(n * (PRECIO - rate))
   })
 
   it('E8-07 (CASO B): rebaja de $20.000 — la asume entera el vendedor', async () => {
     const antes = await comision(sueltoId)
-    const empresaAntes = await participacionEmpresa(sueltoId)
+    const restoAntes = await restoTrasPagarAlVendedor(sueltoId)
 
     await venderYCobrar(suelto, sueltoId, PRECIO - 20_000)
 
@@ -404,12 +426,12 @@ describe('E8 — la empresa nunca pierde por la rebaja', () => {
     // El vendedor gana la tarifa MENOS la rebaja...
     expect(despues.earned - antes.earned).toBe(despues.rate - 20_000)
     // ...y la empresa se lleva exactamente lo mismo que por una boleta sin rebaja.
-    expect((await participacionEmpresa(sueltoId)) - empresaAntes).toBe(PRECIO - despues.rate)
+    expect((await restoTrasPagarAlVendedor(sueltoId)) - restoAntes).toBe(PRECIO - despues.rate)
   })
 
   it('E8-08 (CASO C): rebaja maxima — el vendedor gana $0 y la empresa, igual', async () => {
     const antes = await comision(sueltoId)
-    const empresaAntes = await participacionEmpresa(sueltoId)
+    const restoAntes = await restoTrasPagarAlVendedor(sueltoId)
     const minimo = PRECIO - Math.floor(PRECIO / 2)
 
     await venderYCobrar(suelto, sueltoId, minimo)
@@ -417,13 +439,13 @@ describe('E8 — la empresa nunca pierde por la rebaja', () => {
     const despues = await comision(sueltoId)
 
     expect(despues.earned - antes.earned).toBe(0)
-    expect((await participacionEmpresa(sueltoId)) - empresaAntes).toBe(PRECIO - despues.rate)
+    expect((await restoTrasPagarAlVendedor(sueltoId)) - restoAntes).toBe(PRECIO - despues.rate)
   })
 
   it('E8-09 (CASO D): con OTRA tarifa —por tramos— la regla es la misma', async () => {
     await venderYCobrar(equipo, equipoId, undefined)
     const antes = await comision(equipoId)
-    const empresaAntes = await participacionEmpresa(equipoId)
+    const restoAntes = await restoTrasPagarAlVendedor(equipoId)
 
     await venderYCobrar(equipo, equipoId, PRECIO - 10_000)
 
@@ -432,7 +454,7 @@ describe('E8 — la empresa nunca pierde por la rebaja', () => {
     // La tarifa por tramos no es la mitad del precio, y aun asi el reparto
     // funciona igual: la rebaja sale del vendedor, no de la empresa.
     expect(despues.rate).not.toBe(Math.floor(PRECIO / 2))
-    expect((await participacionEmpresa(equipoId)) - empresaAntes).toBe(
+    expect((await restoTrasPagarAlVendedor(equipoId)) - restoAntes).toBe(
       PRECIO - despues.rate + antes.n * (antes.rate - despues.rate),
     )
   })
@@ -442,19 +464,28 @@ describe('E8 — la empresa nunca pierde por la rebaja', () => {
       const { n, rate } = await comision(sellerId)
       // cobrado − comision = n × (precio oficial − tarifa). Sin rastro de la
       // rebaja: ahi esta la garantia que pedia el encargo.
-      expect(await participacionEmpresa(sellerId)).toBe(n * (PRECIO - rate))
+      expect(await restoTrasPagarAlVendedor(sellerId)).toBe(n * (PRECIO - rate))
     }
   })
 
   it('E8-11: sum(commission_ledger) = earned, con rebajas de por medio (BR-G10)', async () => {
+    // Desde 0031 la invariante tiene DOS mitades, porque `sueltoId` es el
+    // vendedor padre de `equipoId` y cobra por sus ventas (BR-G20). El ledger
+    // las separa con `team_movement`, y comprobarlas por separado es mas
+    // fuerte que comprobar el total: un error que se compensara entre las dos
+    // pasaria desapercibido sumandolas (BR-G22).
     for (const sellerId of [sueltoId, equipoId]) {
       const { rows } = await db.query(
-        `select coalesce(sum(amount), 0)::bigint as suma from commission_ledger
+        `select
+           coalesce(sum(amount) filter (where not team_movement), 0)::bigint as propio,
+           coalesce(sum(amount) filter (where team_movement), 0)::bigint     as equipo
+         from commission_ledger
           where raffle_id = $1 and seller_id = $2`,
         [rifaId, sellerId],
       )
-      const { earned } = await comision(sellerId)
-      expect(Number(rows[0].suma)).toBe(earned)
+      const { earned, teamEarned } = await comision(sellerId)
+      expect(Number(rows[0].propio), 'el ledger propio explica `earned`').toBe(earned)
+      expect(Number(rows[0].equipo), 'el ledger de equipo explica `team_earned`').toBe(teamEarned)
     }
   })
 
@@ -539,13 +570,12 @@ describe('E8 — lo que debe el cliente es el precio rebajado', () => {
   })
 
   it('E8-17: con abonos, el precio sigue siendo inmutable (BR-P05)', async () => {
-    const { rowCount } = await db.query(
-      `update tickets set sale_price = sale_price - 1 where id = $1`,
-      [ticketId],
-    ).catch((error: Error) => {
-      expect(error.message).toMatch(/no se puede cambiar el precio/i)
-      return { rowCount: -1 }
-    })
+    const { rowCount } = await db
+      .query(`update tickets set sale_price = sale_price - 1 where id = $1`, [ticketId])
+      .catch((error: Error) => {
+        expect(error.message).toMatch(/no se puede cambiar el precio/i)
+        return { rowCount: -1 }
+      })
 
     expect(rowCount, 'cambiar el precio con abonos debe fallar').toBe(-1)
   })

@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.20 · **Actualizado:** 2026-08-22 (D-001 a D-105)
+- **Versión:** 1.21 · **Actualizado:** 2026-08-27 (D-001 a D-127)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -4380,6 +4380,93 @@ literal, y la diferencia no confunde a nadie.
 `filas-seleccionables.spec.ts`— pasan a comprobar «Detalle boleta» **y** que los números siguen
 visibles en la tarjeta. Que la fila abrió la boleta correcta lo demuestra la URL, que ya se
 comprobaba antes.
+
+## D-127 — El equipo reparte una sola mitad: el vendedor padre cobra por su equipo y de ahí le paga al integrante
+**Fase:** post-9 · **Fecha:** 2026-08-27
+
+**Contexto.** El encargo pedía una cosa acotada: que el vendedor padre pudiera elegir entre pagarle a
+cada integrante **por tramos** (lo que ya existía) o con una **cifra fija por boleta**. Al analizarlo
+salió una pregunta que el encargo no contestaba y sin la cual no se podía fijar el tope de esa cifra:
+**¿de qué bolsillo sale la ganancia del integrante?**
+
+Hasta entonces salía del de la **empresa**. De una boleta de $120.000 vendida por un integrante, la
+empresa se quedaba $100.000 y el integrante $20.000; de una vendida por cualquier otro vendedor, se
+quedaba $60.000. El vendedor padre **no cobraba nada** por las ventas de su equipo, y
+`BUSINESS_RULES.md` lo decía con todas las letras: «es una regla comercial que el dueño aún no ha
+definido». Con ese modelo, dejar que el padre eligiera cuánto cobra su integrante era dejarle gastar
+dinero que no era suyo, y por eso se preguntó antes de escribir código.
+
+El dueño lo corrigió en una frase: **el dinero del integrante SÍ debe salir del vendedor padre.**
+
+**Decisión.** Cada boleta cobrada por completo deja a la empresa **la mitad de su precio oficial, la
+venda quien la venda** (BR-G21). La otra mitad es el bolsillo del vendedor, y cuando la vende un
+integrante ese bolsillo **se reparte** (BR-G20):
+
+| | Antes | Ahora |
+|---|---|---|
+| Integrante (tramo 1) | $20.000 | $20.000 |
+| Vendedor padre | $0 | **$40.000** |
+| Empresa | $100.000 | **$60.000** |
+
+Sobre esa base, las dos formas de pagar a un integrante (BR-G24) y su tope (BR-G23):
+
+* `tiered` — los tramos de la organización, retroactivos. Es el valor por defecto y **ninguna
+  membresía existente cambia** al aplicar la migración.
+* `fixed_per_ticket` — una cifra fija por boleta cobrada, sin niveles, **topada en la mitad del
+  precio de la rifa**. El tope no es una cifra elegida a dedo: es el bolsillo entero del padre. En el
+  extremo cede su parte completa y se queda con cero, nunca en negativo.
+
+**Alternativas descartadas.**
+
+* *Tope = el precio de la rifa* (lo que pedía literalmente el encargo). Descartada tras preguntar: con
+  el reparto de BR-G20 permitiría que el padre prometiera más de lo que recibe, y el hueco lo pagaría
+  la empresa.
+* *Tope = el tramo más alto ($40.000)*. Descartada: es más conservadora, pero convierte el modelo fijo
+  en una forma de congelar la tarifa y no en una decisión comercial del padre.
+* *Guardar la configuración en una tabla nueva de «equipos»*. Descartada: la relación entre el padre y
+  el integrante **es** la fila de `memberships` con su `parent_seller_id`. Una tabla al lado habría
+  sido un segundo sitio donde guardar lo mismo.
+* *Valores nuevos en el enum `commission_movement`* para marcar los movimientos de equipo.
+  Descartada por una razón dura: `alter type ... add value` deja el valor inutilizable hasta que la
+  transacción confirma (nota de 0028) y esta migración **sí** recalcula al final. Con columnas
+  (`team_movement`, `from_seller_id`) el dato además es más rico.
+* *Resetear la configuración al mover a alguien de equipo*. Descartada: sería una bajada de sueldo
+  silenciosa. La configuración queda inerte mientras no tenga vendedor padre y se reactiva al volver;
+  el nuevo padre la ve en la ficha y puede cambiarla.
+
+**Consecuencia.**
+
+* La migración `0031` **cambia dinero**: a partir de ella cada vendedor padre cobra por su equipo, y
+  eso antes valía cero. Es lo decidido, y su bucle de recálculo lo aplica hacia atrás sin reescribir
+  historia: anota la diferencia como un movimiento más.
+* El motor **no cambió de principio** (D-094): sigue siendo `n × tarifa` recontado, nunca una suma de
+  eventos, y de ahí salen gratis la idempotencia y el recálculo retroactivo. Lo que se le añadió es un
+  segundo bloque —el del equipo— calculado con la misma técnica, y una **cascada** al vendedor padre
+  al final de cada recálculo. Esa cascada es lo único que garantiza que ningún camino se olvide de
+  actualizarlo: hay muchos (abono, anulación, importación, cambio de vendedor, cambio de precio).
+* El orden de los cerrojos es **siempre integrante antes que padre**, así que dos ventas simultáneas
+  de dos integrantes del mismo equipo se serializan sin poder abrazarse.
+* La invariante de BR-G10 pasa a comprobarse **por partes** (BR-G22).
+* El recálculo va en la **misma transacción** que el cambio de configuración, por trigger. De ahí sale
+  sin escribir una línea lo que pedía el encargo: si el recálculo falla, la configuración no se
+  guarda.
+
+**Dos errores reales que encontraron las pruebas, y por qué se dejan escritos.**
+
+1. **El `CHECK` de la combinación válida pasaba con el importe nulo.** `fixed_commission_amount > 0`
+   con la columna nula vale `NULL`, no falso, y **un CHECK se cumple cuando su resultado es NULL**.
+   Una membresía `fixed_per_ticket` **sin importe** entraba, y después cobraba cero por boleta con el
+   padre quedándose el bolsillo entero. Lo cazó `E10-15`; se arregla con un `is not null` explícito.
+2. **El movimiento de equipo se contaba como propio al subir el precio de la rifa.** La primera
+   versión marcaba esas filas solo con `from_seller_id`, y cuando cambian **todos** los integrantes a
+   la vez no hay uno concreto del que venga: la fila quedaba con el campo nulo y se sumaba a la
+   comisión propia del padre. Lo cazó `E10-24` con una diferencia de $480.000. De ahí que sean dos
+   columnas y no una: `team_movement` dice **qué es** y `from_seller_id` **de quién vino**.
+
+**Lo que NO se hizo, y es deliberado.** El Dueño y el Administrador **no** tienen esta opción en su
+portal: el encargo la pedía para el vendedor padre y solo para él. Pueden seguir moviendo gente entre
+equipos (BR-E08), lo que recalcula todo por el mismo trigger. Si algún día hace falta, la RPC ya
+existe y solo habría que abrirle otra puerta de autorización.
 
 ## Ambigüedades pendientes de confirmación del usuario
 

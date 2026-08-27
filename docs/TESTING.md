@@ -308,6 +308,55 @@ migración dependen por completo de su cláusula `where`: es lo único que permi
 usarlos para ordenar. Un índice con el nombre correcto y la condición quitada pasa cualquier
 comprobación de existencia y no sirve para nada.
 
+### 4.3 Reparto del equipo y forma de pago (`tests/db/team-commission.test.ts`, 26 pruebas)
+
+Añadidas con D-127. Cubren las dos reglas nuevas —**el vendedor padre cobra por su equipo** (BR-G20) y
+**elige cómo pagarle a cada integrante** (BR-G24)— y, sobre todo, la invariante que las ordena.
+
+Trabajan sobre una **rifa propia**: cambian el precio y la configuración de pago, y las dos cosas
+recalculan dinero hacia atrás. Hacerlo sobre la rifa del seed le movería las cifras a las demás
+suites según el orden de ejecución (la trampa de I-035).
+
+| ID | Caso | Resultado esperado |
+|----|------|--------------------|
+| E10-01 | El integrante cobra su tramo | El padre recibe `mitad − tarifa`; el integrante no tiene equipo propio |
+| E10-02 | El padre vende lo suyo | Cobra la mitad, y lo del equipo no se toca: son dos bloques |
+| E10-03 | Vendedor sin equipo | La mitad del precio; `team_earned = 0`. Nada de esto le afecta |
+| E10-04 | El integrante sube al tramo 21 | Le sube a él y **le BAJA al padre**, retroactivo en las 21 |
+| E10-05 | Anular el pago | Baja de tramo y se lo quita a los dos |
+| E10-06 | **La invariante** (BR-G21) | `cobrado − Σ comisiones = n × (precio ÷ 2)`, exacto |
+| E10-07 | El integrante rebaja una boleta | La asume él entero; la parte del padre no lleva rastro de la rebaja |
+| E10-08 | Integrante nuevo | Nace en `tiered` sin importe: **compatibilidad** (BR-G26) |
+| E10-09 | Valor fijo | Cada boleta vale lo mismo, sin niveles |
+| E10-10 | `commission_summary` | `pay_model` distingue `half_price`/`tiered`/`fixed`; sin niveles no hay «próximo» |
+| E10-11 | Cambiar el valor fijo | Recalcula hacia atrás, y **le sale del bolsillo al padre** |
+| E10-12 | De fijo a tramos | Recalcula con su recuento real |
+| E10-13 | De tramos a fijo | Recalcula por el valor fijo |
+| E10-14 | Valor por encima de la mitad | Rechazado; el tope justo se acepta y deja al padre en cero |
+| E10-15 | `tiered` con importe / `fixed` sin importe | Las dos rechazadas |
+| E10-16 | El padre cambia la configuración | Funciona y queda en `audit_logs` con quién lo hizo |
+| E10-17 | Un vendedor toca a alguien de otro equipo | Rechazado, sin cambiar nada |
+| E10-18 | Un integrante intenta subirse la tarifa a sí mismo | Rechazado |
+| E10-19 | El tope, por la RPC | También lo aplica ahí, no solo el trigger |
+| E10-20 | `fixed_per_ticket` sin importe por la RPC | Mensaje que dice qué falta escribir |
+| E10-21 | Volver a tramos | No exige importe y lo deja nulo |
+| E10-22 | Sacar a un integrante | Pasa a la mitad del precio; el ex padre deja de cobrar por él |
+| E10-23 | Volver a meterlo | Recupera su configuración y el padre su parte |
+| E10-24 | Cambiar el precio de la rifa | Recalcula el reparto entero; los tramos no dependen del precio |
+| E10-25 | Recalcular a mano | No duplica ni una fila del ledger (BR-G08) |
+| E10-26 | Ninguna comisión negativa | Cero filas con `earned < 0` o `team_earned < 0` |
+
+**Cada prueba comprueba además la invariante del ledger, y por partes** (BR-G22): `sum(amount where
+not team_movement) = earned` **y** `sum(amount where team_movement) = team_earned`. Sumarlas en un
+solo total dejaría pasar un error que se compensara entre las dos, que es exactamente lo que ocurrió
+durante el desarrollo (D-127, segundo error).
+
+⚠️ **E10-04 y E10-07 comprueban que la ganancia del padre BAJA**, y no es una errata. Los tramos son
+retroactivos: cuando su integrante llega a la boleta 21, la tarifa de las 21 sube a $25.000 y lo que
+le queda al padre cae de $40.000 a $35.000 **en todas ellas**. El equipo vendió más y el padre cobra
+menos. Es el efecto buscado de BR-G20 + BR-G02, y quien vea ese número por primera vez pensará que es
+un error si esto no está escrito.
+
 ---
 
 ## 5. Pruebas unitarias clave

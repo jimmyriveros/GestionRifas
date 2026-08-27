@@ -23,7 +23,7 @@ import {
   getSellerPartialTicketTotals,
 } from '@/features/dashboard/seller-queries'
 import { getCommissionContext, getFirstTierRate } from '@/features/commissions/queries'
-import { isTeamMember } from '@/features/team/queries'
+import { getOwnTeamStatus } from '@/features/team/queries'
 import { requireRole } from '@/lib/auth/guards'
 import { formatDateRangeEs, todayBogota } from '@/lib/dates'
 
@@ -58,18 +58,18 @@ export default async function SellerDashboardPage({
   const rangeKey = parseDashboardRange(single(params.range))
   const range = resolveDashboardRange(rangeKey, todayBogota())
 
-  const [dashboard, comisiones, firstTierRate, perteneceAEquipo, partialTotals, activity] =
-    await Promise.all([
-      getSellerDashboard(),
-      getCommissionContext(),
-      getFirstTierRate(),
-      // BR-G13: quien pertenece a un equipo cobra por tramos; quien no, la mitad
-      // del precio de la rifa. Hace falta saberlo aunque todavia no haya cobrado
-      // ninguna boleta, que es justo cuando no hay fila de comision que leer.
-      isTeamMember(membership.profileId),
-      getSellerPartialTicketTotals(),
-      getSellerActivity(range),
-    ])
+  const [dashboard, comisiones, firstTierRate, own, partialTotals, activity] = await Promise.all([
+    getSellerDashboard(),
+    getCommissionContext(),
+    getFirstTierRate(),
+    // BR-G13, BR-G24: quien no pertenece a un equipo cobra la mitad del precio;
+    // dentro de un equipo, por tramos o una cifra fija. Hace falta saberlo
+    // aunque todavia no haya cobrado ninguna boleta, que es justo cuando no hay
+    // fila de comision que leer.
+    getOwnTeamStatus(membership.profileId),
+    getSellerPartialTicketTotals(),
+    getSellerActivity(range),
+  ])
 
   const { totals } = dashboard
 
@@ -85,11 +85,18 @@ export default async function SellerDashboardPage({
   const commission = comisiones.bySeller.get(membership.profileId) ?? null
   const hasEarnings = commission !== null && commission.ticketsPaid > 0
   const halfPrice = Math.floor((comisiones.raffle?.ticketPrice ?? 0) / 2)
-  const earningPerTicket = hasEarnings
-    ? commission.rate
-    : perteneceAEquipo
-      ? firstTierRate
-      : halfPrice
+
+  // La regla que le toca cuando todavia no hay fila que leer. El orden es el de
+  // BR-G13/BR-G24 y las tres ramas son distintas: a quien cobra una cifra fija
+  // no se le puede ofrecer el primer tramo, que fue lo que hizo esta pantalla
+  // hasta que existio el modelo fijo.
+  const rateSinVentas = !own.belongsToTeam
+    ? halfPrice
+    : own.commissionModel === 'fixed_per_ticket'
+      ? (own.fixedCommissionAmount ?? 0)
+      : firstTierRate
+
+  const earningPerTicket = hasEarnings ? commission.rate : rateSinVentas
 
   // El siguiente tramo solo existe para quien cobra por tramos y aun le queda
   // uno (BR-G02, BR-G13). Es lo unico que se conserva de la tarjeta «Tu
@@ -167,6 +174,7 @@ export default async function SellerDashboardPage({
           earningPerTicket={earningPerTicket}
           ticketPrice={comisiones.raffle?.ticketPrice ?? null}
           earned={hasEarnings ? commission.earned : 0}
+          teamEarned={commission?.teamEarned ?? 0}
           nextTier={nextTier}
         />
 

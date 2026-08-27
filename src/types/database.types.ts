@@ -149,36 +149,42 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          from_seller_id: string | null
           id: string
           movement: Database['public']['Enums']['commission_movement']
           organization_id: string
           raffle_id: string
           rate: number
           seller_id: string
+          team_movement: boolean
           ticket_id: string | null
           tickets_paid: number
         }
         Insert: {
           amount: number
           created_at?: string
+          from_seller_id?: string | null
           id?: string
           movement: Database['public']['Enums']['commission_movement']
           organization_id: string
           raffle_id: string
           rate: number
           seller_id: string
+          team_movement?: boolean
           ticket_id?: string | null
           tickets_paid: number
         }
         Update: {
           amount?: number
           created_at?: string
+          from_seller_id?: string | null
           id?: string
           movement?: Database['public']['Enums']['commission_movement']
           organization_id?: string
           raffle_id?: string
           rate?: number
           seller_id?: string
+          team_movement?: boolean
           ticket_id?: string | null
           tickets_paid?: number
         }
@@ -243,7 +249,9 @@ export type Database = {
       }
       memberships: {
         Row: {
+          commission_model: Database['public']['Enums']['commission_model']
           created_at: string
+          fixed_commission_amount: number | null
           id: string
           invited_by: string | null
           is_active: boolean
@@ -254,7 +262,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          commission_model?: Database['public']['Enums']['commission_model']
           created_at?: string
+          fixed_commission_amount?: number | null
           id?: string
           invited_by?: string | null
           is_active?: boolean
@@ -265,7 +275,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          commission_model?: Database['public']['Enums']['commission_model']
           created_at?: string
+          fixed_commission_amount?: number | null
           id?: string
           invited_by?: string | null
           is_active?: boolean
@@ -696,6 +708,8 @@ export type Database = {
           raffle_id: string
           rate: number
           seller_id: string
+          team_earned: number
+          team_tickets_paid: number
           tickets_paid: number
           updated_at: string
         }
@@ -705,6 +719,8 @@ export type Database = {
           raffle_id: string
           rate?: number
           seller_id: string
+          team_earned?: number
+          team_tickets_paid?: number
           tickets_paid?: number
           updated_at?: string
         }
@@ -714,6 +730,8 @@ export type Database = {
           raffle_id?: string
           rate?: number
           seller_id?: string
+          team_earned?: number
+          team_tickets_paid?: number
           tickets_paid?: number
           updated_at?: string
         }
@@ -1283,13 +1301,24 @@ export type Database = {
           earned: number
           next_min_tickets: number
           next_rate: number
+          pay_model: string
           projected_earned: number
           raffle_id: string
           rate: number
           seller_id: string
+          team_earned: number
+          team_tickets_paid: number
           tickets_paid: number
           tickets_to_next: number
         }[]
+      }
+      commission_team_earned: {
+        Args: {
+          p_organization_id: string
+          p_parent_id: string
+          p_raffle_id: string
+        }
+        Returns: Record<string, unknown>
       }
       create_payment: {
         Args: {
@@ -1362,6 +1391,7 @@ export type Database = {
           p_organization_id: string
           p_raffle_id: string
           p_seller_id: string
+          p_team_source?: string
           p_ticket_id?: string
         }
         Returns: undefined
@@ -1454,6 +1484,10 @@ export type Database = {
         Returns: undefined
       }
       team_delete_member: { Args: { p_member_id: string }; Returns: undefined }
+      team_max_fixed_commission: {
+        Args: { p_organization_id: string }
+        Returns: number
+      }
       team_member_guard: { Args: { p_member_id: string }; Returns: string }
       team_member_sales: {
         Args: { p_limit?: number; p_member_id: string }
@@ -1479,6 +1513,14 @@ export type Database = {
           total_collected: number
           total_sold: number
         }[]
+      }
+      team_set_commission_model: {
+        Args: {
+          p_amount?: number
+          p_member_id: string
+          p_model: Database['public']['Enums']['commission_model']
+        }
+        Returns: undefined
       }
       team_update_member: {
         Args: {
@@ -1543,6 +1585,7 @@ export type Database = {
     }
     Enums: {
       app_role: 'owner' | 'admin' | 'seller'
+      commission_model: 'tiered' | 'fixed_per_ticket'
       commission_movement:
         | 'sale'
         | 'sale_reverted'
@@ -1679,6 +1722,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ['owner', 'admin', 'seller'],
+      commission_model: ['tiered', 'fixed_per_ticket'],
       commission_movement: [
         'sale',
         'sale_reverted',

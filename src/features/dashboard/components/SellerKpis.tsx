@@ -30,8 +30,18 @@ type SellerKpisProps = {
   earningPerTicket: number
   /** Precio vigente de la rifa. `null` si no hay ninguna activa. */
   ticketPrice: number | null
-  /** Ganancia ya conseguida en esa rifa. */
+  /** Ganancia ya conseguida en esa rifa por lo que vendio EL MISMO. */
   earned: number
+  /**
+   * Lo que le deja su equipo en esa rifa (BR-G20). Cero para quien no tiene
+   * equipo, y entonces la linea no se dibuja.
+   *
+   * Va aparte de `earned` y no sumado dentro: son dinero de distinta
+   * procedencia, y un vendedor que arma equipo necesita ver cuanto le aporta
+   * —es la respuesta a «¿para qué me sirve tener equipo?»—. Sumadas en una sola
+   * cifra, esa pregunta no tendria respuesta en ninguna pantalla.
+   */
+  teamEarned: number
   /**
    * Siguiente tramo, para quien cobra por tramos y todavia tiene uno por
    * delante (BR-G02). `null` en los demas casos: quien cobra la mitad del
@@ -67,6 +77,7 @@ export function SellerKpis({
   earningPerTicket,
   ticketPrice,
   earned,
+  teamEarned,
   nextTier,
   className,
 }: SellerKpisProps) {
@@ -139,6 +150,14 @@ export function SellerKpis({
             {earned > 0 ? (
               <p className="text-muted-foreground text-xs tabular-nums">
                 Llevas {formatCOP(earned)} ganados
+              </p>
+            ) : null}
+            {/* Lo que le deja el equipo, en su propia linea (BR-G20). El
+                indicador de arriba dice lo que gana por CADA boleta suya, y
+                esto no cabe ahi: son boletas de otras personas. */}
+            {teamEarned > 0 ? (
+              <p className="text-muted-foreground text-xs tabular-nums">
+                Y {formatCOP(teamEarned)} por las ventas de tu equipo
               </p>
             ) : null}
             {/* Y el incentivo, para quien cobra por tramos. Se dice cuanto

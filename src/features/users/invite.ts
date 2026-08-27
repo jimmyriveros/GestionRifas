@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult } from '@/lib/action-result'
 
+import type { CommissionModel } from '@/lib/constants'
+
 import type { ManageableRole, UserFormInput } from './schemas'
 
 /**
@@ -42,6 +44,12 @@ type InviteMemberInput = {
    * (BR-E01). Sin este dato, la membresia nace a cargo del Dueño.
    */
   parentSellerId?: string
+  /**
+   * Solo para equipos: como se le va a pagar (BR-G24). Sin este dato la
+   * membresia nace con el default de la columna —`tiered` sin importe—, que es
+   * lo que corresponde a un vendedor dado de alta por el personal.
+   */
+  commission?: { model: CommissionModel; amount: number | null }
 }
 
 function siteUrl(): string {
@@ -83,7 +91,7 @@ export async function sendInvitation(
 }
 
 export async function inviteMember(input: InviteMemberInput): Promise<ActionResult> {
-  const { organizationId, invitedBy, role, values, parentSellerId } = input
+  const { organizationId, invitedBy, role, values, parentSellerId, commission } = input
 
   const invited = await sendInvitation(values.email, {
     full_name: values.fullName,
@@ -102,6 +110,15 @@ export async function inviteMember(input: InviteMemberInput): Promise<ActionResu
     role,
     invited_by: invitedBy,
     parent_seller_id: parentSellerId ?? null,
+    // Sin `commission` se omiten las dos columnas y la fila toma el default de
+    // la migracion 0031: `tiered` sin importe, que es el comportamiento de
+    // siempre para un vendedor dado de alta por el personal.
+    ...(commission
+      ? {
+          commission_model: commission.model,
+          fixed_commission_amount: commission.amount,
+        }
+      : {}),
   })
 
   if (membershipError) {

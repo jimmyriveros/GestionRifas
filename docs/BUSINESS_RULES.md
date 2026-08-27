@@ -105,7 +105,7 @@ en `/reset-password` y al entrar con contraseña (D-097).
 | ID | Regla | Capas | Fase |
 |----|-------|-------|------|
 | BR-G01 | La comisión se gana **por boleta pagada por completo** (`payment_status = 'paid'`), no por boleta vendida. Así la empresa nunca debe comisión por dinero que no entró. | D | post-9 |
-| BR-G13 | **Hay dos formas de pago, y la decide el equipo.** Quien fue creado **dentro de un equipo** (`parent_seller_id` no nulo) cobra por **tramos** (BR-G02, BR-G03). Quien **no depende de nadie** —incluido el vendedor que armó su propio equipo— cobra **la mitad del precio vigente de la rifa** por cada boleta cobrada completa. | D | post-9 |
+| BR-G13 | **La forma de pago la decide el equipo.** Quien **no depende de nadie** —incluido el vendedor que armó su propio equipo— cobra **la mitad del precio vigente de la rifa** por cada boleta cobrada completa. Quien fue creado **dentro de un equipo** (`parent_seller_id` no nulo) cobra según su `commission_model`: **tramos** (BR-G02, BR-G03) o una **cifra fija** (BR-G24). *Actualizada el 2026-08-27 por D-127: antes decía que todo integrante cobraba por tramos, sin alternativa.* | D | post-9 |
 | BR-G14 | En la forma «mitad del precio» **no hay niveles**: todas las boletas valen lo mismo y no existe «próximo nivel». La pantalla no puede hablarle de subir de nivel a quien no tiene niveles. | C, S | post-9 |
 | BR-G15 | Esa mitad se calcula sobre el **precio vigente de la rifa**, no sobre el `sale_price` congelado en la boleta (BR-P04). Consecuencia buscada: **cambiar el precio de la rifa cambia lo que se debe** por ventas ya cobradas, y el sistema lo recalcula solo. | D | post-9 |
 | BR-G16 | Entrar o salir de un equipo **cambia la forma de pago y se aplica hacia atrás**: el sistema recalcula todas las rifas de esa persona en el momento del cambio, sin esperar a su próxima venta. | D | post-9 |
@@ -121,8 +121,15 @@ en `/reset-password` y al entrar con contraseña (D-097).
 | BR-G11 | Un vendedor **no puede modificar** su comisión, su tramo, su recuento ni su ganancia: no existe privilegio de escritura sobre las tres tablas para ninguna sesión. Todo lo escribe una función `SECURITY DEFINER`. | D | post-9 |
 | BR-G12 | Cada quien ve su comisión; el vendedor padre, la de su equipo; el Dueño y el Administrador, la de toda la organización. El **detalle de movimientos** es de cada quien y del personal. | D | post-9 |
 | BR-G17 | **La rebaja que concede un vendedor la asume él, entera.** Su comisión pasa a ser `n × tarifa(n) − Σ rebajas de sus boletas cobradas`. Lo que le queda a la empresa —`precio oficial − tarifa` por boleta— **no cambia nunca** por una rebaja. | D | post-9 |
-| BR-G18 | El **descuento máximo** es la tarifa **mínima garantizada** de esa persona en esa rifa, no la que cobra hoy: el tramo más bajo de la organización para quien cobra por tramos, la mitad del precio para quien no. La tarifa por tramos baja sola al anularse un pago (BR-G06), así que una rebaja calculada sobre la tarifa alta dejaría esa venta en comisión negativa. | C, S, D | post-9 |
-| BR-G19 | La comisión **nunca es negativa**. `commission_floor_rate` ya lo impide por diseño; el recorte a cero del motor cubre el único camino que quedaba —bajar el precio de la rifa después de una venta rebajada (BR-G15)—. Este negocio no tiene deudas del vendedor hacia la empresa. | D | post-9 |
+| BR-G18 | El **descuento máximo** es la tarifa **mínima garantizada** de esa persona en esa rifa, no la que cobra hoy: el tramo más bajo de la organización para quien cobra por tramos, **su cifra fija para quien cobra fijo** (no se mueve con el volumen), y la mitad del precio para quien no pertenece a un equipo. La tarifa por tramos baja sola al anularse un pago (BR-G06), así que una rebaja calculada sobre la tarifa alta dejaría esa venta en comisión negativa. | C, S, D | post-9 |
+| BR-G19 | La comisión **nunca es negativa**. `commission_floor_rate` ya lo impide por diseño; el recorte a cero del motor cubre los caminos que quedan —bajar el precio de la rifa después de una venta rebajada (BR-G15) y **bajar la cifra fija de un integrante que ya rebajó** (BR-G24)—. Este negocio no tiene deudas del vendedor hacia la empresa. | D | post-9 |
+| BR-G20 | **El vendedor padre cobra por las ventas de su equipo, y de ahí sale la ganancia del integrante.** Por cada boleta que un integrante cobra por completo, el padre recibe **la mitad del precio vigente de la rifa menos la tarifa del integrante**. Se guarda aparte, en `seller_commissions.team_earned`, y no se mezcla con lo que ganó vendiendo él mismo. | D | post-9 |
+| BR-G21 | **La empresa se queda siempre la mitad del precio de cada boleta cobrada, la venda quien la venda.** Es la consecuencia de BR-G20 y la invariante que ordena todo el reparto: `cobrado − Σ comisiones = n × (precio oficial ÷ 2)`. No depende del tramo, ni del reparto interno del equipo, ni de las rebajas. Lo comprueba `E10-06`. | D | post-9 |
+| BR-G22 | El ledger separa las dos procedencias con `commission_ledger.team_movement`, y **BR-G10 se cumple por partes**: `sum(amount where not team_movement) = earned` y `sum(amount where team_movement) = team_earned`. Comprobarlas por separado es más fuerte que comprobar el total, donde un error podría compensarse entre las dos. `from_seller_id` dice de qué integrante vino, cuando lo provocó uno concreto. | D | post-9 |
+| BR-G23 | La cifra fija de un integrante **no puede superar la mitad del precio de la rifa**: es el bolsillo entero de su vendedor padre por esa boleta (BR-G20). En el tope justo, el padre cede su parte completa y se queda con cero; nunca puede quedar en negativo. Lo aplica un trigger sobre `memberships`, así que cubre el alta y la edición por igual. | C, S, D | post-9 |
+| BR-G24 | **Dos formas de pagarle a un integrante**, elegidas por su vendedor padre: `tiered` (los tramos de la organización, y el valor por defecto) o `fixed_per_ticket` (una cifra fija por boleta cobrada completa, sin niveles). Viven en `memberships.commission_model` y `fixed_commission_amount`, que **es** la relación entre el padre y el integrante. Con `parent_seller_id` nulo la configuración queda inerte, no se borra: volver a entrar al equipo la reactiva tal como estaba. | C, S, D | post-9 |
+| BR-G25 | Cambiar la forma de pago **recalcula hacia atrás todas las rifas** del integrante y la parte de su vendedor padre, **en la misma transacción** que el cambio. Si el recálculo falla, la configuración no queda guardada: nunca hay una cifra nueva junto a unos importes viejos. Lo dispara el trigger `memberships_sync_commission`. | D | post-9 |
+| BR-G26 | Solo el **vendedor padre** cambia la configuración de **su propio** equipo, por `team_set_commission_model` y bajo `team_member_guard` (la misma puerta que corregir y eliminar a un integrante). No existe política de UPDATE para un vendedor sobre `memberships`: una la habría dejado reescribir además `is_active`, `role` o `parent_seller_id`. Queda en `audit_logs` con la acción `user.commission_model`. | S, D | post-9 |
 
 **Por qué BR-G17 es la traducción correcta del encargo.** El encargo pedía «el Admin nunca pierde
 dinero por el descuento» y lo expresaba como `adminAmount = officialPrice × adminPercentage`. **Aquí
@@ -137,6 +144,12 @@ cobrado a los clientes − comisión del vendedor = n × (precio oficial − tar
 El lado derecho **no contiene la rebaja**. Da igual cuánto rebaje el vendedor: lo que le queda a la
 empresa depende solo del precio oficial y de la tarifa pactada. Lo comprueba `E8-10`.
 
+**Matiz añadido el 2026-08-27 (BR-G20, D-127).** Ese lado derecho dejó de ser «lo de la empresa»
+cuando quien vende es un integrante de equipo: de ahí sale además la parte de su vendedor padre. La
+identidad sigue siendo cierta y sigue garantizando lo que garantizaba —la rebaja no la toca—, pero lo
+que la empresa se queda de verdad es lo de BR-G21: **la mitad del precio, siempre**. Las dos se
+comprueban por separado, `E8-10` y `E10-06`.
+
 **Nota sobre BR-G07 — reasignar una boleta vendida es imposible, no solo prohibido.**
 `tickets_client_seller_fk` es una FK compuesta `(client_id, seller_id) → clients (id, seller_id)` y
 **no es diferible**. Una boleta vendida siempre tiene cliente, y el cliente pertenece a su vendedor
@@ -145,9 +158,16 @@ hay transacción que lo salve. Comprobado con la *service role*, que se salta la
 negocio. El motor conserva su rama de cambio de vendedor porque cubre las boletas **sin vender**
 (BR-B04) y deja el camino listo si algún día el negocio permite trasladar una cartera completa.
 
-**Todavía no existe comisión del vendedor padre sobre las ventas de su equipo.** Es una regla
-comercial que el dueño aún no ha definido. La arquitectura queda preparada —el ledger tiene tipo de
-movimiento y el estado es por vendedor—, pero no se implementa nada de eso.
+> ~~**Todavía no existe comisión del vendedor padre sobre las ventas de su equipo.** Es una regla
+> comercial que el dueño aún no ha definido. La arquitectura queda preparada —el ledger tiene tipo de
+> movimiento y el estado es por vendedor—, pero no se implementa nada de eso.~~
+>
+> **Sustituido el 2026-08-27 por BR-G20 (D-127).** El dueño definió la regla: el vendedor padre cobra
+> por las ventas de su equipo, y de ahí sale la ganancia del integrante. La previsión resultó
+> acertada —el motor no cambió de principio y el ledger absorbió los movimientos nuevos con una
+> columna— pero se quedó corta en un punto que costó una prueba encontrar: hizo falta separar el
+> ledger por procedencia (BR-G22), porque el estado por vendedor ya no explica de dónde vino su
+> dinero.
 
 ---
 

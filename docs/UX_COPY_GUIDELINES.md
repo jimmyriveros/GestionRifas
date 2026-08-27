@@ -351,6 +351,9 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Precio que la rifa fija para todas sus boletas | **Precio de la rifa** | Precio oficial, precio base, tarifa |
 | Vender una boleta por debajo de ese precio | **Rebajar** el precio; la **rebaja** | Descuento, promoción, oferta, rebajar la boleta |
 | Lo que gana el vendedor por cada boleta cobrada | **Ganancia** | Comisión, participación, utilidad |
+| Que la ganancia suba según cuántas boletas lleve cobradas | **Ganancia por tramos**; cada escalón es un **tramo** | Comisión escalonada, niveles, rangos |
+| Una cantidad igual por cada boleta, sin escalones | **Ganancia fija por boleta** | Tarifa plana, monto fijo, cuota |
+| Volver a calcular lo ya cobrado con la ganancia nueva | **Recalcular** | Reprocesar, actualizar, recomputar |
 | Conjunto de vendedores a cargo de otro vendedor | **Equipo** | Red, grupo, downline, sucursal |
 | Vendedor que pertenece al equipo de otro | **Vendedor** (a secas), o **integrante** del equipo | Sub-vendedor, hijo, subordinado, mini admin |
 | Incorporar un vendedor a tu equipo | **Agregar vendedor** | Crear sub-vendedor, reclutar, vincular |
@@ -456,6 +459,26 @@ justamente lo que un vendedor necesita leer al entrar.
 cuatro —Mi equipo, Rifas, Reportes— **no se enciende ninguna opción**. Dejar «Panel» encendido
 mientras se lee un reporte sería más cómodo de mirar y falso.
 
+**La ganancia del integrante sale del bolsillo de su vendedor padre, y eso se dice** (D-127). Es lo
+único de esa pantalla que quien elige no puede deducir mirándola, así que acompaña siempre a las dos
+tarjetas: «Su ganancia sale de la tuya: de cada boleta que cobre tu equipo, tú recibes lo que quede
+después de pagarle.» De ahí sale también el tope, y se explica con la misma cifra en vez de con una
+regla abstracta: «Puedes darle hasta $60.000, que es lo que ganas tú por boleta». Cuando la base de
+datos lo rechaza dice lo mismo con otras palabras —«No puedes pagarle más de $60.000 por boleta: es
+lo que ganas tú por cada boleta y de ahí sale su ganancia»—, nunca «valor fuera de rango».
+
+**Cambiar la ganancia se anuncia antes de guardar, no después** (D-127). El aviso aparece **en el
+momento** en que la elección deja de ser la que estaba guardada —igual que el del cambio de correo—,
+y dice las dos consecuencias, incluida la que afecta a quien está decidiendo: «Al guardar, volvemos a
+calcular las boletas que [nombre] ya cobró con esta nueva ganancia. Lo que lleva acumulado puede
+subir o bajar, y lo tuyo también.» El botón dice **«Guardar y recalcular»**, no «Guardar»: es lo que
+convierte el aviso en algo que no se puede saltar sin leerlo. No hay un segundo diálogo de
+confirmación encima, porque taparía la cifra que se acaba de escribir.
+
+**«Cambiar», no «Editar», para la ganancia.** «Editar datos» ya existe en esa misma pantalla y es
+otra cosa —corregir un teléfono no recalcula nada—. Dos botones «Editar» a un centímetro que hacen
+cosas de gravedad distinta se tocan por error.
+
 **Nadie es un «sub-vendedor» en pantalla.** Dentro del código existe `parent_seller_id` y la
 documentación habla de jerarquía, pero para el usuario todos son **vendedores**: unos tienen equipo y
 otros no (BR-E01). Cuando haga falta distinguirlo, se dice **«los vendedores de tu equipo»** o
@@ -559,6 +582,10 @@ castigo donde solo había una espera.
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
 | «Seleccionar varias» y su «Cancelar» | `src/features/tickets/selection/components/TicketSelectionModeButton.tsx` (D-108) |
+| Nombres de las dos formas de pagar a un integrante | `src/lib/constants.ts` (`COMMISSION_MODEL_LABELS`, D-127) |
+| Textos de las dos tarjetas de elección, el tope y el campo de la cifra | `src/features/team/components/CommissionModelField.tsx` (D-127) |
+| Aviso de recálculo y «Guardar y recalcular» | `src/features/team/components/TeamCommissionDialog.tsx` (D-127) |
+| Rótulos de la tarjeta «Cuánto gana» de la ficha del integrante | `src/features/team/components/TeamCommissionCard.tsx` (D-127) |
 | Errores de validación de formularios | `schemas.ts` de cada módulo de `src/features/` (mensajes de Zod) |
 | Errores devueltos por el servidor | `src/lib/errors.ts` (`mapPgError`) y los `RAISE` de las migraciones |
 | Títulos y descripciones de pantalla | `PageHeader` de cada `page.tsx` |

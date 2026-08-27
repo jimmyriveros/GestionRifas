@@ -25,15 +25,14 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { ROLE_LABELS } from '@/lib/constants'
+import { CommissionModelField } from '@/features/team/components/CommissionModelField'
+import type { CommissionTier } from '@/features/commissions/queries'
+import { createTeamMemberSchema } from '@/features/team/schemas'
+import { ROLE_LABELS, type CommissionModel } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 
 import { createUser, updateUser } from '../actions'
-import {
-  userFormDefaults,
-  userFormSchema,
-  type ManageableRole,
-  type UserFormInput,
-} from '../schemas'
+import { userFormDefaults, type ManageableRole, type UserFormInput } from '../schemas'
 
 export type EditableUser = {
   profileId: string
@@ -52,10 +51,39 @@ export type EditableUser = {
  * NO existieran dos formularios distintos para crear un vendedor.
  */
 export type CreateOverride = {
-  submit: (values: UserFormInput) => Promise<{ ok: true } | { error: string }>
+  submit: (values: UserDialogValues) => Promise<{ ok: true } | { error: string }>
   title: string
   description: string
   success: (email: string) => string
+}
+
+/**
+ * Los datos que necesita la seccion «Cómo le vas a pagar» (BR-G24, D-127).
+ *
+ * Su presencia es lo que la enciende: el alta del portal administrativo no la
+ * pasa y no la ve, porque un vendedor de la organizacion cobra la mitad del
+ * precio y no hay nada que elegir (BR-G13). Solo el alta de un integrante de
+ * equipo la pasa.
+ */
+export type CommissionOptions = {
+  tiers: CommissionTier[]
+  /** La mitad del precio de la rifa: el tope. `null` si no hay ninguna rifa. */
+  maxFixed: number | null
+}
+
+/**
+ * Lo que sale del formulario.
+ *
+ * SIEMPRE lleva los campos de comision, tambien cuando la seccion no se dibuja,
+ * y esa es la decision que mantiene UN solo formulario: con dos esquemas segun
+ * el caso habria dos tipos de valores, dos resolvers y dos ramas de envio para
+ * cuatro campos que son identicos. Sin la seccion, `commissionModel` se queda en
+ * su valor por defecto —`tiered`, que es tambien el de la columna— y la accion
+ * que recibe los valores los descarta al validar con SU propio esquema.
+ */
+export type UserDialogValues = UserFormInput & {
+  commissionModel: CommissionModel
+  fixedCommissionAmount?: number | null
 }
 
 /**
@@ -85,6 +113,8 @@ type UserDialogProps = {
   create?: CreateOverride
   /** Presente cuando la edicion no es la del portal administrativo. */
   edit?: EditOverride
+  /** Presente solo en el alta de un integrante de equipo (BR-G24). */
+  commission?: CommissionOptions
 }
 
 /**
@@ -94,7 +124,15 @@ type UserDialogProps = {
  * dialogo: cada apertura empieza con valores frescos sin necesidad de
  * sincronizar estado con un efecto.
  */
-export function UserDialog({ open, onOpenChange, role, user, create, edit }: UserDialogProps) {
+export function UserDialog({
+  open,
+  onOpenChange,
+  role,
+  user,
+  create,
+  edit,
+  commission,
+}: UserDialogProps) {
   const isEdit = user !== undefined
   const roleLabel = ROLE_LABELS[role].toLowerCase()
 
@@ -106,7 +144,12 @@ export function UserDialog({ open, onOpenChange, role, user, create, edit }: Use
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      {/* Con la seccion de ganancia el dialogo necesita el doble de ancho para
+          que las dos tarjetas quepan lado a lado en escritorio; en telefono se
+          apilan igual. Sin ella se queda como estaba. */}
+      <DialogContent
+        className={cn('max-h-[90dvh] overflow-y-auto', commission ? 'sm:max-w-2xl' : 'sm:max-w-md')}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -117,6 +160,7 @@ export function UserDialog({ open, onOpenChange, role, user, create, edit }: Use
           user={user}
           create={create}
           edit={edit}
+          commission={commission}
           onDone={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -129,12 +173,14 @@ function UserDialogForm({
   user,
   create,
   edit,
+  commission,
   onDone,
 }: {
   role: ManageableRole
   user?: EditableUser
   create?: CreateOverride
   edit?: EditOverride
+  commission?: CommissionOptions
   onDone: () => void
 }) {
   const router = useRouter()
@@ -143,12 +189,25 @@ function UserDialogForm({
   const isEdit = user !== undefined
   const emailLocked = isEdit && edit?.emailEditable !== true
 
-  const form = useForm<UserFormInput>({
-    resolver: zodResolver(userFormSchema),
+  // UN solo esquema para los dos usos, por lo mismo que hay un solo formulario:
+  // el del integrante es el superconjunto, y con `commissionModel` en `tiered`
+  // —su valor por defecto— valida exactamente igual que el del portal
+  // administrativo. Ver `UserDialogValues`.
+  const form = useForm<UserDialogValues>({
+    resolver: zodResolver(createTeamMemberSchema),
     defaultValues: user
-      ? { fullName: user.fullName, alias: user.alias ?? '', phone: user.phone, email: user.email }
-      : userFormDefaults,
+      ? {
+          fullName: user.fullName,
+          alias: user.alias ?? '',
+          phone: user.phone,
+          email: user.email,
+          commissionModel: 'tiered',
+        }
+      : { ...userFormDefaults, commissionModel: 'tiered' },
   })
+
+  const commissionModel = useWatch({ control: form.control, name: 'commissionModel' })
+  const fixedAmount = useWatch({ control: form.control, name: 'fixedCommissionAmount' })
 
   // El correo que se esta escribiendo, para avisar EN EL MOMENTO en que deja de
   // ser el de siempre. Un aviso permanente se lee como decorado; uno que
@@ -163,7 +222,7 @@ function UserDialogForm({
     edit?.emailEditable === true &&
     emailValue.trim().toLowerCase() !== user.email.toLowerCase()
 
-  function onSubmit(values: UserFormInput) {
+  function onSubmit(values: UserDialogValues) {
     setServerError(null)
     startTransition(async () => {
       const result = user
@@ -287,6 +346,32 @@ function UserDialogForm({
             </FormItem>
           )}
         />
+
+        {/* Va DESPUES de los datos de contacto y no antes: primero se dice a
+            quien se esta agregando y luego cuanto se le paga. Solo en el alta —
+            cambiarselo a alguien que ya vende recalcula dinero hacia atras y
+            eso pide su propio aviso, asi que vive en su propio dialogo
+            (`TeamCommissionDialog`). */}
+        {commission && !isEdit ? (
+          <CommissionModelField
+            value={commissionModel}
+            onChange={(value) => {
+              form.setValue('commissionModel', value)
+              // Cambiar a tramos deja el importe fuera del envio: es la misma
+              // regla que la restriccion de la base de datos, aplicada aqui
+              // para que la pantalla no muestre un error de un campo que ya no
+              // se ve.
+              if (value === 'tiered') form.setValue('fixedCommissionAmount', null)
+              form.clearErrors('fixedCommissionAmount')
+            }}
+            amount={fixedAmount ?? null}
+            onAmountChange={(value) => form.setValue('fixedCommissionAmount', value)}
+            tiers={commission.tiers}
+            maxFixed={commission.maxFixed}
+            disabled={isPending}
+            error={form.formState.errors.fixedCommissionAmount?.message}
+          />
+        ) : null}
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>
