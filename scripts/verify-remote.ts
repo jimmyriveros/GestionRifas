@@ -91,6 +91,60 @@ const CHECKS: Check[] = [
     esperado: 0,
   },
   {
+    // La comprobacion que faltaba y que destapo I-078.
+    //
+    // POR QUE NO BASTA CON MIRAR `anon`. Las funciones internas —disparadores,
+    // ayudantes y el motor de comision— nunca deben poder llamarse desde una
+    // SESION, y en el proyecto real 34 de ellas si podian: los privilegios por
+    // defecto de `postgres` para las funciones de `public` incluyen ahi
+    // `authenticated`, y en la pila local no. Es decir: **ninguna prueba local
+    // podia verlo**, y por eso vivio desde la Fase 2.
+    //
+    // El criterio es «tiene EXECUTE para `authenticated` y NO deberia»:
+    //
+    //   * Se excluyen las funciones de extension (`pg_trgm`), que no son
+    //     nuestras y no tocan datos.
+    //   * Se excluye lo que la aplicacion SI debe poder llamar: la lista blanca
+    //     de abajo son las 26 RPC del codigo mas las siete funciones que usan
+    //     las POLITICAS de RLS —sin EXECUTE sobre ellas, toda lectura fallaria,
+    //     porque la expresion de una politica se evalua como quien consulta—.
+    //
+    // Si esta comprobacion falla despues de anadir una funcion, la respuesta
+    // correcta casi siempre es revocarla, no meterla en la lista. Solo entra
+    // aqui lo que de verdad se llama desde el navegador o desde una politica.
+    nombre: 'Funciones INTERNAS ejecutables por authenticated (I-078)',
+    sql: `select p.proname as x
+          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.prokind = 'f'
+            and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+            and not exists (
+              select 1 from pg_depend d join pg_extension e on e.oid = d.refobjid
+              where d.objid = p.oid and d.deptype = 'e'
+            )
+            and p.proname not in (
+              -- Las 26 RPC que llama la aplicacion
+              'approve_tickets', 'bulk_assign_tickets', 'bulk_cancel_tickets',
+              'bulk_change_ticket_seller', 'bulk_create_tickets', 'bulk_delete_tickets',
+              'cancel_ticket', 'commission_summary', 'create_payment',
+              'import_tickets_with_clients', 'log_ticket_import', 'mark_profile_activated',
+              'report_payment_totals', 'report_payments_by_day', 'search_tickets',
+              'taken_ticket_combinations', 'team_confirm_email_change', 'team_delete_member',
+              'team_max_fixed_commission', 'team_member_sales', 'team_sales_summary',
+              'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
+              'ticket_sale_price_limits', 'void_payment',
+              -- Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
+              'current_org_ids', 'current_profile_id', 'current_profile_leads_team',
+              'current_staff_org_ids', 'current_team_seller_ids', 'has_org_role',
+              'is_org_staff',
+              -- Auxiliares que si se llaman desde la aplicacion o desde una
+              -- columna generada, y no dan acceso a ningun dato
+              'assign_ticket', 'format_cop', 'search_normalize',
+              'match_ticket_import_clients', 'ticket_import_name_key', 'ticket_import_phone_key'
+            )`,
+    esperado: 0,
+  },
+  {
     nombre: 'Politicas que llaman a is_org_staff( por fila (I-019)',
     sql: `select tablename || '.' || policyname as x from pg_policies
           where schemaname = 'public'

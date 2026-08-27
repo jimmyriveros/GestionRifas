@@ -4306,3 +4306,108 @@ toca, están igual desde el 2026-08-13— y que la causa es que esas migraciones
 sin incluir `authenticated`. **No se corrigió en caliente**: meter una migración no planeada en mitad
 de un despliegue autorizado para otra cosa es peor práctica que documentarlo. Detalle y salida
 propuesta en `KNOWN_ISSUES.md` **I-078**.
+
+---
+
+## I-078 corregido: las funciones internas dejan de ser ejecutables desde una sesión (2026-08-27)
+
+Migración `0032_internal_function_grants.sql`, D-128.
+
+### Lo que la auditoría cambió respecto a cómo se abrió la incidencia
+
+I-078 se abrió diciendo «las seis funciones del motor de comisiones». Al auditar el esquema completo
+resultaron ser **34**, y el problema no era de las comisiones:
+
+| | Local | Producción |
+|---|---|---|
+| Default ACL de `postgres` para funciones de `public` | `{postgres=X/postgres}` | `{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}` |
+| Funciones internas ejecutables por `authenticated` | **0** | **34** |
+
+El proyecto alojado nace con ese `grant execute … to authenticated` puesto por la plataforma; la pila
+local de la CLI no. `0015` revocó del default `anon` y `public` pero nunca `authenticated`.
+
+**De ahí la conclusión incómoda: ninguna prueba local podía detectarlo, y por eso vivió desde la Fase
+2** —pasando la auditoría de endurecimiento de la Fase 7 y la independiente de la Fase 9—.
+
+Alcance: los **23 disparadores**, el **motor de comisión entero** y ayudantes internos.
+`write_audit_log` y `notify_profiles` son los que de verdad molestaban: con ellos una sesión podía
+anotar en la bitácora hechos que no ocurrieron y crear avisos a nombre de cualquiera.
+
+### Cómo se comprobó: por experimento, no por argumento
+
+Una prueba local que pasa **no demuestra nada aquí**, porque la condición no existe en local. Así que
+se reprodujo:
+
+| Paso | Resultado |
+|---|---|
+| 1. Reproducir la condición de producción en local (`alter default privileges … grant …` + los 34 `grant`) | Default ACL local pasa a `{postgres=X/postgres,authenticated=X/postgres}` |
+| 2. Ejecutar la prueba nueva de `catalog.test.ts` | **FALLA**, listando exactamente las 34. Detecta |
+| 3. Aplicar el cuerpo de `0032` | Default vuelve a `{postgres=X/postgres}`; las 34 revocadas |
+| 4. Volver a ejecutar `catalog.test.ts` | **21/21** |
+| 5. `test:db` completo sobre ese estado | **545/545** |
+| 6. `test:e2e` completo, base sembrada limpia y caché caliente | **296/296** en 14,8 min |
+
+El paso 5 es la prueba de que no rompe nada: las suites usan **sesiones reales** (`signInAs`), no la
+clave de servicio.
+
+### Verificación previa de que no se rompía ninguna llamada
+
+* La divergencia entre entornos es de **34 funciones en un solo sentido, cero en el contrario**: todo
+  lo que la aplicación necesita tiene ya su `grant` **explícito** desde su propia migración.
+* Las **26 RPC** que llama el código (`grep -rho "\.rpc('…'" src/`) **no aparecen** en la lista de
+  revocación. Intersección comprobada: vacía.
+* Las **siete** funciones que usan las políticas de RLS (`current_*`, `has_org_role`, `is_org_staff`)
+  se quedan: la expresión de una política se evalúa como quien consulta, y sin `EXECUTE` fallaría toda
+  lectura.
+
+### El error que se evitó
+
+La forma corta —`revoke execute on all functions in schema public from authenticated`— habría roto
+producción entera: un `revoke` **no distingue de dónde vino el privilegio**, así que se habría llevado
+por delante los `grant` explícitos de las 26 RPC y el portal habría respondido «permission denied for
+function» en todas partes. Por eso las 34 van una por una, con su firma completa.
+
+### Detección, que era la otra mitad del problema
+
+* **`scripts/verify-remote.ts`** gana «Funciones INTERNAS ejecutables por `authenticated` (I-078)».
+  Es la única comprobación que mira el proyecto real, y por tanto la única que puede ver esta clase de
+  divergencia.
+* **`tests/db/catalog.test.ts`** gana la gemela, con un aviso escrito en su cabecera: **pasaría igual
+  si el problema volviera**, porque en local la condición no se da. Se mantiene porque fija la lista
+  blanca donde se lee al cambiarla y porque detecta el caso contrario —un `grant` a mano en una
+  migración—, que sí viajaría a local.
+* Si se toca la lista blanca, se toca en **los dos sitios**.
+
+### Regla nueva
+
+`SECURITY.md` §4.5 pasa a decirlo explícitamente: **una función nueva que la aplicación deba poder
+llamar necesita su `grant execute … to authenticated` explícito.** Ya era así en local; ahora también
+en producción, que es justo lo que hace que una prueba local signifique algo.
+
+### Los tres fallos E2E de la primera pasada, y por qué ninguno era de `0032`
+
+La primera pasada completa dio **293 pasadas y 3 fallos**, los tres en `back-navigation.spec.ts`. Se
+diagnosticaron uno por uno antes de darlos por ajenos, porque un permiso revocado de más habría
+aparecido justo así —una pantalla que no carga—:
+
+| Prueba | Error real | Causa |
+|---|---|---|
+| `:91` | **strict mode violation**: `Ver la boleta 0254` resolvió a **6 elementos** | Contaminación de datos. `test:db` se ejecutó **tres veces** —la pasada normal, la de la condición reproducida y la de después— sin volver a sembrar, y las suites dejan boletas. Es la familia I-035 / I-057 |
+| `:25` | `page.waitForURL` agotó los 60 s | **I-075**: caché `.next/dev` fría |
+| `:76` | `locator.click` agotó los 60 s esperando el enlace «Editar» | **I-075** también. Con la caché caliente pasa en **3,9 s** |
+
+**Ninguno menciona «permission denied for function»**, que es como se habría manifestado un `revoke`
+de más. Con la base sembrada limpia los dos primeros pasan, y el tercero pasa al repetirlo en
+caliente.
+
+De aquí sale una ampliación de **I-075**: no falla solo *la primera* prueba del proyecto, pueden
+caer varias hasta que el compilador se calienta.
+
+**Lección de proceso, ya escrita en `HANDOFF`:** siembra antes de una pasada completa de E2E, y
+hazlo también **después de cada `test:db`**, no solo al principio.
+
+### Pasada definitiva
+
+Con la base **sembrada limpia** y la caché de Next caliente: **296/296 en 14,8 min**, cero fallos.
+Junto con las **545/545** de base de datos y `verify` en verde, es la evidencia de que `0032` no
+rompe ninguna llamada de la aplicación.

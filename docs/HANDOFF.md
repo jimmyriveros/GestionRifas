@@ -93,7 +93,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — el equipo reparte una sola mitad (2026-08-27)
+## 1.a Último relevo significativo — I-078: las funciones internas dejan de ser ejecutables desde una sesión (2026-08-27)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Cerrado I-078, que resultó ser más grande y más viejo de lo que parecía al abrirlo.** No eran las seis funciones del motor de comisión: eran **34** —los 23 disparadores, el motor entero y ayudantes como `write_audit_log` y `notify_profiles`—, y no vivían desde `0024` sino desde la **Fase 2**. **La causa no es de las comisiones, es del privilegio POR DEFECTO**: los defaults de `postgres` para las funciones de `public` difieren entre entornos (local `{postgres=X/postgres}`, producción `{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}`), y `0015` revocó `anon` y `public` del default pero nunca `authenticated`. **⚠️ `0032` NO desplegada** |
+| Archivos | Migración **`0032_internal_function_grants.sql`**; `scripts/verify-remote.ts` (comprobación nueva), `tests/db/catalog.test.ts` (invariante gemela, +1 prueba). Documentación: `DECISIONS` (**D-128**), `SECURITY` §4.5, `KNOWN_ISSUES` (I-078 cerrado), `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | Ni una función nueva. La comprobación de `verify-remote.ts` es la **gemela** de la que ya existía para `anon` (la que destapó I-020), con la misma forma y la misma exclusión de funciones de extensión; la de `catalog.test.ts`, igual |
+| Decisiones | **D-128.** Lo no evidente: **(a)** se arregla **el default** además de las 34, porque sin eso la próxima migración recrea el problema; **(b)** `service_role` conserva todo, también en el default —es el rol de la reparación operativa que `0024` habilita a propósito—; **(c)** las 34 van **una por una con su firma**, nunca `revoke … on all functions`: un `revoke` no distingue de dónde vino el privilegio y se habría llevado los `grant` explícitos de las 26 RPC, dejando producción en «permission denied» |
+| Verificación | **Por experimento, porque una prueba local que pasa no demuestra nada aquí:** se **reprodujo la condición de producción** en local, la prueba nueva **falló listando exactamente las 34**, se aplicó `0032` y el default volvió a `{postgres=X/postgres}`. Sobre ese estado: **545/545** de base de datos (+1). Pasada definitiva con base sembrada limpia: **E2E 296/296** en 14,8 min y `verify` en verde, todas con sesiones reales. Comprobado antes de escribir que la divergencia es de **34 funciones en un solo sentido, cero en el contrario**, y que las **26 RPC** del código no aparecen en la lista (intersección vacía). **Tres fallos E2E en la primera pasada, ninguno de este cambio** y todos diagnosticados uno a uno en `TEST_RESULTS`: uno de contaminación de datos (`test:db` tres veces sin resembrar) y dos de **I-075** |
+| Advertencias | **1) La prueba de `catalog.test.ts` PASARÍA IGUAL SI EL PROBLEMA VOLVIERA**, y está escrito en su cabecera: en local la condición no se da. **La que cierra esto de verdad es la de `verify-remote.ts`**, porque es la única que mira el proyecto real. Si tocas la lista blanca, tócala en **los dos sitios**. **2) REGLA NUEVA:** una función que la aplicación deba poder llamar necesita su `grant execute … to authenticated` **explícito** (`SECURITY.md` §4.5). Ya era así en local; tras desplegar, también en producción. **3)** No revoques `service_role`: `0024` se apoya en él para poder recalcular una comisión a mano. **4)** Las funciones de **disparador no necesitan `EXECUTE`** para dispararse —PostgreSQL comprueba el permiso sobre la tabla—; lo demuestra local, donde llevan así desde el principio |
+| Publicación | **Sin desplegar.** Commit local únicamente |
+| Pendiente | Autorizar y desplegar `0032` (respaldo previo). **No toca ni un dato**, así que la reversión es conceder de nuevo; el síntoma de un fallo sería «permission denied for function \<nombre\>» en el registro, y la reparación correcta es conceder **esa función concreta**, no deshacer el default |
+| Git | Rama `main`, desde `0891edc` |
+
+## 1.a.0 Relevo anterior — el equipo reparte una sola mitad (2026-08-27)
 
 | Campo | Estado |
 |---|---|

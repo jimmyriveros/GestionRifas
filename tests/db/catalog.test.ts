@@ -164,6 +164,90 @@ describe('funciones privilegiadas', () => {
     expect(rows.map((r) => r.proname)).toEqual([])
   })
 
+  /**
+   * La gemela de la anterior, para `authenticated` (I-078, D-128).
+   *
+   * ⚠️ ESTA PRUEBA PASABA ANTES DE EXISTIR EL PROBLEMA Y SEGUIRA PASANDO SI
+   * VUELVE. No es un fallo suyo: es que **en local nunca ocurrio**. Los
+   * privilegios por defecto de `postgres` para las funciones de `public` son
+   * distintos en los dos entornos —en el proyecto real incluyen
+   * `authenticated`, en la pila local no—, asi que 34 funciones internas
+   * llevaban desde la Fase 2 siendo ejecutables desde una sesion **solo en
+   * produccion**, y ninguna prueba de aqui podia verlo.
+   *
+   * Se mantiene igualmente por dos razones: fija la lista blanca en un sitio
+   * que se lee al cambiarla, y detecta el caso contrario —que alguien conceda
+   * a mano una funcion interna en una migracion—, que si viajaria a local.
+   *
+   * **La comprobacion que de verdad cierra I-078 es la de
+   * `scripts/verify-remote.ts`**, porque es la unica que mira el proyecto real.
+   * Si tocas la lista blanca, cambiala en los DOS sitios.
+   */
+  it('NINGUNA funcion interna es ejecutable por authenticated (I-078)', async () => {
+    const PUBLICAS = [
+      // Las 26 RPC que llama la aplicacion
+      'approve_tickets',
+      'bulk_assign_tickets',
+      'bulk_cancel_tickets',
+      'bulk_change_ticket_seller',
+      'bulk_create_tickets',
+      'bulk_delete_tickets',
+      'cancel_ticket',
+      'commission_summary',
+      'create_payment',
+      'import_tickets_with_clients',
+      'log_ticket_import',
+      'mark_profile_activated',
+      'report_payment_totals',
+      'report_payments_by_day',
+      'search_tickets',
+      'taken_ticket_combinations',
+      'team_confirm_email_change',
+      'team_delete_member',
+      'team_max_fixed_commission',
+      'team_member_sales',
+      'team_sales_summary',
+      'team_set_commission_model',
+      'team_update_member',
+      'ticket_bulk_eligibility',
+      'ticket_sale_price_limits',
+      'void_payment',
+      // Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
+      'current_org_ids',
+      'current_profile_id',
+      'current_profile_leads_team',
+      'current_staff_org_ids',
+      'current_team_seller_ids',
+      'has_org_role',
+      'is_org_staff',
+      // Auxiliares llamadas desde la aplicacion o desde una columna generada
+      'assign_ticket',
+      'format_cop',
+      'search_normalize',
+      'match_ticket_import_clients',
+      'ticket_import_name_key',
+      'ticket_import_phone_key',
+    ]
+
+    const { rows } = await db.query(
+      `select p.proname
+         from pg_proc p
+         join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public'
+          and p.prokind = 'f'
+          and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+          and not exists (
+            select 1 from pg_depend d
+            join pg_extension e on e.oid = d.refobjid
+            where d.objid = p.oid and d.deptype = 'e'
+          )
+          and p.proname <> all ($1)
+        order by p.proname`,
+      [PUBLICAS],
+    )
+    expect(rows.map((r) => r.proname)).toEqual([])
+  })
+
   it('las RPC de negocio SI son ejecutables por authenticated', async () => {
     const { rows } = await db.query(`
       select p.proname

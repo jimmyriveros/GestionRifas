@@ -321,6 +321,21 @@ Reglas obligatorias para todas ellas:
 3. Parámetros tipados; nunca SQL construido por concatenación de texto.
 4. Sin `RAISE` de detalles internos: los mensajes de error son genéricos y traducibles.
 
+⚠️ **La regla 2 estuvo siete fases incompleta, y costó I-078.** Decía `PUBLIC, anon` y **no
+`authenticated`**, que es el rol con el que la aplicación habla con PostgREST. Desde `0032` (D-128)
+el privilegio por defecto para las funciones de `public` ya no lo concede, así que:
+
+> **Una función nueva que la aplicación deba poder llamar necesita su
+> `grant execute … to authenticated` EXPLÍCITO.** Sin él no es invocable desde el navegador, ni en
+> local ni en producción.
+
+**Por qué nadie lo vio antes:** los privilegios por defecto de `postgres` **no eran iguales en los dos
+entornos** —el proyecto alojado nace con `authenticated` concedido y la pila local no—, de modo que en
+local el comportamiento correcto ya era el vigente y **ninguna prueba podía detectarlo**. Lo cierra
+`npm run verify:remote`, que es lo único que mira el proyecto real; `tests/db/catalog.test.ts` fija la
+misma lista blanca, pero **pasaría igual si el problema volviera**. Si se toca esa lista, se toca en
+los dos sitios.
+
 Las funciones de negocio que **mutan** datos además validan permisos internamente y auditan la
 acción. Los helpers de sesión/lectura (`current_*`, `has_org_role`, `taken_ticket_combinations`) no
 escriben una fila de auditoría por consulta; hacerlo convertiría cada lectura en una mutación.

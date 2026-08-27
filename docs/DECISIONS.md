@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.21 · **Actualizado:** 2026-08-27 (D-001 a D-127)
+- **Versión:** 1.22 · **Actualizado:** 2026-08-27 (D-001 a D-128)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -4467,6 +4467,84 @@ Sobre esa base, las dos formas de pagar a un integrante (BR-G24) y su tope (BR-G
 portal: el encargo la pedía para el vendedor padre y solo para él. Pueden seguir moviendo gente entre
 equipos (BR-E08), lo que recalcula todo por el mismo trigger. Si algún día hace falta, la RPC ya
 existe y solo habría que abrirle otra puerta de autorización.
+
+## D-128 — Las funciones internas dejan de ser ejecutables desde una sesión, y el default deja de concederlas
+**Fase:** post-9 · **Fecha:** 2026-08-27
+
+**Contexto.** Al sondear el proyecto real tras desplegar `0031` se vio que
+`recalc_seller_commission` era ejecutable por `authenticated`, y `0024` afirmaba en un comentario lo
+contrario. La auditoría del esquema completo lo amplió: **34 funciones internas** —los 23
+disparadores, el motor de comisión entero y ayudantes como `write_audit_log` y `notify_profiles`—
+podían llamarse desde una sesión (I-078).
+
+**La causa, y es lo que de verdad importa.** Los privilegios por defecto de `postgres` para las
+funciones de `public` **no son iguales en los dos entornos**:
+
+```
+local        {postgres=X/postgres}
+producción   {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+```
+
+El proyecto alojado nace con ese `grant execute … to authenticated` puesto por la plataforma; la pila
+local de la CLI, no. `0015` revocó del default `anon` y `public` —y lo dejó escrito: «`authenticated`
+conserva lo que ya tenía»— pero nunca `authenticated`. **Consecuencia: ninguna prueba local podía
+detectarlo**, porque en local el comportamiento correcto ya era el vigente. Por eso vivió desde la
+Fase 2 y sobrevivió a la auditoría de endurecimiento de la Fase 7 y a la independiente de la Fase 9.
+
+**Decisión.** `0032` hace las dos cosas, y en este orden de importancia:
+
+1. `alter default privileges in schema public revoke execute on functions from authenticated` — la
+   causa. Sin esto, la próxima migración vuelve a crear el problema.
+2. Los **34 `revoke` explícitos**, uno por uno y con su firma completa.
+
+`service_role` conserva todo, también en el default: es el rol de los scripts de servidor y de la
+reparación operativa que `0024` habilita a propósito.
+
+**Alternativas descartadas.**
+
+* *`revoke execute on all functions in schema public from authenticated`*. Descartada, y es el error
+  que habría roto producción: un `revoke` **no distingue de dónde vino el privilegio**, así que se
+  habría llevado por delante los `grant` explícitos de las 26 RPC que llama la aplicación, dejando el
+  portal entero en «permission denied for function».
+* *Revocar solo las seis funciones de comisión*, que es lo que decía I-078 al abrirse. Descartada al
+  auditar el esquema: el problema no era de las comisiones, era del default, y afectaba a 34.
+* *Corregirlo en caliente durante el despliegue de `0031`*. Descartada entonces y sigue pareciendo
+  correcto: meter una migración no planeada en mitad de un despliegue autorizado para otra cosa es
+  peor práctica que documentarlo y hacerlo aparte.
+
+**Por qué es seguro, y cómo se comprobó.** No por argumento, sino por experimento — porque una prueba
+local que pasa **no demuestra nada aquí**, ya que la condición no existe en local:
+
+1. Se **reprodujo la condición de producción** en local (`alter default privileges … grant …` más los
+   34 `grant`).
+2. La prueba nueva de `catalog.test.ts` **falló**, listando exactamente las 34. Detecta.
+3. Se aplicó el cuerpo de `0032`. El default volvió a `{postgres=X/postgres}` y las 34 quedaron
+   revocadas.
+4. **545/545** de base de datos y la suite E2E completa, con sesiones reales, sobre ese estado.
+
+Se comprobó además que la divergencia entre entornos es **de 34 funciones en un solo sentido, cero en
+el contrario**: todo lo que la aplicación necesita tiene su `grant` explícito desde su propia
+migración, y las 26 RPC del código no aparecen en la lista.
+
+**Consecuencia.**
+
+* **Para quien escriba la próxima migración:** una función nueva que la aplicación deba poder llamar
+  necesita su `grant execute … to authenticated` **explícito**. Ya era así en local; ahora también en
+  producción, que es precisamente lo que hace que una prueba local signifique algo.
+* La comprobación que cierra esto de verdad es la de **`scripts/verify-remote.ts`**, porque es la
+  única que mira el proyecto real. La de `catalog.test.ts` se mantiene igualmente —fija la lista
+  blanca donde se lee al cambiarla y detecta el caso contrario, un `grant` a mano en una migración—,
+  pero con un aviso escrito en su cabecera de que **pasaría igual si el problema volviera**. Si se
+  toca la lista blanca, se toca en los dos sitios.
+* **BR-G11 no cambia de contenido**: seguía siendo cierta en lo esencial —no hay privilegio de
+  escritura sobre las tres tablas de comisión para ninguna sesión— y lo que estaba incompleto era su
+  justificación.
+
+**Qué se pudo hacer con esto, siendo honestos.** Poco con el dinero: `recalc_seller_commission`
+recuenta desde `tickets` y escribe el valor correcto, así que es idempotente y autocorrectiva, y las
+de disparador fallan si se invocan sueltas. Las dos que sí molestaban son `write_audit_log` —anotar en
+la bitácora hechos que no ocurrieron, en una tabla que existe justo para no poder falsearse— y
+`notify_profiles` —crear avisos a nombre de cualquiera—.
 
 ## Ambigüedades pendientes de confirmación del usuario
 

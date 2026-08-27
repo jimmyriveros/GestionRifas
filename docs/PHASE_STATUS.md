@@ -891,6 +891,7 @@ y por comportamiento sobre los datos reales. Detalle en `TEST_RESULTS.md`.
 
 | Migración | Qué hace |
 |---|---|
+| `0032_internal_function_grants.sql` | **Cierra I-078** (D-128): revoca el privilegio **por defecto** de `execute` para `authenticated` sobre las funciones de `public` —la causa— y revoca explícitamente las **34** funciones internas que lo tenían: los 23 disparadores, el motor de comisión y ayudantes como `write_audit_log` y `notify_profiles`. `service_role` conserva todo. **No toca ni un dato** |
 | `0031_team_commission.sql` | El **reparto del equipo** (D-127): `commission_model` y `fixed_commission_amount` en `memberships`; `team_tickets_paid` y `team_earned` en `seller_commissions`; `team_movement` y `from_seller_id` en `commission_ledger`; `commission_team_earned()`, `team_max_fixed_commission()`, `team_set_commission_model()`; el motor con su segundo bloque y su **cascada al vendedor padre**; `commission_summary()` con `pay_model`. Recalcula lo existente al final |
 
 ✅ **`0031` se promovió al proyecto real el 2026-08-27**, con autorización explícita y respaldo previo
