@@ -346,6 +346,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Persona con permisos administrativos | **Administrador** | Admin, gestor, supervisor |
 | Empresa que opera las rifas | **Organización** | Cuenta, tenant, empresa |
 | Pago parcial de una boleta | **Abono** | Cuota, adelanto, parcialidad |
+| Que una boleta ya se pagó entera, escrito en la columna «Abono» de un archivo | **Cancelado** (D-129) | Completa, Completo, Pagada, Total, Saldada |
 | Dinero que falta por cobrar | **Saldo pendiente** | Deuda, mora, pasivo |
 | Valor de todas las boletas ya vendidas | **Total vendido** | Total a cobrar, total facturado, cartera |
 | Precio que la rifa fija para todas sus boletas | **Precio de la rifa** | Precio oficial, precio base, tarifa |
@@ -504,6 +505,29 @@ versión de Rifas · Actualiza cuando termines lo que estás haciendo. · [Actua
 es la importante: actualizar recarga la pantalla, y quien esté a mitad de un abono tiene que poder
 terminarlo. Nunca se recarga sola.
 
+**«Cancelado» es la palabra del archivo, y no significa «anulado»** (D-129). Es la única
+excepción tolerada a «un término, un nombre», y existe porque **ya la escribe el usuario en su
+Excel**: en su cuaderno una boleta «cancelada» es una boleta que el cliente terminó de pagar. En
+la aplicación, en cambio, *anular* es retirar de circulación (Anexo A), así que las dos palabras no
+pueden acercarse: «Cancelado» **solo** se acepta dentro de la columna «Abono» de un archivo, nunca
+aparece como etiqueta, ni como botón, ni como estado en pantalla. Ahí la boleta queda **Pagada**,
+que es su etiqueta de siempre.
+
+Por eso «Completa» **no** vale, aunque suene bien: si valieran las dos, cada archivo traería una
+distinta y el importador tendría que adivinar. Cuando alguien la escribe, el mensaje no se limita a
+rechazarla — dice cuál es la buena: «Para dar la boleta por pagada escribe «Cancelado».»
+
+**Los abonos del importador se dicen en pesos, no en lo que traía el archivo** (D-129). Quien
+escribió «20» quiso decir veinte mil, y la vista previa lo enseña como **$20.000**: es la única
+forma de que vea un dedazo antes de guardar. La misma regla ordena los errores, que citan las dos
+cifras en vez de hablar en abstracto: «El abono de $150.000 supera el precio de la boleta
+($120.000).»
+
+**En la vista previa del importador conviven dos «estados», y por eso uno se llama «Resultado»**
+(D-129). La columna **«Estado»** dice cómo quedará la boleta —Sin pagar, Abonada, Pagada—, y
+**«Resultado»**, si la fila sirve o no. Dos columnas tituladas «Estado» a un centímetro se leen una
+por la otra.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
@@ -592,6 +616,9 @@ castigo donde solo había una espera.
 | Nombre de la **organización** que se lee en la barra lateral y en el encabezado del móvil | **No es un texto: es el dato `organizations.name`** de la base de datos (D-126). No se busca en el código |
 | Estados vacíos | `EmptyState` (`src/components/data/`) |
 | Pistas y avisos de los buscadores | `src/features/search/hints.ts`, **todos juntos** |
+| Mensajes de la columna «Abono» de un archivo (qué se entiende y qué no) | `src/features/tickets/import/abono.ts`, **todos juntos** (D-129) |
+| Lo que explica el importador antes de elegir el archivo | `src/features/tickets/import/components/ImportDropzone.tsx` |
+| Encabezados y resumen de la vista previa del importador | `src/features/tickets/import/components/ImportPreview.tsx` |
 | Confirmaciones de acciones sensibles | `ConfirmDialog` (`src/components/feedback/`) |
 | Mensajes de éxito | El `toast` de cada Server Action, en su componente cliente |
 | Pasos del recorrido guiado (título y explicación) | `src/features/tour/tours.ts`, **todos juntos** |

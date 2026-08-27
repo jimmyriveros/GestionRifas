@@ -23,15 +23,36 @@ export const importClientSchema = z.object({
   phone: clientFormSchema.shape.phone,
 })
 
+/**
+ * El abono de la fila, YA interpretado en pesos enteros (BR-N14, BR-P02).
+ *
+ * Aqui no llega «20» ni «Cancelado»: eso lo traduce `parseAbono` al leer el
+ * archivo, porque para saber que significan hace falta el precio de la rifa.
+ * Lo que se comprueba en esta capa es lo que vale para cualquier importe de
+ * dinero del sistema —entero y mayor que cero—; el techo real, el precio de la
+ * boleta, lo impone la base de datos, que es la unica que lo conoce de verdad.
+ */
+const importAbonoSchema = z
+  .number({ error: 'El abono debe ser un valor en pesos.' })
+  .int('El abono debe ser un número entero de pesos.')
+  .positive('El abono debe ser mayor que cero.')
+  .max(1_000_000_000, 'El abono es demasiado alto.')
+
 export const importTicketRowSchema = z
   .object({
     dailyNumber: ticketNumberSchema,
     weeklyNumber: ticketNumberSchema,
     clientName: importClientSchema.shape.name.optional(),
     clientPhone: importClientSchema.shape.phone.optional(),
+    abono: importAbonoSchema.optional(),
   })
   .refine((row) => Boolean(row.clientName) === Boolean(row.clientPhone), {
     message: 'Escribe el nombre y el celular del cliente, o deja ambos campos vacíos.',
+  })
+  // BR-F02/BR-F04: un abono se aplica a una boleta VENDIDA. Sin cliente no hay
+  // venta y el abono no tendria donde aplicarse.
+  .refine((row) => row.abono === undefined || Boolean(row.clientName), {
+    message: 'Para registrar un abono necesitamos también el nombre y el celular del cliente.',
   })
 export type ImportTicketRow = z.infer<typeof importTicketRowSchema>
 

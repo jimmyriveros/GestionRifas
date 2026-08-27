@@ -24,8 +24,9 @@ import { checkCombinationsSchema, importTicketsSchema } from './schemas'
  * decidir la base de datos:
  *
  *   * Personal (Owner/Admin): elige rifa y vendedor. Sin clientes guarda con
- *     `bulk_create_tickets`; con clientes usa la RPC atomica de 0021, que
- *     reutiliza `assign_ticket_row`.
+ *     `bulk_create_tickets`; con clientes usa la RPC atomica de 0021 (ampliada
+ *     en 0033), que reutiliza `assign_ticket_row` y, cuando la fila trae abono,
+ *     `create_payment`. Ni una suma de dinero se hace en TypeScript.
  *   * Vendedor: el vendedor es EL MISMO que tiene la sesion; si manda otro id,
  *     se ignora. Sus boletas nacen en `pending_approval` y solo si la rifa lo
  *     permite, cosa que impone `tickets_insert_seller` aunque este codigo se
@@ -51,6 +52,10 @@ export type ImportTicketsResult = {
   clientsCreated: number
   /** Clientes existentes reutilizados de forma inequívoca. */
   clientsReused: number
+  /** Abonos registrados, uno por boleta que traia valor en el archivo. */
+  paymentsCreated: number
+  /** Suma en pesos de esos abonos. */
+  paymentsTotal: number
   /** `false` si la importacion quedo registrada en la bitacora. */
   auditFailed?: boolean
 }
@@ -64,6 +69,8 @@ type ImportWithClientsRpcResult = BulkRpcResult & {
   assigned?: number
   clients_created?: number
   clients_reused?: number
+  payments_created?: number
+  payments_total?: number
 }
 
 type ClientMatch = {
@@ -77,6 +84,15 @@ type ClientMatch = {
 export type ImportPreviewCheck = {
   taken: string[]
   clients: ClientResolution[]
+  /**
+   * Precio vigente de la rifa, leido de `raffles.ticket_price`.
+   *
+   * Va de vuelta al navegador para que la vista previa interprete los abonos
+   * con la cifra REAL y no con la que la pantalla tuviera cargada: quien mira
+   * la vista previa tiene que ver el mismo numero que va a aplicar la base de
+   * datos (D-098).
+   */
+  ticketPrice: number
 }
 
 /**
@@ -101,9 +117,23 @@ export async function checkImportPreview(
     return { error: parsed.error.issues[0]?.message ?? 'Revisa el archivo.' }
   }
   const { raffleId, rows } = parsed.data
-  if (rows.length === 0) return { ok: true, data: { taken: [], clients: [] } }
-
   const supabase = await createClient()
+
+  // El precio se lee UNA vez y sale por todos los caminos: la vista previa lo
+  // necesita para interpretar los abonos, y sin el no puede decir en que
+  // estado quedara cada boleta.
+  const { data: raffle, error: raffleError } = await supabase
+    .from('raffles')
+    .select('status, ticket_price')
+    .eq('id', raffleId)
+    .maybeSingle()
+
+  if (raffleError) return { error: mapPgError(raffleError) }
+  if (!raffle) return { error: 'La rifa no existe o no tienes acceso a ella.' }
+  const ticketPrice = raffle.ticket_price
+
+  if (rows.length === 0) return { ok: true, data: { taken: [], clients: [], ticketPrice } }
+
   const { data, error } = await supabase.rpc('taken_ticket_combinations', {
     p_raffle_id: raffleId,
     p_combos: rows.map((row) => ({
@@ -116,13 +146,14 @@ export async function checkImportPreview(
 
   const taken = (data ?? []).map((row) => comboKey(row.daily_number, row.weekly_number))
   const groups = groupImportClients(rows)
-  if (groups.length === 0) return { ok: true, data: { taken, clients: [] } }
+  if (groups.length === 0) return { ok: true, data: { taken, clients: [], ticketPrice } }
 
   if (auth.membership.role === 'seller') {
     return {
       ok: true,
       data: {
         taken,
+        ticketPrice,
         clients: groups.map((group) => ({
           ...group,
           status: 'conflict',
@@ -136,19 +167,12 @@ export async function checkImportPreview(
   const sellerId = parsed.data.sellerId
   if (!sellerId) return { error: 'Selecciona un vendedor.' }
 
-  const { data: raffle, error: raffleError } = await supabase
-    .from('raffles')
-    .select('status')
-    .eq('id', raffleId)
-    .maybeSingle()
-
-  if (raffleError) return { error: mapPgError(raffleError) }
-  if (!raffle) return { error: 'La rifa no existe o no tienes acceso a ella.' }
   if (raffle.status !== 'active') {
     return {
       ok: true,
       data: {
         taken,
+        ticketPrice,
         clients: groups.map((group) => ({
           ...group,
           status: 'conflict',
@@ -210,7 +234,7 @@ export async function checkImportPreview(
 
   return {
     ok: true,
-    data: { taken, clients },
+    data: { taken, clients, ticketPrice },
   }
 }
 
@@ -257,6 +281,8 @@ export async function importTickets(
     assigned: number
     clientsCreated: number
     clientsReused: number
+    paymentsCreated: number
+    paymentsTotal: number
   }>
 
   // La bitacora va DESPUES de guardar y a proposito: si fallara, lo que no
@@ -276,6 +302,12 @@ export async function importTickets(
   revalidatePath('/owner/dashboard')
   revalidatePath('/seller/tickets')
   revalidatePath('/seller/dashboard')
+  // Un archivo con abonos mueve dinero, asi que los listados de pagos y las
+  // fichas de cliente tambien dejan de estar al dia.
+  revalidatePath('/owner/payments')
+  revalidatePath('/seller/payments')
+  revalidatePath('/owner/clients')
+  revalidatePath('/seller/clients')
 
   return {
     ok: true,
@@ -286,15 +318,18 @@ export async function importTickets(
       assigned: clientMetrics.assigned ?? 0,
       clientsCreated: clientMetrics.clientsCreated ?? 0,
       clientsReused: clientMetrics.clientsReused ?? 0,
+      paymentsCreated: clientMetrics.paymentsCreated ?? 0,
+      paymentsTotal: clientMetrics.paymentsTotal ?? 0,
       ...(auditError ? { auditFailed: true } : {}),
     },
   }
 }
 
 /**
- * Caso administrativo con clientes: una RPC crea boletas, resuelve clientes y
- * asigna todo dentro de la misma transaccion. Si una identidad cambia entre la
- * vista previa y la confirmacion, no queda ningun dato parcial.
+ * Caso administrativo con clientes: una RPC crea boletas, resuelve clientes,
+ * asigna y registra los abonos dentro de la misma transaccion. Si una identidad
+ * cambia entre la vista previa y la confirmacion, no queda ningun dato parcial:
+ * ni cliente, ni boleta, ni pago.
  */
 async function insertAsStaffWithClients(
   raffleId: string,
@@ -304,6 +339,7 @@ async function insertAsStaffWithClients(
     weeklyNumber: string
     clientName?: string
     clientPhone?: string
+    abono?: number
   }[],
 ): Promise<
   ActionResultWith<{
@@ -312,6 +348,8 @@ async function insertAsStaffWithClients(
     assigned: number
     clientsCreated: number
     clientsReused: number
+    paymentsCreated: number
+    paymentsTotal: number
   }>
 > {
   const supabase = await createClient()
@@ -323,6 +361,7 @@ async function insertAsStaffWithClients(
       weekly_number: row.weeklyNumber,
       ...(row.clientName ? { client_name: row.clientName } : {}),
       ...(row.clientPhone ? { client_phone: row.clientPhone } : {}),
+      ...(row.abono !== undefined ? { abono: row.abono } : {}),
     })),
   })
 
@@ -341,6 +380,8 @@ async function insertAsStaffWithClients(
       assigned: rpc.assigned ?? 0,
       clientsCreated: rpc.clients_created ?? 0,
       clientsReused: rpc.clients_reused ?? 0,
+      paymentsCreated: rpc.payments_created ?? 0,
+      paymentsTotal: rpc.payments_total ?? 0,
     },
   }
 }

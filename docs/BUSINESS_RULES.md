@@ -224,6 +224,8 @@ negocio. El motor conserva su rama de cambio de vendedor porque cubre las boleta
 
 | BR-N12 | **Las boletas se pueden importar desde un archivo CSV o JSON.** La rifa y el vendedor los pone la pantalla. Cada fila lleva los dos números y puede añadir cliente, pero en ese caso **nombre y celular son obligatorios juntos**. Siempre hay vista previa y confirmación antes de guardar. | C, S, D | post-9 |
 
+| BR-N14 | **Una fila del archivo puede traer el abono ya cobrado de esa boleta.** Se escribe en miles («20»), en pesos («20.000», «20000») o con la palabra **«Cancelado»**, que vale el precio completo de esa boleta. El abono es de SU boleta y **no se reparte** entre las demás del cliente. Exige cliente, porque solo se abona una boleta vendida. | C, S, D | post-9 |
+
 **BR-N12 en detalle** (migraciones `0019` y `0021`; D-081 y D-087). La importación **no añade ni relaja ninguna regla
 de boletas**: valida con `validateBulkRows` —el mismo motor que la carga manual— y guarda por los
 mismos caminos, así que BR-N01 a BR-N10 se aplican íntegras.
@@ -231,11 +233,12 @@ mismos caminos, así que BR-N01 a BR-N10 se aplican íntegras.
 | Aspecto | Regla |
 |---|---|
 | Formatos | CSV (recomendado) y JSON (avanzado). Hasta **1.000** boletas por archivo, y hasta 1 MB |
-| Columnas del CSV | Obligatorias: «Premio semanal» y «Premio diario». Administrativamente se pueden añadir «Cliente» y «Celular»; se reconocen sus alias en español e inglés sin distinguir mayúsculas, acentos ni guiones bajos |
+| Columnas del CSV | Obligatorias: «Premio semanal» y «Premio diario». Administrativamente se pueden añadir «Cliente» (o «Nombre»), «Celular» y «Abono»; se reconocen sus alias en español e inglés sin distinguir mayúsculas, acentos ni guiones bajos |
 | Columnas de más | Se ignoran, incluida la numeración `#` |
 | Sin reconocer | **No se rechaza el archivo**: se pide elegir a mano qué columna es cada número |
-| Claves del JSON | Números: `daily_number` / `weekly_number`, `premio_diario` / `premio_semanal` o camelCase. Cliente: `client_name` / `client_phone`, `nombre_cliente` / `celular` o camelCase |
+| Claves del JSON | **Las mismas que los encabezados del CSV**, y además en `snake_case` y `camelCase`: `daily_number`, `premio_diario`, `dailyNumber` y «Premio diario» son la misma columna. Una sola tabla de alias para los dos formatos (`matchJsonKey`, D-129) |
 | Cliente opcional por fila | Si aparece cliente, **nombre y celular son obligatorios juntos** (BR-C02). Una fila puede omitir ambos y quedar sin asignar; los archivos antiguos de dos columnas conservan el mismo resultado |
+| Abono opcional por fila | Vacío = sin abono y **sin ningún movimiento**. Con valor, exige cliente en la misma fila (BR-N14) |
 | Quién puede importar con cliente | Owner/Admin. Un Seller conserva el flujo anterior: sus boletas nacen `pending_approval` y sin cliente; una fila con cliente se bloquea para no saltarse BR-I03/BR-I09 |
 | Identidad | Solo dentro de la cartera del vendedor seleccionado. Nombre normalizado + celular nacional normalizado agrupan filas; una coincidencia activa, exacta y única reutiliza el cliente. Cliente archivado, coincidencias múltiples o el mismo celular con otro nombre son conflicto visible; nunca se adivina ni se cruza cartera u organización |
 | Números | **Texto siempre.** Ni `Number()`, ni `parseInt()`, ni relleno con ceros: «46» se guarda «46» y «0046» se guarda «0046» (BR-N03) |
@@ -243,8 +246,25 @@ mismos caminos, así que BR-N01 a BR-N10 se aplican íntegras.
 | Estado de las boletas | Sin cliente: `available` si las crea el personal, `pending_approval` si las crea un vendedor. Con cliente y desde Owner/Admin: `assigned`, con precio/fecha/auditoría aplicados por `assign_ticket_row` |
 | Vista previa | Obligatoria. Elegir el archivo **no escribe nada** |
 | Importación parcial | Permitida y **nunca silenciosa**: se dice cuántas quedan fuera antes de confirmar, y cuáles después |
-| Atomicidad con clientes | Crear clientes, crear las boletas que no chocan y asignarlas ocurre en una sola RPC. Una ambigüedad o error de identidad revierte clientes, boletas y contador; una combinación ya tomada se informa como conflicto normal |
+| Atomicidad con clientes | Crear clientes, crear las boletas que no chocan, asignarlas y cobrar sus abonos ocurre en una sola RPC. Una ambigüedad, un error de identidad o un abono inválido revierte pagos, clientes, boletas y contador; una combinación ya tomada se informa como conflicto normal |
 | Auditoría | Una fila `ticket.import` en `audit_logs` con quién, cuándo, rifa, vendedor, tipo de archivo y recuentos. **No se guarda el archivo** |
+
+**BR-N14 en detalle** (migración `0033`, D-129). Es la columna «Abono», y **no añade ninguna regla de
+dinero nueva**: registra el abono llamando a `create_payment`, la misma función del formulario manual.
+
+| Aspecto | Regla |
+|---|---|
+| Cómo se escribe | En miles (`20` → $20.000), en pesos (`20.000`, `20000` → $20.000) o **«Cancelado»**, que vale el precio completo de esa boleta. Mayúsculas, acentos y espacios laterales dan igual |
+| Dónde está el corte | En `ticket_price / 1000`, **calculado**, nunca escrito. Con una rifa de $120.000 el corte es 120; con una de $50.000, 50 (D-098) |
+| Qué se limpia | El símbolo `$`, los espacios y los separadores de miles (`.` y `,`) en grupos de tres. Un decimal (`20,5`) **no** es un abono: se rechaza en vez de leerse como 205 |
+| Qué NO vale | «Completa», «Pagada» y parecidas: el mensaje dice cuál es la palabra buena. Cero, negativo, texto no reconocido y cualquier valor por encima del precio de la boleta |
+| A quién pertenece | A **su** boleta. Un pago por fila, con una sola asignación; nunca se reparte ni se suma entre las boletas del mismo cliente |
+| Qué exige | Cliente en la misma fila. Sin cliente la boleta no está vendida y no admite abonos (BR-F02, BR-F04) |
+| Qué genera | Fila en `payments` y en `payment_allocations`, con método «Efectivo» —el mismo que trae puesto el formulario manual— y la nota «Abono importado desde archivo». De ahí derivan solos el saldo, el estado de pago (BR-F07) y la comisión |
+| Estado resultante | Menos que el precio → **Abonada**; igual al precio → **Pagada** y saldo exactamente en cero. Sin abono → **Sin pagar**. Lo calcula la base de datos, no el importador |
+| Quién puede | Owner/Admin. Un Seller no importa con cliente (BR-I03/BR-I09), así que tampoco con abono |
+| Vista previa | Muestra el importe **ya convertido a pesos** y el estado en que quedará la boleta, antes de confirmar. Es donde se ve un dedazo |
+| Validación | Tres capas, como todo lo demás: la lectura del archivo, el esquema Zod de la Server Action y la RPC, que compara contra el `ticket_price` **real** y deja la última palabra al tope de sobrepago de `create_payment` (BR-F12) |
 
 **BR-N11 en detalle** (migración `0018`, D-080). Es la regla que gobierna búsqueda y presentación:
 

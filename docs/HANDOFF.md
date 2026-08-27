@@ -86,14 +86,29 @@ auditado en la Fase 9 con **47 intentos deliberados de romperlo**, ninguno de lo
 leer ni escribir un dato ajeno. Informe: `docs/AUDIT_REPORT.md`.
 Desde el 2026-08-08 la lista de boletas admite **selección múltiple y acciones masivas** (BR-B01..
 BR-B08), ya **en producción**.
-El importador CSV/JSON admite además filas opcionales con cliente + celular obligatorio (D-087).
+El importador CSV/JSON admite además filas opcionales con cliente + celular obligatorio (D-087) y una
+columna **«Abono»** con lo ya cobrado de esa boleta, que se registra por `create_payment` (BR-N14,
+D-129; migración `0033`).
 La base real ya tiene `0021`; el push coordinado de `main` activa el frontend correspondiente.
 **Lo que NO existe:** backups automáticos de Supabase (plan Free — I-024, prerrequisito antes de datos
 reales).
 
 ---
 
-## 1.a Último relevo significativo — I-078: las funciones internas dejan de ser ejecutables desde una sesión (2026-08-27)
+## 1.a Último relevo significativo — la columna «Abono» del importador (2026-08-27)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **La columna «Abono» del importador, que llevaba seis relevos aplazada, está hecha** (BR-N14, D-129). Una fila del CSV o del JSON puede traer lo ya cobrado de esa boleta —«20», «20.000», «20000» o **«Cancelado»**— y al confirmar queda registrado como un **abono de verdad**: fila en `payments`, fila en `payment_allocations`, saldo y estado derivados por la base de datos. **Además**, el JSON pasa a aceptar las claves escritas como los encabezados del CSV («Premio semanal», «Nombre», «Abono»), que es como las escribe el dueño. **⚠️ `0033` NO desplegada** |
+| Archivos | Migración **`0033_ticket_import_abono.sql`**. Nuevos: `features/tickets/import/abono.ts` y `tests/unit/ticket-import-abono.test.ts` (33). Tocados: en `features/tickets/import/` → `columns.ts`, `rows.ts`, `json.ts` (reescrito), `review.ts`, `schemas.ts`, `actions.ts`, `sample.ts` y los cuatro componentes; `features/tickets/bulk/components/BulkTicketCreator.tsx`, `features/tickets/seller/components/SellerTicketForm.tsx` y sus dos `page.tsx`. Pruebas: `tests/db/ticket-import.test.ts` (+7), `tests/e2e/importar-boletas.spec.ts` (+1), `tests/unit/ticket-import.test.ts` (una firma). Documentación: `BUSINESS_RULES` (BR-N14 y BR-N12 actualizada), `DECISIONS` (**D-129**), `UX_COPY_GUIDELINES` anexos A y B, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni una regla de dinero nueva.** El abono lo registra **`create_payment`**, la misma función del formulario manual, llamada desde dentro de `import_tickets_with_clients` igual que ya se llamaba a `assign_ticket_row`. De ahí salen solos el recálculo de `paid_amount`, el estado de pago (BR-F07), el tope de sobrepago (BR-F12), la comisión y la bitácora. La RPC es un **`create or replace` de la misma firma**: no hay contrato nuevo. El JSON **perdió** su lista de alias paralela y usa la del CSV (`matchJsonKey`) |
+| Decisiones | **D-129.** Lo no evidente: **(a)** el corte entre «miles» y «pesos» es **`ticket_price / 1000` calculado**, no un 120 escrito, y hay una prueba con cada precio ($120.000 y $50.000) para que atarlo otra vez a una cifra falle; **(b)** **un pago por fila**, no uno por cliente: el historial es lo que el vendedor le enseña al cliente cuando reclama; **(c)** sin precio conocido **no se inventa** uno —nada de caer en `DEFAULT_TICKET_PRICE`—, se marca la fila; **(d)** los `case` de la validación SQL **no son adorno**: PostgreSQL no garantiza el orden de evaluación de un `and`, y un `::numeric` sin proteger revienta con «cannot cast jsonb string» ante un «Abono: hola» (hay una prueba que lo fija) |
+| Verificación | **552/552** de base de datos (+7) · **409/409** unitarias (+33) · `typecheck` ✅ · `lint` **0 errores** (los 2 avisos de siempre) · `build` ✅ · **E2E completa con base sembrada limpia**, incluida una prueba nueva de extremo a extremo que comprueba el estado de las tres boletas **y** que existen los dos pagos con su asignación. Las 33 pruebas del importador anterior **pasan sin tocarse**, que es la red que demuestra que el formato viejo no cambió. Un error encontrado y corregido, en `TEST_RESULTS` |
+| Advertencias | **1) `0033` debe ir ANTES que el frontend.** Sin ella la clave `abono` se ignora **en silencio** y las boletas entran sin sus pagos, que es la peor de las dos formas de fallar. **2) Lo que NO se cambió, a propósito:** un cliente que ya existe sigue exigiendo **nombre + celular** para reutilizarse (D-087) —el encargo pedía a la vez «reutilízalo» y «no sobrescribas su nombre», y con el celular igual y el nombre distinto no se pueden cumplir las dos—; y los números siguen siendo de **1 a 4 dígitos**, no de exactamente 4 (BR-N02, `CLAUDE.md` §13, y hay boletas vivas con «46»). **3) Caso límite real:** entre el corte (120) y la primera cifra realista en pesos (20.000) un número se lee literalmente — «500» son quinientos pesos. Es la regla del encargo tal cual, y lo atrapa la vista previa, que enseña el importe ya convertido. **4)** El abono va en la **misma vuelta del bucle** que la asignación: no lo separes, o se podrá cobrar una boleta que no se asignó |
+| Pendiente | **1)** **Desplegar `0033` y el frontend, en ese orden**, con autorización expresa. **2)** Verificación visual con sesión real en producción, que un agente no hace. **3)** Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-066, I-062, I-063 |
+| Git | Rama `main`, sobre `66d1b50` |
+
+## 1.a.0 Relevo anterior — I-078: las funciones internas dejan de ser ejecutables desde una sesión (2026-08-27)
 
 | Campo | Estado |
 |---|---|

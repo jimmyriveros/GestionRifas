@@ -177,8 +177,12 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
    esas filas; no se adivina la identidad ni se cruza vendedor u organización.
 5. Un vendedor solo importa cuando la rifa permite crear boletas; quedan `pending_approval` y, por
    tanto, su archivo no admite cliente.
-6. Cliente, boletas y asignaciones administrativas se guardan en una sola transacción y reutilizan
-   las reglas de `assign_ticket_row`.
+6. Cliente, boletas, asignaciones y abonos administrativos se guardan en una sola transacción y
+   reutilizan las reglas de `assign_ticket_row` y `create_payment`.
+6.b Una fila puede traer el **abono** ya cobrado de esa boleta —en miles, en pesos o «Cancelado»—.
+   Exige cliente, es de su propia boleta y nunca se reparte; el estado de pago y el saldo los deriva
+   la base de datos. El límite y el valor de «Cancelado» salen del precio vigente de la rifa, nunca
+   de una cifra escrita en el código (BR-N14, D-129).
 7. La base de datos detecta combinaciones tomadas sin revelar de qué vendedor son. Después de crear
    las boletas intenta registrar el evento sin guardar el archivo; si esa bitácora falla, conserva
    las boletas e informa `auditFailed` (BR-N12, D-081, D-087).
@@ -213,7 +217,8 @@ Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
 13. Una boleta se busca por número diario o semanal, entero o parcial, nunca por código interno
     (BR-N11).
 14. Importar reutiliza las mismas reglas y validadores; si una fila incluye cliente, nombre y celular
-    son obligatorios juntos y la persistencia administrativa es atómica (BR-N12).
+    son obligatorios juntos, un abono exige cliente y se registra por `create_payment`, y la
+    persistencia administrativa es atómica (BR-N12, BR-N14).
 15. Selección, filtros y paginación son estados separados; limpiar uno no borra el otro (BR-B01).
 16. Las acciones masivas sensibles se autorizan y revalidan en base de datos; la UI no es su frontera
     de seguridad (BR-B07, con la salvedad documentada en I-044).

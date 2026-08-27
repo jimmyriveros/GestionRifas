@@ -74,10 +74,17 @@ export function ImportDropzone({
           . Hasta {BULK_TICKET_MAX} boletas por archivo.
         </p>
         {allowClientAssignments ? (
-          <p className="text-muted-foreground">
-            Puedes añadir <strong>Cliente</strong> y <strong>Celular</strong>. Si incluyes uno,
-            necesitas ambos.
-          </p>
+          <>
+            <p className="text-muted-foreground">
+              Puedes añadir <strong>Cliente</strong> y <strong>Celular</strong>. Si incluyes uno,
+              necesitas ambos.
+            </p>
+            <p className="text-muted-foreground">
+              Y una columna <strong>Abono</strong> con lo que ya te pagaron de esa boleta: escribe
+              20, 20.000 o 20000 para veinte mil, o «Cancelado» si ya está pagada. Déjala vacía si
+              no te han abonado nada.
+            </p>
+          </>
         ) : null}
       </div>
 

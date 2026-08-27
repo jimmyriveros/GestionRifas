@@ -1,4 +1,7 @@
+import type { TicketPaymentStatus } from '@/lib/constants'
+
 import { comboKey, validateBulkRows, type RowValidation } from '../bulk/duplicates'
+import { parseAbono } from './abono'
 import {
   clientIdentityKey,
   clientPhoneKey,
@@ -18,6 +21,17 @@ export type ReviewedRow = ImportRow & {
   status: ImportRowStatus
   /** Frase para la columna «Problema». Vacia cuando la fila esta bien. */
   problem: string
+  /** El abono ya interpretado en pesos. Ausente si la fila no lleva. */
+  abonoAmount?: number
+  /**
+   * Como quedara la boleta al importarla, calculado con las MISMAS tres
+   * fronteras que usa la base de datos (BR-F07): sin abono es «Sin pagar»,
+   * por debajo del precio «Abonada» y al precio exacto «Pagada».
+   *
+   * `null` cuando la fila no lleva cliente: esa boleta no se vende, queda
+   * disponible, y una boleta sin vender no tiene estado de pago.
+   */
+  expectedPaymentStatus: TicketPaymentStatus | null
 }
 
 export type ReviewedClient = ClientResolution & { tickets: number }
@@ -37,7 +51,13 @@ export type ImportReview = {
   /** Desglose de las filas que realmente se pueden guardar. */
   withClient: number
   withoutClient: number
+  /** Filas importables que traen abono, y la suma en pesos de todos ellos. */
+  withAbono: number
+  abonoTotal: number
   clients: ReviewedClient[]
+  /** Cuantos de esos clientes hay que crear y cuantos ya existen. */
+  clientsNew: number
+  clientsExisting: number
 }
 
 export type ReviewOptions = {
@@ -45,6 +65,14 @@ export type ReviewOptions = {
   clientResolutions?: ReadonlyMap<string, ClientResolution>
   /** El portal administrativo puede crear/asignar; el vendedor conserva la aprobacion. */
   allowClientAssignments?: boolean
+  /**
+   * Precio de la rifa a la que va el archivo, en pesos.
+   *
+   * Es lo que decide que significa «20» y hasta donde puede llegar un abono. No
+   * hay valor por defecto a proposito: inventar aqui un precio seria repartir
+   * la cifra por el codigo, que es justo lo que D-098 prohibe.
+   */
+  ticketPrice?: number
 }
 
 function describeTicket(validation: RowValidation | undefined): string {
@@ -133,6 +161,51 @@ function reviewClient(
   return null
 }
 
+/**
+ * Revisa la casilla «Abono» de una fila cuya boleta y cliente ya estan bien.
+ *
+ * Devuelve `null` cuando no hay nada que objetar, el problema cuando lo hay, y
+ * el importe en pesos cuando la fila si lleva abono.
+ */
+function reviewAbono(
+  row: ImportRow,
+  options: ReviewOptions,
+): { problem: string } | { amount: number | null } {
+  const raw = row.abono?.trim() ?? ''
+  if (raw === '') return { amount: null }
+
+  // BR-F02/BR-F04: solo se abona una boleta vendida. Sin cliente no hay venta,
+  // asi que el abono no tendria donde aplicarse.
+  if (!hasCompleteClientData(row)) {
+    return {
+      problem: 'Para registrar un abono necesitamos también el nombre y el celular del cliente.',
+    }
+  }
+
+  if (options.ticketPrice === undefined) {
+    return {
+      problem:
+        'No pudimos leer el precio de la rifa para interpretar el abono. Vuelve a intentarlo.',
+    }
+  }
+
+  const parsed = parseAbono(raw, options.ticketPrice)
+  if (parsed.kind === 'error') return { problem: parsed.problem }
+  if (parsed.kind === 'none') return { amount: null }
+  return { amount: parsed.amount }
+}
+
+/** El estado en que quedara la boleta, con las fronteras de BR-F07. */
+function expectedStatus(
+  row: ImportRow,
+  amount: number | null,
+  ticketPrice: number | undefined,
+): TicketPaymentStatus | null {
+  if (!hasCompleteClientData(row)) return null
+  if (amount === null || amount === 0) return 'unpaid'
+  return ticketPrice !== undefined && amount >= ticketPrice ? 'paid' : 'partial'
+}
+
 /** Revisa formato, duplicados, clientes y coincidencias existentes en una sola pasada. */
 export function reviewRows(rows: readonly ImportRow[], options: ReviewOptions = {}): ImportReview {
   const validations = validateBulkRows(rows, {
@@ -157,11 +230,26 @@ export function reviewRows(rows: readonly ImportRow[], options: ReviewOptions = 
     const validation = validations[index]
     const status = ticketStatus(validation)
     if (status !== 'valid') {
-      return { ...row, status, problem: describeTicket(validation) }
+      return { ...row, status, problem: describeTicket(validation), expectedPaymentStatus: null }
     }
 
     const client = reviewClient(row, options, conflictingPhoneKeys)
-    return client ? { ...row, ...client } : { ...row, status: 'valid', problem: '' }
+    if (client) return { ...row, ...client, expectedPaymentStatus: null }
+
+    // El abono se mira al final: solo tiene sentido en una fila cuya boleta y
+    // cuyo cliente ya sirven.
+    const abono = reviewAbono(row, options)
+    if ('problem' in abono) {
+      return { ...row, status: 'invalid', problem: abono.problem, expectedPaymentStatus: null }
+    }
+
+    return {
+      ...row,
+      status: 'valid',
+      problem: '',
+      ...(abono.amount !== null ? { abonoAmount: abono.amount } : {}),
+      expectedPaymentStatus: expectedStatus(row, abono.amount, options.ticketPrice),
+    }
   })
 
   const count = (status: ImportRowStatus) => reviewed.filter((row) => row.status === status).length
@@ -188,6 +276,8 @@ export function reviewRows(rows: readonly ImportRow[], options: ReviewOptions = 
     }
   })
 
+  const withAbono = validRows.filter((row) => row.abonoAmount !== undefined)
+
   return {
     rows: reviewed,
     total: reviewed.length,
@@ -198,20 +288,42 @@ export function reviewRows(rows: readonly ImportRow[], options: ReviewOptions = 
     clientConflicts: count('client-conflict'),
     withClient: withClient.length,
     withoutClient: validRows.length - withClient.length,
+    withAbono: withAbono.length,
+    abonoTotal: withAbono.reduce((sum, row) => sum + (row.abonoAmount ?? 0), 0),
     clients,
+    clientsNew: clients.filter((client) => client.status === 'new').length,
+    clientsExisting: clients.filter((client) => client.status === 'existing').length,
   }
 }
 
+/**
+ * Una fila lista para enviar al servidor.
+ *
+ * El abono viaja ya en PESOS ENTEROS, no como el texto del archivo: interpretar
+ * «20» es cosa de la lectura del archivo, y el backend guarda enteros (BR-P02).
+ * El servidor lo vuelve a validar contra el precio real de la rifa, asi que
+ * esta conversion no es una capa de confianza (docs/SECURITY.md 5).
+ */
+export type ImportableRow = {
+  rowNumber: number
+  dailyNumber: string
+  weeklyNumber: string
+  clientName?: string
+  clientPhone?: string
+  abono?: number
+}
+
 /** Solo las filas que se pueden guardar, en el orden del archivo. */
-export function importableRows(review: ImportReview): ImportRow[] {
+export function importableRows(review: ImportReview): ImportableRow[] {
   return review.rows
     .filter((row) => row.status === 'valid')
-    .map(({ rowNumber, dailyNumber, weeklyNumber, clientName, clientPhone }) => ({
+    .map(({ rowNumber, dailyNumber, weeklyNumber, clientName, clientPhone, abonoAmount }) => ({
       rowNumber,
       dailyNumber,
       weeklyNumber,
       ...(clientName !== undefined ? { clientName } : {}),
       ...(clientPhone !== undefined ? { clientPhone } : {}),
+      ...(abonoAmount !== undefined ? { abono: abonoAmount } : {}),
     }))
 }
 

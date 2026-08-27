@@ -20,6 +20,15 @@ export type ImportRow = {
   /** Opcionales para conservar intactos los archivos antiguos de dos columnas. */
   clientName?: string
   clientPhone?: string
+  /**
+   * La casilla «Abono» TAL Y COMO venia escrita: «20», «20.000», «Cancelado».
+   *
+   * Se interpreta mas adelante (`parseAbono`) porque hace falta el precio de la
+   * rifa para saber que significa, y aqui todavia no se conoce. Guardar el
+   * texto original permite ademas decirle a la persona que fue lo que escribio
+   * cuando no se entiende.
+   */
+  abono?: string
 }
 
 /** Celda de una fila, recortada por los extremos y como texto. */
@@ -38,6 +47,7 @@ export function tableToRows(table: CsvTable, mapping: ColumnMapping): ImportRow[
   return table.rows.map((row, index) => {
     const clientName = cell(row, mapping.clientName)
     const clientPhone = cell(row, mapping.clientPhone)
+    const abono = cell(row, mapping.abono)
 
     return {
       rowNumber: index + 1,
@@ -45,6 +55,7 @@ export function tableToRows(table: CsvTable, mapping: ColumnMapping): ImportRow[
       weeklyNumber: cell(row, mapping.weekly),
       ...(mapping.clientName >= 0 ? { clientName } : {}),
       ...(mapping.clientPhone >= 0 ? { clientPhone } : {}),
+      ...(mapping.abono >= 0 ? { abono } : {}),
     }
   })
 }

@@ -25,7 +25,7 @@ import { createSellerTickets } from '../actions'
 import type { SellerTicketRow } from '../schemas'
 
 type SellerTicketFormProps = {
-  raffles: { id: string; label: string }[]
+  raffles: { id: string; label: string; ticketPrice: number }[]
 }
 
 function emptyRows(count: number): SellerTicketRow[] {
@@ -154,6 +154,7 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
         </p>
         <TicketImportDialog
           raffleId={raffleId}
+          ticketPrice={raffles.find((raffle) => raffle.id === raffleId)?.ticketPrice ?? 0}
           disabled={isPending || !raffleId}
           successHref="/seller/tickets?inventoryStatus=pending_approval"
         />

@@ -29,11 +29,26 @@ test.beforeAll(async () => {
 })
 
 test.afterAll(async () => {
+  const svc = serviceClient()
+
+  // Orden obligatorio por las FK: asignaciones -> pagos -> boletas -> clientes.
+  // Desde BR-N14 una boleta importada puede traer abono, y por tanto pagos.
   if (creadas.length > 0) {
-    await serviceClient().from('tickets').delete().in('id', creadas)
+    const { data: allocations } = await svc
+      .from('payment_allocations')
+      .select('payment_id')
+      .in('ticket_id', creadas)
+    const pagos = [...new Set((allocations ?? []).map((row) => row.payment_id))]
+
+    if (pagos.length > 0) {
+      await svc.from('payment_allocations').delete().in('payment_id', pagos)
+      await svc.from('payments').delete().in('id', pagos)
+    }
+    await svc.from('commission_ledger').delete().in('ticket_id', creadas)
+    await svc.from('tickets').delete().in('id', creadas)
   }
   if (clientesCreados.length > 0) {
-    await serviceClient().from('clients').delete().in('id', clientesCreados)
+    await svc.from('clients').delete().in('id', clientesCreados)
   }
 })
 
@@ -168,6 +183,70 @@ test.describe('Importar boletas — portal administrativo', () => {
       .select('id', { count: 'exact', head: true })
       .eq('name', 'Cliente sin celular')
     expect(count).toBe(0)
+  })
+
+  test('la columna «Abono» deja las boletas cobradas y con su movimiento', async ({ page }) => {
+    const parcial = randomTicketNumbers()
+    const cancelada = randomTicketNumbers()
+    const sinAbono = randomTicketNumbers()
+    const phone = `31${String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0')}`
+    const name = `Cliente abono ${phone}`
+
+    // El precio se LEE de la rifa: escribirlo aqui seria repetir la cifra que
+    // D-098 obliga a tener en un solo sitio.
+    const { data: raffle } = await serviceClient()
+      .from('raffles')
+      .select('ticket_price')
+      .eq('id', refs.raffleId)
+      .single()
+    const precio = raffle!.ticket_price
+
+    await subir(
+      page,
+      'boletas-abono.csv',
+      [
+        'Nombre,Celular,Premio semanal,Premio diario,Abono',
+        `${name},${phone},${parcial.weekly},${parcial.daily},20`,
+        `${name},${phone},${cancelada.weekly},${cancelada.daily},Cancelado`,
+        `${name},${phone},${sinAbono.weekly},${sinAbono.daily},`,
+        '',
+      ].join('\n'),
+    )
+
+    // La vista previa dice lo que va a pasar con el dinero ANTES de guardar.
+    await expect(page.getByText('3 boletas encontradas')).toBeVisible()
+    await expect(page.getByText(/2 abonos por \$140\.000/)).toBeVisible()
+    await expect(page.getByText(/1 se creará/)).toBeVisible()
+    expect(await contarEnRifa([parcial, cancelada, sinAbono])).toBe(0)
+
+    await page.getByRole('button', { name: /Importar 3 boleta/ }).click()
+
+    await expect(page.getByText('Se crearon 3 boletas.')).toBeVisible()
+    await expect(page.getByText(/Se registraron 2 abonos por \$140\.000 en total\./)).toBeVisible()
+
+    const { data } = await serviceClient()
+      .from('tickets')
+      .select('id, daily_number, weekly_number, client_id, paid_amount, payment_status')
+      .eq('raffle_id', refs.raffleId)
+      .in('daily_number', [parcial.daily, cancelada.daily, sinAbono.daily])
+
+    const busca = (par: Par) =>
+      data!.find((t) => t.daily_number === par.daily && t.weekly_number === par.weekly)!
+    for (const par of [parcial, cancelada, sinAbono]) creadas.push(busca(par).id)
+    clientesCreados.push(busca(parcial).client_id!)
+
+    expect(busca(parcial)).toMatchObject({ paid_amount: 20_000, payment_status: 'partial' })
+    expect(busca(cancelada)).toMatchObject({ paid_amount: precio, payment_status: 'paid' })
+    expect(busca(sinAbono)).toMatchObject({ paid_amount: 0, payment_status: 'unpaid' })
+
+    // El historial existe: dos pagos, cada uno aplicado a SU boleta.
+    const { data: allocations } = await serviceClient()
+      .from('payment_allocations')
+      .select('amount, ticket_id, payment_id')
+      .in('ticket_id', [busca(parcial).id, busca(cancelada).id, busca(sinAbono).id])
+
+    expect(allocations).toHaveLength(2)
+    expect(new Set(allocations!.map((row) => row.payment_id)).size).toBe(2)
   })
 
   test('la columna «#» se ignora y los ceros de delante se conservan', async ({ page }) => {

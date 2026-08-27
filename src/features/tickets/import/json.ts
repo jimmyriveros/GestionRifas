@@ -1,14 +1,17 @@
 import { z } from 'zod'
 
+import { matchJsonKey, type TicketColumn } from './columns'
 import { ImportParseError } from './errors'
 import type { ImportRow } from './rows'
 
 /**
  * Lectura del formato JSON, la opcion avanzada del importador.
  *
- * El formato canonico es una lista de objetos con `weekly_number` y
- * `daily_number`; se aceptan tambien los nombres en español y en camelCase
- * porque cuestan una linea y evitan un rechazo por un detalle de escritura.
+ * Las claves se reconocen con la MISMA tabla de alias que los encabezados del
+ * CSV (`matchJsonKey`), asi que los tres estilos que la gente escribe valen sin
+ * mantener dos listas: `daily_number`, `dailyNumber` y «Premio diario» son la
+ * misma columna. Antes vivia aqui una segunda lista de alias; se retiro al
+ * anadir «Abono» para no tener que ampliarla en dos sitios cada vez (BR-N14).
  *
  * Los numeros deben venir **entre comillas** para conservar los ceros de
  * delante. Un numero JSON sin comillas se acepta igual —es un archivo valido y
@@ -17,52 +20,43 @@ import type { ImportRow } from './rows'
  * asi que no hay informacion que perder por ese lado.
  */
 
-/** Un valor de numero de boleta: texto (lo correcto) o numero JSON. */
-const rawNumber = z.union([z.string(), z.number()])
-
 /**
- * Objeto de una boleta. Zod descarta por defecto las claves que no conoce, que
- * es justo lo que hace falta: un archivo con campos de mas no se rechaza.
+ * Una lista de objetos. Las claves que no se reconocen se ignoran, igual que
+ * las columnas de mas de un CSV: un archivo con campos sobrantes no se rechaza.
  */
-const ticketObjectSchema = z.object({
-  weekly_number: rawNumber.optional(),
-  premio_semanal: rawNumber.optional(),
-  weeklyNumber: rawNumber.optional(),
-  daily_number: rawNumber.optional(),
-  premio_diario: rawNumber.optional(),
-  dailyNumber: rawNumber.optional(),
-  client_name: z.string().optional(),
-  nombre_cliente: z.string().optional(),
-  cliente: z.string().optional(),
-  clientName: z.string().optional(),
-  client_phone: rawNumber.optional(),
-  celular: rawNumber.optional(),
-  telefono: rawNumber.optional(),
-  clientPhone: rawNumber.optional(),
-})
-
 const importJsonSchema = z
-  .array(ticketObjectSchema, {
+  .array(z.record(z.string(), z.unknown()), {
     error: 'El archivo JSON debe contener una lista de boletas entre corchetes.',
   })
   .min(1, 'El archivo no tiene ninguna boleta.')
 
-type TicketObject = z.infer<typeof ticketObjectSchema>
+type JsonObject = Record<string, unknown>
 
-/** Primer alias presente, ya como texto y recortado. */
-function pick(object: TicketObject, keys: readonly (keyof TicketObject)[]): string {
-  for (const key of keys) {
-    const value = object[key]
-    if (value === undefined || value === null) continue
-    return String(value).trim()
+/**
+ * Que columna trae cada objeto y con que texto.
+ *
+ * Se queda con la PRIMERA clave que reconoce de cada tipo, igual que
+ * `detectMapping` con los encabezados: un objeto que traiga `cliente` y
+ * `client_name` no se pisa a si mismo.
+ *
+ * Un valor que no sea texto ni numero —un objeto, una lista, un booleano— se
+ * trata como si la clave no estuviera: la fila llega incompleta a la vista
+ * previa, que es donde se ve y se corrige, en vez de tumbar el archivo entero.
+ */
+function readColumns(object: JsonObject): Partial<Record<TicketColumn, string>> {
+  const found: Partial<Record<TicketColumn, string>> = {}
+
+  for (const [key, value] of Object.entries(object)) {
+    const column = matchJsonKey(key)
+    if (!column || column in found) continue
+
+    if (value === null) found[column] = ''
+    else if (typeof value === 'string') found[column] = value.trim()
+    else if (typeof value === 'number') found[column] = String(value).trim()
   }
-  return ''
-}
 
-const DAILY_KEYS = ['daily_number', 'premio_diario', 'dailyNumber'] as const
-const WEEKLY_KEYS = ['weekly_number', 'premio_semanal', 'weeklyNumber'] as const
-const CLIENT_NAME_KEYS = ['client_name', 'nombre_cliente', 'cliente', 'clientName'] as const
-const CLIENT_PHONE_KEYS = ['client_phone', 'celular', 'telefono', 'clientPhone'] as const
+  return found
+}
 
 /**
  * Convierte el contenido de un archivo JSON en filas del importador.
@@ -94,17 +88,15 @@ export function parseJsonTickets(content: string): ImportRow[] {
   }
 
   const rows = parsed.data.map((object, index) => {
-    const clientName = pick(object, CLIENT_NAME_KEYS)
-    const clientPhone = pick(object, CLIENT_PHONE_KEYS)
-    const hasClientFields = CLIENT_NAME_KEYS.some((key) => object[key] !== undefined)
-    const hasPhoneFields = CLIENT_PHONE_KEYS.some((key) => object[key] !== undefined)
+    const found = readColumns(object)
 
     return {
       rowNumber: index + 1,
-      dailyNumber: pick(object, DAILY_KEYS),
-      weeklyNumber: pick(object, WEEKLY_KEYS),
-      ...(hasClientFields ? { clientName } : {}),
-      ...(hasPhoneFields ? { clientPhone } : {}),
+      dailyNumber: found.daily ?? '',
+      weeklyNumber: found.weekly ?? '',
+      ...(found.clientName !== undefined ? { clientName: found.clientName } : {}),
+      ...(found.clientPhone !== undefined ? { clientPhone: found.clientPhone } : {}),
+      ...(found.abono !== undefined ? { abono: found.abono } : {}),
     }
   })
 

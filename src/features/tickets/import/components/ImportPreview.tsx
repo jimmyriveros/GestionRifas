@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { TICKET_PAYMENT_STATUS_LABELS } from '@/lib/constants'
+import { formatCOP } from '@/lib/money'
 import { cn } from '@/lib/utils'
 
 import type { ImportReview, ImportRowStatus, ReviewedRow } from '../review'
@@ -104,6 +106,13 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
               cliente
             </li>
           ) : null}
+          {review.withAbono > 0 ? (
+            <li>
+              <strong className="text-foreground">{review.withAbono}</strong>{' '}
+              {review.withAbono === 1 ? 'abono' : 'abonos'} por{' '}
+              <strong className="text-foreground">{formatCOP(review.abonoTotal)}</strong>
+            </li>
+          ) : null}
         </ul>
         {!checked ? (
           <p className="text-muted-foreground text-xs">
@@ -118,6 +127,15 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
             {review.clients.length === 1
               ? '1 cliente único detectado'
               : `${review.clients.length} clientes únicos detectados`}
+          </p>
+          {/* El desglose importa mas que el total: crear un cliente nuevo y
+              reutilizar uno que ya existe son dos cosas distintas, y quien
+              confirma quiere saber cuantos de cada uno antes de guardar. */}
+          <p className="text-muted-foreground text-sm">
+            <strong className="text-foreground">{review.clientsNew}</strong>{' '}
+            {review.clientsNew === 1 ? 'se creará' : 'se crearán'} ·{' '}
+            <strong className="text-foreground">{review.clientsExisting}</strong> ya{' '}
+            {review.clientsExisting === 1 ? 'existe' : 'existen'}
           </p>
           <ul className="divide-y text-sm">
             {review.clients.slice(0, 8).map((client) => (
@@ -170,7 +188,12 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
               <th className="h-10 px-3 text-left font-medium">Premio diario</th>
               <th className="hidden h-10 px-3 text-left font-medium lg:table-cell">Cliente</th>
               <th className="hidden h-10 px-3 text-left font-medium lg:table-cell">Celular</th>
-              <th className="h-10 px-3 text-left font-medium">Estado</th>
+              <th className="hidden h-10 px-3 text-left font-medium lg:table-cell">Abono</th>
+              <th className="hidden h-10 px-3 text-left font-medium xl:table-cell">Estado</th>
+              {/* «Resultado» y no «Estado»: en esta tabla conviven el estado en
+                  que quedara la boleta y el resultado de revisar la fila, y dos
+                  columnas llamadas «Estado» se leen una por la otra. */}
+              <th className="h-10 px-3 text-left font-medium">Resultado</th>
               <th className="hidden h-10 px-3 text-left font-medium md:table-cell">Problema</th>
             </tr>
           </thead>
@@ -189,11 +212,29 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
                 <td className="hidden px-3 py-2 tabular-nums lg:table-cell">
                   {row.clientPhone || '—'}
                 </td>
+                <td className="hidden px-3 py-2 tabular-nums lg:table-cell">
+                  {row.abonoAmount !== undefined ? formatCOP(row.abonoAmount) : '—'}
+                </td>
+                <td className="text-muted-foreground hidden px-3 py-2 text-xs xl:table-cell">
+                  {row.expectedPaymentStatus
+                    ? TICKET_PAYMENT_STATUS_LABELS[row.expectedPaymentStatus]
+                    : '—'}
+                </td>
                 <td className="px-3 py-2">
                   <EstadoBadge status={row.status} />
                   {row.clientName || row.clientPhone ? (
                     <p className="text-muted-foreground mt-1 text-xs lg:hidden">
                       {row.clientName || 'Sin nombre'} · {row.clientPhone || 'Sin celular'}
+                    </p>
+                  ) : null}
+                  {/* En pantallas estrechas no hay columnas de abono ni de
+                      estado: el dato va debajo, que es donde se mira. */}
+                  {row.abonoAmount !== undefined ? (
+                    <p className="text-muted-foreground mt-1 text-xs xl:hidden">
+                      Abono {formatCOP(row.abonoAmount)}
+                      {row.expectedPaymentStatus
+                        ? ` · ${TICKET_PAYMENT_STATUS_LABELS[row.expectedPaymentStatus]}`
+                        : ''}
                     </p>
                   ) : null}
                   {/* En pantallas estrechas no hay columna «Problema»: el

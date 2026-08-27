@@ -27,8 +27,11 @@ import { comboKey, countErrors, selectSendableRows, validateBulkRows } from '../
 
 type Option = { id: string; label: string }
 
+/** La rifa lleva ademas su precio: el importador lo necesita para los abonos. */
+type RaffleOption = Option & { ticketPrice: number }
+
 type BulkTicketCreatorProps = {
-  raffles: Option[]
+  raffles: RaffleOption[]
   sellers: Option[]
   defaultRaffleId?: string
   defaultSellerId?: string
@@ -59,6 +62,10 @@ export function BulkTicketCreator({
   const router = useRouter()
   const [raffleId, setRaffleId] = useState(defaultRaffleId ?? raffles[0]?.id ?? '')
   const [sellerId, setSellerId] = useState(defaultSellerId ?? sellers[0]?.id ?? '')
+  // El precio de la rifa ELEGIDA, que es la que va a recibir las boletas. Cero
+  // solo mientras no hay ninguna elegida, y entonces el importador esta
+  // deshabilitado.
+  const ticketPrice = raffles.find((raffle) => raffle.id === raffleId)?.ticketPrice ?? 0
   const [quantity, setQuantity] = useState(50)
   const [rows, setRows] = useState<BulkTicketRow[]>([])
   const [existingCombos, setExistingCombos] = useState<ReadonlySet<string>>(new Set())
@@ -258,6 +265,7 @@ export function BulkTicketCreator({
         </p>
         <TicketImportDialog
           raffleId={raffleId}
+          ticketPrice={ticketPrice}
           sellerId={sellerId}
           disabled={isPending || !raffleId || !sellerId}
           successHref={`/owner/tickets?raffleId=${raffleId}&sellerId=${sellerId}`}

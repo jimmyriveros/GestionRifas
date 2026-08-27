@@ -891,6 +891,14 @@ y por comportamiento sobre los datos reales. Detalle en `TEST_RESULTS.md`.
 
 | Migración | Qué hace |
 |---|---|
+| `0033_ticket_import_abono.sql` | La **columna «Abono» del importador** (BR-N14, D-129). `create or replace` de `import_tickets_with_clients` **con la misma firma**: `p_rows` gana una clave opcional `abono` en pesos enteros, se valida contra el `ticket_price` real de la rifa y se registra llamando a **`create_payment`** —la misma función del formulario manual—, un pago por fila con una sola asignación. Devuelve `payments_created` y `payments_total`. Un archivo sin esa clave se comporta **exactamente** como antes |
+
+⚠️ **`0033` NO está en producción, y su orden con el despliegue SÍ importa**: sin ella la clave
+`abono` se ignoraría en silencio y las boletas entrarían sin sus pagos. La migración primero, el
+frontend después.
+
+| Migración | Qué hace |
+|---|---|
 | `0032_internal_function_grants.sql` | **Cierra I-078** (D-128): revoca el privilegio **por defecto** de `execute` para `authenticated` sobre las funciones de `public` —la causa— y revoca explícitamente las **34** funciones internas que lo tenían: los 23 disparadores, el motor de comisión y ayudantes como `write_audit_log` y `notify_profiles`. `service_role` conserva todo. **No toca ni un dato** |
 
 ✅ **`0032` se promovió al proyecto real el 2026-08-27**, con autorización explícita y respaldo previo

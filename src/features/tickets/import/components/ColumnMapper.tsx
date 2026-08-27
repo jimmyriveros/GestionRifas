@@ -51,14 +51,24 @@ export function ColumnMapper({
   const [clientPhone, setClientPhone] = useState(
     initial.clientPhone >= 0 ? String(initial.clientPhone) : SIN_ELEGIR,
   )
+  const [abono, setAbono] = useState(initial.abono >= 0 ? String(initial.abono) : SIN_ELEGIR)
 
-  const selected = [daily, weekly, clientName, clientPhone].filter((value) => value !== SIN_ELEGIR)
+  const selected = [daily, weekly, clientName, clientPhone, abono].filter(
+    (value) => value !== SIN_ELEGIR,
+  )
   const noRepeatedColumns = new Set(selected).size === selected.length
   const completeClientPair =
     (clientName === SIN_ELEGIR && clientPhone === SIN_ELEGIR) ||
     (clientName !== SIN_ELEGIR && clientPhone !== SIN_ELEGIR)
+  // Un abono sin cliente no se puede registrar: la boleta no estaria vendida.
+  const abonoHasClient =
+    abono === SIN_ELEGIR || (clientName !== SIN_ELEGIR && clientPhone !== SIN_ELEGIR)
   const listo =
-    daily !== SIN_ELEGIR && weekly !== SIN_ELEGIR && noRepeatedColumns && completeClientPair
+    daily !== SIN_ELEGIR &&
+    weekly !== SIN_ELEGIR &&
+    noRepeatedColumns &&
+    completeClientPair &&
+    abonoHasClient
 
   /** «Columna A — 7607, 3929…»: el nombre y un par de valores de muestra. */
   function etiqueta(index: number): string {
@@ -143,6 +153,23 @@ export function ColumnMapper({
             </SelectContent>
           </Select>
         </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="map-abono">¿Cuál columna es el abono?</Label>
+          <Select value={abono} onValueChange={setAbono}>
+            <SelectTrigger id="map-abono" className="w-full">
+              <SelectValue placeholder="No incluir abono" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SIN_ELEGIR}>No incluir abono</SelectItem>
+              {headers.map((_, index) => (
+                <SelectItem key={index} value={String(index)}>
+                  {etiqueta(index)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {!noRepeatedColumns ? (
@@ -157,6 +184,12 @@ export function ColumnMapper({
         </p>
       ) : null}
 
+      {!abonoHasClient ? (
+        <p role="alert" className="text-destructive text-sm">
+          Para incluir abonos, elige también las columnas de nombre y celular del cliente.
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
@@ -167,6 +200,7 @@ export function ColumnMapper({
               weekly: Number(weekly),
               clientName: clientName === SIN_ELEGIR ? -1 : Number(clientName),
               clientPhone: clientPhone === SIN_ELEGIR ? -1 : Number(clientPhone),
+              abono: abono === SIN_ELEGIR ? -1 : Number(abono),
             })
           }
         >

@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **376 ✅** | **544 ✅** | **296 ✅** | ✅ | ✅ |
+| Post-9 vigente | **409 ✅** | **552 ✅** | **297 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -4472,3 +4472,60 @@ Como no usaba **savepoints**, ese error abortó la transacción y las seis sonda
 devolvieron «current transaction is aborted» — que se lee exactamente igual que un fallo real. Se
 corrigió con un savepoint por sonda. Es la trampa a evitar si alguien repite esta verificación: **sin
 savepoint, una sonda mala hace parecer que el despliegue rompió todo lo demás.**
+
+---
+
+## Post-9 — La columna «Abono» del importador (2026-08-27)
+
+BR-N14, D-129, migración `0033`. Detalle en `HANDOFF.md` §1.a.
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` | ✅ Las **33** migraciones aplican desde cero, `0033` incluida |
+| `npm run test` (unitarias) | **409/409** ✅ (+33: `tests/unit/ticket-import-abono.test.ts`) |
+| `npm run test:db` | **552/552** ✅ (+7 en `tests/db/ticket-import.test.ts`) |
+| `npm run typecheck` | ✅ |
+| `npm run lint` | **0 errores** (los 2 avisos de siempre, en `BulkTicketCreator` y `SellerTicketForm`) |
+| `npm run build` | ✅ |
+| `npx playwright test tests/e2e/importar-boletas.spec.ts` | **10/10** ✅ (+1: la columna «Abono» de extremo a extremo) |
+
+### Lo que de verdad se comprobó
+
+No que «la función devuelve un número», sino que el dinero **existe donde tiene que existir**:
+
+| Qué | Cómo se comprobó |
+|---|---|
+| El abono es un movimiento, no un campo acumulado | Se leen `payments` y `payment_allocations` después de importar: **dos filas de pago para dos boletas**, cada una con su asignación por su importe |
+| Cada abono es de **su** boleta | Los dos pagos tienen `payment_id` **distinto**: no es un pago repartido (`new Set(...).size === 2`) |
+| El estado lo deriva la base de datos | `payment_status` sale `partial` / `paid` / `unpaid` sin que el importador lo escriba, y la pagada queda con `paid_amount === sale_price` (saldo exactamente cero) |
+| Atomicidad | Un abono por encima del precio deja el recuento de boletas, de pagos y el `ticket_counter` **idénticos**, y no crea el cliente |
+| El formato antiguo no cambió | Las **33** pruebas del importador anterior pasan **sin tocarse**, y una prueba nueva importa un archivo de solo dos columnas y comprueba `payments_created: 0` |
+| El precio no está escrito en el código | Las pruebas leen `raffles.ticket_price` de la rifa, y hay casos con **$120.000 y con $50.000**: el corte entre «miles» y «pesos» sale de dividir, así que con la segunda rifa vale 50 |
+| Los archivos de ejemplo **se importan a sí mismos** | El CSV y el JSON que ofrece el importador pasan su propia vista previa: 4 filas, 4 válidas, 3 con cliente, 2 con abono y los cuatro estados esperados. Es la prueba con menos aparato y la que más vale: el ejemplo es lo primero que descarga alguien que nunca ha importado nada, y ata el ejemplo a la lectura del archivo |
+| Un abono que llega como texto | `abono: "Cancelado"` enviado a la RPC devuelve el mensaje redactado y **no** «cannot cast jsonb string to type numeric» |
+
+### El error encontrado, y por qué se cuenta
+
+**La validación SQL del abono se escribió primero con `and`**, así:
+
+```sql
+where jsonb_typeof(r -> 'abono') = 'number' and (r ->> 'abono')::bigint > v_raffle.ticket_price
+```
+
+Parece correcto y no lo es: **PostgreSQL no garantiza el orden de evaluación de un `and`**, así que
+puede intentar el cast antes de mirar el tipo. Un archivo con «Abono: hola» —que es exactamente lo
+que va a escribir alguien— habría devuelto un error de motor en vez de un mensaje entendible. Se
+reescribieron las tres comprobaciones con `case`, que sí garantiza el orden, y hay una prueba que lo
+fija (`un abono que llega como texto se rechaza sin reventar el cast`).
+
+Se corrigió **antes** de ejecutar nada, leyendo el código: ninguna de las pruebas escritas hasta ese
+momento lo habría destapado, porque todas mandaban números.
+
+### Dos suposiciones mías que estaban mal, y las corrigió la prueba
+
+Al escribir los casos del corte entre «miles» y «pesos» di por hecho que con una rifa de **$50.000**
+un «120» y un «60» darían error. No lo dan: el corte es `50`, así que ambos quedan **por encima** y se
+leen literalmente como $120 y $60 —cifras pequeñas, pero válidas—. La regla del encargo es esa y el
+código la aplica bien; lo que estaba mal era mi expectativa. Las pruebas se corrigieron para fijar el
+comportamiento **real** y se añadió un caso que lo deja escrito («por encima del corte se lee en
+pesos, aunque la cifra sea pequeña»), porque es el caso límite que conviene mirar (D-129).

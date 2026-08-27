@@ -62,11 +62,27 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  const svc = serviceClient()
+
+  // Orden obligatorio por las FK (`on delete restrict`): asignaciones -> pagos
+  // -> boletas -> clientes. Desde que el importador registra abonos (BR-N14),
+  // una boleta de esta suite puede tener pagos colgando.
   if (creadas.length > 0) {
-    await serviceClient().from('tickets').delete().in('id', creadas)
+    const { data: allocations } = await svc
+      .from('payment_allocations')
+      .select('payment_id')
+      .in('ticket_id', creadas)
+    const pagos = [...new Set((allocations ?? []).map((row) => row.payment_id))]
+
+    if (pagos.length > 0) {
+      await svc.from('payment_allocations').delete().in('payment_id', pagos)
+      await svc.from('payments').delete().in('id', pagos)
+    }
+    await svc.from('commission_ledger').delete().in('ticket_id', creadas)
+    await svc.from('tickets').delete().in('id', creadas)
   }
   if (clientesCreados.length > 0) {
-    await serviceClient().from('clients').delete().in('id', clientesCreados)
+    await svc.from('clients').delete().in('id', clientesCreados)
   }
 })
 
@@ -595,3 +611,300 @@ async function contarBoletas(): Promise<number> {
     .eq('raffle_id', seed.demoRaffle.id)
   return count ?? 0
 }
+
+/**
+ * La columna «Abono» del importador (BR-N14, D-129).
+ *
+ * Lo que se prueba aqui es justo lo que no puede probar una funcion pura: que
+ * el abono llega a `payments` y `payment_allocations` de verdad —no a un campo
+ * acumulado—, que el estado de la boleta lo deriva la base de datos, y que un
+ * abono invalido no deja NADA a medias.
+ *
+ * Con sesiones reales y clave publica, como todo el proyecto: una prueba de
+ * permisos que use `service_role` no prueba nada (docs/TESTING.md 2).
+ */
+describe('import_tickets_with_clients con abono', () => {
+  type Resultado = {
+    inserted: number
+    assigned: number
+    clients_created: number
+    payments_created: number
+    payments_total: number
+  }
+
+  /** El precio se LEE de la rifa; escribirlo aqui repetiria la cifra (D-098). */
+  async function precioDeLaRifa(): Promise<number> {
+    const { data } = await seed.svc
+      .from('raffles')
+      .select('ticket_price')
+      .eq('id', seed.demoRaffle.id)
+      .single()
+    return data!.ticket_price
+  }
+
+  function celular() {
+    return `31${String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0')}`
+  }
+
+  /** Las boletas del lote, acotando por la COMBINACION completa (BR-N04). */
+  async function boletasDe(pares: { daily: string; weekly: string }[]) {
+    const { data, error } = await seed.svc
+      .from('tickets')
+      .select('id, daily_number, weekly_number, client_id, sale_price, paid_amount, payment_status')
+      .eq('raffle_id', seed.demoRaffle.id)
+      .in(
+        'daily_number',
+        pares.map((par) => par.daily),
+      )
+
+    if (error) throw error
+    const delLote = data.filter((ticket) =>
+      pares.some((par) => par.daily === ticket.daily_number && par.weekly === ticket.weekly_number),
+    )
+    for (const ticket of delLote) creadas.push(ticket.id)
+    return delLote
+  }
+
+  async function contarPagos(): Promise<number> {
+    const { count } = await seed.svc
+      .from('payments')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', seed.demoOrg.id)
+    return count ?? 0
+  }
+
+  it('CASOS 14 y 15 — el abono queda como pago y asignación, no como un campo suelto', async () => {
+    const precio = await precioDeLaRifa()
+    const parcial = numeros()
+    const completa = numeros()
+    const sinAbono = numeros()
+    const phone = celular()
+    const name = `Cliente con abono ${phone}`
+
+    const { data, error } = await owner.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: parcial.daily,
+          weekly_number: parcial.weekly,
+          client_name: name,
+          client_phone: phone,
+          abono: 20_000,
+        },
+        {
+          daily_number: completa.daily,
+          weekly_number: completa.weekly,
+          client_name: name,
+          client_phone: phone,
+          abono: precio,
+        },
+        {
+          daily_number: sinAbono.daily,
+          weekly_number: sinAbono.weekly,
+          client_name: name,
+          client_phone: phone,
+        },
+      ],
+    })
+
+    expect(error).toBeNull()
+    expect(data as Resultado).toMatchObject({
+      inserted: 3,
+      assigned: 3,
+      clients_created: 1,
+      payments_created: 2,
+      payments_total: 20_000 + precio,
+    })
+
+    const boletas = await boletasDe([parcial, completa, sinAbono])
+    const busca = (par: { daily: string; weekly: string }) =>
+      boletas.find((t) => t.daily_number === par.daily && t.weekly_number === par.weekly)!
+
+    // El estado NO lo escribe el importador: lo deriva la base de datos de lo
+    // que hay en payment_allocations (BR-F07).
+    expect(busca(parcial)).toMatchObject({ paid_amount: 20_000, payment_status: 'partial' })
+    expect(busca(completa)).toMatchObject({ paid_amount: precio, payment_status: 'paid' })
+    expect(busca(sinAbono)).toMatchObject({ paid_amount: 0, payment_status: 'unpaid' })
+
+    // Y el saldo de la pagada queda EXACTAMENTE en cero: lo abonado es lo que
+    // vale la boleta, sin un peso de mas ni de menos.
+    expect(busca(completa).sale_price).toBe(precio)
+    expect(busca(completa).paid_amount).toBe(precio)
+
+    clientesCreados.push(busca(parcial).client_id!)
+
+    // El movimiento existe de verdad: una fila de pago con su asignacion.
+    const { data: allocations } = await seed.svc
+      .from('payment_allocations')
+      .select('amount, ticket_id, payment_id')
+      .in('ticket_id', [busca(parcial).id, busca(completa).id, busca(sinAbono).id])
+
+    expect(allocations).toHaveLength(2)
+    // Cada abono es de SU boleta: dos pagos distintos, no uno repartido.
+    expect(new Set(allocations!.map((row) => row.payment_id)).size).toBe(2)
+    expect(allocations!.find((row) => row.ticket_id === busca(parcial).id)?.amount).toBe(20_000)
+
+    const { data: pagos } = await seed.svc
+      .from('payments')
+      .select('total_amount, payment_method, notes, seller_id')
+      .in(
+        'id',
+        allocations!.map((row) => row.payment_id),
+      )
+
+    expect(pagos).toHaveLength(2)
+    for (const pago of pagos!) {
+      expect(pago.seller_id).toBe(seed.ids.seller1)
+      expect(pago.notes).toMatch(/import/i)
+    }
+  })
+
+  it('CASO 25 — un abono por encima del precio no deja boleta, cliente ni pago', async () => {
+    const precio = await precioDeLaRifa()
+    const number = numeros()
+    const phone = celular()
+    const boletasAntes = await contarBoletas()
+    const pagosAntes = await contarPagos()
+    const contadorAntes = await contadorDeCodigos()
+
+    const { error } = await owner.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: number.daily,
+          weekly_number: number.weekly,
+          client_name: `Cliente pasado ${phone}`,
+          client_phone: phone,
+          abono: precio + 1,
+        },
+      ],
+    })
+
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/supera el precio/i)
+    expect(await contarBoletas()).toBe(boletasAntes)
+    expect(await contarPagos()).toBe(pagosAntes)
+    expect(await contadorDeCodigos()).toBe(contadorAntes)
+
+    const { count } = await seed.svc
+      .from('clients')
+      .select('id', { count: 'exact', head: true })
+      .eq('phone', phone)
+    expect(count).toBe(0)
+  })
+
+  it('un abono sin cliente se rechaza: sin venta no hay dónde aplicarlo', async () => {
+    const number = numeros()
+    const boletasAntes = await contarBoletas()
+
+    const { error } = await owner.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [{ daily_number: number.daily, weekly_number: number.weekly, abono: 20_000 }],
+    })
+
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/no tiene cliente/i)
+    expect(await contarBoletas()).toBe(boletasAntes)
+  })
+
+  it('CASO 16 — cero, negativo y decimal se rechazan antes de escribir nada', async () => {
+    const boletasAntes = await contarBoletas()
+
+    for (const abono of [0, -20_000, 20_000.5]) {
+      const number = numeros()
+      const phone = celular()
+      const { error } = await owner.rpc('import_tickets_with_clients', {
+        p_raffle_id: seed.demoRaffle.id,
+        p_seller_id: seed.ids.seller1,
+        p_rows: [
+          {
+            daily_number: number.daily,
+            weekly_number: number.weekly,
+            client_name: `Cliente ${phone}`,
+            client_phone: phone,
+            abono,
+          },
+        ],
+      })
+
+      expect(error, String(abono)).not.toBeNull()
+      expect(error!.message).toMatch(/entero y mayor que cero/i)
+    }
+
+    expect(await contarBoletas()).toBe(boletasAntes)
+  })
+
+  it('un abono que llega como texto se rechaza sin reventar el cast', async () => {
+    // Si la comprobacion se escribiera con `and` en vez de `case`, PostgreSQL
+    // podria intentar el cast antes de mirar el tipo y devolver un error de
+    // motor en vez de un mensaje entendible.
+    const number = numeros()
+    const phone = celular()
+
+    const { error } = await owner.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: number.daily,
+          weekly_number: number.weekly,
+          client_name: `Cliente ${phone}`,
+          client_phone: phone,
+          abono: 'Cancelado',
+        },
+      ],
+    })
+
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/entero y mayor que cero/i)
+    expect(error!.message).not.toMatch(/cannot cast/i)
+  })
+
+  it('CASO 26 — un vendedor no puede importar abonos por esta ruta', async () => {
+    const number = numeros()
+    const phone = celular()
+
+    const { error } = await seller1.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: number.daily,
+          weekly_number: number.weekly,
+          client_name: `Cliente ${phone}`,
+          client_phone: phone,
+          abono: 20_000,
+        },
+      ],
+    })
+
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/permiso/i)
+  })
+
+  it('CASO 1 — sin la clave «abono» la importación se comporta como siempre', async () => {
+    const number = numeros()
+    const pagosAntes = await contarPagos()
+
+    const { data, error } = await owner.rpc('import_tickets_with_clients', {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [{ daily_number: number.daily, weekly_number: number.weekly }],
+    })
+
+    expect(error).toBeNull()
+    expect(data as Resultado).toMatchObject({
+      inserted: 1,
+      assigned: 0,
+      payments_created: 0,
+      payments_total: 0,
+    })
+    expect(await contarPagos()).toBe(pagosAntes)
+
+    const [boleta] = await boletasDe([number])
+    expect(boleta).toMatchObject({ client_id: null, paid_amount: 0, payment_status: 'unpaid' })
+  })
+})

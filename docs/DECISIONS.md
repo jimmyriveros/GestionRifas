@@ -4546,6 +4546,88 @@ de disparador fallan si se invocan sueltas. Las dos que sí molestaban son `writ
 la bitácora hechos que no ocurrieron, en una tabla que existe justo para no poder falsearse— y
 `notify_profiles` —crear avisos a nombre de cualquiera—.
 
+---
+
+## D-129 — La columna «Abono» del importador: un pago por fila, con el precio de la rifa como única vara
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-27)
+
+**Contexto.** El importador de D-081 leía dos números y el de D-087 añadió cliente y celular. La
+columna «Abono» quedó explícitamente aplazada y aparece como pendiente en seis relevos seguidos de
+`HANDOFF.md`. El usuario la pidió ahora, junto con el reconocimiento de los encabezados tal y como
+los escribe él (`Nombre`, `Celular`, `Premio semanal`, `Premio diario`, `Abono`), en CSV y en JSON.
+
+**Lo que ya estaba y no se rehízo.** Buena parte del encargo describía comportamiento vigente:
+agrupar por celular normalizado, evitar clientes duplicados dentro del archivo, rechazar un mismo
+celular con dos nombres, la vista previa que no escribe nada, la atomicidad, el BOM, el orden libre
+de columnas y las reglas de numeración. Se comprobó una por una contra el código antes de tocar
+nada; lo único que faltaba de verdad era el abono y el reconocimiento de dos encabezados.
+
+**Decisión 1 — el abono se interpreta al leer el archivo, y viaja en pesos enteros.** «20», «20.000»,
+«20000» y «Cancelado» son formas de escribir lo mismo, y traducirlas es parte de leer el archivo, no
+del modelo de dinero. `parseAbono` (una función pura) devuelve un entero; a partir de ahí el sistema
+maneja lo de siempre (BR-P02). Lo que el servidor vuelve a validar no es la traducción sino lo que
+importa: entero, positivo, con cliente y dentro del precio real de la rifa.
+
+**Decisión 2 — el corte entre «miles» y «pesos» se calcula, no se escribe.** El encargo lo enuncia
+como «entre 1 y 120 son miles». Escribir 120 sería volver a repartir el precio por el código, que es
+justo lo que D-098 costó arreglar. El corte es `ticket_price / 1000`, así que con una rifa de
+$120.000 da exactamente la tabla del encargo y con la de $50.000 da 50, sola. Hay una prueba con cada
+precio precisamente para que atar esto otra vez a una cifra fija falle.
+
+**Decisión 3 — un pago por fila, no uno por cliente.** El encargo lo pide («el abono pertenece
+individualmente a la boleta de esa fila») y además es lo correcto de cara al historial: un pago por
+cliente con tres asignaciones diría «un abono de $190.000» donde hubo tres cobros distintos, y ese
+historial es lo que el vendedor le enseña al cliente cuando reclama.
+
+**Decisión 4 — el abono lo registra `create_payment`, no una escritura nueva.** Es la misma función
+del formulario manual, llamada desde dentro de `import_tickets_with_clients` igual que ya se llamaba
+a `assign_ticket_row`. De ahí salen sin escribir una línea: las filas de `payments` y
+`payment_allocations`, el recálculo de `paid_amount`, el estado de pago derivado (BR-F07), el bloqueo
+de sobrepago (BR-F12), la comisión del vendedor y la fila en la bitácora. Un campo acumulado escrito a
+mano se habría saltado las seis cosas. El abono va en la **misma vuelta del bucle** que la
+asignación, para que sea imposible cobrar una boleta que no llegó a asignarse.
+
+**Decisión 5 — el JSON deja de tener su propia lista de alias.** El ejemplo del encargo trae las
+claves escritas como los encabezados del CSV («Premio semanal», «Nombre», «Abono»), mientras que los
+archivos que ya funcionaban las traen en `snake_case` y `camelCase`. En vez de ampliar dos listas
+—una por formato— cada vez que aparezca una columna, `matchJsonKey` pasa la clave por la **misma**
+tabla del CSV, partiendo antes el camelCase. Las once claves que se aceptaban antes siguen
+aceptándose, y sus pruebas lo demuestran sin haberse tocado.
+
+**Decisión 6 — sin precio conocido no se inventa un precio.** Si `reviewRows` recibe una fila con
+abono y no sabe el precio, marca la fila y lo dice. La alternativa —caer en `DEFAULT_TICKET_PRICE`—
+habría convertido una constante de formulario en una fuente de dinero. La vista previa, además, usa
+el precio que **devuelve el servidor** en cuanto llega, no el que traía la pantalla.
+
+**Lo que NO se cambió, a propósito, y por qué:**
+
+* **La identificación de un cliente que ya existe sigue exigiendo nombre + celular** (D-087). El
+  encargo dice «si existe, reutilizarlo» y también «no sobrescribas su nombre»; cuando el celular
+  coincide y el nombre no, las dos cosas no se pueden cumplir a la vez, y el propio encargo prohíbe
+  elegir en silencio en el caso gemelo (el mismo celular con dos nombres dentro del archivo). Se
+  conserva el conflicto visible, que es la conducta conservadora ya decidida y probada.
+* **Los números siguen siendo de 1 a 4 dígitos**, no de exactamente 4. El encargo pide «exactamente
+  cuatro» en un punto y «mantener todas las validaciones actuales» en otro; BR-N02, `CLAUDE.md` §13 y
+  el `CHECK` de la base de datos admiten de 1 a 4 desde la Fase 2, y hay boletas vivas con «46».
+  Apretarlo aquí rompería datos existentes y contradiría la regla vigente.
+* **Un vendedor sigue sin poder importar con cliente**, y por tanto tampoco con abono (BR-I03/BR-I09,
+  D-087): sus boletas nacen `pending_approval`, y una boleta con abono tiene que estar vendida.
+
+**Consecuencia operativa.** La migración `0033_ticket_import_abono.sql` **debe preceder** al
+despliegue del frontend: sin ella, la clave `abono` se ignoraría en silencio y las boletas entrarían
+sin sus pagos, que es la peor forma de fallar de las dos. Es un `create or replace` sobre la misma
+firma, así que no hay contrato nuevo y un archivo sin la columna se comporta exactamente igual que
+antes.
+
+**Caso límite que conviene mirar.** Entre el corte (120 con el precio de $120.000) y la primera cifra
+realista en pesos (20.000) hay una franja donde un número se lee literalmente: «500» son quinientos
+pesos, no quinientos mil. Es la regla 2 del encargo aplicada tal cual, y el corte lo atrapa la vista
+previa, que enseña el importe ya convertido antes de confirmar. Si algún día molesta, la corrección
+es rechazar esa franja, no mover el corte.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

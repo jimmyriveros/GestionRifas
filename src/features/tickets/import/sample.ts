@@ -13,7 +13,13 @@ import { toCsv } from '@/lib/csv'
  * ningun problema: el separador se detecta al leer.
  */
 
-type Ejemplo = { semanal: string; diario: string; cliente?: string; celular?: string }
+type Ejemplo = {
+  semanal: string
+  diario: string
+  cliente?: string
+  celular?: string
+  abono?: string
+}
 
 const FILAS: Ejemplo[] = [
   { semanal: '7607', diario: '3332' },
@@ -28,14 +34,28 @@ export const SAMPLE_CSV = toCsv<Ejemplo>(
   FILAS,
 )
 
+/**
+ * Las cuatro filas enseñan, en este orden, las cuatro formas de rellenarlas:
+ * abono a medias, boleta ya cancelada, cliente sin abono todavia, y boleta sin
+ * vender. Un ejemplo que solo enseña un caso deja adivinando los otros tres.
+ */
 const FILAS_CON_CLIENTE: Ejemplo[] = [
   {
     semanal: '7607',
     diario: '3332',
     cliente: 'Carlos Gómez',
     celular: '3001234567',
+    abono: '20.000',
   },
-  { semanal: '3929', diario: '9654', cliente: '', celular: '' },
+  {
+    semanal: '5218',
+    diario: '0461',
+    cliente: 'Carlos Gómez',
+    celular: '3001234567',
+    abono: 'Cancelado',
+  },
+  { semanal: '8140', diario: '2276', cliente: 'Marta Ruiz', celular: '3009876543', abono: '' },
+  { semanal: '3929', diario: '9654', cliente: '', celular: '', abono: '' },
 ]
 
 export const SAMPLE_CSV_WITH_CLIENTS = toCsv<Ejemplo>(
@@ -44,6 +64,7 @@ export const SAMPLE_CSV_WITH_CLIENTS = toCsv<Ejemplo>(
     { header: 'Premio diario', value: (fila) => fila.diario },
     { header: 'Cliente', value: (fila) => fila.cliente ?? '' },
     { header: 'Celular', value: (fila) => fila.celular ?? '' },
+    { header: 'Abono', value: (fila) => fila.abono ?? '' },
   ],
   FILAS_CON_CLIENTE,
 )
@@ -60,6 +81,7 @@ export const SAMPLE_JSON_WITH_CLIENTS = JSON.stringify(
     daily_number: fila.diario,
     client_name: fila.cliente,
     client_phone: fila.celular,
+    abono: fila.abono,
   })),
   null,
   2,

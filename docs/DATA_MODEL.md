@@ -733,7 +733,7 @@ impediría igual aunque la función se equivocara.
 | Función o pieza | Responsabilidad | Consumidor |
 |---|---|---|
 | `match_ticket_import_clients(raffle, seller, clients)` | Devuelve coincidencias por celular **solo** de la organización y cartera seleccionadas; nombre y estado permiten decidir coincidencia exacta, archivada o ambigua | Vista previa administrativa, una llamada por archivo |
-| `import_tickets_with_clients(raffle, seller, rows)` | Crea las boletas no tomadas, reutiliza o crea un cliente por identidad y asigna mediante `assign_ticket_row`; devuelve insertadas, conflictos, asignadas y clientes creados/reutilizados | Confirmación del importador Owner/Admin |
+| `import_tickets_with_clients(raffle, seller, rows)` | Crea las boletas no tomadas, reutiliza o crea un cliente por identidad, asigna mediante `assign_ticket_row` y, si la fila trae `abono` (pesos enteros, BR-N14), lo cobra mediante `create_payment`; devuelve insertadas, conflictos, asignadas, clientes creados/reutilizados y pagos con su total | Confirmación del importador Owner/Admin |
 | `ticket_import_name_key(text)` / `ticket_import_phone_key(text)` | Claves comparables de nombre y celular; no cambian el valor visible | Las dos RPC y el índice funcional |
 | `clients_seller_import_phone_idx` | Evita recorrer la cartera completa al resolver los celulares del archivo | `match_ticket_import_clients` e importación |
 

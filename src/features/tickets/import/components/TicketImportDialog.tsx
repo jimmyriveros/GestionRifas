@@ -12,8 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { formatCOP } from '@/lib/money'
 
-import { detectMapping, hasPartialClientMapping, isMappingComplete } from '../columns'
+import { detectMapping, needsManualMapping } from '../columns'
 import { hasAnyClientData, hasCompleteClientData } from '../clients'
 import { parseCsv, type CsvTable } from '../csv'
 import { ImportParseError } from '../errors'
@@ -46,6 +47,15 @@ import { ImportPreview } from './ImportPreview'
 type TicketImportDialogProps = {
   /** Rifa a la que van las boletas. La elige la pantalla, no el archivo. */
   raffleId: string
+  /**
+   * Precio de esa rifa, en pesos. Es lo que decide que significa un «20» en la
+   * columna «Abono» y hasta donde puede llegar.
+   *
+   * Sirve para pintar la PRIMERA vista previa sin esperar al servidor; en
+   * cuanto llega la comprobacion, manda el precio que devuelve el servidor, que
+   * es el que va a aplicar la base de datos.
+   */
+  ticketPrice: number
   /** Solo el personal lo manda. En el portal del vendedor va sin definir. */
   sellerId?: string
   /** Se deshabilita el importador si falta contexto (sin rifa, sin vendedor). */
@@ -58,6 +68,7 @@ type Paso = 'archivo' | 'mapeo' | 'vista-previa' | 'resultado'
 
 export function TicketImportDialog({
   raffleId,
+  ticketPrice,
   sellerId,
   disabled,
   successHref,
@@ -108,9 +119,10 @@ export function TicketImportDialog({
 
   /** Contrasta las combinaciones con la rifa. Una sola llamada, nunca una por fila. */
   function revisar(filas: ImportRow[]) {
-    // Primera pasada, sin base de datos: formato y repeticiones dentro del
-    // archivo. Se pinta ya, para no dejar la pantalla en blanco esperando.
-    const primera = reviewRows(filas, { allowClientAssignments })
+    // Primera pasada, sin base de datos: formato, repeticiones dentro del
+    // archivo y lectura de los abonos. Se pinta ya, para no dejar la pantalla
+    // en blanco esperando.
+    const primera = reviewRows(filas, { allowClientAssignments, ticketPrice })
     setReview(primera)
     setComprobado(false)
     setPaso('vista-previa')
@@ -130,6 +142,7 @@ export function TicketImportDialog({
             ...(hasCompleteClientData(fila)
               ? { clientName: fila.clientName, clientPhone: fila.clientPhone }
               : {}),
+            ...(fila.abonoAmount !== undefined ? { abono: fila.abonoAmount } : {}),
           })),
       })
 
@@ -150,6 +163,9 @@ export function TicketImportDialog({
       setReview(
         reviewRows(filas, {
           allowClientAssignments,
+          // El precio del servidor manda sobre el que trajo la pantalla: es el
+          // que va a usar la base de datos al guardar.
+          ticketPrice: respuesta.data.ticketPrice,
           existingCombos: new Set(respuesta.data.taken),
           clientResolutions: new Map(respuesta.data.clients.map((client) => [client.key, client])),
         }),
@@ -177,7 +193,7 @@ export function TicketImportDialog({
       setTabla(leida)
 
       const mapeo = detectMapping(leida.headers)
-      if (!isMappingComplete(mapeo) || hasPartialClientMapping(mapeo)) {
+      if (needsManualMapping(mapeo)) {
         setPaso('mapeo')
         return
       }
@@ -212,6 +228,7 @@ export function TicketImportDialog({
           ...(hasCompleteClientData(fila)
             ? { clientName: fila.clientName, clientPhone: fila.clientPhone }
             : {}),
+          ...(fila.abono !== undefined ? { abono: fila.abono } : {}),
         })),
       })
 
@@ -368,6 +385,13 @@ export function TicketImportDialog({
                       {resultado.clientsReused === 1
                         ? 'existente reutilizado'
                         : 'existentes reutilizados'}
+                    </p>
+                  ) : null}
+                  {resultado.paymentsCreated > 0 ? (
+                    <p className="text-muted-foreground">
+                      {resultado.paymentsCreated === 1
+                        ? `Se registró 1 abono por ${formatCOP(resultado.paymentsTotal)}.`
+                        : `Se registraron ${resultado.paymentsCreated} abonos por ${formatCOP(resultado.paymentsTotal)} en total.`}
                     </p>
                   ) : null}
                   {resultado.auditFailed ? (

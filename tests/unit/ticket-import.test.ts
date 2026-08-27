@@ -158,6 +158,7 @@ describe('CSV', () => {
       daily: 1,
       clientName: -1,
       clientPhone: -1,
+      abono: -1,
     })
 
     expect(filas[0]).toEqual({ rowNumber: 1, dailyNumber: '3332', weeklyNumber: '7607' })
