@@ -4224,3 +4224,85 @@ como hueco de corrección.
 **No se desplegó a producción.** Esta migración **cambia lo que se le debe a la gente**: a partir de
 ella cada vendedor padre cobra por las ventas de su equipo, y eso antes valía cero. Requiere
 autorización explícita del dueño y su propia ventana.
+
+---
+
+## Despliegue de D-127 (`0031`) a producción (2026-08-27)
+
+Autorización expresa del dueño. Es la primera migración de este proyecto que **cambia una regla de
+reparto de dinero**, así que la comprobación central no es que aplique, sino que **no mueva nada de
+lo que ya existía**.
+
+### El hallazgo que definió el riesgo, medido ANTES de tocar nada
+
+| Qué | Estado en producción |
+|---|---|
+| Equipos | **Uno**: Juan Hernandez bajo Armando Gordillo |
+| Boletas cobradas de ese integrante | **Cero** |
+| Comisiones vivas | **Una**: Jaydin Fernando — 1 boleta, tarifa $60.000, ganado $60.000 |
+| Ledger | 1 fila, $60.000 |
+| Pagos vigentes | 3, $320.000 |
+
+De ahí la conclusión que bajó el riesgo de la operación: **el único equipo que existe no tiene ni una
+boleta cobrada**, así que `team_earned` nace en cero para todos y nadie cambia de importe. La regla
+cambia **de aquí en adelante**, no hacia atrás.
+
+### Procedimiento
+
+| Paso | Resultado |
+|---|---|
+| Respaldo `Rifas-backups/2026-08-27-pre-0031/` | `roles.sql` (370 B), `schema.sql` (220 KB), `data.sql` (490 KB) · **13 tablas con datos** · `grep -c '"auth"'` → **0** · credenciales → **0** |
+| `db push --dry-run` | Solo `0031_team_commission.sql` |
+| `db push --yes` | Aplicada |
+| `verify:remote` | **13/13** en verde |
+
+### Comprobación de que no se movió dinero
+
+Se volvió a leer la misma sonda después de aplicar. **Idéntica**: Jaydin Fernando sigue con 1 boleta,
+tarifa $60.000, ganado $60.000 y su ledger de 1 fila; 3 pagos vigentes por $320.000; el equipo
+intacto. Ni un peso de diferencia.
+
+### Sonda de comportamiento sobre los datos reales
+
+| Nº | Qué | Resultado |
+|----|-----|-----------|
+| 1 | Las 6 columnas nuevas | Existen, con sus tipos y `default` (`tiered`, `false`, `0`, `0`) |
+| 2 | Enum `commission_model` | `tiered`, `fixed_per_ticket` |
+| 3 | Restricciones nuevas | `memberships_commission_model_amount` y `commission_ledger_from_seller_is_team` |
+| 4 | Funciones y firmas | Las 6, con `recalc_seller_commission` ya con su `p_team_source` |
+| 5 | Triggers | Los 4, incluido `memberships_validate_commission` |
+| 6 | `anon` | **No** puede ejecutar ninguna de las nuevas |
+| 7 | Compatibilidad | **7 de 7** membresías en `tiered`, **0** con importe |
+| 8 | `commission_summary` | Devuelve `pay_model = half_price`, `team_earned = 0` para el único vendedor con comisión |
+| 9 | El tope, sobre datos reales | «Rifas» → **$60.000** (mitad de $120.000) · «Rifas Control» → **$25.000** (mitad de $50.000) |
+| 10 | Invariante BR-G22 por partes | `cuadra: true` |
+| 11 | Simulación | Si Juan cobrara una boleta hoy: él $20.000, Armando **$40.000**, empresa $60.000 |
+
+### Código
+
+Vercel `READY` sobre **`6596b637`** (`dpl_8AJKwGrp4G6sx3hVNBGLVpnBseST`), región `iad1`, build de
+**39 s**, alias `gestion-rifas.vercel.app`. Es el **único** despliegue de producción posterior al
+push. En vivo: las **6** cabeceras de seguridad, **4** rutas protegidas en 307, `/login`,
+`/forgot-password`, `/offline` y `/manifest.webmanifest` en 200, **0** claves de servicio en el HTML,
+y **372–433 ms** de tiempo de servidor.
+
+⚠️ **`/reset-password` devuelve 307 y NO es una regresión.** Está en `PUBLIC_PATHS` del proxy, pero la
+propia página redirige a `/login` cuando no hay sesión (`page.tsx:9`): solo tiene sentido con la
+sesión que crea el enlace de invitación. Se comprobó leyendo el código, no suponiéndolo.
+
+### Lo que un agente NO puede comprobar aquí
+
+Las tarjetas de elección, el tope en pantalla y el aviso de recálculo viven **tras el inicio de
+sesión**, y automatizar ese acceso con las cuentas reales es lo que provocó **I-066**. **No se
+intentó.** La evidencia de que funcionan es la de local con sesión real (sección anterior); la de que
+la regla está viva en producción son las 11 sondas de arriba, ejecutadas contra la base real.
+
+### Hallazgo abierto durante el despliegue: I-078
+
+La sonda 6 comprobaba `anon` y de paso midió `authenticated`: **las funciones internas del motor de
+comisiones son ejecutables por `authenticated`**, y el comentario de `0024` afirma lo contrario. Se
+verificó que **es preexistente** —`commission_rate_for` y `tickets_sync_commission`, que `0031` no
+toca, están igual desde el 2026-08-13— y que la causa es que esas migraciones revocan de `anon, public`
+sin incluir `authenticated`. **No se corrigió en caliente**: meter una migración no planeada en mitad
+de un despliegue autorizado para otra cosa es peor práctica que documentarlo. Detalle y salida
+propuesta en `KNOWN_ISSUES.md` **I-078**.
