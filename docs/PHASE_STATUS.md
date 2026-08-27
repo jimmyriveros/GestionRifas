@@ -893,9 +893,17 @@ y por comportamiento sobre los datos reales. Detalle en `TEST_RESULTS.md`.
 |---|---|
 | `0033_ticket_import_abono.sql` | La **columna «Abono» del importador** (BR-N14, D-129). `create or replace` de `import_tickets_with_clients` **con la misma firma**: `p_rows` gana una clave opcional `abono` en pesos enteros, se valida contra el `ticket_price` real de la rifa y se registra llamando a **`create_payment`** —la misma función del formulario manual—, un pago por fila con una sola asignación. Devuelve `payments_created` y `payments_total`. Un archivo sin esa clave se comporta **exactamente** como antes |
 
-⚠️ **`0033` NO está en producción, y su orden con el despliegue SÍ importa**: sin ella la clave
-`abono` se ignoraría en silencio y las boletas entrarían sin sus pagos. La migración primero, el
-frontend después.
+✅ **`0033` se promovió al proyecto real el 2026-08-27**, con autorización explícita y respaldo previo
+en `Rifas-backups/2026-08-27-pre-0033/` (13 tablas con datos, **0** referencias a `auth`, **0**
+credenciales). `db push --dry-run` mostró solo `0033`; `db push --yes` la aplicó; `verify:remote`
+**14/14**. **Se respetó el orden**: la migración primero y el frontend después, porque sin ella la
+clave `abono` se habría ignorado en silencio y las boletas habrían entrado sin sus pagos.
+
+**Comprobado que NO movió ni un peso**, leyendo la misma sonda antes y después: 121 boletas, 58
+vendidas, 46 clientes, 3 pagos por $320.000, `paid_amount` 320.000, `sale_price` 6.960.000, comisión
+60.000 y 608 filas de bitácora — **idénticos**. Lo único que cambió es la huella de la función
+(`9727c72d` → `6c2c499c`, de 9.756 a 12.814 caracteres), que es exactamente lo que hace un
+`create or replace`. Detalle en `TEST_RESULTS.md`.
 
 | Migración | Qué hace |
 |---|---|

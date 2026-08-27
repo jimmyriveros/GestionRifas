@@ -40,7 +40,7 @@ Reemplaza el control manual en papel y hojas de cálculo por un sistema con:
   de la carga manual. Owner/Admin puede añadir cliente + celular obligatorio por fila (migración
   `0021`, aplicada en local y producción) y una columna **«Abono»** con lo ya cobrado de esa boleta
   —«20», «20.000», «20000» o «Cancelado»—, que se registra como un abono real, con su historial y su
-  saldo (migración `0033`, **pendiente de desplegar**).
+  saldo (migración `0033`, aplicada en local y producción).
 - **Selección múltiple y acciones masivas**: se marcan varias boletas y se actúa sobre todas a la
   vez —venderlas al mismo cliente, aprobarlas, anularlas, cambiarles el vendedor o eliminar las que
   se cargaron por error—. En el teléfono hay un modo selección donde la fila entera es la diana.

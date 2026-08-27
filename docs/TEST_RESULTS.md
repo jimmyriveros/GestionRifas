@@ -4529,3 +4529,74 @@ leen literalmente como $120 y $60 —cifras pequeñas, pero válidas—. La regl
 código la aplica bien; lo que estaba mal era mi expectativa. Las pruebas se corrigieron para fijar el
 comportamiento **real** y se añadió un caso que lo deja escrito («por encima del corte se lee en
 pesos, aunque la cifra sea pequeña»), porque es el caso límite que conviene mirar (D-129).
+
+### Promoción de `0033` al proyecto real (2026-08-27)
+
+Autorizada expresamente por el dueño, con el orden que la propia migración exigía: **la base de datos
+primero y el frontend después**. Al revés, la clave `abono` se habría ignorado en silencio y las
+boletas habrían entrado sin sus pagos.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo previo | `Rifas-backups/2026-08-27-pre-0033/` — 13 tablas con datos, **0** referencias a `"auth"`, **0** credenciales |
+| `db push --dry-run` | Una sola migración: `0033_ticket_import_abono.sql` |
+| `db push --yes` | Aplicada |
+| `npm run verify:remote` | **14/14** en verde |
+| CI sobre `7509f3e` | **2/2**, incluida «migraciones desde cero» — `0033` aplica sobre una base vacía |
+| Vercel | `READY` sobre **`7509f3ec`** (`dpl_27XFZL3pkEASQrJQ42jp7vCoFDuF`), alias `gestion-rifas.vercel.app`, build de 30 s |
+
+#### Que no movió ni un peso, leído y no supuesto
+
+La misma sonda de solo lectura, **antes y después** del `db push`:
+
+| Medida | Antes | Después |
+|---|---|---|
+| Boletas / vendidas / clientes | 121 / 58 / 46 | **121 / 58 / 46** |
+| Pagos / no anulados / asignaciones | 3 / 3 / 3 | **3 / 3 / 3** |
+| Dinero cobrado | $320.000 | **$320.000** |
+| Suma de `paid_amount` / `sale_price` | 320.000 / 6.960.000 | **320.000 / 6.960.000** |
+| Comisión acumulada | $60.000 | **$60.000** |
+| Filas de bitácora | 608 | **608** |
+| Huella de `import_tickets_with_clients` | `9727c72d…` (9.756 car.) | **`6c2c499c…` (12.814 car.)** |
+
+La última fila es la única que cambia, y es justo lo que debe cambiar: un `create or replace`
+reemplaza el cuerpo de la función y no toca una sola fila.
+
+#### Diez sondas de comportamiento sobre el proyecto real
+
+Una sonda de catálogo dice qué existe; no dice si funciona. Se ejecutaron **asumiendo el rol
+`authenticated`** y fijando `request.jwt.claims` como hace PostgREST, con un dueño real, y **todo
+dentro de una transacción revertida** con un `savepoint` por sonda.
+
+| Qué | Resultado |
+|---|---|
+| La RPC devuelve los recuentos | 3 insertadas, 3 asignadas, **2 pagos por $140.000** |
+| El estado lo deriva la base de datos | `partial` / `paid` / `unpaid` |
+| La boleta cancelada queda a saldo cero | abonado 120.000 = precio 120.000 |
+| Existe el movimiento | 2 asignaciones en **2 pagos distintos** — no es un pago repartido |
+| Método y nota | «Efectivo» · «Abono importado desde archivo» |
+| Abono por encima del precio | «Un abono del archivo supera el precio de la boleta ($120.000).» |
+| Abono sin cliente | «Un abono del archivo no tiene cliente…» |
+| Abono en cero | «El abono debe ser un valor en pesos entero y mayor que cero.» |
+| **Abono como TEXTO** | El mismo mensaje, **sin** «cannot cast» — el `case` de la migración hace su trabajo |
+| Sin la clave `abono` | 1 insertada, 0 asignadas, **0 pagos**: igual que antes de `0033` |
+
+Se releyó la sonda de datos al terminar: **nada quedó escrito**. Y `format_cop` renderiza bien dentro
+del mensaje de error, que es donde de verdad se lee.
+
+#### En vivo
+
+6/6 cabeceras de seguridad en `/login` (200), cuatro rutas protegidas en 307, **0** claves de
+servicio en los 15 fragmentos servidos, y el **identificador de versión** `097588a4cf29` —sha256 del
+commit recortado a 12 hex— encontrado en 1 de ellos: el código servido es exactamente `7509f3e`
+(método de I-069).
+
+#### Un error mío durante la verificación, y se cuenta
+
+La primera pasada de la sonda de comportamiento dio **6 fallos**, todos «No tienes permiso para
+importar clientes en esta organización». No era la migración: elegí como dueño a **Patricia Londoño**,
+que es dueña de «Rifas Control», no de «Rifas», que es la organización de la rifa que estaba
+probando. Mi script de contexto imprimía la organización de los vendedores pero **no la del
+personal**, así que la equivocación no se veía. Con el dueño correcto —Camila Restrepo— las diez
+sondas pasaron. La lección para quien repita esto: **imprime siempre la organización de la cuenta con
+la que vas a sondear**, porque un fallo de permisos se lee igual que un fallo del despliegue.
