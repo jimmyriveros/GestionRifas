@@ -2650,5 +2650,10 @@ en 307 y **0** claves de servicio en los 15 fragmentos servidos. **Que el códig
 commit** quedó probado con el método de I-069: el identificador de versión `93deb8b4a32d` —sha256
 del commit recortado a 12 hex— aparece en 1 de esos fragmentos.
 
+**Dos ajustes posteriores**, pedidos al verlo en producción y desplegados el mismo día
+(**`599a3b6`**, `dpl_4Sksned7WwYoezGZTL6UXUrsdwYM`, identificador `54a8115886ee` comprobado en los
+fragmentos servidos): el pie de la tarjeta pasa a una rejilla para que «Falta» arranque siempre en
+el mismo punto, y «Progreso» se centra en su columna. E2E **305/305** antes de subirlo.
+
 **Lo que falta y no puede hacer un agente:** entrar con una sesión real y mirar las dos pantallas.
 Exige contraseñas reales, y automatizar eso es lo que provocó I-066.
