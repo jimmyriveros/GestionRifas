@@ -4779,3 +4779,34 @@ Comprobado además que la regla `@media (prefers-reduced-motion: reduce) { .moti
 que queda por debajo del punto de corte, así que esas tres pruebas se habrían ejecutado sobre la
 barra en modo iconos y habrían dejado de comprobar lo que fueron escritas para comprobar —la barra
 lateral completa, D-106—. **Ninguna aserción cambia**; solo el ancho de la ventana.
+
+### Promoción de `322d80a` al proyecto real (2026-08-28)
+
+Sin migración: cero cambios bajo `supabase/`, así que no hubo respaldo previo ni nada que aplicar a
+la base — y `verify:remote` **14/14** después del despliegue lo confirma.
+
+| Comprobación | Resultado |
+|---|---|
+| CI sobre el commit | **2/2**: «Typecheck, lint, unitarias, build» y «Migraciones desde cero + pruebas de base de datos» (254) |
+| Vercel | `READY` sobre `322d80a` (`dpl_BXg8weHspbUPJAtiUbgSTVUUgE9r`), `production`, región `iad1`, build de **29 s**, alias `gestion-rifas.vercel.app` |
+| Cabeceras de seguridad en `/login` (200) | **6/6**: HSTS, CSP con nonce, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` |
+| Rutas protegidas | **4/4** en 307 hacia `/login?next=…` |
+| Claves de servicio en lo servido | **0** en el HTML y en los 16 recursos (**1.029 KB**) |
+| Consola del navegador en `/login` | **0 errores**, formulario presente e hidratado |
+| `verify:remote` | **14/14** |
+
+**Que el código servido es este commit, comprobado por dos caminos.** El identificador de versión
+`12633e1a9961` (método de I-069) aparece en **1 de los 16** fragmentos. Y la hoja de estilos servida
+trae las **cinco huellas** que en toda la aplicación genera **solo** este cambio:
+
+| Huella | En la hoja servida |
+|---|---|
+| `--sidebar-width:clamp(13rem, calc(10vw + 4.5rem), 14.5rem)` | ✅ |
+| La consulta de medios de 85rem, minificada como `@media not all and (min-width:85rem)` | ✅ |
+| `[data-sidebar=collapsed]` | ✅ |
+| `sidebar-label` (las dos reglas de `sr-only`) | ✅ |
+| `motion-reduce:transition-none` | ✅ |
+
+Las cinco darían cero con el build anterior. **Lo que no se comprobó, y se dice:** la barra en sí vive
+tras el inicio de sesión, y automatizar ese acceso en producción con cuentas reales es lo que provocó
+I-066; **no se intentó**.

@@ -2728,7 +2728,24 @@ encima. Con «Rifas» sobra sitio.
    `ARCHITECTURE` §8.7 y §8.13.
 6. Este cambio es **solo frontend**: no hay nada que deshacer en la base si hay que revertir.
 
-### 7. Promoción a producción
+### 7. Promoción a producción (2026-08-28)
 
-**Pendiente de autorización.** Sin migraciones: cero cambios bajo `supabase/`, así que la reversión
-sería un Instant Rollback sin nada que deshacer en la base.
+**Desplegado con autorización expresa.** Vercel `READY` sobre **`322d80a`**
+(`dpl_BXg8weHspbUPJAtiUbgSTVUUgE9r`), alias `gestion-rifas.vercel.app`, región `iad1`, build de
+**29 s**. CI **2/2**, incluido el job de migraciones desde cero. **Sin migraciones**: cero cambios
+bajo `supabase/`, así que la reversión es un Instant Rollback sin nada que deshacer en la base, y
+`verify:remote` **14/14** después del despliegue confirma que la base quedó intacta.
+
+Verificado en vivo: las **6** cabeceras de seguridad en `/login` (200), las **4** rutas protegidas en
+307, **0** claves de servicio en los 16 recursos servidos (**1.029 KB**) y la consola sin un solo
+error al cargar `/login`.
+
+**Que el código servido es este commit** quedó probado por partida doble. Por el método de I-069: el
+identificador de versión `12633e1a9961` —sha256 del commit recortado a 12 hex— aparece en 1 de los 16
+fragmentos. Y por las **cinco huellas CSS** que en toda la aplicación genera **solo** este cambio, en
+la hoja servida: `--sidebar-width: clamp(13rem, calc(10vw + 4.5rem), 14.5rem)`, la consulta de medios
+de 85rem —minificada como `@media not all and (min-width:85rem)`—, `[data-sidebar=collapsed]`,
+`sidebar-label` y `motion-reduce:transition-none`.
+
+**Lo que falta y no puede hacer un agente:** entrar con una sesión real y abrir y cerrar la barra en
+una ventana de portátil. Exige contraseñas reales, y automatizar eso es lo que provocó I-066.
