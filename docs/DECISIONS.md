@@ -4690,6 +4690,19 @@ celdas llevan `whitespace-nowrap`, así que un nombre de cincuenta letras se lle
 mínimo y empujaba las columnas de dinero fuera de la pantalla. Se acota con `max-w` + `truncate` y el
 nombre entero se queda en el `title`.
 
+**Dos ajustes de la misma decisión, pedidos al verlo funcionando (2026-08-27).**
+
+* **El pie de la tarjeta pasó de `flex` a una rejilla de tres columnas** con «Abonado» en un ancho
+  fijo de 6 rem. Con anchos por contenido, «$0» y «$120.000» no miden lo mismo, así que «Falta»
+  empezaba unos 20 px más a la izquierda o a la derecha según la tarjeta: justo lo que impide
+  recorrer la lista con la vista por una sola columna. Ahora arranca siempre en el mismo punto —y
+  eso, de paso, es el aire que le faltaba a su izquierda, que era lo que se pedía—.
+* **«Progreso» se centra en su columna** (`meta.align: center`, nuevo en `DataTable`) y lleva su
+  propio `px-2`. La barra quedaba a 16 px de «$120.000» —solo el relleno de las dos celdas— porque
+  «Falta» está alineada a la derecha. La separación sube a 31 px. **Lo paga la barra**, que baja de
+  64 a 56 px hasta `2xl`: a 1.280 px la tabla del portal administrativo estaba exactamente en el
+  límite y con el `px-2` se pasaba 6 px. Medido en el navegador antes y después.
+
 **Lo que costó, y se acepta:** la tarjeta del teléfono pasó de ~115 px a **166 px** cuando la boleta
 está vendida, porque gana su pie financiero. Una boleta que todavía no se ha vendido no lleva pie y
 sigue midiendo lo de siempre: no hay dinero del que hablar. El tope de la prueba de densidad

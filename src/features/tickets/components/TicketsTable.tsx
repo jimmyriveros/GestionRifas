@@ -214,13 +214,23 @@ export function TicketsTable({
         id: 'percentage',
         accessorFn: (row) => ticketFinancials(row).percentage,
         header: 'Progreso',
+        // Centrada: «Falta» va pegada a la derecha de SU celda, asi que una
+        // barra alineada a la izquierda de la suya quedaba a un pelo de la
+        // cifra y las dos se leian como una sola columna.
+        meta: { align: 'center' },
         cell: ({ row }) => {
           const money = ticketFinancials(row.original)
           if (!money.sold) return <span className="text-muted-foreground text-sm">—</span>
           return (
-            <div className="flex items-center gap-2">
+            // El `px-2` no es decoracion: sin el, la barra empieza a 16 px de
+            // «$120.000» —solo el relleno de las dos celdas— y las dos columnas
+            // se leen pegadas. Lo paga la holgura que sobraba en «Cliente».
+            <div className="flex items-center justify-center gap-2 px-2">
               <PaymentProgressBar
-                className="w-16 shrink-0 2xl:w-24"
+                // 56 px hasta 2xl: es lo que hay que devolver para pagar el
+                // `px-2` de al lado sin que la tabla del portal administrativo
+                // —que ademas lleva «Vendedor»— desborde a 1.280 px.
+                className="w-14 shrink-0 2xl:w-24"
                 percentage={money.percentage}
                 status={row.original.paymentStatus}
                 label={`${money.percentage}% abonado`}

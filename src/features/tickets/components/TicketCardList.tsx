@@ -290,10 +290,16 @@ function TicketCardFooter({
 }) {
   return (
     <div className="bg-muted/40 space-y-1 border-t px-3 py-1.5">
-      <div className="flex items-end justify-between gap-3">
+      {/* Rejilla, no `flex`: «Abonado» ocupa una columna de ANCHO FIJO y «Falta»
+          empieza siempre en el mismo punto. Con anchos por contenido, «$0» y
+          «$120.000» no miden lo mismo y «Falta» bailaba unos 20 px de una
+          tarjeta a la siguiente — justo lo que impide recorrer la lista con la
+          vista por una sola columna. De paso da el aire que «Falta» necesitaba
+          a su izquierda: sin él, las dos cifras se leían como una sola. */}
+      <div className="grid grid-cols-[6rem_1fr_auto] items-end gap-3">
         <FooterAmount label="Abonado" amount={paidAmount} />
-        <FooterAmount label="Falta" amount={pendingAmount} className="flex-1" />
-        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">{percentage}%</span>
+        <FooterAmount label="Falta" amount={pendingAmount} />
+        <span className="text-muted-foreground text-xs tabular-nums">{percentage}%</span>
       </div>
       <PaymentProgressBar
         percentage={percentage}
@@ -304,19 +310,11 @@ function TicketCardFooter({
   )
 }
 
-function FooterAmount({
-  label,
-  amount,
-  className,
-}: {
-  label: string
-  amount: number
-  className?: string
-}) {
+function FooterAmount({ label, amount }: { label: string; amount: number }) {
   return (
-    <div className={cn('min-w-0', className)}>
+    <div className="min-w-0">
       <p className="text-muted-foreground text-[11px] leading-tight">{label}</p>
-      <p className="text-sm font-medium tabular-nums">{formatCOP(amount)}</p>
+      <p className="truncate text-sm font-medium tabular-nums">{formatCOP(amount)}</p>
     </div>
   )
 }

@@ -66,9 +66,16 @@ declare module '@tanstack/react-table' {
      * 1.536 px, que es cuando sobra sitio para el (seccion 7 del encargo).
      */
     showFrom?: 'lg' | 'xl' | '2xl'
-    align?: 'right'
+    align?: 'right' | 'center'
   }
 }
+
+/** Alineacion de una columna, encabezado y celdas a la vez. */
+const ALIGN = {
+  left: undefined,
+  right: 'text-right',
+  center: 'text-center',
+} as const
 
 const SHOW_FROM: Record<'lg' | 'xl' | '2xl', string> = {
   lg: 'hidden lg:table-cell',
@@ -217,7 +224,7 @@ export function DataTable<TData, TValue>({
                 return (
                   <TableHead
                     key={header.id}
-                    className={cn(columnVisibility(meta), meta?.align === 'right' && 'text-right')}
+                    className={cn(columnVisibility(meta), ALIGN[meta?.align ?? 'left'])}
                     aria-sort={
                       sorted === 'asc'
                         ? 'ascending'
@@ -287,10 +294,7 @@ export function DataTable<TData, TValue>({
                     return (
                       <TableCell
                         key={cell.id}
-                        className={cn(
-                          columnVisibility(meta),
-                          meta?.align === 'right' && 'text-right',
-                        )}
+                        className={cn(columnVisibility(meta), ALIGN[meta?.align ?? 'left'])}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>

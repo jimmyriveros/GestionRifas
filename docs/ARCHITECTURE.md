@@ -701,6 +701,12 @@ Medido en el navegador: a 1.280 px la tabla mide 959 px en 959 de hueco, en los 
 nombre del cliente se recorta con `max-w` + `truncate` porque las celdas llevan `whitespace-nowrap`
 y un nombre largo se llevaba 409 px de ancho mínimo (la trampa de D-125).
 
+`meta.align` acepta además `center`, y lo usa **«Progreso»**: «Falta» va pegada a la derecha de su
+celda, así que una barra alineada a la izquierda de la suya quedaba a 16 px de la cifra —solo el
+relleno de las dos celdas— y las dos columnas se leían como una. Centrada y con `px-2` propio, la
+separación sube a **31 px**; lo paga la barra, que baja a 56 px hasta `2xl`, porque a 1.280 px la
+tabla del portal administrativo no tiene ni un píxel de sobra.
+
 ### 8.10 La cabecera de «Boletas»: un bloque con ritmo (D-108)
 
 Lo que hay entre el título y la primera boleta ocupaba **376 px de 844** en un teléfono de 390 px.
