@@ -4879,3 +4879,32 @@ Es la tercera limitación del mismo panel que aparece en este trabajo, y convien
 **El comentario del código dice ahora la razón verdadera**, no la primera sospecha: se conserva
 `focusin` porque no obliga a interpretar un `relatedTarget` que a veces llega vacío, y se deja
 escrito que esa rama solo se puede comprobar con Playwright.
+
+### Promoción de `1d12081` al proyecto real (2026-08-28)
+
+Sin migración: cero cambios bajo `supabase/`, así que no hubo respaldo previo ni nada que aplicar a
+la base — y `verify:remote` **14/14** después del despliegue lo confirma.
+
+| Comprobación | Resultado |
+|---|---|
+| CI sobre el commit | **2/2**: «Typecheck, lint, unitarias, build» y «Migraciones desde cero + pruebas de base de datos» |
+| Vercel | `READY` sobre `1d12081` (`dpl_J1xFsPeirB6cgFdUWZoefysD5YaQ`), `production`, región `iad1`, build de **27 s**, alias `gestion-rifas.vercel.app` |
+| Cabeceras de seguridad en `/login` (200) | **6/6** |
+| Rutas protegidas | **4/4** en 307 |
+| Claves de servicio en lo servido | **0** en el HTML y en los 16 recursos (**1.030 KB**) |
+| Consola del navegador en `/login` | **0 errores**, formulario presente e hidratado |
+| `verify:remote` | **14/14** |
+
+**Que el código servido es este commit, por dos caminos.** El identificador de versión
+`e25b8f1dda89` (método de I-069) aparece en **1 de los 16** fragmentos. Y la hoja de estilos servida
+trae las huellas que **solo** genera D-132 —comprobadas leyendo su contenido, no por aproximación—:
+
+| Huella | En la hoja servida |
+|---|---|
+| `--sidebar-width-expanded:clamp(13rem, calc(10vw + 4.5rem), 14.5rem)` | ✅ |
+| `aside[data-sidebar-overlay]{--sidebar-width:var(--sidebar-width-expanded)…}` | ✅ |
+| `[data-sidebar=collapsed]:not([data-sidebar-overlay]) [data-slot=sidebar-label]` | ✅ |
+| `.z-[45]{z-index:45}`, la clase de la capa | ✅ |
+
+**Lo que no se comprobó, y se dice:** el menú flotante vive tras el inicio de sesión, y automatizar
+ese acceso en producción con cuentas reales es lo que provocó I-066; **no se intentó**.

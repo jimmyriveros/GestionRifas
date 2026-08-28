@@ -2811,6 +2811,24 @@ Ninguno de este trabajo. Siguen abiertos I-077, I-072, I-074, I-075, I-068, I-06
 5. **El panel del navegador no emite eventos de foco ni de `resize`, y congela las transiciones.**
    Lo que dependa de esas tres cosas se comprueba con Playwright, no midiendo ahí.
 
-### 7. Promoción a producción
+### 7. Promoción a producción (2026-08-28)
 
-**Pendiente de autorización.** Sin migraciones: la reversión sería un Instant Rollback.
+**Desplegado con autorización expresa.** Vercel `READY` sobre **`1d12081`**
+(`dpl_J1xFsPeirB6cgFdUWZoefysD5YaQ`), alias `gestion-rifas.vercel.app`, región `iad1`, build de
+**27 s**. CI **2/2**, incluido el job de migraciones desde cero. **Sin migraciones**: la reversión es
+un Instant Rollback sin nada que deshacer en la base, y `verify:remote` **14/14** después del
+despliegue lo confirma.
+
+Verificado en vivo: las **6** cabeceras de seguridad en `/login` (200), las **4** rutas protegidas en
+307, **0** claves de servicio en los 16 recursos servidos (**1.030 KB**) y la consola sin un solo
+error al cargar `/login`.
+
+**Que el código servido es este commit**, por partida doble. Por el método de I-069: el identificador
+de versión `e25b8f1dda89` aparece en 1 de los 16 fragmentos. Y por las **tres huellas CSS** que solo
+genera D-132, leídas en la hoja servida: `--sidebar-width-expanded`, `aside[data-sidebar-overlay]` y
+el `:not([data-sidebar-overlay])` de las reglas `sr-only`. Más la clase `.z-[45]` de la capa, que
+tampoco existía antes.
+
+**Lo que falta y no puede hacer un agente:** entrar con una sesión real, estrechar la ventana por
+debajo de 1.360 px y abrir el menú flotante. Exige contraseñas reales, y automatizar eso es lo que
+provocó I-066.
