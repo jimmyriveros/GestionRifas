@@ -4788,6 +4788,11 @@ alternativa: sería un cuarto menú —lateral, inferior, menú de usuario— pa
 resuelve ensanchando la ventana o leyendo el globo de cada icono. El botón vuelve a funcionar solo en
 cuanto hay sitio.
 
+> **⚠️ Esta decisión duró un día: la revocó D-132 el mismo 2026-08-28**, a petición del dueño y con
+> razón. El botón ya no se queda inerte: donde la barra no cabe, la abre **encima** del contenido. El
+> argumento del «cuarto menú» era además falso —es el mismo `<aside>` con los mismos `navItems`—. El
+> resto de D-131 sigue vigente tal cual.
+
 **Decisión 6 — las etiquetas no se borran, se vuelven `sr-only`.** Con `display: none` cada enlace se
 quedaría sin nombre para quien escucha la pantalla, y habría que inventarle un `aria-label` que
 duplicara el texto visible. Siendo `sr-only`, el nombre sigue estando siempre —también para las
@@ -4825,6 +4830,91 @@ está por debajo del punto de corte: toda la suite de escritorio se ejecuta con 
 iconos. No rompe nada —los enlaces conservan su nombre— pero `navegacion.spec.ts` dejaría de
 comprobar lo que fue escrito para comprobar, así que ese bloque fija su propia ventana de 1.440 px.
 Las pruebas nuevas viven en `menu-lateral.spec.ts` y cada una declara el ancho que necesita.
+
+---
+
+## D-132 — Donde el menú no cabe, se abre encima del contenido en vez de no abrirse
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-28)
+
+**Contexto.** D-131 dejó el botón del menú **inerte** por debajo de 1.360 px: `aria-disabled` y un
+globo que decía «No hay espacio para abrir el menú. Amplía la ventana.» El encargo original ofrecía
+dos salidas para ese caso —«puede permanecer colapsado o abrirse temporalmente como un panel
+superpuesto»— y se eligió la primera. El dueño probó la aplicación y pidió la segunda: que el botón
+abra el menú **flotando sobre el contenido**, sin empujarlo, y que se cierre solo al elegir una
+opción o al pulsar fuera.
+
+**Tiene razón, y la razón importa.** Un botón que se ve, se puede enfocar y no hace nada es un botón
+roto por mucho que se disculpe: la persona que lo pulsa ya ha decidido que quiere ver los nombres, y
+la respuesta correcta a esa decisión no es explicarle por qué no. El argumento con el que se descartó
+la superposición —«sería un cuarto menú»— era además **falso**: no hay un menú nuevo. Es el mismo
+`<aside>`, con los mismos `navItems` y el mismo componente; lo único que cambia es que sale del flujo.
+
+**Decisión 1 — dos formas de abrir, según haya sitio.** El botón siempre hace algo:
+
+| Ancho | Qué hace el botón | Qué pasa con la preferencia |
+|---|---|---|
+| ≥ 85rem (1.360 px) | Abre y cierra **empujando** el contenido, como en D-131 | Se guarda en la cookie |
+| < 85rem | Abre **encima** del contenido, flotando | **No se toca**: es un vistazo, no una forma de trabajar |
+
+Que la superposición no guarde nada es lo que la mantiene coherente con D-131 §4: la preferencia
+describe cómo quiere trabajar la persona cuando hay sitio, y mirar el menú un segundo en una ventana
+estrecha no dice nada sobre eso.
+
+**Decisión 2 — el hueco de 56 px se queda en el flujo.** Es la petición literal —«que no empuje el
+contenido»— y la razón de que exista este modo. Al pasar la barra a `fixed` deja su columna, y sin
+nada que la sustituya el contenido se correría 56 px a la izquierda al abrir y otros 56 de vuelta al
+cerrar. Un `div` vacío del mismo ancho, montado solo mientras flota, lo evita. Medido: `main` se
+queda en **x = 56, ancho = 1.029** antes y después de abrir.
+
+**Decisión 3 — la tercera posición del mismo interruptor.** Las cinco variables de `globals.css`
+vuelven a sus valores de barra abierta bajo `aside[data-sidebar-overlay]`, así que **dentro de la
+barra no hay nada que sepa que está flotando**: los mismos rellenos, el mismo hueco, los mismos
+nombres. El selector lleva `aside` delante a propósito: `[data-sidebar='collapsed']` vive en ese mismo
+elemento y tiene la misma especificidad, y sin el nombre de etiqueta bastaría con reordenar las
+reglas para dejar la superposición en 56 px sin que nada avisara.
+
+**Decisión 4 — cinco formas de cerrarla, y ninguna obliga a buscar el botón otra vez.**
+
+| Camino | Por qué |
+|---|---|
+| Elegir una opción del menú | Lo pidió el encargo. Sale por `onNavigate`, que `NavLinks` ya tenía |
+| Pulsar fuera | Lo pidió el encargo. Lo recoge la capa, que además atenúa lo de debajo |
+| `Escape` | Lo que hace cualquier cosa que se abre encima de otra |
+| Llevarse el foco fuera | Para el teclado: sin esto se tabula hacia un contenido que está detrás de la capa y no se deja pulsar |
+| Cruzar los 1.360 px | Si la ventana vuelve a dar de sí, la barra ya cabe en su sitio |
+
+**Decisión 5 — la capa atenúa y recoge el clic; no es un diálogo.** `z-[45]`, entre el encabezado
+(`z-40`) y la barra (`z-50`). No hay `aria-modal`, ni cepo de foco, ni `aria-hidden` sobre el resto:
+esto es un menú que se asoma, no una ventana modal, y tratarlo como modal obligaría a ponerle título
+y a devolver el foco a mano. Lo que sí hace falta —que el teclado no se quede atrapado detrás— lo
+resuelve el cierre por foco.
+
+**Decisión 6 — dos textos para el botón, no tres.** Da igual si va a empujar el contenido o a flotar
+sobre él: la acción es la misma, **abrir el menú**, y se llama igual (Anexo A de
+`UX_COPY_GUIDELINES`). Un tercer texto obligaría a entender una diferencia que la pantalla ya enseña.
+Desaparece «No hay espacio para abrir el menú. Amplía la ventana.», que describía un comportamiento
+que ya no existe.
+
+**Un error de diagnóstico que se cuenta porque casi cambia el código por la razón equivocada.** La
+primera versión cerraba por foco con `onBlur` en el `<aside>`, y en el panel del navegador **no
+funcionaba nunca**. Se cambió a un `focusin` en el documento y siguió sin funcionar. La causa no era
+ninguna de las dos: **ese panel no emite ni un evento de foco**, porque la ventana no tiene el foco
+del sistema — `focus()` mueve `document.activeElement` y no dispara nada. Se comprobó con una sonda
+que registró **cero** eventos. Las dos implementaciones eran correctas; la que se conserva es la de
+`focusin`, porque no depende de interpretar un `relatedTarget` que a veces llega vacío. La rama se
+comprueba con Playwright, que sí maneja una ventana con foco.
+
+**Lo que NO cambió, a propósito:**
+
+* **Todo lo de D-131 por encima de 1.360 px.** Los tres anchos, el punto de corte medido, la cookie
+  leída en el servidor, el interruptor de CSS y las etiquetas `sr-only`. Comprobado: a 1.600 px el
+  botón sigue empujando el contenido (232 → 56 px) y sigue guardando la cookie.
+* **El teléfono.** La barra sigue siendo `hidden md:flex` y la capa, `hidden md:block`.
+* **Ninguna regla de negocio, ruta, permiso, consulta ni migración.**
+* **`Sheet` no se usó**, aunque estaba disponible: habría metido la navegación en un portal y dejado
+  **dos** `<nav>` en la página, uno de ellos anunciado como diálogo. La barra que se asoma es la
+  misma barra, y así se lee también para quien escucha la pantalla.
 
 ---
 

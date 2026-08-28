@@ -51,8 +51,20 @@ export function parseSidebarPreference(value: string | undefined | null): Sideba
   return value === 'collapsed' ? 'collapsed' : 'expanded'
 }
 
-/** Solo iconos: porque la persona la cerro o porque no cabe abierta. */
-export function isSidebarCollapsed(preference: SidebarPreference, hasRoom: boolean): boolean {
+/**
+ * Solo iconos: porque la persona la cerro o porque no cabe abierta.
+ *
+ * `overlayOpen` es la tercera situacion y gana a las otras dos (D-132): la
+ * persona pulso el boton donde la barra no cabe, asi que se abre **encima** del
+ * contenido y con sus nombres a la vista. Es temporal —se cierra al elegir una
+ * opcion o al salirse de ella— y por eso NO toca la preferencia guardada.
+ */
+export function isSidebarCollapsed(
+  preference: SidebarPreference,
+  hasRoom: boolean,
+  overlayOpen = false,
+): boolean {
+  if (overlayOpen) return false
   return preference === 'collapsed' || !hasRoom
 }
 

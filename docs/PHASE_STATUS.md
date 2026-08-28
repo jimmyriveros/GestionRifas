@@ -2749,3 +2749,68 @@ de 85rem —minificada como `@media not all and (min-width:85rem)`—, `[data-si
 
 **Lo que falta y no puede hacer un agente:** entrar con una sesión real y abrir y cerrar la barra en
 una ventana de portátil. Exige contraseñas reales, y automatizar eso es lo que provocó I-066.
+
+---
+
+## Mantenimiento post-9 — el menú se abre flotando donde no cabe (2026-08-28)
+
+**Encargo:** el dueño probó D-131 y pidió lo contrario de su decisión 5. Donde la barra no cabe
+abierta, el botón no debe quedarse inerte: debe abrirla **encima del contenido**, sin empujarlo, y
+cerrarse sola al elegir una opción del menú o al pulsar fuera. Decisión **D-132**, que revoca D-131
+§5 y **deja intacto todo lo demás**.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| El botón siempre actúa | Con sitio (≥ 1.360 px) abre y cierra **empujando**, como en D-131. Sin sitio, abre **flotando**. Se acabó el `aria-disabled` |
+| El contenido no se mueve | Al pasar la barra a `fixed`, un hueco del mismo ancho —56 px— se queda en el flujo. Medido: `main` en **x = 56, ancho = 1.029** antes y después de abrir |
+| Cinco formas de cerrarla | Elegir una opción, pulsar fuera, `Escape`, llevarse el foco fuera, o cruzar de vuelta los 1.360 px |
+| La capa | `z-[45]`, entre el encabezado (`z-40`) y la barra (`z-50`). Atenúa y recoge el clic de fuera. **No es un diálogo**: sin `aria-modal`, sin cepo de foco, sin `aria-hidden` sobre el resto |
+| La preferencia no se toca | Flotar no escribe la cookie: es un vistazo, no una forma de trabajar. Comprobado en la prueba E2E leyendo las cookies del contexto |
+| Tercera posición del interruptor | `aside[data-sidebar-overlay]` devuelve las cinco variables a sus valores de barra abierta, así que dentro de la barra nada sabe que está flotando |
+| Dos textos, no tres | «Abrir el menú» y «Cerrar el menú». Desaparece «No hay espacio para abrir el menú. Amplía la ventana.» |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` en verde: `typecheck` ✅, `lint` **0 errores** (los 2 avisos de siempre), **432/432**
+unitarias (+3) y `build` ✅. **`test:db` 552/552** y **`test:e2e` 320/320** (+5 netas: 6 nuevas y 1
+retirada, la del botón inerte), con base sembrada limpia.
+
+Medido en el navegador a 1.100 px: la barra pasa a `fixed`, 208 px de ancho, alto completo, capa por
+debajo de ella, nombres visibles, **cero desplazamiento horizontal** y **el contenido quieto al
+píxel**. A 1.600 px nada cambió: sigue empujando (232 → 56 px) y sigue guardando la cookie.
+
+**Un error de diagnóstico, contado en `TEST_RESULTS`:** el cierre por foco parecía roto en las dos
+implementaciones que se probaron. No lo estaba — el panel del navegador **no emite ni un evento de
+foco** porque su ventana no tiene el foco del sistema. Se comprobó con una sonda que registró cero
+eventos. Esa rama se verifica con Playwright.
+
+### 3. Migraciones
+
+**Ninguna.**
+
+### 4. Variables de entorno
+
+**Ninguna nueva.** La cookie `rifas.sidebar` sigue siendo la misma y con el mismo significado.
+
+### 5. Problemas que permanecen
+
+Ninguno de este trabajo. Siguen abiertos I-077, I-072, I-074, I-075, I-068, I-066, I-062 e I-063.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **`data-sidebar` sigue llevando la preferencia** y `data-sidebar-overlay` es un atributo aparte.
+   No los fundas en uno.
+2. **El selector de la superposición lleva `aside` delante a propósito**:
+   `[data-sidebar='collapsed']` vive en el mismo elemento y empata en especificidad.
+3. **El hueco del flujo no es decorativo.** Si lo quitas, el contenido salta 56 px al abrir y otros
+   56 al cerrar, que es justo lo que este trabajo vino a evitar.
+4. **No conviertas la capa en un diálogo.** Sin cepo de foco a propósito; lo que hace falta —que el
+   teclado no se quede detrás— lo resuelve el cierre por foco.
+5. **El panel del navegador no emite eventos de foco ni de `resize`, y congela las transiciones.**
+   Lo que dependa de esas tres cosas se comprueba con Playwright, no midiendo ahí.
+
+### 7. Promoción a producción
+
+**Pendiente de autorización.** Sin migraciones: la reversión sería un Instant Rollback.

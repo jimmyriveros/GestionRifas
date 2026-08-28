@@ -462,11 +462,15 @@ solo nombrar la acción. *Contraer*, *colapsar* y *plegar* son palabras de progr
 cerrar las usa todo el mundo. El mismo botón dice lo contrario según cómo esté, nunca las dos cosas a
 la vez.
 
-Cuando la ventana es tan estrecha que el menú **no cabe abierto**, el botón sigue ahí pero no actúa, y
-entonces el globo deja de nombrar la acción para explicar por qué: «No hay espacio para abrir el menú.
-Amplía la ventana.» Es la regla de §7 aplicada a un botón: qué pasa y qué puede hacer la persona. Lo
-que **no** se hace es esconder el botón —quien no lo ve no sabe que el menú se puede abrir— ni dejarlo
-mudo, que es peor que las dos.
+**Dos textos, y el botón siempre hace algo** (D-132). Cuando la ventana es tan estrecha que el menú no
+cabe abierto, el botón **lo abre encima del contenido**, flotando; ya no se queda inerte con un globo
+que se disculpa. Y el texto no cambia por eso: la acción es la misma —abrir el menú— y se llama igual
+empuje el contenido o flote sobre él. Un tercer texto obligaría a la persona a entender una diferencia
+que la pantalla ya le está enseñando.
+
+> Hasta el 2026-08-28 el globo decía «No hay espacio para abrir el menú. Amplía la ventana.» **Ese
+> texto ya no existe**, porque tampoco existe el comportamiento que describía. Se conserva la nota
+> como aviso: si vuelve a aparecer en algún sitio, sobra.
 
 **Con el menú cerrado, cada icono dice su nombre.** No se inventa una abreviatura ni se recorta el
 término: el nombre entero viaja en el globo, y sigue estando en el HTML para quien escucha la pantalla
@@ -647,7 +651,7 @@ castigo donde solo había una espera.
 | Rótulos del resumen de pago de una boleta («Abonado», «Pendiente», «de $120.000») | `src/features/tickets/components/TicketPaymentSummary.tsx` (D-124) |
 | Lo que va dentro de un anillo: el pie bajo el porcentaje | Lo pasa quien lo usa, en `caption` / `centerCaption` (D-124) |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
-| «Cerrar el menú», «Abrir el menú» y el aviso de que no cabe abierto | `src/components/layout/AppSidebar.tsx` (D-131) |
+| «Cerrar el menú» y «Abrir el menú», los **dos únicos** textos de ese botón | `src/components/layout/AppSidebar.tsx` (D-131, D-132) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
 | La leyenda «Diario · Semanal» y el enlace que nombra la boleta, para las cuatro listas | `src/features/tickets/components/TicketNumbers.tsx` (D-130) |
 | Encabezados y rótulos del dinero de «Mis boletas» («Abonado», «Falta», «Progreso») | `src/features/tickets/components/TicketsTable.tsx` y `TicketCardList.tsx` (D-130) |

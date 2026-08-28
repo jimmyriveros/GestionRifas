@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **429 ✅** | **552 ✅** | **315 ✅** | ✅ | ✅ |
+| Post-9 vigente | **432 ✅** | **552 ✅** | **320 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -4810,3 +4810,72 @@ trae las **cinco huellas** que en toda la aplicación genera **solo** este cambi
 Las cinco darían cero con el build anterior. **Lo que no se comprobó, y se dice:** la barra en sí vive
 tras el inicio de sesión, y automatizar ese acceso en producción con cuentas reales es lo que provocó
 I-066; **no se intentó**.
+
+---
+
+## Post-9 — El menú se abre flotando donde no cabe (2026-08-28)
+
+Revocación de D-131 §5, pedida por el dueño al probarlo: donde la barra no cabe abierta, el botón la
+abre **encima** del contenido en vez de quedarse inerte (**D-132**). Sin migración.
+
+### Comprobación automática
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `typecheck` | ✅ | — | — |
+| `lint` | ✅ **0 errores** | Los 2 avisos de siempre | Preexistentes |
+| `test` (unitarias) | ✅ **432/432** (+3) | — | — |
+| `build` | ✅ | — | — |
+| `test:db` | ✅ **552/552** | — | Este trabajo no toca la base |
+| `test:e2e` | ✅ **320/320** | — | +6 nuevas, −1 retirada; base sembrada limpia |
+
+**Las 3 unitarias nuevas** cubren la tercera situación de `isSidebarCollapsed`: flotando se abre
+aunque no quepa, con cualquiera de las dos preferencias, y sin flotar se comporta exactamente como
+antes de D-132.
+
+**Las 6 E2E nuevas**: cinco viven en un bloque propio a **1.100 px**, que es donde la barra no cabe abierta:
+se abre flotando con el contenido **quieto al píxel**; se cierra al elegir una opción; se cierra al
+pulsar fuera y con `Escape`; se maneja con el teclado y **se cierra al llevarse el foco fuera**; y
+flotar **no escribe la cookie**, comprobado leyendo las cookies del contexto. **Se retira** la prueba
+del botón inerte, que comprobaba un comportamiento que ya no existe.
+
+### Medición en el navegador
+
+A 1.100 px, con la aplicación contra la base local:
+
+| Qué | Antes de abrir | Flotando |
+|---|---|---|
+| `position` de la barra | `static` | **`fixed`** |
+| Ancho | 56 px | **208 px** |
+| Alto | el de la página | **900 px, la ventana entera** |
+| `main` | x = 56, ancho = 1.029 | **x = 56, ancho = 1.029** |
+| Nombres | `sr-only` | **visibles** |
+| Capa | — | presente, `z-index` **45** contra los **50** de la barra |
+| Desbordamiento horizontal | 0 | **0** |
+| Cookie `rifas.sidebar` | sin escribir | **sin escribir** |
+
+Y a 1.600 px, comprobado que D-131 sigue igual: el botón empuja el contenido (`main` de x = 232 a
+x = 56), la barra sigue en el flujo y **sí** escribe `rifas.sidebar=collapsed`.
+
+### El error de diagnóstico, que se cuenta porque casi cambia el código por la razón equivocada
+
+El cierre al llevarse el foco fuera **no funcionaba nunca** en el panel del navegador. Primera
+sospecha: `onBlur` en el `<aside>` no recibe el aviso porque la barra se repinta al abrirse. Se
+reescribió con un `focusin` en el documento… y siguió sin funcionar.
+
+La causa no era ninguna de las dos. Una sonda que registraba **todos** los `focusin` del documento
+devolvió **cero eventos**, con `document.activeElement` cambiando correctamente: ese panel **no tiene
+el foco del sistema**, y sin foco de ventana el navegador mueve el elemento activo sin emitir un solo
+evento de foco. Las dos implementaciones eran correctas.
+
+Es la tercera limitación del mismo panel que aparece en este trabajo, y conviene tenerlas juntas:
+
+| Lo que no hace | Cómo se descubrió | Dónde se comprueba de verdad |
+|---|---|---|
+| No emite eventos de foco | Sonda con 0 `focusin` y `activeElement` sí cambiado | Playwright |
+| No emite `resize` ni `change` de consulta de medios | Sonda con 0 eventos tras tres cambios de ventana (D-131) | Playwright |
+| No produce fotogramas: las transiciones se congelan | Ancho calculado que no llegaba nunca a su destino (D-131) | Playwright, o midiendo con las transiciones desactivadas |
+
+**El comentario del código dice ahora la razón verdadera**, no la primera sospecha: se conserva
+`focusin` porque no obliga a interpretar un `relatedTarget` que a veces llega vacío, y se deja
+escrito que esa rama solo se puede comprobar con Playwright.

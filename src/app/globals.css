@@ -191,11 +191,16 @@
  *     pegada al borde. Por debajo, la barra abierta le robaria a la tabla un
  *     espacio que no le sobra, asi que se cierra sola.
  *
- * `--sidebar-width` y las otras cuatro variables son un INTERRUPTOR: se
- * declaran dos veces —en la consulta de medios, y en la preferencia de la
- * persona— y las reglas que las consumen se escriben una sola vez, en los
- * componentes. Asi el mismo aspecto se alcanza por los dos caminos sin duplicar
- * ni una clase.
+ * `--sidebar-width` y las otras cuatro variables son un INTERRUPTOR de tres
+ * posiciones: se declaran en la consulta de medios, en la preferencia de la
+ * persona y en la superposicion (D-132), y las reglas que las consumen se
+ * escriben una sola vez, en los componentes. Asi se llega al mismo aspecto por
+ * los tres caminos sin duplicar ni una clase.
+ *
+ * Y hay un cuarto estado que no cambia el ANCHO sino DONDE esta la barra: por
+ * debajo de 85rem el boton la abre encima del contenido, flotando, en vez de
+ * empujarlo (D-132). El hueco de 56 px se queda en el flujo para que la tabla no
+ * se mueva ni un pixel.
  *
  * LO IMPORTANTE: el estado que se ve lo decide el CSS, no React. El HTML que
  * manda el servidor ya sale con el ancho correcto —la preferencia viaja en una
@@ -205,8 +210,10 @@
  */
 @layer base {
   :root {
-    --sidebar-width: clamp(13rem, calc(10vw + 4.5rem), 14.5rem);
+    --sidebar-width-expanded: clamp(13rem, calc(10vw + 4.5rem), 14.5rem);
     --sidebar-width-collapsed: 3.5rem;
+
+    --sidebar-width: var(--sidebar-width-expanded);
     --sidebar-padding: 0.75rem;
     --sidebar-item-px: 0.75rem;
     --sidebar-item-gap: 0.75rem;
@@ -236,6 +243,28 @@
     --sidebar-item-gap: 0px;
     --sidebar-content-justify: center;
   }
+
+  /*
+   * Abierta ENCIMA del contenido (D-132).
+   *
+   * Tercera posicion del interruptor, y la unica que gana a las otras dos: la
+   * persona pulso el boton en un ancho donde la barra no cabe, asi que se abre
+   * flotando en vez de empujar la tabla. Las cinco variables vuelven a sus
+   * valores de barra abierta, de modo que dentro no hay nada que sepa que esta
+   * flotando: los mismos rellenos, el mismo hueco y los mismos nombres.
+   *
+   * El selector lleva `aside` delante a proposito. `[data-sidebar='collapsed']`
+   * vive en ESTE MISMO elemento y tiene la misma especificidad; sin el nombre de
+   * etiqueta, quien ordenara las reglas de otra forma dejaria la superposicion
+   * en 56 px sin que nada avisara.
+   */
+  aside[data-sidebar-overlay] {
+    --sidebar-width: var(--sidebar-width-expanded);
+    --sidebar-padding: 0.75rem;
+    --sidebar-item-px: 0.75rem;
+    --sidebar-item-gap: 0.75rem;
+    --sidebar-content-justify: flex-start;
+  }
 }
 
 /*
@@ -250,12 +279,12 @@
  * del interruptor y son dos lineas.
  */
 @layer components {
-  [data-sidebar='collapsed'] [data-slot='sidebar-label'] {
+  [data-sidebar='collapsed']:not([data-sidebar-overlay]) [data-slot='sidebar-label'] {
     @apply sr-only;
   }
 
   @media (width < 85rem) {
-    [data-sidebar] [data-slot='sidebar-label'] {
+    [data-sidebar]:not([data-sidebar-overlay]) [data-slot='sidebar-label'] {
       @apply sr-only;
     }
   }

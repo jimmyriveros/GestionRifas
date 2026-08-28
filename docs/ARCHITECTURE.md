@@ -1032,7 +1032,7 @@ de corte está **medido**, no elegido:
 |---|---|---|
 | ≥ 100rem (1.600 px) | **232 px**, abierta | Máximo cómodo |
 | 85rem–100rem | de **208** a **232 px**, de forma continua | `clamp(13rem, calc(10vw + 4.5rem), 14.5rem)` |
-| < 85rem (1.360 px) | **56 px**, solo iconos | Abierta le quitaría a la tabla un ancho que no le sobra |
+| < 85rem (1.360 px) | **56 px**, solo iconos — y **208 px flotando** si se pulsa el botón (D-132) | Abierta en el flujo le quitaría a la tabla un ancho que no le sobra |
 | < 48rem (`md`) | **no existe** | Manda la barra inferior (§8.8, D-106). **Sin cambios** |
 
 **De dónde salen las dos cifras.** 208 px es lo mínimo con lo que cabe entera la etiqueta más larga
@@ -1042,11 +1042,11 @@ margen. 85rem es donde caben a la vez la barra abierta y la tabla más ancha de 
 1.321, redondeado a 1.360.
 
 **El interruptor.** Cinco variables (`--sidebar-width`, `--sidebar-padding`, `--sidebar-item-px`,
-`--sidebar-item-gap`, `--sidebar-content-justify`) se declaran **dos veces** en `globals.css` —en la
-consulta de medios y en `[data-sidebar='collapsed']`— y las reglas que las consumen se escriben **una
-sola vez**, en los componentes. Así se llega al mismo aspecto por los dos caminos sin duplicar una
-clase. La única duplicación real son las dos reglas que vuelven `sr-only` las etiquetas, porque una
-consulta de medios no cabe en una lista de selectores.
+`--sidebar-item-gap`, `--sidebar-content-justify`) se declaran **tres veces** en `globals.css` —en la
+consulta de medios, en `[data-sidebar='collapsed']` y en `aside[data-sidebar-overlay]` (D-132)— y las
+reglas que las consumen se escriben **una sola vez**, en los componentes. Así se llega al mismo
+aspecto por los tres caminos sin duplicar una clase. La única duplicación real son las dos reglas que
+vuelven `sr-only` las etiquetas, porque una consulta de medios no cabe en una lista de selectores.
 
 | Quién decide | Qué |
 |---|---|
@@ -1061,9 +1061,13 @@ Por eso `data-sidebar` lleva la preferencia y no el estado efectivo: si llevara 
 una barra cerrada por falta de sitio se quedaría clavada hasta que React se enterase de que la
 ventana creció.
 
-**Cuando no cabe abierta**, el botón sigue a la vista pero no actúa: `aria-disabled` en vez de
-`disabled`, para que conserve el foco y se pueda leer el globo que lo explica. No hay panel
-superpuesto: sería un cuarto menú para una situación que se resuelve ensanchando la ventana.
+**Cuando no cabe abierta, el botón la abre FLOTANDO** (D-132). No empuja el contenido: la barra pasa a
+`fixed` y un hueco del mismo ancho —56 px— se queda en el flujo para que nada se mueva. Es temporal y
+**no toca la preferencia guardada**; se cierra por cinco caminos: elegir una opción, pulsar fuera
+(capa a `z-[45]`, entre el encabezado y la barra), `Escape`, llevarse el foco fuera, o cruzar de
+vuelta los 1.360 px. No es un diálogo: sin `aria-modal`, sin cepo de foco y sin `aria-hidden` sobre el
+resto, porque es un menú que se asoma. Hasta el 2026-08-28 el botón se quedaba inerte ahí (D-131 §5,
+revocada).
 
 **Las etiquetas no se borran, se vuelven `sr-only`**: cada enlace conserva su nombre para quien
 escucha la pantalla, y el globo (Radix `Tooltip`, `delayDuration` 200 ms) aparece con el ratón **y**

@@ -185,29 +185,122 @@ test.describe('Menú lateral al cambiar el ancho de la ventana', () => {
     await esperarAncho(page, CERRADA)
   })
 
-  /**
-   * En un ancho donde no cabe abierta, el boton sigue a la vista pero no actua,
-   * y explica por que. Es la unica regla del interruptor que no puede fallar:
-   * la falta de sitio manda sobre la preferencia.
-   */
-  test('en un ancho intermedio el botón no la abre y lo explica', async ({ page }) => {
+  test('al volver a haber sitio, la barra recupera el ancho que le toca', async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
     await page.setViewportSize({ width: 1100, height: 900 })
     await esperarAncho(page, CERRADA)
 
-    const boton = page.getByRole('button', { name: 'Abrir el menú' })
-    await expect(boton).toHaveAttribute('aria-disabled', 'true')
+    await page.setViewportSize({ width: 1600, height: 900 })
+    await esperarAncho(page, ABIERTA_MAX)
+  })
+})
 
-    await boton.hover()
-    await expect(
-      page.getByRole('tooltip', { name: /No hay espacio para abrir el menú/ }),
-    ).toBeVisible()
+/**
+ * En un ancho donde no cabe abierta, el boton **si** la abre: encima del
+ * contenido (D-132). Es lo contrario de lo que hacia hasta el 2026-08-28, cuando
+ * se quedaba inerte con un globo que lo explicaba.
+ *
+ * Lo que hay que comprobar no es solo que se abra, sino las dos promesas que la
+ * acompañan: que **no mueve el contenido** —que es el motivo de que flote— y que
+ * **se cierra sola** por los cuatro caminos, sin dejar rastro en la preferencia.
+ */
+test.describe('Menú lateral flotante donde no cabe abierto', () => {
+  test.use({ viewport: { width: 1100, height: 900 } })
 
-    // `force`: Playwright se niega a pulsar un boton anunciado como
-    // deshabilitado, que es justo lo que se queria comprobar. Se fuerza el clic
-    // para verificar ademas lo otro: que aunque llegue, no abre nada.
-    await boton.click({ force: true })
+  async function posicionDelContenido(page: Page) {
+    const caja = await page.locator('main').boundingBox()
+    return { x: Math.round(caja?.x ?? 0), ancho: Math.round(caja?.width ?? 0) }
+  }
+
+  const barra = (page: Page) => page.locator('[data-tour="nav-sidebar"]')
+  const capa = (page: Page) => page.locator('div[aria-hidden].fixed.inset-0')
+
+  test('se abre flotando y el contenido no se mueve ni un píxel', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/tickets')
     await esperarAncho(page, CERRADA)
+
+    const antes = await posicionDelContenido(page)
+
+    await page.getByRole('button', { name: 'Abrir el menú' }).click()
+    await esperarAncho(page, ABIERTA_MIN)
+
+    // Flota: fuera del flujo, pegada al borde y de alto completo.
+    await expect(barra(page)).toHaveAttribute('data-sidebar-overlay', '')
+    await expect(barra(page)).toHaveCSS('position', 'fixed')
+    await expect(capa(page)).toBeVisible()
+
+    // La promesa del encargo: el hueco de 56 px se queda en su sitio.
+    expect(await posicionDelContenido(page)).toEqual(antes)
+
+    // Y con los nombres a la vista, que es para lo que se abre.
+    await expect(barra(page).getByText('Administradores', { exact: true })).toBeVisible()
+  })
+
+  test('elegir una opción del menú la cierra y navega', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
+    await page.getByRole('button', { name: 'Abrir el menú' }).click()
+    await esperarAncho(page, ABIERTA_MIN)
+
+    await barra(page).getByRole('link', { name: 'Pagos', exact: true }).click()
+    await page.waitForURL(/\/owner\/payments/)
+    await esperarAncho(page, CERRADA)
+    await expect(capa(page)).toBeHidden()
+  })
+
+  test('pulsar fuera la cierra, y con Escape también', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
+
+    await page.getByRole('button', { name: 'Abrir el menú' }).click()
+    await esperarAncho(page, ABIERTA_MIN)
+    await capa(page).click()
+    await esperarAncho(page, CERRADA)
+
+    await page.getByRole('button', { name: 'Abrir el menú' }).click()
+    await esperarAncho(page, ABIERTA_MIN)
+    await page.keyboard.press('Escape')
+    await esperarAncho(page, CERRADA)
+  })
+
+  /**
+   * Con el teclado: se abre con `Enter`, se recorre con el tabulador y, al salir
+   * de ella, se cierra sola. Sin esto ultimo se tabularia hacia un contenido que
+   * esta detras de la capa y no se deja pulsar.
+   *
+   * Es la unica rama que **no se puede comprobar sin una ventana con foco**: en
+   * un panel sin foco, `focus()` mueve `document.activeElement` pero el navegador
+   * no emite un solo evento de foco.
+   */
+  test('con el teclado se abre, se recorre y se cierra al salir de ella', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/tickets')
+
+    await page.getByRole('button', { name: 'Abrir el menú' }).focus()
+    await page.keyboard.press('Enter')
+    await esperarAncho(page, ABIERTA_MIN)
+
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('link', { name: 'Panel', exact: true })).toBeFocused()
+
+    // Salir de la barra con el foco la cierra.
+    await page.locator('main').getByRole('searchbox').first().focus()
+    await esperarAncho(page, CERRADA)
+  })
+
+  test('flotar no cambia la preferencia guardada', async ({ page, context }) => {
+    await loginAs(page, ACCOUNTS.owner)
+
+    await page.getByRole('button', { name: 'Abrir el menú' }).click()
+    await esperarAncho(page, ABIERTA_MIN)
+
+    const galletas = await context.cookies()
+    expect(galletas.find((c) => c.name === 'rifas.sidebar')).toBeUndefined()
+
+    // Y al recuperar el ancho manda la preferencia de siempre, no la capa.
+    await page.setViewportSize({ width: 1600, height: 900 })
+    await esperarAncho(page, ABIERTA_MAX)
+    await expect(barra(page)).not.toHaveAttribute('data-sidebar-overlay', '')
+    await expect(capa(page)).toBeHidden()
   })
 })
 

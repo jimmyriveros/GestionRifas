@@ -60,6 +60,32 @@ describe('isSidebarCollapsed', () => {
     expect(isSidebarCollapsed('expanded', false)).toBe(true)
     expect(isSidebarCollapsed('collapsed', false)).toBe(true)
   })
+
+  /**
+   * La superposicion (D-132) es la tercera situacion y gana a las otras dos: la
+   * persona pulso el boton donde la barra no cabe, asi que se abre **encima**
+   * del contenido y con sus nombres a la vista. Es lo contrario de lo que hacia
+   * hasta el 2026-08-28, cuando el boton se quedaba inerte.
+   */
+  it('abre la barra cuando flota, aunque no quepa en su sitio', () => {
+    expect(isSidebarCollapsed('expanded', false, true)).toBe(false)
+    expect(isSidebarCollapsed('collapsed', false, true)).toBe(false)
+  })
+
+  /**
+   * Y no cambia nada donde si cabe: ahi el boton guarda la preferencia y no
+   * levanta ninguna capa, asi que este caso no deberia darse. Se prueba igual,
+   * para que la regla sea una sola frase y no dependa de quien la llama.
+   */
+  it('la superposicion manda también cuando hay sitio', () => {
+    expect(isSidebarCollapsed('collapsed', true, true)).toBe(false)
+    expect(isSidebarCollapsed('expanded', true, false)).toBe(false)
+  })
+
+  it('sin superposicion se comporta como antes de D-132', () => {
+    expect(isSidebarCollapsed('collapsed', true, false)).toBe(true)
+    expect(isSidebarCollapsed('expanded', false, false)).toBe(true)
+  })
 })
 
 describe('sidebarCookie', () => {
