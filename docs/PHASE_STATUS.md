@@ -2635,4 +2635,20 @@ y de 400 a 560 px para tres tarjetas seguidas.
    el formato del dinero; la disposición es distinta a propósito (`ARCHITECTURE` §8.9 y §8.14.b).
 3. **No repitas la resta.** Si vas a calcular un saldo de boleta, llama a `ticketFinancials()`.
 4. **`showFrom` y `hideOnMobile` no se combinan**: el primero manda y el segundo sobra.
-5. Este cambio es **solo frontend** y **está pendiente de desplegar**.
+5. Este cambio es **solo frontend**: no hay nada que deshacer en la base si hay que revertir.
+
+### 7. Promoción a producción (2026-08-27)
+
+**Desplegado con autorización expresa.** Vercel `READY` sobre **`6ff1a8f`**
+(`dpl_3tho7E21GFLiSzG82mLoiKATQD3C`), build de **31 s**, alias `gestion-rifas.vercel.app`.
+**Sin migraciones**: cero cambios bajo `supabase/`, así que la reversión es un Instant Rollback
+sin nada que deshacer en la base. `verify:remote` **14/14** después del despliegue, que confirma
+que la base quedó intacta.
+
+Verificado en vivo: las **6** cabeceras de seguridad en `/login` (200), las **4** rutas protegidas
+en 307 y **0** claves de servicio en los 15 fragmentos servidos. **Que el código servido es este
+commit** quedó probado con el método de I-069: el identificador de versión `93deb8b4a32d` —sha256
+del commit recortado a 12 hex— aparece en 1 de esos fragmentos.
+
+**Lo que falta y no puede hacer un agente:** entrar con una sesión real y mirar las dos pantallas.
+Exige contraseñas reales, y automatizar eso es lo que provocó I-066.
