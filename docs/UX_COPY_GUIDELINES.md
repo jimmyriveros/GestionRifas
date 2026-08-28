@@ -337,7 +337,11 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Sorteo que agrupa las boletas | **Rifa** | Sorteo, campaña, evento |
 | Unidad que se vende | **Boleta** | Ticket, número, cupón |
 | Sus dos números | **Número diario** y **número semanal** | Combinación diaria/semanal, cifra |
-| Esos dos, en el **encabezado de una tabla**, donde no cabe la palabra entera | **Núm. diario** / **Núm. semanal**, con «Número» en `sr-only` (D-114) | «Núm.» en etiquetas de formulario o en la ficha de la boleta, donde sí cabe |
+| Los dos, en **la columna de una tabla o en una tarjeta**, donde se escriben juntos | **Boleta**, con la leyenda **«Diario · Semanal»** debajo (D-130) | Dos columnas separadas; «Núm. diario» y «Núm. semanal», que ya no existen |
+| Lo abonado de una boleta | **Abonado** | Pagado, recaudado, cobrado |
+| Lo que falta por cobrar de una boleta, **en la columna de una tabla larga** | **Falta** (D-130) | Debe, pendiente, restante |
+| Lo mismo, donde sí cabe el término entero: la ficha del cliente y el detalle | **Saldo pendiente**, o **Saldo** en una tarjeta de teléfono | Deuda, mora, pasivo |
+| Qué parte del precio lleva abonada una boleta | **Progreso**, y el texto **«58 % abonado»** (D-130) | Avance, completitud, cumplimiento |
 | Columna que contiene lo que se puede hacer con la fila | **Acción** si hay una sola; **Acciones** si abre un menú (D-114) | Dejar la columna sin encabezado |
 | Identificador que genera el sistema | **Código interno** | ID, código de barras |
 | Persona que compra | **Cliente** | Comprador, usuario, participante |
@@ -385,6 +389,10 @@ diario» en el encabezado de una tabla, «1 de 5» en la paginación—, se abre
 palabra completa viaja en un `sr-only`, que sí cuenta para el nombre accesible. Nunca se resuelve
 recortando el término para todo el mundo: quien escucha la pantalla oiría «num punto diario» en cada
 una de las veinticinco filas.
+
+> El ejemplo de «Núm. diario» es **histórico**: esa columna dejó de existir en D-130, donde los dos
+> números se juntaron en una sola llamada «Boleta» —que cabe entera— con la leyenda «Diario ·
+> Semanal» debajo. La regla sigue vigente tal cual, y la paginación la sigue aplicando con «1 de 5».
 
 **Cómo se nombra una boleta en pantalla:** por sus **dos números**, «1234 / 5678» (BR-N11). El
 **código interno** es información administrativa: aparece solo dentro del detalle de la boleta y
@@ -528,6 +536,23 @@ cifras en vez de hablar en abstracto: «El abono de $150.000 supera el precio de
 **«Resultado»**, si la fila sirve o no. Dos columnas tituladas «Estado» a un centímetro se leen una
 por la otra.
 
+**«Falta» y «Saldo pendiente» son la misma cifra con dos nombres, y no es un descuido** (D-130).
+El término del glosario es **saldo pendiente**, y se escribe entero dondequiera que quepa: la
+ficha del cliente, el detalle de la boleta, las tarjetas de resumen. En la tabla de «Mis boletas»
+no cabe —son doce columnas— y ahí se llama **«Falta»**, que es lo que un vendedor dice en voz
+alta. Lo que NUNCA se hace es abreviarlo a «Saldo pdte.» ni inventar un tercer nombre.
+
+**El dinero se lee en la lista; el color solo lo subraya** (D-130). Cada boleta vendida dice, sin
+abrirla, cuánto lleva abonado, cuánto falta y qué parte del precio es eso. La barra y su
+porcentaje van siempre **juntos** —«[▓▓░░] 42 %»— y siempre al lado de la insignia de estado: el
+verde, el ámbar y el gris repiten lo que ya dicen «Pagada», «Abonada» y «Sin pagar», nunca lo
+sustituyen (CLAUDE.md §27). Una boleta que todavía no se ha vendido escribe **«—»**, no «$0»:
+cero significaría «vendida y sin abonar», que es otra cosa.
+
+**«Sin cliente» también en la tabla** (D-130). La columna «Cliente» pintaba una raya cuando la
+boleta no se había vendido, y una raya no dice que esa boleta se puede vender. Es el mismo texto
+que la tarjeta del teléfono ya usaba desde D-107.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
@@ -605,6 +630,10 @@ castigo donde solo había una espera.
 | Lo que va dentro de un anillo: el pie bajo el porcentaje | Lo pasa quien lo usa, en `caption` / `centerCaption` (D-124) |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
+| La leyenda «Diario · Semanal» y el enlace que nombra la boleta, para las cuatro listas | `src/features/tickets/components/TicketNumbers.tsx` (D-130) |
+| Encabezados y rótulos del dinero de «Mis boletas» («Abonado», «Falta», «Progreso») | `src/features/tickets/components/TicketsTable.tsx` y `TicketCardList.tsx` (D-130) |
+| Encabezados y rótulos del dinero de «Boletas de este cliente» («Saldo pendiente», «Saldo», «de $120.000», «58 % abonado») | `src/features/tickets/components/ClientTicketsTable.tsx` y `ClientTicketCardList.tsx` (D-130) |
+| Lo que anuncia una barra de cobro a quien no la ve (`aria-label`) | Lo pasa quien la usa, en `label`; la redacción vigente es «42 % abonado» (D-130) |
 | «Seleccionar varias» y su «Cancelar» | `src/features/tickets/selection/components/TicketSelectionModeButton.tsx` (D-108) |
 | Nombres de las dos formas de pagar a un integrante | `src/lib/constants.ts` (`COMMISSION_MODEL_LABELS`, D-127) |
 | Textos de las dos tarjetas de elección, el tope y el campo de la cifra | `src/features/team/components/CommissionModelField.tsx` (D-127) |

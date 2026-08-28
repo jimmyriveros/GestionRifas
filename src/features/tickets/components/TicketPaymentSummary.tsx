@@ -1,10 +1,11 @@
 import { ProgressRing } from '@/components/data/ProgressRing'
 import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/StatusBadge'
 import { Card, CardContent } from '@/components/ui/card'
-import { calculateCollectionSummary } from '@/features/dashboard/collection-summary'
 import type { TicketInventoryStatus, TicketPaymentStatus } from '@/lib/constants'
 import { formatCOP } from '@/lib/money'
 import { cn } from '@/lib/utils'
+
+import { ticketFinancials } from '../financials'
 
 type TicketPaymentSummaryProps = {
   inventoryStatus: TicketInventoryStatus
@@ -22,10 +23,10 @@ type TicketPaymentSummaryProps = {
  * abono toca a esta boleta— lo hizo la base de datos al registrar el pago; aqui
  * solo se presenta (BR-F08).
  *
- * Se reutiliza `calculateCollectionSummary` en vez de escribir la division
- * aparte: es la misma cuenta que hace el panel, ya probada para los casos
- * limite (sin ventas, cobro completo y un pendiente negativo que la base
- * impide pero que la interfaz nunca debe pintar).
+ * Se reutiliza `ticketFinancials` en vez de escribir la division aparte: es la
+ * misma cuenta que hacen «Mis boletas» y «Boletas de este cliente», ya probada
+ * para los casos limite (sin venta, cobro completo y un pendiente negativo que
+ * la base impide pero que la interfaz nunca debe pintar).
  *
  * **Disposicion (D-124).** Dos bloques, uno encima del otro y separados por una
  * linea: arriba los dos estados; debajo, el cobro. Antes eran tres columnas
@@ -45,13 +46,19 @@ export function TicketPaymentSummary({
   salePrice,
   paidAmount,
 }: TicketPaymentSummaryProps) {
-  const sold = inventoryStatus === 'assigned' && salePrice !== null
-  const price = salePrice ?? 0
-
-  const { percentage, safePendingAmount } = calculateCollectionSummary({
-    totalSold: price,
-    totalCollected: paidAmount,
-    pendingAmount: price - paidAmount,
+  // La misma cuenta que hacen el listado y la ficha del cliente: si esta
+  // pantalla la repitiera por su cuenta, la misma boleta podria salir al 42 %
+  // aqui y al 41 % alla.
+  const {
+    sold,
+    price,
+    percentage,
+    paidAmount: paid,
+    pendingAmount,
+  } = ticketFinancials({
+    inventoryStatus,
+    salePrice,
+    paidAmount,
   })
 
   return (
@@ -90,22 +97,20 @@ export function TicketPaymentSummary({
               <div className="grid min-w-0 flex-1 grid-cols-2 gap-4 @min-[400px]:gap-6">
                 <Amount
                   label="Abonado"
-                  amount={paidAmount}
+                  amount={paid}
                   price={price}
                   // El color solo aparece cuando dice algo: en cero no hay
                   // dinero cobrado que destacar.
-                  className={paidAmount > 0 ? 'text-emerald-700 dark:text-emerald-400' : undefined}
+                  className={paid > 0 ? 'text-emerald-700 dark:text-emerald-400' : undefined}
                 />
                 {/* El ambar dice «falta algo», igual que en «Abonada» y
                     «Pendiente de aprobación»; en cero no queda nada que
                     señalar y la cifra vuelve al gris de siempre. */}
                 <Amount
                   label="Pendiente"
-                  amount={safePendingAmount}
+                  amount={pendingAmount}
                   price={price}
-                  className={
-                    safePendingAmount > 0 ? 'text-amber-700 dark:text-amber-400' : undefined
-                  }
+                  className={pendingAmount > 0 ? 'text-amber-700 dark:text-amber-400' : undefined}
                   divided
                 />
               </div>

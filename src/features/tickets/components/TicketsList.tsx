@@ -36,8 +36,6 @@ type TicketsListProps = {
   showSeller?: boolean
   /** Se oculta donde se opera una sola rifa: el portal del vendedor (D-088). */
   showRaffle?: boolean
-  /** Se apaga en la ficha de UN cliente: ahi todas las boletas son suyas (D-113). */
-  showClient?: boolean
   /** Se pasa a las dos presentaciones; aplana el borde dentro de una tarjeta. */
   className?: string
 }

@@ -18,8 +18,11 @@ import { ACCOUNTS, loginAs, randomTicketNumbers, unique } from './fixtures'
  *
  *   1. No se pierde ningún dato. En la tabla, cliente, estado de pago y precio
  *      se ocultaban bajo `md`; en la tarjeta están los seis.
- *   2. Caben varias boletas por pantalla. Una tarjeta mide entre 90 y 120 px,
- *      así que se ve más de una sin desplazarse.
+ *   2. Caben varias boletas por pantalla sin desplazarse. El tope subió a
+ *      180 px cuando la tarjeta ganó su pie financiero —abonado, falta,
+ *      porcentaje y barra—: es alto que se paga a cambio de no tener que
+ *      abrir la boleta para saber cuánto se le debe. Una boleta que todavía
+ *      no se ha vendido no lleva pie y sigue midiendo lo de siempre.
  *   3. Los filtros no se comen la pantalla antes del primer resultado: están
  *      detrás de un botón que dice cuántos hay puestos.
  *
@@ -86,6 +89,33 @@ test.describe('La lista de boletas en el teléfono', () => {
     await expect(tarjeta).toContainText('Sin pagar')
   })
 
+  test('una boleta vendida lleva su pie financiero: abonado, falta y avance', async ({ page }) => {
+    const numbers = randomTicketNumbers()
+    const cliente = await createClientFor(refs, unique('Compradora del pie'))
+    const precio = await raffleTicketPrice(refs)
+    const ticket = await createAssignedTicket(refs, {
+      dailyNumber: numbers.daily,
+      weeklyNumber: numbers.weekly,
+      clientId: cliente.id,
+      salePrice: precio,
+    })
+    creadas.push(ticket.id)
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/tickets?q=${numbers.daily}`)
+
+    const tarjeta = tarjetaDe(page, ticket.id)
+    await expect(tarjeta).toBeVisible()
+
+    // Sin ningún abono: nada cobrado, todo el precio pendiente y 0 %.
+    await expect(tarjeta).toContainText('Abonado')
+    await expect(tarjeta).toContainText('Falta')
+    await expect(tarjeta).toContainText('0%')
+    // La barra dice su valor para quien no la ve.
+    await expect(tarjeta.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
+    await expect(tarjeta.getByRole('progressbar')).toHaveAttribute('aria-label', '0% abonado')
+  })
+
   test('caben varias boletas por pantalla y ninguna se sale a lo ancho', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/tickets')
@@ -98,16 +128,17 @@ test.describe('La lista de boletas en el teléfono', () => {
     for (const indice of [0, 1, 2]) {
       const caja = (await tarjetas.nth(indice).boundingBox())!
       expect(caja.height, `alto de la tarjeta ${indice + 1}`).toBeGreaterThanOrEqual(80)
-      expect(caja.height, `alto de la tarjeta ${indice + 1}`).toBeLessThanOrEqual(130)
+      expect(caja.height, `alto de la tarjeta ${indice + 1}`).toBeLessThanOrEqual(180)
       expect(caja.x + caja.width, `ancho de la tarjeta ${indice + 1}`).toBeLessThanOrEqual(
         ancho + 1,
       )
     }
 
-    // Tres tarjetas seguidas caben en la mitad alta de un teléfono.
+    // Tres tarjetas seguidas siguen cabiendo en una pantalla de teléfono, aun
+    // con el pie financiero de cada una.
     const primera = (await tarjetas.first().boundingBox())!
     const tercera = (await tarjetas.nth(2).boundingBox())!
-    expect(tercera.y + tercera.height - primera.y).toBeLessThanOrEqual(400)
+    expect(tercera.y + tercera.height - primera.y).toBeLessThanOrEqual(560)
 
     const desborde = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -136,7 +167,7 @@ test.describe('La lista de boletas en el teléfono', () => {
     await expect(tarjeta).toBeVisible()
 
     const caja = (await tarjeta.boundingBox())!
-    expect(caja.height, 'un nombre largo no puede estirar la tarjeta').toBeLessThanOrEqual(130)
+    expect(caja.height, 'un nombre largo no puede estirar la tarjeta').toBeLessThanOrEqual(180)
     expect(caja.x + caja.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1)
 
     const desborde = await page.evaluate(

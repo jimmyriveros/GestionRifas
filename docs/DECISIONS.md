@@ -4626,6 +4626,88 @@ pesos, no quinientos mil. Es la regla 2 del encargo aplicada tal cual, y el cort
 previa, que enseña el importe ya convertido antes de confirmar. Si algún día molesta, la corrección
 es rechazar esa franja, no mover el corte.
 
+## D-130 — El dinero de cada boleta se ve en la lista, y las dos pantallas que lo enseñan comparten la cuenta pero no el diseño
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-27)
+
+**Contexto.** Para saber cuánto le faltaba por cobrar a una boleta había que abrirla. El listado
+enseñaba la insignia «Abonada» y el precio, pero no el abonado ni el saldo: un vendedor que revisa
+veinticinco boletas tenía que entrar y salir veinticinco veces. El encargo pide llevar esa
+información a las dos pantallas donde se listan boletas —«Mis boletas» y «Boletas de este cliente»—
+con un diseño distinto en cada una.
+
+**Decisión 1 — una sola cuenta, `ticketFinancials`, y ninguna consulta nueva.** El abonado, el saldo
+y el porcentaje salen de una función pura que reutiliza `calculateCollectionSummary`, la del panel.
+Las **cuatro** pantallas que enseñan dinero de una boleta pasan por ella: la tabla y la tarjeta de
+«Mis boletas», la tabla y la tarjeta de la ficha del cliente, y el resumen del detalle
+(`TicketPaymentSummary`, que antes hacía la división por su cuenta). Que la boleta 0717 / 4992 diga
+lo mismo en todas no es una coincidencia que haya que vigilar: es que hay una sola resta.
+
+**Decisión 2 — no hizo falta tocar el backend.** `listTickets` ya devolvía `sale_price` y
+`paid_amount` en la misma lectura paginada; `paid_amount` es una columna que la base mantiene al
+registrar o anular un pago, contando solo asignaciones de pagos no anulados (BR-F08). No hay una
+consulta por fila, ni historial traído al navegador, ni agregación en el cliente. Las reglas de qué
+abono cuenta siguen siendo exactamente las de la base de datos: este trabajo no las mira.
+
+**Decisión 3 — dos pantallas, dos diseños, y a propósito.** Comparten `ticketFinancials`,
+`PaymentStatusBadge`, la nueva `PaymentProgressBar`, `formatCOP`, `RowChevron` y `TicketNumbersCell`.
+No comparten la fila: en «Mis boletas» se recorren cientos de boletas y la fila se queda en 57 px con
+cifras de 14 px; en la ficha del cliente hay tres o cuatro y las cifras suben a 16-20 px con su «de
+$120.000» debajo. Un componente único para las dos habría obligado a elegir una densidad y a
+estropear la otra.
+
+**Decisión 4 — «Núm. diario» y «Núm. semanal» se funden en «Boleta».** Dos columnas para dos cifras
+de cuatro dígitos costaban dos encabezados abreviados y ~200 px; juntas caben en 113 px con la
+leyenda «Diario · Semanal» debajo, que es como ya lo decía la tarjeta del teléfono (D-107) y como se
+nombra una boleta al hablar (BR-N11). El ancho liberado es justo lo que pagan las tres columnas
+nuevas. La abreviatura y su `sr-only` de D-114 desaparecen porque desaparece el problema que
+resolvían: «Boleta» cabe entera.
+
+**Decisión 5 — la barra es lineal y de 4 px, y nunca es la única señal.** `PaymentProgressBar` vive
+junto a `ProgressRing` y es su versión para donde no hay alto: publica `role="progressbar"` con su
+valor, va siempre acompañada del porcentaje escrito y de la insignia de estado, y usa los colores que
+ya significan eso en la aplicación —verde cobrado, ámbar «falta algo», gris «todavía no» (D-112)—.
+
+**Decisión 6 — `meta.showFrom` sustituye a un segundo booleano.** La tabla pasó de 8 a 12 columnas y
+`hideOnMobile` solo distinguía teléfono de todo lo demás. `showFrom: 'lg' | 'xl' | '2xl'` dice desde
+qué ancho aparece una columna, y **manda sobre `hideOnMobile`**: las dos clases juntas se pisaban
+—`md:table-cell` volvía a mostrar en 768 px lo que `hidden 2xl:table-cell` pretendía ocultar— y el
+resultado era una columna que no desaparecía nunca. Reparto final, medido en el navegador:
+
+| Ancho | Qué se ve |
+|---|---|
+| < 768 px | tarjetas, sin tabla |
+| 768–1023 | Boleta · Cliente · Pago · Abonado · Falta · Progreso · Precio |
+| 1024–1535 | \+ Vendedor · Estado |
+| ≥ 1536 | \+ Rifa |
+
+El código de la rifa es lo primero que sobra: el negocio opera una sola (D-088) y la pantalla ya tiene
+su filtro. Con ese reparto, ni «Mis boletas» del vendedor (959 px de tabla en 959 de hueco) ni la del
+portal administrativo desbordan a lo ancho en un portátil de 1.280 px.
+
+**Decisión 7 — el nombre del cliente se recorta en la tabla.** Es la trampa de D-125 otra vez: las
+celdas llevan `whitespace-nowrap`, así que un nombre de cincuenta letras se llevaba 409 px de ancho
+mínimo y empujaba las columnas de dinero fuera de la pantalla. Se acota con `max-w` + `truncate` y el
+nombre entero se queda en el `title`.
+
+**Lo que costó, y se acepta:** la tarjeta del teléfono pasó de ~115 px a **166 px** cuando la boleta
+está vendida, porque gana su pie financiero. Una boleta que todavía no se ha vendido no lleva pie y
+sigue midiendo lo de siempre: no hay dinero del que hablar. El tope de la prueba de densidad
+(`boletas-movil.spec.ts`) sube de 130 a 180 px, y el de tres tarjetas seguidas, de 400 a 560. Es alto
+que se paga a cambio de no tener que abrir la boleta para saber cuánto se le debe, que era el motivo
+del encargo.
+
+**Lo que NO se cambió, a propósito:**
+
+* **Ninguna regla de negocio.** No se tocan precios, comisiones, estados, asignaciones ni pagos. El
+  estado de pago lo sigue calculando la base de datos (BR-F07) y la interfaz solo lo pinta.
+* **El buscador, los filtros, el orden, la selección múltiple y la paginación**, que siguen siendo los
+  de siempre. Las columnas nuevas sí se pueden ordenar, y lo hacen por la cifra —no por el texto ya
+  formateado—, porque «$1.000.000» ordenado como texto quedaría antes que «$90.000».
+* **`prop showClient`** desapareció de `TicketsList`, `TicketsTable` y `TicketCardList`: era el
+  interruptor con el que la ficha del cliente reutilizaba la tabla del listado, y esa ficha ahora
+  tiene la suya.
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

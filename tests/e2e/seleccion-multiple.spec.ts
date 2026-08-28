@@ -98,7 +98,7 @@ test.describe('Selección en escritorio', () => {
     const b = await nuevaBoleta()
 
     await page.goto('/owner/tickets')
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
 
     await marcar(page, a)
     await expect(recuento(page)).toHaveText('1 seleccionada')
@@ -158,7 +158,7 @@ test.describe('Selección en escritorio', () => {
 
   test('marcar una fila no la mueve de sitio', async ({ page }) => {
     await page.goto('/owner/tickets')
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
 
     const antes = await page.getByRole('link', { name: /Ver la boleta/ }).allInnerTexts()
     // Se marca una del medio: si la lista reordenara, seria la primera despues.
@@ -173,7 +173,7 @@ test.describe('Selección en escritorio', () => {
     page,
   }) => {
     await page.goto('/owner/tickets')
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
 
     const visibles = await page.getByRole('link', { name: /Ver la boleta/ }).count()
     await toggleCheckbox(
@@ -353,7 +353,7 @@ test.describe('Asignación múltiple del vendedor', () => {
 
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/tickets?inventoryStatus=available')
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
 
     await marcar(page, a)
     await marcar(page, b)

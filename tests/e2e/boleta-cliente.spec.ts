@@ -145,7 +145,7 @@ test.describe('Buscar boletas por el nombre del cliente (BR-N13)', () => {
       ).toBeVisible()
     }
     // Seguimos en «Boletas»: la columna de la tabla lo demuestra.
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
   })
 
   test('basta el apellido, en minúsculas y sin tildes', async ({ page }) => {
@@ -310,7 +310,7 @@ test.describe('Del detalle de una boleta a la ficha del cliente (D-101)', () => 
     await expect(page.getByRole('heading', { name: nombre })).toBeVisible()
     // Es la ficha de siempre, con sus mismas tarjetas.
     await expect(page.getByText('Boletas compradas')).toBeVisible()
-    await expect(page.getByText('Saldo pendiente')).toBeVisible()
+    await expect(page.getByText('Saldo pendiente').first()).toBeVisible()
   })
 
   test('volver desde la ficha regresa a la boleta, y de ahí a la búsqueda', async ({ page }) => {

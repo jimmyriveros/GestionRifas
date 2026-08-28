@@ -60,7 +60,7 @@ test.describe('Portal administrativo en movil', () => {
     // que se ve es la lista de tarjetas, y con ella deja de haber encabezados.
     const lista = page.getByRole('list', { name: 'Boletas' })
     await expect(lista).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeHidden()
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeHidden()
 
     // Y no se pierde nada de lo que la tabla enseña en escritorio: los dos
     // numeros, el vendedor, el cliente, los dos estados y el precio.

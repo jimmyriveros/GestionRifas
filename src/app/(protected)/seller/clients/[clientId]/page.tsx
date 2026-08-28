@@ -12,7 +12,7 @@ import { ClientTotals } from '@/features/clients/components/ClientTotals'
 import { getClientDetail } from '@/features/clients/queries'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
 import { listClientPayments } from '@/features/payments/queries'
-import { TicketsList } from '@/features/tickets/components/TicketsList'
+import { ClientTicketsList } from '@/features/tickets/components/ClientTicketsList'
 import { listTickets } from '@/features/tickets/queries'
 
 export default async function SellerClientDetailPage({
@@ -117,12 +117,9 @@ export default async function SellerClientDetailPage({
             .
           </p>
         ) : (
-          <TicketsList
+          <ClientTicketsList
             tickets={tickets}
             basePath="/seller/tickets"
-            showSeller={false}
-            showRaffle={false}
-            showClient={false}
             className={SECTION_TABLE_CLASSES}
           />
         )}

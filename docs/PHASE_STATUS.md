@@ -14,7 +14,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 
 | Clasificación | Estado actual |
 |---|---|
-| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126) |
+| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129) y **el dinero de cada boleta en la lista** (2026-08-27, D-130) |
 | **En curso** | Ninguna |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
@@ -2580,3 +2580,59 @@ identificador de versión derivado del commit, aparece en los fragmentos servido
 
 **Lo que falta y no puede hacer un agente:** entrar como los tres roles —exige contraseñas reales, y
 automatizarlo es lo que provocó I-066— e **instalar la aplicación en un teléfono real**.
+---
+
+## Mantenimiento post-9 — el dinero de cada boleta se ve en la lista (2026-08-27)
+
+**Encargo:** llevar la información financiera de una boleta —abonado, saldo, porcentaje y precio— a
+las dos pantallas que listan boletas, con un diseño propio en cada una y sin tocar ninguna regla de
+negocio. Decisión **D-130**.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Fuente única de la cuenta | `ticketFinancials()` (`features/tickets/financials.ts`): abonado, saldo, porcentaje acotado a [0, 100] y si la boleta está vendida. Reutiliza `calculateCollectionSummary`. La usan **las cuatro** presentaciones con dinero de una boleta, incluido el resumen del detalle |
+| «Mis boletas» — escritorio | Los dos números en **una** columna, «Boleta», con la leyenda «Diario · Semanal». Tres columnas nuevas —**Abonado · Falta · Progreso**— y una flecha al final. Fila de 57 px, sin fondos de color |
+| «Mis boletas» — teléfono | La tarjeta gana un **pie financiero**: abonado, falta, porcentaje y barra, sobre fondo tenue y separado por una línea. Solo si la boleta está vendida |
+| «Boletas de este cliente» | Lista **propia** (`ClientTicketsList`): tabla con «Estado de pago» (insignia + barra), «Abonado» y «Saldo pendiente» con su «de $120.000» debajo; y tarjetas con cifras grandes en el teléfono |
+| Barra de cobro | `PaymentProgressBar` (`components/data/`): 4 px, `role="progressbar"`, verde/ámbar/gris, siempre acompañada del porcentaje escrito y de la insignia |
+| Anchos | `meta.showFrom` en `DataTable` (`'lg' \| 'xl' \| '2xl'`), que manda sobre `hideOnMobile`. «Vendedor» y «Estado» desde `lg`; «Rifa», desde `2xl` |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` en verde: `typecheck` ✅, `lint` **0 errores** (los 2 avisos de siempre), **420/420**
+unitarias (+11) y `build` ✅. **`test:db` 552/552** —sin cambios: este trabajo no toca la base— y
+**`test:e2e` 305/305** (+8), con base sembrada limpia antes de la pasada.
+
+Además, **medición real en el navegador** en seis anchos: a 1.280 px la tabla mide 959 px en 959 de
+hueco en los dos portales, sin desbordar. **Tres errores encontrados y corregidos** —el desbordamiento
+por el nombre del cliente, `showFrom` pisado por `hideOnMobile` y un localizador ambiguo— y **dos
+pruebas ajenas ajustadas**, todo detallado en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+**Ninguna.** No se tocó la base de datos: `sale_price` y `paid_amount` ya viajaban en cada fila del
+listado.
+
+### 4. Variables de entorno
+
+**Ninguna nueva.**
+
+### 5. Problemas que permanecen
+
+Ninguno de este trabajo. Siguen abiertos I-077, I-072, I-074, I-075, I-068, I-066, I-062 e I-063.
+
+**Lo que costó, y está decidido:** la tarjeta del teléfono de «Mis boletas» pasa de ~115 px a 166 px
+cuando la boleta está vendida. Los topes de densidad de `boletas-movil.spec.ts` suben de 130 a 180 px
+y de 400 a 560 px para tres tarjetas seguidas.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **Si añades una columna a `TicketsTable`, mide el ancho.** A 1.280 px la tabla está exactamente en
+   el límite; el siguiente sobrante tendrá que ganarse su `showFrom`.
+2. **No fusiones las dos listas de boletas.** Comparten `ticketFinancials`, las insignias, la barra y
+   el formato del dinero; la disposición es distinta a propósito (`ARCHITECTURE` §8.9 y §8.14.b).
+3. **No repitas la resta.** Si vas a calcular un saldo de boleta, llama a `ticketFinancials()`.
+4. **`showFrom` y `hideOnMobile` no se combinan**: el primero manda y el segundo sobra.
+5. Este cambio es **solo frontend** y **está pendiente de desplegar**.

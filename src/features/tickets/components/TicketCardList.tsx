@@ -1,10 +1,10 @@
 'use client'
 
-import { ChevronRightIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { KeyboardEvent, MouseEvent } from 'react'
 
-import { RowLink } from '@/components/data/RowLink'
+import { PaymentProgressBar } from '@/components/data/PaymentProgressBar'
+import { RowChevron } from '@/components/data/RowChevron'
 import {
   hasTextSelection,
   isActivationKey,
@@ -17,6 +17,9 @@ import { useOptionalTicketSelection } from '@/features/tickets/selection/TicketS
 import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
 import { cn } from '@/lib/utils'
+
+import { ticketFinancials } from '../financials'
+import { hasBothNumbers, TICKET_NUMBERS_LEGEND, TicketNumbersLink } from './TicketNumbers'
 
 import type { TicketListItem } from '../queries'
 
@@ -32,17 +35,22 @@ import type { TicketListItem } from '../queries'
  * POR QUE NO UNA TABLA ENCOGIDA. La tabla resolvia el ancho ocultando columnas
  * (`hideOnMobile`), y las que ocultaba eran cliente, estado de pago y precio:
  * justo lo que un vendedor necesita para saber a quien le cobra y cuanto le
- * falta. Una tabla de seis columnas dentro de 320 px no se puede leer, asi que
- * la informacion se reparte en cuatro renglones en vez de en seis columnas.
+ * falta. Una tabla de once columnas dentro de 320 px no se puede leer, asi que
+ * la informacion se reparte a lo alto en vez de a lo ancho.
  *
- * ORDEN DE LOS RENGLONES, de lo que mas se busca a lo que menos:
+ * DOS PIEZAS: CUERPO Y PIE.
  *
- *   1. Los dos numeros —asi se nombra una boleta (BR-N11)— y el precio.
- *   2. «Diario · Semanal», la leyenda que dice cual es cual. En la tabla ese
- *      trabajo lo hacian los encabezados de columna; sin ellos, dos cifras
- *      seguidas no se distinguen.
- *   3. El cliente, que es lo segundo que se busca con la vista.
- *   4. Los dos estados, en insignias pequenas y en la misma linea.
+ *   1. El CUERPO identifica la boleta, en el mismo orden en que se busca:
+ *      los dos numeros y el precio · la leyenda «Diario · Semanal», que dice
+ *      cual es cual —en la tabla ese trabajo lo hacen los encabezados— ·
+ *      el cliente · los dos estados, el de pago primero y con insignia, y
+ *      «Asignada» detras, en gris, porque es el que menos se consulta.
+ *
+ *   2. El PIE dice como va el cobro: abonado, lo que falta, el porcentaje y la
+ *      barra. Va separado por una linea y sobre un fondo apenas mas oscuro para
+ *      que se lea como parte de la MISMA boleta —no como una segunda tarjeta—,
+ *      y solo existe si la boleta esta vendida: en una disponible no hay dinero
+ *      del que hablar y el pie robaria alto a la lista.
  *
  * COMPORTAMIENTO IDENTICO AL DE LA FILA. Toda la tarjeta abre el detalle, la
  * pulsacion larga entra en modo seleccion y, en modo seleccion, tocarla marca en
@@ -58,8 +66,6 @@ type TicketCardListProps = {
   showSeller?: boolean
   /** Se oculta donde se opera una sola rifa: el portal del vendedor (D-088). */
   showRaffle?: boolean
-  /** Se apaga en la ficha de UN cliente: ahi todas las boletas son suyas (D-113). */
-  showClient?: boolean
   /** Se pasa a la lista; aplana su borde cuando ya va dentro de una tarjeta. */
   className?: string
 }
@@ -69,7 +75,6 @@ export function TicketCardList({
   basePath = '/owner/tickets',
   showSeller = true,
   showRaffle = true,
-  showClient = true,
   className,
 }: TicketCardListProps) {
   const router = useRouter()
@@ -84,10 +89,6 @@ export function TicketCardList({
   )
 
   const selecting = selection?.rowClickSelects ?? false
-
-  // La flecha es la misma dondequiera que caiga: con el nombre del cliente o,
-  // cuando ese renglon no existe, al final de las insignias.
-  const chevron = <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
 
   function activate(ticket: TicketListItem) {
     if (selecting && selection) {
@@ -146,9 +147,7 @@ export function TicketCardList({
         {tickets.map((ticket) => {
           const selected = selection?.isSelected(ticket.id) ?? false
           const label = ticketLabel(ticket)
-          // La leyenda solo se pone cuando hay dos numeros que distinguir: en un
-          // borrador sin numeros diria cual es cual de nada.
-          const hasBothNumbers = ticket.dailyNumber !== null && ticket.weeklyNumber !== null
+          const money = ticketFinancials(ticket)
           // Lo que el vendedor no necesita —de quien es la boleta, de que rifa—
           // pero el administrador si. Va en la leyenda, truncado, porque a 320 px
           // un nombre largo no puede empujar nada.
@@ -168,7 +167,7 @@ export function TicketCardList({
                verdad y ya lleva su estado. `aria-selected` sobre un `li` no es
                valido y `aria-current` significa otra cosa. */
               className={cn(
-                'flex items-start gap-2 px-3 py-2.5 transition-colors',
+                'flex flex-col transition-colors',
                 'focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset',
                 selected ? 'bg-muted' : 'hover:bg-muted/50',
               )}
@@ -176,86 +175,148 @@ export function TicketCardList({
               onKeyDown={(event) => handleKeyDown(event, ticket)}
               {...longPress.getHandlers(ticket)}
             >
-              {/* Las casillas solo aparecen en modo seleccion: en la lista normal
-                robarian sitio permanentemente al nombre del cliente. */}
-              {selection?.selectionMode ? (
-                <SelectionCheckbox
-                  checked={selected}
-                  onCheckedChange={() => selection.toggle(ticket.id)}
-                  label={`Seleccionar la boleta ${label}`}
-                  className="mt-1.5 shrink-0"
-                />
-              ) : null}
-
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex items-baseline justify-between gap-2">
-                  {/* El enlace se conserva aunque la tarjeta entera sea pulsable:
-                    da el menu contextual, «abrir en otra pestana» y una parada
-                    de teclado con nombre. */}
-                  <RowLink
-                    href={`${basePath}/${ticket.id}`}
-                    className="truncate font-mono text-base font-medium tabular-nums hover:underline"
-                    aria-label={`Ver la boleta ${label}`}
-                  >
-                    {label}
-                  </RowLink>
-                  {/* Una boleta sin vender no tiene precio, y una raya en el sitio
-                    mas visible de la tarjeta no dice nada: se calla. La insignia
-                    «Disponible» ya cuenta por que no hay cifra. */}
-                  {ticket.salePrice === null ? null : (
-                    <span className="shrink-0 text-sm font-medium tabular-nums">
-                      {formatCOP(ticket.salePrice)}
-                    </span>
-                  )}
-                </div>
-
-                {hasBothNumbers || meta !== '' ? (
-                  <div className="text-muted-foreground flex items-baseline justify-between gap-2 text-xs">
-                    <span className="shrink-0">{hasBothNumbers ? 'Diario · Semanal' : ''}</span>
-                    {meta === '' ? null : (
-                      // El codigo corto de la rifa no dice de que rifa se trata:
-                      // el nombre completo se queda a un toque largo, igual que
-                      // en la columna «Rifa» de la tabla.
-                      <span className="truncate" title={showRaffle ? ticket.raffleName : undefined}>
-                        {meta}
-                      </span>
-                    )}
-                  </div>
+              <div className="flex items-start gap-2 px-3 py-2">
+                {/* Las casillas solo aparecen en modo seleccion: en la lista
+                    normal robarian sitio permanentemente al nombre del cliente. */}
+                {selection?.selectionMode ? (
+                  <SelectionCheckbox
+                    checked={selected}
+                    onCheckedChange={() => selection.toggle(ticket.id)}
+                    label={`Seleccionar la boleta ${label}`}
+                    className="mt-1 shrink-0"
+                  />
                 ) : null}
 
-                {/* En la ficha de un cliente el nombre no se repite en cada
-                  tarjeta (D-113): sin ese renglon, la flecha se va con las
-                  insignias en vez de quedarse sola ocupando una linea. */}
-                {showClient ? (
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={cn(
-                        'truncate text-sm',
-                        ticket.clientName === null && 'text-muted-foreground',
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    {/* El enlace se conserva aunque la tarjeta entera sea
+                      pulsable: da el menu contextual, «abrir en otra pestana» y
+                      una parada de teclado con nombre. */}
+                    <TicketNumbersLink ticket={ticket} href={`${basePath}/${ticket.id}`} />
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {/* Una boleta sin vender no tiene precio, y una raya en el
+                        sitio mas visible de la tarjeta no dice nada: se calla.
+                        La insignia «Disponible» ya cuenta por que no hay cifra. */}
+                      {ticket.salePrice === null ? null : (
+                        <span className="text-sm font-medium tabular-nums">
+                          {formatCOP(ticket.salePrice)}
+                        </span>
                       )}
-                    >
-                      {ticket.clientName ?? 'Sin cliente'}
-                    </span>
-                    {/* En modo seleccion la tarjeta no abre nada: la flecha se va,
-                      porque prometeria algo que ya no ocurre. */}
-                    {selecting ? null : chevron}
+                      {/* En modo seleccion la tarjeta no abre nada: la flecha se
+                        va, porque prometeria algo que ya no ocurre. */}
+                      {selecting ? null : <RowChevron />}
+                    </div>
                   </div>
-                ) : null}
 
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <InventoryStatusBadge status={ticket.inventoryStatus} />
+                  {hasBothNumbers(ticket) || meta !== '' ? (
+                    <div className="text-muted-foreground flex items-baseline justify-between gap-2 text-xs">
+                      <span className="shrink-0">
+                        {hasBothNumbers(ticket) ? TICKET_NUMBERS_LEGEND : ''}
+                      </span>
+                      {meta === '' ? null : (
+                        // El codigo corto de la rifa no dice de que rifa se trata:
+                        // el nombre completo se queda a un toque largo, igual que
+                        // en la columna «Rifa» de la tabla.
+                        <span
+                          className="truncate"
+                          title={showRaffle ? ticket.raffleName : undefined}
+                        >
+                          {meta}
+                        </span>
+                      )}
+                    </div>
+                  ) : null}
+
+                  <p
+                    className={cn(
+                      'truncate text-sm',
+                      ticket.clientName === null && 'text-muted-foreground',
+                    )}
+                  >
+                    {ticket.clientName ?? 'Sin cliente'}
+                  </p>
+
+                  {/* El estado de pago manda —es lo que se viene a mirar— y por
+                      eso lleva insignia; «Asignada» lo acompaña en gris, a la
+                      derecha, donde no compite con el. */}
+                  <div className="flex items-center justify-between gap-2">
                     {ticket.inventoryStatus === 'assigned' ? (
                       <PaymentStatusBadge status={ticket.paymentStatus} />
+                    ) : (
+                      <InventoryStatusBadge status={ticket.inventoryStatus} />
+                    )}
+                    {ticket.inventoryStatus === 'assigned' ? (
+                      <span className="text-muted-foreground shrink-0 text-xs">Asignada</span>
                     ) : null}
                   </div>
-                  {!showClient && !selecting ? chevron : null}
                 </div>
               </div>
+
+              {money.sold ? (
+                <TicketCardFooter
+                  paidAmount={money.paidAmount}
+                  pendingAmount={money.pendingAmount}
+                  percentage={money.percentage}
+                  status={ticket.paymentStatus}
+                />
+              ) : null}
             </li>
           )
         })}
       </ul>
+    </div>
+  )
+}
+
+/**
+ * El pie de la tarjeta: como va el cobro de ESA boleta.
+ *
+ * Tres datos en una linea —abonado, falta y el porcentaje a la derecha— y la
+ * barra debajo, ocupando el ancho. Las cifras se quedan en `text-sm`: esta es
+ * la lista larga, y agrandarlas aqui costaria una boleta menos por pantalla en
+ * la unica pantalla donde eso importa. La ficha del cliente, que enseña tres
+ * boletas, si las agranda.
+ */
+function TicketCardFooter({
+  paidAmount,
+  pendingAmount,
+  percentage,
+  status,
+}: {
+  paidAmount: number
+  pendingAmount: number
+  percentage: number
+  status: TicketListItem['paymentStatus']
+}) {
+  return (
+    <div className="bg-muted/40 space-y-1 border-t px-3 py-1.5">
+      <div className="flex items-end justify-between gap-3">
+        <FooterAmount label="Abonado" amount={paidAmount} />
+        <FooterAmount label="Falta" amount={pendingAmount} className="flex-1" />
+        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">{percentage}%</span>
+      </div>
+      <PaymentProgressBar
+        percentage={percentage}
+        status={status}
+        label={`${percentage}% abonado`}
+      />
+    </div>
+  )
+}
+
+function FooterAmount({
+  label,
+  amount,
+  className,
+}: {
+  label: string
+  amount: number
+  className?: string
+}) {
+  return (
+    <div className={cn('min-w-0', className)}>
+      <p className="text-muted-foreground text-[11px] leading-tight">{label}</p>
+      <p className="text-sm font-medium tabular-nums">{formatCOP(amount)}</p>
     </div>
   )
 }

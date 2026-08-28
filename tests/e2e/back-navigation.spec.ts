@@ -32,7 +32,7 @@ test.describe('Flecha de volver: historial real (Casos A, B, C)', () => {
 
     const listUrl = `/owner/tickets?inventoryStatus=available&q=${numbers.daily}`
     await page.goto(listUrl)
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
 
     await page.getByRole('link', { name: new RegExp(`Ver la boleta ${numbers.daily}`) }).click()
     await page.waitForURL(/\/owner\/tickets\/[0-9a-f-]+$/)
@@ -99,7 +99,7 @@ test.describe('Flecha de volver: boletas del vendedor (Caso A)', () => {
     await loginAs(page, ACCOUNTS.seller)
     const listUrl = `/seller/tickets?q=${numbers.daily}`
     await page.goto(listUrl)
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
 
     await page.getByRole('link', { name: new RegExp(`Ver la boleta ${numbers.daily}`) }).click()
     await page.waitForURL(/\/seller\/tickets\/[0-9a-f-]+$/)
@@ -129,7 +129,7 @@ test.describe('Flecha de volver: sin historial real (Caso E)', () => {
     // No debe quedarse pegado en el detalle ni salir de la aplicacion: cae en
     // el listado de boletas de la propia rifa (el destino de repuesto).
     await expect(page).toHaveURL(/\/owner\/tickets\?raffleId=/)
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
   })
 
   test('un cliente abierto por URL directa usa el listado de clientes', async ({ page }) => {

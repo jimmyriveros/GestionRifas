@@ -202,8 +202,10 @@ test.describe('Fila seleccionable en las tablas', () => {
     await page.goto(`/seller/tickets?q=${ticket.numbers.daily}`)
 
     const row = await rowOfTicket(page, ticket.numbers.weekly)
-    // La celda del número semanal: texto suelto, sin enlace ni botón dentro.
-    await row.getByText(ticket.numbers.weekly, { exact: true }).click()
+    // La leyenda bajo los dos números: texto suelto, sin enlace ni botón dentro.
+    // Los números en sí van DENTRO del enlace desde D-130, así que pulsarlos
+    // probaría el enlace, no la fila.
+    await row.getByText('Diario · Semanal').click()
 
     await page.waitForURL(`**/seller/tickets/${ticket.id}`)
     // El encabezado dice donde estas, no que boleta es (D-126). Que la fila

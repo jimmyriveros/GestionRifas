@@ -178,7 +178,7 @@ test.describe('Boletas propias: búsqueda y filtros', () => {
   }) => {
     await page.goto('/seller/tickets')
 
-    await expect(page.getByRole('columnheader', { name: 'Número diario' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
     // El codigo interno dejo de ser columna: vive en el detalle (BR-N11).
     await expect(page.getByRole('columnheader', { name: 'Código' })).toHaveCount(0)
     await expect(page.getByRole('columnheader', { name: 'Vendedor' })).toHaveCount(0)

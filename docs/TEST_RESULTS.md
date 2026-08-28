@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **409 ✅** | **552 ✅** | **297 ✅** | ✅ | ✅ |
+| Post-9 vigente | **420 ✅** | **552 ✅** | **305 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -4600,3 +4600,79 @@ probando. Mi script de contexto imprimía la organización de los vendedores per
 personal**, así que la equivocación no se veía. Con el dueño correcto —Camila Restrepo— las diez
 sondas pasaron. La lección para quien repita esto: **imprime siempre la organización de la cuenta con
 la que vas a sondear**, porque un fallo de permisos se lee igual que un fallo del despliegue.
+---
+
+## Post-9 — El dinero de cada boleta se ve en la lista (2026-08-27)
+
+Rediseño de la información financiera de las dos pantallas que listan boletas (**D-130**). Sin
+migración: `listTickets` ya devolvía `sale_price` y `paid_amount`.
+
+### Comprobación automática
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `typecheck` | ✅ | — | — |
+| `lint` | ✅ **0 errores** | Los 2 avisos de siempre (`useReactTable` y `useVirtualizer`, librerías incompatibles con el compilador de React) | Preexistentes; no se tocan |
+| `test` (unitarias) | ✅ **420/420** (+11) | — | — |
+| `build` | ✅ | — | — |
+| `test:db` | ✅ **552/552** | — | Sin cambios: este trabajo no toca la base |
+| `test:e2e` | ✅ **305/305** (+8) | Ver más abajo: 10 fallos en la primera pasada, ninguno del producto | Dos pruebas ajustadas y base sembrada limpia |
+
+**Las 11 unitarias nuevas** (`tests/unit/ticket-financials.test.ts`) cubren los casos que el encargo
+pedía uno a uno: pagada, abonada, sin pagar, varios abonos ya sumados, precio distinto de $120.000,
+precio cero —que no divide por cero—, abono mayor que el precio, abono negativo, boleta sin vender en
+sus tres estados, boleta anulada y el redondeo del porcentaje.
+
+**Las 7 E2E nuevas** (`tests/e2e/boletas-financiero.spec.ts`) preparan el estado con la RPC real
+`create_payment` —no escribiendo `paid_amount` a mano, que sería comprobar el atajo— y verifican
+las cuatro columnas, la barra con su `aria-valuenow`, el caso rebajado (BR-P11), la boleta sin vender
+y, sobre todo, **la misma boleta en las dos pantallas**: mismo abonado, mismo saldo, mismo porcentaje
+y mismo estado.
+
+### Medición en el navegador, no estimación
+
+Con la aplicación corriendo contra la base local y midiendo `getBoundingClientRect` sobre la tabla
+real:
+
+| Ancho | Tabla | Hueco | ¿Desborda? |
+|---|---|---|---|
+| 1.280 px — vendedor | 959 px | 959 px | **No** |
+| 1.280 px — administrativo | 959 px | 959 px | **No** |
+| 1.440 px — administrativo | 1.119 px | 1.119 px | **No** |
+| 1.600 px — administrativo | 1.279 px | 1.279 px | **No**, y vuelve «Rifa» |
+| 768–1023 px | 761 px | 447–579 px | Sí, **dentro de su contenedor**, como ya ocurría antes |
+| 375 px | — | — | Tarjetas; `scrollWidth - clientWidth` = **0** |
+
+Alto de fila y de tarjeta: **57 px** la fila de «Mis boletas», **81 px** la de la ficha del cliente,
+**166 px** la tarjeta vendida del teléfono (115 px si la boleta no se ha vendido) y **227 px** la
+tarjeta de la ficha del cliente.
+
+### Tres errores encontrados durante el trabajo, y se cuentan
+
+**1. La tabla desbordaba 261 px a 1.280 px en la primera versión.** Causa: las celdas llevan
+`whitespace-nowrap` y el nombre de un cliente de cincuenta letras se llevaba **409 px** de ancho
+mínimo, empujando fuera las columnas de dinero. Es la misma trampa de D-125. Corregido con `max-w` +
+`truncate` y el nombre entero en el `title`.
+
+**2. `showFrom` y `hideOnMobile` se pisaban.** Con las dos en la misma columna salían las clases
+`md:table-cell hidden 2xl:table-cell`, y `md:table-cell` volvía a mostrar en 768 px lo que la otra
+pretendía ocultar: la columna «Rifa» **no desaparecía nunca**. Se descubrió midiendo, no leyendo.
+Corregido dando precedencia a `showFrom` en `DataTable` y quitando el booleano redundante.
+
+**3. `getByRole('columnheader', { name: 'Boleta' })` encontraba tres encabezados.** «Boleta» es
+subcadena de «Ver la boleta» y de «Seleccionar las boletas de esta página». Corregido con
+`exact: true` en los cinco archivos que lo usan.
+
+### Dos pruebas ajenas que este trabajo rompió, y por qué
+
+Salieron en la primera pasada completa de E2E y **ninguna era un fallo del producto**:
+
+* **`filas-seleccionables.spec.ts`** pulsaba `getByText(weekly, { exact: true })` dentro de la fila,
+  contando con que el número semanal fuera una celda de texto suelto. Ahora los dos números viven
+  dentro del enlace, así que la prueba pulsa la **leyenda «Diario · Semanal»**, que es la zona libre
+  equivalente. Lo que la prueba comprueba —que la fila entera abre el detalle— no cambia.
+* **`reports.spec.ts`** comprueba que un pago **anulado** se distingue por texto en «Pagos
+  recientes», y esa lista enseña **cinco**, ordenados por fecha de pago. Los cinco abonos que crea la
+  suite nueva, fechados hoy, desplazaban al anulado del seed. Se fechan en el pasado
+  (`FECHA_ABONO = '2026-01-05'`): la fecha no es lo que prueba la suite nueva, y así no compite por
+  esos cinco huecos.

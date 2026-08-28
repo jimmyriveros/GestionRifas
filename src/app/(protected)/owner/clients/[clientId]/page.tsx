@@ -10,7 +10,7 @@ import { ClientTotals } from '@/features/clients/components/ClientTotals'
 import { getClientDetail } from '@/features/clients/queries'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
 import { listClientPayments } from '@/features/payments/queries'
-import { TicketsList } from '@/features/tickets/components/TicketsList'
+import { ClientTicketsList } from '@/features/tickets/components/ClientTicketsList'
 import { listTickets } from '@/features/tickets/queries'
 
 export default async function ClientDetailPage({
@@ -70,7 +70,13 @@ export default async function ClientDetailPage({
             Este cliente todavía no tiene boletas.
           </p>
         ) : (
-          <TicketsList tickets={tickets} showClient={false} className={SECTION_TABLE_CLASSES} />
+          <ClientTicketsList
+            tickets={tickets}
+            basePath="/owner/tickets"
+            showRaffle
+            showSeller
+            className={SECTION_TABLE_CLASSES}
+          />
         )}
       </TableSection>
 

@@ -659,11 +659,12 @@ en cada carga. La consulta de medios sigue decidiendo solo comportamiento (si to
 
 | Dato | En la tabla | En la tarjeta |
 |---|---|---|
-| Números diario y semanal | dos columnas | primera línea, `1234 / 5678`, con leyenda «Diario · Semanal» |
-| Precio | columna, `—` si no hay | primera línea a la derecha; **se omite** si no hay venta |
-| Cliente | columna oculta bajo `md` | tercera línea; «Sin cliente» cuando no lo tiene |
-| Estado y estado de pago | dos columnas, `Pago` oculta bajo `md` | cuarta línea, dos insignias juntas |
-| Rifa y vendedor | columnas ocultas bajo `md` | en la leyenda, truncadas (`R001 · Ana Torres`) |
+| Números diario y semanal | **una** columna, «Boleta», con la leyenda «Diario · Semanal» debajo (D-130) | primera línea, `1234 / 5678`, y la leyenda en la segunda |
+| Precio | columna a la derecha, `—` si no hay | primera línea a la derecha; **se omite** si no hay venta |
+| Cliente | columna, recortada con `truncate` | tercera línea; «Sin cliente» cuando no lo tiene |
+| Estado y estado de pago | dos columnas; «Estado» solo desde `lg` | cuarta línea: insignia del **pago** y, en gris, «Asignada» |
+| Abonado, falta y progreso | tres columnas (D-130) | **pie financiero**, solo si la boleta está vendida |
+| Rifa y vendedor | columnas; «Vendedor» desde `lg`, «Rifa» desde `2xl` | en la leyenda, truncadas (`R001 · Ana Torres`) |
 
 **Comportamiento:** el mismo de la fila, reutilizando `row-activation.ts` y `useLongPress`. Toda la
 tarjeta abre el detalle; en modo selección marca, y entonces la flecha desaparece. La casilla de
@@ -675,8 +676,30 @@ una hoja inferior (`components/ui/sheet.tsx`). Se escriben una vez y se pintan e
 `idPrefix` distinto; la hoja solo existe en el DOM mientras está abierta, así que en escritorio no
 hay etiquetas duplicadas. El contador cuenta filtros, **no** la búsqueda: esa ya se ve escrita.
 
-**Dónde se usa:** los dos listados de boletas, «Ver seleccionadas» y las boletas de la ficha de un
-cliente. `TicketsTable` ya no se llama directamente desde ninguna pantalla.
+**Dónde se usa:** los dos listados de boletas y «Ver seleccionadas». `TicketsTable` ya no se llama
+directamente desde ninguna pantalla. Las boletas de la ficha de un cliente dejaron de usar esta
+lista en D-130 y tienen la suya (§8.14.b).
+
+**El dinero de cada fila (D-130).** «Abonado», «Falta» y «Progreso» salen de `ticketFinancials()`
+—`features/tickets/financials.ts`—, una función pura que reutiliza `calculateCollectionSummary` y
+que usan **las cuatro** presentaciones de una boleta con dinero: estas dos, las dos de la ficha del
+cliente y el resumen del detalle. Sigue sin haber una consulta por fila: `sale_price` y
+`paid_amount` ya venían en `TicketListItem`. Las columnas de dinero se ordenan por la **cifra**
+(`accessorFn`), no por el texto formateado.
+
+**Anchos (D-130).** La tabla pasó de 8 a 12 columnas, así que `DataTable` gana `meta.showFrom`
+(`'lg' | 'xl' | '2xl'`), que **manda sobre** `hideOnMobile` —las dos clases juntas se pisaban—:
+
+| Ancho | Columnas |
+|---|---|
+| < 768 px | tarjetas, sin tabla |
+| 768–1023 | Boleta · Cliente · Pago · Abonado · Falta · Progreso · Precio |
+| 1024–1535 | \+ Vendedor · Estado |
+| ≥ 1536 | \+ Rifa |
+
+Medido en el navegador: a 1.280 px la tabla mide 959 px en 959 de hueco, en los dos portales. El
+nombre del cliente se recorta con `max-w` + `truncate` porque las celdas llevan `whitespace-nowrap`
+y un nombre largo se llevaba 409 px de ancho mínimo (la trampa de D-125).
 
 ### 8.10 La cabecera de «Boletas»: un bloque con ritmo (D-108)
 
@@ -859,9 +882,12 @@ el rol y ninguna más.
 | `TableSection` | `components/data/` | La tarjeta con título y acción que envuelve cada listado. `SECTION_TABLE_CLASSES` aplana la tabla de dentro para no dibujar dos bordes |
 
 **Qué se oculta y qué no.** Solo se esconde lo que es **constante por construcción**: la lista está
-filtrada por `clientId`, así que la columna «Cliente» repetiría el mismo nombre en todas las filas
-(`showClient={false}` en las dos tablas). «Rifa» se apaga únicamente en el portal del vendedor, por
-D-088; en el administrativo se queda, igual que «Vendedor», porque ahí sí pueden variar.
+filtrada por `clientId`, así que no hay columna «Cliente» —repetiría el mismo nombre en todas las
+filas—. «Rifa» y «Vendedor» existen solo en el portal administrativo, porque ahí sí pueden variar;
+en el del vendedor la rifa es siempre la misma (D-088).
+
+**Desde D-130 el listado de boletas de esta ficha es suyo** (`ClientTicketsList`), no la lista larga
+de «Mis boletas». Ver §8.14.b.
 
 **Acciones.** «Registrar abono» es la única de color y aparece dos veces —encabezado e historial—
 bajo la **misma** condición de siempre: saldo pendiente mayor que cero y cliente no archivado. El
@@ -870,6 +896,40 @@ portal administrativo no la tiene: registrar abonos es del vendedor. La del enca
 
 **Sin consultas nuevas:** `getClientDetail`, `listTickets({ clientId })` y `listClientPayments`, las
 mismas tres de antes y en el mismo `Promise.all`.
+
+### 8.14.b «Boletas de este cliente»: la otra lista de boletas (D-130)
+
+Mismo dato, otra pantalla, otro diseño. La ficha de un cliente enseña tres o cuatro boletas y lo
+que se hace con ellas es decidir cuánto cobrarle; «Mis boletas» enseña veinticinco y lo que se hace
+es encontrar una. Forzar una sola fila para las dos obliga a elegir una densidad y estropear la
+otra, así que se comparte la lógica y no la disposición.
+
+```
+            listTickets({ clientId })   ← la MISMA consulta de siempre
+                      │
+               TicketListItem[]
+                      │
+              ClientTicketsList
+              ┌───────┴────────┐
+          md:hidden       hidden md:block
+   ClientTicketCardList   ClientTicketsTable
+```
+
+| | «Mis boletas» | «Boletas de este cliente» |
+|---|---|---|
+| Volumen | cientos | tres o cuatro |
+| Fila de escritorio | 57 px, cifras de 14 px | 81 px, cifras de 16 px con «de $120.000» debajo |
+| La barra | columna propia, «Progreso» | dentro de «Estado de pago», bajo su insignia |
+| Saldo | columna «Falta» | columna «Saldo pendiente» |
+| Tarjeta de teléfono | fila con pie financiero (166 px) | tarjeta con borde y cifras de 20 px (227 px) |
+| Cliente | una columna | no se repite: es el dueño de la ficha |
+
+**Lo que sí se comparte:** `ticketFinancials()`, `PaymentStatusBadge`, `InventoryStatusBadge`,
+`PaymentProgressBar`, `RowChevron`, `TicketNumbersCell` y `formatCOP`. Es lo que garantiza que la
+misma boleta diga lo mismo en las dos pantallas y en el detalle: hay **una** resta, no tres.
+
+**Sin selección múltiple:** esta ficha no ofrece acciones en lote, así que no hay casillas ni
+pulsación larga. La fila y la tarjeta sí abren el detalle, con las reglas de `row-activation.ts`.
 
 ### 8.15 Aplicación instalable: manifiesto, service worker y actualización (D-115 a D-119)
 

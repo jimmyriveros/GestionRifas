@@ -6,6 +6,7 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
+  type ColumnMeta,
   type OnChangeFn,
   type RowData,
   type RowSelectionState,
@@ -57,8 +58,22 @@ declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface ColumnMeta<TData extends RowData, TValue> {
     hideOnMobile?: boolean
+    /**
+     * A partir de que ancho aparece la columna. Es el escalon que faltaba
+     * —`hideOnMobile` solo distingue telefono de todo lo demas— y lo necesita
+     * la tabla de boletas: en 768 px se queda con lo financiero y suelta
+     * vendedor y estado de inventario; el codigo de la rifa no vuelve hasta
+     * 1.536 px, que es cuando sobra sitio para el (seccion 7 del encargo).
+     */
+    showFrom?: 'lg' | 'xl' | '2xl'
     align?: 'right'
   }
+}
+
+const SHOW_FROM: Record<'lg' | 'xl' | '2xl', string> = {
+  lg: 'hidden lg:table-cell',
+  xl: 'hidden xl:table-cell',
+  '2xl': 'hidden 2xl:table-cell',
 }
 
 type DataTableProps<TData, TValue> = {
@@ -92,6 +107,17 @@ type DataTableProps<TData, TValue> = {
    * tarjeta, y dibujarlos dos veces se ve como una caja dentro de otra.
    */
   className?: string
+}
+
+/**
+ * Desde que ancho se ve la columna. `showFrom` manda sobre `hideOnMobile`:
+ * las dos a la vez se pisaban —`md:table-cell` volvia a mostrar en 768 px lo
+ * que `hidden 2xl:table-cell` pretendia ocultar— y el resultado era una
+ * columna que no desaparecia nunca.
+ */
+function columnVisibility(meta: ColumnMeta<unknown, unknown> | undefined): string | false {
+  if (meta?.showFrom) return SHOW_FROM[meta.showFrom]
+  return meta?.hideOnMobile ? 'hidden md:table-cell' : false
 }
 
 export function DataTable<TData, TValue>({
@@ -191,10 +217,7 @@ export function DataTable<TData, TValue>({
                 return (
                   <TableHead
                     key={header.id}
-                    className={cn(
-                      meta?.hideOnMobile && 'hidden md:table-cell',
-                      meta?.align === 'right' && 'text-right',
-                    )}
+                    className={cn(columnVisibility(meta), meta?.align === 'right' && 'text-right')}
                     aria-sort={
                       sorted === 'asc'
                         ? 'ascending'
@@ -265,7 +288,7 @@ export function DataTable<TData, TValue>({
                       <TableCell
                         key={cell.id}
                         className={cn(
-                          meta?.hideOnMobile && 'hidden md:table-cell',
+                          columnVisibility(meta),
                           meta?.align === 'right' && 'text-right',
                         )}
                       >
