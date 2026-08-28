@@ -371,6 +371,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Cuenta creada a la que su dueña todavía no ha entrado | **Invitación pendiente** | Pendiente de activación, sin confirmar, inactivo |
 | Cuenta cuya dueña ya configuró su contraseña | **Cuenta activa** | Activado, confirmado, verificado |
 | Correo con el enlace para crear la contraseña | **Invitación** | Enlace mágico, token, activación |
+| Dejar el menú lateral en solo iconos, y devolverlo a su sitio | **Cerrar el menú** y **Abrir el menú** | Contraer, expandir, colapsar, plegar, minimizar |
 | Poner la aplicación en la pantalla de inicio del teléfono | **Instalar** | Descargar, bajar la app, añadir acceso directo |
 | El nombre bajo el icono, donde solo caben ~12 caracteres | **Rifas** | «Gestión de…», que es como quedaría el nombre completo |
 | Estar sin internet | **Sin conexión** | Offline, desconectado, sin red |
@@ -454,6 +455,23 @@ en «Boletas» y esa palabra no añade nada. Lo que hay que decir es que a parti
 marcar **varias** para actuar sobre todas a la vez. Cuando el modo está encendido, el mismo botón
 dice **«Cancelar»** —salir descarta lo marcado— y no debe confundirse con **«Limpiar selección»**,
 que vacía lo marcado **sin** salir del modo.
+
+**«Cerrar el menú», no «Contraer»** (D-131). El botón de la barra lateral hace algo que se ve al
+instante —los nombres se van, quedan los iconos—, así que el texto no tiene que describir la mecánica,
+solo nombrar la acción. *Contraer*, *colapsar* y *plegar* son palabras de programa de diseño; abrir y
+cerrar las usa todo el mundo. El mismo botón dice lo contrario según cómo esté, nunca las dos cosas a
+la vez.
+
+Cuando la ventana es tan estrecha que el menú **no cabe abierto**, el botón sigue ahí pero no actúa, y
+entonces el globo deja de nombrar la acción para explicar por qué: «No hay espacio para abrir el menú.
+Amplía la ventana.» Es la regla de §7 aplicada a un botón: qué pasa y qué puede hacer la persona. Lo
+que **no** se hace es esconder el botón —quien no lo ve no sabe que el menú se puede abrir— ni dejarlo
+mudo, que es peor que las dos.
+
+**Con el menú cerrado, cada icono dice su nombre.** No se inventa una abreviatura ni se recorta el
+término: el nombre entero viaja en el globo, y sigue estando en el HTML para quien escucha la pantalla
+(es `sr-only`, no desaparece). Son los mismos nombres del menú abierto —«Mis boletas», «Vendedores»,
+«Administradores»—, sin cambiar ni una palabra.
 
 **En la barra inferior del teléfono cae el posesivo, y solo ahí** (D-106). El menú lateral y el
 título de la pantalla siguen diciendo **«Mis boletas»**, **«Mis clientes»** y **«Mis pagos»**; la
@@ -629,6 +647,7 @@ castigo donde solo había una espera.
 | Rótulos del resumen de pago de una boleta («Abonado», «Pendiente», «de $120.000») | `src/features/tickets/components/TicketPaymentSummary.tsx` (D-124) |
 | Lo que va dentro de un anillo: el pie bajo el porcentaje | Lo pasa quien lo usa, en `caption` / `centerCaption` (D-124) |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
+| «Cerrar el menú», «Abrir el menú» y el aviso de que no cabe abierto | `src/components/layout/AppSidebar.tsx` (D-131) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
 | La leyenda «Diario · Semanal» y el enlace que nombra la boleta, para las cuatro listas | `src/features/tickets/components/TicketNumbers.tsx` (D-130) |
 | Encabezados y rótulos del dinero de «Mis boletas» («Abonado», «Falta», «Progreso») | `src/features/tickets/components/TicketsTable.tsx` y `TicketCardList.tsx` (D-130) |

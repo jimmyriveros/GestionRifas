@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **420 ✅** | **552 ✅** | **305 ✅** | ✅ | ✅ |
+| Post-9 vigente | **429 ✅** | **552 ✅** | **315 ✅** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -4676,3 +4676,106 @@ Salieron en la primera pasada completa de E2E y **ninguna era un fallo del produ
   suite nueva, fechados hoy, desplazaban al anulado del seed. Se fechan en el pasado
   (`FECHA_ABONO = '2026-01-05'`): la fecha no es lo que prueba la suite nueva, y así no compite por
   esos cinco huecos.
+
+---
+
+## Post-9 — La barra lateral se estrecha y se cierra sola (2026-08-28)
+
+Comportamiento responsive de la barra lateral de escritorio (**D-131**). Sin migración, sin
+consultas, sin reglas de negocio: es CSS, una cookie y un `matchMedia`.
+
+### Comprobación automática
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `typecheck` | ✅ | — | — |
+| `lint` | ✅ **0 errores** | Los 2 avisos de siempre (`useReactTable` y `useVirtualizer`) | Preexistentes; no se tocan |
+| `test` (unitarias) | ✅ **429/429** (+9) | — | — |
+| `build` | ✅ | — | — |
+| `test:db` | ✅ **552/552** | — | Sin cambios: este trabajo no toca la base |
+| `test:e2e` | ✅ **315/315** (+10) | — | Con `db:reset` + `seed:local` antes de la pasada |
+
+**Las 9 unitarias nuevas** (`tests/unit/sidebar-preference.test.ts`) cubren las dos funciones que
+deciden —cookie ausente, vacía o manipulada; la preferencia respetada cuando hay sitio; la barra
+cerrada por falta de sitio **sin borrar** la preferencia; `path`, caducidad y `secure` solo en
+HTTPS— y, sobre todo, el guardián que no se puede escribir de otra forma: que el punto de corte de
+`globals.css` y el de TypeScript sigan siendo **el mismo número**. El CSS no se importa, así que sin
+esa prueba nada impide cambiar uno y olvidar el otro, y el resultado sería una barra cerrada con un
+botón que dice que está abierta.
+
+**Las 10 E2E nuevas** (`tests/e2e/menu-lateral.spec.ts`) fijan **su propia ventana** en cada bloque,
+porque el ancho es justo lo que se prueba. Cubren los diez escenarios que pedía el encargo:
+escritorio amplio, ancho intermedio, ventana reducida progresivamente, cerrada a mano, expandida y
+luego estrechada, estrechada y luego ampliada, navegación con la barra cerrada, el punto de corte
+móvil, teclado con globos, y los nombres del menú en su longitud real.
+
+### Medición en el navegador, no estimación
+
+Con la aplicación corriendo contra la base local y leyendo `getComputedStyle` y
+`getBoundingClientRect` sobre la barra y la tabla reales:
+
+| Ancho de ventana | Barra | Etiquetas | Hueco de la tabla (portal administrativo) |
+|---|---|---|---|
+| 1.600 px | **232 px** | visibles, 1 línea, sin recorte | 1.305 px (1.481 con la barra cerrada a mano) |
+| 1.520 px | **224 px** | ídem | — |
+| 1.440 px | **216 px** | ídem | — |
+| 1.360 px | **208 px** | ídem, y es el ancho **más apretado** | 1.089 px |
+| 1.359 px | **56 px** | `sr-only` | — |
+| 1.024 px | **56 px** | `sr-only` | **905 px** (antes 705) |
+| 820 px | **56 px** | `sr-only` | 717 px (antes 501) |
+| 375 px | **no existe** (`display: none`) | — | Tarjetas; barra inferior con sus 4 opciones |
+
+Anchos que necesita la tabla, medidos poniéndola en `max-content`: **1.226 px** desde `2xl` (con la
+columna «Rifa»), **1.050 px** entre 1.024 y 1.535, **777 px** entre 768 y 1.023. La tabla del portal
+del vendedor pide **947 px**. De ahí sale el punto de corte, no de un breakpoint elegido.
+
+En **los ocho** anchos, `document.documentElement.scrollWidth - clientWidth` = **0**: la barra no
+provoca desplazamiento horizontal en ninguno.
+
+Geometría con la barra cerrada, medida: barra **56 px**, enlace **39 × 36 px**, icono y botón
+centrados **los dos en 27,5 px** (el centro exacto del área útil), y `scrollWidth - clientWidth` del
+contenedor del menú = **0**, o sea que nada se sale por los lados.
+
+### Tres errores encontrados durante el trabajo, y se cuentan
+
+**1. `data-sidebar` llevaba el estado efectivo y la barra se quedaba clavada.** Primera versión: el
+atributo valía `collapsed` tanto si la persona la había cerrado como si no cabía. Consecuencia real,
+vista en el navegador: al ensanchar la ventana de 1.024 a 1.600 la barra **seguía midiendo 56 px**,
+porque el atributo puesto por React ganaba a la consulta de medios y React no se había enterado del
+cambio. Corregido dejando en el atributo **solo la preferencia** (D-131, decisión 3).
+
+**2. `justify-[var(--sidebar-content-justify)]` no existe.** Tailwind 4 no genera esa utilidad con un
+valor arbitrario: el `justify-content` calculado salía `normal` y con la barra cerrada los iconos y el
+botón quedaban **pegados a la izquierda** en vez de centrados (medido: centro del icono en 16 px, con
+el del área en 27,5). El aviso estaba a la vista y no se leyó: el ordenador de clases de Prettier
+había puesto esa clase **la primera**, que es donde deja las que no reconoce. Corregido con la
+sintaxis de propiedad arbitraria, `[justify-content:var(--sidebar-content-justify)]`.
+
+**3. Siete pruebas E2E ajenas fallaron, y no era el cambio.** `importar-boletas.spec.ts` (6) y
+`seller-tickets.spec.ts` (1), sobre una base local que arrastraba datos de sesiones anteriores: la
+importación caía en una rifa distinta de la del seed y el selector de clientes no ofrecía el cliente
+recién creado. Con `db:reset` + `seed:local`, las **27** en verde sin tocar una línea. Es la trampa
+de siempre, ya documentada dos veces en este archivo: **siembra antes de una pasada completa**.
+
+### Lo que el panel del navegador no puede comprobar, y por qué no importa
+
+El panel donde se hicieron las mediciones **no emite eventos `resize` ni `change` de consulta de
+medios**, y tampoco produce fotogramas, así que las transiciones CSS se quedan a medias. Las dos
+cosas se descubrieron midiendo y las dos resultaron ser información útil:
+
+* La animación de 200 px de ancho se validó **desactivando las transiciones** para medir geometría, y
+  después en Playwright, que sí anima: las diez pruebas nuevas leen `boundingBox()` y obtienen 232,
+  208 y 56 px exactos tras cada cambio de ventana.
+* Que React se quedara sin enterarse de tres cambios de ventana seguidos **y la barra siguiera
+  midiendo lo correcto** es la demostración accidental de la decisión 2 de D-131: lo que se ve lo
+  decide el CSS. Lo único que se quedó atrás fue el globo del botón.
+
+Comprobado además que la regla `@media (prefers-reduced-motion: reduce) { .motion-reduce\:transition-none }`
+**está en la hoja servida**, y que la consola no trae ni un error ni aviso de hidratación del cambio.
+
+### Una prueba ajena ajustada, y por qué
+
+**`navegacion.spec.ts` fija ahora su ventana en 1.440 px.** El proyecto `escritorio` corre a 1.280,
+que queda por debajo del punto de corte, así que esas tres pruebas se habrían ejecutado sobre la
+barra en modo iconos y habrían dejado de comprobar lo que fueron escritas para comprobar —la barra
+lateral completa, D-106—. **Ninguna aserción cambia**; solo el ancho de la ventana.

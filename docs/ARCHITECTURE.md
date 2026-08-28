@@ -161,7 +161,7 @@ importa desde un componente cliente.
     │   └── denied/page.tsx                # Acceso denegado
     ├── components/
     │   ├── ui/                   # shadcn/ui generado
-    │   ├── layout/               # AppShell, NavLinks, BottomNav, UserMenu
+    │   ├── layout/               # AppShell, AppSidebar, NavLinks, BottomNav, UserMenu
     │   ├── data/                 # DataTable, Pagination, MetricCard, StatusBadge, EmptyState
     │   ├── feedback/             # Skeletons y ConfirmDialog
     │   └── form/                 # MoneyInput, TicketNumberInput, OptionList, SelectionCheckbox
@@ -318,7 +318,9 @@ usan guardas propias; I-051 registra una acción auxiliar que todavía no valida
 ## 8. Arquitectura de UI
 
 ### 8.1 Estructura visual
-- **Escritorio:** `AppShell` con sidebar fijo, nombre de la organización y menú de usuario.
+- **Escritorio:** `AppShell` con barra lateral, nombre de la organización y menú de usuario. La barra
+  **dejó de ser fija el 2026-08-28** (§8.16, D-131): mide entre 208 y 232 px abierta, y 56 px —solo
+  iconos— cuando la persona la cierra o cuando la ventana baja de 1.360 px.
 - **Móvil (mobile-first):** header compacto + **barra de navegación inferior** (§8.8, D-106);
   acciones primarias accesibles con el pulgar; las tablas conservan su estructura y ocultan columnas
   secundarias (D-048). El **drawer** que había hasta el 2026-08-23 ya no existe.
@@ -357,7 +359,9 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `ConfirmDialog` | Confirmación de acciones sensibles (anular, desactivar, aprobar) |
 | `EmptyState` | Estado vacío con acción sugerida |
 | `RowLink` | Enlace de una **fila** de tabla: un `Link` con `prefetch={false}`. Veinticinco filas precargadas son veinticinco invocaciones del servidor que casi nadie usa, y en Vercel enfrían la función que atenderá el clic siguiente (D-104) |
-| `NavLinks` → `NavPending` | El menú lateral y su aviso de «se está abriendo», con `useLinkStatus`. Sustituye a los `loading.tsx`, que costaban ~300 ms de espera por fallback de Suspense (D-104) |
+| `AppSidebar` | La barra lateral de escritorio (§8.16, D-131): ancho fluido, botón de abrir y cerrar, y globos con el nombre de cada icono cuando está cerrada. El ancho lo decide el CSS; React solo pone los globos |
+| `NavLinks` → `NavIcon` | El menú lateral y su aviso de «se está abriendo», con `useLinkStatus`. Sustituye a los `loading.tsx`, que costaban ~300 ms de espera por fallback de Suspense (D-104). Desde D-131 el aviso ocupa **el sitio del icono**, como en `BottomNav`: al final del enlace no cabe con la barra cerrada |
+| `sidebar-preference.ts` | La preferencia (cookie) y el sitio disponible (`matchMedia`) como **dos cosas distintas**, y la regla que las combina (§8.16, D-131) |
 | `BottomNav` | La barra de navegación del teléfono (§8.8, D-106). Solo las entradas `primary`, solo bajo `md`. No consulta nada: `usePathname()` y ya. Conserva el aviso de «se está abriendo» de `NavPending`, en el sitio del icono |
 | `nav-active.ts` | `isNavItemActive(pathname, href)`: qué entrada se enciende. La comparten la barra lateral y la inferior, para que no puedan discrepar (D-106) |
 | `ProgressRing` | Anillo de progreso accesible (D-105): un `<svg>` con `stroke-dasharray`, sin librería de gráficas. Lleva el porcentaje **escrito** en el centro y `role="progressbar"`; es la versión compacta de la barra de `CollectionSummaryCard`, para cuando el porcentaje comparte fila con cifras de dinero. **Dentro solo va el porcentaje**, medido en `cqw` contra el propio anillo (D-124) |
@@ -555,6 +559,10 @@ mismo texto ni una tabla encogida.
 **Por qué el corte grande es `xl` y no `lg`.** Con la barra lateral de 256 px, una ventana de 1.024
 px deja 672 px de contenido: una tableta de 768 px tiene **menos** ancho útil que un teléfono
 apaisado de 640 px. Comprobado con capturas a 320, 390, 768, 1024 y 1440 px.
+
+> Las cifras de este párrafo son **del 2026-08-25**. Desde D-131 la barra mide 56 px por debajo de
+> 1.360 px, así que a 1.024 px el contenido dispone de **920** y no de 672. El corte `xl` de esta
+> pantalla **no se revisó** con el ancho nuevo: sigue siendo válido, pero podría rebajarse.
 
 **«Estado y cobro» dejó de tener dos disposiciones** (D-124). Eran tres secciones hermanas en
 escritorio y dos filas en el teléfono; ahora es una sola forma —estados arriba, cobro debajo— y lo
@@ -834,7 +842,8 @@ ancho de su tarjeta con `@container`:
 
 Los cuatro indicadores sí miran la ventana (`sm:grid-cols-2 xl:grid-cols-4`) porque ocupan el ancho
 completo: en `lg` el contenido mide 720 px —la barra lateral se lleva 256— y cuatro columnas dejaban
-78 px de texto para importes de 118.
+78 px de texto para importes de 118. (Cifra del 2026-08-25; desde D-131 la barra mide 56 px a ese
+ancho y el contenido sube a 968. El reparto **no se revisó**.)
 
 **Gráficos: SVG en el servidor, sin librería.**
 
@@ -1013,6 +1022,54 @@ intermitente y muy difícil de depurar.
 **Lo que NO hay que hacer:** registrar un segundo worker «solo para las notificaciones», mover el
 alcance a un subdirectorio, o cachear respuestas del backend «ya que estamos». Las tres rompen algo
 que hoy funciona.
+
+### 8.16 La barra lateral de escritorio: tres anchos y un interruptor de CSS (D-131)
+
+Hasta el 2026-08-28 la barra medía **256 px fijos** desde `md`. Ahora tiene tres estados y el punto
+de corte está **medido**, no elegido:
+
+| Ancho de ventana | Barra | Por qué |
+|---|---|---|
+| ≥ 100rem (1.600 px) | **232 px**, abierta | Máximo cómodo |
+| 85rem–100rem | de **208** a **232 px**, de forma continua | `clamp(13rem, calc(10vw + 4.5rem), 14.5rem)` |
+| < 85rem (1.360 px) | **56 px**, solo iconos | Abierta le quitaría a la tabla un ancho que no le sobra |
+| < 48rem (`md`) | **no existe** | Manda la barra inferior (§8.8, D-106). **Sin cambios** |
+
+**De dónde salen las dos cifras.** 208 px es lo mínimo con lo que cabe entera la etiqueta más larga
+de los dos portales, «Administradores» (105 px): 24 + 24 + 16 + 12 + 105 = 181 px, con 27 px de
+margen. 85rem es donde caben a la vez la barra abierta y la tabla más ancha de la aplicación
+—«Boletas» del portal administrativo, **1.050 px** medidos en el navegador—: 1.050 + 208 + 48 + 15 =
+1.321, redondeado a 1.360.
+
+**El interruptor.** Cinco variables (`--sidebar-width`, `--sidebar-padding`, `--sidebar-item-px`,
+`--sidebar-item-gap`, `--sidebar-content-justify`) se declaran **dos veces** en `globals.css` —en la
+consulta de medios y en `[data-sidebar='collapsed']`— y las reglas que las consumen se escriben **una
+sola vez**, en los componentes. Así se llega al mismo aspecto por los dos caminos sin duplicar una
+clase. La única duplicación real son las dos reglas que vuelven `sr-only` las etiquetas, porque una
+consulta de medios no cabe en una lista de selectores.
+
+| Quién decide | Qué |
+|---|---|
+| **CSS** | El ancho, los rellenos, el centrado y si los nombres se ven. Conoce el ancho de la ventana en el **primer pintado**: no hay parpadeo |
+| **Cookie `rifas.sidebar`** | La preferencia de la persona. La lee `AppShell` en el servidor, así que el HTML ya sale con el ancho correcto |
+| **React** | Solo los globos de ayuda y el estado del botón. Se entera del ancho con **`matchMedia`**, no con un escucha de `resize` |
+
+**Preferencia y sitio son dos cosas distintas** (`sidebar-preference.ts`). La falta de sitio manda
+sobre la preferencia **en un solo sentido**: cierra una barra que se dejó abierta, nunca abre una que
+se dejó cerrada, y **no borra** la preferencia — al recuperar el ancho, la barra vuelve como estaba.
+Por eso `data-sidebar` lleva la preferencia y no el estado efectivo: si llevara el estado efectivo,
+una barra cerrada por falta de sitio se quedaría clavada hasta que React se enterase de que la
+ventana creció.
+
+**Cuando no cabe abierta**, el botón sigue a la vista pero no actúa: `aria-disabled` en vez de
+`disabled`, para que conserve el foco y se pueda leer el globo que lo explica. No hay panel
+superpuesto: sería un cuarto menú para una situación que se resuelve ensanchando la ventana.
+
+**Las etiquetas no se borran, se vuelven `sr-only`**: cada enlace conserva su nombre para quien
+escucha la pantalla, y el globo (Radix `Tooltip`, `delayDuration` 200 ms) aparece con el ratón **y**
+con el foco del teclado. El aviso de «se está abriendo» de `NavPending` se mudó al sitio del icono,
+como ya hacía `BottomNav`: al final del enlace no cabe con la barra cerrada.
+
 ---
 
 ## 9. Configuración regional

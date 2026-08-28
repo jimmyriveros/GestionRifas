@@ -1,12 +1,17 @@
+import { cookies } from 'next/headers'
 import type { ReactNode } from 'react'
 
+import { AppSidebar } from '@/components/layout/AppSidebar'
 import { BottomNav } from '@/components/layout/BottomNav'
-import { NavLinks } from '@/components/layout/NavLinks'
 import type { NavItem } from '@/components/layout/nav-items'
+import {
+  parseSidebarPreference,
+  SIDEBAR_COOKIE,
+  type SidebarPreference,
+} from '@/components/layout/sidebar-preference'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { NotificationBell } from '@/features/notifications/components/NotificationBell'
 import { TourProvider } from '@/features/tour/components/TourProvider'
-import { tourTarget } from '@/features/tour/tours'
 import type { AppRole } from '@/lib/constants'
 
 type AppShellProps = {
@@ -19,7 +24,7 @@ type AppShellProps = {
   children: ReactNode
 }
 
-export function AppShell({
+export async function AppShell({
   orgName,
   role,
   profileId,
@@ -28,6 +33,11 @@ export function AppShell({
   navItems,
   children,
 }: AppShellProps) {
+  // La preferencia de la barra lateral viaja en una cookie para que el HTML del
+  // servidor salga ya con el ancho correcto y no haya un parpadeo al hidratar
+  // (D-131, `sidebar-preference.ts`).
+  const sidebarPreference = parseSidebarPreference((await cookies()).get(SIDEBAR_COOKIE)?.value)
+
   return (
     <TourProvider role={role} profileId={profileId}>
       <AppShellLayout
@@ -36,6 +46,7 @@ export function AppShell({
         fullName={fullName}
         email={email}
         navItems={navItems}
+        sidebarPreference={sidebarPreference}
       >
         {children}
       </AppShellLayout>
@@ -63,30 +74,22 @@ function AppShellLayout({
   fullName,
   email,
   navItems,
+  sidebarPreference,
   children,
-}: Omit<AppShellProps, 'profileId'>) {
+}: Omit<AppShellProps, 'profileId'> & { sidebarPreference: SidebarPreference }) {
   const primaryItems = navItems.filter((item) => item.primary)
   const secondaryItems = navItems.filter((item) => !item.primary)
 
   return (
     <div className="flex min-h-svh flex-col md:flex-row">
       {/*
-        `ps-[var(--safe-left)]` en la barra lateral y `pe-[var(--safe-right)]` en
-        la columna de contenido: son las dos unicas caras que tocan el borde de
-        la pantalla (D-119). Las variables valen 0 salvo en un telefono con
-        muesca puesto en horizontal, asi que en escritorio no cambia nada.
+        La barra lateral se ocupa de su propio ancho (D-131): entre 208 y 232 px
+        abierta y 56 px cuando solo caben los iconos, sea porque la persona la
+        cerro o porque la ventana no da para mas. `pe-[var(--safe-right)]` en la
+        columna de contenido y `ps-[var(--safe-left)]` dentro de la barra son las
+        dos unicas caras que tocan el borde de la pantalla (D-119).
       */}
-      <aside
-        {...tourTarget('nav-sidebar')}
-        className="bg-background hidden w-64 shrink-0 border-r ps-[var(--safe-left)] md:flex md:flex-col"
-      >
-        <div className="flex h-14 items-center border-b px-4">
-          <span className="truncate font-semibold">{orgName}</span>
-        </div>
-        <div className="flex-1 overflow-y-auto p-3">
-          <NavLinks items={navItems} />
-        </div>
-      </aside>
+      <AppSidebar orgName={orgName} navItems={navItems} preference={sidebarPreference} />
 
       <div className="flex min-w-0 flex-1 flex-col ps-[var(--safe-left)] pe-[var(--safe-right)] md:ps-0">
         <header className="bg-background sticky top-0 z-40 flex h-14 items-center gap-2 border-b px-4">

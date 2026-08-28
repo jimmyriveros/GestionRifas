@@ -4723,6 +4723,111 @@ del encargo.
 
 ---
 
+## D-131 — La barra lateral deja de ser un bloque fijo: se estrecha, se cierra sola y la persona manda mientras haya sitio
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-28)
+
+**Contexto.** La barra lateral medía **256 px fijos** desde `md` (768 px) hacia arriba. En una ventana
+de 1.024 px eso dejaba **705 px** de contenido para una tabla de boletas que pide **1.050**, y la
+tabla se comprimía hasta ser incómoda de leer; el encargo llegó con dos capturas, una a ~1.912 px y
+otra a ~1.358, esta segunda como ejemplo de «se ve mal». Además, en cualquier ancho la barra tenía
+espacio vacío de sobra: la etiqueta más larga de los dos portales mide 105 px.
+
+**Decisión 1 — tres anchos, y los dos números están medidos.** No hay ningún valor elegido a ojo:
+
+| Ancho de ventana | Barra | De dónde sale |
+|---|---|---|
+| ≥ 1.600 px | **232 px** | Máximo cómodo |
+| 1.360–1.600 | de **208** a **232**, continuo | `clamp(13rem, calc(10vw + 4.5rem), 14.5rem)` |
+| < 1.360 px | **56 px**, solo iconos | No caben la barra abierta y la tabla |
+| < 768 px (`md`) | no existe | Barra inferior del teléfono (D-106), **intacta** |
+
+**208 px** es el mínimo con el que «Administradores» —105 px, la etiqueta más larga de los dos
+portales— cabe entera: 24 (relleno de la barra) + 24 (relleno del enlace) + 16 (icono) + 12 (hueco) +
+105 = 181, con 27 px de margen para una fuente más ancha que la de referencia. **1.360 px** es donde
+caben a la vez la barra abierta y la tabla más ancha de la aplicación, «Boletas» del portal
+administrativo con sus doce columnas: 1.050 (medido en el navegador) + 208 + 48 (relleno de la
+página) + 15 (barra de desplazamiento) = 1.321, redondeado a 1.360 para no dejar la tabla pegada al
+borde. La segunda captura del encargo, 1.358 px, cae **justo debajo** de ese punto: es exactamente el
+caso que ahora se resuelve solo.
+
+**Decisión 2 — lo que se VE lo decide el CSS; React solo pone los globos.** Es la decisión que
+sostiene todas las demás. Cinco variables (`--sidebar-width`, `--sidebar-padding`,
+`--sidebar-item-px`, `--sidebar-item-gap`, `--sidebar-content-justify`) actúan de interruptor: se
+declaran dos veces en `globals.css` —en la consulta de medios y en `[data-sidebar='collapsed']`— y
+las reglas que las consumen se escriben una sola vez, en los componentes. Consecuencias reales, no
+teóricas:
+
+* **No hay parpadeo.** El navegador conoce el ancho de la ventana en el primer pintado y la
+  preferencia llega en una cookie, así que el HTML del servidor ya sale con el ancho correcto. Con
+  `localStorage` —que es donde viven las otras preferencias de interfaz— quien la tuviera cerrada
+  vería la barra abierta y encogerse en cada carga.
+* **Si JavaScript llega tarde, no pasa nada.** Se comprobó por accidente: el panel del navegador de
+  pruebas no emite eventos `resize` ni `change` de consulta de medios, así que React se quedó sin
+  enterarse de tres cambios de ventana seguidos — y la barra siguió midiendo lo correcto en todos.
+  Lo único que se quedó atrás fue el globo del botón.
+* **No hay ni un escucha de `resize`.** `matchMedia` avisa una vez, al cruzar los 1.360 px.
+
+**Decisión 3 — `data-sidebar` lleva la preferencia, no el estado que se ve.** Escribirlo al revés fue
+el primer intento y se rompió en la primera comprobación: si el atributo lleva el estado efectivo,
+React está decidiendo también lo que ya decide la consulta de medios, y una barra cerrada por falta
+de sitio se queda clavada en 56 px hasta que React se entera de que la ventana volvió a crecer. Con
+la preferencia a secas, el atributo dice «esta persona la quiere cerrada» y del resto se encarga el
+CSS.
+
+**Decisión 4 — la falta de sitio manda sobre la preferencia, pero en un solo sentido.** Puede cerrar
+una barra que se dejó abierta; nunca abrir una que se dejó cerrada. Y **no borra la preferencia**: al
+recuperar el ancho, la barra vuelve como estaba. Son dos conceptos separados a propósito
+(`sidebar-preference.ts`), porque mezclarlos es lo que produce los estados incoherentes al
+redimensionar.
+
+**Decisión 5 — cuando no cabe abierta, el botón se queda pero no actúa.** `aria-disabled` en vez de
+`disabled`, para que conserve el foco y se pueda leer el globo que lo explica: «No hay espacio para
+abrir el menú. Amplía la ventana.» Se descartó **abrirla superpuesta**, que el encargo ofrecía como
+alternativa: sería un cuarto menú —lateral, inferior, menú de usuario— para una situación que se
+resuelve ensanchando la ventana o leyendo el globo de cada icono. El botón vuelve a funcionar solo en
+cuanto hay sitio.
+
+**Decisión 6 — las etiquetas no se borran, se vuelven `sr-only`.** Con `display: none` cada enlace se
+quedaría sin nombre para quien escucha la pantalla, y habría que inventarle un `aria-label` que
+duplicara el texto visible. Siendo `sr-only`, el nombre sigue estando siempre —también para las
+pruebas, que localizan los enlaces por su nombre— y el globo (Radix `Tooltip`, 200 ms de espera)
+aparece con el ratón **y** con el foco del teclado.
+
+**Decisión 7 — el aviso de «se está abriendo» se muda al sitio del icono.** Estaba al final del
+enlace, con `ml-auto`: con la barra cerrada no hay tal final —el enlace mide 39 px— y con la barra
+abierta reservarle sitio costaba 28 px de ancho que solo se usan la fracción de segundo que tarda en
+abrirse una pantalla. Es el mismo recurso que `BottomNav` ya usaba desde D-106, por la misma razón.
+D-104 no cambia: sigue siendo `useLinkStatus` y sigue sin haber `loading.tsx`.
+
+**Lo que NO se cambió, a propósito:**
+
+* **El teléfono, ni un píxel.** La barra lateral sigue siendo `hidden md:flex` y la inferior,
+  `md:hidden` (D-106). Comprobado a 375 px: la lateral no existe, la barra inferior tiene sus cuatro
+  opciones de siempre y no hay desplazamiento horizontal.
+* **Ninguna regla de negocio, ruta, permiso, consulta ni filtro.** No hay migración ni dependencia
+  nueva. La lista de opciones sigue saliendo de los mismos `navItems` de cada portal: no hay un
+  segundo menú que mantener en sincronía.
+* **Las reglas responsive de las tablas** (`showFrom`, `hideOnMobile`, D-130). La tabla no cambia: lo
+  que cambia es cuánto ancho recibe. En el portal administrativo, a 1.024 px pasa de **705 a 905 px**;
+  en una ventana amplia con la barra cerrada a mano, de 1.305 a **1.481**.
+* **Los cortes `xl` del detalle de una boleta y del panel del vendedor**, que se calcularon con la
+  barra de 256 px y ahora disponen de más ancho. Se anotan como revisables en `ARCHITECTURE` §8.7 y
+  §8.13; revisarlos ahora sería cambiar dos pantallas que nadie pidió tocar.
+
+**Lo que costó, y se acepta:** el nombre de la organización comparte fila con el botón, así que
+dispone de **139 px** en vez de los 224 de antes y un nombre largo se recorta con puntos suspensivos.
+Se lee entero al pasar el ratón por encima (`title`), igual que el nombre del cliente en la tabla de
+boletas (D-130). Con «Rifas», el nombre real del negocio (D-126), sobra sitio.
+
+**Efecto sobre las pruebas end-to-end.** El proyecto `escritorio` corre a **1.280 px**, que ahora
+está por debajo del punto de corte: toda la suite de escritorio se ejecuta con la barra en modo
+iconos. No rompe nada —los enlaces conservan su nombre— pero `navegacion.spec.ts` dejaría de
+comprobar lo que fue escrito para comprobar, así que ese bloque fija su propia ventana de 1.440 px.
+Las pruebas nuevas viven en `menu-lateral.spec.ts` y cada una declara el ancho que necesita.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

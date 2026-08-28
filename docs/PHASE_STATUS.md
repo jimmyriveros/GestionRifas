@@ -2657,3 +2657,78 @@ el mismo punto, y «Progreso» se centra en su columna. E2E **305/305** antes de
 
 **Lo que falta y no puede hacer un agente:** entrar con una sesión real y mirar las dos pantallas.
 Exige contraseñas reales, y automatizar eso es lo que provocó I-066.
+
+---
+
+## Mantenimiento post-9 — la barra lateral se estrecha y se cierra sola (2026-08-28)
+
+**Encargo:** que la barra lateral de escritorio deje de quitarle ancho a la tabla de «Mis boletas»
+cuando la ventana se estrecha: ancho eficiente, reducción progresiva, cierre automático cuando ya no
+cabe, botón para abrirla y cerrarla a mano, y el teléfono **exactamente igual que ahora**. Decisión
+**D-131**.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Tres anchos | **232 px** desde 1.600; de **208 a 232** entre 1.360 y 1.600, de forma continua; **56 px** —solo iconos— por debajo de 1.360. Bajo `md` no existe: manda la barra inferior (D-106) |
+| Punto de corte medido | 1.360 px = tabla más ancha de la aplicación (**1.050 px**) + barra abierta (208) + relleno (48) + barra de desplazamiento (15), redondeado. Ni un número elegido a ojo |
+| Botón de abrir y cerrar | Arriba de la barra, con icono que cambia (`PanelLeftClose` / `PanelLeftOpen`), `aria-label`, `aria-expanded`, `aria-controls` y globo. Cuando no cabe abierta: `aria-disabled` y el globo explica por qué |
+| Preferencia que se recuerda | Cookie `rifas.sidebar`, leída **en el servidor** por `AppShell`, así que el HTML ya sale con el ancho correcto y no hay parpadeo al hidratar |
+| Preferencia ≠ sitio | `sidebar-preference.ts`: la falta de sitio **cierra** una barra abierta pero nunca **abre** una cerrada, y no borra la preferencia. Al recuperar el ancho, la barra vuelve como estaba |
+| Nombres con la barra cerrada | Pasan a `sr-only` —no se borran— y aparecen en un globo con el ratón **y** con el foco del teclado |
+| Interruptor de CSS | Cinco variables en `globals.css` declaradas dos veces (consulta de medios + `[data-sidebar='collapsed']`); las reglas que las consumen se escriben una sola vez |
+| Sin escuchas de `resize` | `matchMedia`, que avisa una vez al cruzar el corte. Y la transición respeta `prefers-reduced-motion` |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` en verde: `typecheck` ✅, `lint` **0 errores** (los 2 avisos de siempre), **429/429**
+unitarias (+9) y `build` ✅. **`test:db` 552/552** —sin cambios: este trabajo no toca la base— y
+**`test:e2e` 315/315** (+10), con base sembrada limpia antes de la pasada.
+
+Además, **medición real en el navegador en ocho anchos**, de 1.600 a 375 px: los tres anchos de la
+barra, que ningún nombre se parte ni se recorta a 1.360 —el más apretado—, el centrado exacto de
+iconos y botón con la barra cerrada, y **cero desplazamiento horizontal** en todos. El hueco de la
+tabla del portal administrativo pasa de **705 a 905 px** a 1.024, y de 1.305 a **1.481** con la barra
+cerrada a mano en una ventana amplia. **Tres errores encontrados y corregidos** —el atributo que
+dejaba la barra clavada, una utilidad de Tailwind que no existe y siete fallos ajenos por base sin
+sembrar—, todo detallado en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+**Ninguna.** No se tocó la base de datos.
+
+### 4. Variables de entorno
+
+**Ninguna nueva.** Sí una **cookie nueva**, `rifas.sidebar`, que vale `expanded` o `collapsed`, no
+lleva datos de nadie y la escribe la propia pantalla.
+
+### 5. Problemas que permanecen
+
+Ninguno de este trabajo. Siguen abiertos I-077, I-072, I-074, I-075, I-068, I-066, I-062 e I-063.
+
+**Lo que costó, y está decidido:** el nombre de la organización comparte fila con el botón y dispone
+de **139 px** en vez de 224, así que un nombre largo se recorta; se lee entero al pasar el ratón por
+encima. Con «Rifas» sobra sitio.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **El punto de corte está en dos archivos y tienen que decir lo mismo**: la consulta de medios de
+   `globals.css` y `SIDEBAR_MIN_EXPANDED` en `sidebar-preference.ts`. Una prueba unitaria lo vigila,
+   porque el CSS no se importa.
+2. **`data-sidebar` lleva la preferencia, nunca el estado efectivo.** Ponerle el estado efectivo deja
+   la barra clavada al ensanchar la ventana; ya pasó una vez.
+3. **Si añades una columna a una tabla, vuelve a medir el corte.** 1.360 px sale de que la tabla más
+   ancha pide 1.050; si esa cifra sube, el corte sube con ella.
+4. **Tailwind 4 no genera `justify-[…]` con valor arbitrario.** Usa
+   `[justify-content:var(--…)]`. Si Prettier deja una clase la primera del atributo, es que **no la
+   reconoce**: mírala antes de darla por buena.
+5. **Los cortes `xl` del detalle de una boleta y del panel del vendedor** se calcularon con la barra
+   de 256 px y ahora hay más ancho disponible. **No se revisaron**, a propósito; están anotados en
+   `ARCHITECTURE` §8.7 y §8.13.
+6. Este cambio es **solo frontend**: no hay nada que deshacer en la base si hay que revertir.
+
+### 7. Promoción a producción
+
+**Pendiente de autorización.** Sin migraciones: cero cambios bajo `supabase/`, así que la reversión
+sería un Instant Rollback sin nada que deshacer en la base.

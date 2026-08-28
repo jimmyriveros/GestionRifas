@@ -166,3 +166,97 @@
     }
   }
 }
+
+/*
+ * Barra lateral de escritorio (D-131).
+ *
+ * TRES ANCHOS, NO DOS. La barra deja de ser un bloque fijo de 256 px que le
+ * quitaba sitio a la tabla mientras la ventana se estrechaba:
+ *
+ *   >= 100rem (1.600 px)  ancho maximo, 232 px
+ *   85rem a 100rem        crece de 208 a 232 px, de forma continua
+ *   <  85rem (1.360 px)   solo iconos, 56 px
+ *
+ * DE DONDE SALEN ESAS CIFRAS. Estan medidas en el navegador, no elegidas:
+ *
+ *   - 208 px es el minimo con el que la etiqueta mas larga —«Administradores»,
+ *     105 px— cabe entera: 24 (relleno de la barra) + 24 (relleno del enlace)
+ *     + 16 (icono) + 12 (hueco) + 105 = 181 px, y sobran 27 px de margen para
+ *     una fuente mas ancha que la de referencia. Por debajo habria que cortar
+ *     el texto o partirlo en dos lineas, y eso no se hace: se pasa a iconos.
+ *   - 85rem es el ancho a partir del cual caben la barra abierta Y la tabla mas
+ *     ancha de la aplicacion —«Boletas» del portal administrativo, 1.050 px con
+ *     sus 12 columnas—: 1.050 + 208 + 48 (relleno de la pagina) + 15 (barra de
+ *     desplazamiento) = 1.321 px. Se redondea a 1.360 para no dejar la tabla
+ *     pegada al borde. Por debajo, la barra abierta le robaria a la tabla un
+ *     espacio que no le sobra, asi que se cierra sola.
+ *
+ * `--sidebar-width` y las otras cuatro variables son un INTERRUPTOR: se
+ * declaran dos veces —en la consulta de medios, y en la preferencia de la
+ * persona— y las reglas que las consumen se escriben una sola vez, en los
+ * componentes. Asi el mismo aspecto se alcanza por los dos caminos sin duplicar
+ * ni una clase.
+ *
+ * LO IMPORTANTE: el estado que se ve lo decide el CSS, no React. El HTML que
+ * manda el servidor ya sale con el ancho correcto —la preferencia viaja en una
+ * cookie y el ancho de la ventana lo sabe el navegador— asi que no hay ni un
+ * parpadeo al hidratar. JavaScript solo se encarga de los globos de ayuda, que
+ * antes de hidratar no existen de todos modos.
+ */
+@layer base {
+  :root {
+    --sidebar-width: clamp(13rem, calc(10vw + 4.5rem), 14.5rem);
+    --sidebar-width-collapsed: 3.5rem;
+    --sidebar-padding: 0.75rem;
+    --sidebar-item-px: 0.75rem;
+    --sidebar-item-gap: 0.75rem;
+    --sidebar-content-justify: flex-start;
+  }
+
+  /* No cabe abierta: manda el ancho de la ventana. */
+  @media (width < 85rem) {
+    :root {
+      --sidebar-width: var(--sidebar-width-collapsed);
+      --sidebar-padding: 0.5rem;
+      --sidebar-item-px: 0px;
+      --sidebar-item-gap: 0px;
+      --sidebar-content-justify: center;
+    }
+  }
+
+  /*
+   * La persona la cerro. Se declara sobre la propia barra, no sobre `:root`, y
+   * por eso gana a lo que diga la consulta de medios: una preferencia manual
+   * puede cerrarla donde cabria abierta, pero nunca abrirla donde no cabe.
+   */
+  [data-sidebar='collapsed'] {
+    --sidebar-width: var(--sidebar-width-collapsed);
+    --sidebar-padding: 0.5rem;
+    --sidebar-item-px: 0px;
+    --sidebar-item-gap: 0px;
+    --sidebar-content-justify: center;
+  }
+}
+
+/*
+ * Los nombres de las opciones con la barra cerrada.
+ *
+ * NO desaparecen: se vuelven `sr-only`, asi que quien escucha la pantalla los
+ * sigue oyendo y cada enlace conserva su nombre. Quien mira ve el icono y, al
+ * pasar por encima o llegar con el tabulador, el globo con el nombre.
+ *
+ * Son dos reglas con la misma declaracion porque una consulta de medios no
+ * puede escribirse dentro de una lista de selectores. Es la unica duplicacion
+ * del interruptor y son dos lineas.
+ */
+@layer components {
+  [data-sidebar='collapsed'] [data-slot='sidebar-label'] {
+    @apply sr-only;
+  }
+
+  @media (width < 85rem) {
+    [data-sidebar] [data-slot='sidebar-label'] {
+      @apply sr-only;
+    }
+  }
+}
