@@ -51,15 +51,29 @@ export type AllocationValidation = {
  * total supera la deuda completa, devuelve el reparto maximo posible y el
  * sobrante queda sin asignar, para que el formulario lo muestre en vez de
  * inventarse un sobrepago.
+ *
+ * `preferTicketId` (D-133) no cambia la regla: solo quien va primero. Cuando el
+ * formulario se abrio desde una boleta concreta, esa boleta se cubre antes que
+ * las demas, que siguen en el orden en que llegaron. Sin ese dato, el comportamiento
+ * es el de siempre (D-052).
  */
 export function distributeAmount(
   total: number,
   tickets: readonly PayableTicket[],
+  preferTicketId?: string,
 ): Map<string, number> {
+  const ordered =
+    preferTicketId === undefined
+      ? tickets
+      : [
+          ...tickets.filter((ticket) => ticket.ticketId === preferTicketId),
+          ...tickets.filter((ticket) => ticket.ticketId !== preferTicketId),
+        ]
+
   const result = new Map<string, number>()
   let remaining = Math.max(0, Math.trunc(total))
 
-  for (const ticket of tickets) {
+  for (const ticket of ordered) {
     if (remaining <= 0) {
       result.set(ticket.ticketId, 0)
       continue

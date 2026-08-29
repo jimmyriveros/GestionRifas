@@ -8,6 +8,7 @@ import { getClientDetail } from '@/features/clients/queries'
 import { ClientPicker } from '@/features/payments/components/ClientPicker'
 import { PaymentForm } from '@/features/payments/components/PaymentForm'
 import { listClientsWithBalance, listPayableTickets } from '@/features/payments/queries'
+import { paymentReturnTo } from '@/features/payments/return-to'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -19,6 +20,9 @@ function single(value: string | string[] | undefined): string | undefined {
 export default async function NewPaymentPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams
   const clientId = single(params.clientId)
+  // De que boleta viene el vendedor, si es que viene de una. Solo sirve para
+  // saber a donde devolverlo despues de guardar; no entra en el abono.
+  const fromTicketId = single(params.ticketId)
 
   if (!clientId) {
     const clients = await listClientsWithBalance()
@@ -90,6 +94,11 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: S
     )
   }
 
+  const { originTicketId, href: returnTo } = paymentReturnTo(
+    fromTicketId,
+    tickets.map((ticket) => ticket.ticketId),
+  )
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -105,7 +114,8 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: S
         clientId={client.id}
         clientName={client.name}
         tickets={tickets}
-        returnTo="/seller/payments"
+        returnTo={returnTo}
+        originTicketId={originTicketId}
       />
     </div>
   )

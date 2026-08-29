@@ -267,6 +267,164 @@ test.describe('Registro de abonos por el vendedor', () => {
   })
 })
 
+/**
+ * Abono abierto desde el detalle de UNA boleta (D-133).
+ *
+ * El formulario es el mismo; lo que cambia es el destino despues de guardar y
+ * que el dinero se sugiere primero en esa boleta. Los demas origenes siguen
+ * yendo a «Mis pagos», y un error no saca de la pantalla.
+ */
+test.describe('Abono abierto desde el detalle de una boleta', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+  })
+
+  test('al guardar vuelve a ESA boleta con las cifras y el historial al dia', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Desde boleta')
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('link', { name: `Registrar un abono de ${client.name}` }).click()
+    await page.waitForURL(new RegExp(`/seller/payments/new\\?.*ticketId=${ticket.id}`))
+
+    await page.getByLabel('Valor del abono').fill('40000')
+    await expect(page.getByText('El reparto cuadra con el valor del abono.')).toBeVisible()
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+
+    await expectToast(page, /Abono de \$40\.000 registrado/)
+    await page.waitForURL(new RegExp(`/seller/tickets/${ticket.id}$`))
+    await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeVisible()
+
+    const detalle = page.locator('main')
+    await expect(detalle.getByText('Abonada').first()).toBeVisible()
+    await expect(detalle.getByText('$40.000').first()).toBeVisible()
+    await expect(detalle.getByText(formatCOP(PRICE - 40_000), { exact: true }).first()).toBeVisible()
+    await expect(detalle.getByText('Abonos de esta boleta')).toBeVisible()
+    await expect(detalle.getByText('$40.000').nth(1)).toBeVisible()
+
+    const balance = await ticketBalance(ticket.id)
+    expect(balance.paidAmount).toBe(40_000)
+    expect(balance.pendingAmount).toBe(PRICE - 40_000)
+    expect(balance.paymentStatus).toBe('partial')
+  })
+
+  test('el valor restante deja la boleta Pagada y vuelve a ella', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Saldo cero desde boleta')
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('link', { name: `Registrar un abono de ${client.name}` }).click()
+    await page.getByLabel('Valor del abono').fill(String(PRICE))
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+
+    await expectToast(page, /registrado/)
+    await page.waitForURL(new RegExp(`/seller/tickets/${ticket.id}$`))
+    await expect(page.getByText('Pagada').first()).toBeVisible()
+    await expect(page.getByText('$0', { exact: true }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /Registrar un abono/ })).toHaveCount(0)
+
+    const balance = await ticketBalance(ticket.id)
+    expect(balance.paidAmount).toBe(PRICE)
+    expect(balance.pendingAmount).toBe(0)
+    expect(balance.paymentStatus).toBe('paid')
+  })
+
+  test('un error del servidor no saca del formulario', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Error desde boleta')
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('link', { name: `Registrar un abono de ${client.name}` }).click()
+    await page.getByLabel('Valor del abono').fill('25000')
+    await page.getByLabel('Notas (opcional)').fill('x'.repeat(501))
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+
+    await expect(page.getByText('Las notas no pueden superar 500 caracteres.')).toBeVisible()
+    await expect(page).toHaveURL(new RegExp(`/seller/payments/new\\?.*ticketId=${ticket.id}`))
+    await expect(page.getByLabel('Valor del abono')).toHaveValue('$25.000')
+    await expect(page.getByRole('button', { name: 'Registrar abono' })).toBeEnabled()
+
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(0)
+
+    await page.getByLabel('Notas (opcional)').fill('Corregido')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+    await page.waitForURL(new RegExp(`/seller/tickets/${ticket.id}$`))
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(25_000)
+  })
+
+  test('desde la ficha del cliente el destino sigue siendo Mis pagos', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Desde cliente')
+
+    await page.goto(`/seller/clients/${client.id}`)
+    await page.getByRole('link', { name: `Registrar abono de ${client.name}` }).first().click()
+    await page.waitForURL(new RegExp(`/seller/payments/new\\?clientId=${client.id}$`))
+    await expect(page).not.toHaveURL(/ticketId=/)
+
+    await page.getByLabel('Valor del abono').fill('15000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.waitForURL(/\/seller\/payments$/)
+    await expect(page.getByRole('heading', { name: 'Mis pagos' })).toBeVisible()
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(15_000)
+  })
+
+  test('con varias boletas del mismo cliente, vuelve a la elegida y el abono cae ahi', async ({
+    page,
+  }) => {
+    const client = await createClientFor(refs, unique('Varias boletas origen'))
+    const first = randomTicketNumbers()
+    const second = randomTicketNumbers()
+    const ticketA = await createAssignedTicket(refs, {
+      dailyNumber: first.daily,
+      weeklyNumber: first.weekly,
+      clientId: client.id,
+      salePrice: PRICE,
+    })
+    const ticketB = await createAssignedTicket(refs, {
+      dailyNumber: second.daily,
+      weeklyNumber: second.weekly,
+      clientId: client.id,
+      salePrice: PRICE,
+    })
+
+    const [otra, origen] =
+      `${first.daily}${first.weekly}` <= `${second.daily}${second.weekly}`
+        ? [ticketA, ticketB]
+        : [ticketB, ticketA]
+
+    await page.goto(`/seller/tickets/${origen.id}`)
+    await page.getByRole('link', { name: `Registrar un abono de ${client.name}` }).click()
+    await page.waitForURL(new RegExp(`/seller/payments/new\\?.*ticketId=${origen.id}`))
+    await expect(page.getByText('La que estabas viendo')).toBeVisible()
+
+    await page.getByLabel('Valor del abono').fill('40000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.waitForURL(new RegExp(`/seller/tickets/${origen.id}$`))
+    await expect(page).not.toHaveURL(new RegExp(`/seller/tickets/${otra.id}`))
+    await expect(page.getByText('$40.000').first()).toBeVisible()
+    await expect(page.getByText('Abonada').first()).toBeVisible()
+
+    expect((await ticketBalance(origen.id)).paidAmount).toBe(40_000)
+    expect((await ticketBalance(otra.id)).paidAmount).toBe(0)
+  })
+
+  test('atras despues de guardar no regresa al formulario', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Sin ciclo atras')
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('link', { name: `Registrar un abono de ${client.name}` }).click()
+    await page.getByLabel('Valor del abono').fill('10000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+    await page.waitForURL(new RegExp(`/seller/tickets/${ticket.id}$`))
+
+    await page.goBack()
+    await expect(page).not.toHaveURL(/\/seller\/payments\/new/)
+    await expect(page.getByRole('heading', { name: 'Registrar abono' })).toHaveCount(0)
+  })
+})
+
 test.describe('Anulación de pagos por el personal', () => {
   test('el Admin anula con motivo y el saldo se recalcula (prueba 8)', async ({ page }) => {
     const { client, ticket } = await clientWithDebt('Anulable')

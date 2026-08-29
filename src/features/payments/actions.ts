@@ -22,13 +22,25 @@ import { createPaymentSchema, voidPaymentSchema } from './schemas'
  * 29 prohibe («evitar calculos financieros unicamente en frontend»).
  */
 
-function revalidatePayments(clientId?: string) {
+function revalidatePayments(clientId?: string, ticketIds: readonly string[] = []) {
   revalidatePath('/seller/payments')
   revalidatePath('/seller/dashboard')
   revalidatePath('/seller/tickets')
+  // El DETALLE de una boleta tambien cambia con cada abono: abonado, saldo
+  // pendiente, estado de pago e historial. Revalidar `/seller/tickets` NO
+  // alcanza a sus segmentos dinamicos, asi que hay que nombrar el patron con
+  // `'page'`, igual que ya hace la asignacion (`tickets/assign/actions.ts`).
+  // Las rutas literales de las boletas tocadas cubren el detalle concreto al
+  // que se vuelve (D-133); el patron cubre el resto.
+  revalidatePath('/seller/tickets/[ticketId]', 'page')
   revalidatePath('/owner/payments')
   revalidatePath('/owner/dashboard')
   revalidatePath('/owner/tickets')
+  revalidatePath('/owner/tickets/[ticketId]', 'page')
+  for (const ticketId of ticketIds) {
+    revalidatePath(`/seller/tickets/${ticketId}`)
+    revalidatePath(`/owner/tickets/${ticketId}`)
+  }
   if (clientId) {
     revalidatePath(`/seller/clients/${clientId}`)
     revalidatePath(`/owner/clients/${clientId}`)
@@ -62,7 +74,10 @@ export async function createPayment(input: unknown): Promise<ActionResultWith<{ 
 
   if (error) return { error: mapPgError(error) }
 
-  revalidatePayments(values.clientId)
+  revalidatePayments(
+    values.clientId,
+    values.allocations.map((allocation) => allocation.ticketId),
+  )
   return { ok: true, data: { id: data as string } }
 }
 

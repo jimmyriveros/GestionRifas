@@ -42,6 +42,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | **Panel del vendedor** | Desde el 2026-08-25 (D-112) el panel son **siete piezas** con selector de período, anillo de reparto del dinero y gráfico de recaudo diario. Desaparecen «Tu ganancia», «Resumen de cobranza», las cinco tarjetas de inventario y dos de las tres listas. **Sin migración, sin cambios de reglas ni de rutas.** **Ya en producción** (`96827dc`, 2026-08-25; `ARCHITECTURE` §8.13; I-068 espera decisión) |
 | **Ficha del cliente** | Desde el 2026-08-25 (D-113) el detalle del cliente tiene el estado **junto al nombre**, **«Registrar abono»** en el encabezado, la información general en una **cuadrícula** —2 × 2 en el teléfono, una fila en escritorio— y los dos listados en **tarjetas con título**. Se retira la columna «Cliente» de las dos tablas y «Rifa» en el portal del vendedor. **Mismo aspecto en los dos portales.** Sin migración, sin consultas nuevas, sin cambios de reglas ni de rutas. **Ya en producción** (`18ad9bd` y `9e72fca`, 2026-08-25; `ARCHITECTURE` §8.14) |
 | **El dinero de cada boleta, en la lista** | Desde el 2026-08-27 (D-130) las dos pantallas que listan boletas dicen, **sin abrirlas**, cuánto se abonó, cuánto falta y qué parte del precio es eso. «Mis boletas» gana tres columnas (Abonado · Falta · Progreso) y un **pie financiero** en la tarjeta del teléfono; «Boletas de este cliente» tiene ahora **su propia lista** (`ClientTicketsList`), con más aire. Los dos números diario y semanal se funden en **una** columna, «Boleta». Las cuentas salen de **`ticketFinancials()`**, que usan también el detalle: hay una sola resta. **Sin migración, sin consultas nuevas, sin cambios de reglas ni de rutas.** **Ya en producción** (`6ff1a8f` y `599a3b6`, 2026-08-27) |
+| **Abono desde una boleta** | Desde el 2026-08-28 (D-133) registrar un abono **desde el detalle de una boleta** vuelve a **esa misma boleta**, con las cifras al día. Los demás orígenes siguen yendo a «Mis pagos». Sin migración, sin RPC nueva. **Aún no desplegado** |
 | **Menú lateral de escritorio** | Desde el 2026-08-28 (D-131) la barra lateral mide **232 px** en una ventana amplia, **de 208 a 232** entre 1.360 y 1.600 px, y **56 px —solo iconos—** por debajo de 1.360, sea porque la persona la cerró con el botón nuevo o porque no cabe. La preferencia viaja en la cookie `rifas.sidebar` y la lee el servidor, así que no hay parpadeo. **El teléfono no cambia**: sigue la barra inferior de D-106. **Ya en producción** (`322d80a`) |
 | **…y donde no cabe, se abre flotando** | El mismo día (**D-132**, revoca D-131 §5): por debajo de 1.360 px el botón abre la barra **encima** del contenido en vez de quedarse inerte, sin moverlo ni un píxel, y se cierra sola al elegir una opción, al pulsar fuera, con `Escape`, al salir el foco o al volver a haber sitio. **No toca la preferencia guardada.** Sin migración. **Ya en producción** (`1d12081`, 2026-08-28) |
 | **Paginación en el teléfono** | Desde el 2026-08-24 (D-111) el recuento dice **qué** cuenta —«1–25 de 118 boletas», de `LIST_ITEM_LABELS`—, los botones miden **44 px** y van a los márgenes, y el indicador dice «1 de 5» centrado entre ellos. Mismo componente para los **ocho** listados y **mismo paginado**. Escritorio solo cambia dos textos. **Ya en producción** (`7d7cf18`, 2026-08-24; `ARCHITECTURE` §8.12) |
@@ -102,7 +103,20 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — deuda de formato, y un diagnóstico mío que estaba mal (2026-08-28)
+## 1.a Último relevo significativo — volver al detalle de la boleta tras registrar un abono (2026-08-28)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Quien registra un abono desde el detalle de una boleta vuelve a ESA boleta**, con abonado, saldo, estado e historial al día. Un error no saca del formulario. Los demás orígenes (ficha del cliente, «Mis pagos», panel) siguen yendo a `/seller/payments`. `Query changes: None` · `Business logic changes: None` —la RPC no se tocó; solo el orden de la *sugerencia* de reparto cuando hay origen (D-133, extiende D-052)— · `Route changes: None` —se reutiliza `/seller/tickets/[ticketId]` y `/seller/payments/new?ticketId=`— · `Migrations: None` · `New dependencies: None` |
+| Archivos | **Nuevo:** `src/features/payments/return-to.ts`. **Tocados:** `seller/tickets/[ticketId]/page.tsx` (el enlace lleva `ticketId`), `seller/payments/new/page.tsx`, `PaymentForm.tsx`, `payments/actions.ts` (revalida el detalle), `payments/allocation.ts` (`preferTicketId`). **Pruebas:** `tests/unit/payment-return-to.test.ts`, ampliación de `payment-status.test.ts`, `tests/e2e/payments.spec.ts` (6 casos) y `tests/e2e/abono-desde-boleta-movil.spec.ts`. Documentación: `DECISIONS` (D-133), `ARCHITECTURE` tabla de rutas, `UX_COPY_GUIDELINES` anexo B, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni un formulario nuevo ni una ruta nueva.** Es el mismo `PaymentForm`, el mismo `createPayment` y la misma RPC. El origen viaja en la URL, que es como ya se elige el cliente. La revalidación del patrón `[ticketId]` copia la de `tickets/assign/actions.ts`. `replace` en vez de `push` es lo que ya hace `TeamMemberActions` cuando no debe quedar una pantalla intermedia en el historial |
+| Decisiones | **D-133.** Lo no evidente: **(a)** un `?ticketId=` solo cuenta si esa boleta está en `listPayableTickets` de este cliente, o un id escrito a mano mandaría a cualquier sitio; **(b)** `router.replace` al volver a la boleta, `push` en los demás orígenes —un `push` deja Detalle → Formulario → Detalle y el gesto de atrás reabre el formulario; **(c)** la sugerencia de reparto cubre primero la boleta de origen, porque si no, con varias boletas el dinero cae en la primera de la tabla y al volver las cifras no han cambiado; **(d)** hay que revalidar el detalle por patrón *y* por ruta literal —revalidar `/seller/tickets` no alcanza a `[ticketId]` |
+| Verificación | `typecheck` ✅ · `lint` **0 errores** (los 2 avisos de siempre) · **440/440** unitarias (+8) · `build` ✅ · E2E de pagos **25/25** (24 escritorio + 1 móvil) tras corregir un localizador; `filas-seleccionables` **9/9** (el sospechoso del relevo anterior). Un error de prueba encontrado y corregido, en `TEST_RESULTS`. `test:db` no se reejecutó: no hay cambio de esquema ni de RPC |
+| Advertencias | **1)** No cambies el destino de los flujos que *no* traen `ticketId`. **2)** No uses `router.back()` para volver a la boleta: en una pestaña nueva o una PWA abierta en el formulario no hay historial interno. **3)** `PaymentForm` se usa solo en el portal del vendedor (D-054). **4)** `Recarga.txt` y `prueba-abono.csv` son del dueño; no se commitean |
+| Pendiente | **1)** Verificación visual con sesión real en producción, que un agente no hace (I-066). **2)** Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063 |
+| Git | Rama `main`, cambios locales de este relevo **sin commit todavía** |
+
+## 1.a.0 Relevo anterior — deuda de formato, y un diagnóstico mío que estaba mal (2026-08-28)
 
 | Campo | Estado |
 |---|---|
@@ -897,6 +911,12 @@ features/tickets/components/TicketPaymentSummary  estado, estado de pago, anillo
 features/payments/components/TicketPaymentsCard  los abonos de UNA boleta, en los dos
                     portales: apilados en el telefono, en columnas desde lg. Un solo
                     arbol de HTML, no una tabla escondida y otra visible
+features/payments/return-to.ts  destino despues de guardar un abono (D-133). Pura:
+                    si el `ticketId` de la URL esta entre las boletas pagables
+                    de este cliente, el detalle de esa boleta; si no, «Mis pagos»
+features/payments/components/PaymentForm  UN formulario para todos los origenes.
+                    `returnTo` y `originTicketId` los calcula la pagina, no el
+                    formulario. No le anadas un almacén global
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
 features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
                     ExportCsvButton

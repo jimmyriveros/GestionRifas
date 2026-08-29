@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **432 ✅** | **552 ✅** | **320 ✅** | ✅ | ✅ |
+| Post-9 vigente | **440 ✅** | **552 ✅** | **320 ✅** + 7 de D-133 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -5048,3 +5048,39 @@ el orden de clases de `ReportNav`, pero esa cadena vive en el JavaScript de la p
 de estilos y no está ahí —el orden dentro del atributo `class` no deja rastro en la CSS—, así que la
 evidencia de que el build servido es este commit es el **identificador de versión**, que sí es
 concluyente. No se fuerza una comprobación que no aplica.
+
+---
+
+## D-133 — Volver al detalle de la boleta tras registrar un abono (2026-08-28)
+
+Mantenimiento posterior a la Fase 9. Sin migración. La RPC `create_payment` no se tocó.
+
+### Comandos
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint .` | **0 errores**, 2 avisos de siempre (`useReactTable`, `useVirtualizer`) | — | — |
+| `npx vitest run` | **440/440** (+8: 5 de `payment-return-to`, 3 de `distributeAmount` con origen) | — | — |
+| `npm run build` | ✅ Next.js 16.3.0 | — | — |
+| `npx playwright test tests/e2e/payments.spec.ts tests/e2e/abono-desde-boleta-movil.spec.ts` | 24/25 en la primera pasada | El caso de error usaba `getByRole('alert')`, que también casa el anunciador de ruta de Next (`#__next-route-announcer__`) | Se afirma sobre el texto «Las notas no pueden superar 500 caracteres.» |
+| El mismo caso, aislado, después de la corrección | ✅ | — | — |
+| `npx playwright test tests/e2e/filas-seleccionables.spec.ts` | **9/9** | — | El relevo anterior lo señalaba como sospechoso del trabajo en curso de estos cuatro archivos. Con D-133 termina en verde |
+
+`test:db` **no se reejecutó**: cero cambios bajo `supabase/`. La última pasada vigente sigue siendo **552/552**.
+
+La suite E2E completa **no se reejecutó**. Se corrieron las de pagos (existentes + 6 nuevas de escritorio + 1 de móvil) y las de filas seleccionables. La última pasada completa vigente sigue siendo **320/320**.
+
+### Error encontrado
+
+`getByRole('alert')` en el formulario de abonos resuelve **dos** nodos: el `<p role="alert">` del error del servidor y el anunciador de ruta de Next, que también es `role="alert"`. El producto mostraba el mensaje correcto y **no navegaba**; fallaba la prueba, no el flujo. Queda documentado para no volver a afirmar un `alert` suelto en esa pantalla.
+
+### Lo que cubren las 7 pruebas nuevas
+
+1. Guardar desde el detalle vuelve a **esa** boleta, con Abonada, abonado, pendiente e historial al día.
+2. El valor restante deja Pagada, saldo `$0`, y ya no ofrece «Registrar abono».
+3. Un rechazo de Zod (notas de 501 caracteres) no saca del formulario, conserva el importe y permite reintentar.
+4. Desde la ficha del cliente el destino sigue siendo «Mis pagos», sin `ticketId` en la URL.
+5. Con dos boletas del mismo cliente, el abono cae en la de origen (la segunda de la tabla) y se vuelve a ella, no a la otra.
+6. Después de guardar, `goBack()` no reabre el formulario.
+7. El mismo camino feliz en viewport móvil (Pixel 7), incluido el gesto de atrás.

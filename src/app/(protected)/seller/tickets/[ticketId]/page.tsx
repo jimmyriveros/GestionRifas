@@ -84,7 +84,11 @@ export default async function SellerTicketDetailPage({
             {canRegisterPayment ? (
               <Button asChild className="h-11 w-full sm:h-9 sm:w-auto">
                 <Link
-                  href={`/seller/payments/new?clientId=${ticket.clientId}`}
+                  // `ticketId` viaja con el cliente para que, al guardar, el
+                  // formulario devuelva a ESTA boleta y no al listado de abonos.
+                  // Es un dato de vuelta, no de negocio: el reparto lo sigue
+                  // decidiendo quien registra el abono.
+                  href={`/seller/payments/new?clientId=${ticket.clientId}&ticketId=${ticket.id}`}
                   // En pantalla dice «Registrar abono», que es lo que cabe en un
                   // telefono; quien lo oye necesita saber de quien es el abono.
                   aria-label={`Registrar un abono de ${ticket.clientName ?? 'este cliente'}`}

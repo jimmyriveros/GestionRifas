@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.22 · **Actualizado:** 2026-08-27 (D-001 a D-128)
+- **Versión:** 1.23 · **Actualizado:** 2026-08-28 (D-001 a D-133)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -596,6 +596,10 @@ calcular a mano lo más común).
 **Consecuencia.** `distributeAmount` y `validateAllocations` son funciones puras en
 `features/payments/allocation.ts`, cubiertas por pruebas unitarias. **No deciden nada**: la palabra
 final la tiene `create_payment`, que revalida el cuadre y el sobrepago dentro de la transacción.
+
+**Vigencia (2026-08-28).** El orden de la sugerencia sigue siendo de la primera a la última, y la
+RPC sigue decidiendo. D-133 solo cambia **quién es la primera** cuando el formulario se abrió desde
+una boleta concreta: esa boleta se cubre antes. Sin ese origen, este texto sigue aplicando tal cual.
 
 ## D-053 — `MoneyInput` deriva lo que muestra de `value`, sin estado propio
 **Fase:** 5
@@ -4915,6 +4919,52 @@ comprueba con Playwright, que sí maneja una ventana con foco.
 * **`Sheet` no se usó**, aunque estaba disponible: habría metido la navegación en un portal y dejado
   **dos** `<nav>` en la página, uno de ellos anunciado como diálogo. La barra que se asoma es la
   misma barra, y así se lee también para quien escucha la pantalla.
+
+---
+
+## D-133 — Después de abonar desde una boleta, se vuelve a esa misma boleta
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-28)
+
+**Contexto.** El formulario de abonos es uno solo (`/seller/payments/new`) y se abre desde el detalle
+de una boleta, desde la ficha del cliente, desde «Mis pagos» y desde el panel. Hasta ahora, al
+guardar, **siempre** mandaba a `/seller/payments`. Quien cobraba desde una boleta tenía que
+volver a buscarla. Hubo un intento previo que ya pasaba `?ticketId=` y revalidaba el patrón del
+detalle, pero no quedó bien: el gesto de atrás devolvía al formulario, y con varias boletas del
+mismo cliente el dinero se sugería en la primera de la tabla (por número diario, D-052), así que
+al volver a la boleta de origen las cifras no habían cambiado.
+
+**Decisión 1 — el origen viaja en la URL.** El detalle de la boleta enlaza a
+`/seller/payments/new?clientId=<cliente>&ticketId=<boleta>`. No hay estado global ni
+`sessionStorage`: si se recarga el formulario, el origen sigue ahí. Solo se acepta ese `ticketId`
+si la boleta está entre las que `listPayableTickets` ya dejó ver para ese cliente (RLS + saldo
+pendiente). Si no cuadra, el destino es el de siempre: `/seller/payments`.
+
+**Decisión 2 — se navega solo cuando `createPayment` responde `{ ok: true }`.** Un error deja a la
+persona en el formulario, con lo que escribió intacto y el aviso visible. El botón sigue
+deshabilitado mientras `useTransition` está pendiente.
+
+**Decisión 3 — `replace` cuando se vuelve a la boleta, `push` en los demás orígenes.** Un `push`
+dejaría Detalle → Formulario → Detalle, y el gesto de atrás (PWA incluida) volvería al formulario.
+`replace` quita el formulario del historial. Los flujos que no traen `ticketId` no se tocan.
+
+**Decisión 4 — la sugerencia de reparto cubre primero la boleta de origen.** Extiende D-052, no la
+rompe: sin origen, el orden sigue siendo el de la tabla. Con origen, esa boleta se llena antes y el
+resto conserva su orden. El vendedor puede mover el dinero a otra fila. La RPC no cambia.
+
+**Decisión 5 — el detalle se revalida por patrón y por ruta literal.** `revalidatePath('/seller/tickets')`
+no alcanza a `[ticketId]`. Se nombra el patrón con `'page'`, igual que la asignación, y además cada
+boleta de las asignaciones del pago, para que al volver las cifras no salgan de la caché anterior.
+
+**Alternativas descartadas.** (a) `router.back()`: depende de que la pantalla anterior sea esa
+boleta, y en una pestaña nueva o una PWA abierta en el detalle del formulario no lo es. Recarga
+pide la ruta dinámica existente. (b) Estado de navegación o almacén global: el proyecto no tiene
+uno para esto, y se pierde al recargar. (c) Una ruta nueva de abono por boleta: el encargo lo
+prohíbe. (d) Cambiar `create_payment` o el contrato de la Server Action: no hace falta. (e) Devolver
+siempre a la boleta, también desde la ficha del cliente: sería una regresión de esos flujos.
+
+**Consecuencia.** `paymentReturnTo` es una función pura. `PaymentForm` sigue siendo el único
+formulario. Owner/Admin no tienen pantalla de alta de abonos (D-054).
 
 ---
 

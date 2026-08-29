@@ -105,6 +105,31 @@ describe('distributeAmount', () => {
     const result = distributeAmount(0, [ticket(UUID_A, 100_000)])
     expect(result.get(UUID_A)).toBe(0)
   })
+
+  it('sin boleta preferida, el orden de llegada manda (D-052)', () => {
+    const tickets = [ticket(UUID_A, 100_000), ticket(UUID_B, 100_000)]
+    const result = distributeAmount(40_000, tickets)
+
+    expect(result.get(UUID_A)).toBe(40_000)
+    expect(result.get(UUID_B)).toBe(0)
+  })
+
+  it('si se abrio desde una boleta, esa se cubre primero (D-133)', () => {
+    const tickets = [ticket(UUID_A, 100_000), ticket(UUID_B, 100_000)]
+    const result = distributeAmount(40_000, tickets, UUID_B)
+
+    expect(result.get(UUID_B)).toBe(40_000)
+    expect(result.get(UUID_A)).toBe(0)
+  })
+
+  it('el resto del dinero sigue el orden original despues de la preferida', () => {
+    const tickets = [ticket(UUID_A, 30_000), ticket(UUID_B, 100_000), ticket(UUID_C, 100_000)]
+    const result = distributeAmount(150_000, tickets, UUID_C)
+
+    expect(result.get(UUID_C)).toBe(100_000)
+    expect(result.get(UUID_A)).toBe(30_000)
+    expect(result.get(UUID_B)).toBe(20_000)
+  })
 })
 
 describe('validateAllocations: cuadre exacto (BR-F05)', () => {

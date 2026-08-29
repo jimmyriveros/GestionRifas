@@ -2,7 +2,7 @@
 
 import { AlertTriangleIcon, CheckIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
 import { MoneyInput } from '@/components/form/MoneyInput'
@@ -38,8 +38,17 @@ type PaymentFormProps = {
   clientId: string
   clientName: string
   tickets: PayableTicketDetail[]
-  /** A donde volver despues de guardar. */
+  /**
+   * A donde volver cuando el abono QUEDA GUARDADO. Si viene de una boleta es su
+   * detalle; si no, el listado de abonos. Solo se usa en el camino de exito: un
+   * error deja a la persona aqui, con lo que escribio intacto.
+   */
   returnTo: string
+  /**
+   * La boleta desde la que se llego, si se llego desde una. Solo se usa para
+   * senalarla en el reparto; no cambia ni el reparto sugerido ni la validacion.
+   */
+  originTicketId?: string
 }
 
 const METHODS: PaymentMethod[] = ['cash', 'transfer', 'other']
@@ -55,7 +64,13 @@ const METHODS: PaymentMethod[] = ['cash', 'transfer', 'other']
  * Ningun importe se calcula aqui de forma definitiva: `create_payment` vuelve a
  * validarlo todo dentro de una transaccion y es quien decide.
  */
-export function PaymentForm({ clientId, clientName, tickets, returnTo }: PaymentFormProps) {
+export function PaymentForm({
+  clientId,
+  clientName,
+  tickets,
+  returnTo,
+  originTicketId,
+}: PaymentFormProps) {
   const router = useRouter()
   const [total, setTotal] = useState<number | null>(null)
   const [paymentDate, setPaymentDate] = useState(todayBogota())
@@ -66,6 +81,19 @@ export function PaymentForm({ clientId, clientName, tickets, returnTo }: Payment
   )
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const errorRef = useRef<HTMLParagraphElement>(null)
+
+  /*
+   * El aviso de error vive arriba y el boton de guardar, al final del reparto.
+   * En un telefono esos dos puntos no caben juntos en la pantalla: sin esto, un
+   * abono rechazado por el servidor parecia no haber hecho nada. Se lleva el
+   * aviso a la vista y se le da el foco para que tambien lo anuncie el lector.
+   */
+  useEffect(() => {
+    if (serverError === null) return
+    errorRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    errorRef.current?.focus()
+  }, [serverError])
 
   const totalPending = useMemo(
     () => tickets.reduce((sum, ticket) => sum + ticket.pendingAmount, 0),
@@ -97,7 +125,7 @@ export function PaymentForm({ clientId, clientName, tickets, returnTo }: Payment
    */
   function handleTotalChange(value: number | null) {
     setTotal(value)
-    const distributed = distributeAmount(value ?? 0, tickets)
+    const distributed = distributeAmount(value ?? 0, tickets, originTicketId)
     setAmounts(Object.fromEntries(distributed))
   }
 
@@ -117,13 +145,28 @@ export function PaymentForm({ clientId, clientName, tickets, returnTo }: Payment
         allocations: nonZeroAllocations(allocations),
       })
 
+      // Un abono rechazado NO navega: la persona se queda donde esta, con el
+      // total, el reparto y las notas tal como los dejo, y lee que paso.
       if ('error' in result) {
         setServerError(result.error)
         return
       }
 
+      // Solo aqui, con el abono ya guardado, se sale de la pantalla. `returnTo`
+      // es el detalle de la boleta de la que se vino, o el listado de abonos.
+      // Las cifras llegan frescas porque `createPayment` ya revalido el detalle
+      // de boleta antes de devolver.
+      //
+      // Desde una boleta se REEMPLAZA el formulario en el historial (D-133):
+      // un `push` dejaria Detalle → Formulario → Detalle, y el gesto de
+      // atras volveria al formulario. Los demas origenes siguen con `push`,
+      // que es lo que ya hacian.
       toast.success(`Abono de ${formatCOP(total ?? 0)} registrado.`)
-      router.push(returnTo)
+      if (originTicketId) {
+        router.replace(returnTo)
+      } else {
+        router.push(returnTo)
+      }
       router.refresh()
     })
   }
@@ -131,7 +174,12 @@ export function PaymentForm({ clientId, clientName, tickets, returnTo }: Payment
   return (
     <div className="space-y-6">
       {serverError ? (
-        <p role="alert" className="bg-destructive/10 text-destructive rounded-md px-3 py-2 text-sm">
+        <p
+          ref={errorRef}
+          role="alert"
+          tabIndex={-1}
+          className="bg-destructive/10 text-destructive rounded-md px-3 py-2 text-sm"
+        >
           {serverError}
         </p>
       ) : null}
@@ -225,10 +273,19 @@ export function PaymentForm({ clientId, clientName, tickets, returnTo }: Payment
               {tickets.map((ticket) => {
                 const amount = amounts[ticket.ticketId] ?? 0
                 const issue = issueByTicket.get(ticket.ticketId)
+                const isOrigin = ticket.ticketId === originTicketId
                 return (
                   <tr key={ticket.ticketId} className={cn('border-b', issue && 'bg-destructive/5')}>
                     <td className="px-3 py-2">
                       <span className="font-mono tabular-nums">{ticketLabel(ticket)}</span>
+                      {/* El dinero se sugiere primero en esta fila (D-133),
+                          pero el cliente puede tener otras boletas y el
+                          vendedor puede moverlo. Esto senala cual era. */}
+                      {isOrigin ? (
+                        <span className="text-muted-foreground mt-0.5 block text-xs">
+                          La que estabas viendo
+                        </span>
+                      ) : null}
                     </td>
                     <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">
                       {formatCOP(ticket.salePrice)}

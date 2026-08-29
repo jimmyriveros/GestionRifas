@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.11 · **Estado:** implementado · **Actualizado:** 2026-08-24
+- **Versión:** 1.12 · **Estado:** implementado · **Actualizado:** 2026-08-28
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -247,7 +247,7 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/seller/team` | seller | post-9 ✅ | **Mi equipo.** Siempre en el menú, tenga equipo o no (BR-E01) |
 | `/seller/team/[sellerId]` | seller | post-9 ✅ | Detalle de un integrante y sus ventas. Un id ajeno responde «no encontrada», no «denegado» (BR-E05) |
 | `/seller/payments` | seller | **5 ✅** | Historial de pagos |
-| `/seller/payments/new` | seller | **5 ✅** | Registrar abono |
+| `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?ticketId=` (D-133) solo indica a qué boleta volver si el registro se abrió desde su detalle |
 | `/seller/reports` | seller | **6 ✅** | Sus reportes, sin el que compara vendedores (D-059) |
 | `/api/reports/export` | según rol | **6 ✅** | Descarga CSV. **Fuera de `(protected)` a propósito**: un Route Handler no pasa por el layout, así que se protege a mano (D-060) |
 
