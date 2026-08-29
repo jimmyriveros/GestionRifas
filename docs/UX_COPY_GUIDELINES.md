@@ -354,6 +354,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Dinero que falta por cobrar | **Saldo pendiente** | Deuda, mora, pasivo |
 | Valor de todas las boletas ya vendidas | **Total vendido** | Total a cobrar, total facturado, cartera |
 | Precio que la rifa fija para todas sus boletas | **Precio de la rifa** | Precio oficial, precio base, tarifa |
+| Lo que debe el cliente por UNA boleta | **Precio de venta** | Precio personalizado, override, tarifa |
 | Vender una boleta por debajo de ese precio | **Rebajar** el precio; la **rebaja** | Descuento, promoción, oferta, rebajar la boleta |
 | Lo que gana el vendedor por cada boleta cobrada | **Ganancia** | Comisión, participación, utilidad |
 | Que la ganancia suba según cuántas boletas lleve cobradas | **Ganancia por tramos**; cada escalón es un **tramo** | Comisión escalonada, niveles, rangos |
@@ -675,6 +676,7 @@ castigo donde solo había una espera.
 | Confirmaciones de acciones sensibles | `ConfirmDialog` (`src/components/feedback/`) |
 | La marca de la boleta desde la que se abrió el formulario de abono | `src/features/payments/components/PaymentForm.tsx` — «La que estabas viendo» (D-133) |
 | Título, rótulos y botones de corregir un abono | `src/features/payments/components/EditPaymentDialog.tsx` — «Editar abono», «Valor actual», «Nuevo valor», «Guardar cambios» (D-134) |
+| Título, rótulos y botones de corregir el precio de una boleta | `src/features/tickets/components/EditSalePriceDialog.tsx` — «Editar precio de venta», «Precio de venta actual», «Nuevo precio», «Guardar cambios» (D-137) |
 | Mensajes de éxito | El `toast` de cada Server Action, en su componente cliente |
 | Pasos del recorrido guiado (título y explicación) | `src/features/tour/tours.ts`, **todos juntos** |
 | Texto de los avisos de la campanita | `src/features/notifications/text.ts`, **todos juntos** (D-093) |

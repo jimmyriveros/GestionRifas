@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.25 · **Actualizado:** 2026-08-29 (D-001 a D-135)
+- **Versión:** 1.26 · **Actualizado:** 2026-08-29 (D-001 a D-137)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -5120,6 +5120,60 @@ sin caber. (b) Elegir la presentación con `useIsCompactScreen()`: parpadeo en c
 ya lo rechazó. (c) Una sola estructura restilada con container queries: la tabla ordenable de
 escritorio y las tarjetas no comparten markup útil. (d) Aplicarlo solo al portal del vendedor: el
 administrativo tiene el mismo desborde y los componentes se parametrizan, no se duplican.
+
+---
+
+## D-137 — El precio de venta de una boleta ya asignada se puede corregir
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-29)
+
+**Contexto.** En la asignación el vendedor ya puede rebajar `sale_price` (D-099). Una vez asignada,
+no había forma de corregir ese valor: BR-P05 y `tickets_protect_sale_price` bloqueaban cualquier
+`UPDATE` con abonos, y sin abonos el vendedor no tiene política de `UPDATE` sobre una boleta
+`assigned`. El encargo pide el mismo campo, las mismas validaciones y recálculo de saldo, estado y
+ganancia, sin crear otra venta ni tocar los abonos.
+
+**No hay recargo.** BR-P11 sigue vigente: el techo es el oficial congelado de *esa* venta
+(`coalesce(base_price, sale_price)`), no el precio vigente de la rifa. Subir el precio de una boleta
+Pagada para dejarla otra vez Abonada solo cabe cuando se había rebajado. Una boleta vendida al
+oficial y cobrada entera no tiene hacia dónde subir.
+
+**No hay saldo a favor.** Si el nuevo precio fuera menor que lo ya abonado, el producto no tiene
+devoluciones ni dinero a favor. Se rechaza con «El precio de venta no puede ser menor que el total
+abonado de la boleta.» Los abonos no se reescriben.
+
+**Decisión 1 — se corrige `sale_price` de la misma boleta.** RPC nueva
+`update_ticket_sale_price(boleta, precio, precio_esperado)`. No cambia cliente, vendedor, fecha,
+`raffles.ticket_price` ni otras boletas. Si `base_price` era nulo (venta anterior a 0028), lo congela
+al precio que ya tenía, para que una rebaja posterior reste de la ganancia como las demás (BR-P10).
+
+**Decisión 2 — las mismas validaciones de la asignación, más lo abonado.** Entero y mayor que cero
+(BR-P02). Techo el oficial congelado. Suelo `ticket_sale_price_limits`, la misma función de D-099.
+Además `sale_price >= paid_amount`. El recálculo no se reimplementa: corren los disparadores de
+siempre (`payment_status` generado, `tickets_paid_amount_range`, `tickets_sync_commission`).
+
+**Decisión 3 — el UPDATE directo con abonos sigue bloqueado.** `tickets_protect_sale_price` no se
+relajó para PostgREST. Solo esta RPC pone un GUC de transacción que el disparador reconoce. El
+mensaje de BR-P05 se conserva para cualquier otro camino. El personal, que sí tiene política de
+`UPDATE` sobre `tickets`, no gana un atajo.
+
+**Decisión 4 — la misma puerta que asignar.** Puede editar el vendedor dueño de la boleta y el
+personal de la organización. El vendedor padre **no**: tampoco puede asignar las boletas de su
+equipo (D-092). La rifa tiene que estar activa, igual que al vender (BR-R08). Una boleta anulada no.
+
+**Decisión 5 — `p_expected_sale_price` evita que dos pantallas se pisen.** Es el valor que la
+pantalla estaba mostrando. Si otro cambio llegó antes, se rechaza. Dos ediciones concurrentes: una
+gana y la otra recibe «Esta boleta ya fue modificada. Recarga la pantalla y vuelve a intentar.»
+
+**Alternativas descartadas.** (a) Anular los abonos, cambiar el precio y volver a registrarlos:
+cumple las cuentas y rompe el historial que se le enseña al cliente. (b) Relajar el disparador para
+todo `sale_price >= paid_amount`: le habría dejado al personal cambiar el precio por PostgREST sin
+pasar por el mínimo de rebaja. (c) Permitir recargo sobre `base_price`: contradice BR-P11 y exigiría
+otra regla de a quién le queda el extra. (d) Inventar devoluciones cuando el precio baja de lo
+abonado: el encargo lo prohíbe.
+
+**Consecuencia.** BR-P05 y BR-P12 se actualizan: el camino documentado ya no es «anula primero».
+BR-P13. Migración `0035`.
 
 ---
 

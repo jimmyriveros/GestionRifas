@@ -123,7 +123,7 @@ const CHECKS: Check[] = [
               where d.objid = p.oid and d.deptype = 'e'
             )
             and p.proname not in (
-              -- Las 27 RPC que llama la aplicacion
+              -- Las RPC que llama la aplicacion
               'approve_tickets', 'bulk_assign_tickets', 'bulk_cancel_tickets',
               'bulk_change_ticket_seller', 'bulk_create_tickets', 'bulk_delete_tickets',
               'cancel_ticket', 'commission_summary', 'create_payment',
@@ -132,7 +132,8 @@ const CHECKS: Check[] = [
               'taken_ticket_combinations', 'team_confirm_email_change', 'team_delete_member',
               'team_max_fixed_commission', 'team_member_sales', 'team_sales_summary',
               'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
-              'ticket_sale_price_limits', 'update_payment_allocation', 'void_payment',
+              'ticket_sale_price_limits', 'update_payment_allocation',
+              'update_ticket_sale_price', 'void_payment',
               -- Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
               'current_org_ids', 'current_profile_id', 'current_profile_leads_team',
               'current_staff_org_ids', 'current_team_seller_ids', 'has_org_role',
@@ -167,10 +168,11 @@ const CHECKS: Check[] = [
     sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
           where n.nspname = 'public'
             and p.proname in ('create_payment', 'void_payment', 'update_payment_allocation',
+                              'update_ticket_sale_price',
                               'assign_ticket', 'bulk_create_tickets', 'approve_tickets',
                               'cancel_ticket')
             and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
-    esperado: 7,
+    esperado: 8,
   },
   {
     nombre: 'Las 2 funciones de reporte son ejecutables por authenticated',

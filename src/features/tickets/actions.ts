@@ -13,6 +13,7 @@ import {
   createTicketSchema,
   reassignTicketSellerSchema,
   updateTicketNumbersSchema,
+  updateTicketSalePriceSchema,
 } from './schemas'
 
 /**
@@ -28,6 +29,30 @@ function revalidateTickets(ticketId?: string) {
   revalidatePath('/owner/tickets')
   revalidatePath('/owner/dashboard')
   if (ticketId) revalidatePath(`/owner/tickets/${ticketId}`)
+}
+
+/**
+ * Superficies que leen `sale_price` o un total que sale de el. El detalle se
+ * nombra por patron Y por ruta literal: revalidar `/seller/tickets` no alcanza
+ * a `[ticketId]` (D-133).
+ */
+function revalidateTicketPrice(ticketId: string, clientId?: string | null) {
+  revalidatePath('/seller/tickets')
+  revalidatePath('/seller/tickets/[ticketId]', 'page')
+  revalidatePath(`/seller/tickets/${ticketId}`)
+  revalidatePath('/seller/dashboard')
+  revalidatePath('/seller/payments')
+  revalidatePath('/seller/clients')
+  revalidatePath('/owner/tickets')
+  revalidatePath('/owner/tickets/[ticketId]', 'page')
+  revalidatePath(`/owner/tickets/${ticketId}`)
+  revalidatePath('/owner/dashboard')
+  revalidatePath('/owner/payments')
+  revalidatePath('/owner/clients')
+  if (clientId) {
+    revalidatePath(`/seller/clients/${clientId}`)
+    revalidatePath(`/owner/clients/${clientId}`)
+  }
 }
 
 export async function createTicket(input: unknown): Promise<ActionResultWith<{ id: string }>> {
@@ -194,4 +219,44 @@ export async function cancelTicket(input: unknown): Promise<ActionResult> {
 
   revalidateTickets(parsed.data.ticketId)
   return { ok: true }
+}
+
+/**
+ * Corregir el precio de venta de una boleta ya asignada (BR-P13, D-137).
+ *
+ * El vendedor dueno de la boleta y el personal pueden. La RPC lo vuelve a
+ * comprobar: no basta con ocultar el icono. Aqui no se resta ni se decide
+ * estado: `update_ticket_sale_price` escribe el importe y los disparadores
+ * vigentes recalculan saldo, estado de pago y ganancia.
+ */
+export async function updateTicketSalePrice(
+  input: unknown,
+): Promise<ActionResultWith<{ id: string }>> {
+  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  if ('error' in auth) return auth
+
+  const parsed = updateTicketSalePriceSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
+  }
+  const values = parsed.data
+
+  const supabase = await createClient()
+
+  const { data: ticket } = await supabase
+    .from('tickets')
+    .select('client_id')
+    .eq('id', values.ticketId)
+    .maybeSingle()
+
+  const { data, error } = await supabase.rpc('update_ticket_sale_price', {
+    p_ticket_id: values.ticketId,
+    p_sale_price: values.salePrice,
+    p_expected_sale_price: values.expectedSalePrice,
+  })
+
+  if (error) return { error: mapPgError(error) }
+
+  revalidateTicketPrice(values.ticketId, ticket?.client_id)
+  return { ok: true, data: { id: data as string } }
 }

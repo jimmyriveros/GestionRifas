@@ -1,6 +1,6 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.6 · **Estado:** implementado · **Actualizado:** 2026-08-28
+- **Versión:** 2.7 · **Estado:** implementado · **Actualizado:** 2026-08-29
 - **Estado:** el esquema ejecutable vive en las 30 migraciones `0001`–`0030`. `0001`–`0029` están
   aplicadas y verificadas en local y en el proyecto Supabase real; **`0030` solo en local**
   (I-062 a I-065, D-102).
@@ -368,9 +368,9 @@ Al vender se congelan **dos** cifras, y hace falta distinguirlas (BR-P09..BR-P12
   desincronizarse de los otros dos (mismo criterio que `pending_amount`).
 - `base_price` **nulo** = boleta vendida antes de `0028`. En todas partes se lee
   `coalesce(base_price, sale_price)`, así que equivale a rebaja cero y se comporta como antes.
-- Trigger `tickets_protect_sale_price`: si `paid_amount > 0`, cualquier `UPDATE` de `sale_price`
-  se rechaza. Solo un procedimiento administrativo documentado (anular pagos → corregir → volver a
-  registrar) puede cambiarlo.
+- Trigger `tickets_protect_sale_price`: si `paid_amount > 0`, un `UPDATE` directo de `sale_price`
+  se rechaza (BR-P05). La corrección documentada es `update_ticket_sale_price` (`0035`, BR-P13,
+  D-137): mismo campo, mismas validaciones de la asignación, y no puede bajar de lo abonado.
 - Modificar `raffles.ticket_price` no propaga cambios a boletas existentes.
 
 ⚠️ **`raffles.ticket_price - sale_price` NO es la rebaja.** El precio de la rifa cambia (BR-P04, y
@@ -753,6 +753,17 @@ La función es transaccional: reserva los códigos, inserta, resuelve clientes y
 vigente `assign_ticket_row`. Un error revierte también `raffles.ticket_counter`. Un grupo cuyas
 boletas chocaron todas con `tickets_combo_unique` no crea un cliente huérfano (D-087).
 
+### 6.g Corregir el precio de una boleta asignada (migración `0035`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `update_ticket_sale_price(boleta, precio, precio_esperado)` | El id de la boleta | `updateTicketSalePrice`, desde el detalle de la boleta en los dos portales |
+
+`SECURITY DEFINER`. Misma puerta que `assign_ticket_row`: personal o vendedor dueño de la boleta.
+El disparador `tickets_protect_sale_price` sigue bloqueando el `UPDATE` directo con abonos; solo
+esta función enciende un GUC de transacción que el disparador reconoce. El recálculo de saldo,
+estado y ganancia sigue a cargo de los disparadores de `0004` y `0024` (D-137, BR-P13).
+
 ---
 
 ## 7. Triggers
@@ -764,7 +775,7 @@ boletas chocaron todas con `tickets_combo_unique` no crea un cliente huérfano (
 | `sync_profile_email` | `auth.users` | `AFTER UPDATE OF email` | Sincroniza `profiles.email` |
 | `tickets_set_internal_code` | `tickets` | `BEFORE INSERT` | Genera `internal_code` |
 | `tickets_enforce_seller_role` | `tickets` | `BEFORE INSERT/UPDATE` | `seller_id` debe tener membresía activa con rol `seller` |
-| `tickets_protect_sale_price` | `tickets` | `BEFORE UPDATE` | Bloquea cambio de `sale_price` con `paid_amount > 0` |
+| `tickets_protect_sale_price` | `tickets` | `BEFORE UPDATE` | Bloquea el UPDATE directo de `sale_price` con `paid_amount > 0`. `update_ticket_sale_price` puede corregirlo (BR-P13) |
 | `tickets_protect_client_change` | `tickets` | `BEFORE UPDATE` | Bloquea cambio de `client_id` con pagos activos |
 | `tickets_validate_status_transition` | `tickets` | `BEFORE UPDATE` | Aplica la máquina de estados (BR-I01) |
 | `recalc_ticket_paid_amount` | `payment_allocations` | `AFTER INSERT/UPDATE/DELETE` | Recalcula `tickets.paid_amount` |

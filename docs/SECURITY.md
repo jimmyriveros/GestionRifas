@@ -516,6 +516,7 @@ Eventos mínimos registrados en `audit_logs` (BR-D01):
 | `raffle.create`, `raffle.update`, `raffle.status_change` | `raffle` | Trigger |
 | `ticket.create`, `ticket.update`, `ticket.number_change` | `ticket` | Trigger |
 | `ticket.assign_seller`, `ticket.assign_client` | `ticket` | RPC |
+| `ticket.update_sale_price` | `ticket` | RPC (`update_ticket_sale_price`, D-137). Precio anterior y nuevo, cliente y vendedor |
 | `ticket.approve`, `ticket.cancel` | `ticket` | RPC |
 | `ticket.import` | `raffle` | RPC (`log_ticket_import`, 0019). Quién, cuándo, rifa, vendedor, tipo de archivo y recuentos. **Nunca el archivo** |
 | `payment.create`, `payment.update`, `payment.void` | `payment` | RPC |

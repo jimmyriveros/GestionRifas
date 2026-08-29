@@ -9,6 +9,7 @@ import { TicketPaymentsCard } from '@/features/payments/components/TicketPayment
 import { listClientPayments } from '@/features/payments/queries'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
 import { TicketActions } from '@/features/tickets/components/TicketActions'
+import { TicketSalePrice } from '@/features/tickets/components/TicketSalePrice'
 import { getTicketDetail } from '@/features/tickets/queries'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
@@ -28,10 +29,10 @@ export default async function TicketDetailPage({
 
   const payments = ticket.clientId ? await listClientPayments(ticket.clientId) : []
 
-  // BR-P10: nulo en las boletas vendidas antes de existir la rebaja, que
-  // equivalen a rebaja cero.
-  const discount =
-    ticket.salePrice !== null && ticket.basePrice !== null ? ticket.basePrice - ticket.salePrice : 0
+  const canEditSalePrice =
+    ticket.inventoryStatus === 'assigned' &&
+    ticket.salePrice !== null &&
+    ticket.raffleStatus === 'active'
 
   return (
     <div className="space-y-6">
@@ -109,18 +110,14 @@ export default async function TicketDetailPage({
                 Sin vender (precio vigente {formatCOP(ticket.raffleTicketPrice)})
               </span>
             ) : (
-              <>
-                {formatCOP(ticket.salePrice)}
-                {/* Aqui la rebaja no es una metrica del negocio (el reparto de
-                    la empresa no cambia): esta para que un precio distinto al
-                    de la rifa se explique solo y no parezca un error. */}
-                {discount > 0 ? (
-                  <span className="text-muted-foreground block text-xs">
-                    Precio de la rifa {formatCOP(ticket.basePrice ?? 0)} · rebaja de{' '}
-                    {formatCOP(discount)}
-                  </span>
-                ) : null}
-              </>
+              <TicketSalePrice
+                ticketId={ticket.id}
+                salePrice={ticket.salePrice}
+                basePrice={ticket.basePrice}
+                minSalePrice={ticket.minSalePrice}
+                paidAmount={ticket.paidAmount}
+                canEdit={canEditSalePrice}
+              />
             )}
           </Field>
           <Field label="Abonado">

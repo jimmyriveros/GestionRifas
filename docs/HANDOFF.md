@@ -43,6 +43,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | **Ficha del cliente** | Desde el 2026-08-25 (D-113) el detalle del cliente tiene el estado **junto al nombre**, **«Registrar abono»** en el encabezado, la información general en una **cuadrícula** —2 × 2 en el teléfono, una fila en escritorio— y los dos listados en **tarjetas con título**. Se retira la columna «Cliente» de las dos tablas y «Rifa» en el portal del vendedor. **Mismo aspecto en los dos portales.** Sin migración, sin consultas nuevas, sin cambios de reglas ni de rutas. **Ya en producción** (`18ad9bd` y `9e72fca`, 2026-08-25; `ARCHITECTURE` §8.14) |
 | **El dinero de cada boleta, en la lista** | Desde el 2026-08-27 (D-130) las dos pantallas que listan boletas dicen, **sin abrirlas**, cuánto se abonó, cuánto falta y qué parte del precio es eso. «Mis boletas» gana tres columnas (Abonado · Falta · Progreso) y un **pie financiero** en la tarjeta del teléfono; «Boletas de este cliente» tiene ahora **su propia lista** (`ClientTicketsList`), con más aire. Los dos números diario y semanal se funden en **una** columna, «Boleta». Las cuentas salen de **`ticketFinancials()`**, que usan también el detalle: hay una sola resta. **Sin migración, sin consultas nuevas, sin cambios de reglas ni de rutas.** **Ya en producción** (`6ff1a8f` y `599a3b6`, 2026-08-27) |
 | **«Clientes» en el teléfono** | Desde el 2026-08-29 (D-136) la lista de clientes del móvil son **tarjetas**, no una tabla con scroll horizontal. Nombre a la izquierda, celular a la derecha, Boletas y Saldo en el pie. **«Nuevo cliente»** comparte fila con el título. Escritorio no cambia. Misma consulta, mismos permisos, sin migración. **Ya en producción** (`dc97949`, 2026-08-29) |
+| **Editar el precio de una boleta asignada** | Desde el 2026-08-29 (D-137, BR-P13) el detalle de una boleta asignada tiene un icono junto al **precio de venta**. Es el mismo campo y las mismas validaciones de la asignación; no puede bajar de lo abonado ni recargar sobre el oficial congelado. Migración **`0035`**. Recálculo de saldo, estado y ganancia por los disparadores de siempre |
 | **Abono desde una boleta** | Desde el 2026-08-28 (D-133) registrar un abono **desde el detalle de una boleta** vuelve a **esa misma boleta**. **D-135** (2026-08-29) extiende lo mismo a la ficha del cliente, «Mis pagos» y el panel: una sola pantalla, el origen viaja en `?from=`. Sin migración, sin RPC nueva. **Ya en producción** (`f05c397`, 2026-08-29) |
 | **Editar un abono vigente** | Desde el 2026-08-28 (D-134, BR-F16) el historial de una boleta —y el detalle de un pago— permiten **corregir el valor** de un abono activo. Es el mismo registro, no uno nuevo. Saldo, estado y ganancia los recalcula la base. Un anulado no se toca. Migración **`0034`**. **Ya en producción** (`0b05fd9`, 2026-08-29) |
 | **Menú lateral de escritorio** | Desde el 2026-08-28 (D-131) la barra lateral mide **232 px** en una ventana amplia, **de 208 a 232** entre 1.360 y 1.600 px, y **56 px —solo iconos—** por debajo de 1.360, sea porque la persona la cerró con el botón nuevo o porque no cabe. La preferencia viaja en la cookie `rifas.sidebar` y la lee el servidor, así que no hay parpadeo. **El teléfono no cambia**: sigue la barra inferior de D-106. **Ya en producción** (`322d80a`) |
@@ -110,7 +111,20 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — clientes en tarjetas en el teléfono (2026-08-29)
+## 1.a Último relevo significativo — editar el precio de una boleta asignada (2026-08-29)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **El precio de venta de una boleta ya asignada se corrige en el mismo registro.** Desde el detalle (los dos portales) hay un icono junto al precio, un diálogo «Editar precio de venta» y `update_ticket_sale_price`, que reescribe `tickets.sale_price`. Saldo, estado y ganancia los recalculan los disparadores de siempre. Los abonos no se tocan. El precio de la rifa no se mueve. No se puede recargar ni dejar el precio por debajo de lo abonado. `Query changes: None` · `Route changes: None` · `Migrations: 0035` · `New dependencies: None` |
+| Archivos | **Nuevos:** `supabase/migrations/0035_update_ticket_sale_price.sql`, `src/features/tickets/components/{EditSalePriceDialog,TicketSalePrice}.tsx`, `src/features/tickets/sale-price.ts`, `tests/db/sale-price-update.test.ts`, `tests/unit/sale-price.test.ts`, `tests/e2e/precio-venta-editar.spec.ts`, `tests/e2e/precio-venta-editar-movil.spec.ts`. **Tocados:** `tickets/{actions,schemas}.ts`, los dos `tickets/[ticketId]/page.tsx`, `database.types.ts`, `scripts/verify-remote.ts`, `tests/db/catalog.test.ts`. Documentación: `DECISIONS` (D-137), `BUSINESS_RULES` (BR-P13; BR-P05 y BR-P12 actualizadas), `ARCHITECTURE`, `DATA_MODEL`, `SECURITY`, `UX_COPY_GUIDELINES`, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni una regla de dinero nueva.** El recálculo es la columna generada `payment_status`, el CHECK `tickets_paid_amount_range`, `tickets_sync_commission` y `ticket_sale_price_limits` de D-099. El diálogo reutiliza `MoneyInput`, `Dialog` y `mapPgError`. La acción sigue `authorizeAction` → Zod → RPC → `revalidatePath`. El icono es el mismo `PencilIcon` de editar un abono |
+| Decisiones | **D-137.** Lo no evidente: **(a)** no hay recargo —el techo es el `base_price` congelado, no el precio vigente de la rifa—; **(b)** un precio menor que lo abonado se rechaza, no inventa saldo a favor; **(c)** el UPDATE directo con abonos sigue bloqueado, solo la RPC enciende un GUC de transacción; **(d)** el vendedor padre no edita las boletas de su equipo, porque tampoco puede asignarlas; **(e)** una boleta anterior a 0028 congela ahora su `base_price` al precio que ya tenía |
+| Verificación | `typecheck` ✅ · `lint` **0 errores** (el aviso de siempre) · **465/465** unitarias (+8) · `build` ✅ · **`test:db` 587/587** (+20) · E2E de esta tanda **5/5** · regresión del detalle **21/21**. Detalle en `TEST_RESULTS` |
+| Advertencias | **1)** `0035` debe ir **antes** que el frontend: sin la RPC, el icono responde un error genérico. **2)** No relajes `tickets_protect_sale_price` para todo el mundo: el personal tiene UPDATE sobre `tickets` y se saltaría el mínimo de rebaja. **3)** No uses esta RPC para recargar: el CHECK `sale_price <= base_price` y la validación lo impiden a propósito. **4)** `EditPriceBoleta.txt` es del dueño; no se commitea |
+| Pendiente | **1)** Verificación visual con sesión real (I-066): vendedor → detalle de una boleta asignada → icono → guardar, y confirmar saldo, estado y rebaja. **2)** Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063. **3)** No desplegar ni aplicar `0035` al proyecto real sin autorización expresa |
+| Git | Rama `main`, árbol con este trabajo sin commit al cerrar el relevo |
+
+## 1.a.0 Relevo anterior — clientes en tarjetas en el teléfono (2026-08-29)
 
 | Campo | Estado |
 |---|---|
@@ -853,7 +867,7 @@ profiles 1─1 auth.users
 - Una organización nunca se queda sin Owner activo (`0016`, aplicada en local y en producción).
 
 **Funciones a usar en vez de DML directo:**
-`assign_ticket` · `create_payment` · `void_payment` · `update_payment_allocation` · `bulk_create_tickets` · `approve_tickets` ·
+`assign_ticket` · `create_payment` · `void_payment` · `update_payment_allocation` · `update_ticket_sale_price` · `bulk_create_tickets` · `approve_tickets` ·
 `cancel_ticket` · `bulk_assign_tickets` · `bulk_cancel_tickets` · `bulk_change_ticket_seller` ·
 `bulk_delete_tickets`. Todas validan permisos internamente y auditan. Son `SECURITY DEFINER`: existen
 precisamente para hacer cosas que la RLS del usuario prohíbe.
@@ -897,6 +911,10 @@ components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSke
 features/tickets/import/  importador de archivos CSV/JSON: UN componente para los tres
                     roles, parametrizado por contexto (D-081/D-087). Antes de escribir otro
                     lector o resolver clientes, míralo: columnas/csv/json/clients/rows/review
+features/tickets/components/EditSalePriceDialog  corregir el precio de una boleta
+                    asignada (D-137). Un dialogo, dos portales. TicketSalePrice pinta el
+                    valor y el icono. La RPC es `update_ticket_sale_price`; el recálculo
+                    no se reimplementa
 features/tickets/financials.ts  ticketFinancials(): abonado, falta y porcentaje de UNA
                     boleta (D-130). Es la fuente de las CUATRO pantallas que enseñan
                     dinero de una boleta. Reutiliza calculateCollectionSummary. Si vas

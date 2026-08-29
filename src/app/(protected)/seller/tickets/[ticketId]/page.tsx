@@ -12,6 +12,7 @@ import { listClientPayments } from '@/features/payments/queries'
 import { paymentNewHref } from '@/features/payments/return-to'
 import { AssignTicketDialog } from '@/features/tickets/assign/components/AssignTicketDialog'
 import { TicketPaymentSummary } from '@/features/tickets/components/TicketPaymentSummary'
+import { TicketSalePrice } from '@/features/tickets/components/TicketSalePrice'
 import { getTicketDetail } from '@/features/tickets/queries'
 import { SellerTicketActions } from '@/features/tickets/seller/components/SellerTicketActions'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
@@ -46,13 +47,12 @@ export default async function SellerTicketDetailPage({
     ticket.clientId ? listClientPayments(ticket.clientId) : Promise.resolve([]),
   ])
 
-  // BR-P10: `base_price` es nulo en las boletas vendidas antes de existir la
-  // rebaja, que equivalen a rebaja cero.
-  const discount =
-    ticket.salePrice !== null && ticket.basePrice !== null ? ticket.basePrice - ticket.salePrice : 0
-
   const reason = blockedReason(ticket.inventoryStatus, ticket.raffleStatus)
   const canAssign = ticket.inventoryStatus === 'available' && reason === null
+  const canEditSalePrice =
+    ticket.inventoryStatus === 'assigned' &&
+    ticket.salePrice !== null &&
+    ticket.raffleStatus === 'active'
   const canEditNumbers =
     ticket.inventoryStatus === 'draft' || ticket.inventoryStatus === 'pending_approval'
   // El mismo criterio de siempre: solo se ofrece cobrar lo que de verdad falta.
@@ -174,19 +174,15 @@ export default async function SellerTicketDetailPage({
                   Sin vender (precio vigente {formatCOP(ticket.raffleTicketPrice)})
                 </p>
               ) : (
-                <>
-                  <p className="text-lg font-semibold tabular-nums">
-                    {formatCOP(ticket.salePrice)}
-                  </p>
-                  {/* La rebaja solo se nombra cuando la hubo: una venta al precio
-                      normal no necesita que le anuncien «rebaja de $0» (seccion
-                      11 del encargo). */}
-                  {discount > 0 ? (
-                    <p className="text-muted-foreground mt-0.5 text-xs">
-                      {`Precio de la rifa ${formatCOP(ticket.basePrice ?? 0)} · rebaja de ${formatCOP(discount)}`}
-                    </p>
-                  ) : null}
-                </>
+                <TicketSalePrice
+                  ticketId={ticket.id}
+                  salePrice={ticket.salePrice}
+                  basePrice={ticket.basePrice}
+                  minSalePrice={ticket.minSalePrice}
+                  paidAmount={ticket.paidAmount}
+                  canEdit={canEditSalePrice}
+                  size="lg"
+                />
               )}
             </Field>
 

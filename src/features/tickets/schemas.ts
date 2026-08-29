@@ -67,6 +67,29 @@ export const approveTicketsSchema = z.object({
 })
 export type ApproveTicketsInput = z.infer<typeof approveTicketsSchema>
 
+/**
+ * Corregir el precio de venta de una boleta ya asignada (D-137, BR-P13).
+ *
+ * Aqui solo se comprueba la FORMA —entero de pesos, positivo (BR-P02)—, igual
+ * que en la asignacion. El techo, el suelo y lo ya abonado los aplica
+ * `update_ticket_sale_price` con la fila bloqueada.
+ *
+ * `expectedSalePrice` es el valor que la pantalla estaba mostrando: la RPC lo
+ * compara con el de la fila bloqueada y rechaza si otro cambio llego antes.
+ */
+export const updateTicketSalePriceSchema = z.object({
+  ticketId: z.uuid('Boleta no válida.'),
+  salePrice: z
+    .number('Escribe el precio de venta.')
+    .int('El precio se escribe en pesos, sin centavos.')
+    .positive('El precio de venta debe ser mayor que cero.'),
+  expectedSalePrice: z
+    .number('Escribe el precio de venta.')
+    .int('El precio se escribe en pesos, sin centavos.')
+    .positive('El precio de venta debe ser mayor que cero.'),
+})
+export type UpdateTicketSalePriceInput = z.infer<typeof updateTicketSalePriceSchema>
+
 // ---------------------------------------------------------------------------
 // Creacion masiva (CLAUDE.md 15)
 // ---------------------------------------------------------------------------

@@ -5330,3 +5330,25 @@ Sin migración. `verify:remote` **14/14** después del despliegue.
 | `verify:remote` | **14/14** |
 
 **Lo que NO se pudo comprobar en vivo, y se dice:** la lista de clientes vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → Clientes en el teléfono → tarjetas, no tabla; tocar el pie abre el cliente; buscar e incluir archivados siguen igual.
+
+---
+
+## Editar el precio de venta de una boleta asignada (D-137, BR-P13) — 2026-08-29
+
+Mantenimiento posterior a la Fase 9. Migración `0035_update_ticket_sale_price.sql`.
+
+El UPDATE directo con abonos sigue bloqueado (BR-P05). No hay recargo sobre el oficial congelado (BR-P11). Un precio menor que lo abonado se rechaza; no hay saldo a favor ni devolución.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx supabase migration up` | `0035` aplicada | — | — |
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint` sobre los archivos tocados | **0 errores** (el aviso de siempre en `BulkTicketCreator`) | — | — |
+| `npx vitest run` | **465/465** (+8 de `sale-price.test.ts`) | — | — |
+| `npm run build` | ✅ Next.js 16.3.0 | — | — |
+| `npm run test:db` | **587/587** (+20 en `sale-price-update.test.ts`) | — | — |
+| `npx playwright test tests/e2e/precio-venta-editar.spec.ts tests/e2e/precio-venta-editar-movil.spec.ts` | **5/5** | En el servidor apareció `The destination stream closed early` entre la 4 y la 5; las cinco pasaron | El mismo síntoma de I-075; no falló ninguna aserción |
+| Regresión del detalle de boleta (`precio-rebajado`, `boleta-cliente`, `boleta-estrecha-movil`) | **21/21** | — | — |
+
+`test:db` de pagos, descuento y catálogo se reejecutó también en aislado antes de la pasada completa: **67/67** + **41/41**.
+

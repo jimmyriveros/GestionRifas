@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.6 · **Estado:** normativo · **Actualizado:** 2026-08-28
+- **Versión:** 1.7 · **Estado:** normativo · **Actualizado:** 2026-08-29
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -384,14 +384,15 @@ Añadidas después de la Fase 9, a petición del usuario. Detalle de las decisio
 | BR-P02 | Todo valor monetario se almacena y opera como entero de pesos. Prohibido punto flotante. | C, S, D | 2 |
 | BR-P03 | Al asignar o vender una boleta se copia el precio vigente de la rifa a `sale_price`. | S, D | 4 |
 | BR-P04 | `sale_price` no cambia si después se modifica el precio de la rifa. | D | 2 |
-| BR-P05 | `sale_price` es inmutable cuando la boleta tiene pagos activos, salvo procedimiento administrativo documentado (anular pagos → corregir → volver a registrar). | S, D | 2 |
+| BR-P05 | Un `UPDATE` directo de `sale_price` sigue bloqueado cuando la boleta tiene pagos activos. **Actualizada el 2026-08-29 (D-137):** la corrección documentada ya no obliga a anular los abonos. Se hace con `update_ticket_sale_price` (BR-P13), que no puede dejar el precio por debajo de lo abonado. | S, D | 2 · post-9 |
 | BR-P06 | Los saldos y estados se calculan usando `sale_price`, nunca el precio actual de la rifa. | D | 2 |
 | BR-P07 | **Corregir un precio mal configurado no es subirlo.** Cuando el precio guardado nunca fue el correcto, se arrastra el `sale_price` de las boletas de esa rifa por migración versionada (excepción de BR-P05 prevista ahí mismo), y **nunca** se tocan `payments.total_amount` ni `payment_allocations.amount`: lo pagado sigue siendo lo pagado y la diferencia queda como saldo pendiente. Una subida real de precio se rige por BR-P04 y no toca nada anterior. | D | post-9 |
 | BR-P08 | No existe un «precio efectivo» aparte: `sale_price` **es** lo que debe el cliente. Una boleta puede tener un precio propio distinto del de su rifa, y ninguna corrección masiva puede pisarlo. **Actualizada el 2026-08-17 (D-099):** desde entonces ese precio propio puede nacer de una rebaja del vendedor; lo que sigue sin existir es un segundo número que se calcule aparte. | D | post-9 |
 | BR-P09 | **El vendedor puede vender una boleta por debajo del precio oficial.** La rebaja pertenece a **esa** venta: no cambia el precio de la rifa, ni el de las demás boletas, ni el de ninguna venta anterior. Sin precio explícito se vende al precio vigente de la rifa, que sigue siendo el camino normal. | C, S, D | post-9 |
 | BR-P10 | Al vender se congela también el **precio oficial** en `tickets.base_price`. La rebaja concedida es `base_price - sale_price` y **no se guarda**: se deriva. `base_price` nulo —toda boleta vendida antes de D-099— equivale a rebaja cero. | D | post-9 |
 | BR-P11 | El precio de venta debe estar entre el **mínimo** y el precio oficial. El mínimo lo calcula `ticket_sale_price_limits`, que es la **única** definición del límite y la comparten la validación, el diálogo de venta y el detalle de la boleta. Vender por encima del precio oficial se rechaza: esto es para rebajar, no para recargar. | C, S, D | post-9 |
-| BR-P12 | Rebajar **no cambia nada más**: el saldo del cliente sigue siendo `sale_price - paid_amount`, la boleta queda **Pagada** al completar el precio rebajado —aunque sea menor que el oficial— y el sobrepago se bloquea contra el precio rebajado. Con abonos registrados el precio sigue siendo inmutable (BR-P05): para corregirlo hay que anular los pagos primero. | D | post-9 |
+| BR-P12 | Rebajar **no cambia nada más**: el saldo del cliente sigue siendo `sale_price - paid_amount`, la boleta queda **Pagada** al completar el precio rebajado —aunque sea menor que el oficial— y el sobrepago se bloquea contra el precio rebajado. **Actualizada el 2026-08-29 (D-137):** con abonos registrados el precio ya no es inmutable; se corrige por BR-P13, sin tocar los abonos. | D | post-9 |
+| BR-P13 | **El precio de venta de una boleta ya asignada se puede corregir.** Es el mismo campo y las mismas validaciones de la asignación (BR-P09..BR-P11): techo el oficial congelado (`base_price`), suelo `ticket_sale_price_limits`, entero y mayor que cero. Además no puede ser menor que el total abonado vigente: no hay saldo a favor, ni devolución, ni reescritura de abonos. Si el nuevo precio iguala lo abonado, la boleta queda **Pagada**; si lo supera, vuelve a **Abonada** o **Sin pagar**. No cambia el precio de la rifa ni el de otras boletas. Lo hace `update_ticket_sale_price`. | C, S, D | post-9 |
 
 **BR-P12 y la trampa de D-098 son opuestas y conviene no confundirlas.** Una boleta de `$120.000`
 con `$100.000` abonados está **Abonada**, y darla por Pagada es un defecto. Una boleta **vendida en**

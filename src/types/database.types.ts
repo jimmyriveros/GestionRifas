@@ -1576,6 +1576,14 @@ export type Database = {
         }
         Returns: string
       }
+      update_ticket_sale_price: {
+        Args: {
+          p_expected_sale_price: number
+          p_sale_price: number
+          p_ticket_id: string
+        }
+        Returns: string
+      }
       void_payment: {
         Args: { p_payment_id: string; p_reason: string }
         Returns: undefined

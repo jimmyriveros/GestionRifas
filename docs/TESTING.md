@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.7 · **Actualizado:** 2026-08-29
+- **Versión:** 2.8 · **Actualizado:** 2026-08-29
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -72,7 +72,9 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
   `movil` (Pixel 7). Las specs `*responsive.spec.ts` y `*movil.spec.ts` solo se ejecutan en `movil`;
   el resto solo en `escritorio`. El retorno al origen tras un abono (D-133, D-135) vive en
   `payments.spec.ts` (escritorio) y `abono-desde-boleta-movil.spec.ts` (teléfono). Las tarjetas de
-  «Mis clientes» (D-136) viven en `clientes-movil.spec.ts`.
+  «Mis clientes» (D-136) viven en `clientes-movil.spec.ts`. Editar el precio de una boleta
+  asignada (D-137) vive en `precio-venta-editar.spec.ts` (escritorio) y
+  `precio-venta-editar-movil.spec.ts` (teléfono).
 - **Servidor:** el propio Playwright levanta `npm run dev:local`, que apunta **siempre** a la
   instancia local (D-047). Nunca se ejecutan contra el proyecto real.
 - **Requisito previo:** base local sembrada (`npm run db:reset && npm run seed:local`).

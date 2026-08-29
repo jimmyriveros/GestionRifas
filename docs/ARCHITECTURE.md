@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.14 · **Estado:** implementado · **Actualizado:** 2026-08-29
+- **Versión:** 1.15 · **Estado:** implementado · **Actualizado:** 2026-08-29
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -292,6 +292,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `create_payment(p_client_id, p_total_amount, p_payment_date, p_payment_method, p_notes, p_allocations jsonb)` | 2 (fn) / 5 (UI) | Crea pago + asignaciones, valida sobrepago con bloqueo de filas, audita | Sí — una transacción |
 | `void_payment(p_payment_id, p_reason)` | 2 / 5 | Marca anulación, recalcula saldos, audita | Sí |
 | `update_payment_allocation(pago, boleta, importe, importe_esperado)` | post-9 | Corrige el valor de UN abono vigente. Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-134, BR-F16) | Sí |
+| `update_ticket_sale_price(boleta, precio, precio_esperado)` | post-9 | Corrige el `sale_price` de UNA boleta asignada. Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-137, BR-P13) | Sí |
 | `assign_ticket(p_ticket_id, p_client_id, p_sale_date)` | 2 / 4 | Valida disponibilidad y propiedad, copia `sale_price`, cambia estado, audita | Sí |
 | `bulk_create_tickets(p_raffle_id, p_seller_id, p_rows jsonb)` | 2 / 3 | Inserta lote, devuelve filas insertadas y conflictos por índice | Sí por lote |
 | `approve_tickets(p_ticket_ids uuid[])` | 2 / 3 | `pending_approval` → `available`, audita | Una transacción, pero omite inelegibles (I-044) |

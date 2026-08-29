@@ -205,8 +205,9 @@ Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
 2. La combinación (`organization_id`, `raffle_id`, `daily_number`, `weekly_number`) es **única**.
 3. La unicidad aplica **entre vendedores** y también a combinaciones **anuladas** (no se reutilizan en el MVP).
 4. La misma combinación **sí** puede existir en otra rifa.
-5. `sale_price` es un snapshot inmutable de lo que debe el cliente, fijado al vender: el precio de
-   la rifa, o menos si el vendedor concedió una rebaja (BR-P09).
+5. `sale_price` es lo que debe el cliente, fijado al vender: el precio de la rifa, o menos si el
+   vendedor concedió una rebaja (BR-P09). Se puede **corregir** después con las mismas reglas
+   (BR-P13), nunca recargar sobre el oficial congelado ni bajar de lo ya abonado.
 6. Estado de inventario y estado de pago son **dimensiones separadas**.
 7. El estado de pago se **calcula**; nunca se selecciona.
 8. No se permiten sobrepagos, montos ≤ 0, ni pagos a boletas sin cliente.
@@ -269,7 +270,7 @@ Checklist exigido por el prompt de Fase 0. Cada punto está resuelto en el dise�
 | 5 | Conservación de ceros iniciales | Nunca se castea a numérico; comparación por texto; sin `TRIM`/`LTRIM` | BD + servidor + cliente | BR-N03 |
 | 6 | Combinación única por rifa | `UNIQUE (organization_id, raffle_id, daily_number, weekly_number)` | BD | DATA_MODEL §4.6.3, BR-N04 |
 | 7 | Prohibición de duplicados entre vendedores | La restricción única **no** incluye `seller_id` | BD | BR-N05 |
-| 8 | Snapshot de `sale_price` | Se copia al asignar; trigger impide cambiarlo con pagos activos | BD (trigger) + servidor | BR-P03, BR-P04 |
+| 8 | Snapshot de `sale_price` | Se copia al asignar; se corrige con `update_ticket_sale_price` (BR-P13); el UPDATE directo con abonos sigue bloqueado | BD (trigger + RPC) + servidor | BR-P03, BR-P04, BR-P13 |
 | 9 | Separación inventario / pago | `inventory_status` (enum) vs `payment_status` (columna generada desde `paid_amount`) | BD | DATA_MODEL §4.6.4 |
 | 10 | Pagos distribuidos entre boletas | `payments` 1:N `payment_allocations`; `SUM(amount) = total_amount` validado | BD (trigger diferido) + RPC | BR-F05 |
 | 11 | Atomicidad de pagos | RPC `create_payment(...)` en una única transacción con bloqueo de filas | BD (`SECURITY DEFINER`) | ARCHITECTURE §7.2 |
