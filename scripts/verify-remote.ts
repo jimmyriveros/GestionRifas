@@ -105,7 +105,7 @@ const CHECKS: Check[] = [
     //   * Se excluyen las funciones de extension (`pg_trgm`), que no son
     //     nuestras y no tocan datos.
     //   * Se excluye lo que la aplicacion SI debe poder llamar: la lista blanca
-    //     de abajo son las 26 RPC del codigo mas las siete funciones que usan
+    //     de abajo son las 27 RPC del codigo mas las siete funciones que usan
     //     las POLITICAS de RLS —sin EXECUTE sobre ellas, toda lectura fallaria,
     //     porque la expresion de una politica se evalua como quien consulta—.
     //
@@ -123,7 +123,7 @@ const CHECKS: Check[] = [
               where d.objid = p.oid and d.deptype = 'e'
             )
             and p.proname not in (
-              -- Las 26 RPC que llama la aplicacion
+              -- Las 27 RPC que llama la aplicacion
               'approve_tickets', 'bulk_assign_tickets', 'bulk_cancel_tickets',
               'bulk_change_ticket_seller', 'bulk_create_tickets', 'bulk_delete_tickets',
               'cancel_ticket', 'commission_summary', 'create_payment',
@@ -132,7 +132,7 @@ const CHECKS: Check[] = [
               'taken_ticket_combinations', 'team_confirm_email_change', 'team_delete_member',
               'team_max_fixed_commission', 'team_member_sales', 'team_sales_summary',
               'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
-              'ticket_sale_price_limits', 'void_payment',
+              'ticket_sale_price_limits', 'update_payment_allocation', 'void_payment',
               -- Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
               'current_org_ids', 'current_profile_id', 'current_profile_leads_team',
               'current_staff_org_ids', 'current_team_seller_ids', 'has_org_role',
@@ -163,13 +163,14 @@ const CHECKS: Check[] = [
     esperado: 0,
   },
   {
-    nombre: 'Las 6 RPC de negocio son ejecutables por authenticated',
+    nombre: 'Las RPC de negocio son ejecutables por authenticated',
     sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
           where n.nspname = 'public'
-            and p.proname in ('create_payment', 'void_payment', 'assign_ticket',
-                              'bulk_create_tickets', 'approve_tickets', 'cancel_ticket')
+            and p.proname in ('create_payment', 'void_payment', 'update_payment_allocation',
+                              'assign_ticket', 'bulk_create_tickets', 'approve_tickets',
+                              'cancel_ticket')
             and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
-    esperado: 6,
+    esperado: 7,
   },
   {
     nombre: 'Las 2 funciones de reporte son ejecutables por authenticated',

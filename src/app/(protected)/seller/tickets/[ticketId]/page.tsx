@@ -201,7 +201,12 @@ export default async function SellerTicketDetailPage({
       />
 
       {ticket.inventoryStatus === 'assigned' ? (
-        <TicketPaymentsCard payments={payments} ticketId={ticket.id} />
+        <TicketPaymentsCard
+          payments={payments}
+          ticketId={ticket.id}
+          salePrice={ticket.salePrice}
+          paidAmount={ticket.paidAmount}
+        />
       ) : null}
 
       {/* Lo administrativo, al final y en voz baja: hace falta alguna vez, pero

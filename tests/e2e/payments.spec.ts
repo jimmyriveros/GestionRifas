@@ -297,7 +297,9 @@ test.describe('Abono abierto desde el detalle de una boleta', () => {
     const detalle = page.locator('main')
     await expect(detalle.getByText('Abonada').first()).toBeVisible()
     await expect(detalle.getByText('$40.000').first()).toBeVisible()
-    await expect(detalle.getByText(formatCOP(PRICE - 40_000), { exact: true }).first()).toBeVisible()
+    await expect(
+      detalle.getByText(formatCOP(PRICE - 40_000), { exact: true }).first(),
+    ).toBeVisible()
     await expect(detalle.getByText('Abonos de esta boleta')).toBeVisible()
     await expect(detalle.getByText('$40.000').nth(1)).toBeVisible()
 
@@ -354,7 +356,10 @@ test.describe('Abono abierto desde el detalle de una boleta', () => {
     const { client, ticket } = await clientWithDebt('Desde cliente')
 
     await page.goto(`/seller/clients/${client.id}`)
-    await page.getByRole('link', { name: `Registrar abono de ${client.name}` }).first().click()
+    await page
+      .getByRole('link', { name: `Registrar abono de ${client.name}` })
+      .first()
+      .click()
     await page.waitForURL(new RegExp(`/seller/payments/new\\?clientId=${client.id}$`))
     await expect(page).not.toHaveURL(/ticketId=/)
 
@@ -527,6 +532,116 @@ test.describe('Anulación de pagos por el personal', () => {
     await page.getByRole('button', { name: 'Anular', exact: true }).click()
 
     await expect(page.getByText(/La boleta tiene pagos activos/)).toBeVisible()
+  })
+})
+
+test.describe('Edición de un abono (BR-F16, D-134)', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+  })
+
+  test('aumentar el abono desde la boleta actualiza saldo y estado sin recargar a mano', async ({
+    page,
+  }) => {
+    const { client, ticket } = await clientWithDebt('Editar al alza')
+
+    await page.goto(`/seller/payments/new?clientId=${client.id}`)
+    await page.getByLabel('Valor del abono').fill('40000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('button', { name: /Editar el abono de/ }).click()
+
+    const dialogo = page.getByRole('dialog', { name: 'Editar abono' })
+    await expect(dialogo).toBeVisible()
+    await expect(dialogo.getByText('$40.000')).toBeVisible()
+
+    await dialogo.getByLabel('Nuevo valor').fill('80000')
+    await dialogo.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, /Abono actualizado a \$80\.000/)
+    await expect(dialogo).toHaveCount(0)
+
+    await expect(page.getByText('Abonada').first()).toBeVisible()
+    await expect(page.getByText('$80.000').first()).toBeVisible()
+    await expect(page.getByText(formatCOP(PRICE - 80_000), { exact: true }).first()).toBeVisible()
+
+    const balance = await ticketBalance(ticket.id)
+    expect(balance.paidAmount).toBe(80_000)
+    expect(balance.paymentStatus).toBe('partial')
+  })
+
+  test('completar el precio deja la boleta Pagada; bajarlo la deja Abonada otra vez', async ({
+    page,
+  }) => {
+    const { ticket } = await clientWithDebt('Editar a pagada')
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('link', { name: /Registrar un abono de/ }).click()
+    await page.getByLabel('Valor del abono').fill('50000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.getByRole('button', { name: /Editar el abono de/ }).click()
+    const dialogo = page.getByRole('dialog', { name: 'Editar abono' })
+    await dialogo.getByLabel('Nuevo valor').fill(String(PRICE))
+    await dialogo.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, /actualizado/)
+
+    await expect(page.getByText('Pagada').first()).toBeVisible()
+    await expect(page.getByText('$0', { exact: true }).first()).toBeVisible()
+    expect((await ticketBalance(ticket.id)).paymentStatus).toBe('paid')
+
+    await page.getByRole('button', { name: /Editar el abono de/ }).click()
+    await page.getByRole('dialog', { name: 'Editar abono' }).getByLabel('Nuevo valor').fill('10000')
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, /actualizado/)
+
+    await expect(page.getByText('Abonada').first()).toBeVisible()
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(10_000)
+    expect((await ticketBalance(ticket.id)).paymentStatus).toBe('partial')
+  })
+
+  test('un valor que supera el precio se rechaza y el formulario se queda abierto', async ({
+    page,
+  }) => {
+    const { ticket } = await clientWithDebt('Editar sobrepago')
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('link', { name: /Registrar un abono de/ }).click()
+    await page.getByLabel('Valor del abono').fill('30000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.getByRole('button', { name: /Editar el abono de/ }).click()
+    const dialogo = page.getByRole('dialog', { name: 'Editar abono' })
+    await dialogo.getByLabel('Nuevo valor').fill(String(PRICE + 1))
+    await dialogo.getByRole('button', { name: 'Guardar cambios' }).click()
+
+    await expect(dialogo.getByText(/supera el saldo pendiente/)).toBeVisible()
+    await expect(dialogo).toBeVisible()
+    await expect(dialogo.getByLabel('Nuevo valor')).toHaveValue(formatCOP(PRICE + 1))
+    await expect(dialogo.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
+
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(30_000)
+  })
+
+  test('Cancelar no cambia el abono', async ({ page }) => {
+    const { ticket } = await clientWithDebt('Cancelar edicion')
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('link', { name: /Registrar un abono de/ }).click()
+    await page.getByLabel('Valor del abono').fill('20000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.getByRole('button', { name: /Editar el abono de/ }).click()
+    const dialogo = page.getByRole('dialog', { name: 'Editar abono' })
+    await dialogo.getByLabel('Nuevo valor').fill('90000')
+    await dialogo.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(dialogo).toHaveCount(0)
+
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(20_000)
   })
 })
 

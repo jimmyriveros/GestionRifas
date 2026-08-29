@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.5 · **Estado:** normativo · **Actualizado:** 2026-08-17
+- **Versión:** 1.6 · **Estado:** normativo · **Actualizado:** 2026-08-28
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -418,8 +418,9 @@ una cifra escrita en el código.
 | BR-F11 | Al anular un pago, sus asignaciones dejan de contar y los saldos y estados se recalculan automáticamente. | D | 5 |
 | BR-F12 | Está prohibido el sobrepago: `paid_amount` nunca puede superar `sale_price`, ni siquiera con dos operaciones concurrentes. | S, D | 2 |
 | BR-F13 | El historial de abonos muestra fecha, valor, cliente, boleta, vendedor que registró, método, notas y estado (activo/anulado). | C, S | 5 |
-| BR-F14 | Toda creación y anulación de pago queda registrada en auditoría. | D | 5 |
+| BR-F14 | Toda creación, corrección y anulación de pago queda registrada en auditoría. | D | 5 |
 | BR-F15 | Un pago anulado no puede "desanularse"; se registra un pago nuevo si corresponde. (D-013) | S, D | 5 |
+| BR-F16 | El vendedor dueño del cliente y el personal pueden corregir el **valor** de un abono vigente. Se reescribe esa asignación, no se crea otro pago. No se cambia de boleta, cliente ni vendedor. Un pago anulado no se edita (BR-F15). El recálculo de saldo, estado y ganancia es el de siempre (BR-F07, BR-F11, BR-G01, BR-G06). (D-134) | C, S, D | post-9 |
 
 ### Estados de pago (calculados, nunca seleccionados)
 

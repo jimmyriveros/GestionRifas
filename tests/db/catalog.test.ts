@@ -185,7 +185,7 @@ describe('funciones privilegiadas', () => {
    */
   it('NINGUNA funcion interna es ejecutable por authenticated (I-078)', async () => {
     const PUBLICAS = [
-      // Las 26 RPC que llama la aplicacion
+      // Las 27 RPC que llama la aplicacion
       'approve_tickets',
       'bulk_assign_tickets',
       'bulk_cancel_tickets',
@@ -211,6 +211,7 @@ describe('funciones privilegiadas', () => {
       'team_update_member',
       'ticket_bulk_eligibility',
       'ticket_sale_price_limits',
+      'update_payment_allocation',
       'void_payment',
       // Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
       'current_org_ids',
@@ -254,13 +255,13 @@ describe('funciones privilegiadas', () => {
       from pg_proc p
       join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public'
-        and p.proname in ('create_payment','void_payment','assign_ticket',
-                          'bulk_create_tickets','approve_tickets','cancel_ticket',
+        and p.proname in ('create_payment','void_payment','update_payment_allocation',
+                          'assign_ticket','bulk_create_tickets','approve_tickets','cancel_ticket',
                           'match_ticket_import_clients','import_tickets_with_clients')
         and has_function_privilege('authenticated', p.oid, 'EXECUTE')
       order by p.proname
     `)
-    expect(rows.length).toBe(8)
+    expect(rows.length).toBe(9)
   })
 })
 

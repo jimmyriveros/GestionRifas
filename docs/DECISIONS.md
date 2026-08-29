@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.23 · **Actualizado:** 2026-08-28 (D-001 a D-133)
+- **Versión:** 1.24 · **Actualizado:** 2026-08-28 (D-001 a D-134)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -4965,6 +4965,57 @@ siempre a la boleta, también desde la ficha del cliente: sería una regresión 
 
 **Consecuencia.** `paymentReturnTo` es una función pura. `PaymentForm` sigue siendo el único
 formulario. Owner/Admin no tienen pantalla de alta de abonos (D-054).
+
+---
+
+## D-134 — Un abono activo se corrige en el mismo registro
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-28)
+
+**Contexto.** Una vez registrado un abono no había forma de cambiarle el valor. El único camino era
+anularlo (solo Owner/Admin, BR-F10) y registrar uno nuevo. Eso deja en el historial un pago anulado
+más otro pago, que no es lo que el vendedor le enseña al cliente cuando se equivocó de cifra. El
+encargo pide editar **ese** abono, recalcular saldos, estados y ganancia, y dejar trazabilidad del
+valor anterior y el nuevo.
+
+**No existe aprobación ni liquidación de pagos.** No hay estado «aprobado», «liquidado» ni «cerrado»
+sobre un abono: entra vigente o se anula. No se inventó una restricción nueva para esos casos. Un
+pago **anulado** sigue intocable (D-013, BR-F15).
+
+**Decisión 1 — se corrige la asignación, no se crea otro pago.** RPC nueva
+`update_payment_allocation(pago, boleta, importe, importe_esperado)`. Reescribe
+`payment_allocations.amount` y `payments.total_amount` en la misma transacción. El recálculo no se
+reimplementa: corren los disparadores de siempre (`paid_amount`, estado generado, tope de sobrepago,
+cuadre diferido, `tickets_sync_commission`).
+
+**Decisión 2 — solo el valor.** Fecha, método, notas, boleta, cliente, vendedor e identificadores no
+se tocan. No se añade motivo de edición: la bitácora ya guarda quién, cuándo, valor anterior y valor
+nuevo (`payment.update`). Un campo más habría sido un dato que el registro de abonos no pide.
+
+**Decisión 3 — la misma puerta que registrar.** Puede editar el vendedor dueño del cliente y el
+personal de la organización. El vendedor padre **no** edita los abonos de su equipo: tampoco puede
+registrarlos (`create_payment` compara `clients.seller_id`, no el equipo). Un pago anulado no. La
+RLS de `payment_allocations` **sigue sin UPDATE**: no hay atajo por PostgREST.
+
+**Decisión 4 — `p_expected_amount` evita que dos pantallas se pisen.** Es el valor que la pantalla
+estaba mostrando. Si otro cambio llegó antes, se rechaza. Dos ediciones concurrentes del mismo
+abono: una gana y la otra recibe «Este abono ya fue modificado. Recarga la pantalla y vuelve a
+intentar.» El tope de sobrepago se calcula con la boleta bloqueada, restando el valor viejo de
+*este* abono para no contarlo dos veces.
+
+**Decisión 5 — un pago a varias boletas se edita por línea.** El historial de una boleta muestra la
+porción que le toca; se cambia esa porción y el total del pago se reajusta para seguir cuadrando
+(BR-F05). Las demás asignaciones no se tocan.
+
+**Alternativas descartadas.** (a) Anular y crear otro: cumple las cuentas y rompe el historial que
+se le enseña al cliente. (b) Política de UPDATE para el vendedor sobre `payment_allocations`: le
+habría dejado cambiar también `ticket_id`. (c) Editar fecha, método o notas: el encargo pide el
+valor, y no se añaden campos sin necesidad. (d) Exigir motivo: el sistema no lo tenía y la bitácora
+ya traza el cambio. (e) Permitir al vendedor padre editar los abonos del equipo: inventaría un
+permiso que no existe al registrar.
+
+**Consecuencia.** D-013 no se revoca: un pago anulado no se desanula ni se edita. Lo que cambia es
+que un abono **vigente** ya no es inmutable. BR-F16. Migración `0034`.
 
 ---
 

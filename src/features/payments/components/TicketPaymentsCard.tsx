@@ -1,12 +1,23 @@
-import { ArrowLeftRightIcon, BanknoteIcon, WalletIcon, type LucideIcon } from 'lucide-react'
+'use client'
+
+import { useState } from 'react'
+import {
+  ArrowLeftRightIcon,
+  BanknoteIcon,
+  PencilIcon,
+  WalletIcon,
+  type LucideIcon,
+} from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/constants'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 
 import type { PaymentListItem } from '../queries'
+import { EditPaymentDialog, type EditPaymentTarget } from './EditPaymentDialog'
 
 /**
  * Abonos aplicados a UNA boleta (BR-F13).
@@ -28,16 +39,22 @@ const METHOD_ICONS: Record<PaymentMethod, LucideIcon> = {
 }
 
 // El mismo reparto de columnas para el encabezado y para cada fila: si se
-// cambia aqui, las dos se mueven juntas.
-const COLUMNS = 'lg:grid-cols-[9rem_8rem_7rem_minmax(0,1fr)_minmax(0,1.2fr)]'
+// cambia aqui, las dos se mueven juntas. La ultima es la accion de editar.
+const COLUMNS = 'lg:grid-cols-[9rem_8rem_7rem_minmax(0,1fr)_minmax(0,1.2fr)_auto]'
 
 export function TicketPaymentsCard({
   payments,
   ticketId,
+  salePrice,
+  paidAmount,
 }: {
   payments: PaymentListItem[]
   ticketId: string
+  salePrice: number | null
+  paidAmount: number
 }) {
+  const [editing, setEditing] = useState<EditPaymentTarget | null>(null)
+
   const applied = payments.flatMap((payment) => {
     const allocation = payment.allocations.find((item) => item.ticketId === ticketId)
     return allocation ? [{ payment, amount: allocation.amount }] : []
@@ -66,11 +83,13 @@ export function TicketPaymentsCard({
               <span className="text-right">Abonado</span>
               <span>Registrado por</span>
               <span>Nota</span>
+              <span className="text-right">Acción</span>
             </div>
 
             <ul className="divide-y">
               {applied.map(({ payment, amount }) => {
                 const MethodIcon = METHOD_ICONS[payment.paymentMethod]
+                const maxAmount = salePrice !== null ? salePrice - (paidAmount - amount) : undefined
 
                 return (
                   <li
@@ -119,6 +138,29 @@ export function TicketPaymentsCard({
                         {payment.notes}
                       </span>
                     ) : null}
+
+                    {payment.isActive ? (
+                      <span className="col-span-2 col-start-1 lg:col-span-1 lg:col-start-6 lg:row-start-1 lg:justify-self-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-11 px-3 lg:h-8"
+                          onClick={() =>
+                            setEditing({
+                              paymentId: payment.id,
+                              ticketId,
+                              currentAmount: amount,
+                              maxAmount,
+                            })
+                          }
+                          aria-label={`Editar el abono de ${formatCOP(amount)} del ${formatDateEs(payment.paymentDate)}`}
+                        >
+                          <PencilIcon className="size-4" aria-hidden />
+                          Editar
+                        </Button>
+                      </span>
+                    ) : null}
                   </li>
                 )
               })}
@@ -126,6 +168,13 @@ export function TicketPaymentsCard({
           </>
         )}
       </CardContent>
+
+      <EditPaymentDialog
+        target={editing}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null)
+        }}
+      />
     </Card>
   )
 }

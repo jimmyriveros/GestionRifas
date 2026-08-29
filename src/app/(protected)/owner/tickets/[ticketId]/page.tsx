@@ -155,7 +155,12 @@ export default async function TicketDetailPage({
       </Card>
 
       {ticket.inventoryStatus === 'assigned' ? (
-        <TicketPaymentsCard payments={payments} ticketId={ticket.id} />
+        <TicketPaymentsCard
+          payments={payments}
+          ticketId={ticket.id}
+          salePrice={ticket.salePrice}
+          paidAmount={ticket.paidAmount}
+        />
       ) : null}
 
       {ticket.cancelReason ? (

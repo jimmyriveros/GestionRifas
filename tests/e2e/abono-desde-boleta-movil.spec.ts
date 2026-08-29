@@ -63,4 +63,32 @@ test.describe('Abono desde una boleta en el telefono', () => {
     await expect(page).not.toHaveURL(/\/seller\/payments\/new/)
     await expect(page.getByRole('heading', { name: 'Registrar abono' })).toHaveCount(0)
   })
+
+  test('editar el abono desde el historial actualiza el saldo', async ({ page }) => {
+    const client = await createClientFor(refs, unique('Movil editar abono'))
+    const numbers = randomTicketNumbers()
+    const ticket = await createAssignedTicket(refs, {
+      dailyNumber: numbers.daily,
+      weeklyNumber: numbers.weekly,
+      clientId: client.id,
+      salePrice: PRICE,
+    })
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('link', { name: `Registrar un abono de ${client.name}` }).click()
+    await page.getByLabel('Valor del abono').fill('40000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+    await page.waitForURL(new RegExp(`/seller/tickets/${ticket.id}$`))
+
+    await page.getByRole('button', { name: /Editar el abono de/ }).click()
+    const dialogo = page.getByRole('dialog', { name: 'Editar abono' })
+    await expect(dialogo).toBeVisible()
+    await dialogo.getByLabel('Nuevo valor').fill('70000')
+    await dialogo.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, /Abono actualizado a \$70\.000/)
+
+    await expect(page.getByText('$70.000').first()).toBeVisible()
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(70_000)
+  })
 })

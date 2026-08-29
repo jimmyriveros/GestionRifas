@@ -1,6 +1,6 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.5 · **Estado:** implementado · **Actualizado:** 2026-08-22
+- **Versión:** 2.6 · **Estado:** implementado · **Actualizado:** 2026-08-28
 - **Estado:** el esquema ejecutable vive en las 30 migraciones `0001`–`0030`. `0001`–`0029` están
   aplicadas y verificadas en local y en el proyecto Supabase real; **`0030` solo en local**
   (I-062 a I-065, D-102).
@@ -514,6 +514,12 @@ ALTER TABLE payment_allocations ADD CONSTRAINT alloc_ticket_client_fk
 ALTER TABLE payment_allocations ADD CONSTRAINT alloc_payment_ticket_key
   UNIQUE (payment_id, ticket_id);
 ```
+
+**Corregir un abono vigente** (`0034`, BR-F16, D-134). No hay política de `UPDATE` sobre esta tabla.
+El valor se cambia solo por `update_payment_allocation(pago, boleta, importe, importe_esperado)`,
+que reescribe esa asignación y el `total_amount` del pago en la misma transacción. Un pago anulado
+no entra. El recálculo de `paid_amount`, el estado de pago y la ganancia siguen a cargo de los
+disparadores de `0004` y `0024`.
 
 **Cuadre pago ↔ asignaciones.** `SUM(payment_allocations.amount) = payments.total_amount` se verifica
 con un *constraint trigger* `DEFERRABLE INITIALLY DEFERRED` sobre ambas tablas: se comprueba al

@@ -1567,6 +1567,15 @@ export type Database = {
         }[]
       }
       today_bogota: { Args: never; Returns: string }
+      update_payment_allocation: {
+        Args: {
+          p_amount: number
+          p_expected_amount: number
+          p_payment_id: string
+          p_ticket_id: string
+        }
+        Returns: string
+      }
       void_payment: {
         Args: { p_payment_id: string; p_reason: string }
         Returns: undefined

@@ -673,6 +673,7 @@ castigo donde solo había una espera.
 | Encabezados y resumen de la vista previa del importador | `src/features/tickets/import/components/ImportPreview.tsx` |
 | Confirmaciones de acciones sensibles | `ConfirmDialog` (`src/components/feedback/`) |
 | La marca de la boleta desde la que se abrió el formulario de abono | `src/features/payments/components/PaymentForm.tsx` — «La que estabas viendo» (D-133) |
+| Título, rótulos y botones de corregir un abono | `src/features/payments/components/EditPaymentDialog.tsx` — «Editar abono», «Valor actual», «Nuevo valor», «Guardar cambios» (D-134) |
 | Mensajes de éxito | El `toast` de cada Server Action, en su componente cliente |
 | Pasos del recorrido guiado (título y explicación) | `src/features/tour/tours.ts`, **todos juntos** |
 | Texto de los avisos de la campanita | `src/features/notifications/text.ts`, **todos juntos** (D-093) |

@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **440 ✅** | **552 ✅** | **320 ✅** + 7 de D-133 | ✅ | ✅ |
+| Post-9 vigente | **443 ✅** | **567 ✅** | **320 ✅** + 7 de D-133 + 5 de D-134 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -5101,3 +5101,86 @@ Sin migración. `verify:remote` **14/14** después del despliegue.
 | `verify:remote` | **14/14** |
 
 **Lo que NO se pudo comprobar en vivo, y se dice:** el flujo de abono vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → detalle de una boleta con saldo → Registrar abono → guardar → misma boleta, cifras al día.
+
+---
+
+## Corrección operativa — boleta 7616 / 1891 (2026-08-29)
+
+Pedido expreso del dueño: asignar la boleta **7616 / 1891** a **Marcos Muñoz biarticulado**, celular **3208468676**.
+
+No es un cambio de código. `assign_ticket` solo admite boletas `available`; esta ya estaba vendida, así que se corrigió `tickets.client_id` sobre el proyecto real, con las mismas guardas que BR-I12 (sin pagos activos) y BR-C05 (misma cartera).
+
+### Estado leído antes de tocar nada
+
+| | |
+|---|---|
+| Boleta | `5332a8c4-8e1d-4819-a8d2-563e234163d8` · diario **7616** · semanal **1891** · `R001-000635` |
+| Rifa | Rifa Navidad 2026, `active` |
+| Vendedor | Armando Gordillo (`vendedor1@demo.test`) |
+| Estado | `assigned` · `paid_amount` **0** · `sale_price` **$120.000** · venta **2026-08-28** |
+| Cliente anterior | **Marcos Muñoz mto** · 1111111438 · alias Mantenimiento |
+| Pagos | **ninguno** |
+| Cliente destino, ya existente | **Marcos Muñoz biarticulado** · 3208468676 · alias Consorcio · **mismo vendedor** |
+
+### Después del `UPDATE`
+
+| Campo | Antes | Después |
+|---|---|---|
+| Cliente | Marcos Muñoz mto | **Marcos Muñoz biarticulado** |
+| Celular | 1111111438 | **3208468676** |
+| `inventory_status` | assigned | assigned |
+| `sale_price` / `paid_amount` | 120000 / 0 | 120000 / 0 |
+| `sale_date` | 2026-08-28 | 2026-08-28 |
+
+Bitácora: `ticket.update` con `old_values.client_id` → `new_values.client_id`, actor el Owner de la organización. Releído después de confirmar la transacción: los números, el celular y el nombre coinciden.
+
+Sin despliegue, sin migración, sin movimiento de dinero. Los dos clientes siguen existiendo; solo cambió de dueño esta boleta.
+
+---
+
+## Editar el valor de un abono vigente (D-134, BR-F16) — 2026-08-28
+
+Mantenimiento posterior a la Fase 9. Migración `0034_update_payment_allocation.sql`.
+
+No hay aprobación ni liquidación de pagos en el producto; no se inventó un candado para esos estados. Un pago anulado sigue intocable (D-013).
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx supabase migration up` / `db:reset` | `0034` aplicada | — | — |
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint .` | **0 errores**, 2 avisos de siempre (`useReactTable`, `useVirtualizer`) | `setState` dentro de `useEffect` en `EditPaymentDialog` (D-085) | El formulario se monta de nuevo con `key` al cambiar el abono |
+| `npx vitest run` | **443/443** (+3 del esquema de edición) | — | — |
+| `npm run build` | ✅ Next.js 16.3.0 | — | — |
+| `npm run test:db` | **567/567** (+15 en `payment-update.test.ts`) | La invariante del ledger sobre `vendedor1` del seed no cuadraba (cuenta compartida) | Se afirma el delta de `tickets_paid` y `earned`; BR-G10 sigue en `commissions.test.ts` |
+| `npx playwright test tests/e2e/payments.spec.ts tests/e2e/abono-desde-boleta-movil.spec.ts` | 29/30 en la primera pasada | «reparte un abono entre varias boletas» no vio el toast: el servidor abortó el POST (`ECONNRESET` / *destination stream closed early*) con el formulario aún pendiente | Aislada, **pasa** (3,6 s). No es de este cambio: es el mismo fallo de conexión en caliente (I-075). Las **5** pruebas nuevas de edición pasaron en esa misma pasada |
+| El caso aislado, después | ✅ | — | — |
+
+`npm run verify` ✅.
+
+### Lo que cubren las 15 pruebas de base de datos
+
+1. Aumentar el abono deja Pagada si llega al precio.
+2. Disminuirlo deja Abonada una que estaba Pagada.
+3. Editar uno de varios abonos no toca los demás ni crea un pago.
+4. En un pago a dos boletas solo cambia la indicada y el total cuadra.
+5. Cero y negativo se rechazan; el saldo no se mueve.
+6. Un valor que haría superar el precio se rechaza sin dejar el cambio a medias.
+7. Un pago anulado no se edita.
+8. El mismo valor es idempotente: no escribe ni audita.
+9. Un vendedor no edita el abono de otro.
+10. Un vendedor de otra organización tampoco.
+11. El personal sí puede corregir.
+12. Un `UPDATE` directo sobre `payment_allocations` no cuela.
+13. La bitácora guarda valor anterior, valor nuevo, boleta y actor.
+14. Dos ediciones concurrentes con el mismo valor esperado: una gana.
+15. Al dejar de estar Pagada baja la ganancia; al volver a Pagada sube.
+
+### Lo que cubren las 5 pruebas E2E nuevas
+
+1. Aumentar desde el historial de la boleta actualiza saldo y estado sin recargar a mano.
+2. Completar el precio deja Pagada; bajarlo la deja Abonada otra vez.
+3. Un valor por encima del precio se rechaza y el diálogo se queda abierto, con lo escrito.
+4. Cancelar no cambia el abono.
+5. El mismo camino feliz en el teléfono.
+
+**Lo que NO se desplegó:** `0034` tiene que ir al proyecto real **antes** que el frontend. Sin la RPC, «Editar» no tiene a quién llamar.

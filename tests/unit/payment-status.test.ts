@@ -8,7 +8,11 @@ import {
   validateAllocations,
   type PayableTicket,
 } from '@/features/payments/allocation'
-import { createPaymentSchema, voidPaymentSchema } from '@/features/payments/schemas'
+import {
+  createPaymentSchema,
+  updatePaymentAllocationSchema,
+  voidPaymentSchema,
+} from '@/features/payments/schemas'
 
 /**
  * Logica pura del reparto de abonos y de la previsualizacion del estado de pago
@@ -310,5 +314,36 @@ describe('voidPaymentSchema (BR-F09)', () => {
     expect(voidPaymentSchema.safeParse({ paymentId: UUID_A, reason: '        ' }).success).toBe(
       false,
     )
+  })
+})
+
+describe('updatePaymentAllocationSchema (BR-F16)', () => {
+  const base = {
+    paymentId: UUID_A,
+    ticketId: UUID_B,
+    amount: 40_000,
+    expectedAmount: 20_000,
+  }
+
+  it('acepta un valor entero positivo', () => {
+    expect(updatePaymentAllocationSchema.safeParse(base).success).toBe(true)
+  })
+
+  it('rechaza cero, negativo, vacio y decimal (BR-F03, BR-P02)', () => {
+    expect(updatePaymentAllocationSchema.safeParse({ ...base, amount: 0 }).success).toBe(false)
+    expect(updatePaymentAllocationSchema.safeParse({ ...base, amount: -1 }).success).toBe(false)
+    expect(updatePaymentAllocationSchema.safeParse({ ...base, amount: 10.5 }).success).toBe(false)
+    expect(updatePaymentAllocationSchema.safeParse({ ...base, amount: undefined }).success).toBe(
+      false,
+    )
+  })
+
+  it('exige los dos identificadores', () => {
+    expect(
+      updatePaymentAllocationSchema.safeParse({ ...base, paymentId: 'no-es-uuid' }).success,
+    ).toBe(false)
+    expect(
+      updatePaymentAllocationSchema.safeParse({ ...base, ticketId: 'no-es-uuid' }).success,
+    ).toBe(false)
   })
 })

@@ -23,6 +23,7 @@ import { ticketLabel } from '@/lib/tickets'
 import { voidPayment } from '../actions'
 import type { PaymentListItem } from '../queries'
 import { voidPaymentSchema } from '../schemas'
+import { EditPaymentDialog, type EditPaymentTarget } from './EditPaymentDialog'
 
 type PaymentDetailDialogProps = {
   payment: PaymentListItem | null
@@ -41,12 +42,14 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const [editing, setEditing] = useState<EditPaymentTarget | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function close() {
     setReason('')
     setError(null)
     setConfirming(false)
+    setEditing(null)
     onOpenChange(false)
   }
 
@@ -122,7 +125,27 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
                     className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
                   >
                     <span className="font-mono tabular-nums">{ticketLabel(allocation)}</span>
-                    <span className="tabular-nums">{formatCOP(allocation.amount)}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="tabular-nums">{formatCOP(allocation.amount)}</span>
+                      {payment.isActive ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-11 px-3 lg:h-8"
+                          onClick={() =>
+                            setEditing({
+                              paymentId: payment.id,
+                              ticketId: allocation.ticketId,
+                              currentAmount: allocation.amount,
+                            })
+                          }
+                          aria-label={`Editar el abono de ${formatCOP(allocation.amount)} de la boleta ${ticketLabel(allocation)}`}
+                        >
+                          Editar
+                        </Button>
+                      ) : null}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -156,6 +179,14 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
                 </div>
               ) : null
             ) : null}
+
+            <EditPaymentDialog
+              target={editing}
+              onOpenChange={(open) => {
+                if (!open) setEditing(null)
+              }}
+              onSuccess={close}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={close} disabled={isPending}>

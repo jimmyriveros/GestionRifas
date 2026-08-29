@@ -7,15 +7,16 @@ import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult, ActionResultWith } from '@/lib/action-result'
 
-import { createPaymentSchema, voidPaymentSchema } from './schemas'
+import { createPaymentSchema, updatePaymentAllocationSchema, voidPaymentSchema } from './schemas'
 
 /**
  * Server Actions de pagos.
  *
- * TODA la logica financiera vive en las RPC `create_payment` y `void_payment`
- * de la Fase 2. Son atomicas por construccion (una funcion PL/pgSQL es una
- * transaccion), bloquean las filas en orden para que dos abonos simultaneos no
- * puedan sobrepasar el precio, validan el cuadre exacto y auditan.
+ * TODA la logica financiera vive en las RPC `create_payment`, `void_payment`
+ * y `update_payment_allocation`. Son atomicas por construccion (una funcion
+ * PL/pgSQL es una transaccion), bloquean las filas en orden para que dos
+ * abonos simultaneos no puedan sobrepasar el precio, validan el cuadre exacto
+ * y auditan.
  *
  * Aqui no se suma, no se resta y no se decide ningun estado: eso seria
  * reimplementar el nucleo del negocio en TypeScript, justo lo que `CLAUDE.md`
@@ -115,4 +116,46 @@ export async function voidPayment(input: unknown): Promise<ActionResult> {
 
   revalidatePayments(payment?.client_id ?? undefined)
   return { ok: true }
+}
+
+/**
+ * Corregir el valor de un abono activo (BR-F16, D-134).
+ *
+ * El vendedor dueno del cliente y el personal pueden. La RPC lo vuelve a
+ * comprobar: no basta con ocultar el boton. Un pago anulado no se toca
+ * (BR-F15). Aqui no se suma ni se decide estado: `update_payment_allocation`
+ * escribe el importe y los disparadores vigentes recalculan saldo, estado y
+ * ganancia.
+ */
+export async function updatePaymentAllocation(
+  input: unknown,
+): Promise<ActionResultWith<{ id: string }>> {
+  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  if ('error' in auth) return auth
+
+  const parsed = updatePaymentAllocationSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
+  }
+  const values = parsed.data
+
+  const supabase = await createClient()
+
+  const { data: payment } = await supabase
+    .from('payments')
+    .select('client_id')
+    .eq('id', values.paymentId)
+    .maybeSingle()
+
+  const { data, error } = await supabase.rpc('update_payment_allocation', {
+    p_payment_id: values.paymentId,
+    p_ticket_id: values.ticketId,
+    p_amount: values.amount,
+    p_expected_amount: values.expectedAmount,
+  })
+
+  if (error) return { error: mapPgError(error) }
+
+  revalidatePayments(payment?.client_id ?? undefined, [values.ticketId])
+  return { ok: true, data: { id: data as string } }
 }

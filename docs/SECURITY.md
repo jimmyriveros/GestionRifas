@@ -82,6 +82,7 @@ registro ajeno.
 | **Pagos** |
 | Ver todos los pagos de la organización | ✓ | ✓ | ✗ |
 | Registrar pagos | ✓ | ✓ | P |
+| Corregir el valor de un abono vigente (BR-F16) | ✓ | ✓ | P |
 | Anular pagos | ✓ | ✓ | ✗ |
 | Eliminar pagos físicamente | ✗ | ✗ | ✗ |
 | **Reportes y auditoría** |
@@ -517,7 +518,7 @@ Eventos mínimos registrados en `audit_logs` (BR-D01):
 | `ticket.assign_seller`, `ticket.assign_client` | `ticket` | RPC |
 | `ticket.approve`, `ticket.cancel` | `ticket` | RPC |
 | `ticket.import` | `raffle` | RPC (`log_ticket_import`, 0019). Quién, cuándo, rifa, vendedor, tipo de archivo y recuentos. **Nunca el archivo** |
-| `payment.create`, `payment.void` | `payment` | RPC |
+| `payment.create`, `payment.update`, `payment.void` | `payment` | RPC |
 | `client.create`, `client.update`, `client.archive` | `client` | Trigger |
 
 - Append-only: sin políticas de `UPDATE`/`DELETE`.

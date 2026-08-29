@@ -55,3 +55,17 @@ export const voidPaymentSchema = z.object({
     .max(500, 'El motivo no puede superar 500 caracteres.'),
 })
 export type VoidPaymentInput = z.infer<typeof voidPaymentSchema>
+
+/**
+ * Corregir el valor de UN abono activo (D-134, BR-F16).
+ *
+ * `expectedAmount` es el valor que la pantalla estaba mostrando: la RPC lo
+ * compara con el de la fila bloqueada y rechaza si otro cambio llego antes.
+ */
+export const updatePaymentAllocationSchema = z.object({
+  paymentId: z.uuid('Pago no válido.'),
+  ticketId: z.uuid('Boleta no válida.'),
+  amount: money,
+  expectedAmount: money,
+})
+export type UpdatePaymentAllocationInput = z.infer<typeof updatePaymentAllocationSchema>
