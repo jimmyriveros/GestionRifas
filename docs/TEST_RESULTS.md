@@ -5183,4 +5183,52 @@ No hay aprobación ni liquidación de pagos en el producto; no se inventó un ca
 4. Cancelar no cambia el abono.
 5. El mismo camino feliz en el teléfono.
 
-**Lo que NO se desplegó:** `0034` tiene que ir al proyecto real **antes** que el frontend. Sin la RPC, «Editar» no tiene a quién llamar.
+### Promoción de `0034` al proyecto real (2026-08-29)
+
+Autorizada expresamente por el dueño, con el orden que la propia migración exigía: **la base de datos primero y el frontend después**. Al revés, «Editar» llamaría a una RPC que no existe.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo previo | `Rifas-backups/2026-08-28-pre-0034/` — 13 tablas con datos, **0** referencias a `"auth"`, **0** credenciales |
+| `db push --dry-run` | Una sola migración: `0034_update_payment_allocation.sql` |
+| `db push --yes` | Aplicada |
+| `npm run verify:remote` | **14/14** en verde |
+| CI sobre `0b05fd9` | **2/2**, incluida «migraciones desde cero» |
+| Vercel | `READY` sobre **`0b05fd9`** (inspector `Ah8Pdq4JGebk1Vo8UHPubqkgYAt5`), alias `gestion-rifas.vercel.app`, región `iad1` |
+
+#### Que no movió ni un peso, leído y no supuesto
+
+La misma sonda de solo lectura, **antes y después** del `db push`:
+
+| Medida | Antes | Después |
+|---|---|---|
+| Boletas / vendidas / clientes | 739 / 556 / 420 | **739 / 556 / 420** |
+| Pagos / no anulados / asignaciones | 157 / 157 / 167 | **157 / 157 / 167** |
+| Dinero cobrado | $13.960.000 | **$13.960.000** |
+| Suma de `paid_amount` / `sale_price` | 13.960.000 / 66.720.000 | **13.960.000 / 66.720.000** |
+| Comisión acumulada | $4.980.000 | **$4.980.000** |
+| Filas de bitácora | 2.772 | **2.772** |
+| `update_payment_allocation` | no existía | **`043be2aa`**, `authenticated` sí, `anon` no |
+
+La última fila es la única que cambia, y es justo lo que debe cambiar: nació una función y no se tocó una sola fila.
+
+#### Sondas de comportamiento sobre el proyecto real
+
+Se ejecutaron con jwt de un dueño real (`6dc77de9…`, Camila) y **todo dentro de una transacción revertida**.
+
+| Qué | Resultado |
+|---|---|
+| Subir $1.000 a un abono de $100.000 | Abonado 101.000, estado `partial`, **sigue habiendo un solo pago** |
+| Sobrepago ($120.001) | «El valor aplicado a la boleta R001-000173 supera su saldo pendiente (120000).» |
+| Cero | «El valor del abono debe ser mayor que cero.» |
+| `expected_amount` distinto al actual | «Este abono ya fue modificado. Recarga la pantalla y vuelve a intentar.» |
+
+Se releyó la sonda de datos al terminar: **nada quedó escrito**.
+
+La primera pasada de esas sondas falló con «El pago no existe o no tienes acceso a él»: el script tomó `memberships.id` como si fuera el dueño. No era la migración. Con `profile_id` las cuatro pasaron.
+
+#### En vivo
+
+6/6 cabeceras de seguridad en `/login` (200), cuatro rutas protegidas en 307, `/sw.js` en 200, **0** claves de servicio en los 26 recursos (**1.048 KB**), y el **identificador de versión** `dddfeddf377c` —sha256 de `0b05fd9` recortado a 12 hex— encontrado en 1 de ellos (`/_next/static/immutable/chunks/20my4m3mdc0at.js`): el código servido es exactamente `0b05fd9` (método de I-069).
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** el flujo de edición vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → detalle de una boleta con abono → Editar → guardar → mismas cifras al día.
