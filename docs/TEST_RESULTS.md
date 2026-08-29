@@ -5084,3 +5084,20 @@ La suite E2E completa **no se reejecutó**. Se corrieron las de pagos (existente
 5. Con dos boletas del mismo cliente, el abono cae en la de origen (la segunda de la tabla) y se vuelve a ella, no a la otra.
 6. Después de guardar, `goBack()` no reabre el formulario.
 7. El mismo camino feliz en viewport móvil (Pixel 7), incluido el gesto de atrás.
+
+### Promoción de `4480a3a` al proyecto real (2026-08-28)
+
+Sin migración. `verify:remote` **14/14** después del despliegue.
+
+| Comprobación | Resultado |
+|---|---|
+| CI sobre el commit | **2/2** |
+| Vercel | `READY` sobre `4480a3a` (inspector `G1eYJZY8veqNPshWdZQQvfnbszYD`), `production`, alias `gestion-rifas.vercel.app`, región `iad1` |
+| Cabeceras de seguridad en `/login` (200) | **6/6** |
+| Rutas protegidas | **4/4** en 307 |
+| `/sw.js` | **200** |
+| Claves de servicio en lo servido | **0** en los 18 recursos (**1.095 KB**) |
+| Identificador de versión `0929554862d1` (I-069) | en **1 de 18** recursos (`/_next/static/immutable/chunks/06kta88tfidq8.js`) |
+| `verify:remote` | **14/14** |
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** el flujo de abono vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → detalle de una boleta con saldo → Registrar abono → guardar → misma boleta, cifras al día.
