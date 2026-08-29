@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.15 · **Estado:** implementado · **Actualizado:** 2026-08-29
+- **Versión:** 1.16 · **Estado:** implementado · **Actualizado:** 2026-08-29
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -339,6 +339,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `TicketCardList` | La lista de boletas en el teléfono (D-107): una tarjeta de 95–115 px por boleta con sus **seis** datos. Sin consulta, sin efecto, sin estado propio; reutiliza `row-activation.ts` y `useLongPress`, igual que `DataTable` |
 | `ClientsList` | El envoltorio de la lista de clientes: **una fuente de datos, dos presentaciones** (§8.17, D-136). Escritorio recibe `ClientsTable`; el teléfono, `ClientCardList`. Lo elige Tailwind, no JavaScript |
 | `ClientCardList` | La lista de clientes en el teléfono (D-136): una tarjeta por persona con nombre, alias, celular, boletas y saldo. Sin consulta, sin efecto, sin estado propio; reutiliza `row-activation.ts`, igual que `DataTable` |
+| `PaymentAllocationCards` | Las boletas del abono en el teléfono (D-138): una tarjeta por boleta con Debe, Abonar ahora y el saldo que quedará. Misma colección y mismos `amounts` que la tabla de `PaymentForm`. Lo elige Tailwind |
 | `row-activation.ts` | Reglas de la fila seleccionable: qué clic la abre y cuál ya lo atiende otro elemento (D-076) |
 | `use-long-press.ts` | Pulsación larga con el dedo: solo táctil, se cancela si el dedo se mueve, y anula el `click` posterior (D-085) |
 | `SelectionCheckbox` | Casilla de 20 px con diana de 44 px. Cuadrada, nunca circular: un círculo se lee como «elige uno» (D-085) |
@@ -1121,6 +1122,32 @@ D-108). El recuadro de `ClientFilters` es de escritorio; el buscador mide 44 px 
 
 **Dónde se usa:** los dos listados de clientes. `ClientsTable` ya no se llama directamente desde
 ninguna pantalla.
+
+### 8.18 «Registrar abono» en el teléfono: tarjetas y un bloque fijo (D-138)
+
+```
+                     listPayableTickets()   ← ya consultado en el servidor
+                              │
+                    PayableTicketDetail[]  ← el MISMO arreglo
+                              │
+                         PaymentForm       ← un solo estado, un solo createPayment
+                    ┌─────────┴─────────┐
+              md:hidden            hidden md:block
+        PaymentAllocationCards         tabla
+              (teléfono)            (escritorio)
+```
+
+**El título ya no lleva el nombre.** `PageHeader` dice solo «Registrar abono». El cliente vive en
+`PaymentClientBanner`: icono, «Abono para», el nombre (hasta dos líneas, `min-w-0`) y **Cambiar**,
+el mismo `href` que antes tenía «Cambiar de cliente».
+
+**Los botones van al fondo, no fijos.** El formulario es un flex con `min-h` de la zona visible. Con
+pocas boletas, resumen y botones (52 px, ancho completo) se sientan encima de la barra inferior; con
+muchas, quedan debajo de la última tarjeta. Un bloque `fixed` tapaba Fecha en altos cortos. En
+escritorio los botones vuelven a su tamaño de siempre, en fila.
+
+**Precio y Abonado de la tabla** pasan a `lg:table-cell`: entre `md` y `lg` el input de «Abona ahora»
+necesita el ancho que esas dos columnas le quitaban.
 
 ---
 

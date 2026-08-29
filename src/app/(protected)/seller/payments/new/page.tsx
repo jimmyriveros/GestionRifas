@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
 import { getClientDetail } from '@/features/clients/queries'
 import { ClientPicker } from '@/features/payments/components/ClientPicker'
+import { PaymentClientBanner } from '@/features/payments/components/PaymentClientBanner'
 import { PaymentForm } from '@/features/payments/components/PaymentForm'
 import { listClientsWithBalance, listPayableTickets } from '@/features/payments/queries'
 import { parsePaymentOrigin, paymentNewHref, paymentReturnTo } from '@/features/payments/return-to'
@@ -88,7 +89,7 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: S
   if (tickets.length === 0) {
     return (
       <div className="space-y-6">
-        <PageHeader title={`Registrar abono · ${client.name}`} backHref={fallbackHref} />
+        <PageHeader title="Registrar abono" backHref={fallbackHref} />
         <EmptyState
           icon={<CheckIcon className="size-8" aria-hidden />}
           title={`${client.name} no tiene saldo pendiente`}
@@ -112,18 +113,21 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: S
   })
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={`Registrar abono · ${client.name}`}
-        description="El abono se reparte entre sus boletas. La suma debe coincidir exactamente con el valor recibido."
-        backHref={returnTo}
-        actions={
-          <Button asChild variant="outline">
-            <Link href={pickerHref}>Cambiar de cliente</Link>
-          </Button>
-        }
-      />
+    <div className="grid min-h-[calc(100svh-5.5rem-var(--bottom-nav-space))] grid-rows-[auto_auto_1fr] gap-6 md:flex md:min-h-0 md:flex-col">
+      {/*
+        5.5rem = header 3.5 + el p-4 de main (1 rem arriba y 1 rem del fondo
+        que no es la barra). --bottom-nav-space cubre la navegacion inferior.
+        La fila `1fr` estira el formulario y `mt-auto` deja los botones al
+        fondo cuando hay pocas boletas (D-138). `min-height` en un flex anidado
+        no reparte ese hueco: la rejilla si.
+      */}
+      <PageHeader title="Registrar abono" backHref={returnTo} />
+      <div className="space-y-2">
+        <PaymentClientBanner name={client.name} changeHref={pickerHref} />
+        <p className="text-muted-foreground text-sm">El abono se reparte entre sus boletas.</p>
+      </div>
       <PaymentForm
+        className="h-full min-h-0"
         clientId={client.id}
         clientName={client.name}
         tickets={tickets}

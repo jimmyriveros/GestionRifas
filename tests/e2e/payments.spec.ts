@@ -131,9 +131,12 @@ test.describe('Registro de abonos por el vendedor', () => {
     await page.goto(`/seller/payments/new?clientId=${client.id}`)
     await page
       .getByLabel(`Valor abonado a la boleta ${numbers.daily} / ${numbers.weekly}`)
+      .filter({ visible: true })
       .fill(String(PRICE + 50_000))
 
-    await expect(page.getByText(/Supera el saldo pendiente/)).toBeVisible()
+    await expect(
+      page.getByText(/Supera el saldo pendiente/).filter({ visible: true }),
+    ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Registrar abono' })).toBeDisabled()
 
     expect((await ticketBalance(ticket.id)).paidAmount).toBe(0)
@@ -190,6 +193,7 @@ test.describe('Registro de abonos por el vendedor', () => {
     // Se rebaja lo repartido a mano: ahora falta dinero por asignar.
     await page
       .getByLabel(`Valor abonado a la boleta ${numbers.daily} / ${numbers.weekly}`)
+      .filter({ visible: true })
       .fill('30000')
 
     await expect(page.getByText(/Faltan por repartir/)).toBeVisible()
@@ -198,6 +202,7 @@ test.describe('Registro de abonos por el vendedor', () => {
     // Y al revés: repartir de mas tampoco pasa.
     await page
       .getByLabel(`Valor abonado a la boleta ${numbers.daily} / ${numbers.weekly}`)
+      .filter({ visible: true })
       .fill('60000')
     await expect(page.getByText(/de más/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Registrar abono' })).toBeDisabled()
@@ -409,7 +414,7 @@ test.describe('Abono abierto desde el detalle de una boleta', () => {
     await page.goto(`/seller/tickets/${origen.id}`)
     await page.getByRole('link', { name: `Registrar un abono de ${client.name}` }).click()
     await page.waitForURL(new RegExp(`/seller/payments/new\\?.*ticketId=${origen.id}`))
-    await expect(page.getByText('La que estabas viendo')).toBeVisible()
+    await expect(page.getByText('La que estabas viendo').filter({ visible: true })).toBeVisible()
 
     await page.getByLabel('Valor del abono').fill('40000')
     await page.getByRole('button', { name: 'Registrar abono' }).click()

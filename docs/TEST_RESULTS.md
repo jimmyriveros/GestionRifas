@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **457 ✅** | **567 ✅** | **320 ✅** + 7 de D-133 + 5 de D-134 + 9 de D-135 + 9 de D-136 | ✅ | ✅ |
+| Post-9 vigente | **465 ✅** | **587 ✅** | **320 ✅** + D-133 a D-137 + **8** de D-138 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -5401,4 +5401,22 @@ Se releyó la sonda de datos al terminar: **nada quedó escrito**.
 6/6 cabeceras de seguridad en `/login` (200), cuatro rutas protegidas en 307, `/sw.js` en 200, **0** claves de servicio en los 16 recursos (**1.048 KB**), y el **identificador de versión** `2ac42dbe11ea` —sha256 de `0d6d7ea535…` recortado a 12 hex— encontrado en 1 de ellos (`/_next/static/immutable/chunks/1oq3bqxmv_n3q.js`): el código servido es exactamente `0d6d7ea` (método de I-069).
 
 **Lo que NO se pudo comprobar en vivo, y se dice:** el flujo de edición vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → detalle de una boleta asignada → icono junto al precio → guardar → mismas cifras al día.
+
+---
+
+## Rediseño de «Registrar abono» en el teléfono (D-138) — 2026-08-29
+
+Mantenimiento posterior a la Fase 9. Solo presentación: misma RPC, mismos permisos, sin migración.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint` sobre los archivos tocados | **0 errores** | — | — |
+| `npx vitest run` | **465/465** | — | — |
+| `npx playwright test tests/e2e/abono-registrar-movil.spec.ts` | **8/8** | (1) `getByText('0007 / 0001')` veía las dos presentaciones. (2) Números `0007/0001` repetidos entre corridas, `tickets_combo_unique`. (3) Los botones, en el flujo, quedan debajo del pliegue: la aserción contra la barra inferior se evaluaba sin desplazar | (1) Acotar con `getByRole('list')`. (2) `randomTicketNumbers()`. (3) `scrollIntoViewIfNeeded` antes de medir contra la navegación |
+| `npx playwright test tests/e2e/payments.spec.ts tests/e2e/abono-desde-boleta-movil.spec.ts` | **37/39** en la primera pasada, **39/39** tras el arreglo | `getByLabel('Valor abonado a la boleta …')` resolvía dos inputs (tarjeta `md:hidden` + tabla). `fill` es estricto y no filtra por visibilidad | `.filter({ visible: true })` en los tres `getByLabel` de fila. El `getByText` del sobrepago ya se había filtrado igual |
+
+`test:db` no se reejecutó: no hay cambio de esquema ni de RPC.
+
+Un primer intento de bloque `fixed` tapaba Fecha a 320×720. Se sustituyó por flex/rejilla en el flujo; D-138 lo documenta. El diseño de referencia pedía el bloque fijo; en un iPhone SE cubría el formulario.
 

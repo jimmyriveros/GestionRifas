@@ -44,6 +44,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | **El dinero de cada boleta, en la lista** | Desde el 2026-08-27 (D-130) las dos pantallas que listan boletas dicen, **sin abrirlas**, cuánto se abonó, cuánto falta y qué parte del precio es eso. «Mis boletas» gana tres columnas (Abonado · Falta · Progreso) y un **pie financiero** en la tarjeta del teléfono; «Boletas de este cliente» tiene ahora **su propia lista** (`ClientTicketsList`), con más aire. Los dos números diario y semanal se funden en **una** columna, «Boleta». Las cuentas salen de **`ticketFinancials()`**, que usan también el detalle: hay una sola resta. **Sin migración, sin consultas nuevas, sin cambios de reglas ni de rutas.** **Ya en producción** (`6ff1a8f` y `599a3b6`, 2026-08-27) |
 | **«Clientes» en el teléfono** | Desde el 2026-08-29 (D-136) la lista de clientes del móvil son **tarjetas**, no una tabla con scroll horizontal. Nombre a la izquierda, celular a la derecha, Boletas y Saldo en el pie. **«Nuevo cliente»** comparte fila con el título. Escritorio no cambia. Misma consulta, mismos permisos, sin migración. **Ya en producción** (`dc97949`, 2026-08-29) |
 | **Editar el precio de una boleta asignada** | Desde el 2026-08-29 (D-137, BR-P13) el detalle de una boleta asignada tiene un icono junto al **precio de venta**. Es el mismo campo y las mismas validaciones de la asignación; no puede bajar de lo abonado ni recargar sobre el oficial congelado. Migración **`0035`**. Recálculo de saldo, estado y ganancia por los disparadores de siempre. **Ya en producción** (`0d6d7ea`, 2026-08-29) |
+| **«Registrar abono» en el teléfono** | Desde el 2026-08-29 (D-138) el formulario de abono en el móvil son **tarjetas**, no una tabla de cuatro columnas. El título es solo «Registrar abono»; el cliente vive debajo, con **Cambiar**. Resumen y botones van al fondo con flex, no fijos. Escritorio conserva la tabla. Misma RPC, mismos permisos, sin migración. |
 | **Abono desde una boleta** | Desde el 2026-08-28 (D-133) registrar un abono **desde el detalle de una boleta** vuelve a **esa misma boleta**. **D-135** (2026-08-29) extiende lo mismo a la ficha del cliente, «Mis pagos» y el panel: una sola pantalla, el origen viaja en `?from=`. Sin migración, sin RPC nueva. **Ya en producción** (`f05c397`, 2026-08-29) |
 | **Editar un abono vigente** | Desde el 2026-08-28 (D-134, BR-F16) el historial de una boleta —y el detalle de un pago— permiten **corregir el valor** de un abono activo. Es el mismo registro, no uno nuevo. Saldo, estado y ganancia los recalcula la base. Un anulado no se toca. Migración **`0034`**. **Ya en producción** (`0b05fd9`, 2026-08-29) |
 | **Menú lateral de escritorio** | Desde el 2026-08-28 (D-131) la barra lateral mide **232 px** en una ventana amplia, **de 208 a 232** entre 1.360 y 1.600 px, y **56 px —solo iconos—** por debajo de 1.360, sea porque la persona la cerró con el botón nuevo o porque no cabe. La preferencia viaja en la cookie `rifas.sidebar` y la lee el servidor, así que no hay parpadeo. **El teléfono no cambia**: sigue la barra inferior de D-106. **Ya en producción** (`322d80a`) |
@@ -112,7 +113,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — editar el precio de una boleta asignada (2026-08-29)
+## 1.a Último relevo significativo — «Registrar abono» en el teléfono (2026-08-29)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **En el teléfono, «Registrar abono» deja la tabla de cuatro columnas.** Cada boleta es una tarjeta con Debe, un input de Abonar ahora a ancho completo y el saldo que quedará. El título ya no lleva el nombre del cliente: ese nombre vive debajo, con **Cambiar**. Resumen y botones van al fondo con flex, no fijos encima del formulario. Escritorio sigue siendo la tabla, con Precio y Abonado solo desde `lg`. `Query changes: None` · `New API calls: None` · `Business logic changes: None` · `Route changes: None` · `Migrations: None` · `New dependencies: None` |
+| Archivos | **Nuevos:** `src/features/payments/components/{PaymentClientBanner,PaymentAllocationCards}.tsx`, `tests/e2e/abono-registrar-movil.spec.ts`. **Tocados:** `PaymentForm.tsx`, `seller/payments/new/page.tsx`, `MoneyInput.tsx` (`className`), `tests/e2e/payments.spec.ts` (dos localizadores que ahora ven las dos presentaciones). Documentación: `DECISIONS` (D-138), `ARCHITECTURE` §8.2 y **§8.18**, `UX_COPY_GUIDELINES` anexo B, `TESTING`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **El mismo patrón de D-107 y D-136.** Tailwind elige la presentación, no JavaScript. `MoneyInput`, `previewPaymentStatus`, `validateAllocations`, `createPayment`, `ticketLabel`, `formatCOP`, `PageHeader backHref`. El icono del cliente es el `UserRoundIcon` de `ClientLinkCard` |
+| Decisiones | **D-138.** Lo no evidente: **(a)** el `h1` pierde el nombre a propósito, porque no cabe; **(b)** «Cambiar» se ve corto y se oye entero («Cambiar de cliente»); **(c)** el pendiente de la tarjeta es el `pendingAmount` de SQL menos lo escrito, no una resta nueva de `sale_price`; **(d)** los botones no van `fixed`: en un alto corto tapaban Fecha |
+| Verificación | `typecheck` ✅ · `lint` **0 errores** · **465/465** unitarias · E2E de esta tanda **8/8** móvil nuevas · pagos escritorio **35/35** (2 fallaron por `getByLabel` duplicado y se corrigieron; aislados **2/2**) · abono-desde-boleta móvil **4/4**. `test:db` no aplica. Detalle en `TEST_RESULTS` |
+| Advertencias | **1)** **Las dos presentaciones están en el DOM a la vez.** `getByRole` y `getByLabel` solo ven la visible; `getByText` no. En una prueba nueva, filtra `{ visible: true }` o acota con `getByRole('list', { name: 'Reparto del abono entre las boletas del cliente' })`. **2)** `DesignRegistrarAbono.png` y `.txt` son del dueño; no se commitean. **3)** El botón principal sigue gris: no lo pongas verde |
+| Pendiente | **1)** Verificación visual con sesión real (I-066): vendedor → Registrar abono en el teléfono, nombre largo, varias boletas, teclado, última tarjeta por encima de la barra. **2)** Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063 |
+| Publicación | No desplegado. Sin migración. Esperando autorización expresa |
+| Git | Rama `main`, trabajo local sin commit |
+
+## 1.a.0 Relevo anterior — editar el precio de una boleta asignada (2026-08-29)
 
 | Campo | Estado |
 |---|---|
@@ -935,6 +950,11 @@ features/clients/components/ClientsList  la lista de clientes: UNA consulta, DOS
                     no se llama desde ninguna pantalla. Cada cliente es una tarjeta
                     suelta, no una fila de una lista continua: no las fusiones con
                     TicketCardList
+features/payments/components/PaymentForm  el formulario de abono. En el telefono las
+                    boletas son PaymentAllocationCards; en escritorio, la tabla.
+                    Lo elige Tailwind (D-138). El cliente vive en PaymentClientBanner,
+                    no en el titulo. Los botones van al fondo con flex/min-h, no
+                    `fixed`: un bloque fijo tapaba Fecha en pantallas bajas
 features/tickets/components/ClientTicketsList  la OTRA lista de boletas, la de la ficha
                     de un cliente (D-130). Mismo dato y mismas piezas pequeñas, otra
                     disposicion: alli se miran tres boletas, no trescientas. No las

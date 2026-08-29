@@ -5177,6 +5177,46 @@ BR-P13. Migración `0035`.
 
 ---
 
+## D-138 — «Registrar abono» en el teléfono son tarjetas, no una tabla de cuatro columnas
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-29)
+
+**Contexto.** Registrar un abono es de las acciones que el vendedor más usa, y en el teléfono la
+tabla Boleta · Debe · Abona ahora · Quedará estrecha el input, corta los valores y empuja un scroll
+horizontal. El título «Registrar abono · Nombre» no cabe junto a «Cambiar de cliente».
+
+**Decisión 1 — una fuente de datos, dos presentaciones.** `PaymentForm` sigue siendo el único
+formulario. El mismo `amounts`, el mismo `validateAllocations`, el mismo `createPayment`. Tailwind
+elige (`md:hidden` / `hidden md:block`) entre `PaymentAllocationCards` y la tabla. No hay
+`useIsCompactScreen()`. `display:none` saca lo oculto del árbol de accesibilidad.
+
+**Decisión 2 — el cliente baja del título.** El `h1` es solo «Registrar abono». Debajo, un bloque
+con icono, «Abono para», el nombre (máximo dos líneas) y **Cambiar**, que es el mismo enlace que
+antes decía «Cambiar de cliente». El nombre accesible del enlace no cambia.
+
+**Decisión 3 — los botones van al fondo, no fijos encima del formulario.** Un bloque `fixed` tapaba
+Fecha y Notas en altos de 667–720 px. El formulario es un flex con `min-h` de la zona visible
+(`100svh` menos encabezado, padding de `main` y `--bottom-nav-space`): si hay pocas boletas,
+`mt-auto` deja resumen y botones justo encima de la barra inferior; si hay muchas, quedan debajo
+de la última tarjeta y se llega desplazando. El botón principal sigue siendo el gris del proyecto:
+el verde se reserva para «Pagada» y para la pestaña Pagos.
+
+**Decisión 4 — el «quedará» de la tarjeta no es una cuenta nueva.** El pendiente lo sigue calculando
+SQL (`pending_amount`). La tarjeta resta de esa cifra lo que se está escribiendo, y el estado
+previsto sale de `previewPaymentStatus`, la misma función de la tabla. No se vuelve a hacer
+`sale_price - paid_amount` (BR-F08).
+
+**Qué no se tocó.** RPC, validación, permisos, rutas, navegación de origen (D-135), formato del
+dinero, `MoneyInput` más allá de aceptar `className`. Sin migración, sin dependencias nuevas.
+
+**Alternativas descartadas.** (a) Encoger la tabla: el input sigue sin ancho. (b) Elegir la
+presentación con JavaScript: parpadeo, y D-107 ya lo rechazó. (c) Un botón principal verde, como el
+diseño de referencia: el encargo lo prohíbe; el verde es de los estados positivos. (d) Bloque `fixed`
+encima de la barra inferior, como el diseño de referencia: en un iPhone SE tapaba Fecha. (e)
+Esconder ese bloque al enfocar un input: ocultaba «Registrar abono» y obligaba a un toque extra.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

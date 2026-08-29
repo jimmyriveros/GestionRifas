@@ -34,10 +34,17 @@ import {
 } from '../allocation'
 import { createPayment } from '../actions'
 import type { PayableTicketDetail } from '../queries'
+import { PaymentAllocationCards } from './PaymentAllocationCards'
+
+/** Alto tactil de los campos en el telefono; en escritorio vuelven a 36 px. */
+const TOUCH_FIELD =
+  'h-12 scroll-mb-[calc(var(--bottom-nav-space)+1rem)] data-[size=default]:h-12 md:h-9 md:data-[size=default]:h-9'
 
 type PaymentFormProps = {
   clientId: string
   clientName: string
+  /** En el telefono, el formulario estira para dejar los botones al fondo (D-138). */
+  className?: string
   tickets: PayableTicketDetail[]
   /**
    * A donde volver cuando el abono QUEDA GUARDADO, al cancelar o al pulsar la
@@ -69,6 +76,7 @@ const METHODS: PaymentMethod[] = ['cash', 'transfer', 'other']
 export function PaymentForm({
   clientId,
   clientName,
+  className,
   tickets,
   returnTo,
   originTicketId,
@@ -176,186 +184,239 @@ export function PaymentForm({
   }
 
   return (
-    <div className="space-y-6">
-      {serverError ? (
-        <p
-          ref={errorRef}
-          role="alert"
-          tabIndex={-1}
-          className="bg-destructive/10 text-destructive rounded-md px-3 py-2 text-sm"
-        >
-          {serverError}
-        </p>
-      ) : null}
-
-      <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="payment-total">Valor del abono</Label>
-          <MoneyInput
-            id="payment-total"
-            value={total}
-            onChange={handleTotalChange}
-            disabled={isPending}
-            placeholder="$0"
-          />
-          <p className="text-muted-foreground text-xs">
-            {clientName} debe {formatCOP(totalPending)}
-          </p>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="payment-date">Fecha</Label>
-          <Input
-            id="payment-date"
-            type="date"
-            value={paymentDate}
-            onChange={(event) => setPaymentDate(event.target.value)}
-            disabled={isPending}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="payment-method">Método</Label>
-          <Select
-            value={method}
-            onValueChange={(value) => setMethod(value as PaymentMethod)}
-            disabled={isPending}
+    <div className={cn('flex min-h-0 flex-col gap-6', className)}>
+      <div className="space-y-6">
+        {serverError ? (
+          <p
+            ref={errorRef}
+            role="alert"
+            tabIndex={-1}
+            className="bg-destructive/10 text-destructive rounded-md px-3 py-2 text-sm"
           >
-            <SelectTrigger id="payment-method" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {METHODS.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {PAYMENT_METHOD_LABELS[value]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            {serverError}
+          </p>
+        ) : null}
+
+        <div className="space-y-4 rounded-lg border p-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="payment-total">Valor del abono</Label>
+            <MoneyInput
+              id="payment-total"
+              value={total}
+              onChange={handleTotalChange}
+              disabled={isPending}
+              placeholder="$0"
+              className={TOUCH_FIELD}
+            />
+            <p className="text-muted-foreground text-xs">
+              {clientName} debe {formatCOP(totalPending)}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
+              <Label htmlFor="payment-date">Fecha</Label>
+              <Input
+                id="payment-date"
+                type="date"
+                value={paymentDate}
+                onChange={(event) => setPaymentDate(event.target.value)}
+                disabled={isPending}
+                className={TOUCH_FIELD}
+              />
+            </div>
+
+            <div className="min-w-0 space-y-1.5">
+              <Label htmlFor="payment-method">Método</Label>
+              <Select
+                value={method}
+                onValueChange={(value) => setMethod(value as PaymentMethod)}
+                disabled={isPending}
+              >
+                <SelectTrigger id="payment-method" className={cn('w-full min-w-0', TOUCH_FIELD)}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {METHODS.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {PAYMENT_METHOD_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="payment-notes">Notas (opcional)</Label>
+            <Textarea
+              id="payment-notes"
+              rows={1}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              disabled={isPending}
+              className="min-h-12 scroll-mb-[calc(var(--bottom-nav-space)+1rem)] md:min-h-16"
+            />
+          </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="payment-notes">Notas (opcional)</Label>
-          <Textarea
-            id="payment-notes"
-            rows={1}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            disabled={isPending}
-          />
+        <div className="space-y-3">
+          <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:justify-between">
+            <h2 className="text-lg font-semibold">Repartir entre las boletas</h2>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleTotalChange(total)}
+              disabled={isPending || total === null}
+            >
+              Repartir automáticamente
+            </Button>
+          </div>
+
+          {/*
+          UNA fuente de datos, DOS presentaciones (D-138, el mismo criterio
+          que D-107 y D-136). Lo elige Tailwind, no JavaScript: las dos se
+          pintan y el navegador oculta una con `display:none` antes de que
+          exista JS. `display:none` la saca del arbol de accesibilidad, asi
+          que un lector encuentra una sola lista de boletas.
+        */}
+          <div className="md:hidden">
+            <PaymentAllocationCards
+              tickets={tickets}
+              amounts={amounts}
+              issueByTicket={issueByTicket}
+              originTicketId={originTicketId}
+              disabled={isPending}
+              onAmountChange={setAmount}
+            />
+          </div>
+
+          <div className="hidden w-full overflow-x-auto rounded-lg border md:block">
+            <table className="w-full caption-bottom text-sm">
+              <caption className="sr-only">Reparto del abono entre las boletas del cliente</caption>
+              <thead>
+                <tr className="border-b">
+                  <th className="h-10 px-3 text-left font-medium">Boleta</th>
+                  <th className="hidden h-10 px-3 text-right font-medium lg:table-cell">Precio</th>
+                  <th className="hidden h-10 px-3 text-right font-medium lg:table-cell">Abonado</th>
+                  <th className="h-10 px-3 text-right font-medium">Debe</th>
+                  <th className="h-10 px-3 text-right font-medium">Abona ahora</th>
+                  <th className="h-10 px-3 text-left font-medium">Quedará</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tickets.map((ticket) => {
+                  const amount = amounts[ticket.ticketId] ?? 0
+                  const issue = issueByTicket.get(ticket.ticketId)
+                  const isOrigin = ticket.ticketId === originTicketId
+                  return (
+                    <tr
+                      key={ticket.ticketId}
+                      className={cn('border-b', issue && 'bg-destructive/5')}
+                    >
+                      <td className="px-3 py-2">
+                        <span className="font-mono tabular-nums">{ticketLabel(ticket)}</span>
+                        {/* El dinero se sugiere primero en esta fila (D-133),
+                          pero el cliente puede tener otras boletas y el
+                          vendedor puede moverlo. Esto senala cual era. */}
+                        {isOrigin ? (
+                          <span className="text-muted-foreground mt-0.5 block text-xs">
+                            La que estabas viendo
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="hidden px-3 py-2 text-right tabular-nums lg:table-cell">
+                        {formatCOP(ticket.salePrice)}
+                      </td>
+                      <td className="hidden px-3 py-2 text-right tabular-nums lg:table-cell">
+                        {formatCOP(ticket.paidAmount)}
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                        {formatCOP(ticket.pendingAmount)}
+                      </td>
+                      <td className="min-w-[8.5rem] px-3 py-2">
+                        <MoneyInput
+                          aria-label={`Valor abonado a la boleta ${ticketLabel(ticket)}`}
+                          aria-invalid={Boolean(issue)}
+                          value={amount === 0 ? null : amount}
+                          onChange={(value) => setAmount(ticket.ticketId, value)}
+                          disabled={isPending}
+                          placeholder="$0"
+                          className="min-w-[7.5rem]"
+                        />
+                        {issue ? <p className="text-destructive mt-1 text-xs">{issue}</p> : null}
+                      </td>
+                      <td className="px-3 py-2">
+                        <PaymentStatusBadge
+                          status={previewPaymentStatus(
+                            ticket.salePrice,
+                            ticket.paidAmount + amount,
+                          )}
+                        />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Repartir entre las boletas</h2>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => handleTotalChange(total)}
-            disabled={isPending || total === null}
-          >
-            Repartir automaticamente
-          </Button>
-        </div>
-
-        <div className="w-full overflow-x-auto rounded-lg border">
-          <table className="w-full caption-bottom text-sm">
-            <caption className="sr-only">Reparto del abono entre las boletas del cliente</caption>
-            <thead>
-              <tr className="border-b">
-                <th className="h-10 px-3 text-left font-medium">Boleta</th>
-                <th className="hidden h-10 px-3 text-right font-medium sm:table-cell">Precio</th>
-                <th className="hidden h-10 px-3 text-right font-medium sm:table-cell">Abonado</th>
-                <th className="h-10 px-3 text-right font-medium">Debe</th>
-                <th className="h-10 px-3 text-right font-medium">Abona ahora</th>
-                <th className="h-10 px-3 text-left font-medium">Quedará</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tickets.map((ticket) => {
-                const amount = amounts[ticket.ticketId] ?? 0
-                const issue = issueByTicket.get(ticket.ticketId)
-                const isOrigin = ticket.ticketId === originTicketId
-                return (
-                  <tr key={ticket.ticketId} className={cn('border-b', issue && 'bg-destructive/5')}>
-                    <td className="px-3 py-2">
-                      <span className="font-mono tabular-nums">{ticketLabel(ticket)}</span>
-                      {/* El dinero se sugiere primero en esta fila (D-133),
-                          pero el cliente puede tener otras boletas y el
-                          vendedor puede moverlo. Esto senala cual era. */}
-                      {isOrigin ? (
-                        <span className="text-muted-foreground mt-0.5 block text-xs">
-                          La que estabas viendo
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">
-                      {formatCOP(ticket.salePrice)}
-                    </td>
-                    <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">
-                      {formatCOP(ticket.paidAmount)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {formatCOP(ticket.pendingAmount)}
-                    </td>
-                    <td className="px-3 py-2">
-                      <MoneyInput
-                        aria-label={`Valor abonado a la boleta ${ticketLabel(ticket)}`}
-                        aria-invalid={Boolean(issue)}
-                        value={amount === 0 ? null : amount}
-                        onChange={(value) => setAmount(ticket.ticketId, value)}
-                        disabled={isPending}
-                        placeholder="$0"
-                      />
-                      {issue ? <p className="text-destructive mt-1 text-xs">{issue}</p> : null}
-                    </td>
-                    <td className="px-3 py-2">
-                      <PaymentStatusBadge
-                        status={previewPaymentStatus(ticket.salePrice, ticket.paidAmount + amount)}
-                      />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
+      {/*
+        TELEFONO: los botones bajan al fondo de la pantalla cuando el
+        formulario es corto (`mt-auto` dentro del flex de la pagina) y
+        quedan debajo de las boletas cuando hay muchas. No van `fixed`:
+        en un alto de 667–720 px tapaban Fecha y Notas (D-138).
+      */}
+      <div className="mt-auto flex flex-col gap-3">
         <div
           className={cn(
-            'flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm',
+            'flex flex-col gap-1 rounded-lg border px-4 py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3',
             validation.valid
               ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950'
               : 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950',
           )}
           aria-live="polite"
         >
-          <span className="flex items-center gap-2">
+          <span className="flex min-w-0 items-start gap-2 sm:items-center">
             {validation.valid ? (
-              <CheckIcon className="size-4 shrink-0" aria-hidden />
+              <CheckIcon className="mt-0.5 size-4 shrink-0 sm:mt-0" aria-hidden />
             ) : (
-              <AlertTriangleIcon className="size-4 shrink-0" aria-hidden />
+              <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 sm:mt-0" aria-hidden />
             )}
-            {validation.error ??
-              (validation.issues.length > 0
-                ? 'Corrige las boletas marcadas.'
-                : 'El reparto cuadra con el valor del abono.')}
+            <span className="min-w-0 text-pretty">
+              {validation.error ??
+                (validation.issues.length > 0
+                  ? 'Corrige las boletas marcadas.'
+                  : 'El reparto cuadra con el valor del abono.')}
+            </span>
           </span>
-          <span className="tabular-nums">
+          <span className="ps-6 whitespace-nowrap tabular-nums sm:ps-0">
             Repartido {formatCOP(validation.allocated)} de {formatCOP(total ?? 0)}
           </span>
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" onClick={submit} disabled={isPending || !validation.valid}>
-          {isPending ? 'Registrando...' : 'Registrar abono'}
-        </Button>
-        <Button type="button" variant="outline" onClick={leaveWithoutSaving} disabled={isPending}>
-          Cancelar
-        </Button>
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:gap-2">
+          <Button
+            type="button"
+            onClick={submit}
+            disabled={isPending || !validation.valid}
+            className="h-[52px] w-full md:h-9 md:w-auto"
+          >
+            {isPending ? 'Registrando...' : 'Registrar abono'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={leaveWithoutSaving}
+            disabled={isPending}
+            className="h-[52px] w-full md:h-9 md:w-auto"
+          >
+            Cancelar
+          </Button>
+        </div>
       </div>
     </div>
   )

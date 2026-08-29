@@ -16,6 +16,7 @@ type MoneyInputProps = {
   'aria-label'?: string
   'aria-invalid'?: boolean
   'aria-describedby'?: string
+  className?: string
 }
 
 /**
