@@ -5352,3 +5352,53 @@ El UPDATE directo con abonos sigue bloqueado (BR-P05). No hay recargo sobre el o
 
 `test:db` de pagos, descuento y catálogo se reejecutó también en aislado antes de la pasada completa: **67/67** + **41/41**.
 
+### Promoción de `0035` al proyecto real (2026-08-29)
+
+Autorizada expresamente por el dueño, con el orden que la propia migración exigía: **la base de datos primero y el frontend después**. Al revés, el icono llamaría a una RPC que no existe.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo previo | `Rifas-backups/2026-08-29-pre-0035/` — 13 tablas con datos, **0** referencias a `"auth"`, **0** credenciales |
+| `db push --dry-run` | Una sola migración: `0035_update_ticket_sale_price.sql` |
+| `db push --yes` | Aplicada |
+| `npm run verify:remote` | **14/14** en verde |
+| CI sobre `0d6d7ea` | **2/2** (`33258497272`), incluida «migraciones desde cero» |
+| Vercel | `READY` sobre **`0d6d7ea`** (despliegue GitHub `6156855666`), alias `gestion-rifas.vercel.app`, región `iad1` |
+
+#### Que no movió ni un peso, leído y no supuesto
+
+La misma sonda de solo lectura, **antes y después** del `db push`:
+
+| Medida | Antes | Después |
+|---|---|---|
+| Boletas / vendidas / clientes | 739 / 558 / 421 | **739 / 558 / 421** |
+| Pagos / no anulados / asignaciones | 157 / 157 / 167 | **157 / 157 / 167** |
+| Dinero cobrado | $13.960.000 | **$13.960.000** |
+| Suma de `paid_amount` / `sale_price` | 13.960.000 / 66.960.000 | **13.960.000 / 66.960.000** |
+| Comisión acumulada | $4.980.000 | **$4.980.000** |
+| Filas de bitácora | 2.782 | **2.782** |
+| `update_ticket_sale_price` | no existía | **`87093d71`**, `authenticated` sí, `anon` no |
+
+La última fila es la única que cambia, y es justo lo que debe cambiar: nació una función y no se tocó una sola fila.
+
+#### Sondas de comportamiento sobre el proyecto real
+
+Se ejecutaron con jwt de un dueño real (`6dc77de9…`, Camila Restrepo, organización **Rifas**) y **todo dentro de una transacción revertida**.
+
+| Qué | Resultado |
+|---|---|
+| Rebajar $20.000 una boleta sin abonos (R001-000532) | Precio $100.000, estado `unpaid`, abonado 0 |
+| Precio menor que lo abonado (R001-000298, $100.000 abonados) | «El precio de venta no puede ser menor que el total abonado de la boleta.» |
+| Cero | «El precio de venta debe ser mayor que cero.» |
+| Recargo sobre el oficial | «El precio de venta no puede ser mayor que el precio de la rifa ($120.000). Puedes vender más barato, no más caro.» |
+| `expected_sale_price` distinto al actual | «Esta boleta ya fue modificada. Recarga la pantalla y vuelve a intentar.» |
+| `UPDATE` directo con abonos | «No se puede cambiar el precio de una boleta con pagos registrados. Anula los pagos primero.» |
+
+Se releyó la sonda de datos al terminar: **nada quedó escrito**.
+
+#### En vivo
+
+6/6 cabeceras de seguridad en `/login` (200), cuatro rutas protegidas en 307, `/sw.js` en 200, **0** claves de servicio en los 16 recursos (**1.048 KB**), y el **identificador de versión** `2ac42dbe11ea` —sha256 de `0d6d7ea535…` recortado a 12 hex— encontrado en 1 de ellos (`/_next/static/immutable/chunks/1oq3bqxmv_n3q.js`): el código servido es exactamente `0d6d7ea` (método de I-069).
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** el flujo de edición vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → detalle de una boleta asignada → icono junto al precio → guardar → mismas cifras al día.
+
