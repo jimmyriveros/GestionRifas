@@ -653,6 +653,7 @@ castigo donde solo había una espera.
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | «Cerrar el menú» y «Abrir el menú», los **dos únicos** textos de ese botón | `src/components/layout/AppSidebar.tsx` (D-131, D-132) |
 | Leyendas de la tarjeta de boleta del teléfono | `src/features/tickets/components/TicketCardList.tsx` (D-107) |
+| Rótulos de la tarjeta de cliente del teléfono («Boletas», «Saldo») | `src/features/clients/components/ClientCardList.tsx` (D-136) |
 | La leyenda «Diario · Semanal» y el enlace que nombra la boleta, para las cuatro listas | `src/features/tickets/components/TicketNumbers.tsx` (D-130) |
 | Encabezados y rótulos del dinero de «Mis boletas» («Abonado», «Falta», «Progreso») | `src/features/tickets/components/TicketsTable.tsx` y `TicketCardList.tsx` (D-130) |
 | Encabezados y rótulos del dinero de «Boletas de este cliente» («Saldo pendiente», «Saldo», «de $120.000», «58 % abonado») | `src/features/tickets/components/ClientTicketsTable.tsx` y `ClientTicketCardList.tsx` (D-130) |

@@ -42,6 +42,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | **Panel del vendedor** | Desde el 2026-08-25 (D-112) el panel son **siete piezas** con selector de período, anillo de reparto del dinero y gráfico de recaudo diario. Desaparecen «Tu ganancia», «Resumen de cobranza», las cinco tarjetas de inventario y dos de las tres listas. **Sin migración, sin cambios de reglas ni de rutas.** **Ya en producción** (`96827dc`, 2026-08-25; `ARCHITECTURE` §8.13; I-068 espera decisión) |
 | **Ficha del cliente** | Desde el 2026-08-25 (D-113) el detalle del cliente tiene el estado **junto al nombre**, **«Registrar abono»** en el encabezado, la información general en una **cuadrícula** —2 × 2 en el teléfono, una fila en escritorio— y los dos listados en **tarjetas con título**. Se retira la columna «Cliente» de las dos tablas y «Rifa» en el portal del vendedor. **Mismo aspecto en los dos portales.** Sin migración, sin consultas nuevas, sin cambios de reglas ni de rutas. **Ya en producción** (`18ad9bd` y `9e72fca`, 2026-08-25; `ARCHITECTURE` §8.14) |
 | **El dinero de cada boleta, en la lista** | Desde el 2026-08-27 (D-130) las dos pantallas que listan boletas dicen, **sin abrirlas**, cuánto se abonó, cuánto falta y qué parte del precio es eso. «Mis boletas» gana tres columnas (Abonado · Falta · Progreso) y un **pie financiero** en la tarjeta del teléfono; «Boletas de este cliente» tiene ahora **su propia lista** (`ClientTicketsList`), con más aire. Los dos números diario y semanal se funden en **una** columna, «Boleta». Las cuentas salen de **`ticketFinancials()`**, que usan también el detalle: hay una sola resta. **Sin migración, sin consultas nuevas, sin cambios de reglas ni de rutas.** **Ya en producción** (`6ff1a8f` y `599a3b6`, 2026-08-27) |
+| **«Clientes» en el teléfono** | Desde el 2026-08-29 (D-136) la lista de clientes del móvil son **tarjetas**, no una tabla con scroll horizontal. Nombre a la izquierda, celular a la derecha, Boletas y Saldo en el pie. **«Nuevo cliente»** comparte fila con el título. Escritorio no cambia. Misma consulta, mismos permisos, sin migración |
 | **Abono desde una boleta** | Desde el 2026-08-28 (D-133) registrar un abono **desde el detalle de una boleta** vuelve a **esa misma boleta**. **D-135** (2026-08-29) extiende lo mismo a la ficha del cliente, «Mis pagos» y el panel: una sola pantalla, el origen viaja en `?from=`. Sin migración, sin RPC nueva. **Ya en producción** (`f05c397`, 2026-08-29) |
 | **Editar un abono vigente** | Desde el 2026-08-28 (D-134, BR-F16) el historial de una boleta —y el detalle de un pago— permiten **corregir el valor** de un abono activo. Es el mismo registro, no uno nuevo. Saldo, estado y ganancia los recalcula la base. Un anulado no se toca. Migración **`0034`**. **Ya en producción** (`0b05fd9`, 2026-08-29) |
 | **Menú lateral de escritorio** | Desde el 2026-08-28 (D-131) la barra lateral mide **232 px** en una ventana amplia, **de 208 a 232** entre 1.360 y 1.600 px, y **56 px —solo iconos—** por debajo de 1.360, sea porque la persona la cerró con el botón nuevo o porque no cabe. La preferencia viaja en la cookie `rifas.sidebar` y la lee el servidor, así que no hay parpadeo. **El teléfono no cambia**: sigue la barra inferior de D-106. **Ya en producción** (`322d80a`) |
@@ -108,7 +109,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — volver al origen tras registrar un abono (2026-08-29)
+## 1.a Último relevo significativo — clientes en tarjetas en el teléfono (2026-08-29)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **En el teléfono, «Mis clientes» (y «Clientes» del portal administrativo) son tarjetas**, no una tabla con scroll horizontal. Nombre a la izquierda, alias debajo, celular a la derecha, flecha al extremo, Boletas y Saldo en el pie. Toda la tarjeta abre el detalle. El título y **«Nuevo cliente»** comparten fila. Escritorio sigue siendo la tabla. `Query changes: None` · `New API calls: None` · `Business logic changes: None` · `Route changes: None` · `Migrations: None` · `New dependencies: None` |
+| Archivos | **Nuevos:** `src/features/clients/components/ClientCardList.tsx`, `ClientsList.tsx`, `tests/e2e/clientes-movil.spec.ts` (7). **Tocados:** `seller/clients/page.tsx` (`inlineActions` + `ClientsList`), `owner/clients/page.tsx` (`ClientsList`), `ClientFilters.tsx` (recuadro solo `md`, `touchSize`), `ClientsTable.tsx` (comentario). Pruebas ajustadas: `seller-clients.spec.ts` (+1, la tabla de escritorio), `owner-responsive.spec.ts` (+1, las tarjetas del administrativo). Documentación: `DECISIONS` (D-136), `ARCHITECTURE` §8.2 y **§8.17**, `UX_COPY_GUIDELINES` anexo B, `TESTING`, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **El mismo patrón de D-107.** `ClientsList` es a `ClientsTable` lo que `TicketsList` es a `TicketsTable`. Cabecera con `PageHeader inlineActions` (D-108). Buscador con `SearchInput touchSize`. Recuadro de filtros solo en escritorio, como `TicketFilters`. Clic y teclado con `row-activation.ts` y `RowLink`/`RowChevron`. Dinero con `formatCOP`. «Archivado» de `CLIENT_STATUS_LABELS`. `ClientLinkCard` **no** se reutilizó: es la fila del detalle de una boleta y lleva avatar |
+| Decisiones | **D-136.** Lo no evidente: **(a)** quién elige la presentación es **Tailwind**, no `useIsCompactScreen()`; **(b)** cada cliente es una tarjeta suelta, no una fila de una lista continua —el diseño aprobado pide ese aire, distinto de `TicketCardList`; **(c)** `ClientsList` sustituye a `ClientsTable` en **los dos** portales, no solo en «Mis clientes»; **(d)** Comprado, Pagado y Estado no bajan a la tarjeta: el encargo no los pide |
+| Verificación | `typecheck` ✅ · `lint` **0 errores** (los 2 avisos de siempre) · **457/457** unitarias · `build` ✅ · E2E de clientes **22/22** (10 escritorio + 7 móviles nuevas + 5 de `owner-responsive`) · búsqueda híbrida **15/15** · ciclo del vendedor en el teléfono **5/5**. `test:db` no se reejecutó: no hay cambio de esquema ni de RPC. Capturas a 320, 375, 390, 430, 768 y 1.280 px: sin overflow horizontal; a partir de 768 se ve la tabla |
+| Advertencias | **1)** **Las dos presentaciones están en el DOM a la vez.** `display:none` las saca del árbol de accesibilidad, así que `getByRole` solo ve la del viewport actual —pero `getByText` **no** filtra por visibilidad: en una prueba nueva, ancla por rol o acota con `getByRole('list', { name: 'Clientes' })`. **2)** El recorrido guiado busca `data-tour="data-table"` y descarta lo que mida 0 × 0: la marca va en el **envoltorio** `ClientsList`. **3)** `ClientsTable` sigue existiendo y **no cambió de columnas**, pero ya no se llama desde ninguna pantalla: solo desde `ClientsList`. **4)** `ClientLinkCard` no es esta lista: no le pongas el pie de Boletas/Saldo ni le quites el avatar «porque el listado no lo lleva» |
+| Pendiente | **1)** Verificación visual con sesión real (I-066): vendedor → Clientes en el teléfono, abrir un cliente tocando el pie, buscar, incluir archivados. **2)** Publicación a producción, autorizada en el mismo encargo. **3)** Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063 |
+| Publicación | Pendiente del push a `origin/main`, autorizado expresamente |
+| Git | Rama `main`, de `bc4675a`. Sin commit todavía al redactar este bloque |
+
+## 1.a.0 Relevo anterior — volver al origen tras registrar un abono (2026-08-29)
 
 | Campo | Estado |
 |---|---|
@@ -893,6 +908,12 @@ features/tickets/components/TicketsList  la lista LARGA de boletas: UNA consulta
                     TicketCardList. Lo elige Tailwind, no JavaScript, y las dos reciben
                     el mismo TicketListItem[]. TicketsTable ya no se llama desde ninguna
                     pantalla. La densidad es su razon de ser: no la engordes
+features/clients/components/ClientsList  la lista de clientes: UNA consulta, DOS
+                    presentaciones (D-136). Escritorio -> ClientsTable; telefono ->
+                    ClientCardList. Lo elige Tailwind, no JavaScript. ClientsTable ya
+                    no se llama desde ninguna pantalla. Cada cliente es una tarjeta
+                    suelta, no una fila de una lista continua: no las fusiones con
+                    TicketCardList
 features/tickets/components/ClientTicketsList  la OTRA lista de boletas, la de la ficha
                     de un cliente (D-130). Mismo dato y mismas piezas pequeñas, otra
                     disposicion: alli se miran tres boletas, no trescientas. No las
@@ -933,7 +954,8 @@ features/search/    busqueda hibrida (D-078/D-079): useUrlSearch (listas paginad
 features/clients/components/ClientLinkCard  el cliente como fila pulsable entera, con
                     su avatar, su telefono y su flecha, hacia la ficha de cliente QUE YA
                     EXISTE (D-101). Un solo componente para los dos portales; el href es
-                    lo unico que cambia. ClientEmptyCard es el mismo hueco sin enlace
+                    lo unico que cambia. ClientEmptyCard es el mismo hueco sin enlace.
+                    NO es la lista de «Mis clientes» (D-136): esa es `ClientsList`
 components/data/ProgressRing  anillo de progreso accesible, sin librerias (D-105).
                     Antes de dibujar otro porcentaje, mira este y la barra de
                     CollectionSummaryCard: el porcentaje SIEMPRE va escrito, no solo
@@ -987,9 +1009,11 @@ Los filtros y la paginación viven en la **URL**, no en estado de React: la pág
 RSC vuelve a consultar filtrando en SQL.
 
 Las tablas y los filtros **sirven a los dos portales** y se parametrizan, no se duplican (D-051):
-`TicketsTable` y `ClientsTable` reciben `basePath` / `showSeller` / `showRaffle` / `enableApproval`;
-`PaymentsTable` recibe `clientBasePath` / `showSeller` / `canVoid`; `TicketFilters`,
-`ClientFilters` y `PaymentFilters` ocultan los selectores que no se les pasan.
+`TicketsList` y `ClientsList` reciben `basePath` / `showSeller` (y, las boletas, `showRaffle`) y se
+los pasan a su tabla y a su lista de tarjetas. `TicketsTable` y `ClientsTable` ya no se llaman desde
+ninguna pantalla: solo desde esos envoltorios (D-107, D-136). `PaymentsTable` recibe
+`clientBasePath` / `showSeller` / `canVoid`; `TicketFilters`, `ClientFilters` y `PaymentFilters`
+ocultan los selectores que no se les pasan.
 
 En `/seller/tickets` no hay filtro ni columna «Rifa»: el negocio opera una sola (D-088). Se consigue
 **no pasando** `raffles` a `TicketFilters` y pasando `showRaffle={false}` a la tabla y a

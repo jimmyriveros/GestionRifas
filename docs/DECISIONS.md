@@ -5080,6 +5080,49 @@ financiera, la RPC y las consultas no cambian.
 
 ---
 
+## D-136 — En el teléfono los clientes son tarjetas, no una tabla con scroll horizontal
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-29)
+
+**Contexto.** «Mis clientes» en un teléfono seguía siendo la tabla de escritorio. `hideOnMobile`
+escondía Comprado, Pagado, Vendedor y Estado, y aún así Cliente · Teléfono · Boletas · Saldo no
+cabían: empujaban un scroll horizontal. «Mis boletas» ya había salido de ese patrón (D-107, D-108).
+
+**Decisión 1 — una fuente de datos, dos presentaciones.** `listClients()` sigue siendo la única
+consulta. `ClientsList` reparte el mismo `ClientListItem[]` entre `ClientsTable` (escritorio) y
+`ClientCardList` (teléfono). Lo elige Tailwind (`md:hidden` / `hidden md:block`), no JavaScript: el
+servidor no conoce el ancho y un efecto parpadearía. `display:none` saca lo oculto del árbol de
+accesibilidad, así que un lector encuentra una sola lista. Pintar las 25 filas dos veces es el mismo
+coste que ya paga «Mis boletas»; no hay una petición por tarjeta ni un segundo estado.
+
+**Decisión 2 — cada cliente es una tarjeta suelta, no una fila de una lista continua.** El diseño
+aprobado pide separación vertical, borde propio y un pie con Boletas · Saldo. `TicketCardList` agrupa
+todas las boletas en un solo recuadro con `divide-y` porque ahí la densidad manda; aquí caben menos
+registros y el aire está pedido. El comportamiento es el de la fila: toda la tarjeta abre el detalle,
+el enlace del nombre se conserva, y las reglas salen de `row-activation.ts`.
+
+**Decisión 3 — la cabecera sigue a D-108.** «Mis clientes» y «Nuevo cliente» comparten fila
+(`inlineActions`). El recuadro de `ClientFilters` pasa a ser de escritorio; el buscador sube a 44 px
+con `touchSize`. Una sola acción y un título corto caben a 320 px, igual que «Mis boletas». El portal
+administrativo no tiene esa acción: su encabezado no cambia.
+
+**Decisión 4 — sirve a los dos portales.** `ClientsList` sustituye a `ClientsTable` en `/seller/clients`
+y `/owner/clients`. El vendedor no ve «Vendedor»; el administrador sí, en gris, como ya hacía la
+tabla. No se duplica por portal (D-051).
+
+**Qué no se tocó.** Consultas, permisos, búsqueda, archivado, paginación, creación, navegación al
+detalle, cálculo de boletas y saldo, `formatCOP`. Sin migración, sin dependencias nuevas, sin
+ruta nueva. `ClientLinkCard` no se reutilizó: es la fila del detalle de una boleta y lleva avatar,
+que el encargo prohíbe aquí.
+
+**Alternativas descartadas.** (a) Encoger la tabla un poco más: las cuatro columnas visibles siguen
+sin caber. (b) Elegir la presentación con `useIsCompactScreen()`: parpadeo en cada carga, y D-107
+ya lo rechazó. (c) Una sola estructura restilada con container queries: la tabla ordenable de
+escritorio y las tarjetas no comparten markup útil. (d) Aplicarlo solo al portal del vendedor: el
+administrativo tiene el mismo desborde y los componentes se parametrizan, no se duplican.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

@@ -4,7 +4,7 @@ import { DataTablePagination } from '@/components/data/DataTablePagination'
 import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
 import { ClientFilters } from '@/features/clients/components/ClientFilters'
-import { ClientsTable } from '@/features/clients/components/ClientsTable'
+import { ClientsList } from '@/features/clients/components/ClientsList'
 import { listClients } from '@/features/clients/queries'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
 
@@ -54,7 +54,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
         />
       ) : (
         <>
-          <ClientsTable clients={rows} basePath="/owner/clients" showSeller />
+          <ClientsList clients={rows} basePath="/owner/clients" showSeller />
           <DataTablePagination total={total} page={page} pageSize={pageSize} items="clients" />
         </>
       )}

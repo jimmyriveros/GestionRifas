@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **457 ✅** | **567 ✅** | **320 ✅** + 7 de D-133 + 5 de D-134 + 9 de D-135 | ✅ | ✅ |
+| Post-9 vigente | **457 ✅** | **567 ✅** | **320 ✅** + 7 de D-133 + 5 de D-134 + 9 de D-135 + 9 de D-136 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -5290,3 +5290,25 @@ Sin migración. `db push --dry-run` reportó *Remote database is up to date*. `v
 | `verify:remote` | **14/14** |
 
 **Lo que NO se pudo comprobar en vivo, y se dice:** el flujo de abono vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → detalle de una boleta, ficha de un cliente o «Mis pagos» → Registrar abono → guardar o cancelar → la pantalla de origen, cifras al día.
+
+---
+
+## D-136 — Clientes en tarjetas en el teléfono (2026-08-29)
+
+Cambio visual y responsive. Sin migración, sin consulta nueva, sin cambio de reglas.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint` sobre los archivos tocados | ✅ 0 errores | — | — |
+| `npx vitest run` | ✅ **457/457** | — | — |
+| `npm run build` | ✅ | — | — |
+| `npx playwright test` clientes + `owner-responsive` | ✅ **22/22** | — | — |
+| `npx playwright test` `busqueda-hibrida` + `seller-ciclo-movil` | ✅ **20/20** | — | — |
+| `npm run test:db` | no reejecutado | no hay cambio de esquema ni de RPC | — |
+
+Las 7 pruebas nuevas de `clientes-movil.spec.ts` cubren: tarjeta con nombre, alias, celular, boletas y saldo; toque en el pie abre el detalle; título y «Nuevo cliente» en la misma fila; varias tarjetas sin overflow; nombre largo; 320 px sin overlap ni overflow; buscador e interruptor a la vista.
+
+Regresión de escritorio: la tabla sigue visible (`seller-clients.spec.ts`). El portal administrativo también pasa a tarjetas (`owner-responsive.spec.ts`). La búsqueda por celda de `busqueda-hibrida` sigue encontrando la tabla —ese spec corre en el proyecto `escritorio`.
+
+Capturas a 320, 375, 390, 430, 768 y 1.280 px: bajo `md` no hay tabla ni scroll horizontal; a partir de 768 se ve la tabla de siempre. El recuadro de filtros solo aparece desde `md`.

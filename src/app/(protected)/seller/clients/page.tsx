@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
 import { ClientFilters } from '@/features/clients/components/ClientFilters'
-import { ClientsTable } from '@/features/clients/components/ClientsTable'
+import { ClientsList } from '@/features/clients/components/ClientsList'
 import { listClients } from '@/features/clients/queries'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
@@ -35,6 +35,9 @@ export default async function SellerClientsPage({ searchParams }: { searchParams
       <PageHeader
         title="Mis clientes"
         description="Las personas a las que les vendes. Puedes reutilizarlos al vender nuevas boletas."
+        // Una sola accion y un titulo corto: en el telefono caben en la misma
+        // fila, igual que «Mis boletas» (D-108, D-136).
+        inlineActions
         actions={
           <Button asChild>
             <Link href="/seller/clients/new">
@@ -68,7 +71,7 @@ export default async function SellerClientsPage({ searchParams }: { searchParams
         />
       ) : (
         <>
-          <ClientsTable clients={rows} basePath="/seller/clients" />
+          <ClientsList clients={rows} basePath="/seller/clients" />
           <DataTablePagination total={total} page={page} pageSize={pageSize} items="clients" />
         </>
       )}

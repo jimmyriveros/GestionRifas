@@ -53,6 +53,19 @@ test.describe('Portal administrativo en movil', () => {
     }
   })
 
+  test('en el telefono los clientes son tarjetas, no una tabla encogida', async ({ page }) => {
+    await page.goto('/owner/clients')
+
+    const lista = page.getByRole('list', { name: 'Clientes' })
+    await expect(lista).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Cliente' })).toBeHidden()
+
+    const tarjeta = lista.getByRole('listitem').first()
+    await expect(tarjeta.getByRole('link')).toBeVisible()
+    await expect(tarjeta).toContainText('Boletas')
+    await expect(tarjeta).toContainText('Saldo')
+  })
+
   test('en el telefono las boletas son tarjetas, no una tabla encogida', async ({ page }) => {
     await page.goto('/owner/tickets')
 

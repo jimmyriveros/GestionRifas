@@ -18,6 +18,14 @@ type ClientsTableProps = {
   showSeller?: boolean
 }
 
+/**
+ * Tabla de clientes de «Mis clientes» y de «Clientes» del portal administrativo.
+ *
+ * Por debajo de `md` no hay tabla: hay tarjetas (`ClientCardList`). Las
+ * pantallas no llaman a esta tabla directamente —pasan por `ClientsList`—,
+ * para que las dos presentaciones reciban el mismo arreglo (D-136).
+ */
+
 export function ClientsTable({ clients, basePath, showSeller = false }: ClientsTableProps) {
   const columns = useMemo<ColumnDef<ClientListItem>[]>(() => {
     const base: ColumnDef<ClientListItem>[] = [

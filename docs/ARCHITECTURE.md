@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.13 · **Estado:** implementado · **Actualizado:** 2026-08-28
+- **Versión:** 1.14 · **Estado:** implementado · **Actualizado:** 2026-08-29
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -336,6 +336,8 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `DataTablePagination` | La paginación de los **ocho** listados. Servidor: escribe `page` en la URL. Dice qué cuenta —«1–25 de 118 boletas», con el nombre de `LIST_ITEM_LABELS`— y bajo `md` reparte la fila de otra forma: botones de 44 px en los dos márgenes e indicador centrado entre ellos (§8.12, D-111) |
 | `TicketsList` | El envoltorio de la lista de boletas: **una fuente de datos, dos presentaciones** (§8.9, D-107). Escritorio recibe `TicketsTable`; el teléfono, `TicketCardList`. Lo elige Tailwind, no JavaScript |
 | `TicketCardList` | La lista de boletas en el teléfono (D-107): una tarjeta de 95–115 px por boleta con sus **seis** datos. Sin consulta, sin efecto, sin estado propio; reutiliza `row-activation.ts` y `useLongPress`, igual que `DataTable` |
+| `ClientsList` | El envoltorio de la lista de clientes: **una fuente de datos, dos presentaciones** (§8.17, D-136). Escritorio recibe `ClientsTable`; el teléfono, `ClientCardList`. Lo elige Tailwind, no JavaScript |
+| `ClientCardList` | La lista de clientes en el teléfono (D-136): una tarjeta por persona con nombre, alias, celular, boletas y saldo. Sin consulta, sin efecto, sin estado propio; reutiliza `row-activation.ts`, igual que `DataTable` |
 | `row-activation.ts` | Reglas de la fila seleccionable: qué clic la abre y cuál ya lo atiende otro elemento (D-076) |
 | `use-long-press.ts` | Pulsación larga con el dedo: solo táctil, se cancela si el dedo se mueve, y anula el `click` posterior (D-085) |
 | `SelectionCheckbox` | Casilla de 20 px con diana de 44 px. Cuadrada, nunca circular: un círculo se lee como «elige uno» (D-085) |
@@ -732,7 +734,7 @@ Busca por el número de la boleta o por el nombre…       ← ancho completo, f
 
 | Pieza | Qué cambió | Alcance |
 |---|---|---|
-| `PageHeader` | Nueva variante **opcional** `inlineActions`: rejilla donde el título y la acción comparten fila 1 y la descripción ocupa entera la fila 2. **Sin la bandera, el árbol de siempre, intacto** | Solo `/seller/tickets` la activa; las otras 27 pantallas no cambian |
+| `PageHeader` | Nueva variante **opcional** `inlineActions`: rejilla donde el título y la acción comparten fila 1 y la descripción ocupa entera la fila 2. **Sin la bandera, el árbol de siempre, intacto** | `/seller/tickets` (D-108) y `/seller/clients` (D-136); el resto no cambia |
 | `SearchInput` | Nueva bandera **opcional** `touchSize`: campo y botón de 44 px bajo `md`, 36 px a partir de ahí | Solo la lista de boletas |
 | `TicketFilters` | El recuadro (`border` + `p-4`) pasa a ser **de escritorio**: bajo `md` no hay caja. Nuevo hueco `secondaryAction` para el segundo botón de la fila | Los dos listados de boletas |
 | `TicketSelectionModeButton` | **Nuevo.** Lo único que necesita el contexto de selección para encender o apagar el modo | Los dos listados de boletas |
@@ -1075,6 +1077,49 @@ revocada).
 escucha la pantalla, y el globo (Radix `Tooltip`, `delayDuration` 200 ms) aparece con el ratón **y**
 con el foco del teclado. El aviso de «se está abriendo» de `NavPending` se mudó al sitio del icono,
 como ya hacía `BottomNav`: al final del enlace no cabe con la barra cerrada.
+
+### 8.17 La lista de clientes: una fuente de datos, dos presentaciones (D-136)
+
+```
+                     listClients()   ← filtra, ordena y pagina en SQL
+                          │
+                   ClientListItem[]  ← el MISMO arreglo para las dos
+                          │
+                    ClientsList      ← data-tour="data-table"
+                    ┌─────┴─────┐
+              md:hidden      hidden md:block
+            ClientCardList   ClientsTable
+              (teléfono)      (escritorio)
+```
+
+**Ni una consulta más.** `ClientCardList` no consulta, no tiene efectos y no guarda estado: pinta lo
+que el listado ya traía. Nombre, alias, celular, boletas y saldo salen de las mismas columnas que
+alimentaban la tabla. **No hay N+1**: 25 clientes siguen siendo una sola lectura.
+
+**Quién elige cuál se ve:** Tailwind. Las dos se renderizan y el navegador oculta una con
+`display:none`, que además la saca del árbol de accesibilidad —un lector encuentra **una** lista, no
+dos—. Es el mismo criterio de §8.9. `useIsCompactScreen()` **no** decide esto.
+
+| Dato | En la tabla | En la tarjeta |
+|---|---|---|
+| Nombre | columna «Cliente», enlace | primera línea, a la izquierda; baja de línea si no cabe |
+| Alias | debajo del nombre, solo si existe | debajo del nombre, solo si existe |
+| Teléfono | columna | a la derecha del nombre, no repetido debajo |
+| Boletas y saldo | columnas a la derecha | pie, dos columnas, valores más pesados que los rótulos |
+| Comprado, pagado, estado | columnas; estado y los dos totales solo desde `md` | no: el encargo no los pide en el teléfono |
+| Vendedor | columna, solo portal administrativo | línea gris bajo el alias, solo si `showSeller` |
+| Archivado | columna «Estado» | «Archivado» en gris, solo cuando aplica |
+
+**Comportamiento:** el mismo de la fila, reutilizando `row-activation.ts`. Toda la tarjeta abre el
+detalle; el enlace del nombre se conserva para el menú contextual y el teclado. No hay selección
+múltiple: esta lista no ofrece acciones en lote.
+
+**Cabecera (solo «Mis clientes»).** Título y **«Nuevo cliente»** en la misma fila (`inlineActions`,
+D-108). El recuadro de `ClientFilters` es de escritorio; el buscador mide 44 px bajo `md`
+(`touchSize`). El portal administrativo no tiene esa acción y su encabezado no cambia.
+
+**Dónde se usa:** los dos listados de clientes. `ClientsTable` ya no se llama directamente desde
+ninguna pantalla.
 
 ---
 

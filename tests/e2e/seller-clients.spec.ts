@@ -102,6 +102,14 @@ test.describe('Clientes del vendedor', () => {
     await expectToast(page, 'Cliente restaurado.')
   })
 
+  test('en escritorio la lista sigue siendo una tabla', async ({ page }) => {
+    await page.goto('/seller/clients')
+
+    await expect(page.getByRole('columnheader', { name: 'Cliente' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Saldo' })).toBeVisible()
+    await expect(page.getByRole('list', { name: 'Clientes' })).toHaveCount(0)
+  })
+
   test('busca por nombre, alias y teléfono (prueba 4, BR-C08)', async ({ page }) => {
     const name = unique('Buscable')
     const client = await createClientFor(refs, name)

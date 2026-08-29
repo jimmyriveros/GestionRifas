@@ -48,7 +48,14 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
   const hasFilters = ['q', 'sellerId', 'archived'].some((key) => searchParams.get(key))
 
   return (
-    <div {...tourTarget('filters')} className="space-y-3 rounded-lg border p-4">
+    <div
+      {...tourTarget('filters')}
+      // El recuadro agrupa buscador y filtros en escritorio. En el telefono
+      // solo quedan el campo y el interruptor, y el borde era una caja dentro
+      // de otra que ademas robaba ancho al buscador: bajo `md` se quita, igual
+      // que en `TicketFilters` (D-108, D-136).
+      className="space-y-2 md:space-y-3 md:rounded-lg md:border md:p-4"
+    >
       <SearchInput
         id="client-search"
         label="Buscar cliente"
@@ -60,6 +67,7 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
         onClear={search.clear}
         loading={search.showSpinner}
         showSubmitButton
+        touchSize
         hint={search.hint}
       />
 
