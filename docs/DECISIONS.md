@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.24 · **Actualizado:** 2026-08-28 (D-001 a D-134)
+- **Versión:** 1.25 · **Actualizado:** 2026-08-29 (D-001 a D-135)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -1657,6 +1657,10 @@ cuando el historial real del navegador ya hace ese trabajo).
 `backLabel`) a su `PageHeader`; no hace falta tocar `BackButton` ni `navigation-history.ts`. Si
 alguna vez este proyecto añade protección de cambios sin guardar a un formulario, esa protección debe
 interceptar su propio `router.back()`/`backHref` antes de navegar, no vivir dentro de `BackButton`.
+
+**Vigencia (2026-08-29).** D-135 pone `backHref` en «Registrar abono» y alinea su «Cancelar» con el
+mismo origen reconstruido. Los otros tres formularios de la tabla siguen con `router.back()`
+directo.
 
 ---
 
@@ -4966,6 +4970,11 @@ siempre a la boleta, también desde la ficha del cliente: sería una regresión 
 **Consecuencia.** `paymentReturnTo` es una función pura. `PaymentForm` sigue siendo el único
 formulario. Owner/Admin no tienen pantalla de alta de abonos (D-054).
 
+**Vigencia (2026-08-29).** D-135 extiende el destino a todos los orígenes. La decisión 3 (usar `push`
+en los flujos que no traen `ticketId`) queda sustituida: después de guardar siempre se usa
+`replace`. `?ticketId=` sigue marcando la boleta del reparto; el destino lo decide `?from=` cuando
+viene informado. Los enlaces que solo traían `ticketId` siguen volviendo a esa boleta.
+
 ---
 
 ## D-134 — Un abono activo se corrige en el mismo registro
@@ -5016,6 +5025,58 @@ permiso que no existe al registrar.
 
 **Consecuencia.** D-013 no se revoca: un pago anulado no se desanula ni se edita. Lo que cambia es
 que un abono **vigente** ya no es inmutable. BR-F16. Migración `0034`.
+
+---
+
+## D-135 — El formulario de abono devuelve al origen, no siempre a «Mis pagos»
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-08-29)
+
+**Contexto.** El formulario de abonos es uno solo (`/seller/payments/new`) y se abre desde el detalle
+de una boleta, la ficha de un cliente, «Mis pagos» y el panel. D-133 ya devolvía a la boleta cuando
+el enlace traía `?ticketId=`. Los demás orígenes seguían yendo a `/seller/payments` al guardar, y la
+pantalla **no tenía flecha de volver**: recargar el formulario o abrirlo sin historial interno
+rompía el contexto. `clientId` no basta para saber el origen: también está presente cuando se elige
+el cliente desde «Mis pagos».
+
+Hay un cuarto acceso, no listado en el encargo: «Registrar abono» en el panel (`QuickActionsCard` y
+el vacío de «Actividad reciente»). Se trata igual que los otros.
+
+**Decisión 1 — el origen viaja en `?from=`, allowlist cerrada.** Valores aceptados: `ticket`,
+`client`, `payments`, `dashboard`. Cualquier otra cosa —URL externa, ruta, vacío— se ignora y el
+destino seguro es `/seller/payments`. No se acepta un `returnTo` arbitrario. Los identificadores que
+se interpolan en la ruta salen de la fila que RLS ya dejó ver (`client.id`) o de
+`listPayableTickets` (`ticketId`). Un id escrito a mano no manda a otra boleta ni a otro cliente.
+
+**Decisión 2 — `ticketId` y `from` no son lo mismo.** `ticketId` marca la boleta que se cubre
+primero en el reparto (D-133) y, si no hay `from`, también el destino, para no romper los enlaces
+viejos. `from` manda cuando viene informado: desde un cliente se vuelve al cliente aunque el abono
+se haya sugerido en una boleta.
+
+**Decisión 3 — después de guardar siempre `replace`.** D-133 solo reemplazaba el historial al volver
+a la boleta. Un `push` en los demás orígenes dejaba Origen → Formulario → Origen, y el gesto de
+atrás reabría el formulario ya enviado. Ahora todos los orígenes reemplazan. Un error no navega y no
+toca el historial.
+
+**Decisión 4 — la flecha usa D-089 y el origen reconstruido.** `PageHeader` gana `backHref` igual a
+ese destino. Con historial interno, `router.back()` conserva filtros y scroll; sin él —recarga,
+pestaña nueva, PWA abierta en el formulario— se usa el origen de la URL. «Cancelar» hace lo mismo.
+No hay protección de cambios sin guardar en este proyecto; no se inventa una.
+
+**Decisión 5 — elegir cliente reemplaza el selector en el historial.** Así, atrás desde el
+formulario abierto desde «Mis pagos» o el panel vuelve a esa pantalla, no al listado intermedio.
+«Cambiar de cliente» conserva `from`.
+
+**Alternativas descartadas.** (a) Tres pantallas de registro: el encargo lo prohíbe. (b)
+`router.back()` como único destino: falla en recarga y en PWA sin historial interno. (c) Un
+`returnTo` con la URL completa: hay que validar open redirects; la allowlist de `from` es más
+estrecha. (d) Estado global o `sessionStorage`: se pierde al recargar y el proyecto no tiene uno
+para esto. (e) Conservar página, filtros y scroll de «Mis pagos» en la URL de alta: el listado del
+vendedor casi no filtra, y D-089 ya restaura eso cuando hay historial real.
+
+**Consecuencia.** Una sola pantalla. `paymentReturnTo` y `paymentNewHref` son funciones puras.
+`PaymentForm` no decide el destino. Owner/Admin siguen sin pantalla de alta (D-054). La lógica
+financiera, la RPC y las consultas no cambian.
 
 ---
 

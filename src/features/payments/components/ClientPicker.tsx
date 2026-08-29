@@ -43,7 +43,10 @@ export function ClientPicker({ clients }: { clients: ClientWithBalance[] }) {
   function select(clientId: string) {
     const params = new URLSearchParams(searchParams.toString())
     params.set('clientId', clientId)
-    startTransition(() => router.push(`${pathname}?${params.toString()}`))
+    // `replace` deja el selector fuera del historial (D-135): atras desde el
+    // formulario vuelve al origen (pagos, panel), no a esta lista intermedia.
+    // «Cambiar de cliente» sigue siendo el camino para elegir a otro.
+    startTransition(() => router.replace(`${pathname}?${params.toString()}`))
   }
 
   return (

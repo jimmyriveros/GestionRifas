@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { PaymentListItem } from '@/features/payments/queries'
+import { paymentNewHref } from '@/features/payments/return-to'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 import { cn } from '@/lib/utils'
@@ -55,7 +56,7 @@ export function RecentActivityCard({ payments, className }: RecentActivityCardPr
         {payments.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             Todavía no has registrado ningún abono.{' '}
-            <Link href="/seller/payments/new" className="underline">
+            <Link href={paymentNewHref({ from: 'dashboard' })} className="underline">
               Registra el primero
             </Link>
             .

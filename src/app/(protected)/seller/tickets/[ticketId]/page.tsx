@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ClientEmptyCard, ClientLinkCard } from '@/features/clients/components/ClientLinkCard'
 import { listClientOptions } from '@/features/clients/queries'
-import { listClientPayments } from '@/features/payments/queries'
 import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
+import { listClientPayments } from '@/features/payments/queries'
+import { paymentNewHref } from '@/features/payments/return-to'
 import { AssignTicketDialog } from '@/features/tickets/assign/components/AssignTicketDialog'
 import { TicketPaymentSummary } from '@/features/tickets/components/TicketPaymentSummary'
 import { getTicketDetail } from '@/features/tickets/queries'
@@ -60,6 +61,14 @@ export default async function SellerTicketDetailPage({
     ticket.clientId !== null &&
     ticket.salePrice !== null &&
     ticket.salePrice > ticket.paidAmount
+  const newPaymentHref =
+    ticket.clientId !== null
+      ? paymentNewHref({
+          from: 'ticket',
+          clientId: ticket.clientId,
+          ticketId: ticket.id,
+        })
+      : undefined
 
   return (
     <div className="space-y-5 md:space-y-6">
@@ -81,14 +90,14 @@ export default async function SellerTicketDetailPage({
             {/* En el telefono la accion principal ocupa el ancho y mide 44 px
                 de alto, la diana minima comoda que ya usan la flecha de volver
                 y las casillas de seleccion (D-085). */}
-            {canRegisterPayment ? (
+            {canRegisterPayment && newPaymentHref ? (
               <Button asChild className="h-11 w-full sm:h-9 sm:w-auto">
                 <Link
-                  // `ticketId` viaja con el cliente para que, al guardar, el
-                  // formulario devuelva a ESTA boleta y no al listado de abonos.
-                  // Es un dato de vuelta, no de negocio: el reparto lo sigue
-                  // decidiendo quien registra el abono.
-                  href={`/seller/payments/new?clientId=${ticket.clientId}&ticketId=${ticket.id}`}
+                  // `from=ticket` y el id de ESTA boleta viajan para que el
+                  // formulario devuelva aqui, no al listado ni al cliente
+                  // (D-135). El id tambien marca cual fila se cubre primero
+                  // en el reparto; el dinero lo sigue decidiendo quien cobra.
+                  href={newPaymentHref}
                   // En pantalla dice «Registrar abono», que es lo que cabe en un
                   // telefono; quien lo oye necesita saber de quien es el abono.
                   aria-label={`Registrar un abono de ${ticket.clientName ?? 'este cliente'}`}

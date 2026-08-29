@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/constants'
 import { todayBogota } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { hasInternalHistory } from '@/lib/navigation-history'
 import { ticketLabel } from '@/lib/tickets'
 import { cn } from '@/lib/utils'
 
@@ -39,14 +40,15 @@ type PaymentFormProps = {
   clientName: string
   tickets: PayableTicketDetail[]
   /**
-   * A donde volver cuando el abono QUEDA GUARDADO. Si viene de una boleta es su
-   * detalle; si no, el listado de abonos. Solo se usa en el camino de exito: un
-   * error deja a la persona aqui, con lo que escribio intacto.
+   * A donde volver cuando el abono QUEDA GUARDADO, al cancelar o al pulsar la
+   * flecha si no hay historial interno. Lo calcula la pagina a partir del
+   * origen de la URL (D-135). Un error deja a la persona aqui, con lo que
+   * escribio intacto, y no toca el historial.
    */
   returnTo: string
   /**
    * La boleta desde la que se llego, si se llego desde una. Solo se usa para
-   * senalarla en el reparto; no cambia ni el reparto sugerido ni la validacion.
+   * senalarla en el reparto; no cambia el destino ni la validacion.
    */
   originTicketId?: string
 }
@@ -152,23 +154,25 @@ export function PaymentForm({
         return
       }
 
-      // Solo aqui, con el abono ya guardado, se sale de la pantalla. `returnTo`
-      // es el detalle de la boleta de la que se vino, o el listado de abonos.
-      // Las cifras llegan frescas porque `createPayment` ya revalido el detalle
-      // de boleta antes de devolver.
-      //
-      // Desde una boleta se REEMPLAZA el formulario en el historial (D-133):
-      // un `push` dejaria Detalle → Formulario → Detalle, y el gesto de
-      // atras volveria al formulario. Los demas origenes siguen con `push`,
-      // que es lo que ya hacian.
+      // Solo aqui, con el abono ya guardado, se sale de la pantalla.
+      // `replace` quita el formulario del historial en TODOS los origenes
+      // (D-135, extiende D-133): un `push` dejaria Origen → Formulario →
+      // Origen, y el gesto de atras reabriria el formulario ya enviado.
       toast.success(`Abono de ${formatCOP(total ?? 0)} registrado.`)
-      if (originTicketId) {
-        router.replace(returnTo)
-      } else {
-        router.push(returnTo)
-      }
+      router.replace(returnTo)
       router.refresh()
     })
+  }
+
+  /**
+   * Cancelar y la flecha de PageHeader hacen lo mismo: si hay historial
+   * interno se usa (conserva filtros y scroll, D-089); si no —recarga,
+   * pestana nueva, PWA abierta en el formulario— el origen reconstruido
+   * desde la URL. No hay proteccion de cambios sin guardar en este proyecto.
+   */
+  function leaveWithoutSaving() {
+    if (hasInternalHistory()) router.back()
+    else router.push(returnTo)
   }
 
   return (
@@ -349,7 +353,7 @@ export function PaymentForm({
         <Button type="button" onClick={submit} disabled={isPending || !validation.valid}>
           {isPending ? 'Registrando...' : 'Registrar abono'}
         </Button>
-        <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
+        <Button type="button" variant="outline" onClick={leaveWithoutSaving} disabled={isPending}>
           Cancelar
         </Button>
       </div>

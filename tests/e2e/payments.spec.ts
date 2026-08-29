@@ -268,11 +268,11 @@ test.describe('Registro de abonos por el vendedor', () => {
 })
 
 /**
- * Abono abierto desde el detalle de UNA boleta (D-133).
+ * Abono abierto desde el detalle de UNA boleta (D-133, D-135).
  *
  * El formulario es el mismo; lo que cambia es el destino despues de guardar y
- * que el dinero se sugiere primero en esa boleta. Los demas origenes siguen
- * yendo a «Mis pagos», y un error no saca de la pantalla.
+ * que el dinero se sugiere primero en esa boleta. Un error no saca de la
+ * pantalla.
  */
 test.describe('Abono abierto desde el detalle de una boleta', () => {
   test.beforeEach(async ({ page }) => {
@@ -352,24 +352,34 @@ test.describe('Abono abierto desde el detalle de una boleta', () => {
     expect((await ticketBalance(ticket.id)).paidAmount).toBe(25_000)
   })
 
-  test('desde la ficha del cliente el destino sigue siendo Mis pagos', async ({ page }) => {
-    const { client, ticket } = await clientWithDebt('Desde cliente')
+  test('al cancelar sin guardar vuelve a ESA boleta', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Cancelar desde boleta')
 
-    await page.goto(`/seller/clients/${client.id}`)
-    await page
-      .getByRole('link', { name: `Registrar abono de ${client.name}` })
-      .first()
-      .click()
-    await page.waitForURL(new RegExp(`/seller/payments/new\\?clientId=${client.id}$`))
-    await expect(page).not.toHaveURL(/ticketId=/)
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('link', { name: `Registrar un abono de ${client.name}` }).click()
+    await page.waitForURL(new RegExp(`/seller/payments/new\\?.*ticketId=${ticket.id}`))
+    await page.getByLabel('Valor del abono').fill('10000')
 
-    await page.getByLabel('Valor del abono').fill('15000')
-    await page.getByRole('button', { name: 'Registrar abono' }).click()
-    await expectToast(page, /registrado/)
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+    await page.waitForURL(new RegExp(`/seller/tickets/${ticket.id}$`))
+    await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeVisible()
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(0)
+  })
 
-    await page.waitForURL(/\/seller\/payments$/)
-    await expect(page.getByRole('heading', { name: 'Mis pagos' })).toBeVisible()
-    expect((await ticketBalance(ticket.id)).paidAmount).toBe(15_000)
+  test('tras recargar, la flecha de volver usa el origen y no Mis pagos', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Recarga desde boleta')
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await page.getByRole('link', { name: `Registrar un abono de ${client.name}` }).click()
+    await page.waitForURL(new RegExp(`/seller/payments/new\\?.*from=ticket`))
+
+    await page.reload()
+    await expect(page.getByRole('heading', { name: /Registrar abono/ })).toBeVisible()
+    await page.getByRole('button', { name: 'Volver' }).click()
+
+    await page.waitForURL(new RegExp(`/seller/tickets/${ticket.id}$`))
+    await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Registrar abono' })).toHaveCount(0)
   })
 
   test('con varias boletas del mismo cliente, vuelve a la elegida y el abono cae ahi', async ({
@@ -427,6 +437,132 @@ test.describe('Abono abierto desde el detalle de una boleta', () => {
     await page.goBack()
     await expect(page).not.toHaveURL(/\/seller\/payments\/new/)
     await expect(page.getByRole('heading', { name: 'Registrar abono' })).toHaveCount(0)
+  })
+})
+
+/**
+ * El mismo formulario, con el origen informado (D-135): cliente, «Mis pagos»
+ * o una URL sin contexto valido. La logica de dinero no cambia.
+ */
+test.describe('Abono abierto desde un cliente, pagos o sin origen', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+  })
+
+  test('desde la ficha del cliente vuelve a ESE cliente con las cifras al dia', async ({
+    page,
+  }) => {
+    const { client, ticket } = await clientWithDebt('Desde cliente')
+
+    await page.goto(`/seller/clients/${client.id}`)
+    await page
+      .getByRole('link', { name: `Registrar abono de ${client.name}` })
+      .first()
+      .click()
+    await page.waitForURL(new RegExp(`/seller/payments/new\\?from=client&clientId=${client.id}$`))
+    await expect(page).not.toHaveURL(/ticketId=/)
+
+    await page.getByLabel('Valor del abono').fill('15000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.waitForURL(new RegExp(`/seller/clients/${client.id}$`))
+    await expect(page.getByRole('heading', { name: client.name })).toBeVisible()
+    await expect(page.getByText('$15.000').first()).toBeVisible()
+    await expect(page.getByText(formatCOP(PRICE - 15_000), { exact: true }).first()).toBeVisible()
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(15_000)
+
+    await page.goBack()
+    await expect(page).not.toHaveURL(/\/seller\/payments\/new/)
+    await expect(page.getByRole('heading', { name: 'Registrar abono' })).toHaveCount(0)
+  })
+
+  test('al cancelar desde un cliente vuelve a ESE cliente', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Cancelar desde cliente')
+
+    await page.goto(`/seller/clients/${client.id}`)
+    await page
+      .getByRole('link', { name: `Registrar abono de ${client.name}` })
+      .first()
+      .click()
+    await page.getByLabel('Valor del abono').fill('8000')
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+
+    await page.waitForURL(new RegExp(`/seller/clients/${client.id}$`))
+    await expect(page.getByRole('heading', { name: client.name })).toBeVisible()
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(0)
+  })
+
+  test('desde Mis pagos vuelve a Mis pagos y el listado muestra el abono', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Desde pagos')
+
+    await page.goto('/seller/payments')
+    await page.getByRole('link', { name: 'Registrar abono' }).first().click()
+    await page.waitForURL(/\/seller\/payments\/new\?from=payments/)
+
+    const buscar = page.getByLabel('Buscar cliente')
+    await buscar.fill(client.name)
+    await buscar.press('Enter')
+    const opcion = page.getByRole('option', { name: new RegExp(client.name) })
+    await expect(opcion).toBeVisible()
+    await opcion.click()
+    await page.waitForURL(new RegExp(`/seller/payments/new\\?from=payments&clientId=${client.id}`))
+
+    await page.getByLabel('Valor del abono').fill('12000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.waitForURL(/\/seller\/payments$/)
+    await expect(page.getByRole('heading', { name: 'Mis pagos' })).toBeVisible()
+    await expect(page.getByText('$12.000').first()).toBeVisible()
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(12_000)
+
+    await page.goBack()
+    await expect(page).not.toHaveURL(/\/seller\/payments\/new/)
+  })
+
+  test('al cancelar desde Mis pagos vuelve a Mis pagos', async ({ page }) => {
+    const { client } = await clientWithDebt('Cancelar desde pagos')
+
+    await page.goto('/seller/payments')
+    await page.getByRole('link', { name: 'Registrar abono' }).first().click()
+    const buscar = page.getByLabel('Buscar cliente')
+    await buscar.fill(client.name)
+    await buscar.press('Enter')
+    const opcion = page.getByRole('option', { name: new RegExp(client.name) })
+    await expect(opcion).toBeVisible()
+    await opcion.click()
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+
+    await page.waitForURL(/\/seller\/payments$/)
+    await expect(page.getByRole('heading', { name: 'Mis pagos' })).toBeVisible()
+  })
+
+  test('sin origen valido el destino seguro es Mis pagos', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Sin origen')
+
+    await page.goto(`/seller/payments/new?clientId=${client.id}&from=https://evil.example`)
+    await page.getByLabel('Valor del abono').fill('9000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.waitForURL(/\/seller\/payments$/)
+    await expect(page).not.toHaveURL(/evil/)
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(9_000)
+  })
+
+  test('un segundo clic no duplica el abono', async ({ page }) => {
+    const { client, ticket } = await clientWithDebt('Doble clic')
+
+    await page.goto(`/seller/payments/new?clientId=${client.id}`)
+    await page.getByLabel('Valor del abono').fill('11000')
+    const save = page.getByRole('button', { name: 'Registrar abono' })
+    await save.click()
+    // El boton se deshabilita al instante y, si el guardado es rapido, la
+    // pagina ya no esta: un segundo clic no debe crear otro abono.
+    await save.click({ timeout: 500 }).catch(() => undefined)
+    await expectToast(page, /registrado/)
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(11_000)
   })
 })
 

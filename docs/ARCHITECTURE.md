@@ -247,7 +247,7 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/seller/team` | seller | post-9 ✅ | **Mi equipo.** Siempre en el menú, tenga equipo o no (BR-E01) |
 | `/seller/team/[sellerId]` | seller | post-9 ✅ | Detalle de un integrante y sus ventas. Un id ajeno responde «no encontrada», no «denegado» (BR-E05) |
 | `/seller/payments` | seller | **5 ✅** | Historial de pagos |
-| `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?ticketId=` (D-133) solo indica a qué boleta volver si el registro se abrió desde su detalle |
+| `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?from=` (D-135) dice a dónde volver (`ticket`, `client`, `payments`, `dashboard`); `?ticketId=` marca la boleta del reparto y, sin `from`, también el destino (D-133) |
 | `/seller/reports` | seller | **6 ✅** | Sus reportes, sin el que compara vendedores (D-059) |
 | `/api/reports/export` | según rol | **6 ✅** | Descarga CSV. **Fuera de `(protected)` a propósito**: un Route Handler no pasa por el layout, así que se protege a mano (D-060) |
 
@@ -537,6 +537,7 @@ ese no depende de JavaScript—.
 | Editar rifa (Owner/Admin) | El detalle de esa rifa, no el listado |
 | Crear boletas (Seller) | `/seller/tickets` |
 | Cambiar contraseña | El panel del rol (`dashboardPathForRole`) |
+| Registrar abono (Seller) | El origen validado: boleta, cliente, «Mis pagos» o el panel; si no hay, `/seller/payments` (D-135) |
 
 **Deliberadamente sin tocar:** el botón «Volver a los resultados» de `TicketSelectionToolbar` (D-082)
 alterna un estado local —qué lista se ve, seleccionadas o todas—, no navega entre pantallas. Los

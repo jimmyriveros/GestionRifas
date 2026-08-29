@@ -91,4 +91,55 @@ test.describe('Abono desde una boleta en el telefono', () => {
     await expect(page.getByText('$70.000').first()).toBeVisible()
     expect((await ticketBalance(ticket.id)).paidAmount).toBe(70_000)
   })
+
+  test('desde un cliente, guardar y atras vuelven a ESA ficha', async ({ page }) => {
+    const client = await createClientFor(refs, unique('Movil desde cliente'))
+    const numbers = randomTicketNumbers()
+    const ticket = await createAssignedTicket(refs, {
+      dailyNumber: numbers.daily,
+      weeklyNumber: numbers.weekly,
+      clientId: client.id,
+      salePrice: PRICE,
+    })
+
+    await page.goto(`/seller/clients/${client.id}`)
+    await page
+      .getByRole('link', { name: `Registrar abono de ${client.name}` })
+      .first()
+      .click()
+    await page.waitForURL(new RegExp(`/seller/payments/new\\?from=client`))
+
+    await page.getByLabel('Valor del abono').fill('25000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.waitForURL(new RegExp(`/seller/clients/${client.id}$`))
+    await expect(page.getByRole('heading', { name: client.name })).toBeVisible()
+    await expect(page.getByText('$25.000').first()).toBeVisible()
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(25_000)
+
+    await page.goBack()
+    await expect(page).not.toHaveURL(/\/seller\/payments\/new/)
+  })
+
+  test('desde un cliente, cancelar vuelve a ESA ficha', async ({ page }) => {
+    const client = await createClientFor(refs, unique('Movil cancelar cliente'))
+    const numbers = randomTicketNumbers()
+    await createAssignedTicket(refs, {
+      dailyNumber: numbers.daily,
+      weeklyNumber: numbers.weekly,
+      clientId: client.id,
+      salePrice: PRICE,
+    })
+
+    await page.goto(`/seller/clients/${client.id}`)
+    await page
+      .getByRole('link', { name: `Registrar abono de ${client.name}` })
+      .first()
+      .click()
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+
+    await page.waitForURL(new RegExp(`/seller/clients/${client.id}$`))
+    await expect(page.getByRole('heading', { name: client.name })).toBeVisible()
+  })
 })

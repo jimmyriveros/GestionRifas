@@ -70,7 +70,7 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
 
 - **Herramienta:** Playwright (`playwright.config.ts`), proyectos `escritorio` (Desktop Chrome) y
   `movil` (Pixel 7). Las specs `*responsive.spec.ts` y `*movil.spec.ts` solo se ejecutan en `movil`;
-  el resto solo en `escritorio`. El retorno al detalle de una boleta tras un abono (D-133) vive en
+  el resto solo en `escritorio`. El retorno al origen tras un abono (D-133, D-135) vive en
   `payments.spec.ts` (escritorio) y `abono-desde-boleta-movil.spec.ts` (teléfono).
 - **Servidor:** el propio Playwright levanta `npm run dev:local`, que apunta **siempre** a la
   instancia local (D-047). Nunca se ejecutan contra el proyecto real.

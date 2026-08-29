@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
 import { listPayments } from '@/features/payments/queries'
+import { paymentNewHref } from '@/features/payments/return-to'
 import { getSellerDashboard } from '@/features/dashboard/seller-queries'
 import { formatCOP } from '@/lib/money'
 
@@ -38,7 +39,7 @@ export default async function SellerPaymentsPage({ searchParams }: { searchParam
         description="Todos los abonos que has registrado. Los anulados siguen aquí, marcados."
         actions={
           <Button asChild>
-            <Link href="/seller/payments/new">
+            <Link href={paymentNewHref({ from: 'payments' })}>
               <PlusIcon className="size-4" aria-hidden />
               Registrar abono
             </Link>
@@ -63,7 +64,7 @@ export default async function SellerPaymentsPage({ searchParams }: { searchParam
           description="Cuando un cliente te pague, registra el abono y el saldo se actualiza solo."
           action={
             <Button asChild>
-              <Link href="/seller/payments/new">Registrar el primer abono</Link>
+              <Link href={paymentNewHref({ from: 'payments' })}>Registrar el primer abono</Link>
             </Button>
           }
         />

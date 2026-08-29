@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **443 ✅** | **567 ✅** | **320 ✅** + 7 de D-133 + 5 de D-134 | ✅ | ✅ |
+| Post-9 vigente | **457 ✅** | **567 ✅** | **320 ✅** + 7 de D-133 + 5 de D-134 + 9 de D-135 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -5232,3 +5232,44 @@ La primera pasada de esas sondas falló con «El pago no existe o no tienes acce
 6/6 cabeceras de seguridad en `/login` (200), cuatro rutas protegidas en 307, `/sw.js` en 200, **0** claves de servicio en los 26 recursos (**1.048 KB**), y el **identificador de versión** `dddfeddf377c` —sha256 de `0b05fd9` recortado a 12 hex— encontrado en 1 de ellos (`/_next/static/immutable/chunks/20my4m3mdc0at.js`): el código servido es exactamente `0b05fd9` (método de I-069).
 
 **Lo que NO se pudo comprobar en vivo, y se dice:** el flujo de edición vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → detalle de una boleta con abono → Editar → guardar → mismas cifras al día.
+
+---
+
+## D-135 — Volver al origen tras registrar un abono (2026-08-29)
+
+Mantenimiento posterior a la Fase 9. Sin migración. La RPC `create_payment` no se tocó.
+
+### Comandos
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint .` | **0 errores**, 2 avisos de siempre (`useReactTable`, `useVirtualizer`) | — | — |
+| `npx vitest run` | **457/457** (+14 netas en `payment-return-to`: allowlist de `from`, cliente, panel, URL externa, id forjado) | — | — |
+| `npm run build` | ✅ Next.js 16.3.0 | — | — |
+| `npm run verify` | ✅ | — | — |
+| `npx playwright test tests/e2e/payments.spec.ts tests/e2e/abono-desde-boleta-movil.spec.ts` | **38/39** en la primera pasada | El caso «el botón queda deshabilitado» afirmaba `toBeDisabled()` **después** del clic: el `replace` ya había sacado el formulario | Se afirma que un segundo clic no duplica el abono (`paid_amount` sigue siendo $11.000) |
+| El mismo caso, aislado, después de la corrección | ✅ | — | — |
+
+`test:db` **no se reejecutó**: cero cambios bajo `supabase/`. La última pasada vigente sigue siendo **567/567**.
+
+La suite E2E completa **no se reejecutó**. Se corrieron las de pagos (existentes + 7 nuevas de escritorio + 2 de móvil). La última pasada completa vigente sigue siendo **320/320**, más las de D-133, D-134 y estas.
+
+### Error encontrado
+
+Afirmar `toBeDisabled()` sobre «Registrar abono» justo después del clic es una carrera: si el guardado es rápido, el botón **ya no está en el DOM** porque `router.replace` se llevó la pantalla. El producto no duplicaba el abono —`useTransition` lo impide—; fallaba la prueba. Queda documentado: en este flujo se comprueba el saldo, no el estado intermedio del botón.
+
+### Lo que cubren las pruebas nuevas o reescritas
+
+1. Guardar desde una boleta sigue volviendo a **esa** boleta (D-133 intacto).
+2. Cancelar desde una boleta vuelve a esa boleta, sin guardar.
+3. Recargar el formulario y pulsar la flecha usa el origen, no «Mis pagos».
+4. Guardar desde un cliente vuelve a **ese** cliente, con total pagado y saldo al día; atrás no reabre el formulario.
+5. Cancelar desde un cliente vuelve a ese cliente.
+6. Guardar desde «Mis pagos» vuelve a «Mis pagos» con el abono en el listado; atrás no reabre el formulario.
+7. Cancelar desde «Mis pagos» (pasando por el selector) vuelve a «Mis pagos».
+8. `from=https://evil.example` se ignora y el destino seguro es «Mis pagos».
+9. Un segundo clic no deja `paid_amount` en el doble.
+10. En el teléfono: guardar y cancelar desde un cliente vuelven a esa ficha.
+
+No hay pantalla duplicada: una sola ruta `/seller/payments/new` y un solo `PaymentForm`.

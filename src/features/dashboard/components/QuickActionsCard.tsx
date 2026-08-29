@@ -2,6 +2,7 @@ import { BarChart3Icon, SearchIcon, UserPlusIcon, WalletIcon } from 'lucide-reac
 import Link from 'next/link'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { paymentNewHref } from '@/features/payments/return-to'
 import { tourTarget } from '@/features/tour/tours'
 import { cn } from '@/lib/utils'
 
@@ -31,7 +32,11 @@ export function QuickActionsCard({ className }: QuickActionsCardProps) {
       icon: <SearchIcon aria-hidden />,
     },
     { href: '/seller/clients/new', label: 'Nuevo cliente', icon: <UserPlusIcon aria-hidden /> },
-    { href: '/seller/payments/new', label: 'Registrar abono', icon: <WalletIcon aria-hidden /> },
+    {
+      href: paymentNewHref({ from: 'dashboard' }),
+      label: 'Registrar abono',
+      icon: <WalletIcon aria-hidden />,
+    },
     { href: '/seller/reports', label: 'Ver reportes', icon: <BarChart3Icon aria-hidden /> },
   ]
 

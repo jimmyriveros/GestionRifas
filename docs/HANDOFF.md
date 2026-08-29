@@ -42,7 +42,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | **Panel del vendedor** | Desde el 2026-08-25 (D-112) el panel son **siete piezas** con selector de período, anillo de reparto del dinero y gráfico de recaudo diario. Desaparecen «Tu ganancia», «Resumen de cobranza», las cinco tarjetas de inventario y dos de las tres listas. **Sin migración, sin cambios de reglas ni de rutas.** **Ya en producción** (`96827dc`, 2026-08-25; `ARCHITECTURE` §8.13; I-068 espera decisión) |
 | **Ficha del cliente** | Desde el 2026-08-25 (D-113) el detalle del cliente tiene el estado **junto al nombre**, **«Registrar abono»** en el encabezado, la información general en una **cuadrícula** —2 × 2 en el teléfono, una fila en escritorio— y los dos listados en **tarjetas con título**. Se retira la columna «Cliente» de las dos tablas y «Rifa» en el portal del vendedor. **Mismo aspecto en los dos portales.** Sin migración, sin consultas nuevas, sin cambios de reglas ni de rutas. **Ya en producción** (`18ad9bd` y `9e72fca`, 2026-08-25; `ARCHITECTURE` §8.14) |
 | **El dinero de cada boleta, en la lista** | Desde el 2026-08-27 (D-130) las dos pantallas que listan boletas dicen, **sin abrirlas**, cuánto se abonó, cuánto falta y qué parte del precio es eso. «Mis boletas» gana tres columnas (Abonado · Falta · Progreso) y un **pie financiero** en la tarjeta del teléfono; «Boletas de este cliente» tiene ahora **su propia lista** (`ClientTicketsList`), con más aire. Los dos números diario y semanal se funden en **una** columna, «Boleta». Las cuentas salen de **`ticketFinancials()`**, que usan también el detalle: hay una sola resta. **Sin migración, sin consultas nuevas, sin cambios de reglas ni de rutas.** **Ya en producción** (`6ff1a8f` y `599a3b6`, 2026-08-27) |
-| **Abono desde una boleta** | Desde el 2026-08-28 (D-133) registrar un abono **desde el detalle de una boleta** vuelve a **esa misma boleta**, con las cifras al día. Los demás orígenes siguen yendo a «Mis pagos». Sin migración, sin RPC nueva. **Ya en producción** (`4480a3a`, 2026-08-28) |
+| **Abono desde una boleta** | Desde el 2026-08-28 (D-133) registrar un abono **desde el detalle de una boleta** vuelve a **esa misma boleta**. **D-135** (2026-08-29) extiende lo mismo a la ficha del cliente, «Mis pagos» y el panel: una sola pantalla, el origen viaja en `?from=`. Sin migración, sin RPC nueva. Pendiente de publicar |
 | **Editar un abono vigente** | Desde el 2026-08-28 (D-134, BR-F16) el historial de una boleta —y el detalle de un pago— permiten **corregir el valor** de un abono activo. Es el mismo registro, no uno nuevo. Saldo, estado y ganancia los recalcula la base. Un anulado no se toca. Migración **`0034`**. **Ya en producción** (`0b05fd9`, 2026-08-29) |
 | **Menú lateral de escritorio** | Desde el 2026-08-28 (D-131) la barra lateral mide **232 px** en una ventana amplia, **de 208 a 232** entre 1.360 y 1.600 px, y **56 px —solo iconos—** por debajo de 1.360, sea porque la persona la cerró con el botón nuevo o porque no cabe. La preferencia viaja en la cookie `rifas.sidebar` y la lee el servidor, así que no hay parpadeo. **El teléfono no cambia**: sigue la barra inferior de D-106. **Ya en producción** (`322d80a`) |
 | **…y donde no cabe, se abre flotando** | El mismo día (**D-132**, revoca D-131 §5): por debajo de 1.360 px el botón abre la barra **encima** del contenido en vez de quedarse inerte, sin moverlo ni un píxel, y se cierra sola al elegir una opción, al pulsar fuera, con `Escape`, al salir el foco o al volver a haber sitio. **No toca la preferencia guardada.** Sin migración. **Ya en producción** (`1d12081`, 2026-08-28) |
@@ -107,7 +107,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — editar el valor de un abono vigente (2026-08-28)
+## 1.a Último relevo significativo — volver al origen tras registrar un abono (2026-08-29)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Quien registra un abono vuelve a la pantalla de la que vino**: boleta, cliente, «Mis pagos» o el panel. Cancelar, la flecha y una recarga usan el mismo origen. Un error no saca del formulario. Después de guardar, atrás no reabre el formulario ya enviado. `Query changes: None` · `Business logic changes: None` —la RPC no se tocó— · `Route changes: None` —se reutiliza `/seller/payments/new`— · `Migrations: None` · `New dependencies: None` |
+| Archivos | **Tocados:** `payments/return-to.ts` (`from` + `paymentNewHref`), `PaymentForm.tsx` (`replace` siempre; Cancelar = D-089), `ClientPicker.tsx` (`replace` al elegir), `seller/payments/new/page.tsx` (`backHref` y `from`), los enlaces en detalle de boleta, ficha de cliente, «Mis pagos», `QuickActionsCard` y `RecentActivityCard`. **Pruebas:** `tests/unit/payment-return-to.test.ts`, `tests/e2e/payments.spec.ts`, `tests/e2e/abono-desde-boleta-movil.spec.ts`. Documentación: `DECISIONS` (D-135; vigencia en D-133 y D-089), `ARCHITECTURE` tabla de rutas y §8.6, `TESTING`, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni un formulario nuevo ni una ruta nueva.** Es el mismo `PaymentForm`, el mismo `createPayment` y la misma RPC. El origen viaja en la URL, que es como ya se elige el cliente. La flecha es `PageHeader backHref` (D-089). `replace` tras guardar es lo que D-133 ya hacía para la boleta, ahora en todos los orígenes |
+| Decisiones | **D-135.** Lo no evidente: **(a)** `clientId` no identifica el origen —también está cuando se elige el cliente desde «Mis pagos»—, hace falta `from`; **(b)** `from` es allowlist, nunca un `returnTo` libre; **(c)** `ticketId` y `from` se separan: el primero es el reparto, el segundo el destino; **(d)** elegir cliente con `replace` saca el selector del historial; **(e)** el panel es un cuarto origen, no listado en el encargo |
+| Verificación | `typecheck` ✅ · `lint` **0 errores** (los 2 avisos de siempre) · **457/457** unitarias (+14) · `build` ✅ · `verify` ✅ · E2E de pagos **38/39** en la primera pasada, el fallo era afirmar `toBeDisabled` tras un `replace` ya hecho; aislado, **pasa**. `test:db` no se reejecutó: no hay cambio de esquema ni de RPC. Detalle en `TEST_RESULTS` |
+| Advertencias | **1)** No aceptes un `returnTo` con URL completa. **2)** No uses `router.back()` como único destino: recarga y PWA se quedan sin historial interno. **3)** `PaymentForm` se usa solo en el portal del vendedor (D-054). **4)** `FlowRegistrarAbono.txt` y `prueba-abono.csv` son del dueño; no se commitean |
+| Pendiente | **1)** Verificación visual con sesión real (I-066): vendedor → boleta, cliente y Pagos → registrar / cancelar / recargar. **2)** Publicar: este cambio **no está en producción**. **3)** Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063 |
+| Publicación | **No publicada.** Sin migración. No hacer push ni desplegar sin autorización expresa |
+| Git | Rama `main`, sobre `385b921`. Commit local al cerrar; no empujar ni desplegar sin autorización |
+
+## 1.a.0 Relevo anterior — editar el valor de un abono vigente (2026-08-28)
 
 | Campo | Estado |
 |---|---|
@@ -934,12 +948,15 @@ features/payments/components/TicketPaymentsCard  los abonos de UNA boleta, en lo
 features/payments/components/EditPaymentDialog  corregir el valor de UN abono (D-134).
                     Lo montan el historial de la boleta y el detalle de un pago.
                     No calcula saldo: llama a `updatePaymentAllocation`
-features/payments/return-to.ts  destino despues de guardar un abono (D-133). Pura:
-                    si el `ticketId` de la URL esta entre las boletas pagables
-                    de este cliente, el detalle de esa boleta; si no, «Mis pagos»
+features/payments/return-to.ts  destino de «Registrar abono» (D-133, D-135). Pura:
+                    `from` es allowlist (`ticket` · `client` · `payments` ·
+                    `dashboard`); `ticketId` solo cuenta si esta entre las
+                    boletas pagables. Un valor ajeno cae en «Mis pagos».
+                    `paymentNewHref` arma el enlace; no interpoles la URL a mano
 features/payments/components/PaymentForm  UN formulario para todos los origenes.
                     `returnTo` y `originTicketId` los calcula la pagina, no el
-                    formulario. No le anadas un almacén global
+                    formulario. Despues de guardar siempre `replace`. No le
+                    anadas un almacén global ni un `returnTo` arbitrario
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
 features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
                     ExportCsvButton

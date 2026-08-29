@@ -12,6 +12,7 @@ import { ClientTotals } from '@/features/clients/components/ClientTotals'
 import { getClientDetail } from '@/features/clients/queries'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
 import { listClientPayments } from '@/features/payments/queries'
+import { paymentNewHref } from '@/features/payments/return-to'
 import { ClientTicketsList } from '@/features/tickets/components/ClientTicketsList'
 import { listTickets } from '@/features/tickets/queries'
 
@@ -36,7 +37,7 @@ export default async function SellerClientDetailPage({
   // El mismo criterio de siempre: solo se ofrece cobrar lo que de verdad falta,
   // y a un cliente archivado no se le cobra (BR-C07).
   const canRegisterPayment = client.pendingAmount > 0 && !archived
-  const newPaymentHref = `/seller/payments/new?clientId=${client.id}`
+  const newPaymentHref = paymentNewHref({ from: 'client', clientId: client.id })
 
   return (
     <div className="space-y-5 md:space-y-6">
