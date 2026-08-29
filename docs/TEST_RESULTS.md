@@ -5027,3 +5027,24 @@ que solo existe en el disco de quien programa y que ningún CI mira. Queda docum
 `TESTING.md` §2.0 para que nadie lo «arregle de paso» dentro de otro cambio.
 
 Y el **trabajo en curso ajeno** de los cuatro archivos de arriba, que sigue en el árbol sin commit.
+
+### Promoción de `e2b604a` al proyecto real (2026-08-28)
+
+Sin migración. `verify:remote` **14/14** después del despliegue.
+
+| Comprobación | Resultado |
+|---|---|
+| CI sobre el commit | **2/2** |
+| Vercel | `READY` sobre `e2b604a` (`dpl_6BRay9N21Ypf7gEbpiAeKFfpjXuL`), `production`, alias `gestion-rifas.vercel.app` |
+| Cabeceras de seguridad en `/login` (200) | **6/6** |
+| Rutas protegidas | **4/4** en 307 |
+| Claves de servicio en lo servido | **0** en los 16 recursos (**1.030 KB**) |
+| Identificador de versión `ad94db8e07ba` (I-069) | en **1 de 16** fragmentos |
+| `verify:remote` | **14/14** |
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** el único cambio con huella observable habría sido
+el orden de clases de `ReportNav`, pero esa cadena vive en el JavaScript de la pantalla de
+**reportes**, que está tras el inicio de sesión y no se descarga desde `/login`. Se buscó en la hoja
+de estilos y no está ahí —el orden dentro del atributo `class` no deja rastro en la CSS—, así que la
+evidencia de que el build servido es este commit es el **identificador de versión**, que sí es
+concluyente. No se fuerza una comprobación que no aplica.
