@@ -5420,3 +5420,21 @@ Mantenimiento posterior a la Fase 9. Solo presentación: misma RPC, mismos permi
 
 Un primer intento de bloque `fixed` tapaba Fecha a 320×720. Se sustituyó por flex/rejilla en el flujo; D-138 lo documenta. El diseño de referencia pedía el bloque fijo; en un iPhone SE cubría el formulario.
 
+### Promoción a producción (2026-08-29)
+
+Autorizada expresamente por el dueño. **Sin migración**: el frontend se despliega solo.
+
+| Paso | Resultado |
+|---|---|
+| `db push --dry-run` | *Remote database is up to date* |
+| Push a `main` | `1d3fa54` |
+| CI | **2/2** (`33268480071`) |
+| Vercel | `READY` sobre **`1d3fa54`** (inspector `FH5QaA96gBhv4dMNUrWxLTa9zLBF`, despliegue GitHub `6158809626`), alias `gestion-rifas.vercel.app`, región `iad1` |
+| `npm run verify:remote` | **14/14** |
+
+#### En vivo
+
+6/6 cabeceras de seguridad en `/login` (200), cuatro rutas protegidas en 307, `/sw.js` en 200, **0** claves de servicio en los 17 recursos (**1.078 KB**), y el **identificador de versión** `d2cb88d2614e` —sha256 de `1d3fa54102…` recortado a 12 hex— encontrado en 1 de ellos (`/_next/static/immutable/chunks/2ciwba_0_oi-a.js`): el código servido es exactamente `1d3fa54` (método de I-069). **Además** la CSS de producción trae `.min-\[360px\]\:grid-cols-2` y `.h-\[52px\]`, que en toda la aplicación solo genera este rediseño.
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** el formulario vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → Registrar abono en el teléfono, nombre largo, varias boletas, teclado.
+
