@@ -5273,3 +5273,20 @@ Afirmar `toBeDisabled()` sobre «Registrar abono» justo después del clic es un
 10. En el teléfono: guardar y cancelar desde un cliente vuelven a esa ficha.
 
 No hay pantalla duplicada: una sola ruta `/seller/payments/new` y un solo `PaymentForm`.
+
+### Promoción de `f05c397` al proyecto real (2026-08-29)
+
+Sin migración. `db push --dry-run` reportó *Remote database is up to date*. `verify:remote` **14/14** después del despliegue.
+
+| Comprobación | Resultado |
+|---|---|
+| CI sobre el commit | **2/2** (`33254370934`) |
+| Vercel | `READY` sobre `f05c397` (inspector `E7QRes6sHKdmhsRf8vYHYy9b1y9w`), `production`, alias `gestion-rifas.vercel.app`, región `iad1` |
+| Cabeceras de seguridad en `/login` (200) | **6/6** (CSP con nonce, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) |
+| Rutas protegidas | **4/4** en 307 (`/owner/dashboard`, `/seller/dashboard`, `/owner/tickets`, `/seller/tickets`) |
+| `/sw.js` | **200** |
+| Claves de servicio en lo servido | **0** en los 16 recursos (**1.048 KB**) |
+| Identificador de versión `2276f1864055` (I-069) | en **1 de 16** recursos (`/_next/static/immutable/chunks/2-8avwak8t_oj.js`) |
+| `verify:remote` | **14/14** |
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** el flujo de abono vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → detalle de una boleta, ficha de un cliente o «Mis pagos» → Registrar abono → guardar o cancelar → la pantalla de origen, cifras al día.
