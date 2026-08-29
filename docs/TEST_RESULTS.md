@@ -5312,3 +5312,21 @@ Las 7 pruebas nuevas de `clientes-movil.spec.ts` cubren: tarjeta con nombre, ali
 Regresión de escritorio: la tabla sigue visible (`seller-clients.spec.ts`). El portal administrativo también pasa a tarjetas (`owner-responsive.spec.ts`). La búsqueda por celda de `busqueda-hibrida` sigue encontrando la tabla —ese spec corre en el proyecto `escritorio`.
 
 Capturas a 320, 375, 390, 430, 768 y 1.280 px: bajo `md` no hay tabla ni scroll horizontal; a partir de 768 se ve la tabla de siempre. El recuadro de filtros solo aparece desde `md`.
+
+### Promoción de `dc97949` al proyecto real (2026-08-29)
+
+Sin migración. `verify:remote` **14/14** después del despliegue.
+
+| Comprobación | Resultado |
+|---|---|
+| CI sobre el commit | **2/2** (`33256100419`) |
+| Vercel | `READY` sobre `dc97949` (despliegue GitHub `6156383566`), `production`, alias `gestion-rifas.vercel.app` |
+| Cabeceras de seguridad en `/login` (200) | **6/6** (CSP con nonce, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) |
+| Rutas protegidas | **4/4** en 307 (`/owner/dashboard`, `/seller/dashboard`, `/owner/tickets`, `/seller/tickets`) |
+| `/sw.js` | **200** |
+| Claves de servicio en lo servido | **0** en los 16 recursos (**1.073 KB**) |
+| Identificador de versión `13654f6048d5` (I-069) | en **1 de 16** recursos (`/_next/static/immutable/chunks/3zl4uf39ju6ym.js`) |
+| Huella CSS `.max-w-\[45\%\]` | **1** aparición en `3ou3k19_ue9gm.css` — solo la genera `ClientCardList` |
+| `verify:remote` | **14/14** |
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** la lista de clientes vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → Clientes en el teléfono → tarjetas, no tabla; tocar el pie abre el cliente; buscar e incluir archivados siguen igual.
