@@ -5459,3 +5459,28 @@ escritorio, al estrechar la ventana, no lo reproducía.
 abrirlo en un teléfono real (I-066): vendedor → Registrar abono → Fecha y Método en la misma fila,
 sin solaparse, la fecha entera, el desplegable usable.
 
+### Promoción a producción (2026-08-29)
+
+Autorizada expresamente por el dueño. **Sin migración**: el frontend se despliega solo.
+
+| Paso | Resultado |
+|---|---|
+| `db push --dry-run` | *Remote database is up to date* |
+| Push a `main` | `a0bbc97` |
+| CI | **2/2** (`33269749600`) |
+| Vercel | `READY` sobre **`a0bbc97`** (despliegue GitHub `6159052411`, URL única `gestion-rifas-eqx28941p-jimmyriveros-projects.vercel.app`), alias `gestion-rifas.vercel.app` |
+| `npm run verify:remote` | **14/14** |
+
+#### En vivo
+
+6/6 cabeceras de seguridad en `/login` (200), cuatro rutas protegidas en 307, `/sw.js` en 200, **0**
+claves de servicio en los 17 recursos (**1.101 KB**), y el **identificador de versión**
+`d441b021c0eb` —sha256 de `a0bbc97034…` recortado a 12 hex— encontrado en 1 de ellos
+(`/_next/static/immutable/chunks/3z5-90me2a-p4.js`): el código servido es exactamente `a0bbc97`
+(método de I-069). **Además** la CSS de producción trae `webkit-date-and-time-value`
+(`1k4itgfx-g15g.css`), que en toda la aplicación solo genera este arreglo.
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** el formulario vive tras el inicio de sesión. Un
+agente no entra con cuenta real (I-066). Quien lo vea: vendedor → Registrar abono **en el teléfono**.
+Si la PWA ya estaba instalada, el aviso de versión nueva recarga al pulsarlo.
+
