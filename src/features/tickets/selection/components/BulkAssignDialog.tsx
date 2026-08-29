@@ -56,7 +56,10 @@ export function BulkAssignDialog({
   // arriba muestran esto, no el total bruto de la seleccion (una boleta
   // bloqueada no debe sumar al "total a asignar" que ve el vendedor).
   const eligibleRows = rows.filter((row) => row.can.assign)
-  const eligibleTotal = eligibleRows.reduce((sum, row) => sum + (rafflePrices[row.raffleId] ?? 0), 0)
+  const eligibleTotal = eligibleRows.reduce(
+    (sum, row) => sum + (rafflePrices[row.raffleId] ?? 0),
+    0,
+  )
 
   // El precio se puede rebajar solo si TODAS coinciden en precio oficial y
   // limite (BR-P09). Con boletas de rifas distintas no hay un precio unico que
@@ -194,7 +197,11 @@ function SelectionSummary({
 
 /** Los dos numeros de cada boleta. Pocas se leen de un vistazo; muchas, con
  *  desplazamiento (seccion 31). */
-function SelectedNumbers({ rows }: { rows: { ticketId: string; dailyNumber: string | null; weeklyNumber: string | null }[] }) {
+function SelectedNumbers({
+  rows,
+}: {
+  rows: { ticketId: string; dailyNumber: string | null; weeklyNumber: string | null }[]
+}) {
   if (rows.length === 0) {
     return <p className="text-muted-foreground text-sm">Ninguna boleta se puede asignar.</p>
   }

@@ -292,8 +292,8 @@ export function AssignTicketsForm({
               <ClientFormFields form={form} disabled={isPending} compact />
 
               {showSummary ? (
-            <SaleSummary count={count} totalAmount={total} discount={discount} />
-          ) : null}
+                <SaleSummary count={count} totalAmount={total} discount={discount} />
+              ) : null}
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>

@@ -4908,3 +4908,122 @@ trae las huellas que **solo** genera D-132 —comprobadas leyendo su contenido, 
 
 **Lo que no se comprobó, y se dice:** el menú flotante vive tras el inicio de sesión, y automatizar
 ese acceso en producción con cuentas reales es lo que provocó I-066; **no se intentó**.
+
+---
+
+## Post-9 — Deuda de formato: 16 archivos reales de 53 reportados (2026-08-28)
+
+Nació de un diagnóstico **equivocado mío**, y por eso se cuenta entero. Al cerrar D-131 informé de que
+`src/components/layout/BottomNav.tsx` «no cumple Prettier» y lo dejé anotado como deuda previa del
+repositorio. **No lo era.**
+
+### Lo que pasaba de verdad
+
+El contenido guardado en git de ese archivo **ya estaba bien formateado**. Comprobado sacando el blob
+de `HEAD` a un archivo temporal **dentro del proyecto** —para que Prettier encuentre `.prettierrc`— y
+ejecutando `--check`: pasa limpio. Lo que fallaba era el **fin de línea de la copia de trabajo**: con
+`core.autocrlf=true`, git deja CRLF en el disco y Prettier espera LF.
+
+La trampa dentro de la trampa: el primer intento de comprobarlo puso el blob en el directorio de
+trabajo temporal del sistema, **fuera del proyecto**, donde Prettier no encuentra la configuración y
+comprueba contra sus valores por defecto (`semi: true`, comillas dobles, 80 columnas). Ahí «fallaba»
+por razones que no tienen nada que ver.
+
+### El recuento, hecho archivo por archivo
+
+| | |
+|---|---|
+| Archivos que `prettier --check` reporta en este equipo | **53** |
+| …que difieren **solo** en el fin de línea (CRLF del checkout) | **37** |
+| …con **deuda real** de formato | **16** |
+
+La clasificación no es una estimación: para cada archivo se normalizó CRLF → LF en memoria y se
+comparó con la salida de `prettier --stdin-filepath`. Si coincidían, el único problema era el fin de
+línea.
+
+**Después del arreglo, la deuda real es 0.** `format:check` sigue reportando archivos —57 al cerrar,
+más que los 53 del principio— y **todos** son fin de línea: el número sube y baja solo con las
+operaciones de git, porque cada `checkout`, `stash` o `add` reescribe archivos con CRLF. El recuento
+que importa no es el que imprime el comando, es el de la clasificación.
+
+### Los 16, y qué les cambió
+
+Nueve de `src/` y cuatro de `tests/` más tres de listas E2E. El cambio es **reflujo** en quince de
+ellos —los mismos tokens repartidos en otras líneas: una cadena que cabía en una sola, una línea de
+más de 100 columnas, un `? :` que Prettier junta— y en uno solo hay algo distinto:
+
+**`src/features/reports/components/ReportNav.tsx:49`** — el plugin de Tailwind **reordena las clases**
+dentro de la cadena:
+
+```
+antes:  'bg-primary text-primary-foreground border-primary font-medium hover:bg-primary/90'
+ahora:  'bg-primary text-primary-foreground border-primary hover:bg-primary/90 font-medium'
+```
+
+Es el único cambio que no es reflujo, y **no altera lo que se ve**: el orden dentro del atributo
+`class` no decide qué regla gana —lo decide el orden de la hoja de estilos—, y la forma nueva es la
+canónica que ya usaban `NavLinks`, `OptionList` y `Button`. Comprobado antes de aceptarlo que
+**ninguna prueba** afirma sobre esa cadena ni sobre un `className` literal (`toHaveClass`,
+`getAttribute('class')`: cero apariciones en `tests/`).
+
+### Comprobación
+
+| Comando | Resultado |
+|---|---|
+| `typecheck` | ✅ |
+| `lint` | ✅ **0 errores** (los 2 avisos de siempre) |
+| `test` (unitarias) | ✅ **432/432** |
+| `build` | ✅ |
+| `test:db` | ✅ **552/552** |
+| `test:e2e` | ✅ **320/320**, con base sembrada limpia |
+
+Las suites importan aquí más que de costumbre: cuatro de los 16 archivos **son pruebas**, y dos de
+ellos —`ticket-selection.test.ts` y `seleccion-multiple.spec.ts`— cubren la selección múltiple, que es
+donde un reflujo mal hecho se notaría.
+
+### Dos fallos E2E que aparecieron, y de quién resultó ser cada uno
+
+Ninguno de los dos era del formato, y los dos costaron trabajo demostrarlo. Se cuentan porque el
+siguiente que reformatee algo se va a encontrar lo mismo.
+
+**Fallo 1 — `filas-seleccionables.spec.ts:195`** («abre el detalle pulsando cualquier parte de la
+fila»), un `waitForURL` agotado esperando `/seller/tickets/<id>`. Como este trabajo tocó
+`ClientsTable.tsx`, había que descartarlo. Se aisló repitiendo **la misma prueba** en tres estados:
+
+| Estado del árbol | Resultado |
+|---|---|
+| Sin nada de este trabajo | **10/10** ✅ |
+| Solo el formato de los 16 | **10/10** ✅ |
+| El formato **más** un trabajo en curso ajeno, sin commit, que había en el árbol | **1 fallo en 27** |
+
+Ese trabajo en curso —«registrar un abono desde la boleta y volver a ella»— toca
+`src/app/(protected)/seller/tickets/[ticketId]/page.tsx`, que es **exactamente la pantalla a la que
+navega la prueba que falla**, más `payments/actions.ts`, `PaymentForm.tsx` y
+`seller/payments/new/page.tsx`. No es de este encargo y **no se tocó ni se subió**: se apartó con
+`git stash` para medir y se devolvió al árbol intacto, con copia de respaldo previa.
+
+**Fallo 2 — `back-navigation.spec.ts`,** que apareció dos veces con dos caras distintas y **ninguna
+era nueva**:
+
+| Cara | Causa | Ya estaba documentada |
+|---|---|---|
+| `:76` («editar rifa») en la pasada completa | La suite arrancó justo después de `npm run verify`, que reconstruye `.next`: caché **fría** | **I-075**, `TESTING` §3.3 |
+| `:25` («conserva búsqueda y filtro») al repetir la spec suelta | **Colisión de datos**: la prueba crea una boleta con número diario aleatorio y busca por él; con la base cargada de pasadas anteriores salieron **dos** boletas con diario `3117` (`3117 / 0000` y `3117 / 0288`) y el localizador encontró dos enlaces | La deriva de datos, sí; este caso concreto, no |
+
+La segunda tiene arreglo posible en la prueba —buscar por la combinación entera y no solo por el
+diario— pero **no se tocó**: no es de este encargo y la prueba pasa con la base sembrada limpia, que
+es como manda ejecutarla `TESTING` §2.1.
+
+**Lo que esto deja escrito para la próxima vez:** antes de culpar a un cambio propio de un fallo E2E,
+mirar **todo** lo que hay sin commit en el árbol, y comprobar las dos condiciones que ya están
+documentadas —caché caliente y base recién sembrada—. `git status` truncado con `head` fue lo que
+ocultó esos cuatro archivos ajenos durante buena parte del trabajo.
+
+### Lo que NO se tocó, a propósito
+
+Los **37 archivos de finales de línea**. Normalizarlos exige un `.gitattributes` con
+`* text=auto eol=lf` y reescribir el repositorio entero: mucho ruido en el historial para un problema
+que solo existe en el disco de quien programa y que ningún CI mira. Queda documentado en
+`TESTING.md` §2.0 para que nadie lo «arregle de paso» dentro de otro cambio.
+
+Y el **trabajo en curso ajeno** de los cuatro archivos de arriba, que sigue en el árbol sin commit.

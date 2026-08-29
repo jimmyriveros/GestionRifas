@@ -169,7 +169,10 @@ test.describe('Boletas', () => {
     )
 
     await page.getByRole('button', { name: /^Aprobar boletas/ }).click()
-    await page.getByRole('dialog').getByRole('button', { name: /^Aprobar \d+ boleta/ }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /^Aprobar \d+ boleta/ })
+      .click()
     await expectToast(page, /Se aprobaron \d+ boletas/)
   })
 

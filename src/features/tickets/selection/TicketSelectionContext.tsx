@@ -300,7 +300,5 @@ export function TicketSelectionProvider({
     viewingSelected,
   ])
 
-  return (
-    <TicketSelectionContext.Provider value={value}>{children}</TicketSelectionContext.Provider>
-  )
+  return <TicketSelectionContext.Provider value={value}>{children}</TicketSelectionContext.Provider>
 }

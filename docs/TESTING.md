@@ -35,6 +35,28 @@ unitaria/E2E que corresponde; el detalle trazable está en `TEST_RESULTS.md`.
 - **Datos de otra organización:** el seed incluye una segunda organización con su propio Owner y
   vendedor, exclusivamente para probar el aislamiento.
 
+### 2.0 `format:check` no está en `verify` ni en el CI, y la mayoría de lo que reporta es ruido
+
+`npm run verify` corre `typecheck`, `lint`, `test` y `build`; el CI corre eso mismo más
+`test:db` (`.github/workflows/ci.yml`). **`npm run format:check` no está en ninguno de los dos**, así
+que un archivo mal formateado nunca ha roto una construcción y no la romperá.
+
+Si lo ejecutas, léelo con cuidado: el 2026-08-28 reportaba **53 archivos**, y **37 de ellos diferían
+solo en el fin de línea**. Con `core.autocrlf=true` —lo normal en Windows— git deja CRLF en el disco,
+Prettier espera LF, y los marca sin que haya nada malo en lo guardado. Se distingue así:
+
+```bash
+git show HEAD:<archivo> > src/__tmp.tsx && npx prettier --check src/__tmp.tsx; rm src/__tmp.tsx
+```
+
+El archivo temporal tiene que estar **dentro del proyecto**: fuera, Prettier no encuentra
+`.prettierrc` y comprueba contra sus valores por defecto, que no son los de aquí.
+
+Los **16 con deuda real** se corrigieron ese día. Los finales de línea **no se tocaron a propósito**:
+normalizarlos exige un `.gitattributes` con `* text=auto eol=lf` y una reescritura del repositorio
+entero, que es mucho ruido en el historial para un problema que solo existe en el disco de quien
+programa. **No lo arregles «de paso» dentro de otro cambio.**
+
 Estructura mínima de una prueba de RLS:
 
 ```ts

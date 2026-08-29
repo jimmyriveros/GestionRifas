@@ -56,8 +56,8 @@ export function CommissionCard({
           <p className="text-muted-foreground text-sm">
             {byTiers ? (
               <>
-                Ganas {formatCOP(firstTierRate)} por cada boleta que te paguen completa. Cuantas
-                más cobres, más vale cada una.
+                Ganas {formatCOP(firstTierRate)} por cada boleta que te paguen completa. Cuantas más
+                cobres, más vale cada una.
               </>
             ) : (
               <>

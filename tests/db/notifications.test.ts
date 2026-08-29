@@ -53,11 +53,7 @@ const createdTicketIds: string[] = []
 const createdClientIds: string[] = []
 
 /** Crea un vendedor. Con `parentId`, queda dentro de ese equipo. */
-async function createSeller(
-  email: string,
-  name: string,
-  parentId: string | null,
-): Promise<string> {
+async function createSeller(email: string, name: string, parentId: string | null): Promise<string> {
   const { data, error } = await ctx.svc.auth.admin.createUser({
     email,
     password: SEED_PASSWORD,

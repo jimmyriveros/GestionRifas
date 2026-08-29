@@ -37,10 +37,7 @@ export async function getNotificationFeed(): Promise<NotificationFeed> {
       .limit(FEED_SIZE),
     // Conteo EXACTO en SQL: contar las filas traidas diria «10» en cuanto
     // hubiera once (I-011, mismo motivo que en el resto del proyecto).
-    supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .is('read_at', null),
+    supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
   ])
 
   if (error) throw error

@@ -233,7 +233,9 @@ test.describe('Acciones masivas de Dueño y Administrador', () => {
     await expect(recuento(page)).toHaveText('')
   })
 
-  test('TODO O NADA: una boleta anulada dentro del grupo bloquea la anulación', async ({ page }) => {
+  test('TODO O NADA: una boleta anulada dentro del grupo bloquea la anulación', async ({
+    page,
+  }) => {
     const buena = await nuevaBoleta()
     const anulada = await nuevaBoleta()
     // Preparacion del estado de partida con la service role: `cancel_ticket`

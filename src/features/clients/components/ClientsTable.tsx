@@ -26,7 +26,10 @@ export function ClientsTable({ clients, basePath, showSeller = false }: ClientsT
         header: 'Cliente',
         cell: ({ row }) => (
           <div className="min-w-40">
-            <RowLink href={`${basePath}/${row.original.id}`} className="font-medium hover:underline">
+            <RowLink
+              href={`${basePath}/${row.original.id}`}
+              className="font-medium hover:underline"
+            >
               {row.original.name}
             </RowLink>
             {row.original.alias ? (

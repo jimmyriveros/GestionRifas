@@ -175,8 +175,12 @@ test.describe('Listas paginadas: boletas y clientes', () => {
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/tickets?page=2')
 
-    await page.getByRole('searchbox', { name: 'Buscar por número de boleta o por cliente' }).fill('0100')
-    await page.getByRole('searchbox', { name: 'Buscar por número de boleta o por cliente' }).press('Enter')
+    await page
+      .getByRole('searchbox', { name: 'Buscar por número de boleta o por cliente' })
+      .fill('0100')
+    await page
+      .getByRole('searchbox', { name: 'Buscar por número de boleta o por cliente' })
+      .press('Enter')
 
     await expect(page).toHaveURL(/q=0100/)
     // Quedarse en la pagina 2 de otra busqueda muestra una lista vacia sin motivo.
@@ -187,8 +191,12 @@ test.describe('Listas paginadas: boletas y clientes', () => {
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/tickets?inventoryStatus=available')
 
-    await page.getByRole('searchbox', { name: 'Buscar por número de boleta o por cliente' }).fill('0100')
-    await page.getByRole('searchbox', { name: 'Buscar por número de boleta o por cliente' }).press('Enter')
+    await page
+      .getByRole('searchbox', { name: 'Buscar por número de boleta o por cliente' })
+      .fill('0100')
+    await page
+      .getByRole('searchbox', { name: 'Buscar por número de boleta o por cliente' })
+      .press('Enter')
 
     await expect(page).toHaveURL(/q=0100/)
     await expect(page).toHaveURL(/inventoryStatus=available/)

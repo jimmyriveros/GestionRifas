@@ -112,9 +112,7 @@ export function BulkActionDialog({
                 className="space-y-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-800 dark:bg-amber-950"
               >
                 <p className="font-medium">No se puede continuar todavía.</p>
-                {blocked.length > 0 ? (
-                  <BlockedList rows={blocked} action={action} />
-                ) : null}
+                {blocked.length > 0 ? <BlockedList rows={blocked} action={action} /> : null}
                 {missingCount > 0 ? (
                   <p>
                     {missingCount === 1

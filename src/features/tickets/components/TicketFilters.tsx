@@ -98,12 +98,7 @@ const FILTER_KEYS = [
  * La hoja solo existe en el DOM mientras esta abierta, y solo se puede abrir
  * bajo `md`: en escritorio no hay etiquetas duplicadas.
  */
-export function TicketFilters({
-  raffles,
-  sellers,
-  clients,
-  secondaryAction,
-}: TicketFiltersProps) {
+export function TicketFilters({ raffles, sellers, clients, secondaryAction }: TicketFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()

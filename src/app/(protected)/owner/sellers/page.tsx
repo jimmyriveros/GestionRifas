@@ -11,10 +11,7 @@ import { requireStaff } from '@/lib/auth/guards'
 export default async function SellersPage() {
   const membership = await requireStaff()
 
-  const [sellers, comisiones] = await Promise.all([
-    listSellersWithTotals(),
-    getCommissionContext(),
-  ])
+  const [sellers, comisiones] = await Promise.all([listSellersWithTotals(), getCommissionContext()])
 
   // La estructura comercial, derivada de la misma lista: quien tiene equipo,
   // quien pertenece al de alguien y quien no (BR-E08). Sin consultas nuevas.

@@ -101,7 +101,20 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — el menú se abre flotando donde no cabe (2026-08-28)
+## 1.a Último relevo significativo — deuda de formato, y un diagnóstico mío que estaba mal (2026-08-28)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **16 archivos reformateados con Prettier. Cero cambios de comportamiento.** Salió de un error mío: al cerrar D-131 informé de que `BottomNav.tsx` «no cumple Prettier» y **no era cierto** — su contenido guardado estaba bien, lo que fallaba era el **fin de línea de la copia de trabajo** (CRLF, `core.autocrlf=true`). Al medirlo en serio: `format:check` reportaba **53** archivos, **37 solo por el fin de línea** y **16 con deuda real**. Se corrigieron esos 16. `Query changes: None` · `Business logic changes: None` · `Route changes: None` · `Migrations: None` · `New dependencies: None` |
+| Archivos | Los **16**: `owner/sellers/page.tsx`, `CollectionSummaryCard.tsx`, `ClientsTable.tsx`, `CommissionCard.tsx`, `notifications/queries.ts`, `ReportNav.tsx`, `AssignTicketsForm.tsx`, `TicketFilters.tsx`, `BulkActionDialog.tsx`, `BulkAssignDialog.tsx`, `TicketSelectionContext.tsx`, `db/notifications.test.ts`, `e2e/busqueda-hibrida.spec.ts`, `e2e/owner-tickets.spec.ts`, `e2e/seleccion-multiple.spec.ts`, `unit/ticket-selection.test.ts`. Documentación: `TESTING` **§2.0** (nueva) y `TEST_RESULTS` |
+| Reutilización | No aplica: no hay código nuevo, solo el reflujo que impone `.prettierrc` |
+| Decisiones | Sin `D-*`: no hay decisión de diseño. Sí dos cosas que conviene saber. **(a)** Quince de los 16 son **reflujo** —los mismos tokens en otras líneas—; el que no lo es, `ReportNav.tsx:49`, es el plugin de Tailwind **reordenando clases** dentro de la cadena, que no cambia lo que se ve —el orden del atributo `class` no decide qué regla gana— y deja la forma canónica que ya usaban `NavLinks`, `OptionList` y `Button`. Comprobado antes de aceptarlo que **ninguna prueba** afirma sobre esa cadena ni sobre un `className` literal. **(b)** Los **37 de fin de línea NO se tocaron**: normalizarlos exige `.gitattributes` y reescribir el repositorio entero, mucho ruido para algo que solo existe en el disco de quien programa (`TESTING` §2.0) |
+| Verificación | `typecheck` ✅ · `lint` **0 errores** (los 2 avisos de siempre) · **432/432** unitarias · `build` ✅ · **`test:db` 552/552** · **E2E 320/320** con base sembrada limpia. Importa que las suites pasen enteras porque **cuatro de los 16 son pruebas**, dos de ellas de selección múltiple |
+| Advertencias | **1) HAY TRABAJO EN CURSO AJENO EN EL ÁRBOL, SIN COMMIT, Y NO SE SUBIÓ**: cuatro archivos de «registrar un abono desde la boleta y volver a ella» — `seller/payments/new/page.tsx`, `seller/tickets/[ticketId]/page.tsx`, `payments/actions.ts` y `PaymentForm.tsx` (85 líneas). Se apartó con `git stash` **solo para medir**, se devolvió intacto y hay copia de respaldo. **No es de este encargo; decide su dueño qué hacer con él.** **2) Ese trabajo en curso es el sospechoso de un fallo E2E** que apareció en la primera pasada (`filas-seleccionables.spec.ts:195`): toca justo la pantalla a la que navega esa prueba, y aislándolo la prueba pasa **10/10** sin él y **10/10** con solo el formato. **3) `format:check` no está en `verify` ni en el CI**, así que esto nunca rompió una construcción ni la romperá. **4) `git status` truncado con `head` fue lo que ocultó esos cuatro archivos**: no lo trunques cuando lo que buscas es «qué hay sin commit» |
+| Pendiente | **1)** Decidir qué se hace con el trabajo en curso de los cuatro archivos de pagos. **2)** Si algún día molesta el ruido de `format:check`, el arreglo es `.gitattributes` con `* text=auto eol=lf`, en un cambio **propio** y no dentro de otro. **3)** Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-066, I-062, I-063 |
+| Git | Rama `main`, sobre `d6d19a7` |
+
+## 1.a.0 Relevo anterior — el menú se abre flotando donde no cabe (2026-08-28)
 
 | Campo | Estado |
 |---|---|

@@ -50,9 +50,7 @@ export function CollectionSummaryCard({
               </div>
               <div className="sm:text-right">
                 <p className="text-muted-foreground text-xs">Te falta cobrar</p>
-                <p className="text-lg font-semibold tabular-nums">
-                  {formatCOP(safePendingAmount)}
-                </p>
+                <p className="text-lg font-semibold tabular-nums">{formatCOP(safePendingAmount)}</p>
               </div>
             </div>
 

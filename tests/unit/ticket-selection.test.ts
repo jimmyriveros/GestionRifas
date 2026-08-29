@@ -52,7 +52,9 @@ describe('elegibilidad de las acciones masivas', () => {
   it('cuenta cuantas admiten cada accion', () => {
     const filas = [
       boleta(),
-      boleta({ can: { approve: false, assign: false, cancel: true, changeSeller: true, delete: false } }),
+      boleta({
+        can: { approve: false, assign: false, cancel: true, changeSeller: true, delete: false },
+      }),
     ]
 
     expect(countEligible(filas, 'assign')).toBe(1)
@@ -84,12 +86,19 @@ describe('por que no se puede', () => {
   const casos: { accion: BulkAction; fila: TicketEligibility; espera: RegExp }[] = [
     {
       accion: 'assign',
-      fila: boleta({ inventoryStatus: 'assigned', hasClient: true, can: { ...boleta().can, assign: false } }),
+      fila: boleta({
+        inventoryStatus: 'assigned',
+        hasClient: true,
+        can: { ...boleta().can, assign: false },
+      }),
       espera: /vendida/i,
     },
     {
       accion: 'assign',
-      fila: boleta({ inventoryStatus: 'pending_approval', can: { ...boleta().can, assign: false } }),
+      fila: boleta({
+        inventoryStatus: 'pending_approval',
+        can: { ...boleta().can, assign: false },
+      }),
       espera: /apruebe/i,
     },
     {
@@ -133,7 +142,10 @@ describe('por que no se puede', () => {
   })
 
   it('una boleta anulada explica que sus numeros quedan reservados (BR-N08)', () => {
-    const anulada = boleta({ inventoryStatus: 'cancelled', can: { ...boleta().can, delete: false } })
+    const anulada = boleta({
+      inventoryStatus: 'cancelled',
+      can: { ...boleta().can, delete: false },
+    })
     expect(whyNot(anulada, 'delete')).toContain('reservados')
   })
 })
