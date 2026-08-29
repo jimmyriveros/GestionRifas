@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.16 · **Estado:** implementado · **Actualizado:** 2026-08-29
+- **Versión:** 1.17 · **Estado:** implementado · **Actualizado:** 2026-08-29
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -1148,6 +1148,13 @@ escritorio los botones vuelven a su tamaño de siempre, en fila.
 
 **Precio y Abonado de la tabla** pasan a `lg:table-cell`: entre `md` y `lg` el input de «Abona ahora»
 necesita el ancho que esas dos columnas le quitaban.
+
+**Fecha no se monta encima de Método (D-139).** En iPhone, Android y la PWA el `input type=date`
+nativo se pinta como `menulist-button` y su ancho mínimo (la fecha más el cromo interno) desborda
+la celda del 50 %. En el navegador de escritorio, al estrechar la ventana, el mismo input sí
+respeta `width: 100 %`, y por eso la prueba en Chromium no lo veía. El arreglo no es apilar los
+campos ni subir el corte de 360 px: es `appearance: none` más `min-width: 0` en los
+pseudoelementos de WebKit, una sola vez en `globals.css`, para todos los `type=date`.
 
 ---
 

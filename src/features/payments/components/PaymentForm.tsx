@@ -213,6 +213,12 @@ export function PaymentForm({
             </p>
           </div>
 
+          {/*
+            Fecha y Metodo al 50 % desde 360 px (D-138). El input nativo de
+            fecha en iPhone/Android ignoraba ese 50 % y se montaba encima del
+            metodo: el arreglo es `appearance: none` en globals.css (D-139),
+            no apilarlos ni subir el corte.
+          */}
           <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
             <div className="min-w-0 space-y-1.5">
               <Label htmlFor="payment-date">Fecha</Label>
@@ -222,7 +228,7 @@ export function PaymentForm({
                 value={paymentDate}
                 onChange={(event) => setPaymentDate(event.target.value)}
                 disabled={isPending}
-                className={TOUCH_FIELD}
+                className={cn('max-w-full', TOUCH_FIELD)}
               />
             </div>
 
@@ -233,7 +239,10 @@ export function PaymentForm({
                 onValueChange={(value) => setMethod(value as PaymentMethod)}
                 disabled={isPending}
               >
-                <SelectTrigger id="payment-method" className={cn('w-full min-w-0', TOUCH_FIELD)}>
+                <SelectTrigger
+                  id="payment-method"
+                  className={cn('w-full min-w-0 max-w-full', TOUCH_FIELD)}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

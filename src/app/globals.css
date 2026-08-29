@@ -289,3 +289,56 @@
     }
   }
 }
+
+/*
+ * Fecha nativa en iPhone, Android y PWA (D-139).
+ *
+ * `input[type=date]` en WebKit iOS y en Chrome Android se pinta como un
+ * `menulist-button`: su ancho lo decide el control nativo —la fecha
+ * `29/08/2026` mas el cromo interno—, no `width: 100%`. En escritorio, al
+ * estrechar la ventana, el mismo input SI respeta la rejilla; por eso el
+ * solapamiento no se ve al emular el telefono desde el navegador, y la
+ * prueba E2E en Chromium de Pixel 7 tampoco lo veia.
+ *
+ * `appearance: none` lo convierte en una caja normal. Los pseudoelementos
+ * de WebKit (`::-webkit-date-and-time-value` en iOS 15+) son los que
+ * empujan el minimo; sin `min-width: 0` y `text-align: left` el hospedador
+ * vuelve a crecer. El icono del calendario de Chrome se queda: no es el
+ * `appearance`, es `::-webkit-calendar-picker-indicator`.
+ *
+ * Tocar aqui cubre TODOS los `type=date` de la aplicacion, no solo el
+ * formulario de abono. Un cambio de aspecto local no arreglaria el de
+ * filtros ni el de una rifa nueva el dia que se estrechen.
+ */
+@layer base {
+  input[type='date'] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+    align-items: center;
+    overflow: hidden;
+    field-sizing: fixed;
+  }
+
+  input[type='date']::-webkit-date-and-time-value {
+    min-width: 0;
+    text-align: left;
+  }
+
+  input[type='date']::-webkit-datetime-edit {
+    min-width: 0;
+    flex: 1 1 auto;
+    padding: 0;
+  }
+
+  input[type='date']::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator {
+    margin-inline-start: auto;
+    flex-shrink: 0;
+  }
+}

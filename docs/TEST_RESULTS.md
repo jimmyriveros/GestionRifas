@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **465 ✅** | **587 ✅** | **320 ✅** + D-133 a D-137 + **8** de D-138 | ✅ | ✅ |
+| Post-9 vigente | **465 ✅** | **587 ✅** | **320 ✅** + D-133 a D-137 + **8** de D-138 (revalidadas con D-139) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -5437,4 +5437,25 @@ Autorizada expresamente por el dueño. **Sin migración**: el frontend se despli
 6/6 cabeceras de seguridad en `/login` (200), cuatro rutas protegidas en 307, `/sw.js` en 200, **0** claves de servicio en los 17 recursos (**1.078 KB**), y el **identificador de versión** `d2cb88d2614e` —sha256 de `1d3fa54102…` recortado a 12 hex— encontrado en 1 de ellos (`/_next/static/immutable/chunks/2ciwba_0_oi-a.js`): el código servido es exactamente `1d3fa54` (método de I-069). **Además** la CSS de producción trae `.min-\[360px\]\:grid-cols-2` y `.h-\[52px\]`, que en toda la aplicación solo genera este rediseño.
 
 **Lo que NO se pudo comprobar en vivo, y se dice:** el formulario vive tras el inicio de sesión. Un agente no entra con cuenta real (I-066). Quien lo vea: vendedor → Registrar abono en el teléfono, nombre largo, varias boletas, teclado.
+
+---
+
+## Fecha ya no tapa Método en «Registrar abono» (D-139, I-079) — 2026-08-29
+
+Mantenimiento posterior a la Fase 9. Solo presentación del `input type=date`. Misma RPC, mismos
+permisos, sin migración. Reportado por el dueño con captura en un teléfono real; el navegador de
+escritorio, al estrechar la ventana, no lo reproducía.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint` sobre `PaymentForm.tsx` y la spec | **0 errores** | `globals.css` no entra en ESLint (aviso de siempre) | — |
+| `npx vitest run` | **465/465** | — | — |
+| `npx playwright test tests/e2e/abono-registrar-movil.spec.ts --project=movil` | **8/8** | — | La prueba de Fecha/Método ahora clava `appearance: none` y el corte a 360 px. Chromium **no** reproduce el desborde de tinta de iOS; eso se dice en I-079 |
+
+`test:db` no se reejecutó: no hay cambio de esquema ni de RPC.
+
+**Lo que NO se pudo comprobar aquí, y se dice:** no hay iPhone ni Android en este entorno. Hay que
+abrirlo en un teléfono real (I-066): vendedor → Registrar abono → Fecha y Método en la misma fila,
+sin solaparse, la fecha entera, el desplegable usable.
 

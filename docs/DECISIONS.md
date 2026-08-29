@@ -5217,6 +5217,32 @@ Esconder ese bloque al enfocar un input: ocultaba «Registrar abono» y obligaba
 
 ---
 
+## D-139 — El `input type=date` del teléfono no cabe en la mitad de la tarjeta
+
+**Fase:** mantenimiento posterior a la Fase 9 (reportado por el usuario, 2026-08-29)
+
+**Contexto.** D-138 puso Fecha y Método al 50 % desde 360 px. En el navegador de escritorio, al
+estrechar la ventana, se veía bien. En iPhone, Android y la PWA el campo Fecha se montaba encima
+del desplegable Método. La prueba E2E de Pixel 7 no lo veía: Chromium respeta `width: 100 %` en el
+date; WebKit iOS y Chrome Android pintan el control nativo como `menulist-button`, cuyo ancho
+mínimo es el de `29/08/2026` más el cromo interno, y lo pintan por encima de la celda vecina.
+
+**Decisión.** Se deja la fila a dos columnas. El control nativo pasa a `appearance: none` y se le
+recorta el mínimo de los pseudoelementos `::-webkit-date-and-time-value` y
+`::-webkit-datetime-edit`. La regla vive en `globals.css` porque el defecto es del elemento, no
+del formulario: cualquier `type=date` en una columna estrecha lo sufriría. El icono del
+calendario de Chrome se queda (`::-webkit-calendar-picker-indicator`); en iOS el campo entero
+sigue abriendo la rueda nativa.
+
+**Qué no se tocó.** Lógica de abono, validación, RPC, textos, el punto de corte de 360 px.
+
+**Alternativas descartadas.** (a) Apilar siempre en el teléfono: el diseño pide la fila, y a 360 px
+sí caben una vez el control respeta el ancho. (b) Un date picker propio: fuera de alcance y
+cambiaría el gesto nativo. (c) Subir el corte a `sm`: escondería el problema en vez de arreglar
+el control.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

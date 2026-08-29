@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.9 · **Actualizado:** 2026-08-29
+- **Versión:** 2.10 · **Actualizado:** 2026-08-29
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -76,7 +76,10 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
   asignada (D-137) vive en `precio-venta-editar.spec.ts` (escritorio) y
   `precio-venta-editar-movil.spec.ts` (teléfono). El rediseño de «Registrar abono»
   (D-138) vive en `abono-registrar-movil.spec.ts`; la lógica de dinero sigue en
-  `payments.spec.ts`.
+  `payments.spec.ts`. Esa misma spec clava **D-139** (`appearance: none` del date y
+  que a 360 px Fecha no se monta encima de Método). Playwright en Chromium **no
+  reproduce** el desborde de tinta de iOS/Android; una pasada verde no sustituye
+  mirarlo en un teléfono (I-079, I-066).
 - **Servidor:** el propio Playwright levanta `npm run dev:local`, que apunta **siempre** a la
   instancia local (D-047). Nunca se ejecutan contra el proyecto real.
 - **Requisito previo:** base local sembrada (`npm run db:reset && npm run seed:local`).

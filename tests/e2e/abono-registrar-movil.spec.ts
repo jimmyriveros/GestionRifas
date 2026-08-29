@@ -153,10 +153,32 @@ test.describe('Registrar abono en el teléfono', () => {
 
     await page.goto(`/seller/payments/new?clientId=${cliente.id}`)
 
-    const fecha = (await page.getByLabel('Fecha').boundingBox())!
-    const metodo = (await page.getByLabel('Método').boundingBox())!
-    expect(Math.abs(fecha.y - metodo.y)).toBeLessThan(8)
-    expect(metodo.x).toBeGreaterThan(fecha.x + fecha.width - 1)
+    const fechaInput = page.getByLabel('Fecha')
+    const metodoInput = page.getByLabel('Método')
+
+    async function noSeMontan() {
+      const fecha = (await fechaInput.boundingBox())!
+      const metodo = (await metodoInput.boundingBox())!
+      expect(Math.abs(fecha.y - metodo.y)).toBeLessThan(8)
+      expect(metodo.x).toBeGreaterThan(fecha.x + fecha.width - 1)
+      expect(fecha.x + fecha.width).toBeLessThanOrEqual(metodo.x + 1)
+    }
+
+    await noSeMontan()
+
+    /*
+     * D-139: en iPhone/Android el control nativo ignoraba el 50 % y se
+     * pintaba encima de Metodo. Chromium de Playwright no reproduce ese
+     * desborde de tinta; lo que SI se puede clavar aqui es que el input
+     * ya no es un menulist-button (`appearance: none`) y que, en el corte
+     * mas estrecho de dos columnas (360 px), las cajas de maquetacion no
+     * se pisan.
+     */
+    const appearance = await fechaInput.evaluate((el) => getComputedStyle(el).appearance)
+    expect(appearance).toBe('none')
+
+    await page.setViewportSize({ width: 360, height: 720 })
+    await noSeMontan()
   })
 
   test('los botones van a ancho completo encima de la barra inferior', async ({ page }) => {
