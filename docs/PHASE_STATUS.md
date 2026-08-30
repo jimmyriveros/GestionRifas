@@ -3,9 +3,9 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-08-30 (D-140..D-142, Etapa 1 de resultados de loterías)
+- **Actualizado:** 2026-08-30 (D-143, D-144, Etapa 2 de resultados de loterías)
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
-  Etapa 1 de resultados oficiales de loterías **en local** (migración `0036`); no producción.
+  Etapas 1 y 2 de resultados oficiales de loterías **en local** (`0036` + adaptadores); no producción.
 - **Fase siguiente:** ninguna autorizada
 - **Aviso operativo:** producción **sigue siendo el seed de desarrollo** — dos organizaciones y
   cuatro cuentas `@demo.test` que pueden iniciar sesión (**I-077**, abierto el 2026-08-27). Decidirlo
@@ -16,7 +16,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 | Clasificación | Estado actual |
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) |
-| **En curso** | Resultados oficiales de loterías: **Etapa 1 completa en local** (`0036`, D-140..D-142). Sin scraping, sin Panel, sin avisos, **sin producción**. Etapas 2 a 5 pendientes; la 6 exige autorización expresa |
+| **En curso** | Resultados oficiales de loterías: **Etapas 1 y 2 completas en local** (`0036`, D-140..D-144). Adaptadores testeables, sin cron, sin Panel, sin avisos, **sin producción**. Etapas 3 a 5 pendientes; la 6 exige autorización expresa |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
 
@@ -2833,3 +2833,57 @@ tampoco existía antes.
 **Lo que falta y no puede hacer un agente:** entrar con una sesión real, estrechar la ventana por
 debajo de 1.360 px y abrir el menú flotante. Exige contraseñas reales, y automatizar eso es lo que
 provocó I-066.
+
+---
+
+## Mantenimiento post-9 — resultados de loterías, Etapa 2 (2026-08-30)
+
+**Encargo:** `ResultadosLoterias.txt` Etapa 2, autorizada expresamente («continúa con la etapa 2»).
+Adaptadores de fuentes oficiales, testeables, **sin** activar cron, matching, avisos ni Panel.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Descubrimiento CNJSA | Lee la página estable; elige el xlsx consolidado del año; no fija `idFile`; clasifica Acuerdo 887 / 889 / 888 |
+| Cronograma ordinarios | ZIP (store + deflate) + XML. Hoja Extraordinarios descartada. 312 sorteos de las seis loterías en el archivo vigente |
+| Fecha de referencia (D-143) | Día nominal de la misma semana lunes–domingo. Casos 2026 revalidados contra el xlsx oficial |
+| Resultados | Un extractor por lotería: sorteo, fecha, premio mayor, serie. Ceros conservados. Extra de Medellín rechazado |
+| Descarga (D-144) | HTTPS, allowlist, 15 s, 2 MB, 5 redirecciones. `server-only`. `download*` existe y no está programada |
+| Fallos seguros | Cloudflare / Imunify / SPA vacía / PDF / estructura cambiada / dato ambiguo: no se inventa un número |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` en verde: `typecheck` ✅, `lint` **0 errores** (2 avisos de siempre), **499/499**
+unitarias (+29: 24 de adaptadores y 5 de descarga) y `build` ✅. **`test:db` 609/609** —sin cambios
+de esquema—. E2E no se reejecuta: no hay UI.
+
+Un fallo encontrado y corregido: el extractor de Medellín tomaba «Sorteo número 4850» como premio
+mayor en vez de 2608. `tsc` falló en la primera pasada por `noUncheckedIndexedAccess` y se corrigió
+antes del verify.
+
+El xlsx oficial se parseó una vez fuera de la suite (deflate, 98.970 bytes) y **no se commitea**.
+
+### 3. Migraciones
+
+**Ninguna.** La Etapa 1 dejó `0036`, todavía solo local.
+
+### 4. Variables de entorno
+
+**Ninguna nueva.**
+
+### 5. Problemas que permanecen
+
+**I-081:** Cundinamarca es SPA (el JSON oficial exige sorteo y número), Cruz Roja responde Imunify,
+Bogotá responde Cloudflare. No se elude. Siguen abiertos I-077, I-072, I-074, I-075, I-068, I-062
+e I-063.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **No actives el cron ni llames `download*` desde una página.** La Etapa 3 orquesta; el Panel
+   solo lee datos locales.
+2. **No fijes un `idFile`.** El consolidado se descubre cada vez.
+3. **No eludas I-081** ni uses un agregador. Cundinamarca se consulta por JSON cuando el sorteo
+   ya es conocido.
+4. **`tickets_select` no se toca.** `match_lottery_result` sigue siendo `service_role`.
+5. **No hay etiqueta `fase-N`.** Es mantenimiento posterior al plan.

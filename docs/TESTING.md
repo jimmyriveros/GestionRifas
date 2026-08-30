@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.11 · **Actualizado:** 2026-08-30
+- **Versión:** 2.12 · **Actualizado:** 2026-08-30
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -267,7 +267,8 @@ completa en frío da `293 passed, 1 failed`; en caliente, `294 passed`.
 | DB-27 | Usuario desactivado consultando cualquier tabla | Cero filas |
 | DB-28 | Consulta a una vista como Seller A | Solo datos propios (verifica `security_invoker`) |
 
-Casos de loterías (Etapa 1, `tests/db/lottery-results.test.ts` y `tests/unit/lottery-constants.test.ts`):
+Casos de loterías (Etapa 1, `tests/db/lottery-results.test.ts` y `tests/unit/lottery-constants.test.ts`;
+Etapa 2, `tests/unit/lottery-adapters.test.ts` y `tests/unit/lottery-fetch.test.ts`):
 
 | ID | Caso | Resultado esperado |
 |----|------|--------------------|
@@ -281,6 +282,13 @@ Casos de loterías (Etapa 1, `tests/db/lottery-results.test.ts` y `tests/unit/lo
 | L-08 | Vendedor lee coincidencias | Solo las suyas; la boleta ajena sigue oculta |
 | L-09 | Owner lee coincidencias | Solo su organización |
 | L-10 | `match_lottery_result` desde una sesión | Denegado |
+| L-11 | Bogotá 2840 adelantado al 31 de marzo | `reference_date` = 2026-04-02; `rescheduled_earlier` |
+| L-12 | Cruz Roja 3183 aplazada al 10 de diciembre | `reference_date` = 2026-12-08; no «siguiente hábil» |
+| L-13 | `0046` extraído de HTML | Se conserva como texto; no se convierte en `46` |
+| L-14 | Medellín extra 0018 en la misma página que 4850 | Premio mayor `2608`, no el número de sorteo ni el extra |
+| L-15 | Host fuera de allowlist, HTTP o redirección ajena | `blocked_host` / `blocked_redirect` |
+| L-16 | Cloudflare, Imunify o SPA vacía | `source_blocked` / `ambiguous`; no se inventa un número |
+| L-17 | Acuerdo PDF o xlsx sin hoja de ordinarios | `unsupported_type` / `parse_error` |
 
 Verificaciones de catálogo (automatizadas, Fases 2, 7 y 9):
 

@@ -23,9 +23,26 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **470 ✅** | **609 ✅** | (E2E no tocadas en Etapa 1) | ✅ | ✅ |
+| Post-9 vigente | **499 ✅** | **609 ✅** | (E2E no tocadas en Etapa 2) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Etapa 2 resultados de loterías (2026-08-30)
+
+Adaptadores testeables. Sin cron, sin matching en vivo, sin Panel. Sin migración.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| Inspección en vivo de rutas oficiales (Node `fetch`, no forma parte de la suite) | CNJSA xlsx consolidado ~98.970 bytes, hojas `2026` / `Extraordinarios` / `Ordinarios`, 52×6 ordinarios | Bogotá 403 Cloudflare; Cundinamarca SPA; Cruz Roja Imunify | I-081: se registra, no se elude. Los adaptadores se prueban con fixtures |
+| Parser propio sobre el xlsx oficial (deflate, una vez, no commiteado) | 312 sorteos, 43 extra descartados; casos 2026 coinciden con D-143 | `find(drawNumber === '4829')` chocaba con Cundinamarca 4829 | Las pruebas buscan por `lotteryCode` + `drawNumber` |
+| `npx vitest run tests/unit/lottery-adapters.test.ts tests/unit/lottery-fetch.test.ts tests/unit/lottery-constants.test.ts` | **34/34** | Medellín extra-en-la-misma-página: premio mayor `4850` en vez de `2608` porque `/n[uú]mero\s+(\d{4})/` coincidía con «Sorteo número 4850» | Se recorta el encabezado del sorteo antes de leer Número/Serie |
+| `npx tsc --noEmit` (primera pasada) | falló | `noUncheckedIndexedAccess` en `xlsx.ts`, `html.ts` y `cnjsa-discovery.ts`; `Uint8Array.toString('utf8')` no admite encoding | Grupos de regex con guarda; ZIP tipado como `Buffer` |
+| `npm run verify` | typecheck ✅ · lint 0 errores (2 avisos de siempre) · **499/499** unitarias (+29) · build ✅ | — | — |
+| `npm run test:db` | **609/609** | — | — |
+
+No se ejecutó `test:e2e`: la Etapa 2 no cambia UI ni recorridos.
 
 ---
 

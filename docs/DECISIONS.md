@@ -5309,6 +5309,60 @@ después: la foto es del instante del sorteo.
 foto el vendedor que tenía al correr el matching, no una historia que el esquema no guarda
 (I-080).
 
+## D-143 — `reference_date` es el día nominal de la misma semana lunes–domingo
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 2 de resultados de loterías, 2026-08-30)
+
+**Contexto.** El xlsx consolidado de CNJSA trae la fecha oficial del sorteo, no la fecha de
+referencia del negocio. BR-L03 exige que `reference_date` no cambie si el sorteo se adelanta o
+se aplaza. El calendario de festivos no puede fabricar esa fecha (encargo §9).
+
+**Decisión.** `reference_date` es el día nominal de la lotería (BR-L01) en la **misma semana
+lunes–domingo** que la fecha oficial. Si el día oficial ya coincide con el nominal, ambas fechas
+son la misma y el estado es `scheduled`. Si el oficial es anterior, `rescheduled_earlier`; si es
+posterior, `rescheduled_later`. El motivo se lee del «Acuerdo Modificatorio»: vacío → `null`
+(aunque el traslado coincida con un festivo); `oficio` → `force_majeure`; cualquier otro texto →
+`official_change`. Nunca se etiqueta «por festivo» si la fuente no lo dice.
+
+Revalidado el 2026-08-30 contra el xlsx consolidado vigente (`idFile` descubierto, no fijado):
+Bogotá 2840 el martes 2026-03-31 → referencia jueves 2026-04-02; Cruz Roja 3183 el jueves
+2026-12-10 → martes 2026-12-08; Meta 3311 el viernes 2026-08-14 → miércoles 2026-08-12;
+Medellín 4829/4833/4847/4867 los sábados posteriores a los viernes 3 de abril, 1 de mayo,
+7 de agosto y 25 de diciembre; Boyacá 4618 permanece el sábado 2026-04-04; Cundinamarca 4815
+el viernes 2026-08-14 → lunes 2026-08-10 (secuencia 4814 lunes 3, 4816 martes 18).
+
+**Alternativas descartadas.** (a) «Siguiente día hábil» tras un festivo: Cruz Roja del 8 de
+diciembre se jugó el 10, no el 9. (b) Usar la fecha oficial como referencia: el premio del
+jueves de Bogotá quedaría colgado del martes. (c) Un calendario colombiano de festivos como
+autoridad: el Decreto 3034 permite jugar en festivo, aplazar o no operar.
+
+**Consecuencia.** BR-L03. La Etapa 3 persiste estas fechas; no las recalcula con un almanaque.
+
+## D-144 — Descarga acotada y parsers propios, sin librerías nuevas
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 2, 2026-08-30)
+
+**Contexto.** Hay que leer programación y resultados oficiales sin activar cron ni matching, y
+sin tratar el HTML externo como instrucciones. Las URLs de `loader.php?idFile=` cambian.
+
+**Decisión.** (a) Solo HTTPS. Allowlist de hosts de CNJSA/Coljuegos y de las seis loterías.
+Timeout 15 s, tope 2 MB, como máximo 5 redirecciones que no pueden salir de la lista.
+(b) El cronograma se descubre en
+`https://cnjsa.coljuegos.gov.co/publicaciones/306418/cronograma-de-sorteos-ordinarios-y-extraordinarios/`.
+Se elige el xlsx consolidado del año; no se fija un `idFile`. Acuerdo 887 = ordinarios; 889 =
+lineamientos de extraordinarios; 888 = extraordinarios del primer cuatrimestre. Un PDF de
+acuerdo se registra como `unsupported_type`: las fechas salen del xlsx.
+(c) XLSX se lee con ZIP (store + deflate) y XML. No se añaden `exceljs`, `cheerio` ni un
+lector de PDF. Los extractores de resultado usan campos etiquetados; nunca «los primeros cuatro
+dígitos». Un Cloudflare, Imunify o SPA vacía falla como `source_blocked` / `ambiguous`. No se
+elude y no se sustituye por un agregador.
+
+**Alternativas descartadas.** (a) Dependencias nuevas de Excel/HTML. (b) Fijar
+`idFile=309186`. (c) Resolver el desafío de Bogotá o Cruz Roja. (d) Un blog de resultados.
+
+**Consecuencia.** BR-L16, BR-L17, I-081. `fetchOfficialDocument` lleva `server-only`. Las
+funciones `download*` existen y no están programadas: la Etapa 2 no activa el flujo real.
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

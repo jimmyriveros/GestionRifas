@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.18 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Versión:** 1.19 · **Estado:** implementado · **Actualizado:** 2026-08-30
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -174,7 +174,7 @@ importa desde un componente cliente.
     │   ├── tickets/              # incluye bulk/
     │   ├── payments/
     │   ├── reports/
-    │   ├── lottery/              # Constantes de loterías oficiales (Etapa 1; sin UI)
+    │   ├── lottery/              # Constantes + adaptadores oficiales (Etapa 2; sin cron ni UI)
     │   ├── search/               # Búsqueda híbrida compartida
     │   └── tour/                 # Recorridos guiados
     ├── lib/

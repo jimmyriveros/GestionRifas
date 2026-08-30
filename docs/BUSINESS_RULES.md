@@ -481,8 +481,9 @@ El límite siempre es `sale_price`, nunca una cifra escrita en el código.
 
 ## 12.b Resultados oficiales de loterías (BR-L)
 
-Mantenimiento posterior a la Fase 9. Etapa 1: contrato persistente y matching. Las etapas 2 a 5
-añaden adaptadores, avisos y Panel; la 6 exige autorización expresa para producción.
+Mantenimiento posterior a la Fase 9. Etapa 1: contrato persistente y matching. Etapa 2:
+adaptadores testeables, sin cron. Las etapas 3 a 5 añaden avisos y Panel; la 6 exige autorización
+expresa para producción.
 
 | ID | Regla | Capas | Fase |
 |----|-------|-------|------|
@@ -502,6 +503,7 @@ añaden adaptadores, avisos y Panel; la 6 exige autorización expresa para produ
 | BR-L14 | El vendedor solo ve coincidencias de sus boletas. `tickets_select` no se amplía (D-141, D-092). | D | post-9 |
 | BR-L15 | No se llama «ganador» al cliente ni a la boleta. La plataforma detecta coincidencia numérica; no certifica el premio oficial. | C | post-9 |
 | BR-L16 | No se guarda HTML ni el documento externo. Se conservan URL, autoridad, versión, hash y campos extraídos. | D | post-9 |
+| BR-L17 | La consulta a una fuente oficial es HTTPS, allowlist, timeout y tope de tamaño. Un desafío anti-bot o una página vacía no se elude ni se sustituye por un agregador (D-144, I-081). | D | post-9 |
 
 ---
 

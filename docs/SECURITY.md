@@ -433,6 +433,13 @@ Las políticas usan conjuntos precalculados (I-019). Un `UPDATE` del número may
 cambia: el disparador deja `conflict`. Las coincidencias no se actualizan ni se borran, tampoco con
 `service_role`.
 
+La Etapa 2 añade una descarga de servidor (`fetchOfficialDocument`, `server-only`): solo HTTPS,
+allowlist de CNJSA/Coljuegos y de las seis loterías, timeout 15 s, tope 2 MB y como máximo 5
+redirecciones que no pueden abandonar la lista (D-144, BR-L17). Un Cloudflare, Imunify o SPA vacía
+se registra como fallo; no se elude (I-081). El HTML o el xlsx no se persisten: solo URL, autoridad,
+versión, hash y campos extraídos (BR-L16). Estas funciones **no están programadas**: no hay cron ni
+Route Handler en esta etapa.
+
 ---
 
 ## 5. Protección de Server Actions y Route Handlers
