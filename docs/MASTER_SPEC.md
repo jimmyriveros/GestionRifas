@@ -258,10 +258,10 @@ probadas; su regla vive en BR-G01..BR-G12.
 ⚠️ **Los resultados oficiales de seis loterías colombianas salieron de «Integración con loterías» /
 «Números ganadores» el 2026-08-30**, por el encargo `ResultadosLoterias.txt`. No es pasarela, ni
 sorteo automático, ni portal de clientes: es programación oficial, número mayor y coincidencia
-textual con las boletas (BR-L01..BR-L19, D-140..D-146). La Etapa 1 dejó el contrato persistente; la
-Etapa 2, los adaptadores; la Etapa 3, la sincronización, el matching en vivo y los avisos, todo en
-local. Producción exige la Etapa 6 con autorización expresa. El resto de la lista sigue fuera de
-alcance.
+textual con las boletas (BR-L01..BR-L20, D-140..D-147). La Etapa 1 dejó el contrato persistente; la
+Etapa 2, los adaptadores; la Etapa 3, la sincronización, el matching en vivo y los avisos; la
+Etapa 4, el recuadro del Panel, todo en local. Producción exige la Etapa 6 con autorización
+expresa. El resto de la lista sigue fuera de alcance.
 
 ---
 

@@ -30,8 +30,8 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| Siguiente fase | Ninguna. Mantenimiento en curso: **resultados de loterías Etapa 3 en local** (sincronización, matching y avisos); Etapa 4 (Panel) pendiente. Producción de esta función exige la Etapa 6 con autorización expresa |
-| **Resultados de loterías** | Etapa 3 (2026-08-30, D-145, D-146): sync idempotente, confirmación atómica, coincidencias y avisos. Etapas 1–2 (`0036`, adaptadores) se reutilizan. **No hay cron, no hay Panel, no está en producción** |
+| Siguiente fase | Ninguna. Mantenimiento en curso: **resultados de loterías Etapa 4 en local** (recuadro del Panel); Etapa 5 (programador) pendiente. Producción de esta función exige la Etapa 6 con autorización expresa |
+| **Resultados de loterías** | Etapa 4 (2026-08-30, D-147): recuadro compartido en los dos Paneles, lectura local. Etapas 1–3 (`0036`–`0038`, adaptadores, sync) se reutilizan. **No hay cron, no está en producción** |
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
 | **Buscar en «Boletas»** | Desde el 2026-08-21 (D-100, BR-N13) el **único** campo de búsqueda encuentra por los números de la boleta **y** por el nombre del cliente que la tiene, devolviendo siempre boletas. Migración **`0029`**. **Ya en producción** (`e1b2fe1`, 2026-08-21) |
@@ -116,7 +116,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — Resultados oficiales de loterías, Etapa 3 (2026-08-30)
+## 1.a Último relevo significativo — Resultados oficiales de loterías, Etapa 4 (2026-08-30)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Recuadro compartido de resultados oficiales en los dos Paneles, con lectura local.** Va después de los avisos y de instalar, antes del resto. El sorteo de hoy es el de `official_scheduled_at` en Bogotá, no el día nominal. Un resultado anterior se etiqueta «Último resultado» y no se pinta como el de hoy. Un fallo de esta lectura no tumba el Panel. `Query changes: +1 local (schedules+results+matches)` · `Route changes: None` · `Migrations: None` · `New dependencies: None`. **No hay cron, no está en producción** |
+| Archivos | **Nuevos:** `src/features/lottery/{dashboard,queries}.ts`, `src/features/lottery/components/{LotteryResultsCard,LotteryScheduleBadge}.tsx`, `tests/unit/lottery-dashboard.test.ts`, `tests/e2e/loterias-panel.spec.ts`, `tests/e2e/loterias-panel-movil.spec.ts`. **Tocados:** los dos `dashboard/page.tsx`, `lib/dates.ts`, `tests/unit/dates.test.ts`, `tests/db/lottery-results.test.ts`. Documentación: `DECISIONS` (D-147), `BUSINESS_RULES` (BR-L20), `ARCHITECTURE` §8.19, `MASTER_SPEC`, `SECURITY`, `UX_COPY_GUIDELINES`, `TESTING`, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni una capa services ni un recuadro por portal.** `Card`/`EmptyState`/`Badge`. Textos de cambio de programación reutilizan `notificationMessage` (D-146). Números con `ticketLabel`. La RLS de coincidencias no se tocó. `tickets_select` no se tocó. No se importan `fetch`/`sync`/`adapters` desde el Panel |
+| Decisiones | **D-147** (lectura local; hoy = fecha oficial; el anterior va aparte; la serie se muestra si existe). BR-L20 |
+| Verificación | `typecheck` ✅ · `lint` **0 errores** (2 avisos de siempre) · **534/534** unitarias (+18) · `build` ✅ · **`test:db` 626/626** (+1) · E2E de esta tanda **4/4** · regresión del resumen de cobranza **4/4**. Detalle en `TEST_RESULTS` |
+| Advertencias | **1)** `0036`–`0038` siguen **solo local**. No `db push`, no cron, no secretos, no Etapa 6. **2)** No llames `download*` ni `syncDueLotteryResults` desde una página. **3)** No eludas Cloudflare/Imunify ni uses un agregador. **4)** `ResultadosLoterias.txt` es del dueño; no se commitea |
+| Pendiente | **Siguiente acción:** Etapa 5 — programador y Route Handler, todavía sin producción. Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063. I-081 se orquesta, no se «arregla» evadiendo |
+| Publicación | **No.** Mantenimiento local. Prohibido push y producción |
+| Git | Rama `main`, sobre `114c862` (Etapa 3). Árbol con recuadro del Panel y docs; `ResultadosLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento |
+
+## 1.a.1 Relevo anterior — Resultados oficiales de loterías, Etapa 3 (2026-08-30)
 
 | Campo | Estado |
 |---|---|
@@ -130,7 +144,7 @@ reales).
 | Publicación | **No.** Mantenimiento local. Prohibido push y producción |
 | Git | Rama `main`, sobre `a0f2be6` (Etapa 2). Árbol con sync, avisos y docs; `ResultadosLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento |
 
-## 1.a.1 Relevo anterior — Resultados oficiales de loterías, Etapa 2 (2026-08-30)
+## 1.a.2 Relevo anterior — Resultados oficiales de loterías, Etapa 2 (2026-08-30)
 
 | Campo | Estado |
 |---|---|
@@ -144,7 +158,7 @@ reales).
 | Publicación | **No.** Mantenimiento local. Prohibido push y producción |
 | Git | Rama `main`, sobre `5c3748f` (Etapa 1). Árbol con adaptadores y docs; `ResultadosLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento |
 
-## 1.a.2 Relevo anterior — Resultados oficiales de loterías, Etapa 1 (2026-08-30)
+## 1.a.3 Relevo anterior — Resultados oficiales de loterías, Etapa 1 (2026-08-30)
 
 | Campo | Estado |
 |---|---|
@@ -1039,9 +1053,11 @@ features/commissions/  comision (D-094/D-095): TODO sale de commission_summary,
                     ninguna pantalla suma ni decide tramos. getCurrentCommissionRaffle()
                     elige de que rifa se habla, y la pantalla lo dice
 features/lottery/  constantes (BR-L01) + adaptadores (Etapa 2) + sync.ts /
-                    publication.ts (Etapa 3). El matching y la confirmacion
-                    viven en PostgreSQL. Sin UI, sin cron. No anadas exceljs ni
-                    cheerio (D-144). tickets_select no se toca (D-092, D-141)
+                    publication.ts (Etapa 3) + dashboard.ts/queries.ts y
+                    LotteryResultsCard (Etapa 4). El matching vive en PostgreSQL.
+                    El Panel NO importa fetch/sync/adapters (D-147, BR-L20).
+                    Sin cron. No anadas exceljs ni cheerio (D-144).
+                    tickets_select no se toca (D-092, D-141)
 features/notifications/  avisos (D-093): campanita en el armazon, tabla escrita
                     por triggers o por las RPC internas de loteria, y el TEXTO
                     en text.ts —nunca en la base de datos, para no repetir I-030—

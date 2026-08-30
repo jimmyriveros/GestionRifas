@@ -1,10 +1,30 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDateCsv, formatDateEs, formatDateTimeEs, todayBogota } from '@/lib/dates'
+import {
+  formatDateCsv,
+  formatDateEs,
+  formatDateTimeEs,
+  formatTimeEs,
+  formatWeekdayEs,
+  isoDateBogota,
+  todayBogota,
+} from '@/lib/dates'
 
 describe('todayBogota', () => {
   it('devuelve una fecha en formato YYYY-MM-DD', () => {
     expect(todayBogota()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+})
+
+describe('isoDateBogota y dia de la semana', () => {
+  it('un instante despues de medianoche UTC sigue siendo el dia de Bogota', () => {
+    expect(isoDateBogota('2026-04-01T04:00:00Z')).toBe('2026-03-31')
+    expect(formatWeekdayEs('2026-03-31')).toBe('martes')
+    expect(formatWeekdayEs('2026-04-02')).toBe('jueves')
+  })
+
+  it('la hora de un instante se lee en Bogota', () => {
+    expect(formatTimeEs('2026-04-02T23:00:00-05:00')).toMatch(/11:00/)
   })
 })
 

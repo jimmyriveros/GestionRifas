@@ -1,6 +1,6 @@
 # SEGURIDAD
 
-- **Versión:** 2.4 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Versión:** 2.5 · **Estado:** implementado · **Actualizado:** 2026-08-30
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
   `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037` y `0038`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
@@ -444,6 +444,11 @@ La Etapa 3 añade `sync_lottery_schedules`, `confirm_lottery_result` y
 escrituras de avisos reutilizan `notifications` (`lottery.result`, `lottery.schedule_change`) con
 índices únicos; `notify_profiles` no se sustituye, pero el proceso interno inserta con
 `ON CONFLICT DO NOTHING`. Sigue **sin cron ni Route Handler**.
+
+La Etapa 4 (D-147, BR-L20) no abre escritura ni políticas nuevas. El Panel hace `SELECT` de
+programación, resultado y coincidencias con el cliente de sesión. No llama a las RPC internas
+ni descarga fuentes oficiales durante la navegación. Un error de esa lectura se aísla del
+resto del Panel.
 
 ---
 

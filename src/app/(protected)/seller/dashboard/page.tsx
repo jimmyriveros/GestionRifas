@@ -22,6 +22,8 @@ import {
   getSellerDashboard,
   getSellerPartialTicketTotals,
 } from '@/features/dashboard/seller-queries'
+import { LotteryResultsCard } from '@/features/lottery/components/LotteryResultsCard'
+import { getLotteryDashboard } from '@/features/lottery/queries'
 import { getCommissionContext, getFirstTierRate } from '@/features/commissions/queries'
 import { getOwnTeamStatus } from '@/features/team/queries'
 import { requireRole } from '@/lib/auth/guards'
@@ -58,18 +60,20 @@ export default async function SellerDashboardPage({
   const rangeKey = parseDashboardRange(single(params.range))
   const range = resolveDashboardRange(rangeKey, todayBogota())
 
-  const [dashboard, comisiones, firstTierRate, own, partialTotals, activity] = await Promise.all([
-    getSellerDashboard(),
-    getCommissionContext(),
-    getFirstTierRate(),
-    // BR-G13, BR-G24: quien no pertenece a un equipo cobra la mitad del precio;
-    // dentro de un equipo, por tramos o una cifra fija. Hace falta saberlo
-    // aunque todavia no haya cobrado ninguna boleta, que es justo cuando no hay
-    // fila de comision que leer.
-    getOwnTeamStatus(membership.profileId),
-    getSellerPartialTicketTotals(),
-    getSellerActivity(range),
-  ])
+  const [dashboard, comisiones, firstTierRate, own, partialTotals, activity, lottery] =
+    await Promise.all([
+      getSellerDashboard(),
+      getCommissionContext(),
+      getFirstTierRate(),
+      // BR-G13, BR-G24: quien no pertenece a un equipo cobra la mitad del precio;
+      // dentro de un equipo, por tramos o una cifra fija. Hace falta saberlo
+      // aunque todavia no haya cobrado ninguna boleta, que es justo cuando no hay
+      // fila de comision que leer.
+      getOwnTeamStatus(membership.profileId),
+      getSellerPartialTicketTotals(),
+      getSellerActivity(range),
+      getLotteryDashboard(),
+    ])
 
   const { totals } = dashboard
 
@@ -143,6 +147,12 @@ export default async function SellerDashboardPage({
           más prisa que instalar nada. La tarjeta se decide sola y no se pinta
           si ya está instalada o si alguien dijo «Ahora no» este mes. */}
       <InstallPrompt />
+
+      <LotteryResultsCard
+        data={lottery}
+        audience="seller"
+        ticketBasePath="/seller/tickets"
+      />
 
       {/*
         UNA sola rejilla para las siete piezas, y dos ordenes distintos.

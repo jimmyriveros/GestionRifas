@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.29 · **Actualizado:** 2026-08-30 (D-001 a D-146)
+- **Versión:** 1.30 · **Actualizado:** 2026-08-30 (D-001 a D-147)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -5409,6 +5409,33 @@ el día de `reference_date` y el de `official_scheduled_at`, nunca «hoy».
 Avisar todos los traslados de 2026 el día de la primera sincronización.
 
 **Consecuencia.** BR-L19. La serie no entra en el aviso (BR-L07). «Ganador» no se usa (BR-L15).
+
+## D-147 — El Panel lee datos locales y no confunde el resultado anterior con el de hoy
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 4, 2026-08-30)
+
+**Contexto.** El recuadro de resultados oficiales debe vivir en los dos Paneles, entre los
+primeros bloques, sin consultar internet durante la navegación. El día habitual de una
+lotería no es la fecha en que se juega.
+
+**Decisión.** (a) Un solo recuadro compartido (`LotteryResultsCard`). Owner/Admin y vendedor
+pasan el ámbito y la ruta de la boleta. (b) La consulta (`getLotteryDashboard`) lee
+`lottery_draw_schedules`, `lottery_results` y `lottery_ticket_matches` bajo RLS, en el
+mismo `Promise.all` de cada Panel. No importa `fetch`, `sync` ni `adapters`. Un error
+devuelve `{ kind: 'error' }` y el resto del Panel se pinta. (c) El sorteo de «hoy» es el
+cuya fecha de `official_scheduled_at` en `America/Bogota` coincide con hoy. Caben dos el
+mismo día. Si no hay ninguno, se dice y se muestra el próximo. (d) El último resultado
+confirmado que no es el de hoy se etiqueta «Último resultado». No se pinta como el actual
+mientras el de hoy sigue pendiente. (e) La serie se muestra solo si existe, como «Serie
+informativa». Los avisos de programación reutilizan `notificationMessage`. (f) No hay
+ruta nueva ni cron.
+
+**Alternativas descartadas.** (a) Un recuadro por portal. (b) Consultar la web oficial al
+abrir el Panel. (c) Elegir la lotería por el día nominal de la semana. (d) Mostrar el
+último confirmado en el lugar del de hoy cuando este aún no sale.
+
+**Consecuencia.** BR-L20. `ARCHITECTURE` §8.19. La Etapa 5 programa el proceso. La 6 exige
+autorización expresa.
 
 ---
 

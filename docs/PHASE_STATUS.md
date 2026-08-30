@@ -3,9 +3,9 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-08-30 (D-145, D-146, Etapa 3 de resultados de loterías)
+- **Actualizado:** 2026-08-30 (D-147, Etapa 4 de resultados de loterías)
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
-  Etapas 1 a 3 de resultados oficiales de loterías **en local** (`0036`–`0038` + adaptadores + sync);
+  Etapas 1 a 4 de resultados oficiales de loterías **en local** (`0036`–`0038` + adaptadores + sync + Panel);
   no producción.
 - **Fase siguiente:** ninguna autorizada
 - **Aviso operativo:** producción **sigue siendo el seed de desarrollo** — dos organizaciones y
@@ -17,7 +17,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 | Clasificación | Estado actual |
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) |
-| **En curso** | Resultados oficiales de loterías: **Etapas 1 a 3 completas en local** (`0036`–`0038`, D-140..D-146). Sync, matching y avisos, sin cron, sin Panel, **sin producción**. Etapas 4 y 5 pendientes; la 6 exige autorización expresa |
+| **En curso** | Resultados oficiales de loterías: **Etapas 1 a 4 completas en local** (`0036`–`0038`, D-140..D-147). Recuadro del Panel, sync, matching y avisos, sin cron, **sin producción**. Etapa 5 pendiente; la 6 exige autorización expresa |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
 
@@ -2939,4 +2939,49 @@ Ambas **solo local**.
 2. **No actives cron.** Eso es Etapa 5, y producción es Etapa 6 con autorización expresa.
 3. **`0036`–`0038` no van a producción** en esta tanda.
 4. **`tickets_select` no se toca.** Las coincidencias se leen de `lottery_ticket_matches`.
+5. **No hay etiqueta `fase-N`.**
+
+---
+
+## Mantenimiento post-9 — resultados de loterías, Etapa 4 (2026-08-30)
+
+**Encargo:** `ResultadosLoterias.txt` Etapa 4, autorizada expresamente («Inicia etapa 4»).
+Recuadro de programación, resultados y coincidencias en el Panel, **sin** cron ni producción.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Recuadro | `LotteryResultsCard` compartido en `/owner/dashboard` y `/seller/dashboard`, después de avisos e instalar |
+| Lectura | `getLotteryDashboard`: `SELECT` local de programación, resultado y coincidencias. Un error no tumba el Panel |
+| Hoy | Fecha de `official_scheduled_at` en Bogotá. Caben dos loterías el mismo día. El último confirmado se etiqueta aparte |
+| Ámbito | RLS de coincidencias: vendedor, las suyas; personal, las de su organización |
+| Textos | `LOTTERY_DASHBOARD_COPY`. Avisos de programación reutilizan `notificationMessage`. Serie informativa si existe |
+
+### 2. Pruebas ejecutadas y resultados
+
+`typecheck` ✅ · `lint` **0 errores** (2 avisos de siempre) · **534/534** unitarias (+18) ·
+`build` ✅ · **`test:db` 626/626** (+1) · E2E de esta tanda **4/4** · regresión del resumen de
+cobranza **4/4**. Una caída de `.next/dev/types` por `next dev` concurrente rompió un `tsc`
+intermedio; se borró esa carpeta y volvió a pasar.
+
+### 3. Migraciones
+
+**Ninguna.**
+
+### 4. Variables de entorno
+
+**Ninguna nueva.**
+
+### 5. Problemas que permanecen
+
+**I-081** no cambia: el Panel no consulta esas fuentes. Siguen abiertos I-077, I-072, I-074, I-075,
+I-068, I-062 e I-063.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **Etapa 5 es el programador y el Route Handler**, todavía local. No actives cron ni secretos reales.
+2. **No llames `download*` ni `syncDueLotteryResults` desde una página.** El Panel ya lee local.
+3. **`0036`–`0038` no van a producción** en esta tanda. Producción es Etapa 6 con autorización expresa.
+4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**

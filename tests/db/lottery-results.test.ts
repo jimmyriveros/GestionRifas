@@ -9,6 +9,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
+  LOTTERY_DASHBOARD_MATCH_SELECT,
+  LOTTERY_DASHBOARD_SCHEDULE_SELECT,
+} from '@/features/lottery/dashboard'
+
+import {
   loadSeedContext,
   randomNumbers,
   signInAs,
@@ -804,5 +809,69 @@ describe('aislamiento RLS (BR-L13, BR-L14, D-141)', () => {
     const { data, error } = await seller1.from('tickets').select('id').eq('id', ajenas![0]!.id)
     expect(error).toBeNull()
     expect(data).toEqual([])
+  })
+})
+
+describe('lectura del Panel (Etapa 4, D-147)', () => {
+  it('la proyeccion anidada trae el numero mayor y recorta coincidencias por vendedor', async () => {
+    const { daily, weekly } = randomNumbers()
+    const own = await createTicket({
+      raffleId: demoRaffleId,
+      organizationId: ctx.demoOrg.id,
+      sellerId: ctx.ids.seller1,
+      daily,
+      weekly,
+    })
+    await createTicket({
+      raffleId: demoRaffleId,
+      organizationId: ctx.demoOrg.id,
+      sellerId: ctx.ids.seller2,
+      daily,
+      weekly: randomNumbers().weekly,
+    })
+    const { scheduleId, resultId } = await confirmResult({
+      lottery: 'cundinamarca',
+      winningNumber: daily,
+    })
+    await match(resultId)
+
+    const { data: schedules, error: scheduleError } = await seller1
+      .from('lottery_draw_schedules')
+      .select(LOTTERY_DASHBOARD_SCHEDULE_SELECT)
+      .eq('id', scheduleId)
+    expect(scheduleError).toBeNull()
+    expect(schedules).toHaveLength(1)
+    const row = schedules![0] as unknown as {
+      lottery_results:
+        | { winning_number: string | null; validation_status: string }
+        | { winning_number: string | null; validation_status: string }[]
+        | null
+    }
+    const result = Array.isArray(row.lottery_results)
+      ? row.lottery_results[0]
+      : row.lottery_results
+    expect(result?.winning_number).toBe(daily)
+    expect(result?.validation_status).toBe('confirmed')
+
+    const { data: seen, error: matchError } = await seller1
+      .from('lottery_ticket_matches')
+      .select(LOTTERY_DASHBOARD_MATCH_SELECT)
+      .eq('result_id', resultId)
+    expect(matchError).toBeNull()
+    expect(seen).toHaveLength(1)
+    const first = seen![0] as unknown as {
+      ticket_id: string
+      ticket: { daily_number: string } | { daily_number: string }[] | null
+    }
+    expect(first.ticket_id).toBe(own)
+    const ticket = Array.isArray(first.ticket) ? first.ticket[0] : first.ticket
+    expect(ticket?.daily_number).toBe(daily)
+
+    const { data: otherSeen } = await seller2
+      .from('lottery_ticket_matches')
+      .select(LOTTERY_DASHBOARD_MATCH_SELECT)
+      .eq('result_id', resultId)
+    expect(otherSeen).toHaveLength(1)
+    expect((otherSeen![0] as unknown as { ticket_id: string }).ticket_id).not.toBe(own)
   })
 })

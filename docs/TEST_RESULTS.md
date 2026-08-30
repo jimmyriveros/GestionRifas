@@ -23,9 +23,28 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **516 ✅** | **625 ✅** | (E2E no tocadas en Etapa 3) | ✅ | ✅ |
+| Post-9 vigente | **534 ✅** | **626 ✅** | E2E de Etapa 4 **4/4** + cobranza **4/4** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Etapa 4 resultados de loterías (2026-08-30)
+
+Recuadro del Panel. Sin cron, sin producción. Sin migraciones nuevas.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | Tras Playwright, `.next/dev/types` quedó a medias y `tsc` falló | Se borró `.next/dev/types` y volvió a pasar |
+| `npx vitest run tests/unit/lottery-dashboard.test.ts tests/unit/dates.test.ts` | **26/26** | — | — |
+| `npx vitest run` | **534/534** (+18) | — | — |
+| `npx eslint` (archivos de la etapa) | **0 errores** | — | — |
+| `npx vitest run --config vitest.db.config.mts tests/db/lottery-results.test.ts` | **23/23** (+1 de la proyección anidada) | — | — |
+| `npx playwright test tests/e2e/loterias-panel.spec.ts tests/e2e/loterias-panel-movil.spec.ts` | **4/4** | — | — |
+| `npx playwright test tests/e2e/dashboard-collection-summary.spec.ts` | **4/4** | — | — |
+| `npm run lint` | **0 errores** (2 avisos de siempre) | — | — |
+| `npm run test:db` | **626/626** (+1) | — | — |
+| `npm run build` | ✅ | — | — |
 
 ---
 

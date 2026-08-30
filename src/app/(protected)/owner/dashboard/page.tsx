@@ -16,6 +16,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getAdminDashboard } from '@/features/dashboard/queries'
+import { LotteryResultsCard } from '@/features/lottery/components/LotteryResultsCard'
+import { getLotteryDashboard } from '@/features/lottery/queries'
 import { tourTarget } from '@/features/tour/tours'
 import { requireStaff } from '@/lib/auth/guards'
 import { ROLE_LABELS } from '@/lib/constants'
@@ -25,7 +27,7 @@ import { ticketLabel } from '@/lib/tickets'
 
 export default async function OwnerDashboardPage() {
   const membership = await requireStaff()
-  const dashboard = await getAdminDashboard()
+  const [dashboard, lottery] = await Promise.all([getAdminDashboard(), getLotteryDashboard()])
   const { totals } = dashboard
 
   return (
@@ -51,6 +53,12 @@ export default async function OwnerDashboardPage() {
       {/* Arriba, no al final (D-123). Después del aviso ámbar: aprobar boletas
           corre más prisa que instalar nada. */}
       <InstallPrompt />
+
+      <LotteryResultsCard
+        data={lottery}
+        audience="staff"
+        ticketBasePath="/owner/tickets"
+      />
 
       <CollectionSummaryCard
         totalSold={totals.totalSold}

@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.13 · **Actualizado:** 2026-08-30
+- **Versión:** 2.14 · **Actualizado:** 2026-08-30
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -79,7 +79,11 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
   `payments.spec.ts`. Esa misma spec clava **D-139** (`appearance: none` del date y
   que a 360 px Fecha no se monta encima de Método). Playwright en Chromium **no
   reproduce** el desborde de tinta de iOS/Android; una pasada verde no sustituye
-  mirarlo en un teléfono (I-079, I-066).
+  mirarlo en un teléfono (I-079, I-066). El recuadro de resultados oficiales
+  (D-147) vive en `loterias-panel.spec.ts` (escritorio: presencia, número mayor
+  `0046`, pendiente vs último) y `loterias-panel-movil.spec.ts` (320 px). Esas
+  pruebas interceptan las peticiones y fallan si el Panel consulta un host de
+  la allowlist. No crean fotografías de coincidencia: no se pueden borrar.
 - **Servidor:** el propio Playwright levanta `npm run dev:local`, que apunta **siempre** a la
   instancia local (D-047). Nunca se ejecutan contra el proyecto real.
 - **Requisito previo:** base local sembrada (`npm run db:reset && npm run seed:local`).

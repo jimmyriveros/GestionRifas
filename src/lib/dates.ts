@@ -17,6 +17,18 @@ const dateTimeFormatter = new Intl.DateTimeFormat('es-CO', {
   hour12: true,
 })
 
+const timeFormatter = new Intl.DateTimeFormat('es-CO', {
+  timeZone: BOGOTA_TZ,
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+})
+
+const weekdayFormatter = new Intl.DateTimeFormat('es-CO', {
+  timeZone: BOGOTA_TZ,
+  weekday: 'long',
+})
+
 // Formato en-CA produce YYYY-MM-DD por defecto: util para <input type="date">
 // y para comparar/ordenar como texto.
 const isoDateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: BOGOTA_TZ })
@@ -53,9 +65,14 @@ function toBogotaDate(value: string | Date): Date {
   return new Date(value)
 }
 
+/** Fecha de un instante en America/Bogota, como 'YYYY-MM-DD'. */
+export function isoDateBogota(value: string | Date): string {
+  return isoDateFormatter.format(toBogotaDate(value))
+}
+
 /** Fecha de hoy en America/Bogota, como 'YYYY-MM-DD'. */
 export function todayBogota(): string {
-  return isoDateFormatter.format(new Date())
+  return isoDateBogota(new Date())
 }
 
 /** Formatea una fecha/timestamp para mostrar, en espanol y hora de Bogota. */
@@ -66,6 +83,16 @@ export function formatDateEs(value: string | Date): string {
 /** Igual que formatDateEs pero incluyendo la hora. */
 export function formatDateTimeEs(value: string | Date): string {
   return dateTimeFormatter.format(toBogotaDate(value))
+}
+
+/** Solo la hora en America/Bogota. Un instante, no un dia calendario. */
+export function formatTimeEs(value: string | Date): string {
+  return timeFormatter.format(toBogotaDate(value))
+}
+
+/** Dia de la semana en minusculas (`lunes` … `domingo`), en America/Bogota. */
+export function formatWeekdayEs(value: string | Date): string {
+  return weekdayFormatter.format(toBogotaDate(value)).toLowerCase()
 }
 
 /** Fecha para una celda de CSV, como DD/MM/AAAA en hora de Bogota (D-056). */

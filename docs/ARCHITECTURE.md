@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.20 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Versión:** 1.21 · **Estado:** implementado · **Actualizado:** 2026-08-30
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -174,7 +174,7 @@ importa desde un componente cliente.
     │   ├── tickets/              # incluye bulk/
     │   ├── payments/
     │   ├── reports/
-    │   ├── lottery/              # Constantes, adaptadores y orquestación de sync (Etapa 3; sin cron ni UI)
+    │   ├── lottery/              # Constantes, adaptadores, sync (Etapa 3) y recuadro del Panel (Etapa 4; sin cron)
     │   ├── search/               # Búsqueda híbrida compartida
     │   └── tour/                 # Recorridos guiados
     ├── lib/
@@ -361,6 +361,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | Encabezados de columna | Los cuatro con acciones llevan rótulo: **«Acción»** con una sola acción (pagos, rifas) y **«Acciones»** con menú (vendedores, administradores). Los dos números se ven abreviados —«Núm. diario»— y conservan el nombre entero en `sr-only`, así que la columna se sigue llamando «Número diario» para un lector de pantalla (D-114) |
 | `DonutChart` / `TrendChart` | Los dos gráficos del panel del vendedor: SVG dibujado en el servidor, **sin librería y sin JavaScript** en el navegador. Escalan con `viewBox`, igual que `ProgressRing` (§8.13, D-112). En el centro del anillo va un porcentaje, nunca un importe (D-124) |
 | `CollectionSummaryCard` | Resumen de cobranza del panel (D-090): recibe `totals` ya agregado, no calcula nada; barra de progreso accesible con el mismo patrón que `BulkTicketCreator` |
+| `LotteryResultsCard` | Recuadro de resultados oficiales de los dos Paneles (D-147, §8.19). Server Component; lee datos locales; no consulta internet |
 | `CommissionCard` | «Tu ganancia» del panel del vendedor (D-095). No calcula nada: recibe la fila de `commission_summary`. Separa **lo ganado** de **la proyección** deliberadamente, y la barra lleva su valor en `aria-valuetext` |
 | `NotificationBell` / `NotificationMenu` | Campanita del encabezado (D-093). El servidor lee la bandeja al pintar la pantalla; sin peticiones desde el navegador ni tiempo real. El contador va también en el `aria-label`, no solo en el punto rojo |
 | `TableSection` | Tarjeta con título —y acción opcional— que envuelve un listado (§8.14, D-113). La tabla de dentro se aplana con `SECTION_TABLE_CLASSES` para no pintar dos bordes concéntricos; el relleno está calculado para que la primera columna quede alineada con el título |
@@ -826,12 +827,16 @@ para el teléfono y el escritorio.
 Escritorio (≥ lg)                              Teléfono (< lg)
 
 Hola, X                    [11 a 17 ago 2026]  Hola, X · [11 a 17 ago 2026]
+[Resultados oficiales]                         [Resultados oficiales]
 [Recaud.][Por cobrar][Cobranza][Ganancia]      Accesos rápidos
 [   Resumen financiero  ][    Cobranza    ]    Indicadores (1 col)
 [ Mis boletas   ][ Actividad reciente     ]    Resumen financiero
 [ Tendencia     ][ Accesos rápidos        ]    Cobranza · Mis boletas
                                                Tendencia · Actividad reciente
 ```
+
+El recuadro de **resultados oficiales** (D-147, §8.19) va **arriba** de esta rejilla, después de
+los avisos y de instalar. No entra en las siete piezas ni altera su `order`.
 
 **Cómo se consigue con una sola rejilla.** El contenedor es `flex flex-col` en el teléfono y
 `lg:grid lg:grid-cols-2 lg:items-start`. El orden del móvil lo fijan clases `order-*` que se anulan
@@ -1158,6 +1163,24 @@ la celda del 50 %. En el navegador de escritorio, al estrechar la ventana, el mi
 respeta `width: 100 %`, y por eso la prueba en Chromium no lo veía. El arreglo no es apilar los
 campos ni subir el corte de 360 px: es `appearance: none` más `min-width: 0` en los
 pseudoelementos de WebKit, una sola vez en `globals.css`, para todos los `type=date`.
+
+### 8.19 Resultados oficiales en el Panel (D-147)
+
+Un recuadro compartido, Server Component, en `/owner/dashboard` y `/seller/dashboard`. Lee
+solo tablas locales (`getLotteryDashboard`) dentro del `Promise.all` que ya tenía cada
+página. No descarga páginas oficiales.
+
+**Qué sorteo es «hoy».** La fecha de `official_scheduled_at` en `America/Bogota`, no el día
+nominal de la lotería. Pueden coincidir dos. Si no hay ninguno, el recuadro lo dice y
+muestra el próximo. Un resultado confirmado anterior se etiqueta «Último resultado» y no
+ocupa el lugar del pendiente.
+
+**Ámbito.** Programación y resultado son nacionales. Las coincidencias las recorta la RLS
+de `lottery_ticket_matches`: el vendedor ve las suyas; el personal, las de su organización.
+`tickets_select` no se toca.
+
+**Textos.** Los avisos de programación reutilizan `notificationMessage`. La serie, si
+existe, se llama «Serie informativa». No se usa «ganador».
 
 ---
 

@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.9 · **Estado:** normativo · **Actualizado:** 2026-08-30
+- **Versión:** 1.10 · **Estado:** normativo · **Actualizado:** 2026-08-30
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -481,9 +481,9 @@ El límite siempre es `sale_price`, nunca una cifra escrita en el código.
 
 ## 12.b Resultados oficiales de loterías (BR-L)
 
-Mantenimiento posterior a la Fase 9. Etapas 1 y 2: contrato persistente, matching y adaptadores.
-Etapa 3: sincronización, coincidencias y avisos, sin Panel ni cron. Las etapas 4 y 5 añaden Panel
-y programador; la 6 exige autorización expresa para producción.
+Mantenimiento posterior a la Fase 9. Etapas 1 a 4: contrato persistente, adaptadores,
+sincronización, avisos y recuadro del Panel, en local. La etapa 5 añade el programador; la 6
+exige autorización expresa para producción.
 
 | ID | Regla | Capas | Fase |
 |----|-------|-------|------|
@@ -506,6 +506,7 @@ y programador; la 6 exige autorización expresa para producción.
 | BR-L17 | La consulta a una fuente oficial es HTTPS, allowlist, timeout y tope de tamaño. Un desafío anti-bot o una página vacía no se elude ni se sustituye por un agregador (D-144, I-081). | D | post-9 |
 | BR-L18 | La sincronización de programación es idempotente. Conserva `reference_date` y `original_scheduled_at`. Solo incrementa `schedule_version` cuando cambia la hora oficial, el estado o el motivo. Un hash nuevo del mismo contenido no avisa (D-145). | D | post-9 |
 | BR-L19 | Hay como máximo un aviso de resultado por sorteo y destinatario, y uno por cambio, versión y destinatario. No se avisa a quien no tiene coincidencias. El texto vive en la aplicación (D-146, I-030). | D | post-9 |
+| BR-L20 | El Panel lee solo datos locales ya persistidos. No consulta fuentes oficiales al navegar. Un resultado anterior no se presenta como el de hoy (D-147). | C, S | post-9 |
 
 ---
 
