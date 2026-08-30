@@ -57,7 +57,9 @@ Autorizada expresamente. Orden: respaldo → migraciones → frontend + cron.
 | `db push --dry-run` | Exactamente `0036`–`0039` |
 | `db push --yes` | Aplicadas |
 | `npm run verify:remote` | **17/17** |
-| Push a `main` | Pendiente de esta sesión |
+| Push a `main` | `cb95b1c..325398c` (etapas 1–6). Solo la rama; etiquetas `fase-*` no se subieron |
+| CI | **2/2** (`33338500944`) |
+| Vercel | `READY` sobre **`325398c`** (despliegue GitHub `6171863601`, URL única `gestion-rifas-eqiehzqnk-jimmyriveros-projects.vercel.app`), alias `gestion-rifas.vercel.app` |
 
 #### Que no movió ni un peso, leído y no supuesto
 
@@ -70,6 +72,12 @@ Autorizada expresamente. Orden: respaldo → migraciones → frontend + cron.
 | Comisión acumulada | $9.900.000 | **$9.900.000** |
 | Filas de bitácora | 3.135 | **3.135** |
 | Tablas / RPC de loterías | no existían | **existen**; `authenticated` sin EXECUTE |
+
+#### En vivo
+
+6/6 cabeceras de seguridad en `/login` (200, CSP con nonce), cuatro rutas protegidas en 307, `/sw.js` en 200, **0** claves de servicio en los fragmentos, y el **identificador de versión** `eeb9d8e64d57` —sha256 de `325398c982…` recortado a 12 hex— encontrado en `0pbee43dmce4z.js`. `/api/lottery/sync` sin secreto responde **401** `{"error":"No autorizado."}` y no redirige a `/login`; un `?secret=` tampoco autoriza. El primer tick **no** corre al desplegar: espera la siguiente ventana Hobby (I-082).
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** el recuadro del Panel vive tras el inicio de sesión (I-066). No hay token de Vercel para leer `CRON_SECRET`, así que no se disparó un tick a mano. Quien lo vea: dueño y vendedor → Panel, recuadro de resultados; hasta el primer cron puede ir vacío o con «Horario por confirmar».
 
 ---
 
