@@ -30,8 +30,8 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| Siguiente fase | Ninguna. Mantenimiento en curso: **resultados de loterías Etapa 4 en local** (recuadro del Panel); Etapa 5 (programador) pendiente. Producción de esta función exige la Etapa 6 con autorización expresa |
-| **Resultados de loterías** | Etapa 4 (2026-08-30, D-147): recuadro compartido en los dos Paneles, lectura local. Etapas 1–3 (`0036`–`0038`, adaptadores, sync) se reutilizan. **No hay cron, no está en producción** |
+| Siguiente fase | Ninguna. Mantenimiento en curso: **resultados de loterías Etapa 5 en local** (Route Handler y tick); Etapa 6 (producción) exige autorización expresa |
+| **Resultados de loterías** | Etapa 5 (2026-08-30, D-148): Route Handler `/api/lottery/sync` con secreto, cerrojo `0039`, tick idempotente. `vercel.json` **sin** `crons`. Etapas 1–4 se reutilizan. **No hay cron activado, no está en producción** |
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
 | **Buscar en «Boletas»** | Desde el 2026-08-21 (D-100, BR-N13) el **único** campo de búsqueda encuentra por los números de la boleta **y** por el nombre del cliente que la tiene, devolviendo siempre boletas. Migración **`0029`**. **Ya en producción** (`e1b2fe1`, 2026-08-21) |
@@ -116,7 +116,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — Resultados oficiales de loterías, Etapa 4 (2026-08-30)
+## 1.a Último relevo significativo — Resultados oficiales de loterías, Etapa 5 (2026-08-30)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Route Handler seguro y tick local, sin cron de producción.** `/api/lottery/sync` exige un secreto de servidor (Bearer o cabecera), comparado a tiempo constante. Falla cerrado. El proxy deja pasar la ruta. Un tick toma el cerrojo `0039`, sincroniza CNJSA como mucho una vez por día Bogotá, confirma resultados pendientes y suelta. Un segundo tick concurrente no descarga. `vercel.json` **no** declara `crons`. `Query changes: None` (el Panel no cambia) · `Route changes: +1 interno` · `Migrations: 0039` · `New dependencies: None`. **No está en producción** |
+| Archivos | **Nuevos:** `supabase/migrations/0039_lottery_sync_lock.sql`, `src/features/lottery/{auth,cron-plan,job}.ts`, `src/app/api/lottery/sync/route.ts`, `scripts/lottery-sync.ts`, `tests/unit/lottery-cron.test.ts`, `tests/db/lottery-cron.test.ts`, `tests/e2e/loterias-cron.spec.ts`. **Tocados:** `lottery/{adapters,constants,publication,sync}.ts`, `lib/{rate-limit,supabase/admin,supabase/proxy}.ts`, `database.types.ts` (generado), `.env.example`, `package.json`. Documentación: `DECISIONS` (D-148), `BUSINESS_RULES` (BR-L21), `ARCHITECTURE`, `DATA_MODEL`, `SECURITY`, `MASTER_SPEC`, `TESTING`, `TEST_RESULTS`, `KNOWN_ISSUES` (I-082), `DEPLOYMENT`, `OPERATIONS`, `RUNBOOK`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni una capa services.** `syncDueLotteryResults`, `applyLotterySchedule`, `createAdminClient`, `checkRateLimit`. El matching sigue en PostgreSQL. El Panel no importa el tick. `tickets_select` no se tocó |
+| Decisiones | **D-148** (Vercel Cron previsto, no pg_cron; secreto; cerrojo de fila; no activar `crons` aún). BR-L21. I-082 |
+| Verificación | `typecheck` ✅ · `lint` **0 errores** (2 avisos de siempre) · **549/549** unitarias (+15) · `build` ✅ (ruta `/api/lottery/sync`) · **`test:db` 631/631** (+5) · E2E de esta tanda **4/4** · panel **3/3** · cobranza **4/4**. Primera `test:e2e` completa 354/371: volumen sucio de `test:db` + I-075. Tras `db:reset` + seed, las specs fallidas **77/78**; el 1 restante es `back-navigation` clientes (`.first()` pisa la tarjeta móvil de D-136), ajeno a esta etapa. Detalle en `TEST_RESULTS` |
+| Advertencias | **1)** `0036`–`0039` siguen **solo local**. No `db push`, no cron, no secretos reales, no Etapa 6. **2)** No pongas `crons` en `vercel.json`: el próximo despliegue los encendería. **3)** No llames `download*` ni `runLotterySyncTick` desde una página. **4)** No eludas Cloudflare/Imunify ni uses un agregador. **5)** `ResultadosLoterias.txt` es del dueño; no se commitea |
+| Pendiente | **Siguiente acción:** Etapa 6 — producción, con autorización expresa. Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063. I-081 se orquesta, no se «arregla» evadiendo. I-082 se elige Hobby vs Pro al activar |
+| Publicación | **No.** Mantenimiento local. Prohibido push y producción |
+| Git | Rama `main`, sobre `cf700de` (Etapa 4). Árbol con Route Handler, cerrojo y docs; `ResultadosLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento |
+
+## 1.a.0 Relevo anterior — Resultados oficiales de loterías, Etapa 4 (2026-08-30)
 
 | Campo | Estado |
 |---|---|
@@ -1054,10 +1068,11 @@ features/commissions/  comision (D-094/D-095): TODO sale de commission_summary,
                     elige de que rifa se habla, y la pantalla lo dice
 features/lottery/  constantes (BR-L01) + adaptadores (Etapa 2) + sync.ts /
                     publication.ts (Etapa 3) + dashboard.ts/queries.ts y
-                    LotteryResultsCard (Etapa 4). El matching vive en PostgreSQL.
-                    El Panel NO importa fetch/sync/adapters (D-147, BR-L20).
-                    Sin cron. No anadas exceljs ni cheerio (D-144).
-                    tickets_select no se toca (D-092, D-141)
+                    LotteryResultsCard (Etapa 4) + auth/job/cron-plan (Etapa 5).
+                    El matching vive en PostgreSQL.
+                    El Panel NO importa fetch/sync/adapters/job (D-147, BR-L20).
+                    vercel.json NO declara crons (D-148). No anadas exceljs ni
+                    cheerio (D-144). tickets_select no se toca (D-092, D-141)
 features/notifications/  avisos (D-093): campanita en el armazon, tabla escrita
                     por triggers o por las RPC internas de loteria, y el TEXTO
                     en text.ts —nunca en la base de datos, para no repetir I-030—

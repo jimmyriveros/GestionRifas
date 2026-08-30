@@ -1,8 +1,8 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.9 · **Estado:** implementado · **Actualizado:** 2026-08-30
-- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0038`. `0001`–`0035` están
-  aplicadas y verificadas en local y en el proyecto Supabase real; **`0036`–`0038` solo en local**
+- **Versión:** 2.10 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0039`. `0001`–`0035` están
+  aplicadas y verificadas en local y en el proyecto Supabase real; **`0036`–`0039` solo en local**
   (resultados de loterías; no se aplican a producción sin la Etapa 6).
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
   tipos generados en `src/types/database.types.ts`. Las pruebas de `tests/db/` verifican el
@@ -616,6 +616,11 @@ Sin `UPDATE` ni `DELETE` (tampoco con `service_role`). FK compuestas con `organi
 Bitácora del proceso interno. RLS forzada **sin** política de `SELECT` para `authenticated`. No
 guarda el documento externo.
 
+### 4.14 `lottery_sync_lock` (`0039`)
+
+Una sola fila (`id = 1`). El tick la toma y la suelta. Un `acquired_at` viejo se considera
+abandonado. RLS forzada **sin** política; `authenticated` lee cero filas. No es dato de negocio.
+
 ---
 
 ## 5. Índices
@@ -869,6 +874,17 @@ persiste el número mayor, llama a `match_lottery_result`, crea avisos `lottery.
 sorteo `completed` en **una** transacción. `0038` sustituye el cuerpo para castear
 `validation_status` al enum en el `ON CONFLICT` (D-145). Los avisos de programación usan
 `lottery.schedule_change` y un índice único por destinatario, sorteo y `schedule_version`.
+
+### 6.j Cerrojo del tick (migración `0039`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `try_acquire_lottery_sync_lock(holder, stale_minutes)` | `boolean` | Proceso interno (`service_role`) |
+| `release_lottery_sync_lock(holder)` | `boolean` | Proceso interno (`service_role`) |
+
+Un `UPDATE` condicional, no un advisory lock de sesión: el pooler en modo transacción no
+conservaría este último. Quien no es el holder no puede soltarlo. `stale_minutes` por defecto
+es 5. Sin `EXECUTE` para `authenticated` ni `anon` (D-148).
 
 ---
 

@@ -89,3 +89,16 @@ export const LOTTERY_RESULT_RETRY = {
   morningFromHour: 8,
   morningToHour: 12,
 } as const
+
+/**
+ * Sincronizacion de programacion: una vez por dia calendario de Bogota.
+ * Si el intento de hoy fallo, se reintenta pasado este margen (D-148).
+ */
+export const LOTTERY_SCHEDULE_SYNC = {
+  retryAfterHours: 3,
+} as const
+
+/** Minimo para no aceptar un secreto trivial. El Route Handler falla cerrado. */
+export const LOTTERY_SYNC_SECRET_MIN_LENGTH = 16
+
+export const LOTTERY_SYNC_PATH = '/api/lottery/sync'

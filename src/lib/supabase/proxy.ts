@@ -18,6 +18,9 @@ const PUBLIC_PATHS = [
   '/auth/callback',
   '/denied',
   '/offline',
+  // El programador no trae sesion. El Route Handler valida un secreto
+  // (D-148). Sin esta entrada el proxy redirigiria a /login con 307.
+  '/api/lottery/sync',
 ]
 
 function isPublicPath(pathname: string) {

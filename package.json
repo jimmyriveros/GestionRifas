@@ -28,7 +28,8 @@
     "test:db": "vitest run --config vitest.db.config.mts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "verify:remote": "tsx scripts/verify-remote.ts"
+    "verify:remote": "tsx scripts/verify-remote.ts",
+    "lottery:sync": "tsx scripts/lottery-sync.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "5.7.1",

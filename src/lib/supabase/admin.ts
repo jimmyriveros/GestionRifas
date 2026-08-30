@@ -11,9 +11,13 @@ import type { Database } from '@/types/database.types'
  * `import 'server-only'` hace que el build falle si este archivo llega a
  * importarse desde un componente cliente (docs/SECURITY.md §7).
  *
- * Uso exclusivo: invitacion/creacion de usuarios (auth.admin) y scripts de
- * servidor. Nunca para leer o escribir datos de negocio: eso siempre pasa
- * por el cliente de servidor sujeto a RLS (`lib/supabase/server.ts`).
+ * Uso exclusivo:
+ *   * invitacion/creacion de usuarios (auth.admin);
+ *   * el tick interno de loterias, que llama RPC sin EXECUTE para
+ *     `authenticated` (D-145, D-148);
+ *   * scripts de servidor.
+ * El resto de lecturas y escrituras de negocio pasa por el cliente de
+ * servidor sujeto a RLS (`lib/supabase/server.ts`).
  */
 export function createAdminClient() {
   return createSupabaseClient<Database>(

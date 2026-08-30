@@ -135,7 +135,50 @@ export function pickCnjsaWorkbook(
   return chosen
 }
 
-/** Descarga en vivo. La orquesta la Etapa 3; el cron es la Etapa 5. */
+function isAdapterFail(
+  value: CnjsaDiscoveredDocument | AdapterFail,
+): value is AdapterFail {
+  return 'ok' in value && value.ok === false
+}
+
+/**
+ * Descubre el xlsx consolidado vigente, sin fijar un idFile, y lo extrae.
+ * Prueba el año de Bogota, el anterior y el siguiente (D-144, D-148).
+ */
+export async function downloadCnjsaConsolidatedSchedule(
+  year: number,
+): Promise<AdapterOutcome<NormalizedSchedule>> {
+  const discovery = await downloadCnjsaDiscovery()
+  if (!discovery.ok) return discovery
+
+  const years = [year, year - 1, year + 1]
+  let lastFail: AdapterFail | null = null
+  let chosen: CnjsaDiscoveredDocument | null = null
+  for (const candidateYear of years) {
+    const pick = pickCnjsaWorkbook(discovery.value.html, discovery.sourceUrl, candidateYear)
+    if (isAdapterFail(pick)) {
+      lastFail = pick
+      continue
+    }
+    chosen = pick
+    break
+  }
+  if (!chosen) {
+    return (
+      lastFail ??
+      fail('empty', 'No hay un cronograma consolidado de sorteos ordinarios en la pagina.')
+    )
+  }
+
+  const file = await fetchOfficialDocument(chosen.href)
+  if (!file.ok) return file
+  return extractCnjsaSchedule(file.value.body, {
+    documentTitle: chosen.title,
+    documentUrl: file.value.url,
+  })
+}
+
+/** Descarga en vivo. La orquesta el tick (Etapa 5). */
 export async function downloadCnjsaDiscovery(): Promise<
   AdapterOutcome<{ documents: CnjsaDiscoveredDocument[]; html: string }>
 > {
@@ -152,7 +195,7 @@ export async function downloadCnjsaDiscovery(): Promise<
   }
 }
 
-/** Descarga en vivo. La orquesta la Etapa 3; el cron es la Etapa 5. */
+/** Descarga en vivo. La orquesta el tick (Etapa 5). */
 export async function downloadLotteryResultPage(
   lottery: LotteryCode,
 ): Promise<AdapterOutcome<NormalizedLotteryResult>> {

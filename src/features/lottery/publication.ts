@@ -1,6 +1,7 @@
 import {
   LOTTERY_PUBLICATION_DELAY_MINUTES,
   LOTTERY_RESULT_RETRY,
+  LOTTERY_SCHEDULE_SYNC,
   type LotteryCode,
 } from './constants'
 
@@ -82,6 +83,26 @@ export function decideResultFetch(input: ResultFetchInput): ResultFetchDecision 
   }
 
   return 'fetch'
+}
+
+/**
+ * La programacion CNJSA se consulta como mucho una vez por dia calendario
+ * de Bogota. Un fallo se reintenta pasado el margen, no en el tick siguiente.
+ */
+export function shouldSyncSchedule(input: {
+  now: Date
+  lastSuccessAt: string | null
+  lastAttemptAt: string | null
+}): boolean {
+  if (input.lastSuccessAt && bogotaIsoDate(input.now) === bogotaIsoDate(input.lastSuccessAt)) {
+    return false
+  }
+  if (input.lastAttemptAt) {
+    const elapsed = input.now.getTime() - new Date(input.lastAttemptAt).getTime()
+    if (Number.isNaN(elapsed)) return true
+    if (elapsed < LOTTERY_SCHEDULE_SYNC.retryAfterHours * 3_600_000) return false
+  }
+  return true
 }
 
 export function officialResultFitsSchedule(

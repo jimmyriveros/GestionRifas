@@ -378,6 +378,27 @@ export type Database = {
           },
         ]
       }
+      lottery_sync_lock: {
+        Row: {
+          acquired_at: string | null
+          holder: string | null
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          acquired_at?: string | null
+          holder?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          acquired_at?: string | null
+          holder?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lottery_sync_runs: {
         Row: {
           attempt: number
@@ -1733,6 +1754,10 @@ export type Database = {
         Args: { p_ticket_id: string }
         Returns: undefined
       }
+      release_lottery_sync_lock: {
+        Args: { p_holder: string }
+        Returns: boolean
+      }
       report_payment_totals: {
         Args: {
           p_date_from?: string
@@ -1904,6 +1929,10 @@ export type Database = {
         }[]
       }
       today_bogota: { Args: never; Returns: string }
+      try_acquire_lottery_sync_lock: {
+        Args: { p_holder: string; p_stale_minutes?: number }
+        Returns: boolean
+      }
       update_payment_allocation: {
         Args: {
           p_amount: number

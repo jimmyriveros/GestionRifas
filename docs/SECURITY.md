@@ -1,8 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.5 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Versión:** 2.6 · **Estado:** implementado · **Actualizado:** 2026-08-30
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
-  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037` y `0038`; los privilegios base se fijan en `0009`/`0010`.
+  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038` y `0039`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
   reales por rol y clave pública, nunca `service_role`. La clave de servicio sí puede preparar,
   comprobar o limpiar el escenario y las pruebas de catálogo usan PostgreSQL directo (D-043).
@@ -449,6 +449,17 @@ La Etapa 4 (D-147, BR-L20) no abre escritura ni políticas nuevas. El Panel hace
 programación, resultado y coincidencias con el cliente de sesión. No llama a las RPC internas
 ni descarga fuentes oficiales durante la navegación. Un error de esa lectura se aísla del
 resto del Panel.
+
+La Etapa 5 (D-148, BR-L21) añade `GET|POST /api/lottery/sync`. Vive fuera de `(protected)`,
+como la exportación de reportes. **No usa sesión**: el programador no tiene una. El proxy
+deja pasar esa ruta; el handler compara `Authorization: Bearer` o `x-lottery-sync-secret`
+contra `LOTTERY_SYNC_SECRET` (o `CRON_SECRET`) a tiempo constante. Sin secreto, o con uno de
+menos de 16 caracteres, responde 401. Un query `?secret=` no autoriza. No acepta una URL
+del cliente. Los intentos fallidos se limitan en memoria. Las RPC
+`try_acquire_lottery_sync_lock` y `release_lottery_sync_lock` son `SECURITY DEFINER` **sin
+EXECUTE para authenticated**. `lottery_sync_lock` tiene RLS forzada y cero políticas. El
+tick usa `createAdminClient` solo para esas RPC internas (D-145). **El cron no está
+activado:** `vercel.json` no declara `crons`.
 
 ---
 

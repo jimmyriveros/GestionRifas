@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.21 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Versión:** 1.22 · **Estado:** implementado · **Actualizado:** 2026-08-30
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -157,6 +157,8 @@ importa desde un componente cliente.
     │   │       ├── tickets/…
     │   │       ├── clients/…
     │   │       └── payments/…
+    │   ├── api/reports/export/route.ts    # CSV; sesión + rol (D-060)
+    │   ├── api/lottery/sync/route.ts      # Tick de loterías; secreto, sin sesión (D-148)
     │   ├── auth/callback/route.ts         # Intercambio de código de Supabase Auth
     │   └── denied/page.tsx                # Acceso denegado
     ├── components/
@@ -174,7 +176,7 @@ importa desde un componente cliente.
     │   ├── tickets/              # incluye bulk/
     │   ├── payments/
     │   ├── reports/
-    │   ├── lottery/              # Constantes, adaptadores, sync (Etapa 3) y recuadro del Panel (Etapa 4; sin cron)
+    │   ├── lottery/              # Constantes, adaptadores, sync, recuadro del Panel y tick (Etapa 5; cron no activado)
     │   ├── search/               # Búsqueda híbrida compartida
     │   └── tour/                 # Recorridos guiados
     ├── lib/
@@ -251,6 +253,7 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?from=` (D-135) dice a dónde volver (`ticket`, `client`, `payments`, `dashboard`); `?ticketId=` marca la boleta del reparto y, sin `from`, también el destino (D-133) |
 | `/seller/reports` | seller | **6 ✅** | Sus reportes, sin el que compara vendedores (D-059) |
 | `/api/reports/export` | según rol | **6 ✅** | Descarga CSV. **Fuera de `(protected)` a propósito**: un Route Handler no pasa por el layout, así que se protege a mano (D-060) |
+| `/api/lottery/sync` | secreto de servidor | post-9 ✅ | Tick de loterías (D-148). **Sin sesión.** El proxy lo deja pasar; el handler compara un Bearer. Cron **no** activado |
 
 **Nota de nomenclatura:** el prefijo de ruta es `/owner` para Owner **y** Admin, tal como exige
 `CLAUDE.md` §21. El segmento de URL no implica que el usuario sea Owner; el rol se verifica en cada
@@ -296,6 +299,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `update_ticket_sale_price(boleta, precio, precio_esperado)` | post-9 | Corrige el `sale_price` de UNA boleta asignada. Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-137, BR-P13) | Sí |
 | `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142) | Sí — inserciones idempotentes |
 | `sync_lottery_schedules` · `confirm_lottery_result` · `notify_lottery_schedule_changes` | post-9 | Sincronización, confirmación+matching+avisos y avisos de programación. **Sin EXECUTE para `authenticated`** (D-145, D-146) | Sí — upserts e inserciones idempotentes |
+| `try_acquire_lottery_sync_lock` · `release_lottery_sync_lock` | post-9 | Cerrojo de una fila del tick. **Sin EXECUTE para `authenticated`** (D-148) | Un UPDATE condicional |
 | `assign_ticket(p_ticket_id, p_client_id, p_sale_date)` | 2 / 4 | Valida disponibilidad y propiedad, copia `sale_price`, cambia estado, audita | Sí |
 | `bulk_create_tickets(p_raffle_id, p_seller_id, p_rows jsonb)` | 2 / 3 | Inserta lote, devuelve filas insertadas y conflictos por índice | Sí por lote |
 | `approve_tickets(p_ticket_ids uuid[])` | 2 / 3 | `pending_approval` → `available`, audita | Una transacción, pero omite inelegibles (I-044) |
@@ -1308,8 +1312,10 @@ aplican limpias desde cero, pero contra una instancia efímera, no contra el pro
 
 **Variables de entorno:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (públicas,
 D-028), `SUPABASE_SERVICE_ROLE_KEY` (solo servidor, marcada como sensible en Vercel) y
-`NEXT_PUBLIC_SITE_URL`/`TZ`. `scripts/check-env.ts` falla el build si falta alguna de las tres
-primeras. Detalle completo en `docs/DEPLOYMENT.md` §3.1.
+`NEXT_PUBLIC_SITE_URL`/`TZ`. `LOTTERY_SYNC_SECRET` (o `CRON_SECRET`) autoriza `/api/lottery/sync`;
+no es obligatoria en el build y, sin ella, el Route Handler falla cerrado (D-148).
+`scripts/check-env.ts` falla el build si falta alguna de las tres primeras. Detalle completo en
+`docs/DEPLOYMENT.md` §3.1.
 
 **Reversión:** cada migración incluye una nota de reversión documentada (manual, no ejecutable); los
 despliegues de Vercel se revierten con "Instant Rollback" o un `git revert`.

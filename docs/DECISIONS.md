@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.30 · **Actualizado:** 2026-08-30 (D-001 a D-147)
+- **Versión:** 1.31 · **Actualizado:** 2026-08-30 (D-001 a D-148)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -5436,6 +5436,43 @@ abrir el Panel. (c) Elegir la lotería por el día nominal de la semana. (d) Mos
 
 **Consecuencia.** BR-L20. `ARCHITECTURE` §8.19. La Etapa 5 programa el proceso. La 6 exige
 autorización expresa.
+
+## D-148 — Route Handler con secreto; Vercel Cron como disparador previsto; sin activar
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 5 de resultados de loterías, 2026-08-30)
+
+**Contexto.** Hay que dejar listo el proceso automático: sincronizar programación a diario,
+consultar resultados según `official_scheduled_at` y la ventana de publicación, reintentar
+con tope y conciliar a la mañana siguiente. El encargo prefiere Supabase Cron + Route
+Handler de Next. Hay que comprobar capacidades reales antes de adoptar.
+
+**Hechos comprobados.** (a) El proyecto Supabase real está en plan **Free** (I-024). `pg_cron`
+existe ahí, pero el encargo pide que los parsers se queden en Node, y un proyecto Free se
+pausa a los 7 días sin tráfico. (b) Vercel Cron está en todos los planes. En **Hobby** cada
+job corre **una vez al día**, con precisión de ±59 min; un `*/15` **rompe el despliegue**.
+Varios jobs diarios a horas distintas sí caben (hasta 100). En **Pro**, un job cada 15 min.
+(c) Fluid Compute ya está declarado; la función admite hasta 300 s en Hobby.
+
+**Decisión.** (a) El disparador previsto es **Vercel Cron** pegándole a
+`GET /api/lottery/sync`. No se usa `pg_cron` para scrapear ni para orquestar parsers.
+(b) El Route Handler no usa sesión. Exige `Authorization: Bearer` o
+`x-lottery-sync-secret`, comparado a tiempo constante contra `LOTTERY_SYNC_SECRET` o, si
+falta, `CRON_SECRET`. Mínimo 16 caracteres. Sin secreto, o con uno corto, **falla cerrado**.
+La URL no acepta el secreto ni una fuente arbitraria. (c) El proxy deja pasar esa ruta;
+si no, redirigiría a `/login` con 307 y el programador nunca autenticaría. (d) Un tick toma
+un cerrojo de una fila (`lottery_sync_lock`, `0039`), sincroniza CNJSA si no hubo éxito hoy
+en Bogotá, confirma resultados pendientes y suelta. Dos ticks a la vez no duplican
+descargas. Un tick caído caduca a los 5 min. (e) `vercel.json` **no** declara `crons` en
+esta etapa. El plan Hobby/Pro vive en `features/lottery/cron-plan.ts`. Activar es Etapa 6.
+
+**Alternativas descartadas.** (a) `pg_cron` + `pg_net` hacia Vercel: añade una pieza que se
+apaga si el proyecto Free pausa, y los parsers no deben vivir en SQL. (b) Poner `crons` en
+`vercel.json` ahora: el próximo despliegue lo encendería sin autorización. (c) Un cron
+único diario: cubre la conciliación de la mañana, no las ventanas de publicación. (d)
+Aceptar el secreto por query string.
+
+**Consecuencia.** BR-L21. I-082 documenta la precisión de Hobby. La Etapa 6 pone el secreto
+en Vercel, declara los `crons` según el plan real y aplica `0036`–`0039`.
 
 ---
 

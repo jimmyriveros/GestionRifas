@@ -1,6 +1,6 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-08-04 (Fase 8). Para quien **opera el negocio** (Owner/Admin), no para quien
+**Actualizado:** 2026-08-30. Para quien **opera el negocio** (Owner/Admin), no para quien
 programa. Para desplegar la aplicación ver [`DEPLOYMENT.md`](DEPLOYMENT.md); para problemas
 frecuentes, [`RUNBOOK.md`](RUNBOOK.md).
 
@@ -132,3 +132,20 @@ Cómo distinguirlo en treinta segundos, sin herramientas:
 
 Y recuerda que **activar Fluid Compute no cambia el despliegue que ya está en línea**: hay que volver
 a desplegar para que tome efecto.
+
+---
+
+## 7. Resultados oficiales de loterías
+
+El recuadro del Panel muestra la programación y el número mayor **ya guardados**. No consulta
+las páginas de las loterías al abrirlo. El proceso que las consulta corre aparte, con un
+secreto de servidor.
+
+**Hoy, en producción, ese proceso no está encendido.** Hasta la Etapa 6 el recuadro puede
+aparecer vacío o con «Horario por confirmar». No es un fallo de la pantalla. Si hace falta
+dispararlo a mano en local: `npm run lottery:sync -- --probe` (solo comprueba el secreto) o
+sin `--probe` (consulta de verdad), con `npm run dev:local` y `LOTTERY_SYNC_SECRET` en
+`.env.local`.
+
+Si el recuadro en producción se queda desactualizado **después** de la Etapa 6, ver
+`RUNBOOK.md`.

@@ -23,9 +23,27 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **534 ✅** | **626 ✅** | E2E de Etapa 4 **4/4** + cobranza **4/4** | ✅ | ✅ |
+| Post-9 vigente | **549 ✅** | **631 ✅** | E2E de Etapa 5 **4/4**; panel **3/3**; suite completa 354/371 sucia, 77/78 limpia | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Etapa 5 resultados de loterías (2026-08-30)
+
+Route Handler y tick local. Sin cron de producción. Migración `0039`.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx tsc --noEmit` | ✅ | `ProcessEnv` no declara `LOTTERY_SYNC_SECRET` | El lector de secreto acepta un `Record<string, string \| undefined>` |
+| `npx vitest run tests/unit/lottery-cron.test.ts` | **15/15** | — | — |
+| `npm run verify` (1ª) | ❌ 548/549 | `server-actions-guard` exigía `getAuthUser` en todo `route.ts` | Excepción documentada: `authorizeLotterySyncRequest` (D-148) |
+| `npm run verify` (2ª) | ✅ **549/549** unitarias, lint 0 errores (2 avisos de siempre), `build` ✅. La ruta `/api/lottery/sync` aparece como dinámica | — | — |
+| `npm run test:db` | **631/631** (+5 del cerrojo) | — | — |
+| `npx playwright test tests/e2e/loterias-cron.spec.ts` | **4/4** | — | — |
+| `npm run test:e2e` (1ª, tras `test:db`) | **354 passed, 17 failed** | `test:db` dejó el volumen de 5.000 boletas; I-075 en las dos primeras | No es de esta etapa. `db:reset` + `seed:local` y se reejecutaron las specs fallidas |
+| Reejecución limpia de las specs fallidas + loterías + cobranza | **77/78** | `back-navigation` clientes: `getByText('Ana Torres').first()` cae en la tarjeta móvil `hidden` (D-136), no en la tabla | Preexistente, ajeno al Route Handler. URL sí volvió a `/owner/clients` |
+| `loterias-panel.spec.ts` | **3/3** | — | — |
 
 ---
 

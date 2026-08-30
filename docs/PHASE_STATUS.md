@@ -3,10 +3,10 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-08-30 (D-147, Etapa 4 de resultados de loterías)
+- **Actualizado:** 2026-08-30 (D-148, Etapa 5 de resultados de loterías)
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
-  Etapas 1 a 4 de resultados oficiales de loterías **en local** (`0036`–`0038` + adaptadores + sync + Panel);
-  no producción.
+  Etapas 1 a 5 de resultados oficiales de loterías **en local** (`0036`–`0039` + adaptadores + sync + Panel + Route Handler);
+  **sin cron activado**, no producción.
 - **Fase siguiente:** ninguna autorizada
 - **Aviso operativo:** producción **sigue siendo el seed de desarrollo** — dos organizaciones y
   cuatro cuentas `@demo.test` que pueden iniciar sesión (**I-077**, abierto el 2026-08-27). Decidirlo
@@ -17,7 +17,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 | Clasificación | Estado actual |
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) |
-| **En curso** | Resultados oficiales de loterías: **Etapas 1 a 4 completas en local** (`0036`–`0038`, D-140..D-147). Recuadro del Panel, sync, matching y avisos, sin cron, **sin producción**. Etapa 5 pendiente; la 6 exige autorización expresa |
+| **En curso** | Resultados oficiales de loterías: **Etapas 1 a 5 completas en local** (`0036`–`0039`, D-140..D-148). Recuadro del Panel, sync, matching, avisos y Route Handler, **sin cron activado**, **sin producción**. La Etapa 6 exige autorización expresa |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
 
@@ -2983,5 +2983,55 @@ I-068, I-062 e I-063.
 1. **Etapa 5 es el programador y el Route Handler**, todavía local. No actives cron ni secretos reales.
 2. **No llames `download*` ni `syncDueLotteryResults` desde una página.** El Panel ya lee local.
 3. **`0036`–`0038` no van a producción** en esta tanda. Producción es Etapa 6 con autorización expresa.
+4. **`tickets_select` no se toca.**
+5. **No hay etiqueta `fase-N`.**
+
+---
+
+## Mantenimiento post-9 — resultados de loterías, Etapa 5 (2026-08-30)
+
+**Encargo:** `ResultadosLoterias.txt` Etapa 5, autorizada expresamente («Inicia etapa 5»).
+Programador y Route Handler, **sin** producción ni cron real.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Route Handler | `GET\|POST /api/lottery/sync`. Secreto a tiempo constante. Falla cerrado. `?probe=1` no descarga |
+| Tick | Cerrojo `0039`, CNJSA una vez por día Bogotá, resultados según ventanas y reintentos ya definidos |
+| Programador previsto | `cron-plan.ts` (Hobby: jobs diarios; Pro: cada 15 min). **`vercel.json` no declara `crons`** |
+| Local | `npm run lottery:sync` habla con el Route Handler |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` en verde: `typecheck` ✅, `lint` **0 errores** (2 avisos de siempre), **549/549**
+unitarias (+15) y `build` ✅. **`test:db` 631/631** (+5). E2E de esta tanda **4/4**. Panel **3/3**.
+
+Errores encontrados: (1) `server-actions-guard` rechazaba el Route Handler sin `getAuthUser` —
+excepción documentada por el secreto. (2) Primera `test:e2e` completa sucia por volumen de
+`test:db` (I-075 + 5.000 boletas). Tras reset, esas specs pasan salvo un `back-navigation` de
+clientes preexistente (D-136).
+
+### 3. Migraciones
+
+| Archivo | Qué hace |
+|---|---|
+| `0039_lottery_sync_lock.sql` | Tabla singleton + RPC de acquire/release. Sin EXECUTE para `authenticated` |
+
+**Solo local.** `0036`–`0038` siguen sin producción.
+
+### 4. Variables de entorno
+
+`LOTTERY_SYNC_SECRET` (mínimo 16). Opcional `CRON_SECRET`. No entra en `check-env` / prebuild.
+
+### 5. Problemas que permanecen
+
+**I-081** no cambia. **I-082:** Hobby no admite un cron cada 15 min. Siguen abiertos I-077, I-072, I-074, I-075, I-068, I-062 e I-063.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **Etapa 6 es producción**, con autorización expresa: migraciones, secreto, `crons` según el plan de Vercel, no push por su cuenta.
+2. **No pongas `crons` en `vercel.json` ni el secreto en Vercel** sin esa autorización.
+3. **No llames `download*` ni `runLotterySyncTick` desde una página.**
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**

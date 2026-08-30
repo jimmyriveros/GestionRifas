@@ -9,7 +9,7 @@ import type { LotteryCode } from './constants'
 import { decideResultFetch, officialResultFitsSchedule } from './publication'
 import type { AdapterOutcome, NormalizedLotteryResult, NormalizedSchedule } from './types'
 
-type LotteryDb = SupabaseClient<Database>
+export type LotteryDb = SupabaseClient<Database>
 
 export type LotterySyncSource = {
   url: string
@@ -191,6 +191,49 @@ export async function loadPendingResultDraws(client: LotteryDb): Promise<Pending
     scheduleStatus: row.schedule_status,
     validationStatus: statusBySchedule.get(row.id) ?? 'none',
   }))
+}
+
+export async function loadScheduleSyncMeta(client: LotteryDb): Promise<{
+  lastSuccessAt: string | null
+  lastAttemptAt: string | null
+}> {
+  const { data, error } = await client
+    .from('lottery_sync_runs')
+    .select('started_at, finished_at, outcome')
+    .eq('kind', 'schedule')
+    .order('started_at', { ascending: false })
+    .limit(30)
+  if (error) throw error
+
+  const rows = data ?? []
+  const lastAttemptAt = rows[0]?.started_at ?? null
+  const success = rows.find((row) => row.outcome === 'success' || row.outcome === 'partial')
+  return {
+    lastSuccessAt: success?.finished_at ?? success?.started_at ?? null,
+    lastAttemptAt,
+  }
+}
+
+export async function tryAcquireLotterySyncLock(
+  client: LotteryDb,
+  holder: string,
+): Promise<boolean> {
+  const { data, error } = await client.rpc('try_acquire_lottery_sync_lock', {
+    p_holder: holder,
+  })
+  if (error) throw error
+  return data === true
+}
+
+export async function releaseLotterySyncLock(
+  client: LotteryDb,
+  holder: string,
+): Promise<boolean> {
+  const { data, error } = await client.rpc('release_lottery_sync_lock', {
+    p_holder: holder,
+  })
+  if (error) throw error
+  return data === true
 }
 
 export async function countResultAttempts(

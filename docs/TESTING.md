@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.14 · **Actualizado:** 2026-08-30
+- **Versión:** 2.15 · **Actualizado:** 2026-08-30
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -274,7 +274,9 @@ completa en frío da `293 passed, 1 failed`; en caliente, `294 passed`.
 Casos de loterías (Etapa 1, `tests/db/lottery-results.test.ts` y `tests/unit/lottery-constants.test.ts`;
 Etapa 2, `tests/unit/lottery-adapters.test.ts` y `tests/unit/lottery-fetch.test.ts`;
 Etapa 3, `tests/db/lottery-sync.test.ts`, `tests/unit/lottery-sync.test.ts` y
-`tests/unit/lottery-notifications.test.ts`):
+`tests/unit/lottery-notifications.test.ts`;
+Etapa 5, `tests/unit/lottery-cron.test.ts`, `tests/db/lottery-cron.test.ts` y
+`tests/e2e/loterias-cron.spec.ts`):
 
 | ID | Caso | Resultado esperado |
 |----|------|--------------------|
@@ -303,6 +305,11 @@ Etapa 3, `tests/db/lottery-sync.test.ts`, `tests/unit/lottery-sync.test.ts` y
 | L-23 | Resultado al día siguiente del instante oficial | Se confirma; pertenece a ese sorteo |
 | L-24 | Dos confirmaciones concurrentes del mismo número | Un solo `lottery_results` |
 | L-25 | Cambio de programación a meses vista | Cero avisos; dentro de 48 h sí avisa, y el reintento no duplica |
+| L-26 | Tick sin secreto o con Bearer incorrecto | 401, no 307 a `/login`; el cuerpo no filtra esquema |
+| L-27 | Sesión de dueño sin secreto | 401; la sesión no sustituye el proceso interno |
+| L-28 | Segundo tick concurrente | `skipped: locked`; no descarga |
+| L-29 | Programación ya sincronizada hoy | El tick omite CNJSA y sigue con resultados |
+| L-30 | Cerrojo: segundo acquire, holder ajeno, caducado | Falso / no suelta / se puede tomar; la sesión no ejecuta las RPC |
 
 Verificaciones de catálogo (automatizadas, Fases 2, 7 y 9):
 

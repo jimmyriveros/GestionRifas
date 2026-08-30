@@ -1,6 +1,6 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-08-04 (Fase 8). Guía de diagnóstico rápido para quien opera la aplicación en
+**Actualizado:** 2026-08-30. Guía de diagnóstico rápido para quien opera la aplicación en
 producción. El detalle técnico de cada `I-0xx` citado está en
 [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) — aquí solo el síntoma y qué hacer.
 
@@ -225,3 +225,14 @@ columnas, mensajes crudos de PostgreSQL) — ni con un id inexistente, ni uno ma
 ni en recuperación de contraseña (`mapPgError`, D-044). Si aparece un mensaje que huela a error de
 base de datos crudo (por ejemplo, algo con `pg_` o un código como `23505`), es una regresión:
 repórtalo como error de código, no como comportamiento esperado.
+
+---
+
+## 7. El recuadro de loterías no se actualiza
+
+| Síntoma | Causa probable | Qué hacer |
+|---|---|---|
+| El Panel muestra vacío o «Horario por confirmar» | El programador **no está activo** (Etapa 6 pendiente) | Esperado hasta autorizar la Etapa 6. El recuadro no consulta internet (BR-L20) |
+| Tras la Etapa 6, sigue vacío | Falta `LOTTERY_SYNC_SECRET` o los `crons` no están en `vercel.json` | El Route Handler responde 401 sin secreto. Ver `DEPLOYMENT.md` §3.1.c |
+| El tick corre y Cruz Roja/Bogotá no salen | I-081: Imunify / Cloudflare | No eludir. Queda registro en `lottery_sync_runs`. Revisión manual o canal oficial |
+| Dos ticks a la vez | El segundo sale `skipped: locked` | Normal. El cerrojo caduca a los 5 min si uno se cae (D-148) |

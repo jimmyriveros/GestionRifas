@@ -328,6 +328,8 @@ describe('el Panel no consulta fuentes oficiales (BR-L20)', () => {
     expect(source).not.toMatch(/from ['"]\.\/adapters['"]/)
     expect(source).not.toMatch(/from ['"]\.\/publication['"]/)
     expect(source).not.toMatch(/downloadLottery|fetchOfficial|syncDueLottery/)
+    expect(source).not.toMatch(/from ['"]\.\/job['"]/)
+    expect(source).not.toMatch(/runLotterySyncTick/)
   })
 
   it('los dos paneles leen getLotteryDashboard y no descargan', () => {
@@ -347,6 +349,7 @@ describe('el Panel no consulta fuentes oficiales (BR-L20)', () => {
       expect(source).not.toMatch(/from ['"]@\/features\/lottery\/fetch['"]/)
       expect(source).not.toMatch(/from ['"]@\/features\/lottery\/sync['"]/)
       expect(source).not.toMatch(/from ['"]@\/features\/lottery\/adapters['"]/)
+      expect(source).not.toMatch(/from ['"]@\/features\/lottery\/job['"]/)
     }
   })
 })

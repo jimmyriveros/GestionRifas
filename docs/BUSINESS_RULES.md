@@ -481,8 +481,8 @@ El límite siempre es `sale_price`, nunca una cifra escrita en el código.
 
 ## 12.b Resultados oficiales de loterías (BR-L)
 
-Mantenimiento posterior a la Fase 9. Etapas 1 a 4: contrato persistente, adaptadores,
-sincronización, avisos y recuadro del Panel, en local. La etapa 5 añade el programador; la 6
+Mantenimiento posterior a la Fase 9. Etapas 1 a 5: contrato persistente, adaptadores,
+sincronización, avisos, recuadro del Panel y Route Handler, en local. La etapa 6
 exige autorización expresa para producción.
 
 | ID | Regla | Capas | Fase |
@@ -507,6 +507,7 @@ exige autorización expresa para producción.
 | BR-L18 | La sincronización de programación es idempotente. Conserva `reference_date` y `original_scheduled_at`. Solo incrementa `schedule_version` cuando cambia la hora oficial, el estado o el motivo. Un hash nuevo del mismo contenido no avisa (D-145). | D | post-9 |
 | BR-L19 | Hay como máximo un aviso de resultado por sorteo y destinatario, y uno por cambio, versión y destinatario. No se avisa a quien no tiene coincidencias. El texto vive en la aplicación (D-146, I-030). | D | post-9 |
 | BR-L20 | El Panel lee solo datos locales ya persistidos. No consulta fuentes oficiales al navegar. Un resultado anterior no se presenta como el de hoy (D-147). | C, S | post-9 |
+| BR-L21 | El sincronizador corre fuera de la navegación, con un secreto de servidor, sin sesión. No acepta URLs del cliente. Un resultado confirmado no se vuelve a pedir. El cron de producción no se activa sin la Etapa 6 (D-148). | S | post-9 |
 
 ---
 

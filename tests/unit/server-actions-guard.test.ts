@@ -210,6 +210,10 @@ describe('F7-25 los Route Handlers se protegen a mano', () => {
       // Supabase por una sesion, asi que aun no hay sesion que comprobar.
       if (ruta.includes(join('app', 'auth'))) return false
       const fuente = readFileSync(ruta, 'utf8')
+      // El tick de loterias no usa sesion: el programador autentica con un
+      // secreto de servidor (D-148, BR-L21). La guarda es
+      // `authorizeLotterySyncRequest`, no `getAuthUser`.
+      if (fuente.includes('authorizeLotterySyncRequest')) return false
       return !fuente.includes('getAuthUser') && !fuente.includes('requireActiveMembership')
     })
 

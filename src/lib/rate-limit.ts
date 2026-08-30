@@ -66,6 +66,11 @@ export const RATE_LIMITS = {
    * arma una vez— y deja el resto del cupo para el personal y para los demas.
    */
   teamInvitation: { limit: 5, windowMs: 60 * 60_000 },
+  /**
+   * Intentos fallidos al Route Handler de loterias. El secreto es largo; esto
+   * solo frena el goteo, no sustituye la comparacion a tiempo constante.
+   */
+  lotterySyncAuth: { limit: 20, windowMs: 15 * 60_000 },
 } as const satisfies Record<string, RateLimitRule>
 
 export type RateLimitResult =

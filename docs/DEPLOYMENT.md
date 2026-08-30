@@ -108,9 +108,19 @@ Settings → Environment Variables del proyecto `gestion-rifas`, scope **Product
 | `SUPABASE_SERVICE_ROLE_KEY` | **Sensitive** | El de `.env.local` (Supabase → Connect → Service role key) |
 | `NEXT_PUBLIC_SITE_URL` | Plain | La URL de producción, la misma de §2.1 |
 | `TZ` | Plain | `UTC` (D-022 — la conversión a Bogotá es explícita en la presentación) |
+| `LOTTERY_SYNC_SECRET` | **Sensitive** | **No poner todavía.** Autoriza `/api/lottery/sync` (D-148). Mínimo 16 caracteres. Activarlo es la Etapa 6 |
 
 `scripts/check-env.ts` (el `prebuild`) corta el build si falta alguna de las tres claves de Supabase.
 Hoy no valida `NEXT_PUBLIC_SITE_URL`; comprobarla en Vercel sigue siendo un paso manual (I-049).
+`LOTTERY_SYNC_SECRET` no entra en el prebuild: sin ella el Route Handler responde 401.
+
+### 3.1.c Programador de loterías — no activado
+
+El Route Handler `/api/lottery/sync` está en el código. **`vercel.json` no declara `crons`.**
+Encenderlos, poner el secreto y aplicar `0036`–`0039` es la **Etapa 6**, con autorización
+expresa. El plan Hobby (varios jobs diarios) y el Pro (uno cada 15 min) viven en
+`src/features/lottery/cron-plan.ts` (D-148, I-082). No copies esos `crons` al JSON sin esa
+autorización: el próximo despliegue los registraría.
 
 ### 3.1.b Fluid Compute — obligatorio para que la navegación no tarde segundos
 
