@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.10 · **Actualizado:** 2026-08-29
+- **Versión:** 2.11 · **Actualizado:** 2026-08-30
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -266,6 +266,21 @@ completa en frío da `293 passed, 1 failed`; en caliente, `294 passed`.
 | DB-26 | Transición de estado inválida (`cancelled → available`) | Error de trigger |
 | DB-27 | Usuario desactivado consultando cualquier tabla | Cero filas |
 | DB-28 | Consulta a una vista como Seller A | Solo datos propios (verifica `security_invoker`) |
+
+Casos de loterías (Etapa 1, `tests/db/lottery-results.test.ts` y `tests/unit/lottery-constants.test.ts`):
+
+| ID | Caso | Resultado esperado |
+|----|------|--------------------|
+| L-01 | `0046` vs `46` | Solo coincide `0046` |
+| L-02 | Asignada antes / después / creada después | `sold` / `late_assignment` / no coincide |
+| L-03 | Varias rifas en la ventana | Coinciden todas; no se elige una |
+| L-04 | Rifa anulada o borrador | No coincide |
+| L-05 | Boyacá | Compara `weekly_number`, no el diario |
+| L-06 | Matching repetido | `inserted = 0`; sin filas nuevas |
+| L-07 | Segundo número mayor distinto | `conflict`; matching rechazado |
+| L-08 | Vendedor lee coincidencias | Solo las suyas; la boleta ajena sigue oculta |
+| L-09 | Owner lee coincidencias | Solo su organización |
+| L-10 | `match_lottery_result` desde una sesión | Denegado |
 
 Verificaciones de catálogo (automatizadas, Fases 2, 7 y 9):
 

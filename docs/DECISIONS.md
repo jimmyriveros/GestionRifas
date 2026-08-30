@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.26 · **Actualizado:** 2026-08-29 (D-001 a D-137)
+- **Versión:** 1.27 · **Actualizado:** 2026-08-30 (D-001 a D-142)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -5243,6 +5243,74 @@ el control.
 
 ---
 
+## D-140 — Qué rifas participan en un sorteo oficial
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 1 de resultados de loterías, 2026-08-30)
+
+**Contexto.** El modelo tiene `raffles.start_date` / `end_date` y `status`, y admite varias rifas
+activas (BR-R01). El negocio opera una a la vez (D-088), pero las pruebas y el futuro no. El
+encargo prohíbe elegir en silencio «la rifa activa más reciente» y exige identificar la
+asociación si el modelo no la define.
+
+**Decisión.** Una rifa participa en un sorteo si `status` es `active` o `closed`, y
+`start_date ≤ reference_date ≤ end_date`. Se recorren **todas** las que cumplan. Quedan fuera
+`draft` y `cancelled`. No se usa el día oficial del sorteo para elegir la rifa: ese instante
+decide qué boletas ya existían y si estaban asignadas (BR-L09).
+
+**Alternativas descartadas.** (a) Solo la rifa activa más reciente: el encargo lo prohíbe y ya
+rompió comisiones (D-096). (b) Todas las no canceladas, sin ventana de fechas: mezclaría boletas
+de una rifa ya terminada con el premio de otra. (c) Pedir al usuario un flag por rifa: no hay
+ese campo y no hace falta para operar hoy.
+
+**Consecuencia.** BR-L05. Si el dueño quiere otra regla (por ejemplo, que una rifa cerrada deje
+de participar el mismo día), hay que cambiar esta decisión; no se improvisa en el matching.
+
+## D-141 — Programación nacional, coincidencias por organización
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 1, 2026-08-30)
+
+**Contexto.** El resultado de Bogotá no es de una rifa. Las boletas sí. Ampliar `tickets_select`
+para resolver coincidencias le mostraría al vendedor boletas ajenas (D-092).
+
+**Decisión.** `lottery_draw_schedules` y `lottery_results` no tienen `organization_id`: las lee
+cualquier miembro activo. `lottery_ticket_matches` sí: el personal ve las de su organización; el
+vendedor, solo `seller_id = current_profile_id()`. Las escrituras las hace `match_lottery_result`
+(`SECURITY DEFINER`) o `service_role`. `tickets_select` no se toca. `lottery_sync_runs` no se lee
+desde una sesión.
+
+**Alternativas descartadas.** (a) Programación por organización: duplicaría el mismo sorteo.
+(b) Ampliar `tickets_select`: cambiaría en silencio las consultas del portal del vendedor.
+(c) Que el vendedor padre vea las coincidencias de su equipo: el encargo limita al vendedor a
+sus boletas, igual que D-092.
+
+**Consecuencia.** El Panel (Etapa 4) lee coincidencias de su tabla, no haciendo join a
+`tickets` ajenas.
+
+## D-142 — Coincidencia textual, fotografía inmutable, vendida según `assigned_at`
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 1, 2026-08-30)
+
+**Contexto.** Los números de boleta son texto de 1 a 4 dígitos (BR-N01..N03). El número mayor
+oficial son cuatro. No hay historial de inventario: hay `created_at`, `assigned_at`,
+`approved_at` y `cancelled_at`. `payment_status` es otra dimensión.
+
+**Decisión.** (a) Comparación textual exacta: `0046` ≠ `46`. Boyacá usa `weekly_number`; las
+demás, `daily_number`. La serie no participa. (b) Vendida = `assigned_at ≤ official_scheduled_at`.
+Si se asignó después, la fotografía es `late_assignment` sin cliente. El pago no cuenta.
+(c) `match_lottery_result` es set-based e idempotente (`ON CONFLICT DO NOTHING`). Un
+`UPDATE` del número mayor confirmado no lo cambia: pasa a `conflict`. Las coincidencias no
+tienen `UPDATE` ni `DELETE`, tampoco con `service_role`.
+
+**Alternativas descartadas.** (a) `lpad` para igualar `46` y `0046`: viola BR-N03. (b) Usar
+`payment_status` como «vendida». (c) Rehacer la fotografía si cambia el vendedor o el cliente
+después: la foto es del instante del sorteo.
+
+**Consecuencia.** BR-L06..BR-L12. Quien cambie de vendedor **después** del sorteo deja en la
+foto el vendedor que tenía al correr el matching, no una historia que el esquema no guarda
+(I-080).
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.
@@ -5253,4 +5321,4 @@ No bloquean ninguna fase; se resolvieron con la opción más segura y podrán aj
 | A2 | ¿Se reabren rifas cerradas? | Sí, solo el Owner y con auditoría | BR-R03 |
 | A3 | ¿Un vendedor edita los números de una boleta ya aprobada? | No; solo en `draft`/`pending_approval` | Matriz de permisos |
 | A4 | ¿Se notifica por correo al invitar usuarios? | Sí, mediante Supabase Auth; sin plantillas personalizadas en el MVP | Fase 3 |
-| A5 | ¿Cuántas rifas activas simultáneas? | Varias permitidas; el dashboard muestra la más reciente activa | Fase 6 |
+| A5 | ¿Cuántas rifas activas simultáneas? | Varias permitidas; el dashboard muestra la más reciente activa | Fase 6. Para **loterías**, D-140 no elige una: coinciden todas las `active`/`closed` cuya ventana cubre la fecha de referencia. |

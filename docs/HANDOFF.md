@@ -30,7 +30,8 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| Siguiente fase | Ninguna. Todo mantenimiento posterior requiere una tarea y priorización explícitas (ver §1.b) |
+| Siguiente fase | Ninguna. Mantenimiento en curso: **resultados de loterías Etapa 1 en local** (`0036`); Etapa 2 pendiente. Producción de esta función exige la Etapa 6 con autorización expresa |
+| **Resultados de loterías** | Etapa 1 (2026-08-30, D-140..D-142): programación, resultado y coincidencias persistidos; matching textual set-based. **No hay UI, no hay scraping, no está en producción** |
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
 | **Buscar en «Boletas»** | Desde el 2026-08-21 (D-100, BR-N13) el **único** campo de búsqueda encuentra por los números de la boleta **y** por el nombre del cliente que la tiene, devolviendo siempre boletas. Migración **`0029`**. **Ya en producción** (`e1b2fe1`, 2026-08-21) |
@@ -115,7 +116,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — Fecha ya no tapa Método en «Registrar abono» (2026-08-29)
+## 1.a Último relevo significativo — Resultados oficiales de loterías, Etapa 1 (2026-08-30)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Contrato persistente de programación, resultado y coincidencias, con matching set-based en PostgreSQL.** Seis loterías ordinarias. Números como texto exacto (`0046` ≠ `46`). Vendida según `assigned_at` vs `official_scheduled_at`, no según el pago. Rifas elegibles: todas las `active`/`closed` cuya ventana cubre `reference_date` (D-140). Sin scraping, sin adaptadores, sin cron, sin Panel, sin avisos. `Query changes: None` (el Panel no lee esto aún) · `Route changes: None` · `Migrations: 0036` · `New dependencies: None`. **No se aplica a producción** |
+| Archivos | **Nuevos:** `supabase/migrations/0036_lottery_results.sql`, `src/features/lottery/constants.ts`, `tests/db/lottery-results.test.ts`, `tests/unit/lottery-constants.test.ts`. **Tocados:** `src/types/database.types.ts` (generado), `tests/db/catalog.test.ts`. Documentación: `DECISIONS` (D-140..D-142), `BUSINESS_RULES` (BR-L01..BR-L16), `DATA_MODEL`, `SECURITY`, `ARCHITECTURE`, `MASTER_SPEC`, `UX_COPY_GUIDELINES`, `TESTING`, `TEST_RESULTS`, `KNOWN_ISSUES` (I-080), `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni una capa services.** El matching es una RPC `SECURITY DEFINER`, como pagos y asignación. RLS con `current_org_ids` / `current_staff_org_ids` (I-019). `tickets_select` **no se tocó** (D-092, D-141). Notificaciones se reutilizarán en la Etapa 3; esta etapa no escribe `notifications`. Índices de `daily_number`/`weekly_number` de `0003` bastan |
+| Decisiones | **D-140** (qué rifas participan) · **D-141** (programación nacional, coincidencias por org) · **D-142** (texto exacto, fotografía inmutable, vendida = `assigned_at`). I-080: no hay historial de inventario |
+| Verificación | `typecheck` ✅ · `lint` **0 errores** (2 avisos de siempre) · **470/470** unitarias (+5) · `build` ✅ · **`test:db` 609/609** (+22). E2E no se reejecutó: no hay UI. Detalle en `TEST_RESULTS` |
+| Advertencias | **1)** `0036` es **solo local**. No `db push`, no cron, no secretos. La Etapa 6 exige autorización expresa. **2)** No metas `match_lottery_result` en la lista blanca de `authenticated` (I-078): es proceso interno. **3)** No amplíes `tickets_select` para pintar coincidencias. **4)** `ResultadosLoterias.txt` es del dueño; no se commitea |
+| Pendiente | **Siguiente acción:** Etapa 2 — adaptadores de fuentes oficiales, con fixtures, sin activar el flujo real. Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063 |
+| Publicación | **No.** Mantenimiento local. Prohibido push y producción |
+| Git | Rama `main`, sobre `cb95b1c`. Árbol con `0036` y docs; `ResultadosLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento |
+
+## 1.a.0 Relevo anterior — Fecha ya no tapa Método en «Registrar abono» (2026-08-29)
 
 | Campo | Estado |
 |---|---|
@@ -863,17 +878,26 @@ organizations ─┬─ memberships (profile_id, organization_id, role, is_activ
                ├─ payments    (seller_id, client_id, total_amount, payment_date, voided_at)
                └─ audit_logs  (actor_profile_id, action, entity_type, entity_id, old/new_values)
 
+lottery_draw_schedules (nacional: lottery_code, draw_number, reference_date,
+                        original/official_scheduled_at, schedule_status)
+  └─ lottery_results (winning_number texto 4 dígitos, series, validation_status)
+       └─ lottery_ticket_matches (org, rifa, vendedor, fotografía inmutable)
+
+lottery_sync_runs (proceso interno; sin SELECT para authenticated)
+
 payments 1─N payment_allocations N─1 tickets   (amount; SUM = payments.total_amount)
 profiles 1─1 auth.users
 ```
 
 **Enums:** `app_role` owner|admin|seller · `raffle_status` draft|active|closed|cancelled ·
 `ticket_inventory_status` draft|pending_approval|available|assigned|cancelled ·
-`ticket_payment_status` unpaid|partial|paid · `payment_method` cash|transfer|other
+`ticket_payment_status` unpaid|partial|paid · `payment_method` cash|transfer|other ·
+`lottery_code` cundinamarca|cruz_roja|meta|bogota|medellin|boyaca (`0036`)
 
 **Invariantes que la BD ya garantiza — no las reimplementes en la aplicación:**
 - Combinación `(org, rifa, daily, weekly)` única, incluso entre vendedores y con boletas anuladas.
-- Números como texto, 1–4 dígitos, ceros iniciales conservados.
+- Números como texto, 1–4 dígitos, ceros iniciales conservados. El número mayor de lotería son
+  **cuatro** dígitos y se compara igual: `0046` ≠ `46` (BR-L06).
 - Dinero en `bigint`; `paid_amount` derivado por trigger; `payment_status` columna generada.
 - Sobrepago imposible; pago y asignaciones cuadran exactamente; todo o nada. El límite es
   **siempre** `sale_price`, que puede venir rebajado (BR-P09): una boleta vendida en $100.000 queda
@@ -886,7 +910,7 @@ profiles 1─1 auth.users
 - Una organización nunca se queda sin Owner activo (`0016`, aplicada en local y en producción).
 
 **Funciones a usar en vez de DML directo:**
-`assign_ticket` · `create_payment` · `void_payment` · `update_payment_allocation` · `update_ticket_sale_price` · `bulk_create_tickets` · `approve_tickets` ·
+`assign_ticket` · `create_payment` · `void_payment` · `update_payment_allocation` · `update_ticket_sale_price` · `match_lottery_result` (solo `service_role`) · `bulk_create_tickets` · `approve_tickets` ·
 `cancel_ticket` · `bulk_assign_tickets` · `bulk_cancel_tickets` · `bulk_change_ticket_seller` ·
 `bulk_delete_tickets`. Todas validan permisos internamente y auditan. Son `SECURITY DEFINER`: existen
 precisamente para hacer cosas que la RLS del usuario prohíbe.
@@ -986,6 +1010,9 @@ features/users/components/UserDialog  UN formulario para el alta Y la edicion, e
 features/commissions/  comision (D-094/D-095): TODO sale de commission_summary,
                     ninguna pantalla suma ni decide tramos. getCurrentCommissionRaffle()
                     elige de que rifa se habla, y la pantalla lo dice
+features/lottery/constants.ts  seis loterias, campo de coincidencia y etiquetas
+                    (BR-L01). El matching vive en PostgreSQL, no aqui. Sin UI
+                    en la Etapa 1
 features/notifications/  avisos (D-093): campanita en el armazon, tabla escrita
                     SOLO por triggers, y el TEXTO en text.ts —nunca en la base de
                     datos, para no repetir I-030—

@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.7 · **Estado:** normativo · **Actualizado:** 2026-08-29
+- **Versión:** 1.8 · **Estado:** normativo · **Actualizado:** 2026-08-30
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -476,6 +476,32 @@ El límite siempre es `sale_price`, nunca una cifra escrita en el código.
 | BR-X07 | Los filtros son fáciles de limpiar; siempre hay una acción visible de «Limpiar filtros». | C | 3 |
 | BR-X08 | Todo texto visible se redacta según [`UX_COPY_GUIDELINES.md`](UX_COPY_GUIDELINES.md) (tuteo, palabras comunes, consecuencias explicadas, glosario del Anexo A). | C | Permanente |
 | BR-X09 | Las pantallas de detalle usan una flecha de navegación hacia atrás junto al título, no un botón o enlace de texto «Volver a…». Vuelve al contexto real desde el que llegó el usuario cuando existe; si no, usa una ruta de repuesto segura que nunca saca de la aplicación. | C, S | post-9 |
+
+---
+
+## 12.b Resultados oficiales de loterías (BR-L)
+
+Mantenimiento posterior a la Fase 9. Etapa 1: contrato persistente y matching. Las etapas 2 a 5
+añaden adaptadores, avisos y Panel; la 6 exige autorización expresa para producción.
+
+| ID | Regla | Capas | Fase |
+|----|-------|-------|------|
+| BR-L01 | Se cubren seis loterías ordinarias: Cundinamarca (lun), Cruz Roja (mar), Meta (mié), Bogotá (jue), Medellín (vie) y Boyacá (sáb). El día es la fecha de referencia, no necesariamente el día en que se juega. | D | post-9 |
+| BR-L02 | No se mezclan sorteos ordinarios y extraordinarios. | D | post-9 |
+| BR-L03 | `reference_date` es la fecha nominal del premio y no cambia si el sorteo se adelanta o se aplaza. | D | post-9 |
+| BR-L04 | `official_scheduled_at` es el instante vigente. Decide qué boletas ya existían y si estaban asignadas. Un festivo no fabrica por sí solo una fecha nueva. | D | post-9 |
+| BR-L05 | Participan las rifas `active` o `closed` cuya ventana (`start_date`–`end_date`) cubre `reference_date`. Todas, nunca «la activa más reciente» (D-140). | D | post-9 |
+| BR-L06 | La coincidencia es textual y exacta. El número mayor son cuatro dígitos. `0046` no coincide con `46`. Prohibido casteo, `lpad` o recorte de ceros. Lunes a viernes usan `daily_number`; Boyacá, `weekly_number`. | D | post-9 |
+| BR-L07 | La serie es informativa, nullable, y no participa en la coincidencia ni en los avisos. | D | post-9 |
+| BR-L08 | Un sorteo confirmado no admite un segundo número activo. Si una fuente trae otro, se marca `conflict` y no se sobrescribe. | D | post-9 |
+| BR-L09 | Vendida = asignada con `assigned_at ≤ official_scheduled_at`. `payment_status` no interviene. | D | post-9 |
+| BR-L10 | Una asignación posterior no convierte en vendida la fotografía. Queda `late_assignment` sin cliente. | D | post-9 |
+| BR-L11 | Cada coincidencia es una fotografía inmutable (resultado + boleta + campo). Los reintentos no duplican. | D | post-9 |
+| BR-L12 | El matching es una operación de conjunto en PostgreSQL, idempotente. | D | post-9 |
+| BR-L13 | Programación y resultados son nacionales. Las coincidencias se aislan por organización. | D | post-9 |
+| BR-L14 | El vendedor solo ve coincidencias de sus boletas. `tickets_select` no se amplía (D-141, D-092). | D | post-9 |
+| BR-L15 | No se llama «ganador» al cliente ni a la boleta. La plataforma detecta coincidencia numérica; no certifica el premio oficial. | C | post-9 |
+| BR-L16 | No se guarda HTML ni el documento externo. Se conservan URL, autoridad, versión, hash y campos extraídos. | D | post-9 |
 
 ---
 

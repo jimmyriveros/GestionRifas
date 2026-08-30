@@ -55,7 +55,7 @@ describe('RLS habilitada y forzada en todas las tablas de negocio', () => {
     expect(rows.map((r) => r.relname)).toEqual([])
   })
 
-  it('las 9 tablas de negocio existen y tienen politicas', async () => {
+  it('las tablas de negocio con lectura autenticada tienen politicas', async () => {
     const { rows } = await db.query(`
       select tablename, count(*)::int as policies
       from pg_policies where schemaname = 'public'
@@ -65,6 +65,9 @@ describe('RLS habilitada y forzada en todas las tablas de negocio', () => {
     for (const t of [
       'audit_logs',
       'clients',
+      'lottery_draw_schedules',
+      'lottery_results',
+      'lottery_ticket_matches',
       'memberships',
       'organizations',
       'payment_allocations',

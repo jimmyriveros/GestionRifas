@@ -1,9 +1,9 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.7 · **Estado:** implementado · **Actualizado:** 2026-08-29
-- **Estado:** el esquema ejecutable vive en las 30 migraciones `0001`–`0030`. `0001`–`0029` están
-  aplicadas y verificadas en local y en el proyecto Supabase real; **`0030` solo en local**
-  (I-062 a I-065, D-102).
+- **Versión:** 2.8 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0036`. `0001`–`0035` están
+  aplicadas y verificadas en local y en el proyecto Supabase real; **`0036` solo en local**
+  (resultados de loterías, Etapa 1; no se aplica a producción sin la Etapa 6).
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
   tipos generados en `src/types/database.types.ts`. Las pruebas de `tests/db/` verifican el
   esquema local; producción se comprueba con `verify:remote` y las sondas registradas en
@@ -117,7 +117,27 @@ CREATE TYPE raffle_status       AS ENUM ('draft', 'active', 'closed', 'cancelled
 CREATE TYPE ticket_inventory_status AS ENUM ('draft', 'pending_approval', 'available', 'assigned', 'cancelled');
 CREATE TYPE ticket_payment_status   AS ENUM ('unpaid', 'partial', 'paid');
 CREATE TYPE payment_method      AS ENUM ('cash', 'transfer', 'other');
+CREATE TYPE lottery_code        AS ENUM (
+  'cundinamarca', 'cruz_roja', 'meta', 'bogota', 'medellin', 'boyaca'
+);
+CREATE TYPE lottery_schedule_status AS ENUM (
+  'scheduled', 'rescheduled_later', 'rescheduled_earlier', 'suspended',
+  'cancelled', 'completed', 'schedule_unverified', 'schedule_conflict'
+);
+CREATE TYPE lottery_schedule_change_reason AS ENUM (
+  'holiday', 'official_change', 'force_majeure', 'unknown'
+);
+CREATE TYPE lottery_result_validation_status AS ENUM (
+  'pending', 'confirmed', 'rejected', 'conflict'
+);
+CREATE TYPE lottery_match_field AS ENUM ('daily_number', 'weekly_number');
+CREATE TYPE lottery_assignment_status AS ENUM (
+  'sold', 'available', 'late_assignment'
+);
 ```
+
+Los tipos de lotería nacen en `0036` (D-140..D-142). El número mayor es `text` de cuatro dígitos,
+nunca un entero.
 
 ---
 
@@ -545,6 +565,57 @@ de la misma transacción, pero impidiendo confirmar un estado descuadrado.
 Append-only: sin políticas de `UPDATE` ni `DELETE` para ningún rol. La escritura ocurre desde
 triggers y funciones `SECURITY DEFINER`. Eventos mínimos registrados: `docs/SECURITY.md` §6.
 
+### 4.10 `lottery_draw_schedules` (`0036`)
+
+Programación oficial de los seis sorteos ordinarios. **Nacional:** no tiene `organization_id`.
+
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| `lottery_code` | `lottery_code` | `NOT NULL` |
+| `draw_number` | `text` | `NOT NULL`, único con `lottery_code` |
+| `reference_date` | `date` | `NOT NULL`, único con `lottery_code` (BR-L03) |
+| `original_scheduled_at` | `timestamptz` | `NULL` si nunca se verificó |
+| `official_scheduled_at` | `timestamptz` | obligatorio salvo `schedule_unverified` |
+| `schedule_status` | `lottery_schedule_status` | `NOT NULL` |
+| `change_reason` | `lottery_schedule_change_reason` | `NULL` |
+| `source_url` | `text` | `NULL` o `https://` |
+| `source_authority` / `source_document_version` | `text` | `NULL` |
+| `source_content_hash` | `text` | SHA-256 hex o `NULL` |
+| `verified_at` | `timestamptz` | `NULL` |
+| `schedule_version` | `integer` | `NOT NULL DEFAULT 1` |
+
+### 4.11 `lottery_results` (`0036`)
+
+Un resultado por sorteo (`schedule_id` único). El número mayor confirmado no se sobrescribe: un
+segundo valor distinto deja `validation_status = conflict` y conserva el original (BR-L08).
+
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| `winning_number` | `text` | `NULL` o `^[0-9]{4}$`; obligatorio si `confirmed`/`conflict` |
+| `series` | `text` | `NULL`; no participa en la coincidencia (BR-L07) |
+| `validation_status` | `lottery_result_validation_status` | `NOT NULL DEFAULT pending` |
+| `evidence` | `jsonb` | campos extraídos; **nunca** HTML |
+| `conflicting_winning_number` | `text` | `NULL` o cuatro dígitos |
+
+### 4.12 `lottery_ticket_matches` (`0036`)
+
+Fotografía inmutable de una boleta coincidente. `UNIQUE (result_id, ticket_id, match_field)`.
+Sin `UPDATE` ni `DELETE` (tampoco con `service_role`). FK compuestas con `organization_id`.
+
+| Columna | Tipo | Notas |
+|---------|------|-------|
+| `assignment_status` | `lottery_assignment_status` | `sold` / `available` / `late_assignment` (BR-L09, BR-L10) |
+| `inventory_status_at_draw` | `ticket_inventory_status` | solo `available` o `assigned` |
+| `client_id` / `assigned_at` | | rellenados **solo** si `sold` |
+| `matched_number` | `text` | copia textual, ceros incluidos |
+
+`tickets` gana `UNIQUE (id, organization_id)` para esa FK. No cambia ninguna regla de boletas.
+
+### 4.13 `lottery_sync_runs` (`0036`)
+
+Bitácora del proceso interno. RLS forzada **sin** política de `SELECT` para `authenticated`. No
+guarda el documento externo.
+
 ---
 
 ## 5. Índices
@@ -580,6 +651,15 @@ triggers y funciones `SECURITY DEFINER`. Eventos mínimos registrados: `docs/SEC
 | `payment_allocations` | `(payment_id)` | Detalle del pago |
 | `audit_logs` | `(organization_id, created_at DESC)` | Consulta de bitácora |
 | `audit_logs` | `(entity_type, entity_id, created_at DESC)` | Historial por entidad |
+| `lottery_draw_schedules` | `(official_scheduled_at) WHERE scheduled/rescheduled_*` | Sorteos pendientes del sincronizador |
+| `lottery_draw_schedules` | `(schedule_status, lottery_code)` | Estados de programación |
+| `lottery_results` | `(validation_status)` | Pendientes vs confirmados |
+| `lottery_ticket_matches` | `(organization_id, result_id)` | Panel y avisos por organización |
+| `lottery_ticket_matches` | `(seller_id, result_id)` | Panel del vendedor |
+| `tickets` | `UNIQUE (id, organization_id)` (`0036`) | FK compuesta de las coincidencias |
+
+Los índices de `tickets` por `(organization_id, raffle_id, daily_number)` y `weekly_number` (`0003`)
+bastan para el matching: no se añadió otro sobre los números.
 
 La unicidad de `tickets_combo_unique` genera su propio índice, que además sirve para detectar
 duplicados durante la carga masiva.
@@ -764,6 +844,17 @@ El disparador `tickets_protect_sale_price` sigue bloqueando el `UPDATE` directo 
 esta función enciende un GUC de transacción que el disparador reconoce. El recálculo de saldo,
 estado y ganancia sigue a cargo de los disparadores de `0004` y `0024` (D-137, BR-P13).
 
+### 6.h Coincidencias de lotería (migración `0036`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `match_lottery_result(result_id)` | `{ result_id, inserted }` | Proceso interno (`service_role`). **No** la llama una sesión |
+
+`SECURITY DEFINER`, sin `EXECUTE` para `authenticated` ni `anon`. Recorre rifas elegibles (D-140) y
+boletas con igualdad textual del número, inserta fotografías e ignora duplicados. No notifica y no
+marca el sorteo como `completed` (Etapa 3). Un resultado que no esté `confirmed`, o una programación
+`suspended` / `cancelled` / `schedule_conflict` / `schedule_unverified`, se rechaza.
+
 ---
 
 ## 7. Triggers
@@ -845,3 +936,7 @@ Reglas de pertenencia derivadas:
 | E18 | Dos Owners activos en una organización | Rechazo por índice único parcial |
 | E19 | Cliente con historial que se intenta borrar | `RESTRICT`; la UI ofrece archivar |
 | E20 | Acumulado monetario grande (1.000 boletas × $120.000) | `bigint` soporta el rango sin desborde |
+| E21 | `0046` vs `46` en un resultado de lotería | No coinciden: igualdad textual (BR-L06) |
+| E22 | Boleta asignada después de `official_scheduled_at` | Fotografía `late_assignment`, sin cliente (BR-L10) |
+| E23 | Segundo número mayor distinto para el mismo sorteo | `conflict`; se conserva el original (BR-L08) |
+| E24 | Varias rifas con el mismo número en la misma fecha | Coinciden todas las elegibles; no se elige una (D-140) |

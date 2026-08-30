@@ -1,4 +1,10 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   graphql_public: {
@@ -70,18 +76,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'audit_logs_actor_profile_id_fkey'
-            columns: ['actor_profile_id']
+            foreignKeyName: "audit_logs_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'audit_logs_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "audit_logs_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -130,18 +136,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'clients_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "clients_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'clients_seller_org_fk'
-            columns: ['seller_id', 'organization_id']
+            foreignKeyName: "clients_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'memberships'
-            referencedColumns: ['profile_id', 'organization_id']
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
           },
         ]
       }
@@ -151,7 +157,7 @@ export type Database = {
           created_at: string
           from_seller_id: string | null
           id: string
-          movement: Database['public']['Enums']['commission_movement']
+          movement: Database["public"]["Enums"]["commission_movement"]
           organization_id: string
           raffle_id: string
           rate: number
@@ -165,7 +171,7 @@ export type Database = {
           created_at?: string
           from_seller_id?: string | null
           id?: string
-          movement: Database['public']['Enums']['commission_movement']
+          movement: Database["public"]["Enums"]["commission_movement"]
           organization_id: string
           raffle_id: string
           rate: number
@@ -179,7 +185,7 @@ export type Database = {
           created_at?: string
           from_seller_id?: string | null
           id?: string
-          movement?: Database['public']['Enums']['commission_movement']
+          movement?: Database["public"]["Enums"]["commission_movement"]
           organization_id?: string
           raffle_id?: string
           rate?: number
@@ -190,25 +196,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'commission_ledger_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "commission_ledger_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'commission_ledger_raffle_org_fk'
-            columns: ['raffle_id', 'organization_id']
+            foreignKeyName: "commission_ledger_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'raffles'
-            referencedColumns: ['id', 'organization_id']
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
           },
           {
-            foreignKeyName: 'commission_ledger_raffle_org_fk'
-            columns: ['raffle_id', 'organization_id']
+            foreignKeyName: "commission_ledger_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'v_raffle_summary'
-            referencedColumns: ['raffle_id', 'organization_id']
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
           },
         ]
       }
@@ -239,17 +245,305 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'commission_tiers_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "commission_tiers_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lottery_draw_schedules: {
+        Row: {
+          change_reason:
+            | Database["public"]["Enums"]["lottery_schedule_change_reason"]
+            | null
+          created_at: string
+          draw_number: string
+          id: string
+          lottery_code: Database["public"]["Enums"]["lottery_code"]
+          official_scheduled_at: string | null
+          original_scheduled_at: string | null
+          reference_date: string
+          schedule_status: Database["public"]["Enums"]["lottery_schedule_status"]
+          schedule_version: number
+          source_authority: string | null
+          source_content_hash: string | null
+          source_document_version: string | null
+          source_url: string | null
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          change_reason?:
+            | Database["public"]["Enums"]["lottery_schedule_change_reason"]
+            | null
+          created_at?: string
+          draw_number: string
+          id?: string
+          lottery_code: Database["public"]["Enums"]["lottery_code"]
+          official_scheduled_at?: string | null
+          original_scheduled_at?: string | null
+          reference_date: string
+          schedule_status?: Database["public"]["Enums"]["lottery_schedule_status"]
+          schedule_version?: number
+          source_authority?: string | null
+          source_content_hash?: string | null
+          source_document_version?: string | null
+          source_url?: string | null
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          change_reason?:
+            | Database["public"]["Enums"]["lottery_schedule_change_reason"]
+            | null
+          created_at?: string
+          draw_number?: string
+          id?: string
+          lottery_code?: Database["public"]["Enums"]["lottery_code"]
+          official_scheduled_at?: string | null
+          original_scheduled_at?: string | null
+          reference_date?: string
+          schedule_status?: Database["public"]["Enums"]["lottery_schedule_status"]
+          schedule_version?: number
+          source_authority?: string | null
+          source_content_hash?: string | null
+          source_document_version?: string | null
+          source_url?: string | null
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
+      lottery_results: {
+        Row: {
+          confirmed_at: string | null
+          conflicting_winning_number: string | null
+          created_at: string
+          evidence: Json
+          fetched_at: string
+          id: string
+          published_at: string | null
+          schedule_id: string
+          series: string | null
+          source_content_hash: string | null
+          source_kind: string | null
+          source_url: string | null
+          updated_at: string
+          validation_status: Database["public"]["Enums"]["lottery_result_validation_status"]
+          winning_number: string | null
+        }
+        Insert: {
+          confirmed_at?: string | null
+          conflicting_winning_number?: string | null
+          created_at?: string
+          evidence?: Json
+          fetched_at?: string
+          id?: string
+          published_at?: string | null
+          schedule_id: string
+          series?: string | null
+          source_content_hash?: string | null
+          source_kind?: string | null
+          source_url?: string | null
+          updated_at?: string
+          validation_status?: Database["public"]["Enums"]["lottery_result_validation_status"]
+          winning_number?: string | null
+        }
+        Update: {
+          confirmed_at?: string | null
+          conflicting_winning_number?: string | null
+          created_at?: string
+          evidence?: Json
+          fetched_at?: string
+          id?: string
+          published_at?: string | null
+          schedule_id?: string
+          series?: string | null
+          source_content_hash?: string | null
+          source_kind?: string | null
+          source_url?: string | null
+          updated_at?: string
+          validation_status?: Database["public"]["Enums"]["lottery_result_validation_status"]
+          winning_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lottery_results_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: true
+            referencedRelation: "lottery_draw_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lottery_sync_runs: {
+        Row: {
+          attempt: number
+          correlation_id: string | null
+          created_at: string
+          error_code: string | null
+          finished_at: string | null
+          id: string
+          kind: Database["public"]["Enums"]["lottery_sync_kind"]
+          lottery_code: Database["public"]["Enums"]["lottery_code"] | null
+          outcome: Database["public"]["Enums"]["lottery_sync_outcome"]
+          records_changed: number
+          records_read: number
+          records_skipped: number
+          started_at: string
+        }
+        Insert: {
+          attempt?: number
+          correlation_id?: string | null
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["lottery_sync_kind"]
+          lottery_code?: Database["public"]["Enums"]["lottery_code"] | null
+          outcome?: Database["public"]["Enums"]["lottery_sync_outcome"]
+          records_changed?: number
+          records_read?: number
+          records_skipped?: number
+          started_at?: string
+        }
+        Update: {
+          attempt?: number
+          correlation_id?: string | null
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["lottery_sync_kind"]
+          lottery_code?: Database["public"]["Enums"]["lottery_code"] | null
+          outcome?: Database["public"]["Enums"]["lottery_sync_outcome"]
+          records_changed?: number
+          records_read?: number
+          records_skipped?: number
+          started_at?: string
+        }
+        Relationships: []
+      }
+      lottery_ticket_matches: {
+        Row: {
+          assigned_at: string | null
+          assignment_status: Database["public"]["Enums"]["lottery_assignment_status"]
+          client_id: string | null
+          created_at: string
+          id: string
+          inventory_status_at_draw: Database["public"]["Enums"]["ticket_inventory_status"]
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          matched_number: string
+          organization_id: string
+          raffle_id: string
+          result_id: string
+          seller_id: string
+          ticket_created_at: string
+          ticket_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assignment_status: Database["public"]["Enums"]["lottery_assignment_status"]
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          inventory_status_at_draw: Database["public"]["Enums"]["ticket_inventory_status"]
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          matched_number: string
+          organization_id: string
+          raffle_id: string
+          result_id: string
+          seller_id: string
+          ticket_created_at: string
+          ticket_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assignment_status?: Database["public"]["Enums"]["lottery_assignment_status"]
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          inventory_status_at_draw?: Database["public"]["Enums"]["ticket_inventory_status"]
+          match_field?: Database["public"]["Enums"]["lottery_match_field"]
+          matched_number?: string
+          organization_id?: string
+          raffle_id?: string
+          result_id?: string
+          seller_id?: string
+          ticket_created_at?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lottery_ticket_matches_client_org_fk"
+            columns: ["client_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_matches_client_org_fk"
+            columns: ["client_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_matches_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_matches_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_matches_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_matches_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_matches_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_matches_ticket_org_fk"
+            columns: ["ticket_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_matches_ticket_org_fk"
+            columns: ["ticket_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_balances"
+            referencedColumns: ["ticket_id", "organization_id"]
           },
         ]
       }
       memberships: {
         Row: {
-          commission_model: Database['public']['Enums']['commission_model']
+          commission_model: Database["public"]["Enums"]["commission_model"]
           created_at: string
           fixed_commission_amount: number | null
           id: string
@@ -258,11 +552,11 @@ export type Database = {
           organization_id: string
           parent_seller_id: string | null
           profile_id: string
-          role: Database['public']['Enums']['app_role']
+          role: Database["public"]["Enums"]["app_role"]
           updated_at: string
         }
         Insert: {
-          commission_model?: Database['public']['Enums']['commission_model']
+          commission_model?: Database["public"]["Enums"]["commission_model"]
           created_at?: string
           fixed_commission_amount?: number | null
           id?: string
@@ -271,11 +565,11 @@ export type Database = {
           organization_id: string
           parent_seller_id?: string | null
           profile_id: string
-          role: Database['public']['Enums']['app_role']
+          role: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
         Update: {
-          commission_model?: Database['public']['Enums']['commission_model']
+          commission_model?: Database["public"]["Enums"]["commission_model"]
           created_at?: string
           fixed_commission_amount?: number | null
           id?: string
@@ -284,37 +578,37 @@ export type Database = {
           organization_id?: string
           parent_seller_id?: string | null
           profile_id?: string
-          role?: Database['public']['Enums']['app_role']
+          role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'memberships_invited_by_fkey'
-            columns: ['invited_by']
+            foreignKeyName: "memberships_invited_by_fkey"
+            columns: ["invited_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'memberships_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "memberships_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'memberships_parent_seller_fk'
-            columns: ['parent_seller_id', 'organization_id']
+            foreignKeyName: "memberships_parent_seller_fk"
+            columns: ["parent_seller_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'memberships'
-            referencedColumns: ['profile_id', 'organization_id']
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
           },
           {
-            foreignKeyName: 'memberships_profile_id_fkey'
-            columns: ['profile_id']
+            foreignKeyName: "memberships_profile_id_fkey"
+            columns: ["profile_id"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -357,32 +651,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'notifications_actor_profile_id_fkey'
-            columns: ['actor_profile_id']
+            foreignKeyName: "notifications_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'notifications_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "notifications_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'notifications_recipient_org_fk'
-            columns: ['recipient_profile_id', 'organization_id']
+            foreignKeyName: "notifications_recipient_org_fk"
+            columns: ["recipient_profile_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'memberships'
-            referencedColumns: ['profile_id', 'organization_id']
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
           },
           {
-            foreignKeyName: 'notifications_recipient_profile_id_fkey'
-            columns: ['recipient_profile_id']
+            foreignKeyName: "notifications_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -452,39 +746,39 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'alloc_payment_client_fk'
-            columns: ['payment_id', 'client_id']
+            foreignKeyName: "alloc_payment_client_fk"
+            columns: ["payment_id", "client_id"]
             isOneToOne: false
-            referencedRelation: 'payments'
-            referencedColumns: ['id', 'client_id']
+            referencedRelation: "payments"
+            referencedColumns: ["id", "client_id"]
           },
           {
-            foreignKeyName: 'alloc_payment_client_fk'
-            columns: ['payment_id', 'client_id']
+            foreignKeyName: "alloc_payment_client_fk"
+            columns: ["payment_id", "client_id"]
             isOneToOne: false
-            referencedRelation: 'v_payment_history'
-            referencedColumns: ['payment_id', 'client_id']
+            referencedRelation: "v_payment_history"
+            referencedColumns: ["payment_id", "client_id"]
           },
           {
-            foreignKeyName: 'alloc_ticket_client_fk'
-            columns: ['ticket_id', 'client_id']
+            foreignKeyName: "alloc_ticket_client_fk"
+            columns: ["ticket_id", "client_id"]
             isOneToOne: false
-            referencedRelation: 'tickets'
-            referencedColumns: ['id', 'client_id']
+            referencedRelation: "tickets"
+            referencedColumns: ["id", "client_id"]
           },
           {
-            foreignKeyName: 'alloc_ticket_client_fk'
-            columns: ['ticket_id', 'client_id']
+            foreignKeyName: "alloc_ticket_client_fk"
+            columns: ["ticket_id", "client_id"]
             isOneToOne: false
-            referencedRelation: 'v_ticket_balances'
-            referencedColumns: ['ticket_id', 'client_id']
+            referencedRelation: "v_ticket_balances"
+            referencedColumns: ["ticket_id", "client_id"]
           },
           {
-            foreignKeyName: 'payment_allocations_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "payment_allocations_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -497,7 +791,7 @@ export type Database = {
           notes: string | null
           organization_id: string
           payment_date: string
-          payment_method: Database['public']['Enums']['payment_method']
+          payment_method: Database["public"]["Enums"]["payment_method"]
           seller_id: string
           total_amount: number
           void_reason: string | null
@@ -512,7 +806,7 @@ export type Database = {
           notes?: string | null
           organization_id: string
           payment_date?: string
-          payment_method?: Database['public']['Enums']['payment_method']
+          payment_method?: Database["public"]["Enums"]["payment_method"]
           seller_id: string
           total_amount: number
           void_reason?: string | null
@@ -527,7 +821,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           payment_date?: string
-          payment_method?: Database['public']['Enums']['payment_method']
+          payment_method?: Database["public"]["Enums"]["payment_method"]
           seller_id?: string
           total_amount?: number
           void_reason?: string | null
@@ -536,60 +830,60 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'payments_client_org_fk'
-            columns: ['client_id', 'organization_id']
+            foreignKeyName: "payments_client_org_fk"
+            columns: ["client_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'clients'
-            referencedColumns: ['id', 'organization_id']
+            referencedRelation: "clients"
+            referencedColumns: ["id", "organization_id"]
           },
           {
-            foreignKeyName: 'payments_client_org_fk'
-            columns: ['client_id', 'organization_id']
+            foreignKeyName: "payments_client_org_fk"
+            columns: ["client_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'v_client_balances'
-            referencedColumns: ['client_id', 'organization_id']
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "organization_id"]
           },
           {
-            foreignKeyName: 'payments_client_seller_fk'
-            columns: ['client_id', 'seller_id']
+            foreignKeyName: "payments_client_seller_fk"
+            columns: ["client_id", "seller_id"]
             isOneToOne: false
-            referencedRelation: 'clients'
-            referencedColumns: ['id', 'seller_id']
+            referencedRelation: "clients"
+            referencedColumns: ["id", "seller_id"]
           },
           {
-            foreignKeyName: 'payments_client_seller_fk'
-            columns: ['client_id', 'seller_id']
+            foreignKeyName: "payments_client_seller_fk"
+            columns: ["client_id", "seller_id"]
             isOneToOne: false
-            referencedRelation: 'v_client_balances'
-            referencedColumns: ['client_id', 'seller_id']
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "seller_id"]
           },
           {
-            foreignKeyName: 'payments_created_by_fkey'
-            columns: ['created_by']
+            foreignKeyName: "payments_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'payments_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "payments_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'payments_seller_org_fk'
-            columns: ['seller_id', 'organization_id']
+            foreignKeyName: "payments_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'memberships'
-            referencedColumns: ['profile_id', 'organization_id']
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
           },
           {
-            foreignKeyName: 'payments_voided_by_fkey'
-            columns: ['voided_by']
+            foreignKeyName: "payments_voided_by_fkey"
+            columns: ["voided_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -643,7 +937,7 @@ export type Database = {
           organization_id: string
           short_code: string
           start_date: string
-          status: Database['public']['Enums']['raffle_status']
+          status: Database["public"]["Enums"]["raffle_status"]
           ticket_counter: number
           ticket_price: number
           updated_at: string
@@ -661,7 +955,7 @@ export type Database = {
           organization_id: string
           short_code?: string
           start_date: string
-          status?: Database['public']['Enums']['raffle_status']
+          status?: Database["public"]["Enums"]["raffle_status"]
           ticket_counter?: number
           ticket_price?: number
           updated_at?: string
@@ -679,25 +973,25 @@ export type Database = {
           organization_id?: string
           short_code?: string
           start_date?: string
-          status?: Database['public']['Enums']['raffle_status']
+          status?: Database["public"]["Enums"]["raffle_status"]
           ticket_counter?: number
           ticket_price?: number
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'raffles_created_by_fkey'
-            columns: ['created_by']
+            foreignKeyName: "raffles_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'raffles_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "raffles_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -737,32 +1031,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'seller_commissions_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "seller_commissions_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'seller_commissions_raffle_org_fk'
-            columns: ['raffle_id', 'organization_id']
+            foreignKeyName: "seller_commissions_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'raffles'
-            referencedColumns: ['id', 'organization_id']
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
           },
           {
-            foreignKeyName: 'seller_commissions_raffle_org_fk'
-            columns: ['raffle_id', 'organization_id']
+            foreignKeyName: "seller_commissions_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'v_raffle_summary'
-            referencedColumns: ['raffle_id', 'organization_id']
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
           },
           {
-            foreignKeyName: 'seller_commissions_seller_org_fk'
-            columns: ['seller_id', 'organization_id']
+            foreignKeyName: "seller_commissions_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'memberships'
-            referencedColumns: ['profile_id', 'organization_id']
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
           },
         ]
       }
@@ -780,10 +1074,12 @@ export type Database = {
           daily_number: string | null
           id: string
           internal_code: string
-          inventory_status: Database['public']['Enums']['ticket_inventory_status']
+          inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
           organization_id: string
           paid_amount: number
-          payment_status: Database['public']['Enums']['ticket_payment_status'] | null
+          payment_status:
+            | Database["public"]["Enums"]["ticket_payment_status"]
+            | null
           raffle_id: string
           sale_date: string | null
           sale_price: number | null
@@ -804,10 +1100,12 @@ export type Database = {
           daily_number?: string | null
           id?: string
           internal_code?: string
-          inventory_status?: Database['public']['Enums']['ticket_inventory_status']
+          inventory_status?: Database["public"]["Enums"]["ticket_inventory_status"]
           organization_id: string
           paid_amount?: number
-          payment_status?: Database['public']['Enums']['ticket_payment_status'] | null
+          payment_status?:
+            | Database["public"]["Enums"]["ticket_payment_status"]
+            | null
           raffle_id: string
           sale_date?: string | null
           sale_price?: number | null
@@ -828,10 +1126,12 @@ export type Database = {
           daily_number?: string | null
           id?: string
           internal_code?: string
-          inventory_status?: Database['public']['Enums']['ticket_inventory_status']
+          inventory_status?: Database["public"]["Enums"]["ticket_inventory_status"]
           organization_id?: string
           paid_amount?: number
-          payment_status?: Database['public']['Enums']['ticket_payment_status'] | null
+          payment_status?:
+            | Database["public"]["Enums"]["ticket_payment_status"]
+            | null
           raffle_id?: string
           sale_date?: string | null
           sale_price?: number | null
@@ -841,74 +1141,74 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'tickets_approved_by_fkey'
-            columns: ['approved_by']
+            foreignKeyName: "tickets_approved_by_fkey"
+            columns: ["approved_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'tickets_client_org_fk'
-            columns: ['client_id', 'organization_id']
+            foreignKeyName: "tickets_client_org_fk"
+            columns: ["client_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'clients'
-            referencedColumns: ['id', 'organization_id']
+            referencedRelation: "clients"
+            referencedColumns: ["id", "organization_id"]
           },
           {
-            foreignKeyName: 'tickets_client_org_fk'
-            columns: ['client_id', 'organization_id']
+            foreignKeyName: "tickets_client_org_fk"
+            columns: ["client_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'v_client_balances'
-            referencedColumns: ['client_id', 'organization_id']
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "organization_id"]
           },
           {
-            foreignKeyName: 'tickets_client_seller_fk'
-            columns: ['client_id', 'seller_id']
+            foreignKeyName: "tickets_client_seller_fk"
+            columns: ["client_id", "seller_id"]
             isOneToOne: false
-            referencedRelation: 'clients'
-            referencedColumns: ['id', 'seller_id']
+            referencedRelation: "clients"
+            referencedColumns: ["id", "seller_id"]
           },
           {
-            foreignKeyName: 'tickets_client_seller_fk'
-            columns: ['client_id', 'seller_id']
+            foreignKeyName: "tickets_client_seller_fk"
+            columns: ["client_id", "seller_id"]
             isOneToOne: false
-            referencedRelation: 'v_client_balances'
-            referencedColumns: ['client_id', 'seller_id']
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "seller_id"]
           },
           {
-            foreignKeyName: 'tickets_created_by_fkey'
-            columns: ['created_by']
+            foreignKeyName: "tickets_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'tickets_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "tickets_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'tickets_raffle_org_fk'
-            columns: ['raffle_id', 'organization_id']
+            foreignKeyName: "tickets_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'raffles'
-            referencedColumns: ['id', 'organization_id']
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
           },
           {
-            foreignKeyName: 'tickets_raffle_org_fk'
-            columns: ['raffle_id', 'organization_id']
+            foreignKeyName: "tickets_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'v_raffle_summary'
-            referencedColumns: ['raffle_id', 'organization_id']
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
           },
           {
-            foreignKeyName: 'tickets_seller_org_fk'
-            columns: ['seller_id', 'organization_id']
+            foreignKeyName: "tickets_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'memberships'
-            referencedColumns: ['profile_id', 'organization_id']
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
           },
         ]
       }
@@ -932,18 +1232,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'clients_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "clients_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'clients_seller_org_fk'
-            columns: ['seller_id', 'organization_id']
+            foreignKeyName: "clients_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'memberships'
-            referencedColumns: ['profile_id', 'organization_id']
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
           },
         ]
       }
@@ -960,7 +1260,7 @@ export type Database = {
           organization_id: string | null
           payment_date: string | null
           payment_id: string | null
-          payment_method: Database['public']['Enums']['payment_method'] | null
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
           seller_id: string | null
           seller_name: string | null
           total_amount: number | null
@@ -971,60 +1271,60 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'payments_client_org_fk'
-            columns: ['client_id', 'organization_id']
+            foreignKeyName: "payments_client_org_fk"
+            columns: ["client_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'clients'
-            referencedColumns: ['id', 'organization_id']
+            referencedRelation: "clients"
+            referencedColumns: ["id", "organization_id"]
           },
           {
-            foreignKeyName: 'payments_client_org_fk'
-            columns: ['client_id', 'organization_id']
+            foreignKeyName: "payments_client_org_fk"
+            columns: ["client_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'v_client_balances'
-            referencedColumns: ['client_id', 'organization_id']
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "organization_id"]
           },
           {
-            foreignKeyName: 'payments_client_seller_fk'
-            columns: ['client_id', 'seller_id']
+            foreignKeyName: "payments_client_seller_fk"
+            columns: ["client_id", "seller_id"]
             isOneToOne: false
-            referencedRelation: 'clients'
-            referencedColumns: ['id', 'seller_id']
+            referencedRelation: "clients"
+            referencedColumns: ["id", "seller_id"]
           },
           {
-            foreignKeyName: 'payments_client_seller_fk'
-            columns: ['client_id', 'seller_id']
+            foreignKeyName: "payments_client_seller_fk"
+            columns: ["client_id", "seller_id"]
             isOneToOne: false
-            referencedRelation: 'v_client_balances'
-            referencedColumns: ['client_id', 'seller_id']
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "seller_id"]
           },
           {
-            foreignKeyName: 'payments_created_by_fkey'
-            columns: ['created_by']
+            foreignKeyName: "payments_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'payments_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "payments_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'payments_seller_org_fk'
-            columns: ['seller_id', 'organization_id']
+            foreignKeyName: "payments_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'memberships'
-            referencedColumns: ['profile_id', 'organization_id']
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
           },
           {
-            foreignKeyName: 'payments_voided_by_fkey'
-            columns: ['voided_by']
+            foreignKeyName: "payments_voided_by_fkey"
+            columns: ["voided_by"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1038,7 +1338,7 @@ export type Database = {
           raffle_id: string | null
           short_code: string | null
           start_date: string | null
-          status: Database['public']['Enums']['raffle_status'] | null
+          status: Database["public"]["Enums"]["raffle_status"] | null
           ticket_price: number | null
           tickets_assigned: number | null
           tickets_available: number | null
@@ -1053,11 +1353,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'raffles_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "raffles_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1081,32 +1381,32 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'tickets_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "tickets_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'tickets_raffle_org_fk'
-            columns: ['raffle_id', 'organization_id']
+            foreignKeyName: "tickets_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'raffles'
-            referencedColumns: ['id', 'organization_id']
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
           },
           {
-            foreignKeyName: 'tickets_raffle_org_fk'
-            columns: ['raffle_id', 'organization_id']
+            foreignKeyName: "tickets_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'v_raffle_summary'
-            referencedColumns: ['raffle_id', 'organization_id']
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
           },
           {
-            foreignKeyName: 'tickets_seller_org_fk'
-            columns: ['seller_id', 'organization_id']
+            foreignKeyName: "tickets_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'memberships'
-            referencedColumns: ['profile_id', 'organization_id']
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
           },
         ]
       }
@@ -1117,10 +1417,14 @@ export type Database = {
           created_at: string | null
           daily_number: string | null
           internal_code: string | null
-          inventory_status: Database['public']['Enums']['ticket_inventory_status'] | null
+          inventory_status:
+            | Database["public"]["Enums"]["ticket_inventory_status"]
+            | null
           organization_id: string | null
           paid_amount: number | null
-          payment_status: Database['public']['Enums']['ticket_payment_status'] | null
+          payment_status:
+            | Database["public"]["Enums"]["ticket_payment_status"]
+            | null
           pending_amount: number | null
           raffle_id: string | null
           sale_date: string | null
@@ -1135,10 +1439,14 @@ export type Database = {
           created_at?: string | null
           daily_number?: string | null
           internal_code?: string | null
-          inventory_status?: Database['public']['Enums']['ticket_inventory_status'] | null
+          inventory_status?:
+            | Database["public"]["Enums"]["ticket_inventory_status"]
+            | null
           organization_id?: string | null
           paid_amount?: number | null
-          payment_status?: Database['public']['Enums']['ticket_payment_status'] | null
+          payment_status?:
+            | Database["public"]["Enums"]["ticket_payment_status"]
+            | null
           pending_amount?: never
           raffle_id?: string | null
           sale_date?: string | null
@@ -1153,10 +1461,14 @@ export type Database = {
           created_at?: string | null
           daily_number?: string | null
           internal_code?: string | null
-          inventory_status?: Database['public']['Enums']['ticket_inventory_status'] | null
+          inventory_status?:
+            | Database["public"]["Enums"]["ticket_inventory_status"]
+            | null
           organization_id?: string | null
           paid_amount?: number | null
-          payment_status?: Database['public']['Enums']['ticket_payment_status'] | null
+          payment_status?:
+            | Database["public"]["Enums"]["ticket_payment_status"]
+            | null
           pending_amount?: never
           raffle_id?: string | null
           sale_date?: string | null
@@ -1167,60 +1479,60 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'tickets_client_org_fk'
-            columns: ['client_id', 'organization_id']
+            foreignKeyName: "tickets_client_org_fk"
+            columns: ["client_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'clients'
-            referencedColumns: ['id', 'organization_id']
+            referencedRelation: "clients"
+            referencedColumns: ["id", "organization_id"]
           },
           {
-            foreignKeyName: 'tickets_client_org_fk'
-            columns: ['client_id', 'organization_id']
+            foreignKeyName: "tickets_client_org_fk"
+            columns: ["client_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'v_client_balances'
-            referencedColumns: ['client_id', 'organization_id']
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "organization_id"]
           },
           {
-            foreignKeyName: 'tickets_client_seller_fk'
-            columns: ['client_id', 'seller_id']
+            foreignKeyName: "tickets_client_seller_fk"
+            columns: ["client_id", "seller_id"]
             isOneToOne: false
-            referencedRelation: 'clients'
-            referencedColumns: ['id', 'seller_id']
+            referencedRelation: "clients"
+            referencedColumns: ["id", "seller_id"]
           },
           {
-            foreignKeyName: 'tickets_client_seller_fk'
-            columns: ['client_id', 'seller_id']
+            foreignKeyName: "tickets_client_seller_fk"
+            columns: ["client_id", "seller_id"]
             isOneToOne: false
-            referencedRelation: 'v_client_balances'
-            referencedColumns: ['client_id', 'seller_id']
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "seller_id"]
           },
           {
-            foreignKeyName: 'tickets_organization_id_fkey'
-            columns: ['organization_id']
+            foreignKeyName: "tickets_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: 'organizations'
-            referencedColumns: ['id']
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'tickets_raffle_org_fk'
-            columns: ['raffle_id', 'organization_id']
+            foreignKeyName: "tickets_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'raffles'
-            referencedColumns: ['id', 'organization_id']
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
           },
           {
-            foreignKeyName: 'tickets_raffle_org_fk'
-            columns: ['raffle_id', 'organization_id']
+            foreignKeyName: "tickets_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'v_raffle_summary'
-            referencedColumns: ['raffle_id', 'organization_id']
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
           },
           {
-            foreignKeyName: 'tickets_seller_org_fk'
-            columns: ['seller_id', 'organization_id']
+            foreignKeyName: "tickets_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
             isOneToOne: false
-            referencedRelation: 'memberships'
-            referencedColumns: ['profile_id', 'organization_id']
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
           },
         ]
       }
@@ -1326,7 +1638,7 @@ export type Database = {
           p_client_id: string
           p_notes?: string
           p_payment_date?: string
-          p_payment_method?: Database['public']['Enums']['payment_method']
+          p_payment_method?: Database["public"]["Enums"]["payment_method"]
           p_total_amount: number
         }
         Returns: string
@@ -1340,7 +1652,7 @@ export type Database = {
       has_org_role: {
         Args: {
           p_org: string
-          p_roles: Database['public']['Enums']['app_role'][]
+          p_roles: Database["public"]["Enums"]["app_role"][]
         }
         Returns: boolean
       }
@@ -1362,6 +1674,7 @@ export type Database = {
         Returns: undefined
       }
       mark_profile_activated: { Args: never; Returns: undefined }
+      match_lottery_result: { Args: { p_result_id: string }; Returns: Json }
       match_ticket_import_clients: {
         Args: { p_clients: Json; p_raffle_id: string; p_seller_id: string }
         Returns: {
@@ -1387,7 +1700,7 @@ export type Database = {
       org_staff_profile_ids: { Args: { p_org: string }; Returns: string[] }
       recalc_seller_commission: {
         Args: {
-          p_movement?: Database['public']['Enums']['commission_movement']
+          p_movement?: Database["public"]["Enums"]["commission_movement"]
           p_organization_id: string
           p_raffle_id: string
           p_seller_id: string
@@ -1404,7 +1717,7 @@ export type Database = {
         Args: {
           p_date_from?: string
           p_date_to?: string
-          p_method?: Database['public']['Enums']['payment_method']
+          p_method?: Database["public"]["Enums"]["payment_method"]
           p_seller_id?: string
           p_status?: string
         }
@@ -1421,7 +1734,7 @@ export type Database = {
         Args: {
           p_date_from?: string
           p_date_to?: string
-          p_method?: Database['public']['Enums']['payment_method']
+          p_method?: Database["public"]["Enums"]["payment_method"]
           p_seller_id?: string
           p_status?: string
         }
@@ -1438,10 +1751,10 @@ export type Database = {
       search_tickets: {
         Args: {
           p_client_id?: string
-          p_inventory_status?: Database['public']['Enums']['ticket_inventory_status']
+          p_inventory_status?: Database["public"]["Enums"]["ticket_inventory_status"]
           p_limit?: number
           p_offset?: number
-          p_payment_status?: Database['public']['Enums']['ticket_payment_status']
+          p_payment_status?: Database["public"]["Enums"]["ticket_payment_status"]
           p_raffle_id?: string
           p_search: string
           p_seller_id?: string
@@ -1453,9 +1766,9 @@ export type Database = {
           daily_number: string
           id: string
           internal_code: string
-          inventory_status: Database['public']['Enums']['ticket_inventory_status']
+          inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
           paid_amount: number
-          payment_status: Database['public']['Enums']['ticket_payment_status']
+          payment_status: Database["public"]["Enums"]["ticket_payment_status"]
           raffle_id: string
           raffle_name: string
           raffle_short_code: string
@@ -1467,7 +1780,7 @@ export type Database = {
         }[]
       }
       show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { '': string }; Returns: string[] }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       taken_ticket_combinations: {
         Args: { p_combos: Json; p_raffle_id: string }
         Returns: {
@@ -1495,7 +1808,7 @@ export type Database = {
           assigned_at: string
           daily_number: string
           paid_amount: number
-          payment_status: Database['public']['Enums']['ticket_payment_status']
+          payment_status: Database["public"]["Enums"]["ticket_payment_status"]
           sale_date: string
           sale_price: number
           ticket_id: string
@@ -1518,7 +1831,7 @@ export type Database = {
         Args: {
           p_amount?: number
           p_member_id: string
-          p_model: Database['public']['Enums']['commission_model']
+          p_model: Database["public"]["Enums"]["commission_model"]
         }
         Returns: undefined
       }
@@ -1548,7 +1861,7 @@ export type Database = {
           has_active_payments: boolean
           has_client: boolean
           has_payments: boolean
-          inventory_status: Database['public']['Enums']['ticket_inventory_status']
+          inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
           min_sale_price: number
           raffle_active: boolean
           raffle_id: string
@@ -1601,19 +1914,54 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: 'owner' | 'admin' | 'seller'
-      commission_model: 'tiered' | 'fixed_per_ticket'
+      app_role: "owner" | "admin" | "seller"
+      commission_model: "tiered" | "fixed_per_ticket"
       commission_movement:
-        | 'sale'
-        | 'sale_reverted'
-        | 'tier_adjustment'
-        | 'seller_change'
-        | 'initial_balance'
-        | 'discount'
-      payment_method: 'cash' | 'transfer' | 'other'
-      raffle_status: 'draft' | 'active' | 'closed' | 'cancelled'
-      ticket_inventory_status: 'draft' | 'pending_approval' | 'available' | 'assigned' | 'cancelled'
-      ticket_payment_status: 'unpaid' | 'partial' | 'paid'
+        | "sale"
+        | "sale_reverted"
+        | "tier_adjustment"
+        | "seller_change"
+        | "initial_balance"
+        | "discount"
+      lottery_assignment_status: "sold" | "available" | "late_assignment"
+      lottery_code:
+        | "cundinamarca"
+        | "cruz_roja"
+        | "meta"
+        | "bogota"
+        | "medellin"
+        | "boyaca"
+      lottery_match_field: "daily_number" | "weekly_number"
+      lottery_result_validation_status:
+        | "pending"
+        | "confirmed"
+        | "rejected"
+        | "conflict"
+      lottery_schedule_change_reason:
+        | "holiday"
+        | "official_change"
+        | "force_majeure"
+        | "unknown"
+      lottery_schedule_status:
+        | "scheduled"
+        | "rescheduled_later"
+        | "rescheduled_earlier"
+        | "suspended"
+        | "cancelled"
+        | "completed"
+        | "schedule_unverified"
+        | "schedule_conflict"
+      lottery_sync_kind: "schedule" | "results"
+      lottery_sync_outcome: "success" | "partial" | "failed" | "skipped"
+      payment_method: "cash" | "transfer" | "other"
+      raffle_status: "draft" | "active" | "closed" | "cancelled"
+      ticket_inventory_status:
+        | "draft"
+        | "pending_approval"
+        | "available"
+        | "assigned"
+        | "cancelled"
+      ticket_payment_status: "unpaid" | "partial" | "paid"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1621,31 +1969,33 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
-    : never) = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
-    ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -1654,22 +2004,23 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -1678,22 +2029,23 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -1702,34 +2054,36 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema['Enums'] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
-    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    keyof DefaultSchema['CompositeTypes'] | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
-    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
@@ -1738,20 +2092,61 @@ export const Constants = {
   },
   public: {
     Enums: {
-      app_role: ['owner', 'admin', 'seller'],
-      commission_model: ['tiered', 'fixed_per_ticket'],
+      app_role: ["owner", "admin", "seller"],
+      commission_model: ["tiered", "fixed_per_ticket"],
       commission_movement: [
-        'sale',
-        'sale_reverted',
-        'tier_adjustment',
-        'seller_change',
-        'initial_balance',
-        'discount',
+        "sale",
+        "sale_reverted",
+        "tier_adjustment",
+        "seller_change",
+        "initial_balance",
+        "discount",
       ],
-      payment_method: ['cash', 'transfer', 'other'],
-      raffle_status: ['draft', 'active', 'closed', 'cancelled'],
-      ticket_inventory_status: ['draft', 'pending_approval', 'available', 'assigned', 'cancelled'],
-      ticket_payment_status: ['unpaid', 'partial', 'paid'],
+      lottery_assignment_status: ["sold", "available", "late_assignment"],
+      lottery_code: [
+        "cundinamarca",
+        "cruz_roja",
+        "meta",
+        "bogota",
+        "medellin",
+        "boyaca",
+      ],
+      lottery_match_field: ["daily_number", "weekly_number"],
+      lottery_result_validation_status: [
+        "pending",
+        "confirmed",
+        "rejected",
+        "conflict",
+      ],
+      lottery_schedule_change_reason: [
+        "holiday",
+        "official_change",
+        "force_majeure",
+        "unknown",
+      ],
+      lottery_schedule_status: [
+        "scheduled",
+        "rescheduled_later",
+        "rescheduled_earlier",
+        "suspended",
+        "cancelled",
+        "completed",
+        "schedule_unverified",
+        "schedule_conflict",
+      ],
+      lottery_sync_kind: ["schedule", "results"],
+      lottery_sync_outcome: ["success", "partial", "failed", "skipped"],
+      payment_method: ["cash", "transfer", "other"],
+      raffle_status: ["draft", "active", "closed", "cancelled"],
+      ticket_inventory_status: [
+        "draft",
+        "pending_approval",
+        "available",
+        "assigned",
+        "cancelled",
+      ],
+      ticket_payment_status: ["unpaid", "partial", "paid"],
     },
   },
 } as const
+

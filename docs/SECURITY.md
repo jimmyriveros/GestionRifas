@@ -1,8 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.2 · **Estado:** implementado · **Actualizado:** 2026-08-09
+- **Versión:** 2.3 · **Estado:** implementado · **Actualizado:** 2026-08-30
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
-  `0015`, `0016`, `0019`, `0020` y `0021`; los privilegios base se fijan en `0009`/`0010`.
+  `0015`, `0016`, `0019`, `0020`, `0021` y `0036`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
   reales por rol y clave pública, nunca `service_role`. La clave de servicio sí puede preparar,
   comprobar o limpiar el escenario y las pruebas de catálogo usan PostgreSQL directo (D-043).
@@ -89,6 +89,10 @@ registro ajeno.
 | Reportes globales | ✓ | ✓ | ✗ |
 | Reportes propios | ✓ | ✓ | P |
 | Ver auditoría | ✓ | ✓ | ✗ |
+| **Resultados de loterías** |
+| Ver programación y resultado oficiales | ✓ | ✓ | ✓ (lectura; son nacionales) |
+| Ver coincidencias de la organización | ✓ | ✓ | P (solo las de sus boletas) |
+| Escribir programación, resultados o coincidencias | ✗ | ✗ | ✗ (proceso interno) |
 
 Acciones exclusivas del Owner (BR-U02, BR-U03, BR-U04): eliminar o desactivar al Owner, asignar el
 rol `owner`, transferir la propiedad, editar la configuración de la organización y reabrir rifas
@@ -404,6 +408,30 @@ normalizado + celular nacional dentro de la cartera. El mismo celular con otro n
 archivado o más de una coincidencia producen error. Toda la función es una transacción y delega la
 venta en `assign_ticket_row`; por tanto, una llamada manual tampoco puede dejar un cliente, una
 boleta o un contador parcial.
+
+### 4.8 Resultados de loterías (`0036`, BR-L13, BR-L14, D-141)
+
+`lottery_draw_schedules` y `lottery_results` no tienen `organization_id`. Las lee cualquier miembro
+activo (`exists (select 1 from current_org_ids())`). No hay `INSERT`/`UPDATE`/`DELETE` para
+`authenticated`.
+
+`lottery_ticket_matches` sí está acotada:
+
+```sql
+organization_id IN (SELECT current_staff_org_ids())
+OR (
+  organization_id IN (SELECT current_org_ids())
+  AND seller_id = (SELECT current_profile_id())
+)
+```
+
+`tickets_select` **no se toca**. `match_lottery_result` es `SECURITY DEFINER` y solo tiene `EXECUTE`
+para `service_role`. `lottery_sync_runs` tiene RLS forzada y **cero** políticas: una sesión recibe
+cero filas, no un error de privilegio.
+
+Las políticas usan conjuntos precalculados (I-019). Un `UPDATE` del número mayor confirmado no lo
+cambia: el disparador deja `conflict`. Las coincidencias no se actualizan ni se borran, tampoco con
+`service_role`.
 
 ---
 

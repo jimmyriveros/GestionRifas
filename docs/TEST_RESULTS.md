@@ -23,9 +23,28 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **465 ✅** | **587 ✅** | **320 ✅** + D-133 a D-137 + **8** de D-138 (revalidadas con D-139) | ✅ | ✅ |
+| Post-9 vigente | **470 ✅** | **609 ✅** | (E2E no tocadas en Etapa 1) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Etapa 1 resultados de loterías (2026-08-30)
+
+Migración `0036`. Contrato persistente, matching set-based, RLS. Sin adaptadores, sin cron, sin Panel.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx supabase db reset` | `0036` aplicada | — | — |
+| `npm run seed:local` | OK | — | — |
+| `npx supabase gen types --local` | `database.types.ts` regenerado | El flag `-o` de esta CLI no es ruta de archivo | Salida a stdout y escritura UTF-8 sin BOM |
+| `npx vitest run --config vitest.db.config.mts tests/db/lottery-results.test.ts` | **22/22** | 1) `lottery_sync_runs` sin SELECT devolvía `42501`; 2) re-ejecutar el archivo chocaba `reference_date` | 1) `GRANT SELECT` + RLS sin política (cero filas). 2) fechas a partir de un origen aleatorio en el siglo 2099–2199 |
+| `tests/unit/lottery-constants.test.ts` | **5/5** | — | — |
+| `tests/db/catalog.test.ts` | **21/21** | — | — |
+| `npm run verify` | typecheck ✅ · lint 0 errores (2 avisos de siempre) · **470/470** unitarias · build ✅ | — | — |
+| `npm run test:db` | **609/609** | — | — |
+
+No se ejecutó `test:e2e`: la Etapa 1 no cambia UI ni recorridos.
 
 ---
 

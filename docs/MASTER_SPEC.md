@@ -253,7 +253,14 @@ Estas funciones **no** se construyen durante las fases 0 a 9.
 
 ⚠️ **Las comisiones de vendedores salieron de esta lista el 2026-08-12**, por encargo explícito del
 dueño del producto y junto con los equipos de vendedores (D-091, D-094). Están implementadas y
-probadas; su regla vive en BR-G01..BR-G12. El resto de la lista sigue fuera de alcance.
+probadas; su regla vive en BR-G01..BR-G12.
+
+⚠️ **Los resultados oficiales de seis loterías colombianas salieron de «Integración con loterías» /
+«Números ganadores» el 2026-08-30**, por el encargo `ResultadosLoterias.txt`. No es pasarela, ni
+sorteo automático, ni portal de clientes: es programación oficial, número mayor y coincidencia
+textual con las boletas (BR-L01..BR-L16, D-140..D-142). La Etapa 1 deja el contrato persistente en
+local; producción exige la Etapa 6 con autorización expresa. El resto de la lista sigue fuera de
+alcance.
 
 ---
 

@@ -375,6 +375,12 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Dejar el menú lateral en solo iconos, y devolverlo a su sitio | **Cerrar el menú** y **Abrir el menú** | Contraer, expandir, colapsar, plegar, minimizar |
 | Poner la aplicación en la pantalla de inicio del teléfono | **Instalar** | Descargar, bajar la app, añadir acceso directo |
 | El nombre bajo el icono, donde solo caben ~12 caracteres | **Rifas** | «Gestión de…», que es como quedaría el nombre completo |
+| Resultado publicado por una lotería colombiana | **Resultado** (oficial) | Premio, ganador, extracto |
+| El primer premio de esa lotería, cuatro dígitos | **Número mayor** | Combinación ganadora, primer premio, hit |
+| Que una boleta tenga ese mismo número | **Coincidencia** | Ganador, premio ganado, acierto oficial |
+| La serie que a veces publica la lotería | **Serie informativa** | Serie ganadora |
+| Sorteo de esa lotería, distinto de la rifa | **Sorteo** de la lotería X | No usar «sorteo» para la rifa |
+| Que aún no hay hora oficial | **Horario por confirmar** | Pendiente de scrape, sin schedule |
 | Estar sin internet | **Sin conexión** | Offline, desconectado, sin red |
 | Código nuevo servido tras un despliegue | **Versión** | Build, actualización del sistema, parche |
 
