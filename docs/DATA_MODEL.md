@@ -1,10 +1,9 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.8 · **Estado:** implementado · **Actualizado:** 2026-08-30
-- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0036`. `0001`–`0035` están
-  aplicadas y verificadas en local y en el proyecto Supabase real; **`0036` solo en local**
-  (resultados de loterías, Etapa 1; la Etapa 2 no cambia el esquema; no se aplica a producción
-  sin la Etapa 6).
+- **Versión:** 2.9 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0038`. `0001`–`0035` están
+  aplicadas y verificadas en local y en el proyecto Supabase real; **`0036`–`0038` solo en local**
+  (resultados de loterías; no se aplican a producción sin la Etapa 6).
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
   tipos generados en `src/types/database.types.ts`. Las pruebas de `tests/db/` verifican el
   esquema local; producción se comprueba con `verify:remote` y las sondas registradas en
@@ -853,8 +852,23 @@ estado y ganancia sigue a cargo de los disparadores de `0004` y `0024` (D-137, B
 
 `SECURITY DEFINER`, sin `EXECUTE` para `authenticated` ni `anon`. Recorre rifas elegibles (D-140) y
 boletas con igualdad textual del número, inserta fotografías e ignora duplicados. No notifica y no
-marca el sorteo como `completed` (Etapa 3). Un resultado que no esté `confirmed`, o una programación
-`suspended` / `cancelled` / `schedule_conflict` / `schedule_unverified`, se rechaza.
+marca el sorteo como `completed`: eso lo hace `confirm_lottery_result` (Etapa 3). Un resultado que
+no esté `confirmed`, o una programación `suspended` / `cancelled` / `schedule_conflict` /
+`schedule_unverified`, se rechaza.
+
+### 6.i Sincronización de lotería (migraciones `0037`, `0038`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `sync_lottery_schedules(draws, source)` | `{ inserted, changed, skipped, conflicts }` | Proceso interno (`service_role`) |
+| `notify_lottery_schedule_changes(now)` | `{ considered, inserted }` | Proceso interno (`service_role`) |
+| `confirm_lottery_result(...)` | `{ result_id, validation_status, matches_inserted, notifications_inserted, schedule_status }` | Proceso interno (`service_role`) |
+
+Las tres son `SECURITY DEFINER`, sin `EXECUTE` para `authenticated` ni `anon`. `confirm_lottery_result`
+persiste el número mayor, llama a `match_lottery_result`, crea avisos `lottery.result` y marca el
+sorteo `completed` en **una** transacción. `0038` sustituye el cuerpo para castear
+`validation_status` al enum en el `ON CONFLICT` (D-145). Los avisos de programación usan
+`lottery.schedule_change` y un índice único por destinatario, sorteo y `schedule_version`.
 
 ---
 

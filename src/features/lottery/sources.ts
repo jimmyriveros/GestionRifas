@@ -23,6 +23,13 @@ export const LOTTERY_RESULT_URLS = {
 export const CUNDINAMARCA_RESULT_API =
   'https://plataforma.loteriadecundinamarca.com.co/api/v1/result/public'
 
+/** Lookup JSON cuando ya se conoce el sorteo (I-081). No se inventa un numero de billete. */
+export function cundinamarcaResultLookupUrl(drawNumber: string): string {
+  const url = new URL(CUNDINAMARCA_RESULT_API)
+  url.searchParams.set('sorteo', drawNumber)
+  return url.href
+}
+
 export const ALLOWED_SOURCE_HOSTS = [
   'cnjsa.coljuegos.gov.co',
   'coljuegos.gov.co',

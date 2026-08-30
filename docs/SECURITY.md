@@ -1,8 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.3 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Versión:** 2.4 · **Estado:** implementado · **Actualizado:** 2026-08-30
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
-  `0015`, `0016`, `0019`, `0020`, `0021` y `0036`; los privilegios base se fijan en `0009`/`0010`.
+  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037` y `0038`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
   reales por rol y clave pública, nunca `service_role`. La clave de servicio sí puede preparar,
   comprobar o limpiar el escenario y las pruebas de catálogo usan PostgreSQL directo (D-043).
@@ -409,7 +409,7 @@ archivado o más de una coincidencia producen error. Toda la función es una tra
 venta en `assign_ticket_row`; por tanto, una llamada manual tampoco puede dejar un cliente, una
 boleta o un contador parcial.
 
-### 4.8 Resultados de loterías (`0036`, BR-L13, BR-L14, D-141)
+### 4.8 Resultados de loterías (`0036`–`0038`, BR-L13, BR-L14, D-141, D-145)
 
 `lottery_draw_schedules` y `lottery_results` no tienen `organization_id`. Las lee cualquier miembro
 activo (`exists (select 1 from current_org_ids())`). No hay `INSERT`/`UPDATE`/`DELETE` para
@@ -437,8 +437,13 @@ La Etapa 2 añade una descarga de servidor (`fetchOfficialDocument`, `server-onl
 allowlist de CNJSA/Coljuegos y de las seis loterías, timeout 15 s, tope 2 MB y como máximo 5
 redirecciones que no pueden abandonar la lista (D-144, BR-L17). Un Cloudflare, Imunify o SPA vacía
 se registra como fallo; no se elude (I-081). El HTML o el xlsx no se persisten: solo URL, autoridad,
-versión, hash y campos extraídos (BR-L16). Estas funciones **no están programadas**: no hay cron ni
-Route Handler en esta etapa.
+versión, hash y campos extraídos (BR-L16).
+
+La Etapa 3 añade `sync_lottery_schedules`, `confirm_lottery_result` y
+`notify_lottery_schedule_changes`: `SECURITY DEFINER`, **sin EXECUTE para authenticated**. Las
+escrituras de avisos reutilizan `notifications` (`lottery.result`, `lottery.schedule_change`) con
+índices únicos; `notify_profiles` no se sustituye, pero el proceso interno inserta con
+`ON CONFLICT DO NOTHING`. Sigue **sin cron ni Route Handler**.
 
 ---
 

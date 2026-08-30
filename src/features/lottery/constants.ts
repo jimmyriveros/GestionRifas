@@ -61,3 +61,31 @@ export const LOTTERY_ASSIGNMENT_STATUS_LABELS = {
   available: 'Disponible al momento del sorteo',
   late_assignment: 'Asignada después del sorteo',
 } as const
+
+export const LOTTERY_NOTIFICATION_KIND = {
+  result: 'lottery.result',
+  scheduleChange: 'lottery.schedule_change',
+} as const
+
+/**
+ * Minutos despues de `official_scheduled_at` para la primera consulta.
+ * Las ventanas habituales del encargo §13 planifican; no prueban que el
+ * resultado exista. El sincronizador espera el instante oficial y luego este
+ * margen (D-145).
+ */
+export const LOTTERY_PUBLICATION_DELAY_MINUTES = {
+  cundinamarca: 20,
+  cruz_roja: 0,
+  meta: 0,
+  bogota: 25,
+  medellin: 10,
+  boyaca: 0,
+} as const satisfies Record<LotteryCode, number>
+
+export const LOTTERY_RESULT_RETRY = {
+  minIntervalMinutes: 30,
+  maxAttemptsBeforeMorning: 4,
+  maxAttemptsTotal: 6,
+  morningFromHour: 8,
+  morningToHour: 12,
+} as const

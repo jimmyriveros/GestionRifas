@@ -5,6 +5,8 @@ import {
   LOTTERY_CODES,
   LOTTERY_LABELS,
   LOTTERY_MATCH_FIELD,
+  LOTTERY_NOTIFICATION_KIND,
+  LOTTERY_PUBLICATION_DELAY_MINUTES,
   LOTTERY_SCHEDULE_STATUS_LABELS,
   LOTTERY_WINNING_NUMBER_REGEX,
 } from '@/features/lottery/constants'
@@ -44,6 +46,14 @@ describe('loterias — mapa estable (BR-L01, BR-L06)', () => {
     for (const status of Constants.public.Enums.lottery_assignment_status) {
       expect(LOTTERY_ASSIGNMENT_STATUS_LABELS[status].length).toBeGreaterThan(0)
     }
+  })
+
+  it('cada loteria tiene un margen de publicacion y los avisos no se llaman ganador', () => {
+    for (const code of LOTTERY_CODES) {
+      expect(LOTTERY_PUBLICATION_DELAY_MINUTES[code]).toBeGreaterThanOrEqual(0)
+    }
+    expect(LOTTERY_NOTIFICATION_KIND.result).toBe('lottery.result')
+    expect(LOTTERY_NOTIFICATION_KIND.scheduleChange).toBe('lottery.schedule_change')
   })
 
   it('ninguna etiqueta llama ganador al cliente ni a la boleta', () => {

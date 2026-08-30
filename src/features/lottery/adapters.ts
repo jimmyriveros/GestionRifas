@@ -12,7 +12,7 @@ import {
   extractMedellinResult,
   extractMetaResult,
 } from './parse/results'
-import { CNJSA_DISCOVERY_URL, LOTTERY_RESULT_URLS } from './sources'
+import { CNJSA_DISCOVERY_URL, cundinamarcaResultLookupUrl, LOTTERY_RESULT_URLS } from './sources'
 import type {
   AdapterFail,
   AdapterOutcome,
@@ -135,7 +135,7 @@ export function pickCnjsaWorkbook(
   return chosen
 }
 
-/** Descarga en vivo. La Etapa 2 no la programa: no hay cron ni matching. */
+/** Descarga en vivo. La orquesta la Etapa 3; el cron es la Etapa 5. */
 export async function downloadCnjsaDiscovery(): Promise<
   AdapterOutcome<{ documents: CnjsaDiscoveredDocument[]; html: string }>
 > {
@@ -152,13 +152,39 @@ export async function downloadCnjsaDiscovery(): Promise<
   }
 }
 
-/** Descarga en vivo. La Etapa 2 no la programa: no hay cron ni matching. */
+/** Descarga en vivo. La orquesta la Etapa 3; el cron es la Etapa 5. */
 export async function downloadLotteryResultPage(
   lottery: LotteryCode,
 ): Promise<AdapterOutcome<NormalizedLotteryResult>> {
   const fetched = await fetchOfficialDocument(LOTTERY_RESULT_URLS[lottery])
   if (!fetched.ok) return fetched
   return extractLotteryResult(lottery, asText(fetched.value.body), fetched.value.url)
+}
+
+/**
+ * Cundinamarca: el HTML es una SPA vacia (I-081). Con el numero de sorteo de
+ * la programacion se consulta el JSON oficial. No se elude el resto.
+ */
+export async function downloadCundinamarcaResult(
+  drawNumber: string,
+): Promise<AdapterOutcome<NormalizedLotteryResult>> {
+  const fetched = await fetchOfficialDocument(cundinamarcaResultLookupUrl(drawNumber))
+  if (!fetched.ok) return fetched
+  return extractLotteryResult('cundinamarca', asText(fetched.value.body), fetched.value.url)
+}
+
+export async function fetchLotteryResultForDraw(
+  lottery: LotteryCode,
+  drawNumber: string,
+): Promise<AdapterOutcome<NormalizedLotteryResult>> {
+  if (lottery === 'cundinamarca') {
+    const json = await downloadCundinamarcaResult(drawNumber)
+    if (json.ok) return json
+    const page = await downloadLotteryResultPage('cundinamarca')
+    if (page.ok) return page
+    return json
+  }
+  return downloadLotteryResultPage(lottery)
 }
 
 export const LOTTERY_ADAPTER_CODES = LOTTERY_CODES

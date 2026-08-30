@@ -1632,6 +1632,22 @@ export type Database = {
         }
         Returns: Record<string, unknown>
       }
+      confirm_lottery_result: {
+        Args: {
+          p_draw_number: string
+          p_evidence?: Json
+          p_fetched_at?: string
+          p_lottery_code: Database["public"]["Enums"]["lottery_code"]
+          p_official_date?: string
+          p_published_at?: string
+          p_series?: string
+          p_source_content_hash?: string
+          p_source_kind?: string
+          p_source_url?: string
+          p_winning_number: string
+        }
+        Returns: Json
+      }
       create_payment: {
         Args: {
           p_allocations: Json
@@ -1684,6 +1700,10 @@ export type Database = {
           name: string
           phone: string
         }[]
+      }
+      notify_lottery_schedule_changes: {
+        Args: { p_now?: string }
+        Returns: Json
       }
       notify_profiles: {
         Args: {
@@ -1781,6 +1801,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sync_lottery_schedules: {
+        Args: { p_draws: Json; p_source: Json }
+        Returns: Json
+      }
       taken_ticket_combinations: {
         Args: { p_combos: Json; p_raffle_id: string }
         Returns: {

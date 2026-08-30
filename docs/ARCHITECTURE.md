@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.19 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Versión:** 1.20 · **Estado:** implementado · **Actualizado:** 2026-08-30
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -174,7 +174,7 @@ importa desde un componente cliente.
     │   ├── tickets/              # incluye bulk/
     │   ├── payments/
     │   ├── reports/
-    │   ├── lottery/              # Constantes + adaptadores oficiales (Etapa 2; sin cron ni UI)
+    │   ├── lottery/              # Constantes, adaptadores y orquestación de sync (Etapa 3; sin cron ni UI)
     │   ├── search/               # Búsqueda híbrida compartida
     │   └── tour/                 # Recorridos guiados
     ├── lib/
@@ -295,6 +295,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `update_payment_allocation(pago, boleta, importe, importe_esperado)` | post-9 | Corrige el valor de UN abono vigente. Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-134, BR-F16) | Sí |
 | `update_ticket_sale_price(boleta, precio, precio_esperado)` | post-9 | Corrige el `sale_price` de UNA boleta asignada. Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-137, BR-P13) | Sí |
 | `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142) | Sí — inserciones idempotentes |
+| `sync_lottery_schedules` · `confirm_lottery_result` · `notify_lottery_schedule_changes` | post-9 | Sincronización, confirmación+matching+avisos y avisos de programación. **Sin EXECUTE para `authenticated`** (D-145, D-146) | Sí — upserts e inserciones idempotentes |
 | `assign_ticket(p_ticket_id, p_client_id, p_sale_date)` | 2 / 4 | Valida disponibilidad y propiedad, copia `sale_price`, cambia estado, audita | Sí |
 | `bulk_create_tickets(p_raffle_id, p_seller_id, p_rows jsonb)` | 2 / 3 | Inserta lote, devuelve filas insertadas y conflictos por índice | Sí por lote |
 | `approve_tickets(p_ticket_ids uuid[])` | 2 / 3 | `pending_approval` → `available`, audita | Una transacción, pero omite inelegibles (I-044) |

@@ -23,9 +23,30 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **499 ✅** | **609 ✅** | (E2E no tocadas en Etapa 2) | ✅ | ✅ |
+| Post-9 vigente | **516 ✅** | **625 ✅** | (E2E no tocadas en Etapa 3) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Etapa 3 resultados de loterías (2026-08-30)
+
+Sincronización, matching y avisos. Sin cron, sin Panel. Migraciones `0037` y `0038`, solo local.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx supabase migration up` (`0037`) | Aplicada | — | — |
+| `npx vitest run --config vitest.db.config.mts tests/db/lottery-sync.test.ts` (primera pasada) | 7/16 | `42804`: `validation_status` era `text` en el `ON CONFLICT`; `original_scheduled_at` `+00:00` vs `.000Z` | `0038` castea al enum; la prueba compara instantes |
+| `npx supabase migration up` (`0038`) | Aplicada | — | — |
+| `npx vitest run tests/unit/lottery-sync.test.ts tests/unit/lottery-notifications.test.ts tests/unit/lottery-constants.test.ts` | **22/22** | — | — |
+| `npx vitest run --config vitest.db.config.mts tests/db/lottery-sync.test.ts` | **16/16** | — | — |
+| `lottery-results` + `notifications` + `catalog` | 22 + 11 + 20/21 | `0038` sin «Nota de reversion» | Se añadió la nota al archivo |
+| `npx tsc --noEmit` | ✅ (tras tipar `raffle_count`) | `staff[0].data.raffle_count` era `Json` | Cast a `Record<string, unknown>` |
+| `npm run verify` | typecheck ✅ · lint 0 errores (2 avisos de siempre) · **516/516** unitarias (+17) · build ✅ | — | — |
+| `npm run test:db` (primera pasada, base sucia) | 617/625 | 8 de `ticket-search`: `searchOver` ancla en `daily_number = '0100'` y `limit 1` sin rifa; un `randomNumbers()` de lotería había creado otro 0100 | `randomNumbers()` ya no emite `0100` (I-035) |
+| `npm run db:reset && npm run seed:local && npm run test:db` | **625/625** (+16 de `lottery-sync`) | — | — |
+
+No se ejecutó `test:e2e`: la Etapa 3 no cambia UI ni recorridos.
 
 ---
 

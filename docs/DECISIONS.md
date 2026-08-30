@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.27 · **Actualizado:** 2026-08-30 (D-001 a D-142)
+- **Versión:** 1.29 · **Actualizado:** 2026-08-30 (D-001 a D-146)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -5362,6 +5362,53 @@ elude y no se sustituye por un agregador.
 
 **Consecuencia.** BR-L16, BR-L17, I-081. `fetchOfficialDocument` lleva `server-only`. Las
 funciones `download*` existen y no están programadas: la Etapa 2 no activa el flujo real.
+
+## D-145 — La Etapa 3 escribe en PostgreSQL; TypeScript solo orquesta
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 3 de resultados de loterías, 2026-08-30)
+
+**Contexto.** Hay que sincronizar programación, confirmar resultados, buscar coincidencias y
+crear avisos de forma idempotente, con reintentos y sin cron. El matching ya vive en
+`match_lottery_result`. Si TypeScript insertara resultado, coincidencias y avisos en llamadas
+sueltas, una interrupción duplicaría o dejaría el sorteo a medias.
+
+**Decisión.** (a) `sync_lottery_schedules`, `confirm_lottery_result` y
+`notify_lottery_schedule_changes` son RPC `SECURITY DEFINER` con `EXECUTE` solo para
+`service_role`. Confirmar un resultado, fotografiar coincidencias y avisar es **una**
+transacción. (b) TypeScript (`features/lottery/sync.ts`, `publication.ts`) decide cuándo
+consultar, llama a los adaptadores y registra `lottery_sync_runs`. No hay Route Handler ni
+cron. (c) La primera consulta es `official_scheduled_at` más el margen de la lotería; hay
+reintentos limitados y una conciliación a la mañana siguiente. Un resultado confirmado no se
+vuelve a pedir. (d) Cundinamarca se consulta por el JSON oficial con el número de sorteo ya
+conocido; Cruz Roja y Bogotá bloqueadas se registran y no se eluden (I-081).
+
+**Alternativas descartadas.** (a) Una capa `services`. (b) Confirmar desde una Server Action
+con sesión. (c) Activar cron en esta etapa.
+
+**Consecuencia.** BR-L18. La Etapa 4 lee datos locales. La Etapa 5 programa el proceso. `0038`
+corrige el casteo del `ON CONFLICT` de `validation_status` que `0037` dejó como `text`.
+
+## D-146 — Un aviso por sorteo y destinatario, redactado con fechas, no con «hoy»
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 3, 2026-08-30)
+
+**Contexto.** Hay que reutilizar `notifications` (D-093, I-030). El encargo pide como máximo un
+aviso de resultado por sorteo y destinatario, y uno por cambio, versión y destinatario. Las
+frases de ejemplo dicen «hoy», que mienten si se leen al día siguiente.
+
+**Decisión.** (a) Kinds `lottery.result` y `lottery.schedule_change`. Índices únicos parciales.
+El texto sigue en `notifications/text.ts`. (b) El vendedor recibe aviso solo si tiene al menos
+una coincidencia, agregada. El personal, solo si su organización tiene coincidencias. Quien no
+tiene ninguna no se entera por la campana: el resultado vivirá en el Panel. (c) Un cambio de
+programación se avisa desde 48 h antes del instante relevante. Un aplazamiento del cronograma
+anual que ya pasó no genera avisos al importarlo. Conflicto y horario sin verificar se avisan
+en cuanto se detectan, si la fecha de referencia sigue siendo operativa. (d) Las frases usan
+el día de `reference_date` y el de `official_scheduled_at`, nunca «hoy».
+
+**Alternativas descartadas.** (a) Un aviso por boleta. (b) Guardar la frase en la fila. (c)
+Avisar todos los traslados de 2026 el día de la primera sincronización.
+
+**Consecuencia.** BR-L19. La serie no entra en el aviso (BR-L07). «Ganador» no se usa (BR-L15).
 
 ---
 

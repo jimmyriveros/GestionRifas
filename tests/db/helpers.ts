@@ -123,6 +123,15 @@ export async function insertTicket(
 
 /** Numeros aleatorios de 4 digitos para no colisionar entre pruebas. */
 export function randomNumbers() {
-  const n = () => String(Math.floor(Math.random() * 10000)).padStart(4, '0')
+  const n = () => {
+    let value: string
+    do {
+      value = String(Math.floor(Math.random() * 10000)).padStart(4, '0')
+      // `0100` es el ancla de ticket-search.test.ts (`limit 1` sin rifa).
+      // Un 0100 suelto en otra rifa hace que esa suite busque en el sitio
+      // equivocado y devuelva cero filas (I-035).
+    } while (value === '0100')
+    return value
+  }
   return { daily: n(), weekly: n() }
 }
