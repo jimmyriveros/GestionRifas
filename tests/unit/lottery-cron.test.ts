@@ -12,6 +12,7 @@ import {
 import {
   LOTTERY_CRON_JOBS_HOBBY,
   LOTTERY_CRON_JOBS_PRO,
+  lotteryVercelCrons,
 } from '@/features/lottery/cron-plan'
 import { LOTTERY_SYNC_PATH, LOTTERY_SYNC_SECRET_MIN_LENGTH } from '@/features/lottery/constants'
 import { runLotterySyncTick } from '@/features/lottery/job'
@@ -193,7 +194,7 @@ describe('tick del sincronizador', () => {
   })
 })
 
-describe('programador previsto, sin activar (D-148)', () => {
+describe('programador de produccion (D-149)', () => {
   it('el secreto minimo no es trivial y la ruta es la del Route Handler', () => {
     expect(LOTTERY_SYNC_SECRET_MIN_LENGTH).toBeGreaterThanOrEqual(16)
     expect(LOTTERY_SYNC_PATH).toBe('/api/lottery/sync')
@@ -209,9 +210,17 @@ describe('programador previsto, sin activar (D-148)', () => {
     expect(LOTTERY_CRON_JOBS_PRO[0]?.schedule).toContain('*/15')
   })
 
-  it('vercel.json no activa el cron: eso es la Etapa 6', () => {
-    const vercel = readFileSync(join(ROOT, 'vercel.json'), 'utf8')
-    expect(vercel).not.toMatch(/crons/)
+  it('vercel.json declara exactamente los jobs Hobby, sin intervalos subdiarios', () => {
+    const vercel = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8')) as {
+      fluid: boolean
+      crons: { path: string; schedule: string }[]
+    }
+    expect(vercel.fluid).toBe(true)
+    expect(vercel.crons).toEqual(lotteryVercelCrons())
+    for (const job of vercel.crons) {
+      expect(job.path).toBe(LOTTERY_SYNC_PATH)
+      expect(job.schedule.startsWith('*/')).toBe(false)
+    }
   })
 
   it('el proxy deja pasar la ruta y el handler exige el secreto', () => {

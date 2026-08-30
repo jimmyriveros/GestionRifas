@@ -108,19 +108,18 @@ Settings → Environment Variables del proyecto `gestion-rifas`, scope **Product
 | `SUPABASE_SERVICE_ROLE_KEY` | **Sensitive** | El de `.env.local` (Supabase → Connect → Service role key) |
 | `NEXT_PUBLIC_SITE_URL` | Plain | La URL de producción, la misma de §2.1 |
 | `TZ` | Plain | `UTC` (D-022 — la conversión a Bogotá es explícita en la presentación) |
-| `LOTTERY_SYNC_SECRET` | **Sensitive** | **No poner todavía.** Autoriza `/api/lottery/sync` (D-148). Mínimo 16 caracteres. Activarlo es la Etapa 6 |
+| `LOTTERY_SYNC_SECRET` | **Sensitive** | **Opcional.** Autoriza `/api/lottery/sync` (D-148, D-149). Mínimo 16 caracteres. En producción basta `CRON_SECRET`, que Vercel inyecta al declarar `crons`. Si se pone, **tiene que ser el mismo** que `CRON_SECRET` |
 
 `scripts/check-env.ts` (el `prebuild`) corta el build si falta alguna de las tres claves de Supabase.
 Hoy no valida `NEXT_PUBLIC_SITE_URL`; comprobarla en Vercel sigue siendo un paso manual (I-049).
-`LOTTERY_SYNC_SECRET` no entra en el prebuild: sin ella el Route Handler responde 401.
+`LOTTERY_SYNC_SECRET` no entra en el prebuild: sin ella el Route Handler usa `CRON_SECRET` o responde 401.
 
-### 3.1.c Programador de loterías — no activado
+### 3.1.c Programador de loterías — activado (D-149)
 
-El Route Handler `/api/lottery/sync` está en el código. **`vercel.json` no declara `crons`.**
-Encenderlos, poner el secreto y aplicar `0036`–`0039` es la **Etapa 6**, con autorización
-expresa. El plan Hobby (varios jobs diarios) y el Pro (uno cada 15 min) viven en
-`src/features/lottery/cron-plan.ts` (D-148, I-082). No copies esos `crons` al JSON sin esa
-autorización: el próximo despliegue los registraría.
+`vercel.json` declara los **diez jobs diarios de Hobby** sobre `/api/lottery/sync`
+(`src/features/lottery/cron-plan.ts`). Son válidos también en Pro. Un job `*/15`
+rompería el despliegue en Hobby (I-082). Vercel envía `Authorization: Bearer` con
+`CRON_SECRET`. El Route Handler no usa sesión. Fluid Compute se conserva.
 
 ### 3.1.b Fluid Compute — obligatorio para que la navegación no tarde segundos
 
@@ -136,9 +135,9 @@ una revisión y nadie se enteraba si se apagaba. Declarado en el repositorio, vi
 revisa como cualquier otro cambio. El interruptor del panel sigue existiendo; lo que manda para cada
 despliegue es este archivo.
 
-`vercel.json` **solo anula las propiedades que declara**. Aquí no se declara ninguna otra a propósito:
-las cabeceras de seguridad viven en `next.config.ts` y la CSP con nonce en `src/proxy.ts`, y tenerlas
-en dos sitios sería peor que tenerlas en uno.
+`vercel.json` **solo anula las propiedades que declara**. Declara `fluid` y los `crons` de loterías
+(D-149). Las cabeceras de seguridad viven en `next.config.ts` y la CSP con nonce en `src/proxy.ts`,
+y tenerlas en dos sitios sería peor que tenerlas en uno.
 
 **Debe estar activado.** Sin él, la función que sirve las pantallas arranca en frío cada vez que pasa
 un rato sin tráfico, y la primera navegación después de leer una pantalla cuesta **3–5 segundos**

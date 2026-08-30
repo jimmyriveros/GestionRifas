@@ -141,11 +141,13 @@ El recuadro del Panel muestra la programación y el número mayor **ya guardados
 las páginas de las loterías al abrirlo. El proceso que las consulta corre aparte, con un
 secreto de servidor.
 
-**Hoy, en producción, ese proceso no está encendido.** Hasta la Etapa 6 el recuadro puede
-aparecer vacío o con «Horario por confirmar». No es un fallo de la pantalla. Si hace falta
-dispararlo a mano en local: `npm run lottery:sync -- --probe` (solo comprueba el secreto) o
-sin `--probe` (consulta de verdad), con `npm run dev:local` y `LOTTERY_SYNC_SECRET` en
-`.env.local`.
+El programador de producción (D-149) consulta las fuentes oficiales en segundo plano.
+El recuadro puede aparecer vacío o con «Horario por confirmar» hasta el primer tick
+exitoso, y Cruz Roja o Bogotá pueden no salir si la fuente oficial no entrega el
+resultado a una consulta automatizada (I-081): eso no es un fallo de la pantalla.
 
-Si el recuadro en producción se queda desactualizado **después** de la Etapa 6, ver
-`RUNBOOK.md`.
+Si hace falta dispararlo a mano en local: `npm run lottery:sync -- --probe` (solo
+comprueba el secreto) o sin `--probe` (consulta de verdad), con `npm run dev:local` y
+`LOTTERY_SYNC_SECRET` en `.env.local`.
+
+Si el recuadro en producción se queda desactualizado, ver `RUNBOOK.md`.

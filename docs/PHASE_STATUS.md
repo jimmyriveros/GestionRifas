@@ -3,10 +3,10 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-08-30 (D-148, Etapa 5 de resultados de loterías)
+- **Actualizado:** 2026-08-30 (D-149, Etapa 6 de resultados de loterías)
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
-  Etapas 1 a 5 de resultados oficiales de loterías **en local** (`0036`–`0039` + adaptadores + sync + Panel + Route Handler);
-  **sin cron activado**, no producción.
+  Etapas 1 a 6 de resultados oficiales de loterías: contrato, adaptadores, sync, Panel,
+  Route Handler y programador de producción (`0036`–`0039`, D-140..D-149).
 - **Fase siguiente:** ninguna autorizada
 - **Aviso operativo:** producción **sigue siendo el seed de desarrollo** — dos organizaciones y
   cuatro cuentas `@demo.test` que pueden iniciar sesión (**I-077**, abierto el 2026-08-27). Decidirlo
@@ -17,7 +17,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 | Clasificación | Estado actual |
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) |
-| **En curso** | Resultados oficiales de loterías: **Etapas 1 a 5 completas en local** (`0036`–`0039`, D-140..D-148). Recuadro del Panel, sync, matching, avisos y Route Handler, **sin cron activado**, **sin producción**. La Etapa 6 exige autorización expresa |
+| **En curso** | Ninguna etapa de loterías. Etapas 1 a 6 entregadas (D-140..D-149). El programador de producción usa los jobs Hobby de Vercel |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
 
@@ -3018,7 +3018,7 @@ clientes preexistente (D-136).
 |---|---|
 | `0039_lottery_sync_lock.sql` | Tabla singleton + RPC de acquire/release. Sin EXECUTE para `authenticated` |
 
-**Solo local.** `0036`–`0038` siguen sin producción.
+**Solo local en el momento de cerrar esta etapa.** La promoción es la Etapa 6.
 
 ### 4. Variables de entorno
 
@@ -3035,3 +3035,53 @@ clientes preexistente (D-136).
 3. **No llames `download*` ni `runLotterySyncTick` desde una página.**
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**
+
+---
+
+## Mantenimiento post-9 — resultados de loterías, Etapa 6 (2026-08-30)
+
+**Encargo:** `ResultadosLoterias.txt` Etapa 6, autorizada expresamente («Inicia etapa 6 y luego
+tienes mi autorización para subir a producción»). Puesta en producción: migraciones,
+programador Hobby y verificación remota.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Programador | `vercel.json` declara los 10 jobs diarios de Hobby sobre `/api/lottery/sync` (D-149) |
+| Secreto | Vercel inyecta `CRON_SECRET` y lo envía como Bearer. No se pone un `LOTTERY_SYNC_SECRET` distinto |
+| Migraciones | `0036`–`0039` al proyecto real, tras respaldo lógico |
+| Panel | Sigue leyendo solo datos locales (BR-L20) |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` en verde: `typecheck` ✅, `lint` **0 errores** (2 avisos de siempre), **549/549**
+unitarias y `build` ✅. `verify:remote` **17/17**. Sonda de dinero idéntica. `test:db` no se
+reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+| Archivo | Qué hace |
+|---|---|
+| `0036_lottery_results.sql` | Programación, resultados, coincidencias, matching |
+| `0037_lottery_sync.sql` | Sync, confirmación, avisos |
+| `0038_lottery_confirm_enum_cast.sql` | Cast de enum en confirmación |
+| `0039_lottery_sync_lock.sql` | Cerrojo del tick |
+
+### 4. Variables de entorno
+
+`CRON_SECRET` (inyectado por Vercel). `LOTTERY_SYNC_SECRET` opcional y, si existe, idéntico.
+
+### 5. Problemas que permanecen
+
+**I-081** (Cruz Roja Imunify, Bogotá Cloudflare, Cundinamarca SPA). **I-082** (precisión Hobby
+±59 min). I-077, I-072, I-074, I-075, I-068, I-062, I-063. I-024 (sin backups automáticos).
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **No declares el job Pro (`*/15`)** mientras el proyecto pueda estar en Hobby.
+2. **No pongas `LOTTERY_SYNC_SECRET` distinto de `CRON_SECRET`.**
+3. **No llames `download*` ni `runLotterySyncTick` desde una página.**
+4. **`tickets_select` no se toca.**
+5. **No hay etiqueta `fase-N`.**
+6. Cruz Roja y Bogotá pueden no confirmarse solas (I-081): no eludir.

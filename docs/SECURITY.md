@@ -458,8 +458,10 @@ menos de 16 caracteres, responde 401. Un query `?secret=` no autoriza. No acepta
 del cliente. Los intentos fallidos se limitan en memoria. Las RPC
 `try_acquire_lottery_sync_lock` y `release_lottery_sync_lock` son `SECURITY DEFINER` **sin
 EXECUTE para authenticated**. `lottery_sync_lock` tiene RLS forzada y cero políticas. El
-tick usa `createAdminClient` solo para esas RPC internas (D-145). **El cron no está
-activado:** `vercel.json` no declara `crons`.
+tick usa `createAdminClient` solo para esas RPC internas (D-145). **El cron de
+producción está activo (D-149):** `vercel.json` declara los jobs Hobby. Vercel envía
+`CRON_SECRET` como Bearer. Sin secreto, o con uno de menos de 16 caracteres, responde
+401. Un `LOTTERY_SYNC_SECRET` distinto de `CRON_SECRET` haría 401 al programador.
 
 ---
 

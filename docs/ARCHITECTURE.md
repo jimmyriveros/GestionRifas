@@ -112,7 +112,7 @@ importa desde un componente cliente.
 ├── .env.example
 ├── .gitignore
 ├── next.config.ts
-├── vercel.json                   # Solo `fluid: true` (D-106). Las cabeceras NO van aquí
+├── vercel.json                   # `fluid: true` (D-106) y crons Hobby de loterías (D-149). Las cabeceras NO van aquí
 ├── tsconfig.json
 ├── eslint.config.mjs
 ├── vitest.config.mts
@@ -176,7 +176,7 @@ importa desde un componente cliente.
     │   ├── tickets/              # incluye bulk/
     │   ├── payments/
     │   ├── reports/
-    │   ├── lottery/              # Constantes, adaptadores, sync, recuadro del Panel y tick (Etapa 5; cron no activado)
+    │   ├── lottery/              # Constantes, adaptadores, sync, recuadro del Panel, tick y plan de cron (D-149)
     │   ├── search/               # Búsqueda híbrida compartida
     │   └── tour/                 # Recorridos guiados
     ├── lib/
@@ -253,7 +253,7 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?from=` (D-135) dice a dónde volver (`ticket`, `client`, `payments`, `dashboard`); `?ticketId=` marca la boleta del reparto y, sin `from`, también el destino (D-133) |
 | `/seller/reports` | seller | **6 ✅** | Sus reportes, sin el que compara vendedores (D-059) |
 | `/api/reports/export` | según rol | **6 ✅** | Descarga CSV. **Fuera de `(protected)` a propósito**: un Route Handler no pasa por el layout, así que se protege a mano (D-060) |
-| `/api/lottery/sync` | secreto de servidor | post-9 ✅ | Tick de loterías (D-148). **Sin sesión.** El proxy lo deja pasar; el handler compara un Bearer. Cron **no** activado |
+| `/api/lottery/sync` | secreto de servidor | post-9 ✅ | Tick de loterías (D-148, D-149). **Sin sesión.** El proxy lo deja pasar; Vercel Cron envía `CRON_SECRET` |
 
 **Nota de nomenclatura:** el prefijo de ruta es `/owner` para Owner **y** Admin, tal como exige
 `CLAUDE.md` §21. El segmento de URL no implica que el usuario sea Owner; el rol se verifica en cada
@@ -1313,7 +1313,8 @@ aplican limpias desde cero, pero contra una instancia efímera, no contra el pro
 **Variables de entorno:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (públicas,
 D-028), `SUPABASE_SERVICE_ROLE_KEY` (solo servidor, marcada como sensible en Vercel) y
 `NEXT_PUBLIC_SITE_URL`/`TZ`. `LOTTERY_SYNC_SECRET` (o `CRON_SECRET`) autoriza `/api/lottery/sync`;
-no es obligatoria en el build y, sin ella, el Route Handler falla cerrado (D-148).
+no es obligatoria en el build. En producción Vercel inyecta `CRON_SECRET` con los
+`crons` (D-149). Sin ninguno de los dos, el Route Handler falla cerrado.
 `scripts/check-env.ts` falla el build si falta alguna de las tres primeras. Detalle completo en
 `docs/DEPLOYMENT.md` §3.1.
 

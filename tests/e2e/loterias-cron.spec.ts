@@ -3,10 +3,11 @@ import { expect, test } from '@playwright/test'
 import { ACCOUNTS, loginAs } from './fixtures'
 
 /**
- * Route Handler del sincronizador (Etapa 5, D-148).
+ * Route Handler del sincronizador (D-148, D-149).
  *
  * El acto es la AUTORIZACION HTTP: sin secreto no corre. No descarga fuentes
- * oficiales. El cron de Vercel no se activa en esta etapa.
+ * oficiales. En produccion el cron de Vercel envia `CRON_SECRET`; esta suite
+ * local no lo configura, y por eso espera 401.
  */
 
 test.describe('sincronizador de loterias — Route Handler', () => {

@@ -1,13 +1,14 @@
 import { LOTTERY_SYNC_PATH } from './constants'
 
 /**
- * Programador previsto (D-148). NO se escribe en vercel.json en esta etapa:
- * activarlo es la Etapa 6. Las expresiones son UTC; Bogota es UTC-5 todo el ano.
+ * Programador de produccion (D-149, Etapa 6). Las expresiones son UTC;
+ * Bogota es UTC-5 todo el ano.
  *
- * Hobby (confirmado en docs de Vercel, 2026-07): un job no puede correr mas de
- * una vez al dia, con precision de ±59 min. Varios jobs diarios a horas
- * distintas si estan permitidos (hasta 100 por proyecto). Pro permite un solo
- * job cada 15 minutos, que cubre mejor las ventanas de publicacion.
+ * Hobby (docs de Vercel, 2026-07): un job no puede correr mas de una vez
+ * al dia, con precision de ±59 min. Varios jobs diarios a horas distintas
+ * si estan permitidos (hasta 100 por proyecto). Pro permite un solo job
+ * cada 15 minutos. vercel.json declara el plan Hobby: es valido en los
+ * dos planes. Un intervalo subdiario romperia el despliegue en Hobby.
  *
  * pg_cron de Supabase no es el disparador: los parsers se quedan en Node
  * (encargo §23) y el plan Free pausa el proyecto a los 7 dias sin trafico.
@@ -39,3 +40,10 @@ export const LOTTERY_CRON_JOBS_PRO: readonly LotteryCronJob[] = [
     purpose: 'Ventanas de publicacion y conciliacion, cada 15 minutos',
   },
 ] as const
+
+/** Entradas de vercel.json. Solo path y schedule: Vercel no guarda el proposito. */
+export function lotteryVercelCrons(
+  jobs: readonly LotteryCronJob[] = LOTTERY_CRON_JOBS_HOBBY,
+): { path: string; schedule: string }[] {
+  return jobs.map(({ path, schedule }) => ({ path, schedule }))
+}

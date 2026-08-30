@@ -1,9 +1,8 @@
 # MODELO DE DATOS
 
 - **Versión:** 2.10 · **Estado:** implementado · **Actualizado:** 2026-08-30
-- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0039`. `0001`–`0035` están
-  aplicadas y verificadas en local y en el proyecto Supabase real; **`0036`–`0039` solo en local**
-  (resultados de loterías; no se aplican a producción sin la Etapa 6).
+- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0039`. `0001`–`0039`
+  están aplicadas y verificadas en local y en el proyecto Supabase real (D-149).
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
   tipos generados en `src/types/database.types.ts`. Las pruebas de `tests/db/` verifican el
   esquema local; producción se comprueba con `verify:remote` y las sondas registradas en

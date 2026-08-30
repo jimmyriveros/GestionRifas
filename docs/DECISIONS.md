@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.31 · **Actualizado:** 2026-08-30 (D-001 a D-148)
+- **Versión:** 1.32 · **Actualizado:** 2026-08-30 (D-001 a D-149)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -5473,6 +5473,41 @@ Aceptar el secreto por query string.
 
 **Consecuencia.** BR-L21. I-082 documenta la precisión de Hobby. La Etapa 6 pone el secreto
 en Vercel, declara los `crons` según el plan real y aplica `0036`–`0039`.
+
+---
+
+## D-149 — Producción de resultados de loterías: Hobby, CRON_SECRET y migraciones
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 6 de resultados de loterías, 2026-08-30)
+
+**Contexto.** El dueño autorizó expresamente la Etapa 6 y subir a producción. Hay que
+aplicar `0036`–`0039`, declarar el programador y no romper el despliegue si el proyecto
+sigue en Hobby. No hay token de Vercel en este entorno para escribir variables a mano.
+
+**Hechos comprobados.** (a) Documentación oficial de Vercel, 2026-07-15: Hobby admite
+hasta 100 cron jobs, cada uno **una vez al día**, precisión ±59 min; un `*/15` rechaza
+el despliegue. Pro admite un job por minuto. (b) Los jobs de `LOTTERY_CRON_JOBS_HOBBY`
+son válidos en **los dos** planes. Los de Pro no lo son en Hobby. (c) Al declarar
+`crons`, Vercel inyecta `CRON_SECRET` y el programador envía `Authorization: Bearer`
+con ese valor. El handler ya acepta `LOTTERY_SYNC_SECRET` o, si falta, `CRON_SECRET`.
+(d) El proyecto Supabase real sigue en plan Free (I-024): respaldo lógico obligatorio
+antes de migrar.
+
+**Decisión.** (a) `vercel.json` declara exactamente `LOTTERY_CRON_JOBS_HOBBY` y conserva
+`fluid: true`. No se declara el job Pro. (b) En producción no se pone un
+`LOTTERY_SYNC_SECRET` distinto de `CRON_SECRET`: el cron envía el segundo y el handler
+prefiere el primero. Sin `LOTTERY_SYNC_SECRET`, basta el que Vercel inyecta. (c) Las
+migraciones `0036`–`0039` se aplican **antes** del frontend, tras el respaldo de
+`RUNBOOK` §5. (d) El Panel sigue sin consultar internet. I-081 no se elude.
+
+**Alternativas descartadas.** (a) Jobs Pro (`*/15`) «por si acaso es Pro»: romperían
+Hobby. (b) Un solo cron diario: cubre la mañana, no las ventanas de publicación.
+(c) Poner `LOTTERY_SYNC_SECRET` distinto: el cron recibiría 401. (d) `pg_cron`: D-148
+ya lo descartó.
+
+**Consecuencia.** BR-L21 actualizada. I-082 sigue vigente como tope de precisión, no
+como bloqueo. `verify:remote` comprueba que las RPC de loterías existen y **no** las
+ejecuta `authenticated`.
 
 ---
 

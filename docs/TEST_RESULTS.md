@@ -23,9 +23,53 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **549 ✅** | **631 ✅** | E2E de Etapa 5 **4/4**; panel **3/3**; suite completa 354/371 sucia, 77/78 limpia | ✅ | ✅ |
+| Post-9 vigente | **549 ✅** | **631 ✅** (sin reejecutar en Etapa 6: sin esquema nuevo local) | E2E de Etapa 5 **4/4**; panel **3/3** | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Etapa 6 resultados de loterías (2026-08-30)
+
+Puesta en producción. Autorizada expresamente. Migraciones `0036`–`0039`, cron Hobby, `CRON_SECRET`.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx vitest run tests/unit/lottery-cron.test.ts` | **15/15** | Oxc cortaba el comentario de `cron-plan.ts` al ver `*/15` dentro de `/** */` | Se reescribió el comentario sin esa secuencia |
+| `npm run verify` | ✅ `typecheck`, lint **0 errores** (2 avisos de siempre), **549/549** unitarias, `build` ✅. Ruta `/api/lottery/sync` dinámica | — | — |
+| Respaldo `Rifas-backups/2026-08-30-pre-0036/` | roles + schema + data (`--schema public`) | `pg_dump` avisa el FK circular de `memberships` (esperado) | — |
+| `data.sql` | **0** `"auth"`, **0** credenciales | — | — |
+| Sonda de dinero **antes** | 818 boletas, 641 vendidas, 425 clientes, 244 pagos / $23.990.000, comisión $9.900.000, 3.135 bitácora. Sin tablas de loterías | — | — |
+| `db push --dry-run` | Solo `0036`, `0037`, `0038`, `0039` | — | — |
+| `db push --yes` | Las cuatro aplicadas | — | — |
+| `npm run verify:remote` | **17/17** (14 de siempre + 3 de loterías) | — | — |
+| Sonda de dinero **después** | **Idéntica.** Nacieron tablas y RPC; `authenticated` no las ejecuta | — | — |
+| `test:db` | No se reejecutó | Sin esquema nuevo en local; las 631 ya cubrían `0036`–`0039` | — |
+| E2E | No se reejecutó | Solo cambió un comentario de la spec del Route Handler | — |
+
+### Promoción a producción (2026-08-30)
+
+Autorizada expresamente. Orden: respaldo → migraciones → frontend + cron.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo previo | `Rifas-backups/2026-08-30-pre-0036/` — `data.sql` **0** `"auth"` |
+| `db push --dry-run` | Exactamente `0036`–`0039` |
+| `db push --yes` | Aplicadas |
+| `npm run verify:remote` | **17/17** |
+| Push a `main` | Pendiente de esta sesión |
+
+#### Que no movió ni un peso, leído y no supuesto
+
+| Medida | Antes | Después |
+|---|---|---|
+| Boletas / vendidas / clientes | 818 / 641 / 425 | **818 / 641 / 425** |
+| Pagos / no anulados / asignaciones | 244 / 244 / 254 | **244 / 244 / 254** |
+| Dinero cobrado | $23.990.000 | **$23.990.000** |
+| Suma de `paid_amount` / `sale_price` | 23.990.000 / 76.840.000 | **23.990.000 / 76.840.000** |
+| Comisión acumulada | $9.900.000 | **$9.900.000** |
+| Filas de bitácora | 3.135 | **3.135** |
+| Tablas / RPC de loterías | no existían | **existen**; `authenticated` sin EXECUTE |
 
 ---
 

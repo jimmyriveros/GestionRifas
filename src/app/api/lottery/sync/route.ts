@@ -4,7 +4,7 @@ import { authorizeLotterySyncRequest } from '@/features/lottery/auth'
 import { runLotterySyncTick } from '@/features/lottery/job'
 
 /**
- * Tick del sincronizador de loterias (Etapa 5, D-148).
+ * Tick del sincronizador de loterias (D-148, D-149).
  *
  * POR QUE VIVE FUERA DE `(protected)`
  *
@@ -13,7 +13,8 @@ import { runLotterySyncTick } from '@/features/lottery/job'
  * deja pasar `/api/lottery/sync` para no redirigir a `/login`.
  *
  * No acepta URLs del cliente. No usa la sesion. La clave de servicio no sale
- * de este proceso. Activar el cron en Vercel es la Etapa 6.
+ * de este proceso. El cron de produccion lo dispara Vercel (D-149) con
+ * `Authorization: Bearer` de `CRON_SECRET`.
  */
 
 export const dynamic = 'force-dynamic'

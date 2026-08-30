@@ -275,8 +275,8 @@ Casos de loterías (Etapa 1, `tests/db/lottery-results.test.ts` y `tests/unit/lo
 Etapa 2, `tests/unit/lottery-adapters.test.ts` y `tests/unit/lottery-fetch.test.ts`;
 Etapa 3, `tests/db/lottery-sync.test.ts`, `tests/unit/lottery-sync.test.ts` y
 `tests/unit/lottery-notifications.test.ts`;
-Etapa 5, `tests/unit/lottery-cron.test.ts`, `tests/db/lottery-cron.test.ts` y
-`tests/e2e/loterias-cron.spec.ts`):
+Etapa 5–6, `tests/unit/lottery-cron.test.ts`, `tests/db/lottery-cron.test.ts` y
+`tests/e2e/loterias-cron.spec.ts`; Etapa 6 clava que `vercel.json` declara los jobs Hobby):
 
 | ID | Caso | Resultado esperado |
 |----|------|--------------------|

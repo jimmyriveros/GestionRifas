@@ -232,7 +232,7 @@ repórtalo como error de código, no como comportamiento esperado.
 
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
-| El Panel muestra vacío o «Horario por confirmar» | El programador **no está activo** (Etapa 6 pendiente) | Esperado hasta autorizar la Etapa 6. El recuadro no consulta internet (BR-L20) |
-| Tras la Etapa 6, sigue vacío | Falta `LOTTERY_SYNC_SECRET` o los `crons` no están en `vercel.json` | El Route Handler responde 401 sin secreto. Ver `DEPLOYMENT.md` §3.1.c |
+| El Panel muestra vacío o «Horario por confirmar» | Aún no hubo un tick con programación confirmada, o es un día sin sorteo oficial | El recuadro no consulta internet (BR-L20). Esperar el próximo cron o revisar `lottery_sync_runs` |
+| Sigue vacío después de varios ticks | Falta `CRON_SECRET`, o hay un `LOTTERY_SYNC_SECRET` distinto, o los `crons` no están en `vercel.json` | El Route Handler responde 401. Ver `DEPLOYMENT.md` §3.1.c. Los dos secretos, si existen, tienen que coincidir (D-149) |
 | El tick corre y Cruz Roja/Bogotá no salen | I-081: Imunify / Cloudflare | No eludir. Queda registro en `lottery_sync_runs`. Revisión manual o canal oficial |
 | Dos ticks a la vez | El segundo sale `skipped: locked` | Normal. El cerrojo caduca a los 5 min si uno se cae (D-148) |

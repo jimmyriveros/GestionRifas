@@ -1,4 +1,16 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "fluid": true
+  "fluid": true,
+  "crons": [
+    { "path": "/api/lottery/sync", "schedule": "0 12 * * *" },
+    { "path": "/api/lottery/sync", "schedule": "0 13 * * *" },
+    { "path": "/api/lottery/sync", "schedule": "0 15 * * *" },
+    { "path": "/api/lottery/sync", "schedule": "0 16 * * *" },
+    { "path": "/api/lottery/sync", "schedule": "20 3 * * *" },
+    { "path": "/api/lottery/sync", "schedule": "50 3 * * *" },
+    { "path": "/api/lottery/sync", "schedule": "20 4 * * *" },
+    { "path": "/api/lottery/sync", "schedule": "50 4 * * *" },
+    { "path": "/api/lottery/sync", "schedule": "30 5 * * *" },
+    { "path": "/api/lottery/sync", "schedule": "0 6 * * *" }
+  ]
 }

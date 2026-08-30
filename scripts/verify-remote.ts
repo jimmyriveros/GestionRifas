@@ -188,6 +188,45 @@ const CHECKS: Check[] = [
           where n.nspname = 'public' and c.relkind = 'v'`,
     esperado: 5,
   },
+  {
+    nombre: 'Tablas de loterias existen (0036, 0039)',
+    sql: `select c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'public' and c.relkind = 'r'
+            and c.relname in (
+              'lottery_draw_schedules', 'lottery_results', 'lottery_ticket_matches',
+              'lottery_sync_runs', 'lottery_sync_lock'
+            )`,
+    esperado: 5,
+  },
+  {
+    nombre: 'RPC de loterias existen para service_role',
+    sql: `select distinct p.proname as x
+          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in (
+              'match_lottery_result', 'sync_lottery_schedules',
+              'notify_lottery_schedule_changes', 'confirm_lottery_result',
+              'try_acquire_lottery_sync_lock', 'release_lottery_sync_lock'
+            )
+            and has_function_privilege('service_role', p.oid, 'EXECUTE')`,
+    esperado: 6,
+  },
+  {
+    // I-078: el proyecto alojado concede EXECUTE a authenticated por defecto.
+    // Las RPC de loterias son proceso interno (D-141, D-145, D-148).
+    nombre: 'RPC de loterias SIN execute para authenticated',
+    sql: `select p.proname as x
+          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in (
+              'match_lottery_result', 'sync_lottery_schedules',
+              'notify_lottery_schedule_changes', 'confirm_lottery_result',
+              'try_acquire_lottery_sync_lock', 'release_lottery_sync_lock',
+              'lottery_results_protect_confirmed', 'lottery_ticket_matches_immutable'
+            )
+            and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
+    esperado: 0,
+  },
 ]
 
 async function main(): Promise<void> {

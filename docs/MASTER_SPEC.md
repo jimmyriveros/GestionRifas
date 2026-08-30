@@ -260,9 +260,9 @@ probadas; su regla vive en BR-G01..BR-G12.
 sorteo automático, ni portal de clientes: es programación oficial, número mayor y coincidencia
 textual con las boletas (BR-L01..BR-L20, D-140..D-147). La Etapa 1 dejó el contrato persistente; la
 Etapa 2, los adaptadores; la Etapa 3, la sincronización, el matching en vivo y los avisos; la
-Etapa 4, el recuadro del Panel; la Etapa 5, el Route Handler y el tick, todo en local y
-**sin cron activado**. Producción exige la Etapa 6 con autorización expresa. El resto de la
-lista sigue fuera de alcance.
+Etapa 4, el recuadro del Panel; la Etapa 5, el Route Handler y el tick; la Etapa 6, las
+migraciones, el cron de Vercel y la producción (D-149). El resto de la lista sigue fuera
+de alcance.
 
 ---
 
