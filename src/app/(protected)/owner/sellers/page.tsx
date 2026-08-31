@@ -33,7 +33,7 @@ export default async function SellersPage() {
       <PageHeader
         title="Vendedores"
         description="Cada vendedor ve únicamente sus boletas, sus clientes y sus pagos."
-        actions={<CreateUserButton role="seller" label="Nuevo vendedor" />}
+        compactAction={<CreateUserButton role="seller" label="Nuevo vendedor" />}
       />
 
       {sellers.length === 0 ? (

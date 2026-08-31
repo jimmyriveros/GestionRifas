@@ -119,6 +119,13 @@
     --bottom-nav-space: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
 
     /*
+     * Cabecera fija de AppShell (`h-14`). El observer de la cabecera contextual
+     * (D-150) usa esta misma medida para no mostrar el titulo compacto mientras
+     * el PageHeader original todavia se ve debajo.
+     */
+    --app-header-height: 3.5rem;
+
+    /*
      * Areas seguras laterales (D-119).
      *
      * Con `viewport-fit=cover` la pagina llega a los bordes fisicos de la

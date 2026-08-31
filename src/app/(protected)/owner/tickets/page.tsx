@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { DataTablePagination } from '@/components/data/DataTablePagination'
 import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
+import { CompactActionSlot } from '@/components/layout/CompactHeader'
 import { Button } from '@/components/ui/button'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
@@ -104,12 +105,14 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
                 Crear en lote
               </Link>
             </Button>
-            <Button asChild className={HEADER_ACTION_CLASS}>
-              <Link href="/owner/tickets/new">
-                <PlusIcon className="size-4" aria-hidden />
-                Nueva boleta
-              </Link>
-            </Button>
+            <CompactActionSlot>
+              <Button asChild className={HEADER_ACTION_CLASS}>
+                <Link href="/owner/tickets/new">
+                  <PlusIcon className="size-4" aria-hidden />
+                  Nueva boleta
+                </Link>
+              </Button>
+            </CompactActionSlot>
           </>
         }
       />

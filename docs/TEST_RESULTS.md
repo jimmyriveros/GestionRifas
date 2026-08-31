@@ -23,9 +23,34 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **549 ✅** | **631 ✅** (sin reejecutar en Etapa 6: sin esquema nuevo local) | E2E de Etapa 5 **4/4**; panel **3/3** | ✅ | ✅ |
+| Post-9 vigente | **552 ✅** | **631 ✅** | E2E cabecera contextual **23/23**; suite completa en esta entrega | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Cabecera contextual al hacer scroll (2026-08-30, D-150)
+
+Mantenimiento de usabilidad. Autorizado expresamente. Sin migración, sin consultas, sin dependencias.
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx vitest run tests/unit/compact-header.test.ts` | **3/3** | — | — |
+| `npm run verify` | ✅ `typecheck`, lint **0 errores** (2 avisos de siempre), **552/552** unitarias (+3), `build` ✅ | — | — |
+| `npm run test:db` | **631/631** | — | — |
+| E2E `cabecera-contextual` + `cabecera-contextual-movil` (primera pasada) | 11/23 | (a) `toHaveCSS('opacity')` sobre el `span` del título, que no tiene opacidad propia. (b) Espaciador de scroll metido en `main`, hidratación. (c) «Nuevo cliente» no tiene flecha. (d) El «N» de Next en desarrollo tapa la flecha compacta | (a) El estado se lee en `data-compact-header`. (b) El espaciador va al `body`. (c) Las pruebas de flecha usan «Crear boletas». (d) `el.click()` de DOM, no hit-testing contra el portal |
+| E2E de esta tanda, segunda pasada | **23/23** | — | — |
+| `npm run test:e2e` (suite completa) | **393/394** tras corregir el locator de clientes; 1 fallo ajeno de datos | Ver abajo | Locator de `back-navigation` clientes: `.first()` pisaba la tarjeta oculta de D-136 |
+| `git diff --check` | ✅ | — | — |
+
+Errores de la primera pasada E2E, con detalle:
+
+1. **Opacidad del título compacto.** El `span[data-compact-title]` no lleva `opacity`; la lleva el contenedor. Playwright leía `1` con la cabecera en `idle`. Las pruebas pasan a `data-compact-header`.
+2. **Hidratación.** Un `div` de prueba dentro de `main` sobrevivía a la navegación RSC. El hueco extra ahora se añade al `body`.
+3. **Página sin flecha.** `/seller/clients/new` no pasa `backHref`. Las pruebas de flecha van a `/seller/tickets/new`.
+4. **Indicador de desarrollo de Next.** El «N» de `nextjs-portal` se pinta encima de la flecha compacta y se come el clic. No existe en producción. Las pruebas activan el botón con `HTMLElement.click()`.
+5. **`back-navigation` clientes.** La flecha sí volvía a `/owner/clients`. El `.first()` de `getByText` pisaba el enlace de la tarjeta móvil (D-136), que está en el DOM y oculto. Se acotó a la tabla. No es de D-150.
+6. **`reports` panel «(anulado)».** `listPayments({ pageSize: 5 })` muestra los 5 más recientes. Tras `owner-ciclo` y el resto de la suite, el pago anulado del seed ya no entra en esos 5. La cabecera no toca pagos. No se cambió el producto.
 
 ---
 

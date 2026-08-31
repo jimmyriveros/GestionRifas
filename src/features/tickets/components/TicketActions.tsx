@@ -1,11 +1,13 @@
 'use client'
 
+import { CheckIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
-import { TicketNumberInput } from '@/components/form/TicketNumberInput'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { TicketNumberInput } from '@/components/form/TicketNumberInput'
+import { CompactActionSlot } from '@/components/layout/CompactHeader'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -164,9 +166,12 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
   return (
     <>
       {ticket.inventoryStatus === 'pending_approval' ? (
-        <Button type="button" onClick={approve} disabled={isPending}>
-          Aprobar boleta
-        </Button>
+        <CompactActionSlot>
+          <Button type="button" onClick={approve} disabled={isPending}>
+            <CheckIcon className="size-4" aria-hidden />
+            Aprobar boleta
+          </Button>
+        </CompactActionSlot>
       ) : null}
 
       {!isCancelled ? (

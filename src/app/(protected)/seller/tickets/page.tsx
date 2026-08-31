@@ -88,7 +88,7 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
         // Una sola accion y un titulo corto: en el telefono caben en la misma
         // fila, y asi la primera boleta sube casi 50 px (D-108).
         inlineActions
-        actions={
+        compactAction={
           canCreate ? (
             <Button asChild>
               <Link href="/seller/tickets/new">
@@ -96,7 +96,7 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
                 Crear boletas
               </Link>
             </Button>
-          ) : null
+          ) : undefined
         }
       />
 

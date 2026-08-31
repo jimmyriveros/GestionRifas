@@ -51,21 +51,23 @@ export default async function SellerClientDetailPage({
         titleBadge={<ClientStatusBadge archived={archived} />}
         description={client.alias ?? undefined}
         backHref="/seller/clients"
+        compactAction={
+          canRegisterPayment ? (
+            <Button asChild className="h-11 w-full sm:h-9 sm:w-auto">
+              <Link
+                href={newPaymentHref}
+                // En pantalla dice «Registrar abono», que es lo que cabe en un
+                // telefono; quien lo oye necesita saber de quien es el abono.
+                aria-label={`Registrar abono de ${client.name}`}
+              >
+                <PlusIcon className="size-4" aria-hidden />
+                Registrar abono
+              </Link>
+            </Button>
+          ) : undefined
+        }
         actions={
           <>
-            {canRegisterPayment ? (
-              <Button asChild className="h-11 w-full sm:h-9 sm:w-auto">
-                <Link
-                  href={newPaymentHref}
-                  // En pantalla dice «Registrar abono», que es lo que cabe en un
-                  // telefono; quien lo oye necesita saber de quien es el abono.
-                  aria-label={`Registrar abono de ${client.name}`}
-                >
-                  <PlusIcon className="size-4" aria-hidden />
-                  Registrar abono
-                </Link>
-              </Button>
-            ) : null}
             <Button asChild variant="outline" className="h-11 grow sm:h-9 sm:grow-0">
               <Link href={`/seller/clients/${client.id}/edit`}>
                 <PencilIcon className="size-4" aria-hidden />

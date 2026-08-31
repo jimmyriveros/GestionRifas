@@ -66,7 +66,7 @@ export default async function TeamPage() {
             ? `Cómo va tu equipo en ${raffle.name}. Cada vendedor trabaja con sus propias boletas.`
             : 'Los vendedores que agregas trabajan con sus propias boletas y tú ves cómo les va.'
         }
-        actions={
+        compactAction={
           canAdd && members.length > 0 ? (
             <AddTeamMemberButton commission={commissionOptions} />
           ) : undefined

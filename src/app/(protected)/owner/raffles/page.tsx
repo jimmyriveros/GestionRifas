@@ -15,7 +15,7 @@ export default async function RafflesPage() {
       <PageHeader
         title="Rifas"
         description="Cada boleta pertenece a una rifa. El precio se copia a la boleta en el momento de la venta."
-        actions={
+        compactAction={
           <Button asChild>
             <Link href="/owner/raffles/new">
               <PlusIcon className="size-4" aria-hidden />

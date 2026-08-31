@@ -5511,6 +5511,47 @@ ejecuta `authenticated`.
 
 ---
 
+## D-150 — La cabecera fija se vuelve contextual cuando el encabezado de la pantalla sale de la vista
+**Fase:** mantenimiento posterior a la Fase 9 (usabilidad, 2026-08-30)
+
+**Contexto.** La cabecera de `AppShell` ya era `sticky` (`h-14`, `z-40`). El
+`PageHeader` de cada pantalla —título, flecha, acciones— desaparecía al
+desplazarse. El usuario pidió que esa cabecera existente mostrara el título de
+la pantalla, la flecha si hay `backHref` y **una** acción principal, sin una
+segunda barra y sin hacer sticky el encabezado original.
+
+**Decisión.** (a) Una isla cliente (`CompactHeaderProvider`) envuelve el armazón
+sin convertir `AppShell` ni las páginas en Client Components. (b) El cruce lo
+decide `IntersectionObserver` sobre el bloque entero de `PageHeader`, con
+`rootMargin` igual a los 56 px de la cabecera. No hay listener de `scroll`.
+(c) El CTA se marca con `compactAction` o `CompactActionSlot`; la misma
+instancia se mueve con un portal. No se inspeccionan clases CSS. (d) El título
+compacto es un `span` con `aria-hidden`; el `<h1>` se queda abajo. La flecha
+original queda `inert` mientras la compacta está activa. (e) En el teléfono, el
+nombre de la organización (`organizations.name`, D-126) cede el sitio al
+título; no se hardcodea «Rifas». (f) Transición de 150 ms en `opacity` y una
+traslación de 2 px, con `motion-reduce:transition-none`. (g) Los `z-index` de
+D-131/D-132 no cambian.
+
+**Qué no sube.** Acciones destructivas, botones `outline`, filtros, selectores
+de período, insignias, menús de tres puntos, «Crear en lote» junto a «Nueva
+boleta», «Exportar CSV», «Editar», «Ver vendedor». Si no hay un CTA inequívoco,
+solo título y flecha.
+
+**Alternativas descartadas.** (a) Hacer sticky el `PageHeader` entero: duplica
+descripción, insignias y filtros, y cambia el ritmo de las pantallas. (b)
+Listener de `scroll` + `setState` por frame: el encargo lo prohíbe y no hace
+falta. (c) Clonar el nodo `actions` y esconder el original con opacidad: dos
+diálogos, dos destinos de teclado. (d) Deducir el CTA por `variant="default"`:
+un `outline` o un menú pasarían o se quedarían según el DOM del día.
+
+**Consecuencia.** Quien añada una pantalla con acción principal pasa
+`compactAction` o envuelve el botón con `CompactActionSlot`. No hay que tocar
+el observer ni `AppShell`. Sin migración, sin consultas nuevas, sin
+dependencias.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

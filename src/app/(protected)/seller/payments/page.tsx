@@ -37,7 +37,7 @@ export default async function SellerPaymentsPage({ searchParams }: { searchParam
       <PageHeader
         title="Mis pagos"
         description="Todos los abonos que has registrado. Los anulados siguen aquí, marcados."
-        actions={
+        compactAction={
           <Button asChild>
             <Link href={paymentNewHref({ from: 'payments' })}>
               <PlusIcon className="size-4" aria-hidden />

@@ -1,6 +1,6 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.15 · **Actualizado:** 2026-08-30
+- **Versión:** 2.16 · **Actualizado:** 2026-08-30
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
@@ -84,6 +84,11 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
   `0046`, pendiente vs último) y `loterias-panel-movil.spec.ts` (320 px). Esas
   pruebas interceptan las peticiones y fallan si el Panel consulta un host de
   la allowlist. No crean fotografías de coincidencia: no se pueden borrar.
+  La cabecera contextual (D-150) vive en `cabecera-contextual.spec.ts`
+  (escritorio: cruce, CTA, flecha, limpieza al navegar, anchos 768–1600) y
+  `cabecera-contextual-movil.spec.ts` (reemplazo del nombre de la organización,
+  320 y 390 px, dianas de 44 px). El umbral geométrico es unitario
+  (`compact-header.test.ts`).
 - **Servidor:** el propio Playwright levanta `npm run dev:local`, que apunta **siempre** a la
   instancia local (D-047). Nunca se ejecutan contra el proyecto real.
 - **Requisito previo:** base local sembrada (`npm run db:reset && npm run seed:local`).

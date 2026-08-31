@@ -30,7 +30,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| Siguiente fase | Ninguna. Mantenimiento: **resultados de loterías Etapa 6 en producción** (D-149) |
+| Siguiente fase | Ninguna. Mantenimiento: **cabecera contextual al hacer scroll** (D-150), local, sin publicar |
 | **Resultados de loterías** | Etapa 6 (2026-08-30, D-149): `0036`–`0039` en el proyecto real, `vercel.json` con los 10 jobs Hobby, `CRON_SECRET` inyectado por Vercel. Recuadro del Panel, sync, matching y avisos de las etapas 1–5. **Cron activado** |
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
@@ -116,7 +116,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — Resultados oficiales de loterías, Etapa 6 (2026-08-30)
+## 1.a Último relevo significativo — Cabecera contextual al hacer scroll (2026-08-30)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **La cabecera fija de `AppShell` muestra título, flecha y un CTA** cuando el `PageHeader` sale de la vista. Sin segunda barra. Sin listener de `scroll`. `Query changes: None` · `Route changes: None` · `Migrations: None` · `New dependencies: None`. **No está en producción** |
+| Archivos | **Nuevos:** `src/components/layout/compact-header.ts`, `CompactHeader.tsx`, `tests/unit/compact-header.test.ts`, `tests/e2e/cabecera-helpers.ts`, `cabecera-contextual.spec.ts`, `cabecera-contextual-movil.spec.ts`. **Tocados:** `AppShell`, `PageHeader`, `BackButton`, `globals.css`, páginas con CTA, `TicketActions`, `RaffleStatusActions`. Documentación: `DECISIONS` (D-150), `ARCHITECTURE` §8.20, `TESTING`, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni una capa services.** `PageHeader` + `BackButton` + `AppShell`. El CTA se mueve con un portal (`CompactActionSlot`), no se clona. El observer mira el encabezado de la ruta y se limpia al desmontar |
+| Decisiones | **D-150** (IntersectionObserver, contrato `compactAction`, portal, un solo `<h1>`, `z-40` intacto). No se inventó una fase |
+| Verificación | `npm run verify` ✅ · lint **0 errores** (2 avisos de siempre) · **552/552** unitarias (+3) · `build` ✅ · `test:db` **631/631** · E2E de esta tanda **23/23** · suite E2E **392/394**, luego el locator de clientes **1/1** · `git diff --check` ✅. El «N» de Next en desarrollo tapa la flecha compacta: las pruebas usan un clic de DOM. El `(anulado)` del panel no entra en los 5 pagos más recientes tras el ciclo de 1.000 boletas: no es de este cambio |
+| Advertencias | **1)** No hagas push ni despliegue. **2)** No clones el nodo `actions`. **3)** Una acción destructiva no sube. **4)** `CabeceraUsabilidad.txt` y `prueba-abono.csv` son del dueño; no se commitean |
+| Pendiente | Verificación visual con sesión real (I-066) en un teléfono físico a 320 px. Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063 |
+| Publicación | **No.** Mantenimiento local. Prohibido push y producción |
+| Git | Rama `main`, sobre `325398c`. Árbol con cabecera contextual y docs; `CabeceraUsabilidad.txt` y `prueba-abono.csv` siguen sin seguimiento |
+
+## 1.a.0 Relevo anterior — Resultados oficiales de loterías, Etapa 6 (2026-08-30)
 
 | Campo | Estado |
 |---|---|
@@ -1008,10 +1022,14 @@ RLS de quien consulta (D-057). Úsalas para cualquier agregado de pagos que nece
 components/data/    DataTable · DataTablePagination · EmptyState
                     StatusBadge: badges de boleta, rifa y AccountStatusBadge, que es
                     el estado de una PERSONA (pendiente/activa/inactivo, BR-E14)
-                    PageHeader (backHref = flecha de volver, D-089) · BackButton · MetricCard
+                    PageHeader (backHref = flecha de volver, D-089; compactAction = CTA
+                    de la cabecera contextual, D-150) · BackButton · MetricCard
 lib/navigation-history.ts  detecta si hay historial real en esta pestaña, para
                     BackButton. Contador de modulo, no sessionStorage (D-089)
-components/layout/  AppShell · NavLinks (lateral, escritorio) · BottomNav (barra
+components/layout/  AppShell · CompactHeader (cabecera contextual, D-150): el cruce
+                    lo decide IntersectionObserver; el CTA se marca con
+                    CompactActionSlot y se mueve con un portal. NavLinks (lateral,
+                    escritorio) · BottomNav (barra
                     inferior del telefono, D-106) · UserMenu. UNA sola lista de rutas
                     por portal: los navItems del layout, con `primary` en las cuatro
                     que bajan. Antes de anadir un menu, mira si te basta esa marca.

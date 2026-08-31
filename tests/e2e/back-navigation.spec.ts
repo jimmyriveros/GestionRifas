@@ -59,7 +59,13 @@ test.describe('Flecha de volver: historial real (Casos A, B, C)', () => {
 
     await page.getByRole('button', { name: 'Volver' }).click()
     await expect(page).toHaveURL('/owner/clients')
-    if (clientName) await expect(page.getByText(clientName).first()).toBeVisible()
+    // La tarjeta del telefono (D-136) esta en el DOM y oculta: `.first()` la
+    // pisa. En escritorio el nombre visible es el enlace de la tabla.
+    if (clientName) {
+      await expect(
+        page.getByRole('table').getByRole('link', { name: clientName, exact: true }),
+      ).toBeVisible()
+    }
   })
 
   test('rifas: vuelve al listado de rifas (BR-R)', async ({ page }) => {

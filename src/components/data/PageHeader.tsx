@@ -1,6 +1,11 @@
 import type { ReactNode } from 'react'
 
 import { BackButton } from '@/components/data/BackButton'
+import {
+  CompactActionSlot,
+  PageHeaderBack,
+  PageHeaderSentinel,
+} from '@/components/layout/CompactHeader'
 import { tourTarget } from '@/features/tour/tours'
 
 type PageHeaderProps = {
@@ -16,6 +21,18 @@ type PageHeaderProps = {
    */
   titleBadge?: ReactNode
   actions?: ReactNode
+  /**
+   * Accion principal que puede subir a la cabecera fija cuando este encabezado
+   * sale de la vista (D-150). Es un contrato explicito: no se deduce de la
+   * variante del boton. La misma instancia se mueve con un portal, asi que no
+   * hay dos CTAs alcanzables a la vez.
+   *
+   * Se pinta en el mismo sitio que `actions` mientras el encabezado se ve, y
+   * delante de ellas. Si el orden visual tiene que ser otro —p. ej. un boton
+   * secundario a la izquierda del CTA—, envuelve el CTA con `CompactActionSlot`
+   * dentro de `actions` y no pases esta prop.
+   */
+  compactAction?: ReactNode
   /**
    * Telefono: la accion principal sube a la MISMA fila que el titulo, en vez de
    * quedar suelta debajo de la descripcion (D-108).
@@ -59,6 +76,7 @@ export function PageHeader({
   description,
   titleBadge,
   actions,
+  compactAction,
   inlineActions = false,
   backHref,
   backLabel,
@@ -98,14 +116,32 @@ export function PageHeader({
   //   ellas. Con la caja ya descontada, `gap-1` deja 16 px entre la punta de la
   //   flecha y la primera letra —antes 20—, que es lo que hace que se lean como
   //   una sola pieza.
+  //
+  //   Los margenes negativos van en `PageHeaderBack` (D-150), no en el boton:
+  //   el envoltorio es el item del flex y tiene que seguir midiendo 32 px en
+  //   el flujo para que la flecha compacta pueda inertizar esta sin romper
+  //   la alineacion.
   const back = backHref ? (
-    <BackButton fallbackHref={backHref} label={backLabel} className="-my-1.5 -ms-3" />
+    <PageHeaderBack>
+      <BackButton fallbackHref={backHref} label={backLabel} />
+    </PageHeaderBack>
   ) : null
+
+  const primary = compactAction ? <CompactActionSlot>{compactAction}</CompactActionSlot> : null
+  const actionNodes =
+    primary || actions ? (
+      <>
+        {primary}
+        {actions}
+      </>
+    ) : null
 
   if (inlineActions) {
     return (
-      <div
-        {...tourTarget('page-header')}
+      <PageHeaderSentinel
+        title={title}
+        backHref={backHref}
+        backLabel={backLabel}
         className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1"
       >
         <div className="col-start-1 row-start-1 flex min-w-0 items-start gap-1">
@@ -119,21 +155,23 @@ export function PageHeader({
           </p>
         ) : null}
 
-        {actions ? (
+        {actionNodes ? (
           <div
             {...tourTarget('page-actions')}
             className="col-start-2 row-start-1 flex flex-wrap items-center justify-end gap-2"
           >
-            {actions}
+            {actionNodes}
           </div>
         ) : null}
-      </div>
+      </PageHeaderSentinel>
     )
   }
 
   return (
-    <div
-      {...tourTarget('page-header')}
+    <PageHeaderSentinel
+      title={title}
+      backHref={backHref}
+      backLabel={backLabel}
       className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
     >
       <div className="flex items-start gap-1">
@@ -148,11 +186,11 @@ export function PageHeader({
           —`h-11 grow md:h-9 md:grow-0`, como hace `/owner/tickets` (D-109)—, y
           asi la decision se lee junto al boton al que afecta en vez de a traves
           de un selector de hijo en el componente que comparten 27 pantallas. */}
-      {actions ? (
+      {actionNodes ? (
         <div {...tourTarget('page-actions')} className="flex flex-wrap items-center gap-2">
-          {actions}
+          {actionNodes}
         </div>
       ) : null}
-    </div>
+    </PageHeaderSentinel>
   )
 }

@@ -13,7 +13,7 @@ export default async function UsersPage() {
       <PageHeader
         title="Administradores"
         description="Personas con acceso al portal administrativo. Un administrador no puede editar ni desactivar al dueño de la organización."
-        actions={<CreateUserButton role="admin" label="Nuevo administrador" />}
+        compactAction={<CreateUserButton role="admin" label="Nuevo administrador" />}
       />
 
       <UsersTable

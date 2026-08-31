@@ -3,6 +3,11 @@ import type { ReactNode } from 'react'
 
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { BottomNav } from '@/components/layout/BottomNav'
+import {
+  CompactHeaderActionTarget,
+  CompactHeaderProvider,
+  CompactHeaderStart,
+} from '@/components/layout/CompactHeader'
 import type { NavItem } from '@/components/layout/nav-items'
 import {
   parseSidebarPreference,
@@ -40,16 +45,18 @@ export async function AppShell({
 
   return (
     <TourProvider role={role} profileId={profileId}>
-      <AppShellLayout
-        orgName={orgName}
-        role={role}
-        fullName={fullName}
-        email={email}
-        navItems={navItems}
-        sidebarPreference={sidebarPreference}
-      >
-        {children}
-      </AppShellLayout>
+      <CompactHeaderProvider>
+        <AppShellLayout
+          orgName={orgName}
+          role={role}
+          fullName={fullName}
+          email={email}
+          navItems={navItems}
+          sidebarPreference={sidebarPreference}
+        >
+          {children}
+        </AppShellLayout>
+      </CompactHeaderProvider>
     </TourProvider>
   )
 }
@@ -92,10 +99,14 @@ function AppShellLayout({
       <AppSidebar orgName={orgName} navItems={navItems} preference={sidebarPreference} />
 
       <div className="flex min-w-0 flex-1 flex-col ps-[var(--safe-left)] pe-[var(--safe-right)] md:ps-0">
-        <header className="bg-background sticky top-0 z-40 flex h-14 items-center gap-2 border-b px-4">
-          <span className="truncate font-semibold md:hidden">{orgName}</span>
-          <div className="ml-auto flex items-center gap-1">
+        <header
+          data-app-header
+          className="bg-background sticky top-0 z-40 flex h-14 items-center gap-2 border-b px-4"
+        >
+          <CompactHeaderStart orgName={orgName} />
+          <div className="ml-auto flex shrink-0 items-center gap-1">
             <NotificationBell />
+            <CompactHeaderActionTarget />
             <UserMenu fullName={fullName} email={email} role={role} navItems={secondaryItems} />
           </div>
         </header>

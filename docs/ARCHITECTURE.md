@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.22 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Versión:** 1.23 · **Estado:** implementado · **Actualizado:** 2026-08-30
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -332,7 +332,8 @@ usan guardas propias; I-051 registra una acción auxiliar que todavía no valida
   iconos— cuando la persona la cierra o cuando la ventana baja de 1.360 px.
 - **Móvil (mobile-first):** header compacto + **barra de navegación inferior** (§8.8, D-106);
   acciones primarias accesibles con el pulgar; las tablas conservan su estructura y ocultan columnas
-  secundarias (D-048). El **drawer** que había hasta el 2026-08-23 ya no existe.
+  secundarias (D-048). El **drawer** que había hasta el 2026-08-23 ya no existe. La cabecera fija
+  muestra el nombre de la organización; al bajar, lo reemplaza el título de la pantalla (§8.20, D-150).
 
 Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior, `md:hidden`.
 
@@ -353,7 +354,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `useMediaQuery` / `useIsCompactScreen` | Consulta de medios sin romper la hidratación. Solo para decidir **comportamiento**; lo que se ve lo decide Tailwind |
 | `OptionList` / `OptionListItem` | Lista de opciones elegibles (clientes). Estados **excluyentes** normal/hover/foco/elegido/elegido+hover/deshabilitado, con visto además del color (D-077) |
 | `SearchInput` | Campo de búsqueda compartido: etiqueta, limpiar, indicador retrasado, `aria-busy` (D-078). `touchSize` sube campo y botón a 44 px **solo bajo `md`** (D-108) |
-| `PageHeader` | Título, descripción y acciones de cada pantalla. `inlineActions` sube la acción a la fila del título en el teléfono; sin esa bandera, la disposición de siempre (§8.10, D-108). **No impone tamaño a sus acciones**: la pantalla que quiera la fila táctil se lo pide a sus botones (§8.11, D-109) |
+| `PageHeader` | Título, descripción y acciones de cada pantalla. `inlineActions` sube la acción a la fila del título en el teléfono; sin esa bandera, la disposición de siempre (§8.10, D-108). **No impone tamaño a sus acciones**: la pantalla que quiera la fila táctil se lo pide a sus botones (§8.11, D-109). `compactAction` marca el CTA que puede subir a la cabecera fija (§8.20, D-150) |
 | `TicketSelectionModeButton` | Enciende y apaga el modo selección del teléfono: «Seleccionar varias» / «Cancelar». Se pinta en la fila de «Filtros», no en la barra de selección (§8.10, D-108) |
 | `useUrlSearch` | Búsqueda híbrida para listas paginadas: el término va a la URL y el RSC reconsulta |
 | `useRemoteSearch` | Búsqueda híbrida para diálogos y selectores, contra una Server Action, con testigo de secuencia |
@@ -379,8 +380,9 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `nav-active.ts` | `isNavItemActive(pathname, href)`: qué entrada se enciende. La comparten la barra lateral y la inferior, para que no puedan discrepar (D-106) |
 | `ProgressRing` | Anillo de progreso accesible (D-105): un `<svg>` con `stroke-dasharray`, sin librería de gráficas. Lleva el porcentaje **escrito** en el centro y `role="progressbar"`; es la versión compacta de la barra de `CollectionSummaryCard`, para cuando el porcentaje comparte fila con cifras de dinero. **Dentro solo va el porcentaje**, medido en `cqw` contra el propio anillo (D-124) |
 | `TicketPaymentSummary` | Estado, estado de pago y —si ya se vendió— anillo, abonado y pendiente de UNA boleta (D-105). No consulta ni calcula: recibe `sale_price` y `paid_amount` y pide el porcentaje a `calculateCollectionSummary`, la misma cuenta del panel. Dos bloques apilados y separados por una línea; el anillo se pone encima de las cifras en el teléfono y a su izquierda desde 400 px de tarjeta (D-124) |
-| `PageHeader` | Título, descripción y acciones de toda pantalla. `backHref` activa la flecha de volver de las pantallas de detalle (§8.6, D-089) |
-| `BackButton` | Flecha de volver: historial real con destino de repuesto. La usa `PageHeader`, no se llama suelta |
+| `PageHeader` | Título, descripción y acciones de toda pantalla. `backHref` activa la flecha de volver de las pantallas de detalle (§8.6, D-089). `compactAction` es el contrato del CTA compacto (§8.20) |
+| `BackButton` | Flecha de volver: historial real con destino de repuesto. La usa `PageHeader` y la cabecera compacta, no se llama suelta |
+| `CompactHeader` | Isla cliente de la cabecera contextual (§8.20, D-150): observer del `PageHeader`, título compacto y portal del CTA |
 | `navigation-history.ts` | Cuenta los cambios de ruta reales de esta pestaña, para que `BackButton` sepa si el historial es de fiar (D-089) |
 
 **Búsqueda — dónde y con qué valores** (D-078). No hay capa de fetch en el navegador: en las listas
@@ -1185,6 +1187,34 @@ de `lottery_ticket_matches`: el vendedor ve las suyas; el personal, las de su or
 
 **Textos.** Los avisos de programación reutilizan `notificationMessage`. La serie, si
 existe, se llama «Serie informativa». No se usa «ganador».
+
+### 8.20 Cabecera contextual al hacer scroll (D-150)
+
+La cabecera de `AppShell` ya era `sticky` (`h-14`, `z-40`). El encabezado de cada
+pantalla —`PageHeader`— desaparecía al bajar. No se añade una segunda barra ni se
+hace sticky el `PageHeader`: el título, la flecha y **una** acción principal suben
+a la cabecera que ya existía.
+
+**Cruce.** Un `IntersectionObserver` mira el bloque entero del `PageHeader` con
+`rootMargin` igual a la altura de la cabecera (56 px, `--app-header-height`). El
+estado cambia solo al cruzar ese umbral. No hay listener de `scroll`, ni
+`requestAnimationFrame`, ni `setState` por píxel. El scroll sigue siendo el del
+documento.
+
+**Contrato del CTA.** No se adivina por la variante del botón. La pantalla pasa
+`compactAction` a `PageHeader` o envuelve el botón con `CompactActionSlot`. La
+misma instancia se mueve con un portal: no hay dos copias, ni dos diálogos, ni
+dos destinos de teclado. Lo destructivo, lo `outline`, los filtros y los menús
+de tres puntos no suben.
+
+**Disposición compacta.** Escritorio: `[←] [título] … [avisos] [CTA] [avatar + nombre]`.
+Móvil: el nombre de `organizations.name` se reemplaza por `[←] título`; el CTA
+queda junto al avatar y puede ser solo icono bajo `md`, con nombre accesible y
+diana de 44 px. El `<h1>` se queda en el `PageHeader` original. Los objetivos del
+recorrido guiado (`page-header`, `page-actions`) no se duplican.
+
+**Fuera de `AppShell`.** «Cambiar contraseña» no monta el proveedor: el encabezado
+se pinta igual y no se observa nada.
 
 ---
 

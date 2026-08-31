@@ -1,10 +1,12 @@
 'use client'
 
+import { PlayIcon, RotateCcwIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { CompactActionSlot } from '@/components/layout/CompactHeader'
 import { Button } from '@/components/ui/button'
 import {
   RAFFLE_STATUS_LABELS,
@@ -70,17 +72,37 @@ export function RaffleStatusActions({ raffleId, status, role }: RaffleStatusActi
 
   return (
     <>
-      {available.map((next) => (
-        <Button
-          key={next}
-          type="button"
-          variant={next === 'cancelled' ? 'destructive' : next === 'active' ? 'default' : 'outline'}
-          onClick={() => setTarget(next)}
-          disabled={isPending}
-        >
-          {status === 'closed' && next === 'active' ? 'Reabrir rifa' : TRANSITION_COPY[next].action}
-        </Button>
-      ))}
+      {available.map((next) => {
+        const isPrimary = next === 'active'
+        const label =
+          status === 'closed' && next === 'active' ? 'Reabrir rifa' : TRANSITION_COPY[next].action
+        const button = (
+          <Button
+            type="button"
+            variant={
+              next === 'cancelled' ? 'destructive' : next === 'active' ? 'default' : 'outline'
+            }
+            onClick={() => setTarget(next)}
+            disabled={isPending}
+          >
+            {isPrimary ? (
+              status === 'closed' ? (
+                <RotateCcwIcon className="size-4" aria-hidden />
+              ) : (
+                <PlayIcon className="size-4" aria-hidden />
+              )
+            ) : null}
+            {label}
+          </Button>
+        )
+        return isPrimary ? (
+          <CompactActionSlot key={next}>{button}</CompactActionSlot>
+        ) : (
+          <span key={next} className="contents">
+            {button}
+          </span>
+        )
+      })}
 
       <ConfirmDialog
         open={target !== null}

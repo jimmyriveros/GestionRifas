@@ -85,28 +85,27 @@ export default async function SellerTicketDetailPage({
       <PageHeader
         title="Detalle boleta"
         backHref="/seller/tickets"
+        compactAction={
+          canRegisterPayment && newPaymentHref ? (
+            <Button asChild className="h-11 w-full sm:h-9 sm:w-auto">
+              <Link
+                // `from=ticket` y el id de ESTA boleta viajan para que el
+                // formulario devuelva aqui, no al listado ni al cliente
+                // (D-135). El id tambien marca cual fila se cubre primero
+                // en el reparto; el dinero lo sigue decidiendo quien cobra.
+                href={newPaymentHref}
+                // En pantalla dice «Registrar abono», que es lo que cabe en un
+                // telefono; quien lo oye necesita saber de quien es el abono.
+                aria-label={`Registrar un abono de ${ticket.clientName ?? 'este cliente'}`}
+              >
+                <PlusIcon className="size-4" aria-hidden />
+                Registrar abono
+              </Link>
+            </Button>
+          ) : undefined
+        }
         actions={
           <>
-            {/* En el telefono la accion principal ocupa el ancho y mide 44 px
-                de alto, la diana minima comoda que ya usan la flecha de volver
-                y las casillas de seleccion (D-085). */}
-            {canRegisterPayment && newPaymentHref ? (
-              <Button asChild className="h-11 w-full sm:h-9 sm:w-auto">
-                <Link
-                  // `from=ticket` y el id de ESTA boleta viajan para que el
-                  // formulario devuelva aqui, no al listado ni al cliente
-                  // (D-135). El id tambien marca cual fila se cubre primero
-                  // en el reparto; el dinero lo sigue decidiendo quien cobra.
-                  href={newPaymentHref}
-                  // En pantalla dice «Registrar abono», que es lo que cabe en un
-                  // telefono; quien lo oye necesita saber de quien es el abono.
-                  aria-label={`Registrar un abono de ${ticket.clientName ?? 'este cliente'}`}
-                >
-                  <PlusIcon className="size-4" aria-hidden />
-                  Registrar abono
-                </Link>
-              </Button>
-            ) : null}
             {canAssign ? (
               <AssignTicketDialog
                 ticketId={ticket.id}

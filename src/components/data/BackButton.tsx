@@ -22,8 +22,9 @@ import { cn } from '@/lib/utils'
  * (`SelectionCheckbox`, D-085).
  *
  * NO decide su propia colocacion. Quien lo pinta sabe junto a que texto va y
- * pasa el ajuste por `className`; hoy el unico que lo hace es `PageHeader`, que
- * es donde vive el tamano del titulo (D-126).
+ * pasa el ajuste por `className`. En el encabezado de pantalla el ajuste vive
+ * en `PageHeaderBack` (D-126, D-150); la flecha compacta de la cabecera fija
+ * pasa el suyo directo.
  */
 export function BackButton({
   fallbackHref,

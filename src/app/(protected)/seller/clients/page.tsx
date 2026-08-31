@@ -38,7 +38,7 @@ export default async function SellerClientsPage({ searchParams }: { searchParams
         // Una sola accion y un titulo corto: en el telefono caben en la misma
         // fila, igual que «Mis boletas» (D-108, D-136).
         inlineActions
-        actions={
+        compactAction={
           <Button asChild>
             <Link href="/seller/clients/new">
               <PlusIcon className="size-4" aria-hidden />
