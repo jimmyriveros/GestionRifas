@@ -30,7 +30,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| Siguiente fase | Ninguna. Mantenimiento: **cabecera contextual al hacer scroll** (D-150), local, sin publicar |
+| Siguiente fase | Ninguna. Mantenimiento: **cabecera contextual al hacer scroll** (D-150), **ya en producción** |
 | **Resultados de loterías** | Etapa 6 (2026-08-30, D-149): `0036`–`0039` en el proyecto real, `vercel.json` con los 10 jobs Hobby, `CRON_SECRET` inyectado por Vercel. Recuadro del Panel, sync, matching y avisos de las etapas 1–5. **Cron activado** |
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
@@ -63,7 +63,8 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | **Flecha de volver, a plomo con su título** | Desde el 2026-08-27 (D-126) el icono ya no cae **6 px** por debajo del título en las **once** pantallas con flecha. La causa era aritmética —línea de 32 px contra un botón de 44 alineados por arriba— y el arreglo vive **una sola vez** en `PageHeader`: `-my-1.5` saca del flujo los 6 px sobrantes de cada lado **sin encoger la diana**, que sigue midiendo 44 × 44. De paso, `-ms-3` deja la flecha a plomo con las tarjetas de abajo. **Ya en producción** (`c9dc8b7`, 2026-08-27) |
 | **Encabezado del detalle de una boleta** | Desde el 2026-08-27 (D-126) dice **«Detalle boleta»** y nada más: los dos números y la rifa estaban repetidos a un dedo de distancia. La **rifa baja al contenido** —«Detalles de la boleta» en el portal del vendedor, junto a «Vendedor» y enlazada en el administrativo—, porque el encabezado era el único sitio donde aparecía. **No contradice BR-N11**: la boleta se sigue nombrando por sus números donde hace falta nombrarla. **Ya en producción** (`c9dc8b7`, 2026-08-27) |
 | Cambio funcional anterior | `7b26d99` — **corregir a un integrante pendiente** (D-097), 2026-08-14; migración `0026` aplicada al proyecto real, CI 2/2 y despliegue verificado por SHA |
-| Último cambio promovido | **`325398c`** — **resultados oficiales de loterías en producción** (D-149, Etapa 6), 2026-08-30; migraciones `0036`–`0039`, cron Hobby, CI 2/2, despliegue verificado por el identificador `eeb9d8e64d57` y por `/api/lottery/sync` en 401 |
+| Último cambio promovido | **`d102108`** — **cabecera contextual al hacer scroll** (D-150), 2026-08-30; sin migración, CI 2/2, despliegue verificado por el identificador `6ca114ab2ccd` y por `--app-header-height` |
+| Cambio promovido anterior | **`325398c`** — **resultados oficiales de loterías en producción** (D-149, Etapa 6), 2026-08-30; migraciones `0036`–`0039`, cron Hobby, CI 2/2, despliegue verificado por el identificador `eeb9d8e64d57` y por `/api/lottery/sync` en 401 |
 | Cambio promovido anterior | **`1d3fa54`** — **rediseño de «Registrar abono» en el teléfono** (D-138), 2026-08-29; sin migración, CI 2/2, despliegue verificado por el identificador `d2cb88d2614e` y por `.min-\[360px\]\:grid-cols-2` / `.h-\[52px\]` |
 | Cambio promovido anterior | **`0d6d7ea`** — **editar el precio de venta de una boleta asignada** (D-137), 2026-08-29; migración `0035` aplicada al proyecto real, CI 2/2, despliegue verificado por el identificador `2ac42dbe11ea` |
 | Cambio promovido anterior | **`dc97949`** — **clientes en tarjetas en el teléfono** (D-136), 2026-08-29; sin migración, CI 2/2, despliegue verificado por el identificador `13654f6048d5` y por `.max-w-\[45\%\]` |
@@ -120,15 +121,15 @@ reales).
 
 | Campo | Estado |
 |---|---|
-| Resultado | **La cabecera fija de `AppShell` muestra título, flecha y un CTA** cuando el `PageHeader` sale de la vista. Sin segunda barra. Sin listener de `scroll`. `Query changes: None` · `Route changes: None` · `Migrations: None` · `New dependencies: None`. **No está en producción** |
+| Resultado | **La cabecera fija de `AppShell` muestra título, flecha y un CTA** cuando el `PageHeader` sale de la vista. Sin segunda barra. Sin listener de `scroll`. `Query changes: None` · `Route changes: None` · `Migrations: None` · `New dependencies: None`. **Ya en producción** |
 | Archivos | **Nuevos:** `src/components/layout/compact-header.ts`, `CompactHeader.tsx`, `tests/unit/compact-header.test.ts`, `tests/e2e/cabecera-helpers.ts`, `cabecera-contextual.spec.ts`, `cabecera-contextual-movil.spec.ts`. **Tocados:** `AppShell`, `PageHeader`, `BackButton`, `globals.css`, páginas con CTA, `TicketActions`, `RaffleStatusActions`. Documentación: `DECISIONS` (D-150), `ARCHITECTURE` §8.20, `TESTING`, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
 | Reutilización | **Ni una capa services.** `PageHeader` + `BackButton` + `AppShell`. El CTA se mueve con un portal (`CompactActionSlot`), no se clona. El observer mira el encabezado de la ruta y se limpia al desmontar |
 | Decisiones | **D-150** (IntersectionObserver, contrato `compactAction`, portal, un solo `<h1>`, `z-40` intacto). No se inventó una fase |
 | Verificación | `npm run verify` ✅ · lint **0 errores** (2 avisos de siempre) · **552/552** unitarias (+3) · `build` ✅ · `test:db` **631/631** · E2E de esta tanda **23/23** · suite E2E **392/394**, luego el locator de clientes **1/1** · `git diff --check` ✅. El «N» de Next en desarrollo tapa la flecha compacta: las pruebas usan un clic de DOM. El `(anulado)` del panel no entra en los 5 pagos más recientes tras el ciclo de 1.000 boletas: no es de este cambio |
-| Advertencias | **1)** No hagas push ni despliegue. **2)** No clones el nodo `actions`. **3)** Una acción destructiva no sube. **4)** `CabeceraUsabilidad.txt` y `prueba-abono.csv` son del dueño; no se commitean |
-| Pendiente | Verificación visual con sesión real (I-066) en un teléfono físico a 320 px. Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063 |
-| Publicación | **No.** Mantenimiento local. Prohibido push y producción |
-| Git | Rama `main`, sobre `325398c`. Árbol con cabecera contextual y docs; `CabeceraUsabilidad.txt` y `prueba-abono.csv` siguen sin seguimiento |
+| Advertencias | **1)** No clones el nodo `actions`. **2)** Una acción destructiva no sube. **3)** `CabeceraUsabilidad.txt` y `prueba-abono.csv` son del dueño; no se commitean |
+| Pendiente | Verificación visual con sesión real (I-066) en un teléfono físico a 320 px: bajar en Boletas y en un detalle, comprobar título, flecha y CTA. Lo de siempre: I-077, I-072, I-074, I-075, I-068, I-062, I-063 |
+| Publicación | **Desplegado el 2026-08-30 con autorización expresa. Sin migraciones.** CI **2/2** (`33346483650`). Vercel `READY` sobre **`d102108`** (despliegue GitHub `6173298089`, URL única `gestion-rifas-aqzfihhdk-jimmyriveros-projects.vercel.app`), alias `gestion-rifas.vercel.app`. En vivo: **6/6** cabeceras en `/login` (200, CSP con nonce), **4/4** rutas protegidas en 307 hacia `/login?next=…`, `/sw.js` en 200, **0** claves de servicio en 16 recursos (**1.077 KB**), identificador `6ca114ab2ccd` en `30b_k3xghd-tr.js`, y `--app-header-height` en `0v0ou74eo_3hk.css`. `/api/lottery/sync` sigue en **401** sin secreto |
+| Git | Rama `main`, **`d102108`** empujado a `origin/main` y desplegado. `CabeceraUsabilidad.txt` y `prueba-abono.csv` siguen sin seguimiento |
 
 ## 1.a.0 Relevo anterior — Resultados oficiales de loterías, Etapa 6 (2026-08-30)
 

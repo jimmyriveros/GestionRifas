@@ -52,6 +52,22 @@ Errores de la primera pasada E2E, con detalle:
 5. **`back-navigation` clientes.** La flecha sí volvía a `/owner/clients`. El `.first()` de `getByText` pisaba el enlace de la tarjeta móvil (D-136), que está en el DOM y oculto. Se acotó a la tabla. No es de D-150.
 6. **`reports` panel «(anulado)».** `listPayments({ pageSize: 5 })` muestra los 5 más recientes. Tras `owner-ciclo` y el resto de la suite, el pago anulado del seed ya no entra en esos 5. La cabecera no toca pagos. No se cambió el producto.
 
+### Promoción a producción (2026-08-30)
+
+Autorizada expresamente. Sin migraciones: el frontend viaja solo.
+
+| Paso | Resultado |
+|---|---|
+| Push a `main` | `e93549e..d102108`. Solo la rama; etiquetas `fase-*` no se subieron |
+| CI | **2/2** (`33346483650`) |
+| Vercel | `READY` sobre **`d102108`** (despliegue GitHub `6173298089`, URL única `gestion-rifas-aqzfihhdk-jimmyriveros-projects.vercel.app`), alias `gestion-rifas.vercel.app` |
+
+#### En vivo
+
+6/6 cabeceras de seguridad en `/login` (200, CSP con nonce), cuatro rutas protegidas en 307 hacia `/login?next=…`, `/sw.js` en 200, **0** claves de servicio en los 16 recursos (**1.077 KB**), y el **identificador de versión** `6ca114ab2ccd` —sha256 de `d102108d60…` recortado a 12 hex— encontrado en `30b_k3xghd-tr.js`. **Además** la CSS de producción trae `--app-header-height`, que en toda la aplicación solo genera este cambio. `/api/lottery/sync` sin secreto sigue en **401** `{"error":"No autorizado."}` y no redirige al login.
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** el cruce al hacer scroll vive tras el inicio de sesión (I-066). Quien lo vea: bajar en Boletas y en un detalle, en teléfono y en escritorio.
+
 ---
 
 ## Post-9 — Etapa 6 resultados de loterías (2026-08-30)
