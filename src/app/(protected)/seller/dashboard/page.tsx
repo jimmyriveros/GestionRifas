@@ -22,8 +22,7 @@ import {
   getSellerDashboard,
   getSellerPartialTicketTotals,
 } from '@/features/dashboard/seller-queries'
-import { LotteryResultsCard } from '@/features/lottery/components/LotteryResultsCard'
-import { getLotteryDashboard } from '@/features/lottery/queries'
+import { LotteryResultsSection } from '@/features/lottery/components/LotteryResultsSection'
 import { getCommissionContext, getFirstTierRate } from '@/features/commissions/queries'
 import { getOwnTeamStatus } from '@/features/team/queries'
 import { requireRole } from '@/lib/auth/guards'
@@ -49,6 +48,10 @@ function single(value: string | string[] | undefined): string | undefined {
  * `Promise.all` que ya existia, de modo que la pantalla sigue costando UNA
  * espera y no siete; y los graficos son SVG sin JavaScript, asi que no hay
  * momento en el que se vean ceros mientras llegan los datos reales.
+ *
+ * LO QUE SI SALIO DE ESA ESPERA es el recuadro de loterias (D-155): entra por
+ * `LotteryResultsSection`, en su propio limite de Suspense, para que una lectura
+ * lenta suya no retrase estas siete piezas.
  */
 export default async function SellerDashboardPage({
   searchParams,
@@ -60,20 +63,18 @@ export default async function SellerDashboardPage({
   const rangeKey = parseDashboardRange(single(params.range))
   const range = resolveDashboardRange(rangeKey, todayBogota())
 
-  const [dashboard, comisiones, firstTierRate, own, partialTotals, activity, lottery] =
-    await Promise.all([
-      getSellerDashboard(),
-      getCommissionContext(),
-      getFirstTierRate(),
-      // BR-G13, BR-G24: quien no pertenece a un equipo cobra la mitad del precio;
-      // dentro de un equipo, por tramos o una cifra fija. Hace falta saberlo
-      // aunque todavia no haya cobrado ninguna boleta, que es justo cuando no hay
-      // fila de comision que leer.
-      getOwnTeamStatus(membership.profileId),
-      getSellerPartialTicketTotals(),
-      getSellerActivity(range),
-      getLotteryDashboard(),
-    ])
+  const [dashboard, comisiones, firstTierRate, own, partialTotals, activity] = await Promise.all([
+    getSellerDashboard(),
+    getCommissionContext(),
+    getFirstTierRate(),
+    // BR-G13, BR-G24: quien no pertenece a un equipo cobra la mitad del precio;
+    // dentro de un equipo, por tramos o una cifra fija. Hace falta saberlo
+    // aunque todavia no haya cobrado ninguna boleta, que es justo cuando no hay
+    // fila de comision que leer.
+    getOwnTeamStatus(membership.profileId),
+    getSellerPartialTicketTotals(),
+    getSellerActivity(range),
+  ])
 
   const { totals } = dashboard
 
@@ -148,11 +149,7 @@ export default async function SellerDashboardPage({
           si ya está instalada o si alguien dijo «Ahora no» este mes. */}
       <InstallPrompt />
 
-      <LotteryResultsCard
-        data={lottery}
-        audience="seller"
-        ticketBasePath="/seller/tickets"
-      />
+      <LotteryResultsSection audience="seller" ticketBasePath="/seller/tickets" />
 
       {/*
         UNA sola rejilla para las siete piezas, y dos ordenes distintos.

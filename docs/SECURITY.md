@@ -498,8 +498,20 @@ dependencia**: cambia cómo se lee lo que ya se descargaba. Lo que sí toca a se
 | Insistir contra un desafío | `cf-mitigated: challenge` se reconoce sea cual sea el estado; `decideResultFetch` sigue frenando tras dos `source_blocked` hasta la mañana |
 | **Turnstile de Bogotá** | Se comprobó que su API exige `X-Antibot-Pass` y **no se resuelve**. Tampoco se cambia el `User-Agent`, ni se usa un proxy, ni un agregador. Se registra `source_blocked` y el resultado queda para revisión manual (I-087) |
 
-El Panel sigue sin importar nada de esto, y hay una prueba que lo vigila para `queries.ts` y
-`dashboard.ts`: ni el tick, ni `fetch`, ni los adaptadores (BR-L20).
+El Panel sigue sin importar nada de esto, y hay una prueba que lo vigila para `queries.ts`,
+`dashboard.ts` y ahora también `LotteryResultsSection.tsx`: ni el tick, ni `fetch`, ni los
+adaptadores (BR-L20).
+
+El aislamiento del recuadro (D-155, BR-L25) **no mueve ninguna frontera**. Es un límite de
+Suspense dentro de la página; la lectura es la misma, con el cliente de sesión y sujeta a la RLS
+de arriba. Lo que sí conviene tener presente al tocarlo:
+
+| Riesgo | Cómo queda cerrado |
+|---|---|
+| **Una guarda dentro del límite** convertiría un redirect en un 200 a medias | `requireStaff` / `requireRole` se resuelven **antes** de que la página devuelva su árbol, así que corren antes de emitir el armazón. Una guarda de sesión nunca debe bajar dentro de un `<Suspense>`: cuando el primer trozo sale, el estado HTTP ya está enviado y no se puede cambiar (guía de streaming de Next.js 16, «The HTTP contract») |
+| Cachear la lectura para «que vaya más rápido» | **No se cachea.** Las coincidencias dependen de quién pregunta (RLS): una caché compartida entre peticiones filtraría boletas de un vendedor a otro. El recuadro se lee en cada navegación, como antes |
+| Una lectura colgada dejando la respuesta abierta | `LOTTERY_DASHBOARD_TIMEOUT_MS` (3 s) con `AbortSignal.timeout`, **compartido por las dos consultas**: cancela de verdad y cae en el aviso de error |
+| Filtrar un error de la base en pantalla | No cambia: el `catch` devuelve `{ kind: 'error' }` y el texto visible es genérico. No se expone el mensaje de PostgREST |
 
 ### 4.9 «Ventas por fecha» (`0040`, BR-T05, D-151)
 

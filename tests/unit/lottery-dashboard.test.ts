@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildLotteryDashboard,
   LOTTERY_DASHBOARD_COPY,
+  LOTTERY_DASHBOARD_TIMEOUT_MS,
   lotteryDashboardWindow,
   matchSummaryText,
   raffleSummaryText,
@@ -332,7 +333,7 @@ describe('el Panel no consulta fuentes oficiales (BR-L20)', () => {
     expect(source).not.toMatch(/runLotterySyncTick/)
   })
 
-  it('los dos paneles leen getLotteryDashboard y no descargan', () => {
+  it('los dos paneles muestran el recuadro y no descargan', () => {
     const owner = readFileSync(
       join(ROOT, 'src/app/(protected)/owner/dashboard/page.tsx'),
       'utf8',
@@ -341,15 +342,66 @@ describe('el Panel no consulta fuentes oficiales (BR-L20)', () => {
       join(ROOT, 'src/app/(protected)/seller/dashboard/page.tsx'),
       'utf8',
     )
-    expect(owner).toContain('getLotteryDashboard')
-    expect(seller).toContain('getLotteryDashboard')
-    expect(owner).toContain('Promise.all')
-    expect(seller).toContain('Promise.all')
-    for (const source of [owner, seller]) {
+    const section = readFileSync(
+      join(ROOT, 'src/features/lottery/components/LotteryResultsSection.tsx'),
+      'utf8',
+    )
+    expect(section).toContain('getLotteryDashboard')
+    for (const source of [owner, seller, section]) {
       expect(source).not.toMatch(/from ['"]@\/features\/lottery\/fetch['"]/)
       expect(source).not.toMatch(/from ['"]@\/features\/lottery\/sync['"]/)
       expect(source).not.toMatch(/from ['"]@\/features\/lottery\/adapters['"]/)
       expect(source).not.toMatch(/from ['"]@\/features\/lottery\/job['"]/)
     }
+  })
+})
+
+/**
+ * El recuadro esta aislado del resto del Panel (D-155, BR-L25).
+ *
+ * Estas comprobaciones leen el codigo fuente a proposito: lo que hay que
+ * impedir es que alguien vuelva a meter `getLotteryDashboard` en el
+ * `Promise.all` de una de las dos paginas «para tenerlo todo junto». Eso
+ * compila, pasa todas las pruebas de pantalla y devuelve el defecto de esta
+ * etapa sin ningun sintoma. La prueba de que el aislamiento FUNCIONA, con
+ * tiempos reales, esta en `lottery-panel-streaming.test.tsx`.
+ */
+describe('el Panel no espera por las loterias (D-155)', () => {
+  const owner = readFileSync(join(ROOT, 'src/app/(protected)/owner/dashboard/page.tsx'), 'utf8')
+  const seller = readFileSync(join(ROOT, 'src/app/(protected)/seller/dashboard/page.tsx'), 'utf8')
+  const section = readFileSync(
+    join(ROOT, 'src/features/lottery/components/LotteryResultsSection.tsx'),
+    'utf8',
+  )
+
+  it('ninguna de las dos paginas espera la consulta de loterias', () => {
+    for (const source of [owner, seller]) {
+      expect(source).not.toContain('getLotteryDashboard')
+      expect(source).not.toMatch(/from ['"]@\/features\/lottery\/queries['"]/)
+      expect(source).toContain('<LotteryResultsSection')
+    }
+  })
+
+  it('el recuadro se dibuja dentro de un limite de Suspense', () => {
+    expect(section).toContain("from 'react'")
+    expect(section).toContain('<Suspense')
+    expect(section).toContain('LotteryResultsFallback')
+  })
+
+  it('el hueco de espera usa los textos de LOTTERY_DASHBOARD_COPY', () => {
+    expect(LOTTERY_DASHBOARD_COPY.loading).toBe('Buscando los resultados oficiales…')
+    expect(section).toContain('COPY.loading')
+    expect(section).toContain('COPY.title')
+    expect(section).toContain('aria-busy')
+  })
+
+  it('la lectura local lleva un plazo maximo, y cubre las dos consultas', () => {
+    const queries = readFileSync(join(ROOT, 'src/features/lottery/queries.ts'), 'utf8')
+    expect(LOTTERY_DASHBOARD_TIMEOUT_MS).toBeGreaterThan(0)
+    expect(queries).toContain('AbortSignal.timeout(LOTTERY_DASHBOARD_TIMEOUT_MS)')
+    // Un solo `deadline` compartido: dos plazos independientes permitirian que
+    // la lectura entera tardase el doble de lo presupuestado.
+    expect(queries.match(/AbortSignal\.timeout\(/g)).toHaveLength(1)
+    expect(queries.match(/\.abortSignal\(deadline\)/g)).toHaveLength(2)
   })
 })

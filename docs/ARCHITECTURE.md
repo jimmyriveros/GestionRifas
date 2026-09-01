@@ -367,7 +367,8 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | Encabezados de columna | Los cuatro con acciones llevan rótulo: **«Acción»** con una sola acción (pagos, rifas) y **«Acciones»** con menú (vendedores, administradores). Los dos números se ven abreviados —«Núm. diario»— y conservan el nombre entero en `sr-only`, así que la columna se sigue llamando «Número diario» para un lector de pantalla (D-114) |
 | `DonutChart` / `TrendChart` | Los dos gráficos del panel del vendedor: SVG dibujado en el servidor, **sin librería y sin JavaScript** en el navegador. Escalan con `viewBox`, igual que `ProgressRing` (§8.13, D-112). En el centro del anillo va un porcentaje, nunca un importe (D-124) |
 | `CollectionSummaryCard` | Resumen de cobranza del panel (D-090): recibe `totals` ya agregado, no calcula nada; barra de progreso accesible con el mismo patrón que `BulkTicketCreator` |
-| `LotteryResultsCard` | Recuadro de resultados oficiales de los dos Paneles (D-147, §8.19). Server Component; lee datos locales; no consulta internet |
+| `LotteryResultsCard` | Recuadro de resultados oficiales de los dos Paneles (D-147, §8.19). Server Component **puro**: recibe `data` ya leído, no consulta nada |
+| `LotteryResultsSection` | Lo que ponen las dos páginas (D-155, §8.19.d): hace la lectura local dentro de un `<Suspense>` propio, con `LotteryResultsFallback` como hueco, para que el Panel no la espere |
 | `CommissionCard` | «Tu ganancia» del panel del vendedor (D-095). No calcula nada: recibe la fila de `commission_summary`. Separa **lo ganado** de **la proyección** deliberadamente, y la barra lleva su valor en `aria-valuetext` |
 | `NotificationBell` / `NotificationMenu` | Campanita del encabezado (D-093). El servidor lee la bandeja al pintar la pantalla; sin peticiones desde el navegador ni tiempo real. El contador va también en el `aria-label`, no solo en el punto rojo |
 | `TableSection` | Tarjeta con título —y acción opcional— que envuelve un listado (§8.14, D-113). La tabla de dentro se aplana con `SECTION_TABLE_CLASSES` para no pintar dos bordes concéntricos; el relleno está calculado para que la primera columna quede alineada con el título |
@@ -1174,8 +1175,10 @@ pseudoelementos de WebKit, una sola vez en `globals.css`, para todos los `type=d
 ### 8.19 Resultados oficiales en el Panel (D-147)
 
 Un recuadro compartido, Server Component, en `/owner/dashboard` y `/seller/dashboard`. Lee
-solo tablas locales (`getLotteryDashboard`) dentro del `Promise.all` que ya tenía cada
-página. No descarga páginas oficiales.
+solo tablas locales (`getLotteryDashboard`). No descarga páginas oficiales.
+
+> Desde el 2026-09-01 (**D-155**, §8.19.d) **ya no** va dentro del `Promise.all` de cada
+> página: vive en su propio límite de Suspense. El resto de esta sección no cambia.
 
 **Qué sorteo es «hoy».** La fecha de `official_scheduled_at` en `America/Bogota`, no el día
 nominal de la lotería. Pueden coincidir dos. Si no hay ninguno, el recuadro lo dice y
@@ -1297,6 +1300,54 @@ el caso `match` de esa función.
 > actas son escaneos (I-086). **Bogotá** tampoco: su sitio entero está tras un desafío de
 > Cloudflare y su único API de resultados exige un pase de Turnstile (**I-087**). Ninguna de las
 > dos se elude; su resultado queda para revisión manual.
+
+### 8.19.d El recuadro no bloquea el Panel (D-155, BR-L25)
+
+El recuadro se dibuja dentro de **su propio límite de Suspense**, aportado por
+`LotteryResultsSection`. Las dos páginas lo colocan donde antes ponían la tarjeta y **no importan
+`getLotteryDashboard`**: es el componente el que lo espera.
+
+```
+page.tsx  ──►  await getAdminDashboard() / Promise.all(...)   ← el armazón sale con esto
+               └── <LotteryResultsSection>
+                     └── <Suspense fallback={<LotteryResultsFallback/>}>
+                           └── async LotteryResultsContent  ← llega después, mismo flujo HTTP
+```
+
+**Por qué así.** Es el patrón «Granular streaming with `<Suspense>`» de la guía de Next.js 16
+(`node_modules/next/dist/docs/01-app/02-guides/streaming.md`). El armazón —encabezado,
+indicadores, tablas, listas— se envía en cuanto responden sus propias consultas; el recuadro
+llega en un trozo posterior del **mismo** flujo, sin una segunda petición y sin JavaScript de
+cliente. Medido con PostgREST retrasado 1,5 s solo en las rutas de loterías, el primer byte del
+Panel pasa de **1.628 ms a 131 ms** (dueño) y de **1.634 a 138 ms** (vendedor); cifras completas
+en `TEST_RESULTS`.
+
+**El límite vive en el componente, no en cada `page.tsx`.** Los dos portales comparten recuadro,
+hueco y decisión; duplicar el `<Suspense>` permitiría que un portal quedara sin aislar sin
+síntoma visible. **No hay `loading.tsx`**: sería un límite de pantalla entera y reintroduciría la
+espera mínima de React que D-104 midió y descartó.
+
+**El hueco.** `LotteryResultsFallback` es la misma tarjeta con el **título real** —así el título
+va en el armazón— y cuatro barras medidas contra un bloque de sorteo: 234 px en escritorio,
+entre los 210 px de un sorteo pendiente y los 306 px de uno confirmado. `aria-busy` más un texto
+para lector de pantalla. No se reserva la altura del caso más alto: el recuadro mide entre 210 y
+578 px según cuántos sorteos y coincidencias haya (D-155 d).
+
+**El plazo.** Las dos consultas comparten `LOTTERY_DASHBOARD_TIMEOUT_MS` (3 s) mediante un único
+`AbortSignal.timeout`. Con el límite puesto, la respuesta HTTP no se cierra hasta que el recuadro
+resuelve; el plazo evita que una lectura colgada la deje abierta, y cae en el aviso de error que
+ya existía. Es un presupuesto para la lectura **entera**, no uno por consulta.
+
+**Consultas e índices.** Constantes: una de programación y, solo si hay resultados en la ventana,
+una de coincidencias (`in('result_id', …)`). Ni una más por sorteo, resultado, vendedor o boleta.
+No hace falta ningún índice nuevo: la ventana es un barrido de una tabla **nacional** que crece
+~312 filas al año para toda la aplicación, y las coincidencias por sorteo las sirve el índice
+único `(result_id, ticket_id, match_field)` —`organization_id`/`seller_id` empiezan por otra
+columna y no pueden resolver esa búsqueda—. Planes medidos en `TEST_RESULTS`.
+
+**Autorización.** Las guardas (`requireStaff`, `requireRole`) corren **antes** de que la página
+devuelva su árbol, así que se resuelven antes de emitir el armazón. Un límite de Suspense por
+debajo de la guarda no puede convertir un redirect en un 200 a medias (`SECURITY.md` §4.8).
 
 ### 8.20 Cabecera contextual al hacer scroll (D-150)
 

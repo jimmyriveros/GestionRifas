@@ -29,6 +29,141 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — El Panel deja de esperar por las loterías, etapa 4/6 (2026-09-01, D-155)
+
+Mantenimiento posterior al plan. Autorizado expresamente. **Sin migración, sin ruta nueva, sin
+dependencia nueva.** No se desplegó nada ni se escribió una sola fila en el proyecto Supabase real.
+**Cero peticiones a fuentes oficiales** en toda la sesión.
+
+### a. Cómo se midió (reproducible)
+
+El defecto es de **tiempo**, así que hacía falta una medida de tiempo, no una captura. Montaje:
+
+1. Un **proxy HTTP local** delante de PostgREST (`127.0.0.1:54399` → `54321`) que retrasa **solo**
+   las rutas que contienen `/lottery_` y cuenta las peticiones por tabla. La aplicación no se toca:
+   el retraso se inyecta por debajo, en la red.
+2. La aplicación **construida** (`npm run build`) y servida con `next start`, apuntando a ese proxy
+   (`NEXT_PUBLIC_SUPABASE_URL`). Producción, no `next dev`.
+3. Inicio de sesión real con Playwright para obtener las cookies, y después `fetch` crudo leyendo la
+   respuesta **trozo a trozo**, anotando el instante de cada uno. Mediana de 5 pasadas, más una de
+   calentamiento que no cuenta.
+
+Se midió **dos veces con el mismo montaje**: una sobre `106f878` (antes) y otra sobre el árbol de
+esta etapa (después).
+
+### b. Línea base y resultado — primer byte y contenido principal
+
+Milisegundos desde el `fetch` hasta que la marca aparece en el flujo. «Contenido principal» es
+«Boletas creadas recientemente» (dueño) y «Accesos rápidos» (vendedor), el último bloque de cada
+Panel.
+
+| Portal | Retraso de la consulta de loterías | | Primer byte | Contenido principal | Recuadro de loterías | Fin de la respuesta |
+|---|---|---|---|---|---|---|
+| Dueño | 0 ms | antes | 174 | 176 | 175 | 178 |
+| Dueño | 0 ms | **después** | **134** | **135** | 137 | 138 |
+| Dueño | **1.500 ms** | antes | 1.628 | 1.629 | 1.628 | 1.630 |
+| Dueño | **1.500 ms** | **después** | **131** | **133** | 1.643 | 1.644 |
+| Vendedor | 0 ms | antes | 142 | 143 | 143 | 144 |
+| Vendedor | 0 ms | **después** | **132** | **132** | 133 | 135 |
+| Vendedor | **1.500 ms** | antes | 1.634 | 1.636 | 1.635 | 1.637 |
+| Vendedor | **1.500 ms** | **después** | **138** | **138** | 1.640 | 1.641 |
+
+Lectura: **antes, una consulta local lenta retrasaba la pantalla entera**; después no retrasa nada
+más que su propio recuadro. Y sin retraso también se gana algo (174 → 134 ms en el Panel del dueño),
+porque el contenido principal deja de esperar dos viajes que no necesita.
+
+Comprobado además en la respuesta cruda con 1,5 s de retraso: el hueco del recuadro sale en el
+**trozo 2** de 16, y el recuadro resuelto en el **15**. Los **23** `<script>` de la página llevan su
+nonce —incluidos los que React inyecta para sustituir el hueco— y el navegador no registra **ningún**
+error de consola.
+
+### c. Cantidad de consultas — constante, sin N+1
+
+Contadas por el proxy, una navegación completa:
+
+| Portal | Sin resultados en la ventana | Con resultados y coincidencias |
+|---|---|---|
+| `/owner/dashboard` | 10 peticiones · **1** de loterías | 11 · **2** de loterías |
+| `/seller/dashboard` | 15 peticiones · **1** de loterías | 16 · **2** de loterías |
+
+Nunca más de **dos**: una de programación y, solo si hay resultados en la ventana, una de
+coincidencias con `in('result_id', …)`. Ni una por sorteo, resultado, vendedor o boleta.
+
+### d. Índices y planes, con volumen sintético
+
+| Consulta | Volumen | Plan | Tiempo |
+|---|---|---|---|
+| Ventana del Panel (`reference_date` entre −10 y +21) + resultado, RLS de vendedor | **1.599** programaciones (5 años) y 30 resultados | `Seq Scan` + `Hash Left Join`; `current_org_ids()` como **InitPlan**, evaluado una vez | **1,86 ms** |
+| Coincidencias `result_id = any(30 ids)`, RLS de vendedor | **8.025** coincidencias | `Bitmap Index Scan` sobre `lottery_ticket_matches_result_ticket_field_key` | **2,55 ms** |
+
+**Conclusión: no se añade ningún índice.** `lottery_draw_schedules` es **nacional** —una fila por
+lotería y sorteo, ~312 al año para toda la aplicación—, así que el barrido es más barato que
+mantener un índice. Y las coincidencias por sorteo ya las sirve el índice **único**
+`(result_id, ticket_id, match_field)`: los de `organization_id` y `seller_id` empiezan por otra
+columna y **no pueden** resolver una búsqueda por `result_id`, aunque el nombre lo sugiera.
+
+### e. El hueco frente al recuadro: alturas reales
+
+Medidas en el navegador, con el retraso puesto para poder ver las dos cosas.
+
+| Estado del recuadro | Escritorio (1280) | | Teléfono (412) | |
+|---|---|---|---|---|
+| | recuadro | salto | recuadro | salto |
+| Sin programaciones | 252 px | +18 | 272 px | +38 |
+| Un sorteo pendiente | 210 px | **−24** | 266 px | +32 |
+| Un sorteo confirmado | 306 px | +72 | 362 px | +128 |
+| Pendiente + «Último resultado» | 466 px | +232 | 578 px | +344 |
+
+El hueco mide **234 px** en los dos. La primera versión medía 182 px y se subió a 234 tras esta
+misma medida. No se reserva más (D-155 d): el recuadro va de 210 a 578 px según cuántos sorteos y
+coincidencias haya, y estirar el hueco hasta el caso más alto dejaría medio Panel en blanco durante
+una espera que dura décimas.
+
+### f. Errores encontrados durante la propia medición
+
+1. **Dos medidas de altura salieron mal y decían 252 px donde el recuadro medía 466.** Causa: el
+   arnés retrasaba **1,5 s cada consulta** y el recuadro hace **dos**, así que 3 s superaba el plazo
+   nuevo y lo que se estaba midiendo era el aviso de error. No era un defecto del producto sino la
+   **primera prueba en vivo del plazo compartido**: se comportó exactamente como debía —recuadro en
+   error, resto del Panel intacto— y la medida se repitió con 1,2 s.
+2. **El primer recuento de nonces daba «5 de 23».** Error del arnés: la expresión buscaba
+   `<script nonce=` y la mayoría son `<script src="…" nonce="…">`. Con el recuento correcto son
+   **23 de 23**.
+3. **Tres errores de TypeScript en las pruebas nuevas** (`noUncheckedIndexedAccess`): índices de
+   array sin comprobar. Corregidos.
+4. **`DOMException` no hereda de `Error` en jsdom**, así que el doble de Supabase no distinguía un
+   aborto de una respuesta y dos pruebas del plazo pasaban en verde por el motivo equivocado. Se
+   fabrica el error a mano con `name = 'AbortError'`.
+
+### g. Suites
+
+| Comando | Resultado |
+|---|---|
+| `npx tsc --noEmit` | ✅ |
+| `npm run lint` | **0 errores**, 2 avisos de siempre |
+| `npm run test` (unitarias) | **646/646** (+10) |
+| `npm run build` | ✅ |
+| `npm run test:db` | **667/667** (+4) |
+| `npm run test:e2e` (suite completa, 22,7 min) | **421/423** · los 2 fallos son **I-090**, ajeno a este cambio |
+
+
+Las **6 pruebas E2E nuevas** de esta etapa pasan, en las dos corridas (aislada y completa). Los dos
+fallos de la suite completa son **de las pruebas, no del producto**, y quedan registrados como
+**I-090**:
+
+| Prueba que falla | Por qué |
+|---|---|
+| `reports.spec.ts › el panel administrativo muestra pagos recientes` | Ya registrado en D-150 y D-151: tras la suite, el pago anulado del seed sale de los 5 más recientes |
+| `ventas-por-fecha.spec.ts › muestra inicialmente las ventas de HOY` | Afirma `esperado < 26` sobre las ventas **reales de hoy** de `vendedor1`, y al terminar la suite había **77** boletas suyas vendidas hoy en «Rifa Navidad 2026» —contadas en la base—: otras suites asignan boletas del seed y no las devuelven |
+
+**Comprobado en aislamiento**, con `db:reset` + `seed:local` y solo esos dos archivos: **39/39 ✅**.
+No es intermitencia —eso era I-038, y dependía del tiempo—: depende de cuánta basura haya acumulado
+la suite cuando llega su turno, así que empeora sola con cada prueba nueva que venda boletas. Este
+cambio no crea ni una venta: sus fixtures son programaciones y resultados de lotería, y se borran en
+`afterEach`.
+
+---
+
 ## Post-9 — Validación real de las seis fuentes oficiales, etapa 3/6 (2026-09-01, D-154)
 
 Mantenimiento posterior al plan. Autorizado expresamente. **Sin migración.** No se desplegó

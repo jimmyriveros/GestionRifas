@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-01 (D-154, validación real de las seis fuentes; **sin desplegar**)
+- **Actualizado:** 2026-09-01 (D-155, el Panel deja de esperar por las loterías; **sin desplegar**)
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
   Cabecera contextual (D-150): el título, la flecha y un CTA suben a la cabecera
   fija de `AppShell` cuando el `PageHeader` sale de la vista. Sin migración.
@@ -12,7 +12,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   Route Handler y programador de producción (`0036`–`0039`, D-140..D-149).
 - **Fase siguiente:** ninguna autorizada
 - **Aviso operativo:** el dueño **pausó los cron** de producción el 2026-09-01. El código de
-  D-152, D-153 y D-154 y la migración `0041` están **solo en local**: no reactives el programador
+  D-152, D-153, D-154 y D-155 y la migración `0041` están **solo en local**: no reactives el programador
   antes de aplicar `0041` y desplegar. En el proyecto real las cuatro tablas de loterías tienen
   **0 filas**: ningún tick llegó nunca a completarse (comprobado el 2026-09-01).
 - **Aviso operativo:** de las seis loterías, **cuatro se confirman solas** —Cruz Roja, Meta,
@@ -32,7 +32,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 | Clasificación | Estado actual |
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) y **la cabecera contextual al hacer scroll** (D-150, 2026-08-30, **en producción**) y **el reporte «Ventas por fecha» del portal del vendedor** (D-151, BR-T05..BR-T07, migración `0040`, 2026-08-31, **ya en producción**) |
-| **En curso** | Loterías, **etapa 3/6 de corrección** (D-154, 2026-09-01): validación real de las seis fuentes oficiales. Cuatro confirmadas contra la fuente y contra el cronograma; tres defectos corregidos, uno de ellos un número mayor **inventado** (I-088). **Sin migración, sin desplegar.** Antes, etapa 2/6 (D-153): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **pausado** desde el 2026-09-01 |
+| **En curso** | Loterías, **etapa 4/6 de corrección** (D-155, 2026-09-01): el recuadro pasa a su propio límite de Suspense y el Panel deja de esperarlo —primer byte de 1.628 a 131 ms con la consulta local retrasada 1,5 s—. Sin migración, sin índice nuevo, **sin desplegar**. Antes, etapa 3/6 (D-154): validación real de las seis fuentes oficiales. Cuatro confirmadas contra la fuente y contra el cronograma; tres defectos corregidos, uno de ellos un número mayor **inventado** (I-088). **Sin migración, sin desplegar.** Antes, etapa 2/6 (D-153): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **pausado** desde el 2026-09-01 |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
 
@@ -3103,6 +3103,65 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 
 ---
 
+## Mantenimiento post-9 — el Panel deja de esperar por las loterías, etapa 4/6 (2026-09-01)
+
+Autorizado expresamente. Rendimiento y aislamiento del Panel. **No cambia ninguna regla de
+negocio, ninguna ruta, ninguna política de RLS y ningún texto salvo el del hueco de espera.**
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Aislamiento | El recuadro de resultados oficiales se dibuja dentro de **su propio límite de Suspense** (`LotteryResultsSection`, D-155). Las dos páginas del Panel dejan de importar y de esperar `getLotteryDashboard` |
+| Hueco de espera | `LotteryResultsFallback`: la misma tarjeta con el **título real**, cuatro barras de 234 px en total, `aria-busy` y «Buscando los resultados oficiales…» para lector de pantalla |
+| Plazo | `LOTTERY_DASHBOARD_TIMEOUT_MS` = 3 s, **un solo `AbortSignal.timeout` compartido por las dos consultas**. Si vence, la petición se cancela y el recuadro cae en el aviso de error que ya existía |
+| Consultas | Constantes: 1 de programación + 1 de coincidencias **solo si hay resultados** en la ventana. Sin N+1 por sorteo, resultado, vendedor o boleta. Ni una consulta duplicada, ni capa `services` |
+| Índices | **Ninguno nuevo**, decidido midiendo: la ventana es un barrido de una tabla nacional (1,9 ms con 1.599 filas) y las coincidencias las sirve el índice único `(result_id, ticket_id, match_field)` (2,5 ms con 8.025 filas) |
+| Sin cambios | El recuadro muestra lo mismo, con las mismas reglas de «hoy» y de «Último resultado» (BR-L20). Cero peticiones a webs oficiales durante la navegación |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` ✅ (`typecheck`, lint **0 errores** y 2 avisos de siempre, **646/646** unitarias
+(+10), `build`). `npm run test:db` **667/667** (+4). E2E **421/423** en la suite completa (22,7 min) y **39/39** en aislamiento: los dos fallos son **I-090**, dos pruebas que miden «las ventas de hoy» sobre datos que el resto de la suite acumula. Las **6 pruebas nuevas** de esta etapa pasan en las dos corridas.
+
+**Medición, antes y después, con la aplicación construida y PostgREST retrasado 1,5 s solo en las
+rutas de loterías:** el primer byte del Panel del dueño pasa de **1.628 ms a 131 ms** y el del
+vendedor de **1.634 a 138 ms**; el recuadro llega a los ~1.640 ms, que es lo que tarda su propia
+consulta. Sin retraso también mejora (174 → 134 y 142 → 132 ms). Método reproducible, planes de
+consulta, recuentos de peticiones, alturas del hueco y los **cuatro errores encontrados durante la
+medición** —uno de ellos la primera prueba en vivo del plazo, que se comportó como debía— están en
+`TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+Ninguna.
+
+### 4. Variables de entorno
+
+Ninguna nueva.
+
+### 5. Problemas que permanecen
+
+Los de siempre: I-030, I-059, I-060, I-062, I-063, I-068, I-072, I-074, I-075, I-077, I-081, I-082,
+I-084, I-085, I-086, I-087, I-024. **Nuevo: I-090**, dos pruebas E2E que dependen del orden —defecto
+de las pruebas, no del producto; en aislamiento pasan—. Una limitación aceptada y medida: el hueco de
+espera no puede clavar la altura del recuadro, que va de 210 a 578 px según cuántos sorteos y
+coincidencias haya; se eligió la altura de un bloque de sorteo y se explica en D-155 (d).
+
+### 6. Qué revisar antes de continuar
+
+1. **`0041` sigue solo en local** y el código de D-152 ya la usa. Los cron siguen **pausados**
+   (I-084). Para desplegar hay que subir D-152 + D-153 + D-154 + D-155 juntos, aplicando `0041`
+   antes.
+2. **No devuelvas `getLotteryDashboard` al `Promise.all` de ninguna de las dos páginas.** Compila,
+   pasa las pruebas de pantalla y devuelve el defecto sin ningún síntoma; por eso hay una prueba que
+   lee el código fuente de las dos (`L-82`).
+3. **Ninguna guarda de sesión puede bajar dentro del límite de Suspense.** Cuando sale el primer
+   trozo, el estado HTTP ya se envió y un redirect deja de ser posible (`SECURITY.md` §4.8).
+4. Etapa siguiente del encargo: **5/6**, y necesita autorización expresa.
+
+---
+
 ## Mantenimiento post-9 — validación real de las seis fuentes oficiales, etapa 3/6 (2026-09-01)
 
 **Encargo:** `PROMPT 3 — Validar y corregir las otras loterías`, autorizado expresamente.
@@ -3168,7 +3227,7 @@ Sin cambios. `LOTTERY_SYNC_SECRET` o `CRON_SECRET` para el Route Handler.
 |---|---|---|
 | I-087 | **Bogotá no tiene ningún canal oficial automatizable.** Cloudflare en el sitio, Turnstile en su API, actas retiradas, Datos Abiertos con diez sorteos de retraso | Su resultado se revisa a mano. No se elude nada |
 | I-086 | Las actas de Cundinamarca son escaneos sin texto | Igual: revisión manual, sin OCR |
-| I-084 | Los cron siguen pausados por el dueño | Ningún tick corre hasta que se desplieguen `0041`, D-152, D-153 y D-154 |
+| I-084 | Los cron siguen pausados por el dueño | Ningún tick corre hasta que se desplieguen `0041`, D-152, D-153, D-154 y D-155 |
 | I-082 | Vercel Hobby dispara cada cron una vez al día, ±59 min | Los reintentos se reparten a lo largo del día |
 | I-075 | La primera E2E con `.next/dev` frío agota su tiempo | Volver a lanzar; no es del código |
 | I-077 | Producción sigue siendo el seed de desarrollo | Condición previa a datos reales |

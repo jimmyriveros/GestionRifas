@@ -375,6 +375,28 @@ la estructura que servían las páginas el 2026-09-01**, trampas incluidas; no s
 | L-77 | Portada sin bloque de resultado | `structure_changed`, distinto de un dato mal leído |
 | L-78 | `confirmAdapterResult` con un sorteo anterior | Propaga `not_published` y **no llama a ninguna RPC** |
 
+El Panel no espera por las loterías (etapa 4/6, D-155, BR-L25). Las tres primeras miden **tiempos**
+sobre un flujo real (`renderToPipeableStream`), no HTML final: sin eso, un límite de Suspense
+retirado no daría ningún síntoma.
+
+| Id | Escenario | Resultado esperado |
+|---|---|---|
+| L-79 | Consulta de loterías lenta (300 ms), Panel completo | El contenido principal va en el **primer** trozo; el recuadro llega en uno posterior |
+| L-80 | Consulta instantánea | Mismo HTML final que antes del cambio |
+| L-81 | El hueco de espera | `aria-busy`, texto para lector de pantalla y el **título real** en el armazón |
+| L-82 | Las dos páginas del Panel | Ninguna importa ni espera `getLotteryDashboard`; las dos ponen `<LotteryResultsSection>` |
+| L-83 | El plazo de la lectura local | Un solo `AbortSignal.timeout`, la **misma** señal en las dos consultas |
+| L-84 | El plazo vence en la primera consulta | `{ kind: 'error' }`; no lanza |
+| L-85 | El plazo vence en la de coincidencias | `{ kind: 'error' }`; no lanza |
+| L-86 | Ventana del Panel y coincidencias, con la RLS puesta | Dentro del presupuesto para personal y vendedor (`tests/db`) |
+| L-87 | Índice que sirve `result_id in (…)` | `(result_id, ticket_id, match_field)` conserva su definición |
+| L-88 | Coincidencias de otra organización, con la proyección del Panel | Cero filas; la programación y el resultado sí se leen (D-141) |
+| L-89 | Forma de la respuesta HTTP real (E2E, los dos portales) | El hueco aparece **antes** que el recuadro, y el contenido principal antes que los dos |
+| L-90 | Ventana sin programaciones (E2E) | «Todavía no hay resultados oficiales» y el resto del Panel entero |
+| L-91 | Resultado en conflicto (E2E) | Muestra el número y el aviso de verificación |
+| L-92 | Fuente que aún no publica (E2E) | Hay fila de resultado, pero **ningún** número mayor |
+| L-93 | Resultado que llega tarde (E2E) | El de ayer va bajo «Último resultado»; el de hoy sigue pendiente |
+
 Verificaciones de catálogo (automatizadas, Fases 2, 7 y 9):
 
 ```sql

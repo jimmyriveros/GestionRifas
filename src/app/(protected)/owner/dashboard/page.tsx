@@ -16,8 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getAdminDashboard } from '@/features/dashboard/queries'
-import { LotteryResultsCard } from '@/features/lottery/components/LotteryResultsCard'
-import { getLotteryDashboard } from '@/features/lottery/queries'
+import { LotteryResultsSection } from '@/features/lottery/components/LotteryResultsSection'
 import { tourTarget } from '@/features/tour/tours'
 import { requireStaff } from '@/lib/auth/guards'
 import { ROLE_LABELS } from '@/lib/constants'
@@ -25,9 +24,16 @@ import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
 
+/**
+ * Panel del dueno y del administrador.
+ *
+ * El recuadro de loterias NO se espera aqui (D-155): entra por
+ * `LotteryResultsSection`, que lo aisla en su propio limite de Suspense. Todo lo
+ * demas de esta pantalla se envia en cuanto responde `getAdminDashboard`.
+ */
 export default async function OwnerDashboardPage() {
   const membership = await requireStaff()
-  const [dashboard, lottery] = await Promise.all([getAdminDashboard(), getLotteryDashboard()])
+  const dashboard = await getAdminDashboard()
   const { totals } = dashboard
 
   return (
@@ -54,11 +60,7 @@ export default async function OwnerDashboardPage() {
           corre más prisa que instalar nada. */}
       <InstallPrompt />
 
-      <LotteryResultsCard
-        data={lottery}
-        audience="staff"
-        ticketBasePath="/owner/tickets"
-      />
+      <LotteryResultsSection audience="staff" ticketBasePath="/owner/tickets" />
 
       <CollectionSummaryCard
         totalSold={totals.totalSold}

@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.32 · **Actualizado:** 2026-08-30 (D-001 a D-149)
+- **Versión:** 1.33 · **Actualizado:** 2026-09-01 (D-001 a D-155)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -5908,6 +5908,83 @@ en HTML quedan **dos**, y por motivos distintos—. Cuatro de las seis loterías
 3168, Meta 3313, Medellín 4850 y Boyacá 4639. Las otras dos no se confirman solas y quedan para
 revisión manual, cada una por su motivo (I-086, I-087). Ninguna migración, ninguna ruta nueva,
 ninguna dependencia nueva y ninguna llamada externa añadida a una pantalla.
+
+---
+
+## D-155 — El Panel deja de esperar por las loterías: un límite de Suspense, no una consulta más rápida
+
+**Fase:** mantenimiento posterior a la Fase 9 (loterías, etapa 4/6, 2026-09-01)
+
+**Contexto.** Desde D-147 el recuadro de resultados oficiales se leía dentro del mismo
+`Promise.all` que las cifras del Panel, en los dos portales. La lectura ya era local y de dos
+consultas —eso nunca fue el problema—, pero al ir en la misma espera **la pantalla entera
+costaba lo que la más lenta de todas**. Medido con la aplicación construida y PostgREST
+retrasado 1,5 s **solo** en las rutas de loterías: el primer byte del Panel del dueño pasaba de
+174 ms a **1.628 ms**, y en ese tiempo no se veía ni el saludo. Lo mismo en el del vendedor
+(142 → 1.634 ms). No hacía falta una fuente oficial caída para provocarlo: bastaba con que la
+base tardara.
+
+**Decisión.**
+
+**(a) El recuadro vive en su propio límite de Suspense.** `LotteryResultsSection` envuelve un
+componente de servidor asíncrono que hace la lectura; las dos páginas lo colocan donde antes
+ponían la tarjeta y **ya no importan `getLotteryDashboard`**. Es el patrón que documenta
+Next.js 16 en `node_modules/next/dist/docs/01-app/02-guides/streaming.md` («Granular streaming
+with `<Suspense>`»): el armazón —encabezado, indicadores, tablas, listas— se envía en cuanto
+responden sus propias consultas y el recuadro llega después por el **mismo flujo HTTP**, sin una
+segunda petición, sin JavaScript de cliente y sin cambiar una sola ruta.
+
+**(b) El límite vive en el componente, no en cada `page.tsx`.** Los dos portales comparten
+recuadro, hueco y decisión. Repetir el `<Suspense>` en cada página abriría la puerta a que un
+portal quedara sin aislar sin que nadie se enterase, que es exactamente el defecto que se está
+corrigiendo. Es la misma razón por la que el recuadro ya era un componente compartido y no dos.
+
+**(c) NO se añade un `loading.tsx`.** Sería un límite de página entera —toda la pantalla se
+cambiaría por un esqueleto— y además reintroduciría la espera mínima de React que D-104 midió y
+descartó. Aquí se quiere justo lo contrario: que el resto se pinte y solo espere el recuadro.
+
+**(d) El hueco es la misma tarjeta, con el título real.** `LotteryResultsFallback` repite
+`Card` + `CardHeader` con «Resultados oficiales» —así el título va en el armazón y no aparece de
+golpe— y cambia solo el cuerpo por cuatro barras medidas contra un bloque de sorteo: **234 px**
+en escritorio, entre los **210 px** de un sorteo pendiente y los **306 px** de uno confirmado.
+Lleva `aria-busy` y un texto para lector de pantalla, «Buscando los resultados oficiales…».
+**No se reserva más altura**: el recuadro mide entre 210 y 578 px según cuántos sorteos haya y
+cuántas boletas coincidan, así que ninguna cifra fija lo clava, y estirar el hueco hasta el caso
+más alto dejaría medio panel en blanco durante la espera —peor que el salto que evitaría—. En la
+práctica el hueco dura lo que tarda la consulta local, unas décimas.
+
+**(e) Las dos consultas comparten un plazo único, `LOTTERY_DASHBOARD_TIMEOUT_MS` = 3 s.** Con el
+límite puesto, la respuesta HTTP no se cierra hasta que el recuadro resuelve; si PostgREST dejara
+de contestar, el resto de la pantalla ya estaría pintado pero la petición quedaría colgada. El
+plazo lo impide con `AbortSignal.timeout`, que **cancela la petición de verdad**, y el recuadro
+cae en «error» —un aviso que ya existía— en vez de una espera sin final. Es **un** presupuesto
+para la lectura entera, no uno por consulta: dos plazos independientes permitirían que tardase el
+doble de lo presupuestado. Se comprobó por accidente durante la medición: con 1,2 s de retraso
+por consulta el recuadro llega bien; con 2 s (2 × 2 = 4 s > 3 s) sale el aviso de error y el
+resto del Panel sigue intacto.
+
+**Lo que NO se cambió, y por qué.** Ni una consulta duplicada, ni una capa `services`, ni un
+`fetch` de cliente, ni un índice nuevo, ni una migración. Se revisaron los planes con volumen
+sintético (`TEST_RESULTS`): la ventana del Panel es un barrido de una tabla **nacional** que
+crece ~312 filas al año para toda la aplicación —1,9 ms con 1.599 filas, cinco años— y las
+coincidencias por sorteo las sirve el índice único `(result_id, ticket_id, match_field)` —2,5 ms
+con 8.025 filas—. Un índice por `reference_date` sería coste de escritura sin beneficio medible.
+El número de consultas sigue siendo **constante**: una de programación y, solo si hay resultados
+en la ventana, una de coincidencias; ni una más por sorteo, resultado, vendedor o boleta.
+
+**Alternativas descartadas.** Un `loading.tsx` (c). Mover el recuadro al final de la página, que
+esconde el síntoma sin arreglar la espera y además cambia el diseño acordado en D-147. Cargarlo
+desde el cliente con un `fetch` a una ruta nueva: añade una petición, una ruta que proteger y
+JavaScript a una pantalla que hoy no lo necesita. Cachear la lectura con `revalidate`: las
+coincidencias dependen de quién pregunta —RLS—, así que una caché compartida filtraría datos
+entre vendedores. Reservar la altura del caso más alto (d).
+
+**Consecuencia.** BR-L25. Con el retraso de 1,5 s, el primer byte y el contenido principal pasan
+de 1.628 a **131 ms** (dueño) y de 1.634 a **138 ms** (vendedor); el recuadro llega a los ~1.640
+ms, que es lo que tarda su propia consulta. Sin retraso también mejora, porque el Panel deja de
+esperar dos viajes: 174 → 134 ms y 142 → 132 ms. El aislamiento por rol y organización no se
+toca: la lectura sigue siendo la misma, sujeta a RLS, y las guardas de sesión siguen corriendo
+**antes** de emitir el armazón. Ninguna ruta nueva, ninguna migración, ninguna dependencia nueva.
 
 ---
 

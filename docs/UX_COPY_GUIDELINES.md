@@ -544,6 +544,14 @@ versión de Rifas · Actualiza cuando termines lo que estás haciendo. · [Actua
 es la importante: actualizar recarga la pantalla, y quien esté a mitad de un abono tiene que poder
 terminarlo. Nunca se recarga sola.
 
+**Un hueco de espera dice qué está pasando, no «Cargando…»** (D-155). Mientras llega el recuadro
+de resultados oficiales, la tarjeta conserva su **título de verdad** —«Resultados oficiales»— y las
+barras grises van acompañadas de un texto que solo oye quien escucha la pantalla: **«Buscando los
+resultados oficiales…»**. Es la misma regla de «Abriendo…» en el menú (D-104): las barras son
+decoración y no dicen nada por sí solas, así que el aviso viaja en un `sr-only` con `aria-busy`
+sobre la tarjeta. No se escribe «Cargando», que nombra lo que hace la máquina, ni «Espere», que da
+una orden por algo que dura décimas de segundo.
+
 **«Cancelado» es la palabra del archivo, y no significa «anulado»** (D-129). Es la única
 excepción tolerada a «un término, un nombre», y existe porque **ya la escribe el usuario en su
 Excel**: en su cuaderno una boleta «cancelada» es una boleta que el cliente terminó de pagar. En
@@ -723,6 +731,7 @@ castigo donde solo había una espera.
 | Pasos del recorrido guiado (título y explicación) | `src/features/tour/tours.ts`, **todos juntos** |
 | Texto de los avisos de la campanita | `src/features/notifications/text.ts`, **todos juntos** (D-093) |
 | Textos del recuadro de resultados oficiales del Panel | `src/features/lottery/dashboard.ts` (`LOTTERY_DASHBOARD_COPY`) y `LotteryResultsCard.tsx` (D-147). Los avisos de programación reutilizan `notificationMessage` |
+| Lo que anuncia el hueco del recuadro mientras llega — «Buscando los resultados oficiales…» | `LOTTERY_DASHBOARD_COPY.loading`, y lo pinta `LotteryResultsSection.tsx` (D-155) |
 | Nombre de la aplicación instalada y su descripción | `src/lib/pwa.ts` (D-115) |
 | Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/copy.ts`, **todos juntos** — los leen la tarjeta del panel y la opción del menú de usuario (D-123) |
 | Aviso de versión nueva | `src/features/pwa/components/ServiceWorkerManager.tsx` (D-116) |

@@ -4,6 +4,7 @@ import {
   buildLotteryDashboard,
   LOTTERY_DASHBOARD_MATCH_SELECT,
   LOTTERY_DASHBOARD_SCHEDULE_SELECT,
+  LOTTERY_DASHBOARD_TIMEOUT_MS,
   lotteryDashboardWindow,
   type LotteryDashboard,
   type LotteryMatchSnapshot,
@@ -22,7 +23,11 @@ import { todayBogota } from '@/lib/dates'
  * pregunta; programacion y resultado son nacionales (D-141).
  *
  * Un error se convierte en `{ kind: 'error' }` para que el resto del Panel
- * siga pintandose.
+ * siga pintandose. Desde D-155 el resto del Panel ya no espera a esta lectura
+ * —vive en su propio limite de Suspense—, y las dos consultas comparten un
+ * unico plazo (`LOTTERY_DASHBOARD_TIMEOUT_MS`): si vence, la peticion se
+ * cancela de verdad y el recuadro cae en `error` en vez de dejar la respuesta
+ * abierta.
  */
 
 type ResultEmbed = {
@@ -78,12 +83,17 @@ export async function getLotteryDashboard(now: Date = new Date()): Promise<Lotte
     const today = todayBogota()
     const window = lotteryDashboardWindow(today)
 
+    // Un solo plazo para las dos consultas: lo que se acota es la lectura
+    // entera, no cada viaje por separado.
+    const deadline = AbortSignal.timeout(LOTTERY_DASHBOARD_TIMEOUT_MS)
+
     const { data: scheduleRows, error: scheduleError } = await supabase
       .from('lottery_draw_schedules')
       .select(LOTTERY_DASHBOARD_SCHEDULE_SELECT)
       .gte('reference_date', window.from)
       .lte('reference_date', window.to)
       .order('official_scheduled_at', { ascending: true, nullsFirst: false })
+      .abortSignal(deadline)
 
     if (scheduleError) return { kind: 'error' }
 
@@ -129,6 +139,7 @@ export async function getLotteryDashboard(now: Date = new Date()): Promise<Lotte
       .from('lottery_ticket_matches')
       .select(LOTTERY_DASHBOARD_MATCH_SELECT)
       .in('result_id', resultIds)
+      .abortSignal(deadline)
 
     if (matchError) return { kind: 'error' }
 

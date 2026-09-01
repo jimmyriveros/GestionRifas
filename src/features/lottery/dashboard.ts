@@ -30,6 +30,21 @@ export const LOTTERY_DASHBOARD_LOOKBEHIND_DAYS = 10
 export const LOTTERY_DASHBOARD_LOOKAHEAD_DAYS = 21
 export const LOTTERY_DASHBOARD_MATCH_LINKS = 6
 
+/**
+ * Plazo maximo de la lectura LOCAL del recuadro (D-155).
+ *
+ * Desde que el recuadro vive en su propio limite de Suspense, una consulta
+ * lenta ya no retrasa el resto del Panel: solo mantiene abierto ESE hueco. El
+ * plazo existe para que el hueco tampoco se quede abierto indefinidamente si
+ * PostgREST deja de responder —la respuesta HTTP no se cierra hasta que el
+ * limite resuelve— y para que se vea el aviso de error en vez de una espera sin
+ * final.
+ *
+ * Cubre las DOS consultas juntas, no cada una: es el presupuesto de la lectura
+ * entera. 3 s es holgado; las dos consultas medidas en local tardan ~20 ms.
+ */
+export const LOTTERY_DASHBOARD_TIMEOUT_MS = 3_000
+
 /** Proyeccion de programacion + resultado. Sin HTML ni coincidencias. */
 export const LOTTERY_DASHBOARD_SCHEDULE_SELECT = [
   'id',
@@ -64,6 +79,7 @@ export const LOTTERY_DASHBOARD_COPY = {
     'Cuando se publique la programación de los sorteos, el número mayor aparecerá aquí.',
   errorTitle: 'No se pudieron cargar los resultados oficiales',
   errorDescription: 'El resto del panel sigue disponible. Intenta recargar la página.',
+  loading: 'Buscando los resultados oficiales…',
   pending: 'Resultado pendiente',
   rejected: 'No se pudo confirmar el resultado.',
   conflict: 'La fuente oficial publicó otro número. Requiere verificación.',

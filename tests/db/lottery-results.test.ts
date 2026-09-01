@@ -6,6 +6,7 @@
  * reales (D-043). Las rifas de este archivo viven en 2099 para no cruzarse
  * con el seed ni con la suite de volumen.
  */
+import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -14,6 +15,7 @@ import {
 } from '@/features/lottery/dashboard'
 
 import {
+  DB_URL,
   loadSeedContext,
   randomNumbers,
   signInAs,
@@ -873,5 +875,130 @@ describe('lectura del Panel (Etapa 4, D-147)', () => {
       .eq('result_id', resultId)
     expect(otherSeen).toHaveLength(1)
     expect((otherSeen![0] as unknown as { ticket_id: string }).ticket_id).not.toBe(own)
+  })
+})
+
+/**
+ * Indices y planes de las dos consultas del Panel (D-155).
+ *
+ * Lo que se vigila NO es el rendimiento absoluto —treinta filas de seed no
+ * dirian nada— sino dos cosas que pueden romperse sin sintoma:
+ *
+ *   1. Que ninguna de las dos consultas vuelva a un patron por fila con la RLS
+ *      puesta. El presupuesto es holgado a proposito.
+ *   2. Que siga existiendo el indice que sostiene la busqueda de coincidencias
+ *      por sorteo. El Panel las pide con `result_id in (...)`, y quien la sirve
+ *      es el indice UNICO `(result_id, ticket_id, match_field)`, no los de
+ *      `organization_id`/`seller_id`, que empiezan por otra columna y no pueden
+ *      resolver esa busqueda. Medido con 8.025 coincidencias: mapa de bits
+ *      sobre ese indice, 2,5 ms (`docs/TEST_RESULTS.md`).
+ *
+ * La ventana de programaciones se resuelve con un barrido, y esta bien: la
+ * tabla es NACIONAL y crece ~312 filas al ano para toda la aplicacion. Con
+ * 1.599 filas —cinco anos— el barrido tarda 1,9 ms. Un indice por
+ * `reference_date` ahi seria coste de escritura sin beneficio medible.
+ */
+describe('la lectura del Panel esta acotada y aislada (D-155)', () => {
+  let db: PgClient
+
+  /** Holgado: caza el barrido por fila, no mide rendimiento absoluto. */
+  const PRESUPUESTO_MS = 200
+
+  beforeAll(async () => {
+    db = new PgClient({ connectionString: DB_URL })
+    await db.connect()
+  })
+
+  afterAll(async () => {
+    await db?.end()
+  })
+
+  async function tiempoDe(sql: string, profileId: string): Promise<number> {
+    await db.query('begin')
+    await db.query('set local role authenticated')
+    await db.query(`select set_config('request.jwt.claims', $1, true)`, [
+      JSON.stringify({ sub: profileId, role: 'authenticated' }),
+    ])
+    const { rows } = await db.query(`explain (analyze, format json) ${sql}`)
+    await db.query('rollback')
+    const plan = rows[0]['QUERY PLAN'] as [{ 'Execution Time': number }]
+    return plan[0]['Execution Time']
+  }
+
+  const VENTANA = `
+    select s.id, s.lottery_code, s.draw_number, s.reference_date, s.official_scheduled_at,
+           r.id as result_id, r.winning_number, r.validation_status
+    from lottery_draw_schedules s
+    left join lottery_results r on r.schedule_id = s.id
+    where s.reference_date >= (current_date - 10) and s.reference_date <= (current_date + 21)
+    order by s.official_scheduled_at asc nulls last
+  `
+
+  const COINCIDENCIAS = `
+    select m.result_id, m.assignment_status, m.matched_number, m.ticket_id
+    from lottery_ticket_matches m
+    where m.result_id = any (array(select id from lottery_results limit 30))
+  `
+
+  it('la ventana de programaciones se resuelve dentro del presupuesto, con la RLS puesta', async () => {
+    const staff = await tiempoDe(VENTANA, ctx.ids.owner)
+    const vendedor = await tiempoDe(VENTANA, ctx.ids.seller1)
+    expect(staff, `el personal tardo ${staff} ms`).toBeLessThan(PRESUPUESTO_MS)
+    expect(vendedor, `el vendedor tardo ${vendedor} ms`).toBeLessThan(PRESUPUESTO_MS)
+  })
+
+  it('las coincidencias por sorteo, tambien', async () => {
+    const staff = await tiempoDe(COINCIDENCIAS, ctx.ids.owner)
+    const vendedor = await tiempoDe(COINCIDENCIAS, ctx.ids.seller1)
+    expect(staff, `el personal tardo ${staff} ms`).toBeLessThan(PRESUPUESTO_MS)
+    expect(vendedor, `el vendedor tardo ${vendedor} ms`).toBeLessThan(PRESUPUESTO_MS)
+  })
+
+  it('el indice que sirve la busqueda por sorteo conserva su definicion', async () => {
+    const { rows } = await db.query<{ indexdef: string }>(
+      `select indexdef from pg_indexes
+       where schemaname = 'public' and indexname = $1`,
+      ['lottery_ticket_matches_result_ticket_field_key'],
+    )
+    expect(rows, 'falta el indice de (result_id, ticket_id, match_field)').toHaveLength(1)
+    // `result_id` PRIMERO: es lo que permite resolver `result_id in (...)`.
+    expect(rows[0]!.indexdef).toMatch(/\(result_id, ticket_id, match_field\)/)
+  })
+
+  it('el personal de otra organizacion no ve ni una coincidencia en la proyeccion del Panel', async () => {
+    const { daily, weekly } = randomNumbers()
+    await createTicket({
+      raffleId: demoRaffleId,
+      organizationId: ctx.demoOrg.id,
+      sellerId: ctx.ids.seller1,
+      daily,
+      weekly,
+    })
+    const { scheduleId, resultId } = await confirmResult({
+      lottery: 'medellin',
+      winningNumber: daily,
+    })
+    await match(resultId)
+
+    const { data: propias } = await owner
+      .from('lottery_ticket_matches')
+      .select(LOTTERY_DASHBOARD_MATCH_SELECT)
+      .eq('result_id', resultId)
+    expect(propias, 'el personal de la organizacion si ve la suya').toHaveLength(1)
+
+    const { data: ajenas, error } = await otherOrgOwner
+      .from('lottery_ticket_matches')
+      .select(LOTTERY_DASHBOARD_MATCH_SELECT)
+      .eq('result_id', resultId)
+    expect(error).toBeNull()
+    expect(ajenas, 'la otra organizacion no ve ninguna').toHaveLength(0)
+
+    // La programacion y el resultado SI son nacionales (D-141): el recuadro de
+    // la otra organizacion muestra el numero mayor, sin coincidencias.
+    const { data: schedules } = await otherOrgOwner
+      .from('lottery_draw_schedules')
+      .select(LOTTERY_DASHBOARD_SCHEDULE_SELECT)
+      .eq('id', scheduleId)
+    expect(schedules).toHaveLength(1)
   })
 })

@@ -68,16 +68,25 @@ async function insertSchedule(values: {
   return data.id
 }
 
-async function insertConfirmed(scheduleId: string, winningNumber: string, series?: string) {
+/**
+ * Fila de resultado del sorteo. `pending` es una fuente que todavia no ha
+ * publicado: hay fila porque se intento leerla, pero sin numero (BR-L05).
+ */
+async function insertResult(
+  scheduleId: string,
+  winningNumber: string | null,
+  series: string | null = null,
+  status: 'pending' | 'confirmed' | 'conflict' | 'rejected' = 'confirmed',
+) {
   const svc = serviceClient()
   const { error } = await svc.from('lottery_results').insert({
     schedule_id: scheduleId,
     winning_number: winningNumber,
-    series: series ?? null,
-    validation_status: 'confirmed',
+    series,
+    validation_status: status,
     source_url: 'https://loteriadelmeta.gov.co/resultados/',
     source_kind: 'official_page',
-    confirmed_at: new Date().toISOString(),
+    confirmed_at: status === 'confirmed' ? new Date().toISOString() : null,
   })
   if (error) throw new Error(`No se pudo crear el resultado E2E: ${error.message}`)
 }
@@ -128,7 +137,7 @@ test.describe('Resultados oficiales en el Panel', () => {
       officialAt: `${today}T22:50:00-05:00`,
       status: 'completed',
     })
-    await insertConfirmed(scheduleId, '0046', '045')
+    await insertResult(scheduleId, '0046', '045')
 
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/dashboard')
@@ -152,7 +161,7 @@ test.describe('Resultados oficiales en el Panel', () => {
       referenceDate: previous,
       officialAt: `${previous}T22:50:00-05:00`,
       status: 'completed',
-    }).then(async (id) => insertConfirmed(id, '0046'))
+    }).then(async (id) => insertResult(id, '0046'))
 
     await insertSchedule({
       lottery: 'meta',
@@ -169,6 +178,140 @@ test.describe('Resultados oficiales en el Panel', () => {
     await expect(recuadro.getByText('Resultado pendiente')).toBeVisible()
     await expect(recuadro.getByRole('heading', { name: 'Último resultado' })).toBeVisible()
     await expect(recuadro.getByLabel('Número mayor 0046')).toBeVisible()
+    await expect(recuadro.getByRole('heading', { name: 'Boyacá' })).toBeVisible()
+  })
+})
+
+/**
+ * El recuadro no bloquea el Panel (Etapa 4/6, D-155).
+ *
+ * Lo que se comprueba aqui es la FORMA de la respuesta: el hueco de espera
+ * viaja en el armazon —el primer HTML que sale del servidor— y el recuadro
+ * resuelto llega despues, por el mismo flujo. Los tiempos, con la consulta
+ * local retrasada a proposito, estan medidos en `docs/TEST_RESULTS.md`; aqui
+ * basta con que el limite exista y funcione contra la aplicacion de verdad.
+ */
+test.describe('El Panel no espera por las loterias', () => {
+  test.afterEach(async () => {
+    await deleteFixtures()
+  })
+
+  for (const portal of [
+    { rol: 'dueño', cuenta: ACCOUNTS.owner, ruta: '/owner/dashboard' },
+    { rol: 'vendedor', cuenta: ACCOUNTS.seller, ruta: '/seller/dashboard' },
+  ]) {
+    test(`el hueco del recuadro sale antes que el recuadro (${portal.rol})`, async ({ page }) => {
+      await loginAs(page, portal.cuenta)
+
+      const respuesta = await page.request.get(portal.ruta)
+      expect(respuesta.status()).toBe(200)
+      const html = await respuesta.text()
+
+      const hueco = html.indexOf('lottery-results-loading')
+      const recuadro = html.indexOf('data-slot="lottery-results"')
+      expect(hueco, 'el hueco de espera tiene que estar en la respuesta').toBeGreaterThan(-1)
+      expect(recuadro, 'y el recuadro resuelto tambien').toBeGreaterThan(-1)
+      expect(hueco, 'el hueco va PRIMERO: el recuadro llega despues').toBeLessThan(recuadro)
+      expect(html).toContain('Buscando los resultados oficiales')
+
+      // Y el contenido principal de la pantalla va en el armazon, antes del
+      // recuadro: es justo lo que dejo de esperar.
+      const principal = html.indexOf(
+        portal.rol === 'dueño' ? 'Resumen por vendedor' : 'Accesos rápidos',
+      )
+      expect(principal, 'faltaba el contenido principal').toBeGreaterThan(-1)
+      expect(principal, 'el contenido principal no espera al recuadro').toBeLessThan(recuadro)
+    })
+  }
+
+  test('sin programaciones en la ventana, el recuadro lo dice y el Panel sigue entero', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/dashboard')
+
+    await expect(card(page).getByText('Todavía no hay resultados oficiales')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Resumen por vendedor' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Inventario' })).toBeVisible()
+  })
+
+  test('un resultado en conflicto muestra el numero y avisa de que hay que verificarlo', async ({
+    page,
+  }) => {
+    const today = todayBogota()
+    const scheduleId = await insertSchedule({
+      lottery: 'cruz_roja',
+      draw: `${today}-c`,
+      referenceDate: today,
+      officialAt: `${today}T01:00:00-05:00`,
+      status: 'completed',
+    })
+    await insertResult(scheduleId, '0046', '045', 'conflict')
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/dashboard')
+
+    const recuadro = card(page)
+    await expect(recuadro.getByLabel('Número mayor 0046')).toBeVisible()
+    await expect(
+      recuadro.getByText('La fuente oficial publicó otro número. Requiere verificación.'),
+    ).toBeVisible()
+  })
+
+  test('una fuente que aun no publica: hay fila de resultado, pero ningun numero', async ({
+    page,
+  }) => {
+    const today = todayBogota()
+    const scheduleId = await insertSchedule({
+      lottery: 'medellin',
+      draw: `${today}-me`,
+      referenceDate: today,
+      officialAt: `${today}T01:00:00-05:00`,
+      status: 'completed',
+    })
+    await insertResult(scheduleId, null, null, 'pending')
+
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/dashboard')
+
+    const recuadro = card(page)
+    await expect(recuadro.getByRole('heading', { name: 'Medellín' })).toBeVisible()
+    await expect(recuadro.getByText('Resultado pendiente')).toBeVisible()
+    await expect(recuadro.getByText('Número mayor')).toHaveCount(0)
+  })
+
+  test('un resultado que llega tarde no se presenta como el de hoy', async ({ page }) => {
+    const today = todayBogota()
+    const previous = addDays(today, -1)
+
+    const ayer = await insertSchedule({
+      lottery: 'boyaca',
+      draw: `${previous}-b`,
+      referenceDate: previous,
+      officialAt: `${previous}T22:50:00-05:00`,
+      status: 'completed',
+    })
+    await insertResult(ayer, '1234', null, 'confirmed')
+
+    await insertSchedule({
+      lottery: 'meta',
+      draw: `${today}-m`,
+      referenceDate: today,
+      officialAt: `${today}T01:00:00-05:00`,
+      status: 'completed',
+    })
+
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/dashboard')
+
+    const recuadro = card(page)
+    // Hoy: Meta, sin numero.
+    await expect(recuadro.getByRole('heading', { name: 'Meta' })).toBeVisible()
+    await expect(recuadro.getByText('Resultado pendiente')).toBeVisible()
+    // Ayer: Boyaca, bajo su propio encabezado.
+    const ultimo = recuadro.getByRole('heading', { name: 'Último resultado' })
+    await expect(ultimo).toBeVisible()
+    await expect(recuadro.getByLabel('Número mayor 1234')).toBeVisible()
     await expect(recuadro.getByRole('heading', { name: 'Boyacá' })).toBeVisible()
   })
 })
