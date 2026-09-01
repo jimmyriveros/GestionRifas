@@ -145,17 +145,21 @@ El programador de producción (D-149) consulta las fuentes oficiales en segundo 
 El recuadro puede aparecer vacío o con «Horario por confirmar» hasta el primer tick
 exitoso: eso no es un fallo de la pantalla.
 
-**Cuatro de las seis loterías se confirman solas; dos hay que mirarlas a mano.** Comprobado
-contra las fuentes oficiales y contra el cronograma CNJSA el **2026-09-01** (D-154):
+**Tres de las seis loterías se confirman solas; tres hay que mirarlas a mano.** Estado
+comprobado **en el primer tick real de producción**, el **2026-09-01** (D-156):
 
 | Lotería | Día | Estado |
 |---|---|---|
-| Cruz Roja | martes | ✅ Se confirma sola |
-| Meta | miércoles | ✅ Se confirma sola |
-| Medellín | viernes | ✅ Se confirma sola |
-| Boyacá | sábado | ✅ Se confirma sola |
+| Cruz Roja | martes | ✅ Se confirma sola — 3168 · **4939** · serie 112 |
+| Medellín | viernes | ✅ Se confirma sola — 4850 · **2608** · serie 301 |
+| Boyacá | sábado | ✅ Se confirma sola — 4639 · **7660** · serie 393 |
+| Meta | miércoles | ⚠️ **A mano.** Responde a Colombia, pero **bloquea a la IP de Vercel** (**I-091**). D-154 la había dado por automatizable midiéndola desde aquí; desde el servidor no lo es |
 | Cundinamarca | lunes | ⚠️ **A mano.** Sus actas son escaneos sin texto (I-086) |
 | Bogotá | jueves | ⚠️ **A mano.** El sitio está tras un desafío de Cloudflare y su API exige un CAPTCHA (I-087) |
+
+> **Lo que cambia para quien opera:** los miércoles hay que mirar el resultado del Meta en
+> `loteriadelmeta.gov.co` desde un navegador normal, igual que ya se hacía con Bogotá y
+> Cundinamarca. La aplicación **no inventa** el número que no puede leer.
 
 Lo que no se puede confirmar **no se muestra como resultado**: la plataforma detecta
 coincidencias solo con lo que tiene confirmado, y nunca inventa un número.

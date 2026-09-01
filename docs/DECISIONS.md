@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.33 · **Actualizado:** 2026-09-01 (D-001 a D-155)
+- **Versión:** 1.34 · **Actualizado:** 2026-09-01 (D-001 a D-156)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -5985,6 +5985,61 @@ ms, que es lo que tarda su propia consulta. Sin retraso también mejora, porque 
 esperar dos viajes: 174 → 134 ms y 142 → 132 ms. El aislamiento por rol y organización no se
 toca: la lectura sigue siendo la misma, sujeta a RLS, y las guardas de sesión siguen corriendo
 **antes** de emitir el armazón. Ninguna ruta nueva, ninguna migración, ninguna dependencia nueva.
+
+---
+
+## D-156 — La promoción a producción, el primer tick real, y las dos cosas que solo se ven desde el servidor
+
+**Fase:** mantenimiento posterior a la Fase 9 (loterías, etapa 5/6, 2026-09-01)
+
+**Contexto.** Las etapas 1 a 4 quedaron completas y sin desplegar: `0041` solo en local, cuatro
+commits sin subir y los diez cron pausados por el dueño desde el 2026-09-01. Esta etapa promueve
+todo eso y deja corren el primer tick autorizado de la historia del módulo — hasta hoy **ninguno**
+había entrado: del 2026-08-30 al 09-01 los jobs corrieron contra un 401 (I-083) y después quedaron
+pausados (I-084).
+
+**Decisión.**
+
+**(a) El tick controlado se dispara con `vercel crons run`, no con una ruta ni un secreto en la
+mano.** Es el propio Vercel quien invoca el job y pone su `Authorization: Bearer` con `CRON_SECRET`.
+El secreto **no se leyó, no se imprimió, no se descargó y no se registró**: su existencia se comprobó
+con `vercel env ls production`, que muestra el nombre y nunca el valor, y su validez con el `200` del
+tick. Se descartó `vercel env pull`, que habría dejado el secreto en un archivo local.
+
+**(b) Los cron los reactiva una persona.** El CLI de Vercel solo tiene `add`, `list` y `run`, y `run`
+se niega mientras estén pausados; el MCP no los expone. Se descartó tocar `crons.disabledAt` por un
+endpoint no documentado de la API REST: es el programador de producción y no se opera a ciegas. El
+dueño lo hizo desde Settings → Cron Jobs y quedaron **10, sin duplicar ni recrear**.
+
+**(c) Cundinamarca 4818 se queda pendiente, y es la respuesta correcta.** Su acta **sí está
+publicada** —`/files/results-records/2026/4818.pdf`, 200 con firma `%PDF-`— y el adaptador oficial
+devuelve `scanned_document`: es un escaneo sin capa de texto, como las seis actas muestreadas en
+D-153. No se hizo OCR, no se buscó el número en un agregador ni en redes, y **no se insertó a mano**.
+El sorteo quedó en la base con su programación oficial verificada contra CNJSA —4818, referencia
+2026-08-31, 23:15 −05:00, Acuerdo 887/25— y **sin fila de resultado**. Los diez cron diarios lo
+reintentan: comprobado evaluando `decideResultFetch` con el estado real —1 intento, último error
+`scanned_document`— en los diez horarios del día siguiente, y da `fetch` en los diez.
+
+**(d) El hallazgo que solo se ve desde el servidor: la Lotería del Meta bloquea a Vercel.** En el
+mismo minuto, el tick registró `source_blocked` desde `iad1` y la misma URL respondió **200 con
+206.531 bytes** desde el equipo del dueño, con el adaptador extrayendo 3313 · **8134** · serie 096,
+idéntico a la validación de D-154. **No es un defecto del lector: es el origen de la petición.**
+D-154 dio el Meta por automatizable porque lo midió desde Colombia, y esa conclusión **no se sostiene
+en producción**. Se corrige la tabla de `OPERATIONS` §7: de cuatro loterías que se confirman solas
+quedan **tres** —Cruz Roja, Medellín y Boyacá— y **tres** pasan a revisión manual. No se cambia el
+`User-Agent`, no se usa proxy y no se recurre a un agregador (BR-L17): `decideResultFetch` ya frena
+tras dos `source_blocked` seguidos.
+
+**Lo que NO se cambió.** Ni una regla de negocio, ni una boleta, ni un cliente, ni un pago, ni un
+saldo, ni un número ganador. `0041` es aditiva —una columna nullable, un `check` y un índice parcial
+sobre una tabla que tenía **0 filas**— y no tocó ningún dato.
+
+**Consecuencia.** Producción corre `145feab` con las cuatro etapas. `lottery_draw_schedules` pasó de
+**0 a 312** programaciones oficiales de CNJSA, con sus horas y sus traslados; hay **3 resultados
+confirmados** cuyos números coinciden dígito a dígito con los validados en vivo en D-154; **0
+coincidencias**, porque ninguna de las 868 boletas lleva `7660` semanal ni `2608`/`4939` diario; y
+**0 avisos**, que es lo correcto cuando no hay a quién avisar (BR-L19). El cerrojo se tomó y se
+liberó. I-084 se cierra; **I-091** se abre. Ninguna regla `BR-*` nueva.
 
 ---
 

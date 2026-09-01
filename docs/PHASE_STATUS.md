@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-01 (D-155, el Panel deja de esperar por las loterías; **sin desplegar**)
+- **Actualizado:** 2026-09-01 (D-156, promoción a producción y primer tick real; **ya en producción**)
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
   Cabecera contextual (D-150): el título, la flecha y un CTA suben a la cabecera
   fija de `AppShell` cuando el `PageHeader` sale de la vista. Sin migración.
@@ -11,14 +11,16 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   Etapas 1 a 6 de resultados oficiales de loterías: contrato, adaptadores, sync, Panel,
   Route Handler y programador de producción (`0036`–`0039`, D-140..D-149).
 - **Fase siguiente:** ninguna autorizada
-- **Aviso operativo:** el dueño **pausó los cron** de producción el 2026-09-01. El código de
-  D-152, D-153, D-154 y D-155 y la migración `0041` están **solo en local**: no reactives el programador
-  antes de aplicar `0041` y desplegar. En el proyecto real las cuatro tablas de loterías tienen
-  **0 filas**: ningún tick llegó nunca a completarse (comprobado el 2026-09-01).
-- **Aviso operativo:** de las seis loterías, **cuatro se confirman solas** —Cruz Roja, Meta,
-  Medellín y Boyacá, comprobadas contra la fuente oficial y contra el cronograma CNJSA el
-  2026-09-01 (D-154)— y **dos se revisan a mano**: **Cundinamarca** (**I-086**, actas escaneadas)
-  y **Bogotá** (**I-087**, Cloudflare y Turnstile). Ninguna de las dos se elude.
+- **Estado del programador (2026-09-01, D-156):** `0041` **aplicada** al proyecto real, `145feab`
+  **desplegado** y los diez cron **reactivados**. El **primer tick autorizado** entró a las 19:30 UTC
+  y dejó **312 programaciones** oficiales de CNJSA y **3 resultados confirmados**; el cerrojo se tomó
+  y se liberó. Ya no quedan cambios sin desplegar.
+- **Aviso operativo:** de las seis loterías, **tres se confirman solas** en producción —Cruz Roja,
+  Medellín y Boyacá, con sus números leídos por el primer tick real— y **tres se revisan a mano**:
+  **Cundinamarca** (**I-086**, actas escaneadas), **Bogotá** (**I-087**, Cloudflare y Turnstile) y,
+  desde el 2026-09-01, el **Meta** (**I-091**): responde a Colombia pero **bloquea a la IP de
+  Vercel**. D-154 lo había dado por automatizable midiéndolo desde el equipo del dueño; desde el
+  servidor no lo es. Ninguno de los tres se elude.
 - **Aviso operativo:** el adaptador del **Meta** publicaba un número mayor **inventado**
   (**I-088**, corregido en D-154). No llegó a producción. Si tocas `parse/results.ts`, lee antes
   `ARCHITECTURE` §8.19.c: la lectura anclada y el largo exacto de la tirada de dígitos son lo que
@@ -32,7 +34,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 | Clasificación | Estado actual |
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) y **la cabecera contextual al hacer scroll** (D-150, 2026-08-30, **en producción**) y **el reporte «Ventas por fecha» del portal del vendedor** (D-151, BR-T05..BR-T07, migración `0040`, 2026-08-31, **ya en producción**) |
-| **En curso** | Loterías, **etapa 4/6 de corrección** (D-155, 2026-09-01): el recuadro pasa a su propio límite de Suspense y el Panel deja de esperarlo —primer byte de 1.628 a 131 ms con la consulta local retrasada 1,5 s—. Sin migración, sin índice nuevo, **sin desplegar**. Antes, etapa 3/6 (D-154): validación real de las seis fuentes oficiales. Cuatro confirmadas contra la fuente y contra el cronograma; tres defectos corregidos, uno de ellos un número mayor **inventado** (I-088). **Sin migración, sin desplegar.** Antes, etapa 2/6 (D-153): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **pausado** desde el 2026-09-01 |
+| **En curso** | Loterías, **etapa 5/6 de corrección** (D-156, 2026-09-01): promoción a producción. `0041` aplicada, `145feab` desplegado, los 10 cron reactivados y el **primer tick real** entrado: 312 programaciones oficiales y 3 resultados confirmados. Cundinamarca 4818 queda **pendiente** porque su acta es un escaneo, y el **Meta deja de confirmarse solo en producción** (I-091). Antes, etapa 4/6 (D-155): el recuadro pasa a su propio límite de Suspense y el Panel deja de esperarlo —primer byte de 1.628 a 131 ms con la consulta local retrasada 1,5 s—. Sin migración, sin índice nuevo, **sin desplegar**. Antes, etapa 3/6 (D-154): validación real de las seis fuentes oficiales. Cuatro confirmadas contra la fuente y contra el cronograma; tres defectos corregidos, uno de ellos un número mayor **inventado** (I-088). **Sin migración, sin desplegar.** Antes, etapa 2/6 (D-153): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **pausado** desde el 2026-09-01 |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
 
@@ -3100,6 +3102,70 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**
 6. Cruz Roja y Bogotá pueden no confirmarse solas (I-081): no eludir.
+
+---
+
+## Mantenimiento post-9 — promoción a producción y primer tick real, etapa 5/6 (2026-09-01)
+
+Autorizado expresamente: respaldo, migración, push, despliegue, reactivación de los cron y un tick
+controlado. **Ya en producción.** No se modificó a mano ninguna boleta, cliente, pago, saldo ni
+número ganador.
+
+### 1. Funcionalidades implementadas
+
+Ninguna nueva: esta etapa **promueve** lo de las etapas 1 a 4 y lo comprueba con datos reales.
+
+| Bloque | Qué quedó |
+|---|---|
+| Migración | **`0041`** aplicada al proyecto real tras el respaldo `Rifas-backups/2026-09-01-pre-0041/`. Aditiva, sobre una tabla con 0 filas |
+| Despliegue | `145feab` en producción (`dpl_DExUn3Hop2vc3eF1Rn7bUv7bDXiY`), con D-152, D-153, D-154 y D-155 |
+| Programador | Los **10 cron** reactivados por el dueño. Ni recreados ni duplicados |
+| Primer tick real | El primero que entra autorizado en la historia del módulo. **312 programaciones** oficiales y **3 resultados confirmados** |
+| Cundinamarca 4818 | Programación verificada contra CNJSA; acta **publicada pero escaneada** → **pendiente, sin número inventado**. Los cron la reintentan |
+
+### 2. Pruebas ejecutadas y resultados
+
+Antes: `test:db` **667/667**, `verify` ✅ (**646/646** unitarias), `verify:remote` **17/17**,
+`db push --dry-run` con una sola migración pendiente. Después: `verify:remote` **17/17** otra vez.
+CI **success** en los dos jobs tras relanzar un fallo de infraestructura (`rate limit` al resolver la
+CLI de Supabase).
+
+En vivo: 6/6 cabeceras, 0 secretos en 941 KB, 4/4 rutas protegidas en 307, `/sw.js` y el manifiesto
+en 200, `/api/lottery/sync` en 401 sin secreto y con secreto incorrecto, e identificador de versión
+`f282f0d813a0` encontrado en el JavaScript servido. El tick devolvió **200**.
+
+El detalle completo —las 7 corridas, los planes de consulta, la lectura del Panel con la RLS real,
+los cuatro errores encontrados y la comparación financiera— está en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+| Archivo | Qué hace |
+|---|---|
+| `0041_lottery_sync_runs_schedule.sql` | Añade `lottery_sync_runs.schedule_id`, su `check` y su índice parcial, para contar los reintentos **por sorteo** (D-152, BR-L22). **Aplicada al proyecto real el 2026-09-01.** Total: **41** |
+
+### 4. Variables de entorno
+
+Ninguna nueva. Comprobado sin leer ni descargar ningún valor: **`CRON_SECRET` existe** en Production
+y **`LOTTERY_SYNC_SECRET` no existe**, así que el handler usa la primera.
+
+### 5. Problemas que permanecen
+
+**I-084 cerrado**: los cron están activos. **Nuevo I-091**: la Lotería del Meta responde desde
+Colombia pero **bloquea a la IP de Vercel**, así que en producción **no se confirma sola**; de cuatro
+loterías automatizables quedan **tres**. Siguen: I-086 (actas de Cundinamarca escaneadas, confirmado
+con el 4818), I-087, I-081, I-090, I-030, I-059, I-060, I-062, I-063, I-068, I-072, I-074, I-075,
+I-077, I-024.
+
+### 6. Qué revisar antes de continuar
+
+1. **Mirar los próximos sorteos reales.** Martes Cruz Roja, viernes Medellín y sábado Boyacá deberían
+   confirmarse solos; miércoles Meta, jueves Bogotá y lunes Cundinamarca hay que mirarlos a mano
+   (`OPERATIONS` §7).
+2. **Cundinamarca 4818 tiene 6 intentos y se le agotarán.** Si su acta sigue escaneada, quedará
+   pendiente para siempre y sale de la ventana de 10 días el 2026-09-10.
+3. **`TZ` no está en las variables de Production** aunque `DEPLOYMENT` §3.1 la dé por puesta. No
+   cambia el comportamiento —Vercel corre en UTC—, pero conviene decidirlo (I-049).
+4. Etapa siguiente del encargo: **6/6**, y necesita autorización expresa.
 
 ---
 

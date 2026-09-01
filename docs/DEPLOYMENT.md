@@ -27,7 +27,7 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 
 | Elemento | Estado |
 |---|---|
-| Migraciones (**40**, hasta `0040`) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrige al aplicar `0040` (2026-08-31) |
+| Migraciones (**41**, hasta `0041`) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156) |
 | RLS, RPC, vistas, auditoría | Igual que en local (mismo código, mismas migraciones) |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 
@@ -122,13 +122,23 @@ Hoy no valida `NEXT_PUBLIC_SITE_URL`; comprobarla en Vercel sigue siendo un paso
 rompería el despliegue en Hobby (I-082). Vercel envía `Authorization: Bearer` con
 `CRON_SECRET`. El Route Handler no usa sesión. Fluid Compute se conserva.
 
+> **Estado el 2026-09-01 (D-156):** `CRON_SECRET` **existe** en Production —comprobado con
+> `vercel env ls production`, que muestra el nombre y nunca el valor— y `LOTTERY_SYNC_SECRET`
+> **no existe**, así que el handler usa `CRON_SECRET`. El primer tick autorizado devolvió **200**.
+> Los diez cron están **activos**: `vercel crons ls` los lista sin `(disabled)`.
+
 **`CRON_SECRET` no aparece sola.** D-149 supuso que Vercel la inyectaba al declarar `crons`, y no
 es así: hay que crearla en Settings → Environment Variables (scope Production, tipo Sensitive) y
 **redesplegar**, porque el valor se resuelve en el despliegue. Del 2026-08-30 al 2026-09-01 los diez
 jobs corrieron a diario **contra un 401**: ni un solo tick entró (I-083).
 
-**Cómo se comprueba, y cómo se pausa.** `vercel crons ls` lista los jobs; el panel de Vercel los
-desactiva en Settings → Cron Jobs sin tocar `vercel.json`. **No** se pausan con
+**Cómo se comprueba, y cómo se pausa.** `vercel crons ls` lista los jobs —y dice `(disabled)`
+cuando están pausados—; el panel de Vercel los desactiva y los vuelve a activar en
+Settings → Cron Jobs sin tocar `vercel.json`. **El CLI no puede activarlos ni desactivarlos**: sus
+subcomandos son `add`, `list` y `run`, y `run` se niega mientras estén pausados. Con ellos activos,
+`vercel crons run /api/lottery/sync` dispara **un** tick inmediato: lo invoca Vercel, que pone su
+propio `Authorization: Bearer`, así que es la forma de probar el programador **sin ver ni descargar
+el secreto** (D-156). **No** se pausan con
 `POST /v1/projects/{id}/pause`: eso bloquea el despliegue de producción entero y tumba la
 aplicación para los usuarios. Los ticks se leen en los registros de ejecución filtrando por
 `/api/lottery/sync`; un 401 significa secreto ausente o distinto.

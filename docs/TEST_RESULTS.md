@@ -29,6 +29,220 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — Promoción a producción y primer tick real, etapa 5/6 (2026-09-01, D-156)
+
+Mantenimiento posterior al plan. **Autorizado expresamente**, incluido el respaldo, la migración, el
+push, el despliegue, la reactivación de los cron y un tick controlado. **No se modificó a mano
+ninguna boleta, cliente, pago, saldo ni número ganador.**
+
+### a. Antes de tocar nada
+
+| Comprobación | Resultado |
+|---|---|
+| `git status` y los cuatro commits de las etapas 1–4 | `2c5df8b`, `052901b`, `106f878`, `145feab`, limpios sobre `48e4df6` |
+| `npm run db:reset && npm run seed:local && npm run test:db` | **667/667** |
+| `npm run verify` | ✅ · lint 0 errores (2 avisos de siempre) · **646/646** unitarias · build |
+| `CRON_SECRET` en Production | **Existe**, creada 7 h antes. Comprobado con `vercel env ls production`, que imprime el nombre y **nunca el valor**. No se leyó, no se descargó y no se registró |
+| `LOTTERY_SYNC_SECRET` | **No existe** → el handler usa `CRON_SECRET`. No hay dos secretos que puedan discrepar |
+| Cron pausados | ✅ `vercel crons ls` → «10 cron jobs found **(disabled)**». Y **0 peticiones** a `/api/lottery/sync` en 24 h |
+| `db push --dry-run` | Una sola migración pendiente: `0041_lottery_sync_runs_schedule.sql` |
+| `npm run verify:remote` | **17/17** |
+
+**Línea base financiera del proyecto real**, leída antes de la migración:
+
+| Sonda | Valor |
+|---|---|
+| Organizaciones · rifas · perfiles · membresías | 2 · 2 · 7 · 7 |
+| Clientes · boletas · boletas asignadas | 445 · 868 · 664 |
+| Pagos · pagos vigentes · asignaciones | 277 · 277 · 289 |
+| **Total vendido** | **$79.600.000** |
+| **Total abonado = suma de pagos vigentes = suma de asignaciones** | **$26.480.000** (las tres cuadran) |
+| Comisiones (filas · suma) | 178 · $10.680.000 |
+| Auditoría · avisos | 3.320 · 640 |
+| Loterías: programaciones · resultados · coincidencias · corridas | **0 · 0 · 0 · 0** |
+
+> **Producción está en uso real.** Los registros muestran a un vendedor trabajando durante toda la
+> ventana de esta promoción. Se tuvo en cuenta al comparar las cifras (§i).
+
+### b. Respaldo
+
+`Rifas-backups/2026-09-01-pre-0041/` con los tres volcados de `RUNBOOK` §5.1.
+
+| Comprobación | Resultado |
+|---|---|
+| `grep -c '"auth"' data.sql` | **0** — ninguna identidad, contraseña ni token |
+| Tamaño | `data.sql` 3,0 MB · `schema.sql` 296 KB · `roles.sql` 370 B |
+| Filas por tabla, contra la base viva | organizations 2 · profiles 7 · memberships 7 · raffles 2 · clients 445 · tickets 868 · payments 277 · payment_allocations 289 · commission_ledger 178 · audit_logs 3.320 · notifications 640 — **cuadra fila a fila** |
+
+### c. Migración
+
+`0041` aplicada con `db push --yes`. Es aditiva y cayó sobre una tabla con **0 filas**:
+
+| Objeto | Estado en producción |
+|---|---|
+| `lottery_sync_runs.schedule_id` | `uuid`, nullable |
+| `lottery_sync_runs_schedule_idx` | `(schedule_id, started_at DESC) WHERE schedule_id IS NOT NULL` |
+| `lottery_sync_runs_schedule_kind_check` | `schedule_id IS NULL OR kind = 'results'` |
+| FK `on delete` | `set null` (`confdeltype = 'n'`) |
+| Migraciones aplicadas | **41**, última `0041` |
+
+`verify:remote` **17/17** después, y las cifras financieras **idénticas** a la línea base.
+
+### d. Despliegue
+
+Push de los cuatro commits: `48e4df6..145feab`.
+
+| Comprobación | Resultado |
+|---|---|
+| CI | **Falló a la primera** por infraestructura: `supabase/setup-cli@v1` → «Failed to resolve latest Supabase CLI release: **rate limit exceeded**». El job `verify` sí pasó. Relanzado: **success** en los dos jobs |
+| Vercel | `dpl_DExUn3Hop2vc3eF1Rn7bUv7bDXiY` **READY** sobre `145feab`, target production, alias `gestion-rifas.vercel.app` |
+| Código servido | Identificador `f282f0d813a0` —sha256 de `145feab…` recortado— encontrado en `/_next/static/immutable/chunks/03pmkcf6kboyn.js`. **Es este commit el que responde** |
+| Cabeceras de seguridad | **6/6** en `/login` |
+| Secretos en el navegador | **0** en 15 fragmentos (941 KB) |
+| Rutas protegidas | 4/4 en **307** a `/login?next=…` |
+| Públicas | `/sw.js` y `/manifest.webmanifest` en **200** sin sesión |
+| Programador | `/api/lottery/sync` → **401** sin secreto, **401** con un Bearer incorrecto, **401** con `?secret=`. La query no autoriza |
+| Tiempo de servidor | `/login` 163–192 ms (`ttfb − appconnect`), `/denied` 124–190 ms. Dentro de la banda sana de `DEPLOYMENT` §3.1.b: Fluid Compute está haciendo su trabajo |
+
+### e. Cron y tick controlado
+
+Los diez jobs los reactivó **el dueño** desde Settings → Cron Jobs: el CLI solo tiene `add`, `list`
+y `run`, y `run` se niega mientras estén pausados. Después: `vercel crons ls` → **10 jobs, sin
+`(disabled)`**, ni duplicados ni recreados; `vercel.json` no cambió en los cuatro commits.
+
+Tick disparado con `vercel crons run /api/lottery/sync` — lo invoca Vercel con su propio
+`Authorization: Bearer`. **Invocación 2026-09-01T19:30:37.904Z**, y en los registros:
+`GET /api/lottery/sync` **200**, no 401.
+
+Las **7 corridas** que dejó, en orden:
+
+| # | Tipo | Lotería | Sorteo | Fecha ref. | Resultado | Leídos | Cambiados | `schedule_id` |
+|---|---|---|---|---|---|---|---|---|
+| 1 | schedule | — | — | — | **success** | 312 | 312 | nulo (correcto: es el cronograma entero) |
+| 2 | results | cundinamarca | 4818 | 2026-08-31 | failed `scanned_document` | 1 | 0 | sí |
+| 3 | results | boyaca | 4639 | 2026-08-29 | **success** | 1 | 1 | sí |
+| 4 | results | medellin | 4850 | 2026-08-28 | **success** | 1 | 1 | sí |
+| 5 | results | bogota | 2861 | 2026-08-27 | failed `source_blocked` | 1 | 0 | sí |
+| 6 | results | meta | 3313 | 2026-08-26 | failed `source_blocked` | 1 | 0 | sí |
+| 7 | results | cruz_roja | 3168 | 2026-08-25 | **success** | 1 | 1 | sí |
+
+Lo que eso demuestra, punto por punto:
+
+| Exigencia | Evidencia |
+|---|---|
+| `lottery_sync_runs` recibe una ejecución de programación | Corrida 1, `kind = schedule`, 312 leídos, `success` |
+| `lottery_draw_schedules` deja de estar vacío | De **0 a 312** |
+| El primer tick **no** recorre el cronograma histórico | 312 sorteos guardados, pero **solo 6 descargas de resultado**, el tope de BR-L22. Los seis son los seis últimos jugados, del 08-25 al 08-31, dentro del horizonte de 10 días. Cundinamarca **4817** (08-24) quedó con **0 intentos**: espera al tick siguiente |
+| Orden determinista | `official_scheduled_at desc`: 08-31 → 08-29 → 08-28 → 08-27 → 08-26 → 08-25 |
+| Reintentos por sorteo, no por lotería | Las seis corridas de resultado llevan su `schedule_id` (columna de `0041`) |
+| El cerrojo se toma y se libera | `lottery_sync_lock` quedó **LIBRE** al terminar. Duración total del tick: **5 s** (19:30:39 → 19:30:44) |
+| Un fallo no bloquea a las demás | Tres fallaron y tres se confirmaron **en la misma ejecución** |
+
+### f. Los datos que quedaron, contrastados
+
+**Programación** — 312 sorteos, **todos** con `source_authority = 'CNJSA'` y hora oficial; 52 por
+lotería × 6; de 2026-01-02 a 2026-12-31. Estados: 288 `scheduled`, 20 `rescheduled_later`, 3
+`completed`, 1 `rescheduled_earlier`. Motivos: 47 `official_change`, 1 `force_majeure`. **Los
+horarios y los traslados salen del acuerdo oficial, no de una suposición.**
+
+**Resultados** — los tres confirmados coinciden **dígito a dígito** con la validación en vivo de
+D-154 (etapa 3/6, más abajo en este mismo archivo):
+
+| Lotería | Sorteo | Fecha ref. | Número mayor | Serie | Validación |
+|---|---|---|---|---|---|
+| Boyacá | 4639 | 2026-08-29 | **7660** | 393 | confirmed |
+| Medellín | 4850 | 2026-08-28 | **2608** | 301 | confirmed |
+| Cruz Roja | 3168 | 2026-08-25 | **4939** | 112 | confirmed |
+
+**Coincidencias: 0, y es correcto.** Ninguna de las 868 boletas lleva `7660` como semanal ni
+`2608`/`4939` como diario — contado en la base. Lo que **no** se puede afirmar con estos datos es el
+comportamiento de `sold` / `available` / `late_assignment`: sin coincidencias reales, la fotografía
+al instante del sorteo la siguen cubriendo las pruebas de `tests/db` (BR-L09, BR-L10), no producción.
+
+**La serie no participa, comprobado en producción:** el cuerpo de `match_lottery_result` **no
+menciona `series`** en ninguna parte y solo compara `daily_number` y `weekly_number`, distinguiendo
+Boyacá (BR-L01, BR-L07).
+
+**Avisos: 0, y también es correcto.** Sin coincidencias no hay a quién avisar (BR-L19). Los dos
+índices que garantizan la idempotencia están en producción:
+`notifications_lottery_result_once (recipient_profile_id, entity_id)` y
+`notifications_lottery_schedule_once (recipient_profile_id, entity_id, data->>'schedule_version')`.
+Tampoco hubo avisos de programación: las 312 filas nacieron en esta importación, no cambiaron.
+
+**El Panel, leído con la RLS real** (sonda dentro de una transacción deshecha):
+
+| Quien pregunta | Programaciones en la ventana | Resultados | Coincidencias | Tiempo |
+|---|---|---|---|---|
+| Personal (owner/admin) | **27** | 3 | 0 | 14,8 ms |
+| Vendedor | **27** | 3 | 0 | 2,5 ms |
+| Anónimo | — | — | — | `permission denied for table lottery_draw_schedules` |
+
+**Plan de la ventana del Panel contra producción**, ya con 312 filas: `Bitmap Index Scan` sobre
+`lottery_draw_schedules_reference_key`, 27 filas, **0,406 ms**. Mejor que la medida sintética local
+de D-155 (1,9 ms con 1.599 filas y barrido). **Los tiempos del Panel no empeoran**: el recuadro está
+además fuera del camino crítico desde D-155, y el código servido es exactamente el commit medido.
+
+### g. Cundinamarca 4818
+
+| Comprobación | Resultado |
+|---|---|
+| Programación contra CNJSA | **Coincide**: sorteo **4818**, referencia **2026-08-31**, oficial **23:15 −05:00**, Acuerdo 887/25, `scheduled`. Vecinos correctos: 4817 (08-24) y 4819 (09-07) |
+| ¿El acta está publicada? | **Sí.** `plataformaweb.blob.core.windows.net/files/results-records/2026/4818.pdf` responde 200 con firma `%PDF-` |
+| ¿Se puede leer? | **No.** El adaptador oficial devuelve **`scanned_document`**: es un escaneo sin capa de texto, como las seis actas de D-153 (I-086) |
+| Qué se hizo | **Nada más.** Sin OCR, sin agregador, sin búsqueda, **sin insertar un número a mano**. El sorteo quedó con su programación y **sin fila de resultado** |
+| ¿Lo reintentarán los cron? | **Sí.** Evaluando `decideResultFetch` con el estado real —1 intento, último error `scanned_document`, último intento 19:30— en los **diez** horarios de `vercel.json` del día siguiente: **`fetch` en los diez**. Con los 6 intentos agotados pasaría a `skip`, y un resultado ya confirmado nunca se vuelve a pedir (`skip`) |
+
+### h. Hallazgo nuevo: el Meta bloquea a Vercel (I-091)
+
+En el mismo minuto, desde dos orígenes distintos:
+
+| Origen | Resultado |
+|---|---|
+| Vercel, región `iad1` | **`source_blocked`** — la fuente sirvió una página de desafío |
+| Equipo del dueño (Colombia) | **200, 206.531 bytes**; el adaptador extrae 3313 · 2026-08-26 · **8134** · serie 096, idéntico a D-154 |
+
+No es maquetación ni un defecto del lector: **es el origen de la petición**. D-154 dio el Meta por
+automatizable porque lo midió desde aquí, y **esa conclusión no se sostiene en producción**. Se
+corrige `OPERATIONS` §7: de cuatro loterías que se confirman solas quedan **tres**. No se cambia el
+`User-Agent`, no se usa proxy ni agregador (BR-L17).
+
+### i. Cifras financieras, antes y después
+
+| Sonda | Antes | Después | Δ |
+|---|---|---|---|
+| Boletas · asignadas · clientes · rifas | 868 · 664 · 445 · 2 | 868 · 664 · 445 · 2 | **=** |
+| **Total vendido** | $79.600.000 | $79.600.000 | **=** |
+| Comisiones (filas · suma) | 178 · $10.680.000 | 178 · $10.680.000 | **=** |
+| Pagos · asignaciones | 277 · 289 | 278 · 290 | **+1 · +1** |
+| **Total abonado** | $26.480.000 | $26.570.000 | **+$90.000** |
+| Auditoría | 3.320 | 3.321 | +1 |
+| Loterías: programaciones · resultados · corridas | 0 · 0 · 0 | **312 · 3 · 7** | efecto legítimo del tick |
+
+**El +$90.000 no es de esta promoción.** Es un abono en efectivo que **registró un vendedor real a
+las 19:27:11**, tres minutos antes del tick, con su rol `seller` y una asignación — visible también
+en los registros de Vercel. Las tres identidades siguen cuadrando después:
+`total abonado = suma de pagos vigentes = suma de asignaciones vigentes = $26.570.000`.
+
+Se dice así de claro **porque no se puede afirmar «nada cambió»** cuando hay gente trabajando en la
+aplicación durante la ventana de medición.
+
+### j. Errores encontrados
+
+1. **CI en rojo a la primera**, por `rate limit exceeded` al resolver la CLI de Supabase. Infraestructura, no código. Relanzado: verde.
+2. **`vercel crons run` falló** con `C:/Program Files/Git/api/lottery/sync`: Git Bash convirtió la ruta al estilo Windows. Se repitió desde PowerShell.
+3. **Dos sondas mías dieron un falso negativo del cronograma CNJSA** (`empty`) por llamar a `downloadCnjsaConsolidatedSchedule()` **sin el año**. Bug del arnés; con el año devuelve los 312 sorteos de siempre.
+4. **`vercel link` modificó dos archivos del usuario**: añadió entradas duplicadas a `.gitignore` —revertidas— y un `VERCEL_OIDC_TOKEN` a `.env.local` —eliminado al terminar—.
+
+### k. Observación fuera de alcance
+
+`vercel env ls production` lista **cinco** variables: `CRON_SECRET`, las tres de Supabase y
+`NEXT_PUBLIC_SITE_URL`. **`TZ` no aparece**, aunque `DEPLOYMENT` §3.1 la da por puesta. Las funciones
+de Vercel corren en UTC por defecto, que es justo lo que `TZ=UTC` pedía, así que el comportamiento no
+cambia — pero la documentación y el panel no coinciden. No se tocó: cambiar variables de entorno no
+entra en la autorización de esta etapa (relacionado con I-049).
+
+---
+
 ## Post-9 — El Panel deja de esperar por las loterías, etapa 4/6 (2026-09-01, D-155)
 
 Mantenimiento posterior al plan. Autorizado expresamente. **Sin migración, sin ruta nueva, sin
