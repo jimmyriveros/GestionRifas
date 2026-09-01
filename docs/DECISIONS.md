@@ -6043,6 +6043,62 @@ liberó. I-084 se cierra; **I-091** se abre. Ninguna regla `BR-*` nueva.
 
 ---
 
+## D-157 — La observación del ciclo real: lo que quedó demostrado y lo que todavía no
+
+**Fase:** mantenimiento posterior a la Fase 9 (loterías, etapa 6/6, 2026-09-01)
+
+**Contexto.** D-156 dejó el módulo en producción y disparó **un** tick a mano. Esta etapa es una
+auditoría de solo lectura del ciclo operativo: qué estaba programado de verdad, qué hicieron los
+cron, qué dicen las fuentes oficiales hoy y qué enseña el Panel. **No se tocó producción**: ni un
+tick nuevo, ni un despliegue, ni una fila.
+
+**Decisión.**
+
+**(a) No se dispara un segundo tick para «ver si funciona».** El primer cron natural del módulo cae
+esta noche a las **22:20 Bogotá**, veinticinco minutos antes del sorteo de la Cruz Roja, y el ciclo
+completo se observa entonces. Adelantarlo a mano habría gastado los intentos de los sorteos
+pendientes —se cuentan por sorteo, BR-L22— y habría vuelto a demostrar lo que D-156 ya demostró: que
+un tick invocado funciona. Lo que falta por demostrar es justo lo otro, que **el programador lo
+invoca solo**, y eso no se puede forzar sin dejar de medirlo.
+
+**(b) Boyacá 4638 se da por perdido, y no se rellena.** Es el único sorteo jugado dentro del
+horizonte que quedó sin resultado por el presupuesto de seis descargas del primer tick. Esta noche
+todavía entra en la ventana y se intentará, pero **la portada de Boyacá solo publica el sorteo más
+reciente** —hoy el 4639—, así que el lector devolverá `ambiguous` y no publicará nada. El 2026-09-02
+sale de los diez días y ya no se vuelve a pedir. **No se inserta a mano, no se busca en un agregador
+y no se amplía el horizonte** para recuperarlo: el 4638 es del 22 de agosto, ninguna boleta lleva su
+número y el precio de «ponerse al día» es exactamente el riesgo que D-152 cerró. Queda escrito como
+**I-092**, que es información operativa, no un defecto.
+
+**(c) Las cuatro loterías de portada tienen una ventana de captura, y ahora está dicho.** Cruz Roja,
+Meta, Medellín y Boyacá publican en su portada **un solo** resultado: el último. Mientras esté ahí se
+lee; en cuanto la entidad publica el siguiente, el anterior deja de ser recuperable por esta vía. No
+es un fallo del lector —hace lo correcto, no publicar— sino el motivo por el que el programador tiene
+diez horarios al día y por el que un tick perdido cuesta un sorteo. Cundinamarca no comparte esta
+limitación: su acta vive en una URL por sorteo (BR-L23).
+
+**(d) La falta de `TZ` en Production no es un problema, y se deja de arrastrar como si lo fuera.**
+D-156 la anotó como observación pendiente. Comprobado: **todas** las conversiones de fecha y hora del
+proyecto fijan `America/Bogota` explícitamente —`src/lib/dates.ts` y `publication.ts` construyen sus
+`Intl.DateTimeFormat` con la zona— y en todo `src/` no queda **ni una** lectura de fecha que dependa
+de la zona del proceso. Además el valor documentado es `UTC`, que es justamente el que Vercel usa por
+omisión. La prueba en vivo: el tick corrió en Vercel sin `TZ` y calculó bien el horizonte del día de
+Bogotá y los seis sorteos más recientes.
+
+**Lo que NO se cambió.** Ni una línea de código de la aplicación, ni una migración, ni una regla de
+negocio, ni una fila de producción. Ninguna regla `BR-*` nueva.
+
+**Consecuencia.** Las seis loterías quedan observadas contra su fuente oficial en vivo: **tres se
+confirman solas** —Cruz Roja 3168 · 4939, Medellín 4850 · 2608, Boyacá 4639 · 7660, los tres iguales
+dígito a dígito a lo guardado— y **tres siguen bloqueadas por su causa documentada**: el Meta desde
+Vercel (I-091), Bogotá tras Cloudflare (I-087) y Cundinamarca con su acta escaneada (I-086). Lo que
+**todavía no está demostrado** es que un cron dispare el ciclo sin que nadie lo invoque: al cierre de
+esta etapa `lottery_sync_runs` sigue teniendo **las 7 corridas del tick manual y ninguna más**,
+porque los diez jobs se reactivaron después de las ventanas diurnas de hoy. Esa es la única pregunta
+que deja abierta la etapa, y se responde repitiendo esta misma observación mañana.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

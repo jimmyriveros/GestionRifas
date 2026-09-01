@@ -23,9 +23,196 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **636 ✅** | **663 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento; en la etapa 3/6 solo se reejecutaron las 8 de loterías, todas verdes) | ✅ | ✅ |
+| Post-9 vigente | **636 ✅** | **663 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento; en la etapa 3/6 solo se reejecutaron las 8 de loterías, todas verdes; en la 6/6, las 10 unitarias de loterías: **154/154**) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Observación de los sorteos reales, etapa 6/6 (2026-09-01, D-157)
+
+Mantenimiento posterior al plan. **Auditoría de solo lectura.** No se disparó ningún tick, no se
+desplegó, no se aplicó ninguna migración y **no se escribió ni una fila en producción**. Fecha
+evaluada: **martes 2026-09-01**, entre las 14:48 y las 15:05 de Bogotá.
+
+### a. Qué estaba programado de verdad (no el día nominal)
+
+Leído de `lottery_draw_schedules` en el proyecto real y contrastado con CNJSA:
+
+| Fecha ref. | Lotería | Sorteo | Hora oficial (Bogotá) | Estado | Motivo |
+|---|---|---|---|---|---|
+| 2026-08-22 | Boyacá | 4638 | sáb 22:30 | `scheduled` | — |
+| 2026-08-24 | Cundinamarca | 4817 | lun 23:15 | `scheduled` | — |
+| 2026-08-25 | Cruz Roja | 3168 | mar 22:55 | **`completed`** | — |
+| 2026-08-26 | Meta | 3313 | mié 22:30 | `scheduled` | — |
+| 2026-08-27 | Bogotá | 2861 | jue 23:15 | `scheduled` | `official_change`, **sin mover la hora** |
+| 2026-08-28 | Medellín | 4850 | vie 23:00 | **`completed`** | — |
+| 2026-08-29 | Boyacá | 4639 | sáb 22:30 | **`completed`** | — |
+| 2026-08-31 | Cundinamarca | 4818 | lun 23:15 | `scheduled` | — |
+| 2026-09-01 | **Cruz Roja** | **3169** | **mar 22:55** | `scheduled` | — (es el de hoy; aún no ha jugado) |
+
+**Festivos, adelantos, aplazamientos, suspensiones y cancelaciones.** En las 312 programaciones:
+288 `scheduled`, 20 `rescheduled_later`, 1 `rescheduled_earlier`, 3 `completed`; 47 con
+`official_change` y 1 con `force_majeure`. **Ninguna `suspended`, `cancelled`, `schedule_conflict`
+ni `schedule_unverified`.** Los traslados por festivo se ven en los datos —Cundinamarca juega en
+martes 12 veces sobre 52, y el 4816 del 17 de agosto se corrió al 18—, y **ninguno de los sorteos de
+la ventana evaluada está trasladado**. Los 47 `official_change` que llevan la misma hora en
+`original_scheduled_at` y en `official_scheduled_at` son de Bogotá: el acuerdo los marca, pero no
+mueven nada, y por eso el Panel no los anuncia (`isNotableSchedule`).
+
+**CNJSA, contrastado en vivo:** la página de publicaciones ofrece 31 documentos y el consolidado
+vigente para 2026 sigue siendo **`idFile=309186`**, exactamente el `source_url` de las 312
+programaciones guardadas. El cronograma no cambió desde el tick.
+
+### b. Los cron de Vercel
+
+| Comprobación | Resultado |
+|---|---|
+| `vercel crons ls` | **10 jobs, ninguno `(disabled)`**, con los diez horarios de `vercel.json` |
+| Despliegue en producción | `dpl_GYVdNdU9vnfWVpy6BX2ocbBqWbzE`, **READY**, sobre **`f9c6e49`** (creado a las 19:42 UTC, después del tick de D-156) |
+| Código realmente servido | Identificador **`956d5c2c6c7d`** —sha256 de `f9c6e49…` recortado— encontrado en `/_next/static/immutable/chunks/415rn5q-t39nc.js`. El de `145feab` (`f282f0d813a0`) **ya no aparece**: sirve HEAD |
+| Secretos en el navegador | **0** en 16 recursos (1.035 KB) |
+| `/api/lottery/sync` sin secreto | **401** |
+| `/api/lottery/sync` con Bearer incorrecto | **401** — falla cerrado |
+| Variables de Production | `CRON_SECRET` (Secret, creada 8 h antes), las tres de Supabase y `NEXT_PUBLIC_SITE_URL`. **`LOTTERY_SYNC_SECRET` no existe** → no hay dos secretos que puedan discrepar. **`TZ` tampoco está**, y no hace falta (D-157.d) |
+
+> **Aviso del CLI que NO es un problema:** `vercel crons ls` añade «9 local changes pending deploy»
+> con nueve filas `0 6 * * * → …`. Es un artefacto de presentación: los diez jobs comparten `path`,
+> así que el CLI los empareja por orden y cree que nueve cambiaron. La lista remota es **idéntica**
+> a `vercel.json`. No se redespliega por esto.
+
+### c. Ejecuciones: `lottery_sync_runs`
+
+**7 corridas en total, todas del tick manual de D-156, y ninguna más.** Los diez cron se reactivaron
+**después** de las ventanas diurnas de hoy (12:00, 13:00, 15:00 y 16:00 UTC), así que **todavía no ha
+disparado ninguno**. El registro de Vercel de las últimas horas sobre `/api/lottery/sync`: tres
+**401** a las 19:25 (las sondas sin secreto de D-156) y un **200** a las 19:30 (el tick). Nada más.
+
+| Hora (Bogotá) | Duración | Tipo | Lotería | Resultado | Intento | Leídos/cambiados | Código |
+|---|---|---|---|---|---|---|---|
+| 14:30:39 | 1.903 ms | schedule | — | **success** | 1 | 312 / 312 | — |
+| 14:30:41 | 166 ms | results | Cundinamarca | failed | 1 | 1 / 0 | `scanned_document` |
+| 14:30:41 | 691 ms | results | Boyacá | **success** | 1 | 1 / 1 | — |
+| 14:30:42 | 706 ms | results | Medellín | **success** | 1 | 1 / 1 | — |
+| 14:30:43 | 58 ms | results | Bogotá | failed | 1 | 1 / 0 | `source_blocked` |
+| 14:30:43 | 89 ms | results | Meta | failed | 1 | 1 / 0 | `source_blocked` |
+| 14:30:43 | 265 ms | results | Cruz Roja | **success** | 1 | 1 / 1 | — |
+
+Cerrojo `lottery_sync_lock`: **libre** (`holder` nulo, liberado a las 14:30:44). Migraciones
+aplicadas: **41**, la última `0041`.
+
+### d. Las seis fuentes oficiales, consultadas hoy con el adaptador real
+
+Ejecutado desde este equipo con `fetchLotteryResultForDraw`, el mismo código que usa el tick:
+
+| Lotería | Sorteo | ms | Lo que devuelve hoy la fuente | Contra lo guardado |
+|---|---|---|---|---|
+| Cruz Roja | 3168 (08-25) | 494 | **4939**, serie 112, fecha 2026-08-25 | **Igual, dígito a dígito** ✅ |
+| Medellín | 4850 (08-28) | 146 | **2608**, serie 301, fecha 2026-08-28 | **Igual** ✅ |
+| Boyacá | 4639 (08-29) | 903 | **7660**, serie 393, fecha 2026-08-29 | **Igual** ✅ |
+| Meta | 3313 (08-26) | 625 | **8134**, serie 096, fecha 2026-08-26 | **No hay fila**: desde Vercel es `source_blocked` (I-091). Desde Colombia se lee perfectamente, igual que en D-154 |
+| Bogotá | 2861 (08-27) | 263 | `source_blocked` | Correcto (I-087). También bloqueada desde aquí |
+| Cundinamarca | 4818 (08-31) | 998 | `scanned_document` | Correcto (I-086). El acta está publicada, pero es un escaneo |
+
+**Los tres números confirmados en producción coinciden con lo que la fuente oficial publica hoy.**
+No se corrigió, insertó ni tocó ningún número.
+
+### e. Coincidencias y avisos
+
+| Comprobación | Resultado |
+|---|---|
+| `lottery_ticket_matches` | **0 filas** |
+| Avisos `lottery.*` en `notifications` | **0** (640 avisos en total, todos de otras clases) |
+| ¿Es correcto? | **Sí.** De las 868 boletas, **ninguna** lleva `4939`, `2608` ni `8134` como número diario ni `7660` como semanal — contado en la base, número por número |
+| Idempotencia de avisos | Los dos índices únicos existen en producción: `notifications_lottery_result_once (recipient_profile_id, entity_id)` con `kind = 'lottery.result'`, y `notifications_lottery_schedule_once (recipient_profile_id, entity_id, data->>'schedule_version')` con `kind = 'lottery.schedule_change'` |
+| Idempotencia de resultados y coincidencias | `lottery_results_schedule_id_key` UNIQUE `(schedule_id)` y `lottery_ticket_matches_result_ticket_field_key` UNIQUE `(result_id, ticket_id, match_field)` |
+
+### f. El Panel del dueño y el del vendedor
+
+Leído con la **RLS real** de producción, dentro de una transacción deshecha:
+
+| Quién pregunta | Programaciones en la ventana | Resultados | Coincidencias |
+|---|---|---|---|
+| Dueño (owner) | **27** | 3 | 0 |
+| Vendedor | **27** | 3 | 0 |
+| Anónimo | — | — | `permission denied for table lottery_draw_schedules` |
+
+El recuadro construido con `buildLotteryDashboard` sobre esos datos reales:
+
+* `kind: "ready"` — ni vacío ni error.
+* **Sorteo de hoy:** Cruz Roja **3169**, martes 2026-09-01, 22:55 Bogotá, sin resultado. Correcto:
+  faltan ocho horas para que juegue.
+* **Último resultado:** Boyacá **4639** del 2026-08-29, número mayor **7660**, serie 393. Es el más
+  reciente confirmado, y se etiqueta como anterior, no como el de hoy.
+* `nextDraw: null` —hay sorteo hoy— y `weekAlerts: []` —esta semana no hay traslado ni festivo—.
+  Los dos, correctos.
+
+### g. Que el Panel no consulta internet (BR-L20)
+
+Grafo de imports completo desde cada página del Panel, resuelto a fichero:
+
+| Página | Módulos alcanzados | ¿Alcanza `fetch.ts`, `adapters.ts`, `sync.ts`, `job.ts` o `sources.ts`? | ¿Algún módulo llama a `fetch()` o `node:https`? |
+|---|---|---|---|
+| `owner/dashboard/page.tsx` | 43 | **Ninguno** | **Ninguno** |
+| `seller/dashboard/page.tsx` | 57 | **Ninguno** | **Ninguno** |
+
+Además, las dos usan `LotteryResultsSection` y **ninguna** llama a `getLotteryDashboard`
+directamente: el límite de Suspense de D-155 sigue en su sitio. Confirmado también por los datos: en
+las últimas horas hubo **18 renders de `/seller/dashboard`** y **0 corridas** en
+`lottery_sync_runs`.
+
+### h. Tiempos contra la línea base
+
+**Plan de la consulta de ventana del Panel**, la misma que midió D-156 y con las mismas 27 filas.
+Mismo plan: `Bitmap Index Scan on lottery_draw_schedules_reference_key` → `Hash Right Join` → `Sort`.
+
+| Medida | D-156 (línea base) | Hoy | Lectura |
+|---|---|---|---|
+| Ventana, dueño | 0,406 ms | **1,13 ms** (mín. 1,09 · máx. 1,44) | Mismo plan y mismas filas. La diferencia está entera en las dos evaluaciones de `current_org_ids()` (0,54 + 0,40 ms), que dependen de la caché. El escaneo del índice cuesta **0,035 ms**. El presupuesto de la prueba es **200 ms** |
+| Ventana, vendedor | — | **1,13 ms** (mín. 1,08 · máx. 1,20) | Igual |
+| Coincidencias, dueño / vendedor | — | 0,74 / 0,72 ms | — |
+
+**Tiempo de servidor del dominio** (`ttfb − appconnect`, el método de `DEPLOYMENT` §3.1.b):
+
+| Ruta | D-156 | Hoy (3 medidas) |
+|---|---|---|
+| `/login` (200) | 163–192 ms | **176 · 180 · 209 ms** |
+| `/denied` (200) | 124–190 ms | **119 · 136 · 218 ms** |
+| `/owner/dashboard` (307) | — | 104 · 105 · 126 ms |
+| `/seller/dashboard` (307) | — | 127 · 132 · 190 ms |
+
+**Dentro de la banda de la línea base. No hay regresión.**
+
+### i. Pruebas locales
+
+| Comando | Resultado |
+|---|---|
+| Las **diez** suites unitarias de loterías (`tests/unit/lottery-*.test.ts` y `lottery-panel-streaming.test.tsx`) | **154/154 ✅** |
+
+No se ejecutaron `verify` ni `test:db` completos: esta etapa no cambió ni una línea de código de la
+aplicación, así que no había nada que pudieran demostrar que no demostrara ya D-156 (`test:db`
+667/667 y `verify` 646/646, el mismo día y sobre el mismo árbol).
+
+### j. Lo que esta observación NO demuestra
+
+**Que el programador dispare el ciclo solo.** Las tres confirmaciones que hay en producción salieron
+del tick que D-156 invocó a mano. Al cierre de esta etapa `lottery_sync_runs` sigue en **7 corridas**
+y los diez cron no han disparado ni una vez desde que el dueño los reactivó, porque la reactivación
+cayó después de las ventanas diurnas de hoy. **El primer cron natural es esta noche a las 22:20 de
+Bogotá**, y el sorteo de la Cruz Roja de hoy —el 3169, a las 22:55— es el primer ciclo completo
+observable: sorteo, tick de las 23:20, resultado, coincidencias, aviso y Panel. Se comprueba
+repitiendo esta misma observación mañana.
+
+**Lo que sí quedó demostrado del reintento:** evaluando `decideResultFetch` con el estado real de
+producción en los diez horarios de las próximas 24 h, **todos los pendientes tienen próximo
+reintento**. Cundinamarca 4817 y 4818, Bogotá 2861 y Meta 3313 dan `fetch` desde las 22:20; Cruz Roja
+3169 espera (`wait`) hasta las 23:20, que es cuando ya ha jugado. Ninguno está declarado fallo
+definitivo y ninguno agotó sus seis intentos: todos van por **1** o por **0**.
+
+**Y un pendiente que se pierde, con su motivo:** **Boyacá 4638** (2026-08-22) tiene 0 intentos y
+todavía entra en la ventana esta noche, pero la portada de Boyacá ya publica el 4639, así que el
+lector devolverá `ambiguous` y el 2026-09-02 el sorteo sale de los diez días. Queda sin resultado, a
+propósito y sin inventar nada — **I-092**.
 
 ---
 

@@ -146,7 +146,9 @@ El recuadro puede aparecer vacío o con «Horario por confirmar» hasta el prime
 exitoso: eso no es un fallo de la pantalla.
 
 **Tres de las seis loterías se confirman solas; tres hay que mirarlas a mano.** Estado
-comprobado **en el primer tick real de producción**, el **2026-09-01** (D-156):
+comprobado **en el primer tick real de producción**, el **2026-09-01** (D-156), y **revalidado ese
+mismo día contra las fuentes en vivo** (D-157, etapa 6/6): los tres números guardados siguen siendo
+los que publica la fuente, dígito a dígito.
 
 | Lotería | Día | Estado |
 |---|---|---|
@@ -171,6 +173,14 @@ Roja el martes, Meta el miércoles, Medellín el viernes, Boyacá el sábado— 
 Panel al día siguiente y comparar el número mayor con la página oficial. Si no coincide, o si
 `lottery_sync_runs` registra `structure_changed`, la página cambió de maquetación: ver
 `RUNBOOK.md` §7.
+
+**Un sorteo que no se capture a tiempo se pierde, y conviene saberlo.** Cruz Roja, Meta, Medellín
+y Boyacá publican en su portada **un solo** resultado: el último. Mientras está ahí se lee; en cuanto
+la entidad publica el siguiente, el anterior deja de ser legible por esa vía y la aplicación
+**prefiere no publicar nada** antes que adivinar. Por eso el programador consulta a diez horas
+distintas del día. Cundinamarca no tiene este problema —su acta vive en una URL por sorteo— y ya
+pasó una vez: **Boyacá 4638**, del 22 de agosto, quedó sin resultado (I-092). No afecta a ninguna
+boleta y **no se rellena a mano**.
 
 **El primer tick no lo trae todo de golpe, y es a propósito.** Cada ejecución consulta como
 mucho **seis** sorteos, de los jugados en los **últimos diez días**, empezando por el más
