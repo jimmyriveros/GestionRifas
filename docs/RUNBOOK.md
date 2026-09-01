@@ -233,6 +233,9 @@ repórtalo como error de código, no como comportamiento esperado.
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
 | El Panel muestra vacío o «Horario por confirmar» | Aún no hubo un tick con programación confirmada, o es un día sin sorteo oficial | El recuadro no consulta internet (BR-L20). Esperar el próximo cron o revisar `lottery_sync_runs` |
-| Sigue vacío después de varios ticks | Falta `CRON_SECRET`, o hay un `LOTTERY_SYNC_SECRET` distinto, o los `crons` no están en `vercel.json` | El Route Handler responde 401. Ver `DEPLOYMENT.md` §3.1.c. Los dos secretos, si existen, tienen que coincidir (D-149) |
+| Sigue vacío después de varios ticks | Falta `CRON_SECRET`, o hay un `LOTTERY_SYNC_SECRET` distinto, o los `crons` no están en `vercel.json` | El Route Handler responde 401. **`CRON_SECRET` la crea una persona: Vercel no la genera al declarar `crons`** (D-152). Créala y **redespliega**. Ver `DEPLOYMENT.md` §3.1.c. Los dos secretos, si existen, tienen que coincidir (D-149) |
+| Un tick devuelve `results.deferred` mayor que cero | Normal: había más sorteos elegibles que el tope de descargas por tick | Se atienden en el tick siguiente, del más reciente al más antiguo (BR-L22). No se sube el tope para «ponerse al día» |
+| Un tick devuelve `results.errorCode` con la programación en `success` | La etapa de resultados se cayó entera; la programación **sí** quedó guardada | Es el comportamiento previsto (D-152). Revisar `lottery_sync_runs` y esperar al tick siguiente |
+| Hay que parar el programador | Sospecha de bucle, fuente bloqueada o despliegue a medias | Panel de Vercel → Settings → Cron Jobs → desactivar; o `vercel crons ls` para ver el estado. **Nunca** `POST /v1/projects/{id}/pause`: eso tumba la aplicación entera, no solo los cron |
 | El tick corre y Cruz Roja/Bogotá no salen | I-081: Imunify / Cloudflare | No eludir. Queda registro en `lottery_sync_runs`. Revisión manual o canal oficial |
 | Dos ticks a la vez | El segundo sale `skipped: locked` | Normal. El cerrojo caduca a los 5 min si uno se cae (D-148) |

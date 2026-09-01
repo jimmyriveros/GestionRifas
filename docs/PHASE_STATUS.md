@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-08-30 (D-150 en producción)
+- **Actualizado:** 2026-09-01 (D-152, sincronizador acotado, **solo local**)
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
   Cabecera contextual (D-150): el título, la flecha y un CTA suben a la cabecera
   fija de `AppShell` cuando el `PageHeader` sale de la vista. Sin migración.
@@ -11,6 +11,9 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   Etapas 1 a 6 de resultados oficiales de loterías: contrato, adaptadores, sync, Panel,
   Route Handler y programador de producción (`0036`–`0039`, D-140..D-149).
 - **Fase siguiente:** ninguna autorizada
+- **Aviso operativo:** los diez cron de loterías **siguen activos** y este entorno no puede
+  pausarlos (**I-084**). El código corregido de D-152 y la migración `0041` están **solo en local**:
+  un tick autorizado corre entretanto con el comportamiento anterior.
 - **Aviso operativo:** producción **sigue siendo el seed de desarrollo** — dos organizaciones y
   cuatro cuentas `@demo.test` que pueden iniciar sesión (**I-077**, abierto el 2026-08-27). Decidirlo
   es condición previa a que entren vendedores reales
@@ -20,7 +23,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 | Clasificación | Estado actual |
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) y **la cabecera contextual al hacer scroll** (D-150, 2026-08-30, **en producción**) y **el reporte «Ventas por fecha» del portal del vendedor** (D-151, BR-T05..BR-T07, migración `0040`, 2026-08-31, **ya en producción**) |
-| **En curso** | Ninguna etapa de loterías. Etapas 1 a 6 entregadas (D-140..D-149). El programador de producción usa los jobs Hobby de Vercel |
+| **En curso** | Loterías, **etapa 1/6 de corrección** (D-152, 2026-09-01): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo (`0041`). **Solo local, sin desplegar.** Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador usa los jobs Hobby de Vercel y **sigue activo** (I-084) |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
 
@@ -3088,6 +3091,69 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**
 6. Cruz Roja y Bogotá pueden no confirmarse solas (I-081): no eludir.
+
+---
+
+## Mantenimiento post-9 — estabilizar el sincronizador de loterías, etapa 1/6 (2026-09-01)
+
+**Encargo:** `CorrecionesLoterias.txt`, PROMPT 1, autorizado expresamente. Corregir el
+sincronizador para que una ejecución automática nunca recorra el cronograma anual ni exceda un
+presupuesto seguro de trabajo. **No se desplegó nada.**
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Horizonte | La consulta de resultados solo mira sorteos ya jugados de los últimos **10 días** —el mismo horizonte hacia atrás que el Panel (D-147)— y hasta `now`: un sorteo que no ha jugado no puede tener resultado |
+| Tope por tick | **6 descargas externas** como máximo, una por lotería. Lo que no cabe se informa como `deferred` y lo atiende el tick siguiente |
+| Tope de candidatos | **60** filas examinadas, red de seguridad que además mantiene el `in.()` lejos del límite de URI de PostgREST |
+| Orden | Determinista: `official_scheduled_at desc`, `lottery_code asc`. Dos ticks con los mismos datos eligen los mismos sorteos |
+| Reintentos | Se cuentan **por sorteo** (`lottery_sync_runs.schedule_id`, `0041`), no por lotería |
+| Aislamiento de etapas | Si la etapa de resultados se cae entera, el tick devuelve `results.errorCode` y **conserva** la programación ya sincronizada |
+| Programación | **No se toca:** el cronograma anual se sigue guardando completo, porque hace falta para avisar de cambios y festivos (BR-L18) |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` en verde: `typecheck` ✅, `lint` **0 errores** (2 avisos de siempre),
+**579/579** unitarias (+5) y `build` ✅. `npm run test:db` **663/663** (+12).
+
+Errores encontrados y corregidos durante el trabajo, todos en las pruebas nuevas: tres dobles de
+`syncResults` sin los campos nuevos; `URI too long` al limpiar la bitácora con 318 UUID; y un
+`duplicate key` porque la corrida fallida anterior había dejado el cronograma puesto. Detalle,
+con las cifras de la causa reproducida, en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+| Archivo | Qué hace |
+|---|---|
+| `0041_lottery_sync_runs_schedule.sql` | Añade `lottery_sync_runs.schedule_id` (FK `on delete set null`), su CHECK de `kind` y el índice parcial `(schedule_id, started_at DESC)` |
+
+**Solo local.** No se promovió al proyecto real.
+
+### 4. Variables de entorno
+
+Ninguna nueva. Se **corrige** lo que decían los documentos: `CRON_SECRET` la crea una persona en
+Vercel; **no la genera Vercel al declarar `crons`**. Sin ella, el programador recibe 401 en cada
+ejecución, que es lo que pasó del 2026-08-30 al 2026-09-01 (I-083).
+
+### 5. Problemas que permanecen
+
+**I-084** (abierto): los diez cron siguen **activos** y este entorno no puede pausarlos —el MCP de
+Vercel no los expone y la CLI no tiene token—. Mientras `0041` y el código de D-152 no estén
+desplegados, un tick autorizado corre con el comportamiento anterior. **I-081** (Cruz Roja
+Imunify, Bogotá Cloudflare, Cundinamarca SPA) e **I-082** (precisión Hobby ±59 min) no cambian.
+Siguen I-077, I-072, I-074, I-075, I-068, I-062, I-063 e I-024.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **`0041` está solo en local.** El código ya la usa: no despliegues el frontend sin aplicarla.
+2. **Los cron siguen activos** (I-084). Confírmalo antes de tocar nada.
+3. **No subas el tope de descargas «para ponerse al día»:** es lo que provoca que una fuente
+   oficial bloquee la IP (I-081).
+4. **El horizonte y la ventana del Panel están atados por una prueba.** Cambiar uno exige decidir
+   sobre el otro.
+5. **No llames `download*` ni `runLotterySyncTick` desde una página.**
+6. **No hay etiqueta `fase-N`.** Siguiente etapa autorizable: el adaptador de Cundinamarca (2/6).
 
 ---
 

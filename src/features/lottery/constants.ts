@@ -91,6 +91,33 @@ export const LOTTERY_RESULT_RETRY = {
 } as const
 
 /**
+ * Presupuesto de un tick de resultados (D-152, BR-L22).
+ *
+ * El cronograma CNJSA es ANUAL: al importarlo nacen del orden de trescientos
+ * sorteos de golpe. Sin estos topes, el primer tick recorreria el ano entero
+ * e intentaria descargar cada uno.
+ *
+ * `lookbehindDays` es el mismo horizonte que mira el Panel hacia atras
+ * (`LOTTERY_DASHBOARD_LOOKBEHIND_DAYS`, D-147): no tiene sentido gastar una
+ * descarga en un sorteo cuyo resultado ya nadie va a ver ahi. Con seis
+ * loterias semanales caben una o dos fechas por loteria, sobra para el sorteo
+ * de ayer y para recuperarse de una semana caida.
+ *
+ * `maxFetchesPerTick` son seis porque son seis loterias: un tick puede cubrir
+ * cada una una vez. Un sorteo ya confirmado no gasta presupuesto —ni siquiera
+ * se descarga—, asi que los atrasados heredan el turno en cuanto los recientes
+ * se confirman.
+ *
+ * `maxCandidates` es una red de seguridad, no el caso normal: en la ventana
+ * habitual hay una decena de sorteos.
+ */
+export const LOTTERY_RESULT_SYNC = {
+  lookbehindDays: 10,
+  maxFetchesPerTick: 6,
+  maxCandidates: 60,
+} as const
+
+/**
  * Sincronizacion de programacion: una vez por dia calendario de Bogota.
  * Si el intento de hoy fallo, se reintenta pasado este margen (D-148).
  */

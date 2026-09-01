@@ -1,6 +1,7 @@
 import {
   LOTTERY_PUBLICATION_DELAY_MINUTES,
   LOTTERY_RESULT_RETRY,
+  LOTTERY_RESULT_SYNC,
   LOTTERY_SCHEDULE_SYNC,
   type LotteryCode,
 } from './constants'
@@ -31,6 +32,22 @@ export function addIsoDays(isoDate: string, days: number): string {
   }
   const utc = new Date(Date.UTC(year, month - 1, day + days, 12))
   return utc.toISOString().slice(0, 10)
+}
+
+/**
+ * Ventana de sorteos que un tick puede consultar (D-152, BR-L22).
+ *
+ * Abre al comenzar el dia de Bogota de hace `lookbehindDays` y cierra AHORA:
+ * un sorteo que todavia no ha jugado no puede tener resultado, asi que no
+ * entra en la seleccion y espera al tick siguiente. Colombia es UTC-5 todo
+ * el ano; no hay horario de verano que corregir.
+ */
+export function resultSyncHorizon(now: Date): { fromIso: string; toIso: string } {
+  const fromDay = addIsoDays(bogotaIsoDate(now), -LOTTERY_RESULT_SYNC.lookbehindDays)
+  return {
+    fromIso: `${fromDay}T00:00:00-05:00`,
+    toIso: now.toISOString(),
+  }
 }
 
 export type ResultFetchDecision = 'fetch' | 'wait' | 'skip'

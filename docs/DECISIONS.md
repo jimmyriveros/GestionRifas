@@ -5509,6 +5509,12 @@ ya lo descartó.
 como bloqueo. `verify:remote` comprueba que las RPC de loterías existen y **no** las
 ejecuta `authenticated`.
 
+> **Corregido el 2026-09-01 (D-152, I-083).** El hecho (c) de arriba es **falso**: Vercel envía
+> `CRON_SECRET` como Bearer, pero **no la crea al declarar `crons`**. Hay que darla de alta a mano
+> y redesplegar. Por eso los diez jobs corrieron a diario del 2026-08-30 al 2026-09-01 **contra un
+> 401** y ningún tick llegó a entrar. El resto de D-149 —plan Hobby, jobs diarios, no declarar el
+> job Pro, no poner un `LOTTERY_SYNC_SECRET` distinto— sigue vigente.
+
 ---
 
 ## D-150 — La cabecera fija se vuelve contextual cuando el encabezado de la pantalla sale de la vista
@@ -5646,6 +5652,66 @@ es un parámetro.
 la lista del portal que corresponda; el predeterminado sale solo. Quien añada un
 portal pasa `ticketBasePath` a `ReportsView`. Y quien toque el rango de fechas
 tiene un único sitio: `resolveSalesDateRange()`.
+
+---
+
+## D-152 — El sincronizador mira diez días atrás y descarga seis fuentes por tick
+
+**Fase:** mantenimiento posterior a la Fase 9 (loterías, etapa 1/6, 2026-09-01)
+
+**Contexto.** D-149 dejó los diez cron de Hobby activos, pero ningún tick llegó a entrar:
+faltaba el secreto y todos respondieron 401. El primer tick autorizado iba a encontrarse
+con un escenario que nunca se había ejecutado: importar el cronograma **anual** de CNJSA
+—del orden de trescientos sorteos de golpe— y, acto seguido, buscar el resultado de cada
+uno de los que ya se jugaron.
+
+**Hechos comprobados.** (a) `loadPendingResultDraws()` seleccionaba **todas** las
+programaciones pendientes, sin ventana temporal, sin orden y sin límite. Reproducido en
+`tests/db/lottery-horizon.test.ts` con un cronograma real de 318 sorteos: la consulta
+anterior devuelve los 318; la nueva, 9. (b) Esa misma función pedía después los resultados
+con `.in('schedule_id', <todos los ids>)`; con trescientos UUID la URL se pasa del tope de
+PostgREST y la respuesta es **`URI too long`** —observado al escribir la prueba—, así que el
+tick ni siquiera habría llegado a descargar: habría reventado antes, dejando la etapa de
+resultados sin registrar. (c) `countResultAttempts()` contaba los intentos por
+`lottery_code` desde la hora oficial del sorteo. Cundinamarca juega todos los lunes: con dos
+fechas abiertas, cada intento de la más nueva envejecía el cupo de la más vieja, de modo que
+el tope de seis reintentos y la conciliación de la mañana se aplicaban a la lotería entera y
+no a cada sorteo. (d) `lottery_sync_runs` no tenía forma de decir a qué sorteo pertenecía un
+intento. (e) El Panel ya mira **10 días hacia atrás**
+(`LOTTERY_DASHBOARD_LOOKBEHIND_DAYS`, D-147).
+
+**Decisión.** (a) La **programación** se sigue sincronizando entera: el cronograma anual hace
+falta para avisar de cambios y festivos (BR-L18). Lo que se acota es la **consulta de
+resultados**. (b) Horizonte: sorteos con `official_scheduled_at` entre el comienzo del día de
+Bogotá de hace **10 días** y **ahora**. Diez, y no otro número, porque es exactamente lo que
+el Panel enseña: gastar una descarga en un resultado que nadie va a ver ahí no tiene sentido.
+El extremo superior es `now` porque un sorteo que todavía no ha jugado no puede tener
+resultado. (c) Tope de **6 descargas externas por tick**, seis porque son seis loterías: un
+tick puede cubrir cada una una vez. Lo que no cabe se aplaza (`deferred`), no se pierde. Un
+sorteo que no toca consultar no gasta presupuesto, así que los atrasados heredan el turno en
+cuanto los recientes se confirman. (d) Tope de **60 candidatos** examinados, red de seguridad
+que además mantiene el `in.()` de los resultados muy por debajo del límite de URI. (e) Orden
+determinista: `official_scheduled_at desc`, y `lottery_code asc` a igualdad de instante.
+(f) Migración **`0041`**: `lottery_sync_runs.schedule_id` con su índice parcial; los intentos
+se cuentan por sorteo. (g) La etapa de resultados se envuelve en su propio `try`: si se cae
+entera, el tick devuelve `results.errorCode` y **conserva** lo que la etapa de programación
+dejó hecho. Son dos transacciones distintas y el reporte lo refleja.
+
+**Alternativas descartadas.** (a) Filtrar en TypeScript después de traerse el año: no evita
+la consulta gigante ni el `URI too long`. (b) Un horizonte propio distinto del que mira el
+Panel: dos números que significan lo mismo acaban divergiendo; hay una prueba unitaria que
+los ata. (c) Subir el tope «para ponerse al día antes»: seis loterías publican una vez al
+día; con diez ticks diarios el presupuesto sobra, y un tope alto es justo lo que provoca que
+una fuente oficial bloquee la IP (I-081). (d) Un endpoint de backfill: sería una URL pública
+que decide cuánto se descarga. No se añade. (e) Reescribir `0036` para meter la columna:
+las migraciones aplicadas son inmutables. (f) Contar los intentos por `(lottery_code,
+official_scheduled_at)` en vez de por `schedule_id`: funciona hasta que un sorteo se aplaza y
+cambia de hora, que es precisamente el caso que BR-L03/BR-L04 contemplan.
+
+**Consecuencia.** BR-L22. `results` pasa a informar `candidates` y `deferred` además de
+`fetched`/`confirmed`/`skipped`/`failed`; el Route Handler los devuelve tal cual. La
+documentación de `CRON_SECRET` se corrige en el mismo movimiento: **Vercel no la crea al
+declarar `crons`** —D-149 lo dio por hecho y por eso nadie notó los 401 (I-083)—.
 
 ---
 

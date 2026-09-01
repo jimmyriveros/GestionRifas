@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { LOTTERY_PUBLICATION_DELAY_MINUTES } from '@/features/lottery/constants'
+import {
+  LOTTERY_CODES,
+  LOTTERY_PUBLICATION_DELAY_MINUTES,
+  LOTTERY_RESULT_SYNC,
+} from '@/features/lottery/constants'
+import { LOTTERY_DASHBOARD_LOOKBEHIND_DAYS } from '@/features/lottery/dashboard'
 import {
   addIsoDays,
   bogotaIsoDate,
   decideResultFetch,
   isMorningReconciliation,
   officialResultFitsSchedule,
+  resultSyncHorizon,
 } from '@/features/lottery/publication'
 import { cundinamarcaResultLookupUrl } from '@/features/lottery/sources'
 
@@ -189,5 +195,40 @@ describe('Cundinamarca JSON con sorteo conocido (I-081)', () => {
     )
     expect(url).toContain('sorteo=4817')
     expect(url).not.toMatch(/numero=|billete=/)
+  })
+})
+
+describe('horizonte del sincronizador (D-152, BR-L22)', () => {
+  const now = new Date('2026-09-01T12:00:00-05:00')
+
+  it('abre diez dias atras, al comenzar el dia de Bogota, y cierra ahora', () => {
+    const horizon = resultSyncHorizon(now)
+    expect(horizon.fromIso).toBe('2026-08-22T00:00:00-05:00')
+    expect(horizon.toIso).toBe(now.toISOString())
+    expect(new Date(horizon.fromIso).getTime()).toBeLessThan(now.getTime())
+  })
+
+  it('cubre el sorteo del dia anterior y deja fuera el del ano pasado', () => {
+    const horizon = resultSyncHorizon(now)
+    const from = new Date(horizon.fromIso).getTime()
+    const to = new Date(horizon.toIso).getTime()
+
+    const ayer = new Date('2026-08-31T23:00:00-05:00').getTime()
+    expect(ayer).toBeGreaterThanOrEqual(from)
+    expect(ayer).toBeLessThanOrEqual(to)
+
+    const enero = new Date('2026-01-12T23:00:00-05:00').getTime()
+    expect(enero).toBeLessThan(from)
+  })
+
+  it('el horizonte hacia atras es el mismo que mira el Panel', () => {
+    expect(LOTTERY_RESULT_SYNC.lookbehindDays).toBe(LOTTERY_DASHBOARD_LOOKBEHIND_DAYS)
+  })
+
+  it('un tick puede cubrir las seis loterias una vez, y no mas', () => {
+    expect(LOTTERY_RESULT_SYNC.maxFetchesPerTick).toBe(LOTTERY_CODES.length)
+    expect(LOTTERY_RESULT_SYNC.maxCandidates).toBeGreaterThan(
+      LOTTERY_RESULT_SYNC.maxFetchesPerTick,
+    )
   })
 })

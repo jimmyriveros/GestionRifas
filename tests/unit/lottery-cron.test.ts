@@ -138,7 +138,7 @@ describe('tick del sincronizador', () => {
       },
       syncResults: async () => {
         resultCalls += 1
-        return { fetched: 1, confirmed: 1, skipped: 0, failed: 0 }
+        return { candidates: 1, fetched: 1, confirmed: 1, skipped: 0, failed: 0, deferred: 0 }
       },
     })
     expect(summary.skipped).toBe(true)
@@ -159,7 +159,7 @@ describe('tick del sincronizador', () => {
       },
       loadScheduleMeta: async () => ({ lastSuccessAt: null, lastAttemptAt: null }),
       syncSchedule: async () => ({ ran: true, outcome: 'failed', errorCode: 'timeout' }),
-      syncResults: async () => ({ fetched: 1, confirmed: 0, skipped: 3, failed: 1 }),
+      syncResults: async () => ({ candidates: 4, fetched: 1, confirmed: 0, skipped: 3, failed: 1, deferred: 0 }),
     })
     expect(summary.skipped).toBe(false)
     expect(summary.schedule.outcome).toBe('failed')
@@ -185,11 +185,35 @@ describe('tick del sincronizador', () => {
         scheduleCalls += 1
         return { ran: true, outcome: 'success' }
       },
-      syncResults: async () => ({ fetched: 0, confirmed: 0, skipped: 6, failed: 0 }),
+      syncResults: async () => ({ candidates: 6, fetched: 0, confirmed: 0, skipped: 6, failed: 0, deferred: 0 }),
     })
     expect(summary.schedule).toEqual({ ran: false, outcome: 'skipped' })
     expect(scheduleCalls).toBe(0)
     expect(summary.results.skipped).toBe(6)
+    expect(released).toBe(true)
+  })
+
+  it('si la etapa de resultados se cae entera, la programacion sincronizada se conserva', async () => {
+    let released = false
+    const summary = await runLotterySyncTick({
+      now: new Date('2099-06-16T08:00:00-05:00'),
+      client: dummyClient,
+      acquireLock: async () => true,
+      releaseLock: async () => {
+        released = true
+      },
+      loadScheduleMeta: async () => ({ lastSuccessAt: null, lastAttemptAt: null }),
+      syncSchedule: async () => ({ ran: true, outcome: 'success', inserted: 312, changed: 0 }),
+      syncResults: async () => {
+        throw new Error('fetch failed')
+      },
+    })
+
+    expect(summary.skipped).toBe(false)
+    expect(summary.schedule.outcome).toBe('success')
+    expect(summary.schedule.inserted).toBe(312)
+    expect(summary.results.errorCode).toBe('network_error')
+    expect(summary.results.fetched).toBe(0)
     expect(released).toBe(true)
   })
 })

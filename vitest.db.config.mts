@@ -25,6 +25,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
+      // El mismo sustituto que usa `vitest.config.mts`. Hace falta desde
+      // D-152: `tests/db/lottery-horizon.test.ts` ejerce el orquestador real
+      // (`features/lottery/sync.ts`) contra la base local, y ese modulo
+      // importa `server-only`, que lanza fuera de un Server Component. No
+      // debilita nada: la frontera la sigue imponiendo el build de Next.
+      'server-only': path.resolve(import.meta.dirname, './tests/stubs/server-only.ts'),
     },
   },
 })

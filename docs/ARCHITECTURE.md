@@ -1188,6 +1188,33 @@ de `lottery_ticket_matches`: el vendedor ve las suyas; el personal, las de su or
 **Textos.** Los avisos de programación reutilizan `notificationMessage`. La serie, si
 existe, se llama «Serie informativa». No se usa «ganador».
 
+### 8.19.a Lo que un tick puede hacer hacia afuera (D-152, BR-L22)
+
+El cronograma de CNJSA es **anual**: al sincronizarlo nacen del orden de trescientos sorteos.
+La **programación** se guarda entera —hace falta para avisar de cambios y festivos—, pero la
+**consulta de resultados** está acotada por tres límites que viven en la consulta, no en un
+filtro posterior:
+
+| Límite | Valor | Dónde |
+|---|---|---|
+| Horizonte | sorteos jugados en los últimos **10 días**, hasta `now` | `resultSyncHorizon()` en `publication.ts` |
+| Descargas por tick | **6**, una por lotería | `LOTTERY_RESULT_SYNC.maxFetchesPerTick` |
+| Candidatos examinados | **60** | `LOTTERY_RESULT_SYNC.maxCandidates` |
+
+Los diez son los mismos que mira el Panel hacia atrás (`LOTTERY_DASHBOARD_LOOKBEHIND_DAYS`); hay
+una prueba unitaria que ata los dos números para que no diverjan. El orden es determinista
+—`official_scheduled_at desc`, `lottery_code asc`—, así que dos ticks con los mismos datos eligen
+los mismos sorteos. Lo que no cabe en el presupuesto se informa como `deferred` y lo atiende el
+tick siguiente; un sorteo que no toca consultar no gasta presupuesto, de modo que los atrasados
+heredan el turno en cuanto los recientes se confirman.
+
+Los **reintentos se cuentan por sorteo** (`lottery_sync_runs.schedule_id`, migración `0041`), no
+por lotería: Cundinamarca juega todos los lunes y contarlos por código mezclaba fechas.
+
+Las dos etapas del tick son independientes. La programación se guarda en su propia transacción
+(`sync_lottery_schedules`); si la etapa de resultados se cae entera, el tick devuelve
+`results.errorCode` y **conserva** lo que la primera dejó hecho.
+
 ### 8.20 Cabecera contextual al hacer scroll (D-150)
 
 La cabecera de `AppShell` ya era `sticky` (`h-14`, `z-40`). El encabezado de cada
@@ -1376,8 +1403,11 @@ aplican limpias desde cero, pero contra una instancia efímera, no contra el pro
 **Variables de entorno:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (públicas,
 D-028), `SUPABASE_SERVICE_ROLE_KEY` (solo servidor, marcada como sensible en Vercel) y
 `NEXT_PUBLIC_SITE_URL`/`TZ`. `LOTTERY_SYNC_SECRET` (o `CRON_SECRET`) autoriza `/api/lottery/sync`;
-no es obligatoria en el build. En producción Vercel inyecta `CRON_SECRET` con los
-`crons` (D-149). Sin ninguno de los dos, el Route Handler falla cerrado.
+no es obligatoria en el build. **`CRON_SECRET` la crea una persona**: Vercel la envía como
+`Authorization: Bearer` en cada tick, pero **no la genera sola al declarar `crons`** (D-152
+corrige lo que D-149 dio por hecho). Sin ninguno de los dos, el Route Handler falla cerrado —y el
+programador recibe 401 en cada ejecución, que es exactamente lo que pasó del 2026-08-30 al
+2026-09-01.
 `scripts/check-env.ts` falla el build si falta alguna de las tres primeras. Detalle completo en
 `docs/DEPLOYMENT.md` §3.1.
 

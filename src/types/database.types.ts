@@ -413,6 +413,7 @@ export type Database = {
           records_changed: number
           records_read: number
           records_skipped: number
+          schedule_id: string | null
           started_at: string
         }
         Insert: {
@@ -428,6 +429,7 @@ export type Database = {
           records_changed?: number
           records_read?: number
           records_skipped?: number
+          schedule_id?: string | null
           started_at?: string
         }
         Update: {
@@ -443,9 +445,18 @@ export type Database = {
           records_changed?: number
           records_read?: number
           records_skipped?: number
+          schedule_id?: string | null
           started_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lottery_sync_runs_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_draw_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lottery_ticket_matches: {
         Row: {

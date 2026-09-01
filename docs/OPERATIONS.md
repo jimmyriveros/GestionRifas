@@ -146,6 +146,12 @@ El recuadro puede aparecer vacío o con «Horario por confirmar» hasta el prime
 exitoso, y Cruz Roja o Bogotá pueden no salir si la fuente oficial no entrega el
 resultado a una consulta automatizada (I-081): eso no es un fallo de la pantalla.
 
+**El primer tick no lo trae todo de golpe, y es a propósito.** Cada ejecución consulta como
+mucho **seis** sorteos, de los jugados en los **últimos diez días**, empezando por el más
+reciente (D-152). Si se importa el cronograma de un año, lo viejo no se rellena: se atiende lo
+que el Panel enseña, y lo demás espera al tick siguiente. Un resultado ya confirmado no se
+vuelve a pedir nunca.
+
 Si hace falta dispararlo a mano en local: `npm run lottery:sync -- --probe` (solo
 comprueba el secreto) o sin `--probe` (consulta de verdad), con `npm run dev:local` y
 `LOTTERY_SYNC_SECRET` en `.env.local`.

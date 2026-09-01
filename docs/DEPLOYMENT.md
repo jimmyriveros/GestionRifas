@@ -108,18 +108,30 @@ Settings → Environment Variables del proyecto `gestion-rifas`, scope **Product
 | `SUPABASE_SERVICE_ROLE_KEY` | **Sensitive** | El de `.env.local` (Supabase → Connect → Service role key) |
 | `NEXT_PUBLIC_SITE_URL` | Plain | La URL de producción, la misma de §2.1 |
 | `TZ` | Plain | `UTC` (D-022 — la conversión a Bogotá es explícita en la presentación) |
-| `LOTTERY_SYNC_SECRET` | **Sensitive** | **Opcional.** Autoriza `/api/lottery/sync` (D-148, D-149). Mínimo 16 caracteres. En producción basta `CRON_SECRET`, que Vercel inyecta al declarar `crons`. Si se pone, **tiene que ser el mismo** que `CRON_SECRET` |
+| `CRON_SECRET` | **Sensitive** | **Obligatoria para que el programador funcione.** La creas tú; Vercel **no** la genera al declarar `crons` (D-152). Vercel la envía como `Authorization: Bearer` en cada tick. Mínimo 16 caracteres. Cambiarla exige **redesplegar**: el valor viaja con el despliegue |
+| `LOTTERY_SYNC_SECRET` | **Sensitive** | **Opcional.** El mismo secreto con otro nombre, para disparar el tick a mano (D-148). Si se pone, **tiene que ser idéntico** a `CRON_SECRET`: el handler prefiere esta y el cron envía la otra |
 
 `scripts/check-env.ts` (el `prebuild`) corta el build si falta alguna de las tres claves de Supabase.
 Hoy no valida `NEXT_PUBLIC_SITE_URL`; comprobarla en Vercel sigue siendo un paso manual (I-049).
 `LOTTERY_SYNC_SECRET` no entra en el prebuild: sin ella el Route Handler usa `CRON_SECRET` o responde 401.
 
-### 3.1.c Programador de loterías — activado (D-149)
+### 3.1.c Programador de loterías — activado (D-149, corregido en D-152)
 
 `vercel.json` declara los **diez jobs diarios de Hobby** sobre `/api/lottery/sync`
 (`src/features/lottery/cron-plan.ts`). Son válidos también en Pro. Un job `*/15`
 rompería el despliegue en Hobby (I-082). Vercel envía `Authorization: Bearer` con
 `CRON_SECRET`. El Route Handler no usa sesión. Fluid Compute se conserva.
+
+**`CRON_SECRET` no aparece sola.** D-149 supuso que Vercel la inyectaba al declarar `crons`, y no
+es así: hay que crearla en Settings → Environment Variables (scope Production, tipo Sensitive) y
+**redesplegar**, porque el valor se resuelve en el despliegue. Del 2026-08-30 al 2026-09-01 los diez
+jobs corrieron a diario **contra un 401**: ni un solo tick entró (I-083).
+
+**Cómo se comprueba, y cómo se pausa.** `vercel crons ls` lista los jobs; el panel de Vercel los
+desactiva en Settings → Cron Jobs sin tocar `vercel.json`. **No** se pausan con
+`POST /v1/projects/{id}/pause`: eso bloquea el despliegue de producción entero y tumba la
+aplicación para los usuarios. Los ticks se leen en los registros de ejecución filtrando por
+`/api/lottery/sync`; un 401 significa secreto ausente o distinto.
 
 ### 3.1.b Fluid Compute — obligatorio para que la navegación no tarde segundos
 

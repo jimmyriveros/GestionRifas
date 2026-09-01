@@ -281,7 +281,9 @@ Etapa 2, `tests/unit/lottery-adapters.test.ts` y `tests/unit/lottery-fetch.test.
 Etapa 3, `tests/db/lottery-sync.test.ts`, `tests/unit/lottery-sync.test.ts` y
 `tests/unit/lottery-notifications.test.ts`;
 Etapa 5–6, `tests/unit/lottery-cron.test.ts`, `tests/db/lottery-cron.test.ts` y
-`tests/e2e/loterias-cron.spec.ts`; Etapa 6 clava que `vercel.json` declara los jobs Hobby):
+`tests/e2e/loterias-cron.spec.ts`; Etapa 6 clava que `vercel.json` declara los jobs Hobby;
+horizonte y presupuesto, `tests/db/lottery-horizon.test.ts`, que monta un cronograma **anual** de
+318 sorteos en la base local y ejerce el orquestador real sustituyendo solo la descarga externa):
 
 | ID | Caso | Resultado esperado |
 |----|------|--------------------|
@@ -315,6 +317,18 @@ Etapa 5–6, `tests/unit/lottery-cron.test.ts`, `tests/db/lottery-cron.test.ts` 
 | L-28 | Segundo tick concurrente | `skipped: locked`; no descarga |
 | L-29 | Programación ya sincronizada hoy | El tick omite CNJSA y sigue con resultados |
 | L-30 | Cerrojo: segundo acquire, holder ajeno, caducado | Falso / no suelta / se puede tomar; la sesión no ejecuta las RPC |
+| L-31 | Cronograma anual de 318 sorteos, ninguno con resultado | La selección de antes devuelve 318; la de ahora, **9** |
+| L-32 | Primer tick sobre ese cronograma | **6** descargas exactas; `candidates = fetched + skipped + deferred` |
+| L-33 | Horizonte | Todo candidato está entre «hace 10 días» y «ahora»; el de hace medio año no entra |
+| L-34 | Orden | Dos consultas seguidas devuelven la misma lista, de la más reciente a la más antigua |
+| L-35 | Cundinamarca del día anterior | Es el primer candidato y el tick lo consulta |
+| L-36 | Sorteo de la semana que viene | No es candidato; `decideResultFetch` responde `wait` |
+| L-37 | Tope bajado a 2 | Exactamente 2 descargas; el resto queda `deferred` |
+| L-38 | Seis sorteos recién intentados | Ninguno se vuelve a descargar; el presupuesto lo heredan los atrasados |
+| L-39 | Un sorteo con sus seis intentos agotados | Se salta él; el otro sorteo **de la misma lotería** sí se consulta |
+| L-40 | Bitácora de un tick | Una fila `results` por sorteo, con `schedule_id` distinto |
+| L-41 | Sorteo con resultado `confirmed` | Sigue siendo candidato y **no** gasta una descarga |
+| L-42 | La etapa de resultados se cae entera | El tick informa `results.errorCode` y conserva `schedule.outcome = success` |
 
 Verificaciones de catálogo (automatizadas, Fases 2, 7 y 9):
 

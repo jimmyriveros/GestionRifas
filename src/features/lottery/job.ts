@@ -29,10 +29,23 @@ export type ScheduleTickResult = {
 }
 
 export type ResultsTickResult = {
+  candidates: number
   fetched: number
   confirmed: number
   skipped: number
   failed: number
+  deferred: number
+  /** Solo si la etapa entera se cayo. La programacion ya sincronizada se conserva. */
+  errorCode?: string
+}
+
+const NO_RESULTS: ResultsTickResult = {
+  candidates: 0,
+  fetched: 0,
+  confirmed: 0,
+  skipped: 0,
+  failed: 0,
+  deferred: 0,
 }
 
 export type LotteryTickSummary = {
@@ -158,7 +171,7 @@ export async function runLotterySyncTick(
       skipped: true,
       reason: 'locked',
       schedule: { ran: false, outcome: 'skipped' },
-      results: { fetched: 0, confirmed: 0, skipped: 0, failed: 0 },
+      results: { ...NO_RESULTS },
     }
   }
 
@@ -182,7 +195,24 @@ export async function runLotterySyncTick(
       deps.syncResults ??
       ((db: LotteryDb, when: Date, id: string) =>
         syncDueLotteryResults(db, { now: when, correlationId: id }))
-    const results = await syncResults(client, now, correlationId)
+
+    // Las dos etapas son independientes: la programacion ya se guardo en su
+    // propia transaccion (`sync_lottery_schedules`). Si la de resultados se
+    // cae entera —la fuente, la red, una consulta—, el tick lo dice y
+    // conserva lo que la primera dejo hecho. No se deshace nada (D-152).
+    let results: ResultsTickResult
+    try {
+      results = await syncResults(client, now, correlationId)
+    } catch (error) {
+      results = {
+        ...NO_RESULTS,
+        errorCode: sanitizeErrorCode(
+          error instanceof Error && /timeout|network|fetch/i.test(error.message)
+            ? 'network_error'
+            : 'results_stage_error',
+        ),
+      }
+    }
 
     return { correlationId, skipped: false, schedule, results }
   } finally {

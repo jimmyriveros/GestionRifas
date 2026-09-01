@@ -30,9 +30,10 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| Siguiente fase | Ninguna. Mantenimiento: **«Ventas por fecha»**, reporte del vendedor (D-151, migración `0040`), **ya en producción** |
+| Siguiente fase | Ninguna. Mantenimiento en curso: **estabilizar el sincronizador de loterías**, etapa 1/6 (D-152, migración `0041`). **Sin desplegar** |
 | **Reportes** | Desde el 2026-08-31 (D-151, BR-T05..BR-T07) `/seller/reports` abre **«Ventas por fecha»** con las ventas de hoy, sin redirección. Una venta es una boleta `assigned` fechada por **`sale_date`**; «Abonado» es lo que llevan pagado **hoy**, no el dinero recibido esos días —eso lo sigue respondiendo «Pagos por fecha», intacto—. El predeterminado es **por portal**: `/owner/reports` conserva «Por vendedor» y **no** ofrece el nuevo. Migración **`0040`**: `report_sales_totals` y `tickets_sale_date_idx`, **aplicada al proyecto real el 2026-08-31**. **Ya en producción** |
-| **Resultados de loterías** | Etapa 6 (2026-08-30, D-149): `0036`–`0039` en el proyecto real, `vercel.json` con los 10 jobs Hobby, `CRON_SECRET` inyectado por Vercel. Recuadro del Panel, sync, matching y avisos de las etapas 1–5. **Cron activado** |
+| **Resultados de loterías** | Etapa 6 (2026-08-30, D-149): `0036`–`0039` en el proyecto real, `vercel.json` con los 10 jobs Hobby. Recuadro del Panel, sync, matching y avisos de las etapas 1–5. **Cron activado.** **`CRON_SECRET` NO la inyecta Vercel** —la crea una persona, D-152—: del 2026-08-30 al 2026-09-01 los diez jobs corrieron contra un **401** y ningún tick entró (I-083). El dueño la creó y redesplegó el 2026-09-01 |
+| **Sincronizador acotado** | Desde el 2026-09-01 (D-152, BR-L22) un tick consulta resultados solo de los sorteos jugados en los **últimos 10 días**, con orden determinista, **6 descargas** como máximo y **60 candidatos**; los reintentos se cuentan **por sorteo** (`0041`). El cronograma anual se sigue guardando entero. **Solo local: sin desplegar, y los cron siguen activos (I-084)** |
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
 | **Buscar en «Boletas»** | Desde el 2026-08-21 (D-100, BR-N13) el **único** campo de búsqueda encuentra por los números de la boleta **y** por el nombre del cliente que la tiene, devolviendo siempre boletas. Migración **`0029`**. **Ya en producción** (`e1b2fe1`, 2026-08-21) |
@@ -118,7 +119,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — «Ventas por fecha», reporte del vendedor (2026-08-31)
+## 1.a Último relevo significativo — estabilizar el sincronizador de loterías, etapa 1/6 (2026-09-01)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Un tick ya no puede recorrer el cronograma anual.** La consulta de resultados se limita a los sorteos jugados en los **últimos 10 días** —el mismo horizonte que mira el Panel—, en orden determinista, con un tope de **6 descargas externas** y **60 candidatos** por ejecución. Los reintentos se cuentan **por sorteo** (`0041`), no por lotería. Si la etapa de resultados se cae entera, el tick conserva la programación ya sincronizada. La **programación** sigue guardándose completa: hace falta para los avisos de cambios y festivos. `Query changes: la selección de sorteos gana ventana, orden y límite` · `Route changes: None` · `Migrations: 0041` · `New dependencies: None`. **NO desplegado** |
+| Archivos | **Nuevos:** `supabase/migrations/0041_lottery_sync_runs_schedule.sql`, `tests/db/lottery-horizon.test.ts`. **Tocados:** `features/lottery/{constants,publication,sync,job}.ts`, `types/database.types.ts` (solo el bloque de `lottery_sync_runs`), `vitest.db.config.mts` (alias `server-only`), `tests/unit/{lottery-sync,lottery-cron}.test.ts`, `.env.example`. Documentación: `DECISIONS` (D-152 y nota correctora en D-149), `BUSINESS_RULES` (BR-L22), `ARCHITECTURE` §8.19.a y variables de entorno, `DATA_MODEL` §4.13 y §5, `SECURITY` §4.8, `DEPLOYMENT` §3.1 y §3.1.c, `RUNBOOK` §7, `TESTING`, `KNOWN_ISSUES` (I-083, I-084), `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni una capa services, ni un módulo nuevo.** Los límites viven en `LOTTERY_RESULT_SYNC` junto a `LOTTERY_RESULT_RETRY`, y el horizonte en `publication.ts` con `bogotaIsoDate`/`addIsoDays`, que ya estaban. `decideResultFetch` **no se tocó**: sigue decidiendo lo mismo, solo que ahora sobre un conjunto acotado. El matching sigue en PostgreSQL. El Panel no importa el tick. `tickets_select` no se tocó |
+| Decisiones | **D-152** (horizonte de 10 días atado al del Panel por una prueba; 6 descargas = 6 loterías; 60 candidatos; orden `official_scheduled_at desc, lottery_code asc`; `schedule_id` en `0041`; etapas aisladas). **BR-L22**. Descartados: filtrar en TypeScript, un horizonte propio, subir el tope «para ponerse al día», un endpoint de backfill y reescribir `0036` |
+| Verificación | `npm run verify` ✅ · lint **0 errores** (2 avisos de siempre) · **579/579** unitarias (+5) · `build` ✅ · `test:db` **663/663** (+12). E2E **no** se ejecutó: no cambia ninguna pantalla, ruta ni texto visible. Errores encontrados y corregidos, **todos de las pruebas nuevas**: tres dobles de `syncResults` incompletas, `URI too long` al limpiar con 318 UUID y un `duplicate key` de una corrida rota anterior. Detalle y cifras en `TEST_RESULTS` |
+| Advertencias | **1)** **`0041` está solo en local y el código ya la usa** (`schedule_id`): no despliegues el frontend sin aplicarla. **2)** **Los diez cron siguen activos** (I-084) y este entorno no puede pausarlos; `pause_project` **no** es la forma —tumba la aplicación entera—. **3)** No subas `maxFetchesPerTick` para «ponerse al día»: es cómo se consigue que una fuente oficial bloquee la IP (I-081). **4)** El horizonte y `LOTTERY_DASHBOARD_LOOKBEHIND_DAYS` están atados por una prueba: cambiar uno obliga a decidir sobre el otro. **5)** No llames `download*` ni `runLotterySyncTick` desde una página. **6)** `CorrecionesLoterias.txt` y `prueba-abono.csv` son del dueño; no se commitean |
+| Pendiente | **Siguiente acción, y necesita autorización:** aplicar `0041` al proyecto real y desplegar; hasta entonces un tick autorizado corre con el comportamiento anterior. **Antes de eso, una persona tiene que pausar los cron** en Vercel (Settings → Cron Jobs). Etapa siguiente del encargo: el **adaptador de Cundinamarca** (2/6). Lo de siempre: I-081, I-082, I-077, I-072, I-074, I-075, I-068, I-062, I-063, I-024 |
+| Publicación | **Ninguna.** No hubo `db push`, ni push a `origin`, ni despliegue, ni tick de producción, ni llamada a una fuente oficial |
+| Git | Rama `main`, sobre **`48e4df6`**. Árbol con la migración `0041`, el sincronizador acotado, las pruebas y la documentación, **sin commitear en el momento de escribir esto**. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento |
+
+## 1.a.0 Relevo anterior — «Ventas por fecha», reporte del vendedor (2026-08-31)
 
 | Campo | Estado |
 |---|---|
@@ -1119,8 +1134,13 @@ features/lottery/  constantes (BR-L01) + adaptadores (Etapa 2) + sync.ts /
                     LotteryResultsCard (Etapa 4) + auth/job/cron-plan (Etapa 5).
                     El matching vive en PostgreSQL.
                     El Panel NO importa fetch/sync/adapters/job (D-147, BR-L20).
-                    vercel.json NO declara crons (D-148). No anadas exceljs ni
-                    cheerio (D-144). tickets_select no se toca (D-092, D-141)
+                    vercel.json SI declara los crons Hobby desde D-149.
+                    Los TOPES de un tick —horizonte de 10 dias, 6 descargas,
+                    60 candidatos— viven en LOTTERY_RESULT_SYNC (constants.ts) y
+                    la ventana en resultSyncHorizon (publication.ts): no los
+                    subas para «ponerse al dia» (D-152, BR-L22, I-081).
+                    No anadas exceljs ni cheerio (D-144).
+                    tickets_select no se toca (D-092, D-141)
 features/notifications/  avisos (D-093): campanita en el armazon, tabla escrita
                     por triggers o por las RPC internas de loteria, y el TEXTO
                     en text.ts —nunca en la base de datos, para no repetir I-030—

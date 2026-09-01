@@ -261,7 +261,9 @@ sorteo automático, ni portal de clientes: es programación oficial, número may
 textual con las boletas (BR-L01..BR-L20, D-140..D-147). La Etapa 1 dejó el contrato persistente; la
 Etapa 2, los adaptadores; la Etapa 3, la sincronización, el matching en vivo y los avisos; la
 Etapa 4, el recuadro del Panel; la Etapa 5, el Route Handler y el tick; la Etapa 6, las
-migraciones, el cron de Vercel y la producción (D-149). El resto de la lista sigue fuera
+migraciones, el cron de Vercel y la producción (D-149). Desde el 2026-09-01, el mantenimiento
+del encargo `CorrecionesLoterias.txt` acota lo que un tick puede consultar hacia afuera
+(BR-L22, D-152, migración `0041`, **sin desplegar**). El resto de la lista sigue fuera
 de alcance.
 
 ---

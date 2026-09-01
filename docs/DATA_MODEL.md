@@ -1,8 +1,9 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.10 · **Estado:** implementado · **Actualizado:** 2026-08-30
-- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0039`. `0001`–`0039`
-  están aplicadas y verificadas en local y en el proyecto Supabase real (D-149).
+- **Versión:** 2.11 · **Estado:** implementado · **Actualizado:** 2026-09-01
+- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0041`. `0001`–`0040`
+  están aplicadas y verificadas en local y en el proyecto Supabase real (D-149, D-151).
+  **`0041` está solo en local** (D-152): no se ha promovido.
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
   tipos generados en `src/types/database.types.ts`. Las pruebas de `tests/db/` verifican el
   esquema local; producción se comprueba con `verify:remote` y las sondas registradas en
@@ -610,10 +611,21 @@ Sin `UPDATE` ni `DELETE` (tampoco con `service_role`). FK compuestas con `organi
 
 `tickets` gana `UNIQUE (id, organization_id)` para esa FK. No cambia ninguna regla de boletas.
 
-### 4.13 `lottery_sync_runs` (`0036`)
+### 4.13 `lottery_sync_runs` (`0036`, ampliada en `0041`)
 
 Bitácora del proceso interno. RLS forzada **sin** política de `SELECT` para `authenticated`. No
 guarda el documento externo.
+
+`0041` añade **`schedule_id`** (`uuid`, nullable, FK a `lottery_draw_schedules` con
+`on delete set null`) y el índice parcial `lottery_sync_runs_schedule_idx`
+`(schedule_id, started_at DESC) WHERE schedule_id IS NOT NULL`. Un CHECK exige que solo las filas
+`kind = 'results'` la rellenen: sincronizar el cronograma no pertenece a ningún sorteo.
+
+**Por qué existe:** los reintentos se cuentan **por sorteo**, no por lotería. Contarlos por
+`lottery_code` mezclaba fechas —Cundinamarca juega todos los lunes— y agotaba el cupo del sorteo
+viejo con los intentos del nuevo (BR-L22, D-152). Es la única FK de loterías que no usa
+`restrict`: es una bitácora, y borrar una programación no puede fallar por su registro de
+intentos.
 
 ### 4.14 `lottery_sync_lock` (`0039`)
 
@@ -646,6 +658,7 @@ abandonado. RLS forzada **sin** política; `authenticated` lee cero filas. No es
 | `tickets` | `(assigned_at DESC) WHERE inventory_status = 'assigned'` (`0030`) | «Ventas recientes» del panel (D-102) |
 | `tickets` | `(seller_id, raffle_id, payment_status) WHERE inventory_status = 'assigned'` (`0030`) | Recuento de comisión que corre en **cada** abono (D-102) |
 | `tickets` | `(sale_date DESC, assigned_at DESC) WHERE inventory_status = 'assigned'` (`0040`) | Rango y orden del reporte «Ventas por fecha» (D-151) |
+| `lottery_sync_runs` | `(schedule_id, started_at DESC) WHERE schedule_id IS NOT NULL` (`0041`) | Intentos de **un** sorteo, del más reciente al más antiguo (D-152) |
 | `clients` | `(name) WHERE archived_at IS NULL` (`0030`) | Orden alfabético del listado de clientes (D-102) |
 | `clients` | `(created_at DESC) WHERE archived_at IS NULL` (`0030`) | «Clientes recientes» del panel (D-102) |
 | `payments` | `(payment_date DESC, created_at DESC)` (`0030`) | Orden del historial, **incluidos los anulados** (D-102) |

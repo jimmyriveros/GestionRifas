@@ -5,8 +5,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, Json } from '@/types/database.types'
 
 import { fetchLotteryResultForDraw } from './adapters'
-import type { LotteryCode } from './constants'
-import { decideResultFetch, officialResultFitsSchedule } from './publication'
+import { LOTTERY_RESULT_SYNC, type LotteryCode } from './constants'
+import { decideResultFetch, officialResultFitsSchedule, resultSyncHorizon } from './publication'
 import type { AdapterOutcome, NormalizedLotteryResult, NormalizedSchedule } from './types'
 
 export type LotteryDb = SupabaseClient<Database>
@@ -155,12 +155,40 @@ export type PendingDrawRow = {
 
 type ResultFetchInputStatus = 'none' | 'pending' | 'confirmed' | 'rejected' | 'conflict'
 
-export async function loadPendingResultDraws(client: LotteryDb): Promise<PendingDrawRow[]> {
+/**
+ * Sorteos que un tick puede consultar (D-152, BR-L22).
+ *
+ * Tres limites, y los tres viven en la CONSULTA, no en un filtro posterior:
+ *
+ *   1. Horizonte reciente: solo sorteos ya jugados dentro de los ultimos
+ *      `lookbehindDays`. El cronograma anual se conserva entero —hace falta
+ *      para avisar de cambios y festivos (BR-L18)—, pero un sorteo de hace
+ *      cinco meses no se descarga.
+ *   2. Orden determinista: del mas reciente al mas antiguo y, a igualdad de
+ *      instante, por codigo de loteria. Dos ticks con los mismos datos eligen
+ *      exactamente los mismos sorteos.
+ *   3. Tope de filas examinadas.
+ *
+ * `limit` es el tope de candidatos, no de descargas: esa cuenta la lleva
+ * `syncDueLotteryResults`.
+ */
+export async function loadPendingResultDraws(
+  client: LotteryDb,
+  input: { now?: Date; limit?: number } = {},
+): Promise<PendingDrawRow[]> {
+  const horizon = resultSyncHorizon(input.now ?? new Date())
+  const limit = input.limit ?? LOTTERY_RESULT_SYNC.maxCandidates
+
   const { data, error } = await client
     .from('lottery_draw_schedules')
     .select('id, lottery_code, draw_number, official_scheduled_at, reference_date, schedule_status')
     .in('schedule_status', ['scheduled', 'rescheduled_later', 'rescheduled_earlier'])
     .not('official_scheduled_at', 'is', null)
+    .gte('official_scheduled_at', horizon.fromIso)
+    .lte('official_scheduled_at', horizon.toIso)
+    .order('official_scheduled_at', { ascending: false })
+    .order('lottery_code', { ascending: true })
+    .limit(limit)
   if (error) throw error
 
   const rows = (data ?? []).filter(
@@ -236,17 +264,22 @@ export async function releaseLotterySyncLock(
   return data === true
 }
 
+/**
+ * Intentos de ESTE sorteo, no de esta loteria (D-152, BR-L22).
+ *
+ * Contarlos por `lottery_code` mezclaba sorteos: Cundinamarca juega todos los
+ * lunes, y con dos fechas abiertas cada intento de la mas nueva envejecia el
+ * cupo de la mas vieja. `schedule_id` (migracion `0041`) los separa.
+ */
 export async function countResultAttempts(
   client: LotteryDb,
-  lotteryCode: LotteryCode,
-  sinceIso: string,
+  scheduleId: string,
 ): Promise<{ failedAttempts: number; lastAttemptAt: string | null; lastErrorCode: string | null }> {
   const { data, error } = await client
     .from('lottery_sync_runs')
     .select('started_at, outcome, error_code')
     .eq('kind', 'results')
-    .eq('lottery_code', lotteryCode)
-    .gte('started_at', sinceIso)
+    .eq('schedule_id', scheduleId)
     .order('started_at', { ascending: false })
   if (error) throw error
 
@@ -264,6 +297,7 @@ export async function recordLotterySyncRun(
   input: {
     kind: 'schedule' | 'results'
     lotteryCode?: LotteryCode | null
+    scheduleId?: string | null
     attempt?: number
     correlationId?: string | null
   },
@@ -273,6 +307,7 @@ export async function recordLotterySyncRun(
     .insert({
       kind: input.kind,
       lottery_code: input.lotteryCode ?? null,
+      schedule_id: input.scheduleId ?? null,
       attempt: input.attempt ?? 1,
       correlation_id: input.correlationId ?? null,
       outcome: 'failed',
@@ -343,24 +378,52 @@ type FetchResultFn = (
   drawNumber: string,
 ) => Promise<AdapterOutcome<NormalizedLotteryResult>>
 
+export type ResultsSyncCounts = {
+  candidates: number
+  fetched: number
+  confirmed: number
+  skipped: number
+  failed: number
+  /** Candidatos que este tick no llego a examinar: agoto su presupuesto. */
+  deferred: number
+}
+
 /**
  * Recorre sorteos locales pendientes y confirma los que ya toca consultar.
  * `fetchResult` se inyecta para las pruebas; en vivo usa los adaptadores.
+ *
+ * El numero de descargas externas por tick esta acotado (D-152, BR-L22):
+ * como mucho `maxFetchesPerTick`. Lo que sobra no se pierde, se aplaza al
+ * tick siguiente, que vuelve a mirar la misma ventana en el mismo orden.
+ * Un sorteo que no toca consultar —confirmado, todavia sin publicar, en su
+ * margen entre reintentos— no gasta presupuesto porque no se descarga.
  */
 export async function syncDueLotteryResults(
   client: LotteryDb,
-  input: { now?: Date; fetchResult?: FetchResultFn; correlationId?: string } = {},
-): Promise<{ fetched: number; confirmed: number; skipped: number; failed: number }> {
+  input: {
+    now?: Date
+    fetchResult?: FetchResultFn
+    correlationId?: string
+    maxFetches?: number
+  } = {},
+): Promise<ResultsSyncCounts> {
   const now = input.now ?? new Date()
   const fetchResult = input.fetchResult ?? fetchLotteryResultForDraw
-  const pending = await loadPendingResultDraws(client)
+  const maxFetches = input.maxFetches ?? LOTTERY_RESULT_SYNC.maxFetchesPerTick
+  const pending = await loadPendingResultDraws(client, { now })
   let fetched = 0
   let confirmed = 0
   let skipped = 0
   let failed = 0
+  let deferred = 0
 
   for (const draw of pending) {
-    const attempts = await countResultAttempts(client, draw.lotteryCode, draw.officialScheduledAt)
+    if (fetched >= maxFetches) {
+      deferred += 1
+      continue
+    }
+
+    const attempts = await countResultAttempts(client, draw.id)
     const decision = decideResultFetch({
       lotteryCode: draw.lotteryCode,
       officialScheduledAt: draw.officialScheduledAt,
@@ -378,6 +441,7 @@ export async function syncDueLotteryResults(
     const runId = await recordLotterySyncRun(client, {
       kind: 'results',
       lotteryCode: draw.lotteryCode,
+      scheduleId: draw.id,
       attempt: attempts.failedAttempts + 1,
       correlationId: input.correlationId ?? null,
     })
@@ -410,5 +474,5 @@ export async function syncDueLotteryResults(
     }
   }
 
-  return { fetched, confirmed, skipped, failed }
+  return { candidates: pending.length, fetched, confirmed, skipped, failed, deferred }
 }

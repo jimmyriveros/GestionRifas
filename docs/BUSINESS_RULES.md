@@ -511,6 +511,7 @@ producción (D-149).
 | BR-L19 | Hay como máximo un aviso de resultado por sorteo y destinatario, y uno por cambio, versión y destinatario. No se avisa a quien no tiene coincidencias. El texto vive en la aplicación (D-146, I-030). | D | post-9 |
 | BR-L20 | El Panel lee solo datos locales ya persistidos. No consulta fuentes oficiales al navegar. Un resultado anterior no se presenta como el de hoy (D-147). | C, S | post-9 |
 | BR-L21 | El sincronizador corre fuera de la navegación, con un secreto de servidor, sin sesión. No acepta URLs del cliente. Un resultado confirmado no se vuelve a pedir. En producción lo dispara Vercel Cron con el plan Hobby (D-148, D-149). | S | post-9 |
+| BR-L22 | Un tick consulta resultados **solo** de sorteos ya jugados dentro de los últimos 10 días —el mismo horizonte que mira el Panel hacia atrás— y descarga **como máximo 6 fuentes** por ejecución, en orden determinista del más reciente al más antiguo. El cronograma anual se conserva entero: lo acotado es la consulta de resultados, no la programación. Los reintentos se cuentan **por sorteo** (`lottery_sync_runs.schedule_id`), nunca por lotería. Un fallo de la etapa de resultados no deshace la programación ya sincronizada (D-152). | S | post-9 |
 
 ---
 

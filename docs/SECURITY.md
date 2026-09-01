@@ -460,8 +460,18 @@ del cliente. Los intentos fallidos se limitan en memoria. Las RPC
 EXECUTE para authenticated**. `lottery_sync_lock` tiene RLS forzada y cero políticas. El
 tick usa `createAdminClient` solo para esas RPC internas (D-145). **El cron de
 producción está activo (D-149):** `vercel.json` declara los jobs Hobby. Vercel envía
-`CRON_SECRET` como Bearer. Sin secreto, o con uno de menos de 16 caracteres, responde
-401. Un `LOTTERY_SYNC_SECRET` distinto de `CRON_SECRET` haría 401 al programador.
+`CRON_SECRET` como Bearer, pero **no crea esa variable sola** (D-152): mientras no exista,
+el programador recibe 401 en cada ejecución. Sin secreto, o con uno de menos de 16
+caracteres, responde 401. Un `LOTTERY_SYNC_SECRET` distinto de `CRON_SECRET` haría 401 al
+programador.
+
+El mantenimiento de D-152 (BR-L22) acota lo que un tick autorizado puede hacer hacia
+afuera: la consulta de resultados se limita a un horizonte reciente y a un número máximo y
+determinista de descargas por ejecución. No es solo eficiencia — es la diferencia entre un
+proceso acotado y cientos de peticiones automáticas a seis sitios oficiales desde una IP de
+Vercel, que es como se consigue que a uno lo bloqueen (I-081). La migración `0041` no abre
+superficie: añade una columna y un índice a `lottery_sync_runs`, que sigue sin política de
+`SELECT` para `authenticated`.
 
 ### 4.9 «Ventas por fecha» (`0040`, BR-T05, D-151)
 

@@ -23,9 +23,63 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **574 ✅** | **651 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento) | ✅ | ✅ |
+| Post-9 vigente | **579 ✅** | **663 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Estabilizar el sincronizador de loterías, etapa 1/6 (2026-09-01, D-152)
+
+Mantenimiento posterior al plan. Autorizado expresamente. **Migración `0041`** (una columna y un
+índice), aplicada **solo en local**. No se desplegó nada ni se tocó el proyecto Supabase real.
+
+### a. Estado del programador, comprobado antes de programar
+
+| Qué | Resultado |
+|---|---|
+| Cron declarados | Los **diez** de `vercel.json`, activos |
+| Último tick observado | `GET /api/lottery/sync` **401** a las **12:13:53 UTC** del 2026-09-01, sobre `dpl_Edw5EzENepqAN2BuybgreWa9PxLc` |
+| Ticks autorizados hasta esa hora | **Ninguno.** Agrupado por código de estado en 7 días: un solo registro, y es un 401 |
+| Despliegue vigente | `dpl_DF9FUr6UCYLUb6PjhbW8dbg943Th`, redespliegue de `48e4df6`, `READY` a las ~12:17 UTC |
+| ¿Se pudieron pausar? | **No.** El MCP de Vercel no expone los cron; `pause_project` bloquea el despliegue de producción entero y habría tumbado la aplicación, así que **no se usó**. La CLI responde `The specified token is not valid`. Avisado al usuario de inmediato (I-084) |
+
+### b. Causa reproducida
+
+| Qué se montó | Qué hacía el código anterior | Qué hace ahora |
+|---|---|---|
+| Cronograma **anual** de **318** sorteos en la base local, ninguno con resultado | `loadPendingResultDraws()` seleccionaba **318** filas, sin ventana, sin orden y sin límite | **9** candidatos |
+| Ese mismo tick | Habría intentado descargar el resultado de cada sorteo ya jugado | **6** descargas exactas; `{candidates: 9, fetched: 6, confirmed: 0, skipped: 0, failed: 6, deferred: 3}` |
+| El `.in('schedule_id', …)` posterior | Con 318 UUID, PostgREST responde **`URI too long`** — observado al escribir la prueba, que fallaba así al limpiar por `schedule_id`. El tick habría reventado **antes** de descargar | 9 UUID; el tope de 60 candidatos lo mantiene lejos del límite |
+| Dos sorteos de Cundinamarca abiertos | `countResultAttempts()` contaba por `lottery_code` desde la hora oficial, así que los intentos del lunes nuevo agotaban el cupo del anterior | Se cuentan por `schedule_id` (`0041`): 6 y 0, cada uno el suyo |
+
+### c. Comandos
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx supabase start` | ✅ servicios arriba | — | — |
+| `npm run db:reset` + `npm run seed:local` | ✅ `0001`–`0041` limpias desde cero | La primera vez se lanzó `db:reset` **sin** volver a sembrar y las pruebas de base de datos fallaron al buscar los perfiles del seed | Se reejecutó `seed:local` |
+| Inspección de catálogo por `pg` | ✅ `schedule_id` presente, índice `lottery_sync_runs_schedule_idx`, CHECK `lottery_sync_runs_schedule_kind_check` | — | — |
+| `npx supabase gen types typescript --local` | ✅ `schedule_id` y la FK nueva | La salida viene en LF y el archivo del repositorio está en CRLF; reemplazarlo entero habría reformateado 2.217 líneas | Se aplicó solo el bloque de `lottery_sync_runs`, conservando CRLF |
+| `npm run typecheck` | ✅ | 3 errores: las tres dobles de `syncResults` de `lottery-cron.test.ts` no traían `candidates` ni `deferred` | Se completaron las tres |
+| `npm run lint` | ✅ 0 errores | 2 avisos de siempre («Compilation Skipped») | — |
+| `npm run test` | ✅ **579/579** (+5) | — | — |
+| `npm run build` | ✅ | — | — |
+| `npm run test:db` | ✅ **663/663** (+12) | Primer intento del archivo nuevo: `URI too long` al limpiar la bitácora con 318 UUID, y después un `duplicate key` porque la ejecución fallida había dejado el cronograma puesto | La bitácora se limpia por `correlation_id`; el montaje llama a `cleanup()` **antes** de insertar, así que una corrida rota no rompe la siguiente |
+
+### d. Lo que demuestra cada prueba nueva
+
+`tests/db/lottery-horizon.test.ts` (12) monta el cronograma anual y ejerce el orquestador real,
+sustituyendo **solo** la descarga externa: L-31 a L-41 de `TESTING.md`. `tests/unit/` añade el
+horizonte (`resultSyncHorizon`), la coherencia con la ventana del Panel, el tope por tick y L-42
+—la etapa de resultados se cae entera y la programación sincronizada se conserva—.
+
+### e. Lo que NO se hizo, y se dice
+
+- **No se desplegó nada.** `0041` está solo en local; el código de D-152 no está en producción.
+- **No se disparó un tick de producción**, ni a mano ni con `vercel crons run`: no hay token.
+- **No se pausaron los cron** (I-084): este entorno no puede, y pausar el proyecto entero no es eso.
+- **No se llamó a ninguna fuente oficial.** El adaptador real no se ejecuta en ninguna prueba nueva.
 
 ---
 
