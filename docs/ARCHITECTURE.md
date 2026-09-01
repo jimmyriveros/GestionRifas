@@ -251,7 +251,7 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/seller/team/[sellerId]` | seller | post-9 ✅ | Detalle de un integrante y sus ventas. Un id ajeno responde «no encontrada», no «denegado» (BR-E05) |
 | `/seller/payments` | seller | **5 ✅** | Historial de pagos |
 | `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?from=` (D-135) dice a dónde volver (`ticket`, `client`, `payments`, `dashboard`); `?ticketId=` marca la boleta del reparto y, sin `from`, también el destino (D-133) |
-| `/seller/reports` | seller | **6 ✅** | Sus reportes, sin el que compara vendedores (D-059) |
+| `/seller/reports` | seller | **6 ✅** · post-9 | Sus reportes, sin el que compara vendedores (D-059). Abre en **«Ventas por fecha»** con las ventas de hoy, sin redirección (D-151) |
 | `/api/reports/export` | según rol | **6 ✅** | Descarga CSV. **Fuera de `(protected)` a propósito**: un Route Handler no pasa por el layout, así que se protege a mano (D-060) |
 | `/api/lottery/sync` | secreto de servidor | post-9 ✅ | Tick de loterías (D-148, D-149). **Sin sesión.** El proxy lo deja pasar; Vercel Cron envía `CRON_SECRET` |
 
@@ -1215,6 +1215,39 @@ recorrido guiado (`page-header`, `page-actions`) no se duplican.
 
 **Fuera de `AppShell`.** «Cambiar contraseña» no monta el proveedor: el encabezado
 se pinta igual y no se observa nada.
+
+### 8.21 Reportes: un catálogo, dos portales, un predeterminado cada uno (D-151)
+
+`ReportsView` sigue siendo **una** pantalla para los dos portales. Lo que cambió al añadir «Ventas
+por fecha» es de dónde sale el reporte inicial.
+
+| Constante | Qué es |
+|---|---|
+| `REPORT_KEYS` | El **catálogo completo**: la unión de los dos portales. Es el dominio del parámetro `report` de la URL, no lo que ve nadie |
+| `OWNER_REPORT_KEYS` | Lo que ofrece `/owner/reports`. **No incluye** «Ventas por fecha» |
+| `SELLER_REPORT_KEYS` | Lo que ofrece `/seller/reports`. Empieza por «Ventas por fecha» |
+| `resolveReport(report, allowed)` | **El primero de la lista es el predeterminado de ese portal.** Un reporte que el portal no ofrece cae ahí en vez de romper la pantalla |
+| `reportKeysForRole(role)` | La lista de un rol. La usa el Route Handler del CSV para el 403 |
+
+No hay un predeterminado global, y por eso no puede haber un cambio en un portal que mueva el otro:
+antes el fallback era `reports[0]` escrito en línea dentro de `ReportsView`, ahora es una función
+pura con pruebas propias.
+
+**Las fechas efectivas se resuelven una sola vez, arriba.** `resolveSalesDateRange(filters)` decide
+el rango —hoy si falta un extremo— y `ReportsView` lo baja a los **tres** sitios que tienen que
+coincidir: los campos «Desde» y «Hasta» (`dateDefaults`), la consulta, y el enlace de exportación,
+que lleva las fechas ya resueltas y no las crudas de la URL. `buildReportCsv` llama a la misma
+función pura, de modo que un archivo pedido sin fechas trae el mismo día que muestra la pantalla.
+
+**Reutilización, sin una segunda lista de boletas.** La tabla es `ReportTable` con
+`TicketNumbersCell`, `PaymentStatusBadge`, `ticketFinancials`, `formatCOP`, `formatDateEs` y
+`DataTablePagination`: las mismas piezas de «Mis boletas». Lo único que hubo que abrir fue el tipo de
+`TicketNumbersCell`, que exigía un `TicketListItem` entero cuando solo usa dos campos; ahora acepta
+`TicketNumbersSource` y los llamadores de siempre encajan sin cambiar.
+
+**Ancho.** Siete columnas. Bajo `md` se retiran «Precio» y «Abonado», y **lo abonado no desaparece**:
+baja a una línea pequeña dentro de la celda de «Falta», que sí se ve. El bloque de la tabla conserva
+su `overflow-x-auto`; la página no se desplaza de lado ni a 320 px.
 
 ---
 

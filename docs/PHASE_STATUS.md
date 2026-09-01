@@ -19,7 +19,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 
 | Clasificación | Estado actual |
 |---|---|
-| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) y **la cabecera contextual al hacer scroll** (D-150, 2026-08-30, **en producción**) |
+| **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) y **la cabecera contextual al hacer scroll** (D-150, 2026-08-30, **en producción**) y **el reporte «Ventas por fecha» del portal del vendedor** (D-151, BR-T05..BR-T07, migración `0040`, 2026-08-31, **solo en local: falta desplegar**) |
 | **En curso** | Ninguna etapa de loterías. Etapas 1 a 6 entregadas (D-140..D-149). El programador de producción usa los jobs Hobby de Vercel |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
@@ -3088,3 +3088,59 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**
 6. Cruz Roja y Bogotá pueden no confirmarse solas (I-081): no eludir.
+
+---
+
+## Mantenimiento post-9 — «Ventas por fecha», reporte del vendedor (2026-08-31)
+
+Autorizado expresamente. Añade un reporte al portal del vendedor. **No toca el portal
+administrativo**, ni reglas de venta, pagos, saldos, rebajas, ganancias ni RLS.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Reporte | **«Ventas por fecha»** en `/seller/reports?report=sales-by-date`. Es el que se abre al entrar a `/seller/reports`, **sin redirección**: el día de hoy se deduce de que la URL no traiga fechas |
+| Indicadores | Boletas vendidas · Total vendido · Abonado · Saldo pendiente, calculados en SQL sobre **todo** el rango por `report_sales_totals` (`0040`). Se cumple `vendido − abonado = saldo` |
+| Detalle | Fecha · Boleta (sus dos números) · Cliente · Precio · Abonado · Falta · Pago. Cliente y boleta enlazan dentro del portal del vendedor. Paginación **de servidor**, orden `sale_date desc, assigned_at desc, id` |
+| Definición de venta | La de siempre (BR-T05): `inventory_status = 'assigned'` fechada por `tickets.sale_date`. Las anuladas no entran |
+| Significado | «Abonado» es lo que llevan pagado **hoy** esas boletas, no el dinero recibido esos días. La pantalla lo explica con un ejemplo (BR-T06). **«Pagos por fecha» no se tocó** |
+| Predeterminado por portal | `OWNER_REPORT_KEYS` y `SELLER_REPORT_KEYS`; el primero de cada lista manda (BR-T07). `/owner/reports` conserva «Por vendedor» |
+| CSV | Mismas fechas y filtros que la pantalla, todas las filas hasta `EXPORT_ROW_LIMIT`, `;` + BOM + CRLF + `DD/MM/AAAA`, protección de fórmulas, y aviso si se alcanza el tope |
+| Rendimiento | Índice `tickets_sale_date_idx` (`0040`), **elegido midiendo** con 300.000 boletas: 59 ms → 0,74 ms en el caso normal |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` ✅ (`typecheck`, lint 0 errores, **574/574** unitarias, `build`). `npm run test:db`
+**651/651**. E2E de esta tanda **23/23** (18 escritorio + 5 móvil) y suite completa **416/417**: el
+único fallo es el de orden de ejecución que ya registró D-150 —el pago anulado del seed sale de los
+5 más recientes—, verde en aislamiento con base limpia. Los errores encontrados —cinco en las pruebas
+de base de datos y siete en las E2E, **todos de las pruebas, ninguno del producto**— y las medidas de
+rendimiento están en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+| Archivo | Qué hace |
+|---|---|
+| `0040_report_sales_by_date.sql` | `report_sales_totals(from, to)` —`stable`, `security invoker`, `search_path` fijo, sin parámetro de vendedor ni de organización— y el índice parcial `tickets_sale_date_idx (sale_date desc, assigned_at desc) where inventory_status = 'assigned'` |
+
+### 4. Variables de entorno
+
+Ninguna nueva.
+
+### 5. Problemas que permanecen
+
+Los de siempre: I-030, I-062, I-063, I-068, I-072, I-074, I-075, I-077, I-081, I-082, I-024. Ninguno
+nuevo. Queda **una observación de fuera de alcance**: otras suites de `tests/db` limpian pagos por
+PostgREST e ignoran el error, así que su limpieza puede no estar ocurriendo (ver `TEST_RESULTS.md`,
+apartado b.1). No se tocó.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **`0040` está aplicada SOLO en local.** No se ha desplegado ni se han tocado datos reales.
+2. **No pongas `seller_id` delante en `tickets_sale_date_idx`.** Se midió y es peor; la prueba
+   `D151-05` falla si alguien lo «mejora» así.
+3. **No devuelvas las guardas `is null` a `report_sales_totals`.** Valen 60 ms y un barrido de tabla.
+4. **No añadas «Ventas por fecha» a `OWNER_REPORT_KEYS`** sin decidirlo: el encargo lo dejó fuera.
+5. **`tickets_select` no se tocó** y no hace falta tocarla.
+6. **No hay etiqueta `fase-N`**: es mantenimiento.

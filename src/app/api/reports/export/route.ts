@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { buildReportCsv, reportFilePrefix } from '@/features/reports/export'
-import { parseReportFilters, SELLER_REPORT_KEYS } from '@/features/reports/schemas'
+import { parseReportFilters, reportKeysForRole } from '@/features/reports/schemas'
 import { getActiveMembership, getAuthUser } from '@/lib/auth/session'
 import { csvFilename, csvHeaders } from '@/lib/csv'
 import { todayBogota } from '@/lib/dates'
@@ -40,7 +40,11 @@ export async function GET(request: NextRequest) {
 
   const filters = parseReportFilters(request.nextUrl.searchParams)
 
-  if (membership.role === 'seller' && !SELLER_REPORT_KEYS.includes(filters.report)) {
+  // El reporte pedido tiene que ser uno de los que su portal ofrece. Se rechaza
+  // en vez de caer al predeterminado —que es lo que hace la PANTALLA— porque
+  // aqui el resultado es un archivo: devolver otro reporte distinto del pedido,
+  // con el mismo nombre, seria peor que decir que no.
+  if (!reportKeysForRole(membership.role).includes(filters.report)) {
     return NextResponse.json({ error: 'No tienes acceso a ese reporte.' }, { status: 403 })
   }
 

@@ -203,6 +203,7 @@ describe('funciones privilegiadas', () => {
       'mark_profile_activated',
       'report_payment_totals',
       'report_payments_by_day',
+      'report_sales_totals',
       'search_tickets',
       'taken_ticket_combinations',
       'team_confirm_email_change',

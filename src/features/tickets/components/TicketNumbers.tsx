@@ -27,7 +27,18 @@ import type { TicketListItem } from '../queries'
 /** Dice cual de las dos cifras es cual. Se calla cuando falta alguna. */
 export const TICKET_NUMBERS_LEGEND = 'Diario · Semanal'
 
-export function hasBothNumbers(ticket: TicketListItem): boolean {
+/**
+ * Lo UNICO que estas tres piezas necesitan de una boleta.
+ *
+ * Pedir un `TicketListItem` entero obligaria a cada lista nueva a traerse la
+ * rifa, el vendedor y el codigo interno —o a inventarselos— solo para escribir
+ * dos cifras. El reporte «Ventas por fecha» (D-151) selecciona unicamente las
+ * columnas que enseña, y aun asi reutiliza esta celda tal cual. Los llamadores
+ * de siempre siguen pasando su `TicketListItem`, que encaja sin cambiar nada.
+ */
+export type TicketNumbersSource = Pick<TicketListItem, 'dailyNumber' | 'weeklyNumber'>
+
+export function hasBothNumbers(ticket: TicketNumbersSource): boolean {
   return ticket.dailyNumber !== null && ticket.weeklyNumber !== null
 }
 
@@ -36,7 +47,7 @@ export function TicketNumbersLink({
   href,
   className,
 }: {
-  ticket: TicketListItem
+  ticket: TicketNumbersSource
   href: string
   className?: string
 }) {
@@ -65,7 +76,7 @@ export function TicketNumbersCell({
   href,
   children,
 }: {
-  ticket: TicketListItem
+  ticket: TicketNumbersSource
   href: string
   children?: ReactNode
 }) {

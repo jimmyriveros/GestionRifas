@@ -23,11 +23,123 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **552 ✅** | **631 ✅** | E2E cabecera contextual **23/23**; suite completa en esta entrega | ✅ | ✅ |
+| Post-9 vigente | **574 ✅** | **651 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
+
+## Post-9 — «Ventas por fecha», reporte del vendedor (2026-08-31, D-151)
+
+Mantenimiento posterior al plan. Autorizado expresamente. **Migración `0040`** (una función y un
+índice), aplicada **solo en local**.
+
+### a. Comandos
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| `npx vitest run tests/unit/reports-sales-by-date.test.ts` | **22/22** | — | — |
+| `npm run test` (unitarias) | **574/574** (+22) | — | — |
+| `npm run verify` | ✅ `typecheck`, lint **0 errores** (2 avisos de siempre), **574/574**, `build` ✅ | Dos errores de tipos en las pruebas nuevas que `tsc --noEmit` no vio hasta el `build` | `rows[0]!` y el `embed` inválido `profiles:seller_id` cambiado por una consulta con `neq` |
+| `npm run test:db` (suite nueva, 1ª pasada) | 15/20 | Cinco fallos, **todos de la prueba, no del producto**. Ver (b) | Ver (b) |
+| `npm run test:db` (suite nueva, tras corregir) | **20/20** | — | — |
+| `npm run test:db` (completa) | **651/651** (+20) | — | — |
+| E2E `ventas-por-fecha` (1ª pasada) | 10/17 | Siete fallos, **todos de la prueba**. Ver (c) | Ver (c) |
+| E2E `ventas-por-fecha` (tras corregir) | **18/18** | — | — |
+| E2E `ventas-por-fecha-movil` | **5/5** | — | — |
+| `npm run test:e2e` (suite completa, 22,5 min) | **416/417** | 1 fallo: `reports.spec.ts › el panel administrativo muestra pagos recientes` | **No es de este cambio.** Es el fallo por orden de ejecución que ya registró D-150: `listPayments({ pageSize: 5 })` muestra los 5 más recientes y, tras el resto de la suite, el pago anulado del seed ya no entra. Comprobado en aislamiento con `db:reset` + `seed:local`: **1/1 ✅**. Las specs nuevas no crean pagos |
+
+### b. Errores de las pruebas de base de datos, con detalle
+
+1. **La limpieza no ocurría, y fallaba en silencio.** El `afterAll` borraba por PostgREST con la
+   service role e **ignoraba el error devuelto**. El error era real:
+   `check_payment_balance` comprueba al cerrar **cada** transacción que la suma de las asignaciones
+   de un pago sea igual a su total, así que borrar las asignaciones en una petición y el pago en la
+   siguiente deja un pago descuadrado a mitad de camino → *«El pago no cuadra: la suma de las
+   asignaciones (0) debe ser igual al total (20000)»*. Como no se borraba nada, cada ejecución dejaba
+   27 ventas más en la ventana de 2020 y la suite empezó a fallar contra sus propios restos (79 en
+   lugar de 27 a la tercera). **Corregido**: una sola transacción por la conexión de superusuario
+   —el patrón que `TESTING.md` §6.1 ya documenta para F9-02— y que **lanza** si falla.
+2. **`current_date` es el día UTC del contenedor, no el de Bogotá.** Dos pruebas comparaban contra
+   «hoy» y se ejecutaron a las 21:39 de Bogotá, que en UTC ya era el día siguiente: `current_date`
+   daba `2026-09-01` y `today_bogota()`, `2026-08-31`. **Corregido** anclando las dos a `sale_date`
+   y al fin de la ventana en vez de a «hoy»; así no dependen de la hora a la que se ejecuten.
+3. **`cancelled → assigned` no es una transición válida.** La prueba de anulación anulaba una de las
+   27 ventas y pretendía devolverla a su sitio con un `update`; el trigger
+   `tickets_validate_status_transition` lo impide, así que las pruebas siguientes contaban 26.
+   **Corregido**: la boleta se crea dentro de esa prueba solo para anularla, lo que además demuestra
+   las dos direcciones —entra al venderse, sale al anularse— en vez de solo una.
+
+### c. Errores de las pruebas E2E, con detalle
+
+1. **«El seed no vende nada hoy» era falso.** `assign_ticket` fecha con `today_bogota()`, así que el
+   seed sí tiene ventas de hoy y el estado inicial no es el estado vacío. **Corregido**: la prueba
+   lee de la base cuántas ventas de hoy tiene el vendedor y compara el indicador contra esa cifra,
+   con la rama de estado vacío si es cero.
+2. **`getByText('Boletas vendidas')` encontraba dos elementos**: el rótulo de la tarjeta y el
+   `caption` de la tabla, que dice «boletas vendidas el 10 de jun». **Corregido** con un helper que
+   localiza la tarjeta por `[data-slot="card"]` y texto exacto.
+3. **El BOM no se puede comprobar desde el navegador.** `response.text()` lo consume al decodificar
+   UTF-8 y llega la `F` de «Fecha». **Corregido** retirando esa aserción: la cubre
+   `unit/csv.test.ts`, que mira la cadena antes de viajar.
+4. **Dos `loginAs` en la misma prueba.** El segundo no encontraba el campo de correo porque la sesión
+   anterior seguía abierta. **Corregido** partiéndola en dos pruebas.
+
+### d. Rendimiento, antes y después
+
+Base **local** cargada con volumen sintético; nunca se tocó producción. **300.008** boletas vendidas,
+**150.006** de un solo vendedor, repartidas en **1.096 días** (~137 ventas por día y vendedor).
+`explain (analyze, buffers)` con sesión real de vendedor (`set role authenticated` +
+`request.jwt.claims`), **mejor de 5 intentos**. Tiempo · páginas de *buffers*:
+
+| Consulta | Sin índice | A: `(seller_id, sale_date desc, assigned_at desc)` | **B: `(sale_date desc, assigned_at desc)`** |
+|---|---:|---:|---:|
+| Totales del día | 59,0 ms · 8.372 | 5,3 ms · 2.096 | **0,74 ms · 290** |
+| Página de detalle del día | 57,2 ms · 8.378 | 5,3 ms · 2.096 | **0,46 ms · 67** |
+| Totales de un mes | 60,1 ms · 8.372 | 5,7 ms · 2.103 | **0,94 ms · 297** |
+| Página de detalle de un mes | 59,6 ms · 8.372 | 5,6 ms · 2.369 | **0,49 ms · 67** |
+| Totales de un año | 63,3 ms · 8.372 | 26,6 ms · 4.791 | **21,8 ms · 3.367** |
+| Página 5 de un año (orden y paginación) | 72,5 ms · 8.372 | 72,5 ms · 8.372 | **0,58 ms · 267** |
+
+Las tres formas probadas y por qué gana la segunda columna:
+
+* **A, la que parecía obvia** en un reporte del vendedor. Usa el índice, pero no puede **acotar** con
+  él —2.096 páginas para devolver 137 filas— porque la política compara el vendedor contra
+  `(select current_profile_id())`, un parámetro de ejecución. En el caso más ancho lo descarta y
+  vuelve al barrido. Es la lección de **D-102**, con otra columna.
+* **B, la elegida.** `sale_date` es la columna por la que se filtra **y** por la que se ordena: el
+  recorrido ya viene ordenado, la RLS se aplica como filtro sobre la marcha y la página 5 de un año
+  se resuelve con una *incremental sort* que se detiene en la fila 126. Pesa **9,3 MB**.
+* **C, `(seller_id, sale_date desc, assigned_at desc, id)`**, por si meter el tercer criterio de
+  orden dentro del índice evitaba la ordenación: peor que A en todo (2.748 páginas) y tampoco
+  arregla la página 5 del año. Descartada.
+
+**El hallazgo que no esperaba: la función barría la tabla con índice y sin él.** Escrita como
+`report_payment_totals` —`(p_x is null or columna <op> p_x)`, para que un parámetro ausente
+signifique «sin filtrar»—, `report_sales_totals` tardaba **67 ms y 8.374 páginas** mientras **el
+mismo agregado escrito en la consulta tardaba 5,5 ms y leía 2.096**. Causa: una función SQL cuyo
+cuerpo tiene agregados **no se puede *inlinear***, así que se planifica aparte, y un `OR` sobre un
+parámetro no puede convertirse en condición de índice. Comprobado que **no** es la caché de planes:
+
+| Variante de la función | Totales del día | Totales de un año |
+|---|---:|---:|
+| Con guardas `is null` | 69,2 ms · 8.374 | 70,7 ms · 8.374 |
+| Con guardas + `plan_cache_mode = 'force_custom_plan'` | 67,3 ms · 8.374 | 71,0 ms · 8.374 |
+| **Sin guardas** | **5,5 ms · 2.096** | **26,4 ms · 4.791** |
+| Sin guardas + `force_custom_plan` | 5,7 ms · 2.096 | 26,1 ms · 4.791 |
+
+Las dos fechas pasaron a ser **obligatorias**. `report_payment_totals` **no se tocó**: es otro
+reporte, con otros índices y con filtros opcionales de verdad (vendedor, método, estado). Queda
+anotado por si algún día se mide.
+
+### e. Verificación responsive
+
+| Ancho | Resultado |
+|---|---|
+| 320 px | Sin desbordamiento horizontal de la página; la tabla se desplaza dentro de su bloque; «Precio» y «Abonado» se retiran y lo abonado sigue leyéndose bajo «Falta» |
+| 390 px | Sin desbordamiento |
+| Pixel 7 (412 px, proyecto `movil`) | 5/5 |
+| Escritorio | 18/18 |
 
 ## Post-9 — Cabecera contextual al hacer scroll (2026-08-30, D-150)
 

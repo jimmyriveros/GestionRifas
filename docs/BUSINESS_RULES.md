@@ -460,6 +460,9 @@ El límite siempre es `sale_price`, nunca una cifra escrita en el código.
 | BR-T02 | Las tablas principales se exportan a CSV. | C, S | 6 |
 | BR-T03 | Los reportes del portal Seller nunca exponen datos de otros vendedores. | S, D | 6 |
 | BR-T04 | Todos los reportes son filtrables por rifa; los administrativos también por vendedor, cliente, estado y fecha. | S | 6 |
+| BR-T05 | **«Ventas por fecha»** (portal Seller, D-151). Una venta es una boleta con `inventory_status = 'assigned'`, fechada **exclusivamente** por `tickets.sale_date` —nunca por `created_at`, `assigned_at` ni `payments.payment_date`—. Sus cuatro indicadores son el número de boletas, `SUM(sale_price)`, `SUM(paid_amount)` y la resta de ambas, calculados en SQL sobre **todo** el rango. | S, D | post-9 |
+| BR-T06 | «Abonado» de BR-T05 es lo que llevan pagado **hoy** esas boletas, **no** el dinero recibido en esas fechas. El dinero por fecha de ingreso lo responde «Pagos por fecha» (`report_payment_totals`), que no cambia. Los dos números difieren en cuanto un cliente abona un día después de comprar. | S | post-9 |
+| BR-T07 | El reporte inicial depende del **portal**: `/seller/reports` abre «Ventas por fecha» y `/owner/reports` conserva «Por vendedor». Un `report` que el portal no ofrece cae al primero de su lista; el Route Handler del CSV lo rechaza con 403 en vez de sustituirlo. | C, S | post-9 |
 
 ---
 

@@ -1791,6 +1791,18 @@ export type Database = {
           voided_amount: number
         }[]
       }
+      report_sales_totals: {
+        Args: {
+          p_date_from: string
+          p_date_to: string
+        }
+        Returns: {
+          paid_amount: number
+          pending_amount: number
+          tickets_count: number
+          total_sold: number
+        }[]
+      }
       require_auth: { Args: never; Returns: string }
       search_normalize: { Args: { value: string }; Returns: string }
       search_tickets: {

@@ -14,6 +14,10 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>
  * Eso es una decision de producto, no la barrera de seguridad: aunque alguien
  * pidiera `?report=sellers&sellerId=<otro>`, las vistas `security_invoker`
  * devolverian unicamente sus propias filas.
+ *
+ * ENTRAR SIN PARAMETROS ABRE «VENTAS POR FECHA» con las ventas de hoy (D-151).
+ * No hay redireccion: el reporte es el primero de `SELLER_REPORT_KEYS` y el dia
+ * lo deduce `resolveSalesDateRange` de que no haya fechas en la URL.
  */
 export default async function SellerReportsPage({ searchParams }: { searchParams: SearchParams }) {
   await requireRole(['seller'])
@@ -25,6 +29,7 @@ export default async function SellerReportsPage({ searchParams }: { searchParams
       reports={SELLER_REPORT_KEYS}
       basePath="/seller/reports"
       clientBasePath="/seller/clients"
+      ticketBasePath="/seller/tickets"
     />
   )
 }

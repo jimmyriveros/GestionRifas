@@ -5552,6 +5552,103 @@ dependencias.
 
 ---
 
+## D-151 — «Ventas por fecha»: qué es una venta, con qué fecha, y por qué el predeterminado es por portal
+**Fase:** mantenimiento posterior a la Fase 9 (reportes, 2026-08-31)
+
+**Contexto.** El vendedor tenía cuatro reportes y ninguno respondía la pregunta
+que se hace al terminar el día: *¿qué vendí hoy, a quién, por cuánto y cuánto
+falta por cobrar?* «Pagos por fecha» responde otra cosa —el dinero que entró— y
+«Clientes con saldo» no está fechado.
+
+**Decisión.**
+
+**(a) Qué es una venta: la definición que ya existía.** Boleta con
+`inventory_status = 'assigned'`, fechada **exclusivamente** por
+`tickets.sale_date`. Es la misma que usan `v_seller_summary`,
+`v_raffle_summary` y `v_client_balances` para decir «vendido» y «saldo», así que
+las anuladas no entran y el dinero sigue siendo `sale_price` contra
+`paid_amount` (BR-P03, BR-F07, BR-F08). No se inventó ninguna (BR-T05).
+
+**(b) «Abonado» no es «recaudado».** El reporte cuenta boletas por su fecha de
+**venta** y dice lo que llevan pagado **hoy**. Una boleta vendida el lunes y
+abonada el martes suma en las ventas del lunes; el ingreso pertenece al martes,
+que es lo que dice «Pagos por fecha». Los dos números son distintos en cuanto
+alguien abona un día después de comprar —o sea, casi siempre—, así que la
+pantalla **lo escribe** en vez de confiar en que se deduzca (BR-T06).
+
+**(c) El predeterminado es por portal, no global.** `REPORT_KEYS` pasa a ser el
+catálogo completo —la unión de los dos portales— y se añaden `OWNER_REPORT_KEYS`
+y `SELLER_REPORT_KEYS`. **El primero de cada lista es el predeterminado de ese
+portal** y lo resuelve `resolveReport()`. Así `/seller/reports` abre «Ventas por
+fecha» y `/owner/reports` conserva «Por vendedor» sin que ninguno de los dos
+tenga que saber del otro. El reporte **no** se añadió al portal administrativo.
+
+**(d) Hoy se deduce de la ausencia de fechas, no de una redirección.**
+`resolveSalesDateRange()` es la **única** función que decide el rango efectivo, y
+la usan los tres sitios que deben coincidir: los campos «Desde» y «Hasta», la
+consulta y el enlace de exportación. Si falta un extremo, es hoy. Entrar sin
+parámetros no redirige ni recarga; la URL se queda limpia y «Limpiar filtros»
+vuelve al estado inicial simplemente borrándolos. Con «Desde» posterior a
+«Hasta» no se consulta un rango inventado: se avisa y se deja corregir.
+
+**(e) El dinero lo agrega SQL; las filas las pagina el servidor.**
+`report_sales_totals(from, to)` (migración `0040`) devuelve una fila con los
+cuatro indicadores sobre **todo** el rango. `pending_amount` se calcula como
+resta de las dos sumas, no como `sum(sale_price - paid_amount)`: solo así la
+identidad *vendido − abonado = saldo* es cierta pase lo que pase. Las filas
+salen de una lectura paginada de `tickets` con el cliente **incrustado**, sin
+consulta por fila. **No hay una tercera consulta para contar:** el
+`tickets_count` de la función es el total de la paginación, porque cuenta el
+mismo predicado bajo la misma RLS.
+
+**(f) La función no acepta vendedor ni organización.** A diferencia de
+`report_payment_totals` —que sí acepta vendedor, porque el personal necesita
+acotar—, aquí el reporte es del portal del vendedor y **no hay ningún parámetro
+de autoridad que manipular**. `security invoker` + `tickets_select` hacen el
+resto. La RLS no se amplió ni se tocó.
+
+**(g) El índice se eligió midiendo, y lo obvio salió mal.** Con 300.000 boletas
+vendidas y sesión real de vendedor se probaron tres formas. La que parecía
+evidente —`(seller_id, sale_date desc, assigned_at desc)`, porque es un reporte
+del vendedor— es **peor** que `(sale_date desc, assigned_at desc)` en las seis
+consultas medidas, y en la más ancha no sirve de nada: la política compara el
+vendedor contra `(select current_profile_id())`, un parámetro de ejecución, así
+que el planificador no puede acotar con él. Es la lección de D-102 otra vez, con
+otra columna. Tabla completa en `docs/DATA_MODEL.md` §5 y en
+`docs/TEST_RESULTS.md`.
+
+**(h) La función tuvo que perder sus guardas `is null`, y eso valía 60 ms.**
+Escrita como `report_payment_totals` —`(p_x is null or columna <op> p_x)` para
+que un parámetro ausente signifique «sin filtrar»— la función **barría la tabla
+entera con índice y sin él**: 67 ms y 8.374 páginas, frente a 5,5 ms del mismo
+agregado escrito en la consulta. Una función SQL cuyo cuerpo tiene agregados no
+se puede *inlinear*, así que se planifica aparte, y un `OR` sobre un parámetro no
+puede convertirse en condición de índice. No es la caché de planes: se probó
+`plan_cache_mode = 'force_custom_plan'` y no cambia nada. Las dos fechas son
+**obligatorias**, que además describe la realidad —`resolveSalesDateRange`
+siempre resuelve las dos— y quita un parámetro que nadie usaba y costaba un
+barrido. `report_payment_totals` no se tocó: es otro reporte, con otros índices y
+con filtros opcionales de verdad.
+
+**Alternativas descartadas.** (1) **Redirigir a `?dateFrom=hoy&dateTo=hoy`**:
+dos cargas y una entrada de más en el historial, para escribir un dato que ya se
+sabe. (2) **Un predeterminado global distinto**: cambiaría el portal
+administrativo, que el encargo prohíbe tocar. (3) **Fila de totales en la
+tabla**: sumaría solo las 25 filas de la página, a cuatro centímetros de unos
+indicadores que suman el rango entero. (4) **Fechar por `assigned_at`**: es una
+marca técnica con hora, y una venta registrada a las 23:50 de Bogotá caería en el
+día siguiente en UTC. (5) **Reutilizar `listTickets`**: no sabe filtrar por rango
+de `sale_date` ni ordenar por ella, y añadírselo cargaría la pantalla más usada
+de la aplicación con un caso que solo usa un reporte. (6) **Una vista**: el rango
+es un parámetro.
+
+**Consecuencia.** Quien añada un reporte lo declara en `REPORT_KEYS` y lo mete en
+la lista del portal que corresponda; el predeterminado sale solo. Quien añada un
+portal pasa `ticketBasePath` a `ReportsView`. Y quien toque el rango de fechas
+tiene un único sitio: `resolveSalesDateRange()`.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

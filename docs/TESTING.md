@@ -388,6 +388,28 @@ migración dependen por completo de su cláusula `where`: es lo único que permi
 usarlos para ordenar. Un índice con el nombre correcto y la condición quitada pasa cualquier
 comprobación de existencia y no sirve para nada.
 
+### 4.2.b Ventas por fecha (`tests/db/reports-sales-by-date.test.ts`, 17 pruebas)
+
+Añadidas con D-151. Comprueban `report_sales_totals` con el criterio de la Fase 6: **cada cifra se
+reproduce con una consulta SQL de control** escrita a mano contra las tablas base, y lo que se prueba
+se pide siempre con una sesión real y la clave pública.
+
+**Sus ventas viven en marzo de 2020.** La función no acepta rifa ni vendedor: agrega todo lo que la
+RLS deja ver dentro de un rango. Con fechas de hoy, las boletas del seed y las que crean otras suites
+entrarían en la cuenta y los números dependerían del orden de ejecución (la trampa de I-035). Una
+ventana que nadie más toca aísla el conjunto sin aislar la base. De paso demuestra sola la regla
+principal: las boletas se crean y se asignan **hoy** y aun así cuentan en 2020, porque lo único que
+las fecha es `sale_date`.
+
+| ID | Caso | Resultado esperado |
+|----|------|--------------------|
+| D151-01 | Conteo, `total_sold`, `paid_amount` y la identidad `vendido − abonado = saldo` | Coinciden con la consulta de control. `paid_amount` se compara contra la **suma de asignaciones no anuladas**, no contra `tickets.paid_amount`: así detecta también un disparador roto |
+| D151-01e | Totales exactos con **más filas que una página** | La página trae 25; los totales cuentan 27. Si alguien moviera la suma a la página visible, esto lo delata |
+| D151-02 | Fuera del rango, `sale_date` manda, boleta anulada, rango de un solo día | Una venta de febrero no entra; anular una boleta la saca de la cuenta y del dinero |
+| D151-03 | Aislamiento con sesiones reales | Vendedor1 no cuenta las ventas de vendedor2 **del mismo día**; pasar el id ajeno devuelve cero filas; la otra organización queda aislada en los dos sentidos; `anon` no puede ejecutar la función |
+| D151-04 | Un abono posterior y su anulación | Sube y baja «Abonado» sin mover la venta de fecha ni el conteo. El pago es de **hoy** y la venta sigue siendo de 2020 |
+| D151-05 | Catálogo | `stable`, `security invoker`, `search_path` fijo, `EXECUTE` para `authenticated` y no para `anon`, e índice con **su definición exacta** (misma razón que E9-01) |
+
 ### 4.3 Reparto del equipo y forma de pago (`tests/db/team-commission.test.ts`, 26 pruebas)
 
 Añadidas con D-127. Cubren las dos reglas nuevas —**el vendedor padre cobra por su equipo** (BR-G20) y
@@ -506,6 +528,10 @@ interruptor de pruebas en el código de producción**. Las pruebas del recorrido
 | `unit/sidebar-preference.test.ts` | Cómo se combinan la preferencia guardada, el sitio disponible y la superposición (D-131, D-132): una cookie ausente o manipulada abre la barra; sin sitio se cierra **sin borrar** la preferencia; flotando se abre aunque no quepa; la cookie lleva `path`, caducidad y `secure` solo en HTTPS. Y el guardián que **no puede escribirse de otra forma**: que el punto de corte de `globals.css` y el de TypeScript sigan siendo el mismo número, porque el CSS no se importa |
 | `e2e/menu-lateral.spec.ts` | La barra lateral de escritorio (D-131, D-132). Cada prueba **fija su ventana**, porque el ancho es lo que se prueba: a 1.600 abierta con sus ocho nombres; cerrarla a mano deja los iconos y le da a la tabla **más de 150 px**; sigue cerrada al navegar **y tras recargar** (la cookie); el globo aparece con el ratón **y con el foco**; se estrecha a 1.360 (208 px) y a 1.100 se cierra sola sin perder la preferencia, que vuelve al ensanchar; una barra cerrada a mano sigue cerrada aunque sobre sitio. Y a 1.100, donde no cabe abierta, el bloque **flotante**: que se abra encima con el contenido **quieto al píxel**, que se cierre al elegir una opción, al pulsar fuera, con `Escape` y **al llevarse el foco fuera con el tabulador** —la única rama que exige una ventana con foco de verdad, y por eso vive aquí y no en el navegador de las mediciones—, y que flotar **no escriba la cookie**. Además, a 1.360 —el ancho más apretado— se mide que **ningún nombre se parte en dos líneas ni se recorta** |
 | `e2e/boleta-estrecha-movil.spec.ts` | Regresión de **I-076** (D-125): el detalle de una boleta **a 320 px** —fija su propio ancho, más estrecho que el Pixel 7 del proyecto— con un cliente de **nombre largo**, en los dos portales. Comprueba **dos** cosas: que la página no desborde horizontalmente y que el nombre esté **recortado de verdad**; sin la segunda, el día que el nombre cupiera de sobra la prueba pasaría sin comprobar nada. Las tres condiciones juntas —detalle, 320 px y nombre largo— son las que la comprobación de desbordamiento de `seller-ciclo-movil.spec.ts` no reúne, y por eso el fallo vivió sin que ninguna prueba lo viera |
+
+| `unit/reports-sales-by-date.test.ts` | Lo que decide **qué conjunto se consulta** en «Ventas por fecha» (D-151), antes de tocar la base: el predeterminado de cada portal —el vendedor abre «Ventas por fecha», el personal conserva «Por vendedor», un `report` ajeno o inventado cae en el primero de su lista—; las fechas efectivas —hoy sin escribirlo en la URL, un solo extremo, rango de un día, cambio de año, fecha corrupta descartada, y «Desde» posterior a «Hasta» marcado inválido **sin corregirse solo**—; y que los parámetros del CSV sean los de la pantalla, con las fechas **ya resueltas** y sin `page` |
+| `e2e/ventas-por-fecha.spec.ts` | El recorrido entero en el portal del vendedor (D-151): entrar a Reportes lo abre **sin redirección** y con la URL limpia; hoy no hubo ventas y lo dice; los dos campos muestran el día que se consulta; elegir otro día cambia URL, indicadores y tabla; los indicadores cuadran (`vendido − abonado = saldo`); un rango suma los dos días; la fila enlaza a la boleta y al cliente; día sin ventas → estado vacío, no tabla vacía; rango al revés → aviso con las dos fechas intactas; «Limpiar filtros» vuelve a hoy; el CSV trae el mismo rango con filas **fuera de la primera página**, con BOM, `;` y `DD/MM/AAAA`; el CSV sin fechas pide el mismo día que la pantalla; y no contiene ni una boleta ajena. Además: el Dueño conserva «Por vendedor» como inicial, pedirlo por URL no lo habilita en su portal, los cuatro reportes anteriores del vendedor siguen accesibles, y **los dos 403 cruzados** del CSV |
+| `e2e/ventas-por-fecha-movil.spec.ts` | El mismo reporte en teléfono: sin desbordamiento horizontal **a 320 y a 390 px**; la tabla se desplaza dentro de su bloque; **lo abonado no desaparece** al ocultarse su columna —baja bajo «Falta»—; el `caption` dice qué se está viendo; y el estado de pago lleva texto, no solo color |
 
 **Cómo se mide el color, y por qué así** (I-034): pintando el color en un `canvas` y leyendo los
 píxeles, no leyendo `getComputedStyle`. Con Tailwind 4 el navegador devuelve los colores en

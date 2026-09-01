@@ -353,6 +353,8 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Que una boleta ya se pagó entera, escrito en la columna «Abono» de un archivo | **Cancelado** (D-129) | Completa, Completo, Pagada, Total, Saldada |
 | Dinero que falta por cobrar | **Saldo pendiente** | Deuda, mora, pasivo |
 | Valor de todas las boletas ya vendidas | **Total vendido** | Total a cobrar, total facturado, cartera |
+| Lo que se vendió en unas fechas, mirado por fecha de venta | **Ventas por fecha** | Ventas del día, informe de ventas, cierre diario |
+| Lo que llevan pagado **hoy** esas boletas | **Abonado** | Recaudado, cobrado, ingresos |
 | Precio que la rifa fija para todas sus boletas | **Precio de la rifa** | Precio oficial, precio base, tarifa |
 | Lo que debe el cliente por UNA boleta | **Precio de venta** | Precio personalizado, override, tarifa |
 | Vender una boleta por debajo de ese precio | **Rebajar** el precio; la **rebaja** | Descuento, promoción, oferta, rebajar la boleta |
@@ -582,6 +584,35 @@ cero significaría «vendida y sin abonar», que es otra cosa.
 boleta no se había vendido, y una raya no dice que esa boleta se puede vender. Es el mismo texto
 que la tarjeta del teléfono ya usaba desde D-107.
 
+**«Abonado» y «Recaudado» no son la misma cifra, y por eso el reporte lo escribe** (D-151, BR-T06).
+En **«Ventas por fecha»**, «Abonado» es lo que llevan pagado **hoy** las boletas vendidas en esas
+fechas. En **«Pagos por fecha»**, «Recaudado» es el dinero que **entró** en esas fechas. Son
+distintos en cuanto un cliente abona un día después de comprar, o sea casi siempre, y quien mira la
+pantalla no tiene forma de deducir cuál está viendo. Por eso el reporte lo dice con palabras, debajo
+de los indicadores y con un ejemplo: «una boleta vendida el lunes y abonada el martes suma en las
+ventas del lunes». Es la misma regla de siempre —explicar lo único que la pantalla no enseña— y no
+se quita por parecer larga.
+
+Lo que **no** se hace es renombrar ninguna de las dos para diferenciarlas: «Abonado» es el término
+del glosario para lo abonado de una boleta y «Recaudado» el de dinero recibido. Cambiarlos aquí
+rompería los otros diez sitios donde ya significan eso.
+
+**El período se dice con fechas, no con el nombre de la opción** (misma regla que D-112). La tarjeta
+«Boletas vendidas» lleva debajo el día —«31 ago 2026»— o el rango —«Del 1 al 15 de ago de 2026»—,
+porque «hoy» no responde a la pregunta que uno se hace al mirar una cifra dentro de tres días.
+
+**Un rango al revés se avisa, no se corrige solo** (D-151). Con «Desde» posterior a «Hasta» la
+pantalla dice **«Las fechas están al revés»** y explica cómo salir: «"Desde" es posterior a "Hasta".
+Cambia una de las dos para ver las ventas de ese período.» Los dos campos conservan lo que la persona
+escribió. Dar la vuelta al rango en silencio enseñaría datos que nadie pidió; vaciar la tabla sin
+explicación parecería que no vendió nada.
+
+**En una tabla de doce columnas se acorta lo visible, no el término** (D-130, D-114). «Ventas por
+fecha» escribe **«Precio»** y **«Falta»** en los encabezados —igual que «Mis boletas»— y **«Precio de
+venta»** y **«Saldo pendiente»** en el CSV, donde el ancho no es un problema. Y lo abonado, cuya
+columna se retira en el teléfono, **no desaparece**: baja a una línea dentro de la celda de «Falta»,
+«Abonado $40.000 de $120.000».
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
@@ -672,6 +703,9 @@ castigo donde solo había una espera.
 | Rótulos de la tarjeta «Cuánto gana» de la ficha del integrante | `src/features/team/components/TeamCommissionCard.tsx` (D-127) |
 | Errores de validación de formularios | `schemas.ts` de cada módulo de `src/features/` (mensajes de Zod) |
 | Errores devueltos por el servidor | `src/lib/errors.ts` (`mapPgError`) y los `RAISE` de las migraciones |
+| Nombre y descripción de cada reporte | `src/features/reports/schemas.ts` (`REPORT_LABELS`, `REPORT_DESCRIPTIONS`) |
+| Textos de «Ventas por fecha»: nota del «Abonado», estado vacío, rango al revés, encabezados | `SalesByDateReport`, dentro de `src/features/reports/components/ReportsView.tsx` (D-151) |
+| Encabezados del CSV de «Ventas por fecha» | `src/features/reports/export.ts` (`salesByDateColumns`, D-151) |
 | Títulos y descripciones de pantalla | `PageHeader` de cada `page.tsx` |
 | Nombre de la **organización** que se lee en la barra lateral y en el encabezado del móvil | **No es un texto: es el dato `organizations.name`** de la base de datos (D-126). No se busca en el código |
 | Estados vacíos | `EmptyState` (`src/components/data/`) |

@@ -463,6 +463,30 @@ producción está activo (D-149):** `vercel.json` declara los jobs Hobby. Vercel
 `CRON_SECRET` como Bearer. Sin secreto, o con uno de menos de 16 caracteres, responde
 401. Un `LOTTERY_SYNC_SECRET` distinto de `CRON_SECRET` haría 401 al programador.
 
+### 4.9 «Ventas por fecha» (`0040`, BR-T05, D-151)
+
+Una superficie de lectura nueva, y la más pequeña posible.
+
+| Función | Quién | Qué comprueba |
+|---|---|---|
+| `report_sales_totals(from, to)` | Cualquier rol | `stable`, `SECURITY INVOKER`, `search_path` fijo. Hereda `tickets_select`: un vendedor agrega **sus** ventas y las de nadie más |
+
+**Solo recibe dos fechas.** No hay `p_seller_id` ni `p_organization_id`: a diferencia de
+`report_payment_totals` —donde el personal necesita acotar por vendedor—, este reporte es del portal
+del vendedor y **no existe ningún parámetro de autoridad que un navegador pueda manipular**. Pasar el
+id de otro no es que devuelva ceros: es que no se puede pasar.
+
+**Las filas del detalle no añaden superficie.** Salen de una lectura normal de `tickets` con el
+cliente incrustado, sujeta a `tickets_select` y `clients_select` como cualquier otro listado. **La
+RLS no se amplió ni se tocó**: `tickets_select` sigue siendo exactamente la de `0014`.
+
+**El CSV comparte las tres capas de §5.0**, con un ajuste: el reporte permitido ya no se comprueba
+solo contra la lista del vendedor, sino contra la del **rol** (`reportKeysForRole`). Un vendedor
+sigue recibiendo 403 al pedir «Por vendedor», y ahora el personal recibe 403 al pedir «Ventas por
+fecha», que es un reporte de un portal que no es el suyo. Se rechaza en vez de caer al
+predeterminado —que es lo que hace la pantalla— porque aquí el resultado es un **archivo**: devolver
+un reporte distinto del pedido, con el mismo nombre, sería peor que decir que no.
+
 ---
 
 ## 5. Protección de Server Actions y Route Handlers

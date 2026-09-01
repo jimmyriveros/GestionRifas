@@ -30,7 +30,8 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| Siguiente fase | Ninguna. Mantenimiento: **cabecera contextual al hacer scroll** (D-150), **ya en producción** |
+| Siguiente fase | Ninguna. Mantenimiento: **«Ventas por fecha»**, reporte del vendedor (D-151, migración `0040`), **solo en local — falta desplegar** |
+| **Reportes** | Desde el 2026-08-31 (D-151, BR-T05..BR-T07) `/seller/reports` abre **«Ventas por fecha»** con las ventas de hoy, sin redirección. Una venta es una boleta `assigned` fechada por **`sale_date`**; «Abonado» es lo que llevan pagado **hoy**, no el dinero recibido esos días —eso lo sigue respondiendo «Pagos por fecha», intacto—. El predeterminado es **por portal**: `/owner/reports` conserva «Por vendedor» y **no** ofrece el nuevo. Migración **`0040`**: `report_sales_totals` y `tickets_sale_date_idx` |
 | **Resultados de loterías** | Etapa 6 (2026-08-30, D-149): `0036`–`0039` en el proyecto real, `vercel.json` con los 10 jobs Hobby, `CRON_SECRET` inyectado por Vercel. Recuadro del Panel, sync, matching y avisos de las etapas 1–5. **Cron activado** |
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
@@ -117,7 +118,20 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — Cabecera contextual al hacer scroll (2026-08-30)
+## 1.a Último relevo significativo — «Ventas por fecha», reporte del vendedor (2026-08-31)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **El vendedor entra a Reportes y ve lo que vendió hoy**: cuántas boletas, qué números, a quién, cuánto sumó, cuánto llevan abonado y cuánto falta. `/seller/reports` abre en «Ventas por fecha» **sin redirección**; `/owner/reports` conserva «Por vendedor» y **no** ofrece el nuevo. `Route changes: None` · `Migrations: 0040` · `New dependencies: None`. **Solo en local: no se ha desplegado** |
+| Archivos | **Nuevos:** `supabase/migrations/0040_report_sales_by_date.sql`, `tests/unit/reports-sales-by-date.test.ts`, `tests/db/reports-sales-by-date.test.ts`, `tests/e2e/ventas-por-fecha.spec.ts`, `ventas-por-fecha-movil.spec.ts`. **Tocados:** `features/reports/{schemas,queries,export}.ts`, `components/{ReportsView,ReportFilters}.tsx`, los dos `reports/page.tsx`, `api/reports/export/route.ts`, `tickets/components/TicketNumbers.tsx`, `database.types.ts`, `scripts/verify-remote.ts`, `tests/db/catalog.test.ts`. Documentación: `DECISIONS` (D-151), `BUSINESS_RULES` (BR-T05..BR-T07), `ARCHITECTURE` §8.21, `DATA_MODEL` §5 y §6.k, `SECURITY` §4.9, `UX_COPY_GUIDELINES`, `TESTING` §4.2.b, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni una capa services, ni una segunda lista de boletas.** `ReportsView`, `ReportNav`, `ReportFilters`, `ReportTable`, `DataTablePagination`, `TicketNumbersCell`, `PaymentStatusBadge`, `ticketFinancials`, `formatCOP`, `formatDateEs`, `todayBogota`, `fetchAllRows`, `toCsv` y el mismo Route Handler. Lo único que hubo que **abrir** fue el tipo de `TicketNumbersCell`, que exigía un `TicketListItem` entero cuando solo usa dos campos: ahora acepta `TicketNumbersSource` y los llamadores de siempre encajan sin cambiar |
+| Decisiones | **D-151**: definición de venta reutilizada (BR-T05), «Abonado» ≠ «Recaudado» y la pantalla lo dice (BR-T06), predeterminado **por portal** con `resolveReport` (BR-T07), hoy deducido de la ausencia de fechas con `resolveSalesDateRange`, agregado en SQL y **sin tercera consulta para contar**, y la función **sin parámetro de vendedor ni de organización** |
+| Verificación | `npm run verify` ✅ · lint **0 errores** (2 avisos de siempre) · **574/574** unitarias (+22) · `build` ✅ · `test:db` **651/651** (+20) · E2E de esta tanda **23/23** (18 escritorio + 5 móvil) · suite E2E completa **416/417**, y ese 1 es el fallo por orden de ejecución que ya registró D-150 —verde en aislamiento con base limpia, y las specs nuevas no crean pagos—. Doce errores encontrados y corregidos, **todos de las pruebas, ninguno del producto**; detalle en `TEST_RESULTS.md`. Dos merecen recordarse: la limpieza por PostgREST **fallaba en silencio** por `check_payment_balance`, y `current_date` es el día **UTC** del contenedor, no el de Bogotá |
+| Advertencias | **1)** `0040` está **solo en local**. **2)** **No pongas `seller_id` delante** en `tickets_sale_date_idx`: se midió y es peor (lección de D-102); `D151-05` lo vigila. **3)** **No devuelvas las guardas `is null`** a `report_sales_totals`: valen 60 ms y un barrido de tabla. **4)** `report_payment_totals` **no se tocó**. **5)** `Ventas por fecha.txt` y `prueba-abono.csv` son del dueño; no se commitean |
+| Pendiente | Desplegar (migración `0040` al proyecto real + código) cuando se autorice. **Fuera de alcance, detectado de paso:** otras suites de `tests/db` limpian pagos por PostgREST e ignoran el error, así que su limpieza puede no estar ocurriendo. Lo de siempre: I-030, I-062, I-063, I-068, I-072, I-074, I-075, I-077, I-081, I-082, I-024 |
+| Git | Rama `main`. Commit local de esta entrega; **sin push**. `Ventas por fecha.txt` y `prueba-abono.csv` siguen sin seguimiento |
+
+## 1.a.0 Relevo anterior — Cabecera contextual al hacer scroll (2026-08-30)
 
 | Campo | Estado |
 |---|---|

@@ -128,7 +128,8 @@ const CHECKS: Check[] = [
               'bulk_change_ticket_seller', 'bulk_create_tickets', 'bulk_delete_tickets',
               'cancel_ticket', 'commission_summary', 'create_payment',
               'import_tickets_with_clients', 'log_ticket_import', 'mark_profile_activated',
-              'report_payment_totals', 'report_payments_by_day', 'search_tickets',
+              'report_payment_totals', 'report_payments_by_day', 'report_sales_totals',
+              'search_tickets',
               'taken_ticket_combinations', 'team_confirm_email_change', 'team_delete_member',
               'team_max_fixed_commission', 'team_member_sales', 'team_sales_summary',
               'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
@@ -175,12 +176,13 @@ const CHECKS: Check[] = [
     esperado: 8,
   },
   {
-    nombre: 'Las 2 funciones de reporte son ejecutables por authenticated',
+    nombre: 'Las 3 funciones de reporte son ejecutables por authenticated',
     sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
           where n.nspname = 'public'
-            and p.proname in ('report_payment_totals', 'report_payments_by_day')
+            and p.proname in ('report_payment_totals', 'report_payments_by_day',
+                              'report_sales_totals')
             and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
-    esperado: 2,
+    esperado: 3,
   },
   {
     nombre: 'Las 5 vistas de saldos existen',

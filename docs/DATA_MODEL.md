@@ -645,6 +645,7 @@ abandonado. RLS forzada **sin** política; `authenticated` lee cero filas. No es
 | `tickets` | `(created_at DESC)` (`0030`) | Orden por defecto del listado de boletas (D-102) |
 | `tickets` | `(assigned_at DESC) WHERE inventory_status = 'assigned'` (`0030`) | «Ventas recientes» del panel (D-102) |
 | `tickets` | `(seller_id, raffle_id, payment_status) WHERE inventory_status = 'assigned'` (`0030`) | Recuento de comisión que corre en **cada** abono (D-102) |
+| `tickets` | `(sale_date DESC, assigned_at DESC) WHERE inventory_status = 'assigned'` (`0040`) | Rango y orden del reporte «Ventas por fecha» (D-151) |
 | `clients` | `(name) WHERE archived_at IS NULL` (`0030`) | Orden alfabético del listado de clientes (D-102) |
 | `clients` | `(created_at DESC) WHERE archived_at IS NULL` (`0030`) | «Clientes recientes» del panel (D-102) |
 | `payments` | `(payment_date DESC, created_at DESC)` (`0030`) | Orden del historial, **incluidos los anulados** (D-102) |
@@ -698,6 +699,39 @@ compuesto solo conserva el orden cuando su primera columna está fijada a un **v
 las dos formas: con el compuesto, el listado de boletas seguía siendo un barrido de 120 ms; con
 `(created_at desc)` a secas, 2 ms. Es la contrapartida del patrón de D-063, y conviene recordarla
 antes de «mejorar» uno de estos índices añadiéndole la organización delante.
+
+**Ni `tickets_sale_date_idx` (`0040`) empieza por `seller_id`, que es lo que parece obvio en un
+reporte del vendedor.** Es la misma lección, con otra columna. La política compara el vendedor contra
+`(select current_profile_id())`, que es un parámetro de ejecución y no un valor conocido al
+planificar. Medido con 300.000 boletas vendidas —150.006 de un solo vendedor, en 1.096 días—, con
+sesión real de vendedor y el mejor de 5 intentos:
+
+| Consulta | Sin índice | `(seller_id, sale_date desc, assigned_at desc)` | **`(sale_date desc, assigned_at desc)`** |
+|---|---:|---:|---:|
+| Totales del día | 59,0 ms · 8.372 | 5,3 ms · 2.096 | **0,74 ms · 290** |
+| Página de detalle del día | 57,2 ms · 8.378 | 5,3 ms · 2.096 | **0,46 ms · 67** |
+| Totales de un mes | 60,1 ms · 8.372 | 5,7 ms · 2.103 | **0,94 ms · 297** |
+| Página de detalle de un mes | 59,6 ms · 8.372 | 5,6 ms · 2.369 | **0,49 ms · 67** |
+| Totales de un año | 63,3 ms · 8.372 | 26,6 ms · 4.791 | **21,8 ms · 3.367** |
+| Página 5 de un año | 72,5 ms · 8.372 | 72,5 ms · 8.372 | **0,58 ms · 267** |
+
+Con el vendedor delante el planificador usa el índice pero no puede acotar con él —2.096 páginas
+para devolver 137 filas— y en el caso más ancho lo descarta y vuelve al barrido. Con `sale_date`
+delante, que es la columna por la que se filtra **y** por la que se ordena, el recorrido ya viene
+ordenado, la RLS se aplica como filtro sobre la marcha y la página 5 de un año se resuelve con una
+*incremental sort* que se detiene en la fila 126. Se probó también `(seller_id, sale_date desc,
+assigned_at desc, id)` por si meter el tercer criterio de orden dentro del índice evitaba la
+ordenación: sale peor que la segunda columna en todo (2.748 páginas) y tampoco arregla la página 5.
+Pesa **9,3 MB** con 300.000 boletas.
+
+**Una función SQL con agregados nunca se *inlinea*, y eso cambia cómo hay que escribirla** (D-151).
+`report_sales_totals` filtraba con `(p_x is null or columna <op> p_x)`, copiando el patrón de `0013`.
+Como el cuerpo no se puede inlinear, se planifica aparte, y un `OR` sobre un parámetro **no puede
+convertirse en condición de índice**: la función barría la tabla entera con índice y sin él —67 ms y
+8.374 páginas, frente a 5,5 ms y 2.096 del mismo agregado escrito en la consulta—. No es la caché de
+planes: se probó `plan_cache_mode = 'force_custom_plan'` y no cambia nada. Las dos fechas pasaron a
+ser **obligatorias**. `report_payment_totals` conserva sus guardas y no se tocó: es otro reporte, con
+otros índices y con filtros opcionales de verdad.
 
 ---
 
@@ -884,6 +918,34 @@ sorteo `completed` en **una** transacción. `0038` sustituye el cuerpo para cast
 Un `UPDATE` condicional, no un advisory lock de sesión: el pooler en modo transacción no
 conservaría este último. Quien no es el holder no puede soltarlo. `stale_minutes` por defecto
 es 5. Sin `EXECUTE` para `authenticated` ni `anon` (D-148).
+
+### 6.k Ventas por fecha (migración `0040`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `report_sales_totals(from, to)` | **una fila**: `tickets_count`, `total_sold`, `paid_amount`, `pending_amount` | Los cuatro indicadores del reporte «Ventas por fecha», su paginación y su CSV |
+
+`stable`, `security invoker`, `set search_path`, `REVOKE`/`GRANT` explícitos: el mismo patrón de
+`0013`. Filtra **antes** de agregar y devuelve una sola fila.
+
+**Qué cuenta.** `inventory_status = 'assigned'` fechado por `tickets.sale_date` (BR-T05). Es la
+misma definición de «vendido» que `v_seller_summary` y `v_client_balances`; lo único propio de esta
+función es el rango de fechas.
+
+**No acepta vendedor ni organización, a diferencia de `report_payment_totals`.** Ese reporte es del
+portal administrativo y su `p_seller_id` sirve para acotar; este es del portal del vendedor y **no
+tiene ningún parámetro de autoridad que un navegador pueda manipular**. El aislamiento lo hace
+`tickets_select` a través de `security invoker`.
+
+**`pending_amount` es la resta de las dos sumas**, no `sum(sale_price - paid_amount)`. Las dos formas
+dan lo mismo mientras `sale_price` no sea nulo —y en una boleta asignada no puede serlo, lo impide
+`tickets_assigned_requires_sale`—, pero solo la primera garantiza la identidad que la pantalla
+promete: *total vendido − abonado = saldo pendiente*.
+
+**El detalle no pasa por aquí.** Las filas de la tabla salen de una lectura paginada de `tickets` con
+el cliente incrustado (`getSalesByDateReport`), y **el `tickets_count` de esta función es el total de
+la paginación**: cuenta el mismo predicado bajo la misma RLS, así que un `count: 'exact'` aparte
+preguntaría dos veces lo mismo en cada carga.
 
 ---
 

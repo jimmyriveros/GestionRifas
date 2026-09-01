@@ -1,23 +1,26 @@
 import 'server-only'
 
-import { RAFFLE_STATUS_LABELS } from '@/lib/constants'
+import { RAFFLE_STATUS_LABELS, TICKET_PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import { toCsv, type CsvColumn } from '@/lib/csv'
 import { formatDateCsv } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 import { EXPORT_ROW_LIMIT } from '@/lib/supabase/paginate'
+import { ticketLabel } from '@/lib/tickets'
 
 import {
   getClientBalanceReport,
   getPaymentReport,
   getRaffleReport,
+  getSalesByDateReport,
   getSellerReport,
   getTicketStatusReport,
   type ClientBalanceReportRow,
   type PaymentReportRow,
+  type SalesByDateReportRow,
   type SellerReportRow,
   type TicketStatusReportRow,
 } from './queries'
-import { type ReportFilters, type ReportKey } from './schemas'
+import { resolveSalesDateRange, type ReportFilters, type ReportKey } from './schemas'
 
 /**
  * Exportacion de los reportes a CSV (CLAUDE.md §24).
@@ -89,6 +92,32 @@ const clientBalanceColumns: CsvColumn<ClientBalanceReportRow>[] = [
   { header: 'Archivado', value: (row) => (row.archivedAt ? 'Si' : 'No') },
 ]
 
+/**
+ * «Ventas por fecha» (D-151).
+ *
+ * La boleta se nombra por sus DOS numeros, como en la pantalla y como se dice
+ * en voz alta (BR-N11). El codigo interno no aparece: es el identificador
+ * administrativo, no la forma de reconocer una boleta.
+ *
+ * Aqui si caben los terminos enteros —«Precio de venta», «Saldo pendiente»—,
+ * que en la tabla se acortan a «Precio» y «Falta» por ancho. Un archivo de
+ * Excel no tiene ese problema.
+ */
+const salesByDateColumns: CsvColumn<SalesByDateReportRow>[] = [
+  { header: 'Fecha de venta', value: (row) => (row.saleDate ? formatDateCsv(row.saleDate) : '') },
+  { header: 'Boleta', value: (row) => ticketLabel(row) },
+  { header: 'Número diario', value: (row) => row.dailyNumber },
+  { header: 'Número semanal', value: (row) => row.weeklyNumber },
+  { header: 'Cliente', value: (row) => row.clientName },
+  { header: 'Precio de venta', value: (row) => formatCOP(row.salePrice ?? 0) },
+  { header: 'Abonado', value: (row) => formatCOP(row.paidAmount) },
+  {
+    header: 'Saldo pendiente',
+    value: (row) => formatCOP(Math.max(0, (row.salePrice ?? 0) - row.paidAmount)),
+  },
+  { header: 'Estado', value: (row) => TICKET_PAYMENT_STATUS_LABELS[row.paymentStatus] },
+]
+
 const paymentColumns: CsvColumn<PaymentReportRow>[] = [
   { header: 'Fecha', value: (row) => formatDateCsv(row.paymentDate) },
   { header: 'Pagos', value: (row) => row.paymentsCount },
@@ -100,6 +129,7 @@ const paymentColumns: CsvColumn<PaymentReportRow>[] = [
 /** Prefijo del nombre de archivo, en espanol y sin acentos. */
 const FILE_PREFIXES: Record<ReportKey, string> = {
   sellers: 'reporte-por-vendedor',
+  'sales-by-date': 'reporte-ventas-por-fecha',
   'ticket-status': 'reporte-boletas-por-estado',
   raffles: 'reporte-boletas-por-rifa',
   'client-balances': 'reporte-clientes-con-saldo',
@@ -152,6 +182,21 @@ export async function buildReportCsv(filters: ReportFilters): Promise<string> {
     case 'payments': {
       const { rows, truncated } = await getPaymentReport({ ...filters, all: true })
       return toCsv(paymentColumns, rows) + (truncated ? truncationNotice() : '')
+    }
+    // Una fila por BOLETA vendida: es el unico reporte que puede truncarse por
+    // volumen de ventas. Las fechas se resuelven con la MISMA funcion que usa la
+    // pantalla, de modo que un archivo pedido sin `dateFrom` ni `dateTo` trae el
+    // mismo dia que se estaba viendo (D-151).
+    case 'sales-by-date': {
+      const range = resolveSalesDateRange(filters)
+      if (range.invalid) return toCsv(salesByDateColumns, [])
+
+      const { rows, truncated } = await getSalesByDateReport({
+        from: range.from,
+        to: range.to,
+        all: true,
+      })
+      return toCsv(salesByDateColumns, rows) + (truncated ? truncationNotice() : '')
     }
   }
 }

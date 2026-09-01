@@ -1,14 +1,16 @@
-import { BarChart3Icon } from 'lucide-react'
+import { BarChart3Icon, CalendarIcon } from 'lucide-react'
 import Link from 'next/link'
 
 import { DataTablePagination } from '@/components/data/DataTablePagination'
 import { EmptyState } from '@/components/data/EmptyState'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
-import { RaffleStatusBadge } from '@/components/data/StatusBadge'
+import { PaymentStatusBadge, RaffleStatusBadge } from '@/components/data/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
+import { TicketNumbersCell } from '@/features/tickets/components/TicketNumbers'
+import { ticketFinancials } from '@/features/tickets/financials'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 
@@ -16,10 +18,19 @@ import {
   getClientBalanceReport,
   getPaymentReport,
   getRaffleReport,
+  getSalesByDateReport,
   getSellerReport,
   getTicketStatusReport,
 } from '../queries'
-import { REPORT_DESCRIPTIONS, REPORT_LABELS, type ReportFilters, type ReportKey } from '../schemas'
+import {
+  REPORT_DESCRIPTIONS,
+  REPORT_LABELS,
+  resolveReport,
+  resolveSalesDateRange,
+  type ReportFilters,
+  type ReportKey,
+  type SalesDateRange,
+} from '../schemas'
 import { ExportCsvButton } from './ExportCsvButton'
 import { ReportFilters as ReportFiltersBar } from './ReportFilters'
 import { ReportNav } from './ReportNav'
@@ -47,6 +58,13 @@ type ReportsViewProps = {
   withSellerFilter?: boolean
   /** Solo el portal administrativo enlaza a la ficha de un vendedor. */
   sellerBasePath?: string
+  /**
+   * `/owner/tickets` o `/seller/tickets`, para abrir cada boleta.
+   *
+   * Obligatorio aunque hoy solo lo use «Ventas por fecha»: opcional, un portal
+   * que ofreciera el reporte sin pasarlo lo dejaria de pintar en silencio.
+   */
+  ticketBasePath: string
 }
 
 export async function ReportsView({
@@ -56,13 +74,26 @@ export async function ReportsView({
   clientBasePath,
   withSellerFilter = false,
   sellerBasePath,
+  ticketBasePath,
 }: ReportsViewProps) {
   // Si la URL pide un reporte que este portal no ofrece, se muestra el primero
-  // en vez de un error: un enlace copiado entre portales no debe romperse.
-  // `?? 'sellers'` no llega a ocurrir —los dos portales pasan listas no vacias—
-  // pero evita un `as` que ocultaria el caso si alguien pasara una lista vacia.
-  const report = reports.includes(filters.report) ? filters.report : (reports[0] ?? 'sellers')
-  const activeFilters: ReportFilters = { ...filters, report }
+  // de su lista en vez de un error: un enlace copiado entre portales no debe
+  // romperse, y asi cada portal conserva su propio predeterminado (D-151).
+  const report = resolveReport(filters.report, reports)
+
+  // Las fechas efectivas se resuelven UNA vez y bajan a los tres sitios que
+  // tienen que coincidir: los campos «Desde» y «Hasta», la consulta y el enlace
+  // de exportacion. Solo para este reporte: los demas no las usan asi.
+  const salesRange = report === 'sales-by-date' ? resolveSalesDateRange(filters) : null
+
+  const activeFilters: ReportFilters = {
+    ...filters,
+    report,
+    // El CSV lleva las fechas YA resueltas, no las crudas de la URL: si la
+    // pantalla lleva abierta desde ayer, el archivo debe traer el dia que se
+    // esta viendo, no el de hoy.
+    ...(salesRange ? { dateFrom: salesRange.from, dateTo: salesRange.to } : {}),
+  }
 
   const [raffles, sellers] = await Promise.all([
     listRaffleOptions(),
@@ -90,10 +121,19 @@ export async function ReportsView({
             ? sellers.map((seller) => ({ value: seller.id, label: seller.fullName }))
             : undefined
         }
+        dateDefaults={salesRange ? { from: salesRange.from, to: salesRange.to } : undefined}
       />
 
       {report === 'sellers' ? (
         <SellersReport filters={activeFilters} basePath={sellerBasePath} />
+      ) : null}
+      {report === 'sales-by-date' && salesRange ? (
+        <SalesByDateReport
+          range={salesRange}
+          page={activeFilters.page}
+          clientBasePath={clientBasePath}
+          ticketBasePath={ticketBasePath}
+        />
       ) : null}
       {report === 'ticket-status' ? <TicketStatusReport filters={activeFilters} /> : null}
       {report === 'raffles' ? <RafflesReport /> : null}
@@ -194,6 +234,187 @@ async function SellersReport({ filters, basePath }: { filters: ReportFilters; ba
         caption={`${REPORT_LABELS.sellers}: ventas, recaudo y saldo pendiente de cada vendedor`}
         showFooter
       />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * «Ventas por fecha»: las boletas que el vendedor vendio en un dia o un rango
+ * (D-151, BR-T05).
+ *
+ * QUE PREGUNTA RESPONDE, Y CUAL NO. Cuenta boletas por su FECHA DE VENTA, y su
+ * columna «Abonado» dice cuanto llevan pagado HOY esas boletas. No es el dinero
+ * que entro ese dia: eso lo responde «Pagos por fecha», que no se toca. Los dos
+ * numeros son distintos en cuanto alguien abona un dia despues de comprar, que
+ * es lo normal, y por eso la pantalla lo dice con palabras en vez de confiar en
+ * que se deduzca.
+ *
+ * NO HAY FILA DE TOTALES EN LA TABLA, a proposito. `ReportTable` sabe pintarla,
+ * pero aqui sumaria solo las veinticinco filas de la pagina y quedaria justo
+ * debajo de unos indicadores que suman el rango entero: dos cifras distintas
+ * para lo mismo, a cuatro centimetros. Los totales viven arriba y los calcula
+ * SQL sobre todo el conjunto.
+ */
+async function SalesByDateReport({
+  range,
+  page,
+  clientBasePath,
+  ticketBasePath,
+}: {
+  range: SalesDateRange
+  page: number
+  clientBasePath: string
+  ticketBasePath: string
+}) {
+  // Un rango dado la vuelta no se corrige solo ni se consulta a medias: se dice
+  // lo que pasa y se deja corregir arriba, en los dos campos (§3 del encargo).
+  if (range.invalid) {
+    return (
+      <EmptyState
+        icon={<CalendarIcon className="size-8" aria-hidden />}
+        title="Las fechas están al revés"
+        description="«Desde» es posterior a «Hasta». Cambia una de las dos para ver las ventas de ese período."
+      />
+    )
+  }
+
+  const {
+    rows,
+    totals,
+    total,
+    page: currentPage,
+    pageSize,
+  } = await getSalesByDateReport({
+    from: range.from,
+    to: range.to,
+    page,
+  })
+
+  const periodo =
+    range.from === range.to
+      ? formatDateEs(range.from)
+      : `Del ${formatDateEs(range.from)} al ${formatDateEs(range.to)}`
+
+  const nota = (
+    <p className="text-muted-foreground text-sm">
+      Aquí las boletas se cuentan por su fecha de venta. «Abonado» es lo que llevan pagado hoy, no
+      el dinero que entró ese día: una boleta vendida el lunes y abonada el martes suma en las
+      ventas del lunes. El dinero recibido cada día está en «Pagos por fecha».
+    </p>
+  )
+
+  if (total === 0) {
+    return (
+      <div className="space-y-4">
+        {nota}
+        <EmptyState
+          icon={<BarChart3Icon className="size-8" aria-hidden />}
+          title="No vendiste boletas en este período"
+          description="Elige otro día o amplía el rango con «Desde» y «Hasta» para ver más ventas."
+        />
+      </div>
+    )
+  }
+
+  // La cuenta de cada boleta sale de `ticketFinancials`, la misma funcion que
+  // usan «Mis boletas», la ficha del cliente y el detalle: ninguna pantalla hace
+  // su propia resta (D-130).
+  const filas = rows.map((row) => ({
+    ...row,
+    money: ticketFinancials({
+      inventoryStatus: row.inventoryStatus,
+      salePrice: row.salePrice,
+      paidAmount: row.paidAmount,
+    }),
+  }))
+
+  const columns: ReportTableColumn<(typeof filas)[number]>[] = [
+    {
+      header: 'Fecha',
+      cell: (row) => (
+        <span className="font-medium whitespace-nowrap">
+          {row.saleDate ? formatDateEs(row.saleDate) : '—'}
+        </span>
+      ),
+    },
+    {
+      header: 'Boleta',
+      cell: (row) => <TicketNumbersCell ticket={row} href={`${ticketBasePath}/${row.ticketId}`} />,
+    },
+    {
+      header: 'Cliente',
+      cell: (row) =>
+        row.clientId && row.clientName ? (
+          <Link href={`${clientBasePath}/${row.clientId}`} className="font-medium hover:underline">
+            {row.clientName}
+          </Link>
+        ) : (
+          // No deberia ocurrir —una boleta vendida tiene cliente (BR-I05)—, pero
+          // una raya no explicaria nada si un dato raro llegara hasta aqui.
+          <span className="text-muted-foreground">Sin cliente</span>
+        ),
+    },
+    {
+      header: 'Precio',
+      align: 'right',
+      hideOnMobile: true,
+      cell: (row) => <span className="tabular-nums">{formatCOP(row.money.price)}</span>,
+    },
+    {
+      header: 'Abonado',
+      align: 'right',
+      hideOnMobile: true,
+      cell: (row) => <span className="tabular-nums">{formatCOP(row.money.paidAmount)}</span>,
+    },
+    {
+      header: 'Falta',
+      align: 'right',
+      cell: (row) => (
+        <div className="space-y-0.5">
+          <span className="font-medium tabular-nums">{formatCOP(row.money.pendingAmount)}</span>
+          {/* Lo abonado NO desaparece en el telefono: la columna se oculta, pero
+              la cifra baja aqui, que es la celda que si se ve (§14). */}
+          <p className="text-muted-foreground text-xs tabular-nums md:hidden">
+            Abonado {formatCOP(row.money.paidAmount)} de {formatCOP(row.money.price)}
+          </p>
+        </div>
+      ),
+    },
+    {
+      header: 'Pago',
+      cell: (row) => <PaymentStatusBadge status={row.paymentStatus} />,
+    },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <MetricCard label="Boletas vendidas" value={totals.ticketsCount} hint={periodo} />
+        <MetricCard label="Total vendido" value={formatCOP(totals.totalSold)} />
+        <MetricCard
+          label="Abonado"
+          value={formatCOP(totals.paidAmount)}
+          hint="Lo que llevan pagado hoy estas boletas"
+        />
+        <MetricCard label="Saldo pendiente" value={formatCOP(totals.pendingAmount)} />
+      </div>
+
+      {nota}
+
+      <ReportTable
+        columns={columns}
+        rows={filas}
+        getRowId={(row) => row.ticketId}
+        caption={
+          range.from === range.to
+            ? `${REPORT_LABELS['sales-by-date']}: boletas vendidas el ${formatDateEs(range.from)}`
+            : `${REPORT_LABELS['sales-by-date']}: boletas vendidas del ${formatDateEs(range.from)} al ${formatDateEs(range.to)}`
+        }
+      />
+
+      <DataTablePagination total={total} page={currentPage} pageSize={pageSize} items="tickets" />
     </div>
   )
 }

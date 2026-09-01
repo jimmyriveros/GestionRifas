@@ -40,9 +40,23 @@ type ReportFiltersProps = {
   raffles?: Option[]
   /** Ausente en el portal del vendedor: alli solo hay un vendedor posible. */
   sellers?: Option[]
+  /**
+   * Fechas que se muestran cuando la URL no trae ninguna.
+   *
+   * «Ventas por fecha» abre en el dia de hoy sin escribirlo en la direccion
+   * (D-151). Sin esto, los dos campos apareceriain VACIOS mientras la tabla de
+   * abajo enseña las ventas de hoy, y quien mira la pantalla no tendria forma
+   * de saber que fechas esta viendo. Son las mismas que resuelve
+   * `resolveSalesDateRange` para la consulta: se calculan una vez, arriba, y
+   * bajan a los dos sitios.
+   *
+   * No se escriben en la URL: mientras no se toquen, «Limpiar filtros» no
+   * aparece —no hay nada que limpiar— y volver a entrar sigue mostrando hoy.
+   */
+  dateDefaults?: { from: string; to: string }
 }
 
-export function ReportFilters({ report, raffles, sellers }: ReportFiltersProps) {
+export function ReportFilters({ report, raffles, sellers, dateDefaults }: ReportFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -135,8 +149,8 @@ export function ReportFilters({ report, raffles, sellers }: ReportFiltersProps) 
               <Input
                 id="report-date-from"
                 type="date"
-                key={`from-${searchParams.get('dateFrom') ?? ''}`}
-                defaultValue={searchParams.get('dateFrom') ?? ''}
+                key={`from-${searchParams.get('dateFrom') ?? dateDefaults?.from ?? ''}`}
+                defaultValue={searchParams.get('dateFrom') ?? dateDefaults?.from ?? ''}
                 onChange={(event) => apply({ dateFrom: event.target.value })}
                 disabled={isPending}
               />
@@ -148,8 +162,8 @@ export function ReportFilters({ report, raffles, sellers }: ReportFiltersProps) 
               <Input
                 id="report-date-to"
                 type="date"
-                key={`to-${searchParams.get('dateTo') ?? ''}`}
-                defaultValue={searchParams.get('dateTo') ?? ''}
+                key={`to-${searchParams.get('dateTo') ?? dateDefaults?.to ?? ''}`}
+                defaultValue={searchParams.get('dateTo') ?? dateDefaults?.to ?? ''}
                 onChange={(event) => apply({ dateTo: event.target.value })}
                 disabled={isPending}
               />

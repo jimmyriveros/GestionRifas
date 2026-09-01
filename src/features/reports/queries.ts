@@ -8,6 +8,8 @@ import {
   TICKET_INVENTORY_STATUS_LABELS,
   TICKET_PAYMENT_STATUS_LABELS,
   type PaymentMethod,
+  type TicketInventoryStatus,
+  type TicketPaymentStatus,
 } from '@/lib/constants'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { createClient } from '@/lib/supabase/server'
@@ -474,6 +476,178 @@ export async function getPaymentReport(
     page,
     pageSize: PAGE_SIZE,
     truncated: daysResult.truncated,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Ventas por fecha — las boletas vendidas en un dia o un rango (D-151)
+// ---------------------------------------------------------------------------
+
+export type SalesByDateReportRow = {
+  ticketId: string
+  /** `tickets.sale_date`: el dia en que se vendio, no en que entro el dinero. */
+  saleDate: string | null
+  dailyNumber: string | null
+  weeklyNumber: string | null
+  inventoryStatus: TicketInventoryStatus
+  paymentStatus: TicketPaymentStatus
+  salePrice: number | null
+  paidAmount: number
+  clientId: string | null
+  clientName: string | null
+}
+
+export type SalesByDateTotals = {
+  ticketsCount: number
+  totalSold: number
+  paidAmount: number
+  pendingAmount: number
+}
+
+/**
+ * Solo las columnas que la tabla pinta.
+ *
+ * `assigned_at` NO se pide aunque se ordene por ella: PostgREST admite ordenar
+ * por una columna que no se selecciona, y traerla seria una marca tecnica que
+ * la pantalla no enseña.
+ *
+ * El cliente viaja INCRUSTADO en la misma lectura. Resolver el nombre despues,
+ * boleta a boleta, seria justamente la consulta N+1 que el encargo prohibe.
+ */
+const SALES_BY_DATE_SELECT = `
+  id,
+  daily_number,
+  weekly_number,
+  inventory_status,
+  payment_status,
+  sale_price,
+  paid_amount,
+  sale_date,
+  client_id,
+  client:clients!tickets_client_org_fk ( id, name )
+`
+
+type SalesByDateRow = {
+  id: string
+  daily_number: string | null
+  weekly_number: string | null
+  inventory_status: TicketInventoryStatus
+  payment_status: TicketPaymentStatus
+  sale_price: number | null
+  paid_amount: number
+  sale_date: string | null
+  client_id: string | null
+  client: { id: string; name: string } | null
+}
+
+/**
+ * Las ventas de un rango de fechas, paginadas, con sus totales exactos.
+ *
+ * LA DEFINICION DE VENTA NO ES NUEVA (BR-T05). Boleta `assigned`, fechada por
+ * `sale_date`. Es la misma que ya usan `v_seller_summary` y `v_client_balances`
+ * para decir «vendido» y «saldo»; aqui solo se acota por fecha. Las anuladas no
+ * entran, igual que no entran en esos totales.
+ *
+ * DOS LECTURAS, EN PARALELO, Y NI UNA MAS:
+ *
+ *   1. La PAGINA de filas, recortada por `range()` en el servidor. Nunca se
+ *      traen todas las ventas para enseñar veinticinco.
+ *   2. `report_sales_totals`, que agrega en SQL sobre TODO el conjunto
+ *      filtrado. Los indicadores no se suman a partir de las filas visibles:
+ *      con mas de una pagina serian falsos.
+ *
+ * NO HAY UNA TERCERA CONSULTA PARA CONTAR. El `tickets_count` de la funcion es
+ * el total de la paginacion: cuenta exactamente el mismo predicado bajo la
+ * misma RLS que la consulta de filas, asi que un `count: 'exact'` aparte
+ * preguntaria dos veces lo mismo en cada carga de la pantalla.
+ *
+ * EL AISLAMIENTO NO ESTA AQUI. Ni la consulta ni la funcion filtran por
+ * vendedor ni por organizacion: los dos caminos pasan por `tickets_select`, que
+ * es `security invoker` en la funcion y se aplica sola en la tabla. Un vendedor
+ * obtiene sus ventas aunque manipule la URL, porque no hay ningun parametro que
+ * manipular (docs/SECURITY.md §1).
+ */
+export async function getSalesByDateReport(params: {
+  /** Fechas ya resueltas por `resolveSalesDateRange`, nunca las crudas de la URL. */
+  from: string
+  to: string
+  page?: number
+  /** Exportacion: todas las filas del rango, no una pagina. */
+  all?: boolean
+}): Promise<{
+  rows: SalesByDateReportRow[]
+  totals: SalesByDateTotals
+  total: number
+  page: number
+  pageSize: number
+  /** Solo con `all`: se alcanzo el tope de exportacion y faltan filas. */
+  truncated: boolean
+}> {
+  const supabase = await createClient()
+  const page = Math.max(1, params.page ?? 1)
+
+  const build = (from: number, to: number) =>
+    supabase
+      .from('tickets')
+      .select(SALES_BY_DATE_SELECT)
+      .eq('inventory_status', 'assigned')
+      .gte('sale_date', params.from)
+      .lte('sale_date', params.to)
+      .order('sale_date', { ascending: false })
+      // Segundo y tercer criterio para que el orden sea ESTABLE: sin ellos, dos
+      // ventas del mismo dia podrian intercambiarse entre paginas y salir
+      // repetidas —o desaparecer— en la pagina siguiente y en el CSV.
+      .order('assigned_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(from, to)
+
+  // `payment_status` es una columna GENERADA, y los tipos generados la marcan
+  // anulable aunque nunca lo sea en una boleta vendida. Se estrecha aqui, en un
+  // solo sitio y con el mismo `as` que ya usa `listTickets`, en vez de arrastrar
+  // un `| null` imposible hasta la pantalla.
+  const fetchPage = (from: number, to: number) =>
+    build(from, to).then(({ data, error }) => ({
+      data: (data ?? []) as SalesByDateRow[],
+      error,
+    }))
+
+  const [pageResult, { data: totalsData, error: totalsError }] = await Promise.all([
+    params.all
+      ? fetchAllRows<SalesByDateRow>(fetchPage)
+      : fetchPage((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1).then(({ data, error }) => {
+          if (error) throw error
+          return { rows: data, truncated: false }
+        }),
+    supabase
+      .rpc('report_sales_totals', { p_date_from: params.from, p_date_to: params.to })
+      .maybeSingle(),
+  ])
+
+  if (totalsError) throw totalsError
+
+  return {
+    rows: pageResult.rows.map((row) => ({
+      ticketId: row.id,
+      saleDate: row.sale_date,
+      dailyNumber: row.daily_number,
+      weeklyNumber: row.weekly_number,
+      inventoryStatus: row.inventory_status,
+      paymentStatus: row.payment_status,
+      salePrice: row.sale_price,
+      paidAmount: row.paid_amount,
+      clientId: row.client?.id ?? row.client_id,
+      clientName: row.client?.name ?? null,
+    })),
+    totals: {
+      ticketsCount: Number(totalsData?.tickets_count ?? 0),
+      totalSold: Number(totalsData?.total_sold ?? 0),
+      paidAmount: Number(totalsData?.paid_amount ?? 0),
+      pendingAmount: Number(totalsData?.pending_amount ?? 0),
+    },
+    total: Number(totalsData?.tickets_count ?? 0),
+    page,
+    pageSize: PAGE_SIZE,
+    truncated: pageResult.truncated,
   }
 }
 
