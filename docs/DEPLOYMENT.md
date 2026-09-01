@@ -27,7 +27,7 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 
 | Elemento | Estado |
 |---|---|
-| Migraciones (21) | Aplicadas y verificadas con `npm run verify:remote` |
+| Migraciones (**40**, hasta `0040`) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrige al aplicar `0040` (2026-08-31) |
 | RLS, RPC, vistas, auditoría | Igual que en local (mismo código, mismas migraciones) |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 

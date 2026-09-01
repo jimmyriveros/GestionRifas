@@ -141,6 +141,61 @@ anotado por si algún día se mide.
 | Pixel 7 (412 px, proyecto `movil`) | 5/5 |
 | Escritorio | 18/18 |
 
+### Promoción a producción (2026-08-31)
+
+Autorizada expresamente. **Con migración**, así que el orden fue el de `DEPLOYMENT.md` §2.2 y §3.3:
+respaldo → migración → verificación remota → push.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo previo `Rifas-backups/2026-08-31-pre-0040/` | `roles.sql` 370 B · `schema.sql` 288 KB · `data.sql` 2,9 MB con las 14 tablas de negocio. **0** apariciones de `"auth"` y **0** de `encrypted_password` |
+| `db push --dry-run` | Solo `0040`, como se esperaba |
+| `db push --yes` | `0040_report_sales_by_date.sql` aplicada al proyecto real |
+| **Sin cambio de datos** | La migración no tiene **ni una** sentencia `insert`/`update`/`delete`/`truncate`/`alter table`/`drop`: solo `create function`, `revoke`, `grant`, `create index` y `comment` |
+| `npm run verify:remote` | **17/17**, incluida la comprobación actualizada «Las 3 funciones de reporte son ejecutables por authenticated» |
+| Índice en el proyecto real | `CREATE INDEX tickets_sale_date_idx ON public.tickets USING btree (sale_date DESC, assigned_at DESC) WHERE (inventory_status = 'assigned')` · 16 kB |
+| Función en el proyecto real | `provolatile=s`, `prosecdef=false`, `search_path=public, pg_temp`, `authenticated`=✅, `anon`=❌, firma `p_date_from date, p_date_to date` (sin valores por defecto) |
+| Push a `main` | `eb15a19..472cc54`. Solo la rama; no se creó ninguna etiqueta |
+| CI | **success** (`33466675256`) sobre `472cc54` |
+| Vercel | `READY` sobre **`472cc54`** (`dpl_GNsKCD2Ar7UWofg6etvvuWPqAMzK`, URL única `gestion-rifas-5tai5wb2r-…`), alias `gestion-rifas.vercel.app` |
+
+**Los números del reporte, sobre datos reales.** `report_sales_totals` frente a una consulta de
+control, por la conexión de superusuario y solo lectura:
+
+| Rango | Función | Control |
+|---|---|---|
+| Hoy | 17 boletas · $2.040.000 | 17 · $2.040.000 |
+| Últimos 30 días | 661 · vendido $79.240.000 · abonado $24.940.000 · saldo $54.300.000 | La identidad se cumple: 79.240.000 − 24.940.000 = 54.300.000 |
+
+**Sonda de dinero después:** 868 boletas, 661 vendidas, 442 clientes, 258 pagos vigentes por
+$24.940.000, vendido $79.240.000, abonado $24.940.000, comisión $10.260.000, 3.288 de bitácora.
+Recaudado = abonado, como exige BR-F07.
+
+#### En vivo
+
+6/6 cabeceras de seguridad en `/login` (200, CSP con nonce), cuatro rutas protegidas en 307 hacia
+`/login?next=…`, `/sw.js` en 200, **0** claves de servicio en los 15 recursos (**958 KB**) ni en el
+HTML, y el **identificador de versión** `878c63fe3da1` —sha256 de `472cc544…` recortado a 12 hex—
+encontrado en `0g-1-szek1l5d.js`. Cuatro comprobaciones de aislamiento sin sesión:
+
+| Petición | Respuesta |
+|---|---|
+| `rpc/report_sales_totals` con la clave **pública** y sin sesión | **401** `permission denied for function report_sales_totals` |
+| `tickets?select=id` igual | **401** `permission denied for table tickets` |
+| `/api/reports/export?report=sales-by-date` | **307** hacia `/login?next=…` |
+| `/api/lottery/sync` sin secreto | **401**, sin regresión |
+
+**Lo que NO se pudo comprobar en vivo, y se dice:** el reporte vive tras el inicio de sesión, así que
+su pantalla se verificó end-to-end **contra la base local** con 23 pruebas E2E, no contra producción
+(la misma limitación de I-066 y la práctica de D-123). En producción lo comprobado es el SHA
+desplegado, el alias, el identificador de versión servido, la migración aplicada y que la función
+devuelve las cifras correctas sobre datos reales.
+
+**Observación ajena a este cambio:** el CI del commit anterior (`eb15a19`, documentación de D-150)
+figura en `failure`. No se investigó aquí.
+
+---
+
 ## Post-9 — Cabecera contextual al hacer scroll (2026-08-30, D-150)
 
 Mantenimiento de usabilidad. Autorizado expresamente. Sin migración, sin consultas, sin dependencias.
