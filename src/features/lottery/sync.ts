@@ -8,8 +8,8 @@ import { fetchLotteryResultForDraw } from './adapters'
 import { LOTTERY_RESULT_SYNC, type LotteryCode } from './constants'
 import {
   bogotaIsoDate,
+  classifyOfficialResultFit,
   decideResultFetch,
-  officialResultFitsSchedule,
   resultSyncHorizon,
 } from './publication'
 import type { AdapterOutcome, NormalizedLotteryResult, NormalizedSchedule } from './types'
@@ -360,14 +360,15 @@ export async function confirmAdapterResult(
   if (!extracted.ok) {
     return { skipped: true, code: extracted.code }
   }
-  if (
-    !officialResultFitsSchedule(extracted.value, {
-      lotteryCode: schedule.lotteryCode,
-      drawNumber: schedule.drawNumber,
-      officialScheduledAt: schedule.officialScheduledAt,
-    })
-  ) {
-    return { skipped: true, code: 'ambiguous' }
+  // Una portada que todavia muestra el sorteo anterior no es un formato roto:
+  // es un resultado que aun no esta publicado, y se reintenta (D-154).
+  const fit = classifyOfficialResultFit(extracted.value, {
+    lotteryCode: schedule.lotteryCode,
+    drawNumber: schedule.drawNumber,
+    officialScheduledAt: schedule.officialScheduledAt,
+  })
+  if (fit !== 'match') {
+    return { skipped: true, code: fit }
   }
   return confirmOfficialResult(client, {
     lotteryCode: extracted.value.lotteryCode,

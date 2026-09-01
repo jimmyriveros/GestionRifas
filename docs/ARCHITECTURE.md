@@ -1249,6 +1249,55 @@ son cuatro dígitos. Ninguno inventa un resultado.
 > `scanned_document` y el resultado queda para revisión manual. El adaptador leería el acta el día
 > que se publique con texto; las pruebas lo demuestran con un PDF representativo.
 
+### 8.19.c Cómo se lee un resultado de una página oficial (D-154, BR-L24)
+
+Las cinco loterías que publican en HTML se leen con la **misma** forma, y la razón está en lo
+que pasó cuando no era así: la Lotería del Meta publicaba el número mayor `6262`, concatenado
+de los nombres de clase `.tdi_62,.tdi_62` de su hoja de estilos, cuando el oficial era `8134`
+(**I-088**). El sorteo y la fecha sí eran correctos, así que nada aguas abajo podía frenarlo.
+
+El orden es siempre este:
+
+1. **Limpiar.** `stripTags` borra `<script>`, `<style>`, `<noscript>`, `<template>` y los
+   comentarios **antes** de quitar etiquetas. Lo que un usuario no lee no es texto. Y las
+   etiquetas se quitan respetando las comillas: un atributo puede contener `>` —lo tiene la
+   página de la Cruz Roja— y con `<[^>]+>` medio atributo se colaba como contenido.
+2. **Anclar.** `anchorSection` busca un encabezado que traiga **sorteo y fecha juntos** y
+   devuelve los 240 caracteres siguientes. Una hoja de estilos no reproduce ese encabezado; un
+   desplegable de fechas viejas, tampoco.
+3. **Leer dentro de la ventana.** `labeledDigits` toma los dígitos que siguen a una etiqueta,
+   admite que vengan separados por espacios —`7 6 6 0`, un dígito por elemento, es como los
+   pintan Boyacá y Cruz Roja— y **se corta en la primera letra**. Si la tirada no mide
+   exactamente lo esperado, se falla. La serie se busca **después** del número mayor, para que
+   no pueda capturarse la de un seco.
+4. **Fechar con el encabezado**, nunca con la página.
+
+| Lotería | Encabezado real que ancla la lectura | Etiqueta del número mayor |
+|---|---|---|
+| Meta | `Sorteo 3313 26/08/2026` | `Número` |
+| Cruz Roja | `SORTEO 3 1 6 8 FECHA 25/08/2026` (y su gemelo `SORTEO 3168 DEL …`) | `Premio mayor` |
+| Medellín | `Sorteo número 4850 del 28 de Agosto de 2026` | `Número` |
+| Boyacá | `Resultado sorteo #4639 Sábado 29 de agosto de 2026` | `Número ganador` |
+| Bogotá | `Sorteo 2861 27 de agosto de 2026` | `Premio mayor` |
+
+**Un señuelo no es un muro.** Imunify360 inyecta en las páginas que **sí** entrega un enlace
+oculto a `/imunify-bot-check` para cazar robots que siguen enlaces invisibles. No se sigue —y no
+se seguía—, pero buscarlo como marca de desafío dejaba a la Cruz Roja marcada como bloqueada
+teniendo el resultado delante (**I-089**). Las marcas que quedan solo aparecen en un interstitial
+real, y se añade `cf-mitigated: challenge`, que Cloudflare manda con el desafío sea cual sea el
+estado.
+
+**«Todavía no publicado» tiene su propio código.** `classifyOfficialResultFit` devuelve `match`,
+`not_published` o `ambiguous`. Un resultado de un sorteo **anterior** y de fecha **anterior** es
+la portada que aún no se actualizó: se reintenta. `officialResultFitsSchedule` se conserva como
+el caso `match` de esa función.
+
+> **Estado el 2026-09-01.** Cuatro loterías se confirman solas —Cruz Roja, Meta, Medellín y
+> Boyacá, comprobadas contra la fuente y contra el cronograma—. **Cundinamarca** no, porque sus
+> actas son escaneos (I-086). **Bogotá** tampoco: su sitio entero está tras un desafío de
+> Cloudflare y su único API de resultados exige un pase de Turnstile (**I-087**). Ninguna de las
+> dos se elude; su resultado queda para revisión manual.
+
 ### 8.20 Cabecera contextual al hacer scroll (D-150)
 
 La cabecera de `AppShell` ya era `sticky` (`h-14`, `z-40`). El encabezado de cada

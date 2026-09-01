@@ -23,9 +23,147 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **618 ✅** | **663 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento) | ✅ | ✅ |
+| Post-9 vigente | **636 ✅** | **663 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento; en la etapa 3/6 solo se reejecutaron las 8 de loterías, todas verdes) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Validación real de las seis fuentes oficiales, etapa 3/6 (2026-09-01, D-154)
+
+Mantenimiento posterior al plan. Autorizado expresamente. **Sin migración.** No se desplegó
+nada ni se escribió una sola fila en el proyecto Supabase real.
+
+### a. Evidencia por lotería, contra las fuentes oficiales en vivo
+
+Ensayo del camino real del tick sin base de datos: se descargó el **cronograma CNJSA vigente**,
+se tomó de él el **último sorteo ya jugado** de cada lotería y se llamó a
+`fetchLotteryResultForDraw`, el mismo punto de entrada que usa `syncDueLotteryResults`. El
+contraste con la programación lo hace `classifyOfficialResultFit`. **Una descarga por lotería.**
+
+Cronograma: `https://www.coljuegos.gov.co/loader.php?…&idFile=309186&id_comunidad=cnjsa`,
+descubierto —no fijado— en `cnjsa.coljuegos.gov.co/publicaciones/306418/…`. **312 sorteos
+ordinarios**, 43 extraordinarios descartados, hash
+`8e90783b0aadb9fbc833c9eac517c0954766097c272789521ad2a3b410216358`. Ejecutado a las
+**14:35 UTC del 2026-09-01** (09:35 en Bogotá).
+
+| Lotería | URL de descubrimiento | URL final descargada | Formato | HTTP | Sorteo esperado (CNJSA) | Datos extraídos | Contra cronograma |
+|---|---|---|---|---|---|---|---|
+| **Cruz Roja** (mar) | `https://lotecruz.org.co/` | la misma | HTML, 94.120 B, 561 ms | **200** `text/html` | 3168 · 2026-08-25 22:55 · Acuerdo 887/25 | sorteo **3168** · **2026-08-25** · número **4939** · serie **112** | ✅ **MATCH** |
+| **Meta** (mié) | `https://loteriadelmeta.gov.co/resultados/` | la misma | HTML, 206.531 B, 520 ms | **200** `text/html` | 3313 · 2026-08-26 22:30 · Acuerdo 887/25 | sorteo **3313** · **2026-08-26** · número **8134** · serie **096** | ✅ **MATCH** |
+| **Medellín** (vie) | `https://loteriademedellin.com.co/resultados/` | la misma | HTML, 245.123 B, 188 ms | **200** `text/html` | 4850 · 2026-08-28 23:00 · Acuerdo 887/25 | sorteo **4850** · **2026-08-28** · número **2608** · serie **301** | ✅ **MATCH** |
+| **Boyacá** (sáb) | `https://loteriadeboyaca.gov.co/resultados/` | la misma | HTML, 150.881 B, 970 ms | **200** `text/html` | 4639 · 2026-08-29 22:30 · Acuerdo 887/25 | sorteo **4639** · **2026-08-29** · número **7660** · serie **393** | ✅ **MATCH** |
+| **Cundinamarca** (lun) | acta armada con año + sorteo (D-153) | `https://plataformaweb.blob.core.windows.net/files/results-records/2026/4818.pdf` | PDF escaneado, 1.251 ms | **200** `application/pdf` | 4818 · 2026-08-31 23:15 · Acuerdo 887/25 | — | ❌ **`scanned_document`** (I-086) |
+| **Bogotá** (jue) | `https://loteriadebogota.com/` | — | — | **403** `Cf-Mitigated: challenge` | 2861 · 2026-08-27 23:15 · Acuerdo 887/25 + **893/26** | — | ❌ **`source_blocked`** (I-087) |
+
+Los cuatro números confirmados son **cuatro dígitos exactos** y se comprobaron dígito a dígito
+contra el texto visible de cada página. Boyacá usa `weekly_number`; las otras cinco,
+`daily_number` (BR-L06).
+
+**Sobre el hash de una página de resultados.** Cruz Roja, Meta y Boyacá cambian de hash entre
+dos descargas del mismo minuto: llevan cuentas atrás y widgets con la hora. El hash sirve como
+huella del **documento descargado**, que es para lo que se guarda (BR-L16); no es una huella
+estable del resultado, y no se usa para decidir nada.
+
+### b. Los tres defectos que encontró esta comprobación
+
+Ninguno era visible desde las pruebas: los fixtures escritos a mano no reproducían las páginas
+reales. Es exactamente lo que pedía el encargo al prohibir dar un adaptador por bueno solo con
+fixtures.
+
+| # | Defecto | Cómo se vio | Corrección |
+|---|---|---|---|
+| **1** | **Meta publicaba `6262` como número mayor y `391` como serie.** El resultado oficial era **`8134` / `096`.** Los dos salían de la hoja de estilos: `.tdi_62,.tdi_62` y `body.page-id-391` | Comparando el resultado del adaptador con el texto de la página. `6262` **no aparece literalmente en el HTML**: se fabricaba concatenando dígitos | `stripTags` borra `<style>` y comentarios; la lectura se ancla al encabezado con sorteo y fecha (BR-L24) |
+| **2** | **Cruz Roja se rechazaba con `source_blocked`** aunque la portada llegaba entera, con el resultado dentro | El `fetch` daba 200 y 94.120 bytes; el que fallaba era el detector de desafíos, por el señuelo oculto `imunify-bot-check` | El señuelo sale de las marcas de desafío. Se añade `cf-mitigated: challenge`, que sí es señal fiable (I-089) |
+| **3** | **La serie de Cruz Roja era `200`**, tomada de «GANADOR SECO **200** MILLONES» | Misma comparación con el texto | La serie se busca **después** del número mayor, dentro de la ventana anclada |
+
+Y dos aciertos por casualidad, corregidos aunque ese día no dieran un dato falso: **Boyacá**
+fechaba el sorteo con la primera fecha ISO de la página, que está en un desplegable de fechas
+anteriores y era la correcta solo porque el desplegable va de más nueva a más vieja;
+**Medellín** tenía a un carácter de distancia `08-05-2024`, dentro de un comentario de
+Elementor.
+
+### c. Comportamiento cuando el resultado todavía no se publica
+
+Comprobado, no supuesto:
+
+| Caso | Cómo se probó | Resultado |
+|---|---|---|
+| Acta de un sorteo futuro | `downloadCundinamarcaActa(2026, '4819')` en vivo — el 4819 juega el 2026-09-07 | **404 → `not_published`**, con la URL final en la evidencia |
+| Portada que aún muestra el sorteo anterior | `classifyOfficialResultFit` con el 3168 leído contra el 3169 esperado | **`not_published`**, no `ambiguous` |
+| Sorteo anterior con fecha posterior | mismo, con fecha 2026-09-02 | **`ambiguous`** — eso sí hay que mirarlo |
+| Sorteo más nuevo del esperado | mismo, con el 3170 | **`ambiguous`** |
+| Otra lotería | mismo, con `meta` contra un horario de Cruz Roja | **`ambiguous`** |
+
+**Reintentos.** `not_published` cuenta como intento fallido y vuelve a intentarse a los 30
+minutos, hasta 4 veces esa noche y 6 en total, con la conciliación de la mañana siguiente entre
+las 8 y las 12 (D-145). `source_blocked` es el único que además frena tras dos intentos hasta
+la mañana, para no machacar una fuente que ya dijo que no. Los intentos se cuentan **por
+sorteo** desde D-152. Cubierto por `L-60`.
+
+### d. Bogotá: los cinco canales oficiales que se investigaron
+
+Detalle completo en **I-087**. Resumen de lo comprobado en vivo el 2026-09-01:
+
+| Canal | Resultado |
+|---|---|
+| `loteriadebogota.com`, con y sin `www`, y `/resultados/` | **403** con `Cf-Mitigated: challenge` y `<title>Just a moment...</title>` |
+| `loteriadebogota.gov.co` | Redirige al mismo host protegido. `www.loteriadebogota.gov.co` responde **502** |
+| API de la SPA — `GET /api/connectionComercial/lastPlayedDraw` | **401 sin cuerpo.** Su interceptor exige `X-Antibot-Pass`, que se obtiene resolviendo un **Cloudflare Turnstile**. Prohibido |
+| Actas en PDF | La ruta antigua del plugin devuelve **200 con el `index.html` de la SPA**: 404 blando. Revisados **los 65 chunks** del bundle — no hay endpoint público de actas ni de boletines |
+| Datos Abiertos Bogotá (canal oficial del Distrito) | XLSX descargado y leído: **34.445 filas**, sorteo más reciente **2851 del 2026-06-18**, frente al 2861 pendiente. **Diez sorteos de retraso**, y los números vienen sin ceros iniciales, en contra de BR-L06 |
+
+No se cambió el `User-Agent`, no se usó un proxy, no se resolvió ningún CAPTCHA y no se
+consultó ningún agregador.
+
+### e. Estado del módulo en el proyecto real, comprobado
+
+Lectura de solo consulta con conteo exacto, para saber si el defecto de Meta había llegado a
+producir un dato equivocado:
+
+| Tabla | Filas |
+|---|---|
+| `lottery_results` | **0** |
+| `lottery_ticket_matches` | **0** |
+| `lottery_sync_runs` | **0** |
+| `lottery_draw_schedules` | **0** |
+
+Ningún tick llegó nunca a completarse en producción, lo que encaja con I-083 e I-084. **No hay
+ni un número mayor equivocado guardado, ni una sola coincidencia marcada.**
+
+### f. Verificaciones ejecutadas
+
+| Comando | Resultado | Errores |
+|---|---|---|
+| `npx tsc --noEmit` | ✅ | ninguno |
+| `npm run lint` | ✅ **0 errores** | los 2 avisos de siempre (`react-hooks/incompatible-library` en TanStack) |
+| `npm run test` | ✅ **636/636** (+18) | ninguno al final; ver abajo los dos que fallaron al empezar |
+| `npm run build` | ✅ | ninguno |
+| `npm run db:reset && npm run seed:local` | ✅ | ninguno |
+| `npm run test:db` | ✅ **663/663** | ninguno |
+| `npx playwright test loterias-cron loterias-panel loterias-panel-movil` | ✅ **8/8** | la primera pasada agotó el tiempo de arranque del servidor: **I-075**, `.next/dev` frío. Verde en la segunda, sin tocar nada |
+
+**Errores encontrados durante el trabajo, y qué eran.** Dos pruebas existentes fallaron al
+aplicar la corrección, y **las dos estaban mal, no el código nuevo**:
+
+1. `conserva ceros iniciales: 0046` usaba un fixture con la fecha en formato ISO suelta, que la
+   página real del Meta no usa. Reescrito con la estructura real (`Sorteo 3300` +
+   `05/08/2026`), y **conserva el `0046`**.
+2. `Cruz Roja con Imunify no se elude` afirmaba que el señuelo `imunify-bot-check` significaba
+   bloqueo. Era precisamente el defecto. Sustituida por dos pruebas: el señuelo dentro de una
+   página servida **no** bloquea, y un interstitial real de Imunify **sí**.
+
+No se ejecutó la suite E2E completa: este trabajo no cambia ninguna pantalla, ruta ni texto
+visible. Sí se ejecutaron las tres specs de loterías.
+
+### g. Pruebas nuevas
+
+**+18 unitarias**, de 618 a 636. Identificadores en `TESTING.md`: **L-60 a L-78**. Las tres de
+regresión que importan usan la estructura real de cada página, hoja de estilos incluida:
+`Meta: no toma el numero mayor ni la serie de una hoja de estilos`, `Cruz Roja: el señuelo
+oculto de Imunify no convierte la pagina en un muro` y `Boyaca fecha el sorteo con su
+encabezado, no con el desplegable de fechas viejas`. Ceros iniciales cubiertos en los dos
+campos: `0046` para el premio diario (Meta) y `0007` para el semanal (Boyacá).
 
 ---
 

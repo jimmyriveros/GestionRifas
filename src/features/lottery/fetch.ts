@@ -118,6 +118,18 @@ export async function fetchOfficialDocument(
       continue
     }
 
+    // Cloudflare marca sus propias interposiciones con esta cabecera, y la
+    // manda con el desafio sea cual sea el estado — asi que se mira antes que
+    // nada. Comprobada el 2026-09-01 contra `loteriadebogota.com`:
+    // `cf-mitigated: challenge` (D-154, I-087).
+    if (response.headers.get('cf-mitigated') === 'challenge') {
+      return fail(
+        'source_blocked',
+        'La fuente oficial exige una verificacion que no se elude.',
+        current.href,
+      )
+    }
+
     // Un 404 de un acta significa «todavia no publicada», no «no existe el
     // resultado»: la autoridad la sube horas despues del sorteo (BR-L23).
     if (response.status === 404 || response.status === 410) {

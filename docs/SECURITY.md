@@ -486,6 +486,18 @@ entrada**: no hay ruta nueva, ni RPC nueva, ni cambio de RLS, ni migración. Lo 
 | Certificado vencido de la fuente anterior | El host se **retiró** de la allowlist. No se desactiva la verificación de certificados para hablar con nadie (I-085) |
 | Guardar el documento | No se guarda: URL final, autoridad, hash y evidencia estructurada (BR-L16) |
 
+La validación real de las fuentes (D-154, BR-L24) **no añade ni un host, ni una ruta, ni una
+dependencia**: cambia cómo se lee lo que ya se descargaba. Lo que sí toca a seguridad:
+
+| Riesgo | Cómo queda cerrado |
+|---|---|
+| **Publicar un número que no es el oficial** | Era real, no teórico: la página del Meta hacía que el adaptador publicara `6262` leído de una hoja de estilos (I-088). Ahora cada campo se lee anclado a un encabezado con sorteo y fecha, y una tirada de dígitos de largo distinto al esperado **no se publica**. Aquí un dígito equivocado marca boletas ajenas como coincidentes |
+| Contenido que un usuario no ve tratado como texto | `<script>`, `<style>`, `<noscript>`, `<template>` y los comentarios se borran antes de leer nada |
+| Un atributo con `>` que rompe el borrado de etiquetas | El borrado respeta las comillas; ya no se cuela medio `onkeyup` como si fuera contenido |
+| Seguir un enlace-señuelo anti-robot | No se sigue —el módulo no navega enlaces— y además **deja de confundirse con un muro**: un señuelo oculto en una página servida no es un desafío (I-089) |
+| Insistir contra un desafío | `cf-mitigated: challenge` se reconoce sea cual sea el estado; `decideResultFetch` sigue frenando tras dos `source_blocked` hasta la mañana |
+| **Turnstile de Bogotá** | Se comprobó que su API exige `X-Antibot-Pass` y **no se resuelve**. Tampoco se cambia el `User-Agent`, ni se usa un proxy, ni un agregador. Se registra `source_blocked` y el resultado queda para revisión manual (I-087) |
+
 El Panel sigue sin importar nada de esto, y hay una prueba que lo vigila para `queries.ts` y
 `dashboard.ts`: ni el tick, ni `fetch`, ni los adaptadores (BR-L20).
 

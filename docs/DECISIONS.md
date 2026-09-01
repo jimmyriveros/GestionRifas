@@ -5789,6 +5789,128 @@ demuestran.
 
 ---
 
+## D-154 — Un número mayor se lee anclado a su encabezado, no buscando cuatro cifras en la página
+
+**Fase:** mantenimiento posterior a la Fase 9 (loterías, etapa 3/6, 2026-09-01)
+
+**Contexto.** Las etapas 1 y 2 acotaron el sincronizador y resolvieron Cundinamarca. Quedaba
+lo que el encargo llama «validación real de las seis fuentes oficiales»: comprobar contra las
+webs, no contra fixtures, que cada adaptador obtiene y valida el resultado ordinario más
+reciente. Se hizo, y **la validación en vivo encontró tres defectos que ninguna prueba podía
+ver**, porque los fixtures escritos a mano no reproducían las páginas reales.
+
+**Hechos comprobados el 2026-09-01, contra las fuentes oficiales.** La tabla completa —URL de
+descubrimiento, URL final, HTTP, bytes, hash, campos extraídos y contraste con el cronograma—
+está en `TEST_RESULTS`. Lo que cambió el diseño:
+
+**(a) El defecto grave: la Lotería del Meta publicaba un número inventado.** El adaptador
+devolvía número mayor **`6262`** y serie **`391`**. El resultado oficial era **`8134`**, serie
+**`096`**. Los dos números salían de la **hoja de estilos**: `6262` de concatenar los dígitos
+de los nombres de clase `.tdi_62,.tdi_62` de tagDiv, y `391` de `body.page-id-391`. Y era
+indetectable aguas abajo: el **sorteo (3313) y la fecha (2026-08-26) sí eran correctos**, así
+que `officialResultFitsSchedule` daba por bueno el conjunto, `confirm_lottery_result` lo
+habría confirmado y `match_lottery_result` habría marcado como coincidentes las boletas
+terminadas en 6262. Aquí eso toca dinero.
+
+La causa raíz eran dos, y las dos estaban en `parse/html.ts`:
+
+* `stripTags` borraba `<script>` pero **no `<style>`**, ni los comentarios, así que la hoja de
+  estilos entera contaba como «texto de la página».
+* Cada campo se buscaba **por separado en la página completa** —«el primer `número`», «la
+  primera `serie`», «la primera fecha»—, de modo que la primera coincidencia ganaba, viniera
+  de donde viniera.
+
+**(b) La Cruz Roja estaba marcada como bloqueada, y no lo estaba.** `lotecruz.org.co` entrega
+su portada entera —200, 94.120 bytes, con el resultado dentro— y el adaptador la rechazaba con
+`source_blocked`. El motivo: Imunify360 inyecta en las páginas que **sí** sirve un
+enlace-señuelo oculto, `<a href="/imunify-bot-check" style="display:none">`, para cazar robots
+que siguen enlaces invisibles. Buscar ese texto y concluir «muro» convertía una fuente que
+funciona en una fuente perdida. El señuelo **no se sigue** —eso no ha cambiado—, pero tampoco
+se confunde con un desafío.
+
+De paso, su serie también estaba mal: se leía `200`, de «GANADOR SECO **200** MILLONES», en vez
+de `112`. La serie es informativa (BR-L07), pero se muestra en el Panel.
+
+**(c) Boyacá y Medellín acertaban por casualidad.** La portada de Boyacá abre con un
+desplegable de decenas de fechas anteriores en formato ISO; la fecha del resultado se tomaba de
+la **primera** que apareciera en la página, y era la correcta solo porque el desplegable está
+ordenado de más nueva a más vieja. La de Medellín trae `08-05-2024` dentro de un comentario de
+Elementor. Ninguna de las dos publicaba un dato falso el día de la comprobación; las dos podían
+empezar a hacerlo con un cambio de maquetación.
+
+**(d) Bogotá no tiene hoy ningún canal oficial automatizable.** Se investigaron los cinco que
+existen y ninguno sirve: ver **I-087**. No se elude nada y no se usa un agregador.
+
+**(e) Cundinamarca sigue como la dejó D-153.** El acta del sorteo 4818 se descarga bien y es un
+escaneo: `scanned_document`, sin OCR (I-086).
+
+**Decisión.**
+
+1. **`stripTags` borra lo que un usuario no lee.** `<script>`, `<style>`, `<noscript>`,
+   `<template>` y los comentarios HTML desaparecen **antes** de quitar etiquetas. Y el borrado
+   de etiquetas respeta las comillas: un atributo puede contener `>` —`onkeyup="if
+   (this.value.length > this.maxLength) …"` está en la página real de la Cruz Roja— y con
+   `<[^>]+>` ese `>` cerraba la etiqueta antes de tiempo y colaba medio atributo como si fuera
+   contenido.
+
+2. **Todo campo se lee dentro de una ventana anclada.** Se busca primero un encabezado que
+   traiga **sorteo y fecha juntos** —«Sorteo 3313 26/08/2026», «Resultado sorteo #4639 Sábado
+   29 de agosto de 2026», «SORTEO 3168 DEL 25/08/2026»—, y el número mayor y la serie se leen
+   **solo** en los 240 caracteres que siguen. Una hoja de estilos no reproduce ese encabezado;
+   un desplegable de fechas viejas, tampoco.
+
+3. **La fecha sale del encabezado, nunca de la página.** Es el mismo principio, dicho para el
+   campo que más fácil se contamina.
+
+4. **La serie se busca después del número mayor**, dentro de la misma ventana. Así no puede
+   capturarse la de un seco.
+
+5. **La tirada de dígitos tiene que medir exactamente lo esperado.** Tras la etiqueta se
+   aceptan dígitos separados por espacios —la Cruz Roja y Boyacá pintan `7 6 6 0`, un dígito
+   por elemento— y la lectura se corta en la primera letra. Si salen tres cifras, o cinco, se
+   falla. **Se prefiere no publicar a adivinar.**
+
+6. **Un señuelo no es un muro.** `imunify-bot-check` sale de la lista de marcas de desafío. Se
+   quedan las que solo aparecen en un interstitial real: `just a moment`,
+   `cf-browser-verification`, `cdn-cgi/challenge`, `imunify360-webshield`, `im360_captcha` y
+   los dos rótulos de Cloudflare. Y se añade una señal que no depende del cuerpo:
+   `cf-mitigated: challenge`, la cabecera con la que Cloudflare marca sus propias
+   interposiciones, comprobada contra `loteriadebogota.com`.
+
+7. **«Todavía no publicado» deja de confundirse con «formato roto».** Justo después de un
+   sorteo, la portada sigue mostrando el de la semana pasada durante un rato. Antes eso se
+   registraba `ambiguous`, el mismo código que un cambio de maquetación, y quien leía el
+   registro no podía distinguir una espera normal de una fuente que dejó de leerse.
+   `classifyOfficialResultFit` devuelve ahora `match`, `not_published` o `ambiguous`;
+   `not_published` exige **sorteo anterior Y fecha anterior**, las dos cosas, y se reintenta,
+   igual que el 404 de un acta (BR-L23). `officialResultFitsSchedule` se conserva como el caso
+   `match` de esa función.
+
+**Por qué no se hizo de otra manera.**
+
+* **Un analizador de HTML completo (jsdom, cheerio).** Una dependencia nueva en la ruta de
+  servidor, para un problema que se resuelve acotando dónde se lee. La superficie no compensa
+  y `REUSE → EXTEND → CREATE` pide lo contrario.
+* **Selectores CSS fijos por lotería.** Se rompen con cualquier retoque de plantilla y no
+  fallan de forma visible: devuelven vacío. El anclaje por texto sobrevive a un cambio de
+  maquetación y, cuando no, **falla**.
+* **Tomar el primer número de cuatro cifras «pero saltándose el CSS».** Es el mismo error con
+  un parche encima: el siguiente contaminante sería la tabla de secos.
+* **Aceptar una tirada de dígitos más larga y recortarla.** Es exactamente lo que producía
+  `6262`. Recortar es adivinar.
+* **Dejar de consultar Bogotá.** Un desafío se configura y se desconfigura: la Cruz Roja estaba
+  «bloqueada» desde el 2026-08-30 y hoy entrega la página entera. Se sigue intentando, con el
+  freno de `decideResultFetch`, que tras dos `source_blocked` no vuelve hasta la mañana.
+
+**Consecuencia.** BR-L24. I-087 nuevo; I-081 se acota otra vez —de tres fuentes sin resultado
+en HTML quedan **dos**, y por motivos distintos—. Cuatro de las seis loterías quedan
+**confirmadas contra la fuente oficial y contra el cronograma CNJSA el 2026-09-01**: Cruz Roja
+3168, Meta 3313, Medellín 4850 y Boyacá 4639. Las otras dos no se confirman solas y quedan para
+revisión manual, cada una por su motivo (I-086, I-087). Ninguna migración, ninguna ruta nueva,
+ninguna dependencia nueva y ninguna llamada externa añadida a una pantalla.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

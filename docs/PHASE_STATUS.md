@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-01 (D-153, acta oficial de Cundinamarca; **sin desplegar**)
+- **Actualizado:** 2026-09-01 (D-154, validación real de las seis fuentes; **sin desplegar**)
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
   Cabecera contextual (D-150): el título, la flecha y un CTA suben a la cabecera
   fija de `AppShell` cuando el `PageHeader` sale de la vista. Sin migración.
@@ -12,10 +12,17 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   Route Handler y programador de producción (`0036`–`0039`, D-140..D-149).
 - **Fase siguiente:** ninguna autorizada
 - **Aviso operativo:** el dueño **pausó los cron** de producción el 2026-09-01. El código de
-  D-152 y D-153 y la migración `0041` están **solo en local**: no reactives el programador
-  antes de aplicar `0041` y desplegar.
-- **Aviso operativo:** **Cundinamarca no se confirma sola** (**I-086**): sus actas oficiales son
-  PDF escaneados sin texto. Su resultado se revisa a mano, como Cruz Roja y Bogotá.
+  D-152, D-153 y D-154 y la migración `0041` están **solo en local**: no reactives el programador
+  antes de aplicar `0041` y desplegar. En el proyecto real las cuatro tablas de loterías tienen
+  **0 filas**: ningún tick llegó nunca a completarse (comprobado el 2026-09-01).
+- **Aviso operativo:** de las seis loterías, **cuatro se confirman solas** —Cruz Roja, Meta,
+  Medellín y Boyacá, comprobadas contra la fuente oficial y contra el cronograma CNJSA el
+  2026-09-01 (D-154)— y **dos se revisan a mano**: **Cundinamarca** (**I-086**, actas escaneadas)
+  y **Bogotá** (**I-087**, Cloudflare y Turnstile). Ninguna de las dos se elude.
+- **Aviso operativo:** el adaptador del **Meta** publicaba un número mayor **inventado**
+  (**I-088**, corregido en D-154). No llegó a producción. Si tocas `parse/results.ts`, lee antes
+  `ARCHITECTURE` §8.19.c: la lectura anclada y el largo exacto de la tirada de dígitos son lo que
+  impide que vuelva.
 - **Aviso operativo:** producción **sigue siendo el seed de desarrollo** — dos organizaciones y
   cuatro cuentas `@demo.test` que pueden iniciar sesión (**I-077**, abierto el 2026-08-27). Decidirlo
   es condición previa a que entren vendedores reales
@@ -25,7 +32,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 | Clasificación | Estado actual |
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) y **la cabecera contextual al hacer scroll** (D-150, 2026-08-30, **en producción**) y **el reporte «Ventas por fecha» del portal del vendedor** (D-151, BR-T05..BR-T07, migración `0040`, 2026-08-31, **ya en producción**) |
-| **En curso** | Loterías, **etapa 2/6 de corrección** (D-153, 2026-09-01): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. **Sin migración, sin desplegar.** Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **pausado** desde el 2026-09-01 |
+| **En curso** | Loterías, **etapa 3/6 de corrección** (D-154, 2026-09-01): validación real de las seis fuentes oficiales. Cuatro confirmadas contra la fuente y contra el cronograma; tres defectos corregidos, uno de ellos un número mayor **inventado** (I-088). **Sin migración, sin desplegar.** Antes, etapa 2/6 (D-153): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **pausado** desde el 2026-09-01 |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
 
@@ -3093,6 +3100,96 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**
 6. Cruz Roja y Bogotá pueden no confirmarse solas (I-081): no eludir.
+
+---
+
+## Mantenimiento post-9 — validación real de las seis fuentes oficiales, etapa 3/6 (2026-09-01)
+
+**Encargo:** `PROMPT 3 — Validar y corregir las otras loterías`, autorizado expresamente.
+Comprobar contra las fuentes oficiales reales —no contra fixtures— que cada adaptador obtiene y
+valida el resultado ordinario más reciente. **No se desplegó nada. Sin migración.**
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Lectura anclada | Todo campo se lee dentro de la ventana que sigue a un encabezado con **sorteo y fecha juntos**. Nunca «la primera coincidencia de la página» (BR-L24) |
+| Limpieza previa | `stripTags` borra `<script>`, `<style>`, `<noscript>`, `<template>` y comentarios, y quita etiquetas **respetando las comillas** de los atributos |
+| Dígitos exactos | Tras una etiqueta se aceptan dígitos separados por espacios, se corta en la primera letra y la tirada tiene que medir **exactamente** lo esperado. Si no, no se publica |
+| Serie después del mayor | Se busca dentro de la misma ventana y **detrás** del número mayor, para que no capture la de un seco |
+| Señuelo ≠ muro | `imunify-bot-check` sale de las marcas de desafío. Se añade `cf-mitigated: challenge`, que Cloudflare manda sea cual sea el estado |
+| Error distinguible nuevo | `classifyOfficialResultFit` → `match` / `not_published` / `ambiguous`. Una portada que aún muestra el sorteo anterior es una **espera**, no un formato roto |
+| Cuatro loterías confirmadas | Cruz Roja 3168, Meta 3313, Medellín 4850 y Boyacá 4639, contra la fuente oficial **y** contra el cronograma CNJSA |
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npx tsc --noEmit` | ✅ |
+| `npm run lint` | ✅ 0 errores (2 avisos de siempre) |
+| `npm run test` | ✅ **636/636** (+18) |
+| `npm run build` | ✅ |
+| `npm run db:reset && npm run seed:local` | ✅ |
+| `npm run test:db` | ✅ **663/663** |
+| `npx playwright test loterias-cron loterias-panel loterias-panel-movil` | ✅ **8/8** (la primera pasada agotó el arranque del servidor: I-075, `.next/dev` frío) |
+| Ensayo en vivo contra las seis fuentes | 4 MATCH, 1 `scanned_document`, 1 `source_blocked`. Tabla completa en `TEST_RESULTS` |
+
+**Errores encontrados y corregidos.** Tres defectos del producto, los tres invisibles desde las
+pruebas porque los fixtures no reproducían las páginas reales:
+
+1. **La Lotería del Meta publicaba `6262` como número mayor**, concatenado de los nombres de
+   clase `.tdi_62,.tdi_62` de su hoja de estilos; el oficial era `8134`. Y la serie, `391`, de
+   `body.page-id-391`. **Sorteo y fecha eran correctos**, así que nada aguas abajo podía
+   frenarlo: se habría confirmado y habría marcado como coincidentes las boletas terminadas en
+   6262 (**I-088**).
+2. **La Cruz Roja estaba marcada como bloqueada sin estarlo**: Imunify360 inyecta un
+   enlace-señuelo oculto en las páginas que **sí** entrega (**I-089**).
+3. **La serie de la Cruz Roja era `200`**, tomada de «GANADOR SECO 200 MILLONES», en vez de `112`.
+
+Y dos aciertos por casualidad, corregidos aunque ese día no dieran un dato falso: Boyacá fechaba
+el sorteo con la primera fecha de la página —que está en un desplegable de fechas anteriores— y
+Medellín tenía `08-05-2024` a un carácter, dentro de un comentario de Elementor.
+
+Además fallaron **dos pruebas existentes**, y las dos estaban mal: un fixture del Meta con la
+fecha en un formato que la página real no usa, y una que afirmaba que el señuelo de Imunify
+significaba bloqueo —el defecto mismo—.
+
+### 3. Migraciones que existen
+
+**Ninguna nueva.** Sigue vigente `0041` (D-152), **solo en local**.
+
+### 4. Variables de entorno requeridas
+
+Sin cambios. `LOTTERY_SYNC_SECRET` o `CRON_SECRET` para el Route Handler.
+
+### 5. Problemas reales que permanecen
+
+| Id | Qué | Impacto |
+|---|---|---|
+| I-087 | **Bogotá no tiene ningún canal oficial automatizable.** Cloudflare en el sitio, Turnstile en su API, actas retiradas, Datos Abiertos con diez sorteos de retraso | Su resultado se revisa a mano. No se elude nada |
+| I-086 | Las actas de Cundinamarca son escaneos sin texto | Igual: revisión manual, sin OCR |
+| I-084 | Los cron siguen pausados por el dueño | Ningún tick corre hasta que se desplieguen `0041`, D-152, D-153 y D-154 |
+| I-082 | Vercel Hobby dispara cada cron una vez al día, ±59 min | Los reintentos se reparten a lo largo del día |
+| I-075 | La primera E2E con `.next/dev` frío agota su tiempo | Volver a lanzar; no es del código |
+| I-077 | Producción sigue siendo el seed de desarrollo | Condición previa a datos reales |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **`0041` sigue solo en local** y el código de D-152 ya la usa. No despliegues el frontend sin
+   aplicarla.
+2. **Los cron siguen pausados.** No los reactives sin desplegar antes.
+3. **En el proyecto real, las cuatro tablas de loterías tienen 0 filas.** Comprobado el
+   2026-09-01: ningún tick llegó nunca a completarse, así que no hay ni un número equivocado
+   guardado.
+4. **No relajes el largo exacto de la tirada de dígitos** de `labeledDigits` ni saques la lectura
+   de su ventana anclada: eso es exactamente lo que producía I-088.
+5. **No devuelvas `imunify-bot-check` a las marcas de desafío**, y no sigas ese enlace.
+6. **No intentes resolver el Turnstile de Bogotá**, ni cambies el `User-Agent`, ni uses un proxy
+   o un agregador.
+7. Cuando cada adaptador corra de verdad por primera vez, **compara el número con la página
+   oficial al día siguiente** (`OPERATIONS.md` §7).
+8. `CorrecionesLoterias.txt`, el prompt de esta etapa y `prueba-abono.csv` son del dueño; no se
+   commitean.
 
 ---
 

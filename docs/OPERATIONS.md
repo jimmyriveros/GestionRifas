@@ -143,8 +143,30 @@ secreto de servidor.
 
 El programador de producción (D-149) consulta las fuentes oficiales en segundo plano.
 El recuadro puede aparecer vacío o con «Horario por confirmar» hasta el primer tick
-exitoso, y Cruz Roja o Bogotá pueden no salir si la fuente oficial no entrega el
-resultado a una consulta automatizada (I-081): eso no es un fallo de la pantalla.
+exitoso: eso no es un fallo de la pantalla.
+
+**Cuatro de las seis loterías se confirman solas; dos hay que mirarlas a mano.** Comprobado
+contra las fuentes oficiales y contra el cronograma CNJSA el **2026-09-01** (D-154):
+
+| Lotería | Día | Estado |
+|---|---|---|
+| Cruz Roja | martes | ✅ Se confirma sola |
+| Meta | miércoles | ✅ Se confirma sola |
+| Medellín | viernes | ✅ Se confirma sola |
+| Boyacá | sábado | ✅ Se confirma sola |
+| Cundinamarca | lunes | ⚠️ **A mano.** Sus actas son escaneos sin texto (I-086) |
+| Bogotá | jueves | ⚠️ **A mano.** El sitio está tras un desafío de Cloudflare y su API exige un CAPTCHA (I-087) |
+
+Lo que no se puede confirmar **no se muestra como resultado**: la plataforma detecta
+coincidencias solo con lo que tiene confirmado, y nunca inventa un número.
+
+**Lo que hay que mirar la primera vez que corra de verdad.** Estos cuatro adaptadores se
+validaron contra el **último sorteo ya publicado** de cada lotería, que es lo máximo que se
+puede comprobar sin esperar a un sorteo nuevo. En la primera ejecución real de cada uno —Cruz
+Roja el martes, Meta el miércoles, Medellín el viernes, Boyacá el sábado— conviene abrir el
+Panel al día siguiente y comparar el número mayor con la página oficial. Si no coincide, o si
+`lottery_sync_runs` registra `structure_changed`, la página cambió de maquetación: ver
+`RUNBOOK.md` §7.
 
 **El primer tick no lo trae todo de golpe, y es a propósito.** Cada ejecución consulta como
 mucho **seis** sorteos, de los jugados en los **últimos diez días**, empezando por el más
@@ -152,12 +174,10 @@ reciente (D-152). Si se importa el cronograma de un año, lo viejo no se rellena
 que el Panel enseña, y lo demás espera al tick siguiente. Un resultado ya confirmado no se
 vuelve a pedir nunca.
 
-**Cundinamarca hay que mirarla a mano, hoy por hoy.** Su resultado se lee del acta oficial en
-PDF (D-153), pero la autoridad las publica **escaneadas**, sin texto dentro, así que el sistema
-no puede leerlas y no se inventa nada (I-086). El acta de cada sorteo está en
-`loteriadecundinamarca.com.co/actas-resultados`. Es la misma situación que Cruz Roja y Bogotá
-(I-081): la plataforma detecta coincidencias con lo que tiene confirmado; lo que no puede
-confirmar, no lo muestra como resultado.
+**Dónde mirar las dos que no se confirman solas.** El acta de cada sorteo de Cundinamarca está
+en `loteriadecundinamarca.com.co/actas-resultados`; el resultado de Bogotá, en
+`loteriadebogota.com` desde un navegador normal —el desafío de Cloudflare solo estorba a una
+consulta automática—.
 
 Si hace falta dispararlo a mano en local: `npm run lottery:sync -- --probe` (solo
 comprueba el secreto) o sin `--probe` (consulta de verdad), con `npm run dev:local` y

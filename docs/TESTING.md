@@ -350,6 +350,31 @@ red en `tests/unit/lottery-fetch.test.ts`):
 | L-58 | El tick de Cundinamarca | Pide la URL del acta y **solo** esa; ni SPA ni `result/public` |
 | L-59 | Texto partido por el generador | Se lee igual con varios `Tj`, con `TJ` y con cadena hexadecimal |
 
+Validación real de las seis fuentes (etapa 3/6, D-154). Los HTML de estas pruebas **reproducen
+la estructura que servían las páginas el 2026-09-01**, trampas incluidas; no son inventados.
+
+| Id | Escenario | Resultado esperado |
+|---|---|---|
+| L-60 | Un resultado que aún no se publica | Se reintenta esa misma noche, a diferencia de `source_blocked` |
+| L-61 | Meta: encabezado, número mayor y serie | 3313 · 2026-08-26 · **8134** · 096 |
+| L-62 | Meta con la hoja de estilos de tagDiv delante | **No** devuelve `6262` ni `391`: no se lee de un `<style>` |
+| L-63 | Meta con la tabla de secos detrás | El primer número de la tabla no desplaza al mayor |
+| L-64 | Cero inicial del premio **diario** | `0046` se conserva; la serie, `007` |
+| L-65 | Cruz Roja: premio mayor, no el seco | 3168 · 2026-08-25 · **4939** |
+| L-66 | Cruz Roja: la serie | **112**, no los «200 MILLONES» del seco |
+| L-67 | Cruz Roja con el señuelo `imunify-bot-check` | La página **se lee**: un señuelo oculto no es un muro |
+| L-68 | Interstitial real de Imunify | `source_blocked`. No se elude |
+| L-69 | Medellín con el extra en la misma página | Toma el ordinario: 4850 · 2026-08-28 · 2608 · 301 |
+| L-70 | Medellín con el comentario de Elementor | No fecha el sorteo con `08-05-2024` |
+| L-71 | Medellín con solo el extra | `not_ordinary` |
+| L-72 | Boyacá: número ganador y serie partidos en dígitos | 4639 · **7660** · 393 |
+| L-73 | Boyacá con el desplegable de fechas anteriores | Fecha del encabezado, no la primera de la página |
+| L-74 | Cero inicial del premio **semanal** | `0007` se conserva; la serie, `001` |
+| L-75 | Tirada de dígitos de largo distinto al esperado | Tres cifras y cinco cifras: **no se publica** |
+| L-76 | Desafío de Cloudflare por cabecera | `cf-mitigated: challenge` basta, sea cual sea el estado |
+| L-77 | Portada sin bloque de resultado | `structure_changed`, distinto de un dato mal leído |
+| L-78 | `confirmAdapterResult` con un sorteo anterior | Propaga `not_published` y **no llama a ninguna RPC** |
+
 Verificaciones de catálogo (automatizadas, Fases 2, 7 y 9):
 
 ```sql

@@ -122,12 +122,47 @@ export function shouldSyncSchedule(input: {
   return true
 }
 
+/**
+ * Por que un resultado leido no sirve para el sorteo que se esperaba
+ * (D-154). Los tres casos se distinguen porque se operan distinto:
+ *
+ *   `match`         — es el sorteo esperado y la fecha cuadra.
+ *   `not_published` — la fuente sigue mostrando un sorteo ANTERIOR. No hay
+ *                     nada roto: el resultado todavia no esta arriba. Se
+ *                     reintenta, igual que un 404 de un acta (BR-L23).
+ *   `ambiguous`     — cualquier otra cosa. Aqui si hace falta que mire una
+ *                     persona: fecha que no cuadra, sorteo mas nuevo del
+ *                     esperado, o loteria distinta.
+ */
+export type ScheduleFitOutcome = 'match' | 'not_published' | 'ambiguous'
+
+export function classifyOfficialResultFit(
+  result: { lotteryCode: LotteryCode; drawNumber: string; officialDate: string },
+  schedule: { lotteryCode: LotteryCode; drawNumber: string; officialScheduledAt: string },
+): ScheduleFitOutcome {
+  if (result.lotteryCode !== schedule.lotteryCode) return 'ambiguous'
+  const playedOn = bogotaIsoDate(schedule.officialScheduledAt)
+
+  if (result.drawNumber === schedule.drawNumber) {
+    // La publicacion puede caer despues de medianoche: el dia siguiente vale.
+    return result.officialDate === playedOn || result.officialDate === addIsoDays(playedOn, 1)
+      ? 'match'
+      : 'ambiguous'
+  }
+
+  // Sorteo anterior Y fecha anterior. Las dos condiciones, para no confundir
+  // «todavia no publicado» con una numeracion que dejo de cuadrar.
+  const found = Number(result.drawNumber)
+  const expected = Number(schedule.drawNumber)
+  if (Number.isFinite(found) && Number.isFinite(expected) && found < expected) {
+    return result.officialDate < playedOn ? 'not_published' : 'ambiguous'
+  }
+  return 'ambiguous'
+}
+
 export function officialResultFitsSchedule(
   result: { lotteryCode: LotteryCode; drawNumber: string; officialDate: string },
   schedule: { lotteryCode: LotteryCode; drawNumber: string; officialScheduledAt: string },
 ): boolean {
-  if (result.lotteryCode !== schedule.lotteryCode) return false
-  if (result.drawNumber !== schedule.drawNumber) return false
-  const playedOn = bogotaIsoDate(schedule.officialScheduledAt)
-  return result.officialDate === playedOn || result.officialDate === addIsoDays(playedOn, 1)
+  return classifyOfficialResultFit(result, schedule) === 'match'
 }

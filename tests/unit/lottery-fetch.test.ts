@@ -68,6 +68,43 @@ describe('descarga oficial (D-144)', () => {
     expect(out.code).toBe('timeout')
   })
 
+  it('un desafio de Cloudflare se reconoce por su cabecera, no solo por el estado', async () => {
+    // `loteriadebogota.com` respondia asi el 2026-09-01: 403 con
+    // `cf-mitigated: challenge`. La cabecera llega con el desafio sea cual
+    // sea el estado, asi que se mira antes que el cuerpo (D-154, I-087).
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('<html><body>contenido cualquiera</body></html>', {
+            status: 200,
+            headers: { 'content-type': 'text/html', 'cf-mitigated': 'challenge' },
+          }),
+      ),
+    )
+    const out = await fetchOfficialDocument('https://loteriadebogota.com/')
+    expect(out.ok).toBe(false)
+    if (out.ok) return
+    expect(out.code).toBe('source_blocked')
+  })
+
+  it('un 403 con el interstitial de Cloudflare es source_blocked, no un formato roto', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('<!DOCTYPE html><html><head><title>Just a moment...</title>', {
+            status: 403,
+            headers: { 'content-type': 'text/html' },
+          }),
+      ),
+    )
+    const out = await fetchOfficialDocument('https://loteriadebogota.com/')
+    expect(out.ok).toBe(false)
+    if (out.ok) return
+    expect(out.code).toBe('source_blocked')
+  })
+
   it('descarga un HTML de un host permitido', async () => {
     vi.stubGlobal(
       'fetch',

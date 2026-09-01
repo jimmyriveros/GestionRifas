@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   LOTTERY_CODES,
@@ -12,12 +12,14 @@ import { LOTTERY_DASHBOARD_LOOKBEHIND_DAYS } from '@/features/lottery/dashboard'
 import {
   addIsoDays,
   bogotaIsoDate,
+  classifyOfficialResultFit,
   decideResultFetch,
   isMorningReconciliation,
   officialResultFitsSchedule,
   resultSyncHorizon,
 } from '@/features/lottery/publication'
 import { ALLOWED_SOURCE_HOSTS } from '@/features/lottery/sources'
+import { confirmAdapterResult, type LotteryDb } from '@/features/lottery/sync'
 
 const ROOT = process.cwd()
 
@@ -116,6 +118,23 @@ describe('ventanas de publicacion (D-145)', () => {
     ).toBe('wait')
   })
 
+  it('un resultado que aun no se publica si se reintenta esa misma noche', () => {
+    // `not_published` es una espera, no un muro: la portada del Meta sigue
+    // mostrando el sorteo de la semana pasada un rato despues del sorteo
+    // (D-154). Frente a `source_blocked`, este si vuelve a intentarse.
+    expect(
+      decideResultFetch({
+        lotteryCode: 'meta',
+        officialScheduledAt: official,
+        now: new Date('2099-06-16T00:40:00-05:00'),
+        validationStatus: 'none',
+        failedAttempts: 2,
+        lastAttemptAt: '2099-06-16T00:05:00-05:00',
+        lastErrorCode: 'not_published',
+      }),
+    ).toBe('fetch')
+  })
+
   it('deja de intentar al tope total', () => {
     expect(
       decideResultFetch({
@@ -189,6 +208,100 @@ describe('resultado publicado despues de medianoche', () => {
   it('Bogota el 31 de marzo sigue siendo el jueves 2 de abril como fecha de referencia, no esta funcion', () => {
     expect(bogotaIsoDate('2026-03-31T23:00:00-05:00')).toBe('2026-03-31')
     expect(addIsoDays('2026-03-31', 1)).toBe('2026-04-01')
+  })
+})
+
+/**
+ * «Todavia no publicado» no es «formato roto» (D-154). Justo despues del
+ * sorteo, la portada de la Cruz Roja o la del Meta siguen mostrando el sorteo
+ * de la semana pasada durante un rato. Antes eso se registraba `ambiguous`,
+ * el mismo codigo que un cambio de maquetacion, y quien leia el registro no
+ * podia distinguir una espera normal de una fuente que dejo de leerse.
+ */
+describe('resultado que la fuente todavia no publico', () => {
+  const cruzRoja = {
+    lotteryCode: 'cruz_roja' as const,
+    drawNumber: '3169',
+    officialScheduledAt: '2026-09-01T22:55:00-05:00',
+  }
+
+  it('la portada muestra el sorteo anterior: es not_published, no ambiguous', () => {
+    expect(
+      classifyOfficialResultFit(
+        { lotteryCode: 'cruz_roja', drawNumber: '3168', officialDate: '2026-08-25' },
+        cruzRoja,
+      ),
+    ).toBe('not_published')
+  })
+
+  it('el sorteo esperado con su fecha es match', () => {
+    expect(
+      classifyOfficialResultFit(
+        { lotteryCode: 'cruz_roja', drawNumber: '3169', officialDate: '2026-09-01' },
+        cruzRoja,
+      ),
+    ).toBe('match')
+  })
+
+  it('un sorteo anterior con fecha POSTERIOR no es una espera: hay que mirarlo', () => {
+    expect(
+      classifyOfficialResultFit(
+        { lotteryCode: 'cruz_roja', drawNumber: '3168', officialDate: '2026-09-02' },
+        cruzRoja,
+      ),
+    ).toBe('ambiguous')
+  })
+
+  it('un sorteo mas nuevo del esperado tampoco es una espera', () => {
+    expect(
+      classifyOfficialResultFit(
+        { lotteryCode: 'cruz_roja', drawNumber: '3170', officialDate: '2026-09-08' },
+        cruzRoja,
+      ),
+    ).toBe('ambiguous')
+  })
+
+  it('otra loteria nunca se confunde con una espera', () => {
+    expect(
+      classifyOfficialResultFit(
+        { lotteryCode: 'meta', drawNumber: '3168', officialDate: '2026-08-25' },
+        cruzRoja,
+      ),
+    ).toBe('ambiguous')
+  })
+
+  it('confirmAdapterResult propaga el codigo y no confirma nada', async () => {
+    const rpc = vi.fn()
+    const client = { rpc } as unknown as LotteryDb
+    const outcome = await confirmAdapterResult(
+      client,
+      {
+        id: 'sch-1',
+        lotteryCode: 'cruz_roja',
+        drawNumber: '3169',
+        officialScheduledAt: cruzRoja.officialScheduledAt,
+        referenceDate: '2026-09-01',
+        scheduleStatus: 'scheduled',
+        validationStatus: 'none',
+      },
+      {
+        ok: true,
+        value: {
+          lotteryCode: 'cruz_roja',
+          drawNumber: '3168',
+          officialDate: '2026-08-25',
+          winningNumber: '4939',
+          series: '112',
+          sourceKind: 'official_page',
+        },
+        sourceUrl: 'https://lotecruz.org.co/',
+        contentType: 'text/html',
+        contentHash: 'abc',
+        fetchedAt: '2026-09-01T23:30:00-05:00',
+      },
+    )
+    expect(outcome).toEqual({ skipped: true, code: 'not_published' })
+    expect(rpc).not.toHaveBeenCalled()
   })
 })
 

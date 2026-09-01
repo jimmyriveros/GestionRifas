@@ -205,84 +205,127 @@ describe('ZIP de xlsx', () => {
   })
 })
 
+/**
+ * Resultados oficiales.
+ *
+ * Los HTML de abajo NO son inventados: reproducen la estructura real que
+ * servian las cinco portadas el 2026-09-01, incluidas las trampas que
+ * hicieron fallar a la version anterior (D-154). Cada una esta comentada.
+ * La validacion contra las fuentes en vivo esta en `TEST_RESULTS`; esto es
+ * lo que impide que el defecto vuelva sin que nadie lo note.
+ */
 describe('resultados oficiales', () => {
+  // La portada del Meta trae la hoja de estilos de tagDiv ANTES del
+  // resultado. `.tdi_62,.tdi_62` da los digitos «6262» y `body.page-id-391`
+  // da «391»: eso era exactamente lo que publicaba el adaptador anterior.
+  const META_HTML = `
+    <h1>Resultados | Lotería del Meta</h1>
+    <style>
+      .tdi_62,.tdi_62 .tdc-columns{min-height:0}
+      /* Pills de Número y Serie */
+      body.page-id-391 .lm-pill{background:#F5924A;color:#fff}
+    </style>
+    <p>Consulta ahora mismo el resultado de la Lotería del Meta.</p>
+    <div class="lm-pill">Sorteo 3313</div><div class="lm-pill">26/08/2026</div>
+    <span>Número</span><span>8134</span><span>Serie</span><span>096</span>
+    <table>
+      <tr><th>Número</th><th>Serie</th></tr>
+      <tr><td>0760</td><td>091</td></tr>
+      <tr><td>2803</td><td>068</td></tr>
+    </table>
+    <p>Descarga el acta del sorteo 3313 - 26 de Agosto 2026</p>
+  `
+
   it('Meta: sorteo, fecha, numero mayor 8134 y serie informativa', () => {
-    const html = `
-      <h1>Lotería del Meta</h1>
-      <p>Sorteo 3313</p>
-      <p>26/08/2026</p>
-      <p>Número</p><p>8134</p>
-      <p>Serie</p><p>096</p>
-      <p>Número</p><p>0760</p>
-    `
-    const out = extractLotteryResult('meta', html, 'https://loteriadelmeta.gov.co/resultados/')
+    const out = extractLotteryResult('meta', META_HTML, 'https://loteriadelmeta.gov.co/resultados/')
     expect(out.ok).toBe(true)
     if (!out.ok) return
-    expect(out.value.winningNumber).toBe('8134')
     expect(out.value.drawNumber).toBe('3313')
     expect(out.value.officialDate).toBe('2026-08-26')
+    expect(out.value.winningNumber).toBe('8134')
     expect(out.value.series).toBe('096')
   })
 
-  it('conserva ceros iniciales: 0046 no se convierte en 46', () => {
+  it('Meta: no toma el numero mayor ni la serie de una hoja de estilos', () => {
+    const out = extractLotteryResult('meta', META_HTML, 'https://loteriadelmeta.gov.co/resultados/')
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    // `.tdi_62,.tdi_62` -> 6262 y `body.page-id-391` -> 391. Publicarlos
+    // habria marcado boletas ajenas como coincidentes (D-154).
+    expect(out.value.winningNumber).not.toBe('6262')
+    expect(out.value.series).not.toBe('391')
+  })
+
+  it('Meta: el primer numero de la tabla de secos no desplaza al mayor', () => {
+    const out = extractLotteryResult('meta', META_HTML, 'https://loteriadelmeta.gov.co/resultados/')
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    expect(out.value.winningNumber).not.toBe('0760')
+  })
+
+  it('conserva ceros iniciales del premio diario: 0046 no se convierte en 46', () => {
     const html = `
-      <h1>Lotería del Meta</h1>
-      <p>Sorteo 3300</p>
-      <p>2026-08-05</p>
-      <p>Número 0046</p>
-      <p>Serie 007</p>
+      <h1>Resultados | Lotería del Meta</h1>
+      <div>Sorteo 3300</div><div>05/08/2026</div>
+      <span>Número</span><span>0046</span><span>Serie</span><span>007</span>
     `
     const out = extractLotteryResult('meta', html, 'https://loteriadelmeta.gov.co/resultados/')
     expect(out.ok).toBe(true)
     if (!out.ok) return
     expect(out.value.winningNumber).toBe('0046')
+    expect(out.value.series).toBe('007')
   })
+
+  // La portada de la Cruz Roja publica el resultado dos veces: primero con un
+  // digito por elemento, despues junto. Trae ademas el enlace-señuelo de
+  // Imunify360 y un atributo con un `>` dentro, que rompia el borrado de
+  // etiquetas y colaba texto de un `onkeyup` en el contenido.
+  const CRUZ_ROJA_HTML = `
+    <h1>Lotería | Cruz Roja Colombiana</h1>
+    <a href="/imunify-bot-check" rel="nofollow" aria-hidden="true" tabindex="-1"
+       style="display:none!important;position:absolute;left:-10000px">imunify-bot-check</a>
+    <div class="cajitas">SORTEO <span>3</span><span>1</span><span>6</span><span>8</span>
+      FECHA 25/08/2026
+      GANADOR PREMIO MAYOR <span>4</span><span>9</span><span>3</span><span>9</span>
+      SERIE <span>1</span><span>1</span><span>2</span>
+      GANADOR SECO 200 MILLONES <span>2</span><span>9</span><span>1</span><span>3</span>
+      SERIE <span>2</span><span>7</span><span>4</span>
+    </div>
+    <input onkeyup="if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);" />
+    <div class="banner">SORTEO 3168 DEL 25/08/2026 NÚMERO GANADOR PREMIO MAYOR 4 9 3 9 SERIE 112</div>
+  `
 
   it('Cruz Roja toma el premio mayor, no el seco', () => {
-    const html = `
-      RESULTADOS Lotería Cruz Roja
-      SORTEO 3168
-      FECHA 25/08/2026
-      GANADOR PREMIO MAYOR 4 9 3 9
-      SERIE 112
-      GANADOR SECO 200 MILLONES 2 9 1 3
-    `
-    const out = extractLotteryResult('cruz_roja', html, 'https://lotecruz.org.co/')
+    const out = extractLotteryResult('cruz_roja', CRUZ_ROJA_HTML, 'https://lotecruz.org.co/')
     expect(out.ok).toBe(true)
     if (!out.ok) return
-    expect(out.value.winningNumber).toBe('4939')
     expect(out.value.drawNumber).toBe('3168')
+    expect(out.value.officialDate).toBe('2026-08-25')
+    expect(out.value.winningNumber).toBe('4939')
   })
 
-  it('Medellin ignora el sorteo extra de la misma pagina', () => {
-    const html = `
-      Lotería de Medellín Extra de la Medellín
-      Sorteo número 0018 del 20 de Junio de 2026 Número 2323 Serie 554
-      Sorteo número 4850 del 28 de Agosto de 2026 Número 2608 Serie 301
-    `
-    const out = extractLotteryResult('medellin', html, 'https://loteriademedellin.com.co/resultados/')
+  it('Cruz Roja: la serie es la del premio mayor, no los «200 MILLONES» del seco', () => {
+    const out = extractLotteryResult('cruz_roja', CRUZ_ROJA_HTML, 'https://lotecruz.org.co/')
     expect(out.ok).toBe(true)
     if (!out.ok) return
-    expect(out.value.drawNumber).toBe('4850')
-    expect(out.value.winningNumber).toBe('2608')
-    expect(out.value.officialDate).toBe('2026-08-28')
+    expect(out.value.series).toBe('112')
+    expect(out.value.series).not.toBe('200')
   })
 
-  it('Medellin rechaza una pagina que solo trae el extra', () => {
-    const html = `
-      Lotería de Medellín Extra de la Medellín
-      Sorteo número 0018 del 20 de Junio de 2026 Número 2323 Serie 554
-    `
-    const out = extractLotteryResult('medellin', html, 'https://loteriademedellin.com.co/resultados/')
-    expect(out.ok).toBe(false)
-    if (out.ok) return
-    expect(out.code).toBe('not_ordinary')
+  it('Cruz Roja: el señuelo oculto de Imunify no convierte la pagina en un muro', () => {
+    // Imunify360 inyecta `<a href="/imunify-bot-check" style="display:none">`
+    // en las paginas que SI entrega. Tomarlo por un desafio dejaba la fuente
+    // marcada como bloqueada para siempre (D-154). El señuelo no se sigue.
+    const out = extractLotteryResult('cruz_roja', CRUZ_ROJA_HTML, 'https://lotecruz.org.co/')
+    expect(out.ok).toBe(true)
   })
 
-  it('Cruz Roja con Imunify no se elude', () => {
+  it('el muro real de Imunify si se reconoce y no se elude', () => {
     const out = extractLotteryResult(
       'cruz_roja',
-      '<html><div id="imunify-bot-check">Please wait</div></html>',
+      '<html><head><title>Imunify360</title></head><body>' +
+        '<script src="/.im360/imunify360-webshield.js"></script>' +
+        '<div id="im360_captcha"></div></body></html>',
       'https://lotecruz.org.co/',
     )
     expect(out.ok).toBe(false)
@@ -290,19 +333,114 @@ describe('resultados oficiales', () => {
     expect(out.code).toBe('source_blocked')
   })
 
-  it('Boyaca concatena los cuatro digitos del numero ganador, no un seco 0072', () => {
+  // La portada de Medellin publica el ordinario y el «Extra de la Medellín»
+  // con la misma estructura, y trae un comentario de Elementor con la fecha
+  // 08-05-2024 dentro de un `<style>`.
+  const MEDELLIN_HTML = `
+    <h2>Sorteo número 4850 del 28 de Agosto de 2026</h2>
+    <div>Sorteo 4850</div><div>28/Agosto/2026</div>
+    <span>Número</span><span>2608</span><span>Serie</span><span>301</span>
+    <style>/*! elementor - v3.21.0 - 08-05-2024 */ .elementor-widget-video{width:100%}</style>
+    <table>
+      <tr><th>Número</th><th>Serie</th></tr>
+      <tr><td>1956</td><td>459</td></tr>
+    </table>
+    <h2>Sorteo número 0018 del 20 de Junio de 2026</h2>
+    <div>Sorteo 0018</div><span>Número</span><span>2323</span><span>Serie</span><span>554</span>
+  `
+
+  it('Medellin ignora el sorteo extra de la misma pagina', () => {
+    const out = extractLotteryResult(
+      'medellin',
+      MEDELLIN_HTML,
+      'https://loteriademedellin.com.co/resultados/',
+    )
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    expect(out.value.drawNumber).toBe('4850')
+    expect(out.value.winningNumber).toBe('2608')
+    expect(out.value.officialDate).toBe('2026-08-28')
+    expect(out.value.series).toBe('301')
+  })
+
+  it('Medellin no fecha el sorteo con el comentario de version de una hoja de estilos', () => {
+    const out = extractLotteryResult(
+      'medellin',
+      MEDELLIN_HTML,
+      'https://loteriademedellin.com.co/resultados/',
+    )
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    expect(out.value.officialDate).not.toBe('2024-05-08')
+  })
+
+  it('Medellin rechaza una pagina que solo trae el extra', () => {
     const html = `
-      <h2>Resultado sorteo #4639</h2>
-      <p>Sábado 29 de agosto de 2026</p>
-      <h4>Número Ganador</h4><p>7</p><p>6</p><p>6</p><p>0</p>
-      <h4>Serie</h4><p>3</p><p>9</p><p>3</p>
-      <td>Seco de $10 Millones</td><td>0072</td>
+      Lotería de Medellín Extra de la Medellín
+      <h2>Sorteo número 0018 del 20 de Junio de 2026</h2>
+      <span>Número</span><span>2323</span><span>Serie</span><span>554</span>
+    `
+    const out = extractLotteryResult(
+      'medellin',
+      html,
+      'https://loteriademedellin.com.co/resultados/',
+    )
+    expect(out.ok).toBe(false)
+    if (out.ok) return
+    expect(out.code).toBe('not_ordinary')
+  })
+
+  // La portada de Boyaca abre con un desplegable de decenas de fechas
+  // anteriores en formato ISO, ANTES del resultado.
+  const BOYACA_HTML = `
+    <select>
+      <option>2025-04-19</option><option>2025-04-12</option><option>2026-08-29</option>
+    </select>
+    <h2>Resultado sorteo #4639</h2>
+    <p>Sábado 29 de agosto de 2026</p>
+    <h4>Número Ganador</h4><p>7</p><p>6</p><p>6</p><p>0</p>
+    <h4>Serie</h4><p>3</p><p>9</p><p>3</p>
+    <h3>Resultados secos</h3>
+    <table><tr><td>Seco de $1.000 Millones</td><td>2976</td><td>038</td></tr></table>
+  `
+
+  it('Boyaca concatena los cuatro digitos del numero ganador, no un seco', () => {
+    const out = extractLotteryResult(
+      'boyaca',
+      BOYACA_HTML,
+      'https://loteriadeboyaca.gov.co/resultados/',
+    )
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    expect(out.value.drawNumber).toBe('4639')
+    expect(out.value.winningNumber).toBe('7660')
+    expect(out.value.series).toBe('393')
+  })
+
+  it('Boyaca fecha el sorteo con su encabezado, no con el desplegable de fechas viejas', () => {
+    const out = extractLotteryResult(
+      'boyaca',
+      BOYACA_HTML,
+      'https://loteriadeboyaca.gov.co/resultados/',
+    )
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    expect(out.value.officialDate).toBe('2026-08-29')
+    expect(out.value.officialDate).not.toBe('2025-04-19')
+  })
+
+  it('conserva ceros iniciales del premio semanal: 0007 no se convierte en 7', () => {
+    const html = `
+      <h2>Resultado sorteo #4640</h2>
+      <p>Sábado 5 de septiembre de 2026</p>
+      <h4>Número Ganador</h4><p>0</p><p>0</p><p>0</p><p>7</p>
+      <h4>Serie</h4><p>0</p><p>0</p><p>1</p>
     `
     const out = extractLotteryResult('boyaca', html, 'https://loteriadeboyaca.gov.co/resultados/')
     expect(out.ok).toBe(true)
     if (!out.ok) return
-    expect(out.value.winningNumber).toBe('7660')
-    expect(out.value.drawNumber).toBe('4639')
+    expect(out.value.winningNumber).toBe('0007')
+    expect(out.value.series).toBe('001')
   })
 
   // El JSON del verificador de billetes se retiro en D-153: no descubre el
@@ -357,14 +495,15 @@ describe('resultados oficiales', () => {
     expect(out.ok).toBe(true)
     if (!out.ok) return
     expect(out.value.winningNumber).toBe('7280')
+    expect(out.value.drawNumber).toBe('2861')
+    expect(out.value.officialDate).toBe('2026-08-27')
   })
 
   it('rechaza un numero mayor de tres cifras', () => {
     const html = `
-      <h1>Lotería del Meta</h1>
-      <p>Sorteo 3313</p>
-      <p>26/08/2026</p>
-      <p>Número 813</p>
+      <h1>Resultados | Lotería del Meta</h1>
+      <div>Sorteo 3313</div><div>26/08/2026</div>
+      <span>Número</span><span>813</span>
     `
     const out = extractLotteryResult('meta', html, 'https://loteriadelmeta.gov.co/resultados/')
     expect(out.ok).toBe(false)
@@ -372,9 +511,27 @@ describe('resultados oficiales', () => {
     expect(['invalid_number', 'ambiguous']).toContain(out.code)
   })
 
+  it('rechaza un numero mayor de cinco cifras pegado a la etiqueta', () => {
+    const html = `
+      <h1>Resultados | Lotería del Meta</h1>
+      <div>Sorteo 3313</div><div>26/08/2026</div>
+      <span>Número</span><span>81340</span>
+    `
+    const out = extractLotteryResult('meta', html, 'https://loteriadelmeta.gov.co/resultados/')
+    expect(out.ok).toBe(false)
+  })
+
   it('una pagina sin etiquetas no toma cuatro digitos sueltos', () => {
     const html = `<p>Lotería del Meta promocion 2026 visita 8134 billetes</p>`
     const out = extractLotteryResult('meta', html, 'https://loteriadelmeta.gov.co/resultados/')
     expect(out.ok).toBe(false)
+  })
+
+  it('una portada sin el bloque de resultado se distingue de una mal leida', () => {
+    const html = `<h1>Resultados | Lotería del Meta</h1><p>Próximo sorteo</p>`
+    const out = extractLotteryResult('meta', html, 'https://loteriadelmeta.gov.co/resultados/')
+    expect(out.ok).toBe(false)
+    if (out.ok) return
+    expect(out.code).toBe('structure_changed')
   })
 })
