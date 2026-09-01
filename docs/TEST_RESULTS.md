@@ -23,9 +23,65 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **579 ✅** | **663 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento) | ✅ | ✅ |
+| Post-9 vigente | **618 ✅** | **663 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Adaptador del acta oficial de Cundinamarca, etapa 2/6 (2026-09-01, D-153)
+
+Mantenimiento posterior al plan. Autorizado expresamente. **Sin migración.** No se desplegó
+nada ni se tocó el proyecto Supabase real.
+
+### a. Hechos verificados contra las fuentes oficiales, hoy
+
+| Hecho del encargo | Resultado de volver a comprobarlo |
+|---|---|
+| `/api/v1/result/public` es un verificador de billetes | **Confirmado, y con la prueba más fuerte posible:** el bundle del propio sitio define `search(i, e, t)` con `drawNumber`, `number` y `serie`. Es además el **único** API que usa el sitio: no hay endpoint de listado |
+| El certificado de ese servidor estaba vencido | **Sigue vencido.** `SEC_E_CERT_EXPIRED` al conectar |
+| `/resultados` es una SPA sin resultado en el HTML | **Confirmado.** El HTML inicial trae `<app-root></app-root>` |
+| `/actas-resultados` publica actas en PDF | **Confirmado.** La lista de URL está en el bundle del sitio |
+| Host y ruta `plataformaweb.blob.core.windows.net/files/results-records/{año}/{sorteo}.pdf` | **Confirmado, exacto** |
+| El acta 4817 existía y la 4818 daba 404 | **Sigue igual.** 4817 → **200**, `application/pdf`, **1.496.242 bytes**, firma `%PDF-1.7`. 4818 → **404** con XML de error de Azure |
+
+### b. El hallazgo que el encargo no preveía
+
+**Las actas son escaneos.** Las seis muestreadas —4817, 4816, 4815, 4814, 4810 y 4800— tienen
+**cero fuentes**, solo imágenes `/DCTDecode`, y el flujo de contenido de cada página es
+literalmente `q … /X1 Do Q q … /X2 Do Q`: dos imágenes pintadas y **ni un operador de texto**.
+Metadatos: `/Producer intsig.com pdf producer`, `/Author CamScanner`.
+
+Comprobado también de punta a punta: el adaptador nuevo, contra el acta **real** 4817 recién
+descargada, devuelve `scanned_document` y **no inventa ningún número**. Ver I-086.
+
+### c. Comandos
+
+| Comando | Resultado | Error | Corrección |
+|---|---|---|---|
+| Sondas `curl` a las fuentes oficiales | ✅ los seis hechos de arriba | — | — |
+| `npm run typecheck` | ✅ | 3 tandas: la prueba vieja importaba `cundinamarcaResultLookupUrl`, ya retirada; y el cuerpo simulado de `fetch` no encajaba en `BodyInit` | Se reescribió esa prueba como «el verificador ya no es una fuente» y el cuerpo pasó a `ArrayBuffer` |
+| `npm run lint` | ✅ 0 errores (2 avisos de siempre) | Un error: quedaban scripts de exploración `*.tmp.mjs` en la raíz | Se borraron |
+| `npm run test` | ✅ **618/618** (+39) | 1 fallo: `lottery-adapters` daba por buena la lectura del JSON del verificador | Se convirtió en lo contrario: esa respuesta ya **no** publica nada |
+| `npm run build` | ✅ | — | — |
+| `npm run test:db` | ✅ **663/663** | — | Sin migración; se ejecuta para probar que nada regresó |
+
+### d. Lo que demuestra cada prueba nueva
+
+`tests/unit/lottery-acta.test.ts` (30) y las 8 nuevas de `tests/unit/lottery-fetch.test.ts`
+cubren L-43 a L-59 de `TESTING.md`: acta válida, cero inicial, serie opcional, sorteo o fecha
+distintos, dos filas ambiguas, PDF inválido, HTML disfrazado de PDF, documento grande, timeout,
+404 «aún no publicada», host y ruta no permitidos, y que **no se guarda el documento**. Los PDF
+los fabrica `tests/fixtures/lottery/build-pdf.ts` —válidos, con `xref` y `trailer`—, así que la
+prueba ejerce el lector de verdad; **no se commiteó el acta de un tercero**.
+
+### e. Lo que NO se hizo, y se dice
+
+- **No se desplegó nada** y no se tocó la base real. Esta etapa no trae migración.
+- **No se hizo OCR** ni se añadió ninguna dependencia.
+- **No se eludió nada:** ni el certificado vencido, ni Cloudflare, ni Imunify. No se usó ningún
+  agregador ni resultado de buscador.
+- **Cundinamarca sigue sin confirmarse sola** mientras las actas sean escaneos (I-086).
 
 ---
 

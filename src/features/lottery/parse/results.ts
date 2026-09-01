@@ -97,37 +97,14 @@ export function extractBoyacaResult(html: string): NormalizedLotteryResult | Ada
   return result('boyaca', draw, date, number, series)
 }
 
+/**
+ * La pagina publica de Cundinamarca. **No es la fuente automatica**: desde
+ * D-153 el resultado se lee del acta oficial en PDF
+ * (`parse/acta-cundinamarca.ts`). Esto se conserva porque el mapa de
+ * extractores cubre las seis loterias, y porque deja escrito lo que pasa si
+ * alguien vuelve a apuntar aqui: la SPA no trae el resultado y no se inventa.
+ */
 export function extractCundinamarcaResult(input: string): NormalizedLotteryResult | AdapterFail {
-  const trimmed = input.trim()
-  if (trimmed.startsWith('{')) {
-    try {
-      const json = JSON.parse(trimmed) as {
-        data?: {
-          draw?: { number?: string; date?: string }
-          prizes?: { name?: string; number?: string; serie?: string }[]
-        }
-        prizes?: { name?: string; number?: string; serie?: string }[]
-        drawNumber?: string
-        date?: string
-        winningNumber?: string
-        series?: string
-      }
-      const prizes = json.data?.prizes ?? json.prizes
-      const mayor = prizes?.find((p) => /mayor/i.test(p.name ?? ''))
-      const draw = json.data?.draw?.number ?? json.drawNumber
-      const date = json.data?.draw?.date ?? json.date
-      const number = mayor?.number ?? json.winningNumber
-      const series = mayor?.serie ?? json.series ?? null
-      if (!draw || !date || !number) {
-        return fail('ambiguous', 'El JSON oficial no trae sorteo, fecha y numero mayor.')
-      }
-      const iso = parseSpanishDate(String(date)) ?? String(date).slice(0, 10)
-      return result('cundinamarca', String(draw), iso, String(number), series ? String(series) : null)
-    } catch {
-      return fail('parse_error', 'El JSON de Cundinamarca no se pudo leer.')
-    }
-  }
-
   const text = stripTags(input)
   if (!/cundinamarca/i.test(text) && !/sorteo/i.test(text)) {
     return fail('structure_changed', 'La pagina no identifica la Loteria de Cundinamarca.')

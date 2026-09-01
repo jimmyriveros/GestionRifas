@@ -1,7 +1,9 @@
 import 'server-only'
 
+import { isPdfSignature } from './parse/pdf'
 import {
   ALLOWED_SOURCE_HOSTS,
+  ALLOWED_SOURCE_PATHS,
   FETCH_MAX_BYTES,
   FETCH_MAX_REDIRECTS,
   FETCH_TIMEOUT_MS,
@@ -20,9 +22,23 @@ function hostAllowed(hostname: string): boolean {
   return ALLOWED_SOURCE_HOSTS.some((allowed) => host === allowed)
 }
 
+/**
+ * Un host de la lista puede exigir ademas una ruta concreta (D-153). Se
+ * comprueba en la URL inicial y en cada salto de redireccion: si no, bastaria
+ * un 302 dentro del mismo host para salirse del prefijo autorizado.
+ */
+function pathAllowed(url: URL): boolean {
+  const rule = ALLOWED_SOURCE_PATHS[url.hostname.toLowerCase()]
+  if (!rule) return true
+  return rule.test(url.pathname)
+}
+
 function fail(code: AdapterFail['code'], message: string, sourceUrl?: string): AdapterFail {
   return { ok: false, code, message, sourceUrl }
 }
+
+/** Tipos aceptables para un PDF. Azure sirve las actas como `application/pdf`. */
+const PDF_CONTENT_TYPES = /^(application\/pdf|application\/octet-stream|binary\/octet-stream)/i
 
 /**
  * Descarga HTTPS acotada: allowlist de hosts, tope de tamano, timeout y
@@ -30,7 +46,7 @@ function fail(code: AdapterFail['code'], message: string, sourceUrl?: string): A
  */
 export async function fetchOfficialDocument(
   url: string,
-  init?: { timeoutMs?: number; maxBytes?: number },
+  init?: { timeoutMs?: number; maxBytes?: number; expect?: 'pdf' },
 ): Promise<{ ok: true; value: FetchedDocument } | AdapterFail> {
   let current: URL
   try {
@@ -44,6 +60,9 @@ export async function fetchOfficialDocument(
   }
   if (!hostAllowed(current.hostname)) {
     return fail('blocked_host', 'La fuente no esta en la lista de dominios oficiales.', url)
+  }
+  if (!pathAllowed(current)) {
+    return fail('blocked_path', 'La ruta no es la de un documento oficial autorizado.', url)
   }
 
   const timeoutMs = init?.timeoutMs ?? FETCH_TIMEOUT_MS
@@ -87,9 +106,22 @@ export async function fetchOfficialDocument(
           next.href,
         )
       }
+      if (!pathAllowed(next)) {
+        return fail(
+          'blocked_redirect',
+          'La redireccion sale de la ruta oficial autorizada.',
+          next.href,
+        )
+      }
       current = next
       hops += 1
       continue
+    }
+
+    // Un 404 de un acta significa «todavia no publicada», no «no existe el
+    // resultado»: la autoridad la sube horas despues del sorteo (BR-L23).
+    if (response.status === 404 || response.status === 410) {
+      return fail('not_published', 'La fuente oficial aun no publica ese documento.', current.href)
     }
 
     if (response.status === 403 || response.status === 429 || response.status === 503) {
@@ -114,9 +146,27 @@ export async function fetchOfficialDocument(
       return fail('too_large', 'El documento oficial supera el tamano permitido.', current.href)
     }
 
+    if (init?.expect === 'pdf' && !PDF_CONTENT_TYPES.test(contentType)) {
+      return fail(
+        'unsupported_type',
+        'La fuente no devolvio un PDF: el tipo de contenido es otro.',
+        current.href,
+      )
+    }
+
     const buffer = new Uint8Array(await response.arrayBuffer())
     if (buffer.byteLength > maxBytes) {
       return fail('too_large', 'El documento oficial supera el tamano permitido.', current.href)
+    }
+
+    // El `content-type` lo elige el servidor; la firma del archivo, no. Un
+    // HTML disfrazado de PDF se queda aqui.
+    if (init?.expect === 'pdf' && !isPdfSignature(buffer)) {
+      return fail(
+        'unsupported_type',
+        'El documento no empieza por la firma de un PDF.',
+        current.href,
+      )
     }
 
     return {

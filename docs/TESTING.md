@@ -283,7 +283,10 @@ Etapa 3, `tests/db/lottery-sync.test.ts`, `tests/unit/lottery-sync.test.ts` y
 Etapa 5–6, `tests/unit/lottery-cron.test.ts`, `tests/db/lottery-cron.test.ts` y
 `tests/e2e/loterias-cron.spec.ts`; Etapa 6 clava que `vercel.json` declara los jobs Hobby;
 horizonte y presupuesto, `tests/db/lottery-horizon.test.ts`, que monta un cronograma **anual** de
-318 sorteos en la base local y ejerce el orquestador real sustituyendo solo la descarga externa):
+318 sorteos en la base local y ejerce el orquestador real sustituyendo solo la descarga externa;
+acta oficial de Cundinamarca, `tests/unit/lottery-acta.test.ts` con los PDF fabricados por
+`tests/fixtures/lottery/build-pdf.ts` —no se commitea el documento de un tercero— y la parte de
+red en `tests/unit/lottery-fetch.test.ts`):
 
 | ID | Caso | Resultado esperado |
 |----|------|--------------------|
@@ -329,6 +332,23 @@ horizonte y presupuesto, `tests/db/lottery-horizon.test.ts`, que monta un cronog
 | L-40 | Bitácora de un tick | Una fila `results` por sorteo, con `schedule_id` distinto |
 | L-41 | Sorteo con resultado `confirmed` | Sigue siendo candidato y **no** gasta una descarga |
 | L-42 | La etapa de resultados se cae entera | El tick informa `results.errorCode` y conserva `schedule.outcome = success` |
+| L-43 | Acta válida con premio mayor | Sorteo, fecha, número mayor y serie; `sourceKind = official_act` |
+| L-44 | Número ganador con cero inicial | `0046` se conserva como texto; nunca se vuelve entero |
+| L-45 | Serie ausente | El acta sigue siendo válida con `series = null` |
+| L-46 | Acta de otro sorteo, o sin fecha | `ambiguous`; no se publica |
+| L-47 | Dos filas de PREMIO MAYOR con números distintos | `ambiguous`. Con el **mismo** número, sí se publica |
+| L-48 | Premio mayor de tres cifras | `ambiguous`; no se publica |
+| L-49 | PDF escaneado, sin capa de texto | `scanned_document`, distinto de «no aparece el premio mayor». Sin OCR |
+| L-50 | PDF cifrado | `unsupported_type`; no se intenta abrir |
+| L-51 | HTML servido como `application/pdf` | `unsupported_type` por la **firma** del archivo |
+| L-52 | Documento demasiado grande | `too_large` antes de cargarlo entero |
+| L-53 | Timeout pidiendo el acta | `timeout` |
+| L-54 | 404 del acta | `not_published`, **no** `source_blocked`: se reintenta |
+| L-55 | Host o ruta no permitidos | `blocked_host` / `blocked_path`; una redirección que sale de la ruta, `blocked_redirect` |
+| L-56 | Qué se conserva del acta | URL final, hash y campos; **ni el PDF ni su texto** en la salida ni en la evidencia |
+| L-57 | El verificador de billetes | No queda su URL, ni su host en la allowlist, ni la función que la armaba |
+| L-58 | El tick de Cundinamarca | Pide la URL del acta y **solo** esa; ni SPA ni `result/public` |
+| L-59 | Texto partido por el generador | Se lee igual con varios `Tj`, con `TJ` y con cadena hexadecimal |
 
 Verificaciones de catálogo (automatizadas, Fases 2, 7 y 9):
 

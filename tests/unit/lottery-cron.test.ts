@@ -258,9 +258,14 @@ describe('programador de produccion (D-149)', () => {
     expect(route).not.toMatch(/searchParams\.get\(['"]url['"]\)/)
   })
 
-  it('el recuadro del Panel no importa el tick', () => {
-    const queries = readFileSync(join(ROOT, 'src/features/lottery/queries.ts'), 'utf8')
-    expect(queries).not.toContain('runLotterySyncTick')
-    expect(queries).not.toContain("from './job'")
+  it('el recuadro del Panel no importa el tick ni nada que salga a internet', () => {
+    for (const file of ['queries.ts', 'dashboard.ts']) {
+      const source = readFileSync(join(ROOT, `src/features/lottery/${file}`), 'utf8')
+      expect(source).not.toContain('runLotterySyncTick')
+      expect(source).not.toMatch(/from '\.\/(job|fetch|adapters|sync)'/)
+      expect(source).not.toContain('downloadCundinamarcaActa')
+      // Ni una llamada de red directa desde una pantalla (BR-L20).
+      expect(source).not.toMatch(/\bfetch\s*\(/)
+    }
   })
 })

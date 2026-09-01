@@ -473,6 +473,22 @@ Vercel, que es como se consigue que a uno lo bloqueen (I-081). La migración `00
 superficie: añade una columna y un índice a `lottery_sync_runs`, que sigue sin política de
 `SELECT` para `authenticated`.
 
+El acta de Cundinamarca (D-153, BR-L23) añade **un host de salida y ni una superficie de
+entrada**: no hay ruta nueva, ni RPC nueva, ni cambio de RLS, ni migración. Lo relevante:
+
+| Riesgo | Cómo queda cerrado |
+|---|---|
+| Autorizar almacenamiento compartido de terceros | El host va con **su ruta** (`ALLOWED_SOURCE_PATHS`), comprobada en la URL inicial **y en cada redirección**. `blob.core.windows.net` no queda autorizado entero |
+| Una URL elegida por el cliente | `cundinamarcaActaUrl(year, draw)` valida los dos y devuelve `null` si no son un año y un sorteo. El año y el sorteo salen de la programación, no de un formulario |
+| Un HTML —o cualquier cosa— servido como PDF | Se exige el `content-type` **y** la firma `%PDF-` del archivo, que el servidor no elige |
+| Bomba de descompresión | `inflateSync` con `maxOutputLength`, tope de bytes descomprimidos y tope de objetos recorridos |
+| Un PDF cifrado | No se intenta abrir: `unsupported_type`. No se rompe una protección |
+| Certificado vencido de la fuente anterior | El host se **retiró** de la allowlist. No se desactiva la verificación de certificados para hablar con nadie (I-085) |
+| Guardar el documento | No se guarda: URL final, autoridad, hash y evidencia estructurada (BR-L16) |
+
+El Panel sigue sin importar nada de esto, y hay una prueba que lo vigila para `queries.ts` y
+`dashboard.ts`: ni el tick, ni `fetch`, ni los adaptadores (BR-L20).
+
 ### 4.9 «Ventas por fecha» (`0040`, BR-T05, D-151)
 
 Una superficie de lectura nueva, y la más pequeña posible.

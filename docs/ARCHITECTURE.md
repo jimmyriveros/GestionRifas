@@ -177,6 +177,7 @@ importa desde un componente cliente.
     │   ├── payments/
     │   ├── reports/
     │   ├── lottery/              # Constantes, adaptadores, sync, recuadro del Panel, tick y plan de cron (D-149)
+    │   │                         # parse/pdf.ts y parse/acta-cundinamarca.ts: acta oficial (D-153)
     │   ├── search/               # Búsqueda híbrida compartida
     │   └── tour/                 # Recorridos guiados
     ├── lib/
@@ -1214,6 +1215,39 @@ por lotería: Cundinamarca juega todos los lunes y contarlos por código mezclab
 Las dos etapas del tick son independientes. La programación se guarda en su propia transacción
 (`sync_lottery_schedules`); si la etapa de resultados se cae entera, el tick devuelve
 `results.errorCode` y **conserva** lo que la primera dejó hecho.
+
+### 8.19.b El acta oficial de Cundinamarca (D-153, BR-L23)
+
+Cundinamarca no se lee de una página: se lee de su **acta oficial en PDF**. La URL se arma con
+el año y el número de sorteo que vienen de la programación —nunca de una entrada del cliente— y
+es una sola petición por sorteo.
+
+| Pieza | Dónde | Qué hace |
+|---|---|---|
+| URL y allowlist de ruta | `sources.ts` | `cundinamarcaActaUrl(year, draw)` y `ALLOWED_SOURCE_PATHS` |
+| Descarga validada | `fetch.ts` | HTTPS, host **y ruta**, estado, tipo, **firma `%PDF-`**, tamaño, timeout, redirecciones |
+| Lector de PDF | `parse/pdf.ts` | Flujos de contenido y operadores de texto. Sin librería, sin OCR |
+| Fila del premio mayor | `parse/acta-cundinamarca.ts` | Una fila **inequívoca**, o no se publica |
+| Adaptador | `adapters.ts` | `downloadCundinamarcaActa(year, draw)` |
+
+**El host de Azure no queda autorizado entero.** `plataformaweb.blob.core.windows.net` es
+almacenamiento compartido: cualquiera puede tener una cuenta ahí. Por eso el host va con su
+ruta —`/files/results-records/{año}/{sorteo}.pdf`— y la comprobación se repite en **cada
+redirección**, no solo en la URL inicial.
+
+**Estados que devuelve, y por qué importan.** `not_published` (404) significa «la autoridad aún
+no la subió» y se reintenta con la escalera de siempre, incluida la conciliación de la mañana;
+`scanned_document` significa «el PDF es una imagen, no hay texto que leer» y **no se hace OCR**;
+`ambiguous` cubre dos filas de premio mayor distintas, un acta de otro sorteo, o un número que no
+son cuatro dígitos. Ninguno inventa un resultado.
+
+**Del documento no se guarda nada.** URL final, autoridad, hash y evidencia **estructurada**
+—etiqueta, páginas, operadores de texto, filas candidatas—: ni el PDF ni su texto (BR-L16).
+
+> **Hoy esto no confirma a Cundinamarca, y no es un fallo del adaptador.** Las actas que publica
+> la autoridad son escaneos de CamScanner sin capa de texto (**I-086**), así que el tick registra
+> `scanned_document` y el resultado queda para revisión manual. El adaptador leería el acta el día
+> que se publique con texto; las pruebas lo demuestran con un PDF representativo.
 
 ### 8.20 Cabecera contextual al hacer scroll (D-150)
 

@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-01 (D-152, sincronizador acotado, **solo local**)
+- **Actualizado:** 2026-09-01 (D-153, acta oficial de Cundinamarca; **sin desplegar**)
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
   Cabecera contextual (D-150): el título, la flecha y un CTA suben a la cabecera
   fija de `AppShell` cuando el `PageHeader` sale de la vista. Sin migración.
@@ -11,9 +11,11 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   Etapas 1 a 6 de resultados oficiales de loterías: contrato, adaptadores, sync, Panel,
   Route Handler y programador de producción (`0036`–`0039`, D-140..D-149).
 - **Fase siguiente:** ninguna autorizada
-- **Aviso operativo:** los diez cron de loterías **siguen activos** y este entorno no puede
-  pausarlos (**I-084**). El código corregido de D-152 y la migración `0041` están **solo en local**:
-  un tick autorizado corre entretanto con el comportamiento anterior.
+- **Aviso operativo:** el dueño **pausó los cron** de producción el 2026-09-01. El código de
+  D-152 y D-153 y la migración `0041` están **solo en local**: no reactives el programador
+  antes de aplicar `0041` y desplegar.
+- **Aviso operativo:** **Cundinamarca no se confirma sola** (**I-086**): sus actas oficiales son
+  PDF escaneados sin texto. Su resultado se revisa a mano, como Cruz Roja y Bogotá.
 - **Aviso operativo:** producción **sigue siendo el seed de desarrollo** — dos organizaciones y
   cuatro cuentas `@demo.test` que pueden iniciar sesión (**I-077**, abierto el 2026-08-27). Decidirlo
   es condición previa a que entren vendedores reales
@@ -23,7 +25,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 | Clasificación | Estado actual |
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) y **la cabecera contextual al hacer scroll** (D-150, 2026-08-30, **en producción**) y **el reporte «Ventas por fecha» del portal del vendedor** (D-151, BR-T05..BR-T07, migración `0040`, 2026-08-31, **ya en producción**) |
-| **En curso** | Loterías, **etapa 1/6 de corrección** (D-152, 2026-09-01): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo (`0041`). **Solo local, sin desplegar.** Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador usa los jobs Hobby de Vercel y **sigue activo** (I-084) |
+| **En curso** | Loterías, **etapa 2/6 de corrección** (D-153, 2026-09-01): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. **Sin migración, sin desplegar.** Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **pausado** desde el 2026-09-01 |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
 
@@ -3091,6 +3093,66 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**
 6. Cruz Roja y Bogotá pueden no confirmarse solas (I-081): no eludir.
+
+---
+
+## Mantenimiento post-9 — adaptador del acta oficial de Cundinamarca, etapa 2/6 (2026-09-01)
+
+**Encargo:** `PROMPT 2 — Sustituir el adaptador de Cundinamarca`, autorizado expresamente.
+Sustituir el adaptador defectuoso por uno basado en las actas oficiales en PDF.
+**No se desplegó nada. Sin migración.**
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Fuente nueva | El **acta oficial en PDF**. La URL se arma con el año y el sorteo de la programación: `/files/results-records/{año}/{sorteo}.pdf`. Una petición por sorteo |
+| Fuente retirada | El **verificador de billetes** `/api/v1/result/public`: fuera la URL, la función que la armaba, la rama JSON del extractor y el host de la allowlist |
+| Allowlist | El host de Azure se autoriza **solo con su ruta** (`ALLOWED_SOURCE_PATHS`), comprobada también en cada redirección |
+| Validación de la descarga | HTTPS, host, ruta, estado, tipo de contenido, **firma `%PDF-`**, tamaño (tope propio de 6 MB) y timeout |
+| Lector de PDF | `parse/pdf.ts`, mínimo y acotado: flujos de contenido, operadores de texto, `FlateDecode`. **Sin librería nueva y sin OCR** |
+| Lectura del acta | Solo una fila **inequívoca** de `PREMIO MAYOR`, con el sorteo que se esperaba. Ceros iniciales intactos; serie informativa y opcional |
+| Estados propios | `not_published` (404, se reintenta), `scanned_document` (PDF sin texto), `ambiguous` (dos candidatas, otro sorteo, número corto) |
+| Evidencia | URL final, autoridad, hash y campos estructurados. **Ni el PDF ni su texto** |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` en verde: `typecheck` ✅, `lint` **0 errores** (2 avisos de siempre),
+**618/618** unitarias (+39) y `build` ✅. `npm run test:db` **663/663** (sin migración; se
+ejecuta para probar que nada regresó).
+
+Errores encontrados y corregidos, **todos de las pruebas**: la prueba vieja importaba la función
+del verificador ya retirada; otra daba por buena la lectura del JSON de ese verificador; el
+cuerpo simulado de `fetch` no encajaba en `BodyInit`; y quedaban scripts de exploración en la
+raíz que rompían el lint. Detalle en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+**Ninguna.** Esta etapa no toca el esquema. Sigue pendiente de promover la `0041` de la etapa 1.
+
+### 4. Variables de entorno
+
+Ninguna nueva.
+
+### 5. Problemas reales que permanecen
+
+**I-086** (abierto, y es el importante): **las actas de Cundinamarca son PDF escaneados sin capa
+de texto** —cero fuentes, solo imágenes, `/Author CamScanner`—, así que **Cundinamarca no se
+confirma automáticamente**. El adaptador hace lo correcto: registra `scanned_document` y no
+inventa nada. El resultado queda para revisión manual, como Cruz Roja y Bogotá (I-081). **I-085**
+queda resuelto con la retirada del verificador. **I-084** sigue: los cron los pausó el dueño el
+2026-09-01. Siguen I-082, I-077, I-072, I-074, I-075, I-068, I-062, I-063 e I-024.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **Cundinamarca no se arregla insistiendo con el adaptador**: el acta no tiene texto (I-086).
+   OCR es la única vía técnica que queda y **no está autorizada**; un dígito mal leído marcaría
+   boletas ajenas como coincidentes.
+2. **No devuelvas el verificador de billetes** ni su host a la allowlist: no descubre nada y su
+   certificado está vencido (I-085).
+3. **No autorices `blob.core.windows.net` entero.** El host va con su ruta, siempre.
+4. **`0041` sigue solo en local** y el código de D-152 ya la usa.
+5. **No hay etiqueta `fase-N`.** Siguiente etapa autorizable: validar las otras cinco loterías (3/6).
 
 ---
 

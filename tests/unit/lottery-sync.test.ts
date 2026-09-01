@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -14,7 +17,9 @@ import {
   officialResultFitsSchedule,
   resultSyncHorizon,
 } from '@/features/lottery/publication'
-import { cundinamarcaResultLookupUrl } from '@/features/lottery/sources'
+import { ALLOWED_SOURCE_HOSTS } from '@/features/lottery/sources'
+
+const ROOT = process.cwd()
 
 describe('ventanas de publicacion (D-145)', () => {
   const official = '2099-06-15T23:00:00-05:00'
@@ -187,14 +192,21 @@ describe('resultado publicado despues de medianoche', () => {
   })
 })
 
-describe('Cundinamarca JSON con sorteo conocido (I-081)', () => {
-  it('arma la URL oficial con el numero de sorteo y no inventa un billete', () => {
-    const url = cundinamarcaResultLookupUrl('4817')
-    expect(url.startsWith('https://plataforma.loteriadecundinamarca.com.co/api/v1/result/public')).toBe(
-      true,
-    )
-    expect(url).toContain('sorteo=4817')
-    expect(url).not.toMatch(/numero=|billete=/)
+describe('el verificador de billetes ya no es una fuente (D-153, I-085)', () => {
+  it('no queda ni la URL, ni el host, ni una funcion que la arme', () => {
+    const sources = readFileSync(join(ROOT, 'src/features/lottery/sources.ts'), 'utf8')
+    expect(sources).not.toContain('cundinamarcaResultLookupUrl')
+    expect(sources).not.toContain('api/v1/result/public')
+    // El host del verificador sale de la allowlist: su certificado esta
+    // vencido y ademas no descubre ningun numero.
+    expect(sources).not.toContain('plataforma.loteriadecundinamarca.com.co')
+    expect(ALLOWED_SOURCE_HOSTS).not.toContain('plataforma.loteriadecundinamarca.com.co')
+  })
+
+  it('el adaptador de Cundinamarca ya no consulta la SPA ni el JSON', () => {
+    const adapters = readFileSync(join(ROOT, 'src/features/lottery/adapters.ts'), 'utf8')
+    expect(adapters).not.toContain('downloadCundinamarcaResult')
+    expect(adapters).toContain('downloadCundinamarcaActa')
   })
 })
 

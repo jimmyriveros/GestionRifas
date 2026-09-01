@@ -5715,6 +5715,80 @@ declarar `crons`** —D-149 lo dio por hecho y por eso nadie notó los 401 (I-08
 
 ---
 
+## D-153 — Cundinamarca se lee del acta oficial en PDF, y el verificador de billetes se retira
+
+**Fase:** mantenimiento posterior a la Fase 9 (loterías, etapa 2/6, 2026-09-01)
+
+**Contexto.** El adaptador de Cundinamarca nunca confirmó un resultado. D-145 lo dejó
+consultando `GET /api/v1/result/public` con el número de sorteo, con la SPA `/resultados`
+como respaldo, y I-081 registró que ninguna de las dos entregaba nada.
+
+**Hechos comprobados el 2026-09-01, contra las fuentes oficiales.**
+
+(a) **El endpoint es un verificador de billetes, no un descubridor.** No es una suposición: el
+propio código del sitio oficial lo dice. En su bundle, `search(i, e, t)` arma
+`drawNumber`, `number` y `serie` sobre `${apiBaseUrl}/result/public`. Hay que **traerle ya**
+el número que se quiere comprobar, así que no puede revelar cuál salió. Es además el
+**único** API que usa el sitio público: no existe un endpoint de listado.
+
+(b) **Su certificado está vencido.** `https://plataforma.loteriadecundinamarca.com.co`
+responde `SEC_E_CERT_EXPIRED`. No se desactiva la verificación de certificados para
+hablar con él, así que hoy el endpoint es inalcanzable incluso para lo poco que hacía.
+
+(c) **La página de resultados no trae el resultado.** El HTML inicial de `/resultados` es
+`<app-root></app-root>`.
+
+(d) **Las actas existen, y la ruta es exacta.** `/actas-resultados` publica un acta por
+sorteo. Las URL están en el propio bundle del sitio como
+`{label: "Acta Sorteo 4817.pdf", url: "https://plataformaweb.blob.core.windows.net/files/results-records/2026/4817.pdf"}`.
+Comprobado en vivo: **4817 → 200, `application/pdf`, 1.496.242 bytes, firma `%PDF-1.7`**;
+**4818 → 404** con un XML de error de Azure. Sigue igual que en la auditoría.
+
+(e) **Y el hallazgo que cambia el resultado de esta etapa: las actas son escaneos.** Las seis
+muestreadas —4817, 4816, 4815, 4814, 4810 y 4800— tienen **cero fuentes**, solo imágenes
+`/DCTDecode`, y el flujo de contenido de cada página es únicamente `/X1 Do` y `/X2 Do`: dos
+imágenes pintadas y ni un operador de texto. Los metadatos lo confirman
+(`/Producer intsig.com pdf producer`, `/Author CamScanner`). **No hay texto que extraer.**
+Ver I-086.
+
+**Decisión.** (a) La fuente automática de Cundinamarca pasa a ser **el acta oficial en PDF**,
+armada con el año y el número de sorteo que vienen de la programación oficial
+(`cundinamarcaActaUrl`). Una sola petición por sorteo. (b) **El verificador se retira por
+completo**: desaparecen la URL, la función que la armaba, la rama JSON del extractor y el host
+`plataforma.loteriadecundinamarca.com.co` de la allowlist. (c) El host de Azure se autoriza
+**junto con su ruta**: `ALLOWED_SOURCE_PATHS` exige
+`/files/results-records/{año}/{sorteo}.pdf`, y la comprobación se repite en **cada
+redirección**. `blob.core.windows.net` es almacenamiento compartido; autorizar el host entero
+convertiría en «fuente oficial» a cualquiera con una cuenta de Azure. (d) Un **404 significa
+«aún no publicada»** (`not_published`), no «no hay resultado»: se reintenta con la escalera de
+siempre, incluida la conciliación de la mañana. (e) Se valida estado, tipo de contenido
+**y la firma `%PDF-`** del archivo, porque el `content-type` lo elige el servidor y la firma no.
+(f) Solo se acepta una fila **inequívoca** de `PREMIO MAYOR`: dos filas con números distintos,
+un acta de otro sorteo o un número que no sean cuatro dígitos **no se publican**. (g) Un PDF
+**sin capa de texto** devuelve `scanned_document`, un código propio, para que en la bitácora
+se distinga de «el acta se leyó y no dice nada». **No se hace OCR.** (h) No se guarda el PDF ni
+su texto: URL final, hash, tipo y **evidencia estructurada** (etiqueta, páginas, operadores de
+texto, filas candidatas).
+
+**Alternativas descartadas.** (a) Seguir con el verificador ignorando el certificado: sería
+eludir una protección, y aun funcionando no descubre nada. (b) Un agregador o un resultado de
+buscador: prohibido por BR-L17 y por el encargo. (c) Añadir una librería de PDF: trae fuentes,
+formularios, cifrado y JavaScript, superficie que este proyecto no necesita y tendría que
+auditar; se escribe un lector mínimo, como ya se hizo con el xlsx del cronograma (D-144).
+(d) **OCR sobre las actas escaneadas:** es la única vía técnica que quedaría, y se descarta en
+esta etapa —no está autorizada y, sobre todo, un dígito mal leído marcaría boletas ajenas como
+coincidentes. Antes de tocar dinero, un resultado dudoso no se publica. (e) Autorizar
+`blob.core.windows.net` entero: ver la decisión (c).
+
+**Consecuencia.** BR-L23. I-085 e I-086 nuevos; I-081 se acota. `fetchLotteryResultForDraw`
+recibe ahora el **año** del sorteo, que sale de `official_scheduled_at` en Bogotá y no de la
+fecha de hoy. **Mientras las actas sigan escaneadas, Cundinamarca no se confirma sola**: el
+tick registra `scanned_document` y el resultado queda para revisión manual. El adaptador ya
+está listo para el día en que la autoridad publique un acta con texto, y hay pruebas que lo
+demuestran.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

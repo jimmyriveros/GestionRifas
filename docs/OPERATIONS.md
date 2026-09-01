@@ -152,6 +152,13 @@ reciente (D-152). Si se importa el cronograma de un año, lo viejo no se rellena
 que el Panel enseña, y lo demás espera al tick siguiente. Un resultado ya confirmado no se
 vuelve a pedir nunca.
 
+**Cundinamarca hay que mirarla a mano, hoy por hoy.** Su resultado se lee del acta oficial en
+PDF (D-153), pero la autoridad las publica **escaneadas**, sin texto dentro, así que el sistema
+no puede leerlas y no se inventa nada (I-086). El acta de cada sorteo está en
+`loteriadecundinamarca.com.co/actas-resultados`. Es la misma situación que Cruz Roja y Bogotá
+(I-081): la plataforma detecta coincidencias con lo que tiene confirmado; lo que no puede
+confirmar, no lo muestra como resultado.
+
 Si hace falta dispararlo a mano en local: `npm run lottery:sync -- --probe` (solo
 comprueba el secreto) o sin `--probe` (consulta de verdad), con `npm run dev:local` y
 `LOTTERY_SYNC_SECRET` en `.env.local`.

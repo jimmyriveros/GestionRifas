@@ -2,11 +2,16 @@ import type { LotteryCode } from './constants'
 
 export type AdapterFailureCode =
   | 'blocked_host'
+  | 'blocked_path'
   | 'blocked_redirect'
   | 'timeout'
   | 'too_large'
   | 'unsupported_type'
   | 'source_blocked'
+  /** 404 de un documento que la autoridad publica mas tarde. Se reintenta. */
+  | 'not_published'
+  /** El documento oficial es una imagen escaneada: no hay texto y no se hace OCR. */
+  | 'scanned_document'
   | 'empty'
   | 'ambiguous'
   | 'not_ordinary'
@@ -74,4 +79,10 @@ export type NormalizedLotteryResult = {
   winningNumber: string
   series: string | null
   sourceKind: 'official_page' | 'official_bulletin' | 'official_act'
+  /**
+   * Evidencia ESTRUCTURADA y minima de como se leyo el documento (BR-L16,
+   * BR-L23). Nunca el documento ni su texto: solo cifras y etiquetas fijas,
+   * para que una auditoria pueda repetir la lectura sin guardar el PDF.
+   */
+  evidence?: Record<string, string | number | null>
 }

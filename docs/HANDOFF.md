@@ -30,10 +30,11 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| Siguiente fase | Ninguna. Mantenimiento en curso: **estabilizar el sincronizador de loterías**, etapa 1/6 (D-152, migración `0041`). **Sin desplegar** |
+| Siguiente fase | Ninguna. Mantenimiento en curso: loterías, **etapa 2/6** — el acta oficial de Cundinamarca (D-153). Con la 1/6 (D-152, migración `0041`) pendiente de desplegar |
 | **Reportes** | Desde el 2026-08-31 (D-151, BR-T05..BR-T07) `/seller/reports` abre **«Ventas por fecha»** con las ventas de hoy, sin redirección. Una venta es una boleta `assigned` fechada por **`sale_date`**; «Abonado» es lo que llevan pagado **hoy**, no el dinero recibido esos días —eso lo sigue respondiendo «Pagos por fecha», intacto—. El predeterminado es **por portal**: `/owner/reports` conserva «Por vendedor» y **no** ofrece el nuevo. Migración **`0040`**: `report_sales_totals` y `tickets_sale_date_idx`, **aplicada al proyecto real el 2026-08-31**. **Ya en producción** |
 | **Resultados de loterías** | Etapa 6 (2026-08-30, D-149): `0036`–`0039` en el proyecto real, `vercel.json` con los 10 jobs Hobby. Recuadro del Panel, sync, matching y avisos de las etapas 1–5. **Cron activado.** **`CRON_SECRET` NO la inyecta Vercel** —la crea una persona, D-152—: del 2026-08-30 al 2026-09-01 los diez jobs corrieron contra un **401** y ningún tick entró (I-083). El dueño la creó y redesplegó el 2026-09-01 |
-| **Sincronizador acotado** | Desde el 2026-09-01 (D-152, BR-L22) un tick consulta resultados solo de los sorteos jugados en los **últimos 10 días**, con orden determinista, **6 descargas** como máximo y **60 candidatos**; los reintentos se cuentan **por sorteo** (`0041`). El cronograma anual se sigue guardando entero. **Solo local: sin desplegar, y los cron siguen activos (I-084)** |
+| **Sincronizador acotado** | Desde el 2026-09-01 (D-152, BR-L22) un tick consulta resultados solo de los sorteos jugados en los **últimos 10 días**, con orden determinista, **6 descargas** como máximo y **60 candidatos**; los reintentos se cuentan **por sorteo** (`0041`). El cronograma anual se sigue guardando entero. **Solo local: sin desplegar. Los cron los pausó el dueño el 2026-09-01 (I-084)** |
+| **Cundinamarca** | Desde el 2026-09-01 (D-153, BR-L23) su resultado se lee del **acta oficial en PDF** (`/files/results-records/{año}/{sorteo}.pdf`), con el host autorizado **solo en esa ruta**. El verificador de billetes `/api/v1/result/public` queda **retirado**: no descubre ningún número y su certificado está vencido (I-085). **Pero las actas son escaneos sin texto (I-086), así que Cundinamarca todavía no se confirma sola:** el tick registra `scanned_document` y no inventa nada. **Solo local, sin desplegar** |
 | **Precio de la boleta** | **$120.000** desde el 2026-08-15 (D-098, BR-P01). Era `$100.000` y **esa cifra nunca fue la correcta**. La fuente sigue siendo `raffles.ticket_price`; no escribas cifras de precio en el código |
 | **Rebaja del vendedor** | Desde el 2026-08-17 (D-099) una boleta puede venderse **por debajo** del precio de la rifa. `sale_price` es lo que debe el cliente y `base_price` el precio oficial congelado; la rebaja es la resta y **no se guarda**. La asume entera la ganancia del vendedor. **Ya en producción** (`0028`, 2026-08-17) |
 | **Buscar en «Boletas»** | Desde el 2026-08-21 (D-100, BR-N13) el **único** campo de búsqueda encuentra por los números de la boleta **y** por el nombre del cliente que la tiene, devolviendo siempre boletas. Migración **`0029`**. **Ya en producción** (`e1b2fe1`, 2026-08-21) |
@@ -119,7 +120,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — estabilizar el sincronizador de loterías, etapa 1/6 (2026-09-01)
+## 1.a Último relevo significativo — adaptador del acta oficial de Cundinamarca, etapa 2/6 (2026-09-01)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Cundinamarca se lee del acta oficial en PDF, y el verificador de billetes queda retirado.** La URL se arma con el año y el sorteo de la programación; el host de Azure se autoriza **solo con su ruta**, también en cada redirección; se validan estado, tipo, **firma `%PDF-`**, tamaño y timeout; un 404 es `not_published` y se reintenta; solo se publica **una** fila inequívoca de `PREMIO MAYOR` del sorteo esperado. **Y el hallazgo de la etapa: las actas que publica la autoridad son escaneos sin capa de texto, así que Cundinamarca todavía NO se confirma sola** (I-086). El adaptador registra `scanned_document` y no inventa nada. `Query changes: None` · `Route changes: None` · `Migrations: None` · `New dependencies: None`. **NO desplegado** |
+| Archivos | **Nuevos:** `src/features/lottery/parse/pdf.ts`, `parse/acta-cundinamarca.ts`, `tests/fixtures/lottery/build-pdf.ts`, `tests/unit/lottery-acta.test.ts`. **Tocados:** `lottery/{sources,fetch,adapters,sync,types}.ts`, `parse/results.ts`, `tests/unit/{lottery-fetch,lottery-sync,lottery-adapters,lottery-cron}.test.ts`. Documentación: `DECISIONS` (D-153), `BUSINESS_RULES` (BR-L23), `ARCHITECTURE` §8.19.b, `SECURITY` §4.8, `TESTING` (L-43..L-59), `KNOWN_ISSUES` (I-085, I-086; I-081 acotada), `RUNBOOK` §7, `OPERATIONS` §7, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **Ni una librería nueva ni una capa services.** El lector de PDF se escribe mínimo, igual que se hizo con el xlsx del cronograma (D-144), y se apoya en `node:zlib`. La descarga sigue siendo `fetchOfficialDocument`, ampliada con ruta, `expect: 'pdf'` y 404; la validación final sigue siendo `validateNormalizedResult`; la fecha, `parseSpanishDate`; el hash, `sha256Hex`. `decideResultFetch` **no se tocó**: los reintentos nocturnos y de la mañana siguen siendo los de siempre |
+| Decisiones | **D-153** (acta como fuente; verificador retirado con host y todo; host **con** ruta; 404 = «aún no publicada»; firma del archivo; una sola fila inequívoca; `scanned_document` como estado propio; sin OCR; evidencia estructurada). **BR-L23**. Descartados: ignorar el certificado vencido, un agregador, una librería de PDF, OCR y autorizar `blob.core.windows.net` entero |
+| Verificación | `npm run verify` ✅ · lint **0 errores** (2 avisos de siempre) · **618/618** unitarias (+39) · `build` ✅ · `test:db` **663/663**. E2E no se ejecutó: no cambia ninguna pantalla, ruta ni texto visible. Los seis hechos del encargo se volvieron a comprobar contra las fuentes oficiales y **todos se confirmaron**; el séptimo —que las actas fueran legibles— resultó falso. Detalle y cifras en `TEST_RESULTS` |
+| Advertencias | **1)** **No devuelvas el verificador** `/api/v1/result/public` ni su host a la allowlist: no descubre ningún número y su certificado está **vencido** (I-085). **2)** **No autorices `blob.core.windows.net` entero**: el host va con su ruta, siempre, y también en las redirecciones. **3)** **No metas OCR** sin autorización expresa: un dígito mal leído marcaría boletas ajenas como coincidentes. **4)** No commitees un acta real: los PDF de prueba se fabrican en `build-pdf.ts`. **5)** `0041` sigue **solo en local** y el código de D-152 ya la usa. **6)** Los cron están **pausados** por el dueño desde el 2026-09-01: no los reactives sin desplegar antes. **7)** `CorrecionesLoterias.txt`, el prompt de esta etapa y `prueba-abono.csv` son del dueño; no se commitean |
+| Pendiente | **Siguiente acción, y necesita autorización:** etapa 3/6, validar las otras cinco loterías. **Decisión que le toca al dueño:** qué hacer con Cundinamarca mientras sus actas sean escaneos (I-086) — revisión manual, o autorizar OCR con verificación humana. Para desplegar: aplicar `0041` y subir D-152 + D-153 juntos, con los cron pausados hasta que termine. Lo de siempre: I-081, I-082, I-077, I-072, I-074, I-075, I-068, I-062, I-063, I-024 |
+| Publicación | **Ninguna.** No hubo `db push`, ni push a `origin`, ni despliegue, ni tick de producción. Las únicas peticiones externas fueron **lecturas** de las páginas y actas oficiales para verificar los hechos del encargo |
+| Git | Rama `main`, sobre **`2c5df8b`** (etapa 1/6). Árbol con el adaptador del acta, las pruebas y la documentación. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento |
+
+## 1.a.0 Relevo anterior — estabilizar el sincronizador de loterías, etapa 1/6 (2026-09-01)
 
 | Campo | Estado |
 |---|---|
@@ -1139,7 +1154,12 @@ features/lottery/  constantes (BR-L01) + adaptadores (Etapa 2) + sync.ts /
                     60 candidatos— viven en LOTTERY_RESULT_SYNC (constants.ts) y
                     la ventana en resultSyncHorizon (publication.ts): no los
                     subas para «ponerse al dia» (D-152, BR-L22, I-081).
-                    No anadas exceljs ni cheerio (D-144).
+                    Cundinamarca sale del ACTA en PDF (D-153): parse/pdf.ts y
+                    parse/acta-cundinamarca.ts. NO devuelvas el verificador
+                    /api/v1/result/public ni su host (I-085), NO autorices
+                    blob.core.windows.net entero —va con su ruta— y NO metas
+                    OCR sin autorizacion (I-086).
+                    No anadas exceljs, cheerio ni una libreria de PDF (D-144, D-153).
                     tickets_select no se toca (D-092, D-141)
 features/notifications/  avisos (D-093): campanita en el armazon, tabla escrita
                     por triggers o por las RPC internas de loteria, y el TEXTO

@@ -6,7 +6,12 @@ import type { Database, Json } from '@/types/database.types'
 
 import { fetchLotteryResultForDraw } from './adapters'
 import { LOTTERY_RESULT_SYNC, type LotteryCode } from './constants'
-import { decideResultFetch, officialResultFitsSchedule, resultSyncHorizon } from './publication'
+import {
+  bogotaIsoDate,
+  decideResultFetch,
+  officialResultFitsSchedule,
+  resultSyncHorizon,
+} from './publication'
 import type { AdapterOutcome, NormalizedLotteryResult, NormalizedSchedule } from './types'
 
 export type LotteryDb = SupabaseClient<Database>
@@ -113,6 +118,7 @@ export async function confirmOfficialResult(
     officialDate: string
     fetchedAt?: string
     publishedAt?: string | null
+    evidence?: Record<string, string | number | null>
   },
 ): Promise<ConfirmResultOutcome> {
   const { data, error } = await client.rpc('confirm_lottery_result', {
@@ -123,10 +129,13 @@ export async function confirmOfficialResult(
     p_source_url: input.sourceUrl,
     p_source_kind: input.sourceKind ?? 'official_page',
     p_source_content_hash: input.sourceContentHash ?? undefined,
+    // Evidencia estructurada y minima. Nunca el documento ni su texto
+    // (BR-L16, BR-L23): solo campos extraidos y cifras de la lectura.
     p_evidence: {
       lottery_code: input.lotteryCode,
       draw_number: input.drawNumber,
       official_date: input.officialDate,
+      ...(input.evidence ?? {}),
     },
     p_official_date: input.officialDate,
     p_fetched_at: input.fetchedAt ?? new Date().toISOString(),
@@ -370,12 +379,14 @@ export async function confirmAdapterResult(
     sourceContentHash: extracted.contentHash,
     officialDate: extracted.value.officialDate,
     fetchedAt: extracted.fetchedAt,
+    evidence: extracted.value.evidence,
   })
 }
 
 type FetchResultFn = (
   lottery: LotteryCode,
   drawNumber: string,
+  context: { year: number },
 ) => Promise<AdapterOutcome<NormalizedLotteryResult>>
 
 export type ResultsSyncCounts = {
@@ -447,7 +458,10 @@ export async function syncDueLotteryResults(
     })
     fetched += 1
     try {
-      const extracted = await fetchResult(draw.lotteryCode, draw.drawNumber)
+      // El ano sale de la programacion oficial, no de la fecha de hoy: el
+      // acta de un sorteo del 31 de diciembre se archiva bajo SU ano (D-153).
+      const year = Number(bogotaIsoDate(draw.officialScheduledAt).slice(0, 4))
+      const extracted = await fetchResult(draw.lotteryCode, draw.drawNumber, { year })
       const outcome = await confirmAdapterResult(client, draw, extracted)
       if ('skipped' in outcome) {
         failed += 1

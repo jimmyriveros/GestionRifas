@@ -305,25 +305,22 @@ describe('resultados oficiales', () => {
     expect(out.value.drawNumber).toBe('4639')
   })
 
-  it('Cundinamarca lee el JSON oficial con premio mayor', () => {
+  // El JSON del verificador de billetes se retiro en D-153: no descubre el
+  // numero —hay que traerselo ya— y su certificado esta vencido (I-085). El
+  // resultado de Cundinamarca sale del acta oficial, en `lottery-acta.test.ts`.
+  it('Cundinamarca ya no lee un JSON: una respuesta asi no publica nada', () => {
     const json = JSON.stringify({
       data: {
         draw: { number: '4817', date: '2026-08-24' },
-        prizes: [
-          { name: 'seco_100', number: '1339', serie: '208' },
-          { name: 'premio_mayor', number: '7700', serie: '102' },
-        ],
+        prizes: [{ name: 'premio_mayor', number: '7700', serie: '102' }],
       },
     })
     const out = extractLotteryResult(
       'cundinamarca',
       json,
-      'https://plataforma.loteriadecundinamarca.com.co/api/v1/result/public',
+      'https://www.loteriadecundinamarca.com.co/resultados',
     )
-    expect(out.ok).toBe(true)
-    if (!out.ok) return
-    expect(out.value.winningNumber).toBe('7700')
-    expect(out.value.series).toBe('102')
+    expect(out.ok).toBe(false)
   })
 
   it('Cundinamarca SPA vacia no inventa un numero', () => {

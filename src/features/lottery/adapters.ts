@@ -12,7 +12,13 @@ import {
   extractMedellinResult,
   extractMetaResult,
 } from './parse/results'
-import { CNJSA_DISCOVERY_URL, cundinamarcaResultLookupUrl, LOTTERY_RESULT_URLS } from './sources'
+import { extractCundinamarcaActa } from './parse/acta-cundinamarca'
+import {
+  CNJSA_DISCOVERY_URL,
+  cundinamarcaActaUrl,
+  FETCH_MAX_PDF_BYTES,
+  LOTTERY_RESULT_URLS,
+} from './sources'
 import type {
   AdapterFail,
   AdapterOutcome,
@@ -205,27 +211,67 @@ export async function downloadLotteryResultPage(
 }
 
 /**
- * Cundinamarca: el HTML es una SPA vacia (I-081). Con el numero de sorteo de
- * la programacion se consulta el JSON oficial. No se elude el resto.
+ * Cundinamarca: el acta oficial en PDF (D-153, BR-L23).
+ *
+ * Sustituye al verificador de billetes `/api/v1/result/public`, que se retiro
+ * porque no descubre nada —recibe `drawNumber`, `number` y `serie`, o sea que
+ * hay que traerle ya el numero que se quiere comprobar— y porque su
+ * certificado esta vencido (I-085). La SPA `/resultados` tampoco sirve: su
+ * HTML inicial es `<app-root></app-root>`.
+ *
+ * Una sola peticion por sorteo: la URL se arma con el ano y el numero que
+ * vienen de la programacion oficial, nunca de una entrada del cliente.
  */
-export async function downloadCundinamarcaResult(
+export async function downloadCundinamarcaActa(
+  year: number,
   drawNumber: string,
 ): Promise<AdapterOutcome<NormalizedLotteryResult>> {
-  const fetched = await fetchOfficialDocument(cundinamarcaResultLookupUrl(drawNumber))
+  const url = cundinamarcaActaUrl(year, drawNumber)
+  if (!url) {
+    return fail('parse_error', 'El ano o el sorteo no permiten armar la URL del acta oficial.')
+  }
+
+  const fetched = await fetchOfficialDocument(url, {
+    maxBytes: FETCH_MAX_PDF_BYTES,
+    expect: 'pdf',
+  })
   if (!fetched.ok) return fetched
-  return extractLotteryResult('cundinamarca', asText(fetched.value.body), fetched.value.url)
+
+  const extracted = extractCundinamarcaActa(fetched.value.body, { drawNumber })
+  const contentHash = sha256Hex(fetched.value.body)
+  if ('ok' in extracted) {
+    return { ...extracted, sourceUrl: fetched.value.url, contentHash }
+  }
+
+  const validated = validateNormalizedResult(extracted)
+  if ('ok' in validated) {
+    return { ...validated, sourceUrl: fetched.value.url, contentHash }
+  }
+
+  // Ni el PDF ni su texto salen de aqui: solo los campos extraidos, el hash y
+  // la URL final (BR-L16, BR-L23).
+  return {
+    ok: true,
+    value: validated,
+    sourceUrl: fetched.value.url,
+    contentType: fetched.value.contentType,
+    contentHash,
+    fetchedAt: new Date().toISOString(),
+  }
+}
+
+export type DrawFetchContext = {
+  /** Ano del sorteo, tomado de la programacion oficial. */
+  year: number
 }
 
 export async function fetchLotteryResultForDraw(
   lottery: LotteryCode,
   drawNumber: string,
+  context: DrawFetchContext,
 ): Promise<AdapterOutcome<NormalizedLotteryResult>> {
   if (lottery === 'cundinamarca') {
-    const json = await downloadCundinamarcaResult(drawNumber)
-    if (json.ok) return json
-    const page = await downloadLotteryResultPage('cundinamarca')
-    if (page.ok) return page
-    return json
+    return downloadCundinamarcaActa(context.year, drawNumber)
   }
   return downloadLotteryResultPage(lottery)
 }
