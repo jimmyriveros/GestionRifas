@@ -6157,8 +6157,11 @@ crear abonos de $0**: el encargo lo excluye expresamente y no resuelve ningún p
 **Un motivo obligatorio para la corrección a cero**: D-134 ya decidió que la bitácora basta, y este
 caso no es más grave que bajar $120.000 a $1, que siempre se pudo.
 
-**Consecuencia.** BR-F03 se reescribe distinguiendo alta de corrección; BR-F16 gana el cero.
-D-134 no se revoca: todo lo demás de esa decisión sigue en pie. Migración `0042`.
+**Consecuencia.** BR-F03 se reescribe distinguiendo alta de corrección; BR-F16 gana el cero y nace
+BR-F17. D-134 no se revoca: todo lo demás de esa decisión sigue en pie. Migración `0042`,
+**aplicada al proyecto real el 2026-09-01** tras respaldo, con `ef7bf62` desplegado y verificado.
+Producción tenía en ese momento **exactamente un** abono de $1 —el que originó el encargo—; no se
+tocó, porque ahora lo puede corregir su propio vendedor.
 
 ---
 

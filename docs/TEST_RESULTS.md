@@ -6736,3 +6736,76 @@ que es preexistente y ajeno.
 * No se tocó la anulación de pagos: sigue siendo de Owner/Admin, con motivo, e irreversible.
 * No se corrigieron los abonos de **$1** que ya existen en producción — son datos reales y cambiarlos
   requiere autorización expresa. Con este cambio desplegado, el propio vendedor podrá dejarlos en $0.
+
+### Promoción a producción (2026-09-01)
+
+Autorizada expresamente por el dueño. **Con migración**, así que el procedimiento completo de
+`DEPLOYMENT` §2.2 y `RUNBOOK` §5.1.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo previo | `Rifas-backups/2026-09-01-pre-0042/` — `roles.sql` 370 B, `schema.sql` 297 KB, `data.sql` 3,2 MB. **`grep -c '"auth"' data.sql` = 0**, la comprobación obligatoria de `RUNBOOK` §5.1 |
+| Estado previo confirmado en el respaldo | `payment_allocations_amount_check CHECK (amount > 0)` y `payments_total_amount_check CHECK (total_amount > 0)` — los dos límites que cambia `0042` |
+| `db push --dry-run` | Una sola migración pendiente: **`0042`**. Confirma de paso que `0041` **sí** estaba aplicada (ver la corrección documental de `DATA_MODEL`) |
+| `db push --yes` | `0042_payment_allocation_zero.sql` aplicada |
+| `npm run verify:remote` | **17/17** en verde, incluida «Funciones INTERNAS ejecutables por authenticated (I-078)»: los dos disparadores nuevos **no** son ejecutables desde una sesión |
+| Push a `main` | `f9c6e49..ef7bf62`. Arrastra también `19c4329`, el commit **solo de documentación** que la etapa 6/6 dejó sin empujar |
+| CI | **2/2** (`33585863128`): «Migraciones desde cero + pruebas de base de datos» 4m37s y «Typecheck, lint, unitarias, build» 1m45s |
+| Vercel | `READY` sobre **`ef7bf62`** (`dpl_6XhxHoo8tEh1Erqcq51H8Bgp6NBv`, URL única `gestion-rifas-aswdbg2jd-jimmyriveros-projects.vercel.app`), alias `gestion-rifas.vercel.app` |
+
+**El CI cierra la duda sobre I-093:** `npm run typecheck` pasa limpio ahí, porque `build/` no viaja
+en el repositorio. El fallo es exclusivamente local.
+
+#### Estado del esquema en el proyecto real, comprobado tras aplicar
+
+| Objeto | Estado |
+|---|---|
+| `payment_allocations_amount_not_negative` | `CHECK (amount >= 0)` |
+| `payments_total_amount_not_negative` | `CHECK (total_amount >= 0)` |
+| `payment_allocations_insert_positive` | disparador presente sobre `payment_allocations` |
+| `payments_insert_positive` | disparador presente sobre `payments` |
+| `payments_insert_positive` / `payment_allocations_insert_positive` | `authenticated` EXECUTE = **false** (I-078) |
+| `update_payment_allocation` | `authenticated` EXECUTE = **true** |
+| `supabase_migrations.schema_migrations` | `0042`, `0041`, `0040` |
+| Datos | **0** asignaciones negativas, **0** en cero y **1 de $1** — la que originó el encargo |
+
+#### En vivo
+
+6/6 cabeceras de seguridad en `/login` (200): `Content-Security-Policy` con nonce y
+`strict-dynamic`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`,
+`Referrer-Policy` y `Permissions-Policy`. 4/4 rutas protegidas en **307** sin sesión. `/sw.js` y
+`/manifest.webmanifest` en 200. `/api/lottery/sync` sigue en **401** sin secreto. **0 claves de
+servicio** en los 16 recursos de `/login` (**1.035 KB**).
+
+**El código nuevo está SERVIDO** (método de §6.1, I-069): el identificador de versión
+**`a0c4bc43dcf3`** —sha256 de `ef7bf627054…` recortado a 12 hex— aparece en 1 de los 16 fragmentos
+(`/_next/static/immutable/chunks/40yri9ajv1e_d.js`). No es solo que Vercel diga `READY` sobre ese
+SHA: el dominio responde ese build.
+
+#### Sondas funcionales contra el proyecto real — sin escribir una sola fila
+
+Las tres dentro de una transacción con `ROLLBACK`; las tres fallan por diseño, así que el `INSERT`
+ni siquiera llega a escribir. Fila de referencia: una asignación vigente de $120.000, **intacta al
+terminar**.
+
+| Sonda | Resultado |
+|---|---|
+| `INSERT` de una asignación de **$0** | ✅ rechazado: «Cada valor aplicado debe ser mayor que cero.» |
+| `INSERT` de un pago de **$0** | ✅ rechazado: «El valor del pago debe ser mayor que cero.» |
+| `UPDATE` de una asignación a **−1** | ✅ rechazado por `payment_allocations_amount_not_negative` |
+
+Es la comprobación que importaba de este despliegue: los disparadores nuevos corren en **cada alta
+de pago**, así que un error en ellos habría dejado a la operación sin poder registrar abonos.
+
+#### Lo que NO se pudo comprobar en vivo, y se dice
+
+**Editar un abono a $0 desde la pantalla, en producción.** Vive tras el inicio de sesión y un agente
+no entra con cuenta real (**I-066**). La evidencia de esa parte es: 9 pruebas de base de datos, 1 E2E
+de escritorio, la comprobación en navegador contra la base local, y las tres sondas de arriba sobre
+el esquema real. **Quien lo vea:** vendedor → una boleta con abono → «Editar» → escribir `0` →
+Guardar; la boleta debe quedar **Sin pagar** y el abono seguir en el historial en $0.
+
+#### Lo que NO se tocó
+
+**El abono de $1 sigue siendo de $1.** Es un dato real y corregirlo no estaba en el encargo. Ahora el
+propio vendedor puede dejarlo en $0 desde la pantalla, que era justamente el objetivo.

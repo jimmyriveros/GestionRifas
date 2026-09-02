@@ -3,8 +3,9 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-01 (D-158, un abono vigente se corrige a $0; migración `0042`, **solo en
-  local**). Antes: D-157, observación del ciclo real, etapa 6/6, **auditoría de solo lectura**
+- **Actualizado:** 2026-09-01 (D-158, un abono vigente se corrige a $0; migración `0042` **aplicada
+  al proyecto real** y `ef7bf62` **desplegado y verificado**). Antes: D-157, observación del ciclo
+  real, etapa 6/6, **auditoría de solo lectura**
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
   Cabecera contextual (D-150): el título, la flecha y un CTA suben a la cabecera
   fija de `AppShell` cuando el `PageHeader` sale de la vista. Sin migración.
@@ -39,7 +40,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 | Clasificación | Estado actual |
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) y **la cabecera contextual al hacer scroll** (D-150, 2026-08-30, **en producción**) y **el reporte «Ventas por fecha» del portal del vendedor** (D-151, BR-T05..BR-T07, migración `0040`, 2026-08-31, **ya en producción**) |
-| **En curso** | **Corregir un abono a $0** (D-158, BR-F17, migración `0042`, 2026-09-01): editar un abono vigente admite el cero y deja la boleta como si no se hubiera registrado, sin borrar la fila ni anular el pago; crear un abono de $0 sigue prohibido. **Solo en local, sin desplegar.** Antes: loterías, **etapa 6/6 de corrección** (D-157, 2026-09-01): **observación del ciclo real**, de solo lectura. Los tres números guardados coinciden dígito a dígito con lo que publican hoy sus fuentes; las tres bloqueadas fallan por su causa documentada; el Panel enseña lo correcto y no consulta internet. **Pendiente de demostrar: que un cron dispare el ciclo solo** — las 7 corridas siguen siendo las del tick manual. Nuevo: **I-092**. Antes, etapa 5/6 (D-156): promoción a producción. `0041` aplicada, `145feab` desplegado, los 10 cron reactivados y el **primer tick real** entrado: 312 programaciones oficiales y 3 resultados confirmados. Cundinamarca 4818 queda **pendiente** porque su acta es un escaneo, y el **Meta deja de confirmarse solo en producción** (I-091). Antes, etapa 4/6 (D-155): el recuadro pasa a su propio límite de Suspense y el Panel deja de esperarlo —primer byte de 1.628 a 131 ms con la consulta local retrasada 1,5 s—. Sin migración, sin índice nuevo, **sin desplegar**. Antes, etapa 3/6 (D-154): validación real de las seis fuentes oficiales. Cuatro confirmadas contra la fuente y contra el cronograma; tres defectos corregidos, uno de ellos un número mayor **inventado** (I-088). **Sin migración, sin desplegar.** Antes, etapa 2/6 (D-153): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **activo** desde el 2026-09-01 |
+| **En curso** | **Corregir un abono a $0** (D-158, BR-F17, migración `0042`, 2026-09-01): editar un abono vigente admite el cero y deja la boleta como si no se hubiera registrado, sin borrar la fila ni anular el pago; crear un abono de $0 sigue prohibido. **Ya en producción** (`ef7bf62`; `0042` aplicada tras respaldo, CI 2/2, despliegue verificado por el identificador `a0c4bc43dcf3`). Antes: loterías, **etapa 6/6 de corrección** (D-157, 2026-09-01): **observación del ciclo real**, de solo lectura. Los tres números guardados coinciden dígito a dígito con lo que publican hoy sus fuentes; las tres bloqueadas fallan por su causa documentada; el Panel enseña lo correcto y no consulta internet. **Pendiente de demostrar: que un cron dispare el ciclo solo** — las 7 corridas siguen siendo las del tick manual. Nuevo: **I-092**. Antes, etapa 5/6 (D-156): promoción a producción. `0041` aplicada, `145feab` desplegado, los 10 cron reactivados y el **primer tick real** entrado: 312 programaciones oficiales y 3 resultados confirmados. Cundinamarca 4818 queda **pendiente** porque su acta es un escaneo, y el **Meta deja de confirmarse solo en producción** (I-091). Antes, etapa 4/6 (D-155): el recuadro pasa a su propio límite de Suspense y el Panel deja de esperarlo —primer byte de 1.628 a 131 ms con la consulta local retrasada 1,5 s—. Sin migración, sin índice nuevo, **sin desplegar**. Antes, etapa 3/6 (D-154): validación real de las seis fuentes oficiales. Cuatro confirmadas contra la fuente y contra el cronograma; tres defectos corregidos, uno de ellos un número mayor **inventado** (I-088). **Sin migración, sin desplegar.** Antes, etapa 2/6 (D-153): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **activo** desde el 2026-09-01 |
 | **Pendiente** | Ninguna fase. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
 | **Bloqueada** | Ninguna fase |
 
@@ -3113,8 +3114,8 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 ## Mantenimiento post-9 — un abono vigente se corrige a $0 (D-158, 2026-09-01)
 
 Autorizado expresamente. Nace de un caso real: un vendedor aplicó un abono a la boleta equivocada y,
-como el sistema no admitía el cero, **tuvo que dejarlo en $1**. **Solo en local**: no se promovió
-nada.
+como el sistema no admitía el cero, **tuvo que dejarlo en $1**. **Ya en producción** el mismo día:
+`0042` aplicada tras respaldo, `ef7bf62` desplegado y el build servido verificado.
 
 ### 1. Funcionalidades implementadas
 
@@ -3155,7 +3156,7 @@ Son **42**. La nueva:
 
 | Archivo | Qué hace |
 |---|---|
-| `0042_payment_allocation_zero.sql` | Los `CHECK` de fila de `payments.total_amount` y `payment_allocations.amount` pasan a `>= 0`; dos disparadores `BEFORE INSERT` conservan el `> 0` del alta (BR-F03); `update_payment_allocation` acepta cero y rechaza el negativo con un mensaje propio. **Solo en local.** No escribe ni una fila |
+| `0042_payment_allocation_zero.sql` | Los `CHECK` de fila de `payments.total_amount` y `payment_allocations.amount` pasan a `>= 0`; dos disparadores `BEFORE INSERT` conservan el `> 0` del alta (BR-F03); `update_payment_allocation` acepta cero y rechaza el negativo con un mensaje propio. **Aplicada al proyecto real el 2026-09-01**, tras el respaldo `Rifas-backups/2026-09-01-pre-0042/`. No escribe ni una fila |
 
 ### 4. Variables de entorno requeridas
 
@@ -3169,12 +3170,13 @@ I-062, I-063, I-024. Sin relación con este trabajo.
 
 ### 6. Qué debe revisar el siguiente agente
 
-1. **`0042` está solo en local.** El código ya la necesita: no despliegues el frontend sin aplicarla,
-   o editar un abono a $0 fallará contra el `CHECK` viejo de producción.
-2. **Los abonos de $1 que ya existen en producción no se tocaron.** Son datos reales. Con este cambio
-   desplegado, el propio vendedor puede dejarlos en $0; hacerlo por migración requiere autorización
-   expresa.
-3. **BR-F03 ya no es «cero prohibido» a secas.** Distingue alta de corrección. Si tocas la validación
+1. **`0042` ya está aplicada en los dos entornos** y `ef7bf62` desplegado. Nada pendiente de promover.
+2. **El abono de $1 que existe en producción no se tocó** — es exactamente **uno**, comprobado tras
+   aplicar. Es un dato real. Con el cambio ya desplegado, el propio vendedor puede dejarlo en $0
+   desde la pantalla; hacerlo por migración requiere autorización expresa.
+3. **Falta una comprobación humana:** editar un abono a $0 **desde la pantalla en producción**. Vive
+   tras el inicio de sesión y un agente no entra con cuenta real (I-066).
+4. **BR-F03 ya no es «cero prohibido» a secas.** Distingue alta de corrección. Si tocas la validación
    de importes, lee BR-F03, BR-F16, BR-F17 y D-158 antes.
 
 ---

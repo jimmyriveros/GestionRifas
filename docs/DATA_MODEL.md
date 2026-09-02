@@ -1,9 +1,9 @@
 # MODELO DE DATOS
 
 - **Versión:** 2.12 · **Estado:** implementado · **Actualizado:** 2026-09-01
-- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0042`. `0001`–`0041`
-  están aplicadas y verificadas en local y en el proyecto Supabase real (D-149, D-151, D-156).
-  **`0042` está solo en local** (D-158): no se ha promovido.
+- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0042`, **las 42 aplicadas y
+  verificadas en local y en el proyecto Supabase real** (D-149, D-151, D-156, D-158). La última,
+  `0042`, se promovió el 2026-09-01 tras el respaldo `Rifas-backups/2026-09-01-pre-0042/`.
 - *Corrección documental (2026-09-01, D-158):* esta línea decía que `0041` seguía solo en local. Se
   escribió en D-152, cuando era cierto, y no se actualizó al promoverla en **D-156**; `PHASE_STATUS`
   §3215 y `HANDOFF` §1 ya la daban por aplicada. Se corrige aquí.
