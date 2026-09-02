@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.12 · **Estado:** normativo · **Actualizado:** 2026-09-02
+- **Versión:** 1.13 · **Estado:** normativo · **Actualizado:** 2026-09-02
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -541,6 +541,7 @@ retiene, no crea clientes, no registra ventas y no toca la máquina de estados d
 | BR-K10 | Vendedor inexistente, perfil inactivo, membresía inactiva, rol distinto de vendedor, organización inactiva, catálogo apagado o rifa no activa producen **la misma** respuesta pública de «no encontrado». No se revela cuál de las siete ocurrió, ni se filtra el nombre del vendedor o de la rifa. | C, S, D | post-9 |
 | BR-K11 | La página no carga el inventario: pide como máximo `50 + 1` boletas por petición y la fila sobrante solo sirve para saber si hay página siguiente —no se cuenta el total—. El tope lo impone la función en SQL, así que no se puede evadir desde fuera. Búsqueda y página viven en la URL. Sin Realtime y sin sondeo: la disponibilidad se refresca al recuperar el foco. | C, S, D | post-9 |
 | BR-K12 | Configurar el catálogo (habilitar, WhatsApp, rifa, regenerar el enlace) es exclusivo de Dueño y Administrador. El vendedor **ve y copia** el suyo, y no puede consultar ni modificar el de otro: lo impone `memberships_select`/`memberships_update_staff`, no la interfaz. El cambio queda auditado por el disparador de `memberships` que ya existía. | C, S, D | post-9 |
+| BR-K13 | El vendedor **llega a su catálogo desde la aplicación**: el panel muestra «Mi catálogo público» con su estado, la dirección y tres acciones —**Compartir**, **Copiar enlace** y **Ver catálogo**—. La dirección puede recortarse a la vista, pero las tres acciones usan **siempre la completa**. «Compartir» abre el menú nativo del sistema con `navigator.share()`; **cancelarlo no es un error** y no dispara nada, mientras que cualquier otro fallo —o no tener `navigator.share`— copia el enlace. El estado dice **Activo** solo si el enlace abre de verdad: apagado, sin enlace generado o con la rifa no activa dice **Inactivo** y **no se dibuja ninguna acción**, porque un botón hacia un «no encontrado» es peor que no tener botón. | C, S | post-9 |
 
 ---
 

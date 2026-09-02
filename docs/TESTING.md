@@ -566,6 +566,25 @@ otras suites cambiaran las cuentas según el orden de ejecución (la trampa de I
 nombre** de rifa y también al empezar, de modo que una ejecución interrumpida no bloquea la
 siguiente; borra antes `commission_ledger` y `seller_commissions`, que apuntan a la rifa.
 
+### 5.4 Los tres botones del catálogo (`catalogo-panel*.spec.ts`, 22 pruebas)
+
+**El menú nativo del sistema no existe dentro de un navegador de pruebas.** Pulsar «Compartir» en
+Chromium no abre ninguna hoja del teléfono, así que lo comprobable —y lo que de verdad importa— es
+**qué le pide la aplicación al navegador y qué hace con cada una de sus respuestas**.
+
+`stubShareAndClipboard` (en `catalogo-helpers.ts`) sustituye `navigator.share` y
+`navigator.clipboard` con `addInitScript`, o sea **antes de que cargue la página**, porque el
+componente los lee al pulsar y no al montarse. Con eso se ejercen los cuatro caminos de compartir
+—comparte, la persona cancela, el navegador rechaza, no existe `navigator.share`— y el fallo del
+portapapeles, y se puede afirmar lo que en otro sitio sería una suposición: que **cancelar no escribe
+nada en el portapapeles ni muestra ningún aviso**.
+
+El reparto entre escritorio y móvil no es casual: la **URL larga** comprueba en escritorio el
+*mecanismo* del recorte (`overflow`, `text-overflow`, `white-space`) y en móvil el *efecto*
+(`scrollWidth > clientWidth`). Exigir recorte visible en una tarjeta ancha, donde la dirección cabe
+entera, sería exigir que se recorte algo que no sobra — y fue un fallo real de la primera versión de
+esa prueba.
+
 ## 5. Pruebas unitarias clave
 
 | Módulo | Casos |

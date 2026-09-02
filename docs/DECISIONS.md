@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.35 · **Actualizado:** 2026-09-02 (D-001 a D-160)
+- **Versión:** 1.36 · **Actualizado:** 2026-09-02 (D-001 a D-161)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -6295,6 +6295,77 @@ en `features/search/hints.ts`, con los demás (Anexo B).
 
 **Decisión 6 — «Publicado» / «Sin publicar» no son etiquetas de estado.** Describen un interruptor y
 existen solo en la ficha del vendedor; no entran en las ocho de `constants.ts`, que no se improvisan.
+
+---
+
+## D-161 — El catálogo se comparte desde el panel: tres acciones, y ninguna que lleve a un «no encontrado»
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-02)
+
+**Contexto.** D-159 dejó el catálogo publicado y al vendedor viéndolo: un campo de solo lectura con
+su enlace. Faltaba lo que convierte eso en una herramienta de venta — **repartirlo**, que en la vida
+real significa mandarlo por WhatsApp desde el teléfono.
+
+**Decisión 1 — tres acciones, y «Compartir» es la principal.** «Mi catálogo público» ofrece
+**Compartir**, **Copiar enlace** y **Ver catálogo**. En el teléfono, Compartir ocupa la fila entera y
+va primero; las otras dos se reparten la de abajo. Los tres llevan **texto visible junto al icono** y
+miden **44 px**: es la pantalla que un vendedor usa de pie y con una mano.
+
+**Decisión 2 — «Compartir» tiene cuatro caminos, y solo uno de ellos no dice nada.** Con
+`navigator.share()` disponible se abre el menú nativo del sistema, que es lo que pone WhatsApp,
+Telegram y el correo al alcance sin que la aplicación integre ninguno. Después:
+
+| Qué pasa | Qué hace la aplicación |
+|---|---|
+| La persona comparte | Nada más: el enlace se fue por el menú del sistema |
+| La persona **cancela** el menú (`AbortError`) | **Nada.** Ni aviso ni portapapeles: cancelar a propósito no es un error, y copiar algo que nadie pidió es una sorpresa |
+| El navegador **rechaza** (cualquier otro error) | Copia el enlace y lo confirma |
+| No existe `navigator.share` | Copia el enlace y lo confirma |
+| Además falla el portapapeles | Lo dice, sin prometer nada: «No pudimos compartir ni copiar el enlace» |
+
+Distinguir la cancelación del fallo es lo único delicado de todo esto, y por eso vive en una función
+pura y probada (`isShareCancelled`), no en un `catch` con un comentario. `NotAllowedError` **no**
+cuenta como cancelación: ahí la persona quiso compartir y no pudo.
+
+**Decisión 3 — «Activo» significa que el enlace ABRE, no que el interruptor esté encendido.** Es la
+parte que no se ve venir: cerrar una rifa es cosa del personal y **no apaga ningún catálogo**, así
+que un catálogo encendido sobre una rifa cerrada tiene el interruptor en «sí» y la página pública
+respondiendo «no encontrado» (BR-K10). Enseñarle a un vendedor un botón «Ver catálogo» hacia un 404
+es exactamente lo que el encargo prohíbe, así que el estado lo decide `isCatalogLive`, que reúne las
+tres condiciones que dependen de la configuración —enlace generado, catálogo encendido y rifa
+activa—. Las otras cuatro de BR-K10 las cumple por definición quien está viendo su propio panel.
+Por eso `getCatalogSettings` incrusta ahora la rifa: **una consulta, un `left join` por clave
+primaria, 8 µs medidos**, dentro del mismo `Promise.all` que ya existía.
+
+**Decisión 4 — la tarjeta se pinta SIEMPRE, los botones no.** Con el catálogo apagado dice
+«Inactivo» y explica qué falta —«Pídele a quien administra la rifa que publique tu catálogo»— en vez
+de desaparecer. La versión de D-159 no se pintaba, y eso dejaba a un vendedor sin saber que la
+función existe ni a quién pedírsela. Lo que desaparece son las tres acciones y la propia dirección.
+
+**Decisión 5 — el encabezado del mensaje se deriva del nombre de la rifa**, como el título de la
+página pública (D-159). Con la rifa llamada «Sorteo Camioneta KIA» sale exactamente el texto pedido.
+El mensaje habla en **primera persona** —«mis números»— porque lo envía el vendedor a un chat
+personal, no la empresa. La dirección viaja en `url` y **no se repite dentro de `text`**: si se
+repitiera, WhatsApp la escribiría dos veces.
+
+**Decisión 6 — «Activo»/«Inactivo» también en el portal administrativo.** La ficha del vendedor decía
+«Publicado»/«Sin publicar» (D-160, decisión 6). Son el **mismo estado** y un término tiene un solo
+nombre (`UX_COPY_GUIDELINES` §4), así que se unifican con las palabras que pidió el usuario. La
+tarjeta administrativa gana además la frase que faltaba: cuando el interruptor está encendido pero la
+rifa no está activa, lo dice **y** dice cómo arreglarlo, porque quien la lee es justo quien puede.
+
+**Sobre «Inactivo» y la persona.** «Inactivo» ya nombra a alguien a quien le quitaron el acceso
+(BR-E14). Aquí lo desambigua el contexto —está dentro de una tarjeta titulada «Mi catálogo público»,
+junto a un texto que habla del enlace— y manda la petición explícita del usuario (`AGENTS.md` §1).
+Se deja anotado por si algún día conviene revisarlo.
+
+**Alternativas descartadas.** (a) Reutilizar `CatalogLinkField`, el campo de solo lectura del portal
+administrativo (descartada: allí se **configura** y aquí se **reparte**; lo que sí se compartió fue la
+lógica de copiar, que es donde estaba la duplicación de verdad — `useClipboard`). (b) Ocultar
+«Compartir» donde no hay `navigator.share` (descartada: obligaría a decidirlo después de montar, con
+el parpadeo y el riesgo de hidratación que eso trae; el botón está siempre y degrada a copiar).
+(c) Copiar el mensaje entero en vez del enlace cuando compartir falla (descartada: el encargo dice
+«copia el enlace», y así las dos acciones dejan lo mismo en el portapapeles).
 
 ---
 

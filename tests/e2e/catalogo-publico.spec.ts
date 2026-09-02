@@ -152,7 +152,10 @@ test.describe('las tarjetas (BR-K08, BR-K09)', () => {
   test('el enlace de WhatsApp lleva el numero y el mensaje exactos', async ({ page }) => {
     await anonima(page, `/catalogo/${SLUG}?q=${DISPONIBLES[0]}`)
 
-    const enlace = page.locator('main ul li').first().getByRole('link', { name: /Solicitar/ })
+    const enlace = page
+      .locator('main ul li')
+      .first()
+      .getByRole('link', { name: /Solicitar/ })
     const href = await enlace.getAttribute('href')
     expect(href).not.toBeNull()
 
@@ -315,7 +318,9 @@ test.describe('privacidad y ruido (BR-K07)', () => {
 
     // El primer «Solicitar» se alcanza tabulando, y se anuncia con los DOS
     // numeros de la boleta (BR-N11).
-    const primerBoton = page.getByRole('link', { name: /^Solicitar por WhatsApp la boleta/ }).first()
+    const primerBoton = page
+      .getByRole('link', { name: /^Solicitar por WhatsApp la boleta/ })
+      .first()
     await expect(primerBoton).toHaveAttribute('aria-label', /\d+ \/ \d+/)
   })
 })
@@ -329,7 +334,11 @@ test.describe('configurar el catalogo desde el portal (BR-K12)', () => {
 
     // `CardTitle` es un `div`, no un encabezado: se busca por texto.
     await expect(page.getByText('Catálogo público', { exact: true })).toBeVisible()
-    await expect(page.getByText('Publicado', { exact: true })).toBeVisible()
+    // «Activo» / «Inactivo», las mismas palabras que el panel del vendedor: es
+    // el MISMO estado y un término tiene un solo nombre (D-161). Decía
+    // «Publicado» hasta entonces.
+    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Catálogo público' })
+    await expect(tarjeta.getByText('Activo', { exact: true })).toBeVisible()
 
     // El enlace publico se ofrece para copiar, con la direccion completa.
     // `getByRole('textbox')` y no `getByLabel`: este ultimo tambien encuentra
@@ -347,10 +356,12 @@ test.describe('configurar el catalogo desde el portal (BR-K12)', () => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/dashboard')
 
-    await expect(page.getByText('Tu catálogo público')).toBeVisible()
-    await expect(page.getByRole('textbox', { name: 'Enlace para compartir' })).toHaveValue(
-      new RegExp(`/catalogo/${SLUG}$`),
-    )
+    // La tarjeta y sus tres acciones se prueban a fondo en
+    // `catalogo-panel.spec.ts` (D-161); aquí solo importa que el vendedor vea
+    // SU enlace, que es la mitad de BR-K12.
+    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Mi catálogo público' })
+    await expect(tarjeta).toBeVisible()
+    await expect(tarjeta.getByTestId('catalog-public-url')).toContainText(`/catalogo/${SLUG}`)
   })
 
   test('un vendedor no puede ver ni configurar el catalogo de otro', async ({ page }) => {

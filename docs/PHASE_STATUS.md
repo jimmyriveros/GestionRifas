@@ -3,8 +3,9 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-02 (D-159 y D-160, catálogo público de boletas por vendedor; migración
-  `0043` **solo en local**, sin desplegar). Antes: D-158, un abono vigente se corrige a $0; migración
+- **Actualizado:** 2026-09-02 (D-161, compartir el catálogo desde el panel del vendedor; **sin
+  migración**). Antes: D-159 y D-160, catálogo público de boletas por vendedor; migración
+  `0043` **solo en local**, sin desplegar. Antes: D-158, un abono vigente se corrige a $0; migración
   `0042` **aplicada al proyecto real** y `ef7bf62` **desplegado y verificado**
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
   Cabecera contextual (D-150): el título, la flecha y un CTA suben a la cabecera
@@ -3458,6 +3459,59 @@ Sin cambios. `LOTTERY_SYNC_SECRET` o `CRON_SECRET` para el Route Handler.
    oficial al día siguiente** (`OPERATIONS.md` §7).
 8. `CorrecionesLoterias.txt`, el prompt de esta etapa y `prueba-abono.csv` son del dueño; no se
    commitean.
+
+---
+
+## Mantenimiento post-9 — compartir el catálogo desde el panel del vendedor (2026-09-02)
+
+Autorizado expresamente como continuación del catálogo público. Añade **acceso desde la aplicación**:
+una tarjeta en el panel del vendedor. **No toca** la lógica del catálogo público, las reglas de
+negocio, la RLS, la base de datos ni el rendimiento del panel.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Tarjeta | **«Mi catálogo público»** en el panel del vendedor, entre el aviso ámbar y el recuadro de loterías. Se pinta **siempre**; lo que desaparece son las acciones |
+| Estado | **Activo** solo si el enlace abre de verdad: `isCatalogLive` exige enlace generado, catálogo encendido **y rifa activa**. Si no, **Inactivo** con la explicación de qué falta y a quién pedírselo |
+| Dirección | Recortada a la vista con CSS (y en el `title`), **entera** en el HTML y en las tres acciones |
+| Compartir | `navigator.share()` con `title`, `text` y `url`. Es la **acción principal**: en el teléfono ocupa la fila entera y va primero. Cancelar el menú **no hace nada**; cualquier otro fallo —o no tener `navigator.share`— copia el enlace |
+| Copiar enlace | Copia la URL completa y confirma. Si el portapapeles falla, lo dice en vez de prometerlo |
+| Ver catálogo | Un `<a>` de verdad, con `rel="noopener"`, a la página pública del propio vendedor |
+| Accesibilidad | Los tres controles con **icono y texto visible**, ≥ 44 px, alcanzables con teclado y con el texto como nombre accesible |
+| Portal administrativo | La insignia de la ficha del vendedor pasa de «Publicado»/«Sin publicar» a **«Activo»/«Inactivo»** —el mismo estado, un solo nombre— y gana el aviso de «publicado pero la rifa no está activa» |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` ✅ completo (**693/693** unitarias, lint 0 errores, `build`), con `build/` apartado
+por I-093. `test:db` **710/710**, sin cambios: no se toca la base. **22 pruebas E2E nuevas** (15
+escritorio + 7 móvil) que ejercen los **tres botones uno a uno** y «Compartir» en sus **cuatro**
+caminos, más el fallo del portapapeles, el teclado, los 44 px, la URL larga y los dos estados sin
+enlace. Suite completa **478/480**: los dos fallos son los de **I-090**, ajenos a este trabajo.
+Cuatro errores encontrados y corregidos —uno de ellos una expectativa de prueba equivocada, no un
+fallo del código—, con todo el detalle en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+**Ninguna.** Esta entrega no cambia el esquema. `0043` sigue siendo la última, y sigue **solo en
+local**.
+
+### 4. Variables de entorno
+
+Ninguna nueva.
+
+### 5. Problemas que permanecen
+
+Los de siempre: I-021, I-023, I-024, I-030, I-037, I-062, I-063, I-066, I-068, I-072, I-074, I-075,
+I-077, I-081, I-082, I-090, I-091, I-092, I-093. **Ninguno nuevo.**
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **Falta probarlo en un teléfono real**: que el menú nativo salga con WhatsApp y que el mensaje
+   llegue bien al chat. Un navegador de pruebas no tiene hoja de compartir (I-066).
+2. **«Activo» no es `enabled`.** Si tocas el estado de la tarjeta, usa `isCatalogLive`: cerrar una
+   rifa no apaga el catálogo y el enlace deja de abrir.
+3. **Nada de esto está desplegado**, y `0043` sigue sin aplicarse al proyecto real.
 
 ---
 

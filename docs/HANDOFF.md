@@ -30,7 +30,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
-| **Sin desplegar** | **El catálogo público (D-159, D-160) está SOLO en local**: migración `0043`, ruta `/catalogo/[slug]` y su configuración. No se aplicó al proyecto real, no se hizo push y no se desplegó. Aplicar `0043` **no publica los datos de nadie**: hay que configurar cada catálogo a mano (BR-K12) |
+| **Sin desplegar** | **El catálogo público (D-159, D-160, D-161) está SOLO en local**: migración `0043`, ruta `/catalogo/[slug]`, su configuración y la tarjeta «Mi catálogo público» del panel del vendedor. No se aplicó al proyecto real, no se hizo push y no se desplegó. Aplicar `0043` **no publica los datos de nadie**: hay que configurar cada catálogo a mano (BR-K12) |
 | Siguiente fase | Ninguna. El encargo de loterías terminó sus **seis etapas**: la 6/6 es la observación del ciclo real (D-157) y se repite después de cada ventana de publicación. Todo está desplegado sobre `f9c6e49`, con `0041` aplicada y los diez cron activos. Lo último promovido es **D-158** (corregir un abono a $0), con la migración **`0042`** aplicada, el 2026-09-01 |
 | **Reportes** | Desde el 2026-08-31 (D-151, BR-T05..BR-T07) `/seller/reports` abre **«Ventas por fecha»** con las ventas de hoy, sin redirección. Una venta es una boleta `assigned` fechada por **`sale_date`**; «Abonado» es lo que llevan pagado **hoy**, no el dinero recibido esos días —eso lo sigue respondiendo «Pagos por fecha», intacto—. El predeterminado es **por portal**: `/owner/reports` conserva «Por vendedor» y **no** ofrece el nuevo. Migración **`0040`**: `report_sales_totals` y `tickets_sale_date_idx`, **aplicada al proyecto real el 2026-08-31**. **Ya en producción** |
 | **Resultados de loterías** | Etapa 6 (2026-08-30, D-149): `0036`–`0039` en el proyecto real, `vercel.json` con los 10 jobs Hobby. Recuadro del Panel, sync, matching y avisos de las etapas 1–5. **Cron activado.** **`CRON_SECRET` NO la inyecta Vercel** —la crea una persona, D-152—: del 2026-08-30 al 2026-09-01 los diez jobs corrieron contra un **401** y ningún tick entró (I-083). El dueño la creó y redesplegó el 2026-09-01 |
@@ -126,7 +126,23 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — catálogo público de boletas por vendedor (D-159, D-160, 2026-09-02)
+## 1.a Último relevo significativo — compartir el catálogo desde el panel (D-161, 2026-09-02)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **El vendedor reparte su catálogo desde su panel.** «Mi catálogo público» va cerca de la parte superior y trae estado (**Activo**/**Inactivo**), la dirección —recortada a la vista, entera en las acciones— y tres botones: **Compartir** (principal, abre el menú nativo con `navigator.share()`), **Copiar enlace** y **Ver catálogo**. Sin enlace que compartir **no se dibuja ninguna acción**: dice qué falta y a quién pedírselo. Continúa D-159/D-160; **no toca** la lógica del catálogo público, las reglas de negocio, la RLS ni el rendimiento del panel |
+| Archivos | **Nuevos:** `src/features/catalog/share.ts` y `use-clipboard.ts`; `tests/e2e/catalogo-panel.spec.ts` y `catalogo-panel-movil.spec.ts`. **Reescrito:** `components/SellerCatalogCard.tsx`. **Tocados:** `catalog/queries.ts` (la rifa incrustada + `isCatalogLive`), `components/CatalogSettingsCard.tsx` (insignia y aviso de rifa cerrada), `seller/dashboard/page.tsx` (posición), `owner/sellers/[sellerId]/page.tsx` (una prop), `tests/e2e/catalogo-helpers.ts` (+ los sustitutos de `share`/`clipboard`), `tests/e2e/catalogo-publico.spec.ts` y `tests/unit/catalog.test.ts`. Documentación: `DECISIONS` (D-161), `BUSINESS_RULES` (**BR-K13**), `UX_COPY_GUIDELINES`, `TESTING`, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | `Card`/`Badge`/`Button` y el patrón de tarjeta del panel, `toast` de sonner, los iconos de lucide, `getCatalogSettings` y `catalogPublicUrl` que ya existían, y los ayudantes E2E de `catalogo-helpers.ts`. Lo ÚNICO que se extrajo nuevo es `useClipboard`, porque copiar —y sobre todo **fallar** al copiar— lo necesitaban las dos tarjetas. **No se reutilizó `CatalogLinkField`**: allí se configura y aquí se reparte |
+| Decisiones | **D-161.** Lo que no es evidente: **(a)** «Activo» significa que el enlace **abre**, no que el interruptor esté encendido — cerrar una rifa no apaga ningún catálogo, así que un catálogo encendido sobre una rifa cerrada llevaría a un 404; lo decide `isCatalogLive`; **(b)** cancelar el menú de compartir **no hace nada** —ni aviso ni portapapeles—, y eso vive en una función pura probada (`isShareCancelled`), no en un `catch`; **(c)** la tarjeta se pinta **siempre**, los botones no; **(d)** el encabezado del mensaje se **deriva** del nombre de la rifa; **(e)** «Publicado»/«Sin publicar» del portal administrativo pasan a «Activo»/«Inactivo»: es el mismo estado y un término tiene un solo nombre |
+| Verificación | `npm run verify` **completo y en verde** (typecheck, lint 0 errores, **693/693** unitarias, `build`), con `build/` apartado por I-093. `test:db` **710/710**, sin cambios: esta entrega no toca la base. E2E nuevas **22/22** (15 escritorio + 7 móvil), con los **tres botones probados uno a uno** y «Compartir» en sus **cuatro** caminos (comparte, se cancela, lo rechaza el navegador, no existe `navigator.share`), más el fallo del portapapeles y una dirección larga. Comprobado además en el navegador con sesión real de vendedor, en los dos estados |
+| Advertencias | **1)** El menú nativo del sistema **no existe** en un navegador de pruebas: lo que las E2E comprueban es **qué le pide la aplicación al navegador y qué hace con cada respuesta**, sustituyendo `navigator.share` y `navigator.clipboard` con `addInitScript`. La comprobación en un teléfono real sigue pendiente (I-066). **2)** «Inactivo» también nombra a una persona sin acceso (BR-E14); aquí lo desambigua el título de la tarjeta, y es la palabra que pidió el usuario. **3)** El panel **no se ha vuelto más lento**: la rifa se incrusta en la consulta de la membresía que ya estaba en el `Promise.all` — un `left join` por clave primaria, **8 µs** medidos. **4)** Sigue sin desplegarse nada: `0043` continúa **solo en local** |
+| Pendiente | **Decisión del dueño:** (a) ¿se promueve ya el catálogo entero —`0043` y las dos entregas— al proyecto real? (b) Falta probarlo en un **teléfono real**: que el menú nativo salga con WhatsApp y que el mensaje llegue como se espera. Lo de siempre: I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030 |
+| Publicación | **Ninguna.** Sin push, sin despliegue, sin etiqueta y sin tocar el proyecto Supabase real |
+| Git | Rama `main`, **dos commits locales** sobre `8a2e08a`, sin push. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y sin tocar; `build/` sigue ignorado y devuelto como estaba |
+
+---
+
+## 1.a.0 Relevo anterior — catálogo público de boletas por vendedor (D-159, D-160, 2026-09-02)
 
 | Campo | Estado |
 |---|---|
@@ -1301,7 +1317,11 @@ features/payments/components/PaymentForm  UN formulario para todos los origenes.
                     `returnTo` y `originTicketId` los calcula la pagina, no el
                     formulario. Despues de guardar siempre `replace`. No le
                     anadas un almacén global ni un `returnTo` arbitrario
-features/catalog/     catalogo publico de un vendedor (D-159). NO es una segunda entidad
+features/catalog/     catalogo publico de un vendedor (D-159, D-161). share.ts arma el
+                    mensaje que se reparte y use-clipboard.ts copia —y contempla
+                    el fallo— para las DOS tarjetas. isCatalogLive() dice si el
+                    enlace ABRE de verdad: no es lo mismo que `enabled`, porque
+                    cerrar la rifa no apaga el catalogo. NO es una segunda entidad
                     de vendedor: son cuatro columnas `public_*` en `memberships`.
                     slug.ts y whatsapp.ts son PUROS y estan probados; queries.ts
                     es la UNICA lectura del proyecto que usa createAdminClient

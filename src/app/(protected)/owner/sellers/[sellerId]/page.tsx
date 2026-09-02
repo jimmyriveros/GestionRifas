@@ -7,7 +7,7 @@ import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CatalogSettingsCard } from '@/features/catalog/components/CatalogSettingsCard'
-import { catalogPublicUrl, getCatalogSettings } from '@/features/catalog/queries'
+import { catalogPublicUrl, getCatalogSettings, isCatalogLive } from '@/features/catalog/queries'
 import { getCommissionContext } from '@/features/commissions/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { getSellerWithTotals } from '@/features/sellers/queries'
@@ -182,7 +182,8 @@ export default async function SellerDetailPage({
           publicUrl={catalog.slug ? catalogPublicUrl(catalog.slug) : null}
           whatsappNumber={catalog.whatsappNumber}
           raffleId={catalog.raffleId}
-          raffleName={raffles.find((item) => item.id === catalog.raffleId)?.name ?? null}
+          raffleName={catalog.raffleName}
+          isLive={isCatalogLive(catalog)}
         />
       ) : null}
 

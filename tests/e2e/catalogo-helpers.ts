@@ -140,3 +140,92 @@ export async function abrirSinSesion(page: Page, path: string): Promise<void> {
   await page.context().clearCookies()
   await page.goto(path)
 }
+
+/* ---------------------------------------------------------------------------
+ * La tarjeta «Mi catálogo público» del panel del vendedor (D-161).
+ * ------------------------------------------------------------------------- */
+
+/** Deja el catálogo apagado, o con su rifa cerrada, sin tocar nada más. */
+export async function apagarCatalogo(refs: SeedRefs): Promise<void> {
+  const { error } = await serviceClient()
+    .from('memberships')
+    .update({ public_catalog_enabled: false })
+    .eq('profile_id', refs.sellerId)
+  if (error) throw error
+}
+
+/** Cierra la rifa publicada: el interruptor sigue encendido y el enlace NO abre. */
+export async function cerrarRifaPublicada(refs: SeedRefs, closed: boolean): Promise<void> {
+  const { error } = await serviceClient()
+    .from('raffles')
+    .update({ status: closed ? 'closed' : 'active' })
+    .eq('id', refs.raffleId)
+  if (error) throw error
+}
+
+/**
+ * Sustituye `navigator.share` y `navigator.clipboard` ANTES de que cargue la
+ * página, para poder ejercer los cuatro caminos del botón «Compartir».
+ *
+ * Se hace con `addInitScript` y no pulsando de verdad porque el menú nativo del
+ * sistema no existe en un navegador de pruebas: lo que se puede —y se debe—
+ * comprobar es **qué le pide la aplicación al navegador** y **qué hace con cada
+ * una de sus respuestas**.
+ */
+export type ShareMode = 'ok' | 'cancelled' | 'failed' | 'unsupported'
+export type ClipboardMode = 'ok' | 'failed'
+
+export async function stubShareAndClipboard(
+  page: Page,
+  { share, clipboard = 'ok' }: { share: ShareMode; clipboard?: ClipboardMode },
+): Promise<void> {
+  await page.addInitScript(
+    ([shareMode, clipboardMode]: [ShareMode, ClipboardMode]) => {
+      const w = window as unknown as { __share: unknown[]; __clipboard: string[] }
+      w.__share = []
+      w.__clipboard = []
+
+      const fail = (name: string) => {
+        const error = new Error(name)
+        error.name = name
+        throw error
+      }
+
+      if (shareMode === 'unsupported') {
+        Object.defineProperty(navigator, 'share', { value: undefined, configurable: true })
+      } else {
+        Object.defineProperty(navigator, 'share', {
+          configurable: true,
+          value: async (data: unknown) => {
+            w.__share.push(data)
+            if (shareMode === 'cancelled') fail('AbortError')
+            if (shareMode === 'failed') fail('NotAllowedError')
+          },
+        })
+      }
+
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (text: string) => {
+            if (clipboardMode === 'failed') fail('NotAllowedError')
+            w.__clipboard.push(text)
+          },
+        },
+      })
+    },
+    [share, clipboard] as [ShareMode, ClipboardMode],
+  )
+}
+
+/** Lo que la aplicación le pasó a `navigator.share()`. */
+export async function shareCalls(
+  page: Page,
+): Promise<{ title: string; text: string; url: string }[]> {
+  return page.evaluate(() => (window as unknown as { __share: never[] }).__share)
+}
+
+/** Lo que la aplicación escribió en el portapapeles. */
+export async function clipboardWrites(page: Page): Promise<string[]> {
+  return page.evaluate(() => (window as unknown as { __clipboard: string[] }).__clipboard)
+}

@@ -6625,6 +6625,98 @@ Si la PWA ya estaba instalada, el aviso de versión nueva recarga al pulsarlo.
 
 ---
 
+## Compartir el catálogo desde el panel del vendedor (D-161, BR-K13) — 2026-09-02
+
+**Encargo.** Continuación de D-159/D-160: dar acceso al catálogo público **desde dentro de la
+aplicación**. Una tarjeta «Mi catálogo público» cerca de la parte superior del panel del vendedor,
+con estado, dirección y tres acciones —Compartir, Copiar enlace y Ver catálogo—, sin ofrecer nada que
+lleve a una página inválida.
+
+### Verificaciones ejecutadas
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ **completo**: typecheck, lint 0 errores (2 avisos preexistentes de TanStack), **693/693** unitarias, `build`. Con `build/` apartado (I-093) |
+| `npx vitest run tests/unit/catalog.test.ts` | ✅ **45/45** (12 nuevas: mensaje, `title`/`text`/`url`, cancelación y `isCatalogLive`) |
+| `npm run test:db` | ✅ **710/710**, sin cambios: esta entrega **no toca la base de datos** |
+| `npx playwright test tests/e2e/catalogo-panel.spec.ts --project=escritorio` | ✅ **15/15** |
+| `npx playwright test tests/e2e/catalogo-panel-movil.spec.ts --project=movil` | ✅ **7/7** |
+| `npx playwright test tests/e2e/catalogo-publico.spec.ts --project=escritorio` | ✅ **26/26** |
+| `npm run test:e2e` (suite completa) | **478 pasan, 2 fallan** — los dos de **I-090**, ya conocidos. Antes de esta entrega eran 456/458; las 22 nuevas pasan también en la corrida completa |
+| Navegador, sesión real de vendedor, base local | ✅ los dos estados, ver abajo |
+
+### Los tres botones, uno a uno
+
+El menú nativo del sistema **no existe** dentro de un navegador de pruebas, así que lo que se
+comprueba —y es lo que de verdad importa— es **qué le pide la aplicación al navegador y qué hace con
+cada una de sus respuestas**. `navigator.share` y `navigator.clipboard` se sustituyen con
+`addInitScript`, o sea antes de que cargue la página.
+
+| Caso | Qué se comprobó | Resultado |
+|---|---|---|
+| **Ver catálogo** | Es un `<a>` con `rel="noopener"`, su `href` es la URL **completa**, y al pulsarlo abre la página pública correcta con su `<h1>` | ✅ |
+| **Copiar enlace** | Escribe la URL completa en el portapapeles y confirma con «Enlace copiado. Ya puedes enviarlo a tus clientes.» | ✅ |
+| **Copiar enlace**, portapapeles roto | Avisa de que **no** se copió; **no** aparece el aviso de éxito | ✅ |
+| **Compartir**, con `navigator.share` | Se llama **una** vez con `title`, `text` y `url` exactos; **no** se copia nada | ✅ |
+| **Compartir**, cancelado (`AbortError`) | **Ni aviso ni portapapeles**: cero toasts, cero escrituras | ✅ |
+| **Compartir**, rechazado (`NotAllowedError`) | Copia el enlace y lo confirma | ✅ |
+| **Compartir**, sin `navigator.share` | No intenta compartir; copia el enlace y lo confirma | ✅ |
+| **Compartir** y portapapeles, los dos rotos | «No pudimos compartir ni copiar el enlace»; nada escrito | ✅ |
+| **Teclado** | El botón recibe foco y se activa con `Enter` | ✅ |
+| **44 px** | Los tres controles miden ≥ 44 px de alto, en escritorio y en móvil | ✅ |
+| **Móvil** | Compartir va **primero**, ocupa la fila entera y es más ancho que los otros dos juntos; Copiar y Ver comparten la fila de abajo | ✅ |
+| **URL larga** (slug de 76 caracteres) | En escritorio, el mecanismo (`overflow:hidden` + `ellipsis` + `nowrap`) y el texto completo en el HTML y en el `title`; en móvil, que **se recorta de verdad** (`scrollWidth > clientWidth`) sin desbordar la pantalla, y que las **tres** acciones siguen usando la dirección entera | ✅ |
+| **Sin enlace** | Con el catálogo apagado y con la rifa cerrada: dice «Inactivo», explica qué falta y **no dibuja ninguno de los tres botones** ni la dirección | ✅ |
+
+### Errores encontrados y corregidos durante el trabajo
+
+| # | Qué pasaba | Cómo se encontró | Corrección |
+|---|---|---|---|
+| 1 | El panel seguía mostrando la tarjeta vieja | Se leyó el orden real del DOM en el navegador | El servidor de desarrollo que había dejado una corrida anterior de Playwright servía código **obsoleto**. Se reinició; no era un fallo del código |
+| 2 | La prueba de «URL larga» exigía recorte visible **en escritorio**, donde la dirección cabe entera | Falló al ejecutarla | La expectativa era incorrecta, no el código: en escritorio se comprueba el **mecanismo** y el móvil comprueba el **efecto**. Recortar algo que no sobra sería un fallo |
+| 3 | La prueba de la ficha del vendedor esperaba «Publicado» y un `textbox` | Falló tras unificar las palabras y rehacer la tarjeta | Se actualizó a «Activo» y al nuevo marcado |
+| 4 | `datos` posiblemente `undefined` al desestructurar el array de llamadas | `tsc` con `noUncheckedIndexedAccess` | Se lee el elemento con `[0]!` en vez de desestructurar |
+
+### Una trampa que este trabajo cierra
+
+**«Encendido» no era lo mismo que «abre».** Cerrar una rifa es cosa del personal y **no apaga ningún
+catálogo**: el interruptor se queda en «sí» y la página pública empieza a responder «no encontrado»
+(BR-K10). El panel habría enseñado «Activo» y un botón «Ver catálogo» hacia un 404. Ahora el estado
+lo decide `isCatalogLive`, que incluye la rifa, y **hay una prueba E2E para ese caso concreto**. La
+ficha del vendedor gana además la frase que explica cómo arreglarlo, porque quien la lee es quien
+puede.
+
+### Rendimiento del panel — no cambió
+
+`getCatalogSettings` ahora incrusta la rifa para saber si sigue activa. Es la **misma** consulta,
+dentro del **mismo** `Promise.all` que ya existía; no hay ida y vuelta nueva. Medido con `EXPLAIN
+(ANALYZE)`, mediana de 11 ejecuciones:
+
+| Consulta | Mediana |
+|---|---|
+| Membresía sola (antes) | 0,012 ms |
+| Membresía + rifa (ahora) | 0,020 ms |
+
+Ocho microsegundos: un recorrido de índice por clave primaria. **Medida local**, como todas.
+
+### Comprobación manual en el navegador (sesión real de vendedor, base local)
+
+Con el catálogo publicado: la tarjeta aparece **entre el aviso ámbar y el recuadro de loterías**,
+dice «Activo», recorta la dirección con puntos suspensivos y muestra los tres botones —Compartir
+ancho arriba, Copiar enlace y Ver catálogo debajo—, todos con icono **y** texto. Apagándolo: la misma
+tarjeta dice «Inactivo», explica «Tu enlace todavía no está disponible. Pídele a quien administra la
+rifa que publique tu catálogo.» y **no queda ningún botón**.
+
+### Lo que NO se pudo comprobar, y se dice
+
+**El menú nativo en un teléfono real.** Un navegador de pruebas no lo tiene: no se ha visto salir
+WhatsApp en la hoja de compartir de un móvil, ni cómo queda el mensaje al llegar al chat. Es la
+comprobación que falta y la debe hacer una persona (I-066). Lo que sí está demostrado es que la
+aplicación llama a `navigator.share()` con el título, el texto y la URL exactos, y que responde bien
+a las cuatro respuestas posibles del navegador.
+
+---
+
 ## Catálogo público de boletas por vendedor (D-159, D-160, BR-K01..BR-K12) — 2026-09-02
 
 **Encargo.** Primera entrega del catálogo público: una página por vendedor, `/catalogo/<slug>`, sin

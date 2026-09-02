@@ -141,7 +141,8 @@ test.describe('a 320 px, el ancho mas estrecho que se soporta', () => {
     // el dato, y asi no hace falta tocar el seed que usan las demas suites.
     await page.evaluate(() => {
       const p = document.querySelector('header p')
-      if (p) p.textContent = 'Maria Fernanda del Sagrado Corazon Restrepo Villalobos de la Espriella'
+      if (p)
+        p.textContent = 'Maria Fernanda del Sagrado Corazon Restrepo Villalobos de la Espriella'
     })
 
     const desborde = await page.evaluate(

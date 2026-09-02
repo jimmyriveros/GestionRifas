@@ -145,17 +145,35 @@ export type CatalogSettings = {
   enabled: boolean
   whatsappNumber: string | null
   raffleId: string | null
+  /** Nombre de la rifa publicada. Encabeza el mensaje que se comparte (D-161). */
+  raffleName: string | null
+  /**
+   * `true` si esa rifa sigue `active`.
+   *
+   * NO es un adorno: el interruptor puede estar encendido y la rifa cerrada
+   * —cerrarla es cosa del personal y no apaga ningun catalogo—, y entonces la
+   * pagina publica responde «no encontrado» (BR-K10). Sin este dato, el panel
+   * le enseñaria al vendedor un enlace «Activo» que no abre (BR-K13).
+   */
+  raffleActive: boolean
 }
 
 /**
  * La configuracion publica de un vendedor, o `null` si quien consulta no puede
  * verla. La distincion no la hace esta funcion: la hace la RLS.
+ *
+ * La rifa se incrusta en la MISMA consulta —una sola ida y vuelta—; la politica
+ * `raffles_select` ya limita las filas a la organizacion de quien consulta, asi
+ * que traerla no amplia lo que nadie puede ver.
  */
 export async function getCatalogSettings(profileId: string): Promise<CatalogSettings | null> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('memberships')
-    .select('public_slug, public_catalog_enabled, public_whatsapp_number, public_raffle_id')
+    .select(
+      `public_slug, public_catalog_enabled, public_whatsapp_number, public_raffle_id,
+       public_raffle:raffles!memberships_public_raffle_org_fk ( name, status )`,
+    )
     .eq('profile_id', profileId)
     .eq('role', 'seller')
     .maybeSingle()
@@ -163,12 +181,32 @@ export async function getCatalogSettings(profileId: string): Promise<CatalogSett
   if (error) throw error
   if (!data) return null
 
+  const raffle = data.public_raffle as { name: string; status: string } | null
+
   return {
     slug: data.public_slug,
     enabled: data.public_catalog_enabled,
     whatsappNumber: data.public_whatsapp_number,
     raffleId: data.public_raffle_id,
+    raffleName: raffle?.name ?? null,
+    raffleActive: raffle?.status === 'active',
   }
+}
+
+/**
+ * `true` si el enlace de ese vendedor abre de verdad ahora mismo.
+ *
+ * Reune las tres condiciones que dependen de la configuracion —enlace generado,
+ * catalogo encendido y rifa activa—; las otras cuatro de BR-K10 (perfil,
+ * membresia y organizacion activas, y rol vendedor) las cumple por definicion
+ * quien esta viendo su propio panel, porque si no, no habria entrado.
+ *
+ * Se escribe UNA vez y la usan la tarjeta y sus pruebas: es lo que evita que la
+ * pantalla ofrezca un boton hacia una pagina que responde «no encontrado».
+ */
+export function isCatalogLive(settings: CatalogSettings | null): boolean {
+  if (!settings) return false
+  return settings.enabled && settings.slug !== null && settings.raffleActive
 }
 
 /**

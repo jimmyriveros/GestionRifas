@@ -391,6 +391,9 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Encender o apagar el catálogo | **Publicar** / **dejar de publicar** | Activar, desactivar, habilitar |
 | Que una boleta del catálogo ya la tiene alguien | **Tomado** | Vendido, ocupado, no disponible |
 | Pedirle una boleta al vendedor por WhatsApp | **Solicitar** | Reservar, apartar, comprar |
+| Que el catálogo de un vendedor abre de verdad | **Activo** / **Inactivo** | Publicado, encendido, habilitado, en línea |
+| Mandar el enlace por el menú del teléfono | **Compartir** | Enviar, difundir, propagar |
+| Abrir la página pública para verla uno mismo | **Ver catálogo** | Previsualizar, ir al catálogo, abrir |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -663,6 +666,28 @@ sesión y no sabe qué es una rifa de esta empresa. De ahí tres reglas propias:
 {RIFA}». No se escribe el nombre comercial en el código —habría que desplegar cada vez que cambie el
 premio, y mentiría en cuanto hubiera una segunda rifa—; se escribe en el nombre de la rifa.
 
+**El vendedor reparte su catálogo desde el panel, y ahí se dice lo justo** (D-161). Los tres botones
+—**Compartir**, **Copiar enlace** y **Ver catálogo**— llevan **texto visible junto al icono**: un
+icono solo obliga a adivinar, y esta tarjeta la usa gente que no vive en aplicaciones. Las reglas
+propias de esos textos:
+
+* **«Activo» / «Inactivo» describen el ENLACE, no a la persona.** Inactivo aquí significa que la
+  dirección no abre —apagada, sin generar, o con la rifa cerrada—, y nunca que a alguien le hayan
+  quitado el acceso, que es lo que significa «Inactivo» en una cuenta (BR-E14). Lo desambigua el
+  título de la tarjeta, «Mi catálogo público». Son las mismas dos palabras en los **dos** portales:
+  antes la ficha del vendedor decía «Publicado»/«Sin publicar» y se unificó, porque es el mismo
+  estado y un término tiene un solo nombre.
+* **Sin enlace no se ofrece ningún botón.** Se dice qué pasa y a quién pedírselo: «Tu enlace todavía
+  no está disponible. Pídele a quien administra la rifa que publique tu catálogo.» Un botón que
+  lleva a un «no encontrado» es peor que no tener botón.
+* **Nunca se dice que se copió algo que no se copió.** Si el portapapeles falla, el aviso lo dice y
+  manda copiar a mano. Es la misma regla que la de sin conexión (D-116).
+* **Cancelar el menú de compartir no produce ningún mensaje.** Quien lo cierra a propósito no ha
+  sufrido un error, y avisarle —o copiarle algo que no pidió— convierte una decisión suya en un
+  incidente.
+* **El mensaje que se comparte habla en primera persona**: «Consulta **mis** números disponibles».
+  Lo envía el vendedor a un chat personal; un texto corporativo ahí suena a reenvío.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
@@ -784,7 +809,10 @@ castigo donde solo había una espera.
 | Pista y estado vacío del buscador del catálogo | `src/features/search/hints.ts` (`catalogSearchHint`, `CATALOG_SEARCH_EMPTY_DESCRIPTION`, D-160) |
 | «Este enlace ya no está disponible» | `src/app/(catalogo)/catalogo/[slug]/not-found.tsx` (BR-K10) |
 | Textos de configurar el catálogo, y «Publicado» / «Sin publicar» | `src/features/catalog/components/CatalogSettingsCard.tsx` y `CatalogSettingsDialog.tsx` (D-160) |
-| Rótulos del enlace que se copia, en los dos portales | `src/features/catalog/components/CatalogLinkField.tsx` y `SellerCatalogCard.tsx` (BR-K12) |
+| Rótulos del enlace que se copia en la ficha del vendedor | `src/features/catalog/components/CatalogLinkField.tsx` (BR-K12) |
+| Textos de «Mi catálogo público»: estado, aviso sin enlace y los tres botones | `src/features/catalog/components/SellerCatalogCard.tsx` (D-161) |
+| Los tres avisos de copiar y compartir | `SellerCatalogCard.tsx`, en las constantes `COPIADO`, `COPY_FAILED` y `SHARE_AND_COPY_FAILED` (D-161) |
+| El mensaje que se comparte: encabezado, invitación y cómo se reparte en `title`/`text`/`url` | `src/features/catalog/share.ts`, **todo junto** (D-161) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { catalogPublicUrl } from '@/features/catalog/queries'
+import { catalogPublicUrl, isCatalogLive } from '@/features/catalog/queries'
 import {
   SLUG_MAX_LENGTH,
   SLUG_REGEX,
@@ -24,6 +24,13 @@ import {
   whatsappUrl,
 } from '@/features/catalog/whatsapp'
 import { catalogSettingsSchema } from '@/features/catalog/schemas'
+import {
+  CATALOG_SHARE_PROMO,
+  catalogShareData,
+  catalogShareMessage,
+  catalogShareTitle,
+  isShareCancelled,
+} from '@/features/catalog/share'
 import { CATALOG_SEARCH_EMPTY_DESCRIPTION, catalogSearchHint } from '@/features/search/hints'
 
 describe('slug: normalizacion (BR-K02)', () => {
@@ -304,5 +311,92 @@ describe('pistas del buscador publico', () => {
     // La regla («4 cifras») vive en la pista del campo, no aqui: decirla en
     // los dos sitios la escribia dos veces en la misma pantalla.
     expect(CATALOG_SEARCH_EMPTY_DESCRIPTION).not.toContain('4 cifras')
+  })
+})
+
+describe('mensaje para compartir el catálogo (BR-K13, D-161)', () => {
+  const URL = 'https://rifas.example.com/catalogo/laura-gomez-k7m4'
+
+  it('el encabezado se deriva del nombre de la rifa, no está escrito en el código', () => {
+    expect(catalogShareTitle('Sorteo Camioneta KIA')).toBe(
+      'Números disponibles — Sorteo Camioneta KIA',
+    )
+    expect(catalogShareTitle('Rifa Navidad 2026')).toBe('Números disponibles — Rifa Navidad 2026')
+  })
+
+  it('el bloque completo es exactamente el pedido', () => {
+    expect(catalogShareMessage('Sorteo Camioneta KIA', URL)).toBe(
+      'Números disponibles — Sorteo Camioneta KIA\n\n' +
+        'Consulta mis números disponibles y solicita el que más te guste:\n\n' +
+        URL,
+    )
+  })
+
+  it('`text` lleva el encabezado, porque WhatsApp no usa `title`', () => {
+    const data = catalogShareData('Sorteo Camioneta KIA', URL)
+    expect(data.title).toBe('Números disponibles — Sorteo Camioneta KIA')
+    expect(data.text).toContain('Números disponibles — Sorteo Camioneta KIA')
+    expect(data.text).toContain('Consulta mis números disponibles y solicita el que más te guste:')
+    expect(data.url).toBe(URL)
+  })
+
+  it('la dirección viaja en `url` y NO se repite dentro de `text`', () => {
+    // Repetirla haría que WhatsApp la escribiera dos veces en el mismo mensaje.
+    const data = catalogShareData('Sorteo Camioneta KIA', URL)
+    expect(data.text).not.toContain(URL)
+  })
+
+  it('habla en primera persona: lo envía el vendedor, no la empresa', () => {
+    expect(CATALOG_SHARE_PROMO).toContain('mis números')
+  })
+})
+
+describe('cancelar el menú de compartir no es un error (BR-K13)', () => {
+  it('`AbortError` es una cancelación', () => {
+    const error = new Error('cancelado')
+    error.name = 'AbortError'
+    expect(isShareCancelled(error)).toBe(true)
+  })
+
+  it('cualquier otro fallo NO lo es: ahí sí se copia el enlace', () => {
+    const notAllowed = new Error('sin permiso')
+    notAllowed.name = 'NotAllowedError'
+    expect(isShareCancelled(notAllowed)).toBe(false)
+
+    expect(isShareCancelled(new Error('vaya'))).toBe(false)
+    expect(isShareCancelled('AbortError')).toBe(false)
+    expect(isShareCancelled(undefined)).toBe(false)
+    expect(isShareCancelled({ name: 'AbortError' })).toBe(false)
+  })
+})
+
+describe('cuándo el enlace abre de verdad (BR-K13)', () => {
+  const base = {
+    slug: 'laura-gomez-k7m4',
+    enabled: true,
+    whatsappNumber: '573001234567',
+    raffleId: '00000000-0000-4000-8000-000000000002',
+    raffleName: 'Sorteo Camioneta KIA',
+    raffleActive: true,
+  }
+
+  it('con todo puesto, sí', () => {
+    expect(isCatalogLive(base)).toBe(true)
+  })
+
+  it('sin configuración visible, no', () => {
+    expect(isCatalogLive(null)).toBe(false)
+  })
+
+  it('apagado, no', () => {
+    expect(isCatalogLive({ ...base, enabled: false })).toBe(false)
+  })
+
+  it('sin enlace generado, no', () => {
+    expect(isCatalogLive({ ...base, slug: null })).toBe(false)
+  })
+
+  it('con la rifa cerrada, NO: el interruptor sigue encendido pero la página da 404', () => {
+    expect(isCatalogLive({ ...base, raffleActive: false })).toBe(false)
   })
 })

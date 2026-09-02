@@ -32,16 +32,24 @@ export function CatalogSettingsCard({
   whatsappNumber,
   raffleId,
   raffleName,
+  isLive,
 }: {
   profileId: string
   sellerName: string
   raffles: RaffleOption[]
+  /** El interruptor tal como está guardado. Decide lo que ofrece el diálogo. */
   enabled: boolean
   slug: string | null
   publicUrl: string | null
   whatsappNumber: string | null
   raffleId: string | null
   raffleName: string | null
+  /**
+   * `true` si el enlace ABRE de verdad (`isCatalogLive`). No es lo mismo que
+   * `enabled`: con la rifa cerrada, el interruptor sigue encendido y la página
+   * pública responde «no encontrado» (BR-K10, BR-K13).
+   */
+  isLive: boolean
 }) {
   const [open, setOpen] = useState(false)
 
@@ -51,17 +59,17 @@ export function CatalogSettingsCard({
         <CardTitle className="text-base">Catálogo público</CardTitle>
         {/*
           La insignia dice el estado con PALABRAS, no solo con color
-          (CLAUDE.md 27). «Publicado» y «Sin publicar» no son etiquetas de
-          estado de las ocho de `constants.ts`: describen este interruptor y
-          solo existen aqui.
+          (CLAUDE.md 27). «Activo» e «Inactivo» no son etiquetas de estado de
+          las ocho de `constants.ts`: describen este interruptor y solo existen
+          en las dos tarjetas del catalogo. Decian «Publicado» y «Sin publicar»
+          hasta D-161; se unificaron con las del panel del vendedor porque son
+          el MISMO estado y un termino tiene un solo nombre.
         */}
-        <Badge variant={enabled ? 'default' : 'outline'}>
-          {enabled ? 'Publicado' : 'Sin publicar'}
-        </Badge>
+        <Badge variant={isLive ? 'default' : 'outline'}>{isLive ? 'Activo' : 'Inactivo'}</Badge>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {enabled && publicUrl ? (
+        {isLive && publicUrl ? (
           <CatalogLinkField
             url={publicUrl}
             description={`${sellerName} puede compartir este enlace por WhatsApp. Quien lo abra ve solo los números de la rifa, no clientes ni pagos.`}
@@ -70,7 +78,12 @@ export function CatalogSettingsCard({
           <p className="text-muted-foreground text-sm">
             {slug === null
               ? 'Todavía no tiene enlace. Se genera al publicar el catálogo.'
-              : 'El catálogo está apagado: su enlace no abre. Puedes volver a publicarlo cuando quieras.'}
+              : enabled
+                ? // Encendido pero sin abrir: la rifa dejo de estar activa. Se
+                  // dice, porque quien lee esta pantalla es justo quien puede
+                  // arreglarlo (BR-K13).
+                  `El catálogo está publicado, pero ${raffleName ?? 'su rifa'} no está activa: el enlace no abre. Elige una rifa activa para volver a publicarlo.`
+                : 'El catálogo está apagado: su enlace no abre. Puedes volver a publicarlo cuando quieras.'}
           </p>
         )}
 

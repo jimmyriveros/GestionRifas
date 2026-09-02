@@ -23,7 +23,7 @@ import {
   getSellerPartialTicketTotals,
 } from '@/features/dashboard/seller-queries'
 import { SellerCatalogCard } from '@/features/catalog/components/SellerCatalogCard'
-import { catalogPublicUrl, getCatalogSettings } from '@/features/catalog/queries'
+import { catalogPublicUrl, getCatalogSettings, isCatalogLive } from '@/features/catalog/queries'
 import { LotteryResultsSection } from '@/features/lottery/components/LotteryResultsSection'
 import { getCommissionContext, getFirstTierRate } from '@/features/commissions/queries'
 import { getOwnTeamStatus } from '@/features/team/queries'
@@ -149,6 +149,21 @@ export default async function SellerDashboardPage({
         </p>
       ) : null}
 
+      {/* «Mi catálogo público», cerca de la parte superior (D-161): es una
+          herramienta de venta que se usa a diario, así que va por encima del
+          ofrecimiento de instalar y del recuadro de loterías, y por debajo del
+          aviso ámbar, que sigue siendo lo más urgente (D-123).
+
+          A DIFERENCIA DE LOS OTROS DOS BLOQUES CONDICIONALES, esta tarjeta se
+          pinta SIEMPRE: cuando el catálogo no está publicado dice «Inactivo» y
+          explica qué falta, en vez de desaparecer sin que el vendedor sepa que
+          la función existe. Lo que desaparece son los botones. */}
+      <SellerCatalogCard
+        publicUrl={catalog?.slug ? catalogPublicUrl(catalog.slug) : null}
+        raffleName={catalog?.raffleName ?? null}
+        isLive={isCatalogLive(catalog)}
+      />
+
       {/* Arriba, no al final (D-123). Va DESPUÉS del aviso ámbar a propósito:
           ese son boletas que el vendedor todavía no puede vender, y eso corre
           más prisa que instalar nada. La tarjeta se decide sola y no se pinta
@@ -156,13 +171,6 @@ export default async function SellerDashboardPage({
       <InstallPrompt />
 
       <LotteryResultsSection audience="seller" ticketBasePath="/seller/tickets" />
-
-      {/* Tercer bloque condicional, fuera de la rejilla de siete piezas (D-112):
-          solo aparece cuando el Dueño o el Administrador ya publicó su catálogo
-          y por tanto hay un enlace que compartir (BR-K12). */}
-      {catalog?.enabled && catalog.slug ? (
-        <SellerCatalogCard publicUrl={catalogPublicUrl(catalog.slug)} />
-      ) : null}
 
       {/*
         UNA sola rejilla para las siete piezas, y dos ordenes distintos.
