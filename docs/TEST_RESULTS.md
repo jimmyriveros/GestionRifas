@@ -6625,6 +6625,108 @@ Si la PWA ya estaba instalada, el aviso de versión nueva recarga al pulsarlo.
 
 ---
 
+## Promoción a producción del catálogo público (`0043`, `0044`, D-159..D-161) — 2026-09-02
+
+Autorizada expresamente. Se promovieron **las dos migraciones** y se desplegó el código de las dos
+entregas del catálogo.
+
+### Respaldo previo
+
+`Rifas-backups/2026-09-02-pre-0043/`, generado con el procedimiento de `RUNBOOK.md` §5.1 **antes** de
+tocar nada. Comprobado antes de seguir:
+
+| Comprobación | Resultado |
+|---|---|
+| `grep -c '"auth"' data.sql` | **0** — no se coló el esquema `auth` |
+| Contraseñas y tokens (`encrypted_password`, `recovery_token`…) | **0** |
+| Tablas con datos | **17**, incluidas `tickets`, `payments` y `payment_allocations` |
+| `schema.sql` con las tablas clave | ✅ las 5 |
+| `public_slug` en `schema.sql` | **0** — confirma que `0043` aún no estaba aplicada |
+
+### La promoción, y la divergencia que encontró
+
+`supabase migration list` confirmó `0001`–`0042` aplicadas y `0043` como única pendiente. Después,
+los tres pasos de `DEPLOYMENT.md` §2.2: `--dry-run` (1 migración, 0 semillas, 0 roles), `--yes`, y
+`verify:remote` **17/17**.
+
+`verify:remote` no cubre las funciones nuevas, así que se comprobaron **por comportamiento** contra
+el proyecto real — y ahí apareció el hallazgo:
+
+> **`public_catalog_membership` era ejecutable por `service_role` en producción, y no en local.**
+
+Es **I-078 / D-128 otra vez**. `0032` arregló el privilegio por defecto de `authenticated` y
+**conservó a propósito el de `service_role`**, así que toda función nueva nace con él en el proyecto
+alojado. `0043` revocó de `public`, `anon` y `authenticated` —lo que en local bastaba— pero no de
+`service_role`.
+
+**No era un agujero**: `service_role` es la clave del servidor y omite la RLS de todos modos. Lo que
+estaba mal es que `DATA_MODEL`, `SECURITY` y una prueba (`svc === false`) afirmaban de **producción**
+algo que solo era cierto en local. Una prueba que no puede fallar donde importa no protege nada.
+
+Se corrigió con **`0044`**, después de comprobar en local que revocar es seguro: las dos funciones
+públicas son `SECURITY DEFINER` y su cuerpo corre con el privilegio de su dueño, así que
+`set role service_role; select * from public_catalog_seller(...)` devuelve su fila sin que ese rol
+tenga EXECUTE sobre la interna. `0044` pasó por los mismos tres pasos.
+
+### Comprobación del esquema real, tras las dos migraciones
+
+| Qué | Resultado |
+|---|---|
+| Las 4 columnas `public_*` | ✅ |
+| Las 4 restricciones (formato de slug y WhatsApp, FK compuesta, catálogo completo) | ✅ |
+| Índice único **parcial** del slug | ✅ `WHERE (public_slug IS NOT NULL)` |
+| Las 3 funciones, `SECURITY DEFINER` con `search_path` fijo | ✅ |
+| `anon` y `authenticated` no ejecutan ninguna de las 3 | ✅ |
+| La interna no la ejecuta **nadie** (tras `0044`) | ✅ |
+| Las dos públicas, solo `service_role` | ✅ |
+| **Ningún catálogo quedó publicado** | ✅ 7 membresías · slug=0, encendidos=0, whatsapp=0, rifa=0 |
+| Datos de negocio intactos | 928 boletas · 293 pagos · 455 clientes · 2 rifas · 7 membresías |
+
+### CI y despliegue
+
+CI **2/2** (`33657336020`), incluido el job **«Migraciones desde cero + pruebas de base de datos»**:
+`0043` y `0044` aplican limpias sobre una base vacía, con **254** pruebas de base de datos. Ese job
+además confirma que **I-093 es local**: el typecheck de CI pasa porque `build/` no viaja en el
+repositorio.
+
+Vercel **READY** sobre `b39200c` (`dpl_QyyrmhmnwAGBHdSUiZ3fSAGoxpZB`), alias
+`gestion-rifas.vercel.app`.
+
+### Verificación en vivo (sin sesión)
+
+| Qué | Resultado |
+|---|---|
+| 6/6 cabeceras de seguridad | ✅ HSTS, CSP con `strict-dynamic`, `nosniff`, `DENY`, referrer, permissions |
+| 4/4 rutas protegidas | ✅ 307 al login |
+| **`/catalogo/<slug>` NO redirige a `/login`** | ✅ es pública de verdad en producción |
+| `/catalogo/<slug inexistente>` | ✅ **404** con «Este enlace ya no está disponible» |
+| El 404 lleva `noindex` y **no filtra ningún nombre** | ✅ |
+| `/catalogo/MAYUSCULAS` (slug con forma inválida) | ✅ 404 |
+| `/api/lottery/sync` | ✅ sigue en 401 sin secreto |
+| Identificador del build servido | ✅ `2c6b90fddc21` en los 15 recursos (941 KB) |
+| Claves de servicio en el JavaScript servido | ✅ **cero** |
+
+### Lo que NO se pudo comprobar, y se dice
+
+**La tarjeta «Mi catálogo público» y un catálogo con boletas, en producción.** Las dos viven **tras el
+inicio de sesión**, y un agente no entra con una cuenta real (Fase 8, I-066). La evidencia de esa
+parte son las 22 pruebas E2E, las 34 de base de datos y la comprobación en navegador contra la base
+local. **Quien lo vea:** publicar un catálogo desde `/owner/sellers/<id>` y abrir el panel de ese
+vendedor.
+
+### Dos cosas que quedaron a la vista al mirar los datos reales
+
+1. **La rifa se llama «SORTEO CAMIONETA KIA 2026»**, así que el título derivado sale
+   `NÚMEROS DISPONIBLES SORTEO CAMIONETA KIA 2026` y el encabezado del mensaje,
+   `Números disponibles — SORTEO CAMIONETA KIA 2026`. El encargo pedía el texto **sin** el año y con
+   el nombre en mayúsculas y minúsculas. Es un **dato**, no código (D-159): se ajusta renombrando la
+   rifa. No se tocó — renombrar una rifa viva es decisión del dueño.
+2. **Hay DOS rifas activas a la vez** en producción («SORTEO CAMIONETA KIA 2026» y «Rifa Control
+   2026»). Confirma que exigir `public_raffle_id` explícito (BR-K06, D-159) no era una precaución
+   teórica: una heurística habría tenido que adivinar entre dos.
+
+---
+
 ## Compartir el catálogo desde el panel del vendedor (D-161, BR-K13) — 2026-09-02
 
 **Encargo.** Continuación de D-159/D-160: dar acceso al catálogo público **desde dentro de la

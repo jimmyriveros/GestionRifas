@@ -3,8 +3,11 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-02 (D-161, compartir el catálogo desde el panel del vendedor; **sin
-  migración**). Antes: D-159 y D-160, catálogo público de boletas por vendedor; migración
+- **Actualizado:** 2026-09-02 — **catálogo público DESPLEGADO**: `0043` y `0044` aplicadas al
+  proyecto real tras el respaldo `Rifas-backups/2026-09-02-pre-0043/`, y `b39200c` servido por
+  Vercel. `0044` nace de una divergencia que solo se ve en producción (I-078/D-128). **Aplicar las
+  migraciones no publicó el catálogo de nadie.** Antes: D-161, compartir el catálogo desde el panel
+  del vendedor; **sin migración**. Antes: D-159 y D-160, catálogo público de boletas por vendedor; migración
   `0043` **solo en local**, sin desplegar. Antes: D-158, un abono vigente se corrige a $0; migración
   `0042` **aplicada al proyecto real** y `ef7bf62` **desplegado y verificado**
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
