@@ -6544,6 +6544,13 @@ sin separación; sobre un botón violeta en una tarjeta violeta, un anillo viole
   escribe el trazo, que no añade dependencia; cuesta 51 KB en bruto repetido en las tarjetas y
   **1 KB comprimido**, que es lo que viaja.
 
+**(h) Los PNG maestros salen de `public/` y viven en `design/catalog/`.** Todo lo que está en
+`public/` se sirve y se despliega, lo pida alguien o no, y los dos maestros suman 3,6 MB que ningún
+visitante descarga: la aplicación solo usa los WebP. Se versionan igual, con un `README` que explica
+cómo se regeneran los derivados y por qué la transparencia no es opcional —el hero se pinta sobre el
+fondo oscuro—, para que quien necesite otro tamaño parta del original y no de una copia ya
+comprimida.
+
 **Consecuencia.** El catálogo se ve como una rifa y sigue comportándose igual: misma consulta,
 misma proyección, mismo buscador con su término en la URL, misma paginación, mismo refresco al
 volver, mismo mensaje de WhatsApp y mismo aviso de que solicitar no aparta el número. Se añadieron
