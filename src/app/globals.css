@@ -349,3 +349,191 @@
     flex-shrink: 0;
   }
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * TEMA DEL CATALOGO PUBLICO (D-163)
+ * ---------------------------------------------------------------------------
+ *
+ * La UNICA pantalla de la aplicacion que no la abre un usuario de la
+ * organizacion: llega por un enlace de WhatsApp, no tiene sesion y no ha visto
+ * nunca el portal. Por eso tiene su propia paleta —oscura, violeta— en vez de
+ * la del panel, y por eso vive aqui y no en un componente: lo que se cambia son
+ * los TOKENS, de modo que `Button`, `Badge`, `Input` y `EmptyState` se pintan
+ * solos con los colores nuevos. No hay una segunda version de ningun componente
+ * compartido, ni una clase `dark:` que dependa del tema del visitante.
+ *
+ * NO SE TOCA EL TEMA GLOBAL. Estas variables solo existen dentro de
+ * `.catalog-theme`, que pone el layout del grupo `(catalogo)`. Ninguna otra
+ * pantalla del proyecto ve un solo valor distinto.
+ *
+ * `color-scheme: dark` NO es decoracion: sin el, el navegador pinta la barra de
+ * desplazamiento y el boton de limpiar del `type="search"` en claro sobre un
+ * fondo negro.
+ */
+.catalog-theme {
+  color-scheme: dark;
+
+  --background: oklch(0.145 0.035 292);
+  --foreground: oklch(0.97 0.01 290);
+  --card: oklch(0.21 0.035 293);
+  --card-foreground: oklch(0.97 0.01 290);
+  --popover: oklch(0.21 0.035 293);
+  --popover-foreground: oklch(0.97 0.01 290);
+
+  /* El violeta de los botones y de los bordes de una boleta libre. */
+  --primary: oklch(0.55 0.245 296);
+  --primary-foreground: oklch(0.99 0.005 290);
+
+  /* El verde lima de «Disponible». Texto oscuro encima: 7:1 largos. */
+  --secondary: oklch(0.88 0.19 126);
+  --secondary-foreground: oklch(0.28 0.07 128);
+
+  --muted: oklch(0.25 0.03 292);
+  --muted-foreground: oklch(0.76 0.025 292);
+  --accent: oklch(0.28 0.05 295);
+  --accent-foreground: oklch(0.97 0.01 290);
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(0.99 0.005 290);
+
+  --border: oklch(0.75 0.06 295 / 18%);
+  --input: oklch(0.75 0.06 295 / 30%);
+
+  /*
+   * El anillo de foco es CASI BLANCO, no violeta.
+   *
+   * `Button` lo dibuja sin separacion (`ring-ring/50`, sin offset), y el boton
+   * «Solicitar» ya es violeta sobre una tarjeta violeta: un anillo violeta
+   * encima se perdia. Un lila muy claro se ve sobre los tres fondos de esta
+   * pagina —el boton lleno, la tarjeta oscura y el campo del hero—.
+   */
+  --ring: oklch(0.92 0.06 300);
+
+  background-color: var(--background);
+}
+
+/*
+ * El fondo blanco del `body` asomaria por dos sitios: el rebote del scroll en
+ * un telefono y la barra de direcciones al ocultarse. Se tine el body cuando la
+ * pagina que contiene es un catalogo, y solo entonces.
+ */
+body:has(.catalog-theme) {
+  background-color: oklch(0.145 0.035 292);
+}
+
+/*
+ * Los resplandores del fondo: TRES degradados radiales y nada mas.
+ *
+ * `fixed` y no `absolute`: asi no se repintan al desplazarse y el fondo no
+ * "sube" con el contenido, que es lo que da la sensacion de profundidad. Sin
+ * imagen, sin canvas y sin animacion: es una sola capa que el compositor pinta
+ * una vez.
+ */
+.catalog-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(48rem 32rem at 10% -8%, oklch(0.55 0.22 300 / 0.32), transparent 62%),
+    radial-gradient(42rem 30rem at 95% 4%, oklch(0.52 0.2 266 / 0.26), transparent 60%),
+    radial-gradient(40rem 28rem at 50% 104%, oklch(0.5 0.2 300 / 0.16), transparent 58%);
+}
+
+/*
+ * El polvo de estrellas. Un patron de puntos de 3 px repetido cada 96 px, con
+ * una mascara que lo apaga hacia abajo para que no compita con las boletas.
+ */
+.catalog-stars {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    radial-gradient(1.2px 1.2px at 18px 24px, oklch(0.95 0.02 290 / 0.5), transparent 100%),
+    radial-gradient(1px 1px at 74px 58px, oklch(0.9 0.05 300 / 0.35), transparent 100%),
+    radial-gradient(1.4px 1.4px at 42px 88px, oklch(0.95 0.02 290 / 0.28), transparent 100%);
+  background-size: 96px 112px;
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 70%);
+  mask-image: linear-gradient(to bottom, black 0%, transparent 70%);
+}
+
+/*
+ * El velo que separa el titulo de la ilustracion.
+ *
+ * Es lo que permite escribir encima de una composicion con una camioneta
+ * iluminada sin perder contraste, y por eso no es un adorno: es la unica pieza
+ * que garantiza que el texto se lee. En escritorio oscurece el centro —donde va
+ * el titulo— y deja ver el coche a la izquierda y las boletas a la derecha; en
+ * el telefono oscurece la mitad de arriba, que es donde va el texto, y deja el
+ * coche abajo.
+ */
+.catalog-hero-veil {
+  background-image:
+    linear-gradient(
+      to bottom,
+      oklch(0.145 0.035 292 / 0.88) 0%,
+      oklch(0.145 0.035 292 / 0.82) 40%,
+      oklch(0.145 0.035 292 / 0.55) 58%,
+      oklch(0.145 0.035 292 / 0.12) 74%,
+      transparent 100%
+    ),
+    linear-gradient(to top, var(--background) 2%, transparent 26%);
+}
+
+@media (min-width: 768px) {
+  .catalog-hero-veil {
+    background-image:
+      radial-gradient(
+        44rem 26rem at 50% 48%,
+        oklch(0.145 0.035 292 / 0.94) 0%,
+        oklch(0.145 0.035 292 / 0.88) 38%,
+        oklch(0.145 0.035 292 / 0.5) 70%,
+        transparent 100%
+      ),
+      linear-gradient(to top, var(--background) 1%, transparent 24%),
+      linear-gradient(to bottom, oklch(0.145 0.035 292 / 0.45) 0%, transparent 30%);
+  }
+}
+
+/*
+ * El nombre de la rifa, en dos colores (D-163).
+ *
+ * TRES PARADAS Y NO DOS, y la del medio es la que importa. Del violeta al lima
+ * hay medio circulo de tono: con dos paradas, el navegador cruza por el centro
+ * del espacio de color y la palabra de en medio —«CAMIONETA» en la rifa real—
+ * sale gris. La parada intermedia fija ahi un lila claro, de modo que la
+ * transicion se queda dentro de la familia violeta hasta el final.
+ *
+ * Se evita `in oklch` a proposito: interpola por el tono y saca la palabra del
+ * medio en cian, que no es ninguno de los dos colores de la marca. Y con
+ * `background-clip: text` y texto transparente, un degradado que el navegador
+ * no entienda no se degrada: BORRA el titulo. Esta sintaxis la entiende
+ * cualquiera.
+ */
+.catalog-title-accent {
+  background-image: linear-gradient(
+    100deg,
+    oklch(0.72 0.21 300) 0%,
+    oklch(0.86 0.09 292) 52%,
+    oklch(0.88 0.19 126) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/*
+ * `prefers-reduced-motion` (CLAUDE.md 27). El catalogo no anima nada por su
+ * cuenta —no hay estrellas que parpadeen ni resplandores que respiren—, asi que
+ * lo unico que queda por apagar son las transiciones de los componentes
+ * compartidos cuando alguien toca o enfoca una boleta.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .catalog-theme *,
+  .catalog-theme *::before,
+  .catalog-theme *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -585,6 +585,22 @@ El reparto entre escritorio y móvil no es casual: la **URL larga** comprueba en
 entera, sería exigir que se recorte algo que no sobra — y fue un fallo real de la primera versión de
 esa prueba.
 
+### 5.5 Que solo se descargue UNA composición del hero (`catalogo-publico*.spec.ts`, D-163)
+
+La afirmación central del rediseño —«el navegador no descarga las dos imágenes»— no se comprueba
+mirando el HTML: dos `<img>` ocultos con CSS también salen en el HTML, y aun así se descargan los
+dos. Se comprueba **escuchando la red**: las pruebas registran cada respuesta cuya URL sea una imagen
+o pase por `/_next/image`, filtran las del hero y exigen **exactamente una**, además de cuál.
+
+Hay **una por proyecto de Playwright**, y no es duplicación: el proyecto de escritorio afirma que baja
+la composición **horizontal** y el del teléfono, la **vertical**. Es justo lo que `<source media>`
+decide y lo que un `hidden md:block` rompería sin que ninguna prueba de DOM se enterara.
+
+En la misma tanda entran dos comprobaciones que solo tienen sentido después del rediseño: que el
+encabezado fijo **ocupa menos del 14 % de la altura** del teléfono —antes llevaba dentro el título y
+el buscador—, y que el botón «Limpiar búsqueda» **se puede pulsar** aunque el campo lleve un fondo
+desenfocado, que es la regresión de I-095.
+
 ## 5. Pruebas unitarias clave
 
 | Módulo | Casos |

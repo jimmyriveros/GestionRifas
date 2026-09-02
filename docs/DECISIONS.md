@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.36 · **Actualizado:** 2026-09-02 (D-001 a D-161)
+- **Versión:** 1.37 · **Actualizado:** 2026-09-02 (D-001 a D-163)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -6461,6 +6461,97 @@ Bogotá `7280`, Meta `8134`—. Un tick real sobre la base local confirmó Cruz 
 gastando **6 descargas exactas**, y el siguiente resolvió Bogotá: hay progreso determinista y no hay
 inanición. **Paga Todo queda bloqueada** y documentada como tal. Nueva regla **BR-L26**; **BR-L17**
 queda sustituida en parte y se anota, sin reescribirla.
+
+## D-163 — El rediseño del catálogo público: tema propio, art direction real y dos cifras que existen
+
+**Fase:** mantenimiento posterior a la Fase 9 (catálogo público, 2026-09-02)
+
+**Contexto.** El catálogo publicado el 2026-09-02 (D-159, D-160, D-161) funcionaba y era honesto,
+pero se veía como una pantalla del portal: fondo claro, tarjetas grises, ningún indicio de que
+detrás hay una rifa de una camioneta. Es la única pantalla que abre alguien de fuera —llega por un
+enlace de WhatsApp, sin sesión, sin haber visto nunca la aplicación—, y su aspecto es lo único que
+la respalda. El usuario encargó el rediseño con dos referencias visuales y dos composiciones ya
+generadas (escritorio horizontal, 1672×941; teléfono vertical, 1024×1536), y acotó el alcance:
+**solo presentación**. Nada de consultas, reglas, esquema, migraciones, RPC ni acciones de servidor.
+
+**Decisión.**
+
+**(a) El tema oscuro son TOKENS, no componentes nuevos.** `.catalog-theme` redefine en
+`globals.css` las variables de color dentro del árbol del grupo `(catalogo)`: fondo, tarjeta,
+primario, secundario, borde, anillo. Con eso, `Button`, `Badge`, `Input`, `EmptyState` y
+`SearchInput` se pintan violeta **sin una sola versión duplicada** y sin una clase `dark:` que
+dependa del tema del visitante —que además no existe: la aplicación no monta `ThemeProvider` y
+nunca aplica `.dark`—. Ninguna otra pantalla ve un valor distinto.
+
+**(b) Art direction de verdad: `<picture>` + `<source media>`, no `hidden md:block`.** Las dos
+composiciones no son un recorte la una de la otra, así que se sirven con el patrón que documenta
+Next 16 (`getImageProps` dentro de un `<picture>`): el navegador evalúa `media` **antes** de
+descargar y baja **una** de las dos. Medido en los cinco anchos, siempre una: 82,5 KB a 320 px,
+122 KB a 390 px y 272,9 KB desde 768 px —menos que los 213 y 334 KB de los archivos originales,
+porque cada ancho recibe su derivado—. Ninguna se precarga: el elemento grande de la primera
+pantalla es el título, que ya viene en el HTML, y un `preload` no entiende el `media` de un
+`<picture>`, así que adelantaría la variante equivocada la mitad de las veces.
+
+**(c) El resumen enseña DOS cifras porque solo existen dos.** La referencia muestra cuatro tarjetas
+—premio principal, disponibles, tomados y frecuencia del sorteo—. El **premio** no está modelado:
+una rifa tiene nombre, precio y fechas, y escribir su nombre bajo el rótulo «Premio principal»
+sería afirmar algo que nadie ha dicho. La **frecuencia** tampoco: «Todos los sábados» solo podría
+salir de escribirlo en el código. Y las dos que sí están se cuentan **de las boletas que ya
+llegaron**, no del inventario: BR-K11 prohíbe contar el total, y hacerlo habría exigido una función
+nueva en la base de datos —justo lo que el encargo excluye—. Por eso cada cifra dice su alcance:
+«En esta página», «En tu búsqueda», o su significado cuando lo que se ve es el catálogo entero.
+
+**(d) El precio NO se enseña, aunque la consulta lo traiga.** `public_catalog_seller` devuelve
+`ticket_price` (BR-K07) y la tentación era ponerlo en una tarjeta del resumen. No: la suite de
+privacidad comprueba que el HTML público **no contenga** `120000` ni `120.000`, y esa prueba
+describe una decisión anterior, no un descuido. Enseñar el precio es un cambio de producto, no de
+diseño.
+
+**(e) El buscador baja al hero y el encabezado se queda con la identidad.** Antes el encabezado
+fijo llevaba nombre, título y campo de búsqueda: más de 150 px pegados arriba en **todas** las
+pantallas de una lista de cincuenta boletas. Ahora son 56 px con el avatar, el nombre, «Vendedor
+oficial» y el botón de WhatsApp; el título y el buscador viven en el hero, como en la referencia.
+Sigue habiendo **un solo** `<header>`, sigue siendo `sticky` y sigue reservando su hueco.
+
+**(f) La etiqueta dice «CATÁLOGO PÚBLICO», no «SORTEO PÚBLICO».** El encargo pedía lo segundo, pero
+el glosario reserva **sorteo** para el sorteo de una lotería y prohíbe llamar así a la rifa
+(Anexo A de `UX_COPY_GUIDELINES.md`). **Catálogo** es además el término que el vendedor ya lee en su
+propio panel —«Mi catálogo público»— y el que describe exactamente lo que el visitante tiene
+delante. Se aplica la regla §35.2.4 de `CLAUDE.md`: se prioriza la comprensión, se señala la
+contradicción y se sigue.
+
+**(g) El anillo de foco del catálogo es casi blanco.** `Button` dibuja el foco con `ring-ring/50` y
+sin separación; sobre un botón violeta en una tarjeta violeta, un anillo violeta desaparecía. En
+`.catalog-theme`, `--ring` es un lila muy claro que se ve sobre los tres fondos de la página.
+
+**Alternativas descartadas.**
+
+* **Dos `<img>` y `hidden md:block`** (descartada: el navegador descarga las dos, que es
+  exactamente lo que el encargo prohíbe).
+* **La composición como `background-image`** (descartada: sin `<source media>` no hay forma de
+  elegir variante sin duplicar descargas, y se pierde el `srcSet` por ancho).
+* **`priority` en la imagen del hero** (descartada: mete un `preload` que ignora el `media`).
+* **Contar el inventario para el resumen** (descartada: choca con BR-K11 y exige una función nueva,
+  fuera del alcance).
+* **Una consulta directa con la clave de servicio para contar** (descartada además por diseño: lo
+  que acota la proyección pública es el tipo de retorno de las dos funciones, no una política; un
+  `select` suelto en ese camino abre la puerta que D-159 cerró).
+* **Un tema oscuro global con `next-themes`** (descartada: cambiaría las 30 pantallas del portal por
+  un encargo que pedía rediseñar una).
+* **Reutilizar `TicketCardList`** (descartada por lo mismo que en D-159: arrastra cliente, dinero y
+  estado de pago a una página pública).
+* **Un icono de WhatsApp de `lucide-react`** (no existe: retiraron los logotipos de marca). Se
+  escribe el trazo, que no añade dependencia; cuesta 51 KB en bruto repetido en las tarjetas y
+  **1 KB comprimido**, que es lo que viaja.
+
+**Consecuencia.** El catálogo se ve como una rifa y sigue comportándose igual: misma consulta,
+misma proyección, mismo buscador con su término en la URL, misma paginación, mismo refresco al
+volver, mismo mensaje de WhatsApp y mismo aviso de que solicitar no aparta el número. Se añadieron
+siete pruebas end-to-end (cinco de escritorio y dos de teléfono) y una unitaria. Por el camino
+apareció **un defecto real**: un campo con `backdrop-filter` crea su propio contexto de apilamiento
+y se pintaba **encima** de los iconos de `SearchInput`, dejando el botón «Limpiar búsqueda»
+invisible y sin recibir el toque; se arregló fijando `z-10` en las dos capas del campo, lo que
+protege a las seis pantallas que lo usan.
 
 ---
 

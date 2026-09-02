@@ -81,6 +81,24 @@ export function catalogWhatsappMessage(params: {
 }
 
 /**
+ * El mensaje del boton de contacto del encabezado (D-163).
+ *
+ * NO NOMBRA NINGUNA BOLETA, y es lo que lo distingue del de arriba: se toca
+ * antes de elegir, o cuando lo que se quiere preguntar no cabe en una boleta
+ * concreta. Escribirlo con un numero inventado —o con el de la primera de la
+ * lista— habria hecho que el vendedor recibiera solicitudes que nadie quiso.
+ *
+ * Tampoco promete nada (BR-K09): pregunta. Es el mismo compromiso que el aviso
+ * del pie, dicho en primera persona porque quien lo envia es el visitante.
+ */
+export function catalogContactMessage(sellerShortName: string): string {
+  return (
+    `Hola, ${sellerShortName}. Estoy viendo tus números disponibles ` +
+    `y quiero preguntarte por una boleta.`
+  )
+}
+
+/**
  * El enlace completo.
  *
  * `encodeURIComponent` y no `URLSearchParams`: este ultimo codifica el espacio

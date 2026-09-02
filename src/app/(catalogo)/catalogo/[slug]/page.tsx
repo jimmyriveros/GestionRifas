@@ -1,10 +1,13 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import { ShieldCheckIcon } from 'lucide-react'
 
 import { EmptyState } from '@/components/data/EmptyState'
+import { CatalogHeader } from '@/features/catalog/components/CatalogHeader'
+import { CatalogHero } from '@/features/catalog/components/CatalogHero'
 import { CatalogPagination } from '@/features/catalog/components/CatalogPagination'
 import { CatalogRefreshOnFocus } from '@/features/catalog/components/CatalogRefreshOnFocus'
-import { CatalogSearch } from '@/features/catalog/components/CatalogSearch'
+import { CatalogSummary } from '@/features/catalog/components/CatalogSummary'
 import { CatalogTicketCard } from '@/features/catalog/components/CatalogTicketCard'
 import { getPublicCatalog } from '@/features/catalog/queries'
 import { CATALOG_SEARCH_EMPTY_DESCRIPTION } from '@/features/search/hints'
@@ -26,8 +29,15 @@ import { CATALOG_SEARCH_EMPTY_DESCRIPTION } from '@/features/search/hints'
  * de la aplicacion no cambia.
  *
  * CASI TODO ES SERVIDOR. Solo dos piezas llevan JavaScript —el buscador y el
- * refresco al volver del foco—; las tarjetas, la reja, el encabezado fijo y la
- * paginacion se pintan aqui y llegan como HTML.
+ * refresco al volver del foco—; las tarjetas, la reja, el encabezado fijo, el
+ * hero y la paginacion se pintan aqui y llegan como HTML. El rediseño de D-163
+ * no cambio esto: sus resplandores, su velo y su polvo de estrellas son CSS, y
+ * la unica imagen es la composicion del hero.
+ *
+ * LO QUE EL REDISEÑO NO TOCO (D-163): la consulta, la proyeccion publica, el
+ * buscador y su termino en la URL, la paginacion, el refresco al volver, los dos
+ * estados de una boleta, el mensaje de WhatsApp y el aviso de que solicitar no
+ * aparta el numero. Es un cambio de presentacion.
  */
 
 export const dynamic = 'force-dynamic'
@@ -41,24 +51,6 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>
 function single(value: string | string[] | undefined): string | undefined {
   const first = Array.isArray(value) ? value[0] : value
   return first === '' ? undefined : first
-}
-
-/**
- * El titulo se DERIVA del nombre de la rifa, no se escribe en el codigo.
- *
- * Con la rifa llamada «Sorteo Camioneta Kia» sale exactamente «NÚMEROS
- * DISPONIBLES SORTEO CAMIONETA KIA», que es el texto pedido. Escribir ahi un
- * nombre comercial fijo habria obligado a tocar el codigo —y desplegar— cada
- * vez que la empresa cambie de premio, y habria mentido en cuanto hubiera una
- * segunda rifa.
- *
- * Se pasa a mayusculas en JavaScript y no con `text-transform` para que el
- * texto que se ve y el que esta en el HTML sean el mismo: asi lo que lee un
- * lector de pantalla, lo que copia quien selecciona y lo que comprueba una
- * prueba coinciden.
- */
-function catalogTitle(raffleName: string): string {
-  return `NÚMEROS DISPONIBLES ${raffleName.toUpperCase()}`
 }
 
 export async function generateMetadata({
@@ -108,62 +100,73 @@ export default async function PublicCatalogPage({
     <>
       <CatalogRefreshOnFocus />
 
-      {/*
-        ENCABEZADO FIJO CON `sticky`, NO CON `fixed` (BR-K01).
-        `sticky` conserva el hueco del elemento en el flujo, asi que el contenido
-        NO puede quedar debajo: no hay que compensar con un relleno superior que
-        habria que corregir cada vez que el titulo pase a dos lineas. Y no hay un
-        solo escuchador de scroll: lo resuelve el navegador.
-      */}
-      <header className="bg-background sticky top-0 z-40 border-b pt-[env(safe-area-inset-top,0px)]">
-        <div className="mx-auto w-full max-w-3xl space-y-2 px-4 py-3">
-          <p className="text-muted-foreground truncate text-sm font-medium">{sellerName}</p>
-          <h1 className="text-base leading-tight font-bold tracking-tight text-balance sm:text-lg">
-            {catalogTitle(raffleName)}
-          </h1>
-          <CatalogSearch />
-        </div>
-      </header>
+      <CatalogHeader
+        sellerName={sellerName}
+        sellerShortName={sellerShortName}
+        whatsappNumber={whatsappNumber}
+      />
 
-      <main className="mx-auto w-full max-w-3xl px-4 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">
-        <p className="text-muted-foreground mb-4 text-sm">{INTRO}</p>
+      <main className="pb-[calc(3rem+env(safe-area-inset-bottom,0px))]">
+        <CatalogHero raffleName={raffleName} intro={INTRO} />
 
-        {tickets.length === 0 ? (
-          isSearching ? (
-            <EmptyState
-              title="No encontramos ese número"
-              description={CATALOG_SEARCH_EMPTY_DESCRIPTION}
-            />
+        <div className="mx-auto w-full max-w-7xl px-4">
+          <CatalogSummary
+            tickets={tickets}
+            searching={isSearching}
+            partial={catalog.page > 1 || catalog.hasNextPage}
+          />
+
+          {tickets.length === 0 ? (
+            <div className="mt-8">
+              {isSearching ? (
+                <EmptyState
+                  title="No encontramos ese número"
+                  description={CATALOG_SEARCH_EMPTY_DESCRIPTION}
+                />
+              ) : (
+                <EmptyState
+                  title="Todavía no hay números publicados"
+                  description={`Escríbele a ${sellerShortName} por WhatsApp para preguntarle cuándo estarán disponibles.`}
+                />
+              )}
+            </div>
           ) : (
-            <EmptyState
-              title="Todavía no hay números publicados"
-              description={`Escríbele a ${sellerShortName} por WhatsApp para preguntarle cuándo estarán disponibles.`}
-            />
-          )
-        ) : (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {tickets.map((ticket) => (
-              <CatalogTicketCard
-                key={`${ticket.dailyNumber}-${ticket.weeklyNumber}`}
-                ticket={ticket}
-                sellerShortName={sellerShortName}
-                whatsappNumber={whatsappNumber}
-              />
-            ))}
-          </ul>
-        )}
+            /*
+              LA REJA CRECE CON LA PANTALLA, hasta cinco columnas. Se queda en
+              DOS en el telefono, tambien a 320 px: una sola columna obligaria a
+              desplazarse el doble para recorrer las mismas cincuenta boletas, y
+              a ese ancho las dos caben —lo comprueba la suite del telefono, que
+              mide que la insignia no tape la cifra—.
+            */
+            <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+              {tickets.map((ticket) => (
+                <CatalogTicketCard
+                  key={`${ticket.dailyNumber}-${ticket.weeklyNumber}`}
+                  ticket={ticket}
+                  sellerShortName={sellerShortName}
+                  whatsappNumber={whatsappNumber}
+                />
+              ))}
+            </ul>
+          )}
 
-        <CatalogPagination page={catalog.page} hasNextPage={catalog.hasNextPage} search={search} />
+          <CatalogPagination page={catalog.page} hasNextPage={catalog.hasNextPage} search={search} />
 
-        {/*
-          La aclaracion que el encargo pide mantener VISIBLE: tocar «Solicitar»
-          no separa la boleta. Va al final y no dentro de cada tarjeta, para
-          decirlo una vez en lugar de cincuenta.
-        */}
-        <p className="text-muted-foreground mt-6 text-center text-xs">
-          Tocar «Solicitar» no aparta el número. {sellerShortName} te confirmará por WhatsApp si
-          sigue disponible.
-        </p>
+          {/*
+            La aclaracion que el encargo pide mantener VISIBLE: tocar
+            «Solicitar» no separa la boleta. Va al final y no dentro de cada
+            tarjeta, para decirlo una vez en lugar de cincuenta. El escudo del
+            diseño de referencia acompaña al aviso; no lo sustituye ni lo
+            debilita, que es lo unico que ahi no se puede hacer.
+          */}
+          <p className="text-muted-foreground mx-auto mt-10 flex max-w-2xl items-start justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center text-xs text-pretty">
+            <ShieldCheckIcon className="text-secondary mt-px size-4 shrink-0" aria-hidden />
+            <span>
+              Tocar «Solicitar» no aparta el número. {sellerShortName} te confirmará por WhatsApp si
+              sigue disponible.
+            </span>
+          </p>
+        </div>
       </main>
     </>
   )

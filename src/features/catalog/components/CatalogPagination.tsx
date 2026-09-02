@@ -47,7 +47,11 @@ export function CatalogPagination({
     <nav className="mt-6 flex items-center justify-between gap-2" aria-label="Páginas de boletas">
       <div className="flex-1">
         {hasPreviousPage ? (
-          <Button asChild variant="outline" className="h-11 md:h-9">
+          <Button
+            asChild
+            variant="outline"
+            className="h-11 border-white/15 bg-white/5 hover:bg-white/10 md:h-9"
+          >
             <Link href={pageHref(page - 1, search)} prefetch={false}>
               <ChevronLeftIcon className="size-4" aria-hidden />
               Anterior
@@ -63,7 +67,11 @@ export function CatalogPagination({
 
       <div className="flex flex-1 justify-end">
         {hasNextPage ? (
-          <Button asChild variant="outline" className="h-11 md:h-9">
+          <Button
+            asChild
+            variant="outline"
+            className="h-11 border-white/15 bg-white/5 hover:bg-white/10 md:h-9"
+          >
             <Link href={pageHref(page + 1, search)} prefetch={false}>
               Siguiente
               <ChevronRightIcon className="size-4" aria-hidden />

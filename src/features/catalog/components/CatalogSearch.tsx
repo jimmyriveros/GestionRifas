@@ -49,6 +49,14 @@ export function CatalogSearch() {
       // mas en la pantalla que mas se usa.
       inputMode="numeric"
       touchSize
+      // La lupa dentro del campo (D-163). Aqui el buscador flota sobre la
+      // ilustracion y no lleva etiqueta visible: sin la lupa parece una caja
+      // decorativa mas del hero.
+      leadingIcon
+      // El campo se posa sobre la composicion del vehiculo: necesita fondo
+      // propio para que lo escrito se lea, y conserva sus 44 px tactiles
+      // TAMBIEN en escritorio, donde es el elemento principal del hero.
+      className="[&_input]:border-white/20 [&_input]:bg-black/60 [&_input]:backdrop-blur-md md:[&_input]:h-11"
       hint={catalogSearchHint(search.value) ?? search.hint}
     />
   )

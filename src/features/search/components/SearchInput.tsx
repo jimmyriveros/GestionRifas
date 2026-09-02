@@ -59,6 +59,18 @@ type SearchInputProps = {
    * que se busca son las cifras de una boleta (D-159).
    */
   inputMode?: 'search' | 'numeric'
+  /**
+   * Lupa dentro del campo, a la izquierda (D-163).
+   *
+   * Apagada por defecto: en las listas del portal el campo va acompañado de su
+   * etiqueta y de filtros, y ahi la lupa solo repite lo que ya dice el texto. La
+   * enciende el catalogo publico, donde el buscador flota sobre una ilustracion,
+   * sin etiqueta visible y para alguien que entra por primera vez.
+   *
+   * Es decorativa: `aria-hidden` y sin eventos. Quien busca por teclado o con
+   * lector de pantalla sigue guiandose por la etiqueta del campo.
+   */
+  leadingIcon?: boolean
   className?: string
 }
 
@@ -76,6 +88,7 @@ export function SearchInput({
   hideLabel = false,
   touchSize = false,
   inputMode = 'search',
+  leadingIcon = false,
   className,
 }: SearchInputProps) {
   const generatedId = useId()
@@ -107,6 +120,13 @@ export function SearchInput({
 
       <div className="flex gap-2">
         <div className="relative flex-1">
+          {leadingIcon ? (
+            <SearchIcon
+              className="text-muted-foreground pointer-events-none absolute inset-y-0 start-3 z-10 my-auto size-4"
+              aria-hidden
+            />
+          ) : null}
+
           <Input
             id={inputId}
             type="search"
@@ -120,6 +140,7 @@ export function SearchInput({
             // para no tener dos botones de limpiar que hacen lo mismo.
             className={cn(
               'pr-10 [&::-webkit-search-cancel-button]:appearance-none',
+              leadingIcon && 'ps-10',
               touchSize && 'h-11 md:h-9',
             )}
             aria-describedby={hint ? hintId : undefined}
@@ -130,8 +151,14 @@ export function SearchInput({
             Hueco fijo a la derecha del campo: dentro se turnan el indicador de
             carga y el boton de limpiar, y como el hueco no cambia de tamano, el
             texto escrito nunca se desplaza.
+
+            `z-10` NO es de adorno (D-163): un campo con `backdrop-filter` —el
+            del catalogo publico, que flota sobre una ilustracion— crea su
+            propio contexto de apilamiento y se pinta ENCIMA de este hueco, con
+            lo que el boton de limpiar deja de verse y de recibir el toque. Con
+            `z-10` el orden queda fijado, lleve el campo el fondo que lleve.
           */}
-          <div className="absolute inset-y-0 right-0 flex w-10 items-center justify-center">
+          <div className="absolute inset-y-0 right-0 z-10 flex w-10 items-center justify-center">
             {loading ? (
               <Loader2Icon
                 className="text-muted-foreground size-4 animate-spin"

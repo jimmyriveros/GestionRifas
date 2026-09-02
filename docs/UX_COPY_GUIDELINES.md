@@ -668,6 +668,31 @@ sesión y no sabe qué es una rifa de esta empresa. De ahí tres reglas propias:
 {RIFA}». No se escribe el nombre comercial en el código —habría que desplegar cada vez que cambie el
 premio, y mentiría en cuanto hubiera una segunda rifa—; se escribe en el nombre de la rifa.
 
+**La etiqueta del catálogo dice «CATÁLOGO PÚBLICO», y no «sorteo»** (D-163). El diseño de referencia
+del rediseño escribía «SORTEO PÚBLICO», pero **sorteo** está reservado en el Anexo A para el sorteo
+de una lotería y expresamente prohibido para la rifa. **Catálogo** es además el término que el
+vendedor ya lee en su propio panel —«Mi catálogo público»— y el que describe lo que el visitante
+tiene delante. Es la regla §35.2.4 de `CLAUDE.md` aplicada: manda la comprensión, se señala la
+contradicción y se sigue.
+
+**El botón del encabezado dice «Escríbenos», con «por WhatsApp» detrás** (D-163). Es el único
+contacto que **no nombra ninguna boleta**: se toca antes de elegir, y por eso su mensaje tampoco
+cita un número —citarlo haría que el vendedor recibiera solicitudes que nadie pidió—. Bajo `sm` no
+cabe la frase entera, así que se abrevia **lo visible** y «por WhatsApp» viaja en un `sr-only`, que
+sigue contando para el nombre accesible (D-114). El plural es el de siempre en esta pantalla: el
+texto de introducción ya dice «para escribirnos por WhatsApp».
+
+**El resumen dice de qué son sus cifras** (D-163). Las dos tarjetas —«Números disponibles» y
+«Números tomados»— cuentan **las boletas que se están viendo**, no el inventario, porque el catálogo
+no lo cuenta a propósito (BR-K11). Por eso llevan debajo su alcance: **«En esta página»** cuando hay
+más de una, **«En tu búsqueda»** cuando se ha buscado, y su significado —«Puedes elegir el tuyo»,
+«Ya tienen dueño»— cuando lo que se ve **es** el catálogo entero. Una cifra sin alcance es una cifra
+que el visitante lee como total sin serlo.
+
+Lo que **no** se escribe ahí: ni «Premio principal» ni «Sorteo semanal», las otras dos tarjetas de la
+referencia. El premio y la frecuencia **no son datos de este sistema**, y rellenarlos con el nombre
+de la rifa o con «Todos los sábados» sería inventarlos.
+
 **El vendedor reparte su catálogo desde el panel, y ahí se dice lo justo** (D-161). Los tres botones
 —**Compartir**, **Copiar enlace** y **Ver catálogo**— llevan **texto visible junto al icono**: un
 icono solo obliga a adivinar, y esta tarjeta la usa gente que no vive en aplicaciones. Las reglas
@@ -832,6 +857,10 @@ castigo donde solo había una espera.
 | Textos de «Mi catálogo público»: estado, aviso sin enlace y los tres botones | `src/features/catalog/components/SellerCatalogCard.tsx` (D-161) |
 | Los tres avisos de copiar y compartir | `SellerCatalogCard.tsx`, en las constantes `COPIADO`, `COPY_FAILED` y `SHARE_AND_COPY_FAILED` (D-161) |
 | El mensaje que se comparte: encabezado, invitación y cómo se reparte en `title`/`text`/`url` | `src/features/catalog/share.ts`, **todo junto** (D-161) |
+| «Escríbenos por WhatsApp», «Vendedor oficial» y las iniciales del encabezado público | `src/features/catalog/components/CatalogHeader.tsx` (D-163) |
+| El mensaje de contacto que NO nombra ninguna boleta | `src/features/catalog/whatsapp.ts` (`catalogContactMessage`, D-163) |
+| La etiqueta «Catálogo público» y el título de dos líneas del hero | `src/features/catalog/components/CatalogHero.tsx` (D-163) |
+| Rótulos y alcance del resumen público («En esta página», «En tu búsqueda») | `src/features/catalog/components/CatalogSummary.tsx` (D-163) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

@@ -68,6 +68,38 @@ test.describe('en el telefono', () => {
     expect(caja!.height).toBeGreaterThanOrEqual(44)
   })
 
+  test('en el telefono se descarga UNA composicion, la vertical (D-163)', async ({ page }) => {
+    const imagenes: string[] = []
+    page.on('response', (res) => {
+      const url = res.url()
+      if (url.includes('/_next/image') || /\.(webp|png|jpg|avif)(\?|$)/i.test(url)) {
+        imagenes.push(decodeURIComponent(url))
+      }
+    })
+
+    await abrirSinSesion(page, `/catalogo/${SLUG}`)
+    await page.waitForLoadState('networkidle')
+
+    const heroes = imagenes.filter((url) => url.includes('/images/catalog/catalog-hero-'))
+    expect(heroes).toHaveLength(1)
+    // La vertical, que es la que deja el hueco de arriba para el texto. Bajar
+    // aqui la horizontal significaria pagar 300 KB por una composicion que
+    // ademas no encaja.
+    expect(heroes[0]).toContain('catalog-hero-mobile')
+    expect(heroes[0]).not.toContain('catalog-hero-desktop')
+  })
+
+  test('el encabezado fijo no se come la pantalla (D-163)', async ({ page }) => {
+    await abrirSinSesion(page, `/catalogo/${SLUG}`)
+
+    const header = await page.locator('header').boundingBox()
+    const alto = await page.evaluate(() => window.innerHeight)
+
+    // Antes del rediseño llevaba dentro el titulo y el buscador y pasaba de
+    // 150 px. Ahora dice quien es y como escribirle, y nada mas.
+    expect(header!.height).toBeLessThan(alto * 0.14)
+  })
+
   test('el boton «Solicitar» tiene diana tactil suficiente', async ({ page }) => {
     await abrirSinSesion(page, `/catalogo/${SLUG}?q=${CATALOG_DISPONIBLES[0]}`)
 

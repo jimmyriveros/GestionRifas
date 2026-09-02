@@ -17,6 +17,7 @@ import {
   slugifyName,
 } from '@/features/catalog/slug'
 import {
+  catalogContactMessage,
   catalogWhatsappMessage,
   isValidWhatsappNumber,
   normalizeWhatsappNumber,
@@ -175,6 +176,19 @@ describe('mensaje y enlace de WhatsApp (BR-K09)', () => {
     ).toBe(
       'Hola, Laura. Quiero solicitar la boleta con diario 1300 y semanal 5678 de la rifa. ¿Sigue disponible?',
     )
+  })
+
+  it('el mensaje del encabezado NO nombra ninguna boleta (D-163)', () => {
+    const mensaje = catalogContactMessage('Laura')
+
+    expect(mensaje).toBe(
+      'Hola, Laura. Estoy viendo tus números disponibles y quiero preguntarte por una boleta.',
+    )
+    // Se toca antes de elegir: citar un numero ahi haria que el vendedor
+    // recibiera solicitudes de boletas que nadie pidio.
+    expect(mensaje).not.toMatch(/\d/)
+    // Y no promete nada (BR-K09): pregunta.
+    expect(mensaje).not.toMatch(/apart|reserv|guard/i)
   })
 
   it('conserva los ceros iniciales dentro del mensaje (BR-N03)', () => {

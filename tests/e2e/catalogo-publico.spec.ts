@@ -67,9 +67,22 @@ test.describe('se abre sin iniciar sesion (BR-K01)', () => {
       'NÚMEROS DISPONIBLES RIFA NAVIDAD 2026',
     )
 
+    // El encabezado fijo dice DE QUIEN es el catalogo y como escribirle. Desde
+    // el rediseño (D-163) el buscador ya no vive aqui sino en el hero: en el
+    // telefono, el encabezado con titulo y campo se comia un tercio de la
+    // pantalla en TODAS las pantallas de la lista.
     const header = page.locator('header')
     await expect(header).toContainText('Julian Vargas')
-    await expect(header.getByRole('searchbox')).toBeVisible()
+    await expect(header).toContainText('Vendedor oficial')
+    await expect(header.getByRole('link', { name: /Escríbenos/ })).toBeVisible()
+
+    // Y el buscador sigue estando ANTES de la reja, que es el orden en que se
+    // usa la pantalla.
+    const campo = page.getByRole('searchbox')
+    await expect(campo).toBeVisible()
+    const cajaCampo = await campo.boundingBox()
+    const cajaPrimera = await page.locator('main ul li').first().boundingBox()
+    expect(cajaCampo!.y).toBeLessThan(cajaPrimera!.y)
   })
 
   test('el texto de introduccion es exactamente el pedido', async ({ page }) => {
@@ -171,6 +184,79 @@ test.describe('las tarjetas (BR-K08, BR-K09)', () => {
   test('se avisa de que solicitar NO aparta el numero', async ({ page }) => {
     await anonima(page, `/catalogo/${SLUG}`)
     await expect(page.getByText(/no aparta el número/i)).toBeVisible()
+  })
+})
+
+test.describe('el rediseño visual (D-163)', () => {
+  test('en escritorio se descarga UNA composicion, la horizontal', async ({ page }) => {
+    const imagenes: string[] = []
+    page.on('response', (res) => {
+      const url = res.url()
+      if (url.includes('/_next/image') || /\.(webp|png|jpg|avif)(\?|$)/i.test(url)) {
+        imagenes.push(decodeURIComponent(url))
+      }
+    })
+
+    await anonima(page, `/catalogo/${SLUG}`)
+    await page.waitForLoadState('networkidle')
+
+    const heroes = imagenes.filter((url) => url.includes('/images/catalog/catalog-hero-'))
+    // UNA, no dos: es lo que separa el art direction de verdad de dos <img>
+    // con `hidden md:block`, que bajan las dos.
+    expect(heroes).toHaveLength(1)
+    expect(heroes[0]).toContain('catalog-hero-desktop')
+    expect(heroes[0]).not.toContain('catalog-hero-mobile')
+  })
+
+  test('la composicion del hero no se anuncia: es decoracion', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+
+    const imagen = page.locator('main picture img')
+    await expect(imagen).toHaveAttribute('alt', '')
+    // Y no la precarga nadie: el elemento grande de la primera pantalla es el
+    // titulo, que ya viene en el HTML.
+    await expect(page.locator('link[rel="preload"][as="image"]')).toHaveCount(0)
+  })
+
+  test('el resumen cuenta las boletas que de verdad se ven', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+
+    const total = await page.locator('main ul li').count()
+    const disponibles = await page.getByRole('link', { name: /^Solicitar por WhatsApp/ }).count()
+
+    const resumen = page.locator('main dl')
+    await expect(resumen).toContainText('Números disponibles')
+    await expect(resumen).toContainText('Números tomados')
+
+    const cifras = (await resumen.locator('dd').allInnerTexts()).map((t) => Number(t.trim()))
+    expect(cifras[0]).toBe(disponibles)
+    expect(cifras[1]).toBe(total - disponibles)
+  })
+
+  test('el encabezado escribe al MISMO WhatsApp, sin nombrar una boleta', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+
+    const contacto = page.locator('header').getByRole('link', { name: /Escríbenos/ })
+    const href = await contacto.getAttribute('href')
+    const url = new URL(href!)
+
+    expect(url.origin + url.pathname).toBe(`https://wa.me/${WHATSAPP}`)
+    const texto = url.searchParams.get('text')!
+    expect(texto).toContain('Hola, Julian')
+    expect(texto).not.toMatch(/\d/)
+  })
+
+  test('el boton de limpiar se puede tocar aunque el campo lleve fondo desenfocado', async ({
+    page,
+  }) => {
+    await anonima(page, `/catalogo/${SLUG}?q=${DISPONIBLES[0]}`)
+
+    // Regresion real: con `backdrop-filter` el campo se pintaba ENCIMA de sus
+    // propios iconos y el boton dejaba de recibir el toque.
+    const limpiar = page.getByRole('button', { name: 'Limpiar búsqueda' })
+    await expect(limpiar).toBeVisible()
+    await limpiar.click()
+    await expect(page).not.toHaveURL(/q=/)
   })
 })
 

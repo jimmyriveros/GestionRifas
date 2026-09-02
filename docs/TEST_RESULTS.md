@@ -29,6 +29,116 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — Rediseño visual del catálogo público (2026-09-02, D-163)
+
+Encargo: rediseñar **solo la presentación** del catálogo público sobre dos referencias visuales y dos
+composiciones ya generadas. Nada de consultas, reglas, esquema, migraciones, RPC ni acciones de
+servidor.
+
+### Comandos
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ 0 errores |
+| `npm run lint` | ✅ **0 errores**, 3 avisos preexistentes en `BulkTicketCreator.tsx` (`react-hooks/incompatible-library`, ajenos a este cambio) |
+| `npm run test` | ✅ **723/723** en 44 archivos (+1 unitaria nueva) |
+| `npm run build` | ✅ compila; `/catalogo/[slug]` sigue siendo dinámica |
+| `npm run test:db` | ✅ **726/726** en 35 archivos — **sin cambios**: esta entrega no toca la base |
+| `playwright catalogo-publico` (escritorio) | ✅ **31/31** (26 previas + **5 nuevas**) |
+| `playwright catalogo-publico-movil` + `catalogo-panel-movil` | ✅ **17/17** (15 previas + **2 nuevas**) |
+| `playwright busqueda-hibrida catalogo-panel seller-tickets seller-clients` | ✅ **57/57** — se ejecutan porque el cambio toca `SearchInput`, que usan seis pantallas |
+
+### Medidas en los cinco anchos que exigía el encargo
+
+Ejecutadas con Chromium a `deviceScaleFactor: 2` sobre un catálogo de **50 boletas por página**
+(29 libres, 21 tomadas) y dos páginas.
+
+| Ancho | Desplazamiento horizontal | Errores de consola | Imágenes descargadas | Peso |
+|---|---|---|---|---|
+| 320 px | **0** | ninguno | **1** — `catalog-hero-mobile` (w=640) | 82,5 KB |
+| 390 px | **0** | ninguno | **1** — `catalog-hero-mobile` (w=828) | 122,0 KB |
+| 768 px | **0** | ninguno | **1** — `catalog-hero-desktop` (w=1920) | 272,9 KB |
+| 1280 px | **0** | ninguno | **1** — `catalog-hero-desktop` | 272,9 KB |
+| 1600 px | **0** | ninguno | **1** — `catalog-hero-desktop` | 272,9 KB |
+
+**Una** composición en cada ancho, nunca las dos: es lo que separa el art direction de verdad de dos
+`<img>` con `hidden md:block`. Y cada ancho recibe **su derivado**, así que un teléfono de 320 px
+descarga 82,5 KB en vez de los 213 KB del archivo original. Hay dos pruebas E2E que lo vigilan, una
+por proyecto de Playwright.
+
+### Rendimiento: antes y después
+
+Mismo servidor de desarrollo, misma base local, mismo catálogo, seis peticiones seguidas de cada uno.
+
+| Medida | Antes | Después |
+|---|---|---|
+| Tiempo hasta el primer byte | 0,565 – 0,619 s | 0,515 – 0,737 s |
+| HTML sin comprimir | 226,9 KB | 322,1 KB |
+| HTML comprimido (lo que viaja) | — | **24,1 KB** |
+| Consultas a la base por petición | 2 | **2** (las mismas) |
+
+El tiempo de respuesta **no cambia**, que es lo esperable: no se tocó ni la consulta ni el número de
+consultas. El HTML sin comprimir crece 95 KB, y **51 KB de esos son el trazo de WhatsApp repetido**
+en las tarjetas (60 veces: 30 en el HTML y 30 en la carga de React). Comprimido, ese trazo repetido
+cuesta **1,0 KB** —de 23,1 a 24,1 KB—, que es lo que de verdad descarga alguien.
+
+### Accesibilidad
+
+| Comprobación | Resultado |
+|---|---|
+| Orden de tabulación | ✅ WhatsApp del encabezado → buscador → boletas libres, en orden de la reja. Las tomadas no tienen parada, porque no tienen botón |
+| Foco visible | ✅ anillo lila claro sobre los tres fondos. **Encontrado por el camino: en el portal ese anillo NO se ve** (I-096) |
+| Zoom del navegador al 200 % | ✅ 0 px de desplazamiento horizontal |
+| `prefers-reduced-motion` | ✅ 0 animaciones en marcha; la página no anima nada por su cuenta |
+| Nombre accesible del contacto | ✅ «Escríbenos por WhatsApp» **también** bajo `sm`, donde solo se ve «Escríbenos» |
+| Imagen del hero | ✅ `alt=""`: es decoración y no se anuncia |
+| Nombre de vendedor larguísimo a 320 px | ✅ se recorta con puntos suspensivos y no desborda |
+
+### Errores encontrados y corregidos
+
+**1. El campo desenfocado se pintaba encima de sus propios iconos (I-095).** Al dar al buscador un
+fondo con `backdrop-filter` para que se leyera sobre la ilustración, el `<input>` pasó a crear su
+propio contexto de apilamiento y se pintó **encima** de la lupa y del botón «Limpiar búsqueda».
+Consecuencia real: el botón seguía en el árbol de accesibilidad y respondía al teclado, pero **no se
+veía ni se podía tocar**. Corregido con `z-10` en las dos capas absolutas de `SearchInput`, que
+además protege a las seis pantallas que lo usan. Prueba de regresión añadida.
+
+**2. Calidad de imagen no configurada.** `getImageProps({ quality: 82 })` provocaba un aviso de Next
+16 en consola —`images.qualities` solo declara `[75]`— que habría hecho fallar la prueba «la consola
+queda limpia». Se usa la calidad por defecto en vez de tocar `next.config.ts`.
+
+**3. Texto partido en el botón de contacto.** «Escríbenos» y «por WhatsApp» eran dos hijos de un
+`Button` con `gap-2`, así que salía un hueco de 8 px en mitad de la frase. Se envuelven en un solo
+elemento.
+
+**4. La mitad del título salía gris.** Del violeta al lima hay medio círculo de tono, y un degradado
+de dos paradas cruza por el centro del espacio de color: «CAMIONETA» quedaba gris. Se probó
+`in oklch`, que interpola por el tono y la sacaba **cian**. Se resuelve con una parada intermedia
+fija en lila claro. No se usa `in oklch` a propósito: con `background-clip: text` y texto
+transparente, un degradado que el navegador no entienda **borra el título**.
+
+**5. Anillo de foco invisible sobre el botón violeta.** `ring-ring/50` sin separación, violeta sobre
+violeta. Corregido subiendo `--ring` dentro de `.catalog-theme`. **En el portal sigue sin verse**, y
+eso queda como I-096.
+
+### Un fallo que NO era del código
+
+La primera ejecución de `catalogo-publico` dio 30/31: «borrador, pendiente de aprobación y anulada no
+aparecen» encontró la boleta 6221 **disponible**. No era una fuga de la proyección pública: la base
+local había pasado de 30 a **3.450** boletas en «Rifa Navidad 2026» durante el minuto que duró la
+ejecución, con rifas de nombres generados por otras suites. **Otra sesión estaba ejecutando pruebas
+contra la misma base al mismo tiempo**, y sus boletas colisionaron con los números del montaje.
+Sobre una base recién sembrada: **31/31**. Queda anotado en `HANDOFF` como trampa.
+
+### Lo que NO se comprobó, y se dice
+
+* **Un teléfono real.** Todo lo de arriba es Chromium emulando un Pixel 7 y anchos fijos (**I-066**).
+* **Lighthouse.** No se ejecutó, así que **no se afirma** ninguna puntuación.
+* **Producción.** Nadie tiene un catálogo publicado en el proyecto real, así que este rediseño no se
+  ha visto en vivo ni una vez.
+
+---
+
 ## Post-9 — Fuentes alternativas bajo consenso (2026-09-02, D-162, BR-L26)
 
 Mantenimiento posterior al plan. **Autorizado expresamente**, incluido levantar en parte la

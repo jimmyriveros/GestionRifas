@@ -3,9 +3,10 @@ import { Button } from '@/components/ui/button'
 
 import type { PublicCatalogTicket } from '../queries'
 import { catalogWhatsappMessage, whatsappUrl } from '../whatsapp'
+import { WhatsappIcon } from './WhatsappIcon'
 
 /**
- * Una boleta en la reja publica (BR-K08, BR-K09).
+ * Una boleta en la reja publica (BR-K08, BR-K09; rediseñada en D-163).
  *
  * NO SE REUTILIZA `TicketCardList`. Esa tarjeta arrastra el cliente, el dinero,
  * el estado de pago, la seleccion multiple y un enlace al detalle del portal
@@ -22,7 +23,9 @@ import { catalogWhatsappMessage, whatsappUrl } from '../whatsapp'
  *
  * DISPONIBLE Y TOMADO NO SE DISTINGUEN SOLO POR EL COLOR (CLAUDE.md 27): cada
  * tarjeta lleva su palabra escrita, y la tomada ademas no tiene boton. Quien no
- * distingue el gris del blanco lee «Tomado» igual.
+ * distingue el gris del blanco lee «Tomado» igual. El rediseño añade una tercera
+ * señal —la libre tiene borde violeta y resplandor; la tomada, ninguno— pero no
+ * quita ninguna de las dos que ya estaban.
  *
  * LA TOMADA NO DICE QUIEN LA TIENE. No es que no se muestre: es que el dato no
  * viaja hasta aqui.
@@ -45,15 +48,23 @@ function TicketNumbers({
   dailyNumber,
   weeklyNumber,
   badge,
+  dimmed = false,
 }: {
   dailyNumber: string
   weeklyNumber: string
   badge: React.ReactNode
+  dimmed?: boolean
 }) {
   return (
     <>
       <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
-        <p className="font-mono text-2xl leading-none font-semibold tabular-nums">
+        <p
+          className={
+            dimmed
+              ? 'text-muted-foreground font-mono text-2xl leading-none font-semibold tabular-nums'
+              : 'font-mono text-2xl leading-none font-semibold tabular-nums text-white'
+          }
+        >
           <span className="sr-only">Número diario </span>
           {dailyNumber}
         </p>
@@ -80,11 +91,12 @@ export function CatalogTicketCard({
 
   if (taken) {
     return (
-      <li className="bg-muted/60 text-muted-foreground flex flex-col gap-1.5 rounded-lg border p-3">
+      <li className="bg-muted/25 text-muted-foreground flex flex-col gap-1.5 rounded-xl border border-white/[0.06] p-3">
         <TicketNumbers
           dailyNumber={dailyNumber}
           weeklyNumber={weeklyNumber}
           badge={<Badge variant="outline">Tomado</Badge>}
+          dimmed
         />
       </li>
     )
@@ -93,7 +105,7 @@ export function CatalogTicketCard({
   const message = catalogWhatsappMessage({ sellerShortName, dailyNumber, weeklyNumber })
 
   return (
-    <li className="bg-card flex flex-col gap-1.5 rounded-lg border p-3 shadow-xs">
+    <li className="border-primary/45 bg-primary/[0.07] hover:border-primary/70 hover:bg-primary/[0.12] flex flex-col gap-1.5 rounded-xl border p-3 shadow-[inset_0_1px_0_oklch(1_0_0_/_0.08)] transition-colors">
       <TicketNumbers
         dailyNumber={dailyNumber}
         weeklyNumber={weeklyNumber}
@@ -111,6 +123,7 @@ export function CatalogTicketCard({
           rel="noopener noreferrer"
           aria-label={`Solicitar por WhatsApp la boleta ${dailyNumber} / ${weeklyNumber}`}
         >
+          <WhatsappIcon className="size-4" />
           Solicitar
         </a>
       </Button>

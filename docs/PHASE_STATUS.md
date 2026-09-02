@@ -3,7 +3,14 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-02 — **catálogo público DESPLEGADO**: `0043` y `0044` aplicadas al
+- **Actualizado:** 2026-09-02 — **rediseño visual del catálogo público** (D-163): tema oscuro
+  violeta propio del grupo `(catalogo)`, hero con art direction real —`<picture>` + `<source
+  media>`, una sola composición descargada por dispositivo—, encabezado fijo compacto, resumen de
+  dos cifras reales y tarjetas rediseñadas. **Sin migración, sin RPC, sin acciones de servidor y sin
+  dependencias nuevas**; la consulta, la proyección pública, el buscador, la paginación y los textos
+  operativos quedan intactos. **No desplegado.** Por el camino se corrigieron dos defectos de
+  interfaz: **I-095** (un campo con `backdrop-filter` tapaba sus propios iconos, afectaba a las seis
+  pantallas con `SearchInput`) e **I-096**, que queda abierto para el portal. Antes: **catálogo público DESPLEGADO**: `0043` y `0044` aplicadas al
   proyecto real tras el respaldo `Rifas-backups/2026-09-02-pre-0043/`, y `b39200c` servido por
   Vercel. `0044` nace de una divergencia que solo se ve en producción (I-078/D-128). **Aplicar las
   migraciones no publicó el catálogo de nadie.** Antes: D-161, compartir el catálogo desde el panel
