@@ -6250,6 +6250,12 @@ extenderla para ocultar seis cosas deja abierta la puerta a que un cambio futuro
 privado en una página pública — se creó una tarjeta pública pequeña). (c) Un módulo administrativo
 nuevo (la ficha del vendedor admitía una tarjeta más).
 
+**Nota de promoción (2026-09-02).** `0043` y `0044` están **aplicadas al proyecto real** tras el respaldo
+`Rifas-backups/2026-09-02-pre-0043/`. La comprobación por comportamiento encontró una divergencia que
+local no podía ver: la función interna nacía ejecutable por `service_role` en producción (I-078,
+D-128), y por eso existe `0044`. **Aplicar las migraciones no publicó el catálogo de nadie**: las
+cuatro columnas siguen nulas o en `false` en las 7 membresías, comprobado después.
+
 **Consecuencia operativa.** Una rifa publicada **no se puede borrar** mientras un catálogo la apunte:
 la FK es `on delete restrict`. En la práctica no cambia nada —en este proyecto no se borran rifas— y
 se descubrió porque el propio banco de pruebas chocó contra ella al limpiar.

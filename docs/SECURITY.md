@@ -1,8 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.8 · **Estado:** implementado · **Actualizado:** 2026-09-02
+- **Versión:** 2.9 · **Estado:** implementado · **Actualizado:** 2026-09-02
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
-  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042` y `0043`; los privilegios base se fijan en `0009`/`0010`.
+  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042`, `0043` y `0044`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
   reales por rol y clave pública, nunca `service_role`. La clave de servicio sí puede preparar,
   comprobar o limpiar el escenario y las pruebas de catálogo usan PostgreSQL directo (D-043).
@@ -554,12 +554,22 @@ expuesta salvo que alguien se acuerde de excluirla.
 
 | Función | `anon` | `authenticated` | `service_role` |
 |---|---|---|---|
-| `public_catalog_membership(text)` | ✗ | ✗ | ✗ (no la ejecuta nadie) |
+| `public_catalog_membership(text)` | ✗ | ✗ | ✗ (no la ejecuta nadie, `0044`) |
 | `public_catalog_seller(text)` | ✗ | ✗ | ✓ |
 | `public_catalog_tickets(text, text, int, int)` | ✗ | ✗ | ✓ |
 
 Se cumplen las cuatro reglas de §4.5: `search_path` fijo, `REVOKE` explícito a `public`, `anon` y
 `authenticated`, parámetros tipados y sin SQL concatenado, y ningún `RAISE` con detalle interno.
+
+⚠️ **`0043` no bastó, y es I-078 otra vez.** Al promoverla (2026-09-02) la comprobación por comportamiento
+encontró `public_catalog_membership` **ejecutable por `service_role` en el proyecto real** y no en
+local: `0032` conservó a propósito el privilegio por defecto de ese rol, así que toda función nueva
+nace con él en producción. No era un agujero —`service_role` es la clave del servidor y omite la RLS
+de todos modos—, pero la documentación y una prueba afirmaban de producción algo que solo era cierto
+en local, que es justo lo que costó I-078. Lo cierra **`0044`**, con un `revoke` explícito.
+**Consecuencia para quien escriba la próxima migración:** revocar de `public`, `anon` y
+`authenticated` **no** deja una función inaccesible en producción; si de verdad no la debe ejecutar
+nadie, hay que nombrar también a `service_role`.
 
 **Lo que no puede manipularse.** Ninguna de las tres acepta vendedor, organización ni rifa como
 parámetro: lo único que entra es el slug, y a quién pertenece lo decide la base. Enviar el slug de

@@ -1,11 +1,10 @@
 # MODELO DE DATOS
 
 - **Versión:** 2.13 · **Estado:** implementado · **Actualizado:** 2026-09-02
-- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0043`. Las **42 primeras** están
-  **aplicadas y verificadas en local y en el proyecto Supabase real** (D-149, D-151, D-156, D-158);
-  `0042` se promovió el 2026-09-01 tras el respaldo `Rifas-backups/2026-09-01-pre-0042/`.
-  **`0043` (catálogo público, D-159) está SOLO en local**: no se ha promovido y requiere
-  autorización explícita del usuario, como todas las anteriores.
+- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0044`, **las 44 aplicadas y
+  verificadas en local y en el proyecto Supabase real** (D-149, D-151, D-156, D-158, D-159).
+  `0043` (catálogo público) y `0044` (revocar la función interna a `service_role`) se promovieron el
+  2026-09-02 tras el respaldo `Rifas-backups/2026-09-02-pre-0043/`.
 - *Corrección documental (2026-09-01, D-158):* esta línea decía que `0041` seguía solo en local. Se
   escribió en D-152, cuando era cierto, y no se actualizó al promoverla en **D-156**; `PHASE_STATUS`
   §3215 y `HANDOFF` §1 ya la daban por aplicada. Se corrige aquí.
@@ -1034,7 +1033,7 @@ lo que no está en el `returns table` no puede salir.
 
 | Función | Quién la ejecuta | Qué devuelve |
 |---|---|---|
-| `public_catalog_membership(text)` | **Nadie.** Revocada a `public`, `anon` y `authenticated`, y sin `grant` a `service_role` | Interna: resuelve el slug a vendedor, organización y rifa. Existe para que los siete filtros de BR-K10 se escriban **una** vez y las dos públicas no puedan discrepar |
+| `public_catalog_membership(text)` | **Nadie.** Revocada a `public`, `anon`, `authenticated` y —desde `0044`— también a `service_role` | Interna: resuelve el slug a vendedor, organización y rifa. Existe para que los siete filtros de BR-K10 se escriban **una** vez y las dos públicas no puedan discrepar |
 | `public_catalog_seller(text)` | Solo `service_role` | Nombre y alias del vendedor, WhatsApp público, nombre de la rifa y su precio. **Ni un identificador** |
 | `public_catalog_tickets(text, text, int, int)` | Solo `service_role` | Los dos números de cada boleta y un booleano `taken`. Máximo 61 filas: el tope se acota **dentro** de la función, así que no se puede evadir desde fuera (BR-K11) |
 
