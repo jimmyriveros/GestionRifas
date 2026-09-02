@@ -190,6 +190,88 @@ oficiales, que es justo lo que esta corrección desbloquea:
 desplegar: **0 boletas** de las 928 llevan `7132`, `3478`, `7280` ni `8134` como número diario. No
 habrá coincidencias ni avisos.
 
+### h. El primer tick en producción no hizo nada, y por qué (defecto corregido)
+
+**Disparado con `vercel crons run`** —lo invoca Vercel con su propio `Authorization`, así que el
+secreto no se leyó ni se descargó— el 2026-09-02 a las 18:39:11 UTC. Respondió **200**, y dejó
+**cero corridas, cero observaciones y cero resultados nuevos.**
+
+**Causa, con evidencia.** Los cinco sorteos pendientes llevaban intentos oficiales agotados o casi:
+
+| Sorteo | Intentos oficiales | Último error | Qué decide `decideResultFetch` |
+|---|---|---|---|
+| Cruz Roja 3169 | 6 | `not_published` | `skip` (tope de 6) |
+| Cundinamarca 4818 | 6 | `scanned_document` | `skip` |
+| Cundinamarca 4817 | 6 | `scanned_document` | `skip` |
+| Bogotá 2861 | 5 | `source_blocked` | `wait` (≥4 y no es la mañana) |
+| Meta 3313 | 5 | `source_blocked` | `wait` |
+
+Con `skip` o `wait` el bucle hacía `continue`, y el respaldo por consenso colgaba **dentro** de la
+rama «la descarga oficial falló» — que en ese camino no se ejecuta nunca. **Justo los sorteos que el
+consenso venía a rescatar eran los únicos que no lo probaban.** La columna `strategy` estaba bien; el
+código que la usa no se alcanzaba.
+
+**Por qué no lo cazaron las pruebas.** Las locales simulaban la fuente oficial **fallando**, y ese
+camino sí entra en la rama correcta. Ninguna montaba el caso real: un sorteo con los intentos
+oficiales **ya agotados**, que es el estado en el que estaba producción.
+
+**Corregido** (`6770883`): la vía alternativa tiene su propia decisión con sus propios intentos y se
+evalúa tanto si la oficial se intentó como si ni siquiera llegó a intentarse. Un sorteo ya confirmado
+sigue fuera —sale de `loadPendingResultDraws` al pasar su programación a `completed`—.
+
+**Prueba de regresión** en `tests/db/lottery-consensus.test.ts`: un sorteo con seis intentos oficiales
+agotados **tiene** que consultar el respaldo. Antes de este commit el contador valía **0**.
+
+`verify` ✅ **722/722** · `test:db` **726/726**.
+
+> **La lección, para que no se repita:** desplegar y **disparar un tick controlado** es lo que
+> encontró esto. Un despliegue verificado solo por cabeceras, rutas y el identificador del build
+> habría pasado por bueno un módulo que no hacía absolutamente nada.
+
+### i. Verificación en producción, con la corrección desplegada
+
+`6770883` desplegado y servido (identificador **`3782e175ecb7`**). Dos ticks controlados,
+disparados con `vercel crons run`.
+
+**Primer tick (18:44:12 UTC):**
+
+| Lotería | Sorteo | Estrategia | Resultado | Confirmado |
+|---|---|---|---|---|
+| Cruz Roja | 3169 | `alternative` | success | **7132** — `ganarchance` + `perlatodo` |
+| Cundinamarca | 4818 | `alternative` | success | **3478** — `ganarchance` + `perlatodo` |
+| Bogotá | 2861 | `alternative` | success | **7280** — `ganarchance` + `loteriasdehoy` |
+
+**Segundo tick (18:44:58 UTC):**
+
+| Lotería | Sorteo | Resultado | Qué pasó |
+|---|---|---|---|
+| Meta | 3313 | success | **8134** — `ganarchance` + `loteriasdehoy` |
+| Cundinamarca | 4817 | failed `una_sola_fuente` | **Queda pendiente, y es lo correcto**: solo una fuente publica ese sorteo del 24 de agosto |
+
+**Estado final de los resultados en producción:**
+
+| Lotería | Sorteo | Número | Procedencia |
+|---|---|---|---|
+| Cruz Roja | 3168 | 4939 | `official_page` |
+| Bogotá | **2861** | **7280** | `alternative_consensus` — `[ganarchance, loteriasdehoy]` |
+| Medellín | 4850 | 2608 | `official_page` |
+| Boyacá | 4639 | 7660 | `official_page` |
+| Cundinamarca | **4818** | **3478** | `alternative_consensus` — `[ganarchance, perlatodo]` |
+| Cruz Roja | **3169** | **7132** | `alternative_consensus` — `[ganarchance, perlatodo]` |
+| Meta | **3313** | **8134** | `alternative_consensus` — `[ganarchance, loteriasdehoy]` |
+
+**Cuatro sorteos que llevaban días sin resultado quedaron confirmados**, y los tres que ya venían de
+la fuente oficial **no se tocaron**: siguen marcados `official_page`.
+
+**Coincidencias: 0. Avisos: 0.** Es lo correcto y estaba previsto: ninguna de las 928 boletas lleva
+`7132`, `3478`, `7280` ni `8134` como número diario — contado antes de desplegar.
+
+**Las observaciones que quedaron guardadas** (6 filas), que son la evidencia auditable de quién dijo
+qué. Loterías de Hoy además publicó el número de sorteo de Bogotá —`2861`— y coincidió con el
+cronograma CNJSA, que es el anclaje más fuerte que puede tener una observación.
+
+**Paga Todo:** no aparece en ninguna observación. Sigue devolviendo 403 y no se elude (I-093).
+
 ### f. Lo que NO se hizo
 
 Ni OCR, ni navegador headless, ni proxy, ni resolución de CAPTCHA, ni cabeceras que finjan un

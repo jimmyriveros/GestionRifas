@@ -3223,7 +3223,7 @@ Sin cambios.
 
 | Problema | Impacto |
 |---|---|
-| **El primer tick con la vía nueva aún no se ha observado** | El código está desplegado y la migración aplicada, pero hasta que corra un tick no hay confirmación por consenso en producción |
+| **Cundinamarca 4817 sigue pendiente** | Solo una fuente publica ese sorteo del 24 de agosto, así que el consenso no se alcanza. **Es el comportamiento correcto**, no un fallo: sale de la ventana de 10 días el 2026-09-03 |
 | **I-093** — Paga Todo bloqueada | Ninguno en la práctica: el consenso se logra con las otras tres |
 | **I-086, I-087, I-091** mitigadas, no resueltas | Las tres fuentes oficiales siguen sin poder leerse. Lo que cambia es que ya no se depende de ellas |
 | Un premio grande | Conviene contrastar con el acta oficial: «Verificado por 2 fuentes» no es la autoridad |
