@@ -6099,6 +6099,69 @@ que deja abierta la etapa, y se responde repitiendo esta misma observación mañ
 
 ---
 
+## D-158 — Un abono vigente se corrige a $0; uno nuevo de $0 sigue prohibido
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-01)
+
+**Contexto.** Un vendedor aplicó un abono a la boleta equivocada. D-134 ya le dejaba corregir el
+**valor** de ese abono, pero el límite inferior era `> 0` en las cuatro capas, así que no podía
+llevarlo a cero: **tuvo que dejarlo en $1**. Esa cifra inventada se quedó en el saldo de la boleta,
+en el historial que se le enseña al cliente y en la cobranza. El camino «correcto» que ofrecía el
+sistema era anular el pago —solo Owner/Admin, con motivo obligatorio (BR-F09, BR-F10) e
+irreversible (D-013)— y registrar otro; para un dedazo del propio vendedor es desproporcionado, y
+además deja dos filas donde hubo un error.
+
+**La contradicción, dicha en voz alta.** BR-F03 decía «`payment_allocations.amount > 0`. No se
+permiten montos cero ni negativos», en las capas C, S y D, **sin distinguir alta de corrección**.
+D-134 heredó ese límite tal cual. El encargo del usuario pide justamente lo contrario para la
+corrección. Manda la solicitud explícita (`AGENTS.md` §1.1), y BR-F03 se parte en dos en vez de
+borrarse.
+
+**Decisión 1 — el límite depende de la operación, no de la tabla.** Al **insertar**, `> 0`: un abono
+de $0 no es un abono, y registrarlo no significa nada. Al **corregir** una asignación que ya existe,
+`>= 0`: el cero es cómo se deshace un abono mal aplicado. El negativo sigue rechazado en las cuatro
+capas.
+
+**Decisión 2 — la fila se queda; no se borra ni se anula.** El proyecto representa una corrección de
+abono reescribiendo esa misma asignación y anotando `payment.update` con el valor anterior y el
+nuevo (D-134, BR-F14). Se conserva exactamente eso: el abono corregido sigue en el historial
+valiendo $0, con su fecha, su método y quién lo registró, y **se puede volver a subir**. Anular es
+otra cosa —otra persona, otro motivo, irreversible— y no se dispara sola desde aquí.
+
+**Decisión 3 — un CHECK no distingue INSERT de UPDATE, así que hace falta un disparador.** Los dos
+`CHECK` de fila pasan a `>= 0` y se añade un `BEFORE INSERT` en `payments` y en
+`payment_allocations` que exige `> 0`. No es adorno: `authenticated` tiene `INSERT` sobre las dos
+tablas (`0010`), así que relajar el CHECK sin ese disparador dejaría registrar un pago de $0 por
+PostgREST, saltándose `create_payment`. Con él, BR-F03 sigue garantizada **por la base** para el
+alta, que es donde la aplicación no es la frontera.
+
+**Decisión 4 — un pago que queda en $0 sigue vigente.** Si todas sus asignaciones se corrigen a
+cero, `payments.total_amount` es `0`: cuadra con la suma (BR-F05), no suma a ningún saldo (BR-F07) y
+`voided_at` sigue nulo. **Eso es lo que lo diferencia de un anulado**, que no se puede reactivar.
+
+**Decisión 5 — el texto dice lo único que la pantalla no enseña.** Bajo el campo, siempre:
+«Con $0 el abono deja de contar en la boleta. Queda en el historial.» Nombra la consecuencia
+—desaparece del saldo— y la garantía —no se borra—, que es justo lo que alguien no puede deducir
+mirando. Además hace **descubrible** la salida: sin ese texto, quien se equivocó de boleta volvería a
+escribir $1. El campo vacío deja de mostrar «$0» como texto de ejemplo y dice «Escribe el valor»:
+ahora que el cero es un valor real, un «$0» gris haría creer que ya está escrito.
+
+**Alternativas descartadas.** (a) **Borrar la asignación**: contradice el modelo —los pagos no se
+eliminan físicamente (BR-F09) y `payment_allocations` no tiene privilegio de `DELETE` para nadie— y
+perdería la traza del error. (b) **Anular el pago automáticamente al llegar a $0**: le daría al
+vendedor, de rebote, un permiso que BR-F10 le niega; exigiría un motivo que nadie escribió; y por
+D-013 sería irreversible, así que no se podría volver a subir. (c) **Dejar los CHECK en `> 0` y
+representar el cero con `voided_at`**: es (b) con otro nombre. (d) **Relajar los CHECK sin el
+disparador de alta**: barato, y abre el alta de pagos de $0 por PostgREST. (e) **Permitir también
+crear abonos de $0**: el encargo lo excluye expresamente y no resuelve ningún problema real. (f)
+**Un motivo obligatorio para la corrección a cero**: D-134 ya decidió que la bitácora basta, y este
+caso no es más grave que bajar $120.000 a $1, que siempre se pudo.
+
+**Consecuencia.** BR-F03 se reescribe distinguiendo alta de corrección; BR-F16 gana el cero.
+D-134 no se revoca: todo lo demás de esa decisión sigue en pie. Migración `0042`.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

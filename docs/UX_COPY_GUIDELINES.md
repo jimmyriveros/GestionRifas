@@ -552,6 +552,23 @@ decoración y no dicen nada por sí solas, así que el aviso viaja en un `sr-onl
 sobre la tarjeta. No se escribe «Cargando», que nombra lo que hace la máquina, ni «Espere», que da
 una orden por algo que dura décimas de segundo.
 
+**Poner un abono en $0 se explica antes, no después** (D-158). Bajo el campo de «Editar abono» va
+siempre la misma línea: **«Con $0 el abono deja de contar en la boleta. Queda en el historial.»** Son
+las dos cosas que la pantalla no enseña —la consecuencia y la garantía—, y de paso es lo que hace
+**descubrible** la salida: sin ese texto, quien aplicó un abono a la boleta equivocada vuelve a
+escribir $1, que es exactamente el problema que originó el cambio. Cuando se conoce el tope, la línea
+lo dice primero: «Puedes poner como máximo $120.000. Con $0 el abono deja de contar en la boleta.
+Queda en el historial.»
+
+Y el campo vacío dice **«Escribe el valor»**, no «$0»: ahora que el cero es un valor real, un «$0»
+gris de texto de ejemplo haría creer que ya está escrito cuando el botón está desactivado.
+
+**Corregir a $0 no es anular, y los textos no pueden mezclarlos** (D-158, y la misma familia que
+BR-B05). *Anular* un pago lo retira de las cuentas para siempre, lo hace el personal y exige un
+motivo; un abono corregido a **$0** lo puede hacer el vendedor, se queda vigente en el historial y se
+puede volver a subir. Ningún texto de la corrección debe decir «anular», «eliminar» ni «borrar», y el
+aviso de anulación —«Anular es definitivo: el pago no se puede reactivar»— no se toca.
+
 **«Cancelado» es la palabra del archivo, y no significa «anulado»** (D-129). Es la única
 excepción tolerada a «un término, un nombre», y existe porque **ya la escribe el usuario en su
 Excel**: en su cuaderno una boleta «cancelada» es una boleta que el cliente terminó de pagar. En
@@ -723,7 +740,7 @@ castigo donde solo había una espera.
 | Encabezados y resumen de la vista previa del importador | `src/features/tickets/import/components/ImportPreview.tsx` |
 | Confirmaciones de acciones sensibles | `ConfirmDialog` (`src/components/feedback/`) |
 | La marca de la boleta desde la que se abrió el formulario de abono | `src/features/payments/components/PaymentForm.tsx` — «La que estabas viendo» (D-133) |
-| Título, rótulos y botones de corregir un abono | `src/features/payments/components/EditPaymentDialog.tsx` — «Editar abono», «Valor actual», «Nuevo valor», «Guardar cambios» (D-134) |
+| Título, rótulos y botones de corregir un abono | `src/features/payments/components/EditPaymentDialog.tsx` — «Editar abono», «Valor actual», «Nuevo valor», «Guardar cambios» (D-134); el aviso del tope y del cero, y el texto de ejemplo «Escribe el valor» (D-158) |
 | Título, rótulos y botones de corregir el precio de una boleta | `src/features/tickets/components/EditSalePriceDialog.tsx` — «Editar precio de venta», «Precio de venta actual», «Nuevo precio», «Guardar cambios» (D-137) |
 | Quién recibe el abono, debajo del título | `src/features/payments/components/PaymentClientBanner.tsx` — «Abono para», **Cambiar** (el nombre accesible sigue siendo «Cambiar de cliente», D-138) |
 | Rótulos de cada boleta en el teléfono al repartir un abono | `src/features/payments/components/PaymentAllocationCards.tsx` — «Boleta», «Debe», «Abonar ahora», «Saldo después del abono», «Quedará» (D-138) |

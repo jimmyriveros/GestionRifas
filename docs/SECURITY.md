@@ -1,8 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.6 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Versión:** 2.7 · **Estado:** implementado · **Actualizado:** 2026-09-01
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
-  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038` y `0039`; los privilegios base se fijan en `0009`/`0010`.
+  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039` y `0042`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
   reales por rol y clave pública, nunca `service_role`. La clave de servicio sí puede preparar,
   comprobar o limpiar el escenario y las pruebas de catálogo usan PostgreSQL directo (D-043).
@@ -18,6 +18,7 @@
 | Privilegios `GRANT` explícitos | Estado idéntico en local y en el proyecto real, sin depender del entorno (D-037) |
 | Trigger `tickets_guard_paid_amount` | `paid_amount` solo acepta el valor derivado real: un vendedor no puede declararse pagado |
 | Política `payments_update_staff` con `voided_at is null` en `USING` | Un pago anulado deja de ser actualizable: la anulación es irreversible por RLS (D-013) |
+| Disparadores `payments_insert_positive` y `payment_allocations_insert_positive` (`0042`, D-158) | Desde que los `CHECK` de fila pasaron a `>= 0` para poder **corregir** un abono a cero, el `> 0` del **alta** lo mantienen estos dos: registrar un pago de $0 por PostgREST sigue siendo imposible (BR-F03, amenaza T18) |
 
 ---
 
@@ -82,7 +83,7 @@ registro ajeno.
 | **Pagos** |
 | Ver todos los pagos de la organización | ✓ | ✓ | ✗ |
 | Registrar pagos | ✓ | ✓ | P |
-| Corregir el valor de un abono vigente (BR-F16) | ✓ | ✓ | P |
+| Corregir el valor de un abono vigente, **cero incluido** (BR-F16, BR-F17, D-158) | ✓ | ✓ | P |
 | Anular pagos | ✓ | ✓ | ✗ |
 | Eliminar pagos físicamente | ✗ | ✗ | ✗ |
 | **Reportes y auditoría** |
@@ -704,6 +705,7 @@ Controles:
 | T15 | Enumeración de recursos | Respuestas distintas para "no existe" y "sin permiso" | RLS hace que ambos casos devuelvan vacío | Prueba de BD |
 | T16 | **Organización sin propietario** | El Owner se degrada o se desactiva a sí mismo con una llamada directa a PostgREST; nadie puede restaurarlo después | Trigger diferido `memberships_require_active_owner` (`0016`) | `F9-01` en `db/audit-phase9.test.ts`. **Encontrado por la auditoría de la Fase 9 (A-02), no por revisión de código** |
 | T17 | Server Action nueva sin guarda | Alguien añade una acción y olvida `authorizeAction` | Prueba estructural que recorre **recursivamente** `src/features` y falla sola | `unit/server-actions-guard.test.ts`. Su recorrido a un solo nivel dejaba fuera 6 de 28 acciones hasta la Fase 9 (A-01) |
+| T18 | **Abono de $0 registrado saltándose la RPC** | `authenticated` tiene `INSERT` sobre `payments` y `payment_allocations` (`0010`), así que un `POST` directo a PostgREST podría crear un pago de $0 desde que D-158 relajó los `CHECK` de fila a `>= 0` | Disparadores `BEFORE INSERT` `payments_insert_positive` y `payment_allocations_insert_positive` (`0042`): el `> 0` de BR-F03 lo sigue garantizando **la base** en el alta, y el cero solo entra por `update_payment_allocation` al corregir | `tests/db/payment-update.test.ts` › «tampoco por INSERT directo: el disparador de alta lo impide» |
 
 ---
 

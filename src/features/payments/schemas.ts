@@ -15,6 +15,19 @@ const money = z
   .positive('El valor debe ser mayor que cero.')
   .max(1_000_000_000, 'El valor es demasiado alto.')
 
+/**
+ * El mismo dinero, pero admitiendo el cero (BR-F16, D-158).
+ *
+ * SOLO sirve para CORREGIR un abono que ya existe: dejarlo en $0 es como se
+ * deshace uno aplicado a la boleta equivocada. Registrar un abono nuevo sigue
+ * usando `money`, que exige mayor que cero (BR-F03).
+ */
+const moneyOrZero = z
+  .number({ error: 'Ingresa un valor.' })
+  .int('El valor debe ser un número entero de pesos.')
+  .nonnegative('El valor no puede ser negativo.')
+  .max(1_000_000_000, 'El valor es demasiado alto.')
+
 export const paymentMethodSchema = z.enum(['cash', 'transfer', 'other'])
 
 export const paymentAllocationSchema = z.object({
@@ -61,11 +74,15 @@ export type VoidPaymentInput = z.infer<typeof voidPaymentSchema>
  *
  * `expectedAmount` es el valor que la pantalla estaba mostrando: la RPC lo
  * compara con el de la fila bloqueada y rechaza si otro cambio llego antes.
+ *
+ * Los dos aceptan cero (D-158): el nuevo valor porque asi se deshace un abono
+ * aplicado a la boleta equivocada, y el esperado porque un abono ya corregido
+ * a $0 se puede volver a subir.
  */
 export const updatePaymentAllocationSchema = z.object({
   paymentId: z.uuid('Pago no válido.'),
   ticketId: z.uuid('Boleta no válida.'),
-  amount: money,
-  expectedAmount: money,
+  amount: moneyOrZero,
+  expectedAmount: moneyOrZero,
 })
 export type UpdatePaymentAllocationInput = z.infer<typeof updatePaymentAllocationSchema>

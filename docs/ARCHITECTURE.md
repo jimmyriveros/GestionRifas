@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.23 · **Estado:** implementado · **Actualizado:** 2026-08-30
+- **Versión:** 1.24 · **Estado:** implementado · **Actualizado:** 2026-09-01
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -296,7 +296,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 |---------|------|-----------------|-----------|
 | `create_payment(p_client_id, p_total_amount, p_payment_date, p_payment_method, p_notes, p_allocations jsonb)` | 2 (fn) / 5 (UI) | Crea pago + asignaciones, valida sobrepago con bloqueo de filas, audita | Sí — una transacción |
 | `void_payment(p_payment_id, p_reason)` | 2 / 5 | Marca anulación, recalcula saldos, audita | Sí |
-| `update_payment_allocation(pago, boleta, importe, importe_esperado)` | post-9 | Corrige el valor de UN abono vigente. Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-134, BR-F16) | Sí |
+| `update_payment_allocation(pago, boleta, importe, importe_esperado)` | post-9 | Corrige el valor de UN abono vigente, **cero incluido** (D-158). Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-134, BR-F16, BR-F17) | Sí |
 | `update_ticket_sale_price(boleta, precio, precio_esperado)` | post-9 | Corrige el `sale_price` de UNA boleta asignada. Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-137, BR-P13) | Sí |
 | `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142) | Sí — inserciones idempotentes |
 | `sync_lottery_schedules` · `confirm_lottery_result` · `notify_lottery_schedule_changes` | post-9 | Sincronización, confirmación+matching+avisos y avisos de programación. **Sin EXECUTE para `authenticated`** (D-145, D-146) | Sí — upserts e inserciones idempotentes |

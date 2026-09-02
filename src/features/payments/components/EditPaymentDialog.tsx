@@ -133,14 +133,19 @@ function EditPaymentFields({
             value={amount}
             onChange={setAmount}
             disabled={isPending}
+            // Con el campo vacio el boton se desactiva, y un «$0» gris ahi
+            // haria creer que ya se escribio el cero, que desde D-158 es un
+            // valor real. El aviso dice lo que falta hacer.
+            placeholder="Escribe el valor"
             aria-invalid={error !== null}
             aria-describedby={error ? 'edit-payment-error' : undefined}
           />
-          {target.maxAmount !== undefined ? (
-            <p className="text-muted-foreground text-xs">
-              Puedes poner como máximo {formatCOP(target.maxAmount)}.
-            </p>
-          ) : null}
+          <p className="text-muted-foreground text-xs">
+            {target.maxAmount !== undefined
+              ? `Puedes poner como máximo ${formatCOP(target.maxAmount)}. `
+              : ''}
+            Con $0 el abono deja de contar en la boleta. Queda en el historial.
+          </p>
         </div>
 
         {error ? (

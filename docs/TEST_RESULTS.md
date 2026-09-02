@@ -6622,3 +6622,117 @@ claves de servicio en los 17 recursos (**1.101 KB**), y el **identificador de ve
 agente no entra con cuenta real (I-066). Quien lo vea: vendedor → Registrar abono **en el teléfono**.
 Si la PWA ya estaba instalada, el aviso de versión nueva recarga al pulsarlo.
 
+
+---
+
+## Corregir un abono a $0 (D-158, BR-F03, BR-F16, BR-F17) — 2026-09-01
+
+**Encargo.** Un vendedor aplicó un abono a la boleta equivocada y **no pudo corregirlo a $0**: tuvo
+que dejarlo en **$1**. Se pide permitir el cero al **editar** un abono existente, dejando la boleta
+como si ese abono no se hubiera hecho, sin habilitar el cero al **crear** y sin perder trazabilidad.
+
+### Causa raíz — las cuatro capas decían lo mismo, a propósito
+
+| Capa | Qué rechazaba el cero | Origen |
+|---|---|---|
+| Cliente / Zod | `money` con `.positive()`, compartido por alta y edición (`payments/schemas.ts`) | Fase 5 |
+| RPC | `if p_amount is null or p_amount <= 0 then raise` en `update_payment_allocation` | `0034` (D-134) |
+| Base — fila | `CHECK (amount > 0)` en `payment_allocations` | `0002` (BR-F03) |
+| Base — fila | `CHECK (total_amount > 0)` en `payments` | `0002` (BR-F03) |
+
+No era un descuido: **BR-F03 prohibía el cero sin distinguir alta de corrección**, y D-134 heredó
+ese límite tal cual al añadir la edición. La contradicción con el encargo se reporta y se resuelve
+partiendo la regla en dos (D-158), no borrándola.
+
+### Verificaciones ejecutadas
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` | ✅ `0042` aplica limpia sobre las 41 anteriores |
+| `npm run seed:local` | ✅ |
+| `npm run test:db` | ✅ **676/676** en 33 archivos (48,7 s) |
+| `npx vitest run --config vitest.db.config.mts tests/db/payment-update.test.ts` | ✅ **24/24**, con las **9 nuevas** de la sección «en cero» |
+| `npm run test` (unitarias) | ✅ **648/648** en 41 archivos |
+| `npm run lint` | ✅ 0 errores; 2 avisos preexistentes de `react-hooks/incompatible-library` (TanStack) |
+| `npx tsc --noEmit` (solo el árbol versionado) | ✅ 0 errores |
+| `npm run build` (solo el árbol versionado) | ✅ compila y type-checkea |
+| `npx playwright test tests/e2e/payments.spec.ts --project=escritorio` | ✅ **36/36**, incluida la nueva de $0 |
+| `npx playwright test tests/e2e/abono-desde-boleta-movil.spec.ts --project=movil` | ✅ **4/4** |
+| Comprobación en navegador, sesión de vendedor real contra la base local | ✅ ver abajo |
+
+⚠️ **`npm run verify` no se pudo ejecutar entero, y no es por este cambio.** `tsconfig.json` incluye
+`**/*.ts` y solo excluye `node_modules`, así que `tsc` (y el type-check de `next build`) también
+compila **`build/etapa6/`** — los guiones de sonda que dejó la etapa 6/6 de loterías, que están en
+`.gitignore` y **no** en Git. Producen **11 errores de tipos preexistentes**, ajenos a este trabajo:
+
+```
+build/etapa6/forecast.ts(56,39): error TS2532: Object is possibly 'undefined'.
+build/etapa6/import-graph.test.ts(31,31): error TS2345 …
+build/etapa6/panel-perf.ts(39,62|91|117), panel-perf2.ts(39,47|76|102): TS2532 …
+build/etapa6/proximo-tick.test.ts(51,11): error TS2322 …
+build/etapa6/servido.ts(20,59): error TS2345 …
+build/etapa6/sources.ts(24,60): error TS7053 …
+```
+
+Los archivos son de otro agente y **no se tocaron** (`AGENTS.md` §5). Para verificar lo versionado se
+ejecutaron `tsc` y `next build` con un `tsconfig` temporal que añade `"build"` a `exclude`, borrado
+después; `git diff tsconfig.json` quedó vacío. **CI no está afectado**: `build/` no viaja en el
+repositorio. Queda como **I-093**.
+
+### Pruebas nuevas
+
+**Base de datos** — `tests/db/payment-update.test.ts`, sección `update_payment_allocation en cero`:
+
+| Prueba | Qué demuestra |
+|---|---|
+| deja la boleta como si el abono no se hubiera registrado, sin borrar nada | `paid_amount` 0, estado `unpaid`, la asignación sigue existiendo en $0, el pago sigue vigente con `total_amount` 0 y no se creó ni borró ningún pago |
+| una Pagada corregida a $0 vuelve a Sin pagar y devuelve la ganancia | transición `paid` → `unpaid`; `seller_commissions.tickets_paid` baja 1 y `earned` baja (BR-G01, BR-G06) |
+| los demás abonos de la boleta no se tocan | dos pagos sobre la misma boleta; el otro conserva importe y total |
+| en un pago repartido, poner una línea en $0 conserva la otra y el pago cuadra | 40.000 + 30.000 → 0 + 30.000, `total_amount` 30.000 (BR-F05) |
+| un abono ya corregido a $0 se puede volver a subir | `p_expected_amount = 0` es válido |
+| la bitácora guarda el paso a cero | `payment.update` con `amount` 16.000 → 0 y `total_amount` 0 (BR-F14) |
+| un vendedor no puede poner en $0 el abono de otro | vendedor de la misma organización **y** de otra: los dos rechazados, saldo intacto (BR-U07) |
+| registrar un abono NUEVO de $0 sigue prohibido | `create_payment` responde «mayor que cero» (BR-F03) |
+| tampoco por INSERT directo: el disparador de alta lo impide | `INSERT` a `payments` y a `payment_allocations` con importe 0 desde una sesión de vendedor: rechazados |
+
+**Unitarias** — `tests/unit/payment-status.test.ts`: `updatePaymentAllocationSchema` acepta `0` en
+`amount` y en `expectedAmount`, rechaza negativo con «El valor no puede ser negativo.», decimal y
+vacío; `createPaymentSchema` sigue rechazando el cero, también cuando aparece en **una** línea del
+reparto.
+
+**E2E** — `tests/e2e/payments.spec.ts`, «corregir a $0 deja la boleta Sin pagar y el abono sigue en el
+historial (D-158)»: registra $40.000, comprueba **Abonada**, abre «Editar abono», verifica que el
+aviso «Con $0 el abono deja de contar…» está visible, escribe `0`, guarda, y comprueba **Sin pagar**,
+$120.000 pendientes, el aviso «Abono actualizado a $0.» y que sigue existiendo el botón «Editar el
+abono de $0».
+
+### Comprobación en navegador (base local, sesión de `vendedor1@demo.test`)
+
+Boleta `0001 / 1001` de Ana Torres, con el abono de $40.000 del seed:
+
+| Antes | Después de guardar $0 |
+|---|---|
+| Estado de pago **Abonada**, anillo **33 %** | Estado de pago **Sin pagar**, anillo **0 %** |
+| Abonado **$40.000** · Pendiente **$80.000** | Abonado **$0** · Pendiente **$120.000** |
+| Historial: una fila de **$40.000** con «Editar» | Historial: la **misma** fila, en **$0**, con «Editar» |
+
+Consola del navegador: **sin errores**. El diálogo muestra «Puedes poner como máximo $120.000. Con $0
+el abono deja de contar en la boleta. Queda en el historial.»
+
+La base local se dejó **sembrada limpia** después de comprobar.
+
+### Errores encontrados durante el trabajo
+
+Ninguno en el código nuevo: las pruebas de base de datos, unitarias y E2E pasaron en la primera
+pasada tras aplicar `0042`. El único hallazgo es el de `build/etapa6/` descrito arriba (**I-093**),
+que es preexistente y ajeno.
+
+### Lo que NO se hizo, a propósito
+
+* No se promovió nada: `0042` **solo está en local**. Sin push, sin despliegue y sin tocar el
+  proyecto Supabase real.
+* No se habilitó crear abonos de $0 (el encargo lo excluye; BR-F03 lo sigue prohibiendo en las
+  cuatro capas para el alta).
+* No se tocó la anulación de pagos: sigue siendo de Owner/Admin, con motivo, e irreversible.
+* No se corrigieron los abonos de **$1** que ya existen en producción — son datos reales y cambiarlos
+  requiere autorización expresa. Con este cambio desplegado, el propio vendedor podrá dejarlos en $0.

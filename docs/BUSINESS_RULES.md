@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.10 · **Estado:** normativo · **Actualizado:** 2026-08-30
+- **Versión:** 1.11 · **Estado:** normativo · **Actualizado:** 2026-09-01
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -408,7 +408,7 @@ una cifra escrita en el código.
 |----|-------|-------|------|
 | BR-F01 | No existe pasarela de pagos; el registro es manual. | — | 5 |
 | BR-F02 | Un pago pertenece a un cliente y se reparte entre una o varias boletas **de ese mismo cliente**. | S, D | 5 |
-| BR-F03 | `payments.total_amount > 0`; `payment_allocations.amount > 0`. No se permiten montos cero ni negativos. | C, S, D | 2 |
+| BR-F03 | **Al registrar**, `payments.total_amount > 0` y `payment_allocations.amount > 0`: un abono nuevo de cero no existe. Lo garantizan `create_payment`, el esquema Zod de alta y un disparador `BEFORE INSERT` en las dos tablas (`0042`). **Corregir a cero un abono que ya existe sí se puede** (BR-F16, D-158): ahí el límite de fila es `>= 0`. **Ningún importe es negativo, nunca, en ninguna capa.** | C, S, D | 2 / post-9 |
 | BR-F04 | No se permiten pagos a boletas sin cliente. | D | 2 |
 | BR-F05 | `SUM(payment_allocations.amount) = payments.total_amount` exactamente. | S, D | 2 |
 | BR-F06 | La creación de un pago y sus asignaciones es atómica: si algo falla, no se guarda nada. Se ejecuta en una función transaccional de PostgreSQL, no como secuencia de llamadas desde el navegador. | S, D | 2 / 5 |
@@ -421,7 +421,8 @@ una cifra escrita en el código.
 | BR-F13 | El historial de abonos muestra fecha, valor, cliente, boleta, vendedor que registró, método, notas y estado (activo/anulado). | C, S | 5 |
 | BR-F14 | Toda creación, corrección y anulación de pago queda registrada en auditoría. | D | 5 |
 | BR-F15 | Un pago anulado no puede "desanularse"; se registra un pago nuevo si corresponde. (D-013) | S, D | 5 |
-| BR-F16 | El vendedor dueño del cliente y el personal pueden corregir el **valor** de un abono vigente. Se reescribe esa asignación, no se crea otro pago. No se cambia de boleta, cliente ni vendedor. Un pago anulado no se edita (BR-F15). El recálculo de saldo, estado y ganancia es el de siempre (BR-F07, BR-F11, BR-G01, BR-G06). (D-134) | C, S, D | post-9 |
+| BR-F16 | El vendedor dueño del cliente y el personal pueden corregir el **valor** de un abono vigente, **incluido bajarlo a $0** (D-158). Se reescribe esa asignación, no se crea otro pago. No se cambia de boleta, cliente ni vendedor. Un pago anulado no se edita (BR-F15). El recálculo de saldo, estado y ganancia es el de siempre (BR-F07, BR-F11, BR-G01, BR-G06). (D-134, D-158) | C, S, D | post-9 |
+| BR-F17 | Un abono corregido a **$0** deja la boleta como si no se hubiera registrado, **sin borrar nada**: la asignación se queda en el historial valiendo cero, con su fecha, su método y quién la registró, la bitácora anota el paso (BR-F14) y el valor se puede volver a subir. Si todas las asignaciones de un pago quedan en cero, su `total_amount` es `0` y el pago **sigue vigente** (`voided_at` nulo): eso es lo que lo distingue de uno anulado, que no se reactiva (BR-F15). (D-158) | S, D | post-9 |
 
 ### Estados de pago (calculados, nunca seleccionados)
 

@@ -1,10 +1,14 @@
 /**
- * Corregir el valor de un abono activo (BR-F16, D-134).
+ * Corregir el valor de un abono activo (BR-F16, D-134, D-158).
  *
  * La RPC `update_payment_allocation` reescribe UN registro: la asignacion y el
  * total del pago. El recálculo de saldo, estado y ganancia lo hacen los
  * disparadores que ya existian. Aqui se comprueba eso, y que un vendedor ajeno
  * no puede ni llamando a la RPC.
+ *
+ * Desde D-158 el valor corregido puede ser **cero** —asi se deshace un abono
+ * aplicado a la boleta equivocada—, sin borrar la fila ni anular el pago.
+ * Registrar un abono nuevo de cero sigue prohibido (BR-F03).
  */
 import { beforeAll, describe, expect, it } from 'vitest'
 
@@ -203,20 +207,281 @@ describe('update_payment_allocation recálculo (BR-F07, BR-F16)', () => {
   })
 })
 
+/**
+ * Corregir un abono a $0 (BR-F16, D-158).
+ *
+ * Es como se deshace un abono aplicado a la boleta equivocada. La fila NO se
+ * borra y el pago NO se anula: el registro se queda en el historial valiendo
+ * cero, y la bitacora guarda el paso. Registrar un abono de $0 sigue
+ * prohibido (BR-F03).
+ */
+describe('update_payment_allocation en cero (BR-F16, D-158)', () => {
+  it('deja la boleta como si el abono no se hubiera registrado, sin borrar nada', async () => {
+    const ticketId = await assignFreshTicket(ctx.clients.ana.id)
+    const paymentId = await pay(seller1, ctx.clients.ana.id, ticketId, 40_000)
+    const pagosAntes = await paymentCount(ctx.clients.ana.id)
+
+    const { error } = await seller1.rpc('update_payment_allocation', {
+      p_payment_id: paymentId,
+      p_ticket_id: ticketId,
+      p_amount: 0,
+      p_expected_amount: 40_000,
+    })
+    expect(error).toBeNull()
+
+    const state = await ticketState(ticketId)
+    expect(state.paid_amount).toBe(0)
+    expect(state.payment_status).toBe('unpaid')
+
+    // El pago sigue existiendo, vigente y cuadrado; la asignacion tambien.
+    expect(await paymentCount(ctx.clients.ana.id)).toBe(pagosAntes)
+
+    const { data: pago } = await ctx.svc
+      .from('payments')
+      .select('total_amount, voided_at')
+      .eq('id', paymentId)
+      .single()
+    expect(pago!.total_amount).toBe(0)
+    expect(pago!.voided_at).toBeNull()
+
+    const { data: asignaciones } = await ctx.svc
+      .from('payment_allocations')
+      .select('amount')
+      .eq('payment_id', paymentId)
+    expect(asignaciones).toHaveLength(1)
+    expect(asignaciones![0]!.amount).toBe(0)
+  })
+
+  it('una Pagada corregida a $0 vuelve a Sin pagar y devuelve la ganancia (BR-G01, BR-G06)', async () => {
+    const ticketId = await assignFreshTicket(ctx.clients.ana.id)
+    const paymentId = await pay(seller1, ctx.clients.ana.id, ticketId, PRICE)
+    expect((await ticketState(ticketId)).payment_status).toBe('paid')
+
+    const { data: cobrada } = await ctx.svc
+      .from('seller_commissions')
+      .select('tickets_paid, earned')
+      .eq('seller_id', ctx.ids.seller1)
+      .eq('raffle_id', ctx.demoRaffle.id)
+      .single()
+
+    const { error } = await seller1.rpc('update_payment_allocation', {
+      p_payment_id: paymentId,
+      p_ticket_id: ticketId,
+      p_amount: 0,
+      p_expected_amount: PRICE,
+    })
+    expect(error).toBeNull()
+
+    const state = await ticketState(ticketId)
+    expect(state.paid_amount).toBe(0)
+    expect(state.payment_status).toBe('unpaid')
+
+    const { data: despues } = await ctx.svc
+      .from('seller_commissions')
+      .select('tickets_paid, earned')
+      .eq('seller_id', ctx.ids.seller1)
+      .eq('raffle_id', ctx.demoRaffle.id)
+      .single()
+    expect(despues!.tickets_paid).toBe(cobrada!.tickets_paid - 1)
+    expect(Number(despues!.earned)).toBeLessThan(Number(cobrada!.earned))
+  })
+
+  it('los demas abonos de la boleta no se tocan', async () => {
+    const ticketId = await assignFreshTicket(ctx.clients.carlos.id)
+    const primero = await pay(seller1, ctx.clients.carlos.id, ticketId, 20_000)
+    const segundo = await pay(seller1, ctx.clients.carlos.id, ticketId, 30_000)
+
+    const { error } = await seller1.rpc('update_payment_allocation', {
+      p_payment_id: segundo,
+      p_ticket_id: ticketId,
+      p_amount: 0,
+      p_expected_amount: 30_000,
+    })
+    expect(error).toBeNull()
+
+    const { data: filas } = await ctx.svc
+      .from('payment_allocations')
+      .select('payment_id, amount')
+      .eq('ticket_id', ticketId)
+    expect(filas).toHaveLength(2)
+    expect(filas!.find((row) => row.payment_id === primero)!.amount).toBe(20_000)
+    expect(filas!.find((row) => row.payment_id === segundo)!.amount).toBe(0)
+
+    const { data: pagoIntacto } = await ctx.svc
+      .from('payments')
+      .select('total_amount')
+      .eq('id', primero)
+      .single()
+    expect(pagoIntacto!.total_amount).toBe(20_000)
+
+    const state = await ticketState(ticketId)
+    expect(state.paid_amount).toBe(20_000)
+    expect(state.payment_status).toBe('partial')
+  })
+
+  it('en un pago repartido, poner una linea en $0 conserva la otra y el pago cuadra (BR-F05)', async () => {
+    const t1 = await assignFreshTicket(ctx.clients.carlos.id)
+    const t2 = await assignFreshTicket(ctx.clients.carlos.id)
+
+    const { data: paymentId, error: createError } = await seller1.rpc('create_payment', {
+      p_client_id: ctx.clients.carlos.id,
+      p_total_amount: 70_000,
+      p_allocations: [
+        { ticket_id: t1, amount: 40_000 },
+        { ticket_id: t2, amount: 30_000 },
+      ],
+    })
+    expect(createError).toBeNull()
+
+    const { error } = await seller1.rpc('update_payment_allocation', {
+      p_payment_id: paymentId as string,
+      p_ticket_id: t1,
+      p_amount: 0,
+      p_expected_amount: 40_000,
+    })
+    expect(error).toBeNull()
+
+    expect((await ticketState(t1)).paid_amount).toBe(0)
+    expect((await ticketState(t1)).payment_status).toBe('unpaid')
+    expect((await ticketState(t2)).paid_amount).toBe(30_000)
+
+    const { data: pago } = await ctx.svc
+      .from('payments')
+      .select('total_amount')
+      .eq('id', paymentId as string)
+      .single()
+    expect(pago!.total_amount).toBe(30_000)
+  })
+
+  it('un abono ya corregido a $0 se puede volver a subir', async () => {
+    const ticketId = await assignFreshTicket(ctx.clients.ana.id)
+    const paymentId = await pay(seller1, ctx.clients.ana.id, ticketId, 25_000)
+
+    const aCero = await seller1.rpc('update_payment_allocation', {
+      p_payment_id: paymentId,
+      p_ticket_id: ticketId,
+      p_amount: 0,
+      p_expected_amount: 25_000,
+    })
+    expect(aCero.error).toBeNull()
+
+    const deVuelta = await seller1.rpc('update_payment_allocation', {
+      p_payment_id: paymentId,
+      p_ticket_id: ticketId,
+      p_amount: 25_000,
+      p_expected_amount: 0,
+    })
+    expect(deVuelta.error).toBeNull()
+
+    const state = await ticketState(ticketId)
+    expect(state.paid_amount).toBe(25_000)
+    expect(state.payment_status).toBe('partial')
+  })
+
+  it('la bitacora guarda el paso a cero (BR-F14)', async () => {
+    const ticketId = await assignFreshTicket(ctx.clients.ana.id)
+    const paymentId = await pay(seller1, ctx.clients.ana.id, ticketId, 13_000)
+
+    const { error } = await seller1.rpc('update_payment_allocation', {
+      p_payment_id: paymentId,
+      p_ticket_id: ticketId,
+      p_amount: 0,
+      p_expected_amount: 13_000,
+    })
+    expect(error).toBeNull()
+
+    const { data: logs } = await ctx.svc
+      .from('audit_logs')
+      .select('action, old_values, new_values, actor_profile_id')
+      .eq('entity_id', paymentId)
+      .eq('action', 'payment.update')
+      .order('created_at', { ascending: false })
+      .limit(1)
+    const log = logs![0]!
+    expect(log.actor_profile_id).toBe(ctx.ids.seller1)
+    expect(log.old_values).toMatchObject({ ticket_id: ticketId, amount: 13_000 })
+    expect(log.new_values).toMatchObject({ ticket_id: ticketId, amount: 0, total_amount: 0 })
+  })
+
+  it('un vendedor no puede poner en $0 el abono de otro (BR-U07)', async () => {
+    const ticketId = await assignFreshTicket(ctx.clients.ana.id)
+    const paymentId = await pay(seller1, ctx.clients.ana.id, ticketId, 17_000)
+
+    for (const intruso of [seller2, otherOrgSeller]) {
+      const { error } = await intruso.rpc('update_payment_allocation', {
+        p_payment_id: paymentId,
+        p_ticket_id: ticketId,
+        p_amount: 0,
+        p_expected_amount: 17_000,
+      })
+      expect(error).not.toBeNull()
+    }
+
+    expect((await ticketState(ticketId)).paid_amount).toBe(17_000)
+  })
+
+  it('registrar un abono NUEVO de $0 sigue prohibido (BR-F03)', async () => {
+    const ticketId = await assignFreshTicket(ctx.clients.ana.id)
+
+    const { error } = await seller1.rpc('create_payment', {
+      p_client_id: ctx.clients.ana.id,
+      p_total_amount: 0,
+      p_allocations: [{ ticket_id: ticketId, amount: 0 }],
+    })
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/mayor que cero/i)
+    expect((await ticketState(ticketId)).paid_amount).toBe(0)
+  })
+
+  it('tampoco por INSERT directo: el disparador de alta lo impide (BR-F03)', async () => {
+    const ticketId = await assignFreshTicket(ctx.clients.ana.id)
+    const paymentId = await pay(seller1, ctx.clients.ana.id, ticketId, 10_000)
+
+    // Un pago nuevo de $0, saltandose la RPC.
+    const pagoDirecto = await seller1
+      .from('payments')
+      .insert({
+        organization_id: ctx.demoOrg.id,
+        seller_id: ctx.ids.seller1,
+        client_id: ctx.clients.ana.id,
+        total_amount: 0,
+        created_by: ctx.ids.seller1,
+      })
+      .select()
+    expect(pagoDirecto.error).not.toBeNull()
+
+    // Y una asignacion nueva de $0 sobre un pago que si existe.
+    const otraBoleta = await assignFreshTicket(ctx.clients.ana.id)
+    const asignacionDirecta = await seller1
+      .from('payment_allocations')
+      .insert({
+        payment_id: paymentId,
+        ticket_id: otraBoleta,
+        client_id: ctx.clients.ana.id,
+        organization_id: ctx.demoOrg.id,
+        amount: 0,
+      })
+      .select()
+    expect(asignacionDirecta.error).not.toBeNull()
+
+    expect((await ticketState(otraBoleta)).paid_amount).toBe(0)
+    expect((await ticketState(ticketId)).paid_amount).toBe(10_000)
+  })
+})
+
 describe('update_payment_allocation validacion (BR-F03, BR-F12, BR-F15)', () => {
-  it('rechaza cero y negativo y no mueve el saldo', async () => {
+  it('rechaza un valor negativo y no mueve el saldo', async () => {
     const ticketId = await assignFreshTicket(ctx.clients.ana.id)
     const paymentId = await pay(seller1, ctx.clients.ana.id, ticketId, 40_000)
 
-    for (const amount of [0, -1000]) {
-      const { error } = await seller1.rpc('update_payment_allocation', {
-        p_payment_id: paymentId,
-        p_ticket_id: ticketId,
-        p_amount: amount,
-        p_expected_amount: 40_000,
-      })
-      expect(error, `amount=${amount}`).not.toBeNull()
-    }
+    const { error } = await seller1.rpc('update_payment_allocation', {
+      p_payment_id: paymentId,
+      p_ticket_id: ticketId,
+      p_amount: -1000,
+      p_expected_amount: 40_000,
+    })
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/no puede ser negativo/i)
 
     expect((await ticketState(ticketId)).paid_amount).toBe(40_000)
   })

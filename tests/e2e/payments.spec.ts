@@ -767,6 +767,40 @@ test.describe('Edición de un abono (BR-F16, D-134)', () => {
     expect((await ticketBalance(ticket.id)).paidAmount).toBe(30_000)
   })
 
+  test('corregir a $0 deja la boleta Sin pagar y el abono sigue en el historial (D-158)', async ({
+    page,
+  }) => {
+    const { client, ticket } = await clientWithDebt('Editar a cero')
+
+    await page.goto(`/seller/payments/new?clientId=${client.id}`)
+    await page.getByLabel('Valor del abono').fill('40000')
+    await page.getByRole('button', { name: 'Registrar abono' }).click()
+    await expectToast(page, /registrado/)
+
+    await page.goto(`/seller/tickets/${ticket.id}`)
+    await expect(page.getByText('Abonada').first()).toBeVisible()
+
+    await page.getByRole('button', { name: /Editar el abono de/ }).click()
+    const dialogo = page.getByRole('dialog', { name: 'Editar abono' })
+    await expect(dialogo.getByText(/Con \$0 el abono deja de contar/)).toBeVisible()
+
+    await dialogo.getByLabel('Nuevo valor').fill('0')
+    await dialogo.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, /Abono actualizado a \$0/)
+    await expect(dialogo).toHaveCount(0)
+
+    // La boleta vuelve a deber el precio entero...
+    await expect(page.getByText('Sin pagar').first()).toBeVisible()
+    await expect(page.getByText(formatCOP(PRICE), { exact: true }).first()).toBeVisible()
+
+    // ...y el abono sigue ahi, en $0, listo para volver a subirlo.
+    await expect(page.getByRole('button', { name: /Editar el abono de \$0/ })).toBeVisible()
+
+    const balance = await ticketBalance(ticket.id)
+    expect(balance.paidAmount).toBe(0)
+    expect(balance.paymentStatus).toBe('unpaid')
+  })
+
   test('Cancelar no cambia el abono', async ({ page }) => {
     const { ticket } = await clientWithDebt('Cancelar edicion')
 

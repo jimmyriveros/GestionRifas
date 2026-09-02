@@ -1,9 +1,12 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.11 · **Estado:** implementado · **Actualizado:** 2026-09-01
-- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0041`. `0001`–`0040`
-  están aplicadas y verificadas en local y en el proyecto Supabase real (D-149, D-151).
-  **`0041` está solo en local** (D-152): no se ha promovido.
+- **Versión:** 2.12 · **Estado:** implementado · **Actualizado:** 2026-09-01
+- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0042`. `0001`–`0041`
+  están aplicadas y verificadas en local y en el proyecto Supabase real (D-149, D-151, D-156).
+  **`0042` está solo en local** (D-158): no se ha promovido.
+- *Corrección documental (2026-09-01, D-158):* esta línea decía que `0041` seguía solo en local. Se
+  escribió en D-152, cuando era cierto, y no se actualizó al promoverla en **D-156**; `PHASE_STATUS`
+  §3215 y `HANDOFF` §1 ya la daban por aplicada. Se corrige aquí.
 - Este documento describe el diseño; la **fuente de verdad ejecutable** son las migraciones y los
   tipos generados en `src/types/database.types.ts`. Las pruebas de `tests/db/` verifican el
   esquema local; producción se comprueba con `verify:remote` y las sondas registradas en
@@ -486,7 +489,7 @@ conjunta, evitando 1.000 actualizaciones secuenciales.
 | `organization_id` | `uuid` | `NOT NULL`, FK → `organizations(id)` |
 | `seller_id` | `uuid` | `NOT NULL`, FK compuesta → `memberships(profile_id, organization_id)` |
 | `client_id` | `uuid` | `NOT NULL`, FK compuesta → `clients(id, organization_id)` |
-| `total_amount` | `bigint` | `NOT NULL`, `CHECK (total_amount > 0)` |
+| `total_amount` | `bigint` | `NOT NULL`, `CHECK (total_amount >= 0)` — `0042`. Al **insertar** sigue exigiéndose `> 0` (BR-F03), con el disparador `payments_insert_positive`; el cero solo puede resultar de corregir sus asignaciones (BR-F16, D-158) |
 | `payment_date` | `date` | `NOT NULL DEFAULT today_bogota()` |
 | `payment_method` | `payment_method` | `NOT NULL DEFAULT 'cash'` |
 | `notes` | `text` | `NULL` |
@@ -517,7 +520,7 @@ Los pagos **no se eliminan nunca**. RLS no concede `DELETE` a ningún rol.
 | `ticket_id` | `uuid` | `NOT NULL`, FK → `tickets(id)` `ON DELETE RESTRICT` |
 | `client_id` | `uuid` | `NOT NULL` — desnormalizada para las FK compuestas |
 | `organization_id` | `uuid` | `NOT NULL` — desnormalizada para RLS eficiente |
-| `amount` | `bigint` | `NOT NULL`, `CHECK (amount > 0)` |
+| `amount` | `bigint` | `NOT NULL`, `CHECK (amount >= 0)` — `0042`. Al **insertar** sigue exigiéndose `> 0` (BR-F03), con el disparador `payment_allocations_insert_positive`; el cero solo lo escribe `update_payment_allocation` al corregir (BR-F16, D-158) |
 | `created_at` | `timestamptz` | `NOT NULL DEFAULT now()` |
 
 ```sql
@@ -540,6 +543,12 @@ El valor se cambia solo por `update_payment_allocation(pago, boleta, importe, im
 que reescribe esa asignación y el `total_amount` del pago en la misma transacción. Un pago anulado
 no entra. El recálculo de `paid_amount`, el estado de pago y la ganancia siguen a cargo de los
 disparadores de `0004` y `0024`.
+
+**Corregir a cero** (`0042`, BR-F17, D-158). El importe corregido puede ser `0`: así se deshace un
+abono aplicado a la boleta equivocada. **La fila no se borra y el pago no se anula** — un pago cuyas
+asignaciones quedan todas en cero tiene `total_amount = 0`, cuadra (BR-F05) y sigue vigente
+(`voided_at` nulo), a diferencia de uno anulado. La bitácora anota el paso como cualquier otra
+corrección (`payment.update`). Los negativos siguen imposibles: el `CHECK` de fila es `>= 0`.
 
 **Cuadre pago ↔ asignaciones.** `SUM(payment_allocations.amount) = payments.total_amount` se verifica
 con un *constraint trigger* `DEFERRABLE INITIALLY DEFERRED` sobre ambas tablas: se comprueba al

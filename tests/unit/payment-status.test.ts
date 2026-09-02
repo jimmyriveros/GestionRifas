@@ -270,12 +270,24 @@ describe('createPaymentSchema', () => {
     expect(createPaymentSchema.safeParse({ ...base, totalAmount: 50_000.5 }).success).toBe(false)
   })
 
+  // La asimetria con `updatePaymentAllocationSchema` es deliberada (D-158):
+  // corregir a $0 un abono que ya existe si se puede; registrarlo de cero, no.
   it('rechaza importes menores o iguales a cero (BR-F03)', () => {
     expect(
       createPaymentSchema.safeParse({
         ...base,
         totalAmount: 0,
         allocations: [{ ticketId: UUID_B, amount: 0 }],
+      }).success,
+    ).toBe(false)
+    expect(
+      createPaymentSchema.safeParse({
+        ...base,
+        totalAmount: 50_000,
+        allocations: [
+          { ticketId: UUID_B, amount: 50_000 },
+          { ticketId: UUID_C, amount: 0 },
+        ],
       }).success,
     ).toBe(false)
   })
@@ -329,9 +341,25 @@ describe('updatePaymentAllocationSchema (BR-F16)', () => {
     expect(updatePaymentAllocationSchema.safeParse(base).success).toBe(true)
   })
 
-  it('rechaza cero, negativo, vacio y decimal (BR-F03, BR-P02)', () => {
-    expect(updatePaymentAllocationSchema.safeParse({ ...base, amount: 0 }).success).toBe(false)
-    expect(updatePaymentAllocationSchema.safeParse({ ...base, amount: -1 }).success).toBe(false)
+  it('acepta cero: asi se deshace un abono aplicado a la boleta equivocada (D-158)', () => {
+    expect(updatePaymentAllocationSchema.safeParse({ ...base, amount: 0 }).success).toBe(true)
+  })
+
+  it('acepta cero tambien como valor esperado, para volver a subirlo (D-158)', () => {
+    expect(
+      updatePaymentAllocationSchema.safeParse({ ...base, amount: 30_000, expectedAmount: 0 })
+        .success,
+    ).toBe(true)
+  })
+
+  it('rechaza negativo, vacio y decimal (BR-F03, BR-P02)', () => {
+    const negativo = updatePaymentAllocationSchema.safeParse({ ...base, amount: -1 })
+    expect(negativo.success).toBe(false)
+    expect(negativo.error?.issues[0]?.message).toBe('El valor no puede ser negativo.')
+
+    expect(updatePaymentAllocationSchema.safeParse({ ...base, expectedAmount: -1 }).success).toBe(
+      false,
+    )
     expect(updatePaymentAllocationSchema.safeParse({ ...base, amount: 10.5 }).success).toBe(false)
     expect(updatePaymentAllocationSchema.safeParse({ ...base, amount: undefined }).success).toBe(
       false,
