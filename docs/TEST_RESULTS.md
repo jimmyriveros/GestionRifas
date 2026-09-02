@@ -143,6 +143,53 @@ información:
    `observed_draw_number`. La restricción es correcta —los sorteos reales son dígitos—; se corrigió la
    prueba.
 
+### g. Promoción a producción (2026-09-02, autorizada)
+
+**Autorizada expresamente por el dueño:** «aplica la migración y despliega».
+
+| Paso | Resultado |
+|---|---|
+| Respaldo | `Rifas-backups/2026-09-02-pre-0045/` — `data.sql` 3,3 MB · `schema.sql` 306 KB · `roles.sql` 370 B. `grep -c '"auth"'` = **0**: ninguna identidad, contraseña ni token |
+| Línea base | 2 organizaciones · 7 perfiles · 455 clientes · 928 boletas · 293 pagos · 307 asignaciones · 187 comisiones · 3.505 auditorías · 670 avisos · 312 programaciones · 3 resultados · 35 corridas |
+| `db push --dry-run` | Una sola migración pendiente: `0045` |
+| `db push --yes` | **Aplicada.** 45 migraciones, la última `0045` |
+| Objetos creados | Tabla de 14 columnas, RLS **enabled + forced**, **0 políticas**, `UNIQUE (schedule_id, source_id)`, `strategy` NOT NULL default `official`, `source_kind` con `alternative_consensus`, RPC con EXECUTE **solo** para `postgres` y `service_role` |
+| Datos tras la migración | **Idénticos**: 455 · 928 · 293 · 307 · 187 · 3 · 35. Y las **35 filas viejas** de la bitácora quedaron en `strategy = 'official'`, que es la verdad: nadie reinició ningún contador |
+| `verify:remote` | **17/17** |
+| CI | Job `Typecheck, lint, unitarias, build`: **success** |
+| Vercel | `dpl_ETJTg7XVbMExntxvoi5pmcSSt41y` **READY**, target production, sobre `759d541` |
+| Código servido | Identificador **`34de5cc2b071`** —sha256 de `759d541…` recortado— encontrado en `/_next/static/immutable/chunks/2knm7bfam2t-u.js`. **Es este commit el que responde** |
+| Cabeceras de seguridad | **6/6** en `/login` |
+| Secretos en el navegador | **0** en 16 recursos (1.035 KB) |
+| Rutas protegidas | 4/4 en **307** a `/login?next=…` |
+| Programador | `/api/lottery/sync` → **401** sin secreto y **401** con un Bearer incorrecto. Falla cerrado |
+
+**La RLS de la tabla nueva, comprobada con roles reales sobre producción:**
+
+| Quién pregunta | `lottery_source_observations` | La RPC |
+|---|---|---|
+| Anónimo | `permission denied for table` | `permission denied for function` |
+| Dueño y vendedor | **0 filas** (RLS sin políticas filtra todo) | `permission denied for function` |
+
+Ese «0 filas» en vez de un error **no es una debilidad, y se comprobó**: es exactamente lo que hace
+`lottery_sync_runs`, que tiene **35 filas reales** y a un vendedor le devuelve **0**. Las dos tablas
+son bitácora, las dos tienen RLS forzada y **cero políticas**, y el patrón viene de `0036`.
+
+**Estado de los sorteos al momento de desplegar** — todos habían agotado o casi agotado sus intentos
+oficiales, que es justo lo que esta corrección desbloquea:
+
+| Sorteo | Intentos oficiales | Último error |
+|---|---|---|
+| Cruz Roja 3169 (09-01) | **6** | `not_published` — la portada seguía en el 3168 |
+| Cundinamarca 4818 (08-31) | **6** | `scanned_document` |
+| Cundinamarca 4817 (08-24) | **6** | `scanned_document` |
+| Bogotá 2861 (08-27) | 5 | `source_blocked` |
+| Meta 3313 (08-26) | 5 | `source_blocked` |
+
+**Riesgo de la primera confirmación por consenso: ninguno sobre las boletas.** Contado antes de
+desplegar: **0 boletas** de las 928 llevan `7132`, `3478`, `7280` ni `8134` como número diario. No
+habrá coincidencias ni avisos.
+
 ### f. Lo que NO se hizo
 
 Ni OCR, ni navegador headless, ni proxy, ni resolución de CAPTCHA, ni cabeceras que finjan un

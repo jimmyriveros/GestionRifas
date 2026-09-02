@@ -3187,8 +3187,8 @@ I-062, I-063, I-024. Sin relación con este trabajo.
 
 ## Mantenimiento post-9 — fuentes alternativas bajo consenso (2026-09-02)
 
-Autorizado expresamente, incluido levantar en parte BR-L17. **NO desplegado, sin push, sin tocar
-producción.** `0045` está solo en local.
+Autorizado expresamente, incluido levantar en parte BR-L17 y, después, la promoción a producción.
+**`0045` aplicada al proyecto real y `759d541` desplegado** el 2026-09-02, tras respaldo verificado.
 
 ### 1. Funcionalidades implementadas
 
@@ -3212,8 +3212,8 @@ registrados.
 ### 3. Migraciones que existen
 
 **`0045_lottery_source_observations.sql`** — tabla de observaciones, `strategy` en
-`lottery_sync_runs`, `alternative_consensus` como tipo de fuente y la RPC de consenso. **Solo
-local: NO aplicada al proyecto real.**
+`lottery_sync_runs`, `alternative_consensus` como tipo de fuente y la RPC de consenso. **Aplicada al
+proyecto real el 2026-09-02**; son 45 migraciones.
 
 ### 4. Variables de entorno requeridas
 
@@ -3223,7 +3223,7 @@ Sin cambios.
 
 | Problema | Impacto |
 |---|---|
-| **`0045` sin aplicar y código sin desplegar** | La corrección **no está en producción**. Nada de esto corre todavía |
+| **El primer tick con la vía nueva aún no se ha observado** | El código está desplegado y la migración aplicada, pero hasta que corra un tick no hay confirmación por consenso en producción |
 | **I-093** — Paga Todo bloqueada | Ninguno en la práctica: el consenso se logra con las otras tres |
 | **I-086, I-087, I-091** mitigadas, no resueltas | Las tres fuentes oficiales siguen sin poder leerse. Lo que cambia es que ya no se depende de ellas |
 | Un premio grande | Conviene contrastar con el acta oficial: «Verificado por 2 fuentes» no es la autoridad |

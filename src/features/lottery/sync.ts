@@ -477,8 +477,39 @@ export async function syncDueLotteryResults(
       lastAttemptAt: attempts.lastAttemptAt,
       lastErrorCode: attempts.lastErrorCode,
     })
+    // El respaldo por consenso NO depende de que la via oficial se intente hoy.
+    //
+    // Esto costo un despliegue: el 2026-09-02 el primer tick en produccion no
+    // hizo NADA. Los cinco sorteos pendientes llevaban 5 o 6 intentos oficiales
+    // fallidos, asi que `decideResultFetch` devolvia `skip`/`wait` y el bucle
+    // seguia de largo — y el respaldo, que colgaba de la rama de «la descarga
+    // oficial fallo», no se alcanzaba nunca. Justo los sorteos que mas lo
+    // necesitan eran los unicos que no lo probaban (D-162).
+    //
+    // Ahora la via alternativa tiene su propia decision, con sus propios
+    // intentos (`strategy = 'alternative'`), y se evalua tanto si la oficial se
+    // intento como si ni siquiera llego a intentarse.
+    const intentarAlternativas = input.enableAlternativeSources || input.collectConsensus
+    const respaldo = async () => {
+      if (!intentarAlternativas) return
+      const gastadas = await tryAlternativeConsensus(client, draw, {
+        now,
+        budget: maxFetches - fetched,
+        cache: pageCache,
+        correlationId: input.correlationId ?? null,
+        collect: input.collectConsensus,
+      })
+      fetched += gastadas.downloads
+      if (gastadas.confirmed) consensusConfirmed += 1
+    }
+
     if (decision !== 'fetch') {
       skipped += 1
+      // Un sorteo ya confirmado sale de `loadPendingResultDraws` —su
+      // programacion pasa a `completed`—, y `tryAlternativeConsensus` vuelve a
+      // comprobarlo con su propio `decideResultFetch`. Aqui no se puede colar
+      // un resultado ya bueno.
+      await respaldo()
       continue
     }
 
@@ -503,22 +534,10 @@ export async function syncDueLotteryResults(
           recordsRead: 1,
           errorCode: outcome.code,
         })
-        // La fuente oficial no pudo entregar ESTE sorteo. Es justo el caso
-        // que activa el respaldo: se intenta el consenso con lo que quede de
-        // presupuesto (BR-L26). Un resultado oficial VALIDO pero distinto no
-        // llega aqui —lo habria confirmado—, asi que un conflicto nunca se
-        // resuelve en silencio con agregadores.
-        if (input.enableAlternativeSources || input.collectConsensus) {
-          const gastadas = await tryAlternativeConsensus(client, draw, {
-            now,
-            budget: maxFetches - fetched,
-            cache: pageCache,
-            correlationId: input.correlationId ?? null,
-            collect: input.collectConsensus,
-          })
-          fetched += gastadas.downloads
-          if (gastadas.confirmed) consensusConfirmed += 1
-        }
+        // La fuente oficial no pudo entregar ESTE sorteo. Un resultado oficial
+        // VALIDO pero distinto no llega aqui —lo habria confirmado—, asi que un
+        // conflicto nunca se resuelve en silencio con agregadores (BR-L26).
+        await respaldo()
         continue
       }
       confirmed += 1

@@ -328,3 +328,47 @@ describe('permisos de la tabla de observaciones', () => {
     expect(error).not.toBeNull()
   })
 })
+
+describe('un sorteo con los intentos oficiales agotados SI prueba el respaldo', () => {
+  it('el respaldo no depende de que la via oficial se intente hoy', async () => {
+    const { id } = await nuevoSorteo()
+
+    // Seis intentos oficiales fallidos: `decideResultFetch` dara `skip` a la
+    // via oficial y el bucle no descargara nada por ahi.
+    for (let i = 0; i < 6; i++) {
+      const { error } = await ctx.svc.from('lottery_sync_runs').insert({
+        kind: 'results',
+        lottery_code: 'cruz_roja',
+        schedule_id: id,
+        strategy: 'official',
+        outcome: 'failed',
+        error_code: 'not_published',
+        attempt: i + 1,
+      })
+      if (error) throw new Error(error.message)
+    }
+
+    const { syncDueLotteryResults } = await import('@/features/lottery/sync')
+    let consultadas = 0
+    const counts = await syncDueLotteryResults(ctx.svc as never, {
+      now: new Date(`${FECHA}T23:59:00-05:00`),
+      // La via oficial no deberia llegar a llamarse para este sorteo.
+      fetchResult: async () => {
+        throw new Error('la via oficial no deberia intentarse con 6 intentos agotados')
+      },
+      collectConsensus: (async () => {
+        consultadas += 1
+        return {
+          downloads: 2,
+          attempts: [],
+          recorded: { stored: 2, consensus: true, number: '7132', sources: ['a', 'b'] },
+        }
+      }) as never,
+    })
+
+    // ESTA es la regresion: antes del 2026-09-02 esto valia 0, porque el
+    // respaldo colgaba de la rama de «la descarga oficial fallo».
+    expect(consultadas).toBeGreaterThanOrEqual(1)
+    expect(counts.consensusConfirmed).toBeGreaterThanOrEqual(1)
+  })
+})
