@@ -6375,6 +6375,95 @@ el parpadeo y el riesgo de hidratación que eso trae; el botón está siempre y 
 
 ---
 
+## D-162 — Fuentes alternativas bajo consenso de dos dominios
+
+**Fase:** mantenimiento posterior a la Fase 9 (loterías, 2026-09-02)
+
+**Contexto.** Tres de las seis loterías no tenían fuente oficial utilizable, y no por un defecto
+nuestro: Cundinamarca publica sus actas como PDF escaneados (I-086), Bogotá está tras un desafío de
+Cloudflare y su API exige un CAPTCHA (I-087), y el Meta responde a Colombia pero bloquea a la IP de
+Vercel (I-091). Esos sorteos se quedaban **sin resultado para siempre**. A eso se suma que las
+portadas de las otras tres solo publican el último sorteo, así que un tick perdido cuesta un sorteo
+(I-092). BR-L17 prohibía sustituir una fuente oficial por un agregador; el usuario autorizó
+expresamente levantar esa prohibición, **pero solo bajo el mecanismo de consenso que sigue**.
+
+**Decisión.**
+
+**(a) Un agregador nunca es una autoridad, así que uno solo no confirma nada.** Un número se
+confirma cuando el **mismo** número aparece en **al menos dos dominios distintos** para el mismo
+sorteo y la misma fecha oficial. La identidad de una fuente es su **dominio**, no su URL: la página
+exterior de Paga Todo y su iframe son la misma fuente, y contarlas como dos sería fabricar un
+consenso con una sola. Con una sola fuente el sorteo queda **pendiente**, que es una respuesta
+correcta; con dos números respaldados por dos fuentes cada uno queda en **conflicto**, sin
+coincidencias ni avisos.
+
+**(b) Paga Todo no es accesible, y no se elude.** El encargo la daba por fuente preferente. Medido
+el 2026-09-02 desde este entorno con las mismas cabeceras honestas que usa `fetch.ts`: la página
+exterior **y** el iframe responden **403 de Cloudflare con cuerpo vacío**. Se deja declarada —un
+desafío se configura y se desconfigura, como demostró la Cruz Roja (I-089)— y su fallo se registra
+como `source_blocked` sin tumbar el tick. **No se cambia el `User-Agent`, no se usa proxy, no se
+resuelve el desafío y no se copian cookies.** Las tres que sí responden son Perlatodo, Ganar Chance y
+Loterías de Hoy.
+
+**(c) La trampa que obligó a leer estructura y no texto: «DEMORADOS - PEPAS».** Perlatodo publica dos
+tablas con la misma pinta. La segunda no son resultados: sus columnas son
+`Lotería/Sorteo | Demorados | Fecha Último Resultado`, y comprobado el 2026-09-02 daba **`7130`** para
+Medellín del 28 de agosto cuando el premio mayor oficial de ese sorteo es **`2608`**, y **`1789`**
+para Boyacá cuando el oficial es **`7660`**. Con la fecha correcta y el nombre correcto, **nada
+aguas abajo lo habría frenado**: es exactamente la forma de I-088. Se distinguen por la clase del
+elemento —`balotera-home` es resultado, `balotera-home-dem` es demorado— y el lector descarta la fila
+entera en cuanto ve la segunda. Por eso los fixtures de estas fuentes son **HTML real sanitizado** y
+no marcado inventado: un fixture escrito a mano nunca habría reproducido esta tabla.
+
+**(d) Tabla nueva, y no el `evidence` del resultado.** Se evaluó reutilizar `lottery_results.evidence`
+y no sirve por tres razones que no son de gusto: `lottery_results` tiene `UNIQUE (schedule_id)` y las
+observaciones son varias por sorteo; mientras no hay consenso **no existe** fila de resultado donde
+guardarlas, y crear una `pending` con un número sin verificar es justo lo que esta regla existe para
+impedir; y un `jsonb` no tiene `UNIQUE (schedule_id, source_id)`, así que dos ticks duplicarían la
+observación de una fuente y **fabricarían el consenso ellos solos**. La unicidad tiene que ser del
+motor. De ahí `lottery_source_observations` (`0045`), pequeña y sin RLS de lectura para
+`authenticated`: un vendedor no tiene por qué ver números sin confirmar.
+
+**(e) Los intentos se cuentan por sorteo Y por estrategia.** Sin eso, los sorteos que ya gastaron sus
+seis intentos contra una fuente oficial rota nunca probarían la vía nueva. La alternativa habría sido
+borrar o reescribir `lottery_sync_runs`, y eso destruye la bitácora de por qué fallaron. Con la
+columna `strategy` las filas viejas se quedan como están —son intentos `official`, que es la verdad—
+y el contador de `alternative` empieza en cero para todos. **Nadie reinicia ningún contador.**
+
+**(f) La reconciliación posterior ya estaba implementada, y se reutiliza tal cual.** El disparador
+`lottery_results_protect_confirmed` (`0036`) hace exactamente lo que pedía el encargo: si llega un
+número distinto al ya confirmado, **conserva el que estaba**, guarda el nuevo en
+`conflicting_winning_number` y marca `conflict`; y `confirm_lottery_result` sale entonces sin generar
+coincidencias. No hizo falta ni una línea nueva. Comprobado con dos pruebas de base de datos.
+
+**(g) El respaldo está APAGADO por omisión, y solo lo enciende el job.** `syncDueLotteryResults`
+recibe `enableAlternativeSources`, que por defecto es `false`. Esta etapa sale a internet y el único
+sitio autorizado a hacerlo es el tick (BR-L20); con el interruptor apagado, ninguna llamada futura
+—una prueba, un script, una pantalla por error— puede descargar nada sin pedirlo expresamente. Una
+prueba comprueba que `enableAlternativeSources: true` aparece **solo** en `job.ts`.
+
+**(h) El Panel dice de dónde salió el número.** Un resultado por consenso **no** se presenta como
+oficial: donde antes decía «Fuente oficial» ahora dice **«Verificado por 2 fuentes»**, con el número
+real. La procedencia viaja en la **misma** lectura local que ya existía —`source_kind` y `evidence`
+se añaden al `select`—, así que el recuadro sigue haciendo **dos consultas como máximo**, dentro de
+su límite de Suspense y con su plazo compartido (BR-L25, D-155). No se añade ninguna consulta, ni
+polling, ni lista de URLs en pantalla.
+
+**Lo que NO se hizo.** OCR, navegador headless, proxy, resolución de CAPTCHA, cabeceras que finjan un
+navegador, cookies de una sesión humana, un workflow nuevo, un endpoint público para introducir
+resultados, ni una segunda arquitectura de loterías. Tampoco se insertó `7132` ni ningún otro número
+como dato: vive solo como fixture de regresión.
+
+**Consecuencia.** Medido contra las fuentes reales el 2026-09-02, **las seis loterías quedan
+cubiertas**: donde la oficial ya confirmaba (Medellín `2608`, Boyacá `7660`) las alternativas dicen
+exactamente lo mismo, y donde no podía, el consenso resuelve —Cruz Roja `7132`, Cundinamarca `3478`,
+Bogotá `7280`, Meta `8134`—. Un tick real sobre la base local confirmó Cruz Roja y Cundinamarca
+gastando **6 descargas exactas**, y el siguiente resolvió Bogotá: hay progreso determinista y no hay
+inanición. **Paga Todo queda bloqueada** y documentada como tal. Nueva regla **BR-L26**; **BR-L17**
+queda sustituida en parte y se anota, sin reescribirla.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

@@ -3185,6 +3185,59 @@ I-062, I-063, I-024. Sin relación con este trabajo.
 
 ---
 
+## Mantenimiento post-9 — fuentes alternativas bajo consenso (2026-09-02)
+
+Autorizado expresamente, incluido levantar en parte BR-L17. **NO desplegado, sin push, sin tocar
+producción.** `0045` está solo en local.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué quedó |
+|---|---|
+| Fuentes alternativas | Cuatro declaradas, con **allowlist propia** que no se mezcla con la oficial. Paga Todo queda **bloqueada** (403 de Cloudflare, I-093) y las otras tres son utilizables |
+| Lectores | Uno por fuente, anclados a la fila o tarjeta de la lotería. Descartan la tabla «DEMORADOS - PEPAS» de Perlatodo, que publica cifras que **no** son premios mayores |
+| Consenso | Un número se confirma solo si **dos dominios distintos** coinciden. Una fuente no confirma; dos números con dos fuentes cada uno es conflicto |
+| Persistencia | `lottery_source_observations` y `record_lottery_observations` (`0045`), con `UNIQUE (schedule_id, source_id)` |
+| Recuperación | `lottery_sync_runs.strategy`: los intentos se cuentan por sorteo **y** estrategia, así que los sorteos que agotaron los seis intentos oficiales vuelven a ser elegibles **sin borrar la bitácora** |
+| Panel | Dice **«Verificado por 2 fuentes»** cuando el número no vino de la autoridad. Misma lectura local, mismas dos consultas, mismo Suspense y mismo plazo |
+
+### 2. Pruebas ejecutadas y sus resultados
+
+Detalle en [`TEST_RESULTS.md`](TEST_RESULTS.md). `npm run test` **722/722**, `npm run test:db`
+**725/725**, `npm run verify` ✅. Tres suites nuevas (21 + 15 + 8). Un tick real contra las fuentes
+reales confirmó Cruz Roja 3169 → **7132** y Cundinamarca 4818 → **3478** gastando **6 descargas
+exactas**; el segundo resolvió Bogotá 2861 → **7280**. Cinco errores encontrados y corregidos, todos
+registrados.
+
+### 3. Migraciones que existen
+
+**`0045_lottery_source_observations.sql`** — tabla de observaciones, `strategy` en
+`lottery_sync_runs`, `alternative_consensus` como tipo de fuente y la RPC de consenso. **Solo
+local: NO aplicada al proyecto real.**
+
+### 4. Variables de entorno requeridas
+
+Sin cambios.
+
+### 5. Problemas reales que permanecen
+
+| Problema | Impacto |
+|---|---|
+| **`0045` sin aplicar y código sin desplegar** | La corrección **no está en producción**. Nada de esto corre todavía |
+| **I-093** — Paga Todo bloqueada | Ninguno en la práctica: el consenso se logra con las otras tres |
+| **I-086, I-087, I-091** mitigadas, no resueltas | Las tres fuentes oficiales siguen sin poder leerse. Lo que cambia es que ya no se depende de ellas |
+| Un premio grande | Conviene contrastar con el acta oficial: «Verificado por 2 fuentes» no es la autoridad |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Que `0045` sigue sin aplicarse al proyecto real** y que los cron pueden estar activos: el código
+   desplegado hoy **no** tiene esta vía, así que no hay riesgo, pero desplegar sin aplicar la
+   migración sí lo tendría.
+2. Los pasos manuales del informe de D-162 y `DEPLOYMENT.md` §2.2.
+3. Que las cuatro fuentes siguen respondiendo: son sitios de terceros y su maquetación cambia.
+
+---
+
 ## Mantenimiento post-9 — observación de los sorteos reales, etapa 6/6 (2026-09-01)
 
 Autorizado expresamente. **Auditoría de solo lectura**: no se disparó ningún tick, no se desplegó, no

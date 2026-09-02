@@ -145,6 +145,32 @@ nunca un entero.
 
 ---
 
+
+### lottery_source_observations (0045, D-162)
+
+Lo que dijo **cada fuente** sobre un sorteo. Existe porque un agregador no es una autoridad: un
+número solo se confirma si **dos dominios distintos** dicen lo mismo (BR-L26).
+
+| Columna | Nota |
+|---|---|
+| `schedule_id` | FK a `lottery_draw_schedules`, `on delete cascade` |
+| `source_id` | El **dominio**: `official`, `pagatodo`, `perlatodo`, `ganarchance`, `loteriasdehoy`. Dos rutas del mismo sitio comparten `source_id` |
+| `source_class` | `official` o `alternative`; un `check` obliga a que `official` sea la una y solo la una |
+| `observed_date`, `winning_number`, `series`, `observed_draw_number` | Lo extraído. El número mayor son cuatro dígitos exactos; el sorteo, solo si la fuente lo publica —**nunca se rellena** con el de la programación— |
+| `content_hash`, `fetched_at`, `evidence` | Trazabilidad mínima. **No se guarda HTML, PDF ni texto sin procesar** (BR-L16) |
+| `UNIQUE (schedule_id, source_id)` | Lo que hace honesto el consenso: dos ticks de la misma fuente **actualizan** una observación, no suman dos votos |
+
+**RLS:** activada y forzada, **sin política de `SELECT` para `authenticated`**. Es bitácora
+operativa, como `lottery_sync_runs`: un vendedor no tiene por qué ver números sin confirmar, y el
+Panel no lee esta tabla.
+
+**`lottery_sync_runs.strategy`** (`0045`): `official` o `alternative`. Los reintentos se cuentan
+por sorteo **y** por estrategia, de modo que un sorteo que agotó sus seis intentos contra una fuente
+oficial rota empieza de cero en la vía alternativa **sin borrar ni reescribir la bitácora**.
+
+**`lottery_results.source_kind`** admite además `alternative_consensus`, que es lo que permite al
+Panel decir «Verificado por 2 fuentes» en vez de hacerlo pasar por oficial.
+
 ## 4. Tablas
 
 ### 4.1 `organizations`

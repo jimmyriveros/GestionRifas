@@ -23,9 +23,132 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **636 ✅** | **663 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento; en la etapa 3/6 solo se reejecutaron las 8 de loterías, todas verdes; en la 6/6, las 10 unitarias de loterías: **154/154**) | ✅ | ✅ |
+| Post-9 vigente | **722 ✅** | **725 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento; en la etapa 3/6 solo se reejecutaron las 8 de loterías, todas verdes; en la 6/6, las 10 unitarias de loterías: **154/154**) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Fuentes alternativas bajo consenso (2026-09-02, D-162, BR-L26)
+
+Mantenimiento posterior al plan. **Autorizado expresamente**, incluido levantar en parte la
+prohibición de BR-L17. **No se desplegó, no se hizo push y no se tocó producción.** `0045` está
+**solo en local**.
+
+### a. Verificación de los hechos, antes de programar
+
+El encargo pedía comprobar sus premisas en vez de darlas por buenas. Medido el **2026-09-02** desde
+este entorno con **las mismas cabeceras honestas** que usa `fetch.ts`, sin simular un navegador:
+
+| Fuente | HTTP | Cuerpo | Veredicto |
+|---|---|---|---|
+| Paga Todo, página exterior | **403** | 0 KB, `server: cloudflare` | **No utilizable** (I-093) |
+| Paga Todo, iframe | **403** | 0 KB, `server: cloudflare` | **No utilizable** — y es el mismo dominio, así que nunca habrían sido dos fuentes |
+| Perlatodo | 200 | 186 KB | Utilizable |
+| Ganar Chance | 200 | 35 KB | Utilizable |
+| Loterías de Hoy | 200 | 88 KB | Utilizable |
+
+**La premisa del encargo cambió:** Paga Todo era la fuente preferente y no puede serlo. El encargo ya
+preveía este caso y lo que se hizo es lo que manda: clasificarla `source_blocked`, no eludirla, no
+contarla como evidencia y seguir con las otras tres.
+
+### b. El hallazgo que evitó un I-088
+
+Perlatodo publica **dos** tablas con la misma pinta. La segunda se titula **«DEMORADOS - PEPAS»** y
+sus columnas son `Lotería/Sorteo | Demorados | Fecha Último Resultado`. **No son premios mayores:**
+
+| Lotería | Lo que dice esa tabla | El premio mayor oficial |
+|---|---|---|
+| Medellín, 2026-08-28 | `7130` | **`2608`** |
+| Boyacá, 2026-08-29 | `1789` | **`7660`** |
+
+Con el nombre correcto y la fecha correcta, **nada aguas abajo lo habría frenado**. Se distinguen por
+la clase: `balotera-home` es resultado, `balotera-home-dem` es demorado. El lector descarta la fila
+entera en cuanto ve la segunda, y hay una prueba que lo fija.
+
+### c. Cobertura real de las seis loterías
+
+Comprobada una a una contra las fuentes en vivo. Donde la fuente oficial **ya confirmaba**, las
+alternativas dicen exactamente lo mismo — que es la mejor evidencia de que los lectores leen bien:
+
+| Lotería | Sorteo | Oficial | Perlatodo | Ganar Chance | Loterías de Hoy | Consenso |
+|---|---|---|---|---|---|---|
+| Cruz Roja | 3169 (09-01) | portada aún en 3168 | **7132** | **7132** s250 | **7132** s250 sorteo 3169 | ✅ 3 fuentes |
+| Cundinamarca | 4818 (08-31) | acta escaneada (I-086) | **3478** | **3478** s085 | **3478** sorteo 4818 | ✅ 3 fuentes |
+| Bogotá | 2861 (08-27) | bloqueada (I-087) | — | **7280** s388 | **7280** sorteo 2861 | ✅ 2 fuentes |
+| Meta | 3313 (08-26) | bloqueada desde Vercel (I-091) | — | **8134** s096 | **8134** sorteo 3313 | ✅ 2 fuentes |
+| Medellín | 4850 (08-28) | **2608** ✅ | — | **2608** s301 | **2608** sorteo 4850 | coincide con la oficial |
+| Boyacá | 4639 (08-29) | **7660** ✅ | — | **7660** s393 | **7660** sorteo 4639 | coincide con la oficial |
+
+Los índices de Perlatodo y Ganar Chance solo publican **uno a tres días**; el histórico está en las
+páginas por lotería, y de ahí salen los sorteos viejos. **Loterías de Hoy publica además el número de
+sorteo**, lo que permite contrastar la observación contra el cronograma CNJSA y no solo contra la
+fecha.
+
+### d. El tick real, contra las fuentes reales y la base local
+
+Ejercido `syncDueLotteryResults` de verdad, con la fuente oficial simulada como caída —que es su
+estado real para estos cuatro— y **descargas externas auténticas**:
+
+| | Primer tick | Segundo tick |
+|---|---|---|
+| Candidatos | 4 | 2 |
+| **Descargas** | **6** (el tope exacto) | 6 |
+| Confirmados por consenso | **2** | **1** |
+| Diferidos | 2 | 0 |
+| Duración | 3,9 s | 3,4 s |
+
+| Sorteo | Tras el primer tick | Tras el segundo |
+|---|---|---|
+| Cruz Roja 3169 | **7132** `alternative_consensus`, fuentes `[ganarchance, perlatodo]` | igual |
+| Cundinamarca 4818 | **3478** `alternative_consensus` | igual |
+| Bogotá 2861 | pendiente (diferido) | **7280** `alternative_consensus` |
+| Meta 3313 | pendiente (diferido) | pendiente, espera al tercero |
+
+**Lo que demuestra:** el presupuesto de seis se respeta con las dos vías juntas; hay **progreso
+determinista y sin inanición** —lo diferido se atiende en el tick siguiente, y con diez ticks al día
+se resuelve solo—; y `lottery_sync_runs` registra las dos estrategias por separado
+(`official failed source_blocked` / `alternative success`), que es lo que permite reintentar por la
+vía nueva sin reiniciar ningún contador.
+
+### e. Pruebas
+
+| Suite | Resultado |
+|---|---|
+| `tests/unit/lottery-alternative.test.ts` (nueva) | **21 ✅** — lectores, tabla de demorados, ruido, dos listas de dominios, presupuesto, página compartida una vez, parada al llegar a dos, fecha de otro día, fuente ambigua |
+| `tests/db/lottery-consensus.test.ts` (nueva) | **15 ✅** — una fuente no confirma, dos rutas del mismo dominio cuentan una, consenso, ceros iniciales, idempotencia, desacuerdo, discrepancia conservada, conflicto 2 vs 2, fecha, día siguiente, sorteo distinto, reconciliación coincidente y discrepante, permisos de `anon` |
+| `tests/unit/lottery-panel-isolation.test.ts` (nueva) | **8 ✅** — el Panel no alcanza ningún módulo que descargue, ninguna llamada a `fetch()`, sigue tras Suspense, `enableAlternativeSources: true` **solo** en `job.ts`, y el recuadro sigue en dos consultas |
+| `npm run test` | **722/722 ✅** (antes 693) |
+| `npm run test:db` | **725/725 ✅** (antes 710) |
+| `npm run verify` | ✅ typecheck · lint **0 errores** (los 2 avisos de siempre) · 722 unitarias · build |
+| `npm run db:reset` | ✅ las 45 migraciones aplican en orden |
+
+**Errores encontrados y corregidos durante el trabajo**, que se registran porque uno documentado es
+información:
+
+1. **Dos lectores no encontraban nada**: los cuantificadores acotados se quedaban cortos en páginas
+   con mucho marcado —el último bloque de Loterías de Hoy llega a 12.632 caracteres del final y el
+   `<tbody>` de Ganar Chance está a 469 del título—. Corregido partiendo por el marcador y acotando
+   por posición, que además garantiza que un campo no venga del bloque vecino.
+2. **Cuatro pruebas de `lottery-horizon` se quedaron en tiempo de espera**: la etapa alternativa salía
+   a la red en pruebas que solo inyectaban la fuente oficial. **Es un riesgo real, no de pruebas**, y
+   por eso el arreglo no fue tocar las pruebas: el respaldo pasó a estar **apagado por omisión** y
+   solo lo enciende `job.ts`.
+3. **La migración llamaba a una función inexistente**: el primer borrador envolvía
+   `confirm_lottery_result` en un `confirm_lottery_result_v1` que no existe. Corregido sin duplicar
+   sus 250 líneas: se confirma con tipo nulo y se fija `source_kind` justo después.
+4. **Los tipos generados quedaron sin la llave de cierre** de la tabla nueva al aplicar solo el bloque
+   cambiado (conservando CRLF, como en D-152). Detectado por `tsc` y corregido.
+5. **Una prueba de base de datos usaba números de sorteo con letras** y chocaba con el `check` de
+   `observed_draw_number`. La restricción es correcta —los sorteos reales son dígitos—; se corrigió la
+   prueba.
+
+### f. Lo que NO se hizo
+
+Ni OCR, ni navegador headless, ni proxy, ni resolución de CAPTCHA, ni cabeceras que finjan un
+navegador, ni cookies de una sesión humana, ni un workflow nuevo, ni un endpoint público para
+introducir resultados. **`7132` no está en ninguna migración, constante ni seed**: vive solo como
+fixture de regresión.
 
 ---
 

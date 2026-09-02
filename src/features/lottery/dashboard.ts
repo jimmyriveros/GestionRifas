@@ -58,7 +58,7 @@ export const LOTTERY_DASHBOARD_SCHEDULE_SELECT = [
   'source_url',
   'source_authority',
   'verified_at',
-  'lottery_results ( id, winning_number, series, validation_status, source_url, fetched_at, confirmed_at )',
+  'lottery_results ( id, winning_number, series, validation_status, source_url, source_kind, evidence, fetched_at, confirmed_at )',
 ].join(', ')
 
 /** Coincidencias del ambito de quien pregunta, con la boleta y la rifa. */
@@ -89,6 +89,9 @@ export const LOTTERY_DASHBOARD_COPY = {
   winningNumber: 'Número mayor',
   series: 'Serie informativa',
   officialSource: 'Fuente oficial',
+  // Un resultado por consenso NO se presenta como oficial (D-162, BR-L26).
+  // Se dice cuantas fuentes lo respaldan, con el numero real.
+  consensusSource: (fuentes: number) => `Verificado por ${fuentes} fuentes`,
   lastVerified: 'Última verificación',
   scheduleVerified: 'Programación verificada',
   weekChanges: 'Cambios de programación',
@@ -114,6 +117,10 @@ export type LotteryResultSnapshot = {
   series: string | null
   validationStatus: ValidationStatus
   sourceUrl: string | null
+  /** `alternative_consensus` si lo confirmaron dos fuentes, no la autoridad. */
+  sourceKind: string | null
+  /** Cuantos dominios formaron el consenso. Nulo si vino de la fuente oficial. */
+  consensusSources: number | null
   fetchedAt: string
   confirmedAt: string | null
 }
@@ -162,6 +169,12 @@ export type LotteryDrawView = {
   series: string | null
   sourceUrl: string | null
   sourceAuthority: string | null
+  /**
+   * Cuantas fuentes respaldan el numero cuando NO lo confirmo la autoridad.
+   * Nulo = vino de la fuente oficial. El Panel no puede presentar un consenso
+   * como si fuera oficial (D-162).
+   */
+  consensusSources: number | null
   lastVerifiedAt: string | null
   matches: LotteryMatchView[]
   soldCount: number
@@ -178,10 +191,7 @@ export type LotteryDashboardReady = {
   weekAlerts: LotteryDrawView[]
 }
 
-export type LotteryDashboard =
-  | { kind: 'error' }
-  | { kind: 'empty' }
-  | LotteryDashboardReady
+export type LotteryDashboard = { kind: 'error' } | { kind: 'empty' } | LotteryDashboardReady
 
 function addIsoDays(iso: string, days: number): string {
   const date = new Date(`${iso}T12:00:00Z`)
@@ -217,10 +227,7 @@ function sortInstant(row: LotteryScheduleSnapshot): number {
   return Date.parse(`${row.referenceDate}T23:59:59-05:00`)
 }
 
-function isNotableSchedule(
-  status: ScheduleStatus,
-  reason: ChangeReason | null,
-): boolean {
+function isNotableSchedule(status: ScheduleStatus, reason: ChangeReason | null): boolean {
   if (
     status === 'rescheduled_later' ||
     status === 'rescheduled_earlier' ||
@@ -280,9 +287,7 @@ export function toDrawView(row: LotteryScheduleSnapshot): LotteryDrawView {
   const matches = row.matches.map(toMatchView)
   const raffleNames = [
     ...new Set(
-      matches
-        .map((match) => match.raffleName)
-        .filter((name): name is string => Boolean(name)),
+      matches.map((match) => match.raffleName).filter((name): name is string => Boolean(name)),
     ),
   ]
   const result = row.result
@@ -303,6 +308,8 @@ export function toDrawView(row: LotteryScheduleSnapshot): LotteryDrawView {
     series: result?.series ?? null,
     sourceUrl: result?.sourceUrl ?? row.sourceUrl,
     sourceAuthority: row.sourceAuthority,
+    consensusSources:
+      result?.sourceKind === 'alternative_consensus' ? (result.consensusSources ?? 2) : null,
     lastVerifiedAt: result?.fetchedAt ?? row.verifiedAt,
     matches,
     soldCount: matches.filter((match) => match.assignmentStatus === 'sold').length,
@@ -365,9 +372,7 @@ export function buildLotteryDashboard(
 ): LotteryDashboard {
   if (rows.length === 0) return { kind: 'empty' }
 
-  const views = [...rows]
-    .sort((a, b) => sortInstant(a) - sortInstant(b))
-    .map(toDrawView)
+  const views = [...rows].sort((a, b) => sortInstant(a) - sortInstant(b)).map(toDrawView)
 
   const todayDraws = views.filter((draw) => draw.officialDate === today)
 
@@ -376,20 +381,19 @@ export function buildLotteryDashboard(
     (draw) => draw.resultKind === 'confirmed' || draw.resultKind === 'conflict',
   )
 
-  const previousConfirmed =
-    todayHasConfirmed
-      ? null
-      : views
-          .filter(
-            (draw) =>
-              (draw.resultKind === 'confirmed' || draw.resultKind === 'conflict') &&
-              !todayIds.has(draw.scheduleId),
-          )
-          .sort((a, b) => {
-            const aTime = a.officialScheduledAt ?? a.referenceDate
-            const bTime = b.officialScheduledAt ?? b.referenceDate
-            return Date.parse(bTime) - Date.parse(aTime)
-          })[0] ?? null
+  const previousConfirmed = todayHasConfirmed
+    ? null
+    : (views
+        .filter(
+          (draw) =>
+            (draw.resultKind === 'confirmed' || draw.resultKind === 'conflict') &&
+            !todayIds.has(draw.scheduleId),
+        )
+        .sort((a, b) => {
+          const aTime = a.officialScheduledAt ?? a.referenceDate
+          const bTime = b.officialScheduledAt ?? b.referenceDate
+          return Date.parse(bTime) - Date.parse(aTime)
+        })[0] ?? null)
 
   const nowMs = now.getTime()
   const nextDraw =

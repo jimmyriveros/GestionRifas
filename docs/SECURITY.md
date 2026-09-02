@@ -39,6 +39,25 @@ registro ajeno.
 
 ---
 
+
+## Fuentes alternativas de loterías (D-162, BR-L26)
+
+Desde el 2026-09-02 el sincronizador consulta también dominios que **no son autoridades**. Las
+defensas no se relajan: se duplican.
+
+| Defensa | Cómo queda |
+|---|---|
+| Allowlist | **Dos listas separadas y que no se mezclan**: `ALLOWED_SOURCE_HOSTS` (oficial) y `ALLOWED_ALTERNATIVE_HOSTS`. Una ruta oficial nunca se resuelve contra la alternativa, ni al revés. Una prueba lo comprueba en las dos direcciones |
+| HTTPS, timeout, tope de bytes, redirecciones acotadas | Los mismos de `fetchOfficialDocument`: es **la misma función**, con la lista inyectada |
+| Redirecciones | Se valida el host en cada salto, también para las alternativas |
+| URLs | **Nunca** vienen del cliente: se arman con el año y el sorteo de la programación oficial |
+| Caché | `cache: 'no-store'` explícito. Una respuesta guardada traería la fecha de otro día y se aceptaría como buena |
+| Escritura | `record_lottery_observations` es `SECURITY DEFINER`, con `search_path` fijo, **revocada de `public`, `anon` y `authenticated`**; solo `service_role`. No hay endpoint público para introducir un resultado |
+| Lectura | `lottery_source_observations` tiene RLS forzada y **ninguna política de `SELECT`**: `authenticated` no la lee |
+| `tickets_select` | **No se amplía.** El matching y su aislamiento no cambian |
+| Elusión | No se resuelven CAPTCHA, no se usan proxies, no se falsifica un navegador con cabeceras, no se copian cookies de una sesión humana y no se ejecuta un navegador headless. Paga Todo responde 403 y **se acepta el 403** (I-093) |
+
+
 ## 2. Matriz de permisos
 
 `✓` permitido · `✗` prohibido · `P` solo sobre sus propios registros

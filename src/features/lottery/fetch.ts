@@ -17,9 +17,9 @@ export type FetchedDocument = {
   body: Uint8Array
 }
 
-function hostAllowed(hostname: string): boolean {
+function hostAllowed(hostname: string, allowHosts: readonly string[]): boolean {
   const host = hostname.toLowerCase()
-  return ALLOWED_SOURCE_HOSTS.some((allowed) => host === allowed)
+  return allowHosts.some((allowed) => host === allowed)
 }
 
 /**
@@ -46,8 +46,20 @@ const PDF_CONTENT_TYPES = /^(application\/pdf|application\/octet-stream|binary\/
  */
 export async function fetchOfficialDocument(
   url: string,
-  init?: { timeoutMs?: number; maxBytes?: number; expect?: 'pdf' },
+  init?: {
+    timeoutMs?: number
+    maxBytes?: number
+    expect?: 'pdf'
+    /**
+     * Contra QUE lista se resuelve la URL. Por omision, la oficial; las
+     * fuentes alternativas pasan la suya (D-162). Son dos listas y no se
+     * mezclan: que un agregador este autorizado no lo convierte en autoridad,
+     * y una ruta oficial nunca se resuelve contra la lista alternativa.
+     */
+    allowHosts?: readonly string[]
+  },
 ): Promise<{ ok: true; value: FetchedDocument } | AdapterFail> {
+  const allowHosts = init?.allowHosts ?? ALLOWED_SOURCE_HOSTS
   let current: URL
   try {
     current = new URL(url)
@@ -58,7 +70,7 @@ export async function fetchOfficialDocument(
   if (current.protocol !== 'https:') {
     return fail('blocked_host', 'Solo se aceptan fuentes HTTPS.', url)
   }
-  if (!hostAllowed(current.hostname)) {
+  if (!hostAllowed(current.hostname, allowHosts)) {
     return fail('blocked_host', 'La fuente no esta en la lista de dominios oficiales.', url)
   }
   if (!pathAllowed(current)) {
@@ -78,6 +90,11 @@ export async function fetchOfficialDocument(
         method: 'GET',
         redirect: 'manual',
         signal: controller.signal,
+        // Un resultado de loteria no se cachea NUNCA: una respuesta guardada
+        // de ayer traeria la fecha de ayer y se aceptaria como buena. Next 16
+        // ya no cachea `fetch` por omision, pero aqui se dice explicitamente
+        // porque es una condicion de correccion, no una preferencia (D-162).
+        cache: 'no-store',
         headers: {
           accept:
             'text/html,application/xhtml+xml,application/json,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream;q=0.8,*/*;q=0.1',
@@ -99,7 +116,7 @@ export async function fetchOfficialDocument(
       }
       const next = new URL(location, current)
       if (next.protocol === 'http:') next.protocol = 'https:'
-      if (next.protocol !== 'https:' || !hostAllowed(next.hostname)) {
+      if (next.protocol !== 'https:' || !hostAllowed(next.hostname, allowHosts)) {
         return fail(
           'blocked_redirect',
           'La redireccion abandona los dominios oficiales.',

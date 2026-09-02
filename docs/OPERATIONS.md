@@ -159,6 +159,20 @@ los que publica la fuente, dígito a dígito.
 | Cundinamarca | lunes | ⚠️ **A mano.** Sus actas son escaneos sin texto (I-086) |
 | Bogotá | jueves | ⚠️ **A mano.** El sitio está tras un desafío de Cloudflare y su API exige un CAPTCHA (I-087) |
 
+> **Desde el 2026-09-02 esto cambió (D-162, BR-L26).** Cuando la fuente oficial no puede entregar
+> un sorteo, la aplicación consulta **fuentes alternativas** —Perlatodo, Ganar Chance y Loterías de
+> Hoy— y confirma el número **solo si dos dominios distintos dicen lo mismo**. Con eso, **las tres
+> loterías que había que mirar a mano ya no lo necesitan**: comprobado en vivo, Cundinamarca 4818 →
+> 3478, Bogotá 2861 → 7280 y Meta 3313 → 8134.
+>
+> **Lo que hay que entender antes de fiarse:** esas fuentes **no son autoridades**. El Panel lo dice
+> con todas las letras —«Verificado por 2 fuentes» en vez de «Fuente oficial»— y ahí conviene mirar
+> el acta o la página oficial antes de pagar un premio grande. Si las fuentes se contradicen, la
+> aplicación **no publica nada**: prefiere dejarlo pendiente.
+>
+> **Paga Todo no se usa**: responde 403 de Cloudflare a una consulta automatizada (I-093). No se
+> elude.
+
 > **Lo que cambia para quien opera:** los miércoles hay que mirar el resultado del Meta en
 > `loteriadelmeta.gov.co` desde un navegador normal, igual que ya se hacía con Bogotá y
 > Cundinamarca. La aplicación **no inventa** el número que no puede leer.

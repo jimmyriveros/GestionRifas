@@ -1416,6 +1416,35 @@ su `overflow-x-auto`; la página no se desplaza de lado ni a 320 px.
 
 ---
 
+
+### 8.19.d Fuentes alternativas y consenso (D-162, BR-L26)
+
+El módulo de loterías gana una **segunda vía**, no una segunda arquitectura. Se extiende lo que ya
+había; no hay capa de servicios nueva ni un flujo paralelo.
+
+| Pieza | Qué hace |
+|---|---|
+| `alternative-sources.ts` | Declara las cuatro fuentes, su **dominio** —que es su identidad para el consenso—, su forma (`index` o `per_lottery`) y su allowlist propia |
+| `parse/alternative.ts` | Un lector por fuente. Anclados a la **fila o tarjeta** de la lotería, nunca a la página entera |
+| `alternative-adapters.ts` | Descarga con `fetchOfficialDocument` —**la misma función**, con la lista alternativa inyectada— y devuelve observaciones sin juzgarlas |
+| `consensus.ts` | Recorre las fuentes con el presupuesto del tick, para al llegar a dos dominios de acuerdo y entrega lo leído a la base |
+| `0045` | `lottery_source_observations` y `record_lottery_observations`, que es **quien decide**: contar dominios distintos y confirmar tiene que pasar dentro de una transacción |
+
+**Dónde se decide qué:** el TypeScript descarga y lee; **PostgreSQL decide**. Es la misma división
+que ya tenía el matching, y por el mismo motivo: la unicidad y la atomicidad las da el motor.
+
+**El caché de página del tick** (`TickPageCache`) vive en memoria y muere con la ejecución. No es un
+caché de red: existe solo para que seis sorteos pendientes no pidan seis veces la misma página
+`index`.
+
+**El interruptor.** `syncDueLotteryResults` recibe `enableAlternativeSources`, **apagado por
+omisión**. El único sitio que lo enciende es `job.ts`, y hay una prueba que lo fija: esta etapa sale
+a internet y el único autorizado es el tick (BR-L20).
+
+**El Panel no cambia de forma:** sigue con dos consultas locales, su límite de Suspense y su plazo
+compartido. La procedencia viaja en el `select` que ya existía (`source_kind`, `evidence`).
+
+
 ## 9. Configuración regional
 
 - **Dinero:** entero de pesos. `formatCOP(100000) === "$100.000"` usando

@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, Json } from '@/types/database.types'
 
 import { fetchLotteryResultForDraw } from './adapters'
+import { collectConsensusForDraw, createTickPageCache, type TickPageCache } from './consensus'
 import { LOTTERY_RESULT_SYNC, type LotteryCode } from './constants'
 import {
   bogotaIsoDate,
@@ -15,6 +16,14 @@ import {
 import type { AdapterOutcome, NormalizedLotteryResult, NormalizedSchedule } from './types'
 
 export type LotteryDb = SupabaseClient<Database>
+
+/**
+ * Con que via se intento un resultado (D-162, BR-L26). Los reintentos se
+ * cuentan por sorteo Y por estrategia: un sorteo que agoto sus seis intentos
+ * contra una fuente oficial rota empieza de cero en la via alternativa, sin
+ * que nadie borre ni reescriba la bitacora anterior.
+ */
+export type LotterySyncStrategy = 'official' | 'alternative'
 
 export type LotterySyncSource = {
   url: string
@@ -216,7 +225,10 @@ export async function loadPendingResultDraws(
   if (resultsError) throw resultsError
 
   const statusBySchedule = new Map(
-    (results ?? []).map((row) => [row.schedule_id, row.validation_status as ResultFetchInputStatus]),
+    (results ?? []).map((row) => [
+      row.schedule_id,
+      row.validation_status as ResultFetchInputStatus,
+    ]),
   )
 
   return rows.map((row) => ({
@@ -262,10 +274,7 @@ export async function tryAcquireLotterySyncLock(
   return data === true
 }
 
-export async function releaseLotterySyncLock(
-  client: LotteryDb,
-  holder: string,
-): Promise<boolean> {
+export async function releaseLotterySyncLock(client: LotteryDb, holder: string): Promise<boolean> {
   const { data, error } = await client.rpc('release_lottery_sync_lock', {
     p_holder: holder,
   })
@@ -283,12 +292,14 @@ export async function releaseLotterySyncLock(
 export async function countResultAttempts(
   client: LotteryDb,
   scheduleId: string,
+  strategy: LotterySyncStrategy = 'official',
 ): Promise<{ failedAttempts: number; lastAttemptAt: string | null; lastErrorCode: string | null }> {
   const { data, error } = await client
     .from('lottery_sync_runs')
     .select('started_at, outcome, error_code')
     .eq('kind', 'results')
     .eq('schedule_id', scheduleId)
+    .eq('strategy', strategy)
     .order('started_at', { ascending: false })
   if (error) throw error
 
@@ -309,6 +320,7 @@ export async function recordLotterySyncRun(
     scheduleId?: string | null
     attempt?: number
     correlationId?: string | null
+    strategy?: LotterySyncStrategy
   },
 ): Promise<string> {
   const { data, error } = await client
@@ -319,6 +331,7 @@ export async function recordLotterySyncRun(
       schedule_id: input.scheduleId ?? null,
       attempt: input.attempt ?? 1,
       correlation_id: input.correlationId ?? null,
+      strategy: input.strategy ?? 'official',
       outcome: 'failed',
     })
     .select('id')
@@ -398,6 +411,8 @@ export type ResultsSyncCounts = {
   failed: number
   /** Candidatos que este tick no llego a examinar: agoto su presupuesto. */
   deferred: number
+  /** Confirmados por consenso alternativo, no por la fuente oficial. */
+  consensusConfirmed: number
 }
 
 /**
@@ -417,17 +432,34 @@ export async function syncDueLotteryResults(
     fetchResult?: FetchResultFn
     correlationId?: string
     maxFetches?: number
+    /**
+     * Enciende el respaldo por consenso. **Apagado por omision, a proposito.**
+     *
+     * Esta etapa sale a internet, y el unico sitio del proyecto autorizado a
+     * hacerlo es el tick (BR-L20). Si el respaldo estuviera encendido por
+     * omision, cualquier llamada futura a esta funcion —una prueba, un script,
+     * una pantalla por error— descargaria paginas externas sin querer. Con el
+     * interruptor apagado eso es imposible: hay que pedirlo, y el unico que lo
+     * pide es `runLotterySyncTick`.
+     */
+    enableAlternativeSources?: boolean
+    /** Solo para pruebas: sustituye la recoleccion de fuentes alternativas. */
+    collectConsensus?: typeof collectConsensusForDraw
   } = {},
 ): Promise<ResultsSyncCounts> {
   const now = input.now ?? new Date()
   const fetchResult = input.fetchResult ?? fetchLotteryResultForDraw
   const maxFetches = input.maxFetches ?? LOTTERY_RESULT_SYNC.maxFetchesPerTick
   const pending = await loadPendingResultDraws(client, { now })
+  // El presupuesto es UNO para las dos vias: oficiales y alternativas salen
+  // del mismo bolsillo de seis descargas por tick (BR-L22, BR-L26).
+  const pageCache = createTickPageCache()
   let fetched = 0
   let confirmed = 0
   let skipped = 0
   let failed = 0
   let deferred = 0
+  let consensusConfirmed = 0
 
   for (const draw of pending) {
     if (fetched >= maxFetches) {
@@ -471,6 +503,22 @@ export async function syncDueLotteryResults(
           recordsRead: 1,
           errorCode: outcome.code,
         })
+        // La fuente oficial no pudo entregar ESTE sorteo. Es justo el caso
+        // que activa el respaldo: se intenta el consenso con lo que quede de
+        // presupuesto (BR-L26). Un resultado oficial VALIDO pero distinto no
+        // llega aqui —lo habria confirmado—, asi que un conflicto nunca se
+        // resuelve en silencio con agregadores.
+        if (input.enableAlternativeSources || input.collectConsensus) {
+          const gastadas = await tryAlternativeConsensus(client, draw, {
+            now,
+            budget: maxFetches - fetched,
+            cache: pageCache,
+            correlationId: input.correlationId ?? null,
+            collect: input.collectConsensus,
+          })
+          fetched += gastadas.downloads
+          if (gastadas.confirmed) consensusConfirmed += 1
+        }
         continue
       }
       confirmed += 1
@@ -489,5 +537,83 @@ export async function syncDueLotteryResults(
     }
   }
 
-  return { candidates: pending.length, fetched, confirmed, skipped, failed, deferred }
+  return {
+    candidates: pending.length,
+    fetched,
+    confirmed,
+    skipped,
+    failed,
+    deferred,
+    consensusConfirmed,
+  }
+}
+
+/**
+ * Respaldo por consenso de un sorteo cuya fuente oficial no sirvio (BR-L26).
+ *
+ * Lleva su propia cuenta de intentos —`strategy = 'alternative'`— para que un
+ * sorteo que agoto sus seis intentos contra una fuente oficial rota pueda
+ * probar esta via sin que nadie borre ni reescriba la bitacora anterior
+ * (D-162). Devuelve cuantas descargas gasto, que el llamador resta del
+ * presupuesto del tick.
+ */
+async function tryAlternativeConsensus(
+  client: LotteryDb,
+  draw: PendingDrawRow,
+  input: {
+    now: Date
+    budget: number
+    cache: TickPageCache
+    correlationId: string | null
+    collect?: typeof collectConsensusForDraw
+  },
+): Promise<{ downloads: number; confirmed: boolean }> {
+  if (input.budget <= 0) return { downloads: 0, confirmed: false }
+
+  const collect = input.collect ?? collectConsensusForDraw
+  const attempts = await countResultAttempts(client, draw.id, 'alternative')
+  const decision = decideResultFetch({
+    lotteryCode: draw.lotteryCode,
+    officialScheduledAt: draw.officialScheduledAt,
+    now: input.now,
+    validationStatus: draw.validationStatus,
+    failedAttempts: attempts.failedAttempts,
+    lastAttemptAt: attempts.lastAttemptAt,
+    lastErrorCode: attempts.lastErrorCode,
+  })
+  if (decision !== 'fetch') return { downloads: 0, confirmed: false }
+
+  const runId = await recordLotterySyncRun(client, {
+    kind: 'results',
+    lotteryCode: draw.lotteryCode,
+    scheduleId: draw.id,
+    attempt: attempts.failedAttempts + 1,
+    correlationId: input.correlationId,
+    strategy: 'alternative',
+  })
+
+  try {
+    const outcome = await collect(
+      client,
+      {
+        scheduleId: draw.id,
+        lotteryCode: draw.lotteryCode,
+        drawNumber: draw.drawNumber,
+        officialDate: bogotaIsoDate(draw.officialScheduledAt),
+      },
+      { budget: input.budget, cache: input.cache },
+    )
+
+    const confirmed = outcome.recorded?.consensus === true
+    await finishLotterySyncRun(client, runId, {
+      outcome: confirmed ? 'success' : 'failed',
+      recordsRead: outcome.attempts.length,
+      recordsChanged: confirmed ? 1 : 0,
+      errorCode: confirmed ? undefined : (outcome.recorded?.reason ?? 'sin_observaciones'),
+    })
+    return { downloads: outcome.downloads, confirmed }
+  } catch {
+    await finishLotterySyncRun(client, runId, { outcome: 'failed', errorCode: 'rpc_error' })
+    return { downloads: 0, confirmed: false }
+  }
 }

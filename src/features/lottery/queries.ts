@@ -36,6 +36,8 @@ type ResultEmbed = {
   series: string | null
   validation_status: NonNullable<LotteryScheduleSnapshot['result']>['validationStatus']
   source_url: string | null
+  source_kind: string | null
+  evidence: unknown
   fetched_at: string
   confirmed_at: string | null
 }
@@ -66,6 +68,20 @@ type MatchQueryRow = {
     | { daily_number: string | null; weekly_number: string | null }[]
     | null
   client: { name: string } | { name: string }[] | null
+}
+
+/**
+ * Cuantos dominios formaron el consenso, leidos de la evidencia que dejo
+ * `record_lottery_observations`. Si no hay evidencia utilizable no se
+ * inventa un numero: se devuelve `null` y el Panel dira solo que no es
+ * oficial (D-162).
+ */
+function consensusSourceCount(evidence: unknown): number | null {
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return null
+  const sources = (evidence as Record<string, unknown>).consensus_sources
+  if (Array.isArray(sources) && sources.length > 0) return sources.length
+  const count = (evidence as Record<string, unknown>).consensus_count
+  return typeof count === 'number' && Number.isFinite(count) ? count : null
 }
 
 function one<T>(value: T | T[] | null | undefined): T | null {
@@ -123,6 +139,8 @@ export async function getLotteryDashboard(now: Date = new Date()): Promise<Lotte
               series: result.series,
               validationStatus: result.validation_status,
               sourceUrl: result.source_url,
+              sourceKind: result.source_kind,
+              consensusSources: consensusSourceCount(result.evidence),
               fetchedAt: result.fetched_at,
               confirmedAt: result.confirmed_at,
             }

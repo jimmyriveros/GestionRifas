@@ -66,8 +66,7 @@ function LotteryDrawBlock({
   const summary = matchSummaryText(draw, audience)
   const raffles = raffleSummaryText(draw.raffleNames)
   const verified = verifiedLabel(draw)
-  const officialDiffers =
-    draw.officialDate !== null && draw.officialDate !== draw.referenceDate
+  const officialDiffers = draw.officialDate !== null && draw.officialDate !== draw.referenceDate
   const visibleMatches = draw.matches.slice(0, LOTTERY_DASHBOARD_MATCH_LINKS)
   const extraMatches = draw.matches.length - visibleMatches.length
 
@@ -82,7 +81,8 @@ function LotteryDrawBlock({
           <p className="text-muted-foreground text-sm">
             Sorteo {draw.drawNumber}
             {' · '}
-            correspondiente al {formatWeekdayEs(draw.referenceDate)} {formatDateEs(draw.referenceDate)}
+            correspondiente al {formatWeekdayEs(draw.referenceDate)}{' '}
+            {formatDateEs(draw.referenceDate)}
           </p>
           {officialDiffers && draw.officialScheduledAt ? (
             <p className="text-muted-foreground text-sm">
@@ -157,14 +157,15 @@ function LotteryDrawBlock({
 
       <p className="text-muted-foreground text-xs">
         {draw.sourceUrl ? (
-          <a
-            href={draw.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline"
-          >
-            {COPY.officialSource}
+          <a href={draw.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+            {/* Un numero confirmado por consenso NO se presenta como oficial:
+                se dice cuantas fuentes lo respaldan (D-162, BR-L26). */}
+            {draw.consensusSources
+              ? COPY.consensusSource(draw.consensusSources)
+              : COPY.officialSource}
           </a>
+        ) : draw.consensusSources ? (
+          <span>{COPY.consensusSource(draw.consensusSources)}</span>
         ) : draw.sourceAuthority ? (
           <span>
             {COPY.officialSource}: {draw.sourceAuthority}

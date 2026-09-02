@@ -378,6 +378,65 @@ export type Database = {
           },
         ]
       }
+      lottery_source_observations: {
+        Row: {
+          content_hash: string | null
+          created_at: string
+          evidence: Json
+          fetched_at: string
+          id: string
+          observed_date: string
+          observed_draw_number: string | null
+          schedule_id: string
+          series: string | null
+          source_class: string
+          source_id: string
+          source_url: string
+          updated_at: string
+          winning_number: string
+        }
+        Insert: {
+          content_hash?: string | null
+          created_at?: string
+          evidence?: Json
+          fetched_at?: string
+          id?: string
+          observed_date: string
+          observed_draw_number?: string | null
+          schedule_id: string
+          series?: string | null
+          source_class: string
+          source_id: string
+          source_url: string
+          updated_at?: string
+          winning_number: string
+        }
+        Update: {
+          content_hash?: string | null
+          created_at?: string
+          evidence?: Json
+          fetched_at?: string
+          id?: string
+          observed_date?: string
+          observed_draw_number?: string | null
+          schedule_id?: string
+          series?: string | null
+          source_class?: string
+          source_id?: string
+          source_url?: string
+          updated_at?: string
+          winning_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lottery_source_observations_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_draw_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lottery_sync_lock: {
         Row: {
           acquired_at: string | null
@@ -415,6 +474,7 @@ export type Database = {
           records_skipped: number
           schedule_id: string | null
           started_at: string
+          strategy: string
         }
         Insert: {
           attempt?: number
@@ -431,6 +491,7 @@ export type Database = {
           records_skipped?: number
           schedule_id?: string | null
           started_at?: string
+          strategy?: string
         }
         Update: {
           attempt?: number
@@ -447,6 +508,7 @@ export type Database = {
           records_skipped?: number
           schedule_id?: string | null
           started_at?: string
+          strategy?: string
         }
         Relationships: [
           {
@@ -1826,6 +1888,10 @@ export type Database = {
       recalc_ticket_paid_amount: {
         Args: { p_ticket_id: string }
         Returns: undefined
+      }
+      record_lottery_observations: {
+        Args: { p_observations: Json; p_schedule_id: string }
+        Returns: Json
       }
       release_lottery_sync_lock: {
         Args: { p_holder: string }

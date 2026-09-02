@@ -74,11 +74,7 @@ export type LotteryTickDeps = {
     now: Date,
     correlationId: string,
   ) => Promise<ScheduleTickResult>
-  syncResults?: (
-    client: LotteryDb,
-    now: Date,
-    correlationId: string,
-  ) => Promise<ResultsTickResult>
+  syncResults?: (client: LotteryDb, now: Date, correlationId: string) => Promise<ResultsTickResult>
 }
 
 function sanitizeErrorCode(code: string | undefined): string {
@@ -155,14 +151,15 @@ export async function syncOfficialSchedule(
  * Un tick: toma el cerrojo, sincroniza programacion si toca, confirma
  * resultados pendientes y suelta. Idempotente. No se llama desde una pagina.
  */
-export async function runLotterySyncTick(
-  deps: LotteryTickDeps = {},
-): Promise<LotteryTickSummary> {
+export async function runLotterySyncTick(deps: LotteryTickDeps = {}): Promise<LotteryTickSummary> {
   const now = deps.now ?? new Date()
   const correlationId = deps.correlationId ?? crypto.randomUUID()
   const client = deps.client ?? createAdminClient()
-  const acquire = deps.acquireLock ?? ((holder: string) => tryAcquireLotterySyncLock(client, holder))
-  const release = deps.releaseLock ?? ((holder: string) => releaseLotterySyncLock(client, holder).then(() => undefined))
+  const acquire =
+    deps.acquireLock ?? ((holder: string) => tryAcquireLotterySyncLock(client, holder))
+  const release =
+    deps.releaseLock ??
+    ((holder: string) => releaseLotterySyncLock(client, holder).then(() => undefined))
 
   const locked = await acquire(correlationId)
   if (!locked) {
@@ -194,7 +191,15 @@ export async function runLotterySyncTick(
     const syncResults =
       deps.syncResults ??
       ((db: LotteryDb, when: Date, id: string) =>
-        syncDueLotteryResults(db, { now: when, correlationId: id }))
+        // El tick es el UNICO sitio del proyecto que enciende el respaldo por
+        // consenso: es el unico autorizado a salir a internet (BR-L20, BR-L26).
+        // El interruptor esta apagado por omision en `syncDueLotteryResults`
+        // justamente para que nadie mas pueda hacerlo sin querer.
+        syncDueLotteryResults(db, {
+          now: when,
+          correlationId: id,
+          enableAlternativeSources: true,
+        }))
 
     // Las dos etapas son independientes: la programacion ya se guardo en su
     // propia transaccion (`sync_lottery_schedules`). Si la de resultados se

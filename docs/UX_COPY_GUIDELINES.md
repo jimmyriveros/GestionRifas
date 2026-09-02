@@ -378,6 +378,8 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Poner la aplicación en la pantalla de inicio del teléfono | **Instalar** | Descargar, bajar la app, añadir acceso directo |
 | El nombre bajo el icono, donde solo caben ~12 caracteres | **Rifas** | «Gestión de…», que es como quedaría el nombre completo |
 | Resultado publicado por una lotería colombiana | **Resultado** (oficial) | Premio, ganador, extracto |
+| Sitio que republica resultados sin ser la autoridad | **Fuente** (a secas, o «otra fuente») | Agregador, espejo, tercero |
+| Que dos de esas fuentes digan el mismo número | **Verificado por 2 fuentes** | Consenso, validado, corroborado |
 | El primer premio de esa lotería, cuatro dígitos | **Número mayor** | Combinación ganadora, primer premio, hit |
 | Que una boleta tenga ese mismo número | **Coincidencia** | Ganador, premio ganado, acierto oficial |
 | La serie que a veces publica la lotería | **Serie informativa** | Serie ganadora |
@@ -688,6 +690,22 @@ propias de esos textos:
 * **El mensaje que se comparte habla en primera persona**: «Consulta **mis** números disponibles».
   Lo envía el vendedor a un chat personal; un texto corporativo ahí suena a reenvío.
 
+
+**Un número que no viene de la lotería no se presenta como si viniera** (D-162, BR-L26). Cuando la
+página oficial no puede entregar un sorteo, la aplicación lo confirma con **dos fuentes distintas**,
+y el recuadro lo dice con esas palabras: **«Verificado por 2 fuentes»**, con el número real de
+fuentes, donde en otro caso diría **«Fuente oficial»**. No es un matiz técnico: quien va a pagar un
+premio necesita saber si el número lo publicó la lotería o lo publicaron dos sitios que la copian.
+
+Lo que **no** se hace: llamarlas «oficiales», poner la lista de direcciones en pantalla —la evidencia
+completa es operativa, no contenido para un vendedor— ni presentar como confirmado un sorteo que
+solo tiene una fuente. Si las fuentes se contradicen, la pantalla **no enseña ningún número**.
+
+El título del recuadro sigue siendo **«Resultados oficiales»**: describe de qué van esos sorteos —los
+de las loterías oficiales—, y quien lee la línea de procedencia ya sabe de dónde salió cada número.
+Cambiarlo a «Resultados de loterías» se evaluó y se descartó: la palabra que importa está donde se
+mira la cifra, no en el título.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
@@ -797,6 +815,7 @@ castigo donde solo había una espera.
 | Mensajes de éxito | El `toast` de cada Server Action, en su componente cliente |
 | Pasos del recorrido guiado (título y explicación) | `src/features/tour/tours.ts`, **todos juntos** |
 | Texto de los avisos de la campanita | `src/features/notifications/text.ts`, **todos juntos** (D-093) |
+| «Fuente oficial» y «Verificado por N fuentes», la línea de procedencia | `src/features/lottery/dashboard.ts` (`LOTTERY_DASHBOARD_COPY`) y `LotteryResultsCard.tsx` (D-162) |
 | Textos del recuadro de resultados oficiales del Panel | `src/features/lottery/dashboard.ts` (`LOTTERY_DASHBOARD_COPY`) y `LotteryResultsCard.tsx` (D-147). Los avisos de programación reutilizan `notificationMessage` |
 | Lo que anuncia el hueco del recuadro mientras llega — «Buscando los resultados oficiales…» | `LOTTERY_DASHBOARD_COPY.loading`, y lo pinta `LotteryResultsSection.tsx` (D-155) |
 | Nombre de la aplicación instalada y su descripción | `src/lib/pwa.ts` (D-115) |

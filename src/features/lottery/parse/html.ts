@@ -152,8 +152,12 @@ export function parseSpanishDate(text: string): string | null {
     noviembre: '11',
     diciembre: '12',
   }
+  // «1 de septiembre de 2026» y tambien «01 septiembre 2026», sin preposiciones:
+  // asi la escribe Loterias de Hoy en `.fecha-resultado` (D-162). Las dos
+  // formas nombran el mes con letras, que es lo que evita confundir 09-01 con
+  // 01-09; una fecha puramente numerica ya la resuelven las dos ramas de arriba.
   const named = text.match(
-    /(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+de\s+(20\d{2})/i,
+    /(\d{1,2})\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+(?:de\s+)?(20\d{2})/i,
   )
   if (named) {
     const day = named[1]

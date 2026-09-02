@@ -16,7 +16,9 @@ import {
 
 const ROOT = process.cwd()
 
-function snap(overrides: Partial<LotteryScheduleSnapshot> & Pick<LotteryScheduleSnapshot, 'id'>): LotteryScheduleSnapshot {
+function snap(
+  overrides: Partial<LotteryScheduleSnapshot> & Pick<LotteryScheduleSnapshot, 'id'>,
+): LotteryScheduleSnapshot {
   return {
     lotteryCode: 'bogota',
     drawNumber: '2800',
@@ -46,6 +48,8 @@ function confirmed(
       winningNumber: '0046',
       series: '123',
       validationStatus: 'confirmed',
+      sourceKind: null,
+      consensusSources: null,
       sourceUrl: 'https://www.loteriadebogota.com/',
       fetchedAt: '2026-04-02T23:40:00-05:00',
       confirmedAt: '2026-04-02T23:40:00-05:00',
@@ -127,6 +131,8 @@ describe('sorteo actual segun la fecha oficial, no el dia nominal (D-147)', () =
         winningNumber: '7788',
         series: null,
         validationStatus: 'confirmed',
+        sourceKind: null,
+        consensusSources: null,
         sourceUrl: 'https://loteriademedellin.com.co/resultados/',
         fetchedAt: '2026-08-14T23:30:00-05:00',
         confirmedAt: '2026-08-14T23:30:00-05:00',
@@ -157,6 +163,8 @@ describe('sorteo actual segun la fecha oficial, no el dia nominal (D-147)', () =
         winningNumber: null,
         series: null,
         validationStatus: 'pending',
+        sourceKind: null,
+        consensusSources: null,
         sourceUrl: null,
         fetchedAt: '2026-04-06T23:50:00-05:00',
         confirmedAt: null,
@@ -334,14 +342,8 @@ describe('el Panel no consulta fuentes oficiales (BR-L20)', () => {
   })
 
   it('los dos paneles muestran el recuadro y no descargan', () => {
-    const owner = readFileSync(
-      join(ROOT, 'src/app/(protected)/owner/dashboard/page.tsx'),
-      'utf8',
-    )
-    const seller = readFileSync(
-      join(ROOT, 'src/app/(protected)/seller/dashboard/page.tsx'),
-      'utf8',
-    )
+    const owner = readFileSync(join(ROOT, 'src/app/(protected)/owner/dashboard/page.tsx'), 'utf8')
+    const seller = readFileSync(join(ROOT, 'src/app/(protected)/seller/dashboard/page.tsx'), 'utf8')
     const section = readFileSync(
       join(ROOT, 'src/features/lottery/components/LotteryResultsSection.tsx'),
       'utf8',
