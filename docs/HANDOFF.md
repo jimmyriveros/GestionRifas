@@ -30,6 +30,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
+| **Sin desplegar** | **El catálogo público (D-159, D-160) está SOLO en local**: migración `0043`, ruta `/catalogo/[slug]` y su configuración. No se aplicó al proyecto real, no se hizo push y no se desplegó. Aplicar `0043` **no publica los datos de nadie**: hay que configurar cada catálogo a mano (BR-K12) |
 | Siguiente fase | Ninguna. El encargo de loterías terminó sus **seis etapas**: la 6/6 es la observación del ciclo real (D-157) y se repite después de cada ventana de publicación. Todo está desplegado sobre `f9c6e49`, con `0041` aplicada y los diez cron activos. Lo último promovido es **D-158** (corregir un abono a $0), con la migración **`0042`** aplicada, el 2026-09-01 |
 | **Reportes** | Desde el 2026-08-31 (D-151, BR-T05..BR-T07) `/seller/reports` abre **«Ventas por fecha»** con las ventas de hoy, sin redirección. Una venta es una boleta `assigned` fechada por **`sale_date`**; «Abonado» es lo que llevan pagado **hoy**, no el dinero recibido esos días —eso lo sigue respondiendo «Pagos por fecha», intacto—. El predeterminado es **por portal**: `/owner/reports` conserva «Por vendedor» y **no** ofrece el nuevo. Migración **`0040`**: `report_sales_totals` y `tickets_sale_date_idx`, **aplicada al proyecto real el 2026-08-31**. **Ya en producción** |
 | **Resultados de loterías** | Etapa 6 (2026-08-30, D-149): `0036`–`0039` en el proyecto real, `vercel.json` con los 10 jobs Hobby. Recuadro del Panel, sync, matching y avisos de las etapas 1–5. **Cron activado.** **`CRON_SECRET` NO la inyecta Vercel** —la crea una persona, D-152—: del 2026-08-30 al 2026-09-01 los diez jobs corrieron contra un **401** y ningún tick entró (I-083). El dueño la creó y redesplegó el 2026-09-01 |
@@ -125,7 +126,23 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — un abono vigente se corrige a $0 (D-158, 2026-09-01)
+## 1.a Último relevo significativo — catálogo público de boletas por vendedor (D-159, D-160, 2026-09-02)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Cada vendedor puede tener una página pública, `/catalogo/<slug>`, con sus boletas libres y las que ya están tomadas.** Se abre sin sesión, tiene buscador por número y un botón que abre WhatsApp con el mensaje escrito. **Una sola ruta dinámica** sirve a todos: no hay página ni despliegue por vendedor. Rifas pasa a ser la única fuente de disponibilidad. **Fuera a propósito** (lo pedía el encargo): formulario de datos del cliente, tabla de solicitudes, reserva o retención, estado `reserved`, creación automática de clientes, aviso al vendedor, WhatsApp Business Platform, pagos en línea, analítica y personalización visual |
+| Archivos | **Nuevos:** `supabase/migrations/0043_public_catalog.sql`; `src/features/catalog/` (`slug.ts`, `whatsapp.ts`, `schemas.ts`, `queries.ts`, `actions.ts`, `components/` ×6); `src/app/(catalogo)/layout.tsx` y `catalogo/[slug]/{page,not-found}.tsx`; `tests/db/public-catalog.test.ts`, `tests/unit/catalog.test.ts`, `tests/e2e/catalogo-publico.spec.ts`, `catalogo-publico-movil.spec.ts`, `catalogo-helpers.ts`. **Tocados (mínimo):** `lib/supabase/proxy.ts` (`/catalogo` en `PUBLIC_PATHS`), `features/search/components/SearchInput.tsx` (**una** prop `inputMode`), `features/search/hints.ts` (+2 textos), `types/database.types.ts` (62 líneas), `owner/sellers/[sellerId]/page.tsx` y `seller/dashboard/page.tsx` (una tarjeta cada uno). Documentación: `DECISIONS` (D-159, D-160), `BUSINESS_RULES` (**BR-K01..BR-K12**, nuevas), `DATA_MODEL`, `SECURITY` (§4.10), `ARCHITECTURE`, `MASTER_SPEC`, `UX_COPY_GUIDELINES`, `TESTING`, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | `useUrlSearch` + `SearchInput` (el buscador se comporta igual que los otros cinco), `EmptyState`, `Badge`/`Button`/`Card`/`Input`/`Label`/`Select`/`Switch`, `ConfirmDialog`, `digitsOnly` de `lib/search.ts`, el `error.tsx` de la raíz —ya era genérico y público—, `createAdminClient`, `authorizeAction`, `mapPgError`, el patrón `ActionResult`, la ficha del vendedor que ya existía y `raffles_id_org_key` (`0002`) para la FK compuesta. **`memberships` se extendió; no se creó una segunda entidad de vendedor** |
+| Decisiones | **D-159** (arquitectura y seguridad) y **D-160** (textos). Lo que no es evidente: **(a)** la proyección pública la define el **tipo de retorno** de dos funciones `SECURITY DEFINER`, **no** una política para `anon` — así, una columna que alguien añada mañana no queda expuesta; `tickets_select` no se tocó y `anon` sigue sin privilegios sobre ninguna tabla; **(b)** la rifa publicada es **explícita** porque el esquema **no** garantiza una única rifa activa (se comprobó en las migraciones, BR-R01 y caso A5) — reutilizar la heurística de `getCommissionContext` habría cambiado el inventario solo al crear otra rifa; **(c)** el mensaje de WhatsApp nombra los **dos** números, porque el diario **no** identifica una boleta (BR-N04, BR-N11); **(d)** `limit + 1` y **ningún conteo**, con el tope acotado dentro de la función; **(e)** el título se **deriva** del nombre de la rifa, no se escribe en el código |
+| Verificación | `npm run verify` **completo y en verde** (typecheck, lint 0 errores, **681/681** unitarias, `build`), con `build/` apartado por I-093. `test:db` **710/710** (34 archivos; antes 676/676 en 33). E2E de esta tanda **34/34** (26 escritorio + 8 móvil); suite completa **456/458**, con los dos fallos de **I-090**, verdes en aislamiento (**39/39**). **Rendimiento medido con 200.000 boletas y 200 vendedores**: la consulta pública usa el índice que ya existía y el portal protegido **no sufre regresión** —planes idénticos y **buffers exactamente iguales**—. Seis errores encontrados y corregidos, con sus causas, en `TEST_RESULTS` |
+| Advertencias | **1)** **Nada está en producción.** `0043` está **solo en local** y no se ha desplegado ni empujado. **2)** Aplicar la migración **no publica los datos de nadie**: las cuatro columnas nacen nulas o en `false`. **3)** Para que el título diga «NÚMEROS DISPONIBLES SORTEO CAMIONETA KIA», **la rifa tiene que llamarse «Sorteo Camioneta Kia»**: es un dato, no código. **4)** Una **rifa publicada no se puede borrar** mientras un catálogo la apunte (`ON DELETE RESTRICT`); lo descubrió el propio banco de pruebas. **5)** **`npm run verify` no arranca en esta máquina y no es por este cambio** (**I-093**, confirmado de nuevo desde cero: 11 errores, los 11 en `build/`, 0 en el árbol versionado). Se apartó `build/` a un temporal durante la ejecución y se devolvió intacto; `tsconfig.json` no se tocó. **No borres `build/etapa6/`**: es de otro agente. **6)** La página usa la **clave de servicio** desde el servidor: `createAdminClient` importa `server-only` y jamás debe llegar a un componente de navegador |
+| Pendiente | **Siguiente acción: decisión del dueño.** (a) ¿Se promueve `0043` al proyecto real? Requiere respaldo, autorización explícita y `verify:remote`. (b) Falta la comprobación humana en un **teléfono real** y una pasada de **Lighthouse**: no se ejecutó ninguna, así que **no se afirma** ningún número de Performance ni Accessibility (I-066). (c) Cuando se publique el primer catálogo, alguien tiene que **configurarlo**: publicar, WhatsApp y rifa, desde la ficha del vendedor. Lo de siempre: I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030 |
+| Publicación | **Ninguna.** No se aplicó `0043` al proyecto real, no se hizo push, no se desplegó y no se creó etiqueta, tal como pedía el encargo. Todo el trabajo de medición se hizo contra la base **local**, y el servidor de producción que se usó para medir la ruta se compiló apuntando a `127.0.0.1:54321` **a propósito**, tras comprobar que el `.env.local` de la máquina apunta al proyecto **real** |
+| Git | Rama `main`, base observada `8a2e08a`, **un commit local nuevo**, sin push. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y sin tocar; `build/` sigue ignorado y **devuelto exactamente como estaba** |
+
+---
+
+## 1.a.0 Relevo anterior — un abono vigente se corrige a $0 (D-158, 2026-09-01)
 
 | Campo | Estado |
 |---|---|
@@ -1072,7 +1089,9 @@ Evita leer `DATA_MODEL.md` (~5k tokens) solo para recordar nombres.
 ```
 organizations ─┬─ memberships (profile_id, organization_id, role, is_active,
                │                parent_seller_id → equipos, 0022;
-               │                commission_model, fixed_commission_amount → 0031)
+               │                commission_model, fixed_commission_amount → 0031;
+               │                public_slug, public_catalog_enabled,
+               │                public_whatsapp_number, public_raffle_id → 0043)
                ├─ notifications (recipient_profile_id, kind, data, read_at; 0023)
                ├─ commission_tiers    (min_tickets, rate; 0024)
                ├─ seller_commissions  (raffle_id, seller_id, tickets_paid, rate, earned,
@@ -1131,6 +1150,10 @@ vista previa a una cartera e `import_tickets_with_clients` crea/reutiliza client
 ⚠️ **`assign_ticket` y `cancel_ticket` ya no llevan las reglas dentro**: delegan en
 `assign_ticket_row` y `cancel_ticket_row`, que comparten con las masivas. Si cambias una regla,
 cámbiala ahí (D-083).
+
+**Catálogo público (`0043`, D-159):** `public_catalog_seller` y `public_catalog_tickets`, solo para
+`service_role` y llamadas desde el servidor; `public_catalog_membership` no la ejecuta nadie. `anon` no
+gana ningún privilegio y `tickets_select` no se amplía.
 
 **Vistas de solo lectura:** `v_ticket_balances` · `v_client_balances` · `v_seller_summary` ·
 `v_raffle_summary` · `v_payment_history`.
@@ -1278,6 +1301,14 @@ features/payments/components/PaymentForm  UN formulario para todos los origenes.
                     `returnTo` y `originTicketId` los calcula la pagina, no el
                     formulario. Despues de guardar siempre `replace`. No le
                     anadas un almacén global ni un `returnTo` arbitrario
+features/catalog/     catalogo publico de un vendedor (D-159). NO es una segunda entidad
+                    de vendedor: son cuatro columnas `public_*` en `memberships`.
+                    slug.ts y whatsapp.ts son PUROS y estan probados; queries.ts
+                    es la UNICA lectura del proyecto que usa createAdminClient
+                    para servir a alguien sin sesion, y lo que la acota es el
+                    tipo de retorno de las funciones `public_catalog_*` (0043),
+                    no una politica. Si vas a tocarla, lee SECURITY 4.10 antes.
+                    La tarjeta publica NO reutiliza TicketCardList a proposito
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
 features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
                     ExportCsvButton

@@ -1,9 +1,11 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.12 · **Estado:** implementado · **Actualizado:** 2026-09-01
-- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0042`, **las 42 aplicadas y
-  verificadas en local y en el proyecto Supabase real** (D-149, D-151, D-156, D-158). La última,
-  `0042`, se promovió el 2026-09-01 tras el respaldo `Rifas-backups/2026-09-01-pre-0042/`.
+- **Versión:** 2.13 · **Estado:** implementado · **Actualizado:** 2026-09-02
+- **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0043`. Las **42 primeras** están
+  **aplicadas y verificadas en local y en el proyecto Supabase real** (D-149, D-151, D-156, D-158);
+  `0042` se promovió el 2026-09-01 tras el respaldo `Rifas-backups/2026-09-01-pre-0042/`.
+  **`0043` (catálogo público, D-159) está SOLO en local**: no se ha promovido y requiere
+  autorización explícita del usuario, como todas las anteriores.
 - *Corrección documental (2026-09-01, D-158):* esta línea decía que `0041` seguía solo en local. Se
   escribió en D-152, cuando era cierto, y no se actualizó al promoverla en **D-156**; `PHASE_STATUS`
   §3215 y `HANDOFF` §1 ya la daban por aplicada. Se corrige aquí.
@@ -196,6 +198,10 @@ nunca un entero.
 | `parent_seller_id` | `uuid` | `NULL`, FK compuesta → `memberships(profile_id, organization_id)` (`0022`, BR-E01) |
 | `commission_model` | `commission_model` | `NOT NULL DEFAULT 'tiered'` (`0031`, BR-G24) |
 | `fixed_commission_amount` | `bigint` | `NULL`; obligatoria y `> 0` con `fixed_per_ticket` (`0031`, BR-G24) |
+| `public_slug` | `text` | `NULL`, único en TODO el sistema; formato `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–80 (`0043`, BR-K02) |
+| `public_catalog_enabled` | `boolean` | `NOT NULL DEFAULT false` (`0043`, BR-K04) |
+| `public_whatsapp_number` | `text` | `NULL`, solo dígitos `^[1-9][0-9]{7,14}$` (`0043`, BR-K05) |
+| `public_raffle_id` | `uuid` | `NULL`, FK compuesta → `raffles(id, organization_id)` (`0043`, BR-K06) |
 | `created_at` / `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` |
 
 Restricciones clave:
@@ -237,12 +243,61 @@ ALTER TABLE memberships ADD CONSTRAINT memberships_commission_model_amount CHECK
       AND fixed_commission_amount IS NOT NULL
       AND fixed_commission_amount > 0)
 );
+
+-- Catálogo público (0043, D-159). El slug es único en TODO el sistema, no por
+-- organización: la URL no lleva organización y tiene que resolver a una sola
+-- persona. El índice es PARCIAL porque la inmensa mayoría de las membresías no
+-- publica nada y los NULL no deben competir por él.
+CREATE UNIQUE INDEX memberships_public_slug_key
+  ON memberships (public_slug)
+  WHERE public_slug IS NOT NULL;
+
+ALTER TABLE memberships ADD CONSTRAINT memberships_public_slug_format CHECK (
+  public_slug IS NULL
+  OR (public_slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$' AND length(public_slug) BETWEEN 3 AND 80)
+);
+
+-- Se rechaza el 0 inicial: ningún indicativo de país empieza por cero, y
+-- «0573001234567» es el error típico de quien copia un número nacional.
+ALTER TABLE memberships ADD CONSTRAINT memberships_public_whatsapp_format CHECK (
+  public_whatsapp_number IS NULL OR public_whatsapp_number ~ '^[1-9][0-9]{7,14}$'
+);
+
+-- La rifa publicada es de la MISMA organización. Reutiliza raffles_id_org_key
+-- (0002, D-007): sin esto, un Admin podría publicar la rifa de otra empresa
+-- escribiendo su id a mano.
+ALTER TABLE memberships ADD CONSTRAINT memberships_public_raffle_org_fk
+  FOREIGN KEY (public_raffle_id, organization_id)
+  REFERENCES raffles (id, organization_id) ON DELETE RESTRICT;
+
+-- Un catálogo encendido está COMPLETO: sin esto se podría publicar un vendedor
+-- sin WhatsApp —cuyo botón «Solicitar» no llevaría a ninguna parte— o sin rifa,
+-- y el fallo solo se vería desde fuera, en la página pública.
+ALTER TABLE memberships ADD CONSTRAINT memberships_public_catalog_complete CHECK (
+  NOT public_catalog_enabled
+  OR (public_slug IS NOT NULL AND public_whatsapp_number IS NOT NULL
+      AND public_raffle_id IS NOT NULL)
+);
 ```
 
 **`parent_seller_id`** (BR-E01): nulo = vendedor a cargo del Dueño o el Administrador; con valor =
 integrante del equipo de ese vendedor. Lo que un `CHECK` no puede ver —que el padre esté activo, sea
 vendedor y no pertenezca a otro equipo— lo impone el trigger `memberships_validate_parent_seller`.
 Hoy la jerarquía tiene dos niveles (BR-E03); el modelo admite más sin cambiar de forma.
+
+**Las cuatro columnas `public_*`** (BR-K01..BR-K06, D-159): la configuración del catálogo público
+del vendedor. Viven aquí y no en una tabla nueva porque **un vendedor no es una entidad propia en
+este esquema**: es una `membership` con rol `seller`. Una tabla `public_sellers` habría creado una
+segunda entidad de vendedor y, con ella, la pregunta de cuál manda cuando discrepen.
+
+Nacen todas nulas o en `false`: aplicar la migración no publica nada de nadie. Publicar es un acto
+explícito y solo del personal (BR-K12). `public_raffle_id` es **obligatoriamente explícita** porque
+el esquema permite varias rifas activas a la vez (BR-R01, caso A5) y adivinar cuál publicar haría que
+la página cambiara de inventario sola.
+
+⚠️ La FK de la rifa es `ON DELETE RESTRICT`: **una rifa publicada no se puede borrar** mientras un
+catálogo la apunte. En la práctica no cambia nada —en este proyecto no se borran rifas— pero conviene
+saberlo antes de intentarlo.
 
 **`commission_model` / `fixed_commission_amount`** (BR-G24, D-127): cómo se le paga a esta persona
 **mientras pertenezca a un equipo**. Viven aquí y no en una tabla aparte porque esta fila **es** la
@@ -970,6 +1025,30 @@ la paginación**: cuenta el mismo predicado bajo la misma RLS, así que un `coun
 preguntaría dos veces lo mismo en cada carga.
 
 ---
+
+## 6.b Funciones del catálogo público (`0043`, D-159)
+
+Tres funciones `SECURITY DEFINER` con `search_path` fijo. Son la **única** lectura del proyecto que
+sirve datos sin sesión, y lo que acota su respuesta **no es una política sino su tipo de retorno**:
+lo que no está en el `returns table` no puede salir.
+
+| Función | Quién la ejecuta | Qué devuelve |
+|---|---|---|
+| `public_catalog_membership(text)` | **Nadie.** Revocada a `public`, `anon` y `authenticated`, y sin `grant` a `service_role` | Interna: resuelve el slug a vendedor, organización y rifa. Existe para que los siete filtros de BR-K10 se escriban **una** vez y las dos públicas no puedan discrepar |
+| `public_catalog_seller(text)` | Solo `service_role` | Nombre y alias del vendedor, WhatsApp público, nombre de la rifa y su precio. **Ni un identificador** |
+| `public_catalog_tickets(text, text, int, int)` | Solo `service_role` | Los dos números de cada boleta y un booleano `taken`. Máximo 61 filas: el tope se acota **dentro** de la función, así que no se puede evadir desde fuera (BR-K11) |
+
+`anon` no gana un solo privilegio sobre ninguna tabla de negocio, y `tickets_select` **no se amplía**.
+Ninguna de las tres acepta vendedor, organización ni rifa como parámetro: lo único que entra es el
+slug, y a quién pertenece lo decide la base.
+
+El orden es `(daily_number)::int, (weekly_number)::int` —numérico, no alfabético, para que «1300» no
+salga antes que «0025»— y lo que se devuelve sigue siendo el texto original, con sus ceros iniciales
+(BR-N03). El par (diario, semanal) es único dentro de una rifa, así que el orden es total y la
+paginación no puede repetir ni saltarse una boleta entre dos páginas.
+
+La consulta interna entra por `tickets_seller_raffle_status_idx` (`0003`), que ya existía: medido con
+200.000 boletas, **no hace falta ningún índice nuevo sobre `tickets`** (D-159, `TEST_RESULTS.md`).
 
 ## 7. Triggers
 

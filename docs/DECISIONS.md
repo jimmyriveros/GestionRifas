@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.34 · **Actualizado:** 2026-09-01 (D-001 a D-156)
+- **Versión:** 1.35 · **Actualizado:** 2026-09-02 (D-001 a D-160)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -6165,6 +6165,139 @@ tocó, porque ahora lo puede corregir su propio vendedor.
 
 ---
 
+## D-159 — El catálogo público: una ruta, dos funciones y ninguna política nueva para `anon`
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-02)
+
+**Contexto.** El encargo pide una página pública por vendedor —`/catalogo/laura-gomez-k7m4`— que
+enseñe sus boletas libres y las tomadas y lleve a WhatsApp, con Rifas como única fuente de
+disponibilidad. Es la primera vez que este producto sirve datos **sin sesión**: hasta ahora toda
+lectura colgaba de `auth.uid()` y de la RLS.
+
+**Decisión 1 — la proyección pública es un tipo de retorno, no una política.** Se añaden dos
+funciones `SECURITY DEFINER` (`public_catalog_seller`, `public_catalog_tickets`, migración `0043`) y
+`anon` **no** gana un solo privilegio sobre ninguna tabla de negocio. La alternativa evidente —una
+política `SELECT` para `anon` sobre `tickets`, por estrecha que se escriba— se descartó por una razón
+concreta: pone a `anon` **dentro** de la tabla, y PostgREST deja pedir columnas por nombre. Cualquier
+columna que alguien añada mañana (un precio negociado, una nota) queda expuesta salvo que se acuerde
+de excluirla. Con una función, lo que no está en el `returns table` no puede salir, hoy ni dentro de
+un año. `tickets_select` **no se tocó**.
+
+Las dos se invocan **solo** desde el servidor con la clave de servicio (`createAdminClient`, que ya
+existía para invitaciones y para el tick de loterías). `anon` y `authenticated` tienen la ejecución
+revocada explícitamente; el único `grant` es a `service_role`. La resolución del slug vive en una
+tercera función, `public_catalog_membership`, que **no se concede a nadie**: existe para que los
+filtros de BR-K10 se escriban una sola vez y las dos públicas no puedan discrepar.
+
+**Por qué usar la clave de servicio no es un atajo.** Quien pide la página no tiene sesión: no hay
+`auth.uid()` del que colgar una política, así que la RLS no puede decidir nada. Lo que acota la
+respuesta es la función, y la función **no acepta vendedor, organización ni rifa como parámetro**:
+lo único que entra es el slug de la URL, y a quién pertenece lo decide la base. No hay identificador
+que manipular para saltar a otro vendedor.
+
+**Decisión 2 — la rifa publicada se configura; no se adivina.** El esquema permite varias rifas
+activas a la vez (BR-R01, caso extremo A5) y no hay ninguna restricción que garantice lo contrario:
+se comprobó en las migraciones antes de decidir. Existía la tentación de reutilizar la heurística de
+`getCommissionContext` —«la activa con más boletas cobradas»—, y se descartó: es aceptable para
+*informar* de una comisión y sería inaceptable aquí, porque la página cambiaría de inventario sola el
+día que alguien cree una segunda rifa activa. Se añade `public_raffle_id`, con FK compuesta a
+`(id, organization_id)` para que no pueda apuntar a la rifa de otra organización (BR-K06).
+
+**Decisión 3 — cuatro columnas en `memberships`, no una tabla nueva.** Un vendedor no es una entidad
+propia en este esquema: es una `membership` con rol `seller`. Una tabla `public_sellers` habría
+creado la segunda entidad de vendedor que el encargo prohíbe, y con ella la pregunta de cuál manda
+cuando discrepen. La migración es **aditiva**: no toca ninguna tabla, política, función, enum ni
+restricción existente.
+
+**Decisión 4 — grupo de layout propio, no `(public)`.** Aquel armazón centra una tarjeta de
+`max-w-sm`: es el de ingresar y recuperar contraseña, y un catálogo de cientos de boletas no cabe
+ahí. Se crea `(catalogo)` en vez de meter una condición dentro del layout de login, que habría dejado
+el formulario de sesión dependiendo de una bandera. `/catalogo` se declara público en
+`lib/supabase/proxy.ts` como prefijo; sigue pasando **por** el proxy, de modo que recibe la CSP con
+su nonce igual que cualquier otra pantalla.
+
+**Decisión 5 — `limit + 1` y ningún conteo.** La página no necesita saber cuántas boletas hay:
+necesita saber si hay una más. Se piden 51 y la fila sobrante decide si se dibuja «Siguiente». El
+tope lo impone la función en SQL (`least(greatest(p_limit,1), 61)`), no TypeScript, así que no se
+puede evadir llamando con 100.000. Por eso la paginación **no** reutiliza `DataTablePagination`, que
+exige un total: son dos enlaces `<a>`, sin una línea de JavaScript.
+
+**Decisión 6 — el título se deriva del nombre de la rifa.** `NÚMEROS DISPONIBLES {RIFA EN
+MAYÚSCULAS}`. Con la rifa llamada «Sorteo Camioneta Kia» sale exactamente el texto pedido; escribir
+ese nombre comercial en el código habría obligado a desplegar cada vez que cambie el premio y habría
+mentido en cuanto hubiera una segunda rifa. Se pasa a mayúsculas en JavaScript y no con
+`text-transform`, para que lo que se ve, lo que se copia y lo que lee un lector de pantalla sean el
+mismo texto.
+
+**Decisión 7 — el índice que hacía falta ya existía.** Se midió con **200.000 boletas y 200
+vendedores** antes de escribir ninguna migración de índice: la consulta pública entra por
+`tickets_seller_raffle_status_idx` (`seller_id, raffle_id, inventory_status`), creado en `0003`.
+**No se añade ningún índice sobre `tickets`.** El único índice nuevo es el único de `public_slug`,
+parcial, que es parte natural del cambio. Las cifras están en `TEST_RESULTS.md`.
+
+**Decisión 8 — se refresca al recuperar el foco, no con Realtime ni con un temporizador.** Quien
+toca «Solicitar» se va a WhatsApp y vuelve; mientras tanto el vendedor puede haber vendido esa
+boleta. Una suscripción abriría un websocket por visitante y un `setInterval` consultaría con el
+teléfono en el bolsillo. `visibilitychange` cuesta cero hasta que alguien vuelve, que es justo cuando
+va a mirar. La página es `force-dynamic`: una respuesta cacheada enseñaría libre lo que ya no lo
+está. **No se cambia la estrategia global de caché.**
+
+**Alternativas descartadas.** (a) Reutilizar `listTickets` o `search_tickets` (devuelven cliente,
+código interno, precio y estado de pago, y dependen de `tickets_select`, que sin sesión no devuelve
+nada: habría hecho falta un modo «anónimo» dentro del camino de datos de los dos portales).
+(b) Reutilizar `TicketCardList` (arrastra dinero, selección múltiple y enlaces al portal protegido;
+extenderla para ocultar seis cosas deja abierta la puerta a que un cambio futuro cuele un dato
+privado en una página pública — se creó una tarjeta pública pequeña). (c) Un módulo administrativo
+nuevo (la ficha del vendedor admitía una tarjeta más).
+
+**Consecuencia operativa.** Una rifa publicada **no se puede borrar** mientras un catálogo la apunte:
+la FK es `on delete restrict`. En la práctica no cambia nada —en este proyecto no se borran rifas— y
+se descubrió porque el propio banco de pruebas chocó contra ella al limpiar.
+
+---
+
+## D-160 — El mensaje de WhatsApp nombra los dos números, y el catálogo habla como el resto de la aplicación
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-02)
+
+**Contexto.** El encargo propone como mensaje base «Hola, Laura. Quiero solicitar el número 1300 de
+la rifa. ¿Sigue disponible?», y añade que si una boleta necesita los dos números para identificarse
+no se pierda información.
+
+**Decisión 1 — se usa la segunda forma, siempre.** En este producto **el número diario no identifica
+una boleta**: lo único único dentro de una rifa es el par `(diario, semanal)` (`tickets_combo_unique`,
+BR-N04), y una boleta se nombra «el 1234 con el 5678» (BR-N11). Un mensaje que dijera solo «el número
+1234» obligaría al vendedor a preguntar cuál de las suyas es, que es justo el trabajo que este
+catálogo viene a quitar. El texto queda:
+
+> Hola, {nombre}. Quiero solicitar la boleta con diario {diario} y semanal {semanal} de la rifa.
+> ¿Sigue disponible?
+
+**Decisión 2 — el saludo usa el alias, y si no, el primer nombre.** `profiles.alias` es el nombre que
+la propia persona eligió (CLAUDE.md §9). Sin alias se usa el **primer** nombre y no el completo:
+«Hola, Laura Gómez Restrepo» no es como se saluda a nadie por WhatsApp.
+
+**Decisión 3 — el mensaje pregunta; no promete.** Tocar «Solicitar» no aparta la boleta, y ningún
+texto puede sugerir lo contrario (BR-K09). La aclaración va **una vez** al pie de la lista y no
+dentro de cada tarjeta: repetirla cincuenta veces es ruido.
+
+**Decisión 4 — la tarjeta dice cuál número es cuál.** El diario manda por tamaño y el semanal va
+rotulado **«Semanal»**, el término del glosario. La leyenda «Diario · Semanal» de las listas internas
+(D-107, D-130) no encaja aquí, porque allí los dos números pesan lo mismo y en esta reja no.
+«Disponible» y «Tomado» van escritos, nunca solo en el color (CLAUDE.md §27), y la tomada además no
+tiene botón.
+
+**Decisión 5 — la pista del buscador y el estado vacío dicen cosas distintas.** La primera versión
+devolvía la misma frase en los dos sitios y la pantalla escribía «Los números tienen 4 cifras como
+máximo» dos veces a un centímetro de distancia; lo encontró una prueba de extremo a extremo. La
+**regla** vive en la pista, bajo el campo; el estado vacío dice **qué hacer**. Los dos textos viven
+en `features/search/hints.ts`, con los demás (Anexo B).
+
+**Decisión 6 — «Publicado» / «Sin publicar» no son etiquetas de estado.** Describen un interruptor y
+existen solo en la ficha del vendedor; no entran en las ocho de `constants.ts`, que no se improvisan.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.
@@ -6175,4 +6308,4 @@ No bloquean ninguna fase; se resolvieron con la opción más segura y podrán aj
 | A2 | ¿Se reabren rifas cerradas? | Sí, solo el Owner y con auditoría | BR-R03 |
 | A3 | ¿Un vendedor edita los números de una boleta ya aprobada? | No; solo en `draft`/`pending_approval` | Matriz de permisos |
 | A4 | ¿Se notifica por correo al invitar usuarios? | Sí, mediante Supabase Auth; sin plantillas personalizadas en el MVP | Fase 3 |
-| A5 | ¿Cuántas rifas activas simultáneas? | Varias permitidas; el dashboard muestra la más reciente activa | Fase 6. Para **loterías**, D-140 no elige una: coinciden todas las `active`/`closed` cuya ventana cubre la fecha de referencia. |
+| A5 | ¿Cuántas rifas activas simultáneas? | Varias permitidas; el dashboard muestra la más reciente activa | Fase 6. Para **loterías**, D-140 no elige una: coinciden todas las `active`/`closed` cuya ventana cubre la fecha de referencia. Para el **catálogo público**, D-159 tampoco adivina: la rifa se configura (BR-K06). |

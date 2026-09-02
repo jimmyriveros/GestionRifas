@@ -21,6 +21,20 @@ const PUBLIC_PATHS = [
   // El programador no trae sesion. El Route Handler valida un secreto
   // (D-148). Sin esta entrada el proxy redirigiria a /login con 307.
   '/api/lottery/sync',
+  /**
+   * El catalogo publico de un vendedor (D-159). Quien lo abre llega desde un
+   * enlace de WhatsApp y NO tiene sesion; sin esta entrada el proxy lo mandaria
+   * a `/login`, que es justo lo contrario de publicar algo.
+   *
+   * Entra como PREFIJO —`isPublicPath` acepta `/catalogo/loquesea`— porque el
+   * slug es parte de la ruta. Eso NO abre nada mas: `/catalogo` es un segmento
+   * propio que no existe en ningun otro sitio de la aplicacion, y lo que se
+   * pueda leer desde el lo decide `public_catalog_tickets` (0043), no el proxy.
+   *
+   * Sigue pasando POR el proxy, como `/offline` y `/denied`: es HTML y debe
+   * recibir la Content-Security-Policy con su nonce.
+   */
+  '/catalogo',
 ]
 
 function isPublicPath(pathname: string) {

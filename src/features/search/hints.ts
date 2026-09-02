@@ -79,3 +79,38 @@ export function ticketSearchEmptyDescription(
   if (hasFilters) return 'Prueba a limpiar los filtros o a buscar por otro número.'
   return undefined
 }
+
+/**
+ * Pista del buscador del CATALOGO PUBLICO (BR-K08, D-159).
+ *
+ * Es otra pantalla y otra persona: aqui no hay clientes ni codigos internos,
+ * solo numeros de boleta. Quien busca es alguien que llego por un enlace de
+ * WhatsApp, asi que el aviso no puede hablar de nada interno.
+ *
+ * Se avisa de lo unico que puede desconcertar: mas de cuatro cifras no puede
+ * ser un numero de boleta (BR-N02), y sin explicarlo la lista vacia pareceria
+ * un fallo del sitio.
+ */
+export function catalogSearchHint(term: string): string | undefined {
+  const trimmed = term.trim()
+  if (trimmed === '') return undefined
+  if (/^[0-9]{5,}$/.test(trimmed)) {
+    return 'Los números tienen 4 cifras como máximo.'
+  }
+  if (!/^[0-9]+$/.test(trimmed)) {
+    return 'Escribe solo números.'
+  }
+  return undefined
+}
+
+/**
+ * Que decir cuando la busqueda del catalogo publico no encuentra nada.
+ *
+ * NO REPITE LA PISTA de arriba, y es deliberado: `catalogSearchHint` ya explica
+ * la REGLA justo debajo del campo, a dos centimetros de aqui. La primera
+ * version de este texto devolvia esa misma frase y la pantalla acababa diciendo
+ * «Los números tienen 4 cifras como máximo» dos veces seguidas. Aqui se dice lo
+ * otro: que se puede hacer ahora.
+ */
+export const CATALOG_SEARCH_EMPTY_DESCRIPTION =
+  'Revisa el número, o borra la búsqueda para ver todos.'

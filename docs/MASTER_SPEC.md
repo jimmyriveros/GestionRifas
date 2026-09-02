@@ -4,7 +4,7 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.2
+- **Versión del documento:** 1.3
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
 - **Última actualización:** 2026-08-09 (alineación con mantenimiento posterior a la Fase 9)
 
@@ -241,12 +241,21 @@ Clientes propios (crear, editar, archivar, perfil con historial) · Asignación 
 abonos y pagos · Consulta de saldos e historial · Reportes propios con exportación CSV, sin el que
 compara vendedores (D-059, D-080 a D-085).
 
+
+### 9.3 Catálogo público (`/catalogo/<slug>`)
+Una página por vendedor, **sin sesión**, con sus boletas libres y las que ya están tomadas de una
+rifa configurada, buscador por número y un botón que abre WhatsApp con un mensaje ya escrito
+(BR-K01..BR-K12, D-159, D-160). No reserva, no retiene, no crea clientes y no registra ventas: la
+disponibilidad la sigue cambiando únicamente el vendedor desde su portal. La configuración —publicar,
+WhatsApp público, rifa y regenerar el enlace— es de Dueño y Administrador; el vendedor ve y copia su
+enlace.
+
 ---
 
 ## 10. Fuera de alcance del MVP
 
 Pagos en línea · Portal de clientes · Integración con loterías · Sorteos automáticos · Números
-ganadores · WhatsApp · SMS · Facturación electrónica · ~~Comisiones de vendedores~~ · App móvil
+ganadores · ~~WhatsApp~~ (solo como enlace saliente del catálogo público, D-159: no hay integración con la WhatsApp Business Platform) · SMS · Facturación electrónica · ~~Comisiones de vendedores~~ · App móvil
 nativa · Integraciones contables.
 
 Estas funciones **no** se construyen durante las fases 0 a 9.

@@ -1,6 +1,6 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.11 · **Estado:** normativo · **Actualizado:** 2026-09-01
+- **Versión:** 1.12 · **Estado:** normativo · **Actualizado:** 2026-09-02
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -516,6 +516,32 @@ producción (D-149).
 | BR-L23 | El resultado de **Cundinamarca** se lee del **acta oficial en PDF**, cuya URL se arma con el año y el sorteo de la programación (`/files/results-records/{año}/{sorteo}.pdf`). El host de almacenamiento se autoriza **solo con esa ruta**, en la URL inicial y en cada redirección. Se validan estado, tipo de contenido y **firma del archivo**. Un **404 es «aún no publicada»** y se reintenta; un PDF **sin capa de texto** es `scanned_document` y **no se hace OCR**. Solo se publica una fila **inequívoca** de `PREMIO MAYOR` cuyo sorteo coincida con el esperado; ante dos candidatas distintas, no se publica. No se guarda el documento ni su texto: URL final, autoridad, hash y evidencia estructurada mínima. El verificador de billetes queda retirado como fuente (D-153). | S, D | post-9 |
 | BR-L24 | Un campo de un resultado se lee **anclado a un encabezado que trae sorteo y fecha juntos**, dentro de la ventana que le sigue; nunca buscando la primera coincidencia en la página. La **fecha** sale de ese mismo encabezado. La **serie** se busca después del número mayor. La tirada de dígitos tras una etiqueta se corta en la primera letra y tiene que medir **exactamente** lo esperado —cuatro para el número mayor, tres para la serie—: con más o con menos, no se publica. Antes de leer nada se descartan `<script>`, `<style>`, `<noscript>`, `<template>` y los comentarios, y las etiquetas se quitan respetando las comillas de los atributos. Un **enlace-señuelo** anti-robot en una página servida entera **no** es un desafío: no se sigue, y tampoco se toma por un bloqueo. Un resultado que corresponde a un sorteo **anterior** al esperado **y** a una fecha anterior es `not_published` —una espera que se reintenta—, no `ambiguous` (D-154). | S, D | post-9 |
 | BR-L25 | El contenido principal del Panel **no espera** por la lectura de loterías. El recuadro se dibuja dentro de su propio límite de Suspense y llega por el mismo flujo HTTP, con un hueco pequeño y accesible mientras tanto; ninguna de las dos páginas la mete en su `Promise.all`. La lectura es local y sujeta a RLS, de **dos consultas como máximo** —una de programación y una de coincidencias— sin importar cuántos sorteos, resultados o boletas haya, y las dos comparten un **plazo único** (`LOTTERY_DASHBOARD_TIMEOUT_MS`): si vence, la petición se cancela y el recuadro cae en «error» sin arrastrar al resto (D-155). | C, S | post-9 |
+---
+
+## 12.c Catálogo público del vendedor (BR-K)
+
+Mantenimiento posterior a la Fase 9. Primera entrega: una página pública por vendedor,
+`/catalogo/<slug>`, que muestra sus boletas libres y las que ya están tomadas y lleva a WhatsApp
+(D-159, D-160). **La letra es `K` porque `C` ya nombra a los clientes**; no hay más significado.
+
+Lo que esta entrega **no** hace, y conviene tener presente al leer las reglas: no reserva, no
+retiene, no crea clientes, no registra ventas y no toca la máquina de estados de una boleta.
+
+| ID | Regla | Capas | Fase |
+|----|-------|-------|------|
+| BR-K01 | La página es pública: se sirve sin sesión y sin cookie. Una sola ruta dinámica sirve a todos los vendedores; no hay página ni despliegue por vendedor. Se envía `noindex, nofollow`: la dirección es pública para quien la reciba, pero el catálogo no se promociona en buscadores. | C, S | post-9 |
+| BR-K02 | El `slug` es único en **todo el sistema**, no por organización: la URL no lleva organización y tiene que resolver a una sola persona. Formato normalizado `^[a-z0-9]+(-[a-z0-9]+)*$`, de 3 a 80 caracteres. Lo genera el servidor como nombre legible + sufijo aleatorio de 4 caracteres. **No es un secreto ni sustituye a la autorización.** | S, D | post-9 |
+| BR-K03 | El `slug` es **estable**: cambiar el nombre del vendedor no cambia su URL, y guardar la configuración tampoco. Regenerarlo es una acción explícita y aparte, y rompe a propósito el enlace anterior. | S, D | post-9 |
+| BR-K04 | El catálogo se habilita y se deshabilita sin borrar nada. Apagado, su enlace deja de resolver; al encenderlo de nuevo publica lo mismo que antes. | S, D | post-9 |
+| BR-K05 | El WhatsApp público es un dato **propio del catálogo**, distinto del teléfono interno de la persona (`profiles.phone`): se configura a conciencia y nunca se publica solo. Se guarda en formato internacional de solo dígitos (`^[1-9][0-9]{7,14}$`). | C, S, D | post-9 |
+| BR-K06 | La rifa publicada es **explícita**. El esquema permite varias rifas activas a la vez (BR-R01, caso A5), así que no se adivina cuál publicar: se elige. La rifa tiene que ser de la misma organización que la membresía, y lo garantiza una FK compuesta. | S, D | post-9 |
+| BR-K07 | La proyección pública la define el **tipo de retorno** de dos funciones `SECURITY DEFINER`, no una política: nombre del vendedor, su alias, el WhatsApp público, el nombre de la rifa, su precio oficial, los dos números de cada boleta y si está tomada. Nada más puede salir. No viaja ni un identificador interno, ni el código interno, ni cliente, ni pagos, ni saldos, ni notas, ni auditoría. `anon` sigue sin un solo privilegio sobre ninguna tabla de negocio y no puede ejecutar esas funciones: solo el rol servidor. | S, D | post-9 |
+| BR-K08 | Se publican **únicamente** las boletas del vendedor resuelto, de la rifa publicada, en estado `available` (Disponible) o `assigned` (Tomado). `draft`, `pending_approval` y `cancelled` **no aparecen de ninguna forma**, tampoco buscándolas por su número. Los números conservan sus ceros iniciales y se ordenan numéricamente. Se busca por número diario o semanal, entero o en parte; un término que no puede ser un número de boleta (BR-N02) no devuelve nada. | C, S, D | post-9 |
+| BR-K09 | «Solicitar» es un enlace normal a `https://wa.me/<número>?text=<mensaje>`. **No registra una venta, no cambia el estado de la boleta, no crea un cliente y no reserva nada**, y el texto no puede sugerir lo contrario. El mensaje nombra la boleta por sus **dos** números, porque es el par lo que la identifica (BR-N04, BR-N11). La página mantiene visible que el vendedor confirmará la disponibilidad. | C | post-9 |
+| BR-K10 | Vendedor inexistente, perfil inactivo, membresía inactiva, rol distinto de vendedor, organización inactiva, catálogo apagado o rifa no activa producen **la misma** respuesta pública de «no encontrado». No se revela cuál de las siete ocurrió, ni se filtra el nombre del vendedor o de la rifa. | C, S, D | post-9 |
+| BR-K11 | La página no carga el inventario: pide como máximo `50 + 1` boletas por petición y la fila sobrante solo sirve para saber si hay página siguiente —no se cuenta el total—. El tope lo impone la función en SQL, así que no se puede evadir desde fuera. Búsqueda y página viven en la URL. Sin Realtime y sin sondeo: la disponibilidad se refresca al recuperar el foco. | C, S, D | post-9 |
+| BR-K12 | Configurar el catálogo (habilitar, WhatsApp, rifa, regenerar el enlace) es exclusivo de Dueño y Administrador. El vendedor **ve y copia** el suyo, y no puede consultar ni modificar el de otro: lo impone `memberships_select`/`memberships_update_staff`, no la interfaz. El cambio queda auditado por el disparador de `memberships` que ya existía. | C, S, D | post-9 |
+
 ---
 
 ## 13. Casos extremos y su resolución

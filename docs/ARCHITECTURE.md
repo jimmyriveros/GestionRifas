@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.24 · **Estado:** implementado · **Actualizado:** 2026-09-01
+- **Versión:** 1.25 · **Estado:** implementado · **Actualizado:** 2026-09-02
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 
 ---
@@ -213,7 +213,10 @@ nueva solo se justifica cuando resuelve repetición real en más de un consumido
 
 ## 6. Rutas de Next.js
 
-Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membresía activa.
+Grupo `(public)` — sin sesión, armazón estrecho de las pantallas de autenticación.
+Grupo `(catalogo)` — sin sesión, armazón ancho del catálogo público (D-159): son dos pantallas
+públicas que no se parecen en nada, y por eso no comparten layout.
+Grupo `(protected)` — exige sesión y membresía activa.
 
 | Ruta | Rol | Fase | Descripción |
 |------|-----|------|-------------|
@@ -223,6 +226,7 @@ Grupo `(public)` — sin sesión. Grupo `(protected)` — exige sesión y membre
 | `/reset-password` | público (con token) | 1 | Definir nueva contraseña |
 | `/auth/callback` | público | 1 | Route Handler de intercambio de código |
 | `/denied` | autenticado | 1 | Acceso denegado |
+| `/catalogo/[slug]` | **público, sin sesión** | post-9 | Catálogo público de un vendedor (BR-K01, D-159). Grupo `(catalogo)`, `force-dynamic`, `noindex` |
 | `/account/password` | todos | 1 | Cambio de contraseña |
 | `/owner/dashboard` | owner, admin | 1 → 3 → **6 ✅** | Métricas generales (`CLAUDE.md` §23 completo) |
 | `/owner/raffles` | owner, admin | **3 ✅** | Listado de rifas |

@@ -6,7 +6,10 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CatalogSettingsCard } from '@/features/catalog/components/CatalogSettingsCard'
+import { catalogPublicUrl, getCatalogSettings } from '@/features/catalog/queries'
 import { getCommissionContext } from '@/features/commissions/queries'
+import { listRaffleOptions } from '@/features/raffles/queries'
 import { getSellerWithTotals } from '@/features/sellers/queries'
 import { listOrgMembers } from '@/features/users/queries'
 import { UserRowActions } from '@/features/users/components/UserRowActions'
@@ -25,10 +28,14 @@ export default async function SellerDetailPage({
 
   if (!seller) notFound()
 
-  // Su lugar en la estructura comercial y lo que lleva ganado (BR-E08, BR-G12).
-  const [comisiones, orgSellers] = await Promise.all([
+  // Su lugar en la estructura comercial y lo que lleva ganado (BR-E08, BR-G12),
+  // y su catalogo publico (BR-K12). Todo en la MISMA espera: son lecturas
+  // independientes y encadenarlas solo sumaria idas y vueltas.
+  const [comisiones, orgSellers, catalog, raffles] = await Promise.all([
     getCommissionContext(),
     listOrgMembers(['seller']),
+    getCatalogSettings(sellerId),
+    listRaffleOptions(),
   ])
   const raffle = comisiones.raffle
   const commission = comisiones.bySeller.get(sellerId) ?? null
@@ -160,6 +167,24 @@ export default async function SellerDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      {/*
+        Solo para vendedores: el catalogo publica boletas, y un Administrador no
+        tiene. `getCatalogSettings` ya devuelve `null` para cualquier otro rol.
+      */}
+      {catalog ? (
+        <CatalogSettingsCard
+          profileId={seller.profileId}
+          sellerName={seller.fullName}
+          raffles={raffles.map((raffle) => ({ id: raffle.id, name: raffle.name }))}
+          enabled={catalog.enabled}
+          slug={catalog.slug}
+          publicUrl={catalog.slug ? catalogPublicUrl(catalog.slug) : null}
+          whatsappNumber={catalog.whatsappNumber}
+          raffleId={catalog.raffleId}
+          raffleName={raffles.find((item) => item.id === catalog.raffleId)?.name ?? null}
+        />
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">

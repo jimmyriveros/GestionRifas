@@ -6625,6 +6625,193 @@ Si la PWA ya estaba instalada, el aviso de versión nueva recarga al pulsarlo.
 
 ---
 
+## Catálogo público de boletas por vendedor (D-159, D-160, BR-K01..BR-K12) — 2026-09-02
+
+**Encargo.** Primera entrega del catálogo público: una página por vendedor, `/catalogo/<slug>`, sin
+sesión, con sus boletas libres y las tomadas de una rifa configurada, buscador por número y un botón
+que abre WhatsApp. Rifas pasa a ser la única fuente de disponibilidad.
+
+### Lo que se comprobó antes de decidir
+
+| Pregunta | Cómo se resolvió | Resultado |
+|---|---|---|
+| ¿Garantiza el esquema una única rifa activa? | Se buscaron índices y restricciones sobre `raffles.status` en las 42 migraciones | **No.** BR-R01 y el caso A5 lo permiten explícitamente → la rifa publicada se configura (BR-K06) |
+| ¿Sirve el índice que ya existe? | `EXPLAIN (ANALYZE, BUFFERS)` con 200.000 boletas, **antes** de escribir ninguna migración de índice | **Sí**, `tickets_seller_raffle_status_idx` (`0003`). **No se añade ningún índice sobre `tickets`** |
+| ¿Se puede reutilizar `listTickets` / `search_tickets`? | Se leyeron ambas | **No**: devuelven cliente, código interno, precio y estado de pago, y dependen de `tickets_select`, que sin sesión no devuelve nada |
+
+### Verificaciones ejecutadas
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase start` · `npm run db:reset` · `npm run seed:local` | ✅ `0043` aplica limpia sobre las 42 anteriores |
+| `npm run test:db` | ✅ **710/710** en 34 archivos (46,9 s). Base: 676/676 en 33 antes del cambio |
+| `npx vitest run --config vitest.db.config.mts tests/db/public-catalog.test.ts` | ✅ **34/34**, y **repetible**: dos pasadas seguidas sin reiniciar la base |
+| `npm run test` (unitarias) | ✅ **681/681** en 42 archivos. Base: 648/648 en 41 |
+| `npx vitest run tests/unit/catalog.test.ts` | ✅ **33/33** |
+| `npm run lint` | ✅ 0 errores; 2 avisos preexistentes de `react-hooks/incompatible-library` (TanStack) |
+| `npm run verify` | ✅ **completo y en verde**, con `build/` apartado (I-093, ver abajo) |
+| `npx playwright test tests/e2e/catalogo-publico.spec.ts --project=escritorio` | ✅ **26/26** |
+| `npx playwright test tests/e2e/catalogo-publico-movil.spec.ts --project=movil` | ✅ **8/8** |
+| `npm run test:e2e` (suite completa) | ver «Regresión» |
+| Navegador, sin sesión, contra la base local | ✅ ver «Comprobación manual» |
+
+### Errores encontrados y corregidos durante el trabajo
+
+| # | Qué pasaba | Cómo se encontró | Corrección |
+|---|---|---|---|
+| 1 | **A 320 px la insignia se pintaba encima del número de la boleta**, que quedaba recortado («0100» se leía «010(») | Captura real a 320 px, no una prueba | La fila de número + insignia pasa a `flex-wrap` con `ms-auto`: cuando no caben en una línea, la insignia baja y sigue a la derecha. Se añadió la prueba de 320 px que lo vigila |
+| 2 | La prueba de regresión de ese fallo **no lo detectaba** | Se rompió el componente a propósito y la prueba siguió pasando | Se reprodujo la estructura original exacta (`min-w-0` + `shrink-0`) y se comprobó que **entonces sí falla**, por la comprobación `scrollWidth > clientWidth`. La prueba tiene dientes |
+| 3 | **«Los números tienen 4 cifras como máximo» salía dos veces** en la misma pantalla, a un centímetro: como pista del campo y como descripción del estado vacío | Una prueba E2E falló por `strict mode violation` (dos coincidencias) | La regla vive en la pista; el estado vacío dice **qué hacer** (`CATALOG_SEARCH_EMPTY_DESCRIPTION`, D-160). La prueba ahora exige que aparezca **una sola vez** |
+| 4 | El primer `database.types.ts` regenerado traía **1.112 líneas de diferencia** (comillas y formato de otra versión del generador) | `git diff --stat` tras regenerar | Se descartó y se aplicaron **solo** las 62 líneas nuevas, respetando el orden alfabético del generador. Se verificó normalizando con Prettier contra una generación real: **idénticos** salvo un formato preexistente ajeno |
+| 5 | La primera versión de la suite de base de datos **dejaba su rifa** si fallaba, y la segunda pasada no arrancaba | Se ejecutó dos veces seguidas | Limpieza **por nombre** de rifa y también en `beforeAll`; se borran antes `commission_ledger` y `seller_commissions`, que apuntan a la rifa |
+| 6 | El banco de pruebas no podía borrar su rifa | Chocó contra `memberships_public_raffle_org_fk` | **No es un fallo: es la restricción funcionando.** Una rifa publicada no se puede borrar mientras un catálogo la apunte (`ON DELETE RESTRICT`). Queda documentado en D-159 y `DATA_MODEL` |
+
+### Seguridad, comprobado por comportamiento
+
+| Qué | Cómo | Resultado |
+|---|---|---|
+| `anon` no consulta las tablas | Cliente `anon` real contra PostgREST sobre `tickets`, `memberships`, `profiles`, `raffles`, `clients` | ✅ cero filas; `42501` donde hay error |
+| `anon` no ejecuta las funciones del catálogo | `rpc()` con el cliente `anon` | ✅ error en las tres |
+| Privilegios en el catálogo de PostgreSQL | `has_function_privilege` sobre las tres | ✅ `anon` ✗, `authenticated` ✗, `service_role` ✓ en las dos públicas y ✗ en la interna; las tres `SECURITY DEFINER` con `search_path` fijo |
+| La proyección no lleva identificadores | Se comprobó que ninguna columna devuelta es un uuid, y el HTML servido no contiene el id del vendedor, la organización, la rifa ni el cliente | ✅ |
+| Ni cliente, ni precio, ni código interno en el HTML | Descarga del HTML real y búsqueda de `120000`, `120.000`, el nombre del cliente, `internal_code`, `payment_status`, `paid_amount`, `sale_price` | ✅ ninguno |
+| Los siete casos de «no publica» | Catálogo apagado, membresía inactiva, perfil inactivo, organización inactiva, rifa cerrada, rol administrador y slug inexistente | ✅ los siete devuelven **lo mismo**: nada, y un 404 que no filtra el nombre del vendedor ni el de la rifa |
+| No se escapa a otro vendedor ni a otra organización | Boleta de otro vendedor en la misma rifa, y catálogo de otra organización | ✅ no aparecen; cada slug devuelve solo lo suyo |
+| El tope de página no se evade | Llamada con `p_limit = 100.000`, `0` y `-5` | ✅ como máximo 61 filas |
+| Inyección en el buscador | `'; drop table tickets; --` | ✅ cero filas; parámetros tipados |
+
+### Rendimiento — 200.000 boletas y 200 vendedores
+
+Volumen creado en una organización aparte (1.000 boletas por vendedor; el vendedor 1 casi todas
+libres, el 2 casi todas tomadas), medido y **borrado**. Mediana de 5 a 11 ejecuciones.
+**Medidas locales** (Docker sobre portátil): sirven para comparar plan e índice, no como garantía de
+producción.
+
+**Catálogo público — la consulta de dentro de la función**
+
+| Caso | ms | filas | buffers | Índice |
+|---|---|---|---|---|
+| Primera página | 0,34 | 51 | 27 | `tickets_seller_raffle_status_idx` |
+| Página 20 (offset 950) | 0,42 | 50 | 27 | `tickets_seller_raffle_status_idx` |
+| Búsqueda «1234» | 0,18 | 0 | 27 | `tickets_seller_raffle_status_idx` |
+
+```
+Limit  (actual time=0.359..0.364 rows=51 loops=1)
+  ->  Sort  Sort Key: ((daily_number)::integer), ((weekly_number)::integer)
+        Sort Method: top-N heapsort  Memory: 28kB
+        ->  Bitmap Heap Scan on tickets t  (actual time=0.025..0.238 rows=1000 loops=1)
+              Heap Blocks: exact=23   Buffers: shared hit=27
+              ->  Bitmap Index Scan on tickets_seller_raffle_status_idx  (rows=1000)
+```
+
+**Lectura:** examina las 1.000 boletas publicables de ESE vendedor —nunca las 200.000— y ordena solo
+las 51 que devuelve. **27 buffers**, todos en caché. Por eso no se añade ningún índice: el que hace
+falta ya estaba.
+
+**Catálogo público — a través de la función, como la llama la aplicación**
+
+| Caso | ms (mediana) | buffers |
+|---|---|---|
+| Primera página | 0,84 | 65 |
+| Página 5 · Página 20 | 0,84 · 0,77 | 65 |
+| Búsqueda exacta · parcial · sin resultados | 0,94 · 0,99 · 0,94 | 65 |
+| Vendedor con el 95 % tomado | 0,90 | 69 |
+| Metadatos del vendedor | 0,60 | 38 |
+| Slug inexistente | 0,57 | 30 |
+
+**Portal protegido, antes y después — mismos datos, misma caché**
+
+La comparación se hace revirtiendo `0043` **dentro de una transacción** que después se deshace: el
+mismo volumen y el mismo planificador, sin dejar rastro (se comprobó que las 4 columnas vuelven).
+
+| Consulta | Sin `0043` | Con `0043` | Δ | buffers |
+|---|---|---|---|---|
+| Listado admin, 25 boletas por fecha | 0,02 ms | 0,02 ms | 0 % | 4 → **4** |
+| Listado vendedor, sus boletas de una rifa | 18,94 ms | 20,33 ms | +7,3 % | 5156 → **5156** |
+| Filtro por estado de inventario | 12,76 ms | 13,23 ms | +3,7 % | 1031 → **1031** |
+| Resumen por vendedor (`v_seller_summary`) | 31,69 ms | 32,49 ms | +2,5 % | 4791 → **4791** |
+| Saldos de boleta (`v_ticket_balances`) | 0,05 ms | 0,04 ms | −20 % | 6 → **6** |
+| Membresía por perfil (se lee en cada request) | 0,01 ms | 0,01 ms | 0 % | 3 → **3** |
+
+**No hay regresión.** Los planes y los índices son **idénticos** y los buffers coinciden **exactamente**
+en las seis: no hay una sola lectura de disco de más. Las diferencias en milisegundos son ruido y
+cambian de signo entre ejecuciones — en una primera pasada las mismas tres consultas dieron −3,8 %,
+−5,5 % y +9,9 %. **El buffer idéntico es la evidencia; el milisegundo, no.**
+
+**La ruta, sobre el build de producción y contra la base local**
+
+| Ruta | Estado | p50 | p95 | HTML |
+|---|---|---|---|---|
+| `/catalogo/<slug>` | 200 | 29,4 ms | 179,3 ms † | 195,9 KB sin comprimir · **10,0 KB gzip** · 5,9 KB brotli |
+| `/catalogo/<slug>?page=10` | 200 | 26,9 ms | 38,3 ms | 237,1 KB |
+| `/catalogo/<slug>?q=1234` | 200 | 13,3 ms | 15,8 ms | 20,3 KB |
+| `/catalogo/<slug-inexistente>` | 404 | 13,2 ms | 16,5 ms | 12,5 KB |
+| `/login` (referencia) | 200 | 7,7 ms | 11,0 ms | 18,1 KB |
+
+† la p95 de la primera fila es el arranque en frío de la primera petición.
+
+* **50 tarjetas exactas** en la primera página, contadas sobre el HTML servido. Ninguna petición
+  trae el inventario.
+* El servidor responde con **`content-encoding: gzip`**: lo que viaja son **10 KB**, no 196.
+* **JavaScript de la ruta: 639,5 KB** en 12 scripts, frente a **958,5 KB** en 15 de `/login`. La
+  página pública es la **más ligera** de la aplicación; lo propio suyo son dos componentes de
+  cliente pequeños (el buscador y el refresco al recuperar el foco).
+
+**Lo que NO se midió:** Lighthouse. No se ejecutó, así que **no se afirma** ningún número de
+Performance ni de Accessibility. Sí se comprobó la estructura que esos números miden: un solo `<h1>`,
+`lang="es"`, `header`/`main`/`nav` semánticos, lista real, cero imágenes sin `alt`, cero enlaces sin
+nombre accesible, el campo con `<label for>` en `sr-only`, `aria-label` en cada «Solicitar» y el
+viewport **sin** `maximum-scale`.
+
+### Regresión — suite E2E completa
+
+`npm run test:e2e`: **456 pasan, 2 fallan**. Las dos que fallan son **exactamente** las que nombra
+**I-090**, y **no las causa este trabajo**:
+
+| Prueba | En la suite completa | En aislamiento |
+|---|---|---|
+| `reports.spec.ts › el panel administrativo muestra pagos recientes` | ❌ | ✅ |
+| `ventas-por-fecha.spec.ts › muestra inicialmente las ventas de HOY` | ❌ | ✅ |
+
+Se diagnosticó comprobándolo, no suponiéndolo: con `db:reset` + `seed:local` y **solo esos dos
+archivos**, **39/39 ✅**. Miden «las ventas de hoy» del `vendedor1` del seed contra un número fijo, y
+otras suites le asignan boletas sin devolverlas.
+
+**Este trabajo no alimenta esa acumulación**, y se comprobó contando: antes y después de ejecutar las
+dos suites nuevas la base tiene **las mismas 33 boletas, los mismos 6 clientes y 0 catálogos
+configurados**. La boleta vendida que crea la suite se fecha en enero de 2026 —no hoy— y se borra en
+`afterAll`, igual que su cliente y la configuración del catálogo.
+
+### Comprobación manual en el navegador (sin sesión, base local)
+
+Se abrió `/catalogo/<slug>` sin cookies. Comprobado: título derivado del nombre de la rifa; nombre
+del vendedor; introducción exacta; reja de 2 columnas a 320 px, 3 desde `sm` y 4 desde `lg`;
+encabezado fijo al bajar; enlace de WhatsApp con el mensaje correcto y los ceros iniciales
+conservados (`diario 0100 y semanal 2000`); consola **limpia**; nonce de CSP presente en el HTML.
+
+### Lo que NO se pudo comprobar, y se dice
+
+* **Lighthouse y un teléfono real.** No se ejecutó ninguno de los dos (I-066 para el dispositivo).
+* **La página en producción.** `0043` **no se ha aplicado** al proyecto real y no se ha desplegado
+  nada: requiere autorización explícita.
+* **El texto exacto «NÚMEROS DISPONIBLES SORTEO CAMIONETA KIA».** Depende de que la rifa se llame
+  «Sorteo Camioneta Kia»: el título se **deriva** del nombre de la rifa (D-159). Con el seed local
+  sale «NÚMEROS DISPONIBLES RIFA NAVIDAD 2026», que es la misma regla dando otro dato.
+
+### I-093 sigue abierto, y se confirma de forma independiente
+
+`npm run verify` **no arranca** en local por 11 errores de tipos en `build/etapa6/`, los guiones de
+sonda de la etapa 6/6 (D-157), que están en `.gitignore` y **no** en Git. Se diagnosticó de nuevo
+desde cero antes de leer I-093 y el resultado coincide: `npx tsc --noEmit` da **11 errores, los 11
+en `build/`, y 0 en el árbol versionado**.
+
+Para verificar lo versionado se **movió `build/` a un directorio temporal** durante la ejecución y se
+devolvió intacto después (la vez anterior se usó un `tsconfig` temporal; las dos son reversibles).
+Con `build/` apartado, **`npm run verify` pasa completo**. Los archivos son de otro agente y no se
+tocaron (`AGENTS.md` §5); `tsconfig.json` no se modificó.
+
+---
+
 ## Corregir un abono a $0 (D-158, BR-F03, BR-F16, BR-F17) — 2026-09-01
 
 **Encargo.** Un vendedor aplicó un abono a la boleta equivocada y **no pudo corregirlo a $0**: tuvo

@@ -385,6 +385,12 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Que aún no hay hora oficial | **Horario por confirmar** | Pendiente de scrape, sin schedule |
 | Estar sin internet | **Sin conexión** | Offline, desconectado, sin red |
 | Código nuevo servido tras un despliegue | **Versión** | Build, actualización del sistema, parche |
+| Página pública con los números de un vendedor | **Catálogo** | Vitrina, tienda, landing, micrositio |
+| Su dirección, que el vendedor reparte | **Enlace** (público) | Link, URL, slug |
+| Crear un enlace nuevo que rompe el anterior | **Generar un enlace nuevo** | Regenerar, rotar, refrescar |
+| Encender o apagar el catálogo | **Publicar** / **dejar de publicar** | Activar, desactivar, habilitar |
+| Que una boleta del catálogo ya la tiene alguien | **Tomado** | Vendido, ocupado, no disponible |
+| Pedirle una boleta al vendedor por WhatsApp | **Solicitar** | Reservar, apartar, comprar |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -638,6 +644,25 @@ venta»** y **«Saldo pendiente»** en el CSV, donde el ancho no es un problema.
 columna se retira en el teléfono, **no desaparece**: baja a una línea dentro de la celda de «Falta»,
 «Abonado $40.000 de $120.000».
 
+**El catálogo público le habla a alguien que no usa la aplicación** (D-159, D-160). Es la única
+pantalla que lee una persona ajena a la organización: llegó por un enlace de WhatsApp, no tiene
+sesión y no sabe qué es una rifa de esta empresa. De ahí tres reglas propias:
+
+* **No se nombra nada interno.** Ni cliente, ni código interno, ni estado de pago, ni vendedor de
+  otro. No es que no se muestre: es que el dato no llega a esa pantalla (BR-K07). Un texto que hable
+  de «el código interno» —como sí hace la pista del buscador de «Boletas»— está mal aquí.
+* **«Solicitar» no promete nada.** Tocarlo no aparta la boleta, y el aviso al pie lo dice con
+  palabras: «Tocar «Solicitar» no aparta el número. {Nombre} te confirmará por WhatsApp si sigue
+  disponible.» Es la misma familia que la regla de sin conexión (D-116): nunca se dice que algo quedó
+  guardado o reservado si no ocurrió.
+* **Una boleta se nombra por sus DOS números, también en WhatsApp.** El mensaje dice «la boleta con
+  diario 1234 y semanal 5678», no «el número 1234»: el par es lo único que la identifica (BR-N04,
+  BR-N11), y un mensaje ambiguo devuelve al vendedor el trabajo que el catálogo venía a quitarle.
+
+**Y el título de la página sale del nombre de la rifa**, en mayúsculas: «NÚMEROS DISPONIBLES
+{RIFA}». No se escribe el nombre comercial en el código —habría que desplegar cada vez que cambie el
+premio, y mentiría en cuanto hubiera una segunda rifa—; se escribe en el nombre de la rifa.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
@@ -753,6 +778,13 @@ castigo donde solo había una espera.
 | Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/copy.ts`, **todos juntos** — los leen la tarjeta del panel y la opción del menú de usuario (D-123) |
 | Aviso de versión nueva | `src/features/pwa/components/ServiceWorkerManager.tsx` (D-116) |
 | Pantalla sin conexión | `src/app/offline/page.tsx` y `components/OfflineRetry.tsx` (D-116) |
+| Textos del catálogo público: título, introducción, aviso de que no se aparta | `src/app/(catalogo)/catalogo/[slug]/page.tsx` (D-159) |
+| Los dos estados de una boleta pública y el rótulo «Semanal» | `src/features/catalog/components/CatalogTicketCard.tsx` (D-160) |
+| El mensaje que llega escrito a WhatsApp, y el saludo | `src/features/catalog/whatsapp.ts`, **todo junto** (D-160) |
+| Pista y estado vacío del buscador del catálogo | `src/features/search/hints.ts` (`catalogSearchHint`, `CATALOG_SEARCH_EMPTY_DESCRIPTION`, D-160) |
+| «Este enlace ya no está disponible» | `src/app/(catalogo)/catalogo/[slug]/not-found.tsx` (BR-K10) |
+| Textos de configurar el catálogo, y «Publicado» / «Sin publicar» | `src/features/catalog/components/CatalogSettingsCard.tsx` y `CatalogSettingsDialog.tsx` (D-160) |
+| Rótulos del enlace que se copia, en los dos portales | `src/features/catalog/components/CatalogLinkField.tsx` y `SellerCatalogCard.tsx` (BR-K12) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

@@ -22,6 +22,8 @@ import {
   getSellerDashboard,
   getSellerPartialTicketTotals,
 } from '@/features/dashboard/seller-queries'
+import { SellerCatalogCard } from '@/features/catalog/components/SellerCatalogCard'
+import { catalogPublicUrl, getCatalogSettings } from '@/features/catalog/queries'
 import { LotteryResultsSection } from '@/features/lottery/components/LotteryResultsSection'
 import { getCommissionContext, getFirstTierRate } from '@/features/commissions/queries'
 import { getOwnTeamStatus } from '@/features/team/queries'
@@ -63,18 +65,22 @@ export default async function SellerDashboardPage({
   const rangeKey = parseDashboardRange(single(params.range))
   const range = resolveDashboardRange(rangeKey, todayBogota())
 
-  const [dashboard, comisiones, firstTierRate, own, partialTotals, activity] = await Promise.all([
-    getSellerDashboard(),
-    getCommissionContext(),
-    getFirstTierRate(),
-    // BR-G13, BR-G24: quien no pertenece a un equipo cobra la mitad del precio;
-    // dentro de un equipo, por tramos o una cifra fija. Hace falta saberlo
-    // aunque todavia no haya cobrado ninguna boleta, que es justo cuando no hay
-    // fila de comision que leer.
-    getOwnTeamStatus(membership.profileId),
-    getSellerPartialTicketTotals(),
-    getSellerActivity(range),
-  ])
+  const [dashboard, comisiones, firstTierRate, own, partialTotals, activity, catalog] =
+    await Promise.all([
+      getSellerDashboard(),
+      getCommissionContext(),
+      getFirstTierRate(),
+      // BR-G13, BR-G24: quien no pertenece a un equipo cobra la mitad del precio;
+      // dentro de un equipo, por tramos o una cifra fija. Hace falta saberlo
+      // aunque todavia no haya cobrado ninguna boleta, que es justo cuando no hay
+      // fila de comision que leer.
+      getOwnTeamStatus(membership.profileId),
+      getSellerPartialTicketTotals(),
+      getSellerActivity(range),
+      // Su enlace publico (BR-K12). Entra en la MISMA espera que las demas: es
+      // una fila por indice unico y no justifica una ida y vuelta aparte.
+      getCatalogSettings(membership.profileId),
+    ])
 
   const { totals } = dashboard
 
@@ -150,6 +156,13 @@ export default async function SellerDashboardPage({
       <InstallPrompt />
 
       <LotteryResultsSection audience="seller" ticketBasePath="/seller/tickets" />
+
+      {/* Tercer bloque condicional, fuera de la rejilla de siete piezas (D-112):
+          solo aparece cuando el Dueño o el Administrador ya publicó su catálogo
+          y por tanto hay un enlace que compartir (BR-K12). */}
+      {catalog?.enabled && catalog.slug ? (
+        <SellerCatalogCard publicUrl={catalogPublicUrl(catalog.slug)} />
+      ) : null}
 
       {/*
         UNA sola rejilla para las siete piezas, y dos ordenes distintos.

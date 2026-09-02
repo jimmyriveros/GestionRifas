@@ -542,6 +542,30 @@ un error si esto no está escrito.
 
 ---
 
+### 4.4 Catálogo público (`tests/db/public-catalog.test.ts`, 34 pruebas)
+
+La única lectura del proyecto que sirve datos **sin sesión**, así que la suite va por los dos caminos
+que importan y no por uno solo:
+
+* **Lo que puede hacer un visitante** se prueba con el cliente `anon` REAL contra PostgREST —igual
+  que alguien con la consola del navegador abierta—, no confiando en el `grant`: se comprueba que
+  las tablas devuelven cero filas y que las tres funciones dan error al invocarlas.
+* **Lo que devuelven las funciones** se prueba llamándolas por `pg`, porque lo que se verifica es su
+  **cuerpo** —filtros y proyección—, no el transporte.
+
+Cubre: privilegios en el catálogo de PostgreSQL (`anon` ✗, `authenticated` ✗, `service_role` solo
+las dos públicas, las tres `SECURITY DEFINER` con `search_path` fijo); la proyección exacta (tres
+columnas por boleta, ningún uuid, ningún cliente, ningún importe); los siete casos de «no publica»;
+que no se escapa a otro vendedor ni a otra organización; ceros iniciales y orden numérico; unicidad
+y formato del slug y del WhatsApp; la FK de la rifa a su organización; el tope de página, que no se
+puede evadir; la estabilidad de la paginación; y la búsqueda, incluida una de inyección.
+
+**Datos propios, no los del seed.** La suite crea su propia rifa: `public_catalog_tickets` devuelve
+todo el inventario publicable de un vendedor, y usar la del seed haría que las boletas que dejan
+otras suites cambiaran las cuentas según el orden de ejecución (la trampa de I-035). Limpia **por
+nombre** de rifa y también al empezar, de modo que una ejecución interrumpida no bloquea la
+siguiente; borra antes `commission_ledger` y `seller_commissions`, que apuntan a la rifa.
+
 ## 5. Pruebas unitarias clave
 
 | Módulo | Casos |

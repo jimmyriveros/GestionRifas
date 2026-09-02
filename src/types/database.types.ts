@@ -584,6 +584,10 @@ export type Database = {
           organization_id: string
           parent_seller_id: string | null
           profile_id: string
+          public_catalog_enabled: boolean
+          public_raffle_id: string | null
+          public_slug: string | null
+          public_whatsapp_number: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
         }
@@ -597,6 +601,10 @@ export type Database = {
           organization_id: string
           parent_seller_id?: string | null
           profile_id: string
+          public_catalog_enabled?: boolean
+          public_raffle_id?: string | null
+          public_slug?: string | null
+          public_whatsapp_number?: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
@@ -610,6 +618,10 @@ export type Database = {
           organization_id?: string
           parent_seller_id?: string | null
           profile_id?: string
+          public_catalog_enabled?: boolean
+          public_raffle_id?: string | null
+          public_slug?: string | null
+          public_whatsapp_number?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
@@ -641,6 +653,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_public_raffle_org_fk"
+            columns: ["public_raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "memberships_public_raffle_org_fk"
+            columns: ["public_raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
           },
         ]
       }
@@ -1750,6 +1776,42 @@ export type Database = {
         Returns: undefined
       }
       org_staff_profile_ids: { Args: { p_org: string }; Returns: string[] }
+      public_catalog_membership: {
+        Args: { p_slug: string }
+        Returns: {
+          alias: string
+          full_name: string
+          organization_id: string
+          profile_id: string
+          raffle_id: string
+          raffle_name: string
+          ticket_price: number
+          whatsapp_number: string
+        }[]
+      }
+      public_catalog_seller: {
+        Args: { p_slug: string }
+        Returns: {
+          raffle_name: string
+          seller_alias: string
+          seller_name: string
+          ticket_price: number
+          whatsapp_number: string
+        }[]
+      }
+      public_catalog_tickets: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_slug: string
+        }
+        Returns: {
+          daily_number: string
+          taken: boolean
+          weekly_number: string
+        }[]
+      }
       recalc_seller_commission: {
         Args: {
           p_movement?: Database["public"]["Enums"]["commission_movement"]

@@ -1,6 +1,11 @@
 # PROBLEMAS CONOCIDOS Y RIESGOS
 
-**Actualizado:** 2026-09-01 — **I-093 abierto** (D-158): `npm run verify` no llega a pasar en local
+**Actualizado:** 2026-09-02 — el catálogo público (D-159, D-160) **no abrió ningún problema nuevo**.
+I-093 se **confirmó de forma independiente** al verificarlo: 11 errores de tipos, los 11 en `build/`,
+0 en el árbol versionado; se apartó `build/` a un temporal durante `npm run verify` y se devolvió
+intacto, y así la verificación pasa **completa**. I-090 también se reprodujo tal cual: los dos únicos
+fallos de la suite E2E completa son los suyos, y pasan en aislamiento (39/39). Antes:
+**I-093 abierto** (D-158): `npm run verify` no llega a pasar en local
 porque `tsconfig.json` también compila `build/etapa6/`, los guiones de sonda de la etapa 6/6, que
 están en `.gitignore` y no en Git. Son 11 errores de tipos ajenos que **cortan el primer paso**; el
 árbol versionado compila y construye limpio. **No afecta a CI ni a producción.** Antes:

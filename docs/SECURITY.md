@@ -1,8 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.7 · **Estado:** implementado · **Actualizado:** 2026-09-01
+- **Versión:** 2.8 · **Estado:** implementado · **Actualizado:** 2026-09-02
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
-  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039` y `0042`; los privilegios base se fijan en `0009`/`0010`.
+  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042` y `0043`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
   reales por rol y clave pública, nunca `service_role`. La clave de servicio sí puede preparar,
   comprobar o limpiar el escenario y las pruebas de catálogo usan PostgreSQL directo (D-043).
@@ -539,6 +539,49 @@ predeterminado —que es lo que hace la pantalla— porque aquí el resultado es
 un reporte distinto del pedido, con el mismo nombre, sería peor que decir que no.
 
 ---
+
+### 4.10 Catálogo público (`0043`, BR-K01..BR-K12, D-159)
+
+**Es la única lectura del proyecto que sirve datos sin sesión**, así que conviene ser explícito sobre
+por qué no debilita nada.
+
+Quien pide `/catalogo/<slug>` no tiene sesión: no hay `auth.uid()` del que colgar una política, de
+modo que la RLS no puede decidir. Lo que acota la respuesta son dos funciones `SECURITY DEFINER` y,
+en concreto, **su tipo de retorno**: lo que no está en el `returns table` no puede salir. La
+alternativa —una política `SELECT` para `anon` sobre `tickets`— se descartó porque mete a `anon`
+**dentro** de la tabla y PostgREST deja pedir columnas por nombre: cualquier columna futura quedaría
+expuesta salvo que alguien se acuerde de excluirla.
+
+| Función | `anon` | `authenticated` | `service_role` |
+|---|---|---|---|
+| `public_catalog_membership(text)` | ✗ | ✗ | ✗ (no la ejecuta nadie) |
+| `public_catalog_seller(text)` | ✗ | ✗ | ✓ |
+| `public_catalog_tickets(text, text, int, int)` | ✗ | ✗ | ✓ |
+
+Se cumplen las cuatro reglas de §4.5: `search_path` fijo, `REVOKE` explícito a `public`, `anon` y
+`authenticated`, parámetros tipados y sin SQL concatenado, y ningún `RAISE` con detalle interno.
+
+**Lo que no puede manipularse.** Ninguna de las tres acepta vendedor, organización ni rifa como
+parámetro: lo único que entra es el slug, y a quién pertenece lo decide la base. Enviar el slug de
+otra persona devuelve el catálogo de esa persona —que es público— y nunca permite saltar a un tercero
+ni ampliar lo que se ve de nadie.
+
+**Los siete filtros** (BR-K10) viven una sola vez, en `public_catalog_membership`: organización
+activa, perfil activo, membresía activa, rol `seller`, catálogo habilitado, rifa de la misma
+organización y rifa `active`. Los siete fallos producen **la misma** respuesta: ninguna fila. La
+página los traduce a un 404 genérico que no filtra ni el nombre del vendedor ni el de la rifa.
+
+**Lo que NO cambia:** `tickets_select` sigue igual; `anon` sigue sin un solo privilegio sobre ninguna
+tabla de negocio; no hay política nueva en ninguna tabla. La migración es aditiva.
+
+**Configurar es del personal.** La escritura pasa por `memberships_update_staff` (`0014`), así que un
+vendedor no puede publicarse ni cambiar el catálogo de otro; su Server Action además empieza por
+`authorizeAction(['owner','admin'])`. Leer la propia configuración pasa por `memberships_select`
+(`0022`), que a un vendedor solo le devuelve su fila (BR-K12). El cambio lo audita el disparador
+`audit_memberships` que ya existía: no hace falta auditoría nueva.
+
+**La clave de servicio no sale del servidor.** `createAdminClient` importa `server-only`, así que el
+build falla si alguien lo importa desde un componente de navegador (§7).
 
 ## 5. Protección de Server Actions y Route Handlers
 

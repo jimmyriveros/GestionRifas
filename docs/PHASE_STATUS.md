@@ -3,9 +3,9 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-01 (D-158, un abono vigente se corrige a $0; migración `0042` **aplicada
-  al proyecto real** y `ef7bf62` **desplegado y verificado**). Antes: D-157, observación del ciclo
-  real, etapa 6/6, **auditoría de solo lectura**
+- **Actualizado:** 2026-09-02 (D-159 y D-160, catálogo público de boletas por vendedor; migración
+  `0043` **solo en local**, sin desplegar). Antes: D-158, un abono vigente se corrige a $0; migración
+  `0042` **aplicada al proyecto real** y `ef7bf62` **desplegado y verificado**
 - **Estado global:** plan de 10 fases completado; mantenimiento posterior en curso.
   Cabecera contextual (D-150): el título, la flecha y un CTA suben a la cabecera
   fija de `AppShell` cuando el `PageHeader` sale de la vista. Sin migración.
@@ -3458,6 +3458,73 @@ Sin cambios. `LOTTERY_SYNC_SECRET` o `CRON_SECRET` para el Route Handler.
    oficial al día siguiente** (`OPERATIONS.md` §7).
 8. `CorrecionesLoterias.txt`, el prompt de esta etapa y `prueba-abono.csv` son del dueño; no se
    commitean.
+
+---
+
+## Mantenimiento post-9 — catálogo público de boletas por vendedor (2026-09-02)
+
+Autorizado expresamente (primera entrega). Añade una **ruta pública** y la configuración para
+publicarla. **No toca** la máquina de estados de las boletas, ni asignación, pagos, saldos, clientes,
+comisiones, auditoría, RLS ni ningún flujo autenticado. La migración es **aditiva**.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Ruta pública | **`/catalogo/[slug]`**, una sola ruta dinámica para todos los vendedores, **sin sesión**, `force-dynamic` y `noindex, nofollow`. Grupo de layout propio `(catalogo)`, ancho: no hereda el armazón estrecho del login (BR-K01) |
+| Identidad pública | Cuatro columnas en `memberships`: `public_slug` (único en todo el sistema, normalizado, estable), `public_catalog_enabled`, `public_whatsapp_number` (solo dígitos, internacional) y `public_raffle_id` (explícita, FK compuesta a su organización). **Sin segunda entidad de vendedor** (BR-K02..BR-K06) |
+| Encabezado | Fijo con `sticky` —sin escuchadores de scroll—, con el nombre del vendedor, el título **derivado del nombre de la rifa** en mayúsculas y el buscador. Respeta el área segura y funciona desde 320 px |
+| Buscador | Reutiliza `useUrlSearch` + `SearchInput` (teclado numérico, `?q=` en la URL, debounce, limpiar). La consulta la hace el **servidor**; no se descarga el inventario |
+| Reja | Boletas `available` → **Disponible** y `assigned` → **Tomado**, en orden numérico y con los ceros iniciales intactos. `draft`, `pending_approval` y `cancelled` **no existen** para el público |
+| WhatsApp | `https://wa.me/<número>?text=…` como **enlace normal**. El mensaje nombra la boleta por sus **dos** números (BR-N11) y no promete nada: la página avisa de que solicitar no aparta el número |
+| Estados de interfaz | Catálogo sin boletas, búsqueda sin resultados, catálogo deshabilitado, slug inexistente y error inesperado (reutiliza el `error.tsx` de la raíz, que ya era genérico) |
+| Administración | Tarjeta **«Catálogo público»** en la ficha del vendedor que ya existía: publicar/despublicar, WhatsApp, rifa, copiar el enlace y **generar uno nuevo** (acción aparte, con confirmación). Sin módulo administrativo nuevo |
+| Portal del vendedor | Ve y **copia** su enlace en su panel, fuera de la rejilla de siete piezas (D-112). No puede configurarlo, ni el suyo ni el de nadie |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` ✅ **completo** (typecheck, lint 0 errores, **681/681** unitarias, `build`), con
+`build/` apartado por I-093. `npm run test:db` **710/710** en 34 archivos (antes 676/676 en 33).
+E2E de esta tanda **34/34** (26 escritorio + 8 móvil). Suite E2E completa **456/458**: los dos fallos
+son **exactamente** los que nombra **I-090** y pasan en aislamiento (**39/39**); este trabajo no
+alimenta esa acumulación, comprobado contando filas antes y después.
+
+Se midió con **200.000 boletas y 200 vendedores**: la consulta pública entra por el índice que **ya
+existía** (`tickets_seller_raffle_status_idx`) y el portal protegido no sufre regresión —planes
+idénticos y **buffers exactamente iguales**—. Seis errores encontrados y corregidos durante el
+trabajo, incluido uno de maquetación a 320 px y una prueba de regresión que **no detectaba** el fallo
+que decía vigilar. Todo el detalle, con planes de ejecución y cifras, en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+| Archivo | Qué hace |
+|---|---|
+| `0043_public_catalog.sql` | Cuatro columnas `public_*` en `memberships` con sus CHECK, la FK compuesta a `raffles(id, organization_id)` y el índice único parcial `memberships_public_slug_key`. Tres funciones `SECURITY DEFINER` con `search_path` fijo: `public_catalog_membership` (interna, **sin `grant` para nadie**), `public_catalog_seller` y `public_catalog_tickets` (solo `service_role`). **Aditiva**: no altera ninguna tabla, política, función ni enum existente. **SOLO EN LOCAL**: no se ha aplicado al proyecto real |
+
+### 4. Variables de entorno
+
+Ninguna nueva. `NEXT_PUBLIC_SITE_URL`, que ya existía, es la que arma el enlace que se copia.
+
+### 5. Problemas que permanecen
+
+Los de siempre: I-021, I-023, I-024, I-030, I-037, I-062, I-063, I-068, I-072, I-074, I-075, I-077,
+I-081, I-082, I-090, I-091, I-092, I-093. **Ninguno nuevo.** I-093 se confirmó de forma independiente
+antes de leerlo: `npm run verify` no arranca en local por 11 errores de tipos en `build/etapa6/`, que
+no está en Git.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **`0043` no está en producción.** Nada de esto se ha desplegado ni aplicado al proyecto real.
+   Antes de promoverla: respaldo, autorización explícita y `npm run verify:remote`.
+2. **Ningún catálogo queda publicado.** Las cuatro columnas nacen nulas o en `false`: aplicar la
+   migración no publica los datos de nadie. Publicar es un acto explícito del Dueño o el
+   Administrador.
+3. **El título de la página sale del nombre de la rifa.** Para que diga «NÚMEROS DISPONIBLES SORTEO
+   CAMIONETA KIA», la rifa tiene que llamarse «Sorteo Camioneta Kia». Es un dato, no código (D-159).
+4. **Una rifa publicada no se puede borrar** mientras un catálogo la apunte (`ON DELETE RESTRICT`).
+5. **Si vas a tocar la lectura pública**, entiende primero por qué no debilita nada: la proyección la
+   define el **tipo de retorno** de las funciones, no una política, y `anon` sigue sin un solo
+   privilegio sobre ninguna tabla (`SECURITY.md` §4.10).
 
 ---
 

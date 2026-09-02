@@ -53,6 +53,12 @@ type SearchInputProps = {
    * y con calma, no hace falta.
    */
   touchSize?: boolean
+  /**
+   * Teclado que abre el telefono. `search` en todo el proyecto, porque lo que
+   * se escribe es texto; el catalogo publico pide `numeric` porque ahi lo unico
+   * que se busca son las cifras de una boleta (D-159).
+   */
+  inputMode?: 'search' | 'numeric'
   className?: string
 }
 
@@ -69,6 +75,7 @@ export function SearchInput({
   showSubmitButton = false,
   hideLabel = false,
   touchSize = false,
+  inputMode = 'search',
   className,
 }: SearchInputProps) {
   const generatedId = useId()
@@ -107,7 +114,7 @@ export function SearchInput({
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            inputMode="search"
+            inputMode={inputMode}
             autoComplete="off"
             // El navegador ya dibuja su propia «x» en `type="search"`; se quita
             // para no tener dos botones de limpiar que hacen lo mismo.
