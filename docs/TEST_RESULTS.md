@@ -40,7 +40,7 @@ servidor.
 | Comando | Resultado |
 |---|---|
 | `npm run typecheck` | ✅ 0 errores |
-| `npm run lint` | ✅ **0 errores**, 3 avisos preexistentes en `BulkTicketCreator.tsx` (`react-hooks/incompatible-library`, ajenos a este cambio) |
+| `npm run lint` | ✅ **0 errores**, 2 avisos preexistentes de `react-hooks/incompatible-library`, ajenos a este cambio. Hubo un tercero **propio** —`jsx-a11y/alt-text` sobre el `<img>` del hero, porque la regla no ve el `alt` que llega dentro del spread— y se corrigió escribiendo `alt=""` aparte |
 | `npm run test` | ✅ **723/723** en 44 archivos (+1 unitaria nueva) |
 | `npm run build` | ✅ compila; `/catalogo/[slug]` sigue siendo dinámica |
 | `npm run test:db` | ✅ **726/726** en 35 archivos — **sin cambios**: esta entrega no toca la base |
@@ -120,6 +120,21 @@ transparente, un degradado que el navegador no entienda **borra el título**.
 **5. Anillo de foco invisible sobre el botón violeta.** `ring-ring/50` sin separación, violeta sobre
 violeta. Corregido subiendo `--ring` dentro de `.catalog-theme`. **En el portal sigue sin verse**, y
 eso queda como I-096.
+
+**6. «La consola queda limpia» era intermitente, y se destapó al desplegar.** Apareció **después** de
+empujar a producción, al repetir la suite: la prueba escribía con `fill()` y esperaba que la lista
+bajara a una boleta. `fill` escribe de una vez y deja **una sola** oportunidad al debounce de
+`useUrlSearch`, que se cancela al desmontarse el campo (`useEffect(() => () => cancelTimer())`); si
+algo remonta el buscador dentro de esa ventana, la navegación no llega a ocurrir y la lista se queda
+entera. Falló dos veces seguidas, pasó en aislamiento y volvió a pasar sola: **intermitente, no
+determinista**. Se corrige con `pressSequentially`, que es lo que ya hacía —y documentaba— la prueba
+vecina de «el buscador» en este mismo archivo. Tres corridas completas seguidas después: **31/31,
+31/31, 31/31**.
+
+Lo que **no** era: un fallo del producto. Quien escribe de verdad teclea carácter a carácter y
+reprograma el temporizador en cada tecla; la prueba que teclea nunca falló. Y tampoco era el
+`alt=""`, que es lo que se acababa de tocar cuando saltó — se comprobó ejecutando por bloques hasta
+descartar cada predecesor.
 
 ### Un fallo que NO era del código
 

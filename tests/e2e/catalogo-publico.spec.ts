@@ -385,7 +385,12 @@ test.describe('privacidad y ruido (BR-K07)', () => {
     page.on('pageerror', (error) => errores.push(error.message))
 
     await anonima(page, `/catalogo/${SLUG}`)
-    await page.getByRole('searchbox').fill(DISPONIBLES[0]!)
+    // `pressSequentially` y no `fill`, por la misma razón que en «el buscador»:
+    // `fill` escribe de una vez y deja UNA sola oportunidad al debounce de
+    // `useUrlSearch`, que se cancela al desmontarse el campo. Con `fill` esta
+    // prueba fallaba de forma intermitente —la lista se quedaba entera— y el
+    // fallo no decía nada de la consola, que es lo que aquí se comprueba.
+    await page.getByRole('searchbox').pressSequentially(DISPONIBLES[0]!, { delay: 30 })
     await expect(page.locator('main ul li')).toHaveCount(1)
 
     expect(errores).toEqual([])

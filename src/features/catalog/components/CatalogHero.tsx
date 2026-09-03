@@ -64,8 +64,16 @@ function HeroArtwork() {
         escritorio al centro, que es donde la composicion reparte coche y
         boletas a cada lado.
       */}
+      {/*
+        `alt=""` se escribe APARTE del spread aunque `resto` ya lo traiga: la
+        regla `jsx-a11y/alt-text` lee el JSX, no lo que hay dentro de un objeto,
+        y sin esto avisa en cada build de que a esta imagen le falta el texto
+        alternativo — un aviso que, de tanto repetirse, acaba tapando uno de
+        verdad. Es decoración: el alt vacío es el correcto, no un descuido.
+      */}
       <img
         {...resto}
+        alt=""
         className="absolute inset-0 size-full object-cover object-[center_bottom] md:object-[center_45%]"
         style={{ ...resto.style }}
       />
