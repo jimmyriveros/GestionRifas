@@ -391,7 +391,8 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Su dirección, que el vendedor reparte | **Enlace** (público) | Link, URL, slug |
 | Crear un enlace nuevo que rompe el anterior | **Generar un enlace nuevo** | Regenerar, rotar, refrescar |
 | Encender o apagar el catálogo | **Publicar** / **dejar de publicar** | Activar, desactivar, habilitar |
-| Que una boleta del catálogo ya la tiene alguien | **Tomado** | Vendido, ocupado, no disponible |
+| Que una boleta del catálogo ya la tiene alguien | **Tomado**, y **solo en las cifras**: «29 de 68 ya fueron tomados». Desde D-164 no existe como etiqueta, porque una boleta tomada no se publica | Vendido, ocupado, no disponible |
+| La parte del catálogo que ya tiene dueño, en porcentaje | **Reservado** — es la palabra del porcentaje, **no un estado**: nada se aparta (D-164) | Vendido, apartado, comprometido |
 | Pedirle una boleta al vendedor por WhatsApp | **Solicitar** | Reservar, apartar, comprar |
 | Que el catálogo de un vendedor abre de verdad | **Activo** / **Inactivo** | Publicado, encendido, habilitado, en línea |
 | Mandar el enlace por el menú del teléfono | **Compartir** | Enviar, difundir, propagar |
@@ -693,6 +694,40 @@ Lo que **no** se escribe ahí: ni «Premio principal» ni «Sorteo semanal», la
 referencia. El premio y la frecuencia **no son datos de este sistema**, y rellenarlos con el nombre
 de la rifa o con «Todos los sábados» sería inventarlos.
 
+**Ya no se habla de «números en gris», porque no hay ninguno** (D-164). El texto de introducción es
+exactamente **«Elige el número que más te guste y toca 'Solicitar' para escribirnos por WhatsApp.»**
+y se acabó: la frase «Los números en gris ya están tomados» describía una pantalla que dejó de
+existir cuando las boletas vendidas dejaron de publicarse. Un texto que promete algo que no está
+deja a quien lee buscándolo. Por lo mismo desapareció la etiqueta **«Tomado»**: ya no hay nada que
+etiquetar así.
+
+**Las tres cifras dicen de qué son sin decir «en esta página»** (D-164). Se leen **«39 · números
+disponibles»**, **«29 de 68 · ya fueron tomados»** y **«43 % · reservado»**, y son del catálogo
+entero. Antes llevaban debajo «En esta página» porque contaban las boletas de la página; ese rótulo
+se retira **porque se retira el motivo**, no por ahorrar una línea. **«Reservado» es solo la palabra
+del porcentaje**: no existe ningún estado de reserva, y tocar «Solicitar» sigue sin apartar nada
+—eso lo sigue diciendo el aviso del pie, que no se toca—.
+
+**«¡Quedan pocos números!» solo se escribe cuando quedan pocos** (D-164). El encargo lo pedía
+siempre; con el 10 % vendido sería falso, y esta es la única pantalla que lee alguien de fuera de la
+organización, que no tiene forma de contrastarlo. Aparece a partir del **70 % reservado** y calla
+por debajo. Es la §7 de esta guía aplicada tal cual: la aplicación no dice cosas que no son ciertas,
+y la urgencia no es una excepción.
+
+**Los estados vacíos distinguen «no queda ninguno» de «ese no existe»** (D-164). Sin búsqueda:
+**«Por ahora no quedan números disponibles»**, con la salida de escribirle al vendedor por si
+publica más. Con búsqueda: **«No encontramos ese número entre los disponibles»** —«entre los
+disponibles» no sobra: sin esa coletilla, quien busca una boleta que alguien acaba de comprar cree
+que se equivocó de número—.
+
+**El encabezado ya no ofrece WhatsApp** (D-164). Se retiró «Escríbenos por WhatsApp»: era el único
+camino a WhatsApp que **no nombraba ninguna boleta**, y un mensaje así devuelve al vendedor la
+pregunta que el catálogo venía a quitarle. Queda «Solicitar», que nombra los dos números.
+
+**Al bajar, el encabezado dice la rifa en lugar de «Vendedor oficial»** (D-164). Sustituye, no
+añade: son las mismas dos líneas, así que el encabezado no crece y el nombre de la rifa nunca se lee
+dos veces a la vez. Es texto secundario y truncado, **no un segundo `h1`**.
+
 **El vendedor reparte su catálogo desde el panel, y ahí se dice lo justo** (D-161). Los tres botones
 —**Compartir**, **Copiar enlace** y **Ver catálogo**— llevan **texto visible junto al icono**: un
 icono solo obliga a adivinar, y esta tarjeta la usa gente que no vive en aplicaciones. Las reglas
@@ -860,7 +895,9 @@ castigo donde solo había una espera.
 | «Escríbenos por WhatsApp», «Vendedor oficial» y las iniciales del encabezado público | `src/features/catalog/components/CatalogHeader.tsx` (D-163) |
 | El mensaje de contacto que NO nombra ninguna boleta | `src/features/catalog/whatsapp.ts` (`catalogContactMessage`, D-163) |
 | La etiqueta «Catálogo público» y el título de dos líneas del hero | `src/features/catalog/components/CatalogHero.tsx` (D-163) |
-| Rótulos y alcance del resumen público («En esta página», «En tu búsqueda») | `src/features/catalog/components/CatalogSummary.tsx` (D-163) |
+| Rótulos de las tres cifras públicas («números disponibles», «ya fueron tomados», «reservado») y el aviso de que quedan pocos | `src/features/catalog/components/CatalogSummary.tsx` (D-164) |
+| El nombre de la rifa que recoge el encabezado al bajar, y «Vendedor oficial» | `src/features/catalog/components/CatalogHeader.tsx` (D-164) |
+| Los dos estados vacíos del catálogo público | `src/app/(catalogo)/catalogo/[slug]/page.tsx` (D-164) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

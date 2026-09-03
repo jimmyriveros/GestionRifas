@@ -50,7 +50,12 @@ const OCULTAS: { estado: 'draft' | 'pending_approval' | 'cancelled'; daily: stri
 ]
 
 
-type PublicTicket = { daily_number: string; weekly_number: string; taken: boolean }
+/**
+ * Desde `0046` una boleta publica son SUS DOS NUMEROS y nada mas: la columna
+ * `taken` desaparecio porque ya no puede haber una boleta tomada en esta
+ * proyeccion (D-164).
+ */
+type PublicTicket = { daily_number: string; weekly_number: string }
 
 async function tickets(
   slug: string,
@@ -317,7 +322,7 @@ describe('privilegios: el visitante no toca nada (BR-K07)', () => {
 })
 
 describe('proyeccion publica: lo que sale y lo que no (BR-K08)', () => {
-  it('devuelve el vendedor, la rifa y el WhatsApp, y ni un identificador', async () => {
+  it('devuelve el vendedor, la rifa, el WhatsApp y los totales, y ni un identificador', async () => {
     const rows = await seller(SLUG)
     expect(rows).toHaveLength(1)
     expect(rows[0]).toEqual({
@@ -326,6 +331,8 @@ describe('proyeccion publica: lo que sale y lo que no (BR-K08)', () => {
       whatsapp_number: WHATSAPP,
       raffle_name: 'Rifa Catalogo Publico',
       ticket_price: '120000',
+      available_count: String(DISPONIBLES.length),
+      taken_count: String(TOMADAS.length),
     })
     // Ninguna columna de la proyeccion es un uuid.
     for (const value of Object.values(rows[0])) {
@@ -333,11 +340,11 @@ describe('proyeccion publica: lo que sale y lo que no (BR-K08)', () => {
     }
   })
 
-  it('cada boleta trae SOLO los dos numeros y si esta tomada', async () => {
+  it('cada boleta trae SOLO los dos numeros (D-164)', async () => {
     const rows = await tickets(SLUG)
     expect(rows.length).toBeGreaterThan(0)
     for (const row of rows) {
-      expect(Object.keys(row).sort()).toEqual(['daily_number', 'taken', 'weekly_number'])
+      expect(Object.keys(row).sort()).toEqual(['daily_number', 'weekly_number'])
     }
   })
 
@@ -349,13 +356,47 @@ describe('proyeccion publica: lo que sale y lo que no (BR-K08)', () => {
     expect(texto).not.toContain(ctx.clients.ana.id)
   })
 
-  it('available sale como disponible y assigned solo como tomada', async () => {
-    const rows = await tickets(SLUG)
-    const libres = rows.filter((r) => !r.taken).map((r) => r.daily_number)
-    const tomadas = rows.filter((r) => r.taken).map((r) => r.daily_number)
+  it('SOLO salen las disponibles: una boleta tomada no viaja (D-164)', async () => {
+    const rows = await tickets(SLUG, { limit: 61 })
+    const numeros = rows.map((r) => r.daily_number)
 
-    expect(libres.sort()).toEqual([...DISPONIBLES].sort())
-    expect(tomadas.sort()).toEqual([...TOMADAS].sort())
+    expect([...numeros].sort()).toEqual([...DISPONIBLES].sort())
+    for (const tomada of TOMADAS) {
+      expect(numeros, `la boleta tomada ${tomada} salio al catalogo`).not.toContain(tomada)
+    }
+  })
+
+  it('las tomadas siguen contando en los totales, aunque no se publiquen', async () => {
+    const [meta] = await seller(SLUG)
+    expect(meta.available_count).toBe(String(DISPONIBLES.length))
+    expect(meta.taken_count).toBe(String(TOMADAS.length))
+    // Los estados que no son del catalogo tampoco entran en sus cifras.
+    expect(Number(meta.available_count) + Number(meta.taken_count)).toBe(
+      DISPONIBLES.length + TOMADAS.length,
+    )
+  })
+
+  it('los totales no dependen de la pagina ni de la busqueda', async () => {
+    // La funcion de metadatos NO recibe ninguna de las dos cosas, asi que esto
+    // no puede fallar por construccion; se comprueba igual porque es la promesa
+    // que sostiene la franja de cifras (BR-K14).
+    const primera = (await seller(SLUG))[0]
+    await tickets(SLUG, { limit: 1, offset: 4 })
+    await tickets(SLUG, { search: '0100' })
+    const despues = (await seller(SLUG))[0]
+
+    expect(despues.available_count).toBe(primera.available_count)
+    expect(despues.taken_count).toBe(primera.taken_count)
+  })
+
+  it('un vendedor no recibe los totales de otro', async () => {
+    const propios = (await seller(SLUG))[0]
+    const ajenos = (await seller(OTRO_SLUG))[0]
+
+    // La otra organizacion publica UNA boleta disponible y ninguna tomada.
+    expect(ajenos.available_count).toBe('1')
+    expect(ajenos.taken_count).toBe('0')
+    expect(ajenos.available_count).not.toBe(propios.available_count)
   })
 
   it('draft, pending_approval y cancelled no aparecen de ninguna forma', async () => {
@@ -383,15 +424,16 @@ describe('proyeccion publica: lo que sale y lo que no (BR-K08)', () => {
   it('conserva los ceros iniciales (BR-N03)', async () => {
     const numeros = (await tickets(SLUG)).map((r) => r.daily_number)
     expect(numeros).toContain('0007')
-    expect(numeros).toContain('0009')
+    expect(numeros).toContain('0025')
     expect(numeros).not.toContain('7')
-    expect(numeros).not.toContain('9')
+    expect(numeros).not.toContain('25')
   })
 
   it('el orden es numerico, no alfabetico', async () => {
     const numeros = (await tickets(SLUG, { limit: 61 })).map((r) => r.daily_number)
     // Alfabeticamente «1300» iria antes que «0025»; numericamente, al final.
-    expect(numeros).toEqual(['0007', '0009', '0025', '0100', '0101', '1234', '1300'])
+    // Las tomadas —0009 y 1234— ya no aparecen entre medias (D-164).
+    expect(numeros).toEqual(['0007', '0025', '0100', '0101', '1300'])
   })
 })
 
@@ -568,6 +610,24 @@ describe('paginacion y limites (BR-K11)', () => {
   it('pedir una pagina mas alla del final devuelve vacio, no un error', async () => {
     expect(await tickets(SLUG, { limit: 50, offset: 500 })).toEqual([])
   })
+
+  it('la paginacion se calcula sobre las DISPONIBLES: las tomadas no ocupan sitio (D-164)', async () => {
+    // El filtro va antes de `limit`/`offset`. Si se aplicara despues, una
+    // pagina de 2 traeria menos de 2 tarjetas cada vez que le tocara una
+    // tomada, y el final llegaria antes de tiempo.
+    const todas = await tickets(SLUG, { limit: 61 })
+    expect(todas).toHaveLength(DISPONIBLES.length)
+
+    const primera = await tickets(SLUG, { limit: 2, offset: 0 })
+    const segunda = await tickets(SLUG, { limit: 2, offset: 2 })
+    expect(primera).toHaveLength(2)
+    expect(segunda).toHaveLength(2)
+    expect(primera.map((r) => r.daily_number)).not.toEqual(segunda.map((r) => r.daily_number))
+
+    // Y el ultimo desplazamiento util es el de las disponibles, no el de todo
+    // el inventario publicable de antes.
+    expect(await tickets(SLUG, { limit: 2, offset: DISPONIBLES.length })).toEqual([])
+  })
 })
 
 describe('busqueda publica (BR-K08)', () => {
@@ -580,8 +640,17 @@ describe('busqueda publica (BR-K08)', () => {
   })
 
   it('encuentra tambien por el numero semanal', async () => {
-    const rows = await tickets(SLUG, { search: '6000' })
-    expect(rows.map((r) => r.weekly_number)).toEqual(['6000'])
+    const rows = await tickets(SLUG, { search: '5002' })
+    expect(rows.map((r) => r.weekly_number)).toEqual(['5002'])
+  })
+
+  it('buscar una boleta TOMADA no devuelve nada, ni por su diario ni por su semanal (D-164)', async () => {
+    for (const tomada of TOMADAS) {
+      expect(await tickets(SLUG, { search: tomada })).toEqual([])
+    }
+    // 6000 y 6001 son los semanales de las dos tomadas.
+    expect(await tickets(SLUG, { search: '6000' })).toEqual([])
+    expect(await tickets(SLUG, { search: '6001' })).toEqual([])
   })
 
   it('respeta los ceros iniciales: «7» no encuentra «0007» por igualdad numerica', async () => {

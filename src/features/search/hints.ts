@@ -113,4 +113,4 @@ export function catalogSearchHint(term: string): string | undefined {
  * otro: que se puede hacer ahora.
  */
 export const CATALOG_SEARCH_EMPTY_DESCRIPTION =
-  'Revisa el número, o borra la búsqueda para ver todos.'
+  'Revisa el número, o borra la búsqueda para ver los que quedan.'

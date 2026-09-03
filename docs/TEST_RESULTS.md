@@ -29,6 +29,116 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — Solo disponibles, cifras del catálogo y buscador que se posa (2026-09-03, D-164)
+
+Cinco ajustes sobre el catálogo ya desplegado: fuera el botón general de WhatsApp, buscador y título
+que se posan en el encabezado, solo boletas disponibles, texto de introducción nuevo y cifras del
+catálogo completo. Migración **`0046`**, sin índice nuevo.
+
+### Comandos
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ 0 errores |
+| `npm run lint` | ✅ **0 errores**, los 2 avisos preexistentes de `react-hooks/incompatible-library` |
+| `npm run test` | ✅ **728/728** en 44 archivos (+6 unitarias nuevas del porcentaje) |
+| `npm run build` | ✅ |
+| `npm run test:db` | ✅ **731/731** en 35 archivos (+5 en `public-catalog`), tras `db:reset` con las **46** migraciones |
+| `playwright catalogo-publico` (escritorio) | ✅ **40/40** (31 previas + **9 nuevas**) |
+| `playwright catalogo-publico-movil` (móvil) | ✅ **11/11** (10 previas + **1 nueva**) |
+
+### Lo que demuestran las pruebas nuevas
+
+| Qué | Dónde |
+|---|---|
+| Solo se devuelven y renderizan disponibles; una tomada **no está en el HTML** | E2E escritorio + DB |
+| Buscar una tomada —por su diario **y** por su semanal— no devuelve nada | DB, E2E |
+| La paginación se calcula sobre las disponibles, y el último desplazamiento útil es el suyo | DB |
+| Las cifras son del catálogo entero: `total = disponibles + tomadas` y superan a las tarjetas | E2E |
+| Página 1 y página 2 dan los mismos totales; buscar tampoco los cambia | E2E |
+| Una búsqueda **sin resultados** conserva las cifras | E2E |
+| La barra usa **exactamente** el porcentaje escrito | E2E |
+| `total = 0` da **0 %**, nunca `NaN` ni `Infinity`; se acota a 0–100 | Unitarias |
+| Un vendedor no recibe los totales de otro | DB |
+| `anon` y `authenticated` siguen sin poder ejecutar las funciones | DB |
+| «Solicitar» conserva número y mensaje exactos | E2E |
+| Los cinco estados del buscador/título posados, sin duplicados ni pérdida de valor o foco | E2E |
+| Al posarse no hay desplazamiento horizontal, y el campo mantiene sus 44 px | E2E móvil |
+
+### Rendimiento: el agregado, medido con volumen
+
+`explain (analyze, buffers)` dentro de una transacción con `rollback`, con `analyze tickets` para
+que el planificador decida con estadísticas reales. Tres ejecuciones, se toma la mejor.
+
+**Primer intento, y por qué no valía:** con 50.000 boletas todas del mismo vendedor y la misma rifa,
+el planificador eligió **Seq Scan** —y hacía bien: esa rifa era el 99,9 % de la tabla, no había nada
+que descartar—. Esa forma no existe en producción, así que se repitió con una tabla de **50.033
+filas repartidas en 20 rifas**, con la publicada como una porción de ellas (2.500).
+
+| Consulta | Tiempo | Buffers | Plan |
+|---|---|---|---|
+| Metadatos **sin** conteos (como 0043) | 0,43 ms | 64 hit | Function Scan |
+| Metadatos **con** los dos conteos (0046) | **0,84 ms** | 190 hit | Function Scan |
+| Boletas, página 1 | 0,84 ms | 129 hit | Function Scan |
+| Boletas con búsqueda | 0,85 ms | 129 hit | Function Scan |
+| **Interior del agregado** | **0,36 ms** | 66 hit | Aggregate → **Bitmap Index Scan con `tickets_seller_raffle_status_idx`** |
+| **Interior de la página** | 0,42 ms | 65 hit | Limit → Sort → **Bitmap Index Scan con el mismo índice** |
+
+**Los dos conteos cuestan 0,41 ms** y usan el índice que ya existía desde `0003`. **No se crea
+ningún índice**, y la decisión no es una corazonada: es el plan de ejecución. El caso pesimista —una
+sola rifa con 45.000 boletas publicables— tarda 8,79 ms con Seq Scan, que también es aceptable.
+
+### Rendimiento: la página, antes y después
+
+Mismo servidor de desarrollo, mismo catálogo (68 boletas: 39 disponibles, 29 tomadas), seis
+peticiones seguidas.
+
+| Medida | Antes (D-163) | Después (D-164) |
+|---|---|---|
+| Tiempo hasta el primer byte | 0,515 – 0,737 s | **0,441 – 0,604 s** |
+| HTML comprimido | 24,1 KB | **20,8 KB** |
+| Consultas a la base por petición | 2, en paralelo | **2, en paralelo** |
+| Imágenes descargadas | 1 | 1 |
+
+No empeora: mejora, porque se renderizan 29 tarjetas menos. El número de consultas es el mismo.
+
+### Los cinco anchos, otra vez
+
+320 · 390 · 768 · 1280 · 1600 px: **0 px** de desplazamiento horizontal, **0** errores de consola y
+**una sola** composición del hero descargada en cada uno (82,5 / 122,0 / 272,9 KB).
+
+### Errores encontrados y corregidos
+
+**1. El planificador elegía Seq Scan, y la primera medición no servía.** Ver arriba: era la forma de
+los datos de prueba, no el índice. Se rehízo el volumen para que se pareciera a producción. **La
+lección es de método:** una medición con un solo vendedor dueño de toda la tabla habría llevado a
+crear un índice que no hace falta.
+
+**2. `getByText('Disponible')` contaba 16 donde había 13 tarjetas.** El localizador encuentra
+también a los antepasados que contienen el texto. Se cambió por la insignia (`[data-slot="badge"]`).
+
+**3. La prueba de la barra comparaba `width: 35%` y el atributo servido decía `width:35%`.** Se
+normaliza el espacio antes de comparar.
+
+**4. La ventana intermedia del scroll es estrecha, y adivinarla en píxeles fallaba.** Entre «el
+título ya pasó bajo el encabezado» y «el buscador todavía no llega» hay unas decenas de píxeles en
+escritorio. La prueba ahora **calcula** ese rango a partir de las cajas reales y falla con un mensaje
+claro si no existe, en vez de dar por bueno un número fijo.
+
+**5. En el móvil, el buscador «no se posaba»… porque la navegación lo devolvía arriba.** Al escribir,
+el enrutador navega a `?q=…` y **coloca la página al principio**. La prueba bajaba, la navegación
+aterrizaba después y la medición salía sin posar. Se espera a que la URL cambie **antes** de bajar.
+Costó una instrumentación: la primera hipótesis —que el debounce no llegaba a navegar— era falsa.
+
+### Lo que NO se comprobó, y se dice
+
+* **Un teléfono real.** Todo es Chromium emulando un Pixel 7 y anchos fijos (**I-066**).
+* **Producción.** No se ha desplegado nada: el encargo lo excluye expresamente.
+* **El catálogo real del enlace publicado** (`armando-gordillo-6w84`): las medidas y capturas son
+  contra la base local, con datos de demostración.
+
+---
+
 ## Post-9 — Rediseño visual del catálogo público (2026-09-02, D-163)
 
 Encargo: rediseñar **solo la presentación** del catálogo público sobre dos referencias visuales y dos

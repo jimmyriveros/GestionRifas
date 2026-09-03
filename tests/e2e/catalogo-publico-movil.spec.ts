@@ -100,6 +100,45 @@ test.describe('en el telefono', () => {
     expect(header!.height).toBeLessThan(alto * 0.14)
   })
 
+  test('el buscador se posa bajo el encabezado sin perder lo escrito ni desbordar (D-164)', async ({
+    page,
+  }) => {
+    await abrirSinSesion(page, `/catalogo/${SLUG}`)
+
+    const campo = page.getByRole('searchbox')
+    // «0» a proposito: casi todas las boletas lo llevan, asi que la lista sigue
+    // siendo larga y queda pagina que bajar. Con un termino que filtrara a dos
+    // resultados no habria scroll que probar.
+    await campo.pressSequentially('0', { delay: 30 })
+
+    // HAY QUE ESPERAR A QUE LA NAVEGACION ATERRICE ANTES DE BAJAR, y no es una
+    // manera de dormir: al llegar, el enrutador devuelve la pagina arriba del
+    // todo. Bajar antes y medir despues daba un buscador «sin posar» que en
+    // realidad si se habia posado y habia vuelto.
+    await expect(page).toHaveURL(/q=0/)
+
+    await page.evaluate(() => window.scrollTo(0, 4000))
+    await page.waitForTimeout(400)
+
+    const header = (await page.locator('header').boundingBox())!
+    const caja = (await campo.boundingBox())!
+
+    // Posado justo debajo del encabezado, y sin taparlo.
+    expect(caja.y).toBeGreaterThanOrEqual(header.y + header.height - 1)
+    expect(caja.y).toBeLessThan(header.y + header.height + 24)
+
+    // Sigue siendo UNO, conserva el valor y mantiene su diana tactil de 44 px.
+    await expect(campo).toHaveCount(1)
+    await expect(campo).toHaveValue('0')
+    expect(caja.height).toBeGreaterThanOrEqual(44)
+
+    // Y la pagina no se desplaza en horizontal por tener un elemento fijo.
+    const desborde = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(desborde).toBeLessThanOrEqual(0)
+  })
+
   test('el boton «Solicitar» tiene diana tactil suficiente', async ({ page }) => {
     await abrirSinSesion(page, `/catalogo/${SLUG}?q=${CATALOG_DISPONIBLES[0]}`)
 

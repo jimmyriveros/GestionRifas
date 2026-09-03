@@ -1854,9 +1854,11 @@ export type Database = {
       public_catalog_seller: {
         Args: { p_slug: string }
         Returns: {
+          available_count: number
           raffle_name: string
           seller_alias: string
           seller_name: string
+          taken_count: number
           ticket_price: number
           whatsapp_number: string
         }[]
@@ -1870,7 +1872,6 @@ export type Database = {
         }
         Returns: {
           daily_number: string
-          taken: boolean
           weekly_number: string
         }[]
       }

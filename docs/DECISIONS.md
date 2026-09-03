@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.37 · **Actualizado:** 2026-09-02 (D-001 a D-163)
+- **Versión:** 1.38 · **Actualizado:** 2026-09-03 (D-001 a D-164)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -6567,6 +6567,90 @@ apareció **un defecto real**: un campo con `backdrop-filter` crea su propio con
 y se pintaba **encima** de los iconos de `SearchInput`, dejando el botón «Limpiar búsqueda»
 invisible y sin recibir el toque; se arregló fijando `z-10` en las dos capas del campo, lo que
 protege a las seis pantallas que lo usan.
+
+## D-164 — Solo se publican las disponibles, las cifras son del catálogo entero y el buscador se posa
+
+**Fase:** mantenimiento posterior a la Fase 9 (catálogo público, 2026-09-03)
+
+**Contexto.** Con el catálogo ya desplegado (D-163) y el primer enlace publicado
+(`/catalogo/armando-gordillo-6w84`), el dueño pidió cinco ajustes sobre lo que se ve: quitar el
+botón general de WhatsApp del encabezado, que el buscador siga disponible al bajar, que el nombre de
+la rifa acompañe en el encabezado, que **no se publiquen las boletas vendidas** y que la franja de
+cifras hable del catálogo entero en vez de la página. El alcance excluía explícitamente el hero, la
+línea visual, los enlaces de WhatsApp de cada boleta y el portal.
+
+**Decisión.**
+
+**(a) El botón general de WhatsApp desaparece del encabezado.** Competía con los «Solicitar» de
+cada boleta y producía justo el mensaje que el catálogo venía a evitar: uno que **no nombra ninguna
+boleta**, y que obliga al vendedor a preguntar cuál. Con él se retiró `catalogContactMessage`, su
+prueba y el `WhatsappIcon` del encabezado. El único camino a WhatsApp vuelve a ser «Solicitar», que
+nombra la boleta por sus dos números (BR-N11).
+
+**(b) Una boleta vendida deja de publicarse, y el filtro es de la base.** `public_catalog_tickets`
+filtra `inventory_status = 'available'` **antes** de `limit`/`offset` (`0046`). No se oculta con
+CSS, no viaja al navegador y no ocupa sitio en la paginación: una página trae hasta 50 disponibles
+de verdad y `hasNextPage` se calcula sobre ellas. De rebote desaparece la columna `taken` del tipo
+de retorno —valdría `false` en todas las filas— y con ella el camino «Tomado» de la tarjeta, que era
+código que ya nadie podía alcanzar.
+
+**(c) Las cifras son del catálogo completo, y por construcción no pueden ser otra cosa.** Los dos
+conteos viajan con los **metadatos**, en una llamada que **no recibe página ni término de búsqueda**
+(`public_catalog_seller`, `0046`). No es una precaución: es que no hay por dónde equivocarse. Un
+`count(*) filter (...)` por estado sobre el mismo `from` es **una sola pasada**; `total` se calcula
+en TypeScript como `available + taken` para que exista una sola definición de la suma.
+
+**(d) El buscador que se posa es UNO, no dos.** Al perder de vista el del hero, ese mismo campo pasa
+a `position: fixed` bajo el encabezado. El hueco del hero conserva su altura exacta. De ahí salen
+tres garantías que con dos instancias habría que perseguir a mano: **nunca hay dos** (no es que el
+otro esté oculto: no existe), **no se pierde lo escrito, ni el foco, ni el cursor** —el nodo no se
+desmonta— y **no hay dos estados que sincronizar**.
+
+**(e) Dos observadores independientes, y ningún escuchador de scroll.** El título y el buscador se
+observan por separado con `IntersectionObserver` y un margen negativo del alto del encabezado, así
+que cada uno se activa cuando **su** original deja de verse; existe un estado intermedio en el que
+el título ya está arriba y el buscador todavía no. **No parpadea**, y la razón es estructural: el
+encabezado **no cambia de alto** al recoger el título —el nombre de la rifa sustituye a «Vendedor
+oficial», no añade una línea— y el buscador posado es `fixed`, fuera del flujo. Ninguno de los dos
+mueve al elemento observado, que es como se fabrica el bucle clásico de aparecer y desaparecer.
+
+**(f) El título del encabezado NO es un segundo `h1`.** Es texto secundario truncado. El `h1`
+canónico sigue siendo el del hero, y sigue habiendo exactamente uno.
+
+**(g) «¡Quedan pocos números!» solo se escribe cuando es verdad.** El encargo lo pedía siempre; con
+el 10 % vendido sería falso, y esta es la única pantalla que lee alguien de fuera de la
+organización, sin forma de contrastarlo. Aparece a partir del **70 %** reservado —el umbral sale del
+propio ejemplo del encargo, 72 %— y calla por debajo. Es `UX_COPY_GUIDELINES` §7 y `CLAUDE.md`
+§35.2.4: se prioriza no inducir a error, se señala la contradicción y se sigue.
+
+**Alternativas descartadas.**
+
+* **Dos `CatalogSearch`, uno en el hero y otro en el encabezado** (descartada: dos estados que
+  sincronizar, y el salto pierde foco y cursor justo cuando en un teléfono se abre el teclado).
+* **Un portal de React que cambie de contenedor** (descartada por lo mismo: cambiar el contenedor
+  desmonta y recrea el `<input>`).
+* **Ocultar el buscador del hero con CSS y enseñar otro** (descartada: quedarían dos en el árbol de
+  accesibilidad, que es exactamente lo que el encargo prohíbe).
+* **Un escuchador de `scroll` con umbral** (descartada: un render por píxel movido, y el encargo lo
+  excluye).
+* **Filtrar las tomadas en TypeScript** (descartada: descuadra la paginación y las manda igual al
+  navegador).
+* **Tres consultas para las tres cifras, o una función nueva** (descartada: una tercera ida y vuelta
+  por visita para devolver dos números que caben en la llamada que ya se hacía).
+* **Contadores persistentes en una tabla, con disparadores** (descartada: caché que puede quedar
+  obsoleta y un camino nuevo de escritura, para ahorrar 0,41 ms).
+* **Un índice nuevo** (descartada **con medición**: `tickets_seller_raffle_status_idx`, de `0003`,
+  ya cubre `(seller_id, raffle_id, inventory_status)`. Con 50.033 boletas y la rifa publicada como
+  una porción de ellas, `explain (analyze, buffers)` enseña **Bitmap Index Scan con ese índice** en
+  el agregado y en la página, y los dos conteos añaden **0,41 ms**).
+
+**Consecuencia.** La página pública enseña solo lo que se puede pedir, dice cuántos quedan de
+cuántos, y el buscador acompaña al bajar sin duplicarse. Migración **`0046`**: las dos funciones se
+recrean —cambian de tipo de retorno, así que `create or replace` no vale— y se les vuelven a
+conceder los privilegios, que un `drop` se lleva; `anon` y `authenticated` siguen sin poder
+ejecutarlas y `public_catalog_membership` sigue sin concederse a nadie. **Sin índice nuevo, sin
+tabla nueva y sin dependencias.** El tiempo de respuesta no empeora —de hecho baja, porque se
+renderizan menos tarjetas— y el HTML comprimido pasa de 24,1 a **20,8 KB**.
 
 ---
 

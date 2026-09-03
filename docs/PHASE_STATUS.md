@@ -3,7 +3,13 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-03 — **rediseño visual del catálogo público DESPLEGADO** (D-163):
+- **Actualizado:** 2026-09-03 — **el catálogo público solo publica boletas disponibles** (D-164,
+  BR-K14): una boleta vendida no se pinta, no viaja al navegador y no ocupa sitio en la paginación;
+  a cambio, la página dice las cifras de **todo** el catálogo —disponibles, tomadas y porcentaje
+  reservado— desde **un solo agregado** en la llamada de metadatos que ya se hacía. El buscador y el
+  nombre de la rifa se posan en el encabezado al bajar, con **un solo** campo que nunca se desmonta.
+  Migración **`0046`**, **sin índice nuevo** (medido con `explain (analyze, buffers)`: usa el de
+  `0003` y cuesta 0,41 ms). **SOLO EN LOCAL: no desplegado.** Antes: rediseño visual del catálogo público DESPLEGADO (D-163):
   `3602aec` servido por Vercel y verificado en vivo —cabeceras 6/6, identificador `f98dfbe2be24` en
   el JavaScript servido, los WebP en 200, los PNG maestros en 404 y la pantalla de «no encontrado»
   ya con el tema nuevo—. **Sin migración**, así que sin respaldo y sin `db push`. **Nadie tiene un

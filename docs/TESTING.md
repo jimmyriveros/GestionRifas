@@ -601,6 +601,22 @@ encabezado fijo **ocupa menos del 14 % de la altura** del teléfono —antes lle
 el buscador—, y que el botón «Limpiar búsqueda» **se puede pulsar** aunque el campo lleve un fondo
 desenfocado, que es la regresión de I-095.
 
+### 5.6 Los cinco estados del buscador que se posa (`catalogo-publico*.spec.ts`, D-164)
+
+Lo que hace comprobables estos estados es que el buscador **es uno**: no se comprueba «cuál de los
+dos se ve», se comprueba **dónde está el único que hay**. Por eso cada prueba afirma también
+`toHaveCount(1)` sobre el `searchbox` — si alguien volviera a dos instancias, todas fallarían.
+
+Los cinco: arriba del todo, scroll intermedio (título posado y buscador no), scroll bajo (los dos
+posados), vuelta arriba, y la transición sin perder valor ni foco. La **ventana intermedia** se
+calcula a partir de las cajas reales en vez de fijar un número de píxeles: entre que el título pasa
+bajo el encabezado y el buscador lo alcanza hay unas decenas de píxeles, y un número fijo se rompe
+en cuanto cambia una línea del texto de introducción.
+
+**Trampa que costó una instrumentación:** al escribir en el buscador, el enrutador navega a `?q=…` y
+**devuelve la página al principio**. Cualquier prueba que baje y luego mida tiene que esperar a que
+esa navegación aterrice, o medirá el scroll deshecho.
+
 ## 5. Pruebas unitarias clave
 
 | Módulo | Casos |

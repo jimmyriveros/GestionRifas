@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { type SeedRefs } from './db-setup'
+import { serviceClient, type SeedRefs } from './db-setup'
 import {
   CATALOG_DISPONIBLES,
   CATALOG_OCULTAS,
@@ -67,14 +67,17 @@ test.describe('se abre sin iniciar sesion (BR-K01)', () => {
       'NÚMEROS DISPONIBLES RIFA NAVIDAD 2026',
     )
 
-    // El encabezado fijo dice DE QUIEN es el catalogo y como escribirle. Desde
-    // el rediseño (D-163) el buscador ya no vive aqui sino en el hero: en el
-    // telefono, el encabezado con titulo y campo se comia un tercio de la
-    // pantalla en TODAS las pantallas de la lista.
+    // El encabezado fijo dice DE QUIEN es el catalogo. Desde el rediseño
+    // (D-163) el buscador ya no vive aqui sino en el hero: en el telefono, el
+    // encabezado con titulo y campo se comia un tercio de la pantalla en TODAS
+    // las pantallas de la lista.
     const header = page.locator('header')
     await expect(header).toContainText('Julian Vargas')
     await expect(header).toContainText('Vendedor oficial')
-    await expect(header.getByRole('link', { name: /Escríbenos/ })).toBeVisible()
+
+    // Y NO hay boton general de WhatsApp (D-164): el unico camino a WhatsApp es
+    // «Solicitar», que si nombra la boleta.
+    await expect(header.getByRole('link')).toHaveCount(0)
 
     // Y el buscador sigue estando ANTES de la reja, que es el orden en que se
     // usa la pantalla.
@@ -90,10 +93,14 @@ test.describe('se abre sin iniciar sesion (BR-K01)', () => {
 
     await expect(
       page.getByText(
-        "Elige el número que más te guste y toca 'Solicitar' para escribirnos por WhatsApp. Los números en gris ya están tomados.",
+        "Elige el número que más te guste y toca 'Solicitar' para escribirnos por WhatsApp.",
         { exact: true },
       ),
     ).toBeVisible()
+
+    // Ya no se promete lo que la pagina no enseña (D-164): no hay numeros en
+    // gris porque no hay boletas tomadas.
+    await expect(page.locator('body')).not.toContainText('en gris')
   })
 
   test('el encabezado sigue arriba despues de bajar', async ({ page }) => {
@@ -134,17 +141,20 @@ test.describe('las tarjetas (BR-K08, BR-K09)', () => {
     await expect(tarjeta.getByRole('link', { name: /Solicitar/ })).toBeVisible()
   })
 
-  test('una boleta tomada dice «Tomado», va en gris y NO tiene boton', async ({ page }) => {
+  test('una boleta tomada NO se publica: ni tarjeta, ni HTML, ni busqueda (D-164)', async ({
+    page,
+  }) => {
+    const respuesta = await page.goto(`/catalogo/${SLUG}`)
+    const html = (await respuesta!.text()).replace(/\/_next\/[^"']*/g, '')
+
+    // No es que se pinte en gris: es que su numero no viaja al navegador.
+    expect(html).not.toContain(TOMADA)
+    await expect(page.locator('body')).not.toContainText('Tomado')
+
+    // Y buscarla por su numero exacto tampoco la saca.
     await anonima(page, `/catalogo/${SLUG}?q=${TOMADA}`)
-
-    const tarjeta = page.locator('main ul li').first()
-    await expect(tarjeta).toContainText(TOMADA)
-    await expect(tarjeta).toContainText('Tomado')
-    await expect(tarjeta.getByRole('link')).toHaveCount(0)
-
-    // El gris NO es lo unico que lo dice (CLAUDE.md 27), pero tambien esta.
-    const clases = await tarjeta.getAttribute('class')
-    expect(clases).toContain('bg-muted')
+    await expect(page.getByText('No encontramos ese número entre los disponibles')).toBeVisible()
+    await expect(page.locator('main ul li')).toHaveCount(0)
   })
 
   test('una boleta tomada no dice quien la tiene', async ({ page }) => {
@@ -152,11 +162,24 @@ test.describe('las tarjetas (BR-K08, BR-K09)', () => {
     await expect(page.locator('body')).not.toContainText('Cliente Catalogo E2E')
   })
 
+  test('todas las tarjetas de la reja son solicitables', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+
+    const tarjetas = await page.locator('main ul li').count()
+    expect(tarjetas).toBeGreaterThan(0)
+    // Una por tarjeta: si se colara una tomada, no tendria boton y las cuentas
+    // no cuadrarian.
+    await expect(page.getByRole('link', { name: /^Solicitar por WhatsApp/ })).toHaveCount(tarjetas)
+    // La insignia, no el texto suelto: `getByText` tambien encuentra a los
+    // antepasados que la contienen y contaria de mas.
+    await expect(page.locator('main ul li [data-slot="badge"]')).toHaveCount(tarjetas)
+  })
+
   test('borrador, pendiente de aprobacion y anulada no aparecen', async ({ page }) => {
     for (const oculta of OCULTAS) {
       await anonima(page, `/catalogo/${SLUG}?q=${oculta.daily}`)
       await expect(
-        page.getByText('No encontramos ese número'),
+        page.getByText('No encontramos ese número entre los disponibles'),
         `${oculta.estado} aparecio en el catalogo publico`,
       ).toBeVisible()
     }
@@ -218,34 +241,6 @@ test.describe('el rediseño visual (D-163)', () => {
     await expect(page.locator('link[rel="preload"][as="image"]')).toHaveCount(0)
   })
 
-  test('el resumen cuenta las boletas que de verdad se ven', async ({ page }) => {
-    await anonima(page, `/catalogo/${SLUG}`)
-
-    const total = await page.locator('main ul li').count()
-    const disponibles = await page.getByRole('link', { name: /^Solicitar por WhatsApp/ }).count()
-
-    const resumen = page.locator('main dl')
-    await expect(resumen).toContainText('Números disponibles')
-    await expect(resumen).toContainText('Números tomados')
-
-    const cifras = (await resumen.locator('dd').allInnerTexts()).map((t) => Number(t.trim()))
-    expect(cifras[0]).toBe(disponibles)
-    expect(cifras[1]).toBe(total - disponibles)
-  })
-
-  test('el encabezado escribe al MISMO WhatsApp, sin nombrar una boleta', async ({ page }) => {
-    await anonima(page, `/catalogo/${SLUG}`)
-
-    const contacto = page.locator('header').getByRole('link', { name: /Escríbenos/ })
-    const href = await contacto.getAttribute('href')
-    const url = new URL(href!)
-
-    expect(url.origin + url.pathname).toBe(`https://wa.me/${WHATSAPP}`)
-    const texto = url.searchParams.get('text')!
-    expect(texto).toContain('Hola, Julian')
-    expect(texto).not.toMatch(/\d/)
-  })
-
   test('el boton de limpiar se puede tocar aunque el campo lleve fondo desenfocado', async ({
     page,
   }) => {
@@ -257,6 +252,197 @@ test.describe('el rediseño visual (D-163)', () => {
     await expect(limpiar).toBeVisible()
     await limpiar.click()
     await expect(page).not.toHaveURL(/q=/)
+  })
+})
+
+/**
+ * El buscador y el titulo que se posan en el encabezado al hacer scroll (D-164).
+ *
+ * Lo que hace comprobables estos cinco estados es que el buscador es UNO: no se
+ * comprueba «cual de los dos se ve», se comprueba DONDE esta el unico que hay.
+ * Por eso cada prueba afirma tambien que sigue habiendo exactamente uno.
+ */
+test.describe('el buscador y el titulo se posan al bajar (D-164)', () => {
+  /** `true` cuando el campo esta pegado bajo el encabezado. */
+  async function posado(page: Page): Promise<boolean> {
+    const campo = page.getByRole('searchbox')
+    const caja = await campo.boundingBox()
+    const header = await page.locator('header').boundingBox()
+    if (!caja || !header) return false
+    return caja.y < header.y + header.height + 24
+  }
+
+  async function bajar(page: Page, px: number) {
+    await page.evaluate((y) => window.scrollTo(0, y), px)
+    // El observador avisa en el siguiente fotograma; no hay temporizador que
+    // esperar, pero si un repintado.
+    await page.waitForTimeout(350)
+  }
+
+  test('1. arriba del todo: titulo y buscador solo en el hero', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+
+    const header = page.locator('header')
+    await expect(header).toContainText('Vendedor oficial')
+    await expect(header).not.toContainText('RIFA NAVIDAD')
+    // El nombre de la rifa se lee UNA vez, en el h1 del hero.
+    await expect(page.getByRole('searchbox')).toHaveCount(1)
+    expect(await posado(page)).toBe(false)
+  })
+
+  test('2. scroll intermedio: el titulo ya esta en el encabezado y el buscador todavia no', async ({
+    page,
+  }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+
+    const h1 = (await page.getByRole('heading', { level: 1 }).boundingBox())!
+    const campo = (await page.getByRole('searchbox').boundingBox())!
+    const alto = (await page.locator('header').boundingBox())!.height
+
+    // La ventana intermedia existe entre «el titulo acaba de pasar bajo el
+    // encabezado» y «el buscador todavia no lo ha alcanzado». Es estrecha —el
+    // titulo y el campo estan a un par de lineas— asi que se calcula en vez de
+    // adivinar un numero de pixeles.
+    const minimo = h1.y + h1.height - alto + 4
+    const maximo = campo.y - alto - 24
+    expect(
+      minimo,
+      'no hay ventana intermedia: el titulo y el buscador desaparecen a la vez',
+    ).toBeLessThanOrEqual(maximo)
+
+    await bajar(page, minimo)
+
+    await expect(page.locator('header')).toContainText('Rifa Navidad 2026')
+    expect(await posado(page)).toBe(false)
+    await expect(page.getByRole('searchbox')).toHaveCount(1)
+  })
+
+  test('3. mas abajo: el buscador se posa bajo el encabezado, y sigue habiendo uno solo', async ({
+    page,
+  }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+    await bajar(page, 1200)
+
+    await expect(page.locator('header')).toContainText('Rifa Navidad 2026')
+    expect(await posado(page)).toBe(true)
+
+    // NUNCA dos: no es que el otro este oculto, es que no existe.
+    await expect(page.getByRole('searchbox')).toHaveCount(1)
+    await expect(page.getByRole('button', { name: 'Limpiar búsqueda' })).toHaveCount(0)
+  })
+
+  test('4. al volver arriba, cada uno vuelve a su sitio', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+    await bajar(page, 1200)
+    expect(await posado(page)).toBe(true)
+
+    await bajar(page, 0)
+    await expect(page.locator('header')).toContainText('Vendedor oficial')
+    await expect(page.locator('header')).not.toContainText('Rifa Navidad 2026')
+    expect(await posado(page)).toBe(false)
+    await expect(page.getByRole('searchbox')).toHaveCount(1)
+  })
+
+  test('5. posarse no pierde lo escrito ni el foco, y no desplaza la pagina en horizontal', async ({
+    page,
+  }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+
+    const campo = page.getByRole('searchbox')
+    await campo.click()
+    await campo.pressSequentially('12', { delay: 30 })
+    await expect(campo).toBeFocused()
+
+    await bajar(page, 1200)
+    expect(await posado(page)).toBe(true)
+
+    // El nodo no se ha desmontado: conserva valor Y foco.
+    await expect(campo).toHaveValue('12')
+    await expect(campo).toBeFocused()
+
+    const desborde = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(desborde).toBeLessThanOrEqual(0)
+  })
+
+  test('el titulo del encabezado NO es un segundo h1', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+    await bajar(page, 1200)
+
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    await expect(page.locator('header h1')).toHaveCount(0)
+  })
+})
+
+test.describe('las cifras del catalogo (D-164, BR-K14)', () => {
+  /** Las tres cifras de la franja, en el orden en que se pintan. */
+  async function cifras(page: Page): Promise<string[]> {
+    const resumen = page.getByRole('region', { name: 'Resumen del catálogo' })
+    await expect(resumen).toBeVisible()
+    return (await resumen.locator('p.text-lg').allInnerTexts()).map((t) => t.trim())
+  }
+
+  test('son del catalogo COMPLETO, no de la pagina, y cuadran entre si', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+
+    const [disponibles, tomados, reservado] = await cifras(page)
+
+    // «36 de 50»: el segundo numero es el total.
+    const [tomadas, total] = tomados!.split(' de ').map(Number)
+    expect(Number(disponibles) + tomadas!).toBe(total)
+
+    // El porcentaje es el redondeo de tomadas/total, y nunca NaN ni fuera de rango.
+    const porcentaje = Number(reservado!.replace('%', ''))
+    expect(porcentaje).toBe(Math.round((tomadas! / total!) * 100))
+    expect(porcentaje).toBeGreaterThanOrEqual(0)
+    expect(porcentaje).toBeLessThanOrEqual(100)
+
+    // Y el total supera a las tarjetas de esta pagina: cuenta tambien las tomadas.
+    const enPantalla = await page.locator('main ul li').count()
+    expect(total).toBeGreaterThan(enPantalla)
+  })
+
+  test('la barra usa exactamente el porcentaje escrito', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+
+    const [, , reservado] = await cifras(page)
+    const barra = page
+      .getByRole('region', { name: 'Resumen del catálogo' })
+      .locator('div[style*="width"]')
+      .first()
+
+    const ancho = (await barra.getAttribute('style'))!.replace(/\s+/g, '')
+    expect(ancho).toContain(`width:${Number(reservado!.replace('%', ''))}%`)
+  })
+
+  test('no cambian al pasar de pagina ni al buscar, ni con una busqueda vacia', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+    const primera = await cifras(page)
+
+    await anonima(page, `/catalogo/${SLUG}?page=2`)
+    expect(await cifras(page)).toEqual(primera)
+
+    await anonima(page, `/catalogo/${SLUG}?q=${DISPONIBLES[0]}`)
+    expect(await cifras(page)).toEqual(primera)
+
+    // Una busqueda sin resultados conserva las cifras: quien busco un numero
+    // que no existe sigue necesitando saber cuantos quedan.
+    await anonima(page, `/catalogo/${SLUG}?q=9995`)
+    await expect(page.getByText('No encontramos ese número entre los disponibles')).toBeVisible()
+    expect(await cifras(page)).toEqual(primera)
+  })
+
+  test('las cifras coinciden con lo que devuelve la base para ese vendedor', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+    const [disponibles, tomados] = await cifras(page)
+    const [tomadas] = tomados!.split(' de ').map(Number)
+
+    const { data } = await serviceClient().rpc('public_catalog_seller', { p_slug: SLUG })
+    const fila = data![0]!
+
+    expect(Number(disponibles)).toBe(Number(fila.available_count))
+    expect(tomadas).toBe(Number(fila.taken_count))
   })
 })
 

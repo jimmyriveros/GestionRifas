@@ -10,10 +10,11 @@ import { CatalogRefreshOnFocus } from '@/features/catalog/components/CatalogRefr
 import { CatalogSummary } from '@/features/catalog/components/CatalogSummary'
 import { CatalogTicketCard } from '@/features/catalog/components/CatalogTicketCard'
 import { getPublicCatalog } from '@/features/catalog/queries'
+import { CatalogStickyProvider } from '@/features/catalog/sticky'
 import { CATALOG_SEARCH_EMPTY_DESCRIPTION } from '@/features/search/hints'
 
 /**
- * El catalogo publico de un vendedor: `/catalogo/<slug>` (D-159, BR-K01..BR-K11).
+ * El catalogo publico de un vendedor: `/catalogo/<slug>` (D-159, BR-K01..BR-K14).
  *
  * UNA SOLA RUTA PARA TODOS. No hay una pagina por vendedor ni un despliegue por
  * vendedor: el `slug` se resuelve en cada peticion y decide de quien es el
@@ -28,23 +29,24 @@ import { CATALOG_SEARCH_EMPTY_DESCRIPTION } from '@/features/search/hints'
  * `force-dynamic` es lo unico que se toca de la estrategia de cache: la global
  * de la aplicacion no cambia.
  *
- * CASI TODO ES SERVIDOR. Solo dos piezas llevan JavaScript —el buscador y el
- * refresco al volver del foco—; las tarjetas, la reja, el encabezado fijo, el
- * hero y la paginacion se pintan aqui y llegan como HTML. El rediseño de D-163
- * no cambio esto: sus resplandores, su velo y su polvo de estrellas son CSS, y
- * la unica imagen es la composicion del hero.
+ * SOLO SE PUBLICAN BOLETAS DISPONIBLES (D-164). El filtro lo hace la base antes
+ * de paginar, asi que una boleta vendida no llega al navegador ni ocupa sitio
+ * en la paginacion. Lo que el visitante ve de las vendidas es su RECUENTO, en
+ * la franja de cifras, y ese recuento es de todo el catalogo.
  *
- * LO QUE EL REDISEÑO NO TOCO (D-163): la consulta, la proyeccion publica, el
- * buscador y su termino en la URL, la paginacion, el refresco al volver, los dos
- * estados de una boleta, el mensaje de WhatsApp y el aviso de que solicitar no
- * aparta el numero. Es un cambio de presentacion.
+ * DOS CONSULTAS, EN PARALELO, COMO ANTES. Los conteos viajan con los metadatos
+ * (`0046`), no en una tercera llamada: son dos numeros que salen de un agregado
+ * que ya recorre el mismo indice.
  */
 
 export const dynamic = 'force-dynamic'
 
-const INTRO =
-  "Elige el número que más te guste y toca 'Solicitar' para escribirnos por WhatsApp. " +
-  'Los números en gris ya están tomados.'
+/**
+ * Ya no dice «Los números en gris ya están tomados» (D-164): no hay numeros en
+ * gris. Prometer un estado que la pagina no enseña dejaba a quien lee buscando
+ * algo que no existe.
+ */
+const INTRO = "Elige el número que más te guste y toca 'Solicitar' para escribirnos por WhatsApp."
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -93,40 +95,42 @@ export default async function PublicCatalogPage({
   // cualquiera que ese enlace existio.
   if (!catalog) notFound()
 
-  const { tickets, sellerName, sellerShortName, whatsappNumber, raffleName } = catalog
+  const { tickets, sellerName, sellerShortName, whatsappNumber, raffleName, stats } = catalog
   const isSearching = search !== undefined && search !== ''
 
   return (
-    <>
+    /*
+      El proveedor envuelve al encabezado Y al hero porque el primero necesita
+      saber cuando el segundo se pierde de vista. Es lo unico que comparten.
+    */
+    <CatalogStickyProvider>
       <CatalogRefreshOnFocus />
 
-      <CatalogHeader
-        sellerName={sellerName}
-        sellerShortName={sellerShortName}
-        whatsappNumber={whatsappNumber}
-      />
+      <CatalogHeader sellerName={sellerName} raffleName={raffleName} />
 
       <main className="pb-[calc(3rem+env(safe-area-inset-bottom,0px))]">
         <CatalogHero raffleName={raffleName} intro={INTRO} />
 
         <div className="mx-auto w-full max-w-7xl px-4">
-          <CatalogSummary
-            tickets={tickets}
-            searching={isSearching}
-            partial={catalog.page > 1 || catalog.hasNextPage}
-          />
+          {/*
+            Las cifras se pintan SIEMPRE que el catalogo exista, incluso cuando
+            una busqueda no encuentra nada: son del catalogo entero, y quien
+            busco un numero que no existe sigue necesitando saber cuantos
+            quedan.
+          */}
+          <CatalogSummary stats={stats} />
 
           {tickets.length === 0 ? (
             <div className="mt-8">
               {isSearching ? (
                 <EmptyState
-                  title="No encontramos ese número"
+                  title="No encontramos ese número entre los disponibles"
                   description={CATALOG_SEARCH_EMPTY_DESCRIPTION}
                 />
               ) : (
                 <EmptyState
-                  title="Todavía no hay números publicados"
-                  description={`Escríbele a ${sellerShortName} por WhatsApp para preguntarle cuándo estarán disponibles.`}
+                  title="Por ahora no quedan números disponibles"
+                  description={`Escríbele a ${sellerShortName} por WhatsApp para preguntarle si va a publicar más.`}
                 />
               )}
             </div>
@@ -155,9 +159,7 @@ export default async function PublicCatalogPage({
           {/*
             La aclaracion que el encargo pide mantener VISIBLE: tocar
             «Solicitar» no separa la boleta. Va al final y no dentro de cada
-            tarjeta, para decirlo una vez en lugar de cincuenta. El escudo del
-            diseño de referencia acompaña al aviso; no lo sustituye ni lo
-            debilita, que es lo unico que ahi no se puede hacer.
+            tarjeta, para decirlo una vez en lugar de cincuenta.
           */}
           <p className="text-muted-foreground mx-auto mt-10 flex max-w-2xl items-start justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center text-xs text-pretty">
             <ShieldCheckIcon className="text-secondary mt-px size-4 shrink-0" aria-hidden />
@@ -168,6 +170,6 @@ export default async function PublicCatalogPage({
           </p>
         </div>
       </main>
-    </>
+    </CatalogStickyProvider>
   )
 }

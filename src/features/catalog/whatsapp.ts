@@ -80,23 +80,13 @@ export function catalogWhatsappMessage(params: {
   )
 }
 
-/**
- * El mensaje del boton de contacto del encabezado (D-163).
- *
- * NO NOMBRA NINGUNA BOLETA, y es lo que lo distingue del de arriba: se toca
- * antes de elegir, o cuando lo que se quiere preguntar no cabe en una boleta
- * concreta. Escribirlo con un numero inventado —o con el de la primera de la
- * lista— habria hecho que el vendedor recibiera solicitudes que nadie quiso.
- *
- * Tampoco promete nada (BR-K09): pregunta. Es el mismo compromiso que el aviso
- * del pie, dicho en primera persona porque quien lo envia es el visitante.
+/*
+ * `catalogContactMessage` existio entre D-163 y D-164 para el boton general de
+ * WhatsApp del encabezado. Se retiro con el boton: un mensaje que no nombra
+ * ninguna boleta obliga al vendedor a preguntar cual, que es justo el trabajo
+ * que este catalogo viene a quitarle. El unico camino a WhatsApp es «Solicitar»,
+ * y ese SI nombra la boleta por sus dos numeros.
  */
-export function catalogContactMessage(sellerShortName: string): string {
-  return (
-    `Hola, ${sellerShortName}. Estoy viendo tus números disponibles ` +
-    `y quiero preguntarte por una boleta.`
-  )
-}
 
 /**
  * El enlace completo.

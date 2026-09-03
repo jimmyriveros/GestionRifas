@@ -17,7 +17,6 @@ import {
   slugifyName,
 } from '@/features/catalog/slug'
 import {
-  catalogContactMessage,
   catalogWhatsappMessage,
   isValidWhatsappNumber,
   normalizeWhatsappNumber,
@@ -25,6 +24,7 @@ import {
   whatsappUrl,
 } from '@/features/catalog/whatsapp'
 import { catalogSettingsSchema } from '@/features/catalog/schemas'
+import { catalogStats, percentageReserved } from '@/features/catalog/stats'
 import {
   CATALOG_SHARE_PROMO,
   catalogShareData,
@@ -176,19 +176,6 @@ describe('mensaje y enlace de WhatsApp (BR-K09)', () => {
     ).toBe(
       'Hola, Laura. Quiero solicitar la boleta con diario 1300 y semanal 5678 de la rifa. ¿Sigue disponible?',
     )
-  })
-
-  it('el mensaje del encabezado NO nombra ninguna boleta (D-163)', () => {
-    const mensaje = catalogContactMessage('Laura')
-
-    expect(mensaje).toBe(
-      'Hola, Laura. Estoy viendo tus números disponibles y quiero preguntarte por una boleta.',
-    )
-    // Se toca antes de elegir: citar un numero ahi haria que el vendedor
-    // recibiera solicitudes de boletas que nadie pidio.
-    expect(mensaje).not.toMatch(/\d/)
-    // Y no promete nada (BR-K09): pregunta.
-    expect(mensaje).not.toMatch(/apart|reserv|guard/i)
   })
 
   it('conserva los ceros iniciales dentro del mensaje (BR-N03)', () => {
@@ -412,5 +399,51 @@ describe('cuándo el enlace abre de verdad (BR-K13)', () => {
 
   it('con la rifa cerrada, NO: el interruptor sigue encendido pero la página da 404', () => {
     expect(isCatalogLive({ ...base, raffleActive: false })).toBe(false)
+  })
+})
+
+describe('las cifras del catalogo (D-164, BR-K14)', () => {
+  it('el total es la suma, y se calcula en un solo sitio', () => {
+    expect(catalogStats({ available: 14, taken: 36 })).toEqual({
+      available: 14,
+      taken: 36,
+      total: 50,
+    })
+  })
+
+  it('un catalogo vacio da 0 %, nunca NaN', () => {
+    const stats = catalogStats({ available: 0, taken: 0 })
+    expect(stats.total).toBe(0)
+
+    const porcentaje = percentageReserved(stats)
+    expect(porcentaje).toBe(0)
+    expect(Number.isNaN(porcentaje)).toBe(false)
+    expect(Number.isFinite(porcentaje)).toBe(true)
+  })
+
+  it('redondea al entero: 36 de 50 es 72 %', () => {
+    expect(percentageReserved({ taken: 36, total: 50 })).toBe(72)
+    expect(percentageReserved({ taken: 1, total: 3 })).toBe(33)
+    expect(percentageReserved({ taken: 2, total: 3 })).toBe(67)
+  })
+
+  it('los extremos son exactos: nada vendido es 0 y todo vendido es 100', () => {
+    expect(percentageReserved({ taken: 0, total: 50 })).toBe(0)
+    expect(percentageReserved({ taken: 50, total: 50 })).toBe(100)
+  })
+
+  it('se acota a 0..100 aunque los datos vengan mal', () => {
+    expect(percentageReserved({ taken: 80, total: 50 })).toBe(100)
+    expect(percentageReserved({ taken: -10, total: 50 })).toBe(0)
+  })
+
+  it('un conteo que no es un numero finito no rompe la barra', () => {
+    expect(percentageReserved({ taken: Number.NaN, total: 50 })).toBe(0)
+    expect(percentageReserved({ taken: 10, total: Number.POSITIVE_INFINITY })).toBe(0)
+    expect(catalogStats({ available: Number.NaN, taken: 5 })).toEqual({
+      available: 0,
+      taken: 5,
+      total: 5,
+    })
   })
 })

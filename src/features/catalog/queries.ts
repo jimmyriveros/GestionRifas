@@ -5,6 +5,7 @@ import { normalizeSearchTerm } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
 import { isValidSlug } from './slug'
+import { catalogStats, type CatalogStats } from './stats'
 import { shortSellerName } from './whatsapp'
 
 /**
@@ -40,11 +41,17 @@ import { shortSellerName } from './whatsapp'
  */
 export const CATALOG_PAGE_SIZE = 50
 
+/**
+ * Una boleta publica: sus dos numeros y nada mas.
+ *
+ * NO HAY `taken` DESDE D-164. La reja publica solo enseña boletas DISPONIBLES,
+ * asi que el booleano valdria `false` en todas las filas: una columna constante
+ * que solo puede confundir. El filtro lo hace la base antes de `limit`, de modo
+ * que una boleta vendida no llega hasta aqui ni viaja al navegador (BR-K08).
+ */
 export type PublicCatalogTicket = {
   dailyNumber: string
   weeklyNumber: string
-  /** `true` = ya la tiene alguien. Es TODO lo que se sabe de una boleta vendida. */
-  taken: boolean
 }
 
 export type PublicCatalog = {
@@ -57,6 +64,13 @@ export type PublicCatalog = {
   tickets: PublicCatalogTicket[]
   page: number
   hasNextPage: boolean
+  /**
+   * Cifras de TODO el catalogo publicado, no de esta pagina (BR-K14).
+   *
+   * Vienen de la llamada de metadatos, que no recibe ni pagina ni busqueda: por
+   * construccion no pueden depender de ninguna de las dos.
+   */
+  stats: CatalogStats
 }
 
 export type PublicCatalogRequest = {
@@ -122,10 +136,13 @@ export async function getPublicCatalog({
     tickets: fetched.slice(0, CATALOG_PAGE_SIZE).map((row) => ({
       dailyNumber: row.daily_number,
       weeklyNumber: row.weekly_number,
-      taken: row.taken,
     })),
     page: currentPage,
     hasNextPage,
+    stats: catalogStats({
+      available: Number(seller.available_count),
+      taken: Number(seller.taken_count),
+    }),
   }
 }
 
