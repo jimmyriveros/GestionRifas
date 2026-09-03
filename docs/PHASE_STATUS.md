@@ -11,7 +11,11 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   abonos corregidos a $0— y con cualquier coincidencia de lotería, y en esos casos la pantalla
   explica por qué en lugar de ofrecer un botón que falla. De paso queda **precisada** la nota que
   decía «reasignar una boleta vendida es imposible»: eso vale para cambiar de **vendedor**, no de
-  cliente. Migración **`0047`**, **SOLO EN LOCAL: no aplicada al proyecto real ni desplegada**.
+  cliente. Migración **`0047`**, **APLICADA al proyecto real y DESPLEGADA** el mismo día: respaldo
+  previo en `Rifas-backups/2026-09-03-pre-0047/` (7.167 filas, **0** identidades de Auth),
+  `verify:remote` **17/17**, CI **2/2** y `43a1695` servido por Vercel. Comprobada además **por
+  comportamiento** sobre el proyecto real, dentro de una transacción revertida: privilegios
+  correctos, los tres rechazos con su mensaje y **0 filas escritas**.
   Antes, el mismo día: **el recuadro de loterías del Panel, rediseñado y DESPLEGADO** (D-167): dos
   tarjetas —«Hoy» en azul con la hora como dato grande, «Ayer» en verde con el número mayor y las
   coincidencias—, dos columnas desde `lg` y una debajo de otra en el teléfono. Título nuevo,
@@ -3208,7 +3212,7 @@ que **sí** rompía dos pruebas ajenas— están en `TEST_RESULTS.md`. Ninguno e
 
 | Archivo | Qué hace |
 |---|---|
-| `0047_reassign_ticket_client.sql` | Añade `reassign_ticket_client(uuid, uuid, uuid, text)`: `SECURITY DEFINER`, `search_path` fijo, bloquea la boleta con `FOR UPDATE`, revalida los siete requisitos de BR-I13, escribe **solo** `tickets.client_id` y audita `ticket.reassign_client` con el motivo. `EXECUTE` revocado de `public` y `anon`, concedido a `authenticated` y `service_role`. **Aditiva**: no altera ninguna tabla, política, disparador ni función existente. **SOLO EN LOCAL** |
+| `0047_reassign_ticket_client.sql` | Añade `reassign_ticket_client(uuid, uuid, uuid, text)`: `SECURITY DEFINER`, `search_path` fijo, bloquea la boleta con `FOR UPDATE`, revalida los siete requisitos de BR-I13, escribe **solo** `tickets.client_id` y audita `ticket.reassign_client` con el motivo. `EXECUTE` revocado de `public` y `anon`, concedido a `authenticated` y `service_role`. **Aditiva**: no altera ninguna tabla, política, disparador ni función existente. **Aplicada al proyecto real el 2026-09-03**, tras el respaldo `Rifas-backups/2026-09-03-pre-0047/`. No contiene ninguna sentencia de datos |
 
 ### 4. Variables de entorno
 
@@ -3221,9 +3225,10 @@ I-060. Ninguno nuevo.
 
 ### 6. Lo que debe revisar el siguiente agente
 
-1. **`0047` está SOLO EN LOCAL.** Promoverla exige respaldo previo y `db push`, y el código de la
-   pantalla no funciona sin ella (la Server Action llamaría a una función que no existe): **migración
-   primero, despliegue después**.
+1. **`0047` YA ESTÁ en el proyecto real** (2026-09-03) y `43a1695` desplegado. Es inmutable:
+   cualquier ajuste sobre esa función es una migración nueva. Y si vuelve a haber una migración de la
+   que dependa el código servido, **la migración va primero** — al revés, la pantalla enseña «Cambiar
+   cliente» y el botón de confirmar falla hasta que termina el despliegue.
 2. **No confundas BR-I12 con BR-I13.** El disparador de `0004` mira pagos **activos** y sigue puesto;
    la RPC de `0047` exige **cero filas** en `payment_allocations`. Cambiar una no cambia la otra.
 3. **No uses `paid_amount` para decidir si una boleta «tiene pagos»**: vuelve a cero al anular.

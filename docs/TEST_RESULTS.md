@@ -8231,3 +8231,76 @@ la hace el usuario cuando decida promover.
 
 ---
 
+
+## Post-9 — Promoción a producción de D-168 (`0047`, BR-I13) — 2026-09-03
+
+Autorizada expresamente («sube a producción»). **Con migración**, así que el procedimiento fue el
+completo de `RUNBOOK.md` §5.1 y `DEPLOYMENT.md` §2.2: respaldo → sonda previa → migración →
+despliegue → verificación en vivo.
+
+### Orden, y por qué ese orden
+
+**La migración fue PRIMERO, a propósito.** Al revés —código nuevo sin la función— la pantalla
+enseñaría «Cambiar cliente» y el botón de confirmar fallaría, porque la Server Action llama a
+`reassign_ticket_client`. En el orden correcto la ventana es inocua: la función queda en la base sin
+que nadie la llame hasta que el despliegue termina.
+
+### Pasos
+
+| Paso | Resultado |
+|---|---|
+| Respaldo previo | ✅ `Rifas-backups/2026-09-03-pre-0047/` — `roles.sql`, `schema.sql`, `data.sql` |
+| Contenido del respaldo | ✅ **7.167 filas**: 3.725 `audit_logs`, **928 boletas**, 774 avisos, **496 clientes**, 329 asignaciones de pago, **314 pagos**, 312 programaciones, 193 de ledger, 7 perfiles, 7 membresías, 2 organizaciones, 2 rifas |
+| Identidades de Auth en el volcado | ✅ **0** — `grep -c '"auth"'` y `grep -c 'encrypted_password'` dan cero, como exige §5.1 |
+| `npm run verify:remote` (antes) | ✅ **16/17**, con **un solo fallo esperado**: «Las RPC de negocio son ejecutables por authenticated: 8 (esperado 9)» — la comprobación nueva detectando que `reassign_ticket_client` todavía no existía. Es la red funcionando |
+| `npx supabase db push --dry-run` | ✅ una sola migración pendiente: `0047_reassign_ticket_client.sql` |
+| `npx supabase db push --yes` | ✅ aplicada |
+| `npm run verify:remote` (después) | ✅ **17/17 en verde** |
+| `git push origin main` | ✅ `82aec09..43a1695` |
+| CI (`33818494954`) | ✅ **2/2** — «Typecheck, lint, unitarias, build» y «Migraciones desde cero + pruebas de base de datos» |
+| Vercel | ✅ **READY**, `dpl_9iGgVYK4dpAmeJbCzwx74HkwAxDv`, target `production`, commit `43a1695ab12d…`, alias `gestion-rifas.vercel.app` |
+
+### Comprobación por COMPORTAMIENTO sobre el proyecto real
+
+No basta el catálogo: se ejecutó una sonda con `pg` **dentro de una transacción revertida**,
+simulando una sesión real con `request.jwt.claims` del vendedor dueño de una boleta de producción
+(`6748 / 1023`, sin abonos). Cada caso en su propio `savepoint`, porque el primer rechazo aborta la
+transacción entera.
+
+| Comprobación | Resultado |
+|---|---|
+| `EXECUTE` para `anon` | ✅ **false** |
+| `EXECUTE` para `authenticated` y `service_role` | ✅ **true** los dos |
+| `SECURITY DEFINER` y `search_path` | ✅ `true` · `search_path=public, pg_temp` |
+| Mismo cliente que ya la tiene | ✅ rechazado: «Esta boleta ya es de ese cliente. Elige otro.» |
+| Cliente esperado equivocado (bloqueo optimista) | ✅ rechazado: «Esta boleta ya cambió de cliente. Recarga la pantalla y vuelve a intentar.» |
+| Motivo de menos de 5 caracteres | ✅ rechazado: «Escribe el motivo de la corrección: al menos 5 caracteres.» |
+| Disparador de BR-I12 | ✅ `tickets_protect_client_change` sigue **habilitado** |
+| Filas escritas por la sonda | ✅ **0** — `audit_logs` con `action = 'ticket.reassign_client'` sigue en **0** tras el `rollback` |
+
+### Verificación del sitio en vivo
+
+| Comprobación | Resultado |
+|---|---|
+| Cabeceras de seguridad en `/login` | ✅ **7/7** (HSTS, CSP con nonce, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, X-DNS-Prefetch-Control) |
+| Rutas protegidas | ✅ **4/4 en 307** (`/owner/dashboard`, `/seller/dashboard`, `/owner/tickets`, `/seller/tickets`) |
+| `/login` · `/api/lottery/sync` sin secreto · catálogo inexistente | ✅ **200** · **401** · **404** |
+| Claves de servicio en el JavaScript servido | ✅ **cero**, en los **958 KB** de los 15 fragmentos |
+| Alias de producción | ✅ `gestion-rifas.vercel.app` resuelve al despliegue de `43a1695` |
+
+### Lo que NO se pudo comprobar, y se dice
+
+**Cambiar el cliente de una boleta real desde el navegador de producción.** Vive tras el inicio de
+sesión y un agente no entra con una cuenta real (Fase 8, I-066). La evidencia de esa parte es: 23
+pruebas de base de datos, 18 unitarias, 11 E2E, la comprobación en navegador contra la base local
+(boleta `1234 / 5678`, más arriba en este documento) y la sonda de comportamiento de este apartado
+sobre el esquema real. **Quien lo vea:** vendedor → una boleta vendida **sin abonos** → «Cambiar
+cliente» → motivo → elegir cliente → Guardar.
+
+### Lo que NO se tocó
+
+**Ni una boleta, cliente, pago ni saldo.** `0047` solo crea una función; no lleva una sola sentencia
+de datos, y la sonda se revirtió entera.
+
+---
+
