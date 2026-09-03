@@ -6551,6 +6551,14 @@ cómo se regeneran los derivados y por qué la transparencia no es opcional —e
 fondo oscuro—, para que quien necesite otro tamaño parta del original y no de una copia ya
 comprimida.
 
+**(i) Se acepta que el respaldo del optimizador sea JPEG, y se dice por qué.** `/_next/image`
+negocia el formato: un navegador moderno recibe WebP **con alfa**, pero uno que no declare
+`image/webp` recibe JPEG, que no tiene canal alfa y rellena la transparencia de negro. Sobre el
+fondo del catálogo eso es un rectángulo negro donde debería estar la composición. Se acepta porque
+la alternativa —`unoptimized`— quita los derivados por ancho y haría que un teléfono de 320 px
+descargara 213 KB en vez de 82: degradar al 99 % del público para arreglar navegadores anteriores a
+2020, que no son el público de una aplicación instalable. Queda escrito como **I-097**.
+
 **Consecuencia.** El catálogo se ve como una rifa y sigue comportándose igual: misma consulta,
 misma proyección, mismo buscador con su término en la URL, misma paginación, mismo refresco al
 volver, mismo mensaje de WhatsApp y mismo aviso de que solicitar no aparta el número. Se añadieron

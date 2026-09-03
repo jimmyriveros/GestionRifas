@@ -3,7 +3,11 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-02 — **rediseño visual del catálogo público** (D-163): tema oscuro
+- **Actualizado:** 2026-09-03 — **rediseño visual del catálogo público DESPLEGADO** (D-163):
+  `3602aec` servido por Vercel y verificado en vivo —cabeceras 6/6, identificador `f98dfbe2be24` en
+  el JavaScript servido, los WebP en 200, los PNG maestros en 404 y la pantalla de «no encontrado»
+  ya con el tema nuevo—. **Sin migración**, así que sin respaldo y sin `db push`. **Nadie tiene un
+  catálogo publicado todavía**, de modo que en producción solo se ve el armazón. Antes: tema oscuro
   violeta propio del grupo `(catalogo)`, hero con art direction real —`<picture>` + `<source
   media>`, una sola composición descargada por dispositivo—, encabezado fijo compacto, resumen de
   dos cifras reales y tarjetas rediseñadas. **Sin migración, sin RPC, sin acciones de servidor y sin

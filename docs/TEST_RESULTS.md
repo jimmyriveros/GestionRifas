@@ -145,6 +145,42 @@ ejecución, con rifas de nombres generados por otras suites. **Otra sesión esta
 contra la misma base al mismo tiempo**, y sus boletas colisionaron con los números del montaje.
 Sobre una base recién sembrada: **31/31**. Queda anotado en `HANDOFF` como trampa.
 
+### Promoción a producción (2026-09-03)
+
+**Sin migración**: este cambio no toca la base, así que no hubo respaldo ni `db push`.
+`verify:remote` se ejecutó igual, por ritual y porque es de solo lectura: **17/17**.
+
+| Paso | Resultado |
+|---|---|
+| `git push origin main` | `8813595..3602aec`, tres commits |
+| CI `33697410774` (rediseño + maestros) | ✅ 2/2 |
+| CI `33698755989` (correcciones) | ✅ 2/2, y **sin** el aviso de `alt-text` |
+| Vercel | `dpl_8PNBBubTHjt6scuSDYKmDsw51Sav` **READY**, target production, sobre `3602aec` |
+| Identificador del build servido | `f98dfbe2be24` encontrado en 1 de los 14 fragmentos de `/login` |
+| Secretos en lo servido | **0** en 946 KB |
+| Cabeceras de seguridad | **6/6** |
+
+#### Lo que se comprobó del rediseño, en vivo
+
+| Qué | Resultado |
+|---|---|
+| Los dos **WebP** se sirven | ✅ 200, `image/webp`, **342.190** y **217.630** bytes: exactamente los archivos locales |
+| Los dos **PNG maestros** ya NO se sirven | ✅ **404** los dos. Salieron de `public/` y de producción |
+| El optimizador entrega derivados | ✅ WebP con alfa: 84 KB a w=640 y 279 KB a w=1920, que es lo mismo que se midió en local |
+| `/catalogo/<slug inexistente>` | ✅ **404** con su propia pantalla, y el **tema nuevo está vivo**: `catalog-theme`, `catalog-glow` y `catalog-stars` en el HTML servido |
+| Esa pantalla no filtra nada | ✅ 0 coincidencias con nombres de vendedor o de rifa; `noindex` presente |
+
+**Lo que NO se pudo ver en producción, y es lo más importante de decir: el catálogo de un vendedor
+real.** Nadie tiene uno publicado —las cuatro columnas siguen nulas en las 7 membresías (BR-K12)—,
+así que en vivo solo se puede comprobar el armazón: el tema, las imágenes y la pantalla de «no
+encontrado». El hero, la reja y el resumen se han visto **contra la base local**, en los cinco anchos
+y con capturas. Para verlos en producción hay que publicar un catálogo desde `/owner/sellers/<id>`.
+
+**Un hallazgo de la verificación en vivo: I-097.** Pedir el derivado sin cabecera `Accept` devuelve
+**JPEG**, que no tiene canal alfa y rellena la transparencia de negro puro —medido sobre el archivo
+servido—. Solo llega a navegadores anteriores a ~2020; se acepta y se documenta en vez de quitar los
+derivados por ancho.
+
 ### Lo que NO se comprobó, y se dice
 
 * **Un teléfono real.** Todo lo de arriba es Chromium emulando un Pixel 7 y anchos fijos (**I-066**).
