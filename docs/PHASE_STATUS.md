@@ -3,13 +3,15 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-03 — **el recuadro de loterías del Panel, rediseñado** (D-167): dos
+- **Actualizado:** 2026-09-03 — **el recuadro de loterías del Panel, rediseñado y DESPLEGADO** (D-167): dos
   tarjetas —«Hoy» en azul con la hora como dato grande, «Ayer» en verde con el número mayor y las
   coincidencias—, dos columnas desde `lg` y una debajo de otra en el teléfono. Título nuevo,
   «Resultados y próxima lotería»; se retira de la vista la hora de la última verificación y **se
   conserva** la línea de procedencia (D-162, BR-L26). **Cambio de presentación: sin migración, sin
-  consultas nuevas y sin tocar el reparto de sorteos, el matching ni la sincronización.** **SOLO EN
-  LOCAL: no desplegado.** Antes, el mismo día: **D-164, D-165 y D-166 DESPLEGADAS**: migración `0046` aplicada al
+  consultas nuevas y sin tocar el reparto de sorteos, el matching ni la sincronización.** `b91b00b`
+  servido por Vercel y verificado en vivo: CI 2/2, 7/7 cabeceras, 0 secretos en el HTML ni en los
+  964 KB de JavaScript servido, identificador `0d58123185c7` en 1 de los 15 fragmentos, 4/4 rutas
+  protegidas en 307 y el cron sin secreto en 401. Antes, el mismo día: **D-164, D-165 y D-166 DESPLEGADAS**: migración `0046` aplicada al
   proyecto real tras el respaldo `Rifas-backups/2026-09-03-pre-0046/`, y `ed7b6b2` servido por
   Vercel. **La migración fue primero a propósito**: al revés, el código nuevo habría leído las
   funciones viejas y habría pintado boletas ya vendidas como disponibles, con su botón «Solicitar».
@@ -3150,7 +3152,8 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 
 Autorizado expresamente por el dueño. Es un **rediseño de presentación**: el servicio de resultados,
 el algoritmo de coincidencia, la frecuencia de actualización y el reparto de sorteos quedan intactos
-por encargo explícito. **Solo en local: no desplegado.**
+por encargo explícito. **Ya en producción** el mismo día: sin migración —no hay SQL nuevo, así que no
+hubo respaldo ni `db push`—, `b91b00b` desplegado y el build servido verificado.
 
 ### 1. Funcionalidades implementadas
 

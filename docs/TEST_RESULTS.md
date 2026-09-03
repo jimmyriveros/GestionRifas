@@ -29,6 +29,44 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — Promoción a producción de D-167 (2026-09-03)
+
+Autorizada expresamente («Sube a producción»). **Sin migración**: el rediseño no trae una línea de
+SQL, así que no hubo respaldo previo ni `db push`. `verify:remote` se corrió igualmente **antes** de
+empujar, como sonda de que el proyecto real seguía sano.
+
+| Paso | Resultado |
+|---|---|
+| `npm run verify:remote` (antes) | ✅ **17/17** en verde |
+| Migraciones nuevas en el rango | **ninguna** (`git diff --stat 76d8ee3..b91b00b -- supabase/` vacío) |
+| `git push origin main` | ✅ `76d8ee3..b91b00b` |
+| CI (`33792011149`) | ✅ **2/2** — «Typecheck, lint, unitarias, build» y «Migraciones desde cero + pruebas de base de datos» |
+| Vercel | ✅ **READY**, `dpl_6GpHupoDJoGHDjNFvk5bBizi3A2D`, target `production`, alias `gestion-rifas.vercel.app` |
+
+### Verificación en vivo
+
+| Qué | Resultado |
+|---|---|
+| Cabeceras de seguridad | ✅ **7/7**: `Strict-Transport-Security` (2 años, `includeSubDomains; preload`), `Content-Security-Policy` con nonce y `strict-dynamic`, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'` |
+| Secretos servidos | ✅ **0**. Ni la service role key, ni la cadena de la base, ni los literales `SERVICE_ROLE`/`CRON_SECRET` — comprobado en el HTML de `/login` y en los **964.008 bytes** de los 15 fragmentos de JavaScript servidos |
+| El código nuevo está SERVIDO | ✅ identificador de versión de `b91b00b` = **`0d58123185c7`**, encontrado en 1 de los 15 fragmentos (`/_next/static/immutable/chunks/1-eocm726nkp-.js`). Es el método de `DEPLOYMENT.md` §6.1 |
+| Rutas protegidas | ✅ **4/4** en `307`: `/owner/dashboard`, `/seller/dashboard`, `/owner/tickets`, `/seller/payments` |
+| Cron sin secreto | ✅ `/api/lottery/sync` → **401** |
+| Catálogo inexistente | ✅ `/catalogo/no-existe` → **404** |
+
+**No se tocó ni una boleta, cliente, pago ni saldo**: el cambio es de presentación y no hubo SQL.
+
+### Lo que NO se verificó, y por qué
+
+**No se entró al Panel de producción con una cuenta real.** Escribir una contraseña en un formulario
+está fuera de lo que un agente puede hacer, así que la prueba de que el código nuevo se está
+sirviendo es el **identificador del build**, no una captura del recuadro con datos reales. El
+recuadro con datos se comprobó a fondo, pero en **local**: manualmente a 1.400, 375 y 320 px, y con
+las pruebas end-to-end (26/26). Queda para el dueño mirarlo en producción, a ser posible desde un
+teléfono (I-066).
+
+---
+
 ## Post-9 — E2E de loterías tras el rediseño, y la prueba móvil con datos (2026-09-03, D-167)
 
 Ejecutadas después de `npm run db:reset && npm run seed:local`, que es el requisito previo de
