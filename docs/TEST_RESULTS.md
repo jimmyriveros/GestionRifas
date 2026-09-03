@@ -8184,6 +8184,45 @@ boleta —hay un cliente ajeno con el mismo prefijo de nombre para probarlo—; 
 personal nace a nombre del **vendedor de la boleta**. En el teléfono: diana de 44 px, el botón de
 confirmar **dentro** de la ventana y el aviso de la boleta bloqueada sin desbordar a lo ancho.
 
+### Comprobación en vivo y el «Jest worker» que reportó el dueño (2026-09-03)
+
+El dueño abrió en local la boleta **0002 / 1002** de Ana Torres para cambiarle el cliente y recibió
+**«Jest worker encountered 2 child process exceptions, exceeding retry limit»**. Se investigó y **no
+es de esta funcionalidad**; queda como **I-098**.
+
+| Evidencia | Resultado |
+|---|---|
+| La línea anterior del log (`.next/dev/logs/next-development.log`) | `⨯ Failed to generate static paths for /seller/tickets/[ticketId]` y, diez segundos después, `for /seller/clients/[clientId]` — **una ruta que D-168 no toca** |
+| ¿Se arregla reiniciando? | **Sí.** Con `npm run dev:local` recién arrancado, la boleta se abre y las 9 E2E de la funcionalidad pasan. Comprobado **tres veces** |
+| ¿Puede ocurrir en producción? | **No.** `next start` corre en **un solo proceso** (comprobado en la lista de procesos: sin grupo de trabajadores), `jest-worker` **no aparece** en `.next/server/`, la aplicación **no tiene ni un `generateStaticParams`** y `next build` marca **todas** las rutas `ƒ Dynamic` |
+| ¿Se pudo reproducir a voluntad? | **No, y se dice.** Se descartaron dos hipótesis con experimentos: correr `npm run build` con el servidor de desarrollo levantado (9/9 verde después) y matar el proceso padre dejando huérfano al servidor (9/9 verde también). Se observó en dos servidores distintos, de 2 h y de 16 min de vida, los dos con muchas recompilaciones encima |
+| Correr las E2E contra `next start` en local | **Falla en el LOGIN, y no por este cambio**: se comprobó con una suite ajena (`navegacion.spec.ts`), que falla igual. Las E2E van contra `npm run dev:local`, como dice `playwright.config.ts` |
+
+**Por qué esa boleta concreta no ofrecía el botón, aunque el servidor estuviera sano.** `0002 / 1002`
+tiene **una fila en `payment_allocations`** —el abono de $20.000 que el seed deja **anulado**—, así
+que BR-I13 la bloquea y la pantalla dice «Esta boleta tiene abonos en su historial y ya no puede
+cambiar de cliente.» En el seed le pasa a **5 de las 6** boletas vendidas de `vendedor1`; la única
+que se puede corregir es **1234 / 5678**.
+
+**Comprobación en el navegador, sesión de `vendedor1@demo.test` contra la base local.** Boleta
+1234 / 5678, de Beatriz Rojas a Carlos Diaz, con motivo «Se la puse a Beatriz por error, es de
+Carlos»:
+
+| Campo | Antes | Después |
+|---|---|---|
+| Cliente | Beatriz Rojas | **Carlos Diaz** |
+| `sale_price` / `base_price` | 120000 / 120000 | 120000 / 120000 |
+| `sale_date` / `assigned_at` | 2026-09-03 / 21:51:43 | **idénticos** |
+| `inventory_status` / `payment_status` | assigned / unpaid | **idénticos** |
+| Números y código interno | 1234 / 5678 · R001-000006 | **idénticos** |
+| Vendedor | Julian Vargas | **idéntico** |
+
+Bitácora: `ticket.reassign_client` con el cliente anterior, el nuevo, el **motivo** y el actor, más la
+`ticket.update` automática con **solo** `client_id`. Avisos de venta de esa boleta: **2, los dos con
+el instante de la venta original** — la corrección **no** generó uno nuevo.
+
+---
+
 ### Lo que NO se pudo comprobar
 
 Entrar por el navegador al **proyecto real** con los tres roles: `login` está prohibido para un
