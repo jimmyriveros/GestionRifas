@@ -11,9 +11,11 @@ import { TicketPaymentsCard } from '@/features/payments/components/TicketPayment
 import { listClientPayments } from '@/features/payments/queries'
 import { paymentNewHref } from '@/features/payments/return-to'
 import { AssignTicketDialog } from '@/features/tickets/assign/components/AssignTicketDialog'
+import { ReassignTicketClientDialog } from '@/features/tickets/components/ReassignTicketClientDialog'
 import { TicketPaymentSummary } from '@/features/tickets/components/TicketPaymentSummary'
 import { TicketSalePrice } from '@/features/tickets/components/TicketSalePrice'
 import { getTicketDetail } from '@/features/tickets/queries'
+import { canReassignClient, reassignBlockedReason } from '@/features/tickets/reassign-client'
 import { SellerTicketActions } from '@/features/tickets/seller/components/SellerTicketActions'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
@@ -42,8 +44,17 @@ export default async function SellerTicketDetailPage({
   const ticket = await getTicketDetail(ticketId)
   if (!ticket) notFound()
 
-  const [clients, payments] = await Promise.all([
+  // La correccion de cliente solo ofrece la cartera del vendedor de la boleta
+  // (BR-C05, D-168). Aqui coincide con la suya, pero se acota igual: la consulta
+  // es la misma en los dos portales.
+  const canReassign = canReassignClient(ticket)
+  const reassignReason = reassignBlockedReason(ticket)
+
+  const [clients, reassignClients, payments] = await Promise.all([
     ticket.inventoryStatus === 'available' ? listClientOptions() : Promise.resolve([]),
+    canReassign
+      ? listClientOptions(undefined, undefined, { sellerId: ticket.sellerId })
+      : Promise.resolve([]),
     ticket.clientId ? listClientPayments(ticket.clientId) : Promise.resolve([]),
   ])
 
@@ -160,6 +171,23 @@ export default async function SellerTicketDetailPage({
                 href={`/seller/clients/${ticket.clientId}`}
                 name={ticket.clientName ?? 'Cliente'}
                 phone={ticket.clientPhone}
+                // Corregir el cliente va DEBAJO de la fila, fuera del enlace
+                // (D-168). Cuando no se puede, en su lugar va la explicacion:
+                // un boton que falla al pulsarlo es peor que no tenerlo.
+                action={
+                  canReassign ? (
+                    <ReassignTicketClientDialog
+                      ticketId={ticket.id}
+                      ticketNumbers={ticketLabel(ticket)}
+                      currentClientId={ticket.clientId}
+                      currentClientName={ticket.clientName ?? 'Cliente'}
+                      currentClientPhone={ticket.clientPhone}
+                      clients={reassignClients}
+                    />
+                  ) : reassignReason ? (
+                    <p className="text-muted-foreground px-1 text-sm">{reassignReason}</p>
+                  ) : undefined
+                }
               />
             ) : (
               <ClientEmptyCard description="Todavía no la has vendido." />

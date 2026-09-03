@@ -74,7 +74,18 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
   `payments.spec.ts` (escritorio) y `abono-desde-boleta-movil.spec.ts` (teléfono). Las tarjetas de
   «Mis clientes» (D-136) viven en `clientes-movil.spec.ts`. Editar el precio de una boleta
   asignada (D-137) vive en `precio-venta-editar.spec.ts` (escritorio) y
-  `precio-venta-editar-movil.spec.ts` (teléfono). El rediseño de «Registrar abono»
+  `precio-venta-editar-movil.spec.ts` (teléfono). Cambiar el cliente de una
+  boleta vendida (D-168) vive en `cambiar-cliente.spec.ts` (escritorio: los dos
+  portales, crear el cliente desde el diálogo, la boleta que se mueve de ficha,
+  la cartera acotada y los dos casos bloqueados) y `cambiar-cliente-movil.spec.ts`
+  (teléfono: diana de 44 px, el botón de confirmar dentro de la ventana y el
+  aviso que no desborda). Las dos **borran lo que crean** con `purgeTestData`
+  (`db-setup.ts`): sin eso, sus catorce clientes empujaban fuera de la primera
+  página al cliente que buscaba `seller-clients`, y sus catorce ventas de hoy
+  rompían la cota de `ventas-por-fecha` — dos pruebas ajenas fallando por datos,
+  no por producto (I-035). Esa limpieza es también el único sitio que **borra
+  una fotografía de coincidencia**, apagando su disparador de inmutabilidad
+  dentro de la misma transacción. El rediseño de «Registrar abono»
   (D-138) vive en `abono-registrar-movil.spec.ts`; la lógica de dinero sigue en
   `payments.spec.ts`. Esa misma spec clava **D-139** (`appearance: none` del date y
   que a 360 px Fecha no se monta encima de Método). Playwright en Chromium **no
@@ -157,6 +168,7 @@ para poder ir directo a la prueba en vez de buscarla.
 | 19 | Anulación de pago | BR-F09, BR-F10 | `e2e/payments.spec.ts`, `db/payments-phase5.test.ts` | 5 |
 | 20 | Recálculo de saldo | BR-F11 | `db/payments-phase5.test.ts` | 5 |
 | 21 | Bloqueo de cambio de cliente con pagos | BR-I12 | `db/payments-phase5.test.ts` | 5 |
+| 21.b | Corrección del cliente de una boleta vendida, y sus siete puertas cerradas | BR-I13 | `db/reassign-client.test.ts`, `unit/reassign-client.test.ts`, `e2e/cambiar-cliente*.spec.ts` | post-9 |
 | 22 | Aprobación de boletas creadas por vendedor | BR-I09 | `e2e/seller-tickets.spec.ts` | 3 |
 | 23 | Restricciones de rifas cerradas | BR-R08, BR-R09 | `db/phase3-admin.test.ts` | 3 |
 | 24 | RLS | SECURITY §4 | `db/catalog.test.ts`, `db/rls-isolation.test.ts`, `db/security-phase7.test.ts` | 2 |

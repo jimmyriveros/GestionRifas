@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { clientFormSchema } from '@/features/clients/schemas'
 import { BULK_TICKET_MAX, BULK_TICKET_MIN, TICKET_NUMBER_REGEX } from '@/lib/constants'
 
 /**
@@ -89,6 +90,62 @@ export const updateTicketSalePriceSchema = z.object({
     .positive('El precio de venta debe ser mayor que cero.'),
 })
 export type UpdateTicketSalePriceInput = z.infer<typeof updateTicketSalePriceSchema>
+
+/**
+ * Corregir el CLIENTE de una boleta ya vendida (D-168, BR-I13).
+ *
+ * `expectedClientId` es a quien la pantalla creia que pertenecia la boleta: la
+ * RPC lo compara con la fila bloqueada y rechaza si otra correccion llego
+ * antes. Que el destino sea distinto del actual se comprueba aqui para decirlo
+ * sin gastar un viaje al servidor, y otra vez en SQL, que es lo que manda.
+ *
+ * Lo que NO se comprueba aqui: cartera, archivado, abonos y coincidencias de
+ * loteria. Eso depende de filas que el navegador no puede ver y lo aplica
+ * `reassign_ticket_client` con la boleta bloqueada.
+ */
+export const reassignTicketClientSchema = z
+  .object({
+    ticketId: z.uuid('Boleta no válida.'),
+    expectedClientId: z.uuid('Cliente no válido.'),
+    newClientId: z.uuid('Selecciona el cliente correcto.'),
+    reason: z
+      .string()
+      .trim()
+      .min(5, 'Explica el motivo con al menos 5 caracteres.')
+      .max(500, 'El motivo no puede superar 500 caracteres.'),
+  })
+  .refine((values) => values.newClientId !== values.expectedClientId, {
+    path: ['newClientId'],
+    message: 'Esta boleta ya es de ese cliente. Elige otro.',
+  })
+export type ReassignTicketClientInput = z.infer<typeof reassignTicketClientSchema>
+
+/** Lo mismo, creando el cliente correcto en el mismo paso (D-050, D-168). */
+export const reassignTicketToNewClientSchema = z.object({
+  ticketId: z.uuid('Boleta no válida.'),
+  expectedClientId: z.uuid('Cliente no válido.'),
+  reason: z
+    .string()
+    .trim()
+    .min(5, 'Explica el motivo con al menos 5 caracteres.')
+    .max(500, 'El motivo no puede superar 500 caracteres.'),
+  client: clientFormSchema,
+})
+export type ReassignTicketToNewClientInput = z.infer<typeof reassignTicketToNewClientSchema>
+
+/**
+ * Buscar clientes de la cartera del vendedor de UNA boleta (D-168).
+ *
+ * Solo viaja la boleta, nunca el vendedor: quien resuelve de quien es la
+ * cartera es el servidor. Enviar el id de otra boleta no amplia lo que se ve
+ * —la RLS sigue mandando— y tampoco sirve para reasignar nada, porque la RPC
+ * comprueba la cartera contra la boleta de verdad.
+ */
+export const ticketClientSearchSchema = z.object({
+  ticketId: z.uuid('Boleta no válida.'),
+  term: z.string().trim().max(100),
+})
+export type TicketClientSearchInput = z.infer<typeof ticketClientSearchSchema>
 
 // ---------------------------------------------------------------------------
 // Creacion masiva (CLAUDE.md 15)

@@ -291,6 +291,16 @@ export type TicketDetail = TicketListItem & {
    * cambiar las columnas que devuelve `search_tickets`.
    */
   clientPhone: string | null
+  /**
+   * La boleta tiene ALGUNA fila en `payment_allocations`, aunque el pago este
+   * anulado o el importe se haya corregido a $0 (BR-I13, D-168).
+   *
+   * No sirve `paidAmount > 0`: ese es el saldo vigente y vuelve a cero al
+   * anular. Lo que impide cambiar de cliente es el HISTORIAL, que no se borra.
+   */
+  hasPaymentHistory: boolean
+  /** La boleta aparece en alguna coincidencia de loteria (BR-L14). */
+  hasLotteryMatch: boolean
 }
 
 export async function getTicketDetail(ticketId: string): Promise<TicketDetail | null> {
@@ -324,12 +334,27 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
   // El limite se pregunta a la MISMA funcion que valida la venta, en vez de
   // recalcularlo aqui: dos formulas para el mismo limite acaban discrepando, y
   // la que se ve en pantalla no seria la que manda (BR-P11, D-099).
-  const [sellerNames, limits] = await Promise.all([
+  // Los dos recuentos que deciden si se ofrece «Cambiar cliente» (BR-I13).
+  // `head: true` con `count: 'exact'` no trae ni una fila: solo hace falta
+  // saber si hay alguna (I-011). Las dos tablas ya estan acotadas por su
+  // propia RLS —el vendedor ve las suyas, el personal las de su organizacion—,
+  // asi que esto no ensena nada nuevo a nadie.
+  const [sellerNames, limits, allocations, matches] = await Promise.all([
     sellerNameMap(),
     supabase.rpc('ticket_sale_price_limits', { p_ticket_id: ticketId }),
+    supabase
+      .from('payment_allocations')
+      .select('id', { count: 'exact', head: true })
+      .eq('ticket_id', ticketId),
+    supabase
+      .from('lottery_ticket_matches')
+      .select('id', { count: 'exact', head: true })
+      .eq('ticket_id', ticketId),
   ])
 
   if (limits.error) throw limits.error
+  if (allocations.error) throw allocations.error
+  if (matches.error) throw matches.error
 
   const rafflePrice = row.raffle_full?.ticket_price ?? 0
 
@@ -344,6 +369,8 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
     basePrice: row.base_price,
     minSalePrice: Number(limits.data?.[0]?.min_sale_price ?? rafflePrice),
     clientPhone: row.client_contact?.phone ?? null,
+    hasPaymentHistory: (allocations.count ?? 0) > 0,
+    hasLotteryMatch: (matches.count ?? 0) > 0,
   }
 }
 

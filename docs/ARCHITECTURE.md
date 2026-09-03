@@ -302,6 +302,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `void_payment(p_payment_id, p_reason)` | 2 / 5 | Marca anulación, recalcula saldos, audita | Sí |
 | `update_payment_allocation(pago, boleta, importe, importe_esperado)` | post-9 | Corrige el valor de UN abono vigente, **cero incluido** (D-158). Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-134, BR-F16, BR-F17) | Sí |
 | `update_ticket_sale_price(boleta, precio, precio_esperado)` | post-9 | Corrige el `sale_price` de UNA boleta asignada. Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-137, BR-P13) | Sí |
+| `reassign_ticket_client(boleta, cliente_esperado, cliente_nuevo, motivo)` | post-9 | Corrige el `client_id` de UNA boleta vendida, dentro de la cartera de su mismo vendedor y solo si no tiene ninguna fila en `payment_allocations` ni en `lottery_ticket_matches`. No pasa por `available` ni repite el aviso de venta (D-168, BR-I13) | Sí |
 | `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142) | Sí — inserciones idempotentes |
 | `sync_lottery_schedules` · `confirm_lottery_result` · `notify_lottery_schedule_changes` | post-9 | Sincronización, confirmación+matching+avisos y avisos de programación. **Sin EXECUTE para `authenticated`** (D-145, D-146) | Sí — upserts e inserciones idempotentes |
 | `try_acquire_lottery_sync_lock` · `release_lottery_sync_lock` | post-9 | Cerrojo de una fila del tick. **Sin EXECUTE para `authenticated`** (D-148) | Un UPDATE condicional |
@@ -604,6 +605,20 @@ columna. Vale para las dos pantallas de detalle, la del vendedor y la administra
 **El encabezado de columnas del historial va `aria-hidden`**, y cada fila lleva su propio rótulo
 `lg:sr-only` («Registrado por», «Nota»): en escritorio el rótulo se oculta a la vista pero el lector
 de pantalla lo sigue leyendo, que es justo lo que un `<div>` en rejilla no da gratis.
+
+**La tarjeta del cliente puede llevar una acción, y va FUERA del enlace** (D-168). `ClientLinkCard`
+es una fila pulsable entera: meter un `<button>` dentro de su `<a>` es HTML inválido y parte la diana
+grande en dos comportamientos según dónde caiga el dedo. La ranura `action` se pinta como **hermana**
+de la fila, dentro de un contenedor `flex flex-col gap-2`; el enlace cambia entonces `h-full` por
+`flex-1`, porque con un hermano debajo `height: 100 %` lo desbordaría. **Sin `action`, el árbol de
+HTML es exactamente el de antes**: las pantallas que no la usan no cambian ni un nodo.
+
+Hoy esa ranura lleva una sola cosa: «Cambiar cliente» (`ReassignTicketClientDialog`) cuando la boleta
+se puede corregir, o el aviso de por qué no cuando no. Quién de las dos cosas —o ninguna, si la
+boleta ni siquiera se ha vendido— lo decide `features/tickets/reassign-client.ts`, que es puro y
+recibe los dos indicadores que `getTicketDetail` cuenta en SQL: `hasPaymentHistory` (cualquier fila
+en `payment_allocations`) y `hasLotteryMatch`. La página no consulta nada más, y la RPC vuelve a
+comprobarlo todo (BR-I13).
 
 ### 8.8 Navegación del teléfono: barra inferior (D-106)
 

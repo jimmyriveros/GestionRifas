@@ -150,13 +150,20 @@ identidad sigue siendo cierta y sigue garantizando lo que garantizaba —la reba
 que la empresa se queda de verdad es lo de BR-G21: **la mitad del precio, siempre**. Las dos se
 comprueban por separado, `E8-10` y `E10-06`.
 
-**Nota sobre BR-G07 — reasignar una boleta vendida es imposible, no solo prohibido.**
+**Nota sobre BR-G07 — cambiar de VENDEDOR una boleta vendida es imposible, no solo prohibido.**
 `tickets_client_seller_fk` es una FK compuesta `(client_id, seller_id) → clients (id, seller_id)` y
 **no es diferible**. Una boleta vendida siempre tiene cliente, y el cliente pertenece a su vendedor
 (BR-C05): mover la boleta rompe la FK, mover el cliente primero rompe la de todas sus boletas, y no
 hay transacción que lo salve. Comprobado con la *service role*, que se salta la RLS y las funciones de
 negocio. El motor conserva su rama de cambio de vendedor porque cubre las boletas **sin vender**
 (BR-B04) y deja el camino listo si algún día el negocio permite trasladar una cartera completa.
+
+> **Precisado el 2026-09-03 (BR-I13, D-168).** Esta nota, y las de `PHASE_STATUS` que la citaban,
+> decían «reasignar una boleta vendida es imposible» a secas, y eso se leía como si tampoco se
+> pudiera **corregir el cliente**. Son dos cosas distintas: lo que la FK compuesta impide es cambiar
+> el **vendedor** conservando el cliente. Mover la boleta **entre dos clientes del mismo vendedor**
+> no toca esa FK —el `seller_id` no cambia y el cliente de destino ya es de ese vendedor— y **sí se
+> puede**, con las condiciones de BR-I13.
 
 > ~~**Todavía no existe comisión del vendedor padre sobre las ventas de su equipo.** Es una regla
 > comercial que el dueño aún no ha definido. La arquitectura queda preparada —el ledger tiene tipo de
@@ -324,6 +331,35 @@ Ejemplos normativos:
 | BR-I10 | Solo Owner o Admin anulan boletas. | S, D | 3 |
 | BR-I11 | Una boleta con pagos activos no puede anularse; primero deben anularse los pagos. | S, D | 5 |
 | BR-I12 | Una boleta con pagos activos no puede cambiar de cliente. | S, D | 5 |
+| BR-I13 | Una boleta vendida **puede** corregirse de cliente dentro de la cartera de su mismo vendedor, siempre que no tenga **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. | C, S, D | post-9 |
+
+**BR-I12 y BR-I13 no dicen lo mismo, y la diferencia importa.** BR-I12 es el disparador
+`tickets_protect_client_change` de `0004`: protege el **saldo**, así que mira los pagos **activos** y
+sigue puesto tal cual sobre cualquier `UPDATE`. BR-I13 es la operación de corrección de `0047`, y su
+listón es el **historial**: rechaza si existe **cualquier** fila en `payment_allocations`, aunque su
+pago esté anulado (BR-F09) o su importe corregido a $0 (BR-F17). `paid_amount = 0` no sirve para
+comprobarlo: vuelve a cero al anular. Detalle y motivos en [`DECISIONS.md`](DECISIONS.md) D-168.
+
+**Qué hace y qué no hace la corrección (BR-I13).** Escribe únicamente `tickets.client_id`. Conserva
+`seller_id`, `organization_id`, `raffle_id`, los dos números, `inventory_status`, `sale_price`,
+`base_price`, `sale_date`, `assigned_at`, `paid_amount` y los datos de creación y aprobación. No pasa
+por `available`, no llama a `assign_ticket_row` y **no repite el aviso de venta**. Condiciones, todas
+revalidadas en SQL con la fila bloqueada:
+
+| Condición | Por qué |
+|---|---|
+| Boleta en `assigned` y con cliente | No es una venta: es corregir a quién se le vendió |
+| Quien llama es el vendedor de la boleta, o personal de su organización | Misma puerta que `assign_ticket_row` y `update_ticket_sale_price`. El vendedor padre no entra (D-092) |
+| Cliente de destino distinto del actual, y `p_expected_client_id` coincide con la fila | Bloqueo optimista: una pantalla vieja no pisa una corrección más reciente |
+| Cliente de destino de la misma organización, del mismo vendedor y no archivado | BR-C05, BR-C07, y además `tickets_client_seller_fk` |
+| Cero filas en `payment_allocations` | Un pago no se traslada de cliente (D-168) |
+| Cero filas en `lottery_ticket_matches` | La fotografía del sorteo es inmutable (BR-L11, BR-L14) |
+| Motivo de 5 caracteres o más | Es lo único que la bitácora no puede deducir sola |
+
+La rifa **no** tiene que estar activa: es una corrección de identidad sobre una venta ya hecha, y
+exigirlo dejaría el error grabado para siempre en una rifa cerrada (D-168). Queda auditada como
+`ticket.reassign_client` con cliente anterior, cliente nuevo, motivo y actor, además de la
+`ticket.update` automática de la fila.
 
 ### Máquina de estados de inventario
 

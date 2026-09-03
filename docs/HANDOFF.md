@@ -30,6 +30,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
+| **Cambiar el cliente de una boleta** | Desde el 2026-09-03 (D-168, BR-I13) una boleta vendida a la persona equivocada se corrige desde su detalle, en los dos portales: «Cambiar cliente» con motivo, dentro de la cartera del **mismo vendedor**, y solo si no tiene **ninguna** fila en `payment_allocations` —anulados y $0 incluidos— ni en `lottery_ticket_matches`. Escribe **solo** `client_id` y no repite el aviso de venta. Cambiar de **vendedor** una boleta vendida sigue siendo imposible: es otra cosa (BR-G07). Migración **`0047`**, **SOLO EN LOCAL: no aplicada al proyecto real ni desplegada** |
 | **Catálogo público** | **Desplegado el 2026-09-02** (D-159, D-160, D-161): `0043` y `0044` aplicadas al proyecto real, `b39200c` servido por Vercel y verificado en vivo. **NADIE tiene catálogo publicado todavía**: las cuatro columnas siguen nulas en las 7 membresías, y publicar es un acto explícito del Dueño desde `/owner/sellers/<id>` (BR-K12). **La rifa real se llama «SORTEO CAMIONETA KIA 2026»**, así que el título derivado incluye el año; ajustarlo es renombrar la rifa, no tocar código (D-159) |
 | **Recuadro de loterías del Panel** | Desde el 2026-09-03 (D-167) el recuadro son **dos tarjetas**: azul lo que va a jugarse —con la hora como dato grande— y verde lo ya jugado —con el número mayor y las coincidencias—. Dos columnas desde `lg`, una debajo de otra en el teléfono. Título **«Resultados y próxima lotería»**. El reparto de sorteos, el matching y la sincronización **no se tocaron**. Sin migración. **Ya en producción** (`b91b00b`, 2026-09-03): CI 2/2, 7/7 cabeceras, 0 secretos e identificador `0d58123185c7` servido |
 | Siguiente fase | Ninguna. El encargo de loterías terminó sus **seis etapas**: la 6/6 es la observación del ciclo real (D-157) y se repite después de cada ventana de publicación. Todo está desplegado sobre `f9c6e49`, con `0041` aplicada y los diez cron activos. Lo último promovido es **D-158** (corregir un abono a $0), con la migración **`0042`** aplicada, el 2026-09-01 |
@@ -128,7 +129,23 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — rediseño del recuadro de loterías del Panel, DESPLEGADO (D-167, 2026-09-03)
+## 1.a Último relevo significativo — corregir el cliente de una boleta vendida (D-168, BR-I13, 2026-09-03)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Una boleta vendida al cliente equivocado se corrige desde su detalle, en los dos portales.** Botón «Cambiar cliente» **debajo** de la tarjeta del cliente y **fuera** de su enlace; un solo diálogo que dice quién la tiene ahora, pide un motivo y deja elegir un cliente existente o **crear uno nuevo sin salir**, siempre dentro de la cartera del **mismo vendedor**. Escribe **solo** `tickets.client_id`: ni precio, ni fecha de venta, ni estado, ni `assigned_at`, ni un segundo aviso de venta al equipo. **Fuera a propósito:** cambiar de **vendedor** una boleta vendida (sigue siendo imposible por la FK compuesta, BR-G07), mover pagos entre clientes, y tocar `assign_ticket`/`bulk_assign_tickets`. Migración **`0047`**, **SOLO EN LOCAL** |
+| Archivos | **Nuevos:** `supabase/migrations/0047_reassign_ticket_client.sql`, `src/features/tickets/reassign-client.ts`, `src/features/tickets/components/ReassignTicketClientDialog.tsx`, `src/features/clients/components/ClientOptionsPicker.tsx`, `tests/db/reassign-client.test.ts`, `tests/unit/reassign-client.test.ts`, `tests/e2e/cambiar-cliente.spec.ts`, `cambiar-cliente-movil.spec.ts`. **Tocados:** `features/tickets/{schemas,actions,queries}.ts`, `features/clients/queries.ts` (`scope.sellerId`), `ClientLinkCard.tsx` (ranura `action`), `AssignTicketsForm.tsx` (pasa a usar `ClientOptionsPicker`), las dos `tickets/[ticketId]/page.tsx`, `types/database.types.ts`, `tests/e2e/db-setup.ts` (`purgeTestData`, `createClientFor` con vendedor), `tests/db/catalog.test.ts` y `scripts/verify-remote.ts` (las dos listas de privilegios). Documentación: `DECISIONS` (D-168), `BUSINESS_RULES` (**BR-I13** nueva; BR-I12 precisada; nota de BR-G07 corregida), `DATA_MODEL` §6.g.2, `SECURITY` §4.11 y §6, `ARCHITECTURE` §7.3 y §8.7, `MASTER_SPEC`, `UX_COPY_GUIDELINES`, `OPERATIONS`, `TESTING`, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | La RPC copia la puerta de permisos de `assign_ticket_row` y el bloqueo optimista de `update_ticket_sale_price` (D-137) y `update_payment_allocation` (D-134), **con los mismos mensajes**. El diálogo reutiliza `ClientFormFields`, `useRemoteSearch`, `OptionList`, `SearchInput`, `Tabs` y `DialogContent` (que ya acota su alto desde D-099). Se extrajo `ClientOptionsPicker` de `AssignTicketsForm` y ahora lo usan **los dos**; no se duplicó. La limpieza de las E2E va por `purgeTestData`, hermana de `purgeSellers` |
+| Decisiones | **D-168.** Lo que no es evidente: **(a)** el criterio es el **historial** de abonos, no el saldo — cualquier fila en `payment_allocations`, incluidos los pagos anulados y los abonos corregidos a $0; `paid_amount` vuelve a cero y **no sirve**; **(b)** una coincidencia de lotería también cierra la puerta (BR-L11); **(c)** la rifa **no** tiene que estar activa, al revés que corregir el precio: es una corrección de identidad y prohibirla dejaría el error grabado en una rifa cerrada; **(d)** la cartera se acota **en el servidor** a partir de la boleta — el navegador no manda vendedor—; **(e)** el cliente que crea el personal nace en la cartera del **vendedor de la boleta**; **(f)** no se reutiliza `AssignTicketsForm` entero, porque pediría otra vez fecha y precio |
+| Verificación | `verify` completo ✅ (typecheck · lint **0 errores, 2 avisos preexistentes** · **749/749** unitarias · build). `test:db` **754/754** en 36 archivos, con `0047` aplicada sobre base recién sembrada; línea base antes de empezar: **731/731** en 35. La suite nueva de base de datos, **23/23**, corrida **tres veces seguidas** sobre la misma base: se limpia sola. E2E **514/516** tras `db:reset` + `seed:local`; las dos nuevas, **11/11**. **Los 2 fallos son ajenos y está comprobado, no supuesto**: repitiendo el proyecto de escritorio con las suites nuevas excluidas salen **los mismos dos, con la misma cifra** (`< 26` vs `58`) — `reports` (D-150) y `ventas-por-fecha`, las dos por acumulación de datos entre suites (I-035). Se comprobó además, agrupando por cliente, que **ninguna** de esas 58 ventas de hoy es de este trabajo |
+| Advertencias | **1)** **`0047` está SOLO EN LOCAL.** La pantalla no funciona sin ella: si se despliega el código antes de aplicar la migración, «Cambiar cliente» falla al confirmar. **Migración primero.** **2)** **BR-I12 y BR-I13 no son la misma regla.** El disparador `tickets_protect_client_change` (pagos activos) sigue puesto y se aplica a cualquier `UPDATE`; la RPC exige **cero filas**. Cambiar una no cambia la otra, y la RPC **no** la esquiva: no hay GUC. **3)** **No uses `paid_amount` ni `payment_status` para saber si una boleta «tiene pagos»**: son el saldo vigente. **4)** **No metas fecha ni precio en este diálogo**: dejaría de distinguirse de una venta nueva. **5)** `ClientOptionsPicker` lo comparten dos diálogos: tocarlo toca también la venta de boletas. **6)** Las dos suites E2E nuevas **borran lo que crean**, y no es opcional: sin eso tumbaban `seller-clients` y `ventas-por-fecha` por acumulación de clientes y de ventas de hoy (I-035) |
+| Pendiente | **Siguiente acción, del dueño: decidir si se promueve.** Requiere respaldo (hay migración), `db push` de `0047` **antes** del despliegue, push y despliegue. Después conviene la pasada manual que un agente no puede hacer: entrar con los tres roles y corregir el cliente de una boleta real. Lo de siempre: I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030, I-059, I-060 |
+| Publicación | **No.** El encargo lo excluye expresamente: sin push, sin despliegue y sin tocar el Supabase real. `0047` solo se aplicó a la base local |
+| Git | Rama `main`, sobre `82aec09`. Commit local de mantenimiento, **sin etiqueta de fase**. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y **sin tocar** |
+
+---
+
+## 1.a.0 Relevo anterior — rediseño del recuadro de loterías del Panel, DESPLEGADO (D-167, 2026-09-03)
 
 | Campo | Estado |
 |---|---|
@@ -937,6 +954,7 @@ dueño, deuda aceptada y límites verificados; no deben describirse como si no e
 
 | Asunto | Qué hace falta |
 |---|---|
+| **`0047` sin promover** (D-168, BR-I13) | Decisión del dueño. Exige respaldo previo, `db push` de `0047` **antes** del despliegue —la pantalla no funciona sin la función— y luego push y despliegue |
 | **I-059** — limpiar pagos por PostgREST falla en silencio; dos suites de comisiones dejan basura | Llevar su `afterAll` a **una** transacción por `pg`, como hace `price-migration.test.ts`, y comprobar el resultado. Es lo que degrada `test:db` al repetirlo |
 | **I-060** — `ticket-search` elige la rifa con un `limit 1` sin orden | Elegir la rifa por nombre y usar el mismo id en las dos consultas. Falla a partir de la tercera pasada seguida |
 | **I-024** — plan Free sin backups automáticos ni PITR | Subir a Supabase Pro o automatizar el respaldo externo. **Prerrequisito antes de operar con dinero o clientes reales** (`RUNBOOK.md` §5.3) |
@@ -1236,7 +1254,7 @@ profiles 1─1 auth.users
 - Una organización nunca se queda sin Owner activo (`0016`, aplicada en local y en producción).
 
 **Funciones a usar en vez de DML directo:**
-`assign_ticket` · `create_payment` · `void_payment` · `update_payment_allocation` · `update_ticket_sale_price` · `match_lottery_result` (solo `service_role`) · `bulk_create_tickets` · `approve_tickets` ·
+`assign_ticket` · `create_payment` · `void_payment` · `update_payment_allocation` · `update_ticket_sale_price` · `reassign_ticket_client` · `match_lottery_result` (solo `service_role`) · `bulk_create_tickets` · `approve_tickets` ·
 `cancel_ticket` · `bulk_assign_tickets` · `bulk_cancel_tickets` · `bulk_change_ticket_seller` ·
 `bulk_delete_tickets`. Todas validan permisos internamente y auditan. Son `SECURITY DEFINER`: existen
 precisamente para hacer cosas que la RLS del usuario prohíbe.
@@ -1292,6 +1310,19 @@ features/tickets/components/EditSalePriceDialog  corregir el precio de una bolet
                     asignada (D-137). Un dialogo, dos portales. TicketSalePrice pinta el
                     valor y el icono. La RPC es `update_ticket_sale_price`; el recálculo
                     no se reimplementa
+features/tickets/components/ReassignTicketClientDialog  corregir el CLIENTE de una
+                    boleta vendida (D-168). Un dialogo, dos portales; se monta desde la
+                    ranura `action` de ClientLinkCard, FUERA del enlace. La RPC es
+                    `reassign_ticket_client` y decide sola: no repliques sus reglas.
+                    Quien decide si se ofrece —y que se dice si no— es
+                    features/tickets/reassign-client.ts, puro
+features/clients/components/ClientOptionsPicker  buscar y elegir UN cliente: campo,
+                    estado de error con reintento, estado vacio y OptionList (D-168).
+                    Lo usan AssignTicketsForm y el dialogo de cambiar cliente. El
+                    `RemoteSearch` lo monta quien llama, porque la consulta cambia:
+                    la venta busca en toda la cartera visible; la correccion, solo en
+                    la del vendedor de esa boleta. Antes de escribir otro «buscador de
+                    clientes en un dialogo», mira este
 features/tickets/financials.ts  ticketFinancials(): abonado, falta y porcentaje de UNA
                     boleta (D-130). Es la fuente de las CUATRO pantallas que enseñan
                     dinero de una boleta. Reutiliza calculateCollectionSummary. Si vas
@@ -1373,7 +1404,10 @@ features/clients/components/ClientLinkCard  el cliente como fila pulsable entera
                     su avatar, su telefono y su flecha, hacia la ficha de cliente QUE YA
                     EXISTE (D-101). Un solo componente para los dos portales; el href es
                     lo unico que cambia. ClientEmptyCard es el mismo hueco sin enlace.
-                    NO es la lista de «Mis clientes» (D-136): esa es `ClientsList`
+                    NO es la lista de «Mis clientes» (D-136): esa es `ClientsList`.
+                    Desde D-168 admite una ranura `action`, que se pinta DEBAJO y FUERA
+                    del enlace: un boton dentro de un <a> es HTML invalido. Sin ella el
+                    HTML no cambia ni un nodo
 components/data/ProgressRing  anillo de progreso accesible, sin librerias (D-105).
                     Antes de dibujar otro porcentaje, mira este y la barra de
                     CollectionSummaryCard: el porcentaje SIEMPRE va escrito, no solo
@@ -1587,6 +1621,8 @@ sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon
 | Escribes una prueba que afirma un importe o un recuento de una cuenta del seed | No lo fijes a mano. Otras suites venden y cobran boletas de esas cuentas, así que un `$40.000` escrito en la prueba aguanta hasta que alguien reordena los archivos. Lee el valor de la base y compruébalo contra la pantalla: eso comprueba lo que importa —que la pantalla dice lo que el motor calculó— y no depende del orden | `equipo.spec.ts` |
 | Encadenas `test:db` y luego `test:e2e` y la segunda se cae a pedazos (decenas de timeouts) | No es un fallo del producto: `test:db` deja la base con las **5.000 boletas** de la prueba de volumen y con usuarios que otras suites desactivan. **Cada** ejecución E2E empieza por `db:reset && seed:local`, también —y sobre todo— si acabas de correr las de base de datos | §7 |
 | Ejecutas **una sola** suite E2E y falla con datos que no reconoces | Las E2E crean rifas y las dejan **activas**; el selector de rifa del importador toma la primera activa, que ya no es la del seed. Cualquier ejecución E2E parte de `db:reset && seed:local`, también las de un solo archivo | §7 |
+| Quieres saber si una boleta «tiene pagos» y miras `paid_amount` o `payment_status` | Esas dos dicen el **saldo vigente**, y vuelven a cero al anular un pago (BR-F09) o al corregir un abono a $0 (BR-F17). Si lo que necesitas es el **historial** —como BR-I13, que impide cambiar de cliente una boleta por la que alguien pagó alguna vez—, cuenta filas de `payment_allocations` | D-168 |
+| Cambias una regla de «cambiar el cliente de una boleta» y solo tocas el disparador | Hay **dos** puertas y no dicen lo mismo: `tickets_protect_client_change` (BR-I12, pagos **activos**, sobre cualquier UPDATE) y `reassign_ticket_client` (BR-I13, **cero** filas en `payment_allocations` y en `lottery_ticket_matches`). La segunda no esquiva a la primera: es más estricta | D-168 |
 | Vas a dar visibilidad nueva a un rol y piensas ampliar una política de `SELECT` | Mira antes **quién depende de que esa política signifique lo que significa**. Media docena de consultas del portal del vendedor no filtran por vendedor a propósito, porque `tickets_select` ya lo hacía; ampliarla las habría cambiado todas en silencio. La vía segura es una función `SECURITY DEFINER` que se autorice sola | D-092 |
 | Necesitas los números del equipo de un vendedor | `team_sales_summary()` (una fila por integrante, sin N+1) y `team_member_sales(id)`. **No** existen en `v_seller_summary` ni en `listTickets` para un vendedor | D-092 |
 | Vas a tocar algo de comisiones | El importe **no se acumula sumando eventos**: es `n × tarifa(n)` recalculado. Si añades un camino que cambie el estado de pago de una boleta, no escribas ledger a mano — deja que el trigger `tickets_sync_commission` recuente | D-094 |

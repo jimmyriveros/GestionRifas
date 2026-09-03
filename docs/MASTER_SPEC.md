@@ -213,7 +213,9 @@ Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
 8. No se permiten sobrepagos, montos ≤ 0, ni pagos a boletas sin cliente.
 9. Un pago y sus asignaciones se crean de forma atómica en el servidor/BD.
 10. Los pagos se anulan, nunca se borran.
-11. Una boleta con pagos activos no puede cambiar de cliente.
+11. Una boleta con pagos activos no puede cambiar de cliente (BR-I12). Una boleta vendida **sin
+    ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches` sí puede corregirse al
+    cliente correcto, dentro de la cartera de su mismo vendedor y con motivo (BR-I13).
 12. RLS activo en todas las tablas de negocio; el frontend no es frontera de seguridad.
 13. Una boleta se busca por número diario o semanal, entero o parcial, nunca por código interno
     (BR-N11).

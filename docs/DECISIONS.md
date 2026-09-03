@@ -1935,6 +1935,11 @@ el primer momento.
    prueba que iba a demostrar el recálculo acabó demostrando —con la *service role*, saltándose RLS y
    funciones— que **ni siquiera por debajo de la aplicación** se puede.
 
+   > **Precisado el 2026-09-03 (D-168, BR-I13).** «Reasignar» aquí significa cambiarle el
+   > **vendedor** a una boleta vendida, y eso sigue siendo imposible. Cambiarla **entre dos clientes
+   > del mismo vendedor** no toca esa FK y **sí se puede** desde `0047`, sin abonos en el historial
+   > ni coincidencias de lotería.
+
 **El recuento está indexado, y se comprobó.** Cada cambio de estado de pago dispara un `count(*)`
 sobre las boletas de ese vendedor en esa rifa. Medido con 20.000 boletas: **índice
 `tickets_seller_raffle_status_idx`, 0,56 ms**. No hace falta índice nuevo; el que ya existía
@@ -6887,6 +6892,109 @@ componentes siguen siendo Server Components dentro del mismo límite de Suspense
 `relativeDayLabel` queda en `dashboard.ts` con sus pruebas, y las pruebas de pantalla dejan de
 depender de un encabezado que ya no existe: se anclan a `data-slot="lottery-draw-upcoming"` y
 `data-slot="lottery-draw-result"`.
+
+---
+
+## D-168 — Una boleta vendida se puede corregir de cliente, mientras nadie haya pagado por ella
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-03)
+
+**Contexto.** Un vendedor asigna una boleta al cliente equivocado. Hasta hoy no había forma de
+corregirlo desde la aplicación: `assign_ticket` solo admite boletas `available`, y la única salida
+era pedirle a un administrador que devolviera la boleta a `available` para volver a venderla —lo que
+reescribe la fecha de venta, vuelve a fijar el precio y **dispara otra vez el aviso de venta al
+equipo**—. En producción esto ya pasó: la boleta **7616 / 1891** se corrigió **a mano, por SQL**,
+sobre el proyecto real, «con las mismas guardas que BR-I12 y BR-C05» (`TEST_RESULTS.md`,
+«Corrección operativa», 2026-08-29). Una corrección que exige un agente con la clave de servicio no
+es una funcionalidad; esta migración convierte ese `UPDATE` a mano en una operación con permisos,
+concurrencia, motivo y bitácora.
+
+**La ambigüedad que había que despejar, dicha en voz alta.** La documentación repetía que «reasignar
+una boleta vendida es imposible» (nota de BR-G07, D-095, `PHASE_STATUS`). Eso es **cierto y sigue
+siéndolo**, pero habla de otra cosa: de cambiarle el **vendedor** a una boleta conservando su
+cliente. Lo impide el esquema, no una regla —`tickets_client_seller_fk` es una FK compuesta
+`(client_id, seller_id) → clients (id, seller_id)` y no es diferible—, y se comprobó con la *service
+role*. Mover la boleta **entre dos clientes del mismo vendedor** no toca esa FK en absoluto: el
+`seller_id` no cambia y el cliente de destino ya pertenece a ese vendedor. Nunca estuvo prohibido;
+simplemente no existía el camino.
+
+**Decisión 1 — se reescribe UN campo, y no se simula una venta nueva.** `reassign_ticket_client`
+(migración `0047`) hace un `update tickets set client_id = …`. No pasa por `available`, no vuelve a
+llamar a `assign_ticket_row` y no menciona `inventory_status` en el `set`. Quedan intactos
+`seller_id`, `organization_id`, `raffle_id`, los dos números, `inventory_status`, `sale_price`,
+`base_price`, `sale_date`, `assigned_at`, `paid_amount` y los datos de creación y aprobación; lo
+comprueba `E11-05` comparando la fila entera antes y después. Y **no se repite el aviso de venta**:
+`notify_ticket_sold` es un `after update of inventory_status` que además exige la transición a
+`assigned`, así que no se dispara.
+
+**Decisión 2 — el criterio es el HISTORIAL de abonos, no el saldo.** BR-I12 bloquea el cambio de
+cliente cuando hay pagos **activos**, porque lo que protege es el saldo. Aquí el listón es más alto:
+**ninguna fila** en `payment_allocations`, aunque su pago esté anulado (BR-F09) o el importe se haya
+corregido a $0 (BR-F17). Razón: un abono anulado sigue existiendo, con su fecha y su importe, colgado
+de una persona concreta; mover la boleta dejaría ese historial contando la vida de alguien que nunca
+pagó nada. Un pago no se puede trasladar de cliente; la boleta, mientras nadie haya pagado por ella,
+sí. `paid_amount = 0` **no sirve** como comprobación: vuelve a cero al anular.
+
+**Decisión 3 — una coincidencia de lotería también cierra la puerta.** `lottery_ticket_matches` es
+una fotografía inmutable del instante del sorteo (BR-L11, BR-L14) que guarda vendedor y cliente tal
+como estaban. Cambiar el cliente después dejaría la foto y la boleta contando cosas distintas, y la
+foto no se puede reescribir: `lottery_ticket_matches_immutable` lo impide.
+
+**Decisión 4 — la rifa NO tiene que estar activa.** Asignar exige rifa activa (BR-R08) porque es un
+acto comercial; corregir el cliente de una venta ya hecha no lo es. Si la rifa se cerró con el
+cliente equivocado escrito, exigir rifa activa dejaría el error grabado para siempre. Y no mueve un
+peso: sin abonos no hay saldo, ni comisión, ni cobranza que reordenar. Es la única regla de
+`update_ticket_sale_price` (D-137) que **no** se copia; se copia todo lo demás.
+
+**Decisión 5 — bloqueo optimista con `p_expected_client_id`.** La pantalla manda a quién creía que
+pertenecía la boleta. Con la fila bloqueada, si ya no es ese, se rechaza: «Esta boleta ya cambió de
+cliente. Recarga la pantalla y vuelve a intentar.» Sin eso, dos pestañas abiertas se pisan y gana la
+que confirme más tarde, que es justo la que trabajaba con el dato viejo. Mismo mecanismo que
+`p_expected_sale_price` (D-137) y `p_expected_amount` (D-134).
+
+**Decisión 6 — la cartera se acota EN EL SERVIDOR, a partir de la boleta.** El cliente de destino
+tiene que ser del mismo vendedor (BR-C05), y en el portal administrativo la RLS deja ver los clientes
+de **toda** la organización: ofrecerlos todos sería proponer opciones que la base va a rechazar. Por
+eso `listClientOptions` gana un `scope.sellerId`, y la búsqueda del diálogo va por una acción propia,
+`searchTicketClientOptions({ ticketId, term })`, que resuelve el vendedor leyendo la boleta bajo RLS.
+**El navegador no envía vendedor.** Y cuando el personal crea el cliente desde ahí, el cliente nace
+en la cartera del **vendedor de la boleta**, no a nombre de quien administra; lo comprueba una E2E.
+
+**Decisión 7 — no se reutiliza `AssignTicketsForm`, se extrae lo que de verdad se comparte.** Ese
+formulario vende: pide fecha de venta y precio de venta, y los dos volverían a preguntar por cosas
+que aquí no cambian. Lo que sí se comparte —buscar un cliente en el servidor y la lista de opciones,
+con su estado de error y su estado vacío— sale a `ClientOptionsPicker`, que ahora usan **los dos**.
+Copiarlo habría dejado dos versiones del mismo comportamiento delicado (el `aria-busy` que no vacía
+la lista, el reintento que no pierde lo escrito) y tarde o temprano se habrían separado.
+
+**Decisión 8 — donde no se puede, se explica; no se ofrece un botón que falla.** Con abonos en el
+historial: «Esta boleta tiene abonos en su historial y ya no puede cambiar de cliente.» Con
+coincidencia: «Esta boleta ya hace parte de un resultado registrado y no puede cambiar de cliente.»
+Ninguno de los dos ofrece una salida falsa —anular los abonos **no** desbloquea, porque la fila se
+queda—. Una boleta que todavía no se ha vendido no enseña ni el botón ni el aviso: no hay nada que
+corregir. La decisión vive en `features/tickets/reassign-client.ts`, pura y probada.
+
+**Decisión 9 — el botón va FUERA del enlace del cliente.** `ClientLinkCard` es una fila pulsable
+entera (D-101). Un botón dentro de un `<a>` es HTML inválido y deja la diana grande haciendo dos
+cosas según dónde caiga el dedo. La tarjeta gana una ranura `action` que se pinta **debajo** de la
+fila; sin ella, el árbol de HTML de las pantallas que no la usan no cambia ni un nodo.
+
+**Alternativas descartadas.** (a) **Devolver la boleta a `available` y volver a asignarla**:
+reescribe fecha y precio, repite el aviso de venta y convierte una corrección en una venta nueva.
+(b) **Permitirlo con abonos, moviendo también los pagos**: un pago pertenece a un cliente y a una
+fecha; moverlo es inventar historia contable. (c) **Permitirlo cuando los abonos están anulados**
+(mirando solo `paid_amount`): es la trampa de la Decisión 2 — el historial se queda apuntando a la
+persona equivocada. (d) **Reutilizar `bulk_assign_tickets` con una bandera «es una corrección»**:
+mete una rama de significado distinto en la función que vende, que es la que menos conviene
+ramificar. (e) **Dejarlo solo para el personal**: quien se equivoca es quien vende, y obligarle a
+escribir a un administrador por un dedazo es lo que ya pasaba. (f) **Sin motivo obligatorio**: es la
+única información que la bitácora no puede deducir sola, y esta operación reescribe a quién
+pertenece una venta.
+
+**Consecuencia.** Nace **BR-I13**; **BR-I12 se precisa** —seguía siendo cierta, pero decía «pagos
+activos» donde la restricción real de esta operación es «ninguna fila en `payment_allocations`»—; y
+la nota de BR-G07 se corrige para decir que lo imposible es cambiar de **vendedor**, no de cliente.
+Migración `0047`, **solo aplicada en local**: el proyecto real no se ha tocado.
 
 ---
 

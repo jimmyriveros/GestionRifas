@@ -168,13 +168,22 @@ export const CLIENT_FILTER_OPTIONS_LIMIT = 200
  * es el punto. Antes se traian 200 clientes al navegador y se filtraban en
  * memoria, asi que a partir del cliente 201 no habia forma de encontrarlo
  * (I-036) — y el vendedor no recibia ningun aviso de que faltaban.
+ *
+ * `sellerId` ACOTA a una cartera concreta (D-168). Hace falta en el portal
+ * administrativo: alli la RLS devuelve los clientes de toda la organizacion, y
+ * al corregir el cliente de una boleta solo valen los del vendedor de ESA
+ * boleta (BR-C05). Es un filtro de usabilidad, no una frontera: quien elige el
+ * valor es el servidor, y `reassign_ticket_client` lo vuelve a comprobar.
  */
 export async function listClientOptions(
   search?: string,
   limit = SEARCH_OPTIONS_LIMIT,
+  scope?: { sellerId?: string },
 ): Promise<ClientOption[]> {
   const supabase = await createClient()
   let query = supabase.from('clients').select('id, name, alias, phone').is('archived_at', null)
+
+  if (scope?.sellerId) query = query.eq('seller_id', scope.sellerId)
 
   const needle = search ? sanitizeSearch(search) : ''
   if (needle !== '') query = query.ilike('search_text', `%${needle}%`)

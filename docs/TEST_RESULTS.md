@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **722 ✅** | **725 ✅** | **416/417** (el 1 restante es el fallo por orden de ejecución de D-150, verde en aislamiento; en la etapa 3/6 solo se reejecutaron las 8 de loterías, todas verdes; en la 6/6, las 10 unitarias de loterías: **154/154**) | ✅ | ✅ |
+| Post-9 vigente | **749 ✅** | **754 ✅** | **514/516** (los 2 restantes son fallos de acumulación por orden de ejecución —`reports` de D-150 y `ventas-por-fecha`—, **comprobados preexistentes**: se reproducen igual, y con la misma cifra, con las suites de D-168 excluidas) | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -8085,3 +8085,110 @@ Guardar; la boleta debe quedar **Sin pagar** y el abono seguir en el historial e
 
 **El abono de $1 sigue siendo de $1.** Es un dato real y corregirlo no estaba en el encargo. Ahora el
 propio vendedor puede dejarlo en $0 desde la pantalla, que era justamente el objetivo.
+
+---
+
+## Corregir el cliente de una boleta vendida (D-168, BR-I13) — 2026-09-03
+
+**Encargo.** Una boleta asignada al cliente equivocado no se podía corregir desde la aplicación:
+`assign_ticket` solo admite boletas `available`, y devolverla a `available` para revenderla reescribe
+fecha y precio y repite el aviso de venta. En producción el caso **ya ocurrió** y se resolvió por SQL
+a mano (ver «Corrección operativa — boleta 7616 / 1891», 2026-08-29). Se pide la operación de verdad,
+en los dos portales, con permisos, concurrencia, motivo y bitácora.
+
+### La ambigüedad documental, comprobada antes de escribir código
+
+`BUSINESS_RULES` (nota de BR-G07), `DECISIONS` (D-095) y `PHASE_STATUS` decían «reasignar una boleta
+vendida es imposible». **Es cierto para el vendedor y falso para el cliente**: lo que lo impide es
+`tickets_client_seller_fk`, compuesta `(client_id, seller_id)` y no diferible, y mover la boleta entre
+dos clientes **del mismo vendedor** no la toca. Los tres documentos quedan precisados (D-168); ninguno
+se reescribe como si nunca hubiera dicho lo otro.
+
+### Verificaciones ejecutadas
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase start` | ✅ |
+| `npm run db:reset` | ✅ `0047` aplica limpia sobre las 46 anteriores |
+| `npm run seed:local` | ✅ |
+| `npm run test:db` (antes de tocar nada) | ✅ **731/731** en 35 archivos — línea base |
+| `npm run test:db` (después) | ✅ **754/754** en 36 archivos (52 s) |
+| `npx vitest run --config vitest.db.config.mts tests/db/reassign-client.test.ts` | ✅ **23/23**, y **tres pasadas seguidas** sobre la misma base para comprobar que la suite se limpia sola |
+| `npm run test` (unitarias) | ✅ **749/749** en 45 archivos (+18) |
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 errores; 2 avisos preexistentes de `react-hooks/incompatible-library` (TanStack) |
+| `npm run build` | ✅ |
+| `npm run verify` (entero) | ✅ |
+| `npx playwright test tests/e2e/cambiar-cliente.spec.ts` | ✅ **9/9** |
+| `npx playwright test tests/e2e/cambiar-cliente-movil.spec.ts` | ✅ **2/2** |
+| `npx playwright test` (suite completa, tras `db:reset` + `seed:local`) | **514/516** (25,9 min). Los 2 fallos son ajenos y preexistentes: ver abajo |
+
+⚠️ **Los 2 fallos de la suite completa NO son de este trabajo, y se comprobó en vez de suponerlo.**
+Se repitió el proyecto de escritorio sobre una base recién sembrada **excluyendo las dos suites
+nuevas** (`--grep-invert "Cambiar el cliente de una boleta"`): **388/390, con los MISMOS dos fallos y
+la MISMA cifra** (`Expected: < 26 · Received: 58`). Son fallos de **acumulación por orden de
+ejecución**, de la familia de I-035:
+
+| Prueba | Qué asume | Por qué se rompe |
+|---|---|---|
+| `reports.spec.ts` › «el panel administrativo muestra pagos recientes» | Que el pago anulado del seed sigue entre los **5 más recientes** | Ya lo registró D-150. Verde en aislamiento con base limpia |
+| `ventas-por-fecha.spec.ts` › «muestra inicialmente las ventas de HOY» | Que el vendedor tiene **menos de 26** ventas con fecha de hoy | Media docena de suites venden boletas, y `assign_ticket` las fecha con `today_bogota()`. Al terminar el proyecto de escritorio hay 58 |
+
+Se comprobó además **de dónde salen esas 58**: agrupadas por cliente, **ninguna** pertenece a las
+suites nuevas —`purgeTestData` borra todo lo que crean—. No se tocan aquí porque arreglarlas es
+cambiar pruebas ajenas fuera del alcance de este encargo; queda anotado en `KNOWN_ISSUES.md` con
+I-035.
+
+### Errores encontrados por el camino, y qué se hizo
+
+Ninguno del producto; todos de las pruebas o del andamiaje, salvo el último, que es de higiene de la
+suite y **sí afectaba a pruebas ajenas**.
+
+| # | Qué falló | Causa | Corrección |
+|---|---|---|---|
+| 1 | La prueba de coincidencia de lotería no podía insertar la fotografía | Se escribió `match_field: 'daily'`; el enum `lottery_match_field` es `daily_number` / `weekly_number` | Valor correcto |
+| 2 | El `afterAll` de la suite de base de datos reventaba con «Las coincidencias de un sorteo no se modifican» | `lottery_ticket_matches_immutable` impide borrarlas, **a propósito** (BR-L11) | El disparador se apaga y se vuelve a encender **dentro** de la transacción de limpieza; un `rollback` lo restituye igual |
+| 3 | `tsc` rechazaba `draw_number` | Es `text` en el esquema, no un número | Identificador de texto, como hace `lottery-results.test.ts` |
+| 4 | `tsc` perdía el tipo de una fila de `tickets` | El `select(...)` se armó **concatenando** cadenas y el cliente de Supabase solo infiere sobre un literal | Un solo literal de plantilla |
+| 5 | `tests/db/catalog.test.ts` falló al añadir la función | **La red funcionando**: esa prueba fija la lista blanca de funciones ejecutables por `authenticated` (§4.5 de `SECURITY.md`) | La función se añade a **las dos** listas, la de la prueba y la de `verify:remote` |
+| 6 | Una aserción propia era ambigua | `getByText('Boletas de este cliente')` encuentra el `h2` **y** el `caption` de la tabla | Se ancla al enlace de la boleta, por sus **dos** números (BR-N04, I-055) |
+| 7 | **`seller-clients` y `ventas-por-fecha` empezaron a fallar sin que su producto cambiara** | Tercera aparición de **I-035**: las suites nuevas dejaban 14 clientes —«Mis clientes» enseña 25 por nombre y empujaban a la página 2— y 14 ventas con fecha de **hoy**, que rompían la cota de `ventas-por-fecha` | `purgeTestData` en `tests/e2e/db-setup.ts`, hermana de `purgeSellers`: borra clientes, boletas, pagos, coincidencias y programaciones **en una sola transacción por `pg`** (I-059). Comprobado después: de las 78 ventas de hoy que quedan en la base al terminar la suite, **ninguna** es de estas pruebas |
+
+### Pruebas nuevas
+
+**Base de datos** — `tests/db/reassign-client.test.ts`, 23 casos en siete bloques:
+
+| Bloque | Qué demuestra |
+|---|---|
+| `E11-01` quién puede | El vendedor mueve su boleta dentro de su cartera; el Dueño y el Administrador también; **otro vendedor** de la misma organización, **otra organización** y una **sesión anónima** son rechazados, los tres con el mensaje genérico de «no existe o no tienes acceso» |
+| `E11-02` el cliente de destino | Rechaza un cliente de otro vendedor —**aunque lo pida el Dueño**—, uno archivado, uno de otra organización y el mismo que ya la tiene |
+| `E11-03` estado e historial | Rechaza una boleta sin vender; una con abono **activo**; una con abono **anulado**; una con la asignación **corregida a $0** —en los dos últimos `paid_amount` es 0 y aun así se rechaza, que es el punto de BR-I13—; una con **coincidencia de lotería**; y un motivo de menos de 5 caracteres |
+| `E11-04` concurrencia | Una segunda pantalla que todavía cree en el cliente viejo recibe «ya cambió de cliente» y **no pisa** la corrección anterior |
+| `E11-05` solo cambia el cliente | Se compara la **fila entera** antes y después: solo difiere `client_id`. Y el aviso de venta al equipo **no se repite** (se cuentan las notificaciones de esa boleta) |
+| `E11-06` auditoría | `ticket.reassign_client` con cliente anterior, cliente nuevo, **motivo** y actor; y la `ticket.update` automática sigue escribiéndose |
+| `E11-07` la red anterior | El `UPDATE` directo de un vendedor sobre una boleta asignada sigue afectando **cero filas** sin error (RLS), y el disparador de BR-I12 sigue rechazando el cambio con pagos activos |
+
+**Unitarias** — `tests/unit/reassign-client.test.ts`, 18 casos: `reassignBlockedReason` /
+`canReassignClient` (los dos motivos, su precedencia, y que una boleta sin vender **no** enseña ni
+botón ni aviso) y los tres esquemas Zod (ids no válidos, cliente ausente, mismo cliente, motivo corto
+—también si son espacios— y motivo de más de 500; el alta hereda las reglas del formulario de
+cliente; y `ticketClientSearchSchema` **no acepta un vendedor**, porque lo resuelve el servidor).
+
+**E2E** — `cambiar-cliente.spec.ts` (9, escritorio) y `cambiar-cliente-movil.spec.ts` (2, Pixel 7):
+el diálogo dice quién la tiene y la pasa a otro cliente; la boleta **sale de la ficha del cliente
+anterior y entra en la del nuevo**; se crea el cliente correcto desde el propio diálogo; sin motivo el
+botón está desactivado y al cancelar no cambia nada; el cliente actual **no aparece** entre las
+opciones; una boleta con abonos enseña la explicación y **ningún botón**; una sin vender no enseña
+ninguna de las dos cosas; el Dueño usa **el mismo diálogo** y solo ve la cartera del vendedor de la
+boleta —hay un cliente ajeno con el mismo prefijo de nombre para probarlo—; y el cliente que crea el
+personal nace a nombre del **vendedor de la boleta**. En el teléfono: diana de 44 px, el botón de
+confirmar **dentro** de la ventana y el aviso de la boleta bloqueada sin desbordar a lo ancho.
+
+### Lo que NO se pudo comprobar
+
+Entrar por el navegador al **proyecto real** con los tres roles: `login` está prohibido para un
+agente (Fase 8). La migración `0047` está **solo en local** y no se desplegó nada, así que esa pasada
+la hace el usuario cuando decida promover.
+
+---
+

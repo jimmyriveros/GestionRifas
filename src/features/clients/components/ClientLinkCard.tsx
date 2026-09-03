@@ -1,6 +1,8 @@
 import { ChevronRightIcon, UserRoundIcon } from 'lucide-react'
 import Link from 'next/link'
 
+import { cn } from '@/lib/utils'
+
 /**
  * El cliente de una boleta, como una fila que lleva a su ficha (D-101).
  *
@@ -25,16 +27,31 @@ export function ClientLinkCard({
   href,
   name,
   phone,
+  action,
 }: {
   href: string
   name: string
   /** Puede faltar en un cliente antiguo; entonces la fila se queda en una linea. */
   phone?: string | null
+  /**
+   * Accion sobre este cliente —hoy, «Cambiar cliente» (D-168)—.
+   *
+   * Se pinta DEBAJO de la fila y FUERA del enlace, nunca dentro: un boton
+   * anidado en un enlace es HTML invalido y deja la diana grande de la fila
+   * ejecutando dos cosas distintas segun donde caiga el dedo.
+   */
+  action?: React.ReactNode
 }) {
-  return (
+  const row = (
     <Link
       href={href}
-      className="bg-muted/40 hover:bg-accent focus-visible:ring-ring flex h-full items-center justify-between gap-3 rounded-lg border p-3 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className={cn(
+        'bg-muted/40 hover:bg-accent focus-visible:ring-ring flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors focus-visible:ring-2 focus-visible:outline-none',
+        // Sola, la fila ocupa toda la altura de su columna: es la diana mas
+        // grande posible. Con una accion debajo, la altura la reparte el
+        // contenedor y `h-full` la haria desbordar.
+        action ? 'flex-1' : 'h-full',
+      )}
     >
       <div className="flex min-w-0 items-center gap-3">
         {/* El circulo no aporta informacion: esta para que la fila se lea de un
@@ -55,6 +72,17 @@ export function ClientLinkCard({
       </div>
       <ChevronRightIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
     </Link>
+  )
+
+  // Sin accion, el arbol de HTML es EXACTAMENTE el de siempre: las pantallas
+  // que no la pasan no cambian ni un nodo.
+  if (!action) return row
+
+  return (
+    <div className="flex h-full flex-col gap-2">
+      {row}
+      {action}
+    </div>
   )
 }
 

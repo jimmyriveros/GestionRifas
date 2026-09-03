@@ -121,6 +121,74 @@ export async function purgeSellers(ids: string[]): Promise<void> {
   }
 }
 
+/**
+ * Borra lo que crea una suite: sus clientes, sus boletas y —si las hubo— sus
+ * programaciones de lotería.
+ *
+ * Hermana de `purgeSellers`, y por la misma razón: **una prueba que crea
+ * clientes tiene que borrarlos** (I-035). El listado de «Mis clientes» del
+ * vendedor enseña los 25 primeros por nombre sin buscar nada, así que una suite
+ * que deja catorce clientes empuja fuera de la primera página al que otra
+ * prueba estaba mirando, y esa otra prueba falla apuntando al sitio equivocado.
+ * Pasó al añadir `cambiar-cliente.spec.ts`: `seller-clients` dejó de encontrar
+ * su «Cliente archivable».
+ *
+ * Va por `pg` y en UNA transacción por lo de siempre: `payments_balanced` es un
+ * constraint trigger diferido y PostgREST manda cada `delete` en su propia
+ * transacción, así que borrar las asignaciones sueltas revienta —y el cliente
+ * de Supabase **devuelve** el error en vez de lanzarlo, de modo que la limpieza
+ * fallaría en silencio (I-059).
+ */
+export async function purgeTestData(options: {
+  clientIds?: string[]
+  /** Boletas que no cuelgan de ninguno de esos clientes (una sin vender). */
+  ticketIds?: string[]
+  lotteryScheduleIds?: string[]
+}): Promise<void> {
+  const clientIds = options.clientIds ?? []
+  const ticketIds = options.ticketIds ?? []
+  const scheduleIds = options.lotteryScheduleIds ?? []
+  if (clientIds.length === 0 && ticketIds.length === 0 && scheduleIds.length === 0) return
+
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  // Todas las boletas afectadas: las que se pasaron y las de esos clientes.
+  const tickets = `(select id from tickets where id = any($2) or client_id = any($1))`
+  const args = [clientIds, ticketIds]
+  try {
+    await db.query('begin')
+    await db.query(
+      `delete from payment_allocations pa using payments p
+        where pa.payment_id = p.id and p.client_id = any($1)`,
+      [clientIds],
+    )
+    await db.query('delete from payments where client_id = any($1)', [clientIds])
+    await db.query(`delete from payment_allocations where ticket_id in ${tickets}`, args)
+
+    // La fotografía de un sorteo es inmutable a propósito (BR-L11): el
+    // disparador se apaga SOLO dentro de esta transacción de limpieza.
+    await db.query(
+      'alter table lottery_ticket_matches disable trigger lottery_ticket_matches_immutable',
+    )
+    await db.query(`delete from lottery_ticket_matches where ticket_id in ${tickets}`, args)
+    await db.query(
+      'alter table lottery_ticket_matches enable trigger lottery_ticket_matches_immutable',
+    )
+
+    await db.query(`delete from notifications where entity_id in ${tickets}`, args)
+    await db.query(`delete from tickets where id in ${tickets}`, args)
+    await db.query('delete from clients where id = any($1)', [clientIds])
+    await db.query('delete from lottery_results where schedule_id = any($1)', [scheduleIds])
+    await db.query('delete from lottery_draw_schedules where id = any($1)', [scheduleIds])
+    await db.query('commit')
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  } finally {
+    await db.end()
+  }
+}
+
 export type SeedRefs = {
   organizationId: string
   raffleId: string
@@ -169,17 +237,24 @@ export async function findOtherSellerResources(
   return { ticketId: tickets?.[0]?.id ?? null, clientId: clients?.[0]?.id ?? null }
 }
 
-/** Crea un cliente para el vendedor 1 y devuelve su id y nombre. */
+/**
+ * Crea un cliente y devuelve su id y nombre.
+ *
+ * Sin `sellerId` es del vendedor 1, que es lo que necesitan casi todas las
+ * pruebas. Se le puede pasar otro para montar el escenario de una cartera
+ * ajena: la correccion de cliente comprueba que esos NO se ofrecen (D-168).
+ */
 export async function createClientFor(
   refs: SeedRefs,
   name: string,
+  sellerId = refs.sellerId,
 ): Promise<{ id: string; name: string }> {
   const svc = serviceClient()
   const { data, error } = await svc
     .from('clients')
     .insert({
       organization_id: refs.organizationId,
-      seller_id: refs.sellerId,
+      seller_id: sellerId,
       name,
       phone: '3005550000',
     })

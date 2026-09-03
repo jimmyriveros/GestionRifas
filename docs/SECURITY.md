@@ -612,6 +612,44 @@ vendedor no puede publicarse ni cambiar el catálogo de otro; su Server Action a
 **La clave de servicio no sale del servidor.** `createAdminClient` importa `server-only`, así que el
 build falla si alguien lo importa desde un componente de navegador (§7).
 
+### 4.11 Corregir el cliente de una boleta vendida (`0047`, BR-I13, D-168)
+
+Una función nueva, `reassign_ticket_client(uuid, uuid, uuid, text)`, con la misma propiedad que las
+de §4.6: **el navegador no aporta rol, organización, vendedor ni estado como autoridad**. Recibe
+cuatro valores —boleta, cliente esperado, cliente nuevo y motivo— y la base revalida todo lo demás
+con la fila bloqueada por `FOR UPDATE`.
+
+| Comprobación | Qué impide |
+|---|---|
+| `is_org_staff(org)` o `seller_id = auth.uid()` | Que un vendedor toque la boleta de otro, o alguien la de otra organización. El mensaje es el mismo que si la boleta no existiera: no se filtra que existe |
+| `inventory_status = 'assigned'` y `client_id not null` | Convertir esto en una vía alternativa de venta |
+| `client_id = p_expected_client_id` | Que una pantalla desactualizada pise una corrección más reciente |
+| Cliente de destino: misma organización, mismo vendedor, no archivado, distinto del actual | Saltar de cartera o de organización con un id manipulado (BR-C05, BR-C07) |
+| Cero filas en `payment_allocations` | Dejar el historial de abonos —incluidos los anulados y los corregidos a $0— apuntando a la persona equivocada |
+| Cero filas en `lottery_ticket_matches` | Contradecir una fotografía inmutable del sorteo (BR-L11) |
+| Motivo de 5 caracteres o más | Una reescritura de propiedad sin justificación en la bitácora |
+
+Cumple las cuatro reglas de §4.5: `search_path` fijo, `REVOKE` explícito de `public` y `anon`,
+parámetros tipados sin SQL concatenado y mensajes de negocio sin detalle interno. El `GRANT` nombra a
+`authenticated` **y también a `service_role`**, que las migraciones anteriores dejaban implícito: ese
+rol hereda `EXECUTE` del privilegio por defecto **en producción y no en local** (D-128), y esa
+divergencia es exactamente la que costó I-078 y obligó a la `0044`. Nombrarlo hace que los dos
+entornos digan lo mismo, y `verify:remote` y `tests/db/catalog.test.ts` llevan la función en sus dos
+listas blancas —las mismas que §4.5 obliga a tocar juntas—.
+
+**Lo que NO cambia.** Ninguna política nueva. `tickets_update_seller` sigue sin alcanzar una boleta
+`assigned`, de modo que un `UPDATE` directo del vendedor afecta cero filas; `tickets_update_staff`
+sigue como estaba, y sobre él sigue el disparador `tickets_protect_client_change` (BR-I12), que esta
+función **no esquiva** —no hay GUC, porque su propio listón es más alto—.
+
+**La cartera se acota en el servidor.** La Server Action de búsqueda (`searchTicketClientOptions`)
+recibe **la boleta**, no el vendedor, y resuelve la cartera leyendo `tickets` bajo RLS. Enviar el id
+de otra boleta no amplía nada —la RLS sigue mandando— y tampoco sirve para reasignar, porque la RPC
+comprueba la cartera contra la boleta de verdad. Cuando el personal crea un cliente desde ese
+diálogo, `seller_id` sale de la boleta y nunca del formulario: `clients_insert` deja al personal
+crear en cualquier cartera de su organización, así que la garantía tiene que estar aquí y la vuelve a
+aplicar la RPC al comprobar `v_client.seller_id <> v_ticket.seller_id`.
+
 ## 5. Protección de Server Actions y Route Handlers
 
 Toda Server Action parametrizada de negocio debe seguir esta secuencia. Las acciones públicas de
@@ -722,6 +760,7 @@ Eventos mínimos registrados en `audit_logs` (BR-D01):
 | `ticket.create`, `ticket.update`, `ticket.number_change` | `ticket` | Trigger |
 | `ticket.assign_seller`, `ticket.assign_client` | `ticket` | RPC |
 | `ticket.update_sale_price` | `ticket` | RPC (`update_ticket_sale_price`, D-137). Precio anterior y nuevo, cliente y vendedor |
+| `ticket.reassign_client` | `ticket` | RPC (`reassign_ticket_client`, `0047`, D-168). Cliente anterior y nuevo, vendedor, estado, precio, fecha de venta y **motivo**. La `ticket.update` automática de la fila se conserva |
 | `ticket.approve`, `ticket.cancel` | `ticket` | RPC |
 | `ticket.import` | `raffle` | RPC (`log_ticket_import`, 0019). Quién, cuándo, rifa, vendedor, tipo de archivo y recuentos. **Nunca el archivo** |
 | `payment.create`, `payment.update`, `payment.void` | `payment` | RPC |

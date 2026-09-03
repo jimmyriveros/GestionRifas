@@ -3,7 +3,16 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-03 — **el recuadro de loterías del Panel, rediseñado y DESPLEGADO** (D-167): dos
+- **Actualizado:** 2026-09-03 — **una boleta vendida se puede corregir de cliente** (D-168, BR-I13):
+  botón «Cambiar cliente» bajo la tarjeta del cliente, en los dos portales, con un solo diálogo que
+  deja elegir o crear el cliente correcto dentro de la cartera del **mismo vendedor** y pide motivo.
+  Escribe **solo** `tickets.client_id`: ni precio, ni fecha, ni estado, ni un segundo aviso de venta.
+  Se bloquea con **cualquier** fila en `payment_allocations` —incluidos los pagos anulados y los
+  abonos corregidos a $0— y con cualquier coincidencia de lotería, y en esos casos la pantalla
+  explica por qué en lugar de ofrecer un botón que falla. De paso queda **precisada** la nota que
+  decía «reasignar una boleta vendida es imposible»: eso vale para cambiar de **vendedor**, no de
+  cliente. Migración **`0047`**, **SOLO EN LOCAL: no aplicada al proyecto real ni desplegada**.
+  Antes, el mismo día: **el recuadro de loterías del Panel, rediseñado y DESPLEGADO** (D-167): dos
   tarjetas —«Hoy» en azul con la hora como dato grande, «Ayer» en verde con el número mayor y las
   coincidencias—, dos columnas desde `lg` y una debajo de otra en el teléfono. Título nuevo,
   «Resultados y próxima lotería»; se retira de la vista la hora de la última verificación y **se
@@ -999,7 +1008,7 @@ Ninguna nueva.
 |---|---|
 | Avisar al personal de **cada** venta puede ser mucho ruido en una rifa grande | El Dueño y el Administrador ya ven todas las ventas en su panel. Se implementó así porque el encargo lo pedía; quitarlo es una línea de `notify_ticket_sold` (D-093) |
 | No existe comisión del vendedor padre sobre las ventas de su equipo | Regla comercial **sin definir** por el dueño. La arquitectura queda lista; no se implementó nada |
-| Reasignar una boleta vendida sigue siendo imposible | Es del esquema, no de esta funcionalidad (nota de BR-G07). Si el negocio lo necesita, exige rediseñar la relación cliente–vendedor |
+| Cambiar de **vendedor** una boleta vendida sigue siendo imposible | Es del esquema, no de esta funcionalidad (nota de BR-G07). Si el negocio lo necesita, exige rediseñar la relación cliente–vendedor. **Precisado el 2026-09-03 (D-168):** esta fila decía «reasignar una boleta vendida», y se leía como si tampoco se pudiera **corregir el cliente**. Eso sí se puede desde `0047`, dentro de la cartera del mismo vendedor y sin abonos ni coincidencias (BR-I13) |
 
 ### 6. Qué debe revisar el siguiente agente
 
@@ -3145,6 +3154,84 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**
 6. Cruz Roja y Bogotá pueden no confirmarse solas (I-081): no eludir.
+
+---
+
+## Mantenimiento post-9 — corregir el cliente de una boleta vendida (D-168, BR-I13, 2026-09-03)
+
+Autorizado expresamente por el dueño. Es la funcionalidad que faltaba para un error que **ya ocurrió
+en producción** y hubo que arreglar por SQL a mano (`TEST_RESULTS.md`, «Corrección operativa», boleta
+7616 / 1891, 2026-08-29). Migración **`0047`**, **solo aplicada en local**: no se ha tocado el
+proyecto real ni se ha desplegado nada.
+
+### 1. Funcionalidades implementadas
+
+* **«Cambiar cliente» en el detalle de la boleta, en los dos portales.** El botón vive **debajo** de
+  la tarjeta del cliente y **fuera** de su enlace (`ClientLinkCard` gana una ranura `action`). Mide
+  44 px de alto en el teléfono y lleva texto visible junto al icono.
+* **Un diálogo, dos portales.** Dice quién tiene la boleta ahora, pide el motivo, y deja elegir un
+  cliente existente —con el buscador remoto de siempre— o **crear uno nuevo sin salir**. Antes de
+  confirmar escribe a quién va a pasar. El botón final dice «Cambiar cliente»; el de la pestaña
+  nueva, «Crear cliente y cambiar».
+* **Solo cambia el cliente, y se dice.** «Solo cambia el cliente: el precio, la fecha de venta y los
+  números de la boleta siguen igual.» No pasa por `available`, no repite el aviso de venta al equipo
+  y no toca ninguna otra columna.
+* **La cartera se acota en el servidor.** Solo se ofrecen clientes del **vendedor de la boleta**, lo
+  cual importa sobre todo en el portal administrativo, donde la RLS deja ver los de toda la
+  organización. Cuando el personal crea el cliente desde el diálogo, nace en la cartera de ese
+  vendedor, no a nombre de quien administra.
+* **Donde no se puede, se explica.** Con abonos en el historial —incluidos los anulados y los
+  corregidos a $0— y con una coincidencia de lotería, el botón no aparece y en su lugar va el motivo.
+  Una boleta sin vender no enseña ninguna de las dos cosas.
+* **Concurrencia.** La pantalla manda a quién creía que pertenecía la boleta; con la fila bloqueada,
+  una corrección más reciente no se pisa.
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` ✅ (`typecheck`, lint **0 errores** y 2 avisos preexistentes de TanStack, **749/749**
+unitarias, `build`). `npm run test:db` **754/754** en 36 archivos, sobre una base recién sembrada con
+`0047` aplicada; la línea base antes de tocar nada era **731/731** en 35. La suite nueva de base de
+datos, **23/23**, se ejecutó **tres veces seguidas** sobre la misma base para comprobar que se limpia
+sola. E2E de esta tanda **11/11** (9 escritorio + 2 móvil) y suite completa **514/516**.
+
+**Los 2 fallos de la suite completa son ajenos y preexistentes, y se comprobó.** Se repitió el
+proyecto de escritorio sobre una base recién sembrada **excluyendo las dos suites nuevas**: 388/390,
+con los **mismos** dos fallos y la **misma** cifra. Son `reports.spec.ts` —el de orden de ejecución
+que ya registró D-150— y `ventas-por-fecha.spec.ts`, que asume menos de 26 ventas del día y encuentra
+58 porque media docena de suites venden boletas fechadas hoy. Detalle, y el desglose que demuestra
+que ninguna de esas 58 es de este trabajo, en `TEST_RESULTS.md`.
+
+Los siete errores encontrados por el camino —seis de las pruebas nuevas y uno de higiene de la suite
+que **sí** rompía dos pruebas ajenas— están en `TEST_RESULTS.md`. Ninguno era del producto.
+
+### 3. Migraciones
+
+| Archivo | Qué hace |
+|---|---|
+| `0047_reassign_ticket_client.sql` | Añade `reassign_ticket_client(uuid, uuid, uuid, text)`: `SECURITY DEFINER`, `search_path` fijo, bloquea la boleta con `FOR UPDATE`, revalida los siete requisitos de BR-I13, escribe **solo** `tickets.client_id` y audita `ticket.reassign_client` con el motivo. `EXECUTE` revocado de `public` y `anon`, concedido a `authenticated` y `service_role`. **Aditiva**: no altera ninguna tabla, política, disparador ni función existente. **SOLO EN LOCAL** |
+
+### 4. Variables de entorno
+
+Ninguna nueva.
+
+### 5. Problemas que permanecen
+
+Los de siempre: I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-030, I-024, I-021, I-023, I-059,
+I-060. Ninguno nuevo.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **`0047` está SOLO EN LOCAL.** Promoverla exige respaldo previo y `db push`, y el código de la
+   pantalla no funciona sin ella (la Server Action llamaría a una función que no existe): **migración
+   primero, despliegue después**.
+2. **No confundas BR-I12 con BR-I13.** El disparador de `0004` mira pagos **activos** y sigue puesto;
+   la RPC de `0047` exige **cero filas** en `payment_allocations`. Cambiar una no cambia la otra.
+3. **No uses `paid_amount` para decidir si una boleta «tiene pagos»**: vuelve a cero al anular.
+4. **No metas la fecha de venta ni el precio en este diálogo.** Es una corrección de identidad; si
+   vuelven a pedirse, deja de distinguirse de una venta nueva, que es lo que D-168 evita.
+5. **`ClientOptionsPicker` lo comparten dos diálogos.** Un cambio ahí toca también la venta de
+   boletas.
+6. **No hay etiqueta `fase-N`**: es mantenimiento.
 
 ---
 

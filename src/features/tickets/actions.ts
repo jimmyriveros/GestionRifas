@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { listClientOptions, type ClientOption } from '@/features/clients/queries'
+import { searchTermSchema, toClientRow } from '@/features/clients/schemas'
 import { authorizeAction } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
@@ -11,7 +13,10 @@ import {
   approveTicketsSchema,
   cancelTicketSchema,
   createTicketSchema,
+  reassignTicketClientSchema,
   reassignTicketSellerSchema,
+  reassignTicketToNewClientSchema,
+  ticketClientSearchSchema,
   updateTicketNumbersSchema,
   updateTicketSalePriceSchema,
 } from './schemas'
@@ -259,4 +264,180 @@ export async function updateTicketSalePrice(
 
   revalidateTicketPrice(values.ticketId, ticket?.client_id)
   return { ok: true, data: { id: data as string } }
+}
+
+/**
+ * Superficies que cambian al mover una boleta de cliente (D-168).
+ *
+ * Son mas que las del precio: la boleta desaparece de la ficha del cliente
+ * anterior y aparece en la del nuevo, asi que las DOS fichas hay que
+ * revalidarlas por su ruta literal. El detalle se nombra ademas por patron,
+ * porque revalidar `/seller/tickets` no alcanza a `[ticketId]` (D-133).
+ */
+function revalidateTicketClient(
+  ticketId: string,
+  previousClientId: string,
+  nextClientId: string | null,
+) {
+  revalidatePath('/seller/tickets')
+  revalidatePath('/seller/tickets/[ticketId]', 'page')
+  revalidatePath(`/seller/tickets/${ticketId}`)
+  revalidatePath('/seller/clients')
+  revalidatePath('/seller/payments')
+  revalidatePath('/seller/dashboard')
+  revalidatePath('/owner/tickets')
+  revalidatePath('/owner/tickets/[ticketId]', 'page')
+  revalidatePath(`/owner/tickets/${ticketId}`)
+  revalidatePath('/owner/clients')
+  revalidatePath('/owner/payments')
+  revalidatePath('/owner/dashboard')
+  revalidatePath('/owner/reports')
+  revalidatePath('/seller/reports')
+  for (const clientId of [previousClientId, nextClientId]) {
+    if (!clientId) continue
+    revalidatePath(`/seller/clients/${clientId}`)
+    revalidatePath(`/owner/clients/${clientId}`)
+  }
+}
+
+/**
+ * Clientes elegibles para corregir el cliente de una boleta (BR-I13, D-168).
+ *
+ * Acota SIEMPRE a la cartera del vendedor de la boleta. En el portal del
+ * vendedor esa cartera es la suya y la RLS ya lo haria; en el administrativo no,
+ * porque el personal ve los clientes de toda la organizacion y ofrecerselos
+ * todos seria proponer opciones que la base va a rechazar (BR-C05).
+ *
+ * Devuelve lista vacia en vez de error cuando el termino no sirve: un selector
+ * que se queja de que escribiste una sola letra es mas molesto que util.
+ */
+export async function searchTicketClientOptions(
+  input: unknown,
+): Promise<ActionResultWith<ClientOption[]>> {
+  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  if ('error' in auth) return auth
+
+  const parsed = ticketClientSearchSchema.safeParse(input)
+  if (!parsed.success) return { ok: true, data: [] }
+
+  const term = searchTermSchema.safeParse(parsed.data.term)
+  if (!term.success) return { ok: true, data: [] }
+
+  const supabase = await createClient()
+  // El vendedor sale de la BOLETA, no del navegador. Bajo RLS: una boleta que
+  // quien llama no puede ver simplemente no aparece.
+  const { data: ticket, error } = await supabase
+    .from('tickets')
+    .select('seller_id')
+    .eq('id', parsed.data.ticketId)
+    .maybeSingle()
+
+  if (error) return { error: mapPgError(error) }
+  if (!ticket) return { ok: true, data: [] }
+
+  try {
+    return {
+      ok: true,
+      data: await listClientOptions(term.data, undefined, { sellerId: ticket.seller_id }),
+    }
+  } catch (searchError) {
+    return { error: mapPgError(searchError) }
+  }
+}
+
+/**
+ * Corregir el cliente de una boleta vendida (BR-I13, D-168).
+ *
+ * El vendedor dueno de la boleta y el personal pueden. TODA la regla vive en
+ * `reassign_ticket_client`: cartera, archivado, historial de abonos,
+ * coincidencias de loteria y el bloqueo optimista con la fila bloqueada.
+ * Ocultar el boton no autoriza nada.
+ */
+export async function reassignTicketClient(input: unknown): Promise<ActionResult> {
+  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  if ('error' in auth) return auth
+
+  const parsed = reassignTicketClientSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
+  }
+  const values = parsed.data
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('reassign_ticket_client', {
+    p_ticket_id: values.ticketId,
+    p_expected_client_id: values.expectedClientId,
+    p_new_client_id: values.newClientId,
+    p_reason: values.reason,
+  })
+
+  if (error) return { error: mapPgError(error) }
+
+  revalidateTicketClient(values.ticketId, values.expectedClientId, values.newClientId)
+  return { ok: true }
+}
+
+/**
+ * Crea el cliente correcto y le pasa la boleta, sin salir del dialogo.
+ *
+ * El alta y la correccion NO son atomicas entre si, a proposito y por la misma
+ * razon que en la venta (D-050): si la correccion falla —porque alguien cobro
+ * la boleta un segundo antes, por ejemplo—, el cliente recien escrito SE
+ * CONSERVA. Es un dato legitimo que la persona acaba de capturar. El mensaje de
+ * error lo dice explicitamente para que nadie lo escriba dos veces.
+ *
+ * `seller_id` NUNCA viene del navegador: sale de la boleta. En el portal del
+ * vendedor coincide con su sesion; en el administrativo, el cliente nuevo nace
+ * en la cartera del vendedor de la boleta, no a nombre de quien administra
+ * (BR-C05).
+ */
+export async function reassignTicketToNewClient(input: unknown): Promise<ActionResult> {
+  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  if ('error' in auth) return auth
+
+  const parsed = reassignTicketToNewClientSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos del cliente.' }
+  }
+  const values = parsed.data
+
+  const supabase = await createClient()
+
+  const { data: ticket, error: ticketError } = await supabase
+    .from('tickets')
+    .select('organization_id, seller_id')
+    .eq('id', values.ticketId)
+    .maybeSingle()
+
+  if (ticketError) return { error: mapPgError(ticketError) }
+  if (!ticket) return { error: 'La boleta no existe o no tienes acceso a ella.' }
+
+  const { data: created, error: clientError } = await supabase
+    .from('clients')
+    .insert({
+      organization_id: ticket.organization_id,
+      seller_id: ticket.seller_id,
+      ...toClientRow(values.client),
+    })
+    .select('id')
+    .single()
+
+  if (clientError) return { error: mapPgError(clientError) }
+
+  const { error } = await supabase.rpc('reassign_ticket_client', {
+    p_ticket_id: values.ticketId,
+    p_expected_client_id: values.expectedClientId,
+    p_new_client_id: created.id,
+    p_reason: values.reason,
+  })
+
+  if (error) {
+    revalidateTicketClient(values.ticketId, values.expectedClientId, created.id)
+    return {
+      error: `${mapPgError(error)} El cliente sí quedó guardado: puedes elegirlo de la lista e intentarlo otra vez.`,
+    }
+  }
+
+  revalidateTicketClient(values.ticketId, values.expectedClientId, created.id)
+  return { ok: true }
 }

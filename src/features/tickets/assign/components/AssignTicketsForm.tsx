@@ -7,7 +7,6 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { MoneyInput } from '@/components/form/MoneyInput'
-import { OptionList, OptionListItem } from '@/components/form/OptionList'
 import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Form } from '@/components/ui/form'
@@ -16,13 +15,13 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { searchClientOptions } from '@/features/clients/actions'
 import { ClientFormFields } from '@/features/clients/components/ClientFormFields'
+import { ClientOptionsPicker } from '@/features/clients/components/ClientOptionsPicker'
 import type { ClientOption } from '@/features/clients/queries'
 import {
   clientFormDefaults,
   clientFormSchema,
   type ClientFormInput,
 } from '@/features/clients/schemas'
-import { SearchInput } from '@/features/search/components/SearchInput'
 import { useRemoteSearch } from '@/features/search/use-remote-search'
 import { todayBogota } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
@@ -225,52 +224,14 @@ export function AssignTicketsForm({
         </TabsList>
 
         <TabsContent value="existing" className="space-y-3">
-          <SearchInput
-            id="client-search-assign"
-            label="Buscar"
-            placeholder="Nombre, alias o teléfono"
-            value={search.term}
-            onChange={search.onTermChange}
-            onSubmit={search.submitNow}
-            onClear={search.clear}
-            loading={search.showSpinner}
-            hint={search.hint}
+          <ClientOptionsPicker
+            inputId="client-search-assign"
+            search={search}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            disabled={isPending}
+            emptyMessage="Ningún cliente coincide. Usa la pestaña «Cliente nuevo»."
           />
-
-          {search.status === 'error' ? (
-            <div className="space-y-2 py-4 text-center">
-              <p className="text-destructive text-sm">{search.error}</p>
-              <Button type="button" variant="outline" size="sm" onClick={search.retry}>
-                Reintentar
-              </Button>
-            </div>
-          ) : search.isEmpty ? (
-            <p className="text-muted-foreground py-4 text-center text-sm">
-              Ningún cliente coincide. Usa la pestaña «Cliente nuevo».
-            </p>
-          ) : (
-            /*
-              La lista anterior se mantiene mientras llega la nueva: vaciarla en
-              cada tecla haria que el dialogo pegara saltos. `aria-busy` avisa a
-              un lector de pantalla de que lo que hay se esta actualizando.
-            */
-            <OptionList
-              label="Clientes"
-              className="max-h-56 overflow-y-auto"
-              busy={search.status === 'searching'}
-            >
-              {search.results.map((client) => (
-                <OptionListItem
-                  key={client.id}
-                  title={client.name}
-                  description={`${client.alias ? `${client.alias} · ` : ''}${client.phone}`}
-                  selected={selectedId === client.id}
-                  disabled={isPending}
-                  onSelect={() => setSelectedId(client.id)}
-                />
-              ))}
-            </OptionList>
-          )}
 
           {showSummary ? (
             <SaleSummary count={count} totalAmount={total} discount={discount} />

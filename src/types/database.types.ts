@@ -1875,6 +1875,15 @@ export type Database = {
           weekly_number: string
         }[]
       }
+      reassign_ticket_client: {
+        Args: {
+          p_expected_client_id: string
+          p_new_client_id: string
+          p_reason: string
+          p_ticket_id: string
+        }
+        Returns: string
+      }
       recalc_seller_commission: {
         Args: {
           p_movement?: Database["public"]["Enums"]["commission_movement"]

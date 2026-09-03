@@ -5,14 +5,18 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/StatusBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ClientEmptyCard, ClientLinkCard } from '@/features/clients/components/ClientLinkCard'
+import { listClientOptions } from '@/features/clients/queries'
 import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
 import { listClientPayments } from '@/features/payments/queries'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
+import { ReassignTicketClientDialog } from '@/features/tickets/components/ReassignTicketClientDialog'
 import { TicketActions } from '@/features/tickets/components/TicketActions'
 import { TicketSalePrice } from '@/features/tickets/components/TicketSalePrice'
 import { getTicketDetail } from '@/features/tickets/queries'
+import { canReassignClient, reassignBlockedReason } from '@/features/tickets/reassign-client'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { ticketLabel } from '@/lib/tickets'
 
 export default async function TicketDetailPage({
   params,
@@ -27,7 +31,20 @@ export default async function TicketDetailPage({
 
   if (!ticket) notFound()
 
-  const payments = ticket.clientId ? await listClientPayments(ticket.clientId) : []
+  // MISMO componente y MISMA regla que el portal del vendedor (D-168). Lo unico
+  // propio de aqui: la RLS deja al personal ver los clientes de toda la
+  // organizacion, asi que la lista se acota EXPRESAMENTE a la cartera del
+  // vendedor de la boleta — ofrecer los demas seria proponer opciones que la
+  // base va a rechazar (BR-C05).
+  const canReassign = canReassignClient(ticket)
+  const reassignReason = reassignBlockedReason(ticket)
+
+  const [payments, reassignClients] = await Promise.all([
+    ticket.clientId ? listClientPayments(ticket.clientId) : Promise.resolve([]),
+    canReassign
+      ? listClientOptions(undefined, undefined, { sellerId: ticket.sellerId })
+      : Promise.resolve([]),
+  ])
 
   const canEditSalePrice =
     ticket.inventoryStatus === 'assigned' &&
@@ -99,6 +116,22 @@ export default async function TicketDetailPage({
                 href={`/owner/clients/${ticket.clientId}`}
                 name={ticket.clientName ?? 'Cliente'}
                 phone={ticket.clientPhone}
+                action={
+                  canReassign ? (
+                    <div className="sm:w-fit">
+                      <ReassignTicketClientDialog
+                        ticketId={ticket.id}
+                        ticketNumbers={ticketLabel(ticket)}
+                        currentClientId={ticket.clientId}
+                        currentClientName={ticket.clientName ?? 'Cliente'}
+                        currentClientPhone={ticket.clientPhone}
+                        clients={reassignClients}
+                      />
+                    </div>
+                  ) : reassignReason ? (
+                    <p className="text-muted-foreground px-1 text-sm">{reassignReason}</p>
+                  ) : undefined
+                }
               />
             ) : (
               <ClientEmptyCard description="Esta boleta todavía no se ha vendido." />

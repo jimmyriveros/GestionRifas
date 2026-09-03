@@ -984,6 +984,26 @@ El disparador `tickets_protect_sale_price` sigue bloqueando el `UPDATE` directo 
 esta función enciende un GUC de transacción que el disparador reconoce. El recálculo de saldo,
 estado y ganancia sigue a cargo de los disparadores de `0004` y `0024` (D-137, BR-P13).
 
+### 6.g.2 Corregir el cliente de una boleta vendida (migración `0047`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `reassign_ticket_client(boleta, cliente_esperado, cliente_nuevo, motivo)` | El id de la boleta | `reassignTicketClient` y `reassignTicketToNewClient`, desde el detalle de la boleta en los dos portales |
+
+`SECURITY DEFINER`, `search_path` fijo, `EXECUTE` revocado de `public` y `anon` y concedido a
+`authenticated` y `service_role`. Bloquea la fila con `FOR UPDATE` y revalida todo BR-I13: estado
+`assigned` con cliente, quien llama (vendedor dueño o personal de la organización), el cliente
+esperado —bloqueo optimista—, destino distinto, de la misma organización y del mismo vendedor, no
+archivado, **cero** filas en `payment_allocations` y **cero** en `lottery_ticket_matches`, y motivo de
+5 caracteres o más.
+
+Escribe **solo** `tickets.client_id`. No pasa por `available`, no llama a `assign_ticket_row` y no
+menciona `inventory_status`, de modo que `notify_ticket_sold` —un `after update of inventory_status`
+que además exige la transición a `assigned`— no se dispara. `tickets_protect_client_change` sigue
+puesto y valida este `UPDATE` como cualquier otro; no hay GUC que lo esquive, porque esta función es
+**más** estricta que él. Deja `ticket.reassign_client` con cliente anterior, cliente nuevo y motivo,
+además de la `ticket.update` automática de la fila (D-168, BR-I13).
+
 ### 6.h Coincidencias de lotería (migración `0036`)
 
 | Función | Devuelve | Consumidor |
@@ -1085,7 +1105,7 @@ La consulta interna entra por `tickets_seller_raffle_status_idx` (`0003`), que y
 | `tickets_set_internal_code` | `tickets` | `BEFORE INSERT` | Genera `internal_code` |
 | `tickets_enforce_seller_role` | `tickets` | `BEFORE INSERT/UPDATE` | `seller_id` debe tener membresía activa con rol `seller` |
 | `tickets_protect_sale_price` | `tickets` | `BEFORE UPDATE` | Bloquea el UPDATE directo de `sale_price` con `paid_amount > 0`. `update_ticket_sale_price` puede corregirlo (BR-P13) |
-| `tickets_protect_client_change` | `tickets` | `BEFORE UPDATE` | Bloquea cambio de `client_id` con pagos activos |
+| `tickets_protect_client_change` | `tickets` | `BEFORE UPDATE` | Bloquea cambio de `client_id` con pagos activos (BR-I12). `reassign_ticket_client` no lo esquiva: exige además cero filas en `payment_allocations` (BR-I13) |
 | `tickets_validate_status_transition` | `tickets` | `BEFORE UPDATE` | Aplica la máquina de estados (BR-I01) |
 | `recalc_ticket_paid_amount` | `payment_allocations` | `AFTER INSERT/UPDATE/DELETE` | Recalcula `tickets.paid_amount` |
 | `recalc_on_payment_void` | `payments` | `AFTER UPDATE OF voided_at` | Recalcula las boletas afectadas |

@@ -1,6 +1,6 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-08-30. Para quien **opera el negocio** (Owner/Admin), no para quien
+**Actualizado:** 2026-09-03. Para quien **opera el negocio** (Owner/Admin), no para quien
 programa. Para desplegar la aplicación ver [`DEPLOYMENT.md`](DEPLOYMENT.md); para problemas
 frecuentes, [`RUNBOOK.md`](RUNBOOK.md).
 
@@ -83,8 +83,7 @@ hizo y cuándo (auditado en `audit_logs`).
 ### Boleta
 
 Desde el detalle de la boleta (`/owner/tickets/[id]`) → **"Anular boleta"** → campo obligatorio
-"Explica por que se anula esta boleta" → confirmar. Una boleta con pagos activos no se puede
-reasignar a otro cliente sin resolver antes los pagos con un administrador (ver `BUSINESS_RULES.md`).
+"Explica por que se anula esta boleta" → confirmar.
 
 ### Pago
 
@@ -93,6 +92,27 @@ Solo Owner/Admin — un vendedor no ve esta opción. Desde el detalle del pago (
 "Motivo de la anulacion" → confirmar. Efecto inmediato: las asignaciones de ese pago dejan de contar,
 los saldos y el estado de pago (Sin pagar / Abonada / Pagada) de cada boleta afectada se recalculan
 solos — nunca hay que ajustar nada a mano.
+
+---
+
+## 4.b Corregir el cliente de una boleta vendida
+
+Cuando una boleta se le asignó a la persona equivocada, **no hay que anularla ni volver a venderla**.
+Desde el detalle de la boleta —`/seller/tickets/[id]` para el vendedor, `/owner/tickets/[id]` para el
+personal— hay un botón **«Cambiar cliente»** debajo de la tarjeta del cliente. Se elige el cliente
+correcto (o se crea ahí mismo), se escribe el motivo y se confirma. Solo cambia el cliente: el
+precio, la fecha de venta, los números y el estado quedan igual, y el equipo **no** recibe otra vez
+el aviso de venta.
+
+El botón desaparece, con su explicación en pantalla, cuando la boleta ya no puede corregirse:
+
+| Situación | Qué se ve | Qué hacer |
+|---|---|---|
+| La boleta tiene abonos en su historial —incluso anulados o corregidos a $0— | «Esta boleta tiene abonos en su historial y ya no puede cambiar de cliente.» | Anular los abonos **no** la desbloquea: la fila se queda. Si de verdad hay que moverla, es una corrección de datos y la hace quien administre la base |
+| La boleta ya salió en un resultado de lotería | «Esta boleta ya hace parte de un resultado registrado y no puede cambiar de cliente.» | Nada: la fotografía del sorteo es inmutable a propósito |
+
+Cambiar el **vendedor** de una boleta ya vendida sigue siendo imposible (BR-G07): eso es otra cosa y
+lo impide el esquema. Detalle de las dos reglas en `BUSINESS_RULES.md` (BR-I12, BR-I13).
 
 ---
 

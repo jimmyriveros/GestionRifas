@@ -366,6 +366,8 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Vendedor que pertenece al equipo de otro | **Vendedor** (a secas), o **integrante** del equipo | Sub-vendedor, hijo, subordinado, mini admin |
 | Incorporar un vendedor a tu equipo | **Agregar vendedor** | Crear sub-vendedor, reclutar, vincular |
 | Entregar boletas a un vendedor o a un cliente | **Asignar** | Adjudicar, vincular, ligar |
+| Poner a otro cliente una boleta que se vendió a la persona equivocada | **Cambiar cliente** | Reasignar, transferir, reubicar, mover |
+| El motivo que se escribe al hacerlo | **Motivo de la corrección** | Justificación, razón, observación |
 | Quitar de circulación una boleta o un pago | **Anular** | Eliminar, borrar, cancelar |
 | Borrar para siempre una boleta cargada por error, que nunca se vendió | **Eliminar** | Anular, cancelar, quitar |
 | Marcar varias boletas para trabajar con todas a la vez | **Seleccionar** (el botón que lo enciende dice **«Seleccionar varias»**) | Marcar, elegir, tildar |
@@ -575,6 +577,32 @@ Queda en el historial.»
 
 Y el campo vacío dice **«Escribe el valor»**, no «$0»: ahora que el cero es un valor real, un «$0»
 gris de texto de ejemplo haría creer que ya está escrito cuando el botón está desactivado.
+
+**«Cambiar cliente» dice lo único que la pantalla no enseña: que no cambia nada más** (D-168). El
+botón vive bajo la tarjeta del cliente, en el detalle de la boleta, y su diálogo abre con la frase
+que quita el miedo: «Elige el cliente correcto. Solo cambia el cliente: el precio, la fecha de venta
+y los números de la boleta siguen igual.» Es la §5 de esta guía —explicar qué ocurrirá— aplicada a
+una acción que **parece** una venta nueva y no lo es. Arriba, «Ahora la tiene» con el nombre y el
+teléfono: quien abre el diálogo no tiene por qué recordar de memoria a quién se la puso por error.
+
+**Cambiar, no reasignar.** *Reasignar* es la palabra del código (`bulk_change_ticket_seller`) y de la
+documentación, y además nombra otra cosa —cambiar el **vendedor** de una boleta, que sigue siendo
+imposible (BR-G07)—. En pantalla se cambia el **cliente**, con el verbo que usa todo el mundo. El
+botón dice **«Cambiar cliente»**, no «Cambiar de cliente»: ese nombre accesible ya existe en el
+formulario de abono (D-138) y es otra acción, en otra pantalla.
+
+**Donde no se puede, se explica; no se ofrece un botón que va a fallar** (D-168). Una boleta con
+abonos en su historial dice «Esta boleta tiene abonos en su historial y ya no puede cambiar de
+cliente.» Una que ya salió en un sorteo dice «Esta boleta ya hace parte de un resultado registrado y
+no puede cambiar de cliente.» Los dos textos se quedan en **qué pasa**, sin ofrecer una salida falsa:
+anular los abonos **no** desbloquea nada, porque la fila se queda en el historial, y prometerlo
+mandaría a alguien a hacer un trámite irreversible para nada. Y una boleta que todavía no se ha
+vendido **no dice ninguna de las dos cosas**: no hay nada que corregir, y explicar por qué no se
+puede corregir algo que no existe es ruido.
+
+**El motivo se pide, y se dice para qué sirve.** «Motivo de la corrección», con «Queda guardado en el
+historial de la boleta.» debajo. No se pide «por control»: se pide porque es lo único que la bitácora
+no puede deducir sola, y quien lo escribe merece saber dónde acaba.
 
 **Corregir a $0 no es anular, y los textos no pueden mezclarlos** (D-158, y la misma familia que
 BR-B05). *Anular* un pago lo retira de las cuentas para siempre, lo hace el personal y exige un
@@ -919,6 +947,9 @@ castigo donde solo había una espera.
 | La marca de la boleta desde la que se abrió el formulario de abono | `src/features/payments/components/PaymentForm.tsx` — «La que estabas viendo» (D-133) |
 | Título, rótulos y botones de corregir un abono | `src/features/payments/components/EditPaymentDialog.tsx` — «Editar abono», «Valor actual», «Nuevo valor», «Guardar cambios» (D-134); el aviso del tope y del cero, y el texto de ejemplo «Escribe el valor» (D-158) |
 | Título, rótulos y botones de corregir el precio de una boleta | `src/features/tickets/components/EditSalePriceDialog.tsx` — «Editar precio de venta», «Precio de venta actual», «Nuevo precio», «Guardar cambios» (D-137) |
+| Título, rótulos y botones de cambiar el cliente de una boleta | `src/features/tickets/components/ReassignTicketClientDialog.tsx` — «Cambiar cliente», «Ahora la tiene», «Motivo de la corrección», «Crear cliente y cambiar» (D-168) |
+| Los dos avisos de por qué una boleta ya no puede cambiar de cliente | `src/features/tickets/reassign-client.ts`, **los dos juntos** (D-168) |
+| Estado vacío del buscador de clientes al cambiar el cliente | El `emptyMessage` que le pasa `ReassignTicketClientDialog` a `ClientOptionsPicker` (D-168) |
 | Quién recibe el abono, debajo del título | `src/features/payments/components/PaymentClientBanner.tsx` — «Abono para», **Cambiar** (el nombre accesible sigue siendo «Cambiar de cliente», D-138) |
 | Rótulos de cada boleta en el teléfono al repartir un abono | `src/features/payments/components/PaymentAllocationCards.tsx` — «Boleta», «Debe», «Abonar ahora», «Saldo después del abono», «Quedará» (D-138) |
 | Mensajes de éxito | El `toast` de cada Server Action, en su componente cliente |
