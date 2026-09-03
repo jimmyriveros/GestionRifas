@@ -29,6 +29,92 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — Promoción a producción de D-164, D-165 y D-166 (2026-09-03)
+
+Los tres cambios del catálogo suben juntos, con **migración**: es el primer despliegue de este bloque
+en el que la base cambia.
+
+### El orden importaba, y por qué
+
+`0046` cambia el **tipo de retorno** de dos funciones que el código servido usa. Había dos órdenes
+posibles y no son equivalentes:
+
+* **Migración primero** (lo que se hizo, y lo que manda `DEPLOYMENT.md` §3.3): durante los ~4
+  minutos de build, el código VIEJO lee las funciones NUEVAS. `public_catalog_tickets` ya no
+  devuelve `taken`, así que la tarjeta lo lee como `undefined` —falso— y pinta todas las boletas
+  como disponibles, que es justo lo que ya devuelve la función. La franja decía «0 tomados» durante
+  ese rato. **Cosmético, sin errores.** Comprobado en vivo mientras la ventana estaba abierta: 200,
+  50 tarjetas, **0 apariciones de «Tomado»**.
+* **Código primero** (descartada): el código NUEVO habría leído las funciones VIEJAS, que todavía
+  devuelven las boletas **tomadas**. La tarjeta nueva no tiene rama «Tomado», así que las habría
+  pintado como disponibles **con su botón «Solicitar»**. Alguien podría haber pedido una boleta ya
+  vendida. Esa no es una ventana cosmética.
+
+### Respaldo
+
+`Rifas-backups/2026-09-03-pre-0046/` — 3,4 MB. `grep -c '"auth"' data.sql` = **0**: ni contraseñas
+ni tokens, como exige el procedimiento. Contraste con la base viva antes de tocar nada: **928
+boletas, 297 pagos, 457 clientes, 7 perfiles, 7 membresías, 2 catálogos publicados**.
+
+### Pasos
+
+| Paso | Resultado |
+|---|---|
+| `verify:remote` antes | ✅ **17/17** |
+| `db push --dry-run` | ✅ solo `0046` pendiente |
+| `db push --yes` | ✅ `0046` aplicada |
+| Firmas en producción | ✅ `public_catalog_seller` con los dos conteos; `public_catalog_tickets` sin `taken` |
+| Privilegios tras el `drop` | ✅ solo `service_role`; `anon` y `authenticated` fuera; la interna sin conceder a nadie |
+| Datos tras la migración | ✅ 928 boletas y 297 pagos, intactos |
+| `git push` | `b98a654..ed7b6b2` |
+| CI `33714083755` | ✅ 2/2 |
+| Vercel | `dpl_BatiAsVfZRmJrb5xW18bKL4qRjRp` **READY** sobre `ed7b6b2` |
+| Identificador servido | `27d17950869e` en 1 de los 15 fragmentos de `/login` |
+| Secretos en lo servido | **0** |
+| Cabeceras | **6/6** · rutas protegidas **4/4** en 307 · `/api/lottery/sync` en 401 · catálogo inexistente en **404** |
+| `verify:remote` después | ✅ **17/17** |
+
+### Lo verificado sobre los DOS catálogos reales
+
+Es el primer despliegue de este bloque con catálogos publicados de verdad, así que se comprobó sobre
+ellos y no sobre datos de demostración:
+
+| Catálogo | Disponibles | Tomadas | Total | Reservado | Cuadra |
+|---|---|---|---|---|---|
+| `armando-gordillo-6w84` | 180 | 627 | 807 | 78 % | 180 + 627 = 807 ✅ · 627/807 = 77,7 → 78 ✅ |
+| `jaydin-fernando-yxr8` | 60 | 58 | 118 | 49 % | 60 + 58 = 118 ✅ · 58/118 = 49,2 → 49 ✅ |
+
+Y lo que **no** aparece en ninguno de los dos: **0** «Tomado», **0** «en gris», **0** «En esta
+página». Las 50 tarjetas de la primera página son solicitables.
+
+**El aviso de urgencia se comporta como se decidió (D-164):** aparece en el de Armando —78 %, por
+encima del umbral del 70— y **no** en el de Jaydin —49 %—. Es la comprobación que importaba: el
+texto solo se escribe donde es verdad, y sobre datos reales.
+
+### El punto y la insignia, en producción
+
+Medido contra el dominio real, no contra el servidor local:
+
+| Ancho | Insignia | Posición | Animaciones | Encabezado | Desborde | Errores |
+|---|---|---|---|---|---|---|
+| 360 px | **8 × 8** | absoluta | **0** | 57 px | 0 | ninguno |
+| 412 px | 67 × 18 | en el flujo | **0** | 57 px | 0 | ninguno |
+| 1280 px | 67 × 18 | en el flujo | **0** | 57 px | 0 | ninguno |
+
+El corte viaja en la hoja servida como `@media not all and (min-width:376px)` —la forma minificada
+de «menor que 376»—, y `document.getAnimations()` devuelve **0** en los tres anchos: la animación
+descartada no volvió por la puerta de atrás.
+
+### Lo que NO se comprobó, y se dice
+
+* **Un teléfono real.** Todo es Chromium emulando (I-066).
+* **Lighthouse.** No se ejecutó; no se afirma ninguna puntuación.
+* **La experiencia de compra completa**: tocar «Solicitar» abre WhatsApp en el teléfono de una
+  persona, y eso no lo puede hacer un agente. Lo que sí se comprobó es que el enlace y el mensaje son
+  los correctos.
+
+---
+
 ## Post-9 — «Disponible» se vuelve un punto en pantallas estrechas (2026-09-03, D-166)
 
 Ajuste del indicador de una tarjeta, y nada más. Sin migración, sin JavaScript nuevo y sin

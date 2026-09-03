@@ -3,7 +3,12 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-03 — **«Disponible» se vuelve un punto por debajo de 376 px** (D-166),
+- **Actualizado:** 2026-09-03 — **D-164, D-165 y D-166 DESPLEGADAS**: migración `0046` aplicada al
+  proyecto real tras el respaldo `Rifas-backups/2026-09-03-pre-0046/`, y `ed7b6b2` servido por
+  Vercel. **La migración fue primero a propósito**: al revés, el código nuevo habría leído las
+  funciones viejas y habría pintado boletas ya vendidas como disponibles, con su botón «Solicitar».
+  Verificado sobre los **dos catálogos reales**: 180+627=807 (78 %) y 60+58=118 (49 %), sin ninguna
+  boleta tomada publicada. Antes: **«Disponible» se vuelve un punto por debajo de 376 px** (D-166),
   sin animación y sin encoger el número de la boleta. Antes, el mismo día: **el buscador del catálogo entra en la fila del encabezado**
   (D-165): una sola superficie pegada a la pantalla, una sola fila, y el resumen del teléfono
   reorganizado para que ninguna etiqueta se recorte. Sin migración. Antes, el mismo día: **el catálogo público solo publica boletas disponibles** (D-164,
