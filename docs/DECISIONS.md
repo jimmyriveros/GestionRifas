@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.38 · **Actualizado:** 2026-09-03 (D-001 a D-164)
+- **Versión:** 1.39 · **Actualizado:** 2026-09-03 (D-001 a D-165)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -6651,6 +6651,89 @@ conceder los privilegios, que un `drop` se lleva; `anon` y `authenticated` sigue
 ejecutarlas y `public_catalog_membership` sigue sin concederse a nadie. **Sin índice nuevo, sin
 tabla nueva y sin dependencias.** El tiempo de respuesta no empeora —de hecho baja, porque se
 renderizan menos tarjetas— y el HTML comprimido pasa de 24,1 a **20,8 KB**.
+
+## D-165 — El buscador entra en la fila del encabezado, y el resumen deja de recortarse en el teléfono
+
+**Fase:** mantenimiento posterior a la Fase 9 (catálogo público, 2026-09-03)
+
+**Contexto.** D-164 dejó el buscador «posándose» en una franja `fixed` propia justo debajo del
+encabezado. Sobre el papel funcionaba; en pantalla, no: sumaba casi 70 px pegados arriba —encabezado
+más franja—, dejaba una banda vacía entre ambos y, al llegar a la altura del resumen, **se lo
+tapaba**. El dueño lo vio y lo reportó con capturas. En la misma revisión salió el otro defecto: el
+resumen mantenía tres columnas también en el teléfono y las etiquetas salían cortadas —«números
+dis…», «ya fueron to…»—, que es justo lo que una cifra no puede permitirse.
+
+**Decisión.**
+
+**(a) El buscador entra en la fila que ya existía, a la derecha de la identidad.** Se elimina la
+franja `fixed`. Queda **una sola superficie pegada a la pantalla** —el `<header>`— con **una sola
+fila**, un fondo y un borde. En escritorio el campo se va a la derecha con un ancho acotado entre
+320 y 520 px; en el teléfono se reparte la fila: ~38 % para la identidad y el resto para buscar.
+
+**(b) Sigue siendo UN buscador, pero ahora sí se desmonta al mudarse, y por eso el foco viaja a
+mano.** Antes el nodo no cambiaba de sitio en el DOM —solo de posición en pantalla— y el navegador
+conservaba foco y cursor gratis. Meterlo dentro del encabezado obliga a pintarlo en otro punto del
+árbol, y eso es desmontar y volver a montar. El estado —el término, el debounce, `Enter`, `Escape`,
+el reinicio de `page`, el indicador de carga— sube a `CatalogStickyProvider` y sale de un único
+`useUrlSearch`; el **foco y la posición del cursor** se guardan al desmontar y se devuelven al
+montar.
+
+**(c) Ese relevo tiene que ocurrir en la fase de layout, y costó un fallo entenderlo.** Con un
+`useEffect` normal, la limpieza corre **después** de que React haya quitado el nodo del documento, y
+para entonces `document.activeElement` ya es el `<body>`: no hay nada que guardar. Con
+`useLayoutEffect` corre **antes** de desprenderlo. Se envuelve en el patrón isomorfo habitual para no
+dejar el aviso de React al renderizar en el servidor.
+
+**(d) El encabezado tiene alto FIJO, `h-14`.** Lleve o no lleve el buscador dentro, mida lo que mida
+el nombre. No es estética: si creciera al recoger algo, empujaría el contenido, el elemento observado
+se movería y el observador entraría en el bucle de aparecer y desaparecer. Es la misma razón por la
+que el nombre de la rifa **sustituye** a «Vendedor oficial» en vez de añadir una línea (D-164), y por
+la que el campo mide 40 px dentro de una fila de 56. `CATALOG_HEADER_HEIGHT` sigue valiendo 57 —56
+más el borde—, así que el margen del observador no se desincroniza.
+
+**(e) En el encabezado, la pista del buscador no reserva sitio.** `SearchInput` gana
+`hintReservesSpace`, encendida por defecto: donde el campo vive en una lista, el hueco fijo es lo que
+evita que la pantalla salte cuando aparece un aviso. Dentro de una barra pegada a la pantalla ese
+mismo hueco haría crecer y encoger el encabezado, que es lo que no puede pasar. La pista **se sigue
+anunciando** —`aria-live` y `aria-describedby` intactos—; lo que cambia es que no se pinta. Se pierde
+verla mientras el campo está recogido, y se acepta: el estado vacío ya explica qué hacer.
+
+**(f) El resumen se reorganiza en el teléfono con UN solo marcado.** «Números disponibles» pasa a ser
+la métrica principal: ocupa la fila entera, con la cifra más grande y el verde de disponibilidad;
+debajo, las dos secundarias a mitad y mitad. Desde `sm`, las tres en una fila como antes. **No hay
+dos versiones del componente**: es la misma rejilla de dos columnas donde la primera celda ocupa las
+dos, y a partir de `sm` pasa a tres columnas. Escribir dos bloques y ocultar uno habría duplicado las
+cifras en el HTML y en el árbol de accesibilidad.
+
+**(g) Las etiquetas no se recortan nunca.** Pueden ocupar dos líneas. Una cifra sin su nombre entero
+no dice nada, y «29 de 68 · ya fueron to…» no es una etiqueta: es un acertijo.
+
+**(h) Menos aire entre el buscador y el resumen, hasta donde la ilustración lo permite.** El relleno
+inferior del hero baja de 160 a 80 px en el teléfono, y en escritorio se recorta la altura mínima. La
+composición está anclada abajo (`object-[center_bottom]`), así que lo que se recorta al encoger es la
+parte de **arriba** —confeti y boletas, que van detrás del título— y el vehículo se conserva.
+
+**Alternativas descartadas.**
+
+* **Un portal de React hacia un hueco del encabezado** (descartada: cambiar el contenedor de un
+  portal también desmonta y recrea el nodo, así que no ahorra el relevo del foco, y a cambio
+  esconde dónde se está pintando cada cosa).
+* **Dejar la franja `fixed` y darle un `z-index` menor** (descartada: seguirían siendo dos
+  superficies pegadas y ~120 px de pantalla, que es el problema que se venía a resolver).
+* **Reservar hueco para el resumen bajo la franja** (descartada por lo mismo: arregla el solape sin
+  arreglar la altura).
+* **Dos marcados del resumen, uno por tamaño, con `hidden`/`sm:block`** (descartada: duplica las
+  cifras en el HTML y en el árbol de accesibilidad, y las pruebas contarían seis donde hay tres).
+* **Bajar el hueco hero–resumen a los 16–24 px que pedía el encargo** (descartada **con medición**:
+  el relleno inferior del hero **es** el sitio de la camioneta. A 24 px la ilustración desaparece, y
+  el mismo encargo pide conservarla. Se llegó a **102 px en el teléfono** y **63 en escritorio**,
+  desde 184 y 132).
+
+**Consecuencia.** Una sola superficie pegada a la pantalla, una sola fila, ningún solape y ninguna
+etiqueta cortada. El encabezado mide lo mismo en los cuatro estados, que es lo que sostiene la
+ausencia de parpadeo. **Sin migración, sin consultas nuevas, sin dependencias y sin escuchadores de
+scroll.** `SearchInput` gana dos props opcionales apagadas por defecto —`inputRef` y
+`hintReservesSpace`—, de modo que las otras cinco pantallas que lo usan no cambian ni un píxel.
 
 ---
 

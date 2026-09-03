@@ -724,6 +724,24 @@ que se equivocó de número—.
 camino a WhatsApp que **no nombraba ninguna boleta**, y un mensaje así devuelve al vendedor la
 pregunta que el catálogo venía a quitarle. Queda «Solicitar», que nombra los dos números.
 
+**Ninguna etiqueta del resumen se recorta, aunque tenga que ocupar dos líneas** (D-165). En el
+teléfono salía «números dis…», «29 de 68 · ya fueron to…» y «43 % · reserv…»: una cifra sin su
+nombre entero deja de ser un dato y pasa a ser un acertijo. Ahora **«números disponibles» es la
+métrica principal** —fila entera, cifra más grande, el verde de disponibilidad— y debajo van las dos
+secundarias a mitad y mitad. Los tres textos son los mismos de siempre; lo que cambia es que caben.
+
+**En el encabezado, el buscador dice «Buscar» a secas** (D-165). En la fila del encabezado no cabe
+«Buscar número» sin partirse a media palabra, y un texto de ejemplo cortado se lee como un fallo. Se
+abrevia **lo visible**: el nombre accesible sigue siendo «Buscar número de boleta», que es lo que se
+anuncia y por lo que se encuentra el campo (D-114). En el hero, donde sí cabe, se conserva entero.
+
+**Y ahí la pista deja de verse, aunque se siga anunciando** (D-165). Bajo el campo del hero, la línea
+de ayuda —«Los números tienen 4 cifras como máximo»— reserva su hueco siempre, que es lo que evita
+que la lista salte. Dentro del encabezado ese mismo hueco haría crecer y encoger una barra que está
+en pantalla todo el rato, así que ahí la pista viaja en un `sr-only`: se sigue leyendo en voz alta y
+sigue asociada al campo, pero no se pinta. Lo que queda a la vista es el estado vacío, que ya explica
+qué hacer.
+
 **Al bajar, el encabezado dice la rifa en lugar de «Vendedor oficial»** (D-164). Sustituye, no
 añade: son las mismas dos líneas, así que el encabezado no crece y el nombre de la rifa nunca se lee
 dos veces a la vez. Es texto secundario y truncado, **no un segundo `h1`**.
@@ -896,6 +914,7 @@ castigo donde solo había una espera.
 | El mensaje de contacto que NO nombra ninguna boleta | `src/features/catalog/whatsapp.ts` (`catalogContactMessage`, D-163) |
 | La etiqueta «Catálogo público» y el título de dos líneas del hero | `src/features/catalog/components/CatalogHero.tsx` (D-163) |
 | Rótulos de las tres cifras públicas («números disponibles», «ya fueron tomados», «reservado») y el aviso de que quedan pocos | `src/features/catalog/components/CatalogSummary.tsx` (D-164) |
+| El texto de ejemplo del buscador, entero en el hero y corto en el encabezado | `src/features/catalog/components/CatalogSearch.tsx` (D-165) |
 | El nombre de la rifa que recoge el encabezado al bajar, y «Vendedor oficial» | `src/features/catalog/components/CatalogHeader.tsx` (D-164) |
 | Los dos estados vacíos del catálogo público | `src/app/(catalogo)/catalogo/[slug]/page.tsx` (D-164) |
 

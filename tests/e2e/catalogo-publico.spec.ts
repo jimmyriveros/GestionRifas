@@ -263,13 +263,19 @@ test.describe('el rediseño visual (D-163)', () => {
  * Por eso cada prueba afirma tambien que sigue habiendo exactamente uno.
  */
 test.describe('el buscador y el titulo se posan al bajar (D-164)', () => {
-  /** `true` cuando el campo esta pegado bajo el encabezado. */
+  /**
+   * `true` cuando el campo esta DENTRO de la caja del encabezado.
+   *
+   * Desde D-165 no basta con «cerca»: el buscador entra en la fila del
+   * encabezado, asi que se exige que su caja quepa entera dentro de la suya. Si
+   * alguien volviera a una franja aparte debajo, esto fallaria.
+   */
   async function posado(page: Page): Promise<boolean> {
     const campo = page.getByRole('searchbox')
     const caja = await campo.boundingBox()
     const header = await page.locator('header').boundingBox()
     if (!caja || !header) return false
-    return caja.y < header.y + header.height + 24
+    return caja.y >= header.y - 1 && caja.y + caja.height <= header.y + header.height + 1
   }
 
   async function bajar(page: Page, px: number) {
@@ -350,14 +356,26 @@ test.describe('el buscador y el titulo se posan al bajar (D-164)', () => {
 
     const campo = page.getByRole('searchbox')
     await campo.click()
-    await campo.pressSequentially('12', { delay: 30 })
+    // «0» a proposito: casi todas las boletas lo llevan, asi que la lista sigue
+    // siendo larga y queda pagina que bajar. Con un termino que filtrara a un
+    // solo resultado la pagina se queda corta y no habria scroll que probar.
+    await campo.pressSequentially('0', { delay: 30 })
     await expect(campo).toBeFocused()
+
+    // HAY QUE ESPERAR A QUE LA BUSQUEDA ATERRICE ANTES DE BAJAR: al navegar, el
+    // enrutador devuelve la pagina al principio. Bajar antes y medir despues
+    // daba un buscador «sin recoger» que en realidad se habia recogido y habia
+    // vuelto solo.
+    await expect(page).toHaveURL(/q=0/)
 
     await bajar(page, 1200)
     expect(await posado(page)).toBe(true)
 
-    // El nodo no se ha desmontado: conserva valor Y foco.
-    await expect(campo).toHaveValue('12')
+    // El campo se ha mudado de sitio en el DOM, asi que conserva el valor —que
+    // vive en el estado compartido— Y el foco, que se guarda al desmontar y se
+    // devuelve al montar (D-165). Sin ese relevo, en un telefono se cerraria el
+    // teclado a mitad de palabra.
+    await expect(campo).toHaveValue('0')
     await expect(campo).toBeFocused()
 
     const desborde = await page.evaluate(
@@ -373,6 +391,58 @@ test.describe('el buscador y el titulo se posan al bajar (D-164)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     await expect(page.locator('header h1')).toHaveCount(0)
   })
+
+  test('el encabezado NO cambia de alto al recoger titulo y buscador (D-165)', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+
+    const arriba = (await page.locator('header').boundingBox())!.height
+    await bajar(page, 1200)
+    const abajo = (await page.locator('header').boundingBox())!.height
+
+    // No es estetica: si el encabezado creciera, empujaria el contenido, el
+    // elemento observado se moveria y el observador entraria en un bucle de
+    // aparecer y desaparecer. Es la garantia que sostiene todo lo demas.
+    expect(abajo).toBe(arriba)
+  })
+
+  test('solo hay UNA superficie pegada a la pantalla (D-165)', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+    await bajar(page, 1200)
+
+    const pegados = await page.evaluate(() => {
+      const todos = Array.from(document.querySelectorAll('body *'))
+      return todos
+        .filter((el) => {
+          const p = getComputedStyle(el).position
+          return p === 'fixed' || p === 'sticky'
+        })
+        .filter((el) => (el as HTMLElement).offsetHeight > 0)
+        .map((el) => el.tagName.toLowerCase() + '.' + (el.className || '').toString().slice(0, 40))
+    })
+
+    // El encabezado y las dos capas decorativas del fondo (resplandor y
+    // estrellas), que no ocupan sitio ni reciben toques. Nada mas: la franja
+    // aparte del buscador desaparecio en D-165.
+    const barras = pegados.filter((p) => !p.includes('catalog-glow') && !p.includes('catalog-stars'))
+    expect(barras, `superficies pegadas: ${pegados.join(' | ')}`).toHaveLength(1)
+    expect(barras[0]).toContain('header')
+  })
+
+  test('el buscador recogido no tapa el resumen ni las boletas (D-165)', async ({ page }) => {
+    await anonima(page, `/catalogo/${SLUG}`)
+    await bajar(page, 400)
+
+    const header = (await page.locator('header').boundingBox())!
+    const resumen = await page
+      .getByRole('region', { name: 'Resumen del catálogo' })
+      .boundingBox()
+
+    // El resumen puede haber salido de la vista por arriba; lo que no puede es
+    // quedar por debajo del encabezado y taparse con el.
+    if (resumen && resumen.y + resumen.height > 0) {
+      expect(resumen.y + resumen.height).toBeGreaterThan(header.y)
+    }
+  })
 })
 
 test.describe('las cifras del catalogo (D-164, BR-K14)', () => {
@@ -380,7 +450,9 @@ test.describe('las cifras del catalogo (D-164, BR-K14)', () => {
   async function cifras(page: Page): Promise<string[]> {
     const resumen = page.getByRole('region', { name: 'Resumen del catálogo' })
     await expect(resumen).toBeVisible()
-    return (await resumen.locator('p.text-lg').allInnerTexts()).map((t) => t.trim())
+    return (
+      await resumen.locator('[data-testid="catalog-stat-value"]').allInnerTexts()
+    ).map((t) => t.trim())
   }
 
   test('son del catalogo COMPLETO, no de la pagina, y cuadran entre si', async ({ page }) => {

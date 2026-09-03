@@ -71,6 +71,24 @@ type SearchInputProps = {
    * lector de pantalla sigue guiandose por la etiqueta del campo.
    */
   leadingIcon?: boolean
+  /**
+   * Acceso al `<input>` real, para quien necesite moverle el foco (D-165).
+   *
+   * Lo usa el catalogo publico, donde el campo se muda del hero al encabezado:
+   * mudarse es desmontar y volver a montar, y el foco hay que devolverlo a
+   * mano. Ninguna otra pantalla lo necesita.
+   */
+  inputRef?: React.Ref<HTMLInputElement>
+  /**
+   * Si la linea de la pista reserva su hueco aunque este vacia (D-165).
+   *
+   * Encendido por defecto, que es lo que evita que la lista salte arriba y
+   * abajo cada vez que aparece un aviso. Se apaga donde el campo vive dentro de
+   * una barra fija —el encabezado del catalogo—: alli, crecer y encoger movería
+   * el contenido de toda la pagina. La pista **se sigue anunciando**; lo que
+   * cambia es que no ocupa sitio cuando no dice nada.
+   */
+  hintReservesSpace?: boolean
   className?: string
 }
 
@@ -89,6 +107,8 @@ export function SearchInput({
   touchSize = false,
   inputMode = 'search',
   leadingIcon = false,
+  inputRef,
+  hintReservesSpace = true,
   className,
 }: SearchInputProps) {
   const generatedId = useId()
@@ -128,6 +148,7 @@ export function SearchInput({
           ) : null}
 
           <Input
+            ref={inputRef}
             id={inputId}
             type="search"
             value={value}
@@ -200,7 +221,14 @@ export function SearchInput({
         El hueco de la pista existe siempre (`min-h`), aunque este vacia: si
         apareciera y desapareciera, empujaria la lista arriba y abajo.
       */}
-      <p id={hintId} aria-live="polite" className="text-muted-foreground min-h-4 text-xs">
+      <p
+        id={hintId}
+        aria-live="polite"
+        className={cn(
+          'text-muted-foreground text-xs',
+          hintReservesSpace ? 'min-h-4' : 'sr-only',
+        )}
+      >
         {hint}
       </p>
     </div>

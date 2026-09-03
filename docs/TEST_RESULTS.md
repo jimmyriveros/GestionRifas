@@ -29,6 +29,75 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — El buscador entra en la fila del encabezado (2026-09-03, D-165)
+
+Ajuste de presentación sobre D-164, con dos defectos reportados por el dueño con capturas: la franja
+del buscador tapaba el resumen, y el resumen recortaba sus etiquetas en el teléfono. **Sin
+migración**, sin consultas nuevas y sin dependencias.
+
+### Comandos
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ 0 errores |
+| `npm run lint` | ✅ **0 errores**, los 2 avisos preexistentes |
+| `npm run test` | ✅ **728/728** |
+| `npm run build` | ✅ |
+| `playwright catalogo-publico` (escritorio) | ✅ **43/43** (40 previas + **3 nuevas**) |
+| `playwright catalogo-publico-movil` (móvil) | ✅ **12/12** (11 previas + **1 nueva**) |
+| `playwright busqueda-hibrida seller-tickets seller-clients` | ✅ **42/42** — se ejecutan porque el cambio toca `SearchInput` |
+
+### Lo que miden las pruebas nuevas
+
+| Qué | Por qué importa |
+|---|---|
+| El encabezado **mide lo mismo** recogido y sin recoger | Es la garantía que sostiene la ausencia de parpadeo: si creciera, movería al elemento observado |
+| Hay **una sola** superficie pegada a la pantalla, y es el encabezado | La franja aparte desapareció; si alguien la reintrodujera, esto falla |
+| El resumen **no queda tapado** por el encabezado al desplazarse | Es el defecto que se reportó |
+| Ninguna etiqueta del resumen se recorta, y la principal va sola y más grande | El otro defecto reportado |
+| El campo recogido cabe **dentro** de la caja del encabezado | «Cerca» ya no basta: se exige que esté dentro |
+
+### Espacio entre el buscador y el resumen, medido
+
+| Ancho | Antes | Después |
+|---|---|---|
+| 320 px | 184 px | **102 px** |
+| 390 px | 184 px | **102 px** |
+| 485 px | 184 px | **102 px** |
+| 768 px | 128 px | **59 px** |
+| 1280 px | 132 px | **63 px** |
+
+El encargo pedía 16–24 px en el teléfono. **No se llegó, y es deliberado:** ese relleno inferior
+**es** el sitio de la camioneta —la composición está anclada abajo—, y el mismo encargo pide
+conservar la ilustración. A 24 px no queda vehículo. Se redujo un 45 % en el teléfono y un 52 % en
+escritorio, que es lo que se puede recortar sin perderla; queda dicho por si el dueño prefiere la
+otra mitad del trato.
+
+### Errores encontrados y corregidos
+
+**1. El foco no sobrevivía a la mudanza, y la causa no era la que parecía.** Al pasar el campo del
+hero al encabezado se pierde y se recrea el nodo, así que hay que guardar el foco al desmontar. Con
+un `useEffect` normal no funcionaba: su limpieza corre **después** de que React haya quitado el nodo
+del documento, y para entonces `document.activeElement` ya es el `<body>`. Con `useLayoutEffect`
+—envuelto en el patrón isomorfo para no avisar en el servidor— corre antes de desprenderlo.
+
+**2. Dos pruebas medían el scroll deshecho.** Escribir en el buscador navega a `?q=…` y el enrutador
+**devuelve la página al principio**; las pruebas bajaban, la navegación aterrizaba después y medían
+un buscador «sin recoger» que sí se había recogido. Se espera a que la URL cambie antes de bajar. Es
+la misma trampa que ya había mordido en la suite del teléfono (D-164).
+
+**3. Un término de búsqueda que dejaba la página sin scroll.** Buscar «12» filtra a un resultado y
+la página se queda más corta que la ventana: no hay nada que bajar y la prueba no probaba nada. Se
+usa «0», que casi todas las boletas llevan.
+
+### Anchos verificados
+
+320 · 390 · 485 · 768 · 1280 px, en los cuatro estados —arriba, título recogido, título y buscador
+recogidos, y de vuelta arriba—: **0 px** de desplazamiento horizontal, encabezado de **57 px** en
+todos, y ninguna etiqueta cortada.
+
+---
+
 ## Post-9 — Solo disponibles, cifras del catálogo y buscador que se posa (2026-09-03, D-164)
 
 Cinco ajustes sobre el catálogo ya desplegado: fuera el botón general de WhatsApp, buscador y título

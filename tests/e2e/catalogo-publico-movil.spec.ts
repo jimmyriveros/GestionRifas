@@ -123,20 +123,52 @@ test.describe('en el telefono', () => {
     const header = (await page.locator('header').boundingBox())!
     const caja = (await campo.boundingBox())!
 
-    // Posado justo debajo del encabezado, y sin taparlo.
-    expect(caja.y).toBeGreaterThanOrEqual(header.y + header.height - 1)
-    expect(caja.y).toBeLessThan(header.y + header.height + 24)
+    // DENTRO de la fila del encabezado, no en una franja debajo (D-165).
+    expect(caja.y).toBeGreaterThanOrEqual(header.y - 1)
+    expect(caja.y + caja.height).toBeLessThanOrEqual(header.y + header.height + 1)
 
-    // Sigue siendo UNO, conserva el valor y mantiene su diana tactil de 44 px.
+    // Sigue siendo UNO, conserva el valor y mantiene una diana tactil de 40 px,
+    // que es lo que cabe en una fila de encabezado de 56.
     await expect(campo).toHaveCount(1)
     await expect(campo).toHaveValue('0')
-    expect(caja.height).toBeGreaterThanOrEqual(44)
+    expect(caja.height).toBeGreaterThanOrEqual(40)
 
     // Y la pagina no se desplaza en horizontal por tener un elemento fijo.
     const desborde = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     )
     expect(desborde).toBeLessThanOrEqual(0)
+  })
+
+  test('ninguna etiqueta del resumen se recorta, y la principal manda (D-165)', async ({ page }) => {
+    await abrirSinSesion(page, `/catalogo/${SLUG}`)
+
+    const resumen = page.getByRole('region', { name: 'Resumen del catálogo' })
+    await expect(resumen).toBeVisible()
+
+    // El fallo real: con tres columnas en el telefono salia «números dis…» y
+    // «ya fueron to…». Una cifra sin su nombre entero no dice nada.
+    for (const texto of ['números disponibles', 'ya fueron tomados', 'reservado']) {
+      const etiqueta = resumen.getByText(texto, { exact: true })
+      await expect(etiqueta, `«${texto}» no está entero`).toBeVisible()
+      const recortado = await etiqueta.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
+      expect(recortado, `«${texto}» sale recortado`).toBe(false)
+    }
+
+    // «Números disponibles» es la metrica principal: ocupa la fila entera y su
+    // cifra es la mas grande.
+    const valores = resumen.locator('[data-testid="catalog-stat-value"]')
+    const cajas = await valores.evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect()
+        return { y: Math.round(r.y), alto: Math.round(parseFloat(getComputedStyle(el).fontSize)) }
+      }),
+    )
+    expect(cajas).toHaveLength(3)
+    expect(cajas[0]!.alto).toBeGreaterThan(cajas[1]!.alto)
+    // Las dos secundarias comparten fila, y la principal va sola encima.
+    expect(cajas[1]!.y).toBe(cajas[2]!.y)
+    expect(cajas[0]!.y).toBeLessThan(cajas[1]!.y)
   })
 
   test('el boton «Solicitar» tiene diana tactil suficiente', async ({ page }) => {

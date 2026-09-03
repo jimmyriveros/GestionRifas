@@ -127,7 +127,23 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — solo disponibles, cifras del catálogo y buscador que se posa (D-164, 2026-09-03)
+## 1.a Último relevo significativo — el buscador entra en la fila del encabezado (D-165, 2026-09-03)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Una sola superficie pegada a la pantalla y una sola fila.** El buscador recogido deja de ser una franja `fixed` aparte —que sumaba ~70 px y llegaba a tapar el resumen— y entra en la fila del encabezado, a la derecha de la identidad. El resumen se reorganiza en el teléfono: «números disponibles» pasa a métrica principal a fila entera y las otras dos van debajo, **sin recortar ninguna etiqueta**. Y el hueco entre el buscador y el resumen baja de 184 a 102 px en el teléfono y de 132 a 63 en escritorio. **Fuera a propósito:** consultas, estadísticas, migración, paginación, búsqueda, disponibilidad, WhatsApp, recursos del hero y portal |
+| Archivos | **Reescritos:** `components/CatalogHeader.tsx`, `CatalogSearch.tsx`, `CatalogHeroSearch.tsx`, `CatalogSummary.tsx`, `catalog/sticky.tsx`. **Tocados:** `components/CatalogHero.tsx` (espaciado), `features/search/components/SearchInput.tsx` (dos props opcionales). Pruebas: `tests/e2e/catalogo-publico.spec.ts` (+3), `catalogo-publico-movil.spec.ts` (+1). Documentación: `DECISIONS` (D-165), `UX_COPY_GUIDELINES`, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF`. **Sin migración y sin tocar `queries.ts`** |
+| Reutilización | `CatalogStickyProvider` y sus dos observadores se conservan tal cual; lo que se le añadió es el estado del buscador, que antes vivía dentro de `CatalogSearch`. `SearchInput` se **extendió** con `inputRef` y `hintReservesSpace`, las dos opcionales y apagadas por defecto: las otras cinco pantallas que lo usan no cambian ni un píxel. El resumen usa **un solo marcado** que se reordena con la rejilla, no dos bloques ocultándose |
+| Decisiones | **D-165.** Lo que no es evidente: **(a)** el encabezado tiene alto **fijo** (`h-14`) lleve o no lleve el buscador — si creciera, movería al elemento observado y volvería el parpadeo; **(b)** meter el campo en el encabezado **sí** lo desmonta, así que el foco y el cursor se guardan al desmontar y se devuelven al montar; **(c)** ese relevo **tiene** que ir en `useLayoutEffect`: la limpieza de un `useEffect` corre cuando el nodo ya se desprendió y `document.activeElement` es el `<body>`; **(d)** en el encabezado la pista no reserva hueco —crecer y encoger una barra fija es justo lo que no puede pasar— pero se sigue anunciando; **(e)** el hueco hero–resumen **no** llegó a los 16–24 px pedidos: ese relleno es el sitio de la camioneta |
+| Verificación | `verify` completo ✅ (typecheck · lint **0 errores** · **728/728** unitarias · build). E2E **43/43** escritorio, **12/12** móvil y **42/42** de las suites del portal que usan `SearchInput`. Cinco anchos medidos (320/390/485/768/1280): **0 px** de desborde, encabezado de **57 px en todos los estados** y ninguna etiqueta cortada |
+| Advertencias | **1)** **`0046` sigue SOLO EN LOCAL** (viene de D-164): nada de esto está desplegado. **2)** **No devuelvas la franja `fixed`**: hay una prueba que cuenta las superficies pegadas a la pantalla y exige que sea una. **3)** **No hagas crecer el encabezado** —ni con una tercera línea, ni con hueco para la pista—: rompe la garantía de no parpadeo y desincroniza `CATALOG_HEADER_HEIGHT`. **4)** El relevo del foco depende de `useLayoutEffect`; cambiarlo a `useEffect` lo rompe **en silencio**, sin fallar el tipo ni el lint. **5)** Al escribir en el buscador el enrutador devuelve la página arriba: cualquier prueba que baje y mida tiene que esperar a que la navegación aterrice |
+| Pendiente | **Siguiente acción, del dueño: decidir si se promueve** todo el bloque D-164 + D-165. Requiere respaldo (hay migración), `db push` de `0046`, push y despliegue, **y la migración y el código tienen que ir juntos**: `0046` cambia la firma de dos funciones que el código servido usa. **Segunda decisión, más pequeña:** si prefiere el hueco de 16–24 px que pedía el encargo a cambio de perder la camioneta del hero. Lo de siempre: I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030 |
+| Publicación | **Ninguna.** Ni push, ni despliegue, ni `db push`, ni etiqueta |
+| Git | Rama `main`, sobre `3f9464d`. Un commit local. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y sin tocar |
+
+---
+
+## 1.a.0 Relevo anterior — solo disponibles, cifras del catálogo y buscador que se posa (D-164, 2026-09-03)
 
 | Campo | Estado |
 |---|---|

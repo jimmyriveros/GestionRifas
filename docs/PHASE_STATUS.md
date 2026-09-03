@@ -3,7 +3,9 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-03 — **el catálogo público solo publica boletas disponibles** (D-164,
+- **Actualizado:** 2026-09-03 — **el buscador del catálogo entra en la fila del encabezado**
+  (D-165): una sola superficie pegada a la pantalla, una sola fila, y el resumen del teléfono
+  reorganizado para que ninguna etiqueta se recorte. Sin migración. Antes, el mismo día: **el catálogo público solo publica boletas disponibles** (D-164,
   BR-K14): una boleta vendida no se pinta, no viaja al navegador y no ocupa sitio en la paginación;
   a cambio, la página dice las cifras de **todo** el catálogo —disponibles, tomadas y porcentaje
   reservado— desde **un solo agregado** en la llamada de metadatos que ya se hacía. El buscador y el

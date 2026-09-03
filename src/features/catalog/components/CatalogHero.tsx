@@ -101,7 +101,16 @@ export function CatalogHero({ raffleName, intro }: { raffleName: string; intro: 
         <div className="catalog-hero-veil absolute inset-0" />
       </div>
 
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col justify-center px-4 pt-8 pb-40 md:min-h-[32rem] md:items-center md:py-16 md:text-center lg:min-h-[34rem]">
+      {/*
+        EL RELLENO INFERIOR ES EL SITIO DE LA CAMIONETA, no espacio muerto
+        (D-165). La ilustracion esta anclada abajo (`object-[center_bottom]`),
+        asi que lo que se recorta al encoger el hero es la parte de ARRIBA de la
+        composicion —confeti y boletas, que de todos modos van detras del
+        titulo— y el vehiculo se conserva. Se bajo de 160 a 112 px en el
+        telefono y se ajusto el minimo en escritorio: el hueco entre el buscador
+        y el resumen se reduce a la mitad sin perder el coche.
+      */}
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col justify-center px-4 pt-8 pb-20 md:min-h-[24rem] md:items-center md:pt-10 md:pb-8 md:text-center lg:min-h-[26rem]">
         <p className="border-primary/40 bg-primary/15 text-primary-foreground inline-flex w-fit items-center gap-1.5 rounded-full border px-3 py-1 text-[0.7rem] font-semibold tracking-[0.18em] uppercase">
           <span className="bg-secondary size-1.5 shrink-0 rounded-full" aria-hidden />
           Catálogo público
