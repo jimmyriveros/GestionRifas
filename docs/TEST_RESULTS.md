@@ -29,6 +29,51 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — «Disponible» se vuelve un punto en pantallas estrechas (2026-09-03, D-166)
+
+Ajuste del indicador de una tarjeta, y nada más. Sin migración, sin JavaScript nuevo y sin
+dependencias.
+
+### Medido a los dos lados del corte
+
+Una sola tarjeta, seis anchos, con el teléfono emulado:
+
+| Ancho | Insignia | Posición | Letra | Relleno | Alto de la tarjeta |
+|---|---|---|---|---|---|
+| 320 px | **8 × 8** | absoluta | 11 px | 0 | 127 px |
+| 360 px | **8 × 8** | absoluta | 11 px | 0 | 127 px |
+| 375 px | **8 × 8** | absoluta | 11 px | 0 | 127 px |
+| 376 px | 67 × 18 | en el flujo | 11 px | 1 / 6 px | 127 px |
+| 390 px | 67 × 18 | en el flujo | 11 px | 1 / 6 px | 127 px |
+| 412 px | 67 × 18 | en el flujo | 11 px | 1 / 6 px | 127 px |
+
+**La altura de la tarjeta es la misma en los seis**, que era la condición. El verde es el mismo token
+en ambas formas (`--secondary`), comprobado sobre el color computado. Y en los seis,
+`animation-name: none`.
+
+### El error que encontró la medición
+
+**`max-[375px]` dejaba fuera los 375 px.** Tailwind v4 emite `@media not (min-width: 375px)`, que
+es «menor que 375». Un iPhone SE o un 8 —exactamente 375 px, el aparato para el que se hizo esto— se
+quedaba con la insignia larga. Se leyó la CSS **servida** para confirmarlo y el corte pasó a
+`max-[376px]`. Con el número escrito a ojo, el cambio habría parecido correcto en el navegador de
+escritorio y habría fallado justo donde importaba.
+
+### Pruebas
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ typecheck · lint **0 errores** · **728/728** unitarias · build |
+| `playwright catalogo-publico` (escritorio) | ✅ **43/43** |
+| `playwright catalogo-publico-movil` (móvil) | ✅ **15/15** (11 previas + **4 nuevas**) |
+
+Las cuatro nuevas: que por encima de 375 px la insignia dice «Disponible» y mide entre 16 y 20 px;
+que a 320 px es un punto de 7 a 9 px en la esquina, separado de los bordes; que la palabra **sigue en
+el árbol de accesibilidad** aunque no se vea; y que **nada anima** —`document.getAnimations()`
+devuelve cero—, que es lo que impide que la animación descartada vuelva sin querer.
+
+---
+
 ## Post-9 — El buscador entra en la fila del encabezado (2026-09-03, D-165)
 
 Ajuste de presentación sobre D-164, con dos defectos reportados por el dueño con capturas: la franja

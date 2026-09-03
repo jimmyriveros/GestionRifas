@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.39 · **Actualizado:** 2026-09-03 (D-001 a D-165)
+- **Versión:** 1.40 · **Actualizado:** 2026-09-03 (D-001 a D-166)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -6734,6 +6734,75 @@ etiqueta cortada. El encabezado mide lo mismo en los cuatro estados, que es lo q
 ausencia de parpadeo. **Sin migración, sin consultas nuevas, sin dependencias y sin escuchadores de
 scroll.** `SearchInput` gana dos props opcionales apagadas por defecto —`inputRef` y
 `hintReservesSpace`—, de modo que las otras cinco pantallas que lo usan no cambian ni un píxel.
+
+## D-166 — La insignia «Disponible» se vuelve un punto por debajo de 376 px, y no parpadea
+
+**Fase:** mantenimiento posterior a la Fase 9 (catálogo público, 2026-09-03)
+
+**Contexto.** En una tarjeta de 138 px —dos columnas a 320 px— la insignia «Disponible» y la cifra no
+caben en la misma línea, así que la insignia bajaba a una segunda fila y se comía altura. El dueño
+pidió compactarla un poco en pantallas normales y sustituirla por un punto verde en las estrechas,
+con una condición explícita: **no reducir el número de la boleta** para hacerle sitio. Y pidió
+evaluar —no implementar— una animación tenue de «respiración» en el punto, con el rendimiento por
+delante de la estética.
+
+**Decisión.**
+
+**(a) Una sola insignia con dos formas, no dos elementos.** Por encima de 375 px es la de siempre,
+algo más compacta (12 → 11 px de letra, 8 → 6 de relleno horizontal, 2 → 1 de vertical; 22 → 18 px
+de alto). A 375 px o menos se convierte en un punto de 8 px, absoluto, en la esquina superior
+derecha. Escribir dos elementos —insignia y punto— habría dejado la palabra «Disponible» **dos veces**
+en el HTML y en el árbol de accesibilidad.
+
+**(b) La palabra sale del píxel, no del significado.** En el punto, «Disponible» pasa a `sr-only`.
+Un punto de color es color a secas, y esta aplicación no fía un significado solo al color
+(`CLAUDE.md` §27): quien escucha la pantalla sigue oyendo la palabra.
+
+**(c) Al salirse del flujo, la cifra recupera la fila entera.** Ese es el beneficio real y el que
+pedía el encargo: el número deja de compartir línea con nada y **no hubo que encogerlo**. La altura
+de la tarjeta no cambia —127 px medidos a 320, 360, 375, 376, 390 y 412—.
+
+**(d) El corte está en `max-[376px]`, y no es un error de una unidad.** Tailwind v4 traduce `max-*`
+a `@media not (min-width: N)`, que significa «menor que N» y **deja fuera** el propio N. Con
+`max-[375px]` escrito, un teléfono de exactamente 375 px —un iPhone SE, un 8, un X— se quedaba con
+la insignia larga: justo el aparato para el que se hizo el cambio. Se comprobó leyendo la CSS
+servida, no suponiendo.
+
+**(e) NO se implementa la animación.** Se evaluó la que proponía el encargo —`opacity` y
+`transform: scale()`, 2,4–3 s, infinita— y se descarta por tres razones:
+
+  1. **Son hasta cincuenta puntos por página.** Una animación infinita promueve cada uno a su propia
+     capa de composición y mantiene al compositor trabajando mientras la página esté abierta,
+     también cuando nadie la mira. Esta página se abre desde un enlace de WhatsApp, en un teléfono de
+     gama media y con datos; el orden de prioridades que fijó el dueño empieza en rendimiento y
+     termina en estética.
+  2. **Cincuenta puntos latiendo a la vez no comunican «disponible»**, comunican «tienes cincuenta
+     avisos pendientes» — exactamente lo que el encargo pedía evitar.
+  3. **No añadía información.** El estado ya lo dicen el color, el borde violeta de la tarjeta y el
+     botón «Solicitar», que solo existe en las disponibles.
+
+Lo que sí se conserva es un **anillo estático y muy tenue** (`ring-secondary/20`): se pinta una vez
+con el resto de la tarjeta y no cuesta nada al desplazarse. Es lo que el propio encargo prefería si
+había brillo.
+
+**Alternativas descartadas.**
+
+* **Animar solo los puntos visibles** con `IntersectionObserver` (descartada: añade trabajo de
+  JavaScript durante el scroll para sostener una decoración; el remedio sería peor).
+* **`content-visibility` o `will-change` para abaratar la animación** (descartada: `will-change`
+  en cincuenta elementos reserva memoria de GPU de forma permanente, que es lo contrario de lo que
+  se busca).
+* **Un breakpoint con nombre en `@theme`** (descartada: añadiría una variante global al sistema de
+  diseño para usarla en un único componente; dos variantes arbitrarias son el cambio más pequeño).
+* **Reducir el número de la boleta** para que la insignia cupiera (descartada: el encargo lo prohíbe
+  expresamente, y con razón — el número es lo único que de verdad hay que leer).
+
+**Consecuencia.** Cero JavaScript nuevo, cero dependencias, cero animaciones, un solo token de color
+—`--secondary`, el mismo de siempre, también en el anillo— y dos variantes arbitrarias en un único
+componente. Cuatro pruebas end-to-end nuevas cubren las dos formas, la posición del punto, que la
+palabra siga anunciándose y que **nada anime**: `document.getAnimations()` tiene que devolver cero.
+
+---
 
 ---
 

@@ -724,6 +724,12 @@ que se equivocó de número—.
 camino a WhatsApp que **no nombraba ninguna boleta**, y un mensaje así devuelve al vendedor la
 pregunta que el catálogo venía a quitarle. Queda «Solicitar», que nombra los dos números.
 
+**En una tarjeta estrecha, «Disponible» se dice con un punto — pero se sigue diciendo** (D-166). A
+375 px o menos la insignia se convierte en un punto verde en la esquina, y la palabra pasa a
+`sr-only`. **No desaparece:** un punto de color es color a secas, y aquí ningún significado se fía
+solo al color (`CLAUDE.md` §27). Es la misma regla de siempre —se abrevia lo visible, nunca el
+término— aplicada al extremo: lo que se retira es el píxel, no la palabra.
+
 **Ninguna etiqueta del resumen se recorta, aunque tenga que ocupar dos líneas** (D-165). En el
 teléfono salía «números dis…», «29 de 68 · ya fueron to…» y «43 % · reserv…»: una cifra sin su
 nombre entero deja de ser un dato y pasa a ser un acertijo. Ahora **«números disponibles» es la

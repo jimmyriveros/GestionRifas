@@ -171,6 +171,23 @@ test.describe('en el telefono', () => {
     expect(cajas[0]!.y).toBeLessThan(cajas[1]!.y)
   })
 
+  test('por encima de 375 px la insignia dice «Disponible», y es compacta (D-166)', async ({
+    page,
+  }) => {
+    // El proyecto movil usa un Pixel 7 (412 px), asi que aqui manda la insignia
+    // con su palabra.
+    await abrirSinSesion(page, `/catalogo/${SLUG}`)
+
+    const insignia = page.locator('main ul li [data-slot="badge"]').first()
+    await expect(insignia).toBeVisible()
+    await expect(insignia).toHaveText('Disponible')
+
+    const caja = (await insignia.boundingBox())!
+    // Antes media 22 px de alto; se pidio «un poco mas compacta», no diminuta.
+    expect(caja.height).toBeLessThanOrEqual(20)
+    expect(caja.height).toBeGreaterThanOrEqual(16)
+  })
+
   test('el boton «Solicitar» tiene diana tactil suficiente', async ({ page }) => {
     await abrirSinSesion(page, `/catalogo/${SLUG}?q=${CATALOG_DISPONIBLES[0]}`)
 
@@ -225,6 +242,61 @@ test.describe('a 320 px, el ancho mas estrecho que se soporta', () => {
       const recortado = await numero.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
       expect(recortado, `el numero de la tarjeta ${i + 1} sale recortado`).toBe(false)
     }
+  })
+
+  test('la insignia es un PUNTO en la esquina, y «Disponible» se sigue anunciando (D-166)', async ({
+    page,
+  }) => {
+    await abrirSinSesion(page, `/catalogo/${SLUG}`)
+
+    const tarjeta = page.locator('main ul li').first()
+    const insignia = tarjeta.locator('[data-slot="badge"]')
+
+    const punto = (await insignia.boundingBox())!
+    const carta = (await tarjeta.boundingBox())!
+
+    // Un punto de 7 a 9 px, no una insignia encogida.
+    expect(punto.width).toBeGreaterThanOrEqual(7)
+    expect(punto.width).toBeLessThanOrEqual(9)
+    expect(punto.height).toBe(punto.width)
+
+    // En la esquina superior derecha, separado de los bordes.
+    expect(punto.y - carta.y).toBeGreaterThanOrEqual(6)
+    expect(punto.y - carta.y).toBeLessThanOrEqual(16)
+    expect(carta.x + carta.width - (punto.x + punto.width)).toBeGreaterThanOrEqual(6)
+    expect(carta.x + carta.width - (punto.x + punto.width)).toBeLessThanOrEqual(16)
+
+    // LA PALABRA NO SE PIERDE: sale del pixel, no del arbol de accesibilidad
+    // (CLAUDE.md 27). Sigue en el elemento, oculta a la vista.
+    await expect(insignia).toHaveText('Disponible')
+    const oculta = await insignia.evaluate(
+      (el) => (el.querySelector('span') as HTMLElement).clientWidth <= 1,
+    )
+    expect(oculta, 'la palabra deberia estar oculta a la vista, no borrada').toBe(true)
+
+    // Y el numero recupera la fila entera: ni lo tapa, ni lo parte.
+    const numero = tarjeta.locator('p').first()
+    const cifra = (await numero.boundingBox())!
+    expect(cifra.x + cifra.width).toBeLessThanOrEqual(punto.x + 1)
+    const recortado = await numero.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
+    expect(recortado).toBe(false)
+  })
+
+  test('el punto no anima: la pagina no gasta compositor por decoracion (D-166)', async ({
+    page,
+  }) => {
+    await abrirSinSesion(page, `/catalogo/${SLUG}`)
+
+    // Con hasta 50 tarjetas por pagina, una animacion infinita mantendria al
+    // compositor trabajando mientras la pagina este abierta. Se descarto a
+    // proposito; esta prueba impide que vuelva sin querer.
+    const animaciones = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('main ul li [data-slot=badge]')).filter(
+        (el) => getComputedStyle(el).animationName !== 'none',
+      ).length,
+    )
+    expect(animaciones).toBe(0)
+    expect(await page.evaluate(() => document.getAnimations().length)).toBe(0)
   })
 
   test('el titulo cabe en dos lineas sin desbordar', async ({ page }) => {
