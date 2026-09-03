@@ -29,6 +29,65 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — E2E de loterías tras el rediseño, y la prueba móvil con datos (2026-09-03, D-167)
+
+Ejecutadas después de `npm run db:reset && npm run seed:local`, que es el requisito previo de
+`playwright.config.ts`.
+
+| Suite | Proyecto | Resultado |
+|---|---|---|
+| `loterias-panel.spec.ts` | escritorio | ✅ **9/9** |
+| `catalogo-panel.spec.ts` | escritorio | ✅ **15/15** |
+| `loterias-panel-movil.spec.ts` | móvil | ✅ **2/2** |
+
+**25/25 a la primera**, sin ningún fallo: las tres aserciones reescritas contra
+`data-slot="lottery-draw-upcoming"` / `lottery-draw-result`, las dos del título nuevo y la de
+ordenación de tarjetas del panel del vendedor. Las pruebas de aislamiento de D-155 —el hueco sale
+antes que el recuadro, en los dos portales— siguen pasando sin tocarlas.
+
+### La prueba móvil que faltaba
+
+`loterias-panel-movil.spec.ts` tenía **una** prueba y no sembraba ningún sorteo: medía el
+desbordamiento del recuadro **vacío**, así que no llegaba a tocar nada de lo que introdujo el
+rediseño. Se añadió una segunda que siembra un resultado de ayer (Meta, **1719**) y un sorteo de
+mañana (Cundinamarca) y, a 320 px, comprueba:
+
+* que las dos tarjetas **se apilan en una columna** —misma `x`, y la del resultado empieza por
+  debajo de donde termina la otra—;
+* que el número mayor de cuatro cifras cabe **dentro** de su tarjeta;
+* que ninguna tarjeta pasa de 320 px de ancho y la página no desborda;
+* los rótulos «Mañana» y «Ayer», «Juega mañana a las» y «Hoy no hay sorteo programado.».
+
+**El sorteo que viene es el de mañana a propósito.** Una programación de hoy deja de tener hora
+futura en cuanto pasa su instante oficial —y entonces la tarjeta dice «Resultado pendiente», que es
+lo correcto—, de modo que un sorteo de hoy habría hecho la prueba dependiente del reloj. El caso
+«Hoy» ya lo cubre la suite de escritorio.
+
+### Se comprobó que la prueba muerde
+
+Una prueba de maquetación que siempre pasa no vale nada, así que se forzó el defecto que debe
+detectar: cambiar `lg:grid-cols-2` por `grid-cols-2` (dos columnas también en el teléfono). La
+prueba **falló**, con el mensaje que se quería:
+
+```
+Error: las dos tarjetas arrancan en la misma izquierda
+Expected: 41
+Received: 172
+```
+
+El componente se restauró desde la copia y las tres suites se volvieron a ejecutar en verde
+(24 + 2), más `npm run verify` completo (731/731 unitarias).
+
+### Refactor de apoyo
+
+Los ayudantes de fixtures —`insertSchedule`, `insertResult`, `deleteFixtures`, `todayBogota`,
+`addDays`— vivían dentro de `loterias-panel.spec.ts`. Se extrajeron a **`tests/e2e/lottery-fixtures.ts`**
+junto con los tres localizadores (`card`, `upcomingCard`, `resultCard`), porque duplicarlos en la
+suite móvil habría dejado **dos prefijos que limpiar** y dos versiones que mantener. El prefijo
+`E2E4-` es uno solo y es lo único que se borra al terminar.
+
+---
+
 ## Post-9 — Rediseño del recuadro de loterías del Panel (2026-09-03, D-167)
 
 Rediseño de **presentación**. El encargo prohíbe expresamente tocar el servicio de resultados, el

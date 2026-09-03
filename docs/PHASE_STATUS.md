@@ -3181,6 +3181,7 @@ avisos de la semana salen), `getLotteryDashboard`, el matching en PostgreSQL, lo
 | `npm run verify` | ✅ typecheck · lint **0 errores** (2 avisos preexistentes del compilador de React, en otros archivos) · **731/731** unitarias · build |
 | `npx vitest run tests/unit/lottery-*` | ✅ tras corregir la prueba de streaming (ver abajo) |
 | Comprobación en la aplicación real | ✅ dos sorteos sembrados en local (Bogotá hoy 23:15 programado; Meta de ayer con 1719 confirmado): dos columnas a 1.400 px, una a 375 y 320 px, **0 px de desborde** a 320, modo oscuro correcto, y la variante «con boletas coincidentes» revisada. Las filas sembradas se borraron al terminar |
+| `npx playwright test` (loterías y panel del vendedor) | ✅ **26/26** tras `db:reset` + `seed:local`: `loterias-panel` 9/9 y `catalogo-panel` 15/15 en escritorio, `loterias-panel-movil` **2/2** en móvil |
 
 **Errores encontrados y corregidos.** `lottery-panel-streaming.test.tsx` fallaba: comprobaba que el
 contenido principal viajara en **el primer trozo** del flujo, y el hueco nuevo —dos tarjetas en vez
@@ -3190,9 +3191,13 @@ resuelto). Las tres pruebas end-to-end que se anclaban al encabezado «Último r
 ahora a `data-slot="lottery-draw-upcoming"` y `data-slot="lottery-draw-result"`, que es lo que de
 verdad querían comprobar.
 
-**Pendiente de ejecutar:** las suites end-to-end `loterias-panel.spec.ts`,
-`loterias-panel-movil.spec.ts` y `catalogo-panel.spec.ts` se adaptaron pero **no se corrieron** en
-esta sesión.
+**Prueba móvil nueva.** `loterias-panel-movil.spec.ts` tenía una sola prueba y no sembraba ningún
+sorteo: medía el recuadro **vacío**. Se añadió una segunda que, con un resultado de ayer y un sorteo
+de mañana, comprueba a 320 px que las dos tarjetas **se apilan en una columna**, que el número de
+cuatro cifras cabe dentro de su tarjeta y que nada desborda. Se verificó que **muerde**: forzando
+`grid-cols-2` en el teléfono, falla. Los ayudantes de fixtures se extrajeron a
+`tests/e2e/lottery-fixtures.ts`, compartidos por las dos suites, para no acabar con dos prefijos que
+limpiar.
 
 ### 3. Migraciones
 
@@ -3216,7 +3221,8 @@ cambio no abre ninguno nuevo.
    rompe D-162 y BR-L26; lo que se retiró es la **hora** de verificación.
 3. **No escribas «ganador»** en `LOTTERY_DASHBOARD_COPY`: hay una prueba que recorre todos sus
    valores (BR-L15). El encargo pedía «Número ganador» y se conservó «Número mayor».
-4. **Ejecuta las tres suites end-to-end** citadas antes de promover.
+4. **En la prueba móvil el sorteo que viene es el de MAÑANA, no el de hoy**: uno de hoy deja de
+   tener hora futura al pasar su instante oficial y la prueba dependería del reloj.
 5. **No hay etiqueta `fase-N`** ni migración: bastan push y despliegue.
 
 ---

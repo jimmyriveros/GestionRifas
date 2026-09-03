@@ -80,10 +80,19 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
   que a 360 px Fecha no se monta encima de Método). Playwright en Chromium **no
   reproduce** el desborde de tinta de iOS/Android; una pasada verde no sustituye
   mirarlo en un teléfono (I-079, I-066). El recuadro de resultados oficiales
-  (D-147) vive en `loterias-panel.spec.ts` (escritorio: presencia, número mayor
-  `0046`, pendiente vs último) y `loterias-panel-movil.spec.ts` (320 px). Esas
-  pruebas interceptan las peticiones y fallan si el Panel consulta un host de
-  la allowlist. No crean fotografías de coincidencia: no se pueden borrar.
+  (D-147, D-167) vive en `loterias-panel.spec.ts` (escritorio: presencia, número
+  mayor `0046`, pendiente vs último, y qué tarjeta recibe cada sorteo) y
+  `loterias-panel-movil.spec.ts` (320 px: que quepa vacío, y **con datos**, que
+  las dos tarjetas se apilen en una columna sin desbordar). Las filas de prueba
+  y los localizadores de las dos tarjetas son **compartidos**, en
+  `lottery-fixtures.ts`. Esas pruebas interceptan las peticiones y fallan si el
+  Panel consulta un host de la allowlist. No crean fotografías de coincidencia:
+  no se pueden borrar.
+  En la prueba móvil el sorteo que viene es el de **mañana**, no el de hoy:
+  una programación de hoy deja de tener hora futura al pasar su instante
+  oficial —y entonces la tarjeta dice «Resultado pendiente», que es lo
+  correcto—, así que es la única forma de comprobar la hora sin depender del
+  reloj. El caso «Hoy» lo cubre la suite de escritorio.
   La cabecera contextual (D-150) vive en `cabecera-contextual.spec.ts`
   (escritorio: cruce, CTA, flecha, limpieza al navegar, anchos 768–1600) y
   `cabecera-contextual-movil.spec.ts` (reemplazo del nombre de la organización,
