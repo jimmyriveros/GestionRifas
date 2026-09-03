@@ -10,6 +10,7 @@ import {
   lotteryDashboardWindow,
   matchSummaryText,
   raffleSummaryText,
+  relativeDayLabel,
   toDrawView,
   type LotteryScheduleSnapshot,
 } from '@/features/lottery/dashboard'
@@ -325,6 +326,35 @@ describe('coincidencias y textos (BR-L15, BR-L07)', () => {
   it('ningun texto del recuadro llama ganador a nadie', () => {
     const textos = Object.values(LOTTERY_DASHBOARD_COPY).join(' ')
     expect(textos.toLowerCase()).not.toMatch(/ganador/)
+  })
+})
+
+/**
+ * El rotulo del dia de cada tarjeta (D-167).
+ *
+ * «Hoy» y «Ayer» NO se escriben fijos en la pantalla: `previousConfirmed`
+ * puede ser de hace tres dias —una loteria que no publico a tiempo— y
+ * `nextDraw`, del martes que viene. La etiqueta se calcula contra el dia de
+ * Bogota, y si no es ninguno de los tres dice el dia de la semana.
+ */
+describe('rotulo del dia de una tarjeta (D-167)', () => {
+  const hoy = '2026-04-02'
+
+  it('hoy, ayer y mañana se dicen con esas palabras', () => {
+    expect(relativeDayLabel('2026-04-02', hoy)).toBe('Hoy')
+    expect(relativeDayLabel('2026-04-01', hoy)).toBe('Ayer')
+    expect(relativeDayLabel('2026-04-03', hoy)).toBe('Mañana')
+  })
+
+  it('un dia mas lejano se dice por su dia de la semana, en mayuscula', () => {
+    // 2026-03-30 fue lunes; 2026-04-07, martes.
+    expect(relativeDayLabel('2026-03-30', hoy)).toBe('Lunes')
+    expect(relativeDayLabel('2026-04-07', hoy)).toBe('Martes')
+  })
+
+  it('cruza el cambio de mes sin inventar un dia', () => {
+    expect(relativeDayLabel('2026-03-31', '2026-04-01')).toBe('Ayer')
+    expect(relativeDayLabel('2026-04-01', '2026-03-31')).toBe('Mañana')
   })
 })
 

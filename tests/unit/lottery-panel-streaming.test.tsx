@@ -82,18 +82,35 @@ function primerInstanteCon(trozos: Trozo[], marca: string): number | null {
   return null
 }
 
+/**
+ * El ARMAZON: todo lo que sale antes de que llegue el recuadro resuelto.
+ *
+ * Se corta por contenido y no por «el primer trozo»: cuantos trozos ocupe el
+ * armazon depende de su tamaño en bytes, y una tarjeta con dos huecos en vez
+ * de cuatro barras ya lo parte en dos. Lo que esta prueba defiende no es el
+ * troceado, es que el contenido principal NO espera a la consulta.
+ */
+function armazon(trozos: Trozo[], marcaDelRecuadro: string): string {
+  let acumulado = ''
+  for (const trozo of trozos) {
+    if ((acumulado + trozo.text).includes(marcaDelRecuadro)) break
+    acumulado += trozo.text
+  }
+  return acumulado
+}
+
 describe('el recuadro de loterias vive en su propio limite de Suspense (D-155)', () => {
   it('con la consulta lenta, el contenido principal sale primero y el recuadro despues', async () => {
     control.delayMs = 300
     const trozos = await renderStreaming(<PanelDePrueba />)
 
     // El armazon: todo lo que no es el recuadro, mas el hueco que lo reserva.
-    const primero = trozos[0]!.text
-    expect(primero, 'el contenido principal tiene que ir en el primer trozo').toContain(
+    const shell = armazon(trozos, RECUADRO_RESUELTO)
+    expect(shell, 'el contenido principal tiene que ir en el armazon').toContain(
       CONTENIDO_PRINCIPAL,
     )
-    expect(primero, 'y el hueco del recuadro, tambien').toContain(HUECO)
-    expect(primero, 'el recuadro resuelto NO puede ir en el primer trozo').not.toContain(
+    expect(shell, 'y el hueco del recuadro, tambien').toContain(HUECO)
+    expect(shell, 'el recuadro resuelto NO puede ir en el armazon').not.toContain(
       RECUADRO_RESUELTO,
     )
 
@@ -120,11 +137,11 @@ describe('el recuadro de loterias vive en su propio limite de Suspense (D-155)',
   it('el hueco anuncia lo que esta pasando a quien no lo ve', async () => {
     control.delayMs = 200
     const trozos = await renderStreaming(<PanelDePrueba />)
-    const primero = trozos[0]!.text
+    const shell = armazon(trozos, RECUADRO_RESUELTO)
 
-    expect(primero).toContain('aria-busy="true"')
-    expect(primero).toContain('Buscando los resultados oficiales…')
+    expect(shell).toContain('aria-busy="true"')
+    expect(shell).toContain('Buscando los resultados oficiales…')
     // El titulo real va en el armazon: no aparece de golpe al resolverse.
-    expect(primero).toContain('Resultados oficiales')
+    expect(shell).toContain('Resultados y próxima lotería')
   })
 })

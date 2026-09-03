@@ -1,3 +1,4 @@
+import { TicketIcon } from 'lucide-react'
 import { Suspense } from 'react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,17 +22,16 @@ type LotteryResultsSectionProps = {
  *
  * ES LA MISMA TARJETA, con el mismo encabezado real: el titulo forma parte del
  * armazon que se envia de inmediato, asi que no aparece de golpe despues. Lo
- * unico que cambia es el cuerpo, y sus cuatro barras estan medidas contra un
- * bloque de sorteo real —nombre de la loteria, linea del sorteo, numero mayor y
- * linea de la fuente—: 234 px en escritorio, entre los 210 px de un sorteo
- * pendiente y los 306 px de uno confirmado.
+ * unico que cambia es el cuerpo, y desde D-167 son DOS huecos con la misma
+ * forma que las dos tarjetas —rotulo del dia, nombre de la loteria, fecha y
+ * dato grande—, en la misma rejilla y con el mismo `lg`: reservar uno solo
+ * dejaria aparecer la mitad derecha del recuadro de golpe.
  *
- * NO SE RESERVA MAS. La altura de este recuadro va de 210 a 578 px segun cuantos
- * sorteos haya y cuantas boletas coincidan, asi que ninguna cifra fija lo
- * clavaria; estirar el hueco hasta el caso mas alto dejaria medio panel en
- * blanco durante la espera, que es peor que el salto que evita. En la practica
- * el hueco dura lo que tarda la consulta local —unas decimas—, no una espera
- * perceptible.
+ * NO SE RESERVA MAS. La altura real depende de cuantos sorteos haya y cuantas
+ * boletas coincidan, asi que ninguna cifra fija la clavaria; estirar el hueco
+ * hasta el caso mas alto dejaria medio panel en blanco durante la espera, que
+ * es peor que el salto que evita. En la practica el hueco dura lo que tarda la
+ * consulta local —unas decimas—, no una espera perceptible.
  *
  * `aria-busy` sobre la tarjeta y un texto para lector de pantalla: las barras
  * son decoracion y no dicen nada por si solas. Es el mismo recurso de
@@ -41,18 +41,28 @@ export function LotteryResultsFallback({ className }: { className?: string }) {
   return (
     <Card data-slot="lottery-results-loading" aria-busy="true" className={cn('min-w-0', className)}>
       <CardHeader>
-        <CardTitle className="text-base">
-          <h2>{COPY.title}</h2>
+        <CardTitle className="flex min-w-0 items-center gap-2 text-base">
+          <TicketIcon className="size-5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
+          <h2 className="min-w-0 break-words">{COPY.title}</h2>
         </CardTitle>
       </CardHeader>
-      <CardContent className="min-w-0 space-y-3">
+      <CardContent className="min-w-0">
         <span className="sr-only" role="status">
           {COPY.loading}
         </span>
-        <Skeleton className="h-5 w-40" aria-hidden />
-        <Skeleton className="h-4 w-full max-w-xs" aria-hidden />
-        <Skeleton className="h-10 w-32" aria-hidden />
-        <Skeleton className="h-4 w-48" aria-hidden />
+        {/* Dos huecos desde `lg`, igual que las dos tarjetas que van a llegar
+            (D-167): con uno solo, la mitad derecha del recuadro aparecería de
+            golpe al resolverse la consulta. */}
+        <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-6">
+          {[0, 1].map((hueco) => (
+            <div key={hueco} className="min-w-0 space-y-3 rounded-xl border p-4 sm:p-5" aria-hidden>
+              <Skeleton className="h-5 w-16" />
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-12 w-28" />
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   )

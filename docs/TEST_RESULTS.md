@@ -29,6 +29,81 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — Rediseño del recuadro de loterías del Panel (2026-09-03, D-167)
+
+Rediseño de **presentación**. El encargo prohíbe expresamente tocar el servicio de resultados, el
+algoritmo de coincidencia, la frecuencia de actualización y el reparto de sorteos, así que lo que se
+verifica aquí es que **siga funcionando lo de siempre** y que lo nuevo quepa.
+
+### Comandos
+
+| Comando | Resultado |
+|---|---|
+| `npx tsc --noEmit` | ✅ sin salida |
+| `npx eslint src/features/lottery --max-warnings=0` | ✅ sin hallazgos |
+| `npm run verify` | ✅ typecheck · lint **0 errores, 2 avisos** (preexistentes, del compilador de React, en `ImportPreview` y otro archivo ajeno) · **731/731** unitarias · build correcto |
+| `npx vitest run tests/unit/lottery-*` | ✅ 41/41 tras la corrección de abajo |
+
+Las tres unitarias nuevas son de `relativeDayLabel`: hoy/ayer/mañana, un día más lejano por su día
+de la semana, y el cruce de mes en las dos direcciones.
+
+### Error encontrado y corregido: la prueba de streaming miraba «el primer trozo»
+
+`lottery-panel-streaming.test.tsx` comprobaba que el contenido principal del Panel viajara en
+`trozos[0]`. El hueco de espera nuevo —dos tarjetas con la forma de las de verdad, en vez de cuatro
+barras— es más grande, y el armazón pasó a ocupar **dos** trozos: la prueba falló con «expected
+'<div><h1>Hola, Owner</h1>…' to contain "Resumen por vendedor"».
+
+No era un defecto del cambio: el aislamiento seguía funcionando. Lo que estaba mal era la prueba,
+que ataba una promesa de **tiempo** a un detalle de **troceado en bytes**. Ahora corta el armazón
+por contenido —todo lo que sale antes del recuadro resuelto— con una función `armazon()`
+documentada. Las medidas de instante (`principalAt < 150 ms`, `recuadroAt ≥ 250 ms`) no se tocaron:
+son las que de verdad demuestran D-155.
+
+### Pruebas de pantalla adaptadas
+
+Tres aserciones se anclaban al encabezado `heading "Último resultado"`, que el rediseño retira. Se
+reescribieron contra lo que de verdad querían comprobar:
+
+| Prueba | Antes | Ahora |
+|---|---|---|
+| «un resultado confirmado muestra el número mayor…» | `heading "Último resultado"` con `toHaveCount(0)` | **1** `[data-slot="lottery-draw-result"]`, **0** `[data-slot="lottery-draw-upcoming"]`, y la tarjeta contiene «Hoy» |
+| «un sorteo de hoy sin confirmar…» | `heading "Último resultado"` visible | la tarjeta de lo que viene contiene «Meta»; la del resultado, «Boyacá» |
+| «un resultado que llega tarde…» | `heading "Último resultado"` visible | la tarjeta de lo que viene contiene «Hoy»; la del resultado, «Ayer» |
+
+Además, el título del recuadro cambió en tres sitios más: las dos comprobaciones de
+`loterias-panel.spec.ts`, la ordenación de tarjetas de `catalogo-panel.spec.ts` y la del armazón en
+`lottery-panel-streaming.test.tsx`.
+
+**No ejecutadas en esta sesión:** `loterias-panel.spec.ts`, `loterias-panel-movil.spec.ts` y
+`catalogo-panel.spec.ts`. Quedan adaptadas y pendientes de correr antes de promover.
+
+### Comprobación en la aplicación real
+
+Con `supabase` local y `npm run dev:local`, sembrando dos programaciones y un resultado —Bogotá
+sorteo 2862 de hoy a las 23:15 (`scheduled`) y Meta sorteo 3314 de ayer con **1719** confirmado— y
+entrando como vendedor y como dueño:
+
+| Comprobación | Resultado |
+|---|---|
+| Dos columnas a 1.400 px | ✅ «Hoy · Bogotá» a la izquierda con «Juega hoy a las 11:15 p. m.»; «Ayer · Meta» a la derecha con **1719** |
+| Una columna a 375 px y a 320 px | ✅ apiladas, nada truncado |
+| Desborde horizontal a 320 px | ✅ **0 px** (`scrollWidth − clientWidth`) |
+| Alturas equilibradas | ✅ las dos tarjetas miden lo mismo y los dos datos grandes quedan a la misma altura |
+| Insignias | ✅ «Programado» en azul y «Realizado» en verde, las de `LotteryScheduleBadge` de siempre |
+| Modo oscuro | ✅ contraste correcto en las dos tarjetas |
+| Con boletas coincidentes | ✅ la franja se marca con borde y negrita, y la lista de boletas enlaza al detalle |
+| Portal administrativo | ✅ mismo recuadro, 0 px de desborde |
+
+Un defecto de maquetación se vio y se corrigió aquí: a 320 px la insignia de estado compartía fila
+con la identidad y partía «Sorteo 3314» en dos renglones. Ahora la insignia baja a su propia línea
+por debajo de `@xs` de **tarjeta** (`@container/draw`), y el sorteo vuelve a caber entero.
+
+Las dos programaciones y el resultado sembrados se **borraron** al terminar: la tabla queda otra vez
+en 0 filas.
+
+---
+
 ## Post-9 — Promoción a producción de D-164, D-165 y D-166 (2026-09-03)
 
 Los tres cambios del catálogo suben juntos, con **migración**: es el primer despliegue de este bloque

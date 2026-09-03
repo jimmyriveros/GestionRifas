@@ -6806,6 +6806,90 @@ palabra siga anunciándose y que **nada anime**: `document.getAnimations()` tien
 
 ---
 
+## D-167 — El recuadro de loterías se lee en segundos: dos tarjetas, «Hoy» y «Ayer», y el dato grande en el centro
+
+**Fase:** mantenimiento posterior a la Fase 9 (loterías, 2026-09-03)
+
+**Contexto.** El recuadro del Panel funcionaba y se actualizaba solo, pero se leía como un
+expediente: los sorteos iban apilados en una columna, con la fuente, la hora de la última
+verificación y la de la programación compitiendo con lo único que un vendedor va a mirar. El dueño
+pidió un rediseño **de presentación**: qué lotería juega hoy, a qué hora, cuál jugó ayer, qué número
+salió y si alguna de sus boletas coincidió — todo en pocos segundos, dos columnas en escritorio y
+una en el teléfono. Expresamente: **sin tocar** el servicio de resultados, el algoritmo de
+coincidencia, la frecuencia de actualización ni el reparto de sorteos.
+
+**Decisión.**
+
+**(a) El reparto de sorteos no se toca; se clasifica lo que ya llega.** `buildLotteryDashboard`
+sigue decidiendo cuál es el de hoy, cuál el último confirmado y qué avisos de la semana salen
+(BR-L20, D-147). La tarjeta solo separa lo que recibe en dos columnas según **tenga número
+publicado o no**: azul lo que va a pasar, verde lo que ya pasó. Un sorteo de hoy ya confirmado cae
+por eso en la columna verde, que es donde se lee un número, sin que ninguna regla cambie.
+
+**(b) «Hoy» y «Ayer» se calculan, nunca se escriben fijos.** `relativeDayLabel` compara con el día
+de Bogotá y devuelve «Hoy», «Ayer», «Mañana» o el día de la semana. Escribirlos a mano habría
+mentido el primer día que una lotería no publicara a tiempo: `previousConfirmed` puede ser de hace
+tres días y `nextDraw`, del martes siguiente. Debajo va siempre la fecha completa, que es lo que
+desambigua un «Martes» a secas.
+
+**(c) La hora grande solo se escribe si el sorteo todavía no ha jugado.** «Juega hoy a las 11:15
+p. m.» sustituye a la frase corrida de antes, pero **con la misma condición** que ya traía
+`pendingCopy`: pasada la hora oficial, la tarjeta dice «Resultado pendiente» y calla la hora. La
+cifra y su sufijo se escriben en dos tamaños —«11:15» grande, «p. m.» pequeño— porque a 320 px la
+frase entera al tamaño del dato principal desbordaba la tarjeta, y encoger la cifra sería renunciar
+justo a lo que se vino a leer.
+
+**(d) Se retira de la vista la hora de la última verificación.** Era un dato técnico —«Última
+verificación: 03 sept 2026, 11:40 p. m.»— que competía con el número. Lo que **no** se retira es la
+línea de procedencia: «Fuente oficial» o «Verificado por N fuentes» sigue al pie de la tarjeta, en
+letra pequeña, porque distinguir un número publicado por la lotería de uno confirmado por dos sitios
+que la copian no es adorno (D-162, BR-L26). Se escribe solo donde hay número, que es de lo que
+habla.
+
+**(e) Dos columnas desde `lg`, no desde `md`.** Las dos páginas del Panel abren su barra lateral
+justo en `lg`: en una tableta de 768 px cada mitad no da para un número de cuatro cifras grande y su
+franja de coincidencias. Cuando solo una columna tiene contenido, ocupa el ancho entero en vez de
+dejar media tarjeta vacía.
+
+**(f) Dentro de la tarjeta manda el ancho de LA TARJETA, no el de la ventana** (`@container/draw`).
+La misma tarjeta vive a ancho completo por debajo de `lg` y a media pantalla por encima, así que un
+`sm:` de ventana la habría ensanchado justo cuando se estrecha. Con eso, la insignia de estado baja
+a su propia línea en una tarjeta estrecha: compartiendo fila le quitaba a «Sorteo 3314» la mitad del
+ancho y lo partía en dos renglones.
+
+**(g) El número mayor se sigue llamando «Número mayor».** El encargo escribía «Número ganador». Es
+el término prohibido del Anexo A y de BR-L15 —la plataforma detecta una coincidencia numérica, no
+certifica un premio—, lo usan los avisos y el detalle de la boleta, y hay una prueba que falla si
+cualquier texto de este recuadro dice «ganador». Se señala la contradicción y se sigue, que es lo
+que manda `CLAUDE.md` §35.2.4; es el mismo caso que «SORTEO PÚBLICO» en D-163.
+
+**(h) El título sí cambia: «Resultados y próxima lotería».** D-162 conservó «Resultados oficiales»
+frente a «Resultados de loterías» porque la palabra que importaba —de dónde salió el número— estaba
+donde se mira la cifra, no en el título. El título nuevo no la contradice: describe las **dos** cosas
+que hay dentro, que es justo lo que el recuadro pasó a enseñar.
+
+**Alternativas descartadas.**
+
+* **Rotular las columnas «Próximo sorteo» y «Último resultado»**, como hacían los encabezados de
+  antes (descartada: «Próximo sorteo» es falso en cuanto el sorteo de hoy ya jugó y sigue sin
+  resultado, que es el caso más frecuente entre las 23:00 y la publicación. El rótulo del día no
+  puede equivocarse).
+* **Partir la tarjeta en horizontal por dentro, como el diseño de referencia** (descartada: a partir
+  de `lg` cada tarjeta mide media pantalla, y el reparto horizontal comprimía justo entonces. La
+  lectura vertical cabe igual en las dos anchuras).
+* **Mantener la hora de verificación en un `title`** (descartada: un texto que solo aparece al posar
+  el ratón no existe en un teléfono, que es donde se lee esta pantalla).
+* **Un solo hueco de espera** (descartada: la mitad derecha del recuadro aparecería de golpe al
+  resolverse la consulta; el hueco ahora tiene la forma de las dos tarjetas).
+
+**Consecuencia.** Ni una consulta nueva, ni JavaScript de cliente, ni migración: los dos
+componentes siguen siendo Server Components dentro del mismo límite de Suspense (D-155, BR-L25).
+`relativeDayLabel` queda en `dashboard.ts` con sus pruebas, y las pruebas de pantalla dejan de
+depender de un encabezado que ya no existe: se anclan a `data-slot="lottery-draw-upcoming"` y
+`data-slot="lottery-draw-result"`.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

@@ -118,11 +118,15 @@ test.describe('Resultados oficiales en el Panel', () => {
     })
 
     await loginAs(page, ACCOUNTS.owner)
-    await expect(card(page).getByRole('heading', { name: 'Resultados oficiales' })).toBeVisible()
+    await expect(
+      card(page).getByRole('heading', { name: 'Resultados y próxima lotería' }),
+    ).toBeVisible()
 
     await logout(page)
     await loginAs(page, ACCOUNTS.seller)
-    await expect(card(page).getByRole('heading', { name: 'Resultados oficiales' })).toBeVisible()
+    await expect(
+      card(page).getByRole('heading', { name: 'Resultados y próxima lotería' }),
+    ).toBeVisible()
     expect(hits, 'el Panel no debe consultar fuentes oficiales').toEqual([])
   })
 
@@ -146,8 +150,12 @@ test.describe('Resultados oficiales en el Panel', () => {
     await expect(recuadro.getByRole('heading', { name: 'Meta' })).toBeVisible()
     await expect(recuadro.getByLabel('Número mayor 0046')).toBeVisible()
     await expect(recuadro.getByText('Serie informativa 045')).toBeVisible()
-    await expect(recuadro.getByRole('heading', { name: 'Último resultado' })).toHaveCount(0)
     await expect(recuadro.getByRole('link', { name: 'Fuente oficial' })).toBeVisible()
+    // El sorteo de hoy YA esta confirmado: se pinta como resultado y no hay
+    // una segunda tarjeta repitiendolo como «ultimo resultado» (D-147, D-167).
+    await expect(recuadro.locator('[data-slot="lottery-draw-result"]')).toHaveCount(1)
+    await expect(recuadro.locator('[data-slot="lottery-draw-upcoming"]')).toHaveCount(0)
+    await expect(recuadro.locator('[data-slot="lottery-draw-result"]')).toContainText('Hoy')
   })
 
   test('un sorteo de hoy sin confirmar no se pinta como si ya hubiera resultado', async ({
@@ -176,7 +184,11 @@ test.describe('Resultados oficiales en el Panel', () => {
     const recuadro = card(page)
     await expect(recuadro.getByRole('heading', { name: 'Meta' })).toBeVisible()
     await expect(recuadro.getByText('Resultado pendiente')).toBeVisible()
-    await expect(recuadro.getByRole('heading', { name: 'Último resultado' })).toBeVisible()
+    // Meta va en la tarjeta de lo que viene; Boyaca, en la del resultado.
+    await expect(recuadro.locator('[data-slot="lottery-draw-upcoming"]')).toContainText('Meta')
+    const resultado = recuadro.locator('[data-slot="lottery-draw-result"]')
+    await expect(resultado).toBeVisible()
+    await expect(resultado).toContainText('Boyacá')
     await expect(recuadro.getByLabel('Número mayor 0046')).toBeVisible()
     await expect(recuadro.getByRole('heading', { name: 'Boyacá' })).toBeVisible()
   })
@@ -305,12 +317,15 @@ test.describe('El Panel no espera por las loterias', () => {
     await page.goto('/owner/dashboard')
 
     const recuadro = card(page)
-    // Hoy: Meta, sin numero.
+    // Hoy: Meta, sin numero, en la tarjeta de lo que viene.
+    const proximo = recuadro.locator('[data-slot="lottery-draw-upcoming"]')
     await expect(recuadro.getByRole('heading', { name: 'Meta' })).toBeVisible()
     await expect(recuadro.getByText('Resultado pendiente')).toBeVisible()
-    // Ayer: Boyaca, bajo su propio encabezado.
-    const ultimo = recuadro.getByRole('heading', { name: 'Último resultado' })
+    await expect(proximo).toContainText('Hoy')
+    // Ayer: Boyaca, en su propia tarjeta y rotulada como de ayer.
+    const ultimo = recuadro.locator('[data-slot="lottery-draw-result"]')
     await expect(ultimo).toBeVisible()
+    await expect(ultimo).toContainText('Ayer')
     await expect(recuadro.getByLabel('Número mayor 1234')).toBeVisible()
     await expect(recuadro.getByRole('heading', { name: 'Boyacá' })).toBeVisible()
   })

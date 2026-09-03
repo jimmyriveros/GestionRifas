@@ -839,7 +839,7 @@ para el teléfono y el escritorio.
 Escritorio (≥ lg)                              Teléfono (< lg)
 
 Hola, X                    [11 a 17 ago 2026]  Hola, X · [11 a 17 ago 2026]
-[Resultados oficiales]                         [Resultados oficiales]
+[Resultados y próxima lotería]                 [Resultados y próxima lotería]
 [Recaud.][Por cobrar][Cobranza][Ganancia]      Accesos rápidos
 [   Resumen financiero  ][    Cobranza    ]    Indicadores (1 col)
 [ Mis boletas   ][ Actividad reciente     ]    Resumen financiero
@@ -1186,8 +1186,19 @@ solo tablas locales (`getLotteryDashboard`). No descarga páginas oficiales.
 
 **Qué sorteo es «hoy».** La fecha de `official_scheduled_at` en `America/Bogota`, no el día
 nominal de la lotería. Pueden coincidir dos. Si no hay ninguno, el recuadro lo dice y
-muestra el próximo. Un resultado confirmado anterior se etiqueta «Último resultado» y no
-ocupa el lugar del pendiente.
+muestra el próximo. Un resultado confirmado anterior va en su propia tarjeta y no ocupa el
+lugar del pendiente.
+
+> **Presentación desde el 2026-09-03 (D-167).** El reparto de sorteos —qué es «hoy», cuál es
+> el último confirmado, qué avisos salen— **no cambió**: sigue entero en
+> `buildLotteryDashboard`. Lo que cambió es cómo se pinta. `LotteryResultsCard` clasifica lo
+> que recibe en dos columnas según **tenga número publicado o no**: azul lo que va a jugarse
+> —con la hora como dato grande— y verde lo ya jugado —con el número mayor y la franja de
+> coincidencias—. Dos columnas desde `lg`, una debajo de otra por debajo; dentro de cada
+> tarjeta manda su propio ancho (`@container/draw`), no el de la ventana. El día de cada
+> tarjeta se calcula con `relativeDayLabel` («Hoy», «Ayer», «Mañana» o el día de la semana):
+> nunca se escribe fijo. La hora de la última verificación dejó de pintarse; la **línea de
+> procedencia** (D-162, BR-L26) sigue al pie de la tarjeta que tiene número.
 
 **Ámbito.** Programación y resultado son nacionales. Las coincidencias las recorta la RLS
 de `lottery_ticket_matches`: el vendedor ve las suyas; el personal, las de su organización.

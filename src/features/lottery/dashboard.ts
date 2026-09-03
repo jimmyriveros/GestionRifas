@@ -16,7 +16,7 @@ import {
   type LotteryCode,
 } from '@/features/lottery/constants'
 import { notificationMessage } from '@/features/notifications/text'
-import { isoDateBogota } from '@/lib/dates'
+import { formatWeekdayEs, isoDateBogota } from '@/lib/dates'
 import { ticketLabel } from '@/lib/tickets'
 
 import type { Database } from '@/types/database.types'
@@ -73,7 +73,7 @@ export const LOTTERY_DASHBOARD_MATCH_SELECT = [
 ].join(', ')
 
 export const LOTTERY_DASHBOARD_COPY = {
-  title: 'Resultados oficiales',
+  title: 'Resultados y próxima lotería',
   emptyTitle: 'Todavía no hay resultados oficiales',
   emptyDescription:
     'Cuando se publique la programación de los sorteos, el número mayor aparecerá aquí.',
@@ -84,16 +84,28 @@ export const LOTTERY_DASHBOARD_COPY = {
   rejected: 'No se pudo confirmar el resultado.',
   conflict: 'La fuente oficial publicó otro número. Requiere verificación.',
   noDrawToday: 'Hoy no hay sorteo programado.',
-  lastResult: 'Último resultado',
-  nextDraw: 'Próximo sorteo',
+  // Las dos tarjetas se rotulan por el DIA, no por su papel: «Hoy» y «Ayer»
+  // dicen en una palabra lo que «Proximo sorteo» y «Ultimo resultado» decian en
+  // dos, y siguen siendo ciertos cuando el sorteo cae en otro dia (D-167).
+  today: 'Hoy',
+  yesterday: 'Ayer',
+  tomorrow: 'Mañana',
+  // Encabezado de la hora. Solo se escribe cuando el sorteo TODAVIA no se ha
+  // jugado: pasada la hora la tarjeta dice `pending`, nunca «juega hoy a las».
+  playsToday: 'Juega hoy a las',
+  playsTomorrow: 'Juega mañana a las',
+  playsOn: (weekday: string) => `Juega el ${weekday} a las`,
+  drawNumber: (numero: string) => `Sorteo ${numero}`,
+  // Solo cuando la fecha nominal del premio no es el dia en que se juega
+  // (BR-L03): asi no se pierde ninguno de los dos datos.
+  referenceDay: (fecha: string) => `Correspondiente al ${fecha}`,
+  autoUpdate: 'Actualizado automáticamente cada día',
   winningNumber: 'Número mayor',
   series: 'Serie informativa',
   officialSource: 'Fuente oficial',
   // Un resultado por consenso NO se presenta como oficial (D-162, BR-L26).
   // Se dice cuantas fuentes lo respaldan, con el numero real.
   consensusSource: (fuentes: number) => `Verificado por ${fuentes} fuentes`,
-  lastVerified: 'Última verificación',
-  scheduleVerified: 'Programación verificada',
   weekChanges: 'Cambios de programación',
   noMatchSeller: 'Ninguna de tus boletas coincidió con este número.',
   noMatchStaff: 'Ninguna boleta coincidió con este número.',
@@ -357,6 +369,27 @@ export function raffleSummaryText(names: string[]): string | null {
   if (names.length === 1) return `en ${names[0]}`
   if (names.length > 1) return `en ${names.length} rifas`
   return null
+}
+
+/**
+ * Rotulo del dia de un sorteo: «Hoy», «Ayer», «Mañana» o el dia de la semana
+ * (D-167).
+ *
+ * SOLO PRESENTACION. No decide que sorteo se muestra —eso sigue siendo
+ * `buildLotteryDashboard`—: traduce a una palabra la fecha que ese reparto ya
+ * eligio. Se calcula, nunca se escribe fijo: `previousConfirmed` puede ser de
+ * hace tres dias y `nextDraw`, del martes que viene; una etiqueta «Ayer» a
+ * mano mentiria en cuanto una loteria no publique a tiempo.
+ *
+ * Un dia mas lejano se dice por su dia de la semana, y la fecha completa va
+ * escrita justo debajo en la tarjeta: «Martes» a secas seria ambiguo solo.
+ */
+export function relativeDayLabel(isoDate: string, today: string): string {
+  if (isoDate === today) return LOTTERY_DASHBOARD_COPY.today
+  if (isoDate === addIsoDays(today, -1)) return LOTTERY_DASHBOARD_COPY.yesterday
+  if (isoDate === addIsoDays(today, 1)) return LOTTERY_DASHBOARD_COPY.tomorrow
+  const weekday = formatWeekdayEs(isoDate)
+  return weekday.charAt(0).toUpperCase() + weekday.slice(1)
 }
 
 /**

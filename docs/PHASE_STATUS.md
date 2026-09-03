@@ -3,7 +3,13 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-03 — **D-164, D-165 y D-166 DESPLEGADAS**: migración `0046` aplicada al
+- **Actualizado:** 2026-09-03 — **el recuadro de loterías del Panel, rediseñado** (D-167): dos
+  tarjetas —«Hoy» en azul con la hora como dato grande, «Ayer» en verde con el número mayor y las
+  coincidencias—, dos columnas desde `lg` y una debajo de otra en el teléfono. Título nuevo,
+  «Resultados y próxima lotería»; se retira de la vista la hora de la última verificación y **se
+  conserva** la línea de procedencia (D-162, BR-L26). **Cambio de presentación: sin migración, sin
+  consultas nuevas y sin tocar el reparto de sorteos, el matching ni la sincronización.** **SOLO EN
+  LOCAL: no desplegado.** Antes, el mismo día: **D-164, D-165 y D-166 DESPLEGADAS**: migración `0046` aplicada al
   proyecto real tras el respaldo `Rifas-backups/2026-09-03-pre-0046/`, y `ed7b6b2` servido por
   Vercel. **La migración fue primero a propósito**: al revés, el código nuevo habría leído las
   funciones viejas y habría pintado boletas ya vendidas como disponibles, con su botón «Solicitar».
@@ -3137,6 +3143,81 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**
 6. Cruz Roja y Bogotá pueden no confirmarse solas (I-081): no eludir.
+
+---
+
+## Mantenimiento post-9 — rediseño del recuadro de loterías del Panel (D-167, 2026-09-03)
+
+Autorizado expresamente por el dueño. Es un **rediseño de presentación**: el servicio de resultados,
+el algoritmo de coincidencia, la frecuencia de actualización y el reparto de sorteos quedan intactos
+por encargo explícito. **Solo en local: no desplegado.**
+
+### 1. Funcionalidades implementadas
+
+* **Dos tarjetas en vez de una columna apilada.** Azul lo que va a jugarse —rótulo del día, lotería,
+  sorteo, fecha y la **hora** como dato grande— y verde lo ya jugado —el **número mayor** enorme y la
+  franja de coincidencias con las boletas—. Dos columnas desde `lg`, una debajo de otra por debajo;
+  cuando solo una tiene contenido, ocupa el ancho entero.
+* **El rótulo del día se calcula** (`relativeDayLabel`): «Hoy», «Ayer», «Mañana» o el día de la
+  semana, contra el día de Bogotá. Debajo va siempre la fecha completa.
+* **La hora grande solo se escribe si el sorteo no ha jugado.** Pasada la hora oficial, la tarjeta
+  dice «Resultado pendiente», que es la misma condición que ya traía `pendingCopy`.
+* **Título nuevo: «Resultados y próxima lotería».** Pie discreto: «Actualizado automáticamente cada
+  día».
+* **Se retira de la vista la hora de la última verificación.** **No** se retira la línea de
+  procedencia —«Fuente oficial» / «Verificado por N fuentes»—, que es obligatoria (D-162, BR-L26) y
+  se escribe al pie de la tarjeta que tiene número.
+* **El hueco de espera tiene ahora la forma de las dos tarjetas**, en la misma rejilla y con el mismo
+  `lg`: con uno solo, la mitad derecha del recuadro aparecería de golpe.
+
+**Lo que NO cambió:** `buildLotteryDashboard` (qué sorteo es «hoy», cuál el último confirmado, qué
+avisos de la semana salen), `getLotteryDashboard`, el matching en PostgreSQL, los avisos, la RLS de
+`lottery_ticket_matches`, el límite de Suspense de D-155 y el resto del Panel.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ typecheck · lint **0 errores** (2 avisos preexistentes del compilador de React, en otros archivos) · **731/731** unitarias · build |
+| `npx vitest run tests/unit/lottery-*` | ✅ tras corregir la prueba de streaming (ver abajo) |
+| Comprobación en la aplicación real | ✅ dos sorteos sembrados en local (Bogotá hoy 23:15 programado; Meta de ayer con 1719 confirmado): dos columnas a 1.400 px, una a 375 y 320 px, **0 px de desborde** a 320, modo oscuro correcto, y la variante «con boletas coincidentes» revisada. Las filas sembradas se borraron al terminar |
+
+**Errores encontrados y corregidos.** `lottery-panel-streaming.test.tsx` fallaba: comprobaba que el
+contenido principal viajara en **el primer trozo** del flujo, y el hueco nuevo —dos tarjetas en vez
+de cuatro barras— parte el armazón en dos trozos. La promesa de esa prueba es de **tiempo**, no de
+troceado, así que ahora corta el armazón **por contenido** (todo lo que sale antes del recuadro
+resuelto). Las tres pruebas end-to-end que se anclaban al encabezado «Último resultado» se anclan
+ahora a `data-slot="lottery-draw-upcoming"` y `data-slot="lottery-draw-result"`, que es lo que de
+verdad querían comprobar.
+
+**Pendiente de ejecutar:** las suites end-to-end `loterias-panel.spec.ts`,
+`loterias-panel-movil.spec.ts` y `catalogo-panel.spec.ts` se adaptaron pero **no se corrieron** en
+esta sesión.
+
+### 3. Migraciones
+
+**No aplica.** Ni una línea de SQL.
+
+### 4. Variables de entorno
+
+**No aplica.** Ninguna nueva.
+
+### 5. Problemas reales que permanecen
+
+Los de siempre: I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030. Este
+cambio no abre ninguno nuevo.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **No devuelvas los encabezados «Próximo sorteo» / «Último resultado».** El primero es falso en
+   cuanto el sorteo de hoy ya jugó y sigue sin resultado, que es el caso más frecuente entre las
+   23:00 y la publicación.
+2. **La línea de procedencia no es adorno.** Quitar «Fuente oficial» / «Verificado por N fuentes»
+   rompe D-162 y BR-L26; lo que se retiró es la **hora** de verificación.
+3. **No escribas «ganador»** en `LOTTERY_DASHBOARD_COPY`: hay una prueba que recorre todos sus
+   valores (BR-L15). El encargo pedía «Número ganador» y se conservó «Número mayor».
+4. **Ejecuta las tres suites end-to-end** citadas antes de promover.
+5. **No hay etiqueta `fase-N`** ni migración: bastan push y despliegue.
 
 ---
 

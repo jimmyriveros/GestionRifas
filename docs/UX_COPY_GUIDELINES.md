@@ -557,7 +557,8 @@ es la importante: actualizar recarga la pantalla, y quien esté a mitad de un ab
 terminarlo. Nunca se recarga sola.
 
 **Un hueco de espera dice qué está pasando, no «Cargando…»** (D-155). Mientras llega el recuadro
-de resultados oficiales, la tarjeta conserva su **título de verdad** —«Resultados oficiales»— y las
+de resultados oficiales, la tarjeta conserva su **título de verdad** —hoy «Resultados y próxima
+lotería», y en D-155 era «Resultados oficiales» (D-167)— y las
 barras grises van acompañadas de un texto que solo oye quien escucha la pantalla: **«Buscando los
 resultados oficiales…»**. Es la misma regla de «Abriendo…» en el menú (D-104): las barras son
 decoración y no dicen nada por sí solas, así que el aviso viaja en un `sr-only` con `aria-busy`
@@ -785,10 +786,34 @@ Lo que **no** se hace: llamarlas «oficiales», poner la lista de direcciones en
 completa es operativa, no contenido para un vendedor— ni presentar como confirmado un sorteo que
 solo tiene una fuente. Si las fuentes se contradicen, la pantalla **no enseña ningún número**.
 
-El título del recuadro sigue siendo **«Resultados oficiales»**: describe de qué van esos sorteos —los
-de las loterías oficiales—, y quien lee la línea de procedencia ya sabe de dónde salió cada número.
-Cambiarlo a «Resultados de loterías» se evaluó y se descartó: la palabra que importa está donde se
-mira la cifra, no en el título.
+El título del recuadro fue **«Resultados oficiales»** hasta el 2026-09-03, y esta regla nació
+defendiéndolo: cambiarlo a «Resultados de loterías» se evaluó y se descartó porque la palabra que
+importa está donde se mira la cifra, no en el título. **Hoy dice «Resultados y próxima lotería»**
+(D-167), y eso no la contradice: describe las **dos** cosas que hay dentro —lo que ya salió y lo que
+va a jugarse—, que es lo que el recuadro pasó a enseñar. La línea de procedencia sigue exactamente
+donde estaba, al pie del número.
+
+**El número mayor se llama «Número mayor», también aquí** (D-167). El encargo del rediseño escribía
+«Número ganador», y es el término prohibido del Anexo A y de BR-L15: la aplicación detecta una
+**coincidencia numérica** y no certifica ningún premio oficial. Lo usan además los avisos y el
+detalle de la boleta, y hay una prueba que falla si cualquier texto de este recuadro dice «ganador».
+Es la §35.2.4 de `CLAUDE.md` aplicada, igual que «SORTEO PÚBLICO» en D-163: se señala y se sigue.
+
+**«Hoy» y «Ayer» se calculan, no se escriben fijos** (D-167). Cada tarjeta lleva el día en un rótulo
+—«Hoy», «Ayer», «Mañana» o el día de la semana— comparado contra el día de Bogotá, porque el último
+resultado puede ser de hace tres días y el próximo sorteo, del martes que viene. Escribir «Ayer» a
+mano mentiría el primer día que una lotería no publicara a tiempo. Debajo va siempre la fecha
+completa, que es lo que desambigua un «Martes» a secas.
+
+**Y la hora grande solo se escribe si el sorteo todavía no ha jugado** (D-167). «Juega hoy a las
+11:15 p. m.» es una promesa: pasada esa hora, la tarjeta dice **«Resultado pendiente»** y calla la
+hora. Nunca se convierte en «jugó a las», que sería un dato nuevo que nadie pidió, ni se deja la
+hora futura escrita cuando ya es pasado.
+
+**La hora de la última verificación no se pinta** (D-167). Era un dato técnico —«Última verificación:
+03 sept 2026, 11:40 p. m.»— compitiendo con el número. En su lugar, al pie del recuadro va una sola
+línea discreta: **«Actualizado automáticamente cada día»**. Lo que **no** se retiró es la línea de
+procedencia de arriba: esa distingue quién publicó el número y sigue siendo obligatoria.
 
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
@@ -901,6 +926,10 @@ castigo donde solo había una espera.
 | Texto de los avisos de la campanita | `src/features/notifications/text.ts`, **todos juntos** (D-093) |
 | «Fuente oficial» y «Verificado por N fuentes», la línea de procedencia | `src/features/lottery/dashboard.ts` (`LOTTERY_DASHBOARD_COPY`) y `LotteryResultsCard.tsx` (D-162) |
 | Textos del recuadro de resultados oficiales del Panel | `src/features/lottery/dashboard.ts` (`LOTTERY_DASHBOARD_COPY`) y `LotteryResultsCard.tsx` (D-147). Los avisos de programación reutilizan `notificationMessage` |
+| Rótulo del día de cada tarjeta («Hoy», «Ayer», «Mañana» o el día de la semana) | `relativeDayLabel`, en `src/features/lottery/dashboard.ts` — se **calcula**, no se escribe suelto en la pantalla (D-167) |
+| Encabezado de la hora («Juega hoy a las», «Juega mañana a las», «Juega el jueves a las») | `LOTTERY_DASHBOARD_COPY.playsToday` / `playsTomorrow` / `playsOn` (D-167) |
+| «Sorteo 2862» y «Correspondiente al …» | `LOTTERY_DASHBOARD_COPY.drawNumber` y `referenceDay` (D-167) |
+| «Actualizado automáticamente cada día», al pie del recuadro | `LOTTERY_DASHBOARD_COPY.autoUpdate` (D-167) |
 | Lo que anuncia el hueco del recuadro mientras llega — «Buscando los resultados oficiales…» | `LOTTERY_DASHBOARD_COPY.loading`, y lo pinta `LotteryResultsSection.tsx` (D-155) |
 | Nombre de la aplicación instalada y su descripción | `src/lib/pwa.ts` (D-115) |
 | Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/copy.ts`, **todos juntos** — los leen la tarjeta del panel y la opción del menú de usuario (D-123) |
