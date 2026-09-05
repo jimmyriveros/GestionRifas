@@ -31,6 +31,117 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## Post-9 — Promoción a producción de D-170 y de la migración `0049` (2026-09-05)
+
+Autorizada expresamente en el encargo, que además autorizaba **el único cambio de datos**: la carga
+inicial del paz y salvo. **La migración fue PRIMERO**, y después el despliegue.
+
+### 1. Antes de tocar nada — sonda de SOLO LECTURA
+
+| Medida | Valor |
+|---|---|
+| Boletas | **969** — 219 `available`, 750 `assigned` |
+| Estado de pago | 202 `paid`, 129 `partial`, 638 `unpaid` |
+| **Alcance exacto de la carga inicial** (`assigned` + con cliente) | **750** |
+| Total vendido · base · abonado · saldo pendiente | **$89.920.000** · $83.040.000 · **$31.230.000** · **$58.690.000** |
+| Pagos | 334, **0 anulados**, suma **$31.230.000** |
+| Asignaciones de pago | 355, suma **$31.230.000** (cuadra con los pagos) |
+| Comisiones | 2 filas, 202 boletas pagadas, ganado **$12.120.000** |
+| Clientes · rifas · membresías · bitácora | 514 · 2 · 7 · **3.874** |
+| Migraciones | **48**, la última `0048` |
+
+### 2. Respaldo previo
+
+`Rifas-backups/2026-09-05-pre-0049/` con los tres volcados de `RUNBOOK` §5.1.
+
+| Comprobación | Resultado |
+|---|---|
+| Filas de negocio en `data.sql` | **7.488** en 19 tablas |
+| Coinciden con la sonda | ✅ tickets 969 · clients 514 · payments 334 · payment_allocations 355 · audit_logs 3.874 · memberships 7 · raffles 2 |
+| `grep -c '"auth"' data.sql` | **0** |
+| `encrypted_password`, `confirmation_token`, `recovery_token`, `reauthentication_token`, `auth.users`, `auth.sessions`, `auth.identities` | **0** cada uno |
+
+### 3. Aplicación
+
+| Paso | Resultado |
+|---|---|
+| `npm run verify:remote` (antes) | **16/17** — el único fallo es la comprobación **nueva** detectando que `set_ticket_clearance_delivery` aún no existía |
+| `db push --dry-run` | **solo `0049_ticket_clearance_receipt.sql`** |
+| `db push --yes` | ✅ aplicada |
+| `npm run verify:remote` (después) | ✅ **17/17** |
+
+### 4. Verificación inmediata: la carga inicial hizo exactamente lo que decía
+
+La misma sonda de solo lectura, repetida y **comparada bloque a bloque**. De diez bloques,
+**ocho salen idénticos** y solo cambian dos, los dos esperados:
+
+| Bloque | Antes | Después |
+|---|---|---|
+| Bitácora | 3.874 | **4.624** (+750: una fila por boleta marcada) |
+| Migraciones | 48, `0048` | **49, `0049`** |
+
+**Todo lo demás, byte a byte igual**: boletas por estado de inventario y de pago, totales de boletas y
+asignadas, **total vendido, total base, total abonado y saldo pendiente**, pagos y su suma,
+asignaciones de pago y su suma, comisiones, clientes, rifas y membresías.
+
+El paz y salvo, después:
+
+| Medida | Valor | Qué demuestra |
+|---|---|---|
+| Boletas entregadas | **750** | Exactamente el conjunto objetivo, ni una más |
+| Marcadas como heredadas | **750** | Todas llevan su marca; ninguna se presenta como registro manual |
+| Entregadas fuera de `assigned` | **0** | No tocó disponibles, borradores, pendientes ni anuladas |
+| Entregadas sin cliente | **0** | — |
+| Registros manuales | **0** | No se inventó ninguna entrega real |
+| Auditorías de la carga | **750**, y **750 con actor nulo** | El actor de sistema, que es lo que la distingue de una activación manual |
+
+### 5. Despliegue
+
+| Paso | Resultado |
+|---|---|
+| `git push origin main` | ✅ `266fa5a..a337d6e` |
+| CI (`33984511495`) | ✅ **2/2** — «Typecheck, lint, unitarias, build» y «Migraciones desde cero + pruebas de base de datos» |
+| Vercel | ✅ **READY**, `dpl_HLGLFRyMynFAwv7RW53w7fbApiRy`, target `production`, SHA `a337d6e`, alias `gestion-rifas.vercel.app` |
+
+### 6. En vivo, contra el dominio real
+
+| Comprobación | Resultado |
+|---|---|
+| Cabeceras de seguridad | **7/7** (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, X-DNS-Prefetch-Control), con **nonce** y **strict-dynamic** |
+| Rutas protegidas | **4/4 en 307** (`/owner/dashboard`, `/owner/tickets`, `/seller/dashboard`, `/seller/tickets`) |
+| `/api/lottery/sync` sin secreto | **401** |
+| Catálogo inexistente | **404** |
+| `/login` | **200** |
+| Secretos en el JavaScript servido | **0** en 941 KB y 15 fragmentos (`service_role`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `SEED_DEFAULT_PASSWORD`, jwt local, `sb_secret_`) |
+| **Identificador de versión** (`DEPLOYMENT` §6.1) | **`c5d816926fd6`** —sha256 de `a337d6e` recortado a 12— **encontrado en 1 de los 15 fragmentos servidos**: el dominio responde con el build de este commit |
+
+### 7. Sonda de comportamiento sobre el esquema real, en transacción revertida
+
+**18/18 en verde**, y **0 filas escritas**:
+
+* `set_ticket_clearance_delivery` existe, es `SECURITY DEFINER`, con `search_path` fijo, ejecutable por
+  `authenticated` y `service_role` y **no** por `anon`.
+* `tickets_reset_clearance_receipt` **no** es ejecutable por `authenticated` ni por `anon` (I-020,
+  I-078).
+* `tickets` tiene **11** disparadores: los 10 de siempre más el nuevo.
+* Los **dos** CHECK de coherencia están puestos, y el de la marca heredada **rechaza** de verdad una
+  fila «heredada sin fecha».
+* `search_tickets` sigue siendo **`SECURITY INVOKER`** y **conserva su firma de entrada**.
+* El disparador **funciona sobre datos reales**: cambiar el cliente de una boleta entregada la deja
+  pendiente, y devolverla a `available` también.
+* Al terminar, **total vendido, total abonado y boletas entregadas idénticos**.
+
+### 8. Lo que queda para el dueño
+
+Entrar a producción **como vendedor** y mover el interruptor de una boleta real. Un agente **no puede**
+hacerlo: escribir una contraseña en un formulario está fuera de lo que puede hacer, así que la
+evidencia de esa parte es la sonda de comportamiento sobre el esquema real y las 14 pruebas E2E, no
+una captura de la pantalla. Al entrar verá **las 750 boletas vendidas ya marcadas como entregadas**,
+cada una con «Marcado como entregado al activar esta función. La fecha real de entrega no estaba
+registrada.» y **sin fecha**; si alguna no se había entregado de verdad, se apaga su interruptor.
+
+---
+
 ## Post-9 — Entrega del paz y salvo (D-170, BR-I15, 2026-09-05)
 
 Migración `0049`: dos columnas en `tickets`, dos CHECK, el disparador `tickets_reset_clearance_receipt`,

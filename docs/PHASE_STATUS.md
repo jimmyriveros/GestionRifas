@@ -17,7 +17,14 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   libera. Migración **`0049`**: dos columnas, dos CHECK, un disparador, la RPC
   `set_ticket_clearance_delivery`, `search_tickets` recreada con las dos columnas y una **carga
   inicial única** que da por entregadas las boletas ya vendidas —marcadas como tales, y **sin
-  presentar su fecha técnica como si fuera la de una entrega real**—. El sistema registra
+  presentar su fecha técnica como si fuera la de una entrega real**—. **APLICADA al proyecto real y
+  DESPLEGADA** el mismo día: respaldo previo en `Rifas-backups/2026-09-05-pre-0049/` (7.488 filas,
+  **0** identidades de Auth), `verify:remote` **17/17**, CI **2/2** y `a337d6e` servido por Vercel,
+  comprobado por el identificador de versión `c5d816926fd6` en el JavaScript del dominio. La carga
+  inicial marcó **exactamente 750** boletas —todas heredadas, **0** fuera de `assigned`, **0** sin
+  cliente, **0** manuales, **750** auditorías con actor nulo— y, comparando la sonda antes y después
+  bloque a bloque, **ni un peso se movió**. Sonda de comportamiento sobre el esquema real, en
+  transacción revertida: **18/18** y **0 filas escritas**. El sistema registra
   **cuándo se marcó la entrega**; no es por sí solo una prueba física ni legal de que el cliente
   recibió el documento.
   Antes, el mismo día: **una boleta vendida se puede liberar** (D-169, BR-I14): cuando el
@@ -3196,7 +3203,8 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 
 Autorizado expresamente por el dueño, con la carga inicial incluida. Cada boleta trae un desprendible
 —el **paz y salvo**— que el vendedor entrega en mano al cliente, y hasta hoy quién lo tenía ya se
-llevaba de memoria. Migración **`0049`**.
+llevaba de memoria. Migración **`0049`**, **aplicada al proyecto real y desplegada el mismo día**, con
+la migración por delante del despliegue.
 
 ### 1. Funcionalidades implementadas
 
@@ -3274,7 +3282,7 @@ cambiar el dato desde fuera— están en `TEST_RESULTS.md`.
 
 | Archivo | Qué hace |
 |---|---|
-| `0049_ticket_clearance_receipt.sql` | Añade a `tickets` las columnas `clearance_receipt_delivered_at` (`timestamptz`) y `clearance_receipt_assumed_delivered` (`boolean not null default false`), con dos CHECK de coherencia; el disparador `tickets_reset_clearance_receipt`, que devuelve la entrega a pendiente al cambiar de cliente o volver a `available`; la RPC `set_ticket_clearance_delivery(uuid, boolean, timestamptz)` (`SECURITY DEFINER`, `search_path` fijo, `FOR UPDATE`, `EXECUTE` revocado de `public`/`anon` y concedido a `authenticated` y `service_role`); recrea `search_tickets` con las dos columnas más y le restituye sus privilegios; y ejecuta **una sola vez** la carga inicial sobre las boletas ya vendidas. Sin índices nuevos |
+| `0049_ticket_clearance_receipt.sql` | **Aplicada al proyecto real el 2026-09-05**, tras el respaldo `Rifas-backups/2026-09-05-pre-0049/`. Añade a `tickets` las columnas `clearance_receipt_delivered_at` (`timestamptz`) y `clearance_receipt_assumed_delivered` (`boolean not null default false`), con dos CHECK de coherencia; el disparador `tickets_reset_clearance_receipt`, que devuelve la entrega a pendiente al cambiar de cliente o volver a `available`; la RPC `set_ticket_clearance_delivery(uuid, boolean, timestamptz)` (`SECURITY DEFINER`, `search_path` fijo, `FOR UPDATE`, `EXECUTE` revocado de `public`/`anon` y concedido a `authenticated` y `service_role`); recrea `search_tickets` con las dos columnas más y le restituye sus privilegios; y ejecuta **una sola vez** la carga inicial sobre las boletas ya vendidas. Sin índices nuevos |
 
 ### 4. Variables de entorno
 
@@ -3287,6 +3295,9 @@ I-059, I-060. Ninguno nuevo.
 
 ### 6. Lo que debe revisar el siguiente agente
 
+0. **`0049` YA ESTÁ en el proyecto real** (2026-09-05) y `a337d6e` desplegado. Es inmutable:
+   cualquier ajuste sobre esas columnas, ese disparador o esa función es una migración nueva. Y **la
+   carga inicial ya corrió sobre los datos reales: 750 boletas marcadas**; no se repite.
 1. **La CARGA INICIAL solo deja rastro donde hay boletas vendidas antes de aplicar la migración.** En
    una base local recién reiniciada afecta a **cero filas**, porque `db:reset` aplica las migraciones
    y el seed vende después. No es un fallo: quien quiera verla actuar, que ejecute E13-09, que lee la
