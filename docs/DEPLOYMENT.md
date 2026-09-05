@@ -27,7 +27,7 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 
 | Elemento | Estado |
 |---|---|
-| Migraciones (**47** aplicadas, hasta `0047`) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03) y `0047` (09-03, D-168). ⚠️ **`0048` (D-169) existe en el repositorio y NO está aplicada al proyecto real**: el código que la necesita tampoco está desplegado. Cuando se promueva, **la migración va primero** |
+| Migraciones (**48** aplicadas, hasta `0048`) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03), `0047` (09-03, D-168) y **`0048` (09-05, D-169)**, esta última con la migración aplicada **antes** del despliegue |
 | RLS, RPC, vistas, auditoría | Igual que en local (mismo código, mismas migraciones) |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 

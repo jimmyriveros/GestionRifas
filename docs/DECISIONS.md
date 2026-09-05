@@ -7107,8 +7107,8 @@ rifa (BR-P03).
 **Consecuencia.** Nace **BR-I14**. Las dos frases de aviso de D-168 se ensanchan (Decisión 9);
 `ConfirmDialog` gana `pendingLabel`; la ranura `action` de `ClientLinkCard` pasa a llenarla
 `TicketClientActions` en los dos portales. Ninguna regla anterior cambia de significado: BR-I11,
-BR-I12 y BR-I13 siguen exactamente como estaban. Migración `0048`, **solo aplicada en local**: el
-proyecto real no se ha tocado.
+BR-I12 y BR-I13 siguen exactamente como estaban. Migración `0048`, **aplicada al proyecto real y
+desplegada el 2026-09-05** con la migración por delante del despliegue.
 
 ---
 

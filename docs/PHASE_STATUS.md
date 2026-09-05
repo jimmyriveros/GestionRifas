@@ -11,8 +11,12 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   y aprobación. Exige **rifa activa** —esa es la diferencia con corregir el cliente—, **cero** filas
   en `payment_allocations` (anulados y $0 incluidos) y **cero** en `lottery_ticket_matches`, y pide
   motivo. **No anula ni elimina**: la combinación de números no se quema. No crea ningún aviso ni
-  mueve ninguna comisión. Migración **`0048`**, **solo aplicada en local**: el proyecto real no se ha
-  tocado y no se ha desplegado nada.
+  mueve ninguna comisión. Migración **`0048`**, **APLICADA al proyecto real y DESPLEGADA** el mismo
+  día: respaldo previo en `Rifas-backups/2026-09-05-pre-0048/` (7.471 filas, **0** identidades de
+  Auth), `verify:remote` **17/17**, CI **2/2** y `c1f2dfc` servido por Vercel —comprobado por el
+  identificador de versión `9d334dfd377f` en el JavaScript del dominio, no solo por el SHA—.
+  Comprobada además **por comportamiento** sobre el proyecto real, dentro de una transacción
+  revertida: privilegios correctos, los cuatro rechazos con su mensaje y **0 filas escritas**.
   Antes, el 2026-09-03: **una boleta vendida se puede corregir de cliente** (D-168, BR-I13):
   botón «Cambiar cliente» bajo la tarjeta del cliente, en los dos portales, con un solo diálogo que
   deja elegir o crear el cliente correcto dentro de la cartera del **mismo vendedor** y pide motivo.
@@ -3176,8 +3180,8 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 Autorizado expresamente por el dueño. Cubre el caso en que **el cliente desiste antes de abonar
 nada**: hasta hoy la boleta se quedaba «vendida» a alguien que ya no la quiere, y la única salida
 dentro de la aplicación era **anularla**, que quema sus dos números para el resto de la rifa
-(BR-N08). Migración **`0048`**, **solo aplicada en local**: no se ha tocado el proyecto real ni se ha
-desplegado nada.
+(BR-N08). Migración **`0048`**, **aplicada al proyecto real y desplegada el mismo día**, con la
+migración por delante del despliegue.
 
 ### 1. Funcionalidades implementadas
 
@@ -3236,7 +3240,7 @@ habrían llegado a producción y uno del propio agente al ejecutar las pruebas�
 
 | Archivo | Qué hace |
 |---|---|
-| `0048_release_ticket_client.sql` | Añade `release_ticket_client(uuid, uuid, text)`: `SECURITY DEFINER`, `search_path` fijo, bloquea la boleta con `FOR UPDATE`, revalida los siete requisitos de BR-I14, escribe seis columnas de `tickets` en una sola sentencia y audita `ticket.release_client` con el motivo y los valores anteriores. `EXECUTE` revocado de `public` y `anon`, concedido a `authenticated` y `service_role`. **Aditiva**: no altera ninguna tabla, política, disparador ni función existente. **Solo aplicada en local.** No contiene ninguna sentencia de datos |
+| `0048_release_ticket_client.sql` | Añade `release_ticket_client(uuid, uuid, text)`: `SECURITY DEFINER`, `search_path` fijo, bloquea la boleta con `FOR UPDATE`, revalida los siete requisitos de BR-I14, escribe seis columnas de `tickets` en una sola sentencia y audita `ticket.release_client` con el motivo y los valores anteriores. `EXECUTE` revocado de `public` y `anon`, concedido a `authenticated` y `service_role`. **Aditiva**: no altera ninguna tabla, política, disparador ni función existente. **Aplicada al proyecto real el 2026-09-05**, tras el respaldo `Rifas-backups/2026-09-05-pre-0048/`. No contiene ninguna sentencia de datos |
 
 ### 4. Variables de entorno
 
@@ -3249,9 +3253,10 @@ I-059, I-060. Ninguno nuevo.
 
 ### 6. Lo que debe revisar el siguiente agente
 
-1. **`0048` NO está en el proyecto real.** El código que la necesita tampoco está desplegado. Cuando
-   se promueva, **la migración va primero**: al revés, la pantalla enseña «Liberar boleta» y el botón
-   de confirmar falla hasta que termina el despliegue.
+1. **`0048` YA ESTÁ en el proyecto real** (2026-09-05) y `c1f2dfc` desplegado. Es inmutable:
+   cualquier ajuste sobre esa función es una migración nueva. Y si vuelve a haber una migración de la
+   que dependa el código servido, **la migración va primero** —así se hizo aquí—: al revés, la
+   pantalla enseña «Liberar boleta» y el botón de confirmar falla hasta que termina el despliegue.
 2. **Liberar, anular y eliminar son tres cosas distintas.** Liberar devuelve la boleta al inventario
    con sus mismos números; anular la retira para siempre y **reserva** esa combinación (BR-N08);
    eliminar borra una boleta que nunca se vendió (BR-B05). Ni el código ni los textos pueden

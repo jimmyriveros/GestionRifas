@@ -8089,6 +8089,64 @@ propio vendedor puede dejarlo en $0 desde la pantalla, que era justamente el obj
 
 ---
 
+## Post-9 — Promoción a producción de D-169 (`0048`, BR-I14) — 2026-09-05
+
+Autorizada expresamente por el dueño («sube a produccion»). **La migración fue PRIMERO**, como en
+D-168: al revés hay una ventana en la que el dominio ya sirve «Liberar boleta» y el botón de
+confirmar falla porque `release_ticket_client` todavía no existe. En el orden correcto la ventana es
+inocua: la función queda en la base sin que nadie pueda llamarla desde la aplicación.
+
+| Paso | Resultado |
+|---|---|
+| Respaldo lógico previo | ✅ `Rifas-backups/2026-09-05-pre-0048/` — `roles.sql`, `schema.sql` (322 KB, 95 funciones) y `data.sql` (3,6 MB). **7.471 filas** en 19 tablas y **0 identidades de Auth** (el `--schema public` de la tercera línea hace su trabajo). `release_ticket_client` **no** aparece en el `schema.sql` del respaldo, que es como debe ser: aún no existía |
+| `npm run verify:remote` (antes) | ✅ **16/17**, con **un solo fallo esperado**: «Las RPC de negocio son ejecutables por authenticated: 9 (esperado 10)» — la comprobación nueva detectando que `release_ticket_client` todavía no existía. Es la red funcionando |
+| `npx supabase db push --dry-run` | ✅ una sola migración pendiente: `0048_release_ticket_client.sql` |
+| `npx supabase db push --yes` | ✅ aplicada |
+| `npm run verify:remote` (después) | ✅ **17/17** |
+| `git push origin main` | ✅ `c6cb133..c1f2dfc` |
+| CI (GitHub Actions) | ✅ **2/2** (`33973455016`): «Migraciones desde cero + pruebas de base de datos» y «Typecheck, lint, unitarias, build» |
+| Vercel | ✅ **READY** (`dpl_7gDTAMhU7T6PFDuc2CMCaAqT6GjG`) sobre `c1f2dfc`, con los tres alias, incluido `gestion-rifas.vercel.app` |
+
+### Verificación en vivo sobre el dominio real
+
+| Comprobación | Resultado |
+|---|---|
+| Cabeceras de seguridad en `/login` | ✅ **7/7**: `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` y `X-Dns-Prefetch-Control` |
+| Rutas protegidas sin sesión | ✅ **4/4** en **307** (`/owner/dashboard`, `/owner/tickets`, `/seller/dashboard`, `/seller/tickets`) |
+| `/api/lottery/sync` sin secreto | ✅ **401** |
+| Catálogo inexistente | ✅ **404** |
+| Secretos en lo servido | ✅ **0** en los 15 fragmentos de `/login` (**982 KB**): ni `service_role`, ni `CRON_SECRET`, ni `LOTTERY_SYNC_SECRET`, ni `SEED_DEFAULT_PASSWORD`, ni un JWT |
+| **El código nuevo está SERVIDO** (método de `DEPLOYMENT.md` §6.1, I-069) | ✅ el identificador de versión **`9d334dfd377f`** —sha256 de `c1f2dfc946…` recortado a 12 hex— aparece en 1 de los 15 fragmentos (`/_next/static/immutable/chunks/327c-epq7rwmp.js`). No es solo que Vercel diga `READY` sobre ese SHA: el dominio responde ese build |
+
+### Sonda de comportamiento contra el proyecto real — sin escribir una sola fila
+
+Todo dentro de `begin … rollback`, y **solo rechazos**: no se ejecutó el camino feliz sobre ninguna
+boleta real, para que la producción quedara intacta aunque la reversión fallara.
+
+| Comprobación | Resultado |
+|---|---|
+| Metadatos de la función | ✅ `SECURITY DEFINER` con `search_path=public, pg_temp` |
+| Privilegios | ✅ `anon` **no** puede ejecutarla; `authenticated` y `service_role` sí |
+| Disparadores de `tickets` | ✅ los **10** de siempre, intactos, incluidos `tickets_protect_client_change`, `tickets_validate_status_transition` y `notify_ticket_sold` |
+| Motivo de menos de 5 caracteres | ✅ «Escribe el motivo de la liberación: al menos 5 caracteres.» |
+| Boleta inexistente | ✅ «La boleta no existe o no tienes acceso a ella.» |
+| Boleta real **con abonos** | ✅ «Esta boleta tiene abonos en su historial y ya no puede liberarse.» |
+| Cliente esperado que no coincide | ✅ «Esta boleta ya cambió de cliente. Recarga la pantalla y vuelve a intentar.» |
+| Filas modificadas | ✅ **0** — las dos boletas de la sonda quedan idénticas campo a campo |
+| Entradas `ticket.release_client` escritas | ✅ **0** |
+
+**No se tocó ni una boleta, cliente, pago ni saldo.** El estado de producción en el momento de la
+promoción: 749 boletas vendidas, 330 con abonos, 2 rifas activas.
+
+### Lo que un agente NO puede verificar, y por eso no se afirma
+
+Entrar como vendedor en producción y liberar una boleta real **desde la pantalla** exige escribir una
+contraseña en un formulario, que está fuera de lo que un agente puede hacer (I-066). La evidencia de
+esa parte es la sonda de comportamiento de arriba sobre el esquema real, no una captura. **Queda como
+siguiente acción del dueño**, sobre una boleta sin abonos y de una rifa activa.
+
+---
+
 ## Liberar una boleta vendida (D-169, BR-I14) — 2026-09-05
 
 **Encargo.** El cliente desiste **antes de abonar nada** y la boleta se queda «vendida» a alguien que
@@ -8201,6 +8259,9 @@ de la ventana; y el aviso de la boleta bloqueada, entero.
 
 * **No se tocó el proyecto real.** `0048` existe solo en local; no hubo respaldo, ni `db push`, ni
   despliegue, ni push a `origin`.
+  > **Superado el mismo día**, con autorización expresa del dueño: `0048` se aplicó al proyecto real
+  > y `c1f2dfc` se desplegó. Esta línea se conserva porque describe el estado en el que se ejecutaron
+  > las verificaciones de arriba. La promoción está registrada en su propia sección, más abajo.
 * **No se implementó ninguna devolución de dinero.** Una boleta con abonos —aunque estén anulados—
   no se libera, y el encargo lo excluía expresamente.
 * **No se tocaron `assign_ticket`, `cancel_ticket`, `bulk_delete_tickets` ni
