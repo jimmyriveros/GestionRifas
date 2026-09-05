@@ -51,6 +51,17 @@ export type TicketListItem = {
   sellerName: string
   clientId: string | null
   clientName: string | null
+  /**
+   * Cuando se registro la entrega FISICA del paz y salvo al cliente actual.
+   * `null` = por entregar (BR-I15, D-170). No tiene ninguna relacion con el
+   * pago: una boleta Sin pagar puede tenerlo entregado, y al reves.
+   */
+  clearanceDeliveredAt: string | null
+  /**
+   * El estado lo puso la migracion `0049` al estrenar la funcion, no una
+   * persona: su fecha es tecnica y la interfaz NO la enseña (D-170).
+   */
+  clearanceAssumedDelivered: boolean
 }
 
 const TICKET_SELECT = `
@@ -67,6 +78,8 @@ const TICKET_SELECT = `
   raffle_id,
   seller_id,
   client_id,
+  clearance_receipt_delivered_at,
+  clearance_receipt_assumed_delivered,
   raffle:raffles!tickets_raffle_org_fk ( name, short_code ),
   client:clients!tickets_client_org_fk ( id, name )
 `
@@ -85,6 +98,8 @@ type TicketRow = {
   raffle_id: string
   seller_id: string
   client_id: string | null
+  clearance_receipt_delivered_at: string | null
+  clearance_receipt_assumed_delivered: boolean
   raffle: { name: string; short_code: string } | null
   client: { id: string; name: string } | null
 }
@@ -224,6 +239,8 @@ async function searchTicketsMatching(
       sellerName: sellerNames.get(row.seller_id) ?? 'Vendedor',
       clientId: row.client_id,
       clientName: row.client_name,
+      clearanceDeliveredAt: row.clearance_receipt_delivered_at,
+      clearanceAssumedDelivered: row.clearance_receipt_assumed_delivered,
     })),
     page,
     pageSize,
@@ -401,5 +418,7 @@ function mapTicketRow(row: TicketRow, sellerNames: Map<string, string>): TicketL
     sellerName: sellerNames.get(row.seller_id) ?? 'Vendedor',
     clientId: row.client_id,
     clientName: row.client?.name ?? null,
+    clearanceDeliveredAt: row.clearance_receipt_delivered_at,
+    clearanceAssumedDelivered: row.clearance_receipt_assumed_delivered,
   }
 }

@@ -3,7 +3,24 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-05 — **una boleta vendida se puede liberar** (D-169, BR-I14): cuando el
+- **Actualizado:** 2026-09-05 — **el paz y salvo de una boleta se registra con un interruptor**
+  (D-170, BR-I15). Cada boleta trae un desprendible que el vendedor entrega en mano al cliente, y
+  ahora la aplicación sabe quién lo tiene: en el detalle de la boleta, dentro de la tarjeta
+  principal, un interruptor de 44 px lo marca; en las dos listas se ve de un vistazo, sin que la
+  tabla gane una columna ni la tarjeta del teléfono gane una línea. **Es un control de
+  organización y de nada más**: independiente del estado de pago, lo abonado, el saldo, el precio,
+  la ganancia, el estado de la rifa y los resultados de lotería —una boleta **Sin pagar** puede
+  tenerlo entregado y una **Pagada** puede no tenerlo—, y **no** es un valor nuevo de
+  `inventory_status` ni de `payment_status`. Lo marca **solo el vendedor dueño** de la boleta; el
+  Dueño y el Administrador lo **consultan** y no lo cambian. La fecha la pone **PostgreSQL**, y la
+  base —no la interfaz— devuelve la entrega a pendiente si la boleta cambia de cliente o se
+  libera. Migración **`0049`**: dos columnas, dos CHECK, un disparador, la RPC
+  `set_ticket_clearance_delivery`, `search_tickets` recreada con las dos columnas y una **carga
+  inicial única** que da por entregadas las boletas ya vendidas —marcadas como tales, y **sin
+  presentar su fecha técnica como si fuera la de una entrega real**—. El sistema registra
+  **cuándo se marcó la entrega**; no es por sí solo una prueba física ni legal de que el cliente
+  recibió el documento.
+  Antes, el mismo día: **una boleta vendida se puede liberar** (D-169, BR-I14): cuando el
   cliente desiste **antes de abonar nada**, el botón «Liberar boleta» —junto a «Cambiar cliente», bajo
   la tarjeta del cliente y en los dos portales— deshace esa venta y devuelve la boleta a
   **Disponible** con sus mismos números, lista para venderse a otra persona. Borra cliente, precio,
@@ -3172,6 +3189,124 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**
 6. Cruz Roja y Bogotá pueden no confirmarse solas (I-081): no eludir.
+
+---
+
+## Mantenimiento post-9 — entrega del paz y salvo (D-170, BR-I15, 2026-09-05)
+
+Autorizado expresamente por el dueño, con la carga inicial incluida. Cada boleta trae un desprendible
+—el **paz y salvo**— que el vendedor entrega en mano al cliente, y hasta hoy quién lo tenía ya se
+llevaba de memoria. Migración **`0049`**.
+
+### 1. Funcionalidades implementadas
+
+* **Un interruptor en el detalle de la boleta del vendedor.** Dentro de la tarjeta principal, junto al
+  cliente y a la fecha de venta. Dice **«Entrega del paz y salvo»**, el estado —«Paz y salvo
+  entregado» / «Paz y salvo por entregar»—, la fecha cuando la hay, y debajo la única frase que la
+  pantalla no enseña sola: «Solo registra la entrega física. No cambia abonos, saldo ni estado de
+  pago.» Diana de **44 px**, sin confirmación —se deshace con otro toque—, deshabilitado mientras
+  guarda.
+* **Es un control de organización, y de nada más.** Independiente del estado de pago, lo abonado, el
+  saldo, el precio, la ganancia, el estado de la rifa y los resultados de lotería. Una boleta **Sin
+  pagar** puede tenerlo entregado y una **Pagada** puede no tenerlo. **No** es un valor nuevo de
+  `inventory_status` ni de `payment_status`: son dos columnas propias.
+* **Optimista, pero sin inventar la hora.** El estado se pinta al instante y la fecha se sustituye por
+  «Guardando…»: la escribe **PostgreSQL** con su reloj, nunca el navegador. Si falla, el interruptor
+  vuelve solo a donde estaba y el error se dice.
+* **Indicador en las dos listas de boletas.** En escritorio, un icono dentro de la celda «Cliente»
+  —con `title` y nombre accesible, el mismo mecanismo que ya usan las otras celdas de esa tabla—,
+  así que **la tabla no gana ninguna columna ni un píxel de ancho**;
+  en el teléfono, icono y palabra corta en la fila de estados, **sin añadir una línea a la tarjeta**.
+  Funciona en el listado, al buscar por número, al buscar por cliente, al paginar y al filtrar. Una
+  boleta sin vender no enseña nada.
+* **El portal administrativo lo ve en modo lectura.** Estado, tipo de registro —manual o carga
+  inicial— y, solo si es manual, la fecha. **Sin interruptor**, y la RPC tampoco se lo deja invocar:
+  registrar una entrega que no hicieron no significaría nada.
+* **Un registro de la carga inicial no enseña ninguna fecha.** Dice «Marcado como entregado al activar
+  esta función. La fecha real de entrega no estaba registrada.» Nunca la fecha de la migración, ni la
+  de asignación, ni una calculada. Si se desmarca y se vuelve a marcar, pasa a ser un registro
+  **manual** con fecha real.
+* **La entrega es del cliente ACTUAL, y lo garantiza la base.** Un disparador la devuelve a pendiente
+  al cambiar de cliente (BR-I13) o al liberar la boleta (BR-I14) —también con un `UPDATE` directo, no
+  solo desde la aplicación—. Una boleta **anulada** conserva lo que tuviera y deja de ser editable.
+  Registrar, corregir a $0 o anular abonos **nunca** lo cambian.
+* **Puertas cerradas, todas revalidadas en SQL con la fila bloqueada:** boleta `assigned` con cliente;
+  quien llama es el **vendedor dueño** con membresía, perfil y organización activos; la fecha esperada
+  sigue siendo la de la fila (bloqueo optimista). Si el valor pedido ya es el actual, **no se escribe
+  ni se audita**.
+* **`search_tickets` devuelve las dos columnas nuevas**, con su firma de entrada, su `SECURITY
+  INVOKER`, sus filtros, su relevancia, su orden, su paginación y sus privilegios **idénticos**. Cero
+  consultas nuevas, cero N+1, cero índices y cero cambios financieros.
+* **Carga inicial única, dentro de la migración.** Las boletas que ya estaban vendidas quedan
+  entregadas y marcadas como heredadas. Las vendidas después empiezan pendientes.
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` ✅ (`typecheck`, lint **0 errores** y 2 avisos preexistentes de TanStack, **791/791**
+unitarias en 47 archivos, `build`). `npm run test:db` **812/812** en 38 archivos, sobre una base
+recién sembrada con `0049` aplicada; la línea base antes de tocar nada era **779/779** en 37. La suite
+nueva de base de datos, **33/33**, se ejecutó **tres veces seguidas** sobre la misma base para
+comprobar que se limpia sola. E2E de esta tanda **14/14** (10 escritorio + 4 móvil), y **suite
+completa 536/539** (26,9 min) tras `db:reset` + `seed:local` — antes 521/525—, con **las 14 nuevas
+en verde dentro de la corrida completa**.
+
+**Los 3 fallos son ajenos y está comprobado, no supuesto.** La suite se corrió **dos veces**: la
+primera dio 534/538 con los **cuatro** de D-169; la segunda, 536/539 con **tres**, porque las dos de
+`back-navigation` **dejan de fallar con `.next/dev` caliente** —que es exactamente lo que las
+identifica como **I-075**; aislada y en caliente, `:25` pasa dos veces seguidas en 3,9 s y 4,3 s—.
+De los tres que quedan, dos son de acumulación por orden de ejecución: `reports` (D-150) y
+`ventas-por-fecha`, este con **exactamente la misma cifra que D-168 y D-169** (`< 26` vs `58`), lo
+que demuestra que las suites nuevas no aportaron ni una venta. El tercero,
+`catalogo-publico-movil.spec.ts:103`, es **intermitente y ajeno**: falló solo en la segunda corrida,
+repetido el archivo entero da **15/15**, y este trabajo **no toca ni un archivo** del catálogo
+público.
+
+**La consola queda limpia**, y lo comprueba la suite en vez de una revisión a mano: un agente no
+puede entrar a la aplicación —escribir una contraseña en un formulario queda fuera de lo que puede
+hacer—, así que una de las pruebas nuevas recoge `console.error` y `pageerror` mientras recorre las
+tres superficies con sesión real y exige la lista vacía.
+
+Los errores encontrados por el camino —incluidos **dos del producto** que sí habrían llegado a
+producción: la función de disparador ejecutable por `PUBLIC` y el estado que no se reiniciaba al
+cambiar el dato desde fuera— están en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+| Archivo | Qué hace |
+|---|---|
+| `0049_ticket_clearance_receipt.sql` | Añade a `tickets` las columnas `clearance_receipt_delivered_at` (`timestamptz`) y `clearance_receipt_assumed_delivered` (`boolean not null default false`), con dos CHECK de coherencia; el disparador `tickets_reset_clearance_receipt`, que devuelve la entrega a pendiente al cambiar de cliente o volver a `available`; la RPC `set_ticket_clearance_delivery(uuid, boolean, timestamptz)` (`SECURITY DEFINER`, `search_path` fijo, `FOR UPDATE`, `EXECUTE` revocado de `public`/`anon` y concedido a `authenticated` y `service_role`); recrea `search_tickets` con las dos columnas más y le restituye sus privilegios; y ejecuta **una sola vez** la carga inicial sobre las boletas ya vendidas. Sin índices nuevos |
+
+### 4. Variables de entorno
+
+Ninguna nueva.
+
+### 5. Problemas que permanecen
+
+Los de siempre: I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-030, I-024, I-021, I-023,
+I-059, I-060. Ninguno nuevo.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **La CARGA INICIAL solo deja rastro donde hay boletas vendidas antes de aplicar la migración.** En
+   una base local recién reiniciada afecta a **cero filas**, porque `db:reset` aplica las migraciones
+   y el seed vende después. No es un fallo: quien quiera verla actuar, que ejecute E13-09, que lee la
+   sentencia del propio archivo `0049` y la corre en una transacción revertida.
+2. **La marca heredada NO es un segundo estado.** «Entregado» es «entregado» venga de donde venga; lo
+   que `assumed_delivered` dice es **de dónde salió la fecha**. Ningún texto puede presentar la fecha
+   técnica de la migración como la de una entrega real.
+3. **El paz y salvo NO toca dinero, y esa es la regla que hay que defender.** Si aparece una consulta
+   de `paid_amount`, `payment_status` o `sale_price` dentro de este camino, algo se torció.
+4. **`tickets_update_seller` no se amplía.** La escritura va por la RPC precisamente para no abrir el
+   precio, el cliente y las fechas de toda boleta vendida.
+5. **Toda función nueva nace ejecutable por `PUBLIC`** (I-020, I-078), y las *default privileges* de
+   `0015` y `0032` no alcanzan a lo que se cree después. Pasó aquí con la función de disparador y lo
+   cazaron las dos comprobaciones de catálogo. Revócalo explícitamente.
+6. **El `ClearanceReceiptField` necesita su `key`.** Guarda estado sembrado de las props, y el dato
+   cambia también sin tocarlo. Sin `key`, la pantalla dice «entregado» sobre una fila que ya no lo
+   está.
+7. **Solo el vendedor dueño** puede marcarlo. Dueño y Administrador lo consultan; el vendedor padre no
+   puede sobre la boleta de su equipo (D-092).
+8. **No hay etiqueta `fase-N`**: es mantenimiento.
 
 ---
 

@@ -678,6 +678,39 @@ tocar juntas.
 `tickets_validate_status_transition` sigue puesto sobre este `UPDATE`, con su propia comprobación de
 pagos activos (BR-I11), y esta función **no lo esquiva**: su listón es más alto.
 
+### 4.13 Entrega del paz y salvo (`0049`, BR-I15, D-170)
+
+`set_ticket_clearance_delivery(uuid, boolean, timestamptz)`, con la misma propiedad que las de §4.6,
+§4.11 y §4.12: **el navegador no aporta rol, organización, vendedor, estado, precio ni fecha nueva como
+autoridad**. Recibe tres valores —boleta, si queda entregado o no, y la fecha que la pantalla creía— y
+la base revalida todo lo demás con la fila bloqueada por `FOR UPDATE`.
+
+| Comprobación | Qué impide |
+|---|---|
+| `is_org_staff(org)` → rechazo explícito | Que el Dueño o el Administrador registren una entrega que no hicieron. Ven el dato en modo lectura; **no** hay interruptor para ellos |
+| `seller_id = auth.uid()` **y** `has_org_role(org, 'seller')` | Que un vendedor marque la boleta de otro, la de un integrante de su equipo (D-092) o la de otra organización — y que una **cuenta desactivada** siga operando (BR-A04). El mensaje es el mismo que si la boleta no existiera |
+| `inventory_status = 'assigned'` y `client_id not null` | Registrar la entrega de una venta que no existe, o tocar una boleta anulada, en borrador o pendiente |
+| `clearance_receipt_delivered_at = p_expected_delivered_at` | Que una pantalla desactualizada apague o encienda algo que quien pulsó no llegó a ver |
+| La fecha la escribe `now()` **del servidor** | Un instante fabricado en el navegador dentro de un dato de bitácora |
+
+Cumple las cuatro reglas de §4.5: `search_path` fijo, `REVOKE` explícito de `public` y `anon`,
+parámetros tipados sin SQL concatenado y mensajes de negocio sin detalle interno. El `GRANT` nombra a
+`authenticated` **y también a `service_role`**, por lo mismo que §4.11 y §4.12 (D-128, I-078), y la
+función entra en las dos listas blancas —`verify:remote` y `tests/db/catalog.test.ts`— que §4.5 obliga
+a tocar juntas.
+
+**Lo que NO cambia.** Ninguna política nueva y **`tickets_update_seller` NO se amplía**: sigue sin
+alcanzar una boleta `assigned`, así que un `UPDATE` directo del vendedor afecta cero filas. Ampliarla
+para poder escribir un booleano habría abierto el precio, el cliente y las fechas de toda boleta
+vendida. `tickets_update_staff` sigue como estaba —el personal administra su organización—, así que
+esa política **no** es lo que impide al Dueño marcar la entrega: lo impide la RPC, que es el único
+camino de la aplicación.
+
+⚠️ La función de disparador `tickets_reset_clearance_receipt` nació **ejecutable por `PUBLIC`**,
+como manda PostgreSQL con toda función nueva (I-020, I-078). Se revoca de `public`, `anon` y
+`authenticated` en la propia migración: una función de disparador no necesita `EXECUTE` para
+dispararse, porque el permiso se comprueba sobre la **tabla**.
+
 ## 5. Protección de Server Actions y Route Handlers
 
 Toda Server Action parametrizada de negocio debe seguir esta secuencia. Las acciones públicas de

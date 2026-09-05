@@ -218,6 +218,12 @@ Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
     cliente correcto, dentro de la cartera de su mismo vendedor y con motivo (BR-I13); y, si además
     su rifa sigue activa, puede **liberarse** —volver a `available`, sin cliente ni venta— cuando el
     cliente desiste antes de abonar nada (BR-I14).
+11.b Una boleta vendida registra si su **paz y salvo** —el desprendible— ya se entregó al
+    cliente. Lo marca **solo el vendedor dueño** de la boleta, con la fecha del servidor, y es
+    **independiente del pago**: una boleta Sin pagar puede tenerlo entregado y una Pagada puede
+    no tenerlo. Vuelve a pendiente si la boleta cambia de cliente o se libera (BR-I15). Registra
+    **cuándo se marcó la entrega**; no constituye prueba física ni legal de que el cliente
+    recibió el documento.
 12. RLS activo en todas las tablas de negocio; el frontend no es frontera de seguridad.
 13. Una boleta se busca por número diario o semanal, entero o parcial, nunca por código interno
     (BR-N11).

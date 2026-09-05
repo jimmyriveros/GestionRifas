@@ -596,6 +596,32 @@ otras suites cambiaran las cuentas según el orden de ejecución (la trampa de I
 nombre** de rifa y también al empezar, de modo que una ejecución interrumpida no bloquea la
 siguiente; borra antes `commission_ledger` y `seller_commissions`, que apuntan a la rifa.
 
+### 4.5 Entrega del paz y salvo (`tests/db/ticket-clearance.test.ts`, 33 pruebas)
+
+Cubre BR-I15 por sus tres frentes: **quién puede** (el vendedor dueño sí; otro vendedor, un
+vendedor padre sobre su equipo, el Dueño, el Administrador, otra organización, una sesión anónima
+y una **cuenta desactivada**, no), **qué se escribe** (la fecha sale del reloj del servidor, la
+activación manual deja la marca heredada en `false`, desactivar limpia las dos, y una fila
+heredada que se desmarca y se vuelve a marcar pasa a manual) y **qué NO se toca** (se compara la
+fila entera antes y después en `unpaid`, `partial` y `paid`: ninguna columna de negocio se mueve).
+
+Además: el bloqueo optimista, que pedir el valor que ya está **no escribe ni deja bitácora**, que
+la rifa cerrada **no** bloquea, que cambiar de cliente y liberar la boleta lo devuelven a
+pendiente —también con un `UPDATE` directo por la clave de servicio, que es lo que demuestra que
+la regla vive en la base—, que los abonos no lo cambian en ninguno de sus tres caminos (registrar,
+corregir a $0, anular), los dos CHECK de coherencia, la auditoría con su actor, y que
+`search_tickets` devuelve las dos columnas **sin** cambiar su firma, su `SECURITY INVOKER`, sus
+privilegios ni su aislamiento.
+
+**La carga inicial se prueba leyendo la sentencia del propio archivo de migración** (E13-09). En
+una base local recién reiniciada el `UPDATE` de `0049` afecta a **cero filas** —`db:reset` aplica
+las migraciones y el seed vende sus boletas después—, así que no deja rastro que comprobar. La
+prueba lee el `update tickets` final de `0049`, comprueba que conserva sus tres condiciones, lo
+ejecuta sobre la tabla entera dentro de una transacción y hace `rollback`. Así lo que se verifica
+es **la sentencia que se va a aplicar en producción**, no una copia que puede quedar desfasada:
+que marca exactamente las vendidas, que no roza disponibles, borradores ni anuladas, que no mueve
+ni un campo financiero o de identidad, y que su auditoría queda con **actor nulo**.
+
 ### 5.4 Los tres botones del catálogo (`catalogo-panel*.spec.ts`, 22 pruebas)
 
 **El menú nativo del sistema no existe dentro de un navegador de pruebas.** Pulsar «Compartir» en

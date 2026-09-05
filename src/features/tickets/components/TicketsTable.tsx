@@ -14,6 +14,7 @@ import { ticketLabel } from '@/lib/tickets'
 import { cn } from '@/lib/utils'
 
 import { ticketFinancials } from '../financials'
+import { ClearanceReceiptIndicator } from './ClearanceReceiptIndicator'
 import { TicketNumbersCell } from './TicketNumbers'
 
 import type { TicketListItem } from '../queries'
@@ -157,18 +158,24 @@ export function TicketsTable({
         accessorKey: 'clientName',
         header: 'Cliente',
         cell: ({ row }) => (
-          // Se recorta: las celdas de esta tabla no parten en dos lineas
-          // (`whitespace-nowrap`), asi que un nombre de cuarenta letras se
-          // llevaba 400 px y empujaba las columnas de dinero fuera de la
-          // pantalla. El nombre entero se queda a un `title` de distancia.
+          // El paz y salvo va DENTRO del ancho maximo de la celda, no al lado:
+          // la columna no puede crecer (el `px-2` de «Progreso» ya se pago con
+          // la holgura que sobraba aqui). Son 20 px que le quita al nombre, y
+          // el nombre entero sigue a un `title` de distancia.
           <span
-            title={row.original.clientName ?? undefined}
             className={cn(
-              'block max-w-[9rem] truncate text-sm 2xl:max-w-[14rem]',
+              'flex max-w-[9rem] items-center gap-1.5 text-sm 2xl:max-w-[14rem]',
               row.original.clientName === null && 'text-muted-foreground',
             )}
           >
-            {row.original.clientName ?? 'Sin cliente'}
+            <ClearanceReceiptIndicator ticket={row.original} variant="icon" />
+            {/* Se recorta: las celdas de esta tabla no parten en dos lineas
+                (`whitespace-nowrap`), asi que un nombre de cuarenta letras se
+                llevaba 400 px y empujaba las columnas de dinero fuera de la
+                pantalla. */}
+            <span className="truncate" title={row.original.clientName ?? undefined}>
+              {row.original.clientName ?? 'Sin cliente'}
+            </span>
           </span>
         ),
       },

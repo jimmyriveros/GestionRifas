@@ -333,6 +333,7 @@ Ejemplos normativos:
 | BR-I12 | Una boleta con pagos activos no puede cambiar de cliente. | S, D | 5 |
 | BR-I13 | Una boleta vendida **puede** corregirse de cliente dentro de la cartera de su mismo vendedor, siempre que no tenga **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. | C, S, D | post-9 |
 | BR-I14 | Una boleta vendida **puede liberarse** —volver a `available`, sin cliente ni venta— cuando el cliente desiste antes de abonar nada: exige rifa **activa** y **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. | C, S, D | post-9 |
+| BR-I15 | Una boleta vendida registra si su **paz y salvo** —el desprendible— ya se entregó físicamente al cliente. Lo marca **solo el vendedor dueño** de la boleta, es **independiente del pago** y vuelve a pendiente si la boleta cambia de cliente o se libera. | C, S, D | post-9 |
 
 **BR-I12 y BR-I13 no dicen lo mismo, y la diferencia importa.** BR-I12 es el disparador
 `tickets_protect_client_change` de `0004`: protege el **saldo**, así que mira los pagos **activos** y
@@ -394,6 +395,54 @@ motivo y el actor, además de la `ticket.update` automática de la fila.
 
 **No crea ningún aviso.** `notify_ticket_sold` exige la transición **a** `assigned`, y aquí es la
 contraria (D-169).
+
+**Entrega del paz y salvo (BR-I15).** Cada boleta trae un desprendible que el vendedor entrega en
+mano al cliente. Esto lo registra, y **nada más**: es un control de organización sobre una entrega
+física, no un dato de cobranza. La operación es `set_ticket_clearance_delivery` (migración `0049`).
+
+| Es independiente de | Quiere decir |
+|---|---|
+| Estado de pago, abonado, saldo pendiente y precio de venta | Una boleta **Sin pagar** puede tener su paz y salvo entregado, y una **Pagada** puede no tenerlo |
+| Ganancia y comisiones | Marcarlo no mueve ni un peso ni un recuento |
+| Estado de la rifa | Se sigue entregando el desprendible de lo vendido en una rifa cerrada. Es la diferencia con BR-I14 |
+| Resultados de lotería | Una coincidencia no lo bloquea ni lo cambia |
+
+**No es un estado de la boleta.** Son dos columnas propias: `clearance_receipt_delivered_at`
+(`timestamptz`; **nulo = «Paz y salvo por entregar»**, con fecha = **«Paz y salvo entregado»**) y
+`clearance_receipt_assumed_delivered` (`boolean`). No se toca `inventory_status` ni
+`payment_status`.
+
+**Qué significa la marca heredada.** `clearance_receipt_assumed_delivered = true` señala una boleta
+que la **carga inicial** de `0049` dio por entregada al estrenar la función: su fecha es la de la
+migración, **no la de una entrega real**, y la interfaz tiene prohibido presentarla como si lo fuera
+(D-170). Solo puede ser verdadera acompañando a una fecha, y lo garantiza un CHECK. Una activación
+manual la deja siempre en `false`, así que una boleta heredada que se desmarca y se vuelve a marcar
+pasa a ser un registro manual con fecha real.
+
+Condiciones, todas revalidadas en SQL con la fila bloqueada:
+
+| Condición | Por qué |
+|---|---|
+| Boleta en `assigned` y con cliente | Se entrega el desprendible de una venta que existe |
+| Quien llama es el **vendedor dueño** de la boleta | Es su entrega y es su cliente. El Dueño y el Administrador lo **consultan** pero no lo cambian, y el vendedor padre tampoco sobre la boleta de su equipo (D-092) |
+| Membresía, perfil y organización activos | BR-A04: una sesión previa no sigue operando |
+| `p_expected_delivered_at` coincide con la fila | Bloqueo optimista: una pantalla vieja no pisa un cambio más reciente |
+| La fecha la escribe **PostgreSQL** | Es un dato de bitácora; el reloj del navegador no es una fuente |
+
+Si el valor pedido ya es el actual **no se escribe nada**: ni `UPDATE`, ni bitácora. Al desactivar se
+limpian la fecha **y** la marca heredada.
+
+**La entrega es del cliente ACTUAL, y lo garantiza la base.** El disparador
+`tickets_reset_clearance_receipt` la devuelve a pendiente cuando la boleta cambia de cliente (BR-I13)
+o vuelve a `available` (BR-I14). Una boleta **anulada** conserva lo que tuviera —conserva su cliente,
+BR-I06— y deja de ser editable. Registrar, corregir a $0 o anular abonos **nunca** lo cambia.
+
+Queda auditada por `audit_tickets`, que escribe `ticket.update` con el actor, la boleta, el valor
+anterior, el nuevo y el instante. La carga inicial es distinguible: su actor es **nulo** —el actor de
+sistema— y lleva `assumed_delivered = true`.
+
+⚠️ **El sistema registra cuándo se marcó la entrega. Eso no constituye por sí solo una prueba física o
+legal de que el cliente recibió el documento.**
 
 ### Máquina de estados de inventario
 

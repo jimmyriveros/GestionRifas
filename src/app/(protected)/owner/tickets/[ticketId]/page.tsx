@@ -9,7 +9,9 @@ import { listClientOptions } from '@/features/clients/queries'
 import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
 import { listClientPayments } from '@/features/payments/queries'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
+import { clearanceState } from '@/features/tickets/clearance-receipt'
 import { TicketActions } from '@/features/tickets/components/TicketActions'
+import { ClearanceReceiptReadOnly } from '@/features/tickets/components/ClearanceReceiptReadOnly'
 import { TicketClientActions } from '@/features/tickets/components/TicketClientActions'
 import { TicketSalePrice } from '@/features/tickets/components/TicketSalePrice'
 import { getTicketDetail } from '@/features/tickets/queries'
@@ -147,6 +149,16 @@ export default async function TicketDetailPage({
           <Field label="Fecha de venta">
             {ticket.saleDate ? formatDateEs(ticket.saleDate) : '—'}
           </Field>
+          {/* SOLO PARA MIRAR (D-170). El paz y salvo lo registra el vendedor
+              que lo entregó; el personal necesita consultarlo —para saber a
+              quién reclamarle un desprendible—, pero marcar una entrega que no
+              hizo no significaría nada. Por eso aquí no hay interruptor, y la
+              RPC tampoco se lo deja invocar. */}
+          {clearanceState(ticket) !== null ? (
+            <Field label="Paz y salvo">
+              <ClearanceReceiptReadOnly ticket={ticket} />
+            </Field>
+          ) : null}
           <Field label="Creada">{formatDateTimeEs(ticket.createdAt)}</Field>
           <Field label="Aprobada">
             {ticket.approvedAt ? formatDateTimeEs(ticket.approvedAt) : '—'}

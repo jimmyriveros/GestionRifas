@@ -369,6 +369,9 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Poner a otro cliente una boleta que se vendió a la persona equivocada | **Cambiar cliente** | Reasignar, transferir, reubicar, mover |
 | El motivo que se escribe al hacerlo | **Motivo de la corrección** | Justificación, razón, observación |
 | Deshacer la venta de una boleta que el cliente ya no quiere, y devolverla al inventario | **Liberar** la boleta; la **liberación** | Desasignar, devolver, revertir, cancelar la venta |
+| Desprendible que la boleta trae para el cliente | **Paz y salvo** | Recibo, comprobante, talón, colilla, ticket |
+| Que el vendedor ya se lo dio en mano | **Paz y salvo entregado**; en una tabla o tarjeta estrecha, **Entregado** | Recibido, firmado, cerrado |
+| Que todavía no | **Paz y salvo por entregar**; donde no cabe, **Por entregar** | Pendiente, sin entregar, debe |
 | Quitar de circulación una boleta o un pago | **Anular** | Eliminar, borrar, cancelar |
 | Borrar para siempre una boleta cargada por error, que nunca se vendió | **Eliminar** | Anular, cancelar, quitar |
 | Marcar varias boletas para trabajar con todas a la vez | **Seleccionar** (el botón que lo enciende dice **«Seleccionar varias»**) | Marcar, elegir, tildar |
@@ -876,6 +879,40 @@ hora futura escrita cuando ya es pasado.
 línea discreta: **«Actualizado automáticamente cada día»**. Lo que **no** se retiró es la línea de
 procedencia de arriba: esa distingue quién publicó el número y sigue siendo obligatoria.
 
+**«Paz y salvo» dice lo único que la pantalla no enseña: que no cambia el dinero** (D-170). Bajo
+el interruptor va siempre la misma línea: **«Solo registra la entrega física. No cambia abonos,
+saldo ni estado de pago.»** Es la §5 de esta guía aplicada a un control que vive a dos centímetros
+del precio y del estado de pago, en una pantalla donde todo lo demás **sí** es dinero: sin esa
+frase, quien lo ve por primera vez tiene motivos para temer que mueva algo. El título es
+**«Entrega del paz y salvo»** y es además la etiqueta del interruptor, no un texto oculto que
+repita la frase.
+
+**Se dice «paz y salvo», nunca «ticket» ni «recibo».** Es la palabra que ya usa el negocio para
+ese desprendible. *Ticket* está además prohibido en el Anexo A para la boleta, y tenerlo aquí
+para otra cosa sería peor que no tenerlo.
+
+**Una carga inicial no inventa una fecha** (D-170). Las boletas que ya estaban vendidas cuando se
+estrenó la función se dieron por entregadas, y su fecha es la del día en que se activó, no la de
+ninguna entrega. Así que **no** se escribe «Entregado el {esa fecha}», ni la fecha de asignación,
+ni una fecha calculada: se dice **«Marcado como entregado al activar esta función. La fecha real
+de entrega no estaba registrada.»** Es la misma regla de siempre —la aplicación no dice cosas que
+no sabe— y es lo único que impide que un dato técnico se lea como un hecho.
+
+Un registro **manual** sí tiene fecha, y la escribe entera: **«Entregado el 05 sept 2026, 3:04
+p. m.»** en hora de Bogotá, con los ayudantes de siempre.
+
+**Mientras guarda dice «Guardando…», y nunca una hora inventada.** El interruptor responde al
+instante —se ve encendido— pero la fecha **no** se adivina en el navegador: se sustituye por
+«Guardando…» hasta que el servidor dice la suya. Escribir una hora que después cambie sería peor
+que no escribir ninguna, y es la misma familia que la regla de sin conexión (D-116): nunca se
+dice que algo quedó guardado como si ya estuviera.
+
+**Donde no cabe la frase, se abrevia lo VISIBLE.** En la tabla de escritorio solo se ve el icono,
+y «Paz y salvo entregado» viaja en un `sr-only` y en el `title` del icono; en la tarjeta del teléfono se
+ve **«Entregado»** o **«Por entregar»** y el término completo va, otra vez, en el `sr-only`. Es
+D-114 tal cual: se recorta el píxel, nunca el término. Y una boleta **sin vender no dice nada**:
+no hay entrega de la que hablar, y escribir «por entregar» ahí inventaría una tarea.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
@@ -983,6 +1020,7 @@ castigo donde solo había una espera.
 | Título, rótulos y botones de cambiar el cliente de una boleta | `src/features/tickets/components/ReassignTicketClientDialog.tsx` — «Cambiar cliente», «Ahora la tiene», «Motivo de la corrección», «Crear cliente y cambiar» (D-168) |
 | Los dos avisos de por qué una boleta ya no puede cambiar de cliente **ni liberarse** | `src/features/tickets/reassign-client.ts`, **los dos juntos** (D-168, ensanchados en D-169) |
 | El aviso de la rifa cerrada, y quién de los tres se pinta | `src/features/tickets/release-ticket.ts` (`ticketClientNotice`, D-169) |
+| Todos los textos del paz y salvo: título, ayuda, los dos estados, su forma corta, la nota de la carga inicial y «Guardando…» | `src/features/tickets/clearance-receipt.ts` (`CLEARANCE_COPY`), **todos juntos** (D-170) |
 | Título, aviso, rótulos y botones de liberar una boleta | `src/features/tickets/components/ReleaseTicketDialog.tsx` — «Liberar boleta», «Número diario», «Número semanal», «Cliente actual», «Motivo de la liberación», «Confirmar liberación», «Liberando...» (D-169) |
 | Estado vacío del buscador de clientes al cambiar el cliente | El `emptyMessage` que le pasa `ReassignTicketClientDialog` a `ClientOptionsPicker` (D-168) |
 | Quién recibe el abono, debajo del título | `src/features/payments/components/PaymentClientBanner.tsx` — «Abono para», **Cambiar** (el nombre accesible sigue siendo «Cambiar de cliente», D-138) |

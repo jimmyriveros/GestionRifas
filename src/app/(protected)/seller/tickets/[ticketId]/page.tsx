@@ -1,4 +1,4 @@
-import { CalendarDaysIcon, PlusIcon, TagIcon } from 'lucide-react'
+import { CalendarDaysIcon, PlusIcon, TagIcon, TicketIcon } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -11,6 +11,9 @@ import { TicketPaymentsCard } from '@/features/payments/components/TicketPayment
 import { listClientPayments } from '@/features/payments/queries'
 import { paymentNewHref } from '@/features/payments/return-to'
 import { AssignTicketDialog } from '@/features/tickets/assign/components/AssignTicketDialog'
+import { canEditClearanceReceipt, clearanceState } from '@/features/tickets/clearance-receipt'
+import { ClearanceReceiptField } from '@/features/tickets/components/ClearanceReceiptField'
+import { ClearanceReceiptReadOnly } from '@/features/tickets/components/ClearanceReceiptReadOnly'
 import { TicketClientActions } from '@/features/tickets/components/TicketClientActions'
 import { TicketPaymentSummary } from '@/features/tickets/components/TicketPaymentSummary'
 import { TicketSalePrice } from '@/features/tickets/components/TicketSalePrice'
@@ -214,6 +217,38 @@ export default async function SellerTicketDetailPage({
                 {ticket.saleDate ? formatDateEs(ticket.saleDate) : 'Todavía no'}
               </p>
             </Field>
+
+            {/* LA ENTREGA DEL PAZ Y SALVO (D-170). Va DENTRO de la tarjeta
+                principal, junto al cliente y a la fecha de venta —es lo que le
+                dio a esa persona ese día—, y no al final entre lo
+                administrativo: es una tarea diaria, no un dato de archivo.
+
+                Sobre una boleta ANULADA se enseña lo que quedara registrado,
+                sin interruptor: ya no hay nada que entregar (BR-I06). Y sobre
+                una que ni siquiera se ha vendido no se enseña nada, porque no
+                hay entrega de la que hablar. */}
+            {canEditClearanceReceipt(ticket) ? (
+              <ClearanceReceiptField
+                /* EL `key` NO ES DECORATIVO. El interruptor guarda en estado lo
+                   que le respondio el servidor, para no parpadear mientras llega
+                   la revalidacion. Pero el dato tambien cambia SIN que nadie lo
+                   toque: cambiar de cliente y liberar la boleta lo devuelven a
+                   pendiente desde la base (BR-I15). Sin `key`, React conserva el
+                   estado viejo y la pantalla seguiria diciendo «entregado» sobre
+                   una fila que ya no lo esta. Con el, un valor nuevo del servidor
+                   remonta el componente y gana siempre. Es la forma que documenta
+                   React para reiniciar estado al cambiar una prop, sin efectos ni
+                   `setState` en render (D-085). */
+                key={`${ticket.clientId}:${ticket.clearanceDeliveredAt ?? 'pendiente'}`}
+                ticketId={ticket.id}
+                clearanceDeliveredAt={ticket.clearanceDeliveredAt}
+                clearanceAssumedDelivered={ticket.clearanceAssumedDelivered}
+              />
+            ) : clearanceState(ticket) !== null ? (
+              <Field icon={<TicketIcon className="size-4" aria-hidden />} label="Paz y salvo">
+                <ClearanceReceiptReadOnly ticket={ticket} />
+              </Field>
+            ) : null}
           </div>
         </CardContent>
       </Card>

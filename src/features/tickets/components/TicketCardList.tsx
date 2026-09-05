@@ -19,6 +19,7 @@ import { ticketLabel } from '@/lib/tickets'
 import { cn } from '@/lib/utils'
 
 import { ticketFinancials } from '../financials'
+import { ClearanceReceiptIndicator } from './ClearanceReceiptIndicator'
 import { hasBothNumbers, TICKET_NUMBERS_LEGEND, TicketNumbersLink } from './TicketNumbers'
 
 import type { TicketListItem } from '../queries'
@@ -238,16 +239,25 @@ export function TicketCardList({
 
                   {/* El estado de pago manda —es lo que se viene a mirar— y por
                       eso lleva insignia; «Asignada» lo acompaña en gris, a la
-                      derecha, donde no compite con el. */}
+                      derecha, donde no compite con el.
+
+                      El paz y salvo entra en ESTA fila, a la derecha, y no en
+                      una linea propia: son hasta veinticinco tarjetas por
+                      pantalla y una linea mas en cada una es una boleta menos
+                      que se ve. A 320 px caben los tres —insignia, «Entregado»
+                      y «Asignada»— con holgura. */}
                   <div className="flex items-center justify-between gap-2">
                     {ticket.inventoryStatus === 'assigned' ? (
                       <PaymentStatusBadge status={ticket.paymentStatus} />
                     ) : (
                       <InventoryStatusBadge status={ticket.inventoryStatus} />
                     )}
-                    {ticket.inventoryStatus === 'assigned' ? (
-                      <span className="text-muted-foreground shrink-0 text-xs">Asignada</span>
-                    ) : null}
+                    <div className="flex shrink-0 items-center gap-2">
+                      <ClearanceReceiptIndicator ticket={ticket} variant="short" />
+                      {ticket.inventoryStatus === 'assigned' ? (
+                        <span className="text-muted-foreground text-xs">Asignada</span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </div>

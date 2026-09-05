@@ -1188,6 +1188,8 @@ export type Database = {
           base_price: number | null
           cancel_reason: string | null
           cancelled_at: string | null
+          clearance_receipt_assumed_delivered: boolean
+          clearance_receipt_delivered_at: string | null
           client_id: string | null
           created_at: string
           created_by: string
@@ -1214,6 +1216,8 @@ export type Database = {
           base_price?: number | null
           cancel_reason?: string | null
           cancelled_at?: string | null
+          clearance_receipt_assumed_delivered?: boolean
+          clearance_receipt_delivered_at?: string | null
           client_id?: string | null
           created_at?: string
           created_by: string
@@ -1240,6 +1244,8 @@ export type Database = {
           base_price?: number | null
           cancel_reason?: string | null
           cancelled_at?: string | null
+          clearance_receipt_assumed_delivered?: boolean
+          clearance_receipt_delivered_at?: string | null
           client_id?: string | null
           created_at?: string
           created_by?: string
@@ -1974,6 +1980,8 @@ export type Database = {
           p_seller_id?: string
         }
         Returns: {
+          clearance_receipt_assumed_delivered: boolean
+          clearance_receipt_delivered_at: string | null
           client_id: string
           client_name: string
           created_at: string
@@ -1991,6 +1999,17 @@ export type Database = {
           seller_id: string
           total_count: number
           weekly_number: string
+        }[]
+      }
+      set_ticket_clearance_delivery: {
+        Args: {
+          p_delivered: boolean
+          p_expected_delivered_at?: string | null
+          p_ticket_id: string
+        }
+        Returns: {
+          clearance_receipt_assumed_delivered: boolean
+          clearance_receipt_delivered_at: string | null
         }[]
       }
       show_limit: { Args: never; Returns: number }

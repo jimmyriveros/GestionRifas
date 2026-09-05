@@ -130,7 +130,7 @@ const CHECKS: Check[] = [
               'import_tickets_with_clients', 'log_ticket_import', 'mark_profile_activated',
               'reassign_ticket_client', 'release_ticket_client',
               'report_payment_totals', 'report_payments_by_day', 'report_sales_totals',
-              'search_tickets',
+              'search_tickets', 'set_ticket_clearance_delivery',
               'taken_ticket_combinations', 'team_confirm_email_change', 'team_delete_member',
               'team_max_fixed_commission', 'team_member_sales', 'team_sales_summary',
               'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
@@ -171,11 +171,11 @@ const CHECKS: Check[] = [
           where n.nspname = 'public'
             and p.proname in ('create_payment', 'void_payment', 'update_payment_allocation',
                               'update_ticket_sale_price', 'reassign_ticket_client',
-                              'release_ticket_client',
+                              'release_ticket_client', 'set_ticket_clearance_delivery',
                               'assign_ticket', 'bulk_create_tickets', 'approve_tickets',
                               'cancel_ticket')
             and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
-    esperado: 10,
+    esperado: 11,
   },
   {
     nombre: 'Las 3 funciones de reporte son ejecutables por authenticated',

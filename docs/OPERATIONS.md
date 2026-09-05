@@ -151,6 +151,48 @@ por qué. Detalle de la regla en `BUSINESS_RULES.md` (BR-I14) y de la decisión 
 
 ---
 
+## 4.d Entregar el paz y salvo de una boleta
+
+Cada boleta trae un desprendible —el **paz y salvo**— que el vendedor le da en mano al cliente.
+Desde el detalle de una boleta vendida, en el portal del vendedor, hay un interruptor:
+**«Entrega del paz y salvo»**. Se toca, y la boleta pasa de **«Paz y salvo por entregar»** a
+**«Paz y salvo entregado»**, con la fecha y la hora. Se puede volver a apagar; no pide
+confirmación porque se deshace con otro toque.
+
+En la lista de boletas se ve de un vistazo quién tiene ya el suyo: un icono junto al nombre del
+cliente en el computador, y un «Entregado» / «Por entregar» en el teléfono.
+
+**No tiene nada que ver con el pago.** Una boleta **Sin pagar** puede tener su paz y salvo
+entregado, y una **Pagada** puede no tenerlo. Tocar el interruptor no mueve abonos, ni saldo, ni
+estado de pago, ni ganancia. Tampoco hace falta que la rifa siga activa.
+
+| Quién | Qué puede hacer |
+|---|---|
+| El **vendedor dueño** de la boleta | Marcarlo y desmarcarlo. Es su entrega y es su cliente |
+| **Dueño** y **Administrador** | **Consultarlo** en el detalle de la boleta. No lo cambian: registrar una entrega que no hicieron no significaría nada |
+| El vendedor que lidera un equipo | Nada sobre las boletas de sus integrantes |
+
+**Al empezar, todo lo ya vendido quedó marcado como entregado.** El día que se activó la función
+se dieron por entregadas las boletas que ya estaban vendidas: si no, habrían aparecido todas «por
+entregar» y no era cierto. Esas boletas dicen **«Marcado como entregado al activar esta función.
+La fecha real de entrega no estaba registrada.»** y **no enseñan fecha**, porque la que hay es la
+del día de la activación, no la de la entrega. Si alguna de ellas no se había entregado de verdad,
+se apaga el interruptor; y cuando se entregue, al volver a encenderlo queda con su fecha real.
+
+Las boletas vendidas **después** de ese día empiezan siempre por entregar.
+
+**Si la boleta cambia de cliente o se libera, vuelve a «por entregar»**: el desprendible era para
+la persona anterior. Una boleta **anulada** conserva lo que tuviera, pero ya no se puede cambiar.
+
+⚠️ **Lo que esto es, y lo que no.** El sistema registra **cuándo se marcó la entrega**. No es por
+sí solo una prueba física ni legal de que el cliente recibió el documento: lo marca quien lo
+entrega, no quien lo recibe.
+
+Todo queda en la bitácora: quién lo marcó, cuándo, y qué valor tenía antes. Detalle de la regla en
+`BUSINESS_RULES.md` (BR-I15) y de la decisión en `DECISIONS.md` (D-170).
+
+---
+
 ## 5. Seguridad operativa antes de lanzar con datos reales
 
 **Cuentas de demostración.** El proyecto Supabase que se usa como producción (Fase 8, D-066) es el

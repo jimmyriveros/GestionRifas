@@ -9,6 +9,8 @@ import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult, ActionResultWith } from '@/lib/action-result'
 
+import type { ClearanceEligibility } from './clearance-receipt'
+
 import {
   approveTicketsSchema,
   cancelTicketSchema,
@@ -17,6 +19,7 @@ import {
   reassignTicketSellerSchema,
   reassignTicketToNewClientSchema,
   releaseTicketSchema,
+  setTicketClearanceDeliverySchema,
   ticketClientSearchSchema,
   updateTicketNumbersSchema,
   updateTicketSalePriceSchema,
@@ -305,6 +308,25 @@ function revalidateTicketClient(
 }
 
 /**
+ * Las CUATRO superficies que enseñan el paz y salvo de una boleta: su detalle y
+ * la lista de boletas, en los dos portales (D-170).
+ *
+ * Deliberadamente corta. El paz y salvo no entra en ningun total, ningun saldo
+ * ni ningun reporte, asi que revalidar el panel, los pagos, los clientes o los
+ * reportes seria trabajo por un dato que ninguno de ellos lee. El detalle se
+ * nombra por patron Y por ruta literal: revalidar `/seller/tickets` no alcanza a
+ * `[ticketId]` (D-133).
+ */
+function revalidateTicketClearance(ticketId: string) {
+  revalidatePath('/seller/tickets')
+  revalidatePath('/seller/tickets/[ticketId]', 'page')
+  revalidatePath(`/seller/tickets/${ticketId}`)
+  revalidatePath('/owner/tickets')
+  revalidatePath('/owner/tickets/[ticketId]', 'page')
+  revalidatePath(`/owner/tickets/${ticketId}`)
+}
+
+/**
  * Clientes elegibles para corregir el cliente de una boleta (BR-I13, D-168).
  *
  * Acota SIEMPRE a la cartera del vendedor de la boleta. En el portal del
@@ -479,4 +501,56 @@ export async function releaseTicket(input: unknown): Promise<ActionResult> {
 
   revalidateTicketClient(values.ticketId, values.expectedClientId, null)
   return { ok: true }
+}
+
+/**
+ * Registrar o retirar la entrega del paz y salvo de UNA boleta (BR-I15, D-170).
+ *
+ * SOLO el vendedor: es su entrega y es su cliente. `authorizeAction(['seller'])`
+ * lo dice ya aqui para que el Dueno y el Administrador reciban un mensaje en vez
+ * de un error de la base, pero la puerta que manda es
+ * `set_ticket_clearance_delivery`, que ademas comprueba que la boleta sea suya,
+ * que este vendida y que nadie la haya tocado entre medias.
+ *
+ * NO viaja la fecha nueva: la escribe PostgreSQL con su reloj. Lo que viaja es
+ * la que la pantalla creia, como bloqueo optimista.
+ *
+ * Devuelve el estado AUTORITATIVO que quedo, para que el interruptor deje de
+ * pintar su suposicion y pase a pintar lo que hay.
+ */
+export async function setTicketClearanceDelivery(
+  input: unknown,
+): Promise<
+  ActionResultWith<Pick<ClearanceEligibility, 'clearanceDeliveredAt' | 'clearanceAssumedDelivered'>>
+> {
+  const auth = await authorizeAction(['seller'])
+  if ('error' in auth) return auth
+
+  const parsed = setTicketClearanceDeliverySchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
+  }
+  const values = parsed.data
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('set_ticket_clearance_delivery', {
+    p_ticket_id: values.ticketId,
+    p_delivered: values.delivered,
+    p_expected_delivered_at: values.expectedDeliveredAt,
+  })
+
+  if (error) return { error: mapPgError(error) }
+
+  // `returns table` siempre trae una fila: la funcion o devuelve estado o lanza.
+  const row = data?.[0]
+  if (!row) return { error: 'No pudimos guardar la entrega. Intenta de nuevo.' }
+
+  revalidateTicketClearance(values.ticketId)
+  return {
+    ok: true,
+    data: {
+      clearanceDeliveredAt: row.clearance_receipt_delivered_at,
+      clearanceAssumedDelivered: row.clearance_receipt_assumed_delivered,
+    },
+  }
 }

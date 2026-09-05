@@ -304,6 +304,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `update_ticket_sale_price(boleta, precio, precio_esperado)` | post-9 | Corrige el `sale_price` de UNA boleta asignada. Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-137, BR-P13) | Sí |
 | `reassign_ticket_client(boleta, cliente_esperado, cliente_nuevo, motivo)` | post-9 | Corrige el `client_id` de UNA boleta vendida, dentro de la cartera de su mismo vendedor y solo si no tiene ninguna fila en `payment_allocations` ni en `lottery_ticket_matches`. No pasa por `available` ni repite el aviso de venta (D-168, BR-I13) | Sí |
 | `release_ticket_client(boleta, cliente_esperado, motivo)` | post-9 | Deshace la venta de UNA boleta que nadie ha abonado: la devuelve a `available` y borra cliente, precio, precio base, fecha de venta y `assigned_at`. Exige rifa activa, cero filas en `payment_allocations` y cero en `lottery_ticket_matches`. No anula ni elimina: los números siguen siendo suyos (D-169, BR-I14) | Sí |
+| `set_ticket_clearance_delivery(boleta, entregado, fecha_esperada)` | post-9 | Registra o retira la entrega FÍSICA del paz y salvo de UNA boleta vendida. **Solo el vendedor dueño**; la fecha la pone el servidor. No consulta ni cambia dinero y no exige rifa activa. Devuelve el estado resultante (D-170, BR-I15) | Sí |
 | `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142) | Sí — inserciones idempotentes |
 | `sync_lottery_schedules` · `confirm_lottery_result` · `notify_lottery_schedule_changes` | post-9 | Sincronización, confirmación+matching+avisos y avisos de programación. **Sin EXECUTE para `authenticated`** (D-145, D-146) | Sí — upserts e inserciones idempotentes |
 | `try_acquire_lottery_sync_lock` · `release_lottery_sync_lock` | post-9 | Cerrojo de una fila del tick. **Sin EXECUTE para `authenticated`** (D-148) | Un UPDATE condicional |
@@ -637,6 +638,34 @@ decorativo: un elemento de React es «verdadero» aunque su componente devuelva 
 siempre haría que `ClientLinkCard` tomara su rama con `action` para una boleta **anulada** —que
 conserva su `client_id` y no tiene ni botones ni aviso— y le colgara un hermano vacío. Es la garantía
 del párrafo anterior, y se rompe sola si alguien quita esa condición.
+
+**El paz y salvo vive DENTRO de la tarjeta principal** (D-170), junto al cliente y a la fecha de
+venta. Es una tarea diaria, no un dato de archivo, así que no baja a «Detalles de la boleta»; y no
+entra en la ranura `action` de `ClientLinkCard`, que es de las acciones **sobre el cliente** de la
+boleta. Tres formas, una sola fuente de textos (`features/tickets/clearance-receipt.ts`):
+
+| Dónde | Qué se ve | Por qué |
+|---|---|---|
+| Detalle del **vendedor**, boleta vendida | `ClearanceReceiptField`: título, estado, fecha o nota, y un interruptor con **44 px** de diana | Es su entrega. La etiqueta asociada es el **título visible** (`aria-labelledby`), no un `sr-only` que repetiría la frase |
+| Detalle del **vendedor**, boleta anulada · detalle **administrativo** | `ClearanceReceiptReadOnly`: estado, tipo de registro y, solo si es manual, la fecha | El personal consulta pero no cambia (BR-I15); una boleta anulada ya no tiene nada que entregar |
+| Las **dos** listas de boletas | `ClearanceReceiptIndicator`, dentro de la celda «Cliente» (escritorio) o de la fila de estados (teléfono) | Ver de un vistazo a quién le falta su desprendible |
+
+⚠️ **El `ClearanceReceiptField` necesita un `key` con el valor del servidor.** Guarda en estado lo
+que le respondió la RPC —para no parpadear mientras llega la revalidación—, pero el dato cambia
+**también sin tocarlo**: cambiar de cliente y liberar la boleta lo devuelven a pendiente desde la
+base. Sin `key`, React conserva el estado viejo y la pantalla miente. Es la forma que documenta React
+para reiniciar estado al cambiar una prop, sin efectos ni `setState` en render (D-085).
+
+**La tabla no gana una columna, y la tarjeta no gana una línea** (D-170). La tabla ya está al límite de
+ancho (D-130), así que el icono entra **dentro** del `max-w` de «Cliente» y la columna no crece; en el
+teléfono el indicador comparte la fila de la insignia de pago con «Asignada». En los dos sitios se
+abrevia **lo visible** y el término completo viaja en un `sr-only` (D-114), y ningún significado se
+fía solo al color: los dos iconos tienen forma distinta y los dos llevan su texto.
+
+La ayuda emergente del icono es un **`title`**, el mismo mecanismo que ya usan las otras cuatro
+celdas de esa tabla. No es una preferencia de estilo: son hasta veinticinco por página en la
+pantalla que más se abre, y un componente de globo montaría veinticinco raíces de JavaScript para
+enseñar una frase que el navegador enseña gratis (D-170).
 
 ### 8.8 Navegación del teléfono: barra inferior (D-106)
 

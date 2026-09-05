@@ -7112,6 +7112,173 @@ desplegada el 2026-09-05** con la migración por delante del despliegue.
 
 ---
 
+## D-170 — El paz y salvo de una boleta se registra con un interruptor, y no toca el dinero
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-05)
+
+**Contexto.** Cada boleta trae un desprendible —el **paz y salvo**— que el vendedor entrega
+físicamente al cliente. Quién lo tiene ya entregado se llevaba de memoria o en el cuaderno, así que la
+pregunta «¿a quién le falta su desprendible?» no tenía respuesta en la aplicación. Es un control de
+**organización**, no de cobranza: quien pagó entero puede seguir sin recibir su papel, y quien no ha
+abonado un peso puede tenerlo ya en la mano.
+
+**Decisión 1 — dos columnas propias, no un estado nuevo.** `clearance_receipt_delivered_at`
+(`timestamptz`, nulo = por entregar) y `clearance_receipt_assumed_delivered` (`boolean`). **No** es un
+valor de `inventory_status` ni de `payment_status`: esos dos describen dónde está la boleta y cuánto
+se ha cobrado de ella, y meter aquí una tercera cosa obligaría a ramificar cada consulta, cada
+insignia y cada total del producto. Sin índice, a propósito: no hay búsqueda, filtro ni orden por
+estos campos, y un índice se paga en cada inserción de boleta (`DATA_MODEL` §5).
+
+**Decisión 2 — la segunda columna no duplica a la primera: dice de DÓNDE salió la fecha.** Una fila
+con `assumed_delivered = true` es una boleta que la **carga inicial** dio por entregada al estrenar la
+función; su fecha es el instante de aplicar la migración, no el de ninguna entrega real. Por eso la
+interfaz tiene **prohibido** escribir «Entregado el {fecha de la migración}», la fecha de asignación o
+cualquier fecha calculada: dice «Marcado como entregado al activar esta función. La fecha real de
+entrega no estaba registrada.» Es la misma regla de siempre —no se inventa un dato que no se tiene—.
+Dos CHECK impiden las combinaciones incoherentes: heredada sin fecha, y entrega registrada en una
+boleta sin cliente.
+
+**Decisión 3 — la carga inicial es una excepción explícita, y vive DENTRO de la migración.** El
+usuario la autorizó por escrito. Sin ella, el día del despliegue las boletas ya vendidas aparecerían
+todas «por entregar» y nadie iba a repasarlas una por una: la lista nacería mintiendo. El `UPDATE` va
+en `0049`, acotado a `inventory_status = 'assigned' AND client_id IS NOT NULL`, escribe **solo** las
+dos columnas nuevas y marca `assumed_delivered = true`. No toca disponibles, borradores, pendientes ni
+anuladas, y no roza ningún campo financiero, cliente, vendedor, número, precio o fecha de venta. **No
+es un comportamiento**, es una sentencia que corre una vez: `assign_ticket_row` no escribe estas
+columnas, así que toda venta posterior nace pendiente.
+
+**Decisión 4 — la auditoría es la que ya existe, y basta.** `audit_tickets` (`0006`) escribe una fila
+`ticket.update` por boleta con solo los campos que cambiaron, el actor, la entidad y el instante.
+Cubre los seis puntos que pedía el encargo, incluido el cambio de la marca heredada. **No** se añade
+una acción semántica encima: serían dos filas por cada toque de un interruptor diciendo lo mismo, en
+la pantalla que más se usa. La carga inicial queda **distinguible** sin esfuerzo: dentro de una
+migración `auth.uid()` es nulo, así que su actor es nulo —ese ES el actor de sistema— y su
+`new_values` lleva `assumed_delivered = true`.
+
+**Decisión 5 — la entrega pertenece al CLIENTE ACTUAL, y lo garantiza un disparador.** Si la boleta
+cambia de cliente (BR-I13) o vuelve al inventario (BR-I14), lo entregado deja de valer y el estado
+vuelve a pendiente. Lo hace `tickets_reset_clearance_receipt`, un `before update of client_id,
+inventory_status`, y no la aplicación: hay **tres** caminos que escriben `client_id`
+—`assign_ticket_row`, `reassign_ticket_client` y `release_ticket_client`— y ninguno tiene por qué
+acordarse de esto. Una boleta **anulada** es la excepción deliberada: conserva su `client_id`
+(BR-I06), así que conserva también lo registrado, y la pantalla lo enseña en modo lectura.
+
+**Decisión 6 — una RPC propia, y la política de escritura del vendedor NO se amplía.**
+`tickets_update_seller` alcanza solo `draft` y `pending_approval`: un vendedor no puede tocar con un
+`UPDATE` directo una boleta `assigned`, y ampliar esa política para poder escribir un booleano abriría
+de par en par el precio, el cliente y las fechas de toda boleta vendida.
+`set_ticket_clearance_delivery` es `SECURITY DEFINER`, con `search_path` fijo, `EXECUTE` revocado de
+`public` y `anon` y concedido a `authenticated` y `service_role`, bloquea la fila con `FOR UPDATE` y no
+consulta ni una columna de dinero.
+
+**Decisión 7 — SOLO el vendedor dueño de la boleta.** Es su entrega y es su cliente. El Dueño y el
+Administrador **ven** el dato —lo necesitan para saber a quién reclamarle un desprendible— pero no lo
+cambian: registrar una entrega que no hicieron no significa nada. Un vendedor padre tampoco puede
+sobre la boleta de un integrante de su equipo (D-092). La puerta es
+`seller_id = auth.uid() AND has_org_role(org, 'seller')`, que comprueba de una vez el rol y que la
+membresía, el perfil y la organización sigan **activos** (BR-A04). Al personal se le dice el motivo
+real —ve la boleta igualmente—; a quien no debería saber que existe se le da el mismo mensaje que si
+no existiera.
+
+**Decisión 8 — la rifa NO tiene que estar activa.** Entregar un papel no es un acto comercial: se
+sigue pudiendo entregar el desprendible de algo que se vendió en una rifa ya cerrada. Es la diferencia
+deliberada con BR-I14, que sí la exige porque devuelve la boleta al inventario.
+
+**Decisión 9 — la fecha la pone PostgreSQL, y el navegador solo dice lo que creía.** `now()` del
+servidor, nunca un valor del cliente: el reloj de un teléfono no es una fuente para un dato de
+bitácora. Lo que sí viaja es `p_expected_delivered_at`, el bloqueo optimista: si la fila ya no dice
+eso, alguien lo cambió entre medias y esta llamada apagaría o encendería algo que quien pulsó no llegó
+a ver. **No hace falta un `p_expected_assumed` además**: la marca heredada solo cambia acompañando a
+la fecha —la pone la migración, la quita cualquier escritura manual—, así que dos estados distintos
+nunca comparten fecha y ese parámetro no podría discrepar nunca.
+
+**Decisión 10 — si ya está como se pide, no se escribe.** Ni `UPDATE`, ni `updated_at` movido, ni una
+fila de bitácora que no describe ninguna decisión. Se devuelve el estado que hay. Y **activar siempre
+deja un registro manual**: una fila heredada que se apaga y se vuelve a encender pasa a tener fecha
+real y `assumed_delivered = false`.
+
+**Decisión 11 — `search_tickets` se recrea, no se duplica la lectura.** El indicador tiene que verse
+igual en el listado, al buscar por número, al buscar por cliente, al paginar y al filtrar. La lista
+sin búsqueda va por PostgREST y le basta con pedir dos columnas más; la búsqueda va por esa función,
+que declara su tabla de salida columna a columna. Cambiar `RETURNS TABLE` obliga a `drop` + `create`,
+y el `drop` se lleva los privilegios: se vuelven a conceder al final, el mismo patrón de `0046`. **Lo
+demás no se toca**, y eso es el punto: firma de entrada, `SECURITY INVOKER` —y con ella
+`tickets_select` y `clients_select`—, las dos ramas, sus filtros, su relevancia, su orden y su
+paginación son los de `0029`. **Cero consultas nuevas y cero N+1**: no hay una segunda lectura por
+fila ni un `join` añadido.
+
+**Decisión 12 — en la tabla, el indicador va DENTRO de la celda «Cliente», y no en una columna.** Esa
+tabla ya está al límite de ancho —doce columnas, y el `px-2` de «Progreso» se pagó con la holgura que
+sobraba justo en «Cliente» (D-130)—. El icono entra dentro del mismo `max-w`, así que la columna **no
+crece ni un píxel**: lo que cuesta son 20 px del nombre, que sigue entero en su `title`. Es además
+donde tiene sentido, porque la entrega es a ese cliente. En escritorio solo se ve el icono; en el
+teléfono, icono y palabra corta. **No depende del color** (`CLAUDE.md` §27): los dos iconos tienen
+forma distinta —uno lleva un visto— y los dos llevan su texto.
+
+**Y la ayuda emergente es un `title`, no un componente de globo.** Es lo que ya usan las otras
+cuatro celdas de esa misma tabla —cliente, vendedor, rifa— para exactamente esto, así que un
+componente aquí sería un segundo mecanismo para el mismo trabajo dentro de la misma tabla
+(REUSE → EXTEND → CREATE). Pesa además que son hasta **veinticinco por página en la pantalla que
+más se abre**: la primera versión montaba un `TooltipProvider` y veinticinco raíces de Radix para
+enseñar una frase que el navegador enseña gratis. Quien no ve la pantalla no depende de esto —para
+eso está el `sr-only`—, así que el `title` no le quita nada a nadie.
+
+**Decisión 13 — en la tarjeta del teléfono entra en la fila de estados, no en una línea nueva.** Son
+hasta veinticinco tarjetas por pantalla y una línea más en cada una es una boleta menos que se ve.
+Comparte la fila con la insignia de pago y «Asignada», y a 320 px caben las tres con holgura; hay una
+prueba que compara la altura de dos tarjetas idénticas salvo por el paz y salvo y exige que no
+difieran. Ahí se abrevia **lo visible** —«Entregado» / «Por entregar»— y el término completo viaja en
+un `sr-only`, que sí cuenta para el nombre accesible (D-114).
+
+**Decisión 14 — el control va DENTRO de la tarjeta principal del detalle.** Junto al cliente y a la
+fecha de venta, que es lo que le dio a esa persona ese día. **No** en el `PageHeader`, **no** dentro
+del enlace de `ClientLinkCard` —un control dentro de un `<a>` es HTML inválido y parte la diana grande
+en dos comportamientos—, **no** en la ranura de «Cambiar cliente», y **no** al final entre lo
+administrativo: es una tarea diaria, no un dato de archivo. Su etiqueta asociada es el **título
+visible**, por `aria-labelledby`, y no un `sr-only` que repetiría la misma frase dos veces en la misma
+pantalla. La diana mide 44 px aunque el dibujo mida 20.
+
+**Decisión 15 — optimista, pero sin inventar la hora.** Al tocarlo el estado se pinta de inmediato y
+la fecha se sustituye por «Guardando…»: escribir una hora que luego cambie sería peor que no escribir
+ninguna. Cuando el servidor responde se pinta **su** fecha. Si falla, el interruptor vuelve solo a
+donde estaba —el estado de partida no se tocó— y el error se dice. No hay confirmación: es reversible
+de un toque.
+
+**Decisión 16 — el componente lleva `key`, y no es decorativo.** El interruptor guarda en estado lo
+que respondió el servidor, para no parpadear mientras llega la revalidación. Pero el dato **también
+cambia sin que nadie lo toque**: cambiar de cliente y liberar la boleta lo devuelven a pendiente desde
+la base. Sin `key`, React conserva el estado viejo y la pantalla seguiría diciendo «entregado» sobre
+una fila que ya no lo está — se detectó con una prueba E2E, no razonándolo. La página le pasa un `key`
+que contiene el valor del servidor, que es la forma que documenta React para reiniciar estado al
+cambiar una prop, sin efectos ni `setState` en render (D-085).
+
+**Errores encontrados al implementar, y corregidos.** (1) La función de disparador nueva nacía
+**ejecutable por `PUBLIC`**: es I-020 / I-078 otra vez —PostgreSQL concede `EXECUTE` a PUBLIC en cada
+función nueva y las *default privileges* de `0015` y `0032` no alcanzan a lo que se cree después—, y
+lo cazaron las dos comprobaciones de catálogo antes de salir de local. Se revoca explícitamente; una
+función de disparador no necesita `EXECUTE` para dispararse. (2) El defecto del `key` de la Decisión
+16.
+
+**Alternativas descartadas.** (a) **Un valor nuevo de `inventory_status`**: mezcla dónde está la
+boleta con si se entregó un papel, y rompería cada consulta, insignia y total. (b) **Una tabla de
+eventos de entrega**: para un booleano por boleta es una tabla, una política, un índice y un `join`
+más en la pantalla más usada; el historial completo ya lo lleva `audit_logs`. (c) **Una acción
+semántica de auditoría propia**: dos filas por toque diciendo lo mismo. (d) **Guardar la fecha de la
+carga inicial como si fuera real**: inventa un dato y hace imposible distinguirla de una entrega
+registrada. (e) **Dejar las boletas existentes pendientes**: la lista nacería mintiendo el día del
+despliegue. (f) **Ampliar `tickets_update_seller`**: abriría toda la boleta vendida para escribir un
+booleano. (g) **Dárselo también al personal**: registraría entregas que no hizo. (h) **Una columna
+nueva en la tabla del listado**: la tabla ya está al límite y el dato es secundario frente al dinero.
+(i) **Un índice sobre las columnas nuevas**: no hay búsqueda, filtro ni orden por ellas.
+
+**Consecuencia.** Nace **BR-I15** y el término **paz y salvo** entra en el glosario. Migración
+`0049`: dos columnas, dos CHECK, un disparador, la RPC `set_ticket_clearance_delivery`,
+`search_tickets` recreada con dos columnas más, y la carga inicial. Ninguna regla anterior cambia de
+significado. **El sistema registra cuándo se marcó la entrega; eso no constituye por sí solo una
+prueba física o legal de que el cliente recibió el documento.**
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

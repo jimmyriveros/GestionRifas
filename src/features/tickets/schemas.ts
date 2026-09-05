@@ -170,6 +170,24 @@ export const releaseTicketSchema = z.object({
 })
 export type ReleaseTicketInput = z.infer<typeof releaseTicketSchema>
 
+/**
+ * Registrar o retirar la entrega del paz y salvo (D-170, BR-I15).
+ *
+ * Viajan TRES cosas y ninguna es una autoridad: la boleta, si queda entregado o
+ * no, y la fecha que la pantalla creia. `expectedDeliveredAt` es el bloqueo
+ * optimista, no un valor que se escriba: la fecha nueva la pone PostgreSQL con
+ * su reloj, nunca el navegador. Tampoco viajan organizacion, vendedor ni rol.
+ *
+ * `null` significa «la pantalla lo veia por entregar», que es distinto de no
+ * mandar nada; por eso es `nullable()` y no `optional()`.
+ */
+export const setTicketClearanceDeliverySchema = z.object({
+  ticketId: z.uuid('Boleta no válida.'),
+  delivered: z.boolean(),
+  expectedDeliveredAt: z.iso.datetime({ offset: true }).nullable(),
+})
+export type SetTicketClearanceDeliveryInput = z.infer<typeof setTicketClearanceDeliverySchema>
+
 // ---------------------------------------------------------------------------
 // Creacion masiva (CLAUDE.md 15)
 // ---------------------------------------------------------------------------

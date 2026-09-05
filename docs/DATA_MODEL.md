@@ -438,6 +438,8 @@ Adicional: `UNIQUE (id, organization_id)`, `UNIQUE (id, seller_id)` (habilitan F
 | `approved_at` | `timestamptz` | `NULL` |
 | `cancelled_at` | `timestamptz` | `NULL` |
 | `cancel_reason` | `text` | `NULL` |
+| `clearance_receipt_delivered_at` | `timestamptz` | `NULL` = paz y salvo por entregar (`0049`, BR-I15) |
+| `clearance_receipt_assumed_delivered` | `boolean` | `NOT NULL DEFAULT false`. `true` **solo** en las boletas que marcó la carga inicial de `0049`: su fecha es técnica |
 | `created_at` / `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` |
 
 #### 4.6.1 Numeración (regla crítica)
@@ -1032,6 +1034,41 @@ contaba antes ni cuenta después. Deja `ticket.release_client` con cliente, prec
 de venta, `assigned_at` y números anteriores más el motivo, además de la `ticket.update` automática
 de la fila (D-169, BR-I14).
 
+### 6.g.4 Entrega del paz y salvo (migración `0049`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `set_ticket_clearance_delivery(boleta, entregado, fecha_esperada)` | `(clearance_receipt_delivered_at, clearance_receipt_assumed_delivered)` | `setTicketClearanceDelivery`, desde el detalle de la boleta del **vendedor** |
+
+`SECURITY DEFINER`, `search_path` fijo, `EXECUTE` revocado de `public` y `anon` y concedido a
+`authenticated` y `service_role`. Bloquea la fila con `FOR UPDATE` y revalida todo BR-I15: estado
+`assigned` con cliente, que quien llama sea el **vendedor dueño** con membresía activa
+(`has_org_role(org, 'seller')`), y la fecha esperada como bloqueo optimista. **No** exige rifa activa
+y **no** consulta ninguna columna de dinero. Si el valor pedido ya es el actual devuelve el estado sin
+escribir. Al activar escribe `now()` del servidor y `assumed_delivered = false`; al desactivar,
+`null` y `false`. Deja la `ticket.update` automática de `audit_tickets`, sin acción semántica propia
+(D-170).
+
+Las dos columnas van además en dos CHECK y en un disparador:
+
+| Objeto | Qué garantiza |
+|---|---|
+| `tickets_clearance_assumed_requires_delivery` | Una fila no puede considerarse heredada sin tener fecha |
+| `tickets_clearance_requires_client` | No hay entrega registrada en una boleta sin cliente (cubre el INSERT) |
+| `tickets_reset_clearance_receipt` (`before update of client_id, inventory_status`) | La entrega es del cliente **actual**: cambiar de cliente o volver a `available` la deja pendiente. Anular **no** la borra |
+
+`search_tickets` se recrea en la misma migración para devolver las dos columnas (`drop` + `create`,
+porque cambia `RETURNS TABLE`; el `drop` se lleva los privilegios y se vuelven a conceder). Firma de
+entrada, `SECURITY INVOKER`, ramas, filtros, relevancia, orden y paginación quedan **idénticos** a
+`0029`.
+
+**Carga inicial (una sola vez, dentro de `0049`).** Un `UPDATE` acotado a
+`inventory_status = 'assigned' AND client_id IS NOT NULL` deja esas boletas con fecha técnica y
+`assumed_delivered = true`. Ninguna otra columna se toca y ninguna otra boleta se marca. En una base
+local recién reiniciada **afecta a cero filas**, porque el seed vende sus boletas después de aplicar
+las migraciones; la sentencia se prueba leyéndola del propio archivo y ejecutándola en una transacción
+revertida (`tests/db/ticket-clearance.test.ts`, E13-09).
+
 ### 6.h Coincidencias de lotería (migración `0036`)
 
 | Función | Devuelve | Consumidor |
@@ -1135,6 +1172,7 @@ La consulta interna entra por `tickets_seller_raffle_status_idx` (`0003`), que y
 | `tickets_protect_sale_price` | `tickets` | `BEFORE UPDATE` | Bloquea el UPDATE directo de `sale_price` con `paid_amount > 0`. `update_ticket_sale_price` puede corregirlo (BR-P13) |
 | `tickets_protect_client_change` | `tickets` | `BEFORE UPDATE` | Bloquea cambio de `client_id` con pagos activos (BR-I12). `reassign_ticket_client` no lo esquiva: exige además cero filas en `payment_allocations` (BR-I13) |
 | `tickets_validate_status_transition` | `tickets` | `BEFORE UPDATE` | Aplica la máquina de estados (BR-I01) e impide salir de `assigned` con pagos activos (BR-I11). Su rama `assigned → available` la usa `release_ticket_client` (BR-I14), que además exige cero filas en `payment_allocations` |
+| `tickets_reset_clearance_receipt` | `tickets` | `BEFORE UPDATE OF client_id, inventory_status` | La entrega del paz y salvo es del cliente **actual**: cambiar de cliente (BR-I13) o volver a `available` (BR-I14) la deja pendiente. Anular **no** la borra (BR-I15, `0049`) |
 | `recalc_ticket_paid_amount` | `payment_allocations` | `AFTER INSERT/UPDATE/DELETE` | Recalcula `tickets.paid_amount` |
 | `recalc_on_payment_void` | `payments` | `AFTER UPDATE OF voided_at` | Recalcula las boletas afectadas |
 | `payments_balance_check` | `payments`, `payment_allocations` | `CONSTRAINT … DEFERRABLE` | Cuadre suma = total |

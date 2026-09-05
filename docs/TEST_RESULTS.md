@@ -23,10 +23,127 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **772 ✅** | **779 ✅** | **521/525** (los 4 restantes son ajenos y **comprobados**: 2 de `back-navigation` por caché fría —I-075, en caliente **9/9**— y 2 de acumulación por orden de ejecución, `reports` de D-150 y `ventas-por-fecha`, esta con la **misma cifra** que ya registró D-168) | ✅ | ✅ |
+| Post-9 vigente (D-170, 2026-09-05) | **791 ✅** | **812 ✅** | **536/539** — los 3 restantes son ajenos y **comprobados** (ver más abajo) | ✅ | ✅ |
+| Post-9 anterior (D-169, 2026-09-05) | **772 ✅** | **779 ✅** | **521/525** (los 4 restantes son ajenos y **comprobados**: 2 de `back-navigation` por caché fría —I-075, en caliente **9/9**— y 2 de acumulación por orden de ejecución, `reports` de D-150 y `ventas-por-fecha`, esta con la **misma cifra** que ya registró D-168) | ✅ | ✅ |
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Post-9 — Entrega del paz y salvo (D-170, BR-I15, 2026-09-05)
+
+Migración `0049`: dos columnas en `tickets`, dos CHECK, el disparador `tickets_reset_clearance_receipt`,
+la RPC `set_ticket_clearance_delivery`, `search_tickets` recreada y la carga inicial única.
+
+### Línea base antes de tocar nada
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run test:db` sobre base recién sembrada, con las 48 migraciones | ✅ **779/779** en 37 archivos (55,6 s) |
+| `npm run verify` (según `HANDOFF` §1.a, D-169) | ✅ 772/772 unitarias |
+
+### Después
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ **0 errores**, 2 avisos preexistentes (`react-hooks/incompatible-library` en `DataTable` y `BulkTicketCreator`) |
+| `npm run test` (unitarias) | ✅ **791/791** en 47 archivos — antes 772/772 en 46; **+19** de `tests/unit/clearance-receipt.test.ts` |
+| `npm run build` | ✅ |
+| `npm run test:db` | ✅ **812/812** en 38 archivos (61,9 s) — antes 779/779 en 37; **+33** de `tests/db/ticket-clearance.test.ts` |
+| `tests/db/ticket-clearance.test.ts`, **tres pasadas seguidas** sobre la misma base | ✅ **33/33**, **33/33**, **33/33** — se limpia sola (I-059) |
+| `tests/e2e/paz-y-salvo.spec.ts` (escritorio) | ✅ **10/10** (50,7 s) |
+| `tests/e2e/paz-y-salvo-movil.spec.ts` (Pixel 7) | ✅ **4/4** (25,3 s) |
+| `npm run test:e2e` completo, tras `db:reset` + `seed:local` | **536/539** (26,9 min) — antes **521/525**; las **14** nuevas pasan **dentro** de la corrida completa |
+
+### Sonda de comportamiento sobre la base local, antes de escribir las pruebas
+
+Nueve comprobaciones seguidas sobre una boleta creada y borrada al terminar. Sirvieron para validar
+el diseño **antes** de cristalizarlo en una suite, y una de ellas resolvió una duda real:
+
+| # | Qué se probó | Resultado |
+|---|---|---|
+| 1 | Una boleta recién vendida | `clearance_receipt_delivered_at` nulo, `assumed_delivered` false |
+| 2 | El vendedor la marca | La RPC devuelve la fecha del servidor y `assumed = false` |
+| 3 | **Round-trip del `timestamptz`** | La RPC y el `select` de PostgREST devuelven **la misma cadena, con microsegundos**: `2026-09-05T16:13:16.360948+00:00`. Era la duda: si PostgREST truncara, el bloqueo optimista rechazaría llamadas legítimas |
+| 4 | Pedir el valor que ya está | Devuelve el estado sin escribir |
+| 5 | Pantalla desactualizada (`expected = null`) | Rechazada: «La entrega del paz y salvo cambió en otro dispositivo…» |
+| 6 | Apagar con la fecha que devolvió el `select` | ✅ — confirma que el valor que ve el navegador sirve como bloqueo optimista |
+| 7 | El Dueño | Rechazado: «Solo el vendedor de la boleta puede registrar la entrega del paz y salvo.» |
+| 8 | `reassign_ticket_client` sobre una boleta entregada | La entrega vuelve a pendiente |
+| 9 | `release_ticket_client` sobre una boleta entregada | La entrega vuelve a pendiente |
+
+### Errores encontrados y corregidos
+
+| # | Qué pasó | Causa | Corrección |
+|---|---|---|---|
+| 1 | **DEL PRODUCTO.** `tests/db/catalog.test.ts` falló en dos pruebas: `tickets_reset_clearance_receipt` era **ejecutable por `anon` y por `authenticated`** | I-020 / I-078 otra vez: PostgreSQL concede `EXECUTE` a `PUBLIC` en **cada** función nueva, y las *default privileges* de `0015` y `0032` no alcanzan a lo que se cree después | `revoke execute … from public, anon, authenticated` en la propia `0049`. Una función de disparador no necesita `EXECUTE`: el permiso se comprueba sobre la **tabla**. **Lo cazaron las comprobaciones de catálogo, no una prueba escrita a mano** |
+| 2 | **DEL PRODUCTO.** Tras «Cambiar cliente», la pantalla seguía diciendo «Paz y salvo entregado» sobre una boleta que la base ya había dejado pendiente | El interruptor siembra su estado de las props y React **no** lo reinicia cuando la prop cambia. El dato cambia también sin tocarlo: cambiar de cliente y liberar lo devuelven a pendiente desde la base | `key` en `ClearanceReceiptField` con el valor del servidor (D-170, Decisión 16). **Lo encontró una prueba E2E, no el razonamiento** |
+| 3 | La etiqueta del interruptor duplicaba el título: `getByText('Entrega del paz y salvo')` resolvía a **dos** elementos | Un `sr-only` dentro de la `label` repetía la frase que ya estaba visible | El nombre accesible pasa a salir del **título visible** por `aria-labelledby`. Además de arreglar la prueba, evita que quien escucha la pantalla oiga lo mismo dos veces |
+| 4 | Tres pruebas E2E leían la base y la encontraban sin escribir | Afirmaban sobre el estado **optimista** —que se pinta al instante— y seguían antes de que la escritura llegara | Se espera a «Entregado el …», que solo se pinta con la fecha que **devolvió el servidor**. La prueba pasa a comprobar lo que importa |
+| 5 | Cinco URLs de prueba no filtraban nada | El listado lee **`?q=`**, no `?search=`: la lista salía entera y una prueba contaba 7 boletas donde esperaba 1 | Corregido el nombre del parámetro en las dos suites |
+| 6 | Una fila se localizaba por el nombre del cliente, y ese cliente tenía **dos** boletas | I-055: el número diario suelto no identifica una boleta, y `.first()` caía en la otra | Se localiza por el enlace, que lleva los **dos** números en su nombre accesible (BR-N04, BR-N11) |
+| 7 | La comparación de alturas de dos tarjetas fallaba por **1 px** (166 vs 165) | Redondeo del navegador, no una línea nueva —una línea son ~16 px— | Se afirma lo que se quería afirmar: la diferencia es **menor que 2 px** |
+| 8 | El toque final de la prueba de gestos no navegaba | La pulsación larga se simula con `dispatchEvent`, que **no** produce el `click` que un dedo real emite después; ese `click` es el que consume la marca de `useLongPress`, así que se quedaba puesta y se comía el toque siguiente | Se recarga antes del último paso, con el porqué escrito en la prueba. Con un dedo real no ocurre |
+| 9 | La fecha esperada no coincidía con la pintada | La prueba componía «5 de sept de 2026» con opciones distintas a las de `formatDateTimeEs` | Se usan **las mismas opciones** que `src/lib/dates.ts` y se comparan las dos cadenas normalizadas: si alguien pintara la hora en UTC —cinco horas de más—, la prueba falla |
+
+### Los 3 fallos de la suite completa son ajenos, y está comprobado
+
+Se corrió **dos veces**. La primera dio **534/538** con los **cuatro** de D-169; la segunda,
+**536/539** con **tres**, porque las dos de `back-navigation` ya no aparecen con `.next/dev`
+caliente — que es justo lo que las identifica como I-075.
+
+| Prueba | Qué es | Evidencia |
+|---|---|---|
+| `back-navigation.spec.ts:25` y `:97` | **I-075**, compilación en frío del detalle de una boleta | Agotan los 60 s esperando la navegación **solo en la corrida fría**. En la segunda corrida completa **no fallan**; y aisladas en caliente, `:25` pasa **dos veces seguidas** en 3,9 s y 4,3 s |
+| `reports.spec.ts:305` | Acumulación por orden de ejecución, ya registrada en D-150 | Falla en las dos corridas, igual que en D-169 |
+| `ventas-por-fecha.spec.ts:163` | Acumulación de ventas de hoy (I-035) | **`< 26` vs `58`** en las **dos** corridas: exactamente la misma cifra que registraron D-168 y D-169, así que las suites nuevas no aportaron ni una venta |
+| `catalogo-publico-movil.spec.ts:103` | **Intermitente**, y ajeno: es el buscador que se posa (D-164/D-165), con la sensibilidad de tiempo que su propio relevo documenta | Falló **solo** en la segunda corrida. Repetido el archivo entero, **15/15**. Y el diff de este trabajo **no toca ni un archivo** de `src/features/catalog/` ni de `src/app/(catalogo)/` |
+
+Las pruebas nuevas pasan **dentro de la corrida completa**, no solo aisladas.
+
+### La consola, comprobada por la suite y no a mano
+
+La verificación manual que pedía el encargo incluye «consola limpia». Un agente **no puede** entrar a
+la aplicación —escribir una contraseña en un formulario queda fuera de lo que puede hacer—, así que
+en vez de omitirlo se añadió una prueba que sí opera con sesión real: recoge `console.error` y
+`pageerror` mientras recorre las **tres** superficies de la funcionalidad —detalle del vendedor con el
+interruptor accionado, listado con el indicador, y detalle administrativo— y exige la lista **vacía**.
+Pasa. El resto de esa lista manual (Sin pagar / Abonada / Pagada, entregado manual / carga inicial /
+pendiente, activación, desactivación y error, búsqueda activa, cambio de cliente y 320 px) lo cubren
+las otras trece.
+
+### La carga inicial, y por qué no deja rastro en local
+
+`db:reset` aplica las migraciones y el seed vende sus boletas **después**, así que el `UPDATE` de
+`0049` encuentra **cero filas** en una base local recién reiniciada. Comprobado: tras `db:reset` +
+`seed:local`, las 8 boletas `assigned` del seed quedan con `clearance_receipt_delivered_at` nulo, y
+`audit_logs` no tiene ni una fila con esas columnas.
+
+No es un fallo, y no se disimula: la prueba **E13-09** lee el `update tickets` final del propio
+archivo `0049`, comprueba que conserva sus tres condiciones, lo ejecuta sobre la tabla entera dentro
+de una transacción y hace `rollback`. Se verifica así **la sentencia que se va a aplicar en
+producción**, no una copia:
+
+| Qué se afirma | Resultado |
+|---|---|
+| Marca la boleta vendida, con `assumed_delivered = true` | ✅ |
+| No toca la disponible, la de borrador ni la anulada | ✅ |
+| No mueve `inventory_status`, `client_id`, `paid_amount`, `payment_status`, `sale_price`, `base_price`, `seller_id` ni los números, en ninguna de las cuatro | ✅ |
+| Deja auditoría con **actor nulo** —el actor de sistema— y `assumed_delivered = true` en `new_values` | ✅ |
+| Al revertir, la base queda como estaba | ✅ |
+
+Y **E13-09.b**: una venta hecha después de la migración nace con el paz y salvo **pendiente**.
+
+### Lo que se comprobó que NO cambia
+
+`tests/db/ticket-clearance.test.ts` compara la **fila entera** de la boleta antes y después de mover
+el interruptor, en `unpaid`, `partial` y `paid`: ninguna columna distinta de las dos nuevas se mueve.
+Y los tres caminos de los abonos —registrar, corregir a $0 (BR-F17) y anular (BR-F09)— dejan la
+entrega exactamente como estaba. La suite también verifica que `search_tickets` conserva su firma de
+entrada literal, su `SECURITY INVOKER`, sus privilegios (`authenticated` sí, `anon` no) y su
+aislamiento entre vendedores.
 
 ---
 
