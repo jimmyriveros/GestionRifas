@@ -303,6 +303,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `update_payment_allocation(pago, boleta, importe, importe_esperado)` | post-9 | Corrige el valor de UN abono vigente, **cero incluido** (D-158). Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-134, BR-F16, BR-F17) | Sí |
 | `update_ticket_sale_price(boleta, precio, precio_esperado)` | post-9 | Corrige el `sale_price` de UNA boleta asignada. Recalculo, ganancia y bitácora salen de los disparadores vigentes (D-137, BR-P13) | Sí |
 | `reassign_ticket_client(boleta, cliente_esperado, cliente_nuevo, motivo)` | post-9 | Corrige el `client_id` de UNA boleta vendida, dentro de la cartera de su mismo vendedor y solo si no tiene ninguna fila en `payment_allocations` ni en `lottery_ticket_matches`. No pasa por `available` ni repite el aviso de venta (D-168, BR-I13) | Sí |
+| `release_ticket_client(boleta, cliente_esperado, motivo)` | post-9 | Deshace la venta de UNA boleta que nadie ha abonado: la devuelve a `available` y borra cliente, precio, precio base, fecha de venta y `assigned_at`. Exige rifa activa, cero filas en `payment_allocations` y cero en `lottery_ticket_matches`. No anula ni elimina: los números siguen siendo suyos (D-169, BR-I14) | Sí |
 | `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142) | Sí — inserciones idempotentes |
 | `sync_lottery_schedules` · `confirm_lottery_result` · `notify_lottery_schedule_changes` | post-9 | Sincronización, confirmación+matching+avisos y avisos de programación. **Sin EXECUTE para `authenticated`** (D-145, D-146) | Sí — upserts e inserciones idempotentes |
 | `try_acquire_lottery_sync_lock` · `release_lottery_sync_lock` | post-9 | Cerrojo de una fila del tick. **Sin EXECUTE para `authenticated`** (D-148) | Un UPDATE condicional |
@@ -613,12 +614,29 @@ de la fila, dentro de un contenedor `flex flex-col gap-2`; el enlace cambia ento
 `flex-1`, porque con un hermano debajo `height: 100 %` lo desbordaría. **Sin `action`, el árbol de
 HTML es exactamente el de antes**: las pantallas que no la usan no cambian ni un nodo.
 
-Hoy esa ranura lleva una sola cosa: «Cambiar cliente» (`ReassignTicketClientDialog`) cuando la boleta
-se puede corregir, o el aviso de por qué no cuando no. Quién de las dos cosas —o ninguna, si la
-boleta ni siquiera se ha vendido— lo decide `features/tickets/reassign-client.ts`, que es puro y
-recibe los dos indicadores que `getTicketDetail` cuenta en SQL: `hasPaymentHistory` (cualquier fila
-en `payment_allocations`) y `hasLotteryMatch`. La página no consulta nada más, y la RPC vuelve a
-comprobarlo todo (BR-I13).
+Esa ranura la llena **`TicketClientActions`**, uno solo para los dos portales (D-169): antes cada
+`page.tsx` montaba el diálogo con sus propias clases, y con dos acciones eso se habría duplicado.
+Dentro puede haber dos botones, uno, o ninguno con un aviso en su lugar:
+
+| Acción | Condición | Módulo puro |
+|---|---|---|
+| «Cambiar cliente» (`ReassignTicketClientDialog`) | Vendida, sin abonos y sin coincidencia. **La rifa puede estar cerrada** (D-168) | `features/tickets/reassign-client.ts` |
+| «Liberar boleta» (`ReleaseTicketDialog`) | Lo mismo **y** la rifa activa (D-169) | `features/tickets/release-ticket.ts` |
+
+Los dos módulos son puros y reciben lo que `getTicketDetail` ya trae: `hasPaymentHistory` (cualquier
+fila en `payment_allocations`), `hasLotteryMatch` y `raffleStatus`. **La página no consulta nada
+más** —liberar no necesita clientes—, y las RPC vuelven a comprobarlo todo (BR-I13, BR-I14).
+
+Se pinta **una sola** explicación, nunca dos: los abonos y la coincidencia cierran las dos puertas a
+la vez, así que sus frases nombran las dos consecuencias, y solo la rifa cerrada tiene una propia. La
+elige `ticketClientNotice`, que reutiliza `reassignBlockedReason` en vez de repetir sus textos. En el
+teléfono los botones van uno debajo de otro a lo ancho, con sus 44 px; desde `sm` comparten fila.
+
+⚠️ **La página pregunta por `hasTicketClientActions` ANTES de montar el componente**, y no es
+decorativo: un elemento de React es «verdadero» aunque su componente devuelva `null`, así que pasarlo
+siempre haría que `ClientLinkCard` tomara su rama con `action` para una boleta **anulada** —que
+conserva su `client_id` y no tiene ni botones ni aviso— y le colgara un hermano vacío. Es la garantía
+del párrafo anterior, y se rompe sola si alguien quita esa condición.
 
 ### 8.8 Navegación del teléfono: barra inferior (D-106)
 

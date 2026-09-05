@@ -202,6 +202,7 @@ describe('funciones privilegiadas', () => {
       'log_ticket_import',
       'mark_profile_activated',
       'reassign_ticket_client',
+      'release_ticket_client',
       'report_payment_totals',
       'report_payments_by_day',
       'report_sales_totals',
@@ -263,12 +264,13 @@ describe('funciones privilegiadas', () => {
       where n.nspname = 'public'
         and p.proname in ('create_payment','void_payment','update_payment_allocation',
                           'update_ticket_sale_price','reassign_ticket_client',
+                          'release_ticket_client',
                           'assign_ticket','bulk_create_tickets','approve_tickets','cancel_ticket',
                           'match_ticket_import_clients','import_tickets_with_clients')
         and has_function_privilege('authenticated', p.oid, 'EXECUTE')
       order by p.proname
     `)
-    expect(rows.length).toBe(11)
+    expect(rows.length).toBe(12)
   })
 })
 

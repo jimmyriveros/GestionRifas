@@ -191,6 +191,13 @@ Los hallazgos de la auditoría final, con su evidencia, están en
 > única forma de que el constraint diferido `payments_balanced` no la rechace en silencio (I-059).
 > Después de eso, las dos pruebas ajenas vuelven a pasar.
 
+> **I-035, y una vuelta de tuerca (2026-09-05, D-169).** Las suites de «liberar boleta» nacen ya con
+> `purgeTestData`, pero necesitan algo más: **apuntan sus boletas aparte**, en su propia lista. Una
+> boleta liberada deja de colgar de ningún cliente, así que la limpieza —que las busca por
+> `client_id`— no la encontraría, y quedaría suelta en la rifa del seed sumando inventario para las
+> demás suites. Si escribes una prueba que **desasigna** algo, recuerda que su rastro deja de estar
+> donde lo dejaste.
+
 **No hay trabajo técnico activo autorizado.** Para operar con datos o dinero reales deben resolverse
 o aceptarse expresamente I-021, I-023 e I-024. I-061 quedó resuelto el mismo día en que se abrió. I-030, I-037 e I-046–I-052 son trabajo de ingeniería
 pendiente priorizable; I-053 queda mitigado por el protocolo de sincronía e I-054 está resuelto.

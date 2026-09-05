@@ -650,6 +650,34 @@ diálogo, `seller_id` sale de la boleta y nunca del formulario: `clients_insert`
 crear en cualquier cartera de su organización, así que la garantía tiene que estar aquí y la vuelve a
 aplicar la RPC al comprobar `v_client.seller_id <> v_ticket.seller_id`.
 
+### 4.12 Liberar una boleta vendida (`0048`, BR-I14, D-169)
+
+`release_ticket_client(uuid, uuid, text)`, con la misma propiedad que las de §4.6 y §4.11: **el
+navegador no aporta rol, organización, vendedor, estado ni precio como autoridad**. Recibe tres
+valores —boleta, cliente esperado y motivo— y la base revalida todo lo demás con la fila bloqueada
+por `FOR UPDATE`.
+
+| Comprobación | Qué impide |
+|---|---|
+| `is_org_staff(org)` o `seller_id = auth.uid()` | Que un vendedor deshaga la venta de otro, o alguien la de otra organización. El mensaje es el mismo que si la boleta no existiera: no se filtra que existe |
+| `inventory_status = 'assigned'` y `client_id not null` | Deshacer una venta que no existe, o tocar una boleta anulada, en borrador o pendiente |
+| `client_id = p_expected_client_id` | Que una pantalla desactualizada deshaga una venta que ya cambió de dueño (D-168) o que se rehízo |
+| `raffles.status = 'active'` | Dejar boletas «disponibles» en una rifa que ya no admite ventas (BR-R08) |
+| Cero filas en `payment_allocations` | Dejar un abono —incluidos los anulados y los corregidos a $0— apuntando a una venta que ya no existe |
+| Cero filas en `lottery_ticket_matches` | Contradecir una fotografía inmutable del sorteo (BR-L11) |
+| Motivo de 5 caracteres o más | Borrar el precio y la fecha de una venta sin justificación en la bitácora |
+
+Cumple las cuatro reglas de §4.5: `search_path` fijo, `REVOKE` explícito de `public` y `anon`,
+parámetros tipados sin SQL concatenado y mensajes de negocio sin detalle interno. El `GRANT` nombra a
+`authenticated` **y también a `service_role`**, por lo mismo que §4.11 (D-128, I-078), y la función
+entra en las dos listas blancas —`verify:remote` y `tests/db/catalog.test.ts`— que §4.5 obliga a
+tocar juntas.
+
+**Lo que NO cambia.** Ninguna política nueva. `tickets_update_seller` sigue sin alcanzar una boleta
+`assigned`, de modo que un `UPDATE` directo del vendedor afecta cero filas;
+`tickets_validate_status_transition` sigue puesto sobre este `UPDATE`, con su propia comprobación de
+pagos activos (BR-I11), y esta función **no lo esquiva**: su listón es más alto.
+
 ## 5. Protección de Server Actions y Route Handlers
 
 Toda Server Action parametrizada de negocio debe seguir esta secuencia. Las acciones públicas de
@@ -761,6 +789,7 @@ Eventos mínimos registrados en `audit_logs` (BR-D01):
 | `ticket.assign_seller`, `ticket.assign_client` | `ticket` | RPC |
 | `ticket.update_sale_price` | `ticket` | RPC (`update_ticket_sale_price`, D-137). Precio anterior y nuevo, cliente y vendedor |
 | `ticket.reassign_client` | `ticket` | RPC (`reassign_ticket_client`, `0047`, D-168). Cliente anterior y nuevo, vendedor, estado, precio, fecha de venta y **motivo**. La `ticket.update` automática de la fila se conserva |
+| `ticket.release_client` | `ticket` | RPC (`release_ticket_client`, `0048`, D-169). Cliente, estado, precio, precio base, fecha de venta, `assigned_at` y los dos números **anteriores**, y el **motivo**. La `ticket.update` automática de la fila se conserva |
 | `ticket.approve`, `ticket.cancel` | `ticket` | RPC |
 | `ticket.import` | `raffle` | RPC (`log_ticket_import`, 0019). Quién, cuándo, rifa, vendedor, tipo de archivo y recuentos. **Nunca el archivo** |
 | `payment.create`, `payment.update`, `payment.void` | `payment` | RPC |

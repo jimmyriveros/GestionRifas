@@ -3,7 +3,17 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-03 — **una boleta vendida se puede corregir de cliente** (D-168, BR-I13):
+- **Actualizado:** 2026-09-05 — **una boleta vendida se puede liberar** (D-169, BR-I14): cuando el
+  cliente desiste **antes de abonar nada**, el botón «Liberar boleta» —junto a «Cambiar cliente», bajo
+  la tarjeta del cliente y en los dos portales— deshace esa venta y devuelve la boleta a
+  **Disponible** con sus mismos números, lista para venderse a otra persona. Borra cliente, precio,
+  precio base, fecha de venta y `assigned_at`, y **conserva** vendedor, rifa, números, código interno
+  y aprobación. Exige **rifa activa** —esa es la diferencia con corregir el cliente—, **cero** filas
+  en `payment_allocations` (anulados y $0 incluidos) y **cero** en `lottery_ticket_matches`, y pide
+  motivo. **No anula ni elimina**: la combinación de números no se quema. No crea ningún aviso ni
+  mueve ninguna comisión. Migración **`0048`**, **solo aplicada en local**: el proyecto real no se ha
+  tocado y no se ha desplegado nada.
+  Antes, el 2026-09-03: **una boleta vendida se puede corregir de cliente** (D-168, BR-I13):
   botón «Cambiar cliente» bajo la tarjeta del cliente, en los dos portales, con un solo diálogo que
   deja elegir o crear el cliente correcto dentro de la cartera del **mismo vendedor** y pide motivo.
   Escribe **solo** `tickets.client_id`: ni precio, ni fecha, ni estado, ni un segundo aviso de venta.
@@ -1012,7 +1022,7 @@ Ninguna nueva.
 |---|---|
 | Avisar al personal de **cada** venta puede ser mucho ruido en una rifa grande | El Dueño y el Administrador ya ven todas las ventas en su panel. Se implementó así porque el encargo lo pedía; quitarlo es una línea de `notify_ticket_sold` (D-093) |
 | No existe comisión del vendedor padre sobre las ventas de su equipo | Regla comercial **sin definir** por el dueño. La arquitectura queda lista; no se implementó nada |
-| Cambiar de **vendedor** una boleta vendida sigue siendo imposible | Es del esquema, no de esta funcionalidad (nota de BR-G07). Si el negocio lo necesita, exige rediseñar la relación cliente–vendedor. **Precisado el 2026-09-03 (D-168):** esta fila decía «reasignar una boleta vendida», y se leía como si tampoco se pudiera **corregir el cliente**. Eso sí se puede desde `0047`, dentro de la cartera del mismo vendedor y sin abonos ni coincidencias (BR-I13) |
+| Cambiar de **vendedor** una boleta vendida sigue siendo imposible | Es del esquema, no de esta funcionalidad (nota de BR-G07). Si el negocio lo necesita, exige rediseñar la relación cliente–vendedor. **Precisado el 2026-09-03 (D-168):** esta fila decía «reasignar una boleta vendida», y se leía como si tampoco se pudiera **corregir el cliente**. Eso sí se puede desde `0047`, dentro de la cartera del mismo vendedor y sin abonos ni coincidencias (BR-I13). **Y desde `0048` (D-169, BR-I14) también se puede LIBERAR** una boleta que nadie ha abonado: vuelve a `available`, con su mismo vendedor. Lo que sigue siendo imposible es cambiarle el **vendedor** a una boleta vendida |
 
 ### 6. Qué debe revisar el siguiente agente
 
@@ -3158,6 +3168,104 @@ reejecutó: el esquema local no cambió. Detalle en `TEST_RESULTS.md`.
 4. **`tickets_select` no se toca.**
 5. **No hay etiqueta `fase-N`.**
 6. Cruz Roja y Bogotá pueden no confirmarse solas (I-081): no eludir.
+
+---
+
+## Mantenimiento post-9 — liberar una boleta vendida (D-169, BR-I14, 2026-09-05)
+
+Autorizado expresamente por el dueño. Cubre el caso en que **el cliente desiste antes de abonar
+nada**: hasta hoy la boleta se quedaba «vendida» a alguien que ya no la quiere, y la única salida
+dentro de la aplicación era **anularla**, que quema sus dos números para el resto de la rifa
+(BR-N08). Migración **`0048`**, **solo aplicada en local**: no se ha tocado el proyecto real ni se ha
+desplegado nada.
+
+### 1. Funcionalidades implementadas
+
+* **«Liberar boleta» en el detalle de la boleta, en los dos portales.** El botón vive junto a
+  «Cambiar cliente», **debajo** de la tarjeta del cliente y **fuera** de su enlace. En el teléfono
+  los dos van uno debajo de otro, a lo ancho y con sus 44 px; desde `sm` comparten fila.
+* **Un diálogo de confirmación, montado sobre `ConfirmDialog`.** Dice la consecuencia —«Dejará de
+  estar asignada a {nombre} y volverá a quedar disponible para venderla otra vez. Se borran el precio
+  y la fecha de esta venta; los números, el vendedor y la rifa no cambian.»—, enseña el **número
+  diario**, el **número semanal** y el **cliente actual**, y pide el **motivo de la liberación**. Dos
+  salidas: «Cancelar» y «Confirmar liberación», que dice «Liberando...» mientras trabaja. **No es
+  destructivo**: la boleta vuelve al inventario y se puede vender otra vez.
+* **Deshace la venta entera, en una sola sentencia.** `inventory_status` a `available` y a `null`
+  `client_id`, `sale_price`, `base_price`, `sale_date` y `assigned_at`. Conserva vendedor,
+  organización, rifa, los dos números, `internal_code`, `paid_amount` y los datos de creación y
+  aprobación.
+* **Liberar no es anular ni eliminar.** La combinación de números **sigue siendo suya** y la boleta
+  se vuelve a vender por el flujo normal, que copia otra vez el precio vigente de la rifa (BR-P03).
+* **Puertas cerradas, todas revalidadas en SQL con la fila bloqueada:** boleta `assigned` con
+  cliente; quien llama es su vendedor o personal de la organización; el cliente esperado sigue
+  siendo el de la fila (bloqueo optimista); **rifa activa**; **cero** filas en `payment_allocations`
+  —anulados y corregidos a $0 incluidos— y **cero** en `lottery_ticket_matches`; motivo de 5
+  caracteres o más.
+* **Donde no se puede, se explica, y con UNA sola frase.** Los abonos y la coincidencia de lotería
+  cierran las **dos** acciones de la tarjeta, así que sus avisos de D-168 se ensancharon para
+  nombrarlas juntas; la rifa cerrada tiene el suyo y convive con «Cambiar cliente», que ahí sí se
+  puede. Una boleta sin vender —o anulada— no enseña ni botones ni aviso.
+* **No crea ningún aviso ni mueve ninguna comisión.** `notify_ticket_sold` exige la transición **a**
+  `assigned`; `recalc_seller_commission` cuenta boletas `payment_status = 'paid'`, y una boleta sin
+  abonos no contaba antes ni cuenta después.
+* **La página no consulta nada nuevo.** `getTicketDetail` ya traía `hasPaymentHistory`,
+  `hasLotteryMatch` y `raffleStatus`.
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` ✅ (`typecheck`, lint **0 errores** y 2 avisos preexistentes de TanStack, **772/772**
+unitarias, `build`). `npm run test:db` **779/779** en 37 archivos, sobre una base recién sembrada con
+`0048` aplicada; la línea base antes de tocar nada era **754/754** en 36. La suite nueva de base de
+datos, **25/25**, se ejecutó **tres veces seguidas** sobre la misma base para comprobar que se limpia
+sola. E2E de esta tanda **9/9** (7 escritorio + 2 móvil) y suite completa **521/525** (29,1 min).
+
+**Los 4 fallos de la suite completa son ajenos y preexistentes, y se comprobó.** Dos son **I-075**
+—`back-navigation.spec.ts:25` y `:97`, agotando 60 s en la primera navegación a cada detalle de
+boleta con `.next/dev` borrado—, y **repetidos en caliente con base recién sembrada dan 9/9 en
+35,8 s**. Los otros dos son de acumulación por orden de ejecución: `reports.spec.ts` (ya registrado
+en D-150) y `ventas-por-fecha.spec.ts`, este último con **exactamente la misma cifra que registró
+D-168** (`< 26` vs `58`). Además se comprobó de forma directa que las suites nuevas **no dejan
+rastro**: contando antes y después de ejecutarlas sobre una base recién sembrada, las ventas de hoy
+(8), los clientes (6) y las boletas (36) quedan **idénticos**.
+
+Los seis errores encontrados por el camino —tres de las pruebas nuevas, dos de la interfaz que **sí**
+habrían llegado a producción y uno del propio agente al ejecutar las pruebas— están en
+`TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+| Archivo | Qué hace |
+|---|---|
+| `0048_release_ticket_client.sql` | Añade `release_ticket_client(uuid, uuid, text)`: `SECURITY DEFINER`, `search_path` fijo, bloquea la boleta con `FOR UPDATE`, revalida los siete requisitos de BR-I14, escribe seis columnas de `tickets` en una sola sentencia y audita `ticket.release_client` con el motivo y los valores anteriores. `EXECUTE` revocado de `public` y `anon`, concedido a `authenticated` y `service_role`. **Aditiva**: no altera ninguna tabla, política, disparador ni función existente. **Solo aplicada en local.** No contiene ninguna sentencia de datos |
+
+### 4. Variables de entorno
+
+Ninguna nueva.
+
+### 5. Problemas que permanecen
+
+Los de siempre: I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-030, I-024, I-021, I-023,
+I-059, I-060. Ninguno nuevo.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **`0048` NO está en el proyecto real.** El código que la necesita tampoco está desplegado. Cuando
+   se promueva, **la migración va primero**: al revés, la pantalla enseña «Liberar boleta» y el botón
+   de confirmar falla hasta que termina el despliegue.
+2. **Liberar, anular y eliminar son tres cosas distintas.** Liberar devuelve la boleta al inventario
+   con sus mismos números; anular la retira para siempre y **reserva** esa combinación (BR-N08);
+   eliminar borra una boleta que nunca se vendió (BR-B05). Ni el código ni los textos pueden
+   mezclarlos.
+3. **La rifa activa es la ÚNICA diferencia con BR-I13**, y es deliberada: liberar devuelve la boleta
+   al inventario para volver a venderla —acto comercial (BR-R08)—; corregir el cliente repara una
+   identidad ya escrita y por eso se permite con la rifa cerrada.
+4. **No uses `paid_amount` para decidir si una boleta «tiene pagos»**: vuelve a cero al anular.
+5. **El aviso de por qué no se puede se escribe una vez por CAUSA, no una por acción.** Lo compone
+   `ticketClientNotice` en `features/tickets/release-ticket.ts`, reutilizando `reassignBlockedReason`.
+6. **La ranura `action` de `ClientLinkCard` la llena `TicketClientActions`**, no un diálogo suelto. Y
+   la página pregunta antes por `hasTicketClientActions`: un elemento de React siempre es «verdadero»
+   aunque no pinte nada, y una boleta **anulada** conserva su cliente sin tener nada que ofrecer.
+7. **No hay etiqueta `fase-N`**: es mantenimiento.
 
 ---
 

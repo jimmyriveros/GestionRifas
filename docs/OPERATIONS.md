@@ -108,11 +108,46 @@ El botón desaparece, con su explicación en pantalla, cuando la boleta ya no pu
 
 | Situación | Qué se ve | Qué hacer |
 |---|---|---|
-| La boleta tiene abonos en su historial —incluso anulados o corregidos a $0— | «Esta boleta tiene abonos en su historial y ya no puede cambiar de cliente.» | Anular los abonos **no** la desbloquea: la fila se queda. Si de verdad hay que moverla, es una corrección de datos y la hace quien administre la base |
-| La boleta ya salió en un resultado de lotería | «Esta boleta ya hace parte de un resultado registrado y no puede cambiar de cliente.» | Nada: la fotografía del sorteo es inmutable a propósito |
+| La boleta tiene abonos en su historial —incluso anulados o corregidos a $0— | «Esta boleta tiene abonos en su historial: ya no puede cambiar de cliente ni liberarse.» | Anular los abonos **no** la desbloquea: la fila se queda. Si de verdad hay que moverla, es una corrección de datos y la hace quien administre la base |
+| La boleta ya salió en un resultado de lotería | «Esta boleta ya hace parte de un resultado registrado: no puede cambiar de cliente ni liberarse.» | Nada: la fotografía del sorteo es inmutable a propósito |
 
 Cambiar el **vendedor** de una boleta ya vendida sigue siendo imposible (BR-G07): eso es otra cosa y
 lo impide el esquema. Detalle de las dos reglas en `BUSINESS_RULES.md` (BR-I12, BR-I13).
+
+---
+
+## 4.c Liberar una boleta que el cliente ya no quiere
+
+El cliente se echa atrás **antes de abonar nada**. La boleta no se anula —eso quemaría sus dos
+números para el resto de la rifa (BR-N08)—: se **libera**, y vuelve al inventario con sus mismos
+números, lista para venderse a otra persona.
+
+Desde el mismo sitio que «Cambiar cliente», bajo la tarjeta del cliente, hay un botón **«Liberar
+boleta»**. El diálogo enseña los dos números y el cliente actual, pide el **motivo de la liberación**
+y se confirma. Al terminar, la boleta queda **Disponible**, sin cliente, sin precio y sin fecha de
+venta, y se vende otra vez por el flujo normal —que vuelve a copiar el precio vigente de la rifa
+(BR-P03)—.
+
+Lo puede hacer **el vendedor dueño de la boleta** y también el Dueño o un Administrador. El botón
+desaparece, con su explicación en pantalla, cuando no se puede:
+
+| Situación | Qué se ve | Qué hacer |
+|---|---|---|
+| La boleta tiene abonos en su historial —incluso anulados o corregidos a $0— | «Esta boleta tiene abonos en su historial: ya no puede cambiar de cliente ni liberarse.» | Si hubo dinero de por medio, la salida es **anular** la boleta (Dueño o Administrador), no liberarla |
+| La boleta ya salió en un resultado de lotería | «Esta boleta ya hace parte de un resultado registrado: no puede cambiar de cliente ni liberarse.» | Nada: la fotografía del sorteo es inmutable a propósito |
+| La rifa ya no está activa | «La rifa ya no está activa: esta boleta no se puede liberar.» | Ahí la única salida es **anularla**, y eso lo hace el Dueño o un Administrador |
+
+**Liberar, anular y eliminar no son lo mismo**, y conviene tenerlo claro antes de tocar nada:
+
+| | Qué pasa con la boleta | Qué pasa con sus números | Quién |
+|---|---|---|---|
+| **Liberar** | Vuelve a Disponible y se puede vender otra vez | Siguen siendo suyos | Su vendedor, o el personal |
+| **Anular** | Queda Anulada para siempre | **Reservados**: no se reutilizan en esa rifa | Solo Dueño o Administrador |
+| **Eliminar** | Desaparece; solo si nunca se vendió ni tuvo abonos | Quedan libres | Solo Dueño o Administrador |
+
+Todo queda en la bitácora: quién liberó, cuándo, a quién estaba vendida, por cuánto, en qué fecha y
+por qué. Detalle de la regla en `BUSINESS_RULES.md` (BR-I14) y de la decisión en `DECISIONS.md`
+(D-169).
 
 ---
 

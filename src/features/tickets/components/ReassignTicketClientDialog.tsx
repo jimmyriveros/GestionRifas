@@ -82,11 +82,14 @@ export function ReassignTicketClientDialog({
     <>
       {/* En el telefono ocupa el ancho y mide 44 px de alto: se pulsa con el
           dedo, igual que las demas acciones de esta pantalla (D-085). El
-          texto va SIEMPRE visible junto al icono. */}
+          texto va SIEMPRE visible junto al icono.
+
+          `sm:w-auto` desde D-169: comparte fila con «Liberar boleta», y dos
+          botones que declaran `width: 100%` no reparten bien ese espacio. */}
       <Button
         type="button"
         variant="outline"
-        className="h-11 w-full sm:h-9"
+        className="h-11 w-full sm:h-9 sm:w-auto"
         onClick={() => setOpen(true)}
       >
         <UserRoundIcon className="size-4" aria-hidden />

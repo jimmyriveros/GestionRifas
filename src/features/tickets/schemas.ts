@@ -147,6 +147,29 @@ export const ticketClientSearchSchema = z.object({
 })
 export type TicketClientSearchInput = z.infer<typeof ticketClientSearchSchema>
 
+/**
+ * Liberar una boleta vendida que nadie ha abonado (D-169, BR-I14).
+ *
+ * `expectedClientId` es a quien la pantalla creia que pertenecia la boleta: la
+ * RPC lo compara con la fila bloqueada y rechaza si otro cambio llego antes.
+ * NO viaja el vendedor, ni el estado, ni el precio: los lee la base de la
+ * propia boleta.
+ *
+ * Lo que NO se comprueba aqui: rifa activa, historial de abonos y coincidencias
+ * de loteria. Eso depende de filas que el navegador no puede ver y lo aplica
+ * `release_ticket_client` con la boleta bloqueada.
+ */
+export const releaseTicketSchema = z.object({
+  ticketId: z.uuid('Boleta no válida.'),
+  expectedClientId: z.uuid('Cliente no válido.'),
+  reason: z
+    .string()
+    .trim()
+    .min(5, 'Explica el motivo con al menos 5 caracteres.')
+    .max(500, 'El motivo no puede superar 500 caracteres.'),
+})
+export type ReleaseTicketInput = z.infer<typeof releaseTicketSchema>
+
 // ---------------------------------------------------------------------------
 // Creacion masiva (CLAUDE.md 15)
 // ---------------------------------------------------------------------------

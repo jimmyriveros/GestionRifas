@@ -9,14 +9,14 @@ import { listClientOptions } from '@/features/clients/queries'
 import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
 import { listClientPayments } from '@/features/payments/queries'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
-import { ReassignTicketClientDialog } from '@/features/tickets/components/ReassignTicketClientDialog'
 import { TicketActions } from '@/features/tickets/components/TicketActions'
+import { TicketClientActions } from '@/features/tickets/components/TicketClientActions'
 import { TicketSalePrice } from '@/features/tickets/components/TicketSalePrice'
 import { getTicketDetail } from '@/features/tickets/queries'
-import { canReassignClient, reassignBlockedReason } from '@/features/tickets/reassign-client'
+import { canReassignClient } from '@/features/tickets/reassign-client'
+import { hasTicketClientActions } from '@/features/tickets/release-ticket'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
-import { ticketLabel } from '@/lib/tickets'
 
 export default async function TicketDetailPage({
   params,
@@ -37,7 +37,6 @@ export default async function TicketDetailPage({
   // vendedor de la boleta — ofrecer los demas seria proponer opciones que la
   // base va a rechazar (BR-C05).
   const canReassign = canReassignClient(ticket)
-  const reassignReason = reassignBlockedReason(ticket)
 
   const [payments, reassignClients] = await Promise.all([
     ticket.clientId ? listClientPayments(ticket.clientId) : Promise.resolve([]),
@@ -117,19 +116,8 @@ export default async function TicketDetailPage({
                 name={ticket.clientName ?? 'Cliente'}
                 phone={ticket.clientPhone}
                 action={
-                  canReassign ? (
-                    <div className="sm:w-fit">
-                      <ReassignTicketClientDialog
-                        ticketId={ticket.id}
-                        ticketNumbers={ticketLabel(ticket)}
-                        currentClientId={ticket.clientId}
-                        currentClientName={ticket.clientName ?? 'Cliente'}
-                        currentClientPhone={ticket.clientPhone}
-                        clients={reassignClients}
-                      />
-                    </div>
-                  ) : reassignReason ? (
-                    <p className="text-muted-foreground px-1 text-sm">{reassignReason}</p>
+                  hasTicketClientActions(ticket) ? (
+                    <TicketClientActions ticket={ticket} clients={reassignClients} />
                   ) : undefined
                 }
               />

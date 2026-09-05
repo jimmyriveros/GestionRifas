@@ -85,7 +85,15 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
   rompían la cota de `ventas-por-fecha` — dos pruebas ajenas fallando por datos,
   no por producto (I-035). Esa limpieza es también el único sitio que **borra
   una fotografía de coincidencia**, apagando su disparador de inmutabilidad
-  dentro de la misma transacción. El rediseño de «Registrar abono»
+  dentro de la misma transacción. Liberar una boleta (D-169) vive en
+  `liberar-boleta.spec.ts` (escritorio: los dos portales, el diálogo con los dos
+  números y el cliente, la boleta que sale de la ficha y **se vuelve a vender**,
+  el motivo obligatorio, el aislamiento entre vendedores y los dos casos
+  bloqueados) y `liberar-boleta-movil.spec.ts` (teléfono: los **dos** botones a
+  44 px uno debajo de otro, el confirmar dentro de la ventana y el aviso que no
+  desborda). Se limpian igual, y además apuntan sus **boletas** aparte: tras
+  liberarlas ya no cuelgan de ningún cliente, así que `purgeTestData` no las
+  encontraría por ahí. El rediseño de «Registrar abono»
   (D-138) vive en `abono-registrar-movil.spec.ts`; la lógica de dinero sigue en
   `payments.spec.ts`. Esa misma spec clava **D-139** (`appearance: none` del date y
   que a 360 px Fecha no se monta encima de Método). Playwright en Chromium **no
@@ -169,6 +177,7 @@ para poder ir directo a la prueba en vez de buscarla.
 | 20 | Recálculo de saldo | BR-F11 | `db/payments-phase5.test.ts` | 5 |
 | 21 | Bloqueo de cambio de cliente con pagos | BR-I12 | `db/payments-phase5.test.ts` | 5 |
 | 21.b | Corrección del cliente de una boleta vendida, y sus siete puertas cerradas | BR-I13 | `db/reassign-client.test.ts`, `unit/reassign-client.test.ts`, `e2e/cambiar-cliente*.spec.ts` | post-9 |
+| 21.c | Liberación de una boleta vendida sin abonos, y sus siete puertas cerradas | BR-I14 | `db/release-ticket.test.ts`, `unit/release-ticket.test.ts`, `e2e/liberar-boleta*.spec.ts` | post-9 |
 | 22 | Aprobación de boletas creadas por vendedor | BR-I09 | `e2e/seller-tickets.spec.ts` | 3 |
 | 23 | Restricciones de rifas cerradas | BR-R08, BR-R09 | `db/phase3-admin.test.ts` | 3 |
 | 24 | RLS | SECURITY §4 | `db/catalog.test.ts`, `db/rls-isolation.test.ts`, `db/security-phase7.test.ts` | 2 |

@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente | **749 ✅** | **754 ✅** | **514/516** (los 2 restantes son fallos de acumulación por orden de ejecución —`reports` de D-150 y `ventas-por-fecha`—, **comprobados preexistentes**: se reproducen igual, y con la misma cifra, con las suites de D-168 excluidas) | ✅ | ✅ |
+| Post-9 vigente | **772 ✅** | **779 ✅** | **521/525** (los 4 restantes son ajenos y **comprobados**: 2 de `back-navigation` por caché fría —I-075, en caliente **9/9**— y 2 de acumulación por orden de ejecución, `reports` de D-150 y `ventas-por-fecha`, esta con la **misma cifra** que ya registró D-168) | ✅ | ✅ |
+| Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
@@ -8085,6 +8086,126 @@ Guardar; la boleta debe quedar **Sin pagar** y el abono seguir en el historial e
 
 **El abono de $1 sigue siendo de $1.** Es un dato real y corregirlo no estaba en el encargo. Ahora el
 propio vendedor puede dejarlo en $0 desde la pantalla, que era justamente el objetivo.
+
+---
+
+## Liberar una boleta vendida (D-169, BR-I14) — 2026-09-05
+
+**Encargo.** El cliente desiste **antes de abonar nada** y la boleta se queda «vendida» a alguien que
+ya no la quiere. Dentro de la aplicación la única salida era **anularla**, que la retira de
+circulación para siempre y **quema sus dos números** en la rifa (BR-N08) aunque el número esté
+perfectamente disponible para el siguiente comprador. Se pide la operación de verdad —«Liberar
+boleta»—, en los dos portales, con permisos, concurrencia, motivo y bitácora.
+
+### Lo que se comprobó antes de escribir código
+
+La transición `assigned → available` **ya era legal** desde la Fase 2: `tickets_validate_status_transition`
+(`0004`) la admite y la máquina de estados de `BUSINESS_RULES` la llamaba «reversión administrativa».
+Lo que no existía era el camino para ejecutarla. Se comprobó además, con un `UPDATE` real dentro de
+una transacción revertida sobre la base local, que las seis columnas se pueden poner a la vez sin
+violar ningún `CHECK` —`tickets_available_has_no_client`, `tickets_assigned_requires_sale`,
+`tickets_sale_price_not_above_base` y `tickets_paid_amount_range`— y que `payment_status`, que es una
+columna **generada**, vuelve sola a `unpaid`.
+
+### Verificaciones ejecutadas
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase start` | ✅ (contenedores ya levantados) |
+| `npm run db:reset` | ✅ `0048` aplica limpia sobre las 47 anteriores |
+| `npm run seed:local` | ✅ |
+| `npm run test:db` (antes de tocar nada) | ✅ **754/754** en 36 archivos — línea base |
+| `npm run verify` (antes de tocar nada) | ✅ **749/749** unitarias, lint 0 errores, build — línea base |
+| `npm run test:db` (después) | ✅ **779/779** en 37 archivos (59 s) |
+| `npx vitest run --config vitest.db.config.mts tests/db/release-ticket.test.ts` | ✅ **25/25**, y **tres pasadas seguidas** sobre la misma base para comprobar que la suite se limpia sola |
+| `npm run test` (unitarias) | ✅ **772/772** en 46 archivos (+23) |
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 errores; 2 avisos preexistentes de `react-hooks/incompatible-library` (TanStack) |
+| `npm run build` | ✅ |
+| `npm run verify` (entero) | ✅ |
+| `npx playwright test tests/e2e/liberar-boleta.spec.ts --project=escritorio` | ✅ **7/7** |
+| `npx playwright test tests/e2e/liberar-boleta-movil.spec.ts --project=movil` | ✅ **2/2** |
+| `npx playwright test tests/e2e/cambiar-cliente.spec.ts --project=escritorio` | ✅ **9/9** — la funcionalidad de D-168 sigue intacta tras compartir la ranura `action` |
+| `npx playwright test cambiar-cliente-movil boleta-estrecha-movil --project=movil` | ✅ **4/4** |
+| `npx playwright test` (suite completa, tras `db:reset` + `seed:local`) | **521/525** (29,1 min). Las **9 nuevas pasaron**. Los 4 fallos son ajenos y está comprobado: ver abajo |
+| `npx playwright test tests/e2e/back-navigation.spec.ts` (en caliente, tras `db:reset` + `seed:local`) | ✅ **9/9** en 35,8 s — los dos fallos de la pasada completa eran **I-075** |
+
+⚠️ **Los 4 fallos de la suite completa NO son de este trabajo, y se comprobó en vez de suponerlo.**
+
+| Prueba | Qué falló | Por qué, y la evidencia |
+|---|---|---|
+| `back-navigation.spec.ts:25` y `:97` | `page.waitForURL` agotando los **60 s** en la primera navegación a `/owner/tickets/[ticketId]` y a `/seller/tickets/[ticketId]` | **I-075**, firma exacta. Se había borrado `.next/dev`, así que las dos rutas se compilaban bajo demanda dentro del presupuesto de una sola prueba. **Repetido en caliente con base recién sembrada: 9/9 en 35,8 s** |
+| `reports.spec.ts:305` › «el panel administrativo muestra pagos recientes» | `getByText('(anulado)')` no aparece | Acumulación por orden de ejecución, ya registrada en **D-150**: el pago anulado del seed deja de estar entre los **5 más recientes** cuando media docena de suites cobra boletas |
+| `ventas-por-fecha.spec.ts:163` › «muestra inicialmente las ventas de HOY» | `Expected: < 26 · Received: 58` | Familia de **I-035**. **La cifra es exactamente la misma que registró D-168** (`< 26` vs `58`), o sea que la línea base no se movió con este trabajo |
+
+**Prueba directa de que las suites nuevas no aportan nada a esas dos cifras.** Sobre una base recién
+sembrada se contaron las ventas de hoy, los clientes y las boletas; se ejecutaron **las dos suites
+nuevas** (7/7 y 2/2); y se volvió a contar:
+
+| | Antes | Después |
+|---|---|---|
+| Boletas vendidas con fecha de hoy | 8 | **8** |
+| Clientes | 6 | **6** |
+| Boletas | 36 | **36** |
+
+**Idénticas.** No se tocan aquí porque arreglar esas dos pruebas ajenas está fuera del alcance de este
+encargo; siguen anotadas con I-035 y D-150.
+
+### Errores encontrados por el camino, y qué se hizo
+
+Ninguno del producto en la parte de SQL; dos de la interfaz que **sí** habrían llegado a producción,
+y uno del propio agente al ejecutar las pruebas.
+
+| # | Qué falló | Causa | Corrección |
+|---|---|---|---|
+| 1 | Dos casos de la suite de base de datos: «boleta en borrador» y «pendiente de aprobación» | Se montaba el escenario con `UPDATE inventory_status`, y la máquina de estados **no admite** `available → draft`. El error era de la prueba, no del producto | Las boletas se **insertan** directamente en su estado, con el parámetro que `insertTicket` ya tenía |
+| 2 | La rifa propia de la suite no se podía crear | `raffles.start_date` es `NOT NULL` | Se pasan `start_date` y `end_date`, como hace `lottery-results.test.ts` |
+| 3 | El `afterAll` de la suite reventaba al borrar su rifa | `seller_commissions_raffle_org_fk`: `tickets_sync_commission` había creado la fila de comisión al vender la boleta | La limpieza borra antes `commission_ledger` y `seller_commissions` de esa rifa, dentro de la misma transacción |
+| 4 | **Una boleta ANULADA se quedaba con un hueco vacío bajo la tarjeta del cliente** | Encontrado leyendo, no por una prueba. Una boleta `cancelled` **conserva su `client_id`**, así que la página pintaba `ClientLinkCard`; y como se le pasaba `action={<TicketClientActions …/>}`, la tarjeta cambiaba su árbol de HTML —`flex-1` en vez de `h-full`, más un hermano vacío— aunque el componente no pintara nada: **un elemento de React siempre es «verdadero»**. Rompía la garantía que D-168 dejó escrita («sin `action` el HTML no cambia ni un nodo») | `hasTicketClientActions(ticket)`, que la página pregunta **antes** de montar el componente. Cubierto por cinco casos unitarios nuevos |
+| 5 | Los dos botones no repartían bien la fila en escritorio | «Cambiar cliente» declaraba `w-full` sin `sm:w-auto`: solo con `sm:flex-row` se nota, porque antes estaba solo en su fila | `sm:w-auto` en el botón de D-168, con su comentario |
+| 6 | **Una pasada completa de E2E empezó a fallar desde la PRIMERA prueba**, con «element(s) not found» y timeouts de 60 s en pantallas que este trabajo no toca (`/owner/raffles/*/edit`) | **Error del agente, no del producto.** Se había cancelado una pasada anterior matando su shell, y eso **no mata el árbol de procesos**: seguían vivos `npx-cli.js` → `@playwright/test/cli.js` → `npm run dev:local` → `next dev`. Había **dos suites escribiendo en la misma base** y pegándole al mismo servidor. Confirmado listando los procesos: dos `playwright test` simultáneos | Se mataron los doce procesos del proyecto, se comprobó que el **puerto 3000 quedaba libre**, se borró `.next/dev`, y se repitió desde `db:reset` + `seed:local`. Queda anotado como trampa en `HANDOFF.md` §9 |
+
+### Pruebas nuevas
+
+**Base de datos** — `tests/db/release-ticket.test.ts`, 25 casos en siete bloques:
+
+| Bloque | Qué demuestra |
+|---|---|
+| `E12-01` quién puede | El vendedor libera su propia boleta; el Dueño y el Administrador también; **otro vendedor** de la misma organización, **otra organización** y una **sesión anónima** son rechazados, los tres con el mensaje genérico de «no existe o no tienes acceso» |
+| `E12-02` solo una boleta vendida | Rechaza una `available`, una en **borrador**, una **pendiente de aprobación** y una **anulada** |
+| `E12-03` rifa, historial y motivo | Rechaza una boleta cuya rifa se **cerró después de venderla**; una con abono **activo**; una con abono **anulado**; una con la asignación **corregida a $0** —en los dos últimos `paid_amount` es 0 y aun así se rechaza, que es el punto de BR-I14—; una con **coincidencia de lotería**; y un motivo vacío, de espacios o de menos de 5 caracteres |
+| `E12-04` concurrencia | Una pantalla que todavía cree en el cliente viejo recibe «ya cambió de cliente» y **no deshace** la venta; y **dos liberaciones simultáneas** dejan exactamente una ganadora, sin estado parcial |
+| `E12-05` qué cambia y qué se conserva | Se comprueban las **seis** columnas que se borran y **diez** que no, campo a campo; que no queda `cancelled_at` ni `cancel_reason`; que no se crea ningún pago ni ningún aviso de venta; y que la boleta **se vuelve a vender** por el flujo normal conservando sus números y su código interno |
+| `E12-06` auditoría | `ticket.release_client` con cliente, vendedor, estado, precio, fecha de venta y los dos números **anteriores**, más el **motivo** y el actor; y la `ticket.update` automática sigue escribiéndose |
+| `E12-07` la red anterior | El `UPDATE` directo de un vendedor sobre una boleta asignada sigue afectando **cero filas** sin error (RLS), y `tickets_validate_status_transition` sigue rechazando la salida de `assigned` con pagos activos (BR-I11) |
+
+**Unitarias** — `tests/unit/release-ticket.test.ts`, 23 casos: `canReleaseTicket` (los cuatro
+bloqueos, incluidos los tres estados de rifa que no valen), `ticketClientNotice` (que con abonos o
+coincidencia nombra **las dos** acciones; que con la rifa cerrada habla **solo** de liberar y
+«Cambiar cliente» sigue disponible; que **no** ofrece anular como salida; y que una boleta sin vender
+no enseña nada), `hasTicketClientActions` (incluida la **boleta anulada**, que es el error 4) y
+`releaseTicketSchema` (ids no válidos, motivo corto —también si son espacios—, motivo de más de 500, y
+que **no acepta** cliente nuevo, precio ni fecha: liberar no vende nada).
+
+**E2E** — `liberar-boleta.spec.ts` (7, escritorio) y `liberar-boleta-movil.spec.ts` (2, Pixel 7):
+el diálogo enseña los **dos números** y el cliente actual y deja la boleta disponible —comprobando en
+la base las seis columnas borradas y las cuatro conservadas—; sin motivo el botón está desactivado
+(también con cuatro caracteres) y al cancelar no cambia nada; la boleta **sale de la ficha del
+cliente** y **se vuelve a vender** por el flujo normal; una boleta con abonos enseña **una** frase que
+nombra las dos acciones y **ningún** botón; una sin vender no enseña nada; el Dueño usa **el mismo
+diálogo** y ve los dos botones; y un vendedor **no ve siquiera la pantalla** de una boleta ajena. En
+el teléfono: los **dos** botones a 44 px, uno debajo de otro y sin desbordar; el confirmar **dentro**
+de la ventana; y el aviso de la boleta bloqueada, entero.
+
+### Qué NO se hizo
+
+* **No se tocó el proyecto real.** `0048` existe solo en local; no hubo respaldo, ni `db push`, ni
+  despliegue, ni push a `origin`.
+* **No se implementó ninguna devolución de dinero.** Una boleta con abonos —aunque estén anulados—
+  no se libera, y el encargo lo excluía expresamente.
+* **No se tocaron `assign_ticket`, `cancel_ticket`, `bulk_delete_tickets` ni
+  `reassign_ticket_client`.** Liberar es una operación nueva al lado, no una rama dentro de ninguna
+  de ellas.
 
 ---
 

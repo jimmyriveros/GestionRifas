@@ -332,6 +332,7 @@ Ejemplos normativos:
 | BR-I11 | Una boleta con pagos activos no puede anularse; primero deben anularse los pagos. | S, D | 5 |
 | BR-I12 | Una boleta con pagos activos no puede cambiar de cliente. | S, D | 5 |
 | BR-I13 | Una boleta vendida **puede** corregirse de cliente dentro de la cartera de su mismo vendedor, siempre que no tenga **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. | C, S, D | post-9 |
+| BR-I14 | Una boleta vendida **puede liberarse** —volver a `available`, sin cliente ni venta— cuando el cliente desiste antes de abonar nada: exige rifa **activa** y **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. | C, S, D | post-9 |
 
 **BR-I12 y BR-I13 no dicen lo mismo, y la diferencia importa.** BR-I12 es el disparador
 `tickets_protect_client_change` de `0004`: protege el **saldo**, así que mira los pagos **activos** y
@@ -361,6 +362,39 @@ exigirlo dejaría el error grabado para siempre en una rifa cerrada (D-168). Que
 `ticket.reassign_client` con cliente anterior, cliente nuevo, motivo y actor, además de la
 `ticket.update` automática de la fila.
 
+**Liberar una boleta (BR-I14).** El cliente desiste antes de abonar nada y la boleta vuelve al
+inventario, con sus mismos números, lista para venderse a otra persona. Es la operación
+`release_ticket_client` de la migración `0048`, y escribe **seis** columnas, todas de la venta que se
+deshace:
+
+| Se borra | Se conserva |
+|---|---|
+| `inventory_status` → `available`, `client_id`, `sale_price`, `base_price`, `sale_date`, `assigned_at` | `seller_id`, `organization_id`, `raffle_id`, los dos números, `internal_code`, `paid_amount` (que ya vale 0) y los datos de creación y aprobación |
+
+Condiciones, todas revalidadas en SQL con la fila bloqueada:
+
+| Condición | Por qué |
+|---|---|
+| Boleta en `assigned` y con cliente | Solo se deshace una venta que existe |
+| Quien llama es el vendedor de la boleta, o personal de su organización | Misma puerta que `assign_ticket_row` y `reassign_ticket_client`. El vendedor padre no entra (D-092) |
+| `p_expected_client_id` coincide con la fila | Bloqueo optimista: una pantalla vieja no deshace una venta que ya cambió |
+| **Rifa activa** | Liberar devuelve la boleta al inventario para volver a venderla, y eso es un acto comercial (BR-R08). Es la diferencia con BR-I13 |
+| Cero filas en `payment_allocations` | Un abono no se queda apuntando a una venta que ya no existe (D-169) |
+| Cero filas en `lottery_ticket_matches` | La fotografía del sorteo es inmutable (BR-L11, BR-L14) |
+| Motivo de 5 caracteres o más | Es lo único que la bitácora no puede deducir sola |
+
+**Liberar no es anular, y no es eliminar.** *Anular* (BR-I10) marca `cancelled`, escribe
+`cancelled_at` con su motivo y **reserva la combinación de números para siempre** (BR-N08);
+*eliminar* (BR-B05) borra físicamente una boleta que nunca se vendió y libera sus números. Liberar
+deja la boleta viva, disponible y con sus mismos números. La transición `assigned → available` ya era
+legal en `tickets_validate_status_transition` desde la Fase 2 —la máquina de estados la llama
+«reversión administrativa»—; lo que faltaba era el camino para ejecutarla. Queda auditada como
+`ticket.release_client` con cliente, precio, fecha de venta, `assigned_at` y números anteriores, el
+motivo y el actor, además de la `ticket.update` automática de la fila.
+
+**No crea ningún aviso.** `notify_ticket_sold` exige la transición **a** `assigned`, y aquí es la
+contraria (D-169).
+
 ### Máquina de estados de inventario
 
 ```
@@ -371,9 +405,14 @@ pending_approval ──(rechaza owner/admin)──▶ cancelled
 available ──(asignación a cliente)──▶ assigned
 available ──(anulación)──▶ cancelled
 assigned ──(anulación, solo sin pagos activos)──▶ cancelled
-assigned ──(reversión administrativa, sin pagos activos)──▶ available
+assigned ──(liberación, solo sin pagos activos)──▶ available
 cancelled ──▶ (estado final, sin salidas)
 ```
+
+Esa última transición se llamaba «reversión administrativa» y **no tenía camino en la aplicación**:
+desde `0048` la ejecuta `release_ticket_client` (BR-I14, D-169). El diagrama describe lo que exige el
+**disparador**, que es lo mismo de siempre —sin pagos activos—; la operación de BR-I14 es **más**
+estricta: además pide rifa activa, cero filas en `payment_allocations` y cero coincidencias.
 
 Cualquier transición no listada se rechaza en el trigger `tickets_validate_status_transition`.
 

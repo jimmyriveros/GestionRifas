@@ -1907,6 +1907,14 @@ export type Database = {
         Args: { p_holder: string }
         Returns: boolean
       }
+      release_ticket_client: {
+        Args: {
+          p_expected_client_id: string
+          p_reason: string
+          p_ticket_id: string
+        }
+        Returns: string
+      }
       report_payment_totals: {
         Args: {
           p_date_from?: string

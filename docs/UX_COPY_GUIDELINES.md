@@ -368,6 +368,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Entregar boletas a un vendedor o a un cliente | **Asignar** | Adjudicar, vincular, ligar |
 | Poner a otro cliente una boleta que se vendió a la persona equivocada | **Cambiar cliente** | Reasignar, transferir, reubicar, mover |
 | El motivo que se escribe al hacerlo | **Motivo de la corrección** | Justificación, razón, observación |
+| Deshacer la venta de una boleta que el cliente ya no quiere, y devolverla al inventario | **Liberar** la boleta; la **liberación** | Desasignar, devolver, revertir, cancelar la venta |
 | Quitar de circulación una boleta o un pago | **Anular** | Eliminar, borrar, cancelar |
 | Borrar para siempre una boleta cargada por error, que nunca se vendió | **Eliminar** | Anular, cancelar, quitar |
 | Marcar varias boletas para trabajar con todas a la vez | **Seleccionar** (el botón que lo enciende dice **«Seleccionar varias»**) | Marcar, elegir, tildar |
@@ -592,17 +593,49 @@ botón dice **«Cambiar cliente»**, no «Cambiar de cliente»: ese nombre acces
 formulario de abono (D-138) y es otra acción, en otra pantalla.
 
 **Donde no se puede, se explica; no se ofrece un botón que va a fallar** (D-168). Una boleta con
-abonos en su historial dice «Esta boleta tiene abonos en su historial y ya no puede cambiar de
-cliente.» Una que ya salió en un sorteo dice «Esta boleta ya hace parte de un resultado registrado y
-no puede cambiar de cliente.» Los dos textos se quedan en **qué pasa**, sin ofrecer una salida falsa:
-anular los abonos **no** desbloquea nada, porque la fila se queda en el historial, y prometerlo
-mandaría a alguien a hacer un trámite irreversible para nada. Y una boleta que todavía no se ha
-vendido **no dice ninguna de las dos cosas**: no hay nada que corregir, y explicar por qué no se
-puede corregir algo que no existe es ruido.
+abonos en su historial dice «Esta boleta tiene abonos en su historial: ya no puede cambiar de cliente
+ni liberarse.» Una que ya salió en un sorteo dice «Esta boleta ya hace parte de un resultado
+registrado: no puede cambiar de cliente ni liberarse.» Los dos textos se quedan en **qué pasa**, sin
+ofrecer una salida falsa: anular los abonos **no** desbloquea nada, porque la fila se queda en el
+historial, y prometerlo mandaría a alguien a hacer un trámite irreversible para nada. Y una boleta
+que todavía no se ha vendido **no dice ninguna de las dos cosas**: no hay nada que corregir, y
+explicar por qué no se puede corregir algo que no existe es ruido.
+
+> **Ensanchadas el 2026-09-05 (D-169).** Las dos frases decían «y ya no puede cambiar de cliente» a
+> secas, cuando esa era la única acción de la tarjeta. Desde que también se puede **liberar**, esas
+> dos causas cierran las **dos** puertas, y escribir una frase por acción pondría dos avisos casi
+> idénticos uno encima del otro. Se explica la **causa** una vez, con sus dos consecuencias.
 
 **El motivo se pide, y se dice para qué sirve.** «Motivo de la corrección», con «Queda guardado en el
 historial de la boleta.» debajo. No se pide «por control»: se pide porque es lo único que la bitácora
 no puede deducir sola, y quien lo escribe merece saber dónde acaba.
+
+**«Liberar boleta» dice lo único que la pantalla no enseña: que la venta se borra entera** (D-169).
+El botón vive junto a «Cambiar cliente», bajo la tarjeta del cliente, y su diálogo abre con: «Dejará
+de estar asignada a {nombre} y volverá a quedar disponible para venderla otra vez. Se borran el
+precio y la fecha de esta venta; los números, el vendedor y la rifa no cambian.» La segunda frase es
+la importante: quien libera puede creer que la venta se guarda en algún sitio, y no. Debajo, los
+**dos números** y el **cliente actual**, porque quien confirma no tiene por qué recordarlos de
+memoria (BR-N11).
+
+**Liberar no es anular, y los textos no pueden mezclarlos.** *Anular* retira la boleta de circulación
+para siempre y **su combinación de números no vuelve a estar libre**; *liberar* la devuelve al
+inventario **con sus mismos números**, lista para otra persona. Por eso el diálogo de liberar no dice
+«definitiva» ni se pinta en rojo, y el de anular —«La boleta deja de ser utilizable y su combinación
+de números no podrá reutilizarse en esta rifa. Es una acción definitiva.»— no se toca. Y **no se
+ofrece anular como salida** cuando no se puede liberar: anular es del personal (BR-I10), y a un
+vendedor lo mandaría a hacer algo que su pantalla no le deja.
+
+**El motivo, otra vez, con su nombre propio.** «Motivo de la liberación», con la misma línea de
+siempre debajo: «Queda guardado en el historial de la boleta.» El botón dice **«Confirmar
+liberación»** y, mientras trabaja, **«Liberando...»** —no «Procesando...», que no dice qué se está
+haciendo—. Al terminar, el aviso nombra la boleta por sus dos números: «La boleta 1234 / 5678 quedó
+disponible.»
+
+**Y la rifa cerrada tiene su propia frase, porque afecta a una sola acción** (D-169). «La rifa ya no
+está activa: esta boleta no se puede liberar.» Ahí «Cambiar cliente» **sí** se puede (D-168), así que
+el aviso convive con su botón y no lo menciona: nombrar una acción que está justo al lado, disponible,
+haría dudar de si funciona.
 
 **Corregir a $0 no es anular, y los textos no pueden mezclarlos** (D-158, y la misma familia que
 BR-B05). *Anular* un pago lo retira de las cuentas para siempre, lo hace el personal y exige un
@@ -948,7 +981,9 @@ castigo donde solo había una espera.
 | Título, rótulos y botones de corregir un abono | `src/features/payments/components/EditPaymentDialog.tsx` — «Editar abono», «Valor actual», «Nuevo valor», «Guardar cambios» (D-134); el aviso del tope y del cero, y el texto de ejemplo «Escribe el valor» (D-158) |
 | Título, rótulos y botones de corregir el precio de una boleta | `src/features/tickets/components/EditSalePriceDialog.tsx` — «Editar precio de venta», «Precio de venta actual», «Nuevo precio», «Guardar cambios» (D-137) |
 | Título, rótulos y botones de cambiar el cliente de una boleta | `src/features/tickets/components/ReassignTicketClientDialog.tsx` — «Cambiar cliente», «Ahora la tiene», «Motivo de la corrección», «Crear cliente y cambiar» (D-168) |
-| Los dos avisos de por qué una boleta ya no puede cambiar de cliente | `src/features/tickets/reassign-client.ts`, **los dos juntos** (D-168) |
+| Los dos avisos de por qué una boleta ya no puede cambiar de cliente **ni liberarse** | `src/features/tickets/reassign-client.ts`, **los dos juntos** (D-168, ensanchados en D-169) |
+| El aviso de la rifa cerrada, y quién de los tres se pinta | `src/features/tickets/release-ticket.ts` (`ticketClientNotice`, D-169) |
+| Título, aviso, rótulos y botones de liberar una boleta | `src/features/tickets/components/ReleaseTicketDialog.tsx` — «Liberar boleta», «Número diario», «Número semanal», «Cliente actual», «Motivo de la liberación», «Confirmar liberación», «Liberando...» (D-169) |
 | Estado vacío del buscador de clientes al cambiar el cliente | El `emptyMessage` que le pasa `ReassignTicketClientDialog` a `ClientOptionsPicker` (D-168) |
 | Quién recibe el abono, debajo del título | `src/features/payments/components/PaymentClientBanner.tsx` — «Abono para», **Cambiar** (el nombre accesible sigue siendo «Cambiar de cliente», D-138) |
 | Rótulos de cada boleta en el teléfono al repartir un abono | `src/features/payments/components/PaymentAllocationCards.tsx` — «Boleta», «Debe», «Abonar ahora», «Saldo después del abono», «Quedará» (D-138) |

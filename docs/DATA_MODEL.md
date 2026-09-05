@@ -1004,6 +1004,34 @@ puesto y valida este `UPDATE` como cualquier otro; no hay GUC que lo esquive, po
 **más** estricta que él. Deja `ticket.reassign_client` con cliente anterior, cliente nuevo y motivo,
 además de la `ticket.update` automática de la fila (D-168, BR-I13).
 
+### 6.g.3 Liberar una boleta vendida (migración `0048`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `release_ticket_client(boleta, cliente_esperado, motivo)` | El id de la boleta | `releaseTicket`, desde el detalle de la boleta en los dos portales |
+
+`SECURITY DEFINER`, `search_path` fijo, `EXECUTE` revocado de `public` y `anon` y concedido a
+`authenticated` y `service_role`. Bloquea la fila con `FOR UPDATE` y revalida todo BR-I14: estado
+`assigned` con cliente, quien llama (vendedor dueño o personal de la organización), el cliente
+esperado —bloqueo optimista—, **rifa activa**, **cero** filas en `payment_allocations` y **cero** en
+`lottery_ticket_matches`, y motivo de 5 caracteres o más.
+
+Escribe **seis** columnas en una sola sentencia: `inventory_status` a `available`, y `client_id`,
+`sale_price`, `base_price`, `sale_date` y `assigned_at` a `null`. Va junto a propósito: los CHECK de
+`tickets` miran la fila entera ya actualizada, así que `tickets_available_has_no_client` y
+`tickets_assigned_requires_sale` se satisfacen a la vez; partirla dejaría un estado intermedio
+inválido. `payment_status` es una columna **generada** y vuelve sola a `unpaid` al quedar
+`sale_price` nulo.
+
+La transición `assigned → available` ya la admitía `tickets_validate_status_transition` desde `0004`
+—«reversión administrativa»— y ese disparador sigue puesto, incluida su comprobación de pagos
+activos (BR-I11); esta función es **más** estricta. `notify_ticket_sold` no se dispara: exige la
+transición **a** `assigned`. `tickets_sync_commission` sí se dispara, pero
+`recalc_seller_commission` cuenta boletas `payment_status = 'paid'` y una boleta sin abonos no
+contaba antes ni cuenta después. Deja `ticket.release_client` con cliente, precio, precio base, fecha
+de venta, `assigned_at` y números anteriores más el motivo, además de la `ticket.update` automática
+de la fila (D-169, BR-I14).
+
 ### 6.h Coincidencias de lotería (migración `0036`)
 
 | Función | Devuelve | Consumidor |
@@ -1106,7 +1134,7 @@ La consulta interna entra por `tickets_seller_raffle_status_idx` (`0003`), que y
 | `tickets_enforce_seller_role` | `tickets` | `BEFORE INSERT/UPDATE` | `seller_id` debe tener membresía activa con rol `seller` |
 | `tickets_protect_sale_price` | `tickets` | `BEFORE UPDATE` | Bloquea el UPDATE directo de `sale_price` con `paid_amount > 0`. `update_ticket_sale_price` puede corregirlo (BR-P13) |
 | `tickets_protect_client_change` | `tickets` | `BEFORE UPDATE` | Bloquea cambio de `client_id` con pagos activos (BR-I12). `reassign_ticket_client` no lo esquiva: exige además cero filas en `payment_allocations` (BR-I13) |
-| `tickets_validate_status_transition` | `tickets` | `BEFORE UPDATE` | Aplica la máquina de estados (BR-I01) |
+| `tickets_validate_status_transition` | `tickets` | `BEFORE UPDATE` | Aplica la máquina de estados (BR-I01) e impide salir de `assigned` con pagos activos (BR-I11). Su rama `assigned → available` la usa `release_ticket_client` (BR-I14), que además exige cero filas en `payment_allocations` |
 | `recalc_ticket_paid_amount` | `payment_allocations` | `AFTER INSERT/UPDATE/DELETE` | Recalcula `tickets.paid_amount` |
 | `recalc_on_payment_void` | `payments` | `AFTER UPDATE OF voided_at` | Recalcula las boletas afectadas |
 | `payments_balance_check` | `payments`, `payment_allocations` | `CONSTRAINT … DEFERRABLE` | Cuadre suma = total |

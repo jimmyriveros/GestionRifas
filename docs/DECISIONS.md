@@ -6998,6 +6998,120 @@ Migración `0047`, **solo aplicada en local**: el proyecto real no se ha tocado.
 
 ---
 
+## D-169 — Una boleta vendida se puede liberar mientras nadie haya abonado nada
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-05)
+
+**Contexto.** El cliente se echa atrás antes de pagar un peso. Hasta hoy la boleta se quedaba
+«vendida» a alguien que ya no la quiere, y las dos salidas eran malas: **anularla** —que la retira de
+circulación para siempre y **quema sus dos números en la rifa** (BR-N08), cuando el número está
+perfectamente disponible para el siguiente comprador— o un `UPDATE` a mano con la clave de servicio.
+La transición `assigned → available` **ya era legal** desde la Fase 2: `tickets_validate_status_transition`
+la admite y la máquina de estados de `BUSINESS_RULES` la llama «reversión administrativa». Lo que no
+existía era el camino para ejecutarla. Esta migración lo abre, con permisos, concurrencia, motivo y
+bitácora.
+
+**Decisión 1 — se borra la venta entera, no solo el cliente.** `release_ticket_client` (migración
+`0048`) escribe seis columnas en un solo `UPDATE`: `inventory_status → 'available'`, y a `null`
+`client_id`, `sale_price`, `base_price`, `sale_date` y `assigned_at`. Dejar el precio o la fecha
+puestos sobre una boleta `available` sería un registro que miente —diría «se vendió el 3 de septiembre
+por $120.000» de una boleta que está a la venta—, y además lo impiden los CHECK de la tabla:
+`tickets_available_has_no_client` obliga a soltar el cliente y `tickets_assigned_requires_sale` deja
+de aplicar. Va en **una** sentencia a propósito: los CHECK miran la fila entera ya actualizada, así
+que partirla en dos dejaría un estado intermedio inválido. Se conservan `seller_id`,
+`organization_id`, `raffle_id`, los dos números, `internal_code`, `paid_amount` y los datos de
+creación y aprobación; lo comprueba `E12-05` campo a campo.
+
+**Decisión 2 — liberar no es anular, y por eso es una operación distinta.** *Anular* (BR-I10) marca
+`cancelled`, escribe `cancelled_at` con su motivo y **reserva la combinación de números para
+siempre**: es para una boleta que salió a la calle y no puede volver. Aquí pasa lo contrario —la
+boleta vuelve al inventario con sus mismos números— y por eso no se reutilizó `cancel_ticket` con una
+bandera. Tampoco es *eliminar* (BR-B05), que borra físicamente una boleta cargada por error. Son tres
+verbos con tres significados, y el glosario los mantiene separados.
+
+**Decisión 3 — el criterio es el HISTORIAL de abonos, no el saldo.** **Ninguna fila** en
+`payment_allocations`, aunque su pago esté anulado (BR-F09) o el importe corregido a $0 (BR-F17). Es
+el mismo listón que BR-I13 y por la misma razón: `paid_amount` es el saldo **vigente** y vuelve a cero
+al anular, así que **no sirve** para saber si alguien pagó alguna vez. Un abono que sobreviva a la
+liberación quedaría apuntando a una venta que ya no existe. El disparador
+`tickets_validate_status_transition` ya impide salir de `assigned` con pagos **activos** (BR-I11);
+esta función es más estricta que él, no lo esquiva.
+
+**Decisión 4 — la rifa SÍ tiene que estar activa, al revés que en D-168.** Es la única regla en la
+que las dos operaciones se separan, y no es un descuido. Corregir el cliente repara una identidad mal
+escrita sobre una venta ya hecha: prohibirlo en una rifa cerrada dejaría el error grabado para
+siempre. Liberar devuelve la boleta al **inventario** para volver a venderla, y eso es un acto
+comercial: en una rifa cerrada dejaría «disponible» algo que ya no se puede vender (BR-R08). Con la
+rifa cerrada la salida sigue siendo anular.
+
+**Decisión 5 — una coincidencia de lotería también cierra la puerta.** `lottery_ticket_matches` es
+una fotografía inmutable del instante del sorteo (BR-L11, BR-L14) que guarda vendedor, cliente e
+`inventory_status_at_draw`. Liberar la boleta después dejaría la foto diciendo «vendida a X» y la
+boleta diciendo «disponible», y la foto no se puede reescribir.
+
+**Decisión 6 — bloqueo optimista con `p_expected_client_id`.** La pantalla manda a quién creía que
+pertenecía la boleta. Con la fila bloqueada, si ya no es ese, se rechaza: alguien la corrigió (D-168)
+o la vendió otra vez entre que la pantalla se pintó y llegó la llamada, y deshacer esa venta sería
+deshacer una que nadie miró. Mismo mecanismo que `p_expected_sale_price` (D-137),
+`p_expected_amount` (D-134) y el propio D-168.
+
+**Decisión 7 — no crea ningún aviso, y la comisión no se mueve.** `notify_ticket_sold` es un
+`after update of inventory_status` que exige la transición **a** `assigned`: aquí es la contraria, así
+que no se dispara. `tickets_sync_commission` **sí** se dispara —escucha `inventory_status` y
+`sale_price`—, pero `recalc_seller_commission` cuenta boletas con `payment_status = 'paid'`, y una
+boleta sin un solo abono no contaba antes ni cuenta después. Se comprobó en vez de suponerlo.
+
+**Decisión 8 — el diálogo se monta sobre `ConfirmDialog`, y no es `destructive`.** Es exactamente lo
+que ese componente resuelve: acción sensible, consecuencia explicada, motivo obligatorio y dos
+salidas. Lo único que le faltaba era decir «Liberando...» en vez de «Procesando...», así que gana un
+`pendingLabel` opcional cuyo valor por defecto es el de siempre —los **siete** usos anteriores no
+cambian ni un carácter—. **No** se pinta en rojo: la boleta vuelve al inventario con sus mismos números y se puede
+vender otra vez, así que el rojo de anular exageraría una operación rutinaria. El diálogo enseña los
+**dos** números y el cliente actual, porque quien confirma no tiene por qué recordarlos de memoria.
+
+**Decisión 9 — UNA frase de explicación, no una por acción.** La tarjeta del cliente pasa a tener dos
+botones, y sus bloqueos se solapan casi del todo: los abonos y la coincidencia de lotería cierran las
+**dos** puertas. Escribir una frase por acción pondría dos avisos casi idénticos uno encima del otro
+(«…y ya no puede cambiar de cliente.» / «…y ya no puede liberarse.»), que es justo lo que la guía de
+redacción llama explicar dos veces la misma idea. Por eso las **dos frases de D-168 se ensanchan** para
+nombrar las dos consecuencias, y la rifa cerrada —la única causa que afecta solo a liberar— tiene la
+suya. Quién se pinta lo decide `ticketClientNotice`, en `features/tickets/release-ticket.ts`, que
+reutiliza `reassignBlockedReason` en vez de repetir sus textos.
+
+**Decisión 10 — los dos botones se comparten en un componente, no se repiten en cada página.** Las dos
+`page.tsx` de detalle ya habían empezado a envolver «Cambiar cliente» con clases distintas —el portal
+administrativo con `sm:w-fit`, el del vendedor a lo ancho—. Con dos acciones eso se habría duplicado,
+así que la ranura `action` de `ClientLinkCard` la llena ahora `TicketClientActions`, uno solo para los
+dos portales (`AGENTS.md` §6). En el teléfono los botones van uno debajo de otro, a lo ancho y con sus
+44 px; desde `sm` comparten fila con su ancho natural.
+
+**Decisión 11 — la página no consulta nada nuevo.** `getTicketDetail` ya traía `hasPaymentHistory`,
+`hasLotteryMatch` y `raffleStatus` para D-168 y D-137. Liberar no necesita clientes, así que la
+condición que decide si se carga la cartera sigue siendo la de «Cambiar cliente» y el número de
+consultas del detalle **no cambia**.
+
+**Alternativas descartadas.** (a) **Anular y volver a crear la boleta**: quema la combinación de
+números (BR-N08) y obliga a inventar una boleta nueva con los mismos números, que la restricción
+`tickets_combo_unique` prohíbe. (b) **Reutilizar `cancel_ticket` con una bandera «vuelve al
+inventario»**: mete dos significados opuestos en la función que retira boletas de circulación, que es
+la que menos conviene ramificar. (c) **Permitirlo con abonos, devolviendo el dinero**: eso es una
+devolución, y el MVP no mueve dinero hacia fuera; además dejaría el pago apuntando a una venta que ya
+no existe. (d) **Permitirlo con la rifa cerrada**: dejaría boletas «disponibles» que nadie puede
+vender. (e) **Dejarlo solo para el personal**: quien recibe el «ya no la quiero» es el vendedor, y
+obligarle a escribir a un administrador es exactamente el trámite que esto viene a quitar. (f) **Sin
+motivo obligatorio**: es la única información que la bitácora no puede deducir sola, y esta operación
+borra el precio y la fecha de una venta. (g) **Conservar `sale_price` «por si acaso»**: sería un dato
+histórico sin dueño en una boleta a la venta, y el precio de la próxima venta lo vuelve a copiar la
+rifa (BR-P03).
+
+**Consecuencia.** Nace **BR-I14**. Las dos frases de aviso de D-168 se ensanchan (Decisión 9);
+`ConfirmDialog` gana `pendingLabel`; la ranura `action` de `ClientLinkCard` pasa a llenarla
+`TicketClientActions` en los dos portales. Ninguna regla anterior cambia de significado: BR-I11,
+BR-I12 y BR-I13 siguen exactamente como estaban. Migración `0048`, **solo aplicada en local**: el
+proyecto real no se ha tocado.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

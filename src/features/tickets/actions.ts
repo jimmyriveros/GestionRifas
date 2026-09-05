@@ -16,6 +16,7 @@ import {
   reassignTicketClientSchema,
   reassignTicketSellerSchema,
   reassignTicketToNewClientSchema,
+  releaseTicketSchema,
   ticketClientSearchSchema,
   updateTicketNumbersSchema,
   updateTicketSalePriceSchema,
@@ -273,6 +274,9 @@ export async function updateTicketSalePrice(
  * anterior y aparece en la del nuevo, asi que las DOS fichas hay que
  * revalidarlas por su ruta literal. El detalle se nombra ademas por patron,
  * porque revalidar `/seller/tickets` no alcanza a `[ticketId]` (D-133).
+ *
+ * Liberar una boleta (D-169) es el mismo mapa con `nextClientId` en `null`: sale
+ * de la ficha del cliente anterior y no entra en ninguna otra.
  */
 function revalidateTicketClient(
   ticketId: string,
@@ -439,5 +443,40 @@ export async function reassignTicketToNewClient(input: unknown): Promise<ActionR
   }
 
   revalidateTicketClient(values.ticketId, values.expectedClientId, created.id)
+  return { ok: true }
+}
+
+/**
+ * Liberar una boleta vendida que nadie ha abonado (BR-I14, D-169).
+ *
+ * El vendedor dueno de la boleta y el personal pueden. TODA la regla vive en
+ * `release_ticket_client`: permisos, estado, rifa activa, historial de abonos,
+ * coincidencias de loteria y el bloqueo optimista con la fila bloqueada.
+ * Ocultar el boton no autoriza nada.
+ *
+ * No hace falta leer la boleta antes: el cliente que hay que revalidar es el
+ * mismo `expectedClientId` que la RPC exige que siga siendo el suyo, asi que si
+ * la llamada tuvo exito ese es, con certeza, el cliente que la tenia.
+ */
+export async function releaseTicket(input: unknown): Promise<ActionResult> {
+  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  if ('error' in auth) return auth
+
+  const parsed = releaseTicketSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
+  }
+  const values = parsed.data
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('release_ticket_client', {
+    p_ticket_id: values.ticketId,
+    p_expected_client_id: values.expectedClientId,
+    p_reason: values.reason,
+  })
+
+  if (error) return { error: mapPgError(error) }
+
+  revalidateTicketClient(values.ticketId, values.expectedClientId, null)
   return { ok: true }
 }

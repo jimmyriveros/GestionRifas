@@ -24,6 +24,12 @@ type ConfirmDialogProps = {
   cancelLabel?: string
   destructive?: boolean
   pending?: boolean
+  /**
+   * Lo que dice el boton mientras se procesa. El predeterminado sirve para casi
+   * todo; se cambia cuando la accion tiene un gerundio propio que dice mas
+   * —«Liberando...» (D-169)— que un «Procesando...» generico.
+   */
+  pendingLabel?: string
   onConfirm: () => void
   /** Contenido extra dentro del dialogo, p. ej. el campo de motivo. */
   children?: ReactNode
@@ -40,6 +46,7 @@ export function ConfirmDialog({
   cancelLabel = 'Cancelar',
   destructive = false,
   pending = false,
+  pendingLabel = 'Procesando...',
   onConfirm,
   children,
   confirmDisabled = false,
@@ -66,7 +73,7 @@ export function ConfirmDialog({
             }}
             className={cn(destructive && buttonVariants({ variant: 'destructive' }))}
           >
-            {pending ? 'Procesando...' : confirmLabel}
+            {pending ? pendingLabel : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
