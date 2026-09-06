@@ -9,7 +9,20 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-action-primary text-primary-foreground [a&]:hover:bg-action-primary/90',
+        // NO se cuelga de `action/primary` a proposito (Wave 3B1b).
+        //
+        // El sistema aprobado NO tiene un Badge generico: en Figma solo existe
+        // «Badge / Status», con sus cinco estados. Este `default` es herencia de
+        // shadcn, y en la aplicacion lo usan DOS sitios, los dos para decir
+        // «Activo»/«Inactivo» de un enlace de catalogo: es un indicador de
+        // ESTADO, no un enfasis de marca.
+        //
+        // Si siguiera atado a `action/primary`, al encender la marca esos dos
+        // se volverian verdes por herencia de implementacion, no por decision.
+        // Se queda en el token heredado hasta que la ola de Status decida a que
+        // estado de «Badge / Status» corresponden. Hoy no cambia nada: el freno
+        // de la Wave 1 hace que los dos valores sean el mismo.
+        default: 'bg-primary text-primary-foreground [a&]:hover:bg-primary/90',
         secondary: 'bg-action-secondary text-text-on-secondary [a&]:hover:bg-action-secondary/90',
         destructive:
           'bg-destructive text-white focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40 [a&]:hover:bg-destructive/90',

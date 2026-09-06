@@ -1,15 +1,16 @@
 # Rifas Design System — Session Handoff
 
-**Last approved migration:** **WAVE 3B1 — BRAND SEMANTIC CONVERGENCE** (COMPLETED AND APPROVED, 2026-09-06)
+**Last approved migration:** **WAVE 3B1B — BRAND ACTIVATION PREREQUISITES** (COMPLETED AND APPROVED, 2026-09-06)
+
 **Wave 1 — semantic token infrastructure:** COMPLETED AND APPROVED · commit `3aae867`
 **Wave 2 — typography:** COMPLETED AND APPROVED · commit `b33003e`
 **Wave 3A — core controls adoption:** COMPLETED AND APPROVED · commit `c723b99`
 **Wave 3B1 — brand semantic convergence:** COMPLETED AND APPROVED · commit in §11
-**Next authorized:** **WAVE 3B1B — BRAND ACTIVATION PREREQUISITES** — analysis and inert preparation only
-**NOT AUTHORIZED:** **WAVE 3B2 — BRAND ACTIVATION.** The §14 readiness gate is **NOT met** (§10.11)
+**Wave 3B1b — brand activation prerequisites:** COMPLETED AND APPROVED · commit in §11
+**AUTHORIZED:** **WAVE 3B2 — BRAND ACTIVATION** — plan in §10.13, subject to the BottomNav preflight
 **Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
 **Migration branch:** `design-system/migration` (from `main` @ `124445b`; `main` not moved)
-**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 3B1)
+**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 3B1b)
 
 > **Wave 1** — `src/app/globals.css` **+647 / −0**, additive, zero consumers; the compiled-CSS diff
 > proved **no existing declaration changed** (0 removed lines).
@@ -27,7 +28,10 @@
 > fenced pin block. Navigation, selection, progress and the generic Badge default were **deferred**
 > because no pin can bridge them without a design decision (§10.10).
 >
-> Still true after all four waves:
+> **Wave 3B1b** — analysis plus ONE inert code change: the generic Badge default was decoupled from
+> `action/primary`, because the approved system has no generic Badge at all (§10.12).
+>
+> Still true after every wave so far:
 > **brand activation NOT performed** · **the Wave 1 brand pin is still ACTIVE** ·
 > **`data/partial` still deferred to the Data wave** · **no legacy variable removed** ·
 > **`npm run test:db` NOT RUN** (see §10.4).
@@ -856,6 +860,96 @@ indicator and the tour ring.
 **Recommendation: keep Brand Activation DEFERRED.** Activating now ships green buttons, links and
 focus rings beside a near-black selected sidebar item and selected report tab.
 
+### 10.12 WAVE 3B1B — BRAND ACTIVATION PREREQUISITES (executed 2026-09-06 · **APPROVED** · committed, hash in §11)
+
+**Approved final decisions:** Navigation → the approved Figma treatment is authoritative · True Selection → `selection/*` · ImportDropzone drag-active → brand interaction treatment, **not** Selection · Generic Badge default → decoupled from `action/primary` · «Activo»/«Inactivo» → deferred to the Status migration · Notification count → intentionally neutral for now · `AvatarBadge` → dead/unconsumed · TourOverlay → brand-highlight candidate · Native text selection → intentionally neutral · Switch Dark thumb → deferred control reconciliation · Progress/Data → deferred to their own wave.
+
+Analysis and inert preparation. **No intentional visual change; no pin removed or altered.**
+
+#### Navigation — direction CLOSED, migration belongs to 3B2
+
+The approved `Navigation / Item` (8 variants) binds, in **Selected**:
+`fills=navigation/selected` · `fills=text/brand` · `strokes=text/brand` · `fills=navigation/indicator`.
+Geometry: **Expanded 208×44, Collapsed 44×44**, surface radius 8, icon 20×20 at (12,12), and a
+**3×20 Indicator rectangle at x=0, y=12** that exists **only** in the Selected variants.
+
+| | Production today | Approved target |
+|---|---|---|
+| Surface | solid `--primary` fill | `navigation/selected` (brand-subtle tint) |
+| Label / icon | `--primary-foreground` | `text/brand` |
+| Indicator | **does not exist** | 3×20 bar, left edge — **new element** |
+| Item height | `min-h-9` = **36px** | **44px** |
+
+Files for 3B2: **`src/components/layout/NavLinks.tsx`** (sidebar, expanded *and* collapsed rail) and
+**`src/features/reports/components/ReportNav.tsx`** (report tabs, which additionally carries
+`border-primary` and `font-medium`). `BottomNav` must be checked against `Navigation / Bottom` in the
+same wave. Light: `#171717` fill → `#f0fdf1` tint with `#0d6427` text. Dark: `#e5e5e5` → `#032d10`
+with `#7bef92`. **This is an intentional visual change and was NOT performed here.** The Design
+System was **not** modified to preserve the legacy solid fill.
+
+#### Selection — true selection separated from drag-active
+
+| Consumer | Classification | Target | Note |
+|---|---|---|---|
+| `OptionList` selected option | **true selection** | `selection/surface` | production is a **solid fill** — far from the approved tint |
+| `CommissionModelField` selected card | **true selection** | `selection/surface` + `border/brand` | already `border-primary bg-primary/5`, i.e. **already a tint** — closest to the target |
+| `ImportDropzone` drag-over | **NOT selection** — a drop-target interaction state | `border/brand` + a brand-subtle surface | represented adequately by existing roles; **no new Core token invented** |
+
+#### Generic Badge — resolved
+
+**The approved system has no generic Badge.** Figma contains only `Badge / Status`
+(Success · Warning · Error · Info · Neutral). Production's `Badge` is shadcn boilerplate, and its
+`default` variant is used in exactly two places — `CatalogSettingsCard` and `SellerCatalogCard`,
+both rendering **"Activo" / "Inactivo"** for a catalog link state.
+
+**Inert correction applied:** `Badge variant="default"` was **decoupled from `action/primary`** and
+returned to the legacy token. Identical today (the Wave 1 pin makes the two equal, verified in all
+three scopes); on activation those two badges will **not** turn green by inheritance.
+**Which `Badge / Status` state they should become is a product decision for the Status wave** —
+deliberately *not* auto-mapped to Success/Error. `StatusBadge` untouched; «Abonada» untouched.
+
+#### The remaining consumers, each classified
+
+| Consumer | What it communicates | Verdict |
+|---|---|---|
+| `NotificationMenu` count | unread / attention | **No approved role covers it**, and it is a *single* consumer — a new token fails the "recurring" test. Stays legacy, **intentionally neutral**, will not flip. Not a blocker. |
+| `avatar` corner dot (`AvatarBadge`) | — | **Zero usages in the product** — dead shadcn boilerplate. Nothing to classify. Not a blocker. |
+| `TourOverlay` ring | decorative spotlight highlight, `aria-hidden`; **not** keyboard focus | maps to **`border/brand`**. Visual change → optional in 3B2. **Not** mapped to `focus/ring`. |
+| `input` text selection | native text selection | `selection/surface` is a very light tint and the text is near-white → **would be unreadable**. Deliberately stays neutral. Not a blocker. |
+| `switch` Dark checked thumb | control knob | approved role is **`control/knob`**, which matches production in Light and Dark but **not Catalog**, and does not cover the dark-checked override. Deferred. |
+| 3 progress bars | 2 × collection money, 1 × task progress | **Deferred as a family**, per instruction. Not half-migrated. |
+
+#### Verification
+
+`badge.tsx` is the only code change: **1 replacement**, proved inert (`#171717` / `#e5e5e5` /
+`#843bec` on both sides). typecheck ✅ · lint ✅ (same 2 pre-existing warnings) · **791 tests** ✅ ·
+build ✅ · prettier ✅.
+
+### 10.13 The Wave 3B2 activation plan
+
+**Pins that 3B2 removes** — both fenced blocks: Wave 1 (`action/primary`) and Wave 3B1
+(`text/brand`, `focus/ring`).
+
+**Intentional visual changes, in order:**
+
+1. **Pin removal — 25 occurrences turn brand.** Button default + hover (2), Checkbox checked (3),
+   Switch checked track (1), `text/brand` links (5), `focus/ring` across the 7 controls (14).
+   Light and Dark only; **Catalog does not move**. Checkbox and Switch are confirmed correct: the
+   approved components bind `action/primary` in their checked states.
+2. **Navigation selected** — `NavLinks`, `ReportNav`, and `BottomNav` after checking it: tint +
+   `text/brand` + the new 3×20 indicator + 36→44px height.
+3. **True selection** — `OptionList`, `CommissionModelField`.
+4. **Optional** — `ImportDropzone` drag-active, `TourOverlay` ring.
+
+**Must be re-measured before shipping:** text on brand · focus ring against brand · brand against
+card and muted surfaces — in Light and Dark.
+
+**Verdict: 3B2 is SAFE WITH DOCUMENTED DEBT.** Every accidental brand consumer is now either
+semantic, intentionally neutral, or dead code. The one residue is the **three progress bars**, which
+stay legacy near-black while the rest turns green — visible in the dashboard and the commission card.
+That is a deliberate consequence of keeping the Progress family together for the Data wave, and it is
+the only known incoherence.
+
 ---
 
 ## 11. Repository checkpoint — 2026-09-06
@@ -868,7 +962,8 @@ focus rings beside a near-black selected sidebar item and selected report tab.
 | Wave 1 commit contents | `src/app/globals.css`, `docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md` — **nothing else** |
 | **Wave 2 commit** | **`b33003e1a6f0ffe58159d64e71aa9de0f94abaa8`** (`b33003e`) — `feat(design-system): adopt semantic typography roles`, 20 files |
 | **Wave 3A commit** | **`c723b9983d6c7a6980079a22f7679ae393b164d6`** (`c723b99`) — `feat(design-system): adopt semantic core controls`, 8 files |
-| **Wave 3B1 commit** | recorded below · `feat(design-system): converge brand semantic roles`, 12 files |
+| **Wave 3B1 commit** | **`64aaeed9e416461f05c08f27b40584d005b5e233`** (`64aaeed`) — `feat(design-system): converge brand semantic roles`, 12 files |
+| **Wave 3B1b commit** | recorded below · `chore(design-system): prepare brand activation semantics` |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
