@@ -1,0 +1,688 @@
+# Rifas Design System — Session Handoff
+
+**Last completed phase:** PHASE 12 — WAVE 1: SEMANTIC TOKEN INFRASTRUCTURE
+**Status:** **COMPLETED AND APPROVED** (user approval 2026-09-06)
+**Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
+**Migration branch:** `design-system/migration`
+**Wave 1 commit:** see §11
+**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 2)
+
+> **WAVE 1 IS APPROVED AND COMMITTED** on `design-system/migration`. One production file:
+> `src/app/globals.css`, **+647 / −0**. Additive, **zero consumers**; the compiled-CSS diff proved
+> **no existing declaration changed** (0 removed lines).
+>
+> Still true after Wave 1, and still true after Wave 2:
+> **brand activation NOT performed** · **`data/partial` still deferred to the Data wave** ·
+> **no legacy variable removed** · **`npm run test:db` NOT RUN** (see §10.4).
+
+This is the **single living handoff** for the Design System track. It is written so a new
+Claude Code session can continue with **no access to previous chat history**. Read it in
+full at the start of every session (§14 is the startup checklist).
+
+The Design System track is governed by the master prompt at `C:\Users\USER\Desktop\Designsystem.txt`
+(user-local, not in the repo). It runs **alongside** the application phases governed by
+`CLAUDE.md`; it does not replace them. `docs/HANDOFF.md` remains the operational relevo for
+application work — this file is only for the Design System.
+
+---
+
+## 1. What this project is
+
+A Colombian raffle-management web application (`D:\Claude\Personal\Rifas`) — Next.js App
+Router, TypeScript strict, Supabase + Postgres with RLS, Tailwind v4, shadcn/ui (new-york),
+TanStack Table, lucide-react, Geist. Spanish interface, COP currency, `America/Bogota`.
+Owner/Admin and Seller portals, plus a public Catalog surface.
+
+The Design System track built a complete Figma design system from the shipped product, produced
+the contract for migrating the product onto it, and has now executed **Wave 1** of that migration.
+**The product is live. Wave 1 (token infrastructure) is on disk and uncommitted; it is additive and
+has zero consumers, so the product looks exactly as it did. Waves 2–7 have not started.**
+
+---
+
+## 2. Source of truth
+
+**PRIMARY DESIGN SOURCE OF TRUTH: Figma — Rifas Design System**
+
+- URL: https://www.figma.com/design/7KIwO0iiGpksLSNjMeSa4X/Rifas-%E2%80%94-Design-System
+- File key: `7KIwO0iiGpksLSNjMeSa4X`
+- Access: `use_figma` MCP tool. **Load the `figma-use` skill before every call**
+  (`skillNames: "resource:figma-use"`). Figma plugin state does **not** persist between calls —
+  re-locate nodes by name each time.
+
+### Pages
+
+| Page | Contents |
+|---|---|
+| `00 — Start Here` | Entry point. Decision log (DS-001…DS-115), core decisions, naming, theme modes, responsive rules, **Component Readiness Matrix**, code-readiness mapping, token to code mapping, **Future code reconciliation**, Design-to-Code pointer |
+| `01 — Foundations` | Colour, typography, spacing, radius, elevation, focus specimens |
+| `02 — Components` | All component sets and singles |
+| `03 — Patterns & Screens` | **Reserved — currently empty (0 nodes, verified 2026-09-06).** The Product Patterns, Application Shell, Sidebar and Page / Header all live on `02 — Components`. Do **not** move them to satisfy this name; reorganising is a future dedicated cleanup phase, never an implicit task. |
+| `04 — Design to Code` | **The Phase 11 migration contract** — 16 sections (see §8) |
+
+**Before executing any migration work, read `00 — Start Here` and `04 — Design to Code`.**
+
+Canonical locations inside Figma:
+
+- **Decision log** → `00 — Start Here` › Section · Decision log
+- **Component Readiness Matrix** → `00 — Start Here` › Section · Component readiness
+- **Future code reconciliation** → `00 — Start Here` › Section · Future code reconciliation
+- **Migration waves** → `04 — Design to Code` › Section · Implementation waves
+- **Token contract** → `04 — Design to Code` › Section · Token contract
+- **Accessibility contract** → `04 — Design to Code` › Section · Accessibility implementation contract
+- **Theme contract** → `04 — Design to Code` › Section · Theme migration
+
+Do not copy Figma content wholesale into this file. Summarize and point.
+
+---
+
+## 3. Completed phases
+
+| Phase | Outcome |
+|---|---|
+| **0 / 0.5** | Audited the existing file and the shipped product; encoded the user's authoritative decisions. The Phase 0 audit was wrong (reported the file empty) and was corrected openly — `get_metadata` without a nodeId returns one page, and `search_design_system` only indexes *published* assets. |
+| **1** | Foundations: primitive → semantic → role variable architecture, three colour modes, typography scale, spacing, radius, elevation, focus. Contrast measured in-script per mode with alpha compositing. |
+| **2** | Core components: Button, Input, Select, Checkbox, Switch, Badge, Card. Variant explosion avoided deliberately. |
+| **3** | Iconography (canonical lucide geometry converted to Figma-safe paths) and composite controls. |
+| **4** | Data display: Table, header/row/cells, pagination, empty states, skeleton. |
+| **5** | Responsive data display: List / Record, card lists, filter sheet, horizontal scroll, validated at 375 / 768 / 1360 / 1600. |
+| **6** | Overlays (Dialog, Sheet, Menu, Tooltip, Scrim), ~44px touch targets, structural debt closure. Destructive dialogs must remain Escape-dismissible. |
+| **7** | System QA and code-readiness audit. Declared **CORE v1 READY WITH DOCUMENTED DEBT** — the stable baseline. |
+| **8** | Navigation and Application Shell: Sidebar (expanded / collapsed / overlay), bottom nav, Page Header, account menu. Corrected the inverted 1360 breakpoint claim (DS-070). |
+| **9** | Product Patterns: List Page, Detail Page, Form, Search & Filters, Bulk Selection. |
+| **10** | Dashboard and Data Visualization: Metric, Chart / Line, Chart / Donut, `data/*` roles audited from `tones.ts`. |
+| **11** | Design-to-Code contract and migration plan — page `04 — Design to Code`. **No code written.** |
+| **12** | **Wave 1 — semantic token infrastructure.** 152 distinct `--ds-*` tokens (colours across all three scopes), 121 contract names exported via `@theme static inline`, brand pinned to today's value. One file: `src/app/globals.css`, +647 / −0. The first phase of this track to write production code. Uncommitted. |
+
+---
+
+## 4. Current inventory — verified 2026-09-06
+
+| Asset | Count |
+|---|---|
+| Variables (total) | **267** |
+| — Primitives (1 mode) | 114 |
+| — Color (3 modes: Light · Catalog · Dark) | 85 |
+| — Dimensions (1 mode) | 43 |
+| — Typography (1 mode) | 25 |
+| Component sets | **32** |
+| Variants (inside those sets) | **201** |
+| Single components (non-icon) | **16** |
+| Icon components | **41** |
+| Text styles | **14** |
+| Effect styles (elevation) | **3** — Subtle · Default · Strong |
+| Paint styles | 0 (colour is variables only, by design) |
+
+### Families available
+
+- **Foundations** — colour, typography, spacing, radius, elevation, focus
+- **Core controls** — Button, Button / Icon, Input / Text, Input / Search, Select, Checkbox, Switch, Card, Dropdown
+- **Status** — Badge / Status
+- **Data display** — Table, Table / Header cell, Table / Row, Table / Toolbar, Table / Pagination, Table / Empty state, Table / Skeleton, Cell / Text · Numeric · Status · Selection · Actions
+- **Responsive records** — List / Record, List / Group, Scroll / Horizontal, Sheet / Filters (sample)
+- **Overlays** — Dialog, Sheet / Bottom, Sheet / Right, Menu / Item, Menu / Surface, Menu / Account, Tooltip, Overlay / Scrim
+- **Navigation** — Navigation / Item, Navigation / Bottom, Sidebar, Page / Header
+- **Application Shell** — Application Shell
+- **Product Patterns** — Pattern / List Page, Pattern / Detail Page, Pattern / Form, Pattern / Bulk Selection
+- **Metrics / Charts** — Metric, Chart / Line, Chart / Donut, Progress / Linear
+
+---
+
+## 5. Approved decisions that must NOT be reopened
+
+Full text: `00 — Start Here` › Decision log (DS-001 … DS-115). The ones that matter to migration:
+
+**DESIGN AUTHORITY**
+- The approved Figma Design System is now the visual/design authority.
+- Apple HIG (UX principles) and Atlassian (architecture) were **references during construction**.
+  Migration sessions must **not** redesign from them unless a real contradiction is discovered — and
+  then report it, do not act unilaterally.
+- Rifas owns brand identity. No third-party design system is a visual or structural authority.
+
+**NAMING**
+- Internal Design System naming is **English**. Visible product copy is **Spanish**, governed by
+  `docs/UX_COPY_GUIDELINES.md` (imported into `CLAUDE.md` §35 — binding for any user-visible text).
+
+**TOKEN ARCHITECTURE**
+- Primitive → Semantic → Role. Maximum alias depth 3.
+- Components must **never** consume raw primitive colours directly.
+- Brand is replaceable by re-pointing tokens, not by editing components.
+- Export rule: `Color` path → `--color-<path>` (lowercase, `/` becomes `-`). Primitives are **not**
+  exported: they exist to be aliased, and shipping them invites components to reach past the
+  semantic layer.
+- Figma variable names are **not** renamed to suit code.
+
+**BRAND**
+- The admin product must have recognizable Rifas brand presence. Brand green is intentional and restrained.
+- **Brand is not semantic Success.** Separated deliberately in Phase 1, so a green button never reads
+  as "this succeeded".
+
+**THEMES**
+- Light, Dark and Catalog are **modes of one semantic architecture**, not three systems.
+- The admin shell applies to Light/Dark. Catalog is a different product context and must not receive
+  irrelevant admin patterns.
+- A component must **never** branch on theme. If it needs to know the theme, the token layer is wrong.
+
+**STATUS**
+- Roles: `success`, `warning`, `error`, `info`, `neutral`, each with surface / foreground / border / icon.
+- **Status is never communicated by colour alone.** No text-free status variant may be added.
+- The Spanish status labels live in `src/lib/constants.ts` and are not improvised.
+
+**TYPOGRAPHY**
+- Geist Sans. **Semantic typography roles are the authority** — code asks for `Heading/H3`, never `20px`.
+- Production currently has **no** type-token layer at all; Wave 2 creates it.
+
+**RESPONSIVE**
+- 375 reference · 768 mobile/navigation transition · **below 1360 the sidebar is collapsed** ·
+  **at/above 1360 the sidebar opens at 208** · expanded width is fluid 208 → 232, reaching 232 at 1600.
+- **Do not resurrect the old incorrect "collapses at 1360" statement** (corrected in DS-070). Content
+  width *dips* at 1360 (1255 → 1104), which is safe because 1104 clears the 1050px critical table.
+- 1440 is not an automatic breakpoint.
+
+**ACCESSIBILITY**
+- Approximately 44px minimum touch targets where applicable.
+- Icon-only controls require accessible names in code (`aria-label`); a tooltip is not a substitute.
+- Modal focus behaviour (trap, restore, Escape) belongs to code. Destructive dialogs stay dismissible.
+- Colour is reinforcement, never the only information signal.
+
+**FIGMA IS NOT CODE IMPLEMENTATION**
+- Figma implementation limitations must **never** dictate public component APIs. The binding list is
+  `04 — Design to Code` › Section · Figma constraints that must NOT leak into code.
+
+**PRODUCT BOUNDARY**
+- The test: could this exist unchanged in an application that has nothing to do with raffles?
+  No → Product Component, built on the system, never inside it.
+- Product Components: `StatusBadge`, `CollectionSummaryCard`, the ticket-number pair, the payment
+  allocation form, the clearance-receipt switch, the seller catalog card, the lottery results card.
+- The system must never learn a Rifas word — with **one deliberate exception**: the `data/*` role
+  names (`paid`, `partial`, `unpaid`, `pending`) keep product meaning and are **not** renamed to
+  `series-1/2/3`.
+
+**WAVE 1 IMPLEMENTATION DECISIONS — approved 2026-09-06.** These four were reviewed and accepted.
+Do **not** revert any of them merely to mirror the original conceptual contract more literally.
+
+- **`@theme static inline` stays.** Wave 1 has zero consumers by design, so plain `@theme inline`
+  let Tailwind tree-shake every contract variable out of the build. The semantic contract must remain
+  emitted throughout the incremental migration. Replace `static` only if later production adoption
+  makes it objectively unnecessary **and** that cleanup is explicitly scoped.
+- **Single-mode scalars are declared once.** Spacing, radius, breakpoints and typography dimensions
+  are mode-independent in Figma and need no redundant copies in `.dark` / `.catalog-theme`. One
+  authoritative declaration is correct.
+- **Framework correctness beats naming symmetry.** Design System contract names are **not** routed
+  mechanically through Tailwind namespaces when that would change existing Tailwind semantics. The
+  `100` padding utility probe demonstrated a real collision (25rem → 4px). See §7F for the four
+  resolved cases.
+- **`data/partial` is infrastructure only** — created, inert, zero consumers. The visual
+  reconciliation stays deferred to the Data wave. It was **not** resolved in Wave 2.
+
+---
+
+## 6. Current structural status
+
+**READY**
+- Foundations
+- Core Components
+- Data Display
+- Responsive Data Display
+- Overlays
+- Navigation / Application Shell
+- Product Patterns
+- Dashboard / Data Visualization
+- Design-to-Code Contract
+
+**READY WITH DOCUMENTED DEBT**
+- Core v1 overall
+
+**Partial families — exactly as the Figma Readiness Matrix reports them:**
+
+| Family | Column | Status |
+|---|---|---|
+| Icons (41) | Code-ready | `Partial · 41 of 73 production icons` |
+| Progress / Linear | Code-ready | `Partial · steps are a Figma limit, code is continuous` |
+
+`Collection summary` appears in the matrix marked `Product component, not Core` — that is a
+classification, not a readiness status. No other family is Partial. Do not invent new status
+categories.
+
+---
+
+## 7. Known documented debt
+
+Classified so a migration session knows what is actually a code task. **Figma-only constraints are
+not code blockers.**
+
+### A. DESIGN SYSTEM DEBT
+
+- **Icon coverage** — 41 of the **73** distinct lucide icons used in production exist in Figma.
+  Expansion is mechanical through the established converter. Not a blocker.
+  *Corrected 2026-09-06 at HEAD `124445b`: the count was stated as 77 in Phase 0 and carried forward
+  unchecked. Re-measured across every `lucide-react` named import in `src/` (91 files) it is **73**
+  distinct icons; the 91-file figure was right. The three decision-log entries that recorded 77 keep
+  their original wording plus a dated correction clause — they are history, not current fact.*
+
+### B. PRODUCTION CODE RECONCILIATION (the 15-item verified backlog on `04 — Design to Code`)
+
+- **Status colours** — `StatusBadge.tsx` carries 10 hardcoded palette classes (amber-, sky-, emerald-,
+  rose-, slate-) plus their dark twins. Replace with `status/*` tokens.
+- **Duplicate success/warning** — `--success` and `--warning` exist in `globals.css` and `StatusBadge`
+  references them **zero** times. One definition must win.
+- **`text/muted` contrast** — `--muted-foreground: oklch(0.556 0 0)` measures **4.34:1** on the
+  neutral surfaces used by table headers and hovered rows.
+- **Brand absent** — `--primary: oklch(0.205 0 0)`, chroma **zero**. The admin product has no brand hue.
+- **Typography tokens** — `globals.css` contains **zero** `--font-size` / `--line-height` /
+  `--font-weight` variables. The system ships 14 styles bound to 25 typography variables.
+- **Control heights** — Input and Select are `h-9` (36px) everywhere; Button tops out at 36 (`lg` is
+  40). The system adds a 44px touch size.
+- **Button size taxonomy** — production defines `default, xs, sm, lg, icon, icon-*`; the product only
+  uses `sm`, `default` and `icon`.
+- **Radius** — production defines only `--radius-sm/md/lg/xl`; the system adds `none`, `2xl` (public
+  catalog) and `full` (badges, pills).
+- **Chart colours** — `TrendChart` hardcodes `fill-emerald-500/10` and its stroke; `ProgressRing`
+  hardcodes `stroke-emerald-600 dark:stroke-emerald-400`. Both should consume `data/paid`.
+- **Data role classes** — `dashboard/tones.ts` exposes each role as three class families (`text-`,
+  `bg-`, `stroke-`). In code these become **one** custom property per role.
+- **`data/partial` — three hues for one role** *(`VISUAL BEHAVIOR CHANGE · PRODUCT DATA
+  RECONCILIATION`)* — **corrected 2026-09-06 at HEAD `124445b`.** The earlier entry said the amber
+  contradiction "was already fixed in Phase 10, so the remaining difference is a hue, not a family."
+  That is true **only of `tones.ts`**. Production paints the same `partial` / **Abonada** role three
+  different ways:
+
+  | Consumer | Hue | Surface |
+  |---|---|---|
+  | `src/features/dashboard/tones.ts:26` | `blue-600` / `blue-400` | Seller dashboard donut, figures, bars |
+  | `src/components/data/PaymentProgressBar.tsx:25` | **`amber-500` / `amber-400`** | All four ticket lists (table + phone cards) |
+  | `src/features/tickets/components/ClientTicketCardList.tsx:171` | **`amber-600` / `amber-400`** | Client's ticket cards |
+  | `src/components/data/StatusBadge.tsx:37` | **`amber-100/900` family** | The «Abonada» badge, everywhere |
+
+  The system resolves `data/partial` to `sky/600` (#0084D1), `sky/400` in Dark — a fourth value.
+  `PaymentProgressBar` does **not** import `tones.ts`; it duplicates the palette inline, and its own
+  comment cites D-112 for *ámbar* while `tones.ts` cites D-112 for *azul*.
+
+  Because the token contract collapses this to **one** custom property per role, choosing it is not a
+  hue nudge: it repaints either the dashboard or the four highest-traffic ticket lists plus the badge.
+  Note also that `StatusBadge` already uses **sky** for `available` / *Disponible*, so `data/partial =
+  sky` would put «Abonada» and «Disponible» on the same hue.
+
+  **The data wave must decide `data/partial` vs `status/warning` vs the Status label «Abonada»
+  explicitly, so Product Data semantics and Status semantics do not become accidentally coupled.**
+  `data/pending` is `neutral/400` in Light where production uses `muted-foreground`.
+
+  **Not a Wave 1 item.** Wave 1 ships `data/partial` at the approved Figma value with **zero**
+  consumers and migrates none of the four above.
+- **Catalog destructive** *(theme-specific)* — `.catalog-theme --destructive: oklch(0.65 0.2 25)`
+  measures **3.45:1** with the near-white label.
+- **Catalog input border** *(theme-specific)* — `.catalog-theme --input: oklch(0.75 0.06 295 / 30%)`
+  measures **1.75:1**; an input is identified by its border.
+- **Collapsed nav target** *(accessibility)* — the collapsed sidebar item is 40px (56 rail, 8px
+  padding), below the 44 standard. One padding value.
+- **Legacy token consumers** — legacy variables stay until their consumers are migrated. Removing
+  them early is explicitly forbidden (§13).
+
+### C. FIGMA-ONLY CONSTRAINT (never a code blocker, never an API)
+
+- `Cell / Status` and `Cell / Selection` are variant sets only because nested-instance overrides do
+  not propagate two levels deep. In code a status cell is a cell that renders `StatusBadge`.
+- The focus ring is a real frame (offset fill + 2px outside stroke) because drop shadows do not
+  render over solid fills on instance roots. In code: `outline` + `outline-offset`.
+- Every component has an inner `Surface` frame because effects do not paint on instance roots. Code
+  must not inherit a mandatory wrapper element from it.
+- The "Touch target" variant exists because Figma has no pointer media query. It must not become a
+  required prop.
+- `Progress / Linear` exists at fixed steps; code takes a continuous value.
+- Sample content (row, menu and legend counts) is fixed for legibility and is **not** configuration.
+- Breakpoint frames and specimen widths are photographs, not rules.
+- Icon geometry is absolute `M/L/C/Z` paths because the Plugin API rejects arc commands. Code keeps
+  importing `lucide-react`; the paths are a rendering of the same source, not a second icon library.
+
+### D. MANUAL HOUSEKEEPING
+
+- No outstanding item recorded. Any community-library removal noted in earlier sessions has no
+  remaining entry in the readiness matrix or the reconciliation card — verify in Figma before
+  assuming work exists here.
+
+### E. NEW — DISCOVERED DURING WAVE 1 (2026-09-06)
+
+Four findings, none of which blocked Wave 1. The first three are **new debt for Wave 2**; the fourth
+is a correction to how this track measures success.
+
+- **Four contract token names collide with live Tailwind v4.3.3 namespaces**
+  *(`TOKEN · CROSS-SYSTEM`)* — `--spacing-*`, `--radius-*`, `--breakpoint-*` and `--font-weight-*` are
+  all real theme namespaces in the installed Tailwind. Routing the contract names through `@theme`
+  would change rendered output (`--spacing-100` turns the `100` padding utility from 25rem into 4px; `--breakpoint-*`
+  redefines every responsive variant). Wave 1 shipped them as `--ds-*` only. **Wave 2 must decide
+  each one deliberately** — the token contract on `04 — Design to Code` assumed these names were free
+  and they are not.
+
+- **`radius/none`, `radius/2xl` and `radius/full` are not actually additions**
+  *(`TOKEN · LOCAL`)* — the contract calls them "additions", but Tailwind already ships
+  `rounded-none`, `rounded-2xl` (1rem = 16px, matching Figma) and `rounded-full`. Declaring them
+  would *shadow* working utilities, not add anything. `--radius-sm/md/lg/xl` already exist in
+  `globals.css` and already match Figma exactly (6·8·10·14). The real remaining radius work is
+  smaller than the contract implies.
+
+- **`.catalog-theme` never defined `--success` / `--warning`** *(`TOKEN · THEME (Catalog)`)* — the
+  legacy block at `globals.css:374` redefines 20 properties but not those four
+  (`--success`, `--success-foreground`, `--warning`, `--warning-foreground`), so in the public catalog
+  they silently fall back to the **Light** values. Nothing consumes them today (`StatusBadge` ignores
+  them — see §7B), so it is latent, not live. The new `--ds-status-*` layer is complete in all three
+  scopes, so migrating `StatusBadge` onto it in Wave 4 closes this by construction.
+
+- **Prose inside a scanned file emits real CSS** *(method, not debt — but it bites)* — Tailwind v4
+  scans the whole project for class-name candidates, **including `.md` files and the comments inside
+  `globals.css` itself**. Documenting this wave put utility names into prose, and the build silently
+  gained 24 lines of dead CSS for classes nothing renders; a bare `--color-…` name written in a CSS
+  comment likewise made Tailwind emit that theme variable. Both were caught by diffing the compiled
+  output and were removed by rewording — the delta is now **exactly the new tokens and nothing else**.
+  **Rule for future waves: write token names in Figma path form (`surface/card`), not utility form,
+  and diff the compiled CSS rather than trusting the source diff.**
+
+- **Tailwind v4 tree-shakes unused `@theme` variables** *(method, not debt)* — the first Wave 1
+  compile emitted every `--ds-*` and **not one** `--color-*`, because nothing consumes them. A wave
+  that ships tokens with zero consumers by design must use `@theme static`, or its entire deliverable
+  is silently dropped from the build. Any future wave that adds tokens ahead of their consumers needs
+  the same treatment, and **must verify emission rather than assume it**.
+
+---
+
+## 8. Phase 11 contract summary — `04 — Design to Code`
+
+16 sections, 312 text nodes, all token-bound. Contents:
+
+1. **Verified reconciliation backlog** — the 15 items in §7B, each re-checked against shipped code on
+   2026-09-06 and tagged `TOKEN | COMPONENT | VISUAL | ACCESSIBILITY | FIGMA-ONLY` plus an impact class.
+2. **Token contract** — the naming rule, and what each family exports.
+3. **Typography contract** — net-new; roles not raw sizes; tabular figures recorded as a code
+   requirement Figma cannot express.
+4. **Component contract** — 11 families, each split **PUBLIC API / IMPLEMENTATION DETAIL /
+   ACCESSIBILITY METADATA / FIGMA-ONLY WORKAROUND**.
+5. **Dependency graph** — 8 layers, from token infrastructure to route composition.
+6. **Implementation waves** — 7 waves (see §9).
+7. **Change impact classification** — LOCAL · FAMILY · CROSS-SYSTEM · THEME-SPECIFIC · ROLE-SPECIFIC.
+8. **Visual regression contract** — 12 chosen checkpoints plus an explicit "not captured" list. The
+   only pair is **1359 and 1360**, because the behaviour inverts across one pixel.
+9. **Accessibility implementation contract** — 9 clauses separating Figma metadata from code behaviour.
+10. **Theme migration** — Light / Dark / Catalog as modes; all three scopes updated together.
+11. **Brand migration impact** — the near-black to green flip, its blast radius, and its reversibility.
+12. **Product Component vs Design System boundary.**
+13. **Figma constraints that must NOT leak into code.**
+14. **Code Connect readiness** — **deferred on purpose**. No `.figma.ts` exists and none should be
+    written until after Wave 5. First four to map then: Button, Badge / Status, Input, table cells.
+15. **Recommended first production pilot.**
+16. Header and status block.
+
+### Approved pilot: **Clientes — Seller portal**
+
+Why: it exercises the **List** pattern (search, pagination), the **768 table to card-list
+transformation**, the **Detail** page (page header, `titleBadge`, `compactAction`, related tickets), a
+real **Form** with validation and error states, both empty states and `StatusBadge` in two states —
+six of eight dependency layers across three routes. Its only destructive action is **archiving, which
+is reversible**, so operational risk is far lower than Boletas (bulk selection, import, release and
+client-change dialogs, clearance switch) or Pagos (money, allocation arithmetic, voiding). Piloting in
+the **Seller** portal puts the 375 card list and the 44px touch floor under real use, because sellers
+work from phones.
+
+**Do NOT implement the pilot.** It belongs to Wave 7 / a later authorized phase.
+
+---
+
+## 9. Migration waves
+
+Exactly as approved in `04 — Design to Code` › Section · Implementation waves.
+
+| # | Name | Purpose | Prerequisites | Risk |
+|---|---|---|---|---|
+| **1** | Tokens | Add semantic custom properties **beside** the existing ones in all three scopes; nothing consumes them yet, so nothing can regress. | none | **LOW** |
+| **2** | Typography | Introduce type variables and the semantic roles; migrate components off ad-hoc utilities. | Wave 1 | **MEDIUM** |
+| **3** | Core controls + **BRAND** | Button, Input, Select, Checkbox, Switch, Badge adopt tokens and touch sizes; `action/primary` stops being near-black and becomes brand green. | Waves 1–2 | **HIGH** |
+| **4** | Data display & overlays | Cells, pagination, empty, skeleton, Dialog, Sheet, Menu, Tooltip, plus the two Catalog contrast fixes. | Wave 3 | **MEDIUM** |
+| **5** | Navigation & shell | Sidebar states, collapsed target 40 → 44, selected treatment gains the brand indicator. | Waves 3–4 (scrim tokens from Wave 1) | **MEDIUM** |
+| **6** | Data visualisation | Chart and Metric colours move onto the `data/*` roles. Independent of 3–5, so it can run in parallel. | Waves 1–2 | **LOW** |
+| **7** | Patterns & pilot screen | Compose the migrated pieces on one real screen (Clientes, Seller). This is where integration problems surface. | Waves 3, 4, 5 | **MEDIUM** |
+
+Risk is relative and argued, **not** an hour estimate.
+
+> **CURRENT POSITION: Wave 1 done, uncommitted, awaiting user review.**
+> **NEXT: Wave 2 (Typography) is the proposed next wave and is NOT authorized.**
+> Waves 2 and 6 both list only Waves 1–2 as prerequisites, so **Wave 6 (Data visualisation)
+> cannot start either** — it depends on Wave 2, and its `data/*` decision is now blocked on the
+> three-way `partial` split in §7B.
+
+---
+
+## 10. Phase 12 status — WAVE 1 EXECUTED
+
+**PHASE 12 IS COMPLETE. Wave 1 is on disk, uncommitted, awaiting user review.**
+
+### 10.1 What shipped
+
+One file changed: **`src/app/globals.css`**, +647 lines, 0 deletions. Appended as one contiguous,
+revertible section at the end of the file; **no existing line was edited**.
+
+| Piece | Count | Where |
+|---|---|---|
+| `--ds-*` raw colour tokens | 85 × 3 scopes = **255** | `:root`, `.dark`, `.catalog-theme` |
+| `--ds-*` scalar tokens | **67** | `:root` only (single-mode in Figma) |
+| Brand pin re-declarations | **3** | one per scope |
+| `--color-*` contract exports | **85** | `@theme static inline` |
+| Typography exports (`--font-size/-line-height/-letter-spacing`) | **20** | `@theme static inline` |
+| Sizing exports (`--size-*`) | **16** | `@theme static inline` |
+| **Contract names exported in total** | **121** | |
+
+Values were **generated from the Figma variables**, not hand-typed: each token was resolved per mode,
+aliases to other semantic tokens emitted as `var(--ds-…)` (preserving the chain), aliases to
+primitives emitted as literals. **Primitives are not exported**, per the contract.
+
+### 10.2 The two-tier shape, and why it exists
+
+`@theme inline { --color-x: var(--color-x) }` is circular, so the value cannot live under the same
+name it exports. The raw value lives in `--ds-<path>` (declared per scope) and the contract name
+`--color-<path>` is declared in `@theme`, exactly mirroring the pattern the file already used with
+`--background` and its `@theme` export. Utilities compile to `var(--ds-…)`, so they re-skin across
+Light / Dark / Catalog with no component branching — verified by probe (§10.4).
+
+### 10.3 The brand pin
+
+`action/primary` aliases `brand/default` in Figma. Wave 1 declares that real wiring, then a clearly
+fenced block re-declares `--ds-action-primary: var(--primary)` in all three scopes — same
+specificity, later source order, so it wins. Verified resolved values: `oklch(0.205 0 0)` in `:root`,
+`oklch(0.922 0 0)` in `.dark`, `oklch(0.55 0.245 296)` in `.catalog-theme` — **today's values,
+unchanged**.
+
+**Wave 3 = delete that one block.** To revert, put it back. `-hover` and `-active` are deliberately
+*not* pinned: production has no hover/active primary token to preserve (buttons darken with
+an opacity modifier on `primary`), so there is no "today's value" to hold, and nothing consumes them.
+
+### 10.4 Validation
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ pass (inside `verify`) |
+| `npm run lint` | ✅ pass (inside `verify`) |
+| `npm run test` | ✅ **47 files, 791 tests passed** |
+| `npm run build` | ✅ pass — all 33 routes built |
+| `npx prettier --check src/app/globals.css` | ✅ pass |
+| **Compiled-CSS diff (the real proof)** | ✅ **0 removed lines**, 460 added — every one a new token, scope opener or brace |
+| Brand pin resolves to today's value ×3 scopes | ✅ verified in compiled output |
+| Utilities generate and resolve via `var(--ds-*)` | ✅ probed via a temporary `@source inline(...)` against the `surface/card`, `status/error/text`, `border/input`, `data/partial` and `text/muted` tokens, then reverted |
+| `npm run test:db` | ⛔ **NOT RUN** — see below |
+
+The compiled-CSS diff is the load-bearing evidence: a *modified* declaration would appear as both a
+removed and an added line. **Zero lines were removed**, so nothing that existed before changed. Method:
+compile `globals.css` through the project's own `@tailwindcss/postcss` before and after, then diff.
+
+**`npm run test:db` was NOT run.** It needs Docker + a local Supabase (`vitest.db.config.mts` says so
+in its header) and the Docker daemon is not running on this machine. It was **not** skipped for
+convenience and it is **not** reported as passing. Running it would also require `npm run db:reset`,
+which **wipes the local development database** — not something to do unprompted. Wave 1 changed one
+CSS file: no migration, no schema, no query, no server code, so the database suite has nothing in
+this diff to exercise. **Offer stands to run it once Docker is up.**
+
+### 10.5 Original intent, for the record
+
+Intent, from the approved Phase 11 contract:
+
+- Purely **additive** infrastructure.
+- Semantic custom properties added to **all three scopes together** — `:root`, `.dark`, `.catalog-theme`.
+- Exposed through `@theme inline`.
+- Typography infrastructure (size / line-height / weight / letter-spacing variables).
+- Product-data semantic infrastructure (the `data/*` roles).
+- **Legacy variables retained.** Nothing is removed.
+- **No broad component adoption** — components still consume what they consume today.
+- **No brand visual activation.** `action/primary` ships resolving to the **current** near-black
+  value; the flip to green happens in Wave 3, which is what keeps it reversible by one alias.
+- **Visual appearance should remain effectively unchanged.**
+
+**No persistent Phase 12 execution prompt exists in the repository.** The user issues each phase
+prompt in chat; if a Phase 12 prompt is provided, it governs. Otherwise this checklist — derived from
+the approved Phase 11 contract, **not invented here** — is the scope:
+
+1. Read the token contract and theme migration sections on `04 — Design to Code`.
+2. Read `src/app/globals.css` in full and record the current values before changing anything.
+3. Add semantic properties for: brand, surfaces and text, border and focus, action, status,
+   navigation / progress / selection, overlay, product data, spacing and radius, sizing, elevation —
+   following `--color-<path>` (lowercase, `/` becomes `-`), with primitives **not** exported.
+4. Add typography variables (`--font-size-*`, `--line-height-*`, `--font-weight-*`, `--letter-spacing-*`).
+5. Mirror every property into `.dark` and `.catalog-theme`. A scope left behind falls back silently.
+6. Expose the new properties through `@theme inline`.
+7. `action/primary` must resolve to today's value. **Do not flip the brand.**
+8. Do not touch any component. Do not remove any legacy variable.
+9. Verify: `npm run verify` and `npm run test:db` green, and diff computed values on a few nodes to
+   prove the appearance did not change.
+10. Report, update this file (§16), and stop.
+
+All ten were executed, with **three documented deviations** — each made to protect the "zero visual
+change" guarantee, none of them a scope change:
+
+| # | Checklist said | What shipped | Why |
+|---|---|---|---|
+| 5 | "Mirror **every** property into `.dark` and `.catalog-theme`." | Colours mirrored into all three scopes. **Scalars declared once in `:root`.** | The stated reason for mirroring is that "a scope left behind falls back silently" — that risk only exists for values that *vary by mode*. Spacing, radius, sizing, breakpoints and typography have **one** mode in Figma, so there is no Dark or Catalog value to leave behind. Mirroring them would be duplication with no meaning. |
+| 6 | "Expose the new properties through `@theme inline`." | Colours, typography and sizing exposed (121 names). **`--spacing-*`, `--radius-*`, `--breakpoint-*` and `--font-weight-*` deliberately NOT exposed** — they ship as `--ds-*` only. | Measured against the installed **tailwindcss 4.3.3**: all four are live theme namespaces. `--spacing-100` would turn the `100` padding utility from 25rem into 4px; `--breakpoint-*` would redefine every `md:` / `lg:` variant in the app; `--radius-sm/md/lg/xl` already exist and already match Figma (6·8·10·14), while `none`/`2xl`/`full` are already served by Tailwind and declaring them would shadow those utilities; `--font-weight-*` already exists with identical values. Exposing any of them could change rendered output, which Wave 1 forbids. **Wave 2 should decide these deliberately.** |
+| 6 | `@theme inline` | `@theme **static** inline` | Tailwind v4 emits only the theme variables something *uses*, and Wave 1 has **zero consumers by design**. Without `static`, all 121 contract names were tree-shaken out of the compiled CSS — verified: the first compile emitted `--ds-*` and **not one** `--color-*`. The infrastructure would have been invisible and `var(--color-surface-card)` would resolve to nothing. `static` forces emission; since nothing consumes them, they still paint nothing. |
+
+---
+
+## 11. Repository checkpoint — 2026-09-06
+
+| Item | Value |
+|---|---|
+| Migration branch | **`design-system/migration`**, branched from `main` @ `124445b` |
+| Branch point | `124445b941f0b7fec5fe0e587de25a632e58a82c` — `docs: registrar D-170 aplicada y desplegada en produccion (0049)` |
+| **Wave 1 commit** | `feat(design-system): add semantic token infrastructure` — hash recorded below after the commit is created |
+| Wave 1 commit contents | `src/app/globals.css`, `docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md` — **nothing else** |
+| Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
+| Pushed | **no** — and no push is authorized |
+| `main` | **not moved**, still at `124445b` |
+
+Wave 1 is an isolated, independently revertible checkpoint: `git revert` on that one commit removes
+the whole token layer and nothing else.
+
+**Do not alter the two pre-existing untracked files.** They belong to the user.
+
+`docs/design-system/` is intended project documentation and must be kept. If Wave 1 is moved to a
+dedicated migration branch, **carry this directory into that working tree** — the handoff is the only
+continuity mechanism between sessions.
+
+> A future session **MUST re-run `git status` and verify HEAD**, because the repository may change
+> after this handoff. This checkpoint is historical context, **not** permission to assume the
+> repository is unchanged.
+
+---
+
+## 12. Files to read first
+
+Minimum useful set before Wave 1. All paths verified 2026-09-06.
+
+| Path | Why |
+|---|---|
+| `src/app/globals.css` | **The whole token layer.** `:root` (light), `.dark` (line 33), `@theme inline` (line 59), `.catalog-theme` (line 374). Tailwind v4 — there is no separate Tailwind theme config file. |
+| `src/components/ui/` | 21 shadcn primitives (`button.tsx`, `badge.tsx`, `input.tsx`, `select.tsx`, …) — the Wave 3 targets. |
+| `src/components/data/StatusBadge.tsx` | The 10 hardcoded palette classes; the highest-value single reconciliation item. |
+| `src/features/dashboard/tones.ts` | The three class families per data role. Read the header comment — it states *why* `pending` is grey and not red. |
+| `src/components/data/PaymentProgressBar.tsx` | **Does not import `tones.ts`** — it duplicates the data palette inline and paints `partial` **amber** where `tones.ts` paints it blue. Renders in all four ticket lists. Read it before touching `data/*` (§7B). |
+| `src/components/data/` | `DataTable.tsx`, `MetricCard.tsx`, `TrendChart.tsx`, `DonutChart.tsx`, `CollectionSummaryCard.tsx`. |
+| `src/components/layout/AppShell.tsx`, `src/components/layout/AppSidebar.tsx` | Sidebar widths and the overlay behaviour (a comment states it is deliberately not a dialog). |
+| `src/lib/constants.ts` | Every status, role and label string. **Single source** for the Spanish status labels. |
+| `docs/UX_COPY_GUIDELINES.md` | Binding for any user-visible text. Imported into `CLAUDE.md` §35. |
+| `src/features/clients/components/`, `src/app/(protected)/seller/clients/` | The approved pilot surface — read only when its phase is authorized. |
+| `CLAUDE.md` | Application-side rules: phases, documentation duties, §35 copy rules, §36 Claude Code ↔ Codex protocol. |
+
+---
+
+## 13. Do-not-do list
+
+A new session must **NOT**:
+
+- restart the Design System from scratch, or rebuild Figma foundations;
+- reinterpret Apple HIG or Atlassian as the new authority;
+- change approved Figma decisions casually — report a contradiction, do not act on it alone;
+- execute later migration waves automatically;
+- perform a big-bang migration;
+- remove legacy variables before their consumers are migrated;
+- activate the new admin brand appearance before **Wave 3** is explicitly authorized — the fenced pin
+  block in `globals.css` is the only thing holding it back, and deleting it *is* the brand flip;
+- assume Wave 2 is authorized because Wave 1 succeeded;
+- modify unrelated code, or refactor outside the authorized scope;
+- touch the pre-existing untracked user files;
+- implement the Clientes pilot before its phase is approved;
+- generate Code Connect files (`.figma.ts`);
+- assume a Figma limitation must exist in code;
+- push to a remote, or commit, without the user asking.
+
+---
+
+## 14. New session startup procedure
+
+1. Read this handoff file completely.
+2. Inspect current `git status` and HEAD; compare against §11.
+3. Connect to Figma (`use_figma`, with the `figma-use` skill loaded).
+4. Read `00 — Start Here`.
+5. Read `04 — Design to Code`.
+6. Verify the Wave 1 / token-contract sections against the current code — especially `globals.css`.
+7. **Report any contradiction or stale assumption BEFORE editing anything.**
+8. If everything matches, execute **only** the explicitly authorized phase.
+9. Stop after that phase.
+10. Report results, update this file (§16), and wait for approval.
+
+---
+
+## 15. NEW CLAUDE CODE SESSION — START HERE
+
+```
+Read docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md in full before doing anything else.
+
+Then:
+1. Run git status and git rev-parse HEAD, and compare them with the repository checkpoint in
+   that file.
+2. Open the Figma file (key 7KIwO0iiGpksLSNjMeSa4X) with use_figma, loading the figma-use skill
+   first, and read the pages "00 — Start Here" and "04 — Design to Code".
+3. Confirm out loud: which phase is complete, and which phase is authorized next.
+
+Rules:
+- Do not rely on any previous chat history; the handoff file and Figma are the only sources.
+- Do not ask me to repeat information that is already documented there.
+- If the Figma file, the handoff file and the repository contradict one another, STOP and report
+  the contradiction instead of guessing or "fixing" it.
+- Execute only the phase I explicitly authorize, then stop and report.
+```
+
+---
+
+## 16. Continuity rule
+
+> **Every future migration phase must update THIS SAME file before the session ends.**
+
+Do **not** create `HANDOFF-v2.md`, `HANDOFF-final.md`, `HANDOFF-new.md` or any other variant. There is
+exactly **one** living handoff for the Design System track, at
+`docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md`.
+
+At the end of each approved phase, update:
+
+- **Last completed phase** (header)
+- **Current status** (header)
+- **Repository checkpoint** (§11 — branch, HEAD, working tree)
+- **Debt / reconciliation changes** (§7 — items closed, items discovered)
+- **Next authorized phase** (header and §10)
+- **Inventory** (§4) if the Figma file changed
+- **Current position** in the wave table (§9)
+
+This is what prevents continuity from depending on chat history.

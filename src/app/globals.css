@@ -537,3 +537,650 @@ body:has(.catalog-theme) {
     animation-iteration-count: 1 !important;
   }
 }
+
+/*
+ * ===========================================================================
+ * DESIGN SYSTEM — CAPA DE TOKENS SEMANTICOS (Fase 12 · Wave 1)
+ * ===========================================================================
+ *
+ * Origen: Figma «Rifas — Design System», archivo 7KIwO0iiGpksLSNjMeSa4X,
+ * paginas «00 — Start Here» y «04 — Design to Code». Los valores NO se
+ * escribieron a mano: se leyeron de las variables de Figma y se generaron.
+ *
+ * ESTA CAPA ES ADITIVA Y HOY NO LA CONSUME NADIE. No se ha tocado ni un
+ * componente, no se ha borrado ni una variable heredada y el aspecto de la
+ * aplicacion no cambia. Ese es exactamente el objetivo de esta ola: dejar la
+ * infraestructura puesta para que las siguientes migren de una en una, y que
+ * una regresion solo pueda venir de la ola en la que se este.
+ *
+ * DOS PISOS, Y HACEN FALTA LOS DOS.
+ *
+ *   --ds-<ruta>     El valor crudo. Se declara TRES VECES —en `:root`, en
+ *                   `.dark` y en `.catalog-theme`— porque los tres modos de
+ *                   Figma son los tres ambitos que ya existian en este
+ *                   archivo. Un ambito que se quede sin declarar no da error:
+ *                   hereda en silencio el valor de otro tema, que es el fallo
+ *                   mas caro de encontrar despues.
+ *
+ *   --color-<ruta>  El nombre del contrato («04 — Design to Code»): la ruta de
+ *                   Figma en minusculas, con «/» convertido en «-». Se declara
+ *                   en `@theme inline`, que ademas es lo que genera las clases
+ *                   (`bg-surface-card`, `text-status-error-text`) para las
+ *                   olas siguientes.
+ *
+ * POR QUE NO UN SOLO PISO. `@theme inline { --color-x: var(--color-x) }` es
+ * circular. Para que un token cambie con el tema, el valor tiene que vivir en
+ * una variable distinta de la que exporta el tema; es el mismo patron que este
+ * archivo ya usaba con `--background` y su exportacion homonima. El nombre
+ * exportado es el del contrato; `--ds-*` es la implementacion.
+ *
+ * LOS PRIMITIVOS NO SE EXPORTAN, por decision del sistema: existen para que los
+ * semanticos los aliaseen. Por eso aqui no hay ni un «neutral/200»: donde un
+ * token de Figma apuntaba a un primitivo se escribe su valor literal, y donde
+ * apuntaba a otro token semantico se escribe `var(--ds-…)`, que es lo que
+ * conserva la cadena y permite recolorear la marca moviendo una sola linea.
+ *
+ * LO QUE NO SUBE A `@theme`, Y POR QUE. Medido contra tailwindcss 4.3.3:
+ *
+ *   --spacing-*     Es un espacio de nombres VIVO de Tailwind. Declarar
+ *                   `--spacing-100` convertiria `p-100` de 25rem en 4px.
+ *   --radius-*      `--radius-sm|md|lg|xl` YA existen arriba y ya coinciden
+ *                   con Figma (6·8·10·14). `none`, `2xl` y `full` los sirve ya
+ *                   el propio Tailwind, y declararlos taparia esas utilidades.
+ *   --breakpoint-*  Redefinirlos cambiaria las variantes `md:`, `lg:`… de toda
+ *                   la aplicacion. Es la colision mas cara de las cuatro.
+ *   --font-weight-* Espacio de nombres existente. Los valores coinciden
+ *                   (400·500·600·700), asi que exportarlos no aportaria nada y
+ *                   solo abriria la puerta a divergir.
+ *
+ * Los cuatro siguen disponibles como `--ds-*`. Que la Wave 2 decida si alguno
+ * debe subir al tema: es cuando la tipografia empieza a tener consumidores.
+ * ===========================================================================
+ */
+
+:root {
+  /* Light */
+  /* action */
+  --ds-action-destructive: #e7000b;
+  --ds-action-destructive-active: #a50036;
+  --ds-action-destructive-hover: #b80008;
+  --ds-action-primary: var(--ds-brand-default);
+  --ds-action-primary-active: #0c5223;
+  --ds-action-primary-hover: var(--ds-brand-hover);
+  --ds-action-secondary: #f5f5f5;
+  /* background */
+  --ds-background-default: #ffffff;
+  /* border */
+  --ds-border-brand: var(--ds-brand-default);
+  --ds-border-default: #e5e5e5;
+  --ds-border-disabled: #e5e5e5;
+  --ds-border-glass: #e5e5e5;
+  --ds-border-glass-strong: #e5e5e5;
+  --ds-border-input: #949494;
+  /* brand */
+  --ds-brand-default: #0d7d2d;
+  --ds-brand-foreground: #ffffff;
+  --ds-brand-gradient-end: #17c246;
+  --ds-brand-gradient-mid: #0f9e37;
+  --ds-brand-gradient-start: #0d7d2d;
+  --ds-brand-hover: #0d6427;
+  --ds-brand-strong: #0d6427;
+  --ds-brand-subtle: #f0fdf1;
+  /* control */
+  --ds-control-knob: #ffffff;
+  --ds-control-track-off: #949494;
+  --ds-control-track-off-hover: #737373;
+  /* data */
+  --ds-data-negative: #e7000b;
+  --ds-data-paid: #009966;
+  --ds-data-partial: #0084d1;
+  --ds-data-pending: #a1a1a1;
+  --ds-data-positive: #007a55;
+  --ds-data-unpaid: #e7000b;
+  /* elevation */
+  --ds-elevation-shadow-default: #0303031f;
+  --ds-elevation-shadow-strong: #03030333;
+  --ds-elevation-shadow-subtle: #03030314;
+  /* focus */
+  --ds-focus-ring: var(--ds-brand-default);
+  --ds-focus-ring-offset: var(--ds-background-default);
+  /* navigation */
+  --ds-navigation-indicator: var(--ds-brand-default);
+  --ds-navigation-selected: var(--ds-brand-subtle);
+  /* overlay */
+  --ds-overlay-scrim: #03030380;
+  --ds-overlay-scrim-subtle: #0a0a0a33;
+  /* progress */
+  --ds-progress-track: #e5e5e5;
+  --ds-progress-value: var(--ds-brand-default);
+  /* selection */
+  --ds-selection-surface: var(--ds-brand-subtle);
+  /* status */
+  --ds-status-error-border: #ffa1ad;
+  --ds-status-error-icon: #ec003f;
+  --ds-status-error-surface: #ffe4e6;
+  --ds-status-error-text: #8b0836;
+  --ds-status-info-border: #74d4ff;
+  --ds-status-info-icon: #0069a8;
+  --ds-status-info-surface: #dff2fe;
+  --ds-status-info-text: #024a70;
+  --ds-status-neutral-border: #90a1b9;
+  --ds-status-neutral-icon: #45556c;
+  --ds-status-neutral-surface: #e2e8f0;
+  --ds-status-neutral-text: #0f172b;
+  --ds-status-success-border: #5ee9b5;
+  --ds-status-success-icon: #007a55;
+  --ds-status-success-surface: #d0fae5;
+  --ds-status-success-text: #004f3b;
+  --ds-status-warning-border: #ffd230;
+  --ds-status-warning-icon: #bb4d00;
+  --ds-status-warning-surface: #fef3c6;
+  --ds-status-warning-text: #7b3306;
+  /* surface */
+  --ds-surface-accent: #f5f5f5;
+  --ds-surface-card: #ffffff;
+  --ds-surface-disabled: #f5f5f5;
+  --ds-surface-glass-default: #ffffff;
+  --ds-surface-glass-strong: #ffffff;
+  --ds-surface-glass-subtle: #ffffff;
+  --ds-surface-inverse: #171717;
+  --ds-surface-muted: #f5f5f5;
+  --ds-surface-popover: #ffffff;
+  --ds-surface-pressed: #e5e5e5;
+  --ds-surface-skeleton: #e5e5e5;
+  /* text */
+  --ds-text-brand: var(--ds-brand-strong);
+  --ds-text-default: #0a0a0a;
+  --ds-text-disabled: #8a8a8a;
+  --ds-text-muted: #525252;
+  --ds-text-on-accent: #171717;
+  --ds-text-on-card: #0a0a0a;
+  --ds-text-on-destructive: #fafafa;
+  --ds-text-on-inverse: #fafafa;
+  --ds-text-on-popover: #0a0a0a;
+  --ds-text-on-primary: var(--ds-brand-foreground);
+  --ds-text-on-secondary: #171717;
+}
+
+.dark {
+  /* Dark */
+  /* action */
+  --ds-action-destructive: #ff6467;
+  --ds-action-destructive-active: #ffa1ad;
+  --ds-action-destructive-hover: #ff8a8c;
+  --ds-action-primary: var(--ds-brand-default);
+  --ds-action-primary-active: #7bef92;
+  --ds-action-primary-hover: var(--ds-brand-hover);
+  --ds-action-secondary: #262626;
+  /* background */
+  --ds-background-default: #0a0a0a;
+  /* border */
+  --ds-border-brand: var(--ds-brand-default);
+  --ds-border-default: #ffffff1a;
+  --ds-border-disabled: #404040;
+  --ds-border-glass: #ffffff26;
+  --ds-border-glass-strong: #ffffff33;
+  --ds-border-input: #666666;
+  /* brand */
+  --ds-brand-default: #17c246;
+  --ds-brand-foreground: #0a0a0a;
+  --ds-brand-gradient-end: #b9f8c3;
+  --ds-brand-gradient-mid: #7bef92;
+  --ds-brand-gradient-start: #3ddc63;
+  --ds-brand-hover: #3ddc63;
+  --ds-brand-strong: #7bef92;
+  --ds-brand-subtle: #032d10;
+  /* control */
+  --ds-control-knob: #0a0a0a;
+  --ds-control-track-off: #666666;
+  --ds-control-track-off-hover: #8a8a8a;
+  /* data */
+  --ds-data-negative: #ff637e;
+  --ds-data-paid: #00d492;
+  --ds-data-partial: #00bcff;
+  --ds-data-pending: #737373;
+  --ds-data-positive: #00d492;
+  --ds-data-unpaid: #ff6467;
+  /* elevation */
+  --ds-elevation-shadow-default: #03030373;
+  --ds-elevation-shadow-strong: #03030399;
+  --ds-elevation-shadow-subtle: #03030359;
+  /* focus */
+  --ds-focus-ring: var(--ds-brand-strong);
+  --ds-focus-ring-offset: var(--ds-background-default);
+  /* navigation */
+  --ds-navigation-indicator: var(--ds-brand-default);
+  --ds-navigation-selected: var(--ds-brand-subtle);
+  /* overlay */
+  --ds-overlay-scrim: #03030399;
+  --ds-overlay-scrim-subtle: #ffffff40;
+  /* progress */
+  --ds-progress-track: #262626;
+  --ds-progress-value: var(--ds-brand-default);
+  /* selection */
+  --ds-selection-surface: var(--ds-brand-subtle);
+  /* status */
+  --ds-status-error-border: #a50036;
+  --ds-status-error-icon: #ff637e;
+  --ds-status-error-surface: #4d0218;
+  --ds-status-error-text: #ffccd3;
+  --ds-status-info-border: #00598a;
+  --ds-status-info-icon: #00bcff;
+  --ds-status-info-surface: #052f4a;
+  --ds-status-info-text: #b8e6fe;
+  --ds-status-neutral-border: #45556c;
+  --ds-status-neutral-icon: #90a1b9;
+  --ds-status-neutral-surface: #1d293d;
+  --ds-status-neutral-text: #f1f5f9;
+  --ds-status-success-border: #006045;
+  --ds-status-success-icon: #00d492;
+  --ds-status-success-surface: #002c22;
+  --ds-status-success-text: #a4f4cf;
+  --ds-status-warning-border: #973c00;
+  --ds-status-warning-icon: #ffb900;
+  --ds-status-warning-surface: #461901;
+  --ds-status-warning-text: #fee685;
+  /* surface */
+  --ds-surface-accent: #262626;
+  --ds-surface-card: #171717;
+  --ds-surface-disabled: #262626;
+  --ds-surface-glass-default: #ffffff0f;
+  --ds-surface-glass-strong: #ffffff1a;
+  --ds-surface-glass-subtle: #ffffff0a;
+  --ds-surface-inverse: #f5f5f5;
+  --ds-surface-muted: #262626;
+  --ds-surface-popover: #171717;
+  --ds-surface-pressed: #404040;
+  --ds-surface-skeleton: #262626;
+  /* text */
+  --ds-text-brand: var(--ds-brand-strong);
+  --ds-text-default: #fafafa;
+  --ds-text-disabled: #8a8a8a;
+  --ds-text-muted: #a1a1a1;
+  --ds-text-on-accent: #fafafa;
+  --ds-text-on-card: #fafafa;
+  --ds-text-on-destructive: #0a0a0a;
+  --ds-text-on-inverse: #171717;
+  --ds-text-on-popover: #fafafa;
+  --ds-text-on-primary: var(--ds-brand-foreground);
+  --ds-text-on-secondary: #fafafa;
+}
+
+.catalog-theme {
+  /* Catalog */
+  /* action */
+  --ds-action-destructive: #d92d2c;
+  --ds-action-destructive-active: #8f1817;
+  --ds-action-destructive-hover: #b01f1e;
+  --ds-action-primary: var(--ds-brand-default);
+  --ds-action-primary-active: #5b21b6;
+  --ds-action-primary-hover: var(--ds-brand-hover);
+  --ds-action-secondary: #b8ed50;
+  /* background */
+  --ds-background-default: #0b0717;
+  /* border */
+  --ds-border-brand: var(--ds-brand-default);
+  --ds-border-default: #b0a7d12e;
+  --ds-border-disabled: #b0a7d12e;
+  --ds-border-glass: #ffffff26;
+  --ds-border-glass-strong: #ffffff33;
+  --ds-border-input: #b0a7d18c;
+  /* brand */
+  --ds-brand-default: #843bec;
+  --ds-brand-foreground: #fcfbff;
+  --ds-brand-gradient-end: #b8ed50;
+  --ds-brand-gradient-mid: #d2c7ff;
+  --ds-brand-gradient-start: #bb7eff;
+  --ds-brand-hover: #6d28d9;
+  --ds-brand-strong: #eadcff;
+  --ds-brand-subtle: #2b243f;
+  /* control */
+  --ds-control-knob: #fcfbff;
+  --ds-control-track-off: #7d7a8e;
+  --ds-control-track-off-hover: #6b6880;
+  /* data */
+  --ds-data-negative: #ff637e;
+  --ds-data-paid: #00d492;
+  --ds-data-partial: #00bcff;
+  --ds-data-pending: #b1afc0;
+  --ds-data-positive: #00d492;
+  --ds-data-unpaid: #ff6467;
+  /* elevation */
+  --ds-elevation-shadow-default: #03030373;
+  --ds-elevation-shadow-strong: #03030399;
+  --ds-elevation-shadow-subtle: #03030359;
+  /* focus */
+  --ds-focus-ring: var(--ds-brand-strong);
+  --ds-focus-ring-offset: var(--ds-background-default);
+  /* navigation */
+  --ds-navigation-indicator: var(--ds-brand-default);
+  --ds-navigation-selected: var(--ds-brand-subtle);
+  /* overlay */
+  --ds-overlay-scrim: #03030399;
+  --ds-overlay-scrim-subtle: #ffffff40;
+  /* progress */
+  --ds-progress-track: #0b0717;
+  --ds-progress-value: var(--ds-brand-default);
+  /* selection */
+  --ds-selection-surface: var(--ds-brand-subtle);
+  /* status */
+  --ds-status-error-border: #a50036;
+  --ds-status-error-icon: #ff637e;
+  --ds-status-error-surface: #4d0218;
+  --ds-status-error-text: #ffccd3;
+  --ds-status-info-border: #00598a;
+  --ds-status-info-icon: #00bcff;
+  --ds-status-info-surface: #052f4a;
+  --ds-status-info-text: #b8e6fe;
+  --ds-status-neutral-border: #45556c;
+  --ds-status-neutral-icon: #90a1b9;
+  --ds-status-neutral-surface: #1d293d;
+  --ds-status-neutral-text: #f1f5f9;
+  --ds-status-success-border: #006045;
+  --ds-status-success-icon: #00d492;
+  --ds-status-success-surface: #002c22;
+  --ds-status-success-text: #a4f4cf;
+  --ds-status-warning-border: #973c00;
+  --ds-status-warning-icon: #ffb900;
+  --ds-status-warning-surface: #461901;
+  --ds-status-warning-text: #fee685;
+  /* surface */
+  --ds-surface-accent: #2b243f;
+  --ds-surface-card: #191527;
+  --ds-surface-disabled: #221f2f;
+  --ds-surface-glass-default: #ffffff0f;
+  --ds-surface-glass-strong: #ffffff1a;
+  --ds-surface-glass-subtle: #ffffff0a;
+  --ds-surface-inverse: #f5f4fc;
+  --ds-surface-muted: #221f2f;
+  --ds-surface-popover: #191527;
+  --ds-surface-pressed: #221f2f;
+  --ds-surface-skeleton: #2b243f;
+  /* text */
+  --ds-text-brand: var(--ds-brand-strong);
+  --ds-text-default: #f5f4fc;
+  --ds-text-disabled: #7d7a8e;
+  --ds-text-muted: #b1afc0;
+  --ds-text-on-accent: #f5f4fc;
+  --ds-text-on-card: #f5f4fc;
+  --ds-text-on-destructive: #fcfbff;
+  --ds-text-on-inverse: #0b0717;
+  --ds-text-on-popover: #f5f4fc;
+  --ds-text-on-primary: var(--ds-brand-foreground);
+  --ds-text-on-secondary: #1f2f02;
+}
+
+/*
+ * EL FRENO DE LA MARCA (Wave 1 · se retira en la Wave 3).
+ *
+ * En el sistema, «action/primary» apunta a «brand/default», que es el verde
+ * Rifas. En produccion, `--primary` es `oklch(0.205 0 0)`: croma CERO, casi
+ * negro. Encender el verde es el cambio mas visible de todo el plan —cada boton
+ * primario, la opcion seleccionada del menu, el anillo de foco— y por eso NO se
+ * enciende aqui.
+ *
+ * Este bloque vuelve a declarar `--ds-action-primary` sobre el valor de hoy, en
+ * los tres ambitos. Va DESPUES de las declaraciones de arriba a proposito:
+ * misma especificidad, gana el orden. Asi el cableado real del sistema se lee
+ * intacto unas lineas mas arriba, y lo temporal se ve como lo que es.
+ *
+ * PARA ENCENDER LA MARCA EN LA WAVE 3 se borra este bloque entero. Para apagarla
+ * otra vez, se vuelve a poner. No hay que buscar nada dentro de ningun
+ * componente.
+ *
+ * «action/primary-hover» y «-active» NO se frenan: produccion no tiene ningun
+ * token equivalente que conservar —los botones oscurecen con opacidad
+ * (`bg-primary/90`)—, asi que no existe «el valor de hoy» que fijar. Como no
+ * los consume nadie, tampoco se ve la diferencia.
+ */
+:root {
+  --ds-action-primary: var(--primary);
+}
+
+.dark {
+  --ds-action-primary: var(--primary);
+}
+
+.catalog-theme {
+  --ds-action-primary: var(--primary);
+}
+
+/*
+ * Escalares: espaciado, radio, tamanos, puntos de corte y tipografia.
+ *
+ * Se declaran UNA sola vez, en `:root`, y no en los tres ambitos como los
+ * colores. No es un descuido: en Figma estas colecciones tienen UN solo modo, de
+ * manera que no hay un valor de Dark ni uno de Catalog que se pudiera quedar
+ * atras. Repetirlos tres veces seria duplicacion sin significado.
+ */
+:root {
+  /* spacing */
+  --ds-spacing-000: 0px;
+  --ds-spacing-050: 2px;
+  --ds-spacing-100: 4px;
+  --ds-spacing-150: 6px;
+  --ds-spacing-200: 8px;
+  --ds-spacing-250: 10px;
+  --ds-spacing-300: 12px;
+  --ds-spacing-400: 16px;
+  --ds-spacing-500: 20px;
+  --ds-spacing-600: 24px;
+  --ds-spacing-800: 32px;
+  --ds-spacing-1000: 40px;
+  --ds-spacing-1200: 48px;
+  --ds-spacing-1600: 64px;
+  /* radius */
+  --ds-radius-none: 0px;
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 8px;
+  --ds-radius-lg: 10px;
+  --ds-radius-xl: 14px;
+  --ds-radius-2xl: 16px;
+  --ds-radius-full: 999px;
+  /* size / control */
+  --ds-size-control-xs: 24px;
+  --ds-size-control-sm: 32px;
+  --ds-size-control-md: 36px;
+  --ds-size-control-lg: 40px;
+  --ds-size-control-touch: 44px;
+  --ds-size-control-xl: 48px;
+  /* size / icon */
+  --ds-size-icon-xs: 12px;
+  --ds-size-icon-sm: 16px;
+  --ds-size-icon-md: 20px;
+  --ds-size-icon-lg: 24px;
+  /* size / navigation */
+  --ds-size-navigation-bottom-nav: 56px;
+  --ds-size-navigation-header: 56px;
+  --ds-size-navigation-selection-bar: 56px;
+  --ds-size-navigation-sidebar-collapsed: 56px;
+  --ds-size-navigation-sidebar-expanded-min: 208px;
+  --ds-size-navigation-sidebar-expanded-max: 232px;
+  /* breakpoint */
+  --ds-breakpoint-mobile-min: 320px;
+  --ds-breakpoint-md: 768px;
+  --ds-breakpoint-sidebar-compact: 1360px;
+  --ds-breakpoint-sidebar-max: 1600px;
+  /* layout / gutter */
+  --ds-layout-gutter-mobile: 16px;
+  --ds-layout-gutter-desktop: 24px;
+  /* typography / size */
+  --ds-font-size-100: 12px;
+  --ds-font-size-200: 14px;
+  --ds-font-size-300: 16px;
+  --ds-font-size-400: 18px;
+  --ds-font-size-500: 20px;
+  --ds-font-size-600: 24px;
+  --ds-font-size-700: 30px;
+  --ds-font-size-800: 36px;
+  --ds-font-size-900: 48px;
+  /* typography / line-height */
+  --ds-line-height-100: 16px;
+  --ds-line-height-200: 20px;
+  --ds-line-height-300: 24px;
+  --ds-line-height-400: 28px;
+  --ds-line-height-500: 32px;
+  --ds-line-height-600: 36px;
+  --ds-line-height-700: 44px;
+  --ds-line-height-800: 56px;
+  /* typography / letter-spacing */
+  --ds-letter-spacing-default: 0px;
+  --ds-letter-spacing-tight: -0.5px;
+  --ds-letter-spacing-tighter: -1px;
+  /* typography / weight */
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-font-weight-bold: 700;
+}
+
+/*
+ * `static` NO es decoracion: sin el, Tailwind solo emite las variables del tema
+ * que alguna clase esta usando, y en esta ola NO LAS USA NADIE a proposito. Sin
+ * `static`, los 121 nombres del contrato se quedarian fuera del CSS compilado y
+ * la infraestructura de esta fase seria invisible: `var(--color-surface-card)`
+ * no resolveria a nada. Con `static` se emiten siempre. Como no las consume
+ * ningun componente, no pintan nada; solo existen.
+ */
+@theme static inline {
+  /* action */
+  --color-action-destructive: var(--ds-action-destructive);
+  --color-action-destructive-active: var(--ds-action-destructive-active);
+  --color-action-destructive-hover: var(--ds-action-destructive-hover);
+  --color-action-primary: var(--ds-action-primary);
+  --color-action-primary-active: var(--ds-action-primary-active);
+  --color-action-primary-hover: var(--ds-action-primary-hover);
+  --color-action-secondary: var(--ds-action-secondary);
+  /* background */
+  --color-background-default: var(--ds-background-default);
+  /* border */
+  --color-border-brand: var(--ds-border-brand);
+  --color-border-default: var(--ds-border-default);
+  --color-border-disabled: var(--ds-border-disabled);
+  --color-border-glass: var(--ds-border-glass);
+  --color-border-glass-strong: var(--ds-border-glass-strong);
+  --color-border-input: var(--ds-border-input);
+  /* brand */
+  --color-brand-default: var(--ds-brand-default);
+  --color-brand-foreground: var(--ds-brand-foreground);
+  --color-brand-gradient-end: var(--ds-brand-gradient-end);
+  --color-brand-gradient-mid: var(--ds-brand-gradient-mid);
+  --color-brand-gradient-start: var(--ds-brand-gradient-start);
+  --color-brand-hover: var(--ds-brand-hover);
+  --color-brand-strong: var(--ds-brand-strong);
+  --color-brand-subtle: var(--ds-brand-subtle);
+  /* control */
+  --color-control-knob: var(--ds-control-knob);
+  --color-control-track-off: var(--ds-control-track-off);
+  --color-control-track-off-hover: var(--ds-control-track-off-hover);
+  /* data */
+  --color-data-negative: var(--ds-data-negative);
+  --color-data-paid: var(--ds-data-paid);
+  --color-data-partial: var(--ds-data-partial);
+  --color-data-pending: var(--ds-data-pending);
+  --color-data-positive: var(--ds-data-positive);
+  --color-data-unpaid: var(--ds-data-unpaid);
+  /* elevation */
+  --color-elevation-shadow-default: var(--ds-elevation-shadow-default);
+  --color-elevation-shadow-strong: var(--ds-elevation-shadow-strong);
+  --color-elevation-shadow-subtle: var(--ds-elevation-shadow-subtle);
+  /* focus */
+  --color-focus-ring: var(--ds-focus-ring);
+  --color-focus-ring-offset: var(--ds-focus-ring-offset);
+  /* navigation */
+  --color-navigation-indicator: var(--ds-navigation-indicator);
+  --color-navigation-selected: var(--ds-navigation-selected);
+  /* overlay */
+  --color-overlay-scrim: var(--ds-overlay-scrim);
+  --color-overlay-scrim-subtle: var(--ds-overlay-scrim-subtle);
+  /* progress */
+  --color-progress-track: var(--ds-progress-track);
+  --color-progress-value: var(--ds-progress-value);
+  /* selection */
+  --color-selection-surface: var(--ds-selection-surface);
+  /* status */
+  --color-status-error-border: var(--ds-status-error-border);
+  --color-status-error-icon: var(--ds-status-error-icon);
+  --color-status-error-surface: var(--ds-status-error-surface);
+  --color-status-error-text: var(--ds-status-error-text);
+  --color-status-info-border: var(--ds-status-info-border);
+  --color-status-info-icon: var(--ds-status-info-icon);
+  --color-status-info-surface: var(--ds-status-info-surface);
+  --color-status-info-text: var(--ds-status-info-text);
+  --color-status-neutral-border: var(--ds-status-neutral-border);
+  --color-status-neutral-icon: var(--ds-status-neutral-icon);
+  --color-status-neutral-surface: var(--ds-status-neutral-surface);
+  --color-status-neutral-text: var(--ds-status-neutral-text);
+  --color-status-success-border: var(--ds-status-success-border);
+  --color-status-success-icon: var(--ds-status-success-icon);
+  --color-status-success-surface: var(--ds-status-success-surface);
+  --color-status-success-text: var(--ds-status-success-text);
+  --color-status-warning-border: var(--ds-status-warning-border);
+  --color-status-warning-icon: var(--ds-status-warning-icon);
+  --color-status-warning-surface: var(--ds-status-warning-surface);
+  --color-status-warning-text: var(--ds-status-warning-text);
+  /* surface */
+  --color-surface-accent: var(--ds-surface-accent);
+  --color-surface-card: var(--ds-surface-card);
+  --color-surface-disabled: var(--ds-surface-disabled);
+  --color-surface-glass-default: var(--ds-surface-glass-default);
+  --color-surface-glass-strong: var(--ds-surface-glass-strong);
+  --color-surface-glass-subtle: var(--ds-surface-glass-subtle);
+  --color-surface-inverse: var(--ds-surface-inverse);
+  --color-surface-muted: var(--ds-surface-muted);
+  --color-surface-popover: var(--ds-surface-popover);
+  --color-surface-pressed: var(--ds-surface-pressed);
+  --color-surface-skeleton: var(--ds-surface-skeleton);
+  /* text */
+  --color-text-brand: var(--ds-text-brand);
+  --color-text-default: var(--ds-text-default);
+  --color-text-disabled: var(--ds-text-disabled);
+  --color-text-muted: var(--ds-text-muted);
+  --color-text-on-accent: var(--ds-text-on-accent);
+  --color-text-on-card: var(--ds-text-on-card);
+  --color-text-on-destructive: var(--ds-text-on-destructive);
+  --color-text-on-inverse: var(--ds-text-on-inverse);
+  --color-text-on-popover: var(--ds-text-on-popover);
+  --color-text-on-primary: var(--ds-text-on-primary);
+  --color-text-on-secondary: var(--ds-text-on-secondary);
+
+  /* typography — nombres del contrato; ninguno colisiona con Tailwind v4.3.3 */
+  --font-size-100: var(--ds-font-size-100);
+  --font-size-200: var(--ds-font-size-200);
+  --font-size-300: var(--ds-font-size-300);
+  --font-size-400: var(--ds-font-size-400);
+  --font-size-500: var(--ds-font-size-500);
+  --font-size-600: var(--ds-font-size-600);
+  --font-size-700: var(--ds-font-size-700);
+  --font-size-800: var(--ds-font-size-800);
+  --font-size-900: var(--ds-font-size-900);
+  --line-height-100: var(--ds-line-height-100);
+  --line-height-200: var(--ds-line-height-200);
+  --line-height-300: var(--ds-line-height-300);
+  --line-height-400: var(--ds-line-height-400);
+  --line-height-500: var(--ds-line-height-500);
+  --line-height-600: var(--ds-line-height-600);
+  --line-height-700: var(--ds-line-height-700);
+  --line-height-800: var(--ds-line-height-800);
+  --letter-spacing-default: var(--ds-letter-spacing-default);
+  --letter-spacing-tight: var(--ds-letter-spacing-tight);
+  --letter-spacing-tighter: var(--ds-letter-spacing-tighter);
+
+  /* sizing */
+  --size-control-xs: var(--ds-size-control-xs);
+  --size-control-sm: var(--ds-size-control-sm);
+  --size-control-md: var(--ds-size-control-md);
+  --size-control-lg: var(--ds-size-control-lg);
+  --size-control-touch: var(--ds-size-control-touch);
+  --size-control-xl: var(--ds-size-control-xl);
+  --size-icon-xs: var(--ds-size-icon-xs);
+  --size-icon-sm: var(--ds-size-icon-sm);
+  --size-icon-md: var(--ds-size-icon-md);
+  --size-icon-lg: var(--ds-size-icon-lg);
+  --size-navigation-bottom-nav: var(--ds-size-navigation-bottom-nav);
+  --size-navigation-header: var(--ds-size-navigation-header);
+  --size-navigation-selection-bar: var(--ds-size-navigation-selection-bar);
+  --size-navigation-sidebar-collapsed: var(--ds-size-navigation-sidebar-collapsed);
+  --size-navigation-sidebar-expanded-min: var(--ds-size-navigation-sidebar-expanded-min);
+  --size-navigation-sidebar-expanded-max: var(--ds-size-navigation-sidebar-expanded-max);
+}
