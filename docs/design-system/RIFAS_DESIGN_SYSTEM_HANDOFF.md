@@ -1,10 +1,11 @@
 # Rifas Design System — Session Handoff
 
-**Last completed migration:** **WAVE 2 — TYPOGRAPHY**
-**Status:** **COMPLETED AND APPROVED** (user approval 2026-09-06)
+**Last approved migration:** **WAVE 3A — CORE CONTROLS ADOPTION** (COMPLETED AND APPROVED, 2026-09-06)
 **Wave 1 — semantic token infrastructure:** COMPLETED AND APPROVED · commit `3aae867`
-**Wave 2 — typography:** COMPLETED AND APPROVED · commit recorded in §11
-**Next:** **WAVE 3A — CORE CONTROLS ADOPTION** · **WAVE 3B — BRAND ACTIVATION is NOT AUTHORIZED**
+**Wave 2 — typography:** COMPLETED AND APPROVED · commit `b33003e`
+**Wave 3A — core controls adoption:** COMPLETED AND APPROVED · commit in §11
+**Next authorized:** **WAVE 3B1 — BRAND SEMANTIC CONVERGENCE** — zero intentional visual change
+**NOT AUTHORIZED:** **WAVE 3B2 — BRAND ACTIVATION** — the visible Rifas brand change
 **Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
 **Migration branch:** `design-system/migration` (from `main` @ `124445b`; `main` not moved)
 **Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 3A)
@@ -18,7 +19,10 @@
 > `letter-spacing: normal` to an explicit **`0px`** (identical rendering in Geist; a role that does
 > not pin its own tracking is not a complete role).
 >
-> Still true after both waves:
+> **Wave 3A** — 7 control files, 24 replacements: only tokens proved identical in all three scopes.
+> Adds the Button touch sizes without changing any default. **No intended visual change** (§10.8).
+>
+> Still true after all three waves:
 > **brand activation NOT performed** · **the Wave 1 brand pin is still ACTIVE** ·
 > **`data/partial` still deferred to the Data wave** · **no legacy variable removed** ·
 > **`npm run test:db` NOT RUN** (see §10.4).
@@ -42,11 +46,12 @@ TanStack Table, lucide-react, Geist. Spanish interface, COP currency, `America/B
 Owner/Admin and Seller portals, plus a public Catalog surface.
 
 The Design System track built a complete Figma design system from the shipped product, produced the
-contract for migrating the product onto it, and has now executed **Waves 1 and 2** of that migration,
-both approved and committed. **The product is live**, and neither wave introduced an intended visual
-change, so it still looks exactly as it did. **Wave 3 is where the product's appearance actually
-changes** — and it was split into **3A (core-control adoption)** and **3B (brand activation)** so
-that the visible flip is a separate, separately reversible decision.
+contract for migrating the product onto it, and has now executed **Waves 1, 2 and 3A** of that
+migration. Waves 1 and 2 are approved and committed; 3A is uncommitted. **The product is live**, and
+**none of the three introduced an intended visual change**, so it still looks exactly as it did.
+Wave 3 was split into **3A (core-control adoption)** and **3B (brand activation)** precisely so that
+the visible flip stays a separate, separately reversible decision. **3B is where the appearance
+actually changes, and it is not authorized.**
 
 ---
 
@@ -103,6 +108,7 @@ Do not copy Figma content wholesale into this file. Summarize and point.
 | **10** | Dashboard and Data Visualization: Metric, Chart / Line, Chart / Donut, `data/*` roles audited from `tones.ts`. |
 | **11** | Design-to-Code contract and migration plan — page `04 — Design to Code`. **No code written.** |
 | **12 · Wave 1** | **Semantic token infrastructure.** 152 distinct `--ds-*` tokens (colours across all three scopes), 121 contract names exported via `@theme static inline`, brand pinned to today's value. One file: `src/app/globals.css`, +647 / −0. The first phase of this track to write production code. **Approved, committed `3aae867`.** |
+| **12 · Wave 3A** | **Core controls adoption.** Button, Badge, Input, Textarea, Select, Checkbox and Switch move onto the semantic tokens that were proved byte-identical in Light, Dark and Catalog; Wave 2 typography completed inside them; two new Button sizes express the 44px touch target without changing any default. **Focus could NOT be migrated** — `focus/ring` aliases `brand/default`, which the pin does not cover, so adopting it would BE the brand flip. Uncommitted. |
 | **12 · Wave 2** | **Typography.** The 14 Figma text styles installed as `--text-*` roles, one utility per role (`Heading/H3`, `Body/Small`, `Label/Medium`, …), then 38 ad-hoc utility swaps across 18 shared components. Sizes and line-heights proved numerically identical to the utilities they replaced. **No brand, no colour token, no component family from Waves 3–6 adopted anything.** **Approved, committed** (hash in §11). |
 
 ---
@@ -498,7 +504,8 @@ Exactly as approved in `04 — Design to Code` › Section · Implementation wav
 
 Risk is relative and argued, **not** an hour estimate.
 
-> **CURRENT POSITION: Waves 1 and 2 approved and committed.**
+> **CURRENT POSITION: Waves 1 and 2 approved and committed. Wave 3A executed, uncommitted,
+> awaiting review.**
 > **Wave 3 was SPLIT (approved 2026-09-06): 3A core-control adoption, 3B brand activation.** This is
 > an EXECUTION split only — the dependency model is unchanged, no new architectural layer exists.
 > **NEXT: WAVE 3B — BRAND ACTIVATION. NOT AUTHORIZED.** It is where `action/primary` stops being
@@ -686,6 +693,79 @@ Baseline = the Wave 1 commit `3aae867`, whose tree is byte-identical to the stat
 The 2 lint warnings are `react-hooks/incompatible-library` on `useVirtualizer`, in files no wave has
 touched.
 
+### 10.8 WAVE 3A — CORE CONTROLS ADOPTION (executed 2026-09-06 · **APPROVED** · committed, hash in §11)
+
+Wave 3 was **split by approval**: **3A** adopts the semantic architecture in the Core controls;
+**3B** performs the visible brand activation and is **NOT AUTHORIZED**. This is an **execution split
+only** — the dependency model is unchanged and no new architectural layer exists.
+
+**Method: adopt only what is provably identical.** Every legacy value and its semantic counterpart
+were resolved to sRGB hex in all three scopes and compared. Only tokens that matched **exactly in all
+three** were adopted, so the wave carries **no intended visual change**.
+
+| Adopted (identical in Light · Dark · Catalog) | Replaced |
+|---|---|
+| `action/primary` | `primary` — safe **because of the Wave 1 pin** |
+| `action/secondary`, `text/on-secondary` | `--secondary`, `--secondary-foreground` |
+| `background/default` | `background` |
+| `surface/accent`, `text/on-accent` | `--accent`, `--accent-foreground` |
+| `surface/popover`, `text/on-popover` | `--popover`, `--popover-foreground` |
+
+**7 files, 24 replacements:** `button`, `badge`, `input`, `textarea`, `select`, `checkbox`, `switch`.
+
+**Deliberately NOT adopted** — each measured, each would have changed pixels:
+
+| Token | Measured difference | Class |
+|---|---|---|
+| `focus/ring` | Light `#a1a1a1` → **`#0d7d2d` brand green**; Dark `#737373` → `#7bef92`. It aliases `brand/default`, which the pin does **not** cover. | **Would be the brand flip** — refused per the standing rule |
+| `border/input` | Light `#e5e5e5` → `#949494`; Dark `#ffffff26` → `#666666` | C · component-contract reconciliation, deferred |
+| `text/muted` | Light `#737373` → `#525252` | B · the known 4.34:1 accessibility fix, CROSS-SYSTEM |
+| `text/on-primary` | Light `#fafafa` → `#ffffff`; Dark `#171717` → `#0a0a0a` | C, deferred with the brand |
+| `action/destructive` | Catalog `#f14d4c` → `#d92d2c` | B · the approved Catalog contrast fix — **Wave 4** |
+| `text/on-destructive` | Dark `#fafafa` → `#0a0a0a` | C, deferred |
+| `selection/surface`, `control/track-off` | brand-derived / differ | deferred |
+
+**The pin covers only `action/primary`.** Every other brand-derived role — `focus/ring`,
+`navigation/*`, `progress/value`, `selection/surface`, `text/brand`, `border/brand` — still resolves
+to live brand green. That is why focus could not be migrated in 3A: **adopting `focus/ring` today
+*is* the brand flip.** The pin block was not altered.
+
+**Size and touch.** Production already implements the touch target — as **39 ad-hoc
+`h-11 … sm:h-9` overrides across 24 files**. Wave 3A adds the missing API instead of enlarging
+anything: two new Button sizes, `touch` (44px, dropping to 36px from `sm`) and `icon-touch`
+(44×44 → 36×36). **No default changed and no existing call site was touched**, so the wave is
+visually inert; the 39 overrides are recorded as the debt this API exists to retire.
+
+**Typography completion (deferred from Wave 2).** The control families Wave 2 skipped for cascade
+safety now use roles: Button → `Label/Medium`, Badge → `Label/Small`, Input and Textarea →
+`Body/Medium` with `Body/Small` from `md`, Select trigger and items → `Body/Small`, Select label →
+`Caption/Regular`. The dead `xs` / `icon-xs` / `icon-lg` Button sizes were left untouched — they have
+**zero usage** in the product, so their internal text utilities cannot render.
+
+### 10.9 Wave 3A validation and blast radius
+
+| Check | Before (`b33003e`) | After (Wave 3A) |
+|---|---|---|
+| typecheck · lint · tests · build | ✅ · ✅ 0 errors / 2 warnings · ✅ 791 · ✅ | ✅ · ✅ **same** 2 warnings · ✅ **791** · ✅ |
+| prettier | ✅ | ✅ (only the pre-existing `nav-items.ts` warning, present at the branch point) |
+| Brand-leak check | — | ✅ **no compiled utility resolves to `brand/*` or `focus/ring`** |
+| `npm run test:db` | ⛔ NOT RUN | ⛔ NOT RUN — no data or database behaviour touched |
+
+**Post-3A brand-pin blast radius, measured in code (not inferred from Figma).** Removing the pin
+today would change **8 occurrences in 4 files**: Button default + hover, Badge default + hover,
+Checkbox checked border/background (and its Dark override), Switch checked track.
+
+**Two findings that change the Wave 3B plan:**
+
+1. **Catalog would not move at all.** Its `brand/default` (`#843bec`) already equals its `--primary`,
+   so the flip is a **Light and Dark** event only.
+2. **23 files still read the legacy `*-primary`** (4 of them Catalog-only, so inert). They would
+   **not** flip, leaving the product two-toned: green Buttons and Badges beside a near-black selected
+   report tab (`ReportNav`), selected sidebar item (`NavLinks`), notification dot, selected cards in
+   `CommissionModelField` and `ImportDropzone`, the tour ring, and three dashboard accents.
+   **So Wave 3B is not "delete one block".** It is: delete the block **and** migrate those consumers
+   in the same wave, or ship an inconsistent product.
+
 ---
 
 ## 11. Repository checkpoint — 2026-09-06
@@ -696,7 +776,8 @@ touched.
 | Branch point | `124445b941f0b7fec5fe0e587de25a632e58a82c` — `docs: registrar D-170 aplicada y desplegada en produccion (0049)` |
 | **Wave 1 commit** | **`3aae86793174077ec3b1d8022a18400705ad21b5`** (`3aae867`) — `feat(design-system): add semantic token infrastructure` |
 | Wave 1 commit contents | `src/app/globals.css`, `docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md` — **nothing else** |
-| **Wave 2** | **uncommitted working tree** — 19 files (see §10.6). No Wave 2 commit was authorized. |
+| **Wave 2 commit** | **`b33003e1a6f0ffe58159d64e71aa9de0f94abaa8`** (`b33003e`) — `feat(design-system): adopt semantic typography roles`, 20 files |
+| **Wave 3A commit** | recorded below · `feat(design-system): adopt semantic core controls`, 8 files |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
