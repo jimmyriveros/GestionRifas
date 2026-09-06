@@ -143,7 +143,7 @@ export function FinancialSummaryCard({
 
             <Link
               href="/seller/reports?report=client-balances"
-              className="text-primary inline-flex items-center gap-1 text-sm font-medium hover:underline"
+              className="text-text-brand inline-flex items-center gap-1 text-sm font-medium hover:underline"
             >
               Ver detalle de cobranza
               <ArrowRightIcon className="size-4" aria-hidden />

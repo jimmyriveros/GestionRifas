@@ -1,14 +1,15 @@
 # Rifas Design System — Session Handoff
 
-**Last approved migration:** **WAVE 3A — CORE CONTROLS ADOPTION** (COMPLETED AND APPROVED, 2026-09-06)
+**Last approved migration:** **WAVE 3B1 — BRAND SEMANTIC CONVERGENCE** (COMPLETED AND APPROVED, 2026-09-06)
 **Wave 1 — semantic token infrastructure:** COMPLETED AND APPROVED · commit `3aae867`
 **Wave 2 — typography:** COMPLETED AND APPROVED · commit `b33003e`
-**Wave 3A — core controls adoption:** COMPLETED AND APPROVED · commit in §11
-**Next authorized:** **WAVE 3B1 — BRAND SEMANTIC CONVERGENCE** — zero intentional visual change
-**NOT AUTHORIZED:** **WAVE 3B2 — BRAND ACTIVATION** — the visible Rifas brand change
+**Wave 3A — core controls adoption:** COMPLETED AND APPROVED · commit `c723b99`
+**Wave 3B1 — brand semantic convergence:** COMPLETED AND APPROVED · commit in §11
+**Next authorized:** **WAVE 3B1B — BRAND ACTIVATION PREREQUISITES** — analysis and inert preparation only
+**NOT AUTHORIZED:** **WAVE 3B2 — BRAND ACTIVATION.** The §14 readiness gate is **NOT met** (§10.11)
 **Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
 **Migration branch:** `design-system/migration` (from `main` @ `124445b`; `main` not moved)
-**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 3A)
+**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 3B1)
 
 > **Wave 1** — `src/app/globals.css` **+647 / −0**, additive, zero consumers; the compiled-CSS diff
 > proved **no existing declaration changed** (0 removed lines).
@@ -22,7 +23,11 @@
 > **Wave 3A** — 7 control files, 24 replacements: only tokens proved identical in all three scopes.
 > Adds the Button touch sizes without changing any default. **No intended visual change** (§10.8).
 >
-> Still true after all three waves:
+> **Wave 3B1** — 11 files, 19 replacements: `text/brand` and `focus/ring` adopted behind a SECOND
+> fenced pin block. Navigation, selection, progress and the generic Badge default were **deferred**
+> because no pin can bridge them without a design decision (§10.10).
+>
+> Still true after all four waves:
 > **brand activation NOT performed** · **the Wave 1 brand pin is still ACTIVE** ·
 > **`data/partial` still deferred to the Data wave** · **no legacy variable removed** ·
 > **`npm run test:db` NOT RUN** (see §10.4).
@@ -766,6 +771,91 @@ Checkbox checked border/background (and its Dark override), Switch checked track
    **So Wave 3B is not "delete one block".** It is: delete the block **and** migrate those consumers
    in the same wave, or ship an inconsistent product.
 
+### 10.10 WAVE 3B1 — BRAND SEMANTIC CONVERGENCE (executed 2026-09-06 · **APPROVED** · committed, hash in §11)
+
+Wave 3B was split again, by approval: **3B1** converges consumers onto the correct brand-derived
+semantic roles with **zero intentional visual change**; **3B2** performs the visible activation and
+is **NOT AUTHORIZED**.
+
+**Rule applied throughout: a legacy CSS name is not evidence of semantic meaning.** Every consumer
+was classified by its **UI responsibility**, not by the fact that it happened to consume `--primary`.
+
+#### The legacy-primary consumer audit (21 non-Catalog occurrences)
+
+| Consumer | UI purpose | Correct role | Inert? | Outcome |
+|---|---|---|---|---|
+| Button link variant · Badge link variant · 3 dashboard "ver todo" links | brand-coloured **text link** | `text/brand` | ✅ pin to `--primary` | **MIGRATED** |
+| All 7 controls' focus ring + border | **keyboard focus** | `focus/ring` | ✅ pin to `--ring` | **MIGRATED** |
+| `NavLinks` selected item · `ReportNav` selected tab | **navigation selection** | `navigation/selected` | ❌ | **DEFERRED — design decision** |
+| `OptionList` selected option · `CommissionModelField` selected card · `ImportDropzone` drag-active | **selection** | `selection/surface` | ❌ | **DEFERRED — design decision** |
+| `CollectionSummaryCard` bar ("Porcentaje recaudado") · `CommissionCard` bar ("boletas cobradas") | **collection / money progress** | `progress/value` **or** `data/*` | ❌ | **DEFERRED — touches the unresolved `data/partial` decision** |
+| `BulkTicketCreator` bar ("Progreso del guardado") | **task progress** — unambiguous | `progress/value` | partly | **DEFERRED** with the family: `progress/track` does not match `--muted`, so migrating only the fill would leave the component half-converged |
+| `NotificationMenu` unread count | **notification indicator** | `status/*`? | ❌ | **DEFERRED — ambiguous** |
+| `avatar` corner indicator | **presence / status dot** | `status/*`? | ❌ | **DEFERRED — ambiguous** |
+| `TourOverlay` spotlight ring | **highlight**, not keyboard focus | ? | ❌ | **DEFERRED — ambiguous** |
+| `input` text-selection highlight | **text selection** | `selection/surface` | ❌ | **DEFERRED** |
+| `switch` thumb in Dark | foreground pair | `text/on-primary` | ❌ | **DEFERRED** (measured in §10.8) |
+| 4 Catalog files | brand accents | — | n/a | **inert** — Catalog `brand/default` already equals its `--primary` |
+
+**Why navigation and selection could not be inert.** Production paints both as a **solid fill**
+(`bg-primary` + `text-primary-foreground`). The approved roles are a **subtle tint** —
+`navigation/selected` and `selection/surface` both alias `brand/subtle` (`#f0fdf1` in Light). Those
+are different designs, not different values, so no pin can bridge them. Resolving it is a product
+decision and was **not** made here.
+
+#### Generic Badge finding
+
+`Badge variant="default"` — the variant that consumes `action/primary` — is used in **exactly two
+places**: `CatalogSettingsCard` and `SellerCatalogCard`, both rendering **"Activo" / "Inactivo"** for
+a catalog **link state**. Every other Badge usage is `secondary` (role labels, "Archivado" — neutral
+metadata) or `outline` (StatusBadge and friends, which supply their own palette).
+
+So the generic Badge default is **a state indicator, not brand emphasis**. On activation those two
+badges would turn brand green purely because the implementation happens to consume `primary`.
+**Minimum correction, deferred for decision:** reclassify `Badge variant="default"` away from
+`action/primary` before 3B2. `StatusBadge` was not touched and «Abonada» was not touched.
+
+#### Compatibility pins added (second fenced block; the Wave 1 block was NOT altered)
+
+| Role | Pinned to | Rationale |
+|---|---|---|
+| `text/brand` | `--primary` | what links paint today |
+| `focus/ring` | `--ring` | what the focus ring paints today; in Catalog both values already coincide, so the pin is a no-op there |
+
+Each pin targets **that role's own current appearance** — the pins deliberately do **not** funnel
+every brand role to one legacy colour.
+
+**Verified identical in all three scopes** (resolved to sRGB, same method as Waves 1–3A):
+`action/primary` `#171717` / `#e5e5e5` / `#843bec` · `focus/ring` `#a1a1a1` / `#737373` / `#eadcff` ·
+`text/brand` `#171717` / `#e5e5e5` / `#843bec`. **No compiled utility resolves to `brand/*`.**
+
+**11 files, 19 replacements** (7 controls + 3 dashboard cards + `globals.css` +49/−0).
+
+### 10.11 Brand activation readiness — the gate is NOT met
+
+If **both** pin blocks were removed today, **27 occurrences** would change: `action/primary` 8 (Button,
+Badge, Checkbox, Switch), `text/brand` 5 (2 link variants + 3 dashboard links), `focus/ring` 14 (all
+7 controls). **Light and Dark only** — Catalog does not move.
+
+**But 21 legacy occurrences across 13 non-Catalog files would NOT change**, and they include the
+ones that matter most for coherence: the **selected sidebar item**, the **selected report tab**, the
+**selected option and cards**, the notification count, both money progress bars, the avatar
+indicator and the tour ring.
+
+| §14 gate condition | Status |
+|---|---|
+| Primary actions semantic | ✅ |
+| Brand text / accent semantic | ✅ |
+| Focus understood | ✅ migrated and pinned |
+| **Navigation consumers semantic** | ❌ blocked on a design decision |
+| **Selection consumers semantic** | ❌ blocked on a design decision |
+| **Generic Badge semantics resolved** | ❌ default variant is a state indicator |
+| No important legacy consumer left inconsistent | ❌ |
+| Progress / Data can stay deferred | ✅ — but only because they stay legacy on both sides |
+
+**Recommendation: keep Brand Activation DEFERRED.** Activating now ships green buttons, links and
+focus rings beside a near-black selected sidebar item and selected report tab.
+
 ---
 
 ## 11. Repository checkpoint — 2026-09-06
@@ -777,7 +867,8 @@ Checkbox checked border/background (and its Dark override), Switch checked track
 | **Wave 1 commit** | **`3aae86793174077ec3b1d8022a18400705ad21b5`** (`3aae867`) — `feat(design-system): add semantic token infrastructure` |
 | Wave 1 commit contents | `src/app/globals.css`, `docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md` — **nothing else** |
 | **Wave 2 commit** | **`b33003e1a6f0ffe58159d64e71aa9de0f94abaa8`** (`b33003e`) — `feat(design-system): adopt semantic typography roles`, 20 files |
-| **Wave 3A commit** | recorded below · `feat(design-system): adopt semantic core controls`, 8 files |
+| **Wave 3A commit** | **`c723b9983d6c7a6980079a22f7679ae393b164d6`** (`c723b99`) — `feat(design-system): adopt semantic core controls`, 8 files |
+| **Wave 3B1 commit** | recorded below · `feat(design-system): converge brand semantic roles`, 12 files |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

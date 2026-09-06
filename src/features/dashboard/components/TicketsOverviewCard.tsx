@@ -75,7 +75,7 @@ export function TicketsOverviewCard({ totals, className }: TicketsOverviewCardPr
         </CardTitle>
         <Link
           href="/seller/tickets"
-          className="text-primary inline-flex shrink-0 items-center gap-1 text-sm font-medium hover:underline"
+          className="text-text-brand inline-flex shrink-0 items-center gap-1 text-sm font-medium hover:underline"
         >
           Ver mis boletas
           <ArrowRightIcon className="size-4" aria-hidden />

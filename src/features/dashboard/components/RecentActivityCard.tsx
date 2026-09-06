@@ -47,7 +47,7 @@ export function RecentActivityCard({ payments, className }: RecentActivityCardPr
         </div>
         <Link
           href="/seller/payments"
-          className="text-primary shrink-0 text-sm font-medium hover:underline"
+          className="text-text-brand shrink-0 text-sm font-medium hover:underline"
         >
           Ver todos
         </Link>
