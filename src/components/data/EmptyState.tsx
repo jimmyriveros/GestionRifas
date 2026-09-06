@@ -14,7 +14,9 @@ export function EmptyState({ title, description, action, icon }: EmptyStateProps
       {icon ? <div className="text-muted-foreground">{icon}</div> : null}
       <div className="space-y-1">
         <p className="font-medium">{title}</p>
-        {description ? <p className="text-muted-foreground text-sm">{description}</p> : null}
+        {description ? (
+          <p className="text-muted-foreground text-body-small">{description}</p>
+        ) : null}
       </div>
       {action}
     </div>

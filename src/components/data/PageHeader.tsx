@@ -87,7 +87,7 @@ export function PageHeader({
   // estrujarla.
   const heading = (
     <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-      <h1 className="min-w-0 text-2xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="text-heading-h2 min-w-0 tracking-tight">{title}</h1>
       {titleBadge}
     </div>
   )
@@ -150,7 +150,7 @@ export function PageHeader({
         </div>
 
         {description ? (
-          <p className="text-muted-foreground col-span-2 text-sm text-pretty sm:col-span-1 sm:col-start-1">
+          <p className="text-muted-foreground text-body-small col-span-2 text-pretty sm:col-span-1 sm:col-start-1">
             {description}
           </p>
         ) : null}
@@ -178,7 +178,9 @@ export function PageHeader({
         {back}
         <div className="min-w-0 space-y-1">
           {heading}
-          {description ? <p className="text-muted-foreground text-sm">{description}</p> : null}
+          {description ? (
+            <p className="text-muted-foreground text-body-small">{description}</p>
+          ) : null}
         </div>
       </div>
       {/* El contenedor no impone tamano a las acciones. Una pantalla que quiera

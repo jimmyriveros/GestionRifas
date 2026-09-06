@@ -87,7 +87,7 @@ export function NavLinks({ items, onNavigate, collapsed = false }: NavLinksProps
               // centrado, sin que este componente tenga que saber nada.
               'flex min-h-9 items-center [justify-content:var(--sidebar-content-justify)]',
               'gap-[var(--sidebar-item-gap)] rounded-md px-[var(--sidebar-item-px)] py-2',
-              'text-sm font-medium transition-colors',
+              'text-label-medium transition-colors',
               // Estados excluyentes: el enlace de la pantalla actual trae su
               // propio hover, para que pasar por encima no lo devuelva nunca al
               // aspecto de un enlace cualquiera (misma regla que `OptionList`).

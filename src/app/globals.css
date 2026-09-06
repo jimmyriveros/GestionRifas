@@ -1184,3 +1184,117 @@ body:has(.catalog-theme) {
   --size-navigation-sidebar-expanded-min: var(--ds-size-navigation-sidebar-expanded-min);
   --size-navigation-sidebar-expanded-max: var(--ds-size-navigation-sidebar-expanded-max);
 }
+
+/*
+ * ===========================================================================
+ * DESIGN SYSTEM — ROLES TIPOGRAFICOS (Fase 12 · Wave 2)
+ * ===========================================================================
+ *
+ * Los 14 estilos de texto de Figma, convertidos en utilidades. Es la mitad que
+ * le faltaba a la Wave 1: aquella dejo las MEDIDAS (--ds-font-size-*,
+ * --ds-line-height-*, --ds-letter-spacing-*, --ds-font-weight-*); esta las
+ * agrupa en los ROLES que el codigo pide por su nombre.
+ *
+ * LA REGLA DEL CONTRATO: una pantalla pide «Heading/H3», nunca «20px». Por eso
+ * cada rol lleva sus CUATRO propiedades juntas —tamano, interlineado, grosor y
+ * espaciado—: pedir el rol tiene que bastar, sin acordarse de anadir
+ * `font-semibold` al lado. Cambiar la escala mas adelante es cambiar estas
+ * lineas, no repasar las pantallas.
+ *
+ * COMO SE LLAMAN. Misma regla que los colores: la ruta de Figma en minusculas
+ * con «/» convertido en «-», precedida de `text-`. Asi «Heading/H3» es
+ * `text-heading-h3` y «Metric/X-Large» es `text-metric-x-large`.
+ *
+ * `--text-<nombre>--line-height`, `--font-weight` y `--letter-spacing` son la
+ * forma que tiene Tailwind v4 de colgar esas tres de un tamano. No es un
+ * invento local: es el mismo mecanismo con el que el framework define
+ * `text-sm` y su interlineado.
+ *
+ * DOS AVISOS PARA QUIEN MIGRE UNA PANTALLA:
+ *
+ *   1. El rol FIJA el grosor. `text-heading-h3 font-bold` es una contradiccion;
+ *      si hace falta otro grosor, es que hace falta otro rol —o que el rol esta
+ *      mal definido y se corrige aqui—.
+ *   2. El rol FIJA el interlineado. Un `leading-none` al lado gana por orden de
+ *      cascada y deja el rol a medias. Donde el diseno pida un interlineado
+ *      distinto, se deja la utilidad suelta y se anota, que es justo lo que se
+ *      hizo con `Label` y con los titulos de dialogo (ver el informe de la ola).
+ * ===========================================================================
+ */
+@theme static inline {
+  /* Display */
+  --text-display-hero: var(--ds-font-size-900);
+  --text-display-hero--line-height: var(--ds-line-height-800);
+  --text-display-hero--font-weight: var(--ds-font-weight-semibold);
+  --text-display-hero--letter-spacing: var(--ds-letter-spacing-tighter);
+
+  --text-display-large: var(--ds-font-size-800);
+  --text-display-large--line-height: var(--ds-line-height-700);
+  --text-display-large--font-weight: var(--ds-font-weight-semibold);
+  --text-display-large--letter-spacing: var(--ds-letter-spacing-tight);
+
+  /* Heading */
+  --text-heading-h1: var(--ds-font-size-700);
+  --text-heading-h1--line-height: var(--ds-line-height-600);
+  --text-heading-h1--font-weight: var(--ds-font-weight-semibold);
+  --text-heading-h1--letter-spacing: var(--ds-letter-spacing-tight);
+
+  --text-heading-h2: var(--ds-font-size-600);
+  --text-heading-h2--line-height: var(--ds-line-height-500);
+  --text-heading-h2--font-weight: var(--ds-font-weight-semibold);
+  --text-heading-h2--letter-spacing: var(--ds-letter-spacing-default);
+
+  --text-heading-h3: var(--ds-font-size-500);
+  --text-heading-h3--line-height: var(--ds-line-height-400);
+  --text-heading-h3--font-weight: var(--ds-font-weight-semibold);
+  --text-heading-h3--letter-spacing: var(--ds-letter-spacing-default);
+
+  --text-heading-h4: var(--ds-font-size-300);
+  --text-heading-h4--line-height: var(--ds-line-height-300);
+  --text-heading-h4--font-weight: var(--ds-font-weight-semibold);
+  --text-heading-h4--letter-spacing: var(--ds-letter-spacing-default);
+
+  /* Body */
+  --text-body-large: var(--ds-font-size-400);
+  --text-body-large--line-height: var(--ds-line-height-400);
+  --text-body-large--font-weight: var(--ds-font-weight-regular);
+  --text-body-large--letter-spacing: var(--ds-letter-spacing-default);
+
+  --text-body-medium: var(--ds-font-size-300);
+  --text-body-medium--line-height: var(--ds-line-height-300);
+  --text-body-medium--font-weight: var(--ds-font-weight-regular);
+  --text-body-medium--letter-spacing: var(--ds-letter-spacing-default);
+
+  --text-body-small: var(--ds-font-size-200);
+  --text-body-small--line-height: var(--ds-line-height-200);
+  --text-body-small--font-weight: var(--ds-font-weight-regular);
+  --text-body-small--letter-spacing: var(--ds-letter-spacing-default);
+
+  /* Label */
+  --text-label-medium: var(--ds-font-size-200);
+  --text-label-medium--line-height: var(--ds-line-height-200);
+  --text-label-medium--font-weight: var(--ds-font-weight-medium);
+  --text-label-medium--letter-spacing: var(--ds-letter-spacing-default);
+
+  --text-label-small: var(--ds-font-size-100);
+  --text-label-small--line-height: var(--ds-line-height-100);
+  --text-label-small--font-weight: var(--ds-font-weight-medium);
+  --text-label-small--letter-spacing: var(--ds-letter-spacing-default);
+
+  /* Caption */
+  --text-caption-regular: var(--ds-font-size-100);
+  --text-caption-regular--line-height: var(--ds-line-height-100);
+  --text-caption-regular--font-weight: var(--ds-font-weight-regular);
+  --text-caption-regular--letter-spacing: var(--ds-letter-spacing-default);
+
+  /* Metric — cifras. Llevan el espaciado ajustado del sistema. */
+  --text-metric-large: var(--ds-font-size-600);
+  --text-metric-large--line-height: var(--ds-line-height-500);
+  --text-metric-large--font-weight: var(--ds-font-weight-semibold);
+  --text-metric-large--letter-spacing: var(--ds-letter-spacing-tight);
+
+  --text-metric-x-large: var(--ds-font-size-700);
+  --text-metric-x-large--line-height: var(--ds-line-height-600);
+  --text-metric-x-large--font-weight: var(--ds-font-weight-semibold);
+  --text-metric-x-large--letter-spacing: var(--ds-letter-spacing-tight);
+}

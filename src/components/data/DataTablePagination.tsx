@@ -85,7 +85,7 @@ export function DataTablePagination({ total, page, pageSize, items }: DataTableP
     // empieza justo aqui, y sin este respiro la ultima linea de la pantalla
     // queda pegada a los botones de navegacion.
     <div className="flex flex-col items-center justify-between gap-4 pb-2 md:flex-row md:gap-3 md:pb-0">
-      <p className="text-muted-foreground text-sm" aria-live="polite">
+      <p className="text-muted-foreground text-body-small" aria-live="polite">
         {total === 0
           ? 'Nada para mostrar'
           : `${from}–${to} de ${total} ${total === 1 ? label.one : label.many}`}
@@ -120,7 +120,7 @@ export function DataTablePagination({ total, page, pageSize, items }: DataTableP
         {/* `flex-1` centra el indicador en lo que queda entre los dos botones,
             que es lo unico que se puede centrar cuando «Anterior» y «Siguiente»
             no miden lo mismo. En escritorio vuelve a ocupar lo suyo. */}
-        <span className="flex-1 text-center text-sm tabular-nums md:flex-none">
+        <span className="text-body-small flex-1 text-center tabular-nums md:flex-none">
           <span className="sr-only md:not-sr-only">Página </span>
           {page} de {totalPages}
         </span>

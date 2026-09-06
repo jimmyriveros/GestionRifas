@@ -15,11 +15,11 @@ export function MetricCard({ label, value, hint, className }: MetricCardProps) {
   return (
     <Card className={cn('gap-2 py-4', className)}>
       <CardHeader className="px-4">
-        <CardTitle className="text-muted-foreground text-sm font-medium">{label}</CardTitle>
+        <CardTitle className="text-muted-foreground text-label-medium">{label}</CardTitle>
       </CardHeader>
       <CardContent className="px-4">
-        <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        {hint ? <p className="text-muted-foreground mt-1 text-xs">{hint}</p> : null}
+        <p className="text-heading-h2 tabular-nums">{value}</p>
+        {hint ? <p className="text-muted-foreground text-caption-regular mt-1">{hint}</p> : null}
       </CardContent>
     </Card>
   )

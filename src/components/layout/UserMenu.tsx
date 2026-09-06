@@ -63,22 +63,22 @@ export function UserMenu({ fullName, email, role, navItems = [] }: UserMenuProps
               {initialsFor(fullName)}
             </AvatarFallback>
           </Avatar>
-          <span className="hidden max-w-32 truncate text-sm font-medium md:inline">{fullName}</span>
+          <span className="text-label-medium hidden max-w-32 truncate md:inline">{fullName}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col gap-1">
-            <span className="truncate text-sm font-medium">{fullName}</span>
-            <span className="text-muted-foreground truncate text-xs">{email}</span>
-            <span className="text-muted-foreground text-xs">{ROLE_LABELS[role]}</span>
+            <span className="text-label-medium truncate">{fullName}</span>
+            <span className="text-muted-foreground text-caption-regular truncate">{email}</span>
+            <span className="text-muted-foreground text-caption-regular">{ROLE_LABELS[role]}</span>
           </div>
         </DropdownMenuLabel>
         {navItems.length > 0 ? (
           <>
             <DropdownMenuSeparator className="md:hidden" />
             <DropdownMenuGroup className="md:hidden">
-              <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+              <DropdownMenuLabel className="text-muted-foreground text-caption-regular">
                 Ir a
               </DropdownMenuLabel>
               {navItems.map((item) => (

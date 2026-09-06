@@ -34,14 +34,14 @@ export function CollectionSummaryCard({
   return (
     <Card className={cn(className)} {...tourTarget('financial-summary')}>
       <CardHeader>
-        <CardTitle className="text-base">Resumen de cobranza</CardTitle>
+        <CardTitle className="text-heading-h4">Resumen de cobranza</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {hasSales ? (
           <>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground text-body-small">
                   Recaudado de {formatCOP(totalSold)} vendidos
                 </p>
                 <p className="text-3xl font-bold tabular-nums sm:text-4xl">
@@ -49,8 +49,10 @@ export function CollectionSummaryCard({
                 </p>
               </div>
               <div className="sm:text-right">
-                <p className="text-muted-foreground text-xs">Te falta cobrar</p>
-                <p className="text-lg font-semibold tabular-nums">{formatCOP(safePendingAmount)}</p>
+                <p className="text-muted-foreground text-caption-regular">Te falta cobrar</p>
+                <p className="text-body-large font-semibold tabular-nums">
+                  {formatCOP(safePendingAmount)}
+                </p>
               </div>
             </div>
 
@@ -68,7 +70,7 @@ export function CollectionSummaryCard({
                   style={{ width: `${percentage}%` }}
                 />
               </div>
-              <p className="text-muted-foreground text-xs">
+              <p className="text-muted-foreground text-caption-regular">
                 {percentage}% recaudado
                 {pendingTicketsCount > 0
                   ? ` · ${pendingTicketsCount} ${pendingTicketsCount === 1 ? 'boleta' : 'boletas'} por cobrar`
@@ -77,7 +79,7 @@ export function CollectionSummaryCard({
             </div>
           </>
         ) : (
-          <p className="text-muted-foreground text-sm">Aún no tienes ventas registradas.</p>
+          <p className="text-muted-foreground text-body-small">Aún no tienes ventas registradas.</p>
         )}
       </CardContent>
     </Card>

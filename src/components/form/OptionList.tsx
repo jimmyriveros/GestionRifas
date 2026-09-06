@@ -93,7 +93,7 @@ export function OptionListItem({
         className={cn(
           // Alto comodo para el pulgar y sin saltos: entre estados solo cambia
           // el fondo, nunca el borde ni el tamano.
-          'flex w-full items-center gap-3 px-3 py-3 text-left text-sm transition-colors',
+          'text-body-small flex w-full items-center gap-3 px-3 py-3 text-left transition-colors',
           'focus-visible:outline-ring outline-none focus-visible:outline-2 focus-visible:-outline-offset-2',
           'disabled:pointer-events-none disabled:opacity-60',
           isSelected
@@ -106,7 +106,7 @@ export function OptionListItem({
           {description ? (
             <span
               className={cn(
-                'block text-xs',
+                'text-caption-regular block',
                 isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground',
               )}
             >
@@ -115,7 +115,9 @@ export function OptionListItem({
           ) : null}
         </span>
 
-        {trailing ? <span className="shrink-0 text-sm tabular-nums">{trailing}</span> : null}
+        {trailing ? (
+          <span className="text-body-small shrink-0 tabular-nums">{trailing}</span>
+        ) : null}
 
         {selectable ? (
           <CheckIcon

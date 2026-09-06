@@ -37,7 +37,7 @@ export function TableSection({ title, action, children, className }: TableSectio
   return (
     <Card className={cn('gap-0 py-0', className)}>
       <CardHeader className="flex flex-row items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
-        <CardTitle className="text-base">
+        <CardTitle className="text-heading-h4">
           <h2>{title}</h2>
         </CardTitle>
         {action}

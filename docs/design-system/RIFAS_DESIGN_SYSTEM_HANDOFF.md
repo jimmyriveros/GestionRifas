@@ -1,19 +1,27 @@
 # Rifas Design System — Session Handoff
 
-**Last completed phase:** PHASE 12 — WAVE 1: SEMANTIC TOKEN INFRASTRUCTURE
+**Last completed migration:** **WAVE 2 — TYPOGRAPHY**
 **Status:** **COMPLETED AND APPROVED** (user approval 2026-09-06)
+**Wave 1 — semantic token infrastructure:** COMPLETED AND APPROVED · commit `3aae867`
+**Wave 2 — typography:** COMPLETED AND APPROVED · commit recorded in §11
+**Next:** **WAVE 3A — CORE CONTROLS ADOPTION** · **WAVE 3B — BRAND ACTIVATION is NOT AUTHORIZED**
 **Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
-**Migration branch:** `design-system/migration`
-**Wave 1 commit:** see §11
-**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 2)
+**Migration branch:** `design-system/migration` (from `main` @ `124445b`; `main` not moved)
+**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 3A)
 
-> **WAVE 1 IS APPROVED AND COMMITTED** on `design-system/migration`. One production file:
-> `src/app/globals.css`, **+647 / −0**. Additive, **zero consumers**; the compiled-CSS diff proved
-> **no existing declaration changed** (0 removed lines).
+> **Wave 1** — `src/app/globals.css` **+647 / −0**, additive, zero consumers; the compiled-CSS diff
+> proved **no existing declaration changed** (0 removed lines).
+> **Wave 2** — **20 files**: the 14 typographic roles in `globals.css` (+114 / −0) plus
+> **38 shared-component typography migrations** across 18 files (38 insertions / 38 deletions, no
+> logic). **Intentional visual changes: none** — every migrated pair proved numerically identical.
+> The one computed-value delta is deliberate: migrated elements go from inheriting
+> `letter-spacing: normal` to an explicit **`0px`** (identical rendering in Geist; a role that does
+> not pin its own tracking is not a complete role).
 >
-> Still true after Wave 1, and still true after Wave 2:
-> **brand activation NOT performed** · **`data/partial` still deferred to the Data wave** ·
-> **no legacy variable removed** · **`npm run test:db` NOT RUN** (see §10.4).
+> Still true after both waves:
+> **brand activation NOT performed** · **the Wave 1 brand pin is still ACTIVE** ·
+> **`data/partial` still deferred to the Data wave** · **no legacy variable removed** ·
+> **`npm run test:db` NOT RUN** (see §10.4).
 
 This is the **single living handoff** for the Design System track. It is written so a new
 Claude Code session can continue with **no access to previous chat history**. Read it in
@@ -33,10 +41,12 @@ Router, TypeScript strict, Supabase + Postgres with RLS, Tailwind v4, shadcn/ui 
 TanStack Table, lucide-react, Geist. Spanish interface, COP currency, `America/Bogota`.
 Owner/Admin and Seller portals, plus a public Catalog surface.
 
-The Design System track built a complete Figma design system from the shipped product, produced
-the contract for migrating the product onto it, and has now executed **Wave 1** of that migration.
-**The product is live. Wave 1 (token infrastructure) is on disk and uncommitted; it is additive and
-has zero consumers, so the product looks exactly as it did. Waves 2–7 have not started.**
+The Design System track built a complete Figma design system from the shipped product, produced the
+contract for migrating the product onto it, and has now executed **Waves 1 and 2** of that migration,
+both approved and committed. **The product is live**, and neither wave introduced an intended visual
+change, so it still looks exactly as it did. **Wave 3 is where the product's appearance actually
+changes** — and it was split into **3A (core-control adoption)** and **3B (brand activation)** so
+that the visible flip is a separate, separately reversible decision.
 
 ---
 
@@ -92,7 +102,8 @@ Do not copy Figma content wholesale into this file. Summarize and point.
 | **9** | Product Patterns: List Page, Detail Page, Form, Search & Filters, Bulk Selection. |
 | **10** | Dashboard and Data Visualization: Metric, Chart / Line, Chart / Donut, `data/*` roles audited from `tones.ts`. |
 | **11** | Design-to-Code contract and migration plan — page `04 — Design to Code`. **No code written.** |
-| **12** | **Wave 1 — semantic token infrastructure.** 152 distinct `--ds-*` tokens (colours across all three scopes), 121 contract names exported via `@theme static inline`, brand pinned to today's value. One file: `src/app/globals.css`, +647 / −0. The first phase of this track to write production code. Uncommitted. |
+| **12 · Wave 1** | **Semantic token infrastructure.** 152 distinct `--ds-*` tokens (colours across all three scopes), 121 contract names exported via `@theme static inline`, brand pinned to today's value. One file: `src/app/globals.css`, +647 / −0. The first phase of this track to write production code. **Approved, committed `3aae867`.** |
+| **12 · Wave 2** | **Typography.** The 14 Figma text styles installed as `--text-*` roles, one utility per role (`Heading/H3`, `Body/Small`, `Label/Medium`, …), then 38 ad-hoc utility swaps across 18 shared components. Sizes and line-heights proved numerically identical to the utilities they replaced. **No brand, no colour token, no component family from Waves 3–6 adopted anything.** **Approved, committed** (hash in §11). |
 
 ---
 
@@ -214,6 +225,22 @@ Do **not** revert any of them merely to mirror the original conceptual contract 
   resolved cases.
 - **`data/partial` is infrastructure only** — created, inert, zero consumers. The visual
   reconciliation stays deferred to the Data wave. It was **not** resolved in Wave 2.
+
+**WAVE 2 DECISIONS — approved 2026-09-06.**
+
+- **A role plus an explicit weight is a legitimate composition.** The two combinations Wave 2 found
+  without a matching role are **not** automatically missing roles. For 16–18px at weight 600 (dialog
+  titles), `Body/Large` + an explicit `font-semibold` is the accepted answer: the heavier weight is
+  **local emphasis**, not a new recurring content role. **Do not invent a role solely to delete a
+  `font-semibold`.**
+- **The 30px/700 collection figure is a Product Component concern.** `CollectionSummaryCard` is
+  already classified as a Product Component (§5, Product boundary). **Do not add a Core typography
+  role for one business-specific hero figure.** It is recorded for the future Product Component
+  migration.
+- **The bar for a new role:** a *second* meaningful, recurring semantic use must demonstrate that it
+  belongs in the shared system. One site is not a role.
+- **`tabular-nums` stays a code behaviour, not a token.** It is applied where numeric alignment
+  requires it and is **not** to be converted into a size/style token.
 
 ---
 
@@ -382,6 +409,36 @@ is a correction to how this track measures success.
   is silently dropped from the build. Any future wave that adds tokens ahead of their consumers needs
   the same treatment, and **must verify emission rather than assume it**.
 
+### F. THE FOUR TAILWIND COLLISIONS — RESOLVED IN WAVE 2
+
+Recorded in Figma at `04 — Design to Code` › Token contract (five appended rows). **None is a real
+contract conflict**: in every case the framework already expresses the approved value, or the value
+is consumed by CSS that already exists. Figma variables were **not** renamed, and **no working
+Tailwind built-in was shadowed**.
+
+| # | Contract name | Strategy | Resolution |
+|---|---|---|---|
+| 1 | `--spacing-*` | **A — use the existing Tailwind equivalent** | The Figma step is the Tailwind step **× 100**, so all 14 map exactly: `spacing/400` (16px) **is** `p-4`, `spacing/200` is `p-2`, `spacing/1600` is the 16 step. Not exposed to `@theme`, because declaring `--spacing-100` would turn the `100` padding utility from 25rem into 4px. `--ds-spacing-*` remains for hand-written CSS. |
+| 2 | `--radius-*` | **A — use the existing Tailwind equivalent** | `sm\|md\|lg\|xl` already exist in `globals.css` and already match Figma (6·8·10·14). `none` = `rounded-none`; `2xl` = `rounded-2xl` (1rem = 16px, the Figma value); `full` = `rounded-full` — Figma resolves it to 999px and Tailwind to `calc(infinity * 1px)`, which render identically at every real control size. **The earlier note calling `none`, `2xl` and `full` "additions" was wrong** and is corrected in Figma. |
+| 3 | `--breakpoint-*` | **B — keep internal, do not expose** | The most expensive of the four: declaring `--breakpoint-md` would redefine every `md:` / `lg:` variant in the app. `breakpoint/md` (768) is already Tailwind's `md`, a plain equivalence. `mobile-min` (320) is a supported-width floor, not a breakpoint. `sidebar-compact` (1360) and `sidebar-max` (1600) are not Tailwind breakpoints and are already implemented as hand-written media queries (85rem / 100rem). |
+| 4 | `--font-weight-*` | **A — use the existing Tailwind equivalent** | Values identical: medium 500, semibold 600, bold 700. Figma's `weight/regular` is Tailwind's `font-normal` (400) — same value, different name, and the Figma variable is **not** renamed to match. The roles consume `--ds-font-weight-*` internally via `--text-<role>--font-weight`, so a screen still asks for a role and never for a number. |
+
+**Remaining Wave 2 debt — the route-level sweep.** Wave 2 migrated dependency **layer 2** (shared
+components). `src/features/` and `src/app/` still hold **≈108 files and ~470 ad-hoc text utilities**;
+route-level composition is **layer 8** in the dependency graph, so it belongs with Patterns / Screens
+(Wave 7), not here.
+
+**Two role gaps found while migrating — both DECIDED, neither is a missing role** (§5, Wave 2
+decisions): 16–18px at weight 600 ships as `Body/Large` + explicit `font-semibold` (local emphasis),
+and the 30px/700 collection figure stays with the Product Component migration.
+
+**Corrected production fact — `tabular-nums`.** The Typography contract on `04 — Design to Code`
+said *"Production already applies it in 10 files"*. Re-measured 2026-09-06 at HEAD `3aae867`:
+**58 files, 154 occurrences**. Production was already far more systematic than the contract assumed,
+so the remaining work is an audit of gaps, not a rollout. Corrected in Figma. It stays a **code
+typography behaviour applied where numeric alignment requires it** — it is never turned into a
+size/style token.
+
 ---
 
 ## 8. Phase 11 contract summary — `04 — Design to Code`
@@ -441,11 +498,14 @@ Exactly as approved in `04 — Design to Code` › Section · Implementation wav
 
 Risk is relative and argued, **not** an hour estimate.
 
-> **CURRENT POSITION: Wave 1 done, uncommitted, awaiting user review.**
-> **NEXT: Wave 2 (Typography) is the proposed next wave and is NOT authorized.**
-> Waves 2 and 6 both list only Waves 1–2 as prerequisites, so **Wave 6 (Data visualisation)
-> cannot start either** — it depends on Wave 2, and its `data/*` decision is now blocked on the
-> three-way `partial` split in §7B.
+> **CURRENT POSITION: Waves 1 and 2 approved and committed.**
+> **Wave 3 was SPLIT (approved 2026-09-06): 3A core-control adoption, 3B brand activation.** This is
+> an EXECUTION split only — the dependency model is unchanged, no new architectural layer exists.
+> **NEXT: WAVE 3B — BRAND ACTIVATION. NOT AUTHORIZED.** It is where `action/primary` stops being
+> near-black and becomes brand green, everywhere at once.
+> **Wave 6 (Data visualisation)** now has its prerequisites met (Waves 1–2) and could run in
+> parallel — but its `data/*` decision is still blocked on the three-way `partial` split in §7B, so
+> it must not start before that is decided.
 
 ---
 
@@ -561,20 +621,89 @@ change" guarantee, none of them a scope change:
 
 ---
 
+### 10.6 WAVE 2 — TYPOGRAPHY (executed 2026-09-06 · **APPROVED** · committed, hash in §11)
+
+**Approved scope, verified identical in Figma (`04` › Implementation waves + Dependency graph) and
+§9 of this file:** *"Introduce type variables and the semantic roles; migrate components off ad-hoc
+utilities."* Prerequisite Wave 1. Risk MEDIUM. Dependency layer 2: *"Depends on wave 1 only. Touches
+every screen visually but no logic."*
+
+**What shipped — 19 files.**
+
+| Piece | Detail |
+|---|---|
+| The 14 roles | `src/app/globals.css` **+114 / −0**. Each Figma text style becomes a `--text-<role>` key with its `--line-height`, `--font-weight` and `--letter-spacing`, bound to the Wave 1 `--ds-*` tokens. Generates one utility per role: `Display/Hero`, `Heading/H1`–`H4`, `Body/Large`–`Small`, `Label/Medium`–`Small`, `Caption/Regular` and `Metric/Large`–`X-Large` |
+| Component migration | **38 class swaps in 18 shared components** — `data/`, `feedback/`, `form/`, `layout/` and the non-control `ui/` primitives. 38 insertions, 38 deletions, **no logic touched**. |
+
+**Why the roles are safe to sit next to existing utilities.** Tailwind compiles a role to
+`font-size: …; line-height: var(--tw-leading, …); letter-spacing: var(--tw-tracking, …);
+font-weight: var(--tw-font-weight, …)`. An explicit `leading-none`, `tracking-tight` or
+`font-semibold` on the same element sets that `--tw-*` variable and therefore **still wins,
+regardless of class order**. That is what let `ui/label.tsx` keep `leading-none`, `PageHeader` keep
+`tracking-tight` and `ui/dialog.tsx` keep `font-semibold` while adopting a role.
+
+**Visual result: no intended visual change.** Every migrated pair was proved numerically equal from
+the compiled CSS:
+
+| Was | Computed | Became | Computed |
+|---|---|---|---|
+| `text-xs` | 12px / 16px | `text-caption-regular` | 12px / 16px |
+| `text-sm` | 14px / 20px | `text-body-small` | 14px / 20px |
+| `text-sm font-medium` | 14px / 20px / 500 | `text-label-medium` | 14px / 20px / 500 |
+| `text-base` (in `CardTitle`) | 16px / 24px / 600 | `text-heading-h4` | 16px / 24px / 600 |
+| `text-lg` | 18px / 28px | `text-body-large` | 18px / 28px |
+| `text-2xl font-semibold` | 24px / 32px / 600 | `text-heading-h2` | 24px / 32px / 600 |
+
+**The one real computed-value delta:** migrated elements go from inheriting `letter-spacing: normal`
+to an explicit `0px`. Geist's normal spacing is 0, so rendering is unchanged — but it is a genuine
+computed difference and the one thing the diff cannot call byte-identical. It is deliberate: a role
+that does not pin its own tracking is not a complete role.
+
+**Deliberately NOT migrated, and why** — each would have changed rendering or belongs to another wave:
+
+| Left alone | Reason |
+|---|---|
+| `ui/button.tsx`, `badge.tsx`, `input.tsx`, `select.tsx`, `textarea.tsx`, `tabs.tsx` | Wave 3's core-control family, and each carries size-variant or responsive text overrides (`text-base md:text-sm`) where two role utilities on one element would race on cascade order. |
+| `ui/avatar.tsx`, `ui/dropdown-menu.tsx` | Same hazard, via a size-scoped `group-data` text override. |
+| `data/TrendChart.tsx` | `text-[0.625rem] sm:text-xs` — an arbitrary value with a responsive override, and Wave 6's family. |
+| `CollectionSummaryCard` hero figure | `text-3xl font-bold sm:text-4xl`. **No role matches 30px/700**, and Display/Large would change the line-height 40 → 44. |
+| Everything in `src/features/` and `src/app/` | Route-level composition is dependency **layer 8**, not layer 2. 108 further files, ~470 occurrences — see §7F debt. |
+
+### 10.7 Wave 2 validation
+
+Baseline = the Wave 1 commit `3aae867`, whose tree is byte-identical to the state that passed
+`npm run verify` before committing.
+
+| Check | Before (Wave 1 `3aae867`) | After (Wave 2) |
+|---|---|---|
+| `npm run typecheck` | ✅ | ✅ |
+| `npm run lint` | ✅ 0 errors, 2 pre-existing warnings | ✅ 0 errors, **same** 2 warnings |
+| `npm run test` | ✅ 47 files / 791 tests | ✅ 47 files / **791 tests** |
+| `npm run build` | ✅ | ✅ compiled successfully |
+| `npx prettier --check` | ✅ | ✅ (re-sorted by `prettier-plugin-tailwindcss`) |
+| `npm run test:db` | ⛔ NOT RUN | ⛔ **NOT RUN** — still no Docker, and Wave 2 is CSS + class names only |
+
+The 2 lint warnings are `react-hooks/incompatible-library` on `useVirtualizer`, in files no wave has
+touched.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
 |---|---|
 | Migration branch | **`design-system/migration`**, branched from `main` @ `124445b` |
 | Branch point | `124445b941f0b7fec5fe0e587de25a632e58a82c` — `docs: registrar D-170 aplicada y desplegada en produccion (0049)` |
-| **Wave 1 commit** | `feat(design-system): add semantic token infrastructure` — hash recorded below after the commit is created |
+| **Wave 1 commit** | **`3aae86793174077ec3b1d8022a18400705ad21b5`** (`3aae867`) — `feat(design-system): add semantic token infrastructure` |
 | Wave 1 commit contents | `src/app/globals.css`, `docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md` — **nothing else** |
+| **Wave 2** | **uncommitted working tree** — 19 files (see §10.6). No Wave 2 commit was authorized. |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
 
-Wave 1 is an isolated, independently revertible checkpoint: `git revert` on that one commit removes
-the whole token layer and nothing else.
+Wave 1 is an isolated, independently revertible checkpoint: `git revert 3aae867` removes the whole
+token layer and nothing else. Wave 2 sits on top of it, unstaged, so it can be reviewed or discarded
+without disturbing Wave 1.
 
 **Do not alter the two pre-existing untracked files.** They belong to the user.
 
