@@ -8,12 +8,15 @@
 **Wave 3A — core controls adoption:** COMPLETED AND APPROVED · commit `c723b99`
 **Wave 3B1 — brand semantic convergence:** COMPLETED AND APPROVED · commit `64aaeed`
 **Wave 3B1b — brand activation prerequisites:** COMPLETED AND APPROVED · commit `64f22c5`
-**Wave 3B2 — brand activation:** COMPLETED AND APPROVED · commit in §11 · **THE BRAND IS LIVE**
-**NOT AUTHORIZED:** the next migration wave. Waves 4 (data display and overlays), 5 (navigation and
-shell), 6 (data visualisation) and 7 (patterns and the Clientes pilot) all remain unstarted.
+**Wave 3B2 — brand activation:** COMPLETED AND APPROVED · commit `7a851f8` · **THE BRAND IS LIVE**
+**Last approved migration:** **WAVE 4 — DATA DISPLAY & OVERLAYS**
+**Wave 4 — data display & overlays:** COMPLETED AND APPROVED · commit in §11
+**NOT AUTHORIZED:** the next migration wave. Wave 5 (navigation and shell) is **largely pre-empted by
+3B2** and must be re-scoped before it runs; Waves 6 (data visualisation) and 7 (patterns and the
+Clientes pilot) remain unstarted. **The Status migration is unassigned** — see §10.15.
 **Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
 **Migration branch:** `design-system/migration` (from `main` @ `124445b`; `main` not moved)
-**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 3B2)
+**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 4)
 
 > **Wave 1** — `src/app/globals.css` **+647 / −0**, additive, zero consumers; the compiled-CSS diff
 > proved **no existing declaration changed** (0 removed lines).
@@ -1050,6 +1053,77 @@ because Catalog's `brand/default` equals its `--primary`.
 
 **No remaining non-Catalog residue represents an unresolved Brand responsibility from this wave.**
 
+### 10.15 WAVE 4 — DATA DISPLAY & OVERLAYS (executed 2026-09-06 · **APPROVED** · committed, hash in §11)
+
+**Scope verified against both authorities, which agree.** Figma `04` › Implementation waves:
+*"Wave 4 · Data display & overlays — Cells, pagination, empty, skeleton, Dialog, Sheet, Menu,
+Tooltip, plus the two Catalog contrast fixes. RISK MEDIUM — contained per component, but the Catalog
+fixes change a live public surface."* Dependency layer 4 depends on Wave 3. §9 of this file says the
+same. **No contradiction.**
+
+#### Status ownership — verified, and it is NOT Wave 4
+
+Read from the Phase 11 plan rather than assumed. **No wave in the plan claims `StatusBadge`'s colour
+migration.** Wave 3 lists "Badge", which is the *generic* shadcn Badge (handled in 3A and decoupled in
+3B1b). `StatusBadge` is a **Product Component** — the contract says it *"maps a Rifas state to a
+system tone and renders `Badge / Status`. It does not restyle it, and it does not reach past it into
+tokens."* Wave 4 owns **cells**, and *"in code a status cell is a cell that renders StatusBadge"* —
+the wrapper, not the badge's colours.
+
+> **NEW RECONCILIATION ITEM: the Status migration is unassigned.** The 20 `status/*` properties and
+> the 10 hardcoded palette classes in `StatusBadge` have no wave. Recommend an explicit Status wave;
+> until then it must not be picked up opportunistically. **`StatusBadge` and «Abonada» were not
+> touched.**
+
+#### What changed — 8 files, 23 replacements + the 2 Catalog fixes
+
+| Family | Change | Class |
+|---|---|---|
+| **Table** | `surface/muted` (hover + selected row), `text/default` | APPROVED COMPONENT MIGRATION — inert |
+| **Skeleton** | `bg-accent` → `surface/skeleton` | APPROVED COMPONENT MIGRATION — **Light #f5f5f5 → #e5e5e5** (more visible); Dark and Catalog unchanged |
+| **Dialog / AlertDialog / Sheet** | `background/default`, `surface/muted`, `surface/accent`, `action/secondary`, and the overlay → `overlay/scrim` | inert except the scrim |
+| **Overlay scrim** | `bg-black/50` → `overlay/scrim` | Light `rgba(3,3,3,.5)` — imperceptible; **Dark and Catalog go 0.5 → 0.6 alpha**, a deliberately darker overlay |
+| **Menu / Dropdown** | `surface/popover` + `text/on-popover` (menu and submenu), `surface/accent` + `text/on-accent` (4 item types), `border/default` | inert |
+| **Tooltip** | `surface/inverse` + `text/on-inverse` (body and arrow) | **Light bg #0a0a0a → #171717, text #ffffff → #fafafa**; Dark mirrored; Catalog unchanged. Contrast 17.18 / 16.44 / 18.19 |
+| **Pagination, Empty state, DataTable** | audited — they carry only `text-muted-foreground`, which is the **deferred** Light contrast fix, not a Wave 4 item | no change |
+
+**Deliberately not done:** `text/muted` (the cross-system contrast fix, unassigned to this wave) ·
+`border/input` in Light and Dark (deferred with its measurement in Wave 3A) · Table/Row's
+`action/primary`, `selection/surface` and `status/success/*` bindings, which are the Figma **sample**
+and would have *added* features production does not have · numbered pagination · merging the two
+empty states · any Navigation work.
+
+#### The two approved Catalog contrast fixes — both applied, reachability measured
+
+| Fix | Before | After | Reachable? |
+|---|---|---|---|
+| **`--input`** → `border/input` | **1.75:1** | **3.26:1** ✅ | **YES.** `CatalogSearch` → `SearchInput` → `Input` → `border-input`. **This is the only visible change of the wave on a public screen**: the catalog search field's border becomes distinguishable. |
+| **`--destructive`** → `action/destructive` | **3.45:1** | **4.67:1** ✅ | **No** — there is no destructive control inside `.catalog-theme`; the only `text-destructive` in the catalog folder is `CatalogSettingsDialog`, an owner-portal screen. Fixed anyway because the defect is latent. |
+
+Both were done by pointing the legacy `.catalog-theme` variable at the approved token, so the fix
+lands once for every consumer instead of per call site.
+
+#### Preserved deliberately
+
+Server-side pagination and its `1–25 de 118 boletas` range · the **two distinct** empty states (empty
+dataset vs no results) with their different actions · structural skeletons (no spinner) · numeric
+alignment and `tabular-nums` · the non-modal sidebar overlay was **not** given modal focus trapping ·
+the destructive-tone rule (Escape still cancels; a destructive outcome needs explicit activation) ·
+Tooltip does **not** become the accessible name for icon-only controls.
+
+#### Validation
+
+typecheck ✅ · lint ✅ (same 2 pre-existing warnings) · **791 tests** ✅ · build ✅ · prettier ✅.
+Legacy-primary residue **unchanged** (15 code + 1 comment non-Catalog, 11 Catalog) — Wave 4 touched
+no brand responsibility. **No live screenshots: Docker/Supabase is unavailable, so responsive and
+theme checks were compiled-CSS, resolved-value and source inspection.** Table→card-list at 768 is a
+`TicketCardList`/`DataTable` composition that this wave did not touch.
+
+> **NEW FINDING, needs verification, not fixed here:** in **Dark**, `--destructive-foreground`
+> (`#fafafa`) on `--destructive` (`#ff6467`) measures **2.75:1**. It is pre-existing and outside the
+> two approved Catalog items. `Button` destructive uses `text-white`, so the pair may not be
+> reachable — worth confirming in the wave that owns destructive semantics.
+
 ---
 
 ## 11. Repository checkpoint — 2026-09-06
@@ -1064,7 +1138,8 @@ because Catalog's `brand/default` equals its `--primary`.
 | **Wave 3A commit** | **`c723b9983d6c7a6980079a22f7679ae393b164d6`** (`c723b99`) — `feat(design-system): adopt semantic core controls`, 8 files |
 | **Wave 3B1 commit** | **`64aaeed9e416461f05c08f27b40584d005b5e233`** (`64aaeed`) — `feat(design-system): converge brand semantic roles`, 12 files |
 | **Wave 3B1b commit** | **`64f22c5984800e2b3d96946e3291a2b1b3420574`** (`64f22c5`) — `chore(design-system): prepare brand activation semantics`, 2 files |
-| **Wave 3B2** | **uncommitted working tree** — `globals.css` + 7 consumers + this handoff. No Wave 3B2 commit was authorized. |
+| **Wave 3B2 commit** | **`7a851f88a9a0a8ae88e00928b70d50a38197c681`** (`7a851f8`) — `feat(design-system): activate Rifas brand semantics`, 9 files |
+| **Wave 4** | **uncommitted working tree** — 8 files + this handoff. No Wave 4 commit was authorized. |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

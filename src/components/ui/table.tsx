@@ -57,7 +57,7 @@ function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
         // anuncia con el puntero y con un hover algo mas marcado que el de una
         // fila cualquiera. Solo cambia el fondo: nada de bordes ni tamanos que
         // muevan el contenido al pasar por encima.
-        'data-[clickable=true]:hover:bg-muted data-[clickable=true]:cursor-pointer',
+        'data-[clickable=true]:hover:bg-surface-muted data-[clickable=true]:cursor-pointer',
         // Alto suficiente para el pulgar en el telefono (seccion 7 del encargo:
         // 56-64 px). En escritorio se deja como estaba: alli se apunta con el
         // raton y una lista mas compacta se recorre mejor.
@@ -68,7 +68,7 @@ function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
         'focus-visible:outline-ring focus-visible:outline-2 focus-visible:-outline-offset-2',
         // Fila marcada con la casilla: el hover la varia sin devolverla nunca al
         // aspecto de una fila sin marcar.
-        'data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted-foreground/20',
+        'data-[state=selected]:bg-surface-muted data-[state=selected]:hover:bg-muted-foreground/20',
         className,
       )}
       {...props}
@@ -81,7 +81,7 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
     <th
       data-slot="table-head"
       className={cn(
-        'text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
+        'text-text-default h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
         className,
       )}
       {...props}

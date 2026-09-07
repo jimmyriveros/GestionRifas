@@ -393,11 +393,35 @@
   --muted-foreground: oklch(0.76 0.025 292);
   --accent: oklch(0.28 0.05 295);
   --accent-foreground: oklch(0.97 0.01 290);
-  --destructive: oklch(0.65 0.2 25);
+  /*
+   * CORRECCION DE CONTRASTE DEL CATALOGO (Wave 4, item aprobado 1 de 2).
+   *
+   * Valia `oklch(0.65 0.2 25)` y con la etiqueta casi blanca encima medía
+   * 3.45:1, por debajo del 4.5:1 que necesita un texto. Ahora apunta al token
+   * del sistema, que ya trae el rojo oscurecido y aprobado.
+   *
+   * HOY NO SE VE: no hay ni un control destructivo dentro de `.catalog-theme`
+   * —el unico `text-destructive` de la carpeta del catalogo vive en
+   * `CatalogSettingsDialog`, que es del portal administrativo—. Se corrige
+   * igualmente porque el fallo es latente: en cuanto el catalogo tenga un
+   * control destructivo, saldria mal.
+   */
+  --destructive: var(--ds-action-destructive);
   --destructive-foreground: oklch(0.99 0.005 290);
 
   --border: oklch(0.75 0.06 295 / 18%);
-  --input: oklch(0.75 0.06 295 / 30%);
+  /*
+   * CORRECCION DE CONTRASTE DEL CATALOGO (Wave 4, item aprobado 2 de 2).
+   *
+   * Valia `oklch(0.75 0.06 295 / 30%)` y medía 1.75:1 contra el fondo: un campo
+   * se reconoce por su borde, y ese borde practicamente no se veia. El token del
+   * sistema sube la opacidad al 55 %.
+   *
+   * ESTE SI SE VE, y es el unico cambio visible de la ola en una pantalla
+   * publica: el buscador del catalogo (`CatalogSearch` → `SearchInput` → `Input`)
+   * consume `border-input`, asi que su borde pasa a distinguirse.
+   */
+  --input: var(--ds-border-input);
 
   /*
    * El anillo de foco es CASI BLANCO, no violeta.
