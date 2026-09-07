@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
+import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -89,17 +90,22 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
             </DialogHeader>
 
             {!payment.isActive ? (
-              <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-sm dark:border-rose-800 dark:bg-rose-950">
-                <p className="font-medium">Pago anulado</p>
-                <p className="mt-1">
+              // Anulado es NEUTRAL en todo el producto —lo dice la insignia de
+              // esta misma fila en la tabla—, no un error. El rosa decia lo
+              // contrario a un centimetro de la insignia que decia lo correcto.
+              <Notice tone="neutral">
+                <span className="block font-medium">Pago anulado</span>
+                <span className="mt-1 block">
                   {payment.voidedAt ? formatDateTimeEs(payment.voidedAt) : ''}
                   {payment.voidedByName ? ` · ${payment.voidedByName}` : ' · un administrador'}
-                </p>
-                {payment.voidReason ? <p className="mt-1">Motivo: {payment.voidReason}</p> : null}
-                <p className="text-muted-foreground mt-2 text-xs">
+                </span>
+                {payment.voidReason ? (
+                  <span className="mt-1 block">Motivo: {payment.voidReason}</span>
+                ) : null}
+                <span className="mt-2 block text-xs opacity-80">
                   Queda en el historial, pero no cuenta en los saldos.
-                </p>
-              </div>
+                </span>
+              </Notice>
             ) : null}
 
             <dl className="grid grid-cols-2 gap-3 text-sm">

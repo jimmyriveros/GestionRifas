@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, type ChangeEvent } from 'react'
+import { forwardRef, type ChangeEvent, type ComponentProps } from 'react'
 
 import { Input } from '@/components/ui/input'
 import { formatCOP, parseCOP } from '@/lib/money'
@@ -16,6 +16,8 @@ type MoneyInputProps = {
   'aria-label'?: string
   'aria-invalid'?: boolean
   'aria-describedby'?: string
+  /** Alto del campo, tal cual lo entiende `Input`: `default` o `touch`. */
+  size?: ComponentProps<typeof Input>['size']
   className?: string
 }
 

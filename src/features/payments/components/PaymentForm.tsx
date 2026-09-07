@@ -37,9 +37,16 @@ import { createPayment } from '../actions'
 import type { PayableTicketDetail } from '../queries'
 import { PaymentAllocationCards } from './PaymentAllocationCards'
 
-/** Alto tactil de los campos en el telefono; en escritorio vuelven a 36 px. */
-const TOUCH_FIELD =
-  'h-12 scroll-mb-[calc(var(--bottom-nav-space)+1rem)] data-[size=default]:h-12 md:h-9 md:data-[size=default]:h-9'
+/**
+ * Que el campo enfocado no quede DETRAS de la barra inferior.
+ *
+ * Es lo unico que queda del antiguo `TOUCH_FIELD`: el alto tactil ya lo da la
+ * capacidad `size="touch"` de los propios componentes (Ola 6.6), y mantener
+ * ademas una version local del mismo alto solo garantizaba que las dos se
+ * separaran con el tiempo. El margen de desplazamiento, en cambio, no es un
+ * tamaño: es la barra de abajo tapando el campo, y eso no lo sabe el campo.
+ */
+const FIELD_SCROLL_MARGIN = 'scroll-mb-[calc(var(--bottom-nav-space)+1rem)]'
 
 type PaymentFormProps = {
   clientId: string
@@ -207,7 +214,8 @@ export function PaymentForm({
               onChange={handleTotalChange}
               disabled={isPending}
               placeholder="$0"
-              className={TOUCH_FIELD}
+              size="touch"
+              className={FIELD_SCROLL_MARGIN}
             />
             <p className="text-muted-foreground text-xs">
               {clientName} debe {formatCOP(totalPending)}
@@ -229,7 +237,8 @@ export function PaymentForm({
                 value={paymentDate}
                 onChange={(event) => setPaymentDate(event.target.value)}
                 disabled={isPending}
-                className={cn('max-w-full', TOUCH_FIELD)}
+                size="touch"
+                className={cn('max-w-full', FIELD_SCROLL_MARGIN)}
               />
             </div>
 
@@ -242,7 +251,8 @@ export function PaymentForm({
               >
                 <SelectTrigger
                   id="payment-method"
-                  className={cn('w-full min-w-0 max-w-full', TOUCH_FIELD)}
+                  size="touch"
+                  className={cn('w-full max-w-full min-w-0', FIELD_SCROLL_MARGIN)}
                 >
                   <SelectValue />
                 </SelectTrigger>

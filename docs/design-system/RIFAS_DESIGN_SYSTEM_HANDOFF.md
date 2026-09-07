@@ -550,10 +550,11 @@ Risk is relative and argued, **not** an hour estimate.
 > waves 3A/3B·4.5·6.5·6.6. The **Clientes Seller pilot succeeded** (§10.25) with zero Core defects.
 > **ROLLOUTS R1, R2 and R3 are COMPLETE AND APPROVED** (§10.27, §10.28, §10.29), and
 > **`Pattern / Focused System State` is FORMALIZED** (§10.30), proven by `/denied` and `/offline`.
-> **R4A is COMPLETE AND APPROVED** and **`Pattern / Report Page` is FORMALIZED** (§10.31, §10.32).
-> **R4B — REPORTS MIGRATION is EXECUTED** (§10.33), uncommitted and awaiting review: two files, three
-> changes, zero Core changes, and the Pattern is now **PROVEN**. **NEXT: ROLLOUT R5 — PAYMENTS, NOT
-> AUTHORIZED**, previewed at the end of §10.33.
+> **R4A, R4B and `Pattern / Report Page` are COMPLETE AND APPROVED** (§10.31–§10.33); the Pattern is
+> **PROVEN**. **ROLLOUT R5 — PAYMENTS is EXECUTED** (§10.34), uncommitted and awaiting review: three
+> files, zero Core changes, the last ad-hoc touch mechanism outside `SearchInput` retired, and the
+> deferred table-row question answered as **Case A** with no change made. **NEXT: ROLLOUT R6 — PEOPLE,
+> NOT AUTHORIZED**, and it needs **two contract decisions first** — see the end of §10.34.
 
 ---
 
@@ -3611,6 +3612,180 @@ exist plus three semantic decisions, against 15 palette occurrences.
 
 ---
 
+### 10.34 ROLLOUT R5 — PAYMENTS (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+**3 production files, 5 changes, zero Core changes.** Two deferred questions were answered with
+evidence, and one of them ended in "change nothing".
+
+| Route | File | Result |
+|---|---|---|
+| Owner payments | `src/app/(protected)/owner/payments/page.tsx` | **unchanged** |
+| Seller payments | `src/app/(protected)/seller/payments/page.tsx` | **unchanged** |
+| Seller new payment | `src/app/(protected)/seller/payments/new/page.tsx` | **unchanged** |
+
+Three routes, exactly as the inventory predicted. **No Owner create-payment route exists** and none was
+inferred.
+
+#### Blocker gate
+
+| Item | Result |
+|---|---|
+| Hardcoded palette | **1** — `PaymentDetailDialog`, classified below |
+| `TOUCH_FIELD` | **REACHABLE ×4** — local reconciliation |
+| `PaymentsTable` row actions, `DataTablePagination`, `Notice`, `StatusBadge`, `SearchInput` | **REACHABLE / ALREADY COMPLIANT** |
+| `PaymentProgressBar`, `CollectionSummaryCard`, `CommissionCard`, `BulkTicketCreator` | **NOT REACHABLE** |
+| Compact Notice geometry | **NOT REACHABLE** — zero compact panels |
+
+No blocker; nothing required a new token or component contract.
+
+#### The palette occurrence — classified, then migrated
+
+`PaymentDetailDialog` painted its voided-payment panel with four primitive classes from the rose ramp.
+
+**Semantic responsibility: NOTICE / CONTEXT.** It is an inline contextual panel inside a larger
+composition, explaining a state — "Pago anulado", when, by whom, why — and its consequence: "Queda en
+el historial, pero no cuenta en los saldos."
+
+**Its tone was wrong, and the contradiction was one centimetre away.** Rose is the error family, but
+`anulado` is **Neutral** everywhere in this product (`cancelled: 'neutral'` in `constants.ts`) — and
+`PaymentsTable` already renders `<StatusBadge tone="neutral">Anulado</StatusBadge>` **on the very row
+that opens this dialog**. The same fact was being told in two tones, exactly as the archived client
+was in R1.
+
+Migrated to **`Notice tone="neutral"`** with the copy unchanged. **No Status mapping was reopened** —
+the existing one was applied to a panel that had never used it — and **no Payments-specific token was
+created**. **APPROVED PATTERN COMPOSITION CORRECTION.** Payments palette is now **ZERO**; the rose
+utilities that remain in the bundle belong to `LotteryResultsCard`, a different group.
+
+#### `TOUCH_FIELD` — what it was, and what replaced it
+
+The local constant was
+`h-12 scroll-mb-[calc(var(--bottom-nav-space)+1rem)] data-[size=default]:h-12 md:h-9 md:data-[size=default]:h-9`,
+applied to three controls: the money input, the date input and the payment-method select.
+
+It carried **two unrelated responsibilities**:
+
+* **a touch height** — 48px until `md`, then 36px. Its comment says only "alto tactil de los campos en
+  el telefono". No product reason is recorded for 48 over 44, or for `md` over `sm`, and the
+  `data-[size=default]:h-12` half existed purely to out-specify the Select's own `h-9`. **This is an
+  ad-hoc mechanism that predates the Design System capability.**
+* **a scroll margin** — keeping a focused field from sitting behind the bottom navigation bar. **That
+  is not a size**, and no component can know it.
+
+**Result: AD-HOC TOUCH MECHANISM → REPLACED BY APPROVED DESIGN SYSTEM CAPABILITY.** The three controls
+now use `size="touch"`; the scroll margin survives as `FIELD_SCROLL_MARGIN`, its own named constant
+with its own reason. `TOUCH_FIELD` had **zero consumers outside this file** and is gone. `MoneyInput`
+gained a `size` passthrough to `Input` — the same shape `ClientArchiveButton` got in R1, and not a
+Core change.
+
+**The migration is NOT visually inert, and here is the honest ledger:**
+
+| Width | Old | New | Delta |
+|---|---|---|---|
+| **375** | 48px | **44px** | −4px, still above the touch floor |
+| **640–767** | 48px | **36px** | **−12px — the real change** |
+| **768+** | 36px | 36px | **inert** |
+
+The 640–767 band is where Payments stops being an outlier: every other form in the product —
+Clientes, Raffles, all four auth forms — already collapses to 36px at `sm`. Payments alone held 48px
+to 768. **This is a deliberate consistency correction, not a regression**: 36px at 640 is the same
+Comfortable size the rest of the product uses there, and no layout depends on the extra height.
+**APPROVED TOUCH-TARGET CORRECTION.**
+
+> **A measurement of mine was wrong first.** The harness initially read the old select at 36px, which
+> would have meant the old mechanism silently failed on the Select. It did not: the harness was
+> loading the **post-migration** stylesheet, where `data-[size=default]:h-12` no longer exists. Checked
+> against the committed build, that rule sits at byte 81420 and the Select's own `h-9` at 81339 — equal
+> specificity, **later wins**, so the old select really was 48px. The table above is the corrected one.
+
+#### `PaymentsTable` — the deferred A/B question, answered
+
+**Inventory: exactly ONE in-row action**, the "Ver" button.
+
+| | Evidence |
+|---|---|
+| Button `onClick` | `setSelected(row.original)` |
+| Row `onRowActivate` | `(row) => setSelected(row)` |
+
+**Identical behaviour** — both open the same `PaymentDetailDialog` with the same payment.
+**CLASSIFICATION: CASE A — REDUNDANT NAVIGATION AFFORDANCE.**
+
+Traced beyond the label: the row carries `tabIndex={0}` with a real `onKeyDown`, so it is
+keyboard-activatable in its own right, and `shouldActivateRow` refuses to fire when the event target
+sits inside an interactive element within the row — so the child button does **not** double-trigger,
+by mouse or keyboard. Focus stays visible on whichever the user reached.
+
+**Nothing was changed, per the contract.** The larger row target already provides the primary
+interaction, and the small button earns its place on **discoverability**: a row that opens a dialog
+has no other affordance — no chevron, no link styling — so the button is the only visible signal that
+the row does anything. Its `aria-label` is specific ("Ver el pago de {cliente} del {fecha}").
+
+**Evidence recorded for the future cross-table decision**, since this is the first real screen to
+answer it: a Case A action creates **two tab stops per row for one destination** — 50 stops for 25
+payments. That is friction rather than a defect, it is **product-wide** (`RafflesTable` is identical),
+and it is not R5's to fix. **No table button was enlarged.**
+
+#### Everything else — NO-OP
+
+Owner and Seller payment lists both satisfy the List Page Pattern and were **not touched**; role
+differences stand (Owner sees every seller's payments and can void; Seller sees their own). The
+empty/no-results distinction was **not** forced anywhere the product does not filter. `PaymentForm`
+satisfies the Form Pattern. The allocation `Notice` keeps **Success ↔ Warning with `live`**, and the
+one-consumer trailing-value composition is untouched — no `role="alert"`, no assertive, no Error tone,
+no new trailing-content prop. Payment Status, Product Data and Progress semantics were all left
+exactly as approved; **Wave 6 was not reopened**, and `PaymentProgressBar` is not even reachable here.
+`DataTablePagination` and `SearchInput` were audited and found already compliant — **neither was
+refactored to reduce debt**.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` · `lint` · `test` · `build` | **all pass** — 0 errors, 0 lint errors (same 2 pre-existing warnings), **791 tests / 47 files** |
+| `prettier` | clean. One objection was a **pre-existing** class-order nit on a line R5 was editing anyway, so it was fixed |
+| Compiled selectors, clean build vs clean build | **0 added · 1 removed** — the dark border utility that only this panel used |
+| **Hardcoded Payments palette, after** | **ZERO** |
+| **Core components changed** | **ZERO** |
+| Validation method | **PRESENTATIONAL HARNESS QA** at 375 / 640 / 768, plus source inspection and the committed-build check described above. **REAL ROUTE QA was not possible**: all three routes need a session and live data, and Supabase is unavailable. **No data-backed validation is claimed** |
+
+#### Result and remaining debt
+
+All R5 success criteria pass. Remaining, and all explicitly out of scope: the **table-row Case A
+question** (now evidenced, awaiting a cross-table decision), `SearchInput`'s ad-hoc `touchSize`,
+`DataTablePagination` sizing, and the Reports AT pass carried from R4B.
+
+#### Next rollout group — preview only, NOT AUTHORIZED
+
+| Candidate | Routes | Palette | Compact notices | Other reachable debt | Patterns |
+|---|---|---|---|---|---|
+| **People** | **5** | **3** | **3** | `CommissionCard` progress | List + Detail, both proven |
+| Tickets | 7 | 8 | 3 | `BulkTicketCreator`; **Bulk Selection unproven** | List + Detail + Form + an unproven Pattern |
+| Dashboards | 2 | **15** | 0 | `CollectionSummaryCard`, `RecentActivityCard`; **no Dashboard Pattern exists** | none proven |
+
+**R6 · PEOPLE** — `owner/sellers`, `owner/sellers/[sellerId]`, `owner/users`, `seller/team`,
+`seller/team/[sellerId]`.
+
+| Question | Answer |
+|---|---|
+| Proven Patterns | **List Page + Detail Page**, both proven three times over |
+| Palette debt | **3** occurrences |
+| Compact Notice reachable? | **YES — 3 consumers.** This is the group that finally reaches the cluster |
+| Progress reachable? | **YES** — `CommissionCard`'s bar, classified in Wave 6 as advancement-toward-completion, deferred ever since |
+| Table-row finding relevant? | Not yet observed in People's tables; R6 should re-inventory |
+| **Prerequisites** | **TWO decisions before implementation**: the compact Notice geometry extension, and what semantic family owns `CommissionCard`'s progress bar |
+| Risk | **MEDIUM** |
+
+**Why People rather than Tickets or Dashboards:** its Patterns are proven and its debt is bounded and
+already named, so the two decisions can be taken cleanly in front of it. Tickets additionally needs
+**Bulk Selection proven** — an unproven Pattern — and Dashboards needs a Pattern contract that does
+not exist at all, against 15 palette occurrences and two unresolved semantic families.
+
+**Recommended shape: an audit/decision step before implementation** — the compact Notice evidence
+(6 consumers, 3 of them here) and the Progress question are both contract decisions, and the rollout
+rules forbid taking them inside a route migration.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
@@ -3639,7 +3814,8 @@ exist plus three semantic decisions, against 15 palette occurrences.
 | **Rollout R2 commit** | **`9eada2dd59b8917423e11af73b7ba99f01b36381`** (`9eada2d`) — `feat(design-system): migrate raffles to proven patterns`, 3 files |
 | **Rollout R3 commit** | **`cb9b25fa7befd69259e75656be301a9e79d280fb`** (`cb9b25f`) — `feat(design-system): migrate auth and utility flows`, 8 files |
 | **R4A commit** | **`eb6c2f78fcb9d2a7c3576d591273c65a3e279390`** (`eb6c2f7`) — `docs(design-system): define report page pattern`, this handoff only |
-| **R4B commit** | `feat(design-system): migrate reports to report page pattern` — 3 files. Hash recorded in the R5 pass below |
+| **R4B commit** | **`1ea836d49ae851e114da6675298ff34956159fd3`** (`1ea836d`) — `feat(design-system): migrate reports to report page pattern`, 3 files |
+| **Rollout R5 commit** | `feat(design-system): migrate payments to proven patterns` — 4 files. Hash recorded in the R6A pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
