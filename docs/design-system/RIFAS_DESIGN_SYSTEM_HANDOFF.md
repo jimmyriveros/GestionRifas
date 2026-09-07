@@ -546,8 +546,10 @@ Risk is relative and argued, **not** an hour estimate.
 > **Waves 6.5A, 6.5B and 6.6 were INSERTED** to close the Notice component gap and then the three
 > cross-system prerequisites the Wave 7 preflight found: muted-text contrast, input borders and touch
 > control sizing. The original seven-wave architecture is unchanged.
-> **WAVE 7 — PATTERNS & PILOT SCREEN (Clientes, Seller portal) is EXECUTED** (§10.25), uncommitted and
-> awaiting review. All seven original waves have now run.
+> **ALL SEVEN ORIGINAL WAVES ARE COMPLETE AND APPROVED**, together with the inserted reconciliation
+> waves 3A/3B·4.5·6.5·6.6. The **Clientes Seller pilot succeeded** (§10.25) with zero Core defects.
+> **NEXT: broader screen migration — NOT AUTHORIZED.** Its preflight is §10.26, which recommends
+> **Clientes Owner** first and needs no prerequisite wave.
 
 ---
 
@@ -2420,6 +2422,137 @@ Wave 7 introduced no primitive palette class.
 
 ---
 
+### 10.26 POST-PILOT ROLLOUT PREFLIGHT (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+#### Approved post-pilot status
+
+| | Status |
+|---|---|
+| **Clientes Seller pilot** | **COMPLETED AND APPROVED · SUCCESSFUL** |
+| **Post-pilot rollout preflight** | **COMPLETED AND APPROVED** |
+| Design System — **Core / Foundations** | **READY FOR ROLLOUT** |
+| Design System — **Components** | **READY FOR ROLLOUT** |
+| Pattern — **List Page** | **PROVEN** |
+| Pattern — **Detail Page** | **PROVEN** |
+| Pattern — **Form** | **PROVEN** |
+| Pattern — **Search / Filters** | **PARTIALLY PROVEN** |
+| Pattern — **Bulk Selection** | **NOT YET PROVEN** |
+| Pattern — **Dashboard** | **NOT YET PROVEN** |
+| **Product-wide screen adoption** | **EARLY / IN PROGRESS** |
+
+**4 of 37 routes have undergone a Pattern-level audit.** The product is **not** fully migrated, and
+nothing in this document should be read as saying otherwise.
+
+#### Naming from here on
+
+The seven-wave Design System migration is **finished**. Product-screen adoption does **not** continue
+that numbering — there is no Wave 8. It runs as a separate sequence, **ROLLOUT R1, R2, …**, so that
+Design System construction stays distinguishable from product screen adoption.
+
+The audit that follows is unchanged from the approved preflight.
+
+No production file was touched. Route inventory and classification come from the repository, not from
+an earlier list.
+
+#### Where the original plan stands
+
+| | Status |
+|---|---|
+| **Waves 1–7, as originally approved** | **ALL COMPLETE.** Tokens · Typography · Core controls + brand · Data display & overlays · Navigation & shell · Data visualisation · Patterns & pilot screen |
+| **Inserted reconciliation waves** | **ALL COMPLETE.** 3A/3B1/3B1b/3B2 (brand split) · 4.5A/4.5B (Status semantics) · 6.5A/6.5B (Notice) · 6.6 (cross-system accessibility and control sizing) |
+| **Original responsibilities still unowned** | **None.** Every family named in the Phase 11 contract has an approved contract and a code implementation |
+| **The pilot milestone** | **COMPLETE.** Clientes Seller passed every criterion, with zero Core defects exposed |
+| **Product-wide screen adoption** | **NOT complete** — and it was never part of the original plan. 4 of 37 routes have been through a Pattern audit |
+
+**The Design System is mature; the product is not yet migrated.** Those are different statuses and
+this document keeps them apart.
+
+#### Remaining Core / component debt, by actual reach
+
+| Debt | Reach | Blocks |
+|---|---|---|
+| Notice compact geometry | **6 recurring consumers** (see below) | the Tickets and People groups |
+| Progress family — `CollectionSummaryCard` | `owner/dashboard` only | Dashboards |
+| Progress family — `CommissionCard` | `seller/team/[sellerId]` only | People |
+| Progress family — `BulkTicketCreator` | `owner/tickets/bulk` only | Tickets |
+| `RecentActivityCard` record state | `seller/dashboard` only | Dashboards |
+| Lottery presentation palette — **12 occurrences in one file** | `LotteryResultsCard`, reached from both dashboards | Dashboards |
+| `ClearanceReceipt*` palette — 3 files | ticket detail | Tickets |
+| `SearchInput` `touchSize`, `PaymentForm` `TOUCH_FIELD`, `DataTablePagination` sizing | shared | nothing — all meet the 44px floor already |
+| Legacy `muted-foreground` non-text jobs (placeholder, icon tint, one row tint) | global | nothing — resolves to the right value |
+
+**Total remaining hardcoded palette: 27 occurrences in 15 files**, and **12 of them are one file**.
+
+#### NOTICE CONTRACT EXTENSION CANDIDATE — evidence found
+
+Six consumers use the compact geometry (`rounded-md px-3 py-2`), all inside dialogs or cards:
+`CommissionCard`, `TeamCommissionDialog`, `TicketImportDialog`, `BulkActionDialog`,
+`BulkAssignDialog`, `UserDialog`. Two more use the page geometry the component already ships
+(`seller/dashboard`, which is a `rounded-xl` outlier, and `seller/tickets/[ticketId]`).
+
+Six recurring consumers is well past the two the contract requires, so a **compact Notice geometry is
+justified**. It is **not implemented here**. Two `LotteryResultsCard` panels use a hybrid
+(`rounded-lg px-3 py-2`) and should be judged with that file's other work, not counted as evidence
+for the compact size.
+
+#### Pattern maturity after one pilot
+
+| Pattern | Status | Evidence |
+|---|---|---|
+| **List Page** | **PROVEN IN PILOT** | `seller/clients`, including both empty states and the toolbar rule |
+| **Detail Page** | **PROVEN IN PILOT** | `seller/clients/[clientId]`, and it is what forced the contract clarification |
+| **Form** | **PROVEN IN PILOT** | create and edit, sharing one form |
+| **Search / Filters** | **PARTIALLY PROVEN** | exercised through `ClientFilters`, but never with a second filter shape or a seller selector under load |
+| **Bulk Selection** | **NOT YET PROVEN** | no pilot route reaches it; it lives in Tickets |
+| **Dashboard composition** | **NOT YET PROVEN** | no Pattern contract exists for it, and no pilot touched one |
+
+#### Proposed migration groups
+
+| # | Group | Routes | Primary Pattern | DS coverage | Blockers | Prerequisite | Risk |
+|---|---|---|---|---|---|---|---|
+| **1** | **Clientes Owner** | `owner/clients`, `owner/clients/[clientId]` | List + Detail | **A — already mostly migrated**; uses the pilot's own components, zero palette | none | none | **LOW** |
+| **2** | **Raffles** | `owner/raffles`, `[raffleId]`, `[raffleId]/edit`, `new` | List + Detail + Form | **A/C** — zero palette, composition unverified | none | none | **LOW** |
+| **3** | **People** | `owner/sellers`, `[sellerId]`, `owner/users`, `seller/team`, `[sellerId]` | List + Detail | **B/C** | `UserDialog`, `TeamCommissionDialog` compact notices; `CommissionCard` progress | Notice compact geometry; a Progress decision | **MEDIUM** |
+| **4** | **Payments** | `owner/payments`, `seller/payments`, `seller/payments/new` | List + Form | **B/C** | `PaymentDetailDialog` palette; `PaymentForm` `TOUCH_FIELD` | none hard | **MEDIUM** |
+| **5** | **Tickets / Boletas** | `seller/tickets`, `[ticketId]`, `new`, `owner/tickets`, `[ticketId]`, `new`, `bulk` | List + Detail + Form + **Bulk Selection** + import | **B/C/D** | `ClearanceReceipt*` ×3, bulk dialogs ×2, import dialog ×2, ticket-detail notice, `BulkTicketCreator` progress | Notice compact geometry; Progress; **Bulk Selection is unproven** | **HIGH** |
+| **6** | **Reports** | `owner/reports`, `seller/reports` | Other / data-dense | **A/C** — no palette found | none | none | **LOW-MEDIUM** |
+| **7** | **Dashboards + Lottery** | `owner/dashboard`, `seller/dashboard` | **D — no Dashboard Pattern exists** | **D/E** | Lottery palette ×13, `RecentActivityCard` state, `CollectionSummaryCard` progress, `seller/dashboard` notice | a Dashboard Pattern contract; Progress; a semantic decision for record state; a Lottery presentation decision | **HIGH** |
+| **8** | **Account / Auth / Utility** | `account/password`, `login`, `forgot-password`, `reset-password`, `denied`, `offline`, root | Form + Focused | **A** — no palette | none | none | **LOW** |
+| **9** | **Catálogo público** | `(catalogo)/catalogo/[slug]` | Other — public | **F — outside current scope** | its own theme, already reconciled in Wave 4 | none | **N/A** |
+
+#### Recommended order, and why
+
+**1 · Clientes Owner — first, and it is not close.** It renders the **same components the pilot just
+proved**, carries zero palette, and I verified two concrete carry-overs: `owner/clients` renders
+`ClientFilters` unconditionally with `hasFilters` already computed, so the pilot's one-line toolbar
+correction applies **verbatim**; and `owner/clients/[clientId]` shows the archived badge but has **no
+`Notice`**, where the Seller detail explains what archived means. That is a composition gap the pilot
+already solved. Highest coverage per unit of risk, and it re-tests the pilot's own conclusions on a
+second portal — which is exactly what a second group should do.
+
+**No prerequisite wave is needed before it.** Recommending one purely because debt exists elsewhere
+would violate the rule that a debt item blocks only what it actually reaches.
+
+Then **2 · Raffles** and **8 · Account/Auth** (both clean, both cheap), then **6 · Reports**. **4 ·
+Payments** and **3 · People** next, with the **Notice compact geometry** decided immediately before
+People, since People is the first group that actually reaches it. **5 · Tickets** and **7 ·
+Dashboards** last: Tickets needs Bulk Selection proven and Progress decided, and Dashboards needs a
+Pattern contract that does not exist yet plus three separate semantic decisions.
+
+#### Post-pilot readiness
+
+| Layer | Status |
+|---|---|
+| **Core / Foundations** | **READY.** Tokens in three scopes, brand active, typography, contrast reconciled, control sizing capable |
+| **Components** | **READY**, with one justified extension pending (compact Notice) |
+| **Patterns** | **PARTIALLY READY.** List, Detail and Form proven; Search/Filters partial; Bulk Selection and Dashboard unproven |
+| **Product screen adoption** | **EARLY.** 4 of 37 routes audited; 27 palette occurrences remain in 15 files |
+| **Known debt** | Bounded, catalogued and mapped to actual reach — none of it global |
+
+**Verdict: the Design System is ready for rollout; the product is not yet migrated.**
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
@@ -2442,7 +2575,8 @@ Wave 7 introduced no primitive palette class.
 | **Wave 6.5A commit** | **`ddd147acd73100b2250bccbcbcbe869a540f5ba0`** (`ddd147a`) — `docs(design-system): define inline notice contract`, this handoff only |
 | **Wave 6.5B commit** | **`ab9549c0f500d86f19704623b99e92ee47b8ea59`** (`ab9549c`) — `feat(design-system): add semantic inline notice`, 6 files |
 | **Wave 6.6 commit** | **`05848c51d77bab52e72e4a0c845aa05e5c9daea3`** (`05848c5`) — `feat(design-system): reconcile pilot accessibility controls`, 10 files |
-| **Wave 7 commit** | `feat(design-system): complete clientes seller pilot` — 5 files: 4 pilot files and this handoff. Hash recorded in the rollout preflight below |
+| **Wave 7 commit** | **`4232028a872c77bc675ebc6294672d15842354e8`** (`4232028`) — `feat(design-system): complete clientes seller pilot`, 5 files |
+| **Rollout preflight commit** | `docs(design-system): record post-pilot rollout plan` — this handoff only. Hash recorded in the R1 pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
