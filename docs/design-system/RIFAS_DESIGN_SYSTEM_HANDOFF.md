@@ -548,11 +548,11 @@ Risk is relative and argued, **not** an hour estimate.
 > control sizing. The original seven-wave architecture is unchanged.
 > **ALL SEVEN ORIGINAL WAVES ARE COMPLETE AND APPROVED**, together with the inserted reconciliation
 > waves 3A/3B·4.5·6.5·6.6. The **Clientes Seller pilot succeeded** (§10.25) with zero Core defects.
-> **ROLLOUTS R1 and R2 are COMPLETE AND APPROVED** (§10.27, §10.28). **ROLLOUT R3 — ACCOUNT / AUTH /
-> UTILITY is EXECUTED** (§10.29), uncommitted and awaiting review: six routes, thirteen changes, zero
-> Core changes, the first rollout outside the application shell and the first with **real route visual
-> QA**. It raises one **NEW PATTERN CANDIDATE — Focused System State**, deliberately not formalized.
-> **NEXT: ROLLOUT R4 — REPORTS, NOT AUTHORIZED**, previewed at the end of §10.29.
+> **ROLLOUTS R1, R2 and R3 are COMPLETE AND APPROVED** (§10.27, §10.28, §10.29), and
+> **`Pattern / Focused System State` is FORMALIZED** (§10.30), proven by `/denied` and `/offline`.
+> **R4A — REPORTS PATTERN AUDIT is COMPLETE** (§10.31), uncommitted, audit only: it concludes that
+> List Page does **not** own Reports and proposes **`Pattern / Report Page`** for approval.
+> **R4B — REPORTS MIGRATION is NOT AUTHORIZED.**
 
 ---
 
@@ -3182,6 +3182,262 @@ markup causing divergence, meaningful shared behaviour, or a third recurring con
 
 ---
 
+### 10.31 R4A — REPORTS PATTERN AUDIT (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+Audit only. **No file under `owner/reports`, `seller/reports` or `features/reports` was modified.**
+
+#### Scope and gate
+
+| Route | File |
+|---|---|
+| Owner reports | `src/app/(protected)/owner/reports/page.tsx` |
+| Seller reports | `src/app/(protected)/seller/reports/page.tsx` |
+
+Two routes, five shared components (`ReportsView`, `ReportNav`, `ReportFilters`, `ReportTable`,
+`ExportCsvButton`), 1 411 lines. **No further independent report screens exist.**
+
+**Gate clean**: zero hardcoded palette, zero local control overrides, and Progress, Lottery,
+`RecentActivityCard`, `PaymentProgressBar` and `TOUCH_FIELD` all NOT REACHABLE. The `Notice` hits the
+scan reported are `truncationNotice()`, a CSV text helper in `export.ts` — **not the component**.
+
+#### Responsibilities, from the code
+
+Both routes render **the same `ReportsView`**, differing only by props: which report keys are offered,
+which base paths links use, and whether the seller filter appears.
+
+| | Owner | Seller |
+|---|---|---|
+| Question answered | how the whole organisation is performing | how *my* book is performing |
+| Report catalogue | `OWNER_REPORT_KEYS`, opens on "Por vendedor" | `SELLER_REPORT_KEYS`, opens on "Ventas por fecha" |
+| Seller filter | yes | **no** — a seller does not compare against colleagues (`CLAUDE.md` §24) |
+| "Por vendedor" report | yes | no |
+| Filters | raffle, seller, date range, method, status | same minus seller |
+| Summary | 3–4 `MetricCard`s per report | same |
+| Data region | `ReportTable`, horizontal overflow + `hideOnMobile` | same |
+| Pagination | on 3 of the report bodies | same |
+| Export | `ExportCsvButton` in the header | same |
+| Mutating actions | **none** | **none** |
+
+**Legitimate role differences**: the report catalogue and the absent seller filter. Both are product
+decisions with a recorded reason, not inconsistencies. **Everything else is shared and consistent** —
+there is no duplication between the two portals to reconcile.
+
+#### Does `Pattern / List Page` own this? **No.**
+
+The honest test is whether List Page fails *semantically*, not whether Reports contains a table.
+
+| List Page | Reports |
+|---|---|
+| Manages and discovers **entities** | **Answers a question**; nothing here is an entity to manage |
+| Toolbar optionally *narrows* a list | Filters are the **primary instrument** — changing the date range changes the question, not the view |
+| Header action **creates** | Header action **exports** |
+| Rows navigate to a detail (`rowHref`) | **No row navigation, no row actions, no CRUD** — strictly read-only |
+| Data region is the content | The **summary metrics are the answer**; the table is its supporting evidence |
+| No equivalent | **A report selector** — choosing *which* analysis to run |
+| Mobile: card list or priority columns | **Horizontal overflow**, legitimately: comparison across columns is the point |
+
+Two regions have **no List Page equivalent at all** — the analysis selector and the aggregate summary
+— and the fundamental purpose differs. Forcing Reports into List Page would mean calling an
+aggregate answer a "data region" and a question-scoping instrument a "toolbar".
+
+**A new Pattern is justified.**
+
+#### Proposed name: `Pattern / Report Page`
+
+Chosen from the **product's own vocabulary**, not from analytics convention. The product calls this
+surface "Reportes", each item a **reporte** (`REPORT_LABELS`), and the selector announces itself as
+"Reportes disponibles". "Data Explorer" and "Analytics Page" would import terms this product does not
+use, which the glossary discipline forbids — one term, one name.
+
+#### Proposed minimal contract
+
+| Region | Status | Evidence |
+|---|---|---|
+| Page context — title, description | **REQUIRED** | present on both routes |
+| **Analysis selector** | **REQUIRED** | `ReportNav`; both routes; the pattern is meaningless without a choice of analysis |
+| **Scope controls** — range and dimension filters | **REQUIRED** | always rendered, never optional, and they define the question |
+| **Summary metrics** | **REQUIRED** | 3–4 per report body, on every report |
+| **Tabular evidence region** | **REQUIRED** | `ReportTable` on every report |
+| Export | **OPTIONAL** | present on both routes today, but a report without an export is still a report |
+| Pagination | **OPTIONAL** | only 3 of the 6 report bodies paginate |
+| No-data state | **REQUIRED as a state** | `EmptyState`, per report body, distinguishing "no rows" from "filters returned none" |
+| Loading state | **REQUIRED as a state** | see the gap below |
+| Error state | **NOT PART OF THE PATTERN** | no evidence; no `error.tsx` exists and none is demonstrated |
+| Row actions, CRUD, primary create action | **NOT PART OF THE PATTERN** | read-only by nature |
+| Charts | **NOT PART OF THE PATTERN** | no report body renders one; the dashboards do, and that is a different surface |
+
+Deliberately **not** included merely because analytics products usually have them: saved views,
+comparison periods, drill-down, column pickers, scheduled delivery. **None has Rifas evidence.**
+
+#### Findings that R4B would act on
+
+1. **No loading state exists.** There is no `loading.tsx`, no `error.tsx` and no `Suspense` boundary;
+   the report bodies are async server components, so switching report or changing a date blocks the
+   whole page with no feedback. `Pattern / List Page` has a `State=Cargando` variant and this surface
+   has nothing equivalent. **The component exists** (`Table / Skeleton`) — this is a **Pattern
+   responsibility gap**, not a component gap.
+2. **`ExportCsvButton` is `size="sm"` (32px)** in the header actions. Unlike a table row action there
+   is no larger target behind it, so the 44px floor applies as it did to the auth submits. A
+   composition fix using the existing `touch` size — **not** a component gap.
+
+#### Search / Filters maturity — R4 would raise it, but not to proven
+
+Reports filters are **always present, primary, URL-reflected, applied immediately on change, and
+scoped by date range** — evidence Clientes never produced, because there filters only narrow a list.
+It would add: date-range filtering, multi-dimension filtering, and "filters as the instrument".
+
+It would **not** add search evidence: **Reports has no free-text search at all**. So R4 moves the
+filter half toward proven while the search half stays where Clientes and Tickets left it. Recommended
+status after R4B: still **PARTIALLY PROVEN**, with the gap named precisely rather than closed.
+
+#### Responsive — source audit only
+
+Both routes require a session and live data, and **Supabase is unavailable**, so **no report route was
+rendered**. What the source establishes:
+
+| Region | Behaviour |
+|---|---|
+| Analysis selector | `flex overflow-x-auto` with `whitespace-nowrap` — scrolls horizontally on a phone rather than wrapping into a tall block |
+| Filters | `grid gap-3 sm:grid-cols-2 lg:grid-cols-4` — 1 column at 375, 2 from `sm`, 4 from `lg` |
+| Summary metrics | grid, stacking per report body |
+| Table | `w-full overflow-x-auto rounded-lg border` **plus** `hideOnMobile` priority columns |
+
+The table uses **both** horizontal overflow and column hiding. That is legitimate here and should be
+stated in the contract: a report table compares values across columns, so **it must not be forced
+into mobile cards** the way an entity list is. **No measurement at 375 / 768 / 1360 / 1600 is
+claimed** — R4B must perform it against a seeded environment.
+
+#### Accessibility — source audit
+
+Already correct: `ReportTable` carries `<caption class="sr-only">` and `scope="col"`; `ReportNav` is a
+real `<nav aria-label="Reportes disponibles">` with a `<ul>` and `aria-current="page"`; filter controls
+have `Label` / `htmlFor` / `id` pairs; the selected report uses semantic brand tokens
+(`navigation/selected`, `text/brand`, `border/brand`) rather than colour alone, since `aria-current`
+carries the state.
+
+Two responsibilities the contract should state, both unverified without rendering: that changing a
+filter or report **announces** the new result set to a screen reader (there is no live region today),
+and that focus behaves sensibly across a filter-driven navigation. **R4B must verify both.**
+
+#### Gaps, separated
+
+| Kind | Finding |
+|---|---|
+| **PATTERN GAP** | `Pattern / Report Page` does not exist — proposed above |
+| **PATTERN GAP** | the loading responsibility for a filter-driven read-only surface |
+| **COMPONENT GAP** | **none confirmed.** Every region composes from existing components |
+| **COMPONENT CANDIDATE, not a gap** | `ReportNav` — a scrollable analysis selector with `aria-current`. **One consumer**, so it does not meet the evidence bar for a Design System component. Recorded, not proposed |
+
+#### Proposed R4B — REPORTS MIGRATION (NOT AUTHORIZED)
+
+| | |
+|---|---|
+| Routes | `owner/reports`, `seller/reports` — 2 |
+| Expected production files | `ReportsView.tsx`, `ExportCsvButton.tsx`, and a new `loading.tsx` per route (~4) |
+| Pattern responsibilities to adopt | the loading state; export button touch sizing |
+| Shared components | none changed — Core stays frozen |
+| Responsive work | **real measurement at all four widths**, which R4A could not do |
+| Accessibility work | verify result-set announcement and focus across filter navigation |
+| Visual changes | a skeleton where there is currently a blocking gap; a 44px export button on phones |
+| Risk | **LOW-MEDIUM** — small blast radius, but it is the first group whose value is a **Pattern decision** rather than code |
+
+**R4B is ready for approval once `Pattern / Report Page` is approved or rejected.** If it is rejected
+and List Page is deemed sufficient, R4B shrinks to the two composition findings above.
+
+#### Pattern maturity after R4A
+
+| Pattern | Status |
+|---|---|
+| List Page | **PROVEN** — Clientes ×2 portals, Raffles |
+| Detail Page | **PROVEN** — Clientes ×2 portals, Raffles |
+| Form | **PROVEN** — Clientes, Raffles, four auth forms |
+| **Focused System State** | **PROVEN** — `/denied`, `/offline` |
+| Search / Filters | **PARTIALLY PROVEN** — filters exercised; free-text search still only in entity lists |
+| **Report Page** | **PROPOSED — DEFINED, AWAITING IMPLEMENTATION EVIDENCE.** Audited against two real routes; **not proven**, because nothing has been built against the contract |
+| Bulk Selection | **NOT YET PROVEN** — lives in Tickets |
+| Dashboard | **NOT YET PROVEN** — no contract exists |
+
+---
+
+### 10.32 PATTERN / REPORT PAGE (2026-09-06 · **FORMALIZED AND APPROVED** · DEFINED, awaiting implementation evidence)
+
+**Figma:** page `02 — Components`, at (17800, 8950), beside the other Patterns. **Deliberately a
+contract document, not a page component** — a Pattern is not a component, and `Report Page` does not
+imply a `ReportPage.tsx`.
+
+#### Responsibility
+
+Uses **analysis and scope controls to answer a business question**. The **aggregate is the answer**;
+the detailed table is its **supporting evidence**. It is **not** primarily an entity-management
+surface.
+
+#### Contract
+
+| Region | Status |
+|---|---|
+| Page context — title and report context | **REQUIRED** |
+| **Analysis selector** — which report/question is being viewed | **REQUIRED** |
+| **Scope controls** — date/range and the report filters | **REQUIRED** |
+| **Summary metrics** — the aggregate answer | **REQUIRED** |
+| **Tabular evidence** — the detail supporting that answer | **REQUIRED** |
+| No-data state | **REQUIRED** |
+| **Loading / pending state** | **REQUIRED** |
+| Export | **OPTIONAL** — a supporting action, not what defines a Report Page |
+| Pagination | **OPTIONAL** — only part of the catalogue uses it |
+
+These are **responsibility contracts, not fixed pixel regions**, and an absent optional
+responsibility **never reserves empty space**.
+
+**Not part of v1**, for want of Rifas evidence: CRUD actions, entity row actions, charts, saved views,
+comparison periods, drill-down, column picker, secondary analytics navigation, and a Pattern-level
+error region.
+
+#### The List Page boundary
+
+List Page **discovers and manages entities**. Report Page **answers a question** through scope,
+aggregate and evidence. **A table does not make a page a List Page.** Filters here are not auxiliary
+discovery controls — they are the *instrument*: change the scope, change the question and the result.
+
+#### No-data is not List Page empty
+
+When a report returns nothing for the selected scope, the **analysis selector and scope controls
+stay** — they are how the user reformulates the report. Only the evidence region shows the no-data
+state, and its copy explains the absence **in the currently selected context**. The
+"create your first…" semantics are never reused: a Report Page does not create the records it reports
+on.
+
+#### Loading is a responsibility, not a file
+
+The user must get perceptible feedback whenever a result update is not immediate — first navigation,
+switching analysis, changing the range, changing a filter, paginating. **Adding a route loading
+boundary does not by itself discharge this**: the real transition mechanism must be audited per case.
+Enough structure stays visible that the user still knows which report and which scope they chose, and
+where the result will land. Existing Skeleton and Data Display capabilities only — **no new Core
+loading component**.
+
+#### Result-update accessibility
+
+The requirement is that a **result change is perceivable** to assistive technology — **not** that
+`aria-live` is always present. If navigation and focus already communicate the new state, that is
+sufficient. If content updates silently, add the smallest announcement: a concise result summary with
+`aria-live="polite"`. **Never** make the whole table a live region, and never `role="alert"` or
+`assertive`.
+
+#### Responsive principle
+
+A report table compares values **across columns**, so it must not be forced into mobile cards the way
+an entity list is. The approved strategy may combine `hideOnMobile` for lower-priority columns with
+**horizontal overflow** for the comparison data. Horizontal scrolling is legitimate here.
+
+#### Maturity
+
+**DEFINED — AWAITING IMPLEMENTATION EVIDENCE.** Audited against two real routes; not proven, because
+nothing has yet been built against the contract. Note that both routes render **one shared
+`ReportsView`**, so the evidence is **two real role contexts over a single implementation**, not two
+independent builds.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
@@ -3208,7 +3464,8 @@ markup causing divergence, meaningful shared behaviour, or a third recurring con
 | **Rollout preflight commit** | **`bf44fe3d2ca3ff950c51ee8aeaa19a3d5d3b360d`** (`bf44fe3`) — `docs(design-system): record post-pilot rollout plan`, this handoff only |
 | **Rollout R1 commit** | **`606bd8ca3606c8a4f0bfb68575c593981b3d03ad`** (`606bd8c`) — `feat(design-system): migrate owner clients to proven patterns`, 2 files |
 | **Rollout R2 commit** | **`9eada2dd59b8917423e11af73b7ba99f01b36381`** (`9eada2d`) — `feat(design-system): migrate raffles to proven patterns`, 3 files |
-| **Rollout R3 commit** | `feat(design-system): migrate auth and utility flows` — 8 files. Hash recorded in the R4A pass below |
+| **Rollout R3 commit** | **`cb9b25fa7befd69259e75656be301a9e79d280fb`** (`cb9b25f`) — `feat(design-system): migrate auth and utility flows`, 8 files |
+| **R4A commit** | `docs(design-system): define report page pattern` — this handoff only. Hash recorded in the R4B pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
