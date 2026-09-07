@@ -579,7 +579,17 @@ Risk is relative and argued, **not** an hour estimate.
 > validated on the real route with live data**. Eight glass and gradient roles that had no consumer
 > now have one, the catalogue's raw colour count is **zero**, availability moved to the Success
 > family, and the summary bar is classified as **business completion progress** — with its adoption
-> returned as a contract decision. **Dashboards are refreshed in §10.43 and NOT authorized.**
+> returned as a contract decision. **Dashboards are refreshed in §10.43.**
+> **R8A — DASHBOARD PATTERN & SEMANTIC AUDIT is COMPLETE** (§10.44), audit only and uncommitted. It
+> finds the gap **smaller than feared**: 12 of the 15 palette occurrences are adoption debt against
+> families that already exist, there is **no component gap**, and Product Data is already fully
+> adopted. It returns **one Pattern candidate**, **one possible new semantic family** — how a numeric
+> coincidence with a published lottery number may be presented, which BR-L15 constrains — and **two
+> product decisions**.
+> **CLOSURE MODE is in force** (§10.45): only a closure blocker stops a rollout.
+> **`Pattern / Dashboard Page` is FORMALIZED** (§10.47), and the **Responsive Collection Presentation**
+> guideline is approved (§10.46) — responsive cards as the mobile default, scroll that belongs to the
+> table and never to the page, and the table-action rule settled. **R8 — DASHBOARD is authorized.**
 
 ---
 
@@ -5155,6 +5165,350 @@ routes in the product with no Pattern behind them and an unowned semantic family
 
 ---
 
+### 10.44 R8A — DASHBOARD PATTERN & SEMANTIC AUDIT (2026-09-07 · **AUDIT COMPLETE, AWAITING DECISION** · no production change)
+
+Audit only. **No production file was touched.** The headline: the semantic gap is **much smaller than
+the preview assumed** — twelve of the fifteen palette occurrences are adoption debt against families
+that already exist, and the genuinely unowned question is a single one.
+
+#### Routes and reach
+
+| Route | Lines | Shape |
+|---|---|---|
+| `owner/dashboard` | 233 | page header, one conditional notice, install offer, lottery block, a collection summary, then **three titled sections and two recent-activity tables** |
+| `seller/dashboard` | 246 | page header **with a period selector**, one conditional panel, catalogue card, install offer, lottery block, then **a card grid with explicit ordering** (D-112) |
+
+**They are not two instances of one layout.** The seller route was redesigned into cards; the owner
+route still composes titled sections around the **raw table primitive** — not the shared data table,
+so it has no responsive column hiding and no row activation.
+
+Shared dashboard components: **9** (`KpiCard`, `SellerKpis`, `CollectionStatusCard`,
+`CollectionTrendCard`, `FinancialSummaryCard`, `TicketsOverviewCard`, `RecentActivityCard`,
+`QuickActionsCard`, `DateRangeSelect`) plus **3** lottery pieces.
+
+#### Palette — verified with the broad scan, not assumed
+
+**15 occurrences in 4 files**, matching the preview: 12 in the lottery results card, 1 in its section
+wrapper, 1 in the recent-activity card, 1 in the seller route. Every one classified by responsibility:
+
+| Count | What it colours | Traced meaning | Classification |
+|---|---|---|---|
+| **6** | the results card's two roles — blue for a draw still to come, green for one already played | the card's **temporal role**, decided by whether a number has been published | **ADOPTION DEBT** |
+| **2** | two schedule-notice panels | a contextual message about the calendar | **ADOPTION DEBT** → Notice, warning |
+| **1** | the conflict panel | the sources disagree, so **no number is shown** | **ADOPTION DEBT + a tone decision** |
+| **2** | the coincidence strip, in its two intensities | the reader's tickets carry the published number | **PRODUCT DECISION** |
+| **2** | the lottery ticket icon, in the card and in its loading skeleton | identity tint of the lottery block | **ADOPTION DEBT** |
+| **1** | an active payment's amount in recent activity | the record is not voided | **PRODUCT DECISION** |
+| **1** | the seller's pending-approval panel | **the same message the owner route already renders with Notice** | **ADOPTION DEBT** |
+
+**12 adoption debt · 3 product decisions**, and two of the three are the same question.
+
+#### The lottery card's two roles already have an owner
+
+The card hand-writes blue and green for "coming" and "played", and its own comment admits where they
+came from: the families that its sibling badge uses. **That badge already consumes the shared status
+tones** — a documented, approved mapping in which a completed draw is `success` and a scheduled or
+rescheduled one is `info`.
+
+So the card is repeating, as literal colours, a mapping the system already owns one component away.
+**Not a gap: adoption.** The three slots it needs — a pill, an icon chip and a large value — map onto
+the surface, icon and text roles those tones already provide.
+
+> **A trap worth naming.** The schedule conflict and the **result** conflict are different things in
+> different fields; the badge's own comment says so. R8B must not merge them.
+
+#### The genuinely unowned question — a coincidence is not an outcome
+
+When a published number matches tickets the reader holds, the card paints a green strip, stronger
+when there are matches. That is the one thing no family owns, and the reason is a business rule, not
+a styling gap:
+
+* **BR-L15 and the copy guide forbid calling it a win.** The product detects a **numeric
+  coincidence** and certifies no prize. The word on screen is "coincidencia", never "ganador".
+* **Success would say the opposite.** Painting it with the success family asserts a good outcome the
+  product explicitly refuses to assert.
+* It is **not Status** — it is not the state of an entity in this system; the draw belongs to a
+  lottery, and the tickets' own status is unchanged by it.
+* It is **not Product Data** — nothing is decomposed.
+* It is **not Progress** and it is **not decorative** — it is the only line on the card that can
+  oblige someone to act.
+
+**RETURNED AS A NEW SEMANTIC GAP: RESULT / OUTCOME PRESENTATION.** No token was invented. The
+decision to make is whether this responsibility earns a family of its own, or whether it is
+Notice-with-emphasis wearing an unusual colour. **Two occurrences on one card is thin evidence for a
+new family**, and that is exactly why it is returned rather than settled.
+
+#### The recent-activity amount — a real fork, with a recommendation
+
+The amount of an **active** payment is green; a **voided** one is muted and struck through, with the
+word "anulado" leading the line beneath it, so colour is not carrying it alone.
+
+| Reading | Argument |
+|---|---|
+| **Product Data — money collected** | the figure **is** collected money, and the product already has a text-safe role for exactly that, used by the payment allocation cards and the ticket payment summary |
+| Status — success | an active payment is the **normal** state, not a success. The product maps a cancellation to neutral, not a failure |
+
+**Recommendation: Product Data.** It puts the same money in the same colour everywhere, which is the
+principle the seller dashboard's own tone file already states. **Not migrated**, per the audit's
+scope.
+
+#### Progress — compliant, and one bar that must NOT become Progress
+
+| Consumer | Verdict |
+|---|---|
+| `CollectionSummaryCard` (owner) and `SellerKpis` (seller) | **COMPLIANT** — both consume the shared linear progress since R6B |
+| **`CollectionStatusCard`'s bar** | **PRODUCT DATA, not Progress** |
+
+That last one matters. It looks like a progress bar and is not: it is a **stacked, multi-segment bar**
+that splits money sold across payment categories, carries an image role and an accessible label
+listing every category's share. **A decomposition, not an advance.** The firewall holds, and R8B must
+not "unify" it with the progress component.
+
+#### Product Data — already adopted, and better than expected
+
+The seller dashboard's colour meanings live in **one tone file** that already maps every meaning to
+the Wave 6 roles, in **two variants**: fill roles for drawn shapes and text-safe foreground roles for
+written figures. The donut, the trend chart, the stacked bar and the written amounts all read from
+it. The trend arrows use the positive and negative data roles.
+
+**Nothing to reopen.** `data/paid`, `data/partial`, `data/unpaid` and `data/pending` stay as approved,
+including the deliberate choice not to paint "pending" in the alarm colour.
+
+#### Metric and chart components
+
+| | Finding |
+|---|---|
+| Metric | `KpiCard` wraps the shared metric card; the owner route uses it directly. **Compliant** |
+| Chart / Line | consumed by the trend card. **Compliant** |
+| Chart / Donut | consumed by the financial summary. **Compliant** |
+| Gap | **none.** No second metric or chart family is needed, and no dashboard needs a chart it does not have |
+
+#### Pattern — does Report Page own this?
+
+| | Report Page | The dashboards |
+|---|---|---|
+| Intent | the user **chooses an analysis and a scope** to answer a specific question | **ambient operational state**, several responsibilities at once, chosen by nobody |
+| Entry | deliberate — you go there with a question | it is where the role **lands after signing in** |
+| Scope control | central to the pattern | absent on the owner route; on the seller route a period selector governs **only** the money region, while inventory and collection stay "today" (D-112) |
+| Output | one table plus export | many small regions, each drilling through to the list that owns it |
+
+**Report Page does not own Dashboard**, and forcing it would import a scope selector as a required
+responsibility onto a route that correctly has none.
+
+#### Pattern candidate — justified, and deliberately not formalized
+
+Both routes share a shape no existing pattern covers: **an at-a-glance operational summary for one
+role, with conditional alerts and drill-through to the lists that own the detail.**
+
+**NEW PATTERN CANDIDATE: `Pattern / Dashboard Page`.** Minimum responsibility-backed contract, drawn
+from what the two routes actually do:
+
+| Region | Status | Evidence |
+|---|---|---|
+| Role context header | **REQUIRED** | both greet the person and name their organisation or period |
+| Summary metrics | **REQUIRED** | both, and both group them under titled sections or cards |
+| Drill-through | **REQUIRED** | every region links to the list that owns its detail |
+| Conditional urgent notice | **OPTIONAL** | both have one, for the same fact, expressed differently |
+| External context block | **OPTIONAL** | the lottery block, on both, behind its own loading boundary |
+| Trend or composition visualisation | **OPTIONAL** | seller only |
+| Recent activity | **OPTIONAL** | both, in different shapes |
+| Quick actions | **OPTIONAL** | seller only |
+| Install offer | **OPTIONAL** | both |
+| **Period selector** | **NOT PART OF THE PATTERN** | one route, governing a subset of its own regions |
+
+**Not formalized here, and no component was created.** Two routes is the minimum evidence a pattern
+can have, and they diverge structurally — which is an argument for defining the contract carefully,
+not for skipping it.
+
+#### Responsive and accessibility — source validation only
+
+**Real route QA was not possible for Dashboards.** Both routes require an authenticated session, and
+signing in is not something this agent does. The catalogue could be validated live because it is
+public; these cannot. **No route-rendered measurement is claimed.**
+
+| Check | Source finding |
+|---|---|
+| Heading outline | **seller: correct** — all six cards already wrap their title in a real heading. **Owner: correct too**, its sections use real headings, though with the same ad-hoc type pair Gate B left as debt |
+| The stacked bar | image role with a label naming every category and its share — **colour is not alone** |
+| Trend direction | uses the positive and negative data roles **plus** an arrow icon |
+| Recent activity | a voided payment says "anulado" in words, leading the line |
+| Owner tables | the **raw table primitive**: no responsive column hiding, no row activation, no caption. At phone widths this is the least-verified composition on either route |
+| Quick actions | already carry a 44 px minimum target |
+| Empty and loading | the lottery block has its own loading boundary and copy; the rest render from one query |
+
+**The owner tables are the one responsive risk**, and it is a risk, not a finding: it needs a rendered
+route to confirm.
+
+#### Gaps, classified as the contract requires
+
+| Category | Items |
+|---|---|
+| **PATTERN GAP** | one — no Dashboard page contract exists. Candidate above |
+| **COMPONENT GAP** | **none found.** Metric, both charts, progress, notice and status all exist and are reachable |
+| **SEMANTIC TOKEN GAP** | **one candidate** — result/outcome presentation, and it may resolve to "no new family". No token invented |
+| **ADOPTION DEBT** | 12 palette occurrences; the seller's pending-approval panel duplicating a message the owner route already renders with the shared notice; the owner route's ad-hoc section typography; the owner route's raw tables |
+| **PRODUCT DECISION** | two: what a coincidence strip is allowed to look like, and whether an active payment's amount is Product Data or Status |
+
+#### Proposed shape
+
+**R8B is not ready.** Two prerequisites, in this order:
+
+1. **R8B-PRE-1 — `Pattern / Dashboard Page` contract**, returned above for approval.
+2. **R8B-PRE-2 — the result/outcome decision**, which governs 2 of the 15 occurrences and must be
+   settled against BR-L15 before anything in that card is repainted.
+
+Then **R8B — DASHBOARD MIGRATION**: two routes, 15 occurrences of which 12 are mechanical once the
+two decisions land, plus the notice adoption and the owner table question.
+
+**Risk: MEDIUM.** Lower than the preview feared — the component and token systems are already in
+place and the seller route is largely compliant — but it is the first group needing a **new page
+contract**, and it contains the product's only unowned semantic family.
+
+#### Pattern maturity, current
+
+| Pattern | Status |
+|---|---|
+| List Page | **PROVEN** — Clientes ×2, Raffles, Payments ×2, People ×3 |
+| Detail Page | **PROVEN** — Clientes ×2, Raffles, People ×2 |
+| Form | **PROVEN** — Clientes, Raffles, auth, Payments |
+| Focused System State | **PROVEN** — `/denied`, `/offline` |
+| Report Page | **PROVEN** — both report routes |
+| Search / Filters | **PARTIALLY PROVEN** — People added none, Catalog exercised the shared field but not filters |
+| Bulk Selection | **UNPROVEN** — reachable only in Tickets |
+| **Dashboard Page** | **CANDIDATE — awaiting a contract decision.** Not defined, not proven |
+| Public composition (Catalog) | **no pattern, deliberately** — one unique screen |
+
+---
+
+### 10.45 CLOSURE MODE (2026-09-07 · **APPROVED**)
+
+From here the objective changes. It is **no longer** to discover every possible abstraction; it is to
+**close** the system: real semantic gaps shut, reusable composition rules written down, the important
+product areas migrated, and the foundations left flexible enough that a visual representation can be
+swapped later without redesigning anything underneath.
+
+Every finding is now one of two things, and **only the first may stop a rollout**:
+
+| | |
+|---|---|
+| **A · CLOSURE BLOCKER** | a semantic responsibility with no approved owner · unresolved raw palette · a serious shared-component defect · structurally inaccessible content or interaction · an unusable responsive composition · a missing required page Pattern · business meaning that cannot be inferred safely · architecture that welds business behaviour to one presentation so tightly that a required responsive representation cannot be built |
+| **B · NON-BLOCKING DEBT** | local typography inconsistency · small visual differences · refactor opportunities · duplicated styles with no behavioural effect · future extraction opportunities · a Figma sync blocked by tooling · a presentation choice that can be swapped later under an existing contract |
+
+**Category B does not stop product rollout.** It is recorded and carried.
+
+---
+
+### 10.46 RESPONSIVE COLLECTION PRESENTATION (2026-09-07 · **APPROVED COMPOSITION GUIDELINE**)
+
+The architectural point first, because it is the one that has to survive: **what a collection *is*
+must not depend on how it is drawn.**
+
+Entity fields, status, actions, permissions, pagination, filters, selection and navigation are
+**business responsibility**. Table, priority table and cards are **presentation strategy**. A screen
+may change strategy without any of the first list changing.
+
+**This is a guideline, not a component.** There is no universal collection renderer, and none is
+planned: the boundary is documented and preserved, not enforced by an abstraction.
+
+#### The three approved strategies
+
+| | Use when | Already evidenced by |
+|---|---|---|
+| **A · Responsive cards** | each record stands on its own through identity, state, a few priority values and its actions | the clients and tickets phone lists; the team grid; the dashboards' recent-activity lists |
+| **B · Priority table** | comparing rows still helps, the essential columns fit, and lower-priority ones can drop below a breakpoint | Raffles, Clientes, People |
+| **C · Scrollable table** | comparing **across** columns is the point, hiding any would remove context, and cards would damage the task | Reports; the owner dashboard's seller summary |
+
+#### The default, and its limit
+
+**For new mobile entity collections, responsive cards are the default.** Choose a table strategy when
+responsibility gives a reason: comparison that matters, or columns that must stay together.
+
+**This does not oblige anyone to rewrite a working table.** A table that passes responsive closure
+stays as it is; migrating it to cards purely to satisfy the default is category B work and is not
+authorized by this guideline.
+
+#### Two rules that come with the strategies
+
+* **Scroll belongs to the table, never to the page.** If a scrollable table is chosen, the horizontal
+  overflow lives in the data container; the heading, context and actions stay outside it, and **the
+  page itself must not scroll sideways**.
+* **A card carries the same responsibility, not the same density.** It must preserve identity, state,
+  the two to four values that matter and the actions that are required. Lower-priority desktop
+  columns may simply be absent. **Business logic is never duplicated between the two
+  representations** — both read the same prepared feature data.
+
+#### Table actions, settled
+
+The distinction proved across Payments and People is now a composition rule: **a child affordance
+that duplicates row navigation** may leave the primary target to the row, while **a child that
+performs an independent action owns its own target**. Touch-target decisions follow interaction
+responsibility, not table geometry. **No further product-wide table-action audit is required.**
+
+---
+
+### 10.47 PATTERN / DASHBOARD PAGE (2026-09-07 · **FORMALIZED AND APPROVED** · DEFINED, awaiting implementation evidence)
+
+#### Purpose
+
+**An at-a-glance operational overview across several product responsibilities, which the reader
+reaches without first choosing anything.**
+
+That last clause is the whole distinction from the report pattern:
+
+| | Report Page | Dashboard Page |
+|---|---|---|
+| How you arrive | deliberately, carrying a question | it is where your role lands after signing in |
+| What you choose first | an analysis and its scope | nothing |
+| What it answers | one question, thoroughly | several, shallowly, with a way into each |
+| Output | one result set, exportable | independent regions, each drilling through to the list that owns it |
+
+#### Required responsibilities
+
+| | |
+|---|---|
+| **Role context** | the reader knows whose overview this is — their name, their organisation, or the period the figures cover |
+| **At-a-glance summary** | the figures that answer "how are we doing" without opening anything |
+| **Priority hierarchy** | the independent regions are ordered, and the order means something |
+
+**These are responsibilities, not slots.** The pattern requires **no** card grid, no table, no chart
+and no particular number of metrics.
+
+#### Optional responsibilities
+
+Drill-through · an urgent contextual notice · external or contextual information · a visualisation ·
+operational progress · recent activity · quick actions.
+
+**Optional means absent when there is nothing to say.** No region reserves empty space.
+
+#### Explicitly not part of Dashboard v1
+
+A global analysis selector · a global date range · a fixed chart type · a fixed table type · CRUD
+architecture · a promotional or install offer.
+
+The seller route's period selector stays **local to its money region** — it governs what was
+collected, while inventory and cobranza remain today's picture (D-112). The install offer is product
+content that happens to live here; it is not pattern anatomy.
+
+#### Implementation rule
+
+**No `DashboardPage` component exists and none will be created**, and the two routes are **not** forced
+into one layout. The separation is deliberate and it is the same one the rest of this system uses:
+
+> **Patterns own responsibility. Components own reusable visual and behavioural units. Routes own
+> product composition.**
+
+The owner route composes titled sections around a scrollable summary table; the seller route composes
+an ordered card grid (D-112). **Both satisfy the pattern.** That they look different is evidence the
+contract is about responsibility, not layout.
+
+#### Figma
+
+**CONTRACT APPROVED · CODE/PRODUCT EVIDENCE IMPLEMENTED · FIGMA SYNC PENDING — tooling limitation.**
+The connected Figma operations are read-only for this kind of write. Recorded, not hidden, and **not
+a blocker**. It joins the Notice density axis, which remains separately pending design-owner sync.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -5191,7 +5545,9 @@ routes in the product with no Pattern behind them and an unowned semantic family
 | **R6C commit** | **`9ae57d0a983640ed84b2aa845d1ae0560ef50dfd`** (`9ae57d0`) — `feat(design-system): migrate people to proven patterns`, 8 files: the two People detail routes, the raffle detail route, `UserRowActions`, `TeamMemberActions`, `TeamCommissionCard`, `CatalogSettingsCard` and this handoff. **No Core file** |
 | **R7A** | audit only, no production change. §10.40. Committed together with the prerequisite below |
 | **R7-PRE commit** | **`e718bf8e4ecccf8248638249ff1eea4cd512a17e`** (`e718bf8`) — `fix(design-system): reconcile search input touch sizing`, 5 files: the shared search field, its three call sites and this handoff. **No Core API change** |
-| **R7B commit** | `feat(design-system): migrate public catalog to catalog theme semantics` — 7 files: the six catalogue files and this handoff. **No Core file, no new token.** Hash recorded in the R8A pass below |
+| **R7B commit** | **`afb94bf64e9a8c293168166d363266310224d202`** (`afb94bf`) — `feat(design-system): migrate public catalog to catalog theme semantics`, 7 files: the six catalogue files and this handoff. **No Core file, no new token** |
+| **R8A** | audit only, no production change. §10.44. Committed together with the Pattern below |
+| **Dashboard Pattern commit** | `docs(design-system): define dashboard page pattern` — this handoff only: closure mode (§10.45), the responsive collection guideline (§10.46) and the Dashboard Page contract (§10.47). Hash recorded in the R8 pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
