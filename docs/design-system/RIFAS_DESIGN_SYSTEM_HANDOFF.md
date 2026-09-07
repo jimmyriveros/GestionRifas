@@ -5846,6 +5846,152 @@ already exists, and the system is extended only when that evaluation shows a rea
 
 ---
 
+### 10.51 POST-CLOSURE RESUME POINT — **READ THIS FIRST**
+
+If you are a new session picking this project up, **this section and §10.50 are the only history you
+need.** Everything above them is the record of how the system was built; it is not a to-do list, and
+it is not to be re-derived.
+
+#### The immutable baseline
+
+| | |
+|---|---|
+| **RIFAS DESIGN SYSTEM** | **FOUNDATION MILESTONE COMPLETE · READY FOR NORMAL PRODUCT DEVELOPMENT** |
+| Closure commit | **`d174d2cd233c5285bfc6fb9e3bd533ac70f46000`** |
+| Dashboard production checkpoint | **`5e34265623cdec34a99e48557a36a19d2ee05d32`** |
+| Must-close foundation blockers | **ZERO** |
+| Product-wide adoption | **IN PROGRESS** |
+| Figma ↔ Code full parity | **NOT COMPLETE** — two manual sync items |
+| Accessibility certification | **NOT CLAIMED** |
+
+**Read those last three correctly.** They are honest disclosures about *adoption*, *design-source
+sync* and *certification* — **they do not mean the Design System is incomplete.** The foundation is
+closed. Do not treat any of them as a reason to reopen it.
+
+#### Do not re-audit these without new evidence
+
+The following are **settled**. A future session must not redesign, re-audit or "verify" them unless
+**current product evidence** shows a real contradiction or a severe defect:
+
+primitive and semantic token architecture · the three theme scopes · the typography system · the
+Button, Input, Select and Textarea baseline · Status semantics · Product Data semantics · Notice
+architecture · Progress / Linear architecture · Navigation and Shell · responsive collection
+strategies · the proven page Patterns.
+
+**Proven page Patterns — all six, do not re-prove:** List Page · Detail Page · Form · Focused System
+State · Report Page · Dashboard Page.
+
+**Do not restart wave numbering.** The migration programme is over.
+
+#### The two composition baselines you will need
+
+**Responsive collections.** Business responsibility — fields, data, statuses, actions, permissions,
+filters, pagination, selection, navigation — is **independent of presentation**. Three approved
+strategies: **responsive cards**, **priority table**, **scrollable table**. **Mobile default: cards**,
+unless comparison responsibility gives evidence for a table. A scrollable table's horizontal overflow
+belongs to **the collection container, never the page**. **No universal collection component is
+required or wanted.**
+
+**Table actions.** **Case A** — the child duplicates row navigation → the row may own the primary
+interaction. **Case B** — the child performs an independent action → the child owns its own target.
+**Decided by behaviour, not by pixels.** No further product-wide audit is required.
+
+#### The finite closeout — exactly three blocks, then stop
+
+The remaining known work is **finite**. It is three blocks, not an open sequence.
+
+##### CLOSEOUT A — FINAL PRODUCT ADOPTION
+
+**Tickets** is the main area: about 7 routes, about 7 raw palette occurrences, **every one with an
+existing semantic owner**. Everything it needs already exists — the shared search field's size
+contract, compact Notice, Progress, the responsive collection strategies, and the detail heading
+correction already evidenced elsewhere.
+
+**Adopt the existing Design System first.** Do **not** build a prerequisite programme before reading
+the actual implementation.
+
+**Bulk Selection** is a product interaction behaviour, reachable only here and **not formally proven**.
+Audit it **inside the real Tickets workflow**, and extend the Design System **only** if genuine
+reusable evidence demands it.
+
+Also in A, the two isolated semantic residues:
+
+* **Tour overlay's hand-written scrim (×2)** — if the existing overlay/scrim semantics clearly own it,
+  adopt them.
+* **Destructive control foreground (×2, inside frozen Core)** — **verify contrast and responsibility
+  first.** If there is a real accessibility or semantic defect, reopen the **minimum** Core scope
+  necessary. If it is valid behaviour and merely compatibility debt, **document and defer**.
+  **Core is not reopened for cosmetic consistency.**
+
+##### CLOSEOUT B — FIGMA PARITY AND ACCESSIBILITY QA
+
+Two manual design-owner syncs, both blocked only by read-only tooling:
+
+* **Notice density** — add or confirm `Density` (`Default`, `Compact`) as **one independent axis
+  beside `Tone`**.
+* **`Pattern / Dashboard Page`** — add the approved responsibility contract to the Pattern area.
+
+**Do not redesign either contract while syncing it.** When both are done, parity may be updated.
+
+Accessibility QA owed: **real assistive-technology validation of Reports**. This is QA of an
+**approved** architecture — **test the actual behaviour before changing anything**.
+
+Also carried: the two in-dialog searches (`ClientOptionsPicker`, `ClientPicker`) render about 36 px on
+phones — **touch responsibility not yet proven**. When their workflow is genuinely exercised, verify
+usability; if a real problem exists, use the **already-supported** touch size. **Do not invent another
+search-field API.**
+
+##### CLOSEOUT C — ONE FINAL RESIDUE SWEEP
+
+One broad verification, **not another screen-by-screen migration**. Check only: unresolved raw
+semantic colours · any semantic responsibility without an owner · a known serious responsive failure ·
+a known serious accessibility architecture defect · a missing required reusable contract · the Figma
+parity items · explicitly-known unfinished adoption.
+
+Use the **broad** palette scanner established during Catalog — named utilities **and** raw hex, colour
+functions, white/black alphas, arbitrary values and raw gradients. The narrow scan is what made the
+Catalog inventory wrong.
+
+#### The stop rule
+
+After Closeout C, classify every finding as **SEVERE BLOCKER** or **NORMAL DEBT**.
+
+| Severe | Normal |
+|---|---|
+| meaning with no system owner · an inaccessible primary workflow · critical information carried by colour alone · an unusable responsive composition · invalid interactive structure · unresolved raw semantic palette · missing required shared architecture | typography migration · style deduplication · optional abstraction · cosmetic consistency · refactor opportunities · non-critical legacy layout · code cleanup |
+
+**If severe blockers are zero: POST-CLOSURE CLOSEOUT → COMPLETE. Stop.** Do not create a Closeout D,
+and do not invent another audit phase.
+
+#### What never needs cleanup for its own sake
+
+Typography adoption debt · duplicated field-label styling · harmless duplication · aesthetic spacing
+differences · usable historical layouts · a table where cards would also have worked, or the reverse.
+**These are ordinary maintenance**, and none of them justifies closure work unless it exposes a
+functional or accessibility blocker.
+
+#### How future work proceeds
+
+1. Use the existing tokens. 2. Use the existing semantic families. 3. Use the existing components.
+4. Use the existing page Patterns. 5. Choose an approved responsive collection strategy. 6. Extend the
+Design System **only** when new product evidence proves a genuine reusable gap.
+
+**A new feature does not make the Design System incomplete.**
+
+#### Starting a new session
+
+**Read `docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md` first**, and specifically:
+
+1. **§10.50 — Design System Closure**
+2. **§10.51 — this section**
+3. the current debt and status entries it points to
+
+**Treat the closure baseline as authoritative.** Do not reconstruct or re-audit previous migration
+phases unless new evidence contradicts them. Then check `git status` and the current HEAD, because
+this document is a record and the repository may have moved.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -5886,7 +6032,8 @@ already exists, and the system is extended only when that evaluation shows a rea
 | **R8A** | audit only, no production change. §10.44. Committed together with the Pattern below |
 | **Dashboard Pattern commit** | **`048f2b3f88244976d0182c53da6bdd4aa63daf0a`** (`048f2b3`) — `docs(design-system): define dashboard page pattern`, this handoff only: closure mode (§10.45), the responsive collection guideline (§10.46) and the Dashboard Page contract (§10.47) |
 | **R8 commit** | **`5e34265623cdec34a99e48557a36a19d2ee05d32`** (`5e34265`) — `feat(design-system): migrate dashboards to dashboard pattern`, 5 files: both dashboards, the lottery card and its section, and this handoff. **No Core file, no new token, no new component** |
-| **Closure commit** | `docs(design-system): close foundation milestone` — this handoff only (§10.50). **The foundation milestone baseline** |
+| **Closure commit** | **`d174d2cd233c5285bfc6fb9e3bd533ac70f46000`** (`d174d2c`) — `docs(design-system): close foundation milestone`, this handoff only (§10.50). **The immutable foundation milestone baseline** |
+| **Resume point commit** | `docs(design-system): add post-closure resume point` — this handoff only (§10.51). **Where a new session starts** |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
@@ -5966,6 +6113,12 @@ A new session must **NOT**:
 ---
 
 ## 15. NEW CLAUDE CODE SESSION — START HERE
+
+> **THE DESIGN SYSTEM FOUNDATION IS CLOSED.** Start at **§10.51 — Post-Closure Resume Point**, then
+> §10.50. Treat the closure baseline as authoritative: do **not** reconstruct or re-audit the
+> migration phases above them unless current evidence contradicts them. The remaining work is a
+> finite three-block closeout, described in §10.51.
+
 
 ```
 Read docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md in full before doing anything else.
