@@ -1,6 +1,7 @@
 import { AlertTriangleIcon } from 'lucide-react'
 
 import { PageHeader } from '@/components/data/PageHeader'
+import { Notice } from '@/components/feedback/Notice'
 import { InstallPrompt } from '@/features/pwa/components/InstallPrompt'
 import { percentageOf, buildCollectionBreakdown } from '@/features/dashboard/collection-breakdown'
 import { CollectionStatusCard } from '@/features/dashboard/components/CollectionStatusCard'
@@ -142,11 +143,10 @@ export default async function SellerDashboardPage({
           todavia NO puede vender y por eso se dice arriba, con lo que hay que
           hacer, en vez de como una cifra mas de inventario. */}
       {totals.ticketsPendingApproval > 0 ? (
-        <p className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-950">
-          <AlertTriangleIcon className="size-4 shrink-0" aria-hidden />
+        <Notice tone="warning" icon={<AlertTriangleIcon />}>
           Tienes {totals.ticketsPendingApproval} boleta(s) esperando la aprobación de tu
           administrador. Todavía no puedes venderlas.
-        </p>
+        </Notice>
       ) : null}
 
       {/* «Mi catálogo público», cerca de la parte superior (D-161): es una

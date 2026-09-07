@@ -2,6 +2,7 @@ import { CalendarDaysIcon, RefreshCwIcon, TicketIcon, TrophyIcon } from 'lucide-
 import Link from 'next/link'
 
 import { EmptyState } from '@/components/data/EmptyState'
+import { Notice } from '@/components/feedback/Notice'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LotteryScheduleBadge } from '@/features/lottery/components/LotteryScheduleBadge'
 import {
@@ -36,14 +37,14 @@ type LotteryResultsCardProps = {
  */
 const TONE = {
   upcoming: {
-    pill: 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200',
-    icon: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
-    value: 'text-sky-700 dark:text-sky-400',
+    pill: 'bg-status-info-surface text-status-info-text',
+    icon: 'bg-status-info-surface text-status-info-icon',
+    value: 'text-status-info-text',
   },
   result: {
-    pill: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
-    icon: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-    value: 'text-emerald-700 dark:text-emerald-400',
+    pill: 'bg-status-success-surface text-status-success-text',
+    icon: 'bg-status-success-surface text-status-success-icon',
+    value: 'text-status-success-text',
   },
 } as const
 
@@ -211,9 +212,9 @@ function LotteryDrawBlock({
       </div>
 
       {draw.scheduleNotice ? (
-        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-800 dark:bg-amber-950">
+        <Notice tone="warning" density="compact">
           {draw.scheduleNotice}
-        </p>
+        </Notice>
       ) : null}
 
       {/* El dato grande. Va centrado en su propia franja: es lo que se viene a
@@ -262,9 +263,9 @@ function LotteryDrawBlock({
       )}
 
       {draw.resultKind === 'conflict' ? (
-        <p className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm dark:border-rose-900 dark:bg-rose-950">
+        <Notice tone="warning" density="compact">
           {COPY.conflict}
-        </p>
+        </Notice>
       ) : null}
 
       {/* Coincidencias. Con boletas coincidentes la franja se marca —borde y
@@ -276,8 +277,8 @@ function LotteryDrawBlock({
           className={cn(
             'flex min-w-0 items-start gap-2 rounded-lg px-3 py-2 text-sm',
             hasMatches
-              ? 'border border-emerald-300 bg-emerald-50 font-semibold text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-100'
-              : 'bg-emerald-50/70 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200',
+              ? 'border-status-info-border bg-status-info-surface text-status-info-text border font-semibold'
+              : 'bg-status-info-surface/70 text-status-info-text',
           )}
         >
           <TicketIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -387,7 +388,7 @@ export function LotteryResultsCard({
     <Card data-slot="lottery-results" className={cn('min-w-0', className)}>
       <CardHeader>
         <CardTitle className="flex min-w-0 items-center gap-2 text-base">
-          <TicketIcon className="size-5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
+          <TicketIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
           <h2 className="min-w-0 break-words">{COPY.title}</h2>
         </CardTitle>
       </CardHeader>
@@ -449,12 +450,9 @@ export function LotteryResultsCard({
               <div className="space-y-2">
                 <h3 className="text-muted-foreground text-sm font-medium">{COPY.weekChanges}</h3>
                 {data.weekAlerts.map((draw) => (
-                  <p
-                    key={draw.scheduleId}
-                    className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-800 dark:bg-amber-950"
-                  >
+                  <Notice key={draw.scheduleId} tone="warning" density="compact">
                     {draw.scheduleNotice}
-                  </p>
+                  </Notice>
                 ))}
               </div>
             ) : null}

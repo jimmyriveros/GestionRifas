@@ -42,7 +42,7 @@ export function LotteryResultsFallback({ className }: { className?: string }) {
     <Card data-slot="lottery-results-loading" aria-busy="true" className={cn('min-w-0', className)}>
       <CardHeader>
         <CardTitle className="flex min-w-0 items-center gap-2 text-base">
-          <TicketIcon className="size-5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
+          <TicketIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
           <h2 className="min-w-0 break-words">{COPY.title}</h2>
         </CardTitle>
       </CardHeader>

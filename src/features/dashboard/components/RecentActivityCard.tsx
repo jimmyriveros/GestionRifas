@@ -92,7 +92,7 @@ export function RecentActivityCard({ payments, className }: RecentActivityCardPr
                         className={cn(
                           'shrink-0 text-sm font-medium tabular-nums',
                           payment.isActive
-                            ? 'text-emerald-600 dark:text-emerald-400'
+                            ? 'text-data-paid-foreground'
                             : 'text-muted-foreground line-through',
                         )}
                       >

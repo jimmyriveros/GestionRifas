@@ -589,7 +589,14 @@ Risk is relative and argued, **not** an hour estimate.
 > **CLOSURE MODE is in force** (§10.45): only a closure blocker stops a rollout.
 > **`Pattern / Dashboard Page` is FORMALIZED** (§10.47), and the **Responsive Collection Presentation**
 > guideline is approved (§10.46) — responsive cards as the mobile default, scroll that belongs to the
-> table and never to the page, and the table-action rule settled. **R8 — DASHBOARD is authorized.**
+> table and never to the page, and the table-action rule settled.
+> **R8 — DASHBOARD is EXECUTED and uncommitted** (§10.48): dashboard palette **ZERO**, no Core change,
+> no new token or component, and **`Pattern / Dashboard Page` is PROVEN** by two routes with two
+> genuinely different layouts. A lottery coincidence is now **informational**, no longer wearing the
+> colour of a played result.
+> **The closure inventory (§10.49) returns NO must-close blockers.** The foundation milestone is
+> complete; what remains is product-screen adoption, with **`Bulk Selection` the only unproven
+> pattern**. **Tickets is NOT authorized.**
 
 ---
 
@@ -5509,6 +5516,156 @@ a blocker**. It joins the Notice density axis, which remains separately pending 
 
 ---
 
+### 10.48 R8 — DASHBOARD MIGRATION (2026-09-07 · **COMPLETED AND APPROVED** · commit in §11)
+
+**4 production files, zero Core files, zero new tokens, zero new components.** The migration turned
+out smaller than the audit's own preview, and the reason is worth stating: nothing here needed a new
+idea — every occurrence had an owner already.
+
+| Route | Result |
+|---|---|
+| `owner/dashboard` | **PASS** — one file changed, and **no collection strategy change was needed** |
+| `seller/dashboard` | **PASS** — the D-112 card grid preserved, one panel adopted the shared notice |
+
+#### The owner collection question, answered in one look
+
+R8A flagged the owner route's "raw table" as its one responsive risk. Inspected against the three
+approved strategies, the risk dissolves:
+
+| Region | What it actually is | Strategy | Action |
+|---|---|---|---|
+| Resumen por vendedor | a name and **five numeric columns** read down to compare sellers | **Scrollable table** — comparing across columns *is* the task | **none.** It already sits in its own horizontal scroller |
+| Pagos recientes | independent records: client, seller and date, amount | **cards** | **none.** It is already a list of records, not a table |
+| Boletas creadas recientemente | independent records: ticket, timestamp | **cards** | **none** |
+
+**One sentence, as the contract asks:** the seller summary stays tabular because comparing sellers
+across five money columns is the whole point of the region, and it already isolates its overflow.
+
+**Measured:** at 375 the table scrolls **131 px inside its own container** and the **page does not
+scroll sideways**; from 768 up there is no overflow at all. **No table was converted to cards to
+satisfy a default.**
+
+#### The lottery card — twelve occurrences, no new family
+
+| What | Result |
+|---|---|
+| The two card roles — a draw still to come, a draw already played | **adopted the status tones** the sibling badge already uses, where a completed draw is success and a scheduled one is info. It had been copying those colours literally |
+| Two schedule-notice panels and the source-conflict panel | **adopted the shared notice, warning, compact.** Never error: the screen keeps working and simply withholds the number |
+| The coincidence strip | **informational, and visibly so** |
+| The header's ticket icon, in the card and its loading skeleton | the product's ordinary decorative icon treatment. **No lottery-specific icon token** |
+
+##### The coincidence strip, and why it kept its markup
+
+It is message-like in **responsibility**, but not in **structure**: it contains a paragraph, an
+optional line, and a **list of links** to the matching tickets. The shared notice puts its children
+inside a phrasing-level element, where a list is not valid HTML.
+
+So it takes **the informational status tokens** — the same values the notice paints with — and keeps
+its own composition. **Documented, not silently different.**
+
+**What matters is what it no longer does.** It was green. Green is the family this product uses for a
+draw that has been played, and one centimetre away on the same card. A coincidence rendered in the
+same colour as a completed result reads as a verdict, and **BR-L15 is explicit that the product
+detects a numeric coincidence and certifies nothing**. It is now blue, next to a green result, and the
+difference is visible at a glance. **No `result/*`, `outcome/*` or `winner/*` family was created.**
+
+#### The rest
+
+| | |
+|---|---|
+| An active payment's amount in recent activity | **Product Data** — the text-safe paid role, the same one the payment allocation cards use. The **whole item was not repainted**: a voided amount keeps its strike-through and the word "anulado" |
+| The seller's pending-approval panel | adopted the shared notice — **the owner route was already rendering the same message that way** |
+| Progress | **untouched and compliant.** Both dashboard bars use the shared component |
+| The stacked collection bar | **left alone, deliberately.** It decomposes money into categories and carries an image role naming every share: **Product Data, not Progress**, however similar the shape |
+| Product Data | **untouched.** The seller dashboard's tone file already mapped every meaning to the Wave 6 roles in both fill and text-safe variants |
+| Metric and charts | **untouched.** All three already consumed |
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `typecheck` · `lint` · `test` · `build` | **all pass** — 791 tests / 47 files, same 2 pre-existing warnings |
+| `prettier` | clean on every changed file |
+| **Dashboard palette, after** | **ZERO** |
+| **Core files changed** | **ZERO** · **new tokens: ZERO** · **new components: ZERO** |
+| Method | **PRESENTATIONAL HARNESS QA** at 375 / 768 / 1360 / 1600 in Light and Dark, built from the migrated production class strings, with measured computed colours. **Real route QA was not possible**: both routes require an authenticated session, and signing in is not something this agent does. The harness was deleted |
+
+**Measured colours, both themes:**
+
+| | Light | Dark |
+|---|---|---|
+| A played draw's number | `#004f3b` | `#a4f4cf` |
+| An upcoming draw's number | `#024a70` | `#b8e6fe` |
+| The coincidence strip | `#024a70` on `#dff2fe` | `#b8e6fe` on `#052f4a` |
+| An active payment's amount | `#007a55` | `#00d492` |
+| A voided amount | muted, struck through, worded | same |
+
+**Responsive:** no page overflow at any of the four widths, in either theme.
+
+#### Accessibility
+
+No closure-level issue found, and none invented. Headings were already correct on both routes; the
+stacked bar already names every category; trend direction already carries an arrow as well as colour;
+a voided payment already says so in words. **The one real improvement is the coincidence strip no
+longer implying an outcome by colour.**
+
+#### `Pattern / Dashboard Page` → **PROVEN AND APPROVED**
+
+Two routes, two genuinely different layouts, both satisfying the same responsibilities. That is
+exactly the evidence the contract was written to require.
+
+#### Remaining Dashboard debt — all category B
+
+The owner route's section titles use the same ad-hoc type pair recorded across the product, and its
+tables are the raw primitive rather than the shared data table. **Neither blocks anything**: the
+composition is usable, measured, and swappable later under the collection guideline.
+
+---
+
+### 10.49 CLOSURE INVENTORY (2026-09-07)
+
+Everything left in the product, scanned with the broad audit and classified against §10.45.
+
+#### A · MUST COMPLETE BEFORE CLOSURE
+
+**None.**
+
+Every foundation is in place: the three-scope token architecture, semantic typography, the core
+controls, data display and overlays, product status, product data, notice, progress, navigation and
+shell — and **six proven page Patterns**. No semantic responsibility in the product is unowned. No
+route has an unusable responsive composition. No shared component has a known defect.
+
+#### B · SAFE POST-CLOSURE ADOPTION AND DEBT
+
+| Item | Size | Note |
+|---|---|---|
+| **Tickets — 7 routes** | the largest remaining group | **7 raw palette occurrences**, every one with an existing owner: three "delivered" ticks and an import tick (success family), two blocking form errors and one panel (the destructive/notice families). No new family required |
+| **`Bulk Selection` unproven** | one interaction pattern | it exists in code and is reachable only from Tickets. **The only unproven pattern left** |
+| Tour overlay | 2 occurrences | a hand-written scrim; the overlay role now exists |
+| Destructive control foreground | 2 occurrences | plain white on a destructive fill, inside frozen Core |
+| Typography adoption | product-wide | section titles on an ad-hoc type pair instead of the semantic heading role |
+| Field-label consolidation | ~18 files | one repeated label style, no behavioural effect |
+| Two searches inside dialogs | 2 consumers | 36 px on phones; the size contract already supports either decision |
+| Ticket detail heading outline | 2 routes | the same shape Gate B corrected elsewhere; handed to the Tickets rollout |
+| **Figma sync** | 2 items | the Notice density axis and the Dashboard pattern. **Both blocked by read-only tooling**, both recorded |
+
+#### Is the Design System ready to close?
+
+**Yes — the foundation milestone is complete.** What remains is **product-screen adoption**, which is
+normal forward work and does not need a migration programme around it.
+
+The one honest caveat: **`Bulk Selection` has never been proven against a contract.** It is not a
+foundation gap — the foundations it would rest on are all closed — but it is the last pattern without
+evidence, and it lives entirely inside Tickets.
+
+**Smallest action that closes the remaining gap**, if zero unproven patterns is the bar: **one audit
+of bulk selection on the tickets list**, defining its responsibility and proving it on the route that
+already implements it. That is a single unit of work, not a wave programme — and if the answer is
+that bulk selection is a product-area interaction rather than a foundation pattern, closure does not
+wait for it at all.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -5547,7 +5704,8 @@ a blocker**. It joins the Notice density axis, which remains separately pending 
 | **R7-PRE commit** | **`e718bf8e4ecccf8248638249ff1eea4cd512a17e`** (`e718bf8`) — `fix(design-system): reconcile search input touch sizing`, 5 files: the shared search field, its three call sites and this handoff. **No Core API change** |
 | **R7B commit** | **`afb94bf64e9a8c293168166d363266310224d202`** (`afb94bf`) — `feat(design-system): migrate public catalog to catalog theme semantics`, 7 files: the six catalogue files and this handoff. **No Core file, no new token** |
 | **R8A** | audit only, no production change. §10.44. Committed together with the Pattern below |
-| **Dashboard Pattern commit** | `docs(design-system): define dashboard page pattern` — this handoff only: closure mode (§10.45), the responsive collection guideline (§10.46) and the Dashboard Page contract (§10.47). Hash recorded in the R8 pass below |
+| **Dashboard Pattern commit** | **`048f2b3f88244976d0182c53da6bdd4aa63daf0a`** (`048f2b3`) — `docs(design-system): define dashboard page pattern`, this handoff only: closure mode (§10.45), the responsive collection guideline (§10.46) and the Dashboard Page contract (§10.47) |
+| **R8 commit** | `feat(design-system): migrate dashboards to dashboard pattern` — 5 files: both dashboards, the lottery card and its section, and this handoff. **No Core file, no new token, no new component.** Hash recorded in the closure pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
