@@ -1,9 +1,11 @@
 import { BarChart3Icon, CalendarIcon } from 'lucide-react'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
 import { DataTablePagination } from '@/components/data/DataTablePagination'
 import { EmptyState } from '@/components/data/EmptyState'
 import { MetricCard } from '@/components/data/MetricCard'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/data/PageHeader'
 import { PaymentStatusBadge, RaffleStatusBadge } from '@/components/data/StatusBadge'
 import { Badge } from '@/components/ui/badge'
@@ -95,6 +97,12 @@ export async function ReportsView({
     ...(salesRange ? { dateFrom: salesRange.from, dateTo: salesRange.to } : {}),
   }
 
+  // La clave de la frontera: si cambia CUALQUIER cosa que altere el resultado
+  // —el reporte, el alcance o la pagina—, la frontera se remonta y aparece el
+  // esqueleto. Se construye del alcance ya resuelto, no de la URL cruda, para
+  // que «hoy» y «sin fechas» no cuenten como dos alcances distintos.
+  const resultKey = JSON.stringify(activeFilters)
+
   const [raffles, sellers] = await Promise.all([
     listRaffleOptions(),
     withSellerFilter ? listActiveSellerOptions() : Promise.resolve([]),
@@ -124,27 +132,49 @@ export async function ReportsView({
         dateDefaults={salesRange ? { from: salesRange.from, to: salesRange.to } : undefined}
       />
 
-      {report === 'sellers' ? (
-        <SellersReport filters={activeFilters} basePath={sellerBasePath} />
-      ) : null}
-      {report === 'sales-by-date' && salesRange ? (
-        <SalesByDateReport
-          range={salesRange}
-          page={activeFilters.page}
-          clientBasePath={clientBasePath}
-          ticketBasePath={ticketBasePath}
-        />
-      ) : null}
-      {report === 'ticket-status' ? <TicketStatusReport filters={activeFilters} /> : null}
-      {report === 'raffles' ? <RafflesReport /> : null}
-      {report === 'client-balances' ? (
-        <ClientBalancesReport
-          filters={activeFilters}
-          clientBasePath={clientBasePath}
-          showSeller={withSellerFilter}
-        />
-      ) : null}
-      {report === 'payments' ? <PaymentsReport filters={activeFilters} /> : null}
+      {/*
+        EL RESULTADO SE SUSPENDE SOLO; los controles no (Ola R4B).
+
+        Las cinco transiciones de esta pantalla —entrar, cambiar de reporte,
+        cambiar el rango, cambiar un filtro y pasar de pagina— son todas cambios
+        de parametros SOBRE LA MISMA RUTA, asi que un `loading.tsx` no se
+        dispararia en cuatro de las cinco. Una frontera con `key` si: al cambiar
+        la clave se desmonta el resultado anterior y se pinta el esqueleto,
+        mientras el encabezado, el selector de reporte y los filtros siguen
+        ahi. Quien mira sigue sabiendo que reporte pidio y con que alcance, y
+        donde va a aparecer la respuesta.
+      */}
+      <Suspense key={resultKey} fallback={<ReportResultSkeleton />}>
+        {/*
+          Y quien no ve la pantalla necesita que le digan que el resultado se
+          rehizo: al remontarse la frontera, esta linea se vuelve a anunciar.
+          Es un resumen corto, nunca la tabla entera, y nunca `assertive`.
+        */}
+        <p className="sr-only" aria-live="polite">
+          Resultados actualizados: {REPORT_LABELS[report]}
+        </p>
+        {report === 'sellers' ? (
+          <SellersReport filters={activeFilters} basePath={sellerBasePath} />
+        ) : null}
+        {report === 'sales-by-date' && salesRange ? (
+          <SalesByDateReport
+            range={salesRange}
+            page={activeFilters.page}
+            clientBasePath={clientBasePath}
+            ticketBasePath={ticketBasePath}
+          />
+        ) : null}
+        {report === 'ticket-status' ? <TicketStatusReport filters={activeFilters} /> : null}
+        {report === 'raffles' ? <RafflesReport /> : null}
+        {report === 'client-balances' ? (
+          <ClientBalancesReport
+            filters={activeFilters}
+            clientBasePath={clientBasePath}
+            showSeller={withSellerFilter}
+          />
+        ) : null}
+        {report === 'payments' ? <PaymentsReport filters={activeFilters} /> : null}
+      </Suspense>
     </div>
   )
 }
@@ -722,6 +752,29 @@ async function PaymentsReport({ filters }: { filters: ReportFilters }) {
           <DataTablePagination total={total} page={page} pageSize={pageSize} items="days" />
         </>
       )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * El hueco mientras se rehace el resultado.
+ *
+ * Repite la FORMA de un reporte —la fila de cifras y despues la tabla—, no un
+ * rectangulo generico: asi el salto de esqueleto a contenido no mueve la
+ * pagina. Sale del primitivo `Skeleton` de siempre; no hay un componente nuevo
+ * de carga, porque no hace falta.
+ */
+function ReportResultSkeleton() {
+  return (
+    <div className="space-y-4" aria-hidden>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Skeleton key={index} className="h-24 w-full" />
+        ))}
+      </div>
+      <Skeleton className="h-64 w-full" />
     </div>
   )
 }

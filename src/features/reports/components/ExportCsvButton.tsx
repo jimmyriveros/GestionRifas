@@ -26,7 +26,7 @@ export function ExportCsvButton({ filters }: { filters: ReportFilters }) {
   if (filters.status) params.set('status', filters.status)
 
   return (
-    <Button asChild variant="outline" size="sm">
+    <Button asChild variant="outline" size="touch">
       <a href={`/api/reports/export?${params.toString()}`} download>
         <DownloadIcon className="size-4" aria-hidden />
         Exportar CSV

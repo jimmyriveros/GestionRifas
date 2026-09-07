@@ -550,9 +550,10 @@ Risk is relative and argued, **not** an hour estimate.
 > waves 3A/3B·4.5·6.5·6.6. The **Clientes Seller pilot succeeded** (§10.25) with zero Core defects.
 > **ROLLOUTS R1, R2 and R3 are COMPLETE AND APPROVED** (§10.27, §10.28, §10.29), and
 > **`Pattern / Focused System State` is FORMALIZED** (§10.30), proven by `/denied` and `/offline`.
-> **R4A — REPORTS PATTERN AUDIT is COMPLETE** (§10.31), uncommitted, audit only: it concludes that
-> List Page does **not** own Reports and proposes **`Pattern / Report Page`** for approval.
-> **R4B — REPORTS MIGRATION is NOT AUTHORIZED.**
+> **R4A is COMPLETE AND APPROVED** and **`Pattern / Report Page` is FORMALIZED** (§10.31, §10.32).
+> **R4B — REPORTS MIGRATION is EXECUTED** (§10.33), uncommitted and awaiting review: two files, three
+> changes, zero Core changes, and the Pattern is now **PROVEN**. **NEXT: ROLLOUT R5 — PAYMENTS, NOT
+> AUTHORIZED**, previewed at the end of §10.33.
 
 ---
 
@@ -3431,10 +3432,182 @@ an entity list is. The approved strategy may combine `hideOnMobile` for lower-pr
 
 #### Maturity
 
-**DEFINED — AWAITING IMPLEMENTATION EVIDENCE.** Audited against two real routes; not proven, because
-nothing has yet been built against the contract. Note that both routes render **one shared
-`ReportsView`**, so the evidence is **two real role contexts over a single implementation**, not two
-independent builds.
+**PROVEN (R4B, 2026-09-06).** Both routes satisfy the contract. The evidence is recorded accurately:
+**two real role contexts over one shared `ReportsView` implementation**, not two independent builds.
+
+---
+
+### 10.33 R4B — REPORTS MIGRATION (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+**2 production files, 3 changes, zero Core changes.** The first group migrated against a Pattern that
+was written for it.
+
+| Route | File |
+|---|---|
+| Owner reports | `src/app/(protected)/owner/reports/page.tsx` — **unchanged** |
+| Seller reports | `src/app/(protected)/seller/reports/page.tsx` — **unchanged** |
+
+Both routes render one shared `ReportsView`; **the shared architecture was preserved and not forked**,
+and the legitimate role differences stand untouched — Owner keeps the seller filter and the
+"Por vendedor" report, Seller keeps neither, and neither was aligned to the other for symmetry.
+
+#### The transition audit — why no `loading.tsx` was written
+
+The Pattern says loading is a responsibility, not a file, so each transition was audited for its
+**real mechanism** before anything was built:
+
+| Transition | Mechanism | Feedback before | After |
+|---|---|---|---|
+| A · first navigation to Reports | route navigation | none | skeleton |
+| B · switching analysis | `ReportNav` → plain `<Link>`, **no transition state at all** | **none** | skeleton |
+| C · changing the date range | `ReportFilters` → `startTransition(router.push)` | controls disabled; **result region looked current** | skeleton |
+| D · changing another filter | same as C | same | skeleton |
+| E · pagination | `DataTablePagination` → `startTransition(router.push)` | same | skeleton |
+
+**Four of the five are search-param changes on the same route**, where a `loading.tsx` would not fire
+at all. A route file would have discharged case A and left B–E exactly as they were — which is
+precisely the trap the Pattern warns about.
+
+**What was built instead:** one `<Suspense>` boundary around the result region, keyed on the resolved
+scope (`JSON.stringify(activeFilters)`), with a skeleton fallback. Changing the key remounts the
+boundary, so **all five transitions** now show feedback. The key is built from the **resolved** scope
+rather than the raw URL, so "today" and "no dates" do not count as two different scopes.
+
+The header, the analysis selector and the scope controls sit **outside** the boundary and stay put:
+the user keeps seeing which report they asked for and with what scope, and where the answer will
+land. `ReportResultSkeleton` repeats the **shape** of a report body — a metric row, then the table —
+built from the existing `Skeleton` primitive. **No new Core loading component was created.**
+
+#### Result-update accessibility — what was actually tested
+
+Verified from source, before changing anything: **three of the six report bodies already announce**
+their result change, because `DataTablePagination` carries `aria-live="polite"` on its range line
+("1–25 de 118 clientes" / "Nada para mostrar"). The other three — `SellersReport`,
+`TicketStatusReport`, `RafflesReport` — have **no live region at all**, so changing scope updated them
+silently. Switching analysis was silent in every case.
+
+**Added:** one `sr-only` `aria-live="polite"` line **inside** the boundary, naming the report. Because
+the boundary remounts on every scope change, it re-announces. It is a concise summary — **not the
+table, never `role="alert"`, never `assertive"`** — and where a count exists, pagination still
+supplies it.
+
+**Validation status, recorded precisely:**
+
+| | |
+|---|---|
+| **Structural accessibility validation** | **PASS** — which regions carry a live region, and which did not |
+| **Real assistive-technology validation** | **NOT PERFORMED** — no screen reader or AT environment was available, and Supabase is down so the real routes cannot be reached |
+
+**Classification: NON-BLOCKING FOR R4B APPROVAL · REQUIRED BEFORE BROAD RELEASE AND FINAL
+ACCESSIBILITY QA.** No real screen-reader test is being claimed, and **no further code change was
+made merely because that QA is still owed**. The polite announcement is accepted structurally.
+
+**The two live regions were deliberately left as they are.** Three report bodies announce through
+`DataTablePagination`, and the new line covers report and scope changes more generally. They are
+**not** merged or removed on speculation: if a real AT pass later shows duplicate or noisy
+announcements, that is when they get reconciled. Guessing now would trade a verified structure for an
+unverified one.
+
+#### Export action
+
+`ExportCsvButton` was `size="sm"` — 32px, and unlike a table row action **there is no larger target
+behind it**. It now uses the existing `touch` size: **44px on a phone, 36px from `sm`**, measured. No
+route-local height class, and the CSV logic was not touched. **APPROVED TOUCH-TARGET CORRECTION.**
+
+#### Everything else — NO-OP
+
+The analysis selector, scope controls, summary metrics, tabular evidence, no-data states and
+pagination were **already correct** against the contract and were not touched. Specifically: the
+selector keeps its `<nav aria-label>` / `<ul>` / `aria-current="page"` navigation semantics and was
+**not converted to tabs**; the table keeps `<caption class="sr-only">` and `scope="col"`; no-data
+states keep the selector and scope controls on screen, and none borrows "create your first…"
+semantics; pagination stays on only the three bodies that use it.
+
+#### Responsive — PRESENTATIONAL HARNESS QA
+
+**REAL ROUTE QA was NOT possible**: both routes need a session, and the only way to render one would
+have been to add a path to `PUBLIC_PATHS` in `src/lib/supabase/proxy.ts` — production security logic,
+which the rollout rules forbid touching. A **presentational harness** was used instead: the real
+compiled stylesheet with the exact markup and class strings of `ReportNav`, `ReportFilters`,
+`ReportTable`, the export button and the new skeleton. It lived under a gitignored path and was
+deleted.
+
+| Width | Analysis selector | Scope controls | Select / date | Export | Table columns | Skeleton |
+|---|---|---|---|---|---|---|
+| **375** | scrolls — 755px of labels in 343px | **1 column** | **44px** | **44px** | **3 of 6**, no overflow | 480px, 2-col metrics |
+| **768** | still scrolls (721px available) | **2 columns** | 36px | 36px | **6 of 6** | 480px |
+| **1360** | fits, no scroll | **4 columns** | 36px | 36px | 6 of 6 | 4-col metrics |
+| **1600** | fits, no scroll | 4 columns | — | 36px | 6 of 6 | — |
+
+The table **does not overflow at 375** — the three `hideOnMobile` columns already reduce it to three,
+so horizontal scrolling is a fallback for wider content rather than the phone strategy. **No
+comparison data was removed to avoid scrolling**, and the table was **not** converted to cards.
+
+**Observation, not a defect:** the analysis selector still needs horizontal scrolling at 768, because
+six report labels exceed the available width. That is the existing design and the Pattern permits it;
+`aria-current` keeps the active analysis identifiable without relying on scroll position.
+
+**Light and Dark both verified**: the skeleton renders `#262626` and animates in Dark, the selected
+report uses the brand semantic tokens (`#032d10` on `#7bef92`), and the export button's border
+resolves to `border/input` `#666666` — the Wave 6.6 value. **Catalog is not relevant**: Reports never
+renders under `.catalog-theme`, and none was fabricated.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` · `lint` · `test` · `build` | **all pass** — 0 errors, 0 lint errors (same 2 pre-existing warnings), **791 tests / 47 files** |
+| `prettier` | clean on both changed files. Two objections were **mine** — a stray semicolon against `semi: false`, and import placement — both fixed |
+| Compiled selectors, clean build vs clean build | **+1 · `.h-64`**, the table skeleton. Nothing else moved |
+| **Hardcoded palette in the R4B tree** | **ZERO** |
+| **Core components changed** | **ZERO** |
+| **New Design System components** | **NONE.** `ReportNav` was not promoted — still one consumer — and no `ReportPage.tsx` was created |
+
+#### Result and remaining debt
+
+All R4B success criteria pass. **Remaining debt: one item, and it is honest rather than technical —
+the assistive-technology pass on the new announcement.** The table-row action question was **not**
+pulled in: Reports has no row actions, so it does not reach it.
+
+**`Pattern / Report Page` is now PROVEN**, with the evidence recorded accurately: **two real role
+contexts over one shared `ReportsView` implementation**, not two independent builds.
+
+**Search / Filters remains PARTIALLY PROVEN.** Reports added date-range, multi-dimension and
+filters-as-scope evidence, but it has **no free-text search at all**, so the remaining gap is named
+precisely: **free-text search behaviour is not yet broadly proven**.
+
+#### Next rollout group — preview only, NOT AUTHORIZED
+
+Re-audited at current HEAD; the order did **not** survive unexamined.
+
+| Candidate | Routes | Palette | Compact notices | Other reachable debt |
+|---|---|---|---|---|
+| **Payments** | **3** | **1** | **0** | `TOUCH_FIELD` ×4; one in-row `sm` action |
+| People | 5 | 3 | **3** | `CommissionCard` progress |
+| Tickets | 7 | 8 | 3 | `BulkTicketCreator`; **Bulk Selection unproven** |
+| Dashboards | 2 | **15** | 0 | `CollectionSummaryCard`, `RecentActivityCard`, **no Dashboard Pattern exists** |
+
+**R5 · PAYMENTS** — `owner/payments`, `seller/payments`, `seller/payments/new`.
+
+| Question | Answer |
+|---|---|
+| Patterns | **List Page + Form**, both proven |
+| Palette debt | **1** occurrence, `PaymentDetailDialog` |
+| Compact Notice reachable? | **No** |
+| Progress reachable? | **No** |
+| Table-action touch debt reachable? | **Yes, one occurrence** — and it is the first chance to answer the deferred A/B question on a real screen |
+| `TOUCH_FIELD` | reachable ×4 — `PaymentForm`'s local touch constant, now replaceable with the semantic size proven in three domains |
+| Prerequisite | **None** |
+| Risk | **LOW-MEDIUM** |
+
+**Why Payments next:** it has the least reachable debt of the four, both its Patterns are proven, and
+it needs no decision taken first. It also retires `TOUCH_FIELD`, the last ad-hoc touch mechanism
+outside `SearchInput`.
+
+**People becomes R6**, and the **compact Notice geometry decision belongs immediately before it** —
+People is the first group that actually reaches those three consumers. **Tickets and Dashboards stay
+last**: Tickets needs Bulk Selection proven, and Dashboards needs a Pattern contract that does not
+exist plus three semantic decisions, against 15 palette occurrences.
 
 ---
 
@@ -3465,7 +3638,8 @@ independent builds.
 | **Rollout R1 commit** | **`606bd8ca3606c8a4f0bfb68575c593981b3d03ad`** (`606bd8c`) — `feat(design-system): migrate owner clients to proven patterns`, 2 files |
 | **Rollout R2 commit** | **`9eada2dd59b8917423e11af73b7ba99f01b36381`** (`9eada2d`) — `feat(design-system): migrate raffles to proven patterns`, 3 files |
 | **Rollout R3 commit** | **`cb9b25fa7befd69259e75656be301a9e79d280fb`** (`cb9b25f`) — `feat(design-system): migrate auth and utility flows`, 8 files |
-| **R4A commit** | `docs(design-system): define report page pattern` — this handoff only. Hash recorded in the R4B pass below |
+| **R4A commit** | **`eb6c2f78fcb9d2a7c3576d591273c65a3e279390`** (`eb6c2f7`) — `docs(design-system): define report page pattern`, this handoff only |
+| **R4B commit** | `feat(design-system): migrate reports to report page pattern` — 3 files. Hash recorded in the R5 pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
