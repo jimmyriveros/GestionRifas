@@ -24,10 +24,30 @@ import { cn } from '@/lib/utils'
  * al campo—, que es lo correcto porque ahi si hay que interrumpir.
  *
  * TAMPOCO HAY titulo, boton de cerrar, tamaños ni variante flotante: ninguna
- * pantalla los pide. Cuando alguna los pida, se añaden entonces.
+ * pantalla los pide. Cuando alguna los pida, se añaden entonces. `density` NO
+ * es un tamaño: no cambia la escala del componente ni su contenido, solo el
+ * aire que lo rodea.
  */
 
 export type NoticeTone = 'info' | 'success' | 'warning' | 'neutral'
+
+/**
+ * Lo COMPACTO no dice otra cosa, lo dice en menos sitio.
+ *
+ * La responsabilidad, la tipografia y la jerarquia del contenido son las
+ * mismas; lo unico que cambia es el aire. Por eso es `density` y no `size`:
+ * un `size` cambiaria la escala del componente, y aqui no cambia nada mas que
+ * el relleno y el radio.
+ *
+ * `compact` es para un aviso que vive DENTRO de algo mas pequeño —una tarjeta,
+ * un dialogo—, donde el relleno de pagina roba mas de lo que ordena.
+ */
+export type NoticeDensity = 'default' | 'compact'
+
+const DENSITY_CLASSES: Record<NoticeDensity, string> = {
+  default: 'rounded-lg px-4 py-3',
+  compact: 'rounded-md px-3 py-2',
+}
 
 const TONE_CLASSES: Record<NoticeTone, string> = {
   info: 'bg-status-info-surface text-status-info-text border-status-info-border',
@@ -60,15 +80,25 @@ type NoticeProps = {
    * interrumpir nada. Un aviso estatico se queda fuera de los anuncios.
    */
   live?: boolean
+  /** Cuanto aire lleva. `compact` para un aviso dentro de una tarjeta o un dialogo. */
+  density?: NoticeDensity
 }
 
-export function Notice({ tone, children, icon, action, live = false }: NoticeProps) {
+export function Notice({
+  tone,
+  children,
+  icon,
+  action,
+  live = false,
+  density = 'default',
+}: NoticeProps) {
   return (
     <div
       // El color NUNCA es la unica señal (CLAUDE.md §27): el tono acompaña al
       // texto, que es quien dice lo que pasa.
       className={cn(
-        'flex flex-col gap-2 rounded-lg border px-4 py-3 text-sm',
+        'flex flex-col gap-2 border text-sm',
+        DENSITY_CLASSES[density],
         'sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3',
         TONE_CLASSES[tone],
       )}

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
+import { LinearProgress } from '@/components/data/LinearProgress'
 import { TicketNumberInput } from '@/components/form/TicketNumberInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -303,19 +304,7 @@ export function BulkTicketCreator({
 
           {progress ? (
             <div className="space-y-1">
-              <div
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={percent}
-                aria-label="Progreso del guardado"
-                className="bg-muted h-2 w-full overflow-hidden rounded-full"
-              >
-                <div
-                  className="bg-primary h-full transition-all"
-                  style={{ width: `${percent}%` }}
-                />
-              </div>
+              <LinearProgress value={percent} label="Progreso del guardado" />
               <p className="text-muted-foreground text-xs" aria-live="polite">
                 Guardando {progress.done} de {progress.total}...
               </p>

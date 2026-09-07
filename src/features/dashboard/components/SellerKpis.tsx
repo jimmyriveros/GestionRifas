@@ -7,6 +7,7 @@ import {
   WalletIcon,
 } from 'lucide-react'
 
+import { LinearProgress } from '@/components/data/LinearProgress'
 import { formatCOP } from '@/lib/money'
 import { cn } from '@/lib/utils'
 
@@ -116,16 +117,7 @@ export function SellerKpis({
               {ticketsPaid} de {ticketsAssigned}{' '}
               {ticketsAssigned === 1 ? 'boleta pagada' : 'boletas pagadas'}
             </p>
-            <div
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={collectionPercentage}
-              aria-label="Porcentaje del dinero ya cobrado"
-              className="bg-muted h-1.5 w-full overflow-hidden rounded-full"
-            >
-              <div className="bg-data-paid h-full" style={{ width: `${collectionPercentage}%` }} />
-            </div>
+            <LinearProgress value={collectionPercentage} label="Porcentaje del dinero ya cobrado" />
           </div>
         }
       />

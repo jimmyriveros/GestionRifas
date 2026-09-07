@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 
+import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -171,15 +172,28 @@ function CommissionForm({
           error={form.formState.errors.fixedCommissionAmount?.message}
         />
 
-        {changed ? (
-          <p
-            role="status"
-            className="rounded-md bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200"
-          >
-            Al guardar, volvemos a calcular las boletas que {member.fullName} ya cobró con esta
-            nueva ganancia. Lo que lleva acumulado puede subir o bajar, y lo tuyo también.
-          </p>
-        ) : null}
+        {/*
+          La region VIVE SIEMPRE y el aviso entra y sale de ella. Antes nacian
+          las dos a la vez, y una region que aparece ya escrita no se anuncia de
+          forma fiable: el lector de pantalla tiene que estar vigilandola desde
+          antes de que cambie.
+
+          `role="status"` se conserva tal cual. No es lo mismo que
+          `aria-live="polite"`: ademas implica `aria-atomic`, o sea que se lee la
+          frase entera y no solo lo que cambio. Por eso dentro no va nada mas.
+
+          `empty:sr-only` es lo que evita que la region vacia deje un hueco: la
+          saca del flujo sin usar `display:none`, que si la borraria del arbol de
+          accesibilidad y nos devolveria al problema de partida.
+        */}
+        <div role="status" className="empty:sr-only">
+          {changed ? (
+            <Notice tone="warning" density="compact">
+              Al guardar, volvemos a calcular las boletas que {member.fullName} ya cobró con esta
+              nueva ganancia. Lo que lleva acumulado puede subir o bajar, y lo tuyo también.
+            </Notice>
+          ) : null}
+        </div>
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>

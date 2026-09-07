@@ -531,8 +531,8 @@ Exactly as approved in `04 — Design to Code` › Section · Implementation wav
 
 Risk is relative and argued, **not** an hour estimate.
 
-> **CURRENT POSITION: Waves 1, 2, 3A, 3B1, 3B1b, 3B2, 4, 4.5A, 4.5B and 5 are approved and
-> committed. Wave 6 is executed, uncommitted, awaiting review.**
+> **CURRENT POSITION: every wave and every rollout through R6A is approved and committed. R6B is
+> executed and uncommitted, awaiting review.**
 > **Wave 3 was SPLIT (approved 2026-09-06): 3A core-control adoption, 3B brand activation.** This is
 > an EXECUTION split only — the dependency model is unchanged, no new architectural layer exists.
 > 3B was split again into 3B1 (semantic convergence), 3B1b (activation prerequisites) and 3B2 (the
@@ -551,10 +551,13 @@ Risk is relative and argued, **not** an hour estimate.
 > **ROLLOUTS R1, R2 and R3 are COMPLETE AND APPROVED** (§10.27, §10.28, §10.29), and
 > **`Pattern / Focused System State` is FORMALIZED** (§10.30), proven by `/denied` and `/offline`.
 > **ROLLOUTS R1–R5 are COMPLETE AND APPROVED** (§10.27–§10.34), and `Pattern / Report Page` is
-> **PROVEN**. **R6A — PEOPLE PREREQUISITE AUDIT is COMPLETE** (§10.35), uncommitted, audit only. It
-> returns **NOTICE COMPACT EXTENSION JUSTIFIED** as a `density` property on four true consumers, and
-> classifies `CommissionCard` as **threshold/goal Progress** that no approved family owns.
-> **A prerequisite checkpoint — R6B — is REQUIRED before People. Neither is authorized.**
+> **PROVEN**. **R6A — PEOPLE PREREQUISITE AUDIT is COMPLETE AND APPROVED** (§10.35).
+> **R6B — PEOPLE DESIGN SYSTEM PREREQUISITE RECONCILIATION is EXECUTED and uncommitted** (§10.36):
+> Notice gained `density`, one generic linear progress component completed the partial contract on
+> the roles that had been unused since Wave 1, and `SellerKpis` moved from Product Data to business
+> completion progress. **Both People prerequisites are CLOSED.**
+> **The refreshed People preflight (§10.37) returns READY FOR EXECUTION**, with one correction it
+> makes itself: **no People route reaches any Progress consumer** (§10.37).
 
 ---
 
@@ -3975,7 +3978,325 @@ themselves are clean, with no search, no pagination, no table actions and no tou
 
 ---
 
-## 11. Repository checkpoint — 2026-09-06
+### 10.36 R6B — PEOPLE DESIGN SYSTEM PREREQUISITE RECONCILIATION (2026-09-07 · **COMPLETED AND APPROVED** · commit in §11)
+
+Both prerequisites are closed. **9 files: 1 new component, 8 migrated consumers. Zero Core changes,
+zero new tokens.** The Figma contract was read directly rather than inferred, and it settled the two
+open API questions on its own.
+
+#### Prerequisite 1 — Notice gains `density`
+
+| | Shipped |
+|---|---|
+| Property | **`density`**, values `default` and `compact`, defaulting to `default` |
+| What moves | **padding and corner radius only** — 16/12 px and the large radius become 12/8 px and the medium radius |
+| What does not move | typography, content hierarchy, tone tokens, the icon slot, the action slot, the live-region behaviour, the responsive row/column switch |
+| Tokens created | **none** — compactness is spacing, not colour |
+| Core reopened | **no**: no title, no dismissible, no Error tone, no floating variant, no `className`, no prop spreading |
+
+Four consumers adopted it, exactly the four R6A proved:
+
+| Consumer | Group | Tone |
+|---|---|---|
+| `CommissionCard` | People | success |
+| `TeamCommissionDialog` | People | warning |
+| `UserDialog` | People | warning |
+| `TicketImportDialog` | Tickets | warning |
+
+**The two excluded panels stayed excluded**, and People turned up **two more of the same family** —
+`TeamCommissionDialog` and `UserDialog` each carry a submit-error paragraph with `role="alert"` on
+the `destructive` role. Four blocking form errors now, all correctly outside Notice: Notice has no
+Error tone and must never announce assertively.
+
+##### `role="status"` is not `aria-live="polite"`, and it was not treated as if it were
+
+`TeamCommissionDialog` already announced its recalculation warning with `role="status"`. That role
+implies **both** a polite live region **and** `aria-atomic` — the whole region is re-read, not just
+the changed part. Notice's `live` produces a polite region **without** `aria-atomic`, so swapping one
+for the other would have quietly changed what a screen reader says.
+
+**Resolution: the announcement is preserved in an external region.** No `role` property was added to
+Notice, and its live-region contract is untouched.
+
+##### GATE — status-message classification, decided per consumer
+
+Every R6B compact Notice was classified against one question: is this **contextual content arriving
+with a composition**, or a **status message the user must perceive while focus stays where it is**?
+Decided from workflow evidence, never from the fact that a component is conditional.
+
+| Consumer | What actually happens | Class | Live semantics |
+|---|---|---|---|
+| `CommissionCard` | rendered once from server props; **its text never changes afterwards** | **A** | **NONE REQUIRED** |
+| `TeamCommissionDialog` | the dialog is already open; the user changes the model or the amount, and the warning appears **at the same moment the save button becomes enabled**. D-127 requires it be read **before** saving | **B** | status |
+| `UserDialog` | the user edits the address of a pending invitation; the message says the previous invitation link **stops working**. Missing it means silently breaking someone else's invitation | **B** | status |
+| `TicketImportDialog` | the preview is painted from what the browser could check, then the raffle-side verification returns and **rewrites both counts**. Nobody typed anything | **B** | status |
+
+`CommissionCard` is the clean **A**: not dynamic at all. **No live region was added**, and none is
+required — adding one because a component is conditional is exactly what the contract forbids.
+
+##### GATE — the three status messages needed a structural fix, not a property
+
+All three announced from a region that **mounted together with its own text**. A region that appears
+already written is not reliably announced: assistive technology has to be watching it beforehand.
+Preserving the old markup was therefore **not** evidence that the old markup worked.
+
+**Fix: the region is now permanent and the notice moves in and out of it.** One region per consumer,
+containing nothing but the message, so the atomic reading `role="status"` implies stays correct.
+**Notice's public API did not change**, and no ARIA role was pushed into the visual component.
+
+The empty region is kept out of the layout with `empty:sr-only` — chosen deliberately over hiding
+it, because hiding removes it from the accessibility tree and puts the original problem straight
+back. Measured in both surrounding layouts: **identical spacing with and without the region** (16 px
+and 8 px, unchanged), so the fix is visually inert.
+
+#### Prerequisite 2 — Progress, settled by reading the Figma contract
+
+R6A recorded that the Figma contract, the tokens, the code component and the production consumers
+were **five non-equivalent things**. The contract was measured directly this time — the reference
+render decoded pixel by pixel rather than eyeballed:
+
+| Figma `Progress / Linear` (`93:2658`) | Measurement |
+|---|---|
+| Track | **300 × 8 px** — the bar occupies rows 0–7 exactly |
+| Value bar | **rounded at both ends**, inset in the track |
+| Fill colour | `rgb(13,125,45)` — `brand/default` in Light |
+| Track colour | `rgb(229,229,229)` — **exactly the Light `progress/track` value** |
+| Variant axis | `Value` at five steps. **One geometry. No size axis** |
+| Label row | a separate frame below the track, holding `Amount` and `Percent` |
+
+##### §23 — the second geometry does not exist, so nothing was expanded
+
+Three of the four production bars were already 8 px. `SellerKpis` alone was **6 px**. Against the
+three tests: the Figma contract does **not** own that height, existing sizing does not express it,
+and there is **one occurrence with no recurring evidence**. It is **legacy divergence**, so it adopts
+the contract geometry. **No size variant was added, the component API was not expanded, and no STOP
+was required.**
+
+##### §16 — one consumer really does need a maximum
+
+Three consumers count in per cent. `CommissionCard` does not: its accessible semantics are
+`aria-valuemax` = the next tier minimum and `aria-valuenow` = tickets collected, with an
+`aria-valuetext` in tickets. A percentage-only API would have destroyed that.
+
+**Minimum generic API supporting the real set:**
+
+| Property | Purpose |
+|---|---|
+| `value` | in whatever units the consumer counts |
+| `max` | defaults to 100, so the three percentage consumers pass nothing |
+| `label` | **required** accessible name |
+| `valueText` | optional, for when the raw number means nothing alone |
+
+Nothing else. **No `commission`, `collection`, `saving`, `success` or `warning` variants**; no
+percentage rendering, no label row, no goal explanation — the Figma `Label` frame is the consumer's
+own text, which is where all four already keep it. Visual width is clamped to 0–100 % always,
+preserving the cap `CommissionCard` already had.
+
+**The required name closes a real gap**: `CommissionCard`'s bar had **no accessible name at all**,
+only a value text. It now has one, drawn from the words already on that screen.
+
+##### The four migrations, and the honest visual ledger
+
+`LinearProgress` lives in `components/data/` and is the **first consumer the `progress/*` roles have
+had since Wave 1**. `PaymentProgressBar` and `ProgressRing` were **not touched and not merged** —
+they decompose the price of one ticket and remain Product Data.
+
+| Consumer | Group | Family | Fill before → after | Height |
+|---|---|---|---|---|
+| `CollectionSummaryCard` | Dashboards | B · business completion | near-black → brand green | 8 px |
+| `CommissionCard` | People | D · threshold / goal | near-black → brand green | 8 px |
+| `BulkTicketCreator` | Tickets | A · process | near-black → brand green | 8 px |
+| `SellerKpis` | Dashboards | **B · reclassified from Product Data** | `data/paid` → `progress/value` | **6 → 8 px** |
+
+**This is not visually inert, and the reason is worth recording.** The three brand-coloured bars were
+never brand-coloured: they used the **unmigrated shadcn primary role**, which is `#171717` in Light
+and `#e5e5e5` in Dark. On screen they read as near-black bars. They now render `#0d7d2d` / `#17c246`,
+which is what the Figma contract has always shown.
+
+The track moves too: `#f5f5f5` → `#e5e5e5` in Light, which is **more visible, not less**, and is
+inert in Dark, where both resolve to `#262626`.
+
+`SellerKpis` changes twice — colour and height — and both were approved. Its bar and
+`CollectionSummaryCard`'s measure **the same thing**, money collected over money sold, and after R6B
+they finally look identical. It also gains the width transition the other three already had.
+
+> ##### GATE — `CommissionCard` reachability, corrected
+>
+> **`CommissionCard` is imported by nothing.** Verified across the whole tree, not assumed: the only
+> textual matches are `TeamCommissionCard`, a different component. It has been unmounted since
+> 2026-08-25 (D-112) and is preserved deliberately, for two warnings the replacement indicator cannot
+> fit.
+>
+> | | |
+> |---|---|
+> | Classification | **TRUE LINEAR PROGRESS CONSUMER** |
+> | Migration | done during Design System reconciliation, and justified — it was one of the recurring hand-rolled implementations |
+> | Reachability | **CURRENTLY NOT RENDERED / NOT ROUTE-REACHABLE** |
+> | Validation | **source + presentational-harness only.** No route validation is claimed |
+>
+> The earlier claim that **People reaches `CommissionCard`** is therefore **withdrawn**. See §10.37.
+
+##### Non-text contrast
+
+| | Fill vs track | Verdict |
+|---|---|---|
+| Light, after | **4.18 : 1** | passes the 3:1 non-text threshold |
+| Dark, after | **6.37 : 1** | passes |
+| Light, before — `SellerKpis` | **3.35 : 1** | the weakest case in the product, now improved |
+
+Exact resolved values, before → after:
+
+| | Fill, Light | Fill, Dark | Track, Light | Track, Dark |
+|---|---|---|---|---|
+| `CollectionSummaryCard`, `CommissionCard`, `BulkTicketCreator` | `#171717` → `#0d7d2d` | `#e5e5e5` → `#17c246` | `#f5f5f5` → `#e5e5e5` | `#262626` → `#262626` |
+| `SellerKpis` | `#009966` → `#0d7d2d` | `#00d492` → `#17c246` | `#f5f5f5` → `#e5e5e5` | `#262626` → `#262626` |
+
+##### GATE — accessible range validity
+
+The visual width is clamped, and the contract requires the **accessible** semantics to be equally
+valid. Traced to each source rather than assumed:
+
+| Consumer | Guarantee | Where it comes from |
+|---|---|---|
+| `CollectionSummaryCard` | value in 0–100, max 100 | `calculateCollectionSummary` clamps and rounds |
+| `SellerKpis` | value in 0–100, max 100 | `percentageOf` clamps **and** returns 0 when the total is not positive |
+| `BulkTicketCreator` | 0 ≤ done ≤ total, total ≥ 1 | the save **returns early** when there is nothing to send, before the counter exists |
+| `CommissionCard` | value < max, max ≥ 1 | the tier query selects the next tier **strictly above** the tickets already collected |
+
+**Every real consumer naturally satisfies min ≤ now ≤ max with a positive max, so no code was
+added.** The invalid shape the contract warns about — a current value above its own maximum — cannot
+be produced by any of them.
+
+#### Figma — what could NOT be done
+
+**The connected Figma tools are read-only.** They expose metadata, design context, variable
+definitions, screenshots and Code Connect; **none of them can add a variant axis to a component
+set.** The Density axis therefore **remains a pending design-owner action**, specified here so it can
+be applied exactly:
+
+| Notice density | Status |
+|---|---|
+| Contract | **APPROVED** |
+| Code | **IMPLEMENTED** |
+| Figma | **AXIS PENDING DESIGN-OWNER SYNC** — reason: **tooling limitation** |
+
+This is **design-source sync pending**. It is **not** a Core defect and **not** a People blocker, but
+**full Figma ↔ Code parity for Notice must not be claimed until it is synchronized**, and the
+requirement carries forward to final broad-release Design System QA.
+
+* On `Notice`, add **one independent axis** beside `Tone`, values `Default` and `Compact`.
+* **Never** as combined variants such as `Info / Compact / Icon / Action` — icon and action stay
+  slots, and live behaviour stays code metadata.
+* `Progress / Linear` needs **no change** — 8 px, the two `progress/*` roles, one geometry, no
+  size axis. **FIGMA ↔ CODE CONTRACT: ALIGNED.** The fixed-step limitation recorded in §7 is a Figma
+  authoring constraint, not a divergence.
+
+Until that axis exists, **the Figma file and the code disagree by one property**. It is recorded, not
+hidden.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` · `lint` · `test` | **pass** — 0 errors, 0 lint errors (the same 2 pre-existing warnings), **791 tests / 47 files** |
+| `npm run build` | **pass** |
+| `prettier` | clean. Two genuine objections, both mine, were fixed; the rest of the file-level noise is the repo-wide line-ending condition, verified by comparing normalized content |
+| Compiled selectors, **clean build vs clean build** | **2 added · 3 removed** |
+| Added | the two `progress/*` utilities — the roles are no longer unused |
+| Removed | the three hardcoded amber utilities the two People dialogs were using |
+| **People hardcoded palette, after** | **ZERO** |
+| **Core components changed** | **ZERO** |
+| Hand-rolled progress bars remaining | **ZERO** — only `LinearProgress`, `PaymentProgressBar` and `ProgressRing` carry the role |
+| `data/*` roles orphaned by the reclassification | **none** — 9 consumers remain |
+| Validation method | **PRESENTATIONAL HARNESS QA** in Light and Dark at 1360, 900 and 375, plus source inspection, resolved-token comparison, computed contrast and the decoded Figma reference. **REAL ROUTE QA was not possible** — Supabase is unavailable and every affected route needs a session and live data. **No data-backed validation is claimed.** The harness was served from a gitignored path and deleted |
+
+#### Remaining debt after R6B
+
+* `TicketImportDialog` keeps **one** hardcoded green icon on its completion result panel — a
+  bordered success summary with a title line, not the compact contextual pattern. Adopting Notice
+  there would require a **title**, which Notice v1 deliberately does not have. **Tickets-group debt,
+  and a Notice v2 question.**
+* Everything carried into R5 is still open: the table-row action question, `SearchInput`'s ad-hoc
+  touch sizing, pagination sizing, and the Reports assistive-technology pass.
+
+---
+
+### 10.37 PEOPLE PREFLIGHT — REFRESHED AFTER R6B (2026-09-07 · **READY FOR EXECUTION**, not authorized)
+
+Re-inventoried against the reconciled tree, not carried over from R6A.
+
+| Gate | R6A said | Now |
+|---|---|---|
+| Routes | 5 — List ×3, Detail ×2 | **unchanged**, both Patterns proven |
+| Hardcoded palette | 3 | **ZERO** — all three were the Notice decision |
+| Compact Notice consumers | 3 unmigrated | **ZERO left** — all three migrated in R6B |
+| Progress | `CommissionCard` unowned | **prerequisite CLOSED · current People route reach: NONE** |
+| Search / filters / pagination | none | **confirmed none** — three small bounded collections |
+| Local touch overrides | none | **confirmed none** |
+| Blocking form errors | not counted | **2**, both on the `destructive` role with `role="alert"` — correctly outside Notice, **no debt** |
+| **In-row table actions** | **"zero"** | **WRONG — there are two.** Corrected below |
+
+#### Reachability, walked rather than assumed
+
+The import graph of all five routes was traversed, so the table below is what the routes actually
+reach — not what the feature folders contain.
+
+| | Routes reaching it |
+|---|---|
+| `Notice` | **5 of 5** |
+| `UserRowActions` | **3** — `owner/sellers`, `owner/sellers/[sellerId]`, `owner/users` |
+| `TeamMemberActions` | **1** — `seller/team/[sellerId]` |
+| `DataTable` | **2** — `owner/sellers`, `owner/users` |
+| `LinearProgress` and every Progress consumer | **0** |
+| `SearchInput`, `DataTablePagination` | **0** |
+| `PaymentProgressBar`, `ProgressRing` | **0** |
+
+Two consequences worth stating plainly:
+
+* **PROGRESS · PREREQUISITE RECONCILED · CURRENT PEOPLE ROUTE REACH: NONE.** No People route renders
+  a progress bar of any kind. The reconciliation was still the right prerequisite — it unblocked the
+  family and four real consumers elsewhere — but People does **not** exercise it, and R6C must not
+  mount `CommissionCard` merely to give the new component something to do.
+* **`seller/team` does not use `DataTable`.** It composes `TeamMemberList` with metric cards, so
+  only **two** of the three List Pages are table-based. R6C audits it on its own terms.
+
+#### Correction to R6A
+
+R6A reported **zero in-row table actions in People**. That is **incorrect**. `UserRowActions` is
+rendered inside the rows of **two** People tables:
+
+| Table | Row navigation | In-row action |
+|---|---|---|
+| `SellersTable` | a link in the name cell | actions menu |
+| `UsersTable` | **none** | actions menu — **the only affordance on the row** |
+
+Its third appearance, on the seller detail page, is a **page-header** action, not in-row.
+`TeamMemberActions` is likewise a detail-page header action.
+
+**This is not the R5 case.** R5's finding was **Case A** — a button duplicating row activation, two
+tab stops for one destination. Here the menu holds **distinct administrative actions** (edit,
+deactivate, resend the invitation), so it is **Case B**, and in `UsersTable` it is the row's only
+affordance. Nothing about R5's Case A reasoning transfers.
+
+**What is genuinely reachable is the touch target.** The trigger is a 36 px icon button at every
+width, and **neither table has a phone card variant** — both render as tables at 375 px. The Design
+System already ships the capability that resolves this: an icon button that is **44 px on phones and
+36 px from the small breakpoint up**, the direct analogue of the field sizing R5 applied. **No Core
+change is required.**
+
+#### Verdict
+
+**READY FOR EXECUTION. Risk: LOW.** Both prerequisites are closed, the palette is already at zero,
+and the one real finding has an approved capability waiting for it.
+
+Expected shape of R6: verify the two proven Patterns across five routes, apply the existing touch
+capability to the two in-row triggers, and confirm the three R6B People migrations on their real
+routes. **A successful R6 still cannot move Search / Filters to PROVEN** — People has none, exactly
+as R6A said.
+
+---
+
+## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
 |---|---|
@@ -4005,15 +4326,17 @@ themselves are clean, with no search, no pagination, no table actions and no tou
 | **R4A commit** | **`eb6c2f78fcb9d2a7c3576d591273c65a3e279390`** (`eb6c2f7`) — `docs(design-system): define report page pattern`, this handoff only |
 | **R4B commit** | **`1ea836d49ae851e114da6675298ff34956159fd3`** (`1ea836d`) — `feat(design-system): migrate reports to report page pattern`, 3 files |
 | **Rollout R5 commit** | **`836cf5bf6ff6fa30d8549cc99f94f94d6b2b45a2`** (`836cf5b`) — `feat(design-system): migrate payments to proven patterns`, 4 files |
-| **R6A commit** | `docs(design-system): define people rollout prerequisites` — this handoff only. Hash recorded in the R6B pass below |
+| **R6A commit** | **`7584f1b8fc3e71071ff4ddfda11350c3040c4d9f`** (`7584f1b`) — `docs(design-system): define people rollout prerequisites`, this handoff only |
+| **R6B commit** | `feat(design-system): reconcile notice density and linear progress` — 10 files: `components/data/LinearProgress.tsx` (new), `components/feedback/Notice.tsx`, 7 consumers and this handoff. Hash recorded in the R6C pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
 
 Every wave is an independently revertible checkpoint — `git revert 3aae867` removes the whole token
-layer and nothing else, and the same holds for each later commit. **Wave 6 is deliberately left
-uncommitted** so its visual diff — the sky correction to `data/partial` and the grey correction to
-`data/pending` — can be reviewed or discarded without disturbing anything already committed.
+layer and nothing else, and the same holds for each later commit. **R6B is deliberately left
+uncommitted** so its visual diff — three progress bars moving from near-black to brand green, and the
+`SellerKpis` reclassification — can be reviewed or discarded without disturbing anything already
+committed.
 
 **Do not alter the two pre-existing untracked files.** They belong to the user.
 

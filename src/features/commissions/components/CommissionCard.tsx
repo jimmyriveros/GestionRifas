@@ -1,3 +1,5 @@
+import { LinearProgress } from '@/components/data/LinearProgress'
+import { Notice } from '@/components/feedback/Notice'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCOP } from '@/lib/money'
 
@@ -127,9 +129,9 @@ export function CommissionCard({
             projectedEarned={projectedEarned}
           />
         ) : (
-          <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+          <Notice tone="success" density="compact">
             Estás en el nivel más alto: {formatCOP(rate)} por cada boleta que cobres.
-          </p>
+          </Notice>
         )}
       </CardContent>
     </Card>
@@ -154,8 +156,6 @@ function NextLevel({
   ticketsToNext: number
   projectedEarned: number | null
 }) {
-  const percent = Math.min(100, Math.round((ticketsPaid / nextMinTickets) * 100))
-
   return (
     <div className="space-y-2 border-t pt-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
@@ -169,21 +169,15 @@ function NextLevel({
         </p>
       </div>
 
-      {/* La barra lleva su valor en el `aria-valuetext` porque el porcentaje solo
-          se ve; el texto de al lado dice lo mismo para todo el mundo. */}
-      <div
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={nextMinTickets}
-        aria-valuenow={ticketsPaid}
-        aria-valuetext={`${ticketsPaid} de ${nextMinTickets} boletas cobradas`}
-        className="bg-muted h-2 w-full overflow-hidden rounded-full"
-      >
-        <div
-          className="bg-primary h-full rounded-full transition-all"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
+      {/* Se cuenta en BOLETAS, no en por ciento: el maximo es el minimo del
+          nivel siguiente. Por eso lleva `valueText`, que dice lo mismo que el
+          texto de al lado para quien no ve la barra. */}
+      <LinearProgress
+        value={ticketsPaid}
+        max={nextMinTickets}
+        label="Progreso para subir de nivel"
+        valueText={`${ticketsPaid} de ${nextMinTickets} boletas cobradas`}
+      />
 
       <p className="text-muted-foreground text-sm">
         Al llegar a {nextMinTickets} boletas, cada una pasa a valer {formatCOP(nextRate)}

@@ -1,3 +1,4 @@
+import { LinearProgress } from '@/components/data/LinearProgress'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { calculateCollectionSummary } from '@/features/dashboard/collection-summary'
 import { tourTarget } from '@/features/tour/tours'
@@ -57,19 +58,7 @@ export function CollectionSummaryCard({
             </div>
 
             <div className="space-y-1.5">
-              <div
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={percentage}
-                aria-label="Porcentaje recaudado"
-                className="bg-muted h-2 w-full overflow-hidden rounded-full"
-              >
-                <div
-                  className="bg-primary h-full transition-all"
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
+              <LinearProgress value={percentage} label="Porcentaje recaudado" />
               <p className="text-muted-foreground text-caption-regular">
                 {percentage}% recaudado
                 {pendingTicketsCount > 0

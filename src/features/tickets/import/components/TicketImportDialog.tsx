@@ -4,6 +4,7 @@ import { CheckCircle2Icon, UploadIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useRef, useState, useTransition } from 'react'
 
+import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -317,13 +318,22 @@ export function TicketImportDialog({
                 </p>
               ) : null}
 
-              {descartadas > 0 && importables > 0 ? (
-                <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-800 dark:bg-amber-950">
-                  Se importarán <strong>{importables}</strong> boletas. Las otras{' '}
-                  <strong>{descartadas}</strong> quedarán fuera y las verás marcadas en la tabla de
-                  arriba.
-                </p>
-              ) : null}
+              {/*
+                Region permanente (ver `TeamCommissionDialog`). Aqui hace mas
+                falta que en ningun otro sitio: la vista previa se pinta con lo
+                que se pudo revisar en el navegador y, cuando vuelve la
+                comprobacion contra la rifa, estas dos cifras CAMBIAN solas. Sin
+                esto, quien no ve la pantalla importaria creyendo otro numero.
+              */}
+              <div role="status" className="empty:sr-only">
+                {descartadas > 0 && importables > 0 ? (
+                  <Notice tone="warning" density="compact">
+                    Se importarán <strong>{importables}</strong> boletas. Las otras{' '}
+                    <strong>{descartadas}</strong> quedarán fuera y las verás marcadas en la tabla
+                    de arriba.
+                  </Notice>
+                ) : null}
+              </div>
 
               <div className="flex flex-wrap gap-2">
                 <Button

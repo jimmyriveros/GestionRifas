@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 
+import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -336,12 +337,15 @@ function UserDialogForm({
               {!isEdit ? (
                 <FormDescription>A esta dirección llegará la invitación.</FormDescription>
               ) : null}
-              {emailChanged ? (
-                <p className="rounded-md bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-                  Se enviará una invitación nueva a este correo y el enlace anterior dejará de
-                  funcionar.
-                </p>
-              ) : null}
+              {/* Region permanente: ver `TeamCommissionDialog` para el porque. */}
+              <div role="status" className="empty:sr-only">
+                {emailChanged ? (
+                  <Notice tone="warning" density="compact">
+                    Se enviará una invitación nueva a este correo y el enlace anterior dejará de
+                    funcionar.
+                  </Notice>
+                ) : null}
+              </div>
               <FormMessage />
             </FormItem>
           )}
