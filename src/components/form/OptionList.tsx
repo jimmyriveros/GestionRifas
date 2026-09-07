@@ -97,19 +97,14 @@ export function OptionListItem({
           'focus-visible:outline-ring outline-none focus-visible:outline-2 focus-visible:-outline-offset-2',
           'disabled:pointer-events-none disabled:opacity-60',
           isSelected
-            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+            ? 'bg-selection-surface text-text-brand'
             : 'hover:bg-accent hover:text-accent-foreground',
         )}
       >
         <span className="min-w-0 flex-1">
           <span className="block font-medium">{title}</span>
           {description ? (
-            <span
-              className={cn(
-                'text-caption-regular block',
-                isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground',
-              )}
-            >
+            <span className={cn('text-caption-regular block', 'text-muted-foreground')}>
               {description}
             </span>
           ) : null}

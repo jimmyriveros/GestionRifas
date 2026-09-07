@@ -130,7 +130,7 @@ export function TourOverlay({
         // Sin transicion CSS: la posicion ya se actualiza en cada fotograma
         // mientras dura el scroll, y animarla ademas la dejaria por detras del
         // elemento al que persigue.
-        className="ring-primary pointer-events-none fixed z-[101] rounded-lg ring-2"
+        className="ring-border-brand pointer-events-none fixed z-[101] rounded-lg ring-2"
         style={{
           top: spotlight.top,
           left: spotlight.left,

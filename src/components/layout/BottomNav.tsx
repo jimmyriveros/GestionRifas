@@ -73,7 +73,7 @@ export function BottomNav({ items }: BottomNavProps) {
       // Los laterales solo importan con el telefono en horizontal y muesca
       // (D-119): sin ellos, la primera y la ultima opcion quedan debajo de la
       // muesca y no se pueden tocar. Valen 0 el resto del tiempo.
-      className="bg-background fixed inset-x-0 bottom-0 z-40 border-t ps-[var(--safe-left)] pe-[var(--safe-right)] pb-[env(safe-area-inset-bottom,0px)] md:hidden"
+      className="bg-surface-card fixed inset-x-0 bottom-0 z-40 border-t ps-[var(--safe-left)] pe-[var(--safe-right)] pb-[env(safe-area-inset-bottom,0px)] md:hidden"
     >
       <ul className="grid h-[var(--bottom-nav-height)] auto-cols-fr grid-flow-col">
         {items.map((item) => {
@@ -88,7 +88,7 @@ export function BottomNav({ items }: BottomNavProps) {
                 className={cn(
                   'relative flex size-full flex-col items-center justify-center gap-1 px-1',
                   'active:bg-accent/60 transition-colors',
-                  isActive ? 'text-foreground' : 'text-muted-foreground',
+                  isActive ? 'text-text-brand' : 'text-muted-foreground',
                 )}
               >
                 {/*
@@ -99,8 +99,8 @@ export function BottomNav({ items }: BottomNavProps) {
                 <span
                   aria-hidden
                   className={cn(
-                    'absolute inset-x-0 top-0 mx-auto h-0.5 w-8 rounded-b-full',
-                    isActive ? 'bg-success' : 'bg-transparent',
+                    'absolute inset-x-0 top-0 mx-auto h-[3px] w-7 rounded-b-full',
+                    isActive ? 'bg-navigation-indicator' : 'bg-transparent',
                   )}
                 />
                 <BottomNavIcon icon={item.icon} />

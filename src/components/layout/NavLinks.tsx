@@ -85,17 +85,28 @@ export function NavLinks({ items, onNavigate, collapsed = false }: NavLinksProps
               // Las tres variables son el interruptor de `globals.css`: con la
               // barra cerrada el hueco y el relleno valen 0 y el icono queda
               // centrado, sin que este componente tenga que saber nada.
-              'flex min-h-9 items-center [justify-content:var(--sidebar-content-justify)]',
+              'relative flex min-h-11 items-center [justify-content:var(--sidebar-content-justify)]',
               'gap-[var(--sidebar-item-gap)] rounded-md px-[var(--sidebar-item-px)] py-2',
               'text-label-medium transition-colors',
               // Estados excluyentes: el enlace de la pantalla actual trae su
               // propio hover, para que pasar por encima no lo devuelva nunca al
               // aspecto de un enlace cualquiera (misma regla que `OptionList`).
               isActive
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                ? 'bg-navigation-selected text-text-brand'
+                : 'text-muted-foreground hover:bg-surface-accent hover:text-text-on-accent',
             )}
           >
+            {/*
+              La marca de «estas aqui», 3 x 20 px pegada al borde (Navigation /
+              Item, estado Selected). No es solo color: quien no distinga el
+              verde ve igualmente la raya (CLAUDE.md §27).
+            */}
+            {isActive ? (
+              <span
+                aria-hidden
+                className="bg-navigation-indicator absolute start-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-e-full"
+              />
+            ) : null}
             <NavIcon icon={item.icon} />
             {/*
               El nombre no se quita nunca del HTML: con la barra cerrada pasa a

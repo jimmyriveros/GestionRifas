@@ -1,16 +1,19 @@
 # Rifas Design System — Session Handoff
 
-**Last approved migration:** **WAVE 3B1B — BRAND ACTIVATION PREREQUISITES** (COMPLETED AND APPROVED, 2026-09-06)
+**Last approved migration:** **WAVE 3B2 — BRAND ACTIVATION** (COMPLETED AND APPROVED, 2026-09-06)
+
 
 **Wave 1 — semantic token infrastructure:** COMPLETED AND APPROVED · commit `3aae867`
 **Wave 2 — typography:** COMPLETED AND APPROVED · commit `b33003e`
 **Wave 3A — core controls adoption:** COMPLETED AND APPROVED · commit `c723b99`
-**Wave 3B1 — brand semantic convergence:** COMPLETED AND APPROVED · commit in §11
-**Wave 3B1b — brand activation prerequisites:** COMPLETED AND APPROVED · commit in §11
-**AUTHORIZED:** **WAVE 3B2 — BRAND ACTIVATION** — plan in §10.13, subject to the BottomNav preflight
+**Wave 3B1 — brand semantic convergence:** COMPLETED AND APPROVED · commit `64aaeed`
+**Wave 3B1b — brand activation prerequisites:** COMPLETED AND APPROVED · commit `64f22c5`
+**Wave 3B2 — brand activation:** COMPLETED AND APPROVED · commit in §11 · **THE BRAND IS LIVE**
+**NOT AUTHORIZED:** the next migration wave. Waves 4 (data display and overlays), 5 (navigation and
+shell), 6 (data visualisation) and 7 (patterns and the Clientes pilot) all remain unstarted.
 **Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
 **Migration branch:** `design-system/migration` (from `main` @ `124445b`; `main` not moved)
-**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 3B1b)
+**Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 3B2)
 
 > **Wave 1** — `src/app/globals.css` **+647 / −0**, additive, zero consumers; the compiled-CSS diff
 > proved **no existing declaration changed** (0 removed lines).
@@ -31,8 +34,13 @@
 > **Wave 3B1b** — analysis plus ONE inert code change: the generic Badge default was decoupled from
 > `action/primary`, because the approved system has no generic Badge at all (§10.12).
 >
+> **Wave 3B2** — **THE BRAND IS ACTIVE** in Light and Dark; Catalog's action and focus roles do not
+> move. Both pin blocks deleted; navigation, selection and the drag-active state migrated to their
+> approved treatments. 29 of 30 contrast pairs pass — the one failure is an **unreachable** Catalog
+> pair (§10.14).
+>
 > Still true after every wave so far:
-> **brand activation NOT performed** · **the Wave 1 brand pin is still ACTIVE** ·
+> **the brand IS activated (Waves 1-3B1 kept it pinned; 3B2 released it)** ·
 > **`data/partial` still deferred to the Data wave** · **no legacy variable removed** ·
 > **`npm run test:db` NOT RUN** (see §10.4).
 
@@ -950,6 +958,98 @@ stay legacy near-black while the rest turns green — visible in the dashboard a
 That is a deliberate consequence of keeping the Progress family together for the Data wave, and it is
 the only known incoherence.
 
+### 10.14 WAVE 3B2 — BRAND ACTIVATION (executed 2026-09-06 · **APPROVED** · committed, hash in §11)
+
+**The first wave with intentional, approved visual change.** The Rifas brand is live in **Light and
+Dark**; **Catalog is unchanged** for the action and focus roles, because its `brand/default` already
+equalled its `--primary`.
+
+| Role | Light | Dark | Catalog |
+|---|---|---|---|
+| `action/primary` | `#171717` → **`#0d7d2d`** | `#e5e5e5` → **`#17c246`** | `#843bec` (unchanged) |
+| `focus/ring` | `#a1a1a1` → **`#0d7d2d`** | `#737373` → **`#7bef92`** | `#eadcff` (unchanged) |
+| `text/brand` | `#171717` → **`#0d6427`** | `#e5e5e5` → **`#7bef92`** | `#843bec` → `#eadcff` |
+
+#### BottomNav preflight — MISMATCH, so it was migrated
+
+The approved `Navigation / Bottom` is 375×56, bar `surface/card` + `border/default`, items 94×56,
+unselected `text/muted`, **selected `text/brand` plus a 28×3 indicator at the top edge** and *no*
+selected surface fill. Production already had an indicator and a weight change — but its indicator
+was **`--success` emerald, not brand**, its selected foreground was `text-foreground`, its geometry
+was 32×2, and its bar used `--background` (which differs from `surface/card` in Dark). Migrated all
+four. The unselected `--muted-foreground` was **kept** — `text/muted` is a different value and
+belongs to the separate contrast fix.
+
+#### What changed
+
+| Area | Change | Class |
+|---|---|---|
+| **Pins** | Both fenced blocks deleted — `globals.css` **−84 lines** | APPROVED BRAND ACTIVATION |
+| **Button, Checkbox, Switch** | primary/checked resolve to brand | APPROVED BRAND ACTIVATION |
+| **Links** (2 variants + 3 dashboard) | `text/brand` resolves to brand | APPROVED BRAND ACTIVATION |
+| **Focus** — 7 controls, 14 occurrences | brand-derived ring | APPROVED BRAND ACTIVATION |
+| **NavLinks** | solid fill → `navigation/selected` + `text/brand` + a **new 3×20 indicator**; `min-h-9` → **`min-h-11` (44px)**, which also closes the collapsed-nav touch-target item | APPROVED NAVIGATION MIGRATION |
+| **ReportNav** | solid fill → tint + `text/brand` + `border/brand`, `font-medium` kept as the non-colour signal | APPROVED NAVIGATION MIGRATION |
+| **BottomNav** | bar → `surface/card`; selected → `text/brand`; indicator → `navigation/indicator`, 32×2 → 28×3 | APPROVED NAVIGATION MIGRATION |
+| **OptionList, CommissionModelField** | solid fill / legacy tint → `selection/surface` + `border/brand`; both keep their **check icon** as the non-colour signal | APPROVED SELECTION MIGRATION |
+| **ImportDropzone** | drag-active → `border/brand` + `brand/subtle` — **not** `selection/*` | APPROVED INTERACTION-HIGHLIGHT MIGRATION |
+| **TourOverlay** | `ring-primary` → `border/brand`. Trivial and exact; **not** mapped to `focus/ring` | APPROVED INTERACTION-HIGHLIGHT MIGRATION |
+
+**No UNEXPECTED REGRESSION was found.** 8 files: `globals.css` + 7 consumers, 15 replacements.
+
+#### Contrast gate — 29 of 30 pass
+
+All ten required pairs pass in **Light** (4.83–9.35) and **Dark** (6.38–13.77). In **Catalog**, nine
+pass; one fails:
+
+> **`border/brand` on `brand/subtle` in Catalog = 2.68:1** (needs 3:1).
+
+**Not a product regression — the pair is unreachable.** It is the drag-active dropzone, and
+`ImportDropzone` renders only inside `TicketImportDialog` in the owner portal, while `.catalog-theme`
+is applied solely by `app/(catalogo)/layout.tsx`. Recorded as a **token-level Catalog finding** for
+the wave that owns Catalog contrast (Wave 4). **The Design System was not altered to hide it.**
+
+**Switch composition after activation** (§17 check): thumb-on-checked-track passes in all three —
+Light 5.27, Dark 8.34, Catalog 3.61 — and the *deferred* Dark thumb override measures **7.54:1**
+against the activated green track. No regression, so no stop was required.
+
+#### Responsive
+
+No dev server is available (Docker down), so this was verified by source inspection, not screenshots.
+The changes are confined to: **BottomNav** (`md:hidden`, so <768 only), and **NavLinks**, which is the
+single implementation consumed by the expanded sidebar (≥1360), the collapsed 56px rail (<1360) and
+the overlay sidebar. Item height is width-independent, so 44px applies in all three; the 3px indicator
+sits at the item's leading edge in both layouts. No second navigation implementation was created and
+no destination or information architecture changed.
+
+#### Residue — measured separately, every consumer classified
+
+*(An earlier draft of this section said "9 occurrences"; that undercounted, because the pattern
+skipped some `-foreground` matches. The figures below are the re-measured, authoritative ones.)*
+
+| | Occurrences | Files |
+|---|---|---|
+| **Non-Catalog legacy-primary residue** | **15 in code** (+1 mention inside a comment) | **10 in code** (+`OptionList`, comment only) |
+| **Catalog-only legacy-primary residue** | **11** | **4** |
+
+**Non-Catalog, by reason:**
+
+| Consumer | Occurrences | Why it legitimately stays |
+|---|---|---|
+| `CollectionSummaryCard`, `CommissionCard`, `BulkTicketCreator` | 3 | the three progress bars — **Progress/Data wave** |
+| `badge.tsx` default | 3 | deliberately decoupled in 3B1b — **Status wave** |
+| `button.tsx`, `checkbox.tsx` foreground | 2 | `--primary-foreground` deferred in Wave 3A with its measurement. **Re-verified against the now-activated brand: 5.04 Light · 7.54 Dark · 5.34 Catalog — all pass.** |
+| `NotificationMenu` count | 2 | intentionally neutral |
+| `input.tsx` text selection | 2 | intentionally neutral |
+| `switch.tsx` Dark thumb | 1 | deferred control reconciliation; verified safe above |
+| `avatar.tsx` | 2 | **dead/unconsumed** shadcn code |
+| `OptionList.tsx` | (comment) | prose in a code comment, not a class |
+
+**Catalog-only** — `CatalogHeader`, `CatalogHero`, `CatalogSummary`, `CatalogTicketCard`. Inert,
+because Catalog's `brand/default` equals its `--primary`.
+
+**No remaining non-Catalog residue represents an unresolved Brand responsibility from this wave.**
+
 ---
 
 ## 11. Repository checkpoint — 2026-09-06
@@ -963,13 +1063,15 @@ the only known incoherence.
 | **Wave 2 commit** | **`b33003e1a6f0ffe58159d64e71aa9de0f94abaa8`** (`b33003e`) — `feat(design-system): adopt semantic typography roles`, 20 files |
 | **Wave 3A commit** | **`c723b9983d6c7a6980079a22f7679ae393b164d6`** (`c723b99`) — `feat(design-system): adopt semantic core controls`, 8 files |
 | **Wave 3B1 commit** | **`64aaeed9e416461f05c08f27b40584d005b5e233`** (`64aaeed`) — `feat(design-system): converge brand semantic roles`, 12 files |
-| **Wave 3B1b commit** | recorded below · `chore(design-system): prepare brand activation semantics` |
+| **Wave 3B1b commit** | **`64f22c5984800e2b3d96946e3291a2b1b3420574`** (`64f22c5`) — `chore(design-system): prepare brand activation semantics`, 2 files |
+| **Wave 3B2** | **uncommitted working tree** — `globals.css` + 7 consumers + this handoff. No Wave 3B2 commit was authorized. |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
 
-Wave 1 is an isolated, independently revertible checkpoint: `git revert 3aae867` removes the whole
-token layer and nothing else. Wave 2 sits on top of it, unstaged, so it can be reviewed or discarded
+Every wave is an independently revertible checkpoint — `git revert 3aae867` removes the whole token
+layer and nothing else, and the same holds for each later commit. Wave 3B2, the one that makes the
+brand visible, is deliberately left **unstaged** so the visual diff can be reviewed or discarded
 without disturbing Wave 1.
 
 **Do not alter the two pre-existing untracked files.** They belong to the user.

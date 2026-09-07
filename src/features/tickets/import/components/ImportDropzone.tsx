@@ -103,7 +103,7 @@ export function ImportDropzone({
         }}
         className={
           arrastrando
-            ? 'border-primary bg-primary/5 rounded-lg border-2 border-dashed p-6 text-center'
+            ? 'border-border-brand bg-brand-subtle rounded-lg border-2 border-dashed p-6 text-center'
             : 'rounded-lg border-2 border-dashed p-6 text-center'
         }
       >

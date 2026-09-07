@@ -154,14 +154,16 @@ function ModelCard({
         'relative flex cursor-pointer flex-col gap-2 rounded-lg border-2 p-4 transition-colors',
         'has-[:focus-visible]:outline-ring has-[:focus-visible]:outline-2',
         'has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60',
-        selected ? 'border-primary bg-primary/5' : 'hover:bg-accent bg-muted/40 border-transparent',
+        selected
+          ? 'border-border-brand bg-selection-surface'
+          : 'hover:bg-surface-accent bg-muted/40 border-transparent',
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-medium">{title}</span>
         {/* El hueco se reserva siempre: elegir no debe mover el texto. */}
         <CheckIcon
-          className={cn('text-primary size-4 shrink-0', selected ? 'opacity-100' : 'opacity-0')}
+          className={cn('text-text-brand size-4 shrink-0', selected ? 'opacity-100' : 'opacity-0')}
           aria-hidden
         />
       </div>
