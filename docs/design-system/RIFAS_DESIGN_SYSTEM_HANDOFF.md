@@ -548,8 +548,9 @@ Risk is relative and argued, **not** an hour estimate.
 > control sizing. The original seven-wave architecture is unchanged.
 > **ALL SEVEN ORIGINAL WAVES ARE COMPLETE AND APPROVED**, together with the inserted reconciliation
 > waves 3A/3B·4.5·6.5·6.6. The **Clientes Seller pilot succeeded** (§10.25) with zero Core defects.
-> **NEXT: broader screen migration — NOT AUTHORIZED.** Its preflight is §10.26, which recommends
-> **Clientes Owner** first and needs no prerequisite wave.
+> **ROLLOUT R1 — CLIENTES OWNER is EXECUTED** (§10.27), uncommitted and awaiting review: two routes,
+> one change, zero Core changes. **NEXT: ROLLOUT R2 — RAFFLES, NOT AUTHORIZED**, previewed at the end
+> of §10.27 with no reachable blockers and no prerequisite.
 
 ---
 
@@ -2553,6 +2554,158 @@ Pattern contract that does not exist yet plus three separate semantic decisions.
 
 ---
 
+### 10.27 ROLLOUT R1 — CLIENTES OWNER (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+**1 production file, 1 change.** The preflight predicted a small migration; it was smaller than that.
+
+#### Scope, confirmed against the repository
+
+| Route | File |
+|---|---|
+| Owner Clients list | `src/app/(protected)/owner/clients/page.tsx` |
+| Owner Client detail | `src/app/(protected)/owner/clients/[clientId]/page.tsx` |
+
+**Exactly two routes.** There is no Owner create or edit route — clients are created from the seller
+portal — so none was inferred into R1 and the preflight scope was correct.
+
+#### Owner List — 1 change
+
+| Responsibility | Result |
+|---|---|
+| Page header, title, description | **ALREADY SATISFIED** |
+| Primary action | **LEGITIMATE ROLE DIFFERENCE — none exists, and none should.** The description says it outright: creation and editing happen in the seller portal |
+| Search, filters, seller selector | **ALREADY SATISFIED** |
+| Data region, pagination | **ALREADY SATISFIED** — `ClientsList` with `showSeller`, counted as "clientes" |
+| Empty dataset vs no results | **ALREADY SATISFIED** — distinct titles *and* distinct descriptions, and the empty copy explains where clients come from rather than offering a create action Owner does not have |
+| **Toolbar in the empty-dataset state** | **CHANGED** |
+
+Owner had the identical defect the pilot found: `ClientFilters` rendered unconditionally while
+`hasFilters` was already computed, so an organisation with no clients met a search box and a seller
+selector above "Todavía no hay clientes". The same one-line correction applies — the toolbar is
+rendered when there are rows **or** filters are set, so it survives in *Sin resultados* where it is
+the only way back. **APPROVED PATTERN CARRY-OVER.**
+
+#### Owner Detail — NO-OP, with the archived question answered
+
+Back, identity, status badge, a role-appropriate action ("Ver vendedor"), the record's own facts and
+two related `TableSection`s were all already correct under the clarified **ONE PRIMARY PAGE
+COMPOSITION** contract. D-113 applies here exactly as it does on the seller detail. **Nothing was
+changed.**
+
+**The contextual Notice was deliberately NOT added**, and this is the evidence rather than a
+preference:
+
+* **Nothing Owner-side is gated on archiving.** The only behaviour in the entire product that reads
+  the archived flag for a decision is the *seller* detail hiding its payment action
+  (`canRegisterPayment = client.pendingAmount > 0 && !archived`). Voiding a payment is not
+  archived-gated, and Owner has no assign or create action on this screen.
+* **BR-C07 is scoped `C, S`** — *"Un cliente archivado no aparece en los selectores de asignación,
+  pero su historial sigue visible."* The first half is a seller consequence; the second half is not
+  asserted on this page because the page **shows** the history: totals, the tickets section and the
+  payments section are all right there and populated.
+* **The state is already stated twice** — the header `titleBadge` and the `Estado` cell inside
+  `ClientInfoCard`. A Notice would be a third statement explaining a consequence that does not apply.
+
+Per the contract, a Notice must carry a contextual responsibility; on this route it has none, so
+adding one would be decorative duplication. **Reported as evidence, not built.**
+
+#### Seller vs Owner differences, classified
+
+| Difference | Class |
+|---|---|
+| Owner has no create action, on the page or in the empty state | **A · LEGITIMATE ROLE DIFFERENCE** |
+| Owner list has a seller selector; Owner list and tables show a `Vendedor` column | **A** — the admin portal sees the whole organisation |
+| Owner detail action is "Ver vendedor"; Seller's is "Registrar abono" plus edit and archive | **A** |
+| Owner detail shows `sellerName` in the info card; tickets show raffle and seller | **A** |
+| Owner payments table sets `canVoid`; Seller's does not | **A** — voiding is staff-only (BR-I10) |
+| Owner detail has no archived Notice | **A**, on the evidence above — not a pattern inconsistency |
+| Owner list toolbar rendered in the empty state | **B · PATTERN INCONSISTENCY** — the one thing corrected |
+
+**No `C` (component inconsistency) and no `D` (product decision needed) were found.**
+
+#### Shared component reuse — no fork
+
+Owner renders the **same** `ClientFilters`, `ClientsList`, `ClientInfoCard`, `ClientTotals`,
+`TableSection`, `ClientStatusBadge`, `PageHeader`, `EmptyState`, `DataTablePagination`,
+`PaymentsTable` and `ClientTicketsList` as the pilot, differing only by props. Consequently it
+inherited, with no work and no fork:
+
+* the Wave 6.6 **touch-safe Select** — `ClientFilters` already passes `size="touch"`, so the Owner
+  seller selector is 44px on a phone;
+* the touch-safe search field;
+* the `text/muted` contrast correction and the semantic input borders.
+
+**Zero Core or shared components were changed in R1.**
+
+#### Responsive
+
+The one change is a conditional render, not a layout change, so nothing that Wave 7 measured moved.
+What is genuinely new to Owner is the **seller selector in the filter row**, which the pilot never
+exercised: it sits in a `min-w-56` (224px) block inside `flex flex-wrap`, which fits the ~343px
+available at 375 with the archived switch wrapping to the next line. No overflow, and **no new
+breakpoint was introduced**. 768, 1360 and 1600 are unchanged from the Wave 7 measurements of the
+same components.
+
+#### Accessibility
+
+No control, focus behaviour or keyboard path was touched. The corrected state removes a control from
+the DOM when it has nothing to act on, which shortens the tab path in the empty state and removes
+nothing reachable in any other state — filters remain fully reachable in *Sin resultados*, which is
+the state that needs them. The seller `Select` keeps its label association (`htmlFor` /
+`id="client-seller"`) and its own keyboard behaviour, unchanged.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` · `lint` · `test` · `build` | **all pass** — 0 errors, 0 lint errors (same 2 pre-existing warnings), **791 tests / 47 files** |
+| Compiled selectors, clean build vs clean build | **zero added, zero removed** |
+| `prettier` on the changed file | **clean** |
+| **Hardcoded palette in the R1 route tree** | **ZERO** — gate holds |
+| **DATA-BACKED VISUAL QA** | **NOT PERFORMED · ENVIRONMENT UNAVAILABLE.** Supabase remained down, so neither Owner route was rendered end to end. Validation was source inspection against the proven Pattern, the component-level measurements already taken in Waves 6.6 and 7, and the test and build suites. **No production-data visual validation is claimed** |
+
+#### Result
+
+| Criterion | Result |
+|---|---|
+| Owner list satisfies the List Page Pattern | **PASS** |
+| Owner detail satisfies the Detail Page Pattern | **PASS** |
+| Empty vs No results semantically correct | **PASS** |
+| Archived contextual treatment semantically correct | **PASS** — badge only, on evidence |
+| Seller-proven components reused without fork | **PASS** |
+| Legitimate role differences preserved | **PASS** — six preserved, one corrected |
+| Responsive composition | **PASS** |
+| Keyboard / focus | **PASS** |
+| Hardcoded route palette | **ZERO** |
+| **Core changes** | **ZERO** |
+
+**No new debt.** Nothing from the deferred list — Progress, the compact Notice geometry, Lottery
+palette, `RecentActivityCard`, `SearchInput`, `PaymentForm`, `DataTablePagination` — is reachable
+from either Owner Clientes route, and none was touched.
+
+#### Next rollout group — preview only, NOT AUTHORIZED
+
+**R2 · Raffles** — `owner/raffles`, `[raffleId]`, `[raffleId]/edit`, `new`.
+
+The approved risk order still supports it, and R1 changed nothing that would alter that. It should
+follow R1 because it is the next group with **zero reachable blockers** and it is the first to
+exercise **List + Detail + Form together in one product area** — which is the whole Pattern set the
+pilot proved, applied to an entity that is not a client. That tests transfer across domains, not just
+across portals.
+
+| Question | Answer |
+|---|---|
+| Reachable blockers | **None.** Zero hardcoded palette in `features/raffles` and the four routes |
+| Prerequisite needed | **No** |
+| Does the compact Notice geometry become relevant? | **No** — none of its six consumers is reachable from Raffles. It stays deferred until **People**, the first group that reaches it |
+| Does Progress become relevant? | **No** — `CollectionSummaryCard`, `CommissionCard` and `BulkTicketCreator` reach Dashboards, People and Tickets respectively, not Raffles |
+
+**People** is deliberately not recommended next: it is the first group that reaches the compact
+Notice cluster and `CommissionCard`'s progress bar, so it needs two decisions taken first. Raffles
+needs none, and clears four routes.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
@@ -2576,7 +2729,8 @@ Pattern contract that does not exist yet plus three separate semantic decisions.
 | **Wave 6.5B commit** | **`ab9549c0f500d86f19704623b99e92ee47b8ea59`** (`ab9549c`) — `feat(design-system): add semantic inline notice`, 6 files |
 | **Wave 6.6 commit** | **`05848c51d77bab52e72e4a0c845aa05e5c9daea3`** (`05848c5`) — `feat(design-system): reconcile pilot accessibility controls`, 10 files |
 | **Wave 7 commit** | **`4232028a872c77bc675ebc6294672d15842354e8`** (`4232028`) — `feat(design-system): complete clientes seller pilot`, 5 files |
-| **Rollout preflight commit** | `docs(design-system): record post-pilot rollout plan` — this handoff only. Hash recorded in the R1 pass below |
+| **Rollout preflight commit** | **`bf44fe3d2ca3ff950c51ee8aeaa19a3d5d3b360d`** (`bf44fe3`) — `docs(design-system): record post-pilot rollout plan`, this handoff only |
+| **Rollout R1 commit** | `feat(design-system): migrate owner clients to proven patterns` — 2 files. Hash recorded in the R2 pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

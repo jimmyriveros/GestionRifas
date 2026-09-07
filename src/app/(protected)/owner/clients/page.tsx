@@ -38,9 +38,18 @@ export default async function ClientsPage({ searchParams }: { searchParams: Sear
         description="Consulta global. Cada cliente pertenece a un vendedor; su creación y edición se hace desde el portal del vendedor."
       />
 
-      <ClientFilters
-        sellers={sellers.map((seller) => ({ value: seller.id, label: seller.fullName }))}
-      />
+      {/*
+        Sin un solo cliente en la organizacion no hay nada que filtrar, y una
+        barra con buscador y selector de vendedor encima de «Todavia no hay
+        clientes» solo estorba. Con filtros puestos SI se queda: es el unico
+        camino de vuelta cuando la busqueda escondio todo (Ola 7, portal del
+        vendedor).
+      */}
+      {rows.length > 0 || hasFilters ? (
+        <ClientFilters
+          sellers={sellers.map((seller) => ({ value: seller.id, label: seller.fullName }))}
+        />
+      ) : null}
 
       {rows.length === 0 ? (
         <EmptyState
