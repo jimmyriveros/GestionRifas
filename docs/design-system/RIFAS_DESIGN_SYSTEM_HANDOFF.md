@@ -543,7 +543,11 @@ Risk is relative and argued, **not** an hour estimate.
 > `partial` split recorded in §7B is resolved for **both** graphics and text, and the token contract
 > gained four evidence-backed `data/*/foreground` roles because the graphical roles are not text-safe
 > (§10.20).
-> **NEXT: WAVE 7 — PATTERNS & PILOT SCREEN (Clientes, Seller portal). NOT AUTHORIZED.** Its preflight is §10.23.
+> **Waves 6.5A, 6.5B and 6.6 were INSERTED** to close the Notice component gap and then the three
+> cross-system prerequisites the Wave 7 preflight found: muted-text contrast, input borders and touch
+> control sizing. The original seven-wave architecture is unchanged.
+> **NEXT: WAVE 7 — PATTERNS & PILOT SCREEN (Clientes, Seller portal). NOT AUTHORIZED.** Its refreshed
+> preflight is §10.23: all three blockers are closed and the pilot reads READY.
 
 ---
 
@@ -2011,13 +2015,13 @@ destructive action, archiving, is reversible.
 | Progress family debt | **OUTSIDE PILOT** — `CollectionSummaryCard`, `CommissionCard` and `BulkTicketCreator` are not reachable from any pilot route. The only progress bar reachable is `PaymentProgressBar`, which is Product Data and already migrated |
 | Responsive List/Record | **ALREADY SATISFIED** structurally — `ClientsList` already switches table ↔ card list at `md` |
 
-#### What genuinely remains — three items, all reachable and all mattering
+#### What genuinely remained — ALL THREE CLOSED BY WAVE 6.6 (refreshed 2026-09-06)
 
-| Item | Reach in the pilot | Why it matters |
+| Item | Status after Wave 6.6 | Evidence |
 |---|---|---|
-| **Control touch size** | `ClientFormFields` renders `Input` ×4 and `Textarea`; `ClientFilters` renders `Select`. All are `h-9` — **36px, not the 44px the system specifies** | This is the Seller portal, and the stated reason for choosing it was to put the 44px touch floor under real use on a phone. **NEEDS SEMANTIC ADOPTION** |
-| **`text/muted` contrast** | 36 occurrences across 12 pilot files | `--muted-foreground` measures **4.34:1** on the neutral surfaces used by table headers and hovered rows — below 4.5:1, and hovered rows are exactly what a list page has. **NEEDS RECONCILIATION** |
-| **`border/input`** | transitively, through `Input`, `Textarea` and `Select` | Light `#e5e5e5` → `#949494`, Dark `#ffffff26` → `#666666`. Classified C, component-contract reconciliation. **NEEDS RECONCILIATION** |
+| **Control touch size** | **CLOSED** | `Input` and `Select` gained the `touch` size; the pilot's 4 inputs and 1 select adopt it. Measured 44px at 375 and 36px from 768. `Textarea` was already 64px |
+| **`text/muted` contrast** | **CLOSED** | `--muted-foreground` now resolves to `text/muted`. The hovered-row case goes **4.35 → 7.17**; Dark and Catalog are inert |
+| **`border/input`** | **CLOSED** | The border responsibility moved to the semantic role: **1.26 → 3.03** in Light, **1.34 → 3.12** in Dark. The overloaded fill responsibility stayed on the legacy variable, deliberately |
 
 Nothing else is blocked. Global debt that the pilot does not reach — the Progress family, the eleven
 remaining notices, `RecentActivityCard`, the Lottery presentation palette — **does not block it**,
@@ -2035,11 +2039,181 @@ and is not treated as a blocker merely for existing.
 | **Accessibility work** | keyboard traversal with a visible ring on every control; contrast re-measured after the two token corrections |
 | **Risk** | **MEDIUM** — unchanged. The composition is already done; what is left are two token changes with product-wide blast radius and one sizing change confined to controls |
 
-**Is Wave 7 ready for execution? Yes, with one caveat.** The pilot itself is clean — zero hardcoded
-palette, every component already semantic. But two of its three remaining items (`text/muted`,
-`border/input`) are **cross-system token changes that reach far beyond the pilot**, so executing them
-"inside Wave 7" would silently repaint the whole product. They should be decided as their own
-checkpoint, before or alongside Wave 7, exactly as the Status and data-visualisation gaps were.
+**Is Wave 7 ready for execution? YES — the caveat is resolved.** The two cross-system token changes
+were taken out of Wave 7 and executed as their own checkpoint (Wave 6.6, §10.24), exactly as the
+Status and data-visualisation gaps were. Wave 7 is now purely route-level composition on a pilot that
+reaches **zero hardcoded palette**, has every component on semantic tokens, and has no open
+prerequisite of its own.
+
+**Remaining Wave 7 practical scope**, re-checked against the repository after 6.6:
+
+| Class | Content |
+|---|---|
+| **ALREADY SATISFIED** | tokens, typography, controls, brand, table and cells, pagination, empty state, page header, shell, navigation, Status badges, Product Data, Notice, muted-text contrast, input borders, touch controls |
+| **SEMANTIC ADOPTION STILL REQUIRED** | none |
+| **COMPOSITION CHANGE REQUIRED** | the pattern-level review the wave exists for: whether the four routes compose the migrated pieces the way `Pattern / List Page`, `Pattern / Detail Page` and `Pattern / Form` describe |
+| **RESPONSIVE CHANGE REQUIRED** | unknown until verified — the `md` table ↔ card switch at 375, 768, 1360 and 1600 in three themes is the fragile piece |
+| **ACCESSIBILITY CHANGE REQUIRED** | keyboard traversal with a visible ring on every control; the contrast work is already done |
+| **NO-OP** | the archived-client notice, the ticket list inside the detail page, and every colour decision |
+
+**Risk: LOW-to-MEDIUM**, down from MEDIUM. Every token and component change that could have surprised
+the pilot has already landed and been measured; what remains is verification and, if the patterns
+disagree with the routes, composition.
+
+---
+
+### 10.24 WAVE 6.6 — CROSS-SYSTEM ACCESSIBILITY & PILOT CONTROL RECONCILIATION (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+**9 production files.** Three verified prerequisites, resolved without a single route-level override.
+
+#### A · `text/muted` — the legacy variable IS overloaded, but not in conflict
+
+`--muted-foreground` carries **four** responsibilities, not one:
+
+| Job | Where |
+|---|---|
+| **A. Muted / secondary text and metadata** | ~300 of the occurrences |
+| **B. Placeholder** | `input`, `textarea` (`placeholder:`), `select` (`data-[placeholder]:`) |
+| **E. Icon tint** | dropdown and select item icons, `RowChevron`, avatar fallback, the `denied` and `offline` page icons |
+| **E. Background tint** | `table.tsx` — the muted neutral at 20% as the hover fill of a selected row |
+
+**C. Disabled text is NOT among them.** The system has its own `text/disabled` (`#8a8a8a`), and
+disabled states in this codebase are expressed with `opacity-50` on the whole control — so nothing
+that needs a disabled value is being served by this variable.
+
+The decisive question was not "is it overloaded" but **"does any consumer need a different value?"**
+None does: placeholder, icon tint and the row tint all want the same muted neutral, and the system
+has exactly one. The overload is **nominal, not semantic** — so a compatibility-variable
+reconciliation is the correct minimum, and repainting ~300 call sites individually would have been
+far more invasive for the same result.
+
+**Strategy: global compatibility-variable reconciliation.** `--muted-foreground` now resolves to
+`--ds-text-muted` in all three scopes. Classified **ACCESSIBILITY CORRECTION** and
+**CROSS-SYSTEM SEMANTIC RECONCILIATION** — deliberately *not* described as a pilot change.
+
+| Scope | was | now | Effect |
+|---|---|---|---|
+| Light | `#737373` | **`#525252`** | the only value that moves |
+| Dark | `#a1a1a1` | `#a1a1a1` | **INERT** — the legacy value already equalled the role |
+| Catalog | `#b1afc0` | `#b1afc0` | **INERT** |
+
+**Blast radius: 328 occurrences across 119 files** — 20 in the Owner portal, 12 in Seller, 2 in
+Catalog, 243 in `features/`, 44 in `components/`. **Only the Light theme changes**, and only by
+darkening muted text. Dark and Catalog are byte-identical, which is why a change this wide is safe.
+
+| Surface | Light was → now | Dark | Catalog |
+|---|---|---|---|
+| `background/default` | 4.74 → **7.81** | 7.66 inert | 9.24 inert |
+| `surface/card` | 4.74 → **7.81** | 6.94 inert | 8.29 inert |
+| `surface/muted` (hovered rows) | **4.35 → 7.17** | 5.86 inert | 7.48 inert |
+
+The hovered-row failure the preflight found is **closed**. Zero remaining failures; worst value 5.86.
+
+**No route-specific token was created**, and none may be: there is no `pilot-muted`, `client-muted`
+or `mobile-muted`, and the reconciliation is systemic by construction.
+
+#### B · `border/input` — genuinely overloaded, so migrated BY CONSUMER
+
+`--input` is **not** specific enough to redirect globally. It is both:
+
+* the **control border** — `border-input`, in 6 primitives, and
+* a **surface fill** — the same variable at 30% behind Input, Textarea, Select, Checkbox, Tabs and
+  Button, at 50% on their dark hover, and at 80% as the Switch's unchecked track.
+
+Those two want opposite things. The approved `border/input` is an opaque mid grey (`#666666` in Dark);
+feeding that to a 30% fill would turn near-transparent dark fields into flat grey panels. So the
+variable was **left alone** and only the border responsibility moved:
+
+`border-input` → **`border-border-input`** in `button`, `checkbox`, `input`, `select`, `tabs`,
+`textarea`. **Blast radius: 6 occurrences in 6 files**, all `components/ui` primitives — and the 9
+fill usages are deliberately untouched. Catalog was already reconciled in Wave 4 and does not
+move.
+
+| Surface | Light was → now | Dark was → now | Catalog |
+|---|---|---|---|
+| `background/default` | 1.26 → **3.03** | 1.48 → **3.45** | 8.79 inert |
+| `surface/card` | 1.26 → **3.03** | 1.34 → **3.12** | 7.89 inert |
+| `surface/muted` | 1.16 → 2.78 | 1.13 → 2.64 | 7.12 inert |
+
+The two `surface/muted` figures stay below 3:1 — but **no control is reachable on a muted surface**:
+the pilot's filters and form render on the page background, and static inspection found no Input or
+Select inside a muted container anywhere in the product. Recorded as measured-but-unreachable, not
+claimed as a pass.
+
+`focus/ring`, the `aria-invalid` destructive treatment and the disabled treatment are untouched and
+remain distinct. **The normal border does not do the focus ring's job.**
+
+#### C · Touch sizing — one architecture, extended, not a second mechanism
+
+`Button` has had `touch` (`h-11 … sm:h-9`) since Wave 3A. That is the model the others now follow.
+
+| Component | Result |
+|---|---|
+| **Input** | gains `size?: 'default' \| 'touch'`. `h-9` left the base string and moved into a size record. The native HTML `size` attribute — which counts characters — is **omitted from the type**, because width here is `w-full` and two different things called `size` read badly. Nothing passed `size` to `Input` before, so nothing broke |
+| **Select** | its **existing** `size` API was extended: `'sm' \| 'default'` → `'sm' \| 'default' \| 'touch'`, with `data-[size=touch]:h-11 sm:data-[size=touch]:h-9`. No second mechanism was introduced |
+| **Textarea** | **no change needed.** `min-h-16` is 64px, already well above the 44px floor. Adding a prop it does not need would have been invention, not capability |
+
+**The default is unchanged everywhere.** `touch` is opt-in, so the blast radius of the capability
+itself is zero, and Desktop Comfortable behaviour is preserved by construction.
+
+#### D · Pilot adoption — scoped, 2 files
+
+| Control | Action |
+|---|---|
+| `ClientFormFields` — 4 `Input`s (name, phone, email, alias) | `size="touch"` |
+| `ClientFilters` — the seller `Select` | `size="touch"` |
+| `ClientFormFields` — `Textarea` | none needed, already 64px |
+| `ClientFilters` — `SearchInput` | **already touch-safe**, via its own `touchSize` prop, and the pilot already passes it |
+
+No repository-wide touch migration was performed. **The capability is global; the adoption is scoped.**
+
+#### Measured in a browser, at the real widths
+
+| Width | Input default | Input touch | Select touch | Textarea |
+|---|---|---|---|---|
+| **375** | 36px | **44px** | **44px** | 64px |
+| **768** | 36px | 36px | 36px | 64px |
+| **1360** | 36px | 36px | 36px | 64px |
+
+Rendered colours confirmed the tokens: muted text `rgb(82,82,82)` in Light and `rgb(161,161,161)` in
+Dark; input border contrast **3.03** Light and **3.45** Dark. Viewport width is used here as a proxy
+for pointer type, which is what the existing product already does — noted rather than assumed.
+
+#### Intentional visual changes, and nothing else
+
+| Change | Classification | Reach |
+|---|---|---|
+| Muted text darkens in Light | **APPROVED CROSS-SYSTEM TEXT CONTRAST CORRECTION** | global, Light only |
+| Control borders darken in Light and Dark | **APPROVED CROSS-SYSTEM INPUT-BORDER CORRECTION** | 6 primitives |
+| 4 inputs and 1 select become 44px under `sm` | **APPROVED PILOT TOUCH-SIZE ADOPTION** | pilot only |
+
+No other family changed. The compiled selector delta is **+3 / −1**: `border-border-input` and its
+dark variant appear, the responsive touch rule appears, and the old dark border utility disappears.
+Nothing
+else moved.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `npm run verify` | **exit 0** — typecheck 0, lint 0 errors (same 2 pre-existing warnings), **791 tests / 47 files**, build compiled |
+| `prettier` | the two feature files are clean. The six `components/ui` primitives report whole-file objections that are **CRLF line endings only** — their content is prettier-clean and they report identically at HEAD |
+| Live routes with data | **NOT POSSIBLE — Supabase unavailable.** Validation used the real compiled stylesheet in a browser harness, resolved token values, computed contrast, source inspection and the test suite. The harness lived under a gitignored path and was deleted |
+
+#### Remaining Wave 6.6 debt
+
+* **`SearchInput`'s `touchSize` prop** is an ad-hoc mechanism (`h-11 md:h-9`) predating the semantic
+  size, and it breaks at `md` where the DS breaks at `sm`. Folding it into `size="touch"` would change
+  the breakpoint for 3 call sites, which is a visual change this wave was not authorized to make.
+* **`PaymentForm`'s local `TOUCH_FIELD`** constant (`h-12 … md:h-9`) is the same story at 48px.
+* **`text/placeholder` and an icon-tint role do not exist** in the token contract. Placeholder and
+  icon tint currently ride on `text/muted` because there is nowhere else for them to go. Recorded as
+  a contract gap, not a defect.
+* The two unreachable `surface/muted` border figures above.
+
+**None of these blocks the Clientes Seller pilot.** The two ad-hoc touch mechanisms already meet the
+44px floor on a phone — they differ only in where they collapse back — and the two missing roles are
+contract gaps whose consumers currently resolve to the right value anyway.
 
 ---
 
@@ -2063,7 +2237,8 @@ checkpoint, before or alongside Wave 7, exactly as the Status and data-visualisa
 | **Wave 5 commit** | **`9ac0740b11662caf4d3542ffb58bb8591b0f89cb`** (`9ac0740`) — `feat(design-system): adopt semantic application shell`, 3 files |
 | **Wave 6 commit** | **`2d8e4ac989f2180d29dd30cb89659e24ad9f2267`** (`2d8e4ac`) — `feat(design-system): adopt semantic product data visualization`, 11 files: the token layer, 9 consumers and this handoff |
 | **Wave 6.5A commit** | **`ddd147acd73100b2250bccbcbcbe869a540f5ba0`** (`ddd147a`) — `docs(design-system): define inline notice contract`, this handoff only |
-| **Wave 6.5B commit** | `feat(design-system): add semantic inline notice` — 6 files: the component, 4 consumers and this handoff. Hash recorded in the Wave 6.6 pass below |
+| **Wave 6.5B commit** | **`ab9549c0f500d86f19704623b99e92ee47b8ea59`** (`ab9549c`) — `feat(design-system): add semantic inline notice`, 6 files |
+| **Wave 6.6 commit** | `feat(design-system): reconcile pilot accessibility controls` — 10 files. Hash recorded in the Wave 7 pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

@@ -82,7 +82,7 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
               onValueChange={(value) => apply({ sellerId: value })}
               disabled={isPending}
             >
-              <SelectTrigger id="client-seller" className="w-full">
+              <SelectTrigger id="client-seller" size="touch" className="w-full">
                 <SelectValue placeholder="Todos los vendedores" />
               </SelectTrigger>
               <SelectContent>

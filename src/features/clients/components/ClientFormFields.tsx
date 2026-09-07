@@ -39,7 +39,7 @@ export function ClientFormFields({
           <FormItem>
             <FormLabel>Nombre</FormLabel>
             <FormControl>
-              <Input autoComplete="name" disabled={disabled} {...field} />
+              <Input size="touch" autoComplete="name" disabled={disabled} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -54,6 +54,7 @@ export function ClientFormFields({
             <FormLabel>Teléfono</FormLabel>
             <FormControl>
               <Input
+                size="touch"
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
@@ -74,7 +75,7 @@ export function ClientFormFields({
           <FormItem>
             <FormLabel>Alias (opcional)</FormLabel>
             <FormControl>
-              <Input disabled={disabled} {...field} />
+              <Input size="touch" disabled={disabled} {...field} />
             </FormControl>
             <FormDescription>Como lo tienes anotado: apodo, negocio, barrio.</FormDescription>
             <FormMessage />
@@ -90,6 +91,7 @@ export function ClientFormFields({
             <FormLabel>Correo (opcional)</FormLabel>
             <FormControl>
               <Input
+                size="touch"
                 type="email"
                 inputMode="email"
                 autoComplete="email"
