@@ -93,7 +93,7 @@ export function CatalogSummary({ stats }: { stats: CatalogStats }) {
   return (
     <section
       aria-label="Resumen del catálogo"
-      className="mx-auto w-full max-w-3xl rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 backdrop-blur-sm"
+      className="border-border-glass bg-surface-glass-subtle mx-auto w-full max-w-3xl rounded-2xl border px-3 py-3 backdrop-blur-sm"
     >
       <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 sm:gap-y-0">
         <Stat
@@ -107,26 +107,32 @@ export function CatalogSummary({ stats }: { stats: CatalogStats }) {
           icon={<UsersIcon className="size-4" />}
           value={`${taken} de ${total}`}
           label="ya fueron tomados"
-          className="border-t border-white/10 pt-3 sm:border-t-0 sm:border-s sm:ps-3 sm:pt-0"
+          className="border-border-glass border-t pt-3 sm:border-s sm:border-t-0 sm:ps-3 sm:pt-0"
         />
         <Stat
           icon={<ZapIcon className="size-4" />}
           value={`${reservado}%`}
           label="reservado"
-          className="border-s border-t border-white/10 ps-3 pt-3 sm:border-t-0 sm:pt-0"
+          className="border-border-glass border-s border-t ps-3 pt-3 sm:border-t-0 sm:pt-0"
         />
       </div>
 
       {/*
-        La barra es decoracion de una cifra que ya esta escrita al lado, asi que
-        no se anuncia dos veces: `aria-hidden`. Quien escucha la pantalla ya ha
-        oido «72 %, reservado».
+        AVANCE DE NEGOCIO, no adorno: su ancho es `tomadas / total`, cero significa
+        que no se ha tomado ninguna y cien que se tomaron todas. Por eso lleva los
+        roles `progress/*` y no los de marca, que es lo que pintaba antes.
+
+        LO QUE SI ES REDUNDANTE ES EL DIBUJO. La cifra y lo que mide ya estan
+        escritas al lado —«43 %, reservado»—, asi que la barra repite algo que ya
+        se anuncio: va `aria-hidden` y NO usa `LinearProgress`, que existe para
+        anunciar un avance que no esta dicho de otra forma. Adoptarlo aqui
+        obligaria a elegir entre anunciar dos veces o debilitar su contrato.
+
+        Si algun dia se quita ese texto, esta barra pasa a ser la unica fuente y
+        entonces SI tiene que ser `LinearProgress`.
       */}
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10" aria-hidden>
-        <div
-          className="h-full rounded-full bg-[linear-gradient(90deg,oklch(0.55_0.24_296),oklch(0.72_0.2_300))]"
-          style={{ width: `${reservado}%` }}
-        />
+      <div className="bg-progress-track mt-3 h-1.5 w-full overflow-hidden rounded-full" aria-hidden>
+        <div className="bg-progress-value h-full rounded-full" style={{ width: `${reservado}%` }} />
       </div>
 
       {/* Cuando calla no reserva sitio: no hay una linea vacia esperando. */}

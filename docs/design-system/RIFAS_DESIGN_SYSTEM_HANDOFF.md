@@ -574,8 +574,12 @@ Risk is relative and argued, **not** an hour estimate.
 > **no new Pattern**, four contract decisions and one shared-component prerequisite.
 > **R7-PRE — SEARCH INPUT TOUCH RECONCILIATION is COMPLETE** (§10.41): the shared search field's
 > ad-hoc touch boolean is replaced by the `size` contract the rest of the system already uses, and
-> the ramp moves from the medium breakpoint to the small one. **R7B — PUBLIC CATALOG is in progress.
-> Dashboards remain deferred.**
+> the ramp moves from the medium breakpoint to the small one.
+> **R7B — PUBLIC CATALOG is COMPLETE AND APPROVED** (§10.42), and it is the **first rollout
+> validated on the real route with live data**. Eight glass and gradient roles that had no consumer
+> now have one, the catalogue's raw colour count is **zero**, availability moved to the Success
+> family, and the summary bar is classified as **business completion progress** — with its adoption
+> returned as a contract decision. **Dashboards are refreshed in §10.43 and NOT authorized.**
 
 ---
 
@@ -4877,6 +4881,280 @@ layout or composition work rides along; that is all R7B's.
 
 ---
 
+### 10.42 R7B — PUBLIC CATALOG MIGRATION (2026-09-07 · **COMPLETED AND APPROVED** · commit in §11)
+
+**6 production files, zero Core files, zero new tokens.** And the first rollout in this migration
+validated on the **real route**, with live data.
+
+#### REAL ROUTE QA — finally possible
+
+Supabase was running this session. A local catalogue was published for a seller who had **3 317
+available and 327 taken** in an active raffle, the route was driven at six widths, and **the local
+data was reverted afterwards**. The three fields set and cleared are recorded here so nothing is
+left behind: the public slug, the enabled flag, the WhatsApp number and the published raffle, on one
+membership row of the **local development database only**.
+
+**This is REAL ROUTE QA**, not a harness. Every measurement below comes from the rendered page.
+
+#### The bug only the real route could find
+
+The first render came back **green**. The summary bar's gradient, written as an arbitrary value
+referencing the `--color-*` names, resolved to the **Light** brand green inside the catalogue theme.
+
+The cause is worth writing down, because it is invisible in source review:
+
+| | Behaviour |
+|---|---|
+| A Tailwind **utility** | compiles to `var(--ds-…)`, which **each theme scope redefines** — so it follows the catalogue |
+| A **`--color-…` reference written by hand** | is emitted on the root, where it substitutes the **Light** value and then inherits down as an already-computed value — so it **ignores the scope** |
+
+**Rule, now proven on a live page: inside an arbitrary value, reference `--ds-…`, never `--color-…`.**
+Three places were affected — both gradients and the card's inset highlight — and all three now
+resolve correctly: the bar runs brand violet to light violet, and the avatar violet to its dark tone.
+
+> A second measurement of mine was also wrong, and it is worth recording so nobody chases it again.
+> Buttons briefly measured 44 px at desktop widths. They were mid-transition: these controls carry a
+> transition on all properties, and the viewport had just been resized under them. **Measured on a
+> clean load, every width is correct.** Resize-then-measure is not a valid method for this page.
+
+#### FINDING 1 corrected — the palette inventory
+
+The rollout inventory reported **Catalog palette = ZERO**. It was wrong, and the reason is recorded
+rather than quietly fixed: the scan looked for **named colour scales**, and this page uses raw white
+and black alphas, raw colour functions and raw gradients. The real count was **14 occurrences in 6
+files**. The same broad scan run against Dashboards returns the same number it already had, so **the
+error was specific to Catalog**.
+
+#### The summary bar — traced, then classified
+
+The audit guessed "decorative because it announces nothing". **That reasoning was wrong**, and the
+correction stands on the trace:
+
+| Question | Answer |
+|---|---|
+| Data source | the published catalogue's two counts; the total is their sum |
+| Width | `taken ÷ total`, rounded and clamped, applied as the fill's width |
+| Colour | **static** — it does not vary with data |
+| Does the width move with product data | **YES** |
+| 0 means | nothing published has been taken |
+| 100 means | everything published has been taken |
+| Composition of categories? | no — one part of one whole, with the remainder as the track |
+| Static? | **no** |
+
+**CLASSIFICATION: BUSINESS COMPLETION PROGRESS.** The same family R6B gave the two
+collected-over-sold bars, and reached the same way: a proportion advancing toward a terminal state.
+It is **not** decorative data, not Product Data composition, not Status and not brand presentation.
+**The R7A "decorative" reading is rejected.**
+
+##### The family owns the colours; the component does not own the markup
+
+Two questions that look like one, and the closure separates them:
+
+| | Answer |
+|---|---|
+| **Which semantic family owns this bar?** | **Progress.** It now consumes `progress/track` and `progress/value` — **not** the data roles, not a status family, and **not the brand gradient roles it briefly borrowed** |
+| **Must it therefore be the shared component?** | **No.** Component adoption follows the **accessibility responsibility**, not the data semantics alone |
+
+The bar sits beside text that already says **what is measured and its exact value** — "43 %,
+reservado". The drawing is therefore a **redundant visual representation of progress that has already
+been communicated**. `LinearProgress` exists to *announce* an advance that nothing else states; here
+it would either announce the same fact twice or force a silent mode into the shared contract.
+
+**So: the bar keeps its small local markup, stays hidden from assistive technology, and the adjacent
+text remains the carrier of the meaning.** `LinearProgress` was **not weakened**: no decorative,
+silent or presentation-only option was added to it from this one consumer.
+
+> Recorded as a general rule, because it will come up again: **a data-driven progress measure does
+> not oblige the shared progress component.** What obliges it is being the *only* thing that
+> communicates the value.
+
+##### The gradient was the wrong family, and it is gone
+
+R7B first adopted the two brand ramp roles for the fill, because they matched the hand-written stops
+almost exactly. Once the trace proved Progress ownership, that match stopped being a reason:
+**numeric similarity is not semantic authority**. The fill is now the solid `progress/value`.
+
+**APPROVED SEMANTIC VISUAL CORRECTION — BRAND PRESENTATION → BUSINESS COMPLETION PROGRESS.** The bar
+changes from a violet-to-light-violet ramp to a solid brand violet on a dark track, verified on the
+live route: track `#0b0717`, fill `#843bec`, width matching the printed percentage exactly.
+
+**No `progress/gradient-*` role was invented.** And the brand ramp roles return to **zero consumers**
+— which is accepted: usage count is not an argument about correctness.
+
+#### Glass roles — adopted by layering responsibility
+
+| Catalogue layer | Responsibility | Role adopted |
+|---|---|---|
+| Sticky header background | the page's own ground, translucent | the background role at 94 % |
+| Header and summary boundaries, section dividers, footer note border | glass boundary | `border/glass` |
+| Search field boundary, both placements | a stronger glass boundary on a field | `border/glass-strong` |
+| Summary card, footer note | the faintest glass plate | `surface/glass-subtle` |
+| Pagination buttons, header search field | a normal glass plate | `surface/glass-default` |
+| Pagination hover, the summary bar's track | the strongest glass plate | `surface/glass-strong` |
+| Hero search field | **a scrim** — a veil so text stays legible over an illustration | `overlay/scrim`, whose value is within a percent of the hand-written black |
+| Ticket card's top highlight | a glass edge | `surface/glass-default` |
+
+**Eight roles that had zero consumers now have them.** No parallel family was invented.
+
+#### The 10 % borders
+
+Confirmed as glass boundaries — the summary card's outline, its dividers, the header's underline and
+the footer note. They **adopt `border/glass`**, which resolves at 15 %.
+
+**APPROVED SEMANTIC ADOPTION WITH SMALL VISUAL CORRECTION.** The boundaries are marginally more
+visible; verified on the real route at every width. **No extra-subtle glass role was invented from
+one historical opacity.**
+
+#### The two gradients
+
+| Gradient | Measured against the existing roles | Decision |
+|---|---|---|
+| **The summary bar** | its two stops landed on the brand ramp — but the trace later proved **Progress** owns this bar | **SUPERSEDED.** The fill is the solid `progress/value`; see the closure above |
+| **The seller avatar** | no role matches: its stops sit between the brand default and its dark tone | **Structure stays local, colours become semantic** — brand default to brand hover. **No new gradient token was created** |
+
+#### "Disponible" — availability is an operational status
+
+Traced: since D-164 a taken ticket is **not published at all**, so a published card has exactly one
+state, and it means *this number can still be chosen*.
+
+**CLASSIFICATION: AVAILABILITY / OPERATIONAL STATUS → the SUCCESS family.** It was previously painted
+with the brand's secondary accent, which is the generic brand green the contract warns against.
+
+The composition is **preserved exactly** — this is not a status badge imported wholesale:
+
+| | |
+|---|---|
+| Above 376 px | the pill keeps its shape, now on the success surface, text and border |
+| At 376 px and below | still the 8 px dot in the corner, now the success **icon** role so it stays visible, with the word in screen-reader-only text |
+| Colour alone | the word is always in the accessibility tree (D-166 untouched) — but see the classification below |
+
+Measured on the real route: the pill is **66 × 18** above the breakpoint and the dot **8 × 8** below
+it, with the word absolutely positioned out of view. Contrast: **11.87 : 1** for the text on its
+surface, and **9.82 : 1** for the dot against the card.
+
+##### The phone dot, classified precisely
+
+It would be wrong to write "the dot is not colour-only because screen-reader text exists" — a visible
+dot **is** a colour-only visual cue, and hidden text does not change what a sighted person sees.
+
+**MOBILE AVAILABILITY DOT → REDUNDANT VISUAL CUE.** It is acceptable **not** because of the hidden
+word, but because **membership in this collection already establishes eligibility**: since D-164 a
+taken ticket is not published at all, so every card on the page is selectable. The dot is not the
+sole carrier of a state that distinguishes one card from another — there is nothing to distinguish.
+
+**The condition is explicit, and it is the thing to watch.** The moment the visible grid mixes
+states — available beside taken, blocked or unavailable — the dot alone stops being sufficient and a
+**visible, non-colour** representation must return. **No visual change is required today.**
+
+#### The three local control heights — removed
+
+| Control | Before | After |
+|---|---|---|
+| The request button on every card | a hand-written 44 px dropping at the **medium** breakpoint, over a small size | the button's **touch** capability |
+| Both pagination buttons | the same, plus hand-written glass colours | the same capability, plus the glass roles |
+| The search field, both placements | one fixed height in the header and another in the hero, fighting the shared ramp | the field's **touch** capability in both |
+
+**No new API, no route breakpoints, no local heights left.** Measured on the real route:
+
+| Width | Grid | Badge | Request button | Search field | Page scrolls sideways |
+|---|---|---|---|---|---|
+| **320** | 2 columns | dot | **44 px** | **44 px** | no |
+| **375** | 2 | dot | **44 px** | **44 px** | no |
+| **640** | 3 | pill | **36 px** | **36 px** | no |
+| **768** | 3 | pill | 36 px | 36 px | no |
+| **1360** | 4 | pill | 36 px | 36 px | no |
+| **1600** | 5 | pill | 36 px | 36 px | no |
+
+The honest deltas: the request and pagination buttons now step down at 640 instead of 768, and the
+hero and header search fields — previously pinned at 44 px and 40 px at **every** width — now follow
+the same ramp. At 320 and 375 the ticket number is not clipped and nothing overflows the page.
+
+#### The ticket grid's accessible name — NO DEFECT
+
+It is a plain list of list items: no grid role, no listbox, no landmark, no widget semantics. Each
+item is self-describing — the daily number is announced with its label, the weekly number with its
+own, the state as a word, and the action names both numbers. **A collection name is not required, and
+none was invented.**
+
+#### Empty and loading states — unchanged
+
+The two empty states remain distinct and were **not** renamed into list-pattern vocabulary: this page
+has no entity-management contract. The page is server-rendered and owns no loading responsibility;
+the only pending affordance is the search field's own, which already exists. **No skeleton was added
+because another Pattern requires one.**
+
+#### Final raw-colour audit
+
+**ZERO.** No raw hex, no colour functions, no white or black alphas anywhere in the catalogue route
+or its feature tree. Nothing was intentionally retained.
+
+The compiled selector comparison says the same thing from the other side: every raw selector removed,
+and in its place the semantic role utilities. **No new token was created.**
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `typecheck` · `lint` · `test` · `build` | **all pass** — 791 tests / 47 files, same 2 pre-existing warnings |
+| `prettier` | clean; the two remaining objections are **pre-existing at HEAD**, on lines R7B did not touch |
+| Console errors on the live route | **none** |
+| **Catalog raw colour** | **ZERO** |
+| **Core files changed** | **ZERO** · **new tokens: ZERO** · **new page Pattern: ZERO** |
+| Method | **REAL ROUTE QA** at 320 / 375 / 640 / 768 / 1360 / 1600 with live data, plus source validation. The catalogue theme is the page's own scope, so this *is* its theme validation |
+| Light and Dark | **SOURCE VALIDATION only.** The shared search field changed in R7-PRE; that change touches **height, not colour**, and its only behavioural delta is the breakpoint already recorded. Its non-catalogue consumers need an authenticated session, which was not exercised |
+
+#### Intentional visual changes
+
+1. **Availability is green-on-dark instead of a bright lime pill.** The word and the dot are
+   unchanged in behaviour; the family is now Success rather than the brand accent.
+2. **Glass boundaries are slightly more visible** — the 10 % borders resolve at 15 %.
+3. **The request and pagination buttons step down at 640 instead of 768.**
+4. **The two search fields now follow the touch ramp** instead of being pinned at 44 px and 40 px.
+5. Everything else — the summary bar's ramp, the avatar, the header, the card — **looks the same**;
+   only the values' provenance changed.
+
+#### Remaining Catalog debt
+
+* Two **pre-existing** formatting objections in files R7B touched, left alone deliberately.
+
+Nothing else: **both semantic closures are decided and implemented.**
+
+---
+
+### 10.43 DASHBOARDS — PREFLIGHT REFRESHED (2026-09-07 · preview only, **NOT AUTHORIZED**)
+
+Re-counted against HEAD after Catalog, not carried forward.
+
+| | |
+|---|---|
+| Routes | **2** — `owner/dashboard`, `seller/dashboard` |
+| Palette | **15**, and the broad scan that corrected Catalog returns **the same 15** here, so this count is trustworthy |
+| Concentration | **12 of 15 in the lottery results card**, 1 in its section wrapper, 1 in the recent-activity card, 1 in the seller route |
+| Components | **9 dashboard pieces** plus **3 lottery pieces** |
+| Progress reach | **already reconciled** — R6B put both dashboard bars on the shared component. Nothing to decide |
+| Product Data reach | the trend chart, the donut and the metric cards, all on approved roles from Wave 6. **Not to be reopened** |
+| Table-action debt | **not reachable** — neither dashboard has a table with row actions |
+| Search / Filters | not reachable |
+| **Missing contract** | **no Dashboard Pattern exists** |
+
+#### Semantic decisions still open
+
+1. **What family owns a published lottery result** — the number, its provenance line, the
+   pending-versus-played states and the schedule badge. Twelve of the fifteen palette occurrences are
+   this one question.
+2. **What the recent-activity card's tinting means**, and whether it is Status or Product Data.
+3. Whether the seller dashboard's single occurrence belongs to either of the above.
+
+#### Proposed scope
+
+**R8A — DASHBOARD PATTERN & SEMANTIC AUDIT**, audit only: define what a Dashboard Page is responsible
+for, and settle the lottery-presentation question, **before** any route is migrated. Then **R8B**.
+
+**Risk: MEDIUM with the audit first, HIGH without it.** Two routes is small, but they are the only
+routes in the product with no Pattern behind them and an unowned semantic family inside them.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -4912,7 +5190,8 @@ layout or composition work rides along; that is all R7B's.
 | **R6D commit** | **`5a5917a038b44144a6019937daa0ec39b9abee34`** (`5a5917a`) — `fix(design-system): make dropdown actions touch-safe`, 2 files: `components/ui/dropdown-menu.tsx` and this handoff. A People prerequisite, checkpointed **before** the People route work |
 | **R6C commit** | **`9ae57d0a983640ed84b2aa845d1ae0560ef50dfd`** (`9ae57d0`) — `feat(design-system): migrate people to proven patterns`, 8 files: the two People detail routes, the raffle detail route, `UserRowActions`, `TeamMemberActions`, `TeamCommissionCard`, `CatalogSettingsCard` and this handoff. **No Core file** |
 | **R7A** | audit only, no production change. §10.40. Committed together with the prerequisite below |
-| **R7-PRE commit** | `fix(design-system): reconcile search input touch sizing` — 4 files: the shared search field and its three touch call sites, plus this handoff. **No Core API change.** Hash recorded in the R7B pass below |
+| **R7-PRE commit** | **`e718bf8e4ecccf8248638249ff1eea4cd512a17e`** (`e718bf8`) — `fix(design-system): reconcile search input touch sizing`, 5 files: the shared search field, its three call sites and this handoff. **No Core API change** |
+| **R7B commit** | `feat(design-system): migrate public catalog to catalog theme semantics` — 7 files: the six catalogue files and this handoff. **No Core file, no new token.** Hash recorded in the R8A pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

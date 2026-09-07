@@ -64,7 +64,7 @@ export function CatalogTicketCard({
   const message = catalogWhatsappMessage({ sellerShortName, dailyNumber, weeklyNumber })
 
   return (
-    <li className="border-primary/45 bg-primary/[0.07] hover:border-primary/70 hover:bg-primary/[0.12] relative flex flex-col gap-1.5 rounded-xl border p-3 shadow-[inset_0_1px_0_oklch(1_0_0_/_0.08)] transition-colors">
+    <li className="border-primary/45 bg-primary/[0.07] hover:border-primary/70 hover:bg-primary/[0.12] relative flex flex-col gap-1.5 rounded-xl border p-3 shadow-[inset_0_1px_0_var(--ds-surface-glass-default)] transition-colors">
       {/*
         `flex-wrap` + `ms-auto` NO es decoracion: a 320 px la tarjeta mide unos
         138 px y «0000» junto a «Disponible» no cabe en una linea. Sin el
@@ -72,7 +72,7 @@ export function CatalogTicketCard({
         numero —lo unico que de verdad hay que leer— quedaba cortado.
       */}
       <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
-        <p className="font-mono text-2xl leading-none font-semibold tabular-nums text-white">
+        <p className="text-foreground font-mono text-2xl leading-none font-semibold tabular-nums">
           <span className="sr-only">Número diario </span>
           {dailyNumber}
         </p>
@@ -105,7 +105,7 @@ export function CatalogTicketCard({
         */}
         <Badge
           variant="secondary"
-          className="ms-auto px-1.5 py-px text-[0.6875rem] leading-[1.3] max-[376px]:absolute max-[376px]:end-2.5 max-[376px]:top-2.5 max-[376px]:ring-secondary/20 max-[376px]:size-2 max-[376px]:p-0 max-[376px]:ring-2"
+          className="bg-status-success-surface text-status-success-text border-status-success-border max-[376px]:bg-status-success-icon max-[376px]:ring-status-success-icon/20 ms-auto border px-1.5 py-px text-[0.6875rem] leading-[1.3] max-[376px]:absolute max-[376px]:end-2.5 max-[376px]:top-2.5 max-[376px]:size-2 max-[376px]:p-0 max-[376px]:ring-2"
         >
           <span className="max-[376px]:sr-only">Disponible</span>
         </Badge>
@@ -117,7 +117,7 @@ export function CatalogTicketCard({
         <span className="font-mono tabular-nums">{weeklyNumber}</span>
       </p>
 
-      <Button asChild size="sm" className="mt-1 h-11 w-full md:h-9">
+      <Button asChild size="touch" className="mt-1 w-full">
         {/*
           Un enlace normal, no una accion: abrir WhatsApp no registra una venta,
           no cambia el estado de la boleta, no crea un cliente y no reserva

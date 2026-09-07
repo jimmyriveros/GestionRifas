@@ -56,10 +56,10 @@ export function CatalogHeader({
   const { titleDocked, searchDocked } = useCatalogSticky()
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-[oklch(0.145_0.035_292_/_0.94)] pt-[env(safe-area-inset-top,0px)] backdrop-blur-md">
+    <header className="border-border-glass bg-background/94 sticky top-0 z-40 border-b pt-[env(safe-area-inset-top,0px)] backdrop-blur-md">
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-2 px-4 sm:gap-3">
         <span
-          className="ring-primary/40 flex size-9 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(140deg,oklch(0.6_0.24_298),oklch(0.42_0.2_285))] text-xs font-semibold text-white ring-1"
+          className="ring-primary/40 text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(140deg,var(--ds-brand-default),var(--ds-brand-hover))] text-xs font-semibold ring-1"
           aria-hidden
         >
           {initialsFor(sellerName)}

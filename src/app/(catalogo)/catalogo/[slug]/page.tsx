@@ -161,7 +161,7 @@ export default async function PublicCatalogPage({
             «Solicitar» no separa la boleta. Va al final y no dentro de cada
             tarjeta, para decirlo una vez en lugar de cincuenta.
           */}
-          <p className="text-muted-foreground mx-auto mt-10 flex max-w-2xl items-start justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center text-xs text-pretty">
+          <p className="text-muted-foreground border-border-glass bg-surface-glass-subtle mx-auto mt-10 flex max-w-2xl items-start justify-center gap-2 rounded-2xl border px-4 py-3 text-center text-xs text-pretty">
             <ShieldCheckIcon className="text-secondary mt-px size-4 shrink-0" aria-hidden />
             <span>
               Tocar «Solicitar» no aparta el número. {sellerShortName} te confirmará por WhatsApp si

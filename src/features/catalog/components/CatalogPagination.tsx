@@ -50,7 +50,8 @@ export function CatalogPagination({
           <Button
             asChild
             variant="outline"
-            className="h-11 border-white/15 bg-white/5 hover:bg-white/10 md:h-9"
+            size="touch"
+            className="border-border-glass bg-surface-glass-default hover:bg-surface-glass-strong"
           >
             <Link href={pageHref(page - 1, search)} prefetch={false}>
               <ChevronLeftIcon className="size-4" aria-hidden />
@@ -70,7 +71,8 @@ export function CatalogPagination({
           <Button
             asChild
             variant="outline"
-            className="h-11 border-white/15 bg-white/5 hover:bg-white/10 md:h-9"
+            size="touch"
+            className="border-border-glass bg-surface-glass-default hover:bg-surface-glass-strong"
           >
             <Link href={pageHref(page + 1, search)} prefetch={false}>
               Siguiente

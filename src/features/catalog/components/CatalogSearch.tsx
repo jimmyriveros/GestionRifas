@@ -66,7 +66,7 @@ export function CatalogSearch({ compact = false }: { compact?: boolean }) {
       // cifras, y obligar a cambiar de teclado en cada busqueda es un toque de
       // mas en la pantalla que mas se usa.
       inputMode="numeric"
-      size={compact ? 'default' : 'touch'}
+      size="touch"
       leadingIcon
       inputRef={inputRef}
       // En el encabezado, la pista NO reserva sitio: reservarlo haria crecer una
@@ -75,8 +75,8 @@ export function CatalogSearch({ compact = false }: { compact?: boolean }) {
       hintReservesSpace={!compact}
       className={
         compact
-          ? '[&_input]:h-10 [&_input]:border-white/20 [&_input]:bg-white/[0.06]'
-          : '[&_input]:border-white/20 [&_input]:bg-black/60 [&_input]:backdrop-blur-md md:[&_input]:h-11'
+          ? '[&_input]:border-border-glass-strong [&_input]:bg-surface-glass-default'
+          : '[&_input]:border-border-glass-strong [&_input]:bg-overlay-scrim [&_input]:backdrop-blur-md'
       }
       hint={catalogSearchHint(search.value) ?? search.hint}
     />
