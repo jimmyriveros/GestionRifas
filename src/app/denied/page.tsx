@@ -27,7 +27,7 @@ export default function DeniedPage() {
         <h1 className="text-xl font-semibold">Acceso denegado</h1>
         <p className="text-muted-foreground">No tienes permiso para ver esta página.</p>
       </div>
-      <Button asChild>
+      <Button asChild size="touch">
         <Link href="/">Ir a mi panel</Link>
       </Button>
     </div>

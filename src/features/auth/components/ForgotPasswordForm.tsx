@@ -55,6 +55,7 @@ export function ForgotPasswordForm() {
               <FormLabel>Correo electrónico</FormLabel>
               <FormControl>
                 <Input
+                  size="touch"
                   type="email"
                   autoComplete="email"
                   placeholder="tu@correo.com"
@@ -66,7 +67,7 @@ export function ForgotPasswordForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button type="submit" size="touch" className="w-full" disabled={isPending}>
           {isPending ? 'Enviando...' : 'Enviar enlace de recuperación'}
         </Button>
       </form>

@@ -52,6 +52,7 @@ export function ChangePasswordForm() {
               <FormLabel>Nueva contraseña</FormLabel>
               <FormControl>
                 <Input
+                  size="touch"
                   type="password"
                   autoComplete="new-password"
                   disabled={isPending}
@@ -70,6 +71,7 @@ export function ChangePasswordForm() {
               <FormLabel>Confirmar contraseña</FormLabel>
               <FormControl>
                 <Input
+                  size="touch"
                   type="password"
                   autoComplete="new-password"
                   disabled={isPending}
@@ -80,7 +82,7 @@ export function ChangePasswordForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" size="touch" disabled={isPending} className="w-full sm:w-auto">
           {isPending ? 'Guardando...' : 'Cambiar contraseña'}
         </Button>
       </form>

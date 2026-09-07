@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 
+import { Notice } from '@/components/feedback/Notice'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 import { dashboardPathForRole } from '@/lib/auth/guards'
@@ -35,9 +36,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       </CardHeader>
       <CardContent>
         {params.message === 'password_updated' ? (
-          <p className="bg-success/10 text-success mb-4 rounded-md px-3 py-2 text-sm">
-            Tu contraseña se actualizó correctamente. Ingresa con ella.
-          </p>
+          <div className="mb-4">
+            <Notice tone="success">
+              Tu contraseña se actualizó correctamente. Ingresa con ella.
+            </Notice>
+          </div>
         ) : null}
         <LoginForm next={params.next} initialError={initialError} />
       </CardContent>

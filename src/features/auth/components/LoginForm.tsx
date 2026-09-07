@@ -66,6 +66,7 @@ export function LoginForm({ next, initialError }: LoginFormProps) {
               <FormLabel>Correo electrónico</FormLabel>
               <FormControl>
                 <Input
+                  size="touch"
                   type="email"
                   autoComplete="email"
                   placeholder="tu@correo.com"
@@ -94,6 +95,7 @@ export function LoginForm({ next, initialError }: LoginFormProps) {
               </div>
               <FormControl>
                 <Input
+                  size="touch"
                   type="password"
                   autoComplete="current-password"
                   disabled={isPending}
@@ -105,7 +107,7 @@ export function LoginForm({ next, initialError }: LoginFormProps) {
           )}
         />
 
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button type="submit" size="touch" className="w-full" disabled={isPending}>
           {isPending ? 'Ingresando...' : 'Ingresar'}
         </Button>
       </form>

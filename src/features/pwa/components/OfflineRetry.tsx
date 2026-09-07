@@ -44,7 +44,7 @@ export function OfflineRetry() {
   }, [])
 
   return (
-    <Button asChild disabled={retrying} className="h-11 sm:h-9">
+    <Button asChild size="touch" disabled={retrying}>
       <Link
         href="/"
         onClick={(event) => {

@@ -548,10 +548,11 @@ Risk is relative and argued, **not** an hour estimate.
 > control sizing. The original seven-wave architecture is unchanged.
 > **ALL SEVEN ORIGINAL WAVES ARE COMPLETE AND APPROVED**, together with the inserted reconciliation
 > waves 3A/3B·4.5·6.5·6.6. The **Clientes Seller pilot succeeded** (§10.25) with zero Core defects.
-> **ROLLOUT R1 is COMPLETE AND APPROVED** (§10.27). **ROLLOUT R2 — RAFFLES is EXECUTED** (§10.28),
-> uncommitted and awaiting review: four routes, three changes, zero Core changes, and the first
-> evidence that the Patterns transfer to a different product domain. **NEXT: ROLLOUT R3 — ACCOUNT /
-> AUTH / UTILITY, NOT AUTHORIZED**, previewed at the end of §10.28.
+> **ROLLOUTS R1 and R2 are COMPLETE AND APPROVED** (§10.27, §10.28). **ROLLOUT R3 — ACCOUNT / AUTH /
+> UTILITY is EXECUTED** (§10.29), uncommitted and awaiting review: six routes, thirteen changes, zero
+> Core changes, the first rollout outside the application shell and the first with **real route visual
+> QA**. It raises one **NEW PATTERN CANDIDATE — Focused System State**, deliberately not formalized.
+> **NEXT: ROLLOUT R4 — REPORTS, NOT AUTHORIZED**, previewed at the end of §10.29.
 
 ---
 
@@ -2912,6 +2913,275 @@ exactly as the preflight recorded — R1 and R2 gave no reason to move it earlie
 
 ---
 
+### 10.29 ROLLOUT R3 — ACCOUNT / AUTH / UTILITY (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+**7 production files, 13 changes, zero Core changes.** The first rollout **outside the application
+shell** — and the first with **real route visual QA**, because these screens render without database
+data.
+
+#### Scope, confirmed against the repository
+
+| Route | File |
+|---|---|
+| Change password | `src/app/(protected)/account/password/page.tsx` |
+| Login | `src/app/(public)/login/page.tsx` |
+| Forgot password | `src/app/(public)/forgot-password/page.tsx` |
+| Reset password | `src/app/(public)/reset-password/page.tsx` |
+| Access denied | `src/app/denied/page.tsx` |
+| Offline | `src/app/offline/page.tsx` |
+
+Six routes, exactly as the inventory predicted.
+
+#### Blocker gate — clean, with one thing the palette regex could not see
+
+Zero hardcoded palette, zero local control overrides, and Progress, compact Notice consumers, Lottery
+presentation, `RecentActivityCard`, `PaymentProgressBar` and `StatusBadge` are all **NOT REACHABLE**.
+
+**But the gate found something a palette scan misses.** The login page painted its success message
+with the **legacy `--success` / `--warning` token pair** recorded as debt in
+§7 ("one definition must win"). Those are not primitive palette classes, so no palette regex would
+ever have caught them. Login was the **only consumer in the entire product**.
+
+It was not a blocker: the responsibility already has an approved owner in `status/success/*`, and the
+fix was composition-level. See below.
+
+#### Per-route result
+
+| Route | Result |
+|---|---|
+| **Login** | **2 changes** — submit and both inputs to `touch`; the success message became a `Notice` |
+| **Forgot password** | **2 changes** — submit and input to `touch` |
+| **Reset password** | **2 changes** — submit and both inputs to `touch` |
+| **Change password** | **2 changes** — submit to `touch` and full-width below `sm`; both inputs to `touch` |
+| **Denied** | **1 change** — the recovery action to `touch` |
+| **Offline** | **1 change** — `h-11 sm:h-9` replaced by the semantic `touch` size |
+
+Every auth submit was **36px on a phone** while being the single most important target on its screen.
+Unlike a table row action, there is no larger target behind it. `size="touch"` is the existing
+capability, so no route-local height was added anywhere.
+**APPROVED FORM PATTERN CARRY-OVER + ACCESSIBILITY COMPOSITION CORRECTION.**
+
+`OfflineRetry` was already touch-safe but said so with a raw `h-11 sm:h-9`; it now says it with the
+capability. Same rendered height, one less route-local override.
+
+Already satisfied, untouched: every auth form already had verb-specific progress labels
+("Ingresando…", "Enviando…", "Guardando…"), per-field `FormMessage`, label association and
+`aria-invalid`. **No validation copy was invented and no authentication logic was touched.**
+
+#### The legacy success token — closed by attrition
+
+The login success message now uses **`Notice tone="success"`** with the copy unchanged. This is not
+"every auth message becomes a Notice": it is an inline contextual message inside a larger composition
+(the login card), sitting above the form and explaining why you are back here and what to do. The
+page's **main** message is still its `CardTitle`, which was left alone.
+
+Consequence, re-verified at the checkpoint: **`--success` / `--warning` have ZERO consumers
+product-wide** — the grep returns nothing and both utilities are absent from the compiled bundle,
+while the 8 variable definitions remain in place.
+
+**Classified: DEAD COMPATIBILITY TOKENS · VERIFIED ZERO CONSUMERS · REMOVAL DEFERRED TO CLEANUP.**
+They were **not deleted**: Core stays frozen during product rollout, and cleanup is not rollout scope.
+This closes the §7 "one definition must win" entry — the question is now only when to remove them.
+
+#### Auth shared composition — NO-OP
+
+`(public)/layout.tsx` already provides the shared shell: centred, `min-h-svh`, `max-w-sm`,
+safe-area-aware padding. Each of the three auth routes is a `Card` with
+`CardHeader` / `CardTitle` / `CardDescription` / `CardContent`. **That is the shared composition, and
+it already exists** — there is no duplicated layout and **no `AuthLayout` abstraction was created**.
+
+`PageHeader` was correctly **not** forced onto any shell-less route. `account/password` does use it,
+and should: it is an authenticated application page, not a focused auth screen.
+
+#### Denied and Offline — NEW PATTERN CANDIDATE, deliberately not formalized
+
+The two screens share an identical architecture, and — the part that matters — a genuine shared
+**responsibility**:
+
+```
+min-h-svh, centred, text-center
+  decorative icon (aria-hidden)
+  h1  ·  the state
+  p   ·  why, in one sentence
+  exactly one recovery action
+```
+
+| | Denied | Offline |
+|---|---|---|
+| State reported | authorisation — authenticated but not permitted | connectivity / environment |
+| Chosen by the user? | no | no |
+| Recovery | "Ir a mi panel" | "Reintentar" |
+| Level | application-level state reached by route | application-level, served by the service worker |
+| Entity involved | none | none |
+
+Both **interrupt an intended navigation to report a system state the user did not choose, explain it
+in one sentence, and offer exactly one way out.** Neither is an entity, so neither is a
+`StatusBadge`; neither is inline context inside a larger composition, so neither is a `Notice`.
+
+**APPROVED AND FORMALIZED 2026-09-06 as `Pattern / Focused System State`** — see §10.30. Both
+screens are recorded as **proven instances**, and their legitimate semantic differences are preserved:
+**Offline is not repainted as an error**, and neither screen is forced onto a Status role merely
+because it reports a system state.
+
+This is **not** "Pattern / Error Page". They are not grouped because both look sparse — offline is not
+an error, it is an environment state, and denied is an authorisation outcome. The evidence is shared
+responsibility, and the two states are deliberately **not** mapped onto `status/error`.
+
+#### Real route visual QA — performed
+
+**This is the first rollout where the actual routes were rendered**, because auth and utility screens
+need no database rows. Measured on the running dev server, not a harness:
+
+| Route | 375 | 768 / 1600 |
+|---|---|---|
+| `/login?message=password_updated` | submit **44px** (293px wide), email **44px**, password **44px** | **36px**, card fixed at **384px** and not stretching at 1600 |
+| `/forgot-password` | submit **44px**, input **44px**, back link present | 36px |
+| `/denied` | action **44px**, `h1` "Acceso denegado", icon `aria-hidden`, 2 focusables | — |
+| `/offline` | action **44px**, `h1` "Estás sin conexión", 2 focusables | — |
+
+The `Notice` on the real login route: Light `#d0fae5` on `#004f3b` = **8.47:1**; Dark `#002c22` on
+`#a4f4cf` = **11.87:1** — matching the Wave 6.5B measurements exactly, with **no `role` and no
+`aria-live`**, which is correct for a message rendered already-true on load.
+
+**Dark had to be forced by class**, not by the colour-scheme media query: this app themes by a `.dark`
+class, so emulating `prefers-color-scheme` alone does not flip it. Worth recording for future QA.
+
+> **A measurement of mine was wrong before it was right.** The Dark submit button first read 3.98:1,
+> which would have been a Core defect. It was a parser artifact — the computed colour is
+> `oklab(0.984998 …)` and my regex read the lightness `0.98` as a red channel. Resolved properly
+> through a canvas, it is `rgb(250,250,250)` on `rgb(13,125,45)` = **5.04:1, passing**. **No Core
+> defect exists**; the brand button is fine.
+
+#### Accessibility
+
+Icons on both utility screens are `aria-hidden`, each screen has a real `<h1>`, reading order is
+icon → heading → explanation → action, and every screen's only interactive elements are genuine
+controls — no focusable containers, no fake clickable cards, no autofocus added. Errors were **not**
+mechanically converted to `role="alert"`: the existing behaviour was left as it is, because these
+forms already associate errors to fields and the auth error is rendered on load rather than injected
+mid-interaction.
+
+`denied` remains prerendered without JavaScript, which its own comment documents as deliberate and
+safe — its only interactive element is a link. **Adding `size="touch"` does not change that**: it is a
+class, not a script.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` · `lint` · `test` · `build` | **all pass** — 0 errors, 0 lint errors (same 2 pre-existing warnings), **791 tests / 47 files** |
+| Compiled selectors, clean build vs clean build | **zero added · two removed** — the two legacy success utilities |
+| **Hardcoded palette in the R3 tree** | **ZERO**, before and after |
+| **Core components changed** | **ZERO** |
+| `prettier` | the files I changed that are LF are clean. Four flagged files are **CRLF-only** objections — the repo-wide condition, verified by normalising `denied/page.tsx` and re-checking |
+| **REAL ROUTE VISUAL QA** | **PERFORMED** on `/login`, `/forgot-password`, `/denied`, `/offline` at 375 / 768 / 1600, Light and Dark |
+| Data-backed routes | `account/password` and `reset-password` need a session, so they were **not** rendered — source-verified only. No production-data validation is claimed for those two |
+
+#### Result
+
+Every R3 success criterion passes. **No new debt.** One recorded debt item moved from open to
+provably dead, and one Pattern candidate was raised with evidence rather than invented.
+
+---
+
+#### Next rollout group — preview only, NOT AUTHORIZED
+
+The inventory was re-audited at current HEAD rather than assumed. The three remaining candidates:
+
+| Candidate | Routes | Palette | Reachable debt | Compact notices |
+|---|---|---|---|---|
+| **Reports** | **2** | **ZERO** | **none** | **0** |
+| Payments | 3 | 1 (`PaymentDetailDialog`) | `TOUCH_FIELD` ×4 | 0 |
+| People | 5 | 3 | `CommissionCard` progress | **3** |
+
+**R4 · REPORTS** — `owner/reports`, `seller/reports`.
+
+| Question | Answer |
+|---|---|
+| Product area | Reporting, both portals |
+| Primary Pattern | **None of the three proven ones fits cleanly.** It is a data-dense, filter-driven read-only surface |
+| Reachable debt | **None** — zero palette; only `DataTablePagination`, already compliant |
+| Blockers | **None** |
+| Prerequisite needed | **No** |
+| Compact Notice relevant? | **No** — zero compact consumers reachable |
+| Progress relevant? | **No** |
+| **Design System gap likelihood** | **HIGH — and that is the point.** Reports is the first group likely to produce a **class D** finding rather than a composition correction |
+| Risk | **LOW-MEDIUM** — low blast radius, but it may end in a Pattern decision rather than code |
+
+**Why Reports next:** it is the last group with zero blockers, so it can run without any prerequisite,
+and it is the one most likely to tell us whether the Pattern set is *complete* or missing a
+data-dense reporting shape. Better to learn that on two clean routes than to discover it inside
+Tickets or Dashboards, where it would be tangled with Progress, Bulk Selection and Lottery debt.
+
+**Payments and People both now need a decision first.** People reaches the compact Notice cluster (3
+consumers) and `CommissionCard`'s progress bar; Payments reaches `PaymentForm`'s `TOUCH_FIELD` and one
+palette occurrence. Neither is blocked *by R3*, but both would pull a deferred decision into a route
+rollout, which the rollout rules forbid.
+
+---
+
+### 10.30 PATTERN / FOCUSED SYSTEM STATE (2026-09-06 · **FORMALIZED AND APPROVED**)
+
+A new Pattern, created from R3 evidence rather than from resemblance.
+
+**Figma:** page `02 — Components`, at (17100, 8950), beside `Notice`. A single component with **no
+variant axis**.
+
+#### Responsibility
+
+The screen **itself** reports a system state: an intended navigation or workflow cannot continue
+because of a state the user did not deliberately choose. The screen explains that state and, where
+one exists, offers the way out.
+
+#### Contract
+
+| Region | Status |
+|---|---|
+| Semantic heading carrying the state | **REQUIRED** |
+| Supporting explanation | **REQUIRED** |
+| Decorative icon | **OPTIONAL** |
+| Primary recovery action | **ZERO OR ONE** — some system states have no way out from the screen itself |
+
+Properties: `Heading`, `Explanation`, `Show icon`, `Icon`, `Show recovery action`, `Action label`.
+
+**Deliberately absent**, and not to be added without real evidence: a secondary-action slot, a
+toolbar, a filter area, size variants, dismiss behaviour, and `PageHeader` — this is a shell-less
+screen, and `PageHeader` is an application-page composition.
+
+#### No tone axis
+
+There is **no Error / Warning / Info / Neutral variant.** `/offline` proves these states are not
+universally errors: being offline is an environment condition, not a failure, and `/denied` is an
+authorisation outcome. **The Pattern owns composition and responsibility, not a severity taxonomy**;
+any semantic colour comes from the screen's own context.
+
+#### Boundaries
+
+| It is not | Because |
+|---|---|
+| **Notice** | a Notice is persistent inline context *inside* a larger composition; here the route itself is the message |
+| **StatusBadge** | that names a compact **entity** state, and no entity is involved |
+| **AlertDialog** | that is a modal decision |
+| **Toast** | that is transient |
+
+These contracts must not be reused merely because they can share a semantic colour.
+
+#### Proven instances
+
+| Screen | State | Recovery |
+|---|---|---|
+| `/denied` | authenticated but not permitted — an authorisation outcome | "Ir a mi panel" |
+| `/offline` | no connectivity — an environment condition | "Reintentar" |
+
+#### No code component yet
+
+**`FocusedSystemState.tsx` was deliberately NOT created.** Both screens remain compositions of
+existing primitives, and a reusable component needs evidence this Pattern does not yet have: repeated
+markup causing divergence, meaningful shared behaviour, or a third recurring consumer.
+**A Pattern is not a mandatory React abstraction.**
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
@@ -2937,7 +3207,8 @@ exactly as the preflight recorded — R1 and R2 gave no reason to move it earlie
 | **Wave 7 commit** | **`4232028a872c77bc675ebc6294672d15842354e8`** (`4232028`) — `feat(design-system): complete clientes seller pilot`, 5 files |
 | **Rollout preflight commit** | **`bf44fe3d2ca3ff950c51ee8aeaa19a3d5d3b360d`** (`bf44fe3`) — `docs(design-system): record post-pilot rollout plan`, this handoff only |
 | **Rollout R1 commit** | **`606bd8ca3606c8a4f0bfb68575c593981b3d03ad`** (`606bd8c`) — `feat(design-system): migrate owner clients to proven patterns`, 2 files |
-| **Rollout R2 commit** | `feat(design-system): migrate raffles to proven patterns` — 3 files. Hash recorded in the R3 pass below |
+| **Rollout R2 commit** | **`9eada2dd59b8917423e11af73b7ba99f01b36381`** (`9eada2d`) — `feat(design-system): migrate raffles to proven patterns`, 3 files |
+| **Rollout R3 commit** | `feat(design-system): migrate auth and utility flows` — 8 files. Hash recorded in the R4A pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

@@ -58,6 +58,7 @@ export function ResetPasswordForm() {
               <FormLabel>Nueva contraseña</FormLabel>
               <FormControl>
                 <Input
+                  size="touch"
                   type="password"
                   autoComplete="new-password"
                   disabled={isPending}
@@ -76,6 +77,7 @@ export function ResetPasswordForm() {
               <FormLabel>Confirmar contraseña</FormLabel>
               <FormControl>
                 <Input
+                  size="touch"
                   type="password"
                   autoComplete="new-password"
                   disabled={isPending}
@@ -86,7 +88,7 @@ export function ResetPasswordForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button type="submit" size="touch" className="w-full" disabled={isPending}>
           {isPending ? 'Guardando...' : 'Guardar nueva contraseña'}
         </Button>
       </form>
