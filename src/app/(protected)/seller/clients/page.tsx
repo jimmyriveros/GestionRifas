@@ -48,7 +48,13 @@ export default async function SellerClientsPage({ searchParams }: { searchParams
         }
       />
 
-      <ClientFilters />
+      {/*
+        Cuando todavia no hay ni un cliente no hay nada que filtrar, y una
+        barra de busqueda vacia encima de «Todavia no tienes clientes» solo
+        estorba. Con filtros puestos SI se queda: es el unico camino de vuelta
+        cuando la busqueda escondio todo.
+      */}
+      {rows.length > 0 || hasFilters ? <ClientFilters /> : null}
 
       {rows.length === 0 ? (
         <EmptyState

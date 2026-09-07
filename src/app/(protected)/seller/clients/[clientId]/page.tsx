@@ -54,7 +54,7 @@ export default async function SellerClientDetailPage({
         backHref="/seller/clients"
         compactAction={
           canRegisterPayment ? (
-            <Button asChild className="h-11 w-full sm:h-9 sm:w-auto">
+            <Button asChild size="touch" className="w-full sm:w-auto">
               <Link
                 href={newPaymentHref}
                 // En pantalla dice «Registrar abono», que es lo que cabe en un
@@ -69,7 +69,7 @@ export default async function SellerClientDetailPage({
         }
         actions={
           <>
-            <Button asChild variant="outline" className="h-11 grow sm:h-9 sm:grow-0">
+            <Button asChild variant="outline" size="touch" className="grow sm:grow-0">
               <Link href={`/seller/clients/${client.id}/edit`}>
                 <PencilIcon className="size-4" aria-hidden />
                 Editar
@@ -80,7 +80,8 @@ export default async function SellerClientDetailPage({
               clientName={client.name}
               archived={archived}
               ticketsCount={client.ticketsCount}
-              className="h-11 grow sm:h-9 sm:grow-0"
+              size="touch"
+              className="grow sm:grow-0"
             />
           </>
         }

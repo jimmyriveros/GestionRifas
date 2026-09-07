@@ -16,7 +16,9 @@ type ClientArchiveButtonProps = {
   archived: boolean
   /** Boletas asignadas: se avisa de que el historial se conserva. */
   ticketsCount: number
-  /** La ficha del cliente le da el alto y el ancho que necesita el telefono. */
+  /** Alto del boton. La ficha del cliente pide `touch` en el telefono. */
+  size?: React.ComponentProps<typeof Button>['size']
+  /** La ficha del cliente le da el ancho que necesita el telefono. */
   className?: string
 }
 
@@ -26,6 +28,7 @@ export function ClientArchiveButton({
   clientName,
   archived,
   ticketsCount,
+  size,
   className,
 }: ClientArchiveButtonProps) {
   const router = useRouter()
@@ -52,6 +55,7 @@ export function ClientArchiveButton({
         variant="outline"
         onClick={() => setOpen(true)}
         disabled={isPending}
+        size={size}
         className={className}
       >
         {archived ? (

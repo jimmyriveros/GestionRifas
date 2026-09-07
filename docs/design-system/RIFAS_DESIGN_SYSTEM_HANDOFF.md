@@ -546,8 +546,8 @@ Risk is relative and argued, **not** an hour estimate.
 > **Waves 6.5A, 6.5B and 6.6 were INSERTED** to close the Notice component gap and then the three
 > cross-system prerequisites the Wave 7 preflight found: muted-text contrast, input borders and touch
 > control sizing. The original seven-wave architecture is unchanged.
-> **NEXT: WAVE 7 — PATTERNS & PILOT SCREEN (Clientes, Seller portal). NOT AUTHORIZED.** Its refreshed
-> preflight is §10.23: all three blockers are closed and the pilot reads READY.
+> **WAVE 7 — PATTERNS & PILOT SCREEN (Clientes, Seller portal) is EXECUTED** (§10.25), uncommitted and
+> awaiting review. All seven original waves have now run.
 
 ---
 
@@ -2217,6 +2217,209 @@ contract gaps whose consumers currently resolve to the right value anyway.
 
 ---
 
+### 10.25 WAVE 7 — PATTERNS & PILOT SCREEN · CLIENTES SELLER (2026-09-06 · **COMPLETED AND APPROVED · PILOT SUCCESSFUL** · commit in §11)
+
+**4 production files, 4 composition changes, zero new CSS.** The pilot's job was to prove the system
+composes — not to generate churn. Most of it was already right.
+
+#### The routes
+
+| Role | File |
+|---|---|
+| List | `src/app/(protected)/seller/clients/page.tsx` |
+| Detail | `src/app/(protected)/seller/clients/[clientId]/page.tsx` |
+| Create | `src/app/(protected)/seller/clients/new/page.tsx` |
+| Edit | `src/app/(protected)/seller/clients/[clientId]/edit/page.tsx` |
+
+#### List Page — 1 change
+
+| Responsibility | Result |
+|---|---|
+| Page header, title, description, primary action | **ALREADY SATISFIED** — uses `PageHeader` with `inlineActions` + `compactAction` |
+| Search and filters | **ALREADY SATISFIED** — `ClientFilters` |
+| Data region, pagination | **ALREADY SATISFIED** — `ClientsList` + `DataTablePagination`, counted as "clientes" |
+| Empty dataset vs no results | **ALREADY SATISFIED** — `hasFilters` drives title, description **and** the action: "Crear mi primer cliente" appears only when nothing is filtered |
+| **Toolbar in the empty-dataset state** | **CHANGED** |
+
+The Pattern is explicit: *"the toolbar DISAPPEARS in Sin datos — there is nothing to filter when
+nothing exists — but stays in Sin resultados, because the user must be able to clear the filter that
+hid everything."* Production rendered `ClientFilters` unconditionally, so a brand-new seller met a
+search box above "Todavía no tienes clientes". It is now rendered when there are rows **or** filters
+are set — which keeps it exactly where the contract requires it, in Sin resultados.
+**APPROVED PATTERN COMPOSITION CORRECTION.**
+
+#### Desktop table — NO-OP
+
+Columns are Cliente · Teléfono · Vendedor · Boletas · Comprado · Pagado · Saldo · Estado, with
+`ClientStatusBadge` in Estado and numeric columns already right-aligned and tabular. Real entity
+semantics, nothing to redesign. **The table was not narrowed to resemble a mockup.**
+
+#### Mobile list / record — NO-OP, with one finding
+
+At 375 the card leads with the client's name as a `RowLink`, carries a `RowChevron` affordance, and
+shows `Boletas` and `Saldo` as a stat pair. Identity is immediate, the record opens, critical
+metadata survives, secondary metadata is demoted, and there is no horizontal scroll. **Satisfies the
+Pattern.**
+
+**APPROVED RESPONSIVE REPRESENTATION DIFFERENCE.** The desktop table uses `ClientStatusBadge`
+(Neutral); the mobile card writes "Archivado" as muted text. Approved 2026-09-06 as a responsive
+density decision, not debt. The requirements it must keep meeting: the state label stays **visible**,
+it is **never colour alone**, and it is understandable without having seen the desktop
+representation — all three hold. **A StatusBadge must not be added to the mobile card for visual
+symmetry**; it would grow every card on the most constrained surface to restate a fact already there.
+
+#### Detail Page — 1 change, 1 conflict reported
+
+| Responsibility | Result |
+|---|---|
+| Back, identity, status beside the title, compact action | **ALREADY SATISFIED** — `backHref`, `title`, `titleBadge`, `compactAction` |
+| Notice for the archived state | **ALREADY SATISFIED** (Wave 6.5B), Neutral, directly under the header |
+| Record's own facts, related data | present, but see the conflict below |
+| **Route-local control heights** | **CHANGED** |
+
+The three header buttons carried `h-11 … sm:h-9` as raw classes — a route-local restatement of a
+capability `Button` has had since Wave 3A. They now use `size="touch"`, and `ClientArchiveButton`
+gained a `size` passthrough so the route no longer expresses a control height at all. The width and
+`grow` classes stay: those are layout, not control size.
+**APPROVED ACCESSIBILITY COMPOSITION CORRECTION**, and it removes the last control override in the
+pilot routes.
+
+**CONFLICT REPORTED — card density contradicts a recorded product decision.** The Detail Page Pattern
+says *"NOT OVER-CARDED. Exactly ONE container, around the record's own facts… wrapping a table in a
+card would be a box inside a box."* The shipped page has **seven** card containers: `ClientInfoCard`
+(one), `ClientTotals` (four `KpiCard`s) and two `TableSection`s.
+
+`TableSection` is **D-113**, an accepted decision whose own docstring records the evidence: without
+it, *"dos tablas seguidas con un `h2` suelto encima se leen como una sola lista larga."*
+
+**RESOLVED 2026-09-06 — the contract wording was wrong, not the code.** D-113 stands, unrevisited,
+and **no wrapper was added** to the client detail. The Pattern said *"exactly ONE container"*, which
+conflated **page-level composition** with **semantic subcontainers**; taken literally it would have
+demanded a single box around an entire record page to satisfy a documentation artifact. The contract
+now reads **ONE PRIMARY PAGE COMPOSITION**: avoid generic card-per-section fragmentation, but allow
+semantic subcontainers that carry a distinct component responsibility, group meaningful data, or
+solve a verified usability problem. Metric/KPI cards, `TableSection` and `Notice` are first-class
+Design System compositions and are **not counted** against fragmentation. Client detail is accepted
+exactly as it stands, and `KpiCard` was neither flattened nor restyled.
+
+The D-113 rule is now recorded in the Pattern itself: *adjacent related tables may remain in separate
+`TableSection` containers when their boundaries and headings are what stop them reading as one
+continuous list.* That is specific and evidence-backed — **not** permission for unlimited cards.
+
+#### Create / Edit — NO-OP, and the shared-composition question answered
+
+Both routes are thin wrappers around the **same** `ClientForm`; they differ only in the page header
+and whether a `client` prop is passed. **There is no duplicated layout at all** — the abstraction is
+already correct, so nothing was consolidated and no refactor was performed.
+
+#### Form — 2 changes
+
+| Requirement | Result |
+|---|---|
+| Single constrained column, `max-w-xl`, 20px rhythm | **ALREADY SATISFIED** — `max-w-xl space-y-5` is exactly the contract |
+| Inline actions, submit then cancel, no sticky bar | **ALREADY SATISFIED** |
+| Validation said twice, never colour alone | **ALREADY SATISFIED** — form-level banner with `role="alert"`, plus per-field `FormMessage`, `aria-invalid` on the control and an error-coloured label |
+| **Mobile actions full-width and 44px** | **CHANGED** |
+| **Verb-specific progress label** | **CHANGED** |
+
+The actions were default-size and auto-width, so on a phone the submit button was a small target at
+the end of a scrolled form. Both now use `size="touch"` with `w-full sm:w-auto`: 44px and full width
+below `sm`, unchanged from `sm` up. And the submit label said "Guardando…" for both verbs; creating a
+client now says **"Creando…"**, matching the contract and the rest of the product.
+**APPROVED PATTERN + ACCESSIBILITY COMPOSITION CORRECTIONS.**
+
+#### Page Header and action hierarchy — NO-OP
+
+No custom route header exists; every route uses `PageHeader`'s own API and only the capabilities it
+needs — list uses `inlineActions` + `compactAction`, detail adds `backHref`, `titleBadge` and
+`actions`, create uses title + description, edit uses title + `backHref`. Hierarchy is unambiguous on
+every screen: exactly **one** filled primary action, secondaries as outlines. Nothing critical is
+hidden to shorten the header.
+
+#### Status / Notice / metadata hierarchy — NO-OP
+
+Each component does its own job and they are not stacked for decoration: `ClientStatusBadge` states
+the entity's state beside the title, the `Notice` explains what that state *implies* for the screen,
+muted text carries supporting metadata, and Product Data stays quantitative. The badge-plus-notice
+pair on an archived client is **not** redundant — one names the state, the other says the client will
+not appear when assigning tickets and that history is kept. Different purposes, so both stay.
+
+#### Responsive — measured, not asserted
+
+| Width | Result |
+|---|---|
+| **375** | Form actions **44px, full width**; detail primary action 44px full width; the two secondaries share a row at 44px; "Creando…" renders |
+| **768** | All actions return to **36px, auto width**; the table ↔ card switch is at the existing `md` strategy and was not touched |
+| **1360** | 36px, auto width, no overflow |
+| **1600** | Identical to 1360 |
+
+**No new breakpoint was invented for Clientes**, and the verified `md` table/card strategy is
+untouched.
+
+#### Themes
+
+Light and Dark both verified on the changed compositions — brand green, outline borders and text all
+resolve through tokens in both. **Catalog was not fabricated**: Clientes is a Seller workflow that
+never renders under `.catalog-theme`. No shared component changed in this wave alters a Catalog
+contract, since the only shared component touched is `ClientArchiveButton`, which is pilot-owned.
+
+#### Keyboard, focus and form accessibility
+
+DOM order matches visual order and submit precedes cancel. No non-interactive element is focusable,
+there is no `tabindex="-1"` trap, and every action is a real control. Labels are associated through
+`FormLabel`, errors through `FormMessage` and `aria-invalid`, and the invalid state carries a border
+**and** a message, never colour alone. Spanish copy is unchanged — no validation text was invented.
+Focus styling is untouched from the Wave 3A baseline; a programmatic harness cannot exercise
+`:focus-visible`, so that was verified as a rule in the compiled CSS rather than by simulated focus.
+
+#### Hardcoded palette gate
+
+**ZERO across the entire pilot tree** — all four routes and the twelve components they reach.
+Wave 7 introduced no primitive palette class.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` · `lint` · `test` · `build` | **all pass** — 0 type errors, 0 lint errors (same 2 pre-existing warnings), **791 tests / 47 files**, build compiled |
+| Compiled selectors, **clean build vs clean build** | **zero added, zero removed** — the composition changes reuse only utilities that already existed |
+| **DATA-BACKED VISUAL QA** | **NOT PERFORMED · ENVIRONMENT UNAVAILABLE · NON-BLOCKING FOR DESIGN SYSTEM PILOT APPROVAL.** Supabase was unavailable, so the real data-backed routes were never rendered end to end. What was used instead: the compiled stylesheet, a browser presentation harness with the real component markup, source inspection, and the test and build suites. The harness lived under a gitignored path and was deleted. **Carried forward as QA evidence still required before broad release or promotion** — no production-data visual validation is being claimed |
+
+> A note on an earlier measurement: `.collapse` appeared in one selector diff and was **not** a Wave 7
+> change. Incremental builds had been reusing a stale scan cache; a clean rebuild of the committed
+> Wave 6.6 state emits it too, from the pre-existing `--sidebar-width-collapsed` strings in
+> `globals.css`. All Wave 7 figures above are clean-build comparisons.
+
+#### PILOT VERDICT — SUCCESSFUL
+
+| Criterion | Result |
+|---|---|
+| List Page Pattern | **PASS** |
+| Detail Page Pattern | **PASS**, after the contract clarification above |
+| Form Pattern | **PASS** |
+| Desktop entity table | **PASS** |
+| Mobile List / Record | **PASS** |
+| Page Header composition | **PASS** |
+| Status + Notice composition | **PASS** |
+| Product Data composition | **PASS** |
+| Semantic controls | **PASS** |
+| Touch behaviour | **PASS** |
+| Keyboard / focus audit | **PASS** |
+| Hardcoded palette in the pilot | **ZERO** |
+| Pilot-only semantic or token hacks | **ZERO** |
+| **Core component or token defects exposed by composition** | **ZERO** |
+
+#### Remaining pilot debt
+
+* `DataTablePagination` keeps two `h-11 … md:h-8` overrides. It is a **shared** component and its
+  desktop size is `h-8`, which `Button`'s `touch` (44 → 36) does not express — converting would change
+  both the breakpoint and the desktop size globally. Not a defect; deferred.
+* The archived-state representation split described above.
+* `SearchInput`'s `touchSize` and `PaymentForm`'s `TOUCH_FIELD`, unchanged from Wave 6.6 and still
+  non-blocking.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
@@ -2238,7 +2441,8 @@ contract gaps whose consumers currently resolve to the right value anyway.
 | **Wave 6 commit** | **`2d8e4ac989f2180d29dd30cb89659e24ad9f2267`** (`2d8e4ac`) — `feat(design-system): adopt semantic product data visualization`, 11 files: the token layer, 9 consumers and this handoff |
 | **Wave 6.5A commit** | **`ddd147acd73100b2250bccbcbcbe869a540f5ba0`** (`ddd147a`) — `docs(design-system): define inline notice contract`, this handoff only |
 | **Wave 6.5B commit** | **`ab9549c0f500d86f19704623b99e92ee47b8ea59`** (`ab9549c`) — `feat(design-system): add semantic inline notice`, 6 files |
-| **Wave 6.6 commit** | `feat(design-system): reconcile pilot accessibility controls` — 10 files. Hash recorded in the Wave 7 pass below |
+| **Wave 6.6 commit** | **`05848c51d77bab52e72e4a0c845aa05e5c9daea3`** (`05848c5`) — `feat(design-system): reconcile pilot accessibility controls`, 10 files |
+| **Wave 7 commit** | `feat(design-system): complete clientes seller pilot` — 5 files: 4 pilot files and this handoff. Hash recorded in the rollout preflight below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

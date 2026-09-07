@@ -65,15 +65,29 @@ export function ClientForm({ client }: ClientFormProps) {
 
         <ClientFormFields form={form} disabled={isPending} />
 
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={isPending}>
-            {isPending ? 'Guardando...' : client ? 'Guardar cambios' : 'Crear cliente'}
+        {/*
+          En el telefono las dos acciones ocupan el ancho y miden 44 px, para
+          que enviar el formulario no dependa de acertar un boton pequeño al
+          final de la pagina. Desde `sm` vuelven a su tamaño de siempre, uno
+          al lado del otro. No hay barra fija: nada en el producto la usa.
+        */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button type="submit" size="touch" disabled={isPending} className="w-full sm:w-auto">
+            {isPending
+              ? client
+                ? 'Guardando...'
+                : 'Creando...'
+              : client
+                ? 'Guardar cambios'
+                : 'Crear cliente'}
           </Button>
           <Button
             type="button"
             variant="outline"
+            size="touch"
             onClick={() => router.back()}
             disabled={isPending}
+            className="w-full sm:w-auto"
           >
             Cancelar
           </Button>
