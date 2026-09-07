@@ -6707,7 +6707,7 @@ table action model without **current product evidence** of a real contradiction.
 | **Resume point commit** | **`5b2dd329f3ef5559344a669f7a417a7347e950be`** (`5b2dd32`) — `docs(design-system): add post-closure resume point`, this handoff only (§10.51). **Where a new session starts** |
 | **Closeout A commit** | **`00286687b1ee436f96f37e41e5e42518f5c57521`** (`0028668`) — `feat(design-system): complete final product adoption closeout`, 16 files: the two ticket detail routes, `TicketPaymentsCard`, the three clearance components, the import dialog, the three bulk selection files, the four ticket dialogs, `TourOverlay` and this handoff (§10.52). **No Core file, no new token, no new component** |
 | **Closeout B commit** | **`a7e9d0fc81171a4ee25d248797cbe9e68d2632e5`** (`a7e9d0f`) — `docs(design-system): close parity and accessibility qa`, this handoff only (§10.53). **No production code changed**; the work was two Figma writes and real-route QA |
-| **Closeout C commit** | `docs(design-system): complete post-closure closeout` — this handoff only (§10.54, §10.55). **No production code changed.** The final residue sweep and the closing status |
+| **Closeout C commit** | **`d25b0ac19ad6df7a2a3f8f69b8e9739063e48a79`** (`d25b0ac`) — `docs(design-system): complete post-closure closeout`, this handoff only (§10.54, §10.55). **No production code changed.** The final residue sweep and the closing status |
 | **Where a new session starts** | **§10.55**, not §10.51. The closeout is over; there is no next block |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
