@@ -229,7 +229,7 @@ export function TicketFilters({ raffles, sellers, clients, secondaryAction }: Ti
         onClear={search.clear}
         loading={search.showSpinner}
         showSubmitButton
-        touchSize
+        size="touch"
         hint={ticketSearchHint(search.value) ?? search.hint}
       />
 

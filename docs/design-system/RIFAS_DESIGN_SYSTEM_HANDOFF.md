@@ -567,7 +567,15 @@ Risk is relative and argued, **not** an hour estimate.
 > target, which became R6D, and **five detail-page section titles that were missing from the document
 > outline**, corrected across People *and* the previously approved raffle detail.
 > **No People route reaches any Progress consumer**, and `Search / Filters` was **not** promoted.
-> **R7 — PUBLIC CATALOG is the next candidate, audit first. It is NOT authorized.**
+> **R7A — PUBLIC CATALOG THEME & PATTERN AUDIT is COMPLETE** (§10.40), audit only and uncommitted.
+> It corrects the inventory: Catalog palette is **not** zero — the earlier count scanned for named
+> colour scales and this page uses raw white and black alphas — and the tokens that would replace
+> them **already exist with zero consumers**, exactly like the progress roles before R6B. It returns
+> **no new Pattern**, four contract decisions and one shared-component prerequisite.
+> **R7-PRE — SEARCH INPUT TOUCH RECONCILIATION is COMPLETE** (§10.41): the shared search field's
+> ad-hoc touch boolean is replaced by the `size` contract the rest of the system already uses, and
+> the ramp moves from the medium breakpoint to the small one. **R7B — PUBLIC CATALOG is in progress.
+> Dashboards remain deferred.**
 
 ---
 
@@ -4635,6 +4643,240 @@ heading-outline shape that Gate B corrected here.
 
 ---
 
+### 10.40 R7A — PUBLIC CATALOG THEME & PATTERN AUDIT (2026-09-07 · **COMPLETED AND APPROVED** · commit in §11)
+
+Audit only. **No production file was touched.**
+
+#### The route, and what it actually reaches
+
+| | |
+|---|---|
+| Route | **`/catalogo/[slug]`** — one page, plus its own not-found screen and a group layout |
+| Files reachable | **30**, walked from the route rather than assumed |
+| Shared Design System pieces reached | `EmptyState`, `Badge`, `Button`, `Input`, `Label`, and the shared search field |
+| **Not** reached | tables, pagination component, Notice, Status badges, every Product Data component, the linear progress bar, the dropdown menu |
+
+**The catalogue theme's reach is exactly one subtree.** The group layout puts the theme class on a
+single wrapper and nothing else in the product carries it, so every finding below is scoped to this
+page — and, symmetrically, **nothing here can affect Light or Dark**.
+
+#### FINDING 1 — the palette is not zero. The earlier count used the wrong net
+
+The rollout inventory has been reporting **zero palette debt** for Catalog. That number came from
+scanning for named colour scales, and this page does not use them: it uses **raw white and black
+alphas, and raw colour functions**.
+
+| Shape | Where |
+|---|---|
+| White alphas as borders — 10 %, 15 %, 20 % | the header, the summary card and its dividers, the pagination buttons, the search field, the footer note |
+| White alphas as surfaces — 3 %, 4 %, 5 %, 6 %, 10 % | the same places, plus the summary's decorative bar track |
+| A black alpha as a surface | the search field inside the hero |
+| A raw colour function as the header background | the sticky header |
+| Two raw multi-stop gradients | the seller avatar, and the summary's decorative bar fill |
+| Plain white as a text colour | the ticket number and the avatar initials |
+
+**Roughly 14 occurrences across 6 files.** Everything expressed through the semantic roles —
+`primary` and `secondary` with alpha, which the ticket card uses correctly — is **fine and not
+counted**: an alpha over a *token* is a legitimate composition, an alpha over a *literal* is not.
+
+#### FINDING 2 — the tokens for this already exist, and have never been used
+
+This is the `progress/*` story again. The token layer defines, **in all three scopes**:
+
+| Role | Catalogue-scope value |
+|---|---|
+| `border/glass` | white at **15 %** |
+| `border/glass-strong` | white at **20 %** |
+| `surface/glass-subtle` | white at **4 %** |
+| `surface/glass-default` | white at **6 %** |
+| `surface/glass-strong` | white at **10 %** |
+| `brand/gradient-start` · `brand/gradient-mid` · `brand/gradient-end` | the catalogue's own violet-to-lime ramp |
+
+All eight are exposed as utilities. **All eight have ZERO consumers.**
+
+And they line up with the hand-written values almost exactly: 15 % and 20 % borders, 4 %, 6 % and
+10 % surfaces. These roles were evidently designed **from this very screen** and then never adopted.
+**R7B's palette work is therefore adoption, not invention** — the lowest-risk shape a migration can
+have.
+
+The two exceptions are honest ones: the borders written at 10 % have no matching border role (the
+roles are 15 % and 20 %), and **the two raw gradients do not match the gradient roles' values**.
+Both need a decision rather than a mechanical swap.
+
+#### FINDING 3 — route-local heights on Core controls, at the wrong breakpoint
+
+Three places override a shared control's height locally:
+
+| Control | Override | DS capability that exists |
+|---|---|---|
+| The "Solicitar" button on every ticket card | 44 px, dropping to 36 px at the **medium** breakpoint | the Button's touch size — 44 px, dropping at the **small** breakpoint |
+| Both pagination buttons | same shape, plus hand-written glass colours | same |
+| The search field, in both of its placements | a fixed height in the header and another in the hero | the Input's touch size |
+
+This is the **same ad-hoc mechanism R5 removed from Payments**, including the same detail: it changes
+at the medium breakpoint while every migrated control in the product changes at the small one. So
+adopting the capability is **not visually inert** — it moves the 640–767 band from 44 px to 36 px,
+exactly the ledger R5 recorded and approved.
+
+#### FINDING 4 — a shared-component question that is not Catalog's to fix
+
+The shared search field carries its **own ad-hoc touch boolean**, again keyed to the medium
+breakpoint. It is reached by **Catalog, Clientes and Tickets**, so it is a shared-primitive question
+of the same kind the dropdown turned out to be — **not** something R7B should patch from a route.
+Recommended as its own narrow prerequisite if R7B is authorized.
+
+#### FINDING 5 — the summary's bar is decoration, and should probably stay that way
+
+The catalogue summary paints a proportion bar for "reservado". It is **`aria-hidden` on purpose**,
+because the same percentage is already written beside it in words — the component says so in its own
+comment.
+
+By R6B's classification the *measure* is business completion progress. But the shared progress
+component **requires an accessible name and emits a progress role**, so adopting it would add an
+announcement that this screen deliberately removed, and it cannot express a gradient fill or the
+thinner geometry used here.
+
+**Returned as a decision, not a conclusion.** The reading this audit favours: **a bar that announces
+nothing is decoration, not Progress** — the semantic firewall is about what a thing *is responsible
+for*, and this one is responsible for nothing an assistive technology should hear. Under that reading
+it stays bespoke and simply adopts the glass roles for its track. **Expanding the Progress API for a
+decorative mode is the alternative, and it would need its own approval.**
+
+#### FINDING 6 — "Disponible" is written by hand here
+
+The public card renders a plain badge with the word typed inline, rather than the Status family that
+owns those eight labels. It is defensible — since D-164 a taken ticket is simply **not published**,
+so the card has exactly one possible state and no mapping to make — but it means the canonical label
+lives in two places. **A small contract question for R7B**, not a defect.
+
+#### Accessibility and responsive
+
+| Check | Result |
+|---|---|
+| Landmarks | header, main, and a labelled summary region |
+| Headings | **exactly one page title**, in the hero; the not-found screen has its own. No section headings, and on a single-purpose page that is defensible |
+| The ticket grid | an unordered list with no accessible name — **an observation**, not a defect |
+| Colour never alone | **honoured, and deliberately**: at 375 px and below the availability badge becomes a dot and its word moves to screen-reader-only text rather than disappearing (D-166) |
+| Touch targets | the request button and pagination are 44 px on phones — the geometry is right; only the mechanism and its breakpoint are wrong (Finding 3) |
+| Reduced motion | the theme scope carries its own reduced-motion rules, and the card's pulse was deliberately removed for performance |
+| Empty states | **two**, correctly distinguishing "none left" from "that one is not among the available ones" |
+| Loading state | none needed — the page is server-rendered |
+
+#### The Pattern question
+
+| Option | Verdict |
+|---|---|
+| An instance of an existing Pattern | **No.** It lists things and paginates, but it has no page header, no primary action, no filters, no table, no row actions and no session. Forcing List Page onto it would import responsibilities it does not have |
+| A composition that needs no page Pattern | **YES — this is the answer** |
+| Evidence for a new recurring Pattern | **No.** It is **one** screen, and a Pattern invented from a single unique surface is taxonomy, not evidence |
+
+**No Pattern is proposed.** If a second public surface ever appears, the question reopens with real
+recurrence behind it.
+
+#### Latent Catalog debts — what became reachable
+
+| Previously latent | Now |
+|---|---|
+| The eight glass and gradient roles | **REACHABLE** — this is the only screen that wants them |
+| The shared search field's ad-hoc touch sizing | **REACHABLE**, and shared with two other groups |
+| Destructive semantics in the catalogue scope | **still UNREACHABLE** — there is no destructive control on this page, exactly as the token layer's own comment predicts |
+| Product Data, Status, Notice, Progress, tables, dropdowns | **still UNREACHABLE** |
+
+**No Light or Dark debt was reopened.**
+
+#### Proposed R7B scope, and its risk
+
+| | |
+|---|---|
+| Routes | **one** |
+| Palette | ~14 occurrences in 6 files → **adopt eight tokens that already exist** |
+| Controls | replace three route-local height overrides with the existing touch capability, accepting the documented 640–767 band change |
+| Decisions needed **before** implementation | the decorative bar's family, the two unmatched gradients, the 10 % borders, and the hand-written status label |
+| Prerequisite | **the shared search field's touch sizing** — a narrow shared-component reconciliation, the same shape as R6D |
+| **Risk** | **LOW–MEDIUM.** One route, an isolated theme that cannot affect Light or Dark, and a palette migration that is adoption rather than invention. The medium half is the four contract decisions |
+
+**READY FOR APPROVAL as R7B**, with those four decisions returned first.
+
+#### Dashboards after this preflight
+
+**Unchanged and still deferred.** Two routes, no Dashboard Pattern, 12 of its 15 palette occurrences
+concentrated in the lottery card, and several semantic decisions still open. R6B already removed one
+of its dependencies by putting both of its progress bars on the shared component. It remains the
+strong candidate **after** Catalog, and it still needs its own pattern audit first.
+
+---
+
+### 10.41 R7-PRE — SEARCH INPUT TOUCH RECONCILIATION (2026-09-07 · **COMPLETED** · commit in §11)
+
+The narrow shared prerequisite the Catalog audit asked for, taken **before** any Catalog composition
+work. **4 files, no Core API touched.**
+
+#### Consumer audit — both responsibilities are real
+
+| Consumer | Group | Asked for touch | Phone responsibility |
+|---|---|---|---|
+| `TicketFilters` | Tickets | **yes** | a list a seller works standing up, one-handed |
+| `ClientFilters` | Clientes | **yes** | same |
+| `CatalogSearch` | Catalog | **yes** in the hero, **no** in the sticky header | a public page opened from a chat link |
+| `ClientOptionsPicker` | Tickets | no | a search **inside a dialog**, used sitting down |
+| `ClientPicker` | Payments | no | same |
+
+**Five consumers in five files.** Three want the touch height, two deliberately do not — and the
+component's own comment already said why. So the answer was **not** "make it always touch": both
+responsibilities genuinely exist, and the fix is to give them a proper name.
+
+#### What changed
+
+The ad-hoc boolean is gone. In its place, **the same word the rest of the system already uses**:
+
+| | Before | After |
+|---|---|---|
+| Public contract | a bespoke boolean | `size`, with `default` and `touch` |
+| How the height was applied | **a class pasted over the field**, and another over the button | each control uses **its own capability** |
+| Where it changed | at the **medium** breakpoint | at the **small** one, like every other control in the product |
+
+**No Core API was modified.** The field and the button already had the capability; the search field
+was reaching past them and setting a height by hand. **AD-HOC TOUCH MECHANISM → REPLACED BY APPROVED
+DESIGN SYSTEM CAPABILITY**, the same conclusion R5 reached for the Payments form.
+
+#### The honest responsive ledger
+
+| Width | Before | After | Delta |
+|---|---|---|---|
+| **375** | 44 px | 44 px | inert |
+| **640–767** | 44 px | **36 px** | **the real change** |
+| **768+** | 36 px | 36 px | inert |
+
+It affects the three touch consumers — the tickets list, the clients list and the catalogue hero. The
+640–767 band is exactly where every other migrated control in the product already sits at 36 px, so
+this removes an outlier rather than creating one. **The two dialog searches do not move at all.**
+
+> **One consequence lands in Catalog, and it is left for R7B on purpose.** The catalogue hero also
+> carries a local override that pushes its field back to 44 px from the medium breakpoint up. With
+> the ramp now changing at the small breakpoint, that override would leave the hero at 44 → 36 → 44
+> across widths. **The height decision belongs to the Catalog composition**, not to this prerequisite,
+> and R7B resolves it.
+
+#### An observation, not a change
+
+The two in-dialog searches render **36 px at every width, including phones**. That is the documented
+intent — a dialog is used sitting down — but it is worth recording that the product does have two
+sub-44 px text fields on phones. **Nothing was changed**: reclassifying them is a product decision,
+not a mechanism cleanup.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `typecheck` · `lint` · `test` · `build` | **all pass** — 791 tests / 47 files, same 2 pre-existing warnings |
+| The old boolean | **zero occurrences left in the repository** |
+| Core files changed | **ZERO** |
+
+The Catalog file in this commit is the **call site of the renamed property only**. No Catalog colour,
+layout or composition work rides along; that is all R7B's.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -4668,7 +4910,9 @@ heading-outline shape that Gate B corrected here.
 | **R6A commit** | **`7584f1b8fc3e71071ff4ddfda11350c3040c4d9f`** (`7584f1b`) — `docs(design-system): define people rollout prerequisites`, this handoff only |
 | **R6B commit** | **`be127a09660d59cb21fae5e2343d0140ef6f405d`** (`be127a0`) — `feat(design-system): reconcile notice density and linear progress`, 10 files: `components/data/LinearProgress.tsx` (new), `components/feedback/Notice.tsx`, 7 consumers and this handoff |
 | **R6D commit** | **`5a5917a038b44144a6019937daa0ec39b9abee34`** (`5a5917a`) — `fix(design-system): make dropdown actions touch-safe`, 2 files: `components/ui/dropdown-menu.tsx` and this handoff. A People prerequisite, checkpointed **before** the People route work |
-| **R6C commit** | `feat(design-system): migrate people to proven patterns` — 8 files: the two People detail routes, the raffle detail route, `UserRowActions`, `TeamMemberActions`, `TeamCommissionCard`, `CatalogSettingsCard` and this handoff. **No Core file.** Hash recorded in the next pass below |
+| **R6C commit** | **`9ae57d0a983640ed84b2aa845d1ae0560ef50dfd`** (`9ae57d0`) — `feat(design-system): migrate people to proven patterns`, 8 files: the two People detail routes, the raffle detail route, `UserRowActions`, `TeamMemberActions`, `TeamCommissionCard`, `CatalogSettingsCard` and this handoff. **No Core file** |
+| **R7A** | audit only, no production change. §10.40. Committed together with the prerequisite below |
+| **R7-PRE commit** | `fix(design-system): reconcile search input touch sizing` — 4 files: the shared search field and its three touch call sites, plus this handoff. **No Core API change.** Hash recorded in the R7B pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

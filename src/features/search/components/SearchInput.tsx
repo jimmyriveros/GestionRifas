@@ -44,15 +44,21 @@ type SearchInputProps = {
   /** Oculta la etiqueta visualmente. Sigue existiendo para lectores de pantalla. */
   hideLabel?: boolean
   /**
-   * Alto tactil en el telefono: 44 px para el campo y para el boton de buscar,
-   * en vez de los 36 de siempre (D-108). En escritorio vuelve al alto normal,
-   * asi que activarlo no cambia ninguna pantalla ancha.
+   * Alto del campo y del boton de buscar. Es la MISMA distincion que `Input` y
+   * `Button` ya tienen, no un mecanismo aparte:
+   *
+   *   default  36 px;
+   *   touch    44 px en el telefono y 36 px desde `sm`.
    *
    * Lo pide la lista de boletas, que es la pantalla que un vendedor usa de pie,
    * con una mano y con el pulgar. En un dialogo, donde el campo se toca sentado
    * y con calma, no hace falta.
+   *
+   * Antes esto era un booleano propio que se aplicaba con clases sueltas y
+   * cambiaba en `md`, cuando el resto de la aplicacion cambia en `sm`. Ya no:
+   * el alto lo pone cada control con su propia capacidad.
    */
-  touchSize?: boolean
+  size?: 'default' | 'touch'
   /**
    * Teclado que abre el telefono. `search` en todo el proyecto, porque lo que
    * se escribe es texto; el catalogo publico pide `numeric` porque ahi lo unico
@@ -104,7 +110,7 @@ export function SearchInput({
   loading = false,
   showSubmitButton = false,
   hideLabel = false,
-  touchSize = false,
+  size = 'default',
   inputMode = 'search',
   leadingIcon = false,
   inputRef,
@@ -159,10 +165,10 @@ export function SearchInput({
             autoComplete="off"
             // El navegador ya dibuja su propia «x» en `type="search"`; se quita
             // para no tener dos botones de limpiar que hacen lo mismo.
+            size={size}
             className={cn(
               'pr-10 [&::-webkit-search-cancel-button]:appearance-none',
               leadingIcon && 'ps-10',
-              touchSize && 'h-11 md:h-9',
             )}
             aria-describedby={hint ? hintId : undefined}
             aria-busy={loading}
@@ -205,12 +211,7 @@ export function SearchInput({
         </div>
 
         {showSubmitButton ? (
-          <Button
-            type="button"
-            variant="secondary"
-            className={touchSize ? 'h-11 md:h-9' : undefined}
-            onClick={onSubmit}
-          >
+          <Button type="button" variant="secondary" size={size} onClick={onSubmit}>
             <SearchIcon className="size-4" aria-hidden />
             <span className="sr-only sm:not-sr-only">Buscar</span>
           </Button>

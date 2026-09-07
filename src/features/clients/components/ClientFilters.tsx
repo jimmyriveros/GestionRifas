@@ -67,7 +67,7 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
         onClear={search.clear}
         loading={search.showSpinner}
         showSubmitButton
-        touchSize
+        size="touch"
         hint={search.hint}
       />
 

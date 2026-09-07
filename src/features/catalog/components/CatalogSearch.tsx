@@ -66,7 +66,7 @@ export function CatalogSearch({ compact = false }: { compact?: boolean }) {
       // cifras, y obligar a cambiar de teclado en cada busqueda es un toque de
       // mas en la pantalla que mas se usa.
       inputMode="numeric"
-      touchSize={!compact}
+      size={compact ? 'default' : 'touch'}
       leadingIcon
       inputRef={inputRef}
       // En el encabezado, la pista NO reserva sitio: reservarlo haria crecer una
