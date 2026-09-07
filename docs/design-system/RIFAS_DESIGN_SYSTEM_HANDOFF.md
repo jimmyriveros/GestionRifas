@@ -11,10 +11,13 @@
 **Wave 3B2 — brand activation:** COMPLETED AND APPROVED · commit `7a851f8` · **THE BRAND IS LIVE**
 **Wave 4 — data display & overlays:** COMPLETED AND APPROVED · commit `e48e2c8`
 **Wave 4.5A — status semantics audit:** COMPLETED AND APPROVED · documentation commit `dbba151`
-**Wave 4.5B — status semantic migration:** COMPLETED AND APPROVED · commit in §11 — **all 27 state
+**Wave 4.5B — status semantic migration:** COMPLETED AND APPROVED · commit `85fc38f` — **all 27 state
 mappings approved** (14 explicit + 13 rule-derived); the gate passed on 2026-09-06.
-**NOT AUTHORIZED:** **WAVE 5**, which 3B2 largely pre-empted and which must be re-scoped before it
-runs; Waves 6 and 7 remain unstarted.
+**Wave 5 — navigation & shell:** **PREFLIGHT COMPLETE AND APPROVED FOR EXECUTION** · re-scoped risk
+**LOW** · remaining production scope: `AppSidebar.tsx` and `AppShell.tsx` only
+**NOT AUTHORIZED:** **WAVE 5 execution** — the preflight is done (§10.18) and the scope is now
+**2 files, risk LOW**, because 3B2 already shipped both of its headline items. Waves 6 and 7 remain
+unstarted. **Alert/Notice is an unassigned component gap and a PILOT PREREQUISITE.**
 **Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
 **Migration branch:** `design-system/migration` (from `main` @ `124445b`; `main` not moved)
 **Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 4)
@@ -1397,6 +1400,57 @@ migrate them onto, and none was invented here.
 `ActiveBadge` remains dead legacy: not deleted, but re-expressed through tones because its old palette
 constants no longer exist.
 
+### 10.18 WAVE 5 — PREFLIGHT (2026-09-06 · **APPROVED FOR EXECUTION**)
+
+**Original scope** (Figma `04` › Implementation waves + dependency layer 5, which agree):
+*"Wave 5 · Navigation & shell — Sidebar states, collapsed target 40 → 44, selected treatment gains
+the brand indicator. RISK MEDIUM."* Layer 5 lists **Sidebar widths and states, bottom nav, page
+header, account menu**; it depends on 3 and 4, and the overlay sidebar on the Wave 1 scrim tokens.
+
+#### Already done — PRE-EMPTED / COMPLETED IN WAVE 3B2
+
+| Original responsibility | Status |
+|---|---|
+| `NavLinks` selected semantics | ✅ 3B2 — `navigation/selected` + `text/brand` |
+| Selected indicator | ✅ 3B2 — the 3×20 bar, which did not exist before |
+| **Collapsed target 40 → 44** | ✅ 3B2 — `min-h-9` → `min-h-11` |
+| Expanded / collapsed / overlay item treatment | ✅ 3B2 — one component serves all three |
+| `ReportNav` selected treatment | ✅ 3B2 |
+| `BottomNav` selected treatment + indicator | ✅ 3B2 — including its 28×3 indicator and `surface/card` bar |
+| Brand navigation roles | ✅ 3B2 |
+| Menu / Dropdown semantics behind the account menu | ✅ Wave 4 |
+| Shell typography | ✅ Wave 2 |
+
+**Both headline items of the original Wave 5 — the selected treatment and the 44px target — are
+already shipped.** Do not migrate them again.
+
+#### What actually remains — 2 files
+
+| Family | File | Remaining | Risk |
+|---|---|---|---|
+| **Sidebar container** | `AppSidebar.tsx` | `bg-background` → `surface/card`; the `bg-foreground/20` overlay scrim → **`overlay/scrim-subtle`**, which the token contract created for exactly this ("two strengths, because the modal dialog and the non-modal sidebar are different things"); `shadow-xl` → `elevation/shadow/strong` | the only visible one |
+| **Application Shell** | `AppShell.tsx` | `bg-background` → `background/default` | inert |
+| **Page / Header** | `PageHeader.tsx` | **nothing.** API already complete — title, `titleBadge`, description, actions, `compactAction`, `backHref`, `backLabel`. Typography migrated in Wave 2; its badge is a StatusBadge, tone-based since 4.5B | — |
+| **Account menu** | `UserMenu.tsx` | **nothing.** Surface, border, elevation and item colours all come from `dropdown-menu.tsx`, migrated in Wave 4; typography in Wave 2 | — |
+
+**Measured deltas for the one visible change:** sidebar surface Light `#ffffff` → `#ffffff` (same),
+**Dark `#0a0a0a` → `#171717`** (a raised surface, which is the Dark design intent). Scrim Light
+`#0a0a0a` at 20% → `overlay/scrim-subtle` `#0a0a0a33`, **identical**; Dark 20% → 25%, slightly denser.
+
+**Verified and to be preserved unchanged:** below 1360 collapsed rail · at/above 1360 expanded ·
+fluid 208 → 232 by 1600 · the overlay is **non-modal** — the code says so outright
+(*"No es un dialogo: sin `aria-modal` ni cepo de foco"*) and **must not gain a focus trap**. The stale
+"collapses at 1360" reading was not resurrected. `compactAction` is used in **10** files today, not
+the nine the contract records — minor drift, no action needed.
+
+**Re-scoped risk: LOW** (was MEDIUM). Two files, four changes, one visible and confined to the Dark
+sidebar surface. The original risk came from the selected-state redesign, which 3B2 already absorbed
+and shipped.
+
+**Explicit exclusions:** all navigation work completed in 3B2 · `text/muted` and `border/input`
+(deferred cross-system reconciliation) · the Alert/Notice component gap · Progress, `data/partial`,
+dashboard palette and charts · dead-code cleanup.
+
 ---
 
 ## 11. Repository checkpoint — 2026-09-06
@@ -1414,7 +1468,8 @@ constants no longer exist.
 | **Wave 3B2 commit** | **`7a851f88a9a0a8ae88e00928b70d50a38197c681`** (`7a851f8`) — `feat(design-system): activate Rifas brand semantics`, 9 files |
 | **Wave 4 commit** | **`e48e2c8e86bc8d94ee6ec3329fe1cc9a95cf0cff`** (`e48e2c8`) — `feat(design-system): adopt data display and overlay semantics`, 9 files |
 | **Wave 4.5A commit** | **`dbba15141753daa16592352562e35a087dd0e0ac`** (`dbba151`) — `docs(design-system): approve product status semantics`, documentation only |
-| **Wave 4.5B** | **uncommitted working tree** — 9 files + this handoff. No Wave 4.5B commit was authorized. |
+| **Wave 4.5B commit** | **`85fc38f7d726aad86cf47947397e70e041e84086`** (`85fc38f`) — `feat(design-system): migrate product statuses to semantic tones`, 10 files |
+| **Wave 5 preflight** | **uncommitted** — this handoff only. **No production code changed.** |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
