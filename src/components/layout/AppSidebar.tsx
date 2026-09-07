@@ -186,7 +186,12 @@ export function AppSidebar({ orgName, navItems, preference: initial }: AppSideba
           <div
             aria-hidden
             onClick={closeOverlay}
-            className="bg-foreground/20 fixed inset-0 z-[45] hidden md:block"
+            // `overlay/scrim-subtle`, NO `overlay/scrim`. El sistema tiene dos
+            // fuerzas de velo a proposito: la del dialogo, que tapa, y esta, que
+            // solo separa. Esta barra NO es un dialogo, asi que le toca la
+            // suave. En claro sale el mismo valor de siempre; en oscuro sube de
+            // 20 % a 25 %, que es la correccion aprobada.
+            className="bg-overlay-scrim-subtle fixed inset-0 z-[45] hidden md:block"
           />
         </>
       ) : null}
@@ -212,14 +217,25 @@ export function AppSidebar({ orgName, navItems, preference: initial }: AppSideba
         data-sidebar-overlay={overlayOpen ? '' : undefined}
         ref={aside}
         className={[
-          'bg-background hidden w-[var(--sidebar-width)] shrink-0 flex-col border-r',
+          // `surface/card` y no el fondo de la pagina: la barra es una capa
+          // ELEVADA, no un trozo del lienzo. En claro los dos valores coinciden
+          // y no se ve nada; en oscuro pasa de #0a0a0a a #171717, que es
+          // exactamente como el tema oscuro separa capas —una superficie mas
+          // clara y un borde, en vez de una sombra—.
+          'bg-surface-card hidden w-[var(--sidebar-width)] shrink-0 flex-col border-r',
           'ps-[var(--safe-left)] md:flex',
           // La animacion del ancho es lo que evita el salto al abrir y cerrar.
           // Quien haya pedido menos movimiento al sistema no la recibe.
           'transition-[width] duration-200 ease-out motion-reduce:transition-none',
           // Flotando: fuera del flujo, pegada al borde y de alto completo, con
           // sombra para que se lea como una capa y no como parte de la pagina.
-          overlayOpen ? 'fixed inset-y-0 start-0 z-50 shadow-xl' : '',
+          // La GEOMETRIA de la sombra sigue siendo `shadow-xl`; lo que aporta el
+          // sistema es su COLOR, que es lo unico que Figma puede tokenizar
+          // (contrato de la Wave 1: desplazamiento, difuminado y extension se
+          // quedan en CSS). No se inventa una sombra nueva ni un nivel mas.
+          overlayOpen
+            ? 'shadow-elevation-shadow-strong fixed inset-y-0 start-0 z-50 shadow-xl'
+            : '',
         ].join(' ')}
       >
         <div className="flex h-14 items-center [justify-content:var(--sidebar-content-justify)] gap-2 border-b px-[var(--sidebar-padding)]">

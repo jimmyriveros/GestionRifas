@@ -101,7 +101,7 @@ function AppShellLayout({
       <div className="flex min-w-0 flex-1 flex-col ps-[var(--safe-left)] pe-[var(--safe-right)] md:ps-0">
         <header
           data-app-header
-          className="bg-background sticky top-0 z-40 flex h-14 items-center gap-2 border-b px-4"
+          className="bg-background-default sticky top-0 z-40 flex h-14 items-center gap-2 border-b px-4"
         >
           <CompactHeaderStart orgName={orgName} />
           <div className="ml-auto flex shrink-0 items-center gap-1">

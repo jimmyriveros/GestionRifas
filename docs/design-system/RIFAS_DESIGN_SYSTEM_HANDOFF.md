@@ -13,11 +13,12 @@
 **Wave 4.5A — status semantics audit:** COMPLETED AND APPROVED · documentation commit `dbba151`
 **Wave 4.5B — status semantic migration:** COMPLETED AND APPROVED · commit `85fc38f` — **all 27 state
 mappings approved** (14 explicit + 13 rule-derived); the gate passed on 2026-09-06.
-**Wave 5 — navigation & shell:** **PREFLIGHT COMPLETE AND APPROVED FOR EXECUTION** · re-scoped risk
-**LOW** · remaining production scope: `AppSidebar.tsx` and `AppShell.tsx` only
-**NOT AUTHORIZED:** **WAVE 5 execution** — the preflight is done (§10.18) and the scope is now
-**2 files, risk LOW**, because 3B2 already shipped both of its headline items. Waves 6 and 7 remain
-unstarted. **Alert/Notice is an unassigned component gap and a PILOT PREREQUISITE.**
+**Wave 5 — navigation & shell:** **RE-SCOPED EXECUTION COMPLETED AND APPROVED** · commit in §11
+  — 2 files, 4 changes; the original headline navigation work was pre-empted by 3B2 (§10.19)
+**NOT AUTHORIZED:** the next migration wave. **Wave 6 — Data visualisation** is next in the plan and
+its colour work is **entirely intact** (`data/*` still has zero consumers), though 4.5B de-risked it by
+settling the Status side of the `data/partial` question. Wave 7 (patterns + the Clientes pilot)
+follows. **Alert/Notice is an unassigned component gap and a PILOT PREREQUISITE.**
 **Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
 **Migration branch:** `design-system/migration` (from `main` @ `124445b`; `main` not moved)
 **Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 4)
@@ -1451,6 +1452,71 @@ and shipped.
 (deferred cross-system reconciliation) · the Alert/Notice component gap · Progress, `data/partial`,
 dashboard palette and charts · dead-code cleanup.
 
+### 10.19 WAVE 5 — NAVIGATION & SHELL, RE-SCOPED (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+**2 production files, 4 changes.** The original wave's two headline items — the selected-navigation
+treatment and the 40 → 44px target — were **already shipped by Wave 3B2** and were not touched again.
+
+| Responsibility | Outcome |
+|---|---|
+| NavLinks · ReportNav · BottomNav · selected indicator · 44px target · brand navigation roles | **PRE-EMPTED / COMPLETED IN WAVE 3B2** — not re-migrated |
+| **Sidebar container** (`AppSidebar.tsx`) | **migrated** — 3 changes |
+| **Application Shell** (`AppShell.tsx`) | **migrated** — 1 change |
+| **Page / Header** | **ALREADY COMPLIANT / NO CODE CHANGE** |
+| **Account menu** | **ALREADY SATISFIED BY THE WAVE 4 MENU/DROPDOWN MIGRATION** |
+
+#### The four changes
+
+| Change | Class |
+|---|---|
+| Sidebar surface `bg-background` → **`surface/card`** — the bar is an *elevated layer*, not a piece of the canvas | **APPROVED DARK SURFACE CORRECTION** |
+| Overlay scrim `bg-foreground/20` → **`overlay/scrim-subtle`** — the token the contract created for the non-modal case, deliberately **not** the dialog's `overlay/scrim` | **APPROVED NON-MODAL OVERLAY CORRECTION** |
+| Overlay elevation `shadow-xl` → `shadow-xl` **+ `elevation/shadow/strong`** — the **colour** comes from the token, the geometry stays in CSS, exactly as the Wave 1 contract states. No new shadow, no extra level | **APPROVED SHELL SEMANTIC MIGRATION** |
+| Shell `bg-background` → **`background/default`** | **APPROVED SHELL SEMANTIC MIGRATION** — inert |
+
+*Clarification found during execution:* `AppShell`'s `bg-background` is on the **sticky mobile
+header**, not the application canvas — the canvas background comes from `body` in `globals.css`,
+which was not touched. `background/default` is right for both, and the change is inert either way.
+
+#### Measured visual result
+
+| | Light | Dark |
+|---|---|---|
+| Sidebar surface | `#ffffff` → `#ffffff` — **unchanged** | `#0a0a0a` → **`#171717`** — intentional |
+| Overlay scrim | `#0a0a0a` @20% → `#0a0a0a33` — **identical** | 20% → **25%**, slightly denser |
+| Shell header | unchanged | unchanged |
+
+**Sidebar content contrast on the new surface** (§19 required this — the old figures were not assumed
+to carry over):
+
+| Pair | Light | Dark |
+|---|---|---|
+| Unselected label | 4.73 (unchanged) | **7.63 → 6.91** — lower on the lighter surface, still well clear of 4.5 |
+| Selected label on `navigation/selected` | 6.98 | 10.53 |
+| Indicator on the surface | 5.27 | 7.55 |
+
+**No unexpected regression.** The diff is four class swaps plus comments — no logic, no geometry, no
+attributes.
+
+#### Behaviour and responsive — verified unchanged
+
+`globals.css` was **not touched**, so every responsive rule is byte-identical: below 1360 collapsed ·
+at/above 1360 expanded · fluid 208 → 232 by 1600 · 375 bottom-nav shell · 768 collapsed architecture.
+The overlay stays **non-modal**: `aria-modal` appears in the file **only inside a comment** saying it
+is deliberately not a dialog, and **no focus trap was added**. Escape-close, focus return,
+`aria-expanded` / `aria-controls` and the toggle are untouched.
+
+**Catalog was not validated as a shell consumer** — the admin shell does not render there, and no
+composition was invented for symmetry. **No live screenshots: Docker/Supabase unavailable**;
+validation was compiled CSS, resolved values, source inspection and the test suite.
+
+**`compactAction` corrected: 10 files, not nine.** Documentation drift only — corrected in Figma; the
+API is unchanged and no usage was added or removed.
+
+**Remaining Wave 5 debt: none.** The excluded items belong elsewhere: `text/muted` and `border/input`
+(cross-system reconciliation), the two latent token pairs, and the **Alert/Notice component gap, which
+remains an unassigned gap and a Clientes-pilot prerequisite**.
+
 ---
 
 ## 11. Repository checkpoint — 2026-09-06
@@ -1469,7 +1535,8 @@ dashboard palette and charts · dead-code cleanup.
 | **Wave 4 commit** | **`e48e2c8e86bc8d94ee6ec3329fe1cc9a95cf0cff`** (`e48e2c8`) — `feat(design-system): adopt data display and overlay semantics`, 9 files |
 | **Wave 4.5A commit** | **`dbba15141753daa16592352562e35a087dd0e0ac`** (`dbba151`) — `docs(design-system): approve product status semantics`, documentation only |
 | **Wave 4.5B commit** | **`85fc38f7d726aad86cf47947397e70e041e84086`** (`85fc38f`) — `feat(design-system): migrate product statuses to semantic tones`, 10 files |
-| **Wave 5 preflight** | **uncommitted** — this handoff only. **No production code changed.** |
+| **Wave 5 preflight commit** | **`6787298fc38fb85438b413ac6fdcae766a3d8dc3`** (`6787298`) — `docs(design-system): record re-scoped wave 5 preflight`, documentation only |
+| **Wave 5** | **uncommitted working tree** — `AppSidebar.tsx`, `AppShell.tsx` + this handoff. No Wave 5 commit was authorized. |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
