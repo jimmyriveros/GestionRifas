@@ -4211,6 +4211,9 @@ be produced by any of them.
 
 #### Figma — what could NOT be done
 
+> **Superseded 2026-09-07 (§10.53): this is false.** `use_figma` executes Plugin API code and writes
+> to the file. The sentence below was carried forward unverified and blocked two syncs.
+
 **The connected Figma tools are read-only.** They expose metadata, design context, variable
 definitions, screenshots and Code Connect; **none of them can add a variant axis to a component
 set.** The Density axis therefore **remains a pending design-owner action**, specified here so it can
@@ -4220,7 +4223,7 @@ be applied exactly:
 |---|---|
 | Contract | **APPROVED** |
 | Code | **IMPLEMENTED** |
-| Figma | **AXIS PENDING DESIGN-OWNER SYNC** — reason: **tooling limitation** |
+| Figma | ~~AXIS PENDING DESIGN-OWNER SYNC — tooling limitation~~ → **SYNCED 2026-09-07** (§10.53) |
 
 This is **design-source sync pending**. It is **not** a Core defect and **not** a People blocker, but
 **full Figma ↔ Code parity for Notice must not be claimed until it is synchronized**, and the
@@ -5517,6 +5520,11 @@ contract is about responsibility, not layout.
 The connected Figma operations are read-only for this kind of write. Recorded, not hidden, and **not
 a blocker**. It joins the Notice density axis, which remains separately pending design-owner sync.
 
+> **Corrected and DONE on 2026-09-07 (§10.53).** The premise above was false: the connected Figma
+> integration is **not** read-only — `use_figma` writes through the Plugin API. The contract now lives
+> in Figma as the frame `Pattern / Dashboard Page — contract` (`203:7068`), beside the Report Page
+> one. Nothing about the contract itself changed.
+
 ---
 
 ### 10.48 R8 — DASHBOARD MIGRATION (2026-09-07 · **COMPLETED AND APPROVED** · commit in §11)
@@ -5650,7 +5658,7 @@ route has an unusable responsive composition. No shared component has a known de
 | Field-label consolidation | ~18 files | one repeated label style, no behavioural effect |
 | Two searches inside dialogs | 2 consumers | 36 px on phones; the size contract already supports either decision |
 | Ticket detail heading outline | 2 routes | the same shape Gate B corrected elsewhere; handed to the Tickets rollout |
-| **Figma sync** | 2 items | the Notice density axis and the Dashboard pattern. **Both blocked by read-only tooling**, both recorded |
+| **Figma sync** | 2 items | the Notice density axis and the Dashboard pattern. **Both blocked by read-only tooling**, both recorded. *(Both SYNCED 2026-09-07 — the tooling was never read-only; §10.53)* |
 
 #### Is the Design System ready to close?
 
@@ -5795,6 +5803,12 @@ screen-reader validation — the Reports pass in particular — is **post-closur
 operations are read-only for these writes. **Full Figma ↔ Code parity is therefore NOT claimed**, and
 these do not block implementation closure.
 
+> **Both DONE on 2026-09-07 (§10.53), and the stated reason was wrong.** The integration is not
+> read-only; the write path had simply never been tried. `Notice` now carries the `Density` axis —
+> and a 2 px radius drift found during that sync was corrected against the code — and the Dashboard
+> Page contract exists as a frame. **FIGMA ↔ CODE PARITY IS COMPLETE.** This table is preserved as
+> the record of what was believed at closure.
+
 #### Post-closure product adoption
 
 Remaining historical screens are **product adoption**, not Design System construction. Adoption
@@ -5860,13 +5874,19 @@ it is not to be re-derived.
 | Closure commit | **`d174d2cd233c5285bfc6fb9e3bd533ac70f46000`** |
 | Dashboard production checkpoint | **`5e34265623cdec34a99e48557a36a19d2ee05d32`** |
 | Must-close foundation blockers | **ZERO** |
-| Product-wide adoption | **IN PROGRESS** |
-| Figma ↔ Code full parity | **NOT COMPLETE** — two manual sync items |
-| Accessibility certification | **NOT CLAIMED** |
+| Product-wide adoption | ~~IN PROGRESS~~ → **COMPLETE ENOUGH FOR NORMAL FORWARD DEVELOPMENT** (§10.52) |
+| Figma ↔ Code full parity | ~~NOT COMPLETE — two manual sync items~~ → **COMPLETE** (§10.53) |
+| Accessibility certification | **NOT CLAIMED** — and it stays not claimed |
 
 **Read those last three correctly.** They are honest disclosures about *adoption*, *design-source
 sync* and *certification* — **they do not mean the Design System is incomplete.** The foundation is
 closed. Do not treat any of them as a reason to reopen it.
+
+> **Updated 2026-09-07 after the three-block closeout.** Two of those three disclosures are now
+> closed: Tickets was adopted (§10.52) and both Figma items were synced (§10.53) — the "read-only
+> tooling" that had blocked them was never real. **Certification is still not claimed, on purpose**:
+> the accessibility baseline is established and was validated structurally on the real routes, but
+> no screen-reader pass has been run. Do not upgrade that line without doing one.
 
 #### Do not re-audit these without new evidence
 
@@ -5927,6 +5947,10 @@ Also in A, the two isolated semantic residues:
   first.** If there is a real accessibility or semantic defect, reopen the **minimum** Core scope
   necessary. If it is valid behaviour and merely compatibility debt, **document and defer**.
   **Core is not reopened for cosmetic consistency.**
+
+> **CLOSEOUT B IS DONE — see §10.53** (2026-09-07). Both Figma items synced (the integration was
+> never read-only), Reports validated on the real routes with real data, and the two in-dialog
+> searches closed with measurements. The block below is the brief it was written from.
 
 ##### CLOSEOUT B — FIGMA PARITY AND ACCESSIBILITY QA
 
@@ -6212,6 +6236,207 @@ Everything else is byte-identical output.
 
 ---
 
+### 10.53 CLOSEOUT B — FIGMA PARITY AND ACCESSIBILITY QA (2026-09-07 · **COMPLETED** · commit in §11)
+
+Two design-source syncs, the owed Reports accessibility validation, and the two carried in-dialog
+searches. **No Design System architecture was reopened and no contract was redesigned.**
+
+#### The headline: the "tooling limitation" was not a tooling limitation
+
+§10.50 and §10.47 both recorded the two Figma items as blocked because "the connected Figma
+operations are read-only for this kind of write." **That was wrong.** The `use_figma` tool writes to
+the file through the Plugin API, and the account holds a Full seat on the plan that owns it. The
+items were not blocked; they were unattempted.
+
+Recorded plainly rather than quietly fixed, because it is the kind of assumption that outlives the
+session that made it: **an integration was described as read-only without the write path being
+tried.** Both items are now done, and **FIGMA ↔ CODE PARITY IS COMPLETE** — the disclosure that has
+stood since closure can be retired.
+
+#### B1 · Notice — the Density axis, synced
+
+| | |
+|---|---|
+| Node | `COMPONENT_SET` **`185:7091`**, page `02 — Components` |
+| Before | one variant axis, `Tone` = Info · Success · Warning · Neutral. **4 variants** |
+| After | **two independent axes** — `Tone` unchanged, plus **`Density` = Default · Compact**. **8 variants** |
+| Compact geometry | radius **8** (`radius/md`), padding **8 / 12 / 8 / 12** — which is `rounded-md px-3 py-2` |
+
+Eight variants is the axis, not variant explosion: an independent property axis in Figma *is* a
+variant property, and density cannot be a boolean because a boolean component property cannot drive
+padding or radius. No other axis, value or variant was added.
+
+**A real drift was found while syncing, and corrected.** The four `Tone` variants carried a
+**hard-coded corner radius of 8**, while the contract and the code have said `rounded-lg` since Wave
+6.5B — and `radius/lg` is **10** in this file's `Dimensions` collection *and* in `globals.css`. Left
+alone, the new axis would have shown Default and Compact with the same radius and quietly documented
+the wrong compact contract too. Default is now **10**; padding was already right at 12 / 16.
+**Confirmed against the running product**, not inferred: the page-level notice on
+`/seller/tickets/[ticketId]` measures `border-radius: 10px` and `padding: 12px 16px`.
+
+**A defect in the sync itself was caught by validation.** `component.clone()` **drops
+`componentPropertyReferences`** — the four new Compact variants came out inert, ignoring `Message`,
+`Show icon`, `Icon`, `Show action` and `Action label`. Restored on all four and verified identical
+across all eight. Worth remembering: cloning a variant does **not** carry its property wiring.
+
+The component description gained a `DENSITY` paragraph and its stale public-API line was corrected —
+it still listed the pre-R6B API without `density?`.
+
+#### B2 · `Pattern / Dashboard Page` — synced
+
+| | |
+|---|---|
+| Node | `FRAME` **`203:7068`**, `Pattern / Dashboard Page — contract`, page `02 — Components` at 18800 / 8950 |
+| Modelled on | **`Pattern / Report Page — contract`** (`195:7068`), directly to its left |
+
+**A Pattern is recorded as a contract frame, not a component**, and that is not a shortcut — it is the
+precedent Report Page set, and it follows from the rule the pattern itself states: *Patterns own
+responsibility; components own reusable units.* There is no `DashboardPage` component and none will
+be created, so there is nothing to draw as a component.
+
+Matched to the Report Page frame exactly: 820 wide, vertical auto-layout, 12 spacing, 24 padding,
+radius 12, fill and stroke bound to the same `surface` and `border` variables, Geist SemiBold 22
+title, SemiBold 15 section headings, Medium 14 body, text bound to the same two text variables.
+
+Sixteen children carrying the approved contract verbatim: purpose · the three required
+responsibilities · the optional ones · what is not part of v1 · the boundary against Report Page ·
+the implementation rule · the responsive principle · the implementation evidence. **The contract was
+copied, not re-derived.**
+
+#### B4 · Reports accessibility — tested on the real routes, with real data
+
+**This is the first time this project has been able to do real route QA.** Docker and a seeded local
+Supabase were available (2 organisations, 108 profiles, 42 raffles, 15 396 tickets, 247 payments),
+and the user authorised stopping the other session's dev server to take the port. Everything below is
+**measured in the running application**, not inferred.
+
+Screenshots and synthetic mouse/keyboard input could not reach the preview pane, so the DOM was read
+and controls were activated programmatically. That faithfully exercises the router, the Suspense
+boundaries and the live regions; it is **not** a substitute for a real screen reader, and no claim
+below depends on one.
+
+##### The finding: in Reports, both polite regions are REPLACED, not updated
+
+```
+<Suspense key={resultKey}>            resultKey = JSON.stringify(activeFilters)
+  <p class="sr-only" aria-live="polite">Resultados actualizados: …</p>
+  …the report, which may render <DataTablePagination>, whose own <p aria-live="polite"> is here too
+</Suspense>
+```
+
+Measured by tagging the live region and changing the analysis: the tag was **gone** afterwards — a
+new node, not an updated one. The pagination region inside it was new too.
+
+| Route | Live region | Survives a result change? | Text changes? |
+|---|---|---|---|
+| `/owner/reports` | the `sr-only` result line | **NO — replaced** | n/a |
+| `/owner/reports` | `DataTablePagination` | **NO — replaced** | n/a |
+| `/owner/tickets` | `DataTablePagination` | **YES — same node** | **yes** — `1–25 de 15387 boletas` → `26–50 de 15387 boletas` |
+
+The contrast is the whole point. **Outside Reports the shared pagination region is the correct
+pattern** — a persistent node whose text changes, which is what assistive technology observes.
+**Inside Reports it is an inserted region**, and an inserted live region is announced inconsistently
+across AT because the region must exist before the change for the mutation to be seen.
+
+##### The two questions B4 asked, answered
+
+**Duplicate or noisy announcements? NO.** In the reliable path neither region announces at all, so
+duplication is impossible. In an AT that does announce inserted regions, the two messages are short,
+complementary and both polite — `Resultados actualizados: Pagos por fecha`, then `1–4 de 4 días`.
+**Nothing is assertive and the table is not a live region.**
+
+**Missed announcements? Possible — and it does not matter, because the contract does not depend on
+them.** `Pattern / Report Page` states the requirement as *a result change must be perceivable to
+assistive technology — not that `aria-live` is always present; if navigation and focus already
+communicate the new state, that is sufficient.* Measured: activating an analysis from the keyboard
+**keeps focus on the activated link**, and that link carries **`aria-current="page"`**. The user hears
+the report they just chose, announced as the current page. **The contract is met by focus and
+navigation, exactly as it allows.**
+
+So the `sr-only` line is a belt-and-braces addition that fires on some AT and not others. It is
+harmless either way. **No severe defect, and nothing was changed on speculation.**
+
+##### One measured focus behaviour, recorded as normal debt
+
+Activating **Siguiente** in `DataTablePagination` leaves focus on `<body>`. Measured at
+**t ≈ 838 ms**, the moment the new RSC tree is applied; the button was **never observed disabled**
+across 24 samples, so `useTransition` is not the cause — it is the router navigation resetting focus.
+The announcement still happens (the region text changes, as above), so a screen-reader user is told
+the range changed; a keyboard user loses their place in the tab order and must tab back.
+
+**Product-wide, framework-attributed, and not caused by the Design System.** Fixing it means adding
+focus restoration to the shared pagination component, which is a bounded product change needing its
+own evidence — not closeout work. **NORMAL DEBT.**
+
+#### B5 · Honest split of what was and was not validated
+
+| | |
+|---|---|
+| **STRUCTURAL ACCESSIBILITY** | **PASS** — measured on `/owner/reports` and `/owner/tickets` with real data. One landmark heading per page, correct outline, live regions as tabulated, focus and `aria-current` verified on keyboard activation, no invalid interactive nesting, no assertive region anywhere |
+| **REAL ASSISTIVE-TECHNOLOGY TEST** | **NOT PERFORMED** — no screen reader is reachable from this environment. Not claimed, not implied |
+| Classification of the limitation | **B — manual QA still required, architecture has no known failure.** The one architectural caveat (inserted rather than updated regions) was found, measured, and shown not to break the contract, because focus and `aria-current` carry the change independently |
+
+**No WCAG certification is claimed, and none of the above should be read as one.**
+
+#### B6 · The two in-dialog searches — RESOLVED, default preserved
+
+Exercised in their real owning workflows at **375 px**, logged in as a seller and as the owner.
+
+| Component | Its workflow | Search field | The real selection targets |
+|---|---|---|---|
+| `ClientOptionsPicker` | the **sale** dialog on `/seller/tickets/[id]` | **36 × 293** | client rows **65 px** |
+| `ClientOptionsPicker` | `ReassignTicketClientDialog` on a ticket detail | **36 × 293** | client rows **64–65 px** |
+| `ClientPicker` | `/seller/payments/new`, step one of registering an abono | **36 × 343** | client rows **65 px** |
+
+**Verdict: touch responsibility is NOT proven. `size="default"` is preserved on both, and the item is
+closed rather than carried forward again.** Three measurements decide it:
+
+1. **The search is not the primary touch target — the client rows are, and they are already 64–65 px.**
+   Typing is a refinement; the act being performed is tapping a person's name.
+2. **The field is a one-off focus tap on a very large area** — 36 × 343 is 12 348 px², against the
+   1 936 px² of a 44 × 44 minimum. Height is the only dimension under 44, and 36 clears the WCAG
+   2.5.8 target-size minimum of 24 comfortably. This is not the ticket list's search, which a seller
+   aims at repeatedly all day and which is why `size="touch"` exists at all.
+3. **The sale dialog measures 343 × 780 on an 812 px viewport — 96 % of the screen.** Eight more
+   pixels come out of the client list or the confirm button. The cost is real and the benefit is not.
+
+The recorded reasoning in `SearchInput`'s own contract — *"en un dialogo, donde el campo se toca
+sentado y con calma, no hace falta"* — survives contact with the sale dialog, which was the case most
+likely to overturn it. **No new search API was invented and none was needed.**
+
+#### Closeout A, re-verified on real routes
+
+The harness evidence behind §10.52 was replaced with measurements from the running application.
+
+| Check | Measured |
+|---|---|
+| Owner detail heading outline | `h1 Detalle boleta` → `h2 Boleta` · `h2 Información administrativa` · `h2 Abonos de esta boleta`. No skipped levels |
+| Seller detail heading outline | `h1 Detalle boleta` → `h2 Detalles de la boleta` |
+| Invalid interactive nesting | **none** on either detail route |
+| Page-level warning Notice (seller detail) | radius **10 px**, padding **12 / 16** — `default` density. Light `#fef3c6` / `#7b3306` / `#ffd230`; Dark `#461901` / `#fee685` / `#973c00` |
+| Bulk-dialog warning Notice (owner) | radius **8 px**, padding **8 / 12** — `compact`. Same tone roles. **`aria-live="polite"`, `role` null** |
+| `role="alert"` in the bulk dialogs | **zero** |
+| Amber utilities anywhere on those routes | **zero** |
+| Tour scrim, class and inline box-shadow | `rgba(3, 3, 3, 0.5)` in Light, `rgba(3, 3, 3, 0.6)` in Dark — the `--ds-*` reference follows the scope |
+| Owner phone bulk bar @375 | `Anular boletas` **134 × 44**, `Más acciones` **44 × 44**, bar does not overflow, page does not scroll sideways |
+| Seller phone bulk bar @375 | `Asignar a un cliente` **171 × 44**, no overflow |
+| `Seleccionar varias` / `Filtros` row @375 | **44 px** each, unchanged |
+| Sale dialog trigger @375 | **44 × 343** — the `size="touch"` adoption |
+| Selection count | announced through `role="status"` — `3 seleccionadas` |
+
+**No data was written.** Zero audit rows in the QA window; ticket, payment and client counts identical
+before and after. No dialog was ever confirmed. The temporary launch configuration used to take the
+port was reverted.
+
+#### New normal debt found during B
+
+| Debt | Why it is not a blocker |
+|---|---|
+| **`Cliente existente` / `Cliente nuevo` tabs measure 29 px** at 375 in `ReassignTicketClientDialog` | Above the WCAG 2.5.8 minimum of 24, below the project's ~44 convention. It is the shared `Tabs` default, so changing it is a Core question or a local override — the same product-wide shape as the 32 px secondary toolbar buttons recorded in §10.52 |
+| **Pagination loses focus to `<body>`** | Measured above. Router behaviour, product-wide, announcement still fires |
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -6254,7 +6479,8 @@ Everything else is byte-identical output.
 | **R8 commit** | **`5e34265623cdec34a99e48557a36a19d2ee05d32`** (`5e34265`) — `feat(design-system): migrate dashboards to dashboard pattern`, 5 files: both dashboards, the lottery card and its section, and this handoff. **No Core file, no new token, no new component** |
 | **Closure commit** | **`d174d2cd233c5285bfc6fb9e3bd533ac70f46000`** (`d174d2c`) — `docs(design-system): close foundation milestone`, this handoff only (§10.50). **The immutable foundation milestone baseline** |
 | **Resume point commit** | **`5b2dd329f3ef5559344a669f7a417a7347e950be`** (`5b2dd32`) — `docs(design-system): add post-closure resume point`, this handoff only (§10.51). **Where a new session starts** |
-| **Closeout A commit** | `feat(design-system): complete final product adoption closeout` — 16 files: the two ticket detail routes, `TicketPaymentsCard`, the three clearance components, the import dialog, the three bulk selection files, the four ticket dialogs, `TourOverlay` and this handoff (§10.52). **No Core file, no new token, no new component** |
+| **Closeout A commit** | **`00286687b1ee436f96f37e41e5e42518f5c57521`** (`0028668`) — `feat(design-system): complete final product adoption closeout`, 16 files: the two ticket detail routes, `TicketPaymentsCard`, the three clearance components, the import dialog, the three bulk selection files, the four ticket dialogs, `TourOverlay` and this handoff (§10.52). **No Core file, no new token, no new component** |
+| **Closeout B commit** | `docs(design-system): close parity and accessibility qa` — this handoff only (§10.53). **No production code changed**; the work was two Figma writes and real-route QA |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
