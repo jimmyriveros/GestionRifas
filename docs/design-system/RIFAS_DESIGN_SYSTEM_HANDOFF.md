@@ -594,9 +594,12 @@ Risk is relative and argued, **not** an hour estimate.
 > no new token or component, and **`Pattern / Dashboard Page` is PROVEN** by two routes with two
 > genuinely different layouts. A lottery coincidence is now **informational**, no longer wearing the
 > colour of a played result.
-> **The closure inventory (§10.49) returns NO must-close blockers.** The foundation milestone is
-> complete; what remains is product-screen adoption, with **`Bulk Selection` the only unproven
-> pattern**. **Tickets is NOT authorized.**
+> **THE RIFAS DESIGN SYSTEM FOUNDATION MILESTONE IS COMPLETE** (§10.50): zero must-close blockers,
+> six proven page Patterns, three validated theme scopes, defined responsive collection rules and an
+> established accessibility baseline. Stated separately and honestly: **product-wide adoption is IN
+> PROGRESS**, **Figma ↔ Code parity is NOT complete** (two manual sync items) and **no accessibility
+> certification is claimed**. `Bulk Selection` is reclassified as **post-closure product adoption**.
+> **Tickets is NOT authorized, and no further migration wave is planned.**
 
 ---
 
@@ -5666,6 +5669,183 @@ wait for it at all.
 
 ---
 
+### 10.50 DESIGN SYSTEM CLOSURE (2026-09-07)
+
+**Closure date:** 2026-09-07.
+**Baseline:** branch `design-system/migration`, foundation complete at the R8 checkpoint recorded in
+§11. `main` has not moved.
+
+#### The final blocker check
+
+Six questions, asked once:
+
+| | Question | Answer |
+|---|---|---|
+| A | Is any semantic responsibility known with **no owner**? | **No.** The last unowned one — how a numeric coincidence with a published lottery number may be presented — closed in R8 as informational context |
+| B | Is any foundation or component contract **missing**? | **No** |
+| C | Is any page Pattern required for normal development **missing**? | **No.** Six are proven |
+| D | Is any theme scope **structurally unusable**? | **No.** All three are validated, the public one on its real route |
+| E | Is there a severe accessibility **architecture** defect in the system itself? | **No** |
+| F | Can the responsive collection architecture **express the product's known needs**? | **Yes** — three strategies, each evidenced by a shipped screen |
+
+**MUST-CLOSE BLOCKERS: ZERO.**
+
+#### Final architecture status
+
+| Layer | Status |
+|---|---|
+| Foundations | **COMPLETE** |
+| Semantic token architecture | **COMPLETE** |
+| Colour and theme scopes | **COMPLETE** |
+| Typography system | **COMPLETE** |
+| Core control baseline | **COMPLETE** |
+| Data display and overlays | **COMPLETE** |
+| Status semantics | **COMPLETE** |
+| Product Data semantics | **COMPLETE** |
+| Notice | **COMPLETE** |
+| Progress / Linear | **COMPLETE** |
+| Navigation and shell | **COMPLETE** |
+| Responsive collection rules | **DEFINED** |
+| Accessibility baseline | **ESTABLISHED** |
+| Living design-to-code handoff | **COMPLETE** |
+| **Product-wide screen adoption** | **ONGOING** |
+
+**"Design System complete" is not "all screens migrated."** The two are recorded separately on
+purpose, and they must not be conflated in any later summary.
+
+#### Proven page Pattern baseline
+
+| Pattern | Proven by |
+|---|---|
+| List Page | Clientes ×2, Raffles, Payments ×2, People ×3 |
+| Detail Page | Clientes ×2, Raffles, People ×2 |
+| Form | Clientes, Raffles, auth, Payments |
+| Focused System State | `/denied`, `/offline` |
+| Report Page | both report routes |
+| **Dashboard Page** | **owner and seller dashboards — two genuinely different layouts, one contract** |
+
+**No further page Pattern is required for closure.** The layer extends when product evidence appears,
+not before.
+
+#### Interaction layer — living, and deliberately not closed
+
+| | Status |
+|---|---|
+| Search / Filters | **PARTIALLY PROVEN** |
+| Bulk Selection | **NOT FORMALLY PROVEN** — a product interaction behaviour, reachable only in Tickets. **POST-CLOSURE ADOPTION, not a foundation blocker.** It is audited when Tickets is worked on, and only extended if real evidence shows a reusable gap |
+| Table action model | **EVIDENCED** |
+| Responsive collection strategies | **DEFINED** |
+
+#### Responsive collection rule
+
+**Business responsibility** — data, fields, statuses, actions, permissions, filters, pagination,
+selection, navigation — **is never conceptually tied to one renderer.** Presentation is replaceable,
+through three approved strategies: **responsive cards**, **priority table**, **scrollable table**.
+
+**Mobile default: responsive cards** where records are independently understandable; a priority table
+where tabular comparison still helps and the key columns fit; a scrollable table where cross-column
+comparison is fundamental. **A decision framework, not an instruction to rewrite existing tables.**
+
+**Scroll rule:** a scrollable table's horizontal overflow belongs to the collection container, never
+to the page. Evidenced by Reports and by the owner dashboard's seller summary.
+
+**Card rule:** the same business responsibility, not the same information density — identity, state,
+two to four important values, the required actions. **Business rules are never duplicated between the
+two renderings**, and no universal collection component exists or is planned.
+
+#### Table interaction model
+
+**Case A** — a child affordance duplicating row navigation (Payments): the row may own the primary
+target. **Case B** — a child performing a distinct independent action (People's row actions): the
+child owns its own target. **Decided by interaction meaning, not by pixel dimensions.** No further
+global reconciliation is required.
+
+#### Theme status
+
+| Scope | Status |
+|---|---|
+| Light | validated across the authenticated application |
+| Dark | validated across the authenticated application |
+| Catalog | **validated on the real public route with live data** |
+
+The three-scope semantic token architecture is **production-ready**, and it carries one lesson that
+must not be lost: **inside a scoped composition, a hand-written arbitrary value must reference the
+`--ds-*` variable, never the root-resolved `--color-*` name** — the latter substitutes the Light value
+at the root and inherits it past the scope. Proven by the catalogue rendering Light green until it
+was fixed.
+
+#### Accessibility baseline — established, and not overclaimed
+
+Verified as **system responsibilities**: semantic headings, touch-target conventions, keyboard and
+focus behaviour, no critical meaning carried by colour alone, progress semantics, notice and
+live-region rules, table interaction responsibility, accessible forms, responsive collection
+behaviour.
+
+**Not claimed: WCAG certification. Not claimed: complete assistive-technology testing.** Real
+screen-reader validation — the Reports pass in particular — is **post-closure QA**.
+
+#### Manual design-source sync — still open
+
+| Item | Contract | Code | Figma |
+|---|---|---|---|
+| **Notice density axis** | approved | implemented | **pending manual sync** |
+| **Dashboard Page Pattern** | approved | implemented and proven | **pending manual sync** |
+
+**DESIGN-SOURCE SYNC PENDING · TOOLING LIMITATION · POST-CLOSURE MANUAL ACTION.** The connected Figma
+operations are read-only for these writes. **Full Figma ↔ Code parity is therefore NOT claimed**, and
+these do not block implementation closure.
+
+#### Post-closure product adoption
+
+Remaining historical screens are **product adoption**, not Design System construction. Adoption
+follows the order: existing tokens → existing components → existing Patterns → existing responsive
+rules, **before** proposing any extension. **Migration-wave numbering does not restart for ordinary
+feature work.**
+
+**Tickets — the largest remaining area, untouched and deliberately so:**
+
+| | |
+|---|---|
+| Routes | ~7 |
+| Raw palette | 7 occurrences, **every one with an existing semantic owner** |
+| Bulk Selection | interaction audit owed when the group is worked on |
+| Detail heading outline | the same evidence Gate B applied elsewhere |
+| Search field, Progress, compact Notice, responsive collection | **shared baselines already available** |
+
+**POST-CLOSURE PRODUCT ADOPTION — not a foundation blocker.**
+
+#### Safe post-closure debt
+
+Recorded accurately, and **none of it is complete**:
+
+| Item | Kind |
+|---|---|
+| Tickets adoption | product adoption |
+| Tour overlay's hand-written scrim, 2 occurrences | adoption — the overlay role now exists |
+| Destructive control foreground, 2 occurrences inside frozen Core | adoption |
+| Typography adoption — section titles on an ad-hoc type pair | debt |
+| Field-label style repeated across ~18 files | consolidation debt |
+| Two in-dialog searches at 36 px on phones | **touch responsibility not yet proven**; the size contract already supports either answer |
+| Ticket detail heading outline | adoption |
+| Two manual Figma sync items | design-source sync |
+| Reports assistive-technology validation | post-closure QA |
+
+**None of these keeps the milestone open.**
+
+#### Closure statement
+
+> **RIFAS DESIGN SYSTEM — FOUNDATION MILESTONE COMPLETE. READY FOR NORMAL PRODUCT DEVELOPMENT.**
+>
+> Stated separately, and honestly:
+> **Product-wide adoption — IN PROGRESS.**
+> **Figma ↔ Code full parity — NOT YET COMPLETE**, two manual sync items remain.
+> **Accessibility final certification — NOT CLAIMED.**
+
+**Closure does not freeze the system.** It stays living: new evidence is evaluated against what
+already exists, and the system is extended only when that evaluation shows a real gap.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -5705,7 +5885,8 @@ wait for it at all.
 | **R7B commit** | **`afb94bf64e9a8c293168166d363266310224d202`** (`afb94bf`) — `feat(design-system): migrate public catalog to catalog theme semantics`, 7 files: the six catalogue files and this handoff. **No Core file, no new token** |
 | **R8A** | audit only, no production change. §10.44. Committed together with the Pattern below |
 | **Dashboard Pattern commit** | **`048f2b3f88244976d0182c53da6bdd4aa63daf0a`** (`048f2b3`) — `docs(design-system): define dashboard page pattern`, this handoff only: closure mode (§10.45), the responsive collection guideline (§10.46) and the Dashboard Page contract (§10.47) |
-| **R8 commit** | `feat(design-system): migrate dashboards to dashboard pattern` — 5 files: both dashboards, the lottery card and its section, and this handoff. **No Core file, no new token, no new component.** Hash recorded in the closure pass below |
+| **R8 commit** | **`5e34265623cdec34a99e48557a36a19d2ee05d32`** (`5e34265`) — `feat(design-system): migrate dashboards to dashboard pattern`, 5 files: both dashboards, the lottery card and its section, and this handoff. **No Core file, no new token, no new component** |
+| **Closure commit** | `docs(design-system): close foundation milestone` — this handoff only (§10.50). **The foundation milestone baseline** |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
