@@ -550,11 +550,11 @@ Risk is relative and argued, **not** an hour estimate.
 > waves 3A/3B·4.5·6.5·6.6. The **Clientes Seller pilot succeeded** (§10.25) with zero Core defects.
 > **ROLLOUTS R1, R2 and R3 are COMPLETE AND APPROVED** (§10.27, §10.28, §10.29), and
 > **`Pattern / Focused System State` is FORMALIZED** (§10.30), proven by `/denied` and `/offline`.
-> **R4A, R4B and `Pattern / Report Page` are COMPLETE AND APPROVED** (§10.31–§10.33); the Pattern is
-> **PROVEN**. **ROLLOUT R5 — PAYMENTS is EXECUTED** (§10.34), uncommitted and awaiting review: three
-> files, zero Core changes, the last ad-hoc touch mechanism outside `SearchInput` retired, and the
-> deferred table-row question answered as **Case A** with no change made. **NEXT: ROLLOUT R6 — PEOPLE,
-> NOT AUTHORIZED**, and it needs **two contract decisions first** — see the end of §10.34.
+> **ROLLOUTS R1–R5 are COMPLETE AND APPROVED** (§10.27–§10.34), and `Pattern / Report Page` is
+> **PROVEN**. **R6A — PEOPLE PREREQUISITE AUDIT is COMPLETE** (§10.35), uncommitted, audit only. It
+> returns **NOTICE COMPACT EXTENSION JUSTIFIED** as a `density` property on four true consumers, and
+> classifies `CommissionCard` as **threshold/goal Progress** that no approved family owns.
+> **A prerequisite checkpoint — R6B — is REQUIRED before People. Neither is authorized.**
 
 ---
 
@@ -3720,10 +3720,15 @@ interaction, and the small button earns its place on **discoverability**: a row 
 has no other affordance — no chevron, no link styling — so the button is the only visible signal that
 the row does anything. Its `aria-label` is specific ("Ver el pago de {cliente} del {fecha}").
 
-**Evidence recorded for the future cross-table decision**, since this is the first real screen to
-answer it: a Case A action creates **two tab stops per row for one destination** — 50 stops for 25
-payments. That is friction rather than a defect, it is **product-wide** (`RafflesTable` is identical),
-and it is not R5's to fix. **No table button was enlarged.**
+**Carried forward as TABLE ROW NAVIGATION AFFORDANCE RECONCILIATION.** This is the first fully traced
+real example, and it is useful evidence — but **one example does not prove every table action shares
+the responsibility**, so the product-wide policy stays open. A Case A action creates **two tab stops
+per row for one destination** — 50 stops for 25 payments. That is friction rather than a defect, it is
+product-wide (`RafflesTable` is identical), and it was not R5's to fix.
+
+Every future table audit must classify each action as **A · duplicates row navigation** or
+**B · distinct secondary action** before anything is resized or removed. **No table action has been
+globally resized or removed.**
 
 #### Everything else — NO-OP
 
@@ -3786,6 +3791,190 @@ rules forbid taking them inside a route migration.
 
 ---
 
+### 10.35 R6A — PEOPLE PREREQUISITE AUDIT (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+Audit only. **No production file was touched**, and neither prerequisite was implemented.
+
+#### People routes and reachability
+
+| Route | File | Pattern |
+|---|---|---|
+| Sellers list | `src/app/(protected)/owner/sellers/page.tsx` | List Page |
+| Seller detail | `src/app/(protected)/owner/sellers/[sellerId]/page.tsx` | Detail Page |
+| Users list | `src/app/(protected)/owner/users/page.tsx` | List Page |
+| Team list | `src/app/(protected)/seller/team/page.tsx` | List Page |
+| Team member detail | `src/app/(protected)/seller/team/[sellerId]/page.tsx` | Detail Page |
+
+Five routes, **List Page ×3 and Detail Page ×2 — both proven**. No Form, Focused System State or
+Report Page responsibility appears.
+
+| Item | Classification |
+|---|---|
+| Hardcoded palette — 3 occurrences | **PREREQUISITE DECISION** (all three are compact Notice consumers, below) |
+| Compact tinted panels — 3 | **PREREQUISITE DECISION** |
+| `CommissionCard` | **PREREQUISITE DECISION** |
+| `Notice`, `StatusBadge` | **REACHABLE / ALREADY COMPLIANT** |
+| `CollectionSummaryCard`, `BulkTicketCreator`, `PaymentProgressBar`, `ProgressRing` | **NOT REACHABLE** |
+| `SearchInput`, `DataTablePagination` | **NOT REACHABLE** — none of the three lists filters, searches or paginates |
+| In-row table actions | **NOT REACHABLE** — zero |
+| Local touch overrides | **NOT REACHABLE** — zero |
+
+**No blocker.** Both prerequisites are contract decisions, not defects.
+
+#### Compact Notice — the evidence set shrank under inspection
+
+Six compact panels exist at HEAD (`rounded-md px-3 py-2`). Applying the semantic gate — *persistent
+inline contextual information inside a larger composition* — **two are not Notices at all**:
+
+| # | Consumer | Message responsibility | True Notice? |
+|---|---|---|---|
+| 1 | `CommissionCard:130` (People) | "Estás en el nivel más alto: $X por cada boleta" — informational, positive | **YES** |
+| 2 | `TeamCommissionDialog:177` (People) | consequence of saving: past tickets get recalculated | **YES** — and it already carries `role="status"` |
+| 3 | `UserDialog:340` (People) | consequence of changing the email: the old invitation link dies | **YES** |
+| 4 | `TicketImportDialog:321` (Tickets) | "Se importarán N boletas, las otras M quedarán fuera" | **YES** |
+| 5 | `BulkActionDialog:112` | **`role="alert"`** · "No se puede continuar todavía" + blocked list | **NO — blocking error** |
+| 6 | `BulkAssignDialog:111` | **`role="alert"`** · same shape | **NO — blocking error** |
+
+**5 and 6 are excluded, and firmly.** They announce assertively and they *block the dialog's
+decision*. Notice v1 has **no Error tone** and **must never emit `role="alert"`**, so these are not
+compact-Notice consumers — they are not Notice consumers at all. They belong to the existing
+form/dialog error pattern.
+
+**True evidence: four consumers, three of them in People.** Still comfortably past the two the
+contract requires.
+
+#### Geometry: it is DENSITY, not SIZE
+
+| | Default Notice | Compact candidates |
+|---|---|---|
+| Radius | `rounded-lg` | `rounded-md` |
+| Padding | `px-4 py-3` | `px-3 py-2` |
+| Typography | `text-sm` | **`text-sm` — identical** |
+| Content hierarchy | body text | **body text — identical** |
+| Icon | optional | **none of the four has one** |
+| Action | optional | **none of the four has one** |
+
+Only spacing and radius move; **typography and content hierarchy are unchanged, and no structural
+region appears or disappears**. By the contract's own test that is **density**, not size — the
+responsibility is identical and only compactness differs.
+
+**DECISION RETURNED: NOTICE COMPACT EXTENSION JUSTIFIED.**
+
+| | Proposal |
+|---|---|
+| Public property | **`density`** |
+| Values | `'default' \| 'compact'` |
+| Default | `'default'` — no existing consumer changes |
+| Evidence | the four true consumers above |
+| People adopters | `CommissionCard`, `TeamCommissionDialog`, `UserDialog` |
+| Figma | **one independent axis** beside `Tone` — never `Info / Compact / Icon / Action` combinations. Icon and Action stay slots; live behaviour stays code metadata |
+| Tokens | **none created.** Compact geometry is not a colour semantic; it reuses existing spacing, radius, typography and the `status/*` tones. **No missing spacing or radius token was found** — `rounded-md`, `px-3`, `py-2` all exist |
+| Accessibility | unchanged. Two of the three People consumers are **dynamic** (they appear on change), so they should adopt `live` — `TeamCommissionDialog` already hand-rolls `role="status"`, whose implicit polite announcement `live` reproduces exactly |
+| Risk | **LOW** — an additive, defaulted property; no existing consumer moves |
+
+**Notice v1 was not otherwise reopened**: no title, no dismissible, no Error tone, no floating, no
+trailing-content, no className, no prop spreading.
+
+#### Progress — three consumers, three different answers
+
+Traced from data origin to visual output, not from the word "progress".
+
+| Consumer | Numerator ÷ denominator | 100 means | Classification |
+|---|---|---|---|
+| **`CommissionCard`** | `ticketsPaid ÷ nextMinTickets`, capped at 100 | the seller reaches the **next commission tier** and their rate changes | **D · THRESHOLD / GOAL PROGRESS** |
+| **`CollectionSummaryCard`** | `totalCollected ÷ totalSold`, labelled "Porcentaje recaudado" | everything sold has been collected | **B · BUSINESS COMPLETION PROGRESS** |
+| **`BulkTicketCreator`** | `done ÷ total`, labelled "Progreso del guardado" | the save finished | **A · GENERIC PROCESS PROGRESS** — unchanged from its earlier classification |
+
+`CommissionCard` is **definitively not Product Data**: its denominator is a **rule** — the tier
+minimum — not a quantity being decomposed into categories. Nothing is being composed; something is
+being approached. Money is involved, which is exactly the trap the contract warns about.
+
+#### Current Progress contract — the five things are NOT equivalent
+
+| | Status |
+|---|---|
+| **Figma contract** | **EXISTS** — `Progress / Linear`, a component set with `Amount`, `Percent` and `Value` |
+| **Semantic tokens** | **EXIST** — `progress/track` and `progress/value` in all three scopes, `progress/value` aliasing `brand/default` |
+| **Token consumers** | **ZERO.** Nothing in the product uses `progress-track` or `progress-value`. The roles have been sitting unused since Wave 1 |
+| **Code component** | **DOES NOT EXIST.** The only progress components are `ProgressRing` and `PaymentProgressBar`, both **Product Data** |
+| **Production consumers** | **EXIST — four non-Product-Data bars**, each hand-rolling its own markup: `CollectionSummaryCard`, `CommissionCard`, `SellerKpis`, `BulkTicketCreator` |
+| **Accessibility contract** | **NOT CODIFIED, but consistent in practice** — all four hand-roll `role="progressbar"` with `aria-valuemin/max/now` and an `aria-label`. All represent a completion percentage, so the role is appropriate in each case |
+
+#### FINDING — the same measure is currently in two families
+
+`SellerKpis`' bar is labelled **"Porcentaje del dinero ya cobrado"** and `CollectionSummaryCard`'s is
+**"Porcentaje recaudado"**. They are the **same measure** — collected ÷ sold — yet:
+
+* `SellerKpis` was migrated in **Wave 6 to `data/paid`** (Product Data, green);
+* `CollectionSummaryCard` was **deferred as Progress** and still renders `bg-primary` (brand).
+
+By this audit's own reasoning — completion, not decomposition — **both are Business Completion
+Progress**, which means Wave 6 placed one of them in the wrong family. **Nothing was changed**: Wave 6
+is approved baseline and this is an audit. But a Progress reconciliation cannot be designed around
+`CommissionCard` alone without deciding whether `SellerKpis`' bar moves too — and that one **would
+change colour**, green → brand.
+
+Worth noting for the eventual decision: `CollectionSummaryCard` adopting `progress/value` would be
+**visually inert**, because `bg-primary` and `progress/value` both resolve to `brand/default`.
+
+#### Progress — minimum reconciliation proposed
+
+**Classification: B · COMPLETING AN EXISTING PARTIAL CONTRACT.** The Figma contract and the tokens
+already exist; what is missing is a code component and the decision about which consumers belong.
+
+| | Proposal |
+|---|---|
+| Component | **one generic linear progress**, in `components/data/`, consuming `progress/track` and `progress/value` |
+| API | **generic only** — a value, a max, an accessible label. **No `commission`, `collection` or `saving` variants**; business meaning stays with the consumer |
+| Accessibility | codify what the four already do: `role="progressbar"` with min/max/now and a required accessible label |
+| Tokens | **none new** — the two roles exist and are unused |
+| Scope decision needed | whether `SellerKpis`' bar moves out of Product Data, per the finding above |
+
+**Is Progress a People prerequisite? YES, but narrowly.** People reaches exactly one consumer,
+`CommissionCard`, and it is a **threshold/goal** bar that no approved family currently owns — it is
+neither Product Data nor a Notice nor a Status. Migrating People without deciding this would leave a
+hand-rolled bar on a migrated screen, or push it into Product Data, which the trace disproves.
+
+**Other groups benefit**: Dashboards reaches `CollectionSummaryCard` and `SellerKpis`, Tickets reaches
+`BulkTicketCreator`. All three remaining groups touch this family, so resolving it before People pays
+forward.
+
+#### People palette — all three are the Notice decision
+
+| Occurrence | Semantic responsibility |
+|---|---|
+| `UserDialog:340` | **NOTICE** — consequence of changing the email |
+| `TeamCommissionDialog:177` | **NOTICE** — consequence of saving a new commission |
+| `CommissionCard:130` | **NOTICE** — informational, top tier reached |
+
+**The compact Notice decision eliminates all three.** No other semantic family appears in the People
+tree, and no additional blocker was found.
+
+#### Search / Filters — People adds nothing
+
+**None of the three People lists has free-text search, filters or pagination** — they are small
+bounded collections (an organisation's sellers, its users, a seller's team), the same shape as
+Raffles. A successful R6 therefore **cannot** move Search / Filters to PROVEN; the remaining gap
+stays exactly where it was: **free-text search behaviour is not yet broadly proven**.
+
+#### Recommendation
+
+**A separate prerequisite checkpoint IS required** before People.
+
+**R6B — PEOPLE DESIGN SYSTEM PREREQUISITE RECONCILIATION**
+
+1. **Notice `density` extension** — Figma axis + code property + the four evidence consumers
+   documented. Low risk, additive, nothing moves by default.
+2. **Progress reconciliation** — complete the partial contract with one generic linear component on
+   the existing unused tokens, and decide the `SellerKpis` scope question the finding raises.
+
+**Then R6 — PEOPLE**, five routes, List ×3 and Detail ×2, expected to be small: adopt compact Notice
+in three consumers (which zeroes the palette), adopt Progress in `CommissionCard`, and verify the two
+proven Patterns. **Risk: MEDIUM before the prerequisites are decided, LOW after** — the routes
+themselves are clean, with no search, no pagination, no table actions and no touch overrides.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
@@ -3815,7 +4004,8 @@ rules forbid taking them inside a route migration.
 | **Rollout R3 commit** | **`cb9b25fa7befd69259e75656be301a9e79d280fb`** (`cb9b25f`) — `feat(design-system): migrate auth and utility flows`, 8 files |
 | **R4A commit** | **`eb6c2f78fcb9d2a7c3576d591273c65a3e279390`** (`eb6c2f7`) — `docs(design-system): define report page pattern`, this handoff only |
 | **R4B commit** | **`1ea836d49ae851e114da6675298ff34956159fd3`** (`1ea836d`) — `feat(design-system): migrate reports to report page pattern`, 3 files |
-| **Rollout R5 commit** | `feat(design-system): migrate payments to proven patterns` — 4 files. Hash recorded in the R6A pass below |
+| **Rollout R5 commit** | **`836cf5bf6ff6fa30d8549cc99f94f94d6b2b45a2`** (`836cf5b`) — `feat(design-system): migrate payments to proven patterns`, 4 files |
+| **R6A commit** | `docs(design-system): define people rollout prerequisites` — this handoff only. Hash recorded in the R6B pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
