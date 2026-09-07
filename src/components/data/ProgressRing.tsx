@@ -55,7 +55,7 @@ export function ProgressRing({ percentage, caption, label, className }: Progress
           fill="none"
           strokeWidth="8"
           strokeLinecap="round"
-          className="stroke-emerald-600 dark:stroke-emerald-400"
+          className="stroke-data-paid"
           strokeDasharray={CIRCUMFERENCE}
           strokeDashoffset={CIRCUMFERENCE * (1 - safe / 100)}
         />

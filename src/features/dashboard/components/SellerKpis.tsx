@@ -124,10 +124,7 @@ export function SellerKpis({
               aria-label="Porcentaje del dinero ya cobrado"
               className="bg-muted h-1.5 w-full overflow-hidden rounded-full"
             >
-              <div
-                className="h-full bg-emerald-600 dark:bg-emerald-400"
-                style={{ width: `${collectionPercentage}%` }}
-              />
+              <div className="bg-data-paid h-full" style={{ width: `${collectionPercentage}%` }} />
             </div>
           </div>
         }
@@ -214,7 +211,7 @@ function ComparisonHint({
       <span
         className={cn(
           'inline-flex items-center gap-1 font-medium',
-          isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+          isUp ? 'text-data-positive' : 'text-data-negative',
         )}
       >
         <Icon className="size-3.5" aria-hidden />

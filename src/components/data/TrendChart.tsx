@@ -97,7 +97,7 @@ export function TrendChart({ points, label, className }: TrendChartProps) {
           />
         ))}
 
-        <polygon points={area} className="fill-emerald-500/10 dark:fill-emerald-400/10" />
+        <polygon points={area} className="fill-data-paid/10" />
         <polyline
           points={line}
           fill="none"
@@ -105,16 +105,10 @@ export function TrendChart({ points, label, className }: TrendChartProps) {
           strokeLinecap="round"
           strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
-          className="stroke-emerald-600 dark:stroke-emerald-400"
+          className="stroke-data-paid"
         />
         {coords.map((point) => (
-          <circle
-            key={point.date}
-            cx={point.x}
-            cy={point.y}
-            r="4"
-            className="fill-emerald-600 dark:fill-emerald-400"
-          >
+          <circle key={point.date} cx={point.x} cy={point.y} r="4" className="fill-data-paid">
             <title>{`${formatDayMonthEs(point.date)}: ${formatCOP(point.amount)}`}</title>
           </circle>
         ))}

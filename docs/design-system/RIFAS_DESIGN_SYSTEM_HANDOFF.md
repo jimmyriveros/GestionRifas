@@ -335,10 +335,12 @@ not code blockers.**
   uses `sm`, `default` and `icon`.
 - **Radius** — production defines only `--radius-sm/md/lg/xl`; the system adds `none`, `2xl` (public
   catalog) and `full` (badges, pills).
-- **Chart colours** — `TrendChart` hardcodes `fill-emerald-500/10` and its stroke; `ProgressRing`
-  hardcodes `stroke-emerald-600 dark:stroke-emerald-400`. Both should consume `data/paid`.
-- **Data role classes** — `dashboard/tones.ts` exposes each role as three class families (`text-`,
-  `bg-`, `stroke-`). In code these become **one** custom property per role.
+- **Chart colours** — ~~`TrendChart` and `ProgressRing` hardcode emerald~~ **CLOSED in Wave 6**:
+  both consume `data/paid`, and no hardcoded chart palette remains (§10.20).
+- **Data role classes** — ~~three class families per role in `dashboard/tones.ts`~~ **CLOSED in
+  Wave 6**, but into **two** custom properties per meaning, not one: `data/<meaning>` for fills and
+  strokes, `data/<meaning>/foreground` for text. The graphical values fail WCAG 1.4.3 as normal text
+  (§10.20).
 - **`data/partial` — three hues for one role** *(`VISUAL BEHAVIOR CHANGE · PRODUCT DATA
   RECONCILIATION`)* — **corrected 2026-09-06 at HEAD `124445b`.** The earlier entry said the amber
   contradiction "was already fixed in Phase 10, so the remaining difference is a hue, not a family."
@@ -529,15 +531,23 @@ Exactly as approved in `04 — Design to Code` › Section · Implementation wav
 
 Risk is relative and argued, **not** an hour estimate.
 
-> **CURRENT POSITION: Waves 1 and 2 approved and committed. Wave 3A executed, uncommitted,
-> awaiting review.**
+> **CURRENT POSITION: Waves 1, 2, 3A, 3B1, 3B1b, 3B2, 4, 4.5A, 4.5B and 5 are approved and
+> committed. Wave 6 is executed, uncommitted, awaiting review.**
 > **Wave 3 was SPLIT (approved 2026-09-06): 3A core-control adoption, 3B brand activation.** This is
 > an EXECUTION split only — the dependency model is unchanged, no new architectural layer exists.
-> **NEXT: WAVE 3B — BRAND ACTIVATION. NOT AUTHORIZED.** It is where `action/primary` stops being
-> near-black and becomes brand green, everywhere at once.
-> **Wave 6 (Data visualisation)** now has its prerequisites met (Waves 1–2) and could run in
-> parallel — but its `data/*` decision is still blocked on the three-way `partial` split in §7B, so
-> it must not start before that is decided.
+> 3B was split again into 3B1 (semantic convergence), 3B1b (activation prerequisites) and 3B2 (the
+> flip itself), which shipped the brand.
+> **Waves 4.5A and 4.5B were INSERTED (approved 2026-09-06)** to audit and then migrate product
+> Status semantics — a surface the original seven-wave plan never assigned to any wave.
+> **Wave 6 is COMPLETE (2026-09-06).** `data/partial` is the approved sky family, the three-way
+> `partial` split recorded in §7B is resolved for **both** graphics and text, and the token contract
+> gained four evidence-backed `data/*/foreground` roles because the graphical roles are not text-safe
+> (§10.20).
+> **NEXT: WAVE 6.5A — ALERT / NOTICE AUDIT & CONTRACT (audit complete, §10.21, awaiting approval).**
+> Wave 6.5B (implementation) and **Wave 7 — Patterns & pilot screen (Clientes, Seller portal)** are
+> both **NOT AUTHORIZED**. Wave 7's stated prerequisites (Waves 3, 4 and 5) are met; its outstanding
+> blocker is the Alert/Notice gap, because `seller/clients/[clientId]` is a pilot route whose
+> archived-client notice has no Design System component contract.
 
 ---
 
@@ -1519,6 +1529,186 @@ remains an unassigned gap and a Clientes-pilot prerequisite**.
 
 ---
 
+### 10.20 WAVE 6 — DATA VISUALISATION (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+**10 production files + the token layer.** Executed in two parts: the graphical migration the Figma
+contract described, and then an **evidence-backed correction to the token contract itself** after
+measurement proved the graphical roles are not safe for normal text.
+
+#### Part 1 — graphical Product Data (6 files)
+
+| Role | Light: was → now | Dark: was → now | Classification |
+|---|---|---|---|
+| `data/paid` | `#009966` → same | `#00d492` → same | **INERT** |
+| `data/unpaid` | `#e7000b` → same | `#ff6467` → same | **INERT** |
+| `data/partial` | `#155dfc` → `#0084d1` | `#51a2ff` → `#00bcff` | **APPROVED PRODUCT DATA SEMANTIC CORRECTION** — blue → sky |
+| `data/pending` | `#c7c7c7` *(effective, 40% alpha)* → `#a1a1a1` | `#4e4e4e` → `#737373` | **APPROVED CORRECTION** — the alpha is dropped; the role already encodes the intended lightness |
+| `data/positive` | `#009966` → `#007a55` | `#00d492` → same | **ACCESSIBILITY FIX** — 3.65:1 → 5.36:1 |
+| `data/negative` | `#e7000b` → same | `#ff6467` → `#ff637e` | 6.21 → 6.26 in Dark |
+
+`PaymentProgressBar` was **amber** for `partial` — never on the `tones.ts` scale — and now joins the
+same role. Its `unpaid` fill was grey and maps to **`data/pending`, not `data/unpaid`**: "not yet
+collected" is a normal pending quantitative condition, not an alarm. Approved 2026-09-06.
+
+#### Part 2 — THE CONTRACT DEFECT, and the four roles that fix it
+
+Migrating the text consumers onto the graphical roles would have shipped **eight WCAG 1.4.3
+regressions**. The roles are calibrated for chart marks, and the real backgrounds are worse than
+white: these consumers sit on `bg-card` **with a hover state** (`bg-muted`, or `bg-muted/50`), and
+`PaymentAllocationCards` also has a `bg-destructive/5` issue state.
+
+Measured on the **hover** surface — the binding constraint — every legacy value fails as text:
+
+| Graphical role | Light value | On `#f5f5f5` | Verdict |
+|---|---|---|---|
+| `data/paid` | emerald/600 `#009966` | **3.35:1** | fails |
+| `data/partial` | sky/600 `#0084d1` | **3.69:1** | fails |
+| `data/unpaid` | red/600 `#e7000b` | **4.38:1** | fails |
+| `data/pending` | neutral/400 `#a1a1a1` | **2.58:1** | fails |
+
+`red/600` and `neutral/500` were **already failing in production** on hover before this wave. That is
+a pre-existing defect this wave closes, not one it introduced.
+
+**Resolution: the contract gained four evidence-backed text-safe roles**, one per meaning actually
+demonstrated by a real text consumer. No role was invented for symmetry; `data/positive` and
+`data/negative` got none because no text consumer needs one.
+
+| New role | Light | Dark | Catalog | Scope |
+|---|---|---|---|---|
+| `data/paid/foreground` | emerald/700 `#007a55` | emerald/400 `#00d492` | emerald/400 `#00d492` | `TEXT_FILL` |
+| `data/partial/foreground` | sky/700 `#0069a8` | sky/400 `#00bcff` | sky/400 `#00bcff` | `TEXT_FILL` |
+| `data/unpaid/foreground` | red/700 `#b80008` | red/400 `#ff6467` | red/400 `#ff6467` | `TEXT_FILL` |
+| `data/pending/foreground` | neutral/550 `#666666` | neutral/400 `#a1a1a1` | neutral/400 `#a1a1a1` | `TEXT_FILL` |
+
+**Every value already existed in the approved primitive ramps** — no primitive or ramp correction was
+needed, and no one-off literal was invented. The conceptual contract is now:
+
+* `data/<meaning>` → the **graphical** representation (fills, strokes, chart marks)
+* `data/<meaning>/foreground` → the **textual** representation of that same meaning
+
+Note `data/pending/foreground` is **lighter** than `data/pending` in Dark and **darker** in Light.
+That is correct and expected: the graphical role is a deliberately low-emphasis track, and the text
+role has to be readable.
+
+**Figma also stopped advertising the graphical roles for text.** `data/paid`, `data/partial` and
+`data/pending` carried a `TEXT_FILL` scope, so the variable picker offered them for text — the exact
+mistake the measurement disproved. That scope was removed; values and names are untouched, and they
+now match `data/unpaid`, which never had it. Each carries a description pointing at its `/foreground`
+counterpart.
+
+#### WCAG gate — every migrated Product Data text consumer, on its ACTUAL surfaces
+
+| Consumer | Surfaces measured | Light worst | Dark worst |
+|---|---|---|---|
+| `CollectionStatusCard` (`text-xs`) | card, hover `bg-muted` | **4.92** | **5.24** |
+| `TicketsOverviewCard` (`text-2xl`) | card, hover `bg-muted` | **4.92** | **5.24** |
+| `ClientTicketCardList` | card, hover `bg-muted/50` | **5.14** | **7.56** |
+| `TicketPaymentSummary` | card | **5.36** | **6.94** |
+| `PaymentAllocationCards` | card, issue `bg-destructive/5` | **4.91** | **6.53** |
+| `SellerKpis` trend | card (no hover) | **4.77** | **6.26** |
+
+**Worst case across every migrated Product Data text consumer, both themes, every surface: 4.77:1.
+Zero failures.** **Catalog was not measured for these consumers because none is reachable under
+`.catalog-theme`** — verified against the route's import graph; the public catalog renders only its
+own components. The Catalog mode is defined on all four roles anyway, since every Color variable
+carries three modes.
+
+#### Graphical contrast — the non-text requirement, not the text one
+
+| Surface | Light | Dark |
+|---|---|---|
+| `data/paid` fill and stroke | 3.65 (inert) | 9.25 (inert) |
+| `data/partial` fill and stroke | 5.25 → 4.02 | 6.80 → **8.23** |
+| `data/unpaid` fill and stroke | 4.77 (inert) | 6.21 (inert) |
+| `data/pending` track | 1.69 → **2.58** | 2.15 → **3.78** |
+| `PaymentProgressBar` partial | 2.13 → **4.02** | 10.41 → 8.23 |
+
+`data/pending` is a track/remainder colour and sits below 3:1 in Light, but it **improves** from 1.69,
+and colour is never its sole carrier of meaning: every consumer writes the value out and pairs it with
+a text label or badge (D-124, `CLAUDE.md` §27).
+
+#### Consumer classification
+
+| Consumer | Class | Outcome |
+|---|---|---|
+| `tones.ts` `TONE_FILL` / `TONE_STROKE` | **A. Product Data, graphical** | `data/*` |
+| `tones.ts` `TONE_TEXT` | **A. Product Data, textual** | `data/*/foreground` |
+| `TrendChart` | **A. Product Data** | `data/paid` — single real series, API unchanged |
+| `ProgressRing` | **A. Product Data** | `data/paid` — its one consumer is `TicketPaymentSummary`, "Abonado el X% del precio de venta". **Not a chart**: shared geometry with Donut does not make it one, and its API was not broadened |
+| `DonutChart` | **A. Product Data** | takes its colours from `tones.ts`; segment semantics unchanged |
+| `PaymentProgressBar` | **A. Product Data** | `data/pending` · `data/partial` · `data/paid` |
+| `SellerKpis` collection bar | **A. Product Data** | `data/paid` |
+| `SellerKpis` up/down delta | **C. Trend** | `data/positive` / `data/negative` |
+| `ClientTicketCardList` · `TicketPaymentSummary` · `PaymentAllocationCards` | **A. Product Data, textual** | `data/*/foreground` |
+| `CollectionSummaryCard` · `CommissionCard` | **B. Advancement toward completion** | **PROGRESS SEMANTIC RECONCILIATION DEBT** — deferred until the Progress family has an owner |
+| `BulkTicketCreator` saving progress | **B. Process progress** | **Progress family debt** — must stay outside `data/*` |
+| `RecentActivityCard` | **E. Record state** (active vs voided payment) | deferred to whichever family eventually owns that product state |
+| `MetricCard` | **D. No colour migration needed** | no palette classes |
+| Notice boxes, Lottery pills, `PaymentForm`, `ClearanceReceipt*`, `UserDialog`, `TeamCommissionDialog`, `BulkActionDialog`, `BulkAssignDialog`, `TicketImportDialog` | **Status / Alert / Notice** | **FIREWALLED — untouched** |
+
+#### Status / Data / Progress firewall — intact
+
+Status "Abonada" is `status/info`; the Product Data partial amount is `data/partial`; its text is
+`data/partial/foreground`; generic progress stays outside `data/*` entirely. None of the forbidden
+aliases exists: no `data/*` resolves to a `status/*` role, no `progress` consumer resolves to
+`data/*`, and `data/paid/foreground` is **not** `data/positive` — they only happen to share a value
+in Light, from two independent decisions.
+
+#### Hardcoded Product Data palette audit — zero remaining
+
+31 palette occurrences remain in `src/`, and **none is Product Data**: 12 Alert/Notice boxes,
+10 Lottery result presentation, 3 `ClearanceReceipt*` delivery state, 2 `PaymentForm` allocation
+notice, 1 `CommissionCard` notice, 1 `RecentActivityCard` record state, 1 import success icon,
+1 `TeamCommissionDialog` notice. Each belongs to a separately deferred family, listed above.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | **exit 0** |
+| `npm run lint` | **exit 0** — 2 pre-existing warnings (`react-hooks/incompatible-library`, TanStack Virtual), untouched by this wave |
+| `npm run test` | **791 passed / 47 files** — identical to the Wave 5 baseline |
+| `npm run build` | **compiled successfully**, 31 static pages, full route table |
+| `prettier --check` on every touched file | **passes** |
+| Compiled selector audit | Measured against the build taken right after the graphical migration: **+4** — the four new foreground utilities · **−9** — the legacy amber, blue and red text utilities Product Data used plus their dark twins (7), and two emerald stroke utilities that only ever existed because a closed debt entry quoted them (2). Nothing else moved. The graphical wave added its own 11 utilities, each verified emitted and resolving to a token |
+| Theme scopes | all four new tokens defined in `:root`, `.dark` and `.catalog-theme` |
+| Live screenshots | **NOT PERFORMED — Docker/Supabase unavailable.** Validation was compiled CSS, resolved values, computed contrast and the test suite |
+
+`prettier` flagged three files. Two — `TrendChart.tsx` and `SellerKpis.tsx` — were caused by this
+wave: the shorter class strings let the JSX fold onto a single line. Both were formatted, and the
+Tailwind class sorter reordered `h-full bg-data-paid`. The third, `TicketPaymentSummary.tsx`, is
+**CRLF on disk and prettier-clean in content**; it fails identically at HEAD, so it was left alone
+rather than rewritten wholesale.
+
+#### Deployment fingerprint audit (§18)
+
+Four occurrences of the retired fingerprints `.fill-emerald-500/10` and `.stroke-blue-600`:
+
+| Location | Classification | Action |
+|---|---|---|
+| `docs/HANDOFF.md` §1.a.0, dated 2026-08-25 | **A. HISTORICAL SNAPSHOT** | preserved verbatim |
+| `docs/PHASE_STATUS.md` §7 "Promoción a producción (2026-08-25)" | **A. HISTORICAL SNAPSHOT** | preserved verbatim |
+| `docs/TEST_RESULTS.md` "Verificación tras desplegar (2026-08-25)" | **A. HISTORICAL SNAPSHOT** | preserved verbatim |
+| This handoff §7, "Chart colours" debt entry | living debt, not a snapshot | updated — the debt is closed |
+
+**No active deployment verification workflow is broken.** `scripts/verify-remote.ts` does not inspect
+CSS at all, and `RUNBOOK.md` / `DEPLOYMENT.md` reference `npm run verify:remote`, never a fingerprint
+list. The three snapshots are dated past-tense records of what was served on 2026-08-25.
+
+Recorded as **DEPLOYMENT VERIFICATION DOCUMENTATION DEBT**. Proposed stable replacements, both
+verified present in the current build and generated by exactly one source file each:
+
+* `.fill-data-paid\/10` — only `TrendChart.tsx`
+* `.stroke-data-partial` — only `tones.ts`
+
+A docs-only correction, if wanted, belongs in **a separate checkpoint after Wave 6**, not here.
+
+**Remaining Wave 6 debt: none for Product Data.** What remains is owned elsewhere: the Progress family
+(`CollectionSummaryCard`, `CommissionCard`, `BulkTicketCreator`), `RecentActivityCard`'s record state,
+and the **Alert/Notice component gap**, which is the next prerequisite and is audited in §10.21.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
@@ -1536,15 +1726,16 @@ remains an unassigned gap and a Clientes-pilot prerequisite**.
 | **Wave 4.5A commit** | **`dbba15141753daa16592352562e35a087dd0e0ac`** (`dbba151`) — `docs(design-system): approve product status semantics`, documentation only |
 | **Wave 4.5B commit** | **`85fc38f7d726aad86cf47947397e70e041e84086`** (`85fc38f`) — `feat(design-system): migrate product statuses to semantic tones`, 10 files |
 | **Wave 5 preflight commit** | **`6787298fc38fb85438b413ac6fdcae766a3d8dc3`** (`6787298`) — `docs(design-system): record re-scoped wave 5 preflight`, documentation only |
-| **Wave 5** | **uncommitted working tree** — `AppSidebar.tsx`, `AppShell.tsx` + this handoff. No Wave 5 commit was authorized. |
+| **Wave 5 commit** | **`9ac0740b11662caf4d3542ffb58bb8591b0f89cb`** (`9ac0740`) — `feat(design-system): adopt semantic application shell`, 3 files |
+| **Wave 6 commit** | `feat(design-system): adopt semantic product data visualization` — 11 files: the token layer, 9 consumers and this handoff. Hash recorded in the Wave 6.5A pass below. |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
 
 Every wave is an independently revertible checkpoint — `git revert 3aae867` removes the whole token
-layer and nothing else, and the same holds for each later commit. Wave 3B2, the one that makes the
-brand visible, is deliberately left **unstaged** so the visual diff can be reviewed or discarded
-without disturbing Wave 1.
+layer and nothing else, and the same holds for each later commit. **Wave 6 is deliberately left
+uncommitted** so its visual diff — the sky correction to `data/partial` and the grey correction to
+`data/pending` — can be reviewed or discarded without disturbing anything already committed.
 
 **Do not alter the two pre-existing untracked files.** They belong to the user.
 

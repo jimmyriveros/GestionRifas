@@ -657,10 +657,14 @@ body:has(.catalog-theme) {
   /* data */
   --ds-data-negative: #e7000b;
   --ds-data-paid: #009966;
+  --ds-data-paid-foreground: #007a55;
   --ds-data-partial: #0084d1;
+  --ds-data-partial-foreground: #0069a8;
   --ds-data-pending: #a1a1a1;
+  --ds-data-pending-foreground: #666666;
   --ds-data-positive: #007a55;
   --ds-data-unpaid: #e7000b;
+  --ds-data-unpaid-foreground: #b80008;
   /* elevation */
   --ds-elevation-shadow-default: #0303031f;
   --ds-elevation-shadow-strong: #03030333;
@@ -761,10 +765,14 @@ body:has(.catalog-theme) {
   /* data */
   --ds-data-negative: #ff637e;
   --ds-data-paid: #00d492;
+  --ds-data-paid-foreground: #00d492;
   --ds-data-partial: #00bcff;
+  --ds-data-partial-foreground: #00bcff;
   --ds-data-pending: #737373;
+  --ds-data-pending-foreground: #a1a1a1;
   --ds-data-positive: #00d492;
   --ds-data-unpaid: #ff6467;
+  --ds-data-unpaid-foreground: #ff6467;
   /* elevation */
   --ds-elevation-shadow-default: #03030373;
   --ds-elevation-shadow-strong: #03030399;
@@ -865,10 +873,14 @@ body:has(.catalog-theme) {
   /* data */
   --ds-data-negative: #ff637e;
   --ds-data-paid: #00d492;
+  --ds-data-paid-foreground: #00d492;
   --ds-data-partial: #00bcff;
+  --ds-data-partial-foreground: #00bcff;
   --ds-data-pending: #b1afc0;
+  --ds-data-pending-foreground: #a1a1a1;
   --ds-data-positive: #00d492;
   --ds-data-unpaid: #ff6467;
+  --ds-data-unpaid-foreground: #ff6467;
   /* elevation */
   --ds-elevation-shadow-default: #03030373;
   --ds-elevation-shadow-strong: #03030399;
@@ -1065,10 +1077,14 @@ body:has(.catalog-theme) {
   /* data */
   --color-data-negative: var(--ds-data-negative);
   --color-data-paid: var(--ds-data-paid);
+  --color-data-paid-foreground: var(--ds-data-paid-foreground);
   --color-data-partial: var(--ds-data-partial);
+  --color-data-partial-foreground: var(--ds-data-partial-foreground);
   --color-data-pending: var(--ds-data-pending);
+  --color-data-pending-foreground: var(--ds-data-pending-foreground);
   --color-data-positive: var(--ds-data-positive);
   --color-data-unpaid: var(--ds-data-unpaid);
+  --color-data-unpaid-foreground: var(--ds-data-unpaid-foreground);
   /* elevation */
   --color-elevation-shadow-default: var(--ds-elevation-shadow-default);
   --color-elevation-shadow-strong: var(--ds-elevation-shadow-strong);

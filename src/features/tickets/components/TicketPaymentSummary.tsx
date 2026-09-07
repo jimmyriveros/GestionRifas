@@ -101,16 +101,17 @@ export function TicketPaymentSummary({
                   price={price}
                   // El color solo aparece cuando dice algo: en cero no hay
                   // dinero cobrado que destacar.
-                  className={paid > 0 ? 'text-emerald-700 dark:text-emerald-400' : undefined}
+                  className={paid > 0 ? 'text-data-paid-foreground' : undefined}
                 />
-                {/* El ambar dice «falta algo», igual que en «Abonada» y
-                    «Pendiente de aprobación»; en cero no queda nada que
-                    señalar y la cifra vuelve al gris de siempre. */}
+                {/* Lo que falta por cobrar es «todavia no», no «mal»: lleva
+                    el rol de dato «pending», el mismo que la parte sin cobrar
+                    de una barra. En cero no queda nada que señalar y la cifra
+                    vuelve al color de siempre. */}
                 <Amount
                   label="Pendiente"
                   amount={pendingAmount}
                   price={price}
-                  className={pendingAmount > 0 ? 'text-amber-700 dark:text-amber-400' : undefined}
+                  className={pendingAmount > 0 ? 'text-data-pending-foreground' : undefined}
                   divided
                 />
               </div>

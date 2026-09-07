@@ -119,7 +119,7 @@ function RemainingPreview({
 }) {
   if (nextStatus === 'paid') {
     return (
-      <p className="shrink-0 font-medium text-emerald-600 dark:text-emerald-400">
+      <p className="text-data-paid-foreground shrink-0 font-medium">
         {TICKET_PAYMENT_STATUS_LABELS.paid}
       </p>
     )
@@ -137,7 +137,7 @@ function RemainingPreview({
   }
 
   return (
-    <p className="shrink-0 font-medium whitespace-nowrap text-amber-700 tabular-nums dark:text-amber-400">
+    <p className="text-data-pending-foreground shrink-0 font-medium whitespace-nowrap tabular-nums">
       Quedará {formatCOP(remaining)}
     </p>
   )

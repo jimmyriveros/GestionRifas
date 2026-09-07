@@ -168,8 +168,8 @@ export function ClientTicketCardList({
  */
 const AMOUNT_CLASSES: Record<TicketPaymentStatus, string | undefined> = {
   unpaid: undefined,
-  partial: 'text-amber-600 dark:text-amber-400',
-  paid: 'text-emerald-700 dark:text-emerald-400',
+  partial: 'text-data-partial-foreground',
+  paid: 'text-data-paid-foreground',
 }
 
 function Amount({

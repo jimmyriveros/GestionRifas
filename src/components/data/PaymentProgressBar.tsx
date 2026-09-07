@@ -14,16 +14,20 @@ import { cn } from '@/lib/utils'
  * porcentaje escrito; ademas se publica como `progressbar` con su valor, de
  * modo que quien no ve la pantalla oye lo mismo.
  *
- * Los tres colores son los que ya significan eso en toda la aplicacion: verde
- * cobrado, ambar «falta algo», gris «todavia no» (D-112).
+ * Los tres colores salen de los roles de dato del sistema de diseno, que son
+ * los que ya significan eso en toda la aplicacion: cobrado, «falta algo» y
+ * «todavia no» (D-112, Ola 6).
  */
 
 const FILL: Record<TicketPaymentStatus, string> = {
   // A cero no se dibuja nada, pero el color existe por si un dato raro
-  // trajera avance con estado «Sin pagar»: gris, que es lo que significa.
-  unpaid: 'bg-muted-foreground/40',
-  partial: 'bg-amber-500 dark:bg-amber-400',
-  paid: 'bg-emerald-600 dark:bg-emerald-400',
+  // trajera avance con estado «Sin pagar». Usa el rol «pending» y no
+  // «unpaid» a proposito: aqui gris significa «todavia no», que es lo que
+  // dice la insignia, y el rojo convertiria en alarma una boleta recien
+  // vendida.
+  unpaid: 'bg-data-pending',
+  partial: 'bg-data-partial',
+  paid: 'bg-data-paid',
 }
 
 type PaymentProgressBarProps = {

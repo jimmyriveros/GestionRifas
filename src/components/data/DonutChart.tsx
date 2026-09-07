@@ -5,7 +5,7 @@ export type DonutSegment = {
   label: string
   /** Importe en pesos. Un cero no dibuja nada, pero no rompe el reparto. */
   value: number
-  /** Clase de color del trazo: `stroke-emerald-600 dark:stroke-emerald-400`. */
+  /** Clase de color del trazo, siempre un rol de dato: `stroke-data-paid`. */
   className: string
 }
 
