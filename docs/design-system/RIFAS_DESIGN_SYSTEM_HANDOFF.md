@@ -558,6 +558,10 @@ Risk is relative and argued, **not** an hour estimate.
 > completion progress. **Both People prerequisites are CLOSED.**
 > **The refreshed People preflight (§10.37) returns READY FOR EXECUTION**, with one correction it
 > makes itself: **no People route reaches any Progress consumer** (§10.37).
+> **R6D — DROPDOWN MENU TOUCH RECONCILIATION is COMPLETE** (§10.38): the People gate measured the
+> shared menu item's real hit box at 32 px with nothing larger behind it, so the primitive gained a
+> 44 px floor on phones that is **released above the small breakpoint** — desktop density is
+> unchanged. It is a **People prerequisite**, checkpointed separately from the route work.
 
 ---
 
@@ -4296,6 +4300,101 @@ as R6A said.
 
 ---
 
+### 10.38 R6D — DROPDOWN MENU TOUCH RECONCILIATION (2026-09-07 · **COMPLETED** · commit in §11)
+
+A prerequisite found by the People rollout's own gate, fixed in the shared primitive and checkpointed
+**before** the route work. **One line, two utilities, one file.**
+
+#### The audit — measured, not asserted
+
+The question was whether the menu items' **actual interactive box** is short, or only their visual
+content. Measured on the real compiled classes at 375 px:
+
+| | Result |
+|---|---|
+| Interactive box | **230 × 32 px** |
+| `min-height` | **0** — nothing else was setting a floor |
+| Padding | 6 px top and bottom, around a 20 px line |
+| Gap between adjacent items | **0 px** — the targets touch each other |
+| A larger enclosing target | **none.** The item is the interactive element |
+
+So the escape hatch does not apply: the short box **is** the hit area.
+
+#### Which primitives were in scope
+
+Only where real product evidence exists — never by name symmetry:
+
+| Primitive | Production uses | In scope |
+|---|---|---|
+| `DropdownMenuItem` | **9 uses in 6 files** | **YES** |
+| `DropdownMenuCheckboxItem` | **0** | no |
+| `DropdownMenuRadioItem` | **0** | no |
+| `DropdownMenuSubTrigger` | **0** | no |
+| `DropdownMenuLabel` | 3 | no — not interactive |
+
+The three unused siblings share the same geometry. **They were not touched**, and they should adopt
+the same floor when they first gain a consumer.
+
+#### Classification
+
+| Criterion | Verdict |
+|---|---|
+| Independent actions, directly interactive, reachable at 375 px | yes |
+| Backed by a larger row target | **no** — in `UsersTable` the menu is the row's only affordance, and inside the user menu there is no row at all |
+| WCAG 2.5.8 Target Size (Minimum), 24 × 24 | passes |
+| The product's own ~44 px phone convention (D-085) | **12 px short** |
+
+**VERIFIED SHARED COMPONENT TOUCH CONTRACT GAP.**
+
+#### Blast radius, reported before the change
+
+| | Reach |
+|---|---|
+| Primitive changed | `DropdownMenuItem` **only** |
+| Occurrences | 9, in 6 files |
+| Seller reach | the user menu via the application shell — **every protected route** — plus the sign-out entry, the install entry, the guided-tour entry and the ticket selection toolbar |
+| Owner reach | the same, plus the People row actions in two tables and one detail header |
+| **Catalog reach** | **NONE.** The public catalog route does not reach the dropdown at all |
+| Phone delta | **32 px → 44 px** per item |
+| Desktop delta | **inert** |
+
+#### The fix, and why this shape
+
+A responsive **minimum** height, mirroring the touch sizing the Button already uses: a 44 px floor on
+phones, released from the small breakpoint upward so the height goes back to being content-driven.
+
+* **No route-local heights**, no padding hacks, and nothing added to `UserRowActions`.
+* **No `MobileDropdownItem`**, no People-specific item.
+* **No new API.** A floor is not a size axis, and no consumer has to opt in.
+* It is a **minimum**, not a fixed height: an item whose text wraps to two lines still measures 72 px
+  at every width, exactly as before.
+
+#### Measured after
+
+| Width | Item height | Whole menu |
+|---|---|---|
+| **375** | **44 px** (was 32) | 142 px (was 106) |
+| **768** | **32 px** | **106 px — identical to before** |
+| **1360** | **32 px** | **106 px — identical to before** |
+
+**Desktop is provably inert.** Menu density above the small breakpoint did not move.
+
+#### Accessibility
+
+Menu semantics were **not touched**: keyboard navigation, roving focus, arrow keys, Escape, submenu
+behaviour, selection and focus return are all Radix's, and the change adds two geometry utilities to
+a class string. Nothing else in the file changed.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `typecheck` · `lint` · `test` · `build` | **all pass** — 791 tests / 47 files, same 2 pre-existing warnings |
+| Diff | **one line** in one file |
+| Method | **PRESENTATIONAL HARNESS QA** with measured geometry on the real compiled classes, at 375 / 768 / 1360 |
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -4327,7 +4426,8 @@ as R6A said.
 | **R4B commit** | **`1ea836d49ae851e114da6675298ff34956159fd3`** (`1ea836d`) — `feat(design-system): migrate reports to report page pattern`, 3 files |
 | **Rollout R5 commit** | **`836cf5bf6ff6fa30d8549cc99f94f94d6b2b45a2`** (`836cf5b`) — `feat(design-system): migrate payments to proven patterns`, 4 files |
 | **R6A commit** | **`7584f1b8fc3e71071ff4ddfda11350c3040c4d9f`** (`7584f1b`) — `docs(design-system): define people rollout prerequisites`, this handoff only |
-| **R6B commit** | `feat(design-system): reconcile notice density and linear progress` — 10 files: `components/data/LinearProgress.tsx` (new), `components/feedback/Notice.tsx`, 7 consumers and this handoff. Hash recorded in the R6C pass below |
+| **R6B commit** | **`be127a09660d59cb21fae5e2343d0140ef6f405d`** (`be127a0`) — `feat(design-system): reconcile notice density and linear progress`, 10 files: `components/data/LinearProgress.tsx` (new), `components/feedback/Notice.tsx`, 7 consumers and this handoff |
+| **R6D commit** | `fix(design-system): make dropdown actions touch-safe` — 2 files: `components/ui/dropdown-menu.tsx` and this handoff. A People prerequisite, checkpointed **before** the People route work. Hash recorded in the R6C pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
