@@ -85,7 +85,8 @@ export function ReleaseTicketDialog({
       <Button
         type="button"
         variant="outline"
-        className="h-11 w-full sm:h-9 sm:w-auto"
+        size="touch"
+        className="w-full sm:w-auto"
         onClick={() => setOpen(true)}
       >
         <PackageOpenIcon className="size-4" aria-hidden />

@@ -5900,6 +5900,11 @@ interaction. **Case B** — the child performs an independent action → the chi
 
 The remaining known work is **finite**. It is three blocks, not an open sequence.
 
+> **CLOSEOUT A IS DONE — see §10.52** (2026-09-07). Tickets adopted, palette zero, Bulk Selection
+> classified without extending the system, headings reconciled, the tour scrim adopted, and the
+> destructive foreground **verified and deferred with measured contrast**. The block below is kept as
+> the brief it was written from; §10.52 is what actually happened.
+
 ##### CLOSEOUT A — FINAL PRODUCT ADOPTION
 
 **Tickets** is the main area: about 7 routes, about 7 raw palette occurrences, **every one with an
@@ -5992,6 +5997,221 @@ this document is a record and the repository may have moved.
 
 ---
 
+### 10.52 CLOSEOUT A — FINAL PRODUCT ADOPTION · TICKETS (2026-09-07 · **COMPLETED** · commit in §11)
+
+The first of the three post-closure blocks defined in §10.51. **No foundation was reopened, no wave
+numbering restarted, no new token, no new component and no Core file changed.**
+
+#### The routes, walked rather than assumed
+
+| # | Route | What it is |
+|---|---|---|
+| 1 | `/owner/tickets` | List Page — filters, search, pagination, bulk selection |
+| 2 | `/owner/tickets/[ticketId]` | Detail Page |
+| 3 | `/owner/tickets/new` | Form |
+| 4 | `/owner/tickets/bulk` | Form — the 1 000-row virtualised creator |
+| 5 | `/seller/tickets` | List Page |
+| 6 | `/seller/tickets/[ticketId]` | Detail Page |
+| 7 | `/seller/tickets/new` | Form |
+
+**Seven, exactly as §10.51 predicted.** Reached from them: 19 `features/tickets` components, the four
+import components, the nine selection components, and two shared components that only these routes
+mount — `TicketPaymentsCard` and `ClientOptionsPicker`.
+
+#### Palette — the resume point said ~7; the broad scanner found 19
+
+The narrow scan is what made the Catalog inventory wrong (§10.40), so the **broad** net was used:
+named scale utilities · raw hex · `rgb`/`hsl`/`oklch`/`lab` · white and black alphas · arbitrary
+colour values · gradient utilities · plain `white`/`black` utilities.
+
+| File | × | Responsibility | Existing owner adopted |
+|---|---|---|---|
+| `seller/tickets/[ticketId]/page.tsx` | 4 | "this ticket cannot be sold yet" — a page-level explanation | **`Notice tone="warning"`** |
+| `selection/BulkActionDialog.tsx` | 4 | "you cannot continue yet" — inside a dialog | **`Notice tone="warning" density="compact"`** |
+| `selection/BulkAssignDialog.tsx` | 4 | the same | **the same** |
+| `components/ClearanceReceiptIndicator.tsx` | 2 | delivered clearance receipt, in a list | **`text-status-success-icon`** |
+| `components/ClearanceReceiptReadOnly.tsx` | 2 | the same, read-only | **the same** |
+| `components/ClearanceReceiptField.tsx` | 2 | the same, with its switch | **the same** |
+| `import/TicketImportDialog.tsx` | 1 | the import succeeded | **the same** |
+
+**TICKETS RAW SEMANTIC PALETTE: 19 → ZERO.** Every occurrence had an owner; **none needed a new token
+family**, and no ownerless responsibility appeared. All seven also **lose their `dark:` twin** — the
+role is mode-aware, so the component stops having to know which theme it is in.
+
+The three amber blocks already had Notice's exact geometry (`rounded-lg px-4 py-3` = `default`,
+`rounded-md px-3 py-2` = `compact`), which is the clearest possible evidence that they were the
+component written by hand.
+
+**The import dialog's result panel was NOT converted to a Notice.** It is the outcome step of a
+wizard, not an inline notice; only its icon adopted the role. Rewriting it would have been redesign
+without evidence.
+
+#### One announcement changed, deliberately
+
+Both bulk warning blocks carried `role="alert"` — an **assertive** live region, which interrupts
+whatever is being read. In `BulkActionDialog` it fired at the same moment as the polite count right
+above it, so the two spoke over each other. Notice's contract forbids `role="alert"` on purpose, and
+its `live` prop is polite. Adopting the component therefore **downgrades assertive → polite**, which
+queues the warning behind the count instead of cutting into it. That is the contract being applied,
+not a route-local exception.
+
+#### Bulk Selection — audited inside the real workflow, and NOT promoted
+
+Traced end to end on both portals: entering the mode · marking a row · the page checkbox · the second
+explicit "select the N matching" step · the count · the eligibility resolution · the four owner
+actions and the seller's one · the destructive ones · cancelling · the no-selection state · keyboard ·
+touch · the phone bar · persistence across search, filter and reload.
+
+| Question | Answer |
+|---|---|
+| Is it usable? | **Yes** |
+| Does it need anything the Design System does not have? | **No.** It is composed entirely of `SelectionCheckbox`, `Button`, `DropdownMenu`, `Dialog`, `Notice`, `EmptyState`, `Skeleton`, `row-activation` and `useLongPress` |
+| Is a new reusable contract proven? | **No.** One product area is not recurrence |
+| Classification | **PRODUCT INTERACTION BEHAVIOUR — proven in its own workflow.** It is **not** promoted to a page Pattern and the interaction layer stays as §10.50 left it |
+
+**One real defect was found and fixed.** The phone-only action bar (`md:hidden`) used `size="sm"`
+controls — measured **116 × 32** for the primary action and **38 × 32** for the overflow menu. That
+contradicts the bar's own reason for existing: it was built because small buttons in a row cannot be
+hit with a thumb. Now **124 × 44** and **44 × 44**, measured.
+
+`size="touch"` was **not** used here, and the reason matters: it steps down to 36 px from `sm`, and
+this container survives to `md`, so the 640–767 band would have kept desktop-sized targets inside a
+phone bar. The height is written the same way the other two `md:hidden` rows on this screen already
+write it (D-108) — a control that only exists on a phone is 44 px, full stop.
+
+#### Detail heading outline — the Gate B correction, applied
+
+| Route | Section title | Now |
+|---|---|---|
+| `/owner/tickets/[ticketId]` | Boleta · Información administrativa · Motivo de anulación | `<h2>` inside `CardTitle` |
+| both | Abonos de esta boleta (`TicketPaymentsCard`) | `<h2>` inside `CardTitle` |
+| `/seller/tickets/[ticketId]` | Detalles de la boleta | `<h2>` inside `CardTitle` |
+
+**`CardTitle` was not changed**, exactly as §10.51 required. The heading level follows document
+hierarchy, not visual size — which is why the seller's small grey title is still an `h2`. The
+correction is **visually inert**: the `h2` carries no style of its own and inherits `CardTitle`'s.
+
+`TicketPaymentSummary` keeps **no** heading: it is a titleless summary card, and inventing a section
+title for it would add an outline entry the page does not have.
+
+#### Responsive collections — already correct, and left alone
+
+| Collection | Strategy | Verdict |
+|---|---|---|
+| `TicketsList` (both list routes) | **responsive cards** below `md`, **priority table** at/above | Two approved strategies composed; the table hides raffle, seller and inventory status between `md` and `lg` and keeps the financial columns |
+| `ClientTicketsList` | responsive cards / table | unchanged |
+| the selected-tickets view | reuses `TicketsList` | unchanged |
+
+**Nothing was rewritten.** Both renderers already receive the same server-paginated rows and share
+`ticketFinancials`, so **no business rule is duplicated between them**. This is the composition
+baseline working as designed, not something that needed proving again.
+
+#### Search field — nothing to do
+
+`TicketFilters` already passes `size="touch"`, which is the reason that API exists (R7-PRE). **No
+`touchSize` was resurrected and no local `h-11 … md:h-9` sizing was added.**
+
+Ten Button call sites in the ticket dialogs wrote `h-11 sm:h-9` by hand — byte-for-byte what
+`size="touch"` emits — and now ask the component for it instead. Compiled output unchanged.
+
+**`HEADER_ACTION_CLASS` on `/owner/tickets` was deliberately NOT converted.** It is `h-11 grow md:h-9
+md:grow-0`, keyed to `md` and cross-referenced from `PageHeader`'s own comment (D-109). Adopting
+`size="touch"` would drop those two buttons to 36 px between 640 and 767 **while the filter row
+directly beneath them stays at 44** — the `md` key is coherent with this screen's phone layout, not
+the Catalog anti-pattern R7B removed. **Not debt.**
+
+#### Notice and Progress — used where they already fitted, reopened nowhere
+
+`LinearProgress` (via `PaymentProgressBar`) was already adopted by the card list, the table and the
+client ticket views. **No Notice was added for visual consistency and no tone, density, Product Data
+or Status contract was reopened.**
+
+#### The tour scrim — adopted, and one trap worth remembering
+
+Two occurrences, both the same thing: the dimming behind a guided-tour step.
+
+| Where | Before | Now |
+|---|---|---|
+| the closing step's centred card | `bg-black/60` | `bg-overlay-scrim` |
+| the spotlight's giant box-shadow | a hand-written 60 % black | `var(--ds-overlay-scrim)` |
+
+`overlay/scrim` already owns exactly this, and already serves the dialog, the sheet and the confirm
+dialog. **No tour-specific token was created.**
+
+The inline style writes **`--ds-overlay-scrim`, not `--color-overlay-scrim`** — the lesson §10.50
+records. The contract name is declared on `:root` as `var(--ds-…)`, so it resolves there to the Light
+value and inherits it straight past `.dark`. Utilities are immune because `@theme inline` puts the
+`var(--ds-…)` inside the class; an inline style is not, and there is one here because the shadow
+chases the highlighted element every frame. **Measured after the change: `rgba(3, 3, 3, 0.5)` in
+Light and `rgba(3, 3, 3, 0.6)` in Dark** — mode-aware, as intended.
+
+#### Destructive control foreground — VERIFIED, and deliberately NOT changed
+
+The two occurrences inside frozen Core (`components/ui/button.tsx`, `components/ui/badge.tsx`) write
+`text-white` on `bg-destructive`. §10.51 required contrast and responsibility to be checked **before**
+touching anything. They were, against the real composed surfaces — including Dark, where the surface
+is `bg-destructive/60` over the card:
+
+| Scope | Surface | `text-white` | `--destructive-foreground` | **`--ds-text-on-destructive`** |
+|---|---|---|---|---|
+| Light | `#e7000b` | **4.76:1** | 4.56:1 | 4.56:1 (`#fafafa`) |
+| Dark | `#a24547` (60 % over card) | **6.03:1** | 5.77:1 | **3.28:1 (`#0a0a0a`) — FAILS AA** |
+| Catalog | `#d92d2c` | **4.81:1** | — | 4.67:1 (`#fcfbff`) |
+
+**The current code is the most accessible of the three options in every scope, and the obvious token
+would be an accessibility regression in Dark.** So:
+
+* **Verdict: NORMAL COMPATIBILITY DEBT. Core is not reopened.** Nothing in the product is
+  inaccessible and no meaning lacks an owner.
+* **Recorded for the design owner, not as a code task:** `text/on-destructive` carries a near-black
+  Dark value that assumes a *solid* destructive surface. Today's Dark button composes at 60 % alpha,
+  which lands mid-tone, and a near-black foreground cannot reach AA on it. Whoever adopts the token
+  must settle the **surface** first — the foreground is downstream of that decision.
+* `--destructive-foreground` exists, is accessible in both modes and has **zero consumers**. Swapping
+  `text-white` for it would trade a measurable contrast reduction for token hygiene, which is exactly
+  the "cosmetic consistency" §10.51 forbids as a reason to reopen Core.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `typecheck` | **pass**, 0 errors |
+| `lint` | **pass**, 0 errors, the **same 2 pre-existing warnings** (`DataTable`, `BulkTicketCreator` — both `react-hooks/incompatible-library`) |
+| `test` | **791 passed / 47 files** — identical to the R6C and R8 baselines |
+| `build` | **pass**, all 7 ticket routes emitted |
+| `prettier` | clean on every changed file |
+| **Broad palette scan, Tickets** | **ZERO** |
+| **Core files changed** | **ZERO** |
+| Method | **PRESENTATIONAL HARNESS QA** against the built stylesheet, with measured geometry and computed colour at 320 and 375 in Light and Dark, plus source inspection and an import-graph walk from all seven routes. **REAL ROUTE QA was not possible** — every ticket route needs a session and live data, and Supabase is unavailable. **No data-backed validation is claimed** |
+
+Measured in the harness, after the change: bulk bar **124 × 44** and **44 × 44**, and the bar **does
+not overflow at 320 px** on either portal (`scrollWidth` 318 = `clientWidth` 318). Warning Notice
+resolves to `#7b3306` on `#fef3c6` in Light and `#fee685` on `#461901` in Dark; the clearance green
+to `#007a55` in Light and `#00d492` in Dark. **The Dark scope resolves correctly — no root-value
+leak.**
+
+#### Intentional changes
+
+1. The phone bulk action bar's controls are **44 px instead of 32** — the only behavioural change.
+2. The two bulk warnings announce **politely instead of assertively**.
+3. The three warning blocks now carry the **designed warning surface, text and border** instead of a
+   hand-written amber. Contrast stays far above AA in both modes (8.13:1 Light, 12.05:1 Dark).
+4. The import dialog's success icon goes from `#059669` (**3.77:1**, below AA had it been text) to
+   `#007a55` (**5.36:1**).
+5. The tour scrim is **50 % instead of 60 %** in Light. Unchanged in Dark.
+
+Everything else is byte-identical output.
+
+#### Remaining Tickets debt — all NORMAL, none blocking
+
+| Debt | Why it was not fixed here |
+|---|---|
+| **Secondary toolbar buttons at 32 px on phones** — "Ver seleccionadas", "Limpiar selección", "Seleccionar las N boletas del filtro", and the two "Ver las N…" expanders | They are secondary controls present at **every** width, not a phone-only surface, and the Button has no "small touch" size. Changing them is a **product-wide** question — the same `size="sm"` appears across Payments, People and Reports — and inventing a size for one screen is exactly what the closure rules forbid |
+| **Typography adoption** — section titles on an ad-hoc type pair | product-wide, identical to the debt R6C recorded, and not an accessibility issue |
+| **Field-label style** repeated (`Field` is redeclared in both ticket detail routes) | the same consolidation debt already recorded across ~18 files |
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -6033,7 +6253,8 @@ this document is a record and the repository may have moved.
 | **Dashboard Pattern commit** | **`048f2b3f88244976d0182c53da6bdd4aa63daf0a`** (`048f2b3`) — `docs(design-system): define dashboard page pattern`, this handoff only: closure mode (§10.45), the responsive collection guideline (§10.46) and the Dashboard Page contract (§10.47) |
 | **R8 commit** | **`5e34265623cdec34a99e48557a36a19d2ee05d32`** (`5e34265`) — `feat(design-system): migrate dashboards to dashboard pattern`, 5 files: both dashboards, the lottery card and its section, and this handoff. **No Core file, no new token, no new component** |
 | **Closure commit** | **`d174d2cd233c5285bfc6fb9e3bd533ac70f46000`** (`d174d2c`) — `docs(design-system): close foundation milestone`, this handoff only (§10.50). **The immutable foundation milestone baseline** |
-| **Resume point commit** | `docs(design-system): add post-closure resume point` — this handoff only (§10.51). **Where a new session starts** |
+| **Resume point commit** | **`5b2dd329f3ef5559344a669f7a417a7347e950be`** (`5b2dd32`) — `docs(design-system): add post-closure resume point`, this handoff only (§10.51). **Where a new session starts** |
+| **Closeout A commit** | `feat(design-system): complete final product adoption closeout` — 16 files: the two ticket detail routes, `TicketPaymentsCard`, the three clearance components, the import dialog, the three bulk selection files, the four ticket dialogs, `TourOverlay` and this handoff (§10.52). **No Core file, no new token, no new component** |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

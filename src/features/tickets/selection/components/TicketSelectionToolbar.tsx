@@ -327,6 +327,16 @@ export function TicketSelectionToolbar({
               <span className="text-sm font-medium tabular-nums">
                 {count} {count === 1 ? 'seleccionada' : 'seleccionadas'}
               </span>
+              {/* 44 PX, PORQUE ESTA BARRA SOLO EXISTE EN EL TELEFONO (D-171).
+                  Llevaban `size="sm"` —32 px de alto y 36 de ancho el del
+                  menu—, lo que contradecia el motivo por el que la barra
+                  existe: cuatro botones pequeños en fila no se aciertan con el
+                  pulgar. Aqui no se usa `size="touch"`, que baja a 36 px desde
+                  `sm`: este contenedor es `md:hidden`, asi que entre 640 y 767
+                  seguiria siendo una barra de telefono con dianas de
+                  escritorio. Se escribe el alto igual que lo hacen las otras
+                  dos filas `md:hidden` de esta pantalla —«Filtros» y
+                  «Seleccionar varias» (D-108)—, para que las tres coincidan. */}
               <div className="ml-auto flex items-center gap-2">
                 {actions
                   .filter((action) => action.primary)
@@ -334,7 +344,7 @@ export function TicketSelectionToolbar({
                     <Button
                       key={action.key}
                       type="button"
-                      size="sm"
+                      className="h-11"
                       variant={action.destructive ? 'destructive' : 'default'}
                       onClick={action.open}
                     >
@@ -344,7 +354,7 @@ export function TicketSelectionToolbar({
                 {actions.length > 1 ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button type="button" variant="outline" size="sm">
+                      <Button type="button" variant="outline" size="icon" className="size-11">
                         <MoreHorizontalIcon className="size-4" aria-hidden />
                         <span className="sr-only">Más acciones</span>
                       </Button>

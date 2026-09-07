@@ -57,7 +57,11 @@ export function ClearanceReceiptIndicator({
       title={variant === 'icon' ? long : undefined}
       className={cn(
         'inline-flex shrink-0 items-center gap-1 text-xs',
-        delivered ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground',
+        // EL VERDE ES EL DEL SISTEMA, no un `emerald` escrito a mano con su
+        // pareja para el modo oscuro (D-171). `status/success/icon` es el rol
+        // que ya usan el aviso de exito y la tarjeta de resultados, y cambia
+        // solo con el tema: este componente no tiene por que saber en cual esta.
+        delivered ? 'text-status-success-icon' : 'text-muted-foreground',
         className,
       )}
     >

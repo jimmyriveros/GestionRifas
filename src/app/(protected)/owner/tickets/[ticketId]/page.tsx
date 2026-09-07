@@ -72,7 +72,9 @@ export default async function TicketDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Boleta</CardTitle>
+          <CardTitle className="text-base">
+            <h2>Boleta</h2>
+          </CardTitle>
         </CardHeader>
         {/* `grid-cols-1` es obligatorio, por lo mismo que en el portal del
             vendedor: una columna `auto` se estira hasta el minimo de su
@@ -171,7 +173,9 @@ export default async function TicketDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Información administrativa</CardTitle>
+          <CardTitle className="text-base">
+            <h2>Información administrativa</h2>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Field label="Código interno">
@@ -196,7 +200,9 @@ export default async function TicketDetailPage({
       {ticket.cancelReason ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Motivo de anulación</CardTitle>
+            <CardTitle className="text-base">
+              <h2>Motivo de anulación</h2>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm">{ticket.cancelReason}</p>

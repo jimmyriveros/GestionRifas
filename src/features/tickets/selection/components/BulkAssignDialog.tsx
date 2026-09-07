@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 
+import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -105,31 +106,34 @@ export function BulkAssignDialog({
             />
             <SelectedNumbers rows={eligibleRows} />
 
+            {/* El mismo aviso que `BulkActionDialog`, con el mismo tono y la
+                misma densidad (D-171): antes era un ambar a mano con `role="alert"`
+                —asertivo, o sea que interrumpe—, y ahora es el `warning` del
+                sistema anunciado en `polite`. */}
             {!ready ? (
-              <div
-                role="alert"
-                className="space-y-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-800 dark:bg-amber-950"
-              >
-                <p className="font-medium">No se puede continuar todavía.</p>
-                <ul className="space-y-1">
-                  {blocked.slice(0, 5).map((row) => (
-                    <li key={row.ticketId}>
-                      <span className="font-mono tabular-nums">{ticketLabel(row)}</span>
-                      {' — '}
-                      {whyNot(row, 'assign')}
-                    </li>
-                  ))}
-                </ul>
-                {blocked.length > 5 ? <p>Y {blocked.length - 5} más.</p> : null}
-                {selection.missingCount > 0 ? (
-                  <p>
-                    {selection.missingCount === 1
-                      ? '1 boleta seleccionada ya no está disponible.'
-                      : `${selection.missingCount} boletas seleccionadas ya no están disponibles.`}{' '}
-                    Quítalas de la selección y vuelve a intentarlo.
-                  </p>
-                ) : null}
-              </div>
+              <Notice tone="warning" density="compact" live>
+                <div className="space-y-2">
+                  <p className="font-medium">No se puede continuar todavía.</p>
+                  <ul className="space-y-1">
+                    {blocked.slice(0, 5).map((row) => (
+                      <li key={row.ticketId}>
+                        <span className="font-mono tabular-nums">{ticketLabel(row)}</span>
+                        {' — '}
+                        {whyNot(row, 'assign')}
+                      </li>
+                    ))}
+                  </ul>
+                  {blocked.length > 5 ? <p>Y {blocked.length - 5} más.</p> : null}
+                  {selection.missingCount > 0 ? (
+                    <p>
+                      {selection.missingCount === 1
+                        ? '1 boleta seleccionada ya no está disponible.'
+                        : `${selection.missingCount} boletas seleccionadas ya no están disponibles.`}{' '}
+                      Quítalas de la selección y vuelve a intentarlo.
+                    </p>
+                  ) : null}
+                </div>
+              </Notice>
             ) : null}
           </>
         )}

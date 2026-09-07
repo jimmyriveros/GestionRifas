@@ -100,7 +100,9 @@ export function TourOverlay({
   // Paso sin elemento (el cierre): tarjeta centrada, sin foco sobre nada.
   if (!step.target || !rect) {
     return (
-      <div className="fixed inset-0 z-[100] grid place-items-center bg-black/60 p-4">{card}</div>
+      <div className="bg-overlay-scrim fixed inset-0 z-[100] grid place-items-center p-4">
+        {card}
+      </div>
     )
   }
 
@@ -136,7 +138,20 @@ export function TourOverlay({
           left: spotlight.left,
           width: spotlight.width,
           height: spotlight.height,
-          boxShadow: '0 0 0 9999px rgb(0 0 0 / 0.6)',
+          // EL MISMO OSCURECIDO QUE UN DIALOGO, dicho con el rol del sistema
+          // (D-171). Era un negro al 60 % escrito a mano; `overlay/scrim` es
+          // exactamente esta responsabilidad y ya la usan el dialogo, la hoja y
+          // el aviso de confirmacion.
+          //
+          // SE ESCRIBE `--ds-overlay-scrim`, NO `--color-overlay-scrim`. Es la
+          // leccion del catalogo (seccion 10.50 del relevo): el nombre del
+          // contrato se declara en `:root` como `var(--ds-…)`, asi que al
+          // resolverse ahi se queda con el valor del tema claro y lo hereda
+          // hacia abajo. Las utilidades no tienen ese problema porque `@theme
+          // inline` mete el `var(--ds-…)` dentro de la clase; un estilo en
+          // linea si lo tiene, y aqui hay uno porque la sombra persigue al
+          // elemento resaltado en cada fotograma.
+          boxShadow: '0 0 0 9999px var(--ds-overlay-scrim)',
         }}
       />
 

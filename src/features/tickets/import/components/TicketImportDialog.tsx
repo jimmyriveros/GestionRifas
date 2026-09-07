@@ -366,7 +366,14 @@ export function TicketImportDialog({
           {paso === 'resultado' && resultado ? (
             <div className="space-y-4">
               <div className="flex items-start gap-3 rounded-lg border p-4">
-                <CheckCircle2Icon className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden />
+                {/* El verde del sistema, no un `emerald` a mano (D-171). El
+                    recuadro se queda como esta: es el paso de resultado de un
+                    asistente, no un aviso en linea, y convertirlo en `Notice`
+                    seria rediseñarlo sin motivo. */}
+                <CheckCircle2Icon
+                  className="text-status-success-icon mt-0.5 size-5 shrink-0"
+                  aria-hidden
+                />
                 <div className="space-y-1 text-sm">
                   <p className="font-medium">
                     {resultado.inserted === 1

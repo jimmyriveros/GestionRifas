@@ -36,9 +36,10 @@ export function ClearanceReceiptReadOnly({ ticket }: { ticket: ClearanceEligibil
     <div className="space-y-0.5">
       <p className="flex items-center gap-1.5 text-sm">
         <Icon
+          // El verde del sistema, no un `emerald` a mano (D-171).
           className={
             delivered
-              ? 'size-4 shrink-0 text-emerald-600 dark:text-emerald-400'
+              ? 'text-status-success-icon size-4 shrink-0'
               : 'text-muted-foreground size-4 shrink-0'
           }
           aria-hidden

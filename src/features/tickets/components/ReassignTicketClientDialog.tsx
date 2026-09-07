@@ -89,7 +89,8 @@ export function ReassignTicketClientDialog({
       <Button
         type="button"
         variant="outline"
-        className="h-11 w-full sm:h-9 sm:w-auto"
+        size="touch"
+        className="w-full sm:w-auto"
         onClick={() => setOpen(true)}
       >
         <UserRoundIcon className="size-4" aria-hidden />
@@ -300,7 +301,7 @@ function ReassignFields({
                 variant="outline"
                 onClick={onClose}
                 disabled={isPending}
-                className="h-11 sm:h-9"
+                size="touch"
               >
                 Cancelar
               </Button>
@@ -308,7 +309,7 @@ function ReassignFields({
                 type="button"
                 onClick={reassignExisting}
                 disabled={isPending || selected === null || reasonTooShort}
-                className="h-11 sm:h-9"
+                size="touch"
               >
                 {isPending ? 'Guardando...' : 'Cambiar cliente'}
               </Button>
@@ -326,15 +327,11 @@ function ReassignFields({
                     variant="outline"
                     onClick={onClose}
                     disabled={isPending}
-                    className="h-11 sm:h-9"
+                    size="touch"
                   >
                     Cancelar
                   </Button>
-                  <Button
-                    type="submit"
-                    disabled={isPending || reasonTooShort}
-                    className="h-11 sm:h-9"
-                  >
+                  <Button type="submit" disabled={isPending || reasonTooShort} size="touch">
                     {isPending ? 'Guardando...' : 'Crear cliente y cambiar'}
                   </Button>
                 </DialogFooter>

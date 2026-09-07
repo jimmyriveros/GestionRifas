@@ -63,7 +63,9 @@ export function TicketPaymentsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Abonos de esta boleta</CardTitle>
+        <CardTitle className="text-base">
+          <h2>Abonos de esta boleta</h2>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {applied.length === 0 ? (

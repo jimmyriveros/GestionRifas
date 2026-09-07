@@ -152,20 +152,14 @@ function EditSalePriceFields({
       </div>
 
       <DialogFooter>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onClose}
-          disabled={isPending}
-          className="h-11 sm:h-9"
-        >
+        <Button type="button" variant="outline" onClick={onClose} disabled={isPending} size="touch">
           Cancelar
         </Button>
         <Button
           type="button"
           onClick={save}
           disabled={isPending || amount === null || amount === target.currentPrice}
-          className="h-11 sm:h-9"
+          size="touch"
         >
           {isPending ? 'Guardando...' : 'Guardar cambios'}
         </Button>

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { PageHeader } from '@/components/data/PageHeader'
+import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ClientEmptyCard, ClientLinkCard } from '@/features/clients/components/ClientLinkCard'
@@ -102,7 +103,7 @@ export default async function SellerTicketDetailPage({
         backHref="/seller/tickets"
         compactAction={
           canRegisterPayment && newPaymentHref ? (
-            <Button asChild className="h-11 w-full sm:h-9 sm:w-auto">
+            <Button asChild size="touch" className="w-full sm:w-auto">
               <Link
                 // `from=ticket` y el id de ESTA boleta viajan para que el
                 // formulario devuelva aqui, no al listado ni al cliente
@@ -141,11 +142,14 @@ export default async function SellerTicketDetailPage({
         }
       />
 
-      {reason ? (
-        <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-950">
-          {reason}
-        </p>
-      ) : null}
+      {/* POR QUE UN `Notice` Y NO UN PARRAFO PINTADO A MANO. Esto explica una
+          situacion de la pantalla mientras su condicion sea cierta —la boleta no
+          se puede vender todavia—, que es literalmente la responsabilidad del
+          componente. Antes era un ambar escrito a mano con su pareja para el
+          modo oscuro; el tono `warning` lo dice con los roles del sistema y sin
+          que la pantalla tenga que saber en que tema esta. La geometria no
+          cambia: `default` ya era `rounded-lg px-4 py-3 text-sm`. */}
+      {reason ? <Notice tone="warning">{reason}</Notice> : null}
 
       {/* Quien es esta boleta: sus dos numeros, cuanto costo y quien la tiene.
           El orden del HTML es el del telefono —numeros, cliente, precio—; en
@@ -274,7 +278,13 @@ export default async function SellerTicketDetailPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-muted-foreground text-sm font-medium">
-            Detalles de la boleta
+            {/* UN ENCABEZADO DE VERDAD, aunque se vea pequeño y en gris. El
+                nivel lo decide la jerarquia del documento, no el tamaño de la
+                letra: bajo el `h1` del encabezado de pantalla, esto es una
+                seccion. Es la misma correccion que la ficha del vendedor ya
+                aplica, y es visualmente inerte —el `h2` no trae estilo propio y
+                hereda el de `CardTitle`—. */}
+            <h2>Detalles de la boleta</h2>
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm">

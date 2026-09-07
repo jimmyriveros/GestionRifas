@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 
+import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -106,22 +107,32 @@ export function BulkActionDialog({
               emptyLabel="Ninguna de las boletas seleccionadas admite esta acción."
             />
 
+            {/* EL AVISO ES UN `Notice`, Y ES POLITE (D-171). El ambar escrito a
+                mano —con su pareja para el modo oscuro— era el tono `warning` del
+                sistema con otro nombre, y la geometria `compact` ya coincidia:
+                `rounded-md px-3 py-2`.
+
+                Lo que cambia de verdad es el anuncio. Llevaba `role="alert"`, que
+                es una region ASERTIVA: interrumpe la lectura en curso, y aqui
+                aparecia a la vez que el recuento de arriba —que ya es `polite`—,
+                asi que las dos hablaban encima. `live` lo pone en la cola educada
+                detras del recuento, que es el orden en el que se leen. Es la
+                regla del propio componente, no una excepcion de esta pantalla. */}
             {missingCount > 0 || blocked.length > 0 ? (
-              <div
-                role="alert"
-                className="space-y-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-800 dark:bg-amber-950"
-              >
-                <p className="font-medium">No se puede continuar todavía.</p>
-                {blocked.length > 0 ? <BlockedList rows={blocked} action={action} /> : null}
-                {missingCount > 0 ? (
-                  <p>
-                    {missingCount === 1
-                      ? '1 boleta seleccionada ya no está disponible.'
-                      : `${missingCount} boletas seleccionadas ya no están disponibles.`}{' '}
-                    Quítalas de la selección y vuelve a intentarlo.
-                  </p>
-                ) : null}
-              </div>
+              <Notice tone="warning" density="compact" live>
+                <div className="space-y-2">
+                  <p className="font-medium">No se puede continuar todavía.</p>
+                  {blocked.length > 0 ? <BlockedList rows={blocked} action={action} /> : null}
+                  {missingCount > 0 ? (
+                    <p>
+                      {missingCount === 1
+                        ? '1 boleta seleccionada ya no está disponible.'
+                        : `${missingCount} boletas seleccionadas ya no están disponibles.`}{' '}
+                      Quítalas de la selección y vuelve a intentarlo.
+                    </p>
+                  ) : null}
+                </div>
+              </Notice>
             ) : null}
           </div>
         )}
