@@ -184,15 +184,29 @@ export function RaffleForm({ raffle }: RaffleFormProps) {
           )}
         />
 
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear rifa'}
+        {/*
+          En el telefono las dos acciones ocupan el ancho y miden 44 px, igual
+          que en el formulario de cliente: enviar no puede depender de acertar
+          un boton pequeño al final de la pagina. Desde `sm` vuelven a su
+          tamaño de siempre, uno al lado del otro.
+        */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button type="submit" size="touch" disabled={isPending} className="w-full sm:w-auto">
+            {isPending
+              ? isEdit
+                ? 'Guardando...'
+                : 'Creando...'
+              : isEdit
+                ? 'Guardar cambios'
+                : 'Crear rifa'}
           </Button>
           <Button
             type="button"
             variant="outline"
+            size="touch"
             onClick={() => router.back()}
             disabled={isPending}
+            className="w-full sm:w-auto"
           >
             Cancelar
           </Button>

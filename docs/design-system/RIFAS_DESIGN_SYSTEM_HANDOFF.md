@@ -548,9 +548,10 @@ Risk is relative and argued, **not** an hour estimate.
 > control sizing. The original seven-wave architecture is unchanged.
 > **ALL SEVEN ORIGINAL WAVES ARE COMPLETE AND APPROVED**, together with the inserted reconciliation
 > waves 3A/3B·4.5·6.5·6.6. The **Clientes Seller pilot succeeded** (§10.25) with zero Core defects.
-> **ROLLOUT R1 — CLIENTES OWNER is EXECUTED** (§10.27), uncommitted and awaiting review: two routes,
-> one change, zero Core changes. **NEXT: ROLLOUT R2 — RAFFLES, NOT AUTHORIZED**, previewed at the end
-> of §10.27 with no reachable blockers and no prerequisite.
+> **ROLLOUT R1 is COMPLETE AND APPROVED** (§10.27). **ROLLOUT R2 — RAFFLES is EXECUTED** (§10.28),
+> uncommitted and awaiting review: four routes, three changes, zero Core changes, and the first
+> evidence that the Patterns transfer to a different product domain. **NEXT: ROLLOUT R3 — ACCOUNT /
+> AUTH / UTILITY, NOT AUTHORIZED**, previewed at the end of §10.28.
 
 ---
 
@@ -2706,6 +2707,211 @@ needs none, and clears four routes.
 
 ---
 
+### 10.28 ROLLOUT R2 — RAFFLES (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+**2 production files, 3 changes.** The first rollout into a **different product domain**, and the
+patterns transferred.
+
+#### Scope, confirmed against the repository
+
+| Route | File |
+|---|---|
+| Raffles list | `src/app/(protected)/owner/raffles/page.tsx` |
+| Raffle detail | `src/app/(protected)/owner/raffles/[raffleId]/page.tsx` |
+| New raffle | `src/app/(protected)/owner/raffles/new/page.tsx` |
+| Edit raffle | `src/app/(protected)/owner/raffles/[raffleId]/edit/page.tsx` |
+
+Four routes, exactly as the inventory predicted.
+
+#### Blocker gate — clean
+
+| Item | Result |
+|---|---|
+| Hardcoded primitive palette | **ZERO** |
+| Progress family — `CollectionSummaryCard`, `CommissionCard`, `BulkTicketCreator` | **NOT REACHABLE** |
+| Compact Notice consumers | **NOT REACHABLE** |
+| `LotteryResultsCard` and Lottery presentation | **NOT REACHABLE** |
+| `RecentActivityCard` | **NOT REACHABLE** |
+| `SearchInput` ad-hoc touch behaviour | **NOT REACHABLE** — the list has no search |
+| `PaymentProgressBar`, `TOUCH_FIELD` | **NOT REACHABLE** |
+| Local control-size overrides | **ZERO** |
+
+**No blocker, and no prerequisite.** The raffle/lottery separation holds in code: the Raffles
+workflow reaches no Lottery presentation component, so none of that debt was pulled in under this
+label.
+
+#### List — NO-OP, and the most interesting finding of R2
+
+| Responsibility | Result |
+|---|---|
+| Page header, description, primary action ("Nueva rifa") | **ALREADY SATISFIED** |
+| **Toolbar** | **NOT APPLICABLE — and that is correct** |
+| **Pagination** | **NOT APPLICABLE — and that is correct** |
+| Data region, status, row navigation | **ALREADY SATISFIED** — `RafflesTable` on `DataTable`, `RaffleStatusBadge`, `rowHref` |
+| Empty dataset | **ALREADY SATISFIED** — one state, with "Crear la primera rifa" |
+| Mobile representation | **ALREADY SATISFIED** — priority columns |
+
+**Raffles has no toolbar and no pagination because the domain has neither to offer.**
+`listRaffleSummaries()` takes no pagination arguments and returns every row: an organisation holds a
+handful of raffles, not hundreds. With nothing to filter there is no filter bar, and **with no
+filters there is no "Sin resultados" state to design** — only "Sin datos", which the page already
+handles with the right action.
+
+That is **cross-domain evidence about the Pattern itself**: its regions are *responsibilities when
+applicable*, not a fixed skeleton. The pilot's toolbar rule ("hide it in Sin datos") is the same
+principle taken to its limit — Raffles simply never has one to hide. **The rule was not forced onto a
+domain that does not need it**, which §8 explicitly allows.
+
+The mobile strategy is the contract's other approved branch: `RafflesTable` marks Boletas, Asignadas
+and Vigencia `hideOnMobile`, which `DataTable` renders as `hidden md:table-cell`. At 375 it shows
+Código · Rifa · Estado · Precio · Acción, and the whole row is activatable. **Priority columns, not a
+card list — and the contract permits exactly that** for tables assigned them.
+
+#### Detail — 1 change
+
+| Responsibility | Result |
+|---|---|
+| Back, identity, description | **ALREADY SATISFIED** |
+| **Status beside the identity** | **CHANGED** |
+| Actions | **ALREADY SATISFIED** — `actions` without `compactAction`, which the API documents as the right choice when no single action dominates; Owner Clientes does the same |
+| Record's own facts | **ALREADY SATISFIED** — exactly **one** container, "Datos de la rifa" |
+| Related data | **ALREADY SATISFIED** — two heading-plus-grid sections of `MetricCard`s, no card wrapped around a card |
+
+The detail showed its state only as the second field inside the facts card. It now also carries
+`titleBadge={<RaffleStatusBadge …>}`, where this Pattern puts status and where both client details
+already had it. **It matters more here than on a client**: the header's own actions appear and
+disappear with the state — a closed or cancelled raffle has no Edit button — so the state is what
+explains the actions. The facts card keeps its Estado field, exactly as `ClientInfoCard` does.
+**APPROVED PATTERN CARRY-OVER.**
+
+This page is also the cleanest example so far of the clarified **ONE PRIMARY PAGE COMPOSITION**: one
+facts container, then headings with metric grids. No card-per-section fragmentation, and nothing was
+flattened to reduce a container count.
+
+#### Create / Edit — 2 changes, both carry-overs
+
+`new` and `[raffleId]/edit` are thin wrappers around the **same** `RaffleForm`, differing only in the
+header and whether a `raffle` prop is passed. **Already shared — no consolidation was needed or
+done**, which is the same conclusion the pilot reached and now holds in two domains.
+
+`RaffleForm` had the **exact two defects Wave 7 fixed in `ClientForm`**:
+
+* mobile actions were default-size and auto-width → now `size="touch"` with `w-full sm:w-auto`;
+* the submit label said "Guardando…" for both verbs → creating a raffle now says **"Creando…"**.
+
+**APPROVED PATTERN CARRY-OVER + ACCESSIBILITY COMPOSITION CORRECTION.** Two domains, same two
+defects, same fix — that is the transferable finding.
+
+Already satisfied: the form-level `role="alert"` banner, per-field `FormMessage`, inline actions with
+submit before cancel, and no sticky bar.
+
+**Width, deliberately not changed.** `RaffleForm` uses `max-w-2xl` where the contract records
+`max-w-xl`. It was **not narrowed**: the form carries a two-up date row and a bordered switch block,
+and the normative requirement is a single constrained column rather than a specific number. Recorded
+as **A · legitimate domain difference**, and the Pattern note now reads `max-w-xl` as typical rather
+than fixed.
+
+#### Status
+
+`RaffleStatusBadge` and the `draft · active · closed · cancelled` mapping were **used, not touched**.
+No Status mapping was reopened, no local tone invented, and no entity state was found that the
+approved architecture cannot express.
+
+#### Responsive and accessibility
+
+The three changes are one added header slot and one action row. Both compositions were **already
+measured**: the form action row is byte-identical to the one Wave 7 measured at 375 / 768 / 1360 /
+1600 (44px full width below `sm`, 36px auto above), and `PageHeader`'s heading is
+`flex flex-wrap items-center` with `min-w-0` on the `h1` — written specifically so a long name pushes
+the badge to the next line instead of squeezing it. The raffle header is the densest so far (title,
+badge, Edit and one status action) and composes within that design. **Verified by source against
+already-measured components; no new measurement is claimed for the raffle routes themselves.**
+
+Accessibility: no control, focus path or keyboard behaviour was touched. The added badge is text
+inside a `<span>` beside the `h1`, deliberately **not** inside it, so the heading's accessible name
+stays the raffle name. Form labels, error associations and required semantics are unchanged, and the
+invalid state still carries a border and a message rather than colour alone.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` · `lint` · `test` · `build` | **all pass** — 0 errors, 0 lint errors (same 2 pre-existing warnings), **791 tests / 47 files** |
+| Compiled selectors, clean build vs clean build | **zero added, zero removed** |
+| `prettier` | clean. One objection was **mine** — the new submit-label ternary exceeded the 100-column width — and was formatted; the diff stayed at 17 insertions |
+| **Hardcoded palette in the R2 tree, after the change** | **ZERO** |
+| **Core components changed** | **ZERO** |
+| **DATA-BACKED VISUAL QA** | **NOT PERFORMED · ENVIRONMENT UNAVAILABLE.** Supabase remained down; no raffle route was rendered end to end and no production-data visual validation is claimed |
+
+#### Result
+
+Every R2 success criterion passes: list, detail and both form routes satisfy their proven Patterns;
+domain differences preserved; responsive and keyboard behaviour intact; palette zero; **Core changes
+zero**; no route-specific token hack introduced; no unrelated debt pulled into scope.
+
+#### New debt discovered — one observation, not a blocker
+
+**In-row secondary actions are `size="sm"` (32px) product-wide.** `RafflesTable`'s "Ver" button and
+`PaymentsTable`'s row action both use it, and **no** table anywhere uses `size="touch"` in a row. At
+375 that is below the 44px floor — but the entire row is an activatable link of full row height, so
+the compliant target exists and the button is a redundant affordance for the same destination.
+Changing only Raffles would fork a product-wide pattern, so nothing was changed.
+
+Carried forward as **TABLE ROW ACTION TOUCH-TARGET RECONCILIATION · CROSS-CUTTING TABLE INTERACTION
+QUESTION**, non-blocking for R2 and R3 and explicitly not to be fixed in either. A future audit must
+first separate the two cases before anything is resized:
+
+* **A — the action duplicates row navigation** (both `RafflesTable` «Ver» and the row `rowHref` open
+  the same record). Here the question is whether the small button is a redundant affordance at all.
+* **B — the action performs a distinct secondary operation.** Here its own touch target has to be
+  evaluated on its own terms, because no row target substitutes for it.
+
+**Table buttons must not be enlarged globally before that distinction is audited.**
+
+---
+
+#### Next rollout group — preview only, NOT AUTHORIZED
+
+The approved inventory was re-evaluated at current HEAD rather than assumed. Nothing R1 or R2 did
+changes the ordering, and the two cleanest remaining groups were both re-audited:
+
+| Candidate | Routes | Palette | Reachable debt |
+|---|---|---|---|
+| **Account / Auth / Utility** | **6** | **ZERO** | **none** |
+| Reports | 2 | ZERO | only `DataTablePagination`, already compliant |
+
+**R3 · ACCOUNT / AUTH / UTILITY** — `account/password`, `login`, `forgot-password`, `reset-password`,
+`denied`, `offline`.
+
+| Question | Answer |
+|---|---|
+| Product area | Authentication, account and utility screens |
+| Primary Pattern | **Form**, plus focused/utility screens with no Pattern of their own |
+| Reachable debt | **None** — zero palette, and no Progress, Notice, Lottery, `SearchInput` or Product Data component is reachable |
+| Blockers | **None** |
+| Prerequisite needed | **No** |
+| Compact Notice relevant? | **No** — none of its six consumers is reachable |
+| Progress relevant? | **No** — all three consumers reach other groups |
+| Risk | **LOW** |
+
+**Why it should follow R2:** it clears **six routes** at the lowest available risk while staying
+inside the Form Pattern the pilot proved, and it is the first group to exercise those routes
+**outside the application shell** — the `(public)` layout group has its own layout, so it tests
+whether the Pattern holds without the sidebar, header and bottom navigation around it. That is real
+new evidence rather than a fourth repetition of the same context.
+
+`denied` and `offline` are focused/utility screens that no current Pattern covers; R3 should report
+whether that is a genuine gap or correctly out of scope, without inventing a Pattern for two pages.
+
+**Reports is the natural R4.** It is only two routes and equally clean, but it is data-dense and
+matches no existing Pattern, so it is likely to surface a **Design System gap (class D)** rather than
+a composition correction. Better tackled once the cheap coverage is banked.
+
+**People remains deferred** behind the compact Notice decision and `CommissionCard`'s progress bar,
+exactly as the preflight recorded — R1 and R2 gave no reason to move it earlier.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
@@ -2730,7 +2936,8 @@ needs none, and clears four routes.
 | **Wave 6.6 commit** | **`05848c51d77bab52e72e4a0c845aa05e5c9daea3`** (`05848c5`) — `feat(design-system): reconcile pilot accessibility controls`, 10 files |
 | **Wave 7 commit** | **`4232028a872c77bc675ebc6294672d15842354e8`** (`4232028`) — `feat(design-system): complete clientes seller pilot`, 5 files |
 | **Rollout preflight commit** | **`bf44fe3d2ca3ff950c51ee8aeaa19a3d5d3b360d`** (`bf44fe3`) — `docs(design-system): record post-pilot rollout plan`, this handoff only |
-| **Rollout R1 commit** | `feat(design-system): migrate owner clients to proven patterns` — 2 files. Hash recorded in the R2 pass below |
+| **Rollout R1 commit** | **`606bd8ca3606c8a4f0bfb68575c593981b3d03ad`** (`606bd8c`) — `feat(design-system): migrate owner clients to proven patterns`, 2 files |
+| **Rollout R2 commit** | `feat(design-system): migrate raffles to proven patterns` — 3 files. Hash recorded in the R3 pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

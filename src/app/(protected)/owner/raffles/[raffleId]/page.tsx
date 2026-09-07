@@ -30,6 +30,7 @@ export default async function RaffleDetailPage({
     <div className="space-y-6">
       <PageHeader
         title={raffle.name}
+        titleBadge={<RaffleStatusBadge status={raffle.status} />}
         description={raffle.description ?? undefined}
         backHref="/owner/raffles"
         actions={
