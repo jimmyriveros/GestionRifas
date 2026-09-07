@@ -80,7 +80,7 @@ export function UserRowActions({ member, currentRole, currentProfileId }: UserRo
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={`Acciones para ${member.fullName}`}>
+          <Button variant="ghost" size="icon-touch" aria-label={`Acciones para ${member.fullName}`}>
             <MoreHorizontalIcon className="size-4" aria-hidden />
           </Button>
         </DropdownMenuTrigger>

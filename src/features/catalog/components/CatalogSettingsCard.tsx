@@ -56,7 +56,9 @@ export function CatalogSettingsCard({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-base">Catálogo público</CardTitle>
+        <CardTitle className="text-base">
+          <h2>Catálogo público</h2>
+        </CardTitle>
         {/*
           La insignia dice el estado con PALABRAS, no solo con color
           (CLAUDE.md 27). «Activo» e «Inactivo» no son etiquetas de estado de

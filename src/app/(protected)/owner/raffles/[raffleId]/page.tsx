@@ -54,7 +54,9 @@ export default async function RaffleDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Datos de la rifa</CardTitle>
+          <CardTitle className="text-base">
+            <h2>Datos de la rifa</h2>
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Código">

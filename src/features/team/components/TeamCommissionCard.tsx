@@ -58,7 +58,9 @@ export function TeamCommissionCard({
     <Card>
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 pb-3">
         <div className="min-w-0">
-          <CardTitle className="text-base">Cuánto gana</CardTitle>
+          <CardTitle className="text-base">
+            <h2>Cuánto gana</h2>
+          </CardTitle>
           {raffleName ? (
             <p className="text-muted-foreground truncate text-xs">{raffleName}</p>
           ) : null}

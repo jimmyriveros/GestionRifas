@@ -51,7 +51,7 @@ export function TeamMemberActions({ member }: { member: TeamMember }) {
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => setEditOpen(true)}>
+      <Button type="button" variant="outline" size="touch" onClick={() => setEditOpen(true)}>
         <PencilIcon className="size-4" aria-hidden />
         Editar datos
       </Button>
@@ -60,6 +60,7 @@ export function TeamMemberActions({ member }: { member: TeamMember }) {
         <Button
           type="button"
           variant="outline"
+          size="touch"
           onClick={() => setConfirmOpen(true)}
           disabled={isPending}
         >

@@ -558,10 +558,16 @@ Risk is relative and argued, **not** an hour estimate.
 > completion progress. **Both People prerequisites are CLOSED.**
 > **The refreshed People preflight (§10.37) returns READY FOR EXECUTION**, with one correction it
 > makes itself: **no People route reaches any Progress consumer** (§10.37).
-> **R6D — DROPDOWN MENU TOUCH RECONCILIATION is COMPLETE** (§10.38): the People gate measured the
-> shared menu item's real hit box at 32 px with nothing larger behind it, so the primitive gained a
-> 44 px floor on phones that is **released above the small breakpoint** — desktop density is
-> unchanged. It is a **People prerequisite**, checkpointed separately from the route work.
+> **R6D — DROPDOWN MENU TOUCH RECONCILIATION is COMPLETE AND APPROVED** (§10.38): the People gate
+> measured the shared menu item's real hit box at 32 px with nothing larger behind it, so the
+> primitive gained a 44 px floor on phones that is **released above the small breakpoint** — desktop
+> density is unchanged. It is a **People prerequisite**, checkpointed separately from the route work.
+> **R6C — PEOPLE is COMPLETE** (§10.39): five routes, seven production files, **zero Core changes and
+> an empty selector diff**. Its two gates found and fixed a real defect each — the shared menu's touch
+> target, which became R6D, and **five detail-page section titles that were missing from the document
+> outline**, corrected across People *and* the previously approved raffle detail.
+> **No People route reaches any Progress consumer**, and `Search / Filters` was **not** promoted.
+> **R7 — PUBLIC CATALOG is the next candidate, audit first. It is NOT authorized.**
 
 ---
 
@@ -4395,6 +4401,240 @@ a class string. Nothing else in the file changed.
 
 ---
 
+### 10.39 R6C — PEOPLE MIGRATION (2026-09-07 · **COMPLETED AND APPROVED** · commit in §11)
+
+**7 production files, zero Core files, zero new utilities.** The clean selector comparison against the
+R6D checkpoint is **0 added · 0 removed**: everything R6C does is either an existing class or a
+semantic element, which is the strongest available evidence that no route-specific shortcut was
+introduced.
+
+| Route | Pattern | Result |
+|---|---|---|
+| `owner/sellers` | List Page | **PASS — unchanged** |
+| `owner/users` | List Page | **PASS — unchanged** |
+| `seller/team` | List Page | **PASS — unchanged** |
+| `owner/sellers/[sellerId]` | Detail Page | **PASS** after composition corrections |
+| `seller/team/[sellerId]` | Detail Page | **PASS** after composition corrections |
+
+Five routes, re-confirmed against HEAD. Scope was not broadened.
+
+#### Blocker gate after R6B
+
+| Item | Result |
+|---|---|
+| Hardcoded palette across both route trees and all four feature trees | **ZERO** |
+| Compact Notice legacy panels | **ZERO** — the three People ones shipped in R6B |
+| Progress prerequisite | **CLOSED**, and **not reachable here** |
+| Status semantics | already semantic — the account badge throughout |
+| Search · filters · pagination · the search field | **not reachable**, confirmed by walking the import graph |
+| Local touch overrides | **none** |
+| Blocking form errors | **2**, on the `destructive` role with `role="alert"`. **Correctly outside Notice, no debt** |
+
+#### The three List Pages, audited individually
+
+| | `owner/sellers` | `owner/users` | `seller/team` |
+|---|---|---|---|
+| Header + context | page header with description and a compact primary action | same | same, description varies with the active raffle |
+| Primary action | invite a seller | invite an administrator | add a team member, **only when allowed** |
+| Data region | table | table | **card grid**, not a table |
+| Entity state | account badge column | account badge column | account badge per card |
+| Empty state | yes, with its action | **none, correctly** | **two different ones**, by cause |
+| Phone behaviour | table with responsive columns | table with responsive columns | cards, whole card is the target |
+| Row actions | actions menu | actions menu | none — the card is the link |
+| Role metadata | team, earnings, inventory | role, activation | sales, earnings |
+
+Notes worth keeping:
+
+* **`owner/users` has no empty state and should not have one.** The administrator list always
+  contains at least the owner. Inventing an unreachable state is not pattern conformance.
+* **`seller/team` is not table-based.** It composes a card grid with metric cards, and its own
+  comment explains why: a seller reads it on a phone. **No table was imposed on it.**
+* **Its two empty states are distinct on purpose** — "you have no team yet" with the action, and
+  "you belong to someone else's team" without one, because that seller cannot form a team (BR-E03).
+* **No search, filter or pagination was added**, and **no No-Results state was invented**: without
+  filtering it is not a reachable state.
+
+#### The two Detail Pages — identity was missing its state
+
+Both already satisfied most of the pattern: back link, identity, actions in the header, subordinate
+regions, and — on the team member page — a contextual Notice for the pending invitation.
+
+**What was wrong is the same thing D-113 fixed for clients.** The account state sat as a field inside
+a contact card, when it is the fact that governs the whole screen: an inactive seller cannot sign in,
+and an invitation still pending can still have its address corrected.
+
+**Correction: the state badge moved to the title and the duplicate field was removed.** The badge
+component is the same one the tables use. The seller detail's three closing actions and the team
+member's two header actions also adopted the touch size the pilot established for detail actions —
+44 px on phones, 36 px from the small breakpoint. **Approved touch-target composition correction**,
+using existing sizing.
+
+#### `UserRowActions` — exact reach, and both A/B cases in one group
+
+| Where | In row? |
+|---|---|
+| `SellersTable` | **yes** |
+| `UsersTable` | **yes** |
+| `owner/sellers/[sellerId]` | no — page-header action |
+
+`TeamMemberActions` is header-only, and `seller/team` has no row actions at all.
+
+**Classification: CASE B — DISTINCT SECONDARY ACTIONS.** The menu holds edit, deactivate and resend
+the invitation. None duplicates navigation, and in `UsersTable` — which passes no row destination —
+**the menu is the row's only affordance**.
+
+People also supplies the other case, in the same group:
+
+| Table | Row destination | Redundant link | Actions menu |
+|---|---|---|---|
+| `SellersTable` | yes | name cell — **Case A** | **Case B** |
+| `UsersTable` | **none** | — | **Case B**, sole affordance |
+| `PaymentsTable` (R5) | yes | a button to the same dialog — **Case A** | — |
+
+**The two cases are now validated by real product evidence and must not be collapsed into one rule.**
+And Case A already has a documented answer that R5 did not have in view: `DataTable`'s own contract
+states why the link is kept beside a clickable row — it supplies the context menu, "open in new tab",
+and **a named keyboard stop** — while the row-activation rules stop one click counting twice. So the
+redundant affordance is an approved decision, not debt. **Nothing was changed in Payments, and no
+product-wide table-action policy was created.**
+
+#### GATE A — the row trigger, and the shared menu behind it
+
+The trigger itself was corrected here: **36 × 36 → 44 × 44 on phones**, using the Design System's
+existing capability. No local height, no route breakpoint, no Core change.
+
+The **menu items** behind it turned out to be a different matter. Measured rather than eyeballed,
+their real interactive box was 32 px with no larger target behind it, which is a shared-primitive
+question, not a People one. It was therefore **taken out of R6C and shipped as its own prerequisite
+checkpoint, R6D** (§10.38), before this rollout was committed. **R6C contains no Core change.**
+
+#### GATE B — heading responsibility, decided by authority
+
+The question was whether the card-titled regions are true document sections or local labels. Decided
+from what each title is responsible for, never from its size or weight:
+
+| Title | Where | Class |
+|---|---|---|
+| Datos de contacto · Equipo y comisión | seller detail | **A — true section heading** |
+| Datos de contacto | team member detail | **A** |
+| Datos de la rifa | raffle detail | **A** |
+| Cuánto gana | the commission card, rendered **only** on the team member detail | **A** |
+| Catálogo público | the catalogue settings card, rendered **only** on the seller detail | **A** |
+| Inventario · Dinero · Cómo va · Sus ventas · Boletas de esta rifa | both detail pages and the raffle detail | **A — and already real headings** |
+| The label of a metric card | everywhere | **C — data label.** Nine of them per page would flood the outline. **Correctly stays a plain element** |
+| The card titles of the sign-in and password screens | auth screens | **out of scope** — those are page titles on a different Pattern, not detail sections |
+| Every dashboard, lottery and catalogue-facing card title | Dashboards and Catalog | **not audited** — they belong to their own rollouts |
+
+**Verdict: VERIFIED DETAIL-PATTERN ACCESSIBILITY DEFECT.** Five titles that name a whole section of a
+detail page were rendering as plain elements, so those sections did not exist in the document
+outline — the pages offered a title and then three or four unreachable regions.
+
+**Fix: composition-level, exactly the shape the Design System already ships.** `TableSection` — the
+system's own titled region — wraps its title in a real heading inside the card title, and these now
+do the same. **`CardTitle` itself was NOT changed**: it legitimately labels a metric elsewhere, and a
+global change would have turned every metric label into a heading.
+
+**Heading level follows the document, not the type scale:** each page has one page title, and these
+are its direct children, so they are all one level below it — the same level the existing section
+headings already used.
+
+**Visually inert, and verifiable:** the reset already forces headings to inherit size and weight and
+carry no margin, and the selector comparison for R6C is **empty**.
+
+##### The correction crosses a previously approved rollout, deliberately
+
+The raffle detail carried the identical defect from R2. **It was not protected for having been
+approved**: new accessibility evidence corrects an older rollout. **APPROVED PATTERN ACCESSIBILITY
+RECONCILIATION**, applied only to the instances this audit actually verified.
+
+**Not broadened:** the two ticket detail pages carry the same shape and were **left alone** — they
+belong to the Tickets rollout, which will audit them on its own terms. Recorded so that rollout
+inherits the finding rather than rediscovering it.
+
+#### Touch target — measured, not asserted
+
+| Width | Row action trigger | Detail action | Menu item | Columns shown | Table overflow | Page scrolls sideways |
+|---|---|---|---|---|---|---|
+| **375** | **44 × 44** (was 36 × 36) | **44 px tall** | **44 px** (R6D) | 5 of 7 | 35 px, **inside the table's own scroller** | **no** |
+| **768** | 36 × 36 | 36 px | 32 px | 7 of 7 | none | no |
+| **1360** | 36 × 36 | — | 32 px | 7 of 7 | none | no |
+| **1600** | 36 × 36 | — | 32 px | 7 of 7 | none | no |
+
+#### Tables at 375 — kept as tables
+
+**No card substitute was introduced.** Both tables already hide non-essential columns below the
+medium breakpoint, exactly as the migrated Clientes table does, so a phone shows identity, state and
+the action menu. Horizontal scrolling is confined to the table's own region — **the page body never
+scrolls sideways** — long names wrap rather than clip, and headers stay readable. **No responsive
+composition defect.**
+
+Honest note: the wider trigger adds 8 px to the table's minimum width at phone size, absorbed by the
+scroller that was already there.
+
+#### Progress — People reaches none of it
+
+**PROGRESS · PREREQUISITE RECONCILED · CURRENT PEOPLE ROUTE REACH: NONE.** Walking the import graph
+of all five routes finds no progress bar of any kind. `CommissionCard` **is mounted nowhere in the
+product**, and **it was not mounted here to exercise the new component**. The R6B reconciliation was
+still the right prerequisite: it unblocked the family and four real consumers in other groups.
+
+#### Notice — composition verified, API untouched
+
+Reachable in **all five routes**. Tone, hierarchy, density and responsive wrapping were checked and
+**nothing was changed**; the status-message regions R6B added were confirmed intact. **No Notice was
+added anywhere for visual consistency**, and the Notice API was not reopened.
+
+#### Accessibility
+
+| Check | Result |
+|---|---|
+| Keyboard traversal | the trigger is a real button inside the menu trigger; row link and action menu sit in **separate cells**, so nothing interactive nests inside anything interactive |
+| Menu semantics | untouched — R6D changed geometry only |
+| Row semantics | `SellersTable` keeps its named link beside the clickable row; `UsersTable` has no row destination and needs none |
+| Focus visibility | unchanged — the shared focus ring |
+| Event-propagation protections | **preserved** — the row-activation rules are untouched |
+| Semantic headings | **corrected** — see Gate B |
+| Empty states | present where reachable |
+| Light and Dark | verified; status tones legible in both, title and badge wrap correctly at 375 |
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `typecheck` · `lint` · `test` · `build` | **all pass** — 0 errors, same 2 pre-existing warnings, **791 tests / 47 files** |
+| `prettier` | clean on every changed file |
+| Compiled selectors vs the R6D checkpoint | **0 added · 0 removed** |
+| **People palette** | **ZERO** |
+| **Core files changed in R6C** | **ZERO** — the one Core change is R6D's, checkpointed separately |
+| Method | **PRESENTATIONAL HARNESS QA** at 375 / 768 / 1360 / 1600 in Light and Dark with measured element geometry, plus source inspection, an import-graph walk and document-outline verification in source. **REAL ROUTE QA was not possible** — every People route needs a session and live data, and Supabase is unavailable. **No data-backed validation is claimed** |
+
+#### Intentional visual changes
+
+1. The account state badge appears **next to the name** on both detail pages, and no longer inside
+   the contact card. Those cards drop from four fields to three, and from three to two.
+2. The row action trigger is **44 px instead of 36 px on phones only**.
+3. Five detail-page action buttons are **44 px tall on phones instead of 36 px**.
+4. The heading corrections are **visually inert** by construction.
+
+Nothing changes from the small breakpoint upward except the badge's position.
+
+#### Search / Filters
+
+**Not promoted.** People has no free-text search, no filters and no pagination, so it adds no
+evidence. `Search / Filters` **remains partially proven**, exactly as R6A predicted.
+
+#### Remaining People debt — both non-blocking
+
+| Debt | Why it was not fixed |
+|---|---|
+| **TYPOGRAPHY ADOPTION DEBT** — section titles use an ad-hoc type pair instead of the semantic heading role | it is product-wide, identical in an approved rollout, and fixing it here would be visual purity, not accessibility |
+| **CODE/STYLE CONSOLIDATION DEBT** — the field-label style is repeated across roughly 18 files | extracting an abstraction to reduce duplication is not this rollout's job |
+
+Plus the finding handed to the Tickets rollout: the two ticket detail pages carry the same
+heading-outline shape that Gate B corrected here.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -4427,16 +4667,16 @@ a class string. Nothing else in the file changed.
 | **Rollout R5 commit** | **`836cf5bf6ff6fa30d8549cc99f94f94d6b2b45a2`** (`836cf5b`) — `feat(design-system): migrate payments to proven patterns`, 4 files |
 | **R6A commit** | **`7584f1b8fc3e71071ff4ddfda11350c3040c4d9f`** (`7584f1b`) — `docs(design-system): define people rollout prerequisites`, this handoff only |
 | **R6B commit** | **`be127a09660d59cb21fae5e2343d0140ef6f405d`** (`be127a0`) — `feat(design-system): reconcile notice density and linear progress`, 10 files: `components/data/LinearProgress.tsx` (new), `components/feedback/Notice.tsx`, 7 consumers and this handoff |
-| **R6D commit** | `fix(design-system): make dropdown actions touch-safe` — 2 files: `components/ui/dropdown-menu.tsx` and this handoff. A People prerequisite, checkpointed **before** the People route work. Hash recorded in the R6C pass below |
+| **R6D commit** | **`5a5917a038b44144a6019937daa0ec39b9abee34`** (`5a5917a`) — `fix(design-system): make dropdown actions touch-safe`, 2 files: `components/ui/dropdown-menu.tsx` and this handoff. A People prerequisite, checkpointed **before** the People route work |
+| **R6C commit** | `feat(design-system): migrate people to proven patterns` — 8 files: the two People detail routes, the raffle detail route, `UserRowActions`, `TeamMemberActions`, `TeamCommissionCard`, `CatalogSettingsCard` and this handoff. **No Core file.** Hash recorded in the next pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
 
 Every wave is an independently revertible checkpoint — `git revert 3aae867` removes the whole token
-layer and nothing else, and the same holds for each later commit. **R6B is deliberately left
-uncommitted** so its visual diff — three progress bars moving from near-black to brand green, and the
-`SellerKpis` reclassification — can be reviewed or discarded without disturbing anything already
-committed.
+layer and nothing else, and the same holds for each later commit. R6D is deliberately separate from
+R6C for the same reason: reverting the shared menu's touch floor must not take the People route work
+with it, and reverting People must not put the menu back to 32 px on phones.
 
 **Do not alter the two pre-existing untracked files.** They belong to the user.
 

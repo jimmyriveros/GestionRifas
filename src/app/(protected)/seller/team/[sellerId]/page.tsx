@@ -51,6 +51,9 @@ export default async function TeamMemberPage({
     <div className="space-y-6">
       <PageHeader
         title={member.fullName}
+        titleBadge={
+          <AccountStatusBadge isActive={member.isActive} activatedAt={member.activatedAt} />
+        }
         description={member.alias ?? 'Vendedor de tu equipo'}
         backHref="/seller/team"
         actions={<TeamMemberActions member={member} />}
@@ -65,14 +68,14 @@ export default async function TeamMemberPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Datos de contacto</CardTitle>
+          <CardTitle className="text-base">
+            <h2>Datos de contacto</h2>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
+        {/* El estado ya no esta aqui: vive junto al nombre, arriba. */}
+        <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field label="Teléfono">{member.phone}</Field>
           <Field label="Correo">{member.email}</Field>
-          <Field label="Estado">
-            <AccountStatusBadge isActive={member.isActive} activatedAt={member.activatedAt} />
-          </Field>
         </CardContent>
       </Card>
 

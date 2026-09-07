@@ -49,6 +49,9 @@ export default async function SellerDetailPage({
     <div className="space-y-6">
       <PageHeader
         title={seller.fullName}
+        titleBadge={
+          <AccountStatusBadge isActive={seller.isActive} activatedAt={seller.activatedAt} />
+        }
         description={seller.alias ?? undefined}
         backHref="/owner/sellers"
         actions={
@@ -62,14 +65,14 @@ export default async function SellerDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Datos de contacto</CardTitle>
+          <CardTitle className="text-base">
+            <h2>Datos de contacto</h2>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* El estado ya no esta aqui: vive junto al nombre, arriba. */}
+        <CardContent className="grid gap-4 sm:grid-cols-3">
           <Field label="Correo">{seller.email}</Field>
           <Field label="Teléfono">{seller.phone}</Field>
-          <Field label="Estado">
-            <AccountStatusBadge isActive={seller.isActive} activatedAt={seller.activatedAt} />
-          </Field>
           <Field label="Alta">{formatDateEs(seller.createdAt)}</Field>
         </CardContent>
       </Card>
@@ -97,7 +100,9 @@ export default async function SellerDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Equipo y comisión</CardTitle>
+          <CardTitle className="text-base">
+            <h2>Equipo y comisión</h2>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -188,13 +193,13 @@ export default async function SellerDetailPage({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" size="touch">
           <Link href={`/owner/tickets?sellerId=${seller.profileId}`}>Ver sus boletas</Link>
         </Button>
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" size="touch">
           <Link href={`/owner/clients?sellerId=${seller.profileId}`}>Ver sus clientes</Link>
         </Button>
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" size="touch">
           <Link href={`/owner/tickets/bulk?sellerId=${seller.profileId}`}>Asignarle boletas</Link>
         </Button>
       </div>
