@@ -1,7 +1,7 @@
 # Rifas Design System — Session Handoff
 
-**Last approved migration:** **WAVE 3B2 — BRAND ACTIVATION** (COMPLETED AND APPROVED, 2026-09-06)
-
+**Last approved migration:** **WAVE 4 — DATA DISPLAY & OVERLAYS** (COMPLETED AND APPROVED, 2026-09-06)
+**Last approved migration:** **WAVE 4.5A — STATUS SEMANTICS AUDIT** (all 14 mappings APPROVED, 2026-09-06)
 
 **Wave 1 — semantic token infrastructure:** COMPLETED AND APPROVED · commit `3aae867`
 **Wave 2 — typography:** COMPLETED AND APPROVED · commit `b33003e`
@@ -9,11 +9,11 @@
 **Wave 3B1 — brand semantic convergence:** COMPLETED AND APPROVED · commit `64aaeed`
 **Wave 3B1b — brand activation prerequisites:** COMPLETED AND APPROVED · commit `64f22c5`
 **Wave 3B2 — brand activation:** COMPLETED AND APPROVED · commit `7a851f8` · **THE BRAND IS LIVE**
-**Last approved migration:** **WAVE 4 — DATA DISPLAY & OVERLAYS**
-**Wave 4 — data display & overlays:** COMPLETED AND APPROVED · commit in §11
-**NOT AUTHORIZED:** the next migration wave. Wave 5 (navigation and shell) is **largely pre-empted by
-3B2** and must be re-scoped before it runs; Waves 6 (data visualisation) and 7 (patterns and the
-Clientes pilot) remain unstarted. **The Status migration is unassigned** — see §10.15.
+**Wave 4 — data display & overlays:** COMPLETED AND APPROVED · commit `e48e2c8`
+**Wave 4.5A — status semantics audit:** COMPLETED AND APPROVED · documentation commit in §11
+**NOT AUTHORIZED:** **WAVE 4.5B — STATUS SEMANTIC MIGRATION** — the decision gate is **not met**
+(§10.16). Also not authorized: **WAVE 5**, which 3B2 largely pre-empted and which must be re-scoped
+before it runs; Waves 6 and 7 remain unstarted.
 **Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
 **Migration branch:** `design-system/migration` (from `main` @ `124445b`; `main` not moved)
 **Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 4)
@@ -1124,6 +1124,124 @@ theme checks were compiled-CSS, resolved-value and source inspection.** Table→
 > two approved Catalog items. `Button` destructive uses `text-white`, so the pair may not be
 > reachable — worth confirming in the wave that owns destructive semantics.
 
+### 10.16 WAVE 4.5A — STATUS SEMANTICS AUDIT & MAPPING (2026-09-06 · **APPROVED** · documentation checkpoint, hash in §11)
+
+**Inserted to close a verified planning gap.** The original seven-wave plan assigned no owner to
+`StatusBadge` or to the product-state → status-tone mapping. This is an **audit and decision phase**;
+**no production code was changed** and nothing was recoloured.
+
+#### The gap is bigger than StatusBadge
+
+`StatusBadge` holds **10 hardcoded palette occurrences** in 5 families (amber · sky · emerald · rose ·
+slate) across 4 class maps — the earlier count was right. But re-auditing at HEAD found **18 further
+files carrying their own hardcoded status palettes**, including four that render status badges
+entirely outside `StatusBadge`: `LotteryScheduleBadge`, `PaymentsTable` (Activo / Anulado),
+`TicketPaymentsCard` and `ImportPreview`. **The product-status treatment is scattered across 19
+files, not one.**
+
+Two more findings from the same pass: **`ActiveBadge` has zero usages** (dead code, like
+`AvatarBadge`), and **`ClientsTable` renders `<Badge variant="secondary">Archivado</Badge>` directly**
+instead of using `ClientStatusBadge` — the same product state with two different treatments.
+
+#### Product-state → tone matrix (proposed, NOT applied)
+
+Tone proposed from **product meaning**, never from the current colour.
+
+| Product state | Label | Meaning | Now | Proposed | Change? | Confidence |
+|---|---|---|---|---|---|---|
+| `inventory.draft` | Borrador | not ready yet; not a problem | muted | **Neutral** | minimal | **HIGH** |
+| `inventory.available` | Disponible | ready to sell; informational, not yet an achievement | sky | **Info** | yes | MEDIUM |
+| `inventory.assigned` | Asignada | sold — the desired outcome | emerald | **Success** | small | **HIGH** |
+| `payment.unpaid` | Sin pagar | normal starting state, nothing owed yet | muted | **Neutral** | minimal | **HIGH** |
+| `payment.paid` | Pagada | fully paid | emerald | **Success** | small | **HIGH** |
+| `raffle.draft` | Borrador | unpublished | muted | **Neutral** | minimal | **HIGH** |
+| `raffle.closed` | Cerrada | finished normally — an end, not a failure | slate | **Neutral** | small | **HIGH** |
+| `client.archived` | Archivado | out of the list, reversible. The code says outright: *"Archivar no es un error ni una anulacion"* | slate | **Neutral** | small | **HIGH** |
+| `account.pending` | Invitación pendiente | BR-E14: a **wait**, explicitly not a punishment | amber | **Info** | yes | MEDIUM |
+| `payment.partial` | **Abonada** | see below | amber | **Info** | **yes** | **APPROVED** |
+| `inventory.pending_approval` | Pendiente de aprobación | a normal step that nonetheless **needs someone to act** | amber | **Warning** | small | **APPROVED** |
+| `inventory.cancelled` / `raffle.cancelled` | Anulada | deliberate withdrawal, not a failure | rose | **Neutral** | **yes** | **APPROVED** |
+| `account.inactive` | Inactivo | access disabled — deliberate, not a failure | rose | **Neutral** | **yes** | **APPROVED** |
+| `raffle.active`, `client.active`, `account.active`, catalog link Activo | Activa / Activo / Cuenta activa | the desired **operational** state — enabled, usable, working | emerald | **Success** | small | **APPROVED** |
+
+**ALL 14 MAPPINGS APPROVED 2026-09-06. BLOCKED: 0.** The five tones covered every state; no gap in
+the Design System was found.
+
+#### The semantic rules behind the mapping — these, not the Spanish label, are the authority
+
+| Meaning | Tone |
+|---|---|
+| **Normal but incomplete** | **Info** |
+| **Requires human attention** | **Warning** |
+| **Completed / desired operational state** | **Success** |
+| **Intentional cancelled · archived · inactive** | **Neutral** |
+| **Actual failure or problem** | **Error** |
+
+These are **semantic guidelines, never string-to-tone rules**. `Pendiente de aprobación` is Warning
+because someone must act; `Invitación pendiente` is Info because it is only a wait — **the same
+Spanish word, two tones.** No logic may branch on a label.
+
+#### «Abonada» — audited explicitly
+
+Evidence, not colour: `Abonada` is `0 < paid < sale_price` — **the normal middle of every sale**.
+Nothing in the schema or the rules ties it to a due date, and there is **no overdue concept** for
+tickets. `tones.ts` calls it *"abonos: boletas pagadas a medias"*, and its sibling `pending` is
+explicitly grey because *"es «todavia no», no «mal»"*. So it is **healthy and in progress**, and it
+does **not** require attention → **Warning is not supported by the evidence; Info is the proposal.**
+
+It is still **NEEDS PRODUCT DECISION**, for one reason: production's amber currently means *"falta un
+paso"* and is shared by **three** states (Abonada, Pendiente de aprobación, Invitación pendiente). A
+tone mapping would split that convention, and Abonada is the highest-frequency badge in the product
+(9 call sites). That is a product call, not a design-system one.
+
+#### Status vs Product Data vs Progress — the boundary holds
+
+**Three separate roles that may end up visually related but must not be collapsed:**
+Status **«Abonada»** = the entity's payment state · **`data/partial`** = the colour of *abonos as a
+quantity* in figures and charts · **`progress/value`** = how far a bar has advanced. The verified
+production conflict is carried forward unresolved: system `sky` · dashboard `blue` · progress bars and
+card lists `amber` · the `StatusBadge` chip `amber`. **4.5A classifies; it does not resolve.**
+
+#### Activo / Inactivo, and the generic Badge
+
+The glossary is explicit: *"«Activo» / «Inactivo» describen el ENLACE, no a la persona… Inactivo aquí
+significa que la dirección no abre"*. So **Inactivo is an off state, not an error → Neutral (HIGH)**;
+Activo → Success or Info (**MEDIUM**). Generic-Badge consumers classify as: **STATUS** —
+`ClientsTable`, `CatalogSettingsCard`, `SellerCatalogCard`, `LotteryScheduleBadge`, `PaymentsTable`,
+`TicketPaymentsCard`, `ImportPreview`; **NEUTRAL METADATA** — the two role-label badges;
+**PRODUCT-SPECIFIC LABEL** — `CatalogTicketCard`; **OTHER** — two `ReportsView` annotations. Only the
+STATUS group is a candidate for 4.5B.
+
+#### Accessibility and the destructive pair
+
+**No violations.** Every badge renders its Spanish label as visible children; there is no icon-only
+status anywhere, and no `sr-only` substitution. The contract holds as written.
+
+**`text/on-destructive` on `action/destructive` in Dark = 2.75:1 — UNREACHABLE.** Verified:
+`text-text-on-destructive` has **0 consumers**, `--destructive-foreground` has **0 consumers in code**
+(it is declared and exported but never used), and `Button` destructive bypasses the pair with
+`text-white`. Classified **UNREACHABLE / LATENT TOKEN DEBT**, owner = whichever wave takes destructive
+semantics. **Not fixed here**, and `action/destructive` remains distinct from `status/error`.
+
+#### Proposed Wave 4.5B blast radius
+
+| | |
+|---|---|
+| Source files | **1** (`StatusBadge.tsx`) + **18** satellite files with their own status palettes |
+| State renderings | **17** live (19 minus the 2 dead `ActiveBadge` branches) |
+| Consuming files | **19** for `StatusBadge` |
+| Owner reach | yes · **Seller reach** yes · **Catalog reach 0** |
+| Visual change | **Light and Dark**; Catalog unaffected |
+| **Risk** | **HIGH** |
+
+Why HIGH: it repaints the highest-frequency chips in the product — every ticket row, every payment
+row, both card lists — across two portals; the surface is 19 files rather than one; and **6 mappings
+covering 9 renderings still need a product decision.**
+
+> **DECISION GATE PASSED 2026-09-06.** All six open mappings were closed by the user, so Wave 4.5B
+> became authorized. «Abonada» is **Info** — an intentional semantic correction, explicitly NOT
+> preserving amber just because production paints it that way.
+
 ---
 
 ## 11. Repository checkpoint — 2026-09-06
@@ -1139,7 +1257,8 @@ theme checks were compiled-CSS, resolved-value and source inspection.** Table→
 | **Wave 3B1 commit** | **`64aaeed9e416461f05c08f27b40584d005b5e233`** (`64aaeed`) — `feat(design-system): converge brand semantic roles`, 12 files |
 | **Wave 3B1b commit** | **`64f22c5984800e2b3d96946e3291a2b1b3420574`** (`64f22c5`) — `chore(design-system): prepare brand activation semantics`, 2 files |
 | **Wave 3B2 commit** | **`7a851f88a9a0a8ae88e00928b70d50a38197c681`** (`7a851f8`) — `feat(design-system): activate Rifas brand semantics`, 9 files |
-| **Wave 4** | **uncommitted working tree** — 8 files + this handoff. No Wave 4 commit was authorized. |
+| **Wave 4 commit** | **`e48e2c8e86bc8d94ee6ec3329fe1cc9a95cf0cff`** (`e48e2c8`) — `feat(design-system): adopt data display and overlay semantics`, 9 files |
+| **Wave 4.5A** | **uncommitted — this handoff only. NO production code changed.** |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
