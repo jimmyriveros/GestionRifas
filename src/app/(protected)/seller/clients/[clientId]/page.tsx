@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { PageHeader } from '@/components/data/PageHeader'
 import { ClientStatusBadge } from '@/components/data/StatusBadge'
 import { SECTION_TABLE_CLASSES, TableSection } from '@/components/data/TableSection'
+import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
 import { ClientArchiveButton } from '@/features/clients/components/ClientArchiveButton'
 import { ClientInfoCard } from '@/features/clients/components/ClientInfoCard'
@@ -86,9 +87,9 @@ export default async function SellerClientDetailPage({
       />
 
       {archived ? (
-        <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-950">
+        <Notice tone="neutral">
           Este cliente está archivado: no aparece al asignar boletas. Su historial se conserva.
-        </p>
+        </Notice>
       ) : null}
 
       <ClientInfoCard

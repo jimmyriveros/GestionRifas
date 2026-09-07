@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 
 import { MoneyInput } from '@/components/form/MoneyInput'
 import { PaymentStatusBadge } from '@/components/data/StatusBadge'
+import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -380,32 +381,28 @@ export function PaymentForm({
         en un alto de 667–720 px tapaban Fecha y Notas (D-138).
       */}
       <div className="mt-auto flex flex-col gap-3">
-        <div
-          className={cn(
-            'flex flex-col gap-1 rounded-lg border px-4 py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3',
-            validation.valid
-              ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950'
-              : 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950',
-          )}
-          aria-live="polite"
+        {/*
+          El unico aviso de la aplicacion cuyo TEXTO cambia mientras se
+          escribe, y por eso el unico con `live`: se anuncia en voz baja
+          cuando el reparto pasa a cuadrar o deja de hacerlo.
+        */}
+        <Notice
+          tone={validation.valid ? 'success' : 'warning'}
+          icon={validation.valid ? <CheckIcon /> : <AlertTriangleIcon />}
+          live
         >
-          <span className="flex min-w-0 items-start gap-2 sm:items-center">
-            {validation.valid ? (
-              <CheckIcon className="mt-0.5 size-4 shrink-0 sm:mt-0" aria-hidden />
-            ) : (
-              <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 sm:mt-0" aria-hidden />
-            )}
+          <span className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
             <span className="min-w-0 text-pretty">
               {validation.error ??
                 (validation.issues.length > 0
                   ? 'Corrige las boletas marcadas.'
                   : 'El reparto cuadra con el valor del abono.')}
             </span>
+            <span className="whitespace-nowrap tabular-nums">
+              Repartido {formatCOP(validation.allocated)} de {formatCOP(total ?? 0)}
+            </span>
           </span>
-          <span className="ps-6 whitespace-nowrap tabular-nums sm:ps-0">
-            Repartido {formatCOP(validation.allocated)} de {formatCOP(total ?? 0)}
-          </span>
-        </div>
+        </Notice>
 
         <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:gap-2">
           <Button

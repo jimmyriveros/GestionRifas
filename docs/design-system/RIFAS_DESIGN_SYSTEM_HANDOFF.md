@@ -543,11 +543,7 @@ Risk is relative and argued, **not** an hour estimate.
 > `partial` split recorded in §7B is resolved for **both** graphics and text, and the token contract
 > gained four evidence-backed `data/*/foreground` roles because the graphical roles are not text-safe
 > (§10.20).
-> **NEXT: WAVE 6.5A — ALERT / NOTICE AUDIT & CONTRACT (audit complete, §10.21, awaiting approval).**
-> Wave 6.5B (implementation) and **Wave 7 — Patterns & pilot screen (Clientes, Seller portal)** are
-> both **NOT AUTHORIZED**. Wave 7's stated prerequisites (Waves 3, 4 and 5) are met; its outstanding
-> blocker is the Alert/Notice gap, because `seller/clients/[clientId]` is a pilot route whose
-> archived-client notice has no Design System component contract.
+> **NEXT: WAVE 7 — PATTERNS & PILOT SCREEN (Clientes, Seller portal). NOT AUTHORIZED.** Its preflight is §10.23.
 
 ---
 
@@ -1836,6 +1832,217 @@ which is an **approved consistency fix**.
 
 ---
 
+### 10.22 WAVE 6.5B — NOTICE COMPONENT & MIGRATION (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+**5 production files: 1 new, 4 migrated.** Nothing else was touched.
+
+| File | Change |
+|---|---|
+| `src/components/feedback/Notice.tsx` | **new** — the component, beside `ConfirmDialog` |
+| `src/app/(protected)/owner/dashboard/page.tsx` | Warning, with icon and action |
+| `src/app/(protected)/seller/clients/[clientId]/page.tsx` | **Neutral** — the pilot fix |
+| `src/app/(protected)/seller/team/[sellerId]/page.tsx` | Info |
+| `src/features/payments/components/PaymentForm.tsx` | Success ↔ Warning, `live` |
+
+#### Final public API
+
+```ts
+type NoticeTone = 'info' | 'success' | 'warning' | 'neutral'
+
+Notice({ tone, children, icon?, action?, live? })   // live defaults to false
+```
+
+`NoticeTone` is declared independently rather than derived from `StatusTone`, so the absence of an
+error tone is a fact of the type, not an omission. **There is no `className` and no prop spread**: a
+consumer cannot inject `role`, cannot opt into alert semantics and cannot override a tone.
+
+#### Internal token architecture
+
+Four tone maps, each one line, resolved from `status/<tone>/surface · border · text`, with a second
+map for `status/<tone>/icon`. **No primitive palette class**, and no tone map duplicated in any
+consumer — the same shape `StatusBadge` uses. **No `notice/*` token family was created**; the
+composition measurement proved it unnecessary.
+
+#### shadcn's `Alert` — inspected, and deliberately not adopted
+
+`src/components/ui/alert.tsx` **does not exist**; the primitive was never installed and there is no
+entry for it in `components.json`. shadcn's `Alert` sets **`role="alert"` on its root by default**,
+which would announce every static notice assertively — the exact behaviour the contract forbids. The
+component was therefore written against the Rifas contract rather than generated from the registry,
+and no `role` is emitted anywhere. Nothing was inherited, so there was nothing to strip.
+
+#### One contract question that surfaced during migration
+
+`PaymentForm`'s notice carries a **trailing running total** — "Repartido $80.000 de $120.000" — at
+the far right of the same row. Structurally that is the slot `action` occupies, but it is a **value,
+not a control**, and §12 of the contract requires the action slot to hold a real focusable control.
+Rather than misuse the slot or add a prop, the content wrapper was given `flex-1` so a consumer can
+lay out its own row inside `children`. **The API is unchanged and the original layout is preserved
+exactly.** Recorded here because it is the first evidence that a "trailing content" region exists
+independently of an action; if a second consumer needs it, that is when the slot should be named.
+
+#### Rendered contrast — measured in a browser, not inferred
+
+Both themes, the real compiled CSS, the exact markup the component emits:
+
+| Consumer | Tone | Light text | Dark text | Light icon | Dark icon |
+|---|---|---|---|---|---|
+| `owner/dashboard` | Warning | **8.13** | **12.05** | 4.52 | 8.71 |
+| `seller/clients/[clientId]` | Neutral | **14.46** | **13.34** | — | — |
+| `seller/team/[sellerId]` | Info | **8.24** | **10.44** | — | — |
+| `PaymentForm` valid | Success | **8.47** | **11.87** | 4.72 | 7.83 |
+| `PaymentForm` invalid | Warning | **8.13** | **12.05** | 4.52 | 8.71 |
+
+**Worst text 8.13:1, worst icon 4.52:1. Every tone passes in both themes.** Icons are decorative and
+`aria-hidden`, so the 4.52 figure is a courtesy, not a requirement. **Catalog: not reachable** — none
+of the four consumers renders under `.catalog-theme`, verified against the route import graph, so no
+Catalog composition was invented.
+
+#### Responsive — verified at 375, 768 and 1360
+
+| Width | Behaviour |
+|---|---|
+| **375** | Stacks: message on top, action on its own line beneath. The PaymentForm running total sits under the message, indented past the icon, exactly as before |
+| **768** | Single row from the `sm` breakpoint: message left, action or trailing value right-aligned |
+| **1360** | Single row, no overflow, no stretched line lengths |
+
+No mobile and desktop variants exist, and **nothing is hidden at any width**. The notice wraps
+naturally through `flex-wrap`.
+
+#### Accessibility — verified in the DOM
+
+| Check | Result |
+|---|---|
+| `role="alert"` anywhere on the page | **0** |
+| `aria-live="assertive"` anywhere | **0** |
+| `aria-live="polite"` | **only** the two PaymentForm states — the three static notices carry none |
+| `role` on any notice | **null** on all five |
+| Icons | `aria-hidden="true"` |
+| Action | a real focusable `<button>`; the block itself has no `tabindex` and is not clickable |
+| Reading order | icon → content → action |
+| Focus trap / autofocus / dismiss | none |
+
+#### The pilot contradiction is closed
+
+`seller/clients/[clientId]` now renders a **Neutral** notice beside its **Neutral** `ClientStatusBadge`.
+The screen no longer tells the same fact in two tones. **APPROVED CONSISTENCY FIX**, and it is a
+deliberate visible change: the panel goes from amber to neutral.
+
+#### Validation
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | **exit 0** |
+| `npm run lint` | **exit 0** — the same 2 pre-existing TanStack warnings |
+| `npm run test` | **791 passed / 47 files**, unchanged |
+| `npm run build` | **compiled successfully** |
+| `prettier` | the new component and three of the four migrations are clean. `PaymentForm.tsx` reports one class-order nit **at a line this wave did not touch**, and it reports identically at HEAD — pre-existing, left alone |
+| Compiled selectors | **+4** (`text-status-*-icon`) · **−3** (an emerald border and two padding utilities that only PaymentForm's old markup used). Nothing else moved |
+| Live screenshots | **PERFORMED** — the dev server served the real compiled stylesheet and the exact component markup, driven at 375/768/1360 in Light and Dark. Supabase is still unavailable, so **no data-backed route was rendered**; the harness lived under a gitignored path and was deleted |
+
+#### The border measurement — NON-BLOCKING COMPOSITION OBSERVATION
+
+Notice borders measure between **1.45 and 2.79** against the surrounding surface, below 3:1. This is
+recorded as a **non-blocking composition observation, not an accessibility failure**, and it does not
+block anything.
+
+The border is not the sole or necessary channel for the boundary, the tone or the meaning. The
+component always carries visible message text, a tinted semantic surface, structural spacing and its
+surrounding context. The ratios are also **identical to what production already shipped** — the same
+ramp steps — so nothing regressed.
+
+**The status token ramps must NOT be changed to force every Notice border above 3:1.** If some future
+composition proves the border is genuinely needed to perceive the boundary, it gets re-evaluated then.
+
+#### The trailing-value case — API deliberately NOT expanded
+
+`PaymentForm` is the **only** consumer with a trailing value, and one consumer is not evidence for a
+slot. It composes that value inside `children`, which the `flex-1` content wrapper already supports.
+**A dedicated trailing-content slot requires a second meaningful recurring consumer**, and until one
+appears the API stays at five props.
+
+#### Remaining Notice debt
+
+**Eleven** other tinted panels remain, untouched on purpose, each in a separately classified family:
+5 dialog-level notices (`UserDialog`, `TeamCommissionDialog`, `BulkActionDialog`, `BulkAssignDialog`,
+`TicketImportDialog`), 2 in `LotteryResultsCard`, 1 in `CommissionCard`, and 3 page-level ones
+(`seller/dashboard`, `seller/tickets/[ticketId]`, and `seller/dashboard`'s `rounded-xl` outlier).
+Their open question is the **second geometry cluster** — `rounded-md px-3 py-2` at dialog level
+against the page-level `rounded-lg px-4 py-3` the component ships. That is what would decide whether
+a `size` prop is justified, and it was deliberately not prejudged here.
+
+---
+
+### 10.23 WAVE 7 — PREFLIGHT ONLY (2026-09-06 · **NOT AUTHORIZED FOR EXECUTION**)
+
+Read from Figma `04 — Design to Code` and the repository. **No production file was touched.**
+
+#### Original scope, as written in Figma
+
+> *Wave 7 · Patterns & pilot screen — compose the migrated pieces on one real screen. RISK MEDIUM —
+> this is where integration problems finally surface, which is exactly why a pilot exists.*
+
+The pilot is **CLIENTES in the Seller portal: the list page, the detail page and the create/edit
+form** — chosen because it exercises six of eight waves across three routes while its only
+destructive action, archiving, is reversible.
+
+#### The actual routes, from the repository
+
+| Route | File |
+|---|---|
+| List | `src/app/(protected)/seller/clients/page.tsx` |
+| Detail | `src/app/(protected)/seller/clients/[clientId]/page.tsx` |
+| Create | `src/app/(protected)/seller/clients/new/page.tsx` |
+| Edit | `src/app/(protected)/seller/clients/[clientId]/edit/page.tsx` |
+
+#### What the prior waves already satisfied
+
+| Family | Status |
+|---|---|
+| Tokens, typography | **ALREADY SATISFIED** (Waves 1–2) |
+| Controls — Button, Select, Switch, Label, Form | **ALREADY SATISFIED** (3A/3B) |
+| Brand semantics | **ALREADY SATISFIED** (3B2) |
+| Table, cells, pagination, empty state | **ALREADY SATISFIED** (Wave 4) |
+| Page header, shell, navigation | **ALREADY SATISFIED** (Waves 4–5) |
+| Status badges, including the archived client | **ALREADY SATISFIED** (4.5B) |
+| Product Data — the ticket list inside the detail page | **ALREADY SATISFIED** (Wave 6) |
+| Notice — the archived-client panel | **ALREADY SATISFIED** (6.5B, this turn) |
+| **Hardcoded palette anywhere in the pilot tree** | **ZERO** — verified across all four routes and the twelve components they reach |
+| Progress family debt | **OUTSIDE PILOT** — `CollectionSummaryCard`, `CommissionCard` and `BulkTicketCreator` are not reachable from any pilot route. The only progress bar reachable is `PaymentProgressBar`, which is Product Data and already migrated |
+| Responsive List/Record | **ALREADY SATISFIED** structurally — `ClientsList` already switches table ↔ card list at `md` |
+
+#### What genuinely remains — three items, all reachable and all mattering
+
+| Item | Reach in the pilot | Why it matters |
+|---|---|---|
+| **Control touch size** | `ClientFormFields` renders `Input` ×4 and `Textarea`; `ClientFilters` renders `Select`. All are `h-9` — **36px, not the 44px the system specifies** | This is the Seller portal, and the stated reason for choosing it was to put the 44px touch floor under real use on a phone. **NEEDS SEMANTIC ADOPTION** |
+| **`text/muted` contrast** | 36 occurrences across 12 pilot files | `--muted-foreground` measures **4.34:1** on the neutral surfaces used by table headers and hovered rows — below 4.5:1, and hovered rows are exactly what a list page has. **NEEDS RECONCILIATION** |
+| **`border/input`** | transitively, through `Input`, `Textarea` and `Select` | Light `#e5e5e5` → `#949494`, Dark `#ffffff26` → `#666666`. Classified C, component-contract reconciliation. **NEEDS RECONCILIATION** |
+
+Nothing else is blocked. Global debt that the pilot does not reach — the Progress family, the eleven
+remaining notices, `RecentActivityCard`, the Lottery presentation palette — **does not block it**,
+and is not treated as a blocker merely for existing.
+
+#### Expected Wave 7 shape
+
+| | |
+|---|---|
+| **Routes** | 4 |
+| **Components reached** | ~12, all already on semantic tokens |
+| **Remaining visual changes** | control heights 36 → 44 on phone; `text/muted` darkens; `border/input` darkens |
+| **Remaining semantic migrations** | none for colour — the three items above are token and sizing reconciliations, not adoptions |
+| **Responsive work** | verification at 375, 768, 1360 and 1600 in three themes; the `md` table ↔ card switch is the fragile piece |
+| **Accessibility work** | keyboard traversal with a visible ring on every control; contrast re-measured after the two token corrections |
+| **Risk** | **MEDIUM** — unchanged. The composition is already done; what is left are two token changes with product-wide blast radius and one sizing change confined to controls |
+
+**Is Wave 7 ready for execution? Yes, with one caveat.** The pilot itself is clean — zero hardcoded
+palette, every component already semantic. But two of its three remaining items (`text/muted`,
+`border/input`) are **cross-system token changes that reach far beyond the pilot**, so executing them
+"inside Wave 7" would silently repaint the whole product. They should be decided as their own
+checkpoint, before or alongside Wave 7, exactly as the Status and data-visualisation gaps were.
+
+---
+
 ## 11. Repository checkpoint — 2026-09-06
 
 | Item | Value |
@@ -1855,7 +2062,8 @@ which is an **approved consistency fix**.
 | **Wave 5 preflight commit** | **`6787298fc38fb85438b413ac6fdcae766a3d8dc3`** (`6787298`) — `docs(design-system): record re-scoped wave 5 preflight`, documentation only |
 | **Wave 5 commit** | **`9ac0740b11662caf4d3542ffb58bb8591b0f89cb`** (`9ac0740`) — `feat(design-system): adopt semantic application shell`, 3 files |
 | **Wave 6 commit** | **`2d8e4ac989f2180d29dd30cb89659e24ad9f2267`** (`2d8e4ac`) — `feat(design-system): adopt semantic product data visualization`, 11 files: the token layer, 9 consumers and this handoff |
-| **Wave 6.5A commit** | `docs(design-system): define inline notice contract` — this handoff only. Hash recorded in the Wave 6.5B pass below |
+| **Wave 6.5A commit** | **`ddd147acd73100b2250bccbcbcbe869a540f5ba0`** (`ddd147a`) — `docs(design-system): define inline notice contract`, this handoff only |
+| **Wave 6.5B commit** | `feat(design-system): add semantic inline notice` — 6 files: the component, 4 consumers and this handoff. Hash recorded in the Wave 6.6 pass below |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

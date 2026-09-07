@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { CollectionSummaryCard } from '@/components/data/CollectionSummaryCard'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
+import { Notice } from '@/components/feedback/Notice'
 import { InstallPrompt } from '@/features/pwa/components/InstallPrompt'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -45,15 +46,17 @@ export default async function OwnerDashboardPage() {
       />
 
       {totals.ticketsPendingApproval > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950">
-          <p className="flex items-center gap-2 text-sm">
-            <AlertTriangleIcon className="size-4 shrink-0" aria-hidden />
-            Hay {totals.ticketsPendingApproval} boleta(s) pendientes de aprobación.
-          </p>
-          <Button asChild size="sm" variant="outline">
-            <Link href="/owner/tickets?inventoryStatus=pending_approval">Revisar</Link>
-          </Button>
-        </div>
+        <Notice
+          tone="warning"
+          icon={<AlertTriangleIcon />}
+          action={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/owner/tickets?inventoryStatus=pending_approval">Revisar</Link>
+            </Button>
+          }
+        >
+          Hay {totals.ticketsPendingApproval} boleta(s) pendientes de aprobación.
+        </Notice>
       ) : null}
 
       {/* Arriba, no al final (D-123). Después del aviso ámbar: aprobar boletas

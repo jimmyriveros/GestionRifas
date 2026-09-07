@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/data/EmptyState'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
 import { AccountStatusBadge } from '@/components/data/StatusBadge'
+import { Notice } from '@/components/feedback/Notice'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   getCommissionContext,
@@ -56,10 +57,10 @@ export default async function TeamMemberPage({
       />
 
       {member.activatedAt === null ? (
-        <p className="rounded-lg border border-amber-300 bg-amber-100 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+        <Notice tone="info">
           Le enviamos la invitación a {member.email} y todavía no ha creado su contraseña. Mientras
           tanto puedes corregir sus datos o eliminar el vendedor.
-        </p>
+        </Notice>
       ) : null}
 
       <Card>
