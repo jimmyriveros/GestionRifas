@@ -1,7 +1,7 @@
 # Rifas Design System — Session Handoff
 
-**Last approved migration:** **WAVE 4 — DATA DISPLAY & OVERLAYS** (COMPLETED AND APPROVED, 2026-09-06)
-**Last approved migration:** **WAVE 4.5A — STATUS SEMANTICS AUDIT** (all 14 mappings APPROVED, 2026-09-06)
+**Last approved migration:** **WAVE 4.5B — STATUS SEMANTIC MIGRATION** (all 27 mappings APPROVED, 2026-09-06)
+
 
 **Wave 1 — semantic token infrastructure:** COMPLETED AND APPROVED · commit `3aae867`
 **Wave 2 — typography:** COMPLETED AND APPROVED · commit `b33003e`
@@ -10,10 +10,11 @@
 **Wave 3B1b — brand activation prerequisites:** COMPLETED AND APPROVED · commit `64f22c5`
 **Wave 3B2 — brand activation:** COMPLETED AND APPROVED · commit `7a851f8` · **THE BRAND IS LIVE**
 **Wave 4 — data display & overlays:** COMPLETED AND APPROVED · commit `e48e2c8`
-**Wave 4.5A — status semantics audit:** COMPLETED AND APPROVED · documentation commit in §11
-**NOT AUTHORIZED:** **WAVE 4.5B — STATUS SEMANTIC MIGRATION** — the decision gate is **not met**
-(§10.16). Also not authorized: **WAVE 5**, which 3B2 largely pre-empted and which must be re-scoped
-before it runs; Waves 6 and 7 remain unstarted.
+**Wave 4.5A — status semantics audit:** COMPLETED AND APPROVED · documentation commit `dbba151`
+**Wave 4.5B — status semantic migration:** COMPLETED AND APPROVED · commit in §11 — **all 27 state
+mappings approved** (14 explicit + 13 rule-derived); the gate passed on 2026-09-06.
+**NOT AUTHORIZED:** **WAVE 5**, which 3B2 largely pre-empted and which must be re-scoped before it
+runs; Waves 6 and 7 remain unstarted.
 **Current status:** DESIGN SYSTEM CORE v1 — READY WITH DOCUMENTED DEBT
 **Migration branch:** `design-system/migration` (from `main` @ `124445b`; `main` not moved)
 **Handoff written:** 2026-09-06 · **last updated:** 2026-09-06 (Wave 4)
@@ -1242,6 +1243,160 @@ covering 9 renderings still need a product decision.**
 > became authorized. «Abonada» is **Info** — an intentional semantic correction, explicitly NOT
 > preserving amber just because production paints it that way.
 
+### 10.17 WAVE 4.5B — STATUS SEMANTIC MIGRATION (2026-09-06 · **COMPLETED AND APPROVED** · commit in §11)
+
+**9 files.** The product's status treatment stops being ten copied palette strings and becomes one
+tone architecture.
+
+#### Architecture chosen — three pieces, each deciding one thing
+
+```
+product state  →  tone            →  colours        →  chip
+(constants.ts)    (constants.ts)     (StatusBadge)     (StatusBadge)
+```
+
+1. **State → tone** lives in `src/lib/constants.ts`, **beside the labels it already owned**, as five
+   small per-domain maps (`TICKET_INVENTORY_STATUS_TONES`, `TICKET_PAYMENT_STATUS_TONES`,
+   `RAFFLE_STATUS_TONES`, `ACCOUNT_STATUS_TONES`, `CLIENT_STATUS_TONES`). Changing what a state
+   *means* stays a one-file change, exactly like changing its label.
+2. **Tone → colours** lives once, in `TONE_CLASSES` inside `StatusBadge.tsx`.
+3. **`<StatusBadge tone=…>`** renders the chip and knows nothing about the business.
+
+**Why not one global registry:** the domains are unrelated — a lottery schedule has nothing to do
+with a ticket's payment — so a single table would couple them for no gain. **Why not per-component
+maps:** that is exactly the duplication this wave removed. Small maps next to their own labels is the
+smallest thing that removes the duplication without the coupling. Domains outside `constants.ts`
+(lottery schedule, importer rows) keep their tone map next to their own constants.
+
+**The prop is `tone`, not the contract's `status`.** In this codebase `status` already names the
+*business* state (`status={ticket.inventoryStatus}`); having both under one name a centimetre apart
+reads badly. The Figma contract's own rule — a Figma limitation must not dictate the API — covers a
+naming choice like this.
+
+#### What changed
+
+| File | Change |
+|---|---|
+| `src/lib/constants.ts` | +5 tone maps, +`StatusTone` type, +the semantic rules as a comment |
+| `StatusBadge.tsx` | **10 hardcoded palette occurrences → 5 tone strings**; 6 domain badges become thin state→tone wrappers; new generic `StatusBadge` export |
+| `LotteryScheduleBadge.tsx` | its own 8-state palette map → a tone map |
+| `PaymentsTable.tsx` | Activo → `success`, Anulado → `neutral` |
+| `TicketPaymentsCard.tsx` | Anulado → `neutral` |
+| `ImportPreview.tsx` | 5 row states → tones |
+| `ClientsTable.tsx` | **duplication resolved** — the raw `<Badge variant="secondary">Archivado</Badge>` and the plain "Activo" span both replaced by `<ClientStatusBadge>` |
+| `CatalogSettingsCard.tsx`, `SellerCatalogCard.tsx` | catalog-link Activo → `success`, Inactivo → `neutral` |
+
+#### The 13 rule-derived mappings — FINAL AUDIT · **GATE PASSED 2026-09-06**
+
+**5 HIGH-confidence · 8 previously MEDIUM, now approved by product decision · 0 needing decision ·
+0 blocked.** The eight open mappings were closed by the user, and **four shipped tones were corrected
+as a result** — recorded as **APPROVED STATUS SEMANTIC CORRECTIONS**, not regressions:
+
+| State | Was shipped | Now |
+|---|---|---|
+| `schedule_unverified` | Warning | **Info** — the glossary treats "Horario por confirmar" as a normal state; a missing confirmation is not evidence of a problem |
+| `schedule_conflict` | Error | **Warning** — the schedule is contradictory and needs verifying; it is **not** the BR-L26 *result* conflict |
+| `duplicate` | Warning | **Neutral** — an ordinary skip, not a failure |
+| `taken` | Warning | **Neutral** — already-existing data is a valid skip, especially on re-import |
+
+
+Two domains were outside the approved 14. Re-audited against **actual product behaviour**, and the
+audit **overturned two of my own earlier rationales**.
+
+**Lottery schedule (8).** Evidence: the visible labels in `features/lottery/constants.ts`, and
+`isNotableSchedule()` in `dashboard.ts`, which groups six states as *notable* — worth surfacing, which
+is **not** the same as *requires action*.
+
+| Identifier | Label | Behaviour | Tone shipped | Confidence |
+|---|---|---|---|---|
+| `scheduled` | Programado | normal, proceeds | **Info** | **HIGH** |
+| `completed` | Realizado | finished | **Success** | **HIGH** |
+| `cancelled` | Cancelado | intentional cancellation | **Neutral** | **HIGH** |
+| `rescheduled_later` | Aplazado | moved; proceeds, nobody must act | **Info** | APPROVED |
+| `rescheduled_earlier` | Adelantado | moved earlier; proceeds | **Info** | APPROVED |
+| `suspended` | Suspendido | halted by the lottery, not by us | **Warning** | APPROVED |
+| `schedule_unverified` | Horario por confirmar | the glossary treats this as a **normal** state | **Info** | APPROVED |
+| `schedule_conflict` | La programación oficial **requiere verificación** | needs checking | **Warning** | APPROVED |
+
+> **Correction to my own earlier claim.** I justified `schedule_conflict → Error` with BR-L26 and
+> "the screen shows no number". **That was wrong.** BR-L26 governs a **result** conflict, and the code
+> keeps that separate — `resultKind()` reads `result.validationStatus === 'conflict'`, a different
+> field. `schedule_conflict` is about the **schedule**, and its own label says *requires
+> verification*, which reads as attention, not failure. **Warning is the better-evidenced tone**, and
+> the shipped `Error` should be revisited.
+
+**Importer rows (5).** Decisive evidence in `review.ts`:
+`const validRows = reviewed.filter((row) => row.status === 'valid')` — **only `valid` rows are
+imported; every other state is skipped**, not merely flagged.
+
+| Identifier | Label | Imports? | Tone shipped | Confidence |
+|---|---|---|---|---|
+| `valid` | Válida | **yes** | **Success** | **HIGH** |
+| `invalid` | No se puede usar | no | **Error** | **HIGH** |
+| `duplicate` | Repetida en el archivo | no — ordinary skip | **Neutral** | APPROVED |
+| `taken` | Ya existe en la rifa | no — ordinary skip | **Neutral** | APPROVED |
+| `client-conflict` | Conflicto de cliente | no | **Error** | APPROVED |
+
+> **Second correction.** I described `duplicate` / `taken` as *"can proceed but needs attention"* —
+> **they cannot proceed**. Under the approved definitions that makes Warning wrong, and the fit is
+> either **Error** (cannot be processed) or **Neutral** (*"skipped / ordinary terminal condition"*).
+> Re-uploading a file and seeing "Ya existe en la rifa" is ordinary, so **Neutral** looks better —
+> but this is a product call, not a rules deduction.
+
+**FINAL SEMANTIC RULES.** Normal valid information or change → **Info** · exceptional condition
+requiring attention or verification → **Warning** · actual invalid or contradictory condition that
+prevents correct processing → **Error** · ordinary skip or normal terminal condition → **Neutral** ·
+successfully valid or completed → **Success**. Guidelines, never string matching: nothing branches on
+«conflict», «pending» or «not imported».
+
+#### Visual changes — all APPROVED STATUS SEMANTIC CORRECTIONS
+
+**«Abonada» amber → Info** is the headline and the highest-frequency chip in the product.
+**Anulada / Inactivo rose → Neutral** removes red from states that were never failures.
+**Disponible sky → Info** and **Pendiente de aprobación amber → Warning** keep their family.
+`ClientsTable` "Activo" gains a real chip where it had plain grey text — an **APPROVED CONSISTENCY
+FIX**. Everything else keeps its family and shifts only to the system's exact token values.
+
+#### Contrast — all five tones, all three themes
+
+Text on surface: **Light 8.00–14.46 · Dark 10.44–13.34 · Catalog 10.44–13.34.** Every tone passes
+4.5:1 in every theme, with margin. **Accessibility unchanged and intact:** every chip still renders
+its Spanish label as visible children; no icon-only status was introduced anywhere.
+
+#### The firewall held
+
+**Nothing** in `data/partial`, `PaymentProgressBar`, `CollectionSummaryCard`, `CommissionCard`,
+`BulkTicketCreator`, `TrendChart`, `DonutChart` or the dashboard palette was touched. Status
+«Abonada» is now Info while the payment progress bars stay amber — **that temporary difference is
+accepted and expected**; they are separate semantic responsibilities and the Data wave reconciles
+them. `action/destructive` was **not** merged with `status/error`.
+
+#### Remaining Status debt
+
+**Zero badges carry a palette class**, and the five tone strings exist exactly once.
+
+#### UNASSIGNED DESIGN SYSTEM COMPONENT GAP — Alert / Notice · **PILOT PREREQUISITE**
+
+What remains is a **different UI pattern**: four inline **status notice panels** — not chips. The
+Design System defines **no Alert/Notice component** (§4 lists none), so there is no contract to
+migrate them onto, and none was invented here.
+
+| File | What it communicates | Tone it represents |
+|---|---|---|
+| `owner/dashboard` | "Hay N boleta(s) pendientes de aprobación", with an alert icon | Warning |
+| **`seller/clients/[clientId]`** | "Este cliente está archivado: no aparece al asignar boletas…" (required by D-113) | **Neutral** |
+| `seller/team/[sellerId]` | the invitation was sent and the password is not set yet | **Info** |
+| `PaymentForm` | the allocation validates / does not | Success · Warning |
+
+> **This is a PILOT PREREQUISITE.** `seller/clients/[clientId]` is **inside the approved Clientes /
+> Seller pilot**. Worse, two of the four now **contradict their own badge**: after this wave the
+> archived client shows a **Neutral** chip above an **amber** panel, and the pending invitation shows
+> an **Info** chip above an **amber** panel. The pilot cannot be called coherent until the
+> Alert/Notice pattern exists.
+
+`ActiveBadge` remains dead legacy: not deleted, but re-expressed through tones because its old palette
+constants no longer exist.
+
 ---
 
 ## 11. Repository checkpoint — 2026-09-06
@@ -1258,7 +1413,8 @@ covering 9 renderings still need a product decision.**
 | **Wave 3B1b commit** | **`64f22c5984800e2b3d96946e3291a2b1b3420574`** (`64f22c5`) — `chore(design-system): prepare brand activation semantics`, 2 files |
 | **Wave 3B2 commit** | **`7a851f88a9a0a8ae88e00928b70d50a38197c681`** (`7a851f8`) — `feat(design-system): activate Rifas brand semantics`, 9 files |
 | **Wave 4 commit** | **`e48e2c8e86bc8d94ee6ec3329fe1cc9a95cf0cff`** (`e48e2c8`) — `feat(design-system): adopt data display and overlay semantics`, 9 files |
-| **Wave 4.5A** | **uncommitted — this handoff only. NO production code changed.** |
+| **Wave 4.5A commit** | **`dbba15141753daa16592352562e35a087dd0e0ac`** (`dbba151`) — `docs(design-system): approve product status semantics`, documentation only |
+| **Wave 4.5B** | **uncommitted working tree** — 9 files + this handoff. No Wave 4.5B commit was authorized. |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

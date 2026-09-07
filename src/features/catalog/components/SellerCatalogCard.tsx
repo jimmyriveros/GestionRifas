@@ -3,12 +3,12 @@
 import { CheckIcon, CopyIcon, ExternalLinkIcon, Share2Icon } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { catalogShareData, isShareCancelled } from '../share'
 import { useClipboard } from '../use-clipboard'
+import { StatusBadge } from '@/components/data/StatusBadge'
 
 /**
  * Los tres avisos, escritos UNA vez.
@@ -98,7 +98,9 @@ export function SellerCatalogCard({
           las ocho etiquetas de `constants.ts` —esas no se improvisan—: describe
           este interruptor y solo existe en las dos tarjetas del catalogo.
         */}
-        <Badge variant={live ? 'default' : 'outline'}>{live ? 'Activo' : 'Inactivo'}</Badge>
+        <StatusBadge tone={live ? 'success' : 'neutral'}>
+          {live ? 'Activo' : 'Inactivo'}
+        </StatusBadge>
       </CardHeader>
 
       <CardContent className="space-y-3">

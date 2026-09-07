@@ -9,7 +9,6 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/constants'
@@ -18,6 +17,7 @@ import { formatCOP } from '@/lib/money'
 
 import type { PaymentListItem } from '../queries'
 import { EditPaymentDialog, type EditPaymentTarget } from './EditPaymentDialog'
+import { StatusBadge } from '@/components/data/StatusBadge'
 
 /**
  * Abonos aplicados a UNA boleta (BR-F13).
@@ -116,14 +116,7 @@ export function TicketPaymentsCard({
                       >
                         {formatCOP(amount)}
                       </span>
-                      {payment.isActive ? null : (
-                        <Badge
-                          variant="outline"
-                          className="border-rose-300 text-rose-900 dark:text-rose-200"
-                        >
-                          Anulado
-                        </Badge>
-                      )}
+                      {payment.isActive ? null : <StatusBadge tone="neutral">Anulado</StatusBadge>}
                     </span>
 
                     <span className="text-muted-foreground col-span-2 col-start-1 row-start-3 text-xs lg:col-span-1 lg:col-start-4 lg:row-start-1">

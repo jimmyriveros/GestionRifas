@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { CatalogLinkField } from './CatalogLinkField'
 import { CatalogSettingsDialog } from './CatalogSettingsDialog'
+import { StatusBadge } from '@/components/data/StatusBadge'
 
 /**
  * El catalogo publico dentro de la ficha del vendedor (BR-K12).
@@ -65,7 +65,9 @@ export function CatalogSettingsCard({
           hasta D-161; se unificaron con las del panel del vendedor porque son
           el MISMO estado y un termino tiene un solo nombre.
         */}
-        <Badge variant={isLive ? 'default' : 'outline'}>{isLive ? 'Activo' : 'Inactivo'}</Badge>
+        <StatusBadge tone={isLive ? 'success' : 'neutral'}>
+          {isLive ? 'Activo' : 'Inactivo'}
+        </StatusBadge>
       </CardHeader>
 
       <CardContent className="space-y-4">

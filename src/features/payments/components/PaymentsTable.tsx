@@ -6,7 +6,6 @@ import { RowLink } from '@/components/data/RowLink'
 import { useMemo, useState } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { formatDateEs } from '@/lib/dates'
@@ -15,6 +14,7 @@ import { ticketLabel } from '@/lib/tickets'
 
 import type { PaymentListItem } from '../queries'
 import { PaymentDetailDialog } from './PaymentDetailDialog'
+import { StatusBadge } from '@/components/data/StatusBadge'
 
 type PaymentsTableProps = {
   payments: PaymentListItem[]
@@ -125,16 +125,9 @@ export function PaymentsTable({
         header: 'Estado',
         cell: ({ row }) =>
           row.original.isActive ? (
-            <Badge
-              variant="outline"
-              className="border-emerald-300 text-emerald-900 dark:text-emerald-200"
-            >
-              Activo
-            </Badge>
+            <StatusBadge tone="success">Activo</StatusBadge>
           ) : (
-            <Badge variant="outline" className="border-rose-300 text-rose-900 dark:text-rose-200">
-              Anulado
-            </Badge>
+            <StatusBadge tone="neutral">Anulado</StatusBadge>
           ),
       },
       {

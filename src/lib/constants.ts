@@ -162,6 +162,69 @@ export const RAFFLE_STATUS_LABELS: Record<RaffleStatus, string> = {
   cancelled: 'Anulada',
 }
 
+/*
+ * ---------------------------------------------------------------------------
+ * DE ESTADO DE NEGOCIO A TONO DEL SISTEMA (Wave 4.5B)
+ * ---------------------------------------------------------------------------
+ *
+ * El sistema de diseño tiene CINCO tonos y ninguno mas. Lo que decide cual le
+ * toca a cada estado es su SIGNIFICADO, nunca el color que tenia antes ni la
+ * palabra española que lo nombra:
+ *
+ *   normal pero incompleto ............ info
+ *   necesita que alguien actue ........ warning
+ *   terminado, o el estado operativo
+ *   deseado .......................... success
+ *   cancelado, archivado o inactivo
+ *   a proposito ...................... neutral
+ *   fallo real ....................... error
+ *
+ * DOS EJEMPLOS DE POR QUE NO SE PUEDE DECIDIR POR LA ETIQUETA. «Pendiente de
+ * aprobación» es `warning` porque una persona tiene que aprobar para que la
+ * boleta siga adelante; «Invitación pendiente» es `info` porque solo hay que
+ * esperar (BR-E14). Misma palabra, dos tonos. Y «Abonada» es `info`, no
+ * `warning`: es `0 < abonado < precio`, el centro normal de cualquier venta, y
+ * en el esquema no existe ninguna fecha de vencimiento ni concepto de mora que
+ * la convierta en un aviso.
+ *
+ * Los mapas viven aqui, pegados a sus etiquetas, para que cambiar lo que
+ * significa un estado siga siendo cambiar UN archivo (CLAUDE.md §27). El color
+ * de cada tono se decide una sola vez, en `StatusBadge`.
+ */
+export type StatusTone = 'success' | 'warning' | 'error' | 'info' | 'neutral'
+
+export const TICKET_INVENTORY_STATUS_TONES: Record<TicketInventoryStatus, StatusTone> = {
+  draft: 'neutral',
+  pending_approval: 'warning',
+  available: 'info',
+  assigned: 'success',
+  cancelled: 'neutral',
+}
+
+export const TICKET_PAYMENT_STATUS_TONES: Record<TicketPaymentStatus, StatusTone> = {
+  unpaid: 'neutral',
+  partial: 'info',
+  paid: 'success',
+}
+
+export const RAFFLE_STATUS_TONES: Record<RaffleStatus, StatusTone> = {
+  draft: 'neutral',
+  active: 'success',
+  closed: 'neutral',
+  cancelled: 'neutral',
+}
+
+export const ACCOUNT_STATUS_TONES: Record<AccountStatus, StatusTone> = {
+  active: 'success',
+  pending: 'info',
+  inactive: 'neutral',
+}
+
+export const CLIENT_STATUS_TONES: Record<keyof typeof CLIENT_STATUS_LABELS, StatusTone> = {
+  active: 'success',
+  archived: 'neutral',
+}
+
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: 'Efectivo',
   transfer: 'Transferencia',

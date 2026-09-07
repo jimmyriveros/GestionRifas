@@ -5,10 +5,10 @@ import { RowLink } from '@/components/data/RowLink'
 import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
-import { Badge } from '@/components/ui/badge'
 import { formatCOP } from '@/lib/money'
 
 import type { ClientListItem } from '../queries'
+import { ClientStatusBadge } from '@/components/data/StatusBadge'
 
 type ClientsTableProps = {
   clients: ClientListItem[]
@@ -104,12 +104,7 @@ export function ClientsTable({ clients, basePath, showSeller = false }: ClientsT
         accessorKey: 'archivedAt',
         header: 'Estado',
         meta: { hideOnMobile: true },
-        cell: ({ row }) =>
-          row.original.archivedAt ? (
-            <Badge variant="secondary">Archivado</Badge>
-          ) : (
-            <span className="text-muted-foreground text-sm">Activo</span>
-          ),
+        cell: ({ row }) => <ClientStatusBadge archived={row.original.archivedAt !== null} />,
       },
     )
 

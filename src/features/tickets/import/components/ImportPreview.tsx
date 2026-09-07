@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from 'react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TICKET_PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import { formatCOP } from '@/lib/money'
 import { cn } from '@/lib/utils'
 
 import type { ImportReview, ImportRowStatus, ReviewedRow } from '../review'
+import { StatusBadge } from '@/components/data/StatusBadge'
+import type { StatusTone } from '@/lib/constants'
 
 /**
  * Vista previa de lo que se va a importar.
@@ -38,18 +39,25 @@ const ETIQUETAS: Record<ImportRowStatus, string> = {
 
 /** El estado se dice con TEXTO, no solo con color (CLAUDE.md 27). */
 function EstadoBadge({ status }: { status: ImportRowStatus }) {
-  const estilos: Record<ImportRowStatus, string> = {
-    valid: 'border-emerald-300 text-emerald-900 dark:text-emerald-200',
-    duplicate: 'border-amber-300 text-amber-900 dark:text-amber-200',
-    taken: 'border-amber-300 text-amber-900 dark:text-amber-200',
-    invalid: 'border-rose-300 text-rose-900 dark:text-rose-200',
-    'client-conflict': 'border-rose-300 text-rose-900 dark:text-rose-200',
+  // Solo se guardan las filas `valid`; TODAS las demas se saltan. Pero saltarse
+  // una fila no la convierte en un fallo (aprobado 2026-09-06):
+  //
+  //   `duplicate` y `taken` son `neutral`. Que un numero venga repetido en el
+  //   archivo, o que ya exista en la rifa, es una condicion terminal de lo mas
+  //   corriente —sobre todo al volver a subir el mismo archivo— y no hay nada
+  //   roto que arreglar.
+  //
+  //   `invalid` («No se puede usar») y `client-conflict` si son `error`: la
+  //   primera no se puede usar y la segunda trae datos de cliente que se
+  //   contradicen, y ninguna de las dos se puede procesar correctamente.
+  const tonos: Record<ImportRowStatus, StatusTone> = {
+    valid: 'success',
+    duplicate: 'neutral',
+    taken: 'neutral',
+    invalid: 'error',
+    'client-conflict': 'error',
   }
-  return (
-    <Badge variant="outline" className={cn('whitespace-nowrap', estilos[status])}>
-      {ETIQUETAS[status]}
-    </Badge>
-  )
+  return <StatusBadge tone={tonos[status]}>{ETIQUETAS[status]}</StatusBadge>
 }
 
 const POR_PAGINA = 50

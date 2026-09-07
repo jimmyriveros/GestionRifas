@@ -1,104 +1,123 @@
+import type { ReactNode } from 'react'
+
 import { Badge } from '@/components/ui/badge'
 import {
   accountStatus,
   ACCOUNT_STATUS_LABELS,
+  ACCOUNT_STATUS_TONES,
   CLIENT_STATUS_LABELS,
+  CLIENT_STATUS_TONES,
   RAFFLE_STATUS_LABELS,
+  RAFFLE_STATUS_TONES,
   TICKET_INVENTORY_STATUS_LABELS,
+  TICKET_INVENTORY_STATUS_TONES,
   TICKET_PAYMENT_STATUS_LABELS,
-  type AccountStatus,
+  TICKET_PAYMENT_STATUS_TONES,
   type RaffleStatus,
+  type StatusTone,
   type TicketInventoryStatus,
   type TicketPaymentStatus,
 } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 /**
- * Badge de estado. SIEMPRE lleva texto: el color es un refuerzo, nunca la
- * unica senal (CLAUDE.md 27, docs/ARCHITECTURE.md 8.4).
+ * Insignias de estado.
+ *
+ * SIEMPRE LLEVAN TEXTO: el color es un refuerzo, nunca la unica señal
+ * (CLAUDE.md §27, docs/ARCHITECTURE.md §8.4). Aqui no hay ni una insignia de
+ * solo icono, y no debe haberla.
+ *
+ * COMO ESTA ARMADO (Wave 4.5B). Antes cada familia de estados repetia su propia
+ * cadena de colores —amber, sky, emerald, rose, slate— y esas cadenas estaban
+ * ademas copiadas en otros cuatro componentes. Ahora hay tres piezas y cada una
+ * decide UNA cosa:
+ *
+ *   1. el estado de negocio  →  su tono, en `src/lib/constants.ts`, pegado a la
+ *      etiqueta que ya vivia alli;
+ *   2. el tono              →  sus colores, en `TONE_CLASSES`, aqui abajo y una
+ *      sola vez;
+ *   3. la insignia          →  `StatusBadge`, que no sabe nada de negocio.
+ *
+ * Asi ningun componente vuelve a decidir por su cuenta que significa un estado,
+ * y cambiar el verde de «Pagada» es cambiar un token, no diez archivos.
+ *
+ * LA PROP SE LLAMA `tone` Y NO `status` a proposito. El contrato de Figma la
+ * escribe como `status="success"`, pero en esta base de codigo `status` ya
+ * nombra el estado de negocio —`status={ticket.inventoryStatus}`— y tener las
+ * dos cosas con el mismo nombre a un centimetro se lee mal.
  */
 
 const BASE = 'border font-medium'
 
-const INVENTORY_CLASSES: Record<TicketInventoryStatus, string> = {
-  draft: 'bg-muted text-muted-foreground border-border',
-  pending_approval:
-    'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800',
-  available:
-    'bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950 dark:text-sky-200 dark:border-sky-800',
-  assigned:
-    'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800',
-  cancelled:
-    'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950 dark:text-rose-200 dark:border-rose-800',
+const TONE_CLASSES: Record<StatusTone, string> = {
+  success: 'bg-status-success-surface text-status-success-text border-status-success-border',
+  warning: 'bg-status-warning-surface text-status-warning-text border-status-warning-border',
+  error: 'bg-status-error-surface text-status-error-text border-status-error-border',
+  info: 'bg-status-info-surface text-status-info-text border-status-info-border',
+  neutral: 'bg-status-neutral-surface text-status-neutral-text border-status-neutral-border',
 }
 
-const PAYMENT_CLASSES: Record<TicketPaymentStatus, string> = {
-  unpaid: 'bg-muted text-muted-foreground border-border',
-  partial:
-    'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800',
-  paid: 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800',
-}
-
-const RAFFLE_CLASSES: Record<RaffleStatus, string> = {
-  draft: 'bg-muted text-muted-foreground border-border',
-  active:
-    'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800',
-  closed:
-    'bg-slate-200 text-slate-900 border-slate-400 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600',
-  cancelled:
-    'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950 dark:text-rose-200 dark:border-rose-800',
+/**
+ * La insignia generica. Es la unica que conoce los colores de un tono, y la
+ * usan tambien los estados que viven fuera de este archivo —el calendario de
+ * loterias, la tabla de pagos, la vista previa del importador—.
+ */
+export function StatusBadge({ tone, children }: { tone: StatusTone; children: ReactNode }) {
+  return (
+    <Badge variant="outline" className={cn(BASE, TONE_CLASSES[tone])}>
+      {children}
+    </Badge>
+  )
 }
 
 export function InventoryStatusBadge({ status }: { status: TicketInventoryStatus }) {
   return (
-    <Badge variant="outline" className={cn(BASE, INVENTORY_CLASSES[status])}>
+    <StatusBadge tone={TICKET_INVENTORY_STATUS_TONES[status]}>
       {TICKET_INVENTORY_STATUS_LABELS[status]}
-    </Badge>
+    </StatusBadge>
   )
 }
 
 export function PaymentStatusBadge({ status }: { status: TicketPaymentStatus }) {
   return (
-    <Badge variant="outline" className={cn(BASE, PAYMENT_CLASSES[status])}>
+    <StatusBadge tone={TICKET_PAYMENT_STATUS_TONES[status]}>
       {TICKET_PAYMENT_STATUS_LABELS[status]}
-    </Badge>
+    </StatusBadge>
   )
 }
 
 export function RaffleStatusBadge({ status }: { status: RaffleStatus }) {
   return (
-    <Badge variant="outline" className={cn(BASE, RAFFLE_CLASSES[status])}>
-      {RAFFLE_STATUS_LABELS[status]}
-    </Badge>
+    <StatusBadge tone={RAFFLE_STATUS_TONES[status]}>{RAFFLE_STATUS_LABELS[status]}</StatusBadge>
   )
 }
 
 /**
  * Estado del cliente: activo o archivado (BR-C06).
  *
- * Verde y gris pizarra, los mismos que ya significan «en marcha» y «cerrada» en
- * una rifa. Archivar no es un error ni una anulacion, asi que no lleva el rojo
- * de «Anulada»: es un cliente que se guardo, y se puede restaurar.
+ * Archivar no es un error ni una anulacion —es un cliente que se guardo y se
+ * puede restaurar—, asi que su tono es `neutral`, el mismo de «Cerrada» y
+ * «Anulada». Antes compartia literalmente las clases de una rifa cerrada; ahora
+ * comparte el SIGNIFICADO, que es lo que se queria decir.
  */
 export function ClientStatusBadge({ archived }: { archived: boolean }) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn(BASE, archived ? RAFFLE_CLASSES.closed : RAFFLE_CLASSES.active)}
-    >
-      {archived ? CLIENT_STATUS_LABELS.archived : CLIENT_STATUS_LABELS.active}
-    </Badge>
-  )
+  const key = archived ? 'archived' : 'active'
+  return <StatusBadge tone={CLIENT_STATUS_TONES[key]}>{CLIENT_STATUS_LABELS[key]}</StatusBadge>
 }
 
+/**
+ * LEGADO MUERTO: hoy no lo usa ni una pantalla (verificado en la Wave 4.5A).
+ *
+ * No se borra —limpiar codigo muerto es otra tarea— pero tampoco se quedo con
+ * sus colores a mano, porque esos ya no existen. `AccountStatusBadge` es quien
+ * ocupa su sitio en las pantallas de personas, y distingue «Invitación
+ * pendiente» de «Inactivo», que era justo lo que este confundia.
+ */
 export function ActiveBadge({ isActive }: { isActive: boolean }) {
   return (
-    <Badge
-      variant="outline"
-      className={cn(BASE, isActive ? RAFFLE_CLASSES.active : RAFFLE_CLASSES.cancelled)}
-    >
+    <StatusBadge tone={isActive ? 'success' : 'neutral'}>
       {isActive ? 'Activo' : 'Inactivo'}
-    </Badge>
+    </StatusBadge>
   )
 }
 
@@ -106,21 +125,10 @@ export function ActiveBadge({ isActive }: { isActive: boolean }) {
  * El estado de la cuenta de una persona: activa, con la invitacion pendiente o
  * sin acceso (BR-E14).
  *
- * Reemplaza a `ActiveBadge` en todas las pantallas que muestran personas.
- * Aquella decia «Activo» de alguien que todavia no habia entrado nunca, que es
- * justo la confusion que este trabajo venia a resolver.
- *
- * El ambar es el mismo que ya usan «Pendiente de aprobación» y «Abonada»: en
- * esta aplicacion ese color significa siempre «falta un paso». Y como en el
- * resto, el color acompaña al texto, nunca lo sustituye (CLAUDE.md §27).
+ * «Invitación pendiente» es `info` y no `warning`: nadie tiene que hacer nada,
+ * solo se espera a que la persona entre. Es justo la distincion que este badge
+ * venia a resolver, y ahora tambien esta en el tono.
  */
-const ACCOUNT_CLASSES: Record<AccountStatus, string> = {
-  active: RAFFLE_CLASSES.active,
-  pending:
-    'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800',
-  inactive: RAFFLE_CLASSES.cancelled,
-}
-
 export function AccountStatusBadge({
   isActive,
   activatedAt,
@@ -130,8 +138,6 @@ export function AccountStatusBadge({
 }) {
   const status = accountStatus({ isActive, activatedAt })
   return (
-    <Badge variant="outline" className={cn(BASE, ACCOUNT_CLASSES[status])}>
-      {ACCOUNT_STATUS_LABELS[status]}
-    </Badge>
+    <StatusBadge tone={ACCOUNT_STATUS_TONES[status]}>{ACCOUNT_STATUS_LABELS[status]}</StatusBadge>
   )
 }
