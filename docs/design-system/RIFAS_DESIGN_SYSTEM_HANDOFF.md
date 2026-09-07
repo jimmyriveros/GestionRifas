@@ -600,6 +600,11 @@ Risk is relative and argued, **not** an hour estimate.
 > PROGRESS**, **Figma ↔ Code parity is NOT complete** (two manual sync items) and **no accessibility
 > certification is claimed**. `Bulk Selection` is reclassified as **post-closure product adoption**.
 > **Tickets is NOT authorized, and no further migration wave is planned.**
+>
+> **AND THE POST-CLOSURE CLOSEOUT IS COMPLETE TOO** (§10.55, 2026-09-07). Two of those three
+> disclosures have since closed: Tickets was adopted (§10.52) and **Figma ↔ Code parity is now
+> COMPLETE** (§10.53) — the "read-only tooling" that had blocked it never existed. **Certification
+> is still not claimed**, deliberately. **Severe blockers: zero.**
 
 ---
 
@@ -5860,7 +5865,11 @@ already exists, and the system is extended only when that evaluation shows a rea
 
 ---
 
-### 10.51 POST-CLOSURE RESUME POINT — **READ THIS FIRST**
+### 10.51 POST-CLOSURE RESUME POINT — ~~READ THIS FIRST~~ · **SUPERSEDED BY §10.55**
+
+> **The closeout this section describes is DONE.** Start at **§10.55 — Post-Closure Closeout, Final
+> Status**, then read §10.50 for the foundation baseline. This section is preserved because its
+> composition baselines and stop rule are still the operating rules; its *status* lines are not.
 
 If you are a new session picking this project up, **this section and §10.50 are the only history you
 need.** Everything above them is the record of how the system was built; it is not a to-do list, and
@@ -6011,8 +6020,9 @@ Design System **only** when new product evidence proves a genuine reusable gap.
 
 **Read `docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md` first**, and specifically:
 
-1. **§10.50 — Design System Closure**
-2. **§10.51 — this section**
+1. **§10.55 — Post-Closure Closeout, Final Status** (start here)
+2. **§10.50 — Design System Closure**
+3. **§10.51 — this section**
 3. the current debt and status entries it points to
 
 **Treat the closure baseline as authoritative.** Do not reconstruct or re-audit previous migration
@@ -6437,6 +6447,222 @@ port was reverted.
 
 ---
 
+### 10.54 CLOSEOUT C — FINAL RESIDUE SWEEP (2026-09-07 · **COMPLETED** · commit in §11)
+
+The last audit. **Run once, not screen by screen**, and it changed no production code.
+
+#### C1 · Broad palette sweep — the whole product
+
+The broad net, not the narrow one that made the Catalog inventory wrong: named scale utilities · raw
+hex · `rgb`/`hsl`/`oklch`/`lab` · white and black alphas · arbitrary colour values · gradient
+utilities · plain `white`/`black` utilities. Across `src/`, plus `public/`, the root configs and the
+service worker.
+
+**320 hits. 314 of them are `globals.css` — the token layer itself, which is the one place literal
+values belong.** The other six:
+
+| Occurrence | Classification |
+|---|---|
+| `AppSidebar.tsx:222` — `#0a0a0a`, `#171717` | **Not a palette occurrence.** They are inside a prose comment explaining the dark surfaces. Scanner false positive on documentation |
+| `lottery/parse/results.ts:138` — `#4639` | **Not a colour at all** — a lottery draw number quoted in a comment |
+| `lib/pwa.ts:35` — `THEME_COLOR = '#ffffff'` | **Legitimate non-semantic asset.** It feeds `manifest.ts` → `background_color` and `theme_color`, read by the operating system's browser chrome. No component consumes it |
+| `public/icons/source/*.svg` — 8 literals per icon | **Legitimate non-semantic asset** — brand artwork |
+| `button.tsx:14`, `badge.tsx:28` — `text-white` on `bg-destructive` | **NORMAL COMPATIBILITY DEBT**, measured and deferred in §10.52 |
+
+**UNRESOLVED SEMANTIC RAW COLOUR: ZERO.**
+
+#### C2 · Semantic ownership — asked the right way round
+
+The question is *is there a current product meaning with no owner*, and the answer is **no**. The
+sweep also asked the inverse, which is the more useful diagnostic: **of the 112 exported contract
+names, 84 have a consumer and 28 do not.** Every one of the 28 is an **owner without a current
+meaning** — the healthy direction — and each falls into one of four categories, all verified in the
+source rather than assumed:
+
+| Category | Examples | Why it has no consumer |
+|---|---|---|
+| **States composed from a base role** | `action-primary-hover/active`, `action-destructive-hover/active`, `surface-pressed`, `surface-disabled`, `border-disabled`, `text-disabled`, `control-track-off-hover` | The code composes them with an alpha on the base token — `hover:bg-action-primary/90`, `hover:bg-destructive/90`, `disabled:opacity-50`. Figma states them as literal colours; code derives them. A documented, deliberate divergence |
+| **A second name for a meaning already owned** | `text-on-primary`, `text-on-card`, `secondary-foreground`, `destructive-foreground`, `success-foreground`, `warning-foreground`, `control-knob`, `control-track-off` | The meaning is consumed under its shadcn-lineage name — `--primary-foreground` is used by avatar, badge, button, checkbox and input. Two names, one owned meaning. **Naming debt, not an ownership gap** |
+| **A role whose only candidate consumer chose otherwise** | `brand-gradient-start/mid/end`, `brand-strong`, `brand-foreground`, `elevation-shadow-subtle/default` | R7A found the catalogue's two raw gradients did not match the gradient roles' values, and elevation uses Tailwind's own shadow scale. Both decisions are recorded in §10.40 and §5 |
+| **A role for something the product deliberately never renders** | `status-error-icon`, `focus-ring-offset` | `StatusBadge` has no icon-only variant **by design** — its own comment says so — and `Notice` has no error tone by design. The focus ring uses no offset colour |
+
+**PASS.** And the list is worth keeping: a future session looking for a role will find one.
+
+#### C3 · Responsive architecture — measured, not asserted
+
+**Fourteen routes across both portals, at 320 px, in the running application.** The failure mode that
+matters is a page that scrolls sideways; the rule is that overflow belongs to the collection
+container, never the page.
+
+| | Page overflows at 320? | Inner horizontal scrollers |
+|---|---|---|
+| `/owner/dashboard` · `raffles` · `sellers` · `payments` · `users` | **no** | 1 each |
+| `/owner/reports` | **no** | 2 |
+| `/owner/tickets` · `/owner/clients` | **no** | **0** — responsive cards |
+| `/seller/dashboard` · `tickets` · `clients` · `team` | **no** | **0** |
+| `/seller/payments` · `/seller/reports` | **no** | 1 each |
+
+**Zero page-level horizontal overflow anywhere**, and scrollers appear exactly where the scrollable
+table strategy is in use and nowhere else. **PASS** — the three strategies express every known
+primary workflow, and the scroll rule holds in production, not just on paper.
+
+*Not re-exercised:* the public catalogue. No seller in the local seed has a published slug, and
+publishing one would have written QA data. **R7B's validation on the real public route with live data
+stands, and none of the three closeout blocks touched that subtree.**
+
+#### C4 · Accessibility architecture — swept across all fourteen routes
+
+| Check | Result |
+|---|---|
+| Exactly one `h1` per route | **14 / 14** |
+| Skipped heading levels | **none** |
+| Invalid interactive nesting (`a` in `a`, `button` in `a`, …) | **zero** |
+| Controls with no accessible name | **zero** — the one flagged was a false positive: the archived-clients switch is named by a real `label[for]` |
+| `aria-live="assertive"` anywhere | **zero** |
+| `role="alert"` in the resting state | **zero** — form errors add it next to the field, which is correct |
+| `[role=progressbar]` without an accessible name | **zero** of the three present |
+| Colour as the only signal | none found; the two cases that could have been — the clearance indicator and the catalogue availability dot — carry distinct icons and `sr-only` text by design |
+
+**PASS.** No inaccessible primary workflow, no invalid interactive structure, no critical information
+carried by colour alone, no invalid progress semantics.
+
+#### C5 · Required contracts
+
+**Nothing is missing for normal product development.** Closeout A worked the largest untouched area
+in the product and needed **no new token, no new component and no new Pattern**; Closeout B needed
+none either.
+
+`Search / Filters` stays **partially proven** and `Bulk Selection` **not formally proven** — and per
+the closure rule neither counts as a blocker. They are living interaction patterns, and §10.52
+audited Bulk Selection end to end in its real workflow and found the system already covers it.
+
+#### C6 · Figma ↔ Code parity
+
+**COMPLETE**, verified by reading the file back after the writes:
+
+| | |
+|---|---|
+| `Notice` (`185:7091`) | **8 variants, two independent axes** — `Tone` (Info · Success · Warning · Neutral) and `Density` (Default · Compact). All five component properties intact on all eight. Description documents the axis |
+| `Pattern / Dashboard Page — contract` (`203:7068`) | **exists**, 16 children, 820 × 1045, beside the Report Page contract |
+| Patterns now on `02 — Components` | seven nodes: the four original sets, Focused System State, and the two contract frames |
+
+**No remaining external or tooling limitation.**
+
+#### C7 · Final classification — two buckets, no third
+
+##### SEVERE BLOCKERS: **ZERO**
+
+Checked against the list, one by one: no meaning without a system owner · no inaccessible primary
+workflow · no critical information carried by colour alone · no unusable responsive composition · no
+invalid interactive structure · no unresolved raw semantic palette · no missing required shared
+architecture.
+
+##### NORMAL POST-CLOSURE DEBT — the finite list, eight items
+
+| # | Debt | Where | Note |
+|---|---|---|---|
+| 1 | **Typography adoption** — section titles on an ad-hoc type pair instead of the semantic heading role | product-wide | Carried since R6C. Visual purity, not accessibility |
+| 2 | **Field-label style repeated** across ~18 files | product-wide | Consolidation opportunity |
+| 3 | **Destructive control foreground** — `text-white` ×2 inside frozen Core | `button.tsx`, `badge.tsx` | **Verified in §10.52**: it is the most accessible of the three candidates in all three scopes (4.76 / 6.03 / 4.81), and `--ds-text-on-destructive` would be **3.28:1 in Dark — below AA**. Whoever adopts the token must settle the Dark **surface** first; the foreground is downstream of that |
+| 4 | **Secondary controls at 32 px on phones** — `size="sm"` on "Ver seleccionadas", "Limpiar selección", "Seleccionar las N del filtro", the two list expanders | product-wide, same shape in Payments, People and Reports | Present at every width, so not a phone-only surface; the Button has no "small touch" size. Inventing one for a single screen is what the closure rules forbid |
+| 5 | **Tab triggers at 29 px** — `Cliente existente` / `Cliente nuevo` | `ReassignTicketClientDialog` | Above the WCAG 2.5.8 minimum of 24, below the project's ~44 convention. It is the shared `Tabs` default |
+| 6 | **Pagination loses focus to `<body>`** on navigation | `DataTablePagination`, product-wide | Measured at t ≈ 838 ms, when the new RSC tree is applied; the button is never disabled, so it is the router's focus reset, not `useTransition`. The range is still announced |
+| 7 | **28 of 112 contract tokens have no consumer** | the token layer | Catalogued in C2 above. **None is a meaning without an owner** |
+| 8 | **`npm run format:check` fails on 93 files** | the whole repo, **pre-existing** | See below |
+
+##### The formatting finding, because it will otherwise be "fixed" wrongly
+
+`npm run format:check` reports 93 files. **None of them is a real style issue, and none of them was
+touched by this closeout** — the intersection between the flagged list and the sixteen files changed
+since the closure baseline is **empty**, and the flagged files were last modified in August 2026.
+
+The cause: `core.autocrlf=true`, no `.gitattributes`, and no `endOfLine` in `.prettierrc`. Git checks
+files out as CRLF on Windows; Prettier defaults to `lf` and flags every one of them. Verified
+byte-for-byte: `next.config.ts` is **identical to Prettier's output once line endings are
+normalised**, and **every committed blob is LF** — the handoff included. So the repository content is
+correctly formatted and `format:check` would pass on CI.
+
+**This is why every wave in this migration checked Prettier per changed file rather than running
+`format:check`.** Do not reformat 93 files to make it green; set `endOfLine` or add a
+`.gitattributes`, as a deliberate tooling decision with its own scope.
+
+#### C9 · Final validation — current branch, no Supabase reset, no QA data left
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | **pass**, 0 errors |
+| `npm run lint` | **pass**, 0 errors, the **same 2 pre-existing warnings** (`DataTable`, `BulkTicketCreator`, both `react-hooks/incompatible-library`) |
+| `npm run test` | **791 passed / 47 files** — unchanged from the R6C, R8 and Closeout A baselines |
+| `npm run build` | **pass**, exit 0, no errors |
+| `prettier` on every changed file | **clean** |
+| `npm run format:check` repo-wide | 93 pre-existing CRLF flags, **zero real issues** — see above |
+| `npm run test:db` | **deliberately NOT run.** Those tests write to the database and assume a fresh `db:reset && seed:local`. C9 forbids resetting Supabase and forbids leaving QA data |
+| Database after all QA | **untouched** — tickets 15 396, payments 247, clients 72, and **zero audit rows** in the QA window. No dialog was ever confirmed |
+| Temporary launch configuration | **reverted** |
+
+---
+
+### 10.55 POST-CLOSURE CLOSEOUT — FINAL STATUS (2026-09-07) · **READ THIS FIRST**
+
+**This section supersedes §10.51 as the entry point.** §10.51 described a closeout that was still to
+be done; this one records that it is done. Everything above both of them is history.
+
+#### The status, stated separately and honestly
+
+| | |
+|---|---|
+| **DESIGN SYSTEM FOUNDATION** | **COMPLETE** — unchanged since `d174d2c`, and nothing in the closeout reopened it |
+| **POST-CLOSURE CLOSEOUT** | **COMPLETE** — three blocks, §10.52 · §10.53 · §10.54 |
+| **PRODUCT-WIDE ADOPTION** | **COMPLETE ENOUGH FOR NORMAL FORWARD DEVELOPMENT.** Tickets was the last untouched area and is adopted. What remains is the finite debt list below — none of it blocks a feature |
+| **FIGMA ↔ CODE PARITY** | **COMPLETE.** Both items synced; there is no remaining tooling limitation, and the one that was recorded never existed |
+| **ACCESSIBILITY** | **Baseline established and validated structurally on the real routes.** AT validation status: **REAL SCREEN-READER TEST NOT PERFORMED.** **No certification is claimed** |
+| **SEVERE BLOCKERS** | **ZERO** |
+| **NORMAL DEBT** | **eight items, listed in §10.54 C7** |
+
+#### What the closeout actually changed
+
+| Block | Production code | Design source |
+|---|---|---|
+| **A — Tickets adoption** | 15 files. 19 raw palette occurrences → zero · five section headings corrected · the phone bulk bar's targets 32 px → 44 · two announcements assertive → polite · the tour scrim adopted · ten hand-written touch heights replaced by the Button's own size | — |
+| **B — parity and QA** | **none** | Notice gains the `Density` axis (and a 2 px radius drift was corrected); `Pattern / Dashboard Page` exists |
+| **C — residue sweep** | **none** | — |
+
+**No Core file was changed. No token was added. No component was created. No Pattern was invented.
+Wave numbering did not restart.**
+
+#### The three things worth carrying forward
+
+1. **`--ds-text-on-destructive` is not a drop-in.** Its Dark value is near-black and measures **3.28:1**
+   against today's Dark destructive surface, which is `bg-destructive/60` over the card. `text-white`
+   measures 6.03:1. The **surface** decision comes first; the foreground follows it. Do not "tidy"
+   `text-white` away without redoing that composition. (§10.52)
+2. **An integration described as read-only had never been tried.** Two design-source items sat blocked
+   on a sentence nobody tested. When a limitation is recorded, record how it was observed. (§10.53)
+3. **`format:check` is red for line endings, not style.** 93 files, zero real issues, every committed
+   blob already LF. Do not reformat them. (§10.54)
+
+#### How work proceeds from here
+
+Unchanged from §10.51, and it is the whole point of the system being closed:
+
+1. Use the existing tokens. 2. Use the existing semantic families. 3. Use the existing components.
+4. Use the existing page Patterns. 5. Choose an approved responsive collection strategy. 6. Extend the
+Design System **only** when new product evidence proves a genuine reusable gap.
+
+**A new feature does not make the Design System incomplete.** Neither does an item on the debt list.
+
+#### Do not
+
+Create a Closeout D. Restart wave numbering. Re-run a broad audit "for completeness". Re-audit the
+foundation, the six proven page Patterns, the three theme scopes, the responsive strategies or the
+table action model without **current product evidence** of a real contradiction.
+
+> **RIFAS DESIGN SYSTEM**
+> **FOUNDATION MILESTONE COMPLETE · POST-CLOSURE CLOSEOUT COMPLETE · READY FOR NORMAL PRODUCT
+> DEVELOPMENT.**
+
+---
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -6480,7 +6706,9 @@ port was reverted.
 | **Closure commit** | **`d174d2cd233c5285bfc6fb9e3bd533ac70f46000`** (`d174d2c`) — `docs(design-system): close foundation milestone`, this handoff only (§10.50). **The immutable foundation milestone baseline** |
 | **Resume point commit** | **`5b2dd329f3ef5559344a669f7a417a7347e950be`** (`5b2dd32`) — `docs(design-system): add post-closure resume point`, this handoff only (§10.51). **Where a new session starts** |
 | **Closeout A commit** | **`00286687b1ee436f96f37e41e5e42518f5c57521`** (`0028668`) — `feat(design-system): complete final product adoption closeout`, 16 files: the two ticket detail routes, `TicketPaymentsCard`, the three clearance components, the import dialog, the three bulk selection files, the four ticket dialogs, `TourOverlay` and this handoff (§10.52). **No Core file, no new token, no new component** |
-| **Closeout B commit** | `docs(design-system): close parity and accessibility qa` — this handoff only (§10.53). **No production code changed**; the work was two Figma writes and real-route QA |
+| **Closeout B commit** | **`a7e9d0fc81171a4ee25d248797cbe9e68d2632e5`** (`a7e9d0f`) — `docs(design-system): close parity and accessibility qa`, this handoff only (§10.53). **No production code changed**; the work was two Figma writes and real-route QA |
+| **Closeout C commit** | `docs(design-system): complete post-closure closeout` — this handoff only (§10.54, §10.55). **No production code changed.** The final residue sweep and the closing status |
+| **Where a new session starts** | **§10.55**, not §10.51. The closeout is over; there is no next block |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |
@@ -6561,10 +6789,15 @@ A new session must **NOT**:
 
 ## 15. NEW CLAUDE CODE SESSION — START HERE
 
-> **THE DESIGN SYSTEM FOUNDATION IS CLOSED.** Start at **§10.51 — Post-Closure Resume Point**, then
-> §10.50. Treat the closure baseline as authoritative: do **not** reconstruct or re-audit the
-> migration phases above them unless current evidence contradicts them. The remaining work is a
-> finite three-block closeout, described in §10.51.
+> **THE DESIGN SYSTEM FOUNDATION IS CLOSED AND THE POST-CLOSURE CLOSEOUT IS COMPLETE.**
+>
+> Start at **§10.55 — Post-Closure Closeout, Final Status**. Then §10.51 for the operating rules
+> (its composition baselines and stop rule still govern; its status lines are superseded), then
+> §10.50 for the foundation baseline.
+>
+> Treat the closure baseline as authoritative: do **not** reconstruct or re-audit the migration
+> phases above them unless current product evidence contradicts them. **There is no next block.**
+> Severe blockers are zero and the remaining debt is the finite list in §10.54.
 
 
 ```
@@ -6575,7 +6808,8 @@ Then:
    that file.
 2. Open the Figma file (key 7KIwO0iiGpksLSNjMeSa4X) with use_figma, loading the figma-use skill
    first, and read the pages "00 — Start Here" and "04 — Design to Code".
-3. Confirm out loud: which phase is complete, and which phase is authorized next.
+3. Confirm out loud: the foundation and the post-closure closeout are both complete, and no
+   further block is authorized. Ordinary product work proceeds under §10.55.
 
 Rules:
 - Do not rely on any previous chat history; the handoff file and Figma are the only sources.
