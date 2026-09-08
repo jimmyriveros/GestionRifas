@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente (D-172, 2026-09-08) | **+16** de `cn` | **812 ✅** (sin cambios: no se tocó la base) | suite completa corrida; sus fallos son preexistentes y ajenos | ✅ | ✅ |
+| Post-9 vigente (D-173, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | **414 + 123**, con 4 fallos preexistentes y clasificados (I-090 ×2, I-101 ×2) | ✅ | ✅ |
+| Post-9 anterior (D-172, 2026-09-08) | **+16** de `cn` | **812 ✅** (sin cambios: no se tocó la base) | suite completa corrida; sus fallos son preexistentes y ajenos | ✅ | ✅ |
 | Post-9 anterior (D-171, 2026-09-08) | **796 ✅** | **812 ✅** (sin cambios: no se tocó la base) | **170/170** dirigidas — no se corrió la suite completa | ✅ | ✅ |
 | Post-9 anterior (D-170, 2026-09-05) | **791 ✅** | **812 ✅** | **536/539** — los 3 restantes son ajenos y **comprobados** (ver más abajo) | ✅ | ✅ |
 | Post-9 anterior (D-169, 2026-09-05) | **772 ✅** | **779 ✅** | **521/525** (los 4 restantes son ajenos y **comprobados**: 2 de `back-navigation` por caché fría —I-075, en caliente **9/9**— y 2 de acumulación por orden de ejecución, `reports` de D-150 y `ventas-por-fecha`, esta con la **misma cifra** que ya registró D-168) | ✅ | ✅ |
@@ -33,6 +34,71 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## El total explicado y el reparto demostrado (D-173) — 2026-09-08
+
+**Encargo.** Que el total visible de boletas no deje una diferencia sin explicar, y que el desglose de
+«Falta cobrar» no invente ni redistribuya cifras para que la ecuación cuadre. (El tercer punto de ese
+mismo encargo, `I-099`, tiene su propia entrada arriba: se resolvió en el ayudante compartido y se
+registró aparte, en **D-172**.)
+
+### Lo que se comprobó antes de tocar código
+
+**El total, en el esquema.** `v_seller_summary` (`0008_views.sql`) define `tickets_total` como
+`count(*)` sobre **todas** las boletas del vendedor, y por separado cuenta `available`, `assigned`,
+`pending_approval`, `draft` y `cancelled`. Es decir, `disponibles + vendidas` **nunca** tenía por qué
+alcanzar el total. Con el seed local: **21 = 10 + 6 + 5**.
+
+**El reparto, en las restricciones.** Se leyó `0002_business_schema.sql` para confirmar que la
+derivación del pendiente es **exacta y no un ajuste**: `tickets_assigned_requires_sale` obliga a que
+toda boleta vendida tenga precio; `tickets_paid_amount_range` (BR-F12) acota
+`0 ≤ paid_amount ≤ sale_price`, así que el sobrepago es imposible; y `payment_status` es una **columna
+generada** que parte las vendidas en tres bloques sin solape ni hueco, con `paid ⟺ paid_amount =
+sale_price` porque el CHECK convierte «no menor» en «igual». De ahí sale la identidad completa, que
+queda escrita en la cabecera del módulo.
+
+### Verificaciones ejecutadas
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ **0 errores**, los 2 avisos preexistentes |
+| `npm run verify` | ✅ **815/815** unitarias en 48 archivos · build |
+| `npm run test:db` | ✅ **812/812** en 38 archivos — **la misma cifra que antes**, que es lo que debe pasar cuando no se toca la base |
+| `npm run db:reset && npm run seed:local` | ✅ antes de cada tanda E2E |
+| `npx playwright test dashboard-collection-summary tour --project=escritorio` | ✅ **14/14**, con la prueba nueva del total del encabezado |
+| `npx playwright test --project=escritorio` (suite completa) | **414 pasan, 4 fallan** en 22,6 min — los cuatro clasificados abajo |
+| `npx playwright test --project=movil` (suite completa) | ✅ **123/123** |
+| Navegador, sesión real | El encabezado dice **«16 boletas activas · 10 disponibles · 6 vendidas»**, y «Mis boletas» dice **«Registradas 21»** |
+
+### Clasificación de los cuatro fallos de la suite de escritorio
+
+Ninguno lo causa este trabajo, y ninguno bloquea nada:
+
+| Fallo | Clasificación |
+|---|---|
+| `reports.spec.ts:305` · «el panel administrativo muestra pagos recientes» | **`I-090`** — acumulación: el pago anulado que busca queda fuera de «recientes» por los que crea el resto de la suite |
+| `ventas-por-fecha.spec.ts:163` · «muestra inicialmente las ventas de HOY» | **`I-090`** — misma causa, y da **la cifra idéntica** que registraron D-168, D-169 y D-170: `< 26` frente a `58` |
+| `filas-seleccionables.spec.ts:319` y `:346` · pasar el cursor por una opción **ya elegida** | **`I-101`**, preexistente: `7a851f8` (Wave 3B2) le quitó el `hover` a la rama elegida de `OptionList` y no lo repuso |
+
+**Comprobado, no supuesto.** Las dos de `I-090` se corrieron **en aislamiento sobre una base recién
+sembrada: 39/39**. Las dos de `I-101` se contrastaron contra
+`git show 2a829c4:src/components/form/OptionList.tsx` —el commit anterior a todo este trabajo—, donde
+la rama elegida ya estaba **sin `hover`**; tampoco hay ninguna regla de `hover` para `[aria-selected]`
+en `globals.css`.
+
+### Errores encontrados, y corregidos
+
+Dos de tipos y uno de lint al escribir la prueba E2E nueva: `disponibles` y `vendidas` posiblemente
+indefinidos al desestructurar un `match`, y una variable sin usar en un guion de sonda. Corregidos
+antes de cerrar; el guion de sonda se borró.
+
+### Lo que NO cambió, y se verificó que no cambió
+
+Ninguna migración, política, vista, RPC ni regla de negocio: `test:db` da **la misma** cifra que
+antes. El indicador **«Recaudado»**, el único gobernado por el selector de fechas, conserva su
+comportamiento y su prueba.
+
+---
 ## `I-099` resuelto en la raíz: `cn` distingue tipografía de color (D-172) — 2026-09-08
 
 **Encargo.** Resolver `I-099` en el ayudante compartido, sin reabrir el sistema de diseño y sin

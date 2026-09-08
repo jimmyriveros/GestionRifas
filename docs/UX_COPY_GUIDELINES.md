@@ -343,6 +343,8 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Lo mismo, donde sí cabe el término entero: la ficha del cliente y el detalle | **Saldo pendiente**, o **Saldo** en una tarjeta de teléfono | Deuda, mora, pasivo |
 | Qué parte del precio lleva abonada una boleta | **Progreso**, y el texto **«58 % abonado»** (D-130) | Avance, completitud, cumplimiento |
 | La sección del panel del vendedor donde vive todo su dinero | **Estado de cobro** (D-171) | Resumen financiero, Cobranza, Finanzas |
+| Las boletas que el vendedor puede vender o ya vendió | **Boletas activas** (D-172) | Total, boletas en total, inventario |
+| Todas las boletas a su nombre, incluidas borradores, pendientes y anuladas | **Registradas** (D-172) | Total, histórico, acumuladas |
 | Ahí, el grupo de boletas de las que NO ha entrado nada | **Sin pagos**, y su dinero **Deben** (D-171) | Sin pagar como rótulo de una cifra de dinero |
 | Ahí, el grupo de boletas que ya abonaron una parte | **Con abonos**, y sus dos cifras **Todavía deben** y **Ya abonaron** (D-171) | Abonadas como rótulo de una cifra de dinero |
 | Ahí, el dinero ya recibido y el que falta | **Ya cobraste** y **Falta cobrar** (D-171) | Recaudado, Por cobrar, Cartera |
@@ -673,6 +675,19 @@ cifras en vez de hablar en abstracto: «El abono de $150.000 supera el precio de
 (D-129). La columna **«Estado»** dice cómo quedará la boleta —Sin pagar, Abonada, Pagada—, y
 **«Resultado»**, si la fila sirve o no. Dos columnas tituladas «Estado» a un centímetro se leen una
 por la otra.
+
+**Un total que se enseña tiene que ser el de las cifras que están a su lado** (D-172). La insignia de
+«Estado de cobro» decía «21 boletas en total» junto a «10 disponibles · 6 vendidas», y las cinco que
+faltaban no se explicaban en ninguna parte de la pantalla —eran borradores, pendientes de aprobación
+y anuladas—. Ahora dice **«16 boletas activas»**, que es exactamente lo que suman las dos. La regla
+es general: **si un rótulo presenta un total, el desglose que tiene debajo lo suma; si no lo suma, el
+rótulo está mal, no el desglose.**
+
+Y como esa cifra completa **sí** existe y sigue haciendo falta, conserva su sitio con **su propio
+nombre**: «Mis boletas» dice **«Registradas»** donde decía «Total». Dos números distintos no pueden
+llamarse igual en la misma pantalla. Lo que **no** se hace es esconder los estados que quedan fuera:
+las **pendientes de aprobación** ya las nombra y las cuenta el aviso ámbar de arriba, que además dice
+qué pasa con ellas; repetirlas en el desglose sería contarlas dos veces.
 
 **En «Estado de cobro», una etiqueta de estado NO puede rotular una cifra de dinero** (D-171). Es la
 regla que ordena toda esa sección del panel del vendedor, y nació de un error real: «Abonadas
@@ -1006,7 +1021,8 @@ castigo donde solo había una espera.
 | Etiquetas de estado de pago en plural, para encabezar grupos | `src/lib/constants.ts` (`TICKET_PAYMENT_STATUS_PLURAL_LABELS`, D-112) |
 | Nombres de los períodos del panel del vendedor | `src/features/dashboard/date-range.ts` (`DASHBOARD_RANGE_LABELS`, D-112) |
 | Textos de las seis piezas del panel del vendedor | `src/features/dashboard/components/`, una por pieza (D-112, D-171) |
-| Todos los textos de «Estado de cobro»: título, inventario del encabezado, las cuatro cifras, los tres grupos y la frase de la igualdad | `src/features/dashboard/components/CollectionStateCard.tsx`, **todos juntos** (D-171) |
+| Todos los textos de «Estado de cobro»: título, inventario del encabezado, las cuatro cifras, los tres grupos y la frase de la igualdad | `src/features/dashboard/components/CollectionStateCard.tsx`, **todos juntos** (D-171, D-172) |
+| Los seis rótulos de «Mis boletas», «Registradas» incluido | `src/features/dashboard/components/TicketsOverviewCard.tsx` (D-172) |
 | Etiquetas de estado de un cliente («Activo», «Archivado») | `src/lib/constants.ts` (`CLIENT_STATUS_LABELS`, D-113) |
 | Encabezados de columna | El `header` de cada columna, en el `*Table.tsx` de su módulo (D-114) |
 | Rótulos y textos de la ficha del cliente | `src/features/clients/components/ClientInfoCard.tsx` y `ClientTotals.tsx` (D-113) |

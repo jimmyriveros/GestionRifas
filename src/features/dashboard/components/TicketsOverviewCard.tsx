@@ -36,7 +36,13 @@ type TicketsOverviewCardProps = {
  */
 export function TicketsOverviewCard({ totals, className }: TicketsOverviewCardProps) {
   const items: { label: string; value: number; href: string; tone?: MoneyTone }[] = [
-    { label: 'Total', value: totals.ticketsTotal, href: '/seller/tickets' },
+    // «Registradas», no «Total» (D-172). Esta cifra cuenta TODAS las boletas a
+    // nombre del vendedor —borradores, pendientes de aprobacion y anuladas
+    // incluidas—, asi que las cinco de al lado no tienen por que sumarla.
+    // «Estado de cobro» habla de las **activas**, que son disponibles mas
+    // vendidas: con las dos diciendo «Total» habria dos cifras distintas con el
+    // mismo nombre en la misma pantalla. Cambia la palabra, nada mas.
+    { label: 'Registradas', value: totals.ticketsTotal, href: '/seller/tickets' },
     {
       label: 'Disponibles',
       value: totals.ticketsAvailable,

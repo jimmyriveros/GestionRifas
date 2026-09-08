@@ -119,6 +119,31 @@ test.describe('Resumen de cobranza del panel administrativo (D-090)', () => {
 })
 
 test.describe('Estado de cobro del panel del vendedor (D-112, D-171)', () => {
+  test('el total del encabezado es EXACTAMENTE lo que suman sus dos cifras (D-172)', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/dashboard')
+
+    const badge = await estadoDeCobro(page).locator('[data-slot="badge"]').first().innerText()
+    const linea = await estadoDeCobro(page)
+      .getByText(/disponibles? · .*vendidas?/)
+      .innerText()
+
+    const activas = Number.parseInt(badge.replace(/[^0-9]/g, ''), 10)
+    const cifras = (linea.match(/\d+/g) ?? []).map(Number)
+    expect(cifras).toHaveLength(2)
+
+    expect(badge).toMatch(/boletas? activas?/)
+    expect(cifras[0]! + cifras[1]!).toBe(activas)
+
+    // Y NO es el total registrado, que cuenta además borradores, pendientes de
+    // aprobación y anuladas: esa cifra vive en «Mis boletas», con su nombre.
+    const misBoletas = page.locator('[data-slot="card"]').filter({ hasText: 'Mis boletas' }).first()
+    await expect(misBoletas.getByText('Registradas', { exact: true })).toBeVisible()
+    await expect(estadoDeCobro(page).getByText(/en total/)).toHaveCount(0)
+  })
+
   test('las cifras de la sección cuadran entre sí y con /seller/payments', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/dashboard')
@@ -214,7 +239,7 @@ test.describe('Estado de cobro del panel del vendedor (D-112, D-171)', () => {
     await expect(estadoDeCobro(page).getByRole('progressbar')).toHaveCount(0)
     await expect(estadoDeCobro(page).locator('a[href*="paymentStatus="]')).toHaveCount(0)
     // El inventario SI se dice: el vendedor tiene boletas, solo que sin vender.
-    await expect(estadoDeCobro(page).getByText(/boletas? en total/)).toBeVisible()
+    await expect(estadoDeCobro(page).getByText(/boletas? activas?/)).toBeVisible()
 
     // Y ninguna cifra rota por dividir entre cero.
     await expect(page.getByText(/NaN|Infinity/)).toHaveCount(0)

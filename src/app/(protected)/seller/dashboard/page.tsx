@@ -120,13 +120,23 @@ export default async function SellerDashboardPage({
       ? { ticketsToNext: commission.ticketsToNext, rate: commission.nextRate }
       : null
 
-  // `null` significa que habia demasiadas boletas abonadas para leerlas una a
-  // una; entonces el dinero se muestra sin separar «Pagadas» de «Abonadas».
-  const detailed = partialTotals !== null
-  const breakdown = buildCollectionBreakdown(
-    totals,
-    partialTotals ?? { salePrice: 0, paidAmount: 0 },
-  )
+  // `partialTotals` es `null` cuando habia demasiadas boletas abonadas para
+  // leerlas una a una (I-011). Se pasa tal cual: el reparto por estado de pago
+  // decide solo si puede sostenerse, y si no, la seccion se queda con los
+  // totales (D-172).
+  const breakdown = buildCollectionBreakdown(totals, partialTotals)
+
+  // Las dos consultas son dos fotos distintas, asi que pueden no cuadrar si
+  // alguien registra un abono entre ellas. La pantalla ya lo resuelve sola —no
+  // pinta lo que no puede demostrar—, pero si pasa a menudo hay algo que mirar,
+  // y en el servidor eso se dice como en el resto del proyecto.
+  if (breakdown.inconsistent) {
+    console.error('buildCollectionBreakdown: el detalle por estado de pago no cuadra', {
+      profileId: membership.profileId,
+      totals,
+      partialTotals,
+    })
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -219,7 +229,6 @@ export default async function SellerDashboardPage({
         <CollectionStateCard
           className="order-3 lg:order-none lg:col-span-2"
           inventory={{
-            total: totals.ticketsTotal,
             available: totals.ticketsAvailable,
             sold: totals.ticketsAssigned,
           }}
@@ -229,7 +238,6 @@ export default async function SellerDashboardPage({
             paid: totals.ticketsPaid,
           }}
           breakdown={breakdown}
-          detailed={detailed}
         />
 
         <div className="contents lg:flex lg:flex-col lg:gap-6">

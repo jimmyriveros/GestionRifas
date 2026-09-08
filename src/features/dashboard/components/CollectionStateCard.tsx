@@ -16,20 +16,17 @@ import { TONE_FILL, TONE_TEXT, type MoneyTone } from '../tones'
 
 type CollectionStateCardProps = {
   /**
-   * El inventario de HOY, tal y como lo pinta «Mis boletas»: no se recalcula ni
-   * se consulta aparte, para que las dos piezas no puedan decir cifras
-   * distintas de la misma cosa.
+   * El inventario OPERATIVO de hoy: lo que el vendedor puede vender y lo que ya
+   * vendio. Son dos de las cifras de «Mis boletas», no se recalculan aqui.
+   *
+   * NO recibe `ticketsTotal` a proposito (D-172). Esa cifra cuenta ademas los
+   * borradores, las pendientes de aprobacion y las anuladas, asi que
+   * `disponibles + vendidas` no la alcanza y la tarjeta dejaba una diferencia
+   * sin explicar. Aqui se suman las dos que si se enseñan.
    */
-  inventory: { total: number; available: number; sold: number }
+  inventory: { available: number; sold: number }
   counts: { unpaid: number; partial: number; paid: number }
   breakdown: CollectionBreakdown
-  /**
-   * `false` cuando no se pudo separar lo cobrado de lo abonado (ver
-   * `getSellerPartialTicketTotals`). Entonces los grupos muestran solo sus
-   * recuentos y el total pendiente: menos detalle, pero ninguna cifra
-   * inventada.
-   */
-  detailed: boolean
   className?: string
 }
 
@@ -59,6 +56,11 @@ type CollectionStateCardProps = {
  * La primera se escribe entera bajo las dos columnas porque es la que se
  * entendia mal; las otras dos se deducen leyendo el resumen de arriba.
  *
+ * CUANDO EL REPARTO NO SE PUEDE DEMOSTRAR (D-172), `breakdown.detail` llega
+ * vacio y la seccion se queda con lo que sigue siendo cierto: los cuatro
+ * totales, los recuentos de cada estado y sus enlaces. **No se escribe la
+ * ecuacion ni ninguna cifra por estado**, porque no habria forma de sostenerlas.
+ *
  * QUE NO ENTRA AQUI. El indicador «Recaudado» de la fila superior sigue
  * dependiendo del periodo elegido y por eso vive fuera: mide lo que ENTRO en
  * unas fechas, mientras que todo lo de esta tarjeta es la foto acumulada de hoy
@@ -69,15 +71,16 @@ export function CollectionStateCard({
   inventory,
   counts,
   breakdown,
-  detailed,
   className,
 }: CollectionStateCardProps) {
-  const { totalSold, collectedOnPaid, collectedOnPartial, pending, pendingBy } = breakdown
+  const { totalSold, collected, pending, detail } = breakdown
 
-  const collected = collectedOnPaid + collectedOnPartial
-  // La MISMA definicion que el indicador «Cobranza» de arriba: las dos partes
-  // cobradas del reparto son, por construccion, lo recaudado.
+  // La MISMA definicion que el indicador «Cobranza» de arriba.
   const progress = percentageOf(collected, totalSold)
+
+  // Las boletas que el vendedor puede reconocer en el desglose de abajo, y que
+  // suman EXACTAMENTE lo que dice la insignia.
+  const activeCount = inventory.available + inventory.sold
 
   // El recuento del grupo y el de la insignia salen de los MISMOS tres numeros
   // que se pintan debajo, no de `inventory.sold`: la seccion promete que las
@@ -94,11 +97,15 @@ export function CollectionStateCard({
         <CardTitle>
           <h2 className="text-heading-h3">Estado de cobro</h2>
         </CardTitle>
-        {/* El inventario, en una linea: cuantas boletas tienes y como se
-            reparten entre lo que aun puedes vender y lo ya vendido. Son las
-            mismas tres cifras de «Mis boletas», que es de donde llegan. */}
+        {/* El inventario operativo, en una linea, y la insignia dice EXACTAMENTE
+            lo que suman las dos cifras de al lado (D-172): las que puedes vender
+            mas las que ya vendiste. Antes decia el total registrado, que cuenta
+            ademas borradores, pendientes de aprobacion y anuladas, y dejaba una
+            diferencia que la tarjeta no explicaba en ninguna parte. */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Badge variant="secondary">{`${ticketCount(inventory.total)} en total`}</Badge>
+          <Badge variant="secondary">
+            {activeCount === 1 ? '1 boleta activa' : `${activeCount} boletas activas`}
+          </Badge>
           <p className="text-muted-foreground text-body-small">
             {`${inventory.available} ${inventory.available === 1 ? 'disponible' : 'disponibles'} · ${inventory.sold} ${inventory.sold === 1 ? 'vendida' : 'vendidas'}`}
           </p>
@@ -176,7 +183,9 @@ export function CollectionStateCard({
                        entero: lo que falta y lo que vale son la misma cifra, y
                        por eso lleva el rol que pide atencion y no el gris. */
                     money={
-                      detailed ? [{ label: 'Deben', amount: pendingBy.unpaid, tone: 'unpaid' }] : []
+                      detail
+                        ? [{ label: 'Deben', amount: detail.pendingBy.unpaid, tone: 'unpaid' }]
+                        : []
                     }
                   />
 
@@ -191,12 +200,16 @@ export function CollectionStateCard({
                        El valor de venta de estas boletas —la suma de las dos—
                        no se escribe: era justo la cifra que se leia mal. */
                     money={
-                      detailed
+                      detail
                         ? [
-                            { label: 'Todavía deben', amount: pendingBy.partial, tone: 'pending' },
+                            {
+                              label: 'Todavía deben',
+                              amount: detail.pendingBy.partial,
+                              tone: 'pending',
+                            },
                             {
                               label: 'Ya abonaron',
-                              amount: collectedOnPartial,
+                              amount: detail.collectedOnPartial,
                               tone: 'partial',
                               secondary: true,
                             },
@@ -206,8 +219,11 @@ export function CollectionStateCard({
                   />
                 </div>
 
-                {detailed ? (
-                  <PendingEquation unpaid={pendingBy.unpaid} partial={pendingBy.partial} />
+                {detail ? (
+                  <PendingEquation
+                    unpaid={detail.pendingBy.unpaid}
+                    partial={detail.pendingBy.partial}
+                  />
                 ) : null}
               </div>
 
@@ -221,7 +237,7 @@ export function CollectionStateCard({
                 wide
                 badge={<StatusBadge tone="success">Pago completo</StatusBadge>}
                 money={
-                  detailed ? [{ label: 'Cobrado', amount: collectedOnPaid, tone: 'paid' }] : []
+                  detail ? [{ label: 'Cobrado', amount: detail.collectedOnPaid, tone: 'paid' }] : []
                 }
               />
             </section>

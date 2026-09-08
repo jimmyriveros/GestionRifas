@@ -6618,6 +6618,7 @@ be done; this one records that it is done. Everything above both of them is hist
 | **FIGMA ↔ CODE PARITY** | **COMPLETE.** Both items synced; there is no remaining tooling limitation, and the one that was recorded never existed |
 | **ACCESSIBILITY** | **Baseline established and validated structurally on the real routes.** AT validation status: **REAL SCREEN-READER TEST NOT PERFORMED.** **No certification is claimed** |
 | **SEVERE BLOCKERS** | **ZERO** |
+| **OPEN REGRESSION FROM WAVE 3B2** | **`I-101`** — brand activation removed the hover state from an already-selected `OptionList` row and did not replace it. Found on 2026-09-08 by the **first full Playwright run on this branch** (§10.57). Cosmetic, and selection is still not colour-only, but it needs a token decision from this track |
 | **NORMAL DEBT** | **eight items, listed in §10.54 C7.** A ninth was added on 2026-09-08 from product work (§10.56) and **closed the same day at the root** (§10.57) |
 
 #### What the closeout actually changed
@@ -6810,6 +6811,43 @@ The role list is hand-written next to `cn` — it runs on every render, includin
 parsing the stylesheet at runtime would cost more than the function does. A unit test **reads
 `globals.css`** and fails if a `--text-*` role appears or disappears without updating the constant.
 16 tests in `tests/unit/cn.test.ts`.
+
+#### One more thing this run found, and it is not `cn`
+
+Running the **full Playwright suite** on this branch — which, as far as this file records, had **not
+happened before** — surfaced a real interaction regression from **Wave 3B2**.
+
+`OptionList`'s selected branch went from
+
+```
+'bg-primary text-primary-foreground hover:bg-primary/90'
+```
+
+to
+
+```
+'bg-selection-surface text-text-brand'
+```
+
+in `7a851f8`, and **the hover was not replaced**. A client row that is already selected no longer
+reacts to the cursor at all. Two tests in `filas-seleccionables.spec.ts` have been failing since that
+commit; both wait for the background to change on hover and time out.
+
+**It is not caused by D-172** — the `cn` fix only changes whether `text-body-small` survives in that
+list, and no background class enters or leaves — and it was verified against the clean tree.
+
+**Why it went unnoticed is worth stating plainly:** every wave in this file validates with
+`typecheck · lint · test · build` plus a presentational harness. **The string "e2e" does not appear
+anywhere in this handoff.** Unit tests and a harness built from class strings cannot see that a hover
+state stopped existing; a browser driving the real component can.
+
+**Not fixed here**, because choosing the token for "selected row, cursor over it" is a Design System
+decision, not a product one — the natural shape is a `selection/surface-hover` role beside the
+existing `selection/surface`. Tracked as `I-101`. **The selection is still not announced by colour
+alone** (check mark + `aria-selected`), so `CLAUDE.md` §27 holds and the impact is cosmetic.
+
+**The operational lesson:** a migration that changes interaction states needs at least one run of the
+browser suite before it is called complete.
 
 #### Status
 

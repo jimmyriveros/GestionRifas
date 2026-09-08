@@ -915,11 +915,26 @@ El recuadro de **resultados oficiales** (D-147, §8.19) va **arriba** de esta re
 los avisos y de instalar. No entra en las seis piezas ni altera su `order`.
 
 **Qué hay dentro de «Estado de cobro»** (`CollectionStateCard`, D-171). Encabezado con el inventario
-—las mismas tres cifras de «Mis boletas»—, el resumen del dinero (Total vendido · Ya cobraste · Falta
-cobrar · Avance del cobro, con `LinearProgress`) y, bajo una línea, «Boletas vendidas según su pago»:
-el grupo **Falta cobrar** con sus dos columnas enlazadas —«Sin pagos» y «Con abonos»— más la igualdad
-escrita, y el bloque **Pagadas**. Los tres bloques son enlaces a `/seller/tickets` ya filtrado, como
-lo eran las tres columnas de la «Cobranza» anterior.
+**operativo**, el resumen del dinero (Total vendido · Ya cobraste · Falta cobrar · Avance del cobro,
+con `LinearProgress`) y, bajo una línea, «Boletas vendidas según su pago»: el grupo **Falta cobrar**
+con sus dos columnas enlazadas —«Sin pagos» y «Con abonos»— más la igualdad escrita, y el bloque
+**Pagadas**. Los tres bloques son enlaces a `/seller/tickets` ya filtrado, como lo eran las tres
+columnas de la «Cobranza» anterior.
+
+**La insignia del encabezado dice «boletas activas», y es `disponibles + vendidas`** (D-173). **No**
+es `tickets_total`: esa columna de `v_seller_summary` es `count(*)` sobre todas las boletas del
+vendedor —borradores, pendientes de aprobación y anuladas incluidas—, así que las dos cifras que se
+enseñan al lado no la alcanzan y la tarjeta dejaba una diferencia sin explicar. El recuento completo
+sigue existiendo, en «Mis boletas», con su propio nombre: **«Registradas»**. Las pendientes de
+aprobación no se pierden: las nombra y las cuenta el aviso ámbar de arriba de la misma pantalla.
+
+**El detalle por estado de pago es OPCIONAL, y por una razón concreta** (D-173). `pending_amount` se
+reparte entre «Sin pagos» y «Con abonos» por una identidad que garantizan `payment_status` (columna
+generada), `tickets_paid_amount_range` y `tickets_assigned_requires_sale`; el desarrollo está en la
+cabecera de `collection-breakdown.ts`. Lo que la base **no** garantiza es que las dos consultas que
+alimentan la sección describan el mismo instante, así que `buildCollectionBreakdown` comprueba la
+identidad y, si no se cumple, devuelve `detail: null`: la pantalla conserva el total autoritativo y
+**no escribe la ecuación ni ninguna cifra por estado**. Nunca acota una cifra para que la suma cuadre.
 
 **Cómo se consigue con una sola rejilla.** El contenedor es `flex flex-col` en el teléfono y
 `lg:grid lg:grid-cols-2 lg:items-start`. El orden del móvil lo fijan clases `order-*` que se anulan

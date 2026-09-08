@@ -7478,6 +7478,108 @@ política ni regla financiera cambia.**
 
 ---
 
+## D-173 — El total que sí se explica y el reparto que sí se demuestra
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-08)
+
+**Contexto.** Dos defectos de D-171, los dos de la misma familia: una cifra que se presenta sin que
+nada en la pantalla la explique. El tercer punto de aquel encargo —`I-099`— se resolvió aparte, en
+**D-172**, porque no era del panel sino del ayudante compartido de composición de clases.
+
+### 1. «21 boletas en total» junto a «10 disponibles · 6 vendidas» dejaba cinco sin explicar
+
+**Qué se comprobó primero, en el esquema.** `v_seller_summary` (`0008_views.sql`) define
+`tickets_total` como `count(*)` sobre **todas** las boletas del vendedor en esa rifa, y sus columnas
+hermanas cuentan por `inventory_status`: `available`, `assigned`, `pending_approval`, `draft` y
+`cancelled`. Es decir, `total = disponibles + vendidas + borradores + pendientes + anuladas`, y las
+dos que la tarjeta enseñaba **nunca** tenían por qué alcanzarlo. Con el seed local: 21 = 10 + 6 + 5.
+
+**Decisión 1 — la insignia dice lo que suman las cifras que tiene al lado.** Pasa a **«16 boletas
+activas»** = disponibles + vendidas, calculado en la propia tarjeta a partir de las dos cifras que se
+pintan. No queda ninguna diferencia sin explicar porque **no se presenta ningún total que las dos no
+alcancen**. `CollectionStateCard` ya ni siquiera recibe `ticketsTotal`: la forma del prop hace
+imposible volver a enseñarlo.
+
+**Decisión 2 — los otros tres estados no se cuentan como boletas vigentes, y no se ocultan.**
+Anuladas y borradores no son inventario vendible por definición. Las **pendientes de aprobación** sí
+existen y son del vendedor, pero **ya tienen su propio sitio en la misma pantalla**: el aviso ámbar de
+arriba, que las nombra, las cuenta y dice qué pasa con ellas —«Tienes N boleta(s) esperando la
+aprobación de tu administrador. Todavía no puedes venderlas.»—. Meterlas en el desglose de «Estado de
+cobro» las contaría dos veces y mezclaría inventario con cobranza, que es lo que el encargo prohíbe.
+
+**Decisión 3 — «Registradas», no «Total», en «Mis boletas».** Es el único ajuste en esa tarjeta y es
+de una palabra. Ahí la cifra **sí** es el recuento completo, y dejarla llamándose «Total» al lado de
+una sección que habla de «activas» pondría dos números distintos con el mismo nombre en la misma
+pantalla. No se rediseña nada más de esa tarjeta.
+
+---
+
+### 2. El reparto de «Falta cobrar» acotaba las cifras para que la ecuación cuadrara
+
+**El defecto.** D-171 calculaba `pendingBy` con `Math.min(clamp(...), pending)` y obtenía la otra
+mitad restando. Con datos coherentes daba lo correcto, pero con datos torcidos **fabricaba una suma
+que cuadraba a la vista sobre cifras que no correspondían a ningún grupo**. La pantalla escribía
+`A + B = C` y las tres eran presentables aunque A no fuera lo que deben las boletas sin pagos.
+
+**Decisión 4 — la derivación se conserva, porque está GARANTIZADA, y se documenta como tal.** No es
+un reparto: es una identidad que sostienen tres cosas del esquema. Sobre el conjunto de boletas
+`assigned` de un vendedor:
+
+* `tickets_assigned_requires_sale` (`0002`) ⟹ toda boleta tiene `sale_price` no nulo;
+* `tickets_paid_amount_range` (`0002`, BR-F12) ⟹ `0 ≤ paid_amount ≤ sale_price`, el sobrepago es
+  imposible;
+* `payment_status` es una **columna generada** (`0002`, BR-F07) que, con `sale_price` no nulo, parte
+  ese conjunto en tres bloques sin solape ni hueco: `unpaid ⟺ paid = 0`, `partial ⟺ 0 < paid < precio`
+  y `paid ⟺ paid = precio` (por el CHECK, «no menor» es «igual»).
+
+Y `pending_amount` es `sum(sale_price − paid_amount)` sobre ese mismo conjunto. Desarrollando por
+bloques, el término de las pagadas se anula y queda:
+
+```
+pending = Σ_sin-pagos precio + (precio de las abonadas − lo abonado)
+```
+
+De ahí, **exactamente**: `lo que deben las sin pagos = pending − (precio abonadas − abonado)`, que es
+su precio de venta entero. Sin término de ajuste, sin redondeo: son pesos enteros.
+
+**Decisión 5 — lo que la base NO garantiza se comprueba, y si falla no se pinta.** Las cifras vienen
+de **dos consultas** —`v_seller_summary` y `v_ticket_balances`—, tomadas una después de otra: entre
+ellas puede registrarse un abono y entonces describen dos instantes distintos. Por eso el detalle es
+**opcional**: `buildCollectionBreakdown` devuelve `detail: CollectionDetail | null` y solo lo rellena
+si se cumplen las seis condiciones que la identidad exige. Cuando no, la sección conserva **el total
+autoritativo de «Falta cobrar», los cuatro totales, los recuentos y sus enlaces**, y **no escribe la
+ecuación ni ninguna cifra por estado**. Ya no hay ningún `Math.min` ni `Math.max` tapando nada.
+
+**Decisión 6 — se distingue «no se pudo leer» de «no cuadra».** `inconsistent` es `true` solo en el
+segundo caso, que es una anomalía de verdad; el primero es el tope conocido de `I-011` y no lo es. El
+panel registra la anomalía con `console.error` y su contexto, que es el patrón que ya usan
+`auth/actions.ts` y `lib/auth/session.ts`. La interfaz no cambia entre los dos casos: en los dos
+calla.
+
+**Decisión 7 — `saleValue` desaparece.** Ya no lo usaba ninguna pantalla, y su campo `partial` era
+**literalmente** la cifra que originó D-171: el valor de venta de las boletas con abonos, que se leía
+como dinero abonado. Dejarlo era dejar la trampa puesta.
+
+---
+
+**Errores encontrados al implementar, y corregidos.** Dos de tipos y uno de lint al escribir la
+prueba E2E nueva —`disponibles` y `vendidas` posiblemente indefinidos al desestructurar un `match`, y
+una variable sin usar en un guion de sonda—. Corregidos antes de cerrar; el guion de sonda se borró.
+
+**Alternativas descartadas.** (a) **Enseñar la insignia de «activas» y además la de «registradas»**:
+dos totales juntos es exactamente la confusión que se venía a quitar. (b) **Contar las pendientes de
+aprobación como activas**: no se pueden vender, y ya tienen su aviso ámbar en la misma pantalla. (c)
+**Una consulta o vista nueva para separar el pendiente por estado**: la identidad demuestra que no
+hace falta, y una migración habría que promoverla antes de desplegar. (d) **Conservar el reparto
+acotado y limitarse a documentarlo**: deja en pie una ecuación que puede ser falsa.
+
+**Consecuencia.** `CollectionBreakdown` cambia de forma: `detail` opcional, `saleValue` fuera, y un
+indicador `inconsistent` que el panel registra con `console.error` cuando el detalle se leyó y no
+cuadra. **No cambia ninguna consulta, migración, política ni regla financiera.** Nacen dos términos
+de glosario, **«boletas activas»** y **«Registradas»**, con su regla en `UX_COPY_GUIDELINES`.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

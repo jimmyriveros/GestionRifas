@@ -3,27 +3,42 @@ import { describe, expect, it } from 'vitest'
 import { buildCollectionBreakdown, percentageOf } from '@/features/dashboard/collection-breakdown'
 
 /**
- * Reparto del dinero por estado de pago (D-112, D-171).
+ * Reparto del dinero por estado de pago (D-112, D-171, D-172).
  *
- * La propiedad que sostiene la seccion «Estado de cobro» del panel es una
- * sola, y por eso se comprueba en casi todos los casos:
+ * LA PROPIEDAD QUE SE PRUEBA no es «que la ecuación cuadre»: es que el reparto
+ * SEA el que garantizan las restricciones de PostgreSQL. Sobre las boletas
+ * vendidas, `payment_status` es una columna generada y `paid_amount` está
+ * acotado a `[0, sale_price]`, de modo que
  *
- *   cobrado de las pagadas + abonado de las que deben + lo que falta = vendido
+ *   pending = Σ_sin-pagos precio + (precio de las abonadas − lo abonado)
  *
- * Si esa igualdad se rompe, el resumen del dinero deja de cuadrar con los
- * grupos que tiene debajo y la pantalla se contradice consigo misma.
+ * es una identidad, no un ajuste. Cuando los datos no la cumplen —porque las dos
+ * consultas son dos fotos distintas— no se reparte nada: se conserva el total
+ * autoritativo y el detalle desaparece.
  */
 
-function esperarQueCuadre(breakdown: ReturnType<typeof buildCollectionBreakdown>) {
-  expect(breakdown.collectedOnPaid + breakdown.collectedOnPartial + breakdown.pending).toBe(
-    breakdown.totalSold,
-  )
-  expect(breakdown.saleValue.unpaid + breakdown.saleValue.partial + breakdown.saleValue.paid).toBe(
-    breakdown.totalSold,
-  )
+/** Con datos coherentes, cada grupo vale lo que dice su definición. */
+function esperarQueElRepartoSeaExacto(
+  breakdown: ReturnType<typeof buildCollectionBreakdown>,
+  esperado: { sinPagos: number; conAbonos: number; abonado: number; cobradoDePagadas: number },
+) {
+  const detail = breakdown.detail
+  expect(detail, 'no se pudo repartir el dinero').not.toBeNull()
+  if (!detail) return
+
+  expect(detail.pendingBy.unpaid).toBe(esperado.sinPagos)
+  expect(detail.pendingBy.partial).toBe(esperado.conAbonos)
+  expect(detail.collectedOnPartial).toBe(esperado.abonado)
+  expect(detail.collectedOnPaid).toBe(esperado.cobradoDePagadas)
+
+  // Las tres igualdades que la sección enseña.
+  expect(detail.pendingBy.unpaid + detail.pendingBy.partial).toBe(breakdown.pending)
+  expect(detail.collectedOnPaid + detail.collectedOnPartial).toBe(breakdown.collected)
+  expect(breakdown.collected + breakdown.pending).toBe(breakdown.totalSold)
+  expect(breakdown.inconsistent).toBe(false)
 }
 
-describe('buildCollectionBreakdown', () => {
+describe('buildCollectionBreakdown · datos coherentes', () => {
   it('vendedor sin ventas: todo en cero y nada negativo', () => {
     const breakdown = buildCollectionBreakdown(
       { totalSold: 0, totalCollected: 0, pendingAmount: 0 },
@@ -32,50 +47,55 @@ describe('buildCollectionBreakdown', () => {
 
     expect(breakdown).toEqual({
       totalSold: 0,
-      collectedOnPaid: 0,
-      collectedOnPartial: 0,
+      collected: 0,
       pending: 0,
-      saleValue: { unpaid: 0, partial: 0, paid: 0 },
-      pendingBy: { unpaid: 0, partial: 0 },
+      detail: { collectedOnPaid: 0, collectedOnPartial: 0, pendingBy: { unpaid: 0, partial: 0 } },
+      inconsistent: false,
     })
-    esperarQueCuadre(breakdown)
   })
 
-  it('todo sin pagar: el valor entero es de las boletas sin pagar', () => {
+  it('solo boletas sin pagos: lo que deben es su precio entero', () => {
+    // 5 boletas de $120.000, ninguna con un peso encima.
     const breakdown = buildCollectionBreakdown(
       { totalSold: 600_000, totalCollected: 0, pendingAmount: 600_000 },
       { salePrice: 0, paidAmount: 0 },
     )
 
-    expect(breakdown.collectedOnPaid).toBe(0)
-    expect(breakdown.collectedOnPartial).toBe(0)
-    expect(breakdown.pending).toBe(600_000)
-    expect(breakdown.saleValue).toEqual({ unpaid: 600_000, partial: 0, paid: 0 })
-    esperarQueCuadre(breakdown)
+    esperarQueElRepartoSeaExacto(breakdown, {
+      sinPagos: 600_000,
+      conAbonos: 0,
+      abonado: 0,
+      cobradoDePagadas: 0,
+    })
   })
 
-  it('todo pagado: no queda nada por cobrar', () => {
-    const breakdown = buildCollectionBreakdown(
-      { totalSold: 360_000, totalCollected: 360_000, pendingAmount: 0 },
-      { salePrice: 0, paidAmount: 0 },
-    )
-
-    expect(breakdown.collectedOnPaid).toBe(360_000)
-    expect(breakdown.saleValue).toEqual({ unpaid: 0, partial: 0, paid: 360_000 })
-    esperarQueCuadre(breakdown)
-  })
-
-  it('solo abonos: lo recibido es de boletas que todavia deben', () => {
+  it('solo boletas con abonos: lo que todavía deben es su precio menos lo abonado', () => {
     // Dos boletas de $120.000 con $50.000 abonados entre las dos.
     const breakdown = buildCollectionBreakdown(
       { totalSold: 240_000, totalCollected: 50_000, pendingAmount: 190_000 },
       { salePrice: 240_000, paidAmount: 50_000 },
     )
 
-    expect(breakdown.collectedOnPaid).toBe(0)
-    expect(breakdown.collectedOnPartial).toBe(50_000)
-    expect(breakdown.saleValue).toEqual({ unpaid: 0, partial: 240_000, paid: 0 })
-    esperarQueCuadre(breakdown)
+    esperarQueElRepartoSeaExacto(breakdown, {
+      sinPagos: 0,
+      conAbonos: 190_000,
+      abonado: 50_000,
+      cobradoDePagadas: 0,
+    })
+  })
+
+  it('solo boletas pagadas: no queda nada por cobrar y todo lo cobrado es de ellas', () => {
+    const breakdown = buildCollectionBreakdown(
+      { totalSold: 360_000, totalCollected: 360_000, pendingAmount: 0 },
+      { salePrice: 0, paidAmount: 0 },
+    )
+
+    esperarQueElRepartoSeaExacto(breakdown, {
+      sinPagos: 0,
+      conAbonos: 0,
+      abonado: 0,
+      cobradoDePagadas: 360_000,
+    })
   })
 
   it('los tres estados a la vez: cada peso cae en un solo sitio', () => {
@@ -86,15 +106,12 @@ describe('buildCollectionBreakdown', () => {
       { salePrice: 240_000, paidAmount: 90_000 },
     )
 
-    expect(breakdown.collectedOnPaid).toBe(120_000)
-    expect(breakdown.collectedOnPartial).toBe(90_000)
-    expect(breakdown.pending).toBe(390_000)
-    expect(breakdown.saleValue).toEqual({
-      unpaid: 240_000,
-      partial: 240_000,
-      paid: 120_000,
+    esperarQueElRepartoSeaExacto(breakdown, {
+      sinPagos: 240_000,
+      conAbonos: 150_000,
+      abonado: 90_000,
+      cobradoDePagadas: 120_000,
     })
-    esperarQueCuadre(breakdown)
   })
 
   it('boletas rebajadas: el reparto sale de los importes, no del precio de la rifa', () => {
@@ -105,34 +122,140 @@ describe('buildCollectionBreakdown', () => {
       { salePrice: 0, paidAmount: 0 },
     )
 
-    expect(breakdown.saleValue).toEqual({ unpaid: 120_000, partial: 0, paid: 80_000 })
-    esperarQueCuadre(breakdown)
+    esperarQueElRepartoSeaExacto(breakdown, {
+      sinPagos: 120_000,
+      conAbonos: 0,
+      abonado: 0,
+      cobradoDePagadas: 80_000,
+    })
   })
 
-  it('un dato incoherente no produce cifras negativas', () => {
-    // Recaudado mayor que lo vendido: la base de datos lo impide, la pantalla
-    // no puede romperse si apareciera.
+  it('los datos de referencia del panel: cada cifra de la sección cuadra', () => {
+    // 714 vendidas: 373 sin pagos, 131 con abonos y 210 pagadas.
+    const breakdown = buildCollectionBreakdown(
+      { totalSold: 85_600_000, totalCollected: 32_140_000, pendingAmount: 53_460_000 },
+      { salePrice: 15_640_000, paidAmount: 6_940_000 },
+    )
+
+    esperarQueElRepartoSeaExacto(breakdown, {
+      sinPagos: 44_760_000,
+      conAbonos: 8_700_000,
+      abonado: 6_940_000,
+      cobradoDePagadas: 25_200_000,
+    })
+    expect(percentageOf(breakdown.collected, breakdown.totalSold)).toBe(38)
+  })
+})
+
+describe('buildCollectionBreakdown · sin el detalle de las abonadas', () => {
+  it('conserva los totales y NO inventa un reparto', () => {
+    // Es lo que llega cuando había demasiadas boletas abonadas para leerlas una
+    // a una (I-011).
+    const breakdown = buildCollectionBreakdown(
+      { totalSold: 600_000, totalCollected: 210_000, pendingAmount: 390_000 },
+      null,
+    )
+
+    expect(breakdown.totalSold).toBe(600_000)
+    expect(breakdown.collected).toBe(210_000)
+    expect(breakdown.pending).toBe(390_000)
+    expect(breakdown.detail).toBeNull()
+    // No haber podido leerlo no es una anomalía: no se registra como tal.
+    expect(breakdown.inconsistent).toBe(false)
+  })
+})
+
+describe('buildCollectionBreakdown · datos incoherentes', () => {
+  /** Ante cualquier incoherencia: total autoritativo, cero reparto, y se avisa. */
+  function esperarQueSeCalle(breakdown: ReturnType<typeof buildCollectionBreakdown>) {
+    expect(breakdown.detail).toBeNull()
+    expect(breakdown.inconsistent).toBe(true)
+  }
+
+  it('lo abonado supera el precio de las boletas abonadas', () => {
+    esperarQueSeCalle(
+      buildCollectionBreakdown(
+        { totalSold: 600_000, totalCollected: 210_000, pendingAmount: 390_000 },
+        { salePrice: 100_000, paidAmount: 150_000 },
+      ),
+    )
+  })
+
+  it('las boletas abonadas valen más que todo lo vendido', () => {
+    esperarQueSeCalle(
+      buildCollectionBreakdown(
+        { totalSold: 100_000, totalCollected: 10_000, pendingAmount: 90_000 },
+        { salePrice: 500_000, paidAmount: 5_000 },
+      ),
+    )
+  })
+
+  it('lo que falta de las abonadas se come todo el pendiente y lo pasa', () => {
+    // Sin la comprobación, «Sin pagos» saldría negativo o acotado a cero, y la
+    // ecuación escrita en pantalla sería falsa.
+    esperarQueSeCalle(
+      buildCollectionBreakdown(
+        { totalSold: 600_000, totalCollected: 500_000, pendingAmount: 100_000 },
+        { salePrice: 400_000, paidAmount: 100_000 },
+      ),
+    )
+  })
+
+  it('lo abonado supera todo lo recaudado', () => {
+    esperarQueSeCalle(
+      buildCollectionBreakdown(
+        { totalSold: 600_000, totalCollected: 50_000, pendingAmount: 550_000 },
+        { salePrice: 300_000, paidAmount: 200_000 },
+      ),
+    )
+  })
+
+  it('los tres totales no cuadran entre sí', () => {
+    esperarQueSeCalle(
+      buildCollectionBreakdown(
+        { totalSold: 600_000, totalCollected: 210_000, pendingAmount: 999_999 },
+        { salePrice: 0, paidAmount: 0 },
+      ),
+    )
+  })
+
+  it('recaudado mayor que lo vendido: ni cifras negativas ni reparto', () => {
     const breakdown = buildCollectionBreakdown(
       { totalSold: 100_000, totalCollected: 150_000, pendingAmount: -50_000 },
       { salePrice: 500_000, paidAmount: 500_000 },
     )
 
+    esperarQueSeCalle(breakdown)
     expect(breakdown.pending).toBe(0)
-    expect(breakdown.collectedOnPartial).toBeGreaterThanOrEqual(0)
-    expect(breakdown.saleValue.unpaid).toBe(0)
-    expect(breakdown.saleValue.partial).toBeLessThanOrEqual(breakdown.totalSold)
+    expect(breakdown.totalSold).toBeGreaterThanOrEqual(0)
+    expect(breakdown.collected).toBeGreaterThanOrEqual(0)
   })
 
-  it('sin el detalle de las abonadas, lo recaudado se atribuye entero a las pagadas', () => {
-    // Es lo que hace la pantalla cuando no pudo leer las boletas abonadas: el
-    // total sigue siendo cierto, y por eso el grafico pasa a dos partes.
+  it('un dato que no es un número no rompe nada', () => {
     const breakdown = buildCollectionBreakdown(
-      { totalSold: 600_000, totalCollected: 210_000, pendingAmount: 390_000 },
+      { totalSold: Number.NaN, totalCollected: 0, pendingAmount: 0 },
       { salePrice: 0, paidAmount: 0 },
     )
 
-    expect(breakdown.collectedOnPaid + breakdown.collectedOnPartial).toBe(210_000)
-    esperarQueCuadre(breakdown)
+    esperarQueSeCalle(breakdown)
+    expect(breakdown.totalSold).toBe(0)
+  })
+
+  it('NUNCA se fabrica una ecuación que cuadre a la vista', () => {
+    // El punto entero de D-172: con datos torcidos, antes se acotaba el reparto
+    // con `Math.min` y la pantalla escribía una suma correcta sobre cifras que
+    // no lo eran. Ahora no hay ninguna cifra que escribir.
+    const torcidos = [
+      { totalSold: 600_000, totalCollected: 500_000, pendingAmount: 100_000 },
+      { totalSold: 100_000, totalCollected: 150_000, pendingAmount: -50_000 },
+      { totalSold: 300_000, totalCollected: 100_000, pendingAmount: 200_000 },
+    ]
+    const partial = { salePrice: 900_000, paidAmount: 10_000 }
+
+    for (const totals of torcidos) {
+      const breakdown = buildCollectionBreakdown(totals, partial)
+      expect(breakdown.detail, JSON.stringify(totals)).toBeNull()
+    }
   })
 })
 
@@ -151,97 +274,5 @@ describe('percentageOf', () => {
     expect(percentageOf(900, 600)).toBe(100)
     expect(percentageOf(-100, 600)).toBe(0)
     expect(percentageOf(Number.NaN, 600)).toBe(0)
-  })
-})
-
-/**
- * El reparto de lo que FALTA por cobrar (D-171).
- *
- * La seccion «Estado de cobro» escribe esta igualdad a la vista del vendedor
- * —«$44.760.000 + $8.700.000 = $53.460.000»—, asi que no puede depender de que
- * dos restas independientes coincidan: las dos partes salen del pendiente
- * total, que es la cifra que suma `v_seller_summary` en SQL.
- */
-describe('buildCollectionBreakdown · pendingBy', () => {
-  function esperarQueSumeElPendiente(breakdown: ReturnType<typeof buildCollectionBreakdown>) {
-    expect(breakdown.pendingBy.unpaid + breakdown.pendingBy.partial).toBe(breakdown.pending)
-    expect(breakdown.pendingBy.unpaid).toBeGreaterThanOrEqual(0)
-    expect(breakdown.pendingBy.partial).toBeGreaterThanOrEqual(0)
-  }
-
-  it('los datos de referencia del panel: cada cifra de la seccion cuadra', () => {
-    // 855 boletas, 714 vendidas: 373 sin pagos, 131 con abonos y 210 pagadas.
-    const breakdown = buildCollectionBreakdown(
-      { totalSold: 85_600_000, totalCollected: 32_140_000, pendingAmount: 53_460_000 },
-      { salePrice: 15_640_000, paidAmount: 6_940_000 },
-    )
-
-    // Resumen del dinero.
-    expect(breakdown.totalSold).toBe(85_600_000)
-    expect(breakdown.collectedOnPaid + breakdown.collectedOnPartial).toBe(32_140_000)
-    expect(breakdown.pending).toBe(53_460_000)
-    expect(percentageOf(32_140_000, 85_600_000)).toBe(38)
-
-    // Grupo «Falta cobrar» y sus dos columnas.
-    expect(breakdown.pendingBy.unpaid).toBe(44_760_000)
-    expect(breakdown.pendingBy.partial).toBe(8_700_000)
-    expect(breakdown.collectedOnPartial).toBe(6_940_000)
-
-    // Grupo «Pagadas».
-    expect(breakdown.collectedOnPaid).toBe(25_200_000)
-
-    esperarQueCuadre(breakdown)
-    esperarQueSumeElPendiente(breakdown)
-  })
-
-  it('con datos coherentes, lo que deben las boletas sin pagos es su precio entero', () => {
-    const breakdown = buildCollectionBreakdown(
-      { totalSold: 600_000, totalCollected: 210_000, pendingAmount: 390_000 },
-      { salePrice: 240_000, paidAmount: 90_000 },
-    )
-
-    expect(breakdown.pendingBy.unpaid).toBe(breakdown.saleValue.unpaid)
-    expect(breakdown.pendingBy.partial).toBe(150_000)
-    esperarQueSumeElPendiente(breakdown)
-  })
-
-  it('sin boletas a medias, todo lo pendiente es de las que no han pagado nada', () => {
-    const breakdown = buildCollectionBreakdown(
-      { totalSold: 600_000, totalCollected: 120_000, pendingAmount: 480_000 },
-      { salePrice: 0, paidAmount: 0 },
-    )
-
-    expect(breakdown.pendingBy).toEqual({ unpaid: 480_000, partial: 0 })
-    esperarQueSumeElPendiente(breakdown)
-  })
-
-  it('todo cobrado: no queda nada que repartir', () => {
-    const breakdown = buildCollectionBreakdown(
-      { totalSold: 360_000, totalCollected: 360_000, pendingAmount: 0 },
-      { salePrice: 0, paidAmount: 0 },
-    )
-
-    expect(breakdown.pendingBy).toEqual({ unpaid: 0, partial: 0 })
-    esperarQueSumeElPendiente(breakdown)
-  })
-
-  it('un dato incoherente no rompe la igualdad ni produce cifras negativas', () => {
-    // Boletas a medias que suman mas de lo vendido: la base lo impide, la
-    // pantalla no puede escribir una suma que no cuadre si apareciera.
-    const breakdown = buildCollectionBreakdown(
-      { totalSold: 100_000, totalCollected: 10_000, pendingAmount: 90_000 },
-      { salePrice: 500_000, paidAmount: 5_000 },
-    )
-
-    esperarQueSumeElPendiente(breakdown)
-
-    // Y al reves: recaudado mayor que lo vendido deja el pendiente en cero.
-    const roto = buildCollectionBreakdown(
-      { totalSold: 100_000, totalCollected: 150_000, pendingAmount: -50_000 },
-      { salePrice: 500_000, paidAmount: 500_000 },
-    )
-
-    expect(roto.pendingBy).toEqual({ unpaid: 0, partial: 0 })
-    esperarQueSumeElPendiente(roto)
   })
 })
