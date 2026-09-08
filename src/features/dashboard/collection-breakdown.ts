@@ -53,9 +53,24 @@ export type CollectionBreakdown = {
   pending: number
   /**
    * Cuanto valen las boletas de cada estado. Suma EXACTAMENTE `totalSold`, que
-   * es lo que permite que la seccion «Cobranza» y el grafico cuadren entre si.
+   * es lo que permite que la seccion «Estado de cobro» cuadre consigo misma.
    */
   saleValue: { unpaid: number; partial: number; paid: number }
+  /**
+   * De quien es cada peso de `pending`: lo que deben las boletas de las que no
+   * ha entrado nada, y lo que TODAVIA deben las que ya abonaron una parte.
+   *
+   * Suma EXACTAMENTE `pending`, y esa igualdad es la que la pantalla escribe a
+   * la vista —«$44.760.000 + $8.700.000 = $53.460.000»— bajo las dos columnas
+   * de «Falta cobrar» (D-171). Por eso no se derivan por separado: `pending` es
+   * la cifra autoritativa —`v_seller_summary` la suma en SQL como
+   * `sale_price - paid_amount`— y aqui solo se reparte, de modo que una
+   * ecuacion escrita en pantalla no pueda no cuadrar.
+   *
+   * Con datos coherentes `pendingBy.unpaid` es identico a `saleValue.unpaid`:
+   * una boleta «Sin pagar» debe su precio entero, por definicion.
+   */
+  pendingBy: { unpaid: number; partial: number }
 }
 
 const clamp = (value: number) => (Number.isFinite(value) ? Math.max(0, value) : 0)
@@ -68,17 +83,27 @@ export function buildCollectionBreakdown(
   const collectedOnPartial = Math.min(clamp(partial.paidAmount), clamp(totals.totalCollected))
   const collectedOnPaid = clamp(totals.totalCollected - collectedOnPartial)
   const partialSale = Math.min(clamp(partial.salePrice), totalSold)
+  const pending = clamp(totals.pendingAmount)
+
+  // Lo que le falta a las boletas que ya abonaron algo, acotado al pendiente
+  // total: sin ese tope, un dato incoherente podria dejar «Sin pagos» negativo
+  // y romper la ecuacion que la pantalla escribe.
+  const pendingOnPartial = Math.min(clamp(partialSale - collectedOnPartial), pending)
 
   return {
     totalSold,
     collectedOnPaid,
     collectedOnPartial,
-    pending: clamp(totals.pendingAmount),
+    pending,
     saleValue: {
       // Una boleta pagada vale lo que se cobro de ella, por definicion.
       paid: collectedOnPaid,
       partial: partialSale,
       unpaid: clamp(totalSold - partialSale - collectedOnPaid),
+    },
+    pendingBy: {
+      partial: pendingOnPartial,
+      unpaid: pending - pendingOnPartial,
     },
   }
 }

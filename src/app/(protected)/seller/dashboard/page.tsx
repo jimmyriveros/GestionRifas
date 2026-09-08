@@ -4,10 +4,9 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { Notice } from '@/components/feedback/Notice'
 import { InstallPrompt } from '@/features/pwa/components/InstallPrompt'
 import { percentageOf, buildCollectionBreakdown } from '@/features/dashboard/collection-breakdown'
-import { CollectionStatusCard } from '@/features/dashboard/components/CollectionStatusCard'
+import { CollectionStateCard } from '@/features/dashboard/components/CollectionStateCard'
 import { CollectionTrendCard } from '@/features/dashboard/components/CollectionTrendCard'
 import { DateRangeSelect } from '@/features/dashboard/components/DateRangeSelect'
-import { FinancialSummaryCard } from '@/features/dashboard/components/FinancialSummaryCard'
 import { QuickActionsCard } from '@/features/dashboard/components/QuickActionsCard'
 import { RecentActivityCard } from '@/features/dashboard/components/RecentActivityCard'
 import { SellerKpis } from '@/features/dashboard/components/SellerKpis'
@@ -173,7 +172,12 @@ export default async function SellerDashboardPage({
       <LotteryResultsSection audience="seller" ticketBasePath="/seller/tickets" />
 
       {/*
-        UNA sola rejilla para las siete piezas, y dos ordenes distintos.
+        UNA sola rejilla para las seis piezas, y dos ordenes distintos.
+
+        Eran siete hasta D-171, cuando «Resumen financiero» y «Cobranza» se
+        fundieron en «Estado de cobro». La rejilla no cambio de forma: la pieza
+        nueva ocupa las dos columnas y las dos filas de abajo se quedan como
+        estaban.
 
         TELEFONO: una columna, y el orden lo fijan las clases `order-*`. Los
         accesos rapidos suben al primer puesto porque son acciones, no lectura:
@@ -206,14 +210,19 @@ export default async function SellerDashboardPage({
           nextTier={nextTier}
         />
 
-        <FinancialSummaryCard
-          className="order-3 lg:order-none"
-          breakdown={breakdown}
-          detailed={detailed}
-        />
-
-        <CollectionStatusCard
-          className="order-4 lg:order-none"
+        {/* «Estado de cobro» ocupa las DOS columnas (D-171). Antes eran dos
+            tarjetas de media pantalla, una al lado de la otra, contando el
+            mismo dinero de dos formas; ahora es una sola seccion con el resumen
+            arriba y el reparto por estado de pago debajo, y ese reparto
+            necesita el ancho para poner «Sin pagos» y «Con abonos» en dos
+            columnas. */}
+        <CollectionStateCard
+          className="order-3 lg:order-none lg:col-span-2"
+          inventory={{
+            total: totals.ticketsTotal,
+            available: totals.ticketsAvailable,
+            sold: totals.ticketsAssigned,
+          }}
           counts={{
             unpaid: totals.ticketsUnpaid,
             partial: totals.ticketsPartial,
@@ -224,9 +233,9 @@ export default async function SellerDashboardPage({
         />
 
         <div className="contents lg:flex lg:flex-col lg:gap-6">
-          <TicketsOverviewCard className="order-5 lg:order-none" totals={totals} />
+          <TicketsOverviewCard className="order-4 lg:order-none" totals={totals} />
           <CollectionTrendCard
-            className="order-6 lg:order-none"
+            className="order-5 lg:order-none"
             points={activity.trend}
             rangeLabel={formatDateRangeEs(range.from, range.to)}
             collected={activity.collected}
@@ -235,7 +244,7 @@ export default async function SellerDashboardPage({
 
         <div className="contents lg:flex lg:flex-col lg:gap-6">
           <RecentActivityCard
-            className="order-7 lg:order-none"
+            className="order-6 lg:order-none"
             payments={dashboard.recentPayments}
           />
           <QuickActionsCard className="order-1 lg:order-none" />

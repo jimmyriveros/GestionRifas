@@ -6557,7 +6557,7 @@ workflow · no critical information carried by colour alone · no unusable respo
 invalid interactive structure · no unresolved raw semantic palette · no missing required shared
 architecture.
 
-##### NORMAL POST-CLOSURE DEBT — the finite list, eight items
+##### NORMAL POST-CLOSURE DEBT — the finite list, nine items
 
 | # | Debt | Where | Note |
 |---|---|---|---|
@@ -6569,6 +6569,7 @@ architecture.
 | 6 | **Pagination loses focus to `<body>`** on navigation | `DataTablePagination`, product-wide | Measured at t ≈ 838 ms, when the new RSC tree is applied; the button is never disabled, so it is the router's focus reset, not `useTransition`. The range is still announced |
 | 7 | **28 of 112 contract tokens have no consumer** | the token layer | Catalogued in C2 above. **None is a meaning without an owner** |
 | 8 | **`npm run format:check` fails on 93 files** | the whole repo, **pre-existing** | See below |
+| 9 | **`cn` silently drops the Wave 2 typography roles** when they share an element with a colour role | `src/lib/utils.ts`, product-wide | **Added 2026-09-08 from product work, not from an audit.** `tailwind-merge` does not know `text-heading-*` / `text-metric-*` and treats them as colour classes. No error, no warning; the text just inherits its size. Full account in **§10.56**; tracked product-side as `I-099` |
 
 ##### The formatting finding, because it will otherwise be "fixed" wrongly
 
@@ -6617,7 +6618,7 @@ be done; this one records that it is done. Everything above both of them is hist
 | **FIGMA ↔ CODE PARITY** | **COMPLETE.** Both items synced; there is no remaining tooling limitation, and the one that was recorded never existed |
 | **ACCESSIBILITY** | **Baseline established and validated structurally on the real routes.** AT validation status: **REAL SCREEN-READER TEST NOT PERFORMED.** **No certification is claimed** |
 | **SEVERE BLOCKERS** | **ZERO** |
-| **NORMAL DEBT** | **eight items, listed in §10.54 C7** |
+| **NORMAL DEBT** | **nine items, listed in §10.54 C7** — the ninth was added on 2026-09-08 from product work (§10.56), not from an audit |
 
 #### What the closeout actually changed
 
@@ -6661,8 +6662,77 @@ table action model without **current product evidence** of a real contradiction.
 > **FOUNDATION MILESTONE COMPLETE · POST-CLOSURE CLOSEOUT COMPLETE · READY FOR NORMAL PRODUCT
 > DEVELOPMENT.**
 
+> **2026-09-08 — the system is being used as intended, and it produced one finding.** The seller
+> dashboard's money section was rebuilt (product decision `D-171`) using only existing tokens,
+> components and page Patterns: **zero new tokens, zero new shared components, zero Core changes**.
+> Doing it surfaced a real defect in `cn` — see **§10.56**, and debt item **9** above. That is what a
+> closed system looks like working: the product moves, and the system only gains a recorded finding.
+
 ---
 
+### 10.56 POST-CLOSURE FINDING FROM PRODUCT WORK — `cn` SILENTLY DROPS THE TYPOGRAPHY ROLES (2026-09-08)
+
+**This is not a block, not a wave, and not an audit.** It is one defect found while doing ordinary
+product work under §10.55, recorded here because it belongs to this track and because the next person
+to touch a semantic type role needs to know it. Nothing about the closure changes. **Wave numbering
+did not restart, no Core file was changed, no token was added, no component was created.**
+
+#### What was found
+
+`cn()` is `twMerge(clsx(...))`. `tailwind-merge` does not know this project's Wave 2 typography roles
+— `text-heading-h1..h4`, `text-metric-large`, `text-metric-x-large`, `text-body-*`, `text-label-*`,
+`text-caption-regular` — because they are theme extensions declared in `globals.css`, not Tailwind
+utilities. It classifies them as **colour** classes. So:
+
+```
+cn('text-heading-h3', TONE_TEXT[tone])   →  loses text-heading-h3
+```
+
+The element then inherits its font size. **There is no error, no warning and no type failure.**
+
+#### How it was found, and why that matters
+
+By **measuring the rendered page** with `getComputedStyle`, not by reading the code: money figures in
+the new seller-dashboard section rendered at **16 px** where the source asks for 20 and 24. Reading
+the JSX would never have shown it.
+
+Worse for detection: **variant-prefixed classes survive** (`@min-[400px]/estado:text-heading-h3` is a
+different merge group), so the figure grew correctly at wider breakpoints and was wrong **only at the
+base step**. That is the shape of a defect that ships.
+
+#### Blast radius, measured rather than assumed
+
+The pattern "typography role + colour role in the same `cn`" was searched across `src/`. At the time
+of writing it occurred **only in the new component**. `TicketPaymentSummary` does
+`cn('text-base …', 'text-muted-foreground')` and is **not** affected, because `text-base` is a stock
+utility `tailwind-merge` recognises. **This is a trap for future code, not a live product defect.**
+
+#### What was done, and what deliberately was not
+
+Applied locally: in `CollectionStateCard` those pairs are composed with `clsx` alone — correct,
+because a size and a colour do not conflict in CSS — and `cn` is kept for anything that can arrive
+from outside through `className`.
+
+**Not done, on purpose:** teaching `tailwind-merge` the roles via
+`extendTailwindMerge({ extend: { classGroups: { 'font-size': [...] } } })` in `src/lib/utils.ts`.
+That is the root fix, it is a **Design System decision**, and `cn` is used by every component in the
+product — including frozen Core. It does not belong inside a product change to one dashboard section.
+
+**Whoever takes it must also check** that no existing component was silently relying on the current
+drop: today the merge removes a class, and after the fix it would keep it.
+
+Tracked on the product side as **`I-099`** in `docs/KNOWN_ISSUES.md`, with **`I-100`** alongside it:
+`DonutChart` lost its only consumer when `FinancialSummaryCard` was replaced. **It is not deleted** —
+removing a Design System component is a decision for this track, not for a screen.
+
+#### One composition note worth carrying
+
+A tour anchor **must not be taller than a phone viewport**. The tour centres its target with
+`scrollIntoView({ block: 'center' })`, so a target taller than the screen ends up with its top edge
+off-screen and the popover follows it out — measured at **−138 px**. When a card grows past ~700 px,
+anchor the steps to the regions inside it, not to the card.
+
+---
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -6709,6 +6779,7 @@ table action model without **current product evidence** of a real contradiction.
 | **Closeout B commit** | **`a7e9d0fc81171a4ee25d248797cbe9e68d2632e5`** (`a7e9d0f`) — `docs(design-system): close parity and accessibility qa`, this handoff only (§10.53). **No production code changed**; the work was two Figma writes and real-route QA |
 | **Closeout C commit** | **`d25b0ac19ad6df7a2a3f8f69b8e9739063e48a79`** (`d25b0ac`) — `docs(design-system): complete post-closure closeout`, this handoff only (§10.54, §10.55). **No production code changed.** The final residue sweep and the closing status |
 | **Where a new session starts** | **§10.55**, not §10.51. The closeout is over; there is no next block |
+| **Post-closure product work** | **2026-09-08** — `D-171`, seller dashboard money section, on this same branch. **No Core file, no new token, no new component.** It contributed §10.56 and debt item 9, nothing else |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

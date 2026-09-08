@@ -892,10 +892,12 @@ Teléfono (< md)                          Escritorio (≥ md, sin cambios)
    aplicación entera se vuelve teléfono en 768 (§8.8, §8.9). El tope de 448 px (`max-w-md`) evita que
    entre 448 y 768 los botones se separen a los extremos de una ventana ancha.
 
-### 8.13 El panel del vendedor: siete piezas y un solo orden (D-112)
+### 8.13 El panel del vendedor: seis piezas y un solo orden (D-112, D-171)
 
 Rediseñado el 2026-08-25. Once bloques apilados pasaron a siete piezas, y **el mismo árbol** sirve
-para el teléfono y el escritorio.
+para el teléfono y el escritorio. El 2026-09-08 pasaron a **seis**: «Resumen financiero» y «Cobranza»
+se fundieron en **«Estado de cobro»**, que ocupa las dos columnas (D-171). La rejilla no cambió de
+forma.
 
 ```
 Escritorio (≥ lg)                              Teléfono (< lg)
@@ -903,14 +905,21 @@ Escritorio (≥ lg)                              Teléfono (< lg)
 Hola, X                    [11 a 17 ago 2026]  Hola, X · [11 a 17 ago 2026]
 [Resultados y próxima lotería]                 [Resultados y próxima lotería]
 [Recaud.][Por cobrar][Cobranza][Ganancia]      Accesos rápidos
-[   Resumen financiero  ][    Cobranza    ]    Indicadores (1 col)
-[ Mis boletas   ][ Actividad reciente     ]    Resumen financiero
-[ Tendencia     ][ Accesos rápidos        ]    Cobranza · Mis boletas
-                                               Tendencia · Actividad reciente
+[        Estado de cobro           ]           Indicadores (1 col)
+[ Mis boletas   ][ Actividad reciente     ]    Estado de cobro
+[ Tendencia     ][ Accesos rápidos        ]    Mis boletas · Tendencia
+                                               Actividad reciente
 ```
 
 El recuadro de **resultados oficiales** (D-147, §8.19) va **arriba** de esta rejilla, después de
-los avisos y de instalar. No entra en las siete piezas ni altera su `order`.
+los avisos y de instalar. No entra en las seis piezas ni altera su `order`.
+
+**Qué hay dentro de «Estado de cobro»** (`CollectionStateCard`, D-171). Encabezado con el inventario
+—las mismas tres cifras de «Mis boletas»—, el resumen del dinero (Total vendido · Ya cobraste · Falta
+cobrar · Avance del cobro, con `LinearProgress`) y, bajo una línea, «Boletas vendidas según su pago»:
+el grupo **Falta cobrar** con sus dos columnas enlazadas —«Sin pagos» y «Con abonos»— más la igualdad
+escrita, y el bloque **Pagadas**. Los tres bloques son enlaces a `/seller/tickets` ya filtrado, como
+lo eran las tres columnas de la «Cobranza» anterior.
 
 **Cómo se consigue con una sola rejilla.** El contenedor es `flex flex-col` en el teléfono y
 `lg:grid lg:grid-cols-2 lg:items-start`. El orden del móvil lo fijan clases `order-*` que se anulan
@@ -925,8 +934,18 @@ ancho de su tarjeta con `@container`:
 
 | Pieza | Umbral | Por qué |
 |---|---|---|
-| Anillo junto a «Total vendido» (`FinancialSummaryCard`) | `@min-[280px]` la fila · `@min-[400px]` y `@min-[560px]` el tamaño | Por debajo de 280 px de tarjeta —una pantalla de 320— «$120.000.000» no cabe al lado del anillo y la fila se vuelve columna (D-124). Con `sm:` la tarjeta quedaba partida en 192 y 66 px |
+| «Estado de cobro» (`CollectionStateCard`) | `@min-[280px]` y `@min-[640px]/estado` el resumen del dinero (1 → 2 → 4 columnas) · `@min-[400px]` y `@min-[820px]/estado` el tamaño de sus cifras · `@min-[380px]/estado` las dos columnas de «Falta cobrar», el aire de los bloques y la fila de «Pagadas» | Una consulta de contenedor mide la **caja de contenido**, así que los 48 px de `px-6` ya están descontados: 240 px en una pantalla de 320, 293 en una de 375, 416 en una tableta y 1039 en escritorio. Medido en la aplicación, no deducido (D-171) |
 | «Mis boletas» de 3×2 a seis en fila (`TicketsOverviewCard`) | `@min-[400px]/tickets` | Con `sm:` eran seis columnas de 43 px dentro de una tarjeta de media pantalla |
+
+> El anillo de `FinancialSummaryCard` ocupaba esta tabla hasta D-171 con `@min-[280px]` / `@min-[400px]`
+> / `@min-[560px]`. Esa tarjeta ya no existe.
+
+**`cn` no vale cuando un rol de tipografía comparte elemento con un rol de color** (D-171, `I-099`).
+`cn` es `twMerge(clsx(...))`, y `tailwind-merge` no conoce `text-heading-*` ni `text-metric-*` —son
+extensiones de tema de este proyecto—, así que los toma por clases de color y descarta el primero al
+ver un `text-data-*-foreground` detrás. La cifra sale entonces al tamaño heredado, sin error ni aviso.
+Donde solo se juntan un tamaño y un color se usa `clsx` a secas, que es correcto porque en CSS no se
+pisan; `cn` se reserva para lo que sí puede llegar de fuera por `className`.
 
 Los cuatro indicadores sí miran la ventana (`sm:grid-cols-2 xl:grid-cols-4`) porque ocupan el ancho
 completo: en `lg` el contenido mide 720 px —la barra lateral se lleva 256— y cuatro columnas dejaban
@@ -937,7 +956,7 @@ ancho y el contenido sube a 968. El reparto **no se revisó**.)
 
 | Componente | Cómo escala |
 |---|---|
-| `DonutChart` | `stroke-dasharray` sobre un lienzo 100 × 100. **El tamaño lo pasa quien lo usa**: crecer con la ventana se comía lo que va al lado. En el centro va **solo el porcentaje recaudado**, dimensionado en `cqw` contra el propio anillo, así que no se sale nunca; el dinero se lee fuera (D-124). Un segmento diminuto conserva un arco mínimo: una parte que vale dinero no puede ser invisible |
+| `DonutChart` | `stroke-dasharray` sobre un lienzo 100 × 100. **El tamaño lo pasa quien lo usa**: crecer con la ventana se comía lo que va al lado. En el centro va **solo el porcentaje recaudado**, dimensionado en `cqw` contra el propio anillo, así que no se sale nunca; el dinero se lee fuera (D-124). Un segmento diminuto conserva un arco mínimo: una parte que vale dinero no puede ser invisible. **Desde D-171 no lo usa ninguna pantalla**: era exclusivo de `FinancialSummaryCard`; se conserva como pieza del sistema de diseño (`I-100`) |
 | `TrendChart` | `viewBox` con proporción conservada y `vector-effect="non-scaling-stroke"`. Los textos del eje van **fuera** del SVG, en la misma rejilla: dentro crecerían con él. Cada punto lleva `<title>` (globo nativo, cero JavaScript) y debajo va la misma información en una lista `sr-only` |
 
 **Qué depende del período y qué no.** El selector escribe `range` en la URL (`7d`, `30d`, `month`,
@@ -949,7 +968,7 @@ de hoy: la base guarda el estado **actual** de cada boleta, no el que tenía hac
 
 | Función | Fuente | Nota |
 |---|---|---|
-| `getSellerPartialTicketTotals` | `v_ticket_balances`, boletas `assigned` + `partial` | La **única** cifra que `v_seller_summary` no da. Todo el reparto por estado de pago se deduce de ella (`collection-breakdown.ts`), y por eso **no hizo falta migración**. Tope de 5.000 filas: por encima devuelve `null` y el anillo pasa a dos partes |
+| `getSellerPartialTicketTotals` | `v_ticket_balances`, boletas `assigned` + `partial` | La **única** cifra que `v_seller_summary` no da. Todo el reparto por estado de pago se deduce de ella (`collection-breakdown.ts`), y por eso **no hizo falta migración** — tampoco en D-171, que solo añadió `pendingBy` al mismo módulo puro. Tope de 5.000 filas: por encima devuelve `null` y los grupos se quedan con sus recuentos y el pendiente total, sin repartirlo |
 | `getSellerActivity` | `report_payments_by_day` y `report_payment_totals` (migración `0013`) | Las mismas que alimentan el reporte de recaudo. Se lee `active_amount`: un pago anulado permanece en el historial pero no es dinero recibido |
 
 Y **tres menos**: `getSellerDashboard` dejó de pedir el recuento de clientes, los clientes recientes y

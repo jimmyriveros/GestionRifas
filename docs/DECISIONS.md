@@ -7279,6 +7279,105 @@ prueba física o legal de que el cliente recibió el documento.**
 
 ---
 
+## D-171 — «Estado de cobro»: una sola sección donde el dinero dice de qué es
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-08)
+
+**Contexto.** El panel del vendedor tenía dos tarjetas de dinero, una al lado de la otra, contando lo
+mismo de dos formas: **«Resumen financiero»** (anillo, total vendido y el reparto en «Pagadas ·
+Abonadas · Por cobrar») y **«Cobranza»** (los tres recuentos con su valor de venta debajo). La
+confusión no era del vendedor: era de la pantalla. **«Abonadas $15.640.000»** se lee como *dinero
+abonado* y era el **valor de venta** de esas boletas —la suma de lo que llevan pagado y lo que
+todavía deben—, así que la cifra más grande de esa columna no significaba lo que parecía, y no
+respondía a ninguna pregunta que se haga quien cobra.
+
+**Decisión 1 — una sección, no dos tarjetas.** «Estado de cobro» ocupa las dos columnas de la rejilla
+y contiene el resumen del dinero arriba y el reparto por estado de pago debajo. Las siete piezas del
+panel (D-112) pasan a seis; la rejilla no cambia de forma.
+
+**Decisión 2 — las boletas con abonos se dicen con SUS DOS cifras, nunca con su valor de venta.**
+«Con abonos · 131 boletas · **Todavía deben** $8.700.000 · **Ya abonaron** $6.940.000». El valor de
+venta de esas boletas (`saleValue.partial`) **no se escribe en ninguna parte de la sección**: era
+exactamente la cifra que se leía mal. Sigue existiendo en `collection-breakdown.ts` porque otras
+cuentas lo usan.
+
+**Decisión 3 — la igualdad que se entendía mal se escribe a la vista.** Bajo las dos columnas:
+`$44.760.000 + $8.700.000 = $53.460.000`. Es la razón de ser del grupo. Para quien no ve la pantalla
+va la frase entera en un `sr-only` —«más» e «igual» no siempre se anuncian— y el dibujo queda oculto,
+que es el recurso de D-114. Cada operador viaja pegado a su cifra en un `whitespace-nowrap`: con los
+símbolos sueltos, en el teléfono la primera línea terminaba en «=» y el resultado quedaba huérfano.
+
+**Decisión 4 — la igualdad no puede no cuadrar, y por eso no se calcula en la pantalla.**
+`buildCollectionBreakdown` gana `pendingBy: { unpaid, partial }`, que **reparte** el pendiente total
+en vez de derivar cada parte por su cuenta: `pending` es la cifra autoritativa —`v_seller_summary` la
+suma en SQL como `sale_price - paid_amount`— y las dos partes salen de ella, de modo que una ecuación
+escrita en pantalla no pueda contradecirse ni con un dato incoherente. Con datos sanos
+`pendingBy.unpaid` es idéntico a `saleValue.unpaid`.
+
+**Decisión 5 — los recuentos del grupo salen de los mismos tres números que se pintan debajo.** La
+insignia dice «714 boletas vendidas» sumando `unpaid + partial + paid`, no leyendo `ticketsAssigned`:
+la sección promete que sus categorías suman su título, y esa promesa no puede depender de que dos
+filtros distintos coincidan. El **encabezado** sí usa las tres cifras de «Mis boletas»
+(`ticketsTotal`, `ticketsAvailable`, `ticketsAssigned`), porque son la misma foto del inventario y
+deben decir lo mismo que esa tarjeta. Con boletas en borrador o pendientes de aprobación,
+disponibles + vendidas **no suman** el total; es cierto, es lo que ya hacía «Mis boletas», y no se
+maquilla.
+
+**Decisión 6 — el período no entra aquí.** El indicador **«Recaudado»** de la fila superior sigue
+gobernado por el selector de fechas y sigue fuera de la sección: mide lo que **entró** en unas fechas,
+mientras que todo lo de esta tarjeta es la foto acumulada de hoy (D-112). Nada de la sección se mueve
+al cambiar el período.
+
+**Decisión 7 — el anillo se retira y la barra es `LinearProgress`.** «Avance del cobro» no reparte una
+cantidad en categorías: mide cuánto falta para haberlo cobrado todo, que es literalmente el caso que
+ese componente documenta. `DonutChart` queda **sin ningún consumidor**; no se elimina, porque es una
+pieza del sistema de diseño y retirarla es otra tarea (queda anotado en `KNOWN_ISSUES`).
+
+**Decisión 8 — el color refuerza, nunca informa solo.** Cada cifra lleva su rótulo escrito al lado y
+los roles son los de `tones.ts`: rojo `unpaid` para lo que no ha pagado nada, azul `partial` para los
+abonos recibidos, gris `pending` para lo que todavía no ha entrado, verde `paid` para lo cobrado. Los
+dos operandos de la ecuación repiten el color de la cifra de la que salen. Medido en la aplicación:
+**34 textos, todos por encima de AA, mínimo 5.36:1**.
+
+**Los términos, y la contradicción que traen (`CLAUDE.md` §35.2.4).** El encargo pide **«Sin
+pagos»**, **«Con abonos»**, **«Deben»** y **«Todavía deben»**. Las tres primeras chocan con material
+vigente de la guía: las etiquetas de estado son «Sin pagar · Abonada · Pagada» (§27, §35.2.5) y
+«Debe» está en la columna «Nunca usar» de **Falta** en el Anexo A. Se aplica la jerarquía —manda la
+solicitud explícita del usuario— **y se aplica también el procedimiento**: los términos entran en el
+Anexo A **con su alcance acotado a esta sección**, y `TICKET_PAYMENT_STATUS_LABELS` **no se toca**, de
+modo que la insignia de una boleta sigue diciendo «Abonada» en las cuatro listas y en su detalle. La
+razón de fondo es la de la propia guía: «Abonadas» como rótulo de una cifra de dinero **describía
+peor** la acción, que es el criterio que §35.2.2 pone por encima de sonar mejor.
+
+**Error encontrado al implementar, y corregido.** `cn()` —`twMerge(clsx(...))`— **descartaba en
+silencio los roles tipográficos propios del sistema de diseño** cuando iban en el mismo elemento que
+un rol de color: `cn('text-heading-h3', TONE_TEXT[tone])` perdía `text-heading-h3` y la cifra salía al
+tamaño heredado. `tailwind-merge` no conoce `text-heading-*` ni `text-metric-*` —son extensiones de
+tema de este proyecto— y los toma por clases de color. Se detectó **midiendo la pantalla**, no
+leyendo el código: los importes salían a 16 px donde debían ir a 20 y 24. En esta pieza los pares
+tamaño + color se juntan con `clsx` a secas, que es correcto porque un tamaño y un color no se pisan
+en CSS; `cn` se conserva donde de verdad puede llegar una clase de fuera. Queda anotado como riesgo
+transversal en `KNOWN_ISSUES` (`I-099`).
+
+**Alternativas descartadas.** (a) **Conservar las dos tarjetas y arreglar solo el rótulo de
+«Abonadas»**: deja el mismo dinero contado dos veces en la misma pantalla, que es la mitad del
+problema. (b) **Una consulta o una vista nueva** para separar el pendiente por estado: no hace falta
+ninguna —se deduce de lo que ya trae `getSellerPartialTicketTotals`— y una migración habría que
+promoverla al proyecto real antes de desplegar. (c) **Calcular las dos mitades por separado** y
+enseñar la suma: bastaba un dato incoherente para que la ecuación escrita no cuadrara. (d) **Meter
+«Mis boletas» dentro de la sección**: el encargo acota el alcance a las dos tarjetas de dinero, y esa
+tarjeta es inventario, no cobro. (e) **Someter la sección al selector de fechas**: cambiaría el
+significado de todas sus cifras y exigiría un historial de estados que la base no guarda. (f)
+**Renombrar el indicador «Cobranza»** de arriba para no repetir el porcentaje: está fuera de alcance y
+es una cifra que se mira desde otra pregunta.
+
+**Consecuencia.** `FinancialSummaryCard` y `CollectionStatusCard` **desaparecen**, sustituidas por
+`CollectionStateCard`. Ninguna consulta, regla de negocio, migración ni política cambia. Los dos pasos
+del recorrido guiado del vendedor que describían el anillo y las etiquetas antiguas se reescriben
+sobre sus mismos anclajes.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

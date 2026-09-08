@@ -6,23 +6,62 @@ import { ACCOUNTS, loginAs } from './fixtures'
  * El dinero del panel, en los DOS portales.
  *
  * El administrativo conserva la tarjeta «Resumen de cobranza» (D-090). El del
- * vendedor la sustituyo por «Resumen financiero», que reparte el mismo total en
- * tres partes (D-112).
+ * vendedor tiene «Estado de cobro», una sola seccion que reparte el mismo total
+ * y ademas escribe a la vista de que se compone lo que falta por cobrar
+ * (D-112, D-171).
  *
  * La aritmetica (vendido/recaudado/pendiente/estados de pago) ya la prueban a
  * fondo las vistas SQL en tests/db. Lo que se verifica aqui es lo que solo se
  * puede ver end-to-end: que el panel pinte EXACTAMENTE los mismos numeros que
  * las tarjetas de /owner/payments y /seller/payments —alimentadas por el mismo
- * `dashboard.totals`—, que las partes del grafico sumen su total, y que sin
- * ventas se vea un estado vacio limpio en vez de un grafico de ceros.
+ * `dashboard.totals`—, que las cifras de la seccion cuadren entre si, y que sin
+ * ventas se vea un estado vacio limpio en vez de una pantalla de ceros.
  */
 
 function parseCOP(text: string): number {
   return Number.parseInt(text.replace(/[^0-9]/g, ''), 10)
 }
 
+/** La tarjeta «Resumen de cobranza» del panel administrativo (D-090). */
 function summaryCard(page: Page) {
   return page.locator('[data-tour="financial-summary"]')
+}
+
+/**
+ * La sección «Estado de cobro» del panel del vendedor.
+ *
+ * Se busca por `data-section` y no por el anclaje del recorrido: desde D-171
+ * ese anclaje marca **una mitad** de la tarjeta —las cuatro cifras—, porque una
+ * tarjeta más alta que el teléfono deja el globo del recorrido fuera de la
+ * pantalla. Las pruebas necesitan la tarjeta entera.
+ */
+function estadoDeCobro(page: Page) {
+  return page.locator('[data-section="estado-de-cobro"]')
+}
+
+/** Una de las cuatro cifras del resumen del dinero, por su rotulo. */
+async function figura(page: Page, label: string): Promise<number> {
+  const fila = estadoDeCobro(page)
+    .locator('dl > div')
+    .filter({
+      has: page.getByText(label, { exact: true }),
+    })
+  return parseCOP((await fila.locator('dd').textContent()) ?? '')
+}
+
+/** El bloque de un estado de pago, por su nombre. */
+function bloque(page: Page, name: string) {
+  return estadoDeCobro(page)
+    .locator('a[href*="paymentStatus="]')
+    .filter({ has: page.getByText(name, { exact: true }) })
+}
+
+/** Una de las cifras de dentro de un bloque, por su rotulo. */
+async function importe(page: Page, name: string, label: string): Promise<number> {
+  const fila = bloque(page, name)
+    .locator('dl > div')
+    .filter({ has: page.getByText(label, { exact: true }) })
+  return parseCOP((await fila.locator('dd').textContent()) ?? '')
 }
 
 async function metricCardValue(page: Page, label: string): Promise<number> {
@@ -79,38 +118,69 @@ test.describe('Resumen de cobranza del panel administrativo (D-090)', () => {
   })
 })
 
-test.describe('Resumen financiero del panel del vendedor (D-112)', () => {
-  test('el total del anillo es lo vendido, y sus tres partes lo suman', async ({ page }) => {
+test.describe('Estado de cobro del panel del vendedor (D-112, D-171)', () => {
+  test('las cifras de la sección cuadran entre sí y con /seller/payments', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/dashboard')
 
-    await expect(summaryCard(page).getByText('Resumen financiero')).toBeVisible()
-    // La tarjeta anterior no puede quedar tambien: seria el mismo dinero
+    await expect(estadoDeCobro(page).getByText('Estado de cobro')).toBeVisible()
+    // Las tarjetas anteriores no pueden quedar tambien: seria el mismo dinero
     // contado dos veces en la misma pantalla.
     await expect(page.getByText('Resumen de cobranza')).toHaveCount(0)
+    await expect(page.getByText('Resumen financiero')).toHaveCount(0)
     await expect(page.getByText('Tu ganancia')).toHaveCount(0)
     // Ya esta en /seller/tickets (encabezado + estado vacio); en el panel seria redundante.
     await expect(page.getByRole('link', { name: 'Crear boletas' })).toHaveCount(0)
 
-    const total = parseCOP(
-      (await summaryCard(page)
-        .getByText(/^\$[\d.]+$/)
-        .first()
-        .textContent())!,
-    )
+    const [totalVendido, yaCobraste, faltaCobrar] = await Promise.all([
+      figura(page, 'Total vendido'),
+      figura(page, 'Ya cobraste'),
+      figura(page, 'Falta cobrar'),
+    ])
 
-    const partes = await Promise.all(
-      ['Pagadas', 'Abonadas', 'Por cobrar'].map(async (label) => {
-        const fila = summaryCard(page).locator('li').filter({ hasText: label })
-        return parseCOP((await fila.textContent())!.replace(/\(\d+%\)/, ''))
-      }),
-    )
+    // La igualdad de arriba: lo cobrado mas lo que falta es lo vendido.
+    expect(yaCobraste + faltaCobrar).toBe(totalVendido)
 
-    // La propiedad que sostiene el grafico: pagado + abonado + pendiente = total.
-    expect(partes.reduce((suma, parte) => suma + parte, 0)).toBe(total)
+    const [deben, todaviaDeben, yaAbonaron, cobrado] = await Promise.all([
+      importe(page, 'Sin pagos', 'Deben'),
+      importe(page, 'Con abonos', 'Todavía deben'),
+      importe(page, 'Con abonos', 'Ya abonaron'),
+      importe(page, 'Pagadas', 'Cobrado'),
+    ])
+
+    // La igualdad que la seccion escribe a la vista, bajo las dos columnas.
+    expect(deben + todaviaDeben).toBe(faltaCobrar)
+    // Y la que se deduce leyendo el resumen de arriba.
+    expect(cobrado + yaAbonaron).toBe(yaCobraste)
+
+    // El valor de venta de las boletas con abonos NO se escribe en ningun
+    // sitio: era la cifra que se leia como dinero abonado y no lo era (D-171).
+    if (todaviaDeben > 0 && yaAbonaron > 0) {
+      const cifras = (await bloque(page, 'Con abonos').locator('dd').allTextContents()).map(
+        parseCOP,
+      )
+      expect(cifras).not.toContain(todaviaDeben + yaAbonaron)
+    }
 
     await page.goto('/seller/payments')
-    expect(total).toBe(await metricCardValue(page, 'Total vendido'))
+    expect(totalVendido).toBe(await metricCardValue(page, 'Total vendido'))
+    expect(faltaCobrar).toBe(await metricCardValue(page, 'Saldo pendiente'))
+  })
+
+  test('cada estado de pago lleva a su lista ya filtrada', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/dashboard')
+
+    for (const [nombre, estado] of [
+      ['Sin pagos', 'unpaid'],
+      ['Con abonos', 'partial'],
+      ['Pagadas', 'paid'],
+    ] as const) {
+      await expect(bloque(page, nombre)).toHaveAttribute(
+        'href',
+        `/seller/tickets?inventoryStatus=assigned&paymentStatus=${estado}`,
+      )
+    }
   })
 
   test('los indicadores de arriba coinciden con las tarjetas de Pagos', async ({ page }) => {
@@ -138,12 +208,13 @@ test.describe('Resumen financiero del panel del vendedor (D-112)', () => {
     await page.goto('/seller/dashboard')
 
     await expect(page.getByText('Rifa activa')).toHaveCount(0)
-    await expect(summaryCard(page).getByText(/Aún no tienes ventas registradas/)).toBeVisible()
-    // Sin ventas no se dibuja el anillo: un grafico de ceros no informa de nada.
-    await expect(summaryCard(page).locator('svg')).toHaveCount(0)
-    await expect(
-      page.getByText('Todavía no has vendido ninguna boleta, así que no hay nada por cobrar.'),
-    ).toBeVisible()
+    await expect(estadoDeCobro(page).getByText(/Aún no tienes ventas registradas/)).toBeVisible()
+    // Sin ventas no se dibuja ni el resumen ni los grupos: una pantalla de
+    // ceros y una barra vacia no informan de nada.
+    await expect(estadoDeCobro(page).getByRole('progressbar')).toHaveCount(0)
+    await expect(estadoDeCobro(page).locator('a[href*="paymentStatus="]')).toHaveCount(0)
+    // El inventario SI se dice: el vendedor tiene boletas, solo que sin vender.
+    await expect(estadoDeCobro(page).getByText(/boletas? en total/)).toBeVisible()
 
     // Y ninguna cifra rota por dividir entre cero.
     await expect(page.getByText(/NaN|Infinity/)).toHaveCount(0)

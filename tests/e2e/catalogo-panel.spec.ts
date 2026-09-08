@@ -60,12 +60,12 @@ test.describe('la tarjeta con el catálogo activo', () => {
   test('está cerca de la parte superior, antes del recuadro de loterías', async ({ page }) => {
     const titulos = await page
       .locator('h1, [data-slot="card-title"]')
-      .filter({ hasText: /Hola,|Mi catálogo público|Resultados y próxima lotería|Resumen financiero/ })
+      .filter({ hasText: /Hola,|Mi catálogo público|Resultados y próxima lotería|Estado de cobro/ })
       .allTextContents()
 
     const catalogo = titulos.findIndex((t) => t.includes('Mi catálogo público'))
     const loterias = titulos.findIndex((t) => t.includes('Resultados y próxima lotería'))
-    const financiero = titulos.findIndex((t) => t.includes('Resumen financiero'))
+    const financiero = titulos.findIndex((t) => t.includes('Estado de cobro'))
 
     expect(catalogo).toBeGreaterThanOrEqual(0)
     expect(catalogo).toBeLessThan(loterias === -1 ? Number.MAX_SAFE_INTEGER : loterias)

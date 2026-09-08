@@ -342,6 +342,11 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Lo que falta por cobrar de una boleta, **en la columna de una tabla larga** | **Falta** (D-130) | Debe, pendiente, restante |
 | Lo mismo, donde sí cabe el término entero: la ficha del cliente y el detalle | **Saldo pendiente**, o **Saldo** en una tarjeta de teléfono | Deuda, mora, pasivo |
 | Qué parte del precio lleva abonada una boleta | **Progreso**, y el texto **«58 % abonado»** (D-130) | Avance, completitud, cumplimiento |
+| La sección del panel del vendedor donde vive todo su dinero | **Estado de cobro** (D-171) | Resumen financiero, Cobranza, Finanzas |
+| Ahí, el grupo de boletas de las que NO ha entrado nada | **Sin pagos**, y su dinero **Deben** (D-171) | Sin pagar como rótulo de una cifra de dinero |
+| Ahí, el grupo de boletas que ya abonaron una parte | **Con abonos**, y sus dos cifras **Todavía deben** y **Ya abonaron** (D-171) | Abonadas como rótulo de una cifra de dinero |
+| Ahí, el dinero ya recibido y el que falta | **Ya cobraste** y **Falta cobrar** (D-171) | Recaudado, Por cobrar, Cartera |
+| Ahí, qué parte del total vendido se lleva cobrada | **Avance del cobro** (D-171) | Cobranza, % recaudado, cumplimiento |
 | Columna que contiene lo que se puede hacer con la fila | **Acción** si hay una sola; **Acciones** si abre un menú (D-114) | Dejar la columna sin encabezado |
 | Identificador que genera el sistema | **Código interno** | ID, código de barras |
 | Persona que compra | **Cliente** | Comprador, usuario, participante |
@@ -669,6 +674,24 @@ cifras en vez de hablar en abstracto: «El abono de $150.000 supera el precio de
 **«Resultado»**, si la fila sirve o no. Dos columnas tituladas «Estado» a un centímetro se leen una
 por la otra.
 
+**En «Estado de cobro», una etiqueta de estado NO puede rotular una cifra de dinero** (D-171). Es la
+regla que ordena toda esa sección del panel del vendedor, y nació de un error real: «Abonadas
+$15.640.000» se leía como *dinero abonado* y era el **valor de venta** de esas boletas. Por eso ahí
+los grupos se llaman **«Sin pagos»** y **«Con abonos»** —describen al conjunto de boletas, no su
+estado— y cada importe lleva su propio rótulo: **«Deben»**, **«Todavía deben»**, **«Ya abonaron»**,
+**«Cobrado»**. El valor de venta de las boletas a medias **no se escribe en ninguna parte**: nadie
+que cobre se hace esa pregunta.
+
+Y el **estado de una boleta sigue diciéndose con las etiquetas de siempre**: la insignia dice
+«Abonada» en las cuatro listas y en el detalle, `TICKET_PAYMENT_STATUS_LABELS` no se toca, y estos
+cuatro rótulos **solo valen dentro de esa sección**. Es la excepción acotada que ya existe con
+«Cancelado» en la columna «Abono» de un archivo (D-129), no una puerta abierta a renombrar estados.
+
+**Ahí «Deben» sí se puede escribir, y es la única parte de la aplicación donde se puede.** El Anexo A
+lo prohíbe para la columna «Falta» de una tabla, y esa prohibición sigue en pie: allí compite con
+«Falta» por el mismo hueco. Aquí no compite con nada —encabeza un importe dentro de un bloque que ya
+se llama «Sin pagos»— y es lo que un vendedor dice en voz alta.
+
 **«Falta» y «Saldo pendiente» son la misma cifra con dos nombres, y no es un descuido** (D-130).
 El término del glosario es **saldo pendiente**, y se escribe entero dondequiera que quepa: la
 ficha del cliente, el detalle de la boleta, las tarjetas de resumen. En la tabla de «Mis boletas»
@@ -982,7 +1005,8 @@ castigo donde solo había una espera.
 | Nombre de lo que cuenta cada listado en su paginación | `src/lib/constants.ts` (`LIST_ITEM_LABELS`, D-111) |
 | Etiquetas de estado de pago en plural, para encabezar grupos | `src/lib/constants.ts` (`TICKET_PAYMENT_STATUS_PLURAL_LABELS`, D-112) |
 | Nombres de los períodos del panel del vendedor | `src/features/dashboard/date-range.ts` (`DASHBOARD_RANGE_LABELS`, D-112) |
-| Textos de las siete piezas del panel del vendedor | `src/features/dashboard/components/`, una por pieza (D-112) |
+| Textos de las seis piezas del panel del vendedor | `src/features/dashboard/components/`, una por pieza (D-112, D-171) |
+| Todos los textos de «Estado de cobro»: título, inventario del encabezado, las cuatro cifras, los tres grupos y la frase de la igualdad | `src/features/dashboard/components/CollectionStateCard.tsx`, **todos juntos** (D-171) |
 | Etiquetas de estado de un cliente («Activo», «Archivado») | `src/lib/constants.ts` (`CLIENT_STATUS_LABELS`, D-113) |
 | Encabezados de columna | El `header` de cada columna, en el `*Table.tsx` de su módulo (D-114) |
 | Rótulos y textos de la ficha del cliente | `src/features/clients/components/ClientInfoCard.tsx` y `ClientTotals.tsx` (D-113) |

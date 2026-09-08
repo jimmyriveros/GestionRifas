@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente (D-170, 2026-09-05) | **791 ✅** | **812 ✅** | **536/539** — los 3 restantes son ajenos y **comprobados** (ver más abajo) | ✅ | ✅ |
+| Post-9 vigente (D-171, 2026-09-08) | **796 ✅** | **812 ✅** (sin cambios: no se tocó la base) | **170/170** dirigidas — no se corrió la suite completa | ✅ | ✅ |
+| Post-9 anterior (D-170, 2026-09-05) | **791 ✅** | **812 ✅** | **536/539** — los 3 restantes son ajenos y **comprobados** (ver más abajo) | ✅ | ✅ |
 | Post-9 anterior (D-169, 2026-09-05) | **772 ✅** | **779 ✅** | **521/525** (los 4 restantes son ajenos y **comprobados**: 2 de `back-navigation` por caché fría —I-075, en caliente **9/9**— y 2 de acumulación por orden de ejecución, `reports` de D-150 y `ventas-por-fecha`, esta con la **misma cifra** que ya registró D-168) | ✅ | ✅ |
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
@@ -31,6 +32,94 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## «Estado de cobro» en el panel del vendedor (D-171) — 2026-09-08
+
+**Encargo.** Fundir «Resumen financiero» y «Cobranza» en una sola sección donde cada cifra diga de
+qué es, **sin tocar consultas, reglas ni el significado de ningún dato**. El origen del encargo es un
+error de lectura real: «Abonadas $15.640.000» se lee como dinero abonado y era el **valor de venta**
+de esas boletas.
+
+### Lo que se comprobó antes de escribir código
+
+Que **no hacía falta ninguna consulta nueva**: `v_seller_summary` define `pending_amount` como
+`sum(sale_price - paid_amount)` filtrado a `assigned` —leído en `0008_views.sql`—, así que lo que
+falta por cobrar de las boletas con abonos sale de restar a esa cifra lo que deben las que no han
+pagado nada, y `getSellerPartialTicketTotals` ya trae el único dato que la vista no da. Se confirmó
+además que la aritmética de referencia del encargo cuadra con ese modelo antes de dibujar nada.
+
+### Verificaciones ejecutadas
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` (línea base, antes de tocar nada) | ✅ |
+| `npm run test` (línea base) | ✅ **791/791** en 47 archivos |
+| `npx supabase start` | ✅ (contenedores ya levantados) |
+| `npm run db:reset && npm run seed:local` | ✅ — hubo que hacerlo: la base local traía **10.132 boletas**, el volumen que deja `test:db` |
+| `npm run verify` | ✅ typecheck · lint **0 errores, 2 avisos preexistentes** · **796/796** unitarias en 47 archivos (+5) · build |
+| `npm run test:db` | ✅ **812/812** en 38 archivos — **misma cifra que antes**, que es lo que debe pasar cuando no se toca la base |
+| `npx playwright test dashboard-collection-summary --project=escritorio` | ✅ **5/5** (una prueba nueva) |
+| `npx playwright test tour catalogo-panel security dashboard-collection-summary --project=escritorio` | ✅ **50/50** |
+| `npx playwright test catalogo-publico --project=escritorio` | ✅ **43/43** |
+| `npx playwright test loterias-panel reports seller-tickets --project=escritorio` | ✅ **47/47** |
+| `npx playwright test catalogo-panel-movil loterias-panel-movil navegacion-movil seller-ciclo-movil tour-responsive --project=movil` | ✅ **25/25** |
+| `npx prettier --check` sobre los 7 archivos tocados | ✅ **cero diferencias de estilo**; lo que marca son **finales de línea**, la condición preexistente que el cierre del sistema de diseño ya documentó |
+
+### Verificación en el navegador — midiendo, no mirando
+
+Sesión real de `vendedor1@demo.test` sobre la base sembrada, en **320, 375, 768 y 1360 px**:
+
+| Qué | Resultado |
+|---|---|
+| Desbordamiento horizontal de la página y de la tarjeta | **cero** en los cuatro anchos |
+| Resumen del dinero | 1 columna a 320 · 2 a 375 y 768 · **4** a 1360; la cifra crece 16 → 20 → 24 px con la tarjeta |
+| «Sin pagos» y «Con abonos» | apiladas a 320 y 375; **dos columnas** desde 768 |
+| Contraste de los **34 textos** de la sección | **todos** por encima de AA; mínimo **5,36:1** (medido componiendo cada fondo real, con las funciones de contraste de WCAG) |
+| Aritmética contra datos reales | `$21.210.000 + $12.175.997 = $33.385.997` ✅ · `$3.240.000 + $4.564.003 = $7.804.003` ✅ · `$7.804.003 + $33.385.997 = $41.190.000` ✅ · `19 %` ✅ · `179 + 141 = 320` y `320 + 28 = 348` ✅ |
+| El encabezado contra «Mis boletas» | **idénticos**: 10.132 / 6.380 / 348, y 179 / 141 / 28 |
+
+### Errores encontrados, y corregidos
+
+**1) `cn` descartaba en silencio los roles tipográficos del sistema de diseño (I-099).** Los importes
+salían a **16 px** donde debían ir a 20 y 24. `cn` es `twMerge(clsx(...))` y `tailwind-merge` no
+conoce `text-heading-h3` ni `text-metric-large` —son extensiones de tema de este proyecto—, así que
+los toma por clases de color y descarta el primero al ver el `text-data-*-foreground` que va detrás.
+**No hay error, ni aviso, ni fallo de tipos.** Se encontró **midiendo `getComputedStyle` en la
+aplicación**, no leyendo el código, y se comprobó que las variantes responsivas sí sobreviven —lo que
+lo hacía aún más difícil de ver: la cifra crecía al ensanchar y solo estaba mal en el escalón base—.
+Corregido juntando esos pares con `clsx`. Queda **abierto como riesgo transversal**.
+
+**2) Los umbrales de `@container` estaban puestos contra la tarjeta, y se miden contra el
+contenido.** A 375 px el resumen se quedaba en **una** columna cuando debía ir a dos: la consulta de
+contenedor descuenta los 48 px de `px-6`, así que el ancho útil vale 240 / 293 / 416 / 1039 px y no
+lo que mide la tarjeta. Se detectó leyendo `gridTemplateColumns` en el navegador. Los cinco umbrales
+se recalcularon sobre medidas reales.
+
+**3) El globo del recorrido guiado se salía de la pantalla del teléfono.** `tour-responsive` falló en
+el paso 3 con `y = −138 px` y, tras el primer arreglo, en el paso 5 con `y + alto = 943` sobre una
+pantalla de 840. La causa es de fondo: el recorrido centra su objetivo con
+`scrollIntoView({block:'center'})`, y **un objetivo más alto que la pantalla queda con el borde
+superior fuera**. La tarjeta fundida mide 721 px. Corregido moviendo los dos anclajes **dentro** de
+la tarjeta —las cuatro cifras (78 px) y el grupo «Falta cobrar» (272 px)—, que además es lo que cada
+paso describe; el paso de la cobranza se reescribió para nombrar solo lo que su foco ilumina.
+
+### Dos fallos ajenos, comprobados y descartados
+
+**14 pruebas de `catalogo-publico` fallaban con `page.goto` agotando los 60 s.** Es **I-098**: el
+servidor de desarrollo con horas encima y decenas de recompilaciones tumba rutas enteras. Al
+reiniciarlo, **43/43** en verde. No lo provoca este trabajo, que no toca el catálogo.
+
+**`equipo-movil` → «ninguna pantalla se desborda entre 320 y 430 px» falla en `/seller/team` por 14
+px.** Se comprobó en vez de suponerlo: se **guardó el trabajo con `git stash`** y la prueba **falla
+igual sobre el árbol limpio**. Es preexistente y de otra pantalla.
+
+### Qué NO cambió, y se verificó que no cambió
+
+Ninguna migración, política, vista, RPC ni regla de negocio. `test:db` da la **misma** cifra que
+antes (812/812). El indicador **«Recaudado»**, el único gobernado por el selector de fechas, conserva
+su comportamiento y su prueba. `TICKET_PAYMENT_STATUS_LABELS` no se toca: la insignia de una boleta
+sigue diciendo «Abonada» en las cuatro listas y en su detalle.
+
+---
 ## Post-9 — Promoción a producción de D-170 y de la migración `0049` (2026-09-05)
 
 Autorizada expresamente en el encargo, que además autorizaba **el único cambio de datos**: la carga
