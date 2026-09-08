@@ -331,15 +331,29 @@ test.describe('Estados de la lista de clientes al asignar una boleta', () => {
     // estado en reposo.
     await page.mouse.move(0, 0)
     const selected = await backgroundOf(option)
+    expect(selected).not.toBe(unselected)
     expect(await textContrast(nameText)).toBeGreaterThanOrEqual(4.5)
 
     await option.hover()
-    const selectedHover = await backgroundAfterChange(option, selected)
+    const selectedHover = await backgroundOf(option)
 
-    // Sigue viéndose elegido —el fondo no vuelve al de una opción cualquiera—,
-    // el hover se nota, y el nombre nunca se acerca a su propio fondo.
+    /*
+      LO ELEGIDO MANDA SOBRE EL CURSOR (D-174).
+
+      Una opción ya elegida NO cambia de fondo al pasar por encima, y es lo
+      correcto: volver a tocarla no hace nada —los dos usos de esta lista
+      llaman a `onSelect` con el id que ya estaba elegido—, así que un cambio
+      de color anunciaría una acción que no existe. Es además la regla que
+      evita I-033: los estados son excluyentes y nunca se acumulan, porque
+      mezclar el fondo de uno con el texto del otro es lo que hacía desaparecer
+      el nombre del cliente.
+
+      Hasta la activación de marca del sistema de diseño la rama elegida
+      llevaba `hover:bg-primary/90` y esta prueba exigía que el fondo cambiara.
+      Esa expectativa quedó obsoleta con el componente, no al revés.
+    */
+    expect(selectedHover).toBe(selected)
     expect(selectedHover).not.toBe(unselected)
-    expect(selectedHover).not.toBe(selected)
     expect(await textContrast(nameText)).toBeGreaterThanOrEqual(4.5)
   })
 
@@ -349,8 +363,17 @@ test.describe('Estados de la lista de clientes al asignar una boleta', () => {
     await option.hover()
     await backgroundOf(option) // deja terminar la transición de color
 
-    // La línea secundaria es la primera en perderse: más pequeña y más suave.
-    const description = option.locator('span.text-xs').first()
+    /*
+      La línea secundaria es la primera en perderse: más pequeña y más suave.
+
+      Se busca por `text-caption-regular`, que es el ROL del sistema de diseño
+      (Wave 2). Antes decía `span.text-xs`, y esa clase dejó de existir cuando
+      la tipografía pasó a roles semánticos: el localizador no encontraba nada
+      y la prueba agotaba su tiempo sin llegar a comprobar el contraste, que es
+      lo único que venía a comprobar.
+    */
+    const description = option.locator('span.text-caption-regular').first()
+    await expect(description).toBeVisible()
     expect(await textContrast(description)).toBeGreaterThanOrEqual(4.5)
   })
 

@@ -13,10 +13,22 @@ import { cn } from '@/lib/utils'
  * claro del hover con el texto claro de la seleccion, y el nombre del cliente
  * desaparecia justo al pasar el dedo por encima (I-033).
  *
- * La regla que lo evita: los estados son EXCLUYENTES, nunca acumulables. Una
- * opcion elegida trae su propio hover; una sin elegir, el suyo. Asi ninguna
- * combinacion puede mezclar el fondo de uno con el texto del otro, y no depende
- * de que gane una regla por especificidad o por orden.
+ * La regla que lo evita: los estados son EXCLUYENTES, nunca acumulables. Asi
+ * ninguna combinacion puede mezclar el fondo de uno con el texto del otro, y no
+ * depende de que gane una regla por especificidad o por orden.
+ *
+ * LO ELEGIDO MANDA SOBRE EL CURSOR (D-174). Una opcion SIN elegir trae su
+ * hover, porque tocarla hace algo: la elige. Una opcion YA elegida **no lo
+ * lleva**, y es deliberado: volver a tocarla no hace nada —los dos usos de esta
+ * lista llaman a `onSelect` con el id que ya estaba elegido, y eso no cambia
+ * ningun estado—, asi que un cambio de color al pasar por encima anunciaria una
+ * accion que no existe.
+ *
+ * Es la misma regla de `NavLinks` y de la seleccion de `TicketCardList`: en las
+ * tres, el estado persistente gana y el hover no se pinta encima. Si algun dia
+ * una opcion elegida gana una accion propia —quitarla de la seleccion, por
+ * ejemplo—, entonces si hara falta un tratamiento de «elegida + cursor», y
+ * habra que elegirle un rol; hoy no lo hay porque no hay accion que anunciar.
  *
  * La eleccion no se marca solo con color (CLAUDE.md 27): lleva ademas un visto
  * y `aria-selected`. El hueco del visto se reserva siempre, para que elegir una

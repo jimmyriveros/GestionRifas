@@ -6618,7 +6618,7 @@ be done; this one records that it is done. Everything above both of them is hist
 | **FIGMA ↔ CODE PARITY** | **COMPLETE.** Both items synced; there is no remaining tooling limitation, and the one that was recorded never existed |
 | **ACCESSIBILITY** | **Baseline established and validated structurally on the real routes.** AT validation status: **REAL SCREEN-READER TEST NOT PERFORMED.** **No certification is claimed** |
 | **SEVERE BLOCKERS** | **ZERO** |
-| **OPEN REGRESSION FROM WAVE 3B2** | **`I-101`** — brand activation removed the hover state from an already-selected `OptionList` row and did not replace it. Found on 2026-09-08 by the **first full Playwright run on this branch** (§10.57). Cosmetic, and selection is still not colour-only, but it needs a token decision from this track |
+| **WAVE 3B2 FOLLOW-UP — CLOSED** | **`I-101`**, opened and closed on 2026-09-08 (D-174). Two E2E tests failed on hovering an already-selected `OptionList` row. **The product was right and the tests were stale**, from two different waves: one expected a hover the brand activation had removed (`7a851f8`), the other used `span.text-xs`, a class Wave 2 renamed (`b33003e`). **No hover was restored and no token was created**: clicking an already-selected option does nothing, so colouring it would advertise an action that does not exist. The rule — persistent state wins over hover, as in `NavLinks` and `TicketCardList` — is now written in `OptionList` |
 | **NORMAL DEBT** | **eight items, listed in §10.54 C7.** A ninth was added on 2026-09-08 from product work (§10.56) and **closed the same day at the root** (§10.57) |
 
 #### What the closeout actually changed
@@ -6841,10 +6841,20 @@ list, and no background class enters or leaves — and it was verified against t
 anywhere in this handoff.** Unit tests and a harness built from class strings cannot see that a hover
 state stopped existing; a browser driving the real component can.
 
-**Not fixed here**, because choosing the token for "selected row, cursor over it" is a Design System
-decision, not a product one — the natural shape is a `selection/surface-hover` role beside the
-existing `selection/surface`. Tracked as `I-101`. **The selection is still not announced by colour
-alone** (check mark + `aria-selected`), so `CLAUDE.md` §27 holds and the impact is cosmetic.
+**Audited and closed the same day** (`I-101`, D-174), and the answer was the opposite of the
+hypothesis: **the product is right and the tests were stale**. Clicking an already-selected option
+does nothing — both consumers call `onSelect` with the id that is already selected — so a hover colour
+would advertise an action that does not exist, and would reintroduce the I-033 risk the exclusive-state
+rule exists to prevent. **No hover was restored. No token was created.** `surface-pressed` was
+considered and rejected: there is no responsibility to express.
+
+The second test was stale for an entirely different reason — it located `span.text-xs`, a class **Wave
+2** renamed to `text-caption-regular` — and had been timing out without ever measuring the contrast it
+existed to measure. Two stale tests, two waves, one symptom.
+
+The rule is now written where it belongs, in `OptionList`, together with the condition that would
+change it: **if a selected option ever gains an action of its own, then a selected+hover treatment is
+needed and will require a role.** Today there is none because there is nothing to announce.
 
 **The operational lesson:** a migration that changes interaction states needs at least one run of the
 browser suite before it is called complete.

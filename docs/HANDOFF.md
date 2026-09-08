@@ -133,7 +133,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — el total explicado y el reparto demostrado, SIN DESPLEGAR (D-173, 2026-09-08)
+## 1.a Último relevo significativo — lo elegido manda sobre el cursor: `I-101` cerrado como pruebas obsoletas, SIN DESPLEGAR (D-174, 2026-09-08)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Auditoría acotada de `I-101`, y el resultado es el contrario de la hipótesis: el producto está bien y las dos pruebas estaban obsoletas, por dos causas de dos olas distintas.** **(1)** `:319` exigía que el fondo **cambiara** al pasar el cursor por una opción **ya elegida**; eso era cierto con `hover:bg-primary/90` y dejó de serlo en `7a851f8` (Wave 3B2). **No se repone**: pulsar una opción ya elegida **no hace nada** —los dos consumidores llaman a `onSelect` con el id que ya estaba elegido—, así que un cambio de color anunciaría una acción inexistente y devolvería el riesgo de I-033. **(2)** `:346` buscaba `span.text-xs`, clase que la **Wave 2** (`b33003e`) renombró a `text-caption-regular`: agotaba sus 60 s esperando un elemento inexistente **sin llegar a medir el contraste**, que era su único objetivo. **El comportamiento del producto no cambia**; se actualizan las dos pruebas y se escribe la regla donde vive el componente |
+| Archivos | **Tocados:** `src/components/form/OptionList.tsx` (**solo comentario**, ningún cambio de comportamiento) y `tests/e2e/filas-seleccionables.spec.ts` (dos pruebas). Documentación: `DECISIONS` (D-174), `KNOWN_ISSUES` (I-101 resuelta, con su hipótesis inicial corregida), el relevo del sistema de diseño (§10.57), `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | Ninguna pieza nueva. **Cero tokens, cero roles semánticos, cero componentes.** Se evaluó y se descartó `surface-pressed`, que ya existe: no hay responsabilidad que expresar |
+| Decisiones | **D-174.** Lo que no es evidente: **(a)** la opción elegida **sigue siendo interactiva** —su `disabled` viene del `isPending` de quien la usa, nunca de `isSelected`— pero **pulsarla es un no-op**, y eso es lo que decide todo lo demás; **(b)** la regla «el estado persistente gana al cursor» **ya existía** en las tres listas con elección —`OptionList`, `NavLinks`, `TicketCardList`—, solo que sin escribir en una de ellas; **(c)** se deja escrita **la condición que la haría cambiar**: si una opción elegida gana una acción propia, entonces sí hará falta un tratamiento de «elegida + cursor» y habrá que darle un rol; **(d)** la elección sigue sin depender del color (`aria-selected` + visto), y sus dos pruebas siguen en verde |
+| Verificación | `verify` completo ✅. `npx playwright test filas-seleccionables --project=escritorio` → **9/9** sobre base recién sembrada. Un fallo aislado de `:195` en una corrida intermedia resultó ser **I-098** —el servidor de desarrollo con horas encima—: repetido solo, pasa en 3,7 s, y la tanda completa da 9/9 |
+| Advertencias | **1)** **No se añade un `hover` decorativo para que pase una prueba histórica.** Si alguien lo repone, que sea porque la opción elegida ganó una acción, y entonces hará falta elegirle un rol. **2)** **Las dos pruebas fallaban por causas distintas**, y agruparlas por el síntoma fue el error de la entrada inicial de `I-101`: la segunda ni siquiera llegaba a comprobar nada. Leer el error real de cada una, no el titular |
+| Pendiente | **Sin desplegar y sin autorización para hacerlo.** No hay migración. Lo de siempre: I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030, I-059, I-060 |
+| Publicación | **No.** Sin push, sin despliegue y sin tocar el proyecto Supabase real. **Cero migraciones** |
+| Git | Rama **`design-system/migration`**, sobre `1d46f5b` (D-173). Commit local; sin etiqueta de fase, es mantenimiento. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y **sin tocar** |
+
+---
+## 1.a.0 Relevo anterior — el total explicado y el reparto demostrado, SIN DESPLEGAR (D-173, 2026-09-08)
 
 | Campo | Estado |
 |---|---|

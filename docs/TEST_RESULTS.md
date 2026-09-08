@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente (D-173, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | **414 + 123**, con 4 fallos preexistentes y clasificados (I-090 ×2, I-101 ×2) | ✅ | ✅ |
+| Post-9 vigente (D-174, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | `filas-seleccionables` **9/9**; de los 4 fallos de la corrida completa, **I-101 ×2 quedan resueltos** y siguen los **I-090 ×2**, que pasan 39/39 en aislamiento | ✅ | ✅ |
+| Post-9 anterior (D-173, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | **414 + 123**, con 4 fallos preexistentes y clasificados (I-090 ×2, I-101 ×2) | ✅ | ✅ |
 | Post-9 anterior (D-172, 2026-09-08) | **+16** de `cn` | **812 ✅** (sin cambios: no se tocó la base) | suite completa corrida; sus fallos son preexistentes y ajenos | ✅ | ✅ |
 | Post-9 anterior (D-171, 2026-09-08) | **796 ✅** | **812 ✅** (sin cambios: no se tocó la base) | **170/170** dirigidas — no se corrió la suite completa | ✅ | ✅ |
 | Post-9 anterior (D-170, 2026-09-05) | **791 ✅** | **812 ✅** | **536/539** — los 3 restantes son ajenos y **comprobados** (ver más abajo) | ✅ | ✅ |
@@ -34,6 +35,64 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## `I-101` auditado y cerrado: eran las pruebas, no el producto (D-174) — 2026-09-08
+
+**Encargo.** Auditoría **acotada** de `I-101`, sin ampliarla a un rediseño de la selección: ¿qué debe
+pasar cuando el cursor se posa sobre una fila **ya elegida**?
+
+### Lo que se trazó, y con qué evidencia
+
+| Pregunta | Respuesta | Evidencia |
+|---|---|---|
+| ¿La opción elegida sigue siendo interactiva? | **Sí** | `OptionListItem` pinta un `<button type="button">` cuyo `disabled` viene del `isPending` de quien la usa, **nunca** de `isSelected`. Se enfoca y se pulsa |
+| ¿Qué hace pulsarla? | **Nada** | `AssignTicketsForm` → `setSelectedId(elMismoId)`; `ReassignTicketClientDialog` → `setSelected(elMismoObjeto)`. Sin alternancia, sin quitar la elección, sin navegación. (`ClientPicker` no pasa `selected`: es una lista de navegación y queda fuera) |
+| ¿Es útil un hover ahí? | **No: sería engañoso** | Anunciaría una acción que no existe, y volvería a mezclar estados, que es lo que causó **I-033** |
+| ¿Hay ya un tratamiento reutilizable de «elegido + cursor»? | **No, y es deliberado** | Las **tres** listas con elección usan estados excluyentes: `OptionList`, `NavLinks` (`bg-navigation-selected`) y `TicketCardList` (`selected ? 'bg-muted' : 'hover:bg-muted/50'`). `NavLinks` ya lo dice en un comentario y cita a `OptionList` |
+| ¿Hace falta un rol semántico nuevo? | **No** | No hay responsabilidad que expresar. Se evaluó `surface-pressed`, que ya existe, y se descartó |
+
+**Conclusión: DECISIÓN B.** El estado elegido domina al cursor a propósito; la opción elegida no tiene
+acción adicional; **las expectativas de las pruebas estaban obsoletas**.
+
+### Las dos pruebas fallaban por causas DISTINTAS
+
+La entrada inicial de `I-101` les dio **una sola causa**. Al leer el error real de cada una resultaron
+ser dos, de dos olas distintas:
+
+| Prueba | Causa | Desde |
+|---|---|---|
+| `:319` «el cliente elegido sigue legible al pasar el cursor (I-033)» | **Expectativa obsoleta**: exigía que el fondo cambiara al hacer hover sobre la elegida | `7a851f8` (Wave 3B2) quitó `hover:bg-primary/90` |
+| `:346` «el teléfono del cliente elegido también se lee al pasar el cursor» | **Localizador obsoleto**: `span.text-xs`, clase renombrada a `text-caption-regular`. Agotaba 60 s esperando un elemento inexistente, **sin llegar a medir el contraste** | `b33003e` (Wave 2) |
+
+El error de la segunda lo dice literalmente: `waiting for … locator('span.text-xs').first()`.
+
+### Qué se cambió
+
+**El producto, solo un comentario.** `OptionList` gana en su cabecera la regla —«lo elegido manda
+sobre el cursor»— y **la condición que la haría cambiar**: si una opción elegida gana una acción
+propia, entonces sí hará falta un tratamiento de «elegida + cursor» y habrá que darle un rol.
+**Ninguna clase, ningún comportamiento.**
+
+**Las pruebas, al contrato vigente.** `:319` comprueba ahora que el fondo **no** cambia y que sigue
+sin parecerse al de una opción cualquiera, **conservando los tres guardas de contraste de I-033**.
+`:346` usa el rol real y comprueba primero que el elemento existe, para que un localizador obsoleto
+vuelva a fallar rápido y con un mensaje claro en vez de agotar el tiempo.
+
+**No se añadió un hover decorativo para satisfacer una prueba histórica.**
+
+### Verificaciones ejecutadas
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run verify` | ✅ |
+| `npx playwright test filas-seleccionables --project=escritorio` | ✅ **9/9** sobre base recién sembrada |
+
+**Un fallo aislado, descartado con evidencia.** En una corrida intermedia falló `:195` («abre el
+detalle pulsando cualquier parte de la fila») con `page.waitForURL` agotado. Repetida sola pasa en
+**3,7 s**, y la tanda completa da **9/9**: es **I-098**, el servidor de desarrollo con horas y muchas
+recompilaciones encima. No lo toca este trabajo.
+
+---
 ## El total explicado y el reparto demostrado (D-173) — 2026-09-08
 
 **Encargo.** Que el total visible de boletas no deje una diferencia sin explicar, y que el desglose de

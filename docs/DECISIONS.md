@@ -7580,6 +7580,96 @@ de glosario, **«boletas activas»** y **«Registradas»**, con su regla en `UX_
 
 ---
 
+## D-174 — Lo elegido manda sobre el cursor: `I-101` eran dos pruebas obsoletas, no un defecto
+
+**Fase:** mantenimiento posterior a la Fase 9 (auditoría acotada solicitada por el usuario, 2026-09-08)
+
+**Contexto.** Al correr la suite E2E completa —cosa que, por lo que registra el relevo del sistema de
+diseño, no se había hecho nunca en esta rama— fallaron dos pruebas de `filas-seleccionables.spec.ts`
+sobre pasar el cursor por una opción **ya elegida**. Se abrieron como `I-101`, con la hipótesis de que
+la activación de marca (`7a851f8`, Wave 3B2) había quitado un `hover` y no lo había repuesto. La
+auditoría acotada demuestra que **el producto está bien y las dos pruebas estaban obsoletas, por dos
+causas distintas.**
+
+---
+
+### Lo que hace de verdad la lista, trazado
+
+**La opción elegida sigue siendo interactiva.** `OptionListItem` pinta un `<button type="button">`
+cuyo `disabled` viene del `isPending` de quien la usa, **nunca** de `isSelected`: se puede enfocar con
+el teclado y se puede pulsar.
+
+**Y pulsarla no hace nada.** Los dos consumidores que marcan elección llaman a `onSelect` con el id
+que **ya** estaba elegido:
+
+| Consumidor | Qué hace `onSelect` | Al pulsar la ya elegida |
+|---|---|---|
+| `AssignTicketsForm` | `setSelectedId` | `setSelectedId(elMismoId)` — React no cambia nada |
+| `ReassignTicketClientDialog` | `setSelected(results.find(...))` | el mismo objeto de la misma lista — nada cambia |
+
+No hay alternancia, no hay «quitar la elección», no hay navegación y no hay acción secundaria.
+(`ClientPicker`, en «Registrar abono», **no pasa `selected`**: ahí la lista solo lleva a otra
+pantalla, cada clic navega, y queda fuera de esta pregunta.)
+
+**Decisión 1 — no se repone ningún `hover` en la rama elegida.** Un cambio de color al pasar por
+encima anuncia que tocar hace algo. Aquí no hace nada, así que sería **decorativo y engañoso**: la
+única razón para ponerlo sería satisfacer una prueba histórica, que es exactamente lo que no se hace.
+
+**Decisión 2 — la regla ya existía en el producto, y se escribe.** Los estados persistentes ganan al
+cursor en **las tres** listas que tienen elección:
+
+| Componente | Elegido | Sin elegir |
+|---|---|---|
+| `OptionList` | `bg-selection-surface text-text-brand` | `hover:bg-accent hover:text-accent-foreground` |
+| `NavLinks` | `bg-navigation-selected text-text-brand` | `hover:bg-surface-accent hover:text-text-on-accent` |
+| `TicketCardList` | `bg-muted` | `hover:bg-muted/50` |
+
+`NavLinks` ya lo dice en su comentario y cita a `OptionList`. Ahora `OptionList` lo dice también, con
+la condición que lo haría cambiar: **si algún día una opción elegida gana una acción propia** —quitar
+la elección, por ejemplo—, entonces sí hará falta un tratamiento de «elegida + cursor» y habrá que
+darle un rol. Hoy no lo hay porque no hay acción que anunciar.
+
+**Decisión 3 — ningún token ni rol semántico nuevo.** No se necesita: la responsabilidad que faltaba
+no existe. Se evaluó y se descartó `surface-pressed`, que ya está en el sistema, porque no hay estado
+que pintar.
+
+**Decisión 4 — la elección sigue sin depender del color.** No cambia: `aria-selected` para quien no
+ve la pantalla y un visto para quien no distingue el color (`CLAUDE.md` §27), con su hueco reservado
+siempre para que elegir no desplace nada. Las dos pruebas que lo comprueban siguen en verde.
+
+---
+
+### Las dos pruebas, y por qué cada una estaba obsoleta
+
+**`:319` — expectativa obsoleta.** Exigía que el fondo **cambiara** al pasar el cursor por la opción
+elegida. Eso era cierto cuando la rama elegida era `bg-primary … hover:bg-primary/90`; dejó de serlo
+en `7a851f8`. Se sustituye por la expectativa que describe el contrato de hoy: el fondo **no** cambia,
+y sigue sin parecerse al de una opción cualquiera. **Se conservan los tres guardas de I-033** —el
+contraste del nombre en reposo, elegido y con el cursor encima—, que son lo que esa prueba venía a
+proteger.
+
+**`:346` — localizador obsoleto, y ni siquiera llegaba a comprobar nada.** Buscaba
+`span.text-xs`, y esa clase desapareció en la Wave 2 (`b33003e`) cuando la tipografía pasó a roles
+semánticos: hoy es `text-caption-regular`. La prueba agotaba sus 60 s esperando un elemento que no
+existe, **sin llegar nunca a medir el contraste**, que era su único objetivo. Corregido el
+localizador, mide y pasa. **Llevaba obsoleta desde antes que la otra**, y por una causa distinta.
+
+**Errores encontrados al auditar.** La entrada inicial de `I-101` daba **una sola causa a las dos
+pruebas**. Era incorrecto: son dos, de dos olas distintas. Se corrigió al leer el error real de cada
+una en vez de agruparlas por su síntoma.
+
+**Alternativas descartadas.** (a) **Reponer `hover:bg-primary/90`**: el encargo lo prohíbe, y con
+razón —anuncia una acción inexistente y devuelve el riesgo de I-033—. (b) **Crear un rol
+`selection/surface-hover`**: no hay responsabilidad que expresar, y crear un token para que una
+prueba vieja pase es la peor razón posible. (c) **Borrar las dos pruebas**: los guardas de I-033 y de
+contraste siguen valiendo; lo obsoleto era una expectativa y un localizador, no las pruebas.
+
+**Consecuencia.** **El código de producto no cambia de comportamiento**: solo se documenta la regla en
+`OptionList`. Se actualizan dos pruebas E2E al contrato vigente. `I-101` se cierra como **pruebas
+obsoletas**, no como defecto de interacción. Ningún token, rol, contrato tipográfico ni API cambia.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.
