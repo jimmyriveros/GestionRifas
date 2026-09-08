@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente (D-171, 2026-09-08) | **796 ✅** | **812 ✅** (sin cambios: no se tocó la base) | **170/170** dirigidas — no se corrió la suite completa | ✅ | ✅ |
+| Post-9 vigente (D-172, 2026-09-08) | **+16** de `cn` | **812 ✅** (sin cambios: no se tocó la base) | suite completa corrida; sus fallos son preexistentes y ajenos | ✅ | ✅ |
+| Post-9 anterior (D-171, 2026-09-08) | **796 ✅** | **812 ✅** (sin cambios: no se tocó la base) | **170/170** dirigidas — no se corrió la suite completa | ✅ | ✅ |
 | Post-9 anterior (D-170, 2026-09-05) | **791 ✅** | **812 ✅** | **536/539** — los 3 restantes son ajenos y **comprobados** (ver más abajo) | ✅ | ✅ |
 | Post-9 anterior (D-169, 2026-09-05) | **772 ✅** | **779 ✅** | **521/525** (los 4 restantes son ajenos y **comprobados**: 2 de `back-navigation` por caché fría —I-075, en caliente **9/9**— y 2 de acumulación por orden de ejecución, `reports` de D-150 y `ventas-por-fecha`, esta con la **misma cifra** que ya registró D-168) | ✅ | ✅ |
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
@@ -32,6 +33,100 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## `I-099` resuelto en la raíz: `cn` distingue tipografía de color (D-172) — 2026-09-08
+
+**Encargo.** Resolver `I-099` en el ayudante compartido, sin reabrir el sistema de diseño y sin
+convertir el rodeo con `clsx` en arquitectura.
+
+### Lo que se comprobó antes de tocar código
+
+**La librería, leída, no supuesta.** `tailwind-merge@3.6.0` en `node_modules`. Se inspeccionaron sus
+tipos —`ConfigExtension`, `extendTailwindMerge`, `mergeConfigs`— y su configuración por defecto: el
+grupo `font-size` es `[{ text: ['base', fromTheme('text'), …] }]` y el grupo `text-color` es
+`[{ text: [fromTheme('color'), …] }]`. Ahí está la causa: un `text-*` cuyo valor no esté en la escala
+`text` del tema cae en los colores, y los 14 roles de este proyecto son extensiones de tema
+declaradas en `@theme`.
+
+**Y se comprobó por programa que el arreglo no alcanza a nada más:** recorriendo
+`getDefaultConfig()` con un getter marcado, el tema `text` alimenta **exactamente un** grupo,
+`font-size`.
+
+**La lista de roles, tomada de la fuente.** Los 14 salen de los `--text-<rol>` de `globals.css`, no de
+memoria.
+
+### El alcance, medido en vez de supuesto
+
+La entrada original de `I-099` decía que el patrón «solo aparecía en la pieza nueva». **Era falso**, y
+el método estaba mal: se buscó la forma literal `cn('text-<rol>', TONE_TEXT[…])`, y `Button` y `Badge`
+componen su clase en `cva` con el color llegando por la variante — **el rol y el color nunca aparecen
+juntos en el código fuente**. Se rehízo reconstruyendo las listas tal y como se fusionan en ejecución,
+y luego se midió en la aplicación con sesión real y `getComputedStyle`:
+
+| Elemento | Antes | Después |
+|---|---|---|
+| `Button` «Registrar abono» | **16 px / 400** — sin `text-label-medium` | **14 px / 500** ✅ |
+| `Badge` | **14 px**, interlineado 20 — sin `text-label-small` | **12 px**, interlineado 16 ✅ |
+| `FormMessage` (error de validación) | clase `text-body-small` a secas, color `lab(2.75 0 0)` — **casi negro** | `text-destructive text-body-small`, color `lab(48.4 77.4 61.5)` — **rojo** ✅ |
+| Título de `MetricCard` | sin `text-muted-foreground`, color casi negro | **atenuado** `rgb(82,82,82)` ✅ |
+| `FormDescription` y las demás descripciones | sin `text-muted-foreground` | **atenuado** ✅ |
+| Un `className` suelto en un `<p>` | correcto | **igual** — nunca estuvo afectado |
+
+Los `className` sueltos no pasan por `cn`, así que sus dos clases siempre llegaron intactas al HTML.
+**El defecto era exclusivamente de las listas fusionadas.**
+
+### Un desbordamiento real, cerrado por el mismo arreglo
+
+`equipo-movil` → «ninguna pantalla se desborda entre 320 y 430 px» fallaba en `/seller/team` a 320 px
+por **14 px**, desde antes de este trabajo. Botones e insignias salían **una talla más grandes** y
+esos píxeles empujaban la página. Comprobado con una **A/B sobre la misma base sembrada**, no
+deducido: se guardó el trabajo con `git stash`, la prueba **falla** sobre el árbol limpio; se
+restauró, y **pasa**. Es la evidencia más directa de que el defecto no era cosmético.
+
+### Verificaciones ejecutadas
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ **0 errores**, los 2 avisos preexistentes |
+| `npm run verify` | ✅ typecheck · lint · unitarias · build |
+| `npx vitest run tests/unit/cn.test.ts` | ✅ **16/16** |
+| `npm run test:db` | ✅ **812/812** — sin cambios: no se toca la base |
+| Suite E2E completa, escritorio y móvil | corrida; sus fallos son **preexistentes y ajenos**, y se clasifican por separado |
+| `npx prettier --check` sobre los archivos tocados | ✅ cero diferencias de estilo |
+
+### Las pruebas nuevas, y qué fija cada una
+
+`tests/unit/cn.test.ts`, 16 pruebas:
+
+* **la lista de roles no puede separarse de `globals.css`** — lee la hoja de estilos y compara;
+* **tipografía y color conviven**, en los dos órdenes, y **uno por uno con los 14 roles**;
+* **los tres casos reales que estaban rotos** —error de formulario, botón, insignia—;
+* **dos roles se resuelven** (gana el último), y **un rol contra un tamaño nativo** también;
+* **dos colores se resuelven** como siempre;
+* **el Tailwind de siempre no cambia**: `p-2 p-4`, `text-sm text-lg`, `hidden block`, `text-sm text-muted-foreground`;
+* **el choque heredado con `leading-*`**, en los dos órdenes, para que el efecto colateral quede fijado;
+* **lo que no tiene que ver no se toca**, y `cn` sigue aceptando lo que acepta `clsx`.
+
+### Errores encontrados, y corregidos
+
+**1) El alcance mal reportado**, con su causa de método; corregido en `KNOWN_ISSUES`, en la §10.56 del
+relevo del sistema de diseño y en la decisión. De ahí nace la regla de `HANDOFF` §1.b.
+
+**2) El primer intento de medirlo aquí repitió el error**, buscando el rol en el texto de cada
+componente. Se rehízo reconstruyendo las cadenas reales de `cva` y `cn`.
+
+### Lo que NO cambió, y se verificó que no cambió
+
+Ningún token, nombre de rol, valor del tema de Tailwind ni API de componente. Ninguna migración,
+política, vista, RPC ni regla de negocio: `test:db` da la misma cifra que antes.
+
+### Un aviso para quien despliegue
+
+**Al desplegar cambia el aspecto de cosas que hoy se ven mal en producción**: los botones y las
+insignias encogen a su tamaño de diseño, los errores de formulario pasan a rojo y el texto secundario
+se atenúa. Es la corrección, no una regresión.
+
+---
 ## «Estado de cobro» en el panel del vendedor (D-171) — 2026-09-08
 
 **Encargo.** Fundir «Resumen financiero» y «Cobranza» en una sola sección donde cada cifra diga de

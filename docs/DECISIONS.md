@@ -7378,6 +7378,106 @@ sobre sus mismos anclajes.
 
 ---
 
+## D-172 — `cn` distingue un rol tipográfico de un color: `I-099` resuelto en la raíz
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-08)
+
+**Clasificación final.** `I-099` → **defecto verificado del ayudante compartido de composición de
+clases** → **arreglo de raíz completo**. **No** es un rediseño del sistema de diseño, **no** es una ola
+de migración nueva, **no** es una familia semántica nueva y **no** toca ningún contrato de tipografía.
+El sistema de diseño sigue **COMPLETO**.
+
+**La causa exacta.** `cn` es `twMerge(clsx(...))`. `tailwind-merge@3.6.0` decide qué es un `text-*`
+por su valor: si pertenece a la escala `text` del tema es un **tamaño de letra**, y si no, lo da por
+un **color**. Los 14 roles de este proyecto se declaran como `--text-<rol>` dentro del `@theme` de
+`globals.css` —son extensiones de tema de Tailwind v4, no utilidades del framework—, así que
+`tailwind-merge` **no los conocía** y caían del lado de los colores. Un rol y un color en la misma
+lista fusionada se tomaban por lo mismo, y **se descartaba el primero**: sin error, sin aviso y sin
+fallo de tipos.
+
+**Decisión 1 — se le enseña la escala, que es describir lo que los roles ya son.**
+
+```ts
+extendTailwindMerge({ extend: { theme: { text: TYPOGRAPHY_ROLES } } })
+```
+
+No inventa una categoría: un `--text-<rol>` **es** un valor de la escala `text`. Se comprobó por
+programa, recorriendo `getDefaultConfig()` con un getter marcado, que ese tema alimenta **exactamente
+un** grupo —`font-size`—, de modo que el cambio no alcanza a nada más. Con ello: un rol y un color
+conviven en cualquier orden; dos roles se resuelven como dos tamaños; un rol y un tamaño nativo
+también se resuelven —antes **sobrevivían los dos**, que es un elemento con dos tamaños de letra a la
+vez—; y `p-2 p-4`, `text-sm text-lg`, `hidden block` y `text-sm text-muted-foreground` siguen
+comportándose exactamente igual.
+
+**Decisión 2 — no se declara que un rol choque con `font-weight` ni con `tracking`.** Haría falta
+redefinir el grupo `font-size` entero y `text-lg font-bold` dejaría de comportarse como se comporta
+hoy en todo el producto. Lo que **sí** hereda del grupo es su choque con `leading-*`, y es correcto:
+un rol fija su interlineado (`globals.css`, Wave 2). Único efecto medible: un `leading-*` **anterior**
+a un rol desaparece, lo que cambia el interlineado de los tres títulos que pasan un rol a `CardTitle`
+—`MetricCard`, `CollectionSummaryCard`, `TableSection`— de 14 px al del rol. Los dos sitios que
+combinan las dos cosas a propósito, `DialogTitle` y `Label`, ponen el `leading` **después**, donde
+sobrevive, y no cambian.
+
+**Decisión 3 — la lista de roles no puede separarse de la hoja de estilos.** Se escribe a mano junto a
+`cn` porque esta función corre en cada render, también en el servidor, y analizar la hoja de estilos
+en tiempo de ejecución costaría más que todo lo que hace. A cambio, una prueba **lee `globals.css`** y
+falla si aparece o desaparece un `--text-*` sin tocar la constante: adivinar la lista o dejarla
+envejecer era el riesgo obvio de esta corrección.
+
+**Decisión 4 — el rodeo desaparece.** `CollectionStateCard` vuelve a `cn` y el alias de `clsx` que se
+había dejado allí se borra. Vuelve a haber **un solo** ayudante de composición de clases en el
+producto, que es la condición para que un arreglo de raíz signifique algo.
+
+---
+
+### El alcance real, medido — y la corrección de lo que se escribió antes
+
+**D-171 afirmó que el patrón «solo aparecía en la pieza nueva» y que era «una trampa para código
+futuro, no un defecto vivo». Las dos cosas eran falsas**, y la causa fue **de método**: se buscó la
+forma literal `cn('text-<rol>', TONE_TEXT[…])` en vez de la clase de defecto. `Button` y `Badge`
+componen su clase con `cva`, y el color llega por la variante, así que **el rol y el color nunca
+aparecen juntos en el código fuente** y ninguna búsqueda de texto podía verlos encontrarse.
+
+Medido en la aplicación con sesión real y `getComputedStyle`:
+
+| Consumidor | Antes | Después |
+|---|---|---|
+| **`Button`**, toda variante con color | **16 px / 400** — sin `text-label-medium` | **14 px / 500** |
+| **`Badge`** y `StatusBadge` | **14 px** — sin `text-label-small` | **12 px** |
+| **`FormMessage`** | sin `text-destructive`: **los errores de validación no salían en rojo** | **rojo** |
+| Texto secundario de **siete** componentes —`CardDescription`, `FormDescription`, `DialogDescription`, `SheetDescription`, `AlertDialogDescription`, `SelectLabel`, `TableCaption`— y el título de `MetricCard` | sin `text-muted-foreground` | **atenuado** |
+| **`/seller/team` a 320 px** | **se desborda 14 px** | **cabe** |
+
+El último no es cosmético y se comprobó con una **A/B sobre la misma base sembrada**: con el trabajo
+guardado en `git stash` la prueba responsive falla; restaurado, pasa. Botones e insignias una talla
+más grandes eran los píxeles que empujaban la página.
+
+Los `className` sueltos —la mayoría de los usos de un rol en el producto— **nunca estuvieron
+afectados**: no pasan por `cn`, así que las dos clases llegaban intactas al HTML. El defecto era
+exclusivamente de las listas fusionadas.
+
+**La lección, que vale más que el arreglo:** un defecto que **solo existe después de componer** no se
+encuentra con una búsqueda de texto sobre el código. Hace falta evidencia de ejecución —estilos
+calculados sobre la pantalla real—, y esa es ahora una regla de trabajo escrita en `HANDOFF` §1.b.
+
+**Errores encontrados al implementar, y corregidos.** (1) El alcance mal reportado en D-171, con su
+causa de método. (2) El primer intento de medirlo aquí repitió el error, buscando el rol en el texto
+de cada componente; se rehízo reconstruyendo las cadenas reales de `cva` y `cn`.
+
+**Alternativas descartadas.** (a) **Dejar `clsx` en el consumidor**: convierte un rodeo en
+arquitectura y deja el resto del producto roto. (b) **Reemplazar `cn` por `clsx` en todo el
+producto**: tira la resolución de conflictos de Tailwind, que es lo que permite que un `className`
+desde fuera sobrescriba. (c) **Un grupo de clases propio con conflictos hacia `leading`,
+`font-weight` y `tracking`**: más grande, y rompe combinaciones nativas que hoy funcionan. (d)
+**Tocar tokens, nombres de rol o valores del tema**: el defecto no estaba ahí.
+
+**Consecuencia.** Un solo archivo compartido cambia —`src/lib/utils.ts`, y solo su configuración de
+`tailwind-merge`—, y con él se reparan defectos visibles que nadie había reportado. **Ningún token,
+nombre de rol, valor del tema de Tailwind ni API de componente cambia. Ninguna consulta, migración,
+política ni regla financiera cambia.**
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

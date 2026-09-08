@@ -6557,7 +6557,7 @@ workflow · no critical information carried by colour alone · no unusable respo
 invalid interactive structure · no unresolved raw semantic palette · no missing required shared
 architecture.
 
-##### NORMAL POST-CLOSURE DEBT — the finite list, nine items
+##### NORMAL POST-CLOSURE DEBT — the finite list, eight items (a ninth was added and closed on 2026-09-08)
 
 | # | Debt | Where | Note |
 |---|---|---|---|
@@ -6569,7 +6569,7 @@ architecture.
 | 6 | **Pagination loses focus to `<body>`** on navigation | `DataTablePagination`, product-wide | Measured at t ≈ 838 ms, when the new RSC tree is applied; the button is never disabled, so it is the router's focus reset, not `useTransition`. The range is still announced |
 | 7 | **28 of 112 contract tokens have no consumer** | the token layer | Catalogued in C2 above. **None is a meaning without an owner** |
 | 8 | **`npm run format:check` fails on 93 files** | the whole repo, **pre-existing** | See below |
-| 9 | **`cn` silently drops the Wave 2 typography roles** when they share an element with a colour role | `src/lib/utils.ts`, product-wide | **Added 2026-09-08 from product work, not from an audit.** `tailwind-merge` does not know `text-heading-*` / `text-metric-*` and treats them as colour classes. No error, no warning; the text just inherits its size. Full account in **§10.56**; tracked product-side as `I-099` |
+| ~~9~~ | ~~**`cn` silently drops the Wave 2 typography roles**~~ | `src/lib/utils.ts` | **RESOLVED at the root the same day** (D-172, §10.57). It was live product damage, not a future trap: form errors were not red, Buttons rendered 16 px instead of 14, Badges 14 instead of 12, and `/seller/team` overflowed 14 px at 320. One line of `tailwind-merge` config fixed all of it. **Kept in the list, struck through, because §10.56 misreported its blast radius and that correction must stay visible** |
 
 ##### The formatting finding, because it will otherwise be "fixed" wrongly
 
@@ -6618,7 +6618,7 @@ be done; this one records that it is done. Everything above both of them is hist
 | **FIGMA ↔ CODE PARITY** | **COMPLETE.** Both items synced; there is no remaining tooling limitation, and the one that was recorded never existed |
 | **ACCESSIBILITY** | **Baseline established and validated structurally on the real routes.** AT validation status: **REAL SCREEN-READER TEST NOT PERFORMED.** **No certification is claimed** |
 | **SEVERE BLOCKERS** | **ZERO** |
-| **NORMAL DEBT** | **nine items, listed in §10.54 C7** — the ninth was added on 2026-09-08 from product work (§10.56), not from an audit |
+| **NORMAL DEBT** | **eight items, listed in §10.54 C7.** A ninth was added on 2026-09-08 from product work (§10.56) and **closed the same day at the root** (§10.57) |
 
 #### What the closeout actually changed
 
@@ -6662,15 +6662,19 @@ table action model without **current product evidence** of a real contradiction.
 > **FOUNDATION MILESTONE COMPLETE · POST-CLOSURE CLOSEOUT COMPLETE · READY FOR NORMAL PRODUCT
 > DEVELOPMENT.**
 
-> **2026-09-08 — the system is being used as intended, and it produced one finding.** The seller
+> **2026-09-08 — the system is being used as intended, and it paid for itself.** The seller
 > dashboard's money section was rebuilt (product decision `D-171`) using only existing tokens,
 > components and page Patterns: **zero new tokens, zero new shared components, zero Core changes**.
-> Doing it surfaced a real defect in `cn` — see **§10.56**, and debt item **9** above. That is what a
-> closed system looks like working: the product moves, and the system only gains a recorded finding.
+> Doing it surfaced a real defect in `cn` (**§10.56**), which was then **fixed at the root the same
+> day** (`D-172`, **§10.57**) — and the fix repaired live damage nobody had reported: form errors that
+> were not red, Buttons and Badges a size too large, secondary text not muted, and a 14 px overflow on
+> `/seller/team` at 320. **§10.56 also understated the blast radius, and §10.57 says so.** That is
+> what a closed system looks like working: the product moves, the system gains one line of config,
+> and the record stays honest about what it got wrong.
 
 ---
 
-### 10.56 POST-CLOSURE FINDING FROM PRODUCT WORK — `cn` SILENTLY DROPS THE TYPOGRAPHY ROLES (2026-09-08)
+### 10.56 POST-CLOSURE FINDING FROM PRODUCT WORK — `cn` SILENTLY DROPS THE TYPOGRAPHY ROLES (2026-09-08) · **RESOLVED, AND ITS BLAST RADIUS WAS UNDERSTATED — SEE §10.57**
 
 **This is not a block, not a wave, and not an audit.** It is one defect found while doing ordinary
 product work under §10.55, recorded here because it belongs to this track and because the next person
@@ -6733,6 +6737,87 @@ off-screen and the popover follows it out — measured at **−138 px**. When a 
 anchor the steps to the regions inside it, not to the card.
 
 ---
+### 10.57 I-099 RESOLVED AT THE ROOT — AND §10.56 UNDERSTATED IT (2026-09-08)
+
+**Still not a block, not a wave, not an audit.** One shared-utility defect, fixed where it lived.
+**No Core component changed, no token added, no semantic role renamed, no Tailwind theme value
+touched, no component API altered.** Product decision `D-172`.
+
+#### First, the correction §10.56 needs
+
+§10.56 said the pattern "occurred **only** in the new component" and called it "a trap for future
+code, not a live product defect."
+
+**Both statements were wrong**, and the method that produced them was wrong too: the search looked
+for the literal shape `cn('text-<role>', TONE_TEXT[…])` instead of for the *class* of defect.
+`Button` and `Badge` compose their classes through `cva`, with the colour arriving from the variant —
+so the role and the colour never appear next to each other in the source, and a text search cannot
+see them meet.
+
+Re-measured in the running application with `getComputedStyle`, **before** the fix:
+
+| Consumer | Class dropped | What actually rendered |
+|---|---|---|
+| **`Button`**, every variant that sets a text colour | `text-label-medium` | **16 px / 400** instead of 14 px / 500 |
+| **`Badge`** and `StatusBadge` | `text-label-small` | **14 px** instead of 12 px |
+| **`FormMessage`** | **`text-destructive`** | **validation errors were not red** |
+| `CardDescription`, `FormDescription`, `DialogDescription`, `SheetDescription`, `AlertDialogDescription`, `SelectLabel`, `TableCaption`, `MetricCard` title | `text-muted-foreground` | secondary text at full foreground |
+| `NavLinks`, `OptionList` caption | their role | inherited size |
+
+Plain `className` strings — most of the 64 role usages — were **never** affected: they do not pass
+through `cn`, so both classes reached the HTML intact. The defect belonged strictly to merged lists.
+
+**The lesson worth keeping: a text search over source cannot find a defect that only exists after
+composition.** The measurement found it; the search did not.
+
+#### The fix
+
+```ts
+extendTailwindMerge({ extend: { theme: { text: TYPOGRAPHY_ROLES } } })
+```
+
+`tailwind-merge@3.6.0`. It does not invent a category: the roles **are** values of Tailwind v4's
+`text` scale — they are declared as `--text-<role>` inside `@theme`. Verified against
+`getDefaultConfig()` that this theme feeds exactly **one** class group, `font-size`, so the change
+reaches nothing else.
+
+| Requirement | Result |
+|---|---|
+| Semantic typography + semantic colour coexist | ✅ both survive, in either order |
+| Two typography roles resolve deterministically | ✅ last wins, as two font sizes |
+| Role vs native size | ✅ last wins — **before, both survived**, which is an element with two font sizes |
+| Native merging unchanged | ✅ `p-2 p-4`, `text-sm text-lg`, `hidden block`, `text-sm text-muted-foreground` |
+| No global disabling of `text-*` merging | ✅ only the 14 named roles move group |
+
+**Deliberately not done:** declaring the roles to conflict with `font-weight` or `tracking`. That
+needs the whole `font-size` group redefined and would change `text-lg font-bold` product-wide, which
+§2.C forbids. What the roles **do** inherit is the group's existing conflict with `leading-*`, and
+that is correct — a role owns its line height (Wave 2). Its only measurable effect: a `leading-*`
+placed **before** a role now disappears, which changes the line height of the three titles that pass
+a role into `CardTitle` (`MetricCard`, `CollectionSummaryCard`, `TableSection`) from 14 px to the
+role's. The two places that deliberately pair a role with `leading` — `DialogTitle` and `Label` — put
+the `leading` **after**, where it survives, and are unchanged.
+
+#### The workaround is gone
+
+`CollectionStateCard` is back on `cn`; the `clsx` alias introduced by D-171 is deleted. **There is
+one canonical class-composition helper again**, which is the only condition under which a root fix
+means anything.
+
+#### Drift guard
+
+The role list is hand-written next to `cn` — it runs on every render, including on the server, so
+parsing the stylesheet at runtime would cost more than the function does. A unit test **reads
+`globals.css`** and fails if a `--text-*` role appears or disappears without updating the constant.
+16 tests in `tests/unit/cn.test.ts`.
+
+#### Status
+
+**Debt item 9 is closed.** The remaining post-closure debt is the other eight items in §10.54 C7.
+The foundation, the six page Patterns, the three theme scopes and the responsive strategies were not
+reopened and did not need to be.
+
+---
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
@@ -6779,7 +6864,7 @@ anchor the steps to the regions inside it, not to the card.
 | **Closeout B commit** | **`a7e9d0fc81171a4ee25d248797cbe9e68d2632e5`** (`a7e9d0f`) — `docs(design-system): close parity and accessibility qa`, this handoff only (§10.53). **No production code changed**; the work was two Figma writes and real-route QA |
 | **Closeout C commit** | **`d25b0ac19ad6df7a2a3f8f69b8e9739063e48a79`** (`d25b0ac`) — `docs(design-system): complete post-closure closeout`, this handoff only (§10.54, §10.55). **No production code changed.** The final residue sweep and the closing status |
 | **Where a new session starts** | **§10.55**, not §10.51. The closeout is over; there is no next block |
-| **Post-closure product work** | **2026-09-08** — `D-171`, seller dashboard money section, on this same branch. **No Core file, no new token, no new component.** It contributed §10.56 and debt item 9, nothing else |
+| **Post-closure product work** | **2026-09-08** — `D-171` (seller dashboard money section) and `D-172` (the root fix for `I-099`), both on this same branch. **No Core component, no new token, no renamed role, no theme value, no component API.** The only shared file touched is `src/lib/utils.ts`, and only its `tailwind-merge` configuration. Contributed §10.56 and §10.57 |
 | Untracked (pre-existing, **not** created by any Design System phase) | `CorrecionesLoterias.txt`, `prueba-abono.csv` — untouched throughout |
 | Pushed | **no** — and no push is authorized |
 | `main` | **not moved**, still at `124445b` |

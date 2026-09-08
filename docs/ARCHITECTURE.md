@@ -940,12 +940,16 @@ ancho de su tarjeta con `@container`:
 > El anillo de `FinancialSummaryCard` ocupaba esta tabla hasta D-171 con `@min-[280px]` / `@min-[400px]`
 > / `@min-[560px]`. Esa tarjeta ya no existe.
 
-**`cn` no vale cuando un rol de tipografía comparte elemento con un rol de color** (D-171, `I-099`).
-`cn` es `twMerge(clsx(...))`, y `tailwind-merge` no conoce `text-heading-*` ni `text-metric-*` —son
-extensiones de tema de este proyecto—, así que los toma por clases de color y descarta el primero al
-ver un `text-data-*-foreground` detrás. La cifra sale entonces al tamaño heredado, sin error ni aviso.
-Donde solo se juntan un tamaño y un color se usa `clsx` a secas, que es correcto porque en CSS no se
-pisan; `cn` se reserva para lo que sí puede llegar de fuera por `className`.
+**`cn` sabe distinguir un rol tipográfico de un color, y hubo que enseñárselo** (D-172, `I-099`
+cerrada). `cn` es `twMerge(clsx(...))`, y `tailwind-merge` decide qué es un `text-*` por su valor: si
+está en la escala `text` del tema es un tamaño, y si no, lo da por color. Los 14 roles se declaran
+como `--text-<rol>` en el `@theme` de `globals.css`, así que caían del lado de los colores y **un rol
+y un color en la misma lista fusionada se descartaban entre sí, en silencio** —los botones salían a
+16 px en vez de 14, los errores de formulario no salían en rojo—. `src/lib/utils.ts` extiende esa
+escala con los roles, que es describir lo que ya son; ese tema alimenta **un solo** grupo,
+`font-size`, comprobado sobre `getDefaultConfig()`. **No se usa `clsx` a secas en ningún consumidor**:
+hay un único ayudante de composición. La lista de roles vive junto a `cn` y una prueba lee
+`globals.css` para que no se separen (`tests/unit/cn.test.ts`).
 
 Los cuatro indicadores sí miran la ventana (`sm:grid-cols-2 xl:grid-cols-4`) porque ocupan el ancho
 completo: en `lg` el contenido mide 720 px —la barra lateral se lleva 256— y cuatro columnas dejaban

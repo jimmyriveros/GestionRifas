@@ -30,6 +30,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
+| **`cn` y los roles tipográficos** | Desde el 2026-09-08 (D-172, `I-099` cerrada) `cn` distingue un **rol tipográfico** de un **color**. Antes no: `tailwind-merge` tomaba `text-heading-*`, `text-metric-*`, `text-label-*`… por clases de color y **descartaba una de las dos en silencio**. En producción eso significa hoy que **los errores de formulario no salen en rojo**, los **botones miden 16 px en vez de 14**, las **insignias 14 en vez de 12**, el texto secundario de siete componentes **no está atenuado** y **`/seller/team` se desborda 14 px a 320 px**. El arreglo es una línea de configuración en `src/lib/utils.ts`; **hay un solo ayudante de composición de clases** y una prueba lee `globals.css` para que la lista de roles no se separe de la hoja de estilos. **Sin desplegar** |
 | **«Estado de cobro» del vendedor** | Desde el 2026-09-08 (D-171) «Resumen financiero» y «Cobranza» son **una sola sección** a lo ancho del panel: inventario en el encabezado, cuatro cifras de dinero —**Total vendido · Ya cobraste · Falta cobrar · Avance del cobro**— con su barra, y debajo el reparto por estado de pago en dos grupos, **Falta cobrar** («Sin pagos» y «Con abonos») y **Pagadas**, con la igualdad `$44.760.000 + $8.700.000 = $53.460.000` **escrita a la vista**. **Ninguna consulta, migración ni regla cambia**: es presentación, y el único añadido al modelo es `pendingBy` en un módulo puro. El valor de venta de las boletas con abonos —la cifra que se leía como dinero abonado y no lo era— **ya no se escribe en ningún sitio**. El indicador **«Recaudado»**, que sí depende del selector de fechas, sigue fuera y sin tocar. **Sin desplegar** |
 | **Paz y salvo de una boleta** | Desde el 2026-09-05 (D-170, BR-I15) cada boleta vendida registra si su **desprendible** ya se entregó al cliente: interruptor en el detalle del **vendedor**, indicador en las dos listas, **modo lectura** para el personal. Es un control de **organización**: no toca pago, saldo, precio, ganancia ni rifa, y **no** es un estado nuevo. Lo marca **solo el vendedor dueño**; la fecha la pone PostgreSQL; la base lo devuelve a pendiente al cambiar de cliente o al liberar. Migración **`0049`** **aplicada al proyecto real y `a337d6e` desplegado el 2026-09-05**, con `verify:remote` **17/17**, el identificador de versión `c5d816926fd6` servido por el dominio y una sonda de comportamiento **18/18** que no escribió ni una fila. Su **carga inicial única** marcó **750** boletas —todas las vendidas—, como heredadas y **sin enseñar su fecha técnica**; **ni un peso se movió** |
 | **Liberar una boleta** | Desde el 2026-09-05 (D-169, BR-I14) una boleta que el cliente ya no quiere se **libera** desde su detalle, en los dos portales: «Liberar boleta» junto a «Cambiar cliente», con motivo, y solo si la **rifa está activa** y la boleta no tiene **ninguna** fila en `payment_allocations` —anulados y $0 incluidos— ni en `lottery_ticket_matches`. Vuelve a `available` **con sus mismos números** y borra cliente, precio, precio base, fecha de venta y `assigned_at`. **No es anular** (que reserva la combinación, BR-N08) **ni eliminar** (BR-B05). No crea aviso ni mueve comisión. Migración **`0048`** **aplicada al proyecto real y `c1f2dfc` desplegado el 2026-09-05**, con `verify:remote` **17/17**, el identificador de versión `9d334dfd377f` servido por el dominio y una sonda de comportamiento sobre el esquema real que no escribió ni una fila |
@@ -132,7 +133,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — «Estado de cobro» en el panel del vendedor, SIN DESPLEGAR (D-171, 2026-09-08)
+## 1.a Último relevo significativo — `I-099` resuelto en la raíz: `cn` distingue tipografía de color, SIN DESPLEGAR (D-172, 2026-09-08)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **`cn` ya no descarta un rol tipográfico al verlo junto a un color.** `tailwind-merge@3.6.0` decide qué es un `text-*` por su valor: si está en la escala `text` del tema es un tamaño, y si no, lo da por color. Los 14 roles se declaran como `--text-<rol>` en el `@theme` de `globals.css` —extensiones de tema, no utilidades del framework—, así que caían del lado de los colores y **se descartaba uno de los dos, en silencio**. Se le enseña la escala con `extendTailwindMerge({ extend: { theme: { text: TYPOGRAPHY_ROLES } } })`, que describe lo que los roles ya son. **Un solo archivo compartido cambia, y solo su configuración.** El rodeo con `clsx` que se había dejado en el panel **se retiró**: vuelve a haber un único ayudante de composición de clases. **Cero tokens, cero nombres de rol, cero valores del tema, cero API de componente, cero migraciones** |
+| Archivos | **Tocados:** `src/lib/utils.ts` (la configuración y la lista de roles) y `src/features/dashboard/components/CollectionStateCard.tsx` (retirar el rodeo). **Nuevo:** `tests/unit/cn.test.ts`. Documentación: `DECISIONS` (D-172), `ARCHITECTURE` §8.13, `KNOWN_ISSUES` (I-099 resuelta, con su alcance corregido), el relevo del sistema de diseño (§10.56 corregida, §10.57 nueva), `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` (§1.b, la regla nueva) |
+| Reutilización | La API es la que trae `tailwind-merge@3.6.0`, leída de sus tipos (`ConfigExtension`, `extendTailwindMerge`) y de `getDefaultConfig()`, **no adivinada de otra versión**. Cero dependencias nuevas |
+| Decisiones | **D-172.** Lo que no es evidente: **(a)** se extiende `theme.text` y no un grupo propio, porque un `--text-<rol>` **es** un valor de esa escala, y se comprobó por programa que ese tema alimenta **un solo** grupo (`font-size`); **(b)** **no** se declara conflicto con `font-weight` ni `tracking`: obligaría a redefinir `font-size` entero y cambiaría `text-lg font-bold` en todo el producto; **(c)** el choque heredado con `leading-*` **sí** se acepta, porque un rol fija su interlineado, y su único efecto es que un `leading-*` **anterior** a un rol desaparece; **(d)** la lista de roles se escribe a mano —`cn` corre en cada render, también en el servidor— pero una prueba lee `globals.css` para que no se separe |
+| Verificación | `verify` completo ✅ (typecheck · lint **0 errores, 2 avisos preexistentes** · unitarias · build). **16 pruebas nuevas** en `tests/unit/cn.test.ts`, una de ellas leyendo `globals.css`. **Medición en el navegador, antes y después**, con sesión real y `getComputedStyle`: `Button` **16 px/400 → 14 px/500**; `Badge` **14 → 12 px**; `FormMessage` de casi negro a **rojo**; texto secundario de siete componentes, **atenuado**; y `/seller/team` a 320 px, de **desbordarse 14 px** a caber —esto último con una **A/B sobre la misma base sembrada**: sin el arreglo la prueba falla, con él pasa—. Suite E2E completa corrida: sus fallos son preexistentes y ajenos, y se clasifican aparte |
+| Advertencias | **1)** **El alcance de `I-099` estaba mal reportado** cuando se abrió, y la causa fue **de método**: se buscó la forma literal `cn('text-<rol>', …)` en vez de la clase de defecto, y `Button`/`Badge` componen su clase en `cva`, así que **el rol y el color nunca aparecen juntos en el código fuente**. Un `grep` no puede encontrar un defecto que solo existe después de componer; lo encontró la medición. De ahí sale la regla de §1.b. **2)** **La lista de roles de `cn` se escribe a mano**: si alguien añade un rol tipográfico y la prueba de `globals.css` falla, no es la prueba — es que ese rol volvería a comportarse como un color. **3)** **Efecto colateral querido:** un `leading-*` **anterior** a un rol ahora desaparece, y eso cambia el interlineado de tres títulos que pasan un rol a `CardTitle`. Los dos sitios que combinan las dos cosas a propósito ponen el `leading` **después**, donde sobrevive |
+| Pendiente | **Sin desplegar y sin autorización para hacerlo.** No hay migración: promoverlo es `push` + CI + Vercel cuando el dueño lo pida. **Al desplegar cambia el aspecto de cosas que hoy se ven mal en producción** —tamaño de botones e insignias, color de los errores de formulario y del texto secundario—: es la corrección, pero conviene saberlo antes de mirar |
+| Publicación | **No.** Sin push, sin despliegue y sin tocar el proyecto Supabase real. **Cero migraciones** |
+| Git | Rama **`design-system/migration`**, sobre `d2ec11b` (D-171). Commit local aislado, solo `I-099`; sin etiqueta de fase, es mantenimiento. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y **sin tocar** |
+
+---
+## 1.a.0 Relevo anterior — «Estado de cobro» en el panel del vendedor, SIN DESPLEGAR (D-171, 2026-09-08)
 
 | Campo | Estado |
 |---|---|
@@ -998,7 +1014,33 @@ D-089) en las 8 pantallas de detalle/edición y 2 más; prefiere el historial re
 un destino de repuesto por entidad cuando no hay pantalla anterior real. Detalle completo en
 `DECISIONS.md` (D-089) y en el historial de Git.
 
-## 1.b Qué queda abierto
+## 1.b Regla de verificación para infraestructura de interfaz compartida (D-172, 2026-09-08)
+
+**Es una regla de trabajo hacia adelante. No obliga a reabrir ninguna ola anterior ni a repetir una
+migración ya cerrada.**
+
+Un cambio en **infraestructura de interfaz compartida** con alcance visual o de interacción se
+verifica con **`npm run verify` MÁS las pruebas E2E que le correspondan**. `verify` solo no basta.
+
+| Entra en la regla | Ejemplos reales |
+|---|---|
+| Composición de clases | `cn`, `src/lib/utils.ts`, la configuración de `tailwind-merge` |
+| Variantes `cva` compartidas | `button.tsx`, `badge.tsx`, `input.tsx`, `select.tsx` |
+| Primitivas interactivas compartidas | `OptionList`, `DataTable`, `Tabs`, `DropdownMenu`, `Switch` |
+| Ayudantes de interacción responsive | anclajes del recorrido, `AppSidebar`, `BottomNav`, `SearchInput` |
+
+**Por qué existe la regla, con dos casos medidos.** `I-099` vivió en el producto sin que nadie lo
+viera porque una prueba unitaria y un banco de presentación construido con cadenas de clases **no
+pueden ver** que un botón salga a 16 px en vez de 14, que un error de formulario deje de ser rojo o
+que una página se desborde 14 px a 320. Y **una búsqueda de texto sobre el código tampoco**: cuando el
+rol y el color se encuentran solo después de componer `cva` y `cn`, no aparecen juntos en ningún
+archivo. Hizo falta abrir la aplicación y leer estilos calculados.
+
+**En corto:** un defecto de clases compuestas exige evidencia de ejecución. `grep` no alcanza.
+
+---
+
+## 1.c Qué queda abierto
 
 **No hay trabajo técnico activo autorizado.** El plan de fases terminó, pero sí quedan decisiones del
 dueño, deuda aceptada y límites verificados; no deben describirse como si no existieran:

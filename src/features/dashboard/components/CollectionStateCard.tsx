@@ -1,4 +1,3 @@
-import { clsx } from 'clsx'
 import { ArrowRightIcon } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
@@ -14,22 +13,6 @@ import { cn } from '@/lib/utils'
 
 import { percentageOf, type CollectionBreakdown } from '../collection-breakdown'
 import { TONE_FILL, TONE_TEXT, type MoneyTone } from '../tones'
-
-/**
- * `clsx` a secas, y NO `cn`, cuando un rol de TIPOGRAFIA y un rol de COLOR van
- * en el mismo elemento.
- *
- * `cn` pasa las clases por `tailwind-merge`, que no conoce los roles propios
- * del sistema de diseno —`text-heading-h3`, `text-metric-large`— y los toma por
- * clases de color: al ver despues un `text-data-pending-foreground` da por
- * hecho que se pisan y descarta el primero. El resultado se ve: la cifra sale
- * al tamano heredado, y en silencio. Verificado en la aplicacion, no deducido.
- *
- * Aqui no hay nada que fusionar —un tamano y un color no se pisan en CSS—, asi
- * que se juntan sin mas. Solo para eso: donde de verdad puede haber conflicto
- * —una clase que llega de fuera por `className`— se sigue usando `cn`.
- */
-const typeAndTone = clsx
 
 type CollectionStateCardProps = {
   /**
@@ -319,7 +302,7 @@ function Figure({ label, value, tone }: { label: string; value: string; tone?: M
           «$102.600.000» a 24 px se saldria de su columna, y encoger la cifra
           principal hasta que quepa es justo lo que no se puede hacer. */}
       <dd
-        className={typeAndTone(
+        className={cn(
           'text-heading-h4 @min-[400px]/estado:text-heading-h3 @min-[820px]/estado:text-metric-large mt-0.5 tabular-nums',
           tone ? TONE_TEXT[tone] : undefined,
         )}
@@ -359,9 +342,7 @@ function GroupHeading({
         </span>
       </div>
 
-      <p className={typeAndTone('text-heading-h3 tabular-nums', TONE_TEXT[tone])}>
-        {formatCOP(amount)}
-      </p>
+      <p className={cn('text-heading-h3 tabular-nums', TONE_TEXT[tone])}>{formatCOP(amount)}</p>
     </div>
   )
 }
@@ -433,14 +414,14 @@ function StateBlock({
                   className="text-body-small flex flex-wrap items-baseline gap-x-1.5"
                 >
                   <dt className="text-muted-foreground">{line.label}</dt>
-                  <dd className={typeAndTone('tabular-nums', TONE_TEXT[line.tone])}>
+                  <dd className={cn('tabular-nums', TONE_TEXT[line.tone])}>
                     {formatCOP(line.amount)}
                   </dd>
                 </div>
               ) : (
                 <div key={line.label} className="min-w-0">
                   <dt className="text-muted-foreground text-caption-regular">{line.label}</dt>
-                  <dd className={typeAndTone('text-heading-h3 tabular-nums', TONE_TEXT[line.tone])}>
+                  <dd className={cn('text-heading-h3 tabular-nums', TONE_TEXT[line.tone])}>
                     {formatCOP(line.amount)}
                   </dd>
                 </div>
