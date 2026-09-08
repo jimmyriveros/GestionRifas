@@ -166,6 +166,18 @@ test.describe('El portal administrativo ve la estructura comercial', () => {
   })
 })
 
+/**
+ * El importe grande de una tarjeta del panel: el primer párrafo de su cuerpo.
+ *
+ * NO se busca por su clase de Tailwind. Esto pedía `p.text-2xl`, y esa es la
+ * trampa de `I-101`: la clase cambia con cualquier retoque del diseño —aquí, al
+ * pasar al rol tipográfico `Metric/Large` en D-175— y la prueba deja de
+ * comprobar nada sin decirlo.
+ */
+function importeDe(tarjeta: ReturnType<Page['locator']>) {
+  return tarjeta.locator('[data-slot="card-content"] p').first()
+}
+
 test.describe('Mi ganancia', () => {
   /**
    * Un vendedor SIN equipo cobra la mitad del precio (BR-G13), y por tanto NO
@@ -187,7 +199,7 @@ test.describe('Mi ganancia', () => {
     // importes aparecen en otras partes de la pantalla.
     const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Ganancia por boleta' })
 
-    await expect(tarjeta.locator('p.text-2xl')).toHaveText(formatCOP(esperado!.rate))
+    await expect(importeDe(tarjeta)).toHaveText(formatCOP(esperado!.rate))
     await expect(tarjeta.getByText(`Llevas ${formatCOP(esperado!.earned)} ganados`)).toBeVisible()
 
     // Y lo que motivó la corrección: a quien cobra la mitad del precio no se le
@@ -290,7 +302,7 @@ test.describe('Mi ganancia', () => {
     const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Ganancia por boleta' })
 
     // 3 boletas en el primer tramo: cada una vale $20.000 y lleva $60.000.
-    await expect(tarjeta.locator('p.text-2xl')).toHaveText(formatCOP(20_000))
+    await expect(importeDe(tarjeta)).toHaveText(formatCOP(20_000))
     await expect(tarjeta.getByText(`Llevas ${formatCOP(60_000)} ganados`)).toBeVisible()
 
     // El siguiente nivel se dice en tarifa POR BOLETA, no como un total: una
@@ -312,7 +324,7 @@ test.describe('Mi ganancia', () => {
     const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Ganancia por boleta' })
     // Ve su tarifa —la regla que le toca— y ningun importe ganado, porque
     // todavia no ha cobrado ninguna boleta.
-    await expect(tarjeta.locator('p.text-2xl')).toHaveText(/^\$[\d.]+$/)
+    await expect(importeDe(tarjeta)).toHaveText(/^\$[\d.]+$/)
     await expect(tarjeta.getByText(/Llevas .* ganados/)).toHaveCount(0)
 
     // Y en particular, la ganancia del OTRO vendedor no aparece como suya.

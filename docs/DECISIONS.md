@@ -7670,6 +7670,118 @@ obsoletas**, no como defecto de interacción. Ningún token, rol, contrato tipog
 
 ---
 
+## D-175 — El panel del vendedor se lee en tres niveles, y el dinero va primero
+
+**Fase:** mantenimiento posterior a la Fase 9 (rediseño de producto solicitado por el usuario, 2026-09-08)
+
+**Contexto — medido, no supuesto.** Con la aplicación corriendo y una sesión de vendedor real, a
+1360 px la sección «Estado de cobro» empezaba en **y = 829** de una página de 2150. Por encima había,
+en este orden: el saludo, el aviso ámbar, «Mi catálogo público» —que en su estado apagado no ofrece
+ningún botón—, el recuadro de loterías —que sin sorteos programados son 230 px para decir que no hay
+resultados— y **cuatro tarjetas de indicadores**. En el teléfono la misma sección caía cerca de
+y = 1490 de 3484. Quien abría su panel a cobrar tenía que bajar dos pantallas para saber cuánto le
+deben.
+
+Y tres de esos cuatro indicadores decían lo que la sección repite treinta píxeles más abajo.
+
+---
+
+### Decisión 1 — se van «Recaudado», «Por cobrar» y «Cobranza» como tarjetas sueltas
+
+| Indicador | Qué era | Dónde vive ahora |
+|---|---|---|
+| **Por cobrar** | `breakdown.pending` | **Es** «Falta cobrar» de «Estado de cobro». La misma cifra, la misma consulta |
+| **Cobranza** | `percentageOf(totalCollected, totalSold)` | **Es** «Avance del cobro». El mismo porcentaje y la misma barra |
+| **Recaudado** | `activity.collected`, del **período** elegido | **No** está en «Estado de cobro», que es la foto acumulada de hoy (D-112). Baja a la tarjeta de tendencia, que ya dibujaba esa serie |
+| **Ganancia por boleta** | lo que se lleva el vendedor (BR-G01) | **Se queda**, con región propia y encabezado propio |
+
+Las dos primeras eran duplicación literal. La tercera **no**: «Recaudado» y «Ya cobraste» son
+distintas en cuanto un cliente abona un día después de comprar, o sea casi siempre (la misma
+distinción que D-151 obliga a escribir en «Ventas por fecha»). Borrarla habría perdido información
+real —incluida la comparación contra el período anterior—, así que en vez de borrarla se **funde con
+el gráfico que ya la dibujaba**: la tarjeta de la serie pasa a encabezarse con su total. No es la
+cifra repetida en dos sitios; es la cifra en el único sitio donde se explica sola.
+
+La cuarta se queda porque no habla del mismo dinero: «Estado de cobro» reparte lo que valen las
+boletas vendidas, y la ganancia es lo que se queda quien vende. Meterla dentro sería repetir el error
+que D-171 vino a corregir.
+
+### Decisión 2 — el selector de período se muda dentro de «Recaudado»
+
+Con las tres tarjetas fuera, el período gobierna **una sola región**. Un control en el encabezado de
+la pantalla que gobierna una tarjeta de la mitad de abajo hace creer que gobierna todo, que es
+justamente la confusión que D-112 se propuso evitar y que su propio comentario tenía que explicar. El
+contrato aprobado `Pattern / Dashboard Page` ya lo decía con todas las letras: **el selector del
+vendedor es local a su región de dinero.** Misma URL, mismo parámetro `range`, misma consulta.
+
+### Decisión 3 — tres niveles, y se ven sin leer un solo título
+
+| Nivel | Regiones | Ancho en escritorio |
+|---|---|---|
+| **1** | «Estado de cobro» | las 12 columnas, y la primera |
+| **2** | «Mis boletas» · «Accesos rápidos» — «Mi catálogo público» · «Ganancia por boleta» — loterías | 7/5, 7/5 y 12 |
+| **3** | «Recaudado» · «Actividad reciente» — instalar | 7/5 y 12 |
+
+Los anchos se midieron, no se eligieron por gusto: a 1360 el contenido mide 1104 px, así que siete
+columnas son 634 y cinco son 446. «Estado de cobro» necesita 688 px de tarjeta para poner sus cuatro
+cifras en fila; el recuadro de loterías reparte en dos columnas mirando **la ventana** y no su
+contenedor, así que dentro de 634 px partiría el número mayor. Los dos ocupan las doce.
+
+La jerarquía la llevan el sitio, el ancho y la tipografía —`Heading/H2` el saludo, `Heading/H3` el
+nivel 1, `Heading/H4` los demás—, no el color: ningún verde nuevo se gastó en decorar una tarjeta.
+
+### Decisión 4 — la tableta tiene su propio reparto
+
+A 768 el contenido mide 664 px. El inventario y los accesos rápidos van a seis y seis (320 px); el
+catálogo y la ganancia conservan el 7/5, porque en 320 px los dos botones de abajo del catálogo no
+caben y en 377 sí. La tendencia, los últimos abonos y el recuadro de loterías se quedan a lo ancho.
+**Una tableta no es un escritorio encogido ni un teléfono estirado**, y por eso sus parejas no son las
+mismas: la página pasa de 2808 px a 2625.
+
+### Decisión 5 — el catálogo baja del primer puesto, y solo eso
+
+D-161 lo puso «cerca de la parte superior» por una razón buena —es una herramienta de venta diaria—
+pero por encima del dinero. Se conserva **la mitad que sigue siendo cierta**: sigue en la banda de
+acciones y sigue **por encima del recuadro de loterías**, se sigue pintando siempre, y con el enlace
+apagado sigue explicando qué falta. Lo que cambia es que ya no se lee antes que «Estado de cobro».
+El ofrecimiento de instalar sí baja del todo (D-123 lo subió porque al final de una página de dos
+pantallas y media nadie lo veía; ésta mide bastante menos).
+
+### Decisión 6 — dos pasos del recorrido guiado se ordenan
+
+Iba «cómo va tu cobranza» → «tus boletas» → «lo que te falta por cobrar», y los pasos primero y
+tercero son **las dos mitades de la misma tarjeta**: el globo bajaba la pantalla y volvía a subirla.
+Ahora van seguidos. Ningún texto cambia.
+
+---
+
+### Un defecto encontrado al mover el selector, y arreglado
+
+`DateRangeSelect` escribía su altura táctil a mano: `h-11 ... md:h-9`. **No funcionaba.** El propio
+`SelectTrigger` trae `data-[size=default]:h-9`, un selector de atributo que gana por especificidad a
+una clase suelta, así que el control medía **36 px también en el teléfono** — por debajo del mínimo
+de 44 (D-085). Medido en un Pixel 7: 36. El sistema de diseño ya había resuelto esto para los demás
+controles en `R7-PRE`, y su variante `size="touch"` da 44 px por debajo de `sm`. Se usa esa. **No se
+creó ningún token, componente ni contrato**: el arreglo fue dejar de esquivar el que ya existía.
+
+---
+
+**Lo que NO cambia.** Ninguna consulta, ningún cálculo, ninguna regla de negocio, ningún token, ningún
+componente compartido y ningún contrato del sistema de diseño. `KpiCard` se conserva porque lo usa la
+ficha del cliente (`ClientTotals`); lo que desaparece es `SellerKpis`, que solo montaba las cuatro
+tarjetas retiradas.
+
+**Alternativas descartadas.** (a) Reordenar las tarjetas actuales dejando la fila de indicadores
+(descartada: el encargo pedía empezar por las responsabilidades, y tres de los cuatro no tenían
+ninguna propia). (b) Meter «Ganancia por boleta» dentro de «Estado de cobro» para ahorrar una tarjeta
+(descartada: es otro dinero, y mezclarlo repite el error de D-171). (c) Dejar «Recaudado» fuera sin
+más (descartada: se perdía la comparación contra el período anterior, que no está en ninguna otra
+pantalla). (d) Emparejar las regiones por altura para que no queden filas desiguales (descartada: eso
+ordena por píxeles y no por prioridad; las tarjetas se alinean arriba y una fila desigual se lee como
+lo que es).
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

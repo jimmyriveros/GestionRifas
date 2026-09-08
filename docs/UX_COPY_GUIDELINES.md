@@ -737,6 +737,14 @@ Lo que **no** se hace es renombrar ninguna de las dos para diferenciarlas: «Abo
 del glosario para lo abonado de una boleta y «Recaudado» el de dinero recibido. Cambiarlos aquí
 rompería los otros diez sitios donde ya significan eso.
 
+**Y en el panel del vendedor, «Recaudado» convive con «Ya cobraste»** (D-175). Son la misma familia de
+problema y se resuelve igual: la tarjeta se titula **«Recaudado»** —el término del glosario, el mismo
+que llevaba el indicador que sustituye— y debajo dice **«Lo que entró en estas fechas»**, que es lo
+único que la pantalla no enseña. «Ya cobraste», en «Estado de cobro», es lo acumulado de hoy y no
+depende del período. La otra mitad de la desambiguación es el **selector de fechas**, que desde D-175
+vive dentro de esa misma tarjeta: el período se dice con fechas, y estando al lado del título no hay
+que adivinar de qué habla la cifra.
+
 **El período se dice con fechas, no con el nombre de la opción** (misma regla que D-112). La tarjeta
 «Boletas vendidas» lleva debajo el día —«31 ago 2026»— o el rango —«Del 1 al 15 de ago de 2026»—,
 porque «hoy» no responde a la pregunta que uno se hace al mirar una cifra dentro de tres días.
@@ -1020,7 +1028,9 @@ castigo donde solo había una espera.
 | Nombre de lo que cuenta cada listado en su paginación | `src/lib/constants.ts` (`LIST_ITEM_LABELS`, D-111) |
 | Etiquetas de estado de pago en plural, para encabezar grupos | `src/lib/constants.ts` (`TICKET_PAYMENT_STATUS_PLURAL_LABELS`, D-112) |
 | Nombres de los períodos del panel del vendedor | `src/features/dashboard/date-range.ts` (`DASHBOARD_RANGE_LABELS`, D-112) |
-| Textos de las seis piezas del panel del vendedor | `src/features/dashboard/components/`, una por pieza (D-112, D-171) |
+| Textos de las piezas del panel del vendedor | `src/features/dashboard/components/`, una por pieza (D-112, D-171, D-175) |
+| «Recaudado», «Lo que entró en estas fechas» y la comparación con el período anterior | `src/features/dashboard/components/CollectionTrendCard.tsx`, **todos juntos** (D-175) |
+| «Ganancia por boleta» y sus tres líneas de apoyo | `src/features/dashboard/components/SellerEarningsCard.tsx` (D-175) |
 | Todos los textos de «Estado de cobro»: título, inventario del encabezado, las cuatro cifras, los tres grupos y la frase de la igualdad | `src/features/dashboard/components/CollectionStateCard.tsx`, **todos juntos** (D-171, D-172) |
 | Los seis rótulos de «Mis boletas», «Registradas» incluido | `src/features/dashboard/components/TicketsOverviewCard.tsx` (D-172) |
 | Etiquetas de estado de un cliente («Activo», «Archivado») | `src/lib/constants.ts` (`CLIENT_STATUS_LABELS`, D-113) |

@@ -76,12 +76,12 @@ export function TicketsOverviewCard({ totals, className }: TicketsOverviewCardPr
   return (
     <Card className={cn(className)}>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <CardTitle className="text-base">
-          <h2>Mis boletas</h2>
+        <CardTitle>
+          <h2 className="text-heading-h4">Mis boletas</h2>
         </CardTitle>
         <Link
           href="/seller/tickets"
-          className="text-text-brand inline-flex shrink-0 items-center gap-1 text-sm font-medium hover:underline"
+          className="text-text-brand text-label-medium inline-flex shrink-0 items-center gap-1 hover:underline"
         >
           Ver mis boletas
           <ArrowRightIcon className="size-4" aria-hidden />

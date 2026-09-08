@@ -283,6 +283,10 @@ const SELLER_TOURS: Tour[] = [
         title: 'Lo que más vas a usar',
         body: '«Vender una boleta» te muestra las que tienes libres. «Nuevo cliente» guarda los datos de quien te compra, para no volver a escribirlos.',
       },
+      // Los dos pasos de «Estado de cobro» van SEGUIDOS, y en el orden en que
+      // se leen: primero las cuatro cifras de arriba, luego el reparto de abajo.
+      // Estaban separados por «Tus boletas», que vive en otra tarjeta y mas
+      // abajo, de modo que el recorrido bajaba la pantalla y volvia a subirla.
       {
         id: 'financial-summary',
         target: 'financial-summary',
@@ -291,18 +295,18 @@ const SELLER_TOURS: Tour[] = [
         body: 'Aquí ves lo que valen tus boletas vendidas, cuánto ya cobraste y cuánto te falta. La barra muestra qué parte del dinero llevas cobrada.',
       },
       {
-        id: 'metrics-inventory',
-        target: 'metrics-inventory',
-        side: 'bottom',
-        title: 'Tus boletas',
-        body: 'Las disponibles son las que todavía puedes vender; las vendidas ya tienen cliente.',
-      },
-      {
         id: 'metrics-collection',
         target: 'metrics-collection',
         side: 'top',
         title: 'Lo que te falta por cobrar',
         body: '«Sin pagos» son las boletas que no te han pagado nada y «Con abonos», las que te dieron una parte. Toca cualquiera de las dos para verlas.',
+      },
+      {
+        id: 'metrics-inventory',
+        target: 'metrics-inventory',
+        side: 'bottom',
+        title: 'Tus boletas',
+        body: 'Las disponibles son las que todavía puedes vender; las vendidas ya tienen cliente.',
       },
       helpStep(),
       closingStep(),

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
 import { catalogShareData, isShareCancelled } from '../share'
 import { useClipboard } from '../use-clipboard'
@@ -53,6 +54,7 @@ export function SellerCatalogCard({
   publicUrl,
   raffleName,
   isLive,
+  className,
 }: {
   /** La direccion COMPLETA. `null` cuando todavia no hay enlace generado. */
   publicUrl: string | null
@@ -60,6 +62,8 @@ export function SellerCatalogCard({
   raffleName: string | null
   /** `true` si el enlace abre de verdad ahora mismo (`isCatalogLive`). */
   isLive: boolean
+  /** Colocacion dentro de la rejilla del panel. La decide la pantalla. */
+  className?: string
 }) {
   const { copy, copied } = useClipboard()
 
@@ -90,9 +94,14 @@ export function SellerCatalogCard({
   }
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-base">Mi catálogo público</CardTitle>
+        {/* Un encabezado de verdad: es una region del panel como las demas, y
+            hasta ahora era la unica que no aparecia en el esquema de titulos,
+            asi que no se podia saltar a ella con un lector de pantalla. */}
+        <CardTitle>
+          <h2 className="text-heading-h4">Mi catálogo público</h2>
+        </CardTitle>
         {/*
           El estado con PALABRAS, no solo con color (CLAUDE.md 27). No es una de
           las ocho etiquetas de `constants.ts` —esas no se improvisan—: describe

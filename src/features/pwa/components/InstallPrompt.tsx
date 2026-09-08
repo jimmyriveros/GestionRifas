@@ -24,6 +24,7 @@ import {
   readInstallCapabilityOnServer,
   subscribeToInstallCapability,
 } from '@/features/pwa/install-store'
+import { cn } from '@/lib/utils'
 
 /**
  * Ofrecimiento de instalar la aplicación, en el panel (D-117, corregido en
@@ -43,7 +44,7 @@ import {
  * QUIÉN DECIDE SI SE PINTA. `install-store.ts`. Este componente no husmea el
  * navegador ni la ruta: lo montan las dos pantallas que quieren ofrecerlo.
  */
-export function InstallPrompt() {
+export function InstallPrompt({ className }: { className?: string }) {
   const capability = useSyncExternalStore(
     subscribeToInstallCapability,
     readInstallCapability,
@@ -68,7 +69,10 @@ export function InstallPrompt() {
   }
 
   return (
-    <Card>
+    // `className` la pone la pantalla que lo monta, para colocarlo en su
+    // rejilla. Cuando la tarjeta no se pinta no queda hueco: la decision de no
+    // pintarla es de este componente, que devuelve `null` antes de llegar aqui.
+    <Card className={cn(className)}>
       <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <SmartphoneIcon className="text-muted-foreground size-6 shrink-0" aria-hidden />
 

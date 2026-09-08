@@ -6673,6 +6673,22 @@ table action model without **current product evidence** of a real contradiction.
 > what a closed system looks like working: the product moves, the system gains one line of config,
 > and the record stays honest about what it got wrong.
 
+> **2026-09-08, later the same day — the seller dashboard was recomposed (`D-175`), and again the
+> system was enough.** Three redundant KPI cards removed, the regions re-ranked into three levels, a
+> 12-column responsive grid with per-region spans, and a distinct tablet split. **Zero new tokens,
+> zero new Core components, zero Pattern changes, zero contract changes** — `Pattern / Dashboard Page`
+> held without amendment, including its own clause that the seller's period selector is *local to its
+> money region*, which is exactly where the selector moved. The one component created is a product
+> card in `features/dashboard`, the same layer as the five it sits beside.
+>
+> **One adoption defect found and fixed, and it is worth knowing about.** `DateRangeSelect` wrote its
+> touch height by hand — `h-11 … md:h-9` — and **it never worked**: `SelectTrigger` carries
+> `data-[size=default]:h-9`, an attribute selector that outranks a bare utility class, so the control
+> measured **36 px on phones**, under the 44 px minimum. Measured on a Pixel 7: 36. The fix was to
+> stop dodging the API the system already had (`size="touch"`, from `R7-PRE`). **Anywhere a component
+> sets a dimension through a `data-*` variant, a plain utility in `className` will lose silently** —
+> and a source grep cannot see it, only a measured target can.
+
 ---
 
 ### 10.56 POST-CLOSURE FINDING FROM PRODUCT WORK — `cn` SILENTLY DROPS THE TYPOGRAPHY ROLES (2026-09-08) · **RESOLVED, AND ITS BLAST RADIUS WAS UNDERSTATED — SEE §10.57**

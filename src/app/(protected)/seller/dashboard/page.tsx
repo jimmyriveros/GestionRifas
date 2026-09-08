@@ -3,13 +3,12 @@ import { AlertTriangleIcon } from 'lucide-react'
 import { PageHeader } from '@/components/data/PageHeader'
 import { Notice } from '@/components/feedback/Notice'
 import { InstallPrompt } from '@/features/pwa/components/InstallPrompt'
-import { percentageOf, buildCollectionBreakdown } from '@/features/dashboard/collection-breakdown'
+import { buildCollectionBreakdown } from '@/features/dashboard/collection-breakdown'
 import { CollectionStateCard } from '@/features/dashboard/components/CollectionStateCard'
 import { CollectionTrendCard } from '@/features/dashboard/components/CollectionTrendCard'
-import { DateRangeSelect } from '@/features/dashboard/components/DateRangeSelect'
 import { QuickActionsCard } from '@/features/dashboard/components/QuickActionsCard'
 import { RecentActivityCard } from '@/features/dashboard/components/RecentActivityCard'
-import { SellerKpis } from '@/features/dashboard/components/SellerKpis'
+import { SellerEarningsCard } from '@/features/dashboard/components/SellerEarningsCard'
 import { TicketsOverviewCard } from '@/features/dashboard/components/TicketsOverviewCard'
 import {
   comparePeriods,
@@ -38,13 +37,32 @@ function single(value: string | string[] | undefined): string | undefined {
 }
 
 /**
- * Panel del vendedor (D-112).
+ * Panel del vendedor (D-112, recompuesto en D-175).
  *
- * QUE CIFRA MIRA QUE. El periodo de arriba manda sobre lo que PASO —el dinero
- * recaudado y su tendencia dia a dia—; el inventario y la cobranza son una foto
- * de HOY y no se mueven al cambiarlo. Es la separacion que pidio el encargo, y
- * la unica posible: la base de datos guarda el estado actual de cada boleta, no
- * el que tenia hace siete dias.
+ * TRES NIVELES, Y SE VEN SIN LEER UN SOLO TITULO.
+ *
+ *   NIVEL 1  «Estado de cobro», a ancho completo y lo primero. Es la respuesta
+ *            a «¿como voy?», y su peso viene del sitio y del tamaño, no de mas
+ *            adorno.
+ *   NIVEL 2  lo que hay y lo que se puede hacer: «Mis boletas» con los accesos
+ *            rapidos, el catalogo con la ganancia, y el recuadro de loterias.
+ *   NIVEL 3  lo que ya paso: lo recaudado en el periodo con su tendencia, los
+ *            ultimos abonos y el ofrecimiento de instalar.
+ *
+ * QUE SE FUE, Y POR QUE. La fila de cuatro indicadores de arriba contaba tres
+ * cifras que «Estado de cobro» ya daba: «Por cobrar» era «Falta cobrar»,
+ * «Cobranza» era «Avance del cobro», y «Recaudado» era la unica distinta —el
+ * dinero del PERIODO, no el acumulado—, asi que bajo a la tarjeta que ya
+ * dibujaba esa serie en vez de repetirse. La cuarta, «Ganancia por boleta», no
+ * era del mismo dinero: habla de lo que se lleva el vendedor y tiene region
+ * propia.
+ *
+ * QUE CIFRA MIRA QUE. El periodo manda sobre lo que PASO —el dinero recaudado y
+ * su tendencia dia a dia—; el inventario y la cobranza son una foto de HOY y no
+ * se mueven al cambiarlo. Es la separacion que pidio el encargo, y la unica
+ * posible: la base de datos guarda el estado actual de cada boleta, no el que
+ * tenia hace siete dias. Por eso su selector vive DENTRO de «Recaudado» y ya no
+ * en el encabezado de la pantalla: alli parecia gobernarlo todo.
  *
  * TODO SE DIBUJA EN EL SERVIDOR. Las dos consultas nuevas van dentro del mismo
  * `Promise.all` que ya existia, de modo que la pantalla sigue costando UNA
@@ -140,13 +158,7 @@ export default async function SellerDashboardPage({
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <PageHeader
-        title={`Hola, ${membership.fullName}`}
-        description="Resumen de tu actividad"
-        actions={
-          <DateRangeSelect value={rangeKey} rangeLabel={formatDateRangeEs(range.from, range.to)} />
-        }
-      />
+      <PageHeader title={`Hola, ${membership.fullName}`} description="Resumen de tu actividad" />
 
       {/* No es una tarjeta de metrica, es un aviso: son boletas que el vendedor
           todavia NO puede vender y por eso se dice arriba, con lo que hay que
@@ -158,76 +170,44 @@ export default async function SellerDashboardPage({
         </Notice>
       ) : null}
 
-      {/* «Mi catálogo público», cerca de la parte superior (D-161): es una
-          herramienta de venta que se usa a diario, así que va por encima del
-          ofrecimiento de instalar y del recuadro de loterías, y por debajo del
-          aviso ámbar, que sigue siendo lo más urgente (D-123).
-
-          A DIFERENCIA DE LOS OTROS DOS BLOQUES CONDICIONALES, esta tarjeta se
-          pinta SIEMPRE: cuando el catálogo no está publicado dice «Inactivo» y
-          explica qué falta, en vez de desaparecer sin que el vendedor sepa que
-          la función existe. Lo que desaparece son los botones. */}
-      <SellerCatalogCard
-        publicUrl={catalog?.slug ? catalogPublicUrl(catalog.slug) : null}
-        raffleName={catalog?.raffleName ?? null}
-        isLive={isCatalogLive(catalog)}
-      />
-
-      {/* Arriba, no al final (D-123). Va DESPUÉS del aviso ámbar a propósito:
-          ese son boletas que el vendedor todavía no puede vender, y eso corre
-          más prisa que instalar nada. La tarjeta se decide sola y no se pinta
-          si ya está instalada o si alguien dijo «Ahora no» este mes. */}
-      <InstallPrompt />
-
-      <LotteryResultsSection audience="seller" ticketBasePath="/seller/tickets" />
-
       {/*
-        UNA sola rejilla para las seis piezas, y dos ordenes distintos.
+        UNA sola rejilla para todo el panel, con DOS ordenes.
 
-        Eran siete hasta D-171, cuando «Resumen financiero» y «Cobranza» se
-        fundieron en «Estado de cobro». La rejilla no cambio de forma: la pieza
-        nueva ocupa las dos columnas y las dos filas de abajo se quedan como
-        estaban.
+        ESCRITORIO: doce columnas desde `lg`, y cada region ocupa las que le
+        toca por importancia. La de arriba las doce; las demas van en parejas de
+        7 y 5, que es lo que hace que la primera se lea como el nivel 1 sin
+        necesidad de agrandarla. `items-start` deja a cada tarjeta su altura: en
+        una fila de dos, estirar la corta hasta la larga solo produce un hueco.
+
+        Los anchos no son decorativos, se midieron. A 1360 el contenido mide
+        1104 px, asi que 7 columnas son 634 y 5 son 446. «Estado de cobro»
+        necesita 688 px de tarjeta para poner sus cuatro cifras en fila, y por
+        eso ocupa las doce; el recuadro de loterias reparte en dos columnas a
+        partir de `lg` MIRANDO LA VENTANA, no su contenedor, asi que dentro de
+        una region de 634 px partiria el numero mayor en dos: tambien va a las
+        doce. «Mis boletas» necesita 448 y le sobran con 634.
+
+        TABLETA: no las mismas parejas, y no todas. A 768 el contenido mide 664
+        px, asi que una columna de seis mide 320 y una de cinco, 263. El
+        inventario y los accesos rapidos van a seis y seis; el catalogo y la
+        ganancia conservan el 7/5, porque en 320 los dos botones de abajo del
+        catalogo no caben y en 377 si. La tendencia, los ultimos abonos y el
+        recuadro de loterias se quedan a lo ancho: un grafico con sus fechas y
+        un numero de cuatro cifras no caben en media tableta. Una tableta no es
+        un escritorio encogido ni un telefono estirado.
 
         TELEFONO: una columna, y el orden lo fijan las clases `order-*`. Los
         accesos rapidos suben al primer puesto porque son acciones, no lectura:
-        quien entra desde el telefono viene a vender o a cobrar.
-
-        ESCRITORIO: dos columnas. Los dos `contents` son la clave —el mismo
-        recurso de D-110—: en el telefono el envoltorio desaparece y sus dos
-        tarjetas quedan sueltas entre las demas, de modo que `order` puede
-        colocarlas donde haga falta; a partir de `lg` vuelve a existir y forma
-        una columna, que es lo que permite que «Mis boletas» y «Tendencia» se
-        apilen a la izquierda mientras «Actividad reciente» y «Accesos rapidos»
-        se apilan a la derecha, cada una con su altura natural. Con una rejilla
-        normal, las cuatro compartirian fila y la mas corta se estiraria.
+        quien entra desde el telefono viene a vender o a cobrar (D-112). Detras
+        va el dinero. Solo el ofrecimiento de instalar baja al final.
       */}
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
-        <SellerKpis
-          className="order-2 lg:order-none lg:col-span-2"
-          collected={activity.collected}
-          comparison={comparePeriods(activity.collected, activity.previousCollected)}
-          periodDays={rangeLength(range)}
-          pending={breakdown.pending}
-          ticketsToCollect={totals.ticketsUnpaid + totals.ticketsPartial}
-          collectionPercentage={percentageOf(totals.totalCollected, totals.totalSold)}
-          ticketsPaid={totals.ticketsPaid}
-          ticketsAssigned={totals.ticketsAssigned}
-          earningPerTicket={earningPerTicket}
-          ticketPrice={comisiones.raffle?.ticketPrice ?? null}
-          earned={hasEarnings ? commission.earned : 0}
-          teamEarned={commission?.teamEarned ?? 0}
-          nextTier={nextTier}
-        />
-
-        {/* «Estado de cobro» ocupa las DOS columnas (D-171). Antes eran dos
-            tarjetas de media pantalla, una al lado de la otra, contando el
-            mismo dinero de dos formas; ahora es una sola seccion con el resumen
-            arriba y el reparto por estado de pago debajo, y ese reparto
-            necesita el ancho para poner «Sin pagos» y «Con abonos» en dos
-            columnas. */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-12 md:items-start md:gap-6">
+        {/* NIVEL 1. «Estado de cobro» es el resumen canonico del dinero desde
+            D-171: fundio «Resumen financiero» y «Cobranza», y desde D-175
+            absorbe tambien lo que decian «Por cobrar» y «Cobranza» arriba. Es
+            la unica region a ancho completo del nivel superior. */}
         <CollectionStateCard
-          className="order-3 lg:order-none lg:col-span-2"
+          className="order-2 md:order-none md:col-span-12"
           inventory={{
             available: totals.ticketsAvailable,
             sold: totals.ticketsAssigned,
@@ -240,23 +220,68 @@ export default async function SellerDashboardPage({
           breakdown={breakdown}
         />
 
-        <div className="contents lg:flex lg:flex-col lg:gap-6">
-          <TicketsOverviewCard className="order-4 lg:order-none" totals={totals} />
-          <CollectionTrendCard
-            className="order-5 lg:order-none"
-            points={activity.trend}
-            rangeLabel={formatDateRangeEs(range.from, range.to)}
-            collected={activity.collected}
-          />
-        </div>
+        {/* NIVEL 2 — que tengo y que puedo hacer. */}
+        <TicketsOverviewCard
+          className="order-3 md:order-none md:col-span-6 lg:col-span-7"
+          totals={totals}
+        />
+        <QuickActionsCard className="order-1 md:order-none md:col-span-6 lg:col-span-5" />
 
-        <div className="contents lg:flex lg:flex-col lg:gap-6">
-          <RecentActivityCard
-            className="order-6 lg:order-none"
-            payments={dashboard.recentPayments}
-          />
-          <QuickActionsCard className="order-1 lg:order-none" />
-        </div>
+        {/* Sigue en la banda de acciones, como decidio D-161: es una
+            herramienta de venta que se usa a diario y se queda POR ENCIMA del
+            recuadro de loterias, igual que entonces. Lo unico que cambia es que
+            ya no va por encima del dinero, que es lo que se venia a mirar.
+
+            Se pinta SIEMPRE: cuando el catalogo no esta publicado dice
+            «Inactivo» y explica que falta, en vez de desaparecer sin que el
+            vendedor sepa que la funcion existe. Lo que desaparece son los
+            botones. */}
+        <SellerCatalogCard
+          className="order-4 md:order-none md:col-span-7"
+          publicUrl={catalog?.slug ? catalogPublicUrl(catalog.slug) : null}
+          raffleName={catalog?.raffleName ?? null}
+          isLive={isCatalogLive(catalog)}
+        />
+        {/* La ganancia comparte fila con el catalogo, y no es un relleno: las
+            dos hablan del negocio del vendedor —lo que gana, y como consigue
+            mas ventas—, mientras que la banda de abajo es historia. */}
+        <SellerEarningsCard
+          className="order-5 md:order-none md:col-span-5"
+          earningPerTicket={earningPerTicket}
+          ticketPrice={comisiones.raffle?.ticketPrice ?? null}
+          earned={hasEarnings ? commission.earned : 0}
+          teamEarned={commission?.teamEarned ?? 0}
+          nextTier={nextTier}
+        />
+
+        <LotteryResultsSection
+          className="order-6 md:order-none md:col-span-12"
+          audience="seller"
+          ticketBasePath="/seller/tickets"
+        />
+
+        {/* NIVEL 3 — lo que ya paso. */}
+        <CollectionTrendCard
+          className="order-7 md:order-none md:col-span-12 lg:col-span-7"
+          rangeKey={rangeKey}
+          rangeLabel={formatDateRangeEs(range.from, range.to)}
+          points={activity.trend}
+          collected={activity.collected}
+          comparison={comparePeriods(activity.collected, activity.previousCollected)}
+          periodDays={rangeLength(range)}
+        />
+        <RecentActivityCard
+          className="order-8 md:order-none md:col-span-12 lg:col-span-5"
+          payments={dashboard.recentPayments}
+        />
+
+        {/* Sigue estando y sigue decidiendo sola si aparece —no se pinta si ya
+            esta instalada o si alguien dijo «Ahora no» este mes—, pero es
+            contenido de apoyo y va la ultima: D-123 la subio arriba porque al
+            final de la pagina nadie la veia nunca, y esa pagina medía dos
+            pantallas y media de scroll. Esta mide bastante menos, y lo que se
+            gana arriba es el dinero. */}
+        <InstallPrompt className="order-9 md:order-none md:col-span-12" />
       </div>
     </div>
   )

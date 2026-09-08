@@ -40,14 +40,14 @@ export function RecentActivityCard({ payments, className }: RecentActivityCardPr
     <Card className={cn(className)}>
       <CardHeader className="flex flex-row items-start justify-between gap-2">
         <div className="min-w-0 space-y-1">
-          <CardTitle className="text-base">
-            <h2>Actividad reciente</h2>
+          <CardTitle>
+            <h2 className="text-heading-h4">Actividad reciente</h2>
           </CardTitle>
           <CardDescription>Últimos pagos recibidos</CardDescription>
         </div>
         <Link
           href="/seller/payments"
-          className="text-text-brand shrink-0 text-sm font-medium hover:underline"
+          className="text-text-brand text-label-medium shrink-0 hover:underline"
         >
           Ver todos
         </Link>

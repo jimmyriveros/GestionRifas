@@ -57,7 +57,20 @@ test.describe('la tarjeta con el catálogo activo', () => {
     await page.goto('/seller/dashboard')
   })
 
-  test('está cerca de la parte superior, antes del recuadro de loterías', async ({ page }) => {
+  /**
+   * Sigue en la banda de acciones, antes del recuadro de loterías (D-161), pero
+   * ya NO por encima del dinero (D-175).
+   *
+   * Es la mitad de D-161 que cambió, y solo esa mitad: la tarjeta se seguía
+   * leyendo antes que «Estado de cobro», así que quien abría su panel veía
+   * primero un enlace para repartir —a veces apagado y sin ningún botón— y
+   * tenía que bajar para saber cuánto le deben. Lo demás de D-161 se conserva:
+   * la tarjeta se pinta siempre, con sus tres botones cuando el enlace abre, y
+   * por encima de las loterías.
+   */
+  test('va en la banda de acciones: antes de las loterías y después del dinero', async ({
+    page,
+  }) => {
     const titulos = await page
       .locator('h1, [data-slot="card-title"]')
       .filter({ hasText: /Hola,|Mi catálogo público|Resultados y próxima lotería|Estado de cobro/ })
@@ -69,7 +82,7 @@ test.describe('la tarjeta con el catálogo activo', () => {
 
     expect(catalogo).toBeGreaterThanOrEqual(0)
     expect(catalogo).toBeLessThan(loterias === -1 ? Number.MAX_SAFE_INTEGER : loterias)
-    expect(catalogo).toBeLessThan(financiero)
+    expect(catalogo).toBeGreaterThan(financiero)
   })
 
   test('dice «Activo» y muestra la dirección', async ({ page }) => {

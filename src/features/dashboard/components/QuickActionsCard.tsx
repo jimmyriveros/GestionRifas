@@ -43,8 +43,8 @@ export function QuickActionsCard({ className }: QuickActionsCardProps) {
   return (
     <Card className={cn(className)} {...tourTarget('quick-actions')}>
       <CardHeader>
-        <CardTitle className="text-base">
-          <h2>Accesos rápidos</h2>
+        <CardTitle>
+          <h2 className="text-heading-h4">Accesos rápidos</h2>
         </CardTitle>
       </CardHeader>
       <CardContent>

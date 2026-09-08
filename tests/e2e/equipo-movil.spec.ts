@@ -18,6 +18,16 @@ const ANCHOS = [320, 375, 390, 430]
 /** Diana minima recomendada para tocar con el dedo. */
 const DIANA_MINIMA = 44
 
+/**
+ * Una tarjeta del panel por su ENCABEZADO, no por un texto suelto que aparezca
+ * dentro. «Recaudado» sale además en varias partes de la pantalla.
+ */
+function tarjetaConTitulo(page: import('@playwright/test').Page, titulo: string) {
+  return page
+    .locator('[data-slot="card"]')
+    .filter({ has: page.getByRole('heading', { name: titulo, exact: true }) })
+}
+
 let memberId: string | null = null
 
 test.afterAll(async () => {
@@ -90,25 +100,45 @@ test.describe('Equipo y ganancia en el teléfono', () => {
     await page.setViewportSize({ width: 320, height: 800 })
     await page.goto('/seller/dashboard')
 
-    // Desde D-112 los cuatro importes grandes del panel son los indicadores de
-    // arriba, y la ganancia es uno de ellos. Se comprueban los cuatro: a 320 px
-    // es donde una cifra de siete digitos se corta primero.
-    const importes = page.locator('[data-slot="card"] p.text-2xl.tabular-nums')
-    await expect(importes.first()).toBeVisible()
+    // Los importes grandes del panel, allí donde estén: los cuatro de «Estado
+    // de cobro», lo recaudado del período y la ganancia (D-175). A 320 px es
+    // donde una cifra de siete dígitos se corta primero.
+    //
+    // NINGUNO se busca por su clase de Tailwind. La versión anterior pedía
+    // `p.text-2xl`, y esa es exactamente la trampa de `I-101`: una prueba que
+    // deja de comprobar nada en cuanto el diseño cambia de clase, sin decirlo.
+    const importes = [
+      ...(await page
+        .locator('[data-section="estado-de-cobro"] dl dd')
+        .filter({ hasText: /^\$/ })
+        .all()),
+      ...(await tarjetaConTitulo(page, 'Recaudado')
+        .locator('[data-slot="card-content"] p')
+        .filter({ hasText: /^\$/ })
+        .first()
+        .all()),
+      ...(await tarjetaConTitulo(page, 'Ganancia por boleta')
+        .locator('[data-slot="card-content"] p')
+        .filter({ hasText: /^\$/ })
+        .first()
+        .all()),
+    ]
 
-    for (const etiqueta of ['Recaudado', 'Por cobrar', 'Ganancia por boleta']) {
-      const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: etiqueta })
-      // El importe se localiza por su sitio en la tarjeta, no por su valor:
-      // otras suites cobran boletas de esta cuenta y un numero fijo aqui
-      // dependeria del orden de ejecucion. Lo que se comprueba es que NO se
-      // corta, sea cual sea.
-      const importe = tarjeta.locator('p.text-2xl').first()
-      await expect(importe).toHaveText(/^\$[\d.]+$/)
+    expect(importes.length, 'el panel debe tener importes grandes que medir').toBeGreaterThanOrEqual(
+      6,
+    )
+
+    for (const importe of importes) {
+      // El importe se comprueba por su sitio, no por su valor: otras suites
+      // cobran boletas de esta cuenta y un numero fijo aqui dependeria del
+      // orden de ejecucion. Lo que se comprueba es que NO se corta.
+      const texto = (await importe.textContent())?.trim() ?? ''
+      expect(texto).toMatch(/^\$[\d.]+$/)
 
       const recortado = await importe.evaluate(
         (element) => element.scrollWidth > element.clientWidth + 1,
       )
-      expect(recortado, `el importe de «${etiqueta}» no debe quedar cortado`).toBe(false)
+      expect(recortado, `el importe «${texto}» no debe quedar cortado`).toBe(false)
     }
   })
 

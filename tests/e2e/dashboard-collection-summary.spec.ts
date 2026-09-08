@@ -8,7 +8,9 @@ import { ACCOUNTS, loginAs } from './fixtures'
  * El administrativo conserva la tarjeta «Resumen de cobranza» (D-090). El del
  * vendedor tiene «Estado de cobro», una sola seccion que reparte el mismo total
  * y ademas escribe a la vista de que se compone lo que falta por cobrar
- * (D-112, D-171).
+ * (D-112, D-171). Desde D-175 es ademas la PRIMERA region de la pantalla y la
+ * unica fuente de esas cifras: los indicadores «Por cobrar» y «Cobranza», que
+ * las repetian arriba, ya no existen.
  *
  * La aritmetica (vendido/recaudado/pendiente/estados de pago) ya la prueban a
  * fondo las vistas SQL en tests/db. Lo que se verifica aqui es lo que solo se
@@ -73,20 +75,16 @@ async function metricCardValue(page: Page, label: string): Promise<number> {
 }
 
 /**
- * El importe de un indicador de la fila superior del panel del vendedor.
+ * La tarjeta «Recaudado»: lo que entró en el período elegido, y su selector.
  *
- * `.first()` no es casual: «Por cobrar» es a la vez el nombre de un indicador y
- * una línea de la leyenda del resumen financiero, así que el filtro encuentra
- * dos tarjetas. Los indicadores van primero en el HTML —en el teléfono se
- * recolocan con `order`, que no toca el orden del documento—, de modo que la
- * primera coincidencia es siempre el indicador.
+ * Es la única región del panel que sigue dependiendo del período (D-175). Se
+ * busca por su encabezado y no por el texto suelto, porque «Recaudado» también
+ * es una palabra del reporte de pagos.
  */
-async function kpiValue(page: Page, label: string): Promise<number> {
-  const card = page
+function recaudado(page: Page) {
+  return page
     .locator('[data-slot="card"]')
-    .filter({ has: page.getByText(label, { exact: true }) })
-  const text = await card.locator('p.text-2xl').first().textContent()
-  return parseCOP(text ?? '')
+    .filter({ has: page.getByRole('heading', { name: 'Recaudado', exact: true }) })
 }
 
 test.describe('Resumen de cobranza del panel administrativo (D-090)', () => {
@@ -208,23 +206,56 @@ test.describe('Estado de cobro del panel del vendedor (D-112, D-171)', () => {
     }
   })
 
-  test('los indicadores de arriba coinciden con las tarjetas de Pagos', async ({ page }) => {
+  test('las tres tarjetas de indicadores que repetían este dinero ya no están (D-175)', async ({
+    page,
+  }) => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/dashboard')
 
-    const porCobrar = await kpiValue(page, 'Por cobrar')
+    // «Por cobrar» era «Falta cobrar» y «Cobranza» era «Avance del cobro»: la
+    // misma cifra dos veces en la misma pantalla.
+    await expect(page.getByText('Por cobrar', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Cobranza', { exact: true })).toHaveCount(0)
+    // Los rótulos del resumen de arriba. Se piden como término de la lista y no
+    // por texto suelto: «Falta cobrar» nombra además el grupo de abajo, que es
+    // la misma cifra dicha en el otro sitio de la sección.
+    const rotulo = (name: RegExp) => estadoDeCobro(page).getByRole('term').filter({ hasText: name })
+    await expect(rotulo(/^Falta cobrar$/)).toBeVisible()
+    await expect(rotulo(/^Avance del cobro$/)).toBeVisible()
 
-    // «Cobranza» es un porcentaje acotado, no una cifra de dinero.
-    const cobranza = page
-      .locator('[data-slot="card"]')
-      .filter({ has: page.getByText('Cobranza', { exact: true }) })
-    const barra = cobranza.getByRole('progressbar')
-    const porcentaje = Number(await barra.getAttribute('aria-valuenow'))
-    expect(porcentaje).toBeGreaterThanOrEqual(0)
-    expect(porcentaje).toBeLessThanOrEqual(100)
+    // «Recaudado» sí era una cifra distinta —la del período, no la acumulada—,
+    // así que no desapareció: bajó a la tarjeta que ya dibujaba esa serie, y el
+    // selector de período se fue con ella. Ya no vive en el encabezado, donde
+    // parecía gobernar toda la pantalla.
+    const periodo = page.getByLabel(/^Período de las cifras/)
+    await expect(periodo).toHaveCount(1)
+    await expect(recaudado(page).getByLabel(/^Período de las cifras/)).toBeVisible()
 
+    // Y sigue siendo el mismo dinero que dice Pagos.
+    const faltaCobrar = await figura(page, 'Falta cobrar')
     await page.goto('/seller/payments')
-    expect(porCobrar).toBe(await metricCardValue(page, 'Saldo pendiente'))
+    expect(faltaCobrar).toBe(await metricCardValue(page, 'Saldo pendiente'))
+  })
+
+  test('el dinero se lee primero: «Estado de cobro» abre el panel (D-175)', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/dashboard')
+
+    // El orden VISUAL de las regiones, que en escritorio es el del documento.
+    // Es la promesa del rediseño: quien entra ve su cobranza sin bajar, y no
+    // detrás del catálogo, del recuadro de loterías y de cuatro indicadores.
+    const titulos = await page.locator('main h2').allInnerTexts()
+    expect(titulos[0]).toBe('Estado de cobro')
+    expect(titulos.slice(0, 3)).toEqual(['Estado de cobro', 'Mis boletas', 'Accesos rápidos'])
+
+    // La lotería, por debajo del dinero, no por encima.
+    expect(titulos.indexOf('Estado de cobro')).toBeLessThan(
+      titulos.indexOf('Resultados y próxima lotería'),
+    )
+    // Y lo que ya pasó, al final.
+    expect(titulos.indexOf('Actividad reciente')).toBeGreaterThan(
+      titulos.indexOf('Resultados y próxima lotería'),
+    )
   })
 
   test('sin ventas, el panel muestra un estado vacío limpio', async ({ page }) => {
@@ -243,6 +274,11 @@ test.describe('Estado de cobro del panel del vendedor (D-112, D-171)', () => {
 
     // Y ninguna cifra rota por dividir entre cero.
     await expect(page.getByText(/NaN|Infinity/)).toHaveCount(0)
-    expect(await kpiValue(page, 'Por cobrar')).toBe(0)
+
+    // «Recaudado» es el único dinero que sigue dependiendo del período: dice
+    // cero y explica qué hacer, en vez de dibujar un gráfico vacío sin más.
+    // La cifra, no la marca «$0» del eje del gráfico que hay debajo.
+    await expect(recaudado(page).getByRole('paragraph').filter({ hasText: /^\$0$/ })).toBeVisible()
+    await expect(recaudado(page).getByText(/no recibiste ningún abono/)).toBeVisible()
   })
 })

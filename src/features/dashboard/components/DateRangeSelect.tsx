@@ -50,9 +50,21 @@ export function DateRangeSelect({ value, rangeLabel }: DateRangeSelectProps) {
 
   return (
     <Select value={value} onValueChange={change} disabled={isPending}>
+      {/*
+        `size="touch"` y no una altura escrita a mano. Lo de antes era
+        `h-11 md:h-9`, y NO funcionaba: el propio componente trae
+        `data-[size=default]:h-9`, un selector de atributo que gana por
+        especificidad a una clase suelta, asi que el control media 36 px tambien
+        en el telefono. Medido: 36. El sistema de diseno ya resolvio esto para
+        los demas controles y su variante da 44 px por debajo de `sm`.
+
+        El ancho cambia en el MISMO punto que la tarjeta que lo contiene, que se
+        vuelve una fila en `sm`: apilado ocupa el ancho entero, en fila el suyo.
+      */}
       <SelectTrigger
+        size="touch"
         aria-label={`Período de las cifras: ${DASHBOARD_RANGE_LABELS[value]}`}
-        className="h-11 w-full justify-between md:h-9 md:w-auto"
+        className="w-full justify-between sm:w-auto"
       >
         <span className="flex items-center gap-2">
           <CalendarIcon aria-hidden />

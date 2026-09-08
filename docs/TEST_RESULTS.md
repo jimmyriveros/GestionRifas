@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente (D-174, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | `filas-seleccionables` **9/9**; de los 4 fallos de la corrida completa, **I-101 ×2 quedan resueltos** y siguen los **I-090 ×2**, que pasan 39/39 en aislamiento | ✅ | ✅ |
+| Post-9 vigente (D-175, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | **escritorio 417/419 · móvil 125/125**, sobre servidor y base recién creados. Los 2 son el par **I-090** de siempre | ✅ | ✅ |
+| Post-9 anterior (D-174, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | `filas-seleccionables` **9/9**; de los 4 fallos de la corrida completa, **I-101 ×2 quedan resueltos** y siguen los **I-090 ×2**, que pasan 39/39 en aislamiento | ✅ | ✅ |
 | Post-9 anterior (D-173, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | **414 + 123**, con 4 fallos preexistentes y clasificados (I-090 ×2, I-101 ×2) | ✅ | ✅ |
 | Post-9 anterior (D-172, 2026-09-08) | **+16** de `cn` | **812 ✅** (sin cambios: no se tocó la base) | suite completa corrida; sus fallos son preexistentes y ajenos | ✅ | ✅ |
 | Post-9 anterior (D-171, 2026-09-08) | **796 ✅** | **812 ✅** (sin cambios: no se tocó la base) | **170/170** dirigidas — no se corrió la suite completa | ✅ | ✅ |
@@ -35,6 +36,123 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## El panel del vendedor, recompuesto en tres niveles (D-175) — 2026-09-08
+
+**Encargo.** Rediseño de producto del panel del vendedor con el sistema de diseño ya cerrado, usándolo
+como piezas. Retirar «Recaudado», «Por cobrar» y «Cobranza» como tarjetas sueltas, hacer de «Estado
+de cobro» el resumen financiero canónico, y ordenar las regiones por responsabilidad y prioridad.
+
+### Lo que se midió ANTES de tocar nada
+
+Con la aplicación corriendo y una sesión de vendedor real —lo que el relevo del sistema de diseño no
+pudo hacer en su día, porque su agente no iniciaba sesión—:
+
+| Ancho | Altura de página | Dónde empieza «Estado de cobro» |
+|---|---|---|
+| 1360 | 2150 px | **y = 829** |
+| 768 | 2808 px | — |
+| 375 | 3484 px | ~y = 1490 |
+| 320 | 3693 px | — |
+
+Por encima del dinero había: el aviso ámbar, el catálogo —en su estado apagado, sin ningún botón—,
+el recuadro de loterías —230 px para decir que no hay resultados— y cuatro tarjetas de indicadores,
+tres de las cuales repetían cifras que «Estado de cobro» da treinta píxeles más abajo.
+
+### Lo que se midió DESPUÉS
+
+| Ancho | Altura | «Estado de cobro» | Desbordamiento horizontal | Rejilla medida |
+|---|---|---|---|---|
+| 1360 | 2129 px | **y = 255** | **0** | 1104 · 634+446 · 634+446 · 1104 · 634+446 |
+| 1600 | 2168 px | y = 255 | **0** | 1320 · 760+536 · 760+536 · 1320 · 760+536 |
+| 768 | **2625 px** | y = 230 | **0** | 664 · 320+320 · 377+263 · 664 · 664 · 664 |
+| 375 | 3314 px | 2.ª región | **0** | una columna |
+| 320 | 3499 px | 2.ª región | **0** | una columna |
+
+Los diez casos —cinco anchos × dos temas— se midieron **con el catálogo publicado**, que es su estado
+más ancho: es el único que dibuja la dirección y los tres botones.
+
+**Colores por tema, medidos con `getComputedStyle` ya asentados:**
+
+| | Claro | Oscuro |
+|---|---|---|
+| «Ya cobraste» (`data/paid`) | `rgb(0,122,85)` | `rgb(0,212,146)` |
+| «Deben» (`data/unpaid`) | `rgb(184,0,8)` | `rgb(255,100,103)` |
+| «Ya abonaron» (`data/partial`) | `rgb(0,105,168)` | `rgb(0,188,255)` |
+| «Falta cobrar» (`data/pending`) | `rgb(102,102,102)` | `rgb(161,161,161)` |
+| Enlace de marca | `rgb(13,100,39)` | `rgb(123,239,146)` |
+| Barra de avance | `rgb(13,125,45)` | `rgb(23,194,70)` |
+
+> **Una trampa de medición que casi se reporta como defecto.** Al leer el color justo después de
+> alternar el tema, el enlace de marca daba el valor **claro** en modo oscuro, mientras su propia
+> variable ya valía el oscuro. No era un fallo del token: era **`transition-colors`**, que estaba a
+> medio animar. Con 600 ms de espera, correcto. Las cifras de dinero no lo sufrían porque no llevan
+> transición. Regla: **medir un color después de que la transición termine**.
+
+### Tipografía, leída del DOM
+
+| Nivel | Elemento | Medido |
+|---|---|---|
+| Encabezado de pantalla | `h1` «Hola, …» | 24 px / 600 (`Heading/H2`) |
+| Nivel 1 | `h2` «Estado de cobro» | 20 px / 600 (`Heading/H3`) |
+| Niveles 2 y 3 | los otros nueve `h2` | 16 px / 600 (`Heading/H4`) |
+
+Los tres se piden **por su rol**, no por su tamaño. Cuatro tarjetas que llevaban `text-base` ad-hoc
+—deuda de la Ola 2— pasan al rol equivalente, con el mismo 16/600.
+
+### Accesibilidad, sobre la ruta real
+
+| Comprobación | Resultado |
+|---|---|
+| `h1` | **1**, y 11 encabezados sin ningún salto de nivel |
+| Elementos enfocables en `main` | **22**, **todos con nombre accesible** |
+| Interactivos anidados | **0** |
+| Barra de progreso | nombrada «Avance del cobro», con `aria-valuetext` «$605.000 de $3.100.000» |
+| Dianas < 44 px a 375 px | **3**, y las tres son **enlaces de texto en línea** —«Ver detalle de cobranza», «Ver mis boletas», «Ver todos»—, del mismo tamaño que antes de este trabajo. No son controles y no se tocan |
+
+### Un defecto encontrado, y arreglado
+
+**El selector de período medía 36 px en el teléfono, no 44.** Pedía su altura a mano
+—`h-11 … md:h-9`— y perdía en silencio contra `data-[size=default]:h-9` del propio `SelectTrigger`,
+porque un selector de atributo gana a una clase suelta. Medido en un Pixel 7: **36**. Se arregla
+usando `size="touch"`, la variante que el sistema ya tenía desde `R7-PRE`, que da 44 px por debajo de
+`sm`. **Ni un token, componente o contrato nuevo.** Lo cazó una prueba que mide la caja; un `grep` del
+código no podía verlo.
+
+### Cuatro pruebas que localizaban un importe por su clase de Tailwind
+
+`equipo.spec.ts` (×3) y `equipo-movil.spec.ts` (×1) pedían `p.text-2xl` para leer la ganancia. Al
+pasar la cifra al rol `Metric/Large` dejaron de encontrar nada. **Es exactamente la trampa de
+`I-101`**, que se cerró el mismo día por lo mismo con `span.text-xs`. Ahora se localizan por su sitio
+—el primer párrafo del cuerpo de la tarjeta—, y la de móvil pasa además a medir **todos** los
+importes grandes del panel, no tres.
+
+### Verificación
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ — los **2** avisos preexistentes de siempre (`react-hooks/incompatible-library`) |
+| `npm run test` | ✅ **815/815** en 48 archivos |
+| `npm run build` | ✅ |
+| `npm run test:db` | ✅ **812/812** — la misma cifra, que es lo que debe pasar cuando no se toca la base |
+| `npx playwright test --project=escritorio` | **417/419**, sobre servidor y base **recién creados**. Los 2 son el par **I-090** de siempre: `reports › pagos recientes` y `ventas-por-fecha › ventas de HOY` |
+| `npx playwright test --project=movil` | ✅ **125/125** (eran 123: +2 del panel del vendedor en móvil) |
+
+### La corrida que mintió, y cómo se supo
+
+La **primera** corrida completa dio **17 fallos**, en suites que este trabajo no toca:
+`importar-boletas` ×6, `seleccion-multiple` ×5, `back-navigation` ×3, más las conocidas. Con el
+servidor de desarrollo **recién arrancado** y la base recién sembrada, esas mismas suites dan
+**37/38** y luego **9/9**. Es **I-098** y **I-075**: un servidor con dos horas y decenas de
+recompilaciones encima —y un `db:reset` por debajo— produce fallos que no existen.
+
+Dos de `ventas-por-fecha` (`:238` y `:247`) llegaron a fallar **con** los cambios y a pasar **sin**
+ellos, lo que parecía una regresión. Se comprobó de las dos formas: `git stash` de `src/` → 18/18; y
+**otra vez con los cambios, base limpia y servidor caliente → 18/18**. No es del cambio; su error
+—`strict mode violation … resolved to 2 elements`— es la firma de una recompilación a medias.
+**Se comprobó en vez de suponerse, en las dos direcciones.**
+
+---
 ## `I-101` auditado y cerrado: eran las pruebas, no el producto (D-174) — 2026-09-08
 
 **Encargo.** Auditoría **acotada** de `I-101`, sin ampliarla a un rediseño de la selección: ¿qué debe
