@@ -134,7 +134,7 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — el panel del vendedor, recompuesto en tres niveles, SIN DESPLEGAR (D-175, 2026-09-08)
+## 1.a Último relevo significativo — el panel del vendedor, recompuesto en tres niveles, DESPLEGADO (D-175, 2026-09-08)
 
 | Campo | Estado |
 |---|---|
@@ -144,12 +144,12 @@ reales).
 | Decisiones | **D-175.** Lo que no es evidente: **(a)** «Recaudado» y «Ya cobraste» **no son la misma cifra** y por eso una se muda en vez de borrarse; **(b)** el ancho de cada región se **midió**, no se eligió: «Estado de cobro» necesita 688 px de tarjeta para sus cuatro cifras en fila y el recuadro de loterías reparte mirando **la ventana**, así que los dos ocupan las doce columnas; **(c)** la **tableta** tiene parejas propias, no las del escritorio; **(d)** de D-161 solo cambia **una mitad** —el catálogo sigue en la banda de acciones y sigue por encima de las loterías, ya no por encima del dinero—; **(e)** el recorrido guiado bajaba a «Mis boletas» y **volvía a subir** a la otra mitad de «Estado de cobro»: dos pasos se ordenan, ningún texto cambia |
 | Verificación | `typecheck` · `lint` (2 avisos preexistentes) · **815/815** unitarias · `build` ✅. `test:db` **812/812**, la misma cifra: no se tocó la base. **Suite E2E completa sobre servidor y base recién creados: escritorio 417/419**, y los **2** son exactamente el par **I-090** de siempre. **QA de ruta real con sesión**, a 320/375/768/1360/1600 en claro y oscuro: **cero desbordamiento horizontal** en los diez casos, colores semánticos medidos por tema, y el esquema de títulos leído del DOM |
 | Advertencias | **1)** **Una altura escrita a mano puede perder en silencio contra la variante del componente.** `DateRangeSelect` pedía `h-11 md:h-9` y medía **36 px en el teléfono**, porque `SelectTrigger` trae `data-[size=default]:h-9` y un selector de atributo gana a una clase suelta. Se arregló usando `size="touch"`, que ya existía. **Un grep del código no ve esto; solo verlo medido.** **2)** **Ninguna prueba debe localizar un importe por su clase de Tailwind.** Cuatro lo hacían (`p.text-2xl`, en `equipo` y `equipo-movil`) y se rompieron al pasar al rol `Metric/Large`: es la misma trampa de `I-101`. Ahora se localizan por su sitio en la tarjeta. **3)** **Una corrida E2E contra un servidor de desarrollo con horas encima miente:** la primera corrida completa dio 17 fallos en suites que este trabajo ni toca —`importar-boletas`, `seleccion-multiple`, `back-navigation`—, y con el servidor recién arrancado son **0**. Antes de creerse un fallo, reiniciar (I-098, I-075) |
-| Pendiente | **Sin desplegar y sin autorización para hacerlo.** No hay migración. Lo de siempre: I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030, I-059, I-060 |
-| Publicación | **No.** Sin push, sin despliegue y sin tocar el proyecto Supabase real. **Cero migraciones** |
-| Git | Rama **`design-system/migration`**, sobre `cb26e95` (D-174), commit local **`8b3e528`**. Sin etiqueta de fase, es mantenimiento. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y **sin tocar** |
+| Pendiente | **DESPLEGADO a producción el 2026-09-08** (`a56e408`, `dpl_E4No3eMgdYcE2XwcquF2VcopcGwn`). Sin migración: no había ninguna nueva. Lo de siempre: I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030, I-059, I-060 |
+| Publicación | **SÍ, el 2026-09-08.** `main` avanzado por **fast-forward** a `a56e408` (43 commits) y desplegado por Vercel. **El proyecto Supabase real NO se tocó: cero migraciones** |
+| Git | Rama **`design-system/migration`**, sobre `cb26e95` (D-174), commit **`8b3e528`**, ya fusionado a `main` sin merge ni reescritura. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y **sin tocar** |
 
 ---
-## 1.a.0 Relevo anterior — lo elegido manda sobre el cursor: `I-101` cerrado como pruebas obsoletas, SIN DESPLEGAR (D-174, 2026-09-08)
+## 1.a.0 Relevo anterior — lo elegido manda sobre el cursor: `I-101` cerrado como pruebas obsoletas, DESPLEGADO (D-174, 2026-09-08)
 
 | Campo | Estado |
 |---|---|
@@ -164,7 +164,7 @@ reales).
 | Git | Rama **`design-system/migration`**, sobre `1d46f5b` (D-173). Commit local; sin etiqueta de fase, es mantenimiento. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y **sin tocar** |
 
 ---
-## 1.a.0 Relevo anterior — el total explicado y el reparto demostrado, SIN DESPLEGAR (D-173, 2026-09-08)
+## 1.a.0 Relevo anterior — el total explicado y el reparto demostrado, DESPLEGADO (D-173, 2026-09-08)
 
 | Campo | Estado |
 |---|---|
@@ -179,7 +179,7 @@ reales).
 | Git | Rama **`design-system/migration`**, sobre `6c2838f` (D-172, el checkpoint aislado de `I-099`). Commit local; sin etiqueta de fase, es mantenimiento. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y **sin tocar** |
 
 ---
-## 1.a.0 Relevo anterior — `I-099` resuelto en la raíz: `cn` distingue tipografía de color, SIN DESPLEGAR (D-172, 2026-09-08)
+## 1.a.0 Relevo anterior — `I-099` resuelto en la raíz: `cn` distingue tipografía de color, DESPLEGADO (D-172, 2026-09-08)
 
 | Campo | Estado |
 |---|---|
@@ -194,7 +194,7 @@ reales).
 | Git | Rama **`design-system/migration`**, sobre `d2ec11b` (D-171). Commit local aislado, solo `I-099`; sin etiqueta de fase, es mantenimiento. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y **sin tocar** |
 
 ---
-## 1.a.0 Relevo anterior — «Estado de cobro» en el panel del vendedor, SIN DESPLEGAR (D-171, 2026-09-08)
+## 1.a.0 Relevo anterior — «Estado de cobro» en el panel del vendedor, DESPLEGADO (D-171, 2026-09-08)
 
 | Campo | Estado |
 |---|---|

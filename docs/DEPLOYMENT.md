@@ -220,6 +220,43 @@ curl -sI https://gestion-rifas.vercel.app/sw.js | head -3
    `get_deployment`).
 5. Ejecutar la verificación de §6.
 
+### 3.2.b Release del sistema de diseño y del panel del vendedor — 2026-09-08
+
+**El despliegue más grande desde la Fase 9, y el que menos tocó la base de datos: nada.**
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`a56e4088bc7e0202482dd9f1cff6be47174c7e77`** |
+| Commit anterior en producción | `124445b941f0b7fec5fe0e587de25a632e58a82c` |
+| Rama de origen | `design-system/migration` |
+| Integración | **fast-forward** — `main` era ancestro directo; sin merge, sin conflictos, sin reescritura, **43 commits** conservados |
+| Despliegue Vercel | `dpl_E4No3eMgdYcE2XwcquF2VcopcGwn` — READY en 43 s |
+| Despliegue anterior (**punto de reversión**) | `dpl_4aa83tLbCtT25caU4EEQQ9yfbLtk` |
+| **Migraciones** | **NINGUNA.** `supabase/` y `scripts/` son **byte a byte idénticos** a producción. Siguen siendo 49, hasta `0049` |
+| Variables de entorno nuevas | **ninguna** — `.env.example` sin cambios y **cero** `process.env` nuevos en el diff |
+| Dependencias | **sin cambios** — `package.json` y `package-lock.json` intactos |
+
+**Qué entró:** 140 archivos, +12.063/−1.449. El sistema de diseño completo (tokens, tipografía
+semántica, 39 componentes compartidos), la adopción por producto —boletas, reportes, pagos, personas,
+catálogo—, el rediseño del panel del vendedor (D-171 → D-175) y el arreglo de raíz de `cn` (I-099).
+
+**Validación previa:** `verify` en verde (typecheck, lint 0 errores, **815/815** unitarias, build),
+`test:db` **812/812**, E2E **escritorio 417/419** y **móvil 125/125** sobre servidor y base recién
+creados. Los 2 fallos son el par **I-090** ya documentado. **CI 2/2** sobre el commit desplegado,
+incluido el job que aplica las 49 migraciones **desde cero**.
+
+**Verificación en vivo:** identificador de versión **`0d41e7dfdecc`** servido por el dominio y el
+anterior (`fa0953a48609`) **desaparecido**; 19 rutas comprobadas (públicas 200, protegidas 307,
+**ningún 5xx**); 7/7 cabeceras de seguridad; **0 secretos** en 1.074 KB servidos; la CSS servida trae
+los roles tipográficos, los roles de dato y **59 reglas `.dark`**; claro y oscuro correctos y **0
+desbordamiento horizontal** a 1360 y a 375; **0 errores de ejecución** en Vercel tras el despliegue.
+
+> **Lo que este release NO verificó, y hay que decirlo:** las pantallas **autenticadas** en
+> producción. Comprobarlas exige iniciar sesión con una cuenta real y **un agente no introduce
+> contraseñas**. La evidencia de que el código nuevo está servido es el SHA desplegado, el CI en verde
+> sobre ese mismo commit y el identificador de versión encontrado en el JavaScript del dominio — que
+> es exactamente lo que admite §6.1. La revisión visual autenticada queda para una persona.
+
 ### 3.3 Despliegues futuros
 
 Cada `git push` a `main` que se decida subir dispara un build y despliegue a producción automático

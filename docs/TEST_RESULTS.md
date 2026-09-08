@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| Post-9 vigente (D-175, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | **escritorio 417/419 · móvil 125/125**, sobre servidor y base recién creados. Los 2 son el par **I-090** de siempre | ✅ | ✅ |
+| **Release a producción (2026-09-08, `a56e408`)** | **815 ✅** | **812 ✅** (sin cambios: cero migraciones) | **escritorio 417/419 · móvil 125/125** sobre servidor y base nuevos; los 2 son **I-090**. **CI 2/2** sobre el commit desplegado | ✅ | ✅ **DESPLEGADO** |
+| Post-9 anterior (D-175, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | **escritorio 417/419 · móvil 125/125**, sobre servidor y base recién creados. Los 2 son el par **I-090** de siempre | ✅ | ✅ |
 | Post-9 anterior (D-174, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | `filas-seleccionables` **9/9**; de los 4 fallos de la corrida completa, **I-101 ×2 quedan resueltos** y siguen los **I-090 ×2**, que pasan 39/39 en aislamiento | ✅ | ✅ |
 | Post-9 anterior (D-173, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | **414 + 123**, con 4 fallos preexistentes y clasificados (I-090 ×2, I-101 ×2) | ✅ | ✅ |
 | Post-9 anterior (D-172, 2026-09-08) | **+16** de `cn` | **812 ✅** (sin cambios: no se tocó la base) | suite completa corrida; sus fallos son preexistentes y ajenos | ✅ | ✅ |
