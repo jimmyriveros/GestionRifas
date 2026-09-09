@@ -11,10 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { ClientOption } from '@/features/clients/queries'
-import {
-  ClientCreatedDialog,
-  type ClientCreatedOutcome,
-} from '@/features/whatsapp/components/ClientCreatedDialog'
+import { useClientCreated } from '@/features/whatsapp/components/ClientCreatedProvider'
 import type { WhatsappSettings } from '@/features/whatsapp/invite'
 
 import { AssignTicketsForm } from './AssignTicketsForm'
@@ -52,11 +49,13 @@ export function AssignTicketDialog({
 }: AssignTicketDialogProps) {
   const [open, setOpen] = useState(false)
   /**
-   * El cliente recien creado, si la venta se hizo con la pestaña «Cliente
-   * nuevo». Vive AQUI y no dentro del formulario porque el formulario se
-   * desmonta al cerrarse este dialogo, y con el se iria el de exito.
+   * El aviso sube al proveedor del layout, que es lo unico que sobrevive a esta
+   * venta (D-179): al asignarse, la boleta deja de estar `available`, el
+   * `canAssign` de la pagina pasa a `false` y ESTE componente entero
+   * desaparece. Guardar aqui el estado del dialogo de exito era pedirle que
+   * viviera dentro de lo que la propia operacion elimina.
    */
-  const [created, setCreated] = useState<ClientCreatedOutcome | null>(null)
+  const showClientCreated = useClientCreated()
 
   return (
     <>
@@ -87,21 +86,16 @@ export function AssignTicketDialog({
             onDone={() => setOpen(false)}
             // Aqui SI se nombra la boleta: es una sola y ya la tenemos escrita.
             ticketLabel={ticketNumbers}
-            onClientCreated={whatsappSettings ? setCreated : undefined}
+            // Sin `redirectTo`: ya estamos en el detalle de la boleta, que es
+            // justo donde se ve el resultado de la venta.
+            onClientCreated={
+              whatsappSettings
+                ? (outcome) => showClientCreated({ outcome, settings: whatsappSettings })
+                : undefined
+            }
           />
         </DialogContent>
       </Dialog>
-
-      {whatsappSettings ? (
-        <ClientCreatedDialog
-          outcome={created}
-          settings={whatsappSettings}
-          // No se navega a ninguna parte: ya estamos en el detalle de la boleta,
-          // que es donde se ve el resultado de la venta. `router.refresh()` lo
-          // hizo el formulario.
-          onClose={() => setCreated(null)}
-        />
-      ) : null}
     </>
   )
 }

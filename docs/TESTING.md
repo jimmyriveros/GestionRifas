@@ -690,6 +690,22 @@ convertirse en «engordar la aplicación» sin que nadie se enterara. El viewpor
 `test.use()` en vez de usar el proyecto `movil`, por lo mismo que explica la otra suite: lo que se
 mide es geometría, no emulación táctil.
 
+### 5.3.c Que un diálogo PERMANEZCA (`whatsapp-modal-persistencia.spec.ts`, 4 pruebas)
+
+**La dimensión que faltaba era el tiempo.** Existían pruebas de que `Escape` y el clic fuera no
+cerraban el diálogo de éxito, y **las dos pasaban** mientras el defecto estaba vivo: el modal
+desaparecía a los pocos cientos de milisegundos, después de que la aserción hubiera pasado (I-105).
+Una prueba que comprueba un estado **en un instante** no dice nada sobre si ese estado **permanece**.
+
+Por eso estas esperan de verdad —15 s, comprobando cada 3— y lo hacen en los **dos** flujos. El de la
+boleta es además el caso importante: no hace falta provocar ningún refetch, porque **la propia venta
+lo dispara**; si el diálogo sigue ahí después, es que ya no depende de la sección que la venta borra.
+Y se comprueba que la venta **sí** ocurrió detrás —«Asignada», y el botón de asignar ya no está—,
+para que «sigue abierto» no pueda pasar por no haberse refrescado nada.
+
+**Regla general que deja esta suite:** cualquier requisito de la forma «esto tiene que seguir ahí»
+necesita una prueba con tiempo dentro. Comprobarlo justo después de la acción es comprobar otra cosa.
+
 ### 5.4 Los tres botones del catálogo (`catalogo-panel*.spec.ts`, 22 pruebas)
 
 **El menú nativo del sistema no existe dentro de un navegador de pruebas.** Pulsar «Compartir» en

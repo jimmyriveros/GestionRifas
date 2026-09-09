@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.43 · **Actualizado:** 2026-09-08 (D-001 a D-178)
+- **Versión:** 1.44 · **Actualizado:** 2026-09-08 (D-001 a D-179)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -7948,6 +7948,60 @@ alegando que un `Dialog` también se cierra tocando fuera o con `Escape` (descar
 atenúa la gravedad, pero no justifica que la diana más pequeña de la aplicación siga estando en un
 control que se ofrece como la salida visible). (c) Borrar el `showCloseButton` muerto de
 `DialogFooter` (descartada: es contrato del primitivo, no código muerto de una pantalla).
+
+---
+
+## D-179 — El diálogo de éxito vive en el layout, porque la propia venta borraba su casa
+**Fase:** post-9 · **Fecha:** 2026-09-08 · **Corrige:** D-176 · **Regla:** BR-W06 · **Abre y cierra:** I-105
+
+**El defecto.** Tras crear un cliente, el diálogo de éxito aparecía y **se cerraba solo** en menos de
+un segundo, sin que el vendedor hubiera pulsado nada. Solo en el flujo A —desde una boleta—; desde
+«Mis clientes» aguantaba.
+
+**Causa raíz.** En el detalle de la boleta:
+
+```tsx
+const canAssign = ticket.inventoryStatus === 'available' && reason === null
+…
+{canAssign ? <AssignTicketDialog … /> : null}
+```
+
+Al vender, `router.refresh()` vuelve a pedir la página al servidor; la boleta ya no está `available`,
+**`canAssign` pasa a `false`** y ese bloque desaparece — con el `ClientCreatedDialog` dentro y con su
+`useState`. **La operación que el diálogo venía a celebrar era la que lo destruía.**
+
+**Lo que hace que esto merezca una entrada y no solo un arreglo.** D-176 ya había movido el diálogo
+**fuera del formulario**, precisamente para que sobreviviera al cierre del formulario, y lo dejó
+escrito en un comentario. Subió **un solo nivel**. La lección no es «sácalo del componente que se
+cierra», es: **un diálogo de éxito no puede vivir bajo ninguna condición que la propia operación
+vuelva falsa** — y `canAssign`, `payment_status`, `archived_at` o «quedan boletas disponibles» son
+todas condiciones de ese tipo.
+
+**Decisión.** El diálogo lo monta `ClientCreatedProvider`, en el **layout del portal del vendedor**,
+que no se desmonta al navegar entre sus pantallas ni al refrescar el árbol de servidor. Las pantallas
+solo **avisan** (`useClientCreated()`); ya no guardan estado de diálogo.
+
+**La configuración de WhatsApp viaja CON el aviso, no se guarda en el proveedor.** Si el proveedor la
+leyera al montarse se quedaría vieja en cuanto el vendedor guardara su grupo, porque
+`saveWhatsappSettings` revalida las **pantallas** y no el layout — y el encargo del defecto pedía
+expresamente que no dependiera de datos rancios. Así cada pantalla manda la que acaba de recibir del
+servidor.
+
+**Y quien navega es el proveedor, no el formulario.** En el flujo B el `router.push` a la ficha del
+cliente desmontaba el formulario; ahora la navegación es una consecuencia de **cerrar**, con el
+destino declarado en `redirectTo`. El `router.refresh()` también se movió al cierre: hacerlo antes es
+literalmente lo que causaba el defecto.
+
+**Alternativas descartadas.** (a) Sacar `AssignTicketDialog` del `canAssign` (descartada: el botón
+«Asignar a un cliente» **debe** desaparecer cuando la boleta ya no se puede vender; el problema no
+era esa condición, era lo que colgaba de ella). (b) Guardar la configuración en el proveedor y
+leerla una vez (descartada: dato rancio, ver arriba). (c) Un estado global (descartada: no hay
+ninguno en este proyecto y esto no lo justifica; un contexto acotado al portal basta).
+
+**Por qué las pruebas no lo cogieron, que es la mitad de la lección.** Había pruebas de que `Escape`
+y el clic fuera no cerraban el diálogo, y las dos pasaban. **Ninguna esperaba.** El defecto ocurría a
+los pocos cientos de milisegundos, después de que la aserción ya hubiera pasado. `whatsapp-modal-persistencia.spec.ts`
+mide ahora el **paso del tiempo**, que es la dimensión que faltaba.
 
 ---
 

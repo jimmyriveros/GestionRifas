@@ -8,10 +8,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
-import {
-  ClientCreatedDialog,
-  type ClientCreatedOutcome,
-} from '@/features/whatsapp/components/ClientCreatedDialog'
+import { useClientCreated } from '@/features/whatsapp/components/ClientCreatedProvider'
 import type { WhatsappSettings } from '@/features/whatsapp/invite'
 
 import { createClientRecord, updateClientRecord } from '../actions'
@@ -32,14 +29,11 @@ export function ClientForm({ client, whatsappSettings }: ClientFormProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   /**
-   * El cliente recien creado, mientras el dialogo de exito esta abierto.
-   *
-   * Sustituye al `router.push` inmediato que habia antes: ahora se navega a su
-   * ficha al CERRAR el dialogo, no al guardar. El toast de siempre se conserva
-   * —es lo que confirma que se guardo— y el dialogo añade la decision de
-   * invitarlo al grupo (seccion 3 del encargo).
+   * El aviso sube al proveedor del layout (D-179): la navegacion a la ficha del
+   * cliente desmontaria este formulario, y con el se iria el dialogo de exito.
+   * Por eso tambien es el proveedor quien navega, y solo al cerrarse.
    */
-  const [created, setCreated] = useState<ClientCreatedOutcome | null>(null)
+  const showClientCreated = useClientCreated()
 
   const form = useForm<ClientFormInput>({
     resolver: zodResolver(clientFormSchema),
@@ -76,11 +70,19 @@ export function ClientForm({ client, whatsappSettings }: ClientFormProps) {
 
         // `tickets: null` = solo se creo el cliente. El dialogo NO puede
         // mencionar ninguna boleta desde aqui (BR-W06).
-        setCreated({
-          clientId: result.data.id,
-          clientName: result.data.name,
-          clientPhone: result.data.phone,
-          tickets: null,
+        //
+        // NO se navega aqui, ni se refresca: las dos cosas desmontarian este
+        // formulario y con el, antes de D-179, se iba el dialogo. Ahora las
+        // hace el proveedor cuando la persona cierra (D-179).
+        showClientCreated({
+          outcome: {
+            clientId: result.data.id,
+            clientName: result.data.name,
+            clientPhone: result.data.phone,
+            tickets: null,
+          },
+          settings: whatsappSettings,
+          redirectTo: `/seller/clients/${result.data.id}`,
         })
         return
       }
@@ -90,20 +92,6 @@ export function ClientForm({ client, whatsappSettings }: ClientFormProps) {
 
   return (
     <>
-      {whatsappSettings ? (
-        <ClientCreatedDialog
-          outcome={created}
-          settings={whatsappSettings}
-          onClose={(outcome) => {
-            // Se navega AL CERRAR, no al guardar: el cliente ya esta creado
-            // desde hace rato y nada de esto lo deshace (seccion 14).
-            setCreated(null)
-            router.push(`/seller/clients/${outcome.clientId}`)
-            router.refresh()
-          }}
-        />
-      ) : null}
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl space-y-5" noValidate>
           {serverError ? (

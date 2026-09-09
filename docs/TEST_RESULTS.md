@@ -25,6 +25,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b30e943`)** | — | **Sin migración**: cero diferencias en `supabase/`, sonda antes/después idéntica | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `fd3a1e1f16b1` servido en 1 de 15 fragmentos |
+| **Post-9 (D-179, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **568/570**; los 2 comprobados: **I-090** y **I-106** (nuevo, ajeno y solo informativo). **+4** de persistencia del diálogo | ✅ | ✅ **Sin desplegar** |
 | **Post-9 (D-178, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **563/566**; los 3 comprobados uno a uno: **I-090 ×2** (39/39 en aislamiento) y uno ambiental del catálogo (15/15). **+4** de diana táctil (3 → 7) | ✅ | ✅ **Sin desplegar** |
 | **Post-9 (D-177, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **560/562**; los 2 comprobados uno a uno: **I-075** (9/9 en caliente) e **I-090** (21/21 con base limpia). **+3** nuevas de diana táctil | ✅ | ✅ **Sin desplegar** |
 | **Post-9 (D-176, 2026-09-08)** | **845 ✅** en 49 archivos (+30) | **827 ✅** en 39 archivos (+15) | **557/559** sobre servidor y base recién creados. Los 2 son los de siempre y **se comprobaron uno a uno**: `back-navigation` es **I-075** (caché fría; **9/9 en caliente**) y `reports.spec.ts:305` es **I-090** (acumulación; **pasa en aislamiento**) | ✅ | ✅ **Sin desplegar** |
@@ -39,6 +40,62 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## I-105: el diálogo de éxito se cerraba solo (D-179) — 2026-09-08
+
+**Encargo.** Defecto reportado por el usuario: tras crear un cliente, el modal de éxito aparece y se
+cierra solo, sin que el vendedor haya pulsado nada.
+
+### La investigación, en orden
+
+**1. Reproducir antes de tocar nada.** Prueba temporal en el flujo B —«Mis clientes»— midiendo la
+visibilidad a 1, 3, 5, 10 y 15 s: **visible en los cinco**. El defecto **no** estaba ahí.
+
+**2. Reproducir en el flujo A** —desde una boleta—: `visible al instante`, y a partir de 1 s
+**`visible=false`**. Reproducido.
+
+**3. La causa, leyendo la página que lo pinta** (`seller/tickets/[ticketId]/page.tsx:72`):
+
+```tsx
+const canAssign = ticket.inventoryStatus === 'available' && reason === null
+{canAssign ? <AssignTicketDialog … /> : null}
+```
+
+`router.refresh()` vuelve a pedir la página, la boleta ya no está `available`, **`canAssign` pasa a
+`false`** y el bloque desaparece con el diálogo dentro. **No había ningún `setTimeout`, ni
+auto-close, ni toast, ni efecto**: era ciclo de vida puro, exactamente donde el informe del defecto
+sugería mirar.
+
+### Después del arreglo
+
+| Momento | Antes | Después |
+|---|---|---|
+| Al instante | visible | visible |
+| 1 s | **cerrado** | visible |
+| 2, 4, 6, 10 s | cerrado | visible |
+| 15 s | cerrado | **visible** |
+
+### Los casos del encargo
+
+| Caso | Resultado |
+|---|---|
+| 1 — «Mis clientes»: 15 s, clic fuera, ESC, «Cerrar» | ✅ sigue abierto; solo «Cerrar» lo cierra, y navega a la ficha |
+| 2 — invitar tras esperar | ✅ `https://wa.me/573001234567?text=…` con el enlace del grupo dentro; el diálogo se cierra después |
+| 3 — desde una boleta: 15 s, clic fuera, ESC | ✅ sigue abierto, y nombra la boleta por sus dos números |
+| 4 — re-render / refetch | ✅ **cubierto por el caso 3**: la venta dispara el refresco ella sola. Se comprueba además que la venta **sí** ocurrió detrás —«Asignada» y sin botón de asignar—, para que «sigue abierto» no pueda pasar por no haberse refrescado nada |
+| 5 — responsive | ✅ mismo comportamiento en el proyecto móvil (Pixel 7) |
+
+### Verificación
+
+| Comando | Resultado |
+|---|---|
+| `typecheck` · `lint` · `build` | ✅ (2 avisos preexistentes) |
+| `npm run test` | ✅ **845/845** |
+| `whatsapp-modal-persistencia.spec.ts` (nueva) | **3/3** ✅ |
+| `whatsapp-invitacion-movil.spec.ts` | **4/4** ✅ (+1 nueva) |
+| Suite E2E completa | **568/570** sobre base y servidor recién creados. Los 2 se comprobaron uno a uno: `reports.spec.ts:305` es **I-090** —pasa en aislamiento— y `catalogo-publico-movil.spec.ts:103` es **I-106**, preexistente y ajeno —depende del orden; su archivo pasa **15/15** solo—. **Ninguno toca un diálogo del vendedor** |
 
 ---
 

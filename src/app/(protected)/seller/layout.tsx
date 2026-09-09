@@ -10,6 +10,7 @@ import type { ReactNode } from 'react'
 
 import { AppShell } from '@/components/layout/AppShell'
 import type { NavItem } from '@/components/layout/nav-items'
+import { ClientCreatedProvider } from '@/features/whatsapp/components/ClientCreatedProvider'
 import { requireRole } from '@/lib/auth/guards'
 
 // Una sola lista para las tres barras del portal (D-106). En la barra inferior
@@ -62,7 +63,16 @@ export default async function SellerLayout({ children }: { children: ReactNode }
       email={membership.email}
       navItems={NAV_ITEMS}
     >
-      {children}
+      {/*
+        El dialogo de exito al crear un cliente vive AQUI y no dentro de la
+        pantalla que lo dispara (D-179). Vivia dentro de `AssignTicketDialog`,
+        que el propio exito de la venta hacia desaparecer —la boleta deja de
+        estar `available`, `canAssign` pasa a `false`— y se cerraba solo. Este
+        layout no se desmonta al navegar entre las pantallas del vendedor ni al
+        refrescar el arbol de servidor, asi que nada puede apagarlo salvo el
+        boton que la persona pulse.
+      */}
+      <ClientCreatedProvider>{children}</ClientCreatedProvider>
     </AppShell>
   )
 }

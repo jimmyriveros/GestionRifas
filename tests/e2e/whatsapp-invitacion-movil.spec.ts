@@ -107,3 +107,36 @@ test.describe('La invitación al grupo en el teléfono', () => {
     expect(invitar!.y).toBeLessThan(cerrar!.y)
   })
 })
+
+/**
+ * Caso 5 del informe del defecto: el comportamiento es el MISMO en el teléfono
+ * (BR-W06, D-179). El defecto era de ciclo de vida y no de tamaño, así que en
+ * principio no dependía del ancho — pero «en principio» no es una comprobación,
+ * y el arreglo movió el diálogo al layout, que es justo la pieza que cambia de
+ * forma entre móvil y escritorio.
+ */
+test.describe('El diálogo tampoco se cierra solo en el teléfono', () => {
+  test('sigue abierto tras 15 s, y solo lo cierra una acción', async ({ page }) => {
+    test.setTimeout(120_000)
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/clients/new')
+    await page.getByLabel('Nombre').fill(unique('Persistente móvil'))
+    await page.getByLabel('Teléfono').fill('3001234567')
+    await page.getByRole('button', { name: 'Crear cliente' }).click()
+
+    const dialogo = page.getByRole('alertdialog')
+    await expect(dialogo).toBeVisible()
+
+    for (let t = 0; t < 15; t += 3) {
+      await page.waitForTimeout(3000)
+      await expect(dialogo, `se cerró solo a los ${t + 3} s`).toBeVisible()
+    }
+
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toBeVisible()
+
+    await dialogo.getByRole('button', { name: 'Cerrar' }).click()
+    await expect(dialogo).toBeHidden()
+  })
+})
