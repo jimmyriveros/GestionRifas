@@ -127,10 +127,27 @@ function AlertDialogMedia({ className, ...props }: React.ComponentProps<'div'>) 
   )
 }
 
+/**
+ * LAS ACCIONES DE UN `AlertDialog` NACEN CON EL SUELO TACTIL (I-102, D-177).
+ *
+ * `size="touch"` es `h-11 sm:h-9`: **44 px en el teléfono y los 36 de siempre
+ * desde `sm`**, así que en escritorio no cambia ni un píxel y en el teléfono
+ * deja de haber una diana de 35. El defecto no estaba en una pantalla: estaba
+ * aquí, y afectaba a TODAS las confirmaciones sensibles —anular una boleta,
+ * anular un pago, desactivar a alguien, archivar un cliente, liberar una
+ * boleta, aprobar—.
+ *
+ * SE ARREGLA EN EL PRIMITIVO Y NO EN LAS OCHO PANTALLAS, siguiendo el
+ * precedente **R6D** del sistema de diseño: cuando el que está por debajo del
+ * suelo es un componente compartido, el suelo se le pone al componente y se
+ * libera por encima del breakpoint pequeño; no se le pide a cada consumidor que
+ * se acuerde. Un `size` explícito sigue ganando, para el caso raro que lo
+ * necesite.
+ */
 function AlertDialogAction({
   className,
   variant = 'default',
-  size = 'default',
+  size = 'touch',
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Action> &
   Pick<React.ComponentProps<typeof Button>, 'variant' | 'size'>) {
@@ -145,10 +162,15 @@ function AlertDialogAction({
   )
 }
 
+/**
+ * Y «Cancelar» también, por la misma razón y con más motivo: es el botón que
+ * pulsa quien se arrepiente delante de un diálogo destructivo. Fallar ESE toque
+ * es el peor caso de los dos (I-102, D-177).
+ */
 function AlertDialogCancel({
   className,
   variant = 'outline',
-  size = 'default',
+  size = 'touch',
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Cancel> &
   Pick<React.ComponentProps<typeof Button>, 'variant' | 'size'>) {

@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.41 · **Actualizado:** 2026-09-08 (D-001 a D-176)
+- **Versión:** 1.42 · **Actualizado:** 2026-09-08 (D-001 a D-177)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -7841,6 +7841,58 @@ ficha inmediatamente, ahora se navega **al cerrar el diálogo**. Tres pruebas E2
 esperaban y se actualizaron; el ayudante compartido es `closeClientCreatedDialog`. La prueba de 320 px
 destapó además que los botones del diálogo se quedaban en 36 px —por debajo de la diana táctil— y
 ahora llevan `size="touch"`.
+
+---
+
+## D-177 — El suelo táctil de un diálogo lo pone el primitivo, no cada pantalla
+**Fase:** post-9 · **Fecha:** 2026-09-08 · **Cierra:** I-102 · **Abre:** I-103, I-104
+
+**Contexto.** `AlertDialogAction` y `AlertDialogCancel` nacían con `size="default"`, o sea `h-9`. En
+un teléfono eso dejaba las dos acciones de **todas** las confirmaciones sensibles —anular una boleta,
+anular un pago, desactivar a alguien, archivar un cliente, liberar una boleta, aprobar— en **36 px**,
+cuando `CLAUDE.md` §27 y el resto del portal usan **44**. Lo destapó midiendo, no mirando: la prueba
+de 320 px de D-176 lo encontró en el diálogo nuevo y de ahí salió que el patrón venía del componente
+compartido.
+
+**Decisión.** El suelo se le pone al **primitivo**: `AlertDialogAction` y `AlertDialogCancel` pasan a
+`size="touch"` por defecto. Un `size` explícito sigue ganando, para el caso raro que lo necesite.
+
+**Por qué en el primitivo y no en las ocho pantallas.** Es el precedente **R6D** del sistema de
+diseño, que ya resolvió exactamente esto: cuando el que está por debajo del suelo es un componente
+compartido —allí, el elemento del menú, medido en 32 px— el suelo se le pone al componente y se
+libera por encima del breakpoint pequeño, en vez de pedirle a cada consumidor que se acuerde. Los
+ocho consumidores de `ConfirmDialog` quedan arreglados sin tocar ni uno.
+
+**Y el escritorio no cambia ni un píxel**, que es lo que hace la decisión barata: `touch` es
+`h-11 sm:h-9`, así que por encima de 640 px vuelve exactamente al `h-9` de siempre. Medido: 44 px a
+320 px de ancho, 36 px a 1280.
+
+**Dos cosas que aprendí midiendo, y que valen para la próxima.**
+
+**(1) `boundingBox()` miente sobre un diálogo que se está abriendo.** Devolvía **43,07 px** sobre un
+botón cuya altura calculada era exactamente 44: `AlertDialogContent` entra con `zoom-in-95`, así que
+la caja del navegador mide el fotograma de la animación y no el contrato. La prueba usa
+`getComputedStyle().height`, que es exacto y estable. Con `boundingBox()` también se explicaba el
+«36 px» que I-102 daba por bueno: la medida real de un `h-9` por esa vía es **35**, y la de la hoja
+de estilos, 36.
+
+**(2) El `size` explícito de `ClientCreatedDialog` se retira.** Lo puso D-176 cuando el suelo era
+cosa de cada pantalla; conservarlo ahora daría a entender que sigue siéndolo. Un valor por defecto
+correcto tiene que ser la única fuente.
+
+**Alternativas descartadas.** (a) Pasar `size="touch"` en los ocho consumidores de `ConfirmDialog`
+(descartada: repite ocho veces una regla que es del sistema, y el noveno se olvidará). (b) Cambiar el
+`size` por defecto de `Button` (descartada: afectaría a cada botón de la aplicación, y el sistema de
+diseño añadió las tallas táctiles **sin cambiar ningún defecto** a propósito). (c) Imponer el alto
+desde `AlertDialogFooter` con un selector de hijos (descartada: pelearía contra un `size` explícito y
+`tailwind-merge` no compone bien las variantes arbitrarias).
+
+**Lo que NO se arregló, y por qué está anotado en vez de hecho.** Medir el arreglo destapó que la
+familia `Dialog` —que no comparte primitivo con `AlertDialog`— tiene el mismo defecto en **once
+archivos de pantalla** (**I-103**), y que la «X» de la esquina de todo `Dialog` es una diana de
+**16 px** con el nombre accesible en inglés, «Close» (**I-104**). Las dos son reales y están medidas,
+pero son defectos **distintos** de I-102: la primera no tiene primitivo que arreglar y toca once
+pantallas que habría que volver a medir. Se reportan con sus cifras para decidirlas aparte.
 
 ---
 

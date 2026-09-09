@@ -145,13 +145,13 @@ export function ClientCreatedDialog({
         */}
         <AlertDialogFooter>
           {/*
-            `size="touch"`: 44 px de alto en el telefono y los 36 de siempre
-            desde `sm`. Este dialogo se decide de pie y con una mano, y con el
-            tamaño por defecto los dos botones se quedaban en 36 px — por
-            debajo de la diana minima (CLAUDE.md 27, seccion 20 del encargo).
-            Lo destapo la prueba de 320 px, no la vista.
+            Sin `size`: desde D-177 el suelo tactil de 44 px lo pone el propio
+            `AlertDialogAction`/`AlertDialogCancel`, para los ocho dialogos y no
+            solo para este. Aqui vivio un `size="touch"` explicito mientras I-102
+            estuvo abierta; ya no hace falta y repetirlo daria a entender que el
+            suelo es cosa de cada pantalla.
           */}
-          <AlertDialogCancel size="touch" onClick={() => onClose(created)}>
+          <AlertDialogCancel onClick={() => onClose(created)}>
             {INVITE_DIALOG_COPY.close}
           </AlertDialogCancel>
 
@@ -159,12 +159,11 @@ export function ClientCreatedDialog({
             // No se ofrece una accion que va a fallar: se cambia por la que
             // lleva a arreglarlo. El cliente ya quedo creado y NO se deshace
             // nada al salir de aqui (seccion 14 del encargo).
-            <AlertDialogAction size="touch" onClick={() => router.push('/seller/settings')}>
+            <AlertDialogAction onClick={() => router.push('/seller/settings')}>
               {INVITE_DIALOG_COPY.configure}
             </AlertDialogAction>
           ) : blocker === null ? (
             <AlertDialogAction
-              size="touch"
               onClick={(event) => {
                 // El dialogo lo cierra `invite()` cuando WhatsApp abrio de
                 // verdad; si el navegador lo bloqueo se queda abierto para

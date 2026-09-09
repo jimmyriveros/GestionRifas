@@ -3,7 +3,18 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-08 — **invitación al grupo de WhatsApp** (D-176, BR-W01..BR-W08).
+- **Actualizado:** 2026-09-08 — **`I-102` resuelta en el primitivo** (D-177): los botones de un
+  diálogo de confirmación medían **35 px** en el teléfono, por debajo de la diana táctil de 44 que
+  exige `CLAUDE.md` §27, y eso afectaba a **todas** las confirmaciones sensibles del producto. El
+  suelo se le pone a `AlertDialogAction` y `AlertDialogCancel`, siguiendo el precedente **R6D** del
+  sistema de diseño, así que los **ocho** consumidores quedan arreglados **sin tocar ninguno** y el
+  escritorio no cambia ni un píxel (`touch` es `h-11 sm:h-9`). **Ninguna migración, consulta, política
+  ni regla de negocio cambia.** Medir el arreglo corrigió además el método —`boundingBox()` **miente**
+  mientras un diálogo se abre, porque `zoom-in-95` sigue escalando el contenido— y dejó dos
+  anotaciones nuevas con sus cifras: **I-103**, la familia `Dialog` con el mismo defecto en once
+  archivos, e **I-104**, la «X» de cerrar con una diana de **16 px** y el nombre accesible en inglés.
+  **Sin desplegar.**
+  Antes, el mismo día: **invitación al grupo de WhatsApp** (D-176, BR-W01..BR-W08).
   Después de registrar un cliente nuevo, un diálogo ofrece **invitarlo al grupo de WhatsApp del
   vendedor** con el mensaje ya escrito: se abre `wa.me` y la persona pulsa Enviar. **No hay ninguna
   integración con WhatsApp** —sin API, sin SDK, sin sesión— y por tanto **no se puede saber si el

@@ -660,6 +660,29 @@ cuando se creó un cliente a secas); y que sin grupo configurado el botón cambi
 En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
 que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
 
+### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 3 pruebas)
+
+**No es lo mismo que `dialogos-alcanzables.spec.ts`, y por eso son dos archivos.** Aquella comprueba
+que la acción final **se pueda alcanzar** —geometría de alto y desplazamiento dentro del diálogo—;
+esta, que **se pueda acertar** —geometría de diana—. Un diálogo puede tener su botón perfectamente
+visible, centrado y habilitado, y aun así ser un objetivo de 36 px para un pulgar.
+
+**Se mide `getComputedStyle().height`, NUNCA `boundingBox()`**, y esto costó una vuelta entera al
+resolver I-102. La caja del navegador devolvía **43,07 px** sobre un botón que la hoja de estilos
+dejaba en 44: `AlertDialogContent` entra con `zoom-in-95`, así que mientras dura la animación la caja
+mide el fotograma y no el contrato. Por la misma razón, un `h-9` medía «35» y no 36 — que es de donde
+salió la cifra equivocada de I-102. La altura calculada es exacta y estable.
+
+**Se miden TODOS los botones del diálogo, no solo el de confirmar.** «Cancelar» es el que pulsa quien
+se arrepiente, y fallar ese toque delante de una acción destructiva es el peor caso de los dos.
+
+**La suite tiene dos mitades y las dos hacen falta.** A 320 px se exige el suelo de **44**; a 1280 se
+exige lo contrario —que el botón **no** haya crecido— porque `touch` es `h-11 sm:h-9` y el sistema de
+diseño libera el suelo por encima de `sm` a propósito. Sin la segunda mitad, «subir la diana» podría
+convertirse en «engordar la aplicación» sin que nadie se enterara. El viewport se fija con
+`test.use()` en vez de usar el proyecto `movil`, por lo mismo que explica la otra suite: lo que se
+mide es geometría, no emulación táctil.
+
 ### 5.4 Los tres botones del catálogo (`catalogo-panel*.spec.ts`, 22 pruebas)
 
 **El menú nativo del sistema no existe dentro de un navegador de pruebas.** Pulsar «Compartir» en

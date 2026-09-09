@@ -24,6 +24,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
+| **Post-9 (D-177, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **560/562**; los 2 comprobados uno a uno: **I-075** (9/9 en caliente) e **I-090** (21/21 con base limpia). **+3** nuevas de diana táctil | ✅ | ✅ **Sin desplegar** |
 | **Post-9 (D-176, 2026-09-08)** | **845 ✅** en 49 archivos (+30) | **827 ✅** en 39 archivos (+15) | **557/559** sobre servidor y base recién creados. Los 2 son los de siempre y **se comprobaron uno a uno**: `back-navigation` es **I-075** (caché fría; **9/9 en caliente**) y `reports.spec.ts:305` es **I-090** (acumulación; **pasa en aislamiento**) | ✅ | ✅ **Sin desplegar** |
 | **Release a producción (2026-09-08, `a56e408`)** | **815 ✅** | **812 ✅** (sin cambios: cero migraciones) | **escritorio 417/419 · móvil 125/125** sobre servidor y base nuevos; los 2 son **I-090**. **CI 2/2** sobre el commit desplegado | ✅ | ✅ **DESPLEGADO** |
 | Post-9 anterior (D-175, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | **escritorio 417/419 · móvil 125/125**, sobre servidor y base recién creados. Los 2 son el par **I-090** de siempre | ✅ | ✅ |
@@ -36,6 +37,48 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## I-102: el suelo táctil de los diálogos (D-177) — 2026-09-08
+
+**Encargo.** Resolver I-102: los botones de `ConfirmDialog` por debajo de la diana táctil en el
+teléfono.
+
+### La prueba se escribió ANTES del arreglo, y encontró tres cosas
+
+| Medida | Antes | Después |
+|---|---|---|
+| «Archivar cliente» a 320 px | **35 px** (`boundingBox`) | **44 px** ✅ |
+| «Anular boleta» a 320 px | **35 px** | **44 px** ✅ |
+| El mismo diálogo a 1280 px | 35 px | **36 px** — sin crecer ✅ |
+
+**(1) La cifra de I-102 estaba mal, y la culpa era del método.** La entrada decía «36 px»; medido con
+`boundingBox()` son **35**. Y al medir el arreglo apareció lo contrario: **43,07 px** sobre un botón
+que la hoja de estilos deja en 44. La causa es la misma en los dos casos —`AlertDialogContent` entra
+con `zoom-in-95`, así que la caja del navegador mide el fotograma de la animación y no el contrato— y
+la salida es medir `getComputedStyle().height`, que da **44px** y **36px** exactos.
+
+**(2) El defecto no era de `ConfirmDialog`, era del primitivo.** De ahí que el arreglo sea una línea
+en `alert-dialog.tsx` y no ocho en las pantallas (D-177).
+
+**(3) La familia `Dialog` tiene el mismo defecto y D-177 no la alcanza.** Medido a 320 px:
+`UserDialog` **36 px**, `AssignTicketsForm` **36 px**, y `EditSalePriceDialog` —que sí adoptó
+`size="touch"` en D-137— **44 px**. Y la «X» de la esquina de los tres: **16 px**, con el nombre
+accesible **«Close»**. Quedan como **I-103** e **I-104**: son defectos distintos, y el segundo ni
+siquiera es solo de tamaño.
+
+### Verificación
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 errores (2 avisos preexistentes) |
+| `npm run test` | ✅ **845/845** |
+| `dialogos-diana-tactil.spec.ts` (nueva) | **3/3** ✅ — falla 2/3 sin el arreglo |
+| `dialogos-alcanzables` + las dos de WhatsApp | ✅ **26/26** — un botón más alto no rompe el «cabe y se alcanza» |
+| `npm run build` | ✅ |
+| Suite E2E completa | **560/562** sobre base y servidor recién creados. Los 2 se comprobaron uno a uno: `filas-seleccionables:195` es **I-075** —timeout de 60 s esperando navegación, y el archivo nuevo de esta entrega **cambió el orden alfabético**, así que el coste de compilar en frío cayó en otra suite; repetida en caliente, **9/9**— y `reports.spec.ts:305` es **I-090** —acumulación; con base limpia, **21/21**— |
 
 ---
 
