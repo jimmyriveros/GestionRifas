@@ -276,13 +276,6 @@ const SELLER_TOURS: Tour[] = [
         'tus boletas, tus clientes y tus pagos',
         'el panel, tus boletas, tus clientes y tus pagos',
       ),
-      {
-        id: 'quick-actions',
-        target: 'quick-actions',
-        side: 'bottom',
-        title: 'Lo que más vas a usar',
-        body: '«Vender una boleta» te muestra las que tienes libres. «Nuevo cliente» guarda los datos de quien te compra, para no volver a escribirlos.',
-      },
       // Los dos pasos de «Estado de cobro» van SEGUIDOS, y en el orden en que
       // se leen: primero las cuatro cifras de arriba, luego el reparto de abajo.
       // Estaban separados por «Tus boletas», que vive en otra tarjeta y mas
@@ -307,6 +300,18 @@ const SELLER_TOURS: Tour[] = [
         side: 'bottom',
         title: 'Tus boletas',
         body: 'Las disponibles son las que todavía puedes vender; las vendidas ya tienen cliente.',
+      },
+      // Los accesos rapidos cierran el recorrido porque cierran la pantalla
+      // (D-180). Iban los primeros mientras estaban arriba; dejarlos ahi ahora
+      // haria que el recorrido bajase hasta el final de la pagina y volviera a
+      // subir, que es exactamente lo que se corrigio al juntar los dos pasos de
+      // «Estado de cobro».
+      {
+        id: 'quick-actions',
+        target: 'quick-actions',
+        side: 'top',
+        title: 'Lo que más vas a usar',
+        body: '«Vender una boleta» te muestra las que tienes libres. «Nuevo cliente» guarda los datos de quien te compra, para no volver a escribirlos.',
       },
       helpStep(),
       closingStep(),

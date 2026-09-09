@@ -706,11 +706,16 @@ test.describe('configurar el catalogo desde el portal (BR-K12)', () => {
     await page.goto('/seller/dashboard')
 
     // La tarjeta y sus tres acciones se prueban a fondo en
-    // `catalogo-panel.spec.ts` (D-161); aquí solo importa que el vendedor vea
-    // SU enlace, que es la mitad de BR-K12.
-    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Mi catálogo público' })
+    // `catalogo-panel.spec.ts` (D-161); aquí solo importa que el vendedor tenga
+    // SU enlace, que es la mitad de BR-K12. Desde D-180 la dirección no se
+    // escribe en la tarjeta, así que se comprueba donde de verdad vive: en el
+    // «Ver catálogo» que la abre.
+    const tarjeta = page.locator('[data-slot="card"]').filter({ hasText: 'Comparte tu catálogo' })
     await expect(tarjeta).toBeVisible()
-    await expect(tarjeta.getByTestId('catalog-public-url')).toContainText(`/catalogo/${SLUG}`)
+    await expect(tarjeta.getByRole('link', { name: 'Ver catálogo' })).toHaveAttribute(
+      'href',
+      new RegExp(`/catalogo/${SLUG}$`),
+    )
   })
 
   test('un vendedor no puede ver ni configurar el catalogo de otro', async ({ page }) => {

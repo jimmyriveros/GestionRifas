@@ -16,7 +16,7 @@ import {
   type LotteryCode,
 } from '@/features/lottery/constants'
 import { notificationMessage } from '@/features/notifications/text'
-import { formatWeekdayEs, isoDateBogota } from '@/lib/dates'
+import { formatTimeEs, formatWeekdayEs, isoDateBogota } from '@/lib/dates'
 import { ticketLabel } from '@/lib/tickets'
 
 import type { Database } from '@/types/database.types'
@@ -109,6 +109,33 @@ export const LOTTERY_DASHBOARD_COPY = {
   weekChanges: 'Cambios de programación',
   noMatchSeller: 'Ninguna de tus boletas coincidió con este número.',
   noMatchStaff: 'Ninguna boleta coincidió con este número.',
+  // ---------------------------------------------------------------------
+  // Forma compacta del recuadro, en lo alto del panel del vendedor (D-180).
+  //
+  // «Loterías» y no «Resultados y próxima lotería»: debajo van dos filas
+  // rotuladas «Próxima» y «Último resultado», que es literalmente lo que
+  // decia ese titulo. Un titulo que repite las dos etiquetas que tiene
+  // justo debajo no dice nada nuevo (misma regla que D-126). El titulo
+  // largo NO se toca: lo sigue usando el recuadro completo del portal
+  // administrativo.
+  // ---------------------------------------------------------------------
+  compactTitle: 'Loterías',
+  upcomingRow: 'Próxima',
+  lastResultRow: 'Último resultado',
+  showDetail: 'Ver detalle',
+  hideDetail: 'Ocultar detalle',
+  // Lo visible se queda corto —dentro de una tarjeta que se llama «Loterías»
+  // no hace falta mas— pero el nombre accesible dice de que detalle habla: en
+  // esta misma pantalla hay un «Ver detalle de cobranza», y quien escucha los
+  // controles uno detras de otro no tiene la tarjeta delante para distinguirlos
+  // (D-114).
+  detailSubject: 'de las loterías',
+  // Las coincidencias en corto. La version larga —cuantas se vendieron
+  // antes del sorteo, cuantas seguian disponibles y cuantas se asignaron
+  // despues— sigue entera dentro del detalle, que es donde cabe (BR-L15).
+  noMatchesShort: 'Sin coincidencias',
+  matchCount: (boletas: number) =>
+    boletas === 1 ? '1 boleta coincidió' : `${boletas} boletas coincidieron`,
 } as const
 
 export type LotteryDashboardAudience = 'staff' | 'seller'
@@ -198,7 +225,22 @@ export type LotteryDrawView = {
 export type LotteryDashboardReady = {
   kind: 'ready'
   todayDraws: LotteryDrawView[]
+  /**
+   * El proximo sorteo, **solo cuando hoy no hay ninguno**. Es lo que pinta el
+   * recuadro completo, y no cambia: con sorteo hoy, la tarjeta azul es la de
+   * hoy y no la de pasado mañana.
+   */
   nextDraw: LotteryDrawView | null
+  /**
+   * El proximo sorteo, HAYA O NO sorteo hoy (D-180).
+   *
+   * Es el mismo calculo de `nextDraw` sin el recorte de arriba, y existe porque
+   * la forma compacta tiene una fila fija rotulada «Próxima» que debe decir algo
+   * cierto tambien cuando el sorteo de hoy ya se jugo. Se añade en vez de
+   * ensanchar `nextDraw` para no cambiar lo que ve el portal administrativo:
+   * ahi seguirian saliendo dos tarjetas azules donde hoy sale una.
+   */
+  nextScheduled: LotteryDrawView | null
   previousConfirmed: LotteryDrawView | null
   weekAlerts: LotteryDrawView[]
 }
@@ -365,6 +407,83 @@ export function matchSummaryText(
   return parts.join(' · ')
 }
 
+/**
+ * El dia que manda para rotular un sorteo: cuando se JUEGA, no el nominal.
+ *
+ * Vive aqui y no en el componente porque lo usan los dos: el recuadro completo
+ * para su rotulo del dia y la forma compacta para su linea de «Próxima».
+ */
+export function drawPlayDate(
+  draw: Pick<LotteryDrawView, 'officialDate' | 'referenceDate'>,
+): string {
+  return draw.officialDate ?? draw.referenceDate
+}
+
+/** Un sorteo con numero publicado es un RESULTADO; el resto, una espera. */
+export function drawHasNumber(
+  draw: Pick<LotteryDrawView, 'resultKind' | 'winningNumber'>,
+): boolean {
+  return (
+    (draw.resultKind === 'confirmed' || draw.resultKind === 'conflict') &&
+    draw.winningNumber !== null
+  )
+}
+
+/**
+ * «hoy» + «10:30 p. m.» — cuando juega un sorteo (D-180).
+ *
+ * LA HORA SOLO SE DEVUELVE SI TODAVIA NO HA JUGADO. Es la misma regla que ya
+ * aplica el recuadro completo (D-167): «Juega hoy a las 11:15 p. m.» es una
+ * promesa, y pasada esa hora deja de serlo. Aqui se resuelve callando la hora y
+ * dejando solo el dia; quien quiera saber que falta lo lee en la fila de al
+ * lado, que dira «Resultado pendiente».
+ *
+ * El dia va en minuscula porque va dentro de una frase —«Bogotá · hoy, 10:30
+ * p. m.»—, que ademas es como se escriben los dias de la semana en español.
+ *
+ * VUELVEN LAS DOS PIEZAS POR SEPARADO, no la frase montada, porque quien la
+ * pinta necesita impedir que la linea se parta DENTRO de la hora: a 320 px
+ * «10:30 p. m.» se rompia entre «p.» y «m.», que se lee como una errata.
+ */
+export function compactWhen(
+  draw: Pick<
+    LotteryDrawView,
+    'officialDate' | 'referenceDate' | 'officialScheduledAt' | 'scheduleStatus'
+  >,
+  today: string,
+  now: Date,
+): { day: string; time: string | null } {
+  const day = relativeDayLabel(drawPlayDate(draw), today).toLocaleLowerCase('es-CO')
+  if (!draw.officialScheduledAt) return { day, time: null }
+  const at = Date.parse(draw.officialScheduledAt)
+  if (Number.isNaN(at) || at <= now.getTime()) return { day, time: null }
+  return { day, time: formatTimeEs(draw.officialScheduledAt) }
+}
+
+/**
+ * Las coincidencias en corto: «Sin coincidencias», «1 boleta coincidió»,
+ * «N boletas coincidieron» (D-180).
+ *
+ * CUENTA, NO CLASIFICA. El reparto por como estaba la boleta cuando se jugo
+ * —vendida antes, todavia disponible, asignada despues— es lo que distingue
+ * una coincidencia normal de una sospechosa, y por eso NO se pierde: sigue
+ * entero en `matchSummaryText`, dentro del detalle. Aqui solo se dice cuantas
+ * son, que es lo que cabe en una fila y lo unico que hace falta para decidir
+ * si merece la pena abrirlo.
+ *
+ * Devuelve `null` cuando todavia no hay numero: sin numero no hay nada con lo
+ * que coincidir, y escribir «Sin coincidencias» ahi seria dar por comprobado un
+ * sorteo que no se ha jugado.
+ */
+export function compactMatchText(
+  draw: Pick<LotteryDrawView, 'matches' | 'resultKind' | 'winningNumber'>,
+): string | null {
+  if (!drawHasNumber(draw)) return null
+  return draw.matches.length === 0
+    ? LOTTERY_DASHBOARD_COPY.noMatchesShort
+    : LOTTERY_DASHBOARD_COPY.matchCount(draw.matches.length)
+}
+
 export function raffleSummaryText(names: string[]): string | null {
   if (names.length === 1) return `en ${names[0]}`
   if (names.length > 1) return `en ${names.length} rifas`
@@ -461,6 +580,7 @@ export function buildLotteryDashboard(
     kind: 'ready',
     todayDraws,
     nextDraw: shownNext,
+    nextScheduled: nextDraw,
     previousConfirmed,
     weekAlerts,
   }

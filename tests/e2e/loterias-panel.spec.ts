@@ -3,8 +3,11 @@ import { expect, test } from '@playwright/test'
 import { ALLOWED_SOURCE_HOSTS } from '../../src/features/lottery/sources'
 import { ACCOUNTS, loginAs, logout } from './fixtures'
 import {
+  abrirDetalle,
   addDays,
   card,
+  compactResultRow,
+  compactUpcomingRow,
   deleteFixtures,
   insertResult,
   insertSchedule,
@@ -38,6 +41,14 @@ test.describe('Resultados oficiales en el Panel', () => {
     await deleteFixtures()
   })
 
+  /**
+   * Un recuadro, DOS formas (D-180): el portal administrativo conserva el
+   * completo —«Resultados y próxima lotería», con sus dos tarjetas grandes— y
+   * el vendedor ve el compacto, «Loterías», con dos filas y el resto detrás de
+   * «Ver detalle». Los datos y la consulta son los mismos, y por eso lo que se
+   * comprueba junto es lo que no puede cambiar: que ninguno de los dos salga a
+   * internet.
+   */
   test('el recuadro aparece en los dos portales y no consulta webs oficiales', async ({ page }) => {
     const hits: string[] = []
     page.on('request', (request) => {
@@ -51,9 +62,7 @@ test.describe('Resultados oficiales en el Panel', () => {
 
     await logout(page)
     await loginAs(page, ACCOUNTS.seller)
-    await expect(
-      card(page).getByRole('heading', { name: 'Resultados y próxima lotería' }),
-    ).toBeVisible()
+    await expect(card(page).getByRole('heading', { name: 'Loterías' })).toBeVisible()
     expect(hits, 'el Panel no debe consultar fuentes oficiales').toEqual([])
   })
 
@@ -106,10 +115,22 @@ test.describe('Resultados oficiales en el Panel', () => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/dashboard')
 
+    // En la forma compacta el reparto se lee en las DOS filas, sin abrir nada:
+    // Meta es lo que viene y todavía no tiene número; Boyacá, el último
+    // resultado (D-180).
+    await expect(compactUpcomingRow(page)).toContainText('Meta')
+    await expect(compactResultRow(page)).toContainText('Boyacá')
+    await expect(compactResultRow(page)).toContainText('0046')
+    await expect(compactResultRow(page)).toContainText('Fuente oficial')
+    // Y el sorteo de hoy no aparece como si ya hubiera salido su número.
+    await expect(compactUpcomingRow(page)).not.toContainText('0046')
+
+    // El reparto completo es el mismo que ve el portal administrativo, y sigue
+    // ahí: una acción, no una pérdida.
+    await abrirDetalle(page)
     const recuadro = card(page)
     await expect(recuadro.getByRole('heading', { name: 'Meta' })).toBeVisible()
     await expect(recuadro.getByText('Resultado pendiente')).toBeVisible()
-    // Meta va en la tarjeta de lo que viene; Boyaca, en la del resultado.
     await expect(upcomingCard(page)).toContainText('Meta')
     const resultado = resultCard(page)
     await expect(resultado).toBeVisible()
@@ -189,10 +210,17 @@ test.describe('El Panel no espera por las loterias', () => {
     await page.goto('/seller/dashboard')
 
     const recuadro = card(page)
-    await expect(recuadro.getByLabel('Número mayor 0046')).toBeVisible()
+    // El aviso del conflicto se ve SIN abrir el detalle: la fila de al lado
+    // acaba de escribir ese número como si fuera el resultado (D-180). El
+    // segundo, `.first()` lo descarta, es el del detalle plegado —el recuadro
+    // completo lo pinta junto a su sorteo— y ahí también corresponde.
+    await expect(compactResultRow(page)).toContainText('0046')
     await expect(
-      recuadro.getByText('La fuente oficial publicó otro número. Requiere verificación.'),
+      recuadro.getByText('La fuente oficial publicó otro número. Requiere verificación.').first(),
     ).toBeVisible()
+
+    await abrirDetalle(page)
+    await expect(recuadro.getByLabel('Número mayor 0046')).toBeVisible()
   })
 
   test('una fuente que aun no publica: hay fila de resultado, pero ningun numero', async ({
@@ -253,5 +281,109 @@ test.describe('El Panel no espera por las loterias', () => {
     await expect(ultimo).toContainText('Ayer')
     await expect(recuadro.getByLabel('Número mayor 1234')).toBeVisible()
     await expect(recuadro.getByRole('heading', { name: 'Boyacá' })).toBeVisible()
+  })
+})
+
+/**
+ * La forma COMPACTA, que es la unica que ve un vendedor (D-180).
+ *
+ * DOS FILAS Y UNA ACCION. Lo que se comprueba aqui es la promesa entera: que
+ * las dos filas dicen lo que tienen que decir sin abrir nada, que la
+ * procedencia del numero sigue estando —es obligatoria (BR-L26)— y que lo que
+ * se movio al detalle **no se perdio**, sino que esta a un toque y se anuncia
+ * con un nombre que se entiende fuera de contexto.
+ */
+test.describe('El recuadro compacto del vendedor', () => {
+  test.afterEach(async () => {
+    await deleteFixtures()
+  })
+
+  test('dice la próxima lotería y el último resultado en dos filas', async ({ page }) => {
+    const today = todayBogota()
+    const yesterday = addDays(today, -1)
+    const tomorrow = addDays(today, 1)
+
+    const ayer = await insertSchedule({
+      lottery: 'meta',
+      draw: `${yesterday}-comp`,
+      referenceDate: yesterday,
+      officialAt: `${yesterday}T22:50:00-05:00`,
+      status: 'completed',
+    })
+    await insertResult(ayer, '1719', '045')
+
+    await insertSchedule({
+      lottery: 'bogota',
+      draw: `${tomorrow}-comp`,
+      referenceDate: tomorrow,
+      officialAt: `${tomorrow}T22:30:00-05:00`,
+    })
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/dashboard')
+
+    const recuadro = card(page)
+    await expect(recuadro.getByRole('heading', { name: 'Loterías' })).toBeVisible()
+
+    // Fila 1: rótulo, lotería, día y hora, en una línea.
+    const proxima = compactUpcomingRow(page)
+    await expect(proxima).toContainText('Próxima')
+    await expect(proxima).toContainText('Bogotá')
+    await expect(proxima).toContainText('mañana')
+    await expect(proxima).toContainText('10:30 p. m.')
+
+    // Fila 2: rótulo, lotería, número mayor, coincidencias y procedencia.
+    const ultimo = compactResultRow(page)
+    await expect(ultimo).toContainText('Último resultado')
+    await expect(ultimo).toContainText('Meta')
+    await expect(ultimo).toContainText('1719')
+    await expect(ultimo).toContainText('Sin coincidencias')
+    await expect(ultimo).toContainText('Fuente oficial')
+
+    // El número lleva su término escrito para quien escucha la pantalla: nunca
+    // «ganador», que es la palabra prohibida (BR-L15, D-167).
+    await expect(ultimo).toContainText('Número mayor')
+    await expect(recuadro).not.toContainText(/ganador/i)
+
+    // Y de entrada NO se pinta el detalle: la tarjeta es compacta.
+    await expect(upcomingCard(page)).toBeHidden()
+    await expect(resultCard(page)).toBeHidden()
+  })
+
+  test('«Ver detalle» abre lo mismo que ve el portal administrativo', async ({ page }) => {
+    const today = todayBogota()
+    const yesterday = addDays(today, -1)
+
+    const ayer = await insertSchedule({
+      lottery: 'meta',
+      draw: `${yesterday}-det`,
+      referenceDate: yesterday,
+      officialAt: `${yesterday}T22:50:00-05:00`,
+      status: 'completed',
+    })
+    await insertResult(ayer, '1719', '045')
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/dashboard')
+
+    const recuadro = card(page)
+    const boton = recuadro.locator('[data-slot="lottery-detail"] > summary')
+
+    // Se alcanza y se activa con el TECLADO, y su nombre accesible dice de qué
+    // detalle habla: en esta misma pantalla hay un «Ver detalle de cobranza».
+    await expect(boton).toHaveAccessibleName(/Ver detalle de las loterías/)
+    await boton.focus()
+    await expect(boton).toBeFocused()
+    await page.keyboard.press('Enter')
+
+    await expect(recuadro.getByLabel('Número mayor 1719')).toBeVisible()
+    await expect(recuadro.getByText('Serie informativa 045')).toBeVisible()
+    await expect(
+      recuadro.getByText('Ninguna de tus boletas coincidió con este número.'),
+    ).toBeVisible()
+    await expect(recuadro.getByText('Actualizado automáticamente cada día')).toBeVisible()
+
+    // Y el botón dice ahora lo contrario, sin decir las dos cosas a la vez.
+    await expect(boton).toHaveAccessibleName(/Ocultar detalle de las loterías/)
   })
 })

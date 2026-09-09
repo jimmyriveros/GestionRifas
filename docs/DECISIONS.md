@@ -8005,6 +8005,189 @@ mide ahora el **paso del tiempo**, que es la dimensión que faltaba.
 
 ---
 
+## D-180 — El panel del vendedor abre por lo que se hace: catálogo y loterías, los dos en compacto
+
+**Fase:** mantenimiento posterior a la Fase 9 (rediseño acotado solicitado por el usuario, 2026-09-09)
+
+**Alcance.** Solo la **parte superior** del panel del vendedor. No se ha tocado ni un cálculo, ni una
+etiqueta, ni una ecuación de «Estado de cobro»; ni una consulta financiera, regla de negocio, política
+RLS o migración. La reorganización es visual, más dos piezas de presentación nuevas.
+
+**Contexto — medido, no supuesto.** D-175 subió el dinero a lo alto y bajó el resto, y acertó con el
+problema que tenía delante. Pero dejó dos cosas que un vendedor hace **antes** de mirar cuánto le
+deben en mitad de la página: repartir su enlace y mirar qué salió anoche. Medido a 1360 px con sesión
+real, «Mi catálogo público» empezaba en y = 700 y el recuadro de loterías en y = 1180, de una página
+de 2200; en el teléfono, y = 1600 y y = 2100 de 3400.
+
+Y las dos ocupaban mucho para lo que decían:
+
+| Región | Antes | Por qué sobraba |
+|---|---|---|
+| Catálogo | 3 filas: dirección escrita, «Compartir» a lo ancho, y dos botones debajo | **La dirección no se lee: se comparte o se copia.** Ocupaba la línea más visible de la tarjeta con un texto que además había que recortar con puntos suspensivos |
+| Loterías | tarjeta a ancho completo con **dos** bloques de ~250 px: número mayor a 60 px, fecha larga, insignia de estado, serie, coincidencias con enlace a cada boleta | Todo eso hace falta **cuando se consulta**, no cuando se pasa por delante. La pregunta de cada día es: ¿cuándo juega la próxima y qué salió en la última? |
+
+---
+
+### Decisión 1 — un nivel 0 con las dos cosas que se hacen al entrar
+
+El orden del panel queda así, y es **el mismo en el teléfono y en el escritorio**:
+
+| | Región | Ancho |
+|---|---|---|
+| **Nivel 0** | **Comparte tu catálogo** · **Loterías** | 7/5 desde `lg`; apiladas debajo |
+| **Nivel 1** | Estado de cobro | 12 |
+| **Nivel 2** | Mis boletas · Ganancia por boleta | 7/5 desde `lg`, 6/6 en tableta |
+| **Nivel 3** | Recaudado · Actividad reciente · Instalar · **Accesos rápidos** | 7/5, 12 y 12 |
+
+**Se acabaron las clases `order-*`.** Hasta ahora el teléfono reordenaba para subir los accesos
+rápidos por encima del dinero (D-112), porque quien entra desde el teléfono viene a hacer algo. Con
+el nivel 0 arriba eso ya está resuelto **para los dos**, así que el orden del documento vuelve a ser
+el orden visual — que es además el único que puede seguir quien escucha la pantalla. Lo vigila una
+prueba que compara las dos listas.
+
+**Los accesos rápidos cierran el panel**, no desaparecen: los cuatro destinos son los mismos y
+ninguno cambia. Bajan porque las cuatro cosas que ofrecen están también en el menú, que en el
+teléfono vive fijo en la barra de abajo. **El recorrido guiado se reordenó con ellos**: su paso era
+el primero y ahora es el último, porque si no el recorrido bajaría al pie de la página y volvería a
+subir — exactamente lo que D-175 corrigió al juntar los dos pasos de «Estado de cobro».
+
+**Por qué 7/5 y no 6/6.** Medido: a 1360 px el contenido son 1089, así que 7 columnas dan una tarjeta
+de 625 px —**575 de contenido**— y 5 dan 440. El catálogo necesita **512 px de contenido** para poner
+sus tres botones en línea con el texto al lado del icono (ver Decisión 2), y con 5 columnas se
+quedaría en 398 y tendría que apilarlos incluso en un escritorio grande. La tarjeta que necesita el
+ancho es la que lo recibe; a las loterías, que son dos filas de texto, 440 les sobra.
+
+**Y por qué se apilan por debajo de `lg` y no de `md`.** También medido: a 768 px la barra lateral ya
+está —encogida a iconos— y el contenido son 656 px. Repartirlo 7/5 deja la tarjeta de loterías en
+259 px, donde «Bogotá · mañana, 10:30 p. m.» se parte en tres renglones. Es justo el caso que el
+encargo prohíbe: **no se mantienen lado a lado si eso estrecha demasiado los textos.**
+
+---
+
+### Decisión 2 — el catálogo pierde la dirección y gana la cifra que sí se mira
+
+La tarjeta se llama ahora **«Comparte tu catálogo»**: empieza por la acción (§4 de la guía de
+redacción) y es lo que pidió el encargo. «Activo»/«Inactivo» siguen describiendo **el enlace** y el
+título los sigue desambiguando igual de bien.
+
+**Fuera la dirección escrita.** Sigue entera donde de verdad se usa: el `href` de «Ver catálogo», el
+portapapeles y el menú del sistema. Ninguna de las tres acciones cambia de comportamiento.
+
+**En su sitio, «N boletas disponibles»**, con su singular. Y es **la cifra del catálogo, no la del
+panel**: `totals.ticketsAvailable` suma todas las rifas y el catálogo publica **una**, la de
+`memberships.public_raffle_id` (BR-K08). Un vendedor con boletas sueltas en una rifa anterior leería
+«52 boletas disponibles» en su panel y «39 números disponibles» en su propio catálogo — que es el
+defecto que D-172 corrigió en «Mis boletas». Se resuelve **sin una consulta nueva**:
+`v_seller_summary` ya agrupa por rifa, así que `getSellerDashboard` devuelve además
+`availableByRaffle` desde las mismas filas que ya leía. Con el catálogo apagado no se dice ninguna
+cifra: contar boletas de un catálogo que no abre no ayuda a nadie.
+
+**Las tres acciones, en una fila.** «Compartir» se distingue por **dos** cosas a la vez —es el único
+relleno y ocupa 1,4 partes de las 3,4 de la fila—, así que la jerarquía no depende del color. Por
+debajo de 512 px de contenido el icono se pone **encima** del texto y este se parte si hace falta: se
+abrevia el espacio, nunca el término (D-114). Los tres miden **44 px** de alto y de ancho en los
+cuatro anchos comprobados, y por eso **no** usan `size="touch"`, que baja a 36 px desde `sm`.
+
+El umbral de 512 px no es redondo por gusto: «Copiar enlace» mide 96 px a 14 px/500, más 16 de icono,
+8 de hueco y 24 de aire son 144 px de botón, y con el reparto 1,4 / 1 / 1 la fila entera necesita
+144 × 3,4 + 16 = 506. A 448 —el escalón anterior— los tres cabían pero «Copiar enlace» se partía en
+dos renglones **dentro** del botón, que se lee peor que apilarlo a propósito.
+
+---
+
+### Decisión 3 — las loterías en dos filas, con el detalle a un toque
+
+`LotteryResultsCard` gana una prop `variant`. **No son dos componentes ni dos consultas:** los mismos
+datos, el mismo límite de Suspense y el mismo detalle. El portal administrativo conserva `full`
+—«Resultados y próxima lotería», con sus dos tarjetas grandes— y **no cambia en nada**.
+
+En `compact`, la tarjeta se titula **«Loterías»** y dice dos filas:
+
+| Rótulo | Contenido |
+|---|---|
+| **Próxima** | `Bogotá · mañana, 10:30 p. m.` |
+| **Último resultado** | `Meta · 1719 · Sin coincidencias`, y debajo la procedencia |
+
+**El título es «Loterías» y no el largo** porque las dos filas de debajo dicen literalmente
+«resultados» y «próxima lotería»: un título que repite las dos etiquetas que tiene a un centímetro no
+añade nada (la misma regla de D-126). El título largo **no se toca**: lo sigue usando el recuadro
+completo.
+
+**La procedencia sigue siendo obligatoria** (BR-L26, D-162): «Fuente oficial» o «Verificado por N
+fuentes», en letra pequeña bajo el número. Un número confirmado por dos sitios que copian a la
+lotería no puede presentarse como oficial, y en compacto tampoco.
+
+**El número se llama «Número mayor», no «ganador».** El encargo escribía «número ganador»; es el
+término prohibido del Anexo A y de BR-L15 —la aplicación detecta una coincidencia numérica y no
+certifica ningún premio— y hay una prueba que falla si un texto de este recuadro dice «ganador». Se
+señala y se sigue (`CLAUDE.md` §35.2.4), igual que con «SORTEO PÚBLICO» en D-163.
+
+**Las coincidencias se cuentan, no se clasifican… en la fila.** «Sin coincidencias», «1 boleta
+coincidió», «N boletas coincidieron». El reparto que distingue una coincidencia normal de una
+sospechosa —vendida antes del sorteo, todavía disponible, asignada después— **no se pierde**: sigue
+entero en `matchSummaryText`, dentro del detalle. Y el vendedor sigue viendo **solo sus boletas**: lo
+decide `lottery_ticket_matches_select`, que no se toca.
+
+**«Ver detalle» es un `<details>` nativo**, y las tres razones importan:
+
+1. **No añade JavaScript** a un Server Component ni saca el recuadro de su límite de Suspense.
+2. **El teclado ya lo sabe usar** —foco, Enter, Espacio— sin que haya que enseñárselo, y el foco se
+   ve con el mismo anillo del sistema.
+3. **El detalle está en el HTML aunque esté plegado**, así que ni un buscador de la página ni un
+   lector de pantalla pierden lo que se movió ahí dentro.
+
+Su nombre accesible es **«Ver detalle de las loterías»**, con la coletilla en `sr-only`: en esta misma
+pantalla hay un «Ver detalle de cobranza», y quien recorre los controles a ciegas no tiene la tarjeta
+delante para distinguirlos (D-114).
+
+**Dos cosas NO se esconden detrás del desplegable**, y son las únicas: el aviso de **conflicto** —la
+fuente oficial publicó otro número, y la fila de al lado acaba de escribir ese número como si fuera
+el resultado— y los **cambios de programación** de los dos sorteos que se muestran. Son lo único de
+este recuadro que puede obligar a hacer algo.
+
+---
+
+### Lo que hubo que ajustar por debajo, y por qué no era opcional
+
+**`nextScheduled`, un campo nuevo en `LotteryDashboardReady`.** `buildLotteryDashboard` calla
+`nextDraw` cuando hoy hay sorteo —es lo que hace que el portal administrativo pinte **una** tarjeta
+azul y no dos—, así que la fila «Próxima», que es fija, se habría quedado sin nada que decir el mismo
+día en que se juega. Se **añade** un campo con el próximo sorteo sin ese recorte, en vez de ensanchar
+`nextDraw`: cambiar el que ya existe habría cambiado lo que ve el portal administrativo, que aquí no
+se toca. El reparto de sorteos no cambia; solo se expone algo que ya se calculaba.
+
+**El detalle reparte en dos columnas por CONTENEDOR, no por ventana.** El recuadro completo usa
+`lg:grid-cols-2` —una consulta de ventana— y lo conserva. Dentro de la forma compacta eso partiría en
+dos columnas de 190 px una tarjeta de 440, rompiendo «Sorteo 3315» en dos renglones. El detalle usa
+`@3xl/detalle`, que mide la tarjeta. Es exactamente el aviso que ya estaba escrito en el `page.tsx`
+desde D-175, ahora resuelto en vez de esquivado.
+
+**`hasNumber` y `playDate` se movieron a `dashboard.ts`.** Vivían dentro del componente y ahora los
+usan las dos formas. Una función, una definición.
+
+---
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Un componente nuevo `LotteryCompactCard` | Habría duplicado el reparto de sorteos, o abierto la puerta a que las dos formas dijeran cosas distintas de los mismos datos. `variant` es la extensión, no una copia (REUSE → EXTEND → CREATE) |
+| «Ver detalle» como diálogo | Obliga a un componente cliente para algo que hoy no tiene ni una línea de JavaScript, y saca el contenido del flujo del documento |
+| «Ver detalle» como pantalla propia | No existe, y crearla es otra tarea con su propia ruta, su carga y sus permisos |
+| Estirar las dos tarjetas del nivel 0 a la misma altura | El panel usa `items-start` por decisión escrita: estirar la corta hasta la larga solo produce un hueco. Miden 158 y 249 px a 1360, y su peso visual es comparable porque la ancha es la corta |
+| Usar `totals.ticketsAvailable` para la cifra del catálogo | Suma todas las rifas; el catálogo publica una. Ver Decisión 2 |
+| Dejar los accesos rápidos arriba en el teléfono con `order-*` | Obligaba a mantener dos órdenes y a que uno de los dos fuera falso para quien escucha la pantalla |
+
+### Qué se comprobó
+
+`npm run verify` en verde (857 unitarias), `npm run test:db` en verde (827) y la suite E2E completa.
+Los cuatro anchos del encargo —320, 375, 768 y 1360— medidos en el navegador contra la aplicación
+real: sin desbordamiento horizontal en ninguno, dianas táctiles de 44 px o más, foco visible por
+teclado en «Ver detalle» y en los tres botones, y singular/plural correctos. El detalle de las
+resoluciones está en `docs/TEST_RESULTS.md`.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

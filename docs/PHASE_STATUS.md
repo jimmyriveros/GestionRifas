@@ -3,7 +3,21 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-08 — **defecto de la invitación por WhatsApp, reportado por el usuario y
+- **Actualizado:** 2026-09-09 — **rediseño acotado de la parte superior del panel del vendedor**
+  (D-180), autorizado expresamente. Las dos cosas que un vendedor hace al entrar —**repartir su
+  catálogo** y **mirar la lotería**— abren ahora la pantalla, las dos en forma compacta y en la misma
+  fila desde `lg`; detrás va «Estado de cobro», y los **accesos rápidos cierran** el panel. **El mismo
+  orden en el teléfono y en el escritorio:** desaparecen las clases `order-*`, porque lo que el
+  teléfono conseguía reordenando ya está arriba para los dos. «Comparte tu catálogo» **pierde la
+  dirección escrita** —nadie la teclea; sigue entera en el `href`, el portapapeles y el menú del
+  sistema— y en su sitio dice **cuántas boletas publica**, tomadas de la lectura que ya se hacía
+  (`availableByRaffle`, **sin consulta nueva**). El recuadro de loterías gana una prop `variant`:
+  `compact` son **dos filas** —«Próxima» y «Último resultado», con la procedencia obligatoria y el
+  recuento de coincidencias— y todo lo demás vive detrás de **«Ver detalle»**, un `<details>` nativo
+  sin JavaScript que conserva el límite de Suspense. **El portal administrativo no cambia en nada.**
+  **Ninguna migración, consulta financiera, política RLS ni regla de negocio cambia**, y «Estado de
+  cobro» conserva sus cálculos, etiquetas y ecuaciones intactos. **Sin desplegar.**
+  Antes, el 2026-09-08: **defecto de la invitación por WhatsApp, reportado por el usuario y
   corregido en la raíz** (D-179, `I-105`). El diálogo de éxito **se cerraba solo** en menos de un
   segundo tras vender una boleta: el detalle pinta ese bloque bajo `canAssign`, la venta hace que la
   boleta deje de estar `available`, la condición pasa a `false` y el bloque desaparece **con el
@@ -4391,4 +4405,63 @@ apartado b.1). No se tocó.
 3. **No devuelvas las guardas `is null` a `report_sales_totals`.** Valen 60 ms y un barrido de tabla.
 4. **No añadas «Ventas por fecha» a `OWNER_REPORT_KEYS`** sin decidirlo: el encargo lo dejó fuera.
 5. **`tickets_select` no se tocó** y no hace falta tocarla.
+6. **No hay etiqueta `fase-N`**: es mantenimiento.
+
+---
+
+## Mantenimiento post-9 — la parte superior del panel del vendedor (D-180, 2026-09-09)
+
+Autorizado expresamente y **acotado a la parte superior**. No toca el portal administrativo, ni los
+cálculos, etiquetas o ecuaciones de «Estado de cobro», ni consultas financieras, reglas de negocio,
+RLS, autenticación o migraciones.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Orden del panel | **Comparte tu catálogo · Loterías · Estado de cobro · Mis boletas · Ganancia · Recaudado · Actividad reciente · Instalar · Accesos rápidos.** El mismo en el teléfono y en el escritorio: **desaparecen las clases `order-*`** |
+| Rejilla | Una sola de 12 columnas desde `md`. El nivel 0 va **7/5 desde `lg`** —catálogo a la izquierda— y **apilado** por debajo: a 768 px el contenido son 656 y un 7/5 dejaría las loterías en 259, donde el texto se parte en tres renglones |
+| «Comparte tu catálogo» | Título nuevo. **Sin la dirección escrita**; en su sitio, «N boletas disponibles» con su singular. Las **tres acciones en una fila** —Compartir relleno y 1,4 veces más ancho, Copiar enlace y Ver catálogo en `outline`— con icono encima del texto por debajo de 512 px de contenido. Sin catálogo publicado no se dibuja ningún botón ni ninguna cifra |
+| «Loterías» | Forma **compacta** del recuadro de siempre (`variant="compact"`): dos filas —«Próxima»: lotería, día y hora; «Último resultado»: lotería, número mayor, coincidencias y procedencia— más los avisos de conflicto y de programación, que **no** se esconden |
+| «Ver detalle» | `<details>` nativo, sin JavaScript, con el cuerpo **completo** del recuadro dentro. Nombre accesible «Ver detalle de las loterías» (hay un «Ver detalle de cobranza» en la misma pantalla) |
+| Accesos rápidos | Al final, con los **mismos cuatro destinos**. El paso del recorrido guiado se movió con ellos |
+| Dato del catálogo | `getSellerDashboard` devuelve `availableByRaffle` desde las **mismas** filas de `v_seller_summary`. **Ninguna consulta nueva**, y no se usa `totals.ticketsAvailable`, que suma todas las rifas mientras el catálogo publica una (BR-K08) |
+| Aislamiento | El recuadro sigue en **su propio límite de Suspense** y sigue leyendo solo tablas locales. El hueco de espera adopta la forma y el título compactos, para que el título no cambie de golpe al resolverse |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` ✅ (`typecheck`, lint con los 2 avisos preexistentes, **857/857** unitarias, `build`).
+`npm run test:db` **827/827**. E2E dirigidas de esta tanda: **11/11** de loterías en escritorio,
+**12/12** de la tanda móvil (catálogo, loterías y panel) y **33** de las tres suites de escritorio
+tocadas. **Un fallo encontrado y corregido**, y era de la prueba: el aviso de conflicto aparece ahora
+**dos veces** —en la fila compacta y dentro del detalle plegado— y la aserción no lo esperaba. Los
+cuatro anchos del encargo se midieron en el navegador contra la aplicación real. Detalle en
+`TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+**No aplica.** Ninguna.
+
+### 4. Variables de entorno
+
+Ninguna nueva.
+
+### 5. Problemas que permanecen
+
+Ninguno nuevo. Los de siempre: I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024,
+I-021, I-023, I-030, I-059, I-060, I-106.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **`variant="full"` es el valor por defecto**, y es lo que ve el portal administrativo. Si cambias
+   `LotteryResultsCard`, comprueba **las dos formas**: comparten cuerpo (`LotteryResultsBody`).
+2. **`nextScheduled` no es `nextDraw`.** El primero es el próximo sorteo siempre; el segundo se calla
+   cuando hoy hay uno, y eso es lo que hace que el portal administrativo pinte una sola tarjeta azul.
+   No los unifiques.
+3. **Dentro del detalle compacto, las columnas se reparten por CONTENEDOR** (`@3xl/detalle`). Un
+   `lg:` de ventana partiría una tarjeta de 440 px en dos columnas de 190.
+4. **No devuelvas `order-*` al panel del vendedor**: hay una prueba que compara el orden visual con el
+   del documento y falla si se separan.
+5. **La cifra del catálogo sale de `availableByRaffle`, no de `totals.ticketsAvailable`.** Cambiarla
+   volvería a poner dos números distintos para lo mismo en dos pantallas del mismo vendedor.
 6. **No hay etiqueta `fase-N`**: es mantenimiento.

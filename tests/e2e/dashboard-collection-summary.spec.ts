@@ -237,25 +237,35 @@ test.describe('Estado de cobro del panel del vendedor (D-112, D-171)', () => {
     expect(faltaCobrar).toBe(await metricCardValue(page, 'Saldo pendiente'))
   })
 
-  test('el dinero se lee primero: «Estado de cobro» abre el panel (D-175)', async ({ page }) => {
+  /**
+   * El orden del panel, recompuesto en D-180 sobre el de D-175.
+   *
+   * Lo que cambia: arriba van las dos cosas que se HACEN al entrar —repartir el
+   * catálogo y mirar la lotería—, las dos en forma compacta; «Estado de cobro»
+   * las sigue inmediatamente, que era la promesa de D-175 y se conserva —el
+   * dinero se lee sin abrir nada—; y los accesos rápidos cierran la pantalla.
+   */
+  test('el orden del panel: catálogo, loterías, dinero… y los accesos al final', async ({
+    page,
+  }) => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/dashboard')
 
-    // El orden VISUAL de las regiones, que en escritorio es el del documento.
-    // Es la promesa del rediseño: quien entra ve su cobranza sin bajar, y no
-    // detrás del catálogo, del recuadro de loterías y de cuatro indicadores.
-    const titulos = await page.locator('main h2').allInnerTexts()
-    expect(titulos[0]).toBe('Estado de cobro')
-    expect(titulos.slice(0, 3)).toEqual(['Estado de cobro', 'Mis boletas', 'Accesos rápidos'])
+    const titulos = (await page.locator('main h2').allInnerTexts()).map((t) => t.trim())
 
-    // La lotería, por debajo del dinero, no por encima.
-    expect(titulos.indexOf('Estado de cobro')).toBeLessThan(
-      titulos.indexOf('Resultados y próxima lotería'),
-    )
-    // Y lo que ya pasó, al final.
+    expect(titulos.slice(0, 4)).toEqual([
+      'Comparte tu catálogo',
+      'Loterías',
+      'Estado de cobro',
+      'Mis boletas',
+    ])
+
+    // Lo que ya pasó, después del dinero.
     expect(titulos.indexOf('Actividad reciente')).toBeGreaterThan(
-      titulos.indexOf('Resultados y próxima lotería'),
+      titulos.indexOf('Estado de cobro'),
     )
+    // Y los accesos rápidos son el último bloque de la pantalla.
+    expect(titulos.at(-1)).toBe('Accesos rápidos')
   })
 
   test('sin ventas, el panel muestra un estado vacío limpio', async ({ page }) => {

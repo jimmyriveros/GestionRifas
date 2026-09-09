@@ -9375,3 +9375,98 @@ de datos, y la sonda se revirtió entera.
 
 ---
 
+
+## La parte superior del panel del vendedor (D-180) — 2026-09-09
+
+Rediseño acotado, autorizado expresamente. **Ninguna migración**, ninguna consulta financiera,
+ninguna política RLS y ninguna regla de negocio. «Estado de cobro» conserva cálculos, etiquetas y
+ecuaciones intactos.
+
+### a. Verificación estándar
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 errores · **2 avisos preexistentes** (`BulkTicketCreator`, `useVirtualizer`) |
+| `npm run test` | ✅ **857/857** (eran 845; **+12** nuevas: 10 de la forma compacta y 2 del hueco compacto en streaming) |
+| `npm run build` | ✅ |
+| `npm run test:db` | ✅ **827/827** — sin cambios, y era de esperar: no se tocó la base |
+
+### b. E2E
+
+| Corrida | Resultado |
+|---|---|
+| Dirigidas de esta tanda, escritorio | ✅ `loterias-panel` **11/11**, `catalogo-panel` + `dashboard-collection-summary` incluidos: **33** de las tres suites |
+| Dirigidas de esta tanda, móvil | ✅ **12/12** (`catalogo-panel-movil` 7, `loterias-panel-movil` 2, `panel-vendedor-movil` 3) |
+| **Suite completa** | **571 pasan · 2 fallan**, y los dos son **`I-090`**, el par de acumulación ya registrado |
+
+**Los dos fallos, comprobados uno a uno con base recién creada:**
+
+| Prueba | En la suite | En aislamiento |
+|---|---|---|
+| `reports.spec.ts:305` — «el panel administrativo muestra pagos recientes» | ❌ no encuentra `(anulado)` entre los 5 más recientes | ✅ **21/21** con `db:reset` + `seed:local` |
+| `ventas-por-fecha.spec.ts:163` — «las ventas de HOY» | ❌ esperaba `< 26` y contó **58** | ✅ **18/18** con `db:reset` + `seed:local` |
+
+Son **de las pruebas, no del producto**, y son exactamente lo que describe `I-090`: miden contra el
+seed compartido mientras otras suites le venden boletas y no las devuelven. Ninguna de las dos toca
+el panel del vendedor: la primera mide el panel **administrativo** —que este trabajo no cambia— y la
+segunda, un reporte. La cuenta de 58 lo confirma: es basura acumulada, no una cifra distinta.
+
+### c. Errores encontrados durante el trabajo, y qué eran
+
+| # | Síntoma | Causa | Qué se hizo |
+|---|---|---|---|
+| 1 | `loterias-panel:196` fallaba por *strict mode*: dos elementos con «La fuente oficial publicó otro número» | **Correcto**: el aviso de conflicto se pinta en la tarjeta compacta **y** dentro del detalle plegado, que es una copia fiel del recuadro completo | Se corrigió **la prueba** (`.first()`), no el producto: el aviso de arriba es el que importa y el de dentro corresponde a su sorteo |
+| 2 | A 1360 px, el detalle desplegado partía «Sorteo 3315» en dos renglones | `LotteryResultsBody` repartía en dos columnas con `lg:` —consulta de **ventana**— dentro de una tarjeta de 440 px | La forma compacta usa `@3xl/detalle`, que mide la tarjeta. El recuadro completo conserva `lg:` sin tocar |
+| 3 | A 1024 px «Copiar enlace» se partía en dos renglones **dentro** del botón | El umbral `@md` (448) dejaba pasar la fila con 468 px, y ahí el texto ya no cabe en una línea | Umbral a `@lg` (512), calculado: 144 px de botón × 3,4 + 16 de huecos = 506 |
+| 4 | A 320 px «10:30 p. m.» se rompía entre «p.» y «m.» | La hora iba dentro de la misma cadena de texto | `compactWhen` devuelve día y hora **por separado**; la hora va en un `whitespace-nowrap` |
+
+Ninguno llegó a producción: los cuatro se encontraron midiendo antes de cerrar.
+
+### d. Los cuatro anchos, medidos en el navegador contra la aplicación real
+
+Vendedor con catálogo publicado, dos sorteos sembrados (Bogotá mañana 23:30, Meta ayer con el 1719).
+
+| Ancho | Nivel 0 | Catálogo | Contenido | Botones | Loterías | «Ver detalle» | Desborde |
+|---|---|---|---|---|---|---|---|
+| **1360** | misma fila 7/5 | 625 × 158 | 575 | **en línea** · 230 / 164 / 164 · **44 px** | 440 × 249 | 106 × **44** | **0** |
+| **768** | apilados | 649 × 158 | 599 | **en línea** · 240 / 171 / 171 · **44 px** | 649 × 249 | 106 × **44** | **0** |
+| **375** | apilados | 343 × 176 | 293 | **icono encima** · 114 / 81 / 81 · **70 px** | 343 × 241 | 106 × **44** | **0** |
+| **320** | apilados | 288 × 176 | 238 | **icono encima** · 88 / 63 / 72 · **70 px** | 288 × 289 | 106 × **44** | **0** |
+
+**Ninguna diana táctil por debajo de 44 px en ninguno de los cuatro**, ni de alto ni de ancho. A
+1024 px —comprobado aparte— la tarjeta mide 518 con 468 px de contenido, así que los botones apilan
+icono y texto: es el escalón que corrigió el error 3.
+
+**Orden de las regiones, idéntico en los cuatro:** Comparte tu catálogo · Loterías · Estado de cobro ·
+Mis boletas · Ganancia por boleta · Recaudado · Actividad reciente · Accesos rápidos. Y el orden
+**visual** coincide con el del **documento**, que es lo que se perdía con las clases `order-*`.
+
+### e. Accesibilidad, comprobada a mano
+
+| Comprobación | Resultado |
+|---|---|
+| «Ver detalle» se alcanza con **Tab** desde «Ver catálogo» | ✅ — es el orden del documento |
+| Anillo de foco visible al llegar por teclado | ✅ `:focus-visible` cierto, `box-shadow` de 3 px del token `focus-ring` |
+| Se abre con **Enter** | ✅, y el rótulo pasa a «Ocultar detalle» |
+| Nombre accesible del control | ✅ «Ver detalle **de las loterías**» / «Ocultar detalle de las loterías» |
+| El detalle está en el HTML aunque esté plegado | ✅ — un `<details>` no borra su contenido |
+| El estado de las coincidencias no depende del color | ✅ va escrito: «Sin coincidencias», «N boletas coincidieron» |
+| Singular y plural | ✅ «1 boleta disponible» / «N boletas disponibles»; «1 boleta coincidió» / «N boletas coincidieron» |
+| A 320 px, el detalle abierto reparte en **una** columna | ✅ las dos tarjetas arrancan en la misma `x` y una va debajo de la otra |
+
+### f. Lo que NO se comprobó, y se dice
+
+**El panel del portal administrativo no se abrió a mano.** No hacía falta abrirlo: la parte que
+podría haberse roto es el recuadro de loterías, y sus pruebas de escritorio —incluidas las cuatro que
+corren sobre `/owner/dashboard` con datos sembrados— pasan **11/11** contra el código nuevo, con el
+título largo «Resultados y próxima lotería» y sus dos tarjetas grandes intactos. `variant="full"` es
+el valor por defecto y esa página no pasa `variant`.
+
+### g. Lo que NO se tocó
+
+Ni una migración, ni una consulta financiera, ni una política, ni una regla de negocio, ni el
+selector de fechas, ni los cálculos de «Estado de cobro». `getSellerDashboard` **no añade ninguna
+consulta**: `availableByRaffle` se agrupa desde las filas de `v_seller_summary` que ya leía.
+
+---

@@ -25,7 +25,31 @@ const SHARE_AND_COPY_FAILED =
   'No pudimos compartir ni copiar el enlace. Selecciónalo y cópialo a mano.'
 
 /**
- * «Mi catálogo público», en el panel del vendedor (BR-K13, D-161).
+ * Cada boton: icono encima del texto cuando la tarjeta es estrecha, icono al
+ * lado cuando da de si.
+ *
+ * `@lg/acciones` = 512 px de CONTENIDO de la tarjeta, y la medida no es
+ * redonda por gusto: «Copiar enlace» mide 96 px a 14 px/500, mas 16 de icono,
+ * 8 de hueco y 24 de aire son 144 px de boton; como «Compartir» se lleva 1,4
+ * partes de 3,4, la fila entera necesita 144 x 3,4 + 16 de huecos = 506. A 448
+ * —el escalon anterior— los tres botones cabian pero «Copiar enlace» se partia
+ * en dos renglones DENTRO del boton, que se lee peor que apilarlo a proposito.
+ *
+ * Por debajo de esa medida el texto baja bajo el icono y ahi si cabe entero: se
+ * abrevia el ESPACIO, nunca el termino (D-114).
+ *
+ * `h-auto min-h-11` en vez de `h-11`: apilado, el boton necesita crecer con su
+ * texto, y una altura fija lo recortaria. El suelo de 44 px se conserva en las
+ * dos formas y en todos los anchos —esta pantalla se usa de pie y con una mano
+ * (D-085)—, y por eso NO se usa `size="touch"`, que baja a 36 px desde `sm`.
+ */
+const ACTION =
+  'h-auto min-h-11 flex-col gap-1 px-1 py-2 text-xs whitespace-normal ' +
+  '@lg/acciones:h-11 @lg/acciones:flex-row @lg/acciones:gap-2 @lg/acciones:px-3 ' +
+  '@lg/acciones:text-label-medium'
+
+/**
+ * «Comparte tu catálogo», en el panel del vendedor (BR-K13, D-161, D-180).
  *
  * SOLO VE, ABRE, COPIA Y COMPARTE. No hay aqui ni un control para encender,
  * apagar, cambiar el WhatsApp o regenerar el enlace: eso lo hace el Dueño o el
@@ -33,27 +57,37 @@ const SHARE_AND_COPY_FAILED =
  * (`authorizeAction(['owner','admin'])`). Un vendedor tampoco puede consultar el
  * de otro: `getCatalogSettings` va por la RLS (BR-K12).
  *
+ * ES UN BLOQUE DE ACCION, no una ficha (D-180). Lo primero que se ve al entrar
+ * al panel es esto, asi que dice lo justo para decidir en un segundo: cuantas
+ * boletas hay que repartir y los tres botones para repartirlas. **La direccion
+ * ya no se escribe**: ocupaba la linea mas visible de la tarjeta para un texto
+ * que nadie teclea —se comparte o se copia, nunca se lee— y que ademas habia
+ * que recortar. Sigue entera donde se usa: en el `href` de «Ver catálogo», en
+ * el portapapeles y en el menu del sistema.
+ *
+ * EN SU SITIO VA LO QUE SI SE MIRA: cuantas boletas quedan por vender en la
+ * rifa publicada. Es la cifra que decide si merece la pena mandar el enlace hoy,
+ * y viene de la MISMA lectura que ya alimentaba el panel
+ * (`availableByRaffle`), no de una consulta nueva ni del recuento publico.
+ *
  * DOS ESTADOS, Y EL APAGADO NO OFRECE NINGUNA ACCION. Con el catalogo sin
  * publicar, con la rifa cerrada o sin enlace generado, los tres botones **no se
- * dibujan**: un boton que lleva a una pagina que responde «no encontrado» es
- * peor que no tener boton. Lo decide `isCatalogLive`, que reune las mismas
- * condiciones que la pagina publica (BR-K10).
+ * dibujan** y tampoco se dice ninguna cifra: un boton que lleva a una pagina que
+ * responde «no encontrado» es peor que no tener boton, y contar boletas de un
+ * catalogo que no abre no ayuda a nadie. Lo decide `isCatalogLive`, que reune
+ * las mismas condiciones que la pagina publica (BR-K10).
  *
- * LOS TRES BOTONES LLEVAN TEXTO VISIBLE, no solo icono, y miden 44 px de alto:
- * es la pantalla que un vendedor usa de pie y con una mano. «Compartir» es la
- * accion principal —de eso va la tarjeta— y ocupa la fila entera en el
- * telefono; las otras dos se reparten la de abajo.
- *
- * LA DIRECCION SE RECORTA A LA VISTA, NUNCA EN LO QUE SE USA. El `<p>` lleva
- * `truncate`, que es CSS: el texto completo sigue en el HTML —lo lee un lector
- * de pantalla y lo copia quien seleccione— y las tres acciones reciben siempre
- * `publicUrl` entero, no lo que se ve.
+ * LOS TRES BOTONES LLEVAN TEXTO VISIBLE, no solo icono. «Compartir» es la
+ * accion principal —de eso va la tarjeta— y se distingue por dos cosas a la vez:
+ * es el unico relleno, y ocupa mas ancho que los otros dos. Ninguna de las dos
+ * depende del color por si sola.
  */
 
 export function SellerCatalogCard({
   publicUrl,
   raffleName,
   isLive,
+  availableTickets,
   className,
 }: {
   /** La direccion COMPLETA. `null` cuando todavia no hay enlace generado. */
@@ -62,6 +96,11 @@ export function SellerCatalogCard({
   raffleName: string | null
   /** `true` si el enlace abre de verdad ahora mismo (`isCatalogLive`). */
   isLive: boolean
+  /**
+   * Boletas disponibles EN LA RIFA PUBLICADA, que son las que el catalogo
+   * enseña (BR-K08). `null` cuando no hay rifa publicada de la que hablar.
+   */
+  availableTickets: number | null
   /** Colocacion dentro de la rejilla del panel. La decide la pantalla. */
   className?: string
 }) {
@@ -94,13 +133,13 @@ export function SellerCatalogCard({
   }
 
   return (
-    <Card className={cn(className)}>
+    <Card className={cn('gap-4 py-4 md:py-5', className)} data-section="comparte-tu-catalogo">
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         {/* Un encabezado de verdad: es una region del panel como las demas, y
             hasta ahora era la unica que no aparecia en el esquema de titulos,
             asi que no se podia saltar a ella con un lector de pantalla. */}
-        <CardTitle>
-          <h2 className="text-heading-h4">Mi catálogo público</h2>
+        <CardTitle className="min-w-0">
+          <h2 className="text-heading-h4">Comparte tu catálogo</h2>
         </CardTitle>
         {/*
           El estado con PALABRAS, no solo con color (CLAUDE.md 27). No es una de
@@ -112,57 +151,55 @@ export function SellerCatalogCard({
         </StatusBadge>
       </CardHeader>
 
-      <CardContent className="space-y-3">
+      <CardContent className="@container/acciones space-y-3">
         {live ? (
           <>
-            <p
-              className="text-muted-foreground truncate font-mono text-xs"
-              // El completo, para quien pase el raton por encima de una
-              // direccion recortada.
-              title={publicUrl}
-              data-testid="catalog-public-url"
-            >
-              {publicUrl}
-            </p>
+            {/* Lo que hay que repartir. Se calla cuando no se sabe —sin rifa
+                publicada no hay boletas de las que hablar— en vez de escribir
+                un cero que se leeria como «no te queda ninguna». */}
+            {availableTickets !== null ? (
+              <p className="text-body-small text-muted-foreground" data-testid="catalog-available">
+                {availableTickets === 1
+                  ? '1 boleta disponible'
+                  : `${availableTickets} boletas disponibles`}
+              </p>
+            ) : null}
 
-            <div className="space-y-2">
-              <Button
-                type="button"
-                className="h-11 w-full"
-                onClick={() => share(publicUrl, raffleName)}
-              >
+            {/* Las tres en una fila. «Compartir» se lleva 1,4 partes de las 3,4
+                que hay: es la accion principal y se nota tambien en el ancho,
+                no solo en el relleno. */}
+            <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2">
+              <Button type="button" className={ACTION} onClick={() => share(publicUrl, raffleName)}>
                 <Share2Icon className="size-4" aria-hidden />
                 Compartir
               </Button>
 
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11"
-                  onClick={() => copyLink(publicUrl)}
-                >
-                  {copied ? (
-                    <CheckIcon className="size-4" aria-hidden />
-                  ) : (
-                    <CopyIcon className="size-4" aria-hidden />
-                  )}
-                  Copiar enlace
-                </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className={ACTION}
+                onClick={() => copyLink(publicUrl)}
+              >
+                {copied ? (
+                  <CheckIcon className="size-4" aria-hidden />
+                ) : (
+                  <CopyIcon className="size-4" aria-hidden />
+                )}
+                Copiar enlace
+              </Button>
 
-                {/*
-                  Un enlace de verdad, no un boton con `router.push`: se puede
-                  abrir en otra pestaña, tiene menu contextual y el navegador lo
-                  precarga. `target="_blank"` porque el vendedor esta trabajando
-                  en su panel y no queremos sacarlo de ahi.
-                */}
-                <Button asChild variant="outline" className="h-11">
-                  <a href={publicUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLinkIcon className="size-4" aria-hidden />
-                    Ver catálogo
-                  </a>
-                </Button>
-              </div>
+              {/*
+                Un enlace de verdad, no un boton con `router.push`: se puede
+                abrir en otra pestaña, tiene menu contextual y el navegador lo
+                precarga. `target="_blank"` porque el vendedor esta trabajando
+                en su panel y no queremos sacarlo de ahi.
+              */}
+              <Button asChild variant="outline" className={ACTION}>
+                <a href={publicUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLinkIcon className="size-4" aria-hidden />
+                  Ver catálogo
+                </a>
+              </Button>
             </div>
           </>
         ) : (

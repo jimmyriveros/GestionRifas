@@ -110,9 +110,7 @@ describe('el recuadro de loterias vive en su propio limite de Suspense (D-155)',
       CONTENIDO_PRINCIPAL,
     )
     expect(shell, 'y el hueco del recuadro, tambien').toContain(HUECO)
-    expect(shell, 'el recuadro resuelto NO puede ir en el armazon').not.toContain(
-      RECUADRO_RESUELTO,
-    )
+    expect(shell, 'el recuadro resuelto NO puede ir en el armazon').not.toContain(RECUADRO_RESUELTO)
 
     const principalAt = primerInstanteCon(trozos, CONTENIDO_PRINCIPAL)
     const recuadroAt = primerInstanteCon(trozos, RECUADRO_RESUELTO)
@@ -143,5 +141,49 @@ describe('el recuadro de loterias vive en su propio limite de Suspense (D-155)',
     expect(shell).toContain('Buscando los resultados oficiales…')
     // El titulo real va en el armazon: no aparece de golpe al resolverse.
     expect(shell).toContain('Resultados y próxima lotería')
+  })
+})
+
+/**
+ * La forma COMPACTA no renuncia al aislamiento (D-180).
+ *
+ * Subir el recuadro a lo alto del panel del vendedor es exactamente el cambio
+ * que podria haberlo deshecho: un limite de Suspense en el primer bloque de la
+ * pagina es el que mas se nota si desaparece. Aqui se comprueba que sigue en
+ * pie, y que el hueco de espera anuncia el titulo COMPACTO —no el largo—, para
+ * que el titulo no cambie de golpe al resolverse la consulta.
+ */
+describe('el hueco compacto (D-180)', () => {
+  function PanelCompacto() {
+    return (
+      <div>
+        <h1>Hola, Vendedor</h1>
+        <LotteryResultsSection
+          audience="seller"
+          ticketBasePath="/seller/tickets"
+          variant="compact"
+        />
+        <h2>{CONTENIDO_PRINCIPAL}</h2>
+      </div>
+    )
+  }
+
+  it('el armazon lleva el hueco con el titulo compacto, y el recuadro llega despues', async () => {
+    control.delayMs = 300
+    const trozos = await renderStreaming(<PanelCompacto />)
+    const shell = armazon(trozos, RECUADRO_RESUELTO)
+
+    expect(shell).toContain(CONTENIDO_PRINCIPAL)
+    expect(shell).toContain(HUECO)
+    expect(shell).toContain('Buscando los resultados oficiales…')
+    // El titulo del hueco es el de la tarjeta que va a llegar: «Loterías».
+    expect(shell).toContain('Loterías')
+    expect(shell).not.toContain('Resultados y próxima lotería')
+    expect(shell).not.toContain(RECUADRO_RESUELTO)
+
+    const principalAt = primerInstanteCon(trozos, CONTENIDO_PRINCIPAL)
+    const recuadroAt = primerInstanteCon(trozos, RECUADRO_RESUELTO)
+    expect(principalAt!, `salio a los ${principalAt} ms`).toBeLessThan(150)
+    expect(recuadroAt!, `llego a los ${recuadroAt} ms`).toBeGreaterThanOrEqual(250)
   })
 })

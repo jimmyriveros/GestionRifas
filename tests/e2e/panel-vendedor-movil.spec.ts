@@ -3,17 +3,18 @@ import { expect, test } from '@playwright/test'
 import { ACCOUNTS, loginAs } from './fixtures'
 
 /**
- * El panel del vendedor en el telefono NO es el de escritorio apilado (D-175).
+ * El panel del vendedor en el telefono se lee en el MISMO orden que en
+ * escritorio (D-180).
  *
- * Es la unica forma de comprobar la promesa del rediseño: el orden del
- * documento manda en escritorio, y en el telefono lo cambian las clases
- * `order-*`. Una prueba que solo mirase el HTML veria el orden de escritorio en
- * los dos casos y no diria nada.
+ * Es lo contrario de lo que comprobaba esta prueba hasta D-175: entonces el
+ * telefono reordenaba con clases `order-*` para subir los accesos rapidos por
+ * encima del dinero, y aqui se verificaba justamente esa diferencia. Con el
+ * catalogo y las loterias abriendo la pantalla, ese apaño dejo de hacer falta:
+ * lo que un vendedor viene a hacer ya esta arriba en los dos sitios.
  *
- * Lo que se fija aqui es la PRIORIDAD, no la maquetacion: quien abre el panel
- * desde el telefono viene a vender o a cobrar, asi que lo primero son los
- * accesos rapidos y justo detras el dinero. El catalogo y el ofrecimiento de
- * instalar son apoyo y van al final.
+ * Sigue siendo una prueba de MOVIL y no una de HTML, porque lo que se comprueba
+ * es el orden VISUAL —posicion en pantalla—, que es lo unico capaz de detectar
+ * que alguien vuelva a introducir un `order-*`.
  */
 
 /** Los titulos de las regiones, en el orden en que se ven de arriba abajo. */
@@ -28,21 +29,41 @@ async function regionesEnOrden(page: import('@playwright/test').Page): Promise<s
 }
 
 test.describe('Panel del vendedor en móvil', () => {
-  test('lo primero son las acciones y el dinero; el apoyo va al final', async ({ page }) => {
+  test('el catálogo y las loterías abren la pantalla; los accesos rápidos la cierran', async ({
+    page,
+  }) => {
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/dashboard')
 
     const orden = await regionesEnOrden(page)
 
-    expect(orden.slice(0, 3)).toEqual(['Accesos rápidos', 'Estado de cobro', 'Mis boletas'])
+    expect(orden.slice(0, 4)).toEqual([
+      'Comparte tu catálogo',
+      'Loterías',
+      'Estado de cobro',
+      'Mis boletas',
+    ])
 
-    // Lo que ya pasó va al final: primero se cobra, luego se repasa.
-    expect(orden.indexOf('Actividad reciente')).toBeGreaterThan(orden.indexOf('Mi catálogo público'))
+    // Lo que ya pasó va después del dinero: primero se cobra, luego se repasa.
     expect(orden.indexOf('Recaudado')).toBeGreaterThan(orden.indexOf('Estado de cobro'))
+    expect(orden.indexOf('Actividad reciente')).toBeGreaterThan(orden.indexOf('Recaudado'))
 
-    // Y NO es el orden del documento: ahi «Estado de cobro» va primero.
+    // Y los accesos rápidos son el último bloque de la pantalla.
+    expect(orden.at(-1)).toBe('Accesos rápidos')
+  })
+
+  test('el orden visual es EL MISMO que el del documento: ya no hay «order-*»', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/dashboard')
+
+    // Es la promesa de D-180, y solo se puede comprobar comparando las dos
+    // listas: quien escucha la pantalla recorre el documento, y quien la mira,
+    // las posiciones. Si vuelven a separarse, esto falla.
+    const visual = await regionesEnOrden(page)
     const enElHtml = await page.locator('main h2').allInnerTexts()
-    expect(enElHtml[0]).toBe('Estado de cobro')
+    expect(visual).toEqual(enElHtml.map((t) => t.trim()))
   })
 
   test('el selector de período vive dentro de «Recaudado» y se puede tocar', async ({ page }) => {

@@ -3,7 +3,10 @@ import { Suspense } from 'react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { LotteryResultsCard } from '@/features/lottery/components/LotteryResultsCard'
+import {
+  LotteryResultsCard,
+  type LotteryCardVariant,
+} from '@/features/lottery/components/LotteryResultsCard'
 import {
   LOTTERY_DASHBOARD_COPY as COPY,
   type LotteryDashboardAudience,
@@ -14,6 +17,8 @@ import { cn } from '@/lib/utils'
 type LotteryResultsSectionProps = {
   audience: LotteryDashboardAudience
   ticketBasePath: '/owner/tickets' | '/seller/tickets'
+  /** `compact` para el panel del vendedor (D-180); `full` para el resto. */
+  variant?: LotteryCardVariant
   className?: string
 }
 
@@ -37,32 +42,69 @@ type LotteryResultsSectionProps = {
  * son decoracion y no dicen nada por si solas. Es el mismo recurso de
  * `SelectedTicketsView`.
  */
-export function LotteryResultsFallback({ className }: { className?: string }) {
+export function LotteryResultsFallback({
+  variant = 'full',
+  className,
+}: {
+  variant?: LotteryCardVariant
+  className?: string
+}) {
+  const compact = variant === 'compact'
+
   return (
-    <Card data-slot="lottery-results-loading" aria-busy="true" className={cn('min-w-0', className)}>
+    <Card
+      data-slot="lottery-results-loading"
+      data-variant={variant}
+      aria-busy="true"
+      className={cn('min-w-0', compact && 'gap-4 py-4 md:py-5', className)}
+    >
       <CardHeader>
         <CardTitle className="flex min-w-0 items-center gap-2 text-base">
           <TicketIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
-          <h2 className="min-w-0 break-words">{COPY.title}</h2>
+          <h2 className={cn('min-w-0 break-words', compact && 'text-heading-h4')}>
+            {compact ? COPY.compactTitle : COPY.title}
+          </h2>
         </CardTitle>
       </CardHeader>
       <CardContent className="min-w-0">
         <span className="sr-only" role="status">
           {COPY.loading}
         </span>
-        {/* Dos huecos desde `lg`, igual que las dos tarjetas que van a llegar
-            (D-167): con uno solo, la mitad derecha del recuadro aparecería de
-            golpe al resolverse la consulta. */}
-        <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-6">
-          {[0, 1].map((hueco) => (
-            <div key={hueco} className="min-w-0 space-y-3 rounded-xl border p-4 sm:p-5" aria-hidden>
-              <Skeleton className="h-5 w-16" />
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-12 w-28" />
-            </div>
-          ))}
-        </div>
+        {compact ? (
+          /* Dos filas con la forma de las dos que van a llegar: rótulo corto
+             encima, dato debajo, y el icono a la izquierda. El hueco mide lo
+             que medirá la tarjeta, así que la página no salta (D-180). */
+          <div className="min-w-0 space-y-3" aria-hidden>
+            {[0, 1].map((hueco) => (
+              <div key={hueco} className="flex min-w-0 items-start gap-3">
+                <Skeleton className="size-9 shrink-0 rounded-lg" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-4 w-44" />
+                </div>
+              </div>
+            ))}
+            <Skeleton className="h-11 w-32" />
+          </div>
+        ) : (
+          /* Dos huecos desde `lg`, igual que las dos tarjetas que van a llegar
+             (D-167): con uno solo, la mitad derecha del recuadro aparecería de
+             golpe al resolverse la consulta. */
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-6">
+            {[0, 1].map((hueco) => (
+              <div
+                key={hueco}
+                className="min-w-0 space-y-3 rounded-xl border p-4 sm:p-5"
+                aria-hidden
+              >
+                <Skeleton className="h-5 w-16" />
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-12 w-28" />
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -71,6 +113,7 @@ export function LotteryResultsFallback({ className }: { className?: string }) {
 async function LotteryResultsContent({
   audience,
   ticketBasePath,
+  variant,
   className,
 }: LotteryResultsSectionProps) {
   const data = await getLotteryDashboard()
@@ -80,6 +123,7 @@ async function LotteryResultsContent({
       data={data}
       audience={audience}
       ticketBasePath={ticketBasePath}
+      variant={variant}
       className={className}
     />
   )
@@ -106,7 +150,9 @@ async function LotteryResultsContent({
  */
 export function LotteryResultsSection(props: LotteryResultsSectionProps) {
   return (
-    <Suspense fallback={<LotteryResultsFallback className={props.className} />}>
+    <Suspense
+      fallback={<LotteryResultsFallback variant={props.variant} className={props.className} />}
+    >
       <LotteryResultsContent {...props} />
     </Suspense>
   )

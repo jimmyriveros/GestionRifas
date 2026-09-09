@@ -1,5 +1,12 @@
-import { CalendarDaysIcon, RefreshCwIcon, TicketIcon, TrophyIcon } from 'lucide-react'
+import {
+  CalendarDaysIcon,
+  ChevronDownIcon,
+  RefreshCwIcon,
+  TicketIcon,
+  TrophyIcon,
+} from 'lucide-react'
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 
 import { EmptyState } from '@/components/data/EmptyState'
 import { Notice } from '@/components/feedback/Notice'
@@ -8,6 +15,10 @@ import { LotteryScheduleBadge } from '@/features/lottery/components/LotterySched
 import {
   LOTTERY_DASHBOARD_COPY as COPY,
   LOTTERY_DASHBOARD_MATCH_LINKS,
+  compactMatchText,
+  compactWhen,
+  drawHasNumber,
+  drawPlayDate,
   matchSummaryText,
   raffleSummaryText,
   relativeDayLabel,
@@ -18,10 +29,21 @@ import {
 import { formatDateEs, formatTimeEs, formatWeekdayEs, todayBogota } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
+/**
+ * `full` es el recuadro de siempre; `compact`, la forma de dos filas que abre
+ * el panel del vendedor (D-180).
+ *
+ * NO SON DOS COMPONENTES ni dos consultas: los mismos datos, el mismo límite de
+ * Suspense y el MISMO detalle —lo que se despliega en `compact` es literalmente
+ * lo que `full` pinta de entrada—.
+ */
+export type LotteryCardVariant = 'full' | 'compact'
+
 type LotteryResultsCardProps = {
   data: LotteryDashboard
   audience: LotteryDashboardAudience
   ticketBasePath: '/owner/tickets' | '/seller/tickets'
+  variant?: LotteryCardVariant
   className?: string
 }
 
@@ -50,18 +72,11 @@ const TONE = {
 
 type DrawRole = keyof typeof TONE
 
-/** Un sorteo con número publicado es un RESULTADO; el resto, una espera. */
-function hasNumber(draw: LotteryDrawView): boolean {
-  return (
-    (draw.resultKind === 'confirmed' || draw.resultKind === 'conflict') &&
-    draw.winningNumber !== null
-  )
-}
-
-/** El día que manda para rotular la tarjeta: cuándo se juega, no el nominal. */
-function playDate(draw: LotteryDrawView): string {
-  return draw.officialDate ?? draw.referenceDate
-}
+/*
+ * `hasNumber` y `playDate` vivían aquí. Se movieron a `dashboard.ts` —el módulo
+ * puro— como `drawHasNumber` y `drawPlayDate` al aparecer la forma compacta,
+ * que necesita las dos: una función, una definición (D-180).
+ */
 
 /** «Jueves 03 sept 2026». La fecha completa, con su día de la semana. */
 function longDate(isoDate: string): string {
@@ -95,7 +110,7 @@ function timeBlock(
   if (!draw.officialScheduledAt) return null
   const at = Date.parse(draw.officialScheduledAt)
   if (Number.isNaN(at) || at <= now.getTime()) return null
-  const day = playDate(draw)
+  const day = drawPlayDate(draw)
   const lead =
     day === today
       ? COPY.playsToday
@@ -143,8 +158,8 @@ function LotteryDrawBlock({
   now: Date
 }) {
   const tone = TONE[role]
-  const day = playDate(draw)
-  const showNumber = hasNumber(draw)
+  const day = drawPlayDate(draw)
+  const showNumber = drawHasNumber(draw)
   const time = showNumber ? null : timeBlock(draw, today, now)
   const skipPending =
     draw.scheduleStatus === 'cancelled' ||
@@ -343,6 +358,158 @@ function LotteryDrawBlock({
 }
 
 /**
+ * Las dos tarjetas grandes, sus avisos y el pie: el cuerpo entero del recuadro.
+ *
+ * Se extrajo al aparecer la forma compacta (D-180) y NO cambió ni una clase:
+ * es lo que el portal administrativo sigue viendo de entrada y lo que el
+ * vendedor despliega en «Ver detalle». Un solo sitio que mantener.
+ */
+function LotteryResultsBody({
+  upcoming,
+  results,
+  weekAlerts,
+  noDrawToday,
+  audience,
+  ticketBasePath,
+  today,
+  now,
+  split,
+}: {
+  upcoming: LotteryDrawView[]
+  results: LotteryDrawView[]
+  weekAlerts: LotteryDrawView[]
+  noDrawToday: boolean
+  audience: LotteryDashboardAudience
+  ticketBasePath: LotteryResultsCardProps['ticketBasePath']
+  today: string
+  now: Date
+  /**
+   * Cuándo se ponen las dos tarjetas una al lado de otra.
+   *
+   * `window` es la regla de siempre (`lg:`), y el recuadro completo la conserva
+   * intacta. `container` mide LA TARJETA, y lo necesita el detalle de la forma
+   * compacta: vive dentro de una región de 5 de 12 columnas, así que a 1360 px
+   * de ventana `lg:` la partiría en dos columnas de 190 px y rompería «Sorteo
+   * 3315» en dos renglones (D-180).
+   */
+  split: 'window' | 'container'
+}) {
+  const twoColumns = upcoming.length > 0 && results.length > 0
+
+  return (
+    <div className="min-w-0 space-y-4">
+      {noDrawToday ? <p className="text-muted-foreground text-sm">{COPY.noDrawToday}</p> : null}
+
+      <div
+        className={cn(
+          'grid min-w-0 items-stretch gap-4',
+          twoColumns &&
+            (split === 'window'
+              ? 'lg:grid-cols-2 lg:gap-6'
+              : '@3xl/detalle:grid-cols-2 @3xl/detalle:gap-6'),
+        )}
+      >
+        {upcoming.length > 0 ? (
+          <div className="flex min-w-0 flex-col gap-4">
+            {upcoming.map((draw) => (
+              <LotteryDrawBlock
+                key={draw.scheduleId}
+                draw={draw}
+                role="upcoming"
+                audience={audience}
+                ticketBasePath={ticketBasePath}
+                today={today}
+                now={now}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        {results.length > 0 ? (
+          <div className="flex min-w-0 flex-col gap-4">
+            {results.map((draw) => (
+              <LotteryDrawBlock
+                key={draw.scheduleId}
+                draw={draw}
+                role="result"
+                audience={audience}
+                ticketBasePath={ticketBasePath}
+                today={today}
+                now={now}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {weekAlerts.length > 0 ? (
+        <div className="space-y-2">
+          <h3 className="text-muted-foreground text-sm font-medium">{COPY.weekChanges}</h3>
+          {weekAlerts.map((draw) => (
+            <Notice key={draw.scheduleId} tone="warning" density="compact">
+              {draw.scheduleNotice}
+            </Notice>
+          ))}
+        </div>
+      ) : null}
+
+      <p className="text-muted-foreground flex items-center justify-center gap-1.5 pt-1 text-xs">
+        <RefreshCwIcon className="size-3 shrink-0" aria-hidden />
+        {COPY.autoUpdate}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * Una de las dos filas de la forma compacta (D-180).
+ *
+ * ROTULO ARRIBA, DATO DEBAJO, y el dato es una sola frase con separadores: es
+ * la única forma que cabe igual en los 238 px de contenido de un teléfono de
+ * 320 y en los 398 de media pantalla de escritorio, sin recortar ningún término
+ * ni obligar a la tarjeta a cambiar de forma dos veces.
+ *
+ * EL ICONO ES DECORACIÓN. Distingue de un vistazo lo que viene de lo que ya
+ * pasó, pero quien no lo ve tiene el rótulo escrito al lado: ni el icono ni su
+ * color llevan solos ningún significado (CLAUDE.md §27).
+ */
+function LotteryCompactRow({
+  role,
+  label,
+  value,
+  footnote,
+}: {
+  role: DrawRole
+  label: string
+  value: ReactNode
+  footnote?: string | null
+}) {
+  const tone = TONE[role]
+  const Icon = role === 'result' ? TrophyIcon : CalendarDaysIcon
+
+  return (
+    <div
+      data-slot={role === 'result' ? 'lottery-compact-result' : 'lottery-compact-upcoming'}
+      className="flex min-w-0 items-start gap-3"
+    >
+      <span
+        className={cn('grid size-9 shrink-0 place-items-center rounded-lg', tone.icon)}
+        aria-hidden
+      >
+        <Icon className="size-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-label-small text-muted-foreground">{label}</p>
+        <p className="text-body-medium min-w-0 break-words">{value}</p>
+        {footnote ? (
+          <p className="text-muted-foreground mt-0.5 text-xs break-words">{footnote}</p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+/**
  * Recuadro compartido de resultados y próximo sorteo. Server Component: no hay
  * JavaScript de cliente y no hay fetch a páginas externas (D-147).
  *
@@ -358,11 +525,20 @@ function LotteryDrawBlock({
  * el ancho útil de cada mitad no alcanza para un número de cuatro cifras
  * grande y su franja de coincidencias. Cuando solo hay una columna con
  * contenido, ocupa el ancho completo en vez de dejar media tarjeta vacía.
+ *
+ * LA FORMA COMPACTA (`variant="compact"`, D-180) abre el panel del vendedor y
+ * dice lo mínimo para decidir si hay que mirar: cuándo juega la próxima lotería
+ * y qué salió en la última. Todo lo demás —el número grande, la fecha completa,
+ * el reparto de coincidencias con enlace a cada boleta, los cambios de
+ * programación— **no se pierde**: está detrás de «Ver detalle», que es un
+ * `<details>` nativo, sin JavaScript, y por tanto sigue viajando en el mismo
+ * HTML y dentro del mismo límite de Suspense (D-155).
  */
 export function LotteryResultsCard({
   data,
   audience,
   ticketBasePath,
+  variant = 'full',
   className,
 }: LotteryResultsCardProps) {
   const now = new Date()
@@ -371,21 +547,35 @@ export function LotteryResultsCard({
   const upcoming =
     data.kind === 'ready'
       ? [
-          ...data.todayDraws.filter((draw) => !hasNumber(draw)),
+          ...data.todayDraws.filter((draw) => !drawHasNumber(draw)),
           ...(data.nextDraw ? [data.nextDraw] : []),
         ]
       : []
   const results =
     data.kind === 'ready'
       ? [
-          ...data.todayDraws.filter(hasNumber),
+          ...data.todayDraws.filter(drawHasNumber),
           ...(data.previousConfirmed ? [data.previousConfirmed] : []),
         ]
       : []
-  const twoColumns = upcoming.length > 0 && results.length > 0
+
+  if (variant === 'compact') {
+    return (
+      <LotteryResultsCompact
+        data={data}
+        upcoming={upcoming}
+        results={results}
+        audience={audience}
+        ticketBasePath={ticketBasePath}
+        today={today}
+        now={now}
+        className={className}
+      />
+    )
+  }
 
   return (
-    <Card data-slot="lottery-results" className={cn('min-w-0', className)}>
+    <Card data-slot="lottery-results" data-variant="full" className={cn('min-w-0', className)}>
       <CardHeader>
         <CardTitle className="flex min-w-0 items-center gap-2 text-base">
           <TicketIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
@@ -402,65 +592,192 @@ export function LotteryResultsCard({
         ) : null}
 
         {data.kind === 'ready' ? (
+          <LotteryResultsBody
+            upcoming={upcoming}
+            results={results}
+            weekAlerts={data.weekAlerts}
+            noDrawToday={data.todayDraws.length === 0}
+            audience={audience}
+            ticketBasePath={ticketBasePath}
+            today={today}
+            now={now}
+            split="window"
+          />
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** La procedencia del número, escrita igual que al pie de la tarjeta grande. */
+function sourceLine(draw: LotteryDrawView): string | null {
+  if (!drawHasNumber(draw)) return null
+  if (draw.consensusSources) return COPY.consensusSource(draw.consensusSources)
+  if (draw.sourceUrl || draw.sourceAuthority) return COPY.officialSource
+  return null
+}
+
+function LotteryResultsCompact({
+  data,
+  upcoming,
+  results,
+  audience,
+  ticketBasePath,
+  today,
+  now,
+  className,
+}: {
+  data: LotteryDashboard
+  upcoming: LotteryDrawView[]
+  results: LotteryDrawView[]
+  audience: LotteryDashboardAudience
+  ticketBasePath: LotteryResultsCardProps['ticketBasePath']
+  today: string
+  now: Date
+  className?: string
+}) {
+  const ready = data.kind === 'ready' ? data : null
+
+  /*
+   * La fila «Próxima» prefiere el sorteo de hoy que todavía no ha jugado y, si
+   * no lo hay, el siguiente programado. `nextScheduled` existe justo para esto:
+   * `nextDraw` se calla cuando hoy hay sorteo, y entonces esta fila —que es
+   * fija— se quedaría sin nada que decir el mismo día en que se juega (D-180).
+   */
+  const nextUp = upcoming[0] ?? ready?.nextScheduled ?? null
+  const when = nextUp ? compactWhen(nextUp, today, now) : null
+  const last = results[0] ?? null
+
+  // Lo que se despliega usa la MISMA próxima que la fila de arriba, para que
+  // abrir el detalle no enseñe otra lotería distinta de la que se acaba de leer.
+  const detailUpcoming = upcoming.length > 0 ? upcoming : nextUp ? [nextUp] : []
+
+  const notices = [nextUp, last]
+    .filter((draw): draw is LotteryDrawView => draw !== null && draw.scheduleNotice !== null)
+    .filter((draw, index, all) => all.findIndex((d) => d.scheduleId === draw.scheduleId) === index)
+
+  return (
+    <Card
+      data-slot="lottery-results"
+      data-variant="compact"
+      className={cn('min-w-0 gap-4 py-4 md:py-5', className)}
+    >
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+        <CardTitle className="flex min-w-0 items-center gap-2">
+          <TicketIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
+          <h2 className="text-heading-h4 min-w-0 break-words">{COPY.compactTitle}</h2>
+        </CardTitle>
+      </CardHeader>
+
+      <CardContent className="min-w-0 space-y-3">
+        {data.kind === 'error' ? (
+          <EmptyState title={COPY.errorTitle} description={COPY.errorDescription} />
+        ) : null}
+
+        {data.kind === 'empty' ? (
+          <EmptyState title={COPY.emptyTitle} description={COPY.emptyDescription} />
+        ) : null}
+
+        {ready ? (
           <>
-            {data.todayDraws.length === 0 ? (
-              <p className="text-muted-foreground text-sm">{COPY.noDrawToday}</p>
+            <LotteryCompactRow
+              role="upcoming"
+              label={COPY.upcomingRow}
+              value={
+                nextUp && when ? (
+                  <>
+                    {`${nextUp.lotteryLabel} · ${when.day}`}
+                    {when.time ? (
+                      <>
+                        {', '}
+                        {/* La hora entera o en la línea siguiente, nunca partida
+                            entre «p.» y «m.», que se lee como una errata. */}
+                        <span className="whitespace-nowrap">{when.time}</span>
+                      </>
+                    ) : null}
+                  </>
+                ) : (
+                  COPY.noDrawToday
+                )
+              }
+            />
+
+            <LotteryCompactRow
+              role="result"
+              label={COPY.lastResultRow}
+              value={
+                last && last.winningNumber ? (
+                  <>
+                    {last.lotteryLabel}
+                    {' · '}
+                    <span className="font-mono font-semibold tabular-nums">
+                      <span className="sr-only">{COPY.winningNumber} </span>
+                      {last.winningNumber}
+                    </span>
+                    {' · '}
+                    {compactMatchText(last)}
+                  </>
+                ) : (
+                  COPY.pending
+                )
+              }
+              footnote={last ? sourceLine(last) : null}
+            />
+
+            {/* Un número en conflicto se avisa ARRIBA, nunca detrás del
+                desplegable: la fila de al lado lo acaba de escribir como si
+                fuera el resultado, y quien vaya a pagar un premio tiene que
+                saber que la fuente oficial publicó otro (D-162). */}
+            {last?.resultKind === 'conflict' ? (
+              <Notice tone="warning" density="compact">
+                {COPY.conflict}
+              </Notice>
             ) : null}
 
-            <div
-              className={cn(
-                'grid min-w-0 items-stretch gap-4',
-                twoColumns && 'lg:grid-cols-2 lg:gap-6',
-              )}
+            {/* Un cambio de programación tampoco: es lo único de este recuadro
+                que puede obligar a hacer algo. Los de otros días de la semana
+                sí van al detalle. */}
+            {notices.map((draw) => (
+              <Notice key={draw.scheduleId} tone="warning" density="compact">
+                {draw.scheduleNotice}
+              </Notice>
+            ))}
+
+            {/*
+              `<details>` NATIVO, y por tres razones: no añade JavaScript a un
+              Server Component, el teclado ya lo abre y lo cierra sin que
+              tengamos que enseñárselo, y —lo importante— el detalle **está en
+              el HTML** aunque esté plegado, así que ni un buscador de la página
+              ni un lector de pantalla pierden la información que se movió aquí.
+            */}
+            <details
+              className="group/detalle @container/detalle min-w-0"
+              data-slot="lottery-detail"
             >
-              {upcoming.length > 0 ? (
-                <div className="flex min-w-0 flex-col gap-4">
-                  {upcoming.map((draw) => (
-                    <LotteryDrawBlock
-                      key={draw.scheduleId}
-                      draw={draw}
-                      role="upcoming"
-                      audience={audience}
-                      ticketBasePath={ticketBasePath}
-                      today={today}
-                      now={now}
-                    />
-                  ))}
-                </div>
-              ) : null}
+              <summary className="text-text-brand text-label-medium hover:bg-surface-accent hover:text-text-on-accent focus-visible:border-focus-ring focus-visible:ring-focus-ring/50 -mx-2 inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-md px-2 outline-none focus-visible:ring-[3px] [&::-webkit-details-marker]:hidden">
+                <span className="group-open/detalle:hidden">{COPY.showDetail}</span>
+                <span className="hidden group-open/detalle:inline">{COPY.hideDetail}</span>
+                <span className="sr-only"> {COPY.detailSubject}</span>
+                <ChevronDownIcon
+                  className="size-4 shrink-0 transition-transform group-open/detalle:rotate-180"
+                  aria-hidden
+                />
+              </summary>
 
-              {results.length > 0 ? (
-                <div className="flex min-w-0 flex-col gap-4">
-                  {results.map((draw) => (
-                    <LotteryDrawBlock
-                      key={draw.scheduleId}
-                      draw={draw}
-                      role="result"
-                      audience={audience}
-                      ticketBasePath={ticketBasePath}
-                      today={today}
-                      now={now}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {data.weekAlerts.length > 0 ? (
-              <div className="space-y-2">
-                <h3 className="text-muted-foreground text-sm font-medium">{COPY.weekChanges}</h3>
-                {data.weekAlerts.map((draw) => (
-                  <Notice key={draw.scheduleId} tone="warning" density="compact">
-                    {draw.scheduleNotice}
-                  </Notice>
-                ))}
+              <div className="pt-3">
+                <LotteryResultsBody
+                  upcoming={detailUpcoming}
+                  results={results}
+                  weekAlerts={ready.weekAlerts}
+                  noDrawToday={ready.todayDraws.length === 0}
+                  audience={audience}
+                  ticketBasePath={ticketBasePath}
+                  today={today}
+                  now={now}
+                  split="container"
+                />
               </div>
-            ) : null}
-
-            <p className="text-muted-foreground flex items-center justify-center gap-1.5 pt-1 text-xs">
-              <RefreshCwIcon className="size-3 shrink-0" aria-hidden />
-              {COPY.autoUpdate}
-            </p>
+            </details>
           </>
         ) : null}
       </CardContent>

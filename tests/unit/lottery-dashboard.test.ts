@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildLotteryDashboard,
+  compactMatchText,
+  compactWhen,
   LOTTERY_DASHBOARD_COPY,
   LOTTERY_DASHBOARD_TIMEOUT_MS,
   lotteryDashboardWindow,
@@ -12,6 +14,7 @@ import {
   raffleSummaryText,
   relativeDayLabel,
   toDrawView,
+  type LotteryMatchSnapshot,
   type LotteryScheduleSnapshot,
 } from '@/features/lottery/dashboard'
 
@@ -34,6 +37,22 @@ function snap(
     result: null,
     matches: [],
     ...overrides,
+  }
+}
+
+/** Una coincidencia de prueba. Solo importan el estado y el numero. */
+function match(
+  assignmentStatus: LotteryMatchSnapshot['assignmentStatus'],
+  numero: string,
+): LotteryMatchSnapshot {
+  return {
+    ticketId: `t-${assignmentStatus}-${numero}`,
+    assignmentStatus,
+    matchedNumber: numero,
+    raffleName: 'Rifa A',
+    dailyNumber: numero,
+    weeklyNumber: '1111',
+    clientName: null,
   }
 }
 
@@ -435,5 +454,120 @@ describe('el Panel no espera por las loterias (D-155)', () => {
     // la lectura entera tardase el doble de lo presupuestado.
     expect(queries.match(/AbortSignal\.timeout\(/g)).toHaveLength(1)
     expect(queries.match(/\.abortSignal\(deadline\)/g)).toHaveLength(2)
+  })
+})
+
+/**
+ * La forma COMPACTA del recuadro, en lo alto del panel del vendedor (D-180).
+ *
+ * Aqui se prueban las tres piezas PURAS que la sostienen. Que se pinten bien y
+ * que el detalle se despliegue lo comprueban las suites de Playwright; lo que
+ * no puede comprobarse alli sin depender del reloj es justamente lo de abajo:
+ * que la hora se calle en cuanto el sorteo ya jugo, y que el recuento de
+ * coincidencias no invente nada cuando todavia no hay numero.
+ */
+describe('forma compacta del recuadro (D-180)', () => {
+  const hoy = '2026-04-02'
+  /** Antes de las 23:00, que es cuando juega el sorteo de `snap()`. */
+  const antes = new Date('2026-04-02T20:00:00-05:00')
+  const despues = new Date('2026-04-02T23:30:00-05:00')
+
+  it('«hoy» va en minuscula y la hora se separa del dia', () => {
+    const draw = toDrawView(snap({ id: 'hoy' }))
+    expect(compactWhen(draw, hoy, antes)).toEqual({ day: 'hoy', time: '11:00 p. m.' })
+  })
+
+  it('pasada la hora oficial, la fila deja de prometer una hora', () => {
+    const draw = toDrawView(snap({ id: 'jugado' }))
+    // Es la misma regla del recuadro completo (D-167): «juega hoy a las…» es
+    // una promesa, y a las 23:30 ya no lo es.
+    expect(compactWhen(draw, hoy, despues)).toEqual({ day: 'hoy', time: null })
+  })
+
+  it('sin hora oficial se dice el dia y nada mas', () => {
+    const draw = toDrawView(
+      snap({ id: 'sin-hora', officialScheduledAt: null, scheduleStatus: 'schedule_unverified' }),
+    )
+    expect(compactWhen(draw, hoy, antes)).toEqual({ day: 'hoy', time: null })
+  })
+
+  it('un dia mas lejano se dice por su dia de la semana, tambien en minuscula', () => {
+    const draw = toDrawView(
+      snap({
+        id: 'lejano',
+        referenceDate: '2026-04-09',
+        officialScheduledAt: '2026-04-09T23:00:00-05:00',
+      }),
+    )
+    expect(compactWhen(draw, hoy, antes).day).toBe('jueves')
+  })
+
+  it('cuenta las coincidencias en singular y en plural', () => {
+    const una = toDrawView(confirmed('una', { matches: [match('sold', '0046')] }))
+    const dos = toDrawView(
+      confirmed('dos', { matches: [match('sold', '0046'), match('available', '0046')] }),
+    )
+    expect(compactMatchText(una)).toBe('1 boleta coincidió')
+    expect(compactMatchText(dos)).toBe('2 boletas coincidieron')
+  })
+
+  it('sin ninguna coincidencia lo dice en corto', () => {
+    expect(compactMatchText(toDrawView(confirmed('cero')))).toBe(
+      LOTTERY_DASHBOARD_COPY.noMatchesShort,
+    )
+  })
+
+  it('sin numero publicado NO dice «sin coincidencias»: no hay con que comparar', () => {
+    expect(compactMatchText(toDrawView(snap({ id: 'pendiente' })))).toBeNull()
+  })
+
+  it('el detalle no pierde el reparto completo: sigue siendo `matchSummaryText`', () => {
+    // La fila compacta cuenta; el detalle clasifica. Son dos textos distintos
+    // sobre los mismos datos, y el segundo es el que distingue una coincidencia
+    // normal de una sospechosa (BR-L15).
+    const draw = toDrawView(
+      confirmed('reparto', { matches: [match('sold', '0046'), match('late_assignment', '0046')] }),
+    )
+    expect(compactMatchText(draw)).toBe('2 boletas coincidieron')
+    expect(matchSummaryText(draw, 'seller')).toBe(
+      '1 boleta asignada antes del sorteo · 1 boleta asignada después del sorteo',
+    )
+  })
+
+  it('«Loterías» titula la forma compacta, y el titulo largo no se toca', () => {
+    expect(LOTTERY_DASHBOARD_COPY.compactTitle).toBe('Loterías')
+    expect(LOTTERY_DASHBOARD_COPY.title).toBe('Resultados y próxima lotería')
+  })
+
+  it('el proximo sorteo llega tambien cuando hoy ya jugo', () => {
+    // `nextDraw` se calla con sorteo hoy —es lo que hace que el portal
+    // administrativo pinte UNA tarjeta azul y no dos— y por eso existe
+    // `nextScheduled`: la fila «Próxima» es fija y tiene que decir algo cierto.
+    const panel = buildLotteryDashboard(
+      [
+        confirmed('hoy', { referenceDate: hoy, officialScheduledAt: `${hoy}T23:00:00-05:00` }),
+        snap({
+          id: 'manana',
+          referenceDate: '2026-04-03',
+          officialScheduledAt: '2026-04-03T23:00:00-05:00',
+        }),
+      ],
+      hoy,
+      antes,
+    )
+
+    expect(panel.kind).toBe('ready')
+    if (panel.kind !== 'ready') return
+    expect(panel.nextDraw, 'con sorteo hoy, el recuadro completo no ofrece otro').toBeNull()
+    expect(panel.nextScheduled?.scheduleId).toBe('manana')
+  })
+
+  it('el hueco de espera compacto usa el titulo compacto', () => {
+    const section = readFileSync(
+      join(ROOT, 'src/features/lottery/components/LotteryResultsSection.tsx'),
+      'utf8',
+    )
+    expect(section).toContain('COPY.compactTitle')
+    expect(section).toContain('variant')
   })
 })

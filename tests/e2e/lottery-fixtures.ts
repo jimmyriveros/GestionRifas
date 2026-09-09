@@ -109,3 +109,33 @@ export function upcomingCard(page: Page) {
 export function resultCard(page: Page) {
   return page.locator('[data-slot="lottery-draw-result"]')
 }
+
+/* ---------------------------------------------------------------------------
+ * La forma COMPACTA del recuadro, que es la que ve el vendedor (D-180).
+ *
+ * El portal administrativo sigue viendo las dos tarjetas grandes de entrada; el
+ * vendedor ve dos filas y las despliega. Las dos formas comparten datos y
+ * `data-slot="lottery-results"`, asi que `card(page)` vale para las dos.
+ * ------------------------------------------------------------------------- */
+
+/** La fila «Próxima» de la forma compacta. */
+export function compactUpcomingRow(page: Page) {
+  return page.locator('[data-slot="lottery-compact-upcoming"]')
+}
+
+/** La fila «Último resultado» de la forma compacta. */
+export function compactResultRow(page: Page) {
+  return page.locator('[data-slot="lottery-compact-result"]')
+}
+
+/**
+ * Despliega «Ver detalle» y espera a que se vea lo de dentro.
+ *
+ * Es un `<details>` nativo: no hay JavaScript de la aplicacion detras, asi que
+ * basta con activarlo. Se espera a una de las dos tarjetas grandes porque es lo
+ * que las pruebas van a medir a continuacion.
+ */
+export async function abrirDetalle(page: Page): Promise<void> {
+  await page.locator('[data-slot="lottery-detail"] > summary').click()
+  await page.locator('[data-slot="lottery-detail"][open]').waitFor()
+}

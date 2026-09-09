@@ -15,7 +15,7 @@ import {
 import { ACCOUNTS, expectToast, loginAs } from './fixtures'
 
 /**
- * «Mi catálogo público» en el panel del vendedor (BR-K13, D-161).
+ * «Comparte tu catálogo» en el panel del vendedor (BR-K13, D-161, D-180).
  *
  * LOS TRES BOTONES SE PRUEBAN UNO A UNO, y el de compartir en sus **cuatro**
  * caminos: el navegador abre el menú, la persona lo cancela, el navegador lo
@@ -45,7 +45,7 @@ test.afterAll(async () => {
 
 /** La tarjeta, por su título. */
 function tarjeta(page: import('@playwright/test').Page) {
-  return page.locator('[data-slot="card"]').filter({ hasText: 'Mi catálogo público' })
+  return page.locator('[data-slot="card"]').filter({ hasText: 'Comparte tu catálogo' })
 }
 
 test.describe('la tarjeta con el catálogo activo', () => {
@@ -58,38 +58,39 @@ test.describe('la tarjeta con el catálogo activo', () => {
   })
 
   /**
-   * Sigue en la banda de acciones, antes del recuadro de loterías (D-161), pero
-   * ya NO por encima del dinero (D-175).
+   * ABRE la pantalla (D-180), por delante de las loterías y del dinero.
    *
-   * Es la mitad de D-161 que cambió, y solo esa mitad: la tarjeta se seguía
-   * leyendo antes que «Estado de cobro», así que quien abría su panel veía
-   * primero un enlace para repartir —a veces apagado y sin ningún botón— y
-   * tenía que bajar para saber cuánto le deben. Lo demás de D-161 se conserva:
-   * la tarjeta se pinta siempre, con sus tres botones cuando el enlace abre, y
-   * por encima de las loterías.
+   * Es la tercera colocación de esta tarjeta y la razón está escrita en D-180:
+   * repartir el enlace es lo primero que hace un vendedor al entrar, y con la
+   * tarjeta reducida a un bloque de acción ya no le cuesta al dinero la mitad
+   * de la pantalla, que era el motivo por el que D-175 la había bajado.
    */
-  test('va en la banda de acciones: antes de las loterías y después del dinero', async ({
-    page,
-  }) => {
+  test('abre la pantalla: antes de las loterías y del dinero', async ({ page }) => {
     const titulos = await page
-      .locator('h1, [data-slot="card-title"]')
-      .filter({ hasText: /Hola,|Mi catálogo público|Resultados y próxima lotería|Estado de cobro/ })
+      .locator('main h2')
+      .filter({ hasText: /Comparte tu catálogo|Loterías|Estado de cobro/ })
       .allTextContents()
 
-    const catalogo = titulos.findIndex((t) => t.includes('Mi catálogo público'))
-    const loterias = titulos.findIndex((t) => t.includes('Resultados y próxima lotería'))
-    const financiero = titulos.findIndex((t) => t.includes('Estado de cobro'))
-
-    expect(catalogo).toBeGreaterThanOrEqual(0)
-    expect(catalogo).toBeLessThan(loterias === -1 ? Number.MAX_SAFE_INTEGER : loterias)
-    expect(catalogo).toBeGreaterThan(financiero)
+    expect(titulos.map((t) => t.trim())).toEqual([
+      'Comparte tu catálogo',
+      'Loterías',
+      'Estado de cobro',
+    ])
   })
 
-  test('dice «Activo» y muestra la dirección', async ({ page }) => {
+  /**
+   * La dirección YA NO SE ESCRIBE (D-180): nadie la teclea, y ocupaba la línea
+   * más visible de la tarjeta. En su sitio va lo que sí se mira antes de
+   * repartir el enlace —cuántas boletas quedan libres—, y la dirección entera
+   * sigue estando donde se usa, que lo comprueban las pruebas de abajo.
+   */
+  test('dice «Activo» y cuántas boletas quedan, sin escribir la dirección', async ({ page }) => {
     const card = tarjeta(page)
     await expect(card).toBeVisible()
     await expect(card.getByText('Activo', { exact: true })).toBeVisible()
-    await expect(card.getByTestId('catalog-public-url')).toContainText(`/catalogo/${CATALOG_SLUG}`)
+    // Tres disponibles monta `montarCatalogo`, más las que trae el seed.
+    await expect(card.getByTestId('catalog-available')).toHaveText(/^\d+ boletas disponibles$/)
+    await expect(card).not.toContainText('/catalogo/')
   })
 
   test('los tres botones llevan texto visible y miden 44 px', async ({ page }) => {
@@ -255,6 +256,15 @@ test.describe('sin enlace que compartir (BR-K13)', () => {
   })
 })
 
+/**
+ * Una dirección larga ya no puede romper NADA de la tarjeta, porque la tarjeta
+ * ya no la escribe (D-180).
+ *
+ * Lo que esta suite comprobaba antes —que el `<p>` la recortara con puntos
+ * suspensivos y conservara el texto completo en el HTML— dejó de existir con
+ * el `<p>`. Lo que sigue importando, y sigue aquí, es lo único que de verdad
+ * usa esa dirección: que las tres acciones reciban la ENTERA.
+ */
 test.describe('una dirección larga', () => {
   const SLUG_LARGO = `catalogo-de-prueba-con-un-nombre-larguisimo-que-no-cabe-${'x'.repeat(20)}`
 
@@ -262,7 +272,7 @@ test.describe('una dirección larga', () => {
     await configurarCatalogo(fixture.refs, true)
   })
 
-  test('se recorta a la vista, pero las acciones usan la completa', async ({ page }) => {
+  test('no se escribe en ninguna parte, y las tres acciones usan la completa', async ({ page }) => {
     const { serviceClient } = await import('./db-setup')
     await serviceClient()
       .from('memberships')
@@ -274,27 +284,12 @@ test.describe('una dirección larga', () => {
     await page.goto('/seller/dashboard')
 
     const card = tarjeta(page)
-    const url = card.getByTestId('catalog-public-url')
 
-    /*
-     * En ESCRITORIO se comprueba el mecanismo, no el efecto: la tarjeta es
-     * ancha y una dirección de ~105 caracteres cabe entera, así que exigir aquí
-     * `scrollWidth > clientWidth` sería exigir que se recorte algo que no
-     * sobra. Que de verdad se recorte cuando falta sitio lo comprueba
-     * `catalogo-panel-movil.spec.ts`, donde la tarjeta mide 375 px.
-     */
-    const css = await url.evaluate((el) => {
-      const s = getComputedStyle(el)
-      return { overflow: s.overflow, textOverflow: s.textOverflow, whiteSpace: s.whiteSpace }
-    })
-    expect(css).toEqual({ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })
+    // Ni recortada ni entera: la dirección no es texto de esta tarjeta.
+    await expect(card.getByTestId('catalog-public-url')).toHaveCount(0)
+    await expect(card).not.toContainText(SLUG_LARGO)
 
-    // Recortada o no, el texto completo sigue en el HTML: lo lee un lector de
-    // pantalla y lo copia quien seleccione.
-    await expect(url).toContainText(SLUG_LARGO)
-    await expect(url).toHaveAttribute('title', new RegExp(SLUG_LARGO))
-
-    // …y entera en las tres acciones.
+    // Y entera en las tres acciones.
     await expect(card.getByRole('link', { name: 'Ver catálogo' })).toHaveAttribute(
       'href',
       new RegExp(`/catalogo/${SLUG_LARGO}$`),

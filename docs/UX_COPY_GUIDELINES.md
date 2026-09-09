@@ -410,6 +410,11 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Que el catálogo de un vendedor abre de verdad | **Activo** / **Inactivo** | Publicado, encendido, habilitado, en línea |
 | Mandar el enlace por el menú del teléfono | **Compartir** | Enviar, difundir, propagar |
 | Abrir la página pública para verla uno mismo | **Ver catálogo** | Previsualizar, ir al catálogo, abrir |
+| La tarjeta del panel desde la que el vendedor lo reparte | **Comparte tu catálogo** (D-180) | «Mi catálogo público», que fue su título hasta el 2026-09-09 |
+| La sección del panel del vendedor con las loterías | **Loterías** (D-180) | «Resultados y próxima lotería», que es el título del recuadro **completo** y sigue siéndolo |
+| Ahí, el sorteo que va a jugarse y el que ya jugó | **Próxima** y **Último resultado** (D-180) | Próximo sorteo, Resultado más reciente |
+| Ahí, cuántas boletas del vendedor salieron con ese número | **Sin coincidencias**, **1 boleta coincidió**, **N boletas coincidieron** (D-180) | Aciertos, ganadoras, premiadas |
+| Desplegar dentro de una tarjeta lo que no cabe en ella | **Ver detalle**, y **Ocultar detalle** cuando está abierto (D-180) | Ver más, Expandir, Mostrar todo |
 | Conversación de WhatsApp donde el vendedor reúne a sus clientes | **Grupo de WhatsApp**, o **tu grupo** (D-176) | Comunidad, canal, chat, lista de difusión |
 | Su dirección de invitación, que el vendedor pega en la configuración | **Enlace del grupo de WhatsApp** | **Link**, que este mismo anexo ya prohíbe; URL, invitación |
 | Pasarle ese enlace a un cliente recién registrado | **Invitar al grupo**; la **invitación** | Agregar al grupo, añadir, meter, vincular |
@@ -790,7 +795,7 @@ premio, y mentiría en cuanto hubiera una segunda rifa—; se escribe en el nomb
 **La etiqueta del catálogo dice «CATÁLOGO PÚBLICO», y no «sorteo»** (D-163). El diseño de referencia
 del rediseño escribía «SORTEO PÚBLICO», pero **sorteo** está reservado en el Anexo A para el sorteo
 de una lotería y expresamente prohibido para la rifa. **Catálogo** es además el término que el
-vendedor ya lee en su propio panel —«Mi catálogo público»— y el que describe lo que el visitante
+vendedor ya lee en su propio panel —«Comparte tu catálogo»— y el que describe lo que el visitante
 tiene delante. Es la regla §35.2.4 de `CLAUDE.md` aplicada: manda la comprensión, se señala la
 contradicción y se sigue.
 
@@ -870,15 +875,15 @@ qué hacer.
 añade: son las mismas dos líneas, así que el encabezado no crece y el nombre de la rifa nunca se lee
 dos veces a la vez. Es texto secundario y truncado, **no un segundo `h1`**.
 
-**El vendedor reparte su catálogo desde el panel, y ahí se dice lo justo** (D-161). Los tres botones
-—**Compartir**, **Copiar enlace** y **Ver catálogo**— llevan **texto visible junto al icono**: un
-icono solo obliga a adivinar, y esta tarjeta la usa gente que no vive en aplicaciones. Las reglas
+**El vendedor reparte su catálogo desde el panel, y ahí se dice lo justo** (D-161, D-180). Los tres
+botones —**Compartir**, **Copiar enlace** y **Ver catálogo**— llevan **texto visible junto al icono**:
+un icono solo obliga a adivinar, y esta tarjeta la usa gente que no vive en aplicaciones. Las reglas
 propias de esos textos:
 
 * **«Activo» / «Inactivo» describen el ENLACE, no a la persona.** Inactivo aquí significa que la
   dirección no abre —apagada, sin generar, o con la rifa cerrada—, y nunca que a alguien le hayan
   quitado el acceso, que es lo que significa «Inactivo» en una cuenta (BR-E14). Lo desambigua el
-  título de la tarjeta, «Mi catálogo público». Son las mismas dos palabras en los **dos** portales:
+  título de la tarjeta, «Comparte tu catálogo». Son las mismas dos palabras en los **dos** portales:
   antes la ficha del vendedor decía «Publicado»/«Sin publicar» y se unificó, porque es el mismo
   estado y un término tiene un solo nombre.
 * **Sin enlace no se ofrece ningún botón.** Se dice qué pasa y a quién pedírselo: «Tu enlace todavía
@@ -891,6 +896,44 @@ propias de esos textos:
   incidente.
 * **El mensaje que se comparte habla en primera persona**: «Consulta **mis** números disponibles».
   Lo envía el vendedor a un chat personal; un texto corporativo ahí suena a reenvío.
+
+**La dirección ya no se escribe en esa tarjeta, y en su sitio va lo que sí se mira** (D-180). El
+enlace **no se lee: se comparte o se copia**, y ocupaba la línea más visible del panel con un texto
+que además había que recortar con puntos suspensivos. Sigue entero donde de verdad se usa —el `href`
+de «Ver catálogo», el portapapeles y el menú del sistema—, así que ninguna acción pierde nada.
+
+En su lugar va **«N boletas disponibles»**, con su singular, y es **la cifra del catálogo**, no la
+del panel: el catálogo publica **una** rifa y «Mis boletas» las suma todas. Escribir ahí el total del
+panel daría dos números distintos para lo mismo —«52 boletas disponibles» en el panel, «39 números
+disponibles» en el propio catálogo—, que es el error que D-172 corrigió en «Mis boletas». Con el
+catálogo apagado **no se dice ninguna cifra**: contar boletas de un catálogo que no abre no ayuda a
+nadie.
+
+Y el título de la tarjeta es **«Comparte tu catálogo»**, que empieza por la acción (§4) y dice lo que
+se viene a hacer. Se llamó «Mi catálogo público» hasta el 2026-09-09; el término del glosario sigue
+siendo **catálogo**, así que no hay nombre nuevo, solo un título que ya no describe un archivo sino
+una acción.
+
+**«Loterías» titula el recuadro compacto del vendedor** (D-180). Debajo van dos filas rotuladas
+**«Próxima»** y **«Último resultado»**, que es literalmente lo que decía el título largo
+—«Resultados y próxima lotería»—, y un título que repite las dos etiquetas que tiene a un centímetro
+no dice nada nuevo (misma regla que D-126). El título largo **no se toca**: lo sigue usando el
+recuadro completo del portal administrativo, y ahí sí es lo único que nombra el contenido.
+
+**Lo que se guarda detrás de «Ver detalle» sigue estando, y el nombre lo dice entero.** Se escribe
+**«Ver detalle»**, y **«Ocultar detalle»** cuando está abierto —nunca las dos a la vez, como el botón
+del menú lateral (D-131)—. El nombre accesible añade **«de las loterías»** en un `sr-only`: en esa
+misma pantalla hay un «Ver detalle de cobranza», y quien recorre los controles a ciegas no tiene la
+tarjeta delante para distinguirlos (D-114).
+
+**Dos avisos NO se esconden ahí dentro**, y son los únicos: el **conflicto** —«La fuente oficial
+publicó otro número. Requiere verificación.»— porque la fila de al lado acaba de escribir ese número
+como si fuera el resultado, y los **cambios de programación** de los dos sorteos que se enseñan. Son
+lo único de ese recuadro que puede obligar a hacer algo.
+
+**Y la hora nunca se parte entre «p.» y «m.».** «Bogotá · mañana, 10:30 p. m.» cabe entera o baja
+entera a la línea siguiente; partida se lee como una errata. Lo mismo que ya hacía el recuadro
+completo separando la cifra de su sufijo (D-167), resuelto aquí sin cambiar el texto.
 
 
 **Un número que no viene de la lotería no se presenta como si viniera** (D-162, BR-L26). Cuando la
@@ -1128,6 +1171,8 @@ castigo donde solo había una espera.
 | Encabezado de la hora («Juega hoy a las», «Juega mañana a las», «Juega el jueves a las») | `LOTTERY_DASHBOARD_COPY.playsToday` / `playsTomorrow` / `playsOn` (D-167) |
 | «Sorteo 2862» y «Correspondiente al …» | `LOTTERY_DASHBOARD_COPY.drawNumber` y `referenceDay` (D-167) |
 | «Actualizado automáticamente cada día», al pie del recuadro | `LOTTERY_DASHBOARD_COPY.autoUpdate` (D-167) |
+| Los textos de la forma compacta: «Loterías», «Próxima», «Último resultado», «Ver detalle», «Ocultar detalle» y «de las loterías» | `src/features/lottery/dashboard.ts` (`compactTitle`, `upcomingRow`, `lastResultRow`, `showDetail`, `hideDetail`, `detailSubject`, D-180) |
+| El recuento corto de coincidencias | `compactMatchText`, en ese mismo archivo — se **calcula**, no se escribe suelto en la pantalla (D-180) |
 | Lo que anuncia el hueco del recuadro mientras llega — «Buscando los resultados oficiales…» | `LOTTERY_DASHBOARD_COPY.loading`, y lo pinta `LotteryResultsSection.tsx` (D-155) |
 | Nombre de la aplicación instalada y su descripción | `src/lib/pwa.ts` (D-115) |
 | Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/copy.ts`, **todos juntos** — los leen la tarjeta del panel y la opción del menú de usuario (D-123) |
@@ -1140,7 +1185,7 @@ castigo donde solo había una espera.
 | «Este enlace ya no está disponible» | `src/app/(catalogo)/catalogo/[slug]/not-found.tsx` (BR-K10) |
 | Textos de configurar el catálogo, y «Publicado» / «Sin publicar» | `src/features/catalog/components/CatalogSettingsCard.tsx` y `CatalogSettingsDialog.tsx` (D-160) |
 | Rótulos del enlace que se copia en la ficha del vendedor | `src/features/catalog/components/CatalogLinkField.tsx` (BR-K12) |
-| Textos de «Mi catálogo público»: estado, aviso sin enlace y los tres botones | `src/features/catalog/components/SellerCatalogCard.tsx` (D-161) |
+| Textos de «Comparte tu catálogo»: título, estado, «N boletas disponibles», aviso sin enlace y los tres botones | `src/features/catalog/components/SellerCatalogCard.tsx` (D-161, D-180) |
 | Los tres avisos de copiar y compartir | `SellerCatalogCard.tsx`, en las constantes `COPIADO`, `COPY_FAILED` y `SHARE_AND_COPY_FAILED` (D-161) |
 | El mensaje que se comparte: encabezado, invitación y cómo se reparte en `title`/`text`/`url` | `src/features/catalog/share.ts`, **todo junto** (D-161) |
 | «Escríbenos por WhatsApp», «Vendedor oficial» y las iniciales del encabezado público | `src/features/catalog/components/CatalogHeader.tsx` (D-163) |

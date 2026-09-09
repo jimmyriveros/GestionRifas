@@ -378,8 +378,8 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | Encabezados de columna | Los cuatro con acciones llevan rótulo: **«Acción»** con una sola acción (pagos, rifas) y **«Acciones»** con menú (vendedores, administradores). Los dos números se ven abreviados —«Núm. diario»— y conservan el nombre entero en `sr-only`, así que la columna se sigue llamando «Número diario» para un lector de pantalla (D-114) |
 | `DonutChart` / `TrendChart` | Los dos gráficos del panel del vendedor: SVG dibujado en el servidor, **sin librería y sin JavaScript** en el navegador. Escalan con `viewBox`, igual que `ProgressRing` (§8.13, D-112). En el centro del anillo va un porcentaje, nunca un importe (D-124) |
 | `CollectionSummaryCard` | Resumen de cobranza del panel (D-090): recibe `totals` ya agregado, no calcula nada; barra de progreso accesible con el mismo patrón que `BulkTicketCreator` |
-| `LotteryResultsCard` | Recuadro de resultados oficiales de los dos Paneles (D-147, §8.19). Server Component **puro**: recibe `data` ya leído, no consulta nada |
-| `LotteryResultsSection` | Lo que ponen las dos páginas (D-155, §8.19.d): hace la lectura local dentro de un `<Suspense>` propio, con `LotteryResultsFallback` como hueco, para que el Panel no la espere |
+| `LotteryResultsCard` | Recuadro de resultados oficiales de los dos Paneles (D-147, §8.19). Server Component **puro**: recibe `data` ya leído, no consulta nada. Su prop `variant` elige entre las dos formas: `full` —el portal administrativo— y `compact` —el panel del vendedor, dos filas y el resto tras un `<details>` nativo (D-180)— |
+| `LotteryResultsSection` | Lo que ponen las dos páginas (D-155, §8.19.d): hace la lectura local dentro de un `<Suspense>` propio, con `LotteryResultsFallback` como hueco, para que el Panel no la espere. Propaga `variant` a los dos, de modo que el hueco tenga la forma y el título de la tarjeta que va a llegar |
 | `CommissionCard` | «Tu ganancia» del panel del vendedor (D-095). No calcula nada: recibe la fila de `commission_summary`. Separa **lo ganado** de **la proyección** deliberadamente, y la barra lleva su valor en `aria-valuetext` |
 | `NotificationBell` / `NotificationMenu` | Campanita del encabezado (D-093). El servidor lee la bandeja al pintar la pantalla; sin peticiones desde el navegador ni tiempo real. El contador va también en el `aria-label`, no solo en el punto rojo |
 | `TableSection` | Tarjeta con título —y acción opcional— que envuelve un listado (§8.14, D-113). La tabla de dentro se aplana con `SECTION_TABLE_CLASSES` para no pintar dos bordes concéntricos; el relleno está calculado para que la primera columna quede alineada con el título |
@@ -896,27 +896,41 @@ Teléfono (< md)                          Escritorio (≥ md, sin cambios)
    aplicación entera se vuelve teléfono en 768 (§8.8, §8.9). El tope de 448 px (`max-w-md`) evita que
    entre 448 y 768 los botones se separen a los extremos de una ventana ancha.
 
-### 8.13 El panel del vendedor: seis piezas y un solo orden (D-112, D-171)
+### 8.13 El panel del vendedor: ocho regiones y UN orden (D-112, D-171, D-175, D-180)
 
-Rediseñado el 2026-08-25. Once bloques apilados pasaron a siete piezas, y **el mismo árbol** sirve
-para el teléfono y el escritorio. El 2026-09-08 pasaron a **seis**: «Resumen financiero» y «Cobranza»
-se fundieron en **«Estado de cobro»**, que ocupa las dos columnas (D-171). La rejilla no cambió de
-forma.
+Rediseñado el 2026-08-25 (D-112), recompuesto en tres niveles el 2026-09-08 (D-175) y con la parte
+superior rehecha el 2026-09-09 (D-180). **Una sola rejilla de 12 columnas** desde `md`, y desde
+D-180 **un solo orden**: el del documento, que es también el visual en el teléfono.
 
 ```
-Escritorio (≥ lg)                              Teléfono (< lg)
+Escritorio (≥ lg)                              Teléfono y tableta
 
-Hola, X                    [11 a 17 ago 2026]  Hola, X · [11 a 17 ago 2026]
-[Resultados y próxima lotería]                 [Resultados y próxima lotería]
-[Recaud.][Por cobrar][Cobranza][Ganancia]      Accesos rápidos
-[        Estado de cobro           ]           Indicadores (1 col)
-[ Mis boletas   ][ Actividad reciente     ]    Estado de cobro
-[ Tendencia     ][ Accesos rápidos        ]    Mis boletas · Tendencia
-                                               Actividad reciente
+Hola, X                                        Hola, X
+[aviso ámbar de pendientes]                    [aviso ámbar de pendientes]
+[Comparte tu catálogo 7][Loterías 5]           Comparte tu catálogo
+[          Estado de cobro 12          ]       Loterías
+[ Mis boletas 7 ][ Ganancia 5 ]                Estado de cobro
+[ Recaudado 7   ][ Actividad reciente 5 ]      Mis boletas · Ganancia
+[             Instalar 12              ]       Recaudado · Actividad reciente
+[          Accesos rápidos 12          ]       Instalar · Accesos rápidos
 ```
 
-El recuadro de **resultados oficiales** (D-147, §8.19) va **arriba** de esta rejilla, después de
-los avisos y de instalar. No entra en las seis piezas ni altera su `order`.
+**Se acabaron las clases `order-*`** (D-180). Hasta D-175 el teléfono reordenaba para subir los
+accesos rápidos por encima del dinero; con el catálogo y las loterías abriendo la pantalla eso ya
+está resuelto para los dos, así que el orden del documento vuelve a ser el visual — que es además el
+único que puede seguir quien escucha la pantalla. Lo vigila `panel-vendedor-movil.spec.ts`, que
+compara las dos listas.
+
+El recuadro de **resultados oficiales** (D-147, §8.19) es ahora una región más de la rejilla, en
+forma **compacta** (`variant="compact"`), y conserva íntegro su límite de Suspense: el hueco viaja en
+el armazón y el recuadro llega después, por el mismo flujo (§8.19.d).
+
+> **Los anchos están medidos, no supuestos** (D-180). A 1360 px el contenido son 1089, así que 7
+> columnas dan 625 px de tarjeta —575 de contenido— y 5 dan 440. El catálogo va a 7 porque necesita
+> **512 px de contenido** para poner sus tres botones en línea; las loterías, a 5, porque en compacto
+> son dos filas de texto. Por debajo de `lg` los dos se apilan: a 768 px el contenido son 656 —la
+> barra lateral ya está, encogida a iconos— y repartirlo 7/5 dejaría la tarjeta de loterías en 259 px,
+> donde «Bogotá · mañana, 10:30 p. m.» se parte en tres renglones.
 
 **Qué hay dentro de «Estado de cobro»** (`CollectionStateCard`, D-171). Encabezado con el inventario
 **operativo**, el resumen del dinero (Total vendido · Ya cobraste · Falta cobrar · Avance del cobro,
@@ -940,12 +954,16 @@ alimentan la sección describan el mismo instante, así que `buildCollectionBrea
 identidad y, si no se cumple, devuelve `detail: null`: la pantalla conserva el total autoritativo y
 **no escribe la ecuación ni ninguna cifra por estado**. Nunca acota una cifra para que la suma cuadre.
 
-**Cómo se consigue con una sola rejilla.** El contenedor es `flex flex-col` en el teléfono y
-`lg:grid lg:grid-cols-2 lg:items-start`. El orden del móvil lo fijan clases `order-*` que se anulan
-con `lg:order-none`. Las dos columnas de la tercera fila son envoltorios con **`contents`**: bajo
-`lg` desaparecen y sus tarjetas quedan sueltas entre las demás —de modo que `order` puede
-recolocarlas—; desde `lg` vuelven a existir y forman dos pilas independientes, que es lo que permite
-que cada tarjeta conserve su altura natural. Es el mismo recurso de §8.8 (D-110).
+**Cómo se consigue con una sola rejilla.** El contenedor es `grid grid-cols-1` en el teléfono y
+`md:grid-cols-12 md:items-start` desde ahí arriba; cada región declara sus columnas en su propio
+`className` (`md:col-span-12 lg:col-span-7`, etc.). `items-start` es una decisión, no un descuido: en
+una fila de dos, estirar la corta hasta la larga solo produce un hueco.
+
+> Esta rejilla sustituyó (D-175) a la de dos columnas con envoltorios `contents` y clases `order-*`
+> que describía D-112, y **la descripción anterior sobrevivió aquí hasta D-180**: es la clase de
+> desfase que `AGENTS.md` §1 manda reportar en vez de arrastrar. Lo que se conserva de D-110 —el
+> recurso de `contents` para que un envoltorio desaparezca bajo un breakpoint— sigue vigente en §8.8;
+> aquí ya no hace falta porque no hay envoltorios.
 
 **Container queries, no `sm:`.** Estas tarjetas ocupan media pantalla en escritorio, así que el
 tamaño de la **ventana** no dice nada sobre el espacio que tienen dentro. Dos piezas responden al
@@ -955,6 +973,8 @@ ancho de su tarjeta con `@container`:
 |---|---|---|
 | «Estado de cobro» (`CollectionStateCard`) | `@min-[280px]` y `@min-[640px]/estado` el resumen del dinero (1 → 2 → 4 columnas) · `@min-[400px]` y `@min-[820px]/estado` el tamaño de sus cifras · `@min-[380px]/estado` las dos columnas de «Falta cobrar», el aire de los bloques y la fila de «Pagadas» | Una consulta de contenedor mide la **caja de contenido**, así que los 48 px de `px-6` ya están descontados: 240 px en una pantalla de 320, 293 en una de 375, 416 en una tableta y 1039 en escritorio. Medido en la aplicación, no deducido (D-171) |
 | «Mis boletas» de 3×2 a seis en fila (`TicketsOverviewCard`) | `@min-[400px]/tickets` | Con `sm:` eran seis columnas de 43 px dentro de una tarjeta de media pantalla |
+| «Comparte tu catálogo»: icono encima del texto → icono al lado (`SellerCatalogCard`) | `@lg/acciones` (512 px) | «Copiar enlace» mide 96 px a 14 px/500 + 16 de icono + 8 de hueco + 24 de aire = 144 px de botón; con el reparto 1,4 / 1 / 1 la fila necesita 144 × 3,4 + 16 = 506. A 448 los tres cabían pero el texto se partía **dentro** del botón (D-180) |
+| El detalle de las loterías, de una columna a dos (`LotteryResultsBody`) | `@3xl/detalle` (768 px) | Solo en `variant="compact"`. El recuadro completo conserva `lg:` —consulta de ventana—; dentro de una tarjeta de 440 px eso partiría en dos columnas de 190 (D-180) |
 
 > El anillo de `FinancialSummaryCard` ocupaba esta tabla hasta D-171 con `@min-[280px]` / `@min-[400px]`
 > / `@min-[560px]`. Esa tarjeta ya no existe.
@@ -970,10 +990,9 @@ escala con los roles, que es describir lo que ya son; ese tema alimenta **un sol
 hay un único ayudante de composición. La lista de roles vive junto a `cn` y una prueba lee
 `globals.css` para que no se separen (`tests/unit/cn.test.ts`).
 
-Los cuatro indicadores sí miran la ventana (`sm:grid-cols-2 xl:grid-cols-4`) porque ocupan el ancho
-completo: en `lg` el contenido mide 720 px —la barra lateral se lleva 256— y cuatro columnas dejaban
-78 px de texto para importes de 118. (Cifra del 2026-08-25; desde D-131 la barra mide 56 px a ese
-ancho y el contenido sube a 968. El reparto **no se revisó**.)
+> La fila de cuatro indicadores que miraba la ventana (`sm:grid-cols-2 xl:grid-cols-4`) **ya no
+> existe**: D-175 la retiró —tres de sus cuatro cifras las decía «Estado de cobro» treinta píxeles
+> más abajo— y la cuarta, «Ganancia por boleta», tiene región propia.
 
 **Gráficos: SVG en el servidor, sin librería.**
 
@@ -993,6 +1012,14 @@ de hoy: la base guarda el estado **actual** de cada boleta, no el que tenía hac
 |---|---|---|
 | `getSellerPartialTicketTotals` | `v_ticket_balances`, boletas `assigned` + `partial` | La **única** cifra que `v_seller_summary` no da. Todo el reparto por estado de pago se deduce de ella (`collection-breakdown.ts`), y por eso **no hizo falta migración** — tampoco en D-171, que solo añadió `pendingBy` al mismo módulo puro. Tope de 5.000 filas: por encima devuelve `null` y los grupos se quedan con sus recuentos y el pendiente total, sin repartirlo |
 | `getSellerActivity` | `report_payments_by_day` y `report_payment_totals` (migración `0013`) | Las mismas que alimentan el reporte de recaudo. Se lee `active_amount`: un pago anulado permanece en el historial pero no es dinero recibido |
+
+**Y una cifra más de la MISMA lectura, sin consulta nueva** (D-180). `getSellerDashboard` devuelve
+además `availableByRaffle`: las boletas disponibles **por rifa**, agrupadas desde las filas de
+`v_seller_summary` que ya leía —esa vista agrupa por `raffle_id`— y usadas por «Comparte tu catálogo»
+para decir cuántas publica el catálogo. **No** se usa `totals.ticketsAvailable`, que suma todas las
+rifas mientras el catálogo publica una sola (`memberships.public_raffle_id`, BR-K08): serían dos
+cifras distintas para lo mismo en dos pantallas del mismo vendedor. Ninguna consulta añadida, ningún
+`fetch` nuevo, y el recuento público (`public_catalog_seller`) sigue sin llamarse desde el panel.
 
 Y **tres menos**: `getSellerDashboard` dejó de pedir el recuento de clientes, los clientes recientes y
 las ventas recientes, que ninguna pantalla pinta ya y se pedían también en `/seller/payments`.
@@ -1304,6 +1331,17 @@ lugar del pendiente.
 > nunca se escribe fijo. La hora de la última verificación dejó de pintarse; la **línea de
 > procedencia** (D-162, BR-L26) sigue al pie de la tarjeta que tiene número.
 
+> **Dos formas del mismo recuadro desde el 2026-09-09 (D-180).** `LotteryResultsCard` acepta
+> `variant`: `full` es lo descrito arriba y es lo que sigue viendo `/owner/dashboard`;
+> `compact` es lo que abre `/seller/dashboard` — dos filas, «Próxima» y «Último resultado»,
+> con el reparto completo detrás de un `<details>` nativo («Ver detalle»). **No son dos
+> componentes ni dos consultas:** los mismos datos, el mismo límite de Suspense y el mismo
+> cuerpo (`LotteryResultsBody`, extraído para las dos). El reparto de sorteos tampoco cambia;
+> `LotteryDashboardReady` **añade** `nextScheduled` —el próximo sorteo sin el recorte de
+> `nextDraw`— porque la fila «Próxima» es fija y `nextDraw` se calla cuando hoy hay sorteo.
+> Dentro del detalle, las dos columnas se reparten por **contenedor** (`@3xl/detalle`) y no
+> por ventana: `lg:` partiría en dos columnas de 190 px una tarjeta de 440.
+
 **Ámbito.** Programación y resultado son nacionales. Las coincidencias las recorta la RLS
 de `lottery_ticket_matches`: el vendedor ve las suyas; el personal, las de su organización.
 `tickets_select` no se toca.
@@ -1451,6 +1489,12 @@ va en el armazón— y cuatro barras medidas contra un bloque de sorteo: 234 px 
 entre los 210 px de un sorteo pendiente y los 306 px de uno confirmado. `aria-busy` más un texto
 para lector de pantalla. No se reserva la altura del caso más alto: el recuadro mide entre 210 y
 578 px según cuántos sorteos y coincidencias haya (D-155 d).
+
+> **El hueco también tiene dos formas (D-180).** `LotteryResultsFallback` recibe el mismo
+> `variant` que la tarjeta y lo propaga `LotteryResultsSection`: en `compact` dibuja **dos filas**
+> con icono, rótulo y dato, más el hueco del botón, y escribe `COPY.compactTitle`. Si escribiera
+> el título largo, el título cambiaría de golpe al resolverse la consulta — que es justo lo que
+> este hueco existe para evitar.
 
 **El plazo.** Las dos consultas comparten `LOTTERY_DASHBOARD_TIMEOUT_MS` (3 s) mediante un único
 `AbortSignal.timeout`. Con el límite puesto, la respuesta HTTP no se cierra hasta que el recuadro

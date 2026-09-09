@@ -2,8 +2,11 @@ import { expect, test, type Locator } from '@playwright/test'
 
 import { ACCOUNTS, loginAs, logout } from './fixtures'
 import {
+  abrirDetalle,
   addDays,
   card,
+  compactResultRow,
+  compactUpcomingRow,
   deleteFixtures,
   insertResult,
   insertSchedule,
@@ -89,6 +92,20 @@ test.describe('Las dos tarjetas del recuadro a 320 px', () => {
 
     const recuadro = card(page)
     await expect(recuadro).toBeVisible()
+
+    /*
+     * A 320 px las DOS filas compactas caben enteras y sin desbordar, que es la
+     * mitad del rediseño que solo se rompe cuando falta ancho (D-180). La hora
+     * va entera: si se partiera entre «p.» y «m.» se leería como una errata.
+     */
+    await expect(compactUpcomingRow(page)).toContainText('Cundinamarca')
+    await expect(compactUpcomingRow(page)).toContainText('11:20 p. m.')
+    await expect(compactResultRow(page)).toContainText('Meta')
+    await expect(compactResultRow(page)).toContainText('1719')
+    expect(await overflow(page), 'las dos filas no pueden desbordar').toBeLessThanOrEqual(2)
+
+    // Y el detalle, que es lo que de verdad aprieta a 320 px.
+    await abrirDetalle(page)
 
     // Sin sorteo hoy, el recuadro lo dice y ensena el que viene.
     await expect(recuadro.getByText('Hoy no hay sorteo programado.')).toBeVisible()

@@ -30,6 +30,17 @@ export type SellerDashboard = {
     totalCollected: number
     pendingAmount: number
   }
+  /**
+   * Boletas disponibles POR RIFA, de la misma lectura y sin una consulta mas.
+   *
+   * `totals.ticketsAvailable` suma todas las rifas, y el catalogo publico
+   * publica UNA sola: la de `memberships.public_raffle_id`. Un vendedor con
+   * boletas sueltas en una rifa anterior veria dos cifras distintas para lo
+   * mismo —«52 boletas disponibles» en su panel y «39 números disponibles» en
+   * su catalogo—, que es justo el defecto que D-172 corrigio en «Mis boletas».
+   * `v_seller_summary` ya agrupa por rifa, asi que separarlas no cuesta nada.
+   */
+  availableByRaffle: Record<string, number>
   /** Sus ultimos abonos (CLAUDE.md 23: «pagos recientes»). */
   recentPayments: PaymentListItem[]
 }
@@ -66,6 +77,13 @@ export async function getSellerDashboard(): Promise<SellerDashboard> {
 
   if (summaryError) throw summaryError
 
+  const availableByRaffle: Record<string, number> = {}
+  for (const row of summary ?? []) {
+    if (!row.raffle_id) continue
+    availableByRaffle[row.raffle_id] =
+      (availableByRaffle[row.raffle_id] ?? 0) + (row.tickets_available ?? 0)
+  }
+
   const totals = (summary ?? []).reduce<SellerDashboard['totals']>(
     (acc, row) => ({
       ticketsTotal: acc.ticketsTotal + (row.tickets_total ?? 0),
@@ -83,7 +101,7 @@ export async function getSellerDashboard(): Promise<SellerDashboard> {
     { ...ZERO },
   )
 
-  return { totals, recentPayments: recentPayments.rows }
+  return { totals, availableByRaffle, recentPayments: recentPayments.rows }
 }
 
 // ---------------------------------------------------------------------------

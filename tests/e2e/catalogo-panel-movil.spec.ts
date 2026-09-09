@@ -15,14 +15,14 @@ import {
 import { ACCOUNTS, expectToast, loginAs } from './fixtures'
 
 /**
- * «Mi catálogo público» en el teléfono (BR-K13, D-161).
+ * «Comparte tu catálogo» en el teléfono (BR-K13, D-161, D-180).
  *
  * Es donde de verdad se usa: el vendedor abre su panel de pie, con una mano, y
  * lo que quiere es mandarle el enlace a un cliente por WhatsApp. Aquí se
- * comprueba lo que **solo se rompe cuando falta ancho** —que la dirección se
- * recorte de verdad, que los tres controles quepan y sigan midiendo 44 px— y lo
- * que solo tiene sentido en un móvil: que **Compartir sea la acción principal**
- * y abra el menú nativo del sistema.
+ * comprueba lo que **solo se rompe cuando falta ancho** —que los tres controles
+ * quepan en UNA fila, apilando icono y texto, y sigan midiendo 44 px— y lo que
+ * solo tiene sentido en un móvil: que **Compartir sea la acción principal** y
+ * abra el menú nativo del sistema.
  */
 
 const COPIADO = 'Enlace copiado. Ya puedes enviarlo a tus clientes.'
@@ -40,7 +40,7 @@ test.afterAll(async () => {
 })
 
 function tarjeta(page: import('@playwright/test').Page) {
-  return page.locator('[data-slot="card"]').filter({ hasText: 'Mi catálogo público' })
+  return page.locator('[data-slot="card"]').filter({ hasText: 'Comparte tu catálogo' })
 }
 
 test.describe('en el teléfono', () => {
@@ -52,39 +52,40 @@ test.describe('en el teléfono', () => {
     await page.goto('/seller/dashboard')
   })
 
-  test('«Compartir» es la acción principal: va primero y ocupa la fila entera', async ({
-    page,
-  }) => {
+  test('las tres acciones van en UNA fila, y «Compartir» es la más ancha', async ({ page }) => {
     const card = tarjeta(page)
     const compartir = card.getByRole('button', { name: 'Compartir' })
     const copiar = card.getByRole('button', { name: 'Copiar enlace' })
     const ver = card.getByRole('link', { name: 'Ver catálogo' })
 
-    const [cCompartir, cCopiar, cVer, cCard] = await Promise.all([
+    const [cCompartir, cCopiar, cVer] = await Promise.all([
       compartir.boundingBox(),
       copiar.boundingBox(),
       ver.boundingBox(),
-      card.boundingBox(),
     ])
 
-    // Primero en la pantalla, por encima de las otras dos.
-    expect(cCompartir!.y).toBeLessThan(cCopiar!.y)
-    expect(cCompartir!.y).toBeLessThan(cVer!.y)
-    // Y ocupa el ancho entero de la tarjeta; las otras dos se lo reparten.
-    expect(cCompartir!.width).toBeGreaterThan(cCopiar!.width * 1.5)
-    expect(cCompartir!.width).toBeGreaterThan(cCard!.width * 0.7)
-    // Las otras dos comparten fila.
-    expect(Math.abs(cCopiar!.y - cVer!.y)).toBeLessThan(2)
+    // Las tres a la misma altura: una sola fila (D-180).
+    expect(Math.abs(cCopiar!.y - cCompartir!.y)).toBeLessThan(2)
+    expect(Math.abs(cVer!.y - cCompartir!.y)).toBeLessThan(2)
+    // Y en este orden de izquierda a derecha.
+    expect(cCompartir!.x).toBeLessThan(cCopiar!.x)
+    expect(cCopiar!.x).toBeLessThan(cVer!.x)
+    // «Compartir» es la acción principal y también se nota en el ancho, no solo
+    // en el relleno: 1,4 partes de las 3,4 de la fila.
+    expect(cCompartir!.width).toBeGreaterThan(cCopiar!.width)
+    expect(cCompartir!.width).toBeGreaterThan(cVer!.width)
   })
 
-  test('los tres controles miden 44 px y llevan texto visible', async ({ page }) => {
+  test('los tres controles miden 44 px de lado y llevan texto visible', async ({ page }) => {
     const card = tarjeta(page)
     for (const nombre of ['Compartir', 'Copiar enlace', 'Ver catálogo']) {
       const control = card.getByRole(nombre === 'Ver catálogo' ? 'link' : 'button', {
         name: nombre,
       })
       const caja = await control.boundingBox()
-      expect(caja!.height, `${nombre} mide menos de 44 px`).toBeGreaterThanOrEqual(44)
+      expect(caja!.height, `${nombre} mide menos de 44 px de alto`).toBeGreaterThanOrEqual(44)
+      expect(caja!.width, `${nombre} mide menos de 44 px de ancho`).toBeGreaterThanOrEqual(44)
+      // El término entero, aunque se parta en dos renglones bajo el icono.
       await expect(control).toContainText(nombre)
     }
   })
@@ -114,6 +115,11 @@ test.describe('en el teléfono', () => {
   })
 })
 
+/**
+ * Una dirección larga ya no se escribe en la tarjeta (D-180), así que aquí no
+ * queda nada que recortar. Lo que sigue importando en un teléfono es que no
+ * desborde nada y que las tres acciones reciban la dirección ENTERA.
+ */
 test.describe('una dirección larga en una pantalla estrecha', () => {
   const SLUG_LARGO = `catalogo-de-prueba-con-un-nombre-larguisimo-que-no-cabe-${'x'.repeat(20)}`
 
@@ -121,7 +127,7 @@ test.describe('una dirección larga en una pantalla estrecha', () => {
     await configurarCatalogo(fixture.refs, true)
   })
 
-  test('se recorta de verdad, y las acciones siguen usando la completa', async ({ page }) => {
+  test('no se escribe, no desborda, y las acciones siguen usando la completa', async ({ page }) => {
     const { serviceClient } = await import('./db-setup')
     await serviceClient()
       .from('memberships')
@@ -133,13 +139,9 @@ test.describe('una dirección larga en una pantalla estrecha', () => {
     await page.goto('/seller/dashboard')
 
     const card = tarjeta(page)
-    const url = card.getByTestId('catalog-public-url')
+    await expect(card.getByTestId('catalog-public-url')).toHaveCount(0)
+    await expect(card).not.toContainText(SLUG_LARGO)
 
-    // AQUÍ sí: a 412 px la dirección no cabe y el navegador la recorta.
-    const recortada = await url.evaluate((el) => el.scrollWidth > el.clientWidth)
-    expect(recortada, 'la dirección larga no se recorta en el teléfono').toBe(true)
-
-    // Y aun así no desborda la pantalla.
     const desborde = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     )
