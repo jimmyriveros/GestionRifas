@@ -24,9 +24,17 @@ function parseCOP(text: string): number {
   return Number.parseInt(text.replace(/[^0-9]/g, ''), 10)
 }
 
-/** La tarjeta «Resumen de cobranza» del panel administrativo (D-090). */
+/**
+ * La tarjeta «Resumen de cobranza» del panel administrativo (D-090).
+ *
+ * Por `data-section` y no por el anclaje del recorrido, exactamente como
+ * `estadoDeCobro`: desde D-182 ese anclaje marca **una mitad** de la tarjeta
+ * —el resumen—, porque con el reparto dentro la tarjeta pasa de 212 a ~640 px y
+ * el globo del recorrido se salía por arriba. Las pruebas necesitan la tarjeta
+ * entera.
+ */
 function summaryCard(page: Page) {
-  return page.locator('[data-tour="financial-summary"]')
+  return page.locator('[data-section="resumen-de-cobranza"]')
 }
 
 /**
@@ -99,10 +107,15 @@ test.describe('Resumen de cobranza del panel administrativo (D-090)', () => {
     await expect(bar).toHaveAttribute('aria-valuemin', '0')
     await expect(bar).toHaveAttribute('aria-valuemax', '100')
 
-    const amounts = summaryCard(page)
+    // Las DOS cifras del resumen, por su sitio y no contando cuantos importes
+    // hay en la tarjeta: desde D-182 el reparto por estado de pago vive dentro
+    // de ella y trae los suyos. Un `toHaveLength(2)` sobre toda la tarjeta
+    // volveria a romperse cada vez que el desglose gane o pierda una linea.
+    const resumen = summaryCard(page).locator('[data-slot="card-content"] > div').first()
+    const texts = await resumen
       .locator('p')
       .filter({ hasText: /^\$[\d.]+$/ })
-    const texts = await amounts.allTextContents()
+      .allTextContents()
     expect(texts).toHaveLength(2)
     const shown = { collected: parseCOP(texts[0]!), pending: parseCOP(texts[1]!) }
 
@@ -113,6 +126,54 @@ test.describe('Resumen de cobranza del panel administrativo (D-090)', () => {
     await page.goto('/owner/payments')
     expect(shown.collected).toBe(await metricCardValue(page, 'Total recaudado'))
     expect(shown.pending).toBe(await metricCardValue(page, 'Saldo pendiente'))
+  })
+
+  /**
+   * El reparto por estado de pago, ahora tambien aqui (D-182).
+   *
+   * Es la MISMA pieza que el panel del vendedor, asi que lo que se comprueba no
+   * es como se ve —eso ya lo cubren las pruebas del vendedor— sino las dos
+   * cosas que solo pueden fallar en este portal: que sus enlaces lleven a ESTE
+   * listado y no al del vendedor, y que las cifras sigan cuadrando cuando la
+   * suma es la de toda la organizacion y no la de una persona.
+   */
+  test('el reparto por estado de pago cuadra y enlaza a las boletas del portal', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/dashboard')
+
+    for (const estado of ['unpaid', 'partial', 'paid'] as const) {
+      await expect(
+        summaryCard(page).locator(
+          `a[href="/owner/tickets?inventoryStatus=assigned&paymentStatus=${estado}"]`,
+        ),
+      ).toHaveCount(1)
+    }
+
+    const importe = async (bloque: string, rotulo: string) => {
+      const fila = summaryCard(page)
+        .locator('a[href*="paymentStatus="]')
+        .filter({ has: page.getByText(bloque, { exact: true }) })
+        .locator('dl > div')
+        .filter({ has: page.getByText(rotulo, { exact: true }) })
+      return parseCOP((await fila.locator('dd').textContent()) ?? '')
+    }
+
+    const [deben, todaviaDeben, yaAbonaron, cobrado] = await Promise.all([
+      importe('Sin pagos', 'Deben'),
+      importe('Con abonos', 'Todavía deben'),
+      importe('Con abonos', 'Ya abonaron'),
+      importe('Pagadas', 'Cobrado'),
+    ])
+
+    await page.goto('/owner/payments')
+    const recaudado = await metricCardValue(page, 'Total recaudado')
+    const saldo = await metricCardValue(page, 'Saldo pendiente')
+
+    // Las dos igualdades de D-171, sobre el total de la organizacion.
+    expect(deben + todaviaDeben).toBe(saldo)
+    expect(cobrado + yaAbonaron).toBe(recaudado)
   })
 })
 

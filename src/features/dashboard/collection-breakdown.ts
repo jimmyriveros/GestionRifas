@@ -10,7 +10,7 @@
  * el panel se cae en produccion.
  *
  * No hace falta. Basta con UNA cifra mas —el precio y lo abonado de las boletas
- * que aun deben, que lee `getSellerPartialTicketTotals`— y el resto se deduce.
+ * que aun deben, que lee `getPartialTicketTotals`— y el resto se deduce.
  * Las boletas «Abonadas» son ademas las pocas: una boleta solo queda a medias
  * mientras alguien va pagandola a plazos, asi que leerlas fila a fila es barato.
  *

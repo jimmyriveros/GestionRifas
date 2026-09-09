@@ -137,7 +137,7 @@ const PARTIAL_TICKETS_LIMIT = 5_000
  * mismo filtro, y usar dos criterios distintos para el mismo total es
  * exactamente como aparece una diferencia que nadie sabe explicar.
  */
-export async function getSellerPartialTicketTotals(): Promise<PartialTicketTotals | null> {
+export async function getPartialTicketTotals(): Promise<PartialTicketTotals | null> {
   const supabase = await createClient()
 
   const { rows, truncated } = await fetchAllRows<{

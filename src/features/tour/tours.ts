@@ -170,6 +170,18 @@ const OWNER_TOURS: Tour[] = [
         title: 'El dinero de la rifa',
         body: 'Lo vendido es a cuánto se comprometieron tus clientes; lo recaudado, lo que ya pagaron. El saldo pendiente es lo que falta por cobrar.',
       },
+      // Los dos pasos del dinero van SEGUIDOS, y en el orden en que se leen:
+      // desde D-182 el reparto por estado de pago vive DENTRO de la misma
+      // tarjeta que el resumen. Separados por «Cuántas boletas hay», el globo
+      // bajaba a otra region y volvia a subir — el mismo defecto que D-175
+      // corrigio en el panel del vendedor.
+      {
+        id: 'metrics-collection',
+        target: 'metrics-collection',
+        side: 'top',
+        title: 'Lo que falta por cobrar',
+        body: '«Sin pagos» son las boletas de las que no ha entrado nada y «Con abonos», las que pagaron una parte. Toca cualquiera de las dos para verlas.',
+      },
       {
         id: 'metrics-inventory',
         target: 'metrics-inventory',
@@ -180,13 +192,6 @@ const OWNER_TOURS: Tour[] = [
         // revisarlas, y un paso no explica algo que no esta a la vista (§5 de
         // la guia de redaccion).
         body: 'Las registradas son todas las que existen, incluidas las anuladas; las disponibles son las que todavía puedes repartir y las asignadas ya tienen cliente.',
-      },
-      {
-        id: 'metrics-collection',
-        target: 'metrics-collection',
-        side: 'top',
-        title: 'Cómo va el pago de cada boleta',
-        body: '«Sin pagar» significa que ese cliente no ha pagado nada; «Abonada», que pagó una parte; «Pagada», que ya completó el valor.',
       },
       {
         id: 'seller-summary',

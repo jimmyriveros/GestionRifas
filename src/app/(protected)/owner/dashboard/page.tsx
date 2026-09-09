@@ -16,11 +16,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { buildCollectionBreakdown } from '@/features/dashboard/collection-breakdown'
 import { getAdminDashboard } from '@/features/dashboard/queries'
+import { getPartialTicketTotals } from '@/features/dashboard/seller-queries'
 import { LotteryResultsSection } from '@/features/lottery/components/LotteryResultsSection'
 import { tourTarget } from '@/features/tour/tours'
 import { requireStaff } from '@/lib/auth/guards'
-import { ROLE_LABELS, TICKET_PAYMENT_STATUS_PLURAL_LABELS } from '@/lib/constants'
+import { ROLE_LABELS } from '@/lib/constants'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 
@@ -33,8 +35,30 @@ import { formatCOP } from '@/lib/money'
  */
 export default async function OwnerDashboardPage() {
   const membership = await requireStaff()
-  const dashboard = await getAdminDashboard()
+
+  // El reparto del dinero por estado de pago sale de la MISMA funcion que usa
+  // el panel del vendedor, y sin tocarla: no filtra por vendedor —lee
+  // `v_ticket_balances`, que es `security_invoker`— asi que la politica
+  // `tickets_select` decide el alcance. Un vendedor obtiene lo suyo; el
+  // personal, toda la organizacion. Cero consultas nuevas y cero migraciones.
+  const [dashboard, partialTotals] = await Promise.all([
+    getAdminDashboard(),
+    getPartialTicketTotals(),
+  ])
   const { totals } = dashboard
+
+  // `null` cuando habia demasiadas boletas abonadas para leerlas una a una
+  // (I-011). Se pasa tal cual: el reparto decide solo si puede sostenerse, y si
+  // no, la tarjeta se queda con los totales y los recuentos (D-172).
+  const breakdown = buildCollectionBreakdown(totals, partialTotals)
+
+  if (breakdown.inconsistent) {
+    console.error('buildCollectionBreakdown: el detalle por estado de pago no cuadra', {
+      organizationId: membership.organizationId,
+      totals,
+      partialTotals,
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -62,6 +86,26 @@ export default async function OwnerDashboardPage() {
           corre más prisa que instalar nada. */}
       <InstallPrompt />
 
+      {/* NIVEL 1, y por eso va ANTES del recuadro de loterias (D-182). Estaba
+          cuarto, en y = 519 medidos, detras de un recuadro de 252 px que en una
+          organizacion sin sorteos programados solo dice que no hay resultados.
+          Quien administra la rifa entra a ver el dinero; la loteria es contexto
+          y se lee despues. Es la misma correccion que D-175 hizo en el panel
+          del vendedor, con una diferencia: alli hay un nivel 0 con el catalogo
+          —algo que se HACE— y aqui no lo hay, asi que nada precede al dinero. */}
+      <CollectionSummaryCard
+        totalSold={totals.totalSold}
+        totalCollected={totals.totalCollected}
+        pendingAmount={totals.pendingAmount}
+        pendingTicketsCount={totals.ticketsUnpaid + totals.ticketsPartial}
+        counts={{
+          unpaid: totals.ticketsUnpaid,
+          partial: totals.ticketsPartial,
+          paid: totals.ticketsPaid,
+        }}
+        breakdown={breakdown}
+      />
+
       {/* SIGUE EN `full`, y se evaluo pasarlo a `compact` como el del vendedor.
           No se hizo, por tres razones medidas: (1) en una organizacion sin
           sorteos programados las dos formas pintan el MISMO estado vacio, asi
@@ -74,13 +118,6 @@ export default async function OwnerDashboardPage() {
           reabrirlo. Lo que si sobra son los ~230 px del estado vacio, y eso es
           otra decision. */}
       <LotteryResultsSection audience="staff" ticketBasePath="/owner/tickets" />
-
-      <CollectionSummaryCard
-        totalSold={totals.totalSold}
-        totalCollected={totals.totalCollected}
-        pendingAmount={totals.pendingAmount}
-        pendingTicketsCount={totals.ticketsUnpaid + totals.ticketsPartial}
-      />
 
       <section>
         <h2 className="text-heading-h4 mb-3">Inventario</h2>
@@ -95,25 +132,6 @@ export default async function OwnerDashboardPage() {
           <MetricCard label="Registradas" value={totals.ticketsTotal} />
           <MetricCard label="Disponibles" value={totals.ticketsAvailable} />
           <MetricCard label="Asignadas" value={totals.ticketsAssigned} />
-        </div>
-      </section>
-
-      <section>
-        {/* «Cobranza» a secas esta en la columna «nunca usar» del glosario, y
-            ademas no decia de que boletas hablaba. Estas tres SI suman las
-            asignadas de arriba, que es justo lo que el titulo promete. Es el
-            mismo nombre que usa el panel del vendedor para este reparto. */}
-        <h2 className="text-heading-h4 mb-3">Boletas vendidas según su pago</h2>
-        <div {...tourTarget('metrics-collection')} className="grid grid-cols-3 gap-4">
-          <MetricCard
-            label={TICKET_PAYMENT_STATUS_PLURAL_LABELS.unpaid}
-            value={totals.ticketsUnpaid}
-          />
-          <MetricCard
-            label={TICKET_PAYMENT_STATUS_PLURAL_LABELS.partial}
-            value={totals.ticketsPartial}
-          />
-          <MetricCard label={TICKET_PAYMENT_STATUS_PLURAL_LABELS.paid} value={totals.ticketsPaid} />
         </div>
       </section>
 

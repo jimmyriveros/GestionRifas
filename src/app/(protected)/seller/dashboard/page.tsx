@@ -19,7 +19,7 @@ import {
 import {
   getSellerActivity,
   getSellerDashboard,
-  getSellerPartialTicketTotals,
+  getPartialTicketTotals,
 } from '@/features/dashboard/seller-queries'
 import { SellerCatalogCard } from '@/features/catalog/components/SellerCatalogCard'
 import { catalogPublicUrl, getCatalogSettings, isCatalogLive } from '@/features/catalog/queries'
@@ -100,7 +100,7 @@ export default async function SellerDashboardPage({
       // aunque todavia no haya cobrado ninguna boleta, que es justo cuando no hay
       // fila de comision que leer.
       getOwnTeamStatus(membership.profileId),
-      getSellerPartialTicketTotals(),
+      getPartialTicketTotals(),
       getSellerActivity(range),
       // Su enlace publico (BR-K12). Entra en la MISMA espera que las demas: es
       // una fila por indice unico y no justifica una ida y vuelta aparte.
