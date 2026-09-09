@@ -6,7 +6,6 @@ import {
   readSellerSummary,
   type SellerWithTotals,
 } from '@/features/sellers/queries'
-import { createClient } from '@/lib/supabase/server'
 
 /**
  * Metricas del dashboard administrativo (CLAUDE.md 23).
@@ -98,40 +97,27 @@ export type AdminDashboard = {
   sellers: SellerWithTotals[]
   activeSellers: number
   totals: OrganizationTotals
-  recentTickets: {
-    id: string
-    dailyNumber: string | null
-    weeklyNumber: string | null
-    createdAt: string
-    raffleShortCode: string
-  }[]
   /** Ultimos abonos de la organizacion (CLAUDE.md 23: «pagos recientes»). */
   recentPayments: PaymentListItem[]
 }
 
+/**
+ * SE FUE `recentTickets`, y con el una consulta.
+ *
+ * Alimentaba «Boletas creadas recientemente», la lista que el panel retiro: las
+ * cinco ultimas boletas con su hora de creacion, que es lo que la persona acaba
+ * de importar o crear en lote. Al quedarse sin consumidor, la lectura sobraba —
+ * era una ida y vuelta a `tickets` en cada carga del panel— y se retira con
+ * ella, en vez de dejarla pagandose sin que nadie la mire.
+ */
 export async function getAdminDashboard(): Promise<AdminDashboard> {
-  const supabase = await createClient()
-
-  const [totals, sellers, { data: recent, error: recentError }, recentPayments] = await Promise.all(
-    [
-      getOrganizationTotals(),
-      listSellersWithTotals(),
-      supabase
-        .from('tickets')
-        .select(
-          // Los dos numeros, no el codigo interno: es como se reconoce una
-          // boleta de un vistazo (BR-N11).
-          'id, daily_number, weekly_number, created_at, raffle:raffles!tickets_raffle_org_fk ( short_code )',
-        )
-        .order('created_at', { ascending: false })
-        .limit(5),
-      // Incluye los anulados a proposito: el panel debe reflejar lo que paso,
-      // y la tabla los muestra tachados (BR-F09).
-      listPayments({ pageSize: 5 }),
-    ],
-  )
-
-  if (recentError) throw recentError
+  const [totals, sellers, recentPayments] = await Promise.all([
+    getOrganizationTotals(),
+    listSellersWithTotals(),
+    // Incluye los anulados a proposito: el panel debe reflejar lo que paso,
+    // y la lista los muestra tachados (BR-F09).
+    listPayments({ pageSize: 5 }),
+  ])
 
   return {
     sellers,
@@ -139,13 +125,6 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
     // consulta de membresias que esa lista acaba de hacer.
     activeSellers: sellers.filter((seller) => seller.isActive).length,
     totals,
-    recentTickets: (recent ?? []).map((row) => ({
-      id: row.id,
-      dailyNumber: row.daily_number,
-      weeklyNumber: row.weekly_number,
-      createdAt: row.created_at,
-      raffleShortCode: row.raffle?.short_code ?? '',
-    })),
     recentPayments: recentPayments.rows,
   }
 }

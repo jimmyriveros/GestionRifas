@@ -175,7 +175,11 @@ const OWNER_TOURS: Tour[] = [
         target: 'metrics-inventory',
         side: 'bottom',
         title: 'Cuántas boletas hay y cómo están',
-        body: 'Las disponibles son las que todavía puedes repartir; las asignadas ya tienen cliente. Las pendientes de aprobación las creó un vendedor y esperan tu revisión.',
+        // Ya no se habla aqui de las pendientes de aprobacion: su tarjeta se
+        // retiro de este grupo porque el aviso de arriba ya las cuenta y ofrece
+        // revisarlas, y un paso no explica algo que no esta a la vista (§5 de
+        // la guia de redaccion).
+        body: 'Las registradas son todas las que existen, incluidas las anuladas; las disponibles son las que todavía puedes repartir y las asignadas ya tienen cliente.',
       },
       {
         id: 'metrics-collection',

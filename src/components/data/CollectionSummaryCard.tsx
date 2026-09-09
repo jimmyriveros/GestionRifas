@@ -35,7 +35,14 @@ export function CollectionSummaryCard({
   return (
     <Card className={cn(className)} {...tourTarget('financial-summary')}>
       <CardHeader>
-        <CardTitle className="text-heading-h4">Resumen de cobranza</CardTitle>
+        {/* Un encabezado de verdad, no solo el titulo de una tarjeta: es la
+            region mas importante de la pantalla y hasta ahora no aparecia en el
+            esquema de titulos, asi que no se podia saltar a ella con un lector
+            de pantalla. Y va en `Heading/H3` porque manda sobre las secciones
+            que tiene debajo; con `H4` era el titulo MAS PEQUEÑO de la pagina. */}
+        <CardTitle>
+          <h2 className="text-heading-h3">Resumen de cobranza</h2>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {hasSales ? (
@@ -45,12 +52,16 @@ export function CollectionSummaryCard({
                 <p className="text-muted-foreground text-body-small">
                   Recaudado de {formatCOP(totalSold)} vendidos
                 </p>
-                <p className="text-3xl font-bold tabular-nums sm:text-4xl">
-                  {formatCOP(totalCollected)}
-                </p>
+                {/* El rol, no `text-3xl font-bold sm:text-4xl`: la cifra estaba
+                    fuera de la escala de metricas y era mas gruesa de lo que
+                    ningun rol permite. */}
+                <p className="text-metric-x-large tabular-nums">{formatCOP(totalCollected)}</p>
               </div>
               <div className="sm:text-right">
-                <p className="text-muted-foreground text-caption-regular">Te falta cobrar</p>
+                {/* «Falta cobrar», sin posesivo: este panel lo lee quien
+                    administra la organizacion, y ese dinero no es suyo. El
+                    vendedor si dice «Ya cobraste» en SU panel (D-171). */}
+                <p className="text-muted-foreground text-caption-regular">Falta cobrar</p>
                 <p className="text-body-large font-semibold tabular-nums">
                   {formatCOP(safePendingAmount)}
                 </p>
