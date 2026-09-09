@@ -150,6 +150,7 @@ export function BulkActionDialog({
 
         <DialogFooter>
           <Button
+            size="touch"
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -158,6 +159,7 @@ export function BulkActionDialog({
             Cancelar
           </Button>
           <Button
+            size="touch"
             type="button"
             variant={destructive ? 'destructive' : 'default'}
             onClick={onConfirm}

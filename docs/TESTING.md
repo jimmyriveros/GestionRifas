@@ -660,7 +660,7 @@ cuando se creó un cliente a secas); y que sin grupo configurado el botón cambi
 En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
 que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
 
-### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 3 pruebas)
+### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 7 pruebas)
 
 **No es lo mismo que `dialogos-alcanzables.spec.ts`, y por eso son dos archivos.** Aquella comprueba
 que la acción final **se pueda alcanzar** —geometría de alto y desplazamiento dentro del diálogo—;
@@ -675,6 +675,13 @@ salió la cifra equivocada de I-102. La altura calculada es exacta y estable.
 
 **Se miden TODOS los botones del diálogo, no solo el de confirmar.** «Cancelar» es el que pulsa quien
 se arrepiente, y fallar ese toque delante de una acción destructiva es el peor caso de los dos.
+
+**Cubre las DOS familias de diálogo, porque se arreglaron de formas distintas** (D-177, D-178).
+`AlertDialog` trae el suelo en el primitivo, así que basta con vigilarlo; `Dialog` lo adopta pantalla
+por pantalla, así que es donde de verdad hace falta una prueba que mire desde fuera — el día que
+alguien añada un diálogo nuevo y se olvide, esta suite es lo único que lo dirá. Se miden **todos** los
+botones del pie **y la «X» de la esquina**, que `getByRole('button')` incluye: era la diana más
+pequeña de la aplicación.
 
 **La suite tiene dos mitades y las dos hacen falta.** A 320 px se exige el suelo de **44**; a 1280 se
 exige lo contrario —que el botón **no** haya crecido— porque `touch` es `h-11 sm:h-9` y el sistema de

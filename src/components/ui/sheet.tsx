@@ -68,10 +68,16 @@ function SheetContent({
         {...props}
       >
         {children}
+        {/*
+          La misma diana y el mismo texto que `DialogContent` (I-104, D-178), y
+          aqui importa MAS: la unica hoja de la aplicacion es la de «Filtros» del
+          teléfono (D-107), asi que este boton **solo existe en movil** — donde
+          una diana de 16 px es exactamente el peor sitio para tenerla.
+        */}
         {showCloseButton && (
-          <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-action-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+          <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-action-secondary absolute top-0.5 right-0.5 inline-flex size-11 items-center justify-center rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none sm:top-4 sm:right-4 sm:size-4">
             <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Cerrar</span>
           </SheetPrimitive.Close>
         )}
       </SheetPrimitive.Content>

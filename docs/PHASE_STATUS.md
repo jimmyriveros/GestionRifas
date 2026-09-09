@@ -3,7 +3,17 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-08 — **`I-102` resuelta en el primitivo** (D-177): los botones de un
+- **Actualizado:** 2026-09-08 — **la diana táctil de los diálogos queda terminada** (D-178,
+  `I-103` e `I-104` cerradas). La familia `Dialog` adopta el suelo en las pantallas —**22 botones en
+  9 archivos**—, porque su pie es un `div` y no renderiza los botones; y la **«X» de la esquina** —la
+  de todo diálogo y la de la hoja de «Filtros» del teléfono— pasa de **16×16** a **44×44** en móvil
+  **sin que el icono se mueva** (medido: 17,00 px desde la esquina a 320 px y a 1280) y deja de
+  anunciarse **«Close»** para decir **«Cerrar»**, que es lo que exige el español obligatorio de
+  `CLAUDE.md` §6. **El escritorio no cambia en ninguno de los dos.** De paso se corrigieron dos
+  cifras que las propias anotaciones daban por buenas: I-103 eran **nueve** archivos y no once, y el
+  alcance de I-104 incluía el `Sheet`. **Ninguna migración, consulta, política ni regla de negocio
+  cambia.** **Sin desplegar.**
+  Antes, el mismo día: **`I-102` resuelta en el primitivo** (D-177): los botones de un
   diálogo de confirmación medían **35 px** en el teléfono, por debajo de la diana táctil de 44 que
   exige `CLAUDE.md` §27, y eso afectaba a **todas** las confirmaciones sensibles del producto. El
   suelo se le pone a `AlertDialogAction` y `AlertDialogCancel`, siguiendo el precedente **R6D** del

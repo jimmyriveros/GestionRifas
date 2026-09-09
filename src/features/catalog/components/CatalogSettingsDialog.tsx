@@ -205,6 +205,7 @@ export function CatalogSettingsDialog({
 
           <DialogFooter>
             <Button
+              size="touch"
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
@@ -212,7 +213,7 @@ export function CatalogSettingsDialog({
             >
               Cancelar
             </Button>
-            <Button type="button" onClick={save} disabled={isPending}>
+            <Button size="touch" type="button" onClick={save} disabled={isPending}>
               Guardar cambios
             </Button>
           </DialogFooter>

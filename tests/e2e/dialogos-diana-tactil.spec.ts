@@ -92,6 +92,31 @@ async function abrirArchivarCliente(page: Page): Promise<Locator> {
   return page.getByRole('alertdialog')
 }
 
+/** Abre «Nuevo vendedor»: un `Dialog` —la OTRA familia, la de I-103—. */
+async function abrirUserDialog(page: Page): Promise<Locator> {
+  await loginAs(page, ACCOUNTS.owner)
+  await page.goto('/owner/users')
+  await page
+    .getByRole('button', { name: /Nuevo|Invitar|Crear/ })
+    .first()
+    .click()
+  return page.getByRole('dialog')
+}
+
+/** Abre el diálogo de venta: el `Dialog` que más se usa del portal del vendedor. */
+async function abrirVenta(page: Page): Promise<Locator> {
+  const numbers = randomTicketNumbers()
+  const ticket = await createTicket(refs, {
+    dailyNumber: numbers.daily,
+    weeklyNumber: numbers.weekly,
+    inventoryStatus: 'available',
+  })
+  await loginAs(page, ACCOUNTS.seller)
+  await page.goto(`/seller/tickets/${ticket.id}`)
+  await page.getByRole('button', { name: 'Asignar a un cliente' }).click()
+  return page.getByRole('dialog')
+}
+
 /** Abre «Anular boleta»: un `ConfirmDialog` DESTRUCTIVO del portal administrativo. */
 async function abrirAnularBoleta(page: Page): Promise<Locator> {
   const numbers = randomTicketNumbers()
@@ -116,6 +141,36 @@ test.describe('En el teléfono, las acciones de un diálogo miden 44 px', () => 
   test('«Anular boleta» — el mismo diálogo, en su variante destructiva', async ({ page }) => {
     await esperarDiana(await abrirAnularBoleta(page), DIANA)
   })
+
+  /**
+   * La OTRA familia (I-103). `Dialog` no comparte primitivo con `AlertDialog`:
+   * sus pies reciben `<Button>` sueltos desde cada pantalla, así que aquí el
+   * suelo se adopta call site a call site y hay que vigilarlo desde fuera.
+   *
+   * Estas dos pruebas miden además la **«X» de la esquina** (I-104), porque
+   * `getByRole('button')` la incluye: era la diana más pequeña de la aplicación
+   * —16 px— y ahora mide 44 sin que el icono se haya movido.
+   */
+  test('«Nuevo vendedor» — un Dialog del portal administrativo (I-103, I-104)', async ({
+    page,
+  }) => {
+    await esperarDiana(await abrirUserDialog(page), DIANA)
+  })
+
+  test('«Asignar a un cliente» — el Dialog que más se usa (I-103, I-104)', async ({ page }) => {
+    await esperarDiana(await abrirVenta(page), DIANA)
+  })
+
+  /**
+   * El texto, no el tamaño. La «X» se anunciaba **«Close»**, en inglés, en una
+   * aplicación cuya interfaz es español por `CLAUDE.md` §6 y BR-X01: un lector
+   * de pantalla lo decía en cada diálogo del producto.
+   */
+  test('la «X» se anuncia «Cerrar», no «Close» (I-104)', async ({ page }) => {
+    const dialog = await abrirUserDialog(page)
+    await expect(dialog.getByRole('button', { name: 'Cerrar' })).toHaveCount(1)
+    await expect(dialog.getByRole('button', { name: 'Close' })).toHaveCount(0)
+  })
 })
 
 test.describe('En escritorio la densidad no cambia', () => {
@@ -135,5 +190,23 @@ test.describe('En escritorio la densidad no cambia', () => {
         ESCRITORIO_MIN,
       )
     }
+  })
+
+  /**
+   * La «X» vuelve a sus 16 px exactos por encima de `sm` (I-104).
+   *
+   * Aquí SÍ se afirma el número, y es la excepción razonada a la nota de
+   * `ESCRITORIO_MIN`: lo que se defiende no es «que siga siendo un botón» sino
+   * que el escritorio quedó **exactamente igual que antes del arreglo**, y eso
+   * solo se demuestra con la medida que se tomó antes de tocarlo: 16×16.
+   */
+  test('la «X» vuelve a 16 px en escritorio, como estaba (I-104)', async ({ page }) => {
+    const dialog = await abrirUserDialog(page)
+    const x = dialog.getByRole('button', { name: 'Cerrar' })
+    const caja = await x.evaluate((el) => {
+      const cs = getComputedStyle(el)
+      return `${parseFloat(cs.width)}x${parseFloat(cs.height)}`
+    })
+    expect(caja).toBe('16x16')
   })
 })

@@ -196,10 +196,16 @@ function CommissionForm({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>
+          <Button
+            size="touch"
+            type="button"
+            variant="outline"
+            onClick={onDone}
+            disabled={isPending}
+          >
             Cancelar
           </Button>
-          <Button type="submit" disabled={isPending || !changed}>
+          <Button size="touch" type="submit" disabled={isPending || !changed}>
             {isPending ? 'Guardando...' : 'Guardar y recalcular'}
           </Button>
         </DialogFooter>

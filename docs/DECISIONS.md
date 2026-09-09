@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.42 · **Actualizado:** 2026-09-08 (D-001 a D-177)
+- **Versión:** 1.43 · **Actualizado:** 2026-09-08 (D-001 a D-178)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -7893,6 +7893,61 @@ archivos de pantalla** (**I-103**), y que la «X» de la esquina de todo `Dialog
 **16 px** con el nombre accesible en inglés, «Close» (**I-104**). Las dos son reales y están medidas,
 pero son defectos **distintos** de I-102: la primera no tiene primitivo que arreglar y toca once
 pantallas que habría que volver a medir. Se reportan con sus cifras para decidirlas aparte.
+
+---
+
+## D-178 — La diana táctil, terminada: la familia `Dialog` y la «X» de cerrar
+**Fase:** post-9 · **Fecha:** 2026-09-08 · **Cierra:** I-103, I-104 · **Continúa:** D-177
+
+**Contexto.** D-177 puso el suelo táctil en `AlertDialogAction`/`AlertDialogCancel` y con eso arregló
+los ocho `ConfirmDialog`. Dejó dos defectos medidos y sin arreglar: la familia `Dialog` —que no
+comparte primitivo— y la «X» de la esquina, de 16 px y anunciada en inglés.
+
+**Decisión 1 — `Dialog` se arregla en las pantallas, porque no hay primitivo que arreglar.**
+`DialogFooter` es un `div`: los botones se los pasa cada consumidor, así que el suelo se adopta call
+site a call site, con el mismo `size="touch"` que ya usaban `EditSalePriceDialog` (D-137) y
+`ReassignTicketClientDialog` (D-168). **22 botones en 9 archivos.**
+
+**Decisión 2 — la «X» crece a 44 px sin mover el icono.** La caja crece hacia dentro desde su
+esquina, así que el anclaje retrocede la mitad de lo que crece —(44−16)/2 = 14 px— y `top-4 right-4`
+pasa a `top-0.5 right-0.5`, con `sm:top-4 sm:right-4 sm:size-4` para volver exactamente a lo de antes
+en escritorio. **Medido: el icono queda a 17,00 px de la esquina del diálogo a 320 px y a 1280**, y
+mide 16,00 en los dos. Exactamente donde estaba.
+
+**Decisión 3 — «Cerrar», no «Close».** La interfaz es español (`CLAUDE.md` §6, BR-X01) y ese es el
+texto que anuncia un lector de pantalla en **cada** diálogo del producto.
+
+**El alcance real era mayor que el anotado, en las dos direcciones.**
+
+**(a) El `Sheet` tenía el mismo defecto y no estaba en I-104.** Son las mismas cuatro líneas
+duplicadas en `ui/sheet.tsx`, y ahí importa **más**: la única hoja de la aplicación es la de
+«Filtros» del teléfono (D-107), así que ese botón **solo existe en móvil**, que es justo donde una
+diana de 16 px es peor. Se arregla igual.
+
+**(b) I-103 decía «once archivos» y eran nueve.** El censo original buscaba `size="touch"` y por eso
+contó de más: `ReleaseTicketDialog` monta `ConfirmDialog`, así que D-177 ya lo había arreglado, y
+`EditPaymentDialog` **ya tenía el suelo**, escrito a mano como `className="h-11 sm:h-9"`. Ese es uno
+de los «39 ad-hoc» que el sistema de diseño registró, y aquí se **normaliza** a `size="touch"`
+siguiendo el precedente **R7-PRE**, que hizo lo mismo con el buscador compartido: un contrato, no dos
+grafías de la misma cosa.
+
+**(c) Había un tercer «Close», latente.** `DialogFooter` acepta `showCloseButton`, nadie lo usa y nace
+en `false`, pero renderizaba `<Button variant="outline">Close</Button>` — mal de las dos formas. Se
+corrige en vez de borrarse: es parte del contrato del primitivo y el día que alguien lo encienda
+tiene que salir bien.
+
+**Consecuencia que hubo que arreglar.** Una aserción de `whatsapp-invitacion.spec.ts` comprobaba que
+el diálogo de éxito no tuviera «X» buscando un botón llamado **«Close»**. Al traducir la X, esa
+comprobación se habría quedado **vacía** —cierta siempre, sin comprobar nada— y además chocaría con
+el «Cerrar» legítimo de ese diálogo. Ahora se comprueba por lo que la X **es**,
+`[data-slot="dialog-close"]`, que no depende del texto.
+
+**Alternativas descartadas.** (a) Imponer el alto desde `DialogFooter` con un selector de hijos
+(descartada por lo mismo que en D-177: pelearía contra un `size` explícito). (b) Dejar la «X» de 16 px
+alegando que un `Dialog` también se cierra tocando fuera o con `Escape` (descartada: es cierto y
+atenúa la gravedad, pero no justifica que la diana más pequeña de la aplicación siga estando en un
+control que se ofrece como la salida visible). (c) Borrar el `showCloseButton` muerto de
+`DialogFooter` (descartada: es contrato del primitivo, no código muerto de una pantalla).
 
 ---
 

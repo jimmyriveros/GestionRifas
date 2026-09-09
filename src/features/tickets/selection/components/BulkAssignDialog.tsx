@@ -173,7 +173,12 @@ export function BulkAssignDialog({
             />
           ) : (
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                size="touch"
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Volver
               </Button>
             </DialogFooter>

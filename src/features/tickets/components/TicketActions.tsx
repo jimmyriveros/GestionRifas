@@ -228,10 +228,15 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNumbersOpen(false)} disabled={isPending}>
+            <Button
+              size="touch"
+              variant="outline"
+              onClick={() => setNumbersOpen(false)}
+              disabled={isPending}
+            >
               Cancelar
             </Button>
-            <Button onClick={saveNumbers} disabled={isPending}>
+            <Button size="touch" onClick={saveNumbers} disabled={isPending}>
               {isPending ? 'Guardando...' : 'Guardar'}
             </Button>
           </DialogFooter>
@@ -264,10 +269,19 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSellerOpen(false)} disabled={isPending}>
+            <Button
+              size="touch"
+              variant="outline"
+              onClick={() => setSellerOpen(false)}
+              disabled={isPending}
+            >
               Cancelar
             </Button>
-            <Button onClick={saveSeller} disabled={isPending || sellerId === ticket.sellerId}>
+            <Button
+              size="touch"
+              onClick={saveSeller}
+              disabled={isPending || sellerId === ticket.sellerId}
+            >
               {isPending ? 'Guardando...' : 'Guardar'}
             </Button>
           </DialogFooter>

@@ -176,8 +176,13 @@ test.describe('El diálogo no se cierra sin querer (sección 4)', () => {
     await page.mouse.click(5, 5)
     await expect(dialogo).toBeVisible()
 
+    // NO hay «X» en la esquina, y se comprueba por lo que la X ES —el `slot`
+    // que pinta `DialogContent`— y no por su texto. Hasta D-178 esta línea
+    // buscaba un botón llamado «Close»; al traducir la X a «Cerrar» esa
+    // comprobación se habría quedado vacía —cierta siempre, sin comprobar
+    // nada— y además ahora chocaría con el «Cerrar» legítimo de este diálogo.
+    await expect(dialogo.locator('[data-slot="dialog-close"]')).toHaveCount(0)
     await expect(dialogo.getByRole('button', { name: /^Cerrar$/ })).toHaveCount(1)
-    await expect(dialogo.getByRole('button', { name: 'Close' })).toHaveCount(0)
 
     // Y «Cerrar» sí lo cierra, que es la otra mitad de la regla.
     await dialogo.getByRole('button', { name: 'Cerrar' }).click()

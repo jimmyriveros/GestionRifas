@@ -99,10 +99,15 @@ export function SellerTicketActions({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+            <Button
+              size="touch"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isPending}
+            >
               Cancelar
             </Button>
-            <Button onClick={save} disabled={isPending}>
+            <Button size="touch" onClick={save} disabled={isPending}>
               {isPending ? 'Guardando...' : 'Guardar'}
             </Button>
           </DialogFooter>

@@ -263,10 +263,21 @@ export function AssignTicketsForm({
           ) : null}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>
+            <Button
+              size="touch"
+              type="button"
+              variant="outline"
+              onClick={onDone}
+              disabled={isPending}
+            >
               Cancelar
             </Button>
-            <Button type="button" onClick={assignExisting} disabled={isPending || !selectedId}>
+            <Button
+              size="touch"
+              type="button"
+              onClick={assignExisting}
+              disabled={isPending || !selectedId}
+            >
               {isPending ? 'Asignando...' : assignLabel(count)}
             </Button>
           </DialogFooter>
@@ -282,10 +293,16 @@ export function AssignTicketsForm({
               ) : null}
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>
+                <Button
+                  size="touch"
+                  type="button"
+                  variant="outline"
+                  onClick={onDone}
+                  disabled={isPending}
+                >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isPending}>
+                <Button size="touch" type="submit" disabled={isPending}>
                   {isPending ? 'Guardando...' : 'Crear cliente y asignar'}
                 </Button>
               </DialogFooter>

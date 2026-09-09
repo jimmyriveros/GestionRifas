@@ -378,10 +378,16 @@ function UserDialogForm({
         ) : null}
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>
+          <Button
+            size="touch"
+            type="button"
+            variant="outline"
+            onClick={onDone}
+            disabled={isPending}
+          >
             Cancelar
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button size="touch" type="submit" disabled={isPending}>
             {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Enviar invitación'}
           </Button>
         </DialogFooter>

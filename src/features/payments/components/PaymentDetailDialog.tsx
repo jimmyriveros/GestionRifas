@@ -195,12 +195,19 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
             />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={close} disabled={isPending}>
+              <Button
+                size="touch"
+                type="button"
+                variant="outline"
+                onClick={close}
+                disabled={isPending}
+              >
                 Cerrar
               </Button>
               {canVoid && payment.isActive ? (
                 confirming ? (
                   <Button
+                    size="touch"
                     type="button"
                     variant="destructive"
                     onClick={confirmVoid}
@@ -209,7 +216,12 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
                     {isPending ? 'Anulando...' : 'Confirmar anulación'}
                   </Button>
                 ) : (
-                  <Button type="button" variant="destructive" onClick={() => setConfirming(true)}>
+                  <Button
+                    size="touch"
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setConfirming(true)}
+                  >
                     Anular pago
                   </Button>
                 )

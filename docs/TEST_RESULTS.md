@@ -24,6 +24,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
+| **Post-9 (D-178, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **563/566**; los 3 comprobados uno a uno: **I-090 ×2** (39/39 en aislamiento) y uno ambiental del catálogo (15/15). **+4** de diana táctil (3 → 7) | ✅ | ✅ **Sin desplegar** |
 | **Post-9 (D-177, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **560/562**; los 2 comprobados uno a uno: **I-075** (9/9 en caliente) e **I-090** (21/21 con base limpia). **+3** nuevas de diana táctil | ✅ | ✅ **Sin desplegar** |
 | **Post-9 (D-176, 2026-09-08)** | **845 ✅** en 49 archivos (+30) | **827 ✅** en 39 archivos (+15) | **557/559** sobre servidor y base recién creados. Los 2 son los de siempre y **se comprobaron uno a uno**: `back-navigation` es **I-075** (caché fría; **9/9 en caliente**) y `reports.spec.ts:305` es **I-090** (acumulación; **pasa en aislamiento**) | ✅ | ✅ **Sin desplegar** |
 | **Release a producción (2026-09-08, `a56e408`)** | **815 ✅** | **812 ✅** (sin cambios: cero migraciones) | **escritorio 417/419 · móvil 125/125** sobre servidor y base nuevos; los 2 son **I-090**. **CI 2/2** sobre el commit desplegado | ✅ | ✅ **DESPLEGADO** |
@@ -37,6 +38,62 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## I-103 e I-104: la diana táctil, terminada (D-178) — 2026-09-08
+
+**Encargo.** Resolver I-103 (la familia `Dialog`) e I-104 (la «X» de cerrar).
+
+### Medido antes y después
+
+| | Antes | Después |
+|---|---|---|
+| `UserDialog` a 320 px | 36 px | **44 px** ✅ |
+| `AssignTicketsForm` a 320 px | 36 px | **44 px** ✅ |
+| La «X» a 320 px | **16×16** | **44×44** ✅ |
+| La «X» a 1280 px | 16×16 | **16×16** — sin cambios ✅ |
+| El icono de la «X», desde la esquina del diálogo | top=16 right=16 | **17,00 / 17,00** a 320 **y** a 1280 |
+| Nombre accesible de la «X» | **«Close»** | **«Cerrar»** ✅ |
+
+El 17,00 no contradice el 16: `getBoundingClientRect()` sobre el diálogo incluye su borde de 1 px.
+Lo que importa es que **la cifra es la misma en los dos anchos**, o sea que el icono no se movió.
+
+### Tres correcciones que salieron de medir
+
+**(1) El censo de I-103 estaba mal: eran nueve archivos, no once.** Su grep solo buscaba
+`size="touch"`, así que contó `ReleaseTicketDialog` —que monta `ConfirmDialog` y ya lo había
+arreglado D-177— y `EditPaymentDialog`, que **ya tenía el suelo** escrito a mano como
+`className="h-11 sm:h-9"`. Este último se normaliza al contrato (`size="touch"`), siguiendo R7-PRE.
+**Un censo de adopción tiene que buscar todas las grafías de lo que busca.**
+
+**(2) I-104 se quedaba corta: el `Sheet` tenía los mismos dos defectos.** Las mismas cuatro líneas
+duplicadas, y ahí importa más, porque la única hoja de la aplicación es la de «Filtros» del teléfono
+(D-107): ese botón **solo existe en móvil**. Apareció además un tercer «Close» latente, en el
+`showCloseButton` de `DialogFooter`.
+
+**(3) «El icono se movió 10 px» era falso, y casi lo escribo.** La primera medida, tomada
+inmediatamente tras abrir el diálogo, decía que el icono había subido 10 px. No se había movido: el
+**diálogo entero** se recolocó al crecer su pie —dos botones apilados, +8 px cada uno, centrado
+vertical— y encima `zoom-in-95` seguía escalando. Midiendo **con la animación terminada y relativo a
+la esquina del diálogo**, la cifra es idéntica en los dos anchos. Es la misma trampa de D-177,
+disfrazada.
+
+### Y una prueba que se habría quedado vacía sin fallar
+
+`whatsapp-invitacion.spec.ts` comprobaba que el diálogo de éxito no tuviera «X» buscando un botón
+llamado **«Close»**. Al traducir la X, esa aserción habría pasado a ser **cierta siempre y sin
+comprobar nada** —y además chocaría con el «Cerrar» legítimo de ese diálogo—. Ahora busca
+`[data-slot="dialog-close"]`, que es lo que la X **es** y no depende del texto.
+
+### Verificación
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` · `lint` · `build` | ✅ (2 avisos preexistentes) |
+| `npm run test` | ✅ **845/845** |
+| `dialogos-diana-tactil.spec.ts` | **7/7** ✅ (3 → 7: se añaden las dos familias, el texto y la «X» en escritorio) |
+| Suite E2E completa | **563/566** sobre base y servidor recién creados. Los 3 se comprobaron uno a uno: `reports.spec.ts:305` y `ventas-por-fecha.spec.ts:238` son **I-090** —las dos mitades del par de acumulación; juntas en aislamiento con base limpia dan **39/39**, la cifra exacta que predice su entrada— y `catalogo-publico-movil.spec.ts:103` es ambiental —el buscador no llegó a escribir `q=` en la URL; en aislamiento, **15/15**—. **Ninguno toca un diálogo:** el catálogo público no monta `Dialog`, `Sheet` ni `AlertDialog` |
 
 ---
 

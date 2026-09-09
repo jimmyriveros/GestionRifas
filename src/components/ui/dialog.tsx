@@ -83,13 +83,39 @@ function DialogContent({
         {...props}
       >
         {children}
+        {/*
+          LA «X» ES UNA DIANA DE 44 px EN EL TELEFONO, NO DE 16 (I-104, D-178).
+
+          Tenia el tamaño del icono y nada mas —16×16—, la diana mas pequeña que
+          se ha medido en esta aplicacion y menos de la mitad del suelo de
+          `CLAUDE.md` §27. Ahora el BOTON mide 44 y el icono sigue midiendo 16.
+
+          EL ICONO NO SE MUEVE, y ese es todo el truco: la caja crece hacia
+          dentro desde su esquina, asi que para que el icono se quede donde
+          estaba hay que retroceder el anclaje la mitad de lo que crece la caja
+          —(44−16)/2 = 14 px—, y `top-4 right-4` (16 px) pasa a `top-0.5
+          right-0.5` (2 px).
+
+          MEDIDO, no razonado: el icono queda a **17,00 px** de la esquina del
+          dialogo tanto a 320 px como a 1280 —1 del borde + 16—, y mide 16,00 en
+          los dos. Exactamente donde estaba. Para tomar esa medida hay que
+          esperar a que TERMINE la animacion de entrada: `zoom-in-95` sigue
+          escalando el contenido y sin la espera se mide un fotograma (la misma
+          trampa de D-177).
+
+          Desde `sm` vuelve EXACTAMENTE a lo de antes —`sm:top-4 sm:right-4
+          sm:size-4`—, que es la misma regla de D-177: el suelo tactil se libera
+          por encima del breakpoint pequeño y el escritorio no cambia.
+        */}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="ring-offset-background focus:ring-ring data-[state=open]:bg-surface-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="ring-offset-background focus:ring-ring data-[state=open]:bg-surface-accent data-[state=open]:text-muted-foreground absolute top-0.5 right-0.5 inline-flex size-11 items-center justify-center rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none sm:top-4 sm:right-4 sm:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
-            <span className="sr-only">Close</span>
+            {/* «Cerrar», no «Close»: la interfaz es español (CLAUDE.md §6,
+                BR-X01) y esto es lo que anuncia un lector de pantalla. */}
+            <span className="sr-only">Cerrar</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
@@ -122,9 +148,18 @@ function DialogFooter({
       {...props}
     >
       {children}
+      {/*
+        Nadie lo usa —`showCloseButton` nace en `false` y ningun consumidor lo
+        enciende— pero estaba mal de las dos formas que arregla I-104: decia
+        «Close» y nacia con el `size` por defecto. Se corrige en vez de
+        borrarse: es parte del contrato del primitivo y el dia que alguien lo
+        encienda tiene que salir bien, no salir en inglés y con 36 px.
+      */}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline" size="touch">
+            Cerrar
+          </Button>
         </DialogPrimitive.Close>
       )}
     </div>
