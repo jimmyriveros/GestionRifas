@@ -8311,6 +8311,261 @@ Los cuatro anchos medidos otra vez en el navegador. El detalle está en `docs/TE
 
 ---
 
+## D-182 — El panel administrativo deja de contar dos veces, y el dinero abre la pantalla
+
+**Fase:** mantenimiento posterior a la Fase 9 (rediseño solicitado por el usuario, 2026-09-09)
+
+**Alcance.** Solo el panel del dueño y del administrador. **Ni una migración, política RLS, consulta
+nueva, regla de negocio, token ni componente del sistema de diseño.** Se retira una consulta que se
+quedó sin consumidor, y eso es todo lo que cambia por debajo.
+
+**Contexto — medido en la ruta real, con sesión de dueño.** Es la primera vez que este panel se mide
+así: la auditoría `R8A` del sistema de diseño lo dio por bueno «solo validación de fuente», porque su
+agente no iniciaba sesión. A 1360 px, con el contenido en 1104:
+
+| y | Región | Alto |
+|---|---|---|
+| 80 | `h1` Hola, {nombre} | 56 |
+| 160 | Aviso ámbar: 2 pendientes + «Revisar» | 58 |
+| 242 | Resultados y próxima lotería | **252** (y vacío en esos datos) |
+| **518** | **Resumen de cobranza** ← el dinero, **cuarto** | 212 |
+| 754 | Inventario (5 tarjetas) | 142 |
+| 920 | Cobranza (3 tarjetas) | 142 |
+| 1086 | Resumen por vendedor | 160 |
+| 1270 | Pagos recientes · Boletas creadas | 305 |
+
+---
+
+### Decisión 1 — se quita lo que estaba contado dos veces o mal nombrado
+
+| Qué | Por qué |
+|---|---|
+| La tarjeta **«Pendientes de aprobación»** | El aviso ámbar de arriba ya las cuenta **y** ofrece «Revisar». Es exactamente lo que D-172 quitó del panel del vendedor: si el aviso ya las nombra, repetirlas en el desglose es contarlas dos veces |
+| **«Total de boletas» → «Registradas»** | Decía **30** junto a «Disponibles 17» y «Asignadas 8». Las cinco que faltaban —borradores, pendientes y anuladas— no se explicaban en ninguna parte de la pantalla. Es la regla general que salió de D-172: *si un rótulo presenta un total, el desglose que tiene debajo lo suma; si no lo suma, el rótulo está mal* |
+| **«Cobranza»** como título de sección | Está en la columna «nunca usar» del Anexo A. Pasa a **«Boletas vendidas según su pago»**, que además **sí** describe lo que suman las tres cifras —las asignadas— y es el nombre que el panel del vendedor ya usa para este mismo reparto |
+| **«Boletas creadas recientemente»** | Listaba las cinco últimas con su hora, o sea lo que la persona **acaba de importar o crear en lote**: lo sabe, porque viene de hacerlo. Misma razón por la que D-112 dejó UNA lista en el panel del vendedor en vez de tres |
+| **«Te falta cobrar» → «Falta cobrar»** | El posesivo era falso: este panel lo lee quien administra la organización, y ese dinero no es suyo. El vendedor sí dice «Ya cobraste» en SU panel (D-171) |
+
+Y las tres etiquetas de estado pasan a leerse de `TICKET_PAYMENT_STATUS_PLURAL_LABELS` en vez de estar
+escritas a mano. **El texto visible no cambia** —eran idénticas—, pero dejan de poder divergir de su
+fuente única (D-112).
+
+**Con la lista se va su consulta.** `recentTickets` se quedó sin consumidor, así que
+`getAdminDashboard` deja de pedir esas cinco filas a `tickets` en cada carga. Se retira en vez de
+dejarla pagándose sin que nadie la mire.
+
+### Decisión 2 — la jerarquía estaba invertida, y no se veía leyendo el código
+
+Dos cosas que solo aparecen midiendo la página:
+
+* **«Resumen de cobranza» no estaba en el esquema de títulos.** Era un `CardTitle`, que es un `div`.
+  La región más importante de la pantalla no se podía alcanzar saltando por encabezados.
+* **Su título era el MÁS PEQUEÑO de la página**: 16 px (`Heading/H4`) frente a los 18 px del par
+  ad-hoc `text-lg font-semibold` que usaban las cinco secciones a su alrededor.
+
+Se corrige con los roles, no con píxeles: `h2` en **`Heading/H3`** para el dinero —el único a 20 px—,
+**`Heading/H4`** para las demás secciones, y **`Metric/X-Large`** para la cifra, que usaba
+`text-3xl font-bold sm:text-4xl`: fuera de la escala de métricas y más gruesa de lo que ningún rol
+permite.
+
+### Decisión 3 — el dinero pasa al primer puesto, por delante de las loterías
+
+«Resumen de cobranza» estaba **cuarto**, detrás de un recuadro de 252 px que sin sorteos programados
+solo dice que no hay resultados. Ahora abre la pantalla: **y = 267** con el aviso ámbar puesto.
+
+Es la corrección que D-175 hizo en el panel del vendedor, **con una diferencia que importa**: allí
+existe un nivel 0 —el catálogo, que es algo que se **hace**— y por eso precede al dinero (D-180). Aquí
+no hay nada equivalente: quien administra la rifa entra a ver el dinero, y la lotería es contexto que
+se lee después.
+
+### Decisión 4 — los tres recuentos dejan de ser mudos
+
+«Sin pagar 4 · Abonadas 3 · Pagadas 1» eran tres tarjetas sin un peso al lado y sin enlace a ninguna
+parte: el dueño veía cuántas boletas no han pagado, pero no cuánto deben ni podía llegar a ellas.
+Ahora son los bloques de D-171, dentro de la tarjeta del dinero, con **«Deben»**, **«Todavía deben»**,
+**«Ya abonaron»** y **«Cobrado»**, la ecuación escrita a la vista y un enlace a `/owner/tickets` ya
+filtrado.
+
+**Los rótulos no cambian entre portales, y es deliberado.** D-171 los acotó a «la sección del panel
+del vendedor», pero describen lo que hacen los **clientes** —quién debe, quién abonó—, no quién mira
+la pantalla. Valen igual para el vendedor que cobra y para quien administra la organización. Lo que sí
+sigue valiendo tal cual es la regla que los originó: **ahí una etiqueta de estado no puede rotular una
+cifra de dinero.**
+
+### Decisión 5 — sin una consulta más, y el nombre deja de mentir
+
+`getSellerPartialTicketTotals` **no filtraba por vendedor**: lee `v_ticket_balances`, que es
+`security_invoker`, así que la política `tickets_select` decide el alcance —un vendedor obtiene lo
+suyo; `owner` y `admin`, toda su organización—. La misma función, sin tocar su cuerpo, da el reparto
+de la organización entera. Se renombra a **`getPartialTicketTotals`** para que el nombre no mienta, y
+nada más. Su tope de 5.000 filas con degradado a `null` (I-011) ya estaba pensado para esto.
+
+> **Queda una incomodidad anotada:** el panel administrativo importa ahora de `seller-queries.ts`. La
+> función es correcta y su nombre ya no engaña, pero el fichero sí. Moverla es trabajo fuera de este
+> alcance y no se hizo.
+
+### Decisión 6 — una pieza, dos portales
+
+La sección se extrae a **`CollectionBreakdownSection`** sin cambiar ni una clase ni un texto. Lo único
+que varía entre portales es `basePath`. Duplicarla habría dejado dos copias de la única parte del
+producto donde una etiqueta de estado no puede rotular dinero — la regla más fácil de romper sin darse
+cuenta.
+
+**Su contenedor pasa a ser la propia sección** (`@container/cobro` en vez de `@container/estado`, que
+vivía en el `CardContent` del vendedor). Mide lo mismo —es hija directa a ancho completo de aquel—, y
+a cambio la pieza se puede montar en cualquier tarjeta sin que quien la monte tenga que acordarse de
+declarar un contenedor con ese nombre.
+
+---
+
+### Lo que se evaluó y NO se hizo: pasar las loterías a `compact`
+
+Estaba en el plan, se implementó, se midió y **se revirtió**. Tres razones:
+
+1. **El ahorro real fue de 32 px, no de los ~150 previstos.** Lo que ocupa aquí son los ~230 px del
+   **estado vacío**, y las dos formas lo pintan igual. Con sorteos de verdad la compacta mide 209 px,
+   pero ese no es el caso habitual de esta organización.
+2. **Quien verifica un resultado y paga un premio es el personal**, que es justamente para quien está
+   pensado el número grande con su procedencia a la vista.
+3. Habría dejado la forma **`full` sin un solo consumidor** —el vendedor ya usa `compact`— y roto
+   `loterias-panel.spec.ts`.
+
+D-180 decidió hace un día que este portal conserva `full`, y no hay evidencia para reabrirlo. **Lo que
+sí sobra son esos 230 px de estado vacío, y esa es otra decisión.**
+
+---
+
+### Un defecto que introdujo este cambio, y otro que destapó
+
+**El que introdujo.** Con el reparto dentro, la tarjeta pasó de 212 a ~640 px, y el anclaje del
+recorrido `financial-summary` —que estaba en la tarjeta entera— dejaba el globo en **y = −94**, fuera
+de la pantalla. Es exactamente lo que D-171 ya había resuelto en el vendedor, y se resuelve igual: el
+anclaje baja al resumen de dentro, y `data-section="resumen-de-cobranza"` queda para que las pruebas
+puedan seguir pidiendo la tarjeta entera.
+
+**El que destapó.** `tour.spec.ts:97` fallaba **antes de este trabajo** —comprobado con `git stash`—
+porque el recuadro de loterías había empujado su objetivo fuera de la pantalla. Mover el anclaje lo
+dejó en verde sin tocar la prueba. Se anota en `KNOWN_ISSUES` como **I-107**, abierta y cerrada el
+mismo día.
+
+**Y el recorrido se reordena con la tarjeta:** los dos pasos del dinero —`financial-summary` y
+`metrics-collection`— van ahora seguidos, porque desde aquí viven en la MISMA tarjeta. Separados por
+«Cuántas boletas hay», el globo bajaba a otra región y volvía a subir; es el mismo defecto que D-175
+corrigió en el panel del vendedor. El paso del inventario además deja de hablar de las pendientes de
+aprobación, que ya no están en ese grupo (§5 de la guía de redacción: un paso no explica algo que no
+está a la vista).
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Dar `basePath` y un mapa de textos a `CollectionStateCard` y usarla en los dos portales | Menos código, pero mete radio de impacto en la tarjeta más documentada y probada del proyecto para no ganar nada que la extracción no dé |
+| Duplicar la sección en el panel administrativo | Dos copias de la regla «una etiqueta de estado no rotula dinero», que es justo la que no puede divergir |
+| Renombrar «Resumen de cobranza» a «Estado de cobro» para igualarlo al vendedor | Es una decisión de D-090 con sus pruebas, y el nombre no está mal. Un cambio de nombre no arregla ninguno de los defectos medidos |
+| Quitar «Vendedores activos» de «Inventario» por no ser inventario | Cierto, pero moverlo obliga a decidir a qué se refiere su cifra cuando la tabla de al lado se acota (D-183), y eso es inventar un problema |
+
+### Qué se comprobó
+
+`verify` en verde (**857** unitarias, lint sin errores, build). Medido en el navegador contra la
+aplicación real a **320, 375, 768, 1360 y 1600**, en claro y oscuro: **cero desbordamiento
+horizontal**, un solo `h1` y el esquema de títulos sin saltos. Las dos igualdades de D-171
+verificadas end-to-end **sobre el total de la organización**: `deben + todavía deben = saldo
+pendiente` y `cobrado + ya abonaron = total recaudado`. El detalle está en `docs/TEST_RESULTS.md`.
+
+---
+
+## D-183 — El nivel 2 usa el ancho, y la tabla señala a quien va atrasado
+
+**Fase:** mantenimiento posterior a la Fase 9 (rediseño solicitado por el usuario, 2026-09-09)
+
+**Alcance.** Un solo archivo de producto: `owner/dashboard/page.tsx`. **Cero migraciones, cero
+consultas nuevas, cero reglas de negocio, cero componentes.** Continúa D-182.
+
+**Contexto — medido.** Tras D-182 el panel medía **1931 px a 1360 px de ventana… y exactamente los
+mismos 1931 a 1600.** Los 216 px de ancho de más no los usaba nadie: «Resumen por vendedor» e
+«Inventario» eran dos bloques a ancho completo, uno debajo del otro. Y la tabla pintaba la plantilla
+**entera**, sin orden útil.
+
+---
+
+### Decisión 1 — dos columnas desde `lg`, en 7/5
+
+Los anchos se midieron; no se eligieron por gusto.
+
+| Ventana | Contenido | 7 columnas | 5 columnas | ¿Lado a lado? | Scroll interno de la tabla |
+|---|---|---|---|---|---|
+| 320 | 288 | — | — | apiladas | **206 px** |
+| 375 | 343 | — | — | apiladas | **151 px** |
+| 768 | 664 | 377 | 263 | apiladas | 0 |
+| 1024 | 920 | **527** | 369 | **sí** | 0 |
+| 1360 | 1104 | **634** | 446 | **sí** | 0 |
+| 1600 | 1320 | **760** | 536 | **sí** | 0 |
+
+**El número que manda es 471 px:** el ancho mínimo real de la tabla, medido poniéndole
+`width: min-content` y leyendo su `scrollWidth`. Sus seis columnas miden Vendedor 246, Boletas 146,
+Vendidas 172, Vendido 168, Recaudado 202 y Saldo 168.
+
+* En **634** (a 1360) y en **527** (a 1024, el primer escalón de `lg`) entra con holgura y **no se
+  desplaza**.
+* A 768 serían **377**, por debajo de su mínimo, y la tabla entraría en desplazamiento lateral **sin
+  ninguna necesidad**. Por eso ahí se apilan, y no a `md`.
+* A 320 y 375 la tabla sí se desplaza —206 y 151 px— pero **dentro de su contenedor**, con la página
+  quieta: es la estrategia C aprobada («el scroll pertenece a la tabla, nunca a la página»).
+
+El inventario se queda en **dos columnas también en escritorio**: a 1360 su región mide 446 px —398 de
+contenido— y cuatro columnas ahí dejarían 87 px por tarjeta, donde «Vendedores activos» no cabe.
+
+### Decisión 2 — la tabla ordena por saldo pendiente, y enseña cinco
+
+`listSellersWithTotals` devuelve la plantilla entera sin ordenar por nada útil, y el panel la pintaba
+completa: con treinta vendedores, **treinta filas**, y un «Ver todos» que no llevaba a nada que no
+estuviera ya delante.
+
+Ahora ordena por **saldo pendiente, de mayor a menor**, y muestra como mucho cinco.
+
+**Por qué en pesos y no en proporción.** La pregunta de quien administra la rifa es *quién va
+atrasado*, y eso es dinero. Ordenar por porcentaje cobrado pondría arriba a un vendedor con **una
+sola** boleta sin pagar —0 % cobrado— por delante de otro que debe dos millones.
+
+**Cuando no caben todos, se dice.** «Los 5 con más saldo pendiente, de 12.» Sin esa línea, las cinco
+filas se leerían como la plantilla completa. Con cinco o menos **no se escribe nada**: decir «los 3
+con más saldo pendiente» cuando hay tres es ruido.
+
+**El orden se hace sobre una COPIA.** `sort` ordena en el sitio, y ese array sale de una lectura
+memoizada por petición que comparten `/owner/sellers`, los reportes y «Mi equipo» del vendedor.
+Ordenarlo aquí les habría cambiado el orden a los cuatro.
+
+---
+
+### Un defecto que introdujo este cambio
+
+Al pasar las dos regiones a **ítems de rejilla** heredaron `min-width: auto`, que impide encoger por
+debajo del `min-content` del contenido. Con la tabla pidiendo 494 px de caja, **la página se desbordó
+190 px a 320 y 135 px a 375** — precisamente el defecto que la estrategia C existe para evitar.
+Corregido con `min-w-0` en las dos secciones.
+
+**Se encontró midiendo, no mirando.** Sin la comprobación de desbordamiento a 320 px esto se habría
+desplegado: en escritorio no se nota nada.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Apilar a `md` en vez de a `lg` | A 768 la tabla se quedaría en 377 px, por debajo de sus 471, y se desplazaría sin necesidad teniendo 664 px disponibles apilada |
+| Ordenar por porcentaje cobrado | Pone arriba a quien tiene una sola boleta sin pagar. Lo que se busca es dinero en riesgo |
+| Ordenar dentro de `listSellersWithTotals` | Cuatro consumidores comparten esa lectura memoizada; el panel no puede decidir el orden de `/owner/sellers` ni de los reportes |
+| No acotar la tabla | Hoy hay dos vendedores y no se notaría, pero es una tabla que crece sin límite dentro de un panel, y «Ver todos» no significaría nada |
+| Convertir la tabla en tarjetas en el teléfono | Comparar vendedores **entre columnas** es la tarea; es el caso que la guía de presentación de colecciones reserva para la estrategia C, y ya la cumple |
+
+### Qué se comprobó
+
+`verify` en verde (**857** unitarias, lint sin errores, build). Medido en el navegador a **320, 375,
+768, 1024, 1360 y 1600**, en claro y oscuro: **cero desbordamiento horizontal** en los doce casos, y
+el reparto 7/5 confirmado región a región. Suite E2E completa: **escritorio 445**, con los **2 de
+I-090**; **móvil 130/130**. El detalle está en `docs/TEST_RESULTS.md`.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

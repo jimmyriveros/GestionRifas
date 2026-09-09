@@ -345,6 +345,9 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | La sección del panel del vendedor donde vive todo su dinero | **Estado de cobro** (D-171) | Resumen financiero, Cobranza, Finanzas |
 | Las boletas que el vendedor puede vender o ya vendió | **Boletas activas** (D-172) | Total, boletas en total, inventario |
 | Todas las boletas a su nombre, incluidas borradores, pendientes y anuladas | **Registradas** (D-172) | Total, histórico, acumuladas |
+| Lo mismo en el panel administrativo, contando las de toda la organización | **Registradas** (D-182) | **Total de boletas**, que era su nombre y no sumaba con «Disponibles» y «Asignadas» |
+| La sección del panel administrativo donde vive el dinero de la organización | **Resumen de cobranza** (D-090) | Estado de cobro, que es la del vendedor y es otra cifra: la suya |
+| El reparto de las boletas vendidas por lo que llevan pagado, en **cualquiera de los dos** paneles | **Boletas vendidas según su pago** (D-171, D-182) | Cobranza, que además está prohibido como rótulo |
 | Ahí, el grupo de boletas de las que NO ha entrado nada | **Sin pagos**, y su dinero **Deben** (D-171) | Sin pagar como rótulo de una cifra de dinero |
 | Ahí, el grupo de boletas que ya abonaron una parte | **Con abonos**, y sus dos cifras **Todavía deben** y **Ya abonaron** (D-171) | Abonadas como rótulo de una cifra de dinero |
 | Ahí, el dinero ya recibido y el que falta | **Ya cobraste** y **Falta cobrar** (D-171) | Recaudado, Por cobrar, Cartera |
@@ -713,6 +716,18 @@ Y el **estado de una boleta sigue diciéndose con las etiquetas de siempre**: la
 «Abonada» en las cuatro listas y en el detalle, `TICKET_PAYMENT_STATUS_LABELS` no se toca, y estos
 cuatro rótulos **solo valen dentro de esa sección**. Es la excepción acotada que ya existe con
 «Cancelado» en la columna «Abono» de un archivo (D-129), no una puerta abierta a renombrar estados.
+
+**Desde D-182 «esa sección» son DOS, y los rótulos no cambian.** El panel administrativo monta el
+mismo reparto dentro de «Resumen de cobranza», con los mismos «Deben», «Todavía deben», «Ya abonaron»
+y «Cobrado». No es ampliar la excepción por comodidad: esos cuatro describen lo que hacen los
+**clientes** —quién debe, quién abonó—, no quién mira la pantalla, así que valen igual para el
+vendedor que cobra y para quien administra la organización. Lo que sigue acotado a esas dos secciones
+es la regla, no el vocabulario: **ahí una etiqueta de estado no puede rotular una cifra de dinero.**
+
+**Lo que sí cambia entre portales es el posesivo** (D-182). El vendedor lee «Ya cobraste», porque ese
+dinero es suyo; el panel administrativo dice **«Falta cobrar»**, sin «te», porque quien lo lee
+administra la organización y ese dinero no es suyo. Decía «Te falta cobrar» desde D-090 y era el
+único texto del portal que tuteaba sobre dinero ajeno.
 
 **Ahí «Deben» sí se puede escribir, y es la única parte de la aplicación donde se puede.** El Anexo A
 lo prohíbe para la columna «Falta» de una tabla, y esa prohibición sigue en pie: allí compite con
@@ -1124,7 +1139,10 @@ castigo donde solo había una espera.
 | Textos de las piezas del panel del vendedor | `src/features/dashboard/components/`, una por pieza (D-112, D-171, D-175) |
 | «Recaudado», «Lo que entró en estas fechas» y la comparación con el período anterior | `src/features/dashboard/components/CollectionTrendCard.tsx`, **todos juntos** (D-175) |
 | «Ganancia por boleta» y sus tres líneas de apoyo | `src/features/dashboard/components/SellerEarningsCard.tsx` (D-175) |
-| Todos los textos de «Estado de cobro»: título, inventario del encabezado, las cuatro cifras, los tres grupos y la frase de la igualdad | `src/features/dashboard/components/CollectionStateCard.tsx`, **todos juntos** (D-171, D-172) |
+| Los textos de «Estado de cobro» propios del vendedor: título, inventario del encabezado y las cuatro cifras | `src/features/dashboard/components/CollectionStateCard.tsx` (D-171, D-172) |
+| El reparto por estado de pago —«Boletas vendidas según su pago», los tres grupos, «Deben», «Todavía deben», «Ya abonaron», «Cobrado» y la frase de la igualdad—, que usan **los dos portales** | `src/features/dashboard/components/CollectionBreakdownSection.tsx`, **todos juntos** (D-171, extraído en D-182). Lo único que cambia entre portales es a qué listado enlaza |
+| Textos del panel administrativo: «Resumen de cobranza», «Recaudado de … vendidos», «Falta cobrar» —sin posesivo— y «% recaudado · N boletas por cobrar» | `src/components/data/CollectionSummaryCard.tsx` (D-090, D-182) |
+| Rótulos del inventario del panel administrativo, «Registradas» incluido, y el aviso de que la tabla de vendedores está acotada | `src/app/(protected)/owner/dashboard/page.tsx` (D-182, D-183) |
 | Los seis rótulos de «Mis boletas», «Registradas» incluido | `src/features/dashboard/components/TicketsOverviewCard.tsx` (D-172) |
 | Etiquetas de estado de un cliente («Activo», «Archivado») | `src/lib/constants.ts` (`CLIENT_STATUS_LABELS`, D-113) |
 | Encabezados de columna | El `header` de cada columna, en el `*Table.tsx` de su módulo (D-114) |

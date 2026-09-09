@@ -23,6 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
+| **Post-9 vigente (D-182, D-183, 2026-09-09)** | **857 ✅** en 49 archivos | — (no se tocó la base) | **escritorio 445** con los 2 de **I-090** · **móvil 130/130**. Doce combinaciones de ancho y tema sin desbordamiento; **I-107** cerrada de rebote | ✅ | ✅ **SIN DESPLEGAR** |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b30e943`)** | — | **Sin migración**: cero diferencias en `supabase/`, sonda antes/después idéntica | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `fd3a1e1f16b1` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b46c24f`)** | — | **Sin migración**: cero diferencias en `supabase/` | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `ed0c0f468ac0` servido en 1 de 15 fragmentos |
@@ -44,6 +45,109 @@ Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
 
+## El panel administrativo, en tres etapas (D-182, D-183) — 2026-09-09
+
+**Encargo.** Analizar el panel del dueño con el criterio del rediseño del panel del vendedor y
+ejecutarlo por etapas. Las tres se hicieron seguidas, con su commit cada una.
+
+### Lo que se midió ANTES, y por qué no se había medido nunca
+
+La auditoría `R8A` del sistema de diseño dio este panel por revisado con «solo validación de fuente»:
+su agente no iniciaba sesión, así que nadie lo había medido renderizado. Con sesión de dueño, a
+1360 px (contenido 1104):
+
+| Región | y | Alto |
+|---|---|---|
+| `h1` | 80 | 56 |
+| Aviso ámbar | 160 | 58 |
+| Resultados y próxima lotería | 242 | **252**, y vacío en esos datos |
+| **Resumen de cobranza** | **518** | 212 |
+| Inventario (5 tarjetas) | 754 | 142 |
+| Cobranza (3 tarjetas) | 920 | 142 |
+| Resumen por vendedor | 1086 | 160 |
+| Pagos recientes · Boletas creadas | 1270 | 305 |
+
+Alturas de página: 320 → 2575 · 375 → 2371 · 768 → 2011 · 1360 → 1599 · **1600 → 1599**. Esa última
+cifra es el hallazgo: a 1600 la página medía **exactamente lo mismo** que a 1360, porque todo era una
+pila de bloques a ancho completo.
+
+**Ancho mínimo real de la tabla de vendedores: 471 px**, medido con `width: min-content`. Sus columnas
+miden Vendedor 246, Boletas 146, Vendidas 172, Vendido 168, Recaudado 202 y Saldo 168.
+
+### Lo que se midió DESPUÉS
+
+| Ventana | Contenido | Alto de página | Desbordamiento | Tabla / Inventario | Scroll interno |
+|---|---|---|---|---|---|
+| 320 | 288 | 2677 | **0** | apiladas | 206 px |
+| 375 | 343 | 2523 | **0** | apiladas | 151 px |
+| 768 | 664 | 2049 | **0** | apiladas | 0 |
+| 1024 | 920 | 1865 | **0** | **527 / 369** | 0 |
+| 1360 | 1104 | 1865 | **0** | **634 / 446** | 0 |
+| 1600 | 1320 | 1865 | **0** | **760 / 536** | 0 |
+
+Los doce casos —seis anchos × claro y oscuro— sin desbordamiento horizontal. **El dinero pasa de
+y = 518 a y = 267**, con el aviso ámbar puesto.
+
+**Esquema de títulos, leído del DOM a 1360:** un solo `h1` (24 px/600), «Resumen de cobranza» en
+`Heading/H3` (20 px/600) —el único a ese tamaño—, y las demás secciones en `Heading/H4` (16 px/600),
+con `h3` y `h4` anidados dentro del reparto. Sin saltos de nivel.
+
+**Las dos igualdades de D-171, verificadas end-to-end sobre el total de la organización:**
+`deben + todavía deben = saldo pendiente` y `cobrado + ya abonaron = total recaudado`, comparando la
+tarjeta con `/owner/payments`.
+
+### Tres defectos encontrados midiendo, no leyendo
+
+1. **«Resumen de cobranza» no estaba en el esquema de títulos.** Era un `CardTitle`, o sea un `div`.
+   La región más importante de la pantalla no se podía alcanzar saltando por encabezados, y su texto
+   era además el **más pequeño de la página** (16 px frente a los 18 de las secciones de alrededor).
+2. **El globo del recorrido se salía por arriba.** Al meter el reparto dentro, la tarjeta pasó de 212
+   a ~640 px y el anclaje `financial-summary`, que estaba en la tarjeta entera, dejaba el globo en
+   **y = −94**. Es el mismo defecto que D-171 había resuelto en el vendedor, y se resolvió igual.
+3. **190 px de desbordamiento a 320.** Al pasar las dos regiones del nivel 2 a ítems de rejilla
+   heredaron `min-width: auto` y dejaron de poder encoger por debajo del `min-content` de la tabla
+   (494 px de caja): la página se desbordó 190 px a 320 y 135 a 375. `min-w-0` en las dos. **En
+   escritorio no se notaba nada.**
+
+### Un fallo preexistente que se cerró de rebote
+
+`tour.spec.ts:97` fallaba **antes** de este trabajo — comprobado parando en seco con `git stash` y
+corriéndolo contra el árbol sin tocar. Comprueba que esté a la vista `metrics-collection` mientras el
+recorrido está en el paso de `financial-summary`, o sea **un elemento distinto del que ese paso
+explica**; funcionaba cuando las dos regiones estaban juntas y dejó de funcionar cuando el recuadro
+de loterías metió 252 px entre medias. Al juntarlas de nuevo dentro de la misma tarjeta quedó en
+verde **sin tocar la prueba**. Anotado como **I-107**.
+
+### Una decisión que se implementó, se midió y se revirtió
+
+Pasar el recuadro de loterías a `compact`, como el del vendedor. **Medido: el ahorro real fue de
+32 px, no de los ~150 previstos**, porque lo que ocupa es el estado vacío y las dos formas lo pintan
+igual (con sorteos de verdad, la compacta mide 209 px). Además habría dejado la forma `full` **sin un
+solo consumidor** y roto `loterias-panel.spec.ts`. Se revirtió; el razonamiento queda en D-182.
+
+### Verificación
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ — los 2 avisos preexistentes de siempre |
+| `npm run test` | ✅ **857/857** en 49 archivos |
+| `npm run build` | ✅ |
+| `npx playwright test --project=escritorio` | **445 pasan**; los 2 fallos son el par **I-090** de siempre |
+| `npx playwright test --project=movil` | ✅ **130/130** — en esta corrida pasó también **I-106**, que depende del orden |
+
+**Dos pruebas nuevas** en `dashboard-collection-summary.spec.ts`: que los tres bloques enlazan a
+`/owner/tickets` y no al listado del vendedor, y que las dos igualdades cuadran sobre el total de la
+organización. Y una **actualizada**: el ayudante `summaryCard` pide la tarjeta por
+`data-section="resumen-de-cobranza"` en vez de por el anclaje del recorrido, que desde D-182 marca
+solo una mitad — el mismo cambio que ya se había hecho en el vendedor.
+
+> **Una corrida de la suite móvil abortó a media ejecución con «77 did not run».** No era del
+> producto: el `seed:local` de esa vuelta había fallado y la base quedó vacía. Repetido con la base
+> bien sembrada, **130/130**. Merece la pena anotarlo: una suite que aborta después de un seed
+> silencioso parece una regresión y no lo es.
+
+---
 ## I-105: el diálogo de éxito se cerraba solo (D-179) — 2026-09-08
 
 **Encargo.** Defecto reportado por el usuario: tras crear un cliente, el modal de éxito aparece y se
