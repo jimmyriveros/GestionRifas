@@ -12,7 +12,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   pantallas solo avisan. **Ninguna migración, consulta, política ni regla de negocio cambia**, y la
   creación de clientes y la asignación de boletas quedan intactas. La mitad de la lección es que
   **había pruebas de que `Escape` y el clic fuera no lo cerraban, y pasaban: ninguna esperaba.**
-  **Sin desplegar.**
+  **DESPLEGADO** el mismo día (`b46c24f`), sin migración: la base de producción no se tocó.
   Antes, el mismo día: **la diana táctil de los diálogos queda terminada** (D-178,
   `I-103` e `I-104` cerradas). La familia `Dialog` adopta el suelo en las pantallas —**22 botones en
   9 archivos**—, porque su pie es un `div` y no renderiza los botones; y la **«X» de la esquina** —la

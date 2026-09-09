@@ -25,6 +25,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b30e943`)** | — | **Sin migración**: cero diferencias en `supabase/`, sonda antes/después idéntica | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `fd3a1e1f16b1` servido en 1 de 15 fragmentos |
+| **Release a producción (2026-09-08, `b46c24f`)** | — | **Sin migración**: cero diferencias en `supabase/` | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `ed0c0f468ac0` servido en 1 de 15 fragmentos |
 | **Post-9 (D-179, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **568/570**; los 2 comprobados: **I-090** y **I-106** (nuevo, ajeno y solo informativo). **+4** de persistencia del diálogo | ✅ | ✅ **Sin desplegar** |
 | **Post-9 (D-178, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **563/566**; los 3 comprobados uno a uno: **I-090 ×2** (39/39 en aislamiento) y uno ambiental del catálogo (15/15). **+4** de diana táctil (3 → 7) | ✅ | ✅ **Sin desplegar** |
 | **Post-9 (D-177, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **560/562**; los 2 comprobados uno a uno: **I-075** (9/9 en caliente) e **I-090** (21/21 con base limpia). **+3** nuevas de diana táctil | ✅ | ✅ **Sin desplegar** |
