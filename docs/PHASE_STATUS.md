@@ -12,7 +12,9 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   `CLAUDE.md` §6. **El escritorio no cambia en ninguno de los dos.** De paso se corrigieron dos
   cifras que las propias anotaciones daban por buenas: I-103 eran **nueve** archivos y no once, y el
   alcance de I-104 incluía el `Sheet`. **Ninguna migración, consulta, política ni regla de negocio
-  cambia.** **Sin desplegar.**
+  cambia.** **APLICADO Y DESPLEGADO** el mismo día (`b30e943`): **sin migración y con cero
+  diferencias en `supabase/`**, así que la base de producción no se tocó — la sonda antes y
+  después dio exactamente lo mismo.
   Antes, el mismo día: **`I-102` resuelta en el primitivo** (D-177): los botones de un
   diálogo de confirmación medían **35 px** en el teléfono, por debajo de la diana táctil de 44 que
   exige `CLAUDE.md` §27, y eso afectaba a **todas** las confirmaciones sensibles del producto. El

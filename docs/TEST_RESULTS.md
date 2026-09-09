@@ -24,6 +24,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
+| **Release a producción (2026-09-08, `b30e943`)** | — | **Sin migración**: cero diferencias en `supabase/`, sonda antes/después idéntica | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `fd3a1e1f16b1` servido en 1 de 15 fragmentos |
 | **Post-9 (D-178, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **563/566**; los 3 comprobados uno a uno: **I-090 ×2** (39/39 en aislamiento) y uno ambiental del catálogo (15/15). **+4** de diana táctil (3 → 7) | ✅ | ✅ **Sin desplegar** |
 | **Post-9 (D-177, 2026-09-08)** | **845 ✅** | — (no se tocó la base) | **560/562**; los 2 comprobados uno a uno: **I-075** (9/9 en caliente) e **I-090** (21/21 con base limpia). **+3** nuevas de diana táctil | ✅ | ✅ **Sin desplegar** |
 | **Post-9 (D-176, 2026-09-08)** | **845 ✅** en 49 archivos (+30) | **827 ✅** en 39 archivos (+15) | **557/559** sobre servidor y base recién creados. Los 2 son los de siempre y **se comprobaron uno a uno**: `back-navigation` es **I-075** (caché fría; **9/9 en caliente**) y `reports.spec.ts:305` es **I-090** (acumulación; **pasa en aislamiento**) | ✅ | ✅ **Sin desplegar** |
