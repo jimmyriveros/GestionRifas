@@ -7,7 +7,14 @@ import {
   serviceClient,
   type SeedRefs,
 } from './db-setup'
-import { ACCOUNTS, expectToast, loginAs, randomTicketNumbers, unique } from './fixtures'
+import {
+  ACCOUNTS,
+  closeClientCreatedDialog,
+  expectToast,
+  loginAs,
+  randomTicketNumbers,
+  unique,
+} from './fixtures'
 
 /**
  * Criterio de finalizacion de la Fase 4 y prueba 14 (responsive movil):
@@ -55,6 +62,9 @@ test('ciclo completo del vendedor desde el teléfono', async ({ page }) => {
   await page.getByRole('button', { name: 'Crear cliente y asignar' }).click()
 
   await expectToast(page, new RegExp(`${clientName} registrado y boleta asignada`))
+  // Desde D-176 la venta con cliente nuevo abre la bifurcacion de WhatsApp. En
+  // el telefono los dos botones se apilan y ocupan el ancho.
+  await closeClientCreatedDialog(page)
   await expect(page.getByText('Asignada').first()).toBeVisible()
 
   // 4. El precio quedo congelado y la venta se ve en la lista de boletas.

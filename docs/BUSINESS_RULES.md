@@ -671,6 +671,25 @@ retiene, no crea clientes, no registra ventas y no toca la máquina de estados d
 
 ---
 
+## 12.bis Invitación al grupo de WhatsApp (BR-W)
+
+Cada vendedor mantiene a sus clientes en un grupo de WhatsApp propio. Después de registrar un
+cliente nuevo, la aplicación le ofrece invitarlo con el mensaje ya escrito. **No hay integración con
+WhatsApp**: se abre un enlace `wa.me` y el vendedor pulsa Enviar (D-176).
+
+| ID | Regla | Capas | Fase |
+|----|-------|-------|------|
+| BR-W01 | El grupo es **de cada vendedor**, no de la organización: se guarda en su propia `membership` (`whatsapp_group_url`), junto a la configuración del catálogo. No hay una segunda entidad de vendedor. El enlace debe tener la forma `https://chat.whatsapp.com/<código>`, con `https` obligatorio; el código **no se acota a una longitud exacta**, porque WhatsApp los ha emitido de largos distintos. Que el grupo exista o siga abierto **no se puede comprobar** y no se finge comprobarlo. | C, S, D | post-9 |
+| BR-W02 | El mensaje predeterminado **vive en la aplicación**, no en la base de datos: `whatsapp_custom_message` es NULL en quien lo usa, que es el caso normal. Guardarlo repetido por vendedor haría que mejorar la redacción exigiera un UPDATE masivo y que dos personas dadas de alta en fechas distintas tuvieran textos distintos sin haber elegido ninguno. | C, S | post-9 |
+| BR-W03 | El interruptor `whatsapp_use_custom_message` manda sobre el texto guardado, no al revés. Apagarlo **no borra** lo escrito: volver a encenderlo lo devuelve tal cual. Lo único que lo borra es vaciar el campo a propósito. Un CHECK impide el estado incoherente «uso mi mensaje» sin mensaje. | C, S, D | post-9 |
+| BR-W04 | **El enlace del grupo nunca forma parte del texto.** El vendedor escribe solo prosa y el sistema añade `Únete aquí: <enlace>` al final al construir el mensaje. No hay marcador que conservar, así que no hay nada que borrar, escribir mal ni duplicar, y no hace falta validación ni explicación de sintaxis. La pantalla de configuración muestra la **vista previa del mensaje completo**, con el enlace ya puesto. | C, S | post-9 |
+| BR-W05 | La invitación se ofrece **solo cuando puede funcionar**. Sin grupo configurado, la acción se sustituye por «Configurar WhatsApp», que lleva a la pantalla; con un teléfono que no sirve para WhatsApp, se explica y **no se ofrece ninguna acción que vaya a fallar**. El teléfono se vuelve a comprobar aunque `PHONE_REGEX` lo haya aceptado: un fijo de siete cifras pasa el formulario y no es un número internacional válido. | C, S | post-9 |
+| BR-W06 | El diálogo de éxito dice **lo que pasó de verdad**: desde una boleta, que el cliente quedó registrado y la boleta es suya —nombrándola por sus dos números (BR-N11), o diciendo cuántas si son varias—; desde «Mis clientes», solo que el cliente quedó registrado, y **no menciona ninguna boleta**. No se puede cerrar con `Escape`, pulsando fuera ni con una «X»: es una bifurcación, no un aviso. WhatsApp se abre **únicamente** con un clic explícito. | C | post-9 |
+| BR-W07 | Un vendedor configura **solo lo suyo**. La escritura pasa por `set_seller_whatsapp_settings`, que **no recibe ningún identificador de vendedor**: sale de `auth.uid()`, así que no existe el dato que alguien pudiera manipular. `memberships_update_staff` sigue siendo la única política de escritura de esa tabla y **no se amplía**: hacerlo abriría rol, estado, vendedor padre y ganancia para poder guardar un enlace. El personal no puede usar la RPC; un vendedor padre tampoco sobre un integrante de su equipo. El cambio lo audita el disparador `audit_memberships` que ya existía. | S, D | post-9 |
+| BR-W08 | **No hay integración con WhatsApp y no se finge que la haya.** Sin API, sin SDK, sin sesión, sin automatización y sin forma de saber si el mensaje se envió o si el cliente se unió al grupo. Ningún texto puede decir «cliente agregado», «aceptó» ni «se unió». Si el navegador bloquea la ventana, se dice; nunca se da por abierta. | C, S | post-9 |
+
+---
+
 ## 13. Casos extremos y su resolución
 
 | # | Situación | Resolución |

@@ -22,6 +22,7 @@ import { getTicketDetail } from '@/features/tickets/queries'
 import { canReassignClient } from '@/features/tickets/reassign-client'
 import { hasTicketClientActions } from '@/features/tickets/release-ticket'
 import { SellerTicketActions } from '@/features/tickets/seller/components/SellerTicketActions'
+import { getWhatsappSettings } from '@/features/whatsapp/queries'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
@@ -55,12 +56,16 @@ export default async function SellerTicketDetailPage({
   // que esta condicion no cambia: sigue siendo la de «Cambiar cliente».
   const canReassign = canReassignClient(ticket)
 
-  const [clients, reassignClients, payments] = await Promise.all([
+  // La configuracion de WhatsApp viaja con el HTML (D-176): el dialogo de exito
+  // de la venta no consulta nada al abrirse. En el mismo `Promise.all` para no
+  // anadir un viaje en serie.
+  const [clients, reassignClients, payments, whatsappSettings] = await Promise.all([
     ticket.inventoryStatus === 'available' ? listClientOptions() : Promise.resolve([]),
     canReassign
       ? listClientOptions(undefined, undefined, { sellerId: ticket.sellerId })
       : Promise.resolve([]),
     ticket.clientId ? listClientPayments(ticket.clientId) : Promise.resolve([]),
+    getWhatsappSettings(),
   ])
 
   const reason = blockedReason(ticket.inventoryStatus, ticket.raffleStatus)
@@ -129,6 +134,7 @@ export default async function SellerTicketDetailPage({
                 rafflePrice={ticket.raffleTicketPrice}
                 minSalePrice={ticket.minSalePrice}
                 clients={clients}
+                whatsappSettings={whatsappSettings}
               />
             ) : null}
             {canEditNumbers ? (

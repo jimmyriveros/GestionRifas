@@ -652,6 +652,9 @@ export type Database = {
           public_whatsapp_number: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
+          whatsapp_custom_message: string | null
+          whatsapp_group_url: string | null
+          whatsapp_use_custom_message: boolean
         }
         Insert: {
           commission_model?: Database["public"]["Enums"]["commission_model"]
@@ -669,6 +672,9 @@ export type Database = {
           public_whatsapp_number?: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at?: string
+          whatsapp_custom_message?: string | null
+          whatsapp_group_url?: string | null
+          whatsapp_use_custom_message?: boolean
         }
         Update: {
           commission_model?: Database["public"]["Enums"]["commission_model"]
@@ -686,6 +692,9 @@ export type Database = {
           public_whatsapp_number?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
+          whatsapp_custom_message?: string | null
+          whatsapp_group_url?: string | null
+          whatsapp_use_custom_message?: boolean
         }
         Relationships: [
           {
@@ -1999,6 +2008,18 @@ export type Database = {
           seller_id: string
           total_count: number
           weekly_number: string
+        }[]
+      }
+      set_seller_whatsapp_settings: {
+        Args: {
+          p_custom_message?: string | null
+          p_group_url: string | null
+          p_use_custom_message: boolean
+        }
+        Returns: {
+          whatsapp_custom_message: string | null
+          whatsapp_group_url: string | null
+          whatsapp_use_custom_message: boolean
         }[]
       }
       set_ticket_clearance_delivery: {

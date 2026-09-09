@@ -711,6 +711,49 @@ como manda PostgreSQL con toda función nueva (I-020, I-078). Se revoca de `publ
 `authenticated` en la propia migración: una función de disparador no necesita `EXECUTE` para
 dispararse, porque el permiso se comprueba sobre la **tabla**.
 
+### 4.14 Configuración de WhatsApp del vendedor (`0050`, BR-W01..BR-W03, BR-W07, D-176)
+
+`set_seller_whatsapp_settings(text, boolean, text)` es **la única escritura de `memberships` que hace
+alguien que no es personal**, y por eso merece leerse entera antes de tocarla.
+
+**Por qué existe.** `memberships_update_staff` (0005/0014) es la única política de escritura de esa
+tabla y solo deja pasar al Dueño y al Administrador. Un vendedor no puede escribir su propia
+membresía — y **esa política no se amplía**. Ampliarla para tres columnas habría abierto la fila
+entera: `role`, `is_active`, `parent_seller_id`, `commission_model`, `fixed_commission_amount` y las
+cuatro `public_*`. Un vendedor podría **ascenderse a Dueño** o **subirse la ganancia** con una
+petición a mano, porque PostgREST permite elegir las columnas del `UPDATE`.
+
+**Lo que la hace segura no es una comprobación, es la firma.**
+
+| Propiedad | Qué impide |
+|---|---|
+| **No tiene parámetro de vendedor** | Que alguien configure a otro. El perfil sale de `auth.uid()`; no existe el dato que manipular (BR-W07) |
+| Escribe exactamente **tres columnas** de **una** fila | Que la RPC se convierta en un `UPDATE` general de `memberships` por descuido |
+| `role = 'seller'` **y** `is_active` **y** `has_org_role(org, 'seller')` | Que la use el personal, o que una **cuenta desactivada** siga configurando (BR-A04). Un vendedor padre tampoco alcanza a un integrante de su equipo: el grupo es suyo |
+| CHECK de formato del enlace, repetido en la función | Guardar un enlace que no es de WhatsApp, o uno con `http` que degradaría la conexión de quien lo abra |
+| CHECK de coherencia del mensaje | Un vendedor cuya invitación sale vacía |
+
+Cumple las cuatro reglas de §4.5: `search_path` fijo, `REVOKE` explícito de `public` y `anon`,
+parámetros tipados sin SQL concatenado y mensajes de negocio sin detalle interno. El `GRANT` nombra a
+`authenticated` **y también a `service_role`** (D-128, I-078), y la función entra en las dos listas
+blancas —`verify:remote` y `tests/db/catalog.test.ts`— que §4.5 obliga a tocar juntas.
+
+**La auditoría ya estaba.** `audit_memberships` (0006) anota cualquier `UPDATE` de la tabla con sus
+valores anterior y nuevo. No se llama a `write_audit_log` aquí: sería una segunda fila describiendo el
+mismo hecho.
+
+**Quién puede LEER el enlace, dicho sin adornos.** `memberships_select` no cambia, así que la fila la
+ven: su dueño, el **personal** de su organización y su **vendedor padre**, si lo tiene
+(`current_team_seller_ids`). Es exactamente el mismo alcance que ya tenía `public_whatsapp_number`
+desde `0043`. Un vendedor **ajeno** a ese equipo no ve nada, que es el aislamiento que exige el
+encargo. Conviene saberlo antes de guardar aquí algo más sensible que un enlace de invitación a un
+grupo: para eso haría falta una tabla aparte con su propia política, no una columna más.
+
+**No hay superficie externa nueva.** La aplicación no habla con WhatsApp: construye una dirección
+`https://wa.me/...` y la abre el usuario (BR-W08). Sin API, sin token, sin sesión, sin dependencia
+nueva y sin ningún dato saliendo del navegador por iniciativa del servidor. El texto del mensaje se
+guarda y se pinta **como texto** —`<textarea>` y nodos de texto—, nunca con `dangerouslySetInnerHTML`.
+
 ## 5. Protección de Server Actions y Route Handlers
 
 Toda Server Action parametrizada de negocio debe seguir esta secuencia. Las acciones públicas de

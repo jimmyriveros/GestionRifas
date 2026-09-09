@@ -227,6 +227,9 @@ Panel decir «Verificado por 2 fuentes» en vez de hacerlo pasar por oficial.
 | `public_catalog_enabled` | `boolean` | `NOT NULL DEFAULT false` (`0043`, BR-K04) |
 | `public_whatsapp_number` | `text` | `NULL`, solo dígitos `^[1-9][0-9]{7,14}$` (`0043`, BR-K05) |
 | `public_raffle_id` | `uuid` | `NULL`, FK compuesta → `raffles(id, organization_id)` (`0043`, BR-K06) |
+| `whatsapp_group_url` | `text` | `NULL`, `^https://chat\.whatsapp\.com/[A-Za-z0-9_-]{6,64}([?#][^\s]*)?$` (`0050`, BR-W01) |
+| `whatsapp_use_custom_message` | `boolean` | `NOT NULL DEFAULT false` (`0050`, BR-W03) |
+| `whatsapp_custom_message` | `text` | `NULL`, ≤ 1.000 caracteres; obligatorio si el interruptor está encendido (`0050`, BR-W03) |
 | `created_at` / `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` |
 
 Restricciones clave:
@@ -323,6 +326,37 @@ la página cambiara de inventario sola.
 ⚠️ La FK de la rifa es `ON DELETE RESTRICT`: **una rifa publicada no se puede borrar** mientras un
 catálogo la apunte. En la práctica no cambia nada —en este proyecto no se borran rifas— pero conviene
 saberlo antes de intentarlo.
+
+**Las tres columnas `whatsapp_*`** (BR-W01..BR-W03, D-176, migración `0050`): el grupo de WhatsApp
+del vendedor y cómo redacta su invitación. Viven aquí por lo mismo que las `public_*`, y la migración
+lo dice con las mismas palabras: un vendedor es una `membership`, no otra entidad.
+
+**El mensaje predeterminado NO está en la base de datos.** `whatsapp_custom_message` es NULL en quien
+lo usa, que es el caso normal; el texto vive en `features/whatsapp/invite.ts` (BR-W02). Guardarlo
+repetido por membresía haría que mejorar la redacción exigiera un UPDATE masivo y que dos personas
+dadas de alta en fechas distintas tuvieran textos distintos sin haber elegido ninguno.
+
+Dos CHECK cierran los estados que no pueden existir:
+
+```sql
+-- «Uso mi mensaje» sin mensaje sería un vendedor cuya invitación sale vacía.
+-- El camino contrario SÍ se permite y es deliberado: apagar el interruptor no
+-- borra lo escrito, para que volver a encenderlo lo devuelva (BR-W03).
+ALTER TABLE memberships ADD CONSTRAINT memberships_whatsapp_message_coherent CHECK (
+  NOT whatsapp_use_custom_message
+  OR (whatsapp_custom_message IS NOT NULL AND btrim(whatsapp_custom_message) <> '')
+);
+
+ALTER TABLE memberships ADD CONSTRAINT memberships_whatsapp_message_length CHECK (
+  whatsapp_custom_message IS NULL OR length(whatsapp_custom_message) <= 1000
+);
+```
+
+⚠️ **Estas tres columnas son la única parte de `memberships` que escribe el propio vendedor**, y no
+lo hace con un UPDATE: `memberships_update_staff` sigue siendo la única política de escritura de la
+tabla. Pasa por `set_seller_whatsapp_settings`, que no recibe identificador de vendedor y solo alcanza
+la fila de quien llama (BR-W07). Si alguna vez hace falta que el vendedor escriba otra columna suya,
+el camino es ampliar esa función —no la política—.
 
 **`commission_model` / `fixed_commission_amount`** (BR-G24, D-127): cómo se le paga a esta persona
 **mientras pertenezca a un equipo**. Viven aquí y no en una tabla aparte porque esta fila **es** la
@@ -1068,6 +1102,27 @@ entrada, `SECURITY INVOKER`, ramas, filtros, relevancia, orden y paginación que
 local recién reiniciada **afecta a cero filas**, porque el seed vende sus boletas después de aplicar
 las migraciones; la sentencia se prueba leyéndola del propio archivo y ejecutándola en una transacción
 revertida (`tests/db/ticket-clearance.test.ts`, E13-09).
+
+### 6.g.5 Configuración de WhatsApp del vendedor (migración `0050`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `set_seller_whatsapp_settings(enlace, usa_mensaje_propio, mensaje)` | `(whatsapp_group_url, whatsapp_use_custom_message, whatsapp_custom_message)` | `saveWhatsappSettings`, desde `/seller/settings` |
+
+`SECURITY DEFINER`, `search_path` fijo, `EXECUTE` revocado de `public` y `anon` y concedido a
+`authenticated` y `service_role`. **No recibe identificador de vendedor**: el perfil sale de
+`auth.uid()`, así que no hay dato que manipular para configurar a otro (BR-W07). Exige membresía
+`seller` activa —`has_org_role(org, 'seller')`—, de modo que ni el personal ni una cuenta desactivada
+pueden usarla, y un vendedor padre tampoco alcanza a un integrante de su equipo.
+
+Normaliza con `btrim` y guarda `NULL` cuando el resultado queda vacío: una cadena de espacios no es un
+enlace ni un mensaje. Repite el formato del enlace y la coherencia del interruptor **antes** de que
+salten los CHECK, para poder dar una frase legible en vez del nombre de una restricción.
+
+A diferencia de `set_ticket_clearance_delivery`, **escribe siempre**, aunque el valor pedido ya sea el
+actual: guardar es un acto explícito de un formulario, y quien pulsa «Guardar cambios» sin haber
+cambiado nada espera que se guarde. La bitácora la deja `audit_memberships` (0006), sin acción
+semántica propia.
 
 ### 6.h Coincidencias de lotería (migración `0036`)
 

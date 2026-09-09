@@ -120,6 +120,23 @@ export async function expectToast(page: Page, text: string | RegExp): Promise<vo
 }
 
 /**
+ * Cierra el dialogo de exito que aparece al crear un cliente (D-176).
+ *
+ * Desde 2026-09-08, registrar un cliente en el portal del vendedor abre una
+ * bifurcacion —«Cerrar» o «Invitar al grupo»— y ya no se navega solo. Las
+ * pruebas que solo querian llegar al cliente creado pasan por aqui; las del
+ * dialogo en si estan en `whatsapp-invitacion.spec.ts`.
+ *
+ * Devuelve el dialogo por si quien llama quiere comprobar algo antes.
+ */
+export async function closeClientCreatedDialog(page: Page): Promise<void> {
+  const dialogo = page.getByRole('alertdialog')
+  await expect(dialogo).toBeVisible()
+  await dialogo.getByRole('button', { name: 'Cerrar' }).click()
+  await expect(dialogo).toBeHidden()
+}
+
+/**
  * Marca o desmarca una casilla, reintentando hasta que el clic surta efecto.
  *
  * Un clic sobre un componente cliente puede caer en el hueco entre que el HTML

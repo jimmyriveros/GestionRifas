@@ -23,6 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
+| **Post-9 (D-176, 2026-09-08)** | **845 ✅** en 49 archivos (+30) | **827 ✅** en 39 archivos (+15) | **557/559** sobre servidor y base recién creados. Los 2 son los de siempre y **se comprobaron uno a uno**: `back-navigation` es **I-075** (caché fría; **9/9 en caliente**) y `reports.spec.ts:305` es **I-090** (acumulación; **pasa en aislamiento**) | ✅ | ✅ **Sin desplegar** |
 | **Release a producción (2026-09-08, `a56e408`)** | **815 ✅** | **812 ✅** (sin cambios: cero migraciones) | **escritorio 417/419 · móvil 125/125** sobre servidor y base nuevos; los 2 son **I-090**. **CI 2/2** sobre el commit desplegado | ✅ | ✅ **DESPLEGADO** |
 | Post-9 anterior (D-175, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | **escritorio 417/419 · móvil 125/125**, sobre servidor y base recién creados. Los 2 son el par **I-090** de siempre | ✅ | ✅ |
 | Post-9 anterior (D-174, 2026-09-08) | **815 ✅** en 48 archivos | **812 ✅** (sin cambios: no se tocó la base) | `filas-seleccionables` **9/9**; de los 4 fallos de la corrida completa, **I-101 ×2 quedan resueltos** y siguen los **I-090 ×2**, que pasan 39/39 en aislamiento | ✅ | ✅ |
@@ -34,6 +35,78 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Invitación al grupo de WhatsApp (D-176, BR-W01..BR-W08, migración `0050`) — 2026-09-08
+
+**Encargo.** Que el vendedor pueda invitar a un cliente recién registrado a su grupo de WhatsApp con
+el mensaje ya escrito, por el método gratuito de `wa.me`, sin API de pago y sin automatización.
+
+### Lo ejecutado
+
+| Comando | Resultado | Errores encontrados | Corrección |
+|---|---|---|---|
+| `npx supabase db reset` (con `0050`) | ✅ 50 migraciones aplicadas | — | — |
+| `npx supabase gen types typescript --local` | ✅ | La salida **pierde la nulabilidad** que el repositorio ya había corregido a mano en cuatro sitios (`clearance_receipt_delivered_at`, `p_expected_delivered_at`) y reformatea `report_sales_by_date` | **No se reemplazó el archivo entero**: se añadieron solo las columnas y la función nuevas, conservando la corrección previa (§36.3) |
+| `npm run typecheck` | ✅ | — | — |
+| `npm run lint` | ✅ 0 errores | 2 avisos de `react-hooks/incompatible-library` | **Preexistentes y ajenos**: `DataTable.tsx` y `BulkTicketCreator.tsx`, que este trabajo no toca |
+| `npm run test` | ✅ **845/845** en 49 archivos (+30) | — | — |
+| `npm run build` | ✅ | — | — |
+| `npm run test:db` | **826/827 → ✅ 827/827** | **`catalog.test.ts` falló**: `set_seller_whatsapp_settings` aparecía como función ejecutable por `authenticated` fuera de la lista blanca | **El guardián funcionó** (I-020/I-078). La RPC es legítimamente ejecutable por `authenticated`, así que se declaró en las **dos** listas de `catalog.test.ts` y en las **dos** de `scripts/verify-remote.ts` (11 → 12) |
+| `npx playwright test whatsapp-invitacion.spec.ts` | **10/12 → ✅ 12/12** | Dos fallos, y **uno era del producto** | Ver abajo |
+| `npx playwright test whatsapp-invitacion-movil.spec.ts` | **2/3 → ✅ 3/3** | Los botones del diálogo medían **36 px** de alto | Ver abajo |
+| `npx playwright test` (suite completa) | **557/559** en 29,6 min | 2 fallos | **Los dos son preexistentes y ajenos, y se comprobó cada uno en vez de creerse la etiqueta.** `back-navigation.spec.ts:25` es **I-075**: primera prueba del proyecto `escritorio` con `.next/dev` frío; repetida en caliente, **9/9**. `reports.spec.ts:305` es **I-090**: depende de la basura que acumulan las suites anteriores; repetida en aislamiento con `db:reset` + `seed:local`, **pasa** |
+
+### Los tres errores que encontraron las pruebas
+
+**1. El título de la tarjeta no era un encabezado.** `CardTitle` renderiza un `<div>`, así que
+«Grupo de WhatsApp» no existía en el esquema de títulos y no se podía saltar a él con un lector de
+pantalla. **Se arregló el producto, no la prueba**: ahora lleva un `<h2>` dentro, igual que
+«Mi catálogo público» desde D-161. Importa más aquí porque esta pantalla está pensada para crecer:
+en cuanto haya tres secciones, el esquema de títulos **es** la navegación.
+
+**2. Los dos botones del diálogo medían 36 px.** `AlertDialogAction` y `AlertDialogCancel` usan
+`size="default"`, y este es un diálogo que se decide de pie y con una mano. Por debajo de la diana
+táctil de 44 px que exige `CLAUDE.md` §27. Se arregló con `size="touch"`, que ya existía en el
+sistema de diseño. **Lo destapó la prueba de 320 px, no la vista.** `ConfirmDialog` tiene el mismo
+comportamiento y **no se tocó**: está fuera del alcance de este trabajo y se anota aquí para quien
+quiera abordarlo.
+
+**3. La prueba abría `wa.me` de verdad.** `page.waitForEvent('popup')` devolvía `about:blank`
+porque la navegación externa nunca llegaba a comprometerse. Se sustituyó por un espía sobre
+`window.open` (`spyOnWindowOpen`) que registra la dirección y **devuelve un objeto, no `null`** —con
+`null` la aplicación creería que el navegador bloqueó la ventana y recorrería otro camino—. La prueba
+ya no depende de una web de terceros ni de tener internet.
+
+### La regresión que este trabajo introdujo, y cómo se cerró
+
+Crear un cliente en el portal del vendedor **ya no navega al guardar: navega al cerrar el diálogo**.
+Tres specs existentes lo daban por hecho y se quedaban esperando la URL: `seller-clients` (dos
+casos), `seller-tickets` y `seller-ciclo-movil`. Se actualizaron con el ayudante compartido
+`closeClientCreatedDialog` (`fixtures.ts`), que además deja escrito, en un solo sitio, lo que tiene
+que hacer cualquier prueba futura que cree un cliente. **32/32** tras el arreglo.
+
+### QA visual con sesión real
+
+A **320 px**, sobre el servidor local y con un cliente creado de verdad: diálogo de **274 px** de
+ancho dentro de una ventana de 320 —`scrollWidth - clientWidth = 0`—, botones de **42 px** de alto y
+**apilados con la acción principal arriba**, bajo el pulgar. En «Configuración», la vista previa
+mostró el mensaje completo con `Únete aquí: https://chat.whatsapp.com/...` **añadido al final sin que
+nadie lo escribiera**, que es la comprobación de la decisión de BR-W04.
+
+### Lo que estas pruebas cubren del encargo
+
+| §  del encargo | Dónde se comprueba |
+|---|---|
+| Configuración: guardar, rechazar enlace inválido, mensaje propio, restaurar, persistir | `whatsapp-invitacion.spec.ts`, bloque «Configuración del grupo» |
+| El diálogo no se cierra con clic fuera ni con ESC, y no tiene «X» | `whatsapp-invitacion.spec.ts`, bloque propio |
+| Flujo boleta: modal correcto, teléfono, texto y enlace en WhatsApp | `whatsapp-invitacion.spec.ts`, «Flujo A» y «Flujo B» |
+| Flujo «Mis clientes»: no menciona boleta | `whatsapp-invitacion.spec.ts`, «Flujo B» |
+| Sin configuración: «Configurar WhatsApp», navega y **no pierde el cliente** | `whatsapp-invitacion.spec.ts`, bloque propio |
+| Teléfono: `+57`, espacios, guiones, paréntesis, internacional, vacío, inválido | `tests/unit/whatsapp-invite.test.ts` (7 casos) |
+| Responsive 320 / 375 / 390 / 430 / tableta | `whatsapp-invitacion-movil.spec.ts` |
+| Vendedor A no modifica ni lee la configuración de B | `tests/db/whatsapp-settings.test.ts` (5 casos) + `whatsapp-invitacion.spec.ts`, «Aislamiento» |
 
 ---
 

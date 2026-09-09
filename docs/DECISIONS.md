@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.40 · **Actualizado:** 2026-09-03 (D-001 a D-166)
+- **Versión:** 1.41 · **Actualizado:** 2026-09-08 (D-001 a D-176)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -7779,6 +7779,68 @@ más (descartada: se perdía la comparación contra el período anterior, que no
 pantalla). (d) Emparejar las regiones por altura para que no queden filas desiguales (descartada: eso
 ordena por píxeles y no por prioridad; las tarjetas se alinean arriba y una fila desigual se lee como
 lo que es).
+
+---
+
+## D-176 — Invitar al grupo de WhatsApp: el enlace se añade solo, y nunca lo escribe el vendedor
+**Fase:** post-9 · **Fecha:** 2026-09-08 · **Reglas:** BR-W01..BR-W08 · **Migración:** `0050`
+
+**Contexto.** Después de registrar un cliente nuevo, el vendedor salía de la aplicación, buscaba el
+número a mano en WhatsApp y le pasaba el enlace de su grupo. El encargo pide automatizar la parte que
+se puede automatizar sin pagar nada ni integrar nada: abrir la conversación con el mensaje ya escrito
+para que solo haya que pulsar Enviar.
+
+**Decisión, en cuatro partes.**
+
+**(1) El enlace del grupo NO forma parte del texto del mensaje.** El encargo proponía un marcador,
+`{{whatsapp_group_link}}`, que el vendedor tendría que conservar dentro de su mensaje, y pedía
+expresamente evaluar la alternativa con «mejor UX y menor riesgo de errores». Un marcador se puede
+borrar sin querer, escribir mal, pegar dos veces o partir en mitad al editar, y **cada una de esas
+formas de romperlo obliga a una validación y a un texto de error que explique una sintaxis** a alguien
+que solo quería escribir «Hola, gracias por participar». Aquí el vendedor escribe **prosa** y el
+sistema añade `Únete aquí: <enlace>` al final. No hay nada que conservar, así que no hay nada que
+romper. Lo que sostiene la decisión sin pedir fe es la **vista previa**: la pantalla enseña el mensaje
+completo, con el enlace ya puesto, mientras se escribe.
+
+**(2) Tres columnas en `memberships`, no una tabla.** Un vendedor no es una entidad propia en este
+esquema: es una membresía con rol `seller`. Es el mismo razonamiento que escribió `0043` para el
+catálogo público, y no cambia porque la configuración sea otra.
+
+**(3) Una RPC `SECURITY DEFINER`, porque un vendedor no puede escribir su propia membresía.**
+`memberships_update_staff` es la única política de escritura de esa tabla y solo deja pasar al
+personal. Ampliarla para tres columnas habría abierto la fila entera —`role`, `is_active`,
+`parent_seller_id`, `commission_model`, `fixed_commission_amount`, las cuatro `public_*`— a quien
+solo tenía que guardar un enlace: un vendedor podría ascenderse a Dueño o subirse la ganancia con una
+petición a mano. `set_seller_whatsapp_settings` **no recibe identificador de vendedor**, así que no
+existe el dato que alguien pudiera manipular.
+
+**(4) Los ayudantes genéricos suben a `lib/whatsapp.ts`.** `normalizeWhatsappNumber`,
+`whatsappUrl` y `WHATSAPP_REGEX` nacieron en `features/catalog/` para el botón «Solicitar» y aquí
+hacen falta idénticos. Las dos salidas malas eran acoplar `settings` a `catalog` o duplicar cuarenta
+líneas. `features/catalog/whatsapp.ts` los reexporta, así que ningún importador cambia.
+
+**Lo que NO se hizo, y por qué.**
+
+**La trazabilidad de la invitación (§16 del encargo) queda fuera de esta etapa**, y el propio encargo
+pedía analizarlo antes de incluirlo. Lo único que se podría registrar es «abrió WhatsApp», que **no es
+«invitó»** —el vendedor todavía tiene que pulsar Enviar— ni «se unió». Sería una columna, una RPC y
+una pantalla para un dato que hoy no consume nadie y que además se presta a leerse como lo que no es.
+Se deja escrito para pedirlo aparte.
+
+**Alternativas descartadas.** (a) El marcador `{{whatsapp_group_link}}` con validación (descartada:
+crea la clase de errores que el encargo quería evitar). (b) Aceptar el marcador *y además* añadir el
+enlace al final (descartada: dos mecanismos para lo mismo, y la pregunta de cuál manda cuando
+discrepen). (c) Una sola columna `custom_message` con NULL = predeterminado (descartada: apagar el
+interruptor perdería el texto escrito, y volver a encenderlo obligaría a reescribirlo). (d) Ampliar
+`memberships_update_staff` para el propio vendedor (descartada: abre la fila entera; ver punto 3).
+(e) Poner «Configuración» bajo `/account`, junto a la contraseña (descartada: es una pantalla de
+vendedor, y el personal vería una puerta que da a `/denied`).
+
+**Consecuencia.** El diálogo de éxito cambia lo que pasaba al crear un cliente: antes se navegaba a su
+ficha inmediatamente, ahora se navega **al cerrar el diálogo**. Tres pruebas E2E existentes lo
+esperaban y se actualizaron; el ayudante compartido es `closeClientCreatedDialog`. La prueba de 320 px
+destapó además que los botones del diálogo se quedaban en 36 px —por debajo de la diana táctil— y
+ahora llevan `size="touch"`.
 
 ---
 

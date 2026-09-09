@@ -7,7 +7,7 @@ import {
   serviceClient,
   type SeedRefs,
 } from './db-setup'
-import { ACCOUNTS, expectToast, loginAs, unique } from './fixtures'
+import { ACCOUNTS, closeClientCreatedDialog, expectToast, loginAs, unique } from './fixtures'
 
 /**
  * Pruebas 1, 2, 3, 4 y 13 de la Fase 4: crear, editar, archivar y buscar
@@ -32,6 +32,10 @@ test.describe('Clientes del vendedor', () => {
     await page.getByLabel('Nombre').fill(name)
     await page.getByLabel('Teléfono').fill('3001234567')
     await page.getByRole('button', { name: 'Crear cliente' }).click()
+
+    // Desde D-176 el alta abre una bifurcacion antes de navegar: cerrar o
+    // invitar al grupo. Lo que se prueba aqui sigue siendo el alta.
+    await closeClientCreatedDialog(page)
 
     await page.waitForURL(/\/seller\/clients\/[0-9a-f-]+$/)
     await expect(page.getByRole('heading', { name })).toBeVisible()
@@ -59,6 +63,7 @@ test.describe('Clientes del vendedor', () => {
 
     await page.getByLabel('Correo (opcional)').fill('')
     await page.getByRole('button', { name: 'Crear cliente' }).click()
+    await closeClientCreatedDialog(page)
     await page.waitForURL(/\/seller\/clients\/[0-9a-f-]+$/)
   })
 

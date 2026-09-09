@@ -260,12 +260,24 @@ disponibilidad la sigue cambiando únicamente el vendedor desde su portal. La co
 WhatsApp público, rifa y regenerar el enlace— es de Dueño y Administrador; el vendedor ve y copia su
 enlace.
 
+### 9.4 Configuración del vendedor e invitación al grupo de WhatsApp (`/seller/settings`)
+Cada vendedor guarda **su** grupo de WhatsApp y, si quiere, redacta su propio mensaje de invitación
+(BR-W01..BR-W08, D-176). Después de registrar un cliente nuevo —desde el detalle de una boleta, desde
+la venta masiva o desde «Mis clientes»— un diálogo le ofrece **invitarlo al grupo** con el mensaje ya
+escrito: se abre un enlace `wa.me` y la persona pulsa Enviar. **No hay integración con WhatsApp**, así
+que no se puede saber si el mensaje salió ni si el cliente se unió, y ningún texto lo insinúa.
+
+El enlace del grupo **nunca forma parte del texto**: el vendedor escribe prosa y el sistema lo añade
+al final, de modo que no hay marcador que se pueda romper. Configurar es exclusivo del **propio
+vendedor** —ni el personal ni un vendedor padre pueden hacerlo por él— y la pantalla está pensada
+para crecer con más secciones.
+
 ---
 
 ## 10. Fuera de alcance del MVP
 
 Pagos en línea · Portal de clientes · Integración con loterías · Sorteos automáticos · Números
-ganadores · ~~WhatsApp~~ (solo como enlace saliente del catálogo público, D-159: no hay integración con la WhatsApp Business Platform) · SMS · Facturación electrónica · ~~Comisiones de vendedores~~ · App móvil
+ganadores · ~~WhatsApp~~ (solo como **enlace saliente**: el catálogo público, D-159, y la invitación al grupo del vendedor, D-176. **No hay integración con la WhatsApp Business Platform** en ninguno de los dos, y no se puede saber si un mensaje se envió) · SMS · Facturación electrónica · ~~Comisiones de vendedores~~ · App móvil
 nativa · Integraciones contables.
 
 Estas funciones **no** se construyen durante las fases 0 a 9.

@@ -1,4 +1,4 @@
-import { KeyRoundIcon } from 'lucide-react'
+import { KeyRoundIcon, SettingsIcon } from 'lucide-react'
 import Link from 'next/link'
 
 import { LogoutButton } from '@/features/auth/components/LogoutButton'
@@ -95,6 +95,20 @@ export function UserMenu({ fullName, email, role, navItems = [] }: UserMenuProps
         <DropdownMenuSeparator />
         <TourLauncher />
         <InstallMenuItem />
+        {/*
+          «Configuración» es del VENDEDOR: lo que hay dentro es su grupo de
+          WhatsApp (D-176), y `/seller/settings` vive en un portal cuyo layout
+          exige el rol. Enseñarsela al Dueño o al Administrador seria ofrecerles
+          una puerta que da a `/denied`.
+        */}
+        {role === 'seller' ? (
+          <DropdownMenuItem asChild>
+            <Link href="/seller/settings">
+              <SettingsIcon />
+              Configuración
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem asChild>
           <Link href="/account/password">
             <KeyRoundIcon />

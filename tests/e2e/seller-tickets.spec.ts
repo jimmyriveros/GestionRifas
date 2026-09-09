@@ -9,7 +9,14 @@ import {
   serviceClient,
   type SeedRefs,
 } from './db-setup'
-import { ACCOUNTS, expectToast, loginAs, randomTicketNumbers, unique } from './fixtures'
+import {
+  ACCOUNTS,
+  closeClientCreatedDialog,
+  expectToast,
+  loginAs,
+  randomTicketNumbers,
+  unique,
+} from './fixtures'
 
 /**
  * Pruebas 5 a 13 de la Fase 4: asignacion de boletas, creacion por el vendedor,
@@ -85,6 +92,8 @@ test.describe('Asignación de boletas', () => {
     await page.getByRole('button', { name: 'Crear cliente y asignar' }).click()
 
     await expectToast(page, new RegExp(`${name} registrado y boleta asignada`))
+    // Desde D-176 la venta con cliente nuevo abre la bifurcacion de WhatsApp.
+    await closeClientCreatedDialog(page)
     await expect(page.getByText('Asignada').first()).toBeVisible()
 
     // Y el cliente queda en su cartera para reutilizarlo (BR-C04).

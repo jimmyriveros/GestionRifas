@@ -90,7 +90,14 @@ export async function assignTickets(
  */
 export async function assignTicketsToNewClient(
   input: unknown,
-): Promise<ActionResultWith<{ count: number; message: string }>> {
+): Promise<
+  ActionResultWith<{
+    count: number
+    message: string
+    /** El cliente que se acaba de crear, para poder invitarlo (BR-W05, D-176). */
+    client: { id: string; name: string; phone: string }
+  }>
+> {
   const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
@@ -109,7 +116,9 @@ export async function assignTicketsToNewClient(
       seller_id: auth.membership.profileId,
       ...toClientRow(client),
     })
-    .select('id')
+    // El telefono sale de la fila escrita, no del formulario: es el que usara
+    // la invitacion de WhatsApp (BR-W05).
+    .select('id, name, phone')
     .single()
 
   if (clientError) return { error: mapPgError(clientError) }
@@ -130,5 +139,12 @@ export async function assignTicketsToNewClient(
 
   revalidateAssignment()
   const count = data ?? ticketIds.length
-  return { ok: true, data: { count, message: assignedMessage(count) } }
+  return {
+    ok: true,
+    data: {
+      count,
+      message: assignedMessage(count),
+      client: { id: created.id, name: created.name, phone: created.phone },
+    },
+  }
 }

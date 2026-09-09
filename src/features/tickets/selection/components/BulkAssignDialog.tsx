@@ -14,6 +14,11 @@ import {
 } from '@/components/ui/dialog'
 import type { ClientOption } from '@/features/clients/queries'
 import { AssignTicketsForm } from '@/features/tickets/assign/components/AssignTicketsForm'
+import {
+  ClientCreatedDialog,
+  type ClientCreatedOutcome,
+} from '@/features/whatsapp/components/ClientCreatedDialog'
+import type { WhatsappSettings } from '@/features/whatsapp/invite'
 import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
 
@@ -37,6 +42,7 @@ export function BulkAssignDialog({
   onOpenChange,
   clients,
   rafflePrices,
+  whatsappSettings,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -44,6 +50,9 @@ export function BulkAssignDialog({
   /** Precio vigente de cada rifa: una organizacion puede tener varias a precios
    *  distintos, asi que el total se suma boleta a boleta (seccion 30). */
   rafflePrices: Record<string, number>
+  /** Configuracion de WhatsApp del vendedor (D-176). El portal administrativo
+   *  no la pasa: alli no se crean clientes. */
+  whatsappSettings?: WhatsappSettings
 }) {
   const selection = useTicketSelection()
   const rows = selection.eligibility ?? []
@@ -72,94 +81,116 @@ export function BulkAssignDialog({
   const [unitPrice, setUnitPrice] = useState<number | null>(null)
   const precioVigente = unitPrice ?? priceRange?.basePrice ?? null
 
+  /**
+   * El cliente recien creado, si la venta se hizo con «Cliente nuevo». Vive
+   * FUERA del formulario y fuera de este dialogo: los dos se desmontan al
+   * cerrarse, y con ellos se iria el dialogo de exito.
+   */
+  const [created, setCreated] = useState<ClientCreatedOutcome | null>(null)
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Este es el modal mas alto de la aplicacion —resumen, lista de numeros,
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        {/* Este es el modal mas alto de la aplicacion —resumen, lista de numeros,
           precio, buscador y lista de clientes— y el que destapo que
           `DialogContent` no acotaba su alto. El techo vive ahi desde entonces,
           para todos; aqui no hace falta repetirlo. */}
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Asignar boletas</DialogTitle>
-          <DialogDescription>
-            Elige el cliente que compró estas boletas. El precio de cada una queda fijo con el valor
-            vigente de su rifa.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Asignar boletas</DialogTitle>
+            <DialogDescription>
+              Elige el cliente que compró estas boletas. El precio de cada una queda fijo con el
+              valor vigente de su rifa.
+            </DialogDescription>
+          </DialogHeader>
 
-        {selection.eligibilityLoading ? (
-          <p className="text-muted-foreground py-2 text-sm" aria-live="polite">
-            Revisando las boletas seleccionadas...
-          </p>
-        ) : (
-          <>
-            <SelectionSummary
-              count={eligibleRows.length}
-              totalAmount={
-                priceRange && precioVigente !== null
-                  ? precioVigente * eligibleRows.length
-                  : eligibleTotal
-              }
-              discount={
-                priceRange && precioVigente !== null ? priceRange.basePrice - precioVigente : 0
-              }
-            />
-            <SelectedNumbers rows={eligibleRows} />
+          {selection.eligibilityLoading ? (
+            <p className="text-muted-foreground py-2 text-sm" aria-live="polite">
+              Revisando las boletas seleccionadas...
+            </p>
+          ) : (
+            <>
+              <SelectionSummary
+                count={eligibleRows.length}
+                totalAmount={
+                  priceRange && precioVigente !== null
+                    ? precioVigente * eligibleRows.length
+                    : eligibleTotal
+                }
+                discount={
+                  priceRange && precioVigente !== null ? priceRange.basePrice - precioVigente : 0
+                }
+              />
+              <SelectedNumbers rows={eligibleRows} />
 
-            {/* El mismo aviso que `BulkActionDialog`, con el mismo tono y la
+              {/* El mismo aviso que `BulkActionDialog`, con el mismo tono y la
                 misma densidad (D-171): antes era un ambar a mano con `role="alert"`
                 —asertivo, o sea que interrumpe—, y ahora es el `warning` del
                 sistema anunciado en `polite`. */}
-            {!ready ? (
-              <Notice tone="warning" density="compact" live>
-                <div className="space-y-2">
-                  <p className="font-medium">No se puede continuar todavía.</p>
-                  <ul className="space-y-1">
-                    {blocked.slice(0, 5).map((row) => (
-                      <li key={row.ticketId}>
-                        <span className="font-mono tabular-nums">{ticketLabel(row)}</span>
-                        {' — '}
-                        {whyNot(row, 'assign')}
-                      </li>
-                    ))}
-                  </ul>
-                  {blocked.length > 5 ? <p>Y {blocked.length - 5} más.</p> : null}
-                  {selection.missingCount > 0 ? (
-                    <p>
-                      {selection.missingCount === 1
-                        ? '1 boleta seleccionada ya no está disponible.'
-                        : `${selection.missingCount} boletas seleccionadas ya no están disponibles.`}{' '}
-                      Quítalas de la selección y vuelve a intentarlo.
-                    </p>
-                  ) : null}
-                </div>
-              </Notice>
-            ) : null}
-          </>
-        )}
+              {!ready ? (
+                <Notice tone="warning" density="compact" live>
+                  <div className="space-y-2">
+                    <p className="font-medium">No se puede continuar todavía.</p>
+                    <ul className="space-y-1">
+                      {blocked.slice(0, 5).map((row) => (
+                        <li key={row.ticketId}>
+                          <span className="font-mono tabular-nums">{ticketLabel(row)}</span>
+                          {' — '}
+                          {whyNot(row, 'assign')}
+                        </li>
+                      ))}
+                    </ul>
+                    {blocked.length > 5 ? <p>Y {blocked.length - 5} más.</p> : null}
+                    {selection.missingCount > 0 ? (
+                      <p>
+                        {selection.missingCount === 1
+                          ? '1 boleta seleccionada ya no está disponible.'
+                          : `${selection.missingCount} boletas seleccionadas ya no están disponibles.`}{' '}
+                        Quítalas de la selección y vuelve a intentarlo.
+                      </p>
+                    ) : null}
+                  </div>
+                </Notice>
+              ) : null}
+            </>
+          )}
 
-        {ready ? (
-          <AssignTicketsForm
-            ticketIds={selection.selectedIds}
-            totalAmount={total}
-            clients={clients}
-            showSummary={false}
-            priceRange={priceRange}
-            onUnitPriceChange={setUnitPrice}
-            onDone={() => {
-              onOpenChange(false)
-              selection.clear()
-            }}
-          />
-        ) : (
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Volver
-            </Button>
-          </DialogFooter>
-        )}
-      </DialogContent>
-    </Dialog>
+          {ready ? (
+            <AssignTicketsForm
+              ticketIds={selection.selectedIds}
+              totalAmount={total}
+              clients={clients}
+              showSummary={false}
+              priceRange={priceRange}
+              onUnitPriceChange={setUnitPrice}
+              onDone={() => {
+                onOpenChange(false)
+                selection.clear()
+              }}
+              // Con varias boletas NO se nombra ninguna: se dice cuantas. Una
+              // lista de veinte pares de numeros no se lee (BR-N11).
+              onClientCreated={whatsappSettings ? setCreated : undefined}
+            />
+          ) : (
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Volver
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {whatsappSettings ? (
+        <ClientCreatedDialog
+          outcome={created}
+          settings={whatsappSettings}
+          // No se navega: seguimos en «Mis boletas», que es donde se ve el
+          // resultado. El `router.refresh()` lo hizo el formulario.
+          onClose={() => setCreated(null)}
+        />
+      ) : null}
+    </>
   )
 }
 

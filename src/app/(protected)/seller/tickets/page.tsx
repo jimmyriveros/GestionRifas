@@ -16,6 +16,7 @@ import { TicketListSlot } from '@/features/tickets/selection/components/Selected
 import { TicketSelectionModeButton } from '@/features/tickets/selection/components/TicketSelectionModeButton'
 import { TicketSelectionToolbar } from '@/features/tickets/selection/components/TicketSelectionToolbar'
 import { TicketSelectionProvider } from '@/features/tickets/selection/TicketSelectionContext'
+import { getWhatsappSettings } from '@/features/whatsapp/queries'
 import { SEARCH_OPTIONS_LIMIT } from '@/lib/search'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
@@ -35,7 +36,10 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
   // No se filtra por `sellerId`: `tickets_select` ya limita las filas a las
   // boletas de quien consulta (BR-U07). Pasar el id por la URL no cambiaria
   // nada, y por eso tampoco se acepta.
-  const [{ rows, total, page, pageSize }, raffles, clients] = await Promise.all([
+  // La configuracion de WhatsApp viaja con el HTML de esta pagina (D-176): el
+  // dialogo de exito de la venta masiva no consulta nada al abrirse. Va en el
+  // mismo `Promise.all` para no anadir un viaje en serie.
+  const [{ rows, total, page, pageSize }, raffles, clients, whatsappSettings] = await Promise.all([
     listTickets({
       raffleId: single(params.raffleId),
       clientId: single(params.clientId),
@@ -48,6 +52,7 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
     // Alimenta el desplegable «Cliente» de los filtros, que no tiene buscador:
     // su tope es el de siempre, no el pequeno de los selectores con busqueda.
     listClientOptions(undefined, CLIENT_FILTER_OPTIONS_LIMIT),
+    getWhatsappSettings(),
   ])
 
   const canCreate = raffles.some(
@@ -143,6 +148,7 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
                 filters={selectionFilters}
                 clients={clientOptions}
                 rafflePrices={rafflePrices}
+                whatsappSettings={whatsappSettings}
               />
               <TicketListSlot basePath="/seller/tickets" showSeller={false} showRaffle={false}>
                 <TicketsList

@@ -3,7 +3,29 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-08 — **`I-101` auditado y cerrado el mismo día** (D-174), y con el
+- **Actualizado:** 2026-09-08 — **invitación al grupo de WhatsApp** (D-176, BR-W01..BR-W08).
+  Después de registrar un cliente nuevo, un diálogo ofrece **invitarlo al grupo de WhatsApp del
+  vendedor** con el mensaje ya escrito: se abre `wa.me` y la persona pulsa Enviar. **No hay ninguna
+  integración con WhatsApp** —sin API, sin SDK, sin sesión— y por tanto **no se puede saber si el
+  cliente se unió**; ningún texto lo insinúa (BR-W08). La configuración vive en la pantalla nueva
+  **«Configuración»** (`/seller/settings`), a la que se llega por el menú del avatar y que **solo ve
+  el vendedor**. **La decisión que ordena todo:** el enlace del grupo **nunca forma parte del texto
+  del mensaje**; el vendedor escribe prosa y el sistema lo añade al final, de modo que **no hay
+  marcador que se pueda borrar, duplicar ni partir** — se descartó el `{{whatsapp_group_link}}` que
+  proponía el encargo, y la **vista previa** enseña el mensaje completo para que no haya que fiarse
+  de una promesa (BR-W04). Migración **`0050`**, aditiva: tres columnas en `memberships` —el mismo
+  sitio que el catálogo público, porque un vendedor **es** una membresía— y la RPC
+  `set_seller_whatsapp_settings`, que **no recibe identificador de vendedor** (sale de `auth.uid()`)
+  y escribe **tres columnas de una fila**. **`memberships_update_staff` NO se amplía**: hacerlo para
+  guardar un enlace habría abierto `role`, `is_active`, `parent_seller_id` y la ganancia (BR-W07). El
+  diálogo de éxito **no se cierra** con `Escape`, pulsando fuera ni con una «X», dice cosas distintas
+  según el flujo —desde una boleta la nombra por sus dos números; desde «Mis clientes» **no menciona
+  ninguna**— y sustituye la acción por **«Configurar WhatsApp»** cuando todavía no hay grupo.
+  **Cero dependencias nuevas, cero scripts externos y cero peticiones añadidas en la navegación
+  normal:** la configuración viaja con el HTML que ya se renderiza en servidor. **La trazabilidad de
+  la invitación se dejó fuera a propósito** y está argumentada en D-176. **Sin desplegar y sin
+  aplicar al proyecto real.**
+  Antes, el mismo día: **`I-101` auditado y cerrado el mismo día** (D-174), y con el
   resultado contrario a la hipótesis: **el producto está bien y eran las pruebas las que estaban
   obsoletas**, por dos causas de dos olas distintas. Una exigía que el fondo de una opción **ya
   elegida** cambiara al pasar el cursor —cierto hasta que la activación de marca quitó ese `hover`—, y
@@ -3338,6 +3360,7 @@ cambiar el dato desde fuera— están en `TEST_RESULTS.md`.
 | Archivo | Qué hace |
 |---|---|
 | `0049_ticket_clearance_receipt.sql` | **Aplicada al proyecto real el 2026-09-05**, tras el respaldo `Rifas-backups/2026-09-05-pre-0049/`. Añade a `tickets` las columnas `clearance_receipt_delivered_at` (`timestamptz`) y `clearance_receipt_assumed_delivered` (`boolean not null default false`), con dos CHECK de coherencia; el disparador `tickets_reset_clearance_receipt`, que devuelve la entrega a pendiente al cambiar de cliente o volver a `available`; la RPC `set_ticket_clearance_delivery(uuid, boolean, timestamptz)` (`SECURITY DEFINER`, `search_path` fijo, `FOR UPDATE`, `EXECUTE` revocado de `public`/`anon` y concedido a `authenticated` y `service_role`); recrea `search_tickets` con las dos columnas más y le restituye sus privilegios; y ejecuta **una sola vez** la carga inicial sobre las boletas ya vendidas. Sin índices nuevos |
+| `0050_seller_whatsapp_invite.sql` | **NO aplicada al proyecto real.** Aditiva: no toca ninguna tabla, política, función, enum ni restricción existente. Añade a `memberships` las columnas `whatsapp_group_url` (`text`), `whatsapp_use_custom_message` (`boolean not null default false`) y `whatsapp_custom_message` (`text`), con tres CHECK —formato del enlace, coherencia del interruptor y longitud del mensaje—; y la RPC `set_seller_whatsapp_settings(text, boolean, text)` (`SECURITY DEFINER`, `search_path` fijo, `EXECUTE` revocado de `public`/`anon` y concedido a `authenticated` y `service_role`), que **no recibe identificador de vendedor** y escribe solo esas tres columnas de la fila de quien llama. Sin índices nuevos, sin disparadores nuevos y sin carga inicial: las tres columnas nacen nulas o en `false`, así que aplicarla no cambia el comportamiento de nadie hasta que un vendedor entre a «Configuración» y guarde su grupo. La auditoría la cubre `audit_memberships`, que ya existía |
 
 ### 4. Variables de entorno
 

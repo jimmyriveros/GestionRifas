@@ -36,9 +36,16 @@ function revalidateClients(clientId?: string) {
   }
 }
 
+/**
+ * Devuelve tambien el TELEFONO, y no por comodidad: es lo que necesita el
+ * dialogo de exito para armar el enlace de WhatsApp (BR-W05, D-176). Sale de la
+ * fila que se acaba de escribir, no del formulario: si manana la base
+ * normalizara el numero al guardarlo, la invitacion usaria el numero guardado y
+ * no el que se tecleo.
+ */
 export async function createClientRecord(
   input: unknown,
-): Promise<ActionResultWith<{ id: string; name: string }>> {
+): Promise<ActionResultWith<{ id: string; name: string; phone: string }>> {
   const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
@@ -55,13 +62,13 @@ export async function createClientRecord(
       seller_id: auth.membership.profileId, // BR-C01: siempre el vendedor de la sesion
       ...toClientRow(parsed.data),
     })
-    .select('id, name')
+    .select('id, name, phone')
     .single()
 
   if (error) return { error: mapPgError(error) }
 
   revalidateClients()
-  return { ok: true, data: { id: data.id, name: data.name } }
+  return { ok: true, data: { id: data.id, name: data.name, phone: data.phone } }
 }
 
 export async function updateClientRecord(input: unknown): Promise<ActionResult> {

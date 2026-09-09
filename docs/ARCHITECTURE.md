@@ -156,7 +156,8 @@ importa desde un componente cliente.
     │   │       ├── dashboard/page.tsx
     │   │       ├── tickets/…
     │   │       ├── clients/…
-    │   │       └── payments/…
+    │   │       ├── payments/…
+    │   │       └── settings/page.tsx     # Configuración del vendedor (D-176)
     │   ├── api/reports/export/route.ts    # CSV; sesión + rol (D-060)
     │   ├── api/lottery/sync/route.ts      # Tick de loterías; secreto, sin sesión (D-148)
     │   ├── auth/callback/route.ts         # Intercambio de código de Supabase Auth
@@ -179,6 +180,7 @@ importa desde un componente cliente.
     │   ├── lottery/              # Constantes, adaptadores, sync, recuadro del Panel, tick y plan de cron (D-149)
     │   │                         # parse/pdf.ts y parse/acta-cundinamarca.ts: acta oficial (D-153)
     │   ├── search/               # Búsqueda híbrida compartida
+    │   ├── whatsapp/               # Invitación al grupo del vendedor: config, diálogo y textos (D-176)
     │   └── tour/                 # Recorridos guiados
     ├── lib/
     │   ├── supabase/             # client | server | proxy | admin | paginate (fetchAllRows, I-011)
@@ -257,6 +259,7 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/seller/payments` | seller | **5 ✅** | Historial de pagos |
 | `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?from=` (D-135) dice a dónde volver (`ticket`, `client`, `payments`, `dashboard`); `?ticketId=` marca la boleta del reparto y, sin `from`, también el destino (D-133) |
 | `/seller/reports` | seller | **6 ✅** · post-9 | Sus reportes, sin el que compara vendedores (D-059). Abre en **«Ventas por fecha»** con las ventas de hoy, sin redirección (D-151) |
+| `/seller/settings` | seller | post-9 ✅ | **Configuración.** Hoy, una sola sección: el grupo de WhatsApp y el mensaje de invitación (D-176). Se entra por el menú del avatar, que **solo la ofrece al vendedor**; el personal que escriba la ruta cae en `/denied` por el layout del portal. Pensada para crecer con más tarjetas, no con pestañas |
 | `/api/reports/export` | según rol | **6 ✅** | Descarga CSV. **Fuera de `(protected)` a propósito**: un Route Handler no pasa por el layout, así que se protege a mano (D-060) |
 | `/api/lottery/sync` | secreto de servidor | post-9 ✅ | Tick de loterías (D-148, D-149). **Sin sesión.** El proxy lo deja pasar; Vercel Cron envía `CRON_SECRET` |
 
@@ -305,6 +308,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `reassign_ticket_client(boleta, cliente_esperado, cliente_nuevo, motivo)` | post-9 | Corrige el `client_id` de UNA boleta vendida, dentro de la cartera de su mismo vendedor y solo si no tiene ninguna fila en `payment_allocations` ni en `lottery_ticket_matches`. No pasa por `available` ni repite el aviso de venta (D-168, BR-I13) | Sí |
 | `release_ticket_client(boleta, cliente_esperado, motivo)` | post-9 | Deshace la venta de UNA boleta que nadie ha abonado: la devuelve a `available` y borra cliente, precio, precio base, fecha de venta y `assigned_at`. Exige rifa activa, cero filas en `payment_allocations` y cero en `lottery_ticket_matches`. No anula ni elimina: los números siguen siendo suyos (D-169, BR-I14) | Sí |
 | `set_ticket_clearance_delivery(boleta, entregado, fecha_esperada)` | post-9 | Registra o retira la entrega FÍSICA del paz y salvo de UNA boleta vendida. **Solo el vendedor dueño**; la fecha la pone el servidor. No consulta ni cambia dinero y no exige rifa activa. Devuelve el estado resultante (D-170, BR-I15) | Sí |
+| `set_seller_whatsapp_settings(enlace, usa_mensaje_propio, mensaje)` | post-9 | Guarda el grupo de WhatsApp y el mensaje de invitación **del vendedor que llama**. No recibe identificador de vendedor: sale de `auth.uid()`. Solo escribe tres columnas de su propia membresía; la auditoría la pone `audit_memberships` (D-176, BR-W01..BR-W03, BR-W07) | Sí |
 | `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142) | Sí — inserciones idempotentes |
 | `sync_lottery_schedules` · `confirm_lottery_result` · `notify_lottery_schedule_changes` | post-9 | Sincronización, confirmación+matching+avisos y avisos de programación. **Sin EXECUTE para `authenticated`** (D-145, D-146) | Sí — upserts e inserciones idempotentes |
 | `try_acquire_lottery_sync_lock` · `release_lottery_sync_lock` | post-9 | Cerrojo de una fila del tick. **Sin EXECUTE para `authenticated`** (D-148) | Un UPDATE condicional |

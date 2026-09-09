@@ -410,6 +410,13 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Que el catálogo de un vendedor abre de verdad | **Activo** / **Inactivo** | Publicado, encendido, habilitado, en línea |
 | Mandar el enlace por el menú del teléfono | **Compartir** | Enviar, difundir, propagar |
 | Abrir la página pública para verla uno mismo | **Ver catálogo** | Previsualizar, ir al catálogo, abrir |
+| Conversación de WhatsApp donde el vendedor reúne a sus clientes | **Grupo de WhatsApp**, o **tu grupo** (D-176) | Comunidad, canal, chat, lista de difusión |
+| Su dirección de invitación, que el vendedor pega en la configuración | **Enlace del grupo de WhatsApp** | **Link**, que este mismo anexo ya prohíbe; URL, invitación |
+| Pasarle ese enlace a un cliente recién registrado | **Invitar al grupo**; la **invitación** | Agregar al grupo, añadir, meter, vincular |
+| El texto que acompaña al enlace | **Mensaje de invitación** | Plantilla, template, copy |
+| El que trae la aplicación, y usa casi todo el mundo | **Mensaje predeterminado** | Mensaje por defecto, estándar, del sistema |
+| El que escribe el propio vendedor | **Mi propio mensaje** (el interruptor dice «Usar mi propio mensaje») | Mensaje personalizado, custom |
+| La pantalla del vendedor donde vive todo eso | **Configuración** | Ajustes, preferencias, settings |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -959,6 +966,43 @@ ve **«Entregado»** o **«Por entregar»** y el término completo va, otra vez,
 D-114 tal cual: se recorta el píxel, nunca el término. Y una boleta **sin vender no dice nada**:
 no hay entrega de la que hablar, y escribir «por entregar» ahí inventaría una tarea.
 
+**«Enlace», nunca «link», también aquí** (D-176). El encargo de esta función escribía «Link del grupo
+de WhatsApp», y se corrigió: *link* está prohibido en el Anexo A para la dirección de una página, y
+tenerlo para una cosa y «enlace» para otra sería peor que no tener glosario. Es la §35.2.4 de
+`CLAUDE.md` aplicada igual que con «SORTEO PÚBLICO» (D-163) y «Número ganador» (D-167): se señala la
+contradicción, manda la guía y se sigue.
+
+**El vendedor escribe su mensaje SIN el enlace, y eso se dice una vez y se demuestra** (BR-W04,
+D-176). Bajo el área de texto va **«Escribe solo tu mensaje. El enlace de tu grupo se agrega al
+final, siempre.»** — la consecuencia que la pantalla no puede enseñar—. Y debajo va lo que sí la
+enseña: **«Así lo recibirá tu cliente»**, con el mensaje completo y el enlace ya puesto. Esa vista
+previa no es un adorno: es lo que convierte la promesa en algo comprobable, y lo que hace que quien
+pegue el enlace a mano lo vea duplicado ahí mismo y lo quite. **No se escribe ninguna instrucción
+sobre marcadores** —`{{whatsapp_group_link}}` no existe—, porque explicar una sintaxis es
+exactamente el trabajo que esta decisión venía a quitar.
+
+**El diálogo de éxito dice lo que pasó, y solo lo que pasó** (BR-W06). Desde una boleta: **«¡Boleta
+asignada!»** y «{nombre} quedó registrado y la boleta 1234 / 5678 es suya.», con los **dos** números
+(BR-N11); con varias, «y 6 boletas son suyas», porque una lista de veinte pares no se lee. Desde «Mis
+clientes»: **«¡Cliente creado!»** y «{nombre} quedó registrado en tus clientes.», **sin mencionar
+ninguna boleta**, porque no hubo ninguna. Los botones son **«Cerrar»** e **«Invitar al grupo»**;
+nunca «Aceptar» ni «Listo» (§6).
+
+**Cuando no se puede invitar, se cambia la acción — no se ofrece una que va a fallar** (BR-W05). Sin
+grupo configurado, el botón dice **«Configurar WhatsApp»** y lleva a la pantalla, con la frase
+«Configura tu grupo de WhatsApp para poder invitar a tus clientes nuevos.» Con un teléfono que no
+sirve, se explica y **no hay segundo botón**: «El teléfono de este cliente no sirve para WhatsApp.
+Corrígelo en su ficha y podrás invitarlo.» Son **una frase por causa**, no una por pantalla, y cada
+una nombra la salida que esa persona puede tomar desde donde está. Y ninguna de las dos aparece
+cuando todo está en orden: explicar por qué no se puede algo que sí se puede es ruido.
+
+**Nunca se dice que el cliente entró al grupo, ni que el mensaje se envió** (BR-W08). La aplicación
+abre WhatsApp con el texto escrito y ahí termina: el vendedor pulsa Enviar, y si el cliente se une o
+no, **no lo sabemos**. Están prohibidos «Cliente agregado al grupo», «aceptó» y «se unió». Si el
+navegador bloquea la ventana se dice tal cual —«Tu navegador no dejó abrir WhatsApp. Permítelo y
+vuelve a tocar «Invitar al grupo».»— en vez de darla por abierta: es la misma regla de sin conexión
+(D-116).
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
@@ -1106,6 +1150,9 @@ castigo donde solo había una espera.
 | El texto de ejemplo del buscador, entero en el hero y corto en el encabezado | `src/features/catalog/components/CatalogSearch.tsx` (D-165) |
 | El nombre de la rifa que recoge el encabezado al bajar, y «Vendedor oficial» | `src/features/catalog/components/CatalogHeader.tsx` (D-164) |
 | Los dos estados vacíos del catálogo público | `src/app/(catalogo)/catalogo/[slug]/page.tsx` (D-164) |
+| Todos los textos de la invitación al grupo de WhatsApp: la sección de «Configuración», el campo del enlace, el interruptor, la vista previa y los dos diálogos de éxito | `src/features/whatsapp/invite.ts` (`WHATSAPP_COPY` e `INVITE_DIALOG_COPY`), **todos juntos** (D-176) |
+| El mensaje predeterminado que reciben los clientes | `DEFAULT_INVITE_MESSAGE`, en ese mismo archivo — **nunca** en la base de datos, para no repetir I-030 ni acabar con un texto distinto por vendedor (BR-W02) |
+| La frase que explica por qué hoy no se puede invitar | `INVITE_DIALOG_COPY.blocked`, una por **causa** —sin grupo, teléfono que no sirve— y no una por pantalla (D-176) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

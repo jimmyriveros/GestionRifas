@@ -11,6 +11,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { ClientOption } from '@/features/clients/queries'
+import {
+  ClientCreatedDialog,
+  type ClientCreatedOutcome,
+} from '@/features/whatsapp/components/ClientCreatedDialog'
+import type { WhatsappSettings } from '@/features/whatsapp/invite'
 
 import { AssignTicketsForm } from './AssignTicketsForm'
 
@@ -24,6 +29,9 @@ type AssignTicketDialogProps = {
    *  partir de la forma de pago de su vendedor. */
   minSalePrice: number
   clients: ClientOption[]
+  /** Configuracion de WhatsApp del vendedor (D-176). Sin ella no se ofrece
+   *  invitar: es lo que ocurre en el portal administrativo. */
+  whatsappSettings?: WhatsappSettings
 }
 
 /**
@@ -40,8 +48,15 @@ export function AssignTicketDialog({
   rafflePrice,
   minSalePrice,
   clients,
+  whatsappSettings,
 }: AssignTicketDialogProps) {
   const [open, setOpen] = useState(false)
+  /**
+   * El cliente recien creado, si la venta se hizo con la pestaña «Cliente
+   * nuevo». Vive AQUI y no dentro del formulario porque el formulario se
+   * desmonta al cerrarse este dialogo, y con el se iria el de exito.
+   */
+  const [created, setCreated] = useState<ClientCreatedOutcome | null>(null)
 
   return (
     <>
@@ -70,9 +85,23 @@ export function AssignTicketDialog({
             clients={clients}
             priceRange={{ basePrice: rafflePrice, minSalePrice }}
             onDone={() => setOpen(false)}
+            // Aqui SI se nombra la boleta: es una sola y ya la tenemos escrita.
+            ticketLabel={ticketNumbers}
+            onClientCreated={whatsappSettings ? setCreated : undefined}
           />
         </DialogContent>
       </Dialog>
+
+      {whatsappSettings ? (
+        <ClientCreatedDialog
+          outcome={created}
+          settings={whatsappSettings}
+          // No se navega a ninguna parte: ya estamos en el detalle de la boleta,
+          // que es donde se ve el resultado de la venta. `router.refresh()` lo
+          // hizo el formulario.
+          onClose={() => setCreated(null)}
+        />
+      ) : null}
     </>
   )
 }

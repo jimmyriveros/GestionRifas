@@ -622,6 +622,44 @@ es **la sentencia que se va a aplicar en producción**, no una copia que puede q
 que marca exactamente las vendidas, que no roza disponibles, borradores ni anuladas, que no mueve
 ni un campo financiero o de identidad, y que su auditoría queda con **actor nulo**.
 
+### 4.6 Configuración de WhatsApp del vendedor (`tests/db/whatsapp-settings.test.ts`, 15 pruebas)
+
+Cubre BR-W01..BR-W03 y BR-W07 desde la base, que es donde de verdad se decide. **Quién puede:** un
+vendedor sobre sí mismo sí; el personal, no —y la RPC lo dice con una frase legible—; y **nadie
+sobre otro**, lo que aquí se demuestra de una forma poco habitual: la función **no tiene parámetro de
+vendedor**, así que la prueba comprueba que dos vendedores llamándola en la misma sesión de pruebas
+acaban cada uno con **su** enlace, sin que ninguno pueda apuntar al otro.
+
+Las tres pruebas que importan más son las que atacan el camino que la RPC existe para cerrar: un
+vendedor intentando un `UPDATE` directo sobre la membresía **de otro** (cero filas), sobre **la
+suya** (cero filas también — por eso existe la función) y leyendo la de un vendedor ajeno a su equipo
+(cero filas). Si la segunda empezara a devolver una fila, alguien habría ampliado
+`memberships_update_staff` y con ella el rol, el estado y la ganancia.
+
+**Los CHECK se prueban con la clave de servicio, a propósito.** La service role omite la RLS pero
+**no** los CHECK, así que es la única forma de demostrar que el estado incoherente —«uso mi mensaje»
+sin mensaje, o un enlace que no es de WhatsApp— no puede existir venga por donde venga, y no solo
+cuando se pasa por la pantalla.
+
+### 4.7 La invitación en el navegador (`whatsapp-invitacion*.spec.ts`, 15 pruebas)
+
+**No se abre WhatsApp en ninguna prueba, y no es por comodidad.** `wa.me` es una web de terceros: la
+prueba no tiene por qué tener internet, y esperar a que una navegación externa se comprometa es lo
+que hacía fallar la primera versión de esta suite (`popup.url()` devolvía `about:blank`).
+`spyOnWindowOpen` sustituye `window.open` con `addInitScript` y **devuelve un objeto, no `null`** —con
+`null`, la aplicación creería que el navegador bloqueó la ventana y recorrería otro camino—. Con eso
+se puede afirmar exactamente lo que interesa: que la dirección lleva el teléfono **normalizado con su
+indicativo** y el mensaje **con el enlace del grupo dentro**.
+
+Lo demás que solo se ve en un navegador: que el diálogo **no se cierra** con `Escape`, pulsando el
+fondo ni con una «X» que no existe —y que «Cerrar» **sí** lo cierra, que es la otra mitad de la
+regla—; que dice cosas distintas en cada flujo, incluida la que **no** dice («boleta» no aparece
+cuando se creó un cliente a secas); y que sin grupo configurado el botón cambia, lleva a
+«Configuración» y **el cliente recién creado sigue en la cartera**.
+
+En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
+que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
+
 ### 5.4 Los tres botones del catálogo (`catalogo-panel*.spec.ts`, 22 pruebas)
 
 **El menú nativo del sistema no existe dentro de un navegador de pruebas.** Pulsar «Compartir» en

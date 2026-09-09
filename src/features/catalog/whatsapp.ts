@@ -1,45 +1,25 @@
 /**
- * El enlace de WhatsApp del boton «Solicitar» (BR-K09).
+ * Lo que solo entiende el catalogo publico: el saludo al vendedor y la peticion
+ * de una boleta (BR-K09).
  *
  * Logica PURA: la usan la pagina publica (servidor), el formulario de
  * configuracion (navegador) y las pruebas. Es un enlace normal —`https://wa.me/…`—
  * y no necesita ninguna dependencia nueva: abrirlo no registra una venta, no
  * cambia el estado de la boleta, no crea un cliente y no reserva nada.
+ *
+ * NORMALIZAR EL TELEFONO Y ARMAR EL ENLACE YA NO ESTAN AQUI. Eso es comun a
+ * todo el proyecto y vive en `lib/whatsapp.ts` desde D-176, porque la
+ * invitacion al grupo del vendedor necesita exactamente lo mismo y la
+ * alternativa era duplicarlo. Se reexportan las tres piezas que el catalogo
+ * usaba para no cambiar los sitios que ya las pedian aqui.
  */
 
-import { digitsOnly } from '@/lib/search'
-
-/** Digitos de un movil colombiano sin indicativo: «3001234567». */
-const NATIONAL_MOBILE_DIGITS = 10
-const COLOMBIA_COUNTRY_CODE = '57'
-
-/**
- * Deja un telefono como lo guarda la columna: solo digitos, con indicativo.
- *
- * Se le anade el `57` a un movil colombiano de diez cifras porque es lo que la
- * gente escribe —«3001234567»— y porque esta aplicacion opera en un solo pais
- * (CLAUDE.md 6: COP, `America/Bogota`). Cualquier otra longitud se respeta tal
- * cual: quien escriba un numero de otro pais con su indicativo obtiene lo que
- * escribio, y si no cumple el formato lo rechaza el CHECK de la base.
- *
- * Devuelve `null` cuando no queda nada utilizable, para que quien llame decida
- * si eso es un error de formulario o simplemente un campo vacio.
- */
-export function normalizeWhatsappNumber(raw: string): string | null {
-  const digits = digitsOnly(raw)
-  if (digits === '') return null
-  if (digits.length === NATIONAL_MOBILE_DIGITS && digits.startsWith('3')) {
-    return `${COLOMBIA_COUNTRY_CODE}${digits}`
-  }
-  return digits
-}
-
-/** Lo mismo que exige el CHECK `memberships_public_whatsapp_format` (0043). */
-export const WHATSAPP_REGEX = /^[1-9][0-9]{7,14}$/
-
-export function isValidWhatsappNumber(value: string): boolean {
-  return WHATSAPP_REGEX.test(value)
-}
+export {
+  isValidWhatsappNumber,
+  normalizeWhatsappNumber,
+  whatsappUrl,
+  WHATSAPP_REGEX,
+} from '@/lib/whatsapp'
 
 /**
  * Como se saluda al vendedor en el mensaje: «Hola, Laura».
@@ -87,13 +67,3 @@ export function catalogWhatsappMessage(params: {
  * que este catalogo viene a quitarle. El unico camino a WhatsApp es «Solicitar»,
  * y ese SI nombra la boleta por sus dos numeros.
  */
-
-/**
- * El enlace completo.
- *
- * `encodeURIComponent` y no `URLSearchParams`: este ultimo codifica el espacio
- * como `+`, que WhatsApp muestra literalmente dentro del mensaje.
- */
-export function whatsappUrl(whatsappNumber: string, message: string): string {
-  return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
-}

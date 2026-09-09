@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { ClientOption } from '@/features/clients/queries'
+import type { WhatsappSettings } from '@/features/whatsapp/invite'
 import { BULK_SELECTION_MAX } from '@/lib/constants'
 
 import { resolveTicketSelection } from '../actions'
@@ -94,6 +95,7 @@ export function TicketSelectionToolbar({
   sellers = [],
   clients = [],
   rafflePrices,
+  whatsappSettings,
 }: {
   portal: 'owner' | 'seller'
   /** Boletas que coinciden con los filtros actuales, no las de esta pagina. */
@@ -102,6 +104,13 @@ export function TicketSelectionToolbar({
   sellers?: { id: string; fullName: string }[]
   clients?: ClientOption[]
   rafflePrices: Record<string, number>
+  /**
+   * Configuracion de WhatsApp del vendedor (D-176). Solo la pasa el portal del
+   * vendedor: en el administrativo no se crean clientes, asi que no hay a quien
+   * invitar. Viaja de la pagina hasta `BulkAssignDialog` sin tocar el contexto
+   * de seleccion, que no tiene nada que ver con esto.
+   */
+  whatsappSettings?: WhatsappSettings
 }) {
   const selection = useTicketSelection()
   const [dialog, setDialog] = useState<BulkAction | null>(null)
@@ -413,6 +422,7 @@ export function TicketSelectionToolbar({
           onOpenChange={(open) => setDialog(open ? 'assign' : null)}
           clients={clients}
           rafflePrices={rafflePrices}
+          whatsappSettings={whatsappSettings}
         />
       ) : null}
     </>

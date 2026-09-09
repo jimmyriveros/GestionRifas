@@ -30,6 +30,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 | | |
 |---|---|
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
+| **Invitar al grupo de WhatsApp** | Desde el 2026-09-08 (D-176, BR-W01..BR-W08) cada vendedor guarda **su** grupo de WhatsApp en **«Configuración»** (`/seller/settings`, en el menú del avatar y **solo para vendedores**), y al registrar un cliente nuevo un diálogo le ofrece **invitarlo** con el mensaje ya escrito. **El enlace del grupo NUNCA va dentro del texto**: el vendedor escribe prosa y el sistema lo añade al final, así que no hay marcador que se pueda romper (BR-W04) — **no reintroduzcas `{{whatsapp_group_link}}`**. El diálogo **no se cierra** con `Escape`, pulsando fuera ni con una «X», y WhatsApp se abre **solo con un clic**. Migración **`0050`**: tres columnas en `memberships` y la RPC `set_seller_whatsapp_settings`, que **no recibe identificador de vendedor** — `memberships_update_staff` **no se amplía** (BR-W07). **NO hay integración con WhatsApp**: es un enlace `wa.me` y lo envía la persona. **Sin desplegar y sin aplicar al proyecto real** |
 | **`cn` y los roles tipográficos** | Desde el 2026-09-08 (D-172, `I-099` cerrada) `cn` distingue un **rol tipográfico** de un **color**. Antes no: `tailwind-merge` tomaba `text-heading-*`, `text-metric-*`, `text-label-*`… por clases de color y **descartaba una de las dos en silencio**. En producción eso significa hoy que **los errores de formulario no salen en rojo**, los **botones miden 16 px en vez de 14**, las **insignias 14 en vez de 12**, el texto secundario de siete componentes **no está atenuado** y **`/seller/team` se desborda 14 px a 320 px**. El arreglo es una línea de configuración en `src/lib/utils.ts`; **hay un solo ayudante de composición de clases** y una prueba lee `globals.css` para que la lista de roles no se separe de la hoja de estilos. **Sin desplegar** |
 | **«Estado de cobro» del vendedor** | Desde el 2026-09-08 (D-171, afinado el mismo día por D-173) «Resumen financiero» y «Cobranza» son **una sola sección** a lo ancho del panel: el inventario **operativo** en el encabezado —**«N boletas activas»**, que es exactamente `disponibles + vendidas`—, cuatro cifras de dinero —**Total vendido · Ya cobraste · Falta cobrar · Avance del cobro**— con su barra, y debajo el reparto por estado de pago en dos grupos, **Falta cobrar** («Sin pagos» y «Con abonos») y **Pagadas**, con la igualdad `$44.760.000 + $8.700.000 = $53.460.000` **escrita a la vista**. Ese reparto es una **derivación exacta** garantizada por `payment_status` y los CHECK de `tickets`; si los datos no la sostienen, **no se pinta ninguna cifra por estado**. **Ninguna consulta, migración ni regla cambia.** El valor de venta de las boletas con abonos —la cifra que se leía como dinero abonado y no lo era— **ya no se escribe en ningún sitio**. El indicador **«Recaudado»**, que sí depende del selector de fechas, sigue fuera — y desde D-175 vive **dentro de la tarjeta de tendencia**, con el selector de período al lado. **Sin desplegar** |
 | **Panel del vendedor, recompuesto** | Desde el 2026-09-08 (D-175) el panel se lee en **tres niveles**: «Estado de cobro» a ancho completo y **lo primero**; debajo, «Mis boletas» con los accesos rápidos, el catálogo con la ganancia y el recuadro de loterías; al final, lo recaudado del período con su tendencia, los últimos abonos y el ofrecimiento de instalar. **Se retiran las tarjetas «Recaudado», «Por cobrar» y «Cobranza»** —las dos últimas repetían cifras de «Estado de cobro»— y el **selector de período** se muda dentro de «Recaudado», que es la única región que gobierna. Rejilla de **12 columnas** con anchos medidos (7/5 y 12), y **parejas propias en tableta**. **Ninguna consulta, cálculo, regla, migración, token ni componente del sistema de diseño cambia.** **Sin desplegar** |
@@ -134,7 +135,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — el panel del vendedor, recompuesto en tres niveles, DESPLEGADO (D-175, 2026-09-08)
+## 1.a Último relevo significativo — invitar al grupo de WhatsApp, SIN DESPLEGAR (D-176, BR-W01..BR-W08, 2026-09-08)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Después de registrar un cliente nuevo, el vendedor puede invitarlo a su grupo de WhatsApp con el mensaje ya escrito.** Migración **`0050`**: tres columnas en `memberships` y la RPC `set_seller_whatsapp_settings`. Pantalla nueva **`/seller/settings`** («Configuración»), entrada en el menú del avatar **solo para vendedores**, y un diálogo de éxito que **no se cierra sin querer** en los tres sitios donde se crea un cliente —detalle de boleta, venta masiva y «Mis clientes»—. **NO hay integración con WhatsApp**: se abre un enlace `wa.me` y el vendedor pulsa Enviar. **Cero dependencias, cero scripts externos, cero peticiones nuevas en la navegación normal.** Queda **fuera a propósito** la trazabilidad de §16 del encargo: ver «Pendiente» |
+| Archivos | **Nuevos:** `supabase/migrations/0050_seller_whatsapp_invite.sql`, `src/lib/whatsapp.ts`, `src/features/whatsapp/{invite,schemas,queries,actions}.ts`, `src/features/whatsapp/components/{ClientCreatedDialog,WhatsappSettingsForm}.tsx`, `src/app/(protected)/seller/settings/page.tsx`. **Tocados:** `features/catalog/whatsapp.ts` (ahora reexporta lo genérico), `UserMenu.tsx`, `clients/actions.ts` y `tickets/assign/actions.ts` (devuelven el cliente creado), `ClientForm.tsx`, `AssignTicketsForm.tsx`, `AssignTicketDialog.tsx`, `BulkAssignDialog.tsx`, `TicketSelectionToolbar.tsx`, las tres `page.tsx` del vendedor que aportan la configuración, `database.types.ts`, `scripts/verify-remote.ts`. **Pruebas:** `whatsapp-invite` (unitaria), `whatsapp-settings` (BD), `whatsapp-invitacion` y `whatsapp-invitacion-movil` (E2E), más `catalog.test.ts`, `fixtures.ts` y tres specs existentes actualizadas |
+| Reutilización | `AlertDialog` **ya traía** lo que pedía el encargo —sin «X» y sin cierre al pulsar fuera—, incluido `AlertDialogMedia` para el icono de éxito: solo hubo que bloquear `Escape`. `normalizeWhatsappNumber` y `whatsappUrl` ya existían en `features/catalog` desde D-159 y **resolvían enteros los §11 y §12 del encargo**; subieron a `lib/whatsapp.ts` y catalog los reexporta, así que **ningún importador cambió**. `memberships` como sitio de la configuración es el patrón que fijó `0043`; la RPC `SECURITY DEFINER` con guarda interna, el de `team_update_member` y `set_ticket_clearance_delivery`. `size="touch"`, `StatusBadge`, `PageHeader`, `Card`, `Switch`, `Textarea`: todo del sistema de diseño |
+| Decisiones | **D-176.** Lo que no es evidente: **(a)** **el enlace del grupo NO forma parte del texto del mensaje** — se descartó el marcador `{{whatsapp_group_link}}` que pedía el encargo porque crea una clase entera de errores (borrarlo, duplicarlo, partirlo) y obliga a explicar una sintaxis; el vendedor escribe prosa y el enlace se añade al final, y la **vista previa** lo demuestra en pantalla; **(b)** **no se amplía `memberships_update_staff`** — hacerlo para tres columnas habría abierto `role`, `is_active`, `parent_seller_id` y la ganancia; **(c)** la RPC **no recibe identificador de vendedor**, así que no hay dato que manipular; **(d)** el mensaje predeterminado vive en el código, no repetido por membresía; **(e)** apagar el interruptor **no borra** el texto propio |
+| Verificación | `typecheck` · `lint` (2 avisos preexistentes, ajenos) · **845/845** unitarias · `build` ✅. `test:db` **827/827**. E2E nuevas: **12/12** escritorio y **3/3** móvil. **Suite E2E completa: 557/559** sobre base y servidor recién creados, y los 2 se comprobaron uno a uno en vez de darlos por conocidos: `back-navigation` es **I-075** (caché fría; **9/9 en caliente**) y `reports.spec.ts:305` es **I-090** (acumulación; **pasa en aislamiento**). **QA visual con sesión real a 320 px**: diálogo de 274 px, cero desbordamiento, botones apilados con la acción principal arriba |
+| Advertencias | **1)** **El guardián de privilegios hizo su trabajo, y hay que darle de comer.** `tests/db/catalog.test.ts` y `scripts/verify-remote.ts` llevan **dos listas cada uno** de funciones ejecutables por `authenticated`; una RPC nueva falla hasta que se declara en las cuatro. Es la red de I-020/I-078 y **no se debe silenciar**. **2)** **Crear un cliente ya no navega al guardar, navega al cerrar el diálogo.** Rompió tres specs existentes; el ayudante compartido es `closeClientCreatedDialog` en `fixtures.ts`. Cualquier prueba nueva que cree un cliente en el portal del vendedor tiene que pasar por él. **3)** **Los botones de un `AlertDialog` miden 36 px por defecto**, por debajo de la diana táctil: lo destapó la prueba de 320 px, no la vista. Se arregló con `size="touch"` **en este diálogo**; `ConfirmDialog` sigue como estaba y **no se tocó** (fuera de alcance). **4)** Una prueba E2E **no debe abrir `wa.me` de verdad**: se sustituye `window.open` por un espía (`spyOnWindowOpen`), porque esperar a que una navegación externa se comprometa es lo que hacía fallar la primera versión |
+| Pendiente | **SIN DESPLEGAR y SIN APLICAR al proyecto real.** La migración `0050` es aditiva y no toca nada existente, pero **no se ha ejecutado en producción**: hace falta autorización, respaldo previo y `verify:remote`. **La trazabilidad de la invitación (§16 del encargo) se dejó fuera a propósito**, y el propio encargo pedía analizarlo antes: lo único registrable es «abrió WhatsApp», que no es «invitó» ni «se unió», y sería una columna, una RPC y una pantalla para un dato que hoy no consume nadie. Está argumentado en D-176; se puede pedir aparte. Lo de siempre: I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030, I-059, I-060 |
+| Git | Rama **`main`**, sobre `cb011e6`. `CorrecionesLoterias.txt` y `prueba-abono.csv` siguen sin seguimiento y **sin tocar** |
+
+---
+## 1.a.0 Relevo anterior — el panel del vendedor, recompuesto en tres niveles, DESPLEGADO (D-175, 2026-09-08)
 
 | Campo | Estado |
 |---|---|
@@ -1345,7 +1360,9 @@ organizations ─┬─ memberships (profile_id, organization_id, role, is_activ
                │                parent_seller_id → equipos, 0022;
                │                commission_model, fixed_commission_amount → 0031;
                │                public_slug, public_catalog_enabled,
-               │                public_whatsapp_number, public_raffle_id → 0043)
+               │                public_whatsapp_number, public_raffle_id → 0043;
+               │                whatsapp_group_url, whatsapp_use_custom_message,
+               │                whatsapp_custom_message → 0050)
                ├─ notifications (recipient_profile_id, kind, data, read_at; 0023)
                ├─ commission_tiers    (min_tickets, rate; 0024)
                ├─ seller_commissions  (raffle_id, seller_id, tickets_paid, rate, earned,
@@ -1394,7 +1411,7 @@ profiles 1─1 auth.users
 - Una organización nunca se queda sin Owner activo (`0016`, aplicada en local y en producción).
 
 **Funciones a usar en vez de DML directo:**
-`assign_ticket` · `create_payment` · `void_payment` · `update_payment_allocation` · `update_ticket_sale_price` · `reassign_ticket_client` · `release_ticket_client` · `set_ticket_clearance_delivery` · `match_lottery_result` (solo `service_role`) · `bulk_create_tickets` · `approve_tickets` ·
+`assign_ticket` · `create_payment` · `void_payment` · `update_payment_allocation` · `update_ticket_sale_price` · `reassign_ticket_client` · `release_ticket_client` · `set_ticket_clearance_delivery` · `set_seller_whatsapp_settings` · `match_lottery_result` (solo `service_role`) · `bulk_create_tickets` · `approve_tickets` ·
 `cancel_ticket` · `bulk_assign_tickets` · `bulk_cancel_tickets` · `bulk_change_ticket_seller` ·
 `bulk_delete_tickets`. Todas validan permisos internamente y auditan. Son `SECURITY DEFINER`: existen
 precisamente para hacer cosas que la RLS del usuario prohíbe.
@@ -1606,6 +1623,20 @@ features/catalog/     catalogo publico de un vendedor (D-159, D-161). share.ts a
                     tipo de retorno de las funciones `public_catalog_*` (0043),
                     no una politica. Si vas a tocarla, lee SECURITY 4.10 antes.
                     La tarjeta publica NO reutiliza TicketCardList a proposito
+features/whatsapp/  invitar a un cliente nuevo al grupo del vendedor (D-176). invite.ts
+                    es PURO y tiene TODO: el mensaje predeterminado, como se arma el
+                    mensaje final, que enlace vale, por que no se puede invitar y
+                    TODOS los textos. EL ENLACE DEL GRUPO NUNCA VA DENTRO DEL TEXTO:
+                    se anade al final, asi que no hay marcador que se pueda romper
+                    —no reintroduzcas {{whatsapp_group_link}}—.
+                    ClientCreatedDialog lo montan los TRES sitios donde nace un
+                    cliente (AssignTicketDialog, BulkAssignDialog, ClientForm) y
+                    SIEMPRE fuera del dialogo de venta: dentro se desmontaria con el.
+                    La escritura es `set_seller_whatsapp_settings`, que no recibe
+                    vendedor. NO hay integracion con WhatsApp y no la habra aqui
+lib/whatsapp.ts     normalizar un telefono y armar un `wa.me`. Lo comparten el catalogo
+                    publico (BR-K09) y la invitacion (BR-W04). features/catalog/
+                    whatsapp.ts lo REEXPORTA, asi que los dos nombres funcionan
 features/tour/      recorrido guiado: pasos y textos en tours.ts, nada disperso (D-074)
 features/reports/   ReportsView (los dos portales) · ReportTable · ReportNav · ReportFilters
                     ExportCsvButton
@@ -1668,7 +1699,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-378 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+827 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 
@@ -1686,9 +1717,13 @@ typecheck + lint + unitarias + build.
 npm run test:e2e
 ```
 
-213 pruebas end-to-end (Playwright) que recorren los dos portales con sesiones reales, en escritorio y
-en móvil (Pixel 7). Levanta solo el servidor con `npm run dev:local`; **exigen la base local recién
-sembrada** (`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
+Recorren los dos portales con sesiones reales, en escritorio y en móvil (Pixel 7). Levanta solo el
+servidor con `npm run dev:local`; **exigen la base local recién sembrada**
+(`npm run db:reset && npm run seed:local`). Fueron las que destaparon I-011.
+
+⚠️ **En frío, la primera prueba del proyecto `escritorio` falla siempre** —`back-navigation`, I-075—
+porque un solo presupuesto de 60 s paga la compilación bajo demanda de cuatro rutas. No es un fallo
+del código: repite con `.next/dev` ya poblado antes de culpar a un cambio.
 
 ---
 

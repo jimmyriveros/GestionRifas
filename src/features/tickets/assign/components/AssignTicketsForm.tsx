@@ -23,6 +23,7 @@ import {
   type ClientFormInput,
 } from '@/features/clients/schemas'
 import { useRemoteSearch } from '@/features/search/use-remote-search'
+import type { ClientCreatedOutcome } from '@/features/whatsapp/components/ClientCreatedDialog'
 import { todayBogota } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 import { SEARCH_MIN_CHARS } from '@/lib/search'
@@ -59,6 +60,8 @@ export function AssignTicketsForm({
   showSummary = true,
   priceRange = null,
   onUnitPriceChange,
+  ticketLabel = null,
+  onClientCreated,
 }: {
   ticketIds: string[]
   /** Suma del precio vigente de la rifa de cada boleta. */
@@ -77,6 +80,18 @@ export function AssignTicketsForm({
    *  mismo modal y el de arriba se quedaria con el precio sin rebajar. El
    *  valor sigue viviendo aqui: esto solo lo comunica. */
   onUnitPriceChange?: (unitPrice: number | null) => void
+  /** Los dos numeros de la boleta, ya formateados (BR-N11). Solo lo hay cuando
+   *  se vende UNA: con veinte no se nombra ninguna, se dice cuantas. */
+  ticketLabel?: string | null
+  /**
+   * Aviso de que se creo un cliente nuevo (D-176). Lo escucha quien monta el
+   * dialogo de venta, NO este formulario: el dialogo de exito tiene que
+   * sobrevivir al cierre de este, y aqui dentro se desmontaria con el.
+   *
+   * Sin este callback —portal administrativo— el comportamiento es el de
+   * siempre: cerrar y refrescar.
+   */
+  onClientCreated?: (outcome: ClientCreatedOutcome) => void
 }) {
   const router = useRouter()
   const [tab, setTab] = useState<'existing' | 'new'>(clients.length > 0 ? 'existing' : 'new')
@@ -176,7 +191,17 @@ export function AssignTicketsForm({
       const asignadas =
         result.data.count === 1 ? 'boleta asignada' : `${result.data.count} boletas asignadas`
       toast.success(`${values.name} registrado y ${asignadas}.`)
+
+      // Cerrar ESTE dialogo y avisar de que hay un cliente nuevo. El orden no
+      // importa —los dos son estado de React— pero el dialogo de exito NO se
+      // monta aqui: mira la nota de `onClientCreated`.
       onDone()
+      onClientCreated?.({
+        clientId: result.data.client.id,
+        clientName: result.data.client.name,
+        clientPhone: result.data.client.phone,
+        tickets: { count: result.data.count, label: ticketLabel },
+      })
       router.refresh()
     })
   }
