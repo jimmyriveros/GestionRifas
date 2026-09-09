@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (D-182, D-183, 2026-09-09)** | **857 ✅** en 49 archivos | — (no se tocó la base) | **escritorio 445** con los 2 de **I-090** · **móvil 130/130**. Doce combinaciones de ancho y tema sin desbordamiento; **I-107** cerrada de rebote | ✅ | ✅ **SIN DESPLEGAR** |
+| **Post-9 vigente (D-182, D-183, 2026-09-09)** | **857 ✅** en 49 archivos | — (no se tocó la base) | **escritorio 445** con los 2 de **I-090** · **móvil 130/130**. Doce combinaciones de ancho y tema sin desbordamiento; **I-107** cerrada de rebote | ✅ | ✅ **DESPLEGADO** (`523b4bc`) |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b30e943`)** | — | **Sin migración**: cero diferencias en `supabase/`, sonda antes/después idéntica | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `fd3a1e1f16b1` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b46c24f`)** | — | **Sin migración**: cero diferencias en `supabase/` | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `ed0c0f468ac0` servido en 1 de 15 fragmentos |
@@ -9722,5 +9722,83 @@ que un agente hace, así que la prueba de que el rediseño está servido es el *
 build**, no una captura del panel con datos reales. **Quien lo vea:** entrar como vendedor →
 `/seller/dashboard` → arriba deben estar «Comparte tu catálogo» y «Loterías», con «Ver detalle» a la
 derecha del título de la segunda.
+
+---
+
+## Despliegue a producción del panel administrativo (D-182, D-183) — 2026-09-09
+
+Las **cuatro** etapas juntas. Sin migración, sin variables nuevas y sin tocar la base.
+
+### a. Qué se publicó
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | `523b4bcf1eddc827ed555d50611b6cda43849f29` |
+| Commit anterior en producción | `6b76e34e95a8adbe01335eb9b10f55e66b909005` |
+| Commits | `23063bf` · `3f653b7` · `ba8cdf8` · `523b4bc` |
+| Integración | **fast-forward**, sin merge, sin reescritura, sin force |
+| Alcance | **15 archivos**, +1.086/−477 (10 de producto y pruebas, 5 de documentación) |
+| `supabase/` y `scripts/` | **0 líneas de diferencia** |
+| Configuración y dependencias | **0 líneas de diferencia** en `package.json`, `package-lock.json`, `next.config.ts`, `vercel.json`, `tsconfig.json`, `.github/` y `.env.example` |
+| Despliegue Vercel | `dpl_21taEfbycPDNwcpQ6aDtuRwoEix1` — **READY en 30 s**, `aliasError: null` |
+| Punto de reversión | `dpl_4zMYWup2V5PPRt9MWZAbZgxgKpN2` (`6b76e34`) |
+
+### b. Que el dominio sirve ESTE código, no solo que Vercel lo construyó
+
+| Comprobación | Resultado |
+|---|---|
+| Identificador de versión nuevo `0a985f866b45` | **1 de 15** fragmentos JS |
+| Identificador anterior `389ba2cda690` | **0 de 15** — desapareció |
+| CI (run 34412462380) | **2/2** ✅, incluido el job que aplica las **50 migraciones desde cero** |
+| `verify:remote` | **17/17** ✅ |
+
+### c. En vivo, solo lectura
+
+| Comprobación | Resultado |
+|---|---|
+| `/login`, `/offline` | **200** |
+| `/` y las **15** rutas protegidas | **307** — ningún 5xx |
+| `/api/lottery/sync` sin secreto | **401** |
+| Catálogo inexistente | **404** |
+| Cabeceras de seguridad en `/login` | **7/7** |
+| Secretos en el bundle servido | **0** en **975 KB** (`service_role`, `SUPABASE_SERVICE_ROLE`, `CRON_SECRET`, `sb_secret`, cadenas `postgres://`) |
+| Reglas `.dark` en la CSS servida | **59** |
+| Claro y oscuro a 375 px | fondo `lab(100)` → `lab(2.75)`, texto invertido; **0 desbordamiento** en los dos |
+| Errores de ejecución tras el despliegue | **0** |
+
+### d. La base de producción, antes y después: no se tocó
+
+| Dato | Valor |
+|---|---|
+| Migraciones aplicadas | **50**, última **`0050`** — la misma de antes de este trabajo |
+| Boletas · clientes · pagos · rifas | 1.034 · 554 · 364 · 2 |
+| Abonado | $33.430.000 |
+| Bitácora | 4.974 |
+
+⚠️ **Estas cifras son mayores que las del despliegue anterior de hoy** (1.033 boletas, 550 clientes,
+362 pagos, $33.290.000, 4.953 de bitácora) **porque hay actividad real de personas usando la
+aplicación**, no por efecto de este despliegue: no hay migración, no hay `db push` y el código nuevo
+no escribe ni una fila al cargarse. Lo que prueba que la base no se tocó es el **número de migración,
+idéntico**.
+
+### e. Lo que NO se comprobó, y se dice
+
+**No se entró al panel de producción con una cuenta real.** Escribir una contraseña queda fuera de lo
+que un agente hace, así que la prueba de que el rediseño está servido es el **identificador del
+build**, no una captura del panel con datos reales. **Y aquí pesa más que en despliegues anteriores:**
+lo que cambió vive **entero** tras el inicio de sesión, así que ninguna de las comprobaciones en vivo
+de arriba mira el rediseño.
+
+**Quien lo vea, en `/owner/dashboard` como dueño o administrador:**
+
+1. **«Resumen de cobranza» abre la pantalla**, por delante del recuadro de loterías.
+2. Dentro de esa tarjeta está el reparto **«Boletas vendidas según su pago»**, con «Deben», «Todavía
+   deben», «Ya abonaron» y «Cobrado», y cada bloque **enlaza a `/owner/tickets` filtrado**.
+3. Dice **«Falta cobrar»**, sin «Te».
+4. **No** están «Pendientes de aprobación» (la cuenta el aviso ámbar) ni «Boletas creadas
+   recientemente»; «Total de boletas» dice **«Registradas»**.
+5. En una ventana ancha, **«Resumen por vendedor» e «Inventario» comparten fila**; la tabla ordena por
+   **saldo pendiente** y enseña cinco, con «Los 5 con más saldo pendiente, de N» si hay más.
+6. En el teléfono, **nada se sale de lado** y la tabla se desplaza **dentro de su recuadro**.
 
 ---

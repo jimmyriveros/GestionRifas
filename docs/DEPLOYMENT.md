@@ -258,6 +258,47 @@ desbordamiento horizontal** a 1360 y a 375; **0 errores de ejecución** en Verce
 > sobre ese mismo commit y el identificador de versión encontrado en el JavaScript del dominio — que
 > es exactamente lo que admite §6.1. La revisión visual autenticada queda para una persona.
 
+### 3.2.c Release del panel administrativo — 2026-09-09
+
+**Cuatro commits juntos, y la base de datos sin tocar.**
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`523b4bcf1eddc827ed555d50611b6cda43849f29`** |
+| Commit anterior en producción | `6b76e34e95a8adbe01335eb9b10f55e66b909005` |
+| Integración | **fast-forward** — `main` estaba 4 commits por delante y nada en producción faltaba en local; sin merge, sin reescritura, sin force |
+| Commits | `23063bf` (etapa 1), `3f653b7` (etapa 2), `ba8cdf8` (etapa 3), `523b4bc` (documentación) |
+| Despliegue Vercel | `dpl_21taEfbycPDNwcpQ6aDtuRwoEix1` — READY en **30 s**, `aliasError: null` |
+| Despliegue anterior (**punto de reversión**) | `dpl_4zMYWup2V5PPRt9MWZAbZgxgKpN2` |
+| **Migraciones** | **NINGUNA.** `supabase/` y `scripts/` con **0 líneas de diferencia**. Siguen siendo 50, hasta `0050` |
+| Variables de entorno nuevas | **ninguna** — `.env.example` sin cambios y **cero** `process.env` nuevos en el diff |
+| Dependencias y configuración | **sin cambios** — `package.json`, `package-lock.json`, `next.config.ts`, `vercel.json`, `tsconfig.json` y `.github/` con 0 líneas de diferencia |
+
+**Qué entró:** 15 archivos, +1.086/−477 — 10 de producto y pruebas, 5 de documentación. El rediseño del
+panel del dueño en tres etapas (D-182, D-183): el dinero pasa de cuarto a primero, absorbe el reparto por
+estado de pago —la **misma** pieza que el vendedor— y «Resumen por vendedor» e «Inventario» comparten fila
+en 7/5 desde `lg`. Se retira `recentTickets` **y su consulta**.
+
+**Validación previa:** `verify` en verde (typecheck, lint 0 errores, **857/857** unitarias, build) y E2E
+**escritorio 445** y **móvil 130/130** — los 2 fallos son el par **I-090** ya documentado. **CI 2/2** sobre
+el commit desplegado, incluido el job que aplica las 50 migraciones **desde cero**. `verify:remote` **17/17**.
+
+**Verificación en vivo:** identificador de versión **`0a985f866b45`** servido por el dominio (1 de 15
+fragmentos) y el anterior (`389ba2cda690`) **desaparecido**; `/login` y `/offline` en 200, **15 rutas
+protegidas en 307**, el cron sin secreto en 401, un catálogo inexistente en 404 y **ningún 5xx**; **7/7**
+cabeceras de seguridad; **0 secretos** en 975 KB servidos; **59 reglas `.dark`** en la CSS servida, claro y
+oscuro correctos y **0 desbordamiento horizontal** a 375 px; **0 errores de ejecución** tras el despliegue.
+
+**La base de producción no se tocó, y se comprobó:** la sonda de solo lectura da **50 migraciones, última
+`0050`** — la misma de antes. Las cifras de negocio (1.034 boletas, 554 clientes, 364 pagos, $33.430.000
+abonados, 4.974 de bitácora) son **mayores** que las del despliegue anterior porque hay **actividad real de
+personas usando la aplicación**, no por efecto de este despliegue, que no escribe ni una fila.
+
+> **Lo que este release NO verificó:** el panel rediseñado **en vivo**. Vive tras el inicio de sesión y **un
+> agente no introduce contraseñas**, así que la evidencia de que el código nuevo está servido es el SHA
+> desplegado, el CI en verde sobre ese commit y el identificador de versión encontrado en el JavaScript del
+> dominio — exactamente lo que admite §6.1. La revisión visual autenticada queda para una persona.
+
 ### 3.3 Despliegues futuros
 
 Cada `git push` a `main` que se decida subir dispara un build y despliegue a producción automático
