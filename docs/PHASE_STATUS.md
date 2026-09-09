@@ -24,7 +24,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   **Cero dependencias nuevas, cero scripts externos y cero peticiones añadidas en la navegación
   normal:** la configuración viaja con el HTML que ya se renderiza en servidor. **La trazabilidad de
   la invitación se dejó fuera a propósito** y está argumentada en D-176. **Sin desplegar y sin
-  aplicar al proyecto real.**
+  **APLICADA al proyecto real y DESPLEGADA** el mismo día.
   Antes, el mismo día: **`I-101` auditado y cerrado el mismo día** (D-174), y con el
   resultado contrario a la hipótesis: **el producto está bien y eran las pruebas las que estaban
   obsoletas**, por dos causas de dos olas distintas. Una exigía que el fondo de una opción **ya
