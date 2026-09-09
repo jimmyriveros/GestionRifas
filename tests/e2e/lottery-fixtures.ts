@@ -128,14 +128,24 @@ export function compactResultRow(page: Page) {
   return page.locator('[data-slot="lottery-compact-result"]')
 }
 
+/** El boton «Ver detalle», arriba a la derecha de la tarjeta (D-181). */
+export function detalleTrigger(page: Page) {
+  return page.locator('[data-slot="lottery-detail-trigger"]')
+}
+
+/** El panel que se despliega encima del contenido (D-181). */
+export function detallePanel(page: Page) {
+  return page.locator('[data-slot="lottery-detail"]')
+}
+
 /**
- * Despliega «Ver detalle» y espera a que se vea lo de dentro.
+ * Abre «Ver detalle» y espera a que el panel se vea de verdad.
  *
- * Es un `<details>` nativo: no hay JavaScript de la aplicacion detras, asi que
- * basta con activarlo. Se espera a una de las dos tarjetas grandes porque es lo
- * que las pruebas van a medir a continuacion.
+ * Desde D-181 no es un `<details>`: el panel se superpone al contenido y se
+ * cierra al tocar fuera, asi que lo mueve un componente cliente. Se espera a
+ * `toBeVisible` y no al atributo `open`, que ya no existe.
  */
 export async function abrirDetalle(page: Page): Promise<void> {
-  await page.locator('[data-slot="lottery-detail"] > summary').click()
-  await page.locator('[data-slot="lottery-detail"][open]').waitFor()
+  await detalleTrigger(page).click()
+  await detallePanel(page).waitFor({ state: 'visible' })
 }

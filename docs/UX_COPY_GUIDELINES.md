@@ -926,6 +926,12 @@ del menú lateral (D-131)—. El nombre accesible añade **«de las loterías»*
 misma pantalla hay un «Ver detalle de cobranza», y quien recorre los controles a ciegas no tiene la
 tarjeta delante para distinguirlos (D-114).
 
+**Y vive ARRIBA A LA DERECHA, no al pie** (D-181). Es donde se busca la acción de una tarjeta, y su
+sitio deja de depender de cuánto mida el contenido. Cabe con las dos palabras enteras hasta en 320 px
+—el encabezado mide lo mismo abierto que cerrado— porque ahí se retiró el **icono decorativo** del
+título: las dos filas ya llevan el suyo, y ese ancho lo usa ahora una acción de verdad. Es la regla
+de siempre —se recorta el píxel, nunca el término (D-114)— aplicada a lo que no dice nada.
+
 **Dos avisos NO se esconden ahí dentro**, y son los únicos: el **conflicto** —«La fuente oficial
 publicó otro número. Requiere verificación.»— porque la fila de al lado acaba de escribir ese número
 como si fuera el resultado, y los **cambios de programación** de los dos sorteos que se enseñan. Son
@@ -1171,7 +1177,7 @@ castigo donde solo había una espera.
 | Encabezado de la hora («Juega hoy a las», «Juega mañana a las», «Juega el jueves a las») | `LOTTERY_DASHBOARD_COPY.playsToday` / `playsTomorrow` / `playsOn` (D-167) |
 | «Sorteo 2862» y «Correspondiente al …» | `LOTTERY_DASHBOARD_COPY.drawNumber` y `referenceDay` (D-167) |
 | «Actualizado automáticamente cada día», al pie del recuadro | `LOTTERY_DASHBOARD_COPY.autoUpdate` (D-167) |
-| Los textos de la forma compacta: «Loterías», «Próxima», «Último resultado», «Ver detalle», «Ocultar detalle» y «de las loterías» | `src/features/lottery/dashboard.ts` (`compactTitle`, `upcomingRow`, `lastResultRow`, `showDetail`, `hideDetail`, `detailSubject`, D-180) |
+| Los textos de la forma compacta: «Loterías», «Próxima», «Último resultado», «Ver detalle», «Ocultar detalle» y «de las loterías» | `src/features/lottery/dashboard.ts` (`compactTitle`, `upcomingRow`, `lastResultRow`, `showDetail`, `hideDetail`, `detailSubject`, D-180). Los **pinta** `LotteryCompactCard.tsx`, que los recibe como props: los textos no se escriben dentro del componente cliente (D-181) |
 | El recuento corto de coincidencias | `compactMatchText`, en ese mismo archivo — se **calcula**, no se escribe suelto en la pantalla (D-180) |
 | Lo que anuncia el hueco del recuadro mientras llega — «Buscando los resultados oficiales…» | `LOTTERY_DASHBOARD_COPY.loading`, y lo pinta `LotteryResultsSection.tsx` (D-155) |
 | Nombre de la aplicación instalada y su descripción | `src/lib/pwa.ts` (D-115) |

@@ -1,16 +1,11 @@
-import {
-  CalendarDaysIcon,
-  ChevronDownIcon,
-  RefreshCwIcon,
-  TicketIcon,
-  TrophyIcon,
-} from 'lucide-react'
+import { CalendarDaysIcon, RefreshCwIcon, TicketIcon, TrophyIcon } from 'lucide-react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 import { EmptyState } from '@/components/data/EmptyState'
 import { Notice } from '@/components/feedback/Notice'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { LotteryCompactCard } from '@/features/lottery/components/LotteryCompactCard'
 import { LotteryScheduleBadge } from '@/features/lottery/components/LotteryScheduleBadge'
 import {
   LOTTERY_DASHBOARD_COPY as COPY,
@@ -657,130 +652,107 @@ function LotteryResultsCompact({
     .filter((draw, index, all) => all.findIndex((d) => d.scheduleId === draw.scheduleId) === index)
 
   return (
-    <Card
-      data-slot="lottery-results"
-      data-variant="compact"
-      className={cn('min-w-0 gap-4 py-4 md:py-5', className)}
+    <LotteryCompactCard
+      className={className}
+      title={COPY.compactTitle}
+      showLabel={COPY.showDetail}
+      hideLabel={COPY.hideDetail}
+      subject={COPY.detailSubject}
+      /*
+        El detalle se dibuja AQUÍ, en el servidor, y baja como un nodo ya hecho:
+        el componente cliente solo decide si se ve. Sin sorteos que enseñar no
+        se pasa nada, y entonces tampoco hay botón (D-181).
+      */
+      detail={
+        ready ? (
+          <LotteryResultsBody
+            upcoming={detailUpcoming}
+            results={results}
+            weekAlerts={ready.weekAlerts}
+            noDrawToday={ready.todayDraws.length === 0}
+            audience={audience}
+            ticketBasePath={ticketBasePath}
+            today={today}
+            now={now}
+            split="container"
+          />
+        ) : null
+      }
     >
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="flex min-w-0 items-center gap-2">
-          <TicketIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
-          <h2 className="text-heading-h4 min-w-0 break-words">{COPY.compactTitle}</h2>
-        </CardTitle>
-      </CardHeader>
+      {data.kind === 'error' ? (
+        <EmptyState title={COPY.errorTitle} description={COPY.errorDescription} />
+      ) : null}
 
-      <CardContent className="min-w-0 space-y-3">
-        {data.kind === 'error' ? (
-          <EmptyState title={COPY.errorTitle} description={COPY.errorDescription} />
-        ) : null}
+      {data.kind === 'empty' ? (
+        <EmptyState title={COPY.emptyTitle} description={COPY.emptyDescription} />
+      ) : null}
 
-        {data.kind === 'empty' ? (
-          <EmptyState title={COPY.emptyTitle} description={COPY.emptyDescription} />
-        ) : null}
+      {ready ? (
+        <>
+          <LotteryCompactRow
+            role="upcoming"
+            label={COPY.upcomingRow}
+            value={
+              nextUp && when ? (
+                <>
+                  {`${nextUp.lotteryLabel} · ${when.day}`}
+                  {when.time ? (
+                    <>
+                      {', '}
+                      {/* La hora entera o en la línea siguiente, nunca partida
+                          entre «p.» y «m.», que se lee como una errata. */}
+                      <span className="whitespace-nowrap">{when.time}</span>
+                    </>
+                  ) : null}
+                </>
+              ) : (
+                COPY.noDrawToday
+              )
+            }
+          />
 
-        {ready ? (
-          <>
-            <LotteryCompactRow
-              role="upcoming"
-              label={COPY.upcomingRow}
-              value={
-                nextUp && when ? (
-                  <>
-                    {`${nextUp.lotteryLabel} · ${when.day}`}
-                    {when.time ? (
-                      <>
-                        {', '}
-                        {/* La hora entera o en la línea siguiente, nunca partida
-                            entre «p.» y «m.», que se lee como una errata. */}
-                        <span className="whitespace-nowrap">{when.time}</span>
-                      </>
-                    ) : null}
-                  </>
-                ) : (
-                  COPY.noDrawToday
-                )
-              }
-            />
+          <LotteryCompactRow
+            role="result"
+            label={COPY.lastResultRow}
+            value={
+              last && last.winningNumber ? (
+                <>
+                  {last.lotteryLabel}
+                  {' · '}
+                  <span className="font-mono font-semibold tabular-nums">
+                    <span className="sr-only">{COPY.winningNumber} </span>
+                    {last.winningNumber}
+                  </span>
+                  {' · '}
+                  {compactMatchText(last)}
+                </>
+              ) : (
+                COPY.pending
+              )
+            }
+            footnote={last ? sourceLine(last) : null}
+          />
 
-            <LotteryCompactRow
-              role="result"
-              label={COPY.lastResultRow}
-              value={
-                last && last.winningNumber ? (
-                  <>
-                    {last.lotteryLabel}
-                    {' · '}
-                    <span className="font-mono font-semibold tabular-nums">
-                      <span className="sr-only">{COPY.winningNumber} </span>
-                      {last.winningNumber}
-                    </span>
-                    {' · '}
-                    {compactMatchText(last)}
-                  </>
-                ) : (
-                  COPY.pending
-                )
-              }
-              footnote={last ? sourceLine(last) : null}
-            />
+          {/* Un número en conflicto se avisa ARRIBA, nunca detrás del
+              desplegable: la fila de al lado lo acaba de escribir como si
+              fuera el resultado, y quien vaya a pagar un premio tiene que
+              saber que la fuente oficial publicó otro (D-162). */}
+          {last?.resultKind === 'conflict' ? (
+            <Notice tone="warning" density="compact">
+              {COPY.conflict}
+            </Notice>
+          ) : null}
 
-            {/* Un número en conflicto se avisa ARRIBA, nunca detrás del
-                desplegable: la fila de al lado lo acaba de escribir como si
-                fuera el resultado, y quien vaya a pagar un premio tiene que
-                saber que la fuente oficial publicó otro (D-162). */}
-            {last?.resultKind === 'conflict' ? (
-              <Notice tone="warning" density="compact">
-                {COPY.conflict}
-              </Notice>
-            ) : null}
-
-            {/* Un cambio de programación tampoco: es lo único de este recuadro
-                que puede obligar a hacer algo. Los de otros días de la semana
-                sí van al detalle. */}
-            {notices.map((draw) => (
-              <Notice key={draw.scheduleId} tone="warning" density="compact">
-                {draw.scheduleNotice}
-              </Notice>
-            ))}
-
-            {/*
-              `<details>` NATIVO, y por tres razones: no añade JavaScript a un
-              Server Component, el teclado ya lo abre y lo cierra sin que
-              tengamos que enseñárselo, y —lo importante— el detalle **está en
-              el HTML** aunque esté plegado, así que ni un buscador de la página
-              ni un lector de pantalla pierden la información que se movió aquí.
-            */}
-            <details
-              className="group/detalle @container/detalle min-w-0"
-              data-slot="lottery-detail"
-            >
-              <summary className="text-text-brand text-label-medium hover:bg-surface-accent hover:text-text-on-accent focus-visible:border-focus-ring focus-visible:ring-focus-ring/50 -mx-2 inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-md px-2 outline-none focus-visible:ring-[3px] [&::-webkit-details-marker]:hidden">
-                <span className="group-open/detalle:hidden">{COPY.showDetail}</span>
-                <span className="hidden group-open/detalle:inline">{COPY.hideDetail}</span>
-                <span className="sr-only"> {COPY.detailSubject}</span>
-                <ChevronDownIcon
-                  className="size-4 shrink-0 transition-transform group-open/detalle:rotate-180"
-                  aria-hidden
-                />
-              </summary>
-
-              <div className="pt-3">
-                <LotteryResultsBody
-                  upcoming={detailUpcoming}
-                  results={results}
-                  weekAlerts={ready.weekAlerts}
-                  noDrawToday={ready.todayDraws.length === 0}
-                  audience={audience}
-                  ticketBasePath={ticketBasePath}
-                  today={today}
-                  now={now}
-                  split="container"
-                />
-              </div>
-            </details>
-          </>
-        ) : null}
-      </CardContent>
-    </Card>
+          {/* Un cambio de programación tampoco: es lo único de este recuadro
+              que puede obligar a hacer algo. Los de otros días de la semana
+              sí van al detalle. */}
+          {notices.map((draw) => (
+            <Notice key={draw.scheduleId} tone="warning" density="compact">
+              {draw.scheduleNotice}
+            </Notice>
+          ))}
+        </>
+      ) : null}
+    </LotteryCompactCard>
   )
 }

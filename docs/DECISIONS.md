@@ -8188,6 +8188,129 @@ resoluciones está en `docs/TEST_RESULTS.md`.
 
 ---
 
+## D-181 — El detalle de las loterías se despliega ENCIMA, y las dos tarjetas de arriba miden lo mismo
+
+**Fase:** mantenimiento posterior a la Fase 9 (ajuste solicitado por el usuario sobre D-180, 2026-09-09)
+
+**Alcance.** Tres cambios sobre el nivel 0 que estrenó D-180, pedidos el mismo día y ninguno de datos:
+igualar la altura de las dos tarjetas, subir «Ver detalle» al encabezado y convertir el despliegue en
+una **superposición** que se cierra al tocar fuera. Ni una consulta, migración, política, regla ni
+etiqueta de estado cambia.
+
+---
+
+### Decisión 1 — las dos tarjetas de arriba se estiran a la misma altura
+
+La rejilla del panel es `items-start` **por decisión escrita** desde D-175: en una fila de dos,
+estirar la corta hasta la larga solo produce un hueco. Eso sigue siendo cierto **en general**, y por
+eso no se toca la rejilla: se pone `lg:self-stretch` en **estas dos** tarjetas y en ninguna más.
+
+Son un caso distinto del resto: **abren la pantalla juntas**, y ahí dos bordes inferiores
+desalineados a 40 px de distancia no se leen como «cada una mide lo suyo», se leen como un
+descuadre. Medido a 1360 antes del cambio: 158 y 249.
+
+El prefijo `lg:` no es adorno. Por debajo de `lg` las dos están **apiladas**, cada una en su fila de
+la rejilla, y `self-stretch` no haría absolutamente nada; escribirlo sin prefijo sugeriría un efecto
+que no existe.
+
+**Y el hueco sobrante va ENCIMA de los botones, no debajo.** `CardContent` del catálogo pasa a
+`flex flex-1 flex-col` y la fila de acciones lleva `mt-auto`: al estirarse, los tres botones quedan a
+ras del borde inferior, como una acción de tarjeta. Sin eso, el aire aparecería **debajo** del último
+botón y la tarjeta parecería mal cortada.
+
+Resultado medido a 1360 y a 1024: **209 px las dos**, con los bordes coincidiendo.
+
+---
+
+### Decisión 2 — «Ver detalle» sube al encabezado, arriba a la derecha
+
+Es donde se busca la acción de una tarjeta, y —lo que de verdad importa— **su sitio no depende de
+cuánto mida el contenido**. Al pie, el ojo tenía que recorrer las dos filas para encontrarlo, y con
+el panel superpuesto de la Decisión 3 habría quedado **debajo del propio panel**, que es tanto como
+no tenerlo.
+
+**Cabe, y está medido.** A 320 px el encabezado tiene 238 px de contenido; el botón mide 106 cerrado
+y **131 abierto** —«Ocultar detalle» es más largo que «Ver detalle»—, y el encabezado conserva sus
+**28 px de alto en los dos estados**: no se parte en dos líneas. Para que cupiera se retiró el
+**icono decorativo** del encabezado compacto: las dos filas ya llevan el suyo, era el tercero de la
+misma tarjeta, y valía 28 px que ahora usa una acción de verdad. El recuadro completo lo conserva.
+
+Los márgenes negativos (`-my-2 -me-2`) devuelven al encabezado el aire que el botón le quita, de modo
+que **el suelo táctil de 44 px no engorda la tarjeta** (D-085).
+
+---
+
+### Decisión 3 — el detalle se superpone; ya no empuja
+
+El `<details>` nativo de D-180 crecía en el flujo: abrirlo **empujaba media pantalla hacia abajo**
+—«Estado de cobro» incluido— y quien lo cerraba tenía que buscar dónde se había quedado. Ahora el
+panel es `position: absolute` sobre `CardContent`, así que arranca justo debajo del encabezado, mide
+lo mismo que las filas que tapa y **se sale por abajo sobre lo que haya sin mover ni un píxel**.
+Comprobado en los cuatro anchos: la posición de «Estado de cobro» y la altura de la tarjeta son
+**idénticas** antes y después de abrir.
+
+`z-30`: por encima del contenido y **por debajo** del encabezado pegajoso y de la barra inferior del
+teléfono, que son `z-40`.
+
+**Y se cierra al tocar fuera**, que es lo que obliga a introducir JavaScript.
+
+#### El precio, dicho entero
+
+Esto **no se puede hacer sin JavaScript**, y por tanto:
+
+| Antes (D-180) | Ahora (D-181) |
+|---|---|
+| `<details>` nativo: abría y cerraba sin JavaScript | Un componente cliente con estado |
+| El buscador del navegador encontraba el texto plegado y lo abría solo | El panel está `hidden`: la búsqueda de la página no lo encuentra |
+| Empujaba el contenido hacia abajo | Se superpone |
+| No se cerraba al tocar fuera | Sí |
+
+El detalle **sigue viajando en el HTML** —se monta siempre y solo se oculta—, así que no hay una
+segunda petición ni una segunda pintura al abrirlo, y el límite de Suspense del recuadro no cambia.
+Lo que se pierde es poder abrirlo **sin** JavaScript. Se dice aquí porque es una pérdida real y
+porque quien lea esto dentro de seis meses tiene derecho a saber que fue un intercambio consciente,
+no un descuido.
+
+**El servidor sigue dibujando todo.** `LotteryCompactCard` recibe el detalle ya renderizado como un
+nodo; no consulta nada, no calcula nada y no conoce ninguna regla de negocio. `LotteryResultsCard`
+sigue siendo un Server Component.
+
+#### Qué se descartó, y por qué
+
+| Alternativa | Por qué no |
+|---|---|
+| **API nativa `popover`** (`popover="auto"` + `popovertarget`) | Da el cierre al tocar fuera, `Escape` y la capa superior **sin una línea de JavaScript**, y era la primera opción. Se cae por el **anclaje**: un popover vive en la capa superior, así que `position: absolute` ya no lo ata a la tarjeta y anclarlo exige *CSS anchor positioning*, cuyo soporte no está en todos los navegadores que este producto tiene que atender. Sin anclaje, el panel sale centrado en la pantalla como un diálogo, que es justo lo que el encargo **no** pedía |
+| `Dialog` / `Sheet` | Tapan la pantalla con un velo y atrapan el foco. Son para decidir algo, no para mirar un dato de paso |
+| `DropdownMenu` | Semántica de menú (`menuitem`). Dentro del panel hay encabezados, avisos y enlaces a boletas |
+| Crear `ui/popover.tsx` como primitivo | El sistema de diseño está cerrado y solo se amplía con **evidencia de reutilización** (§10.55). Un solo uso no es evidencia. Vive en `features/lottery/components/`, como el resto de piezas de producto; si aparece un segundo caso, ese sí será el momento |
+| Montar el panel solo al abrir | Sacaría el detalle del HTML que ya viaja dentro del límite de Suspense y costaría una pintura extra en el momento del toque |
+
+#### Los detalles que no se ven pero deciden si funciona
+
+* **`pointerdown`, no `click`.** Un enlace de dentro del panel navega en el `click`; para entonces ya
+  hay que haber decidido que ese toque **no** cierra.
+* **«Fuera» excluye el botón**, o el mismo toque cerraría y volvería a abrir.
+* **«Fuera» incluye el encabezado de la propia tarjeta**: sigue a la vista mientras el panel está
+  abierto, y tocarlo cierra como cualquier otro sitio.
+* **`Escape` cierra y devuelve el foco al botón.** Cerrar con el teclado no puede dejar a nadie al
+  principio de la página.
+* **`aria-expanded` y `aria-controls`** en el botón; el nombre accesible sigue siendo «Ver detalle de
+  las loterías», con la coletilla en `sr-only` (D-180).
+* **`max-h-[70svh]` y no `70vh`.** En un teléfono, `vh` cuenta la barra del navegador que aparece y
+  desaparece, y con `vh` el panel se salía de la vista.
+* **El hueco de espera también cambió:** su hueco de botón sube al encabezado. Si se quedara abajo,
+  el encabezado daría un salto lateral al resolverse la consulta — que es justo lo que ese hueco
+  existe para evitar.
+
+### Qué se comprobó
+
+`verify` en verde (857 unitarias) y la suite E2E, con **cuatro pruebas nuevas**: el botón está en el
+encabezado y pegado al borde derecho; abrir **no mueve** «Estado de cobro» ni agranda la tarjeta; un
+clic dentro del panel **no** cierra y uno fuera sí; y las dos tarjetas **miden lo mismo** desde `lg`.
+Los cuatro anchos medidos otra vez en el navegador. El detalle está en `docs/TEST_RESULTS.md`.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

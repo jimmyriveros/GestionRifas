@@ -9,6 +9,8 @@ import {
   compactResultRow,
   compactUpcomingRow,
   deleteFixtures,
+  detallePanel,
+  detalleTrigger,
   insertResult,
   insertSchedule,
   resultCard,
@@ -367,11 +369,21 @@ test.describe('El recuadro compacto del vendedor', () => {
     await page.goto('/seller/dashboard')
 
     const recuadro = card(page)
-    const boton = recuadro.locator('[data-slot="lottery-detail"] > summary')
+    const boton = detalleTrigger(page)
+
+    // Va ARRIBA A LA DERECHA de la tarjeta, dentro del encabezado (D-181).
+    const cajaBoton = (await boton.boundingBox())!
+    const cajaTarjeta = (await recuadro.boundingBox())!
+    expect(cajaBoton.y - cajaTarjeta.y, 'el botón no está en el encabezado').toBeLessThan(60)
+    expect(
+      cajaBoton.x + cajaBoton.width,
+      'el botón no está pegado al borde derecho',
+    ).toBeGreaterThan(cajaTarjeta.x + cajaTarjeta.width - 40)
 
     // Se alcanza y se activa con el TECLADO, y su nombre accesible dice de qué
     // detalle habla: en esta misma pantalla hay un «Ver detalle de cobranza».
     await expect(boton).toHaveAccessibleName(/Ver detalle de las loterías/)
+    await expect(boton).toHaveAttribute('aria-expanded', 'false')
     await boton.focus()
     await expect(boton).toBeFocused()
     await page.keyboard.press('Enter')
@@ -385,5 +397,113 @@ test.describe('El recuadro compacto del vendedor', () => {
 
     // Y el botón dice ahora lo contrario, sin decir las dos cosas a la vez.
     await expect(boton).toHaveAccessibleName(/Ocultar detalle de las loterías/)
+    await expect(boton).toHaveAttribute('aria-expanded', 'true')
+
+    // `Escape` lo cierra y devuelve el foco al botón: cerrar con el teclado no
+    // puede dejar a nadie al principio de la página.
+    await page.keyboard.press('Escape')
+    await expect(detallePanel(page)).toBeHidden()
+    await expect(boton).toBeFocused()
+  })
+
+  /**
+   * El detalle se despliega ENCIMA del contenido (D-181).
+   *
+   * Es la mitad del encargo que solo se puede comprobar midiendo: que abrirlo
+   * no mueva ni un píxel de lo que hay debajo. Un `<details>` —lo que había
+   * hasta D-181— empujaba media pantalla hacia abajo, y eso pasaba todas las
+   * pruebas anteriores sin que ninguna lo notara.
+   */
+  test('el detalle se superpone: no empuja nada hacia abajo', async ({ page }) => {
+    const today = todayBogota()
+    const yesterday = addDays(today, -1)
+    const ayer = await insertSchedule({
+      lottery: 'meta',
+      draw: `${yesterday}-sup`,
+      referenceDate: yesterday,
+      officialAt: `${yesterday}T22:50:00-05:00`,
+      status: 'completed',
+    })
+    await insertResult(ayer, '1719', '045')
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/dashboard')
+
+    const cobro = page.locator('[data-section="estado-de-cobro"]')
+    const antes = (await cobro.boundingBox())!.y
+    const alturaAntes = (await card(page).boundingBox())!.height
+
+    await abrirDetalle(page)
+
+    // Lo de abajo NO se mueve, y la tarjeta tampoco crece: el panel está fuera
+    // del flujo.
+    expect((await cobro.boundingBox())!.y, '«Estado de cobro» se movió').toBeCloseTo(antes, 0)
+    expect((await card(page).boundingBox())!.height, 'la tarjeta creció').toBeCloseTo(
+      alturaAntes,
+      0,
+    )
+
+    // Y el panel se pinta por encima, dentro del ancho de la tarjeta.
+    const panel = (await detallePanel(page).boundingBox())!
+    const tarjeta = (await card(page).boundingBox())!
+    expect(panel.x).toBeGreaterThanOrEqual(tarjeta.x - 1)
+    expect(panel.x + panel.width).toBeLessThanOrEqual(tarjeta.x + tarjeta.width + 1)
+    expect(panel.height, 'el panel tiene que tener contenido').toBeGreaterThan(100)
+
+    const desborde = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(desborde, 'el panel no puede desbordar la página').toBeLessThanOrEqual(0)
+  })
+
+  test('un clic fuera lo cierra; uno dentro del panel no', async ({ page }) => {
+    const today = todayBogota()
+    const yesterday = addDays(today, -1)
+    const ayer = await insertSchedule({
+      lottery: 'meta',
+      draw: `${yesterday}-fuera`,
+      referenceDate: yesterday,
+      officialAt: `${yesterday}T22:50:00-05:00`,
+      status: 'completed',
+    })
+    await insertResult(ayer, '1719', '045')
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/dashboard')
+    await abrirDetalle(page)
+
+    // Dentro del panel NO cierra: ahí hay enlaces a boletas que hay que poder
+    // tocar.
+    await detallePanel(page).getByText('Número mayor').first().click()
+    await expect(detallePanel(page)).toBeVisible()
+
+    // Fuera sí: se toca «Estado de cobro», que es lo que el panel está tapando.
+    await page.locator('[data-section="estado-de-cobro"] h2').click()
+    await expect(detallePanel(page)).toBeHidden()
+    await expect(detalleTrigger(page)).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  /**
+   * Las dos tarjetas que abren el panel miden lo mismo (D-181).
+   *
+   * Solo desde `lg`, que es donde comparten fila. Apiladas, cada una mide lo
+   * que necesita y estirarlas no significaría nada.
+   */
+  test('«Comparte tu catálogo» y «Loterías» tienen la misma altura', async ({ page }) => {
+    await page.setViewportSize({ width: 1360, height: 900 })
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/dashboard')
+
+    const catalogo = page.locator('[data-section="comparte-tu-catalogo"]')
+    await expect(catalogo).toBeVisible()
+    await expect(card(page)).toBeVisible()
+
+    const cajaCatalogo = (await catalogo.boundingBox())!
+    const cajaLoterias = (await card(page).boundingBox())!
+
+    // Comparten fila…
+    expect(cajaLoterias.y).toBeCloseTo(cajaCatalogo.y, 0)
+    // …y sus bordes inferiores coinciden.
+    expect(cajaLoterias.height).toBeCloseTo(cajaCatalogo.height, 0)
   })
 })

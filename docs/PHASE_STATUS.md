@@ -3,7 +3,19 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-09 — **rediseño acotado de la parte superior del panel del vendedor**
+- **Actualizado:** 2026-09-09 — **ajuste del nivel 0 del panel del vendedor** (D-181), pedido el
+  mismo día sobre D-180. Tres cosas: **«Comparte tu catálogo» y «Loterías» miden lo mismo** mientras
+  comparten fila (`lg:self-stretch` solo en esas dos; el aire sobrante del catálogo va encima de sus
+  botones, no debajo); **«Ver detalle» sube al encabezado**, arriba a la derecha, y para que quepa a
+  320 px se retira el icono decorativo del título; y el detalle **se superpone al contenido en vez de
+  empujarlo**, cerrándose al tocar fuera o con `Escape`. Eso último **no se puede hacer sin
+  JavaScript**: el armazón de la forma compacta pasa a ser un componente cliente
+  (`LotteryCompactCard`) que solo lleva el estado de abierto — `LotteryResultsCard` sigue siendo
+  Server Component y le baja el detalle ya dibujado. **El precio se dice entero: sin JavaScript el
+  detalle ya no se puede abrir.** Se evaluó y se descartó la API nativa `popover`, que lo daría gratis
+  pero exige *CSS anchor positioning* para quedar pegada a la tarjeta. **Ninguna migración, consulta,
+  política ni regla de negocio cambia.** **Sin desplegar.**
+  Antes, el mismo día: **rediseño acotado de la parte superior del panel del vendedor**
   (D-180), autorizado expresamente. Las dos cosas que un vendedor hace al entrar —**repartir su
   catálogo** y **mirar la lotería**— abren ahora la pantalla, las dos en forma compacta y en la misma
   fila desde `lg`; detrás va «Estado de cobro», y los **accesos rápidos cierran** el panel. **El mismo
@@ -4409,7 +4421,7 @@ apartado b.1). No se tocó.
 
 ---
 
-## Mantenimiento post-9 — la parte superior del panel del vendedor (D-180, 2026-09-09)
+## Mantenimiento post-9 — la parte superior del panel del vendedor (D-180 y D-181, 2026-09-09)
 
 Autorizado expresamente y **acotado a la parte superior**. No toca el portal administrativo, ni los
 cálculos, etiquetas o ecuaciones de «Estado de cobro», ni consultas financieras, reglas de negocio,
@@ -4427,6 +4439,7 @@ RLS, autenticación o migraciones.
 | Accesos rápidos | Al final, con los **mismos cuatro destinos**. El paso del recorrido guiado se movió con ellos |
 | Dato del catálogo | `getSellerDashboard` devuelve `availableByRaffle` desde las **mismas** filas de `v_seller_summary`. **Ninguna consulta nueva**, y no se usa `totals.ticketsAvailable`, que suma todas las rifas mientras el catálogo publica una (BR-K08) |
 | Aislamiento | El recuadro sigue en **su propio límite de Suspense** y sigue leyendo solo tablas locales. El hueco de espera adopta la forma y el título compactos, para que el título no cambie de golpe al resolverse |
+| **Ajuste D-181** | Las dos tarjetas de arriba **miden lo mismo** desde `lg`; **«Ver detalle» sube al encabezado**, arriba a la derecha; y el detalle **se superpone** en vez de empujar, cerrándose al tocar fuera o con `Escape`. Eso obliga a un componente cliente para el armazón compacto (`LotteryCompactCard`): **sin JavaScript el detalle ya no se puede abrir**, y sigue montado y oculto en el HTML |
 
 ### 2. Pruebas ejecutadas y resultados
 
@@ -4464,4 +4477,7 @@ I-021, I-023, I-030, I-059, I-060, I-106.
    del documento y falla si se separan.
 5. **La cifra del catálogo sale de `availableByRaffle`, no de `totals.ticketsAvailable`.** Cambiarla
    volvería a poner dos números distintos para lo mismo en dos pantallas del mismo vendedor.
-6. **No hay etiqueta `fase-N`**: es mantenimiento.
+6. **El armazón compacto es un componente CLIENTE** (`LotteryCompactCard`) y el resto del recuadro no lo es. No metas ahí ni una consulta ni un cálculo: el detalle le baja ya dibujado desde el servidor.
+7. **No devuelvas el `<details>`**: hay pruebas que miden que abrir el detalle no mueva «Estado de cobro» ni agrande la tarjeta.
+8. **`lg:self-stretch` es la excepción a `items-start`, y solo para esas dos tarjetas.** No lo copies al resto de la rejilla: estirar una tarjeta corta hasta una larga solo produce un hueco.
+9. **No hay etiqueta `fase-N`**: es mantenimiento.

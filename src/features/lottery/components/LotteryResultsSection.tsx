@@ -58,13 +58,21 @@ export function LotteryResultsFallback({
       aria-busy="true"
       className={cn('min-w-0', compact && 'gap-4 py-4 md:py-5', className)}
     >
-      <CardHeader>
+      <CardHeader
+        className={cn(compact && 'flex flex-row items-center justify-between gap-2 space-y-0')}
+      >
         <CardTitle className="flex min-w-0 items-center gap-2 text-base">
-          <TicketIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
+          {compact ? null : (
+            <TicketIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
+          )}
           <h2 className={cn('min-w-0 break-words', compact && 'text-heading-h4')}>
             {compact ? COPY.compactTitle : COPY.title}
           </h2>
         </CardTitle>
+        {/* El hueco del botón va donde va el botón: arriba a la derecha
+            (D-181). Si se reservara abajo, el encabezado daría un salto lateral
+            al resolverse la consulta. */}
+        {compact ? <Skeleton className="h-6 w-24 shrink-0" aria-hidden /> : null}
       </CardHeader>
       <CardContent className="min-w-0">
         <span className="sr-only" role="status">
@@ -84,7 +92,6 @@ export function LotteryResultsFallback({
                 </div>
               </div>
             ))}
-            <Skeleton className="h-11 w-32" />
           </div>
         ) : (
           /* Dos huecos desde `lg`, igual que las dos tarjetas que van a llegar

@@ -151,7 +151,10 @@ export function SellerCatalogCard({
         </StatusBadge>
       </CardHeader>
 
-      <CardContent className="@container/acciones space-y-3">
+      {/* `flex flex-1 flex-col`: la tarjeta se estira para igualar la altura de
+          la de loterias (D-181), y el contenido tiene que estirarse con ella o
+          el aire sobrante quedaria FUERA, debajo del ultimo boton. */}
+      <CardContent className="@container/acciones flex flex-1 flex-col gap-3">
         {live ? (
           <>
             {/* Lo que hay que repartir. Se calla cuando no se sabe —sin rifa
@@ -167,8 +170,13 @@ export function SellerCatalogCard({
 
             {/* Las tres en una fila. «Compartir» se lleva 1,4 partes de las 3,4
                 que hay: es la accion principal y se nota tambien en el ancho,
-                no solo en el relleno. */}
-            <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2">
+                no solo en el relleno.
+
+                `mt-auto`: cuando la tarjeta se estira, el aire sobrante se pone
+                ENCIMA de los botones, no debajo. Asi quedan a ras del borde
+                inferior, como una accion de tarjeta, en vez de flotando en
+                mitad de un hueco (D-181). */}
+            <div className="mt-auto grid grid-cols-[1.4fr_1fr_1fr] gap-2">
               <Button type="button" className={ACTION} onClick={() => share(publicUrl, raffleName)}>
                 <Share2Icon className="size-4" aria-hidden />
                 Compartir

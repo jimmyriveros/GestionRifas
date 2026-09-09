@@ -9470,3 +9470,92 @@ selector de fechas, ni los cálculos de «Estado de cobro». `getSellerDashboard
 consulta**: `availableByRaffle` se agrupa desde las filas de `v_seller_summary` que ya leía.
 
 ---
+
+## El detalle se superpone y las dos tarjetas se igualan (D-181) — 2026-09-09
+
+Ajuste sobre D-180, pedido el mismo día. **Ninguna migración**, ninguna consulta, ninguna política y
+ninguna regla de negocio.
+
+### a. Verificación estándar
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 errores · **2 avisos preexistentes** |
+| `npm run test` | ✅ **857/857** — sin cambios: lo que se movió es geometría y comportamiento de navegador, que no se prueba en Vitest |
+| `npm run build` | ✅ |
+
+### b. E2E
+
+| Corrida | Resultado |
+|---|---|
+| `loterias-panel` escritorio | ✅ **14/14** (11 + **3 nuevas**) |
+| Tanda móvil dirigida | ✅ **12/12** |
+| **Suite completa** | **573 pasan · 3 fallan**, y los tres están registrados desde antes |
+
+**Los tres fallos, comprobados uno a uno con base recién creada:**
+
+| Prueba | Anotación | En aislamiento |
+|---|---|---|
+| `reports.spec.ts:305` | `I-090` | ✅ **21/21** |
+| `ventas-por-fecha.spec.ts:163` | `I-090` | ✅ **18/18** |
+| `catalogo-publico-movil.spec.ts:103` | **`I-106`**, abierta el 2026-09-08 con esta misma descripción | ✅ **15/15** |
+
+Ninguno toca el panel del vendedor: dos miden contra el seed compartido mientras otras suites le
+venden boletas, y el tercero es el catálogo público, que este trabajo no roza. **`I-106` apareció en
+la corrida completa anterior y no en esta**, y al revés: es exactamente la dependencia de orden que
+su anotación describe.
+
+### c. Las cuatro pruebas nuevas, y qué defiende cada una
+
+| Prueba | Qué comprueba |
+|---|---|
+| «el botón está en el encabezado» | Está a menos de 60 px del borde superior de la tarjeta y a menos de 40 del derecho. Sin esto, «arriba a la derecha» es una intención, no un hecho |
+| «el detalle se superpone: no empuja nada hacia abajo» | La `y` de «Estado de cobro» y la altura de la tarjeta son **idénticas** antes y después de abrir, y el panel cabe dentro del ancho de la tarjeta sin desbordar la página |
+| «un clic fuera lo cierra; uno dentro del panel no» | Tocar dentro del panel lo deja abierto —ahí hay enlaces a boletas— y tocar «Estado de cobro» lo cierra |
+| «las dos tarjetas tienen la misma altura» | A 1360: comparten fila y sus alturas coinciden |
+
+Además, la prueba de «Ver detalle» ganó `aria-expanded` en los dos estados y el cierre con `Escape`
+con **retorno del foco al botón**.
+
+### d. Los cuatro anchos, medidos otra vez en el navegador
+
+| Ancho | Catálogo | Loterías | ¿Iguales? | Encabezado (cerrado → abierto) | Botón | Panel | «Estado de cobro» antes → después | Desborde |
+|---|---|---|---|---|---|---|---|---|
+| **1360** | 625 × **209** | 440 × **209** | ✅ | — | 106 × **44** | 438 × 665 | **463 → 463** | **0** |
+| **1024** | 518 × **209** | 363 × **209** | ✅ | — | 106 × **44** | 361 × 630 | **463 → 463** | **0** |
+| **768** | 649 × 158 | 649 × 209 | apiladas | — | 106 × **44** | 647 × 717 | **645 → 645** | **0** |
+| **375** | 343 × 176 | 343 × 209 | apiladas | **28 → 28** | 131 × **44** | 341 × 568 | **655 → 655** | **0** |
+| **320** | 288 × 176 | 288 × 249 | apiladas | **28 → 28** | 106 → 131 × **44** | 286 × 504 | **703 → 703** | **0** |
+
+**Las dos columnas de la fila de arriba solo se igualan desde `lg`**, que es donde comparten fila;
+por debajo están apiladas y cada una mide lo suyo, como debe ser.
+
+**El encabezado mide 28 px abierto y cerrado también a 320**, que era el riesgo real del cambio:
+«Ocultar detalle» es 25 px más ancho que «Ver detalle» y podía partir la fila en dos. No lo hace,
+porque el icono decorativo del título se retiró para dejarle sitio.
+
+**Y el detalle sigue repartiendo en una columna** dentro del panel en los cinco anchos (los dos
+bloques arrancan en la misma `x`): la consulta de contenedor `@3xl/detalle` sigue haciendo su trabajo
+ahora que el panel es más estrecho que la tarjeta.
+
+### e. El cierre, comprobado caso por caso
+
+| Gesto | Resultado |
+|---|---|
+| Clic **dentro** del panel | ✅ sigue abierto |
+| Clic en el **encabezado de la propia tarjeta** | ✅ cierra |
+| Clic en **otra tarjeta** («Estado de cobro») | ✅ cierra |
+| **`Escape`** | ✅ cierra **y el foco vuelve al botón** |
+| Segundo clic en el botón | ✅ cierra (y no se cierra-y-reabre en el mismo toque) |
+
+### f. Lo que se pierde, y se dice
+
+**Sin JavaScript el detalle ya no se puede abrir.** Hasta D-180 era un `<details>` nativo y funcionaba
+sin guion; cerrar al tocar fuera no se puede hacer así. El contenido **sigue viajando en el HTML**
+—se monta siempre y solo se oculta—, pero el buscador de la página ya no lo encuentra, cosa que un
+`<details>` cerrado sí permitía. Es un intercambio consciente, no un descuido.
+
+**No se probó en un navegador sin JavaScript**, porque no hay nada que probar: el botón no haría nada.
+
+---

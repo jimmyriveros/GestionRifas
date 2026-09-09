@@ -226,15 +226,21 @@ export default async function SellerDashboardPage({
             «Inactivo» y explica que falta, en vez de desaparecer sin que el
             vendedor sepa que la funcion existe. Lo que desaparece son los
             botones. */}
+        {/* `lg:self-stretch` en las DOS, y solo en estas dos (D-181): la
+            rejilla es `items-start` a propósito —estirar una tarjeta corta
+            hasta una larga produce un hueco—, pero aquí las dos abren la
+            pantalla una al lado de la otra y sus bordes desalineados se leen
+            como un descuadre. Por debajo de `lg` están apiladas, cada una en su
+            fila, y `self-stretch` no hace nada: por eso el prefijo. */}
         <SellerCatalogCard
-          className="md:col-span-12 lg:col-span-7"
+          className="md:col-span-12 lg:col-span-7 lg:self-stretch"
           publicUrl={catalog?.slug ? catalogPublicUrl(catalog.slug) : null}
           raffleName={catalog?.raffleName ?? null}
           isLive={isCatalogLive(catalog)}
           availableTickets={catalogAvailable}
         />
         <LotteryResultsSection
-          className="md:col-span-12 lg:col-span-5"
+          className="md:col-span-12 lg:col-span-5 lg:self-stretch"
           audience="seller"
           ticketBasePath="/seller/tickets"
           variant="compact"

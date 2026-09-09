@@ -380,6 +380,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `CollectionSummaryCard` | Resumen de cobranza del panel (D-090): recibe `totals` ya agregado, no calcula nada; barra de progreso accesible con el mismo patrón que `BulkTicketCreator` |
 | `LotteryResultsCard` | Recuadro de resultados oficiales de los dos Paneles (D-147, §8.19). Server Component **puro**: recibe `data` ya leído, no consulta nada. Su prop `variant` elige entre las dos formas: `full` —el portal administrativo— y `compact` —el panel del vendedor, dos filas y el resto tras un `<details>` nativo (D-180)— |
 | `LotteryResultsSection` | Lo que ponen las dos páginas (D-155, §8.19.d): hace la lectura local dentro de un `<Suspense>` propio, con `LotteryResultsFallback` como hueco, para que el Panel no la espere. Propaga `variant` a los dos, de modo que el hueco tenga la forma y el título de la tarjeta que va a llegar |
+| `LotteryCompactCard` | El armazón de la forma compacta (D-181). **Único componente cliente del recuadro**, y solo por dos cosas que el HTML no da: que el detalle se despliegue **encima** del contenido y que se cierre al tocar fuera. Recibe el detalle ya dibujado en el servidor; no consulta, no calcula y no conoce ninguna regla |
 | `CommissionCard` | «Tu ganancia» del panel del vendedor (D-095). No calcula nada: recibe la fila de `commission_summary`. Separa **lo ganado** de **la proyección** deliberadamente, y la barra lleva su valor en `aria-valuetext` |
 | `NotificationBell` / `NotificationMenu` | Campanita del encabezado (D-093). El servidor lee la bandeja al pintar la pantalla; sin peticiones desde el navegador ni tiempo real. El contador va también en el `aria-label`, no solo en el punto rojo |
 | `TableSection` | Tarjeta con título —y acción opcional— que envuelve un listado (§8.14, D-113). La tabla de dentro se aplana con `SECTION_TABLE_CLASSES` para no pintar dos bordes concéntricos; el relleno está calculado para que la primera columna quede alineada con el título |
@@ -976,6 +977,8 @@ ancho de su tarjeta con `@container`:
 | «Comparte tu catálogo»: icono encima del texto → icono al lado (`SellerCatalogCard`) | `@lg/acciones` (512 px) | «Copiar enlace» mide 96 px a 14 px/500 + 16 de icono + 8 de hueco + 24 de aire = 144 px de botón; con el reparto 1,4 / 1 / 1 la fila necesita 144 × 3,4 + 16 = 506. A 448 los tres cabían pero el texto se partía **dentro** del botón (D-180) |
 | El detalle de las loterías, de una columna a dos (`LotteryResultsBody`) | `@3xl/detalle` (768 px) | Solo en `variant="compact"`. El recuadro completo conserva `lg:` —consulta de ventana—; dentro de una tarjeta de 440 px eso partiría en dos columnas de 190 (D-180) |
 
+> **Y una altura que NO es de contenedor** (D-181): «Comparte tu catálogo» y «Loterías» llevan `lg:self-stretch` para medir lo mismo mientras comparten fila. Es la excepción a `items-start`, y solo para estas dos: abren la pantalla juntas, y dos bordes inferiores desalineados a 40 px se leen como un descuadre. El aire sobrante del catálogo va **encima** de sus botones (`mt-auto`), no debajo.
+
 > El anillo de `FinancialSummaryCard` ocupaba esta tabla hasta D-171 con `@min-[280px]` / `@min-[400px]`
 > / `@min-[560px]`. Esa tarjeta ya no existe.
 
@@ -1341,6 +1344,20 @@ lugar del pendiente.
 > `nextDraw`— porque la fila «Próxima» es fija y `nextDraw` se calla cuando hoy hay sorteo.
 > Dentro del detalle, las dos columnas se reparten por **contenedor** (`@3xl/detalle`) y no
 > por ventana: `lg:` partiría en dos columnas de 190 px una tarjeta de 440.
+
+> **El detalle se SUPERPONE desde el 2026-09-09 (D-181).** El `<details>` nativo creció en el flujo
+> y empujaba media pantalla hacia abajo al abrirse; ahora el panel es `position: absolute` sobre
+> `CardContent` —arranca bajo el encabezado, mide lo que las filas que tapa y se sale por abajo sobre
+> lo que haya— y **no mueve ni un píxel del resto**. `z-30`: por encima del contenido y por debajo
+> del encabezado pegajoso y de la barra inferior (`z-40`). El botón **«Ver detalle» vive en el
+> encabezado**, arriba a la derecha, donde su sitio no depende de cuánto mida el contenido; en el
+> encabezado compacto **no hay icono decorativo**, que es el ancho que el botón necesita a 320 px.
+>
+> El precio es real y se dice: **cerrar al tocar fuera exige JavaScript**, así que el armazón de esta
+> forma pasa a `LotteryCompactCard`, un componente **cliente** que solo lleva el estado de abierto y
+> el cierre por `pointerdown` / `Escape`. `LotteryResultsCard` **sigue siendo Server Component** y le
+> baja el detalle ya dibujado como un nodo. **Sin JavaScript el detalle ya no se puede abrir**;
+> sigue montado y oculto, así que no hay segunda petición ni segunda pintura.
 
 **Ámbito.** Programación y resultado son nacionales. Las coincidencias las recorta la RLS
 de `lottery_ticket_matches`: el vendedor ve las suyas; el personal, las de su organización.
