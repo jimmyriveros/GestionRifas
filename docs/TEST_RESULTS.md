@@ -9559,3 +9559,64 @@ sin guion; cerrar al tocar fuera no se puede hacer así. El contenido **sigue vi
 **No se probó en un navegador sin JavaScript**, porque no hay nada que probar: el botón no haría nada.
 
 ---
+
+## Despliegue a producción de D-180 y D-181 — 2026-09-09
+
+**Sin migración.** `git diff --name-only ec63e04..13ac421` no toca **ni un archivo** de `supabase/`
+ni de `scripts/`, así que no hubo respaldo ni `db push`: no hay nada que aplicar. La base de
+producción **no se toca en ningún momento de este despliegue**.
+
+### a. Antes de empujar
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run verify` sobre el árbol que se sube | ✅ **857/857** unitarias, `build` en verde |
+| `npm run verify:remote` (solo lectura, proyecto real) | ✅ **17/17** |
+| Divergencia con `origin/main` | ✅ **0 detrás, 2 delante** — fast-forward limpio |
+| ¿Toca `supabase/` o `scripts/`? | ✅ **ninguno** |
+
+### b. Publicación
+
+| Qué | Valor |
+|---|---|
+| Empuje | `ec63e04..13ac421`, **fast-forward**, dos commits (D-180 y D-181) |
+| CI | ✅ **2/2** sobre `13ac421` — «Typecheck, lint, unitarias, build» y «Migraciones desde cero + pruebas de base de datos» |
+| Despliegue | `dpl_2y85xE6MGTUsW8hk3L2c3thkPtEE`, **READY** en 31 s |
+| Alias | `gestion-rifas.vercel.app`, con **`aliasError: null`** |
+| Punto de reversión | `dpl_GvWgxpe6BcYdufEFGu6UiYEGkhkE` (`ec63e04`), marcado `isRollbackCandidate` |
+
+### c. En vivo, sobre el dominio real
+
+| Comprobación | Resultado |
+|---|---|
+| **Código nuevo SERVIDO** | ✅ el identificador de versión **`4dc747382193`** —sha256 de `13ac421` recortado a 12— aparece en **1 de los 15** fragmentos que responde el dominio. No es «Vercel lo construyó»: es «el dominio responde este build» |
+| Cabeceras de seguridad en `/login` | ✅ **7/7** |
+| Rutas protegidas | ✅ **4/4 en 307** (`/owner/dashboard`, `/seller/dashboard`, `/owner/tickets`, `/seller/tickets`) |
+| `/api/lottery/sync` sin secreto | ✅ **401** |
+| Catálogo inexistente | ✅ **404** |
+| Secretos en lo servido | ✅ **cero** en los **943 KB** de los 15 fragmentos, y cero en el HTML de `/login` |
+
+### d. La base, comprobada por sonda de solo lectura
+
+| Qué | Valor |
+|---|---|
+| Migraciones aplicadas | **50**, última **`0050`** — la misma de antes de este trabajo |
+| Boletas · clientes · pagos · rifas | 1.033 · 550 · 362 · 2 |
+| Abonado · vendido | $33.290.000 · $96.040.000 |
+| Bitácora · catálogos publicados | 4.953 · 2 |
+
+⚠️ **Estas cifras son mayores que las del despliegue anterior** (981 boletas, 541 clientes, 355 pagos,
+$32.950.000, 4.824 de bitácora el 2026-09-08) **porque hay actividad real de personas usando la
+aplicación**, no por efecto de este despliegue: no hay migración, no hay `db push` y el código nuevo
+no escribe ni una fila al cargarse. Lo que sí prueba que la base no se tocó es el **número de
+migración, idéntico**.
+
+### e. Lo que NO se comprobó, y se dice
+
+**No se entró al panel de producción con una cuenta real.** Escribir una contraseña queda fuera de lo
+que un agente hace, así que la prueba de que el rediseño está servido es el **identificador del
+build**, no una captura del panel con datos reales. **Quien lo vea:** entrar como vendedor →
+`/seller/dashboard` → arriba deben estar «Comparte tu catálogo» y «Loterías», con «Ver detalle» a la
+derecha del título de la segunda.
+
+---

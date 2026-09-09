@@ -14,7 +14,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   Server Component y le baja el detalle ya dibujado. **El precio se dice entero: sin JavaScript el
   detalle ya no se puede abrir.** Se evaluó y se descartó la API nativa `popover`, que lo daría gratis
   pero exige *CSS anchor positioning* para quedar pegada a la tarjeta. **Ninguna migración, consulta,
-  política ni regla de negocio cambia.** **Sin desplegar.**
+  política ni regla de negocio cambia.** **DESPLEGADO** el mismo día junto con D-180 (`13ac421`), **sin migración**: la base de producción sigue en 50 migraciones y no se tocó.
   Antes, el mismo día: **rediseño acotado de la parte superior del panel del vendedor**
   (D-180), autorizado expresamente. Las dos cosas que un vendedor hace al entrar —**repartir su
   catálogo** y **mirar la lotería**— abren ahora la pantalla, las dos en forma compacta y en la misma
@@ -28,7 +28,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   recuento de coincidencias— y todo lo demás vive detrás de **«Ver detalle»**, un `<details>` nativo
   sin JavaScript que conserva el límite de Suspense. **El portal administrativo no cambia en nada.**
   **Ninguna migración, consulta financiera, política RLS ni regla de negocio cambia**, y «Estado de
-  cobro» conserva sus cálculos, etiquetas y ecuaciones intactos. **Sin desplegar.**
+  cobro» conserva sus cálculos, etiquetas y ecuaciones intactos. **DESPLEGADO** el 2026-09-09.
   Antes, el 2026-09-08: **defecto de la invitación por WhatsApp, reportado por el usuario y
   corregido en la raíz** (D-179, `I-105`). El diálogo de éxito **se cerraba solo** en menos de un
   segundo tras vender una boleta: el detalle pinta ese bloque bajo `canAssign`, la venta hace que la
