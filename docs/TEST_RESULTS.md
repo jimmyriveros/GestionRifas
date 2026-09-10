@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (D-184, 2026-09-09)** | **896 ✅** en 50 archivos (+39) | **827 ✅** — no se tocó la base | **597 pasan · 2 fallan** de 599 (+22 nuevas); los 2 son **I-090** e **I-106**, verdes en aislamiento (**21/21** y **15/15**) | ✅ | ✅ **Sin desplegar** |
+| **Post-9 vigente (D-184, 2026-09-09)** | **896 ✅** en 50 archivos (+39) | **827 ✅** — no se tocó la base | **597/599** el 09-09 —los 2 son **I-090** e **I-106**, verdes en aislamiento— y **46/46** dirigidas el 09-10, con las **12 nuevas** de pegado real y de los cinco caminos de guardado | ✅ | ✅ **Sin desplegar** |
 | Post-9 anterior (D-182, D-183, 2026-09-09) | **857 ✅** en 49 archivos | — (no se tocó la base) | **escritorio 445** con los 2 de **I-090** · **móvil 130/130**. Doce combinaciones de ancho y tema sin desbordamiento; **I-107** cerrada de rebote | ✅ | ✅ **DESPLEGADO** (`523b4bc`) |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b30e943`)** | — | **Sin migración**: cero diferencias en `supabase/`, sonda antes/después idéntica | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `fd3a1e1f16b1` servido en 1 de 15 fragmentos |
@@ -9912,5 +9912,106 @@ Migraciones, esquema, políticas, RPC, `search_normalize()`, `searchNeedle`, `di
 pantallas donde el teléfono se **lee** y las dependencias del paquete. Los dos archivos sin
 seguimiento del usuario —`CorrecionesLoterias.txt` (`4b5d893f…`) y `prueba-abono.csv`
 (`a096f61e…`)— siguen intactos.
+
+---
+
+## Confirmación previa al despliegue de D-184: ningún teléfono guardado se reescribe — 2026-09-10
+
+Pedida por el usuario antes de subir a producción: confirmar que **abrir un formulario, mostrar el
+teléfono con separadores, guardar sin tocarlo o cambiar otro campo** no reescriben ningún teléfono ya
+guardado, y que **copiar y pegar** en el campo funciona y se guarda bien.
+
+### a. En el código: los tres caminos que devuelven un teléfono a la base
+
+| Camino | De dónde sale el valor del formulario | Qué le pasa al guardar |
+|---|---|---|
+| Ficha del cliente (`ClientForm` → `updateClientRecord`) | `v_client_balances.phone`, que es `c.phone` sin transformar | `clientFormSchema` → `.trim()` → `toClientRow` → `update` |
+| Personas del portal administrativo (`UserDialog` → `updateUser`) | `profiles.phone` tal cual | `updateUserSchema` → `.trim()` → `update` |
+| Integrante del equipo (`UserDialog` → `updateTeamMember`) | `profiles.phone` tal cual | `.trim()` → RPC `team_update_member` → `btrim(p_phone)` |
+| WhatsApp del catálogo (`CatalogSettingsDialog`) | `memberships.public_whatsapp_number` | `whatsappNumberSchema` → `normalizeWhatsappNumber` (ya era así antes de D-184) |
+
+`formatPhone` solo aparece en `value={formatPhone(value)}` del `<input>`, nunca en `onChange` ni en el
+envío. Ningún disparador toca `phone`: en `clients` y `profiles` solo hay `set_updated_at` y la
+auditoría. **Lo único que puede cambiar un teléfono no tocado es el `trim` que ya existía**, y solo
+si el dato guardado tuviera espacios en los bordes.
+
+### b. En los datos reales: sonda de solo lectura sobre producción
+
+Transacción `READ ONLY` (confirmada: `transaction_read_only = on`), deshecha al final, **solo
+recuentos** —ningún teléfono salió de la base—.
+
+| Dato | `clients.phone` | `profiles.phone` |
+|---|---|---|
+| Total | **558** | **7** |
+| **Con espacios en los bordes** (lo único que el `trim` cambiaría) | **0** | **0** |
+| Solo dígitos | 554 | 7 |
+| Con separadores | 4 | 0 |
+| Con `+` | 2 | 0 |
+| Internacionales que no son `+57` | 0 | 0 |
+| Con menos de 7 dígitos · con más de 12 | 0 · 0 | 0 · 0 |
+| Más de 16 caracteres | 0 | 0 |
+
+| Reparto de `clients.phone` | Clientes | Cómo se verá en el campo |
+|---|---|---|
+| 10 dígitos que empiezan por **1**, sin separadores | **393** | **Tal cual está guardado**: no es un número colombiano y la máscara no lo agrupa |
+| 10 dígitos que empiezan por 3, sin separadores | 159 | `300 123 4567` |
+| 9 dígitos que empiezan por 3 | 2 | `300 123 456` |
+| 12 dígitos con `+57` y separadores | 2 | `+57 300 123 4567` |
+| 10 dígitos que empiezan por 3, con separadores | 2 | `300 123 4567` |
+
+WhatsApp del catálogo: **2** configurados, **0** de 10 dígitos sin el 57 —los únicos que la
+normalización de siempre cambiaría al guardar sin tocar—. Migraciones: **50**, última **`0050`**.
+
+**Conclusión sobre los 565 teléfonos guardados:** guardar sin tocarlos devuelve a la base **la misma
+cadena, carácter por carácter**, porque ninguno tiene espacios en los bordes. Y todos los formatos que
+existen están cubiertos por las pruebas unitarias de `lib/phone.ts`.
+
+**Observación ajena a este cambio, para el dueño (I-109):** los **393** teléfonos que empiezan por 1
+no son números colombianos, y tienen pinta de marcadores de relleno, porque el teléfono es
+obligatorio. La máscara los enseña tal cual. El riesgo está en otra parte: `normalizeWhatsappNumber`
+deja pasar un número así como internacional —diez cifras que empiezan por 1 caben en
+`^[1-9][0-9]{7,14}$`—, de modo que si se **registra un cliente nuevo** con uno de ellos, el diálogo le
+ofrece «Invitar al grupo» y el enlace iría a `wa.me/1…`, con el indicativo de Norteamérica. Los 393
+que ya existen **no** reciben esa oferta: el diálogo solo aparece al crear un cliente. Es
+comportamiento de D-176, anterior a D-184, y no se tocó.
+
+### c. Las 12 pruebas nuevas: pegar de verdad y los cinco caminos de guardado
+
+| Grupo | Pruebas | Qué demuestran |
+|---|---|---|
+| «Un teléfono guardado no se reescribe» | **4** nuevas | Abrir el formulario, entrar y salir del campo y cancelar: **ni el teléfono ni `updated_at` se mueven**, así que no hubo ni una escritura. Cambiar a la vez nombre, alias, correo y notas: `(310) 555-0101` sale idéntico. Administrador: cerrar el diálogo con Escape no escribe, y cambiar su alias deja `57 (315) 444-3322` idéntico. Integrante de equipo, por la RPC `team_update_member`: nombre y alias cambian y `+57 (320) 777-6655` sale idéntico |
+| «Copiar y pegar con el portapapeles» | **7** nuevas | Ctrl+V **de verdad** —el portapapeles del sistema, no `fill()`—: con indicativo, paréntesis y guion, dejando el cursor al final; lo que copia un contacto de Android o WhatsApp, con las marcas de dirección U+202A y U+202C y espacios duros U+00A0; pegar con todo seleccionado; pegar en medio, con el cursor justo detrás de lo pegado; copiar el campo entrega «300 123 4567»; pegar dos números no pierde ninguno de sus 20 dígitos y el formulario lo rechaza **sin crear nada**; pegar y guardar deja `+57 310 555 7777` en la base y la búsqueda lo encuentra con cuatro términos |
+| `whatsapp-invitacion.spec.ts` | **1** nueva | Pegar `\u202A+57 (300) 999-8877\u202C`, guardar e «Invitar al grupo»: el enlace es `wa.me/573009998877` |
+| `telefono-mascara-movil.spec.ts` | 1 reforzada | El teléfono histórico se comprueba ahora **en la base**, no solo en la pantalla |
+
+Y una corrección de nombre: la prueba que se llamaba «abrir y cerrar el formulario sin tocar nada»
+**guardaba**. Ahora se llama «guardar sin tocar nada no cambia el teléfono», y abrir y salir sin
+guardar tiene su propia prueba, la primera de la tabla.
+
+### d. Verificación
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ typecheck · lint **0 errores** (los 2 avisos preexistentes) · **896/896** unitarias · build |
+| `npm run test:db` | ✅ **827/827** |
+| E2E dirigidas | ✅ **46/46** en 2,6 min: `telefono-mascara` 29, `whatsapp-invitacion` 13, `telefono-mascara-movil` 4 |
+
+La suite E2E completa no se volvió a correr: desde la corrida del 2026-09-09 (**597/599**, con los dos
+fallos preexistentes I-090 e I-106) **no cambió ni una línea de `src/`**, solo pruebas y
+documentación.
+
+### e. Dos tropiezos, registrados
+
+1. **La primera corrida no ejecutó ni una prueba**: `Timed out waiting 180000ms from
+   config.webServer`. El servidor de desarrollo sí arrancaba, pero con el disco lento —Next avisó
+   «Slow filesystem detected», 931 ms en su medida frente a 277 del día anterior— la primera
+   compilación de `/login` tardó **36 s** y el conjunto no quedó listo en los 180 s de Playwright.
+   No era un fallo de producto. Se arrancó el servidor aparte, se calentó con una petición y
+   Playwright lo reutilizó (`reuseExistingServer`). Los dos `node.exe` que había en la máquina eran
+   de la aplicación de Codex, ajenos al proyecto, y no se tocaron.
+2. **Los casos de caracteres invisibles quedaron escritos con los caracteres reales**, que no se ven
+   en el código. Una primera corrección informó éxito y no dejó los escapes; se comprobó contando con
+   `String.fromCharCode`, sin que ninguna shell tocara las barras invertidas, y ahora son escapes
+   visibles (`\u202A`, `\u00A0`) en exactamente cuatro líneas.
 
 ---

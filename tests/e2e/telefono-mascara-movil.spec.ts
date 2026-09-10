@@ -1,6 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
-import { createClientFor, loadSeedRefs, purgeTestData, type SeedRefs } from './db-setup'
+import {
+  createClientFor,
+  loadSeedRefs,
+  purgeTestData,
+  serviceClient,
+  type SeedRefs,
+} from './db-setup'
 import { ACCOUNTS, loginAs, unique } from './fixtures'
 
 /**
@@ -109,7 +115,14 @@ test.describe('El campo de telefono a 320 px', () => {
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await page.waitForURL(/\/seller\/clients\/[0-9a-f-]+$/)
 
-    // La ficha sigue enseñando el dato guardado, sin reescribirlo.
+    // La ficha sigue enseñando el dato guardado, sin reescribirlo, y la base lo
+    // confirma carácter por carácter: la pantalla sola podría engañar.
     await expect(page.getByText(HISTORICO)).toBeVisible()
+    const { data } = await serviceClient()
+      .from('clients')
+      .select('phone')
+      .eq('id', cliente.id)
+      .single()
+    expect(data?.phone).toBe(HISTORICO)
   })
 })

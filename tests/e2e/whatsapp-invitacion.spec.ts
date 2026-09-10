@@ -207,6 +207,37 @@ test.describe('Flujo B — desde «Mis clientes»', () => {
     await expect(dialogo).not.toContainText('boleta')
   })
 
+  /**
+   * La otra mitad de la regresión de D-184, por el camino real: el teléfono se
+   * PEGA con el portapapeles, tal como lo entrega un contacto de Android —con
+   * sus marcas de dirección invisibles—, se guarda con separadores y el enlace
+   * sigue saliendo con los doce dígitos canónicos.
+   */
+  test('pegar el teléfono con formato: el enlace sale con el número canónico', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+    const openedUrl = await spyOnWindowOpen(page)
+
+    await page.goto('/seller/clients/new')
+    await page.getByLabel('Nombre').fill(unique('Cliente pegado'))
+    await page.evaluate(
+      (texto) => navigator.clipboard.writeText(texto),
+      '\u202A+57 (300) 999-8877\u202C',
+    )
+    const campo = page.getByLabel('Teléfono')
+    await campo.focus()
+    await page.keyboard.press('ControlOrMeta+V')
+    await expect(campo).toHaveValue('+57 300 999 8877')
+    await page.getByRole('button', { name: 'Crear cliente' }).click()
+
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Invitar al grupo' }).click()
+    const url = await openedUrl()
+    expect(url).not.toBeNull()
+    expect(url!.startsWith('https://wa.me/573009998877?text=')).toBe(true)
+  })
+
   test('«Invitar al grupo» abre WhatsApp con el teléfono y el mensaje', async ({ page }) => {
     const openedUrl = await spyOnWindowOpen(page)
     await createClientFromForm(page, unique('Cliente invitado'), '3009998877')

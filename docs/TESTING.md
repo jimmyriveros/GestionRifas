@@ -113,10 +113,13 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
   correcto—, así que es la única forma de comprobar la hora sin depender del
   reloj. El caso «Hoy» lo cubre la suite de escritorio.
   La máscara visual del teléfono (D-184) vive en `telefono-mascara.spec.ts`
-  (escritorio: lo que se ve, el cursor, y sobre todo **lo que se guarda** —dos
-  regresiones que leen la fila DESPUÉS de guardar y la comparan carácter por
-  carácter, sobre un cliente y un vendedor con teléfono histórico—, más el
-  WhatsApp del catálogo y la búsqueda por los cuatro formatos) y
+  (escritorio: lo que se ve, el cursor, y sobre todo **lo que se guarda** —los
+  cinco caminos por los que un teléfono vuelve a la base (ficha del cliente,
+  vendedor y administrador del portal, integrante de equipo por su RPC y el
+  WhatsApp del catálogo), con la fila leída DESPUÉS y comparada carácter por
+  carácter, y `updated_at` como prueba de que abrir y salir sin guardar no
+  escribe nada—, más **Ctrl+V con el portapapeles del sistema**, que `fill()`
+  no es, y la búsqueda por los cuatro formatos) y
   `telefono-mascara-movil.spec.ts` (320 px: desbordamiento, los 44 px del campo,
   escribir y borrar con el teclado del teléfono). Las dos **borran lo que crean**
   con `purgeTestData` y `purgeSellers`. El teclado nativo de un teléfono real no

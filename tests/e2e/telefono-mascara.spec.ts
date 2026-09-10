@@ -249,7 +249,7 @@ test.describe('Lo que se guarda', () => {
     expect(data?.phone).toBe(HISTORICO)
   })
 
-  test('abrir y cerrar el formulario sin tocar nada no cambia el telefono', async ({ page }) => {
+  test('guardar sin tocar nada no cambia el telefono', async ({ page }) => {
     const HISTORICO = '57 (310) 555-9988'
     const cliente = await createClientFor(refs, unique('Cliente intacto'), refs.sellerId, HISTORICO)
     clientesCreados.push(cliente.id)
@@ -311,28 +311,8 @@ test.describe('El dialogo de vendedores y administradores', () => {
     page,
   }) => {
     const HISTORICO = '+57 (301) 222-3344'
-    const email = `mascara.${Date.now().toString(36)}@demo.test`
     const nombre = unique('Vendedor historico')
-    const svc = serviceClient()
-
-    // PREPARACION: la cuenta se crea con la service role para poder dejarle un
-    // telefono con el formato antiguo, que es justo lo que el formulario ya no
-    // produce. Lo que se prueba —la edicion— ocurre por la interfaz.
-    const { data: creado } = await svc.auth.admin.createUser({
-      email,
-      password: 'DesarrolloLocal2026',
-      email_confirm: true,
-      user_metadata: { full_name: nombre, phone: HISTORICO },
-    })
-    const vendedor = creado?.user
-    expect(vendedor, 'no se pudo crear la cuenta del vendedor').toBeTruthy()
-    vendedoresCreados.push(vendedor!.id)
-    const { error: membershipError } = await svc.from('memberships').insert({
-      organization_id: refs.organizationId,
-      profile_id: vendedor!.id,
-      role: 'seller',
-    })
-    expect(membershipError).toBeNull()
+    const vendedorId = await crearPersona({ nombre, telefono: HISTORICO, rol: 'seller' })
 
     await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/sellers')
@@ -348,13 +328,9 @@ test.describe('El dialogo de vendedores y administradores', () => {
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await expect(page.getByText(alias)).toBeVisible()
 
-    const { data } = await svc
-      .from('profiles')
-      .select('phone, alias')
-      .eq('id', vendedor!.id)
-      .single()
-    expect(data?.alias).toBe(alias)
-    expect(data?.phone).toBe(HISTORICO)
+    const despues = await filaPerfil(vendedorId)
+    expect(despues.alias).toBe(alias)
+    expect(despues.phone).toBe(HISTORICO)
   })
 })
 
@@ -448,6 +424,318 @@ test.describe('La busqueda sigue encontrando los formatos historicos', () => {
         await page.goto(`/seller/clients?q=${encodeURIComponent(termino)}`)
         await expect(page.getByRole('link', { name: nombre }), `${nombre} / ${termino}`).toBeVisible()
       }
+    }
+  })
+})
+
+/** Lo justo de una fila para saber si alguien la escribio: el dato y su sello. */
+async function filaCliente(id: string) {
+  const { data, error } = await serviceClient()
+    .from('clients')
+    .select('name, alias, email, notes, phone, updated_at')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  return data
+}
+
+async function filaPerfil(id: string) {
+  const { data, error } = await serviceClient()
+    .from('profiles')
+    .select('full_name, alias, phone, updated_at')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  return data
+}
+
+/**
+ * Una cuenta con el telefono en un formato ANTIGUO, que el formulario ya no
+ * produce. Se crea con la service role porque es PREPARACION: lo que se prueba
+ * —abrir, cerrar y editar— ocurre por la interfaz (D-043).
+ */
+async function crearPersona(opciones: {
+  nombre: string
+  telefono: string
+  rol: 'admin' | 'seller'
+  padre?: string
+}): Promise<string> {
+  const svc = serviceClient()
+  const email = `mascara.${Date.now().toString(36)}.${Math.random().toString(36).slice(2, 7)}@demo.test`
+  const { data: creado } = await svc.auth.admin.createUser({
+    email,
+    password: 'DesarrolloLocal2026',
+    email_confirm: true,
+    user_metadata: { full_name: opciones.nombre, phone: opciones.telefono },
+  })
+  const persona = creado?.user
+  if (!persona) throw new Error('No se pudo crear la cuenta de prueba')
+  vendedoresCreados.push(persona.id)
+
+  const { error } = await svc.from('memberships').insert({
+    organization_id: refs.organizationId,
+    profile_id: persona.id,
+    role: opciones.rol,
+    parent_seller_id: opciones.padre ?? null,
+  })
+  if (error) throw error
+  return persona.id
+}
+
+/**
+ * «Mostrar no es guardar», en los CINCO caminos por los que un telefono vuelve a
+ * la base: la ficha del cliente, el dialogo de personas del portal
+ * administrativo —vendedor y administrador—, el del equipo del vendedor, que va
+ * por otra RPC (`team_update_member`), y el WhatsApp del catalogo (arriba).
+ *
+ * `updated_at` es la prueba de que NADIE escribio: lo pone el disparador
+ * `set_updated_at` en CUALQUIER actualizacion, asi que si no se mueve, no hubo
+ * ninguna. Y cuando si se guarda, el telefono se compara caracter por caracter.
+ */
+test.describe('Un telefono guardado no se reescribe', () => {
+  test('abrir el formulario, entrar y salir del campo e irse sin guardar no escribe nada', async ({
+    page,
+  }) => {
+    const HISTORICO = '+57 (300) 123-4567'
+    const cliente = await createClientFor(refs, unique('Cliente sin tocar'), refs.sellerId, HISTORICO)
+    clientesCreados.push(cliente.id)
+    const antes = await filaCliente(cliente.id)
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/clients/${cliente.id}/edit`)
+
+    const campo = campoTelefono(page)
+    await expect(campo).toHaveValue('+57 300 123 4567')
+    await campo.focus()
+    await page.keyboard.press('Tab')
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(page).not.toHaveURL(/\/edit$/)
+
+    // Ni el telefono ni el sello: no hubo ni una escritura.
+    expect(await filaCliente(cliente.id)).toEqual(antes)
+  })
+
+  test('cambiar TODOS los demas campos del cliente deja el telefono identico', async ({ page }) => {
+    const HISTORICO = '(310) 555-0101'
+    const cliente = await createClientFor(refs, unique('Cliente completo'), refs.sellerId, HISTORICO)
+    clientesCreados.push(cliente.id)
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/clients/${cliente.id}/edit`)
+    await expect(campoTelefono(page)).toHaveValue('310 555 0101')
+
+    const nombre = unique('Cliente renombrado')
+    await page.getByLabel('Nombre').fill(nombre)
+    await page.getByLabel('Alias (opcional)').fill('La vecina')
+    await page.getByLabel('Correo (opcional)').fill('vecina@ejemplo.test')
+    await page.getByLabel('Notas (opcional)').fill('Paga los viernes')
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await page.waitForURL(/\/seller\/clients\/[0-9a-f-]+$/)
+
+    const despues = await filaCliente(cliente.id)
+    expect(despues).toMatchObject({
+      name: nombre,
+      alias: 'La vecina',
+      email: 'vecina@ejemplo.test',
+      notes: 'Paga los viernes',
+      phone: HISTORICO,
+    })
+  })
+
+  test('administrador: cerrar el dialogo no escribe, y cambiar su alias no toca el telefono', async ({
+    page,
+  }) => {
+    const HISTORICO = '57 (315) 444-3322'
+    const nombre = unique('Administrador historico')
+    const id = await crearPersona({ nombre, telefono: HISTORICO, rol: 'admin' })
+    const antes = await filaPerfil(id)
+
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/users')
+    const fila = page.getByRole('row').filter({ hasText: nombre })
+
+    await fila.getByRole('button', { name: `Acciones para ${nombre}` }).click()
+    await page.getByRole('menuitem', { name: 'Editar datos' }).click()
+    await expect(campoTelefono(page)).toHaveValue('+57 315 444 3322')
+
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    expect(await filaPerfil(id)).toEqual(antes)
+
+    await fila.getByRole('button', { name: `Acciones para ${nombre}` }).click()
+    await page.getByRole('menuitem', { name: 'Editar datos' }).click()
+    await page.getByLabel('Alias (opcional)').fill('Turno de la tarde')
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, 'Datos actualizados.')
+
+    const despues = await filaPerfil(id)
+    expect(despues.alias).toBe('Turno de la tarde')
+    expect(despues.phone).toBe(HISTORICO)
+  })
+
+  test('el vendedor que corrige a un integrante de su equipo no le reescribe el telefono', async ({
+    page,
+  }) => {
+    const HISTORICO = '+57 (320) 777-6655'
+    const id = await crearPersona({
+      nombre: unique('Integrante historico'),
+      telefono: HISTORICO,
+      rol: 'seller',
+      padre: refs.sellerId,
+    })
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/team/${id}`)
+    await page.getByRole('button', { name: 'Editar datos' }).click()
+
+    const dialogo = page.getByRole('dialog')
+    await expect(dialogo.getByLabel('Teléfono')).toHaveValue('+57 320 777 6655')
+
+    const nombre = unique('Integrante corregido')
+    await dialogo.getByLabel('Nombre completo').fill(nombre)
+    await dialogo.getByLabel('Alias (opcional)').fill('El del barrio')
+    await dialogo.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, 'Datos actualizados.')
+
+    const despues = await filaPerfil(id)
+    expect(despues).toMatchObject({ full_name: nombre, alias: 'El del barrio', phone: HISTORICO })
+  })
+})
+
+/**
+ * Copiar y pegar DE VERDAD, con el portapapeles del sistema.
+ *
+ * `fill()` inserta el texto de una vez y se parece a pegar, pero no ES pegar: no
+ * pasa por el portapapeles ni reemplaza una seleccion como lo hace el navegador.
+ * Aqui se escribe en el portapapeles y se pulsa Ctrl+V, que es lo que hace una
+ * persona.
+ */
+test.describe('Copiar y pegar con el portapapeles', () => {
+  test.use({ permissions: ['clipboard-read', 'clipboard-write'] })
+
+  async function alPortapapeles(page: Page, texto: string): Promise<void> {
+    await page.evaluate((valor) => navigator.clipboard.writeText(valor), texto)
+  }
+
+  async function pegar(page: Page, campo: Locator, texto: string): Promise<void> {
+    await alPortapapeles(page, texto)
+    await campo.focus()
+    await page.keyboard.press('ControlOrMeta+V')
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/clients/new')
+  })
+
+  test('Ctrl+V con indicativo, parentesis y guion deja «+57 300 123 4567» y el cursor al final', async ({
+    page,
+  }) => {
+    const campo = campoTelefono(page)
+    await pegar(page, campo, '+57 (300) 123-4567')
+    await expect(campo).toHaveValue('+57 300 123 4567')
+    expect(await cursor(campo)).toBe(16)
+  })
+
+  test('pega lo que copia un contacto o WhatsApp, con sus marcas invisibles', async ({ page }) => {
+    const campo = campoTelefono(page)
+    // Android y WhatsApp envuelven el numero en marcas de direccion (U+202A y
+    // U+202C) y a veces separan con espacios que no son el espacio normal
+    // (U+00A0). No se ven; antes de la mascara, el formulario rechazaba por
+    // ellas un numero perfectamente bueno.
+    const casos: [string, string][] = [
+      ['\u202A+57 300 1234567\u202C', '+57 300 123 4567'],
+      ['300\u00A0123\u00A04567', '300 123 4567'],
+      ['Tel: 300-123-4567', '300 123 4567'],
+    ]
+    for (const [pegado, visto] of casos) {
+      await campo.fill('')
+      await pegar(page, campo, pegado)
+      await expect(campo, JSON.stringify(pegado)).toHaveValue(visto)
+    }
+  })
+
+  test('pegar con todo seleccionado reemplaza el numero entero', async ({ page }) => {
+    const campo = campoTelefono(page)
+    await campo.fill('3001234567')
+    await alPortapapeles(page, '(310) 999-8877')
+    await campo.focus()
+    await page.keyboard.press('ControlOrMeta+A')
+    await page.keyboard.press('ControlOrMeta+V')
+    await expect(campo).toHaveValue('310 999 8877')
+  })
+
+  test('pegar en medio deja el cursor justo detras de lo pegado', async ({ page }) => {
+    const campo = campoTelefono(page)
+    await campo.fill('3001234')
+    await expect(campo).toHaveValue('3001234')
+
+    await alPortapapeles(page, '999')
+    await ponerCursor(campo, 3)
+    await page.keyboard.press('ControlOrMeta+V')
+    await expect(campo).toHaveValue('300 999 1234')
+    expect(await cursor(campo)).toBe(7)
+  })
+
+  test('copiar el campo entrega el numero legible, y pegarlo de vuelta lo deja igual', async ({
+    page,
+  }) => {
+    const campo = campoTelefono(page)
+    await campo.fill('3001234567')
+    await campo.focus()
+    await page.keyboard.press('ControlOrMeta+A')
+    await page.keyboard.press('ControlOrMeta+C')
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('300 123 4567')
+
+    await campo.fill('')
+    await campo.focus()
+    await page.keyboard.press('ControlOrMeta+V')
+    await expect(campo).toHaveValue('300 123 4567')
+  })
+
+  test('pegar dos numeros juntos no pierde un digito, y el formulario no lo guarda', async ({
+    page,
+  }) => {
+    const name = unique('Cliente dos numeros')
+    await page.getByLabel('Nombre').fill(name)
+    await pegar(page, campoTelefono(page), '300 123 4567 / 310 999 8877')
+
+    // Los veinte digitos siguen ahi: la mascara no decide cual de los dos vale.
+    await expect(campoTelefono(page)).toHaveValue('300 123 4567  310 999 8877')
+    await page.getByRole('button', { name: 'Crear cliente' }).click()
+    await expect(page.getByText('Ingresa un teléfono válido (7 a 20 dígitos).')).toBeVisible()
+    await expect(page).toHaveURL(/\/seller\/clients\/new/)
+
+    const { count } = await serviceClient()
+      .from('clients')
+      .select('id', { count: 'exact', head: true })
+      .eq('name', name)
+    expect(count).toBe(0)
+  })
+
+  test('pegar y guardar: la base recibe lo que se ve, y la busqueda lo encuentra', async ({
+    page,
+  }) => {
+    const name = unique('Cliente pegado')
+    await page.getByLabel('Nombre').fill(name)
+    await pegar(page, campoTelefono(page), '\u202A+57 (310) 555-7777\u202C')
+    await expect(campoTelefono(page)).toHaveValue('+57 310 555 7777')
+    await page.getByRole('button', { name: 'Crear cliente' }).click()
+
+    await closeClientCreatedDialog(page)
+    await page.waitForURL(/\/seller\/clients\/[0-9a-f-]+$/)
+
+    const { data } = await serviceClient()
+      .from('clients')
+      .select('id, phone')
+      .eq('name', name)
+      .single()
+    expect(data?.phone).toBe('+57 310 555 7777')
+    if (data?.id) clientesCreados.push(data.id)
+
+    for (const termino of ['3105557777', '310 555 7777', '+57 310 555 7777', '573105557777']) {
+      await page.goto(`/seller/clients?q=${encodeURIComponent(termino)}`)
+      await expect(page.getByRole('link', { name }), termino).toBeVisible()
     }
   })
 })
