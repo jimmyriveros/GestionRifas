@@ -354,6 +354,8 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Ahí, qué parte del total vendido se lleva cobrada | **Avance del cobro** (D-171) | Cobranza, % recaudado, cumplimiento |
 | Columna que contiene lo que se puede hacer con la fila | **Acción** si hay una sola; **Acciones** si abre un menú (D-114) | Dejar la columna sin encabezado |
 | Identificador que genera el sistema | **Código interno** | ID, código de barras |
+| La etiqueta del campo donde se escribe ese número | **Teléfono** | Móvil, contacto, número de contacto |
+| Cómo se escribe un teléfono en un campo, y cómo se pone de ejemplo | **`300 123 4567`**, y **`+57 300 123 4567`** cuando el campo pide indicativo (D-184) | `3001234567` y `573001234567`, que era como se veían hasta el 2026-09-09 |
 | Persona que compra | **Cliente** | Comprador, usuario, participante |
 | Persona que vende | **Vendedor** | Colaborador, usuario, asesor |
 | Persona dueña de la organización | **Dueño** | Owner, propietario, titular |
@@ -433,6 +435,23 @@ es exactamente lo contrario: un trato que hace **una** persona con **un** client
 propia ganancia**. Esa consecuencia se dice siempre que aparezca la casilla; es lo único que quien la
 usa no puede deducir mirando la pantalla. Y una venta al precio normal **no** menciona la rebaja:
 anunciar «rebaja de $0» es ruido en la pantalla que más se usa.
+
+**Un teléfono se escribe con separadores, y el ejemplo del campo también** (D-184). Los tres campos
+de teléfono muestran **`300 123 4567`** mientras se escribe, y **`+57 300 123 4567`** cuando lleva
+indicativo. Eso cambia dos cosas de redacción y ninguna más:
+
+* el **texto de ejemplo** es ese mismo formato —`3001234567` ya no se escribe en ninguna parte—, y
+  vive una sola vez, en `lib/phone.ts`, para que las tres pantallas no lo copien;
+* la etiqueta sigue siendo **«Teléfono»**, y la explicación del WhatsApp del catálogo sigue diciendo
+  lo mismo, porque sigue siendo verdad: con diez cifras se le añade el 57.
+
+**Donde el teléfono se LEE no cambia nada** —la tabla de clientes, la ficha, el CSV, el catálogo—:
+ahí se muestra el dato guardado tal como está. Un texto que prometa que todos los teléfonos se ven
+con separadores estaría mintiendo: en la base conviven los formatos de antes.
+
+**Y ningún texto puede sugerir que ver un teléfono lo cambia.** No lo cambia: abrir un formulario,
+cerrarlo o corregir el alias dejan el teléfono exactamente como estaba. Solo se guarda la forma nueva
+cuando la persona edita el campo.
 
 **Lo que se ve corto puede oírse entero** (D-114, y antes D-111). Cuando una palabra no cabe —«Núm.
 diario» en el encabezado de una tabla, «1 de 5» en la paginación—, se abrevia **lo visible** y la
@@ -1133,6 +1152,7 @@ castigo donde solo había una espera.
 | Tipo de texto | Dónde se escribe |
 |---|---|
 | Etiquetas de estado, roles y métodos de pago | `src/lib/constants.ts` |
+| Los dos textos de ejemplo de un campo de teléfono | `src/lib/phone.ts` (`PHONE_PLACEHOLDER`, `PHONE_WITH_CODE_PLACEHOLDER`, D-184). **Ninguna pantalla los escribe**: los pone `PhoneInput` |
 | Nombre de lo que cuenta cada listado en su paginación | `src/lib/constants.ts` (`LIST_ITEM_LABELS`, D-111) |
 | Etiquetas de estado de pago en plural, para encabezar grupos | `src/lib/constants.ts` (`TICKET_PAYMENT_STATUS_PLURAL_LABELS`, D-112) |
 | Nombres de los períodos del panel del vendedor | `src/features/dashboard/date-range.ts` (`DASHBOARD_RANGE_LABELS`, D-112) |

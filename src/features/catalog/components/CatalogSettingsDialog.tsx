@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { PhoneInput } from '@/components/form/PhoneInput'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -14,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { PHONE_WITH_CODE_PLACEHOLDER } from '@/lib/phone'
 
 import { regenerateCatalogSlug, saveCatalogSettings } from '../actions'
 import { catalogSettingsSchema } from '../schemas'
@@ -143,12 +144,18 @@ export function CatalogSettingsDialog({
 
             <div className="space-y-1.5">
               <Label htmlFor="catalog-whatsapp">WhatsApp para recibir solicitudes</Label>
-              <Input
+              {/* La misma mascara que los dos formularios de persona (D-184).
+                  Lo que se GUARDA sigue siendo la forma canonica de solo
+                  digitos que exige el CHECK `memberships_public_whatsapp_format`
+                  (BR-K05): la normaliza `whatsappNumberSchema` antes de
+                  validar, asi que los separadores no llegan a la base. Y
+                  `autoComplete` se queda en `off`: este no es el telefono de
+                  quien rellena el formulario, es el del vendedor. */}
+              <PhoneInput
                 id="catalog-whatsapp"
                 value={whatsappNumber}
-                onChange={(event) => setWhatsappNumber(event.target.value)}
-                placeholder="573001234567"
-                inputMode="tel"
+                onChange={setWhatsappNumber}
+                placeholder={PHONE_WITH_CODE_PLACEHOLDER}
                 autoComplete="off"
                 disabled={isPending}
               />

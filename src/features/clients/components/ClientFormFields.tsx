@@ -2,6 +2,7 @@
 
 import type { UseFormReturn } from 'react-hook-form'
 
+import { PhoneInput } from '@/components/form/PhoneInput'
 import {
   FormControl,
   FormDescription,
@@ -53,14 +54,14 @@ export function ClientFormFields({
           <FormItem>
             <FormLabel>Teléfono</FormLabel>
             <FormControl>
-              <Input
+              <PhoneInput
                 size="touch"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="3001234567"
                 disabled={disabled}
-                {...field}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
               />
             </FormControl>
             <FormMessage />

@@ -165,6 +165,16 @@ describe('createUserSchema (BR-U08, BR-U03)', () => {
     expect(createUserSchema.safeParse({ ...base, phone: '123' }).success).toBe(false)
   })
 
+  /** Lo que produce la mascara visual (D-184) pasa, y sale tal cual entro. */
+  it('acepta las dos formas de la mascara y no las reescribe', () => {
+    for (const phone of ['300 123 4567', '+57 300 123 4567', '+57 (300) 123-4567']) {
+      const parsed = createUserSchema.safeParse({ ...base, phone })
+      expect(parsed.success, phone).toBe(true)
+      expect(parsed.success && parsed.data.phone, phone).toBe(phone)
+    }
+    expect(createUserSchema.safeParse({ ...base, phone: '300123' }).success).toBe(false)
+  })
+
   it('no admite crear un usuario con rol owner', () => {
     expect(createUserSchema.safeParse({ ...base, role: 'owner' }).success).toBe(false)
   })

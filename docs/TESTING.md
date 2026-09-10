@@ -112,6 +112,16 @@ expect(error).toBeNull()   // no filtra información por el tipo de error
   oficial —y entonces la tarjeta dice «Resultado pendiente», que es lo
   correcto—, así que es la única forma de comprobar la hora sin depender del
   reloj. El caso «Hoy» lo cubre la suite de escritorio.
+  La máscara visual del teléfono (D-184) vive en `telefono-mascara.spec.ts`
+  (escritorio: lo que se ve, el cursor, y sobre todo **lo que se guarda** —dos
+  regresiones que leen la fila DESPUÉS de guardar y la comparan carácter por
+  carácter, sobre un cliente y un vendedor con teléfono histórico—, más el
+  WhatsApp del catálogo y la búsqueda por los cuatro formatos) y
+  `telefono-mascara-movil.spec.ts` (320 px: desbordamiento, los 44 px del campo,
+  escribir y borrar con el teclado del teléfono). Las dos **borran lo que crean**
+  con `purgeTestData` y `purgeSellers`. El teclado nativo de un teléfono real no
+  lo reproduce Chromium, así que una pasada verde no sustituye mirarlo en un
+  móvil (la misma limitación de I-079 e I-066).
   La cabecera contextual (D-150) vive en `cabecera-contextual.spec.ts`
   (escritorio: cruce, CTA, flecha, limpieza al navegar, anchos 768–1600) y
   `cabecera-contextual-movil.spec.ts` (reemplazo del nombre de la organización,
@@ -767,6 +777,7 @@ esa navegación aterrice, o medirá el scroll deshecho.
 | `lib/dates.ts` | Un pago del 31 a las 23:00 en Bogotá pertenece al día 31, no al 1 |
 | Detección de duplicados en el formulario masivo | Detecta repetidos entre 1.000 filas sin bloquear la interfaz |
 | `lib/errors.ts` | Cada código de error de PostgreSQL se traduce a un mensaje en español sin filtrar detalles internos |
+| `lib/phone.ts` (D-184) | Además de cómo se ve, **cuatro propiedades sobre 32 formatos**: es idempotente, no pierde ni un dígito, lo que `PHONE_REGEX` aceptaba se sigue aceptando —y lo que rechazaba se sigue rechazando— y nada de lo que produce pasa de 20 caracteres. Más el cursor: escribir al final, escribir en medio, pegar, borrar junto a un separador y **vaciar el campo en diez pulsaciones**, que es la regresión de un defecto real |
 | `features/tour/tours.ts` | Ids únicos y estables; cada recorrido termina con el cierre; ningún recorrido del portal administrativo alcanza a un vendedor; los textos cumplen la guía de redacción (títulos de 2 a 7 palabras, glosario, tuteo) |
 | `features/tour/use-tour.ts` + `storage.ts` | Un paso cuyo elemento falta, mide cero o está oculto se descarta sin romper el resto; el cierre sobrevive siempre; la memoria es por perfil y por recorrido, y no se repite si el navegador bloquea el almacenamiento |
 

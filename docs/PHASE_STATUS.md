@@ -4481,3 +4481,73 @@ I-021, I-023, I-030, I-059, I-060, I-106.
 7. **No devuelvas el `<details>`**: hay pruebas que miden que abrir el detalle no mueva «Estado de cobro» ni agrande la tarjeta.
 8. **`lg:self-stretch` es la excepción a `items-start`, y solo para esas dos tarjetas.** No lo copies al resto de la rejilla: estirar una tarjeta corta hasta una larga solo produce un hueco.
 9. **No hay etiqueta `fase-N`**: es mantenimiento.
+
+## Mantenimiento post-9 — máscara visual del teléfono (D-184, 2026-09-09)
+
+Autorizado expresamente y **acotado a la entrada de datos**. No toca esquema, migraciones, RLS, RPC,
+permisos, búsqueda, identidad de clientes, normalización de WhatsApp, rutas ni reglas de negocio.
+**Ninguna fila existente se modificó** y no hubo migración de datos.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Cómo se ve | Los campos de teléfono muestran **`300 123 4567`** mientras se escribe, y **`+57 300 123 4567`** cuando el número lleva indicativo colombiano. Pegar `3001234567`, `573001234567`, `+57 (300) 123-4567`, `300-123-4567` o `(300) 123 4567` produce una de esas dos formas |
+| Qué NO se deforma | Un número internacional que no sea colombiano conserva sus propios separadores (`+1 (212) 555-1234`, `+44 20 7123 4567`), y diez cifras que no empiezan por 3 ni por 6 tampoco se agrupan: no son un número nacional |
+| Un solo componente | **`src/components/form/PhoneInput.tsx`**, usado por `ClientFormFields`, `UserDialog` y `CatalogSettingsDialog`, o sea las **ocho** pantallas donde se escribe un teléfono. Sigue el patrón de `MoneyInput` y `TicketNumberInput`; **no se añadió ninguna dependencia** |
+| Las reglas, puras | **`src/lib/phone.ts`**: `formatPhone`, `applyPhoneEdit` (valor y cursor tras una edición), `phoneDeletionRange` (borrar junto a un separador) y los dos textos de ejemplo. Se puede probar entero sin montar React |
+| Mostrar no es guardar | Formatear ocurre **al pintar** y no dispara `onChange`. Un teléfono guardado con otro formato se ve legible y **se envía tal cual**: abrir el formulario, cerrarlo o corregir nombre, alias, correo o notas lo dejan **idéntico**. Solo una edición explícita del campo adopta la forma nueva |
+| El cursor | Se recoloca a mano, midiendo **dígitos a la izquierda** y no caracteres, y borrar junto a un separador se lleva el dígito del otro lado. Sin eso, escribir en medio sería imposible y borrar exigiría pulsar dos veces |
+| Lo que no cambia | La búsqueda (`searchNeedle`, `search_normalize()`, `digitsOnly`), el enlace de WhatsApp (`normalizeWhatsappNumber`), la identidad de clientes del importador (`ticket_import_phone_key`) y **todas** las pantallas donde el teléfono se **lee**: tabla, ficha, CSV y catálogo siguen mostrando el dato guardado |
+| Validación | **Intacta.** La máscara agrupa solo desde el octavo dígito precisamente para no relajar `PHONE_REGEX`, que cuenta caracteres y no dígitos (**I-108**, abierta con este trabajo) |
+
+### 2. Pruebas ejecutadas y resultados
+
+`npm run verify` ✅ (`typecheck`, lint con los 2 avisos preexistentes, **896/896** unitarias —**+39**—,
+`build`). `npm run test:db` **827/827**. E2E: `telefono-mascara` **18/18** en escritorio,
+`telefono-mascara-movil` **4/4** a 320 px, y las siete suites de escritorio que escriben un teléfono
+**71/71**. Suite completa: **597 pasan · 2 fallan** de 599, y los dos son **I-090** e **I-106**, verdes en aislamiento.
+
+**Un defecto encontrado y corregido, y lo encontró la prueba nueva**: contar solo los dígitos a la
+izquierda dejaba el cursor delante de los espacios al bajar del octavo dígito borrando, y diez
+pulsaciones sobre `300 123 4567` acababan en un campo que **parecía vacío y tenía dos espacios
+dentro**. Corregido con una regla explícita y con una prueba unitaria que **se comprobó que falla**
+sin ella. Detalle en `TEST_RESULTS.md`.
+
+### 3. Migraciones
+
+**No aplica.** Ninguna, y ninguna hace falta: los formatos antiguos ya son válidos para el CHECK que
+existe desde `0002`.
+
+### 4. Variables de entorno
+
+Ninguna nueva.
+
+### 5. Problemas que permanecen
+
+**Nuevo: `I-108`** — `PHONE_REGEX` y los CHECK de `profiles.phone` y `clients.phone` cuentan
+**caracteres permitidos, no dígitos**, mientras el mensaje dice «7 a 20 dígitos». Se puede guardar un
+teléfono sin ninguna cifra (`(-) (-)`), y `300 123` se acepta mientras `300123` se rechaza.
+**Documentado y dejado fuera a propósito**: corregirlo cambia lo que la aplicación acepta, exige una
+migración nueva y un censo de los datos reales. La máscara se diseñó neutral frente a esa regla.
+
+Los de siempre: I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021,
+I-023, I-030, I-059, I-060.
+
+### 6. Lo que debe revisar el siguiente agente
+
+1. **Mostrar no es guardar, y es la mitad del trabajo.** Si tocas `PhoneInput` o `lib/phone.ts`,
+   vuelve a correr las cuatro pruebas de regresión: dos leen la fila **después** de guardar y la
+   comparan carácter por carácter, sobre un cliente y un vendedor con teléfono histórico.
+2. **No agrupes desde el cuarto dígito.** Aceptaría teléfonos de seis cifras: `PHONE_REGEX` cuenta
+   caracteres (I-108). Hay una prueba que recorre 32 formatos comprobando que lo aceptado sigue
+   aceptado y lo rechazado sigue rechazado.
+3. **No introduzcas un segundo estado «enfocado/crudo/formateado».** Es exactamente I-016, el defecto
+   que D-053 quitó de `MoneyInput`: una escritura programática acabaría concatenando.
+4. **No formatees donde el teléfono se LEE** —tabla de clientes, ficha, CSV, catálogo—: ahí se muestra
+   el dato guardado, y formatearlo esconderían que en la base conviven varios formatos.
+5. **`lib/phone.ts` no valida, no normaliza para buscar y no canoniza para WhatsApp.** Si necesitas
+   una de esas tres cosas, ya existen: `PHONE_REGEX`, `searchNeedle` y `normalizeWhatsappNumber`.
+6. **El comportamiento del teclado nativo de un teléfono real no lo reproduce Playwright** (la misma
+   advertencia de I-079 y I-066). Queda una comprobación manual en un móvil.
+7. **No hay etiqueta `fase-N`**: es mantenimiento.

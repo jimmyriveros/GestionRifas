@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (D-182, D-183, 2026-09-09)** | **857 ✅** en 49 archivos | — (no se tocó la base) | **escritorio 445** con los 2 de **I-090** · **móvil 130/130**. Doce combinaciones de ancho y tema sin desbordamiento; **I-107** cerrada de rebote | ✅ | ✅ **DESPLEGADO** (`523b4bc`) |
+| **Post-9 vigente (D-184, 2026-09-09)** | **896 ✅** en 50 archivos (+39) | **827 ✅** — no se tocó la base | **597 pasan · 2 fallan** de 599 (+22 nuevas); los 2 son **I-090** e **I-106**, verdes en aislamiento (**21/21** y **15/15**) | ✅ | ✅ **Sin desplegar** |
+| Post-9 anterior (D-182, D-183, 2026-09-09) | **857 ✅** en 49 archivos | — (no se tocó la base) | **escritorio 445** con los 2 de **I-090** · **móvil 130/130**. Doce combinaciones de ancho y tema sin desbordamiento; **I-107** cerrada de rebote | ✅ | ✅ **DESPLEGADO** (`523b4bc`) |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b30e943`)** | — | **Sin migración**: cero diferencias en `supabase/`, sonda antes/después idéntica | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `fd3a1e1f16b1` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b46c24f`)** | — | **Sin migración**: cero diferencias en `supabase/` | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `ed0c0f468ac0` servido en 1 de 15 fragmentos |
@@ -9800,5 +9801,116 @@ de arriba mira el rediseño.
 5. En una ventana ancha, **«Resumen por vendedor» e «Inventario» comparten fila**; la tabla ordena por
    **saldo pendiente** y enseña cinco, con «Los 5 con más saldo pendiente, de N» si hay más.
 6. En el teléfono, **nada se sale de lado** y la tabla se desplaza **dentro de su recuadro**.
+
+---
+
+## Máscara visual del teléfono (D-184, I-108) — 2026-09-09
+
+Encargo de entrada de datos. **Ninguna migración, ningún cambio de esquema, ninguna política, ninguna
+RPC, ninguna regla de negocio y ninguna fila modificada.**
+
+### a. Verificación estándar
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` | ✅ |
+| `npm run lint` | ✅ 0 errores · **2 avisos preexistentes** (TanStack Table y TanStack Virtual, `react-hooks/incompatible-library`) |
+| `npm run test` | ✅ **896/896** en 50 archivos — **+39** sobre las 857 de partida |
+| `npm run build` | ✅ |
+| `npm run test:db` | ✅ **827/827** en 39 archivos — **sin cambios**: no se tocó la base |
+
+### b. Las 39 pruebas unitarias nuevas
+
+| Archivo | Cuántas | Qué defiende |
+|---|---|---|
+| `tests/unit/phone.test.ts` | **34** (nuevo) | Lo visible y, sobre todo, lo que la máscara no puede cambiar |
+| `tests/unit/clients-schemas.test.ts` | +2 | Las dos formas de la máscara pasan `clientFormSchema` y **salen tal cual entraron**; seis dígitos se siguen rechazando con separadores o sin ellos |
+| `tests/unit/schemas.test.ts` | +1 | Lo mismo para `createUserSchema` |
+| `tests/unit/search.test.ts` | +1 | Un teléfono **guardado** con separadores se encuentra escribiendo cualquiera de las cuatro formas |
+| `tests/unit/catalog.test.ts` | +1 | Lo que ve la máscara se guarda igual de canónico: `+57 300 123 4567` → `573001234567` |
+
+Dentro de `phone.test.ts`, las que no son de aspecto:
+
+| Prueba | Qué mide |
+|---|---|
+| «es idempotente» | `formatPhone(formatPhone(x)) === formatPhone(x)` sobre **32** formatos |
+| «no pierde ni un dígito» | `digitsOnly(formatPhone(x)) === digitsOnly(x)` sobre los mismos 32 |
+| «un valor aceptado sigue aceptado» | Para cada formato que pasa `PHONE_REGEX`, su forma con separadores **también** pasa. Es la prueba que impide relajar la validación desde una tarea visual |
+| «no convierte en válido un teléfono demasiado corto» | Nueve entradas cortas siguen rechazadas |
+| «nunca pasa de 20 caracteres» | El tope del CHECK, sobre los 32 formatos |
+| «WhatsApp sigue recibiendo el mismo número canónico» | Cuatro formas → `573001234567`; un internacional → sus dígitos, sin suponer Colombia |
+| «la búsqueda sigue reduciendo al mismo número nacional» | Cuatro formas → `3001234567` |
+| «un teléfono histórico se puede mostrar sin normalizarlo ni volver a guardarlo» | `formatPhone` lo enseña legible **y** `clientFormSchema.parse` devuelve el valor original |
+| «formatear para mostrar no modifica el valor de origen» | La variable de entrada sigue igual después de formatear |
+
+### c. El defecto propio, encontrado por la prueba nueva
+
+**Diez pulsaciones de Backspace sobre «300 123 4567» dejaban un campo que parecía vacío y tenía dos
+espacios dentro.** Lo destapó `telefono-mascara.spec.ts` en su primera ejecución, con el mensaje
+`Expected "" · Received "  "`.
+
+**Causa.** El cursor se calcula contando los dígitos que quedan a su izquierda. Al bajar del octavo
+dígito, la forma sin agrupar conserva los espacios ya escritos, y esa cuenta dejaba el cursor
+**delante** del espacio final: la pulsación siguiente se llevaba un dígito y dejaba su espacio detrás,
+una y otra vez.
+
+**Corrección.** Una regla explícita en `applyPhoneEdit`: quien estaba al final del texto se queda al
+final. **Comprobada al revés**: quitando esa línea, la prueba unitaria del bucle de borrado falla
+(`expected '   …' to be ''`), y con ella vuelven a pasar las 34.
+
+### d. E2E dirigidas
+
+| Corrida | Resultado |
+|---|---|
+| `telefono-mascara.spec.ts` (escritorio, **nueva**) | ✅ **18/18** |
+| `telefono-mascara-movil.spec.ts` (**nueva**, 320 px) | ✅ **4/4** |
+| Las siete suites de escritorio que escriben un teléfono | ✅ **71/71** — `seller-clients`, `owner-users`, `equipo`, `cambiar-cliente`, `whatsapp-invitacion`, `whatsapp-modal-persistencia`, `busqueda-hibrida` |
+
+Las 18 de escritorio, por lo que defienden:
+
+| Grupo | Pruebas |
+|---|---|
+| Lo que se ve | El campo muestra «300 123 4567»; conserva `type`, `inputmode`, `autocomplete` y el texto de ejemplo; los grupos aparecen **mientras se escribe** y sin salir del campo; pegar seis formatos distintos; un internacional no se deforma |
+| El cursor | Borrar junto a un espacio quita un **dígito** y deja el cursor en la posición 2; «Suprimir» sobre un espacio se lleva el dígito siguiente; escribir en medio deja el cursor pegado al dígito nuevo (posición 5 de «300 912 3456»), no al final; diez pulsaciones vacían el campo |
+| La validación | Seis dígitos se siguen rechazando con el mismo mensaje |
+| **Lo que se guarda** | El formulario guarda **exactamente** lo que se veía; **editar solo el alias de un cliente** con teléfono `+57 (300) 123-4567` deja la fila **idéntica**; **guardar sin tocar nada** también; solo una edición explícita adopta la forma nueva |
+| El otro portal | El diálogo de vendedores usa la misma máscara; **editar solo el alias de un vendedor** con teléfono `+57 (301) 222-3344` deja `profiles.phone` **idéntico** |
+| El catálogo | El WhatsApp público se ve `+57 300 123 4567` y se guarda `573001234567`; `autocomplete` sigue en `off` |
+| La búsqueda | Dos clientes, uno guardado sin separadores y otro con ellos, se encuentran con **cuatro** términos cada uno: dígitos, con espacios, con `+57` y con indicativo pegado |
+
+Las cuatro de móvil: a 320 px con el número más largo **no hay desbordamiento** (≤ 2 px) y el texto
+cabe dentro del campo; el campo conserva **44 px** de alto medidos con `getComputedStyle`; escribir,
+borrar dos veces y volver a escribir da el mismo resultado; y un teléfono histórico se ve legible y se
+guarda como estaba.
+
+### e. Suite completa
+
+**597 pasan · 2 fallan** (599, **+22** por las dos suites nuevas), sobre base recién creada.
+
+| Prueba | Anotación | En aislamiento con base nueva |
+|---|---|---|
+| `reports.spec.ts:305` | **`I-090`** — acumulación: el pago anulado se sale de «pagos recientes» | ✅ **21/21** |
+| `catalogo-publico-movil.spec.ts:103` | **`I-106`** — dependencia de orden, abierta el 2026-09-08 con esta misma descripción | ✅ **15/15** |
+
+Ninguna de las dos toca un campo de teléfono: la primera cuenta pagos del seed compartido y la segunda
+mide el buscador del catálogo público, que no tiene ninguno. La segunda se comprobó además leyendo su
+contexto de fallo: el término **sí** estaba escrito en el campo (`searchbox: "0"`) y lo que no llegó
+fue la navegación, que es exactamente lo que describe `I-106`.
+
+### f. Lo que NO se comprobó, y se dice
+
+* **El teclado nativo de un teléfono real.** El proyecto `movil` es Chromium de Pixel 7; un teclado de
+  iOS o Android puede insertar texto por caminos que Chromium no reproduce (la misma limitación de
+  `I-079` e `I-066`). Queda comprobación manual.
+* **La aplicación en producción.** No se desplegó nada.
+* **`format:check`.** No está en `verify` ni en el CI (§2.0 de `TESTING.md`) y no se ejecutó.
+
+### g. Lo que NO se tocó
+
+Migraciones, esquema, políticas, RPC, `search_normalize()`, `searchNeedle`, `digitsOnly`,
+`normalizeWhatsappNumber`, `ticket_import_phone_key`, `PHONE_REGEX`, los dos CHECK de `phone`, las
+pantallas donde el teléfono se **lee** y las dependencias del paquete. Los dos archivos sin
+seguimiento del usuario —`CorrecionesLoterias.txt` (`4b5d893f…`) y `prueba-abono.csv`
+(`a096f61e…`)— siguen intactos.
 
 ---

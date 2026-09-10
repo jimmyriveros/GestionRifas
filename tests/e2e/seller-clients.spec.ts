@@ -39,7 +39,10 @@ test.describe('Clientes del vendedor', () => {
 
     await page.waitForURL(/\/seller\/clients\/[0-9a-f-]+$/)
     await expect(page.getByRole('heading', { name })).toBeVisible()
-    await expect(page.getByText('3001234567')).toBeVisible()
+    // Desde D-184 el campo se escribe con separadores, y lo que se ve es lo que
+    // se guarda: la ficha enseña «300 123 4567». Los dígitos son los mismos, y
+    // la búsqueda y WhatsApp siguen recibiendo lo mismo (`telefono-mascara`).
+    await expect(page.getByText('300 123 4567')).toBeVisible()
   })
 
   test('rechaza un cliente sin teléfono válido (BR-C02)', async ({ page }) => {

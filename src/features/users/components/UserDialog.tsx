@@ -7,6 +7,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { Notice } from '@/components/feedback/Notice'
+import { PhoneInput } from '@/components/form/PhoneInput'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -305,13 +306,13 @@ function UserDialogForm({
             <FormItem>
               <FormLabel>Teléfono</FormLabel>
               <FormControl>
-                <Input
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="3001234567"
+                <PhoneInput
                   disabled={isPending}
-                  {...field}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
                 />
               </FormControl>
               <FormMessage />

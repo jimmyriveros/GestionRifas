@@ -36,6 +36,27 @@ describe('clientFormSchema (BR-C02)', () => {
     ).toBe(true)
   })
 
+  /**
+   * Las dos formas que produce la mascara visual (D-184) pasan la validacion, y
+   * el esquema NO las reescribe: lo que se ve es lo que se guarda, y un telefono
+   * historico se guarda como estaba.
+   */
+  it('acepta las dos formas de la mascara y no las reescribe', () => {
+    for (const phone of ['300 123 4567', '+57 300 123 4567', '+57 (300) 123-4567', '3001234567']) {
+      const parsed = clientFormSchema.safeParse({ ...validClient, phone })
+      expect(parsed.success, phone).toBe(true)
+      expect(parsed.success && parsed.data.phone, phone).toBe(phone)
+      expect(toClientRow({ ...validClient, phone }).phone, phone).toBe(phone)
+    }
+  })
+
+  it('un telefono de seis cifras se sigue rechazando, con separadores o sin ellos', () => {
+    // La mascara no agrupa por debajo del octavo digito justamente para que
+    // «300123» no se convierta en «300 123» y cuele siete caracteres por un
+    // telefono de siete cifras (I-108).
+    expect(clientFormSchema.safeParse({ ...validClient, phone: '300123' }).success).toBe(false)
+  })
+
   it('el correo es opcional pero, si viene, debe ser valido', () => {
     expect(clientFormSchema.safeParse({ ...validClient, email: '' }).success).toBe(true)
     expect(clientFormSchema.safeParse({ ...validClient, email: 'ana@demo.test' }).success).toBe(

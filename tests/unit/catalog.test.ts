@@ -245,6 +245,24 @@ describe('la configuracion que se guarda (BR-K04..BR-K06)', () => {
     expect(parsed.success && parsed.data.whatsappNumber).toBe('573001234567')
   })
 
+  /**
+   * Desde D-184 el campo se ve con separadores, pero lo que se guarda sigue
+   * siendo la forma canonica de solo digitos que exige el CHECK
+   * `memberships_public_whatsapp_format` (BR-K05).
+   */
+  it('lo que ve la mascara se guarda igual de canonico', () => {
+    for (const escrito of ['+57 300 123 4567', '300 123 4567']) {
+      const parsed = catalogSettingsSchema.safeParse({
+        profileId,
+        enabled: true,
+        whatsappNumber: escrito,
+        raffleId,
+      })
+      expect(parsed.success, escrito).toBe(true)
+      expect(parsed.success && parsed.data.whatsappNumber, escrito).toBe('573001234567')
+    }
+  })
+
   it('publicar sin WhatsApp se rechaza con un mensaje util', () => {
     const parsed = catalogSettingsSchema.safeParse({
       profileId,

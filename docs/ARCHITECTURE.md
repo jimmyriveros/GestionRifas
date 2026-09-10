@@ -374,6 +374,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | Filtros de cada dominio | Controles en URL, paginación y acción «Limpiar filtros» |
 | `MoneyInput` / `formatCOP` | Entrada y presentación de enteros COP |
 | `TicketNumberInput` | Solo dígitos, máx. 4, preserva ceros, `inputMode="numeric"` |
+| `PhoneInput` / `lib/phone.ts` | El **único** campo de teléfono (§8.22, D-184): «300 123 4567» y «+57 300 123 4567» mientras se escribe, `type`/`inputMode` `tel`, cursor recolocado a mano. Lo que se ve se deriva de `value`; **formatear no guarda nada** |
 | `StatusBadge` | Badge **con texto** (nunca solo color) para estados de inventario y pago |
 | Encabezados de columna | Los cuatro con acciones llevan rótulo: **«Acción»** con una sola acción (pagos, rifas) y **«Acciones»** con menú (vendedores, administradores). Los dos números se ven abreviados —«Núm. diario»— y conservan el nombre entero en `sr-only`, así que la columna se sigue llamando «Número diario» para un lector de pantalla (D-114) |
 | `DonutChart` / `TrendChart` | Los dos gráficos del panel del vendedor: SVG dibujado en el servidor, **sin librería y sin JavaScript** en el navegador. Escalan con `viewBox`, igual que `ProgressRing` (§8.13, D-112). En el centro del anillo va un porcentaje, nunca un importe (D-124) |
@@ -1619,6 +1620,34 @@ a internet y el único autorizado es el tick (BR-L20).
 
 **El Panel no cambia de forma:** sigue con dos consultas locales, su límite de Suspense y su plazo
 compartido. La procedencia viaja en el `select` que ya existía (`source_kind`, `evidence`).
+
+### 8.22 El teléfono se escribe con separadores (D-184)
+
+| Pieza | Qué hace |
+|---|---|
+| `lib/phone.ts` | Las reglas, **puras**: `formatPhone` (lo que se ve), `applyPhoneEdit` (valor y cursor tras una edición) y `phoneDeletionRange` (borrar junto a un separador). También los dos textos de ejemplo, para que ninguna pantalla los escriba |
+| `components/form/PhoneInput.tsx` | El **único** campo de teléfono. Traduce eventos del navegador a las tres funciones y no decide nada. Misma familia que `MoneyInput` y `TicketNumberInput` |
+| Consumidores | `ClientFormFields`, `UserDialog` y `CatalogSettingsDialog`. **Los tres, no uno por pantalla** |
+
+Cuatro invariantes, y las cuatro tienen prueba:
+
+1. **Lo que se ve se deriva de `value`, sin estado propio, y formatear NO dispara `onChange`.** Es
+   D-053 otra vez: la versión con estado «enfocado/crudo/formateado» es la que costó I-016.
+2. **Mostrar no es guardar.** Un teléfono guardado con otro formato se ve legible y se envía tal
+   cual; solo una edición explícita del campo adopta la forma nueva. No hubo migración de datos.
+3. **La máscara no cambia lo que la aplicación acepta.** Agrupa solo desde el octavo dígito porque
+   `PHONE_REGEX` cuenta caracteres, no dígitos (I-108), y un separador de más aceptaría teléfonos de
+   seis cifras.
+4. **La máscara no toca los dígitos**, así que `searchNeedle` / `search_normalize()`,
+   `normalizeWhatsappNumber` y `ticket_import_phone_key` reciben exactamente lo mismo que antes.
+
+El cursor se recoloca a mano —un campo controlado que se reescribe lo mandaría al final— escribiendo
+el valor en el DOM **antes** de que React vuelva a pintar: cuando React confirma el mismo texto ve que
+el nodo ya lo tiene y no lo reescribe. La posición se mide en **dígitos a la izquierda**, no en
+caracteres.
+
+**Donde el teléfono se LEE —tablas, fichas, CSV, catálogo público— no cambia nada:** ahí se muestra el
+dato guardado, y formatearlo esconderían que en la base conviven varios formatos.
 
 
 ## 9. Configuración regional

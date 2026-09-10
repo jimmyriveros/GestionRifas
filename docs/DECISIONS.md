@@ -8566,6 +8566,125 @@ I-090**; **móvil 130/130**. El detalle está en `docs/TEST_RESULTS.md`.
 
 ---
 
+## D-184 — El teléfono se lee con separadores, y lo guardado no se toca por verlo
+
+**Fase:** mantenimiento posterior a la Fase 9 (solicitado por el usuario, 2026-09-09)
+
+**Alcance.** Un ayudante puro nuevo (`src/lib/phone.ts`), un componente compartido nuevo
+(`src/components/form/PhoneInput.tsx`) y sus **tres** consumidores. **Cero migraciones, cero cambios
+de esquema, cero cambios de RLS, RPC o permisos, cero cambios en la búsqueda, cero cambios en la
+normalización de WhatsApp y cero reglas de negocio nuevas.** Ninguna fila existente se modificó.
+
+**Contexto.** Los tres campos de teléfono del producto mostraban los dígitos seguidos:
+`3001234567`. Es el dato que un vendedor lee en voz alta y compara contra su cuaderno, y diez cifras
+sin separar se leen mal y se teclean peor.
+
+---
+
+### Decisión 1 — la máscara vive en un solo sitio, y es presentación
+
+`PhoneInput` es el único campo de teléfono de la aplicación y lo usan los **tres** formularios que
+piden uno: `ClientFormFields` (alta y edición de clientes, y las tres pantallas que crean un cliente
+de paso —vender una boleta, vender varias, corregir el cliente de una boleta—), `UserDialog`
+(administradores, vendedores e integrantes de equipo, en alta y en edición) y `CatalogSettingsDialog`
+(el WhatsApp público del catálogo). Se sigue el patrón de `MoneyInput` y `TicketNumberInput`: el
+componente traduce eventos y **toda** la regla vive en un módulo puro y probado.
+
+Formatos que produce:
+
+| Se escribe o se pega | Se ve |
+|---|---|
+| `3001234567` | `300 123 4567` |
+| `6012345678` | `601 234 5678` |
+| `573001234567`, `+573001234567`, `+57 (300) 123-4567` | `+57 300 123 4567` |
+| `+1 (212) 555-1234`, `+44 20 7123 4567`, `2125551234`, `5712345` | igual, sin tocar |
+
+**Solo se agrupa lo que se reconoce con seguridad**: un número nacional colombiano, que es de diez
+cifras y empieza por `3` (móvil) o por `60` (fijo desde 2022). A un número internacional que no sea
+colombiano se le conservan sus propios separadores; imponerle el `3 3 4` sería inventar una lectura
+que no le corresponde.
+
+### Decisión 2 — mostrar NO es guardar
+
+Es la mitad importante del trabajo. La columna `phone` admite `+`, espacios, paréntesis y guion desde
+`0002`, así que en la base **conviven varios formatos**. Si mostrar uno con separadores acabara
+guardándolo, corregir el alias de un cliente reescribiría en silencio su dato de contacto.
+
+* Lo que se ve se deriva de `value` **al pintar**, y formatear **no dispara `onChange`** (misma regla
+  que D-053 y la lección de I-016: sin un segundo estado «enfocado/crudo/formateado»).
+* Abrir el formulario de un cliente guardado como `+57 (300) 123-4567` lo muestra
+  `+57 300 123 4567`, y el valor del formulario sigue siendo el guardado, **carácter por carácter**.
+* Editar el nombre, el alias, el correo o las notas y guardar deja el teléfono **idéntico**.
+* Guardar sin tocar nada deja el teléfono **idéntico**.
+* **Solo una edición explícita del teléfono** adopta la forma nueva.
+
+**No hubo migración de datos ni actualización masiva**, y no se pidió ninguna: no hace falta. Los
+formatos antiguos se siguen mostrando, buscando y usando exactamente igual.
+
+### Decisión 3 — la máscara no cambia lo que la aplicación acepta
+
+`PHONE_REGEX` es `/^[0-9+ ()-]{7,20}$/` y cuenta **caracteres permitidos, no dígitos** (I-108). Un
+separador cuenta, así que una máscara ingenua que agrupara desde el cuarto dígito convertiría
+`300123` —seis dígitos, hoy rechazados— en `300 123`, siete caracteres, y **lo aceptaría**. Eso es
+relajar una validación desde una tarea visual, y no se hace.
+
+Por eso los grupos **no aparecen hasta el octavo dígito nacional**. Con siete, el número todavía
+puede ser un fijo antiguo completo —que no se agrupa en `3 3 4` y del que puede haber registros
+guardados—; desde ocho solo puede ir camino de uno nacional de diez. La consecuencia medible es una
+propiedad, no una intención, y hay una prueba que la recorre entrada por entrada:
+
+* si un valor se aceptaba, se sigue aceptando después de formatearlo;
+* si se rechazaba, se sigue rechazando;
+* lo más largo que produce mide **16** caracteres (`+57 300 123 4567`), lejos del tope de 20.
+
+La única diferencia de comportamiento es que los caracteres que la columna **no** admite se descartan
+al escribir en vez de producir un mensaje de error. Eso es lo que hace cualquier máscara, y lo que
+llega a la base sigue cumpliendo el CHECK.
+
+### Decisión 4 — el cursor se recoloca a mano, y midiendo dígitos
+
+Un campo controlado cuyo texto se reescribe deja el cursor al final: escribir en medio de
+`300 123 4567` sería imposible. `PhoneInput` escribe el valor formateado en el DOM y coloca el cursor
+**antes** de que React vuelva a pintar; cuando React confirma el mismo texto ve que el nodo ya lo
+tiene y no lo reescribe, que es lo que conserva la posición.
+
+La posición **no se mide en caracteres** —la máscara mueve los separadores— sino en cuántos dígitos
+quedan a la izquierda. Y borrar junto a un separador se lleva **el dígito del otro lado**: sin eso, el
+navegador quita el espacio, la máscara lo repone y la persona tiene que pulsar dos veces sobre un
+campo que no parece cambiar.
+
+**Un defecto encontrado por la prueba, no a ojo.** Contar solo los dígitos a la izquierda dejaba el
+cursor **delante** de los espacios cuando el número bajaba del octavo dígito borrando, y entonces cada
+pulsación siguiente se llevaba un dígito y dejaba su espacio detrás: diez pulsaciones sobre
+`300 123 4567` acababan en un campo que **parecía vacío y tenía dos espacios dentro**. Lo destapó
+`telefono-mascara.spec.ts` al primer intento. Corregido con una regla explícita —quien estaba al final
+se queda al final— y con una prueba unitaria que **se comprobó que falla** sin ella.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Añadir una librería de máscaras | Cuatro reglas y una cuenta de cursor no justifican una dependencia en el paquete del navegador (`ARCHITECTURE` §10.1.b) |
+| Guardar el teléfono normalizado y formatear solo al pintar | Es un cambio de la representación almacenada: exige migración, tocar filas reales y decidir qué hacer con los internacionales. Fuera de un encargo visual, y el usuario pidió expresamente que no ocurriera como efecto implícito |
+| Corregir `PHONE_REGEX` para contar dígitos | Es la corrección correcta y **no es esta tarea**: cambia lo que la aplicación acepta, alcanza al CHECK de dos tablas y exige mirar los datos existentes. Queda documentada como I-108 |
+| Agrupar desde el cuarto dígito | Aceptaría teléfonos de seis cifras que hoy se rechazan (Decisión 3) |
+| Dividir el campo en varios (indicativo aparte) | Rompe pegar un número completo, que es como llega la mitad de ellos, y multiplica por tres las paradas de teclado |
+| Imponer el `3 3 4` a cualquier número de diez cifras | Deformaría un número extranjero escrito sin `+` |
+| Formatear también donde el teléfono **se lee** (tablas, fichas, CSV) | Ahí se muestra el dato guardado. Formatear la lectura escondería que en la base hay formatos distintos, que es justo lo que hay que poder ver |
+
+### Qué se comprobó
+
+`verify` en verde (**896** unitarias —**39** nuevas—, lint sin errores nuevos, build). E2E dirigidas:
+`telefono-mascara` **18/18** en escritorio y `telefono-mascara-movil` **4/4** a 320 px, más las siete
+suites que tocan un teléfono, **71/71**. La suite completa y las cifras exactas están en
+`docs/TEST_RESULTS.md`.
+
+**Lo que garantizan las pruebas de regresión**, que es lo que hay que volver a comprobar si alguien
+toca esto: un cliente y un vendedor con teléfono histórico, una edición que solo cambia el alias, y la
+fila leída **después** de guardar y comparada carácter por carácter.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

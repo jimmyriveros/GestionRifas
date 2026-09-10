@@ -93,7 +93,17 @@ describe('searchNeedle', () => {
   it('un telefono se reduce a su numero nacional, sea cual sea el formato', () => {
     // Los cuatro formatos tienen que producir EXACTAMENTE el mismo termino: es
     // lo que permite encontrar el mismo telefono escrito de cuatro maneras.
-    for (const escrito of ['+57 300 555-0000', '57 (300) 5550000', '573005550000', '3005550000']) {
+    // «300 555 0000» y «+57 300 555 0000» son las dos formas que produce la
+    // mascara visual del campo (D-184): la busqueda tiene que entenderlas igual
+    // que las que ya se guardaban antes de existir.
+    for (const escrito of [
+      '+57 300 555-0000',
+      '57 (300) 5550000',
+      '573005550000',
+      '3005550000',
+      '300 555 0000',
+      '+57 300 555 0000',
+    ]) {
       expect(searchNeedle(escrito)).toBe('3005550000')
     }
   })
@@ -109,10 +119,29 @@ describe('searchNeedle', () => {
     const guardadoSinIndicativo = '3005550000'
     const guardadoConIndicativo = '573005550000'
 
-    for (const escrito of ['+57 (300) 555-0000', '3005550000', '300 555 0000']) {
+    for (const escrito of [
+      '+57 (300) 555-0000',
+      '3005550000',
+      '300 555 0000',
+      '+57 300 555 0000',
+    ]) {
       const needle = searchNeedle(escrito)
       expect(guardadoSinIndicativo).toContain(needle)
       expect(guardadoConIndicativo).toContain(needle)
+    }
+  })
+
+  /**
+   * Lo mismo cuando el telefono se GUARDA con la mascara puesta (D-184). El
+   * termino sigue siendo el numero nacional, y ese es subcadena de la copia sin
+   * separadores que lleva `clients.search_text` desde `0017`.
+   */
+  it('encuentra un telefono guardado con separadores, se busque como se busque', () => {
+    for (const guardado of ['300 555 0000', '+57 300 555 0000']) {
+      const copiaSinSeparadores = guardado.replace(/[^0-9]/g, '')
+      for (const escrito of ['3005550000', '300 555 0000', '+57 300 555 0000', '573005550000']) {
+        expect(copiaSinSeparadores, `${guardado} / ${escrito}`).toContain(searchNeedle(escrito))
+      }
     }
   })
 

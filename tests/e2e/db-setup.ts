@@ -248,7 +248,12 @@ export async function createClientFor(
   refs: SeedRefs,
   name: string,
   sellerId = refs.sellerId,
-): Promise<{ id: string; name: string }> {
+  /**
+   * Formato del telefono. Se puede pasar uno HISTORICO —con paréntesis, guiones
+   * o indicativo— para comprobar que la mascara visual no lo reescribe (D-184).
+   */
+  phone = '3005550000',
+): Promise<{ id: string; name: string; phone: string }> {
   const svc = serviceClient()
   const { data, error } = await svc
     .from('clients')
@@ -256,9 +261,9 @@ export async function createClientFor(
       organization_id: refs.organizationId,
       seller_id: sellerId,
       name,
-      phone: '3005550000',
+      phone,
     })
-    .select('id, name')
+    .select('id, name, phone')
     .single()
 
   if (error) throw error

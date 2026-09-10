@@ -217,6 +217,11 @@ test.describe('Flujo B — desde «Mis clientes»', () => {
     expect(url).not.toBeNull()
 
     // El telefono, normalizado con su indicativo (sección 12 del encargo).
+    //
+    // Esta linea es tambien la regresion de la mascara visual (D-184): el
+    // formulario guardo «300 999 8877», con separadores, y `wa.me` sigue
+    // recibiendo los mismos doce digitos. Si algun dia la mascara tocara los
+    // digitos, esta prueba lo dice antes que ninguna.
     expect(url!.startsWith('https://wa.me/573009998877?text=')).toBe(true)
 
     // Y el mensaje, con el enlace del grupo dentro.
