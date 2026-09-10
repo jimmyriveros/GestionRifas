@@ -4488,6 +4488,8 @@ Autorizado expresamente y **acotado a la entrada de datos**. No toca esquema, mi
 permisos, búsqueda, identidad de clientes, normalización de WhatsApp, rutas ni reglas de negocio.
 **Ninguna fila existente se modificó** y no hubo migración de datos.
 
+**DESPLEGADO el 2026-09-10** (`9900635`, `dpl_AfSADmrRTSeH8t5ccDcxUn5hn9UE`), sin migración. La base de producción no se tocó: 50 migraciones, última `0050`, y la sonda de los teléfonos con las mismas cifras antes y después.
+
 ### 1. Funcionalidades implementadas
 
 | Bloque | Qué hay |
@@ -4514,6 +4516,8 @@ pulsaciones sobre `300 123 4567` acababan en un campo que **parecía vacío y te
 dentro**. Corregido con una regla explícita y con una prueba unitaria que **se comprobó que falla**
 sin ella. Detalle en `TEST_RESULTS.md`.
 
+**Confirmación previa al despliegue (2026-09-10).** A pedido del usuario, antes de subir: una sonda de **solo lectura** en producción —**0 de 558** teléfonos de clientes y **0 de 7** de usuarios tienen espacios en los bordes, así que guardar sin tocar devuelve la misma cadena en los 565— y **12** pruebas E2E nuevas: los caminos de guardado que faltaban y **Ctrl+V con el portapapeles del sistema**. Dirigidas **46/46**, y `verify` y `test:db` en verde. Detalle en `TEST_RESULTS.md`.
+
 ### 3. Migraciones
 
 **No aplica.** Ninguna, y ninguna hace falta: los formatos antiguos ya son válidos para el CHECK que
@@ -4530,6 +4534,8 @@ Ninguna nueva.
 teléfono sin ninguna cifra (`(-) (-)`), y `300 123` se acepta mientras `300123` se rechaza.
 **Documentado y dejado fuera a propósito**: corregirlo cambia lo que la aplicación acepta, exige una
 migración nueva y un censo de los datos reales. La máscara se diseñó neutral frente a esa regla.
+
+**Nuevo: `I-109`** — **393** clientes tienen teléfonos de 10 cifras que empiezan por 1, que no son colombianos. La máscara los muestra tal cual. El riesgo es de D-176, no de D-184: un cliente **nuevo** registrado con un número así recibiría «Invitar al grupo» hacia un número +1. Espera una decisión del dueño.
 
 Los de siempre: I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021,
 I-023, I-030, I-059, I-060.

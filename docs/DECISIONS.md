@@ -8683,6 +8683,8 @@ suites que tocan un teléfono, **71/71**. La suite completa y las cifras exactas
 toca esto: un cliente y un vendedor con teléfono histórico, una edición que solo cambia el alias, y la
 fila leída **después** de guardar y comparada carácter por carácter.
 
+**Desplegada el 2026-09-10** (`9900635`, `dpl_AfSADmrRTSeH8t5ccDcxUn5hn9UE`), sin migración. Antes de subir se comprobó en producción, con una sonda de solo lectura que solo cuenta, que **ninguno de los 565 teléfonos guardados** tiene espacios en los bordes —lo único que el `trim` de siempre cambiaría al guardar sin tocar—, y se añadieron las pruebas de los cinco caminos de guardado y de Ctrl+V con el portapapeles real (`TEST_RESULTS.md`).
+
 ---
 
 ## Ambigüedades pendientes de confirmación del usuario

@@ -299,6 +299,47 @@ personas usando la aplicación**, no por efecto de este despliegue, que no escri
 > desplegado, el CI en verde sobre ese commit y el identificador de versión encontrado en el JavaScript del
 > dominio — exactamente lo que admite §6.1. La revisión visual autenticada queda para una persona.
 
+### 3.2.d Release de la máscara del teléfono — 2026-09-10
+
+**Dos commits juntos, sin migración, y con una sonda de los teléfonos reales antes y después.**
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`99006355b70ed784c52310cf8982fcec306203cc`** |
+| Commit anterior en producción | `30c7b05b8a528379df5a093dd34bae3743844853` |
+| Integración | **fast-forward** — `main` estaba 2 commits por delante y nada de producción faltaba en local; sin merge, sin reescritura, sin force |
+| Commits | `95dcf0c` (la máscara, D-184) y `9900635` (pruebas de «no reescribir» y de pegar, y documentación) |
+| Despliegue Vercel | `dpl_AfSADmrRTSeH8t5ccDcxUn5hn9UE` — READY en **35 s**, `aliasError: null` |
+| Despliegue anterior (**punto de reversión**) | `dpl_7VQE96REXpuSL1xVd5i6TAeJjJgK` (`30c7b05`) |
+| **Migraciones** | **NINGUNA.** `supabase/` y `scripts/` con **0 archivos de diferencia**. Siguen siendo 50, hasta `0050` |
+| Variables de entorno nuevas | **ninguna** — `.env.example` sin cambios y **cero** `process.env` nuevos en el diff |
+| Dependencias y configuración | **sin cambios** — `package.json`, `package-lock.json`, `next.config.ts`, `vercel.json`, `tsconfig.json` y `.github/` sin tocar |
+
+**Qué entró:** 23 archivos, +2.173/−27 — el campo `PhoneInput` y `lib/phone.ts` con sus tres
+consumidores, **39** pruebas unitarias y **34** E2E nuevas, y la documentación. **Ninguna fila de la
+base cambia**: la máscara solo decide cómo se ve el campo.
+
+**Validación previa:** `verify` en verde (typecheck, lint 0 errores, **896/896** unitarias, build),
+`test:db` **827/827**, E2E dirigidas **46/46** el 2026-09-10 y suite completa **597/599** el
+2026-09-09 —los 2 son **I-090** e **I-106**, preexistentes y verdes en aislamiento—. `verify:remote`
+**17/17**. **2/2** en verde en el CI (run 34483170884), incluido el job que aplica las 50 migraciones desde cero.
+
+**La sonda de los teléfonos reales**, de solo lectura y solo con recuentos, **antes y después**: 558
+de clientes y 7 de usuarios, **0 con espacios en los bordes** —lo único que el `trim` de siempre
+cambiaría al guardar sin tocar— y las mismas cifras por forma en las dos pasadas. Detalle en
+`TEST_RESULTS.md`.
+
+**Verificación en vivo:** identificador de versión **`4bf03d43cdd6`** servido por el dominio (1 de 15
+fragmentos) y el anterior (`2e75301adecf`) **desaparecido**; `/login`, `/offline`, `/sw.js` y
+`/manifest.webmanifest` en 200, `/` y **15 rutas protegidas en 307**, el cron sin secreto en 401, un
+catálogo inexistente en 404 y **ningún 5xx**; **7/7** cabeceras de seguridad; **0 secretos** en 962 KB
+servidos; **0 errores de ejecución** en la hora siguiente al despliegue.
+
+> **Lo que este release NO verificó:** el campo **en vivo**. Vive tras el inicio de sesión y **un
+> agente no introduce contraseñas**, así que la evidencia es el identificador del build servido, el CI
+> sobre ese commit y las pruebas locales. La revisión con una cuenta real —y en un teléfono de verdad,
+> cuyo teclado no reproduce Chromium— queda para una persona.
+
 ### 3.3 Despliegues futuros
 
 Cada `git push` a `main` que se decida subir dispara un build y despliegue a producción automático

@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (D-184, 2026-09-09)** | **896 ✅** en 50 archivos (+39) | **827 ✅** — no se tocó la base | **597/599** el 09-09 —los 2 son **I-090** e **I-106**, verdes en aislamiento— y **46/46** dirigidas el 09-10, con las **12 nuevas** de pegado real y de los cinco caminos de guardado | ✅ | ✅ **Sin desplegar** |
+| **Post-9 vigente (D-184, 2026-09-09)** | **896 ✅** en 50 archivos (+39) | **827 ✅** — no se tocó la base | **597/599** el 09-09 —los 2 son **I-090** e **I-106**, verdes en aislamiento— y **46/46** dirigidas el 09-10, con las **12 nuevas** de pegado real y de los cinco caminos de guardado | ✅ | ✅ **DESPLEGADO** (`9900635`, 2026-09-10) |
 | Post-9 anterior (D-182, D-183, 2026-09-09) | **857 ✅** en 49 archivos | — (no se tocó la base) | **escritorio 445** con los 2 de **I-090** · **móvil 130/130**. Doce combinaciones de ancho y tema sin desbordamiento; **I-107** cerrada de rebote | ✅ | ✅ **DESPLEGADO** (`523b4bc`) |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b30e943`)** | — | **Sin migración**: cero diferencias en `supabase/`, sonda antes/después idéntica | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `fd3a1e1f16b1` servido en 1 de 15 fragmentos |
@@ -10015,3 +10015,69 @@ documentación.
    visibles (`\u202A`, `\u00A0`) en exactamente cuatro líneas.
 
 ---
+
+## Despliegue a producción de D-184 — 2026-09-10
+
+Los dos commits juntos. Sin migración, sin variables nuevas, y la base de producción **sin tocar**: lo
+prueban el número de migración y la sonda de los teléfonos, **idéntica antes y después**.
+
+### a. Qué se publicó
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | `99006355b70ed784c52310cf8982fcec306203cc` |
+| Commit anterior en producción | `30c7b05b8a528379df5a093dd34bae3743844853` |
+| Commits | `95dcf0c` · `9900635` |
+| Integración | **fast-forward** (`30c7b05..9900635`), sin merge, sin reescritura, sin force |
+| Alcance | **23 archivos**, +2.173/−27 |
+| `supabase/`, `scripts/`, dependencias, configuración, `.github/`, `.env.example` | **0 archivos de diferencia**, y **0** `process.env` nuevos |
+| Despliegue Vercel | `dpl_AfSADmrRTSeH8t5ccDcxUn5hn9UE` — **READY en 35 s**, `aliasError: null`, alias `gestion-rifas.vercel.app` |
+| Punto de reversión | `dpl_7VQE96REXpuSL1xVd5i6TAeJjJgK` (`30c7b05`) |
+
+### b. Que el dominio sirve ESTE código, no solo que Vercel lo construyó
+
+| Comprobación | Resultado |
+|---|---|
+| Identificador de versión nuevo `4bf03d43cdd6` | **1 de 15** fragmentos JS, ya en el primer intento, un minuto después del push |
+| Identificador anterior `2e75301adecf` | **0 de 15** — desapareció |
+| CI | **2/2** en verde en el CI (run 34483170884), incluido el job que aplica las 50 migraciones desde cero. |
+| `verify:remote` | **17/17** ✅ |
+
+### c. En vivo, solo lectura
+
+| Comprobación | Resultado |
+|---|---|
+| `/login`, `/offline`, `/sw.js`, `/manifest.webmanifest` | **200** |
+| `/` y **15** rutas protegidas | **307** — ningún 5xx |
+| `/api/lottery/sync` sin secreto | **401** |
+| Catálogo inexistente | **404** |
+| Cabeceras de seguridad en `/login` | **7/7** |
+| Secretos en el HTML y el JavaScript servidos | **0** en **962 KB** (`service_role`, `SUPABASE_SERVICE_ROLE`, `SUPABASE_DB_URL`, `CRON_SECRET`, `LOTTERY_SYNC_SECRET`, `sb_secret`, cadenas `postgres://`) |
+| Errores de ejecución | **0** en la hora siguiente al despliegue |
+
+### d. La base de producción, antes y después: no se tocó
+
+La misma sonda de la confirmación previa: transacción `READ ONLY`, solo recuentos.
+
+| Dato | Antes del push | Con el código nuevo servido |
+|---|---|---|
+| Migraciones | 50, última `0050` | 50, última `0050` |
+| `clients.phone` | 558 · **0** con espacios en los bordes · 554 solo dígitos · 4 con separadores · 2 con `+` | **idéntico** |
+| `profiles.phone` | 7 · **0** con espacios en los bordes · 7 solo dígitos | **idéntico** |
+| WhatsApp del catálogo | 2 configurados · 0 de 10 dígitos sin el 57 | **idéntico** |
+
+### e. Lo que NO se comprobó, y se dice
+
+**No se entró con una cuenta real**, así que el campo con la máscara no se vio en vivo: vive tras el
+inicio de sesión y un agente no introduce contraseñas. La prueba de que el código está servido es el
+identificador del build. **Tampoco se probó el teclado de un teléfono real**, que Chromium no
+reproduce (I-079, I-066).
+
+**Quien lo compruebe, con su cuenta:**
+
+1. En «Mis clientes» → «Nuevo cliente», escribir `3001234567` en «Teléfono»: se ve `300 123 4567`
+   mientras se escribe.
+2. Pegar un número copiado de un contacto o de WhatsApp: se ve `+57 300 123 4567` o `300 123 4567`.
+3. Abrir la edición de un cliente existente, cambiar solo el alias y guardar: el teléfono de su ficha
+   sigue **exactamente** como estaba.
+4. En el teléfono, borrar y escribir en medio del número: el cursor no salta al final.
