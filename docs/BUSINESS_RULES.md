@@ -730,14 +730,19 @@ más significado.
 
 ## 12.e Recordatorios de pago del vendedor (BR-S)
 
-> **LA CONFIGURACIÓN ESTÁ COMPLETA**: base (`0051`, Etapa 1) y pantalla (Etapa 2, D-188). Un vendedor
-> ya crea, edita, pausa, reanuda y archiva sus recordatorios en `/seller/settings/reminders`, y ve la
-> **vista previa del mensaje completo** con sus cuentas al final.
+> **LAS CATORCE REGLAS ESTÁN IMPLEMENTADAS EN LOCAL**: base (`0051`, Etapa 1), pantalla (Etapa 2,
+> D-188) y **motor** (`0052`, Etapa 3, D-189). Un vendedor crea, edita, pausa, reanuda y archiva sus
+> recordatorios; a la hora que eligió, un `pg_cron` materializa la ocurrencia y **escribe el aviso en
+> la campana**, que lleva a la pantalla donde copia el mensaje, abre su grupo y lo marca como
+> atendido.
 >
-> **EL MOTOR NO EXISTE TODAVÍA** —materializar ocurrencias, avisar por la campana y el flujo
-> copiar–abrir–atender son la **Etapa 3**—, así que la pantalla **no enseña ninguna fecha de próximo
-> envío**: sería prometer algo que no ocurre (D-188, Decisión 9). La columna **Estado** lo dice regla
-> por regla. Todo en **local**; el proyecto real no lo tiene.
+> **DOS MATICES QUE LA COLUMNA «ESTADO» NO CABE A DECIR.** BR-S11 y BR-S12 mencionan el **push**:
+> esa mitad **no existe** —es la Etapa 5— y lo que sí existe es la campana, que es la fuente durable
+> y la que el contrato hace obligatoria (BR-V01). Y la pantalla **sigue sin enseñar la fecha del
+> próximo envío**, ahora por decisión y no por falta: el reloj se mueve por debajo (D-189,
+> Decisión 9).
+>
+> Todo en **local**; el proyecto real no lo tiene.
 
 Cada vendedor programa mensajes semanales de cobro. La aplicación se los recuerda a la hora que él
 eligió y le prepara el texto; **él** lo pega en su grupo de WhatsApp y lo envía.
@@ -753,27 +758,32 @@ eligió y le prepara el texto; **él** lo pega en su grupo de WhatsApp y lo env�
 | BR-S05 | **Tope duro de 14 recordatorios activos por vendedor**, comprobado en la base. Un pausado no cuenta, y **reactivar vuelve a comprobar el tope**: si no, bastaría con pausar, crear y reactivar para saltárselo. | S, D | ✅ `0051` |
 | BR-S06 | El recordatorio guarda **prosa y nada más**: su propio mensaje o el predeterminado de la aplicación, con el mismo interruptor y la misma coherencia que BR-W02 y BR-W03 —el predeterminado **vive en TypeScript**, no en la base; apagar el interruptor **no borra** lo escrito; «uso mi mensaje» sin mensaje es un estado imposible—. | C, S, D | ✅ `0051` |
 | BR-S07 | **Las cuentas activas se añaden solas al final del mensaje**, en su orden, y **no forman parte del texto que escribe el vendedor**. **Quedan prohibidos los marcadores editables** —`{{cuentas}}`, `{{nequi}}` o cualquier otro—: no hay nada que conservar, así que no hay nada que borrar, escribir mal ni duplicar. Es BR-W04 aplicado a este mensaje. La pantalla muestra la **vista previa del mensaje completo**. | C, S | ✅ Etapa 2 |
-| BR-S08 | El mensaje **se compone cuando el vendedor lo abre o lo copia**, con la configuración vigente en ese instante. Consecuencia buscada: **cambiar una cuenta cambia los mensajes futuros sin reescribir ni un recordatorio**, y sin tocar los ya materializados. | C, S | Etapa 3 |
+| BR-S08 | El mensaje **se compone cuando el vendedor lo abre o lo copia**, con la configuración vigente en ese instante. Consecuencia buscada: **cambiar una cuenta cambia los mensajes futuros sin reescribir ni un recordatorio**, y sin tocar los ya materializados. | C, S | ✅ `0052` |
 | BR-S09 | El mensaje **no nombra a ningún cliente, no dice ningún saldo y no dice ningún importe**. Va a un grupo donde están todos los clientes del vendedor: escribir ahí quién debe cuánto publicaría la deuda de una persona delante de las demás. | C, S | ✅ Etapa 2 |
-| BR-S10 | Cuando llega su hora, un recordatorio activo produce una **ocurrencia** (`payment_reminder_occurrences`): una fila por `(recordatorio, instante programado)`, con **índice único**. Esa unicidad es lo que hace el proceso **idempotente**: ejecutarlo dos veces sobre el mismo vencimiento no crea dos avisos. | S, D | Etapa 3 |
-| BR-S11 | Una ocurrencia **atrasada hasta 2 horas se recupera**: se materializa pendiente, con campana y con push. **Más allá de 2 horas se registra como omitida**, **sin** campana y **sin** push, y el recordatorio avanza a la semana siguiente. La fila omitida se guarda igual: es lo que distingue «no se mandó» de «nadie se enteró». Si se saltaron varias semanas, **no se disparan todas**: se registra una omitida y el reloj salta al próximo instante futuro. | S, D | Etapa 3 |
-| BR-S12 | El proceso **tolera concurrencia**: las filas vencidas se toman con `for update skip locked`, de modo que dos ejecuciones simultáneas trabajan sobre conjuntos disjuntos. Materializar la ocurrencia, escribir la campana, encolar el push y avanzar el reloj ocurren **en la misma transacción**: o pasan las cuatro, o no pasa ninguna. | S, D | Etapa 3 |
-| BR-S13 | Un recordatorio **no se procesa** si su vendedor ya no puede operar: cuenta inactiva, membresía que dejó de ser de vendedor u organización desactivada. Se comprueba **al procesar**, no solo al configurar (BR-A04). | S, D | Etapa 3 |
-| BR-S14 | El flujo del vendedor es **copiar → abrir → atender**, y los tres describen **actos locales**: «Copiado» dice que el texto está en el portapapeles de ese teléfono, «Grupo abierto» que se abrió el enlace, y «Marcado como atendido» que **lo dijo el vendedor**. **Ninguno puede presentarse como confirmación de envío o de entrega de WhatsApp**: no hay integración y no se sabe si el mensaje salió (BR-W08). | C, S | Etapa 3 |
+| BR-S10 | Cuando llega su hora, un recordatorio activo produce una **ocurrencia** (`payment_reminder_occurrences`): una fila por `(recordatorio, instante programado)`, con **índice único**. Esa unicidad es lo que hace el proceso **idempotente**: ejecutarlo dos veces sobre el mismo vencimiento no crea dos avisos. | S, D | ✅ `0052` |
+| BR-S11 | Una ocurrencia **atrasada hasta 2 horas se recupera**: se materializa pendiente, con campana y con push. **Más allá de 2 horas se registra como omitida**, **sin** campana y **sin** push, y el recordatorio avanza a la semana siguiente. La fila omitida se guarda igual: es lo que distingue «no se mandó» de «nadie se enteró». Si se saltaron varias semanas, **no se disparan todas**: se registra una omitida y el reloj salta al próximo instante futuro. | S, D | ✅ `0052` |
+| BR-S12 | El proceso **tolera concurrencia**: las filas vencidas se toman con `for update skip locked`, de modo que dos ejecuciones simultáneas trabajan sobre conjuntos disjuntos. Materializar la ocurrencia, escribir la campana, encolar el push y avanzar el reloj ocurren **en la misma transacción**: o pasan las cuatro, o no pasa ninguna. | S, D | ✅ `0052` |
+| BR-S13 | Un recordatorio **no se procesa** si su vendedor ya no puede operar: cuenta inactiva, membresía que dejó de ser de vendedor u organización desactivada. Se comprueba **al procesar**, no solo al configurar (BR-A04). | S, D | ✅ `0052` |
+| BR-S14 | El flujo del vendedor es **copiar → abrir → atender**, y los tres describen **actos locales**: «Copiado» dice que el texto está en el portapapeles de ese teléfono, «Grupo abierto» que se abrió el enlace, y «Marcado como atendido» que **lo dijo el vendedor**. **Ninguno puede presentarse como confirmación de envío o de entrega de WhatsApp**: no hay integración y no se sabe si el mensaje salió (BR-W08). | C, S | ✅ `0052` |
 
 ---
 
 ## 12.f Entrega de avisos: campana y Web Push (BR-V)
 
-> **PLANIFICADO, NO IMPLEMENTADO.** Autorizado el 2026-09-11 (D-187, Etapa 0). La **campana ya
-> existe** desde D-093 y estas reglas no la cambian: describen cómo se le añade un canal encima.
+> **SOLO BR-V01 ESTÁ IMPLEMENTADA** (`0052`, Etapa 3): el recordatorio vencido escribe su aviso en la
+> campana, en la misma transacción que la ocurrencia. **Las otras siete son Web Push y siguen
+> planificadas** —etapas 4 y 5—: no hay suscripciones, ni claves VAPID, ni outbox, ni dispatcher, ni
+> oyente `push` en el service worker.
+>
+> La **campana ya existía** desde D-093 y estas reglas no la cambian: describen cómo se le añade un
+> canal encima.
 
 **La letra es `V`** de «a**v**isos». Estas reglas gobiernan **la entrega**, no el contenido: valen
 para el recordatorio de pago y para cualquier aviso futuro que quiera salir del navegador.
 
 | ID | Regla | Capas | Estado |
 |----|-------|-------|--------|
-| BR-V01 | **La campana interna es obligatoria y es la fuente durable.** Todo aviso se escribe en `notifications` (D-093) y se lee ahí. Web Push es **una mejora encima**: sin permiso, sin soporte del navegador o con el envío caído, el aviso sigue existiendo y se ve al entrar. | S, D | Etapa 3 |
+| BR-V01 | **La campana interna es obligatoria y es la fuente durable.** Todo aviso se escribe en `notifications` (D-093) y se lee ahí. Web Push es **una mejora encima**: sin permiso, sin soporte del navegador o con el envío caído, el aviso sigue existiendo y se ve al entrar. | S, D | ✅ `0052` |
 | BR-V02 | El push sale por una **outbox desacoplada** (`push_outbox`): el aviso interno y la fila de la cola se escriben en la misma transacción, y el **envío ocurre después, en otro proceso**. Un fallo de red, un endpoint caducado o un dispatcher caído **no pueden perder el aviso interno**, porque no participan en escribirlo. | S, D | Etapa 5 |
 | BR-V03 | Se usa **Web Push estándar** —VAPID (RFC 8292) y cifrado `aes128gcm` (RFC 8291)—, implementado sobre el `crypto` de Node. **No se usa Firebase**, no entra SDK en el navegador y **la CSP no se abre a ningún dominio nuevo**: al servicio de push lo llama el servidor. | S | Etapa 5 |
 | BR-V04 | **Hay un solo service worker** y su alcance es la raíz. Los oyentes `push` y `notificationclick` se añaden **al final de `public/sw.js`**, en su propia sección. **Queda prohibido crear un segundo service worker.** El worker **sigue sin guardar ni una respuesta con datos de negocio** (D-116): recibir un push no cambia esa regla. | C | Etapa 4 |

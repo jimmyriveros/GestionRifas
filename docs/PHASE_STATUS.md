@@ -3,7 +3,19 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-12 — **ETAPA 2 de 7 del encargo de cobro: configuración y formularios**
+- **Actualizado:** 2026-09-12 — **ETAPA 3 de 7 del encargo de cobro: el motor** (`0052`, D-189).
+  **Los recordatorios ya suenan.** Un `pg_cron` global mira cada minuto los que vencieron,
+  materializa su **ocurrencia**, escribe el aviso en **la campana** y adelanta el reloj, todo en una
+  transacción. El vendedor pulsa ese aviso y aterriza en **«Para enviar ahora»**, con el mensaje ya
+  compuesto —sus cuentas al final— y **Copiar mensaje · Abrir grupo · Marcar como atendido**, tres
+  actos **locales** que nunca dicen que WhatsApp envió nada. Un atraso de hasta **2 h** se recupera;
+  más allá la ocurrencia nace **omitida y muda**, y el reloj salta al próximo instante futuro sin
+  disparar las semanas perdidas. **El motor no lo ejecuta ninguna sesión.** Un **segundo cron** purga
+  `cron.job_run_details`, que si no crece 1.440 filas al día. **Ninguna dependencia nueva y nada de
+  Web Push**, que son las etapas 4 y 5. **Todo en LOCAL: el proyecto real no tiene ni la `0051` ni la
+  `0052`.** **Rama `feature/cuentas-y-recordatorios`, sin fusionar. Las etapas 4 y 5 necesitan
+  autorización nueva.**
+  Antes, ese mismo día: **ETAPA 2 de 7 del encargo de cobro: configuración y formularios**
   (D-188). «Configuración» del vendedor pasa a ser **tres secciones y un resumen** —cuentas para
   recibir pagos, grupo de WhatsApp (mudado tal cual desde D-176) y recordatorios de pago—, cada una
   en su subruta, y **el resumen no carga ninguna**: tres recuentos y nada más. Un vendedor ya puede
@@ -4792,6 +4804,112 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — cuentas de cobro y recordatorios, **ETAPA 3 de 7**: el motor (`0052`, D-189, 2026-09-12)
+
+Autorizada expresamente el mismo día, después de cerrar la Etapa 2. **No es una Fase 10** y no lleva
+etiqueta `fase-*`.
+
+> **APLICADA EN LOCAL. EL PROYECTO REAL NO LA TIENE**, ni la `0051` ni la `0052`. Promover es la
+> **Etapa 7** y necesita su propia autorización. La base de producción sigue en **50 migraciones**.
+> **Web Push no existe**: etapas 4 y 5.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| La ocurrencia | **`payment_reminder_occurrences`**: una fila por `(recordatorio, instante que le tocaba)`, con **índice único** — que es LA idempotencia—. Guarda `scheduled_for` y `processed_at` por separado: la distancia entre los dos es el atraso |
+| Tres estados | `pending` · `attended` · `missed`. Una **omitida no puede llevar campana**, y eso lo impone un CHECK, no una línea de código |
+| El motor | **`process_due_payment_reminders(lote)`**: toma los vencidos con `for update skip locked`, materializa, escribe la campana, la enlaza y **adelanta el reloj**. Los cuatro pasos en **una** transacción |
+| El reloj avanza **siempre** | También cuando no materializa nada —ocurrencia ya existente, vendedor desactivado—. Si no, esas filas volverían a salir cada minuto para siempre |
+| Atraso | ≤ **2 h** se recupera con campana; más allá nace **omitida y muda**. El límite vive en `payment_reminder_grace()`, en un solo sitio |
+| Semanas perdidas | El reloj salta al **próximo instante futuro**, no suma siete días: un mes parado deja **una** omitida, no cuatro avisos |
+| Vendedor que ya no opera | Se comprueba **al procesar** (BR-S13): membresía, perfil y organización activos. No se materializa nada y el reloj avanza igual |
+| La campana | `kind` nuevo **`payment_reminder.due`**, con el CHECK vuelto a crear como hizo `0037`, más un índice único por ocurrencia. **El texto sigue sin vivir en la base** (I-030) |
+| Atender | **`mark_reminder_occurrence_attended(id)`**, la novena RPC del vendedor. **No recibe identificador de vendedor.** Solo de `pending` a `attended` |
+| Dos cron | `payment-reminders-due` cada minuto y `payment-reminders-cron-cleanup`, que purga `cron.job_run_details` a los 7 días. El primero escribe **1.440 filas diarias** en esa tabla y el proyecto real es Free, de 500 MB (I-024) |
+| Privilegios | El **motor NO es ejecutable desde una sesión**: revocado de `public` y `anon`, y sin conceder a `authenticated`. Lo vigilan **dos** comprobaciones, `catalog.test.ts` y `verify-remote.ts` |
+| La pantalla | **«Para enviar ahora»** arriba de «Recordatorios de pago»: el mensaje **compuesto al pintarlo** con las cuentas vigentes, y **Copiar mensaje · Abrir grupo · Marcar como atendido**. Sin grupo configurado se ofrece **configurarlo**, no un botón que va a fallar |
+| La campanita lleva ahí | `notificationHref(kind)` devuelve destino **solo** para este aviso; los demás cuentan algo que ya pasó. El menú se cierra al navegar |
+| El resumen | La tarjeta de recordatorios añade **«N para enviar»** cuando hay algo esperando, y calla cuando no |
+| Tipos | `src/types/database.types.ts` regenerado: **+92 líneas, 0 eliminadas** |
+
+**Lo que NO trae, y es deliberado:** ni suscripciones Web Push, ni claves VAPID, ni outbox, ni
+dispatcher, ni oyente `push` en el service worker, ni una pantalla de historial de ocurrencias. Son
+las etapas 4 y 5, y la última no está en el encargo.
+
+**`pg_net` sigue sin usarse**, así que **este cron no habla con internet**: escribe en tres tablas
+propias y ahí termina.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` + `npm run seed:local` | ✅ **52** migraciones desde cero |
+| `tests/db/payment-reminder-engine.test.ts` | ✅ **32/32** |
+| `npm run test:db` | ✅ **922/922** (41 archivos, **+33**) |
+| `npm run verify` | ✅ typecheck · lint con los 2 avisos preexistentes · **943/943** unitarias (**+10**) · build |
+| `configuracion-cobro.spec.ts` · `-movil.spec.ts` | ✅ **21/21** y **5/5** |
+| Suite E2E completa | ✅ **635 pasan · 2 fallan** (33,9 min), sobre servidor y base recién creados. Los 2 son **I-090**, conocido y ajeno: comprueban «las ventas de hoy» sobre datos que la propia suite acumula. **Ninguna prueba de esta etapa falla** |
+| `npm run verify:remote` | **No ejecutado a propósito**: apunta al proyecto real y esta etapa no toca producción |
+
+**Se comprobó al revés.** Con `payment_reminder_grace()` puesta en cien años y la comprobación de
+BR-S13 sustituida por `and true`, **fallan cinco pruebas y son las cinco correctas**: E-04, E-05,
+E-06, E-08 y E-09. Detalle en `TEST_RESULTS.md`.
+
+**Cuatro errores encontrados durante el trabajo, los cuatro corregidos:**
+
+1. **El aviso de la campana decía «7:00 p. m..»**, con dos puntos: `formatClockEs` ya cierra la
+   abreviatura. Lo encontró una prueba unitaria.
+2. **`catalog.test.ts` falló por la nota de reversión**, que exige la frase literal «Nota de
+   reversion» en cada migración. La red del propio proyecto, otra vez.
+3. **Dos pruebas de navegador dependían del orden de ejecución**: el grupo de WhatsApp vive en
+   `memberships` y el `reset` de esas suites no lo limpiaba. Se arregló el `reset`, no la aserción.
+4. **Un `timestamptz` no sobrevive a un viaje por JavaScript**: E-14 leía `next_run_at` y lo devolvía
+   para provocar un choque, y no chocaba —microsegundos contra milisegundos—. **Defecto de la prueba**,
+   arreglado copiando la columna dentro de SQL.
+
+### 3. Migraciones que existen
+
+**`0001`–`0052`.** La nueva es **`0052_payment_reminder_engine.sql`**: un enumerado, una tabla con su
+RLS y tres CHECK, dos índices, el `kind` nuevo de `notifications` con su índice único, tres funciones
+y **dos** jobs de `pg_cron`. Es **aditiva** salvo en un punto: vuelve a crear
+`notifications_kind_check` con un valor más, exactamente como hizo `0037`.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.** `.env.example`, `check:env` y `vercel.json` **no se tocaron**. Las de Web Push
+—`VAPID_*` y el secreto del dispatcher— se darán de alta en las etapas 4 y 5, no antes.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **El proyecto real es Free, y un proyecto pausado no corre `pg_cron`** | I-024, ahora con una consecuencia concreta: a los 7 días sin tráfico Supabase pausa el proyecto y **los recordatorios de esos días no se disparan**. El producto se usa a diario y los diez cron de loterías tocan la base cada día, así que es improbable; el hueco **se ve** en las ocurrencias omitidas, y sigue siendo un motivo para subir a Pro |
+| **Nada llega con la aplicación cerrada** | La campana es la fuente durable y se lee al entrar. Web Push es la Etapa 4/5: hasta entonces, quien no abra la aplicación no se entera |
+| **La descripción de la sección ya no es una promesa incumplida** | Era el aviso de la Etapa 2. Con el motor puesto, «te preparemos el mensaje de cobro» **es verdad en local**. Sigue sin serlo en producción, porque allí no existe ninguna de las dos migraciones |
+| **I-108** heredada | El teléfono de una cuenta usa el mismo `PHONE_REGEX`, que cuenta caracteres y no dígitos |
+| **La CLI de Supabase genera tipos distintos** | Sigue vigente: quien regenere `database.types.ts` tiene que restaurar los seis `\| null` |
+| Todo lo demás | Sin cambios: I-109, I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-021, I-023, I-030, I-059, I-060 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Etapa 4.** Hace falta una autorización explícita nueva.
+2. **No toques `reminders_sync_next_run`** (`0051`, §5.a). Solo recalcula al insertar, al cambiar el
+   horario o al reactivar. Si lo cambias para que recalcule siempre, pisarás el avance del motor y el
+   recordatorio quedará **disparando en bucle**. Lo defienden S-25 y E-02.
+3. **El orden de escritura del motor no es casual**: ocurrencia primero, aviso después. Invertirlo
+   deja campanas huérfanas cuando hay conflicto (D-189, Decisión 2).
+4. **No concedas `EXECUTE` del motor a `authenticated`.** Procesa toda la base.
+5. **Las pruebas del motor van dentro de una transacción**, porque el `pg_cron` está corriendo en
+   local desde que se aplicó la `0052` y competiría con ellas.
+6. **Al tocar `configuracion-cobro*.spec.ts`, recuerda que su `reset` limpia también la membresía**:
+   el grupo de WhatsApp no vive en las tablas del encargo.
+7. **Cuando llegue la Etapa 5, `pg_net` ya está instalado** (0.20.4, esquema `extensions`) y
+   `pg_cron` también: solo hará falta el job que toque el dispatcher.
+8. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
 
 ---
 

@@ -66,6 +66,14 @@ export const setReminderStatusSchema = z.object({
   status: z.enum(['active', 'paused', 'archived']),
 })
 
+/**
+ * «Ya lo mandé» (BR-S14). Solo el identificador: quien lo atiende sale de la
+ * sesion, igual que en todo este modulo.
+ */
+export const attendOccurrenceSchema = z.object({
+  occurrenceId: z.uuid('Recordatorio no válido.'),
+})
+
 /** Lo que trae el formulario en blanco: el viernes por la tarde, que es cuando se cobra. */
 export const paymentReminderDefaults: PaymentReminderInput = {
   weekday: 5,

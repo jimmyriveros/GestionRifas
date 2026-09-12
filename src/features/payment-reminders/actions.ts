@@ -8,6 +8,7 @@ import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 
 import {
+  attendOccurrenceSchema,
   paymentReminderSchema,
   setReminderStatusSchema,
   toMinutePrecision,
@@ -15,7 +16,7 @@ import {
 } from './schemas'
 
 /**
- * Las tres escrituras de los recordatorios de pago (BR-S01..BR-S06).
+ * Las cuatro escrituras de los recordatorios de pago (BR-S01..BR-S06, BR-S14).
  *
  * SOLO EL PROPIO VENDEDOR, Y SOBRE LO SUYO: ni estas acciones ni las RPC de la
  * `0051` reciben identificador de vendedor. Lo mismo que las cuentas y por la
@@ -106,6 +107,35 @@ export async function setPaymentReminderStatus(input: unknown): Promise<ActionRe
   const { error } = await supabase.rpc('set_payment_reminder_status', {
     p_id: parsed.data.reminderId,
     p_status: parsed.data.status,
+  })
+  if (error) return { error: mapPgError(error) }
+
+  revalidateSettings()
+  return { ok: true }
+}
+
+/**
+ * «Ya lo mandé» (BR-S14).
+ *
+ * ES UNA DECLARACION DEL VENDEDOR, no una confirmación de nada. La aplicación
+ * no manda el mensaje: lo copia, abre el grupo y ahí termina su trabajo. No
+ * sabemos si el mensaje salió, si llegó o si alguien lo leyó, y ningún texto de
+ * este flujo puede sugerirlo (BR-W08, D-116).
+ *
+ * No lleva el aviso de la campanita a leído: eso es de la campanita y tiene su
+ * propia acción. Una operación que cambiara en silencio algo de otra pantalla
+ * sería peor que un contador de más.
+ */
+export async function markReminderOccurrenceAttended(input: unknown): Promise<ActionResult> {
+  const auth = await authorizeAction(['seller'])
+  if ('error' in auth) return auth
+
+  const parsed = attendOccurrenceSchema.safeParse(input)
+  if (!parsed.success) return { error: 'Recordatorio no válido.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('mark_reminder_occurrence_attended', {
+    p_id: parsed.data.occurrenceId,
   })
   if (error) return { error: mapPgError(error) }
 

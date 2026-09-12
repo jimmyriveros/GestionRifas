@@ -7,7 +7,7 @@
 - **Versión del documento:** 1.6
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
 - **Última actualización:** 2026-09-12 (§9.5: cuentas para recibir pagos y recordatorios de pago,
-  **etapas 0, 1 y 2 hechas de 7**; la configuración ya se usa en local, el motor todavía no existe)
+  **etapas 0 a 3 hechas de 7**; el motor ya suena en local y avisa por la campana. Web Push, no)
 
 ---
 
@@ -273,13 +273,16 @@ al final, de modo que no hay marcador que se pueda romper. Configurar es exclusi
 vendedor** —ni el personal ni un vendedor padre pueden hacerlo por él— y la pantalla está pensada
 para crecer con más secciones.
 
-### 9.5 Cuentas para recibir pagos y recordatorios de pago — **EN CONSTRUCCIÓN (3 de 7 etapas)**
+### 9.5 Cuentas para recibir pagos y recordatorios de pago — **EN CONSTRUCCIÓN (4 de 7 etapas)**
 
-> Autorizado por el dueño del producto el **2026-09-11** (D-185, D-186, D-187). Hechas la **Etapa 0**
-> —contrato y arquitectura—, la **Etapa 1** —base de datos, migración `0051`— y la **Etapa 2**
-> —configuración y formularios (D-188)—, todas **en local**. Un vendedor ya puede guardar sus cuentas
-> y programar sus recordatorios; **lo que todavía no existe es el motor**, así que **nada suena aún**.
-> El proyecto real no tiene la migración. Reglas: BR-M01..BR-M09, BR-S01..BR-S14, BR-V01..BR-V08.
+> Autorizado por el dueño del producto el **2026-09-11** (D-185, D-186, D-187). Hechas las **etapas
+> 0 a 3**: contrato, base de datos (`0051`), configuración y formularios (D-188) y **el motor**
+> (`0052`, D-189), todas **en local**. Un vendedor guarda sus cuentas, programa sus recordatorios y
+> **a la hora que eligió recibe el aviso en la campana**, que lo lleva a copiar el mensaje.
+>
+> **Lo que todavía NO existe es Web Push** —etapas 4 y 5—, y por tanto nada llega a un teléfono con
+> la aplicación cerrada. El proyecto real no tiene ninguna de las dos migraciones. Reglas:
+> BR-M01..BR-M09, BR-S01..BR-S14, BR-V01..BR-V08.
 
 Dos capacidades nuevas del **vendedor**, dentro de `/seller/settings`, que hoy tiene una sola sección
 —la del grupo de WhatsApp (§9.4)— y pasará a tener tres, cada una en su subruta, con la página
@@ -306,14 +309,14 @@ locales y **nunca** se presentan como confirmación de envío o de entrega.
 **Quién lo ve:** solo el propio vendedor. **Ni el Dueño, ni el Administrador, ni su vendedor padre**
 acceden a sus cuentas ni a sus recordatorios. Cambiar eso exige una decisión explícita y posterior.
 
-**Etapas** (cada una necesita autorización propia; la 0 es la única hecha):
+**Etapas** (cada una necesita autorización propia):
 
 | Etapa | Qué entrega |
 |---|---|
 | 0 | Contrato funcional y arquitectura documentada ✅ **2026-09-11** |
 | 1 | Modelo de datos, restricciones, RLS, RPC, índices, tipos y pruebas de base de datos ✅ **2026-09-11** (`0051`, en local) |
 | 2 | Configuración y formularios de cuentas, WhatsApp y recordatorios ✅ **2026-09-12** (D-188, en local) |
-| 3 | Motor de vencimientos, ocurrencias, campana y flujo copiar–abrir–atender |
+| 3 | Motor de vencimientos, ocurrencias, campana y flujo copiar–abrir–atender ✅ **2026-09-12** (`0052`, D-189, en local) |
 | 4 | Suscripciones Web Push por dispositivo y extensión del service worker |
 | 5 | Outbox, dispatcher, reintentos y limpieza de endpoints inválidos |
 | 6 | Auditoría integrada de seguridad, rendimiento, UX y regresiones |

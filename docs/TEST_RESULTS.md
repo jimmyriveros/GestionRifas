@@ -23,6 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
+| **Post-9 vigente (Etapa 3 del cobro, D-189, 2026-09-12)** | **943 ✅** en 53 archivos (+10) | **922 ✅** en 41 archivos (+33) | **635/637**; los 2 son **I-090**, conocido y ajeno. Sobre servidor y base recién creados | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
+| Post-9 anterior (Etapa 2 del cobro, D-188, 2026-09-12) | **933 ✅** (+37) | **889 ✅** — no se tocó la base | **626/630**; los 4 son **I-090** (3) e **I-106** (1) | ✅ | ✅ Sin desplegar |
 | **Post-9 vigente (D-184, 2026-09-09)** | **896 ✅** en 50 archivos (+39) | **827 ✅** — no se tocó la base | **597/599** el 09-09 —los 2 son **I-090** e **I-106**, verdes en aislamiento— y **46/46** dirigidas el 09-10, con las **12 nuevas** de pegado real y de los cinco caminos de guardado | ✅ | ✅ **DESPLEGADO** (`9900635`, 2026-09-10) |
 | Post-9 anterior (D-182, D-183, 2026-09-09) | **857 ✅** en 49 archivos | — (no se tocó la base) | **escritorio 445** con los 2 de **I-090** · **móvil 130/130**. Doce combinaciones de ancho y tema sin desbordamiento; **I-107** cerrada de rebote | ✅ | ✅ **DESPLEGADO** (`523b4bc`) |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
@@ -10275,3 +10277,134 @@ relanzó. **Ninguna cifra de esta sección viene de aquella ejecución.**
 4. «Recordatorios de pago» → «Crear recordatorio»: la vista previa enseña el mensaje **completo**, con
    las cuentas al final.
 5. Corregir el titular de una cuenta y volver al recordatorio: el mensaje ya sale con el nombre nuevo.
+
+---
+
+## Cuentas de cobro y recordatorios, Etapa 3: el motor (`0052`, D-189) — 2026-09-12
+
+**Alcance:** la migración `0052` —ocurrencias, el `kind` nuevo de `notifications`, el motor, la RPC
+de atender y **dos** jobs de `pg_cron`—, el flujo copiar → abrir → atender en
+`/seller/settings/reminders`, y el enlace desde la campanita. **Ninguna dependencia nueva.** Nada
+aplicado al proyecto real.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **943/943** unitarias (**+10**), `build` |
+| `npm run test:db` | ✅ **922/922** (**+33**): 32 del motor y 1 del catálogo |
+| `configuracion-cobro.spec.ts` (escritorio) | ✅ **21/21** (**+6**) |
+| `configuracion-cobro-movil.spec.ts` (Pixel 7) | ✅ **5/5** (**+1**) |
+| Suite E2E completa | ver §d |
+
+### b. Las dos comprobaciones que dicen si las pruebas sirven
+
+Se rompió el motor a propósito, de dos formas a la vez, **sin tocar la migración**: con
+`create or replace` se puso `payment_reminder_grace()` en **cien años** y se sustituyó la
+comprobación de BR-S13 por `and true`.
+
+**Fallaron cinco pruebas, y son exactamente las cinco correctas:**
+
+| Prueba | Qué dejó de cumplirse |
+|---|---|
+| E-04 | Un vencimiento de cinco horas ya no nacía omitido |
+| E-05 | El borde de las dos horas dejaba de existir |
+| E-06 | Un mes de atraso avisaba en vez de callarse |
+| E-08 | Un vendedor con la **membresía** desactivada recibía avisos |
+| E-09 | Un vendedor con el **perfil** desactivado, también |
+
+Después se restauró con `db:reset`, para que la base sea lo que dicen las migraciones y no lo que
+dejó una prueba.
+
+**La segunda rotura fue para una prueba concreta, E-14.** Es la que defiende un detalle del bucle
+que no se ve: si `insert … on conflict do nothing returning id into v_occurrence_id` no dejara la
+variable en NULL al no insertar, la iteración siguiente arrastraría el id de la anterior y
+escribiría un aviso de más, enlazado a una ocurrencia ajena. Se sustituyó la guarda
+`if v_occurrence_id is not null` por `if true` y **fallaron E-03 y E-14**, que son exactamente las
+dos que dependen de ella. Restaurado otra vez con `db:reset`.
+
+### c. Cuatro defectos propios, encontrados por las pruebas
+
+**1. La hora ya termina en punto.** `formatClockEs` devuelve «7:00 p. m.», así que el aviso de la
+campana salía «…del martes a las 7:00 p. m.**.** Copia el mensaje…». Lo encontró una prueba unitaria
+antes de que lo viera nadie; se cierra la frase solo si no viene cerrada.
+
+**2. La nota de reversión tiene un nombre exacto.** `catalog.test.ts` exige la frase literal «Nota de
+reversion» en **cada** migración; la `0052` titulaba esa sección «Reversión (DB-15)» y falló. La red
+de seguridad del propio proyecto funcionando: es la misma clase de defecto que I-078 destapó en la
+Etapa 1.
+
+**3. Dos pruebas de navegador dependían del orden.** «Sin grupo se ofrece configurarlo» pasaba o
+fallaba según si otra prueba había configurado el grupo de WhatsApp del vendedor compartido antes —y
+el grupo vive en `memberships`, que el `reset` de esas dos suites no limpiaba—. Se arregló donde
+correspondía: el `reset` de las dos limpia ahora también la membresía, igual que ya hacía
+`whatsapp-invitacion.spec.ts`. **No se relajó ninguna aserción.**
+
+**4. Un `timestamptz` no sobrevive a un viaje por JavaScript.** E-14 leía `next_run_at` y lo
+volvía a mandar para provocar un choque en el índice único, y el choque no ocurría: un
+`timestamptz` tiene **microsegundos** y un `Date` solo milisegundos, así que el valor que volvía ya
+no era el mismo. **El defecto era de la prueba, no del motor**, y se arregló copiando la columna
+dentro de SQL. Vale la pena anotarlo: cualquier prueba futura que compare instantes de PostgreSQL
+pasándolos por el cliente tiene el mismo agujero.
+
+### c.bis Lo que se comprobó a mano, fuera de la suite
+
+Antes de escribir una sola prueba, el motor se ejercitó con `psql` dentro de una transacción que se
+deshizo: un vencimiento de 30 minutos produjo **una** ocurrencia pendiente con su campana; la segunda
+corrida devolvió **0**; y un vencimiento de cinco horas produjo una **omitida sin aviso**, con el
+reloj en el futuro. También se comprobó, antes de escribir la migración, que `cron.schedule` con el
+mismo nombre **reemplaza** el job en vez de duplicarlo —jobid 1 con el horario nuevo—, que es lo que
+hace que volver a aplicar la migración sea seguro.
+
+Y en el navegador, con sesión real del vendedor del seed: la sección **«Para enviar ahora»** con el
+mensaje completo, sus dos cuentas bajo «Puedes pagar aquí:» y los tres botones.
+
+### d. Suite E2E completa
+
+Sobre servidor y base **recién creados** (`db:reset` + `seed:local` antes de lanzar), y **sin tocar
+un solo archivo mientras corría** — la trampa que costó una hora en la Etapa 2—:
+
+**635 pasan · 2 fallan · 33,9 min.**
+
+Las **dos** son **I-090**, conocido, ajeno y **defecto de las pruebas, no del producto**: comprueban
+«las ventas de hoy» sobre datos que el resto de la suite va acumulando.
+
+| Prueba | Clasificación |
+|---|---|
+| `reports.spec.ts:305` — el panel administrativo muestra pagos recientes | **I-090** |
+| `ventas-por-fecha.spec.ts:163` — muestra inicialmente las ventas de HOY | **I-090** |
+
+**Ninguna prueba de la Etapa 3 falla.** Y hay dos ausencias que conviene anotar: esta vez
+`ventas-por-fecha.spec.ts:247` y `catalogo-publico-movil.spec.ts:103` (**I-106**) **pasaron**, lo
+cual es coherente con lo que dice I-090 —depende de cuánta basura haya acumulado la suite— y no
+significa que estén resueltos.
+
+El total sube de **630** a **637** pruebas: las **7** nuevas de esta etapa (6 de escritorio y 1 a
+320 px).
+
+### e. Lo que NO se comprobó, y se dice
+
+* **Que el cron dispare solo.** Las pruebas llaman a la función; que el job la llame cada minuto se
+  comprueba por catálogo —los dos jobs existen, activos, con su horario— y por `verify:remote`.
+  Esperar a que corra convertiría cada prueba en una pausa de hasta un minuto. **En local el cron sí
+  está corriendo** desde que se aplicó la `0052`, y por eso las pruebas del motor trabajan dentro de
+  una transacción: si no, competirían con él.
+* **La concurrencia con dos conexiones vivas** (E-12 es estructural). La razón está en `TESTING`
+  §4.8 y en D-189: exigiría dejar un vencimiento confirmado y el cron competiría con la prueba.
+* **Web Push.** No existe: ni suscripciones, ni claves, ni outbox, ni dispatcher, ni oyente en el
+  service worker. Nada llega a un teléfono con la aplicación cerrada.
+* **La purga de `cron.job_run_details`.** El job existe y está activo; su efecto no se puede observar
+  sin esperar siete días. Lo que sí se comprobó es que la sentencia corre —se ejecutó a mano— y que
+  el usuario del job es el dueño de la tabla.
+* **375, 390 y 430 px.** Se midieron los **320**, que es el peor caso.
+
+**Quien lo compruebe, con su cuenta:**
+
+1. Crear un recordatorio para dentro de dos minutos y esperar. Debe aparecer el punto rojo en la
+   campanita y, dentro, «Es hora de tu recordatorio del …».
+2. Pulsar ese aviso: lleva a «Recordatorios de pago», con **«Para enviar ahora»** arriba.
+3. «Copiar mensaje» y pegar en cualquier sitio: tiene que salir el mensaje **completo**, con las
+   cuentas al final.
+4. «Marcar como atendido»: desaparece de ahí, y el recordatorio **sigue activo** para la semana
+   siguiente.
+5. En «Configuración», la tarjeta de recordatorios dice «N para enviar» mientras quede alguno.

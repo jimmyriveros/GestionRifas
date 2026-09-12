@@ -138,6 +138,9 @@ const CHECKS: Check[] = [
               'create_seller_payment_account', 'reorder_seller_payment_accounts',
               'restore_seller_payment_account', 'set_payment_reminder_status',
               'update_payment_reminder', 'update_seller_payment_account',
+              -- 0052: el vendedor declara que ya mando su mensaje. El MOTOR no
+              -- esta aqui: lo llama el cron (BR-S14, D-189)
+              'mark_reminder_occurrence_attended',
               'taken_ticket_combinations', 'team_confirm_email_change', 'team_delete_member',
               'team_max_fixed_commission', 'team_member_sales', 'team_sales_summary',
               'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
@@ -209,11 +212,33 @@ const CHECKS: Check[] = [
     esperado: 8,
   },
   {
-    nombre: 'Tablas de cuentas y recordatorios existen (0051)',
+    // El motor procesa los recordatorios de TODA la base. Si esto dejara de
+    // ser 0, cualquiera con una cuenta podria dispararlo desde el navegador
+    // tantas veces como quisiera (0052, D-189).
+    nombre: 'El motor de recordatorios NO es ejecutable desde una sesion',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in ('process_due_payment_reminders', 'payment_reminder_grace')
+            and (has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                 or has_function_privilege('anon', p.oid, 'EXECUTE'))`,
+    esperado: 0,
+  },
+  {
+    // Sin el job no suena nada, y nada mas lo diria: la pantalla se veria igual
+    // de bien con los recordatorios guardados y el reloj parado (D-186).
+    nombre: 'Los 2 cron de recordatorios existen y estan activos (0052)',
+    sql: `select jobname as x from cron.job
+          where jobname in ('payment-reminders-due', 'payment-reminders-cron-cleanup')
+            and active`,
+    esperado: 2,
+  },
+  {
+    nombre: 'Tablas de cuentas y recordatorios existen (0051, 0052)',
     sql: `select c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
           where n.nspname = 'public' and c.relkind = 'r'
-            and c.relname in ('seller_payment_accounts', 'seller_payment_reminders')`,
-    esperado: 2,
+            and c.relname in ('seller_payment_accounts', 'seller_payment_reminders',
+                              'payment_reminder_occurrences')`,
+    esperado: 3,
   },
   {
     nombre: 'Las 5 vistas de saldos existen',

@@ -442,6 +442,11 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Cuándo suena | **Día** y **Hora** | Frecuencia, periodicidad, programación, horario |
 | El bloque que la aplicación añade sola al final del mensaje. **Lo lee el CLIENTE**, así que le habla a él | **«Puedes pagar aquí:»** | «Tus cuentas», que dentro del mensaje el cliente leería como las suyas; y cualquier marcador tipo `{{cuentas}}`, prohibidos (BR-S07) |
 | Ese mismo bloque, cuando se le explica al VENDEDOR qué se le va a añadir | **tus cuentas** | «El bloque», «la sección de cuentas» |
+| Un recordatorio que ya venció y está esperando a que lo peguen en el grupo | **Para enviar ahora** (D-189) | Pendientes, cola, bandeja, tareas |
+| Poner ese mensaje en el portapapeles del teléfono | **Copiar mensaje**; hecho, **«Mensaje copiado»** | Copiar al portapapeles, duplicar |
+| Abrir el grupo de WhatsApp desde ahí | **Abrir grupo** | Ir a WhatsApp, enviar, compartir |
+| Que el vendedor diga que ya lo mandó | **Marcar como atendido** | **Enviado**, **Entregado**, Completado, Listo — la aplicación no manda nada y no puede decir que sí (BR-S14, BR-W08) |
+| Cuándo le tocaba a ese mensaje | **«Era para el …»** | Vencido, atrasado, caducado |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -1150,6 +1155,43 @@ va a tocar en una preocupación. Al llegar al tope, el botón de crear se desact
 «Ya tienes 5 cuentas activas. Archiva una para agregar otra.» Es la misma frase que responde la base
 de datos, a propósito: quien la vea dos veces no tiene que entender que son dos sistemas distintos.
 
+**Copiar, abrir y atender describen ACTOS LOCALES, y ninguno es una confirmación de envío** (BR-S14,
+D-189). Es la regla que ordena toda la sección «Para enviar ahora», y no es un matiz:
+
+| Lo que dice la pantalla | Lo que de verdad pasó |
+|---|---|
+| «Mensaje copiado» | El texto está en el portapapeles de **este** teléfono |
+| Se abrió el grupo | Se abrió `https://chat.whatsapp.com/…` |
+| «Quedó marcado como atendido» | **El vendedor** dijo que ya lo hizo |
+
+Ninguna de las tres sabe si el mensaje salió, si llegó o si alguien lo leyó: **Rifas no envía nada a
+WhatsApp** y no va a hacerlo (BR-W08). Están prohibidos «Enviado», «Entregado», «Se envió» y
+«Mensaje enviado», y hay una prueba —unitaria y de navegador— que falla si alguno aparece. Por eso la
+sección lo dice en su descripción, antes de que nadie toque un botón: **«Copia el mensaje, abre tu
+grupo y pégalo. Rifas no lo envía por ti.»** Es la misma familia que la regla de sin conexión (D-116)
+y la de «cliente agregado al grupo» (BR-W08).
+
+**Y si el portapapeles o la ventana fallan, se dice.** «No pudimos copiar el mensaje. Selecciónalo y
+cópialo a mano.» y «Tu navegador no dejó abrir WhatsApp. Permítelo y vuelve a tocar «Abrir grupo».»
+Nunca se da por copiado ni por abierto lo que no ocurrió.
+
+**Sin grupo configurado se cambia la ACCIÓN, no se ofrece una que va a fallar** (BR-W05, D-189). Ahí
+el botón dice **«Configurar WhatsApp»** y lleva a su pantalla, con la causa debajo: «Todavía no has
+configurado tu grupo de WhatsApp.» Es exactamente lo que ya hacía el diálogo de invitación, aplicado
+a este flujo.
+
+**La ocurrencia dice cuándo le tocaba, no cuándo se procesó** (D-189). «Era para el 12 de sept de
+2026, 7:00 p. m.»: es lo único que la tarjeta no puede enseñar sola, y responde la pregunta que se
+hace quien la ve al día siguiente. Lo que **no** se escribe es cuánto lleva de retraso —un «hace 3
+horas» convierte un mensaje útil en un reproche— ni la fecha del **próximo** envío, que la aplicación
+sí conoce pero que se mueve por debajo al pausar, al cambiar la hora o al procesar.
+
+**El aviso de la campana dice cuál de los recordatorios es, y qué hacer** (BR-V01, D-189). «Es hora
+de tu recordatorio del martes a las 7:00 p. m. Copia el mensaje y pégalo en tu grupo.» El día va en
+**minúsculas** porque va dentro de una frase, y la hora se escribe con `formatClockEs`, que ya
+termina en punto: **no se le añade otro**, o se lee «7:00 p. m..». Un vendedor puede tener catorce
+recordatorios, así que un aviso que no diga cuál es no ayuda.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, las dos de un
@@ -1311,6 +1353,10 @@ castigo donde solo había una espera.
 | Nombres de los días de la semana | `src/lib/constants.ts` (`WEEKDAY_LABELS`, D-188). **Una sola lista**: `notifications/text.ts` la usa en minúsculas en vez de tener la suya |
 | Todos los textos de las cuentas para recibir pagos: título, campos, ayudas, botones, avisos del tope y cómo se escribe una cuenta en el mensaje | `src/features/payment-accounts/accounts.ts` (`ACCOUNT_COPY`), **todos juntos** (D-188) |
 | Todos los textos de los recordatorios: título, campos, la línea de «se agregan al final», la vista previa, el aviso sin cuentas y los botones | `src/features/payment-reminders/reminders.ts` (`REMINDER_COPY`), **todos juntos** (D-188) |
+| Los del flujo copiar → abrir → atender: «Para enviar ahora», «Era para el …», los tres botones, los dos fallos y el aviso sin grupo | `REMINDER_COPY.due`, en ese mismo archivo (D-189) |
+| «N para enviar», la línea que el resumen añade cuando hay algo esperando | `REMINDER_COPY.summary.pending` (D-189) |
+| El aviso de la campana cuando vence un recordatorio | `src/features/notifications/text.ts`, con los demás avisos (D-093, D-189). **El texto no vive en la base** (I-030) |
+| A dónde lleva un aviso de la campana, cuando lleva a algún sitio | `notificationHref`, en ese mismo archivo — hoy **solo** el recordatorio de pago (D-189) |
 | El mensaje predeterminado de un recordatorio | `DEFAULT_REMINDER_MESSAGE`, en ese mismo archivo — **nunca** en la base de datos, por lo mismo que `DEFAULT_INVITE_MESSAGE` (BR-S06, BR-W02) |
 | Los títulos y las líneas de estado de las tres tarjetas del resumen de «Configuración» | `src/app/(protected)/seller/settings/page.tsx` (D-188) |
 

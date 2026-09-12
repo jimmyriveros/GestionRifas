@@ -74,6 +74,7 @@ describe('RLS habilitada y forzada en todas las tablas de negocio', () => {
       'payments',
       'profiles',
       'raffles',
+      'payment_reminder_occurrences',
       'seller_payment_accounts',
       'seller_payment_reminders',
       'tickets',
@@ -210,6 +211,11 @@ describe('funciones privilegiadas', () => {
       'import_tickets_with_clients',
       'log_ticket_import',
       'mark_profile_activated',
+      // 0052: el vendedor declara que ya mando su mensaje de cobro. El MOTOR
+      // (`process_due_payment_reminders`) no esta aqui a proposito: lo llama el
+      // cron y dejarlo ejecutable permitiria forzar el procesamiento de toda la
+      // organizacion desde el navegador (BR-S14, D-189).
+      'mark_reminder_occurrence_attended',
       'reassign_ticket_client',
       'release_ticket_client',
       'reorder_seller_payment_accounts',
@@ -283,13 +289,39 @@ describe('funciones privilegiadas', () => {
         and p.proname in ('create_payment','void_payment','update_payment_allocation',
                           'update_ticket_sale_price','reassign_ticket_client',
                           'release_ticket_client','set_ticket_clearance_delivery',
-                          'set_seller_whatsapp_settings',
+                          'set_seller_whatsapp_settings','mark_reminder_occurrence_attended',
                           'assign_ticket','bulk_create_tickets','approve_tickets','cancel_ticket',
                           'match_ticket_import_clients','import_tickets_with_clients')
         and has_function_privilege('authenticated', p.oid, 'EXECUTE')
       order by p.proname
     `)
-    expect(rows.length).toBe(14)
+    expect(rows.length).toBe(15)
+  })
+
+  /**
+   * La cara negativa de la anterior, y la que de verdad importa aqui: el MOTOR
+   * no se puede disparar desde una sesion (D-189).
+   *
+   * `process_due_payment_reminders` procesa los recordatorios de TODA la base.
+   * Dejarlo ejecutable por `authenticated` permitiria a cualquiera con una
+   * cuenta forzar ese trabajo desde el navegador, tantas veces como quisiera.
+   */
+  it('el motor de recordatorios NO es ejecutable desde una sesion (0052)', async () => {
+    const { rows } = await db.query(`
+      select p.proname,
+             has_function_privilege('authenticated', p.oid, 'EXECUTE') as autenticado,
+             has_function_privilege('anon', p.oid, 'EXECUTE') as anonimo
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname in ('process_due_payment_reminders', 'payment_reminder_grace')
+      order by p.proname
+    `)
+    expect(rows.length).toBe(2)
+    for (const row of rows) {
+      expect(row.autenticado, `${row.proname} ejecutable por authenticated`).toBe(false)
+      expect(row.anonimo, `${row.proname} ejecutable por anon`).toBe(false)
+    }
   })
 })
 

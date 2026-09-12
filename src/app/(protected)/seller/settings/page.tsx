@@ -5,7 +5,10 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'
 import { ACCOUNT_COPY } from '@/features/payment-accounts/accounts'
 import { countActivePaymentAccounts } from '@/features/payment-accounts/queries'
-import { countActivePaymentReminders } from '@/features/payment-reminders/queries'
+import {
+  countActivePaymentReminders,
+  countPendingReminderOccurrences,
+} from '@/features/payment-reminders/queries'
 import { REMINDER_COPY } from '@/features/payment-reminders/reminders'
 import { WHATSAPP_COPY } from '@/features/whatsapp/invite'
 import { getWhatsappSettings } from '@/features/whatsapp/queries'
@@ -20,10 +23,15 @@ import { getWhatsappSettings } from '@/features/whatsapp/queries'
  * en vez de adivinarlo ahora». Ya se sabe: son tres.
  *
  * LO QUE ESTA PANTALLA NO HACE, Y ES SU RAZON DE SER: no carga ningun
- * formulario ni sus datos. Lee TRES recuentos —dos con `head: true`, que no
+ * formulario ni sus datos. Lee CUATRO recuentos —tres con `head: true`, que no
  * traen ni una fila, y la configuracion de WhatsApp, que ya se leia— y nada mas.
  * Las cuentas, los mensajes y los recordatorios se consultan al entrar en su
  * seccion, no antes.
+ *
+ * El cuarto es lo que hay POR ENVIAR (D-189). Es un recuento mas, del mismo
+ * precio que los otros, y evita que alguien entre aqui sin enterarse de que
+ * tiene un mensaje esperando: la campanita guarda los diez ultimos avisos y uno
+ * mas viejo se sale de la lista. Solo se escribe cuando hay algo.
  *
  * La entrada esta en el menú del avatar y SOLO para vendedores (`UserMenu`). El
  * layout de este portal ya exige el rol (`requireRole(['seller'])`), asi que un
@@ -31,9 +39,10 @@ import { getWhatsappSettings } from '@/features/whatsapp/queries'
  * de llegar aqui.
  */
 export default async function SellerSettingsPage() {
-  const [accounts, reminders, whatsapp] = await Promise.all([
+  const [accounts, reminders, pendingReminders, whatsapp] = await Promise.all([
     countActivePaymentAccounts(),
     countActivePaymentReminders(),
+    countPendingReminderOccurrences(),
     getWhatsappSettings(),
   ])
 
@@ -63,7 +72,11 @@ export default async function SellerSettingsPage() {
           href="/seller/settings/reminders"
           icon={BellIcon}
           title={REMINDER_COPY.title}
-          status={countLabel(reminders, REMINDER_COPY.summary)}
+          status={
+            pendingReminders === 0
+              ? countLabel(reminders, REMINDER_COPY.summary)
+              : `${countLabel(reminders, REMINDER_COPY.summary)} · ${REMINDER_COPY.summary.pending(pendingReminders)}`
+          }
         />
       </nav>
     </div>

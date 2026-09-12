@@ -1,11 +1,12 @@
 # ARQUITECTURA
 
-- **Versión:** 1.27 · **Estado:** implementado · **Actualizado:** 2026-09-12
+- **Versión:** 1.28 · **Estado:** implementado · **Actualizado:** 2026-09-12
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 - **§8.23** («Configuración» del vendedor con subrutas) está **implementada** desde el 2026-09-12
-  (D-188). ⚠️ **§8.24** (motor de recordatorios, cron y salida de avisos) **todavía NO existe**: es
-  la Etapa 3 de D-185 y lo dice en su encabezado. **§8.15.a lleva una corrección**: las
-  notificaciones **no** van con Firebase, sino con Web Push estándar (D-187).
+  (D-188), y **§8.24** (motor de recordatorios y cron) desde ese mismo día (`0052`, D-189). ⚠️ De
+  §8.24 existe **la mitad izquierda**: cron, ocurrencias y campana. **Web Push, su outbox y su
+  dispatcher NO existen** —etapas 4 y 5—, y su encabezado lo dice. **§8.15.a lleva una corrección**:
+  las notificaciones **no** van con Firebase, sino con Web Push estándar (D-187).
 
 ---
 
@@ -1728,17 +1729,18 @@ cuentas no saben nada de recordatorios. Esa dirección es lo que permite que la 
 accesible —no lo anuncia un lector de pantalla y no lo encuentra `getByRole('combobox', { name })`—.
 Lo encontró una prueba de esta etapa (D-188).
 
-### 8.24 El motor de recordatorios: cron, ocurrencias y salida de avisos — **PLANIFICADO** (D-185, D-186, D-187)
+### 8.24 El motor de recordatorios: cron, ocurrencias y salida de avisos (`0052`, D-186, D-189)
 
-> ⚠️ **EL MOTOR NO EXISTE TODAVÍA.** No hay extensión instalada, ni job creado, ni ocurrencias, ni
-> oyente `push` en el service worker, ni dispatcher: son las etapas 3, 4 y 5.
+> **LA MITAD IZQUIERDA DEL DIBUJO EXISTE** desde el 2026-09-12 (`0052`, Etapa 3): `pg_cron`, la
+> función, las ocurrencias y la campana. **La mitad derecha no**: ni outbox, ni dispatcher, ni claves
+> VAPID, ni oyente `push` en el service worker. Son las etapas 4 y 5, y cada una necesita su
+> autorización. Todo en **local**; el proyecto real no tiene ninguna de las dos migraciones.
 >
-> **Lo que la Etapa 1 sí dejó puesto** (`0051`, 2026-09-11): las dos tablas de configuración, y sobre
-> todo **`next_run_at` materializado con su índice parcial**, que es lo único que el motor necesitará
-> leer. Lo mantiene un trigger que **solo recalcula cuando cambia el horario o se reactiva** — nunca
-> en cualquier `UPDATE`—, y esa es la mitad importante: el motor adelantará `next_run_at` a la semana
-> siguiente al procesar, y un trigger que recalculara siempre pisaría ese avance y dejaría el
-> recordatorio disparando en bucle. Hay una prueba (S-25) que lo defiende.
+> **La pieza que la Etapa 1 dejó puesta** (`0051`) es la que lo sostiene: **`next_run_at`
+> materializado con su índice parcial**, mantenido por un trigger que **solo recalcula cuando cambia
+> el horario o se reactiva** — nunca en cualquier `UPDATE`—. Esa es la mitad importante: el motor
+> adelanta `next_run_at` al procesar, y un trigger que recalculara siempre pisaría ese avance y
+> dejaría el recordatorio disparando en bucle. Lo defienden dos pruebas, S-25 y E-02.
 
 ```
   pg_cron (cada minuto)                       ┌──────────────────────────┐
@@ -1785,6 +1787,19 @@ de las 7 p. m. que llega a las 2 a. m. no sirve, y despertar a alguien con él e
 **La outbox no es una optimización, es lo que protege el aviso interno.** La campana se escribe con
 la ocurrencia; el push se **encola**. Un servicio de push caído, un endpoint muerto o un dispatcher
 que no arranca no participan en escribir el aviso, así que no pueden perderlo (BR-V02).
+
+**Lo que se construyó en la Etapa 3, y lo que se dejó fuera.** Existen: la tabla de ocurrencias con
+su índice único, el `kind` `payment_reminder.due`, el motor, la RPC de atender y **dos** jobs — el
+de cada minuto y uno que purga `cron.job_run_details` a los 7 días, porque el primero escribe 1.440
+filas diarias en un proyecto Free de 500 MB (D-189, Decisión 4)—. **No existe nada de push**, y por
+eso este cron **no habla con internet**: escribe en tres tablas propias y ahí termina.
+
+**El flujo del vendedor vive en `/seller/settings/reminders`, no en el panel.** El contrato prohíbe
+consultar esto desde un layout o un panel (D-185, decisión 10), así que la pantalla tiene dos
+mitades: arriba **«Para enviar ahora»** —el mensaje compuesto al pintarlo, con las cuentas vigentes
+(BR-S08), y los tres botones de copiar, abrir y atender—, y debajo la configuración de siempre. La
+**campanita enlaza ahí** mediante `notificationHref`, que devuelve `null` para todos los demás
+avisos: los otros cuentan algo que ya pasó y no hay nada que hacer con ellos.
 
 **El service worker.** Los oyentes `push` y `notificationclick` se añaden **al final de
 `public/sw.js`**, en su propia sección, junto a las que ya tiene —caché de archivos, actualización,

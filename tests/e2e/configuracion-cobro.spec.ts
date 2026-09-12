@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { clipboardWrites, stubShareAndClipboard } from './catalogo-helpers'
 import { loadSeedRefs, serviceClient, type SeedRefs } from './db-setup'
 import { ACCOUNTS, expectToast, loginAs } from './fixtures'
 
@@ -27,8 +28,24 @@ test.beforeAll(async () => {
 /** Deja al vendedor sin nada: estas pruebas comparten cuenta con otras suites. */
 async function reset(sellerId: string) {
   const svc = serviceClient()
+  // ORDEN OBLIGATORIO: la ocurrencia apunta al recordatorio y a la campana con
+  // `on delete restrict`, asi que se borra primero lo que apunta (0052).
+  await svc.from('payment_reminder_occurrences').delete().eq('seller_id', sellerId)
+  await svc.from('notifications').delete().eq('recipient_profile_id', sellerId)
   await svc.from('seller_payment_reminders').delete().eq('seller_id', sellerId)
   await svc.from('seller_payment_accounts').delete().eq('seller_id', sellerId)
+  // Y el grupo de WhatsApp, que vive en la membresia (0050) y NO se borra con
+  // lo anterior. Sin esto, la prueba de «sin grupo» dependeria de si la de
+  // «abrir el grupo» corrio antes: el mismo cuidado que ya tiene
+  // `whatsapp-invitacion.spec.ts` con este vendedor compartido.
+  await svc
+    .from('memberships')
+    .update({
+      whatsapp_group_url: null,
+      whatsapp_use_custom_message: false,
+      whatsapp_custom_message: null,
+    })
+    .eq('profile_id', sellerId)
 }
 
 test.beforeEach(async () => {
@@ -352,5 +369,163 @@ test.describe('la vista previa del mensaje', () => {
     await page.goto('/seller/settings/reminders')
     await page.getByRole('button', { name: 'Editar' }).click()
     await expect(page.getByText('• Nequi · 300 111 2233 · Ana María Torres')).toBeVisible()
+  })
+})
+
+/*
+ * =============================================================================
+ * EL FLUJO COPIAR → ABRIR → ATENDER (BR-S14, D-189)
+ *
+ * Es donde se nota lo que Rifas NO hace: preparar el mensaje es todo su
+ * trabajo; pegarlo y enviarlo lo hace una persona. Por eso aquí se comprueban
+ * dos cosas que ninguna prueba de base de datos puede ver: QUÉ se copia de
+ * verdad al portapapeles —el mensaje completo, con las cuentas al final— y que
+ * ningún texto de la pantalla diga que se envió algo.
+ *
+ * El motor se dispara a mano con la RPC en vez de esperar al cron: una prueba
+ * que espere hasta un minuto para empezar no es una prueba, es una pausa. Que
+ * el cron lo llame solo cada minuto ya lo comprueban `verify-remote` y las
+ * pruebas de catálogo.
+ * =============================================================================
+ */
+
+/** Vence un recordatorio y lo procesa: deja una ocurrencia PENDIENTE de verdad. */
+async function pendienteDeEnviar(refs: SeedRefs): Promise<void> {
+  const svc = serviceClient()
+  const { data: recordatorio, error } = await svc
+    .from('seller_payment_reminders')
+    .insert({
+      organization_id: refs.organizationId,
+      seller_id: refs.sellerId,
+      weekday: 3,
+      time_of_day: '19:00:00',
+    })
+    .select('id')
+    .single()
+  if (error) throw error
+
+  // Se vence en un UPDATE aparte: el disparador del reloj solo recalcula al
+  // insertar, al cambiar el horario o al reactivar, nunca en cualquier update.
+  await svc
+    .from('seller_payment_reminders')
+    .update({ next_run_at: new Date(Date.now() - 20 * 60_000).toISOString() })
+    .eq('id', recordatorio.id)
+
+  await svc.rpc('process_due_payment_reminders', {})
+}
+
+/** Captura lo que la pantalla le pide al navegador al abrir el grupo. */
+async function stubWindowOpen(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __abiertas: string[] }
+    w.__abiertas = []
+    window.open = (url?: string | URL) => {
+      w.__abiertas.push(String(url ?? ''))
+      return window as unknown as Window
+    }
+  })
+}
+
+async function ventanasAbiertas(page: Page): Promise<string[]> {
+  return page.evaluate(() => (window as unknown as { __abiertas: string[] }).__abiertas)
+}
+
+test.describe('lo que hay para enviar', () => {
+  test('lo que se copia es el mensaje COMPLETO, con las cuentas al final', async ({ page }) => {
+    await stubShareAndClipboard(page, { share: 'unsupported', clipboard: 'ok' })
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/accounts')
+    await addNequi(page, '3001112233', 'Ana Torres')
+    await pendienteDeEnviar(refs)
+
+    await page.goto('/seller/settings/reminders')
+    await expect(page.getByRole('heading', { name: 'Para enviar ahora' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Copiar mensaje' }).click()
+    await expectToast(page, 'Mensaje copiado')
+
+    const copiado = await clipboardWrites(page)
+    expect(copiado).toHaveLength(1)
+    // El encabezado le habla al CLIENTE, que es quien lo va a leer.
+    expect(copiado[0]).toContain('Puedes pagar aquí:')
+    expect(copiado[0]).toContain('• Nequi · 300 111 2233 · Ana Torres')
+    // Y no queda ni rastro de un marcador (BR-S07).
+    expect(copiado[0]).not.toContain('{{')
+  })
+
+  test('la pantalla NO dice en ningun sitio que el mensaje se envio', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await pendienteDeEnviar(refs)
+    await page.goto('/seller/settings/reminders')
+
+    const seccion = page.getByRole('region', { name: 'Para enviar ahora' })
+    await expect(seccion.getByText('Rifas no lo envía por ti')).toBeVisible()
+    for (const prohibido of ['Mensaje enviado', 'Enviado', 'Entregado', 'Se envió']) {
+      await expect(seccion.getByText(prohibido, { exact: false })).toHaveCount(0)
+    }
+  })
+
+  test('abrir el grupo abre el enlace del vendedor, y nada mas', async ({ page }) => {
+    await stubWindowOpen(page)
+    await loginAs(page, ACCOUNTS.seller)
+
+    // Primero el grupo, para que la accion sea «Abrir grupo» y no la otra.
+    await page.goto('/seller/settings/whatsapp')
+    await page.getByLabel('Enlace del grupo de WhatsApp').fill('https://chat.whatsapp.com/AbCdEf123456')
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, 'Los cambios fueron guardados.')
+
+    await pendienteDeEnviar(refs)
+    await page.goto('/seller/settings/reminders')
+    await page.getByRole('button', { name: 'Abrir grupo' }).click()
+
+    expect(await ventanasAbiertas(page)).toEqual(['https://chat.whatsapp.com/AbCdEf123456'])
+  })
+
+  test('sin grupo se ofrece configurarlo, no un boton que va a fallar', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await pendienteDeEnviar(refs)
+    await page.goto('/seller/settings/reminders')
+
+    const seccion = page.getByRole('region', { name: 'Para enviar ahora' })
+    await expect(seccion.getByRole('button', { name: 'Abrir grupo' })).toHaveCount(0)
+    await expect(seccion.getByRole('link', { name: 'Configurar WhatsApp' })).toBeVisible()
+    await expect(seccion.getByText('Todavía no has configurado tu grupo')).toBeVisible()
+  })
+
+  test('marcarlo como atendido lo saca de la lista y del resumen', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await pendienteDeEnviar(refs)
+
+    await page.goto('/seller/settings')
+    await expect(page.getByText('1 para enviar')).toBeVisible()
+
+    await page.goto('/seller/settings/reminders')
+    await page.getByRole('button', { name: 'Marcar como atendido' }).click()
+    await expectToast(page, 'Quedó marcado como atendido.')
+    await expect(page.getByRole('heading', { name: 'Para enviar ahora' })).toHaveCount(0)
+
+    // Y el recordatorio sigue ahi, intacto: atender no lo pausa ni lo archiva.
+    await expect(page.getByText('Miércoles a las 7:00 p. m.')).toBeVisible()
+
+    await page.goto('/seller/settings')
+    await expect(page.getByText('para enviar')).toHaveCount(0)
+    await expect(page.getByText('1 recordatorio activo')).toBeVisible()
+  })
+
+  test('el aviso de la campana lleva a donde se copia el mensaje', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await pendienteDeEnviar(refs)
+    await page.goto('/seller/dashboard')
+
+    // La campanita es la fuente durable del aviso (BR-V01): sin este camino, el
+    // recordatorio avisaria sin decir a donde ir.
+    await page.getByRole('button', { name: /Novedades/ }).click()
+    const aviso = page.getByRole('link', { name: /Es hora de tu recordatorio/ })
+    await expect(aviso).toBeVisible()
+    await aviso.click()
+
+    await expect(page).toHaveURL(/\/seller\/settings\/reminders$/)
+    await expect(page.getByRole('heading', { name: 'Para enviar ahora' })).toBeVisible()
   })
 })

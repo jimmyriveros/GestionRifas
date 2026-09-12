@@ -1,16 +1,21 @@
 /**
  * Los recordatorios de pago del vendedor: que se guarda, como se arma el
- * mensaje y TODOS sus textos (BR-S01..BR-S09, D-185, D-188).
+ * mensaje y TODOS sus textos (BR-S01..BR-S14, D-185, D-188, D-189).
  *
  * PURO: no lee la sesion, no consulta la base y no abre nada. Lo necesitan la
- * pantalla de configuracion, su vista previa y las pruebas unitarias.
+ * pantalla de configuracion, su vista previa, el flujo copiar–abrir–atender y
+ * las pruebas unitarias.
  *
- * Aqui NO hay motor. Materializar una ocurrencia, avisar por la campana y el
- * flujo copiar–abrir–atender son la Etapa 3. Lo unico que esta etapa construye
- * es la CONFIGURACION y el compositor del mensaje, que la Etapa 3 reutilizara
- * tal cual: el mensaje se arma **en el momento en que se abre o se copia**, con
- * la configuracion vigente, de modo que cambiar una cuenta cambia los mensajes
- * futuros sin reescribir ni un recordatorio (BR-S08).
+ * EL MENSAJE SE ARMA AL ABRIRLO O AL COPIARLO, nunca al guardar el recordatorio
+ * ni al materializar su ocurrencia (BR-S08). De ahi sale la consecuencia que el
+ * contrato pedia: cambiar una cuenta cambia los mensajes futuros sin reescribir
+ * ni un recordatorio, y sin tocar los que ya vencieron. `buildReminderMessage`
+ * es la misma funcion que escribio la Etapa 2 y la Etapa 3 la reutiliza tal
+ * cual.
+ *
+ * Lo que NO vive aqui: el motor. Materializar, avisar y adelantar el reloj son
+ * SQL (`process_due_payment_reminders`, migracion 0052), porque tienen que
+ * ocurrir en una sola transaccion y sin navegador de por medio.
  */
 
 import { accountLine, activeAccounts, type PaymentAccount } from '@/features/payment-accounts/accounts'
@@ -111,6 +116,29 @@ export function reminderSchedule(reminder: PaymentReminder): string {
   return `${day} a las ${formatClockEs(reminder.timeOfDay)}`
 }
 
+/**
+ * Una ocurrencia pendiente: un recordatorio que ya vencio y que el vendedor
+ * todavia no ha dicho que mando (BR-S10, BR-S14).
+ *
+ * Trae dentro la configuracion de SU recordatorio, no el mensaje ya compuesto:
+ * el texto se arma al pintarlo, con las cuentas vigentes en ese instante
+ * (BR-S08). Si se guardara compuesto, corregir el numero de una cuenta dejaria
+ * el mensaje viejo esperando en la pantalla.
+ */
+export type PaymentReminderOccurrence = {
+  id: string
+  /** El instante que le tocaba, en ISO. No el de proceso. */
+  scheduledFor: string
+  reminder: PaymentReminder
+}
+
+/** Las pendientes, la mas antigua primero: es el orden en que se mandan. */
+export function sortOccurrences(
+  occurrences: PaymentReminderOccurrence[],
+): PaymentReminderOccurrence[] {
+  return [...occurrences].sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))
+}
+
 /** Los activos, ordenados por cuando suenan. Es como se leen en la lista. */
 export function sortReminders(reminders: PaymentReminder[]): PaymentReminder[] {
   return [...reminders].sort(
@@ -131,12 +159,50 @@ export const REMINDER_COPY = {
     none: 'Todavía no tienes recordatorios',
     one: '1 recordatorio activo',
     many: (count: number) => `${count} recordatorios activos`,
+    /**
+     * Lo que hay por hacer, pegado al estado en la tarjeta del resumen. Solo se
+     * escribe cuando hay algo pendiente: un «0 para enviar» permanente
+     * convertiria una pantalla tranquila en una lista de tareas (D-188).
+     */
+    pending: (count: number) => (count === 1 ? '1 para enviar' : `${count} para enviar`),
   },
 
   empty: {
     title: 'Todavía no tienes recordatorios de pago',
     description:
       'Crea el primero y te avisaremos el día y la hora que elijas, con el mensaje listo para enviar.',
+  },
+
+  /**
+   * El flujo copiar → abrir → atender (BR-S14, D-189).
+   *
+   * LOS TRES DESCRIBEN ACTOS LOCALES, y ninguno puede presentarse como
+   * confirmación de que WhatsApp envió o entregó nada: «Copiado» dice que el
+   * texto está en el portapapeles de ESTE teléfono, «Grupo abierto» que se
+   * abrió el enlace, y «Marcado como atendido» que **lo dijo el vendedor**. No
+   * hay integración con WhatsApp y no la va a haber (BR-W08), así que decir
+   * «mensaje enviado» sería exactamente la mentira que D-116 prohíbe.
+   */
+  due: {
+    title: 'Para enviar ahora',
+    description: 'Copia el mensaje, abre tu grupo y pégalo. Rifas no lo envía por ti.',
+    /** Cuándo le tocaba. Es lo único que la tarjeta no puede enseñar sola. */
+    scheduled: (when: string) => `Era para el ${when}`,
+
+    copy: 'Copiar mensaje',
+    copied: 'Mensaje copiado. Pégalo en tu grupo de WhatsApp.',
+    /** Nunca se da por copiado algo que no se copió (D-116, BR-K13). */
+    copyFailed: 'No pudimos copiar el mensaje. Selecciónalo y cópialo a mano.',
+
+    open: 'Abrir grupo',
+    openBlocked: 'Tu navegador no dejó abrir WhatsApp. Permítelo y vuelve a tocar «Abrir grupo».',
+    /** Sin grupo se cambia la acción; no se ofrece una que va a fallar (BR-W05). */
+    noGroup: 'Todavía no has configurado tu grupo de WhatsApp.',
+    noGroupAction: 'Configurar WhatsApp',
+
+    attend: 'Marcar como atendido',
+    attending: 'Guardando...',
+    attended: 'Quedó marcado como atendido.',
   },
 
   add: 'Crear recordatorio',

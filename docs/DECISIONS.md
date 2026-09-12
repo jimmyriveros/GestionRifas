@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.47 · **Actualizado:** 2026-09-12 (D-001 a D-188; D-185 y D-186 con notas de etapa)
+- **Versión:** 1.48 · **Actualizado:** 2026-09-12 (D-001 a D-189; D-185, D-186 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -8692,6 +8692,12 @@ fila leída **después** de guardar y comparada carácter por carácter.
 **Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-11). **No es una Fase 10**
 y no lleva etiqueta `fase-*`.
 
+> **ESTADO: ETAPAS 1, 2 y 3 IMPLEMENTADAS EN LOCAL** (`0051` el 2026-09-11; la interfaz el
+> 2026-09-12, D-188; el motor el 2026-09-12, `0052` y D-189). **Nada está aplicado al proyecto
+> real** —eso es la Etapa 7— y **faltan Web Push y su outbox**, que son las etapas 4 y 5.
+>
+> Lo que sigue es el estado ORIGINAL de la Etapa 1, conservado como contexto:
+>
 > **ESTADO: ETAPA 1 IMPLEMENTADA EN LOCAL (2026-09-11, migración `0051`).** Existen las dos tablas de
 > configuración, sus restricciones, su RLS y sus ocho RPC, con 62 pruebas de base de datos. **NO está
 > aplicada al proyecto real** —eso es la Etapa 7— y **no hay nada de interfaz** (Etapa 2) ni de motor,
@@ -8991,6 +8997,15 @@ de `notifications`, ni outbox, ni push. Son las etapas 3, 4 y 5, y cada una nece
 
 **Fase:** mantenimiento posterior a la Fase 9 (Etapa 0 del encargo de D-185, 2026-09-11)
 
+> **ESTADO: IMPLEMENTADO EN LOCAL (2026-09-12, migración `0052`).** `pg_cron` creado, y **dos** jobs:
+> `payment-reminders-due` cada minuto y `payment-reminders-cron-cleanup`, que purga la bitácora del
+> propio cron a los 7 días (D-189). **No está aplicado al proyecto real**: eso es la Etapa 7.
+>
+> `pg_net` **sigue sin usarse**, y por eso este cron no habla con internet: lo necesita el dispatcher
+> de push, que es la Etapa 5.
+>
+> Lo que sigue es el estado ORIGINAL de la decisión, conservado como contexto:
+>
 > **ESTADO: PLANIFICADO (Etapa 3).** La migración `0051` de la Etapa 1 **no crea ninguna extensión ni
 > ningún job**: solo deja `next_run_at` calculado y su índice, para que el motor lo lea cuando exista.
 >
@@ -9323,6 +9338,167 @@ producía dos avisos iguales a la vez.
 **Consecuencia.** BR-M05, BR-M09, BR-S07 y BR-S09 quedan implementadas. `ARCHITECTURE` §8.23;
 `UX_COPY_GUIDELINES` (glosario, siete reglas nuevas y Anexo B); `TESTING` §4.8. **La Etapa 3 —el
 motor— necesita autorización propia.**
+
+---
+
+## D-189 — El motor de recordatorios: qué materializa, qué calla y a dónde lleva la campana
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 3 del encargo de D-185, 2026-09-12)
+
+**Alcance.** Migración **`0052`**: la tabla de ocurrencias, el `kind` nuevo de `notifications`, el
+motor, la RPC de atender y **dos** jobs de `pg_cron`. Del lado de la aplicación, el flujo
+**copiar → abrir → atender** dentro de `/seller/settings/reminders`, y un enlace desde la campanita.
+**Ninguna dependencia nueva**, ningún Web Push, ninguna outbox y ni una línea de service worker: son
+las etapas 4 y 5.
+
+**Contexto.** La Etapa 1 dejó la configuración y `next_run_at` calculado; la Etapa 2, las pantallas
+para escribirla. Nada sonaba: un vendedor podía decir «los martes a las 7» y no pasaba absolutamente
+nada. Esta etapa es la que convierte esa configuración en un aviso.
+
+---
+
+### Decisión 1 — el reloj avanza SIEMPRE, aunque no se materialice nada
+
+Es la decisión que evita el fallo más caro de un motor de este tipo: la fila que vuelve a salir en la
+consulta cada minuto, para siempre.
+
+El motor adelanta `next_run_at` en cuatro casos que parecen distintos y no lo son:
+
+| Caso | Materializa | Avisa | Avanza el reloj |
+|---|---|---|---|
+| Vencido hace ≤ 2 h | Ocurrencia **pendiente** | Sí | Sí |
+| Vencido hace > 2 h | Ocurrencia **omitida** | **No** | Sí |
+| La ocurrencia ya existía | No (`on conflict do nothing`) | No | **Sí** |
+| El vendedor ya no puede operar (BR-S13) | **No** | No | **Sí** |
+
+Los dos últimos son los importantes. Si el reloj no avanzara, el motor volvería a mirar esas filas en
+cada corrida de cada minuto, indefinidamente, y al reactivarse una cuenta arrastraría meses de
+vencimientos acumulados.
+
+Y avanza **al próximo instante posterior a AHORA**, no «una semana más»: es lo que impide disparar
+las semanas perdidas de un proyecto que estuvo pausado (BR-S11). Un mes sin correr deja **una**
+omitida, no cuatro avisos de golpe.
+
+### Decisión 2 — la ocurrencia se escribe PRIMERO y la campana después
+
+Parece un detalle de implementación y es la idempotencia entera.
+
+El orden es: insertar la ocurrencia con `on conflict (reminder_id, scheduled_for) do nothing` y mirar
+si devolvió fila; **solo si la devolvió** se escribe el aviso y se enlaza. Al revés —aviso primero,
+ocurrencia después— un conflicto dejaría una campana huérfana: el vendedor vería dos avisos del mismo
+recordatorio y el segundo no llevaría a ninguna parte.
+
+De ahí sale también el único CHECK que no es evidente:
+`status <> 'missed' or notification_id is null`. Que una omitida **no avise** es media razón de que
+el estado exista, así que se defiende con una restricción y no con una línea dentro del motor.
+
+### Decisión 3 — el motor NO es ejecutable desde una sesión
+
+`process_due_payment_reminders` procesa los recordatorios de **toda la base**. `authenticated` no
+recibe `EXECUTE`, y hay dos comprobaciones que lo vigilan —`catalog.test.ts` y `verify-remote.ts`—,
+porque es exactamente el tipo de privilegio que Supabase concede distinto en el proyecto real que en
+local (I-078, y antes I-020).
+
+La única que sí se concede es `mark_reminder_occurrence_attended`, que **no recibe identificador de
+vendedor**: el perfil sale de `auth.uid()`, como las ocho de la `0051`.
+
+### Decisión 4 — un segundo cron que limpia la bitácora del primero
+
+`pg_cron` escribe una fila en `cron.job_run_details` por cada corrida. Un job por minuto son **1.440
+filas al día** y medio millón al año, en un proyecto **Free de 500 MB** (I-024), por un registro que
+solo sirve para diagnosticar los últimos días.
+
+Se purga a los 7 días, con un segundo job a las 08:17 UTC —las 3:17 a. m. de Bogotá—. No es una
+optimización prematura: es el coste operativo directo de la Decisión 7 de D-185, y no resolverlo
+ahora significaría descubrirlo el día que la base se llene.
+
+### Decisión 5 — la campanita LLEVA a donde se copia el mensaje
+
+La campana es la fuente durable del aviso (BR-V01), así que tiene que poder llevar a algún sitio:
+decirle a alguien «es hora de tu recordatorio» y dejarlo buscando la pantalla es medio aviso.
+
+Se añade `notificationHref(kind)`, que devuelve `null` para todos los avisos menos este. Los demás
+—una venta del equipo, un resultado de lotería— **cuentan algo que ya pasó** y no hay nada que hacer
+con ellos; inventarles un destino convertiría una fila informativa en un botón que engaña.
+
+El menú pasa a estar controlado para poder **cerrarse al navegar**: sin eso se quedaría abierto
+encima de la pantalla nueva.
+
+### Decisión 6 — «Para enviar ahora» vive en la pantalla de recordatorios, no en el panel
+
+Dos razones, y la segunda es del contrato:
+
+* **Es donde ya se está.** El aviso lleva ahí y la sección se llama igual que su pantalla.
+* **El panel no puede consultarlo.** D-185, decisión 10, prohíbe expresamente que estas consultas
+  entren en un layout o en un panel. El panel del vendedor **no lee** ocurrencias, y no va a hacerlo.
+
+Lo urgente va **arriba** y la configuración debajo: el mismo orden que D-175 le dio al panel.
+
+### Decisión 7 — el resumen añade «N para enviar», y solo cuando hay algo
+
+Un recuento más, del mismo precio que los otros tres (`head: true`, cero filas). Existe porque la
+campanita guarda los **diez** últimos avisos: uno más viejo se sale de la lista y el mensaje quedaría
+esperando sin que nada lo dijera.
+
+Cuando no hay nada pendiente **no se escribe**: un «0 para enviar» permanente convierte una pantalla
+tranquila en una lista de tareas.
+
+### Decisión 8 — atender NO toca el aviso de la campana
+
+Se evaluó marcarlo como leído al atender. Se descartó: el estado de leído es de la campanita y tiene
+su propia acción («Marcar como leídas»). Una operación que cambiara en silencio algo de otra pantalla
+es peor que un contador de más.
+
+### Decisión 9 — no se enseña ninguna fecha de próximo envío, y ahora es una decisión
+
+En la Etapa 2 no se enseñaba porque **no existía**. Ahora existe y es correcta, y se sigue sin
+enseñar: `next_run_at` se mueve por debajo —al pausar, al cambiar la hora, al procesar— y una fecha
+escrita en la pantalla envejecería sin avisar. Lo que sí se dice es **cuándo le tocaba** a lo que
+está esperando, que es la pregunta que se hace quien lo ve al día siguiente.
+
+### Decisión 10 — las ocurrencias OMITIDAS no se enseñan en ninguna parte
+
+Es lo que las hace útiles. Una omitida significa «el sistema no te avisó, y lo sabe»: ofrecer
+mandarla a destiempo inventaría una tarea que el contrato decidió no crear (BR-S11). Su fila queda
+como evidencia del hueco, para quien diagnostique, no para quien cobra.
+
+---
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| No avanzar el reloj cuando el vendedor está desactivado | Esas filas volverían a salir cada minuto para siempre, y al reactivar la cuenta llegarían meses de vencimientos juntos (Decisión 1) |
+| Escribir el aviso antes que la ocurrencia | Un conflicto dejaría una campana huérfana que no lleva a nada (Decisión 2) |
+| Sumar siete días a `next_run_at` en vez de recalcular desde ahora | Un proyecto pausado un mes dispararía cuatro avisos seguidos (BR-S11) |
+| Probar `skip locked` con dos conexiones vivas | Exigiría dejar un vencimiento confirmado, y el cron de cada minuto competiría con la prueba: ganaría o perdería según el segundo en que se lance. Lo que ese `skip locked` garantiza —que no se duplique— lo defiende el índice único (E-03) |
+| Dejar `process_due_payment_reminders` ejecutable por `authenticated` | Cualquiera con una cuenta podría forzar el procesamiento de toda la organización desde el navegador (Decisión 3) |
+| Dejar crecer `cron.job_run_details` y anotarlo en el RUNBOOK | Medio millón de filas al año en un plan de 500 MB, por una tarea manual que nadie hace (Decisión 4) |
+| Enseñar «Para enviar ahora» en el panel del vendedor | El contrato prohíbe consultar esto desde un panel o un layout (D-185, decisión 10) |
+| Marcar el aviso como leído al atender | El estado de leído es de la campanita y tiene su propia acción (Decisión 8) |
+| Enseñar la fecha del próximo envío | Se mueve por debajo sin que la pantalla se entere (Decisión 9) |
+| Una pantalla de historial de ocurrencias | Nadie que cobre se hace esa pregunta; la evidencia es para diagnosticar y se consulta en la base (Decisión 10) |
+| Sondeo del navegador o Realtime para enterarse | Prohibido por el contrato, y la campana ya se lee en cada carga |
+
+### Lo que se encontró al implementarlo
+
+1. **La hora ya termina en punto.** `formatClockEs` devuelve «7:00 p. m.», así que la frase del aviso
+   salía «…7:00 p. m.. Copia el mensaje…». Lo encontró una prueba unitaria antes de que lo viera
+   nadie.
+2. **La nota de reversión tiene un nombre exacto.** `catalog.test.ts` exige la frase literal «Nota de
+   reversion» en cada migración; la `0052` decía «Reversión (DB-15)» y falló. La prueba hizo su
+   trabajo.
+3. **Dos pruebas de navegador dependían del orden.** «Sin grupo se ofrece configurarlo» pasaba o
+   fallaba según si otra prueba había configurado el grupo del vendedor compartido antes. Se arregló
+   donde correspondía —en el `reset` de las dos suites, que ahora limpia también la membresía—, no
+   relajando la aserción.
+
+### Consecuencia
+
+**BR-S08, BR-S10, BR-S11, BR-S12, BR-S13, BR-S14 y BR-V01 quedan implementadas.** `DATA_MODEL` §4.17
+y §4.bis; `SECURITY` §4.16; `ARCHITECTURE` §8.24; `MASTER_SPEC` §9.5; `TESTING` §4.9;
+`UX_COPY_GUIDELINES` (glosario, cinco reglas nuevas y Anexo B). **Las etapas 4 y 5 —Web Push, su
+outbox y el dispatcher— necesitan autorización propia, y la 7 —promoción a producción— también.**
 
 ---
 

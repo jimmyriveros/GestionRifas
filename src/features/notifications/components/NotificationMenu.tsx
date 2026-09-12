@@ -1,8 +1,9 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -16,7 +17,7 @@ import { formatDateTimeEs } from '@/lib/dates'
 
 import { markNotificationsRead } from '../actions'
 import type { NotificationItem } from '../queries'
-import { notificationMessage } from '../text'
+import { notificationHref, notificationMessage } from '../text'
 
 type NotificationMenuProps = {
   items: NotificationItem[]
@@ -31,9 +32,16 @@ type NotificationMenuProps = {
  * `aria-label` del boton, porque un contador que solo se ve no existe para
  * quien usa un lector de pantalla (CLAUDE.md §27: nunca depender solo del
  * color, ni solo de lo visual).
+ *
+ * ALGUNOS AVISOS LLEVAN A UN SITIO Y OTROS NO (D-189). El del recordatorio de
+ * pago es accionable —hay un mensaje esperando a que lo copien— y por eso su
+ * fila es un enlace; los demas cuentan algo que ya paso. El menu se controla
+ * desde aqui para poder CERRARLO al navegar: sin eso se quedaria abierto encima
+ * de la pantalla nueva.
  */
 export function NotificationMenu({ items, unreadCount, icon }: NotificationMenuProps) {
   const router = useRouter()
+  const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const label =
@@ -49,7 +57,7 @@ export function NotificationMenu({ items, unreadCount, icon }: NotificationMenuP
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative size-9" aria-label={label}>
           {icon}
@@ -91,18 +99,37 @@ export function NotificationMenu({ items, unreadCount, icon }: NotificationMenuP
           </p>
         ) : (
           <ul className="max-h-80 overflow-y-auto">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className={`border-b px-2 py-2 last:border-0 ${item.isRead ? '' : 'bg-accent/50'}`}
-              >
-                <p className="text-sm">{notificationMessage(item.kind, item.data)}</p>
-                <p className="text-muted-foreground mt-0.5 text-xs">
-                  {formatDateTimeEs(item.createdAt)}
-                  {item.isRead ? '' : ' · Sin leer'}
-                </p>
-              </li>
-            ))}
+            {items.map((item) => {
+              const href = notificationHref(item.kind)
+              const content = (
+                <>
+                  <p className="text-sm">{notificationMessage(item.kind, item.data)}</p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    {formatDateTimeEs(item.createdAt)}
+                    {item.isRead ? '' : ' · Sin leer'}
+                  </p>
+                </>
+              )
+
+              return (
+                <li
+                  key={item.id}
+                  className={`border-b last:border-0 ${item.isRead ? '' : 'bg-accent/50'}`}
+                >
+                  {href === null ? (
+                    <div className="px-2 py-2">{content}</div>
+                  ) : (
+                    <Link
+                      href={href}
+                      onClick={() => setOpen(false)}
+                      className="hover:bg-accent focus-visible:ring-ring block px-2 py-2 focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                      {content}
+                    </Link>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
       </DropdownMenuContent>

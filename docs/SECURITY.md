@@ -1,10 +1,12 @@
 # SEGURIDAD
 
-- **Versión:** 2.11 · **Estado:** implementado · **Actualizado:** 2026-09-11
-- **§4.15** describe el aislamiento de las cuentas de cobro y los recordatorios, **implementado en la
-  migración `0051`** (Etapa 1 de D-185) y verificado en local; su última parte —Web Push— sigue
-  siendo diseño y lo dice. **§5.2** (dispatcher de Web Push) es **planificada**, Etapa 5.
-- ⚠️ `0051` está aplicada **en local**. **El proyecto real no la tiene**: promoverla es la Etapa 7.
+- **Versión:** 2.12 · **Estado:** implementado · **Actualizado:** 2026-09-12
+- **§4.15** describe el aislamiento de las cuentas de cobro, los recordatorios y **el motor que los
+  dispara**, implementado en las migraciones **`0051`** (Etapa 1) y **`0052`** (Etapa 3, D-189) y
+  verificado en local; su última parte —Web Push— sigue siendo diseño y lo dice. **§5.2**
+  (dispatcher de Web Push) es **planificada**, Etapa 5.
+- ⚠️ `0051` y `0052` están aplicadas **en local**. **El proyecto real no las tiene**: promoverlas es
+  la Etapa 7.
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
   `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042`, `0043` y `0044`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
@@ -758,12 +760,12 @@ grupo: para eso haría falta una tabla aparte con su propia política, no una co
 nueva y sin ningún dato saliendo del navegador por iniciativa del servidor. El texto del mensaje se
 guarda y se pinta **como texto** —`<textarea>` y nodos de texto—, nunca con `dangerouslySetInnerHTML`.
 
-### 4.15 Cuentas de cobro y recordatorios del vendedor (`0051`, BR-M01..BR-M09, BR-S01..BR-S06, D-185)
+### 4.15 Cuentas de cobro y recordatorios del vendedor (`0051` y `0052`, BR-M, BR-S, BR-V01; D-185, D-189)
 
-> **IMPLEMENTADO EN LA BASE el 2026-09-11** (Etapa 1), aplicado y verificado **en local** con 62
-> pruebas. **No aplicado al proyecto real**: eso es la Etapa 7 y necesita autorización propia. Lo que
-> sigue describe el esquema **real**, salvo la última parte —Web Push—, que sigue siendo diseño de
-> las etapas 4 y 5 y lo dice.
+> **IMPLEMENTADO EN LA BASE**: la configuración el 2026-09-11 (`0051`, Etapa 1, 62 pruebas) y el
+> **motor** el 2026-09-12 (`0052`, Etapa 3, 30 pruebas más). **Nada está aplicado al proyecto real**:
+> eso es la Etapa 7 y necesita autorización propia. Lo que sigue describe el esquema **real**, salvo
+> la última parte —Web Push—, que sigue siendo diseño de las etapas 4 y 5 y lo dice.
 
 **El aislamiento que pide el contrato es más estrecho que cualquiera que este producto tenga hoy.**
 No es «por organización» ni «por vendedor y su cadena de mando»: es **por vendedor, y nadie más**.
@@ -774,7 +776,7 @@ No es «por organización» ni «por vendedor y su cadena de mando»: es **por v
 | Dueño y Administrador | **Nada.** Ni lectura |
 | Vendedor padre del equipo | **Nada.** Ni lectura |
 | Cualquier otro vendedor | **Nada** |
-| `anon` | **Nada**, ningún privilegio sobre ninguna de las cinco tablas |
+| `anon` | **Nada**, ningún privilegio sobre ninguna de las tres tablas que existen (ni sobre las dos de push, cuando existan) |
 | `service_role` | Sí: lo necesita el proceso. **Nunca llega al navegador** (`import 'server-only'`) |
 
 #### Por qué NO puede ser una columna de `memberships`
@@ -814,17 +816,32 @@ son tablas nuevas con política propia (BR-M01).
   puerta de atrás. Se anota **qué cambió** —tipo, etiqueta, horario, estado—, y **no** el número, ni
   el titular, ni el mensaje. Hay una prueba que lee la última fila de la bitácora y falla si
   aparecen.
-* **Tres auxiliares que ninguna sesión ejecuta:** `require_seller_org()`, `next_reminder_run_at()` y
-  `max_active_payment_reminders()`. `REVOKE` explícito de `public` y `anon`, y **sin `GRANT` a
+* **Cinco auxiliares que ninguna sesión ejecuta:** `require_seller_org()`, `next_reminder_run_at()`,
+  `max_active_payment_reminders()` y, desde `0052`, `payment_reminder_grace()` y el propio motor. `REVOKE` explícito de `public` y `anon`, y **sin `GRANT` a
   `authenticated`** — PostgreSQL concede `EXECUTE` a PUBLIC en cada función nueva y las *default
   privileges* de `0015`/`0032` no alcanzan a lo que se cree después (I-020, I-078).
 
-#### Lo que el proceso del cron podrá tocar — **Etapa 3, todavía no existe**
+#### Lo que toca el proceso del cron — **`0052`, comprobado** (D-189)
 
-`process_due_payment_reminders()` será `SECURITY DEFINER` y **no la ejecutará nadie con sesión**: se
-revoca de `public`, `anon` y `authenticated`, y solo la llamará el job de `pg_cron`. Escribirá
-ocurrencias, avisos y filas de outbox; **no leerá ni una cuenta bancaria**, porque no le hace falta:
-el mensaje se compone después, en la pantalla del vendedor (BR-S08).
+`process_due_payment_reminders()` es `SECURITY DEFINER` y **no la ejecuta nadie con sesión**: está
+revocada de `public` y `anon`, **no** se le concede a `authenticated`, y solo la llama el job de
+`pg_cron`. Dejarla abierta permitiría a cualquiera con una cuenta forzar el procesamiento de toda la
+base desde el navegador, tantas veces como quisiera; lo vigilan **dos** comprobaciones,
+`catalog.test.ts` y `verify-remote.ts`, porque este es justo el privilegio que Supabase concede
+distinto en el proyecto real que en local (I-078).
+
+Escribe ocurrencias y avisos —las filas de outbox serán la Etapa 5— y **no lee ni una cuenta
+bancaria**, porque no le hace falta: el mensaje se compone después, en la pantalla del vendedor
+(BR-S08).
+
+**La tercera tabla, `payment_reminder_occurrences`, repite el patrón exacto**: RLS forzada, **una
+sola política y de `SELECT`**, `authenticated` con **solo `SELECT`**, y la única escritura desde una
+sesión es `mark_reminder_occurrence_attended(id)`, que no recibe identificador de vendedor. Su
+bitácora anota **solo el instante programado**, ningún dato de cobro.
+
+**El esquema `cron` no es accesible desde una sesión**: ni `authenticated` ni `anon` tienen `usage`
+sobre él. Hay una prueba que lo comprueba, porque la extensión la crea la migración y un privilegio
+por defecto distinto en el proyecto real no se vería de ninguna otra forma.
 
 #### Privacidad del push — **Etapas 4 y 5, todavía no existe**
 

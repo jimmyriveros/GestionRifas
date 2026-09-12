@@ -8,7 +8,9 @@ import {
   countActive,
   DEFAULT_REMINDER_MESSAGE,
   PAYMENT_REMINDER_MAX,
+  REMINDER_COPY,
   reminderSchedule,
+  sortOccurrences,
   sortReminders,
   type PaymentReminder,
 } from '@/features/payment-reminders/reminders'
@@ -212,5 +214,50 @@ describe('validacion del formulario', () => {
   it('los segundos se descartan: la precision es de minuto (BR-S02)', () => {
     expect(toMinutePrecision('19:00')).toBe('19:00:00')
     expect(toMinutePrecision('19:00:45')).toBe('19:00:00')
+  })
+})
+
+describe('lo que hay por enviar (BR-S08, BR-S10, D-189)', () => {
+  it('la mas antigua primero: es el orden en que se mandan', () => {
+    const ordenadas = sortOccurrences([
+      { id: 'nueva', scheduledFor: '2026-09-12T00:00:00.000Z', reminder: reminder() },
+      { id: 'vieja', scheduledFor: '2026-09-05T00:00:00.000Z', reminder: reminder() },
+      { id: 'media', scheduledFor: '2026-09-09T00:00:00.000Z', reminder: reminder() },
+    ])
+    expect(ordenadas.map((o) => o.id)).toEqual(['vieja', 'media', 'nueva'])
+  })
+
+  it('el mensaje se compone al abrirlo: cambiar una cuenta cambia lo que se copia', () => {
+    // BR-S08 dicho como codigo. La ocurrencia guarda CUANDO le tocaba, nunca el
+    // texto: corregir el numero de una cuenta arregla el mensaje que esta
+    // esperando, sin tocar el recordatorio ni la ocurrencia.
+    const ocurrencia = {
+      id: 'o1',
+      scheduledFor: '2026-09-12T00:00:00.000Z',
+      reminder: reminder(),
+    }
+    const antes = buildReminderMessage(ocurrencia.reminder, [account({ phone: '300 111 1111' })])
+    const despues = buildReminderMessage(ocurrencia.reminder, [account({ phone: '300 222 2222' })])
+    expect(antes).toContain('300 111 1111')
+    expect(despues).toContain('300 222 2222')
+    expect(despues).not.toContain('300 111 1111')
+  })
+
+  it('los tres textos del flujo describen actos LOCALES (BR-S14)', () => {
+    // Ninguno puede presentarse como confirmacion de envio ni de entrega: no
+    // hay integracion con WhatsApp y no la va a haber (BR-W08).
+    const textos = Object.values(REMINDER_COPY.due)
+      .map((t) => (typeof t === 'string' ? t : ''))
+      .join(' ')
+      .toLowerCase()
+    for (const prohibido of ['enviado', 'entregado', 'recibido', 'se envió', 'llegó']) {
+      expect(textos, prohibido + ' no puede aparecer').not.toContain(prohibido)
+    }
+    expect(REMINDER_COPY.due.description).toContain('Rifas no lo envía por ti')
+  })
+
+  it('el resumen dice cuantas hay por enviar, con su singular', () => {
+    expect(REMINDER_COPY.summary.pending(1)).toBe('1 para enviar')
+    expect(REMINDER_COPY.summary.pending(3)).toBe('3 para enviar')
   })
 })

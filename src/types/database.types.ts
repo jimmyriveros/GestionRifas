@@ -911,6 +911,71 @@ export type Database = {
           },
         ]
       }
+      payment_reminder_occurrences: {
+        Row: {
+          attended_at: string | null
+          id: string
+          notification_id: string | null
+          organization_id: string
+          processed_at: string
+          reminder_id: string
+          scheduled_for: string
+          seller_id: string
+          status: Database["public"]["Enums"]["reminder_occurrence_status"]
+        }
+        Insert: {
+          attended_at?: string | null
+          id?: string
+          notification_id?: string | null
+          organization_id: string
+          processed_at?: string
+          reminder_id: string
+          scheduled_for: string
+          seller_id: string
+          status: Database["public"]["Enums"]["reminder_occurrence_status"]
+        }
+        Update: {
+          attended_at?: string | null
+          id?: string
+          notification_id?: string | null
+          organization_id?: string
+          processed_at?: string
+          reminder_id?: string
+          scheduled_for?: string
+          seller_id?: string
+          status?: Database["public"]["Enums"]["reminder_occurrence_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_reminder_occurrences_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reminder_occurrences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reminder_occurrences_reminder_id_fkey"
+            columns: ["reminder_id"]
+            isOneToOne: false
+            referencedRelation: "seller_payment_reminders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reminder_occurrences_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           client_id: string
@@ -2037,6 +2102,26 @@ export type Database = {
         Returns: undefined
       }
       mark_profile_activated: { Args: never; Returns: undefined }
+      mark_reminder_occurrence_attended: {
+        Args: { p_id: string }
+        Returns: {
+          attended_at: string | null
+          id: string
+          notification_id: string | null
+          organization_id: string
+          processed_at: string
+          reminder_id: string
+          scheduled_for: string
+          seller_id: string
+          status: Database["public"]["Enums"]["reminder_occurrence_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_reminder_occurrences"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       match_lottery_result: { Args: { p_result_id: string }; Returns: Json }
       match_ticket_import_clients: {
         Args: { p_clients: Json; p_raffle_id: string; p_seller_id: string }
@@ -2070,6 +2155,11 @@ export type Database = {
         Returns: undefined
       }
       org_staff_profile_ids: { Args: { p_org: string }; Returns: string[] }
+      payment_reminder_grace: { Args: never; Returns: string }
+      process_due_payment_reminders: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
       public_catalog_membership: {
         Args: { p_slug: string }
         Returns: {
@@ -2576,6 +2666,7 @@ export type Database = {
       payment_method: "cash" | "transfer" | "other"
       payment_reminder_status: "active" | "paused" | "archived"
       raffle_status: "draft" | "active" | "closed" | "cancelled"
+      reminder_occurrence_status: "pending" | "attended" | "missed"
       ticket_inventory_status:
         | "draft"
         | "pending_approval"
@@ -2762,6 +2853,7 @@ export const Constants = {
       payment_method: ["cash", "transfer", "other"],
       payment_reminder_status: ["active", "paused", "archived"],
       raffle_status: ["draft", "active", "closed", "cancelled"],
+      reminder_occurrence_status: ["pending", "attended", "missed"],
       ticket_inventory_status: [
         "draft",
         "pending_approval",

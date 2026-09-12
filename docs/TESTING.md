@@ -676,12 +676,15 @@ cuando se creó un cliente a secas); y que sin grupo configurado el botón cambi
 En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
 que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
 
-### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V, D-185, D-188)
+### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V; D-185, D-188, D-189)
 
-> **Hechas la Etapa 1 —`tests/db/payment-accounts-reminders.test.ts`, 62 pruebas— y la Etapa 2**
-> —`configuracion-cobro.spec.ts` (15), `configuracion-cobro-movil.spec.ts` (4) y 37 unitarias—.
-> Las etapas 3 a 6 siguen siendo **criterio de aceptación escrito antes de construir**, para que no
-> se escriba después a la medida de lo que salga.
+> **Hechas las etapas 1, 2 y 3.** Base: `payment-accounts-reminders.test.ts` (62) y
+> `payment-reminder-engine.test.ts` (31). Navegador: `configuracion-cobro.spec.ts` (21) y
+> `configuracion-cobro-movil.spec.ts` (5). Unitarias: 47.
+>
+> **Las etapas 4, 5 y 6 siguen siendo criterio de aceptación escrito antes de construir**, para que
+> no se escriba después a la medida de lo que salga. Y donde la Etapa 3 se apartó de su propio
+> criterio, está dicho abajo con su razón: no se reescribió el criterio para que encajara.
 
 **Cada etapa se cierra con `npm run verify` y `npm run test:db` en verde**, más lo suyo. Una etapa
 que no pueda demostrar su tabla de abajo **no está terminada** (`CLAUDE.md` §32).
@@ -713,18 +716,60 @@ M-02 (otro vendedor), M-03 (Dueño), M-04 (Administrador), M-05 (vendedor padre)
 restauró el estado con `db:reset`, para que la base sea lo que dicen las migraciones y no lo que dejó
 una prueba.
 
-#### Etapa 3 — el motor
+#### Etapa 3 — el motor ✅ (`tests/db/payment-reminder-engine.test.ts`, 31 pruebas)
+
+| Qué se demuestra | Cómo | |
+|---|---|---|
+| **Idempotencia** (BR-S10) | Ejecutar `process_due_payment_reminders()` **dos veces** sobre el mismo vencimiento deja **una** ocurrencia y **un** aviso — y se fuerza además el mismo `scheduled_for` a mano, para que lo pare el índice único y no el reloj | E-03 |
+| **Atomicidad** (BR-S12) | El recordatorio se crea **confirmado** desde otra conexión; el vencimiento vive solo dentro de la transacción de la prueba, que se deshace. Fuera no queda **ni ocurrencia, ni aviso, ni reloj adelantado** | E-13 |
+| Recuperación ≤ 2 h y omisión > 2 h (BR-S11) | Reloj controlado: media hora tarde nace pendiente **con** campana; cinco horas tarde nace omitida **sin** campana. Y se mide el **borde**: 119 minutos avisa, 121 no | E-01, E-04, E-05 |
+| Varias semanas perdidas | Treinta días de atraso dejan **una** omitida y el reloj **en el futuro**; la segunda corrida ya no encuentra nada | E-06 |
+| El reloj **avanza siempre** | También cuando no se materializa nada, que es lo que impide que una fila vuelva a salir cada minuto para siempre | E-02, E-08 |
+| Un pausado y un archivado **no se procesan** (BR-S04) | Se cambia el estado **sin** tocar el reloj, así que siguen vencidos, y el motor los ignora | E-07 |
+| Vendedor inactivo (BR-S13) | Se desactiva **la membresía** y también **el perfil**: en los dos casos no se materializa nada, y el reloj **sí** avanza | E-08, E-09 |
+| El aviso **no nombra clientes ni importes** (BR-S09) | La fila de `notifications` lleva exactamente cuatro claves, y se comprueban por nombre | E-10 |
+| El lote acota el trabajo | Tres vencidos y `p_limit = 2`: 2, 1 y 0 | E-11 |
+| La ocurrencia **omitida no puede avisar** | Con `service_role`, que salta la RLS pero **no** los CHECK: el `missed_silent` la rechaza | O-01 |
+| Atendida ⇔ tiene fecha, y nadie procesa antes de tiempo | Los otros dos CHECK, por el mismo camino | O-02, O-03 |
+| **Solo el dueño ve sus ocurrencias** | Dueño, Administrador, otro vendedor y un visitante leen **0 filas** | A-01 |
+| Atender es del vendedor, y solo de `pending` | Una omitida y una ya atendida responden la misma frase; el personal y otro vendedor no pueden; el `UPDATE` directo devuelve `42501` | A-03..A-07 |
+| La bitácora no guarda datos de cobro (BR-D04) | La fila de `payment_reminder.attended` lleva **solo** el instante programado | A-08 |
+| El cron existe y el esquema `cron` **no** es accesible | Los dos jobs activos con su horario, y `has_schema_privilege` en `false` para `authenticated` y `anon` | catálogo |
+
+**Dos cosas de esta tabla se apartaron del criterio escrito antes de construir, y se dicen:**
+
+1. **La concurrencia NO se ejerce con dos conexiones vivas** (E-12 es estructural: comprueba que el
+   motor conserva `for update skip locked`). Hacerlo de verdad exigiría dejar un vencimiento
+   **confirmado** en la base —un bloqueo solo se ve entre transacciones que ven la misma fila— y ahí
+   el `pg_cron` de cada minuto competiría con la prueba: ganaría o perdería según el segundo en que
+   se lance. Una prueba que depende del reloj es peor que ninguna. Lo que ese `skip locked` garantiza
+   —que dos corridas no dupliquen— lo defiende **E-03** con el índice único, que es la pieza que de
+   verdad lo impide.
+2. **La atomicidad se prueba por `rollback`, no forzando un fallo dentro de la función.** Forzar el
+   fallo exigiría modificar el motor para que fallara, que es probar otro código. El `rollback`
+   demuestra exactamente lo que se afirma: que las cuatro escrituras comparten una transacción.
+
+**Y se comprobó al revés.** Con la gracia de dos horas puesta en cien años y la comprobación de
+BR-S13 desactivada, **fallan cinco pruebas y son exactamente las cinco correctas**: E-04, E-05 y E-06
+(lo que debía omitirse ya no se omite) y E-08 y E-09 (un vendedor desactivado recibiría avisos).
+Después se restauró el estado con `db:reset`.
+
+#### Etapa 3 — navegador ✅ (`configuracion-cobro.spec.ts`, +6 · `configuracion-cobro-movil.spec.ts`, +1)
 
 | Qué se demuestra | Cómo |
 |---|---|
-| **Idempotencia** (BR-S10) | Ejecutar `process_due_payment_reminders()` **dos veces** sobre el mismo vencimiento deja **una** ocurrencia y **un** aviso |
-| **Concurrencia** (BR-S12) | Dos conexiones `pg` simultáneas sobre el mismo lote: ninguna espera a la otra y ninguna duplica. Es el patrón de `lottery_sync_lock` llevado a `skip locked` |
-| **Atomicidad** | Un fallo forzado después de materializar deja **cero** filas: ni ocurrencia, ni aviso, ni outbox, y el reloj **sin** avanzar |
-| Recuperación ≤ 2 h y omisión > 2 h (BR-S11) | Reloj controlado: se fija `next_run_at` en el pasado y se comprueba el estado, y **que la omitida no crea aviso** |
-| Varias semanas perdidas | Una sola omitida y el reloj **en el futuro**, no catorce disparos |
-| Vendedor inactivo (BR-S13) | Se desactiva la membresía y el recordatorio **no se procesa** |
-| El mensaje se compone con la configuración **vigente** (BR-S08) | Se cambia una cuenta **después** de materializar la ocurrencia y el mensaje sale con la nueva |
-| El mensaje **no nombra clientes ni importes** (BR-S09) | Unitaria sobre el compositor, con datos que sí existen en el escenario |
+| **Lo que se copia es el mensaje completo** (BR-S07, BR-S08) | Se sustituye `navigator.clipboard` y se lee lo que la aplicación escribió: lleva «Puedes pagar aquí:», la cuenta con su formato de dictado y **ningún `{{`** |
+| Ningún texto dice que el mensaje se envió (BR-S14, BR-W08) | La sección no contiene «Enviado», «Entregado» ni «Se envió», y **sí** contiene «Rifas no lo envía por ti» |
+| Abrir el grupo abre **ese** enlace | Se sustituye `window.open` y se compara la URL exacta |
+| Sin grupo se ofrece **configurarlo** (BR-W05) | «Abrir grupo» no existe; hay un enlace a `/seller/settings/whatsapp` y la causa escrita |
+| Atender lo saca de la lista **y del resumen** | «1 para enviar» desaparece, y el recordatorio **sigue activo**: atender no lo pausa ni lo archiva |
+| **La campana lleva a donde se copia** (BR-V01, D-189) | Se abre la campanita en el panel, se pulsa el aviso y se aterriza en `/seller/settings/reminders` con la sección visible |
+| Cabe a **320 px**, con los tres botones en la diana de 44 px | El mensaje con una cuenta bancaria —el bloque más ancho de la pantalla— sin desbordamiento horizontal |
+
+La ocurrencia pendiente se fabrica llamando a la RPC del motor, no esperando al cron: **una prueba
+que espere hasta un minuto para empezar no es una prueba, es una pausa.** Que el cron lo llame solo
+cada minuto lo comprueban el catálogo y `verify:remote`.
+
 
 #### Etapas 4 y 5 — Web Push
 

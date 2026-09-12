@@ -1,5 +1,6 @@
 import { LOTTERY_LABELS, type LotteryCode } from '@/features/lottery/constants'
 import { WEEKDAY_LABELS } from '@/lib/constants'
+import { formatClockEs } from '@/lib/dates'
 import { ticketLabel } from '@/lib/tickets'
 
 /**
@@ -22,6 +23,7 @@ export type NotificationKind =
   | 'team.sale'
   | 'lottery.result'
   | 'lottery.schedule_change'
+  | 'payment_reminder.due'
 
 type NotificationData = Record<string, unknown>
 
@@ -133,6 +135,44 @@ function lotteryScheduleMessage(data: NotificationData): string {
   return `La fecha del sorteo de ${lottery} cambió según la programación oficial.`
 }
 
+/**
+ * «Es hora de tu recordatorio» (BR-S10, BR-V01, D-189).
+ *
+ * DICE CUAL DE SUS RECORDATORIOS ES, porque un vendedor puede tener hasta
+ * catorce y un aviso que no los distinga no ayuda a nadie. Y dice que hacer,
+ * que es lo que convierte el aviso en algo accionable.
+ *
+ * NO NOMBRA A NINGUN CLIENTE, NO DICE NINGUN SALDO Y NO DICE NINGUN IMPORTE
+ * (BR-S09): ni aqui ni en el mensaje que se va a pegar en el grupo.
+ */
+function paymentReminderDueMessage(data: NotificationData): string {
+  const weekday = data.weekday
+  const day = typeof weekday === 'number' ? WEEKDAY_LABELS[weekday]?.toLowerCase() : null
+  const time = text(data, 'time_of_day')
+  const accion = 'Copia el mensaje y pégalo en tu grupo.'
+
+  if (day === undefined || day === null || time === null) {
+    return `Es hora de tu recordatorio de pago. ${accion}`
+  }
+  // «7:00 p. m.» YA TERMINA EN PUNTO: añadirle otro deja «p. m..», que se lee
+  // como una errata. Se cierra la frase solo si hace falta.
+  const cuando = `Es hora de tu recordatorio del ${day} a las ${formatClockEs(time)}`
+  return `${cuando.endsWith('.') ? cuando : `${cuando}.`} ${accion}`
+}
+
+/**
+ * A donde lleva un aviso, o `null` si no lleva a ninguna parte.
+ *
+ * Hoy solo el recordatorio de pago tiene destino, y es la razon de que esto
+ * exista: la campana es la fuente durable del aviso (BR-V01), asi que tiene que
+ * poder llevar al sitio donde se copia el mensaje. Los demas avisos cuentan algo
+ * que ya paso y no hay nada que hacer con ellos, asi que no se les inventa un
+ * enlace (D-189).
+ */
+export function notificationHref(kind: string): string | null {
+  return kind === 'payment_reminder.due' ? '/seller/settings/reminders' : null
+}
+
 export function notificationMessage(kind: string, data: NotificationData): string {
   switch (kind) {
     case 'team.member_added': {
@@ -157,6 +197,9 @@ export function notificationMessage(kind: string, data: NotificationData): strin
 
     case 'lottery.schedule_change':
       return lotteryScheduleMessage(data)
+
+    case 'payment_reminder.due':
+      return paymentReminderDueMessage(data)
 
     default:
       // Un aviso de un tipo que esta version no conoce: se muestra algo

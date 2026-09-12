@@ -845,33 +845,106 @@ valor queda inutilizable hasta que la transacción confirme (D-099).
 
 ---
 
-## 4.bis Lo que falta del encargo de cobro — **PLANIFICADO** (D-185, D-186, D-187)
+### 4.17 `payment_reminder_occurrences` (`0052`, BR-S10..BR-S14, D-189)
 
-> ⚠️ **NADA DE ESTA SECCIÓN EXISTE.** La **Etapa 1** entregó las dos tablas de arriba (§4.15 y §4.16)
-> en la migración `0051`. Lo que sigue son las **etapas 3, 4 y 5**, cada una con su autorización
-> propia. Cuando se implementen, se mueven a §4 con su número de migración, como se hizo con estas
-> dos.
-
-### `payment_reminder_occurrences` — Etapa 3 (BR-S10..BR-S12)
+Una fila por **(recordatorio, instante que le tocaba)**. Es el registro de qué pasó: se avisó, el
+vendedor dijo que ya lo mandó, o se llegó tarde de más y se calló.
 
 | Columna | Tipo | Nota |
 |---|---|---|
 | `id` | `uuid` PK | |
-| `organization_id` · `seller_id` | `uuid` NOT NULL | |
+| `organization_id` · `seller_id` | `uuid` NOT NULL | FK compuesta → `memberships` |
 | `reminder_id` | `uuid` NOT NULL | → `seller_payment_reminders`, `on delete restrict` |
-| `scheduled_for` | `timestamptz` NOT NULL | El instante que le tocaba, no el de proceso |
-| `processed_at` | `timestamptz` NOT NULL | La distancia entre los dos es el atraso |
+| `scheduled_for` | `timestamptz` NOT NULL | El instante que le **tocaba**, no el de proceso |
+| `processed_at` | `timestamptz` NOT NULL | Cuando llegó el motor. La distancia entre los dos es el atraso |
 | `status` | `reminder_occurrence_status` | `pending` · `attended` · `missed` |
-| `notification_id` | `uuid` | → `notifications`. NULL en las omitidas: **no generan campana** |
+| `notification_id` | `uuid` | → `notifications`. **NULL en las omitidas**: no generan campana |
 | `attended_at` | `timestamptz` | Lo pone el vendedor (BR-S14) |
 
 **`payment_reminder_occurrences_once` — índice único `(reminder_id, scheduled_for)`.** Es **la** pieza
-de la idempotencia (BR-S10): el proceso inserta con `on conflict do nothing`, así que ejecutarlo dos
+de la idempotencia (BR-S10): el motor inserta con `on conflict do nothing`, así que ejecutarlo dos
 veces sobre el mismo vencimiento no crea dos avisos. Mismo recurso que
 `notifications_lottery_result_once` (`0037`).
 
-Las ocurrencias se conservan: son pocas —14 por vendedor y semana como mucho— y son la evidencia de
-qué se mandó y qué se omitió.
+**Índice `payment_reminder_occurrences_pending_idx (seller_id, scheduled_for desc) WHERE status =
+'pending'`**: la única consulta de la pantalla. Empieza por `seller_id`, que es la columna de la
+política, para que el orden del índice sobreviva a RLS (D-102, regla 2).
+
+**Tres CHECK, y el primero es una regla de negocio con forma de restricción:**
+
+| Restricción | Qué impide |
+|---|---|
+| `missed_silent` | Que una ocurrencia **omitida** lleve campana. BR-S11 dice que no avisa, y eso se defiende en la tabla, no dentro del motor |
+| `attended_coherent` | Que `attended` no tenga fecha, o que una fila sin atender la tenga |
+| `not_early` | Que `processed_at` sea anterior a `scheduled_for`: nadie procesa antes de que toque |
+
+**RLS idéntica a las otras dos tablas del encargo**: `enable` + `force`, **una sola política y de
+`SELECT`**, `seller_id = (select current_profile_id())`. `authenticated` recibe **solo `SELECT`**, así
+que la única forma de crear una ocurrencia es el motor y la única de atenderla es su RPC.
+
+**Las ocurrencias se conservan.** Son pocas —14 por vendedor y semana como mucho— y son la evidencia
+de que se avisó y de que se omitió. Sin la fila omitida no habría forma de distinguir «el sistema no
+lo mandó» de «el sistema no se enteró».
+
+#### El motor: `process_due_payment_reminders(p_limit)`
+
+`SECURITY DEFINER`, **no ejecutable por `authenticated`** (D-189, Decisión 3). Para cada recordatorio
+activo cuyo `next_run_at` ya pasó, tomado con `for update skip locked`:
+
+1. Comprueba que su vendedor **todavía puede operar** —membresía, perfil y organización activos
+   (BR-S13)—. No usa `has_org_role`, que pregunta por `auth.uid()`: aquí no hay sesión.
+2. Materializa la ocurrencia: **pendiente** si el atraso es ≤ `payment_reminder_grace()` —dos horas—,
+   **omitida** si es mayor.
+3. Si es pendiente, escribe el aviso en `notifications` y lo enlaza. **Ese orden importa**: la
+   ocurrencia primero, para que un conflicto no deje una campana huérfana.
+4. **Adelanta el reloj siempre**, incluso cuando no materializó nada, al próximo instante posterior a
+   ahora. Es lo que impide que una fila vuelva a salir cada minuto para siempre y lo que evita
+   disparar las semanas perdidas (BR-S11).
+
+Los cuatro pasos van en **una** transacción, y `now()` se toma una sola vez para toda la corrida.
+
+**Este `UPDATE` no despierta a `reminders_sync_next_run`**, que solo recalcula si cambia el día, la
+hora o se reactiva (`0051`, §5.a). Si alguien lo cambiara para que recalculara siempre, este avance se
+pisaría y el recordatorio quedaría disparando en bucle. Hay pruebas que lo defienden (S-25, E-02).
+
+#### `mark_reminder_occurrence_attended(id)`
+
+**No recibe identificador de vendedor**, como las ocho de la `0051`. Solo pasa de `pending` a
+`attended`; una omitida o una ya atendida responden la misma frase, a propósito. Escribe
+`payment_reminder.attended` en la bitácora, **sin ningún dato de cobro**.
+
+#### Los dos `pg_cron` (D-186, D-189)
+
+| Job | Horario | Qué hace |
+|---|---|---|
+| `payment-reminders-due` | `* * * * *` | `select public.process_due_payment_reminders()` |
+| `payment-reminders-cron-cleanup` | `17 8 * * *` (3:17 a. m. de Bogotá) | Borra `cron.job_run_details` de más de 7 días |
+
+El segundo no es un adorno: el primero escribe **1.440 filas al día** en esa tabla, medio millón al
+año, en un proyecto Free de 500 MB (I-024).
+
+`cron.schedule(nombre, …)` **reemplaza** el job que tenga ese nombre, así que volver a aplicar la
+migración no duplica nada. `pg_cron` se crea **en la migración**, nunca a mano desde el panel, y el
+esquema `cron` **no es accesible** para `authenticated` ni para `anon`.
+
+#### `notifications`: el `kind` `payment_reminder.due`
+
+El CHECK `notifications_kind_check` se vuelve a crear con la lista completa, igual que hizo `0037`.
+Se añade además `notifications_payment_reminder_once`, único por `entity_id` para ese `kind`: es un
+cinturón sobre el tirante —la ocurrencia ya es única y se escribe antes— que existe para que invertir
+ese orden falle en vez de duplicar campanas.
+
+**El texto sigue sin vivir en la base** (I-030): la frase se arma en
+`src/features/notifications/text.ts`.
+
+---
+
+## 4.bis Lo que falta del encargo de cobro — **PLANIFICADO** (D-185, D-187)
+
+> ⚠️ **NADA DE ESTA SECCIÓN EXISTE.** Las etapas 1, 2 y 3 están entregadas —§4.15, §4.16 y §4.17, en
+> las migraciones `0051` y `0052`—. Lo que sigue son las **etapas 4 y 5**: Web Push, su cola y su
+> despachador. Cada una necesita su autorización. Cuando se implementen, se mueven a §4 con su número
+> de migración, como se hizo con las tres anteriores.
 
 ### `push_subscriptions` — Etapa 4 (BR-V06, BR-V07)
 
@@ -889,24 +962,16 @@ un lote con `for update skip locked`.
 
 | Función | Etapa | Qué hace |
 |---|---|---|
-| `mark_reminder_occurrence_attended(id)` | 3 | Marca **atendida** una ocurrencia suya (BR-S14) |
-| `process_due_payment_reminders(lote)` | 3 | **El cron.** Materializa, avisa, encola y adelanta el reloj |
 | `upsert_push_subscription(...)` · `delete_push_subscription(endpoint)` | 4 | Registrar y quitar este dispositivo |
 | `claim_push_outbox(lote)` · `mark_push_outbox_sent/failed(...)` · `revoke_push_subscription(endpoint)` | 5 | La cola de push, solo para `service_role` |
 
-### Extensiones y el job
+### `pg_net` sigue sin usarse
 
-`pg_cron` y `pg_net` **todavía no están instalados**, y se crearán **en la migración** de la Etapa 3,
-nunca a mano desde el panel de Supabase. Comprobado en local el 2026-09-11: `pg_cron` está
-**disponible** (1.6.4) y en `shared_preload_libraries`; `pg_net` ya venía **instalado** (0.20.4, en el
-esquema `extensions`). Razón completa en **D-186**.
+`pg_cron` ya está instalado (`0052`), pero **`pg_net` no se usa todavía**: viene instalado de fábrica
+en Supabase (0.20.4, esquema `extensions`) y lo necesitará el job que toque el dispatcher de push en
+la Etapa 5. Hoy **ningún cron de este encargo habla con internet**: solo escriben en tres tablas
+propias.
 
-### `notifications`: un `kind` nuevo
-
-El CHECK `notifications_kind_check` (`0023`, ampliado en `0037`) admite hoy `team.member_added`,
-`team.sale`, `lottery.result` y `lottery.schedule_change`. La Etapa 3 añade
-**`payment_reminder.due`** con el mismo procedimiento de `0037`: soltar la restricción y volver a
-crearla con la lista completa. **El texto sigue sin vivir en la base** (I-030).
 
 ---
 
@@ -951,6 +1016,11 @@ crearla con la lista completa. **El texto sigue sin vivir en la base** (I-030).
 | `lottery_ticket_matches` | `(organization_id, result_id)` | Panel y avisos por organización |
 | `lottery_ticket_matches` | `(seller_id, result_id)` | Panel del vendedor |
 | `tickets` | `UNIQUE (id, organization_id)` (`0036`) | FK compuesta de las coincidencias |
+| `seller_payment_reminders` | `(next_run_at) WHERE status = 'active'` (`0051`) | La ÚNICA consulta del motor, cada minuto (D-186) |
+| `seller_payment_reminders` | `(seller_id, weekday, time_of_day) WHERE status <> 'archived'` (único, `0051`) | BR-S02: dos recordatorios idénticos, no |
+| `payment_reminder_occurrences` | `(reminder_id, scheduled_for)` (único, `0052`) | **La idempotencia del motor** (BR-S10) |
+| `payment_reminder_occurrences` | `(seller_id, scheduled_for DESC) WHERE status = 'pending'` (`0052`) | Lo que el vendedor tiene por enviar. Empieza por la columna de la política (D-102, regla 2) |
+| `notifications` | `(entity_id) WHERE kind = 'payment_reminder.due'` (único, `0052`) | Un aviso por ocurrencia (D-189, Decisión 2) |
 
 Los índices de `tickets` por `(organization_id, raffle_id, daily_number)` y `weekly_number` (`0003`)
 bastan para el matching: no se añadió otro sobre los números.
@@ -1277,7 +1347,7 @@ semántica propia.
 
 ### 6.g.6 Cuentas de cobro y recordatorios del vendedor (migración `0051`)
 
-Ocho RPC públicas y tres auxiliares internas. **Ninguna de las ocho recibe identificador de
+Nueve RPC públicas y cinco auxiliares internas. **Ninguna de las nueve recibe identificador de
 vendedor**: el perfil sale de `auth.uid()`, así que no existe el dato que alguien pudiera manipular
 para configurar a otro (BR-M02, BR-S01). Es el patrón de `set_seller_whatsapp_settings` (§6.g.5) y,
 como allí, **lo que las hace seguras no es una comprobación: es la firma**.
@@ -1292,10 +1362,13 @@ como allí, **lo que las hace seguras no es una comprobación: es la firma**.
 | `create_payment_reminder(weekday, hora, usa_mensaje_propio, mensaje)` | la fila | Crea un recordatorio |
 | `update_payment_reminder(id, weekday, hora, usa_mensaje_propio, mensaje)` | la fila | Corrige uno no archivado |
 | `set_payment_reminder_status(id, estado)` | la fila | Activa, pausa o archiva |
+| `mark_reminder_occurrence_attended(id)` (`0052`) | la fila | **«Ya lo mandé»** (BR-S14). Solo de `pending` a `attended`: una omitida o una ya atendida responden la misma frase |
 
 **Auxiliares, que ninguna sesión ejecuta:** `require_seller_org()` —la organización de la membresía
-de vendedor **activa** de quien llama, o excepción—, `next_reminder_run_at(weekday, hora, desde)` y
-`max_active_payment_reminders()`.
+de vendedor **activa** de quien llama, o excepción—, `next_reminder_run_at(weekday, hora, desde)`,
+`max_active_payment_reminders()` y, desde `0052`, `payment_reminder_grace()` y
+**`process_due_payment_reminders(lote)`**, que es el motor: lo llama el cron y ninguna sesión puede
+ejecutarlo (D-189, Decisión 3).
 
 Las ocho cumplen §4.5 de `SECURITY`: `SECURITY DEFINER`, `search_path` fijo, `REVOKE` explícito de
 `public` y `anon`, y `GRANT` nominal a `authenticated` **y** `service_role` (D-128, I-078). Entran en
