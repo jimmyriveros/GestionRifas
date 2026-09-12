@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.51 · **Actualizado:** 2026-09-12 (D-001 a D-192; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.52 · **Actualizado:** 2026-09-12 (D-001 a D-193; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -9965,6 +9965,117 @@ sale hacia afuera. `KNOWN_ISSUES` (I-110, I-111); `AUDIT_REPORT` §10 a §19; `T
 `TEST_RESULTS`.
 
 **La Etapa 7 requiere su propia autorización.**
+
+---
+
+## D-193 — La promoción: una extensión que faltaba, encontrada por preguntarle al proyecto real antes de empujar
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 7 del encargo de D-185, 2026-09-12)
+
+**Alcance.** Promoción controlada a producción de lo que construyeron las etapas 1 a 6: las
+migraciones `0051` a `0054`, **más una `0055` que esta etapa tuvo que escribir**, el código de la
+aplicación, tres variables de entorno y dos secretos del Vault.
+
+**Es la primera vez en este encargo que algo sale hacia afuera.**
+
+---
+
+### Decisión 1 — antes de empujar se le pregunta al proyecto real, no a la documentación
+
+La verificación previa no fue `verify:remote` a secas: fue una **sonda de extensiones** que comparó
+lo instalado en el proyecto real contra lo instalado en local. Y encontró lo que ninguna prueba local
+podía encontrar:
+
+| Extensión | Local | Proyecto real (antes) |
+|---|---|---|
+| `pg_cron` 1.6.4 | instalada, en `pg_catalog` | **NO instalada** — la crea la `0052` ✅ |
+| `supabase_vault` 0.3.1 | instalada, en `vault` | instalada ✅ |
+| **`pg_net` 0.20.4** | **instalada, en `extensions`** | **NO instalada — y NINGUNA migración la creaba** |
+
+`wake_push_dispatcher()` —la función de la `0054` que despierta al despachador— llama a
+`net.http_post(...)`. Esa función vive en el esquema `net`, que crea `pg_net`. En local nunca se notó
+porque **la pila de Supabase la instala sola**: el esquema `net` con sus doce funciones ya estaba ahí
+antes de que este encargo empezara.
+
+### Decisión 2 — la extensión se declara en una migración, no se instala a mano
+
+Es la regla que la propia `0052` dejó escrita para `pg_cron` —«la extensión se crea AQUÍ, en una
+migración versionada, y nunca a mano desde el panel de Supabase: lo que se hace a mano no se reproduce
+en local ni en el CI y no deja rastro en el historial»— aplicada a la que faltaba. De ahí la
+**`0055`**, con `create extension if not exists pg_net with schema extensions`, que reproduce
+exactamente dónde la tiene la pila local y es un no-op en local.
+
+**Y no se parchea la `0054`.** Está aplicada y forma parte del historial: una migración aplicada no se
+reescribe, se corrige con la siguiente. Así el arreglo tiene fecha, número y motivo.
+
+### Decisión 3 — por qué esto habría sido difícil de ver después
+
+El cuerpo de una función `plpgsql` **no resuelve sus referencias al crearse**. Así que las cuatro
+migraciones se habrían aplicado **sin un solo error**, y el fallo habría aparecido después, en
+producción, **una vez por minuto**: `schema "net" does not exist` cada vez que el cron
+`push-dispatch-wake` intentara tocar al despachador.
+
+Y el síntoma habría sido el peor posible: **nada se vería roto por delante.** El aviso de la campana
+no depende de `pg_net` (BR-V01), así que los recordatorios seguirían llegando dentro de la
+aplicación; lo único que fallaría, en silencio y en un registro que nadie mira, es el aviso que llega
+al teléfono — justo lo que las etapas 4 y 5 construyeron.
+
+**Es la familia de I-020 e I-078 por tercera vez:** «lo que Supabase concede o instala solo» no es una
+garantía, cambia entre la pila local y el proyecto real, y lo que no está escrito no se reproduce.
+Queda como **I-112**.
+
+### Decisión 4 — se mide el negocio antes y después, y tiene que salir idéntico
+
+Estas migraciones son aditivas, y «aditivas» es una afirmación que se comprueba, no que se declara.
+Se corrió la misma sonda de solo lectura antes y después, y el `diff` es exactamente lo que debía
+ser: **cinco tablas nuevas, todas vacías**, +27 funciones, +4 políticas, +16 índices — y **ni una
+sola cifra de negocio movida**: $98.080.000 vendidos, $34.160.000 cobrados, 5.078 filas de bitácora,
+564 clientes y 1.074 boletas, idénticos.
+
+### Decisión 5 — los secretos los pone una persona, no un agente
+
+`DEPLOYMENT` §3.1 ya lo decía —«hacerlo en el dashboard de Vercel: **no lo hace un agente**»— y esta
+etapa lo respeta sin excepción. La clave privada VAPID y el secreto del despachador **no pasan por
+esta sesión**: los genera y los introduce el dueño, en Vercel y en el Vault.
+
+No es una formalidad. Un secreto que atraviesa una conversación queda escrito en su transcripción, y
+ya hay precedente en este encargo: el par VAPID de las pruebas se generó en una sesión de trabajo y
+por eso **no se promueve** — la Etapa 7 exige uno nuevo.
+
+### Decisión 6 — el orden es base, luego código, luego claves
+
+1. **Respaldo** (`RUNBOOK` §5), porque el plan Free no tiene ninguno (I-024).
+2. **Migraciones**, antes que el código que las usa: son aditivas, así que la aplicación vieja
+   convive con la base nueva sin enterarse (`DEPLOYMENT` §3.3).
+3. **Código**, que llega **sin ofrecer los avisos**: sin `NEXT_PUBLIC_VAPID_PUBLIC_KEY` la tarjeta
+   «Avisos en este dispositivo» **ni se pinta** (D-190). Esa decisión de la Etapa 4 es la que permite
+   desplegar hoy sin prometer nada.
+4. **Claves y secretos**, que encienden el canal cuando el dueño quiera.
+
+Cada paso deja el sistema **entero y honesto**: en ninguno hay una pantalla que ofrezca algo que
+todavía no funciona.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Instalar `pg_net` a mano desde el panel de Supabase | No se reproduce en local ni en el CI y no deja rastro (Decisión 2) |
+| Añadir `create extension pg_net` dentro de la `0054` | Está aplicada: una migración aplicada no se reescribe (Decisión 2) |
+| Empujar las cuatro y «ver si falla» | No habría fallado al aplicar: el fallo aparece por minuto y en silencio (Decisión 3) |
+| Que el agente escriba los secretos en Vercel y en el Vault | `DEPLOYMENT` §3.1 lo prohíbe, y un secreto que pasa por la sesión queda escrito (Decisión 5) |
+| Desplegar el código antes que las migraciones | La aplicación llamaría a RPC que no existen |
+| Reutilizar el par VAPID de las pruebas | Su clave privada quedó escrita en una sesión de trabajo (Decisión 5) |
+
+### Consecuencia
+
+**La base de producción pasa de 50 a 55 migraciones**, con las cinco tablas, las 8 RPC, los **tres
+`pg_cron` activos** y `pg_net` instalado. `verify:remote` da **24/24 en verde**, y las dos primeras
+corridas de `payment-reminders-due` y `push-dispatch-wake` terminaron **`succeeded`** — que es la
+prueba de que la `0055` era necesaria y suficiente.
+
+**Lo que queda en manos del dueño**: generar el par VAPID, poner las cuatro variables en Vercel y
+crear los dos secretos del Vault. Hasta entonces el canal del teléfono está **apagado y callado**, y
+la campana interna funciona. `DEPLOYMENT` §2.2 y §3.1; `KNOWN_ISSUES` I-112; `TEST_RESULTS`.
 
 ---
 

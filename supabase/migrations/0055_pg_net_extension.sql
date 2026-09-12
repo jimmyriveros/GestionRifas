@@ -1,0 +1,91 @@
+-- =============================================================================
+-- 0055_pg_net_extension.sql
+-- La extension `pg_net`, declarada donde se declara todo — ETAPA 7
+--
+-- Referencia: docs/BUSINESS_RULES.md BR-V07,
+--             docs/DECISIONS.md D-187, D-191 y D-193,
+--             docs/KNOWN_ISSUES.md I-112.
+--
+-- QUE ES, Y POR QUE APARECE AHORA
+--
+-- La 0054 escribio `wake_push_dispatcher()`, que toca el despachador con
+-- `net.http_post(...)`. Esa funcion vive en el esquema `net`, que crea la
+-- extension `pg_net`. Ninguna migracion la creaba.
+--
+-- En LOCAL eso nunca se noto, porque la pila de Supabase instala `pg_net` sola:
+-- el esquema `net` ya estaba ahi con sus 12 funciones antes de que este encargo
+-- empezara. En el PROYECTO REAL no estaba instalada, y lo comprobo la sonda de
+-- extensiones de la Etapa 7 ANTES de empujar nada:
+--
+--   pg_cron  disponible 1.6.4  | instalada: NO   <- la crea la 0052
+--   pg_net   disponible 0.20.4 | instalada: NO   <- NO la creaba nadie
+--
+-- Sin esto, las cuatro migraciones se aplican sin error —el cuerpo de una
+-- funcion plpgsql no resuelve sus referencias al crearse— y el fallo aparece
+-- DESPUES, en produccion, una vez por minuto: `schema "net" does not exist`
+-- cada vez que el cron `push-dispatch-wake` intenta tocar al despachador. El
+-- aviso de la campana seguiria funcionando (BR-V01), asi que el sintoma seria
+-- el peor de todos: los avisos del telefono dejarian de llegar sin que nada se
+-- viera roto por delante.
+--
+-- ES LA FAMILIA DE I-020 E I-078, OTRA VEZ
+--
+-- «Lo que Supabase concede o instala solo» no es una garantia: cambia entre la
+-- pila local y el proyecto real, y lo que no esta escrito no se reproduce. La
+-- 0052 ya lo dejo dicho para `pg_cron` —«la extension se crea AQUI, en una
+-- migracion versionada, y nunca a mano desde el panel de Supabase: lo que se
+-- hace a mano no se reproduce en local ni en el CI y no deja rastro en el
+-- historial»— y esta migracion es esa misma regla aplicada a la que faltaba.
+--
+-- POR QUE NO SE PARCHEA LA 0054
+--
+-- La 0054 esta aplicada en local y forma parte del historial. Una migracion
+-- aplicada no se reescribe: se corrige con la siguiente. Asi el arreglo tiene
+-- fecha, numero y motivo, y quien mire el historial ve que falto y cuando se
+-- vio.
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- 1. La extension
+--
+-- `with schema extensions` reproduce exactamente donde la tiene la pila local
+-- (`pg_net 0.20.4 -> extensions`), que es la convencion de Supabase para las
+-- extensiones que no son del sistema. El esquema `extensions` ya existe en los
+-- dos entornos.
+--
+-- La extension crea ADEMAS su propio esquema `net`, que es donde acaban
+-- `net.http_post` y las otras once funciones. Por eso `wake_push_dispatcher`
+-- puede seguir diciendo `net.http_post` sin cambiar ni una linea.
+--
+-- `if not exists` la hace idempotente: en local no hace nada, porque ya esta.
+-- -----------------------------------------------------------------------------
+create extension if not exists pg_net with schema extensions;
+
+-- -----------------------------------------------------------------------------
+-- 2. Nada de privilegios nuevos, a proposito
+--
+-- `pg_net` queda como la deja su propio script de instalacion. NO se concede
+-- `net.http_post` a `authenticated` ni a `anon`: la unica que la llama es
+-- `wake_push_dispatcher()`, que es `security definer` y no es ejecutable desde
+-- ninguna sesion (la 0054 ya la revoco). Conceder aqui algo «por comodidad»
+-- convertiria la base de datos en un cliente HTTP a disposicion de cualquiera
+-- con sesion, que es exactamente el agujero que I-020 enseño a no abrir.
+-- -----------------------------------------------------------------------------
+
+-- -----------------------------------------------------------------------------
+-- 3. Nota de reversion (manual, no ejecutable) — DB-15
+--
+-- No se ejecuta aqui. Queda escrita para que revertir sea leer, no recordar.
+--
+--   drop extension if exists pg_net;
+--
+-- Revertir deja `wake_push_dispatcher()` sin su `net.http_post`, asi que el
+-- cron `push-dispatch-wake` volveria a fallar una vez por minuto. NO se pierde
+-- ningun dato: la cola `push_outbox` sigue intacta y el aviso de la campana no
+-- depende de esto (BR-V01). Lo que se pierde es el toque que despierta al
+-- despachador antes de su siguiente vuelta.
+--
+-- `drop extension pg_net` NO deberia ejecutarse a la ligera en el proyecto
+-- real: puede haber otros usos de `pg_net` fuera de este encargo, igual que se
+-- dijo de `pg_cron` en la 0052.
+-- -----------------------------------------------------------------------------

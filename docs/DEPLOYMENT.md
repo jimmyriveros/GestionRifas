@@ -80,6 +80,37 @@ toca la base de datos. Cada migración se promueve a mano, o desde un paso de CI
 exactamente estos tres comandos (fuera de alcance de esta fase: hoy el CI solo valida contra una
 instancia local efímera, ver §5).
 
+#### Promocion del encargo de cobro — 2026-09-12 (Etapa 7, D-193)
+
+**La base de produccion pasa de 50 a 55 migraciones.** Se aplicaron `0051`, `0052`, `0053`, `0054`
+y **`0055`**, siguiendo los tres pasos de arriba y con respaldo previo en
+`Rifas-backups/2026-09-12-antes-0051-0055/`.
+
+**La `0055` la escribio esta misma etapa, y es el hallazgo de la promocion.** Una sonda de
+extensiones comparo el proyecto real contra local **antes de empujar nada**:
+
+| Extension | Local | Proyecto real (antes) |
+|---|---|---|
+| `pg_cron` 1.6.4 | instalada, en `pg_catalog` | **NO** — la crea la `0052` |
+| `supabase_vault` 0.3.1 | instalada | instalada |
+| **`pg_net` 0.20.4** | **instalada, en `extensions`** | **NO, y ninguna migracion la creaba** |
+
+Sin ella, las cuatro migraciones se aplican **sin un solo error** —el cuerpo de una funcion
+`plpgsql` no resuelve sus referencias al crearse— y el fallo sale **una vez por minuto** en
+produccion: `schema "net" does not exist` cada vez que el cron `push-dispatch-wake` toca al
+despachador. Sin que nada se vea roto por delante, porque la campana no depende de eso (BR-V01).
+Es **I-112**, la familia de I-020 e I-078 por tercera vez.
+
+**Comprobado despues de aplicar:**
+
+| Que | Resultado |
+|---|---|
+| `npm run verify:remote` | ✅ **24/24 en verde** |
+| Extensiones | `pg_cron 1.6.4 -> pg_catalog` · `pg_net 0.20.4 -> extensions` · 12 funciones en `net` — **identico a local** |
+| Los tres `pg_cron` | `payment-reminders-due` (`* * * * *`), `push-dispatch-wake` (`* * * * *`) y `payment-reminders-cron-cleanup` (`17 8 * * *`), **los tres activos** |
+| Primeras corridas | `payment-reminders-due` y `push-dispatch-wake`, **`succeeded`** — la prueba de que la `0055` era necesaria y suficiente |
+| Sonda de negocio antes/despues | **Ni una cifra movida**: $98.080.000 vendidos, $34.160.000 cobrados, 5.078 filas de bitacora, 564 clientes, 1.074 boletas. Solo 5 tablas nuevas **vacias**, +27 funciones, +4 politicas, +16 indices |
+
 ---
 
 ## 3. Vercel
@@ -111,10 +142,37 @@ Settings → Environment Variables del proyecto `gestion-rifas`, scope **Product
 | `TZ` | Plain | `UTC` (D-022 — la conversión a Bogotá es explícita en la presentación) |
 | `CRON_SECRET` | **Sensitive** | **Obligatoria para que el programador funcione.** La creas tú; Vercel **no** la genera al declarar `crons` (D-152). Vercel la envía como `Authorization: Bearer` en cada tick. Mínimo 16 caracteres. Cambiarla exige **redesplegar**: el valor viaja con el despliegue |
 | `LOTTERY_SYNC_SECRET` | **Sensitive** | **Opcional.** El mismo secreto con otro nombre, para disparar el tick a mano (D-148). Si se pone, **tiene que ser idéntico** a `CRON_SECRET`: el handler prefiere esta y el cron envía la otra |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Plain | **Opcional, y es el interruptor de todo el canal.** La mitad pública del par VAPID. **Sin ella la tarjeta «Avisos en este dispositivo» ni se pinta** (D-190), así que la aplicación no ofrece nada que no pueda cumplir. Se genera con `npm run vapid` (D-193) |
+| `VAPID_PRIVATE_KEY` | **Sensitive** | **Opcional, pero obligatoria si está la pública.** La otra mitad del **mismo** par. `check:env` avisa si hay pública sin privada, que es peor que no tener ninguna: la pantalla ofrece los avisos y el despachador no puede mandarlos |
+| `VAPID_SUBJECT` | Plain | **Opcional.** El contacto que exige el RFC 8292 (`mailto:` o una URL). Si falta se usa `NEXT_PUBLIC_SITE_URL` |
+| `PUSH_DISPATCH_SECRET` | **Sensitive** | **Opcional.** Protege `/api/push/dispatch`, que **falla cerrado** sin ella. Mínimo 16 caracteres; acepta `CRON_SECRET` como alternativa. **Tiene que ser idéntica al secreto `push_dispatch_secret` del Vault** (§3.1.d) |
 
 `scripts/check-env.ts` (el `prebuild`) corta el build si falta alguna de las tres claves de Supabase.
 Hoy no valida `NEXT_PUBLIC_SITE_URL`; comprobarla en Vercel sigue siendo un paso manual (I-049).
 `LOTTERY_SYNC_SECRET` no entra en el prebuild: sin ella el Route Handler usa `CRON_SECRET` o responde 401.
+
+### 3.1.d Los dos secretos del Vault de Supabase — tampoco los pone un agente (D-193)
+
+Viven en la **base de datos**, no en Vercel, porque quien los lee es `wake_push_dispatcher()` desde
+dentro de PostgreSQL. **Sin ellos la función no hace nada** —es su comportamiento por defecto y está
+probado—, así que el sistema queda entero y callado hasta que se pongan.
+
+En el SQL Editor del proyecto real, **una sola vez**:
+
+```sql
+select vault.create_secret('https://<dominio-real>/api/push/dispatch', 'push_dispatch_url');
+select vault.create_secret('<el mismo valor de PUSH_DISPATCH_SECRET>', 'push_dispatch_secret');
+```
+
+⚠️ **El segundo tiene que ser idéntico al `PUSH_DISPATCH_SECRET` de Vercel.** Si no coinciden, el
+toque llega al Route Handler y este responde **401**: el despachador no envía nada, y el síntoma es
+exactamente el de I-083 con `CRON_SECRET` — todo parece bien y no pasa nada.
+
+Comprobar que quedaron guardados, **sin imprimir su valor**:
+
+```sql
+select name, created_at from vault.secrets where name like 'push_dispatch%';
+```
 
 ### 3.1.c Programador de loterías — activado (D-149, corregido en D-152)
 
