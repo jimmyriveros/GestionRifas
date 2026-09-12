@@ -5,6 +5,9 @@ export type RaffleStatus = Database['public']['Enums']['raffle_status']
 export type TicketInventoryStatus = Database['public']['Enums']['ticket_inventory_status']
 export type TicketPaymentStatus = Database['public']['Enums']['ticket_payment_status']
 export type PaymentMethod = Database['public']['Enums']['payment_method']
+export type PaymentAccountKind = Database['public']['Enums']['payment_account_kind']
+export type BankAccountType = Database['public']['Enums']['bank_account_type']
+export type PaymentReminderStatus = Database['public']['Enums']['payment_reminder_status']
 
 /**
  * Precio predeterminado de boleta en pesos colombianos (CLAUDE.md 6, BR-P01).
@@ -162,6 +165,53 @@ export const RAFFLE_STATUS_LABELS: Record<RaffleStatus, string> = {
   cancelled: 'Anulada',
 }
 
+/**
+ * Donde un vendedor recibe los pagos de sus clientes (BR-M03, D-188).
+ *
+ * Son nombres propios y por eso se escriben como los escribe su dueño: «Nequi»
+ * y «Daviplata» con mayuscula inicial, y «Cuenta bancaria» como categoria.
+ */
+export const PAYMENT_ACCOUNT_KIND_LABELS: Record<PaymentAccountKind, string> = {
+  nequi: 'Nequi',
+  daviplata: 'Daviplata',
+  bank: 'Cuenta bancaria',
+}
+
+/**
+ * Ahorros o corriente. En Colombia «tipo de cuenta» significa EXACTAMENTE esto,
+ * y por eso la pregunta que elige entre Nequi, Daviplata y banco NO se llama
+ * asi (UX_COPY_GUIDELINES, Anexo A).
+ */
+export const BANK_ACCOUNT_TYPE_LABELS: Record<BankAccountType, string> = {
+  savings: 'Ahorros',
+  checking: 'Corriente',
+}
+
+/** Los tres estados de un recordatorio de pago (BR-S04, D-188). */
+export const PAYMENT_REMINDER_STATUS_LABELS: Record<PaymentReminderStatus, string> = {
+  active: 'Activo',
+  paused: 'Pausado',
+  archived: 'Archivado',
+}
+
+/**
+ * Los dias de la semana, en ISO: el 1 es lunes, como `extract(isodow ...)` y
+ * como `seller_payment_reminders.weekday` (D-188).
+ *
+ * UNA sola lista para todo el producto. `features/notifications/text.ts` la usa
+ * en minusculas dentro de sus frases en vez de tener la suya, para que no acabe
+ * habiendo dos formas de escribir «miércoles».
+ */
+export const WEEKDAY_LABELS: Record<number, string> = {
+  1: 'Lunes',
+  2: 'Martes',
+  3: 'Miércoles',
+  4: 'Jueves',
+  5: 'Viernes',
+  6: 'Sábado',
+  7: 'Domingo',
+}
+
 /*
  * ---------------------------------------------------------------------------
  * DE ESTADO DE NEGOCIO A TONO DEL SISTEMA (Wave 4.5B)
@@ -222,6 +272,17 @@ export const ACCOUNT_STATUS_TONES: Record<AccountStatus, StatusTone> = {
 
 export const CLIENT_STATUS_TONES: Record<keyof typeof CLIENT_STATUS_LABELS, StatusTone> = {
   active: 'success',
+  archived: 'neutral',
+}
+
+/**
+ * Un recordatorio pausado es `info` y no `warning`: pausarlo es una decision
+ * deliberada de su dueño y no hay nada que arreglar. Archivado es `neutral`,
+ * como cualquier cosa retirada a proposito.
+ */
+export const PAYMENT_REMINDER_STATUS_TONES: Record<PaymentReminderStatus, StatusTone> = {
+  active: 'success',
+  paused: 'info',
   archived: 'neutral',
 }
 

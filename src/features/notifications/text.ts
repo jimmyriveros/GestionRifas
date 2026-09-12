@@ -1,4 +1,5 @@
 import { LOTTERY_LABELS, type LotteryCode } from '@/features/lottery/constants'
+import { WEEKDAY_LABELS } from '@/lib/constants'
 import { ticketLabel } from '@/lib/tickets'
 
 /**
@@ -34,8 +35,6 @@ function count(data: NotificationData, key: string): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
-const WEEKDAYS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'] as const
-
 function weekdayName(isoDate: string | null): string | null {
   if (!isoDate || !/^\d{4}-\d{2}-\d{2}/.test(isoDate)) return null
   const parts = isoDate.slice(0, 10).split('-').map(Number)
@@ -45,7 +44,9 @@ function weekdayName(isoDate: string | null): string | null {
   if (year === undefined || month === undefined || day === undefined) return null
   const utc = new Date(Date.UTC(year, month - 1, day, 12))
   const weekday = utc.getUTCDay() === 0 ? 7 : utc.getUTCDay()
-  return WEEKDAYS[weekday - 1] ?? null
+  // La lista vive en `constants.ts` (D-188): aqui se usa en minusculas porque
+  // estos nombres van DENTRO de una frase, no encabezando un campo.
+  return WEEKDAY_LABELS[weekday]?.toLowerCase() ?? null
 }
 
 function lotteryName(data: NotificationData): string {

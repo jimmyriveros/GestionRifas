@@ -91,7 +91,12 @@ test.describe('Configuración del grupo', () => {
     await page.getByRole('button', { name: /Menú de usuario/ }).click()
     await page.getByRole('menuitem', { name: 'Configuración' }).click()
 
+    // Desde D-188 el menú lleva al RESUMEN, y el formulario vive en su propia
+    // subruta: son dos toques, y este es el camino real.
     await page.waitForURL('/seller/settings')
+    await page.getByRole('link', { name: /Grupo de WhatsApp/ }).click()
+
+    await page.waitForURL('/seller/settings/whatsapp')
     await expect(page.getByRole('heading', { name: 'Grupo de WhatsApp' })).toBeVisible()
 
     await page.getByLabel('Enlace del grupo de WhatsApp').fill(GROUP_URL)
@@ -103,7 +108,7 @@ test.describe('Configuración del grupo', () => {
   })
 
   test('rechaza un enlace que no es de un grupo, sin guardarlo', async ({ page }) => {
-    await page.goto('/seller/settings')
+    await page.goto('/seller/settings/whatsapp')
     await page.getByLabel('Enlace del grupo de WhatsApp').fill('https://ejemplo.test/grupo')
 
     await expect(
@@ -118,7 +123,7 @@ test.describe('Configuración del grupo', () => {
     page,
   }) => {
     // Es la comprobacion de la decision de D-176: no hay marcador que conservar.
-    await page.goto('/seller/settings')
+    await page.goto('/seller/settings/whatsapp')
     await page.getByLabel('Enlace del grupo de WhatsApp').fill(GROUP_URL)
     await page.getByLabel('Usar mi propio mensaje').click()
 
@@ -142,7 +147,7 @@ test.describe('Configuración del grupo', () => {
   })
 
   test('volver al predeterminado apaga el interruptor y bloquea el área', async ({ page }) => {
-    await page.goto('/seller/settings')
+    await page.goto('/seller/settings/whatsapp')
     await page.getByLabel('Enlace del grupo de WhatsApp').fill(GROUP_URL)
     await page.getByLabel('Usar mi propio mensaje').click()
     await page.getByLabel('Mensaje de invitación').fill('Texto propio.')
@@ -318,7 +323,7 @@ test.describe('Sin grupo configurado (sección 14)', () => {
     await expect(dialogo.getByRole('button', { name: 'Invitar al grupo' })).toHaveCount(0)
 
     await dialogo.getByRole('button', { name: 'Configurar WhatsApp' }).click()
-    await page.waitForURL('/seller/settings')
+    await page.waitForURL('/seller/settings/whatsapp')
 
     // El cliente NO se deshizo: sigue en la cartera.
     await page.goto('/seller/clients')
@@ -353,7 +358,7 @@ test.describe('Aislamiento (sección 22)', () => {
     await page.getByRole('button', { name: /Menú de usuario/ }).click()
     await expect(page.getByRole('menuitem', { name: 'Configuración' })).toHaveCount(0)
 
-    await page.goto('/seller/settings')
+    await page.goto('/seller/settings/whatsapp')
     await expect(page).toHaveURL(/\/denied/)
   })
 
@@ -362,7 +367,7 @@ test.describe('Aislamiento (sección 22)', () => {
 
     // El vendedor 2 entra a SU pantalla y no ve el grupo del vendedor 1.
     await loginAs(page, ACCOUNTS.otherSeller)
-    await page.goto('/seller/settings')
+    await page.goto('/seller/settings/whatsapp')
     await expect(page.getByLabel('Enlace del grupo de WhatsApp')).not.toHaveValue(GROUP_URL)
   })
 })

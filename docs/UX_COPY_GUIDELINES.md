@@ -427,6 +427,21 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | El que trae la aplicación, y usa casi todo el mundo | **Mensaje predeterminado** | Mensaje por defecto, estándar, del sistema |
 | El que escribe el propio vendedor | **Mi propio mensaje** (el interruptor dice «Usar mi propio mensaje») | Mensaje personalizado, custom |
 | La pantalla del vendedor donde vive todo eso | **Configuración** | Ajustes, preferencias, settings |
+| Dónde le consignan sus clientes a un vendedor | **Cuenta para recibir pagos**, y **cuenta** a secas cuando ya se está dentro de esa sección (D-188) | Cuenta de cobro, medio de pago, método de pago, datos bancarios |
+| La pregunta que elige entre las tres formas | **¿Dónde recibes el pago?** | «Tipo de cuenta», que en Colombia significa otra cosa: ahorros o corriente |
+| Las tres formas que existen hoy | **Nequi** · **Daviplata** · **Cuenta bancaria** | Billetera, transferencia, banco a secas, plataforma |
+| Ahorros o corriente | **Tipo de cuenta** | Clase, modalidad, naturaleza |
+| A nombre de quién está la cuenta | **Titular** | Propietario, beneficiario, «Dueño», que es un rol |
+| El nombre que el vendedor le pone para distinguirla de otra suya | **Nombre para reconocerla** | Etiqueta, alias, apodo, descripción |
+| Sacar una cuenta del listado sin perderla | **Archivar** (el mismo verbo que un cliente) | Eliminar, borrar, desactivar, quitar |
+| Devolver al listado una cuenta archivada | **Volver a usar** | Restaurar, reactivar, recuperar, desarchivar |
+| Cambiar en qué orden salen las cuentas en el mensaje | **Subir** y **Bajar** | Reordenar, mover, arrastrar, priorizar |
+| Mensaje semanal de cobro que la aplicación prepara a una hora elegida | **Recordatorio de pago**, o **recordatorio** | Alarma, aviso, notificación, programación |
+| Que un recordatorio está sonando, que no, o que se guardó | **Activo** · **Pausado** · **Archivado** (`PAYMENT_REMINDER_STATUS_LABELS`, D-188) | Encendido, apagado, suspendido, detenido |
+| Dejar de recibir un recordatorio sin perderlo, y volver | **Pausar** y **Reanudar** | Desactivar/activar, detener, apagar/encender |
+| Cuándo suena | **Día** y **Hora** | Frecuencia, periodicidad, programación, horario |
+| El bloque que la aplicación añade sola al final del mensaje. **Lo lee el CLIENTE**, así que le habla a él | **«Puedes pagar aquí:»** | «Tus cuentas», que dentro del mensaje el cliente leería como las suyas; y cualquier marcador tipo `{{cuentas}}`, prohibidos (BR-S07) |
+| Ese mismo bloque, cuando se le explica al VENDEDOR qué se le va a añadir | **tus cuentas** | «El bloque», «la sección de cuentas» |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -1086,10 +1101,60 @@ navegador bloquea la ventana se dice tal cual —«Tu navegador no dejó abrir W
 vuelve a tocar «Invitar al grupo».»— en vez de darla por abierta: es la misma regla de sin conexión
 (D-116).
 
+**«Configuración» son tres secciones y un resumen que no carga ninguna** (D-188). La pantalla que
+D-176 dejó «pensada para crecer» creció: `/seller/settings` enseña **tres tarjetas con su estado en
+una línea** —«3 cuentas activas», «Grupo configurado», «2 recordatorios activos»— y cada una lleva a
+su propia pantalla. El resumen **no pinta ningún formulario**, así que ninguna de las tres carga sus
+datos hasta que se entra. Los títulos son los del glosario y **se repiten igual** en la tarjeta y en
+la pantalla: quien toca «Cuentas para recibir pagos» tiene que llegar a algo que se llame así.
+
+**Una cuenta se escribe como se dicta por teléfono** (D-188). Ese es el criterio para el orden y para
+lo que se enseña junto: **Nequi · 300 123 4567 · Ana Torres**, y **Bancolombia · Ahorros ·
+123-456-789 · Ana Torres**. Primero dónde, después el número, después de quién es — que es como lo
+dice cualquiera en voz alta y como el cliente lo va a teclear en su banco. El **nombre para
+reconocerla** es del vendedor y **no viaja al mensaje**: sirve para distinguir «el Nequi de mi
+esposa» del suyo en una lista de cinco, y ponerlo en el mensaje del cliente sería contarle algo que
+no le importa.
+
+**El recordatorio NO nombra a ningún cliente, no dice ningún saldo y no dice ningún importe**
+(BR-S09). Va a un grupo donde están **todos** los clientes del vendedor: escribir ahí quién debe
+cuánto es publicar la deuda de una persona delante de las demás. Es el mismo cuidado que impide
+guardar el HTML de una pantalla en el teléfono (D-116), aplicado a un texto que se pega en un chat.
+
+**La vista previa enseña el mensaje completo, con las cuentas ya puestas** (BR-S07, y es la misma
+decisión que BR-W04). El vendedor escribe **solo prosa**; la aplicación añade al final
+**«Puedes pagar aquí:»** con las cuentas activas, en su orden. Ese encabezado **le habla al cliente**,
+que es quien lo va a leer: escribir ahí «tus cuentas» haría que el cliente entendiera las suyas. Bajo
+el área de texto va la línea que se lo dice al vendedor antes de que ocurra: **«Escribe solo tu
+mensaje. Tus cuentas se agregan al final, siempre.»** — y debajo, el mensaje entero, que es lo que
+convierte la promesa en algo comprobable.
+**No se explica ninguna sintaxis y no existe ningún marcador**: `{{cuentas}}` no se escribe en
+ningún sitio, porque no hay nada que conservar y por tanto nada que romper.
+
+**Sin cuentas, el mensaje lo dice en vez de fingir** (D-188). Si el vendedor no tiene ninguna cuenta
+activa, la vista previa no inventa un bloque vacío: enseña la prosa a secas y, **fuera del mensaje**,
+un aviso que explica lo que pasa y da la salida — «Todavía no tienes cuentas para recibir pagos, así
+que el mensaje sale sin ellas.» con el enlace a esa sección. La regla de siempre: la aplicación no
+promete lo que no hay (D-116).
+
+**«Pausar» no es «archivar», y los textos no pueden mezclarlos** (D-188). *Pausar* deja de mandar el
+recordatorio y **lo conserva tal cual**: se reanuda de un toque y vuelve a sonar el mismo día a la
+misma hora. *Archivar* lo saca del listado. Ninguno de los dos borra nada —aquí no se borra (D-038)—,
+pero ofrecer «archivar» donde lo que se quiere es callarlo una semana manda a alguien a rehacer su
+configuración. El botón de un recordatorio pausado dice **«Reanudar»**, nunca «Activar»: *activar* es
+lo que se le hace a una cuenta de persona (BR-E14) y son cosas distintas.
+
+**El tope se dice cuando estorba, no antes** (D-188). Con menos de cinco cuentas o menos de catorce
+recordatorios **no se escribe ningún contador**: un «3 de 5» permanente convierte un límite que nadie
+va a tocar en una preocupación. Al llegar al tope, el botón de crear se desactiva y **dice por qué**:
+«Ya tienes 5 cuentas activas. Archiva una para agregar otra.» Es la misma frase que responde la base
+de datos, a propósito: quien la vea dos veces no tiene que entender que son dos sistemas distintos.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
-las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, y las dos de un
-cliente: **Activo · Archivado** (`CLIENT_STATUS_LABELS`, D-113). Fuente única:
+las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, las dos de un
+cliente: **Activo · Archivado** (`CLIENT_STATUS_LABELS`, D-113), y las tres de un recordatorio de
+pago: **Activo · Pausado · Archivado** (`PAYMENT_REMINDER_STATUS_LABELS`, D-188). Fuente única:
 `src/lib/constants.ts` (`docs/ARCHITECTURE.md` §8.3). Cambiar una etiqueta significa cambiar ese
 archivo, nunca escribirla suelta en una pantalla.
 
@@ -1242,6 +1307,12 @@ castigo donde solo había una espera.
 | Todos los textos de la invitación al grupo de WhatsApp: la sección de «Configuración», el campo del enlace, el interruptor, la vista previa y los dos diálogos de éxito | `src/features/whatsapp/invite.ts` (`WHATSAPP_COPY` e `INVITE_DIALOG_COPY`), **todos juntos** (D-176) |
 | El mensaje predeterminado que reciben los clientes | `DEFAULT_INVITE_MESSAGE`, en ese mismo archivo — **nunca** en la base de datos, para no repetir I-030 ni acabar con un texto distinto por vendedor (BR-W02) |
 | La frase que explica por qué hoy no se puede invitar | `INVITE_DIALOG_COPY.blocked`, una por **causa** —sin grupo, teléfono que no sirve— y no una por pantalla (D-176) |
+| Nombres de las tres formas de recibir un pago, del tipo de cuenta bancaria y de los estados de un recordatorio | `src/lib/constants.ts` (`PAYMENT_ACCOUNT_KIND_LABELS`, `BANK_ACCOUNT_TYPE_LABELS`, `PAYMENT_REMINDER_STATUS_LABELS`, D-188) |
+| Nombres de los días de la semana | `src/lib/constants.ts` (`WEEKDAY_LABELS`, D-188). **Una sola lista**: `notifications/text.ts` la usa en minúsculas en vez de tener la suya |
+| Todos los textos de las cuentas para recibir pagos: título, campos, ayudas, botones, avisos del tope y cómo se escribe una cuenta en el mensaje | `src/features/payment-accounts/accounts.ts` (`ACCOUNT_COPY`), **todos juntos** (D-188) |
+| Todos los textos de los recordatorios: título, campos, la línea de «se agregan al final», la vista previa, el aviso sin cuentas y los botones | `src/features/payment-reminders/reminders.ts` (`REMINDER_COPY`), **todos juntos** (D-188) |
+| El mensaje predeterminado de un recordatorio | `DEFAULT_REMINDER_MESSAGE`, en ese mismo archivo — **nunca** en la base de datos, por lo mismo que `DEFAULT_INVITE_MESSAGE` (BR-S06, BR-W02) |
+| Los títulos y las líneas de estado de las tres tarjetas del resumen de «Configuración» | `src/app/(protected)/seller/settings/page.tsx` (D-188) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

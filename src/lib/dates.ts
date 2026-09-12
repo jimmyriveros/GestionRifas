@@ -29,6 +29,15 @@ const weekdayFormatter = new Intl.DateTimeFormat('es-CO', {
   weekday: 'long',
 })
 
+// Hora de reloj, sin dia ni zona: la usa `formatClockEs` para un `time` de
+// PostgreSQL. En UTC a proposito, para que la hora no se desplace.
+const clockFormatter = new Intl.DateTimeFormat('es-CO', {
+  timeZone: 'UTC',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+})
+
 // Formato en-CA produce YYYY-MM-DD por defecto: util para <input type="date">
 // y para comparar/ordenar como texto.
 const isoDateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: BOGOTA_TZ })
@@ -88,6 +97,27 @@ export function formatDateTimeEs(value: string | Date): string {
 /** Solo la hora en America/Bogota. Un instante, no un dia calendario. */
 export function formatTimeEs(value: string | Date): string {
   return timeFormatter.format(toBogotaDate(value))
+}
+
+/**
+ * Una hora de RELOJ, no un instante: «19:00:00» → «7:00 p. m.» (D-188).
+ *
+ * `formatTimeEs` recibe una fecha completa y la traduce a Bogota; esto recibe
+ * un `time` de PostgreSQL, que no tiene dia ni zona. Se formatea en UTC sobre
+ * una fecha ficticia precisamente para que no se desplace: la hora que entra es
+ * la que sale.
+ *
+ * Va con `hour: 'numeric'` y no `'2-digit'` —«7:00 p. m.», no «07:00 p. m.»—
+ * porque aqui la hora la eligio una persona en un desplegable y asi es como la
+ * diria. El recuadro de loterias usa 2-digit para horas de sorteo, que son
+ * siempre de dos cifras y donde no se nota.
+ */
+export function formatClockEs(time: string): string {
+  const [rawHour, rawMinute] = time.split(':')
+  const hour = Number(rawHour)
+  const minute = Number(rawMinute)
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return time
+  return clockFormatter.format(new Date(Date.UTC(2000, 0, 1, hour, minute)))
 }
 
 /** Dia de la semana en minusculas (`lunes` … `domingo`), en America/Bogota. */

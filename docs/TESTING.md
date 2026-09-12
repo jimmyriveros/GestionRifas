@@ -1,10 +1,10 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.18 · **Actualizado:** 2026-09-11
+- **Versión:** 2.19 · **Actualizado:** 2026-09-12
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
-- ⚠️ En la **§4.8** (cuentas de cobro y recordatorios de pago) conviven las dos cosas: la **Etapa 1
-  está escrita y ejecutada** (62 pruebas), y las **etapas 3 a 6 son criterio de aceptación** todavía
-  sin código. Cada bloque lo dice.
+- ⚠️ En la **§4.8** (cuentas de cobro y recordatorios de pago) conviven las dos cosas: las **etapas 1
+  y 2 están escritas y ejecutadas** (62 de base, 19 E2E y 37 unitarias), y las **etapas 3 a 6 son
+  criterio de aceptación** todavía sin código. Cada bloque lo dice.
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
 
@@ -676,9 +676,10 @@ cuando se creó un cliente a secas); y que sin grupo configurado el botón cambi
 En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
 que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
 
-### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V, D-185)
+### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V, D-185, D-188)
 
-> **La Etapa 1 está hecha: `tests/db/payment-accounts-reminders.test.ts`, 62 pruebas** (2026-09-11).
+> **Hechas la Etapa 1 —`tests/db/payment-accounts-reminders.test.ts`, 62 pruebas— y la Etapa 2**
+> —`configuracion-cobro.spec.ts` (15), `configuracion-cobro-movil.spec.ts` (4) y 37 unitarias—.
 > Las etapas 3 a 6 siguen siendo **criterio de aceptación escrito antes de construir**, para que no
 > se escriba después a la medida de lo que salga.
 
@@ -736,21 +737,35 @@ una prueba.
 | El dispatcher **falla cerrado** (BR-V08) | Sin secreto → no funciona; secreto corto → no funciona; secreto por query string → no funciona; secreto correcto → vacía la cola. Es el juego de pruebas de `/api/lottery/sync`, reutilizado |
 | **Un solo service worker** (BR-V04) | Una prueba que falla si aparece un segundo archivo de worker en `public/`, y que el worker sigue **sin guardar** respuestas con datos (D-116) |
 
-#### Etapa 2 y 6 — navegador
+#### Etapa 2 — navegador ✅ (`configuracion-cobro.spec.ts`, 15 · `configuracion-cobro-movil.spec.ts`, 4)
 
-Lo que solo se ve en un navegador, con el método que ya usa §4.7: **no se abre WhatsApp en ninguna
-prueba** —`spyOnWindowOpen`, que devuelve un objeto y no `null`— y se afirma sobre la dirección y el
-texto.
+Lo que solo se ve en un navegador. **El aislamiento por vendedor no se repite aquí**: vive en la base
+y ya tiene sus 62 pruebas.
 
-* La vista previa enseña el **mensaje completo**, con las cuentas al final y **sin marcadores**
-  (BR-S07): una prueba busca `{{` y falla si aparece.
-* Cambiar una cuenta cambia la vista previa **sin tocar el recordatorio** (BR-S08).
+| Qué se demuestra | Cómo |
+|---|---|
+| El resumen **no carga los formularios** (D-185) | Se afirma por lo que **no** está: ni «Agregar cuenta», ni «Crear recordatorio», ni el campo del enlace de WhatsApp |
+| Una cuenta se escribe como se dicta | «Nequi · 300 111 2233 · Ana Torres», con los separadores que produce `PhoneInput` (D-184) |
+| Los campos cambian con el tipo, y el tipo **no se puede cambiar al editar** | Se comprueba que el desplegable **desaparece** y queda el dato |
+| El **nombre para reconocerla** se ve en la lista y **no viaja al mensaje** | Prueba por lo que **no** aparece en la vista previa |
+| La vista previa enseña el **mensaje completo**, con las cuentas al final y **sin marcadores** (BR-S07) | Se busca `{{` en el diálogo y falla si aparece |
+| Cambiar una cuenta cambia el mensaje **sin tocar el recordatorio** (BR-S08) | Se corrige el titular y se vuelve a abrir el recordatorio |
+| Sin cuentas se dice **fuera** del mensaje, con la salida a mano | El encabezado «Puedes pagar aquí:» **no** aparece |
+| El tope se dice **cuando estorba** | Con cuatro cuentas no hay contador; con cinco, el botón se apaga y explica |
+| **Pausar no es archivar** | El pausado conserva su día y su hora, y el botón dice «Reanudar» |
+| **320 px** y la **diana táctil de 44 px** | Cuatro pantallas sin desbordamiento horizontal, y `getComputedStyle().height` —no `boundingBox()`, que miente mientras algo se escala (D-177)— sobre botones y campos |
+
+**Dos defectos propios los encontraron estas pruebas** (D-188): los `SelectTrigger` llevaban un `id` a
+mano que pisaba el de `FormControl` y dejaba al desplegable **sin nombre accesible**; y un ayudante
+esperaba al aviso en vez de al cierre del diálogo, lo que en un bucle de cinco cuentas producía dos
+avisos iguales a la vez.
+
+#### Etapa 6 — lo que faltará comprobar en el navegador
+
 * «Copiado», «Grupo abierto» y «Marcado como atendido» **no dicen** que se envió nada (BR-S14):
-  prueba por lo que **no** aparece, como la de «boleta» en §4.7.
-* La página `/seller/settings` **no carga los formularios**: se cuenta lo que pide, no lo que
-  aparenta.
-* **320, 375, 390 y 430 px**, y la **diana táctil de 44 px** en todo control nuevo: ese ancho ya
-  encontró un defecto real (§4.7) y la diana, tres (`I-102`, `I-103`, `I-104`).
+  prueba por lo que **no** aparece, como la de «boleta» en §4.7. Con el método de esa sección: **no se
+  abre WhatsApp en ninguna prueba** —`spyOnWindowOpen`, que devuelve un objeto y no `null`—.
+* **375, 390 y 430 px**, además de los 320 que la Etapa 2 ya mide.
 * Y la regla de `HANDOFF` §1.b: si se toca infraestructura de interfaz compartida, se comprueban
   **las dos** presentaciones.
 

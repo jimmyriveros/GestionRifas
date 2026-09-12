@@ -1,13 +1,14 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.16 · **Estado:** normativo · **Actualizado:** 2026-09-11
+- **Versión:** 1.17 · **Estado:** normativo · **Actualizado:** 2026-09-12
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
 - Una regla se presume **implementada y vigente** salvo que su sección lo diga. Las secciones
   **12.d (BR-M)**, **12.e (BR-S)** y **12.f (BR-V)** se construyen por etapas (D-185) y llevan una
-  columna **Estado**: `✅ 0051` es lo que la **Etapa 1** ya dejó en la base de datos —**en local; no
-  en el proyecto real**—, y el resto nombra la etapa que falta.
+  columna **Estado**: `✅ 0051` es lo que la **Etapa 1** dejó en la base de datos y `✅ Etapa 2` lo que
+  la pantalla ya usa —todo **en local; no en el proyecto real**—, y el resto nombra la etapa que
+  falta.
 
 ---
 
@@ -696,9 +697,9 @@ WhatsApp**: se abre un enlace `wa.me` y el vendedor pulsa Enviar (D-176).
 
 ## 12.d Cuentas para recibir pagos (BR-M)
 
-> **EN LA BASE DE DATOS, DESDE LA MIGRACIÓN `0051`** (2026-09-11, Etapa 1 de D-185). Lo que falta es
-> la **pantalla** (Etapa 2), y las reglas marcadas así lo dicen en la columna **Estado**. La
-> migración está aplicada y verificada **en local**; **no** en el proyecto real, que es la Etapa 7.
+> **COMPLETA: base de datos (`0051`, Etapa 1) y pantalla (Etapa 2, D-188).** Un vendedor ya puede
+> agregar, corregir, ordenar y archivar sus cuentas desde `/seller/settings/accounts`. **Todo está en
+> LOCAL; el proyecto real no tiene la migración**, y promoverla es la Etapa 7.
 >
 > Dos cosas salieron de implementarlo y conviene leerlas antes de tocar nada: **el tope de cinco no
 > es un trigger, es la forma de la tabla** (una cuenta activa ocupa una posición del 1 al 5, única
@@ -719,20 +720,24 @@ más significado.
 | BR-M02 | Una cuenta pertenece a **un vendedor**, que es el único usuario humano que puede leerla, crearla, editarla y archivarla. **Ni el Dueño, ni el Administrador, ni el vendedor padre** acceden —ni por pantalla, ni por reporte, ni por exportación, ni por PostgREST—. La escritura pasa por una RPC `SECURITY DEFINER` que **no recibe identificador de vendedor**: sale de `auth.uid()`, el mismo patrón que BR-W07. Cambiarlo exige una decisión explícita y posterior del dueño del producto. | C, S, D | ✅ `0051` |
 | BR-M03 | El tipo de cuenta es un **enumerado**: `nequi`, `daviplata`, `bank`. Añadir una forma futura es `alter type … add value` más su CHECK, en una migración nueva; nunca un texto libre. | D | ✅ `0051` |
 | BR-M04 | Qué se guarda, según el tipo, y **un CHECK lo impone**: Nequi y Daviplata piden **titular y teléfono**; una cuenta bancaria pide **banco, tipo de cuenta (ahorros o corriente), número y titular**. Los campos que no corresponden al tipo quedan nulos: no existe una cuenta de Nequi con número de cuenta bancaria. **No se guarda el documento de identidad del titular** (D-185, Decisión 2). | C, S, D | ✅ `0051` |
-| BR-M05 | Cada cuenta lleva una **etiqueta opcional** que escribe el vendedor y un **orden**, que es el orden en que aparece en el mensaje. El orden lo decide el vendedor; si no lo toca, es el de creación. | C, S, D | ✅ `0051` (base) · Etapa 2 (pantalla) |
+| BR-M05 | Cada cuenta lleva una **etiqueta opcional** que escribe el vendedor y un **orden**, que es el orden en que aparece en el mensaje. El orden lo decide el vendedor; si no lo toca, es el de creación. | C, S, D | ✅ Etapa 2 |
 | BR-M06 | **Tope duro de 5 cuentas sin archivar por vendedor**, comprobado en la base y no solo en la pantalla. La sexta se rechaza con un mensaje que dice qué hacer. Subir la cifra es una migración. | S, D | ✅ `0051` |
 | BR-M07 | Una cuenta **se archiva, nunca se borra**: no hay `DELETE` en este producto (D-038). Archivar la saca del listado y del mensaje y conserva la fila. Una cuenta archivada no cuenta para el tope y se puede volver a activar, sujeta al tope. | C, S, D | ✅ `0051` |
 | BR-M08 | **No se permiten dos cuentas iguales sin archivar** del mismo vendedor: mismo tipo y mismo número —teléfono o número de cuenta, comparado solo por sus dígitos—. Dos filas idénticas en el mensaje son un error de dedo, no una configuración. | S, D | ✅ `0051` |
-| BR-M09 | Las cuentas **no viajan a ninguna superficie pública**. No salen en el catálogo público (BR-K07 fija su proyección y no se amplía), no salen en un push (BR-V05), no salen en un reporte ni en un CSV, y no se consultan desde ningún layout ni panel. El único sitio donde se leen es la pantalla del propio vendedor y la composición de su mensaje. | C, S, D | Etapa 2 |
+| BR-M09 | Las cuentas **no viajan a ninguna superficie pública**. No salen en el catálogo público (BR-K07 fija su proyección y no se amplía), no salen en un push (BR-V05), no salen en un reporte ni en un CSV, y no se consultan desde ningún layout ni panel. El único sitio donde se leen es la pantalla del propio vendedor y la composición de su mensaje. | C, S, D | ✅ Etapa 2 |
 
 ---
 
 ## 12.e Recordatorios de pago del vendedor (BR-S)
 
-> **LA CONFIGURACIÓN, EN LA BASE DESDE `0051`** (2026-09-11, Etapa 1 de D-185): qué día, a qué hora,
-> con qué mensaje y con el reloj ya calculado. **El MOTOR no existe todavía** —materializar
-> ocurrencias, avisar y el flujo copiar–abrir–atender son la Etapa 3—, y la pantalla, la Etapa 2. La
-> columna **Estado** lo dice regla por regla. Aplicada **en local**; no en el proyecto real.
+> **LA CONFIGURACIÓN ESTÁ COMPLETA**: base (`0051`, Etapa 1) y pantalla (Etapa 2, D-188). Un vendedor
+> ya crea, edita, pausa, reanuda y archiva sus recordatorios en `/seller/settings/reminders`, y ve la
+> **vista previa del mensaje completo** con sus cuentas al final.
+>
+> **EL MOTOR NO EXISTE TODAVÍA** —materializar ocurrencias, avisar por la campana y el flujo
+> copiar–abrir–atender son la **Etapa 3**—, así que la pantalla **no enseña ninguna fecha de próximo
+> envío**: sería prometer algo que no ocurre (D-188, Decisión 9). La columna **Estado** lo dice regla
+> por regla. Todo en **local**; el proyecto real no lo tiene.
 
 Cada vendedor programa mensajes semanales de cobro. La aplicación se los recuerda a la hora que él
 eligió y le prepara el texto; **él** lo pega en su grupo de WhatsApp y lo envía.
@@ -747,9 +752,9 @@ eligió y le prepara el texto; **él** lo pega en su grupo de WhatsApp y lo env�
 | BR-S04 | Un recordatorio está **activo**, **pausado** o **archivado**. Pausar lo calla sin perder su configuración; reactivar lo devuelve tal cual; archivar lo retira del listado y conserva la fila. **No se borra** (D-038). | C, S, D | ✅ `0051` |
 | BR-S05 | **Tope duro de 14 recordatorios activos por vendedor**, comprobado en la base. Un pausado no cuenta, y **reactivar vuelve a comprobar el tope**: si no, bastaría con pausar, crear y reactivar para saltárselo. | S, D | ✅ `0051` |
 | BR-S06 | El recordatorio guarda **prosa y nada más**: su propio mensaje o el predeterminado de la aplicación, con el mismo interruptor y la misma coherencia que BR-W02 y BR-W03 —el predeterminado **vive en TypeScript**, no en la base; apagar el interruptor **no borra** lo escrito; «uso mi mensaje» sin mensaje es un estado imposible—. | C, S, D | ✅ `0051` |
-| BR-S07 | **Las cuentas activas se añaden solas al final del mensaje**, en su orden, y **no forman parte del texto que escribe el vendedor**. **Quedan prohibidos los marcadores editables** —`{{cuentas}}`, `{{nequi}}` o cualquier otro—: no hay nada que conservar, así que no hay nada que borrar, escribir mal ni duplicar. Es BR-W04 aplicado a este mensaje. La pantalla muestra la **vista previa del mensaje completo**. | C, S | Etapa 2 |
+| BR-S07 | **Las cuentas activas se añaden solas al final del mensaje**, en su orden, y **no forman parte del texto que escribe el vendedor**. **Quedan prohibidos los marcadores editables** —`{{cuentas}}`, `{{nequi}}` o cualquier otro—: no hay nada que conservar, así que no hay nada que borrar, escribir mal ni duplicar. Es BR-W04 aplicado a este mensaje. La pantalla muestra la **vista previa del mensaje completo**. | C, S | ✅ Etapa 2 |
 | BR-S08 | El mensaje **se compone cuando el vendedor lo abre o lo copia**, con la configuración vigente en ese instante. Consecuencia buscada: **cambiar una cuenta cambia los mensajes futuros sin reescribir ni un recordatorio**, y sin tocar los ya materializados. | C, S | Etapa 3 |
-| BR-S09 | El mensaje **no nombra a ningún cliente, no dice ningún saldo y no dice ningún importe**. Va a un grupo donde están todos los clientes del vendedor: escribir ahí quién debe cuánto publicaría la deuda de una persona delante de las demás. | C, S | Etapa 2 |
+| BR-S09 | El mensaje **no nombra a ningún cliente, no dice ningún saldo y no dice ningún importe**. Va a un grupo donde están todos los clientes del vendedor: escribir ahí quién debe cuánto publicaría la deuda de una persona delante de las demás. | C, S | ✅ Etapa 2 |
 | BR-S10 | Cuando llega su hora, un recordatorio activo produce una **ocurrencia** (`payment_reminder_occurrences`): una fila por `(recordatorio, instante programado)`, con **índice único**. Esa unicidad es lo que hace el proceso **idempotente**: ejecutarlo dos veces sobre el mismo vencimiento no crea dos avisos. | S, D | Etapa 3 |
 | BR-S11 | Una ocurrencia **atrasada hasta 2 horas se recupera**: se materializa pendiente, con campana y con push. **Más allá de 2 horas se registra como omitida**, **sin** campana y **sin** push, y el recordatorio avanza a la semana siguiente. La fila omitida se guarda igual: es lo que distingue «no se mandó» de «nadie se enteró». Si se saltaron varias semanas, **no se disparan todas**: se registra una omitida y el reloj salta al próximo instante futuro. | S, D | Etapa 3 |
 | BR-S12 | El proceso **tolera concurrencia**: las filas vencidas se toman con `for update skip locked`, de modo que dos ejecuciones simultáneas trabajan sobre conjuntos disjuntos. Materializar la ocurrencia, escribir la campana, encolar el push y avanzar el reloj ocurren **en la misma transacción**: o pasan las cuatro, o no pasa ninguna. | S, D | Etapa 3 |

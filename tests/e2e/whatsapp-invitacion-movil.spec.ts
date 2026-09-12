@@ -50,8 +50,10 @@ test.describe('La invitación al grupo en el teléfono', () => {
     await loginAs(page, ACCOUNTS.seller)
   })
 
-  test('«Configuración» no desborda en ningún ancho', async ({ page }) => {
-    await page.goto('/seller/settings')
+  test('«Grupo de WhatsApp» no desborda en ningún ancho', async ({ page }) => {
+    // El resumen de «Configuración» lo mide `configuracion-cobro-movil.spec.ts`
+    // desde D-188; aquí se mide la sección, que es la que tiene el formulario.
+    await page.goto('/seller/settings/whatsapp')
     await page.waitForLoadState('networkidle')
 
     for (const width of WIDTHS) {
@@ -67,7 +69,7 @@ test.describe('La invitación al grupo en el teléfono', () => {
     // Una direccion sin espacios es lo que rompe un contenedor: si la caja de
     // la vista previa no ajusta, empuja la pagina entera a lo ancho.
     await page.setViewportSize({ width: 320, height: 800 })
-    await page.goto('/seller/settings')
+    await page.goto('/seller/settings/whatsapp')
     await page.getByLabel('Usar mi propio mensaje').click()
     await page.getByLabel('Mensaje de invitación').fill('Hola')
 

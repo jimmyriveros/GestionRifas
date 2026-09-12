@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.46 · **Actualizado:** 2026-09-11 (D-001 a D-187; D-185 y D-186 con nota de la Etapa 1)
+- **Versión:** 1.47 · **Actualizado:** 2026-09-12 (D-001 a D-188; D-185 y D-186 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -9147,6 +9147,182 @@ campana sigue ahí—.
 y §5.4. Variables de entorno nuevas —`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` y el
 secreto del dispatcher—, que se dan de alta en la Etapa 4/5 y se declaran en `.env.example` y en
 `check:env` **cuando se implementen**, no antes.
+
+---
+
+## D-188 — «Configuración» se parte en tres, y el mensaje se enseña entero
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 2 del encargo de D-185, 2026-09-12)
+
+**Alcance.** La interfaz de las cuentas para recibir pagos y de los recordatorios de pago: dos
+módulos nuevos en `src/features/`, tres rutas nuevas y el resumen de `/seller/settings`. **Ninguna
+migración, ninguna dependencia nueva, ningún cambio en la base de datos, ninguna regla de negocio
+nueva** y ni una línea del motor, que sigue siendo la Etapa 3.
+
+**Contexto.** La Etapa 1 dejó las dos tablas, sus ocho RPC y su aislamiento. Nada de eso se podía
+usar: no había una sola pantalla. Y `/seller/settings` era la pantalla que D-176 dejó con **una** sola
+tarjeta y esta nota escrita dentro:
+
+> «PENSADA PARA CRECER, SIN ARQUITECTURA DE MAS. […] Cuando haya tres o cuatro y no quepan de un
+> vistazo, será el momento de partirla —y entonces se sabrá por qué secciones, en vez de adivinarlo
+> ahora.»
+
+Ya se sabe por qué secciones: **cuentas, WhatsApp y recordatorios**.
+
+---
+
+### Decisión 1 — el resumen no carga ninguna de las tres
+
+`/seller/settings` pasa a ser **tres tarjetas-enlace con una línea de estado**, y cada sección vive en
+su subruta: `/accounts`, `/whatsapp` —mudada tal cual desde D-176— y `/reminders`.
+
+Lo que hace que esto sea una decisión y no una maquetación: **el resumen no monta ningún formulario y
+no lee los datos de ninguna sección.** Pide **tres recuentos** —dos con `count: 'exact', head: true`,
+que no traen ni una fila, y la configuración de WhatsApp, que ya se leía— y nada más. Las cuentas,
+los mensajes y los recordatorios se consultan **al entrar**, que es la regla que el contrato pidió
+expresamente (D-185, Decisión 10) y la misma que hizo que el recuadro de loterías viviera en su propio
+límite de Suspense (D-155).
+
+**Y ninguna de estas consultas entra en un layout ni en un panel.** Ni el armazón, ni
+`/seller/dashboard`, ni la campanita. Sin sondeo del navegador y sin Realtime.
+
+El título de cada tarjeta es **el mismo** que el de su pantalla: quien toca «Cuentas para recibir
+pagos» tiene que llegar a algo que se llame así.
+
+### Decisión 2 — una cuenta se escribe como se dicta por teléfono
+
+**Nequi · 300 123 4567 · Ana Torres.** **Bancolombia · Ahorros · 123-456-789 · Ana Torres.**
+
+Primero dónde, después el número, después de quién es: es como lo dice cualquiera en voz alta y el
+orden en que el cliente lo va a teclear en su banco. Vive en **una** función —`accountParts`—, así que
+la lista de la pantalla y el mensaje de WhatsApp no pueden divergir.
+
+**El «nombre para reconocerla» no viaja al mensaje.** Es del vendedor, para distinguir «el Nequi de mi
+esposa» del suyo en una lista de cinco; ponerlo en el mensaje sería contarle al cliente algo que no le
+importa. Se ve en la lista, en gris, y hay una prueba de que **no** aparece en la vista previa.
+
+### Decisión 3 — el tipo de cuenta no se cambia al editar
+
+Un Nequi que pasa a ser una cuenta bancaria **es otra cuenta**: cambiarlo obligaría a vaciar y
+rellenar cuatro campos en la misma operación, y dejaría un registro cuya identidad cambió sin que
+nada lo dijera. Se archiva y se crea la nueva.
+
+La pantalla **lo enseña en vez de ofrecerlo** —al editar, el tipo es un dato en texto, no un
+desplegable—, y la RPC `update_seller_payment_account` **ni siquiera lo recibe**. No es una
+restricción de la interfaz: es la firma.
+
+### Decisión 4 — el orden se cambia con «Subir» y «Bajar», no arrastrando
+
+Arrastrar en un teléfono compite con el desplazamiento de la página, no tiene equivalente de teclado y
+no se puede anunciar. Dos botones se tocan, se anuncian y funcionan igual en los dos tamaños.
+
+Cada pulsación manda **la lista completa** en el orden resultante, que es lo que espera
+`reorder_seller_payment_accounts` y lo que hace la operación **idempotente**: dos pulsaciones seguidas
+producen el orden que se ve, no un desplazamiento acumulado sobre un estado que pudo cambiar en otra
+pestaña.
+
+El icono va solo a la vista; **el nombre accesible lleva el término entero** —«Subir Nequi»— en un
+`sr-only`, que es la regla de siempre (D-114).
+
+### Decisión 5 — la vista previa enseña el mensaje COMPLETO, con las cuentas ya puestas
+
+Es la pieza que sostiene BR-S07, exactamente igual que la vista previa de WhatsApp sostiene BR-W04.
+Como las cuentas se añaden **siempre al final** y **nunca** se escriben dentro del texto, la única
+forma de que eso no sea una promesa a ciegas es enseñar el mensaje entero mientras se escribe.
+
+**No existe ningún marcador.** No hay `{{cuentas}}`, no hay sintaxis que explicar y no hay nada que se
+pueda borrar, duplicar ni partir a la mitad. Hay dos pruebas —una unitaria y una de navegador— que
+fallan si alguien reintroduce uno.
+
+**El encabezado del bloque le habla al CLIENTE**, que es quien lo va a leer: **«Puedes pagar aquí:»**.
+Escribir ahí «tus cuentas» —que es como se le explica al vendedor bajo el campo— haría que el cliente
+entendiera las suyas.
+
+### Decisión 6 — sin cuentas, el mensaje lo dice; no finge un bloque vacío
+
+Si el vendedor no tiene ninguna cuenta activa, la vista previa enseña **solo la prosa**, sin
+encabezado huérfano, y **fuera del mensaje** aparece un aviso con la salida a mano: «Todavía no tienes
+cuentas para recibir pagos, así que el mensaje sale sin ellas.» + «Agregar una cuenta».
+
+Va **fuera** del recuadro a propósito: dentro sería meter un aviso del sistema en un texto que lee un
+cliente.
+
+### Decisión 7 — el tope se dice cuando estorba, no antes
+
+Con menos de cinco cuentas o menos de catorce recordatorios **no se escribe ningún contador**. Un
+«3 de 5» permanente convierte en preocupación un límite que casi nadie va a tocar.
+
+Al llegar al tope, el botón de crear **se desactiva y dice por qué**, con **la misma frase** que
+responde la base de datos: «Ya tienes 5 cuentas activas. Archiva una para agregar otra.» Que sean la
+misma no es casualidad — quien la vea dos veces no tiene que entender que hay dos sistemas.
+
+### Decisión 8 — pausar y archivar son dos cosas, con dos verbos
+
+*Pausar* deja de mandar el recordatorio y **lo conserva tal cual**: el mismo botón dice **«Reanudar»**
+y vuelve a sonar el mismo día a la misma hora. *Archivar* lo saca del listado y pide confirmación.
+
+El botón del pausado dice «Reanudar» y **nunca «Activar»**: *activar* es lo que se le hace a la cuenta
+de una persona (BR-E14), y son cosas distintas. Ninguno de los dos borra nada (D-038).
+
+### Decisión 9 — no se enseña ninguna fecha de próximo envío
+
+La base ya calcula y mantiene `next_run_at`, y la pantalla **no lo lee**. En esta etapa **no hay
+motor**: escribir «suena el martes 15» sería prometer algo que todavía no ocurre. Es la misma regla
+que la pantalla de sin conexión (D-116) y la que impide decir «cliente agregado al grupo» (BR-W08).
+
+Cuando la Etapa 3 exista, la fecha podrá enseñarse porque será verdad.
+
+### Decisión 10 — los días de la semana viven en un solo sitio
+
+`WEEKDAY_LABELS` entra en `src/lib/constants.ts`, en ISO —el 1 es lunes, como la columna `weekday` y
+como `extract(isodow …)`—, y `features/notifications/text.ts` **deja de tener su propia lista** y usa
+esa en minúsculas dentro de sus frases. Es «un término, un nombre» aplicado a algo tan pequeño que es
+justo donde se cuela una segunda forma de escribir «miércoles».
+
+### Decisión 11 — `formatClockEs` para una hora de reloj
+
+`formatTimeEs` recibe un instante y lo traduce a Bogotá; un recordatorio guarda un `time` de
+PostgreSQL, que **no tiene día ni zona**. `formatClockEs('19:00:00')` → «7:00 p. m.», formateado en
+UTC sobre una fecha ficticia precisamente para que no se desplace.
+
+Con `hour: 'numeric'` y no `'2-digit'`: aquí la hora la eligió una persona en un desplegable y «7:00
+p. m.» es como la diría. El recuadro de loterías conserva `2-digit` para horas de sorteo, que son
+siempre de dos cifras y donde no se nota.
+
+---
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Dejar las tres secciones en una sola pantalla, como estaba | La pantalla cargaría los tres formularios y sus datos en cada visita, que es justo lo que el contrato prohíbe (D-185, Decisión 10) |
+| Pestañas en vez de subrutas | Una pestaña no tiene dirección propia, así que no se puede enlazar desde el aviso «Agregar una cuenta» del formulario de recordatorio ni compartir |
+| Arrastrar para ordenar | Compite con el desplazamiento en el teléfono y no tiene equivalente de teclado (Decisión 4) |
+| Mandar «sube una posición» en vez de la lista completa | Dejaría de ser idempotente y dependería de un estado que pudo cambiar en otra pestaña |
+| Permitir cambiar el tipo al editar | Es otra cuenta (Decisión 3), y la RPC no lo recibe |
+| Un marcador `{{cuentas}}` en el mensaje | Lo prohíbe BR-S07, y D-176 ya pagó el precio de descubrir por qué |
+| Enseñar «3 de 5 cuentas» siempre | Convierte un límite que nadie toca en una preocupación permanente (Decisión 7) |
+| Enseñar la fecha del próximo envío | No hay motor todavía: sería prometer algo que no ocurre (Decisión 9) |
+| Un solo módulo `features/settings/` para las dos cosas | Son dos dominios con sus propias reglas, sus propias RPC y sus propias tablas. `features/whatsapp/` ya sentó el precedente de un módulo por función |
+| `react-hook-form` fuera de los dos diálogos | Se usa **dentro**, como el resto del proyecto. La excepción razonada sigue siendo solo `WhatsappSettingsForm` (D-176), que no se tocó |
+
+### Qué se comprobó
+
+`verify` en verde: **933** unitarias (**+37**), lint con los 2 avisos preexistentes, build. `test:db`
+**889/889**, sin cambios — esta etapa no toca la base. E2E nuevas: **15/15** en escritorio
+(`configuracion-cobro.spec.ts`) y **4/4** a 320 px (`configuracion-cobro-movil.spec.ts`), que miden
+además que **ninguna de las cuatro pantallas se desborde** y que **todos los controles nuevos lleguen
+a 44 px**.
+
+**Dos defectos propios encontrados por las pruebas nuevas y corregidos:** los `SelectTrigger` llevaban
+un `id` a mano que pisaba el que inyecta `FormControl`, de modo que **la etiqueta no nombraba al
+desplegable** —ni para un lector de pantalla ni para `getByRole('combobox', { name })`—; y un ayudante
+de la suite esperaba al aviso en vez de al cierre del diálogo, que en un bucle de cinco cuentas
+producía dos avisos iguales a la vez.
+
+**Consecuencia.** BR-M05, BR-M09, BR-S07 y BR-S09 quedan implementadas. `ARCHITECTURE` §8.23;
+`UX_COPY_GUIDELINES` (glosario, siete reglas nuevas y Anexo B); `TESTING` §4.8. **La Etapa 3 —el
+motor— necesita autorización propia.**
 
 ---
 

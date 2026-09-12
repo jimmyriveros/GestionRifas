@@ -3,7 +3,21 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-11 — **ETAPA 1 de 7 del encargo de cobro: la base de datos** (D-185,
+- **Actualizado:** 2026-09-12 — **ETAPA 2 de 7 del encargo de cobro: configuración y formularios**
+  (D-188). «Configuración» del vendedor pasa a ser **tres secciones y un resumen** —cuentas para
+  recibir pagos, grupo de WhatsApp (mudado tal cual desde D-176) y recordatorios de pago—, cada una
+  en su subruta, y **el resumen no carga ninguna**: tres recuentos y nada más. Un vendedor ya puede
+  agregar, corregir, **ordenar**, archivar y recuperar sus cuentas, y crear, editar, **pausar**,
+  **reanudar** y archivar sus recordatorios. Lo que sostiene la función: la **vista previa** enseña el
+  mensaje **completo** con las cuentas ya puestas bajo «Puedes pagar aquí:» —que le habla al
+  **cliente**—, y **no existe ningún marcador**; una cuenta se escribe **en el orden en que se dicta
+  por teléfono**; el tope se dice **cuando estorba**, no antes; y **no se enseña ninguna fecha de
+  próximo envío**, porque **el motor no existe** y prometerlo sería mentir. **Cero migraciones, cero
+  dependencias y cero cambios en la base.** Antes de escribir el primer texto se amplió el glosario
+  (16 términos, 7 reglas nuevas). **Todo en LOCAL: el proyecto real no tiene la `0051`, así que estas
+  pantallas no existen ahí.** **Rama `feature/cuentas-y-recordatorios`, sin fusionar. La Etapa 3 —el
+  motor— necesita autorización nueva.**
+  Antes, el 2026-09-11: **ETAPA 1 de 7 del encargo de cobro: la base de datos** (D-185,
   migración **`0051`**). Existen **`seller_payment_accounts`** y **`seller_payment_reminders`** con
   sus tres enumerados, sus restricciones, su RLS y **ocho RPC**; **62 pruebas** nuevas y `test:db` en
   **889/889**. Lo que conviene saber: **el tope de cinco cuentas no es un trigger, es la forma de la
@@ -14,8 +28,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   con un trigger que **solo** recalcula si cambia el horario o se reactiva, para que el motor de la
   Etapa 3 pueda adelantarlo sin entrar en bucle. **NO hay pantalla** (Etapa 2), **ni motor, ni
   `pg_cron`, ni push** (etapas 3 a 5), y **la migración NO está en el proyecto real**, que sigue en
-  50: promoverla es la Etapa 7. **Rama `feature/cuentas-y-recordatorios`, sin fusionar. La Etapa 2
-  necesita autorización nueva.**
+  50: promoverla es la Etapa 7.
   Antes, el mismo día: **la ETAPA 0**, contrato funcional y arquitectura documentada
   (D-185, D-186, D-187). **Sin código, sin migraciones y sin nada tocado en Supabase o Vercel** — el
   trabajo entero vivió en `docs/`, y las reglas nuevas
@@ -4779,3 +4792,88 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — cuentas de cobro y recordatorios, **ETAPA 2 de 7**: configuración y formularios (D-188, 2026-09-12)
+
+Autorizada expresamente. **No es una Fase 10** y no lleva etiqueta `fase-*`.
+
+> **TODO EN LOCAL.** El proyecto real **no tiene la migración `0051`** que sostiene estas pantallas:
+> promoverla es la **Etapa 7**. **El motor no existe todavía** (Etapa 3), así que un recordatorio
+> guardado **no suena** — y la pantalla no promete que lo haga.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| «Configuración» son **tres secciones y un resumen** | `/seller/settings` enseña tres tarjetas-enlace con su estado en una línea; `/accounts`, `/whatsapp` —mudada tal cual desde D-176— y `/reminders` tienen su propia pantalla |
+| El resumen **no carga nada** | Tres recuentos: dos con `count: 'exact', head: true` —que no traen ni una fila— y la configuración de WhatsApp, que ya se leía. Ningún formulario, ninguna consulta en un layout, sin sondeo y sin Realtime |
+| Cuentas para recibir pagos | Agregar, corregir, **ordenar**, archivar y volver a usar. Nequi y Daviplata piden teléfono; una cuenta bancaria, banco, tipo, número y titular |
+| Cómo se escribe una cuenta | **En el orden en que se dicta por teléfono**: «Nequi · 300 123 4567 · Ana Torres», «Bancolombia · Ahorros · 123-456-789 · Ana Torres». Una sola función, así que la lista y el mensaje no pueden divergir |
+| El **nombre para reconocerla** | Se ve en la lista, en gris, y **no viaja al mensaje**: es del vendedor |
+| El tipo **no se cambia al editar** | Un Nequi que pasa a ser bancaria es otra cuenta. La pantalla lo enseña como dato, y la RPC **ni lo recibe** |
+| El orden, con **«Subir» y «Bajar»** | No arrastrando: compite con el desplazamiento en el teléfono y no tiene equivalente de teclado. Manda la lista **completa**, así que es idempotente |
+| Recordatorios de pago | Crear, editar, **pausar**, **reanudar** y archivar. Día de la semana y hora con precisión de minuto |
+| La **vista previa** | Enseña el mensaje **completo**, con las cuentas ya puestas al final bajo «Puedes pagar aquí:» — que le habla al **cliente**, no al vendedor. **No existe ningún marcador** |
+| Sin cuentas | El mensaje sale sin ellas y se dice **fuera** de la vista previa, con «Agregar una cuenta» a mano. No se finge un bloque vacío |
+| El tope | Se dice **cuando estorba**: con menos de cinco cuentas o catorce recordatorios no hay ningún contador. Al llegar, el botón se apaga con **la misma frase** que responde la base |
+| Lo que **no** se enseña | **Ninguna fecha de próximo envío.** La base ya calcula `next_run_at`, pero sin motor sería prometer algo que no ocurre |
+| Textos | `ACCOUNT_COPY` y `REMINDER_COPY`, cada uno con **todos** los suyos juntos; las etiquetas de estado y los nombres de los días, en `src/lib/constants.ts` |
+
+**Antes de escribir el primer texto se amplió el glosario** (`CLAUDE.md` §35.2.3): 16 términos nuevos
+en el Anexo A, siete reglas de redacción propias y siete entradas en el Anexo B.
+
+**Lo que NO trae:** ni motor, ni `pg_cron`, ni ocurrencias, ni campana, ni push, ni el flujo
+copiar–abrir–atender. Son las etapas 3 a 5.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ typecheck · lint con los 2 avisos preexistentes · **933/933** unitarias (**+37**) · build |
+| `npm run test:db` | ✅ **889/889**, sin cambios: no se tocó la base |
+| `configuracion-cobro.spec.ts` | ✅ **15/15** (escritorio) |
+| `configuracion-cobro-movil.spec.ts` | ✅ **4/4** a 320 px, midiendo desbordamiento y diana táctil |
+| Suite E2E completa | **626 pasan · 4 fallan**, y los cuatro son **conocidos y ajenos**: I-090 (tres) e I-106 (uno). Ninguna prueba de esta etapa falla |
+
+**Dos defectos propios encontrados por las pruebas nuevas y corregidos:**
+
+1. **Los desplegables se quedaron sin nombre accesible.** `SelectTrigger` llevaba un `id` a mano que
+   **pisaba el que inyecta `FormControl`**, así que el `htmlFor` de la etiqueta apuntaba a un elemento
+   que ya no lo tenía. No lo anunciaba un lector de pantalla ni lo encontraba
+   `getByRole('combobox', { name })`. El arreglo es **quitar el `id`**, y queda anotado en
+   `ARCHITECTURE` §8.23 porque puede repetirse en cualquier `Select` dentro de un formulario.
+2. Un ayudante de la suite esperaba al **aviso** en vez de al cierre del diálogo: en un bucle de cinco
+   cuentas coincidía con dos avisos iguales a la vez.
+
+### 3. Migraciones que existen
+
+**`0001`–`0051`, sin cambios.** Esta etapa **no escribió ninguna migración** y no tocó `supabase/`.
+En el proyecto real siguen **50** (la última, `0050`).
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.** `.env.example`, `check:env` y `vercel.json` **no se tocaron**.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **Nada suena todavía, y eso condiciona la promoción** | Un vendedor puede guardar cuentas y recordatorios, pero sin la Etapa 3 no se le avisa. La pantalla no enseña ninguna fecha, pero la descripción de la sección **sí dice** «te preparemos el mensaje de cobro»: **promover esta etapa a producción SIN el motor convertiría esa frase en una promesa incumplida**. La Etapa 7 debería ir después de la 3, o esa descripción tendría que cambiar antes |
+| **I-108** heredada | El teléfono de una cuenta usa el mismo `PHONE_REGEX`, que cuenta caracteres y no dígitos |
+| **La CLI de Supabase genera tipos distintos** | Sigue vigente de la Etapa 1: quien regenere `database.types.ts` tiene que restaurar los seis `| null` |
+| Todo lo demás | Sin cambios: I-109, I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030, I-059, I-060 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Etapa 3.** Hace falta una autorización explícita nueva.
+2. **`buildReminderMessage` ya existe y la Etapa 3 lo usa tal cual**: el mensaje se compone **al
+   abrirlo o copiarlo**, nunca se guarda con el recordatorio (BR-S08). No lo dupliques en el motor.
+3. **`reminders.ts` importa de `accounts.ts` y no al revés.** Esa dirección es lo que deja el
+   compositor reutilizable sin tocar ninguna pantalla.
+4. **No le pongas `id` a un `SelectTrigger` dentro de un `FormControl`** (defecto 1 de arriba).
+5. **No enseñes una fecha de próximo envío hasta que el motor exista**; cuando exista, podrá enseñarse
+   porque será verdad.
+6. **No añadas políticas de escritura a las dos tablas**: las RPC siguen siendo la única puerta.
+7. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.

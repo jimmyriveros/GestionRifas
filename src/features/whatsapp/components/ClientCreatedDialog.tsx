@@ -159,7 +159,10 @@ export function ClientCreatedDialog({
             // No se ofrece una accion que va a fallar: se cambia por la que
             // lleva a arreglarlo. El cliente ya quedo creado y NO se deshace
             // nada al salir de aqui (seccion 14 del encargo).
-            <AlertDialogAction onClick={() => router.push('/seller/settings')}>
+            // Al FORMULARIO, no al resumen: desde D-188 «Configuración» son
+            // tres secciones, y dejar a alguien en la portada cuando se le
+            // acaba de decir que le falta el grupo le cuesta un toque de mas.
+            <AlertDialogAction onClick={() => router.push('/seller/settings/whatsapp')}>
               {INVITE_DIALOG_COPY.configure}
             </AlertDialogAction>
           ) : blocker === null ? (

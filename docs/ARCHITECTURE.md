@@ -1,11 +1,11 @@
 # ARQUITECTURA
 
-- **Versión:** 1.26 · **Estado:** implementado · **Actualizado:** 2026-09-11
+- **Versión:** 1.27 · **Estado:** implementado · **Actualizado:** 2026-09-12
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
-- ⚠️ **Dos secciones describen algo que todavía NO existe** y lo dicen en su encabezado: **§8.23**
-  («Configuración» del vendedor con subrutas) y **§8.24** (motor de recordatorios, cron y salida de
-  avisos), autorizadas el 2026-09-11 (D-185). **§8.15.a lleva una corrección**: las notificaciones
-  **no** van con Firebase, sino con Web Push estándar (D-187).
+- **§8.23** («Configuración» del vendedor con subrutas) está **implementada** desde el 2026-09-12
+  (D-188). ⚠️ **§8.24** (motor de recordatorios, cron y salida de avisos) **todavía NO existe**: es
+  la Etapa 3 de D-185 y lo dice en su encabezado. **§8.15.a lleva una corrección**: las
+  notificaciones **no** van con Firebase, sino con Web Push estándar (D-187).
 
 ---
 
@@ -1670,11 +1670,10 @@ caracteres.
 **Donde el teléfono se LEE —tablas, fichas, CSV, catálogo público— no cambia nada:** ahí se muestra el
 dato guardado, y formatearlo esconderían que en la base conviven varios formatos.
 
-### 8.23 «Configuración» del vendedor: un resumen y tres subrutas — **PLANIFICADO** (D-185)
+### 8.23 «Configuración» del vendedor: un resumen y tres subrutas (D-185, D-188)
 
-> ⚠️ **NO EXISTE TODAVÍA.** Autorizado el 2026-09-11 (Etapa 0). Hoy `/seller/settings` es **una sola
-> pantalla con una sola tarjeta**, la de WhatsApp (D-176). Esto describe en qué se convierte en la
-> Etapa 2.
+> **IMPLEMENTADO el 2026-09-12** (Etapa 2). Existe y está probado: 15 pruebas de escritorio y 4 a
+> 320 px. **En local**; el proyecto real todavía no tiene la migración `0051` que lo sostiene.
 
 La pantalla que D-176 dejó «pensada para crecer, sin arquitectura de más» crece ahora, y lo hace como
 aquel comentario anticipó: *«cuando haya tres o cuatro y no quepan de un vistazo, será el momento de
@@ -1703,16 +1702,31 @@ repetirlas donde se van a olvidar:
 3. **La composición del mensaje ocurre al abrirlo o copiarlo**, no al pintar la lista. Una lista de
    catorce recordatorios no arma catorce mensajes con las cuentas dentro.
 
-**Se reutiliza lo que ya existe**, y conviene mirarlo antes de escribir nada: la convención de
-módulo de `features/` —`schemas.ts`, `queries.ts`, `actions.ts`, `components/`—, `ConfirmDialog` para
-archivar, `EmptyState` para las tres listas vacías, `PhoneInput` para el teléfono de una cuenta de
-Nequi o Daviplata (**D-184: mostrar no es guardar**), `MoneyInput` **no** —aquí no hay dinero—, y la
-mecánica de mensaje propio con interruptor y vista previa que ya está escrita y probada en
-`features/whatsapp/invite.ts`.
+**Lo que se reutilizó**, y conviene mirarlo antes de tocar nada: la convención de módulo de
+`features/` —`schemas.ts`, `queries.ts`, `actions.ts`, `components/`—, `ConfirmDialog` para archivar,
+`EmptyState` para las listas vacías, `PhoneInput` para el teléfono de una cuenta de Nequi o Daviplata
+(**D-184: mostrar no es guardar**), `StatusBadge` para el estado de un recordatorio, y la mecánica de
+mensaje propio con interruptor y vista previa que ya estaba escrita y probada en
+`features/whatsapp/invite.ts`. **No hay `MoneyInput`**: aquí no hay dinero.
 
-**Dónde va cada texto** se fija en la Etapa 2, ampliando antes el Anexo A y el Anexo B de
-`UX_COPY_GUIDELINES` (`CLAUDE.md` §35.2.3). En la Etapa 0 **no se escribe ningún texto visible**, así
-que la guía no se toca todavía.
+**Los dos módulos nuevos:**
+
+| Módulo | Qué contiene |
+|---|---|
+| `features/payment-accounts/` | `accounts.ts` (PURO: cómo se escribe una cuenta y **todos** sus textos), `schemas.ts`, `queries.ts`, `actions.ts`, `components/` |
+| `features/payment-reminders/` | `reminders.ts` (PURO: el compositor del mensaje, el predeterminado y **todos** sus textos), y los mismos cuatro |
+
+**`reminders.ts` importa de `accounts.ts` y no al revés.** El mensaje necesita las cuentas; las
+cuentas no saben nada de recordatorios. Esa dirección es lo que permite que la Etapa 3 use
+`buildReminderMessage` tal cual, sin tocar ninguna de las dos pantallas.
+
+**Dos diálogos, un formulario cada uno**, parametrizados por el registro que editan —el patrón de
+`UserDialog`—: los campos, sus mensajes y su validación son los mismos para crear y para corregir.
+
+⚠️ **No le pongas `id` a un `SelectTrigger` dentro de un `FormControl`.** Pisa el que inyecta
+`FormControl`, y con él se va el `htmlFor` de la etiqueta: el desplegable deja de tener nombre
+accesible —no lo anuncia un lector de pantalla y no lo encuentra `getByRole('combobox', { name })`—.
+Lo encontró una prueba de esta etapa (D-188).
 
 ### 8.24 El motor de recordatorios: cron, ocurrencias y salida de avisos — **PLANIFICADO** (D-185, D-186, D-187)
 

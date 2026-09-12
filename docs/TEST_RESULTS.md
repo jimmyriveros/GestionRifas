@@ -10170,3 +10170,108 @@ lo hace ya el ayudante `nequi()` de la suite.
 * **Concurrencia real del tope de 14.** El cerrojo de aviso está puesto y razonado, pero la prueba
   con dos conexiones simultáneas se hará junto con las del motor, que es donde esa mecánica se
   ejercita de verdad.
+
+---
+
+## Cuentas de cobro y recordatorios, Etapa 2: configuración y formularios (D-188) — 2026-09-12
+
+**Alcance:** dos módulos nuevos en `src/features/`, tres rutas nuevas, el resumen de
+`/seller/settings` y sus pruebas. **Ninguna migración, ninguna dependencia, ningún cambio en la base
+de datos.** Nada aplicado al proyecto real.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **933/933** unitarias (**+37**), `build` |
+| `npm run test:db` | ✅ **889/889** — **sin cambios**: esta etapa no toca la base |
+| `configuracion-cobro.spec.ts` (escritorio) | ✅ **15/15** |
+| `configuracion-cobro-movil.spec.ts` (Pixel 7) | ✅ **4/4** |
+| Suite E2E completa | ver §d |
+
+### b. Dos defectos propios, encontrados por las pruebas nuevas
+
+**1. Los desplegables se quedaron sin nombre accesible.** `SelectTrigger` llevaba un `id` escrito a
+mano —`id="account-kind"`, `id="reminder-weekday"`, `id="account-type"`— que **pisaba el que inyecta
+`FormControl`**. Con eso, el `htmlFor` de `FormLabel` apuntaba a un elemento que ya no tenía ese id, y
+el desplegable dejaba de tener nombre: ni lo anunciaba un lector de pantalla, ni lo encontraba
+`getByRole('combobox', { name })`. Se manifestó como cuatro pruebas agotando su tiempo esperando un
+`combobox` llamado «Día».
+
+**El arreglo es quitar el `id`**, no añadir un `aria-label`: `FormControl` ya pone el suyo y es el que
+la etiqueta referencia. Queda anotado en `ARCHITECTURE` §8.23 porque se puede repetir en cualquier
+`Select` dentro de un formulario.
+
+**2. Un ayudante de la suite esperaba al aviso en vez de al cierre del diálogo.** En el bucle de cinco
+cuentas del tope, «La cuenta fue agregada.» coincidía con **dos** avisos de `sonner` a la vez —el
+anterior aún no se había ido— y la aserción fallaba por ambigüedad, no por el producto. Se cambió por
+esperar a que el diálogo se desmonte, que además es lo que la persona ve.
+
+### c. La comprobación que sostiene BR-S07
+
+La regla dice que las cuentas se añaden **solas** al final del mensaje y que **no existe ningún
+marcador**. Se comprueba en dos sitios y desde los dos lados:
+
+* **Unitaria**: `buildReminderMessage` con mensaje propio y una cuenta → el resultado **no contiene**
+  `{{` ni `}}`, y sí contiene `Puedes pagar aquí:` con la línea de la cuenta.
+* **Navegador**: el diálogo entero **no contiene** `{{`, y la vista previa enseña la cuenta.
+* **Y al revés**: cambiar el titular de la cuenta y volver a abrir el recordatorio enseña el nombre
+  nuevo **sin haber tocado el recordatorio** (BR-S08).
+
+### d. Suite E2E completa
+
+Tras `db:reset` + `seed:local`: **626 pasan · 4 fallan** en 33 min. **Los cuatro son conocidos y
+ajenos a este trabajo**: `reports.spec.ts:305` y los dos de `ventas-por-fecha` son **I-090**
+(acumulación; verdes en aislamiento), y `catalogo-publico-movil.spec.ts:103` es **I-106**
+(depende del orden; 15/15 cuando su archivo corre solo). **Ninguna prueba de esta etapa falla.**
+
+#### d.ter Una pasada anterior falló por MI culpa, y conviene que quede escrito
+
+La primera pasada limpia dio **625 · 5**, y el quinto fallo era **mío**:
+`configuracion-cobro.spec.ts › pausar NO es archivar`. No se dio por conocido: se persiguió.
+
+* En aislamiento, **pasa**.
+* Repitiendo su archivo **dos veces seguidas sin `db:reset`** —para forzar acumulación—:
+  **30/30**.
+* Con los **ocho archivos de escritorio que corren antes** que él en orden alfabético, más el suyo:
+  **140/140**.
+
+La causa era otra: **estuve editando archivos de prueba y de producción mientras la suite corría**
+—`reminders.ts`, `ClientCreatedDialog.tsx`, `security.spec.ts` y el propio archivo de la prueba—, y
+el servidor de desarrollo recompila al vuelo. Se relanzó **sin tocar nada** y el fallo desapareció.
+
+**La lección, para la próxima sesión: una pasada completa dura media hora y no se edita nada
+mientras corre.** Un fallo así no se distingue de uno real hasta que se ha perdido un rato
+persiguiéndolo.
+
+### d.bis Un tropiezo del entorno, no del código: el seed a medias (I-028)
+
+La primera ejecución de la suite completa se lanzó sobre una base **mal sembrada**: el `seed:local`
+posterior al `db:reset` falló a mitad —dejó **1 organización, 0 rifas y 0 perfiles**— porque **GoTrue
+tarda más que Postgres en arrancar** tras reiniciar los contenedores. Es **I-028**, exactamente como
+está documentada, y el síntoma es un error con `code: undefined` al final del seed.
+
+Se detectó antes de leer un solo resultado, contando filas. Se mató la ejecución siguiendo el
+procedimiento de `HANDOFF` §9 —matar el árbol de procesos y comprobar que el puerto 3000 sigue
+sirviendo—, se comprobó `auth/v1/health` (200), se volvió a sembrar —**el seed es idempotente**— y se
+relanzó. **Ninguna cifra de esta sección viene de aquella ejecución.**
+
+### e. Lo que NO se comprobó, y se dice
+
+* **Nada con una cuenta real en el navegador.** Las pantallas viven tras el inicio de sesión y un
+  agente no introduce contraseñas: lo que las recorre es Playwright, con las cuentas del seed. Las
+  capturas que se revisaron durante el trabajo se tomaron por ese mismo camino.
+* **El motor.** No existe: nada suena todavía, y la pantalla **no promete ninguna fecha**.
+* **El teclado de un teléfono real**, que Chromium no reproduce (I-079, I-066).
+* **375, 390 y 430 px.** Se midieron los **320**, que es el peor caso; los otros tres anchos quedan
+  para la auditoría de la Etapa 6.
+
+**Quien lo compruebe, con su cuenta:**
+
+1. Menú del avatar → «Configuración»: tres tarjetas, cada una con su estado en una línea.
+2. «Cuentas para recibir pagos» → «Agregar cuenta»: con Nequi pide teléfono; al elegir «Cuenta
+   bancaria» cambian los campos.
+3. Con dos cuentas, «Subir» en la segunda: cambia el orden, y ese es el orden del mensaje.
+4. «Recordatorios de pago» → «Crear recordatorio»: la vista previa enseña el mensaje **completo**, con
+   las cuentas al final.
+5. Corregir el titular de una cuenta y volver al recordatorio: el mensaje ya sale con el nombre nuevo.
