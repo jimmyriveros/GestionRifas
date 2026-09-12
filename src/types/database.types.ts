@@ -1189,6 +1189,132 @@ export type Database = {
           },
         ]
       }
+      seller_payment_accounts: {
+        Row: {
+          account_number: string | null
+          account_type: Database["public"]["Enums"]["bank_account_type"] | null
+          archived_at: string | null
+          bank_name: string | null
+          created_at: string
+          holder_name: string
+          id: string
+          kind: Database["public"]["Enums"]["payment_account_kind"]
+          label: string | null
+          organization_id: string
+          phone: string | null
+          seller_id: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          account_type?: Database["public"]["Enums"]["bank_account_type"] | null
+          archived_at?: string | null
+          bank_name?: string | null
+          created_at?: string
+          holder_name: string
+          id?: string
+          kind: Database["public"]["Enums"]["payment_account_kind"]
+          label?: string | null
+          organization_id: string
+          phone?: string | null
+          seller_id: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          account_type?: Database["public"]["Enums"]["bank_account_type"] | null
+          archived_at?: string | null
+          bank_name?: string | null
+          created_at?: string
+          holder_name?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["payment_account_kind"]
+          label?: string | null
+          organization_id?: string
+          phone?: string | null
+          seller_id?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_payment_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_payment_accounts_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+        ]
+      }
+      seller_payment_reminders: {
+        Row: {
+          created_at: string
+          custom_message: string | null
+          id: string
+          last_run_at: string | null
+          next_run_at: string
+          organization_id: string
+          seller_id: string
+          status: Database["public"]["Enums"]["payment_reminder_status"]
+          time_of_day: string
+          updated_at: string
+          use_custom_message: boolean
+          weekday: number
+        }
+        Insert: {
+          created_at?: string
+          custom_message?: string | null
+          id?: string
+          last_run_at?: string | null
+          next_run_at?: string
+          organization_id: string
+          seller_id: string
+          status?: Database["public"]["Enums"]["payment_reminder_status"]
+          time_of_day: string
+          updated_at?: string
+          use_custom_message?: boolean
+          weekday: number
+        }
+        Update: {
+          created_at?: string
+          custom_message?: string | null
+          id?: string
+          last_run_at?: string | null
+          next_run_at?: string
+          organization_id?: string
+          seller_id?: string
+          status?: Database["public"]["Enums"]["payment_reminder_status"]
+          time_of_day?: string
+          updated_at?: string
+          use_custom_message?: boolean
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_payment_reminders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_payment_reminders_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           approved_at: string | null
@@ -1674,6 +1800,31 @@ export type Database = {
     }
     Functions: {
       approve_tickets: { Args: { p_ticket_ids: string[] }; Returns: number }
+      archive_seller_payment_account: {
+        Args: { p_id: string }
+        Returns: {
+          account_number: string | null
+          account_type: Database["public"]["Enums"]["bank_account_type"] | null
+          archived_at: string | null
+          bank_name: string | null
+          created_at: string
+          holder_name: string
+          id: string
+          kind: Database["public"]["Enums"]["payment_account_kind"]
+          label: string | null
+          organization_id: string
+          phone: string | null
+          seller_id: string
+          sort_order: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "seller_payment_accounts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       assign_ticket: {
         Args: { p_client_id: string; p_sale_date?: string; p_ticket_id: string }
         Returns: undefined
@@ -1794,6 +1945,67 @@ export type Database = {
         }
         Returns: string
       }
+      create_payment_reminder: {
+        Args: {
+          p_custom_message?: string
+          p_time_of_day: string
+          p_use_custom_message?: boolean
+          p_weekday: number
+        }
+        Returns: {
+          created_at: string
+          custom_message: string | null
+          id: string
+          last_run_at: string | null
+          next_run_at: string
+          organization_id: string
+          seller_id: string
+          status: Database["public"]["Enums"]["payment_reminder_status"]
+          time_of_day: string
+          updated_at: string
+          use_custom_message: boolean
+          weekday: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "seller_payment_reminders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_seller_payment_account: {
+        Args: {
+          p_account_number?: string
+          p_account_type?: Database["public"]["Enums"]["bank_account_type"]
+          p_bank_name?: string
+          p_holder_name: string
+          p_kind: Database["public"]["Enums"]["payment_account_kind"]
+          p_label?: string
+          p_phone?: string
+        }
+        Returns: {
+          account_number: string | null
+          account_type: Database["public"]["Enums"]["bank_account_type"] | null
+          archived_at: string | null
+          bank_name: string | null
+          created_at: string
+          holder_name: string
+          id: string
+          kind: Database["public"]["Enums"]["payment_account_kind"]
+          label: string | null
+          organization_id: string
+          phone: string | null
+          seller_id: string
+          sort_order: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "seller_payment_accounts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       current_org_ids: { Args: never; Returns: string[] }
       current_profile_id: { Args: never; Returns: string }
       current_profile_leads_team: { Args: { p_org: string }; Returns: boolean }
@@ -1835,6 +2047,11 @@ export type Database = {
           name: string
           phone: string
         }[]
+      }
+      max_active_payment_reminders: { Args: never; Returns: number }
+      next_reminder_run_at: {
+        Args: { p_from?: string; p_time: string; p_weekday: number }
+        Returns: string
       }
       notify_lottery_schedule_changes: {
         Args: { p_now?: string }
@@ -1930,6 +2147,31 @@ export type Database = {
         }
         Returns: string
       }
+      reorder_seller_payment_accounts: {
+        Args: { p_ids: string[] }
+        Returns: {
+          account_number: string | null
+          account_type: Database["public"]["Enums"]["bank_account_type"] | null
+          archived_at: string | null
+          bank_name: string | null
+          created_at: string
+          holder_name: string
+          id: string
+          kind: Database["public"]["Enums"]["payment_account_kind"]
+          label: string | null
+          organization_id: string
+          phone: string | null
+          seller_id: string
+          sort_order: number | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "seller_payment_accounts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       report_payment_totals: {
         Args: {
           p_date_from?: string
@@ -1976,6 +2218,32 @@ export type Database = {
         }[]
       }
       require_auth: { Args: never; Returns: string }
+      require_seller_org: { Args: never; Returns: string }
+      restore_seller_payment_account: {
+        Args: { p_id: string }
+        Returns: {
+          account_number: string | null
+          account_type: Database["public"]["Enums"]["bank_account_type"] | null
+          archived_at: string | null
+          bank_name: string | null
+          created_at: string
+          holder_name: string
+          id: string
+          kind: Database["public"]["Enums"]["payment_account_kind"]
+          label: string | null
+          organization_id: string
+          phone: string | null
+          seller_id: string
+          sort_order: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "seller_payment_accounts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       search_normalize: { Args: { value: string }; Returns: string }
       search_tickets: {
         Args: {
@@ -2009,6 +2277,32 @@ export type Database = {
           total_count: number
           weekly_number: string
         }[]
+      }
+      set_payment_reminder_status: {
+        Args: {
+          p_id: string
+          p_status: Database["public"]["Enums"]["payment_reminder_status"]
+        }
+        Returns: {
+          created_at: string
+          custom_message: string | null
+          id: string
+          last_run_at: string | null
+          next_run_at: string
+          organization_id: string
+          seller_id: string
+          status: Database["public"]["Enums"]["payment_reminder_status"]
+          time_of_day: string
+          updated_at: string
+          use_custom_message: boolean
+          weekday: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "seller_payment_reminders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       set_seller_whatsapp_settings: {
         Args: {
@@ -2151,6 +2445,68 @@ export type Database = {
         }
         Returns: string
       }
+      update_payment_reminder: {
+        Args: {
+          p_custom_message?: string
+          p_id: string
+          p_time_of_day: string
+          p_use_custom_message?: boolean
+          p_weekday: number
+        }
+        Returns: {
+          created_at: string
+          custom_message: string | null
+          id: string
+          last_run_at: string | null
+          next_run_at: string
+          organization_id: string
+          seller_id: string
+          status: Database["public"]["Enums"]["payment_reminder_status"]
+          time_of_day: string
+          updated_at: string
+          use_custom_message: boolean
+          weekday: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "seller_payment_reminders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      update_seller_payment_account: {
+        Args: {
+          p_account_number?: string
+          p_account_type?: Database["public"]["Enums"]["bank_account_type"]
+          p_bank_name?: string
+          p_holder_name: string
+          p_id: string
+          p_label?: string
+          p_phone?: string
+        }
+        Returns: {
+          account_number: string | null
+          account_type: Database["public"]["Enums"]["bank_account_type"] | null
+          archived_at: string | null
+          bank_name: string | null
+          created_at: string
+          holder_name: string
+          id: string
+          kind: Database["public"]["Enums"]["payment_account_kind"]
+          label: string | null
+          organization_id: string
+          phone: string | null
+          seller_id: string
+          sort_order: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "seller_payment_accounts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       update_ticket_sale_price: {
         Args: {
           p_expected_sale_price: number
@@ -2177,6 +2533,7 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "admin" | "seller"
+      bank_account_type: "savings" | "checking"
       commission_model: "tiered" | "fixed_per_ticket"
       commission_movement:
         | "sale"
@@ -2215,7 +2572,9 @@ export type Database = {
         | "schedule_conflict"
       lottery_sync_kind: "schedule" | "results"
       lottery_sync_outcome: "success" | "partial" | "failed" | "skipped"
+      payment_account_kind: "nequi" | "daviplata" | "bank"
       payment_method: "cash" | "transfer" | "other"
+      payment_reminder_status: "active" | "paused" | "archived"
       raffle_status: "draft" | "active" | "closed" | "cancelled"
       ticket_inventory_status:
         | "draft"
@@ -2355,6 +2714,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "admin", "seller"],
+      bank_account_type: ["savings", "checking"],
       commission_model: ["tiered", "fixed_per_ticket"],
       commission_movement: [
         "sale",
@@ -2398,7 +2758,9 @@ export const Constants = {
       ],
       lottery_sync_kind: ["schedule", "results"],
       lottery_sync_outcome: ["success", "partial", "failed", "skipped"],
+      payment_account_kind: ["nequi", "daviplata", "bank"],
       payment_method: ["cash", "transfer", "other"],
+      payment_reminder_status: ["active", "paused", "archived"],
       raffle_status: ["draft", "active", "closed", "cancelled"],
       ticket_inventory_status: [
         "draft",

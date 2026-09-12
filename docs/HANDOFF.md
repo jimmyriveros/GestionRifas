@@ -29,7 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
-| **Cuentas de cobro y recordatorios: ENCARGO ABIERTO, ETAPA 0 de 7** | Autorizado el 2026-09-11 (D-185, D-186, D-187). **Lo único que existe es documentación**: contrato, 31 reglas nuevas (**BR-M**, **BR-S**, **BR-V**), modelo de datos planificado, aislamiento, pantalla, motor y criterios de aceptación. **NO hay código, ni migración, ni dependencia, ni variable de entorno nueva**, y no se tocó Supabase ni Vercel. Lo que hay que saber antes de implementarlo: las cuentas y los recordatorios van en **tablas propias con política propia** —**nunca** columnas de `memberships`, porque `memberships_select` deja leer esa fila al personal y al vendedor padre, y el contrato dice que **solo el vendedor** los ve—; el motor es **un solo `pg_cron`** y **eso no contradice D-148**, que rechazaba `pg_cron` para **parsers en Node** (D-186); **Web Push estándar, sin Firebase** —lo que deja **desactualizada** la §8.15.a de `ARCHITECTURE` y el comentario de `public/sw.js`— y la **campana interna sigue siendo la fuente durable**. **La Etapa 1 necesita autorización nueva.** Rama `feature/cuentas-y-recordatorios`, **sin fusionar** |
+| **Cuentas de cobro y recordatorios: ENCARGO ABIERTO, ETAPA 1 de 7 hecha** | Desde el 2026-09-11 (D-185, migración **`0051`**, **solo en local**) existen `seller_payment_accounts` y `seller_payment_reminders` con sus tres enumerados, su RLS y **ocho RPC**. Lo que hay que saber antes de tocarlo: **tablas propias, no columnas de `memberships`** —esa fila la leen el personal y el vendedor padre, y aquí solo la ve su dueño—; **una sola política, y es de `SELECT`**: `authenticated` no tiene `INSERT`, `UPDATE` ni `DELETE`, así que **las RPC son la única puerta** y por eso el tope, el orden y la bitácora no se pueden esquivar; **el tope de 5 es la forma de la tabla** (posición 1..5 única por vendedor, `DEFERRABLE` para reordenar) y el de 14 es un trigger con **cerrojo de aviso**; **`next_run_at` ya se calcula** en `America/Bogota` y su trigger **solo** recalcula si cambia el horario o se reactiva — **no lo cambies**, el motor de la Etapa 3 adelantará esa columna. **NO hay pantalla, ni motor, ni `pg_cron`, ni push, ni dependencias nuevas**, y **el proyecto real no tiene la migración** (sigue en 50): promoverla es la Etapa 7. **La Etapa 2 necesita autorización nueva.** Rama `feature/cuentas-y-recordatorios`, **sin fusionar** |
 | **Teléfono con separadores** | Desde el 2026-09-09 (D-184) los campos de teléfono se escriben **«300 123 4567»** y **«+57 300 123 4567»**. Un componente, `PhoneInput`, y un módulo puro, `lib/phone.ts`, para las **ocho** pantallas donde se escribe uno. **MOSTRAR NO ES GUARDAR:** formatear ocurre al pintar y **no** dispara `onChange`, así que un teléfono guardado con otro formato se ve legible y se envía tal cual; solo una edición explícita del campo adopta la forma nueva. **NO hubo migración de datos ni actualización masiva.** Los grupos aparecen desde el **octavo** dígito a propósito: `PHONE_REGEX` cuenta caracteres y no dígitos (**I-108**), y agrupar antes aceptaría teléfonos de seis cifras. La búsqueda, el enlace `wa.me` y la identidad de clientes del importador **reciben exactamente lo mismo**, porque la máscara no toca los dígitos. Donde el teléfono se **lee** —tabla, ficha, CSV, catálogo— no cambia nada. **DESPLEGADO** el 2026-09-10 (`9900635`), **sin migración**: la base de producción no se tocó. Antes de subir se confirmó en producción, con una sonda de solo lectura, que **ninguno de los 565 teléfonos guardados** tiene espacios en los bordes, así que guardar sin tocar devuelve la misma cadena en todos |
 | **Panel administrativo, rediseñado** | Desde el 2026-09-09 (D-182, D-183) el panel del dueño se lee en el mismo orden que el del vendedor: **el dinero primero** —«Resumen de cobranza» pasa de y = 518 a y = 267— y con el **reparto por estado de pago dentro**, que dice cuánto debe cada grupo y enlaza a `/owner/tickets` filtrado. Debajo, «Resumen por vendedor» e «Inventario» comparten fila en **7/5 desde `lg`**, y la tabla ordena por **saldo pendiente** y enseña cinco. Se van «Pendientes de aprobación» (la contaba ya el aviso ámbar), «Boletas creadas recientemente» **y su consulta**, y el título «Cobranza»; «Total de boletas» pasa a **«Registradas»**. **Cero migraciones, cero consultas nuevas, cero reglas.** El reparto es la MISMA pieza que el vendedor (`CollectionBreakdownSection`). **DESPLEGADO** el 2026-09-09 (`523b4bc`), **sin migración**: la base de producción no se tocó |
 | Última fase completada | **9 — Auditoría final independiente. El plan de 10 fases está terminado** |
@@ -141,7 +141,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — cuentas para recibir pagos y recordatorios: **ETAPA 0, SOLO DOCUMENTACIÓN** (D-185, D-186, D-187, 2026-09-11)
+## 1.a Último relevo significativo — cuentas de cobro y recordatorios, ETAPA 1: la base de datos (`0051`, D-185, 2026-09-11)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Migración `0051`, aplicada y verificada EN LOCAL.** Dos tablas —`seller_payment_accounts` y `seller_payment_reminders`—, tres enumerados, sus restricciones, sus índices, RLS, **ocho RPC** y tres auxiliares internas, con **62 pruebas** de base de datos. Los tipos regenerados. **NO hay pantalla** (Etapa 2), **ni motor, ni `pg_cron`, ni ocurrencias, ni push** (etapas 3 a 5), **ni una sola dependencia nueva**, y **la migración NO está en el proyecto real**: eso es la Etapa 7. **Fuera de alcance a propósito:** todo lo anterior, y los **textos de pantalla**, que se acuñan en la Etapa 2 ampliando antes el glosario |
+| Archivos | **Nuevos:** `supabase/migrations/0051_seller_payment_accounts_and_reminders.sql`, `tests/db/payment-accounts-reminders.test.ts` (**62**). **Tocados:** `src/types/database.types.ts` (**+362, −0**), `tests/db/catalog.test.ts` y `scripts/verify-remote.ts` (las **dos** listas blancas, más la comprobación contraria en cada una). Documentación: `DECISIONS` (nota de la Etapa 1 en **D-185** y en **D-186**), `BUSINESS_RULES` (columna Estado de BR-M y BR-S), `DATA_MODEL` (**§4.15**, **§4.16**, **§6.g.6** y §4.bis reducida a lo que falta), `SECURITY` (§4.15), `ARCHITECTURE` (§8.24), `MASTER_SPEC` (§9.5), `TESTING` (§4.8), `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` |
+| Reutilización | **REUSE → EXTEND → CREATE aplicado.** La RPC sin parámetro de vendedor es el patrón de `set_seller_whatsapp_settings` (BR-W07); la coherencia del mensaje propio es **copia literal** de los CHECK de `0050`; la FK compuesta `(seller_id, organization_id)` es la de `tickets` y `clients` (D-007); el `phone` reutiliza el patrón de `clients.phone`; `set_updated_at` y `write_audit_log` son los de siempre; los ayudantes de la suite (`createAuthUser`, `loadSeedContext`, `signInAs`) son los de `seller-teams.test.ts`. **Nada nuevo que ya existiera** |
+| Decisiones | Cinco precisiones sobre D-185, anotadas al final de esa entrada. Las dos que importan: **(a)** el tope de cinco dejó de ser «RPC + comprobación» y pasó a ser **la forma de la tabla** —posición 1..5 única por vendedor, `DEFERRABLE` para poder reordenar—, lo que además elimina la condición de carrera que un trigger contador deja abierta; **(b)** las tablas **no tienen política de escritura** y `authenticated` solo tiene `SELECT`, así que las RPC son la única puerta. Además: `position` se llama **`sort_order`** (es una función del estándar SQL), el tope de 14 usa un **cerrojo de aviso por vendedor**, y hay una RPC más de la prevista, `restore_seller_payment_account` |
+| Verificación | `npm run test:db` **889/889** (+62). `npm run verify` ✅ (typecheck, lint con los **2 avisos preexistentes**, **896/896** unitarias, build). La suite nueva **62/62**. **Comprobado al revés:** con la política cambiada por la «clásica» de organización, **12 pruebas fallan**, entre ellas las cinco del aislamiento (M-02..M-05, S-02); después `db:reset` para que la base sea lo que dicen las migraciones. Y con sesión real: `INSERT`, `UPDATE` y `DELETE` directos dan **`42501`**. **`verify:remote` NO se ejecutó**: apunta al proyecto real |
+| Advertencias | **1)** **No añadas políticas de escritura a esas dos tablas**: el tope, el orden y la bitácora dejan de ser inevitables. Lo defienden M-08, M-09, M-09b y S-03. **2)** **El trigger de `next_run_at` solo recalcula si cambia el horario o se reactiva** — el motor de la Etapa 3 adelantará esa columna, y recalcular en cada `UPDATE` lo dejaría en bucle (prueba S-25). **3)** **`npx supabase gen types --local` con la CLI instalada (2.111.0) pierde `| null`** en seis sitios de tres funciones ya existentes: se restauraron a mano, y quien regenere tiene que volver a hacerlo o meterá cambios ajenos. Los argumentos opcionales de las RPC nuevas son `string | undefined`: **omítelos, no mandes `null`**. **4)** **I-108 se hereda a propósito** en el teléfono de una cuenta. **5)** `pg_cron` está **disponible y no instalado**; `pg_net` **ya está instalado** (0.20.4). **6)** Los dos archivos sin seguimiento del usuario siguen intactos, comprobado por hash |
+| Pendiente | **Nada de esta etapa.** **Siguiente acción exacta: esperar autorización del usuario para la ETAPA 2** —configuración y formularios de cuentas, WhatsApp y recordatorios—, que empieza por **ampliar el Anexo A de `UX_COPY_GUIDELINES`** antes de escribir el primer texto (`CLAUDE.md` §35.2.3), porque los términos de pantalla todavía no existen. Lo de siempre: I-109, I-108, I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030, I-059, I-060 |
+| Publicación | **NO.** Sin push, sin despliegue y **sin tocar el proyecto real**: su base sigue en **50 migraciones** y lo último servido sigue siendo `9900635` (D-184) |
+| Git | Rama **`feature/cuentas-y-recordatorios`**, **sin fusionar**. Dos commits: `f0a2a19` (Etapa 0, documental) y el de esta etapa. Sin etiqueta: es mantenimiento (§8, regla 12) |
+
+---
+## 1.a.0 Relevo anterior — cuentas y recordatorios, ETAPA 0: solo documentación (D-185, D-186, D-187, 2026-09-11)
 
 | Campo | Estado |
 |---|---|
@@ -1214,10 +1229,11 @@ archivo. Hizo falta abrir la aplicación y leer estilos calculados.
 
 ## 1.c Qué queda abierto
 
-**Hay un encargo abierto: cuentas para recibir pagos y recordatorios de pago** (D-185). Su **Etapa 0
-—documentación— está terminada** y **la Etapa 1 espera autorización explícita del usuario**; ninguna
-de las siete etapas restantes puede empezarse por parecer conveniente. El plan de las nueve fases
-sigue terminado y esto **no** es una fase nueva.
+**Hay un encargo abierto: cuentas para recibir pagos y recordatorios de pago** (D-185). Sus **etapas 0
+—documentación— y 1 —base de datos, `0051`, en local— están terminadas**, y **la Etapa 2 espera
+autorización explícita del usuario**; ninguna de las cinco etapas restantes puede empezarse por
+parecer conveniente, y la **7 —producción— se autoriza aparte**. El plan de las nueve fases sigue
+terminado y esto **no** es una fase nueva.
 
 Además quedan decisiones del dueño, deuda aceptada y límites verificados; no deben describirse como
 si no existieran:
@@ -1485,6 +1501,11 @@ organizations ─┬─ memberships (profile_id, organization_id, role, is_activ
                │                       team_tickets_paid, team_earned → 0031)
                └─ commission_ledger   (movement, amount, tickets_paid, rate,
                                        team_movement, from_seller_id → 0031; solo anexado)
+               ├─ seller_payment_accounts  (seller_id, kind, holder_name, phone |
+               │                            bank_name/account_type/account_number,
+               │                            sort_order 1..5 unico, archived_at; 0051)
+               ├─ seller_payment_reminders (seller_id, weekday 1..7 ISO, time_of_day,
+               │                            status, custom_message, next_run_at; 0051)
                ├─ raffles     (short_code, name, ticket_price, status, allow_seller_ticket_creation)
                ├─ clients     (seller_id, name, phone, archived_at)
                ├─ tickets     (raffle_id, seller_id, client_id, internal_code,
@@ -1527,7 +1548,7 @@ profiles 1─1 auth.users
 - Una organización nunca se queda sin Owner activo (`0016`, aplicada en local y en producción).
 
 **Funciones a usar en vez de DML directo:**
-`assign_ticket` · `create_payment` · `void_payment` · `update_payment_allocation` · `update_ticket_sale_price` · `reassign_ticket_client` · `release_ticket_client` · `set_ticket_clearance_delivery` · `set_seller_whatsapp_settings` · `match_lottery_result` (solo `service_role`) · `bulk_create_tickets` · `approve_tickets` ·
+`assign_ticket` · `create_payment` · `void_payment` · `update_payment_allocation` · `update_ticket_sale_price` · `reassign_ticket_client` · `release_ticket_client` · `set_ticket_clearance_delivery` · `set_seller_whatsapp_settings` · `create_seller_payment_account` · `update_seller_payment_account` · `archive_seller_payment_account` · `restore_seller_payment_account` · `reorder_seller_payment_accounts` · `create_payment_reminder` · `update_payment_reminder` · `set_payment_reminder_status` · `match_lottery_result` (solo `service_role`) · `bulk_create_tickets` · `approve_tickets` ·
 `cancel_ticket` · `bulk_assign_tickets` · `bulk_cancel_tickets` · `bulk_change_ticket_seller` ·
 `bulk_delete_tickets`. Todas validan permisos internamente y auditan. Son `SECURITY DEFINER`: existen
 precisamente para hacer cosas que la RLS del usuario prohíbe.
@@ -1539,6 +1560,13 @@ vista previa a una cartera e `import_tickets_with_clients` crea/reutiliza client
 ⚠️ **`assign_ticket` y `cancel_ticket` ya no llevan las reglas dentro**: delegan en
 `assign_ticket_row` y `cancel_ticket_row`, que comparten con las masivas. Si cambias una regla,
 cámbiala ahí (D-083).
+
+**Cobro del vendedor (`0051`, D-185, solo en LOCAL):** las ocho RPC de arriba son la **única** forma
+de escribir en `seller_payment_accounts` y `seller_payment_reminders` — esas dos tablas conceden
+**solo `SELECT`** a `authenticated` y tienen **una sola política**, también de `SELECT`. Ninguna RPC
+recibe identificador de vendedor. El tope de cinco cuentas es estructural (`sort_order` 1..5 único,
+`DEFERRABLE`); el de catorce recordatorios, un trigger con cerrojo de aviso. **No las veas como
+configuración del catálogo: aquí el personal y el vendedor padre NO ven nada.**
 
 **Catálogo público (`0043`, D-159):** `public_catalog_seller` y `public_catalog_tickets`, solo para
 `service_role` y llamadas desde el servidor; `public_catalog_membership` no la ejecuta nadie. `anon` no
@@ -1846,7 +1874,7 @@ Si dudas de si la documentación está al día, pregúntale a la base de datos:
 npm run test:db
 ```
 
-827 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
+889 pruebas que fallan si alguien rompió una invariante. Incluyen comprobaciones de catálogo que
 detectan una tabla sin RLS, una función sin `search_path` o una vista sin `security_invoker`,
 **aunque nadie escriba una prueba nueva**.
 

@@ -74,6 +74,8 @@ describe('RLS habilitada y forzada en todas las tablas de negocio', () => {
       'payments',
       'profiles',
       'raffles',
+      'seller_payment_accounts',
+      'seller_payment_reminders',
       'tickets',
     ]) {
       expect(conPoliticas, `${t} sin politicas`).toContain(t)
@@ -190,6 +192,11 @@ describe('funciones privilegiadas', () => {
     const PUBLICAS = [
       // Las RPC que llama la aplicacion
       'approve_tickets',
+      // Las ocho de la 0051: el vendedor administra SUS cuentas de cobro y SUS
+      // recordatorios. Ninguna recibe identificador de vendedor —sale de
+      // auth.uid()— y son la UNICA escritura posible de esas dos tablas, que no
+      // conceden INSERT ni UPDATE a nadie (BR-M02, BR-S01, D-185).
+      'archive_seller_payment_account',
       'bulk_assign_tickets',
       'bulk_cancel_tickets',
       'bulk_change_ticket_seller',
@@ -198,15 +205,20 @@ describe('funciones privilegiadas', () => {
       'cancel_ticket',
       'commission_summary',
       'create_payment',
+      'create_payment_reminder',
+      'create_seller_payment_account',
       'import_tickets_with_clients',
       'log_ticket_import',
       'mark_profile_activated',
       'reassign_ticket_client',
       'release_ticket_client',
+      'reorder_seller_payment_accounts',
       'report_payment_totals',
       'report_payments_by_day',
       'report_sales_totals',
+      'restore_seller_payment_account',
       'search_tickets',
+      'set_payment_reminder_status',
       // El vendedor guarda SU grupo de WhatsApp: es la unica escritura de
       // `memberships` que puede hacer, y por eso es una RPC (BR-W07, D-176).
       'set_seller_whatsapp_settings',
@@ -222,6 +234,8 @@ describe('funciones privilegiadas', () => {
       'ticket_bulk_eligibility',
       'ticket_sale_price_limits',
       'update_payment_allocation',
+      'update_payment_reminder',
+      'update_seller_payment_account',
       'update_ticket_sale_price',
       'void_payment',
       // Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada

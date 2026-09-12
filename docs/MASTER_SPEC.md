@@ -4,10 +4,10 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.4
+- **Versión del documento:** 1.5
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
 - **Última actualización:** 2026-09-11 (§9.5: cuentas para recibir pagos y recordatorios de pago,
-  **autorizadas y planificadas, todavía no implementadas**, D-185)
+  **etapas 0 y 1 hechas de 7**; la base existe en local, la interfaz todavía no, D-185)
 
 ---
 
@@ -273,11 +273,12 @@ al final, de modo que no hay marcador que se pueda romper. Configurar es exclusi
 vendedor** —ni el personal ni un vendedor padre pueden hacerlo por él— y la pantalla está pensada
 para crecer con más secciones.
 
-### 9.5 Cuentas para recibir pagos y recordatorios de pago — **AUTORIZADO Y PLANIFICADO, NO IMPLEMENTADO**
+### 9.5 Cuentas para recibir pagos y recordatorios de pago — **EN CONSTRUCCIÓN (2 de 7 etapas)**
 
-> Autorizado por el dueño del producto el **2026-09-11** (D-185, D-186, D-187). La **Etapa 0**
-> —contrato funcional y arquitectura documentada— está hecha. **Nada de lo que sigue existe todavía
-> en el código.** Reglas: BR-M01..BR-M09, BR-S01..BR-S14, BR-V01..BR-V08.
+> Autorizado por el dueño del producto el **2026-09-11** (D-185, D-186, D-187). Hechas la **Etapa 0**
+> —contrato y arquitectura— y la **Etapa 1** —base de datos, migración `0051`, en **local**—. **No
+> hay ninguna pantalla todavía** y el proyecto real no tiene la migración. Reglas: BR-M01..BR-M09,
+> BR-S01..BR-S14, BR-V01..BR-V08.
 
 Dos capacidades nuevas del **vendedor**, dentro de `/seller/settings`, que hoy tiene una sola sección
 —la del grupo de WhatsApp (§9.4)— y pasará a tener tres, cada una en su subruta, con la página
@@ -309,7 +310,7 @@ acceden a sus cuentas ni a sus recordatorios. Cambiar eso exige una decisión ex
 | Etapa | Qué entrega |
 |---|---|
 | 0 | Contrato funcional y arquitectura documentada ✅ **2026-09-11** |
-| 1 | Modelo de datos, restricciones, RLS, RPC, índices, tipos y pruebas de base de datos |
+| 1 | Modelo de datos, restricciones, RLS, RPC, índices, tipos y pruebas de base de datos ✅ **2026-09-11** (`0051`, en local) |
 | 2 | Configuración y formularios de cuentas, WhatsApp y recordatorios |
 | 3 | Motor de vencimientos, ocurrencias, campana y flujo copiar–abrir–atender |
 | 4 | Suscripciones Web Push por dispositivo y extensión del service worker |

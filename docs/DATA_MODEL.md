@@ -1,6 +1,6 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.13 · **Estado:** implementado · **Actualizado:** 2026-09-02
+- **Versión:** 2.14 · **Estado:** implementado · **Actualizado:** 2026-09-11
 - **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0044`, **las 44 aplicadas y
   verificadas en local y en el proyecto Supabase real** (D-149, D-151, D-156, D-158, D-159).
   `0043` (catálogo público) y `0044` (revocar la función interna a `service_role`) se promovieron el
@@ -12,9 +12,13 @@
   tipos generados en `src/types/database.types.ts`. Las pruebas de `tests/db/` verifican el
   esquema local; producción se comprueba con `verify:remote` y las sondas registradas en
   `TEST_RESULTS.md`.
-- ⚠️ **Una sola sección de este documento describe algo que NO existe todavía:** la **§4.bis**
-  (cuentas de cobro, recordatorios y entrega de avisos), autorizada el 2026-09-11 y **planificada**
-  para la Etapa 1 de D-185. Lleva su propia advertencia. Todo lo demás está implementado y aplicado.
+- **Migración `0051`** (2026-09-11, Etapa 1 de D-185): `seller_payment_accounts` y
+  `seller_payment_reminders` con sus tres enumerados, sus restricciones, su RLS y ocho RPC.
+  **Aplicada y verificada en LOCAL; NO aplicada al proyecto real** — la promoción a producción es la
+  Etapa 7 y necesita autorización propia.
+- ⚠️ **Una sola sección describe algo que NO existe todavía:** la **§4.bis** (ocurrencias,
+  suscripciones de push y outbox), que son las etapas 3, 4 y 5 de D-185. Lleva su propia
+  advertencia. Todo lo demás está implementado.
 
 ### Ajustes introducidos al implementar (Fase 2)
 
@@ -760,198 +764,149 @@ intentos.
 Una sola fila (`id = 1`). El tick la toma y la suelta. Un `acquired_at` viejo se considera
 abandonado. RLS forzada **sin** política; `authenticated` lee cero filas. No es dato de negocio.
 
+### 4.15 `seller_payment_accounts` (`0051`, BR-M01..BR-M09, D-185)
+
+Dónde le consignan sus clientes a un vendedor. **Tabla propia y no columnas de `memberships`**, y esa
+es la decisión que ordena todo: `memberships_select` deja leer esa fila al **personal** y al
+**vendedor padre** (`SECURITY.md` §4.14), y aquí solo puede verla su dueño (BR-M02). Cuelga de la
+membresía por la FK compuesta `(seller_id, organization_id)`, igual que `tickets` y `clients`.
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| `id` | `uuid` PK | |
+| `organization_id` · `seller_id` | `uuid` NOT NULL | FK compuesta → `memberships`, `on delete restrict` |
+| `kind` | `payment_account_kind` | `nequi` · `daviplata` · `bank` |
+| `holder_name` | `text` NOT NULL | Titular. En los **tres** tipos |
+| `phone` | `text` | Nequi y Daviplata |
+| `bank_name` · `account_type` · `account_number` | `text` · `bank_account_type` · `text` | Solo `bank` |
+| `label` | `text` | Etiqueta opcional del vendedor |
+| `sort_order` | `smallint` | **1..5 mientras está activa, NULL al archivarla** |
+| `created_at` · `updated_at` · `archived_at` | `timestamptz` | `archived_at` NULL = activa |
+
+**El tope de cinco no es un trigger: es la forma de la tabla.** Una cuenta activa ocupa una posición
+del 1 al 5 y esa posición es única por vendedor, así que **no puede haber una sexta** — no hay una
+sexta posición. De ahí salen tres cosas de una vez y sin contar filas: el tope, el orden en que las
+cuentas salen en el mensaje, y **la ausencia de condición de carrera** (un trigger que cuenta puede
+dejar pasar dos inserciones simultáneas; un índice único, no).
+
+| Restricción | Qué impide |
+|---|---|
+| `seller_payment_accounts_shape_by_kind` | Una cuenta de Nequi con número bancario, o una bancaria sin banco. Escrito con `CASE` para que añadir una forma de pago obligue a decidir su rama |
+| `..._slot_presence` | Una activa sin posición o una archivada ocupando cupo: `(archived_at is null) = (sort_order is not null)` |
+| `..._slot_range` | La sexta: `sort_order between 1 and 5` |
+| `..._slot_unique` | Dos cuentas en el mismo sitio. **`DEFERRABLE INITIALLY DEFERRED`**, porque reordenar es permutar y el estado intermedio existe dentro de la transacción |
+| `..._phone_format` | El mismo patrón que `clients.phone`. ⚠️ Cuenta **caracteres**, no dígitos: es **I-108**, heredada a propósito |
+| `..._holder_length` · `..._bank_length` · `..._number_format` · `..._label_length` | Longitudes y forma |
+| `seller_payment_accounts_no_duplicates` (índice único parcial) | BR-M08: la misma cuenta dos veces sin archivar, comparando **solo dígitos** — `regexp_replace(coalesce(phone, account_number), '[^0-9]', '', 'g')`, para que «300 123 4567» y «3001234567» sean la misma (D-184) |
+
+**Sin `DELETE`**: ni política ni privilegio. Se archiva (BR-M07, D-038).
+
+### 4.16 `seller_payment_reminders` (`0051`, BR-S01..BR-S06, D-185)
+
+«Los martes a las 7:00 p. m.». **No se ata a una rifa** (BR-S01): el destino —el grupo de WhatsApp
+del vendedor— tampoco lo está, y atarlo obligaría a reconfigurarlo en cada rifa nueva.
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| `id` | `uuid` PK | |
+| `organization_id` · `seller_id` | `uuid` NOT NULL | FK compuesta → `memberships` |
+| `weekday` | `smallint` | **ISO 1..7**, lunes a domingo. El criterio de `extract(isodow ...)`, para no traducir en ningún sitio |
+| `time_of_day` | `time` | CHECK de **segundos a cero**: la precisión es de minuto (BR-S02) |
+| `status` | `payment_reminder_status` | `active` · `paused` · `archived` |
+| `use_custom_message` · `custom_message` | `boolean` · `text` | Copia literal de la coherencia de `0050` (BR-W03): «uso mi mensaje» sin mensaje es imposible, y apagar el interruptor **no borra** lo escrito |
+| `next_run_at` | `timestamptz` NOT NULL | **El instante UTC del próximo disparo.** Lo pone un trigger; el `DEFAULT` solo existe para que la columna pueda ser opcional al insertar, como `raffles.short_code` |
+| `last_run_at` | `timestamptz` | Para diagnóstico |
+
+**`next_run_at` está materializado, y ese es su punto.** Permite que el motor de la Etapa 3 lea un
+**índice** —`seller_payment_reminders_due_idx (next_run_at) WHERE status = 'active'`— en vez de
+recorrer todos los recordatorios cada minuto calculando husos por fila.
+
+**Índice único `seller_payment_reminders_unique (seller_id, weekday, time_of_day) WHERE status <>
+'archived'`**: varios el mismo día a horas distintas sí, dos idénticos no (BR-S02). Archivar libera
+esa hora.
+
+**El tope de catorce sí cuenta filas**, porque un recordatorio no ocupa una posición como una cuenta:
+pausarlo y reactivarlo tiene que devolverlo tal cual, y un «slot» del 1 al 14 sería un concepto que
+nadie ve en pantalla. Contar abre una condición de carrera, así que el trigger toma antes un
+**cerrojo de aviso por vendedor** (`pg_advisory_xact_lock`): serializa a esa persona consigo misma,
+dura lo que la transacción y no bloquea a nadie más. Va **en el trigger y no en la RPC** para que lo
+cumpla cualquier camino de escritura. Un pausado no cuenta, y **reactivar vuelve a comprobar**.
+
+#### Enumerados que añadió `0051`
+
+| Tipo | Valores |
+|---|---|
+| `payment_account_kind` | `nequi` · `daviplata` · `bank` |
+| `bank_account_type` | `savings` · `checking` |
+| `payment_reminder_status` | `active` · `paused` · `archived` |
+
+Añadir una forma de pago es `alter type … add value` **en una migración nueva**, recordando que el
+valor queda inutilizable hasta que la transacción confirme (D-099).
+
 ---
 
-## 4.bis Cuentas de cobro, recordatorios y entrega de avisos — **PLANIFICADO** (D-185, D-186, D-187)
+## 4.bis Lo que falta del encargo de cobro — **PLANIFICADO** (D-185, D-186, D-187)
 
-> ⚠️ **NADA DE ESTA SECCIÓN EXISTE.** No hay migración escrita, ni tabla creada, ni tipo generado en
-> `database.types.ts`. Es el diseño acordado en la **Etapa 0** del encargo del 2026-09-11, y se
-> construye en la **Etapa 1**. Todo lo demás de este documento describe el esquema **real**; esto
-> describe el que se va a escribir. Cuando la Etapa 1 se implemente, estas tablas se mueven a §4 con
-> su número de migración y esta advertencia desaparece.
+> ⚠️ **NADA DE ESTA SECCIÓN EXISTE.** La **Etapa 1** entregó las dos tablas de arriba (§4.15 y §4.16)
+> en la migración `0051`. Lo que sigue son las **etapas 3, 4 y 5**, cada una con su autorización
+> propia. Cuando se implementen, se mueven a §4 con su número de migración, como se hizo con estas
+> dos.
 
-**La decisión que ordena el diseño: tablas propias, no columnas en `memberships`.** El catálogo
-público (`0043`) y la configuración de WhatsApp (`0050`) son columnas de `memberships` porque un
-vendedor **es** una membresía. Aquí no se repite ese patrón, y la razón está escrita desde D-176 en
-`SECURITY.md` §4.14: `memberships_select` deja leer esa fila al **personal** y al **vendedor padre**.
-Una cuenta bancaria con su titular es más sensible que un enlace de invitación a un grupo, y el
-contrato dice que **solo el vendedor** la ve (BR-M02). Con una columna más, el personal la vería el
-mismo día en que se aplicara la migración.
-
-Las cinco tablas cuelgan de la membresía por la **FK compuesta** `(seller_id, organization_id) →
-memberships`, igual que `tickets` y `clients`: se separa el dato, no la identidad del vendedor.
-
-### Enumerados nuevos
-
-| Tipo | Valores | Nota |
-|---|---|---|
-| `payment_account_kind` | `nequi` · `daviplata` · `bank` | Extensible con `alter type … add value` en una migración posterior (BR-M03). Recordar que un valor nuevo **no se puede usar hasta que la transacción confirme** (D-099) |
-| `bank_account_type` | `savings` · `checking` | Ahorros y corriente |
-| `payment_reminder_status` | `active` · `paused` · `archived` | BR-S04 |
-| `reminder_occurrence_status` | `pending` · `attended` · `missed` | BR-S11 |
-| `push_outbox_status` | `queued` · `sending` · `sent` · `failed` | BR-V02, BR-V07 |
-
-### `seller_payment_accounts` (BR-M01..BR-M09)
-
-| Columna | Tipo | Nota |
-|---|---|---|
-| `id` | `uuid` PK | `gen_random_uuid()` |
-| `organization_id` | `uuid` NOT NULL | → `organizations`, `on delete restrict` |
-| `seller_id` | `uuid` NOT NULL | → `profiles`; FK compuesta con `organization_id` → `memberships` |
-| `kind` | `payment_account_kind` NOT NULL | BR-M03 |
-| `holder_name` | `text` NOT NULL | Titular. Siempre, en los tres tipos |
-| `phone` | `text` | Nequi y Daviplata. NULL en `bank` |
-| `bank_name` | `text` | Solo `bank` |
-| `account_type` | `bank_account_type` | Solo `bank` |
-| `account_number` | `text` | Solo `bank` |
-| `label` | `text` | Etiqueta opcional del vendedor (BR-M05) |
-| `position` | `smallint` NOT NULL | Orden en el mensaje |
-| `archived_at` | `timestamptz` | NULL = activa. **No hay `DELETE`** (BR-M07) |
-| `created_at` / `updated_at` | `timestamptz` NOT NULL | `now()`; `updated_at` por trigger, como el resto |
-
-**Restricciones.**
-
-* `accounts_shape_by_kind` — CHECK que impone BR-M04: `nequi`/`daviplata` exigen `phone` y anulan
-  `bank_name`, `account_type` y `account_number`; `bank` exige los tres y anula `phone`.
-* `accounts_phone_format` — el mismo `PHONE_REGEX` que ya usan `profiles` y `clients`. ⚠️ Ese patrón
-  cuenta **caracteres**, no dígitos (**I-108**): se reutiliza tal cual y **no se corrige aquí**.
-* `accounts_holder_length`, `accounts_label_length`, `accounts_account_number_format` — topes y forma.
-* `seller_payment_accounts_unique_active` — índice único parcial
-  `(seller_id, kind, digits_only(coalesce(phone, account_number))) WHERE archived_at IS NULL`
-  (BR-M08). La normalización a dígitos tiene que coincidir con la de la aplicación, igual que
-  `search_normalize()` coincide con `foldForSearch()` (D-079).
-
-**Tope de 5** (BR-M06): se comprueba **dentro de la RPC** y además con un trigger `before insert`,
-porque la RPC no es la única forma de llegar a una tabla y el tope es una invariante, no una
-validación de formulario.
-
-**Índices.** `(seller_id) WHERE archived_at IS NULL` para la lectura normal —la única consulta real
-es «mis cuentas activas, en orden»— y el único parcial de arriba. Nada más: no hay búsqueda, ni
-filtro, ni orden por otra columna.
-
-### `seller_payment_reminders` (BR-S01..BR-S06)
+### `payment_reminder_occurrences` — Etapa 3 (BR-S10..BR-S12)
 
 | Columna | Tipo | Nota |
 |---|---|---|
 | `id` | `uuid` PK | |
-| `organization_id` / `seller_id` | `uuid` NOT NULL | Igual que arriba, con FK compuesta |
-| `weekday` | `smallint` NOT NULL | **ISO 1–7**, lunes a domingo. CHECK |
-| `time_of_day` | `time` NOT NULL | CHECK de **segundos y microsegundos a cero**: la precisión es de minuto (BR-S02) |
-| `status` | `payment_reminder_status` NOT NULL | `active` por defecto |
-| `use_custom_message` | `boolean` NOT NULL | `false` = el predeterminado de la aplicación |
-| `custom_message` | `text` | Prosa **sin** las cuentas y **sin** marcadores (BR-S07) |
-| `next_run_at` | `timestamptz` NOT NULL | **El instante UTC del próximo disparo.** Es lo que indexa el cron |
-| `last_run_at` | `timestamptz` | Último procesamiento, para diagnóstico |
-| `created_at` / `updated_at` | `timestamptz` NOT NULL | |
-
-**Restricciones.**
-
-* `reminders_message_coherent` y `reminders_message_length` — copia literal de las de `0050`
-  (BR-W03): «uso mi mensaje» sin mensaje es imposible; apagar el interruptor **no** borra el texto;
-  tope de 1.000 caracteres, el mismo que las notas de un cliente.
-* `seller_payment_reminders_unique` — índice único
-  `(seller_id, weekday, time_of_day) WHERE status <> 'archived'` (BR-S02).
-
-**Tope de 14 activos** (BR-S05): comprobado en la RPC y en un trigger, **también al reactivar** un
-pausado.
-
-**`next_run_at` no es un dato que escriba la pantalla.** Lo calcula una función pura de SQL a partir
-de `weekday`, `time_of_day` y `America/Bogota` (BR-S03), y se recalcula al crear, al editar la hora y
-al reactivar. Guardarlo materializado es lo que permite que el cron mire **un índice**
-`(next_run_at) WHERE status = 'active'` en vez de recorrer todos los recordatorios cada minuto.
-
-### `payment_reminder_occurrences` (BR-S10..BR-S12)
-
-| Columna | Tipo | Nota |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `organization_id` / `seller_id` | `uuid` NOT NULL | |
+| `organization_id` · `seller_id` | `uuid` NOT NULL | |
 | `reminder_id` | `uuid` NOT NULL | → `seller_payment_reminders`, `on delete restrict` |
 | `scheduled_for` | `timestamptz` NOT NULL | El instante que le tocaba, no el de proceso |
-| `processed_at` | `timestamptz` NOT NULL | Cuándo lo vio el cron. La distancia entre los dos es el atraso |
-| `status` | `reminder_occurrence_status` NOT NULL | `pending` · `attended` · `missed` |
+| `processed_at` | `timestamptz` NOT NULL | La distancia entre los dos es el atraso |
+| `status` | `reminder_occurrence_status` | `pending` · `attended` · `missed` |
 | `notification_id` | `uuid` | → `notifications`. NULL en las omitidas: **no generan campana** |
 | `attended_at` | `timestamptz` | Lo pone el vendedor (BR-S14) |
-| `created_at` | `timestamptz` NOT NULL | |
 
-**`payment_reminder_occurrences_once` — índice único `(reminder_id, scheduled_for)`.** Es **la**
-pieza de la idempotencia (BR-S10): el proceso inserta con `on conflict do nothing`, así que
-ejecutarlo dos veces sobre el mismo vencimiento no crea dos avisos. Es el mismo recurso que
-`notifications_lottery_result_once` (`0037`) usa para no avisar dos veces del mismo sorteo.
+**`payment_reminder_occurrences_once` — índice único `(reminder_id, scheduled_for)`.** Es **la** pieza
+de la idempotencia (BR-S10): el proceso inserta con `on conflict do nothing`, así que ejecutarlo dos
+veces sobre el mismo vencimiento no crea dos avisos. Mismo recurso que
+`notifications_lottery_result_once` (`0037`).
 
-**Índice** `(seller_id, status, scheduled_for DESC)` para «mis recordatorios pendientes».
+Las ocurrencias se conservan: son pocas —14 por vendedor y semana como mucho— y son la evidencia de
+qué se mandó y qué se omitió.
 
-**Retención.** Las ocurrencias se conservan; son pocas —14 por vendedor y semana como mucho— y son la
-evidencia de qué se mandó y qué se omitió. Si algún día hace falta podar, será una decisión propia
-con su entrada, no un `delete` escondido en el cron.
+### `push_subscriptions` — Etapa 4 (BR-V06, BR-V07)
 
-### `push_subscriptions` (BR-V06, BR-V07)
+`endpoint` único (global), `p256dh`, `auth`, `user_agent`, contadores de éxito y fallo y
+`revoked_at`. Es de una **persona**, no solo de un vendedor: la campana la tiene todo el mundo.
 
-| Columna | Tipo | Nota |
+### `push_outbox` — Etapa 5 (BR-V02, BR-V07)
+
+`notification_id` → `notifications` —**la fuente durable es esa fila, no esta**—, `payload` jsonb
+**genérico** (BR-V05), `status`, `attempts`, `next_attempt_at`, `last_error`. Índice
+`(next_attempt_at) WHERE status IN ('queued','failed')`: la única consulta del dispatcher, que toma
+un lote con `for update skip locked`.
+
+### Funciones que faltan
+
+| Función | Etapa | Qué hace |
 |---|---|---|
-| `id` | `uuid` PK | |
-| `organization_id` / `profile_id` | `uuid` NOT NULL | Es de una **persona**, no solo de un vendedor: la campana la tiene todo el mundo |
-| `endpoint` | `text` NOT NULL **UNIQUE** | Identifica el dispositivo. La unicidad es global a propósito |
-| `p256dh` / `auth` | `text` NOT NULL | Las claves que entrega el navegador |
-| `user_agent` | `text` | Para que la persona reconozca el dispositivo al revocarlo |
-| `created_at` / `last_success_at` / `last_failure_at` | `timestamptz` | |
-| `failure_count` | `integer` NOT NULL DEFAULT 0 | |
-| `revoked_at` | `timestamptz` | `404`/`410` del servicio de push (BR-V07) |
-
-### `push_outbox` (BR-V02, BR-V07)
-
-| Columna | Tipo | Nota |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `organization_id` / `recipient_profile_id` | `uuid` NOT NULL | |
-| `notification_id` | `uuid` NOT NULL | → `notifications`. **La fuente durable es esa fila**, no esta |
-| `payload` | `jsonb` NOT NULL | **Genérico** (BR-V05): tipo de aviso y a dónde ir. Nunca cuentas, mensajes, clientes ni importes |
-| `status` | `push_outbox_status` NOT NULL | `queued` al nacer |
-| `attempts` | `integer` NOT NULL DEFAULT 0 | |
-| `next_attempt_at` | `timestamptz` NOT NULL | Retroceso exponencial |
-| `last_error` | `text` | Motivo, sin detalle interno |
-| `created_at` / `sent_at` | `timestamptz` | |
-
-**Índice** `(next_attempt_at) WHERE status IN ('queued','failed')`: es la única consulta del
-dispatcher, que toma un lote con `for update skip locked`.
-
-### Funciones planificadas
-
-| Función | Qué hace | Quién la ejecuta |
-|---|---|---|
-| `create_seller_payment_account(...)` · `update_seller_payment_account(...)` · `archive_seller_payment_account(id)` · `reorder_seller_payment_accounts(ids[])` | Las cuentas del vendedor que llama | `authenticated` (solo `seller`) |
-| `create_payment_reminder(...)` · `update_payment_reminder(...)` · `set_payment_reminder_status(id, estado)` | Los recordatorios del vendedor que llama | `authenticated` (solo `seller`) |
-| `mark_reminder_occurrence_attended(id)` | Marca **atendida** una ocurrencia suya (BR-S14) | `authenticated` (solo `seller`) |
-| `next_reminder_run_at(weekday, time_of_day, desde)` | Puro: el próximo instante UTC en `America/Bogota` | Interna |
-| `process_due_payment_reminders(lote)` | **El cron.** Materializa, avisa, encola y adelanta el reloj | Solo el job de `pg_cron` |
-| `claim_push_outbox(lote)` · `mark_push_outbox_sent(...)` · `mark_push_outbox_failed(...)` · `revoke_push_subscription(endpoint)` | La cola de push | `service_role` (el dispatcher) |
-| `upsert_push_subscription(...)` · `delete_push_subscription(endpoint)` | Registrar y quitar este dispositivo | `authenticated` |
-
-**Todas siguen las cuatro reglas de `SECURITY.md` §4.5**: `SECURITY DEFINER`, `search_path` fijo,
-`revoke execute … from public, anon` **explícito** —PostgreSQL concede `EXECUTE` a PUBLIC en cada
-función nueva y las *default privileges* de `0015`/`0032` no alcanzan a lo que se cree después
-(I-020, I-078)— y `grant` nominal, nombrando también a `service_role` (D-128). Y entran en las **dos**
-listas blancas que §4.5 obliga a tocar juntas: `verify:remote` y `tests/db/catalog.test.ts`.
-
-**Ninguna de las RPC del vendedor recibe identificador de vendedor**: sale de `auth.uid()` (BR-M02,
-BR-S01), que es lo que hace imposible configurar a otro — no una comprobación, sino la firma
-(el patrón de `set_seller_whatsapp_settings`, `SECURITY.md` §4.14).
+| `mark_reminder_occurrence_attended(id)` | 3 | Marca **atendida** una ocurrencia suya (BR-S14) |
+| `process_due_payment_reminders(lote)` | 3 | **El cron.** Materializa, avisa, encola y adelanta el reloj |
+| `upsert_push_subscription(...)` · `delete_push_subscription(endpoint)` | 4 | Registrar y quitar este dispositivo |
+| `claim_push_outbox(lote)` · `mark_push_outbox_sent/failed(...)` · `revoke_push_subscription(endpoint)` | 5 | La cola de push, solo para `service_role` |
 
 ### Extensiones y el job
 
-`pg_cron` y `pg_net` **se crean en la migración**, nunca a mano desde el panel de Supabase: lo que no
-está en una migración no se reproduce en local ni en el CI. El job se declara **por nombre**, de modo
-que volver a aplicar la migración lo reemplaza en vez de duplicarlo. Razón completa en **D-186**.
+`pg_cron` y `pg_net` **todavía no están instalados**, y se crearán **en la migración** de la Etapa 3,
+nunca a mano desde el panel de Supabase. Comprobado en local el 2026-09-11: `pg_cron` está
+**disponible** (1.6.4) y en `shared_preload_libraries`; `pg_net` ya venía **instalado** (0.20.4, en el
+esquema `extensions`). Razón completa en **D-186**.
 
 ### `notifications`: un `kind` nuevo
 
-El CHECK `notifications_kind_check` (`0023`, ampliado en `0037`) hoy admite `team.member_added`,
+El CHECK `notifications_kind_check` (`0023`, ampliado en `0037`) admite hoy `team.member_added`,
 `team.sale`, `lottery.result` y `lottery.schedule_change`. La Etapa 3 añade
-**`payment_reminder.due`** con el mismo procedimiento que usó `0037`: soltar la restricción y
-volver a crearla con la lista completa.
-
-**El texto sigue sin vivir en la base de datos**: la fila guarda `kind` + `data`, y la frase la arma
-`features/notifications/text.ts`. Es lo que evita repetir I-030.
+**`payment_reminder.due`** con el mismo procedimiento de `0037`: soltar la restricción y volver a
+crearla con la lista completa. **El texto sigue sin vivir en la base** (I-030).
 
 ---
 
@@ -1319,6 +1274,47 @@ A diferencia de `set_ticket_clearance_delivery`, **escribe siempre**, aunque el 
 actual: guardar es un acto explícito de un formulario, y quien pulsa «Guardar cambios» sin haber
 cambiado nada espera que se guarde. La bitácora la deja `audit_memberships` (0006), sin acción
 semántica propia.
+
+### 6.g.6 Cuentas de cobro y recordatorios del vendedor (migración `0051`)
+
+Ocho RPC públicas y tres auxiliares internas. **Ninguna de las ocho recibe identificador de
+vendedor**: el perfil sale de `auth.uid()`, así que no existe el dato que alguien pudiera manipular
+para configurar a otro (BR-M02, BR-S01). Es el patrón de `set_seller_whatsapp_settings` (§6.g.5) y,
+como allí, **lo que las hace seguras no es una comprobación: es la firma**.
+
+| Función | Devuelve | Qué hace |
+|---|---|---|
+| `create_seller_payment_account(kind, titular, telefono, banco, tipo, numero, etiqueta)` | la fila | Crea una cuenta en la **menor posición libre**. Sin sitio, lo dice con una frase |
+| `update_seller_payment_account(id, titular, telefono, banco, tipo, numero, etiqueta)` | la fila | Corrige una cuenta **activa**. **El tipo no se cambia**: un Nequi que pasa a ser bancaria es otra cuenta |
+| `archive_seller_payment_account(id)` | la fila | Archiva y **libera la posición** |
+| `restore_seller_payment_account(id)` | la fila | La devuelve al listado, sujeta al tope |
+| `reorder_seller_payment_accounts(ids[])` | las activas, ordenadas | Exige el conjunto **completo**, sin repetidos y sin ajenos |
+| `create_payment_reminder(weekday, hora, usa_mensaje_propio, mensaje)` | la fila | Crea un recordatorio |
+| `update_payment_reminder(id, weekday, hora, usa_mensaje_propio, mensaje)` | la fila | Corrige uno no archivado |
+| `set_payment_reminder_status(id, estado)` | la fila | Activa, pausa o archiva |
+
+**Auxiliares, que ninguna sesión ejecuta:** `require_seller_org()` —la organización de la membresía
+de vendedor **activa** de quien llama, o excepción—, `next_reminder_run_at(weekday, hora, desde)` y
+`max_active_payment_reminders()`.
+
+Las ocho cumplen §4.5 de `SECURITY`: `SECURITY DEFINER`, `search_path` fijo, `REVOKE` explícito de
+`public` y `anon`, y `GRANT` nominal a `authenticated` **y** `service_role` (D-128, I-078). Entran en
+las **dos** listas blancas que esa sección obliga a tocar juntas: `tests/db/catalog.test.ts` y
+`scripts/verify-remote.ts`.
+
+**`reorder_…` actualiza en una sola sentencia**, y eso solo funciona porque el constraint de posición
+es `DEFERRABLE INITIALLY DEFERRED`: el estado intermedio con dos cuentas compartiendo sitio existe,
+pero se comprueba al `COMMIT`, cuando ya no existe.
+
+**La bitacora no guarda el número.** `audit_logs` lo consulta el personal entero (BR-D04), así que
+volcar ahí la cuenta bancaria desharía el aislamiento por la puerta de atrás. Se anota **qué
+cambió** —el tipo, la etiqueta, el horario, el estado—, nunca el valor ni el titular ni el mensaje.
+Acciones: `payment_account.create` · `.update` · `.archive` · `.restore` · `.reorder` ·
+`payment_reminder.create` · `.update` · `.status`.
+
+**`next_reminder_run_at` es `STABLE`, no `IMMUTABLE`**: `at time zone` con nombre de zona depende de
+la tabla de husos del servidor. Se calcula **siempre** con `'America/Bogota'` y **nunca** con un
+desfase `-05` escrito a mano (BR-S03).
 
 ### 6.h Coincidencias de lotería (migración `0036`)
 

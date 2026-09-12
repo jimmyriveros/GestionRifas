@@ -10081,3 +10081,92 @@ reproduce (I-079, I-066).
 3. Abrir la edición de un cliente existente, cambiar solo el alias y guardar: el teléfono de su ficha
    sigue **exactamente** como estaba.
 4. En el teléfono, borrar y escribir en medio del número: el cursor no salta al final.
+
+---
+
+## Cuentas de cobro y recordatorios, Etapa 1: base de datos (`0051`, D-185) — 2026-09-11
+
+**Alcance:** una migración nueva, los tipos generados, una suite de pruebas nueva y las **dos listas
+blancas** de funciones. **Ninguna pantalla, ninguna Server Action, ninguna dependencia.** Nada
+aplicado al proyecto real.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` | ✅ 51 migraciones aplicadas desde cero, `0051` incluida |
+| `npm run seed:local` | ✅ |
+| `npx vitest run --config vitest.db.config.mts tests/db/payment-accounts-reminders.test.ts` | ✅ **62/62** |
+| `npm run test:db` | ✅ **889/889** en 40 archivos (**+62**; antes 827) |
+| `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **896/896** unitarias (**+0**: esta etapa no añade unitarias), `build` |
+
+**`npm run verify:remote` NO se ejecutó**, y es deliberado: apunta al **proyecto real**, y esta etapa
+no toca producción. Se le añadieron dos comprobaciones nuevas —las 8 RPC ejecutables por
+`authenticated`, y que las dos tablas existan— que se ejercerán cuando la Etapa 7 se autorice.
+
+### b. La comprobación que de verdad dice si las pruebas sirven
+
+Se rompió la política a propósito y se midió. Cambiando el `SELECT` de las dos tablas por la versión
+«clásica» —`organization_id in (select current_org_ids())`, que es **exactamente** el error que esta
+función no se puede permitir— la suite pasa de 62/62 a **50 pasan · 12 fallan**, y entre las que
+fallan están las cinco que defienden el contrato:
+
+| Prueba | Qué deja de cumplirse |
+|---|---|
+| M-02 | Otro vendedor de la misma organización vería las cuentas |
+| M-03 | El Dueño las vería |
+| M-04 | El Administrador las vería |
+| M-05 | El **vendedor padre** vería las de su integrante |
+| S-02 | Lo mismo con los recordatorios, para los cinco roles |
+
+Las otras siete fallan en cascada, porque sus consultas empiezan a devolver filas ajenas. Después se
+restauró con `db:reset`, para que la base sea lo que dicen las migraciones y no lo que dejó una
+prueba a mano.
+
+### c. Lo que se comprobó con una sesión real, fuera de la suite
+
+Con la clave pública y sesión de `vendedor1`, contra las dos tablas nuevas:
+
+```
+UPDATE directo -> 42501 permission denied for table seller_payment_accounts
+INSERT directo -> 42501 permission denied for table seller_payment_accounts
+DELETE directo -> 42501 permission denied for table seller_payment_accounts
+```
+
+Es la prueba de que **las RPC son la única puerta**: no hay privilegio ni política de escritura, así
+que el tope, el orden y la bitácora no se pueden esquivar.
+
+### d. Un defecto encontrado por la red de seguridad del propio proyecto
+
+`tests/db/catalog.test.ts` falló en cuanto se aplicó `0051`, con las ocho funciones nuevas listadas
+como «internas ejecutables por `authenticated`». **Funcionó como debía**: es la comprobación que
+existe desde I-078 para que nadie conceda `EXECUTE` sin decirlo en alto. Se añadieron a las **dos**
+listas blancas que `SECURITY` §4.5 obliga a tocar juntas —`catalog.test.ts` y `verify-remote.ts`— y
+se añadió la comprobación contraria en las dos: que **sí** sean ejecutables, porque si dejaran de
+serlo la pantalla fallaría sin que nada más lo dijera.
+
+### e. Un hallazgo sobre los tipos generados, que conviene no olvidar
+
+`npx supabase gen types typescript --local` con la CLI instalada (**2.111.0**) **no produce el mismo
+archivo** que la versión con la que se generó el vigente: añade `SetofOptions` —bien— pero **pierde
+`| null`** en seis sitios de tres funciones que ya existían (`set_seller_whatsapp_settings`,
+`set_ticket_clearance_delivery`, `report_payments_by_day`).
+
+Regenerar y copiar sin más habría metido una **regresión de tipado ajena** al encargo. Lo que se hizo:
+tomar el archivo generado —para que las definiciones nuevas sean **exactamente** las de la
+herramienta— y **restaurar esas seis diferencias**, dejando el resto idéntico. El diff contra el
+archivo anterior es **+362 líneas y 0 eliminadas**, comprobado.
+
+Consecuencia práctica para la Etapa 2: los argumentos opcionales de las RPC nuevas están tipados como
+`string | undefined`, **no** `string | null`. Se **omite** el argumento en vez de mandar `null`; así
+lo hace ya el ayudante `nequi()` de la suite.
+
+### f. Lo que NO se probó, y se dice
+
+* **Nada en un navegador.** No hay pantalla todavía: es la Etapa 2.
+* **Nada contra el proyecto real.** `0051` está aplicada **solo en local**.
+* **El motor.** Las pruebas de idempotencia, concurrencia y atraso (BR-S10..BR-S12) son de la
+  Etapa 3 y su criterio de aceptación ya está escrito en `TESTING` §4.8.
+* **Concurrencia real del tope de 14.** El cerrojo de aviso está puesto y razonado, pero la prueba
+  con dos conexiones simultáneas se hará junto con las del motor, que es donde esa mecánica se
+  ejercita de verdad.

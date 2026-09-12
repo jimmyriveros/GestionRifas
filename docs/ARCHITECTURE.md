@@ -1716,8 +1716,15 @@ que la guía no se toca todavía.
 
 ### 8.24 El motor de recordatorios: cron, ocurrencias y salida de avisos — **PLANIFICADO** (D-185, D-186, D-187)
 
-> ⚠️ **NO EXISTE TODAVÍA.** No hay extensión instalada, ni job creado, ni oyente `push` en el service
-> worker, ni dispatcher. Etapas 3, 4 y 5.
+> ⚠️ **EL MOTOR NO EXISTE TODAVÍA.** No hay extensión instalada, ni job creado, ni ocurrencias, ni
+> oyente `push` en el service worker, ni dispatcher: son las etapas 3, 4 y 5.
+>
+> **Lo que la Etapa 1 sí dejó puesto** (`0051`, 2026-09-11): las dos tablas de configuración, y sobre
+> todo **`next_run_at` materializado con su índice parcial**, que es lo único que el motor necesitará
+> leer. Lo mantiene un trigger que **solo recalcula cuando cambia el horario o se reactiva** — nunca
+> en cualquier `UPDATE`—, y esa es la mitad importante: el motor adelantará `next_run_at` a la semana
+> siguiente al procesar, y un trigger que recalculara siempre pisaría ese avance y dejaría el
+> recordatorio disparando en bucle. Hay una prueba (S-25) que lo defiende.
 
 ```
   pg_cron (cada minuto)                       ┌──────────────────────────┐

@@ -1,9 +1,10 @@
 # SEGURIDAD
 
-- **Versión:** 2.10 · **Estado:** implementado · **Actualizado:** 2026-09-11
-- ⚠️ **Dos secciones describen algo que todavía NO existe** y lo dicen en su encabezado: **§4.15**
-  (aislamiento de cuentas de cobro y recordatorios) y **§5.2** (dispatcher de Web Push), autorizadas
-  el 2026-09-11 y planificadas para las Etapas 1 y 5 de D-185.
+- **Versión:** 2.11 · **Estado:** implementado · **Actualizado:** 2026-09-11
+- **§4.15** describe el aislamiento de las cuentas de cobro y los recordatorios, **implementado en la
+  migración `0051`** (Etapa 1 de D-185) y verificado en local; su última parte —Web Push— sigue
+  siendo diseño y lo dice. **§5.2** (dispatcher de Web Push) es **planificada**, Etapa 5.
+- ⚠️ `0051` está aplicada **en local**. **El proyecto real no la tiene**: promoverla es la Etapa 7.
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
   `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042`, `0043` y `0044`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
@@ -757,11 +758,12 @@ grupo: para eso haría falta una tabla aparte con su propia política, no una co
 nueva y sin ningún dato saliendo del navegador por iniciativa del servidor. El texto del mensaje se
 guarda y se pinta **como texto** —`<textarea>` y nodos de texto—, nunca con `dangerouslySetInnerHTML`.
 
-### 4.15 Cuentas de cobro y recordatorios del vendedor — **PLANIFICADO** (BR-M, BR-S, BR-V, D-185)
+### 4.15 Cuentas de cobro y recordatorios del vendedor (`0051`, BR-M01..BR-M09, BR-S01..BR-S06, D-185)
 
-> ⚠️ **NADA DE ESTO EXISTE TODAVÍA.** Autorizado el 2026-09-11, Etapa 0. Se escribe aquí porque el
-> aislamiento es lo primero que hay que fijar: si se construye sobre el patrón equivocado, corregirlo
-> después es una migración de datos sensibles.
+> **IMPLEMENTADO EN LA BASE el 2026-09-11** (Etapa 1), aplicado y verificado **en local** con 62
+> pruebas. **No aplicado al proyecto real**: eso es la Etapa 7 y necesita autorización propia. Lo que
+> sigue describe el esquema **real**, salvo la última parte —Web Push—, que sigue siendo diseño de
+> las etapas 4 y 5 y lo dice.
 
 **El aislamiento que pide el contrato es más estrecho que cualquiera que este producto tenga hoy.**
 No es «por organización» ni «por vendedor y su cadena de mando»: es **por vendedor, y nadie más**.
@@ -788,8 +790,14 @@ son tablas nuevas con política propia (BR-M01).
 
 #### El patrón, y por qué es el mismo de siempre
 
-* **Políticas de `SELECT` y de escritura acotadas a `profile_id = current_profile_id()`**, con RLS
-  **forzada** (`force row level security`) en las cinco tablas.
+* **Una política, y es de `SELECT`**: `seller_id = (select current_profile_id())`, con RLS **forzada**
+  (`force row level security`) en las dos tablas. Entre paréntesis, no la llamada suelta: se evalúa
+  una vez por consulta y no una por fila (I-019, D-063).
+* **No hay política de INSERT, ni de UPDATE, ni de DELETE, y `authenticated` solo tiene `SELECT`.**
+  Se comprobó con una sesión real: los tres verbos directos devuelven `42501 permission denied`. Es
+  más fuerte que acotar la escritura con una política, porque hace que las RPC sean la **única**
+  puerta y que el tope, el orden y la bitácora sean inevitables en vez de ser cosas que la pantalla
+  se acuerda de hacer.
 * **La escritura real pasa por RPC `SECURITY DEFINER` que no reciben identificador de vendedor.** El
   perfil sale de `auth.uid()`, así que **no existe el dato que alguien pudiera manipular** para
   configurar a otro. Es la lección de `set_seller_whatsapp_settings`: lo que la hace segura no es una
@@ -798,21 +806,27 @@ son tablas nuevas con política propia (BR-M01).
   el perfil y la organización sigan activos (BR-A04). Una cuenta desactivada no configura nada — y
   **tampoco se le procesan los recordatorios** (BR-S13), que es la mitad que se olvida.
 * **Sin `DELETE`** en ninguna de las tablas de configuración: ni política ni privilegio (D-038). Se
-  archiva. Las dos excepciones son operativas y acotadas: `push_subscriptions`, que la persona puede
-  quitar de su dispositivo, y la poda de la outbox, que son datos de transporte y no de negocio.
+  archiva. Las dos excepciones futuras son operativas y acotadas: `push_subscriptions`, que la
+  persona puede quitar de su dispositivo, y la poda de la outbox, que son datos de transporte.
 * **Auditoría.** Crear, editar y archivar una cuenta o un recordatorio se anota con
   `write_audit_log`, **sin copiar el número de la cuenta en `old_values`/`new_values`**: `audit_logs`
   lo consulta el personal entero (BR-D04), así que volcar ahí el dato desharía el aislamiento por la
-  puerta de atrás. Se anota **qué cambió**, no el valor.
+  puerta de atrás. Se anota **qué cambió** —tipo, etiqueta, horario, estado—, y **no** el número, ni
+  el titular, ni el mensaje. Hay una prueba que lee la última fila de la bitácora y falla si
+  aparecen.
+* **Tres auxiliares que ninguna sesión ejecuta:** `require_seller_org()`, `next_reminder_run_at()` y
+  `max_active_payment_reminders()`. `REVOKE` explícito de `public` y `anon`, y **sin `GRANT` a
+  `authenticated`** — PostgreSQL concede `EXECUTE` a PUBLIC en cada función nueva y las *default
+  privileges* de `0015`/`0032` no alcanzan a lo que se cree después (I-020, I-078).
 
-#### Lo que el proceso del cron puede tocar
+#### Lo que el proceso del cron podrá tocar — **Etapa 3, todavía no existe**
 
-`process_due_payment_reminders()` es `SECURITY DEFINER` y **no la ejecuta nadie con sesión**: se
-revoca de `public`, `anon` y `authenticated`, y solo la llama el job de `pg_cron`. Escribe
-ocurrencias, avisos y filas de outbox; **no lee ni una cuenta bancaria**, porque no le hace falta: el
-mensaje se compone después, en la pantalla del vendedor (BR-S08).
+`process_due_payment_reminders()` será `SECURITY DEFINER` y **no la ejecutará nadie con sesión**: se
+revoca de `public`, `anon` y `authenticated`, y solo la llamará el job de `pg_cron`. Escribirá
+ocurrencias, avisos y filas de outbox; **no leerá ni una cuenta bancaria**, porque no le hace falta:
+el mensaje se compone después, en la pantalla del vendedor (BR-S08).
 
-#### Privacidad del push
+#### Privacidad del push — **Etapas 4 y 5, todavía no existe**
 
 El cuerpo que sale hacia el servicio de push es **genérico** (BR-V05). No lleva cuentas, ni números,
 ni el mensaje personalizado, ni clientes, ni importes. La razón es la misma que impide al service

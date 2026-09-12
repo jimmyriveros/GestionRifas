@@ -1,10 +1,10 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.17 · **Actualizado:** 2026-09-11
+- **Versión:** 2.18 · **Actualizado:** 2026-09-11
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
-- ⚠️ **Una sección describe pruebas que todavía NO existen:** la **§4.8** (cuentas de cobro y
-  recordatorios de pago) es el **criterio de aceptación** de las etapas 1 a 6 de D-185, escrito
-  **antes** de construir. Lo demás describe pruebas escritas y ejecutadas.
+- ⚠️ En la **§4.8** (cuentas de cobro y recordatorios de pago) conviven las dos cosas: la **Etapa 1
+  está escrita y ejecutada** (62 pruebas), y las **etapas 3 a 6 son criterio de aceptación** todavía
+  sin código. Cada bloque lo dice.
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
 
@@ -676,16 +676,16 @@ cuando se creó un cliente a secas); y que sin grupo configurado el botón cambi
 En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
 que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
 
-### 4.8 Cuentas de cobro y recordatorios de pago — **PLANIFICADO** (BR-M, BR-S, BR-V, D-185)
+### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V, D-185)
 
-> ⚠️ **NO EXISTE NINGUNA DE ESTAS PRUEBAS.** Autorizado el 2026-09-11 (Etapa 0). Esto es el
-> **criterio de aceptación** con el que se medirán las etapas 1 a 6, escrito antes de construir para
-> que no se escriba después a la medida de lo que salió.
+> **La Etapa 1 está hecha: `tests/db/payment-accounts-reminders.test.ts`, 62 pruebas** (2026-09-11).
+> Las etapas 3 a 6 siguen siendo **criterio de aceptación escrito antes de construir**, para que no
+> se escriba después a la medida de lo que salga.
 
 **Cada etapa se cierra con `npm run verify` y `npm run test:db` en verde**, más lo suyo. Una etapa
 que no pueda demostrar su tabla de abajo **no está terminada** (`CLAUDE.md` §32).
 
-#### Etapa 1 — base de datos (`tests/db/`)
+#### Etapa 1 — base de datos ✅ (`tests/db/payment-accounts-reminders.test.ts`, 62 pruebas)
 
 Es la etapa con más carga de prueba, porque es donde de verdad se decide el aislamiento. El acto
 cuya RLS se prueba **nunca** usa `service_role` (D-043); la clave de servicio solo prepara, comprueba
@@ -702,8 +702,15 @@ y limpia.
 | Sin duplicados (BR-M08, BR-S02) | Dos cuentas iguales sin archivar; dos recordatorios al mismo día y hora |
 | Segundos a cero en la hora (BR-S02) | Un `time` con segundos se rechaza |
 | `next_reminder_run_at` en `America/Bogota` (BR-S03) | Tabla de casos: mismo día antes y después de la hora, cambio de semana, y el borde de medianoche |
-| Ningún `DELETE` (D-038) | El catálogo de privilegios no concede `DELETE` sobre las tablas de configuración |
+| Ningún `DELETE` (D-038) | El catálogo de privilegios no concede `DELETE` sobre las tablas de configuración, y un `delete` con sesión real devuelve `42501` |
 | Las funciones nuevas no las ejecuta `anon` ni `authenticated` cuando no debe | `tests/db/catalog.test.ts` y `verify:remote`, **las dos listas juntas** (§4.5 de `SECURITY`). I-020 e I-078 explican por qué esto se olvida |
+
+**Y se comprobó al revés, que es lo que dice si las pruebas sirven.** Con la política de `SELECT`
+cambiada a la «clásica» —`organization_id in (select current_org_ids())`, que es exactamente el error
+que esta función no se puede permitir—, **12 pruebas fallan**, entre ellas las cinco del aislamiento:
+M-02 (otro vendedor), M-03 (Dueño), M-04 (Administrador), M-05 (vendedor padre) y S-02. Después se
+restauró el estado con `db:reset`, para que la base sea lo que dicen las migraciones y no lo que dejó
+una prueba.
 
 #### Etapa 3 — el motor
 

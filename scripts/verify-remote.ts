@@ -131,6 +131,13 @@ const CHECKS: Check[] = [
               'reassign_ticket_client', 'release_ticket_client',
               'report_payment_totals', 'report_payments_by_day', 'report_sales_totals',
               'search_tickets', 'set_seller_whatsapp_settings', 'set_ticket_clearance_delivery',
+              -- Las ocho de la 0051: el vendedor administra SUS cuentas de cobro
+              -- y SUS recordatorios. Ninguna recibe identificador de vendedor
+              -- (BR-M02, BR-S01, D-185)
+              'archive_seller_payment_account', 'create_payment_reminder',
+              'create_seller_payment_account', 'reorder_seller_payment_accounts',
+              'restore_seller_payment_account', 'set_payment_reminder_status',
+              'update_payment_reminder', 'update_seller_payment_account',
               'taken_ticket_combinations', 'team_confirm_email_change', 'team_delete_member',
               'team_max_fixed_commission', 'team_member_sales', 'team_sales_summary',
               'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
@@ -186,6 +193,27 @@ const CHECKS: Check[] = [
                               'report_sales_totals')
             and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
     esperado: 3,
+  },
+  {
+    // La cara positiva de la lista blanca de arriba: si estas ocho dejaran de
+    // ser ejecutables, el vendedor no podria administrar nada y la pantalla
+    // fallaria sin que ninguna otra comprobacion lo dijera (0051, D-185).
+    nombre: 'Las 8 RPC de cuentas y recordatorios son ejecutables por authenticated',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in ('create_seller_payment_account', 'update_seller_payment_account',
+                              'archive_seller_payment_account', 'restore_seller_payment_account',
+                              'reorder_seller_payment_accounts', 'create_payment_reminder',
+                              'update_payment_reminder', 'set_payment_reminder_status')
+            and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
+    esperado: 8,
+  },
+  {
+    nombre: 'Tablas de cuentas y recordatorios existen (0051)',
+    sql: `select c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'public' and c.relkind = 'r'
+            and c.relname in ('seller_payment_accounts', 'seller_payment_reminders')`,
+    esperado: 2,
   },
   {
     nombre: 'Las 5 vistas de saldos existen',

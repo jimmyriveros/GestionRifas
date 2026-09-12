@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.45 · **Actualizado:** 2026-09-11 (D-001 a D-187)
+- **Versión:** 1.46 · **Actualizado:** 2026-09-11 (D-001 a D-187; D-185 y D-186 con nota de la Etapa 1)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -8692,10 +8692,11 @@ fila leída **después** de guardar y comparada carácter por carácter.
 **Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-11). **No es una Fase 10**
 y no lleva etiqueta `fase-*`.
 
-> **ESTADO: AUTORIZADO Y PLANIFICADO. NADA DE ESTO EXISTE EN EL CÓDIGO.** Esta entrada documenta el
-> contrato acordado y la arquitectura que lo sostiene. En esta sesión (Etapa 0) **no se escribió
-> código funcional, ni migraciones, ni dependencias, ni se tocó Supabase o Vercel**. Cuando una etapa
-> se implemente, se anota aquí su fecha y su commit; hasta entonces, todo lo que sigue es diseño.
+> **ESTADO: ETAPA 1 IMPLEMENTADA EN LOCAL (2026-09-11, migración `0051`).** Existen las dos tablas de
+> configuración, sus restricciones, su RLS y sus ocho RPC, con 62 pruebas de base de datos. **NO está
+> aplicada al proyecto real** —eso es la Etapa 7— y **no hay nada de interfaz** (Etapa 2) ni de motor,
+> push u outbox (etapas 3 a 5). Las decisiones de abajo siguen siendo el contrato; al final de la
+> entrada hay una nota con **lo que cambió al implementarlas**.
 
 **Alcance planificado.** Dos capacidades nuevas para el **vendedor**, las dos dentro de
 `/seller/settings`:
@@ -8953,12 +8954,50 @@ visible: entonces se amplía el Anexo A de `UX_COPY_GUIDELINES` **antes** de esc
 
 ---
 
+### Lo que cambió al implementar la Etapa 1 (2026-09-11, migración `0051`)
+
+Cinco precisiones sobre el diseño de arriba. Ninguna cambia el contrato; cuatro lo hacen **más
+fuerte** de lo que estaba escrito y la quinta es un cambio de nombre.
+
+1. **El tope de cinco dejó de ser una comprobación y pasó a ser la forma de la tabla.** La Decisión 11
+   decía «RPC + comprobación en la base». Lo que se construyó es mejor: una cuenta activa ocupa una
+   **posición del 1 al 5, única por vendedor**, así que **no existe una sexta**. De ahí salen el tope,
+   el orden del mensaje y —lo que una comprobación no da— la **ausencia de condición de carrera**: un
+   trigger que cuenta filas puede dejar pasar dos inserciones simultáneas; un índice único, no. El
+   constraint es `DEFERRABLE INITIALLY DEFERRED` porque reordenar es permutar.
+2. **El tope de catorce sí cuenta filas, y por eso toma un cerrojo.** A un recordatorio no se le puede
+   dar una «posición» sin inventar un concepto que nadie ve en pantalla, así que el trigger cuenta —y
+   antes toma un `pg_advisory_xact_lock` por vendedor, que cierra la carrera—. Va **en el trigger y no
+   en la RPC** para que lo cumpla cualquier camino de escritura.
+3. **Las dos tablas no tienen política de escritura.** El diseño decía «políticas de `SELECT` y de
+   escritura»; se quedaron **solo en `SELECT`**, y `authenticated` no recibe `INSERT`, `UPDATE` ni
+   `DELETE`. Comprobado con sesión real: los tres devuelven `42501`. Así las RPC son la **única**
+   puerta y el tope, el orden y la bitácora son inevitables.
+4. **`position` se llama `sort_order`.** `position` es una función del estándar SQL y tenerla además
+   como nombre de columna obliga a acordarse de citarla para siempre. `DATA_MODEL` §4.15 usa el
+   nombre real.
+5. **Hay una RPC más de la prevista:** `restore_seller_payment_account`, que devuelve al listado una
+   cuenta archivada sujeta al tope. Estaba implícita en BR-M07 —«se puede volver a activar»— y sin
+   ella archivar por error no tendría vuelta atrás.
+
+**Lo que NO se hizo, y es deliberado:** ni `pg_cron`, ni `pg_net`, ni ocurrencias, ni el `kind` nuevo
+de `notifications`, ni outbox, ni push. Son las etapas 3, 4 y 5, y cada una necesita su autorización.
+`next_run_at` **sí** se calcula y se mantiene desde ya, para que el motor solo tenga que leer un
+índice cuando llegue.
+
+---
+
 ## D-186 — Por qué `pg_cron` sí, aquí, después de que D-148 lo descartara
 
 **Fase:** mantenimiento posterior a la Fase 9 (Etapa 0 del encargo de D-185, 2026-09-11)
 
-> **ESTADO: PLANIFICADO.** No hay ninguna extensión instalada, ningún job creado y ninguna migración
-> escrita. `pg_cron` y `pg_net` **no están instalados** hoy en el proyecto.
+> **ESTADO: PLANIFICADO (Etapa 3).** La migración `0051` de la Etapa 1 **no crea ninguna extensión ni
+> ningún job**: solo deja `next_run_at` calculado y su índice, para que el motor lo lea cuando exista.
+>
+> **Comprobado en local el 2026-09-11:** `pg_cron` está **disponible** (1.6.4) y presente en
+> `shared_preload_libraries`, y crearlo funciona —se probó dentro de una transacción y se deshizo—.
+> `pg_net` ya viene **instalado** (0.20.4, esquema `extensions`). El hecho (a) de más abajo queda así
+> confirmado con cifras.
 
 **Contexto.** D-148 escribió, en letras claras, «**no se usa `pg_cron`** para scrapear ni para
 orquestar parsers», y D-149 lo repitió al promover las loterías. Un encargo que ahora proponga

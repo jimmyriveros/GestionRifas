@@ -3,10 +3,22 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-11 — **encargo nuevo: cuentas para recibir pagos y recordatorios de pago
-  del vendedor** (D-185, D-186, D-187). Se autorizó y se completó **solo la ETAPA 0 de 7**: contrato
-  funcional y arquitectura documentada. **No hay código, ni migraciones, ni dependencias, ni nada
-  tocado en Supabase o Vercel** — el trabajo entero vive en `docs/`, y las reglas nuevas
+- **Actualizado:** 2026-09-11 — **ETAPA 1 de 7 del encargo de cobro: la base de datos** (D-185,
+  migración **`0051`**). Existen **`seller_payment_accounts`** y **`seller_payment_reminders`** con
+  sus tres enumerados, sus restricciones, su RLS y **ocho RPC**; **62 pruebas** nuevas y `test:db` en
+  **889/889**. Lo que conviene saber: **el tope de cinco cuentas no es un trigger, es la forma de la
+  tabla** —una cuenta activa ocupa una posición 1..5 única por vendedor, así que no hay sexta y no hay
+  condición de carrera—; **las dos tablas no tienen política de escritura** y `authenticated` solo
+  tiene `SELECT`, de modo que las RPC son la **única** puerta (comprobado: `INSERT`, `UPDATE` y
+  `DELETE` directos dan `42501`); y **`next_run_at` ya se calcula y se mantiene** en `America/Bogota`,
+  con un trigger que **solo** recalcula si cambia el horario o se reactiva, para que el motor de la
+  Etapa 3 pueda adelantarlo sin entrar en bucle. **NO hay pantalla** (Etapa 2), **ni motor, ni
+  `pg_cron`, ni push** (etapas 3 a 5), y **la migración NO está en el proyecto real**, que sigue en
+  50: promoverla es la Etapa 7. **Rama `feature/cuentas-y-recordatorios`, sin fusionar. La Etapa 2
+  necesita autorización nueva.**
+  Antes, el mismo día: **la ETAPA 0**, contrato funcional y arquitectura documentada
+  (D-185, D-186, D-187). **Sin código, sin migraciones y sin nada tocado en Supabase o Vercel** — el
+  trabajo entero vivió en `docs/`, y las reglas nuevas
   (**BR-M**, **BR-S**, **BR-V**) llevan una columna «Estado» que dice en qué etapa se construye cada
   una. Lo que fija: las cuentas y los recordatorios van en **tablas propias con política propia**, no
   en columnas de `memberships` —`memberships_select` deja leer esa fila al personal y al vendedor
@@ -16,8 +28,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   **campana interna es la fuente durable** y **Web Push estándar —sin Firebase—** es una mejora que
   sale por una **outbox desacoplada**. Corrige además una decisión anterior: `ARCHITECTURE` §8.15.a
   daba por hecho Firebase Cloud Messaging y **ya no**. La sección completa, con los seis puntos de
-  `CLAUDE.md` §34.3, está **al final de este documento**. **Rama `feature/cuentas-y-recordatorios`,
-  sin fusionar. La Etapa 1 necesita autorización nueva.**
+  `CLAUDE.md` §34.3, está **al final de este documento**.
   Antes, el 2026-09-10: **la máscara visual del teléfono** (D-184), desplegada sin migración; su
   sección también está al final.
   Antes, el 2026-09-09: **ajuste del nivel 0 del panel del vendedor** (D-181), pedido el
@@ -4677,3 +4688,94 @@ nadie ha creado (I-021).
    `UX_COPY_GUIDELINES` (`CLAUDE.md` §35.2.3). En esta etapa no se escribió ninguno y la guía no se
    tocó a propósito.
 8. **La rama es `feature/cuentas-y-recordatorios`** y no se ha fusionado a `main`.
+
+---
+
+## Mantenimiento post-9 — cuentas de cobro y recordatorios, **ETAPA 1 de 7**: base de datos (`0051`, D-185, 2026-09-11)
+
+Autorizada expresamente el mismo día, después de cerrar la Etapa 0. **No es una Fase 10** y no lleva
+etiqueta `fase-*`.
+
+> **APLICADA EN LOCAL. EL PROYECTO REAL NO LA TIENE.** Promover a producción es la **Etapa 7** y
+> necesita su propia autorización. La base de producción sigue en **50 migraciones**.
+> **No hay ninguna pantalla**: eso es la Etapa 2.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Dos tablas nuevas | **`seller_payment_accounts`** (cuentas para recibir pagos) y **`seller_payment_reminders`** (recordatorios semanales). **Tablas propias, no columnas de `memberships`**: esa fila la pueden leer el personal y el vendedor padre, y el contrato dice que **solo el vendedor** ve esto (BR-M02, `SECURITY` §4.14) |
+| Tres enumerados | `payment_account_kind` (`nequi` · `daviplata` · `bank`), `bank_account_type` (`savings` · `checking`), `payment_reminder_status` (`active` · `paused` · `archived`) |
+| Qué guarda una cuenta | Titular y número: teléfono para Nequi y Daviplata; banco, tipo, número y titular para una cuenta bancaria. **Sin documento de identidad.** Etiqueta opcional y orden |
+| El tope de 5, como forma de la tabla | Una cuenta activa ocupa una **posición 1..5 única por vendedor**: no hay sexta. De ahí salen a la vez el tope, el orden del mensaje y la ausencia de condición de carrera. Archivar **libera** la posición |
+| Sin cuentas repetidas | Índice único parcial que compara **solo dígitos**, para que «300 123 4567» y «3001234567» sean la misma (BR-M08, D-184) |
+| Qué guarda un recordatorio | Día ISO 1..7, hora **con segundos a cero** —la precisión es de minuto—, estado, y su propio mensaje con el mismo interruptor y la misma coherencia que `0050` |
+| El reloj | **`next_run_at` materializado**, calculado en `America/Bogota` con la zona nombrada, con índice parcial `WHERE status = 'active'`. Lo mantiene un trigger que **solo** recalcula si cambia el horario o se reactiva: el motor de la Etapa 3 adelantará esa columna y un trigger que recalculara siempre lo dejaría en bucle |
+| El tope de 14 | Trigger que cuenta, con **cerrojo de aviso por vendedor** (`pg_advisory_xact_lock`) para cerrar la carrera. Un pausado no cuenta y **reactivar vuelve a comprobar** |
+| Ocho RPC | `create/update/archive/restore/reorder_seller_payment_account(s)` y `create/update_payment_reminder`, `set_payment_reminder_status`. **Ninguna recibe identificador de vendedor**: sale de `auth.uid()` |
+| Aislamiento | Una política, y es de **`SELECT`**. `authenticated` no tiene `INSERT`, `UPDATE` ni `DELETE`: comprobado con sesión real, los tres dan `42501`. Las RPC son la **única** puerta |
+| Bitácora | `payment_account.*` y `payment_reminder.*` en `audit_logs`, **sin el número, sin el titular y sin el mensaje**: esa tabla la lee el personal entero (BR-D04) |
+| Tipos | `src/types/database.types.ts` regenerado: **+362 líneas, 0 eliminadas** |
+
+**Lo que NO trae, y es deliberado:** ni `pg_cron`, ni `pg_net`, ni ocurrencias, ni el `kind` nuevo de
+`notifications`, ni outbox, ni push, ni una sola pantalla. Son las etapas 2 a 5.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` + `npm run seed:local` | ✅ 51 migraciones desde cero |
+| `tests/db/payment-accounts-reminders.test.ts` | ✅ **62/62** |
+| `npm run test:db` | ✅ **889/889** (40 archivos, **+62**) |
+| `npm run verify` | ✅ typecheck · lint con los 2 avisos preexistentes · **896/896** unitarias · build |
+| `npm run verify:remote` | **No ejecutado a propósito**: apunta al proyecto real y esta etapa no toca producción |
+
+**Se comprobó al revés.** Con la política de `SELECT` cambiada por la «clásica» de organización,
+**12 pruebas fallan**, entre ellas las cinco del aislamiento (M-02, M-03, M-04, M-05, S-02). Detalle
+en `TEST_RESULTS.md`.
+
+**Dos errores encontrados durante el trabajo, los dos corregidos:**
+
+1. **`catalog.test.ts` falló al aplicar la migración**, listando las ocho funciones nuevas como
+   «internas ejecutables por `authenticated`». Funcionó como debía: es la red que existe desde I-078.
+   Se añadieron a las **dos** listas blancas —`catalog.test.ts` y `verify-remote.ts`— junto con la
+   comprobación contraria.
+2. **`typecheck` falló** en el ayudante de la suite por pasar `null` a un argumento opcional: los
+   tipos que genera la CLI los declaran `string | undefined`. Se omite el argumento en vez de mandar
+   `null`.
+
+### 3. Migraciones que existen
+
+**`0001`–`0051`.** La nueva es **`0051_seller_payment_accounts_and_reminders.sql`**: dos tablas, tres
+enumerados, sus restricciones e índices, RLS con una sola política de `SELECT` por tabla, tres
+funciones auxiliares internas, ocho RPC y sus privilegios explícitos.
+
+**Aplicada en local. En el proyecto real siguen 50** (la última, `0050`).
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.** `.env.example`, `check:env` y `vercel.json` **no se tocaron**. Las de Web Push
+(`VAPID_*`) se declararán cuando existan las etapas 4 y 5 — no antes: `check:env` rompe el despliegue
+si exige una variable que nadie ha creado (I-021).
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **I-108** heredada | El teléfono de una cuenta de Nequi o Daviplata usa el mismo `PHONE_REGEX`, que cuenta **caracteres** y no dígitos. Está dicho en la migración y **no se corrige aquí**: alcanza a tres tablas y exige censar los datos reales |
+| **La CLI de Supabase genera tipos distintos** | La instalada (2.111.0) pierde `| null` en seis sitios de tres funciones ya existentes. Se restauraron a mano para no meter una regresión ajena. **Quien regenere los tipos tiene que volver a hacerlo**, o el diff traerá cambios que no son suyos |
+| **I-024**, plan Free | Sigue siendo un motivo doble: sin backups, y porque un proyecto pausado no correrá el `pg_cron` de la Etapa 3 (D-186) |
+| Todo lo demás | Sin cambios: I-109, I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-030, I-059, I-060 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Etapa 2.** Hace falta una autorización explícita nueva.
+2. **`0051` es inmutable en cuanto se aplique al proyecto real** (regla 2 de `HANDOFF` §8). Hoy solo
+   está en local, pero cualquier corrección conviene hacerla como migración nueva si ya se promovió.
+3. **No añadas políticas de escritura a esas dos tablas.** Si lo haces, el tope, el orden y la
+   bitácora dejan de ser inevitables. Hay pruebas que lo defienden (M-08, M-09, M-09b, S-03).
+4. **No pongas `size` ni cifras de precio en la pantalla de la Etapa 2**: lee `UX_COPY_GUIDELINES`
+   entera y **amplía el Anexo A antes** de escribir el primer texto (`CLAUDE.md` §35.2.3). Los
+   términos de pantalla todavía no existen.
+5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
+6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
