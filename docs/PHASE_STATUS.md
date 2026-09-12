@@ -3,7 +3,21 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-12 — **ETAPA 5 de 7 del encargo de cobro: outbox, despachador y envío**
+- **Actualizado:** 2026-09-12 — **ETAPA 6 de 7 del encargo de cobro: auditoría integrada** (D-192).
+  **No añade funcionalidad: audita.** **47 sondas adversarias** contra las cinco tablas nuevas, con
+  sesiones reales y clave pública — **46 rebotaron**. La única que pasó es **I-110**: quien conozca el
+  `endpoint` de otra persona puede **quitarle el dispositivo** de avisos. Se **acepta con motivo escrito**
+  y no se corrige: no entrega ninguna información —es una denegación, no una fuga—, exige una fuga
+  previa **fuera** de la aplicación, y este entorno no puede ejercer el camino legítimo que un
+  endurecimiento rompería. El arreglo queda redactado y **`P-04b` se cae** si alguien lo cambia sin
+  leerlo. Medido además con **100.000 ocurrencias**: lo que corre cada minuto lee índices y termina
+  en milisegundos. Y se encontraron **28 líneas de comentario** que la `0054` se había llevado por
+  delante al reescribir el motor —incluida la advertencia del bucle—, **restauradas**. Se cerró el
+  único criterio de la etapa que estaba sin cumplir: **375, 390 y 430 px**, 8/8 sin desbordamiento.
+  **Todo en LOCAL: el proyecto real no tiene ninguna de las cuatro migraciones.** **Rama**
+  **`feature/cuentas-y-recordatorios`, sin fusionar. La Etapa 7 —promoción a producción— necesita**
+  **autorización nueva.**
+  Antes, ese mismo día: **ETAPA 5 de 7 del encargo de cobro: outbox, despachador y envío**
   (`0054`, D-191). **El canal está COMPLETO**: un recordatorio que vence escribe su campana,
   **encola su aviso en la misma transacción** y un despachador protegido lo cifra y lo entrega al
   teléfono **con la aplicación cerrada**. **Web Push estándar sobre el `crypto` de Node** —VAPID y
@@ -4825,6 +4839,94 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — cuentas de cobro y recordatorios, **ETAPA 6 de 7**: auditoría integrada (D-192, 2026-09-12)
+
+Autorizada expresamente el mismo día, después de cerrar la Etapa 5. **No es una Fase 10** y no lleva
+etiqueta `fase-*`.
+
+> **NO AÑADE FUNCIONALIDAD.** Audita lo que construyeron las etapas 1 a 5. El producto solo cambia en
+> los comentarios restaurados de la `0054` y en dos archivos de prueba. **El proyecto real sigue sin
+> ninguna de las cuatro migraciones**; promoverlas es la **Etapa 7**.
+
+### 1. Funcionalidades implementadas
+
+Ninguna, a propósito. Lo entregado es **evidencia**:
+
+| Bloque | Qué se hizo |
+|---|---|
+| Sonda adversaria | **47 intentos** de romper el aislamiento de las cinco tablas, con sesiones reales y clave pública, nunca `service_role`. Escrita desde cero. **46 rebotaron** |
+| Medición con volumen | `EXPLAIN (ANALYZE)` sobre 8 consultas con **2.000 recordatorios, 5.000 filas de cola y 100.000 ocurrencias**. Todo por índice, milisegundos |
+| Comparación de la función reescrita | Los dos cuerpos de `process_due_payment_reminders` —`0052` y `0054`— línea a línea |
+| Coherencia documental | **11 comprobaciones** de afirmaciones de los documentos contra el catálogo y las cifras reales |
+| Barrido de textos | **119 textos** visibles, más el de reserva del service worker, contra las palabras prohibidas |
+| Los otros tres anchos | **375, 390 y 430 px**, que eran el único criterio escrito de la etapa sin cumplir |
+| Informe | `AUDIT_REPORT` §10 a §19, con la estructura del de la Fase 9 |
+
+### 2. Pruebas ejecutadas y sus resultados
+
+| Comando | Resultado |
+|---|---|
+| Sonda adversaria | **46 bloqueados · 1 pasó** → **I-110** |
+| `npm run verify` | ✅ **1.004/1.004** unitarias, lint con los 2 avisos preexistentes, `build` |
+| `npm run test:db` | ✅ **982/982** (**+1**: `P-04b`) |
+| `configuracion-cobro-movil.spec.ts` | ✅ **8/8** (5 antes + **3 nuevas**, una por ancho) |
+| Suite E2E completa, tras `db:reset` + `seed:local` | **642 pasan · 2 fallan** en **32,2 min** |
+
+**Los 2 fallos son I-090**, conocido y ajeno —`reports.spec.ts:305` y `ventas-por-fecha.spec.ts:163`—
+y son **exactamente el mismo par, con el mismo recuento**, que la Etapa 5: ninguna regresión.
+
+**Errores encontrados y corregidos en esta etapa:**
+
+1. **La definición viva del motor había perdido 28 líneas de comentario** al reescribirse con
+   `create or replace` en la `0054` — ninguna sentencia ejecutable, pero sí la advertencia sobre el
+   disparador que lo dejaría en bucle. **Restaurado y vuelto a comparar: cero líneas perdidas.**
+2. **`TESTING` §4.8 decía `push-subscriptions.test.ts` (20)** y con `P-04b` son **21**. Lo encontró la
+   comprobación de coherencia, no una relectura.
+3. **Cuatro falsos positivos del barrido de textos, y los cuatro eran de la sonda**: leía el archivo entero y
+   contaba comentarios y nombres de constantes. Se reescribió para mirar **los valores**.
+4. **Un criterio escrito de esta misma etapa estaba sin cumplir**: los anchos 375, 390 y 430. **No se
+   reescribió el criterio**; se midió. 8/8, sin desbordamiento.
+5. **Una corrupción propia en `KNOWN_ISSUES.md`, cazada leyendo el diff antes de confirmar**: al
+   registrar I-110 e I-111 se duplicaron **109 líneas** —el preámbulo entero— en mitad del archivo.
+   Se reconstruyó desde la versión confirmada, dejando el diff en **7 inserciones y 1 eliminación**.
+   Ninguna suite lo habría visto: la documentación no la compila nadie.
+
+### 3. Migraciones que existen
+
+**`0001`–`0054`, sin ninguna nueva.** La `0054` cambia **solo comentarios**: la comparación línea a
+línea lo demuestra.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.** Siguen las de la Etapa 5: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+`VAPID_SUBJECT` y `PUSH_DISPATCH_SECRET`, más los dos secretos del vault.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **I-110** — quien conozca el `endpoint` de otra persona puede quitarle el dispositivo | **Abierto, aceptado con motivo.** No entrega información —es una denegación, no una fuga—, exige una fuga previa fuera de la aplicación, y la campana interna no se ve afectada. El arreglo está escrito; `P-04b` se cae si alguien lo cambia sin leerlo |
+| **I-111** — una tabla nueva en `public` nace legible por `authenticated` | Informativa. Ya corregido para `push_outbox`; queda escrito para las futuras |
+| **Nada de esto está en producción** | Las cuatro migraciones son locales. Promoverlas es la Etapa 7, con tres variables de entorno y dos secretos del vault |
+| **No se ha visto un aviso llegar a un teléfono real** | Sigue siendo lo único que no se puede demostrar aquí. Etapa 7 |
+| **El par VAPID de las pruebas** | Su clave privada quedó escrita en una sesión de trabajo. **No se usa en producción**: la Etapa 7 genera uno nuevo con `npm run vapid` |
+| **I-024**, plan Free | Sin backups, y un proyecto pausado no corre **ninguno** de los tres cron |
+| Todo lo demás | Sin cambios: I-109, I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-074, I-021, I-023, I-030, I-059, I-060 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Etapa 7.** Hace falta una autorización explícita nueva, y es la primera vez
+   en este encargo que algo sale hacia afuera.
+2. **Lee `AUDIT_REPORT` §12.3 antes de tocar `upsert_push_subscription`.** El comportamiento que
+   parece un defecto es deliberado (D-190), y el porqué de no endurecerlo está razonado.
+3. **`P-04b` fija ese comportamiento.** Si la rompes, que sea a propósito y actualizando I-110.
+4. **La `0054` es la definición viva del motor**, no la `0052`. Cualquier `create or replace` futuro
+   se compara línea a línea: ya se perdieron comentarios una vez sin que nadie lo notara.
+5. **Genera un par VAPID nuevo** para producción. El de las pruebas no se promueve.
+6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main` y sin etiquetas.
 
 ---
 

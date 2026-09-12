@@ -676,21 +676,26 @@ cuando se creó un cliente a secas); y que sin grupo configurado el botón cambi
 En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
 que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
 
-### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V; D-185, D-188..D-191)
+### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V; D-185, D-188..D-192)
 
-> **Hechas las etapas 1 a 5.** Base: `payment-accounts-reminders.test.ts` (62),
-> `payment-reminder-engine.test.ts` (32), `push-subscriptions.test.ts` (20),
+> **Hechas las etapas 1 a 6.** Base: `payment-accounts-reminders.test.ts` (62),
+> `payment-reminder-engine.test.ts` (32), `push-subscriptions.test.ts` (21),
 > `push-outbox.test.ts` (27) y `push-dispatch.test.ts` (12, **con la base real y el cifrado real**).
-> Navegador: `configuracion-cobro.spec.ts` (23), `configuracion-cobro-movil.spec.ts` (5) y
+> Navegador: `configuracion-cobro.spec.ts` (23), `configuracion-cobro-movil.spec.ts` (8) y
 > `push-dispatch.spec.ts` (5). Unitarias: 108, incluidas **12 que ejecutan `public/sw.js` de
 > verdad** y **15 contra los vectores publicados del RFC 8291 y del RFC 8292**.
 >
-> **Queda la Etapa 6**, la auditoría integrada, que sigue siendo criterio escrito antes de
-> construir.
+> **La Etapa 6 —auditoría integrada— está hecha** (D-192): 47 sondas adversarias, medición con
+> volumen, comparación línea a línea de la función reescrita y barrido de textos. El informe está en
+> `AUDIT_REPORT` §10 a §19, y de ahí salió `P-04b`, la prueba número 21 de
+> `push-subscriptions.test.ts`: **fija el comportamiento aceptado de I-110** para que endurecerlo la
+> rompa a propósito.
 >
-> **Las etapas 4, 5 y 6 siguen siendo criterio de aceptación escrito antes de construir**, para que
-> no se escriba después a la medida de lo que salga. Y donde la Etapa 3 se apartó de su propio
+> **Las etapas 4, 5 y 6 fueron criterio de aceptación escrito antes de construir**, para que
+> no se escribiera después a la medida de lo que saliera. Y donde la Etapa 3 se apartó de su propio
 > criterio, está dicho abajo con su razón: no se reescribió el criterio para que encajara.
+>
+> **Queda la Etapa 7**, la promoción a producción, con su propia autorización.
 
 **Cada etapa se cierra con `npm run verify` y `npm run test:db` en verde**, más lo suyo. Una etapa
 que no pueda demostrar su tabla de abajo **no está terminada** (`CLAUDE.md` §32).
@@ -811,14 +816,20 @@ mano que pisaba el de `FormControl` y dejaba al desplegable **sin nombre accesib
 esperaba al aviso en vez de al cierre del diálogo, lo que en un bucle de cinco cuentas producía dos
 avisos iguales a la vez.
 
-#### Etapa 6 — lo que faltará comprobar en el navegador
+#### Etapa 6 — comprobado en el navegador ✅ (D-192)
 
 * «Copiado», «Grupo abierto» y «Marcado como atendido» **no dicen** que se envió nada (BR-S14):
   prueba por lo que **no** aparece, como la de «boleta» en §4.7. Con el método de esa sección: **no se
   abre WhatsApp en ninguna prueba** —`spyOnWindowOpen`, que devuelve un objeto y no `null`—.
-* **375, 390 y 430 px**, además de los 320 que la Etapa 2 ya mide.
+* **375, 390 y 430 px**, además de los 320 que la Etapa 2 ya mide. **Estaban sin medir**, y este era
+  el único criterio de la etapa que no se cumplía. No se reescribió el criterio: se midió, sobre las
+  **cuatro pantallas** del módulo y **los dos diálogos** —el mensaje con las cuentas al final es el
+  bloque más ancho que pinta—. **8/8, sin desbordamiento en ninguno.** Un resultado negativo se
+  escribe igual: un ancho intermedio puede romperse donde el estrecho no, porque es donde cambian
+  los puntos de corte y una fila pasa de apilada a horizontal.
 * Y la regla de `HANDOFF` §1.b: si se toca infraestructura de interfaz compartida, se comprueban
-  **las dos** presentaciones.
+  **las dos** presentaciones. Esta etapa **no tocó ninguna**: su único cambio de código son los
+  comentarios restaurados en la `0054` y dos archivos de prueba.
 
 ### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 7 pruebas)
 

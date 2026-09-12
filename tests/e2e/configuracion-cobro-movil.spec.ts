@@ -72,6 +72,51 @@ test('a 320 px no se desborda nada, ni en el resumen ni en las dos secciones', a
   }
 })
 
+/**
+ * Los otros tres anchos del encargo (D-192).
+ *
+ * La Etapa 2 midio los 320, que es el peor caso, y ese sigue teniendo su
+ * propia prueba arriba. Los 375, 390 y 430 los dejo escritos `TESTING` §4.8
+ * como criterio de la Etapa 6 y estaban sin medir: un ancho intermedio puede
+ * romperse donde el estrecho no, porque es donde cambian los puntos de corte
+ * de Tailwind y una fila pasa de apilada a horizontal.
+ *
+ * Se abren ademas los dos dialogos: el mensaje completo con las cuentas al
+ * final es el bloque mas ancho que pinta este modulo.
+ */
+for (const width of [375, 390, 430]) {
+  test(`a ${width} px no se desborda nada, ni en las paginas ni en los dos dialogos`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 780 })
+    await loginAs(page, ACCOUNTS.seller)
+
+    for (const path of [
+      '/seller/settings',
+      '/seller/settings/accounts',
+      '/seller/settings/whatsapp',
+      '/seller/settings/reminders',
+    ]) {
+      await page.goto(path)
+      await expect(page.getByRole('heading').first()).toBeVisible()
+      await expectNoHorizontalOverflow(page)
+    }
+
+    // El dialogo del recordatorio, que es el que lleva la vista previa.
+    await page.getByRole('button', { name: 'Crear recordatorio' }).click()
+    await expect(page.getByText('Así lo verán en tu grupo')).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+
+    // Y el de la cuenta, que es el que tiene mas campos.
+    await page.goto('/seller/settings/accounts')
+    await page.getByRole('button', { name: 'Agregar cuenta' }).click()
+    await expect(page.getByLabel('Titular')).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+  })
+}
+
 test('los controles nuevos llegan a la diana tactil de 44 px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 720 })
   await loginAs(page, ACCOUNTS.seller)

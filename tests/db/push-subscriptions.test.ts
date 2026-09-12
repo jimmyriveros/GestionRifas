@@ -117,6 +117,40 @@ describe('P — registrar y quitar el propio dispositivo (BR-V06)', () => {
     expect(delPrimero).toEqual([])
   })
 
+  /**
+   * EL PRECIO DE P-04, ESCRITO PARA QUE NO SE OLVIDE (I-110, D-192).
+   *
+   * La reasignación se autentica **solo con conocer el `endpoint`**. Esta prueba
+   * fija ese comportamiento a propósito: es la contrapartida deliberada del caso
+   * del móvil compartido, y la auditoría de la Etapa 6 la aceptó con motivo.
+   *
+   * **Si alguien endurece esto** —exigiendo que las claves presentadas coincidan
+   * con las guardadas, que es el arreglo propuesto en I-110—, esta prueba se
+   * cae, y eso es exactamente lo que tiene que pasar: obliga a leer la decisión
+   * antes de cambiarla, en vez de descubrirla rompiendo el móvil compartido.
+   *
+   * Lo que NO consigue quien lo explote está probado en la línea final: los
+   * avisos siguen yendo al `endpoint` de la víctima, cifrados con las claves del
+   * atacante, así que nadie los puede leer. Es una denegación, no una fuga.
+   */
+  it('P-04b: reasignar solo exige conocer el endpoint — aceptado con motivo (I-110)', async () => {
+    await seller1.rpc('upsert_push_subscription', device(1))
+
+    const otrasClaves = {
+      ...device(1),
+      p_p256dh: `B${'Cd4_-'.repeat(17)}x`,
+      p_auth: `${'cD8_-'.repeat(4)}xy`,
+    }
+    const { data, error } = await seller2.rpc('upsert_push_subscription', otrasClaves)
+
+    expect(error).toBeNull()
+    expect(data!.profile_id).toBe(ctx.ids.seller2)
+    // Y el endpoint NO cambió: los avisos seguirían yendo al aparato de la
+    // primera persona, cifrados con claves que su navegador no tiene.
+    expect(data!.endpoint).toBe(device(1).p_endpoint)
+    expect(data!.p256dh).toBe(otrasClaves.p_p256dh)
+  })
+
   it('P-05: reasignar limpia el historial del dispositivo anterior', async () => {
     await seller1.rpc('upsert_push_subscription', device(1))
     await ctx.svc

@@ -3,6 +3,9 @@
 **Fecha:** 2026-08-05 · **Alcance:** el sistema completo tal como está en `main` (`9531db5`) y en
 producción (`https://gestion-rifas.vercel.app`).
 
+> **Este informe es un snapshot de la Fase 9 y no se modifica.** La auditoría posterior del encargo
+> de cobro (Etapa 6, D-192) se añadió **al final del archivo**, a partir de la §10.
+
 Este informe **no oculta errores**. Incluye lo que se intentó romper y no cedió, porque un ataque que
 falla también es un resultado: sin él, «no encontré nada» no se distingue de «no busqué».
 
@@ -463,3 +466,286 @@ Los dos están corregidos, y `0016` está aplicada y verificada también en prod
 ninguna acción de ingeniería pendiente.** Lo que resta son decisiones del dueño del negocio, y la más
 importante es la de siempre: **el proyecto sigue en el plan Free de Supabase, sin ninguna copia de
 seguridad automática. Eso hay que resolverlo antes de que entre el primer peso real** (I-024).
+
+---
+
+# AUDITORÍA INTEGRADA — Cuentas de cobro y recordatorios (Etapa 6, D-192)
+
+**Fecha:** 2026-09-12 · **Alcance:** lo que construyeron las etapas 1 a 5 del encargo de D-185 —las
+migraciones `0051` a `0054`, cinco tablas, tres `pg_cron`, tres pantallas nuevas, el service worker y
+el despachador— tal como está en `feature/cuentas-y-recordatorios`. **Nada de esto está en
+producción.**
+
+Este informe tampoco oculta errores. Incluye lo que se intentó romper y no cedió, porque un ataque
+que falla también es un resultado: sin él, «no encontré nada» no se distingue de «no busqué».
+
+---
+
+## 10. Método
+
+Igual que la auditoría de la Fase 9: **se prueba el sistema, no se relee**. Releer encuentra lo que
+su autor ya sabía; ejecutar encuentra lo que creía y no era cierto.
+
+| Técnica | Qué se hizo |
+|---|---|
+| Sonda adversaria | **47 intentos** de romper el aislamiento de las cinco tablas nuevas, con sesiones reales y **clave pública**, nunca `service_role` (D-043). Escrita desde cero, sin reutilizar ninguna aserción de las suites |
+| Medición con volumen | `EXPLAIN (ANALYZE)` sobre las seis consultas calientes, con **2.000 recordatorios, 5.000 filas de cola y 100.000 ocurrencias** — diez años de un vendedor con los catorce recordatorios al tope |
+| Comparación de la función reescrita | Los dos cuerpos de `process_due_payment_reminders` —`0052` y `0054`— extraídos y comparados línea a línea |
+| Coherencia documental | **Once comprobaciones** de afirmaciones concretas de los documentos contra el catálogo y contra las cifras reales de las suites |
+| Barrido de textos | Los **119 textos** visibles de los cuatro archivos de copy, y el de reserva del service worker, contra las palabras prohibidas del glosario |
+| Barrido de calidad | `any`, tamaño de archivos, secretos en el código, y qué sale hacia el proyecto real |
+| Medición de los otros tres anchos | **375, 390 y 430 px** sobre las cuatro pantallas y los dos diálogos — el único criterio escrito de la Etapa 6 que estaba sin cumplir |
+| Reejecución de la matriz | `verify`, `test:db` y la suite E2E completa |
+
+Todo lo que escribió se hizo **contra la instancia local**, y lo que cargó volumen se deshizo con
+`rollback`. **El proyecto real no se tocó en ningún momento de las seis etapas** — comprobado: la
+rama sigue sin publicar y sin etiquetas nuevas.
+
+---
+
+## 11. Resumen de hallazgos de la Etapa 6
+
+| ID | Hallazgo | Severidad | Estado |
+|---|---|---|---|
+| **A-07** | Quien conozca el `endpoint` de otra persona puede **quitarle el dispositivo** de avisos | Baja | ⚠️ **Aceptado con motivo** — **I-110**, con el arreglo propuesto escrito |
+| **A-08** | Una tabla nueva en `public` **nace legible** por `authenticated` | Informativa | ✅ **Corregido** en la Etapa 5 para `push_outbox`; anotado como **I-111** para las futuras |
+| **A-09** | La definición viva del motor **perdió sus comentarios** al reescribirse en la `0054` | Informativa | ✅ **Corregido** en esta etapa |
+| **A-10** | Las **cuatro** sospechas del barrido de textos eran **falsos positivos de la propia sonda** | — | Sin acción sobre el producto: se corrigió la sonda, en dos vueltas |
+| **A-11** | Un criterio escrito de esta etapa —**375, 390 y 430 px**— estaba **sin medir** | Informativa | ✅ **Medido** en esta etapa: 8/8, sin desbordamiento |
+
+**46 de 47 sondas rebotaron.** La única que pasó es A-07.
+
+---
+
+## 12. Auditoría de seguridad de la Etapa 6
+
+### 12.1 Aislamiento — 24 sondas, 24 bloqueadas
+
+| Qué se intentó | Resultado |
+|---|---|
+| Otro vendedor, el Dueño, el Administrador y un visitante leyendo las **cinco** tablas (20 sondas) | **0 filas** en todos los casos; `42501` sobre `push_outbox`, que no concede nada |
+| Sacar cuentas ajenas **por un recurso anidado** de PostgREST, desde `seller_payment_reminders` | `PGRST200`: la relación ni siquiera existe |
+| Sacar el **mensaje** de un recordatorio ajeno desde `payment_reminder_occurrences` | 0 filas |
+| Leer la **cola** desde la propia campana (`notifications → push_outbox`) | `42501` |
+| Leer las **claves** de un dispositivo ajeno desde `profiles` | La fila del propio perfil, con la lista **vacía** |
+
+Lo que importa de los cuatro últimos: **la RLS se aplica también al recurso anidado**, que es
+precisamente donde una política floja se escapa sin que nadie lo note.
+
+### 12.2 Escritura y manipulación de RPC — 14 sondas, 13 bloqueadas
+
+| Qué se intentó | Resultado |
+|---|---|
+| Atender la ocurrencia de otro, siendo vendedor o siendo el Dueño | Rechazado, con la misma frase que si no existiera |
+| Corregir la cuenta ajena, archivar el recordatorio ajeno | Rechazado |
+| **Adelantar el reloj del propio recordatorio** para forzar un envío | `42501`: no hay privilegio de `UPDATE` |
+| **Fabricar un aviso** en la propia campana | `42501` |
+| **Meter algo en la cola de salida** | `42501` |
+| Ejecutar `process_due_payment_reminders`, `claim_push_outbox`, `mark_push_outbox_sent`, `mark_push_outbox_failed`, `revoke_push_subscription` y `wake_push_dispatcher` | `42501` las seis |
+| **Quitarle el dispositivo a otro conociendo su `endpoint`** (sonda 38) | **PASÓ** → A-07 |
+
+### 12.3 A-07 — la única que pasó (Baja) ⚠️ aceptada con motivo
+
+`upsert_push_subscription` reasigna la fila a quien llama cuando el `endpoint` ya existe, y eso es
+**deliberado**: en un móvil compartido —el caso normal de este producto— el navegador entrega siempre
+el mismo `endpoint`, así que activar los avisos tiene que **cambiar el dueño** en vez de duplicar la
+fila (D-190, Decisión 2). El precio es que la reasignación se autentica **solo con conocer el
+`endpoint`**.
+
+**Qué hace falta para explotarlo.** Conocer una cadena opaca de ~100 caracteres que la aplicación
+**no expone por ningún camino**: las sondas 4, 9, 14, 19 y 24 comprobaron que no la alcanzan ni otro
+vendedor, ni el Dueño, ni el Administrador, ni un visitante, ni un recurso anidado; la sonda 42
+comprobó que tampoco está en `audit_logs`. Exige, por tanto, una fuga **fuera** de la aplicación.
+
+**Qué consigue quien lo explote: ninguna información.** Al reasignar pone sus propias claves, así que
+los avisos siguen yendo al `endpoint` de la víctima cifrados con claves que su navegador no tiene. La
+víctima deja de recibir avisos útiles; **el atacante no recibe ninguno**. Es una **denegación**, no
+una fuga — y **la campana interna no se ve afectada** (BR-V01), que es lo único que el contrato
+promete.
+
+**El arreglo propuesto**, escrito en I-110 para quien lo tome: exigir que el `p256dh` y el `auth`
+presentados **coincidan con los guardados** para aceptar el cambio de dueño. El caso legítimo los
+presenta idénticos, porque es la misma suscripción del mismo navegador.
+
+**Por qué no se aplicó aquí.** Este entorno **no puede ejercer el camino legítimo**: el navegador
+integrado no registra service workers (D-190), así que un endurecimiento se entregaría sin haber
+visto nunca funcionar lo que endurece. Si algún navegador rotara las claves conservando el
+`endpoint`, la persona quedaría sin poder reactivar sus avisos y sin salida desde la pantalla — un
+daño cierto a cambio de cerrar un ataque que exige una fuga previa. **Una auditoría que endurece a
+ciegas un flujo que no puede probar deja algo peor que lo que arregla.** Queda con nombre, severidad
+y arreglo escrito, y una prueba —`P-04b` en `push-subscriptions.test.ts`— que **se cae** si alguien
+lo cambia sin leerlo.
+
+### 12.4 Fugas — 6 sondas, 6 limpias
+
+Se creó una cuenta bancaria con el número `999-888-777`, un recordatorio con el mensaje «Mi mensaje
+privado de cobro» y un dispositivo, y se buscaron por todas partes:
+
+| Dónde se buscó | Resultado |
+|---|---|
+| `audit_logs`, el número de cuenta | **0 filas** |
+| `audit_logs`, el `endpoint` | **0 filas** |
+| `audit_logs`, el mensaje del vendedor | **0 filas** |
+| `notifications.data` | **0 filas** |
+| `push_outbox.payload` | **0 filas** |
+| El catálogo público | Nada de cobro |
+
+Es la comprobación que sostiene BR-D04 y BR-V05 a la vez: **la bitácora la lee el personal entero**,
+y el aviso del teléfono se lee en una pantalla bloqueada.
+
+### 12.5 Integridad — 3 sondas
+
+Con `service_role`, que salta la RLS pero **no** los CHECK: una cuenta en la posición 6 se rechaza
+(`23514`), una ocurrencia omitida **con** campana se rechaza (`23514`), y una omitida **sin** campana
+entra, que es lo correcto.
+
+Y dos invariantes se hicieron notar sin que nadie las probara: el generador de carga de la sonda de
+rendimiento fue rechazado **dos veces** —por el tope de catorce recordatorios y por la unicidad de
+(vendedor, día, hora)— antes de conseguir insertar nada.
+
+---
+
+## 13. Auditoría de rendimiento de la Etapa 6
+
+Con **2.000 recordatorios, 5.000 filas de cola y 100.000 ocurrencias** —diez años de un vendedor con
+los catorce recordatorios al tope, un volumen que este producto no va a ver—:
+
+| Consulta | Tiempo | Plan |
+|---|---|---|
+| Motor: recordatorios vencidos | **0,02 ms** | índice |
+| Despachador: cola pendiente | **0,05 ms** | índice |
+| Despachador: recuperar abandonadas | **0,01 ms** | índice |
+| Pantalla: ocurrencias pendientes | **0,16 ms** | índice |
+| Resumen: recuento de pendientes | **0,11 ms** | índice |
+| Idempotencia: ¿ya existe la ocurrencia? | **0,01 ms** | índice |
+| Motor completo, con 30 vencidos | **13 ms** | |
+| `claim_push_outbox` de un lote de 50 | **4 ms** | |
+
+**Ningún hallazgo.** Las dos consultas que resolvieron por recorrido —los dispositivos vivos de una
+persona— lo hicieron sobre una distribución degenerada en la que **una sola persona tenía las 501
+filas**; el planificador tiene razón en recorrer, y tardó 0,11 ms. En la realidad, una persona tiene
+dos o tres dispositivos.
+
+Lo que de verdad dice esta tabla: el trabajo que corre **cada minuto** —el motor y el despachador—
+lee índices y termina en milisegundos.
+
+---
+
+## 14. Auditoría de regresiones de la Etapa 6
+
+### A-09 — La definición viva del motor había perdido sus comentarios (Informativa) ✅ corregido
+
+`create or replace` reescribe la función entera, así que no basta con leer el comentario que dice «el
+resto es idéntico»: se extrajeron los dos cuerpos de `process_due_payment_reminders` —el de la `0052`
+y el de la `0054`— y se compararon línea a línea.
+
+Resultado de la primera pasada: **ninguna sentencia ejecutable perdida** —la única aparente era el
+mismo `null` con su comentario recortado— pero **veintiocho líneas de comentario desaparecidas**. La
+definición viva del motor había perdido las explicaciones de BR-S13, de por qué la campana es
+durable, de por qué el reloj avanza siempre y **la advertencia sobre el disparador que lo dejaría en
+bucle**. Para el siguiente que lea la `0054` —que es la definición real— ese «porqué» no existía.
+
+**Corregido en esta etapa**: los comentarios están restaurados y la comparación vuelve a dar **cero
+líneas perdidas**, ejecutables o no. El único añadido de la `0054` sigue siendo el bloque marcado
+«AÑADIDO EN LA 0054 (BR-V02)».
+
+---
+
+## 15. Auditoría de textos y de lo que se ve en el teléfono (Etapa 6)
+
+Los **119 textos** visibles de `PUSH_COPY`, `REMINDER_COPY`, `ACCOUNT_COPY` y `pushMessageFor`, más
+el de reserva del service worker, contra las palabras que el glosario prohíbe —«notificación»,
+«push», «token», «endpoint», «suscripción»—: **ninguno las usa**.
+
+### A-10 — Cuatro falsos positivos, y los cuatro eran de la sonda
+
+La primera versión de esta comprobación marcó tres sospechas, y las tres eran **suyas**: miraba el
+archivo entero, así que contaba los comentarios —que citan `push` y `PushManager` precisamente para
+explicar por qué no se escriben en pantalla— y los nombres de las constantes, como `PUSH_FALLBACK`.
+Se corrigió para importar los objetos y mirar **los valores**, que es lo que se lee.
+
+**Y la corrección se quedó corta, lo que da el cuarto.** El texto de reserva del service worker no es
+un objeto importable —vive en `public/sw.js`—, así que esa rama siguió recortando el archivo, y el
+recorte empieza justo en `const PUSH_FALLBACK`: se marcaba a sí mismo. Los valores de ese bloque son
+`Rifas` y «Tienes un aviso nuevo. Ábrelo para verlo.», que no contienen ninguna palabra prohibida.
+Corregido también, y **la misma comprobación estaba duplicada en la sonda de coherencia con la
+versión mala**: se retiró de allí en vez de arreglarla dos veces, porque un mismo control en dos
+sitios termina divergiendo.
+
+Queda anotado con detalle porque es la clase de sonda que, mal escrita, produce hallazgos que no
+existen — y porque **el primer arreglo no bastó**, que es justo lo que un informe tiende a callar.
+
+Y se comprobó que **ningún texto visible vive fuera de su archivo de copy**: los dos componentes
+nuevos no llevan ni una frase escrita dentro.
+
+### Los otros tres anchos del encargo — el único criterio que estaba sin cumplir
+
+`TESTING` §4.8 dejó escrito, **antes de construir nada**, que la Etapa 6 mediría **375, 390 y 430 px**
+además de los 320 que la Etapa 2 ya medía. Al revisarlo, esos tres **no estaban medidos**: el archivo
+móvil fijaba 320 en todas sus pruebas.
+
+No se reescribió el criterio para que encajara con lo hecho — que es justo lo que este proyecto se
+prohíbe—: se midió. `configuracion-cobro-movil.spec.ts` recorre ahora los tres anchos sobre las
+**cuatro pantallas** del módulo y sobre **los dos diálogos**, que es donde vive el bloque más ancho
+que pinta este módulo (el mensaje completo con las cuentas al final).
+
+**8/8 en verde, sin desbordamiento en ninguno.** Es un resultado negativo y se escribe igual: un
+ancho intermedio puede romperse donde el estrecho no, porque es donde cambian los puntos de corte y
+una fila pasa de apilada a horizontal. Aquí no pasó.
+
+---
+
+## 16. Auditoría de calidad de la Etapa 6
+
+| Qué | Resultado |
+|---|---|
+| `any` en los tres módulos del encargo | **Ninguno** |
+| Archivo más grande | `webpush.ts`, **337 líneas**, la mayoría documentación del RFC |
+| Secretos en el código | **Ninguno**: las coincidencias son nombres de variable, y el artefacto de Supabase está ignorado por Git |
+| Textos visibles fuera de su archivo de copy | **Ninguno** |
+| Dependencias nuevas en las cinco etapas | **Cero** |
+
+---
+
+## 17. Coherencia documental de la Etapa 6
+
+Once comprobaciones contra el catálogo y contra las cifras reales:
+
+* **31 reglas** del encargo (BR-M, BR-S, BR-V), **ninguna** sigue marcada como pendiente.
+* **54 migraciones** en el repositorio, y `HANDOFF` dice «54 en local y 50 en el proyecto real».
+* Los **tres** `pg_cron` existen y están activos.
+* Las **cinco** tablas existen, y **ninguna** tabla del esquema está sin RLS forzada.
+* **Ninguna** de las catorce funciones internas es ejecutable por `authenticated`.
+* La suite unitaria entera da **1.004**, la cifra que `TESTING` y `TEST_RESULTS` declaran.
+* El glosario define los tres términos nuevos.
+* Los cuatro archivos de copy no usan palabras técnicas.
+
+**Una corrección salida de aquí**: `TESTING` §4.8 decía `push-subscriptions.test.ts` **(20)** y la
+prueba `P-04b` que esta auditoría añadió lo dejó en **21**. Corregido, con el total de base de datos.
+
+---
+
+## 18. Qué queda pendiente tras la Etapa 6
+
+| Asunto | Quién decide |
+|---|---|
+| **I-110**, la reasignación por `endpoint` | El dueño del producto: aceptar como está, o endurecer con el arreglo escrito **y probarlo en un teléfono real** |
+| **Nadie ha visto un aviso llegar a un teléfono** | La Etapa 7: es lo único que no se puede demostrar sin claves configuradas y un dispositivo |
+| **I-024**, plan Free | Ahora con tres motivos: sin backups, y un proyecto pausado no corre **ninguno** de los tres cron |
+| La promoción arrastra más que migraciones | Cuatro migraciones, **tres variables de entorno** y **dos secretos del vault**. Y es la primera vez en este encargo que algo **sale hacia afuera** |
+| El par VAPID de las pruebas | Se generó en una sesión de trabajo y su clave privada quedó escrita ahí. **No se usa en producción**: la Etapa 7 genera uno nuevo con `npm run vapid` |
+
+---
+
+## 19. Conclusión de la Etapa 6
+
+Las cinco etapas se sostienen. **46 de 47 sondas adversarias rebotaron**, las seis búsquedas de fugas
+salieron limpias, el trabajo que corre cada minuto lee índices y termina en milisegundos, y los
+textos respetan el glosario.
+
+Lo que esta auditoría añade no es tranquilidad, sino **tres cosas escritas**: un ataque real aunque
+remoto, con su arreglo redactado y una prueba que obliga a leerlo (**I-110**); una trampa del entorno
+que ya mordió una vez y morderá a la siguiente tabla (**I-111**); y la restauración de los
+comentarios que la definición viva del motor había perdido sin que nadie lo notara.
+
+**Ninguno de los tres se habría encontrado releyendo el código.**

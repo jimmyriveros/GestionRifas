@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.50 · **Actualizado:** 2026-09-12 (D-001 a D-191; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.51 · **Actualizado:** 2026-09-12 (D-001 a D-192; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -9851,6 +9851,120 @@ ocho reglas de §12.f están completas.** `DATA_MODEL` §4.19; `SECURITY` §4.17
 
 **Quedan la Etapa 6 —auditoría integrada— y la Etapa 7 —promoción a producción—, cada una con su
 autorización.**
+
+---
+
+## D-192 — La auditoría del encargo: 47 sondas, una que pasó, y por qué no se corrigió
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 6 del encargo de D-185, 2026-09-12)
+
+**Alcance.** Auditoría integrada de seguridad, rendimiento, regresiones, textos y coherencia sobre lo
+que construyeron las etapas 1 a 5: las migraciones `0051` a `0054`, cinco tablas, tres `pg_cron`, tres
+pantallas, el service worker y el despachador. **No añade ninguna funcionalidad.** El informe
+completo es `AUDIT_REPORT` §10 a §19.
+
+**Lo que cambia en el producto es deliberadamente poco**: los comentarios restaurados en la `0054`,
+una prueba nueva y dos problemas registrados. Una auditoría que termina reescribiendo lo que audita
+ya no es una auditoría.
+
+---
+
+### Decisión 1 — se prueba el sistema, no se relee
+
+Igual que la Fase 9. Releer encuentra lo que su autor ya sabía; ejecutar encuentra lo que creía y no
+era cierto. La sonda adversaria se escribió **desde cero**, sin reutilizar ninguna aserción de las
+suites que ya existen: una sonda que hereda las aserciones de la suite hereda también sus puntos
+ciegos.
+
+**47 intentos** con sesiones reales y **clave pública**, nunca `service_role` (D-043). **46
+rebotaron.**
+
+### Decisión 2 — I-110 se acepta con motivo escrito, no se corrige
+
+La única sonda que pasó es la 38: **quien conozca el `endpoint` de otra persona puede quitarle el
+dispositivo de avisos**. `upsert_push_subscription` reasigna la fila a quien llama cuando el
+`endpoint` ya existe, y eso es lo que D-190 decidió a propósito para el móvil compartido.
+
+Se decidió **no endurecerlo en esta etapa**, y el motivo es de método:
+
+* **El arreglo está escrito** —exigir que el `p256dh` y el `auth` coincidan con los guardados— y el
+  camino legítimo los presenta idénticos, porque es la misma suscripción del mismo navegador.
+* **Este entorno no puede ejercer ese camino legítimo**: el navegador integrado no registra service
+  workers (D-190). Endurecer aquí sería entregar un cambio sin haber visto nunca funcionar lo que
+  endurece.
+* **El daño de equivocarse no es simétrico.** Si algún navegador rotara las claves conservando el
+  `endpoint`, la persona quedaría sin poder reactivar sus avisos y sin salida desde la pantalla: un
+  daño cierto a cambio de cerrar un ataque que exige una fuga previa **fuera** de la aplicación, y
+  que además **no entrega ninguna información** —es una denegación, no una fuga (§12.3)—.
+
+Lo que sí se hizo: **una prueba que obliga a leerlo**. `P-04b` en `push-subscriptions.test.ts` fija el
+comportamiento aceptado y cita I-110, así que cualquier endurecimiento futuro la rompe **a
+propósito** en vez de pasar inadvertido.
+
+### Decisión 3 — la comprobación de textos mira los valores, no el archivo
+
+El barrido marcó cuatro sospechas y **las cuatro eran suyas**: leía el archivo entero,
+así que contaba los comentarios —que citan `push` y `PushManager` justamente para explicar por qué no
+se escriben en pantalla— y los nombres de las constantes, como `PUSH_FALLBACK`. Se reescribió para
+importar los objetos de copy y recorrer **sus valores**.
+
+**Y esa corrección se quedó corta, que es la parte que importa.** El texto de reserva del service
+worker no es un objeto importable —vive en `public/sw.js`—, así que esa rama siguió recortando el
+archivo, y el recorte empieza en `const PUSH_FALLBACK`: se marcaba a sí misma. Sus valores reales son
+«Rifas» y «Tienes un aviso nuevo. Ábrelo para verlo.». Se corrigió también, y **la misma comprobación
+estaba duplicada en la sonda de coherencia con la versión mala**: se retiró de allí en lugar de
+arreglarla dos veces — un mismo control en dos sitios termina divergiendo.
+
+Queda como decisión porque es general: **una sonda mal escrita produce hallazgos que no existen**, y
+un informe de auditoría con falsos positivos es peor que uno corto.
+
+### Decisión 4 — el volumen de la medición se elige para que sobre, no para que quepa
+
+Se midió con **2.000 recordatorios, 5.000 filas de cola y 100.000 ocurrencias**: diez años de un
+vendedor con los catorce recordatorios al tope, un volumen que este producto no va a ver. Medir con
+datos realistas no demuestra nada — todo es rápido con cien filas.
+
+**Ningún hallazgo.** Lo que corre cada minuto lee índices y termina en milisegundos (§13).
+
+### Decisión 5 — la función reescrita se compara línea a línea, no se da por buena
+
+`create or replace` reescribe la función entera, así que el comentario de la `0054` que dice «el resto
+es idéntico» es una **afirmación que hay que comprobar**, no una garantía. Se comprobó, y no era del
+todo cierta: **ninguna sentencia ejecutable perdida**, pero **veintiocho líneas de comentario
+desaparecidas** — incluida la advertencia sobre el disparador que dejaría el motor en bucle.
+
+Restaurado, y vuelto a comparar: cero líneas perdidas, ejecutables o no.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Endurecer `upsert_push_subscription` en esta etapa | No se puede ejercer el camino legítimo en este entorno; el daño de equivocarse es mayor que el ataque que cierra (Decisión 2) |
+| Dar I-110 por irrelevante y no registrarla | Es un ataque real aunque remoto. Un hallazgo que no se escribe desaparece con la sesión |
+| Aprovechar la auditoría para mejorar lo que se fuera mirando | Una auditoría que reescribe lo que audita deja de poder decir si lo auditado estaba bien |
+| Medir el rendimiento con datos realistas | Con cien filas todo es rápido; no habría demostrado nada (Decisión 4) |
+| Fiarse del comentario «el resto es idéntico» de la `0054` | Es exactamente la clase de afirmación que esta auditoría existe para comprobar (Decisión 5) |
+
+### Lo que se encontró, y lo que NO
+
+**Se encontró:** I-110 (una sonda de 47), I-111 —el esquema `public` concede `SELECT` a
+`authenticated` sobre cada tabla nueva; ya corregido para `push_outbox` en la Etapa 5, registrado
+ahora para las futuras—, los comentarios perdidos de la `0054`, y una cifra desactualizada en
+`TESTING` §4.8 que la propia prueba nueva dejó obsoleta.
+
+**No se encontró:** ninguna fuga entre vendedores ni hacia la bitácora, ningún hallazgo de
+rendimiento, ningún `any`, ningún secreto en archivos versionados, ningún texto visible con palabras
+prohibidas y ninguna incoherencia entre lo que los documentos afirman y lo que el catálogo dice.
+
+### Consecuencia
+
+**El encargo queda auditado y sin trabajo de ingeniería pendiente.** Lo que resta son decisiones del
+dueño: si endurecer I-110, y la Etapa 7 —promoción a producción—, que arrastra **cuatro migraciones,
+tres variables de entorno y dos secretos del Vault**, y es la primera vez en este encargo que algo
+sale hacia afuera. `KNOWN_ISSUES` (I-110, I-111); `AUDIT_REPORT` §10 a §19; `TESTING` §4.8;
+`TEST_RESULTS`.
+
+**La Etapa 7 requiere su propia autorización.**
 
 ---
 

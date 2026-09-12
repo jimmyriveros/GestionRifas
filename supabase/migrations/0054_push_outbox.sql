@@ -424,6 +424,12 @@ begin
      limit p_limit
      for update skip locked
   loop
+    -- BR-S13: se comprueba AL PROCESAR, no solo al configurar. Un recordatorio
+    -- guardado hace tres meses no puede seguir escribiendole a alguien a quien
+    -- ya se le quito el acceso. Es BR-A04 aplicado tal cual.
+    --
+    -- No se usa `has_org_role`, que pregunta por `auth.uid()`: aqui no hay
+    -- sesion, quien llama es el cron.
     select exists (
       select 1
         from memberships m
@@ -448,10 +454,20 @@ begin
       on conflict (reminder_id, scheduled_for) do nothing
       returning id into v_occurrence_id;
 
+      -- Sin fila nueva: ya estaba materializada. No se avisa otra vez, pero el
+      -- reloj SI se adelanta —si no, el motor volveria a mirarla cada minuto—.
       if v_occurrence_id is not null then
         v_created := v_created + 1;
 
         if v_status = 'pending' then
+          -- La campana es la fuente DURABLE (BR-V01). Se escribe aqui, en la
+          -- misma transaccion que la ocurrencia, y no depende de ninguna red:
+          -- sin permiso de notificaciones, sin navegador compatible o con el
+          -- envio caido, el aviso sigue existiendo y se ve al entrar.
+          --
+          -- `data` NO nombra a ningun cliente, ni dice ningun saldo, ni ningun
+          -- importe (BR-S09): lleva cuando tocaba y cual de sus recordatorios
+          -- es, que es lo que la frase necesita.
           insert into notifications (
             organization_id, recipient_profile_id, actor_profile_id,
             kind, entity_type, entity_id, data
@@ -459,7 +475,7 @@ begin
           values (
             r.organization_id,
             r.seller_id,
-            null,
+            null,  -- no lo provoco una persona: lo provoco el reloj
             'payment_reminder.due',
             'payment_reminder_occurrence',
             v_occurrence_id,
@@ -493,6 +509,18 @@ begin
       end if;
     end if;
 
+    -- El reloj avanza SIEMPRE, incluso cuando el vendedor ya no puede operar:
+    -- si no, esas filas volverian a salir en la consulta cada minuto para nada.
+    -- Al reactivarse la cuenta, el recordatorio retoma su horario de siempre
+    -- sin arrastrar meses de vencimientos.
+    --
+    -- `next_run_at` se calcula desde AHORA, no sumando una semana: es lo que
+    -- impide disparar las semanas perdidas (BR-S11).
+    --
+    -- Este UPDATE no despierta a `reminders_sync_next_run`, que solo recalcula
+    -- si cambia el dia, la hora o se reactiva (0051, seccion 5.a). Si algun dia
+    -- alguien lo cambiara para que recalcule siempre, este avance se pisaria y
+    -- el recordatorio quedaria disparando en bucle. Hay pruebas que lo defienden.
     update seller_payment_reminders rem
        set next_run_at = next_reminder_run_at(rem.weekday, rem.time_of_day, v_now),
            last_run_at = v_now

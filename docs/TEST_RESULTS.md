@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (Etapa 5 del cobro, D-191, 2026-09-12)** | **1.004 ✅** en 57 archivos (+36) | **981 ✅** en 44 archivos (+39) | **642/644**; los 2 son **I-090**, conocido y ajeno | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
+| **Post-9 vigente (Etapa 6 del cobro — auditoría, D-192, 2026-09-12)** | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (**+1**: `P-04b`) | **642/644** + **8/8** dirigidas a los tres anchos nuevos; los 2 son **I-090**, el **mismo par** que la Etapa 5 | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
+| Post-9 anterior (Etapa 5 del cobro, D-191, 2026-09-12) | **1.004 ✅** en 57 archivos (+36) | **981 ✅** en 44 archivos (+39) | **642/644**; los 2 son **I-090**, conocido y ajeno | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 4 del cobro, D-190, 2026-09-12) | **968 ✅** en 55 archivos (+25) | **942 ✅** en 42 archivos (+20) | **635/639**; los 4 son **I-090** (3) e **I-106** (1), conocidos y ajenos | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 3 del cobro, D-189, 2026-09-12) | **943 ✅** en 53 archivos (+10) | **922 ✅** en 41 archivos (+33) | **635/637**; los 2 son **I-090**, conocido y ajeno. Sobre servidor y base recién creados | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 2 del cobro, D-188, 2026-09-12) | **933 ✅** (+37) | **889 ✅** — no se tocó la base | **626/630**; los 4 son **I-090** (3) e **I-106** (1) | ✅ | ✅ Sin desplegar |
@@ -10661,3 +10662,114 @@ relajó la regla**.
    recordatorio» y **sin ninguna cuenta, importe ni nombre** dentro.
 5. Al tocarlo, la aplicación abre en «Recordatorios de pago».
 6. En la base, `select status from push_outbox` tiene que decir `sent`.
+
+---
+
+## Cuentas de cobro y recordatorios, Etapa 6: auditoría integrada (D-192) — 2026-09-12
+
+**Alcance:** auditar lo que construyeron las etapas 1 a 5 —`0051` a `0054`, cinco tablas, tres
+`pg_cron`, tres pantallas, el service worker y el despachador—. **No añade funcionalidad.** El
+informe completo está en `AUDIT_REPORT` §10 a §19; aquí van las cifras y los errores.
+
+**Lo que cambió el producto es deliberadamente poco**: los comentarios restaurados en la `0054` y dos
+archivos de prueba. Una auditoría que reescribe lo que audita deja de poder decir si lo auditado
+estaba bien.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Sonda adversaria (47 intentos, escrita desde cero) | **46 bloqueados · 1 pasó** → I-110 |
+| Medición con volumen (`EXPLAIN ANALYZE`, 8 consultas) | ✅ **Ningún hallazgo** — todo por índice, milisegundos |
+| Comparación línea a línea de la función reescrita | ⚠️ **28 comentarios perdidos**, 0 sentencias → corregido |
+| Coherencia documental (11 comprobaciones) | ✅ tras corregir una cifra de `TESTING` |
+| Barrido de textos (119 textos + el de reserva del SW) | ✅ **Ninguna palabra prohibida** |
+| `configuracion-cobro-movil.spec.ts` (375, 390, 430 px) | ✅ **8/8** (5 antes + **3 nuevas**) |
+| `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **1.004/1.004** unitarias, `build` |
+| `npm run test:db` | ✅ **982/982** (**+1**: `P-04b`) |
+| Suite E2E completa, tras `db:reset` + `seed:local` | **642 pasan · 2 fallan** en **32,2 min** |
+
+**Los 2 fallos son I-090**, conocido y ajeno: `reports.spec.ts:305` y `ventas-por-fecha.spec.ts:163`.
+**Es exactamente el mismo par que la Etapa 5**, con el mismo recuento de aprobadas: ninguna
+regresión. **Ninguna prueba de este encargo falla.**
+
+### b. Lo que encontró la auditoría
+
+**1. I-110 — la única sonda que pasó (de 47).** Quien conozca el `endpoint` de otra persona puede
+quitarle el dispositivo de avisos. **Aceptado con motivo, no corregido**, y el porqué está razonado
+en D-192 (Decisión 2) y en `AUDIT_REPORT` §12.3: no entrega ninguna información —es una denegación,
+no una fuga—, exige una fuga previa fuera de la aplicación, y **este entorno no puede ejercer el
+camino legítimo** que el endurecimiento rompería si se equivocara. Lo que sí se hizo es **una prueba
+que obliga a leerlo**: `P-04b`, que fija el comportamiento aceptado y se cae si alguien lo cambia.
+
+**2. Los comentarios que la `0054` se había llevado por delante.** `create or replace` reescribe la
+función entera, así que el comentario que dice «el resto es idéntico» es una afirmación que hay que
+comprobar. Se comprobó: **ninguna sentencia ejecutable perdida**, pero **28 líneas de comentario
+desaparecidas** —incluida la advertencia sobre el disparador que dejaría el motor en bucle—.
+Restaurado, y vuelto a comparar: cero líneas perdidas, ejecutables o no.
+
+**3. Una cifra de `TESTING` que la propia prueba nueva dejó obsoleta.** §4.8 decía
+`push-subscriptions.test.ts` **(20)**; con `P-04b` son **21**. Lo encontró la comprobación de
+coherencia, no una relectura.
+
+**4. I-111, registrada aunque ya estuviera corregida.** El esquema `public` concede `SELECT` a
+`authenticated` sobre **cada tabla nueva**; se corrigió en la Etapa 5 para `push_outbox`, y ahora
+queda escrito para las futuras.
+
+### c. Tres errores míos, y los tres son de método
+
+**1. El barrido de textos dio cuatro falsos positivos, y los cuatro eran suyos.** La primera versión leía el
+archivo entero, así que contaba los comentarios —que citan `push` y `PushManager` justamente para
+explicar por qué no se escriben en pantalla— y los nombres de las constantes, como `PUSH_FALLBACK`.
+Se reescribió para importar los objetos de copy y recorrer **sus valores** — y **la corrección se quedó
+corta**: el texto de reserva del service worker no es importable, así que esa rama siguió recortando el
+archivo desde `const PUSH_FALLBACK`, marcándose a sí misma. Corregida también, y retirada la copia
+duplicada que vivía en la sonda de coherencia con la versión mala. **Un informe de auditoría
+con falsos positivos es peor que uno corto.**
+
+**2. Un criterio escrito de esta misma etapa estaba sin cumplir, y casi lo doy por hecho.** `TESTING`
+§4.8 pedía medir **375, 390 y 430 px** además de los 320; al revisarlo, los tres estaban sin medir.
+**No se reescribió el criterio para que encajara con lo hecho**: se midió, sobre las cuatro pantallas
+y los dos diálogos. **8/8, sin desbordamiento.** Un resultado negativo se escribe igual — un ancho
+intermedio puede romperse donde el estrecho no, porque es donde cambian los puntos de corte.
+
+**3. Metí una corrupción en `KNOWN_ISSUES.md` y estuvo a punto de quedar en el commit.** Al registrar
+I-110 e I-111, un bloque de **109 líneas —el preámbulo entero del documento— quedó duplicado** en
+mitad del archivo, justo detrás de la fila de I-109. Las dos entradas nuevas estaban bien; lo
+duplicado era todo lo demás.
+
+**Lo cazó leer el diff antes de confirmar**, no una prueba: `git diff --numstat` decía **246
+inserciones** para lo que tenían que ser dos filas y un encabezado. Ninguna suite lo habría visto —
+la documentación no la compila nadie—, y habría llegado al repositorio con la auditoría dentro.
+
+Se arregló **reconstruyendo el archivo desde la versión confirmada** y volviendo a aplicar los dos
+cambios, en vez de parchear el archivo corrupto: así el resultado es verificable contra `HEAD`. El
+diff quedó en **7 inserciones y 1 eliminación**, y se comprobó que hay una sola cabecera, una sola
+sección «1. Problemas» y una sola fila por cada entrada. **No he podido determinar la causa** —las
+dos filas no contienen ninguna secuencia `$` de las que `String.replace` interpreta, que era la
+sospecha razonable—, así que queda escrito el hecho y no una explicación inventada.
+
+**La regla que sale de aquí: un cambio documental se lee en el diff antes de confirmarlo**, y un
+recuento de líneas que no cuadra con lo que se escribió es motivo suficiente para parar.
+
+### d. Dos veces que el producto se defendió solo
+
+El generador de carga de la sonda de rendimiento fue **rechazado dos veces** antes de conseguir
+insertar nada: primero por el tope de catorce recordatorios, después por la unicidad de (vendedor,
+día, hora). No eran defectos de la sonda: eran las invariantes funcionando contra un cliente que no
+las conocía, que es exactamente su trabajo.
+
+### e. Lo que NO se comprobó, y se dice
+
+* **Que un aviso llegue a un teléfono de verdad.** Sigue sin comprobarse, y sigue siendo lo único que
+  no se puede demostrar sin claves configuradas y un dispositivo: es la Etapa 7.
+* **El camino legítimo de reasignar un dispositivo.** El navegador integrado no registra service
+  workers (D-190). Es la razón por la que I-110 no se endureció aquí.
+* **Concurrencia real de dos despachadores.** El `for update skip locked` está probado
+  estructuralmente; una prueba con dos conexiones vivas competiría con el cron, que corre cada
+  minuto en esta misma base.
+* **Nada contra el proyecto real.** Las cuatro migraciones siguen **solo en local**, la rama sigue
+  sin publicar y sin etiquetas.
+
+**Quien lo compruebe, con su cuenta:** nada nuevo que mirar. Esta etapa no cambió ninguna pantalla.
+Lo que queda por ver en un teléfono es lo que ya dejó escrito la Etapa 5.
