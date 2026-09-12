@@ -1,9 +1,12 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.14 · **Estado:** normativo · **Actualizado:** 2026-09-03
+- **Versión:** 1.15 · **Estado:** normativo · **Actualizado:** 2026-09-11
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
+- Una regla se presume **implementada y vigente** salvo que su sección lo diga. Las secciones
+  **12.d (BR-M)**, **12.e (BR-S)** y **12.f (BR-V)** están **autorizadas y planificadas, pero todavía
+  no implementadas** (D-185): llevan una columna **Estado** con la etapa en que se construye cada una.
 
 ---
 
@@ -687,6 +690,83 @@ WhatsApp**: se abre un enlace `wa.me` y el vendedor pulsa Enviar (D-176).
 | BR-W06 | El diálogo de éxito dice **lo que pasó de verdad**: desde una boleta, que el cliente quedó registrado y la boleta es suya —nombrándola por sus dos números (BR-N11), o diciendo cuántas si son varias—; desde «Mis clientes», solo que el cliente quedó registrado, y **no menciona ninguna boleta**. No se puede cerrar con `Escape`, pulsando fuera ni con una «X»: es una bifurcación, no un aviso. WhatsApp se abre **únicamente** con un clic explícito. **Y no se cierra solo NUNCA:** ni por temporizador, ni al terminar una revalidación, ni al re-renderizarse la pantalla, ni porque desaparezca lo que lo abrió. En concreto, **no puede vivir bajo ninguna condición que la propia operación vuelva falsa** —`canAssign`, `archived_at`, «quedan boletas disponibles»—: se monta en el layout del portal, que ninguna operación apaga (D-179). Lo único que lo cierra es un botón. | C | post-9 |
 | BR-W07 | Un vendedor configura **solo lo suyo**. La escritura pasa por `set_seller_whatsapp_settings`, que **no recibe ningún identificador de vendedor**: sale de `auth.uid()`, así que no existe el dato que alguien pudiera manipular. `memberships_update_staff` sigue siendo la única política de escritura de esa tabla y **no se amplía**: hacerlo abriría rol, estado, vendedor padre y ganancia para poder guardar un enlace. El personal no puede usar la RPC; un vendedor padre tampoco sobre un integrante de su equipo. El cambio lo audita el disparador `audit_memberships` que ya existía. | S, D | post-9 |
 | BR-W08 | **No hay integración con WhatsApp y no se finge que la haya.** Sin API, sin SDK, sin sesión, sin automatización y sin forma de saber si el mensaje se envió o si el cliente se unió al grupo. Ningún texto puede decir «cliente agregado», «aceptó» ni «se unió». Si el navegador bloquea la ventana, se dice; nunca se da por abierta. | C, S | post-9 |
+
+---
+
+## 12.d Cuentas para recibir pagos (BR-M)
+
+> **PLANIFICADO, NO IMPLEMENTADO.** Autorizado el 2026-09-11 (D-185, Etapa 0). **Nada de esta sección
+> existe todavía en el código, en las migraciones ni en la base de datos.** Se escribe ahora para que
+> las etapas siguientes construyan contra un contrato, no contra una idea. La columna **Fase** dice
+> `post-9`; la columna **Estado** dice en qué etapa se implementa cada regla.
+
+Cada vendedor administra las cuentas donde sus clientes le consignan: Nequi, Daviplata y cuentas
+bancarias, con sitio para más formas en el futuro. Son **datos operativos del vendedor**, no parte de
+su perfil personal, y **solo él los ve** (D-185).
+
+**La letra es `M` de «medios de cobro»**, porque `C` ya nombra a los clientes y `P` al precio; no hay
+más significado.
+
+| ID | Regla | Capas | Estado |
+|----|-------|-------|--------|
+| BR-M01 | Las cuentas viven en una **tabla propia** (`seller_payment_accounts`), con RLS forzada y política propia, **nunca** en columnas de `memberships`. `memberships_select` deja leer esa fila al personal de la organización y al vendedor padre, así que una columna más publicaría el dato a quien el contrato excluye. La tabla cuelga de la membresía por la FK compuesta `(seller_id, organization_id)`, igual que `tickets` y `clients`: se separa el dato, no la identidad del vendedor. | D | Etapa 1 |
+| BR-M02 | Una cuenta pertenece a **un vendedor**, que es el único usuario humano que puede leerla, crearla, editarla y archivarla. **Ni el Dueño, ni el Administrador, ni el vendedor padre** acceden —ni por pantalla, ni por reporte, ni por exportación, ni por PostgREST—. La escritura pasa por una RPC `SECURITY DEFINER` que **no recibe identificador de vendedor**: sale de `auth.uid()`, el mismo patrón que BR-W07. Cambiarlo exige una decisión explícita y posterior del dueño del producto. | C, S, D | Etapa 1 |
+| BR-M03 | El tipo de cuenta es un **enumerado**: `nequi`, `daviplata`, `bank`. Añadir una forma futura es `alter type … add value` más su CHECK, en una migración nueva; nunca un texto libre. | D | Etapa 1 |
+| BR-M04 | Qué se guarda, según el tipo, y **un CHECK lo impone**: Nequi y Daviplata piden **titular y teléfono**; una cuenta bancaria pide **banco, tipo de cuenta (ahorros o corriente), número y titular**. Los campos que no corresponden al tipo quedan nulos: no existe una cuenta de Nequi con número de cuenta bancaria. **No se guarda el documento de identidad del titular** (D-185, Decisión 2). | C, S, D | Etapa 1 |
+| BR-M05 | Cada cuenta lleva una **etiqueta opcional** que escribe el vendedor y un **orden**, que es el orden en que aparece en el mensaje. El orden lo decide el vendedor; si no lo toca, es el de creación. | C, S, D | Etapa 2 |
+| BR-M06 | **Tope duro de 5 cuentas sin archivar por vendedor**, comprobado en la base y no solo en la pantalla. La sexta se rechaza con un mensaje que dice qué hacer. Subir la cifra es una migración. | S, D | Etapa 1 |
+| BR-M07 | Una cuenta **se archiva, nunca se borra**: no hay `DELETE` en este producto (D-038). Archivar la saca del listado y del mensaje y conserva la fila. Una cuenta archivada no cuenta para el tope y se puede volver a activar, sujeta al tope. | C, S, D | Etapa 1 |
+| BR-M08 | **No se permiten dos cuentas iguales sin archivar** del mismo vendedor: mismo tipo y mismo número —teléfono o número de cuenta, comparado solo por sus dígitos—. Dos filas idénticas en el mensaje son un error de dedo, no una configuración. | S, D | Etapa 1 |
+| BR-M09 | Las cuentas **no viajan a ninguna superficie pública**. No salen en el catálogo público (BR-K07 fija su proyección y no se amplía), no salen en un push (BR-V05), no salen en un reporte ni en un CSV, y no se consultan desde ningún layout ni panel. El único sitio donde se leen es la pantalla del propio vendedor y la composición de su mensaje. | C, S, D | Etapa 2 |
+
+---
+
+## 12.e Recordatorios de pago del vendedor (BR-S)
+
+> **PLANIFICADO, NO IMPLEMENTADO.** Autorizado el 2026-09-11 (D-185, D-186, Etapa 0).
+
+Cada vendedor programa mensajes semanales de cobro. La aplicación se los recuerda a la hora que él
+eligió y le prepara el texto; **él** lo pega en su grupo de WhatsApp y lo envía.
+
+**La letra es `S`** de «recordatorios **s**emanales»; `R` ya nombra a las rifas.
+
+| ID | Regla | Capas | Estado |
+|----|-------|-------|--------|
+| BR-S01 | Un recordatorio es **del vendedor, no de una rifa**: no se ata a ninguna, no se reconfigura al abrir una rifa nueva y no deja de sonar al cerrarse una. Vive en tabla propia (`seller_payment_reminders`) con el mismo aislamiento que BR-M01 y BR-M02. | C, S, D | Etapa 1 |
+| BR-S02 | La recurrencia es **semanal**: un día de la semana y una hora **con precisión de minuto**. El vendedor puede crear **varios el mismo día** a horas distintas. **No puede crear dos idénticos**: mismo día y misma hora es una sola fila, y lo impone un índice único. | C, S, D | Etapa 1 |
+| BR-S03 | El reloj se interpreta **siempre en `America/Bogota`**, con la zona nombrada y nunca con un desfase escrito a mano. Colombia no cambia la hora desde 1993, pero el día que una ley lo cambie ese no debe ser el sitio donde se descubra. | S, D | Etapa 1 |
+| BR-S04 | Un recordatorio está **activo**, **pausado** o **archivado**. Pausar lo calla sin perder su configuración; reactivar lo devuelve tal cual; archivar lo retira del listado y conserva la fila. **No se borra** (D-038). | C, S, D | Etapa 1 |
+| BR-S05 | **Tope duro de 14 recordatorios activos por vendedor**, comprobado en la base. Un pausado no cuenta, y **reactivar vuelve a comprobar el tope**: si no, bastaría con pausar, crear y reactivar para saltárselo. | S, D | Etapa 1 |
+| BR-S06 | El recordatorio guarda **prosa y nada más**: su propio mensaje o el predeterminado de la aplicación, con el mismo interruptor y la misma coherencia que BR-W02 y BR-W03 —el predeterminado **vive en TypeScript**, no en la base; apagar el interruptor **no borra** lo escrito; «uso mi mensaje» sin mensaje es un estado imposible—. | C, S, D | Etapa 1 |
+| BR-S07 | **Las cuentas activas se añaden solas al final del mensaje**, en su orden, y **no forman parte del texto que escribe el vendedor**. **Quedan prohibidos los marcadores editables** —`{{cuentas}}`, `{{nequi}}` o cualquier otro—: no hay nada que conservar, así que no hay nada que borrar, escribir mal ni duplicar. Es BR-W04 aplicado a este mensaje. La pantalla muestra la **vista previa del mensaje completo**. | C, S | Etapa 2 |
+| BR-S08 | El mensaje **se compone cuando el vendedor lo abre o lo copia**, con la configuración vigente en ese instante. Consecuencia buscada: **cambiar una cuenta cambia los mensajes futuros sin reescribir ni un recordatorio**, y sin tocar los ya materializados. | C, S | Etapa 3 |
+| BR-S09 | El mensaje **no nombra a ningún cliente, no dice ningún saldo y no dice ningún importe**. Va a un grupo donde están todos los clientes del vendedor: escribir ahí quién debe cuánto publicaría la deuda de una persona delante de las demás. | C, S | Etapa 2 |
+| BR-S10 | Cuando llega su hora, un recordatorio activo produce una **ocurrencia** (`payment_reminder_occurrences`): una fila por `(recordatorio, instante programado)`, con **índice único**. Esa unicidad es lo que hace el proceso **idempotente**: ejecutarlo dos veces sobre el mismo vencimiento no crea dos avisos. | S, D | Etapa 3 |
+| BR-S11 | Una ocurrencia **atrasada hasta 2 horas se recupera**: se materializa pendiente, con campana y con push. **Más allá de 2 horas se registra como omitida**, **sin** campana y **sin** push, y el recordatorio avanza a la semana siguiente. La fila omitida se guarda igual: es lo que distingue «no se mandó» de «nadie se enteró». Si se saltaron varias semanas, **no se disparan todas**: se registra una omitida y el reloj salta al próximo instante futuro. | S, D | Etapa 3 |
+| BR-S12 | El proceso **tolera concurrencia**: las filas vencidas se toman con `for update skip locked`, de modo que dos ejecuciones simultáneas trabajan sobre conjuntos disjuntos. Materializar la ocurrencia, escribir la campana, encolar el push y avanzar el reloj ocurren **en la misma transacción**: o pasan las cuatro, o no pasa ninguna. | S, D | Etapa 3 |
+| BR-S13 | Un recordatorio **no se procesa** si su vendedor ya no puede operar: cuenta inactiva, membresía que dejó de ser de vendedor u organización desactivada. Se comprueba **al procesar**, no solo al configurar (BR-A04). | S, D | Etapa 3 |
+| BR-S14 | El flujo del vendedor es **copiar → abrir → atender**, y los tres describen **actos locales**: «Copiado» dice que el texto está en el portapapeles de ese teléfono, «Grupo abierto» que se abrió el enlace, y «Marcado como atendido» que **lo dijo el vendedor**. **Ninguno puede presentarse como confirmación de envío o de entrega de WhatsApp**: no hay integración y no se sabe si el mensaje salió (BR-W08). | C, S | Etapa 3 |
+
+---
+
+## 12.f Entrega de avisos: campana y Web Push (BR-V)
+
+> **PLANIFICADO, NO IMPLEMENTADO.** Autorizado el 2026-09-11 (D-187, Etapa 0). La **campana ya
+> existe** desde D-093 y estas reglas no la cambian: describen cómo se le añade un canal encima.
+
+**La letra es `V`** de «a**v**isos». Estas reglas gobiernan **la entrega**, no el contenido: valen
+para el recordatorio de pago y para cualquier aviso futuro que quiera salir del navegador.
+
+| ID | Regla | Capas | Estado |
+|----|-------|-------|--------|
+| BR-V01 | **La campana interna es obligatoria y es la fuente durable.** Todo aviso se escribe en `notifications` (D-093) y se lee ahí. Web Push es **una mejora encima**: sin permiso, sin soporte del navegador o con el envío caído, el aviso sigue existiendo y se ve al entrar. | S, D | Etapa 3 |
+| BR-V02 | El push sale por una **outbox desacoplada** (`push_outbox`): el aviso interno y la fila de la cola se escriben en la misma transacción, y el **envío ocurre después, en otro proceso**. Un fallo de red, un endpoint caducado o un dispatcher caído **no pueden perder el aviso interno**, porque no participan en escribirlo. | S, D | Etapa 5 |
+| BR-V03 | Se usa **Web Push estándar** —VAPID (RFC 8292) y cifrado `aes128gcm` (RFC 8291)—, implementado sobre el `crypto` de Node. **No se usa Firebase**, no entra SDK en el navegador y **la CSP no se abre a ningún dominio nuevo**: al servicio de push lo llama el servidor. | S | Etapa 5 |
+| BR-V04 | **Hay un solo service worker** y su alcance es la raíz. Los oyentes `push` y `notificationclick` se añaden **al final de `public/sw.js`**, en su propia sección. **Queda prohibido crear un segundo service worker.** El worker **sigue sin guardar ni una respuesta con datos de negocio** (D-116): recibir un push no cambia esa regla. | C | Etapa 4 |
+| BR-V05 | **El push es genérico.** No lleva cuentas, ni números de cuenta, ni el mensaje personalizado, ni nombres de clientes, ni importes, ni saldos: lo lee cualquiera que mire una pantalla bloqueada, y dos vendedores compartiendo un teléfono es el caso normal aquí. Lleva que hay un recordatorio y a dónde ir. **El contenido se compone al abrir la aplicación, con sesión.** | C, S | Etapa 4 |
+| BR-V06 | Una suscripción es **de un dispositivo**, identificada por su `endpoint`, que es único. Una persona puede tener varias. El permiso se pide **en una pantalla y a propósito**, nunca al cargar la aplicación: pedirlo sin contexto es la forma más rápida de que lo denieguen para siempre. | C, S, D | Etapa 4 |
+| BR-V07 | Un `404` o un `410` del servicio de push significa que esa suscripción **murió**: se marca revocada y **no se reintenta**. Los demás fallos reintentan con retroceso y tope; la fila que agota los intentos queda marcada con su motivo, y **la campana sigue ahí**. | S, D | Etapa 5 |
+| BR-V08 | El dispatcher es un **Route Handler Node protegido** que no usa sesión: secreto por cabecera, comparado a **tiempo constante**, con longitud mínima, limitación de intentos y **fallo cerrado** si no está configurado. **El secreto nunca viaja por la URL.** Es el patrón de `/api/lottery/sync` (D-148), reutilizado, no reinventado. Un Route Handler **no hereda la guarda de su layout** (D-060). | S | Etapa 5 |
 
 ---
 

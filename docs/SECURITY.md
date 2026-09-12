@@ -1,6 +1,9 @@
 # SEGURIDAD
 
-- **Versión:** 2.9 · **Estado:** implementado · **Actualizado:** 2026-09-02
+- **Versión:** 2.10 · **Estado:** implementado · **Actualizado:** 2026-09-11
+- ⚠️ **Dos secciones describen algo que todavía NO existe** y lo dicen en su encabezado: **§4.15**
+  (aislamiento de cuentas de cobro y recordatorios) y **§5.2** (dispatcher de Web Push), autorizadas
+  el 2026-09-11 y planificadas para las Etapas 1 y 5 de D-185.
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
   `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042`, `0043` y `0044`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
@@ -754,6 +757,86 @@ grupo: para eso haría falta una tabla aparte con su propia política, no una co
 nueva y sin ningún dato saliendo del navegador por iniciativa del servidor. El texto del mensaje se
 guarda y se pinta **como texto** —`<textarea>` y nodos de texto—, nunca con `dangerouslySetInnerHTML`.
 
+### 4.15 Cuentas de cobro y recordatorios del vendedor — **PLANIFICADO** (BR-M, BR-S, BR-V, D-185)
+
+> ⚠️ **NADA DE ESTO EXISTE TODAVÍA.** Autorizado el 2026-09-11, Etapa 0. Se escribe aquí porque el
+> aislamiento es lo primero que hay que fijar: si se construye sobre el patrón equivocado, corregirlo
+> después es una migración de datos sensibles.
+
+**El aislamiento que pide el contrato es más estrecho que cualquiera que este producto tenga hoy.**
+No es «por organización» ni «por vendedor y su cadena de mando»: es **por vendedor, y nadie más**.
+
+| Quién | Cuentas y recordatorios de un vendedor |
+|---|---|
+| El propio vendedor | Lee y escribe **lo suyo** |
+| Dueño y Administrador | **Nada.** Ni lectura |
+| Vendedor padre del equipo | **Nada.** Ni lectura |
+| Cualquier otro vendedor | **Nada** |
+| `anon` | **Nada**, ningún privilegio sobre ninguna de las cinco tablas |
+| `service_role` | Sí: lo necesita el proceso. **Nunca llega al navegador** (`import 'server-only'`) |
+
+#### Por qué NO puede ser una columna de `memberships`
+
+§4.14 lo dejó escrito al cerrar D-176, antes de que existiera este encargo: `memberships_select` deja
+leer la fila **al personal de la organización y al vendedor padre**, que es exactamente el alcance que
+ya tenía `public_whatsapp_number` desde `0043`. Para un enlace de invitación a un grupo eso era
+aceptable y estaba dicho. **Para una cuenta bancaria con el nombre de su titular, no.**
+
+Una columna más en `memberships` publicaría el dato a tres roles el mismo día en que se aplicara la
+migración, **sin que ninguna política cambiara** y sin que nada en la pantalla lo delatara. Por eso
+son tablas nuevas con política propia (BR-M01).
+
+#### El patrón, y por qué es el mismo de siempre
+
+* **Políticas de `SELECT` y de escritura acotadas a `profile_id = current_profile_id()`**, con RLS
+  **forzada** (`force row level security`) en las cinco tablas.
+* **La escritura real pasa por RPC `SECURITY DEFINER` que no reciben identificador de vendedor.** El
+  perfil sale de `auth.uid()`, así que **no existe el dato que alguien pudiera manipular** para
+  configurar a otro. Es la lección de `set_seller_whatsapp_settings`: lo que la hace segura no es una
+  comprobación, es la firma.
+* **`has_org_role(org, 'seller')`** en cada RPC, que comprueba de una vez el rol y que la membresía,
+  el perfil y la organización sigan activos (BR-A04). Una cuenta desactivada no configura nada — y
+  **tampoco se le procesan los recordatorios** (BR-S13), que es la mitad que se olvida.
+* **Sin `DELETE`** en ninguna de las tablas de configuración: ni política ni privilegio (D-038). Se
+  archiva. Las dos excepciones son operativas y acotadas: `push_subscriptions`, que la persona puede
+  quitar de su dispositivo, y la poda de la outbox, que son datos de transporte y no de negocio.
+* **Auditoría.** Crear, editar y archivar una cuenta o un recordatorio se anota con
+  `write_audit_log`, **sin copiar el número de la cuenta en `old_values`/`new_values`**: `audit_logs`
+  lo consulta el personal entero (BR-D04), así que volcar ahí el dato desharía el aislamiento por la
+  puerta de atrás. Se anota **qué cambió**, no el valor.
+
+#### Lo que el proceso del cron puede tocar
+
+`process_due_payment_reminders()` es `SECURITY DEFINER` y **no la ejecuta nadie con sesión**: se
+revoca de `public`, `anon` y `authenticated`, y solo la llama el job de `pg_cron`. Escribe
+ocurrencias, avisos y filas de outbox; **no lee ni una cuenta bancaria**, porque no le hace falta: el
+mensaje se compone después, en la pantalla del vendedor (BR-S08).
+
+#### Privacidad del push
+
+El cuerpo que sale hacia el servicio de push es **genérico** (BR-V05). No lleva cuentas, ni números,
+ni el mensaje personalizado, ni clientes, ni importes. La razón es la misma que impide al service
+worker guardar el HTML de una pantalla (D-116): **dos vendedores compartiendo un teléfono no es un
+caso raro aquí, es el caso normal**, y una notificación se lee en la pantalla bloqueada sin
+desbloquear nada.
+
+#### Superficie externa nueva, dicha con precisión
+
+Hoy el servidor solo habla hacia afuera con las seis fuentes de loterías (§*Fuentes alternativas*).
+Con esto aparece **una segunda**: el servicio de push del navegador (`*.push.services.mozilla.com`,
+`fcm.googleapis.com`, `*.notify.windows.com` — la dirección la da **la propia suscripción**, no se
+configura).
+
+Tres consecuencias que hay que sostener al implementar:
+
+1. **La CSP no se toca.** Al servicio de push lo llama el **servidor**, no el navegador. Sin Firebase
+   no hay que abrir `connect-src` ni `script-src` a nada (D-187).
+2. **El endpoint viene del navegador**, así que es entrada no confiable: se guarda, se usa para
+   `POST` y **nunca** se interpola en otra cosa. Se acota por esquema `https` y se trata como opaco.
+3. **Las claves VAPID son secretos de servidor.** `VAPID_PRIVATE_KEY` no sale del proceso ni aparece
+   en el paquete del navegador; la pública sí viaja, que es su función. Van en `.env.example` y en
+   `check:env` **cuando se implementen** (§7).
+
 ## 5. Protección de Server Actions y Route Handlers
 
 Toda Server Action parametrizada de negocio debe seguir esta secuencia. Las acciones públicas de
@@ -850,6 +933,39 @@ membresía **objetivo** estuviera activa, de modo que al desactivar a alguien de
 y era imposible reactivarlo. Ahora la visibilidad depende de que **quien consulta** sea personal
 activo de la organización. El aislamiento entre organizaciones y el de vendedores no cambian, y un
 usuario inactivo sigue sin poder ingresar ni operar (BR-A04/BR-A05).
+
+---
+
+### 5.2 El dispatcher de Web Push — **PLANIFICADO** (BR-V08, D-187)
+
+> ⚠️ **NO EXISTE TODAVÍA.** Autorizado el 2026-09-11, se construye en la Etapa 5.
+
+`POST /api/push/dispatch` vacía la cola `push_outbox`. **No usa sesión** y vive **fuera de
+`(protected)`**, porque un Route Handler **no hereda la guarda de su layout** (§5.0, D-060): la
+comprobación va dentro.
+
+**No se inventa un patrón nuevo: se reutiliza el de `/api/lottery/sync`** (D-148, BR-L21), que ya
+está escrito, probado y en producción.
+
+| Propiedad | Qué impide |
+|---|---|
+| Secreto **por cabecera** (`Authorization: Bearer` o cabecera propia) | Que el secreto quede en registros de acceso, historiales y referers. **Nunca por query string** |
+| Comparación a **tiempo constante**, sobre el hash del valor | Deducir el secreto midiendo, y filtrar su longitud |
+| **Longitud mínima** y **fallo cerrado** sin secreto configurado | Que un despliegue mal configurado deje la ruta abierta. Sin secreto **no funciona**, no «funciona sin comprobar» |
+| **Limitación de intentos por IP** (`checkRateLimit`) | Probar secretos a fuerza bruta |
+| El proxy **deja pasar la ruta** | Que redirija a `/login` con 307 y el proceso nunca llegue a autenticarse |
+
+**Qué puede hacer si alguien lo dispara con el secreto correcto:** vaciar la cola. Nada más. No
+recibe destinatarios, ni contenido, ni endpoints: los toma de la outbox, que solo escribe el proceso
+del cron. **Un lote con `for update skip locked`**, de modo que dos disparos simultáneos no envían el
+mismo aviso dos veces.
+
+**Quién lo despierta.** Un segundo job de `pg_cron` mediante `pg_net`. Si ese toque falla, no se
+pierde nada: la outbox es la que manda y el siguiente toque recoge lo pendiente (BR-V02).
+
+**El fallo del envío no es un fallo de seguridad, pero sí de higiene:** un `404` o un `410` significa
+suscripción muerta y se **revoca sin reintentar** (BR-V07). Guardar endpoints muertos es acumular
+direcciones de dispositivos que ya no son de nadie.
 
 ---
 

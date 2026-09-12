@@ -1,7 +1,10 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.16 · **Actualizado:** 2026-08-30
+- **Versión:** 2.17 · **Actualizado:** 2026-09-11
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
+- ⚠️ **Una sección describe pruebas que todavía NO existen:** la **§4.8** (cuentas de cobro y
+  recordatorios de pago) es el **criterio de aceptación** de las etapas 1 a 6 de D-185, escrito
+  **antes** de construir. Lo demás describe pruebas escritas y ejecutadas.
 - **Implementado:** unitarias (Vitest), base de datos (Vitest + Supabase local) y **end-to-end
   (Playwright, escritorio y móvil)** desde la Fase 3.
 
@@ -672,6 +675,77 @@ cuando se creó un cliente a secas); y que sin grupo configurado el botón cambi
 
 En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
 que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
+
+### 4.8 Cuentas de cobro y recordatorios de pago — **PLANIFICADO** (BR-M, BR-S, BR-V, D-185)
+
+> ⚠️ **NO EXISTE NINGUNA DE ESTAS PRUEBAS.** Autorizado el 2026-09-11 (Etapa 0). Esto es el
+> **criterio de aceptación** con el que se medirán las etapas 1 a 6, escrito antes de construir para
+> que no se escriba después a la medida de lo que salió.
+
+**Cada etapa se cierra con `npm run verify` y `npm run test:db` en verde**, más lo suyo. Una etapa
+que no pueda demostrar su tabla de abajo **no está terminada** (`CLAUDE.md` §32).
+
+#### Etapa 1 — base de datos (`tests/db/`)
+
+Es la etapa con más carga de prueba, porque es donde de verdad se decide el aislamiento. El acto
+cuya RLS se prueba **nunca** usa `service_role` (D-043); la clave de servicio solo prepara, comprueba
+y limpia.
+
+| Qué se demuestra | Cómo |
+|---|---|
+| Un vendedor ve y escribe **solo lo suyo** (BR-M02, BR-S01) | Dos vendedores en la misma organización: cada uno lee 0 filas del otro, con sesión real |
+| **El personal no ve nada** | Dueño y Administrador leen 0 cuentas y 0 recordatorios de un vendedor, y su `UPDATE` directo afecta 0 filas |
+| **El vendedor padre tampoco** | El caso que un `memberships_select` haría pasar: un padre contra su integrante, 0 filas |
+| Nadie configura a otro | Las RPC **no tienen parámetro de vendedor**: dos vendedores en la misma sesión de pruebas acaban cada uno con lo suyo (el método de §4.6) |
+| Los CHECK por tipo de cuenta (BR-M04) | **Con `service_role`, a propósito**: omite la RLS pero **no** los CHECK, que es la única forma de probar que el estado incoherente no existe venga por donde venga |
+| Topes de **5** y **14** (BR-M06, BR-S05) | La sexta y la quince se rechazan; **reactivar un pausado con 14 activos también** |
+| Sin duplicados (BR-M08, BR-S02) | Dos cuentas iguales sin archivar; dos recordatorios al mismo día y hora |
+| Segundos a cero en la hora (BR-S02) | Un `time` con segundos se rechaza |
+| `next_reminder_run_at` en `America/Bogota` (BR-S03) | Tabla de casos: mismo día antes y después de la hora, cambio de semana, y el borde de medianoche |
+| Ningún `DELETE` (D-038) | El catálogo de privilegios no concede `DELETE` sobre las tablas de configuración |
+| Las funciones nuevas no las ejecuta `anon` ni `authenticated` cuando no debe | `tests/db/catalog.test.ts` y `verify:remote`, **las dos listas juntas** (§4.5 de `SECURITY`). I-020 e I-078 explican por qué esto se olvida |
+
+#### Etapa 3 — el motor
+
+| Qué se demuestra | Cómo |
+|---|---|
+| **Idempotencia** (BR-S10) | Ejecutar `process_due_payment_reminders()` **dos veces** sobre el mismo vencimiento deja **una** ocurrencia y **un** aviso |
+| **Concurrencia** (BR-S12) | Dos conexiones `pg` simultáneas sobre el mismo lote: ninguna espera a la otra y ninguna duplica. Es el patrón de `lottery_sync_lock` llevado a `skip locked` |
+| **Atomicidad** | Un fallo forzado después de materializar deja **cero** filas: ni ocurrencia, ni aviso, ni outbox, y el reloj **sin** avanzar |
+| Recuperación ≤ 2 h y omisión > 2 h (BR-S11) | Reloj controlado: se fija `next_run_at` en el pasado y se comprueba el estado, y **que la omitida no crea aviso** |
+| Varias semanas perdidas | Una sola omitida y el reloj **en el futuro**, no catorce disparos |
+| Vendedor inactivo (BR-S13) | Se desactiva la membresía y el recordatorio **no se procesa** |
+| El mensaje se compone con la configuración **vigente** (BR-S08) | Se cambia una cuenta **después** de materializar la ocurrencia y el mensaje sale con la nueva |
+| El mensaje **no nombra clientes ni importes** (BR-S09) | Unitaria sobre el compositor, con datos que sí existen en el escenario |
+
+#### Etapas 4 y 5 — Web Push
+
+| Qué se demuestra | Cómo |
+|---|---|
+| **El cifrado es correcto** (BR-V03) | Unitarias contra los **vectores de prueba del RFC 8291** y la firma VAPID contra los del RFC 8292. Sin esto, la implementación propia no se acepta |
+| El push **no lleva datos sensibles** (BR-V05) | Unitaria sobre el payload: ninguna cuenta, ningún número, ningún cliente, ningún importe. Y una prueba que **falla si alguien mete el mensaje dentro** |
+| La outbox **desacopla** (BR-V02) | Se fuerza un fallo total de envío: el aviso de la campana **sigue estando** y la fila queda reintentable |
+| `404`/`410` revocan sin reintentar (BR-V07) | Servicio de push simulado |
+| El dispatcher **falla cerrado** (BR-V08) | Sin secreto → no funciona; secreto corto → no funciona; secreto por query string → no funciona; secreto correcto → vacía la cola. Es el juego de pruebas de `/api/lottery/sync`, reutilizado |
+| **Un solo service worker** (BR-V04) | Una prueba que falla si aparece un segundo archivo de worker en `public/`, y que el worker sigue **sin guardar** respuestas con datos (D-116) |
+
+#### Etapa 2 y 6 — navegador
+
+Lo que solo se ve en un navegador, con el método que ya usa §4.7: **no se abre WhatsApp en ninguna
+prueba** —`spyOnWindowOpen`, que devuelve un objeto y no `null`— y se afirma sobre la dirección y el
+texto.
+
+* La vista previa enseña el **mensaje completo**, con las cuentas al final y **sin marcadores**
+  (BR-S07): una prueba busca `{{` y falla si aparece.
+* Cambiar una cuenta cambia la vista previa **sin tocar el recordatorio** (BR-S08).
+* «Copiado», «Grupo abierto» y «Marcado como atendido» **no dicen** que se envió nada (BR-S14):
+  prueba por lo que **no** aparece, como la de «boleta» en §4.7.
+* La página `/seller/settings` **no carga los formularios**: se cuenta lo que pide, no lo que
+  aparenta.
+* **320, 375, 390 y 430 px**, y la **diana táctil de 44 px** en todo control nuevo: ese ancho ya
+  encontró un defecto real (§4.7) y la diana, tres (`I-102`, `I-103`, `I-104`).
+* Y la regla de `HANDOFF` §1.b: si se toca infraestructura de interfaz compartida, se comprueban
+  **las dos** presentaciones.
 
 ### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 7 pruebas)
 

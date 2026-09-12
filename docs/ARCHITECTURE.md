@@ -1,7 +1,11 @@
 # ARQUITECTURA
 
-- **Versión:** 1.25 · **Estado:** implementado · **Actualizado:** 2026-09-02
+- **Versión:** 1.26 · **Estado:** implementado · **Actualizado:** 2026-09-11
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
+- ⚠️ **Dos secciones describen algo que todavía NO existe** y lo dicen en su encabezado: **§8.23**
+  («Configuración» del vendedor con subrutas) y **§8.24** (motor de recordatorios, cron y salida de
+  avisos), autorizadas el 2026-09-11 (D-185). **§8.15.a lleva una corrección**: las notificaciones
+  **no** van con Firebase, sino con Web Push estándar (D-187).
 
 ---
 
@@ -1144,6 +1148,23 @@ nuevo → **se queda esperando** → la persona pulsa «Actualizar» y solo ento
 
 #### 8.15.a Por dónde entrará Firebase Cloud Messaging
 
+> ⚠️ **CORREGIDO EL 2026-09-11 (D-187): NO se va a usar Firebase.** Las notificaciones se hacen con
+> **Web Push estándar** —VAPID (RFC 8292) y cifrado `aes128gcm` (RFC 8291)—, implementado sobre el
+> `crypto` de Node, **sin SDK y sin dependencia nueva**. El diseño vigente está en **§8.24** y en
+> D-187; esta sección se conserva por dos razones: es el contexto histórico de D-115, y **su
+> advertencia central sigue siendo exactamente igual de válida** —hay un solo service worker, su
+> alcance es la raíz, y los oyentes van **al final de `public/sw.js`**—.
+>
+> Lo que cambia respecto a lo que sigue: **no entra `importScripts()` de Firebase**, no hay
+> `getToken()` ni `vapidKey` de FCM, y **la CSP no se abre a ningún dominio nuevo** —ni
+> `fcmregistrations.googleapis.com`, ni `firebaseinstallations.googleapis.com`, ni `gstatic.com`—,
+> porque al servicio de push lo llama el **servidor**, no el navegador. De la tabla de «cuatro cosas
+> que habrá que tocar» siguen en pie las **dos últimas**: la versión del worker y el permiso de
+> notificaciones, que se pide **en una pantalla y nunca al cargar**.
+>
+> El comentario de cabecera de `public/sw.js` («SITIO RESERVADO PARA LAS NOTIFICACIONES (Firebase
+> Cloud Messaging)») queda **desactualizado** y se corrige en la Etapa 4, cuando se toque el archivo.
+
 Todavía **no se implementa nada** de notificaciones —ni SDK, ni tokens, ni permisos, ni `push`, ni
 `notificationclick`—, pero la arquitectura se eligió para que quepan sin reescribir nada. Lo que hay
 que saber cuando llegue el momento:
@@ -1648,6 +1669,116 @@ caracteres.
 
 **Donde el teléfono se LEE —tablas, fichas, CSV, catálogo público— no cambia nada:** ahí se muestra el
 dato guardado, y formatearlo esconderían que en la base conviven varios formatos.
+
+### 8.23 «Configuración» del vendedor: un resumen y tres subrutas — **PLANIFICADO** (D-185)
+
+> ⚠️ **NO EXISTE TODAVÍA.** Autorizado el 2026-09-11 (Etapa 0). Hoy `/seller/settings` es **una sola
+> pantalla con una sola tarjeta**, la de WhatsApp (D-176). Esto describe en qué se convierte en la
+> Etapa 2.
+
+La pantalla que D-176 dejó «pensada para crecer, sin arquitectura de más» crece ahora, y lo hace como
+aquel comentario anticipó: *«cuando haya tres o cuatro y no quepan de un vistazo, será el momento de
+partirla —y entonces se sabrá por qué secciones, en vez de adivinarlo ahora»*. Ya se sabe.
+
+```
+/seller/settings                 resumen: tres tarjetas con su estado y su enlace
+/seller/settings/accounts        Cuentas para recibir pagos      (BR-M)
+/seller/settings/whatsapp        Grupo de WhatsApp e invitación  (D-176, se muda aquí)
+/seller/settings/reminders       Recordatorios de pago           (BR-S)
+```
+
+**La página principal es un resumen ligero y no carga ningún formulario ni sus datos.** Lee tres
+recuentos cortos —cuántas cuentas activas, si hay grupo configurado, cuántos recordatorios activos— y
+nada más: ni la lista de cuentas, ni los mensajes, ni las ocurrencias. Cada tarjeta lleva a su
+subruta, que es donde vive su formulario.
+
+**Tres reglas de rendimiento que esta función no puede romper** —están en el contrato y valen la pena
+repetirlas donde se van a olvidar:
+
+1. **Ningún layout consulta nada de esto.** Ni el armazón del portal, ni `/seller/dashboard`, ni la
+   campanita. Es la misma regla que hizo que el recuadro de loterías viviera en su propio límite de
+   Suspense (§8.19.d, D-155): una consulta en un layout la paga **cada** navegación.
+2. **Sin sondeo del navegador y sin Realtime.** Lo que hay que saber por sorpresa llega por la
+   campana, que ya se lee en cada carga.
+3. **La composición del mensaje ocurre al abrirlo o copiarlo**, no al pintar la lista. Una lista de
+   catorce recordatorios no arma catorce mensajes con las cuentas dentro.
+
+**Se reutiliza lo que ya existe**, y conviene mirarlo antes de escribir nada: la convención de
+módulo de `features/` —`schemas.ts`, `queries.ts`, `actions.ts`, `components/`—, `ConfirmDialog` para
+archivar, `EmptyState` para las tres listas vacías, `PhoneInput` para el teléfono de una cuenta de
+Nequi o Daviplata (**D-184: mostrar no es guardar**), `MoneyInput` **no** —aquí no hay dinero—, y la
+mecánica de mensaje propio con interruptor y vista previa que ya está escrita y probada en
+`features/whatsapp/invite.ts`.
+
+**Dónde va cada texto** se fija en la Etapa 2, ampliando antes el Anexo A y el Anexo B de
+`UX_COPY_GUIDELINES` (`CLAUDE.md` §35.2.3). En la Etapa 0 **no se escribe ningún texto visible**, así
+que la guía no se toca todavía.
+
+### 8.24 El motor de recordatorios: cron, ocurrencias y salida de avisos — **PLANIFICADO** (D-185, D-186, D-187)
+
+> ⚠️ **NO EXISTE TODAVÍA.** No hay extensión instalada, ni job creado, ni oyente `push` en el service
+> worker, ni dispatcher. Etapas 3, 4 y 5.
+
+```
+  pg_cron (cada minuto)                       ┌──────────────────────────┐
+        │                                     │  notifications  (D-093)  │  ← fuente DURABLE
+        ▼                                     │  la campanita de siempre │
+  process_due_payment_reminders()  ──────────►└──────────────────────────┘
+   · toma las vencidas con SKIP LOCKED                    ▲
+   · materializa la ocurrencia (única)                    │  misma transacción
+   · avanza next_run_at                                   │
+   · encola el push  ─────────────────────────►┌──────────┴───────────────┐
+                                               │  push_outbox  (queued)   │
+  pg_cron (2.º job) ── pg_net ──► POST /api/push/dispatch                 │
+                                               └──────────┬───────────────┘
+                                                          ▼
+                                            Web Push cifrado (VAPID + aes128gcm)
+                                                          ▼
+                                            public/sw.js  → oyente `push`
+                                                          ▼
+                                            Notificación GENÉRICA en el sistema
+```
+
+**Por qué `pg_cron` y no Vercel Cron**, después de que D-148 lo descartara para las loterías: está
+argumentado entero en **D-186**. En una línea: aquel rechazo era para **parsers en Node**, y aquí no
+hay ninguno; y Vercel Hobby da **una corrida diaria por job con ±59 min de precisión**, que no puede
+servir una recurrencia **con precisión de minuto**.
+
+**El reloj.** Cada recordatorio guarda `next_run_at` materializado —el instante UTC de su próximo
+disparo, calculado en `America/Bogota`—, y el cron mira **un índice**
+`(next_run_at) WHERE status = 'active'`. No recorre recordatorios ni calcula husos por fila.
+
+**Idempotencia y concurrencia**, que es lo que hay que no romper:
+
+| Riesgo | Lo que lo impide |
+|---|---|
+| El cron corre dos veces sobre el mismo vencimiento | Índice único `(reminder_id, scheduled_for)` + `on conflict do nothing` (BR-S10) |
+| Dos ejecuciones a la vez se pisan | `for update skip locked`: trabajan sobre conjuntos disjuntos (BR-S12) |
+| Se avisa pero no se adelanta el reloj, o al revés | Las cuatro escrituras van en **una** transacción |
+| Un reintento reenvía un push ya enviado | El estado de la fila de outbox, tomada también con `skip locked` |
+
+**El atraso.** ≤ 2 h se recupera con campana y push; > 2 h se registra **omitida**, sin avisar, y el
+reloj salta al próximo instante futuro **sin disparar las semanas perdidas** (BR-S11). Un recordatorio
+de las 7 p. m. que llega a las 2 a. m. no sirve, y despertar a alguien con él es peor que callarse.
+
+**La outbox no es una optimización, es lo que protege el aviso interno.** La campana se escribe con
+la ocurrencia; el push se **encola**. Un servicio de push caído, un endpoint muerto o un dispatcher
+que no arranca no participan en escribir el aviso, así que no pueden perderlo (BR-V02).
+
+**El service worker.** Los oyentes `push` y `notificationclick` se añaden **al final de
+`public/sw.js`**, en su propia sección, junto a las que ya tiene —caché de archivos, actualización,
+reserva sin conexión—. **Queda prohibido crear un segundo service worker** (BR-V04, y ya lo advertía
+§8.15.a). Tocar el archivo cambia sus bytes, así que el ciclo de actualización de §8.15 se encarga
+solo: se registra como `/sw.js?v=<versión>` y espera a que la persona pulse «Actualizar».
+
+**Lo que el worker sigue sin hacer:** guardar respuestas con datos de negocio. Recibir un push no
+cambia D-116 ni una coma, y el push **no trae contenido que guardar** (BR-V05).
+
+**Riesgo operativo conocido, y no escondido:** el proyecto Supabase real está en plan **Free**
+(I-024), que **pausa un proyecto a los 7 días sin tráfico**, y un proyecto pausado no corre
+`pg_cron`. El producto se usa a diario y los diez cron de loterías tocan la base todos los días, así
+que el escenario es improbable; sigue siendo **un motivo más para subir a Pro**, junto a los backups
+que I-024 ya reclama. La ocurrencia **omitida** deja ver el hueco en vez de esconderlo (D-186).
 
 
 ## 9. Configuración regional

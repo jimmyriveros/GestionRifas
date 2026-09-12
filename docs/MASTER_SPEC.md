@@ -4,9 +4,10 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.3
+- **Versión del documento:** 1.4
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-08-09 (alineación con mantenimiento posterior a la Fase 9)
+- **Última actualización:** 2026-09-11 (§9.5: cuentas para recibir pagos y recordatorios de pago,
+  **autorizadas y planificadas, todavía no implementadas**, D-185)
 
 ---
 
@@ -272,6 +273,50 @@ al final, de modo que no hay marcador que se pueda romper. Configurar es exclusi
 vendedor** —ni el personal ni un vendedor padre pueden hacerlo por él— y la pantalla está pensada
 para crecer con más secciones.
 
+### 9.5 Cuentas para recibir pagos y recordatorios de pago — **AUTORIZADO Y PLANIFICADO, NO IMPLEMENTADO**
+
+> Autorizado por el dueño del producto el **2026-09-11** (D-185, D-186, D-187). La **Etapa 0**
+> —contrato funcional y arquitectura documentada— está hecha. **Nada de lo que sigue existe todavía
+> en el código.** Reglas: BR-M01..BR-M09, BR-S01..BR-S14, BR-V01..BR-V08.
+
+Dos capacidades nuevas del **vendedor**, dentro de `/seller/settings`, que hoy tiene una sola sección
+—la del grupo de WhatsApp (§9.4)— y pasará a tener tres, cada una en su subruta, con la página
+principal como **resumen ligero**.
+
+**Cuentas para recibir pagos.** El vendedor guarda dónde le consignan sus clientes: **Nequi**,
+**Daviplata** y **cuentas bancarias**, con sitio para más formas después. De cada una se guarda el
+**titular** y el **número** —teléfono, o banco + tipo de cuenta + número—; **no el documento de
+identidad**. Máximo **5 activas**. Se archivan, no se borran.
+
+**Recordatorios de pago.** El vendedor programa mensajes semanales de cobro: **cualquier día y hora,
+con precisión de minuto**, varios el mismo día y ninguno repetido a la misma hora. Puede pausarlos,
+reactivarlos, editarlos y archivarlos. Máximo **14 activos**. Cada uno usa el mensaje predeterminado
+de la aplicación o uno propio, y **la aplicación añade sola las cuentas activas al final**: no hay
+marcadores que escribir ni que romper, y cambiar una cuenta cambia los mensajes futuros **sin tocar
+ningún recordatorio**.
+
+**Cuando llega la hora**, la aplicación crea un aviso en la **campana** —que es obligatoria y es la
+fuente durable— y, si el dispositivo lo permite, manda una notificación **genérica** por Web Push.
+El vendedor abre el aviso, **copia** el mensaje, **abre** su grupo y **pega y envía**. Rifas **no
+envía nada a WhatsApp**: «Copiado», «Grupo abierto» y «Marcado como atendido» describen actos
+locales y **nunca** se presentan como confirmación de envío o de entrega.
+
+**Quién lo ve:** solo el propio vendedor. **Ni el Dueño, ni el Administrador, ni su vendedor padre**
+acceden a sus cuentas ni a sus recordatorios. Cambiar eso exige una decisión explícita y posterior.
+
+**Etapas** (cada una necesita autorización propia; la 0 es la única hecha):
+
+| Etapa | Qué entrega |
+|---|---|
+| 0 | Contrato funcional y arquitectura documentada ✅ **2026-09-11** |
+| 1 | Modelo de datos, restricciones, RLS, RPC, índices, tipos y pruebas de base de datos |
+| 2 | Configuración y formularios de cuentas, WhatsApp y recordatorios |
+| 3 | Motor de vencimientos, ocurrencias, campana y flujo copiar–abrir–atender |
+| 4 | Suscripciones Web Push por dispositivo y extensión del service worker |
+| 5 | Outbox, dispatcher, reintentos y limpieza de endpoints inválidos |
+| 6 | Auditoría integrada de seguridad, rendimiento, UX y regresiones |
+| 7 | Promoción controlada a producción, **solo con autorización posterior** |
+
 ---
 
 ## 10. Fuera de alcance del MVP
@@ -285,6 +330,13 @@ Estas funciones **no** se construyen durante las fases 0 a 9.
 ⚠️ **Las comisiones de vendedores salieron de esta lista el 2026-08-12**, por encargo explícito del
 dueño del producto y junto con los equipos de vendedores (D-091, D-094). Están implementadas y
 probadas; su regla vive en BR-G01..BR-G12.
+
+⚠️ **Las cuentas para recibir pagos y los recordatorios de pago del vendedor se autorizaron el
+2026-09-11** (D-185) y **no** sacan nada de esta lista: **siguen sin existir pagos en línea**. La
+aplicación guarda dónde le consignan a un vendedor y le prepara un mensaje; **no cobra, no mueve
+dinero, no se conecta a Nequi, a Daviplata ni a ningún banco, y no envía nada a WhatsApp** (§9.5).
+Las notificaciones que añade son **Web Push estándar**, sin Firebase y sin servicio de terceros
+(D-187).
 
 ⚠️ **Los resultados oficiales de seis loterías colombianas salieron de «Integración con loterías» /
 «Números ganadores» el 2026-08-30**, por el encargo `ResultadosLoterias.txt`. No es pasarela, ni

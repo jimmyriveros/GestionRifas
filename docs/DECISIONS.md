@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.44 · **Actualizado:** 2026-09-08 (D-001 a D-179)
+- **Versión:** 1.45 · **Actualizado:** 2026-09-11 (D-001 a D-187)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -8684,6 +8684,430 @@ toca esto: un cliente y un vendedor con teléfono histórico, una edición que s
 fila leída **después** de guardar y comparada carácter por carácter.
 
 **Desplegada el 2026-09-10** (`9900635`, `dpl_AfSADmrRTSeH8t5ccDcxUn5hn9UE`), sin migración. Antes de subir se comprobó en producción, con una sonda de solo lectura que solo cuenta, que **ninguno de los 565 teléfonos guardados** tiene espacios en los bordes —lo único que el `trim` de siempre cambiaría al guardar sin tocar—, y se añadieron las pruebas de los cinco caminos de guardado y de Ctrl+V con el portapapeles real (`TEST_RESULTS.md`).
+
+---
+
+## D-185 — Cuentas para recibir pagos y recordatorios de pago del vendedor: el contrato
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-11). **No es una Fase 10**
+y no lleva etiqueta `fase-*`.
+
+> **ESTADO: AUTORIZADO Y PLANIFICADO. NADA DE ESTO EXISTE EN EL CÓDIGO.** Esta entrada documenta el
+> contrato acordado y la arquitectura que lo sostiene. En esta sesión (Etapa 0) **no se escribió
+> código funcional, ni migraciones, ni dependencias, ni se tocó Supabase o Vercel**. Cuando una etapa
+> se implemente, se anota aquí su fecha y su commit; hasta entonces, todo lo que sigue es diseño.
+
+**Alcance planificado.** Dos capacidades nuevas para el **vendedor**, las dos dentro de
+`/seller/settings`:
+
+1. **Cuentas para recibir pagos** — dónde le consignan sus clientes: Nequi, Daviplata y cuentas
+   bancarias, con sitio para más formas en el futuro.
+2. **Recordatorios de pago** — mensajes semanales que la aplicación le prepara a una hora que él
+   elige, para que los pegue en su grupo de WhatsApp.
+
+La invitación al grupo de WhatsApp (D-176, BR-W01..BR-W08) **no se toca**: sigue siendo una función
+independiente con su propio enlace y su propio mensaje, y convive en la misma pantalla.
+
+---
+
+### Contexto
+
+Hoy el vendedor cobra por fuera de la aplicación. Cuando un cliente le pregunta «¿a dónde te
+consigno?», busca el número en su teléfono y lo escribe a mano, con el riesgo de equivocarse en una
+cifra de una cuenta bancaria. Y el cobro semanal —«acuérdense de abonar»— lo manda cuando se acuerda.
+
+Las dos cosas son el mismo problema: **datos que solo están en la cabeza del vendedor y un trabajo
+repetitivo que nadie recuerda a la hora justa.** La aplicación ya sabe quién es el vendedor y ya
+tiene el sitio donde configura lo suyo.
+
+---
+
+### Decisión 1 — las cuentas y los recordatorios viven en **tablas propias**, nunca en `memberships`
+
+Es la decisión que ordena todo lo demás, y no es una preferencia de estilo: la escribió
+`SECURITY.md` §4.14 al cerrar D-176, antes de que existiera este encargo.
+
+> «Quién puede LEER el enlace, dicho sin adornos. `memberships_select` no cambia, así que la fila la
+> ven: su dueño, el **personal** de su organización y su **vendedor padre**, si lo tiene. […]
+> Conviene saberlo antes de guardar aquí algo más sensible que un enlace de invitación a un grupo:
+> para eso haría falta una tabla aparte con su propia política, no una columna más.»
+
+El contrato de este encargo dice que **el vendedor es el único usuario humano** que ve y administra
+sus cuentas y sus recordatorios: ni el Dueño, ni el Administrador, ni su vendedor padre. Una columna
+más en `memberships` daría exactamente lo contrario, en silencio y el mismo día en que se aplicara.
+
+Y el dato es más sensible que un enlace de grupo: el número de una cuenta bancaria con el nombre de
+su titular es lo que hace falta para suplantar un cobro.
+
+Por eso: **tablas nuevas, con RLS forzada y política propia**, y la escritura por RPC
+`SECURITY DEFINER` que no recibe identificador de vendedor —el patrón exacto de
+`set_seller_whatsapp_settings` (BR-W07)—.
+
+**Lo que esto NO significa.** No se crea una «segunda entidad de vendedor»: un vendedor sigue siendo
+una `membership` con rol `seller`, y estas tablas cuelgan de ella por la FK compuesta
+`(seller_id, organization_id)` que ya usan `tickets` y `clients`. Lo que se separa es el **dato**,
+no la identidad.
+
+### Decisión 2 — qué guarda una cuenta: titular y número, y nada más
+
+Confirmado por el usuario el 2026-09-11.
+
+| Forma | Qué se pide |
+|---|---|
+| Nequi · Daviplata | Titular y teléfono |
+| Cuenta bancaria | Banco, tipo de cuenta (ahorros o corriente), número y titular |
+
+**No se guarda el documento de identidad del titular**, aunque algunos bancos lo pidan al confirmar
+una transferencia. Es un dato personal con valor para quien lo robe, no aporta a que el cliente
+consigne, y guardarlo obligaría a protegerlo en la base, en el mensaje de WhatsApp y en cualquier
+exportación futura. Quien lo necesite lo dice por chat.
+
+Cada cuenta lleva además una **etiqueta opcional** —«El Nequi de mi esposa»— y un **orden**, que es
+el orden en que salen en el mensaje. El tipo es un enumerado, de modo que añadir una forma de pago
+futura es `alter type … add value` y un CHECK, no rehacer la tabla.
+
+**Una cuenta se archiva, nunca se borra** (D-038: en este producto no hay `DELETE`). Una cuenta
+archivada desaparece del mensaje y del listado y conserva su fila.
+
+### Decisión 3 — un recordatorio es del vendedor, no de una rifa
+
+Confirmado por el usuario el 2026-09-11.
+
+Un recordatorio es «los martes a las 7:00 p. m. mando el mensaje de cobro a mi grupo». No depende de
+qué rifa esté activa, no se reconfigura al abrir una rifa nueva y no deja de sonar al cerrarse una.
+Es coherente con el destino: el **grupo de WhatsApp del vendedor**, que tampoco es de una rifa.
+
+**Qué sí lo apaga:** que la cuenta del vendedor quede inactiva, que su membresía deje de ser de
+vendedor o que su organización se desactive. Es BR-A04 aplicado tal cual —una cuenta desactivada no
+opera— y se comprueba **en el momento de procesar**, no solo al configurar: un recordatorio guardado
+hace tres meses no puede seguir escribiéndole a alguien a quien ya se le quitó el acceso.
+
+### Decisión 4 — el mensaje se compone al abrirlo, no al programarlo
+
+El recordatorio guarda **prosa** —la suya o la predeterminada de la aplicación— y nada más. Las
+cuentas se añaden **al final**, compuestas en el momento en que el vendedor abre o copia la
+ocurrencia, con la configuración vigente en ese instante.
+
+Es la misma decisión que BR-W04, por las mismas razones y con una consecuencia extra que el contrato
+pide expresamente: **cambiar una cuenta cambia los mensajes futuros sin reescribir ni un recordatorio.**
+
+**Prohibidos los marcadores editables** — `{{cuentas}}`, `{{nequi}}`, `{{saldo}}` o cualquier otro.
+Un marcador se puede borrar sin querer, escribir mal, pegar dos veces o partir a la mitad al editar,
+y cada una de esas formas de romperlo obliga a una validación y a un texto que le explique una
+sintaxis a alguien que solo quería escribir «Buenas, no olviden su abono». La pantalla enseña la
+**vista previa del mensaje completo**, igual que la de WhatsApp (BR-W04), para que nadie tenga que
+fiarse de una promesa.
+
+**El mensaje predeterminado vive en TypeScript, no en la base de datos.** Es BR-W02 literal, y su
+razón sigue siendo la misma: guardarlo repetido por vendedor haría que mejorar una redacción exigiera
+un UPDATE masivo, y que dos personas dadas de alta en fechas distintas tuvieran textos distintos sin
+haber elegido ninguno. De paso evita repetir I-030.
+
+**El mensaje no nombra a ningún cliente, ni dice ningún saldo, ni ningún importe.** Va a un grupo
+donde están todos los clientes del vendedor: escribir ahí quién debe cuánto sería publicar la deuda
+de una persona delante de las demás. Es un mensaje genérico y las cuentas donde consignar.
+
+### Decisión 5 — Rifas prepara el mensaje; **WhatsApp lo manda una persona**
+
+No hay integración con WhatsApp y no la va a haber aquí (BR-W08). El flujo es **copiar → abrir →
+atender**: la aplicación pone el mensaje en el portapapeles, abre el grupo, y el vendedor pega y
+envía con su dedo.
+
+Por eso los tres textos de ese flujo describen **actos locales** y ninguno puede presentarse como
+una confirmación de envío o de entrega:
+
+| Lo que se dice | Lo que de verdad pasó |
+|---|---|
+| «Copiado» | El texto está en el portapapeles de **este** teléfono |
+| «Grupo abierto» | Se abrió `https://chat.whatsapp.com/…` |
+| «Marcado como atendido» | El **vendedor** dijo que ya lo hizo |
+
+Nada de esto sabe si el mensaje salió, si llegó o si alguien lo leyó. Es la misma regla que impide
+decir «cliente agregado al grupo» (BR-W08) y la misma familia que la de sin conexión (D-116):
+**nunca se dice que algo ocurrió si no nos consta.**
+
+### Decisión 6 — la campana interna es la fuente durable; Web Push es una mejora
+
+La ocurrencia vencida **siempre** produce un aviso en la campanita que ya existe (`notifications`,
+D-093). Eso es lo que hace que el recordatorio funcione en un teléfono que denegó el permiso de
+notificaciones, en un navegador que no soporta Web Push, o cuando el envío falla.
+
+Web Push se añade **encima**, y por una cola desacoplada (`push_outbox`): la campana se escribe en la
+misma transacción que la ocurrencia, y el push se **encola**. Un fallo de red, un endpoint caducado o
+un dispatcher caído no pueden perder el aviso interno, porque no participan en escribirlo.
+
+El detalle del push —VAPID, cifrado, reintentos y limpieza de endpoints— está en **D-187**.
+
+### Decisión 7 — un solo Supabase Cron global, y el procesamiento es idempotente
+
+Un `pg_cron` de la organización entera, **nunca un cron por vendedor**. La razón y por qué `pg_cron`
+sí encaja aquí después de que D-148 lo descartara para las loterías están en **D-186**.
+
+Lo que hace que se pueda ejecutar dos veces sin daño, y que dos ejecuciones simultáneas no se pisen:
+
+* Una **ocurrencia materializada** por `(reminder_id, scheduled_for)`, con índice único. Insertar dos
+  veces la misma no crea dos avisos: la segunda no hace nada.
+* Las filas vencidas se toman con `for update skip locked`, así que dos procesos trabajan sobre
+  conjuntos disjuntos en vez de bloquearse.
+* Avanzar `next_run_at` es parte de la misma transacción que materializa la ocurrencia. O pasan las
+  dos, o no pasa ninguna.
+
+### Decisión 8 — una ejecución atrasada se recupera hasta **dos horas**; más allá, se omite
+
+El reloj de la recurrencia se interpreta en **`America/Bogota`**, siempre, y se calcula con la zona
+nombrada —nunca con `-05` escrito a mano— aunque Colombia no cambie la hora desde 1993: el día que
+una ley lo cambie, el cálculo no debe ser el sitio donde se descubra.
+
+| Cuánto lleva vencida | Qué pasa |
+|---|---|
+| ≤ 2 horas | Se materializa **pendiente**, con campana y push. El vendedor lo ve, tarde pero útil |
+| > 2 horas | Se materializa **omitida**, **sin** campana y **sin** push, y avanza a la semana siguiente |
+
+Un recordatorio de las 7:00 p. m. que llega a las 2:00 a. m. no sirve de nada y despertar a alguien
+con él es peor que callarse. La ocurrencia omitida **se guarda igual**: es la diferencia entre «el
+sistema no lo mandó» y «el sistema no se enteró», y sin ella nadie podría distinguirlas.
+
+Si se saltaron varias semanas —el proyecto estuvo pausado, por ejemplo—, **no se disparan todas**: se
+registra una omitida y `next_run_at` salta directamente al próximo instante futuro.
+
+### Decisión 9 — quién ve qué, dicho sin adornos
+
+| Persona | Cuentas y recordatorios de un vendedor |
+|---|---|
+| El propio vendedor | Los ve, los crea, los edita, los pausa y los archiva |
+| Dueño y Administrador | **No.** Ni lectura, ni escritura, ni en un reporte, ni en una exportación |
+| Su vendedor padre | **No.** Es el mismo caso que el grupo de WhatsApp: es suyo |
+| Otro vendedor | **No**, evidentemente |
+| `service_role` | Sí, porque el proceso corre con él. Nunca llega al navegador (`server-only`) |
+
+Que el personal no lo vea **no es una limitación pendiente de arreglar**: es el contrato. Cambiarlo
+exige una decisión explícita y posterior del dueño del producto, y esa decisión tendría que
+argumentar qué problema resuelve, porque el dato es de cobro personal del vendedor.
+
+### Decisión 10 — `/seller/settings` pasa a ser un resumen con subrutas
+
+La pantalla que D-176 dejó pensada «para crecer» crece ahora, y lo hace como aquella nota anticipaba:
+en cuanto hay tres secciones, **el esquema de títulos ES la navegación**.
+
+```
+/seller/settings                    resumen ligero: tres tarjetas con su estado
+/seller/settings/accounts           cuentas para recibir pagos
+/seller/settings/whatsapp           grupo de WhatsApp e invitación (D-176, movido)
+/seller/settings/reminders          recordatorios de pago
+```
+
+**La página principal no carga los formularios ni sus datos.** Enseña tres estados cortos —«3 cuentas
+activas», «Grupo configurado», «2 recordatorios activos»— y cada tarjeta lleva a su subruta. Es la
+misma regla de rendimiento que gobierna el resto del producto: nada de consultar lo que no se está
+mirando.
+
+**Y ninguna de estas consultas entra en un layout ni en un panel.** Ni el armazón, ni
+`/seller/dashboard`, ni la campanita consultan cuentas ni recordatorios. Sin sondeo del navegador y
+sin Realtime: lo que hay que enterarse por sorpresa llega por la campana, que ya existe y ya se lee
+en cada carga.
+
+### Decisión 11 — los topes son duros y viven en la base
+
+Confirmado por el usuario el 2026-09-11.
+
+| Tope | Cuenta | Dónde se impone |
+|---|---|---|
+| **5** cuentas sin archivar | por vendedor | RPC + comprobación en la base |
+| **14** recordatorios **activos** | por vendedor | RPC + comprobación en la base |
+
+Un pausado no cuenta para el tope, y **reactivar vuelve a comprobarlo**: si no, bastaría con pausar,
+crear y reactivar para saltárselo. La cifra vive en un solo sitio y subirla es una migración, no un
+ajuste de pantalla. Un tope blando dejaría sin límite el trabajo que hace el cron cada minuto y el
+largo del mensaje que se pega en WhatsApp.
+
+**No se permiten dos recordatorios idénticos**: mismo día y misma hora, con minuto exacto, es una
+sola fila. Varios el mismo día a horas distintas, sí.
+
+---
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Columnas nuevas en `memberships`, como hizo `0050` | `memberships_select` deja leer la fila al personal y al vendedor padre. Rompería el contrato el mismo día (Decisión 1) |
+| Una tabla `seller_settings` genérica con un `jsonb` | Ni CHECK por tipo de cuenta, ni unicidad, ni orden, ni índice para el cron. Un `jsonb` aquí es aplazar el modelo, no simplificarlo |
+| Marcador `{{cuentas}}` dentro del mensaje | El contrato lo prohíbe, y D-176 ya pagó el precio de descubrir por qué (Decisión 4) |
+| Componer el mensaje al programar el recordatorio y guardarlo | Cambiar una cuenta obligaría a reescribir todos los recordatorios, y los ya materializados quedarían con datos viejos |
+| Recordatorios por rifa | Habría que reconfigurarlos en cada rifa nueva, y el destino —el grupo del vendedor— no es de una rifa (Decisión 3) |
+| Que el recordatorio nombre a los clientes que deben | Va a un grupo con todos los clientes dentro: sería publicar la deuda de una persona delante de las demás (Decisión 4) |
+| Que la aplicación envíe el mensaje a WhatsApp | No hay integración y no la habrá aquí: BR-W08 y `MASTER_SPEC` §10 |
+| Que el personal pueda ver las cuentas «para ayudar» | El contrato dice lo contrario y el dato es de cobro personal (Decisión 9) |
+| Sondeo del navegador o Realtime para enterarse de una ocurrencia | Es lo que el contrato prohíbe expresamente, y la campana ya se lee en cada carga |
+| Guardar el documento de identidad del titular | Dato personal con valor para quien lo robe y sin uso en el flujo (Decisión 2) |
+| Borrar cuentas y recordatorios | En este producto no hay `DELETE` (D-038). Se archivan |
+
+### Consecuencia
+
+Reglas **BR-M01..BR-M09** (cuentas), **BR-S01..BR-S14** (recordatorios) y **BR-V01..BR-V08**
+(entrega de avisos). `DATA_MODEL` §4.15–§4.19 y §6.g.6; `SECURITY` §4.15 y §5.4; `ARCHITECTURE`
+§8.23 y §8.24; `MASTER_SPEC` §9.5; `TESTING` §4.8. Las etapas y sus dependencias, en `PHASE_STATUS`.
+
+**Los términos de pantalla se acuñan en la Etapa 2**, que es cuando se escribe el primer texto
+visible: entonces se amplía el Anexo A de `UX_COPY_GUIDELINES` **antes** de escribirlos
+(`CLAUDE.md` §35.2.3). En esta etapa no hay textos, así que la guía no se toca.
+
+---
+
+## D-186 — Por qué `pg_cron` sí, aquí, después de que D-148 lo descartara
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 0 del encargo de D-185, 2026-09-11)
+
+> **ESTADO: PLANIFICADO.** No hay ninguna extensión instalada, ningún job creado y ninguna migración
+> escrita. `pg_cron` y `pg_net` **no están instalados** hoy en el proyecto.
+
+**Contexto.** D-148 escribió, en letras claras, «**no se usa `pg_cron`** para scrapear ni para
+orquestar parsers», y D-149 lo repitió al promover las loterías. Un encargo que ahora proponga
+`pg_cron` tiene que explicar por qué no está contradiciendo aquella decisión, o estará empezando por
+romper la regla 10 de `HANDOFF` §8.
+
+**No la contradice: se apoya en ella.** D-148 no rechazó `pg_cron` como programador. Rechazó
+`pg_cron` **para un trabajo concreto**, con dos razones nombradas, y ninguna de las dos se aplica
+aquí.
+
+| Razón de D-148 | ¿Aplica a los recordatorios? |
+|---|---|
+| «los parsers no deben vivir en SQL» — leer HTML y PDF de seis loterías, con adaptadores, hashes y consenso, es código Node | **No.** Aquí no hay nada que descargar ni que interpretar. El trabajo es *«dame los recordatorios cuya hora pasó, escribe una fila por cada uno y adelanta su reloj»*: cuatro sentencias SQL sobre tablas propias |
+| «un proyecto Free se pausa a los 7 días sin tráfico», y con él se apagaría el disparador | **Aplica igual, y no se esconde** — ver el riesgo, abajo |
+
+Y hay una razón nueva, que en las loterías no existía y aquí manda: **Vercel Cron no puede hacer este
+trabajo.** El plan Hobby permite hasta 100 jobs, cada uno **una vez al día** y con precisión de
+**±59 minutos**; un intervalo subdiario **rompe el despliegue** (D-149, I-082). El contrato pide
+recurrencia semanal **con precisión de minuto**, a la hora que cada vendedor elija. Con Vercel Hobby,
+un recordatorio de las 7:00 p. m. podría llegar a las 7:59 — o a las 6:01 — y no hay forma de
+declarar 1.440 horas posibles con 100 jobs diarios.
+
+**Los cinco hechos que sostienen la decisión:**
+
+1. El trabajo es **puro SQL sobre datos propios**. Cero red, cero HTML, cero PDF, cero dependencias
+   de Node. Es exactamente el tipo de trabajo para el que existe `pg_cron`.
+2. Necesita **precisión de minuto**, que es el grano nativo de `pg_cron` y está fuera del alcance de
+   Vercel Hobby.
+3. Corre **dentro de la misma transacción** que escribe la ocurrencia y la campana. Un disparador
+   externo por HTTP tendría que volver a entrar por PostgREST y perdería esa atomicidad.
+4. `pg_cron` **está disponible** en el proyecto: el catálogo local trae los disparadores de evento
+   `issue_pg_cron_access` e `issue_pg_net_access` que Supabase instala en todos los planes. Hoy
+   ninguna de las dos extensiones está creada; crearlas es parte de la Etapa 1 y se hace **en una
+   migración versionada**, nunca a mano desde el panel.
+5. Es **un solo job global**, no uno por vendedor. Un cron por vendedor sería crear filas de
+   `cron.job` desde una Server Action: un objeto de infraestructura por cada persona que se da de
+   alta, imposible de revisar y de revertir.
+
+**Decisión.** (a) Un único `pg_cron` cada minuto ejecuta
+`process_due_payment_reminders()`, `SECURITY DEFINER`, sobre `America/Bogota`. (b) La extensión y el
+job se crean en una **migración versionada**; el job se declara por nombre para que volver a aplicar
+la migración lo reemplace en vez de duplicarlo. (c) `pg_cron` **no descarga nada y no habla con
+internet**: lo único que sale hacia afuera es el toque al dispatcher de push, que es D-187 y va por
+`pg_net` desde su propio job. (d) La lógica de negocio vive en la función SQL; **los parsers siguen
+en Node**, porque aquí no hay ninguno.
+
+**El riesgo que no se esconde.** El proyecto Supabase real está en plan **Free** (I-024), que **pausa
+un proyecto a los 7 días sin tráfico**. Un proyecto pausado no corre `pg_cron`, así que los
+recordatorios de esos días no se disparan. Tres cosas atenúan el daño y ninguna lo elimina:
+
+* El producto **se usa a diario**: un proyecto que sirve boletas y pagos no lleva 7 días sin tráfico.
+* Las 10 corridas diarias del cron de loterías (D-149) tocan la base todos los días.
+* La ejecución atrasada se recupera hasta 2 horas y, más allá, deja rastro de **omitida** (D-185,
+  Decisión 8), así que un hueco se puede ver en vez de desaparecer.
+
+**Sigue siendo un motivo real para subir a Supabase Pro**, junto con los backups y el PITR que I-024
+ya reclama. Se documenta aquí para que no se descubra el día que falle.
+
+**Alternativas descartadas.**
+
+| Alternativa | Por qué no |
+|---|---|
+| Vercel Cron, como las loterías | Hobby da 1 corrida diaria por job y ±59 min de precisión. El contrato pide minuto exacto (arriba) |
+| Vercel Cron en plan Pro, cada minuto | Cuesta dinero y sigue siendo una llamada HTTP por minuto para un trabajo que son cuatro sentencias SQL |
+| Un `pg_cron` por vendedor | Infraestructura creada desde una Server Action, una fila de `cron.job` por persona. Inrevisable e irrevertible |
+| Sondeo desde el navegador | Prohibido por el contrato, y no funciona con la aplicación cerrada, que es justo cuando hace falta |
+| Materializar las ocurrencias por adelantado, sin cron | Alguien tendría que mirar la tabla igualmente para emitir la campana y el push |
+| Crear la extensión y el job desde el panel de Supabase | Quedaría fuera del historial y no se reproduciría en local ni en el CI. Va en migración |
+
+**Consecuencia.** BR-S10..BR-S14. `ARCHITECTURE` §8.24. **No invalida D-148 ni D-149**: el
+sincronizador de loterías sigue disparándose desde Vercel Cron y sus parsers siguen en Node.
+
+---
+
+## D-187 — Web Push estándar, sin Firebase, con outbox y un dispatcher protegido
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 0 del encargo de D-185, 2026-09-11)
+
+> **ESTADO: PLANIFICADO.** No hay suscripciones, ni claves VAPID, ni oyentes `push` en el service
+> worker, ni dispatcher. Lo que sigue fija el diseño y **corrige una decisión anterior**.
+
+**Contexto y corrección.** `ARCHITECTURE` §8.15.a se escribió en D-115 con un título que hoy es
+falso: «Por dónde entrará **Firebase Cloud Messaging**». Aquella sección anticipaba FCM, y el
+comentario de cabecera de `public/sw.js` dice «SITIO RESERVADO PARA LAS NOTIFICACIONES (Firebase
+Cloud Messaging)».
+
+**El contrato de este encargo descarta Firebase.** Se usa **Web Push estándar**: el mismo evento
+`push` del navegador, con VAPID (RFC 8292) y cifrado `aes128gcm` (RFC 8291), hablando directamente
+con el servicio de push del navegador. La corrección se anota en §8.15.a sin borrar el texto
+histórico, como manda `CLAUDE.md` §34.4.
+
+**Lo que NO cambia de aquella sección, y era lo importante:** hay **un** service worker, su alcance
+es la raíz, y los oyentes `push` y `notificationclick` se añaden **al final de `public/sw.js`**, en
+su propia sección. **Queda prohibido crear un segundo service worker** —`firebase-messaging-sw.js` o
+cualquier otro—: competiría por el mismo alcance y el navegador solo deja uno controlando cada
+página. Aquella advertencia sigue siendo exactamente igual de válida contra FCM que a favor de este
+diseño.
+
+**Decisión 1 — sin SDK y sin dependencia nueva.** Confirmado por el usuario el 2026-09-11. La firma
+VAPID (ES256) y el cifrado del cuerpo (ECDH P-256 + HKDF + AES-GCM, RFC 8291) se implementan sobre el
+`crypto` de Node 20, que es el que el proyecto ya exige. No entra `web-push` ni ninguna otra
+librería. El precio es ~200 líneas propias que hay que probar **contra los vectores de prueba del
+RFC**, y ese es el criterio de aceptación de la Etapa 5, no una intención.
+
+Ventaja secundaria y real: la CSP **no se abre a nada**. Sin FCM no hay que añadir
+`fcmregistrations.googleapis.com` ni `firebaseinstallations.googleapis.com` a `connect-src`, ni
+`www.gstatic.com` a `script-src`. El servicio de push lo llama el **servidor**, no el navegador.
+
+**Decisión 2 — la outbox desacopla, y ese es su único trabajo.** La ocurrencia, la campana y la fila
+de `push_outbox` se escriben en **una** transacción. El envío ocurre **después**, en otro proceso.
+Consecuencia exacta: un servicio de push caído, un endpoint caducado, un timeout o un dispatcher que
+no arranca **no pueden perder el aviso interno**, porque no participan en escribirlo.
+
+**Decisión 3 — el dispatcher es un Route Handler Node protegido, con el patrón que ya existe.**
+`POST /api/push/dispatch`, fuera de `(protected)` porque un Route Handler **no hereda la guarda de su
+layout** (D-060). Reutiliza, sin reinventarlo, lo de `/api/lottery/sync` (D-148): secreto por
+cabecera, comparación a **tiempo constante**, longitud mínima, limitación de intentos, **falla
+cerrado** si no hay secreto, y el secreto **nunca por query string**. Lo despierta un segundo job de
+`pg_cron` mediante `pg_net`, y si ese toque falla, la cola se recoge en el siguiente: la outbox es la
+que manda, no el toque.
+
+**Decisión 4 — el push es genérico y no dice nada.** Es la regla de privacidad de esta función y no
+admite excepciones: la notificación que se ve en una pantalla bloqueada, en un teléfono que puede
+estar en la mano de otra persona, **no lleva cuentas, ni números de cuenta, ni el mensaje
+personalizado, ni nombres de clientes, ni importes, ni saldos**. Lleva que hay un recordatorio y una
+dirección dentro de la aplicación. El contenido se compone **al abrirla**, con sesión, y lo compone
+la aplicación, no el push.
+
+**Decisión 5 — una suscripción es de un dispositivo, y se limpia sola.** Se guarda por `endpoint`,
+que es único; el mismo vendedor puede tener varias. Un `404` o un `410` del servicio de push
+significa que esa suscripción murió: se marca revocada y **no se reintenta**. Los demás fallos
+reintentan con retroceso y tope, y una fila que agota los intentos queda `failed` con su motivo —la
+campana sigue ahí—.
+
+**Alternativas descartadas.**
+
+| Alternativa | Por qué no |
+|---|---|
+| Firebase Cloud Messaging | Descartado por el contrato: dependencia de un tercero, SDK en el navegador, CSP abierta y un proyecto más que administrar, para hacer lo que el estándar ya hace |
+| La dependencia `web-push` | Elegido no usarla (Decisión 1). Menos código propio, pero rompe la racha de cero dependencias nuevas para algo acotado y probable con los vectores del RFC |
+| Un segundo service worker para las notificaciones | Competiría por el alcance `/`. Lo advertía ya §8.15.a y sigue vigente |
+| Enviar el push dentro de la transacción del cron | Un fallo de red tumbaría o retrasaría la escritura del aviso interno, que es justo lo que la outbox evita |
+| Un push con el mensaje completo dentro | Enseñaría cuentas bancarias en una pantalla bloqueada (Decisión 4) |
+| Abrir la CSP «por si acaso» | No hace falta: el servicio de push lo llama el servidor |
+
+**Consecuencia.** BR-V01..BR-V08. `ARCHITECTURE` §8.15.a (nota de vigencia) y §8.24. `SECURITY` §4.15
+y §5.4. Variables de entorno nuevas —`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` y el
+secreto del dispatcher—, que se dan de alta en la Etapa 4/5 y se declaran en `.env.example` y en
+`check:env` **cuando se implementen**, no antes.
 
 ---
 

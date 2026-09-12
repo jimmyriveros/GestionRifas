@@ -3,7 +3,24 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-09 — **ajuste del nivel 0 del panel del vendedor** (D-181), pedido el
+- **Actualizado:** 2026-09-11 — **encargo nuevo: cuentas para recibir pagos y recordatorios de pago
+  del vendedor** (D-185, D-186, D-187). Se autorizó y se completó **solo la ETAPA 0 de 7**: contrato
+  funcional y arquitectura documentada. **No hay código, ni migraciones, ni dependencias, ni nada
+  tocado en Supabase o Vercel** — el trabajo entero vive en `docs/`, y las reglas nuevas
+  (**BR-M**, **BR-S**, **BR-V**) llevan una columna «Estado» que dice en qué etapa se construye cada
+  una. Lo que fija: las cuentas y los recordatorios van en **tablas propias con política propia**, no
+  en columnas de `memberships` —`memberships_select` deja leer esa fila al personal y al vendedor
+  padre, y el contrato dice que **solo el vendedor** los ve—; el mensaje **se compone al abrirlo**,
+  con las cuentas añadidas al final y **sin marcadores**; el motor es **un solo `pg_cron` global**,
+  idempotente por `(recordatorio, instante)` y tolerante a concurrencia con `skip locked`; la
+  **campana interna es la fuente durable** y **Web Push estándar —sin Firebase—** es una mejora que
+  sale por una **outbox desacoplada**. Corrige además una decisión anterior: `ARCHITECTURE` §8.15.a
+  daba por hecho Firebase Cloud Messaging y **ya no**. La sección completa, con los seis puntos de
+  `CLAUDE.md` §34.3, está **al final de este documento**. **Rama `feature/cuentas-y-recordatorios`,
+  sin fusionar. La Etapa 1 necesita autorización nueva.**
+  Antes, el 2026-09-10: **la máscara visual del teléfono** (D-184), desplegada sin migración; su
+  sección también está al final.
+  Antes, el 2026-09-09: **ajuste del nivel 0 del panel del vendedor** (D-181), pedido el
   mismo día sobre D-180. Tres cosas: **«Comparte tu catálogo» y «Loterías» miden lo mismo** mientras
   comparten fila (`lg:self-stretch` solo en esas dos; el aire sobrante del catálogo va encima de sus
   botones, no debajo); **«Ver detalle» sube al encabezado**, arriba a la derecha, y para que quepa a
@@ -4557,3 +4574,106 @@ I-023, I-030, I-059, I-060.
 6. **El comportamiento del teclado nativo de un teléfono real no lo reproduce Playwright** (la misma
    advertencia de I-079 y I-066). Queda una comprobación manual en un móvil.
 7. **No hay etiqueta `fase-N`**: es mantenimiento.
+
+---
+
+## Mantenimiento post-9 — cuentas para recibir pagos y recordatorios de pago, **ETAPA 0 de 7** (D-185, D-186, D-187, 2026-09-11)
+
+Encargo nuevo, autorizado expresamente. **No es una Fase 10**, no lleva etiqueta `fase-*` y no
+continúa el plan de las nueve fases, que sigue terminado.
+
+> **LO QUE ESTA ETAPA ENTREGA ES DOCUMENTACIÓN.** El usuario autorizó **exclusivamente** la Etapa 0
+> —contrato funcional y arquitectura documentada— y prohibió expresamente escribir código funcional,
+> migraciones y dependencias, y tocar Supabase o Vercel de producción. **Se cumplió: no se creó ni se
+> modificó un solo archivo fuera de `docs/`.**
+
+### 1. Funcionalidades implementadas
+
+**Ninguna.** Es lo que hay que leer primero de esta sección, y la razón por la que las reglas nuevas
+llevan una columna «Estado» que dice en qué etapa se construye cada una.
+
+Lo entregado es el **contrato acordado y su arquitectura**, escrito en los documentos propietarios:
+
+| Qué se fijó | Dónde |
+|---|---|
+| Contrato completo, con 11 decisiones y sus alternativas descartadas | `DECISIONS` **D-185** |
+| Por qué `pg_cron` sí aquí, después de que D-148 lo descartara para loterías | `DECISIONS` **D-186** |
+| Web Push estándar **sin Firebase**, outbox y dispatcher | `DECISIONS` **D-187** |
+| Reglas de las cuentas (**BR-M01..BR-M09**) | `BUSINESS_RULES` §12.d |
+| Reglas de los recordatorios (**BR-S01..BR-S14**) | `BUSINESS_RULES` §12.e |
+| Reglas de entrega de avisos (**BR-V01..BR-V08**) | `BUSINESS_RULES` §12.f |
+| Cinco tablas, cinco enumerados, índices y funciones planificadas | `DATA_MODEL` §4.bis |
+| Aislamiento por vendedor y dispatcher protegido | `SECURITY` §4.15 y §5.2 |
+| La pantalla con subrutas, y el motor con su diagrama | `ARCHITECTURE` §8.23 y §8.24; corrección en §8.15.a |
+| Alcance funcional y las 8 etapas | `MASTER_SPEC` §9.5 |
+| Criterios de aceptación de las etapas 1 a 6 | `TESTING` §4.8 |
+
+**Las cuatro decisiones materiales que el contrato no cubría se preguntaron al usuario y las
+respondió el 2026-09-11**: los datos de una cuenta son **titular y número, sin documento de
+identidad**; los recordatorios son **del vendedor, sin rifa**; Web Push se implementa **sin
+dependencia nueva**, con el `crypto` de Node; y los topes de **5 y 14** son **duros y viven en la
+base**.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `git status --short --branch` | Rama nueva `feature/cuentas-y-recordatorios`. Los dos archivos sin seguimiento del usuario —`CorrecionesLoterias.txt` y `prueba-abono.csv`— **intactos**, comprobado por hash antes y después |
+| `git diff --stat` contra `main` | **Solo `docs/`.** Cero archivos de `src/`, `supabase/`, `scripts/`, `tests/`, `public/` y cero cambios en `package.json` |
+
+**No se ejecutaron `verify` ni `test:db`, y es lo correcto**: esta etapa no toca código ni base de
+datos, así que no hay nada que pudieran comprobar y ejecutarlos solo produciría una cifra que parece
+evidencia sin serlo. Las dos vuelven a ser obligatorias **en la Etapa 1**, que es la primera que
+escribe algo ejecutable. Lo que sí se verificó es lo único verificable aquí: que la documentación
+describe el código **real** —se leyeron `0023`, `0037`, `0050`, `public/sw.js`,
+`/api/lottery/sync`, `features/whatsapp/`, `features/notifications/`, `vercel.json` y
+`cron-plan.ts`— y no una versión imaginada de él.
+
+**Dos contradicciones encontradas y reportadas, no corregidas en silencio:**
+
+1. **`ARCHITECTURE` §8.15.a y `public/sw.js` daban por hecho Firebase Cloud Messaging.** El contrato
+   descarta Firebase. Se añadió una **nota de vigencia** en §8.15.a sin borrar el texto histórico
+   (D-187); el comentario del service worker queda desactualizado y se corrige en la Etapa 4, cuando
+   se toque el archivo.
+2. **`SECURITY` §4.14 ya había anticipado el problema** que este encargo plantea: «conviene saberlo
+   antes de guardar aquí algo más sensible que un enlace de invitación a un grupo». Por eso las
+   cuentas **no** van en `memberships`. No es una contradicción: es la razón de la Decisión 1.
+
+### 3. Migraciones que existen
+
+**Ninguna nueva.** El proyecto sigue en **`0001`–`0050`**, las 50 aplicadas en local y en el proyecto
+real. **`supabase/` no se tocó.** La Etapa 1 escribirá la primera, que será la **`0051`**.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva todavía.** `.env.example` y `check:env` **no se tocaron**. La Etapa 4/5 añadirá
+`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` y el secreto del dispatcher, y ese es el
+momento de declararlas — no antes, porque `check:env` rompe el despliegue si exige una variable que
+nadie ha creado (I-021).
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **Plan Free de Supabase (I-024)** | Un proyecto pausado a los 7 días sin tráfico **no corre `pg_cron`**, así que los recordatorios de esos días no se disparan. Improbable —el producto se usa a diario y los diez cron de loterías tocan la base—, pero es **un motivo más para subir a Pro**, junto a los backups que I-024 ya reclama. La ocurrencia **omitida** deja ver el hueco |
+| **I-108** (`PHONE_REGEX` cuenta caracteres, no dígitos) | El teléfono de una cuenta de Nequi o Daviplata reutilizará ese patrón, así que **hereda el defecto**. No se corrige aquí: exige migración, censo de datos reales y autorización |
+| **I-030** (mensajes de base de datos sin tildes) | Las migraciones nuevas escribirán sus frases **acentuadas**, como hizo `0050`. La deuda vieja se arregla entera de una vez, no a trozos |
+| Todo lo demás | Sin cambios: I-109, I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-024, I-021, I-023, I-059, I-060 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esta etapa NO autoriza la Etapa 1.** Hace falta una autorización explícita nueva.
+2. **Lee D-185 entero antes de tocar el modelo de datos.** La Decisión 1 —tablas propias, no
+   columnas en `memberships`— es la que sostiene el resto, y equivocarla significa migrar datos
+   sensibles después.
+3. **`DATA_MODEL` §4.bis es diseño, no esquema.** Cuando lo implementes, muévelo a §4 con su número
+   de migración y quita la advertencia.
+4. **Las funciones nuevas necesitan `revoke execute … from anon, public` explícito** y entrar en las
+   **dos** listas blancas —`verify:remote` y `tests/db/catalog.test.ts`— que `SECURITY` §4.5 obliga a
+   tocar juntas. Es lo que costó I-020 e I-078.
+5. **`pg_cron` y `pg_net` se crean en la migración**, nunca a mano desde el panel de Supabase.
+6. **No crees un segundo service worker.** Los oyentes van al final de `public/sw.js` (BR-V04).
+7. **Los textos visibles se acuñan en la Etapa 2**, ampliando antes el Anexo A y el Anexo B de
+   `UX_COPY_GUIDELINES` (`CLAUDE.md` §35.2.3). En esta etapa no se escribió ninguno y la guía no se
+   tocó a propósito.
+8. **La rama es `feature/cuentas-y-recordatorios`** y no se ha fusionado a `main`.
