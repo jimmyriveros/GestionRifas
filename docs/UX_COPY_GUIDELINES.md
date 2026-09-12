@@ -447,6 +447,11 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Abrir el grupo de WhatsApp desde ahí | **Abrir grupo** | Ir a WhatsApp, enviar, compartir |
 | Que el vendedor diga que ya lo mandó | **Marcar como atendido** | **Enviado**, **Entregado**, Completado, Listo — la aplicación no manda nada y no puede decir que sí (BR-S14, BR-W08) |
 | Cuándo le tocaba a ese mensaje | **«Era para el …»** | Vencido, atrasado, caducado |
+| Lo que sale en la campanita al entrar, y lo que sale en la pantalla del teléfono | **Aviso**, las dos cosas (D-190) | Notificación, alerta, push, mensaje |
+| La sección donde se enciende ese segundo canal | **Avisos en este dispositivo** | Notificaciones push, suscripciones, alertas |
+| Encenderlo y apagarlo en ESE teléfono | **Activar avisos** y **Dejar de recibir avisos** | Suscribirse/desuscribirse, registrar el dispositivo, permitir |
+| Que el navegador o la persona dijeron que no | **Bloqueado** | Denegado, rechazado, prohibido |
+| El teléfono o el computador concreto desde el que se entra | **Dispositivo**, o **este teléfono** cuando se le habla a alguien que está en uno | Terminal, cliente, endpoint, navegador (salvo cuando se habla del navegador de verdad) |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -1186,6 +1191,35 @@ hace quien la ve al día siguiente. Lo que **no** se escribe es cuánto lleva de
 horas» convierte un mensaje útil en un reproche— ni la fecha del **próximo** envío, que la aplicación
 sí conoce pero que se mueve por debajo al pausar, al cambiar la hora o al procesar.
 
+**Los avisos del teléfono NO dicen nada, y esa es su regla** (BR-V05, D-190). Se leen en una pantalla
+bloqueada, en un teléfono que puede estar en la mano de otra persona: **no llevan cuentas, ni números
+de cuenta, ni el mensaje del vendedor, ni nombres de clientes, ni importes, ni saldos**. Dicen que hay
+algo y llevan a dónde ir; el contenido se compone **al abrir la aplicación**, con sesión. Es la misma
+razón por la que el service worker no guarda el HTML de ninguna pantalla (D-116).
+
+Y cuando el aviso llega sin texto —o con uno que el navegador no pudo descifrar— **se muestra igual**,
+con el texto de reserva: «Rifas · Tienes un aviso nuevo. Ábrelo para verlo.» No es un adorno: la
+suscripción se pide con `userVisibleOnly`, que obliga a enseñar algo por cada aviso recibido, y
+callarse haría que el navegador enseñara el suyo —«este sitio se actualizó en segundo plano»— y
+acabara retirando el permiso.
+
+**«La campana te sigue avisando» acompaña a cada NO** (BR-V01, D-190). El canal del teléfono es una
+mejora encima, nunca el único camino, así que las tres formas de que no se pueda —el navegador no
+puede, la persona lo bloqueó, el iPhone no tiene la aplicación instalada— dicen lo mismo al final: lo
+que hay dentro no se pierde. Sin esa frase, un «no se puede» se lee como «te vas a quedar sin saberlo».
+
+**El permiso se pide EN UNA PANTALLA Y A PROPÓSITO** (BR-V06). Nunca al cargar la aplicación, nunca al
+entrar, nunca en un diálogo que aparece solo: la forma más rápida de que alguien bloquee los avisos
+para siempre es pedírselos antes de que entienda para qué. La sección vive donde están los
+recordatorios, que es lo único que hoy los produce, y el permiso se pide cuando se pulsa **«Activar
+avisos»**.
+
+**Y es de ESTE dispositivo, lo que obliga a decirlo en cada frase.** Activar en el teléfono no activa
+en el computador, y en un teléfono compartido **activar lo cambia de dueño**: el anterior deja de
+recibir ahí. Por eso los botones dicen «en este dispositivo» y el estado dice «Este dispositivo ya
+recibe avisos», nunca «tienes los avisos activados», que sonaría a una sola cuenta y una sola
+pantalla.
+
 **El aviso de la campana dice cuál de los recordatorios es, y qué hacer** (BR-V01, D-189). «Es hora
 de tu recordatorio del martes a las 7:00 p. m. Copia el mensaje y pégalo en tu grupo.» El día va en
 **minúsculas** porque va dentro de una frase, y la hora se escribe con `formatClockEs`, que ya
@@ -1359,6 +1393,8 @@ castigo donde solo había una espera.
 | A dónde lleva un aviso de la campana, cuando lleva a algún sitio | `notificationHref`, en ese mismo archivo — hoy **solo** el recordatorio de pago (D-189) |
 | El mensaje predeterminado de un recordatorio | `DEFAULT_REMINDER_MESSAGE`, en ese mismo archivo — **nunca** en la base de datos, por lo mismo que `DEFAULT_INVITE_MESSAGE` (BR-S06, BR-W02) |
 | Los títulos y las líneas de estado de las tres tarjetas del resumen de «Configuración» | `src/app/(protected)/seller/settings/page.tsx` (D-188) |
+| Todos los textos de «Avisos en este dispositivo»: título, explicación, los dos botones y las tres formas de «no se puede» | `src/features/push/subscription.ts` (`PUSH_COPY`), **todos juntos** (D-190) |
+| El texto de reserva del aviso del teléfono, cuando llega sin cuerpo | `public/sw.js` (`PUSH_FALLBACK`) — **es el único texto visible que vive fuera de `src/`**, porque un service worker no puede importar del paquete (D-190) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

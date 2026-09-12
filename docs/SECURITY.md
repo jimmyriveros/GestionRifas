@@ -1,12 +1,14 @@
 # SEGURIDAD
 
-- **Versión:** 2.12 · **Estado:** implementado · **Actualizado:** 2026-09-12
+- **Versión:** 2.13 · **Estado:** implementado · **Actualizado:** 2026-09-12
 - **§4.15** describe el aislamiento de las cuentas de cobro, los recordatorios y **el motor que los
   dispara**, implementado en las migraciones **`0051`** (Etapa 1) y **`0052`** (Etapa 3, D-189) y
   verificado en local; su última parte —Web Push— sigue siendo diseño y lo dice. **§5.2**
   (dispatcher de Web Push) es **planificada**, Etapa 5.
-- ⚠️ `0051` y `0052` están aplicadas **en local**. **El proyecto real no las tiene**: promoverlas es
-  la Etapa 7.
+- **§4.16** describe las **suscripciones Web Push** (`0053`, Etapa 4, D-190): de una persona, un
+  dispositivo por fila y con las claves fuera del alcance de cualquier sesión.
+- ⚠️ `0051`, `0052` y `0053` están aplicadas **en local**. **El proyecto real no las tiene**:
+  promoverlas es la Etapa 7.
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
   `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042`, `0043` y `0044`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
@@ -867,6 +869,49 @@ Tres consecuencias que hay que sostener al implementar:
 3. **Las claves VAPID son secretos de servidor.** `VAPID_PRIVATE_KEY` no sale del proceso ni aparece
    en el paquete del navegador; la pública sí viaja, que es su función. Van en `.env.example` y en
    `check:env` **cuando se implementen** (§7).
+
+### 4.16 Suscripciones Web Push (`0053`, BR-V04..BR-V06, D-190)
+
+> **IMPLEMENTADO EN LA BASE el 2026-09-12** (Etapa 4), verificado **en local** con 20 pruebas. **No
+> aplicado al proyecto real**: eso es la Etapa 7. **El envío no existe**: es la Etapa 5.
+
+**Qué se guarda, y por qué importa.** `endpoint`, `p256dh` y `auth` son lo único que hace falta para
+cifrarle un mensaje a un dispositivo (RFC 8291). Quien los tenga puede mandarle notificaciones, si
+además firma con la clave VAPID a la que la suscripción está atada. Se tratan en consecuencia:
+
+| Quién | Qué ve |
+|---|---|
+| La propia persona | **Solo sus filas**, por RLS. La pantalla lee **únicamente el endpoint**, nunca las claves |
+| Cualquier otra persona, incluido el personal | **Nada.** No es una decisión de producto sino de higiene: la lista de dispositivos de alguien, con su `user_agent`, dice desde dónde y con qué se conecta |
+| `anon` | **Nada**, ningún privilegio sobre la tabla |
+| `service_role` | Sí: lo necesitará el despachador. Nunca llega al navegador (`server-only`) |
+| La bitácora | **Ni el endpoint ni las claves.** `audit_logs` la lee el personal entero (BR-D04), así que se anota que se activó y en qué fila, y nada más. Hay una prueba que busca `fcm.googleapis.com` en toda la bitácora y exige cero |
+
+**El patrón es el de siempre**: RLS `enable` + `force`, **una sola política y de `SELECT`**,
+`authenticated` con **solo `SELECT`**, y las dos RPC `SECURITY DEFINER` **sin identificador de
+persona** como única puerta de escritura.
+
+**El borrado real está acotado a esta tabla y ocurre dentro de la función.** Es una de las dos
+excepciones a D-038 que §4.15 ya había anticipado; `authenticated` sigue sin privilegio de `DELETE` y
+no hay ninguna política de `DELETE`, así que las dos comprobaciones de catálogo que lo vigilan siguen
+en verde.
+
+**Las claves VAPID no están en la base.** La pública viaja al navegador —es su función— y la privada
+es de servidor, **no lleva el prefijo `NEXT_PUBLIC_`** y todavía no la lee nadie: llega con el
+despachador de la Etapa 5. Se generan con `npm run vapid`, que **no escribe ningún archivo**.
+
+#### Lo que queda abierto, dicho antes de que lo descubra alguien
+
+**Cerrar sesión NO quita la suscripción de ese dispositivo** (D-190, Decisión 10). En un teléfono
+compartido, quien cerró sesión sigue recibiendo sus avisos ahí hasta que otra persona active los
+suyos. Tres cosas lo acotan y ninguna lo elimina:
+
+* el aviso es **genérico** y no dice nada (BR-V05): ni cuentas, ni importes, ni nombres;
+* tocarlo abre la aplicación, donde manda la sesión de quien esté dentro;
+* y **activar desde la otra cuenta reasigna** la fila, porque el endpoint es único.
+
+Cambiar el cierre de sesión para que además desuscriba está fuera del alcance de la Etapa 4 y toca
+un camino que nadie pidió tocar. Queda escrito aquí para que sea una decisión y no un hallazgo.
 
 ## 5. Protección de Server Actions y Route Handlers
 

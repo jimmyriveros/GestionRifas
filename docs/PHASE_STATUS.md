@@ -3,7 +3,18 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-12 — **ETAPA 3 de 7 del encargo de cobro: el motor** (`0052`, D-189).
+- **Actualizado:** 2026-09-12 — **ETAPA 4 de 7 del encargo de cobro: suscripciones Web Push**
+  (`0053`, D-190). **Cada dispositivo ya puede registrarse para recibir avisos**: los oyentes
+  `push` y `notificationclick` viven **al final del único service worker** —el sitio que D-115 dejó
+  reservado, y llegan **sin Firebase**—, y la tarjeta **«Avisos en este dispositivo»** pide el
+  permiso **al pulsar**, nunca al cargar. La suscripción es **de una persona y de un dispositivo**,
+  con el `endpoint` único en toda la tabla: en un móvil compartido, activar **cambia el dueño** en
+  vez de duplicar. ⚠️ **NO ENVÍA NADA**: sin outbox ni despachador, una suscripción guardada hoy no
+  produce ninguna notificación — eso es la Etapa 5 —, y por eso **sin clave VAPID configurada la
+  tarjeta ni se pinta**. **Ninguna dependencia nueva.** **Todo en LOCAL: el proyecto real no tiene
+  ni la `0051`, ni la `0052`, ni la `0053`.** **Rama `feature/cuentas-y-recordatorios`, sin
+  fusionar. La Etapa 5 necesita autorización nueva.**
+  Antes, ese mismo día: **ETAPA 3 de 7 del encargo de cobro: el motor** (`0052`, D-189).
   **Los recordatorios ya suenan.** Un `pg_cron` global mira cada minuto los que vencieron,
   materializa su **ocurrencia**, escribe el aviso en **la campana** y adelanta el reloj, todo en una
   transacción. El vendedor pulsa ese aviso y aterriza en **«Para enviar ahora»**, con el mensaje ya
@@ -4804,6 +4815,104 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — cuentas de cobro y recordatorios, **ETAPA 4 de 7**: suscripciones Web Push (`0053`, D-190, 2026-09-12)
+
+Autorizada expresamente el mismo día, después de cerrar la Etapa 3. **No es una Fase 10** y no lleva
+etiqueta `fase-*`.
+
+> **APLICADA EN LOCAL. EL PROYECTO REAL NO LA TIENE**, ni la `0051`, ni la `0052`, ni la `0053`.
+> Promover es la **Etapa 7**. La base de producción sigue en **50 migraciones**.
+>
+> ⚠️ **ESTA ETAPA NO ENVÍA NADA.** Guardar una suscripción no produce ninguna notificación en ningún
+> teléfono: falta el despachador entero, que es la Etapa 5.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| La suscripción | **`push_subscriptions`**: un navegador que acepta avisos. **De una PERSONA, no de una organización** — es transporte, no un dato de negocio (D-190, Decisión 1) |
+| Un dispositivo, una fila | `endpoint` **único en toda la tabla**. En un móvil compartido, activar **cambia el dueño** en vez de duplicar: el anterior deja de recibir ahí |
+| Reasignar limpia | Contadores, fechas y revocación se ponen a cero: describían a la suscripción anterior |
+| Dos RPC | `upsert_push_subscription` y `delete_push_subscription`. **Ninguna recibe identificador de persona**: sale de `auth.uid()` |
+| Aquí sí se borra | `delete_push_subscription` borra la fila, dentro de la función `SECURITY DEFINER`. Es una de las dos excepciones a D-038 que `SECURITY` §4.15 ya había dejado escritas |
+| El service worker | Oyentes **`push` y `notificationclick` al final de `public/sw.js`**, en su propia sección. **Sigue habiendo uno solo** (BR-V04). Se corrigió su cabecera, que prometía Firebase desde D-115 |
+| El aviso es genérico | No lleva cuentas, ni importes, ni clientes (BR-V05). Y **siempre se muestra algo**, aunque llegue sin cuerpo: `userVisibleOnly` obliga, y callarse acabaría costando el permiso |
+| La dirección se comprueba | Un aviso no puede acabar llevando a un sitio de otro origen |
+| La pantalla | **«Avisos en este dispositivo»**, al final de «Recordatorios de pago». El permiso se pide **al pulsar**, nunca al cargar (BR-V06) |
+| El iPhone, antes que el soporte | Sin instalar, Safari no tiene `PushManager`: se dice **qué falta**, no «este navegador no puede» |
+| Opcional de verdad | Sin `NEXT_PUBLIC_VAPID_PUBLIC_KEY` **la tarjeta no se pinta** y la campana no cambia. `check:env` lo dice y **no falla** |
+| Las claves | `npm run vapid` genera el par con el `crypto` de Node, **sin escribir ningún archivo** |
+| Tipos | `src/types/database.types.ts` regenerado: **+93 líneas, 0 eliminadas** |
+
+**Lo que NO trae, y es deliberado:** ni outbox, ni despachador, ni firma VAPID, ni cifrado
+`aes128gcm`, ni reintentos, ni limpieza de endpoints muertos. Es la Etapa 5 entera.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` + `npm run seed:local` | ✅ **53** migraciones desde cero |
+| `tests/db/push-subscriptions.test.ts` | ✅ **20/20** |
+| `npm run test:db` | ✅ **942/942** (42 archivos, **+20**) |
+| `npm run verify` | ✅ typecheck · lint con los 2 avisos preexistentes · **968/968** unitarias (**+25**) · build |
+| Suite E2E completa | ✅ **635 pasan · 4 fallan** (34,2 min). Los 4 son **I-090** (3) e **I-106** (1), conocidos y ajenos. **Ninguna prueba de esta etapa falla** |
+| Build de producción, a mano | ✅ La tarjeta se pinta, lee el estado real del navegador, `/sw.js` se sirve con la sección nueva y la clave pública llega al fragmento del cliente |
+| `npm run verify:remote` | **No ejecutado a propósito**: apunta al proyecto real y esta etapa no toca producción |
+
+**Se comprobó al revés, dos veces.** Debilitando la política de `SELECT` a `using (true)` fallan
+**tres** pruebas y son las tres correctas (P-04, P-07, P-08); retirando la comprobación de mismo
+origen del service worker falla **solo** la que la defiende. Detalle en `TEST_RESULTS.md`.
+
+**Un error encontrado durante el trabajo, corregido:** `lint` rechazó un `require()` dentro de la
+prueba del service worker (`@typescript-eslint/no-require-imports`). Se cambió por un import normal.
+
+### 3. Migraciones que existen
+
+**`0001`–`0053`.** La nueva es **`0053_push_subscriptions.sql`**: una tabla con su RLS y cuatro
+CHECK, dos índices y dos funciones. **Es aditiva**: no toca ninguna tabla, política, función, enum ni
+restricción existente.
+
+### 4. Variables de entorno requeridas
+
+**Dos nuevas, las dos OPCIONALES.** `NEXT_PUBLIC_VAPID_PUBLIC_KEY` —pública, viaja al navegador— y
+`VAPID_PRIVATE_KEY` —secreta, **todavía no la lee nadie**: llega con el despachador de la Etapa 5—.
+Se generan con `npm run vapid`, están documentadas en `.env.example` y `check:env` **avisa sin
+fallar** cuando falta la pública.
+
+⚠️ **Cambiar el par invalida todas las suscripciones existentes**: cada navegador ató la suya a la
+clave pública que se le dio. Se genera una vez y se conserva.
+
+⚠️ **El par generado durante este trabajo NO sirve para producción**: su clave privada quedó impresa
+en la transcripción de la sesión. Hay que generar otro.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **Nada llega todavía a ningún teléfono** | Falta el envío entero (Etapa 5). Por eso la tarjeta solo aparece con clave configurada: **promover esta etapa sin la 5 y sin poner la clave no promete nada a nadie**, que es justo el mecanismo que se buscó |
+| **Cerrar sesión no quita la suscripción** | En un móvil compartido, quien cerró sesión sigue recibiendo sus avisos ahí hasta que otra persona active los suyos. El aviso es genérico y no dice nada, y activar desde la otra cuenta reasigna. Escrito en `SECURITY` §4.16 (D-190, Decisión 10) |
+| **La suite E2E no ve el service worker** | **I-074**, ahora con un segundo ejemplo con nombre. Los ~100 renglones del worker se prueban cargando el archivo real en Node; pedir el permiso y suscribirse no se prueba en ningún sitio automático |
+| **I-024**, plan Free | Sin cambios respecto a la Etapa 3 |
+| **La CLI de Supabase genera tipos distintos** | Sigue vigente: quien regenere `database.types.ts` tiene que restaurar los seis `\| null` |
+| Todo lo demás | Sin cambios: I-109, I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-021, I-023, I-030, I-059, I-060 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Etapa 5.** Hace falta una autorización explícita nueva.
+2. **NO crees un segundo service worker** (BR-V04). Los oyentes van al final de `public/sw.js`, donde
+   ya están, y hay una prueba que falla si aparece otro archivo de worker en `public/`.
+3. **El despachador de la Etapa 5 recibe el payload que el worker ya sabe leer**: `title`, `body`,
+   `url` y `tag`, y nada más. **Genérico** (BR-V05): ni cuentas, ni importes, ni clientes.
+4. **La clave privada ya tiene nombre y sitio**: `VAPID_PRIVATE_KEY`, sin `NEXT_PUBLIC_`. No la
+   vuelvas a inventar.
+5. **El endpoint es único GLOBAL**: no lo cambies a `(persona, endpoint)` sin leer D-190, Decisión 2.
+6. **Un 404 o un 410 revoca y no se reintenta** (BR-V07): las columnas `revoked_at`/`revoked_reason`
+   ya existen y tienen su CHECK de coherencia.
+7. **`push_subscriptions` no tiene organización, a propósito.** Hay una prueba que lo comprueba.
+8. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
 
 ---
 

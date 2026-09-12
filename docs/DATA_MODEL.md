@@ -939,17 +939,72 @@ ese orden falle en vez de duplicar campanas.
 
 ---
 
+### 4.18 `push_subscriptions` (`0053`, BR-V04..BR-V06, D-190)
+
+Un navegador que acepta avisos. **De una PERSONA, no de una organización**: es la única tabla del
+encargo sin `organization_id`, y es deliberado — una suscripción es **transporte**, no un dato de
+negocio, y añadir una organización obligaría a elegir una para quien pertenezca a dos.
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| `id` | `uuid` PK | |
+| `profile_id` | `uuid` NOT NULL | → `profiles`, `on delete restrict`. **Sin FK compuesta a `memberships`**: no hay organización que comprobar |
+| `endpoint` | `text` NOT NULL | La dirección del servicio de push. Opaca, se guarda y se usa tal cual |
+| `p256dh` · `auth` | `text` NOT NULL | Clave pública del dispositivo y secreto del RFC 8291. **SENSIBLES** |
+| `user_agent` | `text` | Para reconocer el aparato en un listado. Informativo |
+| `success_count` · `failure_count` | `integer` | Los llenará el despachador de la Etapa 5 |
+| `last_success_at` · `last_failure_at` | `timestamptz` | Igual |
+| `revoked_at` · `revoked_reason` | `timestamptz` · `text` | Un 404 o un 410 del servicio de push (BR-V07). Se marca y no se reintenta |
+
+**`push_subscriptions_endpoint_key` — índice único `(endpoint)`, GLOBAL.** Es la pieza que resuelve
+el caso normal de este producto: **dos vendedores compartiendo un teléfono**. El navegador entrega
+siempre el mismo endpoint para el mismo aparato, así que activar los avisos **cambia el dueño** de
+la fila en vez de duplicarla. Una unicidad por `(persona, endpoint)` dejaría dos filas apuntando al
+mismo móvil y dos personas recibiendo los avisos de la otra.
+
+**Índice `push_subscriptions_profile_idx (profile_id) WHERE revoked_at is null`**: la consulta del
+despachador de la Etapa 5, y la de la pantalla.
+
+**Cuatro CHECK, y ninguno es decorativo:**
+
+| Restricción | Qué impide |
+|---|---|
+| `endpoint_https` · `endpoint_length` | Un endpoint que no es https, o que no tiene forma de endpoint |
+| `p256dh_shape` · `auth_shape` | Claves que no son base64url del tamaño del RFC 8291 (65 y 16 bytes) |
+| `revoked_coherent` | Una revocación sin motivo, o un motivo sin revocación |
+
+**RLS idéntica a las otras tres tablas del encargo**: `enable` + `force`, **una sola política y de
+`SELECT`**, `profile_id = (select current_profile_id())`. `authenticated` recibe **solo `SELECT`**.
+
+#### Las dos RPC
+
+| Función | Devuelve | Qué hace |
+|---|---|---|
+| `upsert_push_subscription(endpoint, p256dh, auth, user_agent)` | la fila | Registra o **reasigna** este dispositivo. Al reasignar **limpia el historial**: contadores, fechas y revocación describían a la suscripción anterior |
+| `delete_push_subscription(endpoint)` | `boolean` | Lo quita. `false` si no había ninguna suya con ese endpoint — la misma respuesta que si no existiera |
+
+**Ninguna recibe identificador de persona**: sale de `auth.uid()`, como las nueve del encargo.
+
+**`delete_push_subscription` BORRA de verdad**, y es una de las dos únicas excepciones a D-038 que
+`SECURITY` §4.15 dejó escritas: una suscripción es transporte, no historial. El borrado ocurre
+dentro de la función `SECURITY DEFINER`, así que `authenticated` sigue sin privilegio de `DELETE` y
+no existe ninguna política de `DELETE` — igual que `bulk_delete_tickets` (BR-B05).
+
+#### Las claves VAPID no están en la base
+
+Viven en variables de entorno: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` —que viaja al navegador, y ahí tiene
+que estar— y `VAPID_PRIVATE_KEY`, que es de servidor y **todavía no la lee nadie**. Se generan con
+`npm run vapid`. **Cambiar el par invalida todas las suscripciones existentes**, porque cada
+navegador ató la suya a la clave pública que se le dio.
+
+---
+
 ## 4.bis Lo que falta del encargo de cobro — **PLANIFICADO** (D-185, D-187)
 
-> ⚠️ **NADA DE ESTA SECCIÓN EXISTE.** Las etapas 1, 2 y 3 están entregadas —§4.15, §4.16 y §4.17, en
-> las migraciones `0051` y `0052`—. Lo que sigue son las **etapas 4 y 5**: Web Push, su cola y su
-> despachador. Cada una necesita su autorización. Cuando se implementen, se mueven a §4 con su número
-> de migración, como se hizo con las tres anteriores.
-
-### `push_subscriptions` — Etapa 4 (BR-V06, BR-V07)
-
-`endpoint` único (global), `p256dh`, `auth`, `user_agent`, contadores de éxito y fallo y
-`revoked_at`. Es de una **persona**, no solo de un vendedor: la campana la tiene todo el mundo.
+> ⚠️ **NADA DE ESTA SECCIÓN EXISTE.** Las etapas 1 a 4 están entregadas —§4.15 a §4.18, en las
+> migraciones `0051`, `0052` y `0053`—. Lo que sigue es la **Etapa 5**: la cola del push y su
+> despachador. Necesita su autorización. Cuando se implemente, se mueve a §4 con su número de
+> migración, como se hizo con las cuatro anteriores.
 
 ### `push_outbox` — Etapa 5 (BR-V02, BR-V07)
 
@@ -962,7 +1017,6 @@ un lote con `for update skip locked`.
 
 | Función | Etapa | Qué hace |
 |---|---|---|
-| `upsert_push_subscription(...)` · `delete_push_subscription(endpoint)` | 4 | Registrar y quitar este dispositivo |
 | `claim_push_outbox(lote)` · `mark_push_outbox_sent/failed(...)` · `revoke_push_subscription(endpoint)` | 5 | La cola de push, solo para `service_role` |
 
 ### `pg_net` sigue sin usarse
@@ -1021,6 +1075,8 @@ propias.
 | `payment_reminder_occurrences` | `(reminder_id, scheduled_for)` (único, `0052`) | **La idempotencia del motor** (BR-S10) |
 | `payment_reminder_occurrences` | `(seller_id, scheduled_for DESC) WHERE status = 'pending'` (`0052`) | Lo que el vendedor tiene por enviar. Empieza por la columna de la política (D-102, regla 2) |
 | `notifications` | `(entity_id) WHERE kind = 'payment_reminder.due'` (único, `0052`) | Un aviso por ocurrencia (D-189, Decisión 2) |
+| `push_subscriptions` | `(endpoint)` (único, global, `0053`) | Un dispositivo, una fila. Activar en un móvil compartido reasigna (D-190) |
+| `push_subscriptions` | `(profile_id) WHERE revoked_at is null` (`0053`) | Los dispositivos vivos de una persona |
 
 Los índices de `tickets` por `(organization_id, raffle_id, daily_number)` y `weekly_number` (`0003`)
 bastan para el matching: no se añadió otro sobre los números.

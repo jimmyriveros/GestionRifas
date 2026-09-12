@@ -529,3 +529,50 @@ test.describe('lo que hay para enviar', () => {
     await expect(page.getByRole('heading', { name: 'Para enviar ahora' })).toBeVisible()
   })
 })
+
+/*
+ * =============================================================================
+ * AVISOS EN EL DISPOSITIVO (BR-V01, BR-V06, D-190)
+ *
+ * Lo que la suite PUEDE ver es que sin clave VAPID configurada **no se ofrece
+ * nada**, que es el estado honesto: el canal del teléfono es una mejora encima
+ * de la campana y, sin la mitad que envía, no se promete.
+ *
+ * Lo que NO puede ver es el camino completo —pedir permiso, suscribirse,
+ * guardar—, y no es un olvido: el service worker **solo se registra en
+ * producción** (D-116) y estas pruebas corren contra `next dev`. Es la misma
+ * ceguera de I-074. Se verificó a mano sobre un build de producción, y está en
+ * `TEST_RESULTS`.
+ * =============================================================================
+ */
+
+test.describe('avisos en este dispositivo', () => {
+  test('sin clave configurada no se ofrece nada, y la pantalla sigue entera', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/reminders')
+
+    // La pantalla de siempre, completa.
+    await expect(page.getByRole('heading', { name: 'Recordatorios de pago' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Crear recordatorio' })).toBeVisible()
+
+    // Y ni rastro de la tarjeta: sin clave no hay nada que ofrecer.
+    await expect(page.getByRole('heading', { name: 'Avisos en este dispositivo' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Activar avisos' })).toHaveCount(0)
+  })
+
+  test('la consola no se queja por la tarjeta que no se pinta', async ({ page }) => {
+    // La tarjeta decide en el navegador, después de pintar. Un fallo suyo saldría
+    // aquí y en ningún otro sitio de la suite.
+    const errores: string[] = []
+    page.on('pageerror', (error) => errores.push(error.message))
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') errores.push(msg.text())
+    })
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/reminders')
+    await expect(page.getByRole('heading', { name: 'Recordatorios de pago' })).toBeVisible()
+
+    expect(errores.filter((e) => /vapid|push|notific/i.test(e))).toEqual([])
+  })
+})

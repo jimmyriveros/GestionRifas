@@ -43,13 +43,18 @@
  * «Actualizar» en el aviso, porque activarse implica recargar y recargar en
  * mitad de un abono es perder lo que se estaba escribiendo.
  *
- * SITIO RESERVADO PARA LAS NOTIFICACIONES (Firebase Cloud Messaging)
+ * LAS NOTIFICACIONES ESTÁN AL FINAL DE ESTE ARCHIVO
  *
- * Este es el ÚNICO service worker de la aplicación y su alcance es la raíz. Un
- * `firebase-messaging-sw.js` aparte competiría por ese mismo alcance, así que
- * cuando llegue el momento los oyentes `push` y `notificationclick` se añaden
- * AQUÍ, al final, y a `getToken()` se le pasa esta registración. Ver
- * `docs/ARCHITECTURE.md` §8.15.
+ * Este es el ÚNICO service worker de la aplicación y su alcance es la raíz, así
+ * que los oyentes `push` y `notificationclick` viven AQUÍ, en su propia sección
+ * del final. Un segundo archivo competiría por ese mismo alcance y el navegador
+ * solo deja uno controlando cada página.
+ *
+ * ⚠️ Esta nota decía «SITIO RESERVADO PARA LAS NOTIFICACIONES (Firebase Cloud
+ * Messaging)» desde D-115, y Firebase quedó DESCARTADO en D-187: se usa Web
+ * Push estándar, sin SDK, sin dependencia nueva y sin abrir la CSP. Lo que sí
+ * sigue valiendo igual es la advertencia del segundo worker. Ver
+ * `docs/ARCHITECTURE.md` §8.15 y §8.15.a.
  */
 
 /**
@@ -251,4 +256,133 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting()
   }
+})
+
+/*
+ * ============================================================================
+ * NOTIFICACIONES DEL SISTEMA — Web Push estándar (D-187, D-190, BR-V04, BR-V05)
+ * ============================================================================
+ *
+ * Esta es la sección que la cabecera de este archivo dejó reservada desde D-115,
+ * y llega SIN Firebase: el mismo evento `push` del navegador, con VAPID y
+ * cifrado estándar, hablando con el servicio de push del propio navegador. No
+ * hay SDK, no hay dependencia y la CSP no se abre a nada, porque al servicio de
+ * push lo llama el servidor y no esta página.
+ *
+ * SIGUE HABIENDO UN SOLO SERVICE WORKER Y ES ESTE. Un segundo archivo competiría
+ * por el mismo alcance y el navegador solo deja uno controlando cada página.
+ *
+ * LO QUE ESTO NO CAMBIA: arriba está escrito que este worker no guarda ni una
+ * respuesta con datos del negocio. Recibir un push no altera esa regla ni una
+ * coma, y de hecho la refuerza — el push no trae nada que se pueda guardar.
+ *
+ * EL AVISO ES GENÉRICO, SIEMPRE (BR-V05). Se lee en una pantalla bloqueada, en
+ * un teléfono que puede estar en la mano de otra persona: no lleva cuentas, ni
+ * números de cuenta, ni el mensaje del vendedor, ni nombres de clientes, ni
+ * importes, ni saldos. Lleva que hay algo y a dónde ir. El contenido se compone
+ * al abrir la aplicación, con sesión.
+ *
+ * POR QUÉ SIEMPRE SE MUESTRA ALGO. La suscripción se pide con
+ * `userVisibleOnly: true`, que es un compromiso con el navegador: por cada push
+ * recibido tiene que aparecer una notificación. Si no aparece, el navegador
+ * muestra la suya —«este sitio se actualizó en segundo plano»— y, si se repite,
+ * puede retirar el permiso. Por eso un cuerpo ilegible o ausente no se descarta:
+ * se muestra el texto de reserva de aquí abajo.
+ */
+
+/** Lo que se enseña cuando el push llega sin cuerpo o con uno ilegible. */
+const PUSH_FALLBACK = {
+  title: 'Rifas',
+  body: 'Tienes un aviso nuevo. Ábrelo para verlo.',
+  url: '/',
+}
+
+/** Tope de lo que se pinta. Un título o un cuerpo larguísimo no se muestran igual. */
+const PUSH_TITLE_MAX = 80
+const PUSH_BODY_MAX = 200
+
+function pushText(value, fallback, max) {
+  if (typeof value !== 'string') return fallback
+  const clean = value.trim()
+  if (clean === '') return fallback
+  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean
+}
+
+/**
+ * La dirección a la que lleva el aviso, SIEMPRE del mismo origen.
+ *
+ * Aunque el cuerpo viene cifrado desde nuestro propio servidor, una dirección se
+ * resuelve y se comprueba antes de abrirla: un aviso no puede acabar llevando a
+ * un sitio ajeno.
+ */
+function pushUrl(value) {
+  try {
+    const url = new URL(typeof value === 'string' ? value : PUSH_FALLBACK.url, self.location.origin)
+    return url.origin === self.location.origin ? url.href : self.location.origin
+  } catch {
+    return self.location.origin
+  }
+}
+
+function readPushPayload(data) {
+  if (!data) return PUSH_FALLBACK
+  try {
+    const payload = data.json()
+    return {
+      title: pushText(payload?.title, PUSH_FALLBACK.title, PUSH_TITLE_MAX),
+      body: pushText(payload?.body, PUSH_FALLBACK.body, PUSH_BODY_MAX),
+      url: pushUrl(payload?.url),
+      // Agrupa los repetidos: dos avisos del mismo recordatorio no llenan la
+      // pantalla de bloqueo con la misma frase dos veces.
+      tag: typeof payload?.tag === 'string' && payload.tag !== '' ? payload.tag : 'rifas',
+    }
+  } catch {
+    return { ...PUSH_FALLBACK, url: pushUrl(null), tag: 'rifas' }
+  }
+}
+
+self.addEventListener('push', (event) => {
+  const payload = readPushPayload(event.data)
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      // El icono de la aplicación instalada, que ya existe y ya se sirve.
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: payload.tag ?? 'rifas',
+      // Reemplaza el anterior del mismo `tag` sin volver a vibrar: si alguien
+      // dejó el teléfono en la mesa, dos avisos iguales no lo hacen sonar dos
+      // veces.
+      renotify: false,
+      data: { url: payload.url },
+    }),
+  )
+})
+
+/**
+ * Al tocar el aviso: se trae al frente una ventana que ya esté abierta, y solo
+ * si no hay ninguna se abre otra.
+ *
+ * Abrir siempre una ventana nueva dejaría al vendedor con tres pestañas de la
+ * misma aplicación después de tres recordatorios.
+ */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const target = pushUrl(event.notification.data?.url)
+
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of windows) {
+        if (new URL(client.url).origin !== self.location.origin) continue
+        await client.focus()
+        // `navigate` no existe en todos los navegadores; si falta, al menos la
+        // ventana queda al frente, que es la mitad importante.
+        if (typeof client.navigate === 'function') await client.navigate(target)
+        return
+      }
+      await self.clients.openWindow(target)
+    })(),
+  )
 })

@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.48 · **Actualizado:** 2026-09-12 (D-001 a D-189; D-185, D-186 y D-188 con notas de etapa)
+- **Versión:** 1.49 · **Actualizado:** 2026-09-12 (D-001 a D-190; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -9091,6 +9091,13 @@ sincronizador de loterías sigue disparándose desde Vercel Cron y sus parsers s
 
 **Fase:** mantenimiento posterior a la Fase 9 (Etapa 0 del encargo de D-185, 2026-09-11)
 
+> **ESTADO: MEDIO IMPLEMENTADO (2026-09-12, migración `0053`, D-190).** Existen las suscripciones,
+> los oyentes `push` y `notificationclick` del service worker, la pantalla que pide el permiso y el
+> guion que genera el par de claves. **NO existe el envío**: ni outbox, ni dispatcher, ni firma, ni
+> cifrado — eso es la Etapa 5 y necesita su autorización. Sin ella este canal **no entrega nada**.
+>
+> Lo que sigue es el estado ORIGINAL de la decisión, conservado como contexto:
+>
 > **ESTADO: PLANIFICADO.** No hay suscripciones, ni claves VAPID, ni oyentes `push` en el service
 > worker, ni dispatcher. Lo que sigue fija el diseño y **corrige una decisión anterior**.
 
@@ -9499,6 +9506,175 @@ como evidencia del hueco, para quien diagnostique, no para quien cobra.
 y §4.bis; `SECURITY` §4.16; `ARCHITECTURE` §8.24; `MASTER_SPEC` §9.5; `TESTING` §4.9;
 `UX_COPY_GUIDELINES` (glosario, cinco reglas nuevas y Anexo B). **Las etapas 4 y 5 —Web Push, su
 outbox y el dispatcher— necesitan autorización propia, y la 7 —promoción a producción— también.**
+
+---
+
+## D-190 — Suscripciones Web Push: de un dispositivo, opcionales, y sin prometer nada todavía
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 4 del encargo de D-185, 2026-09-12)
+
+**Alcance.** Migración **`0053`**: `push_subscriptions` y sus dos RPC. Los oyentes `push` y
+`notificationclick` **al final de `public/sw.js`**, que era el sitio reservado desde D-115. La
+tarjeta **«Avisos en este dispositivo»** dentro de `/seller/settings/reminders`, y el guion
+`npm run vapid`. **Ninguna dependencia nueva.**
+
+**Lo que NO trae, y es la mitad del canal:** no envía **ni un push**. Ni outbox, ni despachador, ni
+firma VAPID, ni cifrado `aes128gcm`. Una suscripción guardada hoy no produce ninguna notificación en
+ningún teléfono. Eso es la Etapa 5 entera.
+
+**Contexto.** D-187 fijó el diseño —Web Push estándar, sin Firebase— y la Etapa 3 dejó el motor
+escribiendo la campana, que es la fuente durable (BR-V01). Esta etapa es el permiso y el registro:
+la parte que vive en el navegador.
+
+---
+
+### Decisión 1 — la suscripción es de una PERSONA, y por eso no lleva organización
+
+Es la única tabla del encargo sin `organization_id`, y la diferencia se nota lo suficiente como para
+que alguien quiera «arreglarla» mañana.
+
+Una suscripción dice «este navegador, de esta persona, acepta avisos». Es **transporte**, no un dato
+de negocio: no se reporta, no se exporta, no se filtra por rifa y a nadie le interesa de qué
+organización es. El despachador de la Etapa 5 llegará a ella desde `notifications`, que ya sabe a
+quién va dirigido cada aviso.
+
+Añadir una organización obligaría además a **elegir una** para quien pertenezca a dos, y esa
+elección no significaría nada. Hay una prueba que comprueba que la columna no existe, precisamente
+para que quien la añada tenga que leer esto primero.
+
+### Decisión 2 — el endpoint es único en toda la tabla, y eso resuelve el teléfono compartido
+
+**Dos vendedores compartiendo un móvil no es raro aquí, es lo normal**, y el navegador entrega
+siempre el mismo `endpoint` para el mismo dispositivo.
+
+Con la unicidad global, activar los avisos en un teléfono que ya tenía suscripción **cambia el
+dueño** de esa fila en vez de crear otra: el anterior deja de recibir ahí. Es exactamente lo que
+tiene que pasar, y es lo contrario de lo que haría una unicidad por `(persona, endpoint)`, que
+dejaría dos filas apuntando al mismo aparato y dos personas recibiendo los avisos de la otra.
+
+Reasignar **limpia el historial** —contadores, fechas y la revocación—: describían a la suscripción
+anterior y arrastrarlos mentiría sobre un dispositivo que acaba de empezar.
+
+### Decisión 3 — sin clave configurada no se ofrece nada
+
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY` vacía es un **estado válido y esperado**, no un error: la tarjeta no
+se pinta y la campana interna no cambia (BR-V01). Por eso:
+
+* **no entra en la lista de variables obligatorias de `check:env`**, que solo lo dice con una línea:
+  hacerla obligatoria rompería el build de cualquiera que no use este canal;
+* y **la Etapa 4 se puede promover sin la 5 sin mentirle a nadie** — sin clave, no hay oferta.
+
+Es el mismo mecanismo que resuelve el problema que la Etapa 2 tuvo que dejar abierto: en vez de una
+frase que promete algo que no ocurre, **una condición que apaga la oferta entera**.
+
+### Decisión 4 — el permiso se pide en la pantalla de los recordatorios, y solo al pulsar
+
+BR-V06 dice «en una pantalla y a propósito». Aquí eso son tres cosas concretas:
+
+* **Nunca al cargar.** Ni en un layout, ni en el panel, ni en un diálogo que aparece solo. Un
+  permiso denegado **no se puede volver a pedir desde la página** —hay que ir a la configuración del
+  navegador—, así que pedirlo antes de que alguien entienda para qué es la forma más rápida de
+  perderlo para siempre.
+* **Donde está lo que lo produce.** Hoy lo único que genera avisos son los recordatorios de pago.
+* **El diálogo del navegador sale al pulsar «Activar avisos»**, y no antes.
+
+### Decisión 5 — el iPhone se comprueba ANTES que el soporte
+
+En Safari sin instalar, `PushManager` sencillamente no existe. Preguntar primero por el soporte le
+diría a media Colombia **«este navegador no puede»** cuando lo que falta es un paso que sí puede dar:
+instalar la aplicación en la pantalla de inicio.
+
+El orden es: sin clave → iPhone sin instalar → sin soporte → bloqueado → activo → disponible. Hay
+una prueba por cada escalón, y la del iPhone dice explícitamente por qué va donde va.
+
+### Decisión 6 — aquí sí se borra, y es la excepción que el contrato ya había aceptado
+
+`delete_push_subscription` **borra la fila**. Es una de las dos únicas excepciones a D-038 que
+`SECURITY` §4.15 dejó escritas antes de esta etapa: una suscripción es transporte, no historial, y
+quien apaga los avisos en su teléfono espera que no quede nada esperando a reactivarse solo.
+
+El borrado ocurre **dentro de la función** `SECURITY DEFINER`: `authenticated` no tiene privilegio de
+`DELETE` y no existe ninguna política de `DELETE`, así que las dos comprobaciones de catálogo que
+vigilan eso siguen en verde. Es el patrón de `bulk_delete_tickets` (BR-B05).
+
+Y borra **por endpoint y solo si es suyo**. Un endpoint ajeno responde lo mismo que uno inexistente:
+quien pruebe direcciones no aprende cuáles están registradas.
+
+### Decisión 7 — el worker enseña algo SIEMPRE, incluso sin cuerpo
+
+La suscripción se pide con `userVisibleOnly: true`, que es un compromiso con el navegador: por cada
+push recibido tiene que aparecer una notificación. Si no aparece, el navegador muestra la suya —«este
+sitio se actualizó en segundo plano»— y, si se repite, **puede retirar el permiso**.
+
+Por eso un cuerpo ausente o ilegible no se descarta: se muestra el texto de reserva. Es el único
+texto visible del producto que vive fuera de `src/`, porque un service worker no puede importar del
+paquete; queda anotado en el Anexo B de `UX_COPY_GUIDELINES`.
+
+### Decisión 8 — la dirección del aviso se comprueba que sea del mismo origen
+
+El cuerpo llega cifrado desde nuestro propio servidor, así que en teoría no hace falta. Se comprueba
+igual: son tres líneas, y sin ellas un payload manipulado convertiría una notificación en una puerta
+a un sitio ajeno. Hay una prueba que lo ejerce sobre el worker **real**.
+
+### Decisión 9 — se corrige la cabecera de `public/sw.js`, que prometía Firebase
+
+Decía «SITIO RESERVADO PARA LAS NOTIFICACIONES (Firebase Cloud Messaging)» desde D-115. Firebase
+quedó descartado en D-187 y ahora la sección existe, así que el comentario se reescribe **sin borrar
+la historia**: dice qué decía, que cambió y por qué. Lo que **no** se toca es su advertencia —un
+segundo service worker competiría por el mismo alcance—, que sigue valiendo exactamente igual.
+
+### Decisión 10 — cerrar sesión NO quita la suscripción, y se dice
+
+Queda un caso residual que esta etapa **no resuelve a propósito**: si una persona cierra sesión en un
+teléfono compartido, su suscripción sigue viva y ese aparato seguirá recibiendo sus avisos hasta que
+alguien active los suyos ahí.
+
+Tres cosas lo acotan y ninguna lo elimina: el aviso es **genérico** y no dice nada (BR-V05); tocarlo
+abre la aplicación, donde manda la sesión de quien esté dentro; y **activar desde la otra cuenta
+reasigna** la suscripción (Decisión 2). Cambiar el cierre de sesión para que además desuscriba está
+fuera del alcance de esta etapa y toca un camino que nadie pidió tocar; queda escrito en `SECURITY`
+§4.16 para que sea una decisión y no un descubrimiento.
+
+---
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| `organization_id` en la tabla, como en `notifications` | Obligaría a elegir una organización para quien pertenezca a dos, y no significaría nada: una suscripción es transporte (Decisión 1) |
+| Unicidad por `(persona, endpoint)` en vez de global | Dejaría dos filas para el mismo teléfono y dos personas recibiendo los avisos de la otra (Decisión 2) |
+| Exigir `NEXT_PUBLIC_VAPID_PUBLIC_KEY` en `check:env` | Rompería el build de cualquiera que no use este canal, que es **opcional** por contrato (Decisión 3, BR-V01) |
+| Pedir el permiso al cargar la aplicación | Un permiso denegado no se puede volver a pedir desde la página. Prohibido por BR-V06 (Decisión 4) |
+| Una tarjeta más en el resumen de «Configuración» | El resumen no carga secciones y esto necesita al navegador para saber qué decir. Vive donde está lo que produce los avisos (Decisión 4) |
+| Guardar la huella de la clave VAPID con cada suscripción | Serviría para detectar una rotación de claves, pero el 404/410 de BR-V07 ya limpia esas filas solo. Una columna más para un caso que se resuelve solo |
+| Desuscribir al cerrar sesión | Toca un camino fuera del alcance de esta etapa; el aviso es genérico y activar desde la otra cuenta reasigna. Queda escrito, no escondido (Decisión 10) |
+| Un segundo service worker para las notificaciones | Competiría por el alcance `/`. Lo advertía §8.15.a desde D-115 y sigue vigente (BR-V04) |
+| La dependencia `web-push` para generar el par de claves | El `crypto` de Node lo hace en veinte líneas, y es la misma decisión que D-187 tomó para el envío |
+
+### Lo que se encontró al implementarlo
+
+1. **El navegador integrado no registra service workers.** La verificación en vivo se hizo sobre un
+   **build de producción** contra la base local —la tarjeta se pinta, la clave se lee y el estado se
+   detecta bien—, pero `navigator.serviceWorker.register()` responde ahí «unknown error when
+   fetching the script». El camino completo de suscripción **no se pudo ejercer desde este entorno**
+   y queda para una comprobación humana en un teléfono real.
+2. **La suite E2E tampoco puede verlo**, y no es nuevo: el service worker **solo se registra en
+   producción** (D-116) y Playwright corre contra `next dev`. Es la misma ceguera que I-074 ya
+   describía. Por eso los ~100 renglones del worker se prueban cargando `public/sw.js` **de verdad**
+   en un contexto de Node y disparándole eventos: `tests/unit/service-worker-push.test.ts`.
+3. **El par de claves generado durante el trabajo no sirve para producción.** Se generó uno con
+   `npm run vapid` para verificar en local y su privada quedó impresa en la transcripción de la
+   sesión, así que **hay que generar otro** antes de configurar nada real.
+
+### Consecuencia
+
+**BR-V04, BR-V05 y BR-V06 quedan implementadas.** BR-V01 ya lo estaba desde la Etapa 3. `DATA_MODEL`
+§4.18 y §4.bis; `SECURITY` §4.16; `ARCHITECTURE` §8.15.a y §8.24; `MASTER_SPEC` §9.5; `TESTING` §4.8;
+`UX_COPY_GUIDELINES` (glosario, cuatro reglas y dos entradas del Anexo B). Variables nuevas en
+`.env.example`: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY`, **las dos opcionales hoy**.
+
+**La Etapa 5 —outbox, despachador, firma y cifrado— necesita autorización propia, y sin ella este
+canal no entrega nada.** La Etapa 7 —promoción a producción— también.
 
 ---
 

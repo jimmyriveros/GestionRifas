@@ -1117,6 +1117,65 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          failure_count: number
+          id: string
+          last_failure_at: string | null
+          last_success_at: string | null
+          p256dh: string
+          profile_id: string
+          revoked_at: string | null
+          revoked_reason: string | null
+          success_count: number
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          failure_count?: number
+          id?: string
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          p256dh: string
+          profile_id: string
+          revoked_at?: string | null
+          revoked_reason?: string | null
+          success_count?: number
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          failure_count?: number
+          id?: string
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          p256dh?: string
+          profile_id?: string
+          revoked_at?: string | null
+          revoked_reason?: string | null
+          success_count?: number
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       raffles: {
         Row: {
           allow_seller_ticket_creation: boolean
@@ -2076,6 +2135,10 @@ export type Database = {
       current_profile_leads_team: { Args: { p_org: string }; Returns: boolean }
       current_staff_org_ids: { Args: never; Returns: string[] }
       current_team_seller_ids: { Args: never; Returns: string[] }
+      delete_push_subscription: {
+        Args: { p_endpoint: string }
+        Returns: boolean
+      }
       format_cop: { Args: { p_amount: number }; Returns: string }
       has_org_role: {
         Args: {
@@ -2604,6 +2667,36 @@ export type Database = {
           p_ticket_id: string
         }
         Returns: string
+      }
+      upsert_push_subscription: {
+        Args: {
+          p_auth: string
+          p_endpoint: string
+          p_p256dh: string
+          p_user_agent?: string
+        }
+        Returns: {
+          auth: string
+          created_at: string
+          endpoint: string
+          failure_count: number
+          id: string
+          last_failure_at: string | null
+          last_success_at: string | null
+          p256dh: string
+          profile_id: string
+          revoked_at: string | null
+          revoked_reason: string | null
+          success_count: number
+          updated_at: string
+          user_agent: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "push_subscriptions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       void_payment: {
         Args: { p_payment_id: string; p_reason: string }

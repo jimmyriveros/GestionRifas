@@ -22,6 +22,7 @@
     "seed": "tsx scripts/seed.ts",
     "seed:local": "tsx scripts/seed.ts --local",
     "icons": "tsx scripts/generate-icons.ts",
+    "vapid": "tsx scripts/generate-vapid-keys.ts",
     "create-org": "tsx scripts/create-organization.ts",
     "create-org:local": "tsx scripts/create-organization.ts --local",
     "db:reset": "supabase db reset",

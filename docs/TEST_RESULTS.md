@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (Etapa 3 del cobro, D-189, 2026-09-12)** | **943 ✅** en 53 archivos (+10) | **922 ✅** en 41 archivos (+33) | **635/637**; los 2 son **I-090**, conocido y ajeno. Sobre servidor y base recién creados | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
+| **Post-9 vigente (Etapa 4 del cobro, D-190, 2026-09-12)** | **968 ✅** en 55 archivos (+25) | **942 ✅** en 42 archivos (+20) | **635/639**; los 4 son **I-090** (3) e **I-106** (1), conocidos y ajenos | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
+| Post-9 anterior (Etapa 3 del cobro, D-189, 2026-09-12) | **943 ✅** en 53 archivos (+10) | **922 ✅** en 41 archivos (+33) | **635/637**; los 2 son **I-090**, conocido y ajeno. Sobre servidor y base recién creados | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 2 del cobro, D-188, 2026-09-12) | **933 ✅** (+37) | **889 ✅** — no se tocó la base | **626/630**; los 4 son **I-090** (3) e **I-106** (1) | ✅ | ✅ Sin desplegar |
 | **Post-9 vigente (D-184, 2026-09-09)** | **896 ✅** en 50 archivos (+39) | **827 ✅** — no se tocó la base | **597/599** el 09-09 —los 2 son **I-090** e **I-106**, verdes en aislamiento— y **46/46** dirigidas el 09-10, con las **12 nuevas** de pegado real y de los cinco caminos de guardado | ✅ | ✅ **DESPLEGADO** (`9900635`, 2026-09-10) |
 | Post-9 anterior (D-182, D-183, 2026-09-09) | **857 ✅** en 49 archivos | — (no se tocó la base) | **escritorio 445** con los 2 de **I-090** · **móvil 130/130**. Doce combinaciones de ancho y tema sin desbordamiento; **I-107** cerrada de rebote | ✅ | ✅ **DESPLEGADO** (`523b4bc`) |
@@ -10408,3 +10409,140 @@ El total sube de **630** a **637** pruebas: las **7** nuevas de esta etapa (6 de
 4. «Marcar como atendido»: desaparece de ahí, y el recordatorio **sigue activo** para la semana
    siguiente.
 5. En «Configuración», la tarjeta de recordatorios dice «N para enviar» mientras quede alguno.
+
+---
+
+## Cuentas de cobro y recordatorios, Etapa 4: suscripciones Web Push (`0053`, D-190) — 2026-09-12
+
+**Alcance:** la migración `0053` —`push_subscriptions` y sus dos RPC—, los oyentes `push` y
+`notificationclick` **al final de `public/sw.js`**, la tarjeta «Avisos en este dispositivo» y el guion
+`npm run vapid`. **Ninguna dependencia nueva.** **No envía ni un push**: eso es la Etapa 5. Nada
+aplicado al proyecto real.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **968/968** unitarias (**+25**), `build` |
+| `npm run test:db` | ✅ **942/942** (**+20**), todas del nuevo `push-subscriptions.test.ts` |
+| `npm run check:env` | ✅ y **dice** que sin `NEXT_PUBLIC_VAPID_PUBLIC_KEY` no se ofrecerán avisos. No falla: el canal es opcional (BR-V01) |
+| `npm run vapid` | ✅ Genera el par sin escribir ningún archivo |
+| `configuracion-cobro.spec.ts` (escritorio) | ✅ **23/23** (**+2**) |
+| Suite E2E completa | ver §d |
+
+### b. La comprobación que dice si las pruebas sirven
+
+**Se debilitó la política de `SELECT`** de `push_subscriptions` a `using (true)`, a mano y sin tocar
+la migración. **Fallaron tres pruebas, y son exactamente las tres correctas:**
+
+| Prueba | Qué dejó de cumplirse |
+|---|---|
+| P-04 | En un teléfono compartido, el vendedor anterior seguía viendo la suscripción reasignada |
+| P-07 | Otro vendedor veía el dispositivo ajeno |
+| P-08 | El Dueño también |
+
+**Y se hizo lo mismo con el service worker:** se retiró la comprobación de mismo origen de `pushUrl`
+y falló **solo** la prueba que la defiende —«una dirección de otro origen NO se respeta»—. Después se
+restauró el archivo y se comprobó su sintaxis con `node --check`.
+
+### c. Lo que se verificó en un build de PRODUCCIÓN, que es la única forma de ver el worker
+
+La suite E2E **no puede ver nada de esto**: el service worker solo se registra en producción (D-116)
+y Playwright corre contra `next dev`. Es I-074, ahora con un segundo ejemplo con nombre.
+
+Así que se construyó y se sirvió un build de producción contra la base local, con una clave VAPID
+generada para la ocasión, y se entró con la cuenta del seed:
+
+| Qué | Resultado |
+|---|---|
+| La tarjeta **se pinta** con clave configurada | ✅ Título, explicación y el estado correcto |
+| El estado se lee del navegador de verdad | ✅ Ese navegador tiene los avisos **bloqueados** y la tarjeta lo dice, con «La campana te sigue avisando al entrar.» |
+| `/sw.js` se sirve y trae la sección nueva | ✅ `200`, y 9 coincidencias de la sección de notificaciones |
+| La clave pública llega al navegador | ✅ Está en un fragmento de `.next/static/chunks/` |
+| La CSP y las cabeceras no cambian | ✅ `Permissions-Policy` no menciona notificaciones; no hizo falta abrir nada (D-187) |
+
+**Lo que NO se pudo ejercer desde aquí:** el camino completo de suscripción. El navegador integrado
+**no registra service workers** —`register()` responde «unknown error when fetching the script»— y
+además llega con las notificaciones denegadas. Queda para una comprobación humana en un teléfono
+real, y está en la lista de abajo.
+
+### c.bis Un fallo intermitente que la suite sacó a la luz, y que NO era de esta etapa
+
+La primera pasada completa dio **cuatro** fallos: los **dos de siempre** —I-090— y **dos nuevos**, los
+dos del recuadro compacto de loterías del panel del vendedor (`loterias-panel.spec.ts:355` y `:417`).
+Nunca habían fallado, así que no se dieron por conocidos.
+
+**Lo que se hizo para averiguarlo, en orden:**
+
+| Experimento | Resultado |
+|---|---|
+| Las cinco del recuadro compacto, en aislamiento | **5/5** ✅ |
+| `loterias-cron` + `loterias-panel`, con base recién sembrada | **1 falla** (`:417`, «Estado de cobro» se movió) |
+| Lo mismo, con el trabajo de la Etapa 4 **guardado aparte** (sobre `f40d72a`) | **18/18** ✅ |
+| Lo mismo, con la Etapa 4 restaurada | **18/18** ✅ |
+| Tres pasadas más del par | **18/18** las tres |
+| Una pasada con el servidor **frío** y la caché de `next dev` borrada | ✅ |
+| Otra pasada con base recién sembrada | **18/18** ✅ |
+
+**Una de cada seis.** El paso sobre `f40d72a` pareció exculpar a la Etapa 4 y se escribió así, pero
+eso era ir demasiado deprisa: fue **una sola pasada**, y la propia Etapa 4 pasó cuatro seguidas
+después. Lo que sí se puede afirmar es que **nada de lo que toca esta etapa se pinta en
+`/seller/dashboard`**, que es la pantalla que falla.
+
+**La causa, encontrada leyendo las dos pruebas.** Las dos miden `boundingBox()` **inmediatamente
+después de `page.goto('/seller/dashboard')`**, y el recuadro de loterías vive en su **propio límite de
+Suspense** desde D-155: cuando resuelve, la pantalla se recompone. Si eso ocurre entre la medida de
+«antes» y la de «después», «Estado de cobro» **parece** moverse sin que nada se haya movido de sitio.
+Encaja con todo lo observado: es intermitente, aparece más bajo la carga de la suite completa y nunca
+en aislamiento.
+
+**Se cerró la carrera**, con una espera en las dos pruebas: el botón «Ver detalle» solo existe en la
+tarjeta ya cargada, así que esperarlo es esperar a que el límite resuelva. **Es un cambio de prueba,
+no de producto**, y está fuera del alcance de la Etapa 4 — se hizo igual porque dejarlo era dejarle
+una trampa a la etapa siguiente. Después: **15/15** con `--repeat-each=3`.
+
+### d. Suite E2E completa
+
+Sobre servidor y base **recién creados**, y **sin tocar un solo archivo mientras corría**:
+
+**635 pasan · 4 fallan · 34,2 min.**
+
+Las **cuatro** son conocidas y ajenas, y son exactamente el mismo juego que cerró la Etapa 2:
+
+| Prueba | Clasificación |
+|---|---|
+| `reports.spec.ts:305` | **I-090** |
+| `ventas-por-fecha.spec.ts:163` | **I-090** |
+| `ventas-por-fecha.spec.ts:238` | **I-090** |
+| `catalogo-publico-movil.spec.ts:103` | **I-106** |
+
+**Ninguna prueba de la Etapa 4 falla**, y las dos de loterías que habían fallado en la primera
+pasada **ya no fallan**: la carrera de medición quedó cerrada (§c.bis).
+
+El total sube de **637** a **639** pruebas: las **2** nuevas de esta etapa.
+
+### e. Lo que NO se comprobó, y se dice
+
+* **Que llegue un aviso a un teléfono.** No puede llegar: **no hay envío**. Ni outbox, ni
+  despachador, ni firma VAPID, ni cifrado. Es la Etapa 5 entera.
+* **Pedir el permiso y suscribirse de verdad.** Necesita un navegador con notificaciones permitidas y
+  con service workers habilitados; el integrado no da ninguna de las dos. Lo que sí está probado es
+  todo lo que rodea a ese paso: el estado que se calcula (13 unitarias), lo que el worker hace con un
+  aviso (12 unitarias sobre el archivo real) y lo que la base acepta y rechaza (20 de base de datos).
+* **Un iPhone.** La rama de «hay que instalar la aplicación» se prueba con `detectPlatform`, que ya
+  existía y tiene sus pruebas desde D-117; en un iPhone de verdad, no.
+* **La rotación del par de claves.** Cambiarlo invalida las suscripciones existentes; el 404/410 que
+  las limpiaría es de la Etapa 5.
+
+**Quien lo compruebe, con su cuenta y en su teléfono:**
+
+1. Generar el par con `npm run vapid` y poner la **pública** en `.env.local`. **No reutilizar la que
+   se generó durante este trabajo**: su privada quedó impresa en la transcripción de la sesión.
+2. `npm run build && npm run start`, entrar como vendedor y abrir «Recordatorios de pago».
+3. Abajo tiene que aparecer **«Avisos en este dispositivo»** con el botón «Activar avisos».
+4. Al pulsarlo, el navegador pide el permiso. Aceptando, la tarjeta pasa a «Este dispositivo ya
+   recibe avisos.»
+5. En la base, `select count(*) from push_subscriptions` tiene que devolver **1**.
+6. «Dejar de recibir avisos» la deja en **0**.
+7. En un iPhone **sin instalar**, la tarjeta tiene que decir que hay que instalar Rifas primero —no
+   «este navegador no puede»—.

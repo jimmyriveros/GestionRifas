@@ -7,6 +7,8 @@ import {
   listPendingReminderOccurrences,
 } from '@/features/payment-reminders/queries'
 import { REMINDER_COPY } from '@/features/payment-reminders/reminders'
+import { PushNotificationsCard } from '@/features/push/components/PushNotificationsCard'
+import { listPushEndpoints } from '@/features/push/queries'
 import { getWhatsappSettings } from '@/features/whatsapp/queries'
 
 /**
@@ -27,19 +29,27 @@ import { getWhatsappSettings } from '@/features/whatsapp/queries'
  *     «Configurar WhatsApp» cuando todavía no lo hay, en vez de ofrecer un
  *     botón que va a fallar (BR-W05).
  *
- * Las cuatro son de pocas filas y están acotadas a quien pregunta. Ninguna vive
- * en un layout ni en un panel (D-185, decisión 10).
+ * Todas son de pocas filas y están acotadas a quien pregunta. Ninguna vive en un
+ * layout ni en un panel (D-185, decisión 10).
  *
  * Lo que sigue sin enseñarse es la fecha del PRÓXIMO envío. Ahora existe y es
  * correcta, pero el reloj se mueve por debajo —al pausar, al cambiar la hora, al
  * procesar— y una fecha escrita en la pantalla envejecería sin avisar (D-189).
+ *
+ * Desde la Etapa 4 hay una quinta lectura: los **dispositivos** de esta persona
+ * que aceptan avisos (D-190). Aquí y no en otro sitio porque el permiso se pide
+ * **en una pantalla y a propósito** (BR-V06), y los recordatorios son lo único
+ * que hoy produce avisos. Solo se leen los endpoints —nunca las claves—, y la
+ * tarjeta **no aparece** si la aplicación no tiene clave VAPID configurada: el
+ * canal del teléfono es una mejora encima de la campana, no un requisito.
  */
 export default async function PaymentRemindersPage() {
-  const [pending, reminders, accounts, whatsapp] = await Promise.all([
+  const [pending, reminders, accounts, whatsapp, pushEndpoints] = await Promise.all([
     listPendingReminderOccurrences(),
     listPaymentReminders(),
     listPaymentAccounts(),
     getWhatsappSettings(),
+    listPushEndpoints(),
   ])
 
   return (
@@ -58,6 +68,8 @@ export default async function PaymentRemindersPage() {
       />
 
       <PaymentRemindersSection reminders={reminders} accounts={accounts} />
+
+      <PushNotificationsCard endpoints={pushEndpoints} />
     </div>
   )
 }

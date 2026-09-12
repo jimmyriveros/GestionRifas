@@ -17,6 +17,16 @@ if (missing.length > 0) {
   process.exit(1)
 }
 
+// Los avisos en el teléfono son OPCIONALES (BR-V01, D-190): sin clave pública la
+// aplicación no los ofrece y la campana interna no cambia. Se dice, no se falla:
+// hacerla obligatoria rompería el build de cualquiera que no use Web Push.
+if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim()) {
+  console.log(
+    'Sin NEXT_PUBLIC_VAPID_PUBLIC_KEY: no se ofrecerán avisos en el teléfono. ' +
+      'La campana interna funciona igual. Genera el par con `npm run vapid`.',
+  )
+}
+
 if (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.startsWith('eyJ')) {
   console.warn(
     'Aviso: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY parece un JWT clásico (anon key). ' +

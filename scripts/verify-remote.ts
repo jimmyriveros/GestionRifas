@@ -141,6 +141,8 @@ const CHECKS: Check[] = [
               -- 0052: el vendedor declara que ya mando su mensaje. El MOTOR no
               -- esta aqui: lo llama el cron (BR-S14, D-189)
               'mark_reminder_occurrence_attended',
+              -- 0053: cada quien registra y quita SU dispositivo (BR-V06, D-190)
+              'upsert_push_subscription', 'delete_push_subscription',
               'taken_ticket_combinations', 'team_confirm_email_change', 'team_delete_member',
               'team_max_fixed_commission', 'team_member_sales', 'team_sales_summary',
               'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
@@ -233,12 +235,22 @@ const CHECKS: Check[] = [
     esperado: 2,
   },
   {
-    nombre: 'Tablas de cuentas y recordatorios existen (0051, 0052)',
+    nombre: 'Tablas de cuentas, recordatorios y avisos existen (0051, 0052, 0053)',
     sql: `select c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
           where n.nspname = 'public' and c.relkind = 'r'
             and c.relname in ('seller_payment_accounts', 'seller_payment_reminders',
-                              'payment_reminder_occurrences')`,
-    esperado: 3,
+                              'payment_reminder_occurrences', 'push_subscriptions')`,
+    esperado: 4,
+  },
+  {
+    // Las claves con las que se le puede escribir a un dispositivo. Si esto
+    // dejara de ser 0, cualquiera con una cuenta podria leer las de los demas
+    // y mandarles notificaciones (0053, D-190).
+    nombre: 'push_subscriptions concede algo mas que SELECT a authenticated',
+    sql: `select privilege_type as x from information_schema.role_table_grants
+          where table_schema = 'public' and table_name = 'push_subscriptions'
+            and grantee = 'authenticated' and privilege_type <> 'SELECT'`,
+    esperado: 0,
   },
   {
     nombre: 'Las 5 vistas de saldos existen',

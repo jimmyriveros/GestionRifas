@@ -676,11 +676,12 @@ cuando se creó un cliente a secas); y que sin grupo configurado el botón cambi
 En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
 que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
 
-### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V; D-185, D-188, D-189)
+### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V; D-185, D-188, D-189, D-190)
 
-> **Hechas las etapas 1, 2 y 3.** Base: `payment-accounts-reminders.test.ts` (62) y
-> `payment-reminder-engine.test.ts` (31). Navegador: `configuracion-cobro.spec.ts` (21) y
-> `configuracion-cobro-movil.spec.ts` (5). Unitarias: 47.
+> **Hechas las etapas 1, 2, 3 y 4.** Base: `payment-accounts-reminders.test.ts` (62),
+> `payment-reminder-engine.test.ts` (32) y `push-subscriptions.test.ts` (20). Navegador:
+> `configuracion-cobro.spec.ts` (23) y `configuracion-cobro-movil.spec.ts` (5). Unitarias: 72,
+> incluidas **12 que ejecutan `public/sw.js` de verdad**.
 >
 > **Las etapas 4, 5 y 6 siguen siendo criterio de aceptación escrito antes de construir**, para que
 > no se escriba después a la medida de lo que salga. Y donde la Etapa 3 se apartó de su propio

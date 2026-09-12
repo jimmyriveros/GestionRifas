@@ -50,3 +50,17 @@ export const APP_BUILD_ID = process.env.NEXT_PUBLIC_APP_BUILD_ID ?? 'dev'
 
 /** URL con la que se registra el worker. La versión viaja en la consulta. */
 export const SERVICE_WORKER_URL = `/sw.js?v=${APP_BUILD_ID}`
+
+/**
+ * Clave pública VAPID, con la que el navegador pide su suscripción (D-190).
+ *
+ * ES PÚBLICA POR DEFINICIÓN: viaja al navegador y ahí tiene que estar, igual que
+ * la clave publicable de Supabase. La privada —la que firma los envíos— es de
+ * servidor, llega en la Etapa 5 y **nunca** lleva el prefijo `NEXT_PUBLIC_`.
+ *
+ * **Vacía es un estado válido y esperado.** Sin clave configurada la aplicación
+ * sencillamente no ofrece avisos en el teléfono: el canal es una mejora encima
+ * de la campana (BR-V01), no un requisito. Por eso no entra en la lista de
+ * variables obligatorias de `check:env`, que solo la echa de menos con un aviso.
+ */
+export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ''

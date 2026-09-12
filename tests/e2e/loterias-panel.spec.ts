@@ -371,6 +371,14 @@ test.describe('El recuadro compacto del vendedor', () => {
     const recuadro = card(page)
     const boton = detalleTrigger(page)
 
+    // El recuadro de loterías vive en su PROPIO límite de Suspense (D-155), así
+    // que la pantalla se recompone cuando resuelve. Medir antes de eso compara
+    // dos disposiciones distintas y hace que «Estado de cobro» parezca moverse:
+    // es la causa del fallo INTERMITENTE que apareció en la suite completa del
+    // 2026-09-12 (una de cada seis pasadas, y no en aislamiento). El botón solo
+    // existe en la tarjeta ya cargada, así que esperarlo es esperar al límite.
+    await expect(detalleTrigger(page)).toBeVisible()
+
     // Va ARRIBA A LA DERECHA de la tarjeta, dentro del encabezado (D-181).
     const cajaBoton = (await boton.boundingBox())!
     const cajaTarjeta = (await recuadro.boundingBox())!
@@ -428,6 +436,15 @@ test.describe('El recuadro compacto del vendedor', () => {
 
     await loginAs(page, ACCOUNTS.seller)
     await page.goto('/seller/dashboard')
+
+
+    // El recuadro de loterías vive en su PROPIO límite de Suspense (D-155), así
+    // que la pantalla se recompone cuando resuelve. Medir antes de eso compara
+    // dos disposiciones distintas y hace que «Estado de cobro» parezca moverse:
+    // es la causa del fallo INTERMITENTE que apareció en la suite completa del
+    // 2026-09-12 (una de cada seis pasadas, y no en aislamiento). El botón solo
+    // existe en la tarjeta ya cargada, así que esperarlo es esperar al límite.
+    await expect(detalleTrigger(page)).toBeVisible()
 
     const cobro = page.locator('[data-section="estado-de-cobro"]')
     const antes = (await cobro.boundingBox())!.y

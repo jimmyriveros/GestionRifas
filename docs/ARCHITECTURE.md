@@ -1,12 +1,14 @@
 # ARQUITECTURA
 
-- **Versión:** 1.28 · **Estado:** implementado · **Actualizado:** 2026-09-12
+- **Versión:** 1.29 · **Estado:** implementado · **Actualizado:** 2026-09-12
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 - **§8.23** («Configuración» del vendedor con subrutas) está **implementada** desde el 2026-09-12
   (D-188), y **§8.24** (motor de recordatorios y cron) desde ese mismo día (`0052`, D-189). ⚠️ De
-  §8.24 existe **la mitad izquierda**: cron, ocurrencias y campana. **Web Push, su outbox y su
-  dispatcher NO existen** —etapas 4 y 5—, y su encabezado lo dice. **§8.15.a lleva una corrección**:
-  las notificaciones **no** van con Firebase, sino con Web Push estándar (D-187).
+  §8.24 existen el cron, las ocurrencias, la campana y —desde la Etapa 4 (`0053`, D-190)— **las
+  suscripciones y los oyentes del service worker**. **El ENVÍO no existe**: ni outbox, ni
+  despachador, ni firma, ni cifrado, que son la Etapa 5. **§8.15.a lleva una corrección**: las
+  notificaciones **no** van con Firebase, sino con Web Push estándar (D-187), y desde D-190 esa
+  sección del worker ya está escrita.
 
 ---
 
@@ -1801,11 +1803,34 @@ mitades: arriba **«Para enviar ahora»** —el mensaje compuesto al pintarlo, c
 **campanita enlaza ahí** mediante `notificationHref`, que devuelve `null` para todos los demás
 avisos: los otros cuentan algo que ya pasó y no hay nada que hacer con ellos.
 
-**El service worker.** Los oyentes `push` y `notificationclick` se añaden **al final de
-`public/sw.js`**, en su propia sección, junto a las que ya tiene —caché de archivos, actualización,
-reserva sin conexión—. **Queda prohibido crear un segundo service worker** (BR-V04, y ya lo advertía
-§8.15.a). Tocar el archivo cambia sus bytes, así que el ciclo de actualización de §8.15 se encarga
-solo: se registra como `/sw.js?v=<versión>` y espera a que la persona pulse «Actualizar».
+**El service worker — ya está escrito** (`0053`, D-190). Los oyentes `push` y `notificationclick`
+viven **al final de `public/sw.js`**, en su propia sección, junto a los que ya tenía —caché de
+archivos, actualización, reserva sin conexión—. **Queda prohibido crear un segundo service worker**
+(BR-V04, y ya lo advertía §8.15.a). Tocar el archivo cambia sus bytes, así que el ciclo de
+actualización de §8.15 se encarga solo: se registra como `/sw.js?v=<versión>` y espera a que la
+persona pulse «Actualizar».
+
+Tres detalles suyos que no se pueden quitar sin romper algo:
+
+* **Siempre enseña una notificación**, incluso si el aviso llega sin cuerpo o con uno ilegible. La
+  suscripción se pide con `userVisibleOnly`, y callarse hace que el navegador muestre la suya y
+  acabe retirando el permiso.
+* **La dirección del aviso se comprueba que sea del mismo origen** antes de abrirla.
+* **Al tocarlo trae al frente una ventana existente**, y solo abre otra si no hay ninguna: tres
+  recordatorios no pueden dejar tres pestañas de la misma aplicación.
+
+Se prueban cargando `public/sw.js` **de verdad** en un contexto de Node y disparándole eventos
+(`tests/unit/service-worker-push.test.ts`), porque **la suite E2E no puede verlos**: el worker solo
+se registra en producción (D-116) y Playwright corre contra `next dev`. Es la ceguera de I-074.
+
+**La suscripción es de un DISPOSITIVO y de una PERSONA** (D-190). `push_subscriptions` no lleva
+organización —es transporte, no un dato de negocio— y su `endpoint` es único en toda la tabla, de
+modo que activar los avisos en un teléfono compartido **cambia el dueño** de la fila en vez de
+duplicarla. El permiso se pide **en la pantalla de los recordatorios y solo al pulsar** (BR-V06):
+nunca al cargar, porque un permiso denegado no se puede volver a pedir desde la página.
+
+**Y el canal entero es opcional.** Sin `NEXT_PUBLIC_VAPID_PUBLIC_KEY` la tarjeta no se pinta y la
+campana no cambia (BR-V01), así que `check:env` lo dice pero no falla.
 
 **Lo que el worker sigue sin hacer:** guardar respuestas con datos de negocio. Recibir un push no
 cambia D-116 ni una coma, y el push **no trae contenido que guardar** (BR-V05).
