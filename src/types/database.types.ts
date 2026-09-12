@@ -1117,6 +1117,56 @@ export type Database = {
         }
         Relationships: []
       }
+      push_outbox: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          notification_id: string
+          payload: Json
+          sent_at: string | null
+          status: Database["public"]["Enums"]["push_outbox_status"]
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          notification_id: string
+          payload: Json
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["push_outbox_status"]
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          notification_id?: string
+          payload?: Json
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["push_outbox_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_outbox_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -1995,6 +2045,19 @@ export type Database = {
         Args: { p_reason: string; p_ticket_id: string }
         Returns: undefined
       }
+      claim_push_outbox: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          auth: string
+          endpoint: string
+          notification_id: string
+          outbox_id: string
+          p256dh: string
+          payload: Json
+          subscription_id: string
+        }[]
+      }
       commission_floor_rate: {
         Args: {
           p_organization_id: string
@@ -2165,6 +2228,15 @@ export type Database = {
         Returns: undefined
       }
       mark_profile_activated: { Args: never; Returns: undefined }
+      mark_push_outbox_failed: {
+        Args: { p_id: string; p_reason: string; p_retryable?: boolean }
+        Returns: undefined
+      }
+      mark_push_outbox_sent: { Args: { p_id: string }; Returns: undefined }
+      mark_push_subscription_sent: {
+        Args: { p_endpoint: string }
+        Returns: undefined
+      }
       mark_reminder_occurrence_attended: {
         Args: { p_id: string }
         Returns: {
@@ -2260,6 +2332,9 @@ export type Database = {
           weekly_number: string
         }[]
       }
+      push_claim_timeout: { Args: never; Returns: string }
+      push_max_attempts: { Args: never; Returns: number }
+      push_retry_delay: { Args: { p_attempts: number }; Returns: string }
       reassign_ticket_client: {
         Args: {
           p_expected_client_id: string
@@ -2396,6 +2471,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      revoke_push_subscription: {
+        Args: { p_endpoint: string; p_reason: string }
+        Returns: boolean
       }
       search_normalize: { Args: { value: string }; Returns: string }
       search_tickets: {
@@ -2702,6 +2781,7 @@ export type Database = {
         Args: { p_payment_id: string; p_reason: string }
         Returns: undefined
       }
+      wake_push_dispatcher: { Args: never; Returns: undefined }
       write_audit_log: {
         Args: {
           p_action: string
@@ -2758,6 +2838,7 @@ export type Database = {
       payment_account_kind: "nequi" | "daviplata" | "bank"
       payment_method: "cash" | "transfer" | "other"
       payment_reminder_status: "active" | "paused" | "archived"
+      push_outbox_status: "queued" | "sending" | "sent" | "failed"
       raffle_status: "draft" | "active" | "closed" | "cancelled"
       reminder_occurrence_status: "pending" | "attended" | "missed"
       ticket_inventory_status:
@@ -2945,6 +3026,7 @@ export const Constants = {
       payment_account_kind: ["nequi", "daviplata", "bank"],
       payment_method: ["cash", "transfer", "other"],
       payment_reminder_status: ["active", "paused", "archived"],
+      push_outbox_status: ["queued", "sending", "sent", "failed"],
       raffle_status: ["draft", "active", "closed", "cancelled"],
       reminder_occurrence_status: ["pending", "attended", "missed"],
       ticket_inventory_status: [

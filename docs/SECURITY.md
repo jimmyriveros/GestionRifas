@@ -1,13 +1,16 @@
 # SEGURIDAD
 
-- **Versión:** 2.13 · **Estado:** implementado · **Actualizado:** 2026-09-12
+- **Versión:** 2.14 · **Estado:** implementado · **Actualizado:** 2026-09-12
 - **§4.15** describe el aislamiento de las cuentas de cobro, los recordatorios y **el motor que los
   dispara**, implementado en las migraciones **`0051`** (Etapa 1) y **`0052`** (Etapa 3, D-189) y
   verificado en local; su última parte —Web Push— sigue siendo diseño y lo dice. **§5.2**
   (dispatcher de Web Push) es **planificada**, Etapa 5.
 - **§4.16** describe las **suscripciones Web Push** (`0053`, Etapa 4, D-190): de una persona, un
   dispositivo por fila y con las claves fuera del alcance de cualquier sesión.
-- ⚠️ `0051`, `0052` y `0053` están aplicadas **en local**. **El proyecto real no las tiene**:
+- **§4.17** describe **la cola de avisos y su despachador** (`0054`, Etapa 5, D-191): una tabla que
+  no lee nadie con sesión, un Route Handler que falla cerrado y un cifrado propio comprobado contra
+  los vectores del RFC.
+- ⚠️ `0051`, `0052`, `0053` y `0054` están aplicadas **en local**. **El proyecto real no las tiene**:
   promoverlas es la Etapa 7.
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
   `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042`, `0043` y `0044`; los privilegios base se fijan en `0009`/`0010`.
@@ -912,6 +915,68 @@ suyos. Tres cosas lo acotan y ninguna lo elimina:
 
 Cambiar el cierre de sesión para que además desuscriba está fuera del alcance de la Etapa 4 y toca
 un camino que nadie pidió tocar. Queda escrito aquí para que sea una decisión y no un hallazgo.
+
+### 4.17 La cola de avisos y su despachador (`0054`, BR-V02, BR-V03, BR-V07, BR-V08, D-191)
+
+> **IMPLEMENTADO el 2026-09-12** (Etapa 5), verificado **en local** con 39 pruebas de base de datos
+> y 36 unitarias. **No aplicado al proyecto real**: eso es la Etapa 7.
+
+#### `push_outbox` no la lee nadie con sesión
+
+Es la primera tabla del producto **sin ningún privilegio** para `authenticated`. Es transporte: dice
+qué avisos están saliendo y con qué error, y quien quiera saber si tiene uno mira la campana.
+
+**Y hay un detalle del entorno que costó una prueba en rojo descubrir.** El esquema `public` tiene
+un privilegio **por defecto** que concede `SELECT` a `authenticated` sobre **cada tabla nueva**:
+
+```
+postgres=arwdDxtm/postgres, authenticated=r/postgres, service_role=arwdDxtm/postgres
+```
+
+Es decir: **una tabla creada sin decir nada nace legible por cualquiera con sesión.** Aquí no se
+filtró ningún dato —la RLS está activada y esa tabla no tiene ninguna política, así que devuelve
+cero filas—, pero «sin privilegios» tiene que estar **escrito**, no supuesto. Por eso la `0054`
+lleva un `revoke all ... from authenticated, anon` explícito y `verify:remote` lo comprueba en el
+proyecto real. **Es exactamente la familia de I-020 e I-078**: lo que Supabase concede solo, y de
+forma distinta en cada entorno.
+
+#### El despachador falla cerrado (BR-V08)
+
+`POST /api/push/dispatch` **reutiliza el patrón de `/api/lottery/sync`** (D-148), no uno nuevo:
+
+| Defensa | Cómo |
+|---|---|
+| Secreto **por cabecera, nunca por la URL** | Una query string acaba en los registros del servidor, del proxy y en el historial |
+| Comparación a **tiempo constante** | `secretsEqual`, sobre el hash, para no filtrar ni la longitud |
+| Longitud mínima | 16 caracteres; uno más corto es como no tener ninguno |
+| **Falla cerrado** | Sin secreto configurado no autoriza a nadie |
+| Limitación de intentos | Con **cupo propio**: un goteo contra esta puerta no puede cerrar la de loterías |
+| Sin sesión | Un Route Handler **no hereda la guarda de su layout** (D-060). Tener sesión —aunque sea la del Dueño— no sustituye al secreto |
+
+**No acepta nada de quien llama.** Ni destinatarios, ni identificadores, ni cuerpos: lo único que
+hace es vaciar la cola que ya está escrita. Un despachador que aceptara «a quién enviar» sería una
+forma de mandar notificaciones a cualquiera. **Y no devuelve nada de nadie**: el resumen son
+recuentos.
+
+#### Las claves, y qué sale hacia afuera
+
+`VAPID_PRIVATE_KEY` **no lleva el prefijo `NEXT_PUBLIC_`** y no sale del proceso. La pública sí
+viaja, que es su función. **Sin las dos, el despachador no envía y no toca la cola** — así, el día
+que se configuren, sale lo que estaba esperando.
+
+La superficie externa nueva es la que §4.15 anticipó: **el servicio de push del navegador**, cuya
+dirección la da la propia suscripción y nunca se configura. **La CSP no se toca**, porque a ese
+servicio lo llama el servidor y no la página.
+
+Y el `pg_cron` que despierta al despachador guarda su URL y su secreto en el **Vault de Supabase**,
+no en la migración —un archivo versionado— ni en una tabla en claro.
+
+#### Lo que el cifrado garantiza, y lo que no
+
+El cuerpo va cifrado con `aes128gcm` (RFC 8291) y **solo el dispositivo puede leerlo**: ni el
+servicio de push ni nadie por el camino. Eso no es lo que protege la privacidad aquí — lo que la
+protege es que **el aviso no dice nada** (BR-V05). El cifrado evita que un intermediario lea el
+texto; que el texto no tenga nada que leer evita que lo lea quien mire la pantalla bloqueada.
 
 ## 5. Protección de Server Actions y Route Handlers
 

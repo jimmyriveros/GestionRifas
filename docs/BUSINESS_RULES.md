@@ -770,15 +770,17 @@ eligió y le prepara el texto; **él** lo pega en su grupo de WhatsApp y lo env�
 
 ## 12.f Entrega de avisos: campana y Web Push (BR-V)
 
-> **CUATRO DE OCHO ESTÁN IMPLEMENTADAS.** BR-V01 desde la Etapa 3 (`0052`): el recordatorio vencido
-> escribe su aviso en la campana, en la misma transacción que la ocurrencia. **BR-V04, BR-V05 y
-> BR-V06 desde la Etapa 4** (`0053`, D-190): un solo service worker con sus oyentes `push` y
-> `notificationclick`, el aviso genérico y la suscripción por dispositivo con su pantalla.
+> **LAS OCHO ESTÁN IMPLEMENTADAS**, en tres etapas: BR-V01 con el motor (`0052`, D-189); BR-V04,
+> BR-V05 y BR-V06 con las suscripciones y el service worker (`0053`, D-190); y BR-V02, BR-V03,
+> BR-V07 y BR-V08 con **la outbox y el despachador** (`0054`, D-191).
 >
-> **LAS CUATRO QUE FALTAN SON EL ENVÍO** —BR-V02, BR-V03, BR-V07 y BR-V08, la Etapa 5—: no hay
-> outbox, ni despachador, ni firma VAPID, ni cifrado. **Una suscripción guardada hoy no produce
-> ninguna notificación en ningún teléfono**, y por eso la tarjeta solo aparece cuando hay clave
-> configurada (D-190, Decisión 3).
+> El canal está **completo**: un recordatorio que vence escribe su campana, encola su aviso y llega
+> al teléfono con la aplicación cerrada. El cifrado es propio, sobre el `crypto` de Node y **sin
+> ninguna dependencia**, comprobado contra los vectores publicados en el RFC 8291.
+>
+> **Todo en local**, y **opcional hasta que se configura**: sin claves VAPID no se ofrecen los
+> avisos ni se envía nada, y sin secreto el despachador falla cerrado. La campana interna no
+> depende de nada de esto (BR-V01).
 >
 > La **campana ya existía** desde D-093 y estas reglas no la cambian: describen cómo se le añade un
 > canal encima.
@@ -789,13 +791,13 @@ para el recordatorio de pago y para cualquier aviso futuro que quiera salir del 
 | ID | Regla | Capas | Estado |
 |----|-------|-------|--------|
 | BR-V01 | **La campana interna es obligatoria y es la fuente durable.** Todo aviso se escribe en `notifications` (D-093) y se lee ahí. Web Push es **una mejora encima**: sin permiso, sin soporte del navegador o con el envío caído, el aviso sigue existiendo y se ve al entrar. | S, D | ✅ `0052` |
-| BR-V02 | El push sale por una **outbox desacoplada** (`push_outbox`): el aviso interno y la fila de la cola se escriben en la misma transacción, y el **envío ocurre después, en otro proceso**. Un fallo de red, un endpoint caducado o un dispatcher caído **no pueden perder el aviso interno**, porque no participan en escribirlo. | S, D | Etapa 5 |
-| BR-V03 | Se usa **Web Push estándar** —VAPID (RFC 8292) y cifrado `aes128gcm` (RFC 8291)—, implementado sobre el `crypto` de Node. **No se usa Firebase**, no entra SDK en el navegador y **la CSP no se abre a ningún dominio nuevo**: al servicio de push lo llama el servidor. | S | Etapa 5 |
+| BR-V02 | El push sale por una **outbox desacoplada** (`push_outbox`): el aviso interno y la fila de la cola se escriben en la misma transacción, y el **envío ocurre después, en otro proceso**. Un fallo de red, un endpoint caducado o un dispatcher caído **no pueden perder el aviso interno**, porque no participan en escribirlo. | S, D | ✅ `0054` |
+| BR-V03 | Se usa **Web Push estándar** —VAPID (RFC 8292) y cifrado `aes128gcm` (RFC 8291)—, implementado sobre el `crypto` de Node. **No se usa Firebase**, no entra SDK en el navegador y **la CSP no se abre a ningún dominio nuevo**: al servicio de push lo llama el servidor. | S | ✅ `0054` |
 | BR-V04 | **Hay un solo service worker** y su alcance es la raíz. Los oyentes `push` y `notificationclick` se añaden **al final de `public/sw.js`**, en su propia sección. **Queda prohibido crear un segundo service worker.** El worker **sigue sin guardar ni una respuesta con datos de negocio** (D-116): recibir un push no cambia esa regla. | C | ✅ `0053` |
 | BR-V05 | **El push es genérico.** No lleva cuentas, ni números de cuenta, ni el mensaje personalizado, ni nombres de clientes, ni importes, ni saldos: lo lee cualquiera que mire una pantalla bloqueada, y dos vendedores compartiendo un teléfono es el caso normal aquí. Lleva que hay un recordatorio y a dónde ir. **El contenido se compone al abrir la aplicación, con sesión.** | C, S | ✅ `0053` |
 | BR-V06 | Una suscripción es **de un dispositivo**, identificada por su `endpoint`, que es único. Una persona puede tener varias. El permiso se pide **en una pantalla y a propósito**, nunca al cargar la aplicación: pedirlo sin contexto es la forma más rápida de que lo denieguen para siempre. | C, S, D | ✅ `0053` |
-| BR-V07 | Un `404` o un `410` del servicio de push significa que esa suscripción **murió**: se marca revocada y **no se reintenta**. Los demás fallos reintentan con retroceso y tope; la fila que agota los intentos queda marcada con su motivo, y **la campana sigue ahí**. | S, D | Etapa 5 |
-| BR-V08 | El dispatcher es un **Route Handler Node protegido** que no usa sesión: secreto por cabecera, comparado a **tiempo constante**, con longitud mínima, limitación de intentos y **fallo cerrado** si no está configurado. **El secreto nunca viaja por la URL.** Es el patrón de `/api/lottery/sync` (D-148), reutilizado, no reinventado. Un Route Handler **no hereda la guarda de su layout** (D-060). | S | Etapa 5 |
+| BR-V07 | Un `404` o un `410` del servicio de push significa que esa suscripción **murió**: se marca revocada y **no se reintenta**. Los demás fallos reintentan con retroceso y tope; la fila que agota los intentos queda marcada con su motivo, y **la campana sigue ahí**. | S, D | ✅ `0054` |
+| BR-V08 | El dispatcher es un **Route Handler Node protegido** que no usa sesión: secreto por cabecera, comparado a **tiempo constante**, con longitud mínima, limitación de intentos y **fallo cerrado** si no está configurado. **El secreto nunca viaja por la URL.** Es el patrón de `/api/lottery/sync` (D-148), reutilizado, no reinventado. Un Route Handler **no hereda la guarda de su layout** (D-060). | S | ✅ `0054` |
 
 ---
 

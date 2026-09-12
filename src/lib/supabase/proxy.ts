@@ -21,6 +21,9 @@ const PUBLIC_PATHS = [
   // El programador no trae sesion. El Route Handler valida un secreto
   // (D-148). Sin esta entrada el proxy redirigiria a /login con 307.
   '/api/lottery/sync',
+  // Lo mismo para el despachador de avisos (BR-V08, D-191): lo llama el
+  // `pg_cron` de la base por `pg_net`, sin sesion, con su propio secreto.
+  '/api/push/dispatch',
   /**
    * El catalogo publico de un vendedor (D-159). Quien lo abre llega desde un
    * enlace de WhatsApp y NO tiene sesion; sin esta entrada el proxy lo mandaria

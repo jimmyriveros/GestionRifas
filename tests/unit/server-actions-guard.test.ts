@@ -214,6 +214,10 @@ describe('F7-25 los Route Handlers se protegen a mano', () => {
       // secreto de servidor (D-148, BR-L21). La guarda es
       // `authorizeLotterySyncRequest`, no `getAuthUser`.
       if (fuente.includes('authorizeLotterySyncRequest')) return false
+      // Y el despachador de avisos, por lo mismo: lo llama el `pg_cron` de la
+      // base por `pg_net`, sin sesion, con su propio secreto (BR-V08, D-191).
+      // Su guarda es `authorizePushDispatchRequest`.
+      if (fuente.includes('authorizePushDispatchRequest')) return false
       return !fuente.includes('getAuthUser') && !fuente.includes('requireActiveMembership')
     })
 

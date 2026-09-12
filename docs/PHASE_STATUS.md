@@ -3,7 +3,17 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-12 — **ETAPA 4 de 7 del encargo de cobro: suscripciones Web Push**
+- **Actualizado:** 2026-09-12 — **ETAPA 5 de 7 del encargo de cobro: outbox, despachador y envío**
+  (`0054`, D-191). **El canal está COMPLETO**: un recordatorio que vence escribe su campana,
+  **encola su aviso en la misma transacción** y un despachador protegido lo cifra y lo entrega al
+  teléfono **con la aplicación cerrada**. **Web Push estándar sobre el `crypto` de Node** —VAPID y
+  `aes128gcm`—, **sin Firebase, sin SDK y sin ninguna dependencia nueva**, con el calendario de
+  claves comprobado contra los **valores publicados en el RFC 8291**. Un `404` o un `410` retiran
+  ese dispositivo; lo demás se reintenta con retroceso; y **perder el envío nunca toca el aviso
+  interno**. El despachador **reutiliza el patrón de `/api/lottery/sync`** y **falla cerrado**.
+  **Todo en LOCAL: el proyecto real no tiene ninguna de las cuatro migraciones.** **Rama
+  `feature/cuentas-y-recordatorios`, sin fusionar. La Etapa 6 necesita autorización nueva.**
+  Antes, ese mismo día: **ETAPA 4 de 7 del encargo de cobro: suscripciones Web Push**
   (`0053`, D-190). **Cada dispositivo ya puede registrarse para recibir avisos**: los oyentes
   `push` y `notificationclick` viven **al final del único service worker** —el sitio que D-115 dejó
   reservado, y llegan **sin Firebase**—, y la tarjeta **«Avisos en este dispositivo»** pide el
@@ -4815,6 +4825,109 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — cuentas de cobro y recordatorios, **ETAPA 5 de 7**: outbox, despachador y envío (`0054`, D-191, 2026-09-12)
+
+Autorizada expresamente el mismo día, después de cerrar la Etapa 4. **No es una Fase 10** y no lleva
+etiqueta `fase-*`.
+
+> **APLICADA EN LOCAL. EL PROYECTO REAL NO TIENE NINGUNA** de las cuatro (`0051`–`0054`). Promover es
+> la **Etapa 7**. La base de producción sigue en **50 migraciones**.
+>
+> **Con esto el canal está COMPLETO**: un recordatorio que vence escribe su campana, encola su aviso
+> y llega al teléfono con la aplicación cerrada. Queda la auditoría integrada (Etapa 6).
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| La cola | **`push_outbox`**: una fila por aviso, escrita **en la misma transacción** que la campana. El envío ocurre después, en otro proceso (BR-V02) |
+| El cifrado | **Web Push estándar sobre el `crypto` de Node**: VAPID (RFC 8292) y `aes128gcm` (RFC 8291). **Sin Firebase, sin SDK y sin ninguna dependencia nueva** |
+| Comprobado contra el RFC | `IKM`, `CEK` y `NONCE` salen **idénticos a los publicados** en el RFC 8291 §5, y el cuerpo se descifra hasta recuperar el texto del ejemplo |
+| La firma | `r \|\| s` en crudo y no DER —`dsaEncoding: 'ieee-p1363'`—, que es el fallo que devuelve un `401` sin explicación en todos los servicios de push |
+| Dos pares de claves | El VAPID es **fijo** y su pública va en la cabecera; el de cifrado es **efímero**, uno por mensaje, y su pública va dentro del cuerpo |
+| El abanico | Una fila de cola por **aviso**; los dispositivos se resuelven **al enviar**. Basta con que **uno** lo acepte para darlo por enviado |
+| Sin destinatario, sin fila | El motor solo encola si esa persona tiene algún dispositivo vivo. Una fila que nace sin a quién enviarse solo serviría para nacer fallada |
+| La cola se cura sola | Las filas que otro despachador dejó a medias vuelven solas a la cola, dentro del propio `claim`: sin proceso aparte |
+| Reintentos (BR-V07) | `404`/`410` **revocan** y no se reintentan; `429` y `5xx` vuelven con retroceso —1, 5, 25 minutos, tope de 2 horas—; `400`/`401`/`403` **no se insisten** |
+| El despachador | `POST /api/push/dispatch`, **el patrón de `/api/lottery/sync` reutilizado**: secreto por cabecera y nunca por la URL, tiempo constante, longitud mínima, cupo propio y **fallo cerrado** |
+| El toque | Un tercer `pg_cron` lo despierta por `pg_net` **solo si hay cola**. Es un **toque, no una entrega**: si falla, el minuto siguiente vuelve |
+| Los secretos del toque | En el **Vault de Supabase**, no en la migración ni en una tabla en claro. **Sin ellos no hace nada** |
+| La cola no se lee | `push_outbox` es la primera tabla del producto **sin ningún privilegio** para `authenticated` |
+| Tipos | `src/types/database.types.ts` regenerado: **+82 líneas, 0 eliminadas** |
+
+**Lo que NO trae:** ninguna pantalla nueva. Esta etapa es infraestructura de salida entera.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` + `npm run seed:local` | ✅ **54** migraciones desde cero |
+| `tests/unit/webpush-rfc.test.ts` | ✅ **15/15** contra los vectores publicados del RFC |
+| `tests/db/push-outbox.test.ts` | ✅ **27/27** |
+| `tests/db/push-dispatch.test.ts` | ✅ **12/12**, con base real y cifrado real |
+| `npm run test:db` | ✅ **981/981** (44 archivos, **+39**) |
+| `npm run verify` | ✅ typecheck · lint con los 2 avisos preexistentes · **1.004/1.004** unitarias (**+36**) · build |
+| `push-dispatch.spec.ts` | ✅ **5/5** |
+| Suite E2E completa | ✅ **642 pasan · 2 fallan** (32,7 min). Las 2 son **I-090**, conocido y ajeno. **Ninguna prueba de esta etapa falla** |
+| `npm run verify:remote` | **No ejecutado a propósito**: apunta al proyecto real y esta etapa no toca producción |
+
+**Tres errores encontrados durante el trabajo, los tres corregidos:**
+
+1. **`push_outbox` nació legible por `authenticated`** sin una línea que lo concediera: el esquema
+   `public` tiene un privilegio **por defecto** que lo hace con cada tabla nueva. No se filtró nada
+   —RLS activada y sin políticas devuelve cero filas— pero se añadió el `revoke` explícito y una
+   comprobación en `verify:remote` (I-020, I-078).
+2. **Un doble de `fetch` dejó al despachador sin base de datos**: once pruebas en rojo por un defecto
+   de la prueba. El doble ahora intercepta solo el servicio de push.
+3. **La red de los Route Handlers marcó el despachador** por no comprobar la sesión — que es
+   deliberado (BR-V08). Se amplió la excepción con su razón, como la del tick de loterías.
+
+### 3. Migraciones que existen
+
+**`0001`–`0054`.** La nueva es **`0054_push_outbox.sql`**: un enumerado, una tabla con su RLS y tres
+CHECK, dos índices, ocho funciones y un `pg_cron`. **Toca una función existente**:
+`process_due_payment_reminders` pasa a encolar además de avisar, en la misma transacción — es el
+único cambio no aditivo, y está marcado dentro del archivo.
+
+### 4. Variables de entorno requeridas
+
+**Dos nuevas, las dos OPCIONALES:** `VAPID_SUBJECT` —el contacto que exige el RFC 8292; si falta se
+usa `NEXT_PUBLIC_SITE_URL`— y `PUSH_DISPATCH_SECRET`, con mínimo de 16 caracteres, que acepta
+`CRON_SECRET` como alternativa. `check:env` avisa sin fallar, y además **advierte si hay clave pública
+VAPID sin la privada**, que es peor que no tener ninguna: la pantalla ofrece los avisos y el
+despachador no puede mandarlos.
+
+**Y dos secretos en la base**, en el vault de Supabase: `push_dispatch_url` y `push_dispatch_secret`.
+Sin ellos el `pg_cron` no toca nada.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **Nada de esto está en producción** | Las cuatro migraciones son locales. Promoverlas es la Etapa 7, y ahora arrastra además tres secretos de entorno y dos del vault |
+| **No se ha visto un aviso llegar a un teléfono real** | El servicio de push es de mentira en todas las pruebas. El formato está demostrado contra el RFC; la entrega de verdad se comprueba en la Etapa 7 |
+| **I-024**, plan Free | Ahora con un tercer motivo: el despachador también depende de que el proyecto no esté pausado |
+| **La CLI de Supabase genera tipos distintos** | Sigue vigente: quien regenere `database.types.ts` tiene que restaurar los seis `\| null` |
+| Todo lo demás | Sin cambios: I-109, I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-074, I-021, I-023, I-030, I-059, I-060 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Etapa 6.** Hace falta una autorización explícita nueva.
+2. **No toques el calendario de claves de `webpush.ts` sin volver a correr `webpush-rfc.test.ts`.** Un
+   byte de diferencia en cualquiera de los tres `info` da claves que funcionan consigo mismas y con
+   ningún teléfono.
+3. **La firma VAPID va en `ieee-p1363`.** Si alguien la deja en DER por defecto, todos los envíos
+   fallan con un `401` que no explica nada.
+4. **No mezcles los dos pares de claves**: el VAPID es fijo y va en la cabecera; el de cifrado es
+   efímero y va en el cuerpo.
+5. **Una tabla nueva en `public` nace con `SELECT` para `authenticated`.** Si la siguiente no debe
+   leerse, hay que revocarlo explícitamente.
+6. **El despachador no acepta nada de quien llama**, y no debe empezar a hacerlo: sería una forma de
+   mandar notificaciones a cualquiera.
+7. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
 
 ---
 

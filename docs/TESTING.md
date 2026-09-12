@@ -676,12 +676,17 @@ cuando se creó un cliente a secas); y que sin grupo configurado el botón cambi
 En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
 que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
 
-### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V; D-185, D-188, D-189, D-190)
+### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V; D-185, D-188..D-191)
 
-> **Hechas las etapas 1, 2, 3 y 4.** Base: `payment-accounts-reminders.test.ts` (62),
-> `payment-reminder-engine.test.ts` (32) y `push-subscriptions.test.ts` (20). Navegador:
-> `configuracion-cobro.spec.ts` (23) y `configuracion-cobro-movil.spec.ts` (5). Unitarias: 72,
-> incluidas **12 que ejecutan `public/sw.js` de verdad**.
+> **Hechas las etapas 1 a 5.** Base: `payment-accounts-reminders.test.ts` (62),
+> `payment-reminder-engine.test.ts` (32), `push-subscriptions.test.ts` (20),
+> `push-outbox.test.ts` (27) y `push-dispatch.test.ts` (12, **con la base real y el cifrado real**).
+> Navegador: `configuracion-cobro.spec.ts` (23), `configuracion-cobro-movil.spec.ts` (5) y
+> `push-dispatch.spec.ts` (5). Unitarias: 108, incluidas **12 que ejecutan `public/sw.js` de
+> verdad** y **15 contra los vectores publicados del RFC 8291 y del RFC 8292**.
+>
+> **Queda la Etapa 6**, la auditoría integrada, que sigue siendo criterio escrito antes de
+> construir.
 >
 > **Las etapas 4, 5 y 6 siguen siendo criterio de aceptación escrito antes de construir**, para que
 > no se escriba después a la medida de lo que salga. Y donde la Etapa 3 se apartó de su propio

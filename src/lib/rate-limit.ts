@@ -71,6 +71,12 @@ export const RATE_LIMITS = {
    * solo frena el goteo, no sustituye la comparacion a tiempo constante.
    */
   lotterySyncAuth: { limit: 20, windowMs: 15 * 60_000 },
+  /**
+   * Lo mismo para el despachador de avisos (BR-V08). Cupo PROPIO y no
+   * compartido con el de loterias: son dos puertas distintas, y un goteo
+   * contra una no puede cerrar la otra.
+   */
+  pushDispatchAuth: { limit: 20, windowMs: 15 * 60_000 },
 } as const satisfies Record<string, RateLimitRule>
 
 export type RateLimitResult =

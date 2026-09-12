@@ -1,14 +1,13 @@
 # ARQUITECTURA
 
-- **Versión:** 1.29 · **Estado:** implementado · **Actualizado:** 2026-09-12
+- **Versión:** 1.30 · **Estado:** implementado · **Actualizado:** 2026-09-12
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 - **§8.23** («Configuración» del vendedor con subrutas) está **implementada** desde el 2026-09-12
   (D-188), y **§8.24** (motor de recordatorios y cron) desde ese mismo día (`0052`, D-189). ⚠️ De
-  §8.24 existen el cron, las ocurrencias, la campana y —desde la Etapa 4 (`0053`, D-190)— **las
-  suscripciones y los oyentes del service worker**. **El ENVÍO no existe**: ni outbox, ni
-  despachador, ni firma, ni cifrado, que son la Etapa 5. **§8.15.a lleva una corrección**: las
-  notificaciones **no** van con Firebase, sino con Web Push estándar (D-187), y desde D-190 esa
-  sección del worker ya está escrita.
+  §8.24 **existe entero** desde la Etapa 5 (`0054`, D-191): cron, ocurrencias, campana,
+  suscripciones, oyentes del service worker, **outbox, despachador, firma VAPID y cifrado**. Todo
+  sobre el `crypto` de Node, sin una sola dependencia nueva. **§8.15.a lleva una corrección**: las
+  notificaciones **no** van con Firebase, sino con Web Push estándar (D-187).
 
 ---
 
@@ -1733,10 +1732,13 @@ Lo encontró una prueba de esta etapa (D-188).
 
 ### 8.24 El motor de recordatorios: cron, ocurrencias y salida de avisos (`0052`, D-186, D-189)
 
-> **LA MITAD IZQUIERDA DEL DIBUJO EXISTE** desde el 2026-09-12 (`0052`, Etapa 3): `pg_cron`, la
-> función, las ocurrencias y la campana. **La mitad derecha no**: ni outbox, ni dispatcher, ni claves
-> VAPID, ni oyente `push` en el service worker. Son las etapas 4 y 5, y cada una necesita su
-> autorización. Todo en **local**; el proyecto real no tiene ninguna de las dos migraciones.
+> **EL DIBUJO ENTERO EXISTE** desde el 2026-09-12, en tres etapas: `0052` (cron, ocurrencias y
+> campana), `0053` (suscripciones y service worker) y `0054` (outbox, despachador, firma y cifrado).
+> Todo en **local**; el proyecto real no tiene ninguna de las tres migraciones, y promoverlas es la
+> Etapa 7.
+>
+> **Y todo es opcional hasta que se configura**: sin claves VAPID no se ofrecen los avisos ni se
+> envía nada, y sin secreto el despachador falla cerrado. La campana no depende de nada de eso.
 >
 > **La pieza que la Etapa 1 dejó puesta** (`0051`) es la que lo sostiene: **`next_run_at`
 > materializado con su índice parcial**, mantenido por un trigger que **solo recalcula cuando cambia

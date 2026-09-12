@@ -7,8 +7,8 @@
 - **Versión del documento:** 1.6
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
 - **Última actualización:** 2026-09-12 (§9.5: cuentas para recibir pagos y recordatorios de pago,
-  **etapas 0 a 4 hechas de 7**; el motor suena y avisa por la campana, y cada dispositivo ya puede
-  registrarse para recibir avisos. **El envío del push es la Etapa 5 y todavía no existe**)
+  **etapas 0 a 5 hechas de 7**; el canal está completo de punta a punta en local. Quedan la
+  auditoría integrada y la promoción a producción)
 
 ---
 
@@ -274,7 +274,7 @@ al final, de modo que no hay marcador que se pueda romper. Configurar es exclusi
 vendedor** —ni el personal ni un vendedor padre pueden hacerlo por él— y la pantalla está pensada
 para crecer con más secciones.
 
-### 9.5 Cuentas para recibir pagos y recordatorios de pago — **EN CONSTRUCCIÓN (5 de 7 etapas)**
+### 9.5 Cuentas para recibir pagos y recordatorios de pago — **EN CONSTRUCCIÓN (6 de 7 etapas)**
 
 > Autorizado por el dueño del producto el **2026-09-11** (D-185, D-186, D-187). Hechas las **etapas
 > 0 a 3**: contrato, base de datos (`0051`), configuración y formularios (D-188) y **el motor**
@@ -285,9 +285,15 @@ para crecer con más secciones.
 > avisos**: un solo service worker, el permiso pedido en una pantalla y a propósito, y el aviso
 > genérico que no dice nada.
 >
-> **Lo que todavía NO existe es el ENVÍO** —la Etapa 5: outbox, despachador, firma y cifrado—, así
-> que **nada llega a un teléfono con la aplicación cerrada**. El proyecto real no tiene ninguna de
-> las tres migraciones. Reglas: BR-M01..BR-M09, BR-S01..BR-S14, BR-V01..BR-V08.
+> Y desde la **Etapa 5** (`0054`, D-191) el aviso **sale de verdad**: se encola en la misma
+> transacción que la campana, un despachador protegido lo cifra con Web Push estándar —sin Firebase
+> y sin ninguna dependencia— y llega al teléfono **con la aplicación cerrada**. Un 404 o un 410
+> retiran ese dispositivo; lo demás se reintenta con retroceso; y **perder el envío nunca toca el
+> aviso interno**.
+>
+> **Todo en LOCAL**: el proyecto real no tiene ninguna de las cuatro migraciones. Y el canal es
+> **opcional**: sin claves configuradas no se ofrece ni se envía nada, y la campana funciona igual.
+> Reglas: BR-M01..BR-M09, BR-S01..BR-S14, BR-V01..BR-V08, **las veintinueve implementadas**.
 
 Dos capacidades nuevas del **vendedor**, dentro de `/seller/settings`, que hoy tiene una sola sección
 —la del grupo de WhatsApp (§9.4)— y pasará a tener tres, cada una en su subruta, con la página
@@ -323,7 +329,7 @@ acceden a sus cuentas ni a sus recordatorios. Cambiar eso exige una decisión ex
 | 2 | Configuración y formularios de cuentas, WhatsApp y recordatorios ✅ **2026-09-12** (D-188, en local) |
 | 3 | Motor de vencimientos, ocurrencias, campana y flujo copiar–abrir–atender ✅ **2026-09-12** (`0052`, D-189, en local) |
 | 4 | Suscripciones Web Push por dispositivo y extensión del service worker ✅ **2026-09-12** (`0053`, D-190, en local) |
-| 5 | Outbox, dispatcher, reintentos y limpieza de endpoints inválidos |
+| 5 | Outbox, dispatcher, reintentos y limpieza de endpoints inválidos ✅ **2026-09-12** (`0054`, D-191, en local) |
 | 6 | Auditoría integrada de seguridad, rendimiento, UX y regresiones |
 | 7 | Promoción controlada a producción, **solo con autorización posterior** |
 

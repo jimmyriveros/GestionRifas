@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (Etapa 4 del cobro, D-190, 2026-09-12)** | **968 ✅** en 55 archivos (+25) | **942 ✅** en 42 archivos (+20) | **635/639**; los 4 son **I-090** (3) e **I-106** (1), conocidos y ajenos | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
+| **Post-9 vigente (Etapa 5 del cobro, D-191, 2026-09-12)** | **1.004 ✅** en 57 archivos (+36) | **981 ✅** en 44 archivos (+39) | **642/644**; los 2 son **I-090**, conocido y ajeno | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
+| Post-9 anterior (Etapa 4 del cobro, D-190, 2026-09-12) | **968 ✅** en 55 archivos (+25) | **942 ✅** en 42 archivos (+20) | **635/639**; los 4 son **I-090** (3) e **I-106** (1), conocidos y ajenos | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 3 del cobro, D-189, 2026-09-12) | **943 ✅** en 53 archivos (+10) | **922 ✅** en 41 archivos (+33) | **635/637**; los 2 son **I-090**, conocido y ajeno. Sobre servidor y base recién creados | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 2 del cobro, D-188, 2026-09-12) | **933 ✅** (+37) | **889 ✅** — no se tocó la base | **626/630**; los 4 son **I-090** (3) e **I-106** (1) | ✅ | ✅ Sin desplegar |
 | **Post-9 vigente (D-184, 2026-09-09)** | **896 ✅** en 50 archivos (+39) | **827 ✅** — no se tocó la base | **597/599** el 09-09 —los 2 son **I-090** e **I-106**, verdes en aislamiento— y **46/46** dirigidas el 09-10, con las **12 nuevas** de pegado real y de los cinco caminos de guardado | ✅ | ✅ **DESPLEGADO** (`9900635`, 2026-09-10) |
@@ -10546,3 +10547,117 @@ El total sube de **637** a **639** pruebas: las **2** nuevas de esta etapa.
 6. «Dejar de recibir avisos» la deja en **0**.
 7. En un iPhone **sin instalar**, la tarjeta tiene que decir que hay que instalar Rifas primero —no
    «este navegador no puede»—.
+
+---
+
+## Cuentas de cobro y recordatorios, Etapa 5: outbox, despachador y envío (`0054`, D-191) — 2026-09-12
+
+**Alcance:** la migración `0054` —`push_outbox`, su máquina de estados, cinco funciones y un tercer
+`pg_cron`—, **Web Push estándar implementado sobre el `crypto` de Node** (VAPID RFC 8292 y cifrado
+`aes128gcm` RFC 8291), el despachador y su Route Handler protegido. **Ninguna dependencia nueva.**
+Con esto el canal está **completo**. Nada aplicado al proyecto real.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **1.004/1.004** unitarias (**+36**), `build` |
+| `npm run test:db` | ✅ **981/981** (**+39**): 27 de la cola y 12 del despachador de punta a punta |
+| `tests/unit/webpush-rfc.test.ts` | ✅ **15/15** contra los vectores publicados del RFC |
+| `push-dispatch.spec.ts` (escritorio) | ✅ **5/5** |
+| Suite E2E completa | ver §d |
+
+### b. LA prueba de esta etapa: el cifrado contra los valores del RFC
+
+Es el criterio de aceptación que `TESTING` §4.8 escribió **antes de construir nada**, y la razón está
+en que una implementación de criptografía puede estar perfectamente equivocada y parecer correcta:
+cifra, se descifra a sí misma y no se queja — y ningún teléfono del mundo puede leer lo que produce.
+
+Con las claves del **RFC 8291 §5**, el calendario de claves sale **idéntico al publicado**:
+
+| Valor | Calculado | Publicado |
+|---|---|---|
+| `IKM` | `S4lYMb_L0FxCeq0WhDx813KgSYqU26kOyzWUdsXYyrg` | el mismo |
+| `CEK` | `oIhVW04MRdy2XN9CiKLxTg` | el mismo |
+| `NONCE` | `4h_95klXJ5E_qnoN` | el mismo |
+
+Y el cuerpo entero se descifra con la clave privada del receptor del ejemplo hasta recuperar
+«When I grow up, I want to be a watermelon», con su delimitador `0x02` de último registro. La firma
+VAPID se **verifica** con su clave pública y mide 64 bytes: `r || s` en crudo, no DER — que es el
+fallo que devuelve un `401` sin explicación en todos los servicios de push.
+
+### c. El despachador, de punta a punta
+
+`tests/db/push-dispatch.test.ts` ejerce el camino real: **base de datos de verdad, cifrado de
+verdad, servicio de push de mentira**. Lo único sustituido es el `fetch` que habla con Google.
+
+| Qué | Resultado |
+|---|---|
+| Un `201` vacía la cola | ✅ y los contadores del dispositivo se mueven |
+| El envío va cifrado y con la cabecera VAPID | ✅ `Content-Encoding: aes128gcm`, `TTL`, y `vapid t=…, k=…` |
+| Dos dispositivos de la misma persona | ✅ dos envíos, **una** sola fila de cola |
+| Un `410` | ✅ revoca la suscripción y **no** reintenta |
+| Un `503` y un fallo de red | ✅ vuelven a la cola con su retroceso |
+| Un `400` | ✅ no se reintenta |
+| Uno muerto y otro vivo | ✅ la fila **sale**, y el muerto queda revocado |
+| **Se cae el envío entero** | ✅ **la campana sigue ahí** — que es lo único que el contrato promete |
+| Sin claves configuradas | ✅ no envía **y no toca la cola** |
+
+### d. Suite E2E completa
+
+Sobre servidor y base **recién creados**, y **sin tocar un solo archivo mientras corría**:
+
+**642 pasan · 2 fallan · 32,7 min.**
+
+Las **dos** son **I-090**, conocido y ajeno —`reports.spec.ts:305` y
+`ventas-por-fecha.spec.ts:163`—: comprueban «las ventas de hoy» sobre datos que la propia suite va
+acumulando.
+
+**Ninguna prueba de la Etapa 5 falla**, y las dos de loterías que se arreglaron en la Etapa 4
+siguen en verde.
+
+El total sube de **639** a **644** pruebas: las **5** nuevas de esta etapa.
+
+### e. Tres defectos propios, encontrados por las pruebas
+
+**1. La tabla nació legible sin que nadie lo pidiera.** `push_outbox` aparecía con `SELECT` para
+`authenticated` sin una sola línea en la migración que lo concediera: el esquema `public` tiene un
+privilegio **por defecto** que lo hace con **cada tabla nueva**. **No se filtró ningún dato** —la RLS
+está activada y esa tabla no tiene ninguna política, así que devuelve cero filas—, pero «sin
+privilegios» tiene que estar escrito. Se añadió el `revoke` explícito y una comprobación en
+`verify:remote`, porque es justo la clase de cosa que se concede distinto en cada entorno (I-020,
+I-078).
+
+**2. Un doble de `fetch` se queda con la base de datos también.** La primera versión de la prueba de
+punta a punta sustituyó `fetch` entero y dejó al despachador sin PostgREST: **once pruebas en rojo
+por un defecto de la prueba**, no del código. El doble ahora intercepta **solo** el servicio de push.
+
+**3. La red que vigila los Route Handlers hizo su trabajo.** `server-actions-guard.test.ts` exige que
+todo `route.ts` compruebe la sesión en su cuerpo, y el despachador **no usa sesión a propósito**
+(BR-V08). Se amplió la excepción igual que la del tick de loterías, con su razón escrita — **no se
+relajó la regla**.
+
+### f. Lo que NO se comprobó, y se dice
+
+* **Que un aviso llegue a un teléfono de verdad.** El servicio de push es de mentira en todas las
+  pruebas. Lo que sí está demostrado es que el cuerpo se cifra exactamente como manda el RFC y que la
+  cabecera VAPID verifica: si un teléfono no lo aceptara, sería por la configuración, no por el
+  formato.
+* **El toque de `pg_net` llegando al Route Handler.** Sin secretos en el vault la función no hace
+  nada, que es su comportamiento por defecto y **sí** está probado. Configurarlo y verlo llegar es
+  trabajo de la Etapa 7.
+* **Un despachador con el secreto correcto, por HTTP.** La suite E2E no configura ninguno —igual que
+  la de loterías—, así que prueba que **falla cerrado**. El camino contrario se prueba donde se puede
+  probar de verdad: contra la base y con el cifrado real.
+* **La rotación de claves VAPID.** Invalida las suscripciones existentes; el `404`/`410` que las
+  limpiaría sí está probado, el escenario completo no.
+
+**Quien lo compruebe, con su cuenta y en su teléfono:**
+
+1. Generar el par con `npm run vapid` y poner las **dos** claves, más `PUSH_DISPATCH_SECRET`.
+2. Guardar en el vault de la base `push_dispatch_url` y `push_dispatch_secret`.
+3. Activar los avisos en el teléfono (Etapa 4) y crear un recordatorio para dentro de dos minutos.
+4. Al llegar la hora tiene que sonar el teléfono **con la aplicación cerrada**, con «Es hora de tu
+   recordatorio» y **sin ninguna cuenta, importe ni nombre** dentro.
+5. Al tocarlo, la aplicación abre en «Recordatorios de pago».
+6. En la base, `select status from push_outbox` tiene que decir `sent`.

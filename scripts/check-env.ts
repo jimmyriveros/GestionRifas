@@ -25,6 +25,20 @@ if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim()) {
     'Sin NEXT_PUBLIC_VAPID_PUBLIC_KEY: no se ofrecerán avisos en el teléfono. ' +
       'La campana interna funciona igual. Genera el par con `npm run vapid`.',
   )
+} else if (!process.env.VAPID_PRIVATE_KEY?.trim()) {
+  // La mitad que falta es peor que ninguna: la pantalla OFRECE los avisos y
+  // el despachador no puede mandarlos.
+  console.warn(
+    'Aviso: hay clave pública VAPID pero no privada. La aplicación ofrecerá los ' +
+      'avisos y el despachador no podrá enviarlos. Pon VAPID_PRIVATE_KEY.',
+  )
+}
+
+if (!process.env.PUSH_DISPATCH_SECRET?.trim() && !process.env.CRON_SECRET?.trim()) {
+  console.log(
+    'Sin PUSH_DISPATCH_SECRET: el despachador de avisos falla cerrado y no ' +
+      'enviará nada. La campana interna funciona igual.',
+  )
 }
 
 if (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.startsWith('eyJ')) {

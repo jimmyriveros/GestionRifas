@@ -228,19 +228,47 @@ const CHECKS: Check[] = [
   {
     // Sin el job no suena nada, y nada mas lo diria: la pantalla se veria igual
     // de bien con los recordatorios guardados y el reloj parado (D-186).
-    nombre: 'Los 2 cron de recordatorios existen y estan activos (0052)',
+    nombre: 'Los 3 cron de avisos existen y estan activos (0052, 0054)',
     sql: `select jobname as x from cron.job
-          where jobname in ('payment-reminders-due', 'payment-reminders-cron-cleanup')
+          where jobname in ('payment-reminders-due', 'payment-reminders-cron-cleanup',
+                            'push-dispatch-wake')
             and active`,
-    esperado: 2,
+    esperado: 3,
   },
   {
-    nombre: 'Tablas de cuentas, recordatorios y avisos existen (0051, 0052, 0053)',
+    // La cola de avisos es TRANSPORTE: no la lee nadie con sesion. Y hay una
+    // razon concreta para comprobarlo aqui y no solo en local: el esquema
+    // `public` tiene un privilegio POR DEFECTO que concede SELECT a
+    // `authenticated` sobre cada tabla nueva, y esa clase de cosa se concede
+    // distinto en cada entorno (I-020, I-078, D-191).
+    nombre: 'push_outbox concede algo a authenticated o anon',
+    sql: `select privilege_type as x from information_schema.role_table_grants
+          where table_schema = 'public' and table_name = 'push_outbox'
+            and grantee in ('authenticated', 'anon')`,
+    esperado: 0,
+  },
+  {
+    // Las nueve del despachador. Ninguna la ejecuta una sesion: entra con
+    // `service_role` y el toque lo hace el cron (BR-V08).
+    nombre: 'Las funciones del despachador NO son ejecutables desde una sesion',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in ('claim_push_outbox', 'mark_push_outbox_sent',
+                              'mark_push_outbox_failed', 'revoke_push_subscription',
+                              'mark_push_subscription_sent', 'wake_push_dispatcher',
+                              'push_max_attempts', 'push_retry_delay', 'push_claim_timeout')
+            and (has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                 or has_function_privilege('anon', p.oid, 'EXECUTE'))`,
+    esperado: 0,
+  },
+  {
+    nombre: 'Tablas de cuentas, recordatorios y avisos existen (0051..0054)',
     sql: `select c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
           where n.nspname = 'public' and c.relkind = 'r'
             and c.relname in ('seller_payment_accounts', 'seller_payment_reminders',
-                              'payment_reminder_occurrences', 'push_subscriptions')`,
-    esperado: 4,
+                              'payment_reminder_occurrences', 'push_subscriptions',
+                              'push_outbox')`,
+    esperado: 5,
   },
   {
     // Las claves con las que se le puede escribir a un dispositivo. Si esto

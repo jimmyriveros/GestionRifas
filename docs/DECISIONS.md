@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.49 · **Actualizado:** 2026-09-12 (D-001 a D-190; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.50 · **Actualizado:** 2026-09-12 (D-001 a D-191; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -9091,10 +9091,11 @@ sincronizador de loterías sigue disparándose desde Vercel Cron y sus parsers s
 
 **Fase:** mantenimiento posterior a la Fase 9 (Etapa 0 del encargo de D-185, 2026-09-11)
 
-> **ESTADO: MEDIO IMPLEMENTADO (2026-09-12, migración `0053`, D-190).** Existen las suscripciones,
-> los oyentes `push` y `notificationclick` del service worker, la pantalla que pide el permiso y el
-> guion que genera el par de claves. **NO existe el envío**: ni outbox, ni dispatcher, ni firma, ni
-> cifrado — eso es la Etapa 5 y necesita su autorización. Sin ella este canal **no entrega nada**.
+> **ESTADO: IMPLEMENTADO ENTERO (2026-09-12, migraciones `0053` y `0054`; D-190 y D-191).** Existen
+> las suscripciones, los oyentes del service worker, la pantalla que pide el permiso, **la outbox,
+> el despachador, la firma VAPID y el cifrado `aes128gcm`** —todo sobre el `crypto` de Node, sin una
+> sola dependencia nueva—. El cifrado está comprobado contra los **vectores publicados en el propio
+> RFC 8291**. **Todo en local**: el proyecto real no tiene ninguna de las cuatro migraciones.
 >
 > Lo que sigue es el estado ORIGINAL de la decisión, conservado como contexto:
 >
@@ -9675,6 +9676,181 @@ fuera del alcance de esta etapa y toca un camino que nadie pidió tocar; queda e
 
 **La Etapa 5 —outbox, despachador, firma y cifrado— necesita autorización propia, y sin ella este
 canal no entrega nada.** La Etapa 7 —promoción a producción— también.
+
+---
+
+## D-191 — El envío: cifrado propio contra los vectores del RFC, y una cola que se cura sola
+
+**Fase:** mantenimiento posterior a la Fase 9 (Etapa 5 del encargo de D-185, 2026-09-12)
+
+**Alcance.** Migración **`0054`**: `push_outbox`, su máquina de estados, las cinco funciones del
+despachador y un tercer `pg_cron` que lo despierta por `pg_net`. En TypeScript: **Web Push estándar
+implementado sobre el `crypto` de Node** —VAPID RFC 8292 y cifrado `aes128gcm` RFC 8291—, el
+despachador y el Route Handler protegido. **Ninguna dependencia nueva.**
+
+**Con esto el canal está completo:** un recordatorio que vence escribe su campana, encola su aviso y,
+un minuto después, llega al teléfono con la aplicación cerrada.
+
+---
+
+### Decisión 1 — el cifrado se prueba contra los valores del RFC, no contra sí mismo
+
+Es la decisión que ordena todo lo demás, y estaba escrita en `TESTING` §4.8 **antes de construir
+nada**: «unitarias contra los vectores de prueba del RFC 8291 y la firma VAPID contra los del
+RFC 8292. **Sin esto, la implementación propia no se acepta**».
+
+La razón es concreta y no es ceremonial. Una implementación de criptografía puede estar
+perfectamente equivocada y **parecer correcta**: cifra, se descifra a sí misma, no lanza ningún error
+— y ningún teléfono del mundo puede leer lo que produce. Un `info` con un byte de diferencia da
+claves que funcionan consigo mismas y con nada más.
+
+Lo que se comprueba, con las claves publicadas en el RFC 8291 §5:
+
+| Valor | Resultado |
+|---|---|
+| `IKM` | `S4lYMb_L0FxCeq0WhDx813KgSYqU26kOyzWUdsXYyrg`, **idéntico al publicado** |
+| `CEK` | `oIhVW04MRdy2XN9CiKLxTg`, idéntico |
+| `NONCE` | `4h_95klXJ5E_qnoN`, idéntico |
+| La cabecera del cuerpo | salt, tamaño de registro y clave efímera, en el sitio y el orden del RFC 8188 |
+| El registro | termina en `0x02`, y se descifra hasta recuperar el texto del ejemplo |
+
+**Y el calendario de claves se ejerce en los DOS sentidos**, porque el `info` lleva las dos claves
+públicas siempre en el mismo orden y es lo que hace que emisor y receptor deriven el mismo `IKM`.
+
+### Decisión 2 — dos pares de claves, y confundirlos es el error clásico
+
+* **El par VAPID** es fijo, vive en el entorno y su pública viaja en la cabecera `Authorization`. Es
+  quién manda.
+* **El par de cifrado es EFÍMERO**: uno nuevo por mensaje, y su pública viaja **dentro del cuerpo**,
+  en la cabecera del registro. Es qué se manda.
+
+Reutilizar el par VAPID para cifrar «porque ya está ahí» produciría un cuerpo que el dispositivo no
+puede abrir, y —peor— reutilizaría material de clave entre mensajes. Hay una prueba que comprueba que
+**dos envíos del mismo texto producen cuerpos distintos**, que es la forma observable de esa regla.
+
+### Decisión 3 — la firma va en crudo, `r || s`, y por eso `ieee-p1363`
+
+Node firma ECDSA en **DER** por defecto. Un JWT con firma DER lo rechazan **todos** los servicios de
+push con un `401` que no explica nada, y es de los fallos más caros de diagnosticar que tiene este
+protocolo: todo parece correcto y nada funciona.
+
+`dsaEncoding: 'ieee-p1363'` produce los 64 bytes que el JWT espera. La prueba no se limita a mirar
+que la cabecera tenga forma de JWT: **verifica la firma con la clave pública** y comprueba que mide
+exactamente 64 bytes.
+
+### Decisión 4 — una fila de cola por AVISO, y el abanico se abre al enviar
+
+`push_outbox` apunta a `notifications`, que ya sabe a quién va dirigido; los dispositivos se resuelven
+**en el momento de enviar**. Es lo correcto: entre encolar y enviar alguien pudo registrar un teléfono
+nuevo o quitar otro, y una lista congelada al encolar estaría equivocada en los dos casos.
+
+De ahí sale la regla de cierre: **basta con que un dispositivo lo acepte** para dar el aviso por
+enviado. Quien tiene el teléfono y el computador registrados ya se enteró; reintentar el lote entero
+porque el segundo falló le repetiría el aviso en el primero.
+
+### Decisión 5 — si no hay a quién enviárselo, no se encola
+
+El motor solo mete la fila si esa persona tiene **algún dispositivo vivo**. Una fila que nace sin
+destinatario solo serviría para nacer fallada, y la campana —que es lo que el contrato promete
+(BR-V01)— ya está escrita.
+
+El caso contrario —tenía dispositivos al encolar y ninguno al enviar— **sí ocurre**, así que
+`claim_push_outbox` devuelve también las filas **sin dispositivo**, con las columnas en `NULL`. Sin
+eso se quedarían en `sending` para siempre, porque el despachador no llegaría a verlas.
+
+### Decisión 6 — la cola se cura sola
+
+Un despachador que se muere con filas en la mano las deja en `sending`. En vez de un proceso de
+limpieza aparte, **`claim_push_outbox` las recupera al empezar**: las que llevan más de cinco minutos
+tomadas vuelven a `queued`. Es una sentencia, corre en el mismo sitio que ya se ejecuta cada minuto y
+no hay nada nuevo que administrar.
+
+El plazo es holgado respecto al tiempo de espera del envío (10 s por dispositivo) para no recuperar
+una fila que todavía se está enviando.
+
+### Decisión 7 — qué se reintenta, y qué no
+
+| Respuesta | Qué se hace | Por qué |
+|---|---|---|
+| `2xx` | Enviada | |
+| `404`, `410` | **Se revoca la suscripción** y no se reintenta nunca más contra ella | El dispositivo se desinstaló o caducó (BR-V07) |
+| `429`, `5xx` | Se reintenta con retroceso | Es pasajero |
+| `400`, `401`, `403` | **No se reintenta** | Es culpa nuestra —cuerpo o firma—, e insistir en bucle contra un servicio ajeno es peor que parar y dejar el motivo escrito |
+| Fallo de red | Se reintenta | |
+
+El retroceso crece rápido a propósito —1, 5, 25 minutos y tope de 2 horas—: un recordatorio de las
+7:00 p. m. que no sale en la primera media hora ya llega tarde.
+
+### Decisión 8 — el toque es un TOQUE, y los secretos viven en el Vault
+
+El tercer `pg_cron` no entrega nada: **despierta** al despachador con un `POST`. Si ese toque falla,
+no pasa nada — la cola sigue ahí y el minuto siguiente vuelve a intentarlo. **La outbox es la que
+manda, no el toque.**
+
+La URL y el secreto se guardan en el **Vault de Supabase**, no en la migración ni en una tabla en
+claro: una migración es un archivo versionado, y escribir ahí un secreto sería publicarlo. **Sin los
+dos configurados, la función no hace nada** — el mismo trato que la clave VAPID en D-190: el canal
+entero es opcional hasta que alguien lo enciende a propósito.
+
+Y **no toca nada si la cola está vacía**: un `POST` por minuto contra la aplicación para no hacer
+nada es gasto y ruido en los registros.
+
+### Decisión 9 — sin claves VAPID, el despachador NO toca la cola
+
+Podría tomarla y marcarla fallada. No lo hace: **la deja intacta**, para que el día que se configuren
+las claves salga todo lo que estaba esperando en vez de haberse consumido en fallos.
+
+### Decisión 10 — la cola no la lee nadie con sesión
+
+`push_outbox` es la primera tabla del producto sin **ningún** privilegio para `authenticated`. Es
+infraestructura de transporte: quien quiera saber si tiene un aviso mira la campana, que para eso es
+la fuente durable.
+
+---
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| La dependencia `web-push` | Lo decidió D-187. A cambio de ~200 líneas propias: cero dependencias nuevas en algo que toca claves, y una CSP que no se abre |
+| Probar el cifrado consigo mismo | Una implementación equivocada pasa esa prueba perfectamente (Decisión 1) |
+| Reutilizar el par VAPID para cifrar | Cuerpo ilegible, y material de clave reutilizado entre mensajes (Decisión 2) |
+| Firma DER, que es lo que Node hace por defecto | `401` de todos los servicios de push, sin explicación (Decisión 3) |
+| Una fila de cola por (aviso, dispositivo) | Congelaría la lista de dispositivos al encolar, que es justo cuando todavía puede cambiar (Decisión 4) |
+| Encolar siempre, aunque no haya dispositivos | Filas que nacen para fallar. La campana ya está escrita (Decisión 5) |
+| Un proceso aparte que limpie las filas abandonadas | Una sentencia dentro del `claim` hace lo mismo sin nada nuevo que administrar (Decisión 6) |
+| Reintentar también los `4xx` | Insistir en bucle contra un servicio ajeno por un error propio (Decisión 7) |
+| Guardar la URL y el secreto del toque en una tabla en claro | Una migración es un archivo versionado; una tabla en claro la lee cualquiera con `service_role` (Decisión 8) |
+| Que el despachador consuma la cola sin claves configuradas | Se perdería lo que estaba esperando al encender el canal (Decisión 9) |
+| Dejar que `authenticated` lea la cola «para depurar» | Es transporte, y diría quién tiene avisos pendientes (Decisión 10) |
+
+### Lo que se encontró al implementarlo
+
+1. **El esquema `public` concede `SELECT` a `authenticated` sobre CADA tabla nueva.** Lo destapó una
+   prueba en rojo: `push_outbox` nació legible sin que ninguna línea de la migración lo pidiera. Hay
+   un privilegio **por defecto** —`postgres=arwdDxtm/postgres, authenticated=r/postgres`— sobre el
+   esquema. **No se filtró ningún dato** —la RLS está activada y esa tabla no tiene ninguna política,
+   así que devuelve cero filas—, pero «sin privilegios» tiene que estar **escrito**, no supuesto. Es
+   exactamente la familia de I-020 e I-078, y por eso el `revoke` explícito quedó en la migración y
+   la comprobación en `verify-remote`.
+2. **Un doble de `fetch` se queda con la base de datos también.** La primera versión de la prueba de
+   punta a punta sustituyó `fetch` entero, y el despachador se quedó sin PostgREST: once pruebas en
+   rojo por un defecto de la prueba, no del código. El doble ahora **solo intercepta el servicio de
+   push** y le pasa al `fetch` de verdad todo lo demás.
+3. **La red que vigila los Route Handlers hizo su trabajo.**
+   `tests/unit/server-actions-guard.test.ts` exige que todo `route.ts` compruebe la sesión en su
+   cuerpo, y el despachador **no usa sesión a propósito** (BR-V08). Se amplió la excepción igual que
+   la del tick de loterías, con su razón escrita — no se relajó la regla.
+
+### Consecuencia
+
+**BR-V02, BR-V03, BR-V07 y BR-V08 quedan implementadas; con BR-V01, BR-V04, BR-V05 y BR-V06, las
+ocho reglas de §12.f están completas.** `DATA_MODEL` §4.19; `SECURITY` §4.17; `ARCHITECTURE` §8.24;
+`MASTER_SPEC` §9.5; `TESTING` §4.8. Variables nuevas en `.env.example`: `VAPID_SUBJECT` y
+`PUSH_DISPATCH_SECRET`, **las dos opcionales**, más los dos secretos del Vault.
+
+**Quedan la Etapa 6 —auditoría integrada— y la Etapa 7 —promoción a producción—, cada una con su
+autorización.**
 
 ---
 

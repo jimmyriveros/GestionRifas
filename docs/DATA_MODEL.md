@@ -999,32 +999,81 @@ navegador ató la suya a la clave pública que se le dio.
 
 ---
 
-## 4.bis Lo que falta del encargo de cobro — **PLANIFICADO** (D-185, D-187)
+### 4.19 `push_outbox` (`0054`, BR-V02, BR-V07, D-191)
 
-> ⚠️ **NADA DE ESTA SECCIÓN EXISTE.** Las etapas 1 a 4 están entregadas —§4.15 a §4.18, en las
-> migraciones `0051`, `0052` y `0053`—. Lo que sigue es la **Etapa 5**: la cola del push y su
-> despachador. Necesita su autorización. Cuando se implemente, se mueve a §4 con su número de
-> migración, como se hizo con las cuatro anteriores.
+La cola de salida. **Su razón de ser es desacoplar**: la ocurrencia, la campana y esta fila se
+escriben en UNA transacción, y el envío ocurre después, en otro proceso. Un servicio de push caído,
+un endpoint muerto o un despachador que no arranca **no pueden perder el aviso interno**, porque no
+participan en escribirlo.
 
-### `push_outbox` — Etapa 5 (BR-V02, BR-V07)
-
-`notification_id` → `notifications` —**la fuente durable es esa fila, no esta**—, `payload` jsonb
-**genérico** (BR-V05), `status`, `attempts`, `next_attempt_at`, `last_error`. Índice
-`(next_attempt_at) WHERE status IN ('queued','failed')`: la única consulta del dispatcher, que toma
-un lote con `for update skip locked`.
-
-### Funciones que faltan
-
-| Función | Etapa | Qué hace |
+| Columna | Tipo | Nota |
 |---|---|---|
-| `claim_push_outbox(lote)` · `mark_push_outbox_sent/failed(...)` · `revoke_push_subscription(endpoint)` | 5 | La cola de push, solo para `service_role` |
+| `id` | `uuid` PK | |
+| `notification_id` | `uuid` NOT NULL | → `notifications`. **La fuente durable es esa fila, no esta** |
+| `payload` | `jsonb` NOT NULL | **Solo el tipo de aviso.** El título y el cuerpo los compone la aplicación al enviar (BR-V05, I-030) |
+| `status` | `push_outbox_status` | `queued` · `sending` · `sent` · `failed` |
+| `attempts` · `next_attempt_at` | `integer` · `timestamptz` | El retroceso de BR-V07 |
+| `claimed_at` | `timestamptz` | Cuándo la tomó un despachador. Sirve para recuperarla si ese proceso murió |
+| `last_error` · `sent_at` | `text` · `timestamptz` | |
 
-### `pg_net` sigue sin usarse
+**Índice `push_outbox_pending_idx (next_attempt_at) WHERE status = 'queued'`**: la única consulta
+del despachador. Y `push_outbox_claimed_idx`, para recuperar las abandonadas.
 
-`pg_cron` ya está instalado (`0052`), pero **`pg_net` no se usa todavía**: viene instalado de fábrica
-en Supabase (0.20.4, esquema `extensions`) y lo necesitará el job que toque el dispatcher de push en
-la Etapa 5. Hoy **ningún cron de este encargo habla con internet**: solo escriben en tres tablas
-propias.
+**ESTA TABLA NO LA LEE NADIE CON SESIÓN.** Es la primera del producto sin **ningún** privilegio para
+`authenticated`: es transporte, no algo que se consulte desde una pantalla. Lleva RLS activada y
+forzada **sin ninguna política**, que es la forma de que devuelva cero filas aunque alguien conceda
+el `SELECT` por descuido — y hace falta decirlo, porque el esquema `public` concede ese `SELECT`
+**por defecto** a cada tabla nueva (D-191).
+
+#### Las cinco funciones del despachador
+
+| Función | Qué hace |
+|---|---|
+| `claim_push_outbox(lote)` | Toma un lote con `for update skip locked` y devuelve **una fila por (aviso, dispositivo)** — también las que no tienen ninguno, para poder cerrarlas. **Recupera antes las abandonadas** |
+| `mark_push_outbox_sent(id)` | Al menos un dispositivo la aceptó |
+| `mark_push_outbox_failed(id, motivo, reintentable)` | Vuelve a la cola con su retroceso, o se da por perdida |
+| `revoke_push_subscription(endpoint, motivo)` | Un 404 o un 410: se **marca**, no se borra (BR-V07) |
+| `mark_push_subscription_sent(endpoint)` | Contadores de diagnóstico |
+
+Más tres constantes en un solo sitio: `push_max_attempts()` (5), `push_retry_delay(intentos)`
+—1, 5 y 25 minutos, con tope de 2 horas— y `push_claim_timeout()` (5 minutos).
+
+**Ninguna la ejecuta una sesión.** El despachador entra con `service_role`.
+
+#### El tercer `pg_cron`, y dónde viven sus secretos
+
+`push-dispatch-wake` corre cada minuto y llama a `wake_push_dispatcher()`, que hace un `POST` al
+Route Handler mediante **`pg_net`**. Es un **toque, no una entrega**: si falla, la cola sigue ahí y
+el minuto siguiente vuelve a intentarlo.
+
+La URL y el secreto viven en el **Vault de Supabase**, no en la migración —que es un archivo
+versionado— ni en una tabla en claro:
+
+```sql
+select vault.create_secret('https://<dominio>/api/push/dispatch', 'push_dispatch_url');
+select vault.create_secret('<el secreto del despachador>',        'push_dispatch_secret');
+```
+
+**Sin los dos, la función no hace nada**, y **con la cola vacía tampoco toca nada**.
+
+#### El motor cambió una línea
+
+`process_due_payment_reminders` (§4.17) encola además de avisar, **en la misma transacción**. Solo
+si esa persona tiene algún dispositivo vivo: una fila que nace sin destinatario solo serviría para
+nacer fallada, y la campana ya está escrita.
+
+---
+
+## 4.bis Lo que falta del encargo de cobro — **NADA: LAS CINCO TABLAS EXISTEN**
+
+> ✅ **YA NO FALTA NINGUNA TABLA.** Las etapas 1 a 5 están entregadas: §4.15 y §4.16 (`0051`),
+> §4.17 (`0052`), §4.18 (`0053`) y §4.19 (`0054`). Esta sección se conserva vacía a propósito, como
+> rastro de que existió un plan y de que se cumplió entero. **Lo que queda del encargo no es
+> modelo de datos**: es la auditoría integrada (Etapa 6) y la promoción a producción (Etapa 7).
+
+**`pg_net` ya se usa** desde la `0054`: lo emplea `wake_push_dispatcher()` para tocar el Route
+Handler. Es el **único** sitio del encargo que habla hacia afuera desde la base, y lo que manda no
+es ese toque sino la cola.
 
 
 ---
@@ -1077,6 +1126,8 @@ propias.
 | `notifications` | `(entity_id) WHERE kind = 'payment_reminder.due'` (único, `0052`) | Un aviso por ocurrencia (D-189, Decisión 2) |
 | `push_subscriptions` | `(endpoint)` (único, global, `0053`) | Un dispositivo, una fila. Activar en un móvil compartido reasigna (D-190) |
 | `push_subscriptions` | `(profile_id) WHERE revoked_at is null` (`0053`) | Los dispositivos vivos de una persona |
+| `push_outbox` | `(next_attempt_at) WHERE status = 'queued'` (`0054`) | La única consulta del despachador |
+| `push_outbox` | `(claimed_at) WHERE status = 'sending'` (`0054`) | Recuperar las filas que otro dejó a medias |
 
 Los índices de `tickets` por `(organization_id, raffle_id, daily_number)` y `weekly_number` (`0003`)
 bastan para el matching: no se añadió otro sobre los números.
