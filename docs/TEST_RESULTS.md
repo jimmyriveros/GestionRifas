@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (Etapa 6 del cobro — auditoría, D-192, 2026-09-12)** | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (**+1**: `P-04b`) | **642/644** + **8/8** dirigidas a los tres anchos nuevos; los 2 son **I-090**, el **mismo par** que la Etapa 5 | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
+| **Post-9 vigente (Etapa 7 del cobro — PRODUCCIÓN, D-193, 2026-09-12)** | **1.004 ✅** (sin cambio) | **982 ✅** (sin cambio, con la `0055`) | En vivo: **14/14** tras desplegar | ✅ **24/24** en el proyecto real | 🚀 **DESPLEGADO** (`25cdb5a`) · base de producción **50 → 55 migraciones** |
+| Post-9 anterior (Etapa 6 del cobro — auditoría, D-192, 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (**+1**: `P-04b`) | **642/644** + **8/8** dirigidas a los tres anchos nuevos; los 2 son **I-090**, el **mismo par** que la Etapa 5 | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 5 del cobro, D-191, 2026-09-12) | **1.004 ✅** en 57 archivos (+36) | **981 ✅** en 44 archivos (+39) | **642/644**; los 2 son **I-090**, conocido y ajeno | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 4 del cobro, D-190, 2026-09-12) | **968 ✅** en 55 archivos (+25) | **942 ✅** en 42 archivos (+20) | **635/639**; los 4 son **I-090** (3) e **I-106** (1), conocidos y ajenos | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 3 del cobro, D-189, 2026-09-12) | **943 ✅** en 53 archivos (+10) | **922 ✅** en 41 archivos (+33) | **635/637**; los 2 son **I-090**, conocido y ajeno. Sobre servidor y base recién creados | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
@@ -10773,3 +10774,119 @@ las conocía, que es exactamente su trabajo.
 
 **Quien lo compruebe, con su cuenta:** nada nuevo que mirar. Esta etapa no cambió ninguna pantalla.
 Lo que queda por ver en un teléfono es lo que ya dejó escrito la Etapa 5.
+
+---
+
+## Cuentas de cobro y recordatorios, Etapa 7: promoción a producción (`0055`, D-193) — 2026-09-12
+
+**Alcance:** promover el encargo entero. **Es la primera vez que algo de este encargo sale hacia
+afuera.** Migraciones `0051`–`0054` **más una `0055` que esta etapa tuvo que escribir**, el código de
+la aplicación, y las claves y secretos que quedan en manos del dueño.
+
+### a. El hallazgo, que apareció ANTES de empujar nada
+
+La verificación previa no fue `verify:remote` a secas: fue una **sonda de extensiones** que comparó
+el proyecto real contra local.
+
+| Extensión | Local | Proyecto real (antes) |
+|---|---|---|
+| `pg_cron` 1.6.4 | instalada, en `pg_catalog` | **NO** — la crea la `0052` ✅ |
+| `supabase_vault` 0.3.1 | instalada, en `vault` | instalada ✅ |
+| **`pg_net` 0.20.4** | **instalada, en `extensions`, 12 funciones en `net`** | **NO, y ninguna migración la creaba** |
+
+`wake_push_dispatcher()` llama a `net.http_post(...)`. **La pila local de Supabase instala `pg_net`
+sola**, así que ninguna prueba local podía detectar que faltaba — las 982 de base de datos pasaban.
+
+**Por qué habría sido difícil de ver después:** el cuerpo de una función `plpgsql` no resuelve sus
+referencias al crearse, así que las cuatro migraciones se habrían aplicado **sin un solo error**, y
+el fallo habría salido **una vez por minuto** en producción —`schema "net" does not exist`— en un
+registro que nadie mira. Y **nada se habría visto roto por delante**: la campana no depende de
+`pg_net` (BR-V01), así que los recordatorios seguirían llegando dentro de la aplicación y solo
+fallaría el aviso al teléfono, que es justo lo que las etapas 4 y 5 construyeron.
+
+Es **I-112**, y es la familia de I-020 e I-078 **por tercera vez**. Se cerró con la **`0055`**.
+
+### b. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Respaldo previo (`RUNBOOK` §5) | ✅ `Rifas-backups/2026-09-12-antes-0051-0055/` — 4,4 MB, 19 tablas, **0 identidades de Auth**, 0 rastros de contraseñas |
+| Sonda de extensiones (antes) | ⚠️ **`pg_net` ausente** → se escribió la `0055` |
+| `npm run db:reset` + `seed:local` + `test:db` con la `0055` | ✅ **982/982** |
+| `npm run verify` | ✅ **1.004/1.004**, lint con los 2 avisos preexistentes, build |
+| `db push --dry-run` | ✅ las **cinco**: `0051`, `0052`, `0053`, `0054`, `0055` |
+| `db push --yes` | ✅ las cinco aplicadas |
+| `npm run verify:remote` | ✅ **24/24 en verde** (antes fallaba en 2: las 8 RPC, y `cron.job` ni existía) |
+| Sonda de negocio antes/después | ✅ **ni una cifra movida** — ver §c |
+| `git push origin main` | ✅ fast-forward `2e66721..25cdb5a`, **8 commits**, sin merge ni reescritura |
+| Despliegue Vercel | ✅ `dpl_GxHK9ToxNmJqgBkFED4YryHAo8sv`, **READY en 42 s**, alias `gestion-rifas.vercel.app` **sin `aliasError`** |
+| Verificación en vivo | ✅ **14/14** — ver §d |
+| Errores de ejecución (2 h) | ✅ **ninguno** |
+
+### c. Lo que NO se movió, medido
+
+La misma sonda de solo lectura antes y después. **Todas las cifras de negocio, idénticas:**
+
+| | Antes | Después |
+|---|---|---|
+| Total vendido | **$98.080.000** | **$98.080.000** |
+| Cobrado (pagos vigentes) | **$34.160.000** | **$34.160.000** |
+| Comisiones | **$13.060.000** | **$13.060.000** |
+| Boletas · clientes · pagos | 1.074 · 564 · 374 | 1.074 · 564 · 374 |
+| Filas de bitácora | **5.078** | **5.078** |
+| Personas activas | 7 | 7 |
+
+Lo único que cambió es lo que tenía que cambiar: **19 → 24 tablas** (las cinco nuevas, **todas
+vacías**), **+27 funciones**, **+4 políticas** —una por tabla salvo `push_outbox`, que no tiene
+ninguna a propósito— **+16 índices** y **50 → 55 migraciones**.
+
+### d. En vivo, tras el despliegue
+
+| Qué | Resultado |
+|---|---|
+| Cabeceras de seguridad | **7/7**, CSP por nonce |
+| `/login`, `/offline`, `/sw.js`, `/manifest.webmanifest` | **200** las cuatro |
+| 9 rutas protegidas, incluidas las **tres nuevas** de `/seller/settings` | **307** las nueve, sin sesión |
+| `/api/push/dispatch` sin secreto | **401** — falla cerrado, como se diseñó (BR-V08) |
+| `/api/lottery/sync` sin secreto | **401** |
+| Identificador de versión `93e7abe57955` | **servido**, en 1 de los 15 fragmentos |
+| El anterior, `d1cf0fff446c` | **desaparecido**, 0 de 15 |
+| Secretos en el JavaScript servido | **0**, en 943 KB revisados |
+| El service worker sirve los oyentes de aviso y su texto de reserva | ✅ |
+
+### e. Los tres cron, corriendo en producción
+
+| Job | Horario | Corridas | Fallos |
+|---|---|---|---|
+| `payment-reminders-due` | `* * * * *` | **8 `succeeded`** | **0** |
+| `push-dispatch-wake` | `* * * * *` | **8 `succeeded`** | **0** |
+| `payment-reminders-cron-cleanup` | `17 8 * * *` | (aún no toca) | — |
+
+**Que `push-dispatch-wake` termine `succeeded` es la prueba de que la `0055` era necesaria y
+suficiente**: sin ella, ese job fallaría en cada corrida.
+
+Y las cinco tablas siguen **en cero**: ocurrencias 0, cola 0, recordatorios 0, dispositivos 0,
+cuentas 0. El motor corre cada minuto y no tiene nada que hacer, que es exactamente lo que debe pasar
+mientras nadie haya configurado nada.
+
+### f. Lo que NO se hizo, y es deliberado
+
+* **Los secretos no los pone un agente.** `DEPLOYMENT` §3.1 ya lo decía. La clave privada VAPID y el
+  secreto del despachador **no pasaron por esta sesión**: los genera y los introduce el dueño.
+* **El canal del teléfono está apagado y callado.** Sin `NEXT_PUBLIC_VAPID_PUBLIC_KEY` la tarjeta
+  «Avisos en este dispositivo» **ni se pinta** (D-190). Esa decisión de la Etapa 4 es exactamente la
+  que permite desplegar hoy sin prometer nada que no se pueda cumplir.
+* **Nadie ha visto todavía un aviso llegar a un teléfono.** Sigue siendo cierto, y lo seguirá siendo
+  hasta que se configuren las claves y alguien active los avisos en un dispositivo real.
+* **No se probó con una cuenta real en el navegador.** Un agente no introduce contraseñas; lo que
+  recorre las pantallas es Playwright contra la base local.
+
+### g. Lo que queda, y es del dueño
+
+1. `npm run vapid` para generar **un par nuevo** — el de las pruebas **no se promueve**, porque su
+   clave privada quedó escrita en una sesión de trabajo.
+2. Las **cuatro variables** en Vercel, scope Production (`DEPLOYMENT` §3.1).
+3. Los **dos secretos del Vault** en el SQL Editor (`DEPLOYMENT` §3.1.d), con
+   `push_dispatch_secret` **idéntico** a `PUSH_DISPATCH_SECRET`.
+4. Redesplegar, porque las variables viajan con el despliegue.
+5. Activar los avisos en un teléfono y crear un recordatorio para dentro de dos minutos.

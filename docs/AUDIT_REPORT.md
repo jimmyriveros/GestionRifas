@@ -712,7 +712,7 @@ una fila pasa de apilada a horizontal. Aquí no pasó.
 Once comprobaciones contra el catálogo y contra las cifras reales:
 
 * **31 reglas** del encargo (BR-M, BR-S, BR-V), **ninguna** sigue marcada como pendiente.
-* **54 migraciones** en el repositorio, y `HANDOFF` dice «54 en local y 50 en el proyecto real».
+* **54 migraciones** en el repositorio, y `HANDOFF` dice «54 en local y 50 en el proyecto real». *(Cifras del 2026-09-12, antes de la Etapa 7: hoy son **55 y 55**, D-193.)*
 * Los **tres** `pg_cron` existen y están activos.
 * Las **cinco** tablas existen, y **ninguna** tabla del esquema está sin RLS forzada.
 * **Ninguna** de las catorce funciones internas es ejecutable por `authenticated`.

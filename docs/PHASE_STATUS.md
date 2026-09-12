@@ -3,7 +3,20 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-12 — **ETAPA 6 de 7 del encargo de cobro: auditoría integrada** (D-192).
+- **Actualizado:** 2026-09-12 — 🚀 **ETAPA 7 de 7: EL ENCARGO DE COBRO ESTÁ EN PRODUCCIÓN** (`0055`,
+  D-193). La base real pasa de **50 a 55 migraciones** y `25cdb5a` lo sirve `gestion-rifas.vercel.app`.
+  **El hallazgo de la promoción apareció ANTES de empujar nada**: una sonda de extensiones encontró
+  que el proyecto real **no tenía instalada `pg_net`** —la pila local la instala sola— y que
+  **ninguna migración la creaba**, aunque `wake_push_dispatcher()` la necesita. Sin la `0055` las
+  cuatro migraciones se habrían aplicado **sin un solo error** y el fallo habría salido **una vez por
+  minuto**, en silencio y sin que nada se viera roto por delante (**I-112**, la familia de I-020 e
+  I-078 por tercera vez). **Ni una cifra de negocio se movió**: $98.080.000 vendidos, $34.160.000
+  cobrados y 5.078 filas de bitácora, idénticos antes y después. `verify:remote` **24/24**, en vivo
+  **14/14**, y los tres `pg_cron` con **8 corridas `succeeded` y 0 fallos**. ⚠️ **EL CANAL DEL**
+  **TELÉFONO SIGUE APAGADO**, por diseño: sin `NEXT_PUBLIC_VAPID_PUBLIC_KEY` la tarjeta de avisos ni
+  se pinta (D-190), y **las claves las pone el dueño, no un agente** (`DEPLOYMENT` §3.1). La campana
+  interna sí funciona ya. **Las siete etapas están hechas.**
+  Antes, ese mismo día: **ETAPA 6 de 7 del encargo de cobro: auditoría integrada** (D-192).
   **No añade funcionalidad: audita.** **47 sondas adversarias** contra las cinco tablas nuevas, con
   sesiones reales y clave pública — **46 rebotaron**. La única que pasó es **I-110**: quien conozca el
   `endpoint` de otra persona puede **quitarle el dispositivo** de avisos. Se **acepta con motivo escrito**
@@ -4839,6 +4852,98 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — cuentas de cobro y recordatorios, **ETAPA 7 de 7**: promoción a producción (`0055`, D-193, 2026-09-12)
+
+Autorizada expresamente el mismo día, después de cerrar la Etapa 6. **No es una Fase 10** y no lleva
+etiqueta `fase-*`.
+
+> 🚀 **DESPLEGADO.** La base de producción pasa de **50 a 55 migraciones** y `25cdb5a` está servido por
+> `gestion-rifas.vercel.app`. **El canal del teléfono sigue APAGADO** hasta que el dueño ponga las
+> claves: sin `NEXT_PUBLIC_VAPID_PUBLIC_KEY` la tarjeta de avisos **ni se pinta** (D-190), así que no
+> hay ninguna pantalla ofreciendo algo que no pueda cumplir.
+
+### 1. Funcionalidades implementadas
+
+Ninguna nueva: esta etapa **promueve** lo de las etapas 1 a 6. Lo único que se escribió es la
+migración que faltaba.
+
+| Bloque | Qué hay |
+|---|---|
+| **`0055`** | `create extension if not exists pg_net with schema extensions`. **La escribió esta etapa**, porque una sonda de extensiones encontró que el proyecto real no la tenía y ninguna migración la creaba (**I-112**) |
+| En producción | Las **5 tablas**, las **8 RPC**, los **3 `pg_cron`**, `pg_net` y `pg_cron` instaladas |
+| En Vercel | `25cdb5a`, con las tres pantallas de `/seller/settings` y el despachador protegido |
+
+### 2. Pruebas ejecutadas y sus resultados
+
+| Comando | Resultado |
+|---|---|
+| Respaldo previo | ✅ `Rifas-backups/2026-09-12-antes-0051-0055/` — 4,4 MB, **0 identidades de Auth** |
+| `npm run verify` | ✅ **1.004/1.004** |
+| `npm run test:db` (con la `0055`) | ✅ **982/982** |
+| `db push --dry-run` y `--yes` | ✅ las **cinco** migraciones |
+| `npm run verify:remote` | ✅ **24/24 en verde** |
+| Sonda de negocio antes/después | ✅ **Ni una cifra movida** |
+| Despliegue Vercel | ✅ **READY en 42 s**, alias sin `aliasError` |
+| Verificación en vivo | ✅ **14/14** |
+| Errores de ejecución (2 h) | ✅ **ninguno** |
+| Los tres cron en producción | ✅ **8 corridas `succeeded` cada uno, 0 fallos** |
+
+**El error encontrado, y es el que justifica la etapa entera:**
+
+**I-112 — `pg_net` no estaba instalada en el proyecto real, y ninguna migración la creaba.** La pila
+local de Supabase la instala sola, así que **ninguna de las 982 pruebas de base de datos podía
+detectarlo**. Sin la `0055`, las cuatro migraciones se habrían aplicado **sin un solo error** y el
+fallo habría salido **una vez por minuto** —`schema "net" does not exist`— sin que nada se viera roto
+por delante, porque la campana no depende de `pg_net` (BR-V01). **Lo encontró una sonda de
+extensiones antes de empujar nada**, no `verify:remote` y no una prueba.
+
+### 3. Migraciones que existen
+
+**`0001`–`0055`, y las 55 están aplicadas en local Y en el proyecto real.** Es la primera vez desde
+que empezó este encargo que los dos entornos vuelven a estar a la par. La nueva es
+**`0055_pg_net_extension.sql`**: una extensión, ningún objeto de negocio.
+
+### 4. Variables de entorno requeridas
+
+**Cuatro nuevas, TODAS opcionales, y ninguna está puesta todavía** — las pone el dueño, no un agente
+(`DEPLOYMENT` §3.1):
+
+| Variable | Tipo | Para qué |
+|---|---|---|
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Plain | **El interruptor del canal.** Sin ella la tarjeta de avisos ni se pinta |
+| `VAPID_PRIVATE_KEY` | Sensitive | Obligatoria **si** está la pública |
+| `VAPID_SUBJECT` | Plain | El contacto del RFC 8292; si falta se usa `NEXT_PUBLIC_SITE_URL` |
+| `PUSH_DISPATCH_SECRET` | Sensitive | Protege `/api/push/dispatch`, que **falla cerrado** sin ella |
+
+**Y dos secretos en el Vault de Supabase**: `push_dispatch_url` y `push_dispatch_secret`
+(`DEPLOYMENT` §3.1.d). El segundo **tiene que ser idéntico** a `PUSH_DISPATCH_SECRET`.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **El canal del teléfono está apagado** | Por diseño, hasta que se pongan las claves. La campana interna **sí funciona** ya en producción |
+| **Nadie ha visto un aviso llegar a un teléfono** | Sigue abierto. Es lo último que queda por comprobar, y necesita un dispositivo real |
+| **I-110** — reasignación por `endpoint` | Abierto, aceptado con motivo (D-192). Decisión del dueño |
+| **I-024**, plan Free | **Ahora pesa más que nunca**: un proyecto pausado no corre **ninguno** de los tres `pg_cron`, y ya hay un motor de negocio dependiendo de ellos |
+| **La CLI de Supabase genera tipos distintos** | Sigue vigente: quien regenere `database.types.ts` tiene que restaurar los seis `\| null` |
+| Todo lo demás | Sin cambios: I-109, I-106, I-100, I-098, I-097, I-096, I-095, I-093, I-092, I-091, I-090, I-074, I-021, I-023, I-030, I-059, I-060 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **El encargo está COMPLETO y desplegado.** Las siete etapas están hechas. No hay una etapa 8.
+2. **Toda extensión que use una migración se declara en una migración** (I-112), aunque el entorno
+   local ya la traiga puesta. Es la tercera vez que «lo que Supabase hace solo» muerde.
+3. **Antes de promover cualquier cosa, compara extensiones y privilegios entre local y el proyecto
+   real.** `verify:remote` no lo cubría, y por eso se le añadió la sonda.
+4. **El par VAPID de las pruebas no se promueve.** Si ves uno en un transcript, no es el de
+   producción y no debe serlo.
+5. **Los tres `pg_cron` están CORRIENDO en producción** y tocan la base cada minuto. Si hay que
+   pararlos: `select cron.unschedule('<nombre>')`.
+6. **Lee `AUDIT_REPORT` §12.3 antes de tocar `upsert_push_subscription`** (I-110).
 
 ---
 

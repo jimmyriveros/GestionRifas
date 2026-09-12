@@ -676,9 +676,9 @@ cuando se creó un cliente a secas); y que sin grupo configurado el botón cambi
 En móvil se comprueban los cuatro anchos del encargo —320, 375, 390 y 430— más tableta, y se mide
 que los dos botones no bajen de la diana táctil. Esa prueba encontró un defecto real: medían 36 px.
 
-### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V; D-185, D-188..D-192)
+### 4.8 Cuentas de cobro y recordatorios de pago (BR-M, BR-S, BR-V; D-185, D-188..D-193)
 
-> **Hechas las etapas 1 a 6.** Base: `payment-accounts-reminders.test.ts` (62),
+> **Las SIETE etapas hechas, y EN PRODUCCIÓN** desde el 2026-09-12 (D-193). Base: `payment-accounts-reminders.test.ts` (62),
 > `payment-reminder-engine.test.ts` (32), `push-subscriptions.test.ts` (21),
 > `push-outbox.test.ts` (27) y `push-dispatch.test.ts` (12, **con la base real y el cifrado real**).
 > Navegador: `configuracion-cobro.spec.ts` (23), `configuracion-cobro-movil.spec.ts` (8) y
@@ -695,7 +695,13 @@ que los dos botones no bajen de la diana táctil. Esa prueba encontró un defect
 > no se escribiera después a la medida de lo que saliera. Y donde la Etapa 3 se apartó de su propio
 > criterio, está dicho abajo con su razón: no se reescribió el criterio para que encajara.
 >
-> **Queda la Etapa 7**, la promoción a producción, con su propia autorización.
+> **La Etapa 7 —promoción a producción— está hecha** (D-193), y su hallazgo es una prueba que
+> **ninguna suite local podía dar**: `pg_net` estaba instalada en local por la propia pila de Supabase y
+> **no en el proyecto real**, donde ninguna migración la creaba (**I-112**). Lo encontró una **sonda**
+> **de extensiones** que compara los dos entornos, no `verify:remote` y no una prueba. **La lección para**
+> **esta sección: una suite verde contra la instancia local no dice nada sobre lo que el entorno**
+> **local trae puesto y el real no.** Lo que queda sin comprobar sigue siendo lo mismo: **que un aviso**
+> **llegue a un teléfono de verdad**, que necesita claves configuradas y un dispositivo.
 
 **Cada etapa se cierra con `npm run verify` y `npm run test:db` en verde**, más lo suyo. Una etapa
 que no pueda demostrar su tabla de abajo **no está terminada** (`CLAUDE.md` §32).
