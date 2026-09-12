@@ -12,10 +12,12 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   minuto**, en silencio y sin que nada se viera roto por delante (**I-112**, la familia de I-020 e
   I-078 por tercera vez). **Ni una cifra de negocio se movió**: $98.080.000 vendidos, $34.160.000
   cobrados y 5.078 filas de bitácora, idénticos antes y después. `verify:remote` **24/24**, en vivo
-  **14/14**, y los tres `pg_cron` con **8 corridas `succeeded` y 0 fallos**. ⚠️ **EL CANAL DEL**
-  **TELÉFONO SIGUE APAGADO**, por diseño: sin `NEXT_PUBLIC_VAPID_PUBLIC_KEY` la tarjeta de avisos ni
-  se pinta (D-190), y **las claves las pone el dueño, no un agente** (`DEPLOYMENT` §3.1). La campana
-  interna sí funciona ya. **Las siete etapas están hechas.**
+  **14/14**, y los tres `pg_cron` con **44 corridas `succeeded` y 0 fallos**. ✅ **Y EL CANAL ESTÁ**
+  **ARMADO**: el dueño puso las cuatro variables y los dos secretos del Vault el mismo día, y el
+  camino **Vault → `pg_net` → Vercel → despachador** responde **200** —con un secreto incorrecto,
+  **401**—, lo que demuestra que los dos secretos **son el mismo**: justo el fallo que costó tres
+  días con `CRON_SECRET` en I-083. **Queda UNA sola cosa sin comprobar: que un aviso llegue a un**
+  **teléfono de verdad**, que necesita un dispositivo. **Las siete etapas están hechas.**
   Antes, ese mismo día: **ETAPA 6 de 7 del encargo de cobro: auditoría integrada** (D-192).
   **No añade funcionalidad: audita.** **47 sondas adversarias** contra las cinco tablas nuevas, con
   sesiones reales y clave pública — **46 rebotaron**. La única que pasó es **I-110**: quien conozca el

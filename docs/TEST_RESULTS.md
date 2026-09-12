@@ -10890,3 +10890,37 @@ mientras nadie haya configurado nada.
    `push_dispatch_secret` **idéntico** a `PUSH_DISPATCH_SECRET`.
 4. Redesplegar, porque las variables viajan con el despliegue.
 5. Activar los avisos en un teléfono y crear un recordatorio para dentro de dos minutos.
+
+### h. El canal, ARMADO y comprobado de punta a punta — 2026-09-12, 23:22
+
+El dueño puso las cuatro variables en Vercel, creó los dos secretos del Vault y redesplegó
+(`dpl_3pjg9ucedPFC4xCDGUhZQtDryqkt`, un `redeploy` de `70f8f52`, que es como las variables entran
+en el build). **Comprobado sin que ningún valor de secreto pasara por la sesión:**
+
+| Qué | Cómo se comprobó | Resultado |
+|---|---|---|
+| Las cuatro variables están en el build | `check:env` del build: **«Variables de entorno verificadas correctamente»**, y **ningún aviso**. Habría avisado si faltara la pública, si hubiera pública sin privada, o si faltara el secreto del despachador | ✅ |
+| La clave pública llega al navegador | Buscada en los 15 fragmentos servidos: **87 caracteres base64url que empiezan por `B`**, en 1 de ellos. Es lo que hace que la tarjeta de avisos se pinte (D-190) | ✅ |
+| Los dos secretos del Vault existen | `vault.secrets` por nombre y fecha. `push_dispatch_url` apunta a `https://gestion-rifas.vercel.app/api/push/dispatch`; el secreto mide 43 caracteres, sobre el mínimo de 16 | ✅ |
+| **Vault → `pg_net` → Vercel → despachador** | Se reprodujo el POST de `wake_push_dispatcher()` **construyendo la cabecera dentro de SQL**, así que el secreto nunca salió de PostgreSQL. Respuesta **200** con `{"ok":true,"claimed":0,"sent":0,...}` | ✅ |
+| Y sigue fallando cerrado | El mismo POST con un secreto incorrecto | **401** ✅ (BR-V08) |
+| Los tres `pg_cron` | 44 corridas de cada uno | **todas `succeeded`, 0 fallos** ✅ |
+| Errores de ejecución | Vercel, última hora | **ninguno** ✅ |
+
+**Lo que esto demuestra y no era obvio:** que el `push_dispatch_secret` del Vault y el
+`PUSH_DISPATCH_SECRET` de Vercel **son el mismo**. Es exactamente el fallo que costó tres días con
+`CRON_SECRET` en I-083 —todo parecía bien y no pasaba nada— y ahora está comprobado en vez de
+supuesto.
+
+### i. Lo único que sigue sin comprobarse, y por qué
+
+**Que la clave privada VAPID sea la pareja matemática de la pública.** `npm run vapid` las genera
+juntas, así que solo fallaría si se hubieran pegado de dos ejecuciones distintas. **No se puede
+comprobar desde fuera**: la privada vive en Vercel y solo se usa al firmar un envío real, y con la
+cola vacía el despachador no firma nada. Si no casaran, el servicio de push respondería `401` y el
+aviso quedaría en la cola con su motivo escrito — **no se perdería ningún aviso de la campana**
+(BR-V01).
+
+**Lo prueba el primer aviso real**, que es también lo que prueba el resto del canal: activar los
+avisos en un teléfono y crear un recordatorio para dentro de dos minutos. Sigue siendo cierto que
+**nadie ha visto todavía un aviso llegar a un teléfono**.
