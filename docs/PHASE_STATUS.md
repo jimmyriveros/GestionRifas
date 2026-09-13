@@ -4,17 +4,17 @@ Estado del producto y registro de lo entregado por fase. El relevo del último a
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
 - **Actualizado:** 2026-09-13 — **«Resultados de la semana»** (D-194, D-195, BR-H01..BR-H08),
-  **sin desplegar** (rama `feature/recordatorios-layout`). El vendedor abre una **cuarta tarjeta** en
+  🚀 **DESPLEGADO** el mismo día (`a929e23`, sin migración). El vendedor abre una **cuarta tarjeta** en
   «Configuración» y encuentra los seis números mayores de la **última semana terminada**, una
   **imagen de 1080 × 1350** lista para su grupo de WhatsApp y el mensaje que la acompaña, con
   compartir, descargar, copiar y abrir su grupo. **Solo con los seis resultados confirmados**: si
   falta uno, la pantalla dice cuál y no ofrece nada a medias. La imagen se compone **al pedirla** en
   una ruta protegida, con el nombre de la rifa **de su catálogo**. **Cero migraciones, tablas,
   políticas, buckets, cron o dependencias**; el fondo va en JPEG porque Satori no decodifica WebP.
-  Pruebas: `verify` **1.079/1.079**, `test:db` **992/992** y E2E **670/674**, con los 4 fallos conocidos de I-090 e I-106, verdes en aislamiento. Detalle en
+  Pruebas: `verify` **1.079/1.079**, `test:db` **992/992** y E2E **670/674**, con los 4 fallos conocidos de I-090 e I-106, verdes en aislamiento. **En vivo**: identificador nuevo servido, 23/23 rutas y 7/7 cabeceras. Detalle en
   `HANDOFF` §1.a y `TEST_RESULTS`; los seis puntos de §34.3, en su sección de mantenimiento.
   Antes, el 2026-09-12: **Disposición de «Recordatorios de pago»**, solo presentación y
-  **sin desplegar** (rama `feature/recordatorios-layout`). El encabezado lleva la **única** acción de
+  **desplegada el 2026-09-13** junto con «Resultados de la semana» (`a929e23`). El encabezado lleva la **única** acción de
   crear y, desde `lg`, la pantalla va en dos columnas —lo que se hace a la izquierda, «Avisos en este
   dispositivo» a la derecha—; en el teléfono, el mismo orden apilado. **Cero textos, datos,
   consultas, reglas o migraciones.** Pruebas: `verify` **1.004/1.004**, `test:db` **982/982** y **34/34**
@@ -4877,8 +4877,9 @@ si exige una variable que nadie ha creado (I-021).
 
 ## Mantenimiento post-9 — «Resultados de la semana»: la imagen y el mensaje para el grupo (D-194, D-195, 2026-09-13)
 
-Encargo expreso del usuario. **No es una fase nueva** y no lleva etiqueta `fase-*`. **Sin desplegar**:
-rama `feature/recordatorios-layout`, commit local y sin push.
+Encargo expreso del usuario. **No es una fase nueva** y no lleva etiqueta `fase-*`. 🚀 **DESPLEGADO**
+el mismo día, con autorización expresa: `main` avanzó por fast-forward hasta `a929e23` y Vercel lo
+sirve (`dpl_GqmtKzfL6GAWYKtyYHYJSNbWmTDS`).
 
 ### 1. Funcionalidades implementadas
 
@@ -4903,6 +4904,7 @@ rama `feature/recordatorios-layout`, commit local y sin push.
 | `db:reset` + `seed:local` + `npm run test:e2e` | **670/674** en 35,2 min, con las **24** nuevas. Los 4 fallos son conocidos y ajenos —**I-090** ×3 e **I-106**— y pasan **4/4 en aislamiento** tras `db:reset` + `seed:local` |
 | Build de producción contra la base local | ✅ la ruta empaquetada genera el PNG, y responde 307, 403 y 400 donde toca |
 | Verificación visual contra la referencia | ✅ siete nombres, del más corto a 120 «W» |
+| Producción (`a929e23`) | ✅ READY en 39 s; CI ✅ **2/2** (run 34769729323), incluido el job que aplica las 55 migraciones desde cero; identificador nuevo en 1 de 15 fragmentos y el anterior en 0; 23/23 rutas, 7/7 cabeceras y 0 secretos; 0 errores de ejecución en los 5 minutos siguientes al despliegue (16:50–16:55 UTC) |
 
 **Errores encontrados y corregidos: 13**, en `TEST_RESULTS` (2026-09-13). Los que condicionan el
 diseño: **Satori no decodifica WebP**, **mide sin interletraje y dibuja con él** —de ahí U+00A0 en
@@ -4913,7 +4915,7 @@ la CSP no deja leer un `blob:` con `fetch`.
 ### 3. Migraciones que existen
 
 **Ninguna nueva.** Siguen `0001`–`0055`, las mismas en local y en el proyecto real. Este trabajo no
-toca el esquema, las políticas, los buckets ni el proyecto real.
+toca el esquema, las políticas, los buckets ni la base del proyecto real: el despliegue fue solo de código.
 
 ### 4. Variables de entorno requeridas
 
@@ -4925,7 +4927,7 @@ paquete de la ruta con `outputFileTracingIncludes`.
 | Asunto | Impacto |
 |---|---|
 | **Sin probar en un teléfono de verdad** | La hoja de compartir, WhatsApp recibiendo la imagen con su texto y la descarga en Safari de iOS solo se han simulado |
-| **A6** — la semana no se contrasta con las fechas de la rifa | En la primera semana de una rifa nueva, la imagen enseña la semana anterior con el nombre de la nueva. Decisión del dueño |
+| **La imagen no se ha pedido en producción** | Vive tras el inicio de sesión: la ruta empaquetada solo se probó en un build de producción local contra la base local. En el dominio real está comprobado que existe y que sin sesión redirige || **A6** — la semana no se contrasta con las fechas de la rifa | En la primera semana de una rifa nueva, la imagen enseña la semana anterior con el nombre de la nueva. Decisión del dueño |
 | **Sin limitador de intentos en la ruta** | Riesgo aceptado (D-194, Decisión 8): exige sesión de vendedor activo, no escribe y no llama a nada externo |
 | **El fondo es JPEG, no WebP** | Contradice la letra del encargo; es la única forma de que Satori lo dibuje (D-195) |
 | Todo lo demás | Ningún `I-*` nuevo. La suite E2E completa repite los fallos conocidos de **I-090** —en su entrada se anota el síntoma de `ventas-por-fecha.spec.ts:247`— e **I-106** |
@@ -4938,11 +4940,12 @@ paquete de la ruta con `outputFileTracingIncludes`.
    escape. Una prueba falla si aparece un espacio normal en el árbol de la imagen.
 3. **Si cambias el fondo o las fuentes, revisa `outputFileTracingIncludes`**: sin él, el paquete de
    la ruta puede quedarse sin ellos y fallar solo en producción.
-4. **Al desplegar, pide la imagen en el dominio real con una sesión de vendedor**: es lo único que
-   `next dev` y la suite no pueden demostrar.
+4. **Pide la imagen en el dominio real con una sesión de vendedor**: es lo único que ni `next dev`, ni
+   la suite, ni la verificación en vivo sin sesión pueden demostrar.
 5. **No añadas identificadores a la URL de la imagen**, ni la muevas dentro de `(protected)` creyendo
    que el layout la protege (D-060).
-6. **La rama es `feature/recordatorios-layout`**, sin fusionar a `main`.
+6. **`main` y `feature/recordatorios-layout` apuntan al mismo commit** y están empujadas. Punto de
+   reversión: `dpl_HoVD8rW9qm9YAk63NKU5XRTvtMmp` (`53f1930`).
 
 ---
 

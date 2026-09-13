@@ -398,6 +398,42 @@ servidos; **0 errores de ejecución** en la hora siguiente al despliegue.
 > sobre ese commit y las pruebas locales. La revisión con una cuenta real —y en un teléfono de verdad,
 > cuyo teclado no reproduce Chromium— queda para una persona.
 
+### 3.2.e Release de «Resultados de la semana» y de la disposición de recordatorios — 2026-09-13
+
+**Dos commits juntos y sin migración.**
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`a929e23b6846215ab01dc8797a07ed11443acef7`** |
+| Commit anterior en producción | `53f193059aa17d41a311c4a854f1848a356590fc` |
+| Integración | **fast-forward** — la rama estaba 2 commits por delante de `main` y nada de producción faltaba en local; sin merge, sin reescritura, sin force |
+| Commits | `a3b7953` (disposición de «Recordatorios de pago», I-113) y `a929e23` («Resultados de la semana», D-194 y D-195) |
+| Despliegue Vercel | `dpl_GqmtKzfL6GAWYKtyYHYJSNbWmTDS` — READY en **39 s**, `aliasError: null` |
+| Despliegue anterior (**punto de reversión**) | `dpl_HoVD8rW9qm9YAk63NKU5XRTvtMmp` (`53f1930`) |
+| **Migraciones** | **NINGUNA.** `supabase/` sin diferencias. Siguen siendo 55, hasta `0055` |
+| Variables de entorno nuevas | **ninguna** — `check:env` del build sin un solo aviso |
+| Dependencias y configuración | `package.json`, `package-lock.json`, `vercel.json` y `.github/` sin tocar. **`next.config.ts` cambia**: `outputFileTracingIncludes` mete el fondo y las tres fuentes en el paquete de `/api/weekly-results/image` |
+
+**Qué entró:** la sección «Resultados de la semana» con su ruta de imagen (`ImageResponse`,
+1080 × 1350), el fondo en JPEG, tres pesos de Geist con su licencia, **109** pruebas nuevas —75
+unitarias, 10 de base de datos y 24 E2E— y la disposición de «Recordatorios de pago».
+
+**Validación previa:** `verify` en verde (**1.079/1.079** unitarias), `test:db` **992/992** y suite E2E
+completa **670/674** —los 4 son **I-090** e **I-106**, preexistentes y verdes en aislamiento—. CI:
+✅ **2/2** (run 34769729323), incluido el job que aplica las 55 migraciones desde cero.
+
+**Verificación en vivo:** identificador **`a2a604d89b3e`** servido (1 de 15 fragmentos) y el anterior
+(`f01b6a137cdc`) **desaparecido**; `/login`, `/offline`, `/sw.js` y `/manifest.webmanifest` en 200; `/` y
+**14 rutas protegidas en 307**, incluida la sección nueva; `/api/weekly-results/image` en 307 **sin
+entregar ningún PNG**; el cron sin secreto en 401; un catálogo inexistente en 404; **ningún 5xx**;
+**7/7** cabeceras; **0 secretos** en 944 KB; 0 errores de ejecución en los 5 minutos siguientes al despliegue (16:50–16:55 UTC).
+
+> **Lo que este release NO verificó:** que la ruta **genere el PNG en Vercel**. Vive tras el inicio de
+> sesión y un agente no introduce contraseñas. La evidencia es el build de producción local contra la
+> base local —con un trazado que incluye el fondo, las fuentes y el WebAssembly—, el CI y el
+> identificador servido. **La primera persona que abra la sección en producción es la prueba real**:
+> si faltara un archivo en el paquete, la vista previa diría «No pudimos preparar la imagen» y el
+> resto de la pantalla seguiría funcionando.
 ### 3.3 Despliegues futuros
 
 Cada `git push` a `main` que se decida subir dispara un build y despliegue a producción automático

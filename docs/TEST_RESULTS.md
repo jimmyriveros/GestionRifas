@@ -23,8 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente («Resultados de la semana», D-194 y D-195, 2026-09-13)** | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/recordatorios-layout` · cero migraciones y cero dependencias |
-| Post-9 anterior (disposición de «Recordatorios de pago», 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (sin cambio: no se tocó la base) | **34/34** de la pantalla (`configuracion-cobro.spec.ts` 25 · `configuracion-cobro-movil.spec.ts` 9), **+3** de disposición | ✅ | ✅ **Sin desplegar** — rama `feature/recordatorios-layout` · solo presentación, cero migraciones |
+| **Post-9 vigente («Resultados de la semana», D-194 y D-195, 2026-09-13)** | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`a929e23`, 2026-09-13) · cero migraciones y cero dependencias |
+| Post-9 anterior (disposición de «Recordatorios de pago», 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (sin cambio: no se tocó la base) | **34/34** de la pantalla (`configuracion-cobro.spec.ts` 25 · `configuracion-cobro-movil.spec.ts` 9), **+3** de disposición | ✅ | 🚀 **DESPLEGADO** el 2026-09-13, junto con «Resultados de la semana» (`a929e23`) · solo presentación, cero migraciones |
 | Post-9 anterior (Etapa 7 del cobro — PRODUCCIÓN, D-193, 2026-09-12) | **1.004 ✅** (sin cambio) | **982 ✅** (sin cambio, con la `0055`) | En vivo: **14/14** tras desplegar | ✅ **24/24** en el proyecto real | 🚀 **DESPLEGADO** (`25cdb5a`) · base de producción **50 → 55 migraciones** |
 | Post-9 anterior (Etapa 6 del cobro — auditoría, D-192, 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (**+1**: `P-04b`) | **642/644** + **8/8** dirigidas a los tres anchos nuevos; los 2 son **I-090**, el **mismo par** que la Etapa 5 | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 5 del cobro, D-191, 2026-09-12) | **1.004 ✅** en 57 archivos (+36) | **981 ✅** en 44 archivos (+39) | **642/644**; los 2 son **I-090**, conocido y ajeno | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
@@ -11008,7 +11008,7 @@ borde derecho a plomo con el de «Crear recordatorio»; en el teléfono, al fina
 **Alcance:** encargo expreso del usuario. Una sección nueva del vendedor,
 `/seller/settings/weekly-results`, su tarjeta en «Configuración» y la ruta protegida
 `/api/weekly-results/image`. **Cero migraciones, tablas, políticas, buckets, cron o dependencias.**
-Rama `feature/recordatorios-layout`, sin desplegar. Qué demuestra cada suite nueva: `TESTING` §4.9.
+Rama `feature/recordatorios-layout`, **desplegada el mismo día** (§h). Qué demuestra cada suite nueva: `TESTING` §4.9.
 Cómo funciona la imagen y qué trampas tiene: `ARCHITECTURE` §8.25.
 
 ### a. Comandos y resultados
@@ -11135,4 +11135,46 @@ generación no sale a internet lo demuestra la unitaria, que genera un PNG real 
   `navigator.canShare`.
 * **El estado de error de la lectura en un navegador**: no se puede provocar desde una E2E; lo cubre la
   unitaria de vista.
-* **Nada en producción.** Ni despliegue ni push.
+* **La imagen en producción.** Vive tras el inicio de sesión y un agente no introduce contraseñas: en
+  el dominio real está comprobado que la ruta existe y que sin sesión redirige, no que genere el PNG.
+
+### h. Promoción a producción — 2026-09-13
+
+Autorizada expresamente después de cerrar el trabajo: «haz push de la rama y despliega a producción».
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`a929e23b6846215ab01dc8797a07ed11443acef7`** |
+| Commit anterior en producción | `53f193059aa17d41a311c4a854f1848a356590fc` |
+| Integración | **fast-forward** `53f1930..a929e23`: la rama estaba 2 commits por delante de `main` y nada de producción faltaba en local; sin merge, sin reescritura y sin force. La rama también quedó en `origin` |
+| Commits | `a3b7953` (disposición de «Recordatorios de pago», I-113) y `a929e23` («Resultados de la semana», D-194 y D-195) |
+| Despliegue Vercel | `dpl_GqmtKzfL6GAWYKtyYHYJSNbWmTDS` — READY en **39 s**, `aliasError: null`, alias `gestion-rifas.vercel.app` |
+| Despliegue anterior (**punto de reversión**) | `dpl_HoVD8rW9qm9YAk63NKU5XRTvtMmp` (`53f1930`) |
+| Migraciones | **Ninguna**: `supabase/` sin diferencias. La base de producción no se tocó |
+| Variables de entorno | **Ninguna nueva**; el build dice «Variables de entorno verificadas correctamente», sin avisos |
+| Dependencias y configuración | `package.json`, `package-lock.json`, `vercel.json` y `.github/` sin cambios. **`next.config.ts` sí cambia**: `outputFileTracingIncludes` para la ruta de la imagen |
+| CI | ✅ **2/2** (run 34769729323), incluido el job que aplica las 55 migraciones desde cero |
+
+**Verificación en vivo**, sin sesión y solo con lecturas `GET`, con un guion fuera del repositorio:
+
+| Comprobación | Resultado |
+|---|---|
+| Identificador de versión | **`a2a604d89b3e`** en 1 de 15 fragmentos; el anterior, `f01b6a137cdc`, en **0** |
+| `/login`, `/offline`, `/sw.js`, `/manifest.webmanifest` | 200 |
+| `/` y 14 rutas protegidas, incluida `/seller/settings/weekly-results` | 307 a `/login` |
+| `/api/weekly-results/image`, con y sin `week` | 307 a `/login`, **sin PNG** |
+| `/api/lottery/sync` sin secreto | 401 |
+| Un catálogo inexistente | 404 |
+| 5xx | **Ninguno** |
+| Cabeceras de seguridad | **7/7**, con CSP por nonce |
+| Secretos en lo servido | **0** en 944 KB |
+| Errores de ejecución | **0** en los 5 minutos siguientes al despliegue (16:50–16:55 UTC) |
+
+`/images/weekly-results/weekly-results-background.jpg` responde 200, como cualquier archivo de
+`public/`: es solo el arte, sin datos.
+
+> **Lo que este release NO verificó:** la imagen **en vivo**. La ruta vive tras el inicio de sesión y
+> **un agente no introduce contraseñas**, así que la evidencia de que genera el PNG es el build de
+> producción local contra la base local (§b), el identificador servido y la ruta desplegada que
+> redirige sin sesión. Pedirla con una cuenta de vendedor, y compartirla desde un teléfono de verdad,
+> queda para una persona.
