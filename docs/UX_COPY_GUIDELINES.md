@@ -917,6 +917,14 @@ ser algo pasajero. Vuelve a intentarlo en unos segundos.»**, con el botón **«
 conexión (D-116). Lo que **no** se escribe: «Este enlace ya no está disponible», que mandaría a pedir
 un enlace nuevo por algo que se arregla solo, ni «Algo salió mal», que no dice qué pasó ni qué hacer.
 Y ningún código ni mensaje técnico: quien lo lee llegó por WhatsApp.
+
+**La página de error general usa el mismo botón, y conserva sus textos** (D-196). Recoge el fallo de
+cualquier pantalla sin página de error propia, así que no puede decir qué pasó: por eso ahí **sí** se
+queda «Algo salió mal», con «Ocurrió un error inesperado. Intenta de nuevo.» debajo, que dice qué
+hacer. Lo que cambió es que su «Reintentar» ya vuelve a pedir la pantalla, y dice **«Reintentando…»**
+mientras tanto. **Las dos palabras viven en `RetryButton`**: una página de error nueva lo usa y no
+escribe las suyas.
+
 **El encabezado ya no ofrece WhatsApp** (D-164). Se retiró «Escríbenos por WhatsApp»: era el único
 camino a WhatsApp que **no nombraba ninguna boleta**, y un mensaje así devuelve al vendedor la
 pregunta que el catálogo venía a quitarle. Queda «Solicitar», que nombra los dos números.
@@ -1420,12 +1428,14 @@ castigo donde solo había una espera.
 | Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/copy.ts`, **todos juntos** — los leen la tarjeta del panel y la opción del menú de usuario (D-123) |
 | Aviso de versión nueva | `src/features/pwa/components/ServiceWorkerManager.tsx` (D-116) |
 | Pantalla sin conexión | `src/app/offline/page.tsx` y `components/OfflineRetry.tsx` (D-116) |
+| «Algo salió mal» y «Ocurrió un error inesperado. Intenta de nuevo.», la página de error general | `src/app/error.tsx` (D-196) |
+| «Reintentar» y «Reintentando…» de las **dos** páginas de error, la general y la del catálogo | `src/components/feedback/RetryButton.tsx` (D-196). La pantalla sin conexión tiene los suyos en `OfflineRetry`, que recarga y funciona sin JavaScript (D-116) |
 | Textos del catálogo público: título, introducción, aviso de que no se aparta | `src/app/(catalogo)/catalogo/[slug]/page.tsx` (D-159) |
 | Los dos estados de una boleta pública y el rótulo «Semanal» | `src/features/catalog/components/CatalogTicketCard.tsx` (D-160) |
 | El mensaje que llega escrito a WhatsApp, y el saludo | `src/features/catalog/whatsapp.ts`, **todo junto** (D-160) |
 | Pista y estado vacío del buscador del catálogo | `src/features/search/hints.ts` (`catalogSearchHint`, `CATALOG_SEARCH_EMPTY_DESCRIPTION`, D-160) |
 | «Este enlace ya no está disponible» | `src/app/(catalogo)/catalogo/[slug]/not-found.tsx` (BR-K10) |
-| «No pudimos cargar los números disponibles», su explicación y «Reintentar» | `src/app/(catalogo)/catalogo/[slug]/error.tsx` (BR-K15, D-196) |
+| «No pudimos cargar los números disponibles» y su explicación | `src/app/(catalogo)/catalogo/[slug]/error.tsx` (BR-K15, D-196). Su botón es `RetryButton` |
 | Textos de configurar el catálogo, y «Publicado» / «Sin publicar» | `src/features/catalog/components/CatalogSettingsCard.tsx` y `CatalogSettingsDialog.tsx` (D-160) |
 | Rótulos del enlace que se copia en la ficha del vendedor | `src/features/catalog/components/CatalogLinkField.tsx` (BR-K12) |
 | Textos de «Comparte tu catálogo»: título, estado, «N boletas disponibles», aviso sin enlace y los tres botones | `src/features/catalog/components/SellerCatalogCard.tsx` (D-161, D-180) |

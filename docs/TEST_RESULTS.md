@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (corte pasajero del catálogo público, I-114, D-196, 2026-09-13)** | **1.097 ✅ en 62 archivos (+15)** | — (no se tocó la base) | **58/58** | ✅ | 🚀 **DESPLEGADO** (`8767f9e`, 2026-09-13) |
+| **Post-9 vigente («Reintentar» de la página de error general, D-196, 2026-09-13)** | **1.100 ✅ en 64 archivos (+3)** | — (no se tocó la base) | **80/80** (`security.spec.ts` 22 · catálogo público 58) | ✅ | ✅ **Sin desplegar** · en un navegador contra la base local, **8/8** · abre **I-115** |
+| Post-9 anterior (corte pasajero del catálogo público, I-114, D-196, 2026-09-13) | **1.097 ✅** en 62 archivos (+15) | — (no se tocó la base) | **58/58** | ✅ | 🚀 **DESPLEGADO** (`8767f9e`, 2026-09-13) |
 | Post-9 anterior (ajuste visual de la imagen semanal, 2026-09-13) | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | 🚀 **DESPLEGADO** (`1a6b4af`, 2026-09-13) |
 | Post-9 anterior («Resultados de la semana», D-194 y D-195, 2026-09-13) | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`a929e23`, 2026-09-13) · cero migraciones y cero dependencias |
 | Post-9 anterior (disposición de «Recordatorios de pago», 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (sin cambio: no se tocó la base) | **34/34** de la pantalla (`configuracion-cobro.spec.ts` 25 · `configuracion-cobro-movil.spec.ts` 9), **+3** de disposición | ✅ | 🚀 **DESPLEGADO** el 2026-09-13, junto con «Resultados de la semana» (`a929e23`) · solo presentación, cero migraciones |
@@ -11342,3 +11343,56 @@ Autorizada expresamente: «haz push y despliega a producción».
 
 > **Lo que este release NO verificó:** el reintento en marcha en producción, que solo se ve durante un
 > corte real de Supabase.
+
+---
+
+## «Reintentar» de la página de error general vuelve a pedir la pantalla (D-196, Decisión 3) — 2026-09-13
+
+**Pedido:** «arregla también la página de error general». **Sin desplegar.**
+
+### a. Qué cambió
+
+| Pieza | Antes | Ahora |
+|---|---|---|
+| `src/app/error.tsx` | «Reintentar» llamaba a `reset()`, que repinta sin volver a pedir la pantalla: tras un fallo del servidor no recuperaba nada | Llama a `retry()` a través de `RetryButton`. Los textos no cambian |
+| `src/components/feedback/RetryButton.tsx` | — | **Nuevo.** `retry()` dentro de una transición: «Reintentando…» y ningún segundo toque mientras tanto |
+| `src/app/(catalogo)/catalogo/[slug]/error.tsx` | Tenía ese mismo botón escrito dentro | Usa `RetryButton`, con el mismo aspecto y los mismos textos |
+
+### b. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Prettier, `eslint` y `tsc` sobre lo tocado | ✅ |
+| `app-error-page.test.tsx` (**2**, nuevo), `retry-button.test.tsx` (**1**, nuevo) y `catalog-error-page.test.tsx` (4) | ✅ **7/7** |
+| `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **1.100/1.100** unitarias en 64 archivos (**+3**) y `build` |
+| `db:reset` + `seed:local` y las E2E `security.spec.ts` (22, con las de «Los errores no revelan estructura interna», que pasan por la página de error general), `catalogo-publico.spec.ts` (43) y `catalogo-publico-movil.spec.ts` (15) | ✅ **80/80** en 1,9 min, sin fallos ni avisos en el registro |
+
+### c. La página de error general, en un navegador
+
+`next dev` contra la base local, la sesión del dueño del seed y un guion de Playwright fuera del
+repositorio. Para que fallara **la lectura de la pantalla y no la de la sesión** se renombró la vista
+que lee «Clientes» (`v_client_balances`) y se avisó a PostgREST; al final quedó como estaba.
+
+| Paso | Resultado |
+|---|---|
+| «Clientes», normal | ✅ |
+| Renombrar la vista y abrir «Clientes» | ✅ **La página de error general**, con «Algo salió mal» y «Reintentar». El servidor registra `42P01` |
+| «Reintentar» con el fallo todavía presente | ✅ **1 petición RSC**: volvió a pedir la pantalla —esta vez `PGRST205`—, la página de error se queda y el botón vuelve a estar disponible |
+| Devolver la vista y pulsar «Reintentar» | ✅ **«Clientes» vuelve entera sin recargar**: 1 petición RSC, y la marca puesta en `window` antes del toque sigue ahí |
+
+**8/8 comprobaciones.** La vista, devuelta; PostgREST respondía **200** al terminar.
+
+### d. Encontrado al comprobarlo: I-115
+
+Se repitió también el corte de I-114 —detener PostgREST— en una pantalla **con sesión**, y **no sale
+ninguna página de error**: `/owner/clients` respondió **307** a `/login?error=inactive` tras **18,7 s**,
+y la pantalla dijo «Tu cuenta está inactiva. Contacta a tu administrador.». La guarda de la sesión
+trata un fallo al leer la membresía como una cuenta inactiva y cierra la sesión. **Registrado como
+I-115, sin corregir**: toca la guarda de todas las pantallas con sesión y queda propuesto como tarea
+aparte.
+
+### e. Lo que NO se comprobó
+
+* **Producción**: el cambio no está desplegado.
+* **La página de error general durante un corte real con sesión**: por I-115, hoy ese caso acaba en el
+  login.

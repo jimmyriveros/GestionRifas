@@ -10295,7 +10295,16 @@ son respuestas de la base, y darían lo mismo.
 `src/app/(catalogo)/catalogo/[slug]/error.tsx`: dentro del tema del catálogo, sin detalles internos,
 **distinta de «no encontrado»** —un corte no puede mandar a pedir un enlace nuevo (BR-K10)— y con un
 «Reintentar» que llama a **`retry()`**, que en esta versión de Next vuelve a pedir el segmento al
-servidor. El de la raíz llama a `reset()`, que repinta sin volver a pedir los datos.
+servidor. El de la raíz llamaba a `reset()`, que repinta sin volver a pedir los datos (Decisión 3).
+
+### Decisión 3 — la página de error general también vuelve a pedir la pantalla
+
+Añadida el mismo día, a pedido del usuario. `src/app/error.tsx` recoge el fallo de cualquier pantalla
+sin página de error propia —hoy, todas menos el catálogo—, y tras un fallo del servidor su
+«Reintentar» no recuperaba nada: `reset()` repinta sin volver a pedir la pantalla. Ahora las dos
+páginas usan **`RetryButton`** (`src/components/feedback/`): llama a `retry()` dentro de una
+transición, dice «Reintentando…» mientras tanto y no admite un segundo toque. Los textos de la página
+general no cambian.
 
 ### Alternativas descartadas
 
@@ -10306,13 +10315,18 @@ servidor. El de la raíz llama a `reset()`, que repinta sin volver a pedir los d
 | Varios reintentos con espera creciente | Un corte de verdad dejaría al visitante segundos ante una pantalla en blanco; para eso está la página de error |
 | Servir una copia en caché cuando falla | Enseñaría libres boletas que ya se vendieron (BR-K08) |
 | Tratar el fallo como «no encontrado» | Diría que el enlace dejó de existir por algo que se arregla solo (BR-K10) |
+| Que «Reintentar» recargue la página entera, como `OfflineRetry` | `retry()` vuelve a pedir la pantalla sin descargar otra vez la aplicación, y es lo que recomienda la documentación de Next. `OfflineRetry` recarga porque ahí puede no haber JavaScript; una página de error es un componente cliente, así que siempre lo hay |
+| Reintentar por debajo las lecturas de toda la aplicación, como las del catálogo | Es lo que la Decisión 1 descarta para `createAdminClient`: el mismo cliente que lee también escribe. Quien ve la página general tiene sesión y el botón a mano |
 
 ### Consecuencia
 
 BR-K15 e I-114. `src/features/catalog/read-retry.ts`, `queries.ts` y
 `src/app/(catalogo)/catalogo/[slug]/error.tsx`, con `tests/unit/catalog-read-retry.test.ts` y
-`catalog-error-page.test.tsx`. **Lo que no cambia:** el `error.tsx` de la raíz, que sigue con `reset()`
-en el resto de la aplicación; queda propuesto como tarea aparte.
+`catalog-error-page.test.tsx`. **Decisión 3:** `src/components/feedback/RetryButton.tsx` en las dos
+páginas de error, con `app-error-page.test.tsx` y `retry-button.test.tsx`. **Lo que no cambia:** los
+textos de la página general, y el reintento de las lecturas, que sigue siendo solo del catálogo.
+**Lo que la Decisión 3 no alcanza:** durante un corte de PostgREST, las pantallas con sesión no llegan
+a la página de error, porque la guarda de la sesión la cierra antes (I-115).
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

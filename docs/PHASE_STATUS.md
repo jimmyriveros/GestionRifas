@@ -3,7 +3,14 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-13 — **Corte pasajero de Supabase en el catálogo público** (I-114, D-196,
+- **Actualizado:** 2026-09-13 — **«Reintentar» de la página de error general vuelve a pedir la pantalla**
+  (D-196, Decisión 3), ✅ **sin desplegar**: el botón de `src/app/error.tsx` llamaba a `reset()`, que tras
+  un fallo del servidor repintaba el mismo error, y ahora llama a `retry()` con el mismo botón que la
+  página de error del catálogo (`RetryButton`). `verify` **1.100/1.100** y E2E **80/80** (seguridad y
+  catálogo público); en un navegador contra la base local, **8/8**: «Clientes» vuelve entera sin
+  recargar. Al comprobarlo se abrió **I-115**: un corte de PostgREST cierra la sesión de quien navega y
+  le dice que su cuenta está inactiva.
+  Antes, ese mismo día: **Corte pasajero de Supabase en el catálogo público** (I-114, D-196,
   BR-K15), 🚀 **DESPLEGADO** el mismo día (`8767f9e`): el 500 que dio la página en producción ya no llega al
   visitante. Cada lectura se repite una vez ante un corte del gateway o de la red y, si sigue, sale una
   página de error del catálogo con un «Reintentar» que vuelve a pedir los datos. `verify`

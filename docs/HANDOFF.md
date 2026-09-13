@@ -142,7 +142,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — corte pasajero de Supabase en el catálogo público, DESPLEGADO (I-114, D-196, 2026-09-13)
+## 1.a Último relevo significativo — «Reintentar» de la página de error general, SIN DESPLEGAR (D-196, I-115, 2026-09-13)
+
+| Campo | Estado |
+|---|---|
+| Resultado | «Reintentar» de **`src/app/error.tsx`** vuelve a pedir la pantalla: llamaba a `reset()`, que tras un fallo del servidor repintaba el mismo error, y ahora llama a `retry()`. El botón es **`RetryButton`**, compartido con la página de error del catálogo: «Reintentando…» mientras tanto y ningún segundo toque. **Fuera, a propósito:** los textos de la página general, que no cambian, e **I-115**, encontrada al comprobarlo |
+| Archivos | **Nuevos:** `src/components/feedback/RetryButton.tsx`, `tests/unit/app-error-page.test.tsx` y `tests/unit/retry-button.test.tsx`. **Cambiados:** `src/app/error.tsx` y `src/app/(catalogo)/catalogo/[slug]/error.tsx`. **Documentación:** `DECISIONS` (D-196, Decisión 3), `KNOWN_ISSUES` (I-114 e **I-115**), `UX_COPY_GUIDELINES`, `TEST_RESULTS`, `PHASE_STATUS` y este archivo (§1.a, §6.b y §9) |
+| Reutilización | El botón que ya tenía la página de error del catálogo, **extraído** a `components/feedback/` sin cambiar su aspecto, y el montaje de `catalog-error-page.test.tsx` para las pruebas. **No** se reutilizó `OfflineRetry`: recarga la página entera y está hecho para funcionar sin JavaScript |
+| Decisiones | **D-196, Decisión 3.** `retry()` y no recargar la página; y **no** extender al resto de la aplicación el reintento de lecturas del catálogo |
+| Verificación | Unitarias **7/7** · `verify` **1.100/1.100** · E2E **80/80** (`security.spec.ts` 22 y catálogo público 58). **En un navegador contra la base local, 8/8**: con la vista de «Clientes» renombrada sale la página de error general; «Reintentar» con el fallo presente vuelve a pedirla y se queda; devuelta la vista, «Clientes» vuelve entera **sin recargar** |
+| Advertencias | **Un `error.tsx` nuevo usa `RetryButton`**, no `reset()`. **Para ver la página de error general en local no detengas PostgREST**: con sesión acabas en el login con «Tu cuenta está inactiva» (**I-115**). Rompe solo la lectura de la pantalla (§9) y **devuélvela** |
+| Pendiente | **Sin desplegar.** **I-115**, propuesta como tarea aparte: que un fallo al leer la membresía muestre la página de error en vez de cerrar la sesión |
+| Git | Rama **`feature/recordatorios-layout`**, sobre `faaffa2`. Los dos archivos sin seguimiento del usuario, intactos y fuera del commit |
+
+---
+
+## 1.a.0 Relevo anterior — corte pasajero de Supabase en el catálogo público, DESPLEGADO (I-114, D-196, 2026-09-13)
 
 | Campo | Estado |
 |---|---|
@@ -152,7 +167,7 @@ reales).
 | Decisiones | **D-196.** Reintentar **en la lectura del catálogo**, no en `createAdminClient`, que también escribe; **una vez y a los 400 ms**, no con esperas crecientes; **no** usar el reintento de `postgrest-js` con `{ get: true }`, que no cubre el 504; y una página de error **distinta de «no encontrado»** (BR-K10) |
 | Verificación | Unitarias del catálogo **67/67** · `verify` **1.097/1.097** · E2E del catálogo público **58/58**. **Corte reproducido en local** deteniendo PostgREST: página de error correcta y, al volver, «Reintentar» recupera el catálogo sin recargar. En producción, la petición de las 17:50:11 UTC y el grupo de errores desde el 2026-09-10 |
 | Advertencias | **`postgrest-js` solo reintenta GET, HEAD y OPTIONS ante 503 y 520**: una `rpc()` va por POST y no se reintenta nunca. **No muevas el reintento a `createAdminClient`**. **En el `error.tsx` de un segmento usa `retry()`**, no `reset()`. Para ver la página de error en local basta `docker stop supabase_rest_Rifas`; **vuelve a arrancarlo** antes de las pruebas |
-| Pendiente | **Desplegado** (`8767f9e`, `dpl_KTj4781pHbTdj7px1KtcPwV3Uijo`); punto de reversión `dpl_4EUTp1ebRzLQCEdUdJ7LHz6TAdGx` (`389ba89`). El mismo `retry()` para el `error.tsx` de la raíz queda propuesto como tarea aparte |
+| Pendiente | **Desplegado** (`8767f9e`, `dpl_KTj4781pHbTdj7px1KtcPwV3Uijo`); punto de reversión `dpl_4EUTp1ebRzLQCEdUdJ7LHz6TAdGx` (`389ba89`). El mismo `retry()` para el `error.tsx` de la raíz quedó propuesto como tarea aparte, y **se hizo ese mismo día**: ver §1.a |
 | Git | Rama **`feature/recordatorios-layout`**, sobre `389ba89`, **empujada** y **desplegada** por fast-forward `389ba89..8767f9e`. Los dos archivos sin seguimiento del usuario, intactos y fuera del commit |
 
 ---
@@ -1712,7 +1727,7 @@ components/form/    MoneyInput · TicketNumberInput · PhoneInput
                     Y NO agrupes desde el cuarto digito: PHONE_REGEX cuenta
                     caracteres, no digitos (I-108), y un separador de mas
                     aceptaria telefonos de seis cifras
-components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSkeleton
+components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSkeleton · RetryButton
                     ConfirmDialog: sus dos botones YA traen el suelo tactil de 44 px
                     en el telefono (36 desde sm). Lo pone el primitivo
                     AlertDialogAction/Cancel, no la pantalla: NO les pases size
@@ -1720,6 +1735,10 @@ components/feedback/ ConfirmDialog · PageSkeleton · TableSkeleton · ReportSke
                     div y los botones los pasa cada pantalla, asi que a ESOS si
                     hay que ponerles size="touch" a mano (D-178). La «X» de la
                     esquina ya la traen dialog.tsx y sheet.tsx, y dice «Cerrar»
+                    RetryButton: el «Reintentar» de un error.tsx (D-196). Llama a
+                    retry(), NO a reset(), que repinta sin volver a pedir nada, y
+                    dice «Reintentando…» mientras tanto. Si creas un error.tsx,
+                    usalo. OfflineRetry es otra cosa: recarga y funciona sin JS
 features/tickets/import/  importador de archivos CSV/JSON: UN componente para los tres
                     roles, parametrizado por contexto (D-081/D-087). Antes de escribir otro
                     lector o resolver clientes, míralo: columnas/csv/json/clients/rows/review
@@ -2161,3 +2180,5 @@ del código: repite con `.next/dev` ya poblado antes de culpar a un cambio.
 | Una E2E que relee una imagen `blob:` con `fetch` falla con `Failed to fetch` | La CSP no admite `blob:` en `connect-src`, y no debe. Compara contra el cuerpo de la respuesta, con `page.waitForResponse` | `TESTING` §4.9 |
 | `tsc --noEmit` falla con `Expression expected` o `Unterminated template literal` en `.next/dev/types/routes.d.ts` o `validator.ts` | Son tipos que genera `next dev`, y pueden quedar escritos a medias durante una pasada E2E. `tsconfig.json` los incluye, pero **no son código del proyecto**: borra `.next/dev/types` y `next dev` los vuelve a generar | `TEST_RESULTS` 2026-09-13 |
 | Una página que lee con `rpc()` responde 500 por un `504 Gateway Timeout` o un `502` pasajero de Supabase | `postgrest-js` solo reintenta **GET, HEAD y OPTIONS** ante **503 y 520**, y `rpc()` va por POST. Si la lectura es de solo lectura, envuélvela en `retryTransientReadOnce` (`features/catalog/read-retry.ts`); nunca reintentes una escritura | D-196 · I-114 |
+| Creas un `error.tsx` y su «Reintentar» no recupera nada tras un fallo del servidor | En Next 16, `reset()` limpia el error y repinta **sin volver a pedir la pantalla**. Usa `RetryButton` (`components/feedback/`), que llama a `retry()` | D-196 |
+| Quieres ver la página de error general **en local** y `docker stop supabase_rest_Rifas` te manda al login con «Tu cuenta está inactiva» | Es **I-115**: la guarda cierra la sesión si no puede leer la membresía. Rompe solo la lectura de la pantalla: `ALTER VIEW public.v_client_balances RENAME TO v_client_balances_verif; NOTIFY pgrst, 'reload schema';` y abre `/owner/clients`. **Devuélvela** con el `RENAME` inverso y otro `NOTIFY` | D-196 · I-115 |
