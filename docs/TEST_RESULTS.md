@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (ajuste visual de la imagen semanal, 2026-09-13)** | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | 🚀 **DESPLEGADO** (`1a6b4af`, 2026-09-13) |
+| **Post-9 vigente (corte pasajero del catálogo público, I-114, D-196, 2026-09-13)** | **1.097 ✅ en 62 archivos (+15)** | — (no se tocó la base) | @@E2E_SHORT@@ | ✅ | ✅ **Sin desplegar** — commit local |
+| Post-9 anterior (ajuste visual de la imagen semanal, 2026-09-13) | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | 🚀 **DESPLEGADO** (`1a6b4af`, 2026-09-13) |
 | Post-9 anterior («Resultados de la semana», D-194 y D-195, 2026-09-13) | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`a929e23`, 2026-09-13) · cero migraciones y cero dependencias |
 | Post-9 anterior (disposición de «Recordatorios de pago», 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (sin cambio: no se tocó la base) | **34/34** de la pantalla (`configuracion-cobro.spec.ts` 25 · `configuracion-cobro-movil.spec.ts` 9), **+3** de disposición | ✅ | 🚀 **DESPLEGADO** el 2026-09-13, junto con «Resultados de la semana» (`a929e23`) · solo presentación, cero migraciones |
 | Post-9 anterior (Etapa 7 del cobro — PRODUCCIÓN, D-193, 2026-09-12) | **1.004 ✅** (sin cambio) | **982 ✅** (sin cambio, con la `0055`) | En vivo: **14/14** tras desplegar | ✅ **24/24** en el proyecto real | 🚀 **DESPLEGADO** (`25cdb5a`) · base de producción **50 → 55 migraciones** |
@@ -11263,3 +11264,61 @@ como la del commit anterior: el entorno Preview de Vercel no tiene las variables
 afecta a producción.**
 
 > **Lo que este release NO verificó:** la imagen nueva en vivo, que vive tras el inicio de sesión.
+
+---
+
+## Corte pasajero de Supabase en el catálogo público (I-114, D-196, BR-K15) — 2026-09-13
+
+**Pedido:** registrar el 500 del catálogo visto en producción y revisar cómo trata el catálogo esos
+cortes. **Sin desplegar**: commit local.
+
+### a. Qué pasó en producción
+
+| Dato | Valor |
+|---|---|
+| Petición | `GET /catalogo/no-existe-verificacion-despliegue`, la primera al despliegue `dpl_4EUTp1ebRzLQCEdUdJ7LHz6TAdGx`, a las **17:50:11 UTC** |
+| Respuesta | **500**, con `Error: {"message":"Gateway Timeout"}` en el registro. La petición siguiente del guion salió **unos 6 s después** |
+| Las cuatro siguientes, desde las 17:51:03 | **404**, como debía: 1,7 s la primera y unos 0,4 s las demás |
+| Grupo de errores en Vercel | El mismo mensaje en `/catalogo/[slug]` **desde el 2026-09-10 12:15 UTC**. Ese detalle ya no se puede leer: el plan Hobby rechaza la consulta (`ExceedsBillingLimitError`) |
+
+### b. Por qué llegaba al visitante
+
+| Pieza | Lo que hacía |
+|---|---|
+| `postgrest-js` 2.109 | Reintenta **solo** GET, HEAD y OPTIONS, y **solo** ante **503 y 520**, con esperas de 1, 2 y 4 s. Un **504** no se reintenta nunca |
+| `getPublicCatalog` | Lee con dos `rpc()`, que viajan por **POST**: no se reintentaba nada y el error se lanzaba |
+| `src/app/error.tsx`, el de la raíz | «Algo salió mal», fuera del tema del catálogo, y un «Reintentar» que llama a `reset()`: en Next 16 eso repinta **sin volver a pedir los datos** |
+
+### c. El arreglo
+
+* `src/features/catalog/read-retry.ts`: una lectura que falla con 502, 503, 504, 520, 522, 524 o por la
+  red se repite **una vez**, a los 400 ms. Un 4xx o un 500, no.
+* `getPublicCatalog` lo usa en sus dos RPC, que son `stable` y de solo lectura.
+* `src/app/(catalogo)/catalogo/[slug]/error.tsx`: si el corte sigue, «No pudimos cargar los números
+  disponibles», en el tema del catálogo, sin detalles internos y con «Reintentar» → `retry()`.
+
+### d. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| `tsc`, `eslint` y Prettier sobre lo tocado | ✅ |
+| `catalog-read-retry.test.ts`, `catalog-error-page.test.tsx` y `catalog.test.ts` | ✅ **67/67** |
+| `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **1.097/1.097** unitarias en 62 archivos (**+15**) y `build` |
+| `db:reset` + `seed:local` y las E2E del catálogo público (`catalogo-publico.spec.ts` y `catalogo-publico-movil.spec.ts`) | @@E2E@@ |
+
+### e. El corte, reproducido en local
+
+Con el catálogo de las E2E publicado y `next dev` contra la base local:
+
+| Paso | Resultado |
+|---|---|
+| Catálogo normal | ✅ «Números disponibles»: 13 disponibles, 7 de 20 tomados, 35 % |
+| `docker stop supabase_rest_Rifas` | El gateway responde **502** |
+| Volver a abrir el catálogo | ✅ **La página de error del catálogo**, con su tema, su texto y «Reintentar». El servidor registra los dos fallos, ya reintentados: el de los metadatos y el de la página |
+| `docker start supabase_rest_Rifas` y pulsar «Reintentar» | ✅ **El catálogo vuelve entero sin recargar la página**: `retry()` volvió a pedir los datos |
+
+### f. Lo que NO se comprobó
+
+* **En producción**: el arreglo no está desplegado.
+* **Un 504 de verdad** con el reintento en marcha: en local el corte se reprodujo con un 502 del
+  gateway, que sigue el mismo camino.

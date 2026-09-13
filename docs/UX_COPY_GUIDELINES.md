@@ -910,6 +910,13 @@ publica más. Con búsqueda: **«No encontramos ese número entre los disponible
 disponibles» no sobra: sin esa coletilla, quien busca una boleta que alguien acaba de comprar cree
 que se equivocó de número—.
 
+**Un corte no es «no encontrado», y el catálogo lo dice con otras palabras** (D-196, BR-K15). Si la
+base no responde, la página pública dice **«No pudimos cargar los números disponibles»** y **«Suele
+ser algo pasajero. Vuelve a intentarlo en unos segundos.»**, con el botón **«Reintentar»** —y
+**«Reintentando…»** mientras vuelve a pedir la página—, las mismas palabras de la pantalla sin
+conexión (D-116). Lo que **no** se escribe: «Este enlace ya no está disponible», que mandaría a pedir
+un enlace nuevo por algo que se arregla solo, ni «Algo salió mal», que no dice qué pasó ni qué hacer.
+Y ningún código ni mensaje técnico: quien lo lee llegó por WhatsApp.
 **El encabezado ya no ofrece WhatsApp** (D-164). Se retiró «Escríbenos por WhatsApp»: era el único
 camino a WhatsApp que **no nombraba ninguna boleta**, y un mensaje así devuelve al vendedor la
 pregunta que el catálogo venía a quitarle. Queda «Solicitar», que nombra los dos números.
@@ -1418,6 +1425,7 @@ castigo donde solo había una espera.
 | El mensaje que llega escrito a WhatsApp, y el saludo | `src/features/catalog/whatsapp.ts`, **todo junto** (D-160) |
 | Pista y estado vacío del buscador del catálogo | `src/features/search/hints.ts` (`catalogSearchHint`, `CATALOG_SEARCH_EMPTY_DESCRIPTION`, D-160) |
 | «Este enlace ya no está disponible» | `src/app/(catalogo)/catalogo/[slug]/not-found.tsx` (BR-K10) |
+| «No pudimos cargar los números disponibles», su explicación y «Reintentar» | `src/app/(catalogo)/catalogo/[slug]/error.tsx` (BR-K15, D-196) |
 | Textos de configurar el catálogo, y «Publicado» / «Sin publicar» | `src/features/catalog/components/CatalogSettingsCard.tsx` y `CatalogSettingsDialog.tsx` (D-160) |
 | Rótulos del enlace que se copia en la ficha del vendedor | `src/features/catalog/components/CatalogLinkField.tsx` (BR-K12) |
 | Textos de «Comparte tu catálogo»: título, estado, «N boletas disponibles», aviso sin enlace y los tres botones | `src/features/catalog/components/SellerCatalogCard.tsx` (D-161, D-180) |

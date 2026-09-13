@@ -1,7 +1,8 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.18 · **Estado:** normativo · **Actualizado:** 2026-09-13 (§12.g, «Resultados de la
-  semana»: BR-H01..BR-H08, sin desplegar)
+- **Versión:** 1.19 · **Estado:** normativo · **Actualizado:** 2026-09-13 (BR-K15: un corte pasajero
+  de Supabase en el catálogo público; antes, ese mismo día, §12.g, «Resultados de la semana»:
+  BR-H01..BR-H08)
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -674,6 +675,7 @@ retiene, no crea clientes, no registra ventas y no toca la máquina de estados d
 | BR-K12 | Configurar el catálogo (habilitar, WhatsApp, rifa, regenerar el enlace) es exclusivo de Dueño y Administrador. El vendedor **ve y copia** el suyo, y no puede consultar ni modificar el de otro: lo impone `memberships_select`/`memberships_update_staff`, no la interfaz. El cambio queda auditado por el disparador de `memberships` que ya existía. | C, S, D | post-9 |
 | BR-K13 | El vendedor **llega a su catálogo desde la aplicación**: el panel muestra «Mi catálogo público» con su estado, la dirección y tres acciones —**Compartir**, **Copiar enlace** y **Ver catálogo**—. La dirección puede recortarse a la vista, pero las tres acciones usan **siempre la completa**. «Compartir» abre el menú nativo del sistema con `navigator.share()`; **cancelarlo no es un error** y no dispara nada, mientras que cualquier otro fallo —o no tener `navigator.share`— copia el enlace. El estado dice **Activo** solo si el enlace abre de verdad: apagado, sin enlace generado o con la rifa no activa dice **Inactivo** y **no se dibuja ninguna acción**, porque un botón hacia un «no encontrado» es peor que no tener botón. | C, S | post-9 |
 | BR-K14 | El catálogo publica **sus cifras completas**: cuántas boletas quedan disponibles, cuántas están tomadas y qué porcentaje del total ya tiene dueño. Son de **todo el catálogo** de ese vendedor en esa rifa, y **no cambian** al pasar de página, al buscar ni cuando una búsqueda no encuentra nada — la función que las devuelve no recibe ni página ni término. Salen de **un solo agregado** en la misma llamada de metadatos que ya se hacía; no se cuentan en el navegador, no se descarga el catálogo para contarlo y no hay contadores persistentes que puedan quedar obsoletos. `total = disponibles + tomadas`, y el porcentaje se redondea al entero y se acota a 0–100: un catálogo vacío da **0 %**, nunca `NaN`. | C, S, D | post-9 |
+| BR-K15 | **Un corte pasajero de la base no se enseña al visitante, ni se disfraza.** Cada lectura del catálogo se repite **una vez** si Supabase responde 502, 503, 504, 520, 522 o 524, o si falla la red. Si el corte sigue, se pinta una página de error **del catálogo** —«No pudimos cargar los números disponibles»— que **no** es la de «no encontrado» de BR-K10, no enseña ningún detalle interno y ofrece «Reintentar», que vuelve a pedir los datos. Un 4xx o un 500 no se repiten (D-196, I-114). | C, S | post-9 |
 
 ---
 

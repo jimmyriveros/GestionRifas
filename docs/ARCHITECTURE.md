@@ -234,7 +234,7 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/reset-password` | público (con token) | 1 | Definir nueva contraseña |
 | `/auth/callback` | público | 1 | Route Handler de intercambio de código |
 | `/denied` | autenticado | 1 | Acceso denegado |
-| `/catalogo/[slug]` | **público, sin sesión** | post-9 | Catálogo público de un vendedor (BR-K01, D-159). Grupo `(catalogo)`, `force-dynamic`, `noindex` |
+| `/catalogo/[slug]` | **público, sin sesión** | post-9 | Catálogo público de un vendedor (BR-K01, D-159). Grupo `(catalogo)`, `force-dynamic`, `noindex`. Un corte pasajero de Supabase se reintenta una vez y, si sigue, lo recoge su propio `error.tsx` (BR-K15, D-196) |
 | `/account/password` | todos | 1 | Cambio de contraseña |
 | `/owner/dashboard` | owner, admin | 1 → 3 → **6 ✅** | Métricas generales (`CLAUDE.md` §23 completo) |
 | `/owner/raffles` | owner, admin | **3 ✅** | Listado de rifas |

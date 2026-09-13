@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizeSearchTerm } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
+import { retryTransientReadOnce } from './read-retry'
 import { isValidSlug } from './slug'
 import { catalogStats, type CatalogStats } from './stats'
 import { shortSellerName } from './whatsapp'
@@ -107,16 +108,21 @@ export async function getPublicCatalog({
 
   const supabase = createAdminClient()
 
+  // Cada lectura se repite UNA vez si Supabase da un corte pasajero —un 504 del
+  // gateway, un fallo de red—: las dos funciones son de solo lectura (BR-K15,
+  // D-196). Si el corte sigue, se lanza y lo recoge el `error.tsx` del catalogo.
   const [meta, rows] = await Promise.all([
-    supabase.rpc('public_catalog_seller', { p_slug: slug }),
-    supabase.rpc('public_catalog_tickets', {
-      p_slug: slug,
-      // La cadena vacia significa «sin filtro», igual que en el resto del
-      // proyecto: se manda `undefined` para que la funcion use su valor nulo.
-      p_search: term === '' ? undefined : term,
-      p_limit: CATALOG_PAGE_SIZE + 1,
-      p_offset: (currentPage - 1) * CATALOG_PAGE_SIZE,
-    }),
+    retryTransientReadOnce(() => supabase.rpc('public_catalog_seller', { p_slug: slug })),
+    retryTransientReadOnce(() =>
+      supabase.rpc('public_catalog_tickets', {
+        p_slug: slug,
+        // La cadena vacia significa «sin filtro», igual que en el resto del
+        // proyecto: se manda `undefined` para que la funcion use su valor nulo.
+        p_search: term === '' ? undefined : term,
+        p_limit: CATALOG_PAGE_SIZE + 1,
+        p_offset: (currentPage - 1) * CATALOG_PAGE_SIZE,
+      }),
+    ),
   ])
 
   if (meta.error) throw meta.error

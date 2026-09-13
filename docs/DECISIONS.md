@@ -10273,6 +10273,48 @@ referencia y los experimentos que sostienen cada decisión están en `TEST_RESUL
 
 ---
 
+## D-196 — El catálogo público reintenta UNA vez un corte pasajero de Supabase y, si sigue, lo explica
+
+**Fase:** mantenimiento posterior a la Fase 9 (incidencia I-114, 2026-09-13)
+
+**Contexto.** El 2026-09-13, la primera petición a un despliegue nuevo de `/catalogo/<slug>` recibió de
+Supabase un `504 {"message":"Gateway Timeout"}` tras unos 5 s, y la página respondió 500. Vercel ya
+tenía ese error agrupado desde el 2026-09-10. Las peticiones siguientes funcionaron: era un corte
+pasajero. El catálogo es la única pantalla que lee alguien de fuera de la organización, que llegó por
+WhatsApp y no tiene otra forma de ver los números.
+
+### Decisión 1 — reintentar en la lectura del catálogo, una vez y enseguida
+
+`getPublicCatalog` repite **cada una** de sus dos RPC **una vez**, a los **400 ms**, si la respuesta es
+502, 503, 504, 520, 522 o 524, o un fallo de red (estado 0 en `postgrest-js`). Las dos funciones son
+`stable` y de solo lectura: repetirlas no escribe nada dos veces. Un 4xx o un 500 **no** se repiten:
+son respuestas de la base, y darían lo mismo.
+
+### Decisión 2 — si el corte sigue, una página de error del propio catálogo
+
+`src/app/(catalogo)/catalogo/[slug]/error.tsx`: dentro del tema del catálogo, sin detalles internos,
+**distinta de «no encontrado»** —un corte no puede mandar a pedir un enlace nuevo (BR-K10)— y con un
+«Reintentar» que llama a **`retry()`**, que en esta versión de Next vuelve a pedir el segmento al
+servidor. El de la raíz llama a `reset()`, que repinta sin volver a pedir los datos.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Pedir las RPC por GET (`{ get: true }`) y usar el reintento de `postgrest-js` | Solo reintenta 503 y 520: el **504** del incidente seguiría llegando. Y espera 1, 2 y 4 s, que es mucho para una página |
+| Reintentar dentro de `createAdminClient` | Ese cliente también escribe —invitaciones, el tick de loterías—, y repetir una escritura no es inocuo |
+| Varios reintentos con espera creciente | Un corte de verdad dejaría al visitante segundos ante una pantalla en blanco; para eso está la página de error |
+| Servir una copia en caché cuando falla | Enseñaría libres boletas que ya se vendieron (BR-K08) |
+| Tratar el fallo como «no encontrado» | Diría que el enlace dejó de existir por algo que se arregla solo (BR-K10) |
+
+### Consecuencia
+
+BR-K15 e I-114. `src/features/catalog/read-retry.ts`, `queries.ts` y
+`src/app/(catalogo)/catalogo/[slug]/error.tsx`, con `tests/unit/catalog-read-retry.test.ts` y
+`catalog-error-page.test.tsx`. **Lo que no cambia:** el `error.tsx` de la raíz, que sigue con `reset()`
+en el resto de la aplicación; queda propuesto como tarea aparte.
+
+---
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.
