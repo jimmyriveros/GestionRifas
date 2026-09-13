@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente («Resultados de la semana», D-194 y D-195, 2026-09-13)** | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`a929e23`, 2026-09-13) · cero migraciones y cero dependencias |
+| **Post-9 vigente (ajuste visual de la imagen semanal, 2026-09-13)** | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | ✅ **Sin desplegar** — commit local sobre `20e954e` |
+| Post-9 anterior («Resultados de la semana», D-194 y D-195, 2026-09-13) | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`a929e23`, 2026-09-13) · cero migraciones y cero dependencias |
 | Post-9 anterior (disposición de «Recordatorios de pago», 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (sin cambio: no se tocó la base) | **34/34** de la pantalla (`configuracion-cobro.spec.ts` 25 · `configuracion-cobro-movil.spec.ts` 9), **+3** de disposición | ✅ | 🚀 **DESPLEGADO** el 2026-09-13, junto con «Resultados de la semana» (`a929e23`) · solo presentación, cero migraciones |
 | Post-9 anterior (Etapa 7 del cobro — PRODUCCIÓN, D-193, 2026-09-12) | **1.004 ✅** (sin cambio) | **982 ✅** (sin cambio, con la `0055`) | En vivo: **14/14** tras desplegar | ✅ **24/24** en el proyecto real | 🚀 **DESPLEGADO** (`25cdb5a`) · base de producción **50 → 55 migraciones** |
 | Post-9 anterior (Etapa 6 del cobro — auditoría, D-192, 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (**+1**: `P-04b`) | **642/644** + **8/8** dirigidas a los tres anchos nuevos; los 2 son **I-090**, el **mismo par** que la Etapa 5 | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
@@ -11178,3 +11179,65 @@ Autorizada expresamente después de cerrar el trabajo: «haz push de la rama y d
 > producción local contra la base local (§b), el identificador servido y la ruta desplegada que
 > redirige sin sesión. Pedirla con una cuenta de vendedor, y compartirla desde un teléfono de verdad,
 > queda para una persona.
+
+---
+
+## Ajuste visual de las tarjetas diarias de la imagen semanal — 2026-09-13
+
+**Pedido:** abreviar solo en el PNG «CUNDINAMARCA» como «CUNDI.» y agrandar un 25–30 % los cinco
+nombres de las tarjetas diarias, al mismo tamaño y sin tocar nada más. **Sin desplegar**: commit local.
+
+### a. Qué cambió
+
+| Pieza | Antes | Ahora |
+|---|---|---|
+| Cundinamarca dentro de la imagen | «CUNDINAMARCA» | **«CUNDI.»**, desde `WEEKLY_RESULTS_COPY.image.shortLotteryLabels` e `imageLotteryLabel` |
+| Tamaño de los cinco nombres | 19 px | **24,7 px** (19 × 1,3), el mismo en los cinco |
+| `LOTTERY_LABELS`, la pantalla y el mensaje | «Cundinamarca» | **Sin cambios** |
+| Boyacá, números, iconos, separadores, tarjetas, fondo, título y semana | — | **Sin cambios** |
+
+**Por qué 24,7 px.** Medido con las métricas reales de Geist en los **182 px** que le quedan al nombre
+en cada tarjeta, toda la franja pedida cabe con holgura, así que manda su tope: +30 %. A ese tamaño
+«CRUZ ROJA», el más ancho, deja **30,4 px** libres —medido con Geist Black, que en estos nombres es más
+ancha que la ExtraBold con la que se dibujan— y «MEDELLÍN», **49,5**. «CUNDINAMARCA» ocuparía **222 px**
+y no cabría: a 19 px ya solo dejaba 9,8.
+
+### b. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npx tsc --noEmit`, primera pasada | ❌ **7 errores, todos en `.next/dev/types/`**, los tipos que genera `next dev`: `routes.d.ts` tenía un trozo duplicado al final, escrito durante la última pasada E2E. **Ningún archivo del proyecto.** Se borró `.next/dev/types`, que se regenera solo |
+| `eslint` de lo tocado | ✅ |
+| Las tres suites de «Resultados de la semana» | ✅ **78/78** (+3) |
+| `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **1.082/1.082** unitarias en 60 archivos y `build` |
+| Prettier sobre lo tocado | ✅ sin cambios |
+
+Las tres pruebas nuevas, en `weekly-results-image.test.tsx`: la abreviatura existe **solo** en la
+imagen y `LOTTERY_LABELS` sigue diciendo «Cundinamarca»; los cinco nombres llevan **el mismo** tamaño,
+entre un 25 % y un 30 % sobre los 19 px, y Boyacá y los números conservan los suyos; y los cinco caben
+con **24 px** de holgura antes del separador —contra `dailyLabelMaxWidth`, que sale de las mismas
+constantes que dibujan la tarjeta—, mientras «CUNDINAMARCA» no cabría.
+
+No se corrieron `test:db` ni E2E: el cambio no toca la base ni ninguna pantalla, solo el árbol del PNG.
+
+### c. Verificación visual, contra la imagen que generó producción
+
+PNG de 1080 × 1350 generado con los mismos datos de la referencia que compartió el usuario
+(`IMG_1735.PNG`: «SORTEO CAMIONETA KIA 2027», 7–12 SEP 2026 y los seis números de producción), y medido
+en píxeles:
+
+| Tarjeta | Ancho antes → ahora | Crecimiento | Libre antes del separador | Desvío vertical del centro |
+|---|---|---|---|---|
+| CUNDI. | 165 («CUNDINAMARCA») → 87 | texto distinto | 94 px | −0,5 px |
+| CRUZ ROJA | 113 → 146 | ×1,29 | 35 px | −0,5 px |
+| META | 53 → 68 | ×1,28 | 112 px | 0 px |
+| BOGOTÁ | 82 → 105 | ×1,28 | 75 px | −3 px (la tilde) |
+| MEDELLÍN | 98 → 125 | ×1,28 | 55 px | −3 px (la tilde) |
+
+El alto de las mayúsculas pasa de 14 a 18 px (×1,29). Los −3 px de BOGOTÁ y MEDELLÍN son la tilde, que
+sube el borde superior de lo medido; antes eran −2 por lo mismo.
+
+**Fuera de las cajas de los cinco nombres, la imagen nueva es IDÉNTICA píxel a píxel a la de
+producción**: 0 píxeles distintos en la cabecera, en el resto de las tarjetas diarias, en Boyacá y en
+el pie. De paso, eso confirma que **la ruta desplegada genera el PNG** con su fondo y sus fuentes, que
+era lo que el release no pudo comprobar sin sesión.

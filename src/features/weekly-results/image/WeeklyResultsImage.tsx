@@ -34,7 +34,7 @@ import { createElement, type CSSProperties, type ReactElement } from 'react'
 
 import { LOTTERY_CODES } from '@/features/lottery/constants'
 
-import { WEEKLY_RESULTS_COPY } from '../copy'
+import { imageLotteryLabel, WEEKLY_RESULTS_COPY } from '../copy'
 import type { WeeklyLotteryResult } from '../results'
 import { formatWeekShort, type ResultsWeek } from '../week'
 import type { FontMetrics } from './font-metrics'
@@ -75,7 +75,21 @@ const DAILY = {
   columnGap: 16,
   rowGap: 14,
   height: 96,
-  labelSize: 19,
+  border: 2,
+  paddingLeft: 18,
+  paddingRight: 22,
+  badge: 60,
+  labelGap: 16,
+  separator: 2,
+  numberGap: 14,
+  /**
+   * Los cinco nombres, al MISMO tamaño: 19 × 1,3, el máximo de la subida pedida
+   * (25–30 %). Con «CUNDI.» en lugar de «CUNDINAMARCA», el más ancho es «CRUZ
+   * ROJA», que deja unos 30 px libres antes del separador; a este tamaño
+   * «CUNDINAMARCA» no cabría. Lo comprueba `weekly-results-image.test.tsx`.
+   */
+  labelSize: 24.7,
+  labelLetterSpacing: 0.5,
   numberSize: 58,
 } as const
 const DAILY_CARD_WIDTH = (CONTENT_WIDTH - DAILY.columnGap) / 2
@@ -453,6 +467,31 @@ function numberBoxWidth(fontSize: number, metrics: FontMetrics): number {
   return Math.ceil(widest * 4 * fontSize) + 4
 }
 
+/** El tamaño y el espaciado de los nombres de las tarjetas diarias, para poder medirlos. */
+export const DAILY_LABEL_TYPOGRAPHY = {
+  fontSize: DAILY.labelSize,
+  letterSpacing: DAILY.labelLetterSpacing,
+} as const
+
+/**
+ * Lo que le queda al nombre en una tarjeta diaria: la tarjeta menos sus bordes y
+ * márgenes, el icono, el separador y la caja del número. Sale de las MISMAS
+ * constantes que dibujan la tarjeta, así que no puede desfasarse de ella.
+ */
+export function dailyLabelMaxWidth(metrics: FontMetrics): number {
+  return (
+    DAILY_CARD_WIDTH -
+    DAILY.border * 2 -
+    DAILY.paddingLeft -
+    DAILY.paddingRight -
+    DAILY.badge -
+    DAILY.labelGap -
+    DAILY.separator -
+    DAILY.numberGap -
+    numberBoxWidth(DAILY.numberSize, metrics)
+  )
+}
+
 function dailyCard(result: WeeklyLotteryResult, numberBox: number, column: number): ReactElement {
   return (
     <div
@@ -464,10 +503,10 @@ function dailyCard(result: WeeklyLotteryResult, numberBox: number, column: numbe
         width: DAILY_CARD_WIDTH,
         height: DAILY.height,
         marginLeft: column === 0 ? 0 : DAILY.columnGap,
-        paddingLeft: 18,
-        paddingRight: 22,
+        paddingLeft: DAILY.paddingLeft,
+        paddingRight: DAILY.paddingRight,
         borderRadius: 18,
-        border: '2px solid rgba(132, 59, 236, 0.8)',
+        border: `${DAILY.border}px solid rgba(132, 59, 236, 0.8)`,
         backgroundImage:
           'linear-gradient(180deg, rgba(38, 27, 66, 0.94) 0%, rgba(22, 16, 40, 0.94) 100%)',
         boxShadow: '0 0 20px rgba(132, 59, 236, 0.42)',
@@ -479,9 +518,9 @@ function dailyCard(result: WeeklyLotteryResult, numberBox: number, column: numbe
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          width: 60,
-          height: 60,
-          borderRadius: 30,
+          width: DAILY.badge,
+          height: DAILY.badge,
+          borderRadius: DAILY.badge / 2,
           border: '2px solid rgba(210, 199, 255, 0.55)',
           backgroundImage:
             'linear-gradient(145deg, rgba(132, 59, 236, 0.95) 0%, rgba(70, 30, 134, 0.95) 100%)',
@@ -500,20 +539,20 @@ function dailyCard(result: WeeklyLotteryResult, numberBox: number, column: numbe
           display: 'flex',
           flexGrow: 1,
           flexShrink: 1,
-          marginLeft: 16,
+          marginLeft: DAILY.labelGap,
           fontSize: DAILY.labelSize,
           fontWeight: 800,
-          letterSpacing: 0.5,
+          letterSpacing: DAILY.labelLetterSpacing,
           color: COLORS.white,
         }}
       >
-        {unbreakable(result.label.toLocaleUpperCase('es-CO'))}
+        {unbreakable(imageLotteryLabel(result.code))}
       </div>
       <div
         style={{
           display: 'flex',
           flexShrink: 0,
-          width: 2,
+          width: DAILY.separator,
           height: 50,
           backgroundColor: 'rgba(187, 126, 255, 0.42)',
         }}
@@ -524,7 +563,7 @@ function dailyCard(result: WeeklyLotteryResult, numberBox: number, column: numbe
           justifyContent: 'flex-end',
           flexShrink: 0,
           width: numberBox,
-          marginLeft: 14,
+          marginLeft: DAILY.numberGap,
           fontSize: DAILY.numberSize,
           fontWeight: 900,
           ...gradientText(COLORS.white, COLORS.lilacLight),

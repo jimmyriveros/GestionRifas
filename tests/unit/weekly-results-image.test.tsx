@@ -17,7 +17,13 @@ import { join } from 'node:path'
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { LOTTERY_CODES, type LotteryCode } from '@/features/lottery/constants'
+import {
+  LOTTERY_CODES,
+  LOTTERY_LABELS,
+  LOTTERY_MATCH_FIELD,
+  type LotteryCode,
+} from '@/features/lottery/constants'
+import { imageLotteryLabel } from '@/features/weekly-results/copy'
 import { WEEKLY_RESULTS_FONTS_DIR } from '@/features/weekly-results/image/assets'
 import { readFontMetrics, type FontMetrics } from '@/features/weekly-results/image/font-metrics'
 import {
@@ -26,6 +32,8 @@ import {
 } from '@/features/weekly-results/image/icons'
 import { renderWeeklyResultsPng } from '@/features/weekly-results/image/render'
 import {
+  DAILY_LABEL_TYPOGRAPHY,
+  dailyLabelMaxWidth,
   fitRaffleName,
   RAFFLE_NAME_MAX_WIDTH,
   raffleNameForImage,
@@ -179,7 +187,7 @@ describe('lo que se dibuja (BR-H03, BR-H04)', () => {
       'KIA NIRO HÍBRIDA 2027',
       'RESULTADOS DE LA SEMANA',
       formatWeekShort(AUG),
-      'CUNDINAMARCA',
+      'CUNDI.',
       'CRUZ ROJA',
       'META',
       'BOGOTÁ',
@@ -190,6 +198,8 @@ describe('lo que se dibuja (BR-H03, BR-H04)', () => {
     ]) {
       expect(texts, expected).toContain(expected)
     }
+    // Cundinamarca va con su nombre corto, y SOLO en la imagen.
+    expect(texts).not.toContain('CUNDINAMARCA')
   })
 
   it('los seis números exactos, con sus ceros', () => {
@@ -270,6 +280,74 @@ describe('lo que se dibuja (BR-H03, BR-H04)', () => {
 
   it('un nombre sin nada que dibujar no produce una imagen sin título', () => {
     expect(() => tree('🎄🎁')).toThrow()
+  })
+})
+
+describe('los nombres de las tarjetas diarias', () => {
+  const DAILY_CODES = LOTTERY_CODES.filter((code) => LOTTERY_MATCH_FIELD[code] === 'daily_number')
+
+  /** Lo que ocupa un nombre dibujado: los avances de sus letras y el espaciado de cada una. */
+  function labelWidth(label: string): number {
+    return (
+      textWidth(label, DAILY_LABEL_TYPOGRAPHY.fontSize, metrics) +
+      DAILY_LABEL_TYPOGRAPHY.letterSpacing * Array.from(label).length
+    )
+  }
+
+  /** El estilo del nodo cuyo texto es exactamente ese, leyendo sus espacios de no separación como espacios. */
+  function styleOf(elements: AnyElement[], text: string) {
+    const element = elements.find((item) => {
+      const children = item.props.children
+      return typeof children === 'string' && children.replace(/\s/gu, ' ') === text
+    })
+    return element?.props.style as { fontSize?: number } | undefined
+  }
+
+  it('Cundinamarca se abrevia SOLO en la imagen: su nombre oficial no cambia', () => {
+    expect(imageLotteryLabel('cundinamarca')).toBe('CUNDI.')
+    expect(LOTTERY_LABELS.cundinamarca).toBe('Cundinamarca')
+    expect(DAILY_CODES.map((code) => imageLotteryLabel(code))).toEqual([
+      'CUNDI.',
+      'CRUZ ROJA',
+      'META',
+      'BOGOTÁ',
+      'MEDELLÍN',
+    ])
+    expect(imageLotteryLabel('boyaca')).toBe('BOYACÁ')
+  })
+
+  it('los cinco van al mismo tamaño, entre un 25 % y un 30 % más grande que los 19 px de antes', () => {
+    const { elements } = collect(
+      weeklyResultsImage({
+        raffleName: 'Rifa 2026',
+        week: AUG,
+        results: readyResults(),
+        backgroundSrc: BACKGROUND,
+        metrics,
+      }),
+    )
+    const sizes = DAILY_CODES.map((code) => styleOf(elements, imageLotteryLabel(code))?.fontSize)
+    expect(sizes).toEqual(DAILY_CODES.map(() => DAILY_LABEL_TYPOGRAPHY.fontSize))
+    expect(DAILY_LABEL_TYPOGRAPHY.fontSize / 19).toBeGreaterThan(1.249)
+    expect(DAILY_LABEL_TYPOGRAPHY.fontSize / 19).toBeLessThan(1.301)
+
+    // Lo que no se pidió tocar sigue igual: Boyacá y los números.
+    expect(styleOf(elements, 'BOYACÁ')?.fontSize).toBe(36)
+    expect(styleOf(elements, 'RESULTADO SEMANAL')?.fontSize).toBe(24)
+    expect(styleOf(elements, NUMBERS.meta)?.fontSize).toBe(58)
+    expect(styleOf(elements, NUMBERS.boyaca)?.fontSize).toBe(100)
+  })
+
+  it('caben en una línea y con holgura, CRUZ ROJA y MEDELLÍN incluidos', () => {
+    const available = dailyLabelMaxWidth(metrics)
+    for (const code of DAILY_CODES) {
+      const label = imageLotteryLabel(code)
+      // 24 px de holgura antes del separador, medidos con Geist Black, que en estos
+      // nombres es más ancha que la ExtraBold con la que se dibujan.
+      expect(labelWidth(label) + 24, label).toBeLessThanOrEqual(available)
+    }
+    // Y el motivo de la abreviatura: a este tamaño el nombre entero no cabría.
+    expect(labelWidth('CUNDINAMARCA')).toBeGreaterThan(available)
   })
 })
 

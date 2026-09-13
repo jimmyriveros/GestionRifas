@@ -120,6 +120,15 @@ export const WEEKLY_RESULTS_COPY = {
     title: 'RESULTADOS DE LA SEMANA',
     weeklyResult: 'RESULTADO SEMANAL',
     footer: 'Verifica tu boleta',
+    /**
+     * Los nombres que se ACORTAN en la imagen, y solo en ella.
+     *
+     * «CUNDINAMARCA» no cabe en su tarjeta diaria con los nombres un 30 % más
+     * grandes; «CUNDI.» sí, y así las cinco tarjetas llevan el mismo tamaño. La
+     * pantalla, el mensaje y `LOTTERY_LABELS` siguen diciendo «Cundinamarca»: el
+     * nombre oficial no cambia en ningún otro sitio.
+     */
+    shortLotteryLabels: { cundinamarca: 'CUNDI.' } satisfies Partial<Record<LotteryCode, string>>,
   },
 
   /** Lo que responde la ruta del PNG cuando no lo entrega. Nunca lleva detalles internos. */
@@ -141,6 +150,15 @@ export function lotteryWeekdayLabel(code: LotteryCode): string {
   const label = WEEKDAY_LABELS[LOTTERY_NOMINAL_WEEKDAY[code]]
   if (label === undefined) throw new Error(`La loteria ${code} no tiene dia nominal`)
   return label
+}
+
+/**
+ * Cómo se escribe una lotería DENTRO de la imagen: en mayúsculas y, si tiene
+ * nombre corto (`image.shortLotteryLabels`), con él. Solo lo usa el PNG.
+ */
+export function imageLotteryLabel(code: LotteryCode): string {
+  const short: Partial<Record<LotteryCode, string>> = WEEKLY_RESULTS_COPY.image.shortLotteryLabels
+  return short[code] ?? LOTTERY_LABELS[code].toLocaleUpperCase('es-CO')
 }
 
 /** «Meta», «Meta y Bogotá», «Cundinamarca, Meta y Bogotá». */

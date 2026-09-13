@@ -1269,6 +1269,13 @@ texto alternativo de la vista previa dice **para qué es** la imagen y de qué s
 resultados de la semana del 17 al 22 de agosto de 2026, lista para compartir»—, **sin leer los seis
 números**, que ya están escritos en la lista de encima.
 
+**En la imagen, y solo en la imagen, Cundinamarca se escribe «CUNDI.»** (2026-09-13). Los cinco nombres
+de las tarjetas diarias van un 30 % más grandes para que se lean bien en un teléfono, y «CUNDINAMARCA»
+no cabe a ese tamaño junto a su número. La abreviatura vive en
+`WEEKLY_RESULTS_COPY.image.shortLotteryLabels`: la lista de la pantalla, el mensaje y `LOTTERY_LABELS`
+siguen diciendo **«Cundinamarca»**, que es lo que la persona lee justo encima de la vista previa. Es la
+regla de siempre —se abrevia lo visible, nunca el término (D-114)— aplicada a un PNG, que no tiene
+`sr-only`: el nombre entero está escrito a un centímetro.
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, las dos de un
@@ -1438,7 +1445,7 @@ castigo donde solo había una espera.
 | Los títulos y las líneas de estado de las tres tarjetas del resumen de «Configuración» | `src/app/(protected)/seller/settings/page.tsx` (D-188) |
 | Todos los textos de «Avisos en este dispositivo»: título, explicación, los dos botones y las tres formas de «no se puede» | `src/features/push/subscription.ts` (`PUSH_COPY`), **todos juntos** (D-190) |
 | El texto de reserva del aviso del teléfono, cuando llega sin cuerpo | `public/sw.js` (`PUSH_FALLBACK`) — **es el único texto visible que vive fuera de `src/`**, porque un service worker no puede importar del paquete (D-190) |
-| Todos los textos de «Resultados de la semana»: la tarjeta de Configuración, la pantalla y sus estados, las acciones, los textos fijos de la imagen y las respuestas de la ruta | `src/features/weekly-results/copy.ts` (`WEEKLY_RESULTS_COPY`), **todos juntos** (D-194) |
+| Todos los textos de «Resultados de la semana»: la tarjeta de Configuración, la pantalla y sus estados, las acciones, los textos fijos de la imagen —con los nombres cortos de sus tarjetas, «CUNDI.» (`imageLotteryLabel`)— y las respuestas de la ruta | `src/features/weekly-results/copy.ts` (`WEEKLY_RESULTS_COPY`), **todos juntos** (D-194) |
 | El mensaje predeterminado para el grupo | `weeklyResultsMessage`, en ese mismo archivo — **nunca** en la base de datos (BR-H06) |
 | La semana en corto («17–22 AGO 2026») y en largo («del 17 al 22 de agosto de 2026») | `src/features/weekly-results/week.ts` (`formatWeekShort`, `formatWeekLong`), con los meses escritos a mano y no con `Intl` (D-195) |
 
