@@ -247,7 +247,12 @@ export type LotteryDashboardReady = {
 
 export type LotteryDashboard = { kind: 'error' } | { kind: 'empty' } | LotteryDashboardReady
 
-function addIsoDays(iso: string, days: number): string {
+/**
+ * Suma días a un día calendario 'AAAA-MM-DD', anclado al mediodía UTC para que
+ * no cambie de fecha en ninguna zona horaria. Exportada desde D-194: «Resultados
+ * de la semana» calcula su semana con esta misma aritmética, sin una segunda.
+ */
+export function addIsoDays(iso: string, days: number): string {
   const date = new Date(`${iso}T12:00:00Z`)
   date.setUTCDate(date.getUTCDate() + days)
   return date.toISOString().slice(0, 10)

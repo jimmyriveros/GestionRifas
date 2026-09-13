@@ -265,8 +265,10 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/seller/payments` | seller | **5 ✅** | Historial de pagos |
 | `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?from=` (D-135) dice a dónde volver (`ticket`, `client`, `payments`, `dashboard`); `?ticketId=` marca la boleta del reparto y, sin `from`, también el destino (D-133) |
 | `/seller/reports` | seller | **6 ✅** · post-9 | Sus reportes, sin el que compara vendedores (D-059). Abre en **«Ventas por fecha»** con las ventas de hoy, sin redirección (D-151) |
-| `/seller/settings` | seller | post-9 ✅ | **Configuración.** Hoy, una sola sección: el grupo de WhatsApp y el mensaje de invitación (D-176). Se entra por el menú del avatar, que **solo la ofrece al vendedor**; el personal que escriba la ruta cae en `/denied` por el layout del portal. Pensada para crecer con más tarjetas, no con pestañas |
+| `/seller/settings` | seller | post-9 ✅ | **Configuración.** Un resumen con cuatro tarjetas —cuentas para recibir pagos, grupo de WhatsApp, recordatorios de pago y resultados de la semana (D-176, D-188, D-194)—, cada una con su subruta (§8.23). Se entra por el menú del avatar, que **solo la ofrece al vendedor**; el personal que escriba la ruta cae en `/denied` por el layout del portal |
+| `/seller/settings/weekly-results` | seller | post-9 ✅ | **Resultados de la semana** (D-194, §8.25): los seis números mayores de la última semana terminada, la imagen para el grupo y su mensaje. La imagen la pide el navegador a `/api/weekly-results/image` |
 | `/api/reports/export` | según rol | **6 ✅** | Descarga CSV. **Fuera de `(protected)` a propósito**: un Route Handler no pasa por el layout, así que se protege a mano (D-060) |
+| `/api/weekly-results/image` | seller | post-9 ✅ | PNG 1080 × 1350 de la semana. Protegido a mano como la exportación (D-060), `private, no-store` y sin identificadores en la URL (BR-H05, `SECURITY` §5.3) |
 | `/api/lottery/sync` | secreto de servidor | post-9 ✅ | Tick de loterías (D-148, D-149). **Sin sesión.** El proxy lo deja pasar; Vercel Cron envía `CRON_SECRET` |
 
 **Nota de nomenclatura:** el prefijo de ruta es `/owner` para Owner **y** Admin, tal como exige
@@ -1676,6 +1678,10 @@ dato guardado, y formatearlo esconderían que en la base conviven varios formato
 
 > **IMPLEMENTADO el 2026-09-12** (Etapa 2). Existe y está probado: 15 pruebas de escritorio y 4 a
 > 320 px. **En local**; el proyecto real todavía no tiene la migración `0051` que lo sostiene.
+>
+> **Desde el 2026-09-13 son cuatro tarjetas** (D-194): «Resultados de la semana» lleva a
+> `/seller/settings/weekly-results` (§8.25) con una **línea fija**, así que el resumen sigue sin leer
+> nada de esa sección ni generar su imagen.
 
 La pantalla que D-176 dejó «pensada para crecer, sin arquitectura de más» crece ahora, y lo hace como
 aquel comentario anticipó: *«cuando haya tres o cuatro y no quepan de un vistazo, será el momento de
@@ -1860,6 +1866,60 @@ cambia D-116 ni una coma, y el push **no trae contenido que guardar** (BR-V05).
 que el escenario es improbable; sigue siendo **un motivo más para subir a Pro**, junto a los backups
 que I-024 ya reclama. La ocurrencia **omitida** deja ver el hueco en vez de esconderlo (D-186).
 
+
+### 8.25 «Resultados de la semana»: una imagen que se compone al pedirla (D-194, D-195)
+
+> **IMPLEMENTADO el 2026-09-13, sin desplegar.** Cero migraciones: lee lo que ya guardan las tablas
+> de loterías y la configuración del catálogo.
+
+```
+/seller/settings                    cuarta tarjeta, línea fija: no lee nada (BR-H08)
+/seller/settings/weekly-results     Server Component; la sección va en su propio Suspense
+  ├─ getWeeklyResultsRaffle(profileId)   → getCatalogSettings (RLS)
+  ├─ getWeeklyResults(week)              → lottery_draw_schedules + lottery_results (RLS, 1 consulta)
+  └─ getWhatsappSettings()
+        │   solo con rifa válida y seis confirmados
+        ▼
+navegador: fetch(/api/weekly-results/image?week=…) → Blob → vista previa · compartir · descargar
+        ▼
+Route Handler (Node): sesión → rol → week → las mismas dos lecturas → ImageResponse → PNG entero
+```
+
+| Pieza | Qué contiene |
+|---|---|
+| `features/weekly-results/week.ts` | PURO: la semana, el día nominal de cada lotería, la semana en corto y en largo, el nombre del archivo |
+| `results.ts` | PURO: tipos, `buildWeeklyResults` (listo o pendiente) y qué rifa vale |
+| `copy.ts` | **Todos** los textos y el mensaje predeterminado. `share` son solo cadenas: viaja entero al componente cliente |
+| `share.ts` | PURO: la URL del PNG, si se puede compartir un archivo, y guardar uno que ya está en memoria |
+| `queries.ts` | `server-only`: las dos lecturas, con el plazo del recuadro de loterías |
+| `image/WeeklyResultsImage.tsx` | PURO: el árbol que dibuja Satori y el ajuste del nombre |
+| `image/font-metrics.ts` | PURO: `cmap` y `hmtx` de un TrueType, sin dependencias |
+| `image/icons.ts` | Los trazos de lucide que usan las tarjetas |
+| `image/assets.ts` · `image/render.ts` | `server-only`: fondo y fuentes del disco —una vez por proceso— y el PNG completo |
+| `components/` | `WeeklyResultsSection` (Suspense y error) · `WeeklyResultsSummary` (servidor) · `WeeklyResultsShare` (cliente) |
+| `app/api/weekly-results/image/route.ts` | La ruta protegida (`SECURITY` §5.3) |
+
+**Lo que Satori impone, y cuesta caro olvidar** (D-195). Cada fila salió de un render que falló:
+
+| Trampa | Qué se hace |
+|---|---|
+| No decodifica WebP | El fondo es `public/images/weekly-results/weekly-results-background.jpg` |
+| Solo trae Geist Regular y no inventa negritas | Tres pesos en `image/fonts/` (OFL), incluidos en el trazado con `outputFileTracingIncludes` |
+| Mide sin interletraje y dibuja con él: huecos dobles tras «RESULTADOS» | Ningún texto lleva espacios normales: `'\u00A0'`. Las líneas del nombre las calcula `fitRaffleName` |
+| De dos capas de fondo recortadas al texto pinta una | Un solo degradado horizontal con corte duro |
+| `textShadow` tiñe de violeta un texto recortado a su degradado | El resplandor va en otra capa con el mismo texto, debajo (`glowingText`) |
+| Pide a internet los glifos que la fuente no trae | Se omiten del nombre en la imagen (`raffleNameForImage`) |
+| No pinta componentes `forwardRef` como los de lucide | `__iconNode` de cada icono, dentro de un `<svg>` propio |
+| No existe `grid` | Flex y posiciones absolutas; filas de dos tarjetas explícitas |
+
+**Rendimiento.** Una imagen pesa ~1,7 MB y tarda ~0,6 s en caliente. Ningún layout ni el resumen de
+«Configuración» consultan nada de esto; la página lee tres cosas en paralelo y el PNG lo pide el
+navegador después, una sola vez. **Sin caché compartida**: la respuesta es `private, no-store`.
+
+**Para verla sin levantar la aplicación**, el render se puede ejecutar desde un guion de Node que
+precargue un sustituto de `server-only` (`TEST_RESULTS`, 2026-09-13). ⚠️ **No uses la condición
+`react-server` para eso**: carga el `Icon.mjs` de lucide fuera de su frontera `"use client"` y
+revienta en `createContext`.
 
 ## 9. Configuración regional
 

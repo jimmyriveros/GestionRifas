@@ -452,6 +452,14 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Encenderlo y apagarlo en ESE teléfono | **Activar avisos** y **Dejar de recibir avisos** | Suscribirse/desuscribirse, registrar el dispositivo, permitir |
 | Que el navegador o la persona dijeron que no | **Bloqueado** | Denegado, rechazado, prohibido |
 | El teléfono o el computador concreto desde el que se entra | **Dispositivo**, o **este teléfono** cuando se le habla a alguien que está en uno | Terminal, cliente, endpoint, navegador (salvo cuando se habla del navegador de verdad) |
+| La sección de «Configuración» con la imagen y el mensaje de los números mayores | **Resultados de la semana** (D-194) | Resumen semanal, boletín, sorteos de la semana |
+| La semana que resume: de lunes a sábado, la última terminada | **Semana del 17 al 22 de agosto de 2026**; en la imagen, **17–22 AGO 2026** | Esta semana, semana actual |
+| El PNG que se prepara para el grupo | **Imagen**, y su vista previa, **Imagen para compartir** | Flyer, póster, banner, arte, pieza |
+| Mandarla con el menú del teléfono | **Compartir imagen** | Enviar imagen, publicar, difundir |
+| Guardarla en el dispositivo | **Descargar imagen** | Bajar, exportar, guardar como |
+| Abrir desde ahí el grupo del propio vendedor | **Abrir mi grupo** (D-194); en «Para enviar ahora» sigue siendo **Abrir grupo** | Ir al grupo, enviar al grupo |
+| El número de Boyacá en la imagen | **Resultado semanal** | Premio semanal, ganador del sábado |
+| Cuántos de los seis ya están confirmados | **«6 de 6 resultados»** | Completo, listo, 100 % |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -1226,6 +1234,41 @@ de tu recordatorio del martes a las 7:00 p. m. Copia el mensaje y pégalo en tu 
 termina en punto: **no se le añade otro**, o se lee «7:00 p. m..». Un vendedor puede tener catorce
 recordatorios, así que un aviso que no diga cuál es no ayuda.
 
+**«Resultados de la semana» prepara, no envía** (D-194). La sección dice lo que hace con la frase de
+su tarjeta —**«Compartir con tu grupo»**— y la que va debajo: **«Comparte o descarga la imagen, copia el
+mensaje y envíalos a tu grupo. Rifas no los envía por ti.»** Es la misma familia que «Para enviar
+ahora» (BR-S14): compartir abre el menú del teléfono, copiar pone el texto en el portapapeles, y
+**ningún texto puede decir «enviado»** ni sugerirlo.
+
+**El estado se dice con cifras y con palabras.** La insignia cuenta **«6 de 6 resultados»** —o «5 de
+6»— y el aviso nombra lo que falta: **«Falta el resultado de Meta. La imagen y el mensaje estarán
+listos cuando se confirmen los seis.»** No se escribe «Listo» ni «Incompleto»: una cifra no se lee
+mal, y el nombre de la lotería es lo único que la persona puede ir a comprobar.
+
+**Lo que no está listo no se ofrece como listo.** Sin los seis resultados, la vista previa dice cuándo
+lo estará y el mensaje no se enseña; sin rifa en el catálogo, se dice **a quién pedírsela** —«Pídele a
+quien administra la rifa que la configure»—, porque el vendedor no puede configurarla (BR-K12).
+
+**«Número mayor», también aquí, y en la imagen «RESULTADO SEMANAL» para Boyacá.** Nunca «ganador»,
+«premiado» ni «ganaste» (BR-L15): la imagen enseña resultados, y «Verifica tu boleta» invita a
+revisar, no promete nada.
+
+**Compartir sin soporte se explica, y cancelar no se comenta.** Donde el teléfono no puede compartir
+un archivo, el botón no aparece y se dice: **«Este dispositivo no permite compartir la imagen desde
+aquí. Descárgala y envíala desde WhatsApp.»** Si la persona cierra el menú a propósito, silencio: no
+es un error (BR-K13).
+
+**«Abrir mi grupo», con posesivo, en esta pantalla.** El encargo lo pidió así, y en «Para enviar
+ahora» el mismo acto se llama **«Abrir grupo»** (Anexo A). Se conserva el pedido porque no es menos
+claro —es la misma fórmula de «Usar mi propio mensaje»— y se deja escrita la diferencia, como pide
+§35.2.4 de `CLAUDE.md`: si un día se unifican, se cambian las dos a la vez.
+
+**El nombre de la rifa se escribe en mayúsculas SOLO en la imagen**, y ahí se omiten los caracteres
+que la fuente no trae —un emoji— (D-195). La pantalla enseña el nombre tal como está guardado. Y el
+texto alternativo de la vista previa dice **para qué es** la imagen y de qué semana —«Imagen de los
+resultados de la semana del 17 al 22 de agosto de 2026, lista para compartir»—, **sin leer los seis
+números**, que ya están escritos en la lista de encima.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, las dos de un
@@ -1395,6 +1438,9 @@ castigo donde solo había una espera.
 | Los títulos y las líneas de estado de las tres tarjetas del resumen de «Configuración» | `src/app/(protected)/seller/settings/page.tsx` (D-188) |
 | Todos los textos de «Avisos en este dispositivo»: título, explicación, los dos botones y las tres formas de «no se puede» | `src/features/push/subscription.ts` (`PUSH_COPY`), **todos juntos** (D-190) |
 | El texto de reserva del aviso del teléfono, cuando llega sin cuerpo | `public/sw.js` (`PUSH_FALLBACK`) — **es el único texto visible que vive fuera de `src/`**, porque un service worker no puede importar del paquete (D-190) |
+| Todos los textos de «Resultados de la semana»: la tarjeta de Configuración, la pantalla y sus estados, las acciones, los textos fijos de la imagen y las respuestas de la ruta | `src/features/weekly-results/copy.ts` (`WEEKLY_RESULTS_COPY`), **todos juntos** (D-194) |
+| El mensaje predeterminado para el grupo | `weeklyResultsMessage`, en ese mismo archivo — **nunca** en la base de datos (BR-H06) |
+| La semana en corto («17–22 AGO 2026») y en largo («del 17 al 22 de agosto de 2026») | `src/features/weekly-results/week.ts` (`formatWeekShort`, `formatWeekLong`), con los meses escritos a mano y no con `Intl` (D-195) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

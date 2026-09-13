@@ -397,6 +397,7 @@ describe('cuándo el enlace abre de verdad (BR-K13)', () => {
     raffleId: '00000000-0000-4000-8000-000000000002',
     raffleName: 'Sorteo Camioneta KIA',
     raffleActive: true,
+    raffleStatus: 'active' as const,
   }
 
   it('con todo puesto, sí', () => {

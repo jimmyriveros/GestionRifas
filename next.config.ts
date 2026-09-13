@@ -52,6 +52,20 @@ const nextConfig: NextConfig = {
   },
 
   /**
+   * Lo que el PNG de «Resultados de la semana» lee del disco (D-194).
+   *
+   * La ruta abre el fondo y las fuentes con `readFile` desde `process.cwd()`, y
+   * el trazado de archivos de Vercel no sigue esa lectura por su cuenta: sin esta
+   * lista, la función se desplegaría sin ellos y cada imagen fallaría con un 500.
+   */
+  outputFileTracingIncludes: {
+    '/api/weekly-results/image': [
+      './public/images/weekly-results/**/*',
+      './src/features/weekly-results/image/fonts/**/*',
+    ],
+  },
+
+  /**
    * Se inyecta en el bundle en tiempo de build, no se lee en ejecucion: quien
    * abre la aplicacion recibe el identificador del codigo que le acaban de
    * servir. Lo consume `src/lib/pwa.ts`.

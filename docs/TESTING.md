@@ -859,6 +859,30 @@ final en el teléfono— se comprobó con un servidor levantado con una **clave 
 y sus estados forzados en el navegador (`TEST_RESULTS`, misma fecha). Tampoco es infraestructura de
 interfaz compartida (`HANDOFF` §1.b): no se tocó ningún primitivo.
 
+### 4.9 Resultados de la semana (BR-H01..BR-H08; D-194, D-195)
+
+| Suite | Pruebas | Qué demuestra |
+|---|---|---|
+| `tests/unit/weekly-results.test.ts` | 42 | La semana un domingo, un lunes, un martes y un sábado; cambio de mes, de año y 29 de febrero; 400 días seguidos; qué semana acepta la URL; orden fijo; cero inicial; seis confirmados, uno y varios pendientes, conflicto, rechazado y formato inválido; qué rifa vale; la semana en corto y en largo; el mensaje exacto; ningún «ganador» ni «enviado»; compartir un archivo y guardarlo |
+| `tests/unit/weekly-results-image.test.tsx` | 20 | Las medidas reales de Geist Black; nombres de 2 a 120 caracteres que nunca se salen ni pierden letras; el árbol —textos, seis números con sus ceros, siete iconos de lucide, una sola capa de fondo, sin `grid`, sin espacios que Satori pueda partir, determinista y nunca parcial—; y **un PNG real de 1080 × 1350 con `fetch` bloqueado** |
+| `tests/unit/weekly-results-view.test.tsx` | 13 | Lo que llega en el HTML de cada estado —listo, pendiente, conflicto, sin rifa, sin grupo, enlace de grupo inválido y **error de lectura**—, con los botones desactivados donde toca |
+| `tests/db/weekly-results.test.ts` | 10 | Las funciones de producción con **sesiones reales**: seis resultados en orden y con ceros, nacionales para otra organización, `anon` sin permiso (`42501`), nunca parcial —pendiente, sin fila, conflicto, rechazado— y la rifa del catálogo, que otro vendedor no puede leer |
+| `tests/e2e/resultados-semana.spec.ts` | 21 | La tarjeta sin pedir la imagen; listo con la imagen 4:5 y el mensaje; la ruta —200 `image/png` de 1080 × 1350 y `private, no-store`, 307 sin sesión, 403 al administrador, 400 con semanas inválidas o en curso, 409 pendiente, sin rifa y desde otra organización—; descargar **los mismos bytes** que la vista previa; compartir el archivo con título y mensaje; cancelar sin aviso; sin soporte para archivos; copiar y su fallo; la imagen que falla y se reintenta; con y sin grupo; teclado; ningún «enviado» |
+| `tests/e2e/resultados-semana-movil.spec.ts` | 3 | A 320 px: sin desplazamiento lateral, vista previa en 4:5, dianas de 44 px, pendiente y sin rifa |
+| `tests/e2e/security.spec.ts` | +1 ruta | `/seller/settings/weekly-results` entra en `RUTAS_PROTEGIDAS` |
+
+**Lo que estas suites no pueden ver, y cómo se cubrió:**
+
+| Hueco | Cobertura |
+|---|---|
+| El error de la LECTURA no se provoca desde un navegador | La unitaria de vista, con las lecturas sustituidas |
+| El render dentro de un build de producción (I-074) | A mano, sobre `next build` + `next start` contra la base local (`TEST_RESULTS`, 2026-09-13) |
+| Si la imagen se PARECE a la referencia | Inspección visual de PNG reales, lado a lado con la referencia (`TEST_RESULTS`) |
+
+⚠️ **Trampa de esta E2E: la CSP no deja hacer `fetch` a una dirección `blob:`** (`connect-src`). Por
+eso la igualdad de bytes entre la descarga y la vista previa se comprueba contra el **cuerpo de la
+respuesta** del PNG —la única petición que hace la página—, no releyendo la vista previa.
+
 ### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 7 pruebas)
 
 **No es lo mismo que `dialogos-alcanzables.spec.ts`, y por eso son dos archivos.** Aquella comprueba

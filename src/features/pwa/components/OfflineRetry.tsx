@@ -30,8 +30,17 @@ import { Button } from '@/components/ui/button'
  * `navigator.onLine` no decide nada: miente con facilidad —dice que hay red
  * cuando solo hay wifi sin salida—. Se usa como aviso para volver a intentarlo,
  * y quien resuelve si hay conexión de verdad es el intento.
+ *
+ * LO REUTILIZA «Resultados de la semana» (D-194) para su estado de error, con
+ * `href` apuntando a esa misma pantalla: allí tampoco hay nada que reenviar, y
+ * sin JavaScript el enlace vuelve a intentarla en vez de mandar a la portada.
+ * `className` le deja mantener la diana de 44 px también desde `sm`, que es lo
+ * que esa pantalla exige a todos sus botones.
  */
-export function OfflineRetry() {
+export function OfflineRetry({
+  href = '/',
+  className,
+}: { href?: string; className?: string } = {}) {
   const [retrying, setRetrying] = useState(false)
 
   useEffect(() => {
@@ -44,9 +53,9 @@ export function OfflineRetry() {
   }, [])
 
   return (
-    <Button asChild size="touch" disabled={retrying}>
+    <Button asChild size="touch" disabled={retrying} className={className}>
       <Link
-        href="/"
+        href={href}
         onClick={(event) => {
           event.preventDefault()
           setRetrying(true)

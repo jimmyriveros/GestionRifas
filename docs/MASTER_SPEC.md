@@ -4,9 +4,10 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.6
+- **Versión del documento:** 1.7
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-12 (§9.5: cuentas para recibir pagos y recordatorios de pago,
+- **Última actualización:** 2026-09-13 (§9.6: «Resultados de la semana» del vendedor, sin desplegar y
+  sin migraciones). Anterior: 2026-09-12 (§9.5: cuentas para recibir pagos y recordatorios de pago,
   **etapas 0 a 5 hechas de 7**; el canal está completo de punta a punta en local. Quedan la
   auditoría integrada y la promoción a producción)
 
@@ -332,6 +333,24 @@ acceden a sus cuentas ni a sus recordatorios. Cambiar eso exige una decisión ex
 | 5 | Outbox, dispatcher, reintentos y limpieza de endpoints inválidos ✅ **2026-09-12** (`0054`, D-191, en local) |
 | 6 | Auditoría integrada de seguridad, rendimiento, UX y regresiones |
 | 7 | Promoción controlada a producción, **solo con autorización posterior** |
+
+### 9.6 Resultados de la semana (`/seller/settings/weekly-results`) — **SIN DESPLEGAR**
+
+> Encargo «Resultados de la semana», 2026-09-13 (D-194, D-195, BR-H01..BR-H08). **Cero migraciones.**
+
+Cuarta sección de «Configuración» del vendedor. Muestra los **seis números mayores** de la última
+semana terminada —lunes a sábado, en hora de Bogotá— y prepara para su grupo una **imagen** vertical
+de 1080 × 1350 y un **mensaje** ya escrito. El vendedor **comparte** la imagen con el menú del
+teléfono o la **descarga**, **copia** el mensaje y **abre su grupo**; enviarlos lo hace él.
+
+| Lo que sí hace | Lo que no hace |
+|---|---|
+| Compone la imagen al pedirla, con el fondo aprobado y los datos locales | Guardar imágenes, programar envíos, usar IA ni consultar fuentes externas |
+| Encabezarla con la rifa del catálogo del vendedor | Elegir una rifa por su cuenta cuando no hay ninguna configurada |
+| Esperar a los seis resultados confirmados y decir cuáles faltan | Componer una imagen o un mensaje con resultados a medias |
+| Abrir el menú de compartir, la descarga y el grupo | Enviar nada a WhatsApp, ni saber si algo se envió |
+
+La imagen es la misma para todos los vendedores de una rifa: no lleva datos de nadie.
 
 ---
 

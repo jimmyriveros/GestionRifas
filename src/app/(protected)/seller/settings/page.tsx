@@ -1,4 +1,11 @@
-import { ChevronRightIcon, LandmarkIcon, type LucideIcon, MessageCircleIcon, BellIcon } from 'lucide-react'
+import {
+  BellIcon,
+  ChevronRightIcon,
+  ImageIcon,
+  LandmarkIcon,
+  type LucideIcon,
+  MessageCircleIcon,
+} from 'lucide-react'
 import Link from 'next/link'
 
 import { PageHeader } from '@/components/data/PageHeader'
@@ -12,6 +19,7 @@ import {
 import { REMINDER_COPY } from '@/features/payment-reminders/reminders'
 import { WHATSAPP_COPY } from '@/features/whatsapp/invite'
 import { getWhatsappSettings } from '@/features/whatsapp/queries'
+import { WEEKLY_RESULTS_COPY } from '@/features/weekly-results/copy'
 
 /**
  * «Configuración» del vendedor: un RESUMEN, no un contenedor de formularios
@@ -32,6 +40,10 @@ import { getWhatsappSettings } from '@/features/whatsapp/queries'
  * precio que los otros, y evita que alguien entre aqui sin enterarse de que
  * tiene un mensaje esperando: la campanita guarda los diez ultimos avisos y uno
  * mas viejo se sale de la lista. Solo se escribe cuando hay algo.
+ *
+ * La cuarta tarjeta, «Resultados de la semana» (D-194), NO LEE NADA: su linea es
+ * fija. Contar resultados o preparar la imagen aqui convertiria el resumen en lo
+ * contrario de lo que es; eso ocurre al entrar en su seccion.
  *
  * La entrada esta en el menú del avatar y SOLO para vendedores (`UserMenu`). El
  * layout de este portal ya exige el rol (`requireRole(['seller'])`), asi que un
@@ -77,6 +89,12 @@ export default async function SellerSettingsPage() {
               ? countLabel(reminders, REMINDER_COPY.summary)
               : `${countLabel(reminders, REMINDER_COPY.summary)} · ${REMINDER_COPY.summary.pending(pendingReminders)}`
           }
+        />
+        <SettingsCard
+          href="/seller/settings/weekly-results"
+          icon={ImageIcon}
+          title={WEEKLY_RESULTS_COPY.title}
+          status={WEEKLY_RESULTS_COPY.summary}
         />
       </nav>
     </div>

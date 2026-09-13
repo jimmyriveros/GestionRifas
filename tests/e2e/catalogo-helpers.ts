@@ -175,12 +175,26 @@ export async function cerrarRifaPublicada(refs: SeedRefs, closed: boolean): Prom
 export type ShareMode = 'ok' | 'cancelled' | 'failed' | 'unsupported'
 export type ClipboardMode = 'ok' | 'failed'
 
+/**
+ * Si el navegador ACEPTA compartir un archivo (`navigator.canShare({ files })`).
+ *
+ * Añadido para «Resultados de la semana» (D-194), que comparte una imagen y no un
+ * enlace: en muchos escritorios existe `navigator.share` y no acepta archivos.
+ * Por omisión los acepta, así que las pruebas del catálogo —que no preguntan— no
+ * cambian.
+ */
+export type ShareFilesMode = 'ok' | 'rejected'
+
 export async function stubShareAndClipboard(
   page: Page,
-  { share, clipboard = 'ok' }: { share: ShareMode; clipboard?: ClipboardMode },
+  {
+    share,
+    clipboard = 'ok',
+    files = 'ok',
+  }: { share: ShareMode; clipboard?: ClipboardMode; files?: ShareFilesMode },
 ): Promise<void> {
   await page.addInitScript(
-    ([shareMode, clipboardMode]: [ShareMode, ClipboardMode]) => {
+    ([shareMode, clipboardMode, filesMode]: [ShareMode, ClipboardMode, ShareFilesMode]) => {
       const w = window as unknown as { __share: unknown[]; __clipboard: string[] }
       w.__share = []
       w.__clipboard = []
@@ -193,11 +207,29 @@ export async function stubShareAndClipboard(
 
       if (shareMode === 'unsupported') {
         Object.defineProperty(navigator, 'share', { value: undefined, configurable: true })
+        Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true })
       } else {
+        Object.defineProperty(navigator, 'canShare', {
+          configurable: true,
+          value: (data?: { files?: File[] }) => !data?.files || filesMode === 'ok',
+        })
         Object.defineProperty(navigator, 'share', {
           configurable: true,
-          value: async (data: unknown) => {
-            w.__share.push(data)
+          value: async (data: { files?: File[] } & Record<string, unknown>) => {
+            // Un `File` no sale de la página con `evaluate`: se anota lo que
+            // importa de cada uno —nombre, tipo y peso—.
+            w.__share.push(
+              data.files
+                ? {
+                    ...data,
+                    files: data.files.map((file) => ({
+                      name: file.name,
+                      type: file.type,
+                      size: file.size,
+                    })),
+                  }
+                : data,
+            )
             if (shareMode === 'cancelled') fail('AbortError')
             if (shareMode === 'failed') fail('NotAllowedError')
           },
@@ -214,14 +246,20 @@ export async function stubShareAndClipboard(
         },
       })
     },
-    [share, clipboard] as [ShareMode, ClipboardMode],
+    [share, clipboard, files] as [ShareMode, ClipboardMode, ShareFilesMode],
   )
 }
 
 /** Lo que la aplicación le pasó a `navigator.share()`. */
-export async function shareCalls(
-  page: Page,
-): Promise<{ title: string; text: string; url: string }[]> {
+export async function shareCalls(page: Page): Promise<
+  {
+    title: string
+    text: string
+    url: string
+    /** Solo cuando se compartió un archivo: su nombre, tipo y peso. */
+    files?: { name: string; type: string; size: number }[]
+  }[]
+> {
   return page.evaluate(() => (window as unknown as { __share: never[] }).__share)
 }
 

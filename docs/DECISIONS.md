@@ -10079,6 +10079,200 @@ la campana interna funciona. `DEPLOYMENT` §2.2 y §3.1; `KNOWN_ISSUES` I-112; `
 
 ---
 
+## D-194 — «Resultados de la semana»: la imagen se compone al pedirla, con los seis resultados o con ninguno
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «Resultados de la semana», 2026-09-13)
+
+**Contexto.** Los vendedores comparten a mano, en su grupo de WhatsApp, los números mayores de la
+semana para que sus clientes revisen sus boletas. El encargo trae una referencia visual aprobada y un
+fondo maestro (vehículo, monedas, regalo, tickets, confeti y luces), y pone tres límites: **ningún
+costo recurrente** —ni IA, ni cron, ni PNG guardados—, **ninguna integración con WhatsApp** y
+**ninguna migración** si el modelo existente basta. Basta: todo sale de `lottery_draw_schedules`,
+`lottery_results` y la configuración del catálogo.
+
+### Decisión 1 — la semana es la última terminada, y se decide por días, no por instantes
+
+Lunes a sábado en `America/Bogota`: un domingo es la semana que acaba de cerrar; de lunes a sábado, la
+anterior completa. **La semana en curso nunca**, porque el sábado por la noche Boyacá todavía puede
+estar jugando. Cada lotería se busca por su **`reference_date`**, que es su día nominal y no cambia si
+el sorteo se adelanta o se aplaza (BR-L03, D-143). La aritmética es la del módulo de loterías
+—`addIsoDays` (se exporta), `isoWeekday`, `isoDateOnWeekday` y `LOTTERY_NOMINAL_WEEKDAY`—: no hay una
+segunda.
+
+### Decisión 2 — todo o nada
+
+Hay imagen y mensaje **solo con los seis resultados `confirmed` y de cuatro cifras**. Cualquier otro
+estado deja la semana pendiente y la pantalla **nombra lo que falta**. El número de un conflicto no se
+enseña: ya lo decía BR-L08 para el Panel, y una imagen que se reenvía a cien personas es el peor sitio
+para publicar un número en disputa. Tres estados explícitos: `ready`, `pending` y `error`.
+
+### Decisión 3 — la rifa es la del catálogo, y no se adivina
+
+`getCatalogSettings` —la misma lectura del panel— se **extiende** con `raffleStatus`: `raffleActive`
+decía si el enlace abre, pero aquí una rifa **cerrada** sigue siendo válida —juega con los sorteos de
+su ventana (BR-L05)— y una anulada o en borrador no. Sin rifa configurada, la pantalla lo explica y
+**no se elige «la activa más reciente»** (D-140).
+
+**Lo que NO se comprueba, a propósito:** que la semana caiga dentro de las fechas de la rifa. En la
+primera semana de una rifa nueva, la imagen enseña la semana anterior con el nombre de la rifa nueva.
+Los resultados son nacionales y el pie dice «Verifica tu boleta», no «ganaste»; exigir la ventana
+dejaría al vendedor sin imagen justo cuando cambia de rifa. Queda como **A6** abajo, para que lo
+decida el dueño.
+
+### Decisión 4 — la ruta se protege a mano y no se cachea
+
+`GET /api/weekly-results/image` vive **fuera de `(protected)`** por lo mismo que la exportación de
+reportes (D-060): un Route Handler no hereda la guarda de su layout. Su **único parámetro** es `week`,
+el lunes de **cualquier** semana ya terminada —no solo la última—, para que la imagen sea la de la
+semana que la pantalla está enseñando aunque se cruce la medianoche del domingo entre pintar y pedir.
+`ImageResponse` trae por defecto una cabecera `public`: se sustituye por **`private, no-store`**, porque
+la imagen lleva el nombre de la rifa de quien la pide. Y el PNG **se lee entero antes de responder**:
+`ImageResponse` contesta 200 en cuanto se crea y dibuja mientras envía, así que un fallo de Satori
+saldría como un PNG cortado con estado 200; leído antes, es un 500.
+
+### Decisión 5 — una sola imagen en el navegador
+
+La página no genera nada. El navegador pide el PNG **una vez**, lo guarda como `Blob` y lo usa para la
+vista previa, para compartir y para descargar: lo que se descarga es **exactamente** lo que se ve.
+Compartir necesita el gesto de la persona —Safari rechaza `navigator.share` después de un `await`—, así
+que su botón se activa cuando la imagen ya está en memoria; descargar sí puede esperar, y si se pulsa
+antes dice «Descargando…» y guarda en cuanto llega.
+
+### Decisión 6 — el mensaje vive en el código y no se personaliza
+
+Como `DEFAULT_INVITE_MESSAGE` (BR-W02): guardarlo por vendedor obligaría a una actualización masiva
+para mejorar una frase. No lleva el enlace —se envía dentro del grupo— ni números —los lleva la
+imagen—. Los días y la lotería del número semanal salen de `LOTTERY_MATCH_FIELD` y
+`LOTTERY_NOMINAL_WEEKDAY`.
+
+### Decisión 7 — lo que se reutilizó, y lo único que se extendió
+
+`SettingsCard`, `PageHeader`, `Notice`, `StatusBadge`, `Skeleton`, `useClipboard`,
+`isShareCancelled`, `isValidGroupUrl`, los textos de copiar y de configurar el grupo de
+`REMINDER_COPY.due`, «Resultado pendiente» y «Número mayor» de `LOTTERY_DASHBOARD_COPY`, y el plazo
+`LOTTERY_DASHBOARD_TIMEOUT_MS`. **Se extendieron** tres piezas, sin romper a quien ya las usaba:
+`CatalogSettings.raffleStatus`, `OfflineRetry` con `href` —para reintentar esta pantalla sin
+JavaScript— y con `className` —para mantener la diana de 44 px también desde `sm`—, y el doble de
+`navigator.share` de las E2E, que ahora sabe de archivos.
+
+### Decisión 8 — sin limitador de intentos en la ruta
+
+Componer una imagen cuesta unos 0,6 s de CPU. La ruta exige sesión de **vendedor activo**, no llama a
+nada externo y no escribe; el peor abuso posible es que un vendedor autenticado gaste CPU con su
+propia cuenta, algo que ya puede hacer recargando cualquier pantalla. Un limitador en memoria por
+instancia (D-062) no lo impediría en Vercel y sí haría fallar a la persona que reintenta. Riesgo
+aceptado y escrito en `SECURITY` §5.3.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Generar la imagen con una API de IA | Costo por imagen, resultado no determinista y datos a un tercero. El encargo lo prohíbe |
+| Un cron dominical que deje el PNG en un bucket o en una tabla | Persistencia y costo recurrente para algo que se compone en 0,6 s; además envejecería si un resultado se corrige |
+| Dibujarla en el navegador con `canvas` | Cada teléfono con sus fuentes y su motor: la misma rifa daría imágenes distintas, y descargarla sería otra composición |
+| Aceptar `sellerId` o `raffleId` en la URL | Un identificador que se puede manipular; la sesión y la RLS ya lo saben (BR-H05) |
+| Servir también la semana en curso | Enseñaría un sábado sin Boyacá como semana terminada (BR-H01) |
+| Una imagen con huecos para lo que falta | Una imagen parcial reenviada en un grupo no se puede corregir (BR-H03) |
+| Un enlace `download` directo a la ruta | Pediría una segunda composición: no sería la misma imagen que la vista previa |
+| Tomar la rifa activa más reciente si no hay ninguna configurada | Es exactamente lo que D-140 prohíbe |
+
+### Consecuencia
+
+BR-H01..BR-H08. **Cero migraciones, tablas, políticas o dependencias.** `ARCHITECTURE` §8.25,
+`SECURITY` §5.3, `UX_COPY_GUIDELINES` y `TESTING` §4.9. La parte técnica de la imagen —formatos,
+fuentes, espacios y capas— está en D-195.
+
+---
+
+## D-195 — La imagen: el fondo en JPEG, Geist en el repositorio y ningún espacio que Satori pueda partir
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «Resultados de la semana», 2026-09-13)
+
+**Contexto.** `ImageResponse` es Satori (HTML y CSS a SVG) más Resvg (SVG a PNG). Cada decisión de
+abajo salió de un render real que falló o que no se parecía a la referencia, y está comprobada con un
+experimento aislado (`TEST_RESULTS`, 2026-09-13).
+
+### Decisión 1 — el fondo es un JPEG, aunque el encargo pedía WebP
+
+**Satori no decodifica WebP.** Su lista de formatos admitidos es PNG, APNG, JPEG, GIF y SVG; con un
+WebP en `data:` falla al medir la imagen (`u2 is not iterable`) y con un buffer lanza `Unsupported
+image type: image/webp`. El PNG del maestro pesa 2,3 MB; el JPEG a calidad 90, `mozjpeg` y croma
+4:4:4 pesa **212 KB** y, en recortes ampliados de las zonas de humo y degradados, no se distingue del
+PNG. Se generó del maestro de 1122 × 1402 escalado a **1080 × 1350** con `lanczos3`, para que Resvg no
+tenga que reescalar. Es la contradicción con el encargo que se señala en el reporte: no se podía
+cumplir la letra sin romper el propósito.
+
+### Decisión 2 — tres pesos de Geist dentro del repositorio
+
+`next/og` solo trae Geist **Regular**, y Satori **no inventa negritas**: sin archivos, todo el PNG
+saldría delgado. Se añadieron las instancias estáticas **600, 800 y 900** de Geist —la misma familia
+de la aplicación— con su licencia OFL, en `src/features/weekly-results/image/fonts/`. Se leen del
+disco al generar, y `next.config.ts` las incluye en el trazado de la ruta
+(`outputFileTracingIncludes`), igual que el fondo. **No es una dependencia de npm** y no se descarga
+nada al generar.
+
+### Decisión 3 — medir el nombre antes de dibujarlo
+
+Satori no avisa cuando un texto no cabe. `raffles.name` admite de 2 a 120 caracteres, así que un
+lector mínimo de las tablas `cmap` y `hmtx` de la fuente da el avance real de cada letra, y
+`fitRaffleName` elige tamaño y líneas —de 84 px en una línea a 28 px en cuatro—. Con 120 «W», la letra
+más ancha, sigue cabiendo, y hay una prueba que lo demuestra.
+
+### Decisión 4 — la generación no sale a internet
+
+Cuando un carácter no está en la fuente, `@vercel/og` **lo pide a Google Fonts o al CDN de Twemoji** en
+mitad del render. Los textos fijos están todos en Geist; el único variable es el nombre de la rifa, y
+de él **se omiten en la imagen** los caracteres sin glifo —un emoji—. La pantalla enseña el nombre
+entero. Una prueba genera un PNG real con `fetch` bloqueado (salvo `data:`, que es el WebAssembly del
+propio Satori).
+
+### Decisión 5 — ningún texto de la imagen lleva un espacio normal
+
+Satori mide cada tramo entre dos puntos de corte **sin interletraje** y lo dibuja **con** él
+(`opentype.js` trae `kerning: true` por defecto). Resultado: un hueco de más detrás de cada palabra con
+pares como «LT» o «TA» —«RESULTADOS␣␣DE LA SEMANA», «Verifica␣␣tu boleta»—, igual con texto corrido,
+con `whiteSpace: pre` o con cada palabra en su nodo. Satori no admite `fontKerning` ni
+`fontFeatureSettings`. **Con U+00A0 el texto no tiene puntos de corte**, se mide y se dibuja entero, y
+el sobrante queda al final, donde no se ve. Los saltos de línea del nombre los decide la Decisión 3.
+En el código se escribe como escape `'\u00A0'`, nunca el carácter invisible.
+
+### Decisión 6 — dos tonos y resplandor, en capas
+
+La referencia tiene la primera palabra en blanco y el resto en lila, con un resplandor violeta. Dos
+cosas que parecían obvias no funcionan en Satori: **dos capas de fondo recortadas al texto** —pinta una
+sola— y **`textShadow` sobre un texto recortado a su degradado** —lo tiñe entero de violeta y el blanco
+desaparece—. Lo que sí funciona: **un único degradado horizontal con corte duro** en mitad del espacio
+que sigue a la primera palabra, y el resplandor en **otra capa con el mismo texto, debajo**.
+
+### Decisión 7 — los iconos son los trazos de lucide, no sus componentes
+
+Los componentes de `lucide-react` son `forwardRef` y leen un contexto: Satori no los pinta. Cada
+módulo de icono exporta `__iconNode`, la lista de sus elementos SVG, y la imagen los envuelve en un
+`<svg>` propio. Es la geometría de lucide sin redibujar nada. Como `lucide-react` no tipa esos
+módulos, se declaran en `src/types/lucide-icon-nodes.d.ts`, y una prueba falla si una actualización
+los mueve.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| WebP para la capa de fondo | Satori no lo decodifica (Decisión 1) |
+| PNG para la capa de fondo | 2,3 MB para el mismo resultado visible |
+| Decodificar el WebP en el servidor con `sharp` | `sharp` es de desarrollo; en Vercel no está garantizado, y sería otra dependencia en ejecución |
+| Descargar la fuente o los emojis al generar | Una salida a internet en cada imagen, y el encargo lo prohíbe |
+| Una tabla de anchos por letra escrita a mano | Se desfasaría en silencio si cambia la fuente; se leen del archivo |
+| Dejar que Satori parta el nombre | No mide lo mismo que dibuja: huecos dobles y líneas imprevisibles |
+| Nombre y título en un solo color | Menos contraste que la referencia aprobada |
+| Redibujar los iconos a mano en SVG | El encargo pide los de lucide |
+
+### Consecuencia
+
+Una imagen de ~1,7 MB en ~0,6 s en caliente. El proceso para regenerar el fondo, la comparación con la
+referencia y los experimentos que sostienen cada decisión están en `TEST_RESULTS` (2026-09-13).
+`ARCHITECTURE` §8.25 resume las trampas para quien vuelva a tocar la imagen.
+
+---
+
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.
@@ -10090,3 +10284,4 @@ No bloquean ninguna fase; se resolvieron con la opción más segura y podrán aj
 | A3 | ¿Un vendedor edita los números de una boleta ya aprobada? | No; solo en `draft`/`pending_approval` | Matriz de permisos |
 | A4 | ¿Se notifica por correo al invitar usuarios? | Sí, mediante Supabase Auth; sin plantillas personalizadas en el MVP | Fase 3 |
 | A5 | ¿Cuántas rifas activas simultáneas? | Varias permitidas; el dashboard muestra la más reciente activa | Fase 6. Para **loterías**, D-140 no elige una: coinciden todas las `active`/`closed` cuya ventana cubre la fecha de referencia. Para el **catálogo público**, D-159 tampoco adivina: la rifa se configura (BR-K06). |
+| A6 | ¿La imagen de «Resultados de la semana» debe exigir que la semana caiga dentro de las fechas de la rifa del catálogo? | No se comprueba: enseña los resultados nacionales de la última semana terminada con el nombre de la rifa configurada. En la primera semana de una rifa nueva, sale la semana anterior con su nombre | D-194, Decisión 3 |

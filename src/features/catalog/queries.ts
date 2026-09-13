@@ -1,5 +1,6 @@
 import 'server-only'
 
+import type { RaffleStatus } from '@/lib/constants'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizeSearchTerm } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
@@ -173,6 +174,14 @@ export type CatalogSettings = {
    * le enseñaria al vendedor un enlace «Activo» que no abre (BR-K13).
    */
   raffleActive: boolean
+  /**
+   * El estado de esa rifa, o `null` sin rifa configurada.
+   *
+   * `raffleActive` basta para saber si el enlace abre; «Resultados de la semana»
+   * necesita distinguir además una rifa CERRADA —que sigue jugando con los
+   * sorteos de su ventana— de una anulada o en borrador (BR-L05, D-194).
+   */
+  raffleStatus: RaffleStatus | null
 }
 
 /**
@@ -198,7 +207,7 @@ export async function getCatalogSettings(profileId: string): Promise<CatalogSett
   if (error) throw error
   if (!data) return null
 
-  const raffle = data.public_raffle as { name: string; status: string } | null
+  const raffle = data.public_raffle as { name: string; status: RaffleStatus } | null
 
   return {
     slug: data.public_slug,
@@ -207,6 +216,7 @@ export async function getCatalogSettings(profileId: string): Promise<CatalogSett
     raffleId: data.public_raffle_id,
     raffleName: raffle?.name ?? null,
     raffleActive: raffle?.status === 'active',
+    raffleStatus: raffle?.status ?? null,
   }
 }
 

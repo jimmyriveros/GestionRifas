@@ -23,13 +23,14 @@ const RUTAS_PROTEGIDAS = [
   '/seller/clients',
   '/seller/payments',
   '/seller/reports',
-  // «Configuración» y sus tres secciones (D-176, D-188): son del vendedor y de
+  // «Configuración» y sus secciones (D-176, D-188, D-194): son del vendedor y de
   // nadie más, así que entran en la lista que comprueba las dos cosas —que sin
   // sesión redirigen al login y que el personal no las alcanza—.
   '/seller/settings',
   '/seller/settings/accounts',
   '/seller/settings/whatsapp',
   '/seller/settings/reminders',
+  '/seller/settings/weekly-results',
 ]
 
 /**

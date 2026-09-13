@@ -124,6 +124,7 @@ defensas no se relajan: se duplican.
 | Ver programación y resultado oficiales | ✓ | ✓ | ✓ (lectura; son nacionales) |
 | Ver coincidencias de la organización | ✓ | ✓ | P (solo las de sus boletas) |
 | Escribir programación, resultados o coincidencias | ✗ | ✗ | ✗ (proceso interno) |
+| Ver «Resultados de la semana» y generar su imagen (BR-H05, §5.3) | ✗ | ✗ | P (con la rifa de su propio catálogo) |
 
 Acciones exclusivas del Owner (BR-U02, BR-U03, BR-U04): eliminar o desactivar al Owner, asignar el
 rol `owner`, transferir la propiedad, editar la configuración de la organización y reabrir rifas
@@ -1107,6 +1108,43 @@ pierde nada: la outbox es la que manda y el siguiente toque recoge lo pendiente 
 **El fallo del envío no es un fallo de seguridad, pero sí de higiene:** un `404` o un `410` significa
 suscripción muerta y se **revoca sin reintentar** (BR-V07). Guardar endpoints muertos es acumular
 direcciones de dispositivos que ya no son de nadie.
+
+### 5.3 El PNG de «Resultados de la semana» (`/api/weekly-results/image`, BR-H05, D-194)
+
+Route Handler **con sesión** que solo lee. Vive fuera de `(protected)` por lo mismo que la exportación
+de reportes (§5.0): no hereda ninguna guarda, así que la comprueba él.
+
+| Capa | Comprobación | Respuesta |
+|---|---|---|
+| Proxy | Sin sesión, redirige al login | 307 |
+| 1 | `getAuthUser` | 401 |
+| 2 | `getActiveMembership`: perfil, membresía y organización activos (BR-A04) | 403 |
+| 3 | Rol `seller` | 403 |
+| 4 | `week`, **el único parámetro**: fecha real, lunes, semana ya terminada | 400 |
+| 5 | Rifa del catálogo de **su** membresía y seis resultados confirmados, **bajo RLS** | 409 |
+| — | Fallo de lectura o de composición | 500 genérico; el detalle, solo al registro del servidor |
+
+**No acepta identificadores.** Ni vendedor, ni organización, ni rifa: salen de la sesión, y la
+lectura de la rifa va por `getCatalogSettings`, que con otro `profileId` no devuelve nada por la RLS de
+`memberships` (comprobado en `tests/db/weekly-results.test.ts`). Programación y resultados son
+nacionales (D-141), y **`anon` no tiene ni el permiso `SELECT`** sobre esas tablas: sin sesión la
+lectura falla con `42501`.
+
+**Caché.** `ImageResponse` trae por defecto `public, max-age=0, must-revalidate`; la ruta la sustituye
+por **`private, no-store`** en todas sus respuestas, errores incluidos. La imagen lleva el nombre de la
+rifa de quien la pide y no puede quedarse en una caché compartida.
+
+**Qué puede salir.** El nombre de la rifa, la semana y seis números nacionales. Ni clientes, ni
+boletas, ni coincidencias, ni saldos, ni datos del vendedor, ni auditoría: la composición no los recibe.
+
+**Sin salida a internet.** Fondo y fuentes se leen del disco, y lo que la fuente no puede dibujar se
+omite del nombre para que `@vercel/og` no lo pida afuera (D-195). Una prueba genera un PNG real con
+`fetch` bloqueado.
+
+**Sin limitador de intentos, a propósito** (D-194, Decisión 8). Cada imagen cuesta ~0,6 s de CPU a un
+vendedor autenticado y activo, que ya puede gastar lo mismo recargando cualquier pantalla. Un
+limitador en memoria por instancia (§10.2) no lo impediría en Vercel y sí haría fallar a quien
+reintenta. **Riesgo aceptado**; si algún día se abusa, la salida es un contador compartido, no este.
 
 ---
 

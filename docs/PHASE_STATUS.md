@@ -3,7 +3,17 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-12 — **Disposición de «Recordatorios de pago»**, solo presentación y
+- **Actualizado:** 2026-09-13 — **«Resultados de la semana»** (D-194, D-195, BR-H01..BR-H08),
+  **sin desplegar** (rama `feature/recordatorios-layout`). El vendedor abre una **cuarta tarjeta** en
+  «Configuración» y encuentra los seis números mayores de la **última semana terminada**, una
+  **imagen de 1080 × 1350** lista para su grupo de WhatsApp y el mensaje que la acompaña, con
+  compartir, descargar, copiar y abrir su grupo. **Solo con los seis resultados confirmados**: si
+  falta uno, la pantalla dice cuál y no ofrece nada a medias. La imagen se compone **al pedirla** en
+  una ruta protegida, con el nombre de la rifa **de su catálogo**. **Cero migraciones, tablas,
+  políticas, buckets, cron o dependencias**; el fondo va en JPEG porque Satori no decodifica WebP.
+  Pruebas: `verify` **1.079/1.079**, `test:db` **992/992** y E2E **670/674**, con los 4 fallos conocidos de I-090 e I-106, verdes en aislamiento. Detalle en
+  `HANDOFF` §1.a y `TEST_RESULTS`; los seis puntos de §34.3, en su sección de mantenimiento.
+  Antes, el 2026-09-12: **Disposición de «Recordatorios de pago»**, solo presentación y
   **sin desplegar** (rama `feature/recordatorios-layout`). El encabezado lleva la **única** acción de
   crear y, desde `lg`, la pantalla va en dos columnas —lo que se hace a la izquierda, «Avisos en este
   dispositivo» a la derecha—; en el teléfono, el mismo orden apilado. **Cero textos, datos,
@@ -4862,6 +4872,77 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — «Resultados de la semana»: la imagen y el mensaje para el grupo (D-194, D-195, 2026-09-13)
+
+Encargo expreso del usuario. **No es una fase nueva** y no lleva etiqueta `fase-*`. **Sin desplegar**:
+rama `feature/recordatorios-layout`, commit local y sin push.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Tarjeta en «Configuración» | La **cuarta**: «Resultados de la semana» · «Imagen y mensaje para compartir». La tarjeta entera es el enlace y **no lee nada** al pintarse |
+| La semana | La **última terminada**, de lunes a sábado en `America/Bogota`: un domingo, la que acaba de cerrar; de lunes a sábado, la anterior. **Nunca la semana en curso** (BR-H01) |
+| Los resultados | Los seis de `lottery_draw_schedules` y `lottery_results`, bajo la RLS de quien pregunta, en el orden de `LOTTERY_CODES` y con sus ceros. **Solo con los seis `confirmed`** hay imagen y mensaje; si no, la pantalla nombra lo que falta (BR-H02, BR-H03) |
+| La rifa | La del **catálogo** del vendedor, activa o cerrada. Sin rifa configurada se explica y no hay imagen; **nunca «la activa más reciente»** (BR-H04) |
+| La imagen | PNG de **1080 × 1350** con `ImageResponse`: nombre de la rifa, título, cápsula de la semana, cinco tarjetas diarias, la tarjeta semanal de Boyacá y «Verifica tu boleta», sobre el fondo maestro. `GET /api/weekly-results/image?week=`, **protegida a mano** y `private, no-store` (BR-H04, BR-H05) |
+| Compartir | Vista previa 4:5; **Compartir imagen** (archivo, título y mensaje con `navigator.share`); **Descargar imagen**, con los mismos bytes; **Copiar mensaje**; y **Abrir mi grupo** en otra pestaña. Cancelar no es un error; sin soporte para archivos se ofrece descargar (BR-H07) |
+| El mensaje | Fijo en el código, con la semana entera en español; sin enlace, sin números y sin «ganador» (BR-H06) |
+
+### 2. Pruebas ejecutadas y sus resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base: `test:db` y `verify` | ✅ **982/982** y **1.004/1.004** |
+| `npx supabase start` · `db:reset` · `seed:local` | ✅ |
+| `npm run test:db` | ✅ **992/992** en 45 archivos (+10) |
+| `npm run verify` | ✅ **1.079/1.079** en 60 archivos (+75), lint con los 2 avisos preexistentes y `build` |
+| `db:reset` + `seed:local` + `npm run test:e2e` | **670/674** en 35,2 min, con las **24** nuevas. Los 4 fallos son conocidos y ajenos —**I-090** ×3 e **I-106**— y pasan **4/4 en aislamiento** tras `db:reset` + `seed:local` |
+| Build de producción contra la base local | ✅ la ruta empaquetada genera el PNG, y responde 307, 403 y 400 donde toca |
+| Verificación visual contra la referencia | ✅ siete nombres, del más corto a 120 «W» |
+
+**Errores encontrados y corregidos: 13**, en `TEST_RESULTS` (2026-09-13). Los que condicionan el
+diseño: **Satori no decodifica WebP**, **mide sin interletraje y dibuja con él** —de ahí U+00A0 en
+todos los textos—, **pinta una sola capa de fondo recortada al texto** y **no pinta los componentes de
+lucide**. Y dos de las pruebas: `anon` no tiene ni `SELECT` sobre las tablas de loterías (`42501`), y
+la CSP no deja leer un `blob:` con `fetch`.
+
+### 3. Migraciones que existen
+
+**Ninguna nueva.** Siguen `0001`–`0055`, las mismas en local y en el proyecto real. Este trabajo no
+toca el esquema, las políticas, los buckets ni el proyecto real.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.** El fondo y las fuentes se leen del disco, y `next.config.ts` los incluye en el
+paquete de la ruta con `outputFileTracingIncludes`.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **Sin probar en un teléfono de verdad** | La hoja de compartir, WhatsApp recibiendo la imagen con su texto y la descarga en Safari de iOS solo se han simulado |
+| **A6** — la semana no se contrasta con las fechas de la rifa | En la primera semana de una rifa nueva, la imagen enseña la semana anterior con el nombre de la nueva. Decisión del dueño |
+| **Sin limitador de intentos en la ruta** | Riesgo aceptado (D-194, Decisión 8): exige sesión de vendedor activo, no escribe y no llama a nada externo |
+| **El fondo es JPEG, no WebP** | Contradice la letra del encargo; es la única forma de que Satori lo dibuje (D-195) |
+| Todo lo demás | Ningún `I-*` nuevo. La suite E2E completa repite los fallos conocidos de **I-090** —en su entrada se anota el síntoma de `ventas-por-fecha.spec.ts:247`— e **I-106** |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Lee `ARCHITECTURE` §8.25 antes de tocar la imagen.** Lo que en CSS parece obvio —dos tonos con
+   dos capas, un resplandor con `textShadow`, un espacio normal— no funciona en Satori.
+2. **Ningún texto de la imagen lleva espacios normales**, y la constante `NBSP` se escribe como
+   escape. Una prueba falla si aparece un espacio normal en el árbol de la imagen.
+3. **Si cambias el fondo o las fuentes, revisa `outputFileTracingIncludes`**: sin él, el paquete de
+   la ruta puede quedarse sin ellos y fallar solo en producción.
+4. **Al desplegar, pide la imagen en el dominio real con una sesión de vendedor**: es lo único que
+   `next dev` y la suite no pueden demostrar.
+5. **No añadas identificadores a la URL de la imagen**, ni la muevas dentro de `(protected)` creyendo
+   que el layout la protege (D-060).
+6. **La rama es `feature/recordatorios-layout`**, sin fusionar a `main`.
 
 ---
 

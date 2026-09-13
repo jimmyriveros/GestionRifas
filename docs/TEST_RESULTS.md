@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (disposición de «Recordatorios de pago», 2026-09-12)** | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (sin cambio: no se tocó la base) | **34/34** de la pantalla (`configuracion-cobro.spec.ts` 25 · `configuracion-cobro-movil.spec.ts` 9), **+3** de disposición | ✅ | ✅ **Sin desplegar** — rama `feature/recordatorios-layout` · solo presentación, cero migraciones |
+| **Post-9 vigente («Resultados de la semana», D-194 y D-195, 2026-09-13)** | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/recordatorios-layout` · cero migraciones y cero dependencias |
+| Post-9 anterior (disposición de «Recordatorios de pago», 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (sin cambio: no se tocó la base) | **34/34** de la pantalla (`configuracion-cobro.spec.ts` 25 · `configuracion-cobro-movil.spec.ts` 9), **+3** de disposición | ✅ | ✅ **Sin desplegar** — rama `feature/recordatorios-layout` · solo presentación, cero migraciones |
 | Post-9 anterior (Etapa 7 del cobro — PRODUCCIÓN, D-193, 2026-09-12) | **1.004 ✅** (sin cambio) | **982 ✅** (sin cambio, con la `0055`) | En vivo: **14/14** tras desplegar | ✅ **24/24** en el proyecto real | 🚀 **DESPLEGADO** (`25cdb5a`) · base de producción **50 → 55 migraciones** |
 | Post-9 anterior (Etapa 6 del cobro — auditoría, D-192, 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (**+1**: `P-04b`) | **642/644** + **8/8** dirigidas a los tres anchos nuevos; los 2 son **I-090**, el **mismo par** que la Etapa 5 | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 5 del cobro, D-191, 2026-09-12) | **1.004 ✅** en 57 archivos (+36) | **981 ✅** en 44 archivos (+39) | **642/644**; los 2 son **I-090**, conocido y ajeno | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
@@ -10998,4 +10999,140 @@ borde derecho a plomo con el de «Crear recordatorio»; en el teléfono, al fina
 
 * **Un iPhone o un Android de verdad.** Los anchos son de Chromium, con emulación de Pixel 7 en el
   teléfono. `text-balance` es una mejora progresiva: donde no exista, la fecha se parte como antes.
+* **Nada en producción.** Ni despliegue ni push.
+
+---
+
+## «Resultados de la semana»: la imagen y el mensaje para el grupo (D-194, D-195, BR-H01..BR-H08) — 2026-09-13
+
+**Alcance:** encargo expreso del usuario. Una sección nueva del vendedor,
+`/seller/settings/weekly-results`, su tarjeta en «Configuración» y la ruta protegida
+`/api/weekly-results/image`. **Cero migraciones, tablas, políticas, buckets, cron o dependencias.**
+Rama `feature/recordatorios-layout`, sin desplegar. Qué demuestra cada suite nueva: `TESTING` §4.9.
+Cómo funciona la imagen y qué trampas tiene: `ARCHITECTURE` §8.25.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base, antes de tocar nada: `test:db` y `verify` | ✅ **982/982** en 44 archivos · ✅ **1.004/1.004** unitarias en 57 archivos, lint con los **2 avisos preexistentes** |
+| `npx supabase start` | ✅ ya estaba levantado |
+| `npm run db:reset` + `npm run seed:local` | ✅ |
+| `npm run test:db` | ✅ **992/992** en 45 archivos: **+10** de `weekly-results.test.ts` |
+| `npm run verify` | ✅ `typecheck` · lint con **0 errores** y los **2 avisos preexistentes** · **1.079/1.079** unitarias en 60 archivos (**+75**: 42, 20 y 13) · `build`, con `ƒ /api/weekly-results/image` y `ƒ /seller/settings/weekly-results` |
+| `db:reset` + `seed:local` y `npm run test:e2e` completa | **670/674** en 35,2 min, con **24** nuevas (21 de escritorio y 3 a 320 px). Los 4 fallos, en la tabla de abajo |
+| E2E dirigidas durante el desarrollo: `resultados-semana.spec.ts`, `resultados-semana-movil.spec.ts` y `security.spec.ts` | **44/46** a la primera. Los 2 fallos eran de las pruebas (§c, filas 10 y 11); corregidas, ✅ **2/2** |
+| Prettier sobre lo tocado | ✅ Se formatearon **solo** los 11 archivos nuevos que no cumplían. `next.config.ts` y `security.spec.ts` difieren únicamente por el CRLF del árbol de trabajo (`core.autocrlf`); `seller/settings/page.tsx` conserva **dos diferencias idénticas a las de `HEAD`** y no se reformateó (`TESTING` §2.0) |
+
+**Los 4 fallos de la suite completa son conocidos y ajenos.** Relanzados solos tras `db:reset` +
+`seed:local`, pasan **4/4** en 18,6 s:
+
+| Prueba | Síntoma en la suite completa | Clasificación |
+|---|---|---|
+| `reports.spec.ts:305` — el panel administrativo muestra pagos recientes | No aparece «(anulado)» | **I-090** |
+| `ventas-por-fecha.spec.ts:163` — las ventas de HOY | `esperado < 26`, y llegaron **58** | **I-090** |
+| `ventas-por-fecha.spec.ts:247` — «Desde» posterior a «Hasta» | *Strict mode*: «Las fechas están al revés» resolvió a **dos** elementos, uno de ellos oculto | **I-090**: ya cayó en la suite completa de la Etapa 2 del cobro. Su síntoma no estaba descrito, y se anota en la entrada |
+| `catalogo-publico-movil.spec.ts:103` — el buscador se posa bajo el encabezado | La URL no llega a `q=0` en 15 s | **I-106** |
+
+**Ninguna de las 24 pruebas nuevas falla.** Este cambio no toca reportes ni «Ventas por fecha», y en
+el catálogo solo añade `raffleStatus` a `getCatalogSettings`, que la página pública no lee: esa usa
+`getPublicCatalog`.
+
+**Ninguna prueba existente cambió de expectativa.** Se tocaron tres archivos de pruebas ajenos, y solo
+para ampliar: `security.spec.ts` añade la ruta nueva a `RUTAS_PROTEGIDAS`; el doble de
+`navigator.share` de `catalogo-helpers.ts` aprende a recibir archivos —con `files: 'rejected'` para
+simular un navegador que no los acepta— sin cambiar lo que ya hacía; y `catalog.test.ts` añade
+`raffleStatus` a su objeto base.
+
+### b. La ruta dentro de un build de producción (I-074)
+
+`next dev` no puede demostrar que la ruta **empaquetada** encuentra el fondo y las fuentes en el
+disco. Se construyó con `next build` —con el entorno local— y se sirvió con `next start -p 3100`
+contra la base local, con un guion de Playwright **fuera del repositorio**:
+
+| Comprobación | Resultado |
+|---|---|
+| Trazado de la ruta | Incluye el JPEG, los tres TTF, `OFL.txt` y el WebAssembly de Resvg y de Yoga |
+| Sin sesión | **307** a `/login`, con `next=%2Fapi%2Fweekly-results%2Fimage` |
+| Vendedor, semana completa | **200** · `image/png` · `private, no-store, max-age=0` · `inline; filename="resultados-semana-2026-09-07.png"` · firma PNG válida · **1080 × 1350** · **1,70 MB** |
+| Primera y segunda imagen, con la sesión y la lectura de la base incluidas | **1.138 ms** y **831 ms** |
+| `week=2026-13-01` | **400** |
+| Administrador | **403** |
+| Resumen de «Configuración» | **0** peticiones de la imagen |
+| La sección | **1** petición; la vista previa mide **1080 × 1350** naturales |
+| Desbordamiento horizontal a 390 y a 320 px | **0** y **0** |
+| Errores de consola | **0** |
+
+### c. Errores encontrados y corregidos
+
+| # | Síntoma | Causa | Corrección |
+|---|---|---|---|
+| 1 | Con el fondo en WebP el render fallaba: `u2 is not iterable` con `data:` y `Unsupported image type: image/webp` con un buffer | Satori no decodifica WebP | JPEG (D-195, Decisión 1) |
+| 2 | Todo el texto salía en peso normal | `next/og` solo trae Geist Regular y Satori no inventa negritas | Geist 600, 800 y 900 en el repositorio, con su OFL (Decisión 2) |
+| 3 | Un hueco de más detrás de algunas palabras: «RESULTADOS␣␣DE LA SEMANA», «Verifica␣␣tu boleta» | Satori mide cada tramo sin interletraje y lo dibuja con él; no admite `fontKerning` ni `fontFeatureSettings` | U+00A0 en todos los textos, y las líneas del nombre decididas con las medidas de la fuente (Decisión 5) |
+| 4 | El nombre en dos tonos salía de un solo color | Satori pinta una sola capa de fondo recortada al texto | Un único degradado horizontal con corte duro (Decisión 6) |
+| 5 | Con el resplandor, el blanco del título desaparecía | `textShadow` tiñe el texto recortado a su degradado | El resplandor en una capa aparte, debajo (Decisión 6) |
+| 6 | Los iconos no aparecían | Los componentes de lucide son `forwardRef` y leen un contexto | Sus `__iconNode` dentro de un `<svg>` propio (Decisión 7) |
+| 7 | La prueba del PNG real registraba una llamada a `fetch` | Es el WebAssembly del propio Satori, servido como `data:` | La prueba bloquea todo **salvo** `data:` |
+| 8 | La prueba de glifos ausentes no fallaba cuando debía | `№` **sí** está en Geist | Se prueba con `ع` y `क` |
+| 9 | `test:db`: sin sesión se esperaba «pendiente» y llegaba «error» | `anon` no tiene ni `SELECT` sobre las tablas de loterías (`42501`): es más fuerte que la RLS | La prueba lo afirma así y comprueba el `42501` con una consulta directa |
+| 10 | E2E: la primera prueba agotó su tiempo esperando la URL | `.next/dev` frío compilando la ruta nueva (I-075) | 90 s para esa navegación, con su comentario |
+| 11 | E2E: comparar la descarga con la vista previa daba `Failed to fetch` | La CSP no admite `blob:` en `connect-src`, y no debe | Se compara contra el cuerpo de la respuesta del PNG (`waitForResponse`) |
+| 12 | «Reintentar», en el estado de error, medía 36 px desde `sm` | `OfflineRetry` usa `size="touch"`, que baja a 36 (D-161). Encontrado leyendo el componente | `OfflineRetry` acepta `className` y la sección le pasa `sm:h-11`. **No se midió en un navegador**: ese estado no se puede provocar desde una E2E |
+| 13 | Las herramientas de edición del agente guardaron el escape de U+00A0 como el carácter invisible, en el código y en dos documentos | La herramienta, no el proyecto | Reescrito con un guion: **0** U+00A0 literales en `WeeklyResultsImage.tsx`, su prueba, `DECISIONS` y `ARCHITECTURE` |
+
+### d. Experimentos que sostienen D-195
+
+Aislados, con el Satori de `next/og` y fuera del repositorio:
+
+| Experimento | Resultado |
+|---|---|
+| El fondo en WebP, como `data:` y como buffer | Falla de las dos formas |
+| El mismo título con espacios normales, con `whiteSpace: pre`, con una palabra por nodo y con U+00A0 | Hueco de más en los tres primeros; limpio solo con U+00A0 |
+| Dos capas `background-clip: text` frente a un degradado con corte duro | Solo se pinta una capa; el corte duro da los dos tonos |
+| `textShadow` sobre el texto recortado frente a una capa de resplandor aparte | El primero lo tiñe todo de violeta; el segundo conserva el blanco |
+
+### e. El fondo: de dónde sale y cómo se regeneró
+
+El maestro llegó como `C:\Users\USER\Downloads\weekly-results-background.png.png` —**con la extensión
+repetida**—, un PNG de 1122 × 1402, y se comprobó a ojo que era el arte de la referencia
+(`VisualReference.png`, del mismo tamaño) antes de usarlo. Todos los candidatos se escalaron a
+**1080 × 1350** con `lanczos3`, para que Resvg no tenga que reescalar:
+
+| Candidato | Bytes | Veredicto |
+|---|---|---|
+| PNG | 2.309.075 | Sirve, pero pesa diez veces más |
+| WebP q82 · q88 · q92 | 70.102 · 94.106 · 123.706 | **No sirve**: Satori no lo decodifica |
+| JPEG q85 · q94, `mozjpeg` | 158.658 · 292.441 | Probados; no elegidos |
+| **JPEG q90, `mozjpeg`, croma 4:4:4** | **212.008** | ✅ **Elegido**: en recortes ampliados del humo y los degradados no se distingue del PNG |
+
+Queda en `public/images/weekly-results/weekly-results-background.jpg`. **Ningún recurso del catálogo
+se tocó.**
+
+### f. Verificación visual contra la referencia
+
+PNG reales generados con la composición de producción y comparados con la referencia aprobada, lado a
+lado y con recortes ampliados de las zonas finas:
+
+| Caso | Nombre de la rifa | Semana | Qué se vio |
+|---|---|---|---|
+| Medio | «Kia Niro Híbrida 2027» | 17–22 AGO 2026 | Una línea, con la tilde. Es el de la comparación lado a lado: la misma jerarquía, las cinco tarjetas en dos columnas, Boyacá en lima y el pie |
+| Real | «SORTEO CAMIONETA KIA 2026», el de producción | 17–22 AGO 2026 | Una línea; la primera palabra en blanco y el resto en lila |
+| Corto | «Rifa 2026» | 17–22 AGO 2026 | Una línea |
+| Largo | «Gran rifa de fin de año con camioneta híbrida y premios para todos 2026» | 29 DIC 2025 – 3 ENE 2026 | Dos líneas; la cápsula cruza de año |
+| Máximo | 120 veces «W», la letra más ancha | 17–22 AGO 2026 | Cuatro líneas, ninguna letra fuera |
+| Emoji | «🎄 Rifa Navidad 2026 🎁» | 17–22 AGO 2026 | Los emojis se omiten en la imagen |
+| Interletraje | «AVANZA AVATAR 2026» | 17–22 AGO 2026 | Sin huecos de más |
+
+Los siete miden **1080 × 1350** y pesan entre **1,65 y 1,75 MB**. En un proceso ya caliente cada imagen
+tarda **0,54–0,73 s**; la primera de cada tanda, **~0,96 s**, porque carga las fuentes. Que la
+generación no sale a internet lo demuestra la unitaria, que genera un PNG real con `fetch` bloqueado.
+
+### g. Lo que NO se comprobó
+
+* **Un teléfono de verdad.** Ni la hoja de compartir de Android o de iPhone, ni que WhatsApp reciba la
+  imagen con su texto, ni cómo guarda Safari de iOS una descarga. Las E2E simulan `navigator.share` y
+  `navigator.canShare`.
+* **El estado de error de la lectura en un navegador**: no se puede provocar desde una E2E; lo cubre la
+  unitaria de vista.
 * **Nada en producción.** Ni despliegue ni push.

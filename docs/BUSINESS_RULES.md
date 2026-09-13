@@ -1,6 +1,7 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.17 · **Estado:** normativo · **Actualizado:** 2026-09-12
+- **Versión:** 1.18 · **Estado:** normativo · **Actualizado:** 2026-09-13 (§12.g, «Resultados de la
+  semana»: BR-H01..BR-H08, sin desplegar)
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -798,6 +799,29 @@ para el recordatorio de pago y para cualquier aviso futuro que quiera salir del 
 | BR-V06 | Una suscripción es **de un dispositivo**, identificada por su `endpoint`, que es único. Una persona puede tener varias. El permiso se pide **en una pantalla y a propósito**, nunca al cargar la aplicación: pedirlo sin contexto es la forma más rápida de que lo denieguen para siempre. | C, S, D | ✅ `0053` |
 | BR-V07 | Un `404` o un `410` del servicio de push significa que esa suscripción **murió**: se marca revocada y **no se reintenta**. Los demás fallos reintentan con retroceso y tope; la fila que agota los intentos queda marcada con su motivo, y **la campana sigue ahí**. | S, D | ✅ `0054` |
 | BR-V08 | El dispatcher es un **Route Handler Node protegido** que no usa sesión: secreto por cabecera, comparado a **tiempo constante**, con longitud mínima, limitación de intentos y **fallo cerrado** si no está configurado. **El secreto nunca viaja por la URL.** Es el patrón de `/api/lottery/sync` (D-148), reutilizado, no reinventado. Un Route Handler **no hereda la guarda de su layout** (D-060). | S | ✅ `0054` |
+
+---
+
+## 12.g Resultados de la semana (BR-H)
+
+Mantenimiento posterior a la Fase 9 (2026-09-13, D-194, D-195). Una sección de «Configuración» del
+vendedor que prepara la **imagen** y el **mensaje** con los números mayores de la última semana
+terminada, para que **él** los envíe a su grupo. **No hay integración con WhatsApp y no se guarda
+nada**: la imagen se compone cada vez que se pide.
+
+**La letra es `H`** de «**h**oja de resultados»: `R`, `S` e `I` ya nombran rifas, recordatorios e
+inventario.
+
+| ID | Regla | Capas | Fase |
+|----|-------|-------|------|
+| BR-H01 | **La semana es la última TERMINADA, de lunes a sábado, en `America/Bogota`.** Un domingo es la que acaba de cerrar; de lunes a sábado, la anterior completa; **nunca la semana en curso**. Se decide por día calendario, y cada lotería se busca por su **`reference_date`** —su día nominal (BR-L01, BR-L03)—: un sorteo adelantado o aplazado sigue siendo el de su día. | S | post-9 |
+| BR-H02 | **Se leen solo `lottery_draw_schedules` y `lottery_results`, bajo la RLS de quien pregunta**, en una consulta y sin ninguna fuente externa (BR-L20). Las seis loterías salen **siempre en el orden de `LOTTERY_CODES`**, y el número mayor se copia **como texto**: `0046` es `0046` (BR-L06). No se leen ni se muestran serie, coincidencias, boletas ni clientes. | S, D | post-9 |
+| BR-H03 | **Lista solo con los SEIS resultados `confirmed` y de cuatro cifras.** Sin programación, sin resultado, `pending`, `rejected`, `conflict` o un número con otra forma dejan la semana **pendiente**: se nombran las loterías que faltan, **no se compone ninguna imagen parcial**, el mensaje no se presenta como listo y compartir, descargar y copiar se desactivan. El número de un sorteo sin confirmar **no se enseña**, ni siquiera el de un conflicto (BR-L08). | C, S | post-9 |
+| BR-H04 | **La imagen es un PNG de 1080 × 1350** sobre el fondo maestro fijo, con nombre, semana, tarjetas, iconos y pie dibujados por código. El nombre es **`raffles.name` de la rifa configurada en el catálogo del vendedor** (BR-K06), en mayúsculas y sin reinterpretar, y solo cuenta si esa rifa está **activa o cerrada** (BR-L05). **Sin rifa no hay imagen y no se elige ninguna** (D-140). Es la misma para todos los vendedores de una rifa: sin vendedor, teléfono, enlaces, precios ni QR, y **nunca dice «ganador»** (BR-L15). Lo que la fuente no puede dibujar —un emoji— se omite **solo en la imagen** (D-195). | S | post-9 |
+| BR-H05 | **`GET /api/weekly-results/image?week=AAAA-MM-DD` se protege a mano** (D-060): sesión (401), membresía activa (403), rol vendedor (403) y `week` = el lunes de una semana ya terminada (400). Sin rifa o sin la semana completa responde **409** y no dibuja nada. **No acepta ningún identificador** de vendedor, organización ni rifa. Toda respuesta lleva `Cache-Control: private, no-store`, y los errores son genéricos. | S, D | post-9 |
+| BR-H06 | **El mensaje predeterminado vive en el código**: no se guarda, no se personaliza en esta versión, no lleva el enlace del grupo ni números, y dice la semana entera en español («del 17 al 22 de agosto de 2026»). Los días y la lotería del número semanal salen de las constantes de loterías. | C, S | post-9 |
+| BR-H07 | **La imagen se pide una vez y es la misma en la vista previa, al compartir y al descargar.** Compartir usa `navigator.share` con el **archivo** —y título y mensaje si el navegador los acepta— **solo** si `canShare({ files })` lo permite; cancelar el menú **no es un error**; sin soporte no se ofrece y se propone descargar. Copiar pone **solo el mensaje**. «Abrir mi grupo» abre el enlace validado en otra pestaña con `noopener noreferrer`; sin grupo se ofrece configurarlo y **lo demás sigue disponible**. **Nada se envía solo y ningún texto dice que algo se envió** (BR-W08). | C | post-9 |
+| BR-H08 | **Sin persistencia ni costo recurrente**: ni migración, ni tabla, ni bucket, ni cron, ni PNG guardado, ni IA. El resumen de «Configuración» **no** genera la imagen ni consulta los resultados: su tarjeta tiene una línea fija. | S | post-9 |
 
 ---
 
