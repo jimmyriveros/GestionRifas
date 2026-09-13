@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente («Reintentar» de la página de error general, D-196, 2026-09-13)** | **1.100 ✅ en 64 archivos (+3)** | — (no se tocó la base) | **80/80** (`security.spec.ts` 22 · catálogo público 58) | ✅ | ✅ **Sin desplegar** · en un navegador contra la base local, **8/8** · abre **I-115** |
+| **Post-9 vigente («Reintentar» de la página de error general, D-196, 2026-09-13)** | **1.100 ✅ en 64 archivos (+3)** | — (no se tocó la base) | **80/80** (`security.spec.ts` 22 · catálogo público 58) | ✅ | 🚀 **DESPLEGADO** (`787e420`, 2026-09-13) · en un navegador contra la base local, **8/8** · abre **I-115** |
 | Post-9 anterior (corte pasajero del catálogo público, I-114, D-196, 2026-09-13) | **1.097 ✅** en 62 archivos (+15) | — (no se tocó la base) | **58/58** | ✅ | 🚀 **DESPLEGADO** (`8767f9e`, 2026-09-13) |
 | Post-9 anterior (ajuste visual de la imagen semanal, 2026-09-13) | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | 🚀 **DESPLEGADO** (`1a6b4af`, 2026-09-13) |
 | Post-9 anterior («Resultados de la semana», D-194 y D-195, 2026-09-13) | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`a929e23`, 2026-09-13) · cero migraciones y cero dependencias |
@@ -11348,7 +11348,7 @@ Autorizada expresamente: «haz push y despliega a producción».
 
 ## «Reintentar» de la página de error general vuelve a pedir la pantalla (D-196, Decisión 3) — 2026-09-13
 
-**Pedido:** «arregla también la página de error general». **Sin desplegar.**
+**Pedido:** «arregla también la página de error general». **Desplegado el mismo día** (§f).
 
 ### a. Qué cambió
 
@@ -11393,6 +11393,27 @@ aparte.
 
 ### e. Lo que NO se comprobó
 
-* **Producción**: el cambio no está desplegado.
+* **La página de error general con un fallo real en producción**: solo aparece cuando una pantalla
+  falla; lo desplegado se comprueba por el identificador de versión (§f).
 * **La página de error general durante un corte real con sesión**: por I-115, hoy ese caso acaba en el
   login.
+
+### f. Promoción a producción — 2026-09-13
+
+Autorizada expresamente: «haz push y despliega a producción».
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`787e4205782082be15c059f27b15e901c0018370`**, por fast-forward `faaffa2..787e420` |
+| Despliegue Vercel | `dpl_GeAq2iASntwCWv1QkV1mXpvwui62` — READY tras **24,4 s** de build, `aliasError: null` |
+| Punto de reversión | `dpl_3SvKnaGnXqXa6rRBXxk1om1ySqAP` (`faaffa2`) |
+| Migraciones, variables, dependencias y configuración | **Ninguna** |
+| CI | ✅ **2/2** (run 34782088029), incluido el job que aplica las 55 migraciones desde cero |
+| Identificador de versión | **`1f3f14b36e57`** en **1 de 15** fragmentos; el anterior, `888d83e03b82`, en **0** |
+| Rutas sin sesión | **23/23** como se esperaba; ningún 5xx |
+| Cabeceras y secretos | **7/7**, con CSP por nonce; **0 secretos** en 945 KB |
+| Errores de ejecución | **0** en los 5 minutos siguientes al despliegue (20:52–20:58 UTC) |
+| Previsualización de la rama | `dpl_ABzF51cLLvhNoyNYUg9H8MHmgKL6` falló en `check:env`, como las anteriores: el entorno Preview de Vercel no tiene las variables de Supabase. **No afecta a producción** |
+
+> **Lo que este release NO verificó:** la página de error general con un fallo real en producción, que
+> solo aparece cuando una pantalla falla; ni I-115, que sigue abierta.

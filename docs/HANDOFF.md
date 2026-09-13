@@ -142,7 +142,7 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — «Reintentar» de la página de error general, SIN DESPLEGAR (D-196, I-115, 2026-09-13)
+## 1.a Último relevo significativo — «Reintentar» de la página de error general, DESPLEGADO (D-196, I-115, 2026-09-13)
 
 | Campo | Estado |
 |---|---|
@@ -150,10 +150,10 @@ reales).
 | Archivos | **Nuevos:** `src/components/feedback/RetryButton.tsx`, `tests/unit/app-error-page.test.tsx` y `tests/unit/retry-button.test.tsx`. **Cambiados:** `src/app/error.tsx` y `src/app/(catalogo)/catalogo/[slug]/error.tsx`. **Documentación:** `DECISIONS` (D-196, Decisión 3), `KNOWN_ISSUES` (I-114 e **I-115**), `UX_COPY_GUIDELINES`, `TEST_RESULTS`, `PHASE_STATUS` y este archivo (§1.a, §6.b y §9) |
 | Reutilización | El botón que ya tenía la página de error del catálogo, **extraído** a `components/feedback/` sin cambiar su aspecto, y el montaje de `catalog-error-page.test.tsx` para las pruebas. **No** se reutilizó `OfflineRetry`: recarga la página entera y está hecho para funcionar sin JavaScript |
 | Decisiones | **D-196, Decisión 3.** `retry()` y no recargar la página; y **no** extender al resto de la aplicación el reintento de lecturas del catálogo |
-| Verificación | Unitarias **7/7** · `verify` **1.100/1.100** · E2E **80/80** (`security.spec.ts` 22 y catálogo público 58). **En un navegador contra la base local, 8/8**: con la vista de «Clientes» renombrada sale la página de error general; «Reintentar» con el fallo presente vuelve a pedirla y se queda; devuelta la vista, «Clientes» vuelve entera **sin recargar** |
+| Verificación | Unitarias **7/7** · `verify` **1.100/1.100** · E2E **80/80** (`security.spec.ts` 22 y catálogo público 58). **En un navegador contra la base local, 8/8**: con la vista de «Clientes» renombrada sale la página de error general; «Reintentar» con el fallo presente vuelve a pedirla y se queda; devuelta la vista, «Clientes» vuelve entera **sin recargar**. **En producción:** `1f3f14b36e57` servido, 23/23 rutas, 7/7 cabeceras y CI **2/2** |
 | Advertencias | **Un `error.tsx` nuevo usa `RetryButton`**, no `reset()`. **Para ver la página de error general en local no detengas PostgREST**: con sesión acabas en el login con «Tu cuenta está inactiva» (**I-115**). Rompe solo la lectura de la pantalla (§9) y **devuélvela** |
-| Pendiente | **Sin desplegar.** **I-115**, propuesta como tarea aparte: que un fallo al leer la membresía muestre la página de error en vez de cerrar la sesión |
-| Git | Rama **`feature/recordatorios-layout`**, sobre `faaffa2`. Los dos archivos sin seguimiento del usuario, intactos y fuera del commit |
+| Pendiente | **Desplegado** (`787e420`, `dpl_GeAq2iASntwCWv1QkV1mXpvwui62`); punto de reversión `dpl_3SvKnaGnXqXa6rRBXxk1om1ySqAP` (`faaffa2`). **I-115**, propuesta como tarea aparte: que un fallo al leer la membresía muestre la página de error en vez de cerrar la sesión |
+| Git | Rama **`feature/recordatorios-layout`**, sobre `faaffa2`, **empujada** y **desplegada** por fast-forward `faaffa2..787e420`, igual que `main`. Los dos archivos sin seguimiento del usuario, intactos y fuera del commit |
 
 ---
 

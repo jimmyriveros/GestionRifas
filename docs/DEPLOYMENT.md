@@ -488,6 +488,35 @@ del catálogo** con un «Reintentar» que vuelve a pedir los datos (D-196, BR-K1
 
 > **Lo que este release NO verificó:** el reintento en marcha en producción, que solo se ve durante un
 > corte real de Supabase. Si vuelve a pasar, un único 504 ya no debería acabar en un 500 del catálogo.
+
+### 3.2.h Release de «Reintentar» en la página de error general — 2026-09-13
+
+**Un commit, sin migración: la Decisión 3 de D-196.**
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`787e4205782082be15c059f27b15e901c0018370`** |
+| Commit anterior en producción | `faaffa24c60aac9e80bb63b2fd1756f9c1697ac5` |
+| Integración | **fast-forward** `faaffa2..787e420` — sin merge, sin reescritura, sin force |
+| Despliegue Vercel | `dpl_GeAq2iASntwCWv1QkV1mXpvwui62` — READY tras **24,4 s** de build, `aliasError: null` |
+| Despliegue anterior (**punto de reversión**) | `dpl_3SvKnaGnXqXa6rRBXxk1om1ySqAP` (`faaffa2`) |
+| **Migraciones** | **NINGUNA.** Siguen siendo 55, hasta `0055` |
+| Variables de entorno, dependencias y configuración | **Sin cambios** |
+
+**Qué entró:** el «Reintentar» de la página de error general vuelve a pedir la pantalla con `retry()`
+—antes llamaba a `reset()`, que repinta sin pedir nada—, con el mismo botón que la página de error del
+catálogo (`RetryButton`, D-196). Los textos no cambian.
+
+**Validación previa:** `verify` en verde (**1.100/1.100** unitarias), E2E de seguridad y del catálogo
+público **80/80** sobre base recién sembrada, y la página **comprobada en un navegador** contra la base
+local: vuelve entera sin recargar. CI: ✅ **2/2** (run 34782088029), incluido el job que aplica las 55 migraciones desde cero.
+
+**Verificación en vivo:** identificador **`1f3f14b36e57`** servido (1 de 15 fragmentos) y el anterior (`888d83e03b82`) **desaparecido**; **23/23** rutas como se esperaba; **7/7** cabeceras con CSP por nonce; **0 secretos** en 945 KB; **ningún 5xx**; **0 errores de ejecución** en los 5 minutos siguientes al despliegue.
+
+> **Lo que este release NO verificó:** la página de error general con un fallo real en producción, que
+> solo aparece cuando una pantalla falla. Y **I-115 sigue abierta**: durante un corte de PostgREST, las
+> pantallas con sesión todavía cierran la sesión en vez de enseñar esta página.
+
 ### 3.3 Despliegues futuros
 
 Cada `git push` a `main` que se decida subir dispara un build y despliegue a producción automático
