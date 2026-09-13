@@ -1,5 +1,6 @@
 import { PageHeader } from '@/components/data/PageHeader'
 import { listPaymentAccounts } from '@/features/payment-accounts/queries'
+import { CreatePaymentReminderButton } from '@/features/payment-reminders/components/CreatePaymentReminderButton'
 import { PaymentRemindersSection } from '@/features/payment-reminders/components/PaymentRemindersSection'
 import { PendingReminderOccurrences } from '@/features/payment-reminders/components/PendingReminderOccurrences'
 import {
@@ -42,6 +43,23 @@ import { getWhatsappSettings } from '@/features/whatsapp/queries'
  * que hoy produce avisos. Solo se leen los endpoints —nunca las claves—, y la
  * tarjeta **no aparece** si la aplicación no tiene clave VAPID configurada: el
  * canal del teléfono es una mejora encima de la campana, no un requisito.
+ *
+ * LA DISPOSICIÓN, sin tocar ni una lectura ni un texto. El encabezado va a lo
+ * ancho y lleva la ÚNICA acción de crear (`CreatePaymentReminderButton`).
+ * Debajo, una rejilla de 12 columnas desde `lg`: 8 para lo que se hace —«Para
+ * enviar ahora» y la lista— y 4 para «Avisos en este dispositivo». Por debajo
+ * de `lg` todo se apila en ese mismo orden. El orden del DOM ES el visual en
+ * los dos tamaños —sin clases `order-*`—, así que el foco del teclado recorre
+ * la pantalla en el orden en que se lee.
+ *
+ * La columna lateral queda RESERVADA aunque la tarjeta no se pinte. La tarjeta
+ * decide en el navegador después de pintar (D-190): si la columna principal
+ * ocupara todo el ancho mientras tanto, se estrecharía de golpe al aparecer. En
+ * escritorio el ancho lo fijan las 12 pistas y no la tarjeta; `empty:hidden`
+ * solo quita el hueco que un elemento vacío dejaría en la pila del teléfono.
+ *
+ * `grid-cols-1` y los `min-w-0` no sobran: sin columna base, la del teléfono
+ * sería `auto` y no bajaría del ancho de la línea más larga del mensaje (D-125).
  */
 export default async function PaymentRemindersPage() {
   const [pending, reminders, accounts, whatsapp, pushEndpoints] = await Promise.all([
@@ -53,23 +71,30 @@ export default async function PaymentRemindersPage() {
   ])
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title={REMINDER_COPY.title}
         description={REMINDER_COPY.description}
         backHref="/seller/settings"
         backLabel="Volver a Configuración"
+        actions={<CreatePaymentReminderButton reminders={reminders} accounts={accounts} />}
       />
 
-      <PendingReminderOccurrences
-        occurrences={pending}
-        accounts={accounts}
-        groupUrl={whatsapp.groupUrl}
-      />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+        <div className="min-w-0 space-y-6 lg:col-span-8">
+          <PendingReminderOccurrences
+            occurrences={pending}
+            accounts={accounts}
+            groupUrl={whatsapp.groupUrl}
+          />
 
-      <PaymentRemindersSection reminders={reminders} accounts={accounts} />
+          <PaymentRemindersSection reminders={reminders} accounts={accounts} />
+        </div>
 
-      <PushNotificationsCard endpoints={pushEndpoints} />
+        <div className="min-w-0 empty:hidden lg:col-span-4">
+          <PushNotificationsCard endpoints={pushEndpoints} />
+        </div>
+      </div>
     </div>
   )
 }

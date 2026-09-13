@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (Etapa 7 del cobro — PRODUCCIÓN, D-193, 2026-09-12)** | **1.004 ✅** (sin cambio) | **982 ✅** (sin cambio, con la `0055`) | En vivo: **14/14** tras desplegar | ✅ **24/24** en el proyecto real | 🚀 **DESPLEGADO** (`25cdb5a`) · base de producción **50 → 55 migraciones** |
+| **Post-9 vigente (disposición de «Recordatorios de pago», 2026-09-12)** | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (sin cambio: no se tocó la base) | **34/34** de la pantalla (`configuracion-cobro.spec.ts` 25 · `configuracion-cobro-movil.spec.ts` 9), **+3** de disposición | ✅ | ✅ **Sin desplegar** — rama `feature/recordatorios-layout` · solo presentación, cero migraciones |
+| Post-9 anterior (Etapa 7 del cobro — PRODUCCIÓN, D-193, 2026-09-12) | **1.004 ✅** (sin cambio) | **982 ✅** (sin cambio, con la `0055`) | En vivo: **14/14** tras desplegar | ✅ **24/24** en el proyecto real | 🚀 **DESPLEGADO** (`25cdb5a`) · base de producción **50 → 55 migraciones** |
 | Post-9 anterior (Etapa 6 del cobro — auditoría, D-192, 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (**+1**: `P-04b`) | **642/644** + **8/8** dirigidas a los tres anchos nuevos; los 2 son **I-090**, el **mismo par** que la Etapa 5 | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 5 del cobro, D-191, 2026-09-12) | **1.004 ✅** en 57 archivos (+36) | **981 ✅** en 44 archivos (+39) | **642/644**; los 2 son **I-090**, conocido y ajeno | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 4 del cobro, D-190, 2026-09-12) | **968 ✅** en 55 archivos (+25) | **942 ✅** en 42 archivos (+20) | **635/639**; los 4 son **I-090** (3) e **I-106** (1), conocidos y ajenos | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
@@ -10924,3 +10925,77 @@ aviso quedaría en la cola con su motivo escrito — **no se perdería ningún a
 **Lo prueba el primer aviso real**, que es también lo que prueba el resto del canal: activar los
 avisos en un teléfono y crear un recordatorio para dentro de dos minutos. Sigue siendo cierto que
 **nadie ha visto todavía un aviso llegar a un teléfono**.
+
+---
+
+## Disposición de «Recordatorios de pago»: dos columnas y crear en el encabezado — 2026-09-12
+
+**Alcance:** solo la presentación de `/seller/settings/reminders`, autorizado expresamente. **Cero
+textos, datos, consultas, reglas, migraciones o dependencias.** Rama `feature/recordatorios-layout`,
+sin desplegar. Cómo quedó y por qué, en `ARCHITECTURE` §8.23.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npm run typecheck` y `eslint` de lo tocado | ✅ |
+| `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **1.004/1.004** unitarias en 57 archivos, `build` |
+| `npm run test:db` | ✅ **982/982** en 44 archivos — sin cambio: esta tarea no toca la base |
+| `db:reset` + `seed:local` y las dos suites de la pantalla | ✅ **34/34** en 2,3 min: `configuracion-cobro.spec.ts` **25/25** (+2) y `configuracion-cobro-movil.spec.ts` **9/9** (+1) |
+| Prettier sobre lo tocado | ✅ lo nuevo sale limpio. Quedan diferencias **idénticas a las de `HEAD`** en `PaymentRemindersSection.tsx`, `PushNotificationsCard.tsx` y `configuracion-cobro.spec.ts`, y no se reformatearon (`TESTING` §2.0) |
+
+**Ninguna prueba existente se cambió** para aceptar otro texto u otro comportamiento. Las tres nuevas
+solo añaden geometría relativa, orden de tabulación y diana táctil.
+
+### b. Verificación visual, medida y fotografiada
+
+Con un guion de Playwright **fuera del repositorio**, contra la base local y la sesión del vendedor
+del seed. En cada captura se midieron el desbordamiento horizontal, cuántos «Crear recordatorio» hay,
+los controles por debajo de 44 px en el teléfono, la tipografía calculada y la posición de cada
+bloque.
+
+| Escenario | Anchos | Desbordamiento | Controles < 44 px | «Crear recordatorio» |
+|---|---|---|---|---|
+| Vacío | 390 · 1280 | **0** | 0 | 1 |
+| Dos pendientes —una con mensaje largo, una palabra de 102 caracteres y cuenta bancaria—, y un recordatorio activo, uno pausado y uno archivado, **sin grupo** | 320 · 375 · 390 · 430 · 768 · 1024 · 1280 · 1440, y 390 y 1280 en oscuro | **0** | 0 | 1 |
+| Lo mismo **con grupo** («Abrir grupo») | 390 · 1280 | **0** | 0 | 1 |
+| **Tope de 14**: crear desactivado y la frase del tope debajo | 390 · 1280 | **0** | 0 | 1 |
+| Tarjeta de avisos: **disponible, bloqueada, activa e iPhone sin instalar** | 390 · 1280, y disponible en oscuro | **0** | 0 | 1 |
+
+**Orden de tabulación leído del DOM**, el mismo a 390 y a 1280: volver → crear → copiar → configurar
+→ atender —dos veces, una por pendiente— → editar → pausar → archivar → editar → reanudar → archivar.
+
+**La tarjeta de avisos solo existe con clave VAPID**, y la suite corre sin ella (D-190). Para verla se
+levantó `dev:local` con una **clave pública P-256 de un solo uso**, generada en la sesión **sin
+imprimir la privada** y guardada fuera del repositorio, y sus estados se forzaron en el navegador:
+`Notification.permission`, una suscripción simulada y el agente de un iPhone. **Ninguna variable,
+archivo `.env` ni secreto se tocó.** Resultado: desde `lg`, en la columna lateral y arriba, con su
+borde derecho a plomo con el de «Crear recordatorio»; en el teléfono, al final.
+
+### c. Dos defectos encontrados midiendo, y corregidos
+
+1. **La hora se partía entre «p.» y «m.» a 320 px.** Apareció con el propio cambio: el relleno más
+   estrecho de la tarjeta pendiente dejaba «…07:59 p.» en un renglón y «m.» en el siguiente, que la
+   guía de redacción trata como una errata. `text-balance` reparte la fecha en dos renglones parejos.
+   Medido otra vez: «de 2026, 08:04 p. m.» queda entero.
+2. **`text-heading-h5` no existe en el sistema de diseño.** «Avisos en este dispositivo» y
+   «Recordatorios archivados» se pintaban como texto normal —**16 px / 400**— y ninguna prueba ni
+   `lint` podía verlo. Pasados a `text-heading-h4`: **16 px / 600**. **Queda uno fuera de alcance**, en
+   «Cuentas archivadas»: **I-113**.
+
+### d. Lo que se decidió y no es evidente
+
+* **Crear va en `actions`, no en `compactAction`.** Con el tope alcanzado, la cabecera compacta
+  dejaría un «+» desactivado sin la frase que lo explica.
+* **La columna lateral se reserva aunque la tarjeta no se pinte**, para que la principal no se
+  estreche de golpe cuando la tarjeta aparece. El precio: **sin clave VAPID queda un hueco a la
+  derecha** en escritorio.
+* **Crear ya no se desactiva durante la transición de pausar, reanudar o archivar.** Esa transición
+  vive en la sección y el encabezado no la ve sin un estado compartido, que el encargo excluía. El
+  tope no cambia y lo sigue imponiendo la base (BR-S05).
+
+### e. Lo que NO se comprobó
+
+* **Un iPhone o un Android de verdad.** Los anchos son de Chromium, con emulación de Pixel 7 en el
+  teléfono. `text-balance` es una mejora progresiva: donde no exista, la fecha se parte como antes.
+* **Nada en producción.** Ni despliegue ni push.

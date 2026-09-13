@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import { clipboardWrites, stubShareAndClipboard } from './catalogo-helpers'
 import { loadSeedRefs, serviceClient, type SeedRefs } from './db-setup'
@@ -527,6 +527,95 @@ test.describe('lo que hay para enviar', () => {
 
     await expect(page).toHaveURL(/\/seller\/settings\/reminders$/)
     await expect(page.getByRole('heading', { name: 'Para enviar ahora' })).toBeVisible()
+  })
+})
+
+/*
+ * =============================================================================
+ * LA DISPOSICION DE LA PANTALLA
+ *
+ * Es solo presentacion: no hay ni un texto ni un dato nuevo que probar. Se mide
+ * la geometria RELATIVA —que va encima o a la derecha de que— y nunca pixeles
+ * fijos, que cambiarian con cualquier ajuste de espaciado sin que nada se
+ * hubiera roto. La tarjeta de avisos no se ve aqui: la suite corre sin clave
+ * VAPID, y sin ella no se pinta (D-190).
+ * =============================================================================
+ */
+
+async function caja(locator: Locator) {
+  const box = await locator.boundingBox()
+  expect(box).not.toBeNull()
+  return box!
+}
+
+test.describe('la disposicion de la pantalla', () => {
+  test('crear va en el encabezado, lo pendiente antes que la lista y nada se desborda', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await pendienteDeEnviar(refs)
+    await page.goto('/seller/settings/reminders')
+
+    const recordatorio = page.getByText('Miércoles a las 7:00 p. m.')
+    await expect(recordatorio).toBeVisible()
+
+    // UNA sola accion de crear en toda la pantalla, tambien con lista y pendientes.
+    const crear = page.getByRole('button', { name: 'Crear recordatorio' })
+    await expect(crear).toHaveCount(1)
+
+    const seccion = page.getByRole('region', { name: 'Para enviar ahora' })
+
+    for (const width of [1280, 1440, 1024, 768]) {
+      await page.setViewportSize({ width, height: 800 })
+
+      const titulo = await caja(page.getByRole('heading', { level: 1 }))
+      const accion = await caja(crear)
+      const porEnviar = await caja(seccion)
+      const copiar = await caja(seccion.getByRole('button', { name: 'Copiar mensaje' }))
+      const configurar = await caja(seccion.getByRole('link', { name: 'Configurar WhatsApp' }))
+      const atender = await caja(seccion.getByRole('button', { name: 'Marcar como atendido' }))
+      const lista = await caja(recordatorio)
+
+      // Crear, a la derecha del titulo y en su misma franja.
+      expect(accion.x, `${width} px`).toBeGreaterThan(titulo.x + titulo.width)
+      expect(accion.y, `${width} px`).toBeLessThan(titulo.y + titulo.height)
+      // Debajo del encabezado, lo pendiente; despues, la lista.
+      expect(porEnviar.y, `${width} px`).toBeGreaterThanOrEqual(accion.y + accion.height)
+      expect(lista.y, `${width} px`).toBeGreaterThan(porEnviar.y + porEnviar.height)
+      // Los tres botones comparten fila, en el orden en que se hacen.
+      expect(Math.abs(copiar.y - configurar.y), `${width} px`).toBeLessThanOrEqual(1)
+      expect(Math.abs(copiar.y - atender.y), `${width} px`).toBeLessThanOrEqual(1)
+      expect(copiar.x, `${width} px`).toBeLessThan(configurar.x)
+      expect(configurar.x, `${width} px`).toBeLessThan(atender.x)
+
+      const desborde = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )
+      expect(desborde, `${width} px`).toBeLessThanOrEqual(0)
+    }
+  })
+
+  test('el teclado recorre la pantalla en el orden en que se lee', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await pendienteDeEnviar(refs)
+    await page.goto('/seller/settings/reminders')
+    await expect(page.getByText('Miércoles a las 7:00 p. m.')).toBeVisible()
+
+    // Desde crear, cada Tab cae en lo siguiente que se ve: sin clases `order-*`,
+    // el orden del documento es el visual en los dos tamaños.
+    await page.getByRole('button', { name: 'Crear recordatorio' }).focus()
+    const seccion = page.getByRole('region', { name: 'Para enviar ahora' })
+    for (const siguiente of [
+      seccion.getByRole('button', { name: 'Copiar mensaje' }),
+      seccion.getByRole('link', { name: 'Configurar WhatsApp' }),
+      seccion.getByRole('button', { name: 'Marcar como atendido' }),
+      page.getByRole('button', { name: 'Editar' }),
+      page.getByRole('button', { name: 'Pausar' }),
+      page.getByRole('button', { name: 'Archivar', exact: true }),
+    ]) {
+      await page.keyboard.press('Tab')
+      await expect(siguiente).toBeFocused()
+    }
   })
 })
 

@@ -1730,6 +1730,23 @@ cuentas no saben nada de recordatorios. Esa dirección es lo que permite que la 
 accesible —no lo anuncia un lector de pantalla y no lo encuentra `getByRole('combobox', { name })`—.
 Lo encontró una prueba de esta etapa (D-188).
 
+**La pantalla de recordatorios, en dos columnas** (mantenimiento solo de presentación, 2026-09-12).
+Ningún texto, dato, consulta ni regla cambió. Lo que conviene saber antes de moverla:
+
+| Pieza | Cómo quedó, y por qué |
+|---|---|
+| Crear | **Una sola** acción, en `PageHeader.actions`. `CreatePaymentReminderButton` lleva el botón **y** el diálogo de crear —el patrón de `CreateUserButton`—, así que `page.tsx` sigue siendo Server Component. A ancho completo en el teléfono. **No va en `compactAction`**: con el tope alcanzado, la cabecera compacta dejaría un «+» desactivado sin la frase que lo explica |
+| Editar | Sigue en `PaymentRemindersSection`, con **su propia instancia** del mismo `PaymentReminderDialog`. Cerrado, un diálogo no monta nada, y ninguno se duplica por ancho de pantalla |
+| Estado vacío | **Sin botón**: con el del encabezado habría dos «Crear recordatorio» a la vista. Conserva su título y su explicación |
+| Rejilla | `grid-cols-1` y, desde `lg`, 12 columnas: **8** para «Para enviar ahora» y la lista, **4** para «Avisos en este dispositivo». El orden del DOM es el visual en los dos tamaños —**sin `order-*`**— y el foco del teclado lo recorre igual |
+| Columna lateral | **Reservada aunque la tarjeta no se pinte.** La tarjeta decide en el navegador después de pintar (D-190): si la principal ocupara todo el ancho hasta entonces, se estrecharía de golpe al aparecer. El precio, aceptado: **sin clave VAPID queda un hueco a la derecha** en escritorio. `empty:hidden` solo quita el hueco de la pila del teléfono |
+| Ocurrencia pendiente | Tarjeta con `status-success` —el verde de la marca, en claro y en oscuro— al **40 %**, para que el texto secundario conserve su contraste; el mensaje, sobre `surface-card` y con `break-words`. Botones **apilados** en el teléfono y **en fila a partes iguales** desde `sm` (`sm:flex-1` con `flex-wrap`: el que no cabe baja entero). La fecha lleva `text-balance`, porque a 320 px se partía entre «p.» y «m.» |
+| Lo que se perdió, y se dice | Crear ya **no se desactiva** durante la fracción de segundo en que se pausa, reanuda o archiva: esa transición es de la sección, y el encabezado no la ve sin un estado compartido. El tope de 14 no cambia y lo sigue imponiendo la base (BR-S05) |
+
+⚠️ **`text-heading-h5` no existe** en el sistema de diseño —los roles son `heading-h1` a `heading-h4`— y
+Tailwind ignora la clase en silencio: el título se pinta como texto normal. En esta pantalla se pasó a
+`text-heading-h4`; queda uno en «Cuentas archivadas» (**I-113**).
+
 ### 8.24 El motor de recordatorios: cron, ocurrencias y salida de avisos (`0052`, D-186, D-189)
 
 > **EL DIBUJO ENTERO EXISTE** desde el 2026-09-12, en tres etapas: `0052` (cron, ocurrencias y

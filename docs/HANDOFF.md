@@ -141,7 +141,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — cuentas de cobro y recordatorios, ETAPA 7: EN PRODUCCIÓN (`0055`, D-193, 2026-09-12)
+## 1.a Último relevo significativo — disposición de «Recordatorios de pago»: dos columnas y crear en el encabezado (2026-09-12)
+
+| Campo | Estado |
+|---|---|
+| Resultado | `/seller/settings/reminders` **cambia solo de disposición**. Encabezado a lo ancho con **una sola** acción «Crear recordatorio» —a la derecha en escritorio, a ancho completo en el teléfono—; desde `lg`, 8 columnas para «Para enviar ahora» y la lista y 4 para «Avisos en este dispositivo»; la ocurrencia pendiente, destacada y con sus botones apilados en el teléfono y en fila desde `sm`; los recordatorios, en tarjetas compactas. **Cero textos, datos, consultas, reglas, migraciones o dependencias.** **Fuera, a propósito:** todo lo del mockup que implicaba lógica o textos nuevos —pestañas, orden, calendario, «Programado», títulos y extractos por recordatorio, menú de tres puntos, interruptor, «Consejos»— |
+| Archivos | **Nuevo:** `features/payment-reminders/components/CreatePaymentReminderButton.tsx`. **Cambiados:** `app/(protected)/seller/settings/reminders/page.tsx`, `PaymentRemindersSection.tsx`, `PendingReminderOccurrences.tsx` y `features/push/components/PushNotificationsCard.tsx` (solo la clase del título). Pruebas: `configuracion-cobro.spec.ts` (+2) y `configuracion-cobro-movil.spec.ts` (+1). Documentación: `ARCHITECTURE` §8.23, `TESTING` §4.8, `KNOWN_ISSUES` (**I-113**), `TEST_RESULTS`, `PHASE_STATUS` y este archivo (§1.a y §6.b) |
+| Reutilización | `PageHeader.actions`, el patrón de `CreateUserButton`, `Card`, `Button size="touch"`, `StatusBadge`, `EmptyState`, `ConfirmDialog`, `PaymentReminderDialog` y la rejilla de 12 columnas del panel administrativo (D-182). Tokens `status-success-*` y `surface-card`. **Ningún primitivo compartido se tocó**, así que la regla de §1.b no aplica |
+| Decisiones | **Ninguna de producto**; lo técnico está en `ARCHITECTURE` §8.23. **Crear va en `actions` y no en `compactAction`**: con el tope, la cabecera compacta dejaría un «+» desactivado sin su frase. **La columna lateral se reserva** aunque la tarjeta no se pinte, para que la principal no se estreche al aparecer; sin clave VAPID queda un hueco. **Dos instancias** del mismo diálogo, una para crear y otra para editar. **El estado vacío pierde su botón** para no tener dos «Crear recordatorio». **Consecuencia dicha:** crear ya no se desactiva durante la transición de pausar, reanudar o archivar; el tope sigue en la base |
+| Verificación | `verify` ✅ **1.004/1.004** · `test:db` ✅ **982/982** · E2E de la pantalla ✅ **34/34** tras `db:reset` + `seed:local` · verificación visual con un guion de Playwright fuera del repositorio: **8 anchos** (320 a 1440), claro y oscuro, vacío, con y sin grupo, tope de 14 y **4 estados de la tarjeta de avisos**, todos con **0 desbordamiento** y **ningún control por debajo de 44 px**. **Dos defectos encontrados midiendo y corregidos:** la hora partida entre «p.» y «m.» a 320 px (`text-balance`) y `text-heading-h5`, que no existe (**I-113**) |
+| Advertencias | **Para ver la tarjeta de avisos en local hace falta `NEXT_PUBLIC_VAPID_PUBLIC_KEY` en el entorno del proceso**; la suite corre sin ella y así tiene que seguir, o fallará «sin clave configurada no se ofrece nada». **No pongas `order-*`** en esta pantalla: el orden del DOM es el visual y lo vigila la prueba de tabulación. **No subas crear a `compactAction`** sin resolver antes dónde va la frase del tope |
+| Pendiente | **I-113**: «Cuentas archivadas» (`PaymentAccountsSection.tsx:208`) sigue con `text-heading-h5`. Fusionar la rama y desplegar **necesitan autorización** |
+| Git | Rama **`feature/recordatorios-layout`**, creada desde `main` en `53f1930`; commit local y **sin push**. Los dos archivos sin seguimiento del usuario —`CorrecionesLoterias.txt` y `prueba-abono.csv`— **intactos y fuera del commit** |
+
+---
+
+## 1.a.0 Relevo anterior — cuentas de cobro y recordatorios, ETAPA 7: EN PRODUCCIÓN (`0055`, D-193, 2026-09-12)
 
 | Campo | Estado |
 |---|---|
@@ -1845,7 +1860,13 @@ features/payment-accounts/ y features/payment-reminders/  la «Configuración» 
                     Etapa 3 lo reutiliza tal cual, no lo dupliques en el motor.
                     NO existe ningun marcador tipo {{cuentas}} y hay dos pruebas
                     que fallan si alguien lo reintroduce. Las escrituras van por
-                    RPC porque las dos tablas conceden SOLO SELECT
+                    RPC porque las dos tablas conceden SOLO SELECT.
+                    CreatePaymentReminderButton es la accion de crear del
+                    ENCABEZADO de /seller/settings/reminders, con su propio
+                    dialogo (patron CreateUserButton); editar sigue en
+                    PaymentRemindersSection. Va en `actions` y NO en
+                    compactAction: con el tope, la cabecera compacta dejaria un
+                    «+» desactivado sin la frase que explica por que
 features/whatsapp/  invitar a un cliente nuevo al grupo del vendedor (D-176).
                     ClientCreatedProvider lo monta el LAYOUT del portal del
                     vendedor y las pantallas solo avisan con useClientCreated()

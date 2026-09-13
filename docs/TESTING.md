@@ -681,7 +681,7 @@ que los dos botones no bajen de la diana táctil. Esa prueba encontró un defect
 > **Las SIETE etapas hechas, y EN PRODUCCIÓN** desde el 2026-09-12 (D-193). Base: `payment-accounts-reminders.test.ts` (62),
 > `payment-reminder-engine.test.ts` (32), `push-subscriptions.test.ts` (21),
 > `push-outbox.test.ts` (27) y `push-dispatch.test.ts` (12, **con la base real y el cifrado real**).
-> Navegador: `configuracion-cobro.spec.ts` (23), `configuracion-cobro-movil.spec.ts` (8) y
+> Navegador: `configuracion-cobro.spec.ts` (25), `configuracion-cobro-movil.spec.ts` (9) y
 > `push-dispatch.spec.ts` (5). Unitarias: 108, incluidas **12 que ejecutan `public/sw.js` de
 > verdad** y **15 contra los vectores publicados del RFC 8291 y del RFC 8292**.
 >
@@ -836,6 +836,28 @@ avisos iguales a la vez.
 * Y la regla de `HANDOFF` §1.b: si se toca infraestructura de interfaz compartida, se comprueban
   **las dos** presentaciones. Esta etapa **no tocó ninguna**: su único cambio de código son los
   comentarios restaurados en la `0054` y dos archivos de prueba.
+
+#### Disposición de «Recordatorios de pago» — navegador ✅ (`configuracion-cobro.spec.ts`, +2 · `configuracion-cobro-movil.spec.ts`, +1)
+
+Mantenimiento **solo de presentación** (2026-09-12): el encabezado lleva la única acción de crear y,
+desde `lg`, la pantalla va en dos columnas (`ARCHITECTURE` §8.23). **No hay ni un texto ni un dato
+nuevo que probar**, así que se mide la **geometría relativa** —qué va encima o a la derecha de qué— y
+nunca píxeles fijos, que cambiarían con cualquier ajuste de espaciado sin que nada se hubiera roto.
+
+| Qué se demuestra | Cómo |
+|---|---|
+| **Un solo** «Crear recordatorio», en el encabezado y a la derecha del título | `toHaveCount(1)` con lista y pendientes; su caja, a la derecha del `h1` y en su franja, a 768, 1024, 1280 y 1440 px |
+| Lo pendiente va antes que la lista, con sus tres botones **en una fila y en su orden** | Mismo `y` (±1 px) y `x` creciente: copiar → configurar → atender |
+| El teclado recorre la pantalla **en el orden en que se lee** | Desde crear, cada `Tab` cae en copiar, configurar, atender, editar, pausar y archivar |
+| Teléfono: crear **a ancho completo**, lo pendiente con sus botones **apilados** y en orden, y la lista | A 390 px, crear mide lo que la sección (±1 px) y cada botón empieza donde acaba el anterior |
+| Todo lo que se toca, en la diana de 44 px | `getComputedStyle().height` (D-177) sobre crear, los tres del flujo y las tres acciones de la lista |
+| Sin desbordamiento horizontal | `scrollWidth − clientWidth ≤ 0` a 390, 768, 1024, 1280 y 1440; los 320, 375 y 430 ya los medían las pruebas de siempre |
+
+**Lo que esta suite no puede ver, y se midió aparte:** la tarjeta «Avisos en este dispositivo» **no se
+pinta sin clave VAPID** (D-190), y la suite corre sin ella. Su sitio —columna lateral desde `lg`, al
+final en el teléfono— se comprobó con un servidor levantado con una **clave pública de verificación**
+y sus estados forzados en el navegador (`TEST_RESULTS`, misma fecha). Tampoco es infraestructura de
+interfaz compartida (`HANDOFF` §1.b): no se tocó ningún primitivo.
 
 ### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 7 pruebas)
 

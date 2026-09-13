@@ -3,7 +3,15 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-12 — 🚀 **ETAPA 7 de 7: EL ENCARGO DE COBRO ESTÁ EN PRODUCCIÓN** (`0055`,
+- **Actualizado:** 2026-09-12 — **Disposición de «Recordatorios de pago»**, solo presentación y
+  **sin desplegar** (rama `feature/recordatorios-layout`). El encabezado lleva la **única** acción de
+  crear y, desde `lg`, la pantalla va en dos columnas —lo que se hace a la izquierda, «Avisos en este
+  dispositivo» a la derecha—; en el teléfono, el mismo orden apilado. **Cero textos, datos,
+  consultas, reglas o migraciones.** Pruebas: `verify` **1.004/1.004**, `test:db` **982/982** y **34/34**
+  E2E de la pantalla (**+3**). Apareció **I-113** —`text-heading-h5` no existe en el sistema de
+  diseño—, corregida en esta pantalla y abierta en «Cuentas archivadas». Detalle en `HANDOFF` §1.a y
+  `TEST_RESULTS`.
+  Antes, ese mismo día: 🚀 **ETAPA 7 de 7: EL ENCARGO DE COBRO ESTÁ EN PRODUCCIÓN** (`0055`,
   D-193). La base real pasa de **50 a 55 migraciones** y `25cdb5a` lo sirve `gestion-rifas.vercel.app`.
   **El hallazgo de la promoción apareció ANTES de empujar nada**: una sonda de extensiones encontró
   que el proyecto real **no tenía instalada `pg_net`** —la pila local la instala sola— y que

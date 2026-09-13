@@ -136,7 +136,8 @@ export function PushNotificationsCard({ endpoints }: { endpoints: string[] }) {
             <BellRingIcon className="size-5" aria-hidden />
           </span>
           <div className="min-w-0 space-y-1">
-            <h2 className="text-heading-h5">{PUSH_COPY.title}</h2>
+            {/* `text-heading-h5` no existe en el sistema de diseño: no pintaba nada. */}
+            <h2 className="text-heading-h4">{PUSH_COPY.title}</h2>
             <p className="text-body-small text-muted-foreground">{PUSH_COPY.description}</p>
           </div>
         </div>

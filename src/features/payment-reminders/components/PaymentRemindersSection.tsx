@@ -1,6 +1,5 @@
 'use client'
 
-import { PlusIcon } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
@@ -8,6 +7,7 @@ import { EmptyState } from '@/components/data/EmptyState'
 import { StatusBadge } from '@/components/data/StatusBadge'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import type { PaymentAccount } from '@/features/payment-accounts/accounts'
 import {
   PAYMENT_REMINDER_STATUS_LABELS,
@@ -39,6 +39,12 @@ import { PaymentReminderDialog } from './PaymentReminderDialog'
  * NO SE ENSEÑA NINGUNA FECHA DE PROXIMO ENVIO. La base ya calcula `next_run_at`,
  * pero en esta etapa **no hay motor**: escribir «suena el martes 15» seria
  * prometer algo que todavia no ocurre (D-116).
+ *
+ * CREAR NO VIVE AQUI: la accion subio al encabezado de la pantalla
+ * (`CreatePaymentReminderButton`), que es donde se busca. Con el boton tambien
+ * aqui habria dos «Crear recordatorio» a la vista, asi que el estado vacio se
+ * queda con su titulo y su explicacion, y esta seccion con editar, pausar,
+ * reanudar y archivar.
  */
 export function PaymentRemindersSection({
   reminders,
@@ -55,11 +61,6 @@ export function PaymentRemindersSection({
   const [editing, setEditing] = useState<PaymentReminder | undefined>(undefined)
   const [archiving, setArchiving] = useState<PaymentReminder | null>(null)
   const [isPending, startTransition] = useTransition()
-
-  function openCreate() {
-    setEditing(undefined)
-    setDialogOpen(true)
-  }
 
   function openEdit(reminder: PaymentReminder) {
     setEditing(reminder)
@@ -90,33 +91,31 @@ export function PaymentRemindersSection({
         <EmptyState
           title={REMINDER_COPY.empty.title}
           description={REMINDER_COPY.empty.description}
-          action={
-            <Button size="touch" onClick={openCreate}>
-              <PlusIcon className="size-4" aria-hidden />
-              {REMINDER_COPY.add}
-            </Button>
-          }
         />
       ) : (
-        <div className="space-y-3">
-          <ul className="space-y-3">
-            {visible.map((reminder) => (
-              <li
-                key={reminder.id}
-                className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
+        <ul className="space-y-3">
+          {visible.map((reminder) => (
+            <li key={reminder.id}>
+              {/*
+                Una tarjeta compacta con lo mismo de siempre: cuando suena, su
+                estado y sus tres acciones. En el telefono las acciones bajan a
+                su propia fila y se reparten el ancho, cada una con su diana de
+                44 px; desde `sm` vuelven a la derecha con su ancho natural.
+              */}
+              <Card className="gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                  <p className="text-body-medium">{reminderSchedule(reminder)}</p>
+                  <p className="text-heading-h4">{reminderSchedule(reminder)}</p>
                   <StatusBadge tone={PAYMENT_REMINDER_STATUS_TONES[reminder.status]}>
                     {PAYMENT_REMINDER_STATUS_LABELS[reminder.status]}
                   </StatusBadge>
                 </div>
 
-                <div className="flex shrink-0 flex-wrap items-center gap-1">
+                <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-1">
                   <Button
                     type="button"
                     variant="outline"
                     size="touch"
+                    className="flex-1 sm:flex-none"
                     onClick={() => openEdit(reminder)}
                     disabled={isPending}
                   >
@@ -126,6 +125,7 @@ export function PaymentRemindersSection({
                     type="button"
                     variant="ghost"
                     size="touch"
+                    className="flex-1 sm:flex-none"
                     onClick={() =>
                       setStatus(reminder, reminder.status === 'active' ? 'paused' : 'active')
                     }
@@ -137,32 +137,23 @@ export function PaymentRemindersSection({
                     type="button"
                     variant="ghost"
                     size="touch"
+                    className="flex-1 sm:flex-none"
                     onClick={() => setArchiving(reminder)}
                     disabled={isPending}
                   >
                     {REMINDER_COPY.archive}
                   </Button>
                 </div>
-              </li>
-            ))}
-          </ul>
-
-          <div className="space-y-2">
-            <Button size="touch" onClick={openCreate} disabled={isFull || isPending}>
-              <PlusIcon className="size-4" aria-hidden />
-              {REMINDER_COPY.add}
-            </Button>
-            {/* El tope se dice cuando estorba, no antes (D-188). */}
-            {isFull ? (
-              <p className="text-body-small text-muted-foreground">{REMINDER_COPY.addBlocked}</p>
-            ) : null}
-          </div>
-        </div>
+              </Card>
+            </li>
+          ))}
+        </ul>
       )}
 
       {archived.length > 0 ? (
         <section className="space-y-3 border-t pt-6">
-          <h3 className="text-heading-h5">{REMINDER_COPY.archivedTitle}</h3>
+          {/* `text-heading-h5` no existe en el sistema de diseno: no pintaba nada. */}
+          <h3 className="text-heading-h4">{REMINDER_COPY.archivedTitle}</h3>
           <ul className="space-y-2">
             {archived.map((reminder) => (
               <li

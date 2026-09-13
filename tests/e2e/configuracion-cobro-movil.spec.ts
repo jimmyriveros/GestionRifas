@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
 
 import { loadSeedRefs, serviceClient, type SeedRefs } from './db-setup'
 import { ACCOUNTS, loginAs } from './fixtures'
@@ -230,5 +230,88 @@ test('«Para enviar ahora» cabe a 320 px, con sus tres botones alcanzables', as
       .getByRole(name === 'Configurar WhatsApp' ? 'link' : 'button', { name })
       .evaluate((el) => parseFloat(getComputedStyle(el).height))
     expect(height, name).toBeGreaterThanOrEqual(44)
+  }
+})
+
+/** Vence un recordatorio y lo procesa: deja una ocurrencia PENDIENTE de verdad. */
+async function pendienteDeEnviar(): Promise<void> {
+  const svc = serviceClient()
+  const { data: recordatorio, error } = await svc
+    .from('seller_payment_reminders')
+    .insert({
+      organization_id: refs.organizationId,
+      seller_id: refs.sellerId,
+      weekday: 3,
+      time_of_day: '19:00:00',
+    })
+    .select('id')
+    .single()
+  if (error) throw error
+  await svc
+    .from('seller_payment_reminders')
+    .update({ next_run_at: new Date(Date.now() - 20 * 60_000).toISOString() })
+    .eq('id', recordatorio.id)
+  await svc.rpc('process_due_payment_reminders', {})
+}
+
+async function caja(locator: Locator) {
+  const box = await locator.boundingBox()
+  expect(box).not.toBeNull()
+  return box!
+}
+
+/**
+ * El orden del telefono (sin textos ni datos nuevos): encabezado, crear a ancho
+ * completo, lo pendiente con sus tres botones apilados en el orden en que se
+ * hacen, y la lista. Geometria RELATIVA, nunca pixeles fijos.
+ */
+test('en el telefono se lee de arriba abajo: crear, lo pendiente y la lista', async ({ page }) => {
+  await pendienteDeEnviar()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await loginAs(page, ACCOUNTS.seller)
+  await page.goto('/seller/settings/reminders')
+
+  const recordatorio = page.getByText('Miércoles a las 7:00 p. m.')
+  await expect(recordatorio).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+
+  const seccion = page.getByRole('region', { name: 'Para enviar ahora' })
+  const crear = page.getByRole('button', { name: 'Crear recordatorio' })
+  const copiar = seccion.getByRole('button', { name: 'Copiar mensaje' })
+  const configurar = seccion.getByRole('link', { name: 'Configurar WhatsApp' })
+  const atender = seccion.getByRole('button', { name: 'Marcar como atendido' })
+
+  const titulo = await caja(page.getByRole('heading', { level: 1 }))
+  const accion = await caja(crear)
+  const porEnviar = await caja(seccion)
+  const primero = await caja(copiar)
+  const segundo = await caja(configurar)
+  const tercero = await caja(atender)
+  const lista = await caja(recordatorio)
+
+  // Crear, debajo del titulo y a ancho completo: tan ancho como la seccion.
+  expect(accion.y).toBeGreaterThan(titulo.y)
+  expect(Math.abs(accion.width - porEnviar.width)).toBeLessThanOrEqual(1)
+  expect(porEnviar.y).toBeGreaterThanOrEqual(accion.y + accion.height)
+  // Los tres botones, apilados en el orden en que se hacen y del mismo ancho.
+  expect(segundo.y).toBeGreaterThanOrEqual(primero.y + primero.height)
+  expect(tercero.y).toBeGreaterThanOrEqual(segundo.y + segundo.height)
+  expect(Math.abs(primero.width - segundo.width)).toBeLessThanOrEqual(1)
+  expect(Math.abs(primero.width - tercero.width)).toBeLessThanOrEqual(1)
+  // Y la lista, despues de lo pendiente.
+  expect(lista.y).toBeGreaterThan(porEnviar.y + porEnviar.height)
+
+  // Todo lo que se toca, en la diana de 44 px (`getComputedStyle`, D-177).
+  for (const control of [
+    crear,
+    copiar,
+    configurar,
+    atender,
+    page.getByRole('button', { name: 'Editar' }),
+    page.getByRole('button', { name: 'Pausar' }),
+    page.getByRole('button', { name: 'Archivar', exact: true }),
+  ]) {
+    const height = await control.evaluate((el) => parseFloat(getComputedStyle(el).height))
+    expect(height).toBeGreaterThanOrEqual(44)
   }
 })

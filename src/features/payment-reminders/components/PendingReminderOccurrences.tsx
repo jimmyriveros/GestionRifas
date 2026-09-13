@@ -37,6 +37,17 @@ import {
  *
  * No consulta nada: las ocurrencias llegan del servidor y lo que cambia lo
  * refresca `revalidatePath`. Sin sondeo y sin Realtime (D-185, decision 10).
+ *
+ * LA TARJETA SE DESTACA con el tono de exito, que es el mismo verde de la
+ * marca en claro y en oscuro: es lo unico de la pantalla que pide hacer algo
+ * ya. El fondo va al 40 % para que el texto secundario de dentro conserve su
+ * contraste, y el mensaje se lee sobre la superficie de una tarjeta normal,
+ * que es justo lo que se va a copiar.
+ *
+ * LOS TRES BOTONES VAN SIEMPRE EN ESTE ORDEN —copiar, abrir o configurar,
+ * atender—, que es el orden en que se hacen. En el telefono se apilan a ancho
+ * completo, con su diana de 44 px; desde `sm` comparten la fila a partes
+ * iguales, y si alguno no cabe baja entero en vez de desbordar.
  */
 export function PendingReminderOccurrences({
   occurrences,
@@ -98,25 +109,33 @@ export function PendingReminderOccurrences({
 
           return (
             <li key={occurrence.id}>
-              <Card>
-                <CardContent className="space-y-3">
-                  <p className="text-label-medium">
+              <Card className="border-status-success-border bg-status-success-surface/40 py-4 sm:py-6">
+                <CardContent className="space-y-3 px-4 sm:px-6">
+                  {/*
+                    `text-balance` reparte la fecha en dos renglones parejos
+                    cuando no cabe en uno: sin el, a 320 px la hora se partia
+                    entre «p.» y «m.», que se lee como una errata.
+                  */}
+                  <p className="text-label-medium text-balance">
                     {REMINDER_COPY.due.scheduled(formatDateTimeEs(occurrence.scheduledFor))}
                   </p>
 
                   {/*
                     `whitespace-pre-wrap` conserva los saltos de linea tal como
                     se escribieron. Es un nodo de TEXTO: nada de lo que el
-                    vendedor escriba se interpreta como HTML.
+                    vendedor escriba se interpreta como HTML. `break-words`
+                    parte una palabra que no quepa —un enlace pegado, un numero
+                    largo— en vez de sacarla de la tarjeta.
                   */}
-                  <div className="bg-muted/50 text-body-small rounded-md border px-3 py-2 whitespace-pre-wrap">
+                  <div className="bg-surface-card text-body-small sm:text-body-medium rounded-md border px-3 py-2 break-words whitespace-pre-wrap">
                     {message}
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     <Button
                       type="button"
                       size="touch"
+                      className="w-full sm:w-auto sm:flex-1"
                       onClick={() => void copyMessage(message)}
                       disabled={isPending}
                     >
@@ -130,7 +149,13 @@ export function PendingReminderOccurrences({
                       (BR-W05, la misma regla que el dialogo de invitacion).
                     */}
                     {groupUrl === null ? (
-                      <Button type="button" variant="outline" size="touch" asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="touch"
+                        className="w-full sm:w-auto sm:flex-1"
+                        asChild
+                      >
                         <Link href="/seller/settings/whatsapp">
                           {REMINDER_COPY.due.noGroupAction}
                         </Link>
@@ -140,6 +165,7 @@ export function PendingReminderOccurrences({
                         type="button"
                         variant="outline"
                         size="touch"
+                        className="w-full sm:w-auto sm:flex-1"
                         onClick={openGroup}
                         disabled={isPending}
                       >
@@ -152,6 +178,7 @@ export function PendingReminderOccurrences({
                       type="button"
                       variant="ghost"
                       size="touch"
+                      className="w-full sm:w-auto sm:flex-1"
                       onClick={() => attend(occurrence.id)}
                       disabled={isPending}
                     >
