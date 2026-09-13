@@ -1,6 +1,9 @@
 # SEGURIDAD
 
-- **Versión:** 2.14 · **Estado:** implementado · **Actualizado:** 2026-09-12
+- **Versión:** 2.15 · **Estado:** implementado · **Actualizado:** 2026-09-13
+- **§4.18** describe **el mensaje propio de «Resultados de la semana»** (`0056`, D-197): la segunda
+  escritura de `memberships` que hace un vendedor, con la forma de la primera y en su propio dominio.
+  **Solo en local.**
 - **§4.15** describe el aislamiento de las cuentas de cobro, los recordatorios y **el motor que los
   dispara**, implementado en las migraciones **`0051`** (Etapa 1) y **`0052`** (Etapa 3, D-189) y
   verificado en local; su última parte —Web Push— sigue siendo diseño y lo dice. **§5.2**
@@ -125,6 +128,7 @@ defensas no se relajan: se duplican.
 | Ver coincidencias de la organización | ✓ | ✓ | P (solo las de sus boletas) |
 | Escribir programación, resultados o coincidencias | ✗ | ✗ | ✗ (proceso interno) |
 | Ver «Resultados de la semana» y generar su imagen (BR-H05, §5.3) | ✗ | ✗ | P (con la rifa de su propio catálogo) |
+| Configurar el mensaje de «Resultados de la semana» (BR-H10, §4.18) | ✗ | ✗ | P (solo el suyo) |
 
 Acciones exclusivas del Owner (BR-U02, BR-U03, BR-U04): eliminar o desactivar al Owner, asignar el
 rol `owner`, transferir la propiedad, editar la configuración de la organización y reabrir rifas
@@ -725,8 +729,9 @@ dispararse, porque el permiso se comprueba sobre la **tabla**.
 
 ### 4.14 Configuración de WhatsApp del vendedor (`0050`, BR-W01..BR-W03, BR-W07, D-176)
 
-`set_seller_whatsapp_settings(text, boolean, text)` es **la única escritura de `memberships` que hace
-alguien que no es personal**, y por eso merece leerse entera antes de tocarla.
+`set_seller_whatsapp_settings(text, boolean, text)` es **una de las dos únicas escrituras de
+`memberships` que hace alguien que no es personal** —la otra, desde `0056`, es la del mensaje de
+«Resultados de la semana» (§4.18)—, y por eso merece leerse entera antes de tocarla.
 
 **Por qué existe.** `memberships_update_staff` (0005/0014) es la única política de escritura de esa
 tabla y solo deja pasar al Dueño y al Administrador. Un vendedor no puede escribir su propia
@@ -978,6 +983,44 @@ El cuerpo va cifrado con `aes128gcm` (RFC 8291) y **solo el dispositivo puede le
 servicio de push ni nadie por el camino. Eso no es lo que protege la privacidad aquí — lo que la
 protege es que **el aviso no dice nada** (BR-V05). El cifrado evita que un intermediario lea el
 texto; que el texto no tenga nada que leer evita que lo lea quien mire la pantalla bloqueada.
+
+### 4.18 El mensaje propio de «Resultados de la semana» (`0056`, BR-H09, BR-H10, D-197)
+
+`set_seller_weekly_results_message(boolean, text)` es **la segunda escritura de `memberships` que hace
+alguien que no es personal**, y copia la forma de la primera (§4.14) para otras dos columnas. No se
+amplió aquella: son dominios distintos, y guardar uno no puede pisar el otro.
+
+| Propiedad | Qué impide |
+|---|---|
+| **No tiene parámetro de vendedor, perfil, organización ni membresía** | Que alguien configure a otro. El perfil sale de `auth.uid()`; con un identificador colado en la petición, PostgREST no encuentra ninguna función (`WM-13`) |
+| Escribe exactamente **dos columnas** de las filas de vendedor **de quien llama** | Que la RPC se convierta en un `UPDATE` general de `memberships` |
+| `role = 'seller'` **y** `is_active` **y** `has_org_role(org, 'seller')` | Que la use el personal, o que una **cuenta desactivada** siga configurando (BR-A04). Un vendedor padre tampoco alcanza a un integrante: no hay forma de nombrarlo |
+| Coherencia y longitud repetidas antes de los CHECK | Un mensaje propio vacío o de más de 1.000 caracteres, con una frase legible en vez del nombre de una restricción |
+| `REVOKE` de `public` y `anon`; `GRANT` a `authenticated` y `service_role` | Que se ejecute sin sesión (§4.5, regla 2; D-128) |
+
+**`memberships_update_staff` no se amplía**, y un `UPDATE` directo del vendedor sobre su propia fila
+sigue afectando a cero filas (`WM-19`). La función entra en las **dos** listas blancas que §4.5 obliga
+a tocar juntas —`tests/db/catalog.test.ts` y `scripts/verify-remote.ts`— y en sus comprobaciones
+positivas.
+
+**La auditoría ya estaba.** `audit_memberships` (0006) anota el cambio con quién lo hizo y sus valores
+anterior y nuevo; guardar lo mismo otra vez no anota nada, porque el disparador descarta un `UPDATE`
+sin cambios (`WM-21`). No se llama a `write_audit_log`.
+
+**Quién puede LEER el texto.** `memberships_select` no cambia: su dueño, el personal de su organización
+y su vendedor padre. Es el mismo alcance que ya tienen el enlace del grupo y el mensaje de invitación
+(§4.14), y aquí es aceptable por lo mismo: es un texto hecho para publicarse en un grupo con todos sus
+clientes. **No es sitio para nada privado.** Un vendedor ajeno a su equipo no lo ve (`WM-20`).
+
+**Qué se guarda y qué no.** Solo el interruptor y el texto: ni la imagen, ni los resultados, ni el
+mensaje compuesto, ni ninguna copia del predeterminado (BR-H08). **Sin superficie externa nueva**: no
+hay integración con WhatsApp, ni cron, ni IA, ni dependencia.
+
+**El texto es texto.** Se pinta en un `<textarea>` y en un nodo de texto con `whitespace-pre-wrap`,
+nunca con `dangerouslySetInnerHTML`; una prueba pinta `<img onerror>`, `<b>` y `<script>` escritos en el
+mensaje y comprueba que ninguno llega a ser un elemento. **La lectura de la pantalla no recibe
+identificadores**: sale de la sesión, como `getWhatsappSettings`, y un fallo al leer no se trata como
+«sin personalizar» —la pantalla no ofrece guardar encima de lo que no ha podido ver—.
 
 ## 5. Protección de Server Actions y Route Handlers
 

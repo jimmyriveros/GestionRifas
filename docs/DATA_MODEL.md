@@ -1,6 +1,9 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.14 · **Estado:** implementado · **Actualizado:** 2026-09-11
+- **Versión:** 2.15 · **Estado:** implementado · **Actualizado:** 2026-09-13
+- **Nota (2026-09-13):** hoy el esquema ejecutable son **`0001`–`0056`**: `0001`–`0055` en local **y**
+  en el proyecto real, y **`0056`** —el mensaje propio de «Resultados de la semana», §4.3 y §6.g.7—
+  **solo en local**. La línea siguiente es la fotografía del 2026-09-02 y se conserva.
 - **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0044`, **las 44 aplicadas y
   verificadas en local y en el proyecto Supabase real** (D-149, D-151, D-156, D-158, D-159).
   `0043` (catálogo público) y `0044` (revocar la función interna a `service_role`) se promovieron el
@@ -237,6 +240,8 @@ Panel decir «Verificado por 2 fuentes» en vez de hacerlo pasar por oficial.
 | `whatsapp_group_url` | `text` | `NULL`, `^https://chat\.whatsapp\.com/[A-Za-z0-9_-]{6,64}([?#][^\s]*)?$` (`0050`, BR-W01) |
 | `whatsapp_use_custom_message` | `boolean` | `NOT NULL DEFAULT false` (`0050`, BR-W03) |
 | `whatsapp_custom_message` | `text` | `NULL`, ≤ 1.000 caracteres; obligatorio si el interruptor está encendido (`0050`, BR-W03) |
+| `weekly_results_use_custom_message` | `boolean` | `NOT NULL DEFAULT false` (`0056`, BR-H09) |
+| `weekly_results_custom_message` | `text` | `NULL`, ≤ 1.000 caracteres; obligatorio si el interruptor está encendido (`0056`, BR-H09) |
 | `created_at` / `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` |
 
 Restricciones clave:
@@ -359,11 +364,32 @@ ALTER TABLE memberships ADD CONSTRAINT memberships_whatsapp_message_length CHECK
 );
 ```
 
-⚠️ **Estas tres columnas son la única parte de `memberships` que escribe el propio vendedor**, y no
-lo hace con un UPDATE: `memberships_update_staff` sigue siendo la única política de escritura de la
-tabla. Pasa por `set_seller_whatsapp_settings`, que no recibe identificador de vendedor y solo alcanza
-la fila de quien llama (BR-W07). Si alguna vez hace falta que el vendedor escriba otra columna suya,
-el camino es ampliar esa función —no la política—.
+**Las dos columnas `weekly_results_*`** (BR-H09, BR-H10, D-197, migración `0056`): si el vendedor usa
+un mensaje propio en «Resultados de la semana», y cuál. Viven aquí por lo mismo que las `whatsapp_*`:
+es **una** configuración por vendedor, no una colección como las cuentas o los recordatorios, que sí
+tienen tabla propia (BR-M01, BR-S01). **El predeterminado tampoco está en la base**: lleva la semana
+dentro y vive en `features/weekly-results/copy.ts`. Nacen `false` y NULL, y la migración no escribió
+ninguna fila. Dos CHECK con la misma forma que los de WhatsApp:
+
+```sql
+ALTER TABLE memberships ADD CONSTRAINT memberships_weekly_results_message_coherent CHECK (
+  NOT weekly_results_use_custom_message
+  OR (weekly_results_custom_message IS NOT NULL AND btrim(weekly_results_custom_message) <> '')
+);
+
+ALTER TABLE memberships ADD CONSTRAINT memberships_weekly_results_message_length CHECK (
+  weekly_results_custom_message IS NULL OR length(weekly_results_custom_message) <= 1000
+);
+```
+
+⚠️ **Estas cinco columnas —las tres `whatsapp_*` y las dos `weekly_results_*`— son la única parte de
+`memberships` que escribe el propio vendedor**, y no lo hace con un UPDATE:
+`memberships_update_staff` sigue siendo la única política de escritura de la tabla. Pasa por
+`set_seller_whatsapp_settings` o por `set_seller_weekly_results_message`, que no reciben identificador
+de vendedor y solo alcanzan la fila de quien llama (BR-W07, BR-H10). **Una función por dominio, a
+propósito**: guardar el mensaje de los resultados no puede obligar a reenviar el enlace del grupo. Si
+alguna vez hace falta que el vendedor escriba otra columna suya, el camino es una función así —no la
+política—.
 
 **`commission_model` / `fixed_commission_amount`** (BR-G24, D-127): cómo se le paga a esta persona
 **mientras pertenezca a un equipo**. Viven aquí y no en una tabla aparte porque esta fila **es** la
@@ -1495,6 +1521,27 @@ Acciones: `payment_account.create` · `.update` · `.archive` · `.restore` · `
 **`next_reminder_run_at` es `STABLE`, no `IMMUTABLE`**: `at time zone` con nombre de zona depende de
 la tabla de husos del servidor. Se calcula **siempre** con `'America/Bogota'` y **nunca** con un
 desfase `-05` escrito a mano (BR-S03).
+
+### 6.g.7 Mensaje propio de «Resultados de la semana» (migración `0056`)
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `set_seller_weekly_results_message(usa_mensaje_propio, mensaje)` | `(weekly_results_use_custom_message, weekly_results_custom_message)` | `saveWeeklyResultsMessage`, desde `/seller/settings/weekly-results` |
+
+La hermana de `set_seller_whatsapp_settings` (§6.g.5) para otras dos columnas, con las mismas
+garantías: `SECURITY DEFINER`, `search_path` fijo, `EXECUTE` revocado de `public` y `anon` y concedido
+a `authenticated` y `service_role`. **No recibe identificador de vendedor, perfil, organización ni
+membresía**: el perfil sale de `auth.uid()` (BR-H10). Exige membresía `seller` activa, así que ni el
+personal ni una cuenta desactivada la usan, y un vendedor padre no alcanza a un integrante.
+
+Normaliza con `btrim` y guarda `NULL` cuando el texto queda vacío. Rechaza **antes** de los CHECK, con
+la frase de la pantalla, el interruptor encendido sin texto y un texto de más de 1.000 caracteres.
+**Apagar el interruptor conserva el texto**; solo lo borra mandarlo vacío. Escribe siempre, aunque el
+valor ya sea el actual, y la bitácora la deja `audit_memberships`, que no anota un `UPDATE` sin cambios.
+
+**El mensaje predeterminado no está aquí** ni en ninguna tabla: lleva la semana dentro y lo compone la
+aplicación (`weeklyResultsMessage`). La lectura de la pantalla es un `select` de las dos columnas sobre
+la membresía de la sesión (`getWeeklyResultsMessageSettings`), sujeto a `memberships_select`.
 
 ### 6.h Coincidencias de lotería (migración `0036`)
 

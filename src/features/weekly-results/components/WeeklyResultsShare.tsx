@@ -19,11 +19,18 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isShareCancelled } from '@/features/catalog/share'
 import { useClipboard } from '@/features/catalog/use-clipboard'
+import { OfflineRetry } from '@/features/pwa/components/OfflineRetry'
 import { isValidGroupUrl } from '@/features/whatsapp/invite'
 import { cn } from '@/lib/utils'
 
 import type { WeeklyResultsShareCopy } from '../copy'
+import {
+  activeWeeklyResultsMessage,
+  EMPTY_WEEKLY_RESULTS_MESSAGE_SETTINGS,
+  type WeeklyResultsMessageSettingsResult,
+} from '../message'
 import { canShareFile, imageShareData, saveFile } from '../share'
+import { WeeklyResultsMessageEditor } from './WeeklyResultsMessageEditor'
 
 type ImageState =
   | { kind: 'unavailable' }
@@ -32,7 +39,8 @@ type ImageState =
   | { kind: 'failed' }
 
 /**
- * Imagen, mensaje y grupo: lo que el vendedor manda a su grupo (BR-H06, BR-H07).
+ * Imagen, mensaje y grupo: lo que el vendedor manda a su grupo (BR-H06, BR-H07,
+ * BR-H09).
  *
  * LA IMAGEN SE PIDE UNA SOLA VEZ y se guarda en memoria. La vista previa, el
  * botón de compartir y el de descargar usan ESE mismo archivo, así que lo que se
@@ -44,6 +52,12 @@ type ImageState =
  * cuando la imagen ya está en memoria. Descargar, en cambio, sí puede esperar: si
  * se pulsa mientras llega, dice «Descargando…» y la guarda en cuanto está.
  *
+ * EL MENSAJE ES UNA SOLA CADENA (D-197). El predeterminado de la semana llega ya
+ * escrito, y si el vendedor usa uno propio, ese lo sustituye entero. El texto
+ * vive aquí y no en el editor porque lo leen tres cosas —la vista previa,
+ * «Copiar mensaje» y «Compartir imagen»— y las tres usan exactamente la misma,
+ * esté guardada o no: lo que se ve es lo que se copia y lo que se comparte.
+ *
  * NADA SE DA POR HECHO SIN QUE OCURRA (D-116, BR-W08). Cancelar el menú no es un
  * error y no se avisa; un fallo de verdad lo dice y propone descargar. Ningún
  * texto dice que algo se envió: Rifas abre el menú del teléfono, y quien elige el
@@ -53,7 +67,9 @@ export function WeeklyResultsShare({
   imageUrl,
   fileName,
   imageAlt,
-  message,
+  defaultMessage,
+  messageReady,
+  messageSettings,
   unavailableText,
   groupUrl,
   copy,
@@ -62,8 +78,16 @@ export function WeeklyResultsShare({
   imageUrl: string | null
   fileName: string
   imageAlt: string
-  /** `null` mientras la semana no esté completa: no se enseña un mensaje que no está listo. */
-  message: string | null
+  /** `weeklyResultsMessage(week)`, ya compuesto. Solo depende de la semana: siempre existe. */
+  defaultMessage: string
+  /**
+   * `false` mientras falten la rifa o los seis resultados. El mensaje se puede
+   * preparar igual, pero no se presenta como listo, ni se copia, ni se comparte
+   * (BR-H03).
+   */
+  messageReady: boolean
+  /** La configuración del mensaje del vendedor, o que no se pudo leer (BR-H09). */
+  messageSettings: WeeklyResultsMessageSettingsResult
   /** Por qué no hay imagen, cuando no la hay. */
   unavailableText: string | null
   groupUrl: string | null
@@ -76,6 +100,20 @@ export function WeeklyResultsShare({
   const [busy, setBusy] = useState<'sharing' | 'downloading' | null>(null)
   const downloadWhenReady = useRef(false)
   const { copy: copyText, copied } = useClipboard()
+
+  // Sin la configuración leída se usa el predeterminado y el editor no se
+  // ofrece: guardar desde ahí pisaría un mensaje propio que nadie ha visto.
+  const initialMessage =
+    messageSettings.kind === 'ready'
+      ? messageSettings.settings
+      : EMPTY_WEEKLY_RESULTS_MESSAGE_SETTINGS
+  const [useCustomMessage, setUseCustomMessage] = useState(initialMessage.useCustomMessage)
+  const [customMessage, setCustomMessage] = useState(initialMessage.customMessage ?? '')
+
+  /** Lo que se ve, se copia y se comparte. `null` mientras la semana no esté lista. */
+  const message = messageReady
+    ? activeWeeklyResultsMessage({ useCustomMessage, customMessage }, defaultMessage)
+    : null
 
   useEffect(() => {
     if (imageUrl === null) return
@@ -280,15 +318,44 @@ export function WeeklyResultsShare({
           <h3 id="resultados-semana-mensaje" className="text-label-medium">
             {copy.messageTitle}
           </h3>
+
+          {/*
+            El mensaje se puede preparar aunque la semana no esté lista: el texto
+            no depende de los resultados. Lo que espera es la vista previa, copiar
+            y compartir (BR-H03, BR-H09).
+          */}
+          {messageSettings.kind === 'ready' ? (
+            <WeeklyResultsMessageEditor
+              labelledBy="resultados-semana-mensaje"
+              defaultMessage={defaultMessage}
+              useCustomMessage={useCustomMessage}
+              customMessage={customMessage}
+              onUseCustomMessageChange={setUseCustomMessage}
+              onCustomMessageChange={setCustomMessage}
+              copy={copy}
+            />
+          ) : (
+            <Notice
+              tone="warning"
+              density="compact"
+              action={<OfflineRetry href="/seller/settings/weekly-results" className="sm:h-11" />}
+            >
+              {copy.messageLoadFailed}
+            </Notice>
+          )}
+
           {message === null ? (
             <p className="text-body-small text-muted-foreground">{copy.messagePending}</p>
           ) : (
-            // Nodo de TEXTO con sus saltos de línea: nada se interpreta como HTML.
-            <div
-              data-slot="weekly-results-message"
-              className="bg-surface-card text-body-small sm:text-body-medium rounded-md border px-3 py-2 break-words whitespace-pre-wrap"
-            >
-              {message}
+            <div className="space-y-1.5">
+              <p className="text-body-small text-muted-foreground">{copy.messagePreview}</p>
+              {/* Nodo de TEXTO con sus saltos de línea: nada se interpreta como HTML. */}
+              <div
+                data-slot="weekly-results-message"
+                className="bg-surface-card text-body-small sm:text-body-medium rounded-md border px-3 py-2 break-words whitespace-pre-wrap"
+              >
+                {message}
+              </div>
             </div>
           )}
           <Button

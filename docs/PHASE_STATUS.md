@@ -3,7 +3,15 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-13 — **«Reintentar» de la página de error general vuelve a pedir la pantalla**
+- **Actualizado:** 2026-09-13 — **El mensaje propio de «Resultados de la semana»** (D-197, BR-H09,
+  BR-H10, migración **`0056`**), **SIN DESPLEGAR**: cada vendedor puede usar su propio mensaje junto a
+  la imagen con «Usar mi propio mensaje», conservarlo entre visitas y semanas y volver al
+  predeterminado, que **sigue en el código**. La base guarda **solo** el interruptor y el texto, en dos
+  columnas de `memberships`, con una RPC que no recibe vendedor; la vista previa, copiar y compartir
+  usan la misma cadena. **Corrige D-194 (Decisión 6).** `test:db` **1.016/1.016**, `verify`
+  **1.141/1.141** y E2E **681/683**, con los 2 fallos conocidos de **I-090**, verdes en aislamiento;
+  los seis puntos de §34.3, en su sección de mantenimiento. **`0056` solo en local.**
+  Antes, ese mismo día: **«Reintentar» de la página de error general vuelve a pedir la pantalla**
   (D-196, Decisión 3), 🚀 **DESPLEGADO** el mismo día (`787e420`): el botón de `src/app/error.tsx` llamaba a `reset()`, que tras
   un fallo del servidor repintaba el mismo error, y ahora llama a `retry()` con el mismo botón que la
   página de error del catálogo (`RetryButton`). `verify` **1.100/1.100** y E2E **80/80** (seguridad y
@@ -4889,6 +4897,74 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — el mensaje propio de «Resultados de la semana» (D-197, `0056`, 2026-09-13)
+
+Encargo expreso del usuario, que **corrige D-194 (Decisión 6)**. **No es una fase nueva** y no lleva
+etiqueta `fase-*`. **Sin desplegar**: `0056` está solo en local y el proyecto real sigue en 55
+migraciones.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Interruptor | «Usar mi propio mensaje», dentro de «Mensaje para tu grupo». Apagado: el predeterminado de la semana, en modo lectura. Encendido: el texto propio, que **sustituye entero** al predeterminado (BR-H09) |
+| El texto | Se usa **literalmente**, sin marcadores, y la ayuda advierte que sus fechas no se actualizan solas. La primera vez arranca con una copia del predeterminado. Máximo 1.000 caracteres, recortado al guardar |
+| Apagar y volver | Apagar **conserva** el texto; «Volver al mensaje predeterminado» apaga **y** lo vacía |
+| Vista previa, copiar y compartir | Leen **la misma cadena**, guardada o no, con `whitespace-pre-wrap`. Copiar y compartir siguen bloqueados mientras falte algún resultado; el editor, no |
+| Guardar | «Guardar cambios» → «Guardando...» → «Los cambios fueron guardados.» **solo** si el servidor guardó; los errores reales van junto al campo, también sin red |
+| Si la lectura falla | Se dice, se usa el predeterminado y **no se ofrece guardar** |
+| Persistencia | **Solo** el interruptor y el texto: dos columnas de `memberships` y la RPC `set_seller_weekly_results_message`, que no recibe vendedor (BR-H10). Ni imágenes, ni resultados, ni cron, ni IA (BR-H08) |
+
+### 2. Pruebas ejecutadas y sus resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base: `test:db` y `verify` | ✅ **992/992** y **1.100/1.100** |
+| `npx supabase start` · `db:reset` · `seed:local` | ✅ |
+| `npm run test:db` | ✅ **1.016/1.016** en 46 archivos (+24) |
+| `npm run verify` | ✅ **1.141/1.141** unitarias en 65 archivos (+41), lint con los 2 avisos preexistentes y `build` |
+| E2E de la sección, dirigidas | **32/33**; corregida la prueba, ✅ **1/1** |
+| `db:reset` + `seed:local` + `npm run test:e2e` | **681/683** en 35,3 min, con las **9** nuevas. Los 2 fallos son **I-090** —`reports.spec.ts:305` y `ventas-por-fecha.spec.ts:163`— y pasan **2/2 en aislamiento** tras `db:reset` + `seed:local` |
+| `npm run verify`, otra vez, tras corregir un comentario de `copy.ts` | ✅ **1.141/1.141**, lint con los 2 avisos preexistentes y `build` |
+
+**Errores encontrados y corregidos: 2**, en `TEST_RESULTS` (2026-09-13). El que conviene recordar: en
+`next dev` la imagen se pide **dos veces** al montar por el modo estricto de React, y una prueba que
+contaba una falló sin que el producto estuviera mal.
+
+### 3. Migraciones que existen
+
+`0001`–`0055`, las mismas en local y en el proyecto real, y **`0056_seller_weekly_results_message`**,
+**solo en local**: añade `weekly_results_use_custom_message` y `weekly_results_custom_message` a
+`memberships`, sus dos CHECK —coherencia y 1.000 caracteres— y la RPC
+`set_seller_weekly_results_message`.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **`0056` no está en el proyecto real** | En producción la pantalla sigue sin editor, porque tampoco se desplegó el código. Promoverla necesita autorización |
+| **`verify:remote` contará 12 de 13** en «Las RPC de negocio son ejecutables por authenticated» hasta aplicar `0056` al proyecto real | La comprobación ya incluye la función nueva, que allí todavía no existe. No afecta a la aplicación |
+| **Sin probar en un teléfono de verdad** | La hoja de compartir con el mensaje propio y cómo lo recibe WhatsApp solo se han simulado |
+| **Modo oscuro del editor sin verificar** | Usa los tokens de siempre (`bg-muted`, `text-destructive`); no se vio en pantalla |
+| Todo lo demás | Ningún `I-*` nuevo. La suite E2E completa repite los 2 fallos conocidos de **I-090**, que pasan aislados |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Lee D-197 antes de tocar el mensaje**: corrige D-194 (Decisión 6) y cambia BR-H06 y BR-H08.
+2. **No guardes el predeterminado en la base ni añadas marcadores**: el propio se usa literalmente.
+3. **El texto vive en `WeeklyResultsShare`**, no en el editor: la vista previa, copiar y compartir leen
+   la misma cadena.
+4. **No mezcles la RPC con la de WhatsApp** ni amplíes `memberships_update_staff`.
+5. **Para promover**: respaldo, `db push --dry-run`, `0056`, `verify:remote` y el despliegue del código,
+   solo con autorización.
+6. **Rama `feature/recordatorios-layout`**, con commit local **sin push**.
 
 ---
 

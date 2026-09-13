@@ -1278,6 +1278,31 @@ ahora» el mismo acto se llama **«Abrir grupo»** (Anexo A). Se conserva el ped
 claro —es la misma fórmula de «Usar mi propio mensaje»— y se deja escrita la diferencia, como pide
 §35.2.4 de `CLAUDE.md`: si un día se unifican, se cambian las dos a la vez.
 
+**El mensaje de «Resultados de la semana» puede ser el del vendedor, y se usa tal cual** (D-197,
+BR-H09). Es el mismo editor que el de la invitación y el de los recordatorios, con sus mismas frases
+—«Usar mi propio mensaje», «Volver al mensaje predeterminado», «Así lo verán en tu grupo», «Guardar
+cambios»— y **una diferencia que hay que decir**: aquí el predeterminado **lleva la fecha de la
+semana**, y al encender el interruptor la primera vez el texto arranca con esa fecha copiada. Por eso
+la ayuda del mensaje propio es **«Se usará tal como lo escribas. Las fechas que tenga no se actualizan
+solas: revísalas cada semana.»** y no «Si escribes una fecha…», que dejaría fuera la que el vendedor
+no escribió. Es la §35.2.4 de `CLAUDE.md` aplicada a lo que sugería el encargo: manda la prevención del
+error.
+
+**Ningún texto sugiere que una fecha propia cambia sola, y no existe ningún marcador.** No hay
+`{{semana}}`, `{{fecha}}` ni nada parecido que explicar: el mensaje propio se comparte literalmente.
+
+**El área de texto se nombra con el título de su sección.** «Mensaje para tu grupo» ya está escrito un
+centímetro más arriba; repetirlo como etiqueta visible no diría nada nuevo (D-126), así que el campo lo
+recibe con `aria-labelledby` y se oye igual.
+
+**Lo que se ve es lo que se copia y lo que se comparte, esté guardado o no.** Ningún texto distingue
+«el mensaje guardado» de «el que estás escribiendo»: la vista previa ya enseña cuál sale.
+
+**Si la configuración no se pudo leer, se dice y no se ofrece guardar**: «No pudimos cargar tu
+mensaje. Por ahora se usa el mensaje que trae la aplicación. Vuelve a cargar la página para intentarlo
+de nuevo.», con «Reintentar». Son las tres partes de §7: qué pasó, qué se usa mientras tanto y cómo
+salir.
+
 **El nombre de la rifa se escribe en mayúsculas SOLO en la imagen**, y ahí se omiten los caracteres
 que la fuente no trae —un emoji— (D-195). La pantalla enseña el nombre tal como está guardado. Y el
 texto alternativo de la vista previa dice **para qué es** la imagen y de qué semana —«Imagen de los
@@ -1463,8 +1488,8 @@ castigo donde solo había una espera.
 | Los títulos y las líneas de estado de las tres tarjetas del resumen de «Configuración» | `src/app/(protected)/seller/settings/page.tsx` (D-188) |
 | Todos los textos de «Avisos en este dispositivo»: título, explicación, los dos botones y las tres formas de «no se puede» | `src/features/push/subscription.ts` (`PUSH_COPY`), **todos juntos** (D-190) |
 | El texto de reserva del aviso del teléfono, cuando llega sin cuerpo | `public/sw.js` (`PUSH_FALLBACK`) — **es el único texto visible que vive fuera de `src/`**, porque un service worker no puede importar del paquete (D-190) |
-| Todos los textos de «Resultados de la semana»: la tarjeta de Configuración, la pantalla y sus estados, las acciones, los textos fijos de la imagen —con los nombres cortos de sus tarjetas, «CUNDI.» (`imageLotteryLabel`)— y las respuestas de la ruta | `src/features/weekly-results/copy.ts` (`WEEKLY_RESULTS_COPY`), **todos juntos** (D-194) |
-| El mensaje predeterminado para el grupo | `weeklyResultsMessage`, en ese mismo archivo — **nunca** en la base de datos (BR-H06) |
+| Todos los textos de «Resultados de la semana»: la tarjeta de Configuración, la pantalla y sus estados, las acciones, los del mensaje propio —en `share`, con los que ya existían tomados de `REMINDER_COPY.form`—, los textos fijos de la imagen —con los nombres cortos de sus tarjetas, «CUNDI.» (`imageLotteryLabel`)— y las respuestas de la ruta | `src/features/weekly-results/copy.ts` (`WEEKLY_RESULTS_COPY`), **todos juntos** (D-194, D-197) |
+| El mensaje predeterminado para el grupo | `weeklyResultsMessage`, en ese mismo archivo — **nunca** en la base de datos (BR-H06). El **propio** del vendedor sí se guarda, en su membresía, y se usa tal cual (BR-H09) |
 | La semana en corto («17–22 AGO 2026») y en largo («del 17 al 22 de agosto de 2026») | `src/features/weekly-results/week.ts` (`formatWeekShort`, `formatWeekLong`), con los meses escritos a mano y no con `Intl` (D-195) |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.

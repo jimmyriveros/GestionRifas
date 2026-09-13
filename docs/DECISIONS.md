@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.52 · **Actualizado:** 2026-09-12 (D-001 a D-193; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.53 · **Actualizado:** 2026-09-13 (D-001 a D-197; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -10145,6 +10145,10 @@ para mejorar una frase. No lleva el enlace —se envía dentro del grupo— ni n
 imagen—. Los días y la lotería del número semanal salen de `LOTTERY_MATCH_FIELD` y
 `LOTTERY_NOMINAL_WEEKDAY`.
 
+> **Nota de vigencia (2026-09-13): corregida por D-197.** El predeterminado **sigue** viviendo en el
+> código y **sigue** sin guardarse. Lo que cambió es «no se personaliza»: cada vendedor puede usar un
+> mensaje propio, que se guarda en dos columnas de su membresía (`0056`, BR-H09, BR-H10).
+
 ### Decisión 7 — lo que se reutilizó, y lo único que se extendió
 
 `SettingsCard`, `PageHeader`, `Notice`, `StatusBadge`, `Skeleton`, `useClipboard`,
@@ -10327,6 +10331,124 @@ páginas de error, con `app-error-page.test.tsx` y `retry-button.test.tsx`. **Lo
 textos de la página general, y el reintento de las lecturas, que sigue siendo solo del catálogo.
 **Lo que la Decisión 3 no alcanza:** durante un corte de PostgREST, las pantallas con sesión no llegan
 a la página de error, porque la guarda de la sesión la cierra antes (I-115).
+
+---
+
+## D-197 — El mensaje de «Resultados de la semana» puede ser el del vendedor: dos columnas en `memberships` y una RPC propia
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «mensaje propio de Resultados de la semana»,
+2026-09-13)
+
+**Contexto.** D-194 (Decisión 6) dejó el mensaje que acompaña la imagen en el código y **sin
+personalizar**, y BR-H08 prohibía cualquier persistencia o migración. El usuario pide expresamente que
+cada vendedor pueda escribir el suyo, conservarlo entre visitas y semanas y volver al predeterminado.
+**Esta decisión corrige D-194, Decisión 6**, y sustituye dos partes de reglas: la de BR-H06 que decía
+que el mensaje no se personaliza y la de BR-H08 que prohibía toda persistencia. Lo demás de D-194 y
+D-195 —la imagen, su semana, sus resultados, su diseño y su ruta— no cambia.
+
+### Decisión 1 — el predeterminado sigue en el código; se guardan solo la preferencia y el texto propio
+
+`weeklyResultsMessage(week)` no se mueve ni se guarda: lleva la semana dentro, y guardarlo sería
+congelar una fecha. La base guarda **dos cosas**: si el vendedor usa uno propio y qué escribió. Quien no
+lo usa recibe cada semana la suya y cualquier mejora de la redacción, sin tocar la base —BR-W02 y
+BR-S06, aplicados a este mensaje—. **No se persisten imágenes, resultados semanales, PNG, mensajes
+compuestos ni nada generado**, y no hay cron, IA, costo recurrente ni integración con WhatsApp.
+
+### Decisión 2 — dos columnas en `memberships`, y no una tabla
+
+`weekly_results_use_custom_message boolean not null default false` y
+`weekly_results_custom_message text null`. Es **una** configuración por vendedor, pequeña y del mismo
+tipo que `whatsapp_use_custom_message` (`0050`): un interruptor y el texto que el vendedor pega en su
+grupo. **No es una colección operativa** como las cuentas o los recordatorios (BR-M01, BR-S01), que
+tienen varias filas por vendedor, tope, orden y estados, y por eso viven en tablas propias. Y un
+vendedor **es** una membresía: una tabla aparte crearía una segunda entidad de vendedor (D-159,
+D-176).
+
+**El alcance de lectura, dicho:** `memberships_select` no cambia, así que la fila la leen su dueño, el
+personal de su organización y su vendedor padre — el mismo alcance del enlace del grupo y del mensaje
+de invitación (`SECURITY` §4.14). Es aceptable porque es un texto hecho para publicarse en un grupo
+con todos sus clientes; algo más privado iría a una tabla con política propia.
+
+`add column … default false` con una constante no reescribe la tabla ni dispara la auditoría: las
+membresías existentes siguen con el predeterminado **sin un solo UPDATE**. Dos CHECK —coherencia y
+1.000 caracteres— cierran los estados imposibles, con la misma forma que los de `0050`.
+
+### Decisión 3 — una RPC propia, que no recibe vendedor, y no la de WhatsApp ampliada
+
+`set_seller_weekly_results_message(p_use_custom_message boolean, p_custom_message text default null)`,
+`SECURITY DEFINER`, con el patrón de `set_seller_whatsapp_settings`: el vendedor sale de `auth.uid()`;
+solo un vendedor **activo** (`has_org_role`); escribe dos columnas de su propia fila; normaliza con
+`btrim` y guarda NULL si queda vacío; repite coherencia y longitud **antes** de los CHECK con frases
+legibles; `REVOKE` de `public` y `anon`, y `GRANT` a `authenticated` y `service_role`. **No se amplió la
+RPC de WhatsApp**: son dominios distintos, y con una sola función cada formulario tendría que reenviar
+la configuración del otro para no pisarla. Tampoco se amplió `memberships_update_staff`. La bitácora
+es la de `audit_memberships`, sin una segunda fila.
+
+### Decisión 4 — el mensaje activo es UNA cadena: la vista previa, copiar y compartir leen la misma
+
+`activeWeeklyResultsMessage(settings, defaultMessage)` es pura y vive en `message.ts`, **sin importar
+las constantes de loterías**: el predeterminado llega ya compuesto desde el servidor. El estado del
+editor vive en `WeeklyResultsShare` y no en el editor, porque lo leen tres cosas. **Copiar y compartir
+usan lo que se ve, esté guardado o no**: usar solo lo guardado haría que la vista previa enseñara un
+texto y se compartiera otro. Tras guardar, la pantalla adopta lo que devolvió el servidor —el texto
+recortado—. Datos incoherentes —interruptor encendido sin texto, o solo con espacios— caen al
+predeterminado en vez de compartir un mensaje vacío.
+
+### Decisión 5 — se edita aunque falten resultados; lo que espera es la vista previa, copiar y compartir
+
+Preparar el texto no depende de los resultados. Mientras la semana no esté lista, el editor funciona y
+guarda; la vista previa sigue sustituida por «El mensaje estará listo cuando se confirmen los seis
+resultados.» y copiar y compartir siguen desactivados. **BR-H03 no cambia.**
+
+### Decisión 6 — si la configuración no se puede leer, no se ofrece guardar
+
+La lectura devuelve `ready` o `error`, y un fallo **no** se trata como «sin personalizar». Con `error`
+la sección se pinta, el bloque del mensaje lo dice —«Por ahora se usa el mensaje que trae la
+aplicación»— con «Reintentar», y **no aparece el editor**: guardar desde un estado vacío pisaría un
+mensaje propio que no se ha podido ver. Copiar y compartir siguen disponibles con el predeterminado, y
+el aviso lo dice.
+
+### Decisión 7 — los textos que ya existían se reutilizan, y dos se ajustaron
+
+Interruptor, ayuda del predeterminado, mensaje vacío, «Volver al mensaje predeterminado», «Así lo
+verán en tu grupo», «Guardar cambios» y «Los cambios fueron guardados.» salen de `REMINDER_COPY.form`:
+es el mismo editor. **Dos ajustes sobre lo que sugería el encargo**, por `CLAUDE.md` §35.2.4: la ayuda
+del predeterminado conserva la segunda frase que ya tienen los otros dos editores —«Enciende el
+interruptor para escribir el tuyo»—, y la del mensaje propio dice **«Las fechas que tenga no se
+actualizan solas: revísalas cada semana»** en vez de «Si escribes una fecha…», porque al encender la
+primera vez el texto **ya trae** la fecha del predeterminado copiada, y quien no la escribió no se
+daría por aludido. El área de texto se nombra con el título de la sección —«Mensaje para tu grupo»,
+por `aria-labelledby`— para no repetirlo a la vista un centímetro más abajo (D-126).
+
+### Decisión 8 — los tipos: los bloques nuevos, sin los cambios ajenos de la CLI
+
+`supabase gen types` (CLI 2.111.0) volvió a quitar `| null` en `set_seller_whatsapp_settings`,
+`set_ticket_clearance_delivery` y `report_payments_by_day`, y a reformatear un `Args`: es lo que ya
+registró la Etapa 1 del cobro (`TEST_RESULTS`, 2026-09-11). No se aplicó nada de eso. Entraron solo las
+dos columnas de `memberships` y la RPC nueva, con su `Args` tal como lo escribe la CLI
+(`p_custom_message?: string`, así que la acción **omite** el argumento vacío) y con `| null`
+restaurado en el retorno, que es la misma regresión que el archivo ya corrige en su hermana.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Guardar el predeterminado en la base | Congelaría la fecha y exigiría un UPDATE masivo para mejorar una frase (BR-W02) |
+| Marcadores `{{semana}}` o `{{fecha}}` | El encargo los prohíbe, y D-176 ya enseñó que un marcador se borra, se escribe mal o se duplica |
+| Una tabla `seller_weekly_results_settings` | Una configuración única por vendedor no es una colección; sería una segunda entidad de vendedor |
+| Ampliar `set_seller_whatsapp_settings` | Mezcla dominios: guardar el mensaje obligaría a reenviar el enlace del grupo, y un fallo en uno tumbaría el otro |
+| Ampliar `memberships_update_staff` | Abriría rol, estado, ganancia y vendedor padre al vendedor (BR-W07) |
+| Copiar y compartir solo lo guardado | La vista previa enseñaría un texto y se compartiría otro |
+| Bloquear el editor mientras falten resultados | El texto no depende de los resultados; obligaría a esperar al sábado por la noche |
+| Tratar un fallo de lectura como «sin personalizar» | Ofrecería guardar encima de un mensaje propio que no se ha visto |
+| Actualizar solas las fechas del mensaje propio | Sería un marcador escondido; el encargo pide el texto literal |
+
+### Consecuencia
+
+Migración **`0056`**. BR-H06 y BR-H08 corregidas; BR-H07 habla del mensaje activo; BR-H09 y BR-H10
+nuevas. `MASTER_SPEC` §9.6, `ARCHITECTURE` §8.25, `DATA_MODEL` §4.3 y §6.g.7, `SECURITY` §4.18,
+`UX_COPY_GUIDELINES` y `TESTING` §4.9. Mantenimiento posterior a la Fase 9, **sin desplegar**: el
+proyecto real sigue en 55 migraciones.
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

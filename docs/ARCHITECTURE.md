@@ -1,6 +1,7 @@
 # ARQUITECTURA
 
-- **Versión:** 1.30 · **Estado:** implementado · **Actualizado:** 2026-09-12
+- **Versión:** 1.31 · **Estado:** implementado · **Actualizado:** 2026-09-13 (§7.3 y §8.25: el mensaje
+  propio de «Resultados de la semana», D-197)
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 - **§8.23** («Configuración» del vendedor con subrutas) está **implementada** desde el 2026-09-12
   (D-188), y **§8.24** (motor de recordatorios y cron) desde ese mismo día (`0052`, D-189). ⚠️ De
@@ -317,6 +318,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `release_ticket_client(boleta, cliente_esperado, motivo)` | post-9 | Deshace la venta de UNA boleta que nadie ha abonado: la devuelve a `available` y borra cliente, precio, precio base, fecha de venta y `assigned_at`. Exige rifa activa, cero filas en `payment_allocations` y cero en `lottery_ticket_matches`. No anula ni elimina: los números siguen siendo suyos (D-169, BR-I14) | Sí |
 | `set_ticket_clearance_delivery(boleta, entregado, fecha_esperada)` | post-9 | Registra o retira la entrega FÍSICA del paz y salvo de UNA boleta vendida. **Solo el vendedor dueño**; la fecha la pone el servidor. No consulta ni cambia dinero y no exige rifa activa. Devuelve el estado resultante (D-170, BR-I15) | Sí |
 | `set_seller_whatsapp_settings(enlace, usa_mensaje_propio, mensaje)` | post-9 | Guarda el grupo de WhatsApp y el mensaje de invitación **del vendedor que llama**. No recibe identificador de vendedor: sale de `auth.uid()`. Solo escribe tres columnas de su propia membresía; la auditoría la pone `audit_memberships` (D-176, BR-W01..BR-W03, BR-W07) | Sí |
+| `set_seller_weekly_results_message(usa_mensaje_propio, mensaje)` | post-9 | Guarda el mensaje propio de «Resultados de la semana» **del vendedor que llama**: si lo usa y el texto, recortado. No recibe vendedor, perfil, organización ni membresía. Solo escribe dos columnas de su propia membresía y **no toca las de WhatsApp**; la auditoría la pone `audit_memberships` (D-197, BR-H09, BR-H10) | Sí |
 | `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142) | Sí — inserciones idempotentes |
 | `sync_lottery_schedules` · `confirm_lottery_result` · `notify_lottery_schedule_changes` | post-9 | Sincronización, confirmación+matching+avisos y avisos de programación. **Sin EXECUTE para `authenticated`** (D-145, D-146) | Sí — upserts e inserciones idempotentes |
 | `try_acquire_lottery_sync_lock` · `release_lottery_sync_lock` | post-9 | Cerrojo de una fila del tick. **Sin EXECUTE para `authenticated`** (D-148) | Un UPDATE condicional |
@@ -1867,22 +1869,27 @@ que el escenario es improbable; sigue siendo **un motivo más para subir a Pro**
 que I-024 ya reclama. La ocurrencia **omitida** deja ver el hueco en vez de esconderlo (D-186).
 
 
-### 8.25 «Resultados de la semana»: una imagen que se compone al pedirla (D-194, D-195)
+### 8.25 «Resultados de la semana»: una imagen que se compone al pedirla (D-194, D-195, D-197)
 
-> **IMPLEMENTADO el 2026-09-13, sin desplegar.** Cero migraciones: lee lo que ya guardan las tablas
-> de loterías y la configuración del catálogo.
+> **IMPLEMENTADO y DESPLEGADO el 2026-09-13**, sin migraciones: lee lo que ya guardan las tablas de
+> loterías y la configuración del catálogo. **El mensaje propio** (D-197) se añadió el mismo día con
+> la migración **`0056`**, y **no está desplegado**: es lo único de esta sección que guarda algo.
 
 ```
 /seller/settings                    cuarta tarjeta, línea fija: no lee nada (BR-H08)
 /seller/settings/weekly-results     Server Component; la sección va en su propio Suspense
   ├─ getWeeklyResultsRaffle(profileId)   → getCatalogSettings (RLS)
   ├─ getWeeklyResults(week)              → lottery_draw_schedules + lottery_results (RLS, 1 consulta)
-  └─ getWhatsappSettings()
+  ├─ getWhatsappSettings()
+  └─ getWeeklyResultsMessageSettings()   → memberships de la sesión (RLS): ready | error
         │   solo con rifa válida y seis confirmados
         ▼
 navegador: fetch(/api/weekly-results/image?week=…) → Blob → vista previa · compartir · descargar
         ▼
 Route Handler (Node): sesión → rol → week → las mismas dos lecturas → ImageResponse → PNG entero
+
+«Guardar cambios» del mensaje → saveWeeklyResultsMessage → set_seller_weekly_results_message (0056)
+                                 (no toca la imagen ni la ruta; revalida solo esta pantalla)
 ```
 
 | Pieza | Qué contiene |
@@ -1890,13 +1897,15 @@ Route Handler (Node): sesión → rol → week → las mismas dos lecturas → I
 | `features/weekly-results/week.ts` | PURO: la semana, el día nominal de cada lotería, la semana en corto y en largo, el nombre del archivo |
 | `results.ts` | PURO: tipos, `buildWeeklyResults` (listo o pendiente) y qué rifa vale |
 | `copy.ts` | **Todos** los textos y el mensaje predeterminado. `share` son solo cadenas: viaja entero al componente cliente |
+| `message.ts` | PURO y **sin importaciones** (D-197): el tope de 1.000, la configuración vacía y `activeWeeklyResultsMessage`, que elige el mensaje que se ve, se copia y se comparte. No importa `copy.ts`, para no arrastrar las loterías al navegador |
 | `share.ts` | PURO: la URL del PNG, si se puede compartir un archivo, y guardar uno que ya está en memoria |
-| `queries.ts` | `server-only`: las dos lecturas, con el plazo del recuadro de loterías |
+| `schemas.ts` · `actions.ts` | El esquema del mensaje propio y `saveWeeklyResultsMessage`: `authorizeAction` → Zod → `set_seller_weekly_results_message` → `mapPgError` → revalida esta pantalla → `{ ok, data } \| { error }` (D-197) |
+| `queries.ts` | `server-only`: las dos lecturas de la semana, con el plazo del recuadro de loterías, y la del mensaje propio, que devuelve `ready` o `error` y **nunca** convierte un fallo en «sin personalizar» |
 | `image/WeeklyResultsImage.tsx` | PURO: el árbol que dibuja Satori y el ajuste del nombre |
 | `image/font-metrics.ts` | PURO: `cmap` y `hmtx` de un TrueType, sin dependencias |
 | `image/icons.ts` | Los trazos de lucide que usan las tarjetas |
 | `image/assets.ts` · `image/render.ts` | `server-only`: fondo y fuentes del disco —una vez por proceso— y el PNG completo |
-| `components/` | `WeeklyResultsSection` (Suspense y error) · `WeeklyResultsSummary` (servidor) · `WeeklyResultsShare` (cliente) |
+| `components/` | `WeeklyResultsSection` (Suspense y error) · `WeeklyResultsSummary` (servidor) · `WeeklyResultsShare` (cliente; guarda el texto del mensaje, porque lo leen la vista previa, copiar y compartir) · `WeeklyResultsMessageEditor` (cliente; interruptor, área, volver y guardar) |
 | `app/api/weekly-results/image/route.ts` | La ruta protegida (`SECURITY` §5.3) |
 
 **Lo que Satori impone, y cuesta caro olvidar** (D-195). Cada fila salió de un render que falló:
@@ -1912,9 +1921,23 @@ Route Handler (Node): sesión → rol → week → las mismas dos lecturas → I
 | No pinta componentes `forwardRef` como los de lucide | `__iconNode` de cada icono, dentro de un `<svg>` propio |
 | No existe `grid` | Flex y posiciones absolutas; filas de dos tarjetas explícitas |
 
+**El mensaje propio (D-197).** Es lo único de esta sección que se guarda, y no toca nada de lo de
+arriba: ni la imagen, ni su ruta, ni la semana, ni los resultados. Tres reglas que no hay que romper:
+
+| Regla | Por qué |
+|---|---|
+| El predeterminado se compone **en el servidor** y viaja como cadena (`defaultMessage`) | `message.ts` no importa `copy.ts`, que arrastra las constantes de loterías: el navegador solo elige entre dos cadenas |
+| El texto vive en `WeeklyResultsShare`, **no** en el editor | La vista previa, «Copiar mensaje» y «Compartir imagen» leen **la misma** cadena, guardada o no. Un estado propio del editor dejaría compartir un texto distinto del que se ve |
+| Con la lectura en `error`, **no hay editor** | Guardar desde la configuración vacía pisaría un mensaje propio que no se ha visto: se usa el predeterminado y se dice |
+
+Guardar llama a `saveWeeklyResultsMessage`, que revalida **solo** `/seller/settings/weekly-results`, y
+la pantalla adopta lo que devolvió el servidor. El editor funciona también con la semana pendiente:
+lo que espera a los seis resultados son la vista previa, copiar y compartir (BR-H03, BR-H09).
+
 **Rendimiento.** Una imagen pesa ~1,7 MB y tarda ~0,6 s en caliente. Ningún layout ni el resumen de
-«Configuración» consultan nada de esto; la página lee tres cosas en paralelo y el PNG lo pide el
-navegador después, una sola vez. **Sin caché compartida**: la respuesta es `private, no-store`.
+«Configuración» consultan nada de esto; la página lee **cuatro** cosas en paralelo —la cuarta, dos
+columnas de la membresía de la sesión (D-197)— y el PNG lo pide el navegador después, una sola vez.
+**Sin caché compartida**: la respuesta es `private, no-store`.
 
 **Para verla sin levantar la aplicación**, el render se puede ejecutar desde un guion de Node que
 precargue un sustituto de `server-only` (`TEST_RESULTS`, 2026-09-13). ⚠️ **No uses la condición

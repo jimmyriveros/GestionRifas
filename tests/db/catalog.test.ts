@@ -230,9 +230,13 @@ describe('funciones privilegiadas', () => {
       'search_tickets',
       'upsert_push_subscription',
       'set_payment_reminder_status',
-      // El vendedor guarda SU grupo de WhatsApp: es la unica escritura de
-      // `memberships` que puede hacer, y por eso es una RPC (BR-W07, D-176).
+      // El vendedor guarda SU grupo de WhatsApp: es una de las dos unicas
+      // escrituras de `memberships` que puede hacer, y por eso es una RPC
+      // (BR-W07, D-176).
       'set_seller_whatsapp_settings',
+      // 0056: la otra, su mensaje de «Resultados de la semana». Tampoco recibe
+      // identificador de vendedor: sale de auth.uid() (BR-H10, D-197).
+      'set_seller_weekly_results_message',
       'set_ticket_clearance_delivery',
       'taken_ticket_combinations',
       'team_confirm_email_change',
@@ -294,14 +298,15 @@ describe('funciones privilegiadas', () => {
         and p.proname in ('create_payment','void_payment','update_payment_allocation',
                           'update_ticket_sale_price','reassign_ticket_client',
                           'release_ticket_client','set_ticket_clearance_delivery',
-                          'set_seller_whatsapp_settings','mark_reminder_occurrence_attended',
+                          'set_seller_whatsapp_settings','set_seller_weekly_results_message',
+                          'mark_reminder_occurrence_attended',
                           'upsert_push_subscription','delete_push_subscription',
                           'assign_ticket','bulk_create_tickets','approve_tickets','cancel_ticket',
                           'match_ticket_import_clients','import_tickets_with_clients')
         and has_function_privilege('authenticated', p.oid, 'EXECUTE')
       order by p.proname
     `)
-    expect(rows.length).toBe(17)
+    expect(rows.length).toBe(18)
   })
 
   /**

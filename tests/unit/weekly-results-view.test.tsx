@@ -1,19 +1,25 @@
 /**
- * Lo que se pinta de «Resultados de la semana» en cada estado (BR-H02, BR-H03, BR-H07).
+ * Lo que se pinta de «Resultados de la semana» en cada estado (BR-H02, BR-H03,
+ * BR-H07, BR-H09).
  *
  * Se renderiza en el servidor con `react-dom/server`, que es lo que llega antes
  * de hidratar: ahí tiene que estar ya la verdad de cada estado —qué botones
  * existen y cuáles están desactivados—, porque no se puede ofrecer algo que no
  * está listo ni un segundo. El comportamiento en el navegador (compartir,
- * descargar, copiar) lo cubren las pruebas E2E.
+ * descargar, copiar, editar y guardar el mensaje) lo cubren
+ * `weekly-results-message.test.tsx` y las pruebas E2E.
  *
- * Las lecturas se sustituyen por dobles: aquí se prueba qué hace la pantalla con
- * cada respuesta, no la base (`tests/db/weekly-results.test.ts`).
+ * Las lecturas y la Server Action se sustituyen por dobles: aquí se prueba qué
+ * hace la pantalla con cada respuesta, no la base (`tests/db/weekly-results*.test.ts`).
  */
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LOTTERY_CODES, type LotteryCode } from '@/features/lottery/constants'
+import {
+  EMPTY_WEEKLY_RESULTS_MESSAGE_SETTINGS,
+  type WeeklyResultsMessageSettingsResult,
+} from '@/features/weekly-results/message'
 import type { WeeklyResults } from '@/features/weekly-results/results'
 import { buildWeeklyResults } from '@/features/weekly-results/results'
 import { lotteryReferenceDate, type ResultsWeek } from '@/features/weekly-results/week'
@@ -21,7 +27,9 @@ import { lotteryReferenceDate, type ResultsWeek } from '@/features/weekly-result
 vi.mock('@/features/weekly-results/queries', () => ({
   getWeeklyResults: vi.fn(),
   getWeeklyResultsRaffle: vi.fn(),
+  getWeeklyResultsMessageSettings: vi.fn(),
 }))
+vi.mock('@/features/weekly-results/actions', () => ({ saveWeeklyResultsMessage: vi.fn() }))
 vi.mock('@/features/whatsapp/queries', () => ({ getWhatsappSettings: vi.fn() }))
 
 const queries = await import('@/features/weekly-results/queries')
@@ -36,6 +44,7 @@ const { WEEKLY_RESULTS_COPY } = await import('@/features/weekly-results/copy')
 
 const AUG: ResultsWeek = { monday: '2026-08-17', saturday: '2026-08-22' }
 const GROUP = 'https://chat.whatsapp.com/AbCdEf123456'
+const SHARE = WEEKLY_RESULTS_COPY.share
 
 const NUMBERS: Record<LotteryCode, string> = {
   cundinamarca: '2718',
@@ -79,15 +88,23 @@ function link(doc: Document, name: string): HTMLAnchorElement | undefined {
   return [...doc.querySelectorAll('a')].find((item) => item.textContent?.includes(name))
 }
 
+function ready(
+  settings: Partial<typeof EMPTY_WEEKLY_RESULTS_MESSAGE_SETTINGS> = {},
+): WeeklyResultsMessageSettingsResult {
+  return { kind: 'ready', settings: { ...EMPTY_WEEKLY_RESULTS_MESSAGE_SETTINGS, ...settings } }
+}
+
 const shareProps = {
   imageUrl: '/api/weekly-results/image?week=2026-08-17',
   fileName: 'resultados-semana-2026-08-17.png',
   imageAlt:
     'Imagen de los resultados de la semana del 17 al 22 de agosto de 2026, lista para compartir',
-  message: 'Mensaje de prueba',
+  defaultMessage: 'Mensaje de prueba',
+  messageReady: true,
+  messageSettings: ready(),
   unavailableText: null,
   groupUrl: GROUP,
-  copy: WEEKLY_RESULTS_COPY.share,
+  copy: SHARE,
 }
 
 describe('el resumen de la semana', () => {
@@ -183,14 +200,14 @@ describe('compartir con el grupo', () => {
         <WeeklyResultsShare
           {...shareProps}
           imageUrl={null}
-          message={null}
-          unavailableText={WEEKLY_RESULTS_COPY.share.previewPending}
+          messageReady={false}
+          unavailableText={SHARE.previewPending}
         />,
       ),
     )
     expect(doc.querySelector('img')).toBeNull()
-    expect(doc.body.textContent).toContain(WEEKLY_RESULTS_COPY.share.previewPending)
-    expect(doc.body.textContent).toContain(WEEKLY_RESULTS_COPY.share.messagePending)
+    expect(doc.body.textContent).toContain(SHARE.previewPending)
+    expect(doc.body.textContent).toContain(SHARE.messagePending)
     expect(doc.querySelector('[data-slot="weekly-results-message"]')).toBeNull()
     for (const name of ['Compartir imagen', 'Descargar imagen', 'Copiar mensaje']) {
       expect(button(doc, name)?.disabled, name).toBe(true)
@@ -216,6 +233,142 @@ describe('compartir con el grupo', () => {
   })
 })
 
+describe('el mensaje propio en el HTML (BR-H09, D-197)', () => {
+  function textarea(doc: Document): HTMLTextAreaElement {
+    const area = doc.querySelector<HTMLTextAreaElement>('textarea')
+    expect(area).not.toBeNull()
+    return area!
+  }
+
+  function switchOf(doc: Document): HTMLButtonElement {
+    const control = doc.querySelector<HTMLButtonElement>('[role="switch"]')
+    expect(control).not.toBeNull()
+    return control!
+  }
+
+  it('sin personalizar: el predeterminado, en modo lectura y en la vista previa', () => {
+    const doc = dom(renderToStaticMarkup(<WeeklyResultsShare {...shareProps} />))
+
+    expect(switchOf(doc).getAttribute('aria-checked')).toBe('false')
+    expect(textarea(doc).readOnly).toBe(true)
+    expect(textarea(doc).value).toBe('Mensaje de prueba')
+    // El área la nombra el título de la sección, sin repetirlo a la vista.
+    expect(textarea(doc).getAttribute('aria-labelledby')).toBe('resultados-semana-mensaje')
+    expect(doc.getElementById('resultados-semana-mensaje')?.textContent).toBe(SHARE.messageTitle)
+    expect(doc.body.textContent).toContain(SHARE.messageDefaultHint)
+    expect(doc.body.textContent).toContain(SHARE.messagePreview)
+    expect(button(doc, SHARE.messageSave)?.disabled).toBe(false)
+    expect(button(doc, SHARE.messageRestore)).toBeUndefined()
+  })
+
+  it('con mensaje propio: editable, sustituye al predeterminado y ofrece volver', () => {
+    const doc = dom(
+      renderToStaticMarkup(
+        <WeeklyResultsShare
+          {...shareProps}
+          messageSettings={ready({ useCustomMessage: true, customMessage: 'Hola, grupo' })}
+        />,
+      ),
+    )
+
+    expect(switchOf(doc).getAttribute('aria-checked')).toBe('true')
+    expect(textarea(doc).readOnly).toBe(false)
+    expect(textarea(doc).value).toBe('Hola, grupo')
+    expect(textarea(doc).maxLength).toBe(1000)
+    expect(doc.querySelector('[data-slot="weekly-results-message"]')?.textContent).toBe(
+      'Hola, grupo',
+    )
+    expect(doc.body.textContent).not.toContain('Mensaje de prueba')
+    expect(doc.body.textContent).toContain(SHARE.messageCustomHint)
+    expect(button(doc, SHARE.messageRestore)?.disabled).toBe(false)
+  })
+
+  it('apagado con un texto conservado: se ve y se comparte el predeterminado', () => {
+    const doc = dom(
+      renderToStaticMarkup(
+        <WeeklyResultsShare
+          {...shareProps}
+          messageSettings={ready({ useCustomMessage: false, customMessage: 'Guardado' })}
+        />,
+      ),
+    )
+    expect(textarea(doc).value).toBe('Mensaje de prueba')
+    expect(doc.querySelector('[data-slot="weekly-results-message"]')?.textContent).toBe(
+      'Mensaje de prueba',
+    )
+  })
+
+  it('el texto propio NO se interpreta como HTML', () => {
+    const hostil = '<img src=x onerror="alert(1)"><b>negrita</b><script>alert(2)</script>'
+    const html = renderToStaticMarkup(
+      <WeeklyResultsShare
+        {...shareProps}
+        messageSettings={ready({ useCustomMessage: true, customMessage: hostil })}
+      />,
+    )
+    const doc = dom(html)
+
+    expect(doc.querySelector('b')).toBeNull()
+    expect(doc.querySelector('script')).toBeNull()
+    // La vista previa está cargando la imagen: si hubiera un <img>, sería el del texto.
+    expect(doc.querySelector('img')).toBeNull()
+    expect(html).toContain('&lt;img')
+    expect(textarea(doc).value).toBe(hostil)
+    expect(doc.querySelector('[data-slot="weekly-results-message"]')?.textContent).toBe(hostil)
+  })
+
+  it('los saltos de línea y los emojis llegan tal cual a la vista previa', () => {
+    const texto = 'Línea uno 🎉\n\nLínea dos: ¿ñandú?'
+    const doc = dom(
+      renderToStaticMarkup(
+        <WeeklyResultsShare
+          {...shareProps}
+          messageSettings={ready({ useCustomMessage: true, customMessage: texto })}
+        />,
+      ),
+    )
+    const vista = doc.querySelector('[data-slot="weekly-results-message"]')
+    expect(vista?.textContent).toBe(texto)
+    expect(vista?.className).toContain('whitespace-pre-wrap')
+  })
+
+  it('pendiente: se puede preparar el mensaje, pero no se copia ni se comparte', () => {
+    const doc = dom(
+      renderToStaticMarkup(
+        <WeeklyResultsShare
+          {...shareProps}
+          imageUrl={null}
+          messageReady={false}
+          unavailableText={SHARE.previewPending}
+          messageSettings={ready({ useCustomMessage: true, customMessage: 'Listo para el sábado' })}
+        />,
+      ),
+    )
+    expect(switchOf(doc).disabled).toBe(false)
+    expect(textarea(doc).disabled).toBe(false)
+    expect(button(doc, SHARE.messageSave)?.disabled).toBe(false)
+    expect(button(doc, 'Copiar mensaje')?.disabled).toBe(true)
+    expect(button(doc, 'Compartir imagen')?.disabled).toBe(true)
+    expect(doc.querySelector('[data-slot="weekly-results-message"]')).toBeNull()
+  })
+
+  it('si su configuración no se pudo leer: lo dice, no ofrece guardar y usa el predeterminado', () => {
+    const doc = dom(
+      renderToStaticMarkup(
+        <WeeklyResultsShare {...shareProps} messageSettings={{ kind: 'error' }} />,
+      ),
+    )
+    expect(doc.body.textContent).toContain(SHARE.messageLoadFailed)
+    expect(doc.querySelector('[role="switch"]')).toBeNull()
+    expect(doc.querySelector('textarea')).toBeNull()
+    expect(button(doc, SHARE.messageSave)).toBeUndefined()
+    expect(link(doc, 'Reintentar')?.getAttribute('href')).toBe('/seller/settings/weekly-results')
+    expect(doc.querySelector('[data-slot="weekly-results-message"]')?.textContent).toBe(
+      'Mensaje de prueba',
+    )
+  })
+})
+
 describe('los estados de la sección entera', () => {
   beforeEach(() => {
     vi.mocked(whatsapp.getWhatsappSettings).mockResolvedValue({
@@ -223,6 +376,7 @@ describe('los estados de la sección entera', () => {
       useCustomMessage: false,
       customMessage: null,
     })
+    vi.mocked(queries.getWeeklyResultsMessageSettings).mockResolvedValue(ready())
   })
 
   it('error: lo dice y ofrece reintentar en la misma pantalla', async () => {
@@ -241,7 +395,7 @@ describe('los estados de la sección entera', () => {
 
     const doc = dom(renderToStaticMarkup(await WeeklyResultsContent({ profileId: 'p', week: AUG })))
     expect(doc.body.textContent).toContain('0046')
-    expect(doc.body.textContent).toContain(WEEKLY_RESULTS_COPY.share.previewNoRaffle)
+    expect(doc.body.textContent).toContain(SHARE.previewNoRaffle)
     expect(button(doc, 'Descargar imagen')?.disabled).toBe(true)
     expect(button(doc, 'Copiar mensaje')?.disabled).toBe(true)
   })
@@ -260,6 +414,33 @@ describe('los estados de la sección entera', () => {
     expect(
       doc.querySelector('[data-slot="weekly-results-preview"]')?.getAttribute('data-state'),
     ).toBe('loading')
+  })
+
+  it('listo con mensaje propio: sale el suyo, sin la semana del predeterminado', async () => {
+    vi.mocked(queries.getWeeklyResults).mockResolvedValue(week())
+    vi.mocked(queries.getWeeklyResultsRaffle).mockResolvedValue({ kind: 'ready', name: 'Rifa' })
+    vi.mocked(queries.getWeeklyResultsMessageSettings).mockResolvedValue(
+      ready({ useCustomMessage: true, customMessage: 'Mi mensaje de siempre' }),
+    )
+
+    const doc = dom(renderToStaticMarkup(await WeeklyResultsContent({ profileId: 'p', week: AUG })))
+    expect(doc.querySelector('[data-slot="weekly-results-message"]')?.textContent).toBe(
+      'Mi mensaje de siempre',
+    )
+  })
+
+  it('si falla la lectura del mensaje, la sección se pinta igual', async () => {
+    vi.mocked(queries.getWeeklyResults).mockResolvedValue(week())
+    vi.mocked(queries.getWeeklyResultsRaffle).mockResolvedValue({ kind: 'ready', name: 'Rifa' })
+    vi.mocked(queries.getWeeklyResultsMessageSettings).mockResolvedValue({ kind: 'error' })
+
+    const doc = dom(renderToStaticMarkup(await WeeklyResultsContent({ profileId: 'p', week: AUG })))
+    expect(doc.querySelector('[data-slot="weekly-results-summary"]')).not.toBeNull()
+    expect(doc.body.textContent).toContain(SHARE.messageLoadFailed)
+    expect(button(doc, 'Copiar mensaje')?.disabled).toBe(false)
+    expect(doc.querySelector('[data-slot="weekly-results-message"]')?.textContent).toContain(
+      'del 17 al 22 de agosto de 2026',
+    )
   })
 
   it('el error solo, fuera de la sección, también se entiende', () => {

@@ -1,8 +1,9 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.19 · **Estado:** normativo · **Actualizado:** 2026-09-13 (BR-K15: un corte pasajero
-  de Supabase en el catálogo público; antes, ese mismo día, §12.g, «Resultados de la semana»:
-  BR-H01..BR-H08)
+- **Versión:** 1.20 · **Estado:** normativo · **Actualizado:** 2026-09-13 (§12.g: el mensaje propio de
+  «Resultados de la semana» —BR-H09 y BR-H10 nuevas, BR-H06 y BR-H08 corregidas por D-197—; antes,
+  ese mismo día, BR-K15: un corte pasajero de Supabase en el catálogo público, y §12.g, «Resultados de
+  la semana»: BR-H01..BR-H08)
 - Cada regla tiene un identificador estable. Las pruebas de `docs/TESTING.md` lo referencian.
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
@@ -806,10 +807,11 @@ para el recordatorio de pago y para cualquier aviso futuro que quiera salir del 
 
 ## 12.g Resultados de la semana (BR-H)
 
-Mantenimiento posterior a la Fase 9 (2026-09-13, D-194, D-195). Una sección de «Configuración» del
-vendedor que prepara la **imagen** y el **mensaje** con los números mayores de la última semana
-terminada, para que **él** los envíe a su grupo. **No hay integración con WhatsApp y no se guarda
-nada**: la imagen se compone cada vez que se pide.
+Mantenimiento posterior a la Fase 9 (2026-09-13, D-194, D-195; el mensaje propio, D-197). Una sección
+de «Configuración» del vendedor que prepara la **imagen** y el **mensaje** con los números mayores de
+la última semana terminada, para que **él** los envíe a su grupo. **No hay integración con WhatsApp y
+no se guarda nada de lo que se genera**: la imagen se compone cada vez que se pide. Lo único que se
+guarda es el mensaje propio del vendedor, si decide usar uno (BR-H09, BR-H10).
 
 **La letra es `H`** de «**h**oja de resultados»: `R`, `S` e `I` ya nombran rifas, recordatorios e
 inventario.
@@ -821,9 +823,11 @@ inventario.
 | BR-H03 | **Lista solo con los SEIS resultados `confirmed` y de cuatro cifras.** Sin programación, sin resultado, `pending`, `rejected`, `conflict` o un número con otra forma dejan la semana **pendiente**: se nombran las loterías que faltan, **no se compone ninguna imagen parcial**, el mensaje no se presenta como listo y compartir, descargar y copiar se desactivan. El número de un sorteo sin confirmar **no se enseña**, ni siquiera el de un conflicto (BR-L08). | C, S | post-9 |
 | BR-H04 | **La imagen es un PNG de 1080 × 1350** sobre el fondo maestro fijo, con nombre, semana, tarjetas, iconos y pie dibujados por código. El nombre es **`raffles.name` de la rifa configurada en el catálogo del vendedor** (BR-K06), en mayúsculas y sin reinterpretar, y solo cuenta si esa rifa está **activa o cerrada** (BR-L05). **Sin rifa no hay imagen y no se elige ninguna** (D-140). Es la misma para todos los vendedores de una rifa: sin vendedor, teléfono, enlaces, precios ni QR, y **nunca dice «ganador»** (BR-L15). Lo que la fuente no puede dibujar —un emoji— se omite **solo en la imagen** (D-195). | S | post-9 |
 | BR-H05 | **`GET /api/weekly-results/image?week=AAAA-MM-DD` se protege a mano** (D-060): sesión (401), membresía activa (403), rol vendedor (403) y `week` = el lunes de una semana ya terminada (400). Sin rifa o sin la semana completa responde **409** y no dibuja nada. **No acepta ningún identificador** de vendedor, organización ni rifa. Toda respuesta lleva `Cache-Control: private, no-store`, y los errores son genéricos. | S, D | post-9 |
-| BR-H06 | **El mensaje predeterminado vive en el código**: no se guarda, no se personaliza en esta versión, no lleva el enlace del grupo ni números, y dice la semana entera en español («del 17 al 22 de agosto de 2026»). Los días y la lotería del número semanal salen de las constantes de loterías. | C, S | post-9 |
-| BR-H07 | **La imagen se pide una vez y es la misma en la vista previa, al compartir y al descargar.** Compartir usa `navigator.share` con el **archivo** —y título y mensaje si el navegador los acepta— **solo** si `canShare({ files })` lo permite; cancelar el menú **no es un error**; sin soporte no se ofrece y se propone descargar. Copiar pone **solo el mensaje**. «Abrir mi grupo» abre el enlace validado en otra pestaña con `noopener noreferrer`; sin grupo se ofrece configurarlo y **lo demás sigue disponible**. **Nada se envía solo y ningún texto dice que algo se envió** (BR-W08). | C | post-9 |
-| BR-H08 | **Sin persistencia ni costo recurrente**: ni migración, ni tabla, ni bucket, ni cron, ni PNG guardado, ni IA. El resumen de «Configuración» **no** genera la imagen ni consulta los resultados: su tarjeta tiene una línea fija. | S | post-9 |
+| BR-H06 | **El mensaje predeterminado vive en el código y nunca se guarda**: no lleva el enlace del grupo ni números, y dice la semana entera en español («del 17 al 22 de agosto de 2026»). Los días y la lotería del número semanal salen de las constantes de loterías. Quien no usa uno propio recibe cada semana el de esa semana y cualquier mejora de la redacción. **Desde D-197, cada vendedor puede sustituirlo por uno propio (BR-H09)**: la parte de esta regla que decía «no se personaliza en esta versión» quedó sustituida. | C, S | post-9 |
+| BR-H07 | **La imagen se pide una vez y es la misma en la vista previa, al compartir y al descargar.** Compartir usa `navigator.share` con el **archivo** —y título y **mensaje activo** (BR-H09) si el navegador los acepta— **solo** si `canShare({ files })` lo permite; cancelar el menú **no es un error**; sin soporte no se ofrece y se propone descargar. Copiar pone **solo el mensaje activo**. «Abrir mi grupo» abre el enlace validado en otra pestaña con `noopener noreferrer`; sin grupo se ofrece configurarlo y **lo demás sigue disponible**. **Nada se envía solo y ningún texto dice que algo se envió** (BR-W08). | C | post-9 |
+| BR-H08 | **No se guarda nada de lo que se genera, y no hay costo recurrente**: ni imágenes, ni resultados semanales, ni PNG, ni mensajes compuestos, ni bucket, ni cron, ni IA, ni integración con WhatsApp. **La única persistencia autorizada es la preferencia y el texto del mensaje propio de cada vendedor**: dos columnas de su `membership` (migración `0056`, BR-H09). La parte de esta regla que prohibía toda migración quedó sustituida por D-197. El resumen de «Configuración» **no** genera la imagen, ni consulta los resultados, ni lee el mensaje: su tarjeta tiene una línea fija. | S, D | post-9 |
+| BR-H09 | **El vendedor puede usar su propio mensaje**, con el interruptor «Usar mi propio mensaje». Apagado se usa el predeterminado de la semana, y el área lo enseña en modo lectura. Encendido, el texto propio **sustituye entero** al predeterminado y se usa **literalmente**: no hay marcadores (`{{semana}}`, `{{fecha}}`…), así que una fecha escrita dentro no se actualiza sola, y la pantalla lo advierte. La primera vez que se enciende arranca con una copia del predeterminado que se está viendo. **Apagar no borra el texto**: encender lo devuelve. «Volver al mensaje predeterminado» apaga **y** vacía el texto. Máximo **1.000 caracteres**, recortado por fuera al guardar; «usar mi propio mensaje» sin texto **no se puede guardar**. **La vista previa, «Copiar mensaje» y «Compartir imagen» usan el mismo mensaje activo, esté guardado o no**, y con datos incoherentes se cae al predeterminado. El mensaje **se edita y se guarda aunque falten resultados**: lo que espera a la semana completa son la vista previa, copiar y compartir (BR-H03). Si su configuración no se puede leer, la sección se pinta, se dice, se usa el predeterminado y **no se ofrece guardar**. Siempre se pinta como texto. | C, S, D | post-9 |
+| BR-H10 | **Cada vendedor configura solo su mensaje.** La escritura pasa por `set_seller_weekly_results_message`, que **no recibe identificador** de vendedor, perfil, organización ni membresía —sale de `auth.uid()`—, exige un vendedor **activo** y escribe dos columnas de su propia fila. El Dueño, el Administrador y el vendedor padre **no pueden** usarla sobre nadie, y `anon` no puede ejecutarla. `memberships_update_staff` **no se amplía**. Cambiar un mensaje no afecta a ningún otro vendedor, y lo anota una sola vez el disparador `audit_memberships` que ya existía. El personal y el vendedor padre pueden leer el texto, como ya leían el enlace del grupo (BR-W07): es un mensaje hecho para publicarse. | S, D | post-9 |
 
 ---
 

@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente («Reintentar» de la página de error general, D-196, 2026-09-13)** | **1.100 ✅ en 64 archivos (+3)** | — (no se tocó la base) | **80/80** (`security.spec.ts` 22 · catálogo público 58) | ✅ | 🚀 **DESPLEGADO** (`787e420`, 2026-09-13) · en un navegador contra la base local, **8/8** · abre **I-115** |
+| **Post-9 vigente (mensaje propio de «Resultados de la semana», D-197, 2026-09-13)** | **1.141 ✅ en 65 archivos (+41)** | **1.016 ✅ en 46 archivos (+24; migración `0056`)** | **681/683**, con las 9 nuevas; los 2 son **I-090** y pasan **2/2** en aislamiento | ✅ | ✅ **Sin desplegar** · `0056` solo en local |
+| Post-9 anterior («Reintentar» de la página de error general, D-196, 2026-09-13) | **1.100 ✅** en 64 archivos (+3) | — (no se tocó la base) | **80/80** (`security.spec.ts` 22 · catálogo público 58) | ✅ | 🚀 **DESPLEGADO** (`787e420`, 2026-09-13) · en un navegador contra la base local, **8/8** · abre **I-115** |
 | Post-9 anterior (corte pasajero del catálogo público, I-114, D-196, 2026-09-13) | **1.097 ✅** en 62 archivos (+15) | — (no se tocó la base) | **58/58** | ✅ | 🚀 **DESPLEGADO** (`8767f9e`, 2026-09-13) |
 | Post-9 anterior (ajuste visual de la imagen semanal, 2026-09-13) | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | 🚀 **DESPLEGADO** (`1a6b4af`, 2026-09-13) |
 | Post-9 anterior («Resultados de la semana», D-194 y D-195, 2026-09-13) | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`a929e23`, 2026-09-13) · cero migraciones y cero dependencias |
@@ -11417,3 +11418,94 @@ Autorizada expresamente: «haz push y despliega a producción».
 
 > **Lo que este release NO verificó:** la página de error general con un fallo real en producción, que
 > solo aparece cuando una pantalla falla; ni I-115, que sigue abierta.
+
+---
+
+## Mensaje propio de «Resultados de la semana» (D-197, BR-H09, BR-H10, migración `0056`) — 2026-09-13
+
+**Alcance:** encargo expreso del usuario, que corrige D-194 (Decisión 6): cada vendedor puede usar un
+mensaje propio junto a la imagen. Migración **`0056`** —dos columnas en `memberships` y la RPC
+`set_seller_weekly_results_message`—, la lectura, la Server Action y el editor dentro de «Mensaje para
+tu grupo». **La imagen, su ruta, su diseño y su semana no cambian** (§d). Qué demuestra cada suite:
+`TESTING` §4.9. **Sin desplegar.**
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base, antes de tocar nada: `db:reset` + `seed:local`, `test:db` y `verify` | ✅ **992/992** en 45 archivos · ✅ **1.100/1.100** unitarias en 64 archivos, lint con los **2 avisos preexistentes** y `build` |
+| `npx supabase migration up` | ✅ `0056` aplicada sobre la base local |
+| `npx supabase gen types typescript --local`, a un archivo aparte | Comparado con `diff --strip-trailing-cr`; se aplicaron **solo** los bloques nuevos (§c) |
+| Dirigidas: `weekly-results-message`, `weekly-results-view`, `weekly-results` y `server-actions-guard` (unitarias) · `weekly-results-message`, `catalog`, `whatsapp-settings` y `weekly-results` (base) | ✅ **104/104** y ✅ **71/71** a la primera, sin avisos de `act` |
+| `npm run typecheck` · `npm run lint` | ✅ · ✅ con los **2 avisos preexistentes** |
+| `db:reset` + `seed:local` y `resultados-semana.spec.ts` + `resultados-semana-movil.spec.ts` | **32/33** en 1,9 min. El fallo era de la prueba (§b, fila 1); corregida y relanzada sola, ✅ **1/1** |
+| Prettier sobre lo tocado | Se formatearon los **3 archivos nuevos** y los **2 existentes cuya versión de `HEAD` ya estaba limpia**. `database.types.ts` **ya tenía diferencias en `HEAD`** —es generado— y no se reformateó |
+| Cierre: `db:reset` + `seed:local` y `npm run test:db` | ✅ **1.016/1.016** en 46 archivos (**+24**) |
+| Cierre: `npm run verify` | ✅ `typecheck` · lint con **0 errores** y los **2 avisos preexistentes** · **1.141/1.141** unitarias en 65 archivos (**+41**: 32 nuevas y 9 más en la de vista) · `build`, con `ƒ /seller/settings/weekly-results` y `ƒ /api/weekly-results/image` |
+
+### b. Errores encontrados y corregidos
+
+| # | Qué pasó | Causa | Corrección |
+|---|---|---|---|
+| 1 | La E2E «copiar y compartir usan el mensaje propio en cuanto se guarda» contó **2** peticiones del PNG en vez de 1 | **La prueba, no el producto.** En la traza, las dos peticiones salieron con **1 ms** de diferencia justo después de abrir la pantalla —la primera abortada, la segunda 200— y **antes** de tocar el interruptor y «Guardar cambios». Es el doble efecto del modo estricto de React en `next dev` (`reactStrictMode: true`, `next.config.ts`); en producción es una | Se compara el recuento **antes y después de guardar**. La trampa queda en `TESTING` §4.9 y `HANDOFF` §9 |
+| 2 | `diff` entre los tipos generados y los versionados marcaba **el archivo entero** | El árbol de trabajo tiene CRLF (`core.autocrlf`) y la CLI escribe LF | `diff --strip-trailing-cr`: el contenido real eran los bloques nuevos y las regresiones de §c |
+
+### c. Los tipos generados
+
+La CLI 2.111.0 produjo, además de lo nuevo, **las mismas regresiones que registró la Etapa 1 del cobro**
+(2026-09-11): quita `| null` en `set_seller_whatsapp_settings`, `set_ticket_clearance_delivery` y
+`report_payments_by_day`, y reformatea un `Args`. Nada de eso se aplicó. Un guion que exige **una
+coincidencia exacta** por reemplazo añadió las dos columnas a `Row`, `Insert` y `Update` de
+`memberships` y la RPC nueva. En la RPC, `Args` queda como lo escribe la CLI
+(`p_custom_message?: string`, y por eso la acción **omite** el argumento vacío) y **en el retorno se
+restauró `| null`**, que es la misma regresión. `git diff --stat`: **+13 líneas, 0 eliminadas**.
+
+### d. Lo que NO cambió, comprobado con Git
+
+`git status` sobre `src/features/weekly-results/image/`, `src/app/api/weekly-results/`,
+`public/images/weekly-results/`, `week.ts`, `results.ts`, `share.ts`, `src/features/whatsapp/`,
+`src/features/payment-reminders/`, `src/app/(protected)/seller/settings/`, `next.config.ts`,
+`package.json` y `package-lock.json`: **sin cambios**. El PNG —fondo, fuentes, «CUNDI.», tamaño de los
+nombres—, el cálculo de la semana, la consulta de resultados y la ruta están como estaban; en
+`WeeklyResultsShare`, compartir y descargar solo cambian de dónde sale el texto que se entrega.
+
+### e. Verificación visual
+
+Un guion temporal de Playwright contra `next dev` y la base local, **borrado antes del cierre**
+(`tsconfig` compila todo `**/*.ts`):
+
+| Captura | Resultado |
+|---|---|
+| Escritorio, predeterminado | Interruptor apagado, área en modo lectura, ayuda, «Guardar cambios», vista previa y «Copiar mensaje» |
+| Escritorio, mensaje propio sin guardar | La vista previa ya enseña el texto nuevo; «Guardar cambios» y «Volver al mensaje predeterminado» en fila |
+| Escritorio, texto vacío al guardar | Borde de error en el área y «Escribe tu mensaje o vuelve a usar el mensaje predeterminado.» junto al campo; la vista previa cae al predeterminado |
+| 320 px, mensaje propio | Sin desbordamiento; «Volver al mensaje predeterminado» se parte en dos líneas centradas |
+| 320 px, semana pendiente | El editor sigue disponible y la vista previa se sustituye por «El mensaje estará listo…» |
+| Medidas | Fila del interruptor de **44 px** de alto, 14 px / 500. `getByLabel('Mensaje para tu grupo')` resuelve a **2** elementos; `getByRole('textbox', { name })`, a **1** |
+
+**El modo oscuro no quedó verificado**: emular `prefers-color-scheme: dark` no cambió el tema de la
+aplicación.
+
+### f. Lo que NO se comprobó
+
+* **Nada en producción**: `0056` está solo en local y no se desplegó nada.
+* **Un teléfono de verdad**: la hoja de compartir con el mensaje propio y cómo lo recibe WhatsApp.
+* **El editor en modo oscuro.**
+* **`verify:remote`**: la comprobación de RPC ejecutables ya espera **13**, y contra el proyecto real
+  dará **12** hasta promover `0056`. No se ejecutó.
+
+### g. La suite E2E completa, y lo que vino después
+
+| Comando | Resultado |
+|---|---|
+| `db:reset` + `seed:local` y `npm run test:e2e` | **681/683** en 35,3 min, con las **9** pruebas nuevas y la corregida en verde. Los 2 fallos son **I-090**, abajo |
+| Cabecera de `copy.ts` —solo el comentario: «BR-H01..BR-H10, D-194, D-197»— y `npm run verify` otra vez | ✅ Prettier · `typecheck` · lint con **0 errores** y los **2 avisos preexistentes** · **1.141/1.141** unitarias en 65 archivos · `build` |
+| `db:reset` + `seed:local` y los 2 fallos, aislados | ✅ **2/2** en 11,3 s |
+
+| Prueba | Síntoma en la suite completa | Clasificación |
+|---|---|---|
+| `reports.spec.ts:305` — el panel administrativo muestra pagos recientes | No aparece «(anulado)» | **I-090** |
+| `ventas-por-fecha.spec.ts:163` — las ventas de HOY | `esperado < 26`, y llegaron **58**: la misma cifra que en la pasada de D-194 | **I-090** |
+
+**Ninguna prueba de «Resultados de la semana» falla en la suite completa**, y ninguna de las dos de
+arriba toca esta sección. **Sin `I-*` nuevo**: los síntomas son los que I-090 ya describe.

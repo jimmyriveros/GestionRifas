@@ -1,6 +1,6 @@
 /**
  * Todo lo que se lee de «Resultados de la semana»: la pantalla, la imagen y el
- * mensaje (BR-H01..BR-H08, D-194).
+ * mensaje, incluido el editor del mensaje propio (BR-H01..BR-H10, D-194, D-197).
  *
  * TODOS LOS TEXTOS AQUÍ, juntos, como `whatsapp/invite.ts` y
  * `payment-reminders/reminders.ts` (`UX_COPY_GUIDELINES`, Anexo B). Los que ya
@@ -105,6 +105,37 @@ export const WEEKLY_RESULTS_COPY = {
 
     messageTitle: 'Mensaje para tu grupo',
     messagePending: 'El mensaje estará listo cuando se confirmen los seis resultados.',
+
+    /*
+     * El mensaje propio (BR-H09, D-197). Las frases que ya existían con el mismo
+     * sentido —el interruptor, el predeterminado, el vacío, volver, la vista
+     * previa y guardar— son las del mensaje de los recordatorios, que es el mismo
+     * editor: no se escriben otra vez.
+     */
+    messageToggle: REMINDER_COPY.form.toggle,
+    messageDefaultHint: REMINDER_COPY.form.defaultHint,
+    /**
+     * Lo único que quien escribe no puede deducir mirando la pantalla: el texto se
+     * usa tal cual, y la fecha que traía el predeterminado al copiarlo ya no
+     * cambia sola.
+     */
+    messageCustomHint:
+      'Se usará tal como lo escribas. Las fechas que tenga no se actualizan solas: revísalas cada semana.',
+    messageEmpty: REMINDER_COPY.form.empty,
+    messageTooLong: 'El mensaje no puede superar 1.000 caracteres.',
+    messageRestore: REMINDER_COPY.form.restore,
+    messagePreview: REMINDER_COPY.form.preview,
+    messageSave: REMINDER_COPY.form.submitEdit,
+    messageSaving: 'Guardando...',
+    messageSaved: REMINDER_COPY.updated,
+    /** Sin respuesta del servidor no se sabe si guardó, y no se da por guardado (D-116). */
+    messageSaveFailed:
+      'No pudimos guardar los cambios. Revisa la conexión e inténtalo nuevamente. Lo que escribiste sigue aquí.',
+    messageSaveForbidden: 'No pudimos guardar los cambios. Revisa tus permisos.',
+    /** Sin la configuración leída no se ofrece guardar: se diría encima de algo que no se ve. */
+    messageLoadFailed:
+      'No pudimos cargar tu mensaje. Por ahora se usa el mensaje que trae la aplicación. Vuelve a cargar la página para intentarlo de nuevo.',
+
     copyMessage: REMINDER_COPY.due.copy,
     copied: REMINDER_COPY.due.copied,
     copyFailed: REMINDER_COPY.due.copyFailed,
@@ -171,10 +202,13 @@ export function missingLotteriesText(codes: readonly LotteryCode[]): string {
 /**
  * El mensaje predeterminado para el grupo (BR-H06).
  *
- * VIVE AQUÍ Y NO EN LA BASE, y en esta versión no se personaliza: es el mismo
- * razonamiento de `DEFAULT_INVITE_MESSAGE` (BR-W02). No lleva el enlace del grupo
- * —se envía DENTRO del grupo—, ni números: los números van en la imagen, que es
- * la que no se puede leer mal.
+ * VIVE AQUÍ Y NO EN LA BASE: es el mismo razonamiento de `DEFAULT_INVITE_MESSAGE`
+ * (BR-W02), y aquí pesa más, porque lleva la semana dentro y guardarlo sería
+ * congelar una fecha. Desde D-197 un vendedor puede usar uno PROPIO en su lugar
+ * (BR-H09, `message.ts`), que se guarda en su membresía; quien no lo hace recibe
+ * este, con la semana correcta y cualquier mejora de la redacción. No lleva el
+ * enlace del grupo —se envía DENTRO del grupo—, ni números: los números van en la
+ * imagen, que es la que no se puede leer mal.
  *
  * Los días y la lotería del número semanal salen de las constantes, no se
  * escriben: si mañana el número semanal se verificara con otra lotería, el

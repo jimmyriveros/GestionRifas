@@ -6,7 +6,11 @@ import { OfflineRetry } from '@/features/pwa/components/OfflineRetry'
 import { getWhatsappSettings } from '@/features/whatsapp/queries'
 
 import { WEEKLY_RESULTS_COPY as COPY, weeklyResultsMessage } from '../copy'
-import { getWeeklyResults, getWeeklyResultsRaffle } from '../queries'
+import {
+  getWeeklyResults,
+  getWeeklyResultsMessageSettings,
+  getWeeklyResultsRaffle,
+} from '../queries'
 import { weeklyResultsImageUrl } from '../share'
 import { formatWeekLong, weeklyResultsFileName, type ResultsWeek } from '../week'
 import { WeeklyResultsShare } from './WeeklyResultsShare'
@@ -80,15 +84,20 @@ export function WeeklyResultsError() {
 }
 
 /**
- * TRES LECTURAS EN PARALELO, y ninguna genera la imagen: la rifa del catálogo,
- * los seis resultados y el grupo de WhatsApp. El PNG lo pide el navegador DESPUÉS,
- * y solo cuando hay rifa y seis resultados confirmados (BR-H03).
+ * CUATRO LECTURAS EN PARALELO, y ninguna genera la imagen: la rifa del catálogo,
+ * los seis resultados, el grupo de WhatsApp y el mensaje del vendedor. El PNG lo
+ * pide el navegador DESPUÉS, y solo cuando hay rifa y seis resultados
+ * confirmados (BR-H03).
+ *
+ * La lectura del mensaje no tumba la sección: si falla, el resto se pinta y el
+ * propio bloque del mensaje explica qué pasó (BR-H09).
  */
 export async function WeeklyResultsContent({ profileId, week }: WeeklyResultsSectionProps) {
-  const [raffle, results, whatsapp] = await Promise.all([
+  const [raffle, results, whatsapp, messageSettings] = await Promise.all([
     getWeeklyResultsRaffle(profileId),
     getWeeklyResults(week),
     getWhatsappSettings(),
+    getWeeklyResultsMessageSettings(),
   ])
 
   if (raffle.kind === 'error' || results.kind === 'error') return <WeeklyResultsError />
@@ -111,7 +120,9 @@ export async function WeeklyResultsContent({ profileId, week }: WeeklyResultsSec
         imageUrl={ready ? weeklyResultsImageUrl(week) : null}
         fileName={weeklyResultsFileName(week)}
         imageAlt={COPY.week.imageAlt(formatWeekLong(week))}
-        message={ready ? weeklyResultsMessage(week) : null}
+        defaultMessage={weeklyResultsMessage(week)}
+        messageReady={ready}
+        messageSettings={messageSettings}
         unavailableText={unavailableText}
         groupUrl={whatsapp.groupUrl}
         copy={COPY.share}
@@ -122,7 +133,7 @@ export async function WeeklyResultsContent({ profileId, week }: WeeklyResultsSec
 
 /**
  * La sección entera, con su propio límite de Suspense: el encabezado de la
- * pantalla se envía sin esperar a ninguna de las tres lecturas.
+ * pantalla se envía sin esperar a ninguna de las cuatro lecturas.
  */
 export function WeeklyResultsSection(props: WeeklyResultsSectionProps) {
   return (

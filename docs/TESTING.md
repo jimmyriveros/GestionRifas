@@ -1,6 +1,7 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.19 · **Actualizado:** 2026-09-12
+- **Versión:** 2.20 · **Actualizado:** 2026-09-13 (§4.9: el mensaje propio de «Resultados de la
+  semana», D-197)
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - ⚠️ En la **§4.8** (cuentas de cobro y recordatorios de pago) conviven las dos cosas: las **etapas 1
   y 2 están escritas y ejecutadas** (62 de base, 19 E2E y 37 unitarias), y las **etapas 3 a 6 son
@@ -859,16 +860,19 @@ final en el teléfono— se comprobó con un servidor levantado con una **clave 
 y sus estados forzados en el navegador (`TEST_RESULTS`, misma fecha). Tampoco es infraestructura de
 interfaz compartida (`HANDOFF` §1.b): no se tocó ningún primitivo.
 
-### 4.9 Resultados de la semana (BR-H01..BR-H08; D-194, D-195)
+### 4.9 Resultados de la semana (BR-H01..BR-H10; D-194, D-195, D-197)
 
 | Suite | Pruebas | Qué demuestra |
 |---|---|---|
 | `tests/unit/weekly-results.test.ts` | 42 | La semana un domingo, un lunes, un martes y un sábado; cambio de mes, de año y 29 de febrero; 400 días seguidos; qué semana acepta la URL; orden fijo; cero inicial; seis confirmados, uno y varios pendientes, conflicto, rechazado y formato inválido; qué rifa vale; la semana en corto y en largo; el mensaje exacto; ningún «ganador» ni «enviado»; compartir un archivo y guardarlo |
 | `tests/unit/weekly-results-image.test.tsx` | 20 | Las medidas reales de Geist Black; nombres de 2 a 120 caracteres que nunca se salen ni pierden letras; el árbol —textos, seis números con sus ceros, siete iconos de lucide, una sola capa de fondo, sin `grid`, sin espacios que Satori pueda partir, determinista y nunca parcial—; y **un PNG real de 1080 × 1350 con `fetch` bloqueado** |
-| `tests/unit/weekly-results-view.test.tsx` | 13 | Lo que llega en el HTML de cada estado —listo, pendiente, conflicto, sin rifa, sin grupo, enlace de grupo inválido y **error de lectura**—, con los botones desactivados donde toca |
+| `tests/unit/weekly-results-view.test.tsx` | **22** (+9, D-197) | Lo que llega en el HTML de cada estado —listo, pendiente, conflicto, sin rifa, sin grupo, enlace de grupo inválido y **error de lectura**—, con los botones desactivados donde toca. **Desde D-197**, el mensaje propio: predeterminado en modo lectura, propio editable con «Volver», texto conservado con el interruptor apagado, **HTML hostil que no llega a ser elemento**, saltos de línea y emojis, editor usable con la semana pendiente, lectura fallida sin editor, y la sección entera con mensaje propio y con esa lectura caída |
+| `tests/unit/weekly-results-message.test.tsx` | **32** (nuevo, D-197) | `activeWeeklyResultsMessage`: predeterminado, dinámico por semana, propio, apagar conserva, volver, datos incoherentes, Unicode y ningún marcador. El esquema: vacío, 1.000 exactos y 1.001, recorta antes de medir, emojis más estrictos que la base y sin campos de vendedor ni organización. La lectura (`ready`, vacía, `error`, excepción) con sesión y Supabase sustituidos. Y **la pantalla montada** con `react-dom/client`: copiar y compartir con el mensaje activo, lo escrito sin guardar, encender la primera vez, apagar y recuperar, volver al predeterminado, el vacío que no se manda, guardar con lo que devuelve el servidor, el error del servidor, el fallo de red y la semana pendiente |
 | `tests/db/weekly-results.test.ts` | 10 | Las funciones de producción con **sesiones reales**: seis resultados en orden y con ceros, nacionales para otra organización, `anon` sin permiso (`42501`), nunca parcial —pendiente, sin fila, conflicto, rechazado— y la rifa del catálogo, que otro vendedor no puede leer |
-| `tests/e2e/resultados-semana.spec.ts` | 21 | La tarjeta sin pedir la imagen; listo con la imagen 4:5 y el mensaje; la ruta —200 `image/png` de 1080 × 1350 y `private, no-store`, 307 sin sesión, 403 al administrador, 400 con semanas inválidas o en curso, 409 pendiente, sin rifa y desde otra organización—; descargar **los mismos bytes** que la vista previa; compartir el archivo con título y mensaje; cancelar sin aviso; sin soporte para archivos; copiar y su fallo; la imagen que falla y se reintenta; con y sin grupo; teclado; ningún «enviado» |
-| `tests/e2e/resultados-semana-movil.spec.ts` | 3 | A 320 px: sin desplazamiento lateral, vista previa en 4:5, dianas de 44 px, pendiente y sin rifa |
+| `tests/db/weekly-results-message.test.ts` | **24** (nuevo, D-197) | Las columnas y sus valores sin UPDATE masivo; guardar recortado con saltos de línea y emojis; apagar conserva; vaciar guarda NULL; 1.000 caracteres de PostgreSQL; los dos CHECK con la service role; **la firma sin vendedor** y un identificador colado que no alcanza a nadie; dos vendedores, cada uno con lo suyo; Dueño y Administrador rechazados; **el vendedor padre sin alcance sobre su integrante**; la cuenta desactivada; `anon` y PUBLIC sin `EXECUTE`; `UPDATE` directo bloqueado sobre la propia fila y sobre la ajena; **la auditoría una sola vez**, con actor y valores; y la lectura de producción con sesiones reales |
+| `tests/db/catalog.test.ts` | sin cambio de número | La RPC nueva entra en la lista blanca de ejecutables por `authenticated` y en la comprobación positiva, que pasa de 17 a 18 (D-197) |
+| `tests/e2e/resultados-semana.spec.ts` | **29** (+8, D-197) | La tarjeta sin pedir la imagen; listo con la imagen 4:5 y el mensaje; la ruta —200 `image/png` de 1080 × 1350 y `private, no-store`, 307 sin sesión, 403 al administrador, 400 con semanas inválidas o en curso, 409 pendiente, sin rifa y desde otra organización—; descargar **los mismos bytes** que la vista previa; compartir el archivo con título y mensaje; cancelar sin aviso; sin soporte para archivos; copiar y su fallo; la imagen que falla y se reintenta; con y sin grupo; teclado —que ahora pasa por el interruptor, el área y «Guardar cambios»—; ningún «enviado». **Y el mensaje propio**: predeterminado inicial en modo lectura; encender, escribir con la vista previa en vivo, guardar y recargar; copiar y compartir con el texto propio en cuanto se guarda, **sin volver a pedir la imagen**; apagar conserva y encender recupera; «Volver al mensaje predeterminado» vacía; el vacío que no se guarda; el tope de 1.000; y con un resultado pendiente, se guarda pero copiar y compartir siguen bloqueados |
+| `tests/e2e/resultados-semana-movil.spec.ts` | **4** (+1, D-197) | A 320 px: sin desplazamiento lateral, vista previa en 4:5, dianas de 44 px, pendiente y sin rifa. **Y el mensaje propio** con una palabra de 310 caracteres sin espacios: sin desbordamiento, la fila del interruptor, «Guardar cambios» y «Volver al mensaje predeterminado» de 44 px, y **tocar la fila fuera del interruptor lo cambia** |
 | `tests/e2e/security.spec.ts` | +1 ruta | `/seller/settings/weekly-results` entra en `RUTAS_PROTEGIDAS` |
 
 **Lo que estas suites no pueden ver, y cómo se cubrió:**
@@ -878,10 +882,21 @@ interfaz compartida (`HANDOFF` §1.b): no se tocó ningún primitivo.
 | El error de la LECTURA no se provoca desde un navegador | La unitaria de vista, con las lecturas sustituidas |
 | El render dentro de un build de producción (I-074) | A mano, sobre `next build` + `next start` contra la base local (`TEST_RESULTS`, 2026-09-13) |
 | Si la imagen se PARECE a la referencia | Inspección visual de PNG reales, lado a lado con la referencia (`TEST_RESULTS`) |
+| El mensaje propio en la hoja de compartir de un teléfono real, y cómo lo recibe WhatsApp | **Sin cubrir** (D-197): el doble de `navigator.share` comprueba qué texto se entrega, no qué hace el sistema con él |
+| El editor del mensaje en modo oscuro | **Sin cubrir** (D-197): en la verificación visual, emular `prefers-color-scheme: dark` no cambió el tema de la aplicación |
 
 ⚠️ **Trampa de esta E2E: la CSP no deja hacer `fetch` a una dirección `blob:`** (`connect-src`). Por
 eso la igualdad de bytes entre la descarga y la vista previa se comprueba contra el **cuerpo de la
 respuesta** del PNG —la única petición que hace la página—, no releyendo la vista previa.
+
+⚠️ **Otra, de D-197: en `next dev` la imagen se pide DOS veces al montar.** El modo estricto de React
+(`reactStrictMode: true`) ejecuta el efecto dos veces: la primera petición sale abortada y la segunda
+responde 200, 1 ms después. En producción es una. Por eso «guardar no vuelve a pedir la imagen» se
+comprueba **comparando antes y después de guardar**, no contra 1. La primera versión de la prueba lo
+hizo contra 1 y falló sin que el producto estuviera mal (`TEST_RESULTS`, 2026-09-13).
+
+⚠️ **Y `getByLabel('Mensaje para tu grupo')` resuelve a dos elementos** —medido—: la sección y el área
+de texto comparten nombre accesible. Las pruebas buscan el campo con `getByRole('textbox', { name })`.
 
 ### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 7 pruebas)
 

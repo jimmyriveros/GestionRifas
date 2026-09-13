@@ -652,6 +652,8 @@ export type Database = {
           public_whatsapp_number: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
+          weekly_results_custom_message: string | null
+          weekly_results_use_custom_message: boolean
           whatsapp_custom_message: string | null
           whatsapp_group_url: string | null
           whatsapp_use_custom_message: boolean
@@ -672,6 +674,8 @@ export type Database = {
           public_whatsapp_number?: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at?: string
+          weekly_results_custom_message?: string | null
+          weekly_results_use_custom_message?: boolean
           whatsapp_custom_message?: string | null
           whatsapp_group_url?: string | null
           whatsapp_use_custom_message?: boolean
@@ -692,6 +696,8 @@ export type Database = {
           public_whatsapp_number?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
+          weekly_results_custom_message?: string | null
+          weekly_results_use_custom_message?: boolean
           whatsapp_custom_message?: string | null
           whatsapp_group_url?: string | null
           whatsapp_use_custom_message?: boolean
@@ -2535,6 +2541,13 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_seller_weekly_results_message: {
+        Args: { p_custom_message?: string; p_use_custom_message: boolean }
+        Returns: {
+          weekly_results_custom_message: string | null
+          weekly_results_use_custom_message: boolean
+        }[]
       }
       set_seller_whatsapp_settings: {
         Args: {

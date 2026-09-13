@@ -5,12 +5,16 @@ import { stubShareAndClipboard } from './catalogo-helpers'
 import { loadSeedRefs, type SeedRefs } from './db-setup'
 import { ACCOUNTS, loginAs } from './fixtures'
 import {
+  campoMensaje,
   configurarGrupo,
+  configurarMensaje,
   configurarRifaDelCatalogo,
   desmontar,
   esperarImagen,
+  interruptorMensaje,
   montarSemana,
   vistaPrevia,
+  vistaPreviaMensaje,
 } from './resultados-semana-helpers'
 
 /**
@@ -19,7 +23,7 @@ import {
  *
  * Se mide lo que en un teléfono se estropea primero: que nada empuje la página
  * de lado, que la vista previa conserve su 4:5 al ancho que haya y que cada
- * acción tenga su diana de 44 px.
+ * acción tenga su diana de 44 px — también las del mensaje propio (D-197).
  */
 
 const COPY = WEEKLY_RESULTS_COPY.share
@@ -49,6 +53,7 @@ test.describe('a 320 px', () => {
     await montarSemana()
     await configurarRifaDelCatalogo(refs, refs.raffleId)
     await configurarGrupo(refs, null)
+    await configurarMensaje(refs, { usarPropio: false, texto: null })
     await stubShareAndClipboard(page, { share: 'ok' })
 
     await page.setViewportSize({ width: 320, height: 740 })
@@ -75,6 +80,53 @@ test.describe('a 320 px', () => {
       expect(medida!.height, await accion.innerText()).toBeGreaterThanOrEqual(44)
       expect(medida!.x + medida!.width, await accion.innerText()).toBeLessThanOrEqual(320)
     }
+  })
+
+  test('el mensaje propio cabe, no desborda y sus controles miden 44 px', async ({ page }) => {
+    await montarSemana()
+    await configurarRifaDelCatalogo(refs, refs.raffleId)
+    await configurarGrupo(refs, null)
+    // Una palabra larguísima, sin espacios: lo primero que empuja una página de lado.
+    await configurarMensaje(refs, {
+      usarPropio: true,
+      texto: `${'Resultadosdelasemanasinespacios'.repeat(10)}\n\n¡Suerte! 🍀`,
+    })
+    await stubShareAndClipboard(page, { share: 'ok' })
+
+    await page.setViewportSize({ width: 320, height: 740 })
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/weekly-results')
+    await esperarImagen(page)
+
+    await expect(interruptorMensaje(page)).toBeChecked()
+    expect(await desborde(page)).toBeLessThanOrEqual(0)
+
+    const filaDelInterruptor = page.locator('[data-slot="weekly-results-message-toggle"]')
+    for (const [nombre, objetivo] of [
+      [COPY.messageToggle, filaDelInterruptor],
+      [COPY.messageSave, page.getByRole('button', { name: COPY.messageSave })],
+      [COPY.messageRestore, page.getByRole('button', { name: COPY.messageRestore })],
+    ] as const) {
+      await objetivo.scrollIntoViewIfNeeded()
+      const medida = await objetivo.boundingBox()
+      expect(medida, nombre).not.toBeNull()
+      expect(medida!.height, nombre).toBeGreaterThanOrEqual(44)
+      expect(medida!.x + medida!.width, nombre).toBeLessThanOrEqual(320)
+    }
+
+    for (const bloque of [campoMensaje(page), vistaPreviaMensaje(page)]) {
+      await bloque.scrollIntoViewIfNeeded()
+      const medida = await bloque.boundingBox()
+      expect(medida).not.toBeNull()
+      expect(medida!.x + medida!.width).toBeLessThanOrEqual(320)
+    }
+
+    // La diana es la fila entera: tocar arriba a la derecha, fuera del
+    // interruptor pero dentro de sus 44 px, también lo cambia.
+    const fila = (await filaDelInterruptor.boundingBox())!
+    await filaDelInterruptor.click({ position: { x: fila.width - 4, y: 2 } })
+    await expect(interruptorMensaje(page)).not.toBeChecked()
+    expect(await desborde(page)).toBeLessThanOrEqual(0)
   })
 
   test('pendiente: también cabe, y dice qué falta', async ({ page }) => {

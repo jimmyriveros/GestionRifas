@@ -8,37 +8,45 @@ import { weeklyResultsImageUrl } from '../../src/features/weekly-results/share'
 import { formatWeekLong, weeklyResultsFileName } from '../../src/features/weekly-results/week'
 import { clipboardWrites, shareCalls, stubShareAndClipboard } from './catalogo-helpers'
 import { loadSeedRefs, type SeedRefs } from './db-setup'
-import { ACCOUNTS, expectToast, loginAs } from './fixtures'
+import { ACCOUNTS, expectToast, loginAs, toggleCheckbox } from './fixtures'
 import {
+  campoMensaje,
   configurarGrupo,
+  configurarMensaje,
   configurarRifaDelCatalogo,
   contarPeticionesDeImagen,
   desmontar,
   esperarImagen,
   fila,
   GRUPO,
+  interruptorMensaje,
+  leerMensaje,
   medidasPng,
   montarSemana,
   resumen,
+  semanaDelResumen,
   vistaPrevia,
+  vistaPreviaMensaje,
 } from './resultados-semana-helpers'
 
 /**
- * «Resultados de la semana» en el navegador (BR-H01..BR-H08, D-194).
+ * «Resultados de la semana» en el navegador (BR-H01..BR-H09, D-194, D-197).
  *
  * Lo que se prueba aquí es lo que solo se ve con un navegador y un servidor de
  * verdad: que la ruta del PNG existe y se protege, que la vista previa es la
  * imagen que se descarga —byte a byte—, qué se le pide a `navigator.share` y al
- * portapapeles, y que ningún estado ofrece algo que no está listo.
+ * portapapeles, que ningún estado ofrece algo que no está listo y que el mensaje
+ * propio se guarda, se recupera y es el que se copia y se comparte.
  *
  * Qué NO se prueba aquí, y dónde está: el cálculo de la semana, el estado con
- * resultados en conflicto o inválidos y el estado de error de la LECTURA
- * (`tests/unit/weekly-results*.test.ts*`), y la RLS de las lecturas
- * (`tests/db/weekly-results.test.ts`). Aquí el error que se provoca es el de la
- * imagen, que es el que el navegador puede ver.
+ * resultados en conflicto o inválidos, el estado de error de las LECTURAS y los
+ * fallos al guardar el mensaje (`tests/unit/weekly-results*.test.ts*`), y la RLS,
+ * la RPC y la auditoría (`tests/db/weekly-results*.test.ts`). Aquí el error que se
+ * provoca es el de la imagen, que es el que el navegador puede ver.
  */
 
 const COPY = WEEKLY_RESULTS_COPY.share
+const PREDETERMINADO = { usarPropio: false, texto: null }
 
 let refs: SeedRefs
 
@@ -82,6 +90,7 @@ test.describe('con la semana completa', () => {
     await montarSemana()
     await configurarRifaDelCatalogo(refs, refs.raffleId)
     await configurarGrupo(refs, null)
+    await configurarMensaje(refs, PREDETERMINADO)
   })
 
   test('enseña los seis números con sus ceros, la imagen 4:5 y el mensaje de la semana', async ({
@@ -284,9 +293,14 @@ test.describe('con la semana completa', () => {
     await page.goto('/seller/settings/weekly-results')
     await esperarImagen(page)
 
+    // Desde D-197 el mensaje se edita entre la imagen y «Copiar mensaje»: el
+    // interruptor, el área (de solo lectura, pero se lee) y «Guardar cambios».
     await page.getByRole('button', { name: COPY.shareImage }).focus()
     for (const siguiente of [
       page.getByRole('button', { name: COPY.downloadImage }),
+      interruptorMensaje(page),
+      campoMensaje(page),
+      page.getByRole('button', { name: COPY.messageSave }),
       page.getByRole('button', { name: COPY.copyMessage }),
       page.getByRole('link', { name: COPY.openGroup }),
     ]) {
@@ -303,6 +317,186 @@ test.describe('con la semana completa', () => {
     for (const prohibido of ['Mensaje enviado', 'Enviado', 'Entregado', 'Se envió', 'ganador']) {
       await expect(page.getByText(prohibido, { exact: false })).toHaveCount(0)
     }
+  })
+})
+
+test.describe('el mensaje propio (BR-H09, D-197)', () => {
+  test.setTimeout(150_000)
+
+  const PROPIO =
+    '¡Hola, grupo! 🍀\n\nYa salieron los números de la semana.\nRevisen su boleta en la imagen.'
+
+  test.beforeEach(async () => {
+    await montarSemana()
+    await configurarRifaDelCatalogo(refs, refs.raffleId)
+    await configurarGrupo(refs, null)
+    await configurarMensaje(refs, PREDETERMINADO)
+  })
+
+  test('arranca con el predeterminado de la semana, en modo lectura', async ({ page }) => {
+    const week = semanaDelResumen()
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/weekly-results')
+    await esperarImagen(page)
+
+    await expect(interruptorMensaje(page)).not.toBeChecked()
+    await expect(campoMensaje(page)).toHaveAttribute('readonly', '')
+    await expect(campoMensaje(page)).toHaveValue(weeklyResultsMessage(week))
+    await expect(page.getByText(COPY.messageDefaultHint)).toBeVisible()
+    await expect(page.getByText(COPY.messagePreview)).toBeVisible()
+    await expect.poll(() => vistaPreviaMensaje(page).textContent()).toBe(weeklyResultsMessage(week))
+    await expect(page.getByRole('button', { name: COPY.messageRestore })).toHaveCount(0)
+  })
+
+  test('encender, escribir con la vista previa en vivo, guardar y encontrarlo al recargar', async ({
+    page,
+  }) => {
+    const week = semanaDelResumen()
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/weekly-results')
+    await esperarImagen(page)
+
+    await toggleCheckbox(interruptorMensaje(page), true)
+    await expect(campoMensaje(page)).not.toHaveAttribute('readonly', '')
+    // Arranca con una copia del predeterminado: retocar es más fácil que empezar en blanco.
+    await expect(campoMensaje(page)).toHaveValue(weeklyResultsMessage(week))
+    await expect(page.getByText(COPY.messageCustomHint)).toBeVisible()
+
+    await campoMensaje(page).fill(PROPIO)
+    // La vista previa cambia mientras se escribe, antes de guardar nada.
+    await expect.poll(() => vistaPreviaMensaje(page).textContent()).toBe(PROPIO)
+    expect(await leerMensaje(refs)).toEqual(PREDETERMINADO)
+
+    await page.getByRole('button', { name: COPY.messageSave }).click()
+    await expectToast(page, COPY.messageSaved)
+    expect(await leerMensaje(refs)).toEqual({ usarPropio: true, texto: PROPIO })
+
+    await page.reload()
+    await expect(interruptorMensaje(page)).toBeChecked()
+    await expect(campoMensaje(page)).toHaveValue(PROPIO)
+    await expect.poll(() => vistaPreviaMensaje(page).textContent()).toBe(PROPIO)
+  })
+
+  test('copiar y compartir usan el mensaje propio en cuanto se guarda, sin volver a pedir la imagen', async ({
+    page,
+  }) => {
+    await stubShareAndClipboard(page, { share: 'ok', clipboard: 'ok' })
+    const peticiones = contarPeticionesDeImagen(page)
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/weekly-results')
+    await esperarImagen(page)
+    // No se compara con 1: en `next dev` el modo estricto de React monta el efecto
+    // dos veces y la primera petición sale abortada (`reactStrictMode`). Lo que
+    // importa es que guardar el mensaje no añada ninguna.
+    const antesDeGuardar = peticiones()
+
+    await toggleCheckbox(interruptorMensaje(page), true)
+    await campoMensaje(page).fill(PROPIO)
+    await page.getByRole('button', { name: COPY.messageSave }).click()
+    await expectToast(page, COPY.messageSaved)
+
+    await page.getByRole('button', { name: COPY.copyMessage }).click()
+    await expectToast(page, 'Mensaje copiado')
+    expect(await clipboardWrites(page)).toEqual([PROPIO])
+
+    await esperarImagen(page)
+    await page.getByRole('button', { name: COPY.shareImage }).click()
+    await expect.poll(async () => (await shareCalls(page)).length).toBe(1)
+    const [llamada] = await shareCalls(page)
+    expect(llamada?.text).toBe(PROPIO)
+    expect(llamada?.title).toBe(COPY.shareTitle)
+    expect(llamada?.files).toHaveLength(1)
+
+    // Guardar el mensaje no recompone la imagen ni la vuelve a pedir.
+    expect(antesDeGuardar).toBeGreaterThanOrEqual(1)
+    expect(peticiones()).toBe(antesDeGuardar)
+  })
+
+  test('apagar vuelve al predeterminado sin borrar lo escrito, y encender lo recupera', async ({
+    page,
+  }) => {
+    const week = semanaDelResumen()
+    await configurarMensaje(refs, { usarPropio: true, texto: PROPIO })
+    await stubShareAndClipboard(page, { share: 'unsupported', clipboard: 'ok' })
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/weekly-results')
+    await esperarImagen(page)
+
+    await expect(interruptorMensaje(page)).toBeChecked()
+    await toggleCheckbox(interruptorMensaje(page), false)
+    await expect(campoMensaje(page)).toHaveValue(weeklyResultsMessage(week))
+    await expect.poll(() => vistaPreviaMensaje(page).textContent()).toBe(weeklyResultsMessage(week))
+
+    await page.getByRole('button', { name: COPY.copyMessage }).click()
+    await expectToast(page, 'Mensaje copiado')
+    expect(await clipboardWrites(page)).toEqual([weeklyResultsMessage(week)])
+
+    await page.getByRole('button', { name: COPY.messageSave }).click()
+    await expectToast(page, COPY.messageSaved)
+    // Apagado, pero con su texto guardado para cuando lo vuelva a encender.
+    expect(await leerMensaje(refs)).toEqual({ usarPropio: false, texto: PROPIO })
+
+    await page.reload()
+    await esperarImagen(page)
+    await expect(interruptorMensaje(page)).not.toBeChecked()
+    await toggleCheckbox(interruptorMensaje(page), true)
+    await expect(campoMensaje(page)).toHaveValue(PROPIO)
+    await expect.poll(() => vistaPreviaMensaje(page).textContent()).toBe(PROPIO)
+  })
+
+  test('«Volver al mensaje predeterminado» vacía el mensaje propio', async ({ page }) => {
+    const week = semanaDelResumen()
+    await configurarMensaje(refs, { usarPropio: true, texto: PROPIO })
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/weekly-results')
+    await esperarImagen(page)
+
+    const volver = page.getByRole('button', { name: COPY.messageRestore })
+    await volver.click()
+    await expect(interruptorMensaje(page)).not.toBeChecked()
+    await expect(volver).toHaveCount(0)
+    await expect(campoMensaje(page)).toHaveValue(weeklyResultsMessage(week))
+    await expect.poll(() => vistaPreviaMensaje(page).textContent()).toBe(weeklyResultsMessage(week))
+
+    await page.getByRole('button', { name: COPY.messageSave }).click()
+    await expectToast(page, COPY.messageSaved)
+    expect(await leerMensaje(refs)).toEqual(PREDETERMINADO)
+
+    // Encender otra vez ya no recupera nada: arranca de nuevo del predeterminado.
+    await toggleCheckbox(interruptorMensaje(page), true)
+    await expect(campoMensaje(page)).toHaveValue(weeklyResultsMessage(week))
+  })
+
+  test('no guarda un mensaje propio vacío, y lo dice junto al campo', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/weekly-results')
+    await esperarImagen(page)
+
+    await toggleCheckbox(interruptorMensaje(page), true)
+    await campoMensaje(page).fill('')
+    await page.getByRole('button', { name: COPY.messageSave }).click()
+
+    await expect(page.getByRole('alert').filter({ hasText: COPY.messageEmpty })).toBeVisible()
+    await expect(campoMensaje(page)).toHaveAttribute('aria-invalid', 'true')
+    await expect(
+      page.locator('[data-sonner-toast]').filter({ hasText: COPY.messageSaved }),
+    ).toHaveCount(0)
+    expect(await leerMensaje(refs)).toEqual(PREDETERMINADO)
+  })
+
+  test('el campo no admite más de 1.000 caracteres', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/weekly-results')
+    await esperarImagen(page)
+
+    await toggleCheckbox(interruptorMensaje(page), true)
+    await expect(campoMensaje(page)).toHaveAttribute('maxlength', '1000')
+    await campoMensaje(page).fill('x'.repeat(1001))
+    await expect(campoMensaje(page)).toHaveValue('x'.repeat(1000))
+
+    await page.getByRole('button', { name: COPY.messageSave }).click()
+    await expectToast(page, COPY.messageSaved)
+    expect(await leerMensaje(refs)).toEqual({ usarPropio: true, texto: 'x'.repeat(1000) })
   })
 })
 
@@ -328,6 +522,34 @@ test.describe('cuando no está lista', () => {
     // Y la ruta tampoco dibuja una imagen a medias.
     const respuesta = await page.request.get(weeklyResultsImageUrl(week))
     expect(respuesta.status()).toBe(409)
+  })
+
+  test('con un resultado pendiente, el mensaje se prepara y se guarda, pero no se copia ni se comparte', async ({
+    page,
+  }) => {
+    const TEXTO = 'Mañana salen los resultados. ¡Suerte!'
+    await montarSemana({ pendientes: ['meta'] })
+    await configurarRifaDelCatalogo(refs, refs.raffleId)
+    await configurarMensaje(refs, PREDETERMINADO)
+    await stubShareAndClipboard(page, { share: 'ok', clipboard: 'ok' })
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/weekly-results')
+    await expect(resumen(page)).toContainText('5 de 6 resultados')
+
+    await toggleCheckbox(interruptorMensaje(page), true)
+    await campoMensaje(page).fill(TEXTO)
+    await page.getByRole('button', { name: COPY.messageSave }).click()
+    await expectToast(page, COPY.messageSaved)
+    expect(await leerMensaje(refs)).toEqual({ usarPropio: true, texto: TEXTO })
+
+    await expect(page.getByText(COPY.messagePending)).toBeVisible()
+    await expect(vistaPreviaMensaje(page)).toHaveCount(0)
+    for (const nombre of [COPY.shareImage, COPY.downloadImage, COPY.copyMessage]) {
+      await expect(page.getByRole('button', { name: nombre })).toBeDisabled()
+    }
+    expect(await clipboardWrites(page)).toEqual([])
+    expect(await shareCalls(page)).toEqual([])
   })
 
   test('sin rifa en el catálogo lo explica y no ofrece nada', async ({ page }) => {

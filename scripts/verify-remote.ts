@@ -131,6 +131,9 @@ const CHECKS: Check[] = [
               'reassign_ticket_client', 'release_ticket_client',
               'report_payment_totals', 'report_payments_by_day', 'report_sales_totals',
               'search_tickets', 'set_seller_whatsapp_settings', 'set_ticket_clearance_delivery',
+              -- 0056: el vendedor guarda SU mensaje de «Resultados de la semana».
+              -- No recibe identificador de vendedor (BR-H10, D-197)
+              'set_seller_weekly_results_message',
               -- Las ocho de la 0051: el vendedor administra SUS cuentas de cobro
               -- y SUS recordatorios. Ninguna recibe identificador de vendedor
               -- (BR-M02, BR-S01, D-185)
@@ -185,10 +188,11 @@ const CHECKS: Check[] = [
                               'update_ticket_sale_price', 'reassign_ticket_client',
                               'release_ticket_client', 'set_ticket_clearance_delivery',
                               'set_seller_whatsapp_settings',
+                              'set_seller_weekly_results_message',
                               'assign_ticket', 'bulk_create_tickets', 'approve_tickets',
                               'cancel_ticket')
             and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
-    esperado: 12,
+    esperado: 13,
   },
   {
     nombre: 'Las 3 funciones de reporte son ejecutables por authenticated',

@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
 import { LOTTERY_CODES, type LotteryCode } from '../../src/features/lottery/constants'
+import { WEEKLY_RESULTS_COPY } from '../../src/features/weekly-results/copy'
 import {
   lastCompletedWeek,
   lotteryReferenceDate,
@@ -10,7 +11,7 @@ import { serviceClient, type SeedRefs } from './db-setup'
 import { deleteFixtures, insertResult, insertSchedule, todayBogota } from './lottery-fixtures'
 
 /**
- * Preparación compartida de «Resultados de la semana» (D-194).
+ * Preparación compartida de «Resultados de la semana» (D-194, D-197).
  *
  * La usan las dos suites —escritorio y teléfono—, igual que `catalogo-helpers`.
  * Es PREPARACIÓN con la service role: lo que cada prueba comprueba ocurre por la
@@ -80,11 +81,44 @@ export async function configurarGrupo(refs: SeedRefs, url: string | null) {
   if (error) throw error
 }
 
-/** Deja la base como estaba: sin sorteos de prueba, sin rifa en el catálogo y sin grupo. */
+export type MensajeGuardado = { usarPropio: boolean; texto: string | null }
+
+/** El mensaje de «Resultados de la semana» del vendedor 1 (0056). */
+export async function configurarMensaje(refs: SeedRefs, mensaje: MensajeGuardado) {
+  const { error } = await serviceClient()
+    .from('memberships')
+    .update({
+      weekly_results_use_custom_message: mensaje.usarPropio,
+      weekly_results_custom_message: mensaje.texto,
+    })
+    .eq('profile_id', refs.sellerId)
+  if (error) throw error
+}
+
+/** Lo que quedó guardado, leído de la base: la pantalla no puede ser su propia prueba. */
+export async function leerMensaje(refs: SeedRefs): Promise<MensajeGuardado> {
+  const { data, error } = await serviceClient()
+    .from('memberships')
+    .select('weekly_results_use_custom_message, weekly_results_custom_message')
+    .eq('profile_id', refs.sellerId)
+    .eq('organization_id', refs.organizationId)
+    .single()
+  if (error) throw error
+  return {
+    usarPropio: data.weekly_results_use_custom_message,
+    texto: data.weekly_results_custom_message,
+  }
+}
+
+/**
+ * Deja la base como estaba: sin sorteos de prueba, sin rifa en el catálogo, sin
+ * grupo y con el mensaje predeterminado.
+ */
 export async function desmontar(refs: SeedRefs) {
   await deleteFixtures()
   await configurarRifaDelCatalogo(refs, null)
   await configurarGrupo(refs, null)
+  await configurarMensaje(refs, { usarPropio: false, texto: null })
 }
 
 export function resumen(page: Page): Locator {
@@ -97,6 +131,21 @@ export function vistaPrevia(page: Page): Locator {
 
 export function fila(page: Page, code: LotteryCode): Locator {
   return resumen(page).locator(`[data-lottery="${code}"]`)
+}
+
+/** El interruptor «Usar mi propio mensaje». */
+export function interruptorMensaje(page: Page): Locator {
+  return page.getByRole('switch', { name: WEEKLY_RESULTS_COPY.share.messageToggle })
+}
+
+/** El área del mensaje, que nombra el título de su sección. */
+export function campoMensaje(page: Page): Locator {
+  return page.getByRole('textbox', { name: WEEKLY_RESULTS_COPY.share.messageTitle })
+}
+
+/** La vista previa del mensaje: lo que se copia y se comparte. */
+export function vistaPreviaMensaje(page: Page): Locator {
+  return page.locator('[data-slot="weekly-results-message"]')
 }
 
 /**

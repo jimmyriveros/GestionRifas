@@ -2,8 +2,13 @@ import 'server-only'
 
 import { getCatalogSettings } from '@/features/catalog/queries'
 import { LOTTERY_DASHBOARD_TIMEOUT_MS } from '@/features/lottery/dashboard'
+import { getActiveMembership } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
 
+import {
+  EMPTY_WEEKLY_RESULTS_MESSAGE_SETTINGS,
+  type WeeklyResultsMessageSettingsResult,
+} from './message'
 import {
   buildWeeklyResults,
   weeklyResultsRaffleName,
@@ -15,7 +20,7 @@ import {
 import type { ResultsWeek } from './week'
 
 /**
- * Lecturas de «Resultados de la semana» (BR-H02, BR-H04, D-194).
+ * Lecturas de «Resultados de la semana» (BR-H02, BR-H04, BR-H09, D-194, D-197).
  *
  * SOLO TABLAS LOCALES, con el cliente sujeto a la RLS de quien pregunta. No
  * importa adaptadores, descargas ni sincronización: una fuente oficial caída no
@@ -84,6 +89,49 @@ export async function getWeeklyResultsRaffle(profileId: string): Promise<WeeklyR
   try {
     const name = weeklyResultsRaffleName(await getCatalogSettings(profileId))
     return name === null ? { kind: 'none' } : { kind: 'ready', name }
+  } catch {
+    return { kind: 'error' }
+  }
+}
+
+/**
+ * El mensaje del vendedor de la sesión: si usa uno propio y cuál (BR-H09, BR-H10).
+ *
+ * NO RECIBE NINGÚN VENDEDOR. Se lee la membresía de quien pregunta, que sale de
+ * la sesión —como `getWhatsappSettings`—, y además `memberships_select` no
+ * serviría la de un vendedor ajeno a su equipo.
+ *
+ * TRES RESPUESTAS. Sin personalización, o si quien pregunta no es vendedor, la
+ * configuración vacía: el predeterminado. Si la lectura FALLA, `error` y no la
+ * vacía: tratar un fallo como «no tiene mensaje propio» le ofrecería guardar
+ * encima del suyo sin haberlo visto. Ninguna de las tres tumba la sección.
+ */
+export async function getWeeklyResultsMessageSettings(): Promise<WeeklyResultsMessageSettingsResult> {
+  try {
+    const membership = await getActiveMembership()
+    if (!membership || membership.role !== 'seller') {
+      return { kind: 'ready', settings: EMPTY_WEEKLY_RESULTS_MESSAGE_SETTINGS }
+    }
+
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('memberships')
+      .select('weekly_results_use_custom_message, weekly_results_custom_message')
+      .eq('profile_id', membership.profileId)
+      .eq('organization_id', membership.organizationId)
+      .eq('role', 'seller')
+      .maybeSingle()
+
+    if (error) return { kind: 'error' }
+    if (!data) return { kind: 'ready', settings: EMPTY_WEEKLY_RESULTS_MESSAGE_SETTINGS }
+
+    return {
+      kind: 'ready',
+      settings: {
+        useCustomMessage: data.weekly_results_use_custom_message,
+        customMessage: data.weekly_results_custom_message,
+      },
+    }
   } catch {
     return { kind: 'error' }
   }

@@ -4,10 +4,11 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.7
+- **Versión del documento:** 1.8
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-13 (§9.6: «Resultados de la semana» del vendedor, sin desplegar y
-  sin migraciones). Anterior: 2026-09-12 (§9.5: cuentas para recibir pagos y recordatorios de pago,
+- **Última actualización:** 2026-09-13 (§9.6: el mensaje propio de «Resultados de la semana», con la
+  migración `0056` y sin desplegar; antes, ese mismo día, «Resultados de la semana» del vendedor, ya
+  desplegada y sin migraciones). Anterior: 2026-09-12 (§9.5: cuentas para recibir pagos y recordatorios de pago,
   **etapas 0 a 5 hechas de 7**; el canal está completo de punta a punta en local. Quedan la
   auditoría integrada y la promoción a producción)
 
@@ -334,14 +335,23 @@ acceden a sus cuentas ni a sus recordatorios. Cambiar eso exige una decisión ex
 | 6 | Auditoría integrada de seguridad, rendimiento, UX y regresiones |
 | 7 | Promoción controlada a producción, **solo con autorización posterior** |
 
-### 9.6 Resultados de la semana (`/seller/settings/weekly-results`) — **SIN DESPLEGAR**
+### 9.6 Resultados de la semana (`/seller/settings/weekly-results`) — desplegada; el mensaje propio, **SIN DESPLEGAR**
 
-> Encargo «Resultados de la semana», 2026-09-13 (D-194, D-195, BR-H01..BR-H08). **Cero migraciones.**
+> Encargo «Resultados de la semana», 2026-09-13 (D-194, D-195, BR-H01..BR-H08), **desplegado** el mismo
+> día y sin migraciones. **Ampliado** ese mismo día con el mensaje propio del vendedor (D-197, BR-H09,
+> BR-H10, migración **`0056`**), que **no está desplegado**.
 
 Cuarta sección de «Configuración» del vendedor. Muestra los **seis números mayores** de la última
 semana terminada —lunes a sábado, en hora de Bogotá— y prepara para su grupo una **imagen** vertical
 de 1080 × 1350 y un **mensaje** ya escrito. El vendedor **comparte** la imagen con el menú del
 teléfono o la **descarga**, **copia** el mensaje y **abre su grupo**; enviarlos lo hace él.
+
+**El mensaje puede ser el suyo.** La aplicación sigue trayendo un mensaje predeterminado, escrito en el
+código y con la semana correcta cada vez. Con «Usar mi propio mensaje», el vendedor escribe el suyo, lo
+guarda y lo encuentra en sus próximas visitas y semanas; se usa **tal cual**, así que una fecha escrita
+dentro no cambia sola. Puede apagarlo sin perderlo o volver al predeterminado. Lo que se ve en la vista
+previa es exactamente lo que se copia y lo que se comparte con la imagen, y se puede preparar aunque
+todavía falte algún resultado.
 
 | Lo que sí hace | Lo que no hace |
 |---|---|
@@ -349,8 +359,10 @@ teléfono o la **descarga**, **copia** el mensaje y **abre su grupo**; enviarlos
 | Encabezarla con la rifa del catálogo del vendedor | Elegir una rifa por su cuenta cuando no hay ninguna configurada |
 | Esperar a los seis resultados confirmados y decir cuáles faltan | Componer una imagen o un mensaje con resultados a medias |
 | Abrir el menú de compartir, la descarga y el grupo | Enviar nada a WhatsApp, ni saber si algo se envió |
+| Guardar el mensaje propio de cada vendedor —si lo usa y qué escribió—, y solo eso | Guardar el mensaje ya compuesto; cambiar el mensaje de otro vendedor; actualizar solas las fechas de un texto propio |
 
-La imagen es la misma para todos los vendedores de una rifa: no lleva datos de nadie.
+La imagen es la misma para todos los vendedores de una rifa: no lleva datos de nadie, y el mensaje
+propio no la cambia.
 
 ---
 
