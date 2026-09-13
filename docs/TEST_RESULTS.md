@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (corte pasajero del catálogo público, I-114, D-196, 2026-09-13)** | **1.097 ✅ en 62 archivos (+15)** | — (no se tocó la base) | @@E2E_SHORT@@ | ✅ | ✅ **Sin desplegar** — commit local |
+| **Post-9 vigente (corte pasajero del catálogo público, I-114, D-196, 2026-09-13)** | **1.097 ✅ en 62 archivos (+15)** | — (no se tocó la base) | **58/58** | ✅ | 🚀 **DESPLEGADO** (`8767f9e`, 2026-09-13) |
 | Post-9 anterior (ajuste visual de la imagen semanal, 2026-09-13) | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | 🚀 **DESPLEGADO** (`1a6b4af`, 2026-09-13) |
 | Post-9 anterior («Resultados de la semana», D-194 y D-195, 2026-09-13) | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`a929e23`, 2026-09-13) · cero migraciones y cero dependencias |
 | Post-9 anterior (disposición de «Recordatorios de pago», 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (sin cambio: no se tocó la base) | **34/34** de la pantalla (`configuracion-cobro.spec.ts` 25 · `configuracion-cobro-movil.spec.ts` 9), **+3** de disposición | ✅ | 🚀 **DESPLEGADO** el 2026-09-13, junto con «Resultados de la semana» (`a929e23`) · solo presentación, cero migraciones |
@@ -11270,7 +11270,7 @@ afecta a producción.**
 ## Corte pasajero de Supabase en el catálogo público (I-114, D-196, BR-K15) — 2026-09-13
 
 **Pedido:** registrar el 500 del catálogo visto en producción y revisar cómo trata el catálogo esos
-cortes. **Sin desplegar**: commit local.
+cortes. **Desplegado el mismo día** (§g).
 
 ### a. Qué pasó en producción
 
@@ -11304,7 +11304,7 @@ cortes. **Sin desplegar**: commit local.
 | `tsc`, `eslint` y Prettier sobre lo tocado | ✅ |
 | `catalog-read-retry.test.ts`, `catalog-error-page.test.tsx` y `catalog.test.ts` | ✅ **67/67** |
 | `npm run verify` | ✅ `typecheck`, lint con los **2 avisos preexistentes**, **1.097/1.097** unitarias en 62 archivos (**+15**) y `build` |
-| `db:reset` + `seed:local` y las E2E del catálogo público (`catalogo-publico.spec.ts` y `catalogo-publico-movil.spec.ts`) | @@E2E@@ |
+| `db:reset` + `seed:local` y las E2E del catálogo público (`catalogo-publico.spec.ts` y `catalogo-publico-movil.spec.ts`) | ✅ **58/58** en 1,2 min. El registro del servidor trae el aviso de hidratación de la última prueba del archivo móvil, que ya describe **I-106** y no viene de este cambio |
 
 ### e. El corte, reproducido en local
 
@@ -11319,6 +11319,26 @@ Con el catálogo de las E2E publicado y `next dev` contra la base local:
 
 ### f. Lo que NO se comprobó
 
-* **En producción**: el arreglo no está desplegado.
+* **El reintento en marcha en producción**: solo se ve durante un corte real; lo desplegado se
+  comprueba por el identificador de versión (§g).
 * **Un 504 de verdad** con el reintento en marcha: en local el corte se reprodujo con un 502 del
   gateway, que sigue el mismo camino.
+
+### g. Promoción a producción — 2026-09-13
+
+Autorizada expresamente: «haz push y despliega a producción».
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`8767f9e40fbb20ec1367ff8614033cbe684c1a85`**, por fast-forward `389ba89..8767f9e` |
+| Despliegue Vercel | `dpl_KTj4781pHbTdj7px1KtcPwV3Uijo` — READY tras **28,1 s** de build, `aliasError: null` |
+| Punto de reversión | `dpl_4EUTp1ebRzLQCEdUdJ7LHz6TAdGx` (`389ba89`) |
+| Migraciones, variables, dependencias y configuración | **Ninguna** |
+| CI | ✅ **2/2** (run 34774381321), incluido el job que aplica las 55 migraciones desde cero |
+| Identificador de versión | **`87df7489b033`** en **1 de 15** fragmentos; el anterior, `e8dba788423e`, en **0** |
+| Rutas sin sesión | **23/23** como se esperaba; el catálogo inexistente en **404**; ningún 5xx |
+| Cabeceras y secretos | **7/7**, con CSP por nonce; **0 secretos** en 944 KB |
+| Errores de ejecución | **0** en los 5 minutos siguientes al despliegue (18:22–18:27 UTC) |
+
+> **Lo que este release NO verificó:** el reintento en marcha en producción, que solo se ve durante un
+> corte real de Supabase.

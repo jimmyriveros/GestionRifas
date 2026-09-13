@@ -4,10 +4,10 @@ Estado del producto y registro de lo entregado por fase. El relevo del último a
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
 - **Actualizado:** 2026-09-13 — **Corte pasajero de Supabase en el catálogo público** (I-114, D-196,
-  BR-K15), en commit local y **sin desplegar**: el 500 que dio la página en producción ya no llega al
+  BR-K15), 🚀 **DESPLEGADO** el mismo día (`8767f9e`): el 500 que dio la página en producción ya no llega al
   visitante. Cada lectura se repite una vez ante un corte del gateway o de la red y, si sigue, sale una
   página de error del catálogo con un «Reintentar» que vuelve a pedir los datos. `verify`
-  **1.097/1.097** y E2E del catálogo público @@E2E_SHORT@@.
+  **1.097/1.097** y E2E del catálogo público **58/58**; en vivo, el identificador nuevo servido, 23/23 rutas —el catálogo inexistente en 404— y 7/7 cabeceras.
   Antes, ese mismo día: **Ajuste visual de la imagen de «Resultados de la semana»**,
   🚀 **DESPLEGADO** el mismo día (`1a6b4af`, sin migración): los cinco nombres de las tarjetas diarias son un **30 % más grandes**
   (19 → 24,7 px) y Cundinamarca se escribe **«CUNDI.»** solo dentro del PNG; `LOTTERY_LABELS`, la

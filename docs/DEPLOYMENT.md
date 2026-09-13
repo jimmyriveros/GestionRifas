@@ -462,6 +462,32 @@ que generaba producción. CI: ✅ **2/2** (run 34772443344), incluido el job que
 > La anterior sí se generó en producción —la compartió el usuario—, y este cambio solo toca el árbol del
 > PNG, sin archivos, rutas ni configuración nuevos. Descargarla una vez con una cuenta de vendedor lo
 > confirma.
+### 3.2.g Release del reintento del catálogo público — 2026-09-13
+
+**Un commit, sin migración: el arreglo de I-114.**
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`8767f9e40fbb20ec1367ff8614033cbe684c1a85`** |
+| Commit anterior en producción | `389ba89c4cf2607d5655330757eb060dc00337a8` |
+| Integración | **fast-forward** `389ba89..8767f9e` — sin merge, sin reescritura, sin force |
+| Despliegue Vercel | `dpl_KTj4781pHbTdj7px1KtcPwV3Uijo` — READY tras **28,1 s** de build, `aliasError: null` |
+| Despliegue anterior (**punto de reversión**) | `dpl_4EUTp1ebRzLQCEdUdJ7LHz6TAdGx` (`389ba89`) |
+| **Migraciones** | **NINGUNA.** Siguen siendo 55, hasta `0055` |
+| Variables de entorno, dependencias y configuración | **Sin cambios** |
+
+**Qué entró:** cada lectura del catálogo público se repite **una vez** ante un corte pasajero de
+Supabase —502, 503, 504, 520, 522, 524 o la red— y, si el corte sigue, lo recoge una **página de error
+del catálogo** con un «Reintentar» que vuelve a pedir los datos (D-196, BR-K15, I-114).
+
+**Validación previa:** `verify` en verde (**1.097/1.097** unitarias), E2E del catálogo público
+**58/58** sobre base recién sembrada y el corte **reproducido en local** deteniendo PostgREST. CI:
+✅ **2/2** (run 34774381321), incluido el job que aplica las 55 migraciones desde cero.
+
+**Verificación en vivo:** identificador **`87df7489b033`** servido (1 de 15 fragmentos) y el anterior (`e8dba788423e`) **desaparecido**; **23/23** rutas como se esperaba, con el catálogo inexistente en **404**; **7/7** cabeceras con CSP por nonce; **0 secretos** en 944 KB; **ningún 5xx**; **0 errores de ejecución** en los 5 minutos siguientes al despliegue.
+
+> **Lo que este release NO verificó:** el reintento en marcha en producción, que solo se ve durante un
+> corte real de Supabase. Si vuelve a pasar, un único 504 ya no debería acabar en un 500 del catálogo.
 ### 3.3 Despliegues futuros
 
 Cada `git push` a `main` que se decida subir dispara un build y despliegue a producción automático
