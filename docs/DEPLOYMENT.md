@@ -111,6 +111,21 @@ Es **I-112**, la familia de I-020 e I-078 por tercera vez.
 | Primeras corridas | `payment-reminders-due` y `push-dispatch-wake`, **`succeeded`** — la prueba de que la `0055` era necesaria y suficiente |
 | Sonda de negocio antes/despues | **Ni una cifra movida**: $98.080.000 vendidos, $34.160.000 cobrados, 5.078 filas de bitacora, 564 clientes, 1.074 boletas. Solo 5 tablas nuevas **vacias**, +27 funciones, +4 politicas, +16 indices |
 
+#### Promoción de `0056` — 2026-09-13 (D-197)
+
+**La base de producción pasa de 55 a 56 migraciones**, con autorización expresa del usuario y los tres
+pasos de arriba, **antes** de subir el código que la usa (§3.2.i). Respaldo previo en
+`Rifas-backups/2026-09-13-antes-0056/`.
+
+| Qué | Resultado |
+|---|---|
+| Respaldo | `roles.sql`, `schema.sql` y `data.sql` (4,4 MB, un `INSERT` por cada una de las 24 tablas de `public`). **Ningún nombre `"auth".` cualificado.** La comprobación de siempre imprimió **1**, por la **columna** `auth` de `push_subscriptions`: corregida en `RUNBOOK` §5.1 |
+| `db push --dry-run` | Solo `0056_seller_weekly_results_message.sql` |
+| `db push --yes` | Aplicada de 23:41:30 a 23:41:45 UTC; `migration list`, con `0001`–`0056` iguales en los dos entornos |
+| `npm run verify:remote` | ✅ **24/24 en verde**, con la función nueva entre las RPC de negocio |
+| Sonda de negocio antes/después | **La parte de negocio, idéntica línea a línea**: $98.080.000 vendidos, $34.280.000 cobrados, 5.082 filas de bitácora, 564 clientes, 1.074 boletas y la **huella de las 7 filas de `memberships`** sin las dos columnas nuevas. Solo cambia el catálogo: +1 función, +2 restricciones y +2 columnas |
+| Lo que dejó `0056` | Las dos columnas con sus valores por defecto (`false` y `null`), los dos CHECK y `set_seller_weekly_results_message(boolean, text)`, `SECURITY DEFINER` con `search_path=public, pg_temp` y **sin `EXECUTE` para `anon` ni para `PUBLIC`**. **0** membresías con mensaje propio |
+
 ---
 
 ## 3. Vercel
@@ -516,6 +531,43 @@ local: vuelve entera sin recargar. CI: ✅ **2/2** (run 34782088029), incluido e
 > **Lo que este release NO verificó:** la página de error general con un fallo real en producción, que
 > solo aparece cuando una pantalla falla. Y **I-115 sigue abierta**: durante un corte de PostgREST, las
 > pantallas con sesión todavía cierran la sesión en vez de enseñar esta página.
+
+### 3.2.i Release del mensaje propio de «Resultados de la semana» — 2026-09-13
+
+**Un commit y una migración: `0056`, aplicada antes de subir el código (§2.2).**
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`6dd23e508c91afd3f7f748ca54edac2f7a0cc057`** |
+| Commit anterior en producción | `73dd284f77c68ef1290d9ad023dd4e6a748b7214` |
+| Integración | **fast-forward** `73dd284..6dd23e5` — sin merge, sin reescritura, sin force |
+| Despliegue Vercel | `dpl_37A7ydZucjhBGuyjv5rHD5tXW2ye` — READY tras **36,1 s** de build, `aliasError: null` |
+| Despliegue anterior (**punto de reversión**) | `dpl_HPpXCdNdrWK3VUn4FwwbmMgVmz6R` (`73dd284`) |
+| **Migraciones** | **`0056`**, aplicada **antes** del código. Son 56, hasta `0056` |
+| Variables de entorno, dependencias y configuración | **Sin cambios**: ni `package.json`, ni `vercel.json`, ni `next.config.ts`, ni `.github/`, ni `.env.example` |
+
+**Qué entró:** «Usar mi propio mensaje» dentro de «Mensaje para tu grupo», en «Resultados de la
+semana»: el vendedor escribe su mensaje, lo guarda, lo conserva al apagarlo y puede volver al
+predeterminado, que sigue en el código (D-197, BR-H09, BR-H10). La imagen, su ruta y su diseño no
+cambian.
+
+**Validación previa:** `verify` en verde (**1.141/1.141** unitarias), `test:db` **1.016/1.016** y suite
+E2E completa **681/683** —los 2 son **I-090**, verdes en aislamiento—. CI: ✅ **2/2** (run 34790475383),
+incluido el job que aplica las **56** migraciones desde cero.
+
+**Verificación en vivo:** identificador **`1a11ca507be5`** servido (1 de 15 fragmentos) y el anterior
+(`70878ef95854`) **desaparecido**; **7/7** cabeceras con CSP por nonce; **0 secretos** en 945 KB; la
+sección y `/api/weekly-results/image` en 307 sin sesión, **sin entregar ningún PNG**. **La primera
+pasada dio 24/25**: un catálogo inexistente respondió **500** porque Supabase devolvió `Gateway Timeout`
+también en el reintento (23:45:02 UTC, **I-114**), en código que este commit no toca. Seis repeticiones,
+un minuto después, dieron su **404**, y la segunda pasada completa, **25/25** y ningún 5xx. **Errores de
+ejecución** en los 5 minutos siguientes al despliegue: **uno**, ese 504; ninguno del código nuevo.
+
+> **Lo que este release NO verificó:** el editor **en vivo**, que vive tras el inicio de sesión —un
+> agente no introduce contraseñas—; la hoja de compartir con el mensaje propio en **un teléfono de
+> verdad**; y el editor en **modo oscuro**. La evidencia es la base comprobada en su catálogo, el
+> identificador servido, el CI sobre este commit y las pruebas locales. **Revertir el código no obliga a
+> revertir la base**: las dos columnas tienen valor por defecto y el código anterior no las lee.
 
 ### 3.3 Despliegues futuros
 

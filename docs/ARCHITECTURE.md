@@ -1873,7 +1873,8 @@ que I-024 ya reclama. La ocurrencia **omitida** deja ver el hueco en vez de esco
 
 > **IMPLEMENTADO y DESPLEGADO el 2026-09-13**, sin migraciones: lee lo que ya guardan las tablas de
 > loterías y la configuración del catálogo. **El mensaje propio** (D-197) se añadió el mismo día con
-> la migración **`0056`**, y **no está desplegado**: es lo único de esta sección que guarda algo.
+> la migración **`0056`**, **aplicada al proyecto real y desplegada** ese mismo día (`6dd23e5`): es lo
+> único de esta sección que guarda algo.
 
 ```
 /seller/settings                    cuarta tarjeta, línea fija: no lee nada (BR-H08)

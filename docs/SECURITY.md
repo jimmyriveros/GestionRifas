@@ -3,7 +3,8 @@
 - **Versión:** 2.15 · **Estado:** implementado · **Actualizado:** 2026-09-13
 - **§4.18** describe **el mensaje propio de «Resultados de la semana»** (`0056`, D-197): la segunda
   escritura de `memberships` que hace un vendedor, con la forma de la primera y en su propio dominio.
-  **Solo en local.**
+  **Aplicada al proyecto real el 2026-09-13**: `verify:remote` 24/24 y la función cerrada a `anon` y a
+  `PUBLIC`, comprobado en el catálogo de la base.
 - **§4.15** describe el aislamiento de las cuentas de cobro, los recordatorios y **el motor que los
   dispara**, implementado en las migraciones **`0051`** (Etapa 1) y **`0052`** (Etapa 3, D-189) y
   verificado en local; su última parte —Web Push— sigue siendo diseño y lo dice. **§5.2**

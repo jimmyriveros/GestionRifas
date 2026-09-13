@@ -4,13 +4,15 @@ Estado del producto y registro de lo entregado por fase. El relevo del último a
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
 - **Actualizado:** 2026-09-13 — **El mensaje propio de «Resultados de la semana»** (D-197, BR-H09,
-  BR-H10, migración **`0056`**), **SIN DESPLEGAR**: cada vendedor puede usar su propio mensaje junto a
+  BR-H10, migración **`0056`**), 🚀 **DESPLEGADO** el mismo día (`6dd23e5`), con `0056` aplicada al
+  proyecto real: cada vendedor puede usar su propio mensaje junto a
   la imagen con «Usar mi propio mensaje», conservarlo entre visitas y semanas y volver al
   predeterminado, que **sigue en el código**. La base guarda **solo** el interruptor y el texto, en dos
   columnas de `memberships`, con una RPC que no recibe vendedor; la vista previa, copiar y compartir
   usan la misma cadena. **Corrige D-194 (Decisión 6).** `test:db` **1.016/1.016**, `verify`
   **1.141/1.141** y E2E **681/683**, con los 2 fallos conocidos de **I-090**, verdes en aislamiento;
-  los seis puntos de §34.3, en su sección de mantenimiento. **`0056` solo en local.**
+  los seis puntos de §34.3, en su sección de mantenimiento. **En producción:** respaldo,
+  `verify:remote` **24/24**, sonda de negocio idéntica, CI **2/2** y **25/25** rutas en vivo.
   Antes, ese mismo día: **«Reintentar» de la página de error general vuelve a pedir la pantalla**
   (D-196, Decisión 3), 🚀 **DESPLEGADO** el mismo día (`787e420`): el botón de `src/app/error.tsx` llamaba a `reset()`, que tras
   un fallo del servidor repintaba el mismo error, y ahora llama a `retry()` con el mismo botón que la
@@ -4903,8 +4905,8 @@ si exige una variable que nadie ha creado (I-021).
 ## Mantenimiento post-9 — el mensaje propio de «Resultados de la semana» (D-197, `0056`, 2026-09-13)
 
 Encargo expreso del usuario, que **corrige D-194 (Decisión 6)**. **No es una fase nueva** y no lleva
-etiqueta `fase-*`. **Sin desplegar**: `0056` está solo en local y el proyecto real sigue en 55
-migraciones.
+etiqueta `fase-*`. 🚀 **Desplegado el mismo día**, con autorización expresa: `0056` aplicada al
+proyecto real —que pasa a 56 migraciones— y `6dd23e5` en producción (`DEPLOYMENT` §2.2 y §3.2.i).
 
 ### 1. Funcionalidades implementadas
 
@@ -4929,6 +4931,11 @@ migraciones.
 | E2E de la sección, dirigidas | **32/33**; corregida la prueba, ✅ **1/1** |
 | `db:reset` + `seed:local` + `npm run test:e2e` | **681/683** en 35,3 min, con las **9** nuevas. Los 2 fallos son **I-090** —`reports.spec.ts:305` y `ventas-por-fecha.spec.ts:163`— y pasan **2/2 en aislamiento** tras `db:reset` + `seed:local` |
 | `npm run verify`, otra vez, tras corregir un comentario de `copy.ts` | ✅ **1.141/1.141**, lint con los 2 avisos preexistentes y `build` |
+| Promoción: respaldo del proyecto real (`RUNBOOK` §5.1) | ✅ `Rifas-backups/2026-09-13-antes-0056/`. La comprobación de `auth` imprimía 1 por una columna de `push_subscriptions`: corregida |
+| `db push --dry-run` · `db push --yes` · `verify:remote` | ✅ solo `0056` · aplicada · **24/24** |
+| Sonda de negocio antes y después | ✅ negocio idéntico línea a línea; +1 función, +2 restricciones y +2 columnas |
+| CI sobre `6dd23e5` | ✅ **2/2** (run 34790475383), con las 56 migraciones desde cero |
+| Verificación en vivo | Primera pasada **24/25**: un 504 de Supabase en el catálogo (**I-114**). Segunda, ✅ **25/25**, 7/7 cabeceras, identificador `1a11ca507be5` servido y 0 secretos |
 
 **Errores encontrados y corregidos: 2**, en `TEST_RESULTS` (2026-09-13). El que conviene recordar: en
 `next dev` la imagen se pide **dos veces** al montar por el modo estricto de React, y una prueba que
@@ -4936,8 +4943,8 @@ contaba una falló sin que el producto estuviera mal.
 
 ### 3. Migraciones que existen
 
-`0001`–`0055`, las mismas en local y en el proyecto real, y **`0056_seller_weekly_results_message`**,
-**solo en local**: añade `weekly_results_use_custom_message` y `weekly_results_custom_message` a
+`0001`–`0056`, **las mismas en local y en el proyecto real**. La última,
+**`0056_seller_weekly_results_message`** —aplicada al proyecto real el 2026-09-13—, añade `weekly_results_use_custom_message` y `weekly_results_custom_message` a
 `memberships`, sus dos CHECK —coherencia y 1.000 caracteres— y la RPC
 `set_seller_weekly_results_message`.
 
@@ -4949,8 +4956,8 @@ contaba una falló sin que el producto estuviera mal.
 
 | Asunto | Impacto |
 |---|---|
-| **`0056` no está en el proyecto real** | En producción la pantalla sigue sin editor, porque tampoco se desplegó el código. Promoverla necesita autorización |
-| **`verify:remote` contará 12 de 13** en «Las RPC de negocio son ejecutables por authenticated» hasta aplicar `0056` al proyecto real | La comprobación ya incluye la función nueva, que allí todavía no existe. No afecta a la aplicación |
+| **El editor, sin probar en vivo con una cuenta de vendedor** | Vive tras el inicio de sesión y un agente no introduce contraseñas. La evidencia es la base comprobada en su catálogo, el identificador servido, el CI y las pruebas locales |
+| **I-114 volvió a asomar al verificar** | La primera petición al catálogo del despliegue nuevo recibió un 504 de Supabase también en el reintento y respondió 500; las siguientes, 404. Código que este trabajo no toca |
 | **Sin probar en un teléfono de verdad** | La hoja de compartir con el mensaje propio y cómo lo recibe WhatsApp solo se han simulado |
 | **Modo oscuro del editor sin verificar** | Usa los tokens de siempre (`bg-muted`, `text-destructive`); no se vio en pantalla |
 | Todo lo demás | Ningún `I-*` nuevo. La suite E2E completa repite los 2 fallos conocidos de **I-090**, que pasan aislados |
@@ -4962,9 +4969,10 @@ contaba una falló sin que el producto estuviera mal.
 3. **El texto vive en `WeeklyResultsShare`**, no en el editor: la vista previa, copiar y compartir leen
    la misma cadena.
 4. **No mezcles la RPC con la de WhatsApp** ni amplíes `memberships_update_staff`.
-5. **Para promover**: respaldo, `db push --dry-run`, `0056`, `verify:remote` y el despliegue del código,
+5. **Ya está promovido.** Una migración nueva sigue el mismo camino —respaldo con la comprobación de
+   `auth` de `RUNBOOK` §5.1, `db push --dry-run`, `db push`, `verify:remote` y sonda antes y después—,
    solo con autorización.
-6. **Rama `feature/recordatorios-layout`**, con commit local **sin push**.
+6. **Rama `feature/recordatorios-layout`**, empujada y desplegada por fast-forward, igual que `main`.
 
 ---
 

@@ -107,8 +107,17 @@ la instrucción 4 de esta sección prohíbe. Ocurrió una vez al preparar este p
 por defecto no se limita a `public`. Verificar siempre después de generar:
 
 ```bash
-grep -c '"auth"' "<CARPETA-FUERA-DEL-REPO>/data.sql"   # debe imprimir 0
+grep -cE '"auth"[[:space:]]*\.' "<CARPETA-FUERA-DEL-REPO>/data.sql"   # debe imprimir 0
 ```
+
+> **Corregido el 2026-09-13.** La comprobación decía `grep -c '"auth"'`, y desde que
+> `push_subscriptions` tiene filas (`0053`) imprime **1** con un volcado correcto: esa tabla tiene una
+> **columna** llamada `auth` —la clave de la suscripción Web Push— y su `INSERT` la nombra. Lo que
+> delata el esquema `auth` es un nombre **cualificado**, `"auth"."users"`, y eso es lo que busca la
+> línea de arriba. Se vio al respaldar antes de `0056`: nombres `"auth".` cualificados **0**,
+> `INSERT INTO "auth"` **0** y ni una línea con `encrypted_password`, `refresh_token` ni
+> `confirmation_token`. Esa columna es un dato del dispositivo, y por eso el respaldo sigue fuera del
+> repositorio.
 
 ⚠️ **La segunda línea (`schema.sql`) va SIN `--schema public`, a propósito.** Restringirla igual que
 la de datos rompe la restauración: la extensión `pg_trgm` no se vuelve a crear y la restauración falla

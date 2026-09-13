@@ -1,9 +1,10 @@
 # MODELO DE DATOS
 
 - **Versión:** 2.15 · **Estado:** implementado · **Actualizado:** 2026-09-13
-- **Nota (2026-09-13):** hoy el esquema ejecutable son **`0001`–`0056`**: `0001`–`0055` en local **y**
-  en el proyecto real, y **`0056`** —el mensaje propio de «Resultados de la semana», §4.3 y §6.g.7—
-  **solo en local**. La línea siguiente es la fotografía del 2026-09-02 y se conserva.
+- **Nota (2026-09-13):** hoy el esquema ejecutable son **`0001`–`0056`**, **las 56 en local y en el
+  proyecto real**. La **`0056`** —el mensaje propio de «Resultados de la semana», §4.3 y §6.g.7— se
+  aplicó al proyecto real ese mismo día, con respaldo previo y una sonda de negocio idéntica antes y
+  después. La línea siguiente es la fotografía del 2026-09-02 y se conserva.
 - **Estado:** el esquema ejecutable vive en las migraciones `0001`–`0044`, **las 44 aplicadas y
   verificadas en local y en el proyecto Supabase real** (D-149, D-151, D-156, D-158, D-159).
   `0043` (catálogo público) y `0044` (revocar la función interna a `service_role`) se promovieron el

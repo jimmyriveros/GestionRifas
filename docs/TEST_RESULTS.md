@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (mensaje propio de «Resultados de la semana», D-197, 2026-09-13)** | **1.141 ✅ en 65 archivos (+41)** | **1.016 ✅ en 46 archivos (+24; migración `0056`)** | **681/683**, con las 9 nuevas; los 2 son **I-090** y pasan **2/2** en aislamiento | ✅ | ✅ **Sin desplegar** · `0056` solo en local |
+| **Post-9 vigente (mensaje propio de «Resultados de la semana», D-197, 2026-09-13)** | **1.141 ✅ en 65 archivos (+41)** | **1.016 ✅ en 46 archivos (+24; migración `0056`)** | **681/683**, con las 9 nuevas; los 2 son **I-090** y pasan **2/2** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`6dd23e5`, 2026-09-13) · `0056` aplicada al proyecto real · en vivo **25/25** en la segunda pasada |
 | Post-9 anterior («Reintentar» de la página de error general, D-196, 2026-09-13) | **1.100 ✅** en 64 archivos (+3) | — (no se tocó la base) | **80/80** (`security.spec.ts` 22 · catálogo público 58) | ✅ | 🚀 **DESPLEGADO** (`787e420`, 2026-09-13) · en un navegador contra la base local, **8/8** · abre **I-115** |
 | Post-9 anterior (corte pasajero del catálogo público, I-114, D-196, 2026-09-13) | **1.097 ✅** en 62 archivos (+15) | — (no se tocó la base) | **58/58** | ✅ | 🚀 **DESPLEGADO** (`8767f9e`, 2026-09-13) |
 | Post-9 anterior (ajuste visual de la imagen semanal, 2026-09-13) | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | 🚀 **DESPLEGADO** (`1a6b4af`, 2026-09-13) |
@@ -11429,6 +11429,9 @@ mensaje propio junto a la imagen. Migración **`0056`** —dos columnas en `memb
 tu grupo». **La imagen, su ruta, su diseño y su semana no cambian** (§d). Qué demuestra cada suite:
 `TESTING` §4.9. **Sin desplegar.**
 
+> **Nota posterior, del mismo día:** se promovió —`0056` en el proyecto real y `6dd23e5` en
+> producción—. Ver la sección siguiente.
+
 ### a. Comandos y resultados
 
 | Comando | Resultado |
@@ -11509,3 +11512,62 @@ aplicación.
 
 **Ninguna prueba de «Resultados de la semana» falla en la suite completa**, y ninguna de las dos de
 arriba toca esta sección. **Sin `I-*` nuevo**: los síntomas son los que I-090 ya describe.
+
+## Mensaje propio de «Resultados de la semana»: promoción a producción (`0056`, `6dd23e5`, D-197) — 2026-09-13
+
+**Alcance:** autorización expresa del usuario, «haz push, aplica la 0056 y despliega a producción».
+Orden: respaldo, `0056` en el proyecto real y después el código. El registro de la release está en
+`DEPLOYMENT` §2.2 y §3.2.i. Las dos sondas viven en `build/0056/`, fuera de Git.
+
+### a. Comandos y resultados
+
+| Paso (UTC) | Resultado |
+|---|---|
+| Respaldo lógico (`RUNBOOK` §5.1) en `Rifas-backups/2026-09-13-antes-0056/` | ✅ `roles.sql` (370 B), `schema.sql` (408 KB) y `data.sql` (4,4 MB, 24 `INSERT`, uno por tabla de `public`). `weekly_results` en `schema.sql`: **0**. Nombres `"auth".` cualificados: **0**; `INSERT INTO "auth"`: **0**; `encrypted_password`, `refresh_token` o `confirmation_token`: **0** |
+| Sonda de negocio **antes** (`sonda-negocio.mjs`, una transacción de solo lectura) | ✅ 55 migraciones, columnas nuevas **0 de 2** y la función, inexistente |
+| `db push --dry-run` | ✅ Solo `0056_seller_weekly_results_message.sql` |
+| `db push --yes`, de 23:41:30 a 23:41:45 | ✅ Aplicada; `migration list`, con `0001`–`0056` iguales en local y en el remoto |
+| Sonda de negocio **después** y `diff` | ✅ **La sección de negocio, idéntica** (b) |
+| `npm run verify:remote` | ✅ **24/24 en verde** |
+| `git push`, de 23:42:26 a 23:42:31 | ✅ `73dd284..6dd23e5` en `feature/recordatorios-layout` y en `main`, fast-forward y sin force; `main` local, igual |
+| Vercel | ✅ `dpl_37A7ydZucjhBGuyjv5rHD5tXW2ye`: creado 23:42:32, READY 23:43:16 tras **36,1 s** de build, `aliasError: null` |
+| CI, run 34790475383 | ✅ **2/2**: «Migraciones desde cero + pruebas de base de datos» (23:42:35–23:47:28) y «Typecheck, lint, unitarias, build» (23:43:10–23:45:26) |
+| En vivo, primera pasada (23:44:57, `en-vivo.mjs`) | **24/25**: `/catalogo/enlace-que-no-existe-0056` respondió **500** (c). Todo lo demás, en verde |
+| El catálogo inexistente, seis veces (23:46:14–23:46:23) | ✅ **404** con «Este enlace ya no está disponible», entre 197 y 818 ms |
+| En vivo, segunda pasada (23:48:18) | ✅ **25/25** rutas y **0** 5xx; `/api/weekly-results/image` en 307 a `/login`, sin PNG; **7/7** cabeceras con CSP por nonce; identificador `1a11ca507be5` en 1 de 15 fragmentos y el anterior (`70878ef95854`) en 0; **0 secretos** en 945 KB |
+| Errores de ejecución desde el despliegue (23:43:16–23:49:01) | **Uno**, el 504 de (c). Ninguno del código nuevo |
+
+### b. La sonda, antes y después
+
+| Bloque | Antes | Después |
+|---|---|---|
+| Negocio: las 24 tablas y sus filas, dinero, pagos, asignaciones, ganancias y personas | $98.080.000 vendidos · $34.280.000 cobrados en 375 pagos · 399 asignaciones · $13.120.000 de ganancias · 5.082 filas de bitácora · 564 clientes · 1.074 boletas · 7 membresías | **Idéntico, línea a línea** |
+| Huella `md5` de `memberships` sin las columnas nuevas | `f2d8130367a5bacea6d8a2f8cfac1b39` | **La misma**: `0056` no tocó ninguna fila existente |
+| Filas de bitácora que mencionan `weekly_results` | 0 | 0 |
+| Catálogo | 157 funciones · 38 políticas · 111 índices · 18 restricciones y 18 columnas en `memberships` · 55 migraciones | **158** · 38 · 111 · **20** y **20** · **56** |
+| `0056` | Nada | `weekly_results_use_custom_message` (`boolean NOT NULL DEFAULT false`) y `weekly_results_custom_message` (`text`, nulo); `memberships_weekly_results_message_coherent` y `memberships_weekly_results_message_length`; `set_seller_weekly_results_message(boolean, text)`, `SECURITY DEFINER`, `search_path=public, pg_temp`, **sin `EXECUTE` para `anon` ni `PUBLIC`** y con `EXECUTE` para `authenticated` y `service_role`; **0** membresías con mensaje propio |
+
+### c. El 500 del catálogo, clasificado
+
+| Evidencia | Lo que dice |
+|---|---|
+| Registro de Vercel, 23:45:02 | `GET /catalogo/enlace-que-no-existe-0056 500`, con `Error: {"message":"Gateway Timeout"}` y *digest* `4274564679@E394`: **Supabase** no respondió, tampoco en el reintento de D-196 |
+| Grupo de errores | El mismo que Vercel agrupa en `/catalogo/[slug]` **desde el 2026-09-10**: I-114 |
+| `git diff 73dd284 6dd23e5` sobre `src/features/catalog`, `src/app/(catalogo)`, `src/lib/supabase` y `src/proxy.ts` | **Vacío**: el commit no toca ese camino |
+| Repetición y segunda pasada | 6/6 en 404 y 25/25 |
+
+**Clasificación:** preexistente y ajeno a este despliegue. **Sin `I-*` nuevo**; se anota en **I-114**,
+porque es la **segunda vez** que el 504 cae en la **primera petición al catálogo de un despliegue recién
+publicado** —la otra, a las 17:50 del mismo día— y esta vez siguió en el reintento.
+
+### d. Error encontrado y corregido
+
+| Qué pasó | Causa | Corrección |
+|---|---|---|
+| La comprobación del respaldo, `grep -c '"auth"' data.sql`, imprimió **1** con un volcado correcto | `push_subscriptions` tiene filas desde el 2026-09-12 y una **columna** llamada `auth`, que su `INSERT` nombra. No hay datos del esquema `auth` | `RUNBOOK` §5.1 busca ahora nombres cualificados (`grep -cE '"auth"[[:space:]]*\.'`), que dan **0** |
+
+### e. Lo que NO se comprobó
+
+* **El editor en vivo con una cuenta de vendedor**: vive tras el inicio de sesión y un agente no
+  introduce contraseñas.
+* **Un teléfono de verdad**, ni el editor en **modo oscuro**.

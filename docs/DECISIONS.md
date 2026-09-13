@@ -10447,8 +10447,9 @@ restaurado en el retorno, que es la misma regresión que el archivo ya corrige e
 
 Migración **`0056`**. BR-H06 y BR-H08 corregidas; BR-H07 habla del mensaje activo; BR-H09 y BR-H10
 nuevas. `MASTER_SPEC` §9.6, `ARCHITECTURE` §8.25, `DATA_MODEL` §4.3 y §6.g.7, `SECURITY` §4.18,
-`UX_COPY_GUIDELINES` y `TESTING` §4.9. Mantenimiento posterior a la Fase 9, **sin desplegar**: el
-proyecto real sigue en 55 migraciones.
+`UX_COPY_GUIDELINES` y `TESTING` §4.9. Mantenimiento posterior a la Fase 9. **Promovido el mismo
+día**, con autorización expresa: `0056` aplicada al proyecto real —que pasa a 56 migraciones— y
+`6dd23e5` desplegado (`DEPLOYMENT` §2.2 y §3.2.i).
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

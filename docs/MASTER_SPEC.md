@@ -7,7 +7,8 @@
 - **Versión del documento:** 1.8
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
 - **Última actualización:** 2026-09-13 (§9.6: el mensaje propio de «Resultados de la semana», con la
-  migración `0056` y sin desplegar; antes, ese mismo día, «Resultados de la semana» del vendedor, ya
+  migración `0056`, aplicada al proyecto real y desplegado ese mismo día en `6dd23e5`; antes, ese
+  mismo día, «Resultados de la semana» del vendedor, ya
   desplegada y sin migraciones). Anterior: 2026-09-12 (§9.5: cuentas para recibir pagos y recordatorios de pago,
   **etapas 0 a 5 hechas de 7**; el canal está completo de punta a punta en local. Quedan la
   auditoría integrada y la promoción a producción)
@@ -335,11 +336,12 @@ acceden a sus cuentas ni a sus recordatorios. Cambiar eso exige una decisión ex
 | 6 | Auditoría integrada de seguridad, rendimiento, UX y regresiones |
 | 7 | Promoción controlada a producción, **solo con autorización posterior** |
 
-### 9.6 Resultados de la semana (`/seller/settings/weekly-results`) — desplegada; el mensaje propio, **SIN DESPLEGAR**
+### 9.6 Resultados de la semana (`/seller/settings/weekly-results`) — desplegada, con el mensaje propio
 
 > Encargo «Resultados de la semana», 2026-09-13 (D-194, D-195, BR-H01..BR-H08), **desplegado** el mismo
 > día y sin migraciones. **Ampliado** ese mismo día con el mensaje propio del vendedor (D-197, BR-H09,
-> BR-H10, migración **`0056`**), que **no está desplegado**.
+> BR-H10, migración **`0056`**), **también desplegado** ese día: `0056` aplicada al proyecto real y
+> `6dd23e5` en producción.
 
 Cuarta sección de «Configuración» del vendedor. Muestra los **seis números mayores** de la última
 semana terminada —lunes a sábado, en hora de Bogotá— y prepara para su grupo una **imagen** vertical
