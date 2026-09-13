@@ -434,6 +434,34 @@ entregar ningún PNG**; el cron sin secreto en 401; un catálogo inexistente en 
 > identificador servido. **La primera persona que abra la sección en producción es la prueba real**:
 > si faltara un archivo en el paquete, la vista previa diría «No pudimos preparar la imagen» y el
 > resto de la pantalla seguiría funcionando.
+### 3.2.f Release del ajuste visual de la imagen semanal — 2026-09-13
+
+**Un commit, sin migración y solo en el PNG.**
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`1a6b4af5c76a1d361b6f45a4669a49b1318d50a0`** |
+| Commit anterior en producción | `20e954e944f048cd6b6c6239f1f379251118f1c5` |
+| Integración | **fast-forward** `20e954e..1a6b4af` — sin merge, sin reescritura, sin force |
+| Despliegue Vercel | `dpl_3pJj2LiMoXksZ82BM3qyCzf4fQL6` — READY en **24,5 s**, `aliasError: null` |
+| Despliegue anterior (**punto de reversión**) | `dpl_4m2nLYgEBH6nuXwAeaDKhVDsB1jT` (`20e954e`) |
+| **Migraciones** | **NINGUNA.** Siguen siendo 55, hasta `0055` |
+| Variables de entorno, dependencias y configuración | **Sin cambios** — ni `package.json`, ni `vercel.json`, ni `next.config.ts`, ni `.github/` |
+
+**Qué entró:** en la imagen de «Resultados de la semana», Cundinamarca se escribe **«CUNDI.»** y los
+cinco nombres de las tarjetas diarias pasan de 19 a **24,7 px** (+30 %). `LOTTERY_LABELS`, la pantalla
+y el mensaje no cambian.
+
+**Validación previa:** `verify` en verde (**1.082/1.082** unitarias), las suites de «Resultados de la
+semana» **78/78** y un PNG de prueba **idéntico píxel a píxel**, fuera de los cinco nombres, a la imagen
+que generaba producción. CI: ✅ **2/2** (run 34772443344), incluido el job que aplica las 55 migraciones desde cero.
+
+**Verificación en vivo:** identificador **`47d2fbf601ec`** servido (1 de 15 fragmentos) y el anterior (`4256c8fdc70e`) **desaparecido**; **23/23** rutas como se esperaba —la sección y la ruta de la imagen en 307 sin sesión, sin entregar ningún PNG—; **7/7** cabeceras con CSP por nonce; **0 secretos** en 944 KB; **ningún 5xx**; **0 errores de ejecución** en los 5 minutos siguientes al despliegue.
+
+> **Lo que este release NO verificó:** la imagen nueva **en vivo**, que vive tras el inicio de sesión.
+> La anterior sí se generó en producción —la compartió el usuario—, y este cambio solo toca el árbol del
+> PNG, sin archivos, rutas ni configuración nuevos. Descargarla una vez con una cuenta de vendedor lo
+> confirma.
 ### 3.3 Despliegues futuros
 
 Cada `git push` a `main` que se decida subir dispara un build y despliegue a producción automático

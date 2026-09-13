@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (ajuste visual de la imagen semanal, 2026-09-13)** | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | ✅ **Sin desplegar** — commit local sobre `20e954e` |
+| **Post-9 vigente (ajuste visual de la imagen semanal, 2026-09-13)** | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | 🚀 **DESPLEGADO** (`1a6b4af`, 2026-09-13) |
 | Post-9 anterior («Resultados de la semana», D-194 y D-195, 2026-09-13) | **1.079 ✅** en 60 archivos (+75) | **992 ✅** en 45 archivos (+10; sin cambios de esquema) | **670/674**, con las 24 nuevas; los 4 son **I-090** (3) e **I-106** (1), conocidos, y pasan **4/4** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`a929e23`, 2026-09-13) · cero migraciones y cero dependencias |
 | Post-9 anterior (disposición de «Recordatorios de pago», 2026-09-12) | **1.004 ✅** en 57 archivos (sin cambio) | **982 ✅** en 44 archivos (sin cambio: no se tocó la base) | **34/34** de la pantalla (`configuracion-cobro.spec.ts` 25 · `configuracion-cobro-movil.spec.ts` 9), **+3** de disposición | ✅ | 🚀 **DESPLEGADO** el 2026-09-13, junto con «Resultados de la semana» (`a929e23`) · solo presentación, cero migraciones |
 | Post-9 anterior (Etapa 7 del cobro — PRODUCCIÓN, D-193, 2026-09-12) | **1.004 ✅** (sin cambio) | **982 ✅** (sin cambio, con la `0055`) | En vivo: **14/14** tras desplegar | ✅ **24/24** en el proyecto real | 🚀 **DESPLEGADO** (`25cdb5a`) · base de producción **50 → 55 migraciones** |
@@ -11185,7 +11185,7 @@ Autorizada expresamente después de cerrar el trabajo: «haz push de la rama y d
 ## Ajuste visual de las tarjetas diarias de la imagen semanal — 2026-09-13
 
 **Pedido:** abreviar solo en el PNG «CUNDINAMARCA» como «CUNDI.» y agrandar un 25–30 % los cinco
-nombres de las tarjetas diarias, al mismo tamaño y sin tocar nada más. **Sin desplegar**: commit local.
+nombres de las tarjetas diarias, al mismo tamaño y sin tocar nada más. **Desplegado el mismo día** (§d).
 
 ### a. Qué cambió
 
@@ -11241,3 +11241,25 @@ sube el borde superior de lo medido; antes eran −2 por lo mismo.
 producción**: 0 píxeles distintos en la cabecera, en el resto de las tarjetas diarias, en Boyacá y en
 el pie. De paso, eso confirma que **la ruta desplegada genera el PNG** con su fondo y sus fuentes, que
 era lo que el release no pudo comprobar sin sesión.
+
+### d. Promoción a producción — 2026-09-13
+
+Autorizada expresamente: «haz push y despliega a producción».
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`1a6b4af5c76a1d361b6f45a4669a49b1318d50a0`**, por fast-forward `20e954e..1a6b4af` |
+| Despliegue Vercel | `dpl_3pJj2LiMoXksZ82BM3qyCzf4fQL6` — READY en **24,5 s**, `aliasError: null` |
+| Punto de reversión | `dpl_4m2nLYgEBH6nuXwAeaDKhVDsB1jT` (`20e954e`) |
+| Migraciones, variables, dependencias y configuración | **Ninguna** |
+| CI | ✅ **2/2** (run 34772443344), incluido el job que aplica las 55 migraciones desde cero |
+| Identificador de versión | **`47d2fbf601ec`** en **1 de 15** fragmentos; el anterior, `4256c8fdc70e`, en **0** |
+| Rutas sin sesión | **23/23** como se esperaba; la sección y `/api/weekly-results/image` en 307, **sin PNG**; ningún 5xx |
+| Cabeceras y secretos | **7/7**, con CSP por nonce; **0 secretos** en 944 KB |
+| Errores de ejecución | **0** en los 5 minutos siguientes al despliegue (17:43–17:48 UTC) |
+
+La previsualización de la rama (`dpl_9VU7Ekn2vf3GKhJujrRRLNTjx3bV`) volvió a fallar en `check:env`,
+como la del commit anterior: el entorno Preview de Vercel no tiene las variables de Supabase. **No
+afecta a producción.**
+
+> **Lo que este release NO verificó:** la imagen nueva en vivo, que vive tras el inicio de sesión.

@@ -3,11 +3,11 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-13 — **Ajuste visual de la imagen de «Resultados de la semana»**, en commit
-  local y **sin desplegar**: los cinco nombres de las tarjetas diarias son un **30 % más grandes**
+- **Actualizado:** 2026-09-13 — **Ajuste visual de la imagen de «Resultados de la semana»**,
+  🚀 **DESPLEGADO** el mismo día (`1a6b4af`, sin migración): los cinco nombres de las tarjetas diarias son un **30 % más grandes**
   (19 → 24,7 px) y Cundinamarca se escribe **«CUNDI.»** solo dentro del PNG; `LOTTERY_LABELS`, la
   pantalla y el mensaje no cambian. Fuera de esos cinco nombres, la imagen es **idéntica píxel a píxel**
-  a la que generó producción. `verify` **1.082/1.082**.
+  a la que generó producción. `verify` **1.082/1.082**; en vivo, el identificador nuevo servido, 23/23 rutas y 7/7 cabeceras.
   Antes, ese mismo día: **«Resultados de la semana»** (D-194, D-195, BR-H01..BR-H08),
   🚀 **DESPLEGADO** el mismo día (`a929e23`, sin migración). El vendedor abre una **cuarta tarjeta** en
   «Configuración» y encuentra los seis números mayores de la **última semana terminada**, una
