@@ -4,7 +4,7 @@ Estado del producto y registro de lo entregado por fase. El relevo del último a
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
 - **Actualizado:** 2026-09-14 — **La cartera es del vendedor** (D-198, BR-Q01..BR-Q10, migración
-  **`0057`**), ⚠️ **sin desplegar**: el Dueño y el Administrador dejan de leer y de tocar clientes,
+  **`0057`**), 🚀 **en producción desde el 2026-09-15**: el Dueño y el Administrador dejan de leer y de tocar clientes,
   precios, abonos, saldos, pagos y ganancias de los vendedores, **en la base y en el servidor**, no solo
   en la pantalla. Administran el inventario por siete proyecciones de lista blanca: «Boletas» sin
   cartera, búsqueda por número y pago en dos estados; sin «Clientes» ni «Pagos»; panel, vendedores,
@@ -4912,7 +4912,7 @@ si exige una variable que nadie ha creado (I-021).
 ## Mantenimiento post-9 — la cartera es del vendedor: el personal sin acceso a la información comercial (D-198, `0057`, 2026-09-14)
 
 Encargo expreso del usuario, con el alcance **B · «Tampoco finanzas»**. **No es una fase nueva** y no
-lleva etiqueta `fase-*`. **Sin despliegue** y sin tocar el proyecto real; el commit `8c102c9` se subió a `origin/feature/recordatorios-layout` el 2026-09-15, a petición expresa, sin fusionar a `main`.
+lleva etiqueta `fase-*`. 🚀 **Desplegado el 2026-09-15**, con autorización expresa: `0057` aplicada al proyecto real —que pasa a 57 migraciones— y `46b7cf0` en producción (`DEPLOYMENT` §2.2 y §3.2.j).
 
 ### 1. Funcionalidades implementadas
 
@@ -4936,11 +4936,16 @@ lleva etiqueta `fase-*`. **Sin despliegue** y sin tocar el proyecto real; el com
 | Final: `db:reset` + `seed:local` y `npm run test:db` | ✅ **1.048/1.048** en 47 archivos |
 | Final: `npm run verify` | ✅ typecheck · lint (0 errores, 2 avisos preexistentes) · **1.155/1.155** unitarias en 66 archivos · `build` |
 | Final: E2E completa | **706/710** en 35,2 min. Los 4: dos de **I-090** y uno de **I-106**, que pasan solos, y `boleta-cliente.spec.ts:395`, una carrera con la hidratación que metió la conversión, ya corregida (**3/3** sola y su archivo **15/15**) |
+| Promoción: respaldo del proyecto real (`RUNBOOK` §5.1) | ✅ `Rifas-backups/2026-09-15-antes-0057/`, sin datos de `auth` ni contraseñas |
+| `db push --dry-run` · `db push --yes` · `verify:remote` | ✅ solo `0057` · aplicada · **27/27** |
+| Sondas de negocio antes y después, y de comportamiento | ✅ La única diferencia de negocio, un abono real de un vendedor entre las dos pasadas; los 1.126 avisos del personal, sin precio; el Dueño y el Administrador sin cartera y el vendedor con la suya |
+| CI sobre `46b7cf0` | ✅ **2/2** (run 35002363156), con las 57 migraciones desde cero |
+| Verificación en vivo | ✅ **24/24** rutas, ningún CSV sin sesión, 7/7 cabeceras, identificador `0654bc1cb1db` servido, 0 secretos y ningún error de ejecución |
 
 ### 3. Migraciones que existen
 
-`0001`–`0056`, iguales en local y en el proyecto real. **`0057_admin_portfolio_privacy.sql`, solo en
-local**: políticas de la cartera solo del vendedor, siete proyecciones `admin_*`, las RPC de venta y
+`0001`–`0057`, iguales en local y en el proyecto real desde el 2026-09-15.
+**`0057_admin_portfolio_privacy.sql`**: políticas de la cartera solo del vendedor, siete proyecciones `admin_*`, las RPC de venta y
 cobro solo del vendedor, tres RPC dormidas, avisos del personal sin precio y bitácora redactada.
 Ninguna tabla, columna ni enumerado nuevos.
 
@@ -4952,7 +4957,7 @@ Ninguna tabla, columna ni enumerado nuevos.
 
 | Asunto | Impacto |
 |---|---|
-| **I-118 — `0057` y su código, sin desplegar y dependientes** | Producción sigue dando al personal la lectura amplia. Desplegar una mitad sin la otra —también fusionando la rama a `main`, que despliega sola— rompe el portal administrativo, y `verify:remote` falla hasta aplicar `0057` |
+| **I-118 — resuelta** | `0057` y su código, desplegados juntos el 2026-09-15. Revertir una mitad sin la otra vuelve a romper el portal administrativo |
 | **I-116 — operaciones suspendidas** | Nadie anula pagos ni boletas vendidas desde la aplicación, y no se importan ventas. Una vendida con abonos en su historial o de una rifa ya no activa no tiene salida sin `service_role` |
 | **I-117 — residuo aceptado** | Una disponible con asignaciones heredadas no se elimina y el personal no ve por qué |
 | **I-119 — cobertura suspendida** | Los casos de éxito de la importación con clientes y abonos se convirtieron; hay que devolverlos al reactivar |
@@ -4963,7 +4968,7 @@ Ninguna tabla, columna ni enumerado nuevos.
 1. **Lee D-198 y `SECURITY` §4.19 antes de tocar cualquier lectura del personal.** Si una pantalla
    administrativa necesita un dato, se añade a una proyección `admin_*` —y a su lista blanca y sus
    pruebas—, **nunca** ampliando `tickets_select` ni leyendo las vistas del vendedor.
-2. **No despliegues sin autorización, y nunca una mitad**: `0057` y el código van juntos (I-118).
+2. **`0057` y su código están en producción desde el 2026-09-15**: nunca se revierte una mitad sin la otra (I-118).
 3. **Las tres RPC dormidas no se ejecutan con sesión**: para probar su cuerpo, `asProfile` o
    `voidPaymentAsStaff`, que no prueban RLS.
 4. **Una E2E del personal que busque la cartera en lo recibido** usa `privacidad-escenario.ts`: sus

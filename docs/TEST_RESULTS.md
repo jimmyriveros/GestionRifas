@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (la cartera es del vendedor, D-198, 2026-09-14)** | **1.155 ✅ en 66 archivos (+14)** | **1.048 ✅ en 47 archivos (+32; migración `0057`)** | **706/710**, con las 23 de privacidad; los 4 son **I-090** (2) e **I-106** (1), que pasan **3/3** solos, y `boleta-cliente.spec.ts:395`, corregida (**3/3** y su archivo **15/15**) | ✅ | ✅ **Sin desplegar**: `0057` sin aplicar al proyecto real y el código en `feature/recordatorios-layout` (`8c102c9`), sin fusionar a `main` (I-118) |
+| **Post-9 vigente (la cartera es del vendedor, D-198, 2026-09-14)** | **1.155 ✅ en 66 archivos (+14)** | **1.048 ✅ en 47 archivos (+32; migración `0057`)** | **706/710**, con las 23 de privacidad; los 4 son **I-090** (2) e **I-106** (1), que pasan **3/3** solos, y `boleta-cliente.spec.ts:395`, corregida (**3/3** y su archivo **15/15**) | ✅ | 🚀 **DESPLEGADO** (`46b7cf0`, 2026-09-15) · `0057` aplicada al proyecto real · `verify:remote` **27/27** · en vivo **24/24** |
 | Post-9 anterior (mensaje propio de «Resultados de la semana», D-197, 2026-09-13) | **1.141 ✅** en 65 archivos (+41) | **1.016 ✅** en 46 archivos (+24; migración `0056`) | **681/683**, con las 9 nuevas; los 2 son **I-090** y pasan **2/2** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`6dd23e5`, 2026-09-13) · `0056` aplicada al proyecto real · en vivo **25/25** en la segunda pasada |
 | Post-9 anterior («Reintentar» de la página de error general, D-196, 2026-09-13) | **1.100 ✅** en 64 archivos (+3) | — (no se tocó la base) | **80/80** (`security.spec.ts` 22 · catálogo público 58) | ✅ | 🚀 **DESPLEGADO** (`787e420`, 2026-09-13) · en un navegador contra la base local, **8/8** · abre **I-115** |
 | Post-9 anterior (corte pasajero del catálogo público, I-114, D-196, 2026-09-13) | **1.097 ✅** en 62 archivos (+15) | — (no se tocó la base) | **58/58** | ✅ | 🚀 **DESPLEGADO** (`8767f9e`, 2026-09-13) |
@@ -11710,3 +11710,59 @@ compartido de `privacidad-escenario.ts`.
   oscuro.
 * **El rendimiento con volumen**: las siete proyecciones `admin_*` no se midieron contra la base de
   300.000 boletas de D-102.
+
+---
+
+## La cartera es del vendedor: promoción a producción (`0057`, `46b7cf0`, D-198) — 2026-09-15
+
+**Alcance:** autorización expresa del usuario, «Aplica la 0057 y despliega a producción». Orden: respaldo,
+`0057` en el proyecto real y, en el mismo comando y **solo si la migración terminaba bien**, el código a
+`main`. El registro de la release está en `DEPLOYMENT` §2.2 y §3.2.j. Las sondas viven en `build/0057/`,
+fuera de Git.
+
+### a. Comandos y resultados
+
+| Paso (UTC) | Resultado |
+|---|---|
+| La vista previa de la rama, en **ERROR** (`dpl_7uAMevDJFHo7jAyeLH6CJu3nPZji`), antes de tocar nada | Revisado su registro: se detiene en `check:env` por las variables de Supabase, que Preview no tiene a propósito (D-066). Como todas las de la rama; no es del código |
+| Respaldo lógico (`RUNBOOK` §5.1) en `Rifas-backups/2026-09-15-antes-0057/`, de 17:30:45 a 17:32:14 | ✅ `roles.sql` (370 B), `schema.sql` (412 KB) y `data.sql` (4,9 MB, 24 `INSERT`). `"auth".` cualificados: **0**; `INSERT INTO "auth"`: **0**; `encrypted_password`, `refresh_token` o `confirmation_token`: **0**; `admin_list_tickets` en `schema.sql`: **0** |
+| Sonda de negocio **antes** (`sonda-negocio.mjs`, 17:35:39) | ✅ 56 migraciones y ninguna función `admin_*`; 1.126 avisos del personal con `sale_price` |
+| `db push --dry-run` | ✅ Solo `0057_admin_portfolio_privacy.sql` |
+| `main` en el remoto | ✅ Sin mover (`42c413e`): fast-forward posible |
+| `db push --yes`, de 17:36:29 a 17:36:48, y `git push` a `main`, de 17:36:48 a 17:36:50 | ✅ Aplicada; `42c413e..46b7cf0`, fast-forward y sin force; `main` local, igual |
+| `migration list` | ✅ `0001`–`0057`, iguales en los dos entornos |
+| Sonda de negocio **después** (17:37:16) y `diff` | ✅ Con una diferencia, explicada en (b) |
+| `npm run verify:remote` | ✅ **27/27 en verde** |
+| Sonda de comportamiento (`sonda-comportamiento.mjs`) | ✅ **39/39** (c) |
+| Vercel | ✅ `dpl_HkWWTCfaFsthpHHwA2nW7LxGmUqs`: creado 17:36:52, READY 17:37:50 (compilación de 41 s), `aliasError: null` y sin errores en su registro de compilación |
+| En vivo (17:39:08, `en-vivo.mjs`) | ✅ **24/24** rutas y **0** 5xx; cuatro exportaciones de reportes en 307 y sin CSV; **7/7** cabeceras con CSP por nonce; identificador `0654bc1cb1db` en 1 de 15 fragmentos y el anterior (`07cf1f76ffdc`) en 0; **0 secretos** en 945 KB |
+| Errores de ejecución desde las 17:30 | ✅ **Ninguno**, tampoco en los ~62 s con la migración nueva y el código anterior |
+| CI, run 35002363156 | ✅ **2/2**: «Typecheck, lint, unitarias, build» (17:36:54–17:39:03) y «Migraciones desde cero + pruebas de base de datos» (17:36:54–17:41:37) |
+
+### b. La sonda, antes y después
+
+| Bloque | Antes | Después |
+|---|---|---|
+| Lo que `0057` no puede tocar | 1.174 boletas, 906 vendidas por $107.380.000 · 625 clientes · 7 membresías y 7 perfiles · 1.135 avisos | **Idéntico**, con las mismas huellas de `clients`, `memberships`, `profiles` y `lottery_ticket_matches` |
+| Dinero y bitácora | $41.495.000 en 439 pagos · 490 asignaciones · $15.990.000 de comisiones en 285 filas · 5.689 filas de bitácora | $41.515.000 en **440** · **491** · $16.050.000 en **286** · **5.690**: un `payment.create` de $20.000 de un **vendedor** a las 17:36:03, entre las dos pasadas y **antes** de aplicar. Por eso cambian también las huellas de boletas, pagos, asignaciones y comisiones |
+| Avisos | Huella sin `sale_price` ni lectura, `b39ddd59…` · del personal con precio, **1.126** · de quien no es personal con precio, 0 | **La misma huella** · **0** · 0 |
+| Catálogo | 158 funciones · 38 políticas · 111 índices · 46 disparadores · 56 migraciones | **167** · **35** · 111 · **47** · **57** |
+| `0057` | Nada; las tres RPC suspendidas, ejecutables por `authenticated` | Las 7 `admin_*` con `SECURITY DEFINER`, `search_path=public, pg_temp` y sin `anon` ni `PUBLIC`; las 2 internas sin `authenticated`; las 3 suspendidas, **sin** `authenticated` y con `service_role`; el disparador de los avisos |
+
+### c. La base real con los ojos de cada rol
+
+Sin iniciar sesión —un agente no introduce contraseñas—: la identidad se fijó como la fija PostgREST
+(`request.jwt.claims` y `set local role authenticated`) dentro de una transacción de solo lectura que se
+deshizo al final, en la organización con más boletas. Solo recuentos, claves y sí/no.
+
+| Rol | Resultado |
+|---|---|
+| Dueño y Administrador | **0 filas** en `tickets`, `clients`, `payments`, `payment_allocations`, `lottery_ticket_matches`, `seller_commissions`, `commission_ledger` y `audit_logs`. `admin_list_tickets` y `admin_ticket_detail`, con **exactamente** sus claves; total **1.171 de 1.171** y vendidas **906 de 906**. Buscar el nombre de un cliente real devuelve **0**, igual que uno inventado. `partial`, rechazado (`P0001`). Ningún aviso suyo con `sale_price` |
+| Vendedor (el que más vende) | Sigue leyendo sus boletas (975), sus clientes (527) y sus pagos (395); **0** boletas de otros vendedores; la lectura del personal le devuelve **0** filas |
+
+### d. Lo que NO se comprobó
+
+* **Las pantallas con sesión en producción**, con las cuentas reales del Dueño, el Administrador y un
+  vendedor: un agente no introduce contraseñas. La evidencia es la sonda de comportamiento sobre la
+  base real, las pruebas locales y el CI.
+* **Un teléfono de verdad** y el **modo oscuro**.

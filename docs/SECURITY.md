@@ -4,7 +4,7 @@
 - **§4.19** describe **la cartera del vendedor fuera del alcance del personal** (`0057`, D-198,
   BR-Q01..BR-Q10): el Dueño y el Administrador ya no leen clientes, precios, abonos, saldos, pagos ni
   ganancias por ninguna vía, y lo que administran les llega por siete proyecciones de lista blanca.
-  ⚠️ **Sin desplegar**: el proyecto real no tiene `0057`.
+  🚀 **En producción desde el 2026-09-15**: `0057` aplicada al proyecto real, con `46b7cf0`.
 - **§4.18** describe **el mensaje propio de «Resultados de la semana»** (`0056`, D-197): la segunda
   escritura de `memberships` que hace un vendedor, con la forma de la primera y en su propio dominio.
   **Aplicada al proyecto real el 2026-09-13**: `verify:remote` 24/24 y la función cerrada a `anon` y a

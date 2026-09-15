@@ -126,6 +126,23 @@ pasos de arriba, **antes** de subir el código que la usa (§3.2.i). Respaldo pr
 | Sonda de negocio antes/después | **La parte de negocio, idéntica línea a línea**: $98.080.000 vendidos, $34.280.000 cobrados, 5.082 filas de bitácora, 564 clientes, 1.074 boletas y la **huella de las 7 filas de `memberships`** sin las dos columnas nuevas. Solo cambia el catálogo: +1 función, +2 restricciones y +2 columnas |
 | Lo que dejó `0056` | Las dos columnas con sus valores por defecto (`false` y `null`), los dos CHECK y `set_seller_weekly_results_message(boolean, text)`, `SECURITY DEFINER` con `search_path=public, pg_temp` y **sin `EXECUTE` para `anon` ni para `PUBLIC`**. **0** membresías con mensaje propio |
 
+#### Promoción de `0057` — 2026-09-15 (D-198)
+
+**La base de producción pasa de 56 a 57 migraciones**, con autorización expresa del usuario y los tres
+pasos de arriba, **justo antes** de subir el código que la usa (§3.2.j): `0057` y su código no funcionan
+por separado (I-118). Respaldo previo en `Rifas-backups/2026-09-15-antes-0057/`.
+
+| Qué | Resultado |
+|---|---|
+| Respaldo | `roles.sql` (370 B), `schema.sql` (412 KB) y `data.sql` (4,9 MB, 24 `INSERT`). **0** nombres `"auth".` cualificados, **0** `INSERT INTO "auth"` y **0** líneas con `encrypted_password`, `refresh_token` o `confirmation_token`; `admin_list_tickets` todavía no estaba en `schema.sql` |
+| `db push --dry-run` | Solo `0057_admin_portfolio_privacy.sql` |
+| `db push --yes` | Aplicada de 17:36:29 a 17:36:48 UTC; `migration list`, con `0001`–`0057` iguales en los dos entornos |
+| `npm run verify:remote` | ✅ **27/27 en verde**, con las tres comprobaciones de D-198 |
+| Sonda de negocio antes/después (`build/0057/`) | **Una sola diferencia, y no es de la migración**: un abono de $20.000 que un vendedor registró a las 17:36:03 —entre las dos pasadas y antes de aplicar—, con su pago, su asignación, su comisión y su fila de bitácora. Clientes, membresías, perfiles, coincidencias de loterías y la huella de los avisos **sin `sale_price`**, idénticos |
+| Lo que dejó `0057` | +9 funciones —las siete `admin_*` con `SECURITY DEFINER`, `search_path` fijo y sin `EXECUTE` para `anon` ni `PUBLIC`, y las dos internas sin `EXECUTE` para `authenticated`—; −3 políticas del personal (`audit_logs_select_staff`, `payments_update_staff` y `tickets_update_staff`); +1 disparador; `void_payment` y las dos RPC de importación, sin `EXECUTE` para `authenticated`; y los **1.126** avisos `team.sale` del personal, sin `sale_price` |
+| Sonda de comportamiento (identidad fijada como PostgREST, solo lectura) | ✅ El Dueño y el Administrador leen **0 filas** de las 8 tablas de la cartera; sus proyecciones traen exactamente sus claves y cuadran (1.171 de 1.171 boletas, 906 de 906 vendidas); buscar el nombre de un cliente real responde igual que uno inventado, y `partial` se rechaza. Un vendedor sigue leyendo sus boletas, clientes y pagos, y ninguna boleta ajena |
+| Ventana | **~62 s** con la migración nueva y el código anterior (17:36:48 → 17:37:50 UTC). Ningún error de ejecución registrado |
+
 ---
 
 ## 3. Vercel
@@ -569,12 +586,53 @@ ejecución** en los 5 minutos siguientes al despliegue: **uno**, ese 504; ningun
 > identificador servido, el CI sobre este commit y las pruebas locales. **Revertir el código no obliga a
 > revertir la base**: las dos columnas tienen valor por defecto y el código anterior no las lee.
 
+### 3.2.j Release de «la cartera es del vendedor» — 2026-09-15
+
+**Dos commits y una migración: `0057`, aplicada justo antes de subir el código (§2.2).**
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`46b7cf0ae5801e17970e59ce1d938b6b9d22da49`**. El código va en `8c102c9750418a275ca90eb1a39a3357f220d16d`; `46b7cf0` solo añade documentación |
+| Commit anterior en producción | `42c413ea6cc5a552d4e40e4ad428d42d78849fcf` |
+| Integración | **fast-forward** `42c413e..46b7cf0` — sin merge, sin reescritura, sin force |
+| Despliegue Vercel | `dpl_HkWWTCfaFsthpHHwA2nW7LxGmUqs` — READY a las 17:37:50 UTC, **56 s** después de empezar (compilación de 41 s), `aliasError: null` |
+| Despliegue anterior (**punto de reversión del código**) | `dpl_Dh1wMK77ogHvKMNUdYWto9hhhh3H` (`42c413e`). ⚠️ Revertir solo el código deja al personal leyendo tablas que `0057` ya no le devuelve (I-118) |
+| **Migraciones** | **`0057`**, aplicada **antes** del código. Son 57, hasta `0057` |
+| Vistas previas de la rama | `8c102c9` y `46b7cf0`, en **ERROR** por `check:env`, como todas las de la rama: Preview no tiene variables de Supabase, a propósito (D-066) |
+| Variables de entorno, dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `vercel.json`, ni `next.config.ts`, ni `.github/`, ni `.env.example` |
+
+**Qué entró:** el Dueño y el Administrador dejan de leer y de tocar la cartera de los vendedores
+—clientes, precios, abonos, saldos, pagos y ganancias— en la base, en el servidor y en la pantalla (D-198,
+BR-Q01..BR-Q10). Administran el inventario por siete proyecciones de lista blanca; sin «Clientes» ni
+«Pagos»; panel, vendedores, rifas y reportes con recuentos. El portal del vendedor no cambia, salvo
+que tampoco importa ventas (I-116).
+
+**Validación previa:** `verify` en verde (**1.155/1.155** unitarias), `test:db` **1.048/1.048** y suite
+E2E completa **706/710** —dos de **I-090** y uno de **I-106**, verdes en aislamiento, y una prueba de
+D-198 corregida (3/3)—. CI: ✅ **2/2** (run 35002363156), incluido el job que aplica las **57** migraciones
+desde cero (17:36:54 → 17:41:37 UTC).
+
+**Verificación en vivo:** identificador **`0654bc1cb1db`** servido (1 de 15 fragmentos) y el anterior
+(`07cf1f76ffdc`) **desaparecido**; **24/24** rutas y ningún 5xx, con `/owner/clients` y `/owner/payments` en
+307 sin sesión; la exportación de cuatro reportes, **sin ningún CSV** sin sesión; **7/7** cabeceras con CSP
+por nonce; **0 secretos** en 945 KB. **Errores de ejecución** desde las 17:30 UTC: **ninguno**.
+
+> **Lo que este release NO verificó:** las pantallas **con sesión** —un agente no introduce
+> contraseñas—; lo que ve cada rol está comprobado con la sonda de comportamiento sobre la base real
+> (§2.2), las pruebas locales y el CI. Tampoco un teléfono de verdad ni el modo oscuro. **Revertir el
+> código obliga a pensar en la base**: el código anterior lee tablas que `0057` cerró al personal, así
+> que volver atrás de verdad es el procedimiento de D-198, con una migración nueva.
+
 ### 3.3 Despliegues futuros
 
 Cada `git push` a `main` que se decida subir dispara un build y despliegue a producción automático
 (la integración de GitHub ya está conectada). Si una migración nueva acompaña al cambio, aplicarla
 **antes** de fusionar a `main` siguiendo el procedimiento de §2.2 — las migraciones son aditivas e
 inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
+
+> **Excepción, 2026-09-15 (D-198):** una migración que **quita** permisos —como `0057`— sí rompe el
+> código anterior mientras llega el nuevo. Ahí el código se sube en el mismo comando, solo si la
+> migración terminó bien, y se mide la ventana: con `0057` fueron unos 62 s (§3.2.j).
 
 ---
 

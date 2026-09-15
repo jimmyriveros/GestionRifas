@@ -7,7 +7,7 @@
 - **Versión del documento:** 1.9
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
 - **Última actualización:** 2026-09-14 (§7 F5, F7, F8 y F9, §8 reglas 14 y 17 y §9.1: la cartera es
-  del vendedor —D-198, migración `0057`, **sin desplegar**—). Antes, el 2026-09-13 (§9.6: el mensaje propio de «Resultados de la semana», con la
+  del vendedor —D-198, migración `0057`, **en producción desde el 2026-09-15**—). Antes, el 2026-09-13 (§9.6: el mensaje propio de «Resultados de la semana», con la
   migración `0056`, aplicada al proyecto real y desplegado ese mismo día en `6dd23e5`; antes, ese
   mismo día, «Resultados de la semana» del vendedor, ya
   desplegada y sin migraciones). Anterior: 2026-09-12 (§9.5: cuentas para recibir pagos y recordatorios de pago,
