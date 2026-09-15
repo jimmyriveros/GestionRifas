@@ -10631,7 +10631,7 @@ puede anular» sin saber por qué: decirlo delataría el historial.
 Migración **`0057`**. Reglas **BR-Q01..BR-Q10** (`BUSINESS_RULES` §12.h) y notas en las que acota.
 `SECURITY` §2 y **§4.19**, `DATA_MODEL` §4.9 y §6.g.8, `ARCHITECTURE` (rutas, §8.2 y §8.26),
 `MASTER_SPEC` §7, §8 y §9.1, `UX_COPY_GUIDELINES`, `TESTING`, `KNOWN_ISSUES`, `TEST_RESULTS`,
-`PHASE_STATUS` y `HANDOFF`. **Solo en local**: ni `0057` ni el código están en el proyecto real.
+`PHASE_STATUS` y `HANDOFF`. **Sin desplegar**: ni `0057` ni el código están en el proyecto real. El código está en `origin/feature/recordatorios-layout` desde el 2026-09-15, sin fusionar a `main`.
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

@@ -23,7 +23,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (la cartera es del vendedor, D-198, 2026-09-14)** | **1.155 ✅ en 66 archivos (+14)** | **1.048 ✅ en 47 archivos (+32; migración `0057`)** | **706/710**, con las 23 de privacidad; los 4 son **I-090** (2) e **I-106** (1), que pasan **3/3** solos, y `boleta-cliente.spec.ts:395`, corregida (**3/3** y su archivo **15/15**) | ✅ | ✅ **Sin desplegar**: `0057` y su código, solo en local y juntos (I-118) |
+| **Post-9 vigente (la cartera es del vendedor, D-198, 2026-09-14)** | **1.155 ✅ en 66 archivos (+14)** | **1.048 ✅ en 47 archivos (+32; migración `0057`)** | **706/710**, con las 23 de privacidad; los 4 son **I-090** (2) e **I-106** (1), que pasan **3/3** solos, y `boleta-cliente.spec.ts:395`, corregida (**3/3** y su archivo **15/15**) | ✅ | ✅ **Sin desplegar**: `0057` sin aplicar al proyecto real y el código en `feature/recordatorios-layout` (`8c102c9`), sin fusionar a `main` (I-118) |
 | Post-9 anterior (mensaje propio de «Resultados de la semana», D-197, 2026-09-13) | **1.141 ✅** en 65 archivos (+41) | **1.016 ✅** en 46 archivos (+24; migración `0056`) | **681/683**, con las 9 nuevas; los 2 son **I-090** y pasan **2/2** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`6dd23e5`, 2026-09-13) · `0056` aplicada al proyecto real · en vivo **25/25** en la segunda pasada |
 | Post-9 anterior («Reintentar» de la página de error general, D-196, 2026-09-13) | **1.100 ✅** en 64 archivos (+3) | — (no se tocó la base) | **80/80** (`security.spec.ts` 22 · catálogo público 58) | ✅ | 🚀 **DESPLEGADO** (`787e420`, 2026-09-13) · en un navegador contra la base local, **8/8** · abre **I-115** |
 | Post-9 anterior (corte pasajero del catálogo público, I-114, D-196, 2026-09-13) | **1.097 ✅** en 62 archivos (+15) | — (no se tocó la base) | **58/58** | ✅ | 🚀 **DESPLEGADO** (`8767f9e`, 2026-09-13) |
@@ -11578,7 +11578,7 @@ publicado** —la otra, a las 17:50 del mismo día— y esta vez siguió en el r
 ## La cartera es del vendedor: el personal sin acceso a la información comercial (`0057`, D-198) — 2026-09-14
 
 **Alcance:** encargo expreso del usuario, con el alcance **B · «Tampoco finanzas»** elegido en la única
-pregunta. **Solo en local**: sin push, sin despliegue y sin tocar el proyecto real. Reglas en
+pregunta. **Sin despliegue** y sin tocar el proyecto real; el commit se subió después a su rama (a). Reglas en
 `BUSINESS_RULES` §12.h (BR-Q01..BR-Q10), seguridad en `SECURITY` §4.19 y estrategia en `TESTING` §4.10.
 
 ### a. Comandos y resultados
@@ -11601,6 +11601,7 @@ pregunta. **Solo en local**: sin push, sin despliegue y sin tocar el proyecto re
 | Final, sobre `db:reset` + `seed:local`: `npm run test:db` | ✅ **1.048/1.048** en 47 archivos (64,3 s): **+32** sobre la línea base, las 29 de `admin-privacy` y 3 más en las suites adaptadas |
 | Final: `npm run verify` | ✅ typecheck · lint con **0 errores** y los **2 avisos preexistentes** · unitarias **1.155/1.155** en 66 archivos (**+14**: las 17 de `admin-privacy` y 3 menos en las adaptadas) · `build`, sin `/owner/clients` ni `/owner/payments` |
 | Final, sobre `db:reset` + `seed:local`: E2E completa, escritorio y móvil | **706/710** en 35,2 min, con las **23 de privacidad** en verde. Los 4: `ventas-por-fecha` `:163` y `:247` (**I-090**) y `catalogo-publico-movil` `:103` (**I-106**), conocidos, que pasan **3/3** solos tras `db:reset` + `seed:local` (d); y `boleta-cliente.spec.ts:395`, de este trabajo, corregida (b): **3/3** sola y su archivo **15/15** |
+| `git push origin feature/recordatorios-layout`, a petición expresa del usuario (2026-09-15) | ✅ `42c413e..8c102c9`. `main` no se tocó: no corrió CI —solo se dispara en `main`— ni se desplegó nada |
 
 ### b. Errores encontrados y corregidos
 
@@ -11703,7 +11704,7 @@ compartido de `privacidad-escenario.ts`.
 * **Con las cuentas reales del negocio**: el Dueño y un Administrador sin ningún dato de cliente ni de
   dinero, y un vendedor con todo lo suyo. Vive tras el inicio de sesión y un agente no introduce
   contraseñas; las pruebas lo recorren con las cuentas del seed.
-* **El proyecto real**: sin push, sin despliegue y sin `db push`. `verify:remote` fallaría hoy contra
+* **El proyecto real**: sin despliegue ni `db push`; el código solo se subió a su rama. `verify:remote` fallaría hoy contra
   producción, porque ya espera `0057` (I-118).
 * **Un teléfono de verdad** y el **modo oscuro**: la E2E emula un Pixel 7 y ninguna prueba mira el modo
   oscuro.
