@@ -11766,3 +11766,64 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
   vendedor: un agente no introduce contraseñas. La evidencia es la sonda de comportamiento sobre la
   base real, las pruebas locales y el CI.
 * **Un teléfono de verdad** y el **modo oscuro**.
+
+---
+
+## Premios configurables por rifa, Entrega 1 de 5: el contrato (`0058`, D-199, D-200) — 2026-09-15
+
+**Alcance:** encargo expreso del usuario, **solo la Entrega 1**. Sin panel, sin motor de
+coincidencias, **sin desplegar** y sin tocar el proyecto real. Reglas en `BUSINESS_RULES` §12.i
+(BR-J01..BR-J14), seguridad en `SECURITY` §4.20 y estrategia en `TESTING` §4.11.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base, antes de tocar nada: `npm run db:reset` + `npm run seed:local` | ✅ 57 migraciones y seed completo |
+| Línea base: `npm run test:db` | ✅ **1.048/1.048** en 47 archivos (68,3 s) |
+| Línea base: `npm run verify` | ✅ typecheck · lint **0 errores** y los **2 avisos preexistentes** · unitarias **1.155/1.155** en 66 archivos · build |
+| La migración `0058`, dentro de una transacción **revertida** | ✅ aplica sin un error; nada quedó escrito |
+| `npm run db:reset` + `seed:local` con la `0058` | ✅ 58 migraciones |
+| Sonda de humo de las RPC con la identidad del Dueño, en transacción revertida | ✅ crea el premio, expande **23 días** de lunes a viernes con sus **5** loterías, un guardado sin cambios **no** crea versión, el caso de la excepción —número semanal, lunes, Cundinamarca— se acepta y el domingo se rechaza con su frase |
+| `npx supabase gen types typescript --local` + mezcla | ✅ **15 bloques nuevos, 509 líneas**; los **23** cambios de la deuda de la CLI (los `\| null` y un `Args`) **no se aplicaron**, y el archivo conserva CRLF |
+| `npm run typecheck`, primera pasada | ❌ 2 errores en `scripts/verify-remote.ts` → corregido (b) → ✅ |
+| Unitarias de premios, primera pasada | ❌ **4 fallos**: faltaba el caso del aviso → corregido (b) |
+| Unitarias de premios, segunda pasada | ❌ **1 fallo**: la prueba del tope de períodos construía 10, no 11 → corregida (b) → ✅ **50/50** |
+| `tests/db/raffle-prizes.test.ts`, primera pasada | ❌ **16 fallos**, los tres de (b): el detector de duplicados haciendo su trabajo, dos períodos mal construidos y un sorteo cancelado contaminando la ventana común |
+| Segunda pasada | ❌ **2 fallos**: dos pruebas republicaban con un importe fijo mientras el ayudante variaba el suyo → corregidas (b) |
+| Tercera pasada | ✅ **64/64**, y la base queda **sin un solo resto**: 0 rifas, 0 premios, 0 avisos y 0 sorteos de prueba |
+| `npm run test:db` completo | ✅ **1.112/1.112** en 48 archivos (**+64**) |
+| `npm run verify` completo | ✅ typecheck · lint **0 errores** y los 2 avisos preexistentes · unitarias **1.205/1.205** en 67 archivos (**+50**) · build en 19,8 s |
+| `npx prettier --check` sobre lo tocado | Formateados los **4 archivos nuevos**; `dates.ts` y `text.ts` se dejaron como estaban si ya venían sin formatear de `HEAD` (§2.0) |
+
+### b. Errores encontrados y corregidos
+
+| Qué pasó | Causa | Corrección |
+|---|---|---|
+| `typecheck` falló en `verify-remote.ts` | Escribí `` `raffles.prizes.manage` `` **dentro de una plantilla de JavaScript**: las comillas invertidas la cerraban | Sin comillas invertidas en ese comentario |
+| 4 unitarias del aviso, en rojo | Añadí `raffle_prize.changed` al tipo de aviso pero **no su caso** en `notificationMessage`: caía en «Novedad en tu equipo» | `rafflePrizeMessage()` y su `case` |
+| La prueba del tope de períodos pasaba cuando no debía | El filtro de domingos dejaba **10** períodos, que es justo el tope | Se construyen 11 de verdad y se comprueba la longitud antes |
+| **11 pruebas de base de datos**: «Ya existe un premio con las mismas condiciones» | **El producto acertaba**: mi ayudante creaba premios idénticos cambiando solo el título, y el nombre **no** cuenta para un duplicado (BR-J08) | Cada premio de la suite vale un peso más; las dos pruebas que necesitan un duplicado fijan el importe |
+| 2 pruebas esperaban el mensaje de solape o de fechas y recibían «no incluye todos los días» | Mis períodos pedían de lunes a viernes en ventanas que no los contenían: saltaba antes esa regla | Períodos que sí cubren sus días |
+| 4 pruebas fallaron por un sorteo **cancelado** | La programación es **nacional**: el sorteo que siembra la prueba de BR-J05 caía dentro de la ventana que usan las demás | Se siembra lejos de esa ventana y **se borra en cuanto se comprueba** |
+| 2 pruebas creaban versión o aviso cuando no debían | Republicaban con un importe fijo mientras el ayudante variaba el suyo: sí había cambio real | Importe fijado también al crear |
+
+### c. Lo que se comprobó de la Entrega 1, en una línea
+
+Las **64** pruebas de base de datos cubren los 24 puntos que pedía el encargo —quién puede, quién no,
+aislamiento entre organizaciones, cuenta inactiva, escritura directa, inmutabilidad, archivado sin
+borrado, control optimista con **dos ediciones a la vez**, calendario, domingo, coherencia de
+recompensa y de lotería, varias ventanas, duplicado exacto, historial, una bitácora por operación,
+borrador sin avisos, rifa activa que avisa a cada membresía activa, nada para otra organización ni
+para cuentas inactivas, reordenar que no avisa, `anon` y PUBLIC sin ejecución, el catálogo y la
+regresión de D-198— más el corte de una rifa activa, el modo de premios y la activación validada en
+PostgreSQL.
+
+### d. Lo que NO se comprobó
+
+* **Ninguna pantalla**: no hay panel todavía (Entrega 2), así que **no hay E2E** de premios.
+* **El motor de coincidencias** (Entrega 3): lo probado es la **regla** —cifras, prioridad de cuatro
+  sobre tres y versión aplicable—, no una coincidencia creada con estos premios.
+* **El proyecto real**: la `0058` **no está aplicada** y `verify:remote` no se ejecutó.
+* **Si dos premios distintos se suman en un mismo sorteo** (ambigüedad **A7**): sin respuesta del
+  dueño, la Entrega 3 no se construye.

@@ -76,6 +76,9 @@ describe('RLS habilitada y forzada en todas las tablas de negocio', () => {
       'payment_allocations',
       'payments',
       'profiles',
+      'raffle_prize_schedule_rules',
+      'raffle_prize_versions',
+      'raffle_prizes',
       'raffles',
       'payment_reminder_occurrences',
       'push_subscriptions',
@@ -207,6 +210,15 @@ describe('funciones privilegiadas', () => {
       'admin_update_ticket_numbers',
       // Las RPC que llama la aplicacion
       'approve_tickets',
+      // 0058 (D-199, D-200): las seis de premios configurables. Autorizan por la
+      // CAPACIDAD `raffles.prizes.manage` —nunca por el rol— y ninguna recibe
+      // organizacion ni actor: salen de la rifa y de auth.uid().
+      'archive_raffle_prize',
+      'create_raffle_prize',
+      'publish_raffle_prize_version',
+      'raffle_prize_history',
+      'reorder_raffle_prizes',
+      'restore_raffle_prize',
       // Las ocho de la 0051: el vendedor administra SUS cuentas de cobro y SUS
       // recordatorios. Ninguna recibe identificador de vendedor —sale de
       // auth.uid()— y son la UNICA escritura posible de esas dos tablas, que no

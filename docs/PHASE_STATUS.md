@@ -3,7 +3,19 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-14 — **La cartera es del vendedor** (D-198, BR-Q01..BR-Q10, migración
+- **Actualizado:** 2026-09-15 — **Premios configurables por rifa, ENTREGA 1 de 5: el contrato**
+  (D-199, D-200, BR-J01..BR-J14, migración **`0058`**, **solo en local**). Cada rifa podrá definir sus
+  premios —qué se gana, con qué número, con cuántas cifras, qué días y con qué lotería—, y esta
+  entrega deja el **modelo persistente**: identidad, **versiones inmutables**, períodos de calendario
+  canónicos, seis RPC transaccionales con control optimista, la capacidad central
+  **`raffles.prizes.manage`** en la aplicación **y** en PostgreSQL, auditoría semántica y avisos a
+  toda la organización cuando cambia una rifa activa. **NO hay panel** (Entrega 2) **ni motor de
+  coincidencias** (Entrega 3): ninguna coincidencia mira estos premios y **todas las rifas siguen en
+  modo heredado**. `test:db` **1.112/1.112** (+64) y `verify` **1.205/1.205** unitarias (+50), con
+  lint en 0 errores y los 2 avisos preexistentes. De paso se corrigieron las declaraciones de estado
+  que todavía decían que `0051`–`0057` no estaban en producción. Los seis puntos de §34.3, en su
+  sección de mantenimiento.
+  Antes, el 2026-09-14 — **La cartera es del vendedor** (D-198, BR-Q01..BR-Q10, migración
   **`0057`**), 🚀 **en producción desde el 2026-09-15**: el Dueño y el Administrador dejan de leer y de tocar clientes,
   precios, abonos, saldos, pagos y ganancias de los vendedores, **en la base y en el servidor**, no solo
   en la pantalla. Administran el inventario por siete proyecciones de lista blanca: «Boletas» sin
@@ -4906,6 +4918,84 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — premios configurables por rifa, **ENTREGA 1 de 5**: el contrato (`0058`, D-199, D-200, 2026-09-15)
+
+Autorizada expresamente, **solo la Entrega 1**. **No es una Fase 10** y no lleva etiqueta `fase-*`.
+
+> **SOLO EN LOCAL.** El proyecto real no tiene la `0058`. **No hay panel** (Entrega 2) **ni motor de
+> coincidencias** (Entrega 3): ninguna coincidencia mira estos premios, `match_lottery_result` no se
+> tocó y **todas las rifas siguen en modo heredado**.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| El modelo | `raffle_prizes` (identidad, orden, estado y puntero a la versión vigente), `raffle_prize_versions` (condiciones **inmutables**, una fila por guardado) y `raffle_prize_schedule_rules` (períodos canónicos), más `raffles.prize_mode` |
+| Qué define un premio | Título, categoría **informativa**, recompensa en **dinero** o **en especie**, cuál de los dos números juega, **cuatro cifras o las tres últimas**, calendario, lotería correspondiente o fija, aclaraciones y estado |
+| El calendario | Fechas, días ISO 1..6 y lotería; **varias ventanas**; **sin domingo**; cada día elegido tiene que ocurrir; **ningún día en dos períodos**; todo dentro de las fechas de la rifa |
+| Las seis RPC | Crear, publicar, archivar, restaurar, reordenar y leer el historial. **Control optimista**; un guardado sin cambios **no escribe nada**; reordenar **no crea versión** |
+| La autorización | Capacidad **`raffles.prizes.manage`** con **dos espejos**: `has_org_capability` en PostgreSQL y `lib/auth/capabilities.ts` + `authorizeCapability` en la aplicación. Las tres tablas **no admiten escritura directa** |
+| La vigencia | Aplica **la última versión publicada antes de la hora original anunciada** del sorteo: una rifa activa recibe cambios que **solo afectan a lo que no se ha jugado**, y si el corte de una semana ya empezada se desconoce, **no se guarda** |
+| Auditoría y avisos | **Una** acción semántica por guardado; el historial sale de las **versiones**; en una rifa activa, un cambio **material** avisa a cada membresía activa menos a quien lo hizo, sin datos de cartera y **sin enlace** |
+| Contrato para las entregas siguientes | Esquemas Zod con `PRIZE_LIMITS`, funciones puras del calendario y de las cifras —incluida **la versión que aplica a un sorteo**— y todos los textos en `copy.ts` |
+
+**Lo que NO trae, a propósito:** panel, motor de coincidencias, cambio de una rifa real al motor
+nuevo, backfill, reprocesamiento, pantallas de cliente, WhatsApp, correo y despliegue.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base `npm run test:db` / `npm run verify` | ✅ **1.048/1.048** · ✅ **1.155/1.155** unitarias, lint 0 errores |
+| `npm run test:db` final | ✅ **1.112/1.112** en 48 archivos (**+64**) |
+| `npm run verify` final | ✅ typecheck · lint **0 errores** y los 2 avisos preexistentes · **1.205/1.205** unitarias en 67 archivos (**+50**) · build |
+| E2E | **No se ejecutó**: esta entrega no toca ninguna pantalla |
+
+**Errores encontrados y corregidos** (detalle en `TEST_RESULTS`, 2026-09-15): un error de sintaxis por
+usar comillas invertidas dentro de una plantilla de JavaScript; el aviso nuevo sin su caso en
+`notificationMessage`; y **once pruebas de base de datos que fallaron porque el detector de duplicados
+funcionaba** —el nombre no cuenta—, más dos períodos mal construidos y un sorteo cancelado que
+contaminaba la ventana común. **Ninguno fue un defecto del producto.**
+
+### 3. Migraciones que existen
+
+**`0001`–`0058` en local; `0001`–`0057` en el proyecto real.** La **`0058`** añade seis enumerados,
+tres tablas, `raffles.prize_mode`, seis RPC, la capacidad, seis disparadores y un `kind` de aviso, y
+vuelve a escribir `admin_audit_log` y `admin_audit_redact` con **una entidad más**. Es **aditiva**:
+no cambia ninguna tabla, columna, política ni función de la cartera, y ninguna rifa existente cambió
+de modo.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.** `.env.example`, `check:env` y `vercel.json` no se tocaron.
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **A7 sin respuesta** | ¿Dos premios distintos que caen en el mismo sorteo se suman o uno reemplaza al otro? Hoy **se suman**, que es lo único que el encargo define; **la Entrega 3 no se construye sin la respuesta del dueño** |
+| **La `0058` no está en producción** | Es lo previsto: promoverla es la Entrega 5. Nada del código desplegado la necesita, así que no hay mitades que dependan entre sí (al revés que I-118) |
+| **`raffle_prize_applicable_version` no la llama nadie todavía** | Existe y está probada: fija la regla del corte para el motor. Si la Entrega 3 no la usa, habrá dos formas de decidir lo mismo |
+| Todo lo demás | Sin cambios: I-024, I-021, I-023, I-030, I-059, I-060, I-090, I-106, I-117, I-119, I-120 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Entrega 2.** Hace falta una autorización explícita nueva.
+2. **Pregunta A7 antes de la Entrega 3.** Está en `DECISIONS`, en la tabla de ambigüedades.
+3. **No escribas en las tres tablas con `insert`**: solo conceden `SELECT`; las RPC son la única
+   puerta, y es lo que hace inevitables el tope, la versión, la bitácora y el aviso.
+4. **No borres versiones ni períodos:** son inmutables incluso con la service role. La limpieza de las
+   pruebas va con `session_replication_role = replica`.
+5. **No añadas `role === 'admin'` en ninguna pantalla ni acción nueva**: usa `authorizeCapability`, y
+   si hace falta una capacidad nueva, se añade al catálogo **y** a los dos espejos.
+6. **No cambies el modo de una rifa** para probar: ninguna sesión puede, y hacerlo en una rifa real es
+   la Entrega 4.
+7. **La Entrega 2 ya tiene su contrato**: `schemas.ts` con sus mapeadores, la lectura del premio con su
+   versión y sus períodos en **una** consulta —hay una prueba que la fija— y `copy.ts` con todos los
+   textos.
 
 ---
 

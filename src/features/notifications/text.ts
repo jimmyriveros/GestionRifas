@@ -24,6 +24,7 @@ export type NotificationKind =
   | 'lottery.result'
   | 'lottery.schedule_change'
   | 'payment_reminder.due'
+  | 'raffle_prize.changed'
 
 type NotificationData = Record<string, unknown>
 
@@ -161,6 +162,33 @@ function paymentReminderDueMessage(data: NotificationData): string {
 }
 
 /**
+ * «Cambiaron las condiciones de un premio» (BR-J11, D-199).
+ *
+ * DICE LA RIFA Y EL PREMIO, que es lo que pidio el encargo, y dice tambien que
+ * el cambio vale para los PROXIMOS sorteos: los que ya se jugaron conservan las
+ * condiciones con las que se anunciaron (BR-J09), y esa es justo la pregunta que
+ * se hace quien lee el aviso.
+ *
+ * NO LLEVA NADA DE LA CARTERA (D-198): ni clientes, ni pagos, ni saldos, ni
+ * precios de venta. Solo se escribe lo que este archivo compone.
+ */
+function rafflePrizeMessage(data: NotificationData): string {
+  const prize = text(data, 'prize_title') ?? 'un premio'
+  const raffle = text(data, 'raffle_name') ?? 'la rifa'
+
+  switch (text(data, 'change')) {
+    case 'created':
+      return `Hay un premio nuevo en ${raffle}: «${prize}».`
+    case 'archived':
+      return `El premio «${prize}» de ${raffle} ya no aplica para los próximos sorteos.`
+    case 'restored':
+      return `El premio «${prize}» de ${raffle} vuelve a aplicar para los próximos sorteos.`
+    default:
+      return `Cambiaron las condiciones del premio «${prize}» de ${raffle} para los próximos sorteos.`
+  }
+}
+
+/**
  * A donde lleva un aviso, o `null` si no lleva a ninguna parte.
  *
  * Hoy solo el recordatorio de pago tiene destino, y es la razon de que esto
@@ -200,6 +228,9 @@ export function notificationMessage(kind: string, data: NotificationData): strin
 
     case 'payment_reminder.due':
       return paymentReminderDueMessage(data)
+
+    case 'raffle_prize.changed':
+      return rafflePrizeMessage(data)
 
     default:
       // Un aviso de un tipo que esta version no conoce: se muestra algo

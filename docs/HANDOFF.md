@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **Premios configurables por rifa (ENTREGA 1 de 5, solo en LOCAL)** | Desde el 2026-09-15 (D-199, D-200, BR-J01..BR-J14, migración **`0058`**) una rifa puede tener **sus** premios: `raffle_prizes` (identidad, orden, estado y puntero), `raffle_prize_versions` (condiciones **inmutables**, una por guardado) y `raffle_prize_schedule_rules` (períodos canónicos). Se escribe **solo** por **seis RPC** —crear, publicar, archivar, restaurar, reordenar e historial—, autorizadas por la **capacidad** `raffles.prizes.manage` (`has_org_capability` en la base; `authorizeCapability` y `lib/auth/capabilities.ts` en la aplicación): **nadie vuelve a escribir `role === 'admin'`**. ⚠️ **NO hay panel** (Entrega 2) **ni motor de coincidencias** (Entrega 3): `match_lottery_result` no cambió y **todas las rifas siguen en `prize_mode = 'legacy'`**. Lo que hay que saber antes de tocarlo: **el estado es parte de la versión** —archivar y restaurar insertan versión, y la FK del puntero incluye el estado—; **el calendario se guarda canónico en filas**, nunca en JSON; **la versión que aplica a un sorteo se calcula** (la última publicada antes de la hora original anunciada), así que un cambio en una rifa activa **solo afecta a lo que no se ha jugado**; **el nombre no cuenta para un duplicado**; y **ninguna sesión puede cambiar `prize_mode`**. Pendiente del dueño: **A7**, si dos premios distintos se suman en un mismo sorteo — sin eso no se construye la Entrega 3 |
 | **La cartera es del vendedor (EN PRODUCCIÓN)** | Desde el 2026-09-14 (D-198, BR-Q01..BR-Q10, migración **`0057`**) el Dueño y el Administrador **no leen ni tocan** clientes, precios, abonos, saldos, pagos ni ganancias de ningún vendedor: las políticas de la cartera son solo del vendedor y el portal administrativo lee por siete proyecciones `admin_*` de lista blanca. Sin «Clientes» ni «Pagos»; el panel, «Vendedores», «Rifas» y «Reportes» cuentan boletas; la búsqueda es solo por número y el pago tiene dos estados, «Pagada» y «Sin pagar». Se suspendieron anular pagos, anular boletas vendidas e importar ventas (I-116). **Sustituye** lo que dice de dinero la fila «Panel administrativo, rediseñado». 🚀 **En producción desde el 2026-09-15**: `0057` aplicada justo antes del código y `46b7cf0` desplegado (I-118, resuelto). Revertir una mitad sin la otra vuelve a romper el portal administrativo. Volver atrás: el procedimiento de D-198 |
 | **Resultados de la semana** | Desde el 2026-09-13 (D-194, D-195, BR-H01..BR-H08) «Configuración» del vendedor tiene una **cuarta tarjeta** que lleva a `/seller/settings/weekly-results`: los seis números mayores de la **última semana terminada** —lunes a sábado en Bogotá, nunca la semana en curso—, una **imagen PNG de 1080 × 1350** para su grupo y el mensaje que la acompaña. **Todo o nada:** sin los seis resultados `confirmed` no hay imagen ni mensaje, y la pantalla nombra lo que falta. La rifa es **la del catálogo** del vendedor y **no se adivina**. La imagen la compone `GET /api/weekly-results/image?week=` con `ImageResponse` **al pedirla** —sin tabla, bucket, cron, IA ni salida a internet— y el navegador la pide **una vez**: compartir y descargar usan ese mismo archivo. **Cero migraciones y cero dependencias.** El fondo es **JPEG y no WebP**, porque Satori no decodifica WebP, y tres pesos de **Geist** viven en el repositorio. ⚠️ **Antes de tocar la imagen lee `ARCHITECTURE` §8.25**: ningún texto lleva espacios normales (U+00A0), dos capas de fondo recortadas al texto no se pintan y `textShadow` tiñe el texto recortado. 🚀 **DESPLEGADO** el 2026-09-13 (`a929e23`, `dpl_GqmtKzfL6GAWYKtyYHYJSNbWmTDS`), **sin migración**: la base de producción no se tocó. La imagen **ya se generó en producción**: la que el usuario compartió el mismo día (`IMG_1735.PNG`) es idéntica píxel a píxel al render local fuera de los nombres de las tarjetas. **Después**, un ajuste visual —«CUNDI.» solo dentro del PNG y los cinco nombres de las tarjetas diarias un 30 % más grandes— se **DESPLEGÓ** el mismo día (`1a6b4af`, `dpl_3pJj2LiMoXksZ82BM3qyCzf4fQL6`). **Y el mensaje puede ser el del vendedor** (D-197, BR-H09, BR-H10), 🚀 **DESPLEGADO** el mismo día (`6dd23e5`, `dpl_37A7ydZucjhBGuyjv5rHD5tXW2ye`): «Usar mi propio mensaje» dentro de «Mensaje para tu grupo». El predeterminado **sigue en el código**; la base guarda **solo** el interruptor y el texto, en dos columnas de `memberships` (**`0056`**, aplicada al proyecto real antes de subir el código) escritas por `set_seller_weekly_results_message`, que **no recibe vendedor**. ⚠️ **El texto vive en `WeeklyResultsShare`, no en el editor**: la vista previa, copiar y compartir leen la misma cadena, guardada o no. **El proyecto real tiene 56 migraciones**, igual que local |
 | **Cuentas de cobro y recordatorios: ENCARGO COMPLETO Y DESPLEGADO (7 de 7)** | 🚀 **EN PRODUCCIÓN desde el 2026-09-12** (`25cdb5a`): la base real tiene las **55 migraciones** (`0051`–`0055`), las cinco tablas, las 8 RPC y los **tres `pg_cron` corriendo cada minuto**. ✅ **El canal del teléfono está ARMADO**: las cuatro variables de Vercel y los dos secretos del Vault están puestos, y el camino Vault → `pg_net` → Vercel → despachador responde **200** (con un secreto incorrecto, **401**). **Falta una sola cosa: que alguien vea un aviso llegar a un teléfono de verdad.** **`pg_net` la instalaba la pila local sola y NO estaba en el proyecto real** — la declara la `0055` (**I-112**). **EL CANAL ESTÁ COMPLETO:** un recordatorio que vence materializa su **ocurrencia**, escribe la **campana**, **encola el aviso en la misma transacción** y un despachador protegido lo cifra y lo entrega al teléfono **con la aplicación cerrada**. Configuración (`0051`), pantallas (D-188), motor (`0052`, D-189), suscripciones y service worker (`0053`, D-190), outbox y envío (`0054`, D-191). **Web Push estándar sobre el `crypto` de Node, sin Firebase y sin ninguna dependencia**, con el calendario de claves comprobado contra los valores publicados del **RFC 8291**. Lo que hay que saber antes de tocarlo: **tablas propias, no columnas de `memberships`**; **una política por tabla y es de `SELECT`** —salvo `push_outbox`, que **no la lee nadie**—, así que las RPC son la única puerta; **NO toques `reminders_sync_next_run`**, que si recalculara siempre dejaría el recordatorio en bucle; **la ocurrencia se escribe ANTES que la campana**; **el motor y el despachador no los ejecuta ninguna sesión**; **el `endpoint` es único GLOBAL** y activar en un móvil compartido **cambia el dueño**; **NO crees un segundo service worker**; **no toques el calendario de claves sin volver a correr `webpush-rfc.test.ts`**; y **la firma VAPID va en `ieee-p1363`, no DER**. ⚠️ **Una tabla nueva en `public` nace con `SELECT` para `authenticated`**: hay un privilegio por defecto del esquema. **Los tres `pg_cron` están CORRIENDO en local.** **AUDITADO** (Etapa 6, D-192): **47 sondas adversarias, 46 rebotaron**; la que pasó es **I-110** —quien conozca el `endpoint` de otra persona puede quitarle el dispositivo—, **aceptada con motivo escrito y NO corregida**, con el arreglo redactado y `P-04b` vigilándola: **lee `AUDIT_REPORT` §12.3 antes de tocar `upsert_push_subscription`**. Rama `feature/cuentas-y-recordatorios`, **sin fusionar** |
@@ -143,7 +144,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — la cartera es del vendedor, DESPLEGADO (D-198, `0057`, 2026-09-14)
+## 1.a Último relevo significativo — premios configurables, ENTREGA 1 de 5 (D-199, D-200, `0058`, 2026-09-15)
+
+| Campo | Estado |
+|---|---|
+| Resultado | El **contrato** de los premios configurables: modelo persistente (tres tablas + `raffles.prize_mode`), **seis RPC transaccionales** con control optimista, la **capacidad central** `raffles.prizes.manage` en la aplicación y en PostgreSQL, auditoría semántica, avisos a toda la organización cuando cambia una rifa **activa**, tipos generados, esquemas Zod, funciones puras y pruebas. **Fuera, a propósito:** el panel (Entrega 2), el motor de coincidencias (Entrega 3), la configuración de la rifa de diciembre (Entrega 4) y el despliegue (Entrega 5). **Ninguna rifa cambió de sistema y la `0058` no está en el proyecto real** |
+| Archivos | **Nuevos:** `supabase/migrations/0058_raffle_prizes.sql`; `src/features/raffle-prizes/{schedule,matching,copy,schemas}.ts`; `src/lib/auth/capabilities.ts`; `tests/db/raffle-prizes.test.ts` (**64**) y `tests/unit/raffle-prizes.test.ts` (**50**). **Cambiados:** `src/lib/auth/guards.ts` (`authorizeCapability`), `src/lib/dates.ts` (`longDatePartsEs`, `formatLongDateEs`), `src/features/notifications/text.ts` (el aviso nuevo), `src/types/database.types.ts` (**+509**), `tests/db/catalog.test.ts` y `scripts/verify-remote.ts` (las dos listas blancas). **Documentación:** `DECISIONS` (**D-199**, **D-200** y la ambigüedad **A7**), `BUSINESS_RULES` §12.i, `MASTER_SPEC` §9.7, `ARCHITECTURE` (§7.3 y **§8.27**), `DATA_MODEL` (§3.3, **§4.20**, **§6.g.9** y §7), `SECURITY` (§2 y **§4.20**), `UX_COPY_GUIDELINES` (Anexos A y B), `TESTING` §4.11, `TEST_RESULTS`, `PHASE_STATUS` y este archivo |
+| Reutilización | `require_auth`, `has_org_role`, `write_audit_log`, `notifications` y su patrón de índice único idempotente (0037, 0052), el patrón de RPC sin identificador de vendedor y tablas sin política de escritura (0051), las FK compuestas de D-007, `LOTTERY_NOMINAL_WEEKDAY` y `lottery_match_field` (0036), `addIsoDays` / `isoWeekday`, `formatCOP`, `WEEKDAY_LABELS` y `authorizeAction`. **Sin dependencias nuevas** |
+| Decisiones | **D-199** (contrato, diez decisiones) y **D-200** (la capacidad). Las que no se deducen del código: **el estado va en la versión**; **la vigencia se calcula** con la hora original del sorteo; **se falla de forma segura** solo cuando el corte de una semana ya empezada se desconoce; **el duplicado exacto ignora el nombre**; y **ninguna sesión cambia el modo de premios de una rifa** |
+| Verificación | Línea base ✅ `test:db` 1.048/1.048 · `verify` 1.155/1.155. Final ✅ **`test:db` 1.112/1.112** en 48 archivos y **`verify`** con lint en 0 errores (los 2 avisos preexistentes), **1.205/1.205** unitarias y build. Los errores de las pasadas intermedias —todos de mis pruebas, ninguno del producto— en `TEST_RESULTS` (2026-09-15) |
+| Advertencias | **No crees premios con un `insert` directo**: las tres tablas solo conceden `SELECT` y las RPC son la única puerta. **No borres versiones ni períodos**: son inmutables incluso con la service role, y por eso la limpieza de las pruebas va por PostgreSQL con `session_replication_role = replica`. **Una prueba que cree varios premios parecidos chocará con el duplicado exacto**: varía la recompensa. **La programación de loterías es nacional**: un sorteo sembrado como cancelado afecta a todas las rifas. **Al regenerar `database.types.ts`, aplica solo los bloques nuevos** (§9) |
+| Pendiente | **A7**, la pregunta del dueño: ¿dos premios distintos que caen en el mismo sorteo se suman o uno reemplaza al otro? **Bloquea la Entrega 3.** Después, en orden: Entrega 2 (panel), 3 (motor), 4 (la rifa de diciembre y la transición por rifa) y 5 (auditoría, rendimiento y despliegue). Cada una necesita autorización propia |
+| Git | Rama **`feature/premios-configurables`**, creada desde `c48437a` y **sin fusionar ni empujar**. Sin etiqueta: es mantenimiento, no una fase (§8, regla 12). `CorrecionesLoterias.txt` y `prueba-abono.csv`, del usuario, **intactos y fuera del commit** |
+
+---
+
+## 1.a.0 Relevo anterior — la cartera es del vendedor, DESPLEGADO (D-198, `0057`, 2026-09-14)
 
 | Campo | Estado |
 |---|---|
@@ -1646,7 +1662,14 @@ organizations ─┬─ memberships (profile_id, organization_id, role, is_activ
                │                            sort_order 1..5 unico, archived_at; 0051)
                ├─ seller_payment_reminders (seller_id, weekday 1..7 ISO, time_of_day,
                │                            status, custom_message, next_run_at; 0051)
-               ├─ raffles     (short_code, name, ticket_price, status, allow_seller_ticket_creation)
+               ├─ raffles     (short_code, name, ticket_price, status, allow_seller_ticket_creation,
+               │               prize_mode legacy|configurable -> 0058)
+               │    └─ raffle_prizes (position, status, current_version_id -> 0058)
+               │         └─ raffle_prize_versions (version_number, status, title, category,
+               │              reward_type + amount|description, number_field, digits, conditions,
+               │              published_at/by; INMUTABLES)
+               │              └─ raffle_prize_schedule_rules (start/end_date, weekdays[], lottery_mode,
+               │                   lottery_code)
                ├─ clients     (seller_id, name, phone, archived_at)
                ├─ tickets     (raffle_id, seller_id, client_id, internal_code,
                │               daily_number, weekly_number, sale_price, base_price,
@@ -1711,6 +1734,13 @@ configuración del catálogo: aquí el personal y el vendedor padre NO ven nada.
 **Catálogo público (`0043`, D-159):** `public_catalog_seller` y `public_catalog_tickets`, solo para
 `service_role` y llamadas desde el servidor; `public_catalog_membership` no la ejecuta nadie. `anon` no
 gana ningún privilegio y `tickets_select` no se amplía.
+
+**Premios configurables (`0058`, D-199, solo en LOCAL):** `create_raffle_prize` ·
+`publish_raffle_prize_version` · `archive_raffle_prize` · `restore_raffle_prize` ·
+`reorder_raffle_prizes` · `raffle_prize_history`. Son la **única** forma de escribir en las tres
+tablas, que solo conceden `SELECT`. Autorizan por **capacidad** (`has_org_capability`), no por rol, y
+no reciben organización ni actor. **Ninguna rifa está en modo `configurable`** y el motor de
+coincidencias sigue siendo el de siempre.
 
 **Vistas de solo lectura:** `v_ticket_balances` · `v_client_balances` · `v_seller_summary` ·
 `v_raffle_summary` · `v_payment_history`.
@@ -1961,6 +1991,19 @@ features/payment-accounts/ y features/payment-reminders/  la «Configuración» 
                     PaymentRemindersSection. Va en `actions` y NO en
                     compactAction: con el tope, la cabecera compacta dejaria un
                     «+» desactivado sin la frase que explica por que
+features/raffle-prizes/  premios configurables (D-199). schedule.ts, matching.ts,
+                    copy.ts y schemas.ts son PUROS: el calendario, las cifras,
+                    TODOS los textos y el contrato con las RPC. NO hay queries.ts
+                    ni actions.ts todavia: son la Entrega 2, y entran por
+                    authorizeCapability. schedule.ts reutiliza addIsoDays e
+                    isoWeekday de loterias: no escribas una segunda aritmetica
+                    de fechas. toRulePayload() es lo que viaja a la RPC
+lib/auth/capabilities.ts  el catalogo de capacidades y la politica por rol
+                    (D-200). Es el ESPEJO de app_capability_catalog() y
+                    app_role_default_capabilities() en PostgreSQL, y hay una
+                    prueba de base de datos que compara las dos rol a rol.
+                    Antes de escribir `role === 'admin'` en cualquier sitio,
+                    mira si lo que necesitas es una capacidad
 features/weekly-results/  «Resultados de la semana» (D-194, D-195). week.ts,
                     results.ts, copy.ts y share.ts son PUROS: la semana, el
                     todo o nada, TODOS los textos y el mensaje. La imagen vive
@@ -2130,6 +2173,11 @@ del código: repite con `.next/dev` ya poblado antes de culpar a un cambio.
 
 | Síntoma | Causa | Ver |
 |---|---|---|
+| Creas dos premios parecidos en una prueba y el segundo se rechaza con «Ya existe un premio con las mismas condiciones» | Es el producto acertando: un duplicado exacto son las mismas condiciones **y la misma recompensa**, y el **nombre no cuenta** (BR-J08). Varía el importe, o fija los dos si lo que quieres es el choque | D-199 · `TESTING` §4.11 |
+| Una prueba de premios falla por un sorteo «cancelado» que no sembró ella | `lottery_draw_schedules` es **nacional**: un sorteo cancelado afecta a **todas** las rifas. Siémbralo lejos de la ventana común y bórralo en cuanto compruebes | D-199 · BR-J05 |
+| No puedes borrar premios, versiones o períodos para limpiar una prueba | Son **inmutables**, también con la service role, y no hay privilegio de `DELETE`. La limpieza va por PostgreSQL con `set local session_replication_role = replica` dentro de una transacción | D-199 · `tests/db/raffle-prizes.test.ts` |
+| Publicas un cambio en una rifa activa y recibe «Todavía no conocemos la hora oficial del sorteo del …» | Es el fallo seguro de BR-J09: una ocurrencia de una semana **ya empezada** cuyo corte no se conoce. Con la programación oficial cargada, el mismo cambio entra | D-199, Decisión 5 |
+| Quieres poner una rifa en modo `configurable` desde la aplicación y no te deja | **Ninguna sesión puede**, da igual el rol: solo un proceso sin sesión y solo en borrador (BR-J13). El cambio de una rifa real es la Entrega 4 | D-199, Decisión 8 |
 | Picos de ~3,4 s midiendo producción con `curl`, que parecen arranque en frío | `time_starttransfer` **no** es tiempo de servidor: incluye DNS, TCP y TLS. Desglósalo, y compara contra `/denied`, que es CDN. Un pico clavado en ~3,1 s en `time_connect` es el reintento del SYN de TCP de tu propia red | D-106, D-104 |
 | Login falla en navegador pero funciona por API | `\r` dentro de un valor de `.env.local` | I-010 |
 | `invalid_credentials` tras crear un usuario | `createUser` no deja la contraseña usable; hace falta `updateUserById` después | I-007 |

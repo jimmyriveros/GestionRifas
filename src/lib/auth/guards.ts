@@ -3,8 +3,12 @@ import 'server-only'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
+import { roleHasCapability, type AppCapability } from '@/lib/auth/capabilities'
 import type { AppRole } from '@/lib/constants'
 import { getActiveMembership, getAuthUser, type ActiveMembership } from '@/lib/auth/session'
+
+/** Los tres roles. `authorizeCapability` parte de cualquiera y decide por capacidad. */
+const ALL_ROLES: AppRole[] = ['owner', 'admin', 'seller']
 
 export function dashboardPathForRole(role: AppRole): '/seller/dashboard' | '/owner/dashboard' {
   return role === 'seller' ? '/seller/dashboard' : '/owner/dashboard'
@@ -71,4 +75,26 @@ export async function authorizeAction(
   }
 
   return { membership }
+}
+
+/**
+ * Como `authorizeAction`, pero por CAPACIDAD y no por rol (D-200, BR-J10).
+ *
+ * Es el unico punto de la aplicacion donde se decide si alguien puede hacer algo
+ * que el rol por si solo no explica: quien la use no vuelve a escribir
+ * `role === 'admin'`. El resolvedor vive en `lib/auth/capabilities.ts` y su
+ * espejo, en PostgreSQL (`has_org_capability`, migracion `0058`), que es quien
+ * de verdad autoriza la operacion.
+ */
+export async function authorizeCapability(
+  capability: AppCapability,
+): Promise<{ membership: ActiveMembership } | { error: string }> {
+  const auth = await authorizeAction(ALL_ROLES)
+  if ('error' in auth) return auth
+
+  if (!roleHasCapability(auth.membership.role, capability)) {
+    return { error: 'No tienes permiso para realizar esta acción.' }
+  }
+
+  return auth
 }

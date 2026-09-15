@@ -462,6 +462,18 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Abrir desde ahí el grupo del propio vendedor | **Abrir mi grupo** (D-194); en «Para enviar ahora» sigue siendo **Abrir grupo** | Ir al grupo, enviar al grupo |
 | El número de Boyacá en la imagen | **Resultado semanal** | Premio semanal, ganador del sábado |
 | Cuántos de los seis ya están confirmados | **«6 de 6 resultados»** | Completo, listo, 100 % |
+| Lo que una rifa entrega a quien acierta | **Premio** (D-199) | Ganancia, plan, incentivo. Y ojo: **«premio» ya estaba prohibido para el resultado de una lotería**, que se llama **resultado** o **número mayor**. Son dos cosas distintas y las dos palabras se quedan como están |
+| Las cuatro clases con las que se presenta un premio | **Premio principal** · **Diario** · **Semanal** · **Especial** | Categoría mayor, tipo, clase. Son **informativas**: no deciden con qué número ni con qué lotería juega (BR-J03) |
+| Lo que se entrega: dinero o una cosa | **Premio en dinero** y **premio en especie** | Efectivo, físico, material, no monetario |
+| Con cuántas cifras juega | **4 cifras** en una columna estrecha; **Cuatro cifras** y **Últimas tres cifras** donde cabe entero (D-114) | Dígitos, exacto, aproximado, terminación |
+| Con cuál de los dos números de la boleta juega | **Número diario** y **número semanal**, los de siempre | Campo, columna, tipo de número |
+| Con qué lotería juega cada día | **Lotería correspondiente** (la del día) o el nombre de la fija: **la lotería de Boyacá** | Lotería automática, por defecto, según el día |
+| Cada tramo de fechas del calendario de un premio | **Período**; el botón dice **«Agregar otro período»** | Ventana, rango, bloque, tramo |
+| Sacar un premio de los próximos sorteos sin perder su historial | **Archivar** (el mismo verbo que un cliente o una cuenta) | Eliminar, desactivar, cancelar, retirar |
+| Devolverlo | **Restaurar** | Reactivar, recuperar, volver a activar |
+| Un premio que sí aplica a los próximos sorteos | **Vigente** | Activo, que es lo que dice una cuenta de persona (BR-E14), y aquí se leería como otra cosa |
+| Lo que pasa con un sorteo que ya se jugó cuando se cambia un premio | **Los próximos sorteos**; el que ya jugó **conserva las condiciones con las que se anunció** | Retroactivo, histórico, congelado |
+| La lista de cambios de un premio | **Historial** (del premio) | **Versiones**, que en esta aplicación es el código nuevo servido tras un despliegue |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -1342,6 +1354,24 @@ no cabe a ese tamaño junto a su número. La abreviatura vive en
 siguen diciendo **«Cundinamarca»**, que es lo que la persona lee justo encima de la vista previa. Es la
 regla de siempre —se abrevia lo visible, nunca el término (D-114)— aplicada a un PNG, que no tiene
 `sr-only`: el nombre entero está escrito a un centímetro.
+**Un premio se archiva, y lo que hay que decir es qué deja de pasar** (D-199). En pantalla no se
+escribe «se desactivó» ni «se eliminó»: lo que cambia es que **ya no aplica para los próximos
+sorteos**, y los que ya se jugaron se quedan como estaban. Por eso los avisos dicen «El premio «X» de
+{rifa} ya no aplica para los próximos sorteos» y «…vuelve a aplicar…», y no «archivado», que es la
+palabra del botón y no la consecuencia.
+
+**Y cuando cambian sus condiciones, se dice para cuándo.** «Cambiaron las condiciones del premio «X»
+de {rifa} **para los próximos sorteos**.» Esa última parte es lo único que quien lee no puede deducir:
+un cambio no reescribe lo que ya se jugó (BR-J09).
+
+**«Ganador» sigue prohibido, también aquí** (BR-L15). Un premio configurable dice con qué número y
+con cuántas cifras juega; quien acierta tiene una **coincidencia**. Hay una prueba unitaria que falla
+si cualquier texto del módulo escribe esa palabra.
+
+**Las aclaraciones de un premio las va a leer un cliente.** La pantalla lo dice antes de que alguien
+escriba: «Las aclaraciones se pueden compartir con los vendedores y con sus clientes: escríbelas
+pensando en ellos.» Es la §5 de esta guía —explicar qué ocurrirá— aplicada a un campo de texto libre.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, las dos de un
@@ -1523,6 +1553,11 @@ castigo donde solo había una espera.
 | Todos los textos de «Resultados de la semana»: la tarjeta de Configuración, la pantalla y sus estados, las acciones, los del mensaje propio —en `share`, con los que ya existían tomados de `REMINDER_COPY.form`—, los textos fijos de la imagen —con los nombres cortos de sus tarjetas, «CUNDI.» (`imageLotteryLabel`)— y las respuestas de la ruta | `src/features/weekly-results/copy.ts` (`WEEKLY_RESULTS_COPY`), **todos juntos** (D-194, D-197) |
 | El mensaje predeterminado para el grupo | `weeklyResultsMessage`, en ese mismo archivo — **nunca** en la base de datos (BR-H06). El **propio** del vendedor sí se guarda, en su membresía, y se usa tal cual (BR-H09) |
 | La semana en corto («17–22 AGO 2026») y en largo («del 17 al 22 de agosto de 2026») | `src/features/weekly-results/week.ts` (`formatWeekShort`, `formatWeekLong`), con los meses escritos a mano y no con `Intl` (D-195) |
+
+| Todos los textos de los premios configurables: categorías, recompensa, cifras, el resumen del calendario en español y la vista previa del premio | `src/features/raffle-prizes/copy.ts` (`PRIZE_COPY`), **todos juntos** (D-199) |
+| Los mensajes de validación del formulario de un premio | `src/features/raffle-prizes/schemas.ts`, tomados de `PRIZE_COPY.form`: la pantalla y el servidor dicen lo mismo |
+| Lo que responde la base cuando un premio no se puede guardar | Los `raise` de la migración `0058`, con las **mismas** frases que `PRIZE_COPY` donde la comprobación existe en las dos capas |
+| El aviso de que cambiaron las condiciones de un premio | `src/features/notifications/text.ts`, con los demás avisos (D-093, D-199). **No lleva enlace**: el vendedor todavía no tiene pantalla de premios |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

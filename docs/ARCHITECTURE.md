@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.31 · **Estado:** implementado · **Actualizado:** 2026-09-13 (§7.3 y §8.25: el mensaje
+- **Versión:** 1.32 · **Estado:** implementado · **Actualizado:** 2026-09-15 (§7.3 y **§8.27**:
+  premios configurables por rifa y la capacidad central, D-199 y D-200, migración `0058`, **solo en
+  local**). Antes, el 2026-09-13 (§7.3 y §8.25: el mensaje
   propio de «Resultados de la semana», D-197)
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 - **§8.23** («Configuración» del vendedor con subrutas) está **implementada** desde el 2026-09-12
@@ -319,6 +321,11 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `set_ticket_clearance_delivery(boleta, entregado, fecha_esperada)` | post-9 | Registra o retira la entrega FÍSICA del paz y salvo de UNA boleta vendida. **Solo el vendedor dueño**; la fecha la pone el servidor. No consulta ni cambia dinero y no exige rifa activa. Devuelve el estado resultante (D-170, BR-I15) | Sí |
 | `set_seller_whatsapp_settings(enlace, usa_mensaje_propio, mensaje)` | post-9 | Guarda el grupo de WhatsApp y el mensaje de invitación **del vendedor que llama**. No recibe identificador de vendedor: sale de `auth.uid()`. Solo escribe tres columnas de su propia membresía; la auditoría la pone `audit_memberships` (D-176, BR-W01..BR-W03, BR-W07) | Sí |
 | `set_seller_weekly_results_message(usa_mensaje_propio, mensaje)` | post-9 | Guarda el mensaje propio de «Resultados de la semana» **del vendedor que llama**: si lo usa y el texto, recortado. No recibe vendedor, perfil, organización ni membresía. Solo escribe dos columnas de su propia membresía y **no toca las de WhatsApp**; la auditoría la pone `audit_memberships` (D-197, BR-H09, BR-H10) | Sí |
+| `create_raffle_prize(rifa, título, categoría, tipo de recompensa, número, períodos, …)` | post-9 | Crea un premio con su versión 1 en una rifa **configurable**. Autoriza por la capacidad `raffles.prizes.manage`; no recibe organización ni actor. Valida calendario, duplicados y corte, audita y avisa (D-199) | Sí |
+| `publish_raffle_prize_version(premio, versión esperada, …)` | post-9 | Publica una versión nueva con **control optimista**. Sin cambios no escribe nada; en una rifa activa solo afecta a los sorteos no bloqueados (BR-J09) | Sí |
+| `archive_raffle_prize(premio, versión esperada)` · `restore_raffle_prize(premio, versión esperada)` | post-9 | Archivan y restauran **con una versión nueva**. No borran nada; una rifa activa conserva al menos un premio vigente | Sí |
+| `reorder_raffle_prizes(rifa, premios)` | post-9 | Reordena los vigentes. **No crea versión y no avisa**: es presentación (BR-J11) | Sí |
+| `raffle_prize_history(premio, límite, desplazamiento)` | post-9 | Historial paginado desde las **versiones**, con actor y períodos. Solo con la capacidad; a los demás, cero filas | — |
 | `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142) | Sí — inserciones idempotentes |
 | `sync_lottery_schedules` · `confirm_lottery_result` · `notify_lottery_schedule_changes` | post-9 | Sincronización, confirmación+matching+avisos y avisos de programación. **Sin EXECUTE para `authenticated`** (D-145, D-146) | Sí — upserts e inserciones idempotentes |
 | `try_acquire_lottery_sync_lock` · `release_lottery_sync_lock` | post-9 | Cerrojo de una fila del tick. **Sin EXECUTE para `authenticated`** (D-148) | Un UPDATE condicional |
@@ -1679,7 +1686,8 @@ dato guardado, y formatearlo esconderían que en la base conviven varios formato
 ### 8.23 «Configuración» del vendedor: un resumen y tres subrutas (D-185, D-188)
 
 > **IMPLEMENTADO el 2026-09-12** (Etapa 2). Existe y está probado: 15 pruebas de escritorio y 4 a
-> 320 px. **En local**; el proyecto real todavía no tiene la migración `0051` que lo sostiene.
+> 320 px. ✅ **En producción desde el 2026-09-12** (Etapa 7, D-193), con la `0051` aplicada al
+> proyecto real.
 >
 > **Desde el 2026-09-13 son cuatro tarjetas** (D-194): «Resultados de la semana» lleva a
 > `/seller/settings/weekly-results` (§8.25) con una **línea fija**, así que el resumen sigue sin leer
@@ -1759,8 +1767,8 @@ Tailwind ignora la clase en silencio: el título se pinta como texto normal. En 
 
 > **EL DIBUJO ENTERO EXISTE** desde el 2026-09-12, en tres etapas: `0052` (cron, ocurrencias y
 > campana), `0053` (suscripciones y service worker) y `0054` (outbox, despachador, firma y cifrado).
-> Todo en **local**; el proyecto real no tiene ninguna de las tres migraciones, y promoverlas es la
-> Etapa 7.
+> ✅ **En producción desde ese mismo día** (Etapa 7, D-193): el proyecto real tiene las tres, más la
+> `0055` que instala `pg_net` (I-112).
 >
 > **Y todo es opcional hasta que se configura**: sin claves VAPID no se ofrecen los avisos ni se
 > envía nada, y sin secreto el despachador falla cerrado. La campana no depende de nada de eso.
@@ -1973,6 +1981,38 @@ desde Git con el procedimiento de D-198.
 las rutas de clientes o pagos bajo `owner/`, si un archivo del portal administrativo importa
 `@/features/clients/`, `@/features/payments/`, `listTickets`, `getTicketDetail` o las vistas del
 vendedor, o si una Server Action de la cartera deja de exigir el rol `seller`.
+
+### 8.27 Premios configurables y la capacidad central (`0058`, D-199, D-200)
+
+> **ENTREGA 1 DE 5: el contrato.** Hay modelo, RPC, autorización, auditoría y avisos; **no hay
+> pantalla** (Entrega 2) ni **motor de coincidencias** (Entrega 3). La migración está **solo en
+> local**, y ninguna rifa cambió de sistema.
+
+**Lo que se añadió, y dónde vive:**
+
+| Pieza | Qué es |
+|---|---|
+| `supabase/migrations/0058_raffle_prizes.sql` | Tres tablas, seis RPC, la capacidad y los disparadores que protegen el modo, las fechas y la activación de una rifa |
+| `src/lib/auth/capabilities.ts` | El catálogo de capacidades y la política por rol. **Puro**: lo pueden leer las pantallas para decidir si pintan una acción |
+| `authorizeCapability()` en `src/lib/auth/guards.ts` | `authorizeAction` con la pregunta cambiada: capacidad en vez de rol. Las Server Actions de la Entrega 2 entran por aquí |
+| `src/features/raffle-prizes/schedule.ts` | El calendario, **puro**: expansión, forma canónica, solapes, los tres modos de la pantalla y el payload de la RPC |
+| `src/features/raffle-prizes/matching.ts` | La semántica de las cifras, la prioridad de cuatro sobre tres y **qué versión aplica a un sorteo**. Es el contrato que consumirá el motor |
+| `src/features/raffle-prizes/copy.ts` | **Todos** los textos: etiquetas, el resumen del calendario en español y la vista previa del premio |
+| `src/features/raffle-prizes/schemas.ts` | Zod para cliente y servidor, `PRIZE_LIMITS` y los mapeadores a los argumentos de las RPC |
+
+**Tres decisiones que conviene no deshacer sin leer D-199:**
+
+1. **El estado es parte de la versión.** Archivar y restaurar insertan versión, y el premio apunta a
+   la suya con una FK que **incluye el estado**: no puede haber un premio «vigente» apuntando a una
+   versión archivada.
+2. **El calendario se guarda canónico en filas**, nunca en JSON: el JSON solo es el parámetro de la
+   RPC. Por eso se puede saber que un guardado **no cambió nada** comparando dos representaciones.
+3. **La versión que aplica a un sorteo se calcula**, no se escribe: es la última publicada antes de la
+   hora original anunciada. De ahí sale sola la regla de «solo afecta a lo que no se ha jugado».
+
+**Lo que la Entrega 2 tiene que usar tal cual:** los esquemas y los mapeadores de `schemas.ts`, la
+lectura por PostgREST del premio con su versión vigente y sus períodos en **una** consulta —hay una
+prueba de base de datos que fija ese contrato— y `authorizeCapability` en cada Server Action nueva.
 
 ## 9. Configuración regional
 

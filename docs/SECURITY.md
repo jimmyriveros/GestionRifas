@@ -18,8 +18,12 @@
 - **§4.17** describe **la cola de avisos y su despachador** (`0054`, Etapa 5, D-191): una tabla que
   no lee nadie con sesión, un Route Handler que falla cerrado y un cifrado propio comprobado contra
   los vectores del RFC.
-- ⚠️ `0051`, `0052`, `0053` y `0054` están aplicadas **en local**. **El proyecto real no las tiene**:
-  promoverlas es la Etapa 7.
+- **§4.20** describe **los premios configurables por rifa y la capacidad central** (`0058`, D-199 y
+  D-200, BR-J01..BR-J14): tres tablas sin escritura directa, seis RPC autorizadas por
+  `raffles.prizes.manage` y un resolvedor de capacidades con espejo en la aplicación.
+  ⚠️ **Solo en local**: el proyecto real no tiene la `0058`.
+- ✅ `0051`, `0052`, `0053`, `0054` y `0055` están **en el proyecto real desde el 2026-09-12**
+  (Etapa 7, D-193), con `verify:remote` 24/24.
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
   `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042`, `0043`, `0044` y
   `0057`; los privilegios base se fijan en `0009`/`0010`.
@@ -103,6 +107,11 @@ defensas no se relajan: se duplican.
 | Cambiar estado de una rifa | ✓ | ✓ | ✗ |
 | Reabrir una rifa cerrada | ✓ | ✗ | ✗ |
 | Ver rifas | ✓ | ✓ | ✓ (lectura) |
+| **Premios configurables** (`0058`, §4.20) |
+| Crear, editar, archivar, restaurar y reordenar premios — por la **capacidad** `raffles.prizes.manage`, no por el rol (BR-J10) | ✓ | ✓ | ✗ |
+| Ver los premios de las rifas de su organización | ✓ | ✓ | ✓ (lectura) |
+| Ver el historial de un premio (BR-J12) | ✓ | ✓ | ✗ |
+| Cambiar el sistema de premios de una rifa (`prize_mode`, BR-J13) | ✗ | ✗ | ✗ — **ninguna sesión** |
 | **Boletas** |
 | Ver todas las boletas de la organización — **sin cliente, precio ni cobros**, por las proyecciones de §4.19 | ✓ | ✓ | ✗ |
 | Ver boletas propias | ✓ | ✓ | P |
@@ -868,7 +877,7 @@ bitácora anota **solo el instante programado**, ningún dato de cobro.
 sobre él. Hay una prueba que lo comprueba, porque la extensión la crea la migración y un privilegio
 por defecto distinto en el proyecto real no se vería de ninguna otra forma.
 
-#### Privacidad del push — **Etapas 4 y 5, todavía no existe**
+#### Privacidad del push — **implementado** (etapas 4 y 5, `0053` y `0054`)
 
 El cuerpo que sale hacia el servicio de push es **genérico** (BR-V05). No lleva cuentas, ni números,
 ni el mensaje personalizado, ni clientes, ni importes. La razón es la misma que impide al service
@@ -1104,8 +1113,41 @@ todo, como siempre (seed, auditoría interna).
 **Verificación.** `tests/db/admin-privacy.test.ts` —con sesiones reales del Dueño, del Administrador,
 de dos vendedores y de otra organización— y `tests/e2e/privacidad-admin.spec.ts` y
 `privacidad-admin-movil.spec.ts`, que comprueban que los valores sembrados como secreto **no aparecen**
-en el HTML, en la carga RSC ni en las respuestas de red. `verify:remote` no se ha ejecutado contra el
-proyecto real: `0057` no está aplicada allí.
+en el HTML, en la carga RSC ni en las respuestas de red. ✅ **En producción desde el 2026-09-15**:
+`0057` aplicada al proyecto real y `verify:remote` **27/27**.
+
+### 4.20 Premios configurables y la capacidad central (`0058`, BR-J01..BR-J14, D-199, D-200)
+
+> ⚠️ **Solo en local.** El proyecto real no tiene la `0058`.
+
+**La autorización deja de preguntar por el rol.** Las seis RPC preguntan
+`has_org_capability(org, 'raffles.prizes.manage')`, que comprueba la capacidad **y** que la
+membresía, el perfil y la organización sigan activos (BR-A04). La política inicial: el **Dueño**
+tiene todas las capacidades del catálogo, el **Administrador** recibe esta por compatibilidad y el
+**Vendedor** ninguna. Una capacidad que no está en el catálogo es «no» **también para el Dueño**.
+
+El espejo de la aplicación (`src/lib/auth/capabilities.ts` + `authorizeCapability`) es la primera
+línea, nunca la única. **Una prueba de base de datos compara las dos tablas rol a rol**: si alguien
+toca una sola, falla.
+
+**Por qué las tablas no admiten escritura directa.** Ninguna de las tres tiene política de `INSERT`,
+`UPDATE` ni `DELETE`, y `authenticated` solo tiene `SELECT`. Así el tope de premios, la versión nueva,
+la bitácora y el aviso **no se pueden saltar**: no son cosas que la pantalla se acuerda de hacer, son
+el único camino. Es el patrón de `0051`.
+
+| Superficie | Cómo se cierra |
+|---|---|
+| Una rifa de otra organización, o sin la capacidad | El **mismo** mensaje que una rifa que no existe: no se distingue «no existe» de «no es tuya» |
+| El historial de un premio ajeno | `raffle_prize_history` devuelve **cero filas**, igual que para un id inexistente |
+| Cambiar el sistema de premios de una rifa | Un disparador lo rechaza para **cualquier sesión**, y solo lo permite en borrador desde un proceso sin sesión (BR-J13) |
+| Activar una rifa configurable sin configuración válida | El mismo disparador la valida **en PostgreSQL**, no en React |
+| Dos personas editando el mismo premio | Control optimista con la versión vigente, más un cerrojo de aviso por rifa: la segunda recibe una frase que dice qué hacer |
+| Reescribir una versión ya publicada | Imposible: disparadores de inmutabilidad, también con `service_role` |
+| Las piezas internas y los disparadores | Sin `EXECUTE` para `authenticated` ni `anon` (I-078, I-020) |
+
+**Lo que no toca.** Ninguna política, tabla o función de la cartera (D-198): un premio no lleva
+cliente, precio de venta, abonos ni saldos, y una prueba comprueba que **ninguna función nueva**
+devuelve una columna de esa lista. El aviso que se escribe en la campana tampoco.
 
 ## 5. Protección de Server Actions y Route Handlers
 
@@ -1206,9 +1248,10 @@ usuario inactivo sigue sin poder ingresar ni operar (BR-A04/BR-A05).
 
 ---
 
-### 5.2 El dispatcher de Web Push — **PLANIFICADO** (BR-V08, D-187)
+### 5.2 El dispatcher de Web Push (BR-V08, D-187, D-191)
 
-> ⚠️ **NO EXISTE TODAVÍA.** Autorizado el 2026-09-11, se construye en la Etapa 5.
+> ✅ **EXISTE Y ESTÁ EN PRODUCCIÓN** desde el 2026-09-12 (`0054`, Etapa 5; promoción, Etapa 7, D-193).
+> Esta sección describía el plan y sigue describiendo lo construido.
 
 `POST /api/push/dispatch` vacía la cola `push_outbox`. **No usa sesión** y vive **fuera de
 `(protected)`**, porque un Route Handler **no hereda la guarda de su layout** (§5.0, D-060): la

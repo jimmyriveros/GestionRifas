@@ -4,9 +4,11 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.9
+- **Versión del documento:** 1.10
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-14 (§7 F5, F7, F8 y F9, §8 reglas 14 y 17 y §9.1: la cartera es
+- **Última actualización:** 2026-09-15 (§9.7: premios configurables por rifa, Entrega 1 de 5 —el
+  contrato, D-199 y D-200, migración `0058`, **solo en local**—; y §9.5, corregida: las siete etapas
+  del cobro están **en producción** desde el 2026-09-12). Antes, el 2026-09-14 (§7 F5, F7, F8 y F9, §8 reglas 14 y 17 y §9.1: la cartera es
   del vendedor —D-198, migración `0057`, **en producción desde el 2026-09-15**—). Antes, el 2026-09-13 (§9.6: el mensaje propio de «Resultados de la semana», con la
   migración `0056`, aplicada al proyecto real y desplegado ese mismo día en `6dd23e5`; antes, ese
   mismo día, «Resultados de la semana» del vendedor, ya
@@ -290,11 +292,12 @@ al final, de modo que no hay marcador que se pueda romper. Configurar es exclusi
 vendedor** —ni el personal ni un vendedor padre pueden hacerlo por él— y la pantalla está pensada
 para crecer con más secciones.
 
-### 9.5 Cuentas para recibir pagos y recordatorios de pago — **EN CONSTRUCCIÓN (6 de 7 etapas)**
+### 9.5 Cuentas para recibir pagos y recordatorios de pago — **EN PRODUCCIÓN (7 de 7 etapas)**
 
-> Autorizado por el dueño del producto el **2026-09-11** (D-185, D-186, D-187). Hechas las **etapas
-> 0 a 3**: contrato, base de datos (`0051`), configuración y formularios (D-188) y **el motor**
-> (`0052`, D-189), todas **en local**. Un vendedor guarda sus cuentas, programa sus recordatorios y
+> Autorizado por el dueño del producto el **2026-09-11** (D-185, D-186, D-187) y **terminado**: las
+> siete etapas están hechas y **en producción desde el 2026-09-12** (D-193, migraciones
+> `0051`–`0055`). Contrato, base de datos (`0051`), configuración y formularios (D-188) y **el motor**
+> (`0052`, D-189). Un vendedor guarda sus cuentas, programa sus recordatorios y
 > **a la hora que eligió recibe el aviso en la campana**, que lo lleva a copiar el mensaje.
 >
 > Desde la **Etapa 4** (`0053`, D-190) cada dispositivo puede además **registrarse para recibir
@@ -307,8 +310,9 @@ para crecer con más secciones.
 > retiran ese dispositivo; lo demás se reintenta con retroceso; y **perder el envío nunca toca el
 > aviso interno**.
 >
-> **Todo en LOCAL**: el proyecto real no tiene ninguna de las cuatro migraciones. Y el canal es
-> **opcional**: sin claves configuradas no se ofrece ni se envía nada, y la campana funciona igual.
+> **En producción** (`0051`–`0055`, D-193): la base real las tiene y los tres `pg_cron` corren cada
+> minuto. El canal es **opcional**: sin claves configuradas no se ofrece ni se envía nada, y la
+> campana funciona igual.
 > Reglas: BR-M01..BR-M09, BR-S01..BR-S14, BR-V01..BR-V08, **las veintinueve implementadas**.
 
 Dos capacidades nuevas del **vendedor**, dentro de `/seller/settings`, que hoy tiene una sola sección
@@ -346,8 +350,8 @@ acceden a sus cuentas ni a sus recordatorios. Cambiar eso exige una decisión ex
 | 3 | Motor de vencimientos, ocurrencias, campana y flujo copiar–abrir–atender ✅ **2026-09-12** (`0052`, D-189, en local) |
 | 4 | Suscripciones Web Push por dispositivo y extensión del service worker ✅ **2026-09-12** (`0053`, D-190, en local) |
 | 5 | Outbox, dispatcher, reintentos y limpieza de endpoints inválidos ✅ **2026-09-12** (`0054`, D-191, en local) |
-| 6 | Auditoría integrada de seguridad, rendimiento, UX y regresiones |
-| 7 | Promoción controlada a producción, **solo con autorización posterior** |
+| 6 | Auditoría integrada de seguridad, rendimiento, UX y regresiones ✅ **2026-09-12** (D-192) |
+| 7 | Promoción controlada a producción ✅ **2026-09-12** (`0055`, D-193) |
 
 ### 9.6 Resultados de la semana (`/seller/settings/weekly-results`) — desplegada, con el mensaje propio
 
@@ -378,6 +382,40 @@ todavía falte algún resultado.
 
 La imagen es la misma para todos los vendedores de una rifa: no lleva datos de nadie, y el mensaje
 propio no la cambia.
+
+---
+
+### 9.7 Premios configurables por rifa — **ENTREGA 1 DE 5: el contrato, solo en local**
+
+> Encargo «premios configurables por rifa», 2026-09-15 (D-199, D-200; reglas BR-J01..BR-J14;
+> migración **`0058`**). **No hay panel** (Entrega 2), **no hay motor de coincidencias** (Entrega 3),
+> **ninguna rifa cambió de sistema** y la migración **no está en el proyecto real**.
+
+Cada rifa podrá definir **sus** premios en vez de depender del único comparador fijo de siempre
+(BR-L06). Un premio dice **qué se gana** —dinero en pesos enteros o algo en especie, como una
+camioneta—, **con cuál de los dos números** de la boleta juega, **con cuántas cifras** —las cuatro, o
+las tres últimas—, **qué días** y **con qué lotería**, además de sus aclaraciones y su estado.
+
+| Lo que ya existe (Entrega 1) | Lo que todavía no |
+|---|---|
+| El modelo: identidad, versiones inmutables y períodos de calendario, con su historial completo | La pantalla donde se crean y se editan (Entrega 2) |
+| Las seis RPC —crear, publicar, archivar, restaurar, reordenar e historial— con control optimista | El motor que crea las coincidencias con estos premios (Entrega 3) |
+| La capacidad **`raffles.prizes.manage`**, en la aplicación y en PostgreSQL (D-200) | La configuración de la rifa de diciembre y la transición por rifa (Entrega 4) |
+| La auditoría semántica y el aviso a toda la organización cuando cambia una rifa activa | La promoción a producción (Entrega 5) |
+
+**El calendario es lo que más se usa y por eso es lo más acotado:** un período son fechas, días de la
+semana y lotería; se admiten **varias ventanas separadas**; **el domingo no se programa** porque no
+hay lotería; una **lotería fija** solo puede ponerse en su día; y un mismo día **no puede estar en dos
+períodos** del mismo premio.
+
+**Una rifa en borrador se edita libremente. Una activa también**, pero cada cambio afecta **solo a los
+sorteos que todavía no se jugaron**: el que ya pasó conserva las condiciones con las que se anunció.
+Cuando eso no se puede saber —porque falta la hora oficial de un sorteo de esta semana—, **no se
+guarda** y se dice por qué.
+
+**Quién lo ve y quién lo cambia:** lo cambian el Dueño y el Administrador, por capacidad y no por
+rol; lo **leen** todos los miembros de la organización, porque son condiciones hechas para contarle a
+un cliente. Nada de esto toca la cartera del vendedor (D-198).
 
 ---
 

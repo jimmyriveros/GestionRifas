@@ -1,6 +1,7 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.21 · **Actualizado:** 2026-09-14 (§4.10: la cartera es del vendedor, D-198). Antes,
+- **Versión:** 2.22 · **Actualizado:** 2026-09-15 (**§4.11**: premios configurables por rifa, Entrega
+  1, D-199 y D-200). Antes, el 2026-09-14 (§4.10: la cartera es del vendedor, D-198); antes,
   el 2026-09-13 (§4.9: el mensaje propio de «Resultados de la semana», D-197)
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - ⚠️ En la **§4.8** (cuentas de cobro y recordatorios de pago) conviven las dos cosas: las **etapas 1
@@ -928,6 +929,36 @@ y se excluye a propósito.
 
 ⚠️ **Una ruta retirada responde 404 con sesión, y sin sesión redirige al login.** El proxy exige sesión
 antes de resolver la ruta, así que desde fuera no se distingue una que no existe.
+
+### 4.11 Premios configurables por rifa (BR-J01..BR-J14; D-199, D-200)
+
+| Suite | Pruebas | Qué demuestra |
+|---|---|---|
+| `tests/db/raffle-prizes.test.ts` | **64** (nuevo) | Con sesiones reales del Dueño, del Administrador, de un vendedor y de otra organización. **BR-J10:** crea y modifica quien tiene la capacidad; el vendedor y otra organización reciben **el mismo mensaje** que ante una rifa inexistente; una cuenta desactivada deja de poder; la política de capacidades de PostgreSQL **se compara rol a rol con la de la aplicación**; una capacidad inventada es «no» hasta para el Dueño. **BR-J13:** ninguna sesión cambia `prize_mode`, una rifa heredada no admite premios, una configurable sin premios no se activa, acortar las fechas no deja un premio fuera y una rifa cerrada ya no se toca. **BR-J04/BR-J05:** domingo, lotería fija fuera de su día, el caso de la excepción —número semanal, lunes, Cundinamarca—, varias ventanas, días repetidos, fechas fuera de la rifa y períodos que no incluyen sus días. **BR-J02/BR-J06:** dinero contra especie —también con la service role—, cuatro cifras por defecto y los límites **en el borde**. **BR-J09:** versión nueva, inmutabilidad de la anterior, control optimista con **dos ediciones a la vez**, un guardado sin cambios que no escribe nada y la versión que aplica a un corte. **BR-J08:** duplicado exacto rechazado; el mismo calendario con otra recompensa, permitido. **BR-J11/BR-J12:** una fila de bitácora por guardado, historial con actor y fecha, borrador sin avisos, rifa activa que avisa **a cada membresía activa menos a quien lo hizo**, reordenar que no avisa y la bitácora del personal sin cartera. Y el catálogo: privilegios, RLS forzada, solo políticas de `SELECT`, índices y la **regresión de D-198** |
+| `tests/unit/raffle-prizes.test.ts` | **50** (nuevo) | El calendario puro —un día, un rango, una recurrencia, varias ventanas, forma canónica y solapes—, la semántica de `0046`, `046`, `1046` y `46`, la prioridad de cuatro cifras sobre tres, **qué versión aplica a un sorteo**, el resumen en español —incluida la frase exacta del encargo—, los esquemas **sin organización, actor ni rol** y con las cifras en cuatro por omisión, la capacidad por rol y el texto del aviso, que no lleva clientes ni precios y no enlaza a ninguna pantalla |
+
+**Dos trampas que costaron una pasada en rojo, y que valen para cualquier suite de premios:**
+
+1. **El detector de duplicados no mira el nombre.** Dos premios con las mismas condiciones y la misma
+   recompensa son el mismo premio, aunque se llamen distinto (BR-J08): una suite que crea varios
+   premios «iguales cambiando el título» se cae sola. Aquí cada premio vale un peso más que el
+   anterior, y las dos pruebas que necesitan un duplicado fijan el importe a mano.
+2. **La programación de loterías es NACIONAL.** Un sorteo sembrado como `cancelled` para probar
+   BR-J05 afecta a **todas** las rifas, no solo a la de esa prueba: va en una fecha lejos de la
+   ventana común y se borra en cuanto se comprueba.
+
+⚠️ **La limpieza no puede ser un `delete` normal.** Las versiones y sus períodos son inmutables
+también para la service role, y no hay privilegio de `DELETE`: el `afterAll` borra por PostgreSQL con
+`session_replication_role = replica` dentro de una transacción. Sin eso, cada pasada dejaría premios,
+avisos y bitácora.
+
+**Lo que estas suites no pueden ver, y cómo se cubrirá:**
+
+| Hueco | Cobertura |
+|---|---|
+| La pantalla de premios | No existe (Entrega 2). Habrá E2E cuando exista |
+| Que el motor use estos premios | No existe (Entrega 3). Lo que sí está probado es la **regla** —cifras, prioridad y versión aplicable— como funciones puras |
+| Que dos premios distintos se sumen en un mismo sorteo | **Sin decidir**: es la ambigüedad **A7**, y la Entrega 3 no se construye sin respuesta |
 
 ### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 7 pruebas)
 

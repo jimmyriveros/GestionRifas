@@ -10634,6 +10634,206 @@ Migración **`0057`**. Reglas **BR-Q01..BR-Q10** (`BUSINESS_RULES` §12.h) y not
 `PHASE_STATUS` y `HANDOFF`. **En producción desde el 2026-09-15**: `0057` aplicada al proyecto real justo antes del código, y `46b7cf0` desplegado (`DEPLOYMENT` §2.2 y §3.2.j).
 
 ---
+
+## D-199 — Premios configurables por rifa: identidad, versiones inmutables y un calendario canónico
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa», Entrega 1 de
+5, 2026-09-15)
+
+**Contexto.** Hasta hoy los premios de una rifa **no existen como dato**: el único comparador es el
+fijo de `match_lottery_result` (0036), que mira el número diario contra cinco loterías y el semanal
+contra Boyacá (BR-L06). El usuario pide que cada rifa defina **sus** premios: nombre, categoría
+informativa, recompensa en dinero o en especie, cuál de los dos números juega, cuántas cifras,
+calendario —una fecha, un rango, una repetición o varias ventanas—, lotería correspondiente o fija,
+aclaraciones, estado e **historial completo**. Esta entrega deja el **contrato**: modelo, reglas,
+autorización, auditoría y avisos. **No** construye el panel (Entrega 2) ni el motor de coincidencias
+(Entrega 3).
+
+### Decisión 1 — tres tablas: identidad, versión y períodos, y el estado también es versión
+
+`raffle_prizes` es la **identidad** (rifa, orden, estado y puntero a la versión vigente);
+`raffle_prize_versions`, las **condiciones inmutables** de cada guardado; y
+`raffle_prize_schedule_rules`, los **períodos** de esa versión. Archivar y restaurar **también
+insertan versión**, con `status` dentro: así el historial dice cuándo dejó de aplicar un premio y la
+versión que le toca a un sorteo se decide con **una sola regla** (Decisión 5), sin una segunda tabla
+de estados con sus propias fechas.
+
+El puntero `(current_version_id, id, status)` referencia `(id, prize_id, status)` de la versión, así
+que **el estado del premio es siempre el de su versión vigente** y el puntero no puede apuntar a la
+versión de otro premio: lo garantiza una FK, no una comprobación de la aplicación. El ciclo se cierra
+con la FK versión → premio **diferida**, porque la versión nace antes que el premio.
+
+### Decisión 2 — el calendario se guarda canónico, y no en JSON
+
+Cada período es una fila con **fecha inicial, fecha final, conjunto de días ISO 1..6, modalidad de
+lotería y lotería fija cuando corresponde**. Sin cron, sin RRULE opaco y sin JSON sin estructura: el
+JSON solo viaja como parámetro de la RPC. Se guarda **canónico** —días ordenados y sin repetir,
+períodos ordenados—, y eso es lo que permite saber que un guardado **no cambió nada** comparando dos
+representaciones.
+
+**El domingo no se programa** porque no hay lotería soportada ese día, y lo impide un CHECK. **Cada
+día elegido tiene que caer al menos una vez** dentro del período: «del 1 al 2 de diciembre, los
+sábados» no es un calendario, es un error de dedo. **Dos períodos del mismo premio no pueden
+compartir un día**: un día repetido no dice con qué lotería ni cuántas veces cuenta.
+
+### Decisión 3 — la lotería fija solo en su día, y por eso coincide con la correspondiente
+
+La fecha de referencia **es** el día nominal del sorteo (D-143), así que en una fecha válida la
+lotería fija y la correspondiente son la misma. La modalidad `fixed` no cambia el resultado: **acota
+los días válidos** y deja escrita la intención. Un CHECK exige que los días del período sean
+exactamente el día nominal de esa lotería, y la publicación rechaza un sorteo **futuro** que la
+programación oficial ya dio por **cancelado**: no va a tener resultado. Lo pasado no se valida —no se
+puede arreglar— para que reabrir una rifa cerrada no quede bloqueado para siempre.
+
+La categoría **no decide nada** (BR-J03): «Premio semanal, un lunes, cuatro cifras, con Cundinamarca»
+es válido, y hay una prueba con ese caso exacto.
+
+### Decisión 4 — cuatro cifras por defecto, y las cuatro mandan sobre las tres
+
+`four` es igualdad textual exacta con el número mayor; `last_three` compara las tres últimas y exige
+un número de **al menos tres caracteres**: `0046` y `1046` y `046` entran, `46` no. Nunca se castea,
+ni se rellena con ceros, ni se recorta (BR-N03, BR-L06).
+
+Para **una boleta y un resultado**, si hay una coincidencia elegible de cuatro cifras **no se lleva
+ningún premio de tres cifras** de ese resultado, ni siquiera por el otro número. El valor económico
+**no decide** nada. Es una función pura probada (`resolvePrizeLinks`), lista para el motor de la
+Entrega 3.
+
+### Decisión 5 — la versión que aplica a un sorteo es la última publicada antes de su corte
+
+El corte de una ocurrencia es la **hora original anunciada** del sorteo (`original_scheduled_at`),
+aunque después se aplace. Aplica la **última versión publicada antes** de ese instante. De ahí salen
+solas las tres reglas del encargo: una rifa en borrador se edita libremente; una activa recibe
+versiones nuevas que **solo afectan a lo que no se ha jugado**; y **nunca** se reescribe la versión de
+una ocurrencia bloqueada, porque no hay nada que reescribir.
+
+**Dónde se falla de forma segura.** La única duda posible es una ocurrencia **de una semana que ya
+empezó** cuyo corte no conocemos: ahí la publicación se rechaza y dice qué falta. Una semana que no ha
+empezado no puede haberse jugado, porque la fecha de referencia es el día nominal de la **misma
+semana** que el sorteo (D-143); suponerlo no es reinterpretar la regla, es aplicarla.
+
+### Decisión 6 — duplicados: se rechaza el exacto; dos premios distintos se suman
+
+Un **duplicado exacto** —mismo número, mismas cifras, misma recompensa y exactamente las mismas
+fechas que otro premio vigente de la rifa— se rechaza y se dice con cuál choca. El **nombre no
+cuenta**: dos premios que pagan lo mismo en los mismos sorteos son el mismo premio escrito dos veces.
+
+⚠️ **Lo que queda abierto, dicho a propósito.** Dos premios **distintos** que coinciden en algunos
+días —como el de fin de semana y el especial semanal de la configuración de aceptación, que se cruzan
+los sábados 5 y 19 de diciembre— **se suman**: una fotografía puede relacionarse con varios premios,
+y el encargo solo define una exclusión, la de cuatro cifras sobre tres. Esta entrega **no implementa
+ninguna resolución** para ese cruce, porque no hay motor todavía; la pregunta —¿el premio diario se
+paga además del principal el 21 de diciembre?— es del dueño del producto y está en la tabla de
+ambigüedades como **A7**. Sin su respuesta no se construye la Entrega 3.
+
+### Decisión 7 — seis RPC, y ninguna recibe organización ni actor
+
+`create_raffle_prize`, `publish_raffle_prize_version`, `archive_raffle_prize`,
+`restore_raffle_prize`, `reorder_raffle_prizes` y `raffle_prize_history`. Las tres tablas conceden
+**solo `SELECT`** a `authenticated` y no tienen ninguna política de escritura, así que las RPC son la
+**única puerta**: el tope, la versión, la bitácora y el aviso son inevitables en vez de ser cosas que
+la pantalla se acuerda de hacer (el patrón de `0051`).
+
+**Control optimista:** quien publica manda la versión que estaba viendo; si ya no es la vigente, se
+rechaza con una frase que dice qué hacer. Un guardado **sin cambios** no crea versión, ni bitácora, ni
+aviso: devuelve la vigente. **Reordenar no crea versión** y no avisa: es presentación.
+
+### Decisión 8 — la transición es por rifa, y ninguna sesión la decide
+
+`raffles.prize_mode` nace en `legacy` para **todas** las rifas, también las existentes: la columna se
+añade con un valor por defecto constante, sin reescribir la tabla ni tocar una sola fila. Un
+disparador impide que **cualquier sesión** cambie el modo —da igual el rol— y solo lo permite en
+**borrador**, con un proceso sin sesión; una rifa con premios no vuelve al sistema de siempre.
+Activar una rifa configurable exige **configuración válida**, y eso se comprueba **en PostgreSQL**:
+al menos un premio vigente, calendarios dentro de las fechas, sin días repetidos y sin duplicados
+exactos. Acortar las fechas de una rifa **no puede dejar** el calendario de un premio fuera.
+
+El cambio de una rifa real al motor configurable **no ocurre aquí**: es la Entrega 4 y necesita
+autorización propia.
+
+### Decisión 9 — un aviso semántico por conjunto de cambios, y una fila de bitácora por guardado
+
+En una rifa **activa**, un cambio **material** —recompensa, número, cifras, fechas o lotería
+efectivas, estado o aclaraciones— escribe **un** aviso por membresía activa de la organización,
+excepto a quien lo hizo (la convención de BR-E12). El nombre y la categoría **no** son materiales, y
+las fechas se comparan **expandidas**: partir un período en dos no avisa. La idempotencia es un índice
+único por `(destinatario, versión)`, y el texto vive en `features/notifications/text.ts` (I-030). **No
+lleva enlace**: el vendedor todavía no tiene una pantalla de premios, y llevarlo a una ruta
+administrativa sería mandarlo a un «no encontrado».
+
+La bitácora recibe **una acción semántica por guardado** —`raffle_prize.create`, `.publish`,
+`.archive`, `.restore`, `.reorder`—, con rifa, premio, versión anterior y nueva y un resumen seguro;
+las tablas nuevas **no llevan** el disparador genérico de auditoría, que habría escrito además una
+fila por cada inserción. El historial funcional sale de **las versiones**, no de `audit_logs`, y
+`admin_audit_log` gana la entidad `raffle_prize` con su lista blanca de claves (D-198).
+
+### Decisión 10 — límites explícitos, y los mismos en Zod y en PostgreSQL
+
+Nombre 2–80, descripción en especie 2–160, aclaraciones ≤ 1.000, premio en dinero 1–10.000.000.000,
+**10 períodos** por premio y **50 premios vigentes** por rifa. Están en `PRIZE_LIMITS` y en los CHECK
+de la migración, y una prueba de base de datos los comprueba **en el borde**.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Guardar el calendario como RRULE o como JSON libre | El encargo lo prohíbe, y una regla dentro de una cadena opaca no se puede validar ni consultar |
+| Una tabla de estados aparte para archivar y restaurar | Dos historiales que hay que cruzar para saber qué aplicaba; con el estado en la versión, la regla del corte lo responde sola |
+| Reescribir la versión vigente al editar | Rompe el historial y haría imposible saber con qué condiciones se jugó un sorteo |
+| Decidir la vigencia con una fecha «efectiva desde» escrita a mano | Sería un dato que alguien puede equivocar; el instante de publicación no |
+| Ampliar `tickets_select` o una vista para leer premios | Los premios no son cartera, pero la lección de D-092 y D-198 vale igual: una proyección o una política propia, nunca ampliar la de otro |
+| Activar el motor configurable en las rifas existentes | El encargo lo prohíbe expresamente: ninguna migración cambia el modo de una rifa |
+
+### Consecuencia
+
+Migración **`0058`**. Reglas **BR-J01..BR-J14** (`BUSINESS_RULES` §12.i), capacidad en **D-200**.
+`SECURITY` §2 y §4.20, `DATA_MODEL` §3.3, §4.20 y §6.g.9, `ARCHITECTURE` §7.3 y §8.27, `MASTER_SPEC`
+§9.7, `UX_COPY_GUIDELINES` (Anexos A y B), `TESTING` §4.11, `TEST_RESULTS`, `PHASE_STATUS` y
+`HANDOFF`. **Solo en local:** el proyecto real no tiene la `0058`, y promoverla es parte de la Entrega
+5. **Sin panel y sin motor**: son las entregas 2 y 3, cada una con su autorización.
+
+## D-200 — La autorización deja de preguntar por el rol: una capacidad, dos espejos
+
+**Fase:** mantenimiento posterior a la Fase 9 (Entrega 1 de premios configurables, 2026-09-15)
+
+**Contexto.** El encargo pide una **capacidad central estable** —`raffles.prizes.manage`— en vez de
+comprobaciones `role === 'admin'` repartidas, y que el futuro módulo de permisos pueda reemplazar el
+resolvedor **sin reescribir las Server Actions ni las RPC**. Hasta hoy la autorización de este
+proyecto es por rol: `authorizeAction(['owner', 'admin'])` en la aplicación y `is_org_staff(org)` en
+la base.
+
+**Decisión.** Una capacidad se resuelve en **dos espejos**, y los dos son obligatorios:
+
+* **En PostgreSQL:** `has_org_capability(org, capability)`, que comprueba de una vez la capacidad y
+  que la membresía, el perfil y la organización sigan activos (BR-A04). La política vive en
+  `app_capability_catalog()` y `app_role_default_capabilities(role)`: el **Dueño** tiene todas las del
+  catálogo, el **Administrador** recibe `raffles.prizes.manage` por compatibilidad y el **Vendedor**
+  ninguna. Una capacidad que **no está en el catálogo** es «no» para todo el mundo, también para el
+  Dueño: un nombre mal escrito falla cerrado.
+* **En la aplicación:** `src/lib/auth/capabilities.ts` con la misma tabla, y
+  `authorizeCapability(capability)` en `lib/auth/guards.ts`, que es `authorizeAction` con la pregunta
+  cambiada. Quien la use no vuelve a escribir un rol.
+
+**Por qué dos y no uno.** La comprobación de la aplicación es la primera línea y nunca la única
+(`SECURITY` §1): la que autoriza de verdad es la RPC. Tenerlas separadas es defensa en profundidad —un
+error en una no abre la otra—, y el precio es que puedan separarse; por eso **una prueba de base de
+datos compara las dos tablas rol a rol** y falla si alguien toca una sola.
+
+**Qué cambia el día que exista el módulo de permisos.** Se reescribe el cuerpo de
+`has_org_capability` —por ejemplo, contra una tabla de permisos por membresía— y el resolvedor de
+TypeScript. **Ninguna RPC y ninguna Server Action cambian**, porque ninguna sabe qué rol tiene quien
+llama.
+
+**Alternativas descartadas.** (a) Seguir con `is_org_staff` y añadir un `role === 'admin'` en la
+pantalla: es exactamente lo que el encargo prohíbe. (b) Una tabla `role_capabilities` ahora: es el
+módulo de permisos completo, que no está autorizado; la función es el mismo contrato con una
+migración menos. (c) Que la aplicación pregunte la capacidad a la base en cada acción: una ida y
+vuelta más para repetir lo que la RPC ya comprueba, y sin ganar defensa en profundidad.
+
+**Consecuencia.** BR-J10. `SECURITY` §2 y §4.20, `ARCHITECTURE` §8.27. Hoy la usan las seis RPC de
+premios; la siguiente capacidad se añade al catálogo y a los dos espejos, no a una pantalla.
+
+---
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.
@@ -10646,3 +10846,4 @@ No bloquean ninguna fase; se resolvieron con la opción más segura y podrán aj
 | A4 | ¿Se notifica por correo al invitar usuarios? | Sí, mediante Supabase Auth; sin plantillas personalizadas en el MVP | Fase 3 |
 | A5 | ¿Cuántas rifas activas simultáneas? | Varias permitidas; el dashboard muestra la más reciente activa | Fase 6. Para **loterías**, D-140 no elige una: coinciden todas las `active`/`closed` cuya ventana cubre la fecha de referencia. Para el **catálogo público**, D-159 tampoco adivina: la rifa se configura (BR-K06). |
 | A6 | ¿La imagen de «Resultados de la semana» debe exigir que la semana caiga dentro de las fechas de la rifa del catálogo? | No se comprueba: enseña los resultados nacionales de la última semana terminada con el nombre de la rifa configurada. En la primera semana de una rifa nueva, sale la semana anterior con su nombre | D-194, Decisión 3 |
+| **A7** | **Dos premios distintos que caen en el mismo sorteo con las mismas cifras, ¿se pagan los dos o uno reemplaza al otro?** Pasa en la propia configuración de aceptación: el premio diario y el principal el lunes 21 de diciembre, y el de fin de semana y el especial semanal los sábados 5 y 19 | **Se suman**, que es lo único que el encargo define —«una fotografía puede relacionarse con varios premios»— y lo que deja válida esa configuración. La Entrega 1 **no implementa ninguna otra resolución** y tampoco bloquea el cruce: solo rechaza el duplicado exacto. **Bloqueante para la Entrega 3**: el motor no se construye sin esta respuesta | D-199, Decisión 6 |

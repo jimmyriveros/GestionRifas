@@ -1,6 +1,8 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.21 · **Estado:** normativo · **Actualizado:** 2026-09-14 (§12.h: la cartera es del
+- **Versión:** 1.22 · **Estado:** normativo · **Actualizado:** 2026-09-15 (§12.i: premios
+  configurables por rifa —BR-J01..BR-J14, D-199 y D-200, migración `0058`, **solo en local**—; antes,
+  el 2026-09-14, §12.h: la cartera es del
   vendedor —BR-Q01..BR-Q10 nuevas y notas de D-198 en las reglas que acota—; antes, el 2026-09-13,
   §12.g: el mensaje propio de
   «Resultados de la semana» —BR-H09 y BR-H10 nuevas, BR-H06 y BR-H08 corregidas por D-197—; antes,
@@ -10,10 +12,12 @@
 - Columna **Capas**: `C` = cliente (UX), `S` = servidor (Server Action/RPC), `D` = base de datos
   (restricción, trigger o política). Una regla crítica **siempre** incluye `D`.
 - Una regla se presume **implementada y vigente** salvo que su sección lo diga. Las secciones
-  **12.d (BR-M)**, **12.e (BR-S)** y **12.f (BR-V)** se construyen por etapas (D-185) y llevan una
-  columna **Estado**: `✅ 0051` es lo que la **Etapa 1** dejó en la base de datos y `✅ Etapa 2` lo que
-  la pantalla ya usa —todo **en local; no en el proyecto real**—, y el resto nombra la etapa que
-  falta.
+  **12.d (BR-M)**, **12.e (BR-S)** y **12.f (BR-V)** se construyeron por etapas (D-185) y conservan su
+  columna **Estado**, que dice en qué etapa nació cada regla. ✅ **Las veintinueve están implementadas
+  y en producción desde el 2026-09-12** (D-193, migraciones `0051`–`0055`): la columna es historia,
+  no una advertencia.
+- La sección **12.i (BR-J)** es la única que describe algo que **todavía no está en el proyecto
+  real**: la migración `0058` vive **solo en local** y su panel y su motor son las entregas 2 y 3.
 
 ---
 
@@ -703,9 +707,9 @@ WhatsApp**: se abre un enlace `wa.me` y el vendedor pulsa Enviar (D-176).
 
 ## 12.d Cuentas para recibir pagos (BR-M)
 
-> **COMPLETA: base de datos (`0051`, Etapa 1) y pantalla (Etapa 2, D-188).** Un vendedor ya puede
-> agregar, corregir, ordenar y archivar sus cuentas desde `/seller/settings/accounts`. **Todo está en
-> LOCAL; el proyecto real no tiene la migración**, y promoverla es la Etapa 7.
+> **COMPLETA Y EN PRODUCCIÓN desde el 2026-09-12** (`0051`, Etapa 1; pantalla, Etapa 2, D-188;
+> promoción, Etapa 7, D-193). Un vendedor agrega, corrige, ordena y archiva sus cuentas desde
+> `/seller/settings/accounts`, también en el proyecto real.
 >
 > Dos cosas salieron de implementarlo y conviene leerlas antes de tocar nada: **el tope de cinco no
 > es un trigger, es la forma de la tabla** (una cuenta activa ocupa una posición del 1 al 5, única
@@ -742,13 +746,10 @@ más significado.
 > la campana**, que lleva a la pantalla donde copia el mensaje, abre su grupo y lo marca como
 > atendido.
 >
-> **DOS MATICES QUE LA COLUMNA «ESTADO» NO CABE A DECIR.** BR-S11 y BR-S12 mencionan el **push**:
-> esa mitad **no existe** —es la Etapa 5— y lo que sí existe es la campana, que es la fuente durable
-> y la que el contrato hace obligatoria (BR-V01). Y la pantalla **sigue sin enseñar la fecha del
-> próximo envío**, ahora por decisión y no por falta: el reloj se mueve por debajo (D-189,
-> Decisión 9).
+> **UN MATIZ QUE LA COLUMNA «ESTADO» NO CABE A DECIR.** La pantalla **sigue sin enseñar la fecha del
+> próximo envío**, por decisión y no por falta: el reloj se mueve por debajo (D-189, Decisión 9).
 >
-> Todo en **local**; el proyecto real no lo tiene.
+> ✅ **En producción desde el 2026-09-12** (Etapa 7, D-193), con el push de las etapas 4 y 5 incluido.
 
 Cada vendedor programa mensajes semanales de cobro. La aplicación se los recuerda a la hora que él
 eligió y le prepara el texto; **él** lo pega en su grupo de WhatsApp y lo envía.
@@ -784,9 +785,10 @@ eligió y le prepara el texto; **él** lo pega en su grupo de WhatsApp y lo env�
 > al teléfono con la aplicación cerrada. El cifrado es propio, sobre el `crypto` de Node y **sin
 > ninguna dependencia**, comprobado contra los vectores publicados en el RFC 8291.
 >
-> **Todo en local**, y **opcional hasta que se configura**: sin claves VAPID no se ofrecen los
-> avisos ni se envía nada, y sin secreto el despachador falla cerrado. La campana interna no
-> depende de nada de esto (BR-V01).
+> ✅ **En producción desde el 2026-09-12** (Etapa 7, D-193), y **opcional hasta que se configura**:
+> sin claves VAPID no se ofrecen los avisos ni se envía nada, y sin secreto el despachador falla
+> cerrado. La campana interna no depende de nada de esto (BR-V01). Lo único sin comprobar es que un
+> aviso llegue a un teléfono de verdad, que necesita un dispositivo.
 >
 > La **campana ya existía** desde D-093 y estas reglas no la cambian: describen cómo se le añade un
 > canal encima.
@@ -858,6 +860,43 @@ pantalla. Alcance **B**, elegido por el usuario: tampoco ven dinero ni ganancias
 **Reversible.** Volver a dar acceso es una migración nueva y cambios explícitos de aplicación; el
 procedimiento está en D-198. Llevan nota de lo que esta sección acota: BR-E08, BR-G12, BR-N12, BR-N13,
 BR-N14, BR-I10, BR-I13, BR-I14, BR-B03, BR-P13, BR-F10, BR-F16, BR-D04, BR-T01 y BR-T04.
+
+---
+
+## 12.i Premios configurables por rifa (BR-J)
+
+Mantenimiento posterior a la Fase 9 (2026-09-15, D-199 y D-200, migración `0058`). Cada rifa define
+**sus** premios: qué se gana, con qué número de la boleta, con cuántas cifras, qué días y con qué
+lotería. Hasta aquí el único comparador era el fijo de BR-L06, que no se toca.
+
+**La letra es `J`** de «**j**uega»: cada premio juega con un número y una lotería. `P`, `R` y `K` ya
+nombran precios, rifas y catálogo.
+
+> **ENTREGA 1 DE 5: el contrato.** Existen el modelo, las reglas, la autorización, la auditoría y los
+> avisos, **solo en local**. **No existe el panel** (Entrega 2) **ni el motor de coincidencias**
+> (Entrega 3): hoy ninguna coincidencia mira estos premios, y las rifas siguen todas en modo
+> heredado. La columna **Estado** dice qué entrega construye cada regla.
+
+| ID | Regla | Capas | Estado |
+|----|-------|-------|--------|
+| BR-J01 | Un premio es una **identidad estable** con **versiones inmutables**: cada guardado inserta una versión nueva y ninguna anterior se reescribe. **Nada se borra**: un premio se archiva, y archivar y restaurar también son versiones. | S, D | ✅ Entrega 1 |
+| BR-J02 | Una versión define **título**, **categoría**, **recompensa** —dinero en pesos enteros **o** premio en especie con su descripción—, **cuál de los dos números de la boleta juega**, **cuántas cifras**, su **calendario**, su **lotería** y sus **aclaraciones**. Dinero y especie son excluyentes, y lo impone un CHECK. | C, S, D | ✅ Entrega 1 |
+| BR-J03 | **La categoría es informativa.** Sirve para presentar y para plantillas; **nunca** decide el número, las cifras, el calendario ni la lotería. «Premio semanal, un lunes, cuatro cifras, con Cundinamarca» es válido. | C, S, D | ✅ Entrega 1 |
+| BR-J04 | El calendario son **períodos canónicos**: fecha inicial, fecha final y un conjunto de **días ISO 1..6**, ordenado y sin repetir. **El domingo no se programa** mientras no haya lotería ese día. Cada día elegido tiene que **caer al menos una vez** dentro del período, **dos períodos del mismo premio no pueden compartir un día** y todos quedan **dentro de las fechas de la rifa**. Máximo **10 períodos** por premio. | C, S, D | ✅ Entrega 1 |
+| BR-J05 | La lotería es **la correspondiente de cada día** (lunes Cundinamarca … sábado Boyacá, BR-L01) o una **fija**, que solo puede publicarse en **su** día nominal. Como la fecha de referencia **es** ese día (D-143), en una fecha válida las dos dan la misma lotería. Un sorteo **futuro** que la programación oficial da por **cancelado** se rechaza: no va a tener resultado. | C, S, D | ✅ Entrega 1 |
+| BR-J06 | **Cuatro cifras por defecto.** `four` es igualdad textual exacta con el número mayor; `last_three` compara las **tres últimas** y exige un número de al menos **tres caracteres**. `0046` ≠ `46`; `046` y `1046` sí participan en las tres últimas. Nunca se castea, ni se rellena con ceros, ni se recorta (BR-N03, BR-L06). | C, S, D | ✅ Entrega 1 (regla) · Entrega 3 (motor) |
+| BR-J07 | **Las cuatro cifras mandan sobre las tres.** Para una misma boleta y un mismo resultado, una coincidencia elegible de cuatro cifras deja fuera **todos** los premios de tres cifras de ese resultado. El **valor económico no decide nada**. Dos premios de la **misma** especificidad se conservan los dos (D-199, Decisión 6; pendiente **A7**). | S, D | ✅ Entrega 1 (regla) · Entrega 3 (motor) |
+| BR-J08 | **Un duplicado exacto se rechaza**: otro premio vigente de la rifa con el mismo número, las mismas cifras, la misma recompensa y exactamente las mismas fechas. El **nombre no cuenta**. El mensaje dice con cuál choca. | S, D | ✅ Entrega 1 |
+| BR-J09 | **Una rifa en borrador se edita libremente.** En una **activa**, una versión nueva solo afecta a lo que todavía no se jugó: aplica **la última versión publicada antes del corte**, que es la **hora original anunciada** del sorteo, aunque después se aplace. La versión de una ocurrencia bloqueada **no se reescribe jamás**. Si el corte de una ocurrencia de una semana **ya empezada** no se conoce, la publicación **se rechaza** en vez de suponer. Una rifa **cerrada o anulada no se edita**, y una **activa** conserva al menos un premio vigente. | C, S, D | ✅ Entrega 1 |
+| BR-J10 | Configurar premios exige la capacidad **`raffles.prizes.manage`**: el **Dueño** activo siempre la tiene, el **Administrador** activo la recibe por la política inicial y el **Vendedor nunca**. Se comprueba en la aplicación **y** en PostgreSQL, con la organización y el actor **de la sesión**. Las tres tablas **no admiten escritura directa**: las seis RPC son la única puerta. | C, S, D | ✅ Entrega 1 |
+| BR-J11 | En una rifa **activa**, un cambio **material** —recompensa, número, cifras, fechas o lotería efectivas, estado o aclaraciones— escribe **un aviso por membresía activa** de la organización, menos a quien lo hizo. El **nombre y la categoría no son materiales**, un borrador **no avisa** y **reordenar tampoco**. El aviso es **idempotente**, identifica la rifa y el premio, **no lleva clientes, pagos, saldos ni precios de venta** y **no enlaza a ninguna pantalla** mientras el vendedor no tenga una. | S, D | ✅ Entrega 1 |
+| BR-J12 | **Una acción semántica de bitácora por guardado** (`raffle_prize.create`, `.publish`, `.archive`, `.restore`, `.reorder`), con rifa, premio, versión anterior y nueva y un resumen seguro. El **historial funcional sale de las versiones**, no de `audit_logs`, se lee paginado y **solo con la capacidad**; un actor nulo se presenta como **«Sistema»**. | S, D | ✅ Entrega 1 |
+| BR-J13 | **La transición es por rifa.** `raffles.prize_mode` nace `legacy` para todas, también las existentes; **ninguna sesión puede cambiarlo** y solo cambia en **borrador**. Activar una rifa configurable exige configuración válida **comprobada en PostgreSQL**, y **acortar las fechas** de una rifa no puede dejar el calendario de un premio fuera. Cambiar una rifa real al motor configurable es una decisión posterior. | S, D | ✅ Entrega 1 · Entrega 4 (cambio real) |
+| BR-J14 | Los **miembros activos** de la organización **leen** los premios de sus rifas, como leen las rifas. Los límites son explícitos y los mismos en la aplicación y en la base: título 2–80, descripción en especie 2–160, aclaraciones ≤ 1.000, premio en dinero 1–10.000.000.000, 10 períodos por premio y 50 premios vigentes por rifa. | C, S, D | ✅ Entrega 1 |
+
+**Lo que esta entrega NO hace, dicho para que no se lea de más:** no busca coincidencias con estos
+premios, no reprocesa resultados, no reconstruye premios históricos a partir del comparador fijo, no
+cambia ni una fila de `lottery_ticket_matches` y no activa el motor configurable en ninguna rifa.
 
 ---
 

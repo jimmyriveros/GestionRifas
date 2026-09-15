@@ -29,6 +29,17 @@ const weekdayFormatter = new Intl.DateTimeFormat('es-CO', {
   weekday: 'long',
 })
 
+// Dia, mes largo y ano por separado, para poder escribir un rango sin repetir
+// el mes ni el ano: «del 1 al 5 de diciembre». El mes LARGO no se abrevia, asi
+// que no depende de la version de CLDR (la trampa de D-195 era con las
+// abreviaturas).
+const longDateFormatter = new Intl.DateTimeFormat('es-CO', {
+  timeZone: BOGOTA_TZ,
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
+
 // Hora de reloj, sin dia ni zona: la usa `formatClockEs` para un `time` de
 // PostgreSQL. En UTC a proposito, para que la hora no se desplace.
 const clockFormatter = new Intl.DateTimeFormat('es-CO', {
@@ -97,6 +108,23 @@ export function formatDateTimeEs(value: string | Date): string {
 /** Solo la hora en America/Bogota. Un instante, no un dia calendario. */
 export function formatTimeEs(value: string | Date): string {
   return timeFormatter.format(toBogotaDate(value))
+}
+
+/**
+ * Las tres piezas de una fecha larga: «21», «diciembre» y «2026». Quien escribe
+ * un rango las compone sin repetir el mes cuando es el mismo (D-199).
+ */
+export function longDatePartsEs(value: string | Date): { day: string; month: string; year: string } {
+  const parts = longDateFormatter.formatToParts(toBogotaDate(value))
+  const find = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? ''
+  return { day: find('day'), month: find('month'), year: find('year') }
+}
+
+/** Una fecha larga completa: «21 de diciembre de 2026». */
+export function formatLongDateEs(value: string | Date): string {
+  const { day, month, year } = longDatePartsEs(value)
+  return `${day} de ${month} de ${year}`
 }
 
 /**

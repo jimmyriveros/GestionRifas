@@ -129,6 +129,11 @@ const CHECKS: Check[] = [
               'admin_audit_log', 'admin_list_tickets', 'admin_lottery_matches',
               'admin_ticket_bulk_eligibility', 'admin_ticket_detail',
               'admin_ticket_inventory', 'admin_update_ticket_numbers',
+              -- 0058 (D-199, D-200): las seis de premios configurables, que
+              -- autorizan por la capacidad raffles.prizes.manage
+              'archive_raffle_prize', 'create_raffle_prize',
+              'publish_raffle_prize_version', 'raffle_prize_history',
+              'reorder_raffle_prizes', 'restore_raffle_prize',
               -- Las RPC que llama la aplicacion
               'approve_tickets', 'bulk_assign_tickets', 'bulk_cancel_tickets',
               'bulk_change_ticket_seller', 'bulk_create_tickets', 'bulk_delete_tickets',
