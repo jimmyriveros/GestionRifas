@@ -398,18 +398,27 @@ test.describe('Paz y salvo — portal administrativo', () => {
     await expect(page.getByRole('switch')).toHaveCount(0)
   })
 
-  test('la tabla administrativa no gana ninguna columna', async ({ page }) => {
+  /**
+   * Hasta D-198 la tabla administrativa colgaba el paz y salvo de la celda del
+   * cliente y no ganaba ninguna columna. Desde D-198 esa celda no existe —el
+   * personal no ve clientes—, así que el paz y salvo tiene la suya, con el
+   * término del glosario, y la tabla sigue sin cliente ni dinero.
+   */
+  test('la tabla administrativa lo enseña en su propia columna, sin cliente ni dinero (D-198)', async ({
+    page,
+  }) => {
     const cliente = await clienteDe('Paz y salvo tabla admin')
     const ticket = await ticketOf(cliente.id)
 
     await loginAs(page, ACCOUNTS.owner)
     await page.goto(`/owner/tickets?q=${ticket.daily}`)
+    await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
 
-    const encabezados = await page.getByRole('columnheader').allInnerTexts()
-    expect(encabezados.join('|')).not.toMatch(/paz y salvo/i)
-    // Y las de siempre siguen ahi.
-    expect(encabezados.join('|')).toMatch(/Boleta/)
-    expect(encabezados.join('|')).toMatch(/Cliente/)
-    expect(encabezados.join('|')).toMatch(/Falta/)
+    const encabezados = (await page.getByRole('columnheader').allInnerTexts()).join('|')
+    expect(encabezados).toMatch(/Paz y salvo/)
+    expect(encabezados).toMatch(/Boleta/)
+    expect(encabezados).not.toMatch(/Cliente/)
+    expect(encabezados).not.toMatch(/Falta|Abonado|Precio|Progreso/)
+    await expect(page.getByText(cliente.name)).toHaveCount(0)
   })
 })

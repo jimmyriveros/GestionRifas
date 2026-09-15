@@ -3,6 +3,7 @@ import { tourTarget } from '@/features/tour/tours'
 import { TicketCardList } from './TicketCardList'
 import { TicketsTable } from './TicketsTable'
 
+import type { AdminTicketListItem } from '../admin-queries'
 import type { TicketListItem } from '../queries'
 
 /**
@@ -16,6 +17,11 @@ import type { TicketListItem } from '../queries'
  * escritorio, ni una peticion por tarjeta: si la tabla puede pintar el cliente,
  * el estado de pago y el precio, la tarjeta tambien, porque son el mismo dato.
  *
+ * DOS MODELOS, NO DOS LISTAS (D-198). El portal del vendedor pasa su
+ * `TicketListItem`, con cliente y dinero. El administrativo pasa
+ * `audience="staff"` y un `AdminTicketListItem`, que no declara ninguno de los
+ * dos: la tabla y las tarjetas cambian sus columnas, no su comportamiento.
+ *
  * QUIEN DECIDE CUAL SE VE: Tailwind, no JavaScript. Las dos se renderizan y el
  * navegador oculta una con `display:none` antes de que exista JavaScript, asi
  * que al cargar no parpadea ninguna. Es el mismo criterio que ya seguian
@@ -28,7 +34,8 @@ import type { TicketListItem } from '../queries'
  * sola lista de boletas, no dos.
  */
 
-type TicketsListProps = {
+type SellerTicketsListProps = {
+  audience?: 'seller'
   tickets: TicketListItem[]
   /** `/owner/tickets` o `/seller/tickets`: la lista sirve a los dos portales. */
   basePath?: string
@@ -39,6 +46,15 @@ type TicketsListProps = {
   /** Se pasa a las dos presentaciones; aplana el borde dentro de una tarjeta. */
   className?: string
 }
+
+type StaffTicketsListProps = {
+  audience: 'staff'
+  tickets: AdminTicketListItem[]
+  basePath?: string
+  className?: string
+}
+
+export type TicketsListProps = SellerTicketsListProps | StaffTicketsListProps
 
 export function TicketsList(props: TicketsListProps) {
   return (

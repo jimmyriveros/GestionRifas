@@ -16,12 +16,8 @@ import type { TicketListItem } from '../queries'
 
 type ClientTicketsTableProps = {
   tickets: TicketListItem[]
-  /** `/owner/tickets` o `/seller/tickets`. */
+  /** `/seller/tickets`: desde D-198 solo el vendedor ve la ficha de un cliente. */
   basePath: string
-  /** Solo el portal administrativo: un cliente puede comprar en varias rifas. */
-  showRaffle?: boolean
-  /** Solo el portal administrativo, que ve la cartera de toda la organizacion. */
-  showSeller?: boolean
   className?: string
 }
 
@@ -47,40 +43,8 @@ type ClientTicketsTableProps = {
  * boletas» y en el detalle: la boleta 0717 / 4992 enseña el mismo abonado, el
  * mismo saldo y el mismo porcentaje en las tres pantallas.
  */
-export function ClientTicketsTable({
-  tickets,
-  basePath,
-  showRaffle = false,
-  showSeller = false,
-  className,
-}: ClientTicketsTableProps) {
+export function ClientTicketsTable({ tickets, basePath, className }: ClientTicketsTableProps) {
   const columns = useMemo<ColumnDef<TicketListItem>[]>(() => {
-    const raffleColumn: ColumnDef<TicketListItem>[] = showRaffle
-      ? [
-          {
-            accessorKey: 'raffleShortCode',
-            header: 'Rifa',
-            meta: { showFrom: 'lg' },
-            cell: ({ row }) => (
-              <span className="text-sm" title={row.original.raffleName}>
-                {row.original.raffleShortCode}
-              </span>
-            ),
-          },
-        ]
-      : []
-
-    const sellerColumn: ColumnDef<TicketListItem>[] = showSeller
-      ? [
-          {
-            accessorKey: 'sellerName',
-            header: 'Vendedor',
-            meta: { showFrom: 'lg' },
-            cell: ({ row }) => <span className="text-sm">{row.original.sellerName}</span>,
-          },
-        ]
-      : []
-
     return [
       {
         accessorKey: 'dailyNumber',
@@ -91,8 +55,6 @@ export function ClientTicketsTable({
           </TicketNumbersCell>
         ),
       },
-      ...raffleColumn,
-      ...sellerColumn,
       {
         accessorKey: 'paymentStatus',
         header: 'Estado de pago',
@@ -148,7 +110,7 @@ export function ClientTicketsTable({
         cell: () => <RowChevron />,
       },
     ]
-  }, [basePath, showRaffle, showSeller])
+  }, [basePath])
 
   return (
     <DataTable

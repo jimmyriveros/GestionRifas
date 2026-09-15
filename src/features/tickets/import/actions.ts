@@ -8,13 +8,9 @@ import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 
 import { comboKey, hasErrors, validateBulkRows } from '../bulk/duplicates'
-import {
-  clientIdentityKey,
-  groupImportClients,
-  hasCompleteClientData,
-  type ClientResolution,
-} from './clients'
-import { checkCombinationsSchema, importTicketsSchema } from './schemas'
+import { hasAnyClientData } from './clients'
+import { IMPORT_ABONO_NOT_ALLOWED, IMPORT_CLIENT_NOT_ALLOWED } from './review'
+import { checkCombinationsSchema, importTicketsSchema, type ImportTicketRow } from './schemas'
 
 /**
  * Importacion de boletas desde un archivo (BR-N12, D-081).
@@ -23,14 +19,19 @@ import { checkCombinationsSchema, importTicketsSchema } from './schemas'
  * codigo sino lo que el rol permite, y eso se decide aqui arriba y lo vuelve a
  * decidir la base de datos:
  *
- *   * Personal (Owner/Admin): elige rifa y vendedor. Sin clientes guarda con
- *     `bulk_create_tickets`; con clientes usa la RPC atomica de 0021 (ampliada
- *     en 0033), que reutiliza `assign_ticket_row` y, cuando la fila trae abono,
- *     `create_payment`. Ni una suma de dinero se hace en TypeScript.
+ *   * Personal (Owner/Admin): elige rifa y vendedor, y guarda con
+ *     `bulk_create_tickets`.
  *   * Vendedor: el vendedor es EL MISMO que tiene la sesion; si manda otro id,
  *     se ignora. Sus boletas nacen en `pending_approval` y solo si la rifa lo
  *     permite, cosa que impone `tickets_insert_seller` aunque este codigo se
  *     equivoque (BR-R10).
+ *
+ * SIN CLIENTES NI ABONOS, desde D-198 (BR-Q07). Los dos portales importan
+ * boletas sin vender: la cartera es del vendedor, y el camino por el que el
+ * personal creaba clientes y registraba abonos desde un archivo se retiro.
+ * `match_ticket_import_clients` e `import_tickets_with_clients` siguen en la
+ * base de datos, pero solo las ejecuta `service_role`. Una fila con cliente o
+ * con abono se rechaza aqui con la misma frase que ya dio la vista previa.
  *
  * Ninguna de las dos rutas confia en lo que valido el navegador: las filas se
  * vuelven a comprobar con el mismo motor (`validateBulkRows`) antes de escribir.
@@ -46,16 +47,6 @@ export type ImportTicketsResult = {
    * formato `daily/weekly`. Nunca se dice de quien son (BR-U07).
    */
   conflicts: string[]
-  /** Boletas creadas y asignadas a un cliente dentro de la misma transaccion. */
-  assigned: number
-  /** Clientes nuevos creados para las boletas que realmente entraron. */
-  clientsCreated: number
-  /** Clientes existentes reutilizados de forma inequívoca. */
-  clientsReused: number
-  /** Abonos registrados, uno por boleta que traia valor en el archivo. */
-  paymentsCreated: number
-  /** Suma en pesos de esos abonos. */
-  paymentsTotal: number
   /** `false` si la importacion quedo registrada en la bitacora. */
   auditFailed?: boolean
 }
@@ -65,34 +56,21 @@ type BulkRpcResult = {
   conflicts?: { daily_number?: string | null; weekly_number?: string | null }[]
 }
 
-type ImportWithClientsRpcResult = BulkRpcResult & {
-  assigned?: number
-  clients_created?: number
-  clients_reused?: number
-  payments_created?: number
-  payments_total?: number
-}
-
-type ClientMatch = {
-  client_key: string
-  client_id: string
-  name: string
-  phone: string
-  archived_at: string | null
-}
-
 export type ImportPreviewCheck = {
+  /** Las combinaciones del archivo que ya existen en la rifa, `daily/weekly`. */
   taken: string[]
-  clients: ClientResolution[]
-  /**
-   * Precio vigente de la rifa, leido de `raffles.ticket_price`.
-   *
-   * Va de vuelta al navegador para que la vista previa interprete los abonos
-   * con la cifra REAL y no con la que la pantalla tuviera cargada: quien mira
-   * la vista previa tiene que ver el mismo numero que va a aplicar la base de
-   * datos (D-098).
-   */
-  ticketPrice: number
+}
+
+/**
+ * La frase que rechaza un envio con cliente o con abono, o `null`.
+ *
+ * La vista previa ya aparta esas filas y no las manda; si llegan aqui, alguien
+ * llamo a la accion sin pasar por la pantalla.
+ */
+function unsupportedRowsError(rows: readonly ImportTicketRow[]): string | null {
+  if (rows.some(hasAnyClientData)) return IMPORT_CLIENT_NOT_ALLOWED
+  if (rows.some((row) => row.abono !== undefined)) return IMPORT_ABONO_NOT_ALLOWED
+  return null
 }
 
 /**
@@ -100,9 +78,9 @@ export type ImportPreviewCheck = {
  *
  * Va por `taken_ticket_combinations` (migracion 0019) y no por una consulta
  * normal por un motivo de correccion, no de comodidad: un vendedor no ve las
- * boletas de otros, asi que preguntando por su cuenta le saldria «disponible»
- * una combinacion ya tomada. La funcion responde solo la combinacion, nunca de
- * quien es.
+ * boletas de otros —y desde D-198 el personal tampoco lee `tickets`—, asi que
+ * preguntando por su cuenta le saldria «disponible» una combinacion ya tomada.
+ * La funcion responde solo la combinacion, nunca de quien es.
  *
  * Una sola llamada para todo el archivo. Nunca una por fila.
  */
@@ -117,22 +95,22 @@ export async function checkImportPreview(
     return { error: parsed.error.issues[0]?.message ?? 'Revisa el archivo.' }
   }
   const { raffleId, rows } = parsed.data
+
+  const unsupported = unsupportedRowsError(rows)
+  if (unsupported) return { error: unsupported }
+
   const supabase = await createClient()
 
-  // El precio se lee UNA vez y sale por todos los caminos: la vista previa lo
-  // necesita para interpretar los abonos, y sin el no puede decir en que
-  // estado quedara cada boleta.
   const { data: raffle, error: raffleError } = await supabase
     .from('raffles')
-    .select('status, ticket_price')
+    .select('id')
     .eq('id', raffleId)
     .maybeSingle()
 
   if (raffleError) return { error: mapPgError(raffleError) }
   if (!raffle) return { error: 'La rifa no existe o no tienes acceso a ella.' }
-  const ticketPrice = raffle.ticket_price
 
-  if (rows.length === 0) return { ok: true, data: { taken: [], clients: [], ticketPrice } }
+  if (rows.length === 0) return { ok: true, data: { taken: [] } }
 
   const { data, error } = await supabase.rpc('taken_ticket_combinations', {
     p_raffle_id: raffleId,
@@ -144,97 +122,9 @@ export async function checkImportPreview(
 
   if (error) return { error: mapPgError(error) }
 
-  const taken = (data ?? []).map((row) => comboKey(row.daily_number, row.weekly_number))
-  const groups = groupImportClients(rows)
-  if (groups.length === 0) return { ok: true, data: { taken, clients: [], ticketPrice } }
-
-  if (auth.membership.role === 'seller') {
-    return {
-      ok: true,
-      data: {
-        taken,
-        ticketPrice,
-        clients: groups.map((group) => ({
-          ...group,
-          status: 'conflict',
-          problem:
-            'Las boletas con cliente deben importarse desde el portal administrativo para conservar la aprobación del vendedor.',
-        })),
-      },
-    }
-  }
-
-  const sellerId = parsed.data.sellerId
-  if (!sellerId) return { error: 'Selecciona un vendedor.' }
-
-  if (raffle.status !== 'active') {
-    return {
-      ok: true,
-      data: {
-        taken,
-        ticketPrice,
-        clients: groups.map((group) => ({
-          ...group,
-          status: 'conflict',
-          problem: 'Activa la rifa antes de importar boletas con cliente.',
-        })),
-      },
-    }
-  }
-
-  const { data: matchesData, error: matchesError } = await supabase.rpc(
-    'match_ticket_import_clients',
-    {
-      p_raffle_id: raffleId,
-      p_seller_id: sellerId,
-      p_clients: groups.map((group) => ({
-        client_key: group.key,
-        name: group.name,
-        phone: group.phone,
-      })),
-    },
-  )
-
-  if (matchesError) return { error: mapPgError(matchesError) }
-  const matches = (matchesData ?? []) as ClientMatch[]
-
-  const clients: ClientResolution[] = groups.map((group) => {
-    const phoneMatches = matches.filter((match) => match.client_key === group.key)
-    const exact = phoneMatches.filter(
-      (match) => clientIdentityKey(match.name, match.phone) === group.key,
-    )
-
-    if (exact.length > 1) {
-      return {
-        ...group,
-        status: 'conflict',
-        problem: 'Hay varios clientes con este nombre y celular. Elige uno manualmente.',
-      }
-    }
-    if (exact.length === 1) {
-      const match = exact[0]!
-      if (match.archived_at) {
-        return {
-          ...group,
-          status: 'conflict',
-          problem: 'Este cliente está archivado. Restáuralo antes de importar sus boletas.',
-        }
-      }
-      return { ...group, status: 'existing', clientId: match.client_id }
-    }
-    if (phoneMatches.length > 0) {
-      return {
-        ...group,
-        status: 'conflict',
-        problem: 'Este celular ya está registrado con otro nombre. Revisa el archivo.',
-      }
-    }
-    return { ...group, status: 'new' }
-  })
-
   return {
     ok: true,
-    data: { taken, clients, ticketPrice },
+    data: { taken: (data ?? []).map((row) => comboKey(row.daily_number, row.weekly_number)) },
   }
 }
 
@@ -256,14 +146,10 @@ export async function importTickets(
     return { error: 'El archivo tiene filas con números inválidos o repetidos entre sí.' }
   }
 
+  const unsupported = unsupportedRowsError(rows)
+  if (unsupported) return { error: unsupported }
+
   const isSeller = auth.membership.role === 'seller'
-  const hasClients = rows.some(hasCompleteClientData)
-  if (isSeller && hasClients) {
-    return {
-      error:
-        'Las boletas con cliente deben importarse desde el portal administrativo para conservar la aprobación del vendedor.',
-    }
-  }
   // BR-U07: el vendedor importa PARA SI MISMO. Lo que venga en `sellerId` no se
   // mira siquiera.
   const sellerId = isSeller ? auth.membership.profileId : parsed.data.sellerId
@@ -271,19 +157,9 @@ export async function importTickets(
 
   const result = isSeller
     ? await insertAsSeller(raffleId, rows, auth.membership.organizationId, sellerId)
-    : hasClients
-      ? await insertAsStaffWithClients(raffleId, sellerId, rows)
-      : await insertAsStaff(raffleId, sellerId, rows)
+    : await insertAsStaff(raffleId, sellerId, rows)
 
   if ('error' in result) return result
-
-  const clientMetrics = result.data as Partial<{
-    assigned: number
-    clientsCreated: number
-    clientsReused: number
-    paymentsCreated: number
-    paymentsTotal: number
-  }>
 
   // La bitacora va DESPUES de guardar y a proposito: si fallara, lo que no
   // puede pasar es perder boletas ya creadas. Su fallo se informa, no se calla.
@@ -302,12 +178,6 @@ export async function importTickets(
   revalidatePath('/owner/dashboard')
   revalidatePath('/seller/tickets')
   revalidatePath('/seller/dashboard')
-  // Un archivo con abonos mueve dinero, asi que los listados de pagos y las
-  // fichas de cliente tambien dejan de estar al dia.
-  revalidatePath('/owner/payments')
-  revalidatePath('/seller/payments')
-  revalidatePath('/owner/clients')
-  revalidatePath('/seller/clients')
 
   return {
     ok: true,
@@ -315,73 +185,7 @@ export async function importTickets(
       requested: rows.length,
       inserted: result.data.inserted,
       conflicts: result.data.conflicts,
-      assigned: clientMetrics.assigned ?? 0,
-      clientsCreated: clientMetrics.clientsCreated ?? 0,
-      clientsReused: clientMetrics.clientsReused ?? 0,
-      paymentsCreated: clientMetrics.paymentsCreated ?? 0,
-      paymentsTotal: clientMetrics.paymentsTotal ?? 0,
       ...(auditError ? { auditFailed: true } : {}),
-    },
-  }
-}
-
-/**
- * Caso administrativo con clientes: una RPC crea boletas, resuelve clientes,
- * asigna y registra los abonos dentro de la misma transaccion. Si una identidad
- * cambia entre la vista previa y la confirmacion, no queda ningun dato parcial:
- * ni cliente, ni boleta, ni pago.
- */
-async function insertAsStaffWithClients(
-  raffleId: string,
-  sellerId: string,
-  rows: readonly {
-    dailyNumber: string
-    weeklyNumber: string
-    clientName?: string
-    clientPhone?: string
-    abono?: number
-  }[],
-): Promise<
-  ActionResultWith<{
-    inserted: number
-    conflicts: string[]
-    assigned: number
-    clientsCreated: number
-    clientsReused: number
-    paymentsCreated: number
-    paymentsTotal: number
-  }>
-> {
-  const supabase = await createClient()
-  const { data, error } = await supabase.rpc('import_tickets_with_clients', {
-    p_raffle_id: raffleId,
-    p_seller_id: sellerId,
-    p_rows: rows.map((row) => ({
-      daily_number: row.dailyNumber,
-      weekly_number: row.weeklyNumber,
-      ...(row.clientName ? { client_name: row.clientName } : {}),
-      ...(row.clientPhone ? { client_phone: row.clientPhone } : {}),
-      ...(row.abono !== undefined ? { abono: row.abono } : {}),
-    })),
-  })
-
-  if (error) return { error: mapPgError(error) }
-
-  const rpc = (data ?? {}) as ImportWithClientsRpcResult
-  return {
-    ok: true,
-    data: {
-      inserted: rpc.inserted ?? 0,
-      conflicts: (rpc.conflicts ?? []).flatMap((conflict) =>
-        conflict.daily_number && conflict.weekly_number
-          ? [comboKey(conflict.daily_number, conflict.weekly_number)]
-          : [],
-      ),
-      assigned: rpc.assigned ?? 0,
-      clientsCreated: rpc.clients_created ?? 0,
-      clientsReused: rpc.clients_reused ?? 0,
-      paymentsCreated: rpc.payments_created ?? 0,
-      paymentsTotal: rpc.payments_total ?? 0,
     },
   }
 }

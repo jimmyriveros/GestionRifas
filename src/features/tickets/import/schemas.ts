@@ -77,7 +77,6 @@ export type ImportTicketsInput = z.infer<typeof importTicketsSchema>
 
 export const checkCombinationsSchema = z.object({
   raffleId: z.uuid('Selecciona una rifa.'),
-  sellerId: z.uuid('Selecciona un vendedor.').optional(),
   rows: z
     .array(importTicketRowSchema)
     .max(BULK_TICKET_MAX, `No se pueden comprobar más de ${BULK_TICKET_MAX} boletas a la vez.`),

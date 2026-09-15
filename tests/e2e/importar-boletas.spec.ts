@@ -120,12 +120,19 @@ test.describe('Importar boletas — portal administrativo', () => {
     await recordar([a, b])
   })
 
-  test('mezcla boletas con y sin cliente, exige celular y crea una sola identidad', async ({
+  /**
+   * Hasta D-198 esta prueba importaba boletas CON cliente y creaba una sola
+   * identidad. Desde D-198 ningún portal importa ventas (BR-Q07): las filas que
+   * traen cliente —completo o a medias— se apartan en la vista previa con su
+   * frase, y solo se guardan las que no lo traen.
+   */
+  test('las filas con cliente se apartan con su frase y solo se importan las que no lo traen (D-198)', async ({
     page,
   }) => {
     const a = randomTicketNumbers()
     const b = randomTicketNumbers()
     const sinCliente = randomTicketNumbers()
+    const otraSinCliente = randomTicketNumbers()
     const incompleta = randomTicketNumbers()
     const phone = `31${String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0')}`
     const name = `Cliente CSV ${phone}`
@@ -138,115 +145,131 @@ test.describe('Importar boletas — portal administrativo', () => {
         `${a.weekly},${a.daily},${name},${phone}`,
         `${b.weekly},${b.daily},${name.toUpperCase()},+57 ${phone}`,
         `${sinCliente.weekly},${sinCliente.daily},,`,
+        `${otraSinCliente.weekly},${otraSinCliente.daily},,`,
         `${incompleta.weekly},${incompleta.daily},Cliente sin celular,`,
       ].join('\n'),
     )
 
-    await expect(page.getByText('4 boletas encontradas')).toBeVisible()
-    await expect(page.getByText('3 se pueden importar')).toBeVisible()
-    await expect(page.getByText(/2 con cliente/)).toBeVisible()
-    await expect(page.getByText(/1 sin cliente/)).toBeVisible()
-    await expect(page.getByText('1 con datos incompletos o mal escritos')).toBeVisible()
-    await expect(page.getByText('1 cliente único detectado')).toBeVisible()
-    await expect(page.getByText(/2 boletas · Cliente nuevo/)).toBeVisible()
+    await expect(page.getByText('5 boletas encontradas')).toBeVisible()
+    await expect(page.getByText('2 se pueden importar')).toBeVisible()
+    await expect(page.getByText('3 traen datos de cliente')).toBeVisible()
+    // La vista previa pinta la tabla y, para el teléfono, las mismas filas en
+    // tarjetas ocultas: se busca la que se ve.
+    await expect(page.getByText('Trae cliente').filter({ visible: true }).first()).toBeVisible()
+    await expect(
+      page
+        .getByText(
+          'Las boletas se importan sin cliente. Deja vacías las columnas «Cliente» y «Celular»: cada boleta se asigna a su cliente cuando se vende.',
+        )
+        .filter({ visible: true })
+        .first(),
+    ).toBeVisible()
+    // Nada del resumen de clientes de antes.
+    await expect(page.getByText(/cliente único detectado|Cliente nuevo/)).toHaveCount(0)
 
-    await page.getByRole('button', { name: /Importar solo las 3 que sirven/ }).click()
-    await expect(page.getByText('Se crearon 3 boletas.')).toBeVisible()
-    await expect(page.getByText('2 boletas quedaron asignadas a sus clientes.')).toBeVisible()
-    await expect(page.getByText('1 cliente nuevo · 0 existentes reutilizados')).toBeVisible()
+    await page.getByRole('button', { name: /Importar solo las 2 que sirven/ }).click()
+    await expect(page.getByText('Se crearon 2 boletas.')).toBeVisible()
 
     // Por el par completo, no por el numero diario suelto (I-055).
-    const esperadas = [a, b, sinCliente, incompleta]
+    const data = await buscarPares([a, b, sinCliente, otraSinCliente, incompleta])
+    expect(data).toHaveLength(2)
+    for (const fila of data) creadas.push(fila.id)
+
     const { data: filas } = await serviceClient()
       .from('tickets')
-      .select('id, daily_number, weekly_number, client_id, inventory_status')
-      .eq('raffle_id', refs.raffleId)
+      .select('daily_number, weekly_number, client_id, inventory_status')
       .in(
-        'daily_number',
-        esperadas.map((par) => par.daily),
+        'id',
+        data.map((fila) => fila.id),
       )
-    const data = (filas ?? []).filter((fila) =>
-      esperadas.some((par) => par.daily === fila.daily_number && par.weekly === fila.weekly_number),
+    for (const fila of filas ?? []) {
+      expect(fila).toMatchObject({ client_id: null, inventory_status: 'available' })
+    }
+    expect(new Set((filas ?? []).map((f) => `${f.daily_number}/${f.weekly_number}`))).toEqual(
+      new Set([
+        `${sinCliente.daily}/${sinCliente.weekly}`,
+        `${otraSinCliente.daily}/${otraSinCliente.weekly}`,
+      ]),
     )
-
-    expect(data).toHaveLength(3)
-    for (const ticket of data ?? []) creadas.push(ticket.id)
-    const assigned = data?.filter((ticket) => ticket.inventory_status === 'assigned') ?? []
-    const available = data?.find((ticket) => ticket.daily_number === sinCliente.daily)
-    expect(assigned).toHaveLength(2)
-    expect(new Set(assigned.map((ticket) => ticket.client_id)).size).toBe(1)
-    expect(available).toMatchObject({ inventory_status: 'available', client_id: null })
-    clientesCreados.push(assigned[0]!.client_id!)
 
     const { count } = await serviceClient()
       .from('clients')
       .select('id', { count: 'exact', head: true })
-      .eq('name', 'Cliente sin celular')
+      .in('name', [name, name.toUpperCase(), 'Cliente sin celular'])
     expect(count).toBe(0)
   })
 
-  test('la columna «Abono» deja las boletas cobradas y con su movimiento', async ({ page }) => {
+  /**
+   * Hasta D-198 la columna «Abono» dejaba las boletas cobradas y con su
+   * movimiento. Desde D-198 ningún portal importa abonos (BR-Q07): la fila que
+   * lo trae se aparta con su frase —aunque no traiga cliente— y ninguna boleta
+   * nace con pagos.
+   */
+  test('la columna «Abono» se aparta: las boletas se importan sin abonos (D-198)', async ({
+    page,
+  }) => {
     const parcial = randomTicketNumbers()
     const cancelada = randomTicketNumbers()
     const sinAbono = randomTicketNumbers()
-    const phone = `31${String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0')}`
-    const name = `Cliente abono ${phone}`
-
-    // El precio se LEE de la rifa: escribirlo aqui seria repetir la cifra que
-    // D-098 obliga a tener en un solo sitio.
-    const { data: raffle } = await serviceClient()
-      .from('raffles')
-      .select('ticket_price')
-      .eq('id', refs.raffleId)
-      .single()
-    const precio = raffle!.ticket_price
+    const otraSinAbono = randomTicketNumbers()
 
     await subir(
       page,
       'boletas-abono.csv',
       [
-        'Nombre,Celular,Premio semanal,Premio diario,Abono',
-        `${name},${phone},${parcial.weekly},${parcial.daily},20`,
-        `${name},${phone},${cancelada.weekly},${cancelada.daily},Cancelado`,
-        `${name},${phone},${sinAbono.weekly},${sinAbono.daily},`,
+        'Premio semanal,Premio diario,Abono',
+        `${parcial.weekly},${parcial.daily},20`,
+        `${cancelada.weekly},${cancelada.daily},Cancelado`,
+        `${sinAbono.weekly},${sinAbono.daily},`,
+        `${otraSinAbono.weekly},${otraSinAbono.daily},`,
         '',
       ].join('\n'),
     )
 
-    // La vista previa dice lo que va a pasar con el dinero ANTES de guardar.
-    await expect(page.getByText('3 boletas encontradas')).toBeVisible()
-    await expect(page.getByText(/2 abonos por \$140\.000/)).toBeVisible()
-    await expect(page.getByText(/1 se creará/)).toBeVisible()
-    expect(await contarEnRifa([parcial, cancelada, sinAbono])).toBe(0)
+    await expect(page.getByText('4 boletas encontradas')).toBeVisible()
+    await expect(page.getByText('2 se pueden importar')).toBeVisible()
+    await expect(
+      page
+        .getByText(
+          'Las boletas se importan sin abonos. Deja vacía la columna «Abono»: los abonos se registran cuando la boleta ya se vendió.',
+        )
+        .filter({ visible: true })
+        .first(),
+    ).toBeVisible()
+    // Y sin columnas de cliente no se para a preguntar por ellas: desde D-198 el
+    // mapeo solo pregunta por los números.
+    await expect(page.getByText('No reconocimos los nombres de las columnas.')).toHaveCount(0)
+    await expect(page.getByText(/abonos? por \$/)).toHaveCount(0)
+    expect(await contarEnRifa([parcial, cancelada, sinAbono, otraSinAbono])).toBe(0)
 
-    await page.getByRole('button', { name: /Importar 3 boleta/ }).click()
+    await page.getByRole('button', { name: /Importar solo las 2 que sirven/ }).click()
+    await expect(page.getByText('Se crearon 2 boletas.')).toBeVisible()
+    await expect(page.getByText(/Se registraron/)).toHaveCount(0)
 
-    await expect(page.getByText('Se crearon 3 boletas.')).toBeVisible()
-    await expect(page.getByText(/Se registraron 2 abonos por \$140\.000 en total\./)).toBeVisible()
+    const data = await buscarPares([parcial, cancelada, sinAbono, otraSinAbono])
+    expect(data).toHaveLength(2)
+    for (const fila of data) creadas.push(fila.id)
+    const ids = data.map((fila) => fila.id)
 
-    const { data } = await serviceClient()
+    const { data: filas } = await serviceClient()
       .from('tickets')
-      .select('id, daily_number, weekly_number, client_id, paid_amount, payment_status')
-      .eq('raffle_id', refs.raffleId)
-      .in('daily_number', [parcial.daily, cancelada.daily, sinAbono.daily])
+      .select('daily_number, weekly_number, client_id, paid_amount, payment_status')
+      .in('id', ids)
+    for (const fila of filas ?? []) {
+      expect(fila).toMatchObject({ client_id: null, paid_amount: 0, payment_status: 'unpaid' })
+    }
+    expect(new Set((filas ?? []).map((f) => `${f.daily_number}/${f.weekly_number}`))).toEqual(
+      new Set([
+        `${sinAbono.daily}/${sinAbono.weekly}`,
+        `${otraSinAbono.daily}/${otraSinAbono.weekly}`,
+      ]),
+    )
 
-    const busca = (par: Par) =>
-      data!.find((t) => t.daily_number === par.daily && t.weekly_number === par.weekly)!
-    for (const par of [parcial, cancelada, sinAbono]) creadas.push(busca(par).id)
-    clientesCreados.push(busca(parcial).client_id!)
-
-    expect(busca(parcial)).toMatchObject({ paid_amount: 20_000, payment_status: 'partial' })
-    expect(busca(cancelada)).toMatchObject({ paid_amount: precio, payment_status: 'paid' })
-    expect(busca(sinAbono)).toMatchObject({ paid_amount: 0, payment_status: 'unpaid' })
-
-    // El historial existe: dos pagos, cada uno aplicado a SU boleta.
-    const { data: allocations } = await serviceClient()
+    const { count } = await serviceClient()
       .from('payment_allocations')
-      .select('amount, ticket_id, payment_id')
-      .in('ticket_id', [busca(parcial).id, busca(cancelada).id, busca(sinAbono).id])
-
-    expect(allocations).toHaveLength(2)
-    expect(new Set(allocations!.map((row) => row.payment_id)).size).toBe(2)
+      .select('id', { count: 'exact', head: true })
+      .in('ticket_id', ids)
+    expect(count).toBe(0)
   })
 
   test('la columna «#» se ignora y los ceros de delante se conservan', async ({ page }) => {

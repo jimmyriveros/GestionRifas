@@ -45,27 +45,9 @@ test.describe('Flecha de volver: historial real (Casos A, B, C)', () => {
     await back.click()
 
     await expect(page).toHaveURL(listUrl)
-    await expect(page.getByPlaceholder('Número de boleta o cliente')).toHaveValue(numbers.daily)
-  })
-
-  test('clientes: vuelve al listado de clientes (Caso B)', async ({ page }) => {
-    await page.goto('/owner/clients')
-    await expect(page.getByRole('columnheader', { name: 'Cliente' })).toBeVisible()
-
-    const firstRow = page.getByRole('row').nth(1)
-    const clientName = (await firstRow.getByRole('link').first().textContent())?.trim()
-    await firstRow.getByRole('link').first().click()
-    await page.waitForURL(/\/owner\/clients\/[0-9a-f-]+$/)
-
-    await page.getByRole('button', { name: 'Volver' }).click()
-    await expect(page).toHaveURL('/owner/clients')
-    // La tarjeta del telefono (D-136) esta en el DOM y oculta: `.first()` la
-    // pisa. En escritorio el nombre visible es el enlace de la tabla.
-    if (clientName) {
-      await expect(
-        page.getByRole('table').getByRole('link', { name: clientName, exact: true }),
-      ).toBeVisible()
-    }
+    await expect(page.getByPlaceholder('Número de boleta', { exact: true })).toHaveValue(
+      numbers.daily,
+    )
   })
 
   test('rifas: vuelve al listado de rifas (BR-R)', async ({ page }) => {
@@ -90,6 +72,54 @@ test.describe('Flecha de volver: historial real (Casos A, B, C)', () => {
 
     await page.getByRole('button', { name: 'Volver' }).click()
     await expect(page).toHaveURL(detailUrl)
+  })
+})
+
+/**
+ * El listado de clientes vivía en los DOS portales; desde D-198 solo en el del
+ * vendedor, así que el Caso B —y el E de un cliente abierto por URL— se
+ * comprueban ahí, con las mismas aserciones.
+ */
+test.describe('Flecha de volver: clientes del vendedor (Caso B)', () => {
+  test('clientes: vuelve al listado de clientes (Caso B)', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/clients')
+    await expect(page.getByRole('columnheader', { name: 'Cliente' })).toBeVisible()
+
+    const firstRow = page.getByRole('row').nth(1)
+    const clientName = (await firstRow.getByRole('link').first().textContent())?.trim()
+    await firstRow.getByRole('link').first().click()
+    await page.waitForURL(/\/seller\/clients\/[0-9a-f-]+$/)
+
+    await page.getByRole('button', { name: 'Volver' }).click()
+    await expect(page).toHaveURL('/seller/clients')
+    // La tarjeta del telefono (D-136) esta en el DOM y oculta: `.first()` la
+    // pisa. En escritorio el nombre visible es el enlace de la tabla.
+    if (clientName) {
+      await expect(
+        page.getByRole('table').getByRole('link', { name: clientName, exact: true }),
+      ).toBeVisible()
+    }
+  })
+
+  test('un cliente abierto por URL directa usa el listado de clientes', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/clients')
+    const clientHref = await page
+      .getByRole('row')
+      .nth(1)
+      .getByRole('link')
+      .first()
+      .getAttribute('href')
+    if (!clientHref) throw new Error('El seed no tiene clientes para esta prueba')
+
+    // Nueva pestana de la MISMA sesion: sin historial propio de esta pestana.
+    const directPage = await page.context().newPage()
+    await directPage.goto(clientHref)
+
+    await directPage.getByRole('button', { name: 'Volver' }).click()
+    await expect(directPage).toHaveURL('/seller/clients')
+    await directPage.close()
   })
 })
 
@@ -136,26 +166,6 @@ test.describe('Flecha de volver: sin historial real (Caso E)', () => {
     // el listado de boletas de la propia rifa (el destino de repuesto).
     await expect(page).toHaveURL(/\/owner\/tickets\?raffleId=/)
     await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeVisible()
-  })
-
-  test('un cliente abierto por URL directa usa el listado de clientes', async ({ page }) => {
-    await loginAs(page, ACCOUNTS.owner)
-    await page.goto('/owner/clients')
-    const clientHref = await page
-      .getByRole('row')
-      .nth(1)
-      .getByRole('link')
-      .first()
-      .getAttribute('href')
-    if (!clientHref) throw new Error('El seed no tiene clientes para esta prueba')
-
-    // Nueva pestana de la MISMA sesion: sin historial propio de esta pestana.
-    const directPage = await page.context().newPage()
-    await directPage.goto(clientHref)
-
-    await directPage.getByRole('button', { name: 'Volver' }).click()
-    await expect(directPage).toHaveURL('/owner/clients')
-    await directPage.close()
   })
 })
 

@@ -15,6 +15,19 @@ import { importClientSchema } from './schemas'
 
 /** Revision de archivo sobre los mismos validadores de la carga manual. */
 
+/**
+ * Por que no entra una fila con cliente o con abono (D-198, BR-Q07).
+ *
+ * Los dos portales importan boletas SIN VENDER: el cliente y el abono se
+ * registran despues, cuando se vende cada boleta. Las frases no dicen quien lo
+ * hace porque las leen el vendedor y el personal. Viven aqui porque la vista
+ * previa y la Server Action tienen que decir exactamente lo mismo.
+ */
+export const IMPORT_CLIENT_NOT_ALLOWED =
+  'Las boletas se importan sin cliente. Deja vacías las columnas «Cliente» y «Celular»: cada boleta se asigna a su cliente cuando se vende.'
+export const IMPORT_ABONO_NOT_ALLOWED =
+  'Las boletas se importan sin abonos. Deja vacía la columna «Abono»: los abonos se registran cuando la boleta ya se vendió.'
+
 export type ImportRowStatus = 'valid' | 'duplicate' | 'taken' | 'invalid' | 'client-conflict'
 
 export type ReviewedRow = ImportRow & {
@@ -63,7 +76,14 @@ export type ImportReview = {
 export type ReviewOptions = {
   existingCombos?: ReadonlySet<string>
   clientResolutions?: ReadonlyMap<string, ClientResolution>
-  /** El portal administrativo puede crear/asignar; el vendedor conserva la aprobacion. */
+  /**
+   * Importar boletas ya vendidas, con cliente y abono.
+   *
+   * Desde D-198 NINGUN portal lo activa: la cartera es del vendedor e
+   * `import_tickets_with_clients` solo lo ejecuta `service_role` (BR-Q07). La
+   * revision conserva la lectura de clientes y abonos para que reactivarlo no
+   * obligue a reescribirla; el procedimiento esta en D-198.
+   */
   allowClientAssignments?: boolean
   /**
    * Precio de la rifa a la que va el archivo, en pesos.
@@ -111,6 +131,13 @@ function reviewClient(
 ): { status: ImportRowStatus; problem: string } | null {
   if (!hasAnyClientData(row)) return null
 
+  // Donde no se importan clientes, cualquier dato de cliente aparta la fila, y
+  // con UNA sola frase: pedir que se complete el celular de una fila que despues
+  // se va a rechazar igual seria mandar a dar una vuelta.
+  if (!options.allowClientAssignments) {
+    return { status: 'client-conflict', problem: IMPORT_CLIENT_NOT_ALLOWED }
+  }
+
   if (!hasCompleteClientData(row)) {
     return {
       status: 'invalid',
@@ -140,14 +167,6 @@ function reviewClient(
     }
   }
 
-  if (!options.allowClientAssignments) {
-    return {
-      status: 'client-conflict',
-      problem:
-        'Las boletas con cliente deben importarse desde el portal administrativo para conservar la aprobación del vendedor.',
-    }
-  }
-
   const resolution = options.clientResolutions?.get(
     clientIdentityKey(parsed.data.name, parsed.data.phone),
   )
@@ -173,6 +192,8 @@ function reviewAbono(
 ): { problem: string } | { amount: number | null } {
   const raw = row.abono?.trim() ?? ''
   if (raw === '') return { amount: null }
+
+  if (!options.allowClientAssignments) return { problem: IMPORT_ABONO_NOT_ALLOWED }
 
   // BR-F02/BR-F04: solo se abona una boleta vendida. Sin cliente no hay venta,
   // asi que el abono no tendria donde aplicarse.

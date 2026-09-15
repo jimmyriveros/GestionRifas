@@ -1979,6 +1979,128 @@ export type Database = {
       }
     }
     Functions: {
+      admin_audit_log: {
+        Args: {
+          p_entity_id?: string
+          p_entity_type?: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          action: string
+          actor_profile_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: number
+          new_values: Json | null
+          old_values: Json | null
+          organization_id: string
+        }[]
+      }
+      admin_audit_redact: {
+        Args: { p_entity_type: string; p_values: Json }
+        Returns: Json
+      }
+      admin_list_tickets: {
+        Args: {
+          p_inventory_status?: Database["public"]["Enums"]["ticket_inventory_status"]
+          p_limit?: number
+          p_offset?: number
+          p_payment_state?: string
+          p_raffle_id?: string
+          p_search?: string
+          p_seller_id?: string
+          p_ticket_ids?: string[]
+        }
+        Returns: {
+          clearance_state: string | null
+          daily_number: string | null
+          id: string
+          inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
+          payment_state: string | null
+          raffle_id: string
+          raffle_name: string | null
+          raffle_short_code: string | null
+          seller_id: string
+          total_count: number
+          weekly_number: string | null
+        }[]
+      }
+      admin_lottery_matches: {
+        Args: { p_result_ids: string[] }
+        Returns: {
+          assignment_status: Database["public"]["Enums"]["lottery_assignment_status"]
+          daily_number: string | null
+          matched_number: string
+          raffle_name: string
+          result_id: string
+          ticket_id: string
+          weekly_number: string | null
+        }[]
+      }
+      admin_ticket_bulk_eligibility: {
+        Args: { p_ticket_ids: string[] }
+        Returns: {
+          can_approve: boolean
+          can_cancel: boolean
+          can_change_seller: boolean
+          can_delete: boolean
+          daily_number: string | null
+          inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
+          raffle_active: boolean
+          raffle_id: string
+          seller_id: string
+          ticket_id: string
+          weekly_number: string | null
+        }[]
+      }
+      admin_ticket_detail: {
+        Args: { p_ticket_id: string }
+        Returns: {
+          approved_at: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          clearance_delivered_at: string | null
+          clearance_state: string | null
+          created_at: string
+          daily_number: string | null
+          id: string
+          internal_code: string
+          inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
+          payment_state: string | null
+          raffle_id: string
+          raffle_name: string
+          raffle_short_code: string
+          raffle_status: Database["public"]["Enums"]["raffle_status"]
+          sale_date: string | null
+          seller_id: string
+          weekly_number: string | null
+        }[]
+      }
+      admin_ticket_inventory: {
+        Args: { p_raffle_id?: string }
+        Returns: {
+          raffle_id: string
+          seller_id: string
+          tickets_assigned: number
+          tickets_available: number
+          tickets_cancelled: number
+          tickets_draft: number
+          tickets_not_paid: number
+          tickets_paid: number
+          tickets_pending_approval: number
+          tickets_total: number
+        }[]
+      }
+      admin_update_ticket_numbers: {
+        Args: {
+          p_daily_number: string
+          p_ticket_id: string
+          p_weekly_number: string
+        }
+        Returns: undefined
+      }
       approve_tickets: { Args: { p_ticket_ids: string[] }; Returns: number }
       archive_seller_payment_account: {
         Args: { p_id: string }

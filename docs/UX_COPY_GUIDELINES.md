@@ -346,8 +346,10 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Las boletas que el vendedor puede vender o ya vendió | **Boletas activas** (D-172) | Total, boletas en total, inventario |
 | Todas las boletas a su nombre, incluidas borradores, pendientes y anuladas | **Registradas** (D-172) | Total, histórico, acumuladas |
 | Lo mismo en el panel administrativo, contando las de toda la organización | **Registradas** (D-182) | **Total de boletas**, que era su nombre y no sumaba con «Disponibles» y «Asignadas» |
-| La sección del panel administrativo donde vive el dinero de la organización | **Resumen de cobranza** (D-090) | Estado de cobro, que es la del vendedor y es otra cifra: la suya |
-| El reparto de las boletas vendidas por lo que llevan pagado, en **cualquiera de los dos** paneles | **Boletas vendidas según su pago** (D-171, D-182) | Cobranza, que además está prohibido como rótulo |
+| La sección del panel administrativo donde vivía el dinero de la organización | **Resumen de cobranza** (D-090). **Retirada en D-198**: el personal ya no ve dinero | Estado de cobro, que es la del vendedor y es otra cifra: la suya |
+| El estado de pago de una boleta **en el portal administrativo** | **Pagada** o **Sin pagar**, y **«—»** si no se ha vendido (D-198) | Abonada, que es del vendedor y ahí delataría lo abonado |
+| Lo mismo encabezando un recuento del personal | **Pagadas** y **Sin pagar** (D-198) | Abonadas, Con abonos |
+| El reparto de las boletas vendidas por lo que llevan pagado, en el panel **del vendedor** (el administrativo lo tuvo de D-182 a D-198) | **Boletas vendidas según su pago** (D-171, D-182) | Cobranza, que además está prohibido como rótulo |
 | Ahí, el grupo de boletas de las que NO ha entrado nada | **Sin pagos**, y su dinero **Deben** (D-171) | Sin pagar como rótulo de una cifra de dinero |
 | Ahí, el grupo de boletas que ya abonaron una parte | **Con abonos**, y sus dos cifras **Todavía deben** y **Ya abonaron** (D-171) | Abonadas como rótulo de una cifra de dinero |
 | Ahí, el dinero ya recibido y el que falta | **Ya cobraste** y **Falta cobrar** (D-171) | Recaudado, Por cobrar, Cartera |
@@ -521,6 +523,13 @@ como si fuera otro modo: es el mismo buscador.
 Si alguien escribe **más de cuatro cifras** —normalmente, copiando un código interno—, se le dice lo
 que de verdad está pasando: «Los números de una boleta tienen 4 cifras como máximo. Con más cifras
 buscamos el teléfono del cliente». Un resultado que la persona no sabe explicar parece un fallo.
+
+**En el portal administrativo ese mismo buscador encuentra solo números** (D-198, BR-Q05). El personal
+no ve clientes, así que ahí se dice lo que sí sirve y nada más: con letras, **«Escribe solo el número
+diario o el semanal de la boleta.»**; con más de cuatro cifras, **«Los números de una boleta tienen 4
+cifras como máximo.»**, sin la segunda frase del vendedor, porque ahí no se busca ningún teléfono.
+**Nunca se escribe «ese cliente no existe»** ni nada que cambie según el nombre buscado: un nombre real
+y uno inventado tienen que recibir exactamente la misma respuesta.
 
 **Anular no es eliminar, y los textos no pueden mezclarlos** (BR-B05, D-084). **Anular** retira de
 circulación una boleta que existió: se queda en la lista, marcada como Anulada, y su combinación de
@@ -743,6 +752,16 @@ cifras en vez de hablar en abstracto: «El abono de $150.000 supera el precio de
 **«Resultado»**, si la fila sirve o no. Dos columnas tituladas «Estado» a un centímetro se leen una
 por la otra.
 
+**Desde D-198 ningún portal importa clientes ni abonos, y los textos lo dicen antes y durante.** Bajo
+el área del archivo: «Solo los números: el cliente y los abonos se registran después, cuando se vende
+cada boleta.» En la vista previa, una fila con esos datos se marca **«Trae cliente»** y lleva su
+frase: «Las boletas se importan sin cliente. Deja vacías las columnas «Cliente» y «Celular»: cada
+boleta se asigna a su cliente cuando se vende.» o «Las boletas se importan sin abonos. Deja vacía la
+columna «Abono»: los abonos se registran cuando la boleta ya se vendió.» «Cliente», «Celular» y
+«Abono» son los nombres de las columnas **del archivo**, no términos de pantalla. Las reglas de
+«Cancelado», de los abonos en pesos y de la columna «Estado» siguen escritas porque la lectura del
+archivo se conserva para reactivarla; hoy **no se ven**.
+
 **Un total que se enseña tiene que ser el de las cifras que están a su lado** (D-172). La insignia de
 «Estado de cobro» decía «21 boletas en total» junto a «10 disponibles · 6 vendidas», y las cinco que
 faltaban no se explicaban en ninguna parte de la pantalla —eran borradores, pendientes de aprobación
@@ -785,6 +804,13 @@ administra la organización y ese dinero no es suyo. Decía «Te falta cobrar» 
 lo prohíbe para la columna «Falta» de una tabla, y esa prohibición sigue en pie: allí compite con
 «Falta» por el mismo hueco. Aquí no compite con nada —encabeza un importe dentro de un bloque que ya
 se llama «Sin pagos»— y es lo que un vendedor dice en voz alta.
+
+**Desde D-198 esas secciones vuelven a ser una: la del vendedor.** El panel administrativo ya no tiene
+«Resumen de cobranza» ni «Boletas vendidas según su pago»; cuenta boletas, y sus dos recuentos de pago
+dicen **«Pagadas»** y **«Sin pagar»**. Ahí «Sin pagar» incluye las boletas con abonos: es la única forma
+de que un recuento no delate lo abonado. Lo del posesivo de «Falta cobrar» queda como historia. En el
+portal del vendedor **no cambia nada**: «Abonada» sigue siendo su etiqueta y sus rótulos siguen en su
+sitio.
 
 **«Falta» y «Saldo pendiente» son la misma cifra con dos nombres, y no es un descuido** (D-130).
 El término del glosario es **saldo pendiente**, y se escribe entero dondequiera que quepa: la
@@ -1320,7 +1346,9 @@ regla de siempre —se abrevia lo visible, nunca el término (D-114)— aplicada
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, las dos de un
 cliente: **Activo · Archivado** (`CLIENT_STATUS_LABELS`, D-113), y las tres de un recordatorio de
-pago: **Activo · Pausado · Archivado** (`PAYMENT_REMINDER_STATUS_LABELS`, D-188). Fuente única:
+pago: **Activo · Pausado · Archivado** (`PAYMENT_REMINDER_STATUS_LABELS`, D-188). El portal
+administrativo usa solo **Sin pagar** y **Pagada** (`ADMIN_TICKET_PAYMENT_STATE_LABELS`, D-198), tomadas
+de esas mismas constantes. Fuente única:
 `src/lib/constants.ts` (`docs/ARCHITECTURE.md` §8.3). Cambiar una etiqueta significa cambiar ese
 archivo, nunca escribirla suelta en una pantalla.
 
@@ -1392,8 +1420,12 @@ castigo donde solo había una espera.
 | «Ganancia por boleta» y sus tres líneas de apoyo | `src/features/dashboard/components/SellerEarningsCard.tsx` (D-175) |
 | Los textos de «Estado de cobro» propios del vendedor: título, inventario del encabezado y las cuatro cifras | `src/features/dashboard/components/CollectionStateCard.tsx` (D-171, D-172) |
 | El reparto por estado de pago —«Boletas vendidas según su pago», los tres grupos, «Deben», «Todavía deben», «Ya abonaron», «Cobrado» y la frase de la igualdad—, que usan **los dos portales** | `src/features/dashboard/components/CollectionBreakdownSection.tsx`, **todos juntos** (D-171, extraído en D-182). Lo único que cambia entre portales es a qué listado enlaza |
-| Textos del panel administrativo: «Resumen de cobranza», «Recaudado de … vendidos», «Falta cobrar» —sin posesivo— y «% recaudado · N boletas por cobrar» | `src/components/data/CollectionSummaryCard.tsx` (D-090, D-182) |
-| Rótulos del inventario del panel administrativo, «Registradas» incluido, y el aviso de que la tabla de vendedores está acotada | `src/app/(protected)/owner/dashboard/page.tsx` (D-182, D-183) |
+| ~~Textos del «Resumen de cobranza» del panel administrativo~~ | **Retirados en D-198** con `CollectionSummaryCard.tsx`: el personal ya no ve dinero |
+| Rótulos del inventario del panel administrativo —«Registradas», «Pagadas» y «Sin pagar» incluidos—, las columnas del resumen por vendedor y el aviso de que esa tabla está acotada | `src/app/(protected)/owner/dashboard/page.tsx` (D-182, D-183, D-198) |
+| «Pagada» y «Sin pagar» del portal administrativo, en singular y en plural | `src/lib/constants.ts` (`ADMIN_TICKET_PAYMENT_STATE_LABELS` y `ADMIN_TICKET_PAYMENT_STATE_PLURAL_LABELS`, D-198). **Reutilizan** las palabras del vendedor: no se escriben otra vez |
+| Las pistas del buscador de boletas del personal | `src/features/search/hints.ts` (`adminTicketSearchHint` y `adminTicketSearchEmptyDescription`, D-198) |
+| Por qué una boleta no admite una acción de lote, en el portal administrativo | `src/features/tickets/selection/eligibility.ts` (D-198): sin nombrar abonos, clientes ni precios |
+| Las dos frases del importador que rechazan cliente y abono | `src/features/tickets/import/review.ts` (`IMPORT_CLIENT_NOT_ALLOWED` e `IMPORT_ABONO_NOT_ALLOWED`, D-198) |
 | Los seis rótulos de «Mis boletas», «Registradas» incluido | `src/features/dashboard/components/TicketsOverviewCard.tsx` (D-172) |
 | Etiquetas de estado de un cliente («Activo», «Archivado») | `src/lib/constants.ts` (`CLIENT_STATUS_LABELS`, D-113) |
 | Encabezados de columna | El `header` de cada columna, en el `*Table.tsx` de su módulo (D-114) |
@@ -1415,7 +1447,7 @@ castigo donde solo había una espera.
 | Rótulos de la tarjeta «Cuánto gana» de la ficha del integrante | `src/features/team/components/TeamCommissionCard.tsx` (D-127) |
 | Errores de validación de formularios | `schemas.ts` de cada módulo de `src/features/` (mensajes de Zod) |
 | Errores devueltos por el servidor | `src/lib/errors.ts` (`mapPgError`) y los `RAISE` de las migraciones |
-| Nombre y descripción de cada reporte | `src/features/reports/schemas.ts` (`REPORT_LABELS`, `REPORT_DESCRIPTIONS`) |
+| Nombre y descripción de cada reporte | `src/features/reports/schemas.ts` (`REPORT_LABELS`, `REPORT_DESCRIPTIONS`, y `STAFF_REPORT_DESCRIPTIONS` para los dos que el portal administrativo describe distinto, D-198) |
 | Textos de «Ventas por fecha»: nota del «Abonado», estado vacío, rango al revés, encabezados | `SalesByDateReport`, dentro de `src/features/reports/components/ReportsView.tsx` (D-151) |
 | Encabezados del CSV de «Ventas por fecha» | `src/features/reports/export.ts` (`salesByDateColumns`, D-151) |
 | Títulos y descripciones de pantalla | `PageHeader` de cada `page.tsx` |
@@ -1503,6 +1535,7 @@ Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extr
 | La guía §11 usa «comprador» y §2 «Owner»; la aplicación dice **cliente** y **dueño** | Manda el Anexo A. Los ejemplos de la guía enseñan la regla, no el término. |
 | `CLAUDE.md` §27 fija las etiquetas de estado; la guía §4 pide términos consistentes | No hay conflicto real: §27 y `constants.ts` son la fuente de esas ocho etiquetas; esta guía manda en todo lo demás. |
 | La guía §6 desaconseja «Continuar» y «Aceptar»; algunos diálogos necesitan un botón de cierre | «Continuar» solo cuando el siguiente paso sea evidente; para cerrar sin actuar, **Cancelar** o **Volver**, nunca «Aceptar». |
+| `CLAUDE.md` §27 fija ocho etiquetas, «Abonada» incluida; desde D-198 el portal administrativo enseña solo dos estados de pago | No se cambia ni se crea ninguna etiqueta: el personal ve «Sin pagar» y «Pagada», con las palabras de `constants.ts`, porque «Abonada» delataría lo abonado. El portal del vendedor sigue con las ocho |
 
 ## Anexo D — Estado de aplicación
 

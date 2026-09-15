@@ -82,9 +82,12 @@ export function BulkDeleteDialog({
       onConfirm={confirm}
     >
       <div className="space-y-3">
+        {/* D-198: sin nombrar abonos y sin mandar a anular una boleta vendida,
+            que el personal ya no puede anular. «Entrar en la operación» es la
+            misma frase de los motivos de cada boleta (`eligibility.ts`). */}
         <p className="text-muted-foreground text-sm">
-          Solo se pueden eliminar boletas que todavía no se vendieron ni tienen abonos. Si una
-          boleta ya salió a la calle, anúlala: así conserva su historia y nadie puede reutilizar sus
+          Solo se pueden eliminar las boletas que nunca entraron en la operación. Si una ya se usó
+          pero no se ha vendido, anúlala: así conserva su historia y nadie puede reutilizar sus
           números.
         </p>
         <div className="space-y-1.5">

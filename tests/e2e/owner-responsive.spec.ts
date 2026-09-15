@@ -38,7 +38,8 @@ test.describe('Portal administrativo en movil', () => {
       '/owner/raffles',
       '/owner/tickets',
       '/owner/sellers',
-      '/owner/clients',
+      // `/owner/clients` ya no existe (D-198); «Reportes» ocupa su sitio.
+      '/owner/reports',
       '/owner/users',
       '/owner/tickets/bulk',
     ]) {
@@ -53,18 +54,10 @@ test.describe('Portal administrativo en movil', () => {
     }
   })
 
-  test('en el telefono los clientes son tarjetas, no una tabla encogida', async ({ page }) => {
-    await page.goto('/owner/clients')
-
-    const lista = page.getByRole('list', { name: 'Clientes' })
-    await expect(lista).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Cliente' })).toBeHidden()
-
-    const tarjeta = lista.getByRole('listitem').first()
-    await expect(tarjeta.getByRole('link')).toBeVisible()
-    await expect(tarjeta).toContainText('Boletas')
-    await expect(tarjeta).toContainText('Saldo')
-  })
+  // «En el teléfono los clientes son tarjetas» vivía aquí, sobre `/owner/clients`.
+  // Desde D-198 esa lista no existe en el portal administrativo: la del vendedor
+  // la comprueba `clientes-movil.spec.ts`, y `privacidad-admin-movil.spec.ts`
+  // comprueba que la dirección antigua ya no responde.
 
   test('en el telefono las boletas son tarjetas, no una tabla encogida', async ({ page }) => {
     await page.goto('/owner/tickets')
@@ -76,10 +69,12 @@ test.describe('Portal administrativo en movil', () => {
     await expect(page.getByRole('columnheader', { name: 'Boleta', exact: true })).toBeHidden()
 
     // Y no se pierde nada de lo que la tabla enseña en escritorio: los dos
-    // numeros, el vendedor, el cliente, los dos estados y el precio.
+    // numeros, el vendedor y los dos estados. Desde D-198 ninguna de las dos
+    // trae cliente ni precio, y la tarjeta tampoco inventa «Sin cliente».
     const tarjeta = lista.getByRole('listitem').first()
     await expect(tarjeta.getByRole('link', { name: /Ver la boleta/ })).toBeVisible()
     await expect(tarjeta).toContainText('Diario · Semanal')
+    await expect(tarjeta).not.toContainText('Sin cliente')
   })
 
   test('el formulario de boleta es usable con teclado numerico', async ({ page }) => {

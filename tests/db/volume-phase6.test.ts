@@ -25,6 +25,10 @@
  * La rifa se crea en estado BORRADOR, no activa: asi ninguna pantalla ni
  * ninguna prueba end-to-end la confunde con «la rifa activa» de la
  * organizacion. `bulk_create_tickets` admite borradores (BR-R08).
+ *
+ * DESDE D-198 las lecturas de boletas se hacen con la sesion de vendedor1, que
+ * tiene 3.000 de las 5.000: el personal ya no lee `tickets`. Sus recuentos
+ * salen de `admin_ticket_inventory`, y tambien se miden aqui.
  */
 import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -109,7 +113,7 @@ async function ensureVolumeRaffle(): Promise<string> {
     })
 
     // Se reparten entre los dos vendedores para que el reporte por vendedor
-    // tenga algo que separar.
+    // tenga algo que separar: 3.000 para vendedor1 y 2.000 para vendedor2.
     const sellerId = (start / BATCH_SIZE) % 2 === 0 ? ctx.ids.seller1 : ctx.ids.seller2
     const { error } = await owner.rpc('bulk_create_tickets', {
       p_raffle_id: id,
@@ -120,6 +124,15 @@ async function ensureVolumeRaffle(): Promise<string> {
   }
 
   return id
+}
+
+/** Cuantas boletas de la rifa de volumen son de vendedor1, contadas por fuera de la RLS. */
+async function deVendedor1(): Promise<number> {
+  const { rows } = await db.query(
+    `select count(*)::int as n from tickets where raffle_id = $1 and seller_id = $2`,
+    [raffleId, ctx.ids.seller1],
+  )
+  return rows[0].n as number
 }
 
 /**
@@ -154,31 +167,23 @@ describe('F6-06 volumen: 5.000 boletas', () => {
   })
 
   it('DEMUESTRA el truncamiento silencioso de PostgREST (I-011)', async () => {
-    // Sin error y sin aviso: exactamente 1.000 filas de 5.000. Contar
-    // `data.length` aqui daria 1.000 y seria un dato falso.
-    const { data, error } = await owner.from('tickets').select('id').eq('raffle_id', raffleId)
+    // Sin error y sin aviso: exactamente 1.000 filas de las 3.000 de vendedor1.
+    // Contar `data.length` aqui daria 1.000 y seria un dato falso.
+    const { data, error } = await seller1.from('tickets').select('id').eq('raffle_id', raffleId)
 
     expect(error).toBeNull()
     expect(data!.length).toBe(POSTGREST_MAX_ROWS)
-
-    const real = await db.query(`select count(*)::int as n from tickets where raffle_id = $1`, [
-      raffleId,
-    ])
-    expect(real.rows[0].n).toBeGreaterThan(data!.length)
+    expect(await deVendedor1()).toBeGreaterThan(data!.length)
   })
 
   it('`count: exact, head: true` SI devuelve el numero real', async () => {
-    const { count, error } = await owner
+    const { count, error } = await seller1
       .from('tickets')
       .select('id', { count: 'exact', head: true })
       .eq('raffle_id', raffleId)
 
     expect(error).toBeNull()
-
-    const { rows } = await db.query(`select count(*)::int as n from tickets where raffle_id = $1`, [
-      raffleId,
-    ])
-    expect(count).toBe(rows[0].n)
+    expect(count).toBe(await deVendedor1())
     expect(count).toBeGreaterThan(POSTGREST_MAX_ROWS)
   })
 
@@ -187,7 +192,7 @@ describe('F6-06 volumen: 5.000 boletas', () => {
     // la base real: bloques de 1.000 hasta que uno venga incompleto.
     const todas: string[] = []
     for (;;) {
-      const { data, error } = await owner
+      const { data, error } = await seller1
         .from('tickets')
         .select('id')
         .eq('raffle_id', raffleId)
@@ -199,16 +204,13 @@ describe('F6-06 volumen: 5.000 boletas', () => {
       if ((data ?? []).length < POSTGREST_MAX_ROWS) break
     }
 
-    const { rows } = await db.query(`select count(*)::int as n from tickets where raffle_id = $1`, [
-      raffleId,
-    ])
-    expect(todas.length).toBe(rows[0].n)
+    expect(todas.length).toBe(await deVendedor1())
     expect(new Set(todas).size).toBe(todas.length) // sin repetidos entre bloques
   })
 
   it('el resumen por rifa devuelve UNA fila, no 5.000, y es correcto', async () => {
     const { result, ms } = await timed(() =>
-      owner.from('v_raffle_summary').select('*').eq('raffle_id', raffleId),
+      seller1.from('v_raffle_summary').select('*').eq('raffle_id', raffleId),
     )
 
     expect(result.error).toBeNull()
@@ -218,42 +220,50 @@ describe('F6-06 volumen: 5.000 boletas', () => {
     const { rows } = await db.query(
       `select count(*)::int as total,
               count(*) filter (where inventory_status = 'available')::int as disponibles
-       from tickets where raffle_id = $1`,
-      [raffleId],
+       from tickets where raffle_id = $1 and seller_id = $2`,
+      [raffleId, ctx.ids.seller1],
     )
     expect(result.data![0]!.tickets_total).toBe(rows[0].total)
     expect(result.data![0]!.tickets_available).toBe(rows[0].disponibles)
   })
 
-  it('el resumen por vendedor agrega en SQL: una fila por vendedor y rifa', async () => {
+  it('el inventario por vendedor agrega en SQL: una fila por vendedor y rifa', async () => {
+    // El recuento del personal (D-198): 2 filas para 5.000 boletas. Si esto
+    // creciera con el numero de boletas, la agregacion habria dejado de estar
+    // en SQL.
     const { result, ms } = await timed(() =>
-      owner.from('v_seller_summary').select('*').eq('raffle_id', raffleId),
+      owner.rpc('admin_ticket_inventory', { p_raffle_id: raffleId }),
     )
 
     expect(result.error).toBeNull()
     expect(ms).toBeLessThan(TIME_BUDGET_MS)
-    // Dos vendedores: 2 filas para 5.000 boletas. Si esto creciera con el
-    // numero de boletas, la agregacion habria dejado de estar en SQL.
     expect(result.data!.length).toBeLessThanOrEqual(2)
 
-    const suma = (result.data ?? []).reduce((acc, row) => acc + (row.tickets_total ?? 0), 0)
+    const suma = (result.data ?? []).reduce((acc, row) => acc + Number(row.tickets_total), 0)
     const { rows } = await db.query(`select count(*)::int as n from tickets where raffle_id = $1`, [
       raffleId,
     ])
     expect(suma).toBe(rows[0].n)
+
+    // Y la vista del vendedor, con su sesion: una fila, la suya.
+    const propia = await seller1.from('v_seller_summary').select('*').eq('raffle_id', raffleId)
+    expect(propia.error).toBeNull()
+    expect(propia.data).toHaveLength(1)
+    expect(propia.data![0]!.tickets_total).toBe(await deVendedor1())
   })
 
   it('los totales de pagos siguen siendo exactos y rapidos con la base cargada', async () => {
-    const { result, ms } = await timed(() => owner.rpc('report_payment_totals', {}))
+    const { result, ms } = await timed(() => seller1.rpc('report_payment_totals', {}))
 
     expect(result.error).toBeNull()
     expect(ms).toBeLessThan(TIME_BUDGET_MS)
 
     const { rows } = await db.query(
-      `select coalesce(sum(total_amount), 0)::bigint as total from payments where organization_id = $1`,
-      [ctx.demoOrg.id],
+      `select coalesce(sum(total_amount), 0)::bigint as total from payments where seller_id = $1`,
+      [ctx.ids.seller1],
     )
     expect(Number(result.data![0]!.total_amount)).toBe(Number(rows[0].total))
+    expect(Number(rows[0].total)).toBeGreaterThan(0)
   })
 
   it('un vendedor sigue viendo solo lo suyo con 5.000 boletas de por medio', async () => {
@@ -264,22 +274,18 @@ describe('F6-06 volumen: 5.000 boletas', () => {
 
     expect(error).toBeNull()
 
-    const { rows } = await db.query(
-      `select count(*)::int as n from tickets where raffle_id = $1 and seller_id = $2`,
-      [raffleId, ctx.ids.seller1],
-    )
     const { rows: totales } = await db.query(
       `select count(*)::int as n from tickets where raffle_id = $1`,
       [raffleId],
     )
 
-    expect(count).toBe(rows[0].n)
+    expect(count).toBe(await deVendedor1())
     expect(count).toBeLessThan(totales[0].n)
   })
 
   it('el reporte de clientes con saldo cuenta en SQL, no trayendo filas', async () => {
     const { result, ms } = await timed(() =>
-      owner
+      seller1
         .from('v_client_balances')
         .select('client_id', { count: 'exact', head: true })
         .gt('pending_amount', 0),
@@ -290,5 +296,13 @@ describe('F6-06 volumen: 5.000 boletas', () => {
     // `head: true` no trae ni una fila: solo la cabecera con el conteo.
     expect(result.data).toBeNull()
     expect(result.count).toBeGreaterThan(0)
+
+    // El personal ya no cuenta clientes con saldo (D-198).
+    const delDueno = await owner
+      .from('v_client_balances')
+      .select('client_id', { count: 'exact', head: true })
+      .gt('pending_amount', 0)
+    expect(delDueno.error).toBeNull()
+    expect(delDueno.count).toBe(0)
   })
 })

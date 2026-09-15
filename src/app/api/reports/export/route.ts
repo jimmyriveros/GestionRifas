@@ -49,7 +49,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const csv = await buildReportCsv(filters)
+    // El publico sale de la SESION (D-198): el personal recibe siempre el
+    // archivo de recuentos, pida lo que pida la URL.
+    const csv = await buildReportCsv(filters, membership.role === 'seller' ? 'seller' : 'staff')
     const filename = csvFilename(reportFilePrefix(filters.report), todayBogota())
     return new NextResponse(csv, { headers: csvHeaders(filename) })
   } catch {

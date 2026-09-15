@@ -149,7 +149,9 @@ test.describe('El portal administrativo ve la estructura comercial', () => {
 
     // Y el detalle enlaza la jerarquía en las dos direcciones.
     await page.goto(`/owner/sellers/${jefeId}`)
-    await expect(page.getByText('Equipo y comisión')).toBeVisible()
+    // Desde D-198 la tarjeta es «Equipo»: la estructura y la regla, sin lo que gana.
+    await expect(page.getByRole('heading', { name: 'Equipo', exact: true })).toBeVisible()
+    await expect(page.getByText(/Ganancia|ganados/)).toHaveCount(0)
     await expect(page.getByRole('link', { name: integranteNombre })).toBeVisible()
 
     // BR-G13: la ficha dice CON QUÉ REGLA se le paga a cada quien, para que el
@@ -251,7 +253,7 @@ test.describe('Mi ganancia', () => {
     const jefe = await alta('jefe-nivel', null)
     const integrante = await alta('integrante-nivel', jefe.id)
 
-    // Tres boletas cobradas por el camino real: el Dueño registra el pago.
+    // Tres boletas cobradas por el camino real: el integrante registra el pago.
     const precio = raffle!.ticket_price
     const { data: cliente } = await svc
       .from('clients')
@@ -288,8 +290,10 @@ test.describe('Mi ganancia', () => {
       if (t) ids.push(t.id)
     }
 
-    const owner = await signedInClient(ACCOUNTS.owner)
-    const { error } = await owner.rpc('create_payment', {
+    // Lo cobra el propio integrante, que es quien vendió: desde D-198 el Dueño ya
+    // no registra abonos (BR-Q06).
+    const vendedor = await signedInClient(integrante.email)
+    const { error } = await vendedor.rpc('create_payment', {
       p_client_id: cliente!.id,
       p_total_amount: ids.length * precio,
       p_allocations: ids.map((id) => ({ ticket_id: id, amount: precio })),

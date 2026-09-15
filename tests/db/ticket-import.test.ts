@@ -1,6 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { anonClient, loadSeedContext, serviceClient, signInAs, USERS, type Client } from './helpers'
+import {
+  anonClient,
+  asProfile,
+  loadSeedContext,
+  serviceClient,
+  signInAs,
+  USERS,
+  type Client,
+} from './helpers'
 
 /**
  * Importacion de boletas: las dos piezas de servidor de la migracion 0019
@@ -87,6 +95,55 @@ afterAll(async () => {
 })
 
 const combo = (daily: string, weekly: string) => ({ daily_number: daily, weekly_number: weekly })
+
+/**
+ * Las dos RPC de la importacion con clientes quedaron DORMIDAS en D-198: ya no
+ * son ejecutables por `authenticated`, y la aplicacion importa solo boletas sin
+ * vender (BR-Q07). Su cuerpo no cambio —reactivarlas es volver a concederlas—, y
+ * estas pruebas lo siguen comprobando entero, con la identidad de quien la
+ * llamaria (ver `asProfile`). Devuelven la misma forma `{ data, error }` que una
+ * llamada por PostgREST, para que las aserciones no cambien.
+ */
+type ErrorDeBase = { message: string; code?: string }
+
+async function llamarDormida<T>(
+  profileId: string,
+  sql: string,
+  params: unknown[],
+  leer: (rows: Record<string, unknown>[]) => T,
+): Promise<{ data: T | null; error: ErrorDeBase | null }> {
+  try {
+    const { rows } = await asProfile(profileId, sql, params)
+    return { data: leer(rows), error: null }
+  } catch (problema) {
+    const { message, code } = problema as ErrorDeBase
+    return { data: null, error: { message, code } }
+  }
+}
+
+function importarDormida(
+  profileId: string,
+  args: { p_raffle_id: string; p_seller_id: string; p_rows: unknown[] },
+) {
+  return llamarDormida(
+    profileId,
+    'select import_tickets_with_clients($1, $2, $3::jsonb) as resultado',
+    [args.p_raffle_id, args.p_seller_id, JSON.stringify(args.p_rows)],
+    (rows) => (rows[0]?.resultado ?? null) as Record<string, unknown> | null,
+  )
+}
+
+function compararClientesDormida(
+  profileId: string,
+  args: { p_raffle_id: string; p_seller_id: string; p_clients: unknown[] },
+) {
+  return llamarDormida(
+    profileId,
+    'select * from match_ticket_import_clients($1, $2, $3::jsonb)',
+    [args.p_raffle_id, args.p_seller_id, JSON.stringify(args.p_clients)],
+    (rows) => rows,
+  )
+}
 
 describe('taken_ticket_combinations', () => {
   it('devuelve solo las combinaciones que ya existen, no todas las preguntadas', async () => {
@@ -342,15 +399,6 @@ describe('Guardado del lote importado', () => {
 })
 
 describe('Importacion administrativa con clientes (0021)', () => {
-  type ResultadoImportacion = {
-    requested: number
-    inserted: number
-    conflicts: Array<{ daily_number: string; weekly_number: string }>
-    assigned: number
-    clients_created: number
-    clients_reused: number
-  }
-
   function celularUnico() {
     return `31${String(Math.floor(Math.random() * 100_000_000)).padStart(8, '0')}`
   }
@@ -403,14 +451,22 @@ describe('Importacion administrativa con clientes (0021)', () => {
     return delLote
   }
 
-  it('mezcla filas con y sin cliente y agrupa una identidad en un solo cliente', async () => {
+  it('desde D-198 ya no vende, ni con la identidad del personal, y no deja nada a medias', async () => {
+    // Hasta D-198 esta prueba demostraba que el lote mezclaba filas con y sin
+    // cliente y agrupaba una identidad en un solo cliente. La importacion con
+    // clientes quedo dormida, y su cuerpo vende por `assign_ticket_row`, que
+    // desde 0057 solo deja vender al vendedor de la boleta: con la identidad del
+    // Dueño se detiene en la primera fila con cliente sin escribir nada. El
+    // camino feliz vuelve a probarse al reactivarla (procedimiento en D-198).
     const conCliente1 = numeros()
     const conCliente2 = numeros()
     const sinCliente = numeros()
     const phone = celularUnico()
     const name = `Cliente importado ${phone}`
+    const ticketsBefore = await contarBoletas()
+    const counterBefore = await contadorDeCodigos()
 
-    const { data, error } = await owner.rpc('import_tickets_with_clients', {
+    const { data, error } = await importarDormida(seed.ids.owner, {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_rows: [
@@ -430,43 +486,29 @@ describe('Importacion administrativa con clientes (0021)', () => {
       ],
     })
 
-    expect(error).toBeNull()
-    expect(data as ResultadoImportacion).toMatchObject({
-      requested: 3,
-      inserted: 3,
-      conflicts: [],
-      assigned: 2,
-      clients_created: 1,
-      clients_reused: 0,
-    })
-
-    const tickets = await recordarBoletas([conCliente1, conCliente2, sinCliente])
-    const asignadas = tickets.filter((ticket) => ticket.inventory_status === 'assigned')
-    const disponible = tickets.find(
-      (ticket) =>
-        ticket.daily_number === sinCliente.daily && ticket.weekly_number === sinCliente.weekly,
-    )
-
-    expect(asignadas).toHaveLength(2)
-    expect(new Set(asignadas.map((ticket) => ticket.client_id)).size).toBe(1)
-    expect(disponible).toMatchObject({ inventory_status: 'available', client_id: null })
-
-    const clientId = asignadas[0]!.client_id!
-    clientesCreados.push(clientId)
+    expect(data).toBeNull()
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/no existe o no tienes acceso/i)
+    expect(await recordarBoletas([conCliente1, conCliente2, sinCliente])).toEqual([])
+    expect(await contarBoletas()).toBe(ticketsBefore)
+    expect(await contadorDeCodigos()).toBe(counterBefore)
     const { count } = await seed.svc
       .from('clients')
       .select('id', { count: 'exact', head: true })
-      .eq('id', clientId)
-    expect(count).toBe(1)
+      .eq('phone', phone)
+    expect(count).toBe(0)
   })
 
-  it('reutiliza una coincidencia unica de nombre y celular de la cartera indicada', async () => {
+  it('desde D-198 tampoco reutiliza un cliente de la cartera: la venta no ocurre', async () => {
+    // Antes demostraba que reutilizaba una coincidencia unica de nombre y
+    // celular. Por lo mismo que la prueba anterior, ya no llega a vender.
     const number = numeros()
     const phone = celularUnico()
     const name = `Cliente existente ${phone}`
     const clientId = await crearCliente(name, phone)
+    const ticketsBefore = await contarBoletas()
 
-    const { data, error } = await owner.rpc('import_tickets_with_clients', {
+    const { data, error } = await importarDormida(seed.ids.owner, {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_rows: [
@@ -479,16 +521,17 @@ describe('Importacion administrativa con clientes (0021)', () => {
       ],
     })
 
-    expect(error).toBeNull()
-    expect(data as ResultadoImportacion).toMatchObject({
-      inserted: 1,
-      assigned: 1,
-      clients_created: 0,
-      clients_reused: 1,
-    })
+    expect(data).toBeNull()
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/no existe o no tienes acceso/i)
+    expect(await recordarBoletas([number])).toEqual([])
+    expect(await contarBoletas()).toBe(ticketsBefore)
 
-    const [ticket] = await recordarBoletas([number])
-    expect(ticket).toMatchObject({ client_id: clientId, inventory_status: 'assigned' })
+    const { count } = await seed.svc
+      .from('tickets')
+      .select('id', { count: 'exact', head: true })
+      .eq('client_id', clientId)
+    expect(count).toBe(0)
   })
 
   it('la vista previa solo devuelve coincidencias de la cartera seleccionada', async () => {
@@ -496,7 +539,7 @@ describe('Importacion administrativa con clientes (0021)', () => {
     const ownId = await crearCliente(`Cartera uno ${phone}`, phone, seed.ids.seller1)
     await crearCliente(`Cartera dos ${phone}`, phone, seed.ids.seller2)
 
-    const { data, error } = await owner.rpc('match_ticket_import_clients', {
+    const { data, error } = await compararClientesDormida(seed.ids.owner, {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_clients: [{ client_key: 'grupo-1', name: `Cartera uno ${phone}`, phone }],
@@ -515,7 +558,7 @@ describe('Importacion administrativa con clientes (0021)', () => {
     const ticketsBefore = await contarBoletas()
     const counterBefore = await contadorDeCodigos()
 
-    const { error } = await owner.rpc('import_tickets_with_clients', {
+    const { error } = await importarDormida(seed.ids.owner, {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_rows: [
@@ -545,7 +588,7 @@ describe('Importacion administrativa con clientes (0021)', () => {
     const ticketsBefore = await contarBoletas()
     const counterBefore = await contadorDeCodigos()
 
-    const { error } = await owner.rpc('import_tickets_with_clients', {
+    const { error } = await importarDormida(seed.ids.owner, {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_rows: [
@@ -578,19 +621,46 @@ describe('Importacion administrativa con clientes (0021)', () => {
       ],
     })
 
+    // Desde una sesion ya ni se llega a la funcion (D-198)...
     expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/permiso/i)
+    expect(error!.code).toBe('42501')
+
+    // ...y su cuerpo sigue rechazando a un vendedor.
+    const cuerpo = await importarDormida(seed.ids.seller1, {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: number.daily,
+          weekly_number: number.weekly,
+          client_name: 'Cliente sin permiso',
+          client_phone: celularUnico(),
+        },
+      ],
+    })
+    expect(cuerpo.error).not.toBeNull()
+    expect(cuerpo.error!.message).toMatch(/permiso/i)
   })
 
   it('no permite consultar clientes de otra organizacion', async () => {
-    const { error } = await otraOrg.rpc('match_ticket_import_clients', {
+    const args = {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_clients: [{ client_key: 'grupo-1', name: 'Cliente externo', phone: celularUnico() }],
-    })
+    }
 
+    const { error } = await otraOrg.rpc('match_ticket_import_clients', args)
     expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/permiso/i)
+    expect(error!.code).toBe('42501')
+
+    const { data: duenoAjeno } = await seed.svc
+      .from('profiles')
+      .select('id')
+      .eq('email', USERS.otherOrgOwner)
+      .single()
+    const cuerpo = await compararClientesDormida(duenoAjeno!.id, args)
+    expect(cuerpo.error).not.toBeNull()
+    expect(cuerpo.error!.message).toMatch(/permiso/i)
   })
 })
 
@@ -673,15 +743,20 @@ describe('import_tickets_with_clients con abono', () => {
     return count ?? 0
   }
 
-  it('CASOS 14 y 15 — el abono queda como pago y asignación, no como un campo suelto', async () => {
+  it('CASOS 14 y 15 — desde D-198 no registra abonos: ni boletas, ni clientes, ni pagos', async () => {
+    // Antes demostraba que el abono quedaba como pago y asignacion. La
+    // importacion con clientes quedo dormida y ya no llega a vender (ver «desde
+    // D-198 ya no vende»): lo que se comprueba es que no deja nada escrito.
     const precio = await precioDeLaRifa()
     const parcial = numeros()
     const completa = numeros()
     const sinAbono = numeros()
     const phone = celular()
     const name = `Cliente con abono ${phone}`
+    const boletasAntes = await contarBoletas()
+    const pagosAntes = await contarPagos()
 
-    const { data, error } = await owner.rpc('import_tickets_with_clients', {
+    const { data, error } = await importarDormida(seed.ids.owner, {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_rows: [
@@ -708,56 +783,17 @@ describe('import_tickets_with_clients con abono', () => {
       ],
     })
 
-    expect(error).toBeNull()
-    expect(data as Resultado).toMatchObject({
-      inserted: 3,
-      assigned: 3,
-      clients_created: 1,
-      payments_created: 2,
-      payments_total: 20_000 + precio,
-    })
-
-    const boletas = await boletasDe([parcial, completa, sinAbono])
-    const busca = (par: { daily: string; weekly: string }) =>
-      boletas.find((t) => t.daily_number === par.daily && t.weekly_number === par.weekly)!
-
-    // El estado NO lo escribe el importador: lo deriva la base de datos de lo
-    // que hay en payment_allocations (BR-F07).
-    expect(busca(parcial)).toMatchObject({ paid_amount: 20_000, payment_status: 'partial' })
-    expect(busca(completa)).toMatchObject({ paid_amount: precio, payment_status: 'paid' })
-    expect(busca(sinAbono)).toMatchObject({ paid_amount: 0, payment_status: 'unpaid' })
-
-    // Y el saldo de la pagada queda EXACTAMENTE en cero: lo abonado es lo que
-    // vale la boleta, sin un peso de mas ni de menos.
-    expect(busca(completa).sale_price).toBe(precio)
-    expect(busca(completa).paid_amount).toBe(precio)
-
-    clientesCreados.push(busca(parcial).client_id!)
-
-    // El movimiento existe de verdad: una fila de pago con su asignacion.
-    const { data: allocations } = await seed.svc
-      .from('payment_allocations')
-      .select('amount, ticket_id, payment_id')
-      .in('ticket_id', [busca(parcial).id, busca(completa).id, busca(sinAbono).id])
-
-    expect(allocations).toHaveLength(2)
-    // Cada abono es de SU boleta: dos pagos distintos, no uno repartido.
-    expect(new Set(allocations!.map((row) => row.payment_id)).size).toBe(2)
-    expect(allocations!.find((row) => row.ticket_id === busca(parcial).id)?.amount).toBe(20_000)
-
-    const { data: pagos } = await seed.svc
-      .from('payments')
-      .select('total_amount, payment_method, notes, seller_id')
-      .in(
-        'id',
-        allocations!.map((row) => row.payment_id),
-      )
-
-    expect(pagos).toHaveLength(2)
-    for (const pago of pagos!) {
-      expect(pago.seller_id).toBe(seed.ids.seller1)
-      expect(pago.notes).toMatch(/import/i)
-    }
+    expect(data).toBeNull()
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/no existe o no tienes acceso/i)
+    expect(await boletasDe([parcial, completa, sinAbono])).toEqual([])
+    expect(await contarBoletas()).toBe(boletasAntes)
+    expect(await contarPagos()).toBe(pagosAntes)
+    const { count } = await seed.svc
+      .from('clients')
+      .select('id', { count: 'exact', head: true })
+      .eq('phone', phone)
+    expect(count).toBe(0)
   })
 
   it('CASO 25 — un abono por encima del precio no deja boleta, cliente ni pago', async () => {
@@ -768,7 +804,7 @@ describe('import_tickets_with_clients con abono', () => {
     const pagosAntes = await contarPagos()
     const contadorAntes = await contadorDeCodigos()
 
-    const { error } = await owner.rpc('import_tickets_with_clients', {
+    const { error } = await importarDormida(seed.ids.owner, {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_rows: [
@@ -799,7 +835,7 @@ describe('import_tickets_with_clients con abono', () => {
     const number = numeros()
     const boletasAntes = await contarBoletas()
 
-    const { error } = await owner.rpc('import_tickets_with_clients', {
+    const { error } = await importarDormida(seed.ids.owner, {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_rows: [{ daily_number: number.daily, weekly_number: number.weekly, abono: 20_000 }],
@@ -816,7 +852,7 @@ describe('import_tickets_with_clients con abono', () => {
     for (const abono of [0, -20_000, 20_000.5]) {
       const number = numeros()
       const phone = celular()
-      const { error } = await owner.rpc('import_tickets_with_clients', {
+      const { error } = await importarDormida(seed.ids.owner, {
         p_raffle_id: seed.demoRaffle.id,
         p_seller_id: seed.ids.seller1,
         p_rows: [
@@ -844,7 +880,7 @@ describe('import_tickets_with_clients con abono', () => {
     const number = numeros()
     const phone = celular()
 
-    const { error } = await owner.rpc('import_tickets_with_clients', {
+    const { error } = await importarDormida(seed.ids.owner, {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_rows: [
@@ -881,15 +917,32 @@ describe('import_tickets_with_clients con abono', () => {
       ],
     })
 
+    // Desde una sesion ya ni se llega a la funcion (D-198), y su cuerpo sigue
+    // rechazando a un vendedor.
     expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/permiso/i)
+    expect(error!.code).toBe('42501')
+    const cuerpo = await importarDormida(seed.ids.seller1, {
+      p_raffle_id: seed.demoRaffle.id,
+      p_seller_id: seed.ids.seller1,
+      p_rows: [
+        {
+          daily_number: number.daily,
+          weekly_number: number.weekly,
+          client_name: `Cliente ${phone}`,
+          client_phone: phone,
+          abono: 20_000,
+        },
+      ],
+    })
+    expect(cuerpo.error).not.toBeNull()
+    expect(cuerpo.error!.message).toMatch(/permiso/i)
   })
 
   it('CASO 1 — sin la clave «abono» la importación se comporta como siempre', async () => {
     const number = numeros()
     const pagosAntes = await contarPagos()
 
-    const { data, error } = await owner.rpc('import_tickets_with_clients', {
+    const { data, error } = await importarDormida(seed.ids.owner, {
       p_raffle_id: seed.demoRaffle.id,
       p_seller_id: seed.ids.seller1,
       p_rows: [{ daily_number: number.daily, weekly_number: number.weekly }],

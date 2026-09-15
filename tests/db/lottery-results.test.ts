@@ -735,20 +735,37 @@ describe('aislamiento RLS (BR-L13, BR-L14, D-141)', () => {
     const { resultId } = await confirmResult({ lottery: 'medellin', winningNumber: daily })
     await match(resultId)
 
-    const { data: fromOwner } = await owner
-      .from('lottery_ticket_matches')
-      .select('ticket_id, organization_id')
-      .eq('result_id', resultId)
-    expect(fromOwner!.map((r) => r.ticket_id)).toContain(demoTicket)
-    expect(fromOwner!.map((r) => r.ticket_id)).not.toContain(controlTicket)
-    expect(fromOwner!.every((r) => r.organization_id === ctx.demoOrg.id)).toBe(true)
-
-    const { data: fromControl } = await otherOrgOwner
+    // D-198: el personal ya no lee `lottery_ticket_matches` —cada fila guarda el
+    // cliente de la venta—; su recuadro sale de `admin_lottery_matches`.
+    const { data: tablaDueno, error: tablaError } = await owner
       .from('lottery_ticket_matches')
       .select('ticket_id')
       .eq('result_id', resultId)
+    expect(tablaError).toBeNull()
+    expect(tablaDueno).toEqual([])
+
+    const { data: fromOwner, error } = await owner.rpc('admin_lottery_matches', {
+      p_result_ids: [resultId],
+    })
+    expect(error).toBeNull()
+    expect(fromOwner!.map((r) => r.ticket_id)).toContain(demoTicket)
+    expect(fromOwner!.map((r) => r.ticket_id)).not.toContain(controlTicket)
+    for (const fila of fromOwner!) expect(fila).not.toHaveProperty('client_id')
+
+    const { data: fromControl } = await otherOrgOwner.rpc('admin_lottery_matches', {
+      p_result_ids: [resultId],
+    })
     expect(fromControl!.map((r) => r.ticket_id)).toContain(controlTicket)
     expect(fromControl!.map((r) => r.ticket_id)).not.toContain(demoTicket)
+
+    // Y el vendedor ve en la tabla solo las de SUS boletas, de su organizacion.
+    const { data: fromSeller } = await seller1
+      .from('lottery_ticket_matches')
+      .select('ticket_id, organization_id')
+      .eq('result_id', resultId)
+    expect(fromSeller!.map((r) => r.ticket_id)).toContain(demoTicket)
+    expect(fromSeller!.map((r) => r.ticket_id)).not.toContain(controlTicket)
+    expect(fromSeller!.every((r) => r.organization_id === ctx.demoOrg.id)).toBe(true)
   })
 
   it('nadie escribe coincidencias ni resultados desde una sesion', async () => {
@@ -980,18 +997,31 @@ describe('la lectura del Panel esta acotada y aislada (D-155)', () => {
     })
     await match(resultId)
 
-    const { data: propias } = await owner
+    // Su vendedor, por la tabla y con el cliente: la lectura de su panel.
+    const { data: propias } = await seller1
       .from('lottery_ticket_matches')
       .select(LOTTERY_DASHBOARD_MATCH_SELECT)
       .eq('result_id', resultId)
-    expect(propias, 'el personal de la organizacion si ve la suya').toHaveLength(1)
+    expect(propias, 'su vendedor si ve la suya').toHaveLength(1)
 
-    const { data: ajenas, error } = await otherOrgOwner
-      .from('lottery_ticket_matches')
-      .select(LOTTERY_DASHBOARD_MATCH_SELECT)
-      .eq('result_id', resultId)
+    // El personal, desde D-198, por su proyeccion y sin cliente.
+    const { data: delPersonal, error: personalError } = await owner.rpc('admin_lottery_matches', {
+      p_result_ids: [resultId],
+    })
+    expect(personalError).toBeNull()
+    expect(delPersonal, 'el personal de la organizacion si ve la suya').toHaveLength(1)
+
+    const { data: ajenas, error } = await otherOrgOwner.rpc('admin_lottery_matches', {
+      p_result_ids: [resultId],
+    })
     expect(error).toBeNull()
     expect(ajenas, 'la otra organizacion no ve ninguna').toHaveLength(0)
+
+    const { data: ajenasPorTabla } = await otherOrgOwner
+      .from('lottery_ticket_matches')
+      .select(LOTTERY_DASHBOARD_MATCH_SELECT)
+      .eq('result_id', resultId)
+    expect(ajenasPorTabla).toHaveLength(0)
 
     // La programacion y el resultado SI son nacionales (D-141): el recuadro de
     // la otra organizacion muestra el numero mayor, sin coincidencias.

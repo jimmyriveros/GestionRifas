@@ -7,7 +7,16 @@ import {
   clearanceShortLabel,
   clearanceState,
   type ClearanceEligibility,
+  type ClearanceState,
 } from '../clearance-receipt'
+
+/**
+ * De donde sale el estado. El vendedor pasa su boleta y aqui se calcula; el
+ * portal administrativo pasa el estado que ya resolvio SQL, porque su modelo no
+ * lleva cliente (D-198).
+ */
+type ClearanceSource =
+  { ticket: ClearanceEligibility; state?: never } | { state: ClearanceState; ticket?: never }
 
 /**
  * Si el paz y salvo de una boleta está entregado, en una lista (BR-I15, D-170).
@@ -35,15 +44,14 @@ import {
  * entrega de la que hablar, y decir «por entregar» inventaría una tarea.
  */
 export function ClearanceReceiptIndicator({
-  ticket,
   variant,
   className,
-}: {
-  ticket: ClearanceEligibility
+  ...source
+}: ClearanceSource & {
   variant: 'icon' | 'short'
   className?: string
 }) {
-  const state = clearanceState(ticket)
+  const state = source.ticket ? clearanceState(source.ticket) : (source.state ?? null)
   if (state === null) return null
 
   const delivered = state !== 'pending'

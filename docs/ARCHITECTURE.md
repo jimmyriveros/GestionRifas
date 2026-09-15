@@ -237,22 +237,22 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/denied` | autenticado | 1 | Acceso denegado |
 | `/catalogo/[slug]` | **público, sin sesión** | post-9 | Catálogo público de un vendedor (BR-K01, D-159). Grupo `(catalogo)`, `force-dynamic`, `noindex`. Un corte pasajero de Supabase se reintenta una vez y, si sigue, lo recoge su propio `error.tsx` (BR-K15, D-196) |
 | `/account/password` | todos | 1 | Cambio de contraseña |
-| `/owner/dashboard` | owner, admin | 1 → 3 → **6 ✅** | Métricas generales (`CLAUDE.md` §23 completo) |
+| `/owner/dashboard` | owner, admin | 1 → 3 → **6 ✅** · post-9 | Inventario de la organización y resumen por vendedor, en boletas; **sin dinero** desde D-198 (§8.26) |
 | `/owner/raffles` | owner, admin | **3 ✅** | Listado de rifas |
 | `/owner/raffles/new` | owner, admin | **3 ✅** | Crear rifa |
-| `/owner/raffles/[raffleId]` | owner, admin | **3 ✅** | Detalle (la edición está en `/edit`) |
+| `/owner/raffles/[raffleId]` | owner, admin | **3 ✅** · post-9 | Detalle con su inventario, sin la sección «Dinero» desde D-198 (la edición está en `/edit`) |
 | `/owner/raffles/[raffleId]/edit` | owner, admin | **3 ✅** | Edición (bloqueada en rifas cerradas o anuladas) |
 | `/owner/users` | owner, admin | **3 ✅** | Administradores |
 | `/owner/sellers` | owner, admin | **3 ✅** | Vendedores |
-| `/owner/sellers/[sellerId]` | owner, admin | **3 ✅** · post-9 | Detalle del vendedor, su equipo y su comisión (BR-E08) |
-| `/owner/tickets` | owner, admin | **3 ✅** | Tabla global de boletas |
+| `/owner/sellers/[sellerId]` | owner, admin | **3 ✅** · post-9 | Detalle del vendedor: contacto, inventario, su equipo y con qué regla se le paga (BR-E08). Sin lo vendido ni lo ganado desde D-198 |
+| `/owner/tickets` | owner, admin | **3 ✅** · post-9 | Tabla global de boletas por `admin_list_tickets`: sin cliente ni dinero, búsqueda solo por número y pago en dos estados (D-198) |
 | `/owner/tickets/new` | owner, admin | **3 ✅** | Creación individual |
 | `/owner/tickets/bulk` | owner, admin | **3 ✅** | Creación masiva (1–1.000) |
-| `/owner/tickets/[ticketId]` | owner, admin | **3 ✅** | Detalle, edición, anulación, aprobación |
-| `/owner/clients` | owner, admin | **3 ✅** | Consulta global de clientes |
-| `/owner/clients/[clientId]` | owner, admin | **3 ✅** | Perfil de cliente |
-| `/owner/payments` | owner, admin | **5 ✅** | Consulta global y anulación |
-| `/owner/reports` | owner, admin | **6 ✅** | Cinco reportes con filtros + exportación CSV |
+| `/owner/tickets/[ticketId]` | owner, admin | **3 ✅** · post-9 | Detalle por `admin_ticket_detail`, edición de números, aprobación y anulación de las no vendidas (D-198) |
+| ~~`/owner/clients`~~ | — | 3 → **retirada post-9** | La cartera es del vendedor (D-198): la ruta ya no existe |
+| ~~`/owner/clients/[clientId]`~~ | — | 3 → **retirada post-9** | Ídem |
+| ~~`/owner/payments`~~ | — | 5 → **retirada post-9** | Ídem: sin consulta global de pagos ni anulación |
+| `/owner/reports` | owner, admin | **6 ✅** · post-9 | Tres reportes de recuentos —por vendedor, por estado y por rifa— con filtros y CSV; sin dinero ni clientes (D-198) |
 | `/seller/dashboard` | seller | 1 → 4 → **6 ✅** | Métricas propias (`CLAUDE.md` §23 completo) |
 | `/seller/tickets` | seller | **4 ✅** | Boletas propias |
 | `/seller/tickets/new` | seller | **4 ✅** | Crear boletas (si la rifa lo permite) |
@@ -385,10 +385,10 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `MoneyInput` / `formatCOP` | Entrada y presentación de enteros COP |
 | `TicketNumberInput` | Solo dígitos, máx. 4, preserva ceros, `inputMode="numeric"` |
 | `PhoneInput` / `lib/phone.ts` | El **único** campo de teléfono (§8.22, D-184): «300 123 4567» y «+57 300 123 4567» mientras se escribe, `type`/`inputMode` `tel`, cursor recolocado a mano. Lo que se ve se deriva de `value`; **formatear no guarda nada** |
-| `StatusBadge` | Badge **con texto** (nunca solo color) para estados de inventario y pago |
+| `StatusBadge` | Badge **con texto** (nunca solo color) para estados de inventario y pago. `AdminPaymentStateBadge` es la del portal administrativo: solo «Pagada» y «Sin pagar» (D-198) |
 | Encabezados de columna | Los cuatro con acciones llevan rótulo: **«Acción»** con una sola acción (pagos, rifas) y **«Acciones»** con menú (vendedores, administradores). Los dos números se ven abreviados —«Núm. diario»— y conservan el nombre entero en `sr-only`, así que la columna se sigue llamando «Número diario» para un lector de pantalla (D-114) |
 | `DonutChart` / `TrendChart` | Los dos gráficos del panel del vendedor: SVG dibujado en el servidor, **sin librería y sin JavaScript** en el navegador. Escalan con `viewBox`, igual que `ProgressRing` (§8.13, D-112). En el centro del anillo va un porcentaje, nunca un importe (D-124) |
-| `CollectionSummaryCard` | Resumen de cobranza del panel (D-090): recibe `totals` ya agregado, no calcula nada; barra de progreso accesible con el mismo patrón que `BulkTicketCreator` |
+| ~~`CollectionSummaryCard`~~ | **Retirado en D-198.** Era el «Resumen de cobranza» del panel administrativo (D-090), y su único consumidor dejó de ver dinero. Vuelve desde Git si se reactiva el acceso |
 | `LotteryResultsCard` | Recuadro de resultados oficiales de los dos Paneles (D-147, §8.19). Server Component **puro**: recibe `data` ya leído, no consulta nada. Su prop `variant` elige entre las dos formas: `full` —el portal administrativo— y `compact` —el panel del vendedor, dos filas y el resto tras un `<details>` nativo (D-180)— |
 | `LotteryResultsSection` | Lo que ponen las dos páginas (D-155, §8.19.d): hace la lectura local dentro de un `<Suspense>` propio, con `LotteryResultsFallback` como hueco, para que el Panel no la espere. Propaga `variant` a los dos, de modo que el hueco tenga la forma y el título de la tarjeta que va a llegar |
 | `LotteryCompactCard` | El armazón de la forma compacta (D-181). **Único componente cliente del recuadro**, y solo por dos cosas que el HTML no da: que el detalle se despliegue **encima** del contenido y que se cierre al tocar fuera. Recibe el detalle ya dibujado en el servidor; no consulta, no calcula y no conoce ninguna regla |
@@ -403,7 +403,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `sidebar-preference.ts` | La preferencia (cookie) y el sitio disponible (`matchMedia`) como **dos cosas distintas**, y la regla que las combina (§8.16, D-131) |
 | `BottomNav` | La barra de navegación del teléfono (§8.8, D-106). Solo las entradas `primary`, solo bajo `md`. No consulta nada: `usePathname()` y ya. Conserva el aviso de «se está abriendo» de `NavPending`, en el sitio del icono |
 | `nav-active.ts` | `isNavItemActive(pathname, href)`: qué entrada se enciende. La comparten la barra lateral y la inferior, para que no puedan discrepar (D-106) |
-| `ProgressRing` | Anillo de progreso accesible (D-105): un `<svg>` con `stroke-dasharray`, sin librería de gráficas. Lleva el porcentaje **escrito** en el centro y `role="progressbar"`; es la versión compacta de la barra de `CollectionSummaryCard`, para cuando el porcentaje comparte fila con cifras de dinero. **Dentro solo va el porcentaje**, medido en `cqw` contra el propio anillo (D-124) |
+| `ProgressRing` | Anillo de progreso accesible (D-105): un `<svg>` con `stroke-dasharray`, sin librería de gráficas. Lleva el porcentaje **escrito** en el centro y `role="progressbar"`; es la versión compacta de una barra de progreso lineal, para cuando el porcentaje comparte fila con cifras de dinero. **Dentro solo va el porcentaje**, medido en `cqw` contra el propio anillo (D-124) |
 | `TicketPaymentSummary` | Estado, estado de pago y —si ya se vendió— anillo, abonado y pendiente de UNA boleta (D-105). No consulta ni calcula: recibe `sale_price` y `paid_amount` y pide el porcentaje a `calculateCollectionSummary`, la misma cuenta del panel. Dos bloques apilados y separados por una línea; el anillo se pone encima de las cifras en el teléfono y a su izquierda desde 400 px de tarjeta (D-124) |
 | `PageHeader` | Título, descripción y acciones de toda pantalla. `backHref` activa la flecha de volver de las pantallas de detalle (§8.6, D-089). `compactAction` es el contrato del CTA compacto (§8.20) |
 | `BackButton` | Flecha de volver: historial real con destino de repuesto. La usa `PageHeader` y la cabecera compacta, no se llama suelta |
@@ -416,8 +416,9 @@ la búsqueda **es** una navegación al Server Component, y por eso no hay ni hac
 
 | Pantalla | Tipo | Busca en | Pausa | Mínimo |
 |---|---|---|---|---|
-| `/owner/tickets`, `/seller/tickets` | URL → RSC | número diario y semanal (parcial), por relevancia; **y el cliente que tiene la boleta** (BR-N13). **No** el código interno (BR-N11) | 350 ms | 2 |
-| `/owner/clients`, `/seller/clients` | URL → RSC | nombre, alias, teléfono, correo | 350 ms | 2 |
+| `/seller/tickets` | URL → RSC | número diario y semanal (parcial), por relevancia; **y el cliente que tiene la boleta** (BR-N13). **No** el código interno (BR-N11) | 350 ms | 2 |
+| `/owner/tickets` | URL → RSC | **solo** número diario y semanal (parcial), por relevancia, dentro de `admin_list_tickets`; cualquier otro término devuelve vacío sin consultar (BR-Q05, D-198) | 350 ms | 2 |
+| `/seller/clients` | URL → RSC | nombre, alias, teléfono, correo | 350 ms | 2 |
 | Asignar boleta → «Cliente existente» | Server Action | nombre, alias, teléfono | 350 ms | 2 |
 | Registrar abono → selector de cliente | Server Action | nombre, alias, teléfono | 350 ms | 2 |
 
@@ -568,8 +569,7 @@ ese no depende de JavaScript—.
 |---|---|
 | Boleta (Owner/Admin) | `/owner/tickets?raffleId=<rifa de la boleta>` |
 | Boleta (Seller) | `/seller/tickets` |
-| Cliente (Owner/Admin) | `/owner/clients` |
-| Cliente (Seller) | `/seller/clients` |
+| Cliente (Seller) | `/seller/clients` — el portal administrativo ya no tiene ficha de cliente (D-198) |
 | Editar cliente (Seller) | El detalle de ese cliente, no el listado |
 | Vendedor (Owner/Admin) | `/owner/sellers` |
 | Rifa (Owner/Admin) | `/owner/raffles` |
@@ -1593,7 +1593,7 @@ por fecha» es de dónde sale el reporte inicial.
 | Constante | Qué es |
 |---|---|
 | `REPORT_KEYS` | El **catálogo completo**: la unión de los dos portales. Es el dominio del parámetro `report` de la URL, no lo que ve nadie |
-| `OWNER_REPORT_KEYS` | Lo que ofrece `/owner/reports`. **No incluye** «Ventas por fecha» |
+| `OWNER_REPORT_KEYS` | Lo que ofrece `/owner/reports`. Desde D-198 son **tres** —`sellers`, `ticket-status` y `raffles`— y se pintan en su variante de recuentos (`audience="staff"`, §8.26). **No incluye** «Ventas por fecha» |
 | `SELLER_REPORT_KEYS` | Lo que ofrece `/seller/reports`. Empieza por «Ventas por fecha» |
 | `resolveReport(report, allowed)` | **El primero de la lista es el predeterminado de ese portal.** Un reporte que el portal no ofrece cae ahí en vez de romper la pantalla |
 | `reportKeysForRole(role)` | La lista de un rol. La usa el Route Handler del CSV para el 403 |
@@ -1944,6 +1944,35 @@ columnas de la membresía de la sesión (D-197)— y el PNG lo pide el navegador
 precargue un sustituto de `server-only` (`TEST_RESULTS`, 2026-09-13). ⚠️ **No uses la condición
 `react-server` para eso**: carga el `Icon.mjs` de lucide fuera de su frontera `"use client"` y
 revienta en `createContext`.
+
+### 8.26 La cartera es del vendedor: el portal administrativo lee inventario (D-198)
+
+Desde `0057` el personal no puede leer las tablas de la cartera (`SECURITY.md` §4.19), así que el
+portal administrativo **no oculta columnas: no las pide**. El vendedor no cambia: sus lecturas, sus
+componentes y sus rutas son los de siempre.
+
+| Pieza | Qué es |
+|---|---|
+| `src/features/tickets/admin-queries.ts` | La lectura de boletas del personal: `listAdminTickets`, `listAdminTicketIds`, `listAdminTicketsByIds`, `getAdminTicketDetail`, `listAdminTicketEligibility` y `readAdminTicketInventory`, memoizada por petición con `cache`. Sus tipos **no declaran** cliente, precio, abonado ni saldo |
+| `audience` en `TicketsList`, `TicketsTable`, `TicketCardList` y `TicketFilters` | Unión discriminada: sin ella, o con `'seller'`, se pinta lo de siempre; con `'staff'` reciben `AdminTicketListItem` y pintan la variante sin cartera con el mismo esqueleto. No hay tablas copiadas |
+| `AdminPaymentStateBadge` y `ADMIN_TICKET_PAYMENT_STATE_*` | «Pagada» y «Sin pagar», con las palabras y los tonos de las constantes del vendedor |
+| `adminTicketSearchHint` y `adminTicketSearchEmptyDescription` | Las pistas del buscador del personal: solo números, y la misma respuesta para cualquier texto |
+| `AdminTicketEligibility` y su `whyNot` | Explica por qué una boleta no admite una acción de lote sin nombrar abonos, clientes ni precios |
+| `listSellersWithInventory`, `getSellerWithInventory`, `getAdminDashboard`, `listAdminRaffleSummaries` y `getAdminRaffleDetail` | Panel, «Vendedores», ficha del vendedor y «Rifas»: todo sale de `readAdminTicketInventory`, y ninguna lee `v_seller_summary`, `v_raffle_summary` ni `commission_summary` |
+| `ReportsView` con `audience`, `getStaff*Report` y `buildReportCsv(filters, audience)` | Tres reportes de recuentos para el personal. La pantalla y el CSV salen de las mismas lecturas, y el Route Handler toma el público del rol de la sesión, nunca de la petición |
+| `getLotteryDashboard(now, audience)` | Con `'staff'`, las coincidencias llegan por `admin_lottery_matches`, con `client: null` |
+| Server Actions de clientes, pagos, asignación, precio, cambio y liberación de cliente | `authorizeAction(['seller'])`. Las de pagos siguen revalidando `/owner/dashboard` y `/owner/tickets`, cuyos recuentos cambian con un abono |
+| Importador | `unsupportedRowsError` rechaza cliente y abono en `checkImportPreview` e `importTickets`; la revisión pura conserva `allowClientAssignments` para poder reactivarla. `ColumnMapper` pregunta **solo por los números** y deja pasar las columnas de cliente y abono que se reconocieron solas, cuyas filas se apartan en la vista previa; `needsManualMapping` sigue en `columns.ts` para reactivar |
+
+**Lo que se retiró:** `/owner/clients`, `/owner/clients/[clientId]` y `/owner/payments` con sus
+entradas del menú, `CollectionSummaryCard`, `PaymentFilters`, `voidPayment` y `voidPaymentSchema`, el
+recorrido `owner-payments`, `getSellerReport` y `getRaffleDetail`. **Nada queda comentado**: vuelve
+desde Git con el procedimiento de D-198.
+
+**Una prueba estructural lo sostiene** (`tests/unit/admin-privacy.test.ts`): falla si vuelven a existir
+las rutas de clientes o pagos bajo `owner/`, si un archivo del portal administrativo importa
+`@/features/clients/`, `@/features/payments/`, `listTickets`, `getTicketDetail` o las vistas del
+vendedor, o si una Server Action de la cartera deja de exigir el rol `seller`.
 
 ## 9. Configuración regional
 

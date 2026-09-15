@@ -100,16 +100,17 @@ test.describe('Recorrido guiado del portal administrativo', () => {
     await loginAs(page, ACCOUNTS.owner, { withTour: true })
     await expect(dialog(page)).toBeVisible()
 
-    // Se avanza hasta un paso que obliga a bajar: la cobranza esta bajo el pliegue.
+    // Se avanza hasta un paso que obliga a bajar: el resumen por vendedor esta
+    // bajo el pliegue. Era «El dinero de la rifa», que D-198 retiró del panel.
     for (let i = 0; i < 8; i++) {
       const title = await stepTitle(page)
-      if (title === 'El dinero de la rifa') break
+      if (title === 'Cómo va cada vendedor') break
       await dialog(page).getByRole('button', { name: 'Siguiente' }).click()
     }
-    expect(await stepTitle(page)).toBe('El dinero de la rifa')
+    expect(await stepTitle(page)).toBe('Cómo va cada vendedor')
 
     const viewport = page.viewportSize()!
-    const target = page.locator('[data-tour="metrics-collection"]')
+    const target = page.locator('[data-tour="seller-summary"]')
     await expect(target).toBeInViewport()
 
     await expect(dialog(page)).toBeVisible()

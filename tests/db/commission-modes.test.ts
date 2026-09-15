@@ -28,15 +28,20 @@ import { loadSeedContext, SEED_PASSWORD, signInAs, type Client } from './helpers
 let PRICE: number
 
 let ctx: Awaited<ReturnType<typeof loadSeedContext>>
-/**
- * El Dueño registra los pagos.
- *
- * `create_payment` acepta al personal para cualquier cliente (BR-F02), y aqui
- * hacen falta tres clientes distintos: la FK compuesta `tickets_client_seller_fk`
- * exige que la boleta y su cliente sean del MISMO vendedor, asi que no se puede
- * vender la boleta de uno al cliente de otro.
- */
+/** El Dueño: desde D-198 sirve para comprobar lo que YA NO ve. */
 let owner: Client
+
+/**
+ * Cada vendedor cobra con SU sesion.
+ *
+ * Hasta D-198 cobraba el Dueño, porque `create_payment` aceptaba al personal
+ * para cualquier cliente. Ya no: los abonos son de la cartera de cada vendedor
+ * (BR-Q01). La FK compuesta `tickets_client_seller_fk` sigue exigiendo que la
+ * boleta y su cliente sean del MISMO vendedor, asi que hacen falta tres
+ * clientes distintos.
+ */
+const sesiones = new Map<string, Client>()
+const correos = new Map<string, string>()
 
 let jefeId: string
 let sueltoId: string
@@ -49,8 +54,9 @@ const boletas: string[] = []
 const pagos: string[] = []
 
 async function alta(nombre: string, padre: string | null, stamp: string): Promise<string> {
+  const email = `${nombre}-${stamp}@demo.test`
   const { data, error } = await ctx.svc.auth.admin.createUser({
-    email: `${nombre}-${stamp}@demo.test`,
+    email,
     password: SEED_PASSWORD,
     email_confirm: true,
     user_metadata: { full_name: `${nombre} ${stamp}`, phone: '3001234567' },
@@ -65,6 +71,7 @@ async function alta(nombre: string, padre: string | null, stamp: string): Promis
   })
   if (membresiaError) throw membresiaError
 
+  correos.set(data.user.id, email)
   return data.user.id
 }
 
@@ -136,7 +143,7 @@ async function venderYCobrar(sellerId: string, n: number): Promise<void> {
     boletas.push(insertado.id)
   }
 
-  const { data: pagoId, error: pagoError } = await owner.rpc('create_payment', {
+  const { data: pagoId, error: pagoError } = await sesiones.get(sellerId)!.rpc('create_payment', {
     p_client_id: clienteId,
     p_total_amount: ids.length * PRICE,
     p_allocations: ids.map((id) => ({ ticket_id: id, amount: PRICE })),
@@ -205,6 +212,7 @@ beforeAll(async () => {
       .single()
     if (error) throw error
     clientes.set(id, cliente.id)
+    sesiones.set(id, await signInAs(correos.get(id)!))
   }
 }, 60_000)
 
@@ -303,16 +311,23 @@ describe('E6 — dos formas de pago', () => {
   })
 
   it('E6-06: `commission_summary` dice con qué regla se le paga a cada quien', async () => {
-    // Con la SESION del Dueño: la funcion es `security invoker` y hereda la RLS
-    // de `seller_commissions`. Llamarla con la clave de servicio no probaria lo
-    // que ve una persona de verdad.
-    const { data, error } = await owner.rpc('commission_summary', {
-      p_raffle_id: ctx.demoRaffle.id,
-    })
-    expect(error).toBeNull()
+    // Con SESIONES reales: la funcion es `security invoker` y hereda la RLS de
+    // `seller_commissions`. Llamarla con la clave de servicio no probaria lo que
+    // ve una persona de verdad. Desde D-198 esa RLS muestra a cada vendedor lo
+    // suyo y lo de su equipo, y al personal nada.
+    const resumen = (sesion: Client) =>
+      sesion.rpc('commission_summary', { p_raffle_id: ctx.demoRaffle.id })
+    const [delSuelto, delJefe, delDueno] = await Promise.all([
+      resumen(sesiones.get(sueltoId)!),
+      resumen(sesiones.get(jefeId)!),
+      resumen(owner),
+    ])
+    expect(delSuelto.error).toBeNull()
+    expect(delJefe.error).toBeNull()
+    expect(delDueno.error).toBeNull()
 
-    const suelto = data?.find((fila) => fila.seller_id === sueltoId)
-    const integrante = data?.find((fila) => fila.seller_id === integranteId)
+    const suelto = delSuelto.data?.find((fila) => fila.seller_id === sueltoId)
+    const integrante = delJefe.data?.find((fila) => fila.seller_id === integranteId)
 
     expect(suelto!.by_tiers).toBe(false)
     // Quien cobra la mitad no tiene «próximo nivel»: no hay niveles que subir.
@@ -321,5 +336,9 @@ describe('E6 — dos formas de pago', () => {
 
     expect(integrante!.by_tiers).toBe(true)
     expect(integrante!.next_min_tickets).toBe(21)
+
+    // El jefe no ve al vendedor suelto, y el Dueño no ve a ninguno (D-198).
+    expect(delJefe.data!.some((fila) => fila.seller_id === sueltoId)).toBe(false)
+    expect(delDueno.data).toEqual([])
   })
 })

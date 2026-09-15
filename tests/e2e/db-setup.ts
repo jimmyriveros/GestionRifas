@@ -106,6 +106,13 @@ export async function purgeSellers(ids: string[]): Promise<void> {
     await db.query('delete from commission_ledger where seller_id = any($1)', [ids])
     await db.query('delete from seller_commissions where seller_id = any($1)', [ids])
 
+    // Lo que estas personas HICIERON queda en la bitacora y en los avisos con su
+    // perfil como actor, y esas FK son RESTRICT: sin esto, borrar la cuenta de
+    // Auth falla. Desde D-198 ocurre en cuanto un vendedor de prueba cobra por su
+    // cuenta, que es la unica forma de cobrar (antes el abono lo registraba el Dueño).
+    await db.query('delete from notifications where actor_profile_id = any($1)', [ids])
+    await db.query('delete from audit_logs where actor_profile_id = any($1)', [ids])
+
     // Integrantes antes que sus jefes: la FK del vendedor padre es RESTRICT.
     await db.query(
       'delete from memberships where profile_id = any($1) and parent_seller_id is not null',
@@ -321,6 +328,62 @@ export async function ticketBalance(
     paidAmount: data.paid_amount ?? 0,
     pendingAmount: data.pending_amount ?? 0,
     paymentStatus: data.payment_status ?? 'unpaid',
+  }
+}
+
+/**
+ * Anula un pago ejecutando el cuerpo REAL de `void_payment` con la identidad de
+ * una persona del personal.
+ *
+ * Desde D-198 ninguna sesion puede ejecutar esa funcion —queda sin `EXECUTE`
+ * para `authenticated`— y la aplicacion no ofrece anular pagos. Para PREPARAR
+ * un escenario con un pago anulado se abre una conexion directa y se fija
+ * `request.jwt.claims` dentro de la transaccion, igual que `asProfile` en
+ * `tests/db/helpers.ts`. No prueba ninguna politica: lo que se comprueba
+ * despues ocurre por la interfaz.
+ */
+export async function voidPaymentAsStaff(
+  profileId: string,
+  paymentId: string,
+  reason: string,
+): Promise<void> {
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    await db.query('begin')
+    await db.query(`select set_config('request.jwt.claims', $1, true)`, [
+      JSON.stringify({ sub: profileId, role: 'authenticated' }),
+    ])
+    await db.query('select void_payment($1, $2)', [paymentId, reason])
+    await db.query('commit')
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  } finally {
+    await db.end()
+  }
+}
+
+/**
+ * Lo vendido por TODA la organizacion —la suma de `sale_price` de sus boletas
+ * asignadas, la misma cuenta de `v_raffle_summary`—, leido sin RLS.
+ *
+ * Desde D-198 ninguna pantalla del personal enseña esa cifra, asi que las
+ * pruebas que comparan al vendedor con la organizacion la leen aqui.
+ */
+export async function organizationSoldTotal(organizationId: string): Promise<number> {
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    const { rows } = await db.query<{ total: string }>(
+      `select coalesce(sum(sale_price), 0)::bigint as total
+         from tickets
+        where organization_id = $1 and inventory_status = 'assigned'`,
+      [organizationId],
+    )
+    return Number(rows[0]!.total)
+  } finally {
+    await db.end()
   }
 }
 

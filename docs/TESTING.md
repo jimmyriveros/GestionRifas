@@ -1,7 +1,7 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.20 · **Actualizado:** 2026-09-13 (§4.9: el mensaje propio de «Resultados de la
-  semana», D-197)
+- **Versión:** 2.21 · **Actualizado:** 2026-09-14 (§4.10: la cartera es del vendedor, D-198). Antes,
+  el 2026-09-13 (§4.9: el mensaje propio de «Resultados de la semana», D-197)
 - Este documento define la ESTRATEGIA. Los resultados por fase están en [`TEST_RESULTS.md`](TEST_RESULTS.md).
 - ⚠️ En la **§4.8** (cuentas de cobro y recordatorios de pago) conviven las dos cosas: las **etapas 1
   y 2 están escritas y ejecutadas** (62 de base, 19 E2E y 37 unitarias), y las **etapas 3 a 6 son
@@ -897,6 +897,37 @@ hizo contra 1 y falló sin que el producto estuviera mal (`TEST_RESULTS`, 2026-0
 
 ⚠️ **Y `getByLabel('Mensaje para tu grupo')` resuelve a dos elementos** —medido—: la sección y el área
 de texto comparten nombre accesible. Las pruebas buscan el campo con `getByRole('textbox', { name })`.
+
+### 4.10 La cartera es del vendedor (BR-Q01..BR-Q10; D-198)
+
+| Suite | Pruebas | Qué demuestra |
+|---|---|---|
+| `tests/db/admin-privacy.test.ts` | **29** (nuevo) | Con sesiones reales del Dueño, del Administrador, de dos vendedores y de otra organización. **BR-Q01:** tablas, vistas, comisiones, límites de precio y `audit_logs` no le devuelven cartera al personal. **BR-Q02:** las siete proyecciones devuelven EXACTAMENTE sus claves, el catálogo no declara columnas prohibidas en su `returns table` y ningún valor secreto del escenario aparece en ninguna respuesta. **BR-Q04:** una Abonada es `unpaid` para el personal y `partial` para el vendedor; el filtro se aplica antes de contar y `partial` es un error. **BR-Q05:** buscar el nombre, el teléfono, el correo, el código interno o `12345` responde lo mismo que algo inexistente. **BR-Q06/BR-Q07:** las escrituras directas fallan; las RPC de venta y cobro responden al personal con el mensaje de un vendedor ajeno; anular una vendida da el mismo mensaje sin pagar, abonada y pagada, suelta y en lote; otra organización responde como lo inexistente. **BR-Q03:** editar números e insertar con id propio sin pedir la fila de vuelta. **BR-Q09:** avisos `team.sale` del personal sin `sale_price`, también al ascender a alguien. Y los privilegios de las siete proyecciones y de las dos piezas internas, más la regresión del vendedor |
+| `tests/unit/admin-privacy.test.ts` | **17** (nuevo) | Etiquetas de dos estados; el esquema rechaza `partial`; pistas del buscador del personal; sus `whyNot` no nombran abonos, pagos, precios ni saldos; descripciones de reporte por público; frases del importador; recorridos sin «owner-payments» ni dinero. Y la **red estructural**: las rutas retiradas no existen, el menú no las nombra, ningún archivo del portal administrativo importa las lecturas del vendedor, los tipos administrativos no declaran cartera, las Server Actions de la cartera exigen `seller` y el CSV toma el público de la sesión |
+| `tests/e2e/privacidad-admin.spec.ts` | **18** (nuevo) | Para el Dueño y el Administrador: lista, detalle, búsqueda por nombre, alias, correo y teléfono **idéntica** a la de algo inexistente, filtro de pago de dos estados con el recuento de la base y parámetros antiguos ignorados, selección y «Ver seleccionadas», menú y direcciones retiradas (404), panel, vendedores, rifas y reportes sin dinero, y CSV. **En cada caso se buscan los valores secretos del escenario en el HTML, la carga RSC y las respuestas de red**, no solo en lo que se pinta. Y la regresión del vendedor sobre la misma boleta |
+| `tests/e2e/privacidad-admin-movil.spec.ts` | **5** (nuevo) | Lo mismo en el teléfono: tarjeta y detalle, barra inferior de dos opciones, menú de usuario y direcciones retiradas; y la tarjeta del vendedor |
+| `tests/e2e/privacidad-escenario.ts` | — | No es una suite: el escenario compartido —un cliente con todos sus datos, una boleta rebajada y un abono parcial— y la búsqueda de sus valores en lo recibido |
+| Suites adaptadas | — | Las que usaban al personal para leer, vender, cobrar, anular o importar pasaron a la sesión del vendedor —o a comprobar que el personal ya no puede— **sin quitar aserciones**. La lista, con el motivo de cada conversión, en `TEST_RESULTS` (2026-09-14) |
+
+**Lo que estas suites no pueden ver, y cómo se cubrió:**
+
+| Hueco | Cobertura |
+|---|---|
+| Una proyección nueva que olvide la lista blanca | La prueba de catálogo compara el `returns table` de las siete contra las columnas prohibidas |
+| Un valor que llegue por una respuesta que la prueba de navegador no provoca | Las RPC y tablas se prueban directamente en `admin-privacy.test.ts`; la E2E cubre lo que cada pantalla pide |
+| Que reactivar el acceso funcione | **Sin prueba**: el procedimiento de D-198 exige devolver desde Git las pruebas convertidas (I-119) |
+
+⚠️ **Las RPC dormidas ya no se prueban desde una sesión.** `asProfile` (`tests/db/helpers.ts`) y
+`voidPaymentAsStaff` (`tests/e2e/db-setup.ts`) fijan `request.jwt.claims` en una conexión directa para
+ejecutar el cuerpo real de `void_payment` o de la importación. Prueban la regla, **no la RLS**.
+
+⚠️ **Buscar una cifra secreta en lo recibido necesita límites.** `23450` puede aparecer dentro de un
+uuid o del nombre de un fragmento de JavaScript: `privacidad-escenario.ts` la busca con límites a los
+dos lados. Y lo que la prueba escribe —el término de búsqueda, el id de la URL— vuelve en la respuesta
+y se excluye a propósito.
+
+⚠️ **Una ruta retirada responde 404 con sesión, y sin sesión redirige al login.** El proxy exige sesión
+antes de resolver la ruta, así que desde fuera no se distingue una que no existe.
 
 ### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 7 pruebas)
 

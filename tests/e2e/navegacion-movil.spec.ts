@@ -49,14 +49,22 @@ test.describe('Navegación inferior en el teléfono', () => {
     await expect(page.getByRole('button', { name: 'Abrir menú' })).toHaveCount(0)
   })
 
-  test('el dueño ve las mismas cuatro, no las ocho del menú lateral', async ({ page }) => {
+  /**
+   * Hasta D-198 el dueño veía las mismas cuatro que el vendedor. «Clientes» y
+   * «Pagos» eran la cartera de los vendedores y salieron de las tres barras a la
+   * vez, así que abajo le quedan dos; lo demás sigue en el menú de usuario (la
+   * última prueba de este archivo).
+   */
+  test('el dueño ve Panel y Boletas, sin Clientes ni Pagos (D-198)', async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
 
-    await expect(barra(page).getByRole('link')).toHaveCount(4)
-    for (const nombre of OPCIONES) {
+    await expect(barra(page).getByRole('link')).toHaveCount(2)
+    for (const nombre of ['Panel', 'Boletas']) {
       await expect(opcion(page, nombre)).toBeVisible()
     }
-    await expect(barra(page).getByRole('link', { name: 'Reportes' })).toHaveCount(0)
+    for (const nombre of ['Clientes', 'Pagos', 'Reportes']) {
+      await expect(barra(page).getByRole('link', { name: nombre })).toHaveCount(0)
+    }
   })
 
   test('cada opción lleva a la ruta de siempre y queda marcada', async ({ page }) => {
@@ -168,6 +176,10 @@ test.describe('Reportes en el teléfono', () => {
     await page.getByRole('button', { name: /Menú de usuario/ }).tap()
     for (const nombre of ['Rifas', 'Vendedores', 'Reportes', 'Administradores']) {
       await expect(page.getByRole('menuitem', { name: nombre })).toBeVisible()
+    }
+    // Y la cartera tampoco se cuela por aquí (D-198).
+    for (const nombre of ['Clientes', 'Pagos']) {
+      await expect(page.getByRole('menuitem', { name: nombre })).toHaveCount(0)
     }
   })
 })

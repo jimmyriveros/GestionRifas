@@ -6,9 +6,16 @@ import { useMemo } from 'react'
 import { DataTable } from '@/components/data/DataTable'
 import { PaymentProgressBar } from '@/components/data/PaymentProgressBar'
 import { RowChevron } from '@/components/data/RowChevron'
-import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/StatusBadge'
+import {
+  AdminPaymentStateBadge,
+  InventoryStatusBadge,
+  PaymentStatusBadge,
+} from '@/components/data/StatusBadge'
 import { SelectionCheckbox } from '@/components/form/SelectionCheckbox'
-import { useOptionalTicketSelection } from '@/features/tickets/selection/TicketSelectionContext'
+import {
+  useOptionalTicketSelection,
+  type TicketSelectionContextValue,
+} from '@/features/tickets/selection/TicketSelectionContext'
 import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
 import { cn } from '@/lib/utils'
@@ -17,9 +24,11 @@ import { ticketFinancials } from '../financials'
 import { ClearanceReceiptIndicator } from './ClearanceReceiptIndicator'
 import { TicketNumbersCell } from './TicketNumbers'
 
+import type { AdminTicketListItem } from '../admin-queries'
 import type { TicketListItem } from '../queries'
 
-type TicketsTableProps = {
+type SellerTicketsTableProps = {
+  audience?: 'seller'
   tickets: TicketListItem[]
   /** `/owner/tickets` o `/seller/tickets`: la tabla sirve a los dos portales. */
   basePath?: string
@@ -31,6 +40,19 @@ type TicketsTableProps = {
   className?: string
 }
 
+/** El portal administrativo: su propio modelo, sin cliente ni dinero (D-198). */
+type StaffTicketsTableProps = {
+  audience: 'staff'
+  tickets: AdminTicketListItem[]
+  basePath?: string
+  className?: string
+}
+
+type TicketsTableProps = SellerTicketsTableProps | StaffTicketsTableProps
+
+/** Lo que las dos tablas necesitan de una fila para seleccionarla y abrirla. */
+type TicketTableRow = { id: string; dailyNumber: string | null; weeklyNumber: string | null }
+
 /**
  * Tabla de boletas de «Mis boletas» y de «Boletas» del portal administrativo.
  *
@@ -40,14 +62,15 @@ type TicketsTableProps = {
  * tiene su propia tabla (`ClientTicketsTable`), con las mismas cuentas y mas
  * aire: alli se miran tres boletas, no trescientas.
  *
- * QUE SE VE, EN ORDEN: la boleta, de quien es, en que estado esta, y el dinero
- * —abonado, falta, por donde va y cuanto vale—. Las columnas de dinero salen
- * todas de `ticketFinancials`, la misma funcion que usan la tarjeta del
- * telefono, la ficha del cliente y el detalle de la boleta: ninguna pantalla
- * hace su propia resta.
+ * DOS JUEGOS DE COLUMNAS, UN SOLO COMPORTAMIENTO (D-198). El vendedor ve la
+ * boleta, de quien es, en que estado esta y el dinero —abonado, falta, por
+ * donde va y cuanto vale—. El personal ve la boleta, su rifa y su vendedor, los
+ * dos estados —inventario y pago en dos valores— y el paz y salvo; su fila NO
+ * TRAE cliente ni dinero, asi que no hay columna que pueda pintarlos. La
+ * seleccion, la fila pulsable y la flecha son las mismas para los dos.
  *
- * NO HAY CONSULTA POR FILA. `sale_price` y `paid_amount` vienen en la misma
- * lectura paginada que trae la lista; esta tabla no pide nada mas.
+ * NO HAY CONSULTA POR FILA. Todo viene en la misma lectura paginada que trae la
+ * lista; esta tabla no pide nada mas.
  *
  * ANCHOS. A partir de `lg` caben todas las columnas. Entre `md` y `lg` —una
  * tablet— se retiran rifa, vendedor y estado de inventario, y se quedan las
@@ -61,49 +84,21 @@ type TicketsTableProps = {
  * columna se vea o no lo decide Tailwind, no JavaScript: asi no parpadea al
  * cargar.
  */
-export function TicketsTable({
+export function TicketsTable(props: TicketsTableProps) {
+  if (props.audience === 'staff') return <StaffTicketsTable {...props} />
+  return <SellerTicketsTable {...props} />
+}
+
+function SellerTicketsTable({
   tickets,
   basePath = '/owner/tickets',
   showSeller = true,
   showRaffle = true,
   className,
-}: TicketsTableProps) {
+}: SellerTicketsTableProps) {
   const selection = useOptionalTicketSelection()
 
   const columns = useMemo<ColumnDef<TicketListItem>[]>(() => {
-    const selectColumn: ColumnDef<TicketListItem>[] = selection
-      ? [
-          {
-            id: 'select',
-            enableSorting: false,
-            // La columna esta siempre en escritorio y, en el telefono, solo en
-            // modo seleccion. Se reutiliza `hideOnMobile`, que ya existe: es una
-            // clase de Tailwind, asi que la decide el navegador sin JavaScript.
-            meta: { hideOnMobile: !selection.selectionMode },
-            header: () => (
-              <SelectionCheckbox
-                checked={
-                  selection.pageAllSelected
-                    ? true
-                    : selection.pageSomeSelected
-                      ? 'indeterminate'
-                      : false
-                }
-                onCheckedChange={(checked) => selection.togglePage(checked)}
-                label="Seleccionar las boletas de esta página"
-              />
-            ),
-            cell: ({ row }) => (
-              <SelectionCheckbox
-                checked={selection.isSelected(row.original.id)}
-                onCheckedChange={() => selection.toggle(row.original.id)}
-                label={`Seleccionar la boleta ${ticketLabel(row.original)}`}
-              />
-            ),
-          },
-        ]
-      : []
-
     const sellerColumn: ColumnDef<TicketListItem>[] = showSeller
       ? [
           {
@@ -138,7 +133,7 @@ export function TicketsTable({
       : []
 
     return [
-      ...selectColumn,
+      ...selectColumn<TicketListItem>(selection),
       /*
         Los dos numeros, juntos y primeros: asi se nombra una boleta (BR-N11).
         El codigo interno no aparece aqui —vive en el detalle, junto al resto de
@@ -235,8 +230,7 @@ export function TicketsTable({
             <div className="flex items-center justify-center gap-2 px-2">
               <PaymentProgressBar
                 // 56 px hasta 2xl: es lo que hay que devolver para pagar el
-                // `px-2` de al lado sin que la tabla del portal administrativo
-                // —que ademas lleva «Vendedor»— desborde a 1.280 px.
+                // `px-2` de al lado sin que la tabla desborde a 1.280 px.
                 className="w-14 shrink-0 2xl:w-24"
                 percentage={money.percentage}
                 status={row.original.paymentStatus}
@@ -259,18 +253,169 @@ export function TicketsTable({
           </span>
         ),
       },
-      {
-        id: 'chevron',
-        enableSorting: false,
-        // Sin titulo visible: la columna no contiene un dato, contiene la pista
-        // de que la fila se abre. Un encabezado aqui se leeria como una columna
-        // mas; el nombre en `sr-only` la deja anunciada para quien la oye.
-        header: () => <span className="sr-only">Ver la boleta</span>,
-        cell: () => <RowChevron />,
-      },
+      chevronColumn<TicketListItem>(),
     ]
   }, [basePath, showSeller, showRaffle, selection])
 
+  return (
+    <TicketsDataTable
+      columns={columns}
+      tickets={tickets}
+      basePath={basePath}
+      selection={selection}
+      className={className}
+    />
+  )
+}
+
+/**
+ * Las columnas del PERSONAL (D-198, BR-Q03).
+ *
+ * Caben todas desde `md` salvo la rifa, que se retira hasta `lg` como en la
+ * tabla del vendedor. «Pago» usa la insignia administrativa: dos valores, y un
+ * «—» cuando la boleta no se ha vendido, igual que en «Mis boletas».
+ */
+function StaffTicketsTable({
+  tickets,
+  basePath = '/owner/tickets',
+  className,
+}: StaffTicketsTableProps) {
+  const selection = useOptionalTicketSelection()
+
+  const columns = useMemo<ColumnDef<AdminTicketListItem>[]>(
+    () => [
+      ...selectColumn<AdminTicketListItem>(selection),
+      {
+        accessorKey: 'dailyNumber',
+        header: 'Boleta',
+        cell: ({ row }) => (
+          <TicketNumbersCell ticket={row.original} href={`${basePath}/${row.original.id}`} />
+        ),
+      },
+      {
+        accessorKey: 'raffleShortCode',
+        header: 'Rifa',
+        meta: { showFrom: 'lg' },
+        cell: ({ row }) => (
+          <span className="text-sm" title={row.original.raffleName}>
+            {row.original.raffleShortCode}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'sellerName',
+        header: 'Vendedor',
+        cell: ({ row }) => (
+          <span title={row.original.sellerName} className="block max-w-[14rem] truncate text-sm">
+            {row.original.sellerName}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'inventoryStatus',
+        header: 'Estado',
+        cell: ({ row }) => <InventoryStatusBadge status={row.original.inventoryStatus} />,
+      },
+      {
+        accessorKey: 'paymentState',
+        header: 'Pago',
+        cell: ({ row }) =>
+          row.original.paymentState === null ? (
+            <span className="text-muted-foreground text-sm">—</span>
+          ) : (
+            <AdminPaymentStateBadge state={row.original.paymentState} />
+          ),
+      },
+      {
+        id: 'clearance',
+        // Una columna propia, con el termino del glosario: en esta tabla ya no
+        // hay celda «Cliente» donde colgarlo (D-170). Una boleta sin vender no
+        // dice nada: no hay entrega de la que hablar.
+        header: 'Paz y salvo',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <ClearanceReceiptIndicator state={row.original.clearanceState} variant="short" />
+        ),
+      },
+      chevronColumn<AdminTicketListItem>(),
+    ],
+    [basePath, selection],
+  )
+
+  return (
+    <TicketsDataTable
+      columns={columns}
+      tickets={tickets}
+      basePath={basePath}
+      selection={selection}
+      className={className}
+    />
+  )
+}
+
+/**
+ * La columna de casillas, compartida por las dos tablas.
+ *
+ * Esta siempre en escritorio y, en el telefono, solo en modo seleccion. Se
+ * reutiliza `hideOnMobile`, que ya existe: es una clase de Tailwind, asi que la
+ * decide el navegador sin JavaScript.
+ */
+function selectColumn<T extends TicketTableRow>(
+  selection: TicketSelectionContextValue | null,
+): ColumnDef<T>[] {
+  if (!selection) return []
+  return [
+    {
+      id: 'select',
+      enableSorting: false,
+      meta: { hideOnMobile: !selection.selectionMode },
+      header: () => (
+        <SelectionCheckbox
+          checked={
+            selection.pageAllSelected ? true : selection.pageSomeSelected ? 'indeterminate' : false
+          }
+          onCheckedChange={(checked) => selection.togglePage(checked)}
+          label="Seleccionar las boletas de esta página"
+        />
+      ),
+      cell: ({ row }) => (
+        <SelectionCheckbox
+          checked={selection.isSelected(row.original.id)}
+          onCheckedChange={() => selection.toggle(row.original.id)}
+          label={`Seleccionar la boleta ${ticketLabel(row.original)}`}
+        />
+      ),
+    },
+  ]
+}
+
+/**
+ * Sin titulo visible: la columna no contiene un dato, contiene la pista de que
+ * la fila se abre. Un encabezado aqui se leeria como una columna mas; el nombre
+ * en `sr-only` la deja anunciada para quien la oye.
+ */
+function chevronColumn<T>(): ColumnDef<T> {
+  return {
+    id: 'chevron',
+    enableSorting: false,
+    header: () => <span className="sr-only">Ver la boleta</span>,
+    cell: () => <RowChevron />,
+  }
+}
+
+function TicketsDataTable<T extends TicketTableRow>({
+  columns,
+  tickets,
+  basePath,
+  selection,
+  className,
+}: {
+  columns: ColumnDef<T>[]
+  tickets: T[]
+  basePath: string
+  selection: TicketSelectionContextValue | null
+  className?: string
+}) {
   // TanStack necesita el mapa `{ id: true }` para pintar `data-state=selected`;
   // la verdad sigue siendo la lista de ids del contexto.
   const rowSelection = useMemo<RowSelectionState | undefined>(() => {

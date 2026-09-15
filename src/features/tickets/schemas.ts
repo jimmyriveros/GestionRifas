@@ -30,6 +30,14 @@ export const inventoryStatusSchema = z.enum([
 
 export const paymentStatusSchema = z.enum(['unpaid', 'partial', 'paid'])
 
+/**
+ * El filtro de pago del portal administrativo: dos valores (D-198, BR-Q04).
+ *
+ * Un `partial` que llegue por la URL —un enlace de antes— NO pasa, y el filtro
+ * se ignora: aplicarlo pondria en pantalla justo las boletas abonadas.
+ */
+export const adminPaymentStateSchema = z.enum(['unpaid', 'paid'])
+
 export const createTicketSchema = z.object({
   raffleId: z.uuid('Selecciona una rifa.'),
   sellerId: z.uuid('Selecciona un vendedor.'),

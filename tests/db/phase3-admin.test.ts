@@ -278,25 +278,47 @@ describe('F3-03 proteccion del Owner frente al Admin (BR-U02, BR-U03)', () => {
 })
 
 describe('F3-04 boletas: creacion individual y edicion desde el portal admin', () => {
+  /**
+   * D-198: el personal crea la boleta, pero ya no la lee de `tickets`. Como la
+   * aplicacion, pone el id y no pide la fila de vuelta; la comprueba por la
+   * proyeccion administrativa.
+   */
+  async function crearComoPersonal(values: {
+    daily_number?: string | null
+    weekly_number?: string | null
+    inventory_status?: 'available' | 'draft'
+  }) {
+    const id = crypto.randomUUID()
+    const { error } = await owner.from('tickets').insert({
+      id,
+      organization_id: ctx.demoOrg.id,
+      raffle_id: ctx.demoRaffle.id,
+      seller_id: ctx.ids.seller1,
+      inventory_status: 'available',
+      created_by: ctx.ids.owner,
+      ...values,
+    })
+    return { id, error }
+  }
+
+  async function detalle(ticketId: string) {
+    const { data, error } = await owner.rpc('admin_ticket_detail', { p_ticket_id: ticketId })
+    if (error) throw error
+    expect(data).toHaveLength(1)
+    return data![0]!
+  }
+
   it('el personal crea una boleta disponible con sus dos numeros (BR-I04)', async () => {
     const numbers = randomNumbers()
-    const { data, error } = await owner
-      .from('tickets')
-      .insert({
-        organization_id: ctx.demoOrg.id,
-        raffle_id: ctx.demoRaffle.id,
-        seller_id: ctx.ids.seller1,
-        daily_number: numbers.daily,
-        weekly_number: numbers.weekly,
-        inventory_status: 'available',
-        created_by: ctx.ids.owner,
-      })
-      .select('id, internal_code, inventory_status')
-      .maybeSingle()
+    const { id, error } = await crearComoPersonal({
+      daily_number: numbers.daily,
+      weekly_number: numbers.weekly,
+    })
 
     expect(error).toBeNull()
-    expect(data!.inventory_status).toBe('available')
-    expect(data!.internal_code).toMatch(/^R\d{3}-\d{6}$/)
+    const creada = await detalle(id)
+    expect(creada.inventory_status).toBe('available')
+    expect(creada.internal_code).toMatch(/^R\d{3}-\d{6}$/)
   })
 
   it('rechaza una combinacion ya usada en la rifa, aunque sea de otro vendedor (BR-N05)', async () => {
@@ -329,80 +351,60 @@ describe('F3-04 boletas: creacion individual y edicion desde el portal admin', (
   })
 
   it('completar un borrador con sus dos numeros lo deja disponible (CLAUDE.md 15)', async () => {
-    const { data: draft } = await owner
-      .from('tickets')
-      .insert({
-        organization_id: ctx.demoOrg.id,
-        raffle_id: ctx.demoRaffle.id,
-        seller_id: ctx.ids.seller1,
-        inventory_status: 'draft',
-        created_by: ctx.ids.owner,
-      })
-      .select('id')
-      .maybeSingle()
+    const { id, error: draftError } = await crearComoPersonal({ inventory_status: 'draft' })
+    expect(draftError).toBeNull()
 
+    // Por RPC y no por UPDATE: desde D-198 el personal no tiene UPDATE sobre
+    // `tickets`, y el intento directo no cambia nada.
     const numbers = randomNumbers()
-    const { data, error } = await owner
+    const directo = await owner
       .from('tickets')
-      .update({
-        daily_number: numbers.daily,
-        weekly_number: numbers.weekly,
-        inventory_status: 'available',
-      })
-      .eq('id', draft!.id)
-      .select('inventory_status, daily_number')
+      .update({ daily_number: numbers.daily, weekly_number: numbers.weekly })
+      .eq('id', id)
+      .select('id')
+    expect(directo.data ?? []).toEqual([])
+    expect((await detalle(id)).daily_number).toBeNull()
 
+    const { error } = await owner.rpc('admin_update_ticket_numbers', {
+      p_ticket_id: id,
+      p_daily_number: numbers.daily,
+      p_weekly_number: numbers.weekly,
+    })
     expect(error).toBeNull()
-    expect(data![0]!.inventory_status).toBe('available')
-    expect(data![0]!.daily_number).toBe(numbers.daily)
+
+    const completada = await detalle(id)
+    expect(completada.inventory_status).toBe('available')
+    expect(completada.daily_number).toBe(numbers.daily)
+    expect(completada.weekly_number).toBe(numbers.weekly)
   })
 
   it('el personal puede cambiar el vendedor de una boleta no asignada', async () => {
     const numbers = randomNumbers()
-    const { data: ticket } = await owner
-      .from('tickets')
-      .insert({
-        organization_id: ctx.demoOrg.id,
-        raffle_id: ctx.demoRaffle.id,
-        seller_id: ctx.ids.seller1,
-        daily_number: numbers.daily,
-        weekly_number: numbers.weekly,
-        inventory_status: 'available',
-        created_by: ctx.ids.owner,
-      })
-      .select('id')
-      .maybeSingle()
+    const { id, error: createError } = await crearComoPersonal({
+      daily_number: numbers.daily,
+      weekly_number: numbers.weekly,
+    })
+    expect(createError).toBeNull()
 
-    const { data, error } = await owner
-      .from('tickets')
-      .update({ seller_id: ctx.ids.seller2 })
-      .eq('id', ticket!.id)
-      .select('seller_id')
+    // Por `bulk_change_ticket_seller`, que es lo que usa la aplicacion.
+    const { error } = await owner.rpc('bulk_change_ticket_seller', {
+      p_ticket_ids: [id],
+      p_seller_id: ctx.ids.seller2,
+    })
 
     expect(error).toBeNull()
-    expect(data![0]!.seller_id).toBe(ctx.ids.seller2)
+    expect((await detalle(id)).seller_id).toBe(ctx.ids.seller2)
   })
 
   it('los ceros iniciales sobreviven al viaje de ida y vuelta (BR-N03)', async () => {
-    const { data, error } = await owner
-      .from('tickets')
-      .insert({
-        organization_id: ctx.demoOrg.id,
-        raffle_id: ctx.demoRaffle.id,
-        seller_id: ctx.ids.seller1,
-        daily_number: '0007',
-        weekly_number: '0000',
-        inventory_status: 'available',
-        created_by: ctx.ids.owner,
-      })
-      .select('daily_number, weekly_number')
-      .maybeSingle()
+    const { id, error } = await crearComoPersonal({ daily_number: '0007', weekly_number: '0000' })
 
     // Si estos numeros ya existieran por una ejecucion previa, el INSERT
     // fallaria por unicidad; en ese caso la comprobacion sigue siendo valida.
     if (error === null) {
-      expect(data!.daily_number).toBe('0007')
-      expect(data!.weekly_number).toBe('0000')
+      const creada = await detalle(id)
+      expect(creada.daily_number).toBe('0007')
+      expect(creada.weekly_number).toBe('0000')
     } else {
       expect(error.code).toBe('23505')
     }
@@ -596,21 +598,35 @@ describe('F3-06 creacion masiva desde el portal admin (CLAUDE.md 15)', () => {
 
 describe('F3-07 lecturas que alimentan las pantallas del portal', () => {
   it('la incrustacion de rifa y cliente que usa listTickets funciona', async () => {
-    const { data, error } = await owner
-      .from('tickets')
-      .select(
-        'id, internal_code, raffle:raffles!tickets_raffle_org_fk ( name, short_code ), client:clients!tickets_client_org_fk ( id, name )',
-      )
-      .eq('inventory_status', 'assigned')
-      .limit(1)
+    // `listTickets` es, desde D-198, la lectura del VENDEDOR.
+    const consulta = (sesion: typeof owner) =>
+      sesion
+        .from('tickets')
+        .select(
+          'id, internal_code, raffle:raffles!tickets_raffle_org_fk ( name, short_code ), client:clients!tickets_client_org_fk ( id, name )',
+        )
+        .eq('inventory_status', 'assigned')
+        .limit(1)
 
+    const { data, error } = await consulta(seller1)
     expect(error).toBeNull()
     expect(data![0]).toBeDefined()
     expect(data![0]!.raffle?.short_code).toMatch(/^R\d{3}$/)
     expect(data![0]!.client?.name).toBeTruthy()
+
+    // El personal no recibe ni una fila, con cliente ni sin el.
+    const { data: delPersonal, error: personalError } = await consulta(owner)
+    expect(personalError).toBeNull()
+    expect(delPersonal).toEqual([])
   })
 
-  it('v_raffle_summary y v_seller_summary responden al personal', async () => {
+  it('el personal cuenta por admin_ticket_inventory; las vistas ya no le suman nada (D-198)', async () => {
+    const { data: inventario, error } = await owner.rpc('admin_ticket_inventory', {})
+    expect(error).toBeNull()
+    expect(inventario!.length).toBeGreaterThan(0)
+
+    // Las vistas son `security_invoker`: sin lectura de `tickets`, al personal
+    // no le suman ninguna boleta ni un peso.
     const [{ data: raffles, error: raffleError }, { data: sellers, error: sellerError }] =
       await Promise.all([
         owner.from('v_raffle_summary').select('*'),
@@ -619,8 +635,11 @@ describe('F3-07 lecturas que alimentan las pantallas del portal', () => {
 
     expect(raffleError).toBeNull()
     expect(sellerError).toBeNull()
-    expect(raffles!.length).toBeGreaterThan(0)
-    expect(sellers!.length).toBeGreaterThan(0)
+    for (const fila of [...(raffles ?? []), ...(sellers ?? [])]) {
+      expect(Number(fila.tickets_total ?? 0)).toBe(0)
+      expect(Number(fila.total_sold ?? 0)).toBe(0)
+      expect(Number(fila.total_collected ?? 0)).toBe(0)
+    }
   })
 
   it('un vendedor solo se ve a si mismo en v_seller_summary (BR-U07)', async () => {
@@ -629,16 +648,31 @@ describe('F3-07 lecturas que alimentan las pantallas del portal', () => {
   })
 
   it('el conteo exacto de boletas no depende del limite de 1.000 filas de PostgREST', async () => {
-    const { count, error } = await owner
+    const { count: real } = await ctx.svc
       .from('tickets')
       .select('id', { count: 'exact', head: true })
       .eq('raffle_id', ctx.demoRaffle.id)
 
+    // El personal cuenta en SQL, por la proyeccion (D-198): `total_count` viaja
+    // en cada fila y no depende de cuantas se pidan.
+    const { data, error } = await owner.rpc('admin_list_tickets', {
+      p_raffle_id: ctx.demoRaffle.id,
+      p_limit: 1,
+    })
     expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+    expect(Number(data![0]!.total_count)).toBe(real)
+
+    // El vendedor, con `count: exact` sobre su propia lectura.
+    const { count, error: countError } = await seller1
+      .from('tickets')
+      .select('id', { count: 'exact', head: true })
+      .eq('raffle_id', ctx.demoRaffle.id)
+    expect(countError).toBeNull()
     expect(count).toBeGreaterThan(0)
 
     // Comprobacion del limite que motiva usar count en vez de contar filas.
-    const { data: rows } = await owner.from('tickets').select('id')
+    const { data: rows } = await seller1.from('tickets').select('id')
     expect(rows!.length).toBeLessThanOrEqual(1000)
   })
 })

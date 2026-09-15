@@ -324,7 +324,8 @@ test.describe('Aislamiento y proteccion de rutas (pruebas 12 y 13)', () => {
   test('un vendedor no entra al portal administrativo', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
 
-    for (const path of ['/owner/dashboard', '/owner/clients', '/owner/tickets']) {
+    // `/owner/clients` ya no existe (D-198): se comprueba otra ruta real del portal.
+    for (const path of ['/owner/dashboard', '/owner/sellers', '/owner/tickets']) {
       await page.goto(path)
       await expect(page).toHaveURL(/\/denied/)
     }

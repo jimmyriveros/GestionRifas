@@ -65,7 +65,6 @@ export type TourId =
   | 'owner-dashboard'
   | 'owner-tickets'
   | 'owner-sellers'
-  | 'owner-payments'
   | 'seller-dashboard'
   | 'seller-tickets'
   | 'seller-clients'
@@ -158,30 +157,14 @@ const OWNER_TOURS: Tour[] = [
     id: 'owner-dashboard',
     path: '/owner/dashboard',
     roles: ['owner', 'admin'],
+    // Sin pasos de dinero desde D-198: el panel del personal ya no tiene
+    // resumen de cobranza ni reparto por estado de pago, y un paso no explica
+    // algo que no esta a la vista (§5 de la guia de redaccion).
     steps: [
       ...navigationSteps(
-        'las rifas, las boletas, tus vendedores y los pagos',
-        'el panel, las boletas, los clientes y los pagos',
+        'las rifas, las boletas, tus vendedores y los reportes',
+        'el panel y las boletas',
       ),
-      {
-        id: 'financial-summary',
-        target: 'financial-summary',
-        side: 'bottom',
-        title: 'El dinero de la rifa',
-        body: 'Lo vendido es a cuánto se comprometieron tus clientes; lo recaudado, lo que ya pagaron. El saldo pendiente es lo que falta por cobrar.',
-      },
-      // Los dos pasos del dinero van SEGUIDOS, y en el orden en que se leen:
-      // desde D-182 el reparto por estado de pago vive DENTRO de la misma
-      // tarjeta que el resumen. Separados por «Cuántas boletas hay», el globo
-      // bajaba a otra region y volvia a subir — el mismo defecto que D-175
-      // corrigio en el panel del vendedor.
-      {
-        id: 'metrics-collection',
-        target: 'metrics-collection',
-        side: 'top',
-        title: 'Lo que falta por cobrar',
-        body: '«Sin pagos» son las boletas de las que no ha entrado nada y «Con abonos», las que pagaron una parte. Toca cualquiera de las dos para verlas.',
-      },
       {
         id: 'metrics-inventory',
         target: 'metrics-inventory',
@@ -189,16 +172,15 @@ const OWNER_TOURS: Tour[] = [
         title: 'Cuántas boletas hay y cómo están',
         // Ya no se habla aqui de las pendientes de aprobacion: su tarjeta se
         // retiro de este grupo porque el aviso de arriba ya las cuenta y ofrece
-        // revisarlas, y un paso no explica algo que no esta a la vista (§5 de
-        // la guia de redaccion).
-        body: 'Las registradas son todas las que existen, incluidas las anuladas; las disponibles son las que todavía puedes repartir y las asignadas ya tienen cliente.',
+        // revisarlas.
+        body: 'Las registradas son todas las que existen; las disponibles, las que todavía puedes repartir, y las asignadas ya se vendieron. «Pagadas» y «Sin pagar» reparten las vendidas según su pago.',
       },
       {
         id: 'seller-summary',
         target: 'seller-summary',
         side: 'top',
         title: 'Cómo va cada vendedor',
-        body: 'Compara aquí lo que vendió y lo que cobró cada persona. Toca un vendedor para ver su detalle.',
+        body: 'Compara aquí cuántas boletas tiene y cuántas vendió cada persona. Toca un vendedor para ver su detalle.',
       },
       helpStep(),
       closingStep(),
@@ -217,7 +199,7 @@ const OWNER_TOURS: Tour[] = [
         body: 'Con «Crear en lote» generas hasta 1.000 boletas de una vez y las repartes a un vendedor. La opción individual sirve para casos sueltos.',
       },
       ticketFilterStep(
-        'Escribe aquí el número de la boleta o el nombre del cliente. También puedes acotar la lista por rifa, por vendedor y por estado, y dejarla completa otra vez cuando quieras.',
+        'Escribe aquí el número diario o el semanal de la boleta. También puedes acotar la lista por rifa, por vendedor y por estado, y dejarla completa otra vez cuando quieras.',
       ),
       {
         id: 'table',
@@ -246,29 +228,7 @@ const OWNER_TOURS: Tour[] = [
         target: 'data-table',
         side: 'top',
         title: 'Cómo va cada vendedor',
-        body: 'Aquí ves cuántas boletas tiene, cuánto vendió y cuánto le falta por cobrar. Toca su fila para entrar a su detalle y asignarle boletas.',
-      },
-      closingStep(),
-    ],
-  },
-  {
-    id: 'owner-payments',
-    path: '/owner/payments',
-    roles: ['owner', 'admin'],
-    steps: [
-      {
-        id: 'filters',
-        target: 'filters',
-        side: 'bottom',
-        title: 'Encuentra un abono',
-        body: 'Filtra por vendedor, por método de pago o por un rango de fechas para revisar lo que se cobró.',
-      },
-      {
-        id: 'table',
-        target: 'data-table',
-        side: 'top',
-        title: 'Todos los abonos registrados',
-        body: 'Si uno quedó mal, entra a su detalle y anúlalo indicando el motivo. Los saldos se recalculan solos y el abono anulado queda en el historial.',
+        body: 'Aquí ves cuántas boletas tiene cada vendedor y cuántas vendió. Toca su fila para entrar a su detalle y asignarle boletas.',
       },
       closingStep(),
     ],

@@ -8,11 +8,11 @@ import { CompactActionSlot } from '@/components/layout/CompactHeader'
 import { Button } from '@/components/ui/button'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
-import { ticketSearchEmptyDescription } from '@/features/search/hints'
+import { adminTicketSearchEmptyDescription } from '@/features/search/hints'
+import { listAdminTickets } from '@/features/tickets/admin-queries'
 import { TicketFilters } from '@/features/tickets/components/TicketFilters'
 import { TicketsList } from '@/features/tickets/components/TicketsList'
-import { listTickets } from '@/features/tickets/queries'
-import { inventoryStatusSchema, paymentStatusSchema } from '@/features/tickets/schemas'
+import { adminPaymentStateSchema, inventoryStatusSchema } from '@/features/tickets/schemas'
 import { TicketListSlot } from '@/features/tickets/selection/components/SelectedTicketsView'
 import { TicketSelectionModeButton } from '@/features/tickets/selection/components/TicketSelectionModeButton'
 import { TicketSelectionToolbar } from '@/features/tickets/selection/components/TicketSelectionToolbar'
@@ -25,7 +25,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>
  * lado a lado, con los dos botones repartiendose el ancho (D-109). En
  * escritorio vuelven a su tamano normal, a la derecha del titulo.
  *
- * NO suben a la fila del titulo, como sí hace «Mis boletas». Ahi hay una sola
+ * NO SUBEN a la fila del titulo, como sí hace «Mis boletas». Ahi hay una sola
  * accion; aqui son dos: a 320 px el titulo mide 79 px y las acciones 272, que
  * con su hueco suman 363 sobre los 288 disponibles. Esconder «Crear en lote»
  * detras de un menu para que cupieran habria enterrado la accion con la que se
@@ -43,23 +43,38 @@ function single(value: string | string[] | undefined): string | undefined {
   return first === '' ? undefined : first
 }
 
+/**
+ * «Boletas» del portal administrativo.
+ *
+ * LEE LA PROYECCION ADMINISTRATIVA (D-198, BR-Q02). Las filas salen de
+ * `admin_list_tickets`: numeros, rifa, vendedor, estado de inventario, estado de
+ * pago en dos valores y paz y salvo. No hay cliente, precio, abonado ni saldo
+ * que pintar, porque no llegan.
+ *
+ * LOS FILTROS SON LOS DEL PERSONAL. Se busca solo por numero; `clientId` se
+ * ignora; el estado de pago acepta `paid` y `unpaid`, y cualquier otro valor —un
+ * `partial` de un enlace antiguo— se descarta en vez de aplicarse.
+ */
 export default async function TicketsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams
 
   // Los parametros llegan de la URL: se validan con el mismo enum que la base
   // de datos en vez de pasarlos crudos a la consulta.
   const inventoryStatus = inventoryStatusSchema.safeParse(single(params.inventoryStatus))
-  const paymentStatus = paymentStatusSchema.safeParse(single(params.paymentStatus))
+  const paymentState = adminPaymentStateSchema.safeParse(single(params.paymentStatus))
   const requestedPage = Number.parseInt(single(params.page) ?? '1', 10)
 
+  const filters = {
+    raffleId: single(params.raffleId),
+    sellerId: single(params.sellerId),
+    inventoryStatus: inventoryStatus.success ? inventoryStatus.data : undefined,
+    paymentState: paymentState.success ? paymentState.data : undefined,
+    search: single(params.q),
+  }
+
   const [{ rows, total, page, pageSize }, raffles, sellers] = await Promise.all([
-    listTickets({
-      raffleId: single(params.raffleId),
-      sellerId: single(params.sellerId),
-      clientId: single(params.clientId),
-      inventoryStatus: inventoryStatus.success ? inventoryStatus.data : undefined,
-      paymentStatus: paymentStatus.success ? paymentStatus.data : undefined,
-      search: single(params.q),
+    listAdminTickets({
+      ...filters,
       page: Number.isNaN(requestedPage) ? 1 : requestedPage,
     }),
     listRaffleOptions(),
@@ -67,36 +82,30 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
   ])
 
   const hasFilters = Boolean(
-    single(params.q) ??
-    single(params.raffleId) ??
-    single(params.sellerId) ??
-    single(params.clientId) ??
-    single(params.inventoryStatus) ??
-    single(params.paymentStatus),
+    filters.search ??
+    filters.raffleId ??
+    filters.sellerId ??
+    filters.inventoryStatus ??
+    filters.paymentState,
   )
 
-  const emptyDescription = ticketSearchEmptyDescription(single(params.q), hasFilters)
+  const emptyDescription = adminTicketSearchEmptyDescription(filters.search, hasFilters)
 
   // Los mismos filtros que la consulta, para que «seleccionar todas las que
   // coinciden» seleccione exactamente lo que hay en pantalla (seccion 16).
   const selectionFilters = {
-    raffleId: single(params.raffleId),
-    sellerId: single(params.sellerId),
-    clientId: single(params.clientId),
-    inventoryStatus: inventoryStatus.success ? inventoryStatus.data : undefined,
-    paymentStatus: paymentStatus.success ? paymentStatus.data : undefined,
-    search: single(params.q),
+    raffleId: filters.raffleId,
+    sellerId: filters.sellerId,
+    inventoryStatus: filters.inventoryStatus,
+    paymentStatus: filters.paymentState,
+    search: filters.search,
   }
-
-  // Precio vigente de cada rifa: el total de una venta se suma boleta a boleta,
-  // nunca con una cifra fija (seccion 30).
-  const rafflePrices = Object.fromEntries(raffles.map((raffle) => [raffle.id, raffle.ticketPrice]))
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Boletas"
-        description="Todas las boletas de la organización. Búscalas por su número o por el nombre del cliente."
+        description="Todas las boletas de la organización. Búscalas por su número diario o semanal."
         actions={
           <>
             <Button asChild variant="outline" className={HEADER_ACTION_CLASS}>
@@ -123,6 +132,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
       <TicketSelectionProvider storageKey="owner-tickets" pageIds={rows.map((row) => row.id)}>
         <div className="space-y-6">
           <TicketFilters
+            audience="staff"
             raffles={raffles.map((raffle) => ({
               value: raffle.id,
               label: `${raffle.shortCode} — ${raffle.name}`,
@@ -157,10 +167,9 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
                 total={total}
                 filters={selectionFilters}
                 sellers={sellers.map((seller) => ({ id: seller.id, fullName: seller.fullName }))}
-                rafflePrices={rafflePrices}
               />
               <TicketListSlot basePath="/owner/tickets" showSeller>
-                <TicketsList tickets={rows} />
+                <TicketsList audience="staff" tickets={rows} basePath="/owner/tickets" />
                 <DataTablePagination
                   total={total}
                   page={page}

@@ -21,12 +21,14 @@ import {
   getPaymentReport,
   getRaffleReport,
   getSalesByDateReport,
-  getSellerReport,
+  getStaffRaffleReport,
+  getStaffSellerReport,
+  getStaffTicketStatusReport,
   getTicketStatusReport,
 } from '../queries'
 import {
-  REPORT_DESCRIPTIONS,
   REPORT_LABELS,
+  reportDescription,
   resolveReport,
   resolveSalesDateRange,
   type ReportFilters,
@@ -41,21 +43,23 @@ import { ReportTable, type ReportTableColumn } from './ReportTable'
 /**
  * Pantalla de reportes, compartida por los dos portales (D-051).
  *
- * La diferencia entre `/owner/reports` y `/seller/reports` son dos parametros:
- * que reportes se ofrecen y si hay selector de vendedor. No hay una segunda
- * copia de estas tablas que pueda quedarse atras.
+ * La diferencia entre `/owner/reports` y `/seller/reports` son sus parametros:
+ * que reportes se ofrecen, si hay selector de vendedor y —desde D-198— para quien
+ * es. No hay una segunda copia de esta pantalla que pueda quedarse atras.
  *
- * El aislamiento NO depende de `withSellerFilter`: todas las consultas pasan por
- * vistas y funciones `security_invoker`, asi que un vendedor obtiene sus propios
- * numeros aunque manipule la URL (CLAUDE.md §24, docs/SECURITY.md §1).
+ * `audience` NO ES UN PERMISO. Elige que lectura y que tabla se pintan: el
+ * personal lee recuentos de `admin_ticket_inventory` y el vendedor sus vistas
+ * `security_invoker`. Aunque alguien pintara la variante equivocada, la base de
+ * datos seguiria devolviendo a cada quien solo lo suyo (docs/SECURITY.md §1).
  */
 
 type ReportsViewProps = {
+  audience: 'staff' | 'seller'
   filters: ReportFilters
   reports: readonly ReportKey[]
   basePath: string
-  /** `/owner/clients` o `/seller/clients`, para enlazar cada cliente. */
-  clientBasePath: string
+  /** `/seller/clients`, para enlazar cada cliente. El personal no ve clientes. */
+  clientBasePath?: string
   /** Solo el portal administrativo puede acotar por vendedor. */
   withSellerFilter?: boolean
   /** Solo el portal administrativo enlaza a la ficha de un vendedor. */
@@ -70,10 +74,11 @@ type ReportsViewProps = {
 }
 
 export async function ReportsView({
+  audience,
   filters,
   reports,
   basePath,
-  clientBasePath,
+  clientBasePath = '/seller/clients',
   withSellerFilter = false,
   sellerBasePath,
   ticketBasePath,
@@ -112,7 +117,7 @@ export async function ReportsView({
     <div className="space-y-6">
       <PageHeader
         title="Reportes"
-        description={REPORT_DESCRIPTIONS[report]}
+        description={reportDescription(report, audience)}
         actions={<ExportCsvButton filters={activeFilters} />}
       />
 
@@ -153,43 +158,58 @@ export async function ReportsView({
         <p className="sr-only" aria-live="polite">
           Resultados actualizados: {REPORT_LABELS[report]}
         </p>
-        {report === 'sellers' ? (
-          <SellersReport filters={activeFilters} basePath={sellerBasePath} />
-        ) : null}
-        {report === 'sales-by-date' && salesRange ? (
-          <SalesByDateReport
-            range={salesRange}
-            page={activeFilters.page}
-            clientBasePath={clientBasePath}
-            ticketBasePath={ticketBasePath}
-          />
-        ) : null}
-        {report === 'ticket-status' ? <TicketStatusReport filters={activeFilters} /> : null}
-        {report === 'raffles' ? <RafflesReport /> : null}
-        {report === 'client-balances' ? (
-          <ClientBalancesReport
-            filters={activeFilters}
-            clientBasePath={clientBasePath}
-            showSeller={withSellerFilter}
-          />
-        ) : null}
-        {report === 'payments' ? <PaymentsReport filters={activeFilters} /> : null}
+        {audience === 'staff' ? (
+          <>
+            {report === 'sellers' ? (
+              <StaffSellersReport filters={activeFilters} basePath={sellerBasePath} />
+            ) : null}
+            {report === 'ticket-status' ? (
+              <StaffTicketStatusReport filters={activeFilters} />
+            ) : null}
+            {report === 'raffles' ? <StaffRafflesReport /> : null}
+          </>
+        ) : (
+          <>
+            {report === 'sales-by-date' && salesRange ? (
+              <SalesByDateReport
+                range={salesRange}
+                page={activeFilters.page}
+                clientBasePath={clientBasePath}
+                ticketBasePath={ticketBasePath}
+              />
+            ) : null}
+            {report === 'ticket-status' ? <TicketStatusReport filters={activeFilters} /> : null}
+            {report === 'raffles' ? <RafflesReport /> : null}
+            {report === 'client-balances' ? (
+              <ClientBalancesReport filters={activeFilters} clientBasePath={clientBasePath} />
+            ) : null}
+            {report === 'payments' ? <PaymentsReport filters={activeFilters} /> : null}
+          </>
+        )}
       </Suspense>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
+// Reportes del PERSONAL: recuentos, ningun importe (D-198, BR-Q08)
+// ---------------------------------------------------------------------------
 
-async function SellersReport({ filters, basePath }: { filters: ReportFilters; basePath?: string }) {
-  const { rows, totals } = await getSellerReport(filters)
+async function StaffSellersReport({
+  filters,
+  basePath,
+}: {
+  filters: ReportFilters
+  basePath?: string
+}) {
+  const { rows, totals } = await getStaffSellerReport(filters)
 
   if (rows.length === 0) {
     return (
       <EmptyState
         icon={<BarChart3Icon className="size-8" aria-hidden />}
         title="Todavía no hay vendedores"
-        description="Invita al primer vendedor para empezar a medir ventas y recaudo."
+        description="Invita al primer vendedor para empezar a repartir boletas."
       />
     )
   }
@@ -217,9 +237,15 @@ async function SellersReport({ filters, basePath }: { filters: ReportFilters; ba
     {
       header: 'Boletas',
       align: 'right',
-      hideOnMobile: true,
       cell: (row) => <span className="tabular-nums">{row.ticketsTotal}</span>,
       footer: <span className="tabular-nums">{totals.ticketsTotal}</span>,
+    },
+    {
+      header: 'Disponibles',
+      align: 'right',
+      hideOnMobile: true,
+      cell: (row) => <span className="tabular-nums">{row.ticketsAvailable}</span>,
+      footer: <span className="tabular-nums">{totals.ticketsAvailable}</span>,
     },
     {
       header: 'Vendidas',
@@ -228,23 +254,11 @@ async function SellersReport({ filters, basePath }: { filters: ReportFilters; ba
       footer: <span className="tabular-nums">{totals.ticketsAssigned}</span>,
     },
     {
-      header: 'Vendido',
-      align: 'right',
-      cell: (row) => <span className="tabular-nums">{formatCOP(row.totalSold)}</span>,
-      footer: <span className="tabular-nums">{formatCOP(totals.totalSold)}</span>,
-    },
-    {
-      header: 'Recaudado',
+      header: 'Por aprobar',
       align: 'right',
       hideOnMobile: true,
-      cell: (row) => <span className="tabular-nums">{formatCOP(row.totalCollected)}</span>,
-      footer: <span className="tabular-nums">{formatCOP(totals.totalCollected)}</span>,
-    },
-    {
-      header: 'Saldo',
-      align: 'right',
-      cell: (row) => <span className="tabular-nums">{formatCOP(row.pendingAmount)}</span>,
-      footer: <span className="tabular-nums">{formatCOP(totals.pendingAmount)}</span>,
+      cell: (row) => <span className="tabular-nums">{row.ticketsPendingApproval}</span>,
+      footer: <span className="tabular-nums">{totals.ticketsPendingApproval}</span>,
     },
   ]
 
@@ -252,16 +266,135 @@ async function SellersReport({ filters, basePath }: { filters: ReportFilters; ba
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <MetricCard label="Vendedores" value={rows.length} />
-        <MetricCard label="Total vendido" value={formatCOP(totals.totalSold)} />
-        <MetricCard label="Total recaudado" value={formatCOP(totals.totalCollected)} />
-        <MetricCard label="Saldo pendiente" value={formatCOP(totals.pendingAmount)} />
+        <MetricCard label="Total de boletas" value={totals.ticketsTotal} />
+        <MetricCard label="Vendidas" value={totals.ticketsAssigned} />
+        <MetricCard label="Por aprobar" value={totals.ticketsPendingApproval} />
       </div>
 
       <ReportTable
         columns={columns}
         rows={rows}
         getRowId={(row) => row.sellerId}
-        caption={`${REPORT_LABELS.sellers}: ventas, recaudo y saldo pendiente de cada vendedor`}
+        caption={`${REPORT_LABELS.sellers}: cuántas boletas tiene y cuántas vendió cada vendedor`}
+        showFooter
+      />
+    </div>
+  )
+}
+
+async function StaffTicketStatusReport({ filters }: { filters: ReportFilters }) {
+  const { rows, totals } = await getStaffTicketStatusReport(filters)
+
+  const columns: ReportTableColumn<(typeof rows)[number]>[] = [
+    { header: 'Grupo', cell: (row) => <span className="text-sm">{row.groupLabel}</span> },
+    { header: 'Estado', cell: (row) => <span className="font-medium">{row.statusLabel}</span> },
+    {
+      header: 'Boletas',
+      align: 'right',
+      cell: (row) => <span className="tabular-nums">{row.count}</span>,
+    },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <MetricCard label="Total de boletas" value={totals.ticketsTotal} />
+        <MetricCard label="Vendidas" value={totals.ticketsAssigned} />
+      </div>
+
+      <p className="text-muted-foreground text-sm">
+        Los estados de pago (Sin pagar y Pagada) solo cuentan boletas vendidas: una boleta
+        disponible todavía no se ha vendido.
+      </p>
+
+      <ReportTable
+        columns={columns}
+        rows={rows}
+        getRowId={(row) => `${row.group}-${row.status}`}
+        caption={`${REPORT_LABELS['ticket-status']}: cuantas boletas hay en cada estado`}
+      />
+    </div>
+  )
+}
+
+async function StaffRafflesReport() {
+  const { rows, totals } = await getStaffRaffleReport()
+
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={<BarChart3Icon className="size-8" aria-hidden />}
+        title="Todavía no hay rifas"
+        description="Crea una rifa para empezar a registrar boletas."
+      />
+    )
+  }
+
+  const columns: ReportTableColumn<(typeof rows)[number]>[] = [
+    {
+      header: 'Rifa',
+      cell: (row) => (
+        <div className="min-w-0">
+          <span className="font-medium">{row.name}</span>
+          <p className="text-muted-foreground font-mono text-xs">{row.shortCode}</p>
+        </div>
+      ),
+    },
+    {
+      header: 'Estado',
+      cell: (row) => <RaffleStatusBadge status={row.status} />,
+    },
+    {
+      header: 'Vigencia',
+      hideOnMobile: true,
+      cell: (row) => (
+        <span className="text-muted-foreground text-sm whitespace-nowrap">
+          {formatDateEs(row.startDate)} — {formatDateEs(row.endDate)}
+        </span>
+      ),
+    },
+    {
+      header: 'Boletas',
+      align: 'right',
+      cell: (row) => <span className="tabular-nums">{row.ticketsTotal}</span>,
+      footer: <span className="tabular-nums">{totals.ticketsTotal}</span>,
+    },
+    {
+      header: 'Disponibles',
+      align: 'right',
+      hideOnMobile: true,
+      cell: (row) => <span className="tabular-nums">{row.ticketsAvailable}</span>,
+      footer: <span className="tabular-nums">{totals.ticketsAvailable}</span>,
+    },
+    {
+      header: 'Vendidas',
+      align: 'right',
+      cell: (row) => <span className="tabular-nums">{row.ticketsAssigned}</span>,
+      footer: <span className="tabular-nums">{totals.ticketsAssigned}</span>,
+    },
+    {
+      header: 'Anuladas',
+      align: 'right',
+      hideOnMobile: true,
+      cell: (row) => <span className="tabular-nums">{row.ticketsCancelled}</span>,
+      footer: <span className="tabular-nums">{totals.ticketsCancelled}</span>,
+    },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <MetricCard label="Rifas" value={rows.length} />
+        <MetricCard label="Total de boletas" value={totals.ticketsTotal} />
+        <MetricCard label="Vendidas" value={totals.ticketsAssigned} />
+        <MetricCard label="Por aprobar" value={totals.ticketsPendingApproval} />
+      </div>
+
+      <ReportTable
+        columns={columns}
+        rows={rows}
+        getRowId={(row) => row.id}
+        caption={`${REPORT_LABELS.raffles}: cuántas boletas tiene cada rifa`}
         showFooter
       />
     </div>
@@ -585,11 +718,9 @@ async function RafflesReport() {
 async function ClientBalancesReport({
   filters,
   clientBasePath,
-  showSeller,
 }: {
   filters: ReportFilters
   clientBasePath: string
-  showSeller: boolean
 }) {
   const { rows, total, page, pageSize, totalPending } = await getClientBalanceReport(filters)
 
@@ -620,15 +751,6 @@ async function ClientBalancesReport({
         </div>
       ),
     },
-    ...(showSeller
-      ? [
-          {
-            header: 'Vendedor',
-            hideOnMobile: true,
-            cell: (row: (typeof rows)[number]) => <span className="text-sm">{row.sellerName}</span>,
-          },
-        ]
-      : []),
     {
       header: 'Boletas',
       align: 'right',

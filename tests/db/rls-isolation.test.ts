@@ -218,7 +218,9 @@ describe('DB-09 un vendedor no puede MODIFICAR datos de otro vendedor (BR-U07)',
       p_reason: 'Intento no autorizado desde una prueba',
     })
     expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/permiso/i)
+    // Desde D-198 ninguna sesion ejecuta `void_payment`: el rechazo llega antes
+    // que la regla de BR-F10, como falta de privilegio.
+    expect(error!.code).toBe('42501')
 
     const { data: after } = await ctx.svc
       .from('payments')
@@ -230,22 +232,44 @@ describe('DB-09 un vendedor no puede MODIFICAR datos de otro vendedor (BR-U07)',
 })
 
 describe('DB-07 aislamiento entre organizaciones (BR-O02)', () => {
+  /**
+   * D-198: el personal ya no lee `tickets`, `clients` ni `payments`. Su
+   * inventario llega por `admin_list_tickets`, que no devuelve la organizacion:
+   * se comprueba por la rifa de cada fila, que no puede ser de la otra.
+   */
+  async function rifasDe(orgId: string): Promise<Set<string>> {
+    const { data } = await ctx.svc.from('raffles').select('id').eq('organization_id', orgId)
+    return new Set(data!.map((r) => r.id))
+  }
+
   it('el owner de una organizacion no ve las boletas de la otra', async () => {
-    const { data } = await owner.from('tickets').select('organization_id')
+    const { data: tabla } = await owner.from('tickets').select('organization_id')
+    expect(tabla).toEqual([])
+
+    const { data, error } = await owner.rpc('admin_list_tickets', { p_limit: 1000 })
+    expect(error).toBeNull()
     expect(data!.length).toBeGreaterThan(0)
-    expect(data!.every((t) => t.organization_id === ctx.demoOrg.id)).toBe(true)
+    const propias = await rifasDe(ctx.demoOrg.id)
+    expect(data!.every((t) => propias.has(t.raffle_id))).toBe(true)
   })
 
   it('el owner de la otra organizacion tampoco ve las de esta', async () => {
-    const { data } = await otherOrgOwner.from('tickets').select('organization_id')
-    expect(data!.every((t) => t.organization_id === ctx.controlOrg.id)).toBe(true)
+    const { data, error } = await otherOrgOwner.rpc('admin_list_tickets', { p_limit: 1000 })
+    expect(error).toBeNull()
+    expect(data!.length).toBeGreaterThan(0)
+    const propias = await rifasDe(ctx.controlOrg.id)
+    expect(data!.every((t) => propias.has(t.raffle_id))).toBe(true)
   })
 
   it('no ve clientes, pagos ni rifas de la otra organizacion', async () => {
-    for (const table of ['clients', 'payments', 'raffles'] as const) {
+    // Clientes y pagos: ni los de la otra organizacion ni los de la suya (D-198).
+    for (const table of ['clients', 'payments'] as const) {
       const { data } = await owner.from(table).select('organization_id')
-      expect(data!.every((r) => r.organization_id === ctx.demoOrg.id)).toBe(true)
+      expect(data).toEqual([])
     }
+    const { data: rifas } = await owner.from('raffles').select('organization_id')
+    expect(rifas!.length).toBeGreaterThan(0)
+    expect(rifas!.every((r) => r.organization_id === ctx.demoOrg.id)).toBe(true)
   })
 
   it('no puede leer una fila de la otra organizacion ni por id exacto', async () => {

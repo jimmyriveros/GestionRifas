@@ -48,6 +48,17 @@ export function clearanceState(ticket: ClearanceEligibility): ClearanceState {
 }
 
 /**
+ * El estado cuando ya viene resuelto por SQL (D-198).
+ *
+ * Las proyecciones del portal administrativo no traen `clientId` —no pueden
+ * traerlo—, asi que no pasan por `clearanceState`: devuelven el estado ya
+ * calculado, y solo de boletas asignadas. Aqui se valida el texto que llega.
+ */
+export function parseClearanceState(value: string | null): ClearanceState {
+  return value === 'delivered' || value === 'assumed' || value === 'pending' ? value : null
+}
+
+/**
  * El interruptor se puede mover.
  *
  * Una boleta ANULADA conserva lo que se le hubiera registrado (BR-I06) y se

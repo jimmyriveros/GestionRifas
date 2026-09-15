@@ -350,10 +350,15 @@ describe('Revision de las filas', () => {
   })
 
   it('exige nombre y celular juntos cuando una fila tiene cliente', () => {
-    const review = reviewRows([
-      { ...fila(1, '0046', '7821'), clientName: 'Carlos Gómez', clientPhone: '' },
-      { ...fila(2, '0158', '9014'), clientName: '', clientPhone: '3001234567' },
-    ])
+    // La regla es de la importacion CON clientes, que desde D-198 ningun portal
+    // activa; la revision la conserva para poder reactivarla.
+    const review = reviewRows(
+      [
+        { ...fila(1, '0046', '7821'), clientName: 'Carlos Gómez', clientPhone: '' },
+        { ...fila(2, '0158', '9014'), clientName: '', clientPhone: '3001234567' },
+      ],
+      { allowClientAssignments: true },
+    )
 
     expect(review).toMatchObject({ valid: 0, invalid: 2, withClient: 0 })
     expect(review.rows[0]?.problem).toMatch(/nombre y el celular/i)
@@ -395,7 +400,7 @@ describe('Revision de las filas', () => {
     expect(review.clients[0]).toMatchObject({ status: 'existing', tickets: 2 })
   })
 
-  it('bloquea un conflicto de identidad y el flujo de cliente desde Seller', () => {
+  it('bloquea un conflicto de identidad, y cualquier cliente donde no se importan clientes', () => {
     const row = {
       ...fila(1, '0046', '7821'),
       clientName: 'Carlos Gómez',
@@ -420,9 +425,18 @@ describe('Revision de las filas', () => {
     })
     expect(conflict).toMatchObject({ valid: 0, clientConflicts: 1 })
 
-    const seller = reviewRows([row], { allowClientAssignments: false })
-    expect(seller).toMatchObject({ valid: 0, clientConflicts: 1 })
-    expect(seller.rows[0]?.problem).toMatch(/portal administrativo/i)
+    // Donde no se importan clientes —desde D-198, los dos portales— la fila se
+    // aparta con UNA frase, aunque ademas le falte el celular: pedir que lo
+    // complete seria mandar a corregir algo que se va a rechazar igual.
+    const sinClientes = reviewRows(
+      [row, { ...fila(2, '0158', '9014'), clientName: 'Marta Ruiz', clientPhone: '' }],
+      { allowClientAssignments: false },
+    )
+    expect(sinClientes).toMatchObject({ valid: 0, clientConflicts: 2, invalid: 0 })
+    for (const revisada of sinClientes.rows) {
+      expect(revisada.problem).toMatch(/^Las boletas se importan sin cliente\./)
+      expect(revisada.problem).not.toMatch(/portal administrativo/i)
+    }
   })
 
   it('marca como conflicto dos nombres distintos con el mismo celular dentro del archivo', () => {

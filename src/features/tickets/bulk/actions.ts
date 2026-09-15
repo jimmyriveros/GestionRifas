@@ -109,14 +109,17 @@ export async function findExistingCombinations(
   )
   if (wanted.size === 0) return { ok: true, data: [] }
 
-  const dailyNumbers = [...new Set([...wanted].map((key) => key.split('/')[0] ?? ''))]
-
+  // D-198: por `taken_ticket_combinations`, la misma funcion del importador. El
+  // personal ya no lee `tickets`, y esta responde SOLO que combinaciones estan
+  // tomadas en la rifa: ni de quien son, ni en que estado (BR-U07).
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('tickets')
-    .select('daily_number, weekly_number')
-    .eq('raffle_id', raffleId)
-    .in('daily_number', dailyNumbers)
+  const { data, error } = await supabase.rpc('taken_ticket_combinations', {
+    p_raffle_id: raffleId,
+    p_combos: [...wanted].map((key) => {
+      const [dailyNumber = '', weeklyNumber = ''] = key.split('/')
+      return { daily_number: dailyNumber, weekly_number: weeklyNumber }
+    }),
+  })
 
   if (error) return { error: mapPgError(error) }
 

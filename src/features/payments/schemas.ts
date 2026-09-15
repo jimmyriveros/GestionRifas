@@ -58,17 +58,6 @@ export const createPaymentSchema = z
   )
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>
 
-export const voidPaymentSchema = z.object({
-  paymentId: z.uuid('Pago no válido.'),
-  // El mismo minimo que exige `void_payment` en la base de datos.
-  reason: z
-    .string()
-    .trim()
-    .min(5, 'Explica el motivo con al menos 5 caracteres.')
-    .max(500, 'El motivo no puede superar 500 caracteres.'),
-})
-export type VoidPaymentInput = z.infer<typeof voidPaymentSchema>
-
 /**
  * Corregir el valor de UN abono activo (D-134, BR-F16).
  *

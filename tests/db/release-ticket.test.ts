@@ -28,6 +28,7 @@ import {
   randomNumbers,
   signInAs,
   USERS,
+  voidPaymentAs,
   type Client,
 } from './helpers'
 
@@ -285,20 +286,27 @@ describe('E12-01 quién puede liberar una boleta (BR-I14)', () => {
     expect(despues.client_id).toBeNull()
   })
 
-  it('el Dueño puede sobre una boleta de su organización', async () => {
+  it('el Dueño ya no libera la boleta de un vendedor (D-198)', async () => {
     const ticketId = await boletaVendida(clienteA)
 
     const { error } = await liberar(owner, ticketId, clienteA)
-    expect(error).toBeNull()
-    expect((await estado(ticketId)).inventory_status).toBe('available')
+    expect(error).not.toBeNull()
+    // El mismo mensaje que a un vendedor ajeno: la venta es de su vendedor.
+    expect(error!.message).toMatch(/no existe o no tienes acceso/i)
+    const despues = await estado(ticketId)
+    expect(despues.inventory_status).toBe('assigned')
+    expect(despues.client_id).toBe(clienteA)
   })
 
-  it('el Administrador también puede', async () => {
+  it('el Administrador tampoco (D-198)', async () => {
     const ticketId = await boletaVendida(clienteA)
 
     const { error } = await liberar(admin, ticketId, clienteA)
-    expect(error).toBeNull()
-    expect((await estado(ticketId)).inventory_status).toBe('available')
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/no existe o no tienes acceso/i)
+    const despues = await estado(ticketId)
+    expect(despues.inventory_status).toBe('assigned')
+    expect(despues.client_id).toBe(clienteA)
   })
 
   it('otro vendedor de la misma organización es rechazado', async () => {
@@ -360,10 +368,17 @@ describe('E12-02 solo sobre una boleta vendida (BR-I14)', () => {
 
   it('una boleta anulada es rechazada', async () => {
     const ticketId = await boletaVendida(clienteA)
-    const { error: cancelError } = await owner.rpc('cancel_ticket', {
-      p_ticket_id: ticketId,
-      p_reason: 'Anulada para la prueba',
-    })
+    // D-198: el personal ya no anula una boleta vendida. La anulada se prepara
+    // como las que quedaron de antes, con la service role: sin abonos, el
+    // disparador de estados lo permite.
+    const { error: cancelError } = await ctx.svc
+      .from('tickets')
+      .update({
+        inventory_status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: 'Anulada para la prueba',
+      })
+      .eq('id', ticketId)
     expect(cancelError).toBeNull()
 
     const { error } = await liberar(seller1, ticketId, clienteA)
@@ -425,11 +440,8 @@ describe('E12-03 la rifa, el historial y el motivo (BR-I14)', () => {
     const ticketId = await boletaVendida(clienteA)
     const paymentId = await abonar(clienteA, ticketId, 10_000)
 
-    const { error: voidError } = await owner.rpc('void_payment', {
-      p_payment_id: paymentId,
-      p_reason: 'Anulado para la prueba',
-    })
-    expect(voidError).toBeNull()
+    // D-198: `void_payment` quedo dormida (ver `voidPaymentAs`).
+    await voidPaymentAs(ctx.ids.owner, paymentId, 'Anulado para la prueba')
     // El saldo vuelve a cero, pero la fila de la asignación sigue ahí.
     expect((await estado(ticketId)).paid_amount).toBe(0)
 
@@ -506,9 +518,12 @@ describe('E12-04 concurrencia: el cliente esperado (D-169)', () => {
   it('dos liberaciones simultáneas: una gana y la otra no deja estado parcial', async () => {
     const ticketId = await boletaVendida(clienteA)
 
+    // Dos sesiones del MISMO vendedor —dos pantallas abiertas—: desde D-198 es
+    // el unico que puede liberar su boleta.
+    const otraPantalla = await signInAs(USERS.seller1)
     const [primera, segunda] = await Promise.all([
       liberar(seller1, ticketId, clienteA),
-      liberar(owner, ticketId, clienteA),
+      liberar(otraPantalla, ticketId, clienteA),
     ])
 
     const errores = [primera.error, segunda.error].filter((e) => e !== null)

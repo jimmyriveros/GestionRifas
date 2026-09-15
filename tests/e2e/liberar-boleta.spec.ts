@@ -237,29 +237,43 @@ test.describe('Liberar una boleta — portal del vendedor', () => {
 })
 
 test.describe('Liberar una boleta — portal administrativo', () => {
-  test('el Dueño usa el mismo dialogo y la boleta vuelve al inventario', async ({ page }) => {
+  /**
+   * Hasta D-198 el Dueño liberaba con el mismo diálogo. Desde D-198 solo libera
+   * el vendedor de la boleta (BR-Q06): el detalle administrativo no lo ofrece, no
+   * enseña el cliente, y la RPC responde al personal como a una boleta que no
+   * existe.
+   */
+  test('el Dueño no ve «Liberar boleta» y la RPC no le deja liberarla (D-198)', async ({
+    page,
+  }) => {
     const cliente = await clienteDe('Admin liberar')
     const ticket = await ticketOf(cliente.id)
 
     await loginAs(page, ACCOUNTS.owner)
     await page.goto(`/owner/tickets/${ticket.id}`)
+    await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Liberar boleta' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Cambiar cliente' })).toHaveCount(0)
+    await expect(page.getByText(cliente.name)).toHaveCount(0)
 
-    // Los dos botones conviven bajo la tarjeta del cliente.
-    await expect(page.getByRole('button', { name: 'Cambiar cliente' })).toBeVisible()
-    await page.getByRole('button', { name: 'Liberar boleta' }).click()
+    for (const cuenta of [ACCOUNTS.owner, ACCOUNTS.admin]) {
+      const sesion = await signedInClient(cuenta)
+      const liberar = (ticketId: string) =>
+        sesion.rpc('release_ticket_client', {
+          p_ticket_id: ticketId,
+          p_expected_client_id: cliente.id,
+          p_reason: MOTIVO,
+        })
 
-    const dialogo = page.getByRole('alertdialog')
-    await expect(dialogo.getByText('Cliente actual')).toBeVisible()
-    await expect(dialogo.getByText(cliente.name).first()).toBeVisible()
-    await dialogo.getByLabel('Motivo de la liberación').fill(MOTIVO)
-    await dialogo.getByRole('button', { name: 'Confirmar liberación' }).click()
-
-    await expectToast(page, /quedó disponible/)
-    await expect(page.getByText('Esta boleta todavía no se ha vendido.')).toBeVisible()
+      const { error } = await liberar(ticket.id)
+      const { error: inexistente } = await liberar('00000000-0000-4000-8000-000000000000')
+      expect(error, cuenta).not.toBeNull()
+      expect(error?.message, cuenta).toBe(inexistente?.message)
+    }
 
     const fila = await ticketRow(ticket.id)
-    expect(fila.inventory_status).toBe('available')
-    expect(fila.client_id).toBeNull()
+    expect(fila.inventory_status).toBe('assigned')
+    expect(fila.client_id).toBe(cliente.id)
   })
 
   test('un vendedor no puede liberar la boleta de otro: no ve la pantalla', async ({ page }) => {

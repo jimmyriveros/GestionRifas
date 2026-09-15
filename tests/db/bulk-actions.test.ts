@@ -149,7 +149,8 @@ describe('ticket_bulk_eligibility (F10-01)', () => {
   it('marca disponible: se puede asignar, anular, cambiar de vendedor y eliminar', async () => {
     const id = await crearBoleta(seed.ids.seller1)
 
-    const { data, error } = await owner.rpc('ticket_bulk_eligibility', { p_ticket_ids: [id] })
+    // Su vendedor, con la lectura que trae cliente y abonos.
+    const { data, error } = await seller1.rpc('ticket_bulk_eligibility', { p_ticket_ids: [id] })
 
     expect(error).toBeNull()
     expect(data).toHaveLength(1)
@@ -162,6 +163,24 @@ describe('ticket_bulk_eligibility (F10-01)', () => {
       has_client: false,
       has_payments: false,
     })
+
+    // El personal, desde D-198, por su proyeccion: sin cliente, abonos ni precio.
+    const staff = await owner.rpc('admin_ticket_bulk_eligibility', { p_ticket_ids: [id] })
+    expect(staff.error).toBeNull()
+    expect(staff.data).toHaveLength(1)
+    expect(staff.data![0]).toMatchObject({
+      ticket_id: id,
+      can_approve: false,
+      can_cancel: true,
+      can_change_seller: true,
+      can_delete: true,
+    })
+    expect(staff.data![0]).not.toHaveProperty('has_client')
+    expect(staff.data![0]).not.toHaveProperty('has_payments')
+
+    const vieja = await owner.rpc('ticket_bulk_eligibility', { p_ticket_ids: [id] })
+    expect(vieja.error).toBeNull()
+    expect(vieja.data).toEqual([])
   })
 
   it('una boleta vendida no se puede asignar, ni cambiar de vendedor, ni eliminar', async () => {
@@ -169,11 +188,12 @@ describe('ticket_bulk_eligibility (F10-01)', () => {
       .from('tickets')
       .select('id')
       .eq('inventory_status', 'assigned')
+      .eq('seller_id', seed.ids.seller1)
       .limit(1)
       .single()
 
     const { data: fila } = await vendida
-    const { data } = await owner.rpc('ticket_bulk_eligibility', { p_ticket_ids: [fila!.id] })
+    const { data } = await seller1.rpc('ticket_bulk_eligibility', { p_ticket_ids: [fila!.id] })
 
     expect(data![0]).toMatchObject({
       can_assign: false,
@@ -181,19 +201,39 @@ describe('ticket_bulk_eligibility (F10-01)', () => {
       can_delete: false,
       has_client: true,
     })
+
+    // Para el personal tampoco se anula: D-198 lo cierra para cualquier vendida.
+    const staff = await owner.rpc('admin_ticket_bulk_eligibility', {
+      p_ticket_ids: [fila!.id],
+    })
+    expect(staff.data![0]).toMatchObject({
+      inventory_status: 'assigned',
+      can_cancel: false,
+      can_change_seller: false,
+      can_delete: false,
+    })
   })
 
   it('una boleta anulada no admite ninguna accion masiva', async () => {
     const id = await crearBoleta(seed.ids.seller1)
     await owner.rpc('cancel_ticket', { p_ticket_id: id, p_reason: 'Prueba de elegibilidad' })
 
-    const { data } = await owner.rpc('ticket_bulk_eligibility', { p_ticket_ids: [id] })
+    const { data } = await seller1.rpc('ticket_bulk_eligibility', { p_ticket_ids: [id] })
 
     expect(data![0]).toMatchObject({
       can_assign: false,
       can_cancel: false,
       can_change_seller: false,
       // BR-N08: su combinacion queda reservada, asi que la fila NO se borra.
+      can_delete: false,
+    })
+
+    const staff = await owner.rpc('admin_ticket_bulk_eligibility', { p_ticket_ids: [id] })
+    expect(staff.data![0]).toMatchObject({
+      inventory_status: 'cancelled',
+      can_approve: false,
+      can_cancel: false,
+      can_change_seller: false,
       can_delete: false,
     })
   })
@@ -858,11 +898,18 @@ describe('entrada y volumen (F10-06)', () => {
     const ids = await crearLote(1000, seed.ids.seller1)
 
     const inicio = Date.now()
-    const { data, error } = await owner.rpc('ticket_bulk_eligibility', { p_ticket_ids: ids })
+    // La del personal (D-198) y la del vendedor de esas boletas.
+    const { data, error } = await owner.rpc('admin_ticket_bulk_eligibility', { p_ticket_ids: ids })
     const ms = Date.now() - inicio
 
     expect(error).toBeNull()
     expect(data).toHaveLength(ids.length)
     expect(ms).toBeLessThan(30_000)
+
+    const inicioVendedor = Date.now()
+    const propia = await seller1.rpc('ticket_bulk_eligibility', { p_ticket_ids: ids })
+    expect(propia.error).toBeNull()
+    expect(propia.data).toHaveLength(ids.length)
+    expect(Date.now() - inicioVendedor).toBeLessThan(30_000)
   })
 })

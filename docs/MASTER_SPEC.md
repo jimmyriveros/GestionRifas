@@ -4,9 +4,10 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.8
+- **Versión del documento:** 1.9
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-13 (§9.6: el mensaje propio de «Resultados de la semana», con la
+- **Última actualización:** 2026-09-14 (§7 F5, F7, F8 y F9, §8 reglas 14 y 17 y §9.1: la cartera es
+  del vendedor —D-198, migración `0057`, **solo en local**—). Antes, el 2026-09-13 (§9.6: el mensaje propio de «Resultados de la semana», con la
   migración `0056`, aplicada al proyecto real y desplegado ese mismo día en `6dd23e5`; antes, ese
   mismo día, «Resultados de la semana» del vendedor, ya
   desplegada y sin migraciones). Anterior: 2026-09-12 (§9.5: cuentas para recibir pagos y recordatorios de pago,
@@ -149,8 +150,8 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
 5. Si la opción está desactivada, la acción se oculta/deshabilita con explicación.
 
 ### F5 — Asignación de boleta a cliente
-1. La boleta debe estar `available`, de la rifa correcta y del vendedor autenticado
-   (o existir autorización administrativa).
+1. La boleta debe estar `available`, de la rifa correcta y del vendedor autenticado. **Desde D-198
+   no existe la autorización administrativa**: el Dueño y el Administrador no venden (BR-Q06).
 2. El vendedor selecciona o crea un cliente en el mismo flujo.
 3. Se registran `client_id`, `assigned_at`, `sale_date`.
 4. Se congelan `sale_price` (lo que debe el cliente) y `base_price` (el precio vigente de la rifa).
@@ -165,7 +166,11 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
 4. La operación es atómica: se guarda todo o nada (función transaccional en PostgreSQL).
 5. El sistema recalcula `paid_amount`, `pending_amount` y el estado de pago de cada boleta.
 
-### F7 — Anulación de pago
+### F7 — Anulación de pago — **suspendida desde el 2026-09-14 (D-198)**
+
+> `void_payment` conserva su cuerpo, pero ninguna sesión la ejecuta y la aplicación no ofrece anular
+> pagos (BR-Q06). Los pasos describen la regla que devolvería el procedimiento de reactivación de D-198.
+
 1. Solo Owner/Admin. El vendedor no puede anular.
 2. Motivo obligatorio; se registran usuario y fecha de anulación.
 3. El pago no se elimina: se marca `voided_at`.
@@ -173,6 +178,12 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
 5. Queda registro en `audit_logs`.
 
 ### F8 — Importación de boletas desde archivo
+
+> **Desde el 2026-09-14 (D-198, BR-Q07) los dos portales importan solo boletas sin vender**: una fila
+> con cliente o con abono se aparta en la vista previa y se rechaza en el servidor. Los pasos 3, 4, 6 y
+> 6.b describen la importación con clientes y abonos, **suspendida**; la lectura del archivo se conserva
+> para poder reactivarla.
+
 1. Owner/Admin o Seller elige CSV o JSON, mapea columnas si hace falta y revisa una vista previa.
 2. Elegir el archivo no escribe nada; guardar exige una confirmación posterior.
 3. Cada fila puede incluir cliente; cuando lo hace, nombre y celular son obligatorios juntos. Las
@@ -195,8 +206,8 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
 ### F9 — Selección y acciones masivas sobre boletas
 1. La selección usa `ticket.id`, admite hasta 1.000 y sobrevive a búsqueda, filtros y paginación.
 2. Seller puede vender varias boletas elegibles al mismo cliente en una operación atómica.
-3. Owner/Admin puede aprobar, anular, cambiar vendedor y eliminar boletas cargadas por error, según
-   elegibilidad y permisos.
+3. Owner/Admin puede aprobar, anular las **no vendidas** (D-198), cambiar vendedor y eliminar boletas
+   cargadas por error, según elegibilidad y permisos.
 4. La interfaz explica incompatibles; PostgreSQL bloquea filas, revalida y aplica todo o nada en las
    acciones que declara atómicas (BR-B01..BR-B08, D-082..D-085; excepción conocida I-044).
 
@@ -232,22 +243,24 @@ Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
 12. RLS activo en todas las tablas de negocio; el frontend no es frontera de seguridad.
 13. Una boleta se busca por número diario o semanal, entero o parcial, nunca por código interno
     (BR-N11).
-14. Importar reutiliza las mismas reglas y validadores; si una fila incluye cliente, nombre y celular
-    son obligatorios juntos, un abono exige cliente y se registra por `create_payment`, y la
-    persistencia administrativa es atómica (BR-N12, BR-N14).
+14. Importar reutiliza las mismas reglas y validadores. **Desde D-198 solo se importan boletas sin
+    vender**: una fila con cliente o con abono se rechaza en los dos portales (BR-N12, BR-Q07).
 15. Selección, filtros y paginación son estados separados; limpiar uno no borra el otro (BR-B01).
 16. Las acciones masivas sensibles se autorizan y revalidan en base de datos; la UI no es su frontera
     de seguridad (BR-B07, con la salvedad documentada en I-044).
+17. **La cartera es del vendedor** (D-198): el Dueño y el Administrador no leen ni modifican clientes,
+    precios de venta, abonos, saldos, pagos ni ganancias, por ninguna vía. Ven y administran el
+    inventario, con el estado de pago en dos valores —Pagada o Sin pagar— (BR-Q01..BR-Q10).
 
 ---
 
 ## 9. Superficie funcional por portal
 
 ### 9.1 Portal Owner/Admin (`/owner/*`)
-Dashboard general · Rifas · Administradores · Vendedores · Boletas (tabla global, detalle, creación
-individual, masiva y por archivo; selección, aprobación, anulación, cambio de vendedor y eliminación
-controlada) · Clientes (consulta global) · Pagos (consulta global y anulación) · Reportes con
-exportación CSV.
+Panel de inventario · Rifas · Administradores · Vendedores · Boletas (tabla global sin cartera, búsqueda
+por número, detalle, creación individual, masiva y por archivo sin vender; selección, aprobación,
+anulación de las no vendidas, cambio de vendedor y eliminación controlada) · Reportes de recuentos con
+exportación CSV. **Sin «Clientes» ni «Pagos» desde el 2026-09-14** (D-198, BR-Q08).
 
 ### 9.2 Portal Seller (`/seller/*`)
 Dashboard propio · Boletas propias (búsqueda parcial por número diario o semanal; filtros por estado y

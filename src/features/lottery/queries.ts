@@ -7,6 +7,7 @@ import {
   LOTTERY_DASHBOARD_TIMEOUT_MS,
   lotteryDashboardWindow,
   type LotteryDashboard,
+  type LotteryDashboardAudience,
   type LotteryMatchSnapshot,
   type LotteryScheduleSnapshot,
 } from '@/features/lottery/dashboard'
@@ -93,7 +94,52 @@ function isLotteryCode(value: string): value is LotteryCode {
   return (LOTTERY_CODES as readonly string[]).includes(value)
 }
 
-export async function getLotteryDashboard(now: Date = new Date()): Promise<LotteryDashboard> {
+/**
+ * Las coincidencias de loteria de un conjunto de resultados.
+ *
+ * Para el PERSONAL van por `admin_lottery_matches`, que no devuelve cliente
+ * (D-198, BR-Q09): `lottery_ticket_matches` ya no deja al personal leer sus
+ * filas, porque cada una guarda el `client_id` de la venta. El vendedor sigue
+ * leyendo las suyas con el nombre de su cliente, igual que antes.
+ */
+async function readMatches(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  audience: LotteryDashboardAudience,
+  resultIds: string[],
+  deadline: AbortSignal,
+): Promise<{ rows: MatchQueryRow[] } | { error: true }> {
+  if (audience === 'staff') {
+    const { data, error } = await supabase
+      .rpc('admin_lottery_matches', { p_result_ids: resultIds })
+      .abortSignal(deadline)
+    if (error) return { error: true }
+    return {
+      rows: (data ?? []).map((row) => ({
+        result_id: row.result_id,
+        assignment_status: row.assignment_status,
+        matched_number: row.matched_number,
+        ticket_id: row.ticket_id,
+        raffle: { name: row.raffle_name },
+        ticket: { daily_number: row.daily_number, weekly_number: row.weekly_number },
+        client: null,
+      })),
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('lottery_ticket_matches')
+    .select(LOTTERY_DASHBOARD_MATCH_SELECT)
+    .in('result_id', resultIds)
+    .abortSignal(deadline)
+
+  if (error) return { error: true }
+  return { rows: (data ?? []) as unknown as MatchQueryRow[] }
+}
+
+export async function getLotteryDashboard(
+  now: Date = new Date(),
+  audience: LotteryDashboardAudience = 'seller',
+): Promise<LotteryDashboard> {
   try {
     const supabase = await createClient()
     const today = todayBogota()
@@ -153,16 +199,11 @@ export async function getLotteryDashboard(now: Date = new Date()): Promise<Lotte
       return buildLotteryDashboard(snapshots, today, now)
     }
 
-    const { data: matchRows, error: matchError } = await supabase
-      .from('lottery_ticket_matches')
-      .select(LOTTERY_DASHBOARD_MATCH_SELECT)
-      .in('result_id', resultIds)
-      .abortSignal(deadline)
-
-    if (matchError) return { kind: 'error' }
+    const matches = await readMatches(supabase, audience, resultIds, deadline)
+    if ('error' in matches) return { kind: 'error' }
 
     const matchesByResult = new Map<string, LotteryMatchSnapshot[]>()
-    for (const row of (matchRows ?? []) as unknown as MatchQueryRow[]) {
+    for (const row of matches.rows) {
       const raffle = one(row.raffle)
       const ticket = one(row.ticket)
       const client = one(row.client)

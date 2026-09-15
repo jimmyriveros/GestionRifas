@@ -26,8 +26,12 @@ import {
  * lista de incompatibles y el motivo concreto de cada una.
  */
 
-function boleta(overrides: Partial<TicketEligibility> = {}): TicketEligibility {
+/** Una fila del portal del vendedor, que es la que trae cliente, abonos y precios. */
+type BoletaDelVendedor = Extract<TicketEligibility, { audience: 'seller' }>
+
+function boleta(overrides: Partial<BoletaDelVendedor> = {}): BoletaDelVendedor {
   return {
+    audience: 'seller',
     ticketId: crypto.randomUUID(),
     dailyNumber: '1234',
     weeklyNumber: '5678',

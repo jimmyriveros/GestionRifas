@@ -12,21 +12,19 @@ import { ClientStatusBadge } from '@/components/data/StatusBadge'
 
 type ClientsTableProps = {
   clients: ClientListItem[]
-  /** `/owner/clients` o `/seller/clients`: la tabla sirve a los dos portales. */
+  /** `/seller/clients`: solo el vendedor ve clientes, y solo los suyos (D-198). */
   basePath: string
-  /** El vendedor no necesita una columna «Vendedor»: todos son suyos. */
-  showSeller?: boolean
 }
 
 /**
- * Tabla de clientes de «Mis clientes» y de «Clientes» del portal administrativo.
+ * Tabla de clientes de «Mis clientes».
  *
  * Por debajo de `md` no hay tabla: hay tarjetas (`ClientCardList`). Las
  * pantallas no llaman a esta tabla directamente —pasan por `ClientsList`—,
  * para que las dos presentaciones reciban el mismo arreglo (D-136).
  */
 
-export function ClientsTable({ clients, basePath, showSeller = false }: ClientsTableProps) {
+export function ClientsTable({ clients, basePath }: ClientsTableProps) {
   const columns = useMemo<ColumnDef<ClientListItem>[]>(() => {
     const base: ColumnDef<ClientListItem>[] = [
       {
@@ -52,22 +50,6 @@ export function ClientsTable({ clients, basePath, showSeller = false }: ClientsT
         cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.phone}</span>,
       },
     ]
-
-    if (showSeller) {
-      base.push({
-        accessorKey: 'sellerName',
-        header: 'Vendedor',
-        meta: { hideOnMobile: true },
-        cell: ({ row }) => (
-          <RowLink
-            href={`/owner/sellers/${row.original.sellerId}`}
-            className="text-sm hover:underline"
-          >
-            {row.original.sellerName}
-          </RowLink>
-        ),
-      })
-    }
 
     base.push(
       {
@@ -109,7 +91,7 @@ export function ClientsTable({ clients, basePath, showSeller = false }: ClientsT
     )
 
     return base
-  }, [basePath, showSeller])
+  }, [basePath])
 
   return (
     <DataTable

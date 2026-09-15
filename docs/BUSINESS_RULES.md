@@ -1,6 +1,8 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.20 · **Estado:** normativo · **Actualizado:** 2026-09-13 (§12.g: el mensaje propio de
+- **Versión:** 1.21 · **Estado:** normativo · **Actualizado:** 2026-09-14 (§12.h: la cartera es del
+  vendedor —BR-Q01..BR-Q10 nuevas y notas de D-198 en las reglas que acota—; antes, el 2026-09-13,
+  §12.g: el mensaje propio de
   «Resultados de la semana» —BR-H09 y BR-H10 nuevas, BR-H06 y BR-H08 corregidas por D-197—; antes,
   ese mismo día, BR-K15: un corte pasajero de Supabase en el catálogo público, y §12.g, «Resultados de
   la semana»: BR-H01..BR-H08)
@@ -79,7 +81,7 @@ La diferencia entre un vendedor con equipo y uno sin equipo es solo que el prime
 | BR-E05 | El vendedor padre ve las **ventas** de su equipo y los indicadores que salen de ellas, **solo dentro de «Mi equipo»** y a través de `team_sales_summary` / `team_member_sales`. **No** ve sus clientes, **no** ve sus pagos, **no** puede modificarles nada, y sus propias pantallas («Mis boletas», su panel, sus reportes, su búsqueda) siguen mostrando **únicamente lo suyo**. Es la única excepción a BR-U07 y no se amplía sin una decisión explícita (D-092). | S, D | post-9 |
 | BR-E06 | Un vendedor no puede cambiar su propio `parent_seller_id` ni el de nadie. Reorganizar equipos es exclusivo del Dueño y el Administrador. | D | post-9 |
 | BR-E07 | La visibilidad es **en un solo sentido**: un integrante no ve las ventas de su vendedor padre ni las de sus compañeros de equipo. | D | post-9 |
-| BR-E08 | El Dueño y el Administrador conservan visibilidad y control totales: ven todos los equipos, pueden crear un vendedor ya dentro de un equipo y pueden moverlo de equipo. | S, D | post-9 |
+| BR-E08 | El Dueño y el Administrador conservan visibilidad y control totales: ven todos los equipos, pueden crear un vendedor ya dentro de un equipo y pueden moverlo de equipo. **Acotada el 2026-09-14 (D-198):** la estructura, sí; lo que vende y gana cada integrante, no (BR-Q08). | S, D | post-9 |
 | BR-E09 | Desactivar a un integrante no lo borra del equipo ni de su historial: sus ventas siguen contando para lo ya ocurrido y su vendedor padre las sigue viendo (mismo criterio que BR-U06). | D | post-9 |
 | BR-E10 | Los avisos son **correspondencia dirigida**: cada persona ve solo los suyos, ni siquiera el Dueño ve la bandeja de otro. Nadie los escribe a mano; los crea la base de datos al ocurrir el hecho, en la misma transacción. Lo único que puede hacer el destinatario es marcarlos como leídos. | S, D | post-9 |
 | BR-E11 | **Se avisa cuando alguien agrega un vendedor a su equipo.** Destinatarios: el Dueño y los Administradores. El primero de un equipo se cuenta distinto del resto («armó su equipo» / «agregó a»). | D | post-9 |
@@ -127,7 +129,7 @@ en `/reset-password` y al entrar con contraseña (D-097).
 | BR-G09 | Todo movimiento queda en `commission_ledger`, **solo anexado**: vendedor, rifa, boleta, fecha, tramo, monto y motivo. Nunca se modifica una cifra histórica en silencio. | D | post-9 |
 | BR-G10 | **`SUM(commission_ledger.amount) = seller_commissions.earned`**, siempre. Es la invariante que comprueban las pruebas en cada escenario: si se rompe, el historial dejó de explicar el saldo. | D | post-9 |
 | BR-G11 | Un vendedor **no puede modificar** su comisión, su tramo, su recuento ni su ganancia: no existe privilegio de escritura sobre las tres tablas para ninguna sesión. Todo lo escribe una función `SECURITY DEFINER`. | D | post-9 |
-| BR-G12 | Cada quien ve su comisión; el vendedor padre, la de su equipo; el Dueño y el Administrador, la de toda la organización. El **detalle de movimientos** es de cada quien y del personal. | D | post-9 |
+| BR-G12 | Cada quien ve su comisión; el vendedor padre, la de su equipo; el Dueño y el Administrador, la de toda la organización. El **detalle de movimientos** es de cada quien y del personal. **Acotada el 2026-09-14 (D-198):** el Dueño y el Administrador ya no ven la comisión ni los movimientos de ningún vendedor (BR-Q08); la ficha solo dice con qué regla se le paga. | D | post-9 |
 | BR-G17 | **La rebaja que concede un vendedor la asume él, entera.** Su comisión pasa a ser `n × tarifa(n) − Σ rebajas de sus boletas cobradas`. Lo que le queda a la empresa —`precio oficial − tarifa` por boleta— **no cambia nunca** por una rebaja. | D | post-9 |
 | BR-G18 | El **descuento máximo** es la tarifa **mínima garantizada** de esa persona en esa rifa, no la que cobra hoy: el tramo más bajo de la organización para quien cobra por tramos, **su cifra fija para quien cobra fijo** (no se mueve con el volumen), y la mitad del precio para quien no pertenece a un equipo. La tarifa por tramos baja sola al anularse un pago (BR-G06), así que una rebaja calculada sobre la tarifa alta dejaría esa venta en comisión negativa. | C, S, D | post-9 |
 | BR-G19 | La comisión **nunca es negativa**. `commission_floor_rate` ya lo impide por diseño; el recorte a cero del motor cubre los caminos que quedan —bajar el precio de la rifa después de una venta rebajada (BR-G15) y **bajar la cifra fija de un integrante que ya rebajó** (BR-G24)—. Este negocio no tiene deudas del vendedor hacia la empresa. | D | post-9 |
@@ -235,11 +237,11 @@ negocio. El motor conserva su rama de cambio de vendedor porque cubre las boleta
 | BR-N09 | Una boleta fuera de `draft` debe tener ambos números; un campo vacío en una boleta disponible es inválido. | S, D | 2 |
 | BR-N10 | La validación de duplicados ocurre en las tres capas: dentro del formulario, contra la base de datos y como restricción física. | C, S, D | 3 |
 | BR-N11 | **Una boleta se busca por su número diario y, en segundo lugar, por su número semanal.** El código interno no participa en ninguna búsqueda de la interfaz y solo se muestra dentro del detalle de la boleta. | C, S, D | post-9 |
-| BR-N13 | **El mismo buscador encuentra también por el cliente que tiene la boleta.** Un solo campo: si se escriben de 1 a 4 dígitos busca por número (BR-N11); si se escribe texto, busca por el cliente. El resultado es **siempre una lista de boletas**. | C, S, D | post-9 |
+| BR-N13 | **El mismo buscador encuentra también por el cliente que tiene la boleta.** Un solo campo: si se escriben de 1 a 4 dígitos busca por número (BR-N11); si se escribe texto, busca por el cliente. El resultado es **siempre una lista de boletas**. **Acotada el 2026-09-14 (D-198):** solo en el portal del vendedor; el personal busca únicamente por número (BR-Q05). | C, S, D | post-9 |
 
-| BR-N12 | **Las boletas se pueden importar desde un archivo CSV o JSON.** La rifa y el vendedor los pone la pantalla. Cada fila lleva los dos números y puede añadir cliente, pero en ese caso **nombre y celular son obligatorios juntos**. Siempre hay vista previa y confirmación antes de guardar. | C, S, D | post-9 |
+| BR-N12 | **Las boletas se pueden importar desde un archivo CSV o JSON.** La rifa y el vendedor los pone la pantalla. Cada fila lleva los dos números y puede añadir cliente, pero en ese caso **nombre y celular son obligatorios juntos**. Siempre hay vista previa y confirmación antes de guardar. **Acotada el 2026-09-14 (D-198):** los dos portales importan solo boletas sin vender; una fila con cliente se aparta y se rechaza (BR-Q07). | C, S, D | post-9 |
 
-| BR-N14 | **Una fila del archivo puede traer el abono ya cobrado de esa boleta.** Se escribe en miles («20»), en pesos («20.000», «20000») o con la palabra **«Cancelado»**, que vale el precio completo de esa boleta. El abono es de SU boleta y **no se reparte** entre las demás del cliente. Exige cliente, porque solo se abona una boleta vendida. | C, S, D | post-9 |
+| BR-N14 | **Una fila del archivo puede traer el abono ya cobrado de esa boleta.** Se escribe en miles («20»), en pesos («20.000», «20000») o con la palabra **«Cancelado»**, que vale el precio completo de esa boleta. El abono es de SU boleta y **no se reparte** entre las demás del cliente. Exige cliente, porque solo se abona una boleta vendida. **Suspendida el 2026-09-14 (D-198):** ningún portal importa abonos; la lectura de la columna se conserva para reactivarla (BR-Q07). | C, S, D | post-9 |
 
 **BR-N12 en detalle** (migraciones `0019` y `0021`; D-081 y D-087). La importación **no añade ni relaja ninguna regla
 de boletas**: valida con `validateBulkRows` —el mismo motor que la carga manual— y guarda por los
@@ -336,11 +338,11 @@ Ejemplos normativos:
 | BR-I07 | No se puede asignar una boleta incompleta, pendiente de aprobación, anulada, de otra rifa, o de otro vendedor sin autorización administrativa. | S, D | 4 |
 | BR-I08 | Una boleta tiene un solo cliente activo. | D | 2 |
 | BR-I09 | Solo Owner o Admin aprueban boletas en `pending_approval`. | S, D | 3 |
-| BR-I10 | Solo Owner o Admin anulan boletas. | S, D | 3 |
+| BR-I10 | Solo Owner o Admin anulan boletas. **Desde el 2026-09-14 (D-198), solo las que no se han vendido** (BR-Q07). | S, D | 3 · post-9 |
 | BR-I11 | Una boleta con pagos activos no puede anularse; primero deben anularse los pagos. | S, D | 5 |
 | BR-I12 | Una boleta con pagos activos no puede cambiar de cliente. | S, D | 5 |
-| BR-I13 | Una boleta vendida **puede** corregirse de cliente dentro de la cartera de su mismo vendedor, siempre que no tenga **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. | C, S, D | post-9 |
-| BR-I14 | Una boleta vendida **puede liberarse** —volver a `available`, sin cliente ni venta— cuando el cliente desiste antes de abonar nada: exige rifa **activa** y **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. | C, S, D | post-9 |
+| BR-I13 | Una boleta vendida **puede** corregirse de cliente dentro de la cartera de su mismo vendedor, siempre que no tenga **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. **Desde el 2026-09-14 (D-198), solo la corrige su vendedor** (BR-Q06). | C, S, D | post-9 |
+| BR-I14 | Una boleta vendida **puede liberarse** —volver a `available`, sin cliente ni venta— cuando el cliente desiste antes de abonar nada: exige rifa **activa** y **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. **Desde el 2026-09-14 (D-198), solo la libera su vendedor** (BR-Q06). | C, S, D | post-9 |
 | BR-I15 | Una boleta vendida registra si su **paz y salvo** —el desprendible— ya se entregó físicamente al cliente. Lo marca **solo el vendedor dueño** de la boleta, es **independiente del pago** y vuelve a pendiente si la boleta cambia de cliente o se libera. | C, S, D | post-9 |
 
 **BR-I12 y BR-I13 no dicen lo mismo, y la diferencia importa.** BR-I12 es el disparador
@@ -484,7 +486,7 @@ Añadidas después de la Fase 9, a petición del usuario. Detalle de las decisio
 |----|-------|-------|------|
 | BR-B01 | Se pueden seleccionar varias boletas de la lista y actuar sobre todas a la vez. La selección se identifica **siempre** por `ticket.id`, nunca por posición, y admite como máximo **1.000** boletas por operación. | C, S, D | post-9 |
 | BR-B02 | **Asignación múltiple (vendedor):** varias boletas se venden al mismo cliente en una sola operación, con las mismas reglas de BR-I07 y BR-P03 aplicadas a cada una. | C, S, D | post-9 |
-| BR-B03 | **Anulación múltiple (Dueño/Administrador):** un único motivo cubre el lote. Mismas condiciones que BR-I10 y BR-I11. | C, S, D | post-9 |
+| BR-B03 | **Anulación múltiple (Dueño/Administrador):** un único motivo cubre el lote. Mismas condiciones que BR-I10 y BR-I11. **Desde D-198, sin boletas vendidas** (BR-Q07). | C, S, D | post-9 |
 | BR-B04 | **Cambio de vendedor múltiple (Dueño/Administrador):** ni asignadas ni anuladas (BR-C05), y el destino debe ser un vendedor activo de la organización. | C, S, D | post-9 |
 | BR-B05 | **Eliminación (Dueño/Administrador):** borrado **físico**, solo para registros cargados por error. Exige estado `draft`, `pending_approval` o `available`, sin cliente, sin `sale_price` y sin ninguna asignación de pago —ni siquiera de un pago anulado—. **Una boleta anulada nunca se elimina**: su combinación queda reservada (BR-N08). Motivo obligatorio. | C, S, D | post-9 |
 | BR-B06 | Antes de ejecutar, la pantalla dice cuántas boletas admiten la acción y **cuáles no y por qué**. Si una sola no la admite, la acción se deshabilita para el grupo entero. | C, S | post-9 |
@@ -524,7 +526,7 @@ Añadidas después de la Fase 9, a petición del usuario. Detalle de las decisio
 | BR-P10 | Al vender se congela también el **precio oficial** en `tickets.base_price`. La rebaja concedida es `base_price - sale_price` y **no se guarda**: se deriva. `base_price` nulo —toda boleta vendida antes de D-099— equivale a rebaja cero. | D | post-9 |
 | BR-P11 | El precio de venta debe estar entre el **mínimo** y el precio oficial. El mínimo lo calcula `ticket_sale_price_limits`, que es la **única** definición del límite y la comparten la validación, el diálogo de venta y el detalle de la boleta. Vender por encima del precio oficial se rechaza: esto es para rebajar, no para recargar. | C, S, D | post-9 |
 | BR-P12 | Rebajar **no cambia nada más**: el saldo del cliente sigue siendo `sale_price - paid_amount`, la boleta queda **Pagada** al completar el precio rebajado —aunque sea menor que el oficial— y el sobrepago se bloquea contra el precio rebajado. **Actualizada el 2026-08-29 (D-137):** con abonos registrados el precio ya no es inmutable; se corrige por BR-P13, sin tocar los abonos. | D | post-9 |
-| BR-P13 | **El precio de venta de una boleta ya asignada se puede corregir.** Es el mismo campo y las mismas validaciones de la asignación (BR-P09..BR-P11): techo el oficial congelado (`base_price`), suelo `ticket_sale_price_limits`, entero y mayor que cero. Además no puede ser menor que el total abonado vigente: no hay saldo a favor, ni devolución, ni reescritura de abonos. Si el nuevo precio iguala lo abonado, la boleta queda **Pagada**; si lo supera, vuelve a **Abonada** o **Sin pagar**. No cambia el precio de la rifa ni el de otras boletas. Lo hace `update_ticket_sale_price`. | C, S, D | post-9 |
+| BR-P13 | **El precio de venta de una boleta ya asignada se puede corregir.** Es el mismo campo y las mismas validaciones de la asignación (BR-P09..BR-P11): techo el oficial congelado (`base_price`), suelo `ticket_sale_price_limits`, entero y mayor que cero. Además no puede ser menor que el total abonado vigente: no hay saldo a favor, ni devolución, ni reescritura de abonos. Si el nuevo precio iguala lo abonado, la boleta queda **Pagada**; si lo supera, vuelve a **Abonada** o **Sin pagar**. No cambia el precio de la rifa ni el de otras boletas. Lo hace `update_ticket_sale_price`. **Desde el 2026-09-14 (D-198), solo lo corrige el vendedor de la boleta** (BR-Q06). | C, S, D | post-9 |
 
 **BR-P12 y la trampa de D-098 son opuestas y conviene no confundirlas.** Una boleta de `$120.000`
 con `$100.000` abonados está **Abonada**, y darla por Pagada es un defecto. Una boleta **vendida en**
@@ -547,13 +549,13 @@ una cifra escrita en el código.
 | BR-F07 | `paid_amount` de una boleta = suma de asignaciones de pagos **no anulados**. | D | 2 |
 | BR-F08 | `pending_amount` = `sale_price - paid_amount`. | D | 2 |
 | BR-F09 | Los pagos nunca se eliminan físicamente: se anulan con `voided_at`, `voided_by` y `void_reason` obligatorio. | S, D | 5 |
-| BR-F10 | Solo Owner o Admin pueden anular pagos. El vendedor no puede. | S, D | 5 |
+| BR-F10 | Solo Owner o Admin pueden anular pagos. El vendedor no puede. **Suspendida el 2026-09-14 (D-198):** `void_payment` quedó dormida y ninguna sesión anula pagos (BR-Q06). | S, D | 5 · post-9 |
 | BR-F11 | Al anular un pago, sus asignaciones dejan de contar y los saldos y estados se recalculan automáticamente. | D | 5 |
 | BR-F12 | Está prohibido el sobrepago: `paid_amount` nunca puede superar `sale_price`, ni siquiera con dos operaciones concurrentes. | S, D | 2 |
 | BR-F13 | El historial de abonos muestra fecha, valor, cliente, boleta, vendedor que registró, método, notas y estado (activo/anulado). | C, S | 5 |
 | BR-F14 | Toda creación, corrección y anulación de pago queda registrada en auditoría. | D | 5 |
 | BR-F15 | Un pago anulado no puede "desanularse"; se registra un pago nuevo si corresponde. (D-013) | S, D | 5 |
-| BR-F16 | El vendedor dueño del cliente y el personal pueden corregir el **valor** de un abono vigente, **incluido bajarlo a $0** (D-158). Se reescribe esa asignación, no se crea otro pago. No se cambia de boleta, cliente ni vendedor. Un pago anulado no se edita (BR-F15). El recálculo de saldo, estado y ganancia es el de siempre (BR-F07, BR-F11, BR-G01, BR-G06). (D-134, D-158) | C, S, D | post-9 |
+| BR-F16 | El vendedor dueño del cliente y el personal pueden corregir el **valor** de un abono vigente, **incluido bajarlo a $0** (D-158). Se reescribe esa asignación, no se crea otro pago. No se cambia de boleta, cliente ni vendedor. Un pago anulado no se edita (BR-F15). El recálculo de saldo, estado y ganancia es el de siempre (BR-F07, BR-F11, BR-G01, BR-G06). (D-134, D-158) **Desde el 2026-09-14 (D-198), solo el vendedor** (BR-Q06). | C, S, D | post-9 |
 | BR-F17 | Un abono corregido a **$0** deja la boleta como si no se hubiera registrado, **sin borrar nada**: la asignación se queda en el historial valiendo cero, con su fecha, su método y quién la registró, la bitácora anota el paso (BR-F14) y el valor se puede volver a subir. Si todas las asignaciones de un pago quedan en cero, su `total_amount` es `0` y el pago **sigue vigente** (`voided_at` nulo): eso es lo que lo distingue de uno anulado, que no se reactiva (BR-F15). (D-158) | S, D | post-9 |
 
 ### Estados de pago (calculados, nunca seleccionados)
@@ -581,7 +583,7 @@ El límite siempre es `sale_price`, nunca una cifra escrita en el código.
 | BR-D01 | Se registran como mínimo: creación de usuarios, activación/desactivación, creación y edición de rifas, creación y edición de boletas, cambio de números, asignación de vendedor, asignación de cliente, aprobación de boletas, anulación de boletas, creación de pagos y anulación de pagos. | D | 2 |
 | BR-D02 | `audit_logs` es de solo anexado: no se actualiza ni se borra. | D | 2 |
 | BR-D03 | Cada registro guarda organización, actor, acción, entidad, valores anteriores y nuevos, e IP cuando esté disponible. | S, D | 2 |
-| BR-D04 | Solo Owner y Admin consultan la auditoría de su organización. | D | 2 |
+| BR-D04 | Solo Owner y Admin consultan la auditoría de su organización. **Desde el 2026-09-14 (D-198), redactada y sin las acciones de venta**, por `admin_audit_log`; la tabla no tiene política de lectura (BR-Q10). | D | 2 · post-9 |
 
 ---
 
@@ -589,10 +591,10 @@ El límite siempre es `sale_price`, nunca una cifra escrita en el código.
 
 | ID | Regla | Capas | Fase |
 |----|-------|-------|------|
-| BR-T01 | Reportes mínimos: ventas por vendedor, recaudo por vendedor, saldo pendiente por vendedor, boletas por estado, clientes con saldo pendiente, pagos por rango de fechas y boletas por rifa. | S | 6 |
+| BR-T01 | Reportes mínimos: ventas por vendedor, recaudo por vendedor, saldo pendiente por vendedor, boletas por estado, clientes con saldo pendiente, pagos por rango de fechas y boletas por rifa. **Desde el 2026-09-14 (D-198)**, los de dinero y cartera son solo del vendedor; el personal conserva los de recuentos (BR-Q08). | S | 6 · post-9 |
 | BR-T02 | Las tablas principales se exportan a CSV. | C, S | 6 |
 | BR-T03 | Los reportes del portal Seller nunca exponen datos de otros vendedores. | S, D | 6 |
-| BR-T04 | Todos los reportes son filtrables por rifa; los administrativos también por vendedor, cliente, estado y fecha. | S | 6 |
+| BR-T04 | Todos los reportes son filtrables por rifa; los administrativos también por vendedor, cliente, estado y fecha. **Desde D-198 los administrativos no filtran por cliente** (BR-Q08). | S | 6 · post-9 |
 | BR-T05 | **«Ventas por fecha»** (portal Seller, D-151). Una venta es una boleta con `inventory_status = 'assigned'`, fechada **exclusivamente** por `tickets.sale_date` —nunca por `created_at`, `assigned_at` ni `payments.payment_date`—. Sus cuatro indicadores son el número de boletas, `SUM(sale_price)`, `SUM(paid_amount)` y la resta de ambas, calculados en SQL sobre **todo** el rango. | S, D | post-9 |
 | BR-T06 | «Abonado» de BR-T05 es lo que llevan pagado **hoy** esas boletas, **no** el dinero recibido en esas fechas. El dinero por fecha de ingreso lo responde «Pagos por fecha» (`report_payment_totals`), que no cambia. Los dos números difieren en cuanto un cliente abona un día después de comprar. | S | post-9 |
 | BR-T07 | El reporte inicial depende del **portal**: `/seller/reports` abre «Ventas por fecha» y `/owner/reports` conserva «Por vendedor». Un `report` que el portal no ofrece cae al primero de su lista; el Route Handler del CSV lo rechaza con 403 en vez de sustituirlo. | C, S | post-9 |
@@ -828,6 +830,34 @@ inventario.
 | BR-H08 | **No se guarda nada de lo que se genera, y no hay costo recurrente**: ni imágenes, ni resultados semanales, ni PNG, ni mensajes compuestos, ni bucket, ni cron, ni IA, ni integración con WhatsApp. **La única persistencia autorizada es la preferencia y el texto del mensaje propio de cada vendedor**: dos columnas de su `membership` (migración `0056`, BR-H09). La parte de esta regla que prohibía toda migración quedó sustituida por D-197. El resumen de «Configuración» **no** genera la imagen, ni consulta los resultados, ni lee el mensaje: su tarjeta tiene una línea fija. | S, D | post-9 |
 | BR-H09 | **El vendedor puede usar su propio mensaje**, con el interruptor «Usar mi propio mensaje». Apagado se usa el predeterminado de la semana, y el área lo enseña en modo lectura. Encendido, el texto propio **sustituye entero** al predeterminado y se usa **literalmente**: no hay marcadores (`{{semana}}`, `{{fecha}}`…), así que una fecha escrita dentro no se actualiza sola, y la pantalla lo advierte. La primera vez que se enciende arranca con una copia del predeterminado que se está viendo. **Apagar no borra el texto**: encender lo devuelve. «Volver al mensaje predeterminado» apaga **y** vacía el texto. Máximo **1.000 caracteres**, recortado por fuera al guardar; «usar mi propio mensaje» sin texto **no se puede guardar**. **La vista previa, «Copiar mensaje» y «Compartir imagen» usan el mismo mensaje activo, esté guardado o no**, y con datos incoherentes se cae al predeterminado. El mensaje **se edita y se guarda aunque falten resultados**: lo que espera a la semana completa son la vista previa, copiar y compartir (BR-H03). Si su configuración no se puede leer, la sección se pinta, se dice, se usa el predeterminado y **no se ofrece guardar**. Siempre se pinta como texto. | C, S, D | post-9 |
 | BR-H10 | **Cada vendedor configura solo su mensaje.** La escritura pasa por `set_seller_weekly_results_message`, que **no recibe identificador** de vendedor, perfil, organización ni membresía —sale de `auth.uid()`—, exige un vendedor **activo** y escribe dos columnas de su propia fila. El Dueño, el Administrador y el vendedor padre **no pueden** usarla sobre nadie, y `anon` no puede ejecutarla. `memberships_update_staff` **no se amplía**. Cambiar un mensaje no afecta a ningún otro vendedor, y lo anota una sola vez el disparador `audit_memberships` que ya existía. El personal y el vendedor padre pueden leer el texto, como ya leían el enlace del grupo (BR-W07): es un mensaje hecho para publicarse. | S, D | post-9 |
+
+---
+
+## 12.h La cartera es del vendedor (BR-Q)
+
+Mantenimiento posterior a la Fase 9 (2026-09-14, D-198, migración `0057`). El Dueño y el
+Administrador **administran el inventario**; la **venta** —a quién, a qué precio, cuánto se abonó y
+cuánto se debe— es de cada vendedor, y no la ven ni la tocan. Se aplica en la base de datos, no en la
+pantalla. Alcance **B**, elegido por el usuario: tampoco ven dinero ni ganancias por vendedor.
+
+**La letra es `Q`** de «**q**uién vende»: `C`, `V` y `P` ya nombran clientes, avisos y precios.
+
+| ID | Regla | Capas | Fase |
+|----|-------|-------|------|
+| BR-Q01 | **La cartera es del vendedor.** El Dueño y el Administrador no leen ni modifican, por ninguna vía —pantalla, URL, Server Action, PostgREST, RPC, vista, reporte, CSV, aviso o bitácora—, los clientes de un vendedor (nombre, alias, teléfono, correo, notas e identificador), el precio de venta ni el precio base de una boleta, lo abonado, el saldo, el porcentaje, los pagos ni sus asignaciones. Tampoco pidiéndolos por un identificador conocido. | C, S, D | post-9 |
+| BR-Q02 | **Lo que el personal sí ve de una boleta es una lista blanca**: números diario y semanal, código interno, rifa, vendedor, estado de inventario, estado de pago administrativo (BR-Q04), paz y salvo, fecha de venta —solo si está vendida— y las fechas y el motivo de creación, aprobación y anulación. Llega por las funciones `admin_*`, que no devuelven ningún otro campo, y los tipos de la aplicación tampoco los declaran. | S, D | post-9 |
+| BR-Q03 | **El inventario sigue siendo del personal**: crear boletas sin venta, editar números, aprobar, cambiar de vendedor, eliminar las que nunca entraron en la operación y anular las que no se han vendido. | C, S, D | post-9 |
+| BR-Q04 | **El personal ve dos estados de pago: «Pagada» y «Sin pagar».** «Sin pagar» incluye las boletas con abonos parciales, y una boleta sin vender no tiene estado de pago («—»). El filtro se resuelve en SQL **antes** de contar y paginar, y un `partial` recibido es un error, nunca «Abonada». El enum, `TICKET_PAYMENT_STATUS_LABELS` y la insignia global no cambian: «Abonada» sigue siendo del vendedor. | C, S, D | post-9 |
+| BR-Q05 | **El personal busca solo por número.** Un término que no sea de 1 a 4 dígitos no consulta nada y responde lo mismo que uno inexistente: buscar un nombre no confirma que ese cliente exista. No hay filtro por cliente, y un `clientId` en la URL se ignora. | C, S, D | post-9 |
+| BR-Q06 | **Solo el vendedor de la boleta o del cliente vende y cobra**: asignar, cambiar o liberar el cliente, corregir el precio, registrar o corregir abonos y crear, editar o archivar clientes. El personal recibe **el mismo mensaje** que un vendedor ajeno. **Nadie anula pagos desde la aplicación**: `void_payment` queda sin `EXECUTE` para las sesiones, con su cuerpo intacto. | S, D | post-9 |
+| BR-Q07 | **Ningún rechazo delata la cartera.** El personal no anula una boleta vendida, tenga o no abonos, y el rechazo es el mismo para las tres; la selección múltiple lo explica sin nombrar abonos, clientes ni precios. **La importación, en los dos portales, admite solo boletas sin vender**: una fila con cliente o con abono se aparta en la vista previa y se rechaza en el servidor. | C, S, D | post-9 |
+| BR-Q08 | **Sin dinero ni cartera en las pantallas del personal** (alcance B): su portal no tiene «Clientes» ni «Pagos»; el panel, «Vendedores», la ficha del vendedor, «Rifas» y «Reportes» cuentan boletas —Pagadas y Sin pagar incluidas— y no enseñan vendido, recaudado, saldo ni ganancia. Sus reportes son «Por vendedor», «Boletas por estado» y «Boletas por rifa», y su CSV sale de las mismas lecturas. | C, S, D | post-9 |
+| BR-Q09 | **Avisos y coincidencias sin cartera.** El aviso de venta que recibe el personal no lleva el precio —tampoco los antiguos, y un disparador lo quita al ascender a alguien a Dueño o Administrador—; el del vendedor padre lo conserva. Las coincidencias de lotería del personal no traen cliente. | S, D | post-9 |
+| BR-Q10 | **La bitácora del personal va redactada**: `admin_audit_log` no enseña las acciones de venta y de precio ni las entidades cliente y pago, deja de cada fila solo claves de lista blanca y omite la que se queda vacía. `audit_logs` no tiene política de lectura; la entera solo la lee la service role. | S, D | post-9 |
+
+**Reversible.** Volver a dar acceso es una migración nueva y cambios explícitos de aplicación; el
+procedimiento está en D-198. Llevan nota de lo que esta sección acota: BR-E08, BR-G12, BR-N12, BR-N13,
+BR-N14, BR-I10, BR-I13, BR-I14, BR-B03, BR-P13, BR-F10, BR-F16, BR-D04, BR-T01 y BR-T04.
 
 ---
 

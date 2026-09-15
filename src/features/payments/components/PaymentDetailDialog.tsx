@@ -1,8 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
-import { toast } from 'sonner'
+import { useState } from 'react'
 
 import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
@@ -14,66 +12,35 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
 
-import { voidPayment } from '../actions'
 import type { PaymentListItem } from '../queries'
-import { voidPaymentSchema } from '../schemas'
 import { EditPaymentDialog, type EditPaymentTarget } from './EditPaymentDialog'
 
 type PaymentDetailDialogProps = {
   payment: PaymentListItem | null
   onOpenChange: (open: boolean) => void
-  /** BR-F10: el vendedor nunca ve la accion de anular. */
-  canVoid: boolean
 }
 
 /**
  * Detalle de un pago con todo lo que exige BR-F13: fecha, valor, cliente,
  * boletas, vendedor, quien lo registro, metodo, notas y estado. Si esta
  * anulado, muestra ademas el motivo, la fecha y quien lo anulo (CLAUDE.md 20).
+ *
+ * SIN «Anular pago» desde D-198. Anular era del personal (BR-F10), y el
+ * personal ya no ve la cartera de ningun vendedor: `void_payment` solo lo
+ * ejecuta `service_role`. Los pagos que se anularon antes se siguen ensenando
+ * tal cual, con su motivo.
  */
-export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentDetailDialogProps) {
-  const router = useRouter()
-  const [reason, setReason] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [confirming, setConfirming] = useState(false)
+export function PaymentDetailDialog({ payment, onOpenChange }: PaymentDetailDialogProps) {
   const [editing, setEditing] = useState<EditPaymentTarget | null>(null)
-  const [isPending, startTransition] = useTransition()
 
   function close() {
-    setReason('')
-    setError(null)
-    setConfirming(false)
     setEditing(null)
     onOpenChange(false)
-  }
-
-  function confirmVoid() {
-    if (!payment) return
-
-    const parsed = voidPaymentSchema.safeParse({ paymentId: payment.id, reason })
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Revisa el motivo.')
-      return
-    }
-    setError(null)
-
-    startTransition(async () => {
-      const result = await voidPayment(parsed.data)
-      if ('error' in result) {
-        setError(result.error)
-        return
-      }
-      toast.success('Pago anulado. Los saldos se recalcularon.')
-      close()
-      router.refresh()
-    })
   }
 
   return (
@@ -157,35 +124,6 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
               </ul>
             </div>
 
-            {error ? (
-              <p
-                role="alert"
-                className="bg-destructive/10 text-destructive rounded-md px-3 py-2 text-sm"
-              >
-                {error}
-              </p>
-            ) : null}
-
-            {canVoid && payment.isActive ? (
-              confirming ? (
-                <div className="space-y-2">
-                  <Label htmlFor="void-reason">Motivo de la anulación (obligatorio)</Label>
-                  <Textarea
-                    id="void-reason"
-                    rows={3}
-                    value={reason}
-                    onChange={(event) => setReason(event.target.value)}
-                    placeholder="Explica por qué se anula este pago"
-                    disabled={isPending}
-                  />
-                  <p className="text-muted-foreground text-xs">
-                    Anular es definitivo: el pago no se puede reactivar. Si hubo un error, se
-                    registra uno nuevo.
-                  </p>
-                </div>
-              ) : null
-            ) : null}
-
             <EditPaymentDialog
               target={editing}
               onOpenChange={(open) => {
@@ -195,37 +133,9 @@ export function PaymentDetailDialog({ payment, onOpenChange, canVoid }: PaymentD
             />
 
             <DialogFooter>
-              <Button
-                size="touch"
-                type="button"
-                variant="outline"
-                onClick={close}
-                disabled={isPending}
-              >
+              <Button size="touch" type="button" variant="outline" onClick={close}>
                 Cerrar
               </Button>
-              {canVoid && payment.isActive ? (
-                confirming ? (
-                  <Button
-                    size="touch"
-                    type="button"
-                    variant="destructive"
-                    onClick={confirmVoid}
-                    disabled={isPending}
-                  >
-                    {isPending ? 'Anulando...' : 'Confirmar anulación'}
-                  </Button>
-                ) : (
-                  <Button
-                    size="touch"
-                    type="button"
-                    variant="destructive"
-                    onClick={() => setConfirming(true)}
-                  >
-                    Anular pago
-                  </Button>
-                )
-              ) : null}
             </DialogFooter>
           </>
         ) : null}

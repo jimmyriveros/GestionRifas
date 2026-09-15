@@ -44,20 +44,11 @@ import type { TicketListItem } from '../queries'
 
 type ClientTicketCardListProps = {
   tickets: TicketListItem[]
-  /** `/owner/tickets` o `/seller/tickets`. */
+  /** `/seller/tickets`: desde D-198 solo el vendedor ve la ficha de un cliente. */
   basePath: string
-  /** Solo el portal administrativo: un cliente puede comprar en varias rifas. */
-  showRaffle?: boolean
-  /** Solo el portal administrativo, que ve la cartera de toda la organizacion. */
-  showSeller?: boolean
 }
 
-export function ClientTicketCardList({
-  tickets,
-  basePath,
-  showRaffle = false,
-  showSeller = false,
-}: ClientTicketCardListProps) {
+export function ClientTicketCardList({ tickets, basePath }: ClientTicketCardListProps) {
   const router = useRouter()
 
   function handleClick(event: MouseEvent<HTMLLIElement>, ticket: TicketListItem) {
@@ -77,12 +68,6 @@ export function ClientTicketCardList({
     <ul aria-label="Boletas de este cliente" className="space-y-3">
       {tickets.map((ticket) => {
         const money = ticketFinancials(ticket)
-        const meta = [
-          showRaffle ? ticket.raffleShortCode : null,
-          showSeller ? ticket.sellerName : null,
-        ]
-          .filter((part) => part !== null)
-          .join(' · ')
 
         return (
           <li
@@ -103,11 +88,9 @@ export function ClientTicketCardList({
                     href={`${basePath}/${ticket.id}`}
                     className="text-lg"
                   />
-                  {hasBothNumbers(ticket) || meta !== '' ? (
+                  {hasBothNumbers(ticket) ? (
                     <p className="text-muted-foreground truncate text-xs">
-                      {[hasBothNumbers(ticket) ? TICKET_NUMBERS_LEGEND : null, meta || null]
-                        .filter((part) => part !== null)
-                        .join(' · ')}
+                      {TICKET_NUMBERS_LEGEND}
                     </p>
                   ) : null}
                 </div>

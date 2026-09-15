@@ -62,8 +62,11 @@ describe('RLS habilitada y forzada en todas las tablas de negocio', () => {
       group by tablename order by tablename
     `)
     const conPoliticas = rows.map((r) => r.tablename)
+    // D-198: `audit_logs` ya no tiene ninguna politica para `authenticated`. El
+    // personal lee la bitacora redactada por `admin_audit_log`, y la entera
+    // solo la lee la service role.
+    expect(conPoliticas, 'audit_logs no debe tener politicas (D-198)').not.toContain('audit_logs')
     for (const t of [
-      'audit_logs',
       'clients',
       'lottery_draw_schedules',
       'lottery_results',
@@ -192,6 +195,16 @@ describe('funciones privilegiadas', () => {
    */
   it('NINGUNA funcion interna es ejecutable por authenticated (I-078)', async () => {
     const PUBLICAS = [
+      // D-198: las proyecciones del portal administrativo. Solo el personal
+      // obtiene filas —la organizacion sale de `current_staff_org_ids()`— y
+      // ninguna devuelve cliente, precio, abonos ni saldo.
+      'admin_audit_log',
+      'admin_list_tickets',
+      'admin_lottery_matches',
+      'admin_ticket_bulk_eligibility',
+      'admin_ticket_detail',
+      'admin_ticket_inventory',
+      'admin_update_ticket_numbers',
       // Las RPC que llama la aplicacion
       'approve_tickets',
       // Las ocho de la 0051: el vendedor administra SUS cuentas de cobro y SUS
@@ -212,7 +225,6 @@ describe('funciones privilegiadas', () => {
       // 0053: cada quien registra y quita SU dispositivo. Ninguna recibe
       // identificador de persona: sale de auth.uid() (BR-V06, D-190).
       'delete_push_subscription',
-      'import_tickets_with_clients',
       'log_ticket_import',
       'mark_profile_activated',
       // 0052: el vendedor declara que ya mando su mensaje de cobro. El MOTOR
@@ -252,7 +264,6 @@ describe('funciones privilegiadas', () => {
       'update_payment_reminder',
       'update_seller_payment_account',
       'update_ticket_sale_price',
-      'void_payment',
       // Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
       'current_org_ids',
       'current_profile_id',
@@ -265,7 +276,6 @@ describe('funciones privilegiadas', () => {
       'assign_ticket',
       'format_cop',
       'search_normalize',
-      'match_ticket_import_clients',
       'ticket_import_name_key',
       'ticket_import_phone_key',
     ]
@@ -295,18 +305,50 @@ describe('funciones privilegiadas', () => {
       from pg_proc p
       join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public'
-        and p.proname in ('create_payment','void_payment','update_payment_allocation',
+        and p.proname in ('create_payment','update_payment_allocation',
                           'update_ticket_sale_price','reassign_ticket_client',
                           'release_ticket_client','set_ticket_clearance_delivery',
                           'set_seller_whatsapp_settings','set_seller_weekly_results_message',
                           'mark_reminder_occurrence_attended',
                           'upsert_push_subscription','delete_push_subscription',
                           'assign_ticket','bulk_create_tickets','approve_tickets','cancel_ticket',
-                          'match_ticket_import_clients','import_tickets_with_clients')
+                          'admin_list_tickets','admin_ticket_detail',
+                          'admin_ticket_bulk_eligibility','admin_update_ticket_numbers',
+                          'admin_ticket_inventory','admin_lottery_matches','admin_audit_log')
         and has_function_privilege('authenticated', p.oid, 'EXECUTE')
       order by p.proname
     `)
-    expect(rows.length).toBe(18)
+    expect(rows.length).toBe(22)
+  })
+
+  /**
+   * D-198: las tres RPC con las que el personal administraba la cartera de un
+   * vendedor quedan DORMIDAS. Ninguna sesion las ejecuta; su cuerpo no cambio, y
+   * reactivarlas es volver a concederlas (procedimiento en D-198).
+   */
+  it('las RPC de cartera del personal ya no son ejecutables desde una sesion (D-198)', async () => {
+    const { rows } = await db.query(`
+      select p.proname,
+             has_function_privilege('authenticated', p.oid, 'EXECUTE') as autenticado,
+             has_function_privilege('anon', p.oid, 'EXECUTE') as anonimo,
+             has_function_privilege('service_role', p.oid, 'EXECUTE') as servicio
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname in ('void_payment', 'match_ticket_import_clients',
+                          'import_tickets_with_clients')
+      order by p.proname
+    `)
+    expect(rows.map((r) => r.proname)).toEqual([
+      'import_tickets_with_clients',
+      'match_ticket_import_clients',
+      'void_payment',
+    ])
+    for (const row of rows) {
+      expect(row.autenticado, `${row.proname} ejecutable por authenticated`).toBe(false)
+      expect(row.anonimo, `${row.proname} ejecutable por anon`).toBe(false)
+      expect(row.servicio, `${row.proname} sin EXECUTE para service_role`).toBe(true)
+    }
   })
 
   /**

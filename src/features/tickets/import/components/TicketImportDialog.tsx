@@ -13,10 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { formatCOP } from '@/lib/money'
 
-import { detectMapping, needsManualMapping } from '../columns'
-import { hasAnyClientData, hasCompleteClientData } from '../clients'
+import { detectMapping, isMappingComplete } from '../columns'
 import { parseCsv, type CsvTable } from '../csv'
 import { ImportParseError } from '../errors'
 import { parseJsonTickets } from '../json'
@@ -36,6 +34,10 @@ import { ImportPreview } from './ImportPreview'
  * vendedor no puede pasar `sellerId`, y aunque lo hiciera la Server Action lo
  * ignora y usa el de su sesion.
  *
+ * SOLO BOLETAS SIN VENDER, desde D-198 (BR-Q07). Ningun portal importa clientes
+ * ni abonos: la vista previa aparta esas filas con su motivo y la Server Action
+ * las vuelve a rechazar.
+ *
  * El recorrido es siempre el mismo y nunca se salta la parada:
  *
  *   elegir archivo → (mapear columnas si hace falta) → vista previa →
@@ -48,15 +50,6 @@ import { ImportPreview } from './ImportPreview'
 type TicketImportDialogProps = {
   /** Rifa a la que van las boletas. La elige la pantalla, no el archivo. */
   raffleId: string
-  /**
-   * Precio de esa rifa, en pesos. Es lo que decide que significa un «20» en la
-   * columna «Abono» y hasta donde puede llegar.
-   *
-   * Sirve para pintar la PRIMERA vista previa sin esperar al servidor; en
-   * cuanto llega la comprobacion, manda el precio que devuelve el servidor, que
-   * es el que va a aplicar la base de datos.
-   */
-  ticketPrice: number
   /** Solo el personal lo manda. En el portal del vendedor va sin definir. */
   sellerId?: string
   /** Se deshabilita el importador si falta contexto (sin rifa, sin vendedor). */
@@ -69,7 +62,6 @@ type Paso = 'archivo' | 'mapeo' | 'vista-previa' | 'resultado'
 
 export function TicketImportDialog({
   raffleId,
-  ticketPrice,
   sellerId,
   disabled,
   successHref,
@@ -94,7 +86,6 @@ export function TicketImportDialog({
    */
   const [guardando, setGuardando] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const allowClientAssignments = Boolean(sellerId)
 
   /**
    * Cerrojo contra el doble envio.
@@ -121,9 +112,9 @@ export function TicketImportDialog({
   /** Contrasta las combinaciones con la rifa. Una sola llamada, nunca una por fila. */
   function revisar(filas: ImportRow[]) {
     // Primera pasada, sin base de datos: formato, repeticiones dentro del
-    // archivo y lectura de los abonos. Se pinta ya, para no dejar la pantalla
-    // en blanco esperando.
-    const primera = reviewRows(filas, { allowClientAssignments, ticketPrice })
+    // archivo y filas que traen cliente o abono. Se pinta ya, para no dejar la
+    // pantalla en blanco esperando.
+    const primera = reviewRows(filas)
     setReview(primera)
     setComprobado(false)
     setPaso('vista-previa')
@@ -131,46 +122,26 @@ export function TicketImportDialog({
     startTransition(async () => {
       const respuesta = await checkImportPreview({
         raffleId,
-        ...(sellerId ? { sellerId } : {}),
         // Solo las que pueden existir. Un «12345» no cabe en la columna, asi
         // que preguntarlo no aporta nada y ademas tumbaria la comprobacion
         // entera: la accion valida lo que recibe, como debe.
         rows: primera.rows
           .filter((fila) => fila.status === 'valid')
-          .map((fila) => ({
-            dailyNumber: fila.dailyNumber,
-            weeklyNumber: fila.weeklyNumber,
-            ...(hasCompleteClientData(fila)
-              ? { clientName: fila.clientName, clientPhone: fila.clientPhone }
-              : {}),
-            ...(fila.abonoAmount !== undefined ? { abono: fila.abonoAmount } : {}),
-          })),
+          .map((fila) => ({ dailyNumber: fila.dailyNumber, weeklyNumber: fila.weeklyNumber })),
       })
 
       if ('error' in respuesta) {
         // La vista previa sigue siendo util sin esto: formato y repeticiones
         // dentro del archivo ya estan revisados, y la base de datos tiene la
         // ultima palabra igualmente. Se dice, no se calla.
-        const includesClients = filas.some(hasAnyClientData)
         setError(
-          includesClients
-            ? `${respuesta.error} Vuelve a intentarlo antes de importar filas con cliente.`
-            : `${respuesta.error} Puedes continuar: al guardar se comprobará de nuevo contra la rifa.`,
+          `${respuesta.error} Puedes continuar: al guardar se comprobará de nuevo contra la rifa.`,
         )
-        setComprobado(!includesClients)
+        setComprobado(true)
         return
       }
 
-      setReview(
-        reviewRows(filas, {
-          allowClientAssignments,
-          // El precio del servidor manda sobre el que trajo la pantalla: es el
-          // que va a usar la base de datos al guardar.
-          ticketPrice: respuesta.data.ticketPrice,
-          existingCombos: new Set(respuesta.data.taken),
-          clientResolutions: new Map(respuesta.data.clients.map((client) => [client.key, client])),
-        }),
-      )
+      setReview(reviewRows(filas, { existingCombos: new Set(respuesta.data.taken) }))
       setComprobado(true)
     })
   }
@@ -194,7 +165,12 @@ export function TicketImportDialog({
       setTabla(leida)
 
       const mapeo = detectMapping(leida.headers)
-      if (needsManualMapping(mapeo)) {
+      // Desde D-198 solo se para a preguntar por los NUMEROS (BR-Q07). Pedir el
+      // par del cliente, o un cliente para el abono —lo que añade
+      // `needsManualMapping`—, mandaria a la persona por un camino que la vista
+      // previa rechaza: las columnas de cliente y de abono que se reconozcan
+      // entran igual en el mapeo y sus filas se apartan con su motivo.
+      if (!isMappingComplete(mapeo)) {
         setPaso('mapeo')
         return
       }
@@ -226,10 +202,6 @@ export function TicketImportDialog({
         rows: filas.map((fila) => ({
           dailyNumber: fila.dailyNumber,
           weeklyNumber: fila.weeklyNumber,
-          ...(hasCompleteClientData(fila)
-            ? { clientName: fila.clientName, clientPhone: fila.clientPhone }
-            : {}),
-          ...(fila.abono !== undefined ? { abono: fila.abono } : {}),
         })),
       })
 
@@ -285,12 +257,7 @@ export function TicketImportDialog({
           </DialogHeader>
 
           {paso === 'archivo' ? (
-            <ImportDropzone
-              onFile={leerArchivo}
-              disabled={isPending}
-              error={error}
-              allowClientAssignments={allowClientAssignments}
-            />
+            <ImportDropzone onFile={leerArchivo} disabled={isPending} error={error} />
           ) : null}
 
           {paso === 'mapeo' && tabla ? (
@@ -385,30 +352,6 @@ export function TicketImportDialog({
                       {resultado.conflicts.length} quedaron fuera porque su combinación ya existe en
                       la rifa: {resultado.conflicts.slice(0, 10).join(', ')}
                       {resultado.conflicts.length > 10 ? '…' : ''}
-                    </p>
-                  ) : null}
-                  {resultado.assigned > 0 ? (
-                    <p className="text-muted-foreground">
-                      {resultado.assigned === 1
-                        ? '1 boleta quedó asignada a su cliente.'
-                        : `${resultado.assigned} boletas quedaron asignadas a sus clientes.`}
-                    </p>
-                  ) : null}
-                  {resultado.clientsCreated > 0 || resultado.clientsReused > 0 ? (
-                    <p className="text-muted-foreground">
-                      {resultado.clientsCreated}{' '}
-                      {resultado.clientsCreated === 1 ? 'cliente nuevo' : 'clientes nuevos'} ·{' '}
-                      {resultado.clientsReused}{' '}
-                      {resultado.clientsReused === 1
-                        ? 'existente reutilizado'
-                        : 'existentes reutilizados'}
-                    </p>
-                  ) : null}
-                  {resultado.paymentsCreated > 0 ? (
-                    <p className="text-muted-foreground">
-                      {resultado.paymentsCreated === 1
-                        ? `Se registró 1 abono por ${formatCOP(resultado.paymentsTotal)}.`
-                        : `Se registraron ${resultado.paymentsCreated} abonos por ${formatCOP(resultado.paymentsTotal)} en total.`}
                     </p>
                   ) : null}
                   {resultado.auditFailed ? (

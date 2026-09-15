@@ -43,7 +43,7 @@ export default async function TeamPage() {
 
   const canAdd = !own.belongsToTeam
   // Se suman aqui los totales que SQL ya calculo por integrante, igual que
-  // `listSellersWithTotals` suma sus filas por rifa. No es calcular dinero en el
+  // `listSellersWithInventory` suma sus filas por rifa. No es calcular dinero en el
   // navegador —esto corre en el servidor y los sumandos vienen de la base—, y es
   // correcto porque la lista no esta paginada: un equipo cabe entero. Si algun
   // dia se pagina, estos dos totales tienen que pasar a SQL.

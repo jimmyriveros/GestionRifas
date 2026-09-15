@@ -89,13 +89,24 @@ test.describe('El detalle de una boleta a 320 px (I-076)', () => {
     )
   })
 
-  test('el portal administrativo tampoco, y tiene la misma rejilla', async ({ page }) => {
+  /**
+   * Hasta D-198 esta prueba medía la misma tarjeta del cliente en el portal
+   * administrativo. Desde D-198 el personal no ve al cliente (BR-Q01): la
+   * tarjeta que ensanchaba la rejilla ya no existe ahí. Lo que se sigue
+   * comprobando es lo que importa del I-076 —que el detalle no desborda a
+   * 320 px— y, de paso, que el nombre largo no llega a la pantalla.
+   */
+  test('el portal administrativo tampoco desborda, y no enseña el cliente', async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
-    const medida = await medir(page, `/owner/tickets/${ticketId}`)
+    await page.setViewportSize(ANCHO_MINIMO)
+    await page.goto(`/owner/tickets/${ticketId}`)
+    await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeVisible()
 
-    expect(medida.desbordamiento, 'desbordamiento horizontal a 320 px').toBeLessThanOrEqual(2)
-    expect(medida.recortado, 'el nombre largo debe quedar recortado, no ensanchar la tarjeta').toBe(
-      true,
+    const desbordamiento = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     )
+    expect(desbordamiento, 'desbordamiento horizontal a 320 px').toBeLessThanOrEqual(2)
+    await expect(page.getByText(NOMBRE_LARGO)).toHaveCount(0)
+    await expect(page.locator('a[href*="/clients/"]')).toHaveCount(0)
   })
 })

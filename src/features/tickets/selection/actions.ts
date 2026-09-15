@@ -4,10 +4,18 @@ import { revalidatePath } from 'next/cache'
 
 import type { ActionResultWith } from '@/lib/action-result'
 import { authorizeAction } from '@/lib/auth/guards'
+import { BULK_SELECTION_MAX } from '@/lib/constants'
 import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 
+import {
+  listAdminTicketEligibility,
+  listAdminTicketIds,
+  listAdminTicketsByIds,
+  type AdminTicketListItem,
+} from '../admin-queries'
 import type { TicketListItem } from '../queries'
+import { adminPaymentStateSchema } from '../schemas'
 import type { TicketEligibility } from './eligibility'
 import { listTicketEligibility, listTicketIdsMatching, listTicketsByIds } from './queries'
 import {
@@ -33,6 +41,10 @@ import {
  *
  * Ninguna recibe `organizationId` ni `sellerId` como autoridad: la organizacion
  * sale de la sesion y de la propia boleta (seccion 38 del encargo).
+ *
+ * LAS LECTURAS DEPENDEN DEL ROL (D-198). El vendedor lee sus boletas con todo su
+ * dinero; el personal, la proyeccion `admin_*`, sin cliente, precio ni abonos.
+ * Lo decide la sesion, nunca un parametro: el navegador no puede pedir la otra.
  */
 
 function revalidateTicketLists() {
@@ -71,16 +83,30 @@ export async function getTicketSelectionEligibility(
   }
 
   try {
-    return { ok: true, data: await listTicketEligibility(parsed.data.ticketIds) }
+    const data =
+      auth.membership.role === 'seller'
+        ? await listTicketEligibility(parsed.data.ticketIds)
+        : await listAdminTicketEligibility(parsed.data.ticketIds)
+    return { ok: true, data }
   } catch (error) {
     return { error: mapPgError(error) }
   }
 }
 
+/**
+ * Las boletas seleccionadas, con el modelo de quien las pide.
+ *
+ * El personal NUNCA recibe un `TicketListItem`: ese tipo trae cliente, precio y
+ * abonado, y aqui viaja al navegador (D-198, BR-Q02).
+ */
+export type SelectedTicketsResult =
+  | { audience: 'seller'; rows: TicketListItem[] }
+  | { audience: 'staff'; rows: AdminTicketListItem[] }
+
 /** Las boletas seleccionadas, para revisarlas antes de actuar. */
 export async function getSelectedTickets(
   input: unknown,
-): Promise<ActionResultWith<TicketListItem[]>> {
+): Promise<ActionResultWith<SelectedTicketsResult>> {
   const auth = await authorizeAction(['owner', 'admin', 'seller'])
   if ('error' in auth) return auth
 
@@ -90,7 +116,16 @@ export async function getSelectedTickets(
   }
 
   try {
-    return { ok: true, data: await listTicketsByIds(parsed.data.ticketIds) }
+    if (auth.membership.role === 'seller') {
+      return {
+        ok: true,
+        data: { audience: 'seller', rows: await listTicketsByIds(parsed.data.ticketIds) },
+      }
+    }
+    return {
+      ok: true,
+      data: { audience: 'staff', rows: await listAdminTicketsByIds(parsed.data.ticketIds) },
+    }
   } catch (error) {
     return { error: mapPgError(error) }
   }
@@ -113,7 +148,27 @@ export async function resolveTicketSelection(
   if (!parsed.success) return { error: 'No pudimos leer los filtros. Vuelve a intentarlo.' }
 
   try {
-    return { ok: true, data: await listTicketIdsMatching(parsed.data) }
+    if (auth.membership.role === 'seller') {
+      return { ok: true, data: await listTicketIdsMatching(parsed.data) }
+    }
+
+    // Los MISMOS filtros que la lista administrativa (D-198): ni cliente ni
+    // `partial`. Un filtro que la lista no aplica tampoco se aplica aqui, o se
+    // seleccionarian boletas que no estan en pantalla.
+    const paymentState = adminPaymentStateSchema.safeParse(parsed.data.paymentStatus)
+    return {
+      ok: true,
+      data: await listAdminTicketIds(
+        {
+          raffleId: parsed.data.raffleId,
+          sellerId: parsed.data.sellerId,
+          inventoryStatus: parsed.data.inventoryStatus,
+          paymentState: paymentState.success ? paymentState.data : undefined,
+          search: parsed.data.search,
+        },
+        BULK_SELECTION_MAX,
+      ),
+    }
   } catch (error) {
     return { error: mapPgError(error) }
   }

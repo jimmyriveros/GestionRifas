@@ -5,7 +5,10 @@ import {
   createClientFor,
   loadSeedRefs,
   raffleTicketPrice,
+  serviceClient,
+  signedInClient,
   ticketBalance,
+  voidPaymentAsStaff,
   type SeedRefs,
 } from './db-setup'
 import { ACCOUNTS, expectToast, loginAs, randomTicketNumbers, unique } from './fixtures'
@@ -15,6 +18,10 @@ import { formatCOP } from '../../src/lib/money'
  * Pruebas 1 a 13 de la Fase 5: registro de abonos, cuadre exacto, bloqueo de
  * sobrepago, anulacion administrativa y proteccion por rol
  * (BR-F02..BR-F13, BR-I11).
+ *
+ * Desde D-198 la anulacion administrativa y la consulta global de pagos estan
+ * SUSPENDIDAS: sus pruebas comprueban ahora que no existen y que lo del
+ * vendedor sigue igual (BR-Q06, BR-Q08).
  */
 
 /**
@@ -571,8 +578,19 @@ test.describe('Abono abierto desde un cliente, pagos o sin origen', () => {
   })
 })
 
-test.describe('Anulación de pagos por el personal', () => {
-  test('el Admin anula con motivo y el saldo se recalcula (prueba 8)', async ({ page }) => {
+/**
+ * Anular un pago, desde D-198.
+ *
+ * Hasta D-198 el personal anulaba pagos desde `/owner/payments`. Desde D-198 la
+ * cartera es del vendedor (BR-Q06): esa pantalla no existe, `void_payment` no
+ * la ejecuta ninguna sesion y el personal tampoco anula boletas vendidas. Las
+ * tres pruebas de antes comprueban ahora eso, y que un pago anulado —preparado
+ * con el cuerpo real de la funcion— sigue en el historial del vendedor.
+ */
+test.describe('Anulación de pagos: suspendida desde D-198', () => {
+  test('nadie anula un pago desde la aplicación: ni pantalla ni RPC (prueba 8)', async ({
+    page,
+  }) => {
     const { client, ticket } = await clientWithDebt('Anulable')
 
     // El abono lo registra el vendedor, por la interfaz.
@@ -583,35 +601,36 @@ test.describe('Anulación de pagos por el personal', () => {
     await expectToast(page, /registrado/)
     expect((await ticketBalance(ticket.id)).paidAmount).toBe(60_000)
 
-    // Y lo anula el administrador.
+    // El administrador ya no tiene pantalla de pagos.
     await page.context().clearCookies()
     await loginAs(page, ACCOUNTS.admin)
-    await page.goto(`/owner/payments?clientId=${client.id}`)
-    await page
-      .getByRole('button', { name: /Ver el pago de/ })
-      .first()
-      .click()
+    const respuesta = await page.goto(`/owner/payments?clientId=${client.id}`)
+    expect(respuesta?.status()).toBe(404)
+    await expect(page.getByRole('button', { name: 'Anular pago' })).toHaveCount(0)
 
-    await page.getByRole('button', { name: 'Anular pago' }).click()
-
-    // Motivo demasiado corto: no avanza.
-    await page.getByLabel('Motivo de la anulación (obligatorio)').fill('ups')
-    await page.getByRole('button', { name: 'Confirmar anulación' }).click()
-    await expect(page.getByText('Explica el motivo con al menos 5 caracteres.')).toBeVisible()
-
-    await page
-      .getByLabel('Motivo de la anulación (obligatorio)')
-      .fill('El cheque fue devuelto por el banco')
-    await page.getByRole('button', { name: 'Confirmar anulación' }).click()
-
-    await expectToast(page, /Pago anulado/)
+    // Y llamada a mano, con las dos sesiones del personal, la funcion ya no se
+    // ejecuta (42501): el abono sigue contando.
+    const { data: asignacion, error: lectura } = await serviceClient()
+      .from('payment_allocations')
+      .select('payment_id')
+      .eq('ticket_id', ticket.id)
+      .single()
+    expect(lectura).toBeNull()
+    for (const cuenta of [ACCOUNTS.admin, ACCOUNTS.owner]) {
+      const sesion = await signedInClient(cuenta)
+      const { error } = await sesion.rpc('void_payment', {
+        p_payment_id: asignacion!.payment_id,
+        p_reason: 'El cheque fue devuelto por el banco',
+      })
+      expect(error?.code, cuenta).toBe('42501')
+    }
 
     const balance = await ticketBalance(ticket.id)
-    expect(balance.paidAmount).toBe(0)
-    expect(balance.paymentStatus).toBe('unpaid')
+    expect(balance.paidAmount).toBe(60_000)
+    expect(balance.paymentStatus).toBe('partial')
   })
 
-  test('el pago anulado sigue en el historial, marcado y con su motivo (BR-F09)', async ({
+  test('un pago anulado sigue en el historial del vendedor, marcado y con su motivo (BR-F09)', async ({
     page,
   }) => {
     const { client, ticket } = await clientWithDebt('Anulado visible')
@@ -622,42 +641,42 @@ test.describe('Anulación de pagos por el personal', () => {
     await page.getByRole('button', { name: 'Registrar abono' }).click()
     await expectToast(page, /registrado/)
 
-    await page.context().clearCookies()
-    await loginAs(page, ACCOUNTS.owner)
-    await page.goto(`/owner/payments?clientId=${client.id}`)
-    await page
-      .getByRole('button', { name: /Ver el pago de/ })
-      .first()
-      .click()
-    await page.getByRole('button', { name: 'Anular pago' }).click()
-    await page
-      .getByLabel('Motivo de la anulación (obligatorio)')
-      .fill('Se registro dos veces por error')
-    await page.getByRole('button', { name: 'Confirmar anulación' }).click()
-    await expectToast(page, /Pago anulado/)
+    // PREPARACION: desde D-198 la anulacion no ocurre desde ninguna sesion, asi
+    // que se ejecuta el cuerpo real de `void_payment` con la identidad del Dueño.
+    const { data: asignacion } = await serviceClient()
+      .from('payment_allocations')
+      .select('payment_id')
+      .eq('ticket_id', ticket.id)
+      .single()
+    await voidPaymentAsStaff(
+      refs.ownerId,
+      asignacion!.payment_id,
+      'Se registro dos veces por error',
+    )
 
-    // Sigue listado, marcado como anulado.
-    await page.goto(`/owner/payments?clientId=${client.id}&status=voided`)
+    const balance = await ticketBalance(ticket.id)
+    expect(balance.paidAmount).toBe(0)
+    expect(balance.paymentStatus).toBe('unpaid')
+
+    // Sigue en el historial de la boleta, marcado como anulado.
+    await page.goto(`/seller/tickets/${ticket.id}`)
     await expect(page.getByText('Anulado').first()).toBeVisible()
 
+    // Y en «Mis pagos», con su motivo dentro del detalle.
+    await page.goto(`/seller/payments?clientId=${client.id}`)
     await page
       .getByRole('button', { name: /Ver el pago de/ })
       .first()
       .click()
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByText('Motivo: Se registro dos veces por error')).toBeVisible()
-    // Quien anulo, dentro del dialogo: el nombre tambien sale en el menu de usuario.
-    await expect(dialog.getByText(/Camila Restrepo/)).toBeVisible()
-
-    // Y el vendedor tambien lo ve anulado en su historial.
-    await page.context().clearCookies()
-    await loginAs(page, ACCOUNTS.seller)
-    await page.goto(`/seller/tickets/${ticket.id}`)
-    await expect(page.getByText('Anulado').first()).toBeVisible()
   })
 
-  test('una boleta con pagos activos no se puede anular (prueba 10, BR-I11)', async ({ page }) => {
+  test('una boleta vendida no la anula el personal, tenga o no abonos (prueba 10, BR-I11)', async ({
+    page,
+  }) => {
     const { client, ticket } = await clientWithDebt('Boleta con pagos')
+    const { ticket: sinAbonos } = await clientWithDebt('Boleta vendida sin pagos')
 
     await loginAs(page, ACCOUNTS.seller)
     await page.goto(`/seller/payments/new?clientId=${client.id}`)
@@ -667,12 +686,26 @@ test.describe('Anulación de pagos por el personal', () => {
 
     await page.context().clearCookies()
     await loginAs(page, ACCOUNTS.owner)
-    await page.goto(`/owner/tickets/${ticket.id}`)
-    await page.getByRole('button', { name: 'Anular boleta' }).click()
-    await page.getByLabel('Motivo (obligatorio)').fill('Intento con pagos activos')
-    await page.getByRole('button', { name: 'Anular', exact: true }).click()
+    for (const vendida of [ticket, sinAbonos]) {
+      await page.goto(`/owner/tickets/${vendida.id}`)
+      await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Anular boleta' })).toHaveCount(0)
+    }
 
-    await expect(page.getByText(/La boleta tiene pagos activos/)).toBeVisible()
+    // Llamada a mano: el MISMO rechazo con abonos que sin ellos (BR-Q07), para
+    // que la respuesta no delate lo abonado.
+    const owner = await signedInClient(ACCOUNTS.owner)
+    const conAbonos = await owner.rpc('cancel_ticket', {
+      p_ticket_id: ticket.id,
+      p_reason: 'Intento con pagos activos',
+    })
+    const sinAbonosRespuesta = await owner.rpc('cancel_ticket', {
+      p_ticket_id: sinAbonos.id,
+      p_reason: 'Intento sobre una vendida',
+    })
+    expect(conAbonos.error?.message).toBe('Esta boleta ya está vendida y no se puede anular.')
+    expect(sinAbonosRespuesta.error?.message).toBe(conAbonos.error?.message)
+    expect((await ticketBalance(ticket.id)).paidAmount).toBe(20_000)
   })
 })
 
@@ -820,36 +853,46 @@ test.describe('Edición de un abono (BR-F16, D-134)', () => {
   })
 })
 
-test.describe('Consulta global de pagos', () => {
-  test('el personal filtra por estado y limpia los filtros', async ({ page }) => {
+/**
+ * Hasta D-198 el personal filtraba los pagos y veia los totales de cobranza de
+ * la organizacion en `/owner/payments`. Desde D-198 esa pantalla no existe
+ * (BR-Q08): responde «no encontrada» con o sin filtros y ninguna cifra de
+ * cobranza llega al personal. Los totales siguen en «Mis pagos» del vendedor.
+ */
+test.describe('Consulta global de pagos: retirada del portal administrativo (D-198)', () => {
+  test('la dirección ya no existe, con o sin filtros, y no trae cifras de cobranza', async ({
+    page,
+  }) => {
     await loginAs(page, ACCOUNTS.owner)
 
-    await page.goto('/owner/payments?status=voided')
-    await expect(page.getByRole('button', { name: 'Limpiar filtros' })).toBeVisible()
-
-    await page.getByRole('button', { name: 'Limpiar filtros' }).click()
-    await expect(page).toHaveURL('/owner/payments')
+    for (const ruta of ['/owner/payments', '/owner/payments?status=voided']) {
+      const respuesta = await page.goto(ruta)
+      expect(respuesta?.status(), ruta).toBe(404)
+      await expect(page.getByText('Total recaudado')).toHaveCount(0)
+      await expect(page.getByText('Saldo pendiente')).toHaveCount(0)
+    }
   })
 
-  test('muestra los totales de cobranza de la organización', async ({ page }) => {
-    await loginAs(page, ACCOUNTS.owner)
-    await page.goto('/owner/payments')
+  test('el vendedor sigue viendo sus totales de cobranza en «Mis pagos»', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/payments')
 
     await expect(page.getByText('Total recaudado')).toBeVisible()
     await expect(page.getByText('Saldo pendiente')).toBeVisible()
   })
 
   // La visibilidad del pago registrado por un administrador (I-015) se prueba
-  // en base de datos (`payments-phase5.test.ts`, F5-04): requiere una sesion de
-  // owner llamando a `create_payment`, y el portal administrativo no tiene —por
-  // alcance de esta fase— una pantalla para registrar abonos.
+  // en base de datos (`payments-phase5.test.ts`), con la identidad fijada por
+  // `asProfile`: desde D-198 ninguna sesion del personal registra pagos.
 })
 
 test.describe('Proteccion de rutas de pagos (prueba 13)', () => {
-  test('un vendedor no entra a la consulta global', async ({ page }) => {
+  test('un vendedor no entra a la consulta global: ya no existe para nadie', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
-    await page.goto('/owner/payments')
-    await expect(page).toHaveURL(/\/denied/)
+    // Hasta D-198 respondia con /denied; desde D-198 la ruta no existe.
+    const respuesta = await page.goto('/owner/payments')
+    expect(respuesta?.status()).toBe(404)
+    await expect(page.getByText('Total recaudado')).toHaveCount(0)
   })
 
   test('un administrador no entra al portal de pagos del vendedor', async ({ page }) => {
@@ -860,6 +903,8 @@ test.describe('Proteccion de rutas de pagos (prueba 13)', () => {
     }
   })
 
+  // Sin sesion ni siquiera se distingue una ruta que no existe: el proxy
+  // redirige al login antes de resolverla, asi que no sirve para enumerar.
   test('sin sesión, los pagos redirigen al login', async ({ page }) => {
     await page.context().clearCookies()
     await page.goto('/owner/payments')

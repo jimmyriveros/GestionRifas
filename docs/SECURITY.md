@@ -1,6 +1,10 @@
 # SEGURIDAD
 
-- **Versión:** 2.15 · **Estado:** implementado · **Actualizado:** 2026-09-13
+- **Versión:** 2.16 · **Estado:** implementado · **Actualizado:** 2026-09-14
+- **§4.19** describe **la cartera del vendedor fuera del alcance del personal** (`0057`, D-198,
+  BR-Q01..BR-Q10): el Dueño y el Administrador ya no leen clientes, precios, abonos, saldos, pagos ni
+  ganancias por ninguna vía, y lo que administran les llega por siete proyecciones de lista blanca.
+  ⚠️ **Solo en local**: el proyecto real no tiene `0057`.
 - **§4.18** describe **el mensaje propio de «Resultados de la semana»** (`0056`, D-197): la segunda
   escritura de `memberships` que hace un vendedor, con la forma de la primera y en su propio dominio.
   **Aplicada al proyecto real el 2026-09-13**: `verify:remote` 24/24 y la función cerrada a `anon` y a
@@ -17,7 +21,8 @@
 - ⚠️ `0051`, `0052`, `0053` y `0054` están aplicadas **en local**. **El proyecto real no las tiene**:
   promoverlas es la Etapa 7.
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
-  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042`, `0043` y `0044`; los privilegios base se fijan en `0009`/`0010`.
+  `0015`, `0016`, `0019`, `0020`, `0021`, `0036`, `0037`, `0038`, `0039`, `0042`, `0043`, `0044` y
+  `0057`; los privilegios base se fijan en `0009`/`0010`.
 - Verificado en Supabase **local** con 378 pruebas: la operación cuya RLS se prueba usa sesiones
   reales por rol y clave pública, nunca `service_role`. La clave de servicio sí puede preparar,
   comprobar o limpiar el escenario y las pruebas de catálogo usan PostgreSQL directo (D-043).
@@ -32,7 +37,7 @@
 | `anon` sin ningún privilegio de tabla | Un visitante sin sesión no puede leer nada, ni siquiera si fallara una política |
 | Privilegios `GRANT` explícitos | Estado idéntico en local y en el proyecto real, sin depender del entorno (D-037) |
 | Trigger `tickets_guard_paid_amount` | `paid_amount` solo acepta el valor derivado real: un vendedor no puede declararse pagado |
-| Política `payments_update_staff` con `voided_at is null` en `USING` | Un pago anulado deja de ser actualizable: la anulación es irreversible por RLS (D-013) |
+| Política `payments_update_staff` con `voided_at is null` en `USING` | Un pago anulado deja de ser actualizable: la anulación es irreversible por RLS (D-013). **Retirada en `0057` (D-198)**: ninguna sesión actualiza `payments` directamente, y `void_payment` quedó sin `EXECUTE` para `authenticated` (§4.19) |
 | Disparadores `payments_insert_positive` y `payment_allocations_insert_positive` (`0042`, D-158) | Desde que los `CHECK` de fila pasaron a `>= 0` para poder **corregir** un abono a cero, el `> 0` del **alta** lo mantienen estos dos: registrar un pago de $0 por PostgREST sigue siendo imposible (BR-F03, amenaza T18) |
 
 ---
@@ -99,37 +104,45 @@ defensas no se relajan: se duplican.
 | Reabrir una rifa cerrada | ✓ | ✗ | ✗ |
 | Ver rifas | ✓ | ✓ | ✓ (lectura) |
 | **Boletas** |
-| Ver todas las boletas de la organización | ✓ | ✓ | ✗ |
+| Ver todas las boletas de la organización — **sin cliente, precio ni cobros**, por las proyecciones de §4.19 | ✓ | ✓ | ✗ |
 | Ver boletas propias | ✓ | ✓ | P |
+| Ver el cliente, el precio de venta, lo abonado y el saldo de una boleta (BR-Q01) | ✗ | ✗ | P |
 | Crear boletas (individual y masiva) | ✓ | ✓ | P, solo si `allow_seller_ticket_creation` |
 | Editar números de una boleta | ✓ | ✓ | P, solo en `draft`/`pending_approval` |
 | Aprobar boletas | ✓ | ✓ | ✗ |
-| Anular boletas | ✓ | ✓ | ✗ |
+| Anular boletas **sin vender** (BR-Q07) | ✓ | ✓ | ✗ |
 | Asignar boleta a un vendedor | ✓ | ✓ | ✗ |
-| Asignar boleta a un cliente | ✓ | ✓ | P |
+| Asignar boleta a un cliente, corregir su precio, cambiar o liberar su cliente (BR-Q06) | ✗ | ✗ | P |
+| Importar boletas, **solo sin vender**: sin cliente y sin abono (BR-Q07) | ✓ | ✓ | P, solo si `allow_seller_ticket_creation` |
 | **Eliminar boletas físicamente** (solo sin cliente, sin venta y sin abonos — BR-B05) | ✓ | ✓ | ✗ |
 | Seleccionar varias boletas y actuar sobre todas (BR-B01) | ✓ | ✓ | P, solo asignar a un cliente |
 | **Clientes** |
-| Ver todos los clientes de la organización | ✓ | ✓ | ✗ |
-| Ver / crear / editar clientes propios | ✓ | ✓ | P |
-| Archivar clientes | ✓ | ✓ | P |
+| Ver todos los clientes de la organización | ✗ | ✗ | ✗ |
+| Ver / crear / editar clientes (BR-Q06) | ✗ | ✗ | P |
+| Archivar clientes | ✗ | ✗ | P |
 | Eliminar clientes físicamente | ✗ | ✗ | ✗ |
 | **Pagos** |
-| Ver todos los pagos de la organización | ✓ | ✓ | ✗ |
-| Registrar pagos | ✓ | ✓ | P |
-| Corregir el valor de un abono vigente, **cero incluido** (BR-F16, BR-F17, D-158) | ✓ | ✓ | P |
-| Anular pagos | ✓ | ✓ | ✗ |
+| Ver todos los pagos de la organización | ✗ | ✗ | ✗ |
+| Registrar pagos | ✗ | ✗ | P |
+| Corregir el valor de un abono vigente, **cero incluido** (BR-F16, BR-F17, D-158) | ✗ | ✗ | P |
+| Anular pagos — **suspendida**: `void_payment` sin `EXECUTE` para las sesiones (BR-Q06) | ✗ | ✗ | ✗ |
 | Eliminar pagos físicamente | ✗ | ✗ | ✗ |
 | **Reportes y auditoría** |
-| Reportes globales | ✓ | ✓ | ✗ |
-| Reportes propios | ✓ | ✓ | P |
-| Ver auditoría | ✓ | ✓ | ✗ |
+| Reportes globales — **solo recuentos de boletas**, sin dinero ni clientes (BR-Q08) | ✓ | ✓ | ✗ |
+| Reportes de dinero y cartera: ventas, recaudo, saldos, clientes y pagos (BR-Q08) | ✗ | ✗ | P |
+| Ver la ganancia y los movimientos de comisión de un vendedor (BR-G12, BR-Q08) | ✗ | ✗ | P (y el vendedor padre, la de su equipo) |
+| Ver auditoría — redactada, por `admin_audit_log` (BR-Q10) | ✓ | ✓ | ✗ |
 | **Resultados de loterías** |
 | Ver programación y resultado oficiales | ✓ | ✓ | ✓ (lectura; son nacionales) |
-| Ver coincidencias de la organización | ✓ | ✓ | P (solo las de sus boletas) |
+| Ver coincidencias de la organización — **sin cliente**, por `admin_lottery_matches` (BR-Q09) | ✓ | ✓ | P (solo las de sus boletas) |
 | Escribir programación, resultados o coincidencias | ✗ | ✗ | ✗ (proceso interno) |
 | Ver «Resultados de la semana» y generar su imagen (BR-H05, §5.3) | ✗ | ✗ | P (con la rifa de su propio catálogo) |
 | Configurar el mensaje de «Resultados de la semana» (BR-H10, §4.18) | ✗ | ✗ | P (solo el suyo) |
+
+**Desde el 2026-09-14 (D-198, §4.19) el Dueño y el Administrador administran el inventario, no la
+venta.** Las filas de clientes, pagos, venta y dinero cambiaron de `✓` a `✗` para los dos, y no es una
+restricción de pantalla: las políticas de esas tablas son solo del vendedor. Volver a concederlas es
+una migración nueva y el procedimiento de D-198.
 
 Acciones exclusivas del Owner (BR-U02, BR-U03, BR-U04): eliminar o desactivar al Owner, asignar el
 rol `owner`, transferir la propiedad, editar la configuración de la organización y reabrir rifas
@@ -1023,6 +1036,77 @@ mensaje y comprueba que ninguno llega a ser un elemento. **La lectura de la pant
 identificadores**: sale de la sesión, como `getWhatsappSettings`, y un fallo al leer no se trata como
 «sin personalizar» —la pantalla no ofrece guardar encima de lo que no ha podido ver—.
 
+### 4.19 La cartera del vendedor, fuera del alcance del personal (`0057`, BR-Q01..BR-Q10, D-198)
+
+Hasta `0056` el Dueño y el Administrador leían **filas completas** de toda su organización en ocho
+tablas. La RLS limita filas, no columnas: con esa lectura bastaban una sesión del personal y la clave
+pública para sacar por PostgREST `client_id`, `sale_price`, `paid_amount`, los clientes y los pagos,
+pintara lo que pintara la pantalla. **Por eso la restricción no se hizo en la interfaz.**
+
+**Políticas.** El vendedor conserva exactamente la expresión que ya tenía; el personal pierde la suya.
+
+| Tabla | Hasta `0056` | Desde `0057` |
+|---|---|---|
+| `tickets` | `SELECT` de toda la organización y `tickets_update_staff` | `SELECT` solo del vendedor; **sin** `UPDATE` del personal; `tickets_insert_staff` solo admite filas sin cliente, precio, precio base, fecha de venta ni `assigned_at` |
+| `clients` | `SELECT`, `INSERT` y `UPDATE` del personal | Solo el vendedor; el alta exige además `has_org_role(…, 'seller')` |
+| `payments` · `payment_allocations` | `SELECT`, `INSERT` y `payments_update_staff` | Solo el vendedor; `payments_update_staff` ya no existe |
+| `audit_logs` | `audit_logs_select_staff` | **Ninguna política**: con FORCE RLS una sesión lee cero filas; entera, solo `service_role` |
+| `lottery_ticket_matches` | Toda la organización | Solo el vendedor (la fotografía guarda `client_id`) |
+| `seller_commissions` | Personal, vendedor y vendedor padre | Vendedor y vendedor padre |
+| `commission_ledger` | Personal y vendedor | Vendedor |
+
+**Las siete proyecciones.** Lo que el portal administrativo sí necesita llega por `admin_list_tickets`,
+`admin_ticket_detail`, `admin_ticket_bulk_eligibility`, `admin_update_ticket_numbers`,
+`admin_ticket_inventory`, `admin_lottery_matches` y `admin_audit_log` —el patrón de D-092—.
+
+| Propiedad | Qué impide |
+|---|---|
+| `SECURITY DEFINER`, dueño `postgres`, `SET search_path = public, pg_temp` y sin SQL dinámico | Secuestro de `search_path` (T12) e inyección |
+| La organización sale de `current_staff_org_ids()`; ningún parámetro recibe organización ni perfil | Leer otra organización enviando su identificador (T2) |
+| La lista blanca está **en el `returns table`**: ni `client_id`, ni precio, ni precio base, ni abonado, ni saldo, ni `partial` | Que un campo sensible llegue al navegador aunque ninguna pantalla lo pinte |
+| Estado de pago `paid`/`unpaid`, y `null` en una boleta sin vender; paz y salvo y fecha de venta, solo de una vendida | Deducir «Abonada», o que una anulada tuvo cliente |
+| Un id ajeno o inexistente devuelve cero filas; otra organización, lo mismo | Enumeración (T15) |
+| Búsqueda solo con `^[0-9]{1,4}$`; cualquier otro término devuelve cero filas **sin consultar** | Confirmar que un cliente existe buscando su nombre o su teléfono |
+| `p_payment_state` fuera de `paid`/`unpaid` es un error; el filtro se aplica **antes** del recuento y la paginación | Que `total_count` o el tamaño de una página distingan «Abonada» de «Sin pagar» |
+| `REVOKE` de `public` y `anon`; `GRANT` a `authenticated` y `service_role` | Ejecución sin sesión (§4.5, regla 2; D-128) |
+
+**Canales laterales cerrados.**
+
+| Canal | Cómo se cierra |
+|---|---|
+| RPC de venta y cobro llamadas por el personal | `assign_ticket_row`, `bulk_assign_tickets`, `create_payment`, `update_payment_allocation`, `update_ticket_sale_price`, `reassign_ticket_client`, `release_ticket_client` y `ticket_sale_price_limits` autorizan solo al vendedor, **con el mismo mensaje** que un id inexistente o de un vendedor ajeno |
+| Anular una boleta vendida | `cancel_ticket_row` y `bulk_cancel_tickets` la rechazan antes de mirar los pagos, **con el mismo mensaje** para Sin pagar, Abonada y Pagada |
+| La FK compuesta de `tickets.client_id` | Se comprueba sin RLS: por eso el alta del personal no admite `client_id` |
+| Aviso `team.sale` | Al personal, sin `sale_price`; los históricos se limpiaron y `memberships_redact_staff_notifications` lo quita al ascender a alguien. El del vendedor padre lo conserva (D-092) |
+| Bitácora | `admin_audit_log`: solo `ticket`, `raffle`, `membership` y `user`; sin `ticket.assign_client`, `ticket.bulk_assign`, `ticket.update_sale_price`, `ticket.reassign_client` ni `ticket.release_client`; claves de lista blanca por `admin_audit_redact`, y **sin la fila que se queda vacía**. `audit_row_change` ya registraba solo columnas cambiadas y sin `paid_amount` ni `payment_status`, así que un cambio de precio o de cliente no deja rastro visible |
+| Vistas y funciones `security_invoker` | Heredan la RLS nueva: al personal `v_seller_summary`, `v_raffle_summary`, `v_client_balances`, `v_payment_history`, `v_ticket_balances`, `report_*`, `commission_summary`, `search_tickets` y `ticket_bulk_eligibility` le devuelven cero o nada |
+| Importador | La vista previa y la Server Action rechazan cliente y abono en los dos portales; el servidor no consulta clientes por nombre para el personal |
+
+**RPC dormidas.** `void_payment`, `match_ticket_import_clients` e `import_tickets_with_clients` quedan
+**sin `EXECUTE` para `authenticated`** y con él para `service_role`; sus cuerpos no cambian y siguen
+exigiendo una sesión del personal. Las piezas internas `admin_audit_redact` y
+`memberships_redact_staff_notifications` no las ejecuta ninguna sesión. Las **dos** listas blancas de
+§4.5 cambiaron juntas: `tests/db/catalog.test.ts` y `scripts/verify-remote.ts`, que suma tres
+comprobaciones —RPC dormidas ejecutables desde una sesión (0), proyecciones para `authenticated` y no
+para `anon` (7) y políticas sobre `audit_logs` (0)—.
+
+**La aplicación.** `/owner/clients`, `/owner/clients/[clientId]` y `/owner/payments` no existen (404);
+las Server Actions de clientes, pagos, asignación, precio, cambio y liberación de cliente llaman a
+`authorizeAction(['seller'])`; `/api/reports/export` toma el público de la membresía de la sesión y
+nunca de la petición; los tipos de `src/features/tickets/admin-queries.ts` no declaran ningún campo de
+la cartera, y una prueba estructural (`tests/unit/admin-privacy.test.ts`) falla si el portal
+administrativo vuelve a importar las lecturas del vendedor.
+
+**Qué no cambia.** Ninguna tabla, columna, enumerado, disparador financiero ni restricción; ningún dato
+se borra salvo la copia de `sale_price` de los avisos del personal. `service_role` lo sigue leyendo
+todo, como siempre (seed, auditoría interna).
+
+**Verificación.** `tests/db/admin-privacy.test.ts` —con sesiones reales del Dueño, del Administrador,
+de dos vendedores y de otra organización— y `tests/e2e/privacidad-admin.spec.ts` y
+`privacidad-admin-movil.spec.ts`, que comprueban que los valores sembrados como secreto **no aparecen**
+en el HTML, en la carga RSC ni en las respuestas de red. `verify:remote` no se ha ejecutado contra el
+proyecto real: `0057` no está aplicada allí.
+
 ## 5. Protección de Server Actions y Route Handlers
 
 Toda Server Action parametrizada de negocio debe seguir esta secuencia. Las acciones públicas de
@@ -1215,6 +1299,8 @@ Eventos mínimos registrados en `audit_logs` (BR-D01):
   que descarta ciclos y recursión.
 - Los triggers escriben mediante una función `SECURITY DEFINER`, de modo que RLS no los bloquea.
 - No se registran contraseñas, tokens ni claves; los `jsonb` de valores omiten campos sensibles.
+- **Lectura, desde `0057` (D-198, BR-Q10):** `audit_logs` no tiene política de `SELECT`. El personal
+  la lee redactada por `admin_audit_log` (§4.19) y la bitácora completa solo la lee `service_role`.
 
 ---
 
@@ -1261,6 +1347,7 @@ Controles:
 | T16 | **Organización sin propietario** | El Owner se degrada o se desactiva a sí mismo con una llamada directa a PostgREST; nadie puede restaurarlo después | Trigger diferido `memberships_require_active_owner` (`0016`) | `F9-01` en `db/audit-phase9.test.ts`. **Encontrado por la auditoría de la Fase 9 (A-02), no por revisión de código** |
 | T17 | Server Action nueva sin guarda | Alguien añade una acción y olvida `authorizeAction` | Prueba estructural que recorre **recursivamente** `src/features` y falla sola | `unit/server-actions-guard.test.ts`. Su recorrido a un solo nivel dejaba fuera 6 de 28 acciones hasta la Fase 9 (A-01) |
 | T18 | **Abono de $0 registrado saltándose la RPC** | `authenticated` tiene `INSERT` sobre `payments` y `payment_allocations` (`0010`), así que un `POST` directo a PostgREST podría crear un pago de $0 desde que D-158 relajó los `CHECK` de fila a `>= 0` | Disparadores `BEFORE INSERT` `payments_insert_positive` y `payment_allocations_insert_positive` (`0042`): el `> 0` de BR-F03 lo sigue garantizando **la base** en el alta, y el cero solo entra por `update_payment_allocation` al corregir | `tests/db/payment-update.test.ts` › «tampoco por INSERT directo: el disparador de alta lo impide» |
+| T19 | **El personal lee la cartera de un vendedor** | Una sesión de Dueño o Administrador consulta `tickets`, `clients` o `payments` por PostgREST, llama a una RPC de venta, busca el nombre de un cliente, compara mensajes de rechazo o lee avisos y bitácora | Políticas solo del vendedor, siete proyecciones de lista blanca, RPC de venta con el mensaje de un id inexistente, anulación de vendidas rechazada igual para los tres estados, avisos y bitácora redactados (`0057`, §4.19, D-198) | `tests/db/admin-privacy.test.ts`, `tests/unit/admin-privacy.test.ts` y `tests/e2e/privacidad-admin*.spec.ts` |
 
 ---
 

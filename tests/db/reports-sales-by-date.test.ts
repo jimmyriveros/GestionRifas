@@ -25,7 +25,15 @@
 import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { DB_URL, loadSeedContext, randomNumbers, signInAs, USERS, type Client } from './helpers'
+import {
+  DB_URL,
+  loadSeedContext,
+  randomNumbers,
+  signInAs,
+  USERS,
+  voidPaymentAs,
+  type Client,
+} from './helpers'
 
 /** Ventana de prueba: un mes que no usa ninguna otra suite ni el seed. */
 const DESDE = '2020-03-01'
@@ -347,10 +355,17 @@ describe('D151-02 la fecha es `sale_date` y solo cuentan las vendidas', () => {
     expect(conExtra.ticketsCount).toBe(antes.ticketsCount + 1)
     expect(conExtra.totalSold).toBe(antes.totalSold + precio)
 
-    const { error } = await owner.rpc('cancel_ticket', {
-      p_ticket_id: extra!,
-      p_reason: 'Anulada para comprobar el reporte de ventas por fecha',
-    })
+    // D-198: el personal ya no anula una boleta vendida. Se anula con la service
+    // role —sin abonos, el disparador de estados lo permite—: lo que se prueba
+    // aqui es el reporte, no quien anula.
+    const { error } = await ctx.svc
+      .from('tickets')
+      .update({
+        inventory_status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: 'Anulada para comprobar el reporte de ventas por fecha',
+      })
+      .eq('id', extra!)
     expect(error).toBeNull()
 
     const despues = await totales(seller1)
@@ -409,9 +424,23 @@ describe('D151-03 cada vendedor solo ve sus ventas (BR-U07)', () => {
     expect(data).toEqual([])
   })
 
-  it('el personal ve la organizacion entera, y solo la suya', async () => {
-    const t = await totales(owner)
-    expect(t.ticketsCount).toBe(VENTAS_SELLER1 + ventasSeller2.length)
+  it('el personal no suma ninguna venta: el reporte es del vendedor (D-198)', async () => {
+    // Las ventas existen...
+    const deLaOrganizacion = await control<number>(
+      `select count(*)::int from tickets
+        where organization_id = $1 and inventory_status = 'assigned'
+          and sale_date between $2 and $3`,
+      [ctx.demoOrg.id, DESDE, HASTA],
+    )
+    expect(deLaOrganizacion).toBe(VENTAS_SELLER1 + ventasSeller2.length)
+
+    // ...y al Dueño no le cuentan ni una, ni un peso.
+    expect(await totales(owner)).toEqual({
+      ticketsCount: 0,
+      totalSold: 0,
+      paidAmount: 0,
+      pendingAmount: 0,
+    })
   })
 
   it('la otra organizacion queda aislada en los dos sentidos', async () => {
@@ -483,11 +512,12 @@ describe('D151-04 abonos y anulaciones', () => {
     const antes = await totales(seller1)
     const pago = pagosCreados[0]!
 
-    const { error } = await owner.rpc('void_payment', {
-      p_payment_id: pago,
-      p_reason: 'Anulado para comprobar el reporte de ventas por fecha',
-    })
-    expect(error).toBeNull()
+    // D-198: `void_payment` quedo dormida (ver `voidPaymentAs`).
+    await voidPaymentAs(
+      ctx.ids.owner,
+      pago,
+      'Anulado para comprobar el reporte de ventas por fecha',
+    )
 
     const despues = await totales(seller1)
     expect(despues.paidAmount).toBe(antes.paidAmount - 20_000)

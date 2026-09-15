@@ -18,6 +18,7 @@ import {
   randomNumbers,
   signInAs,
   USERS,
+  voidPaymentAs,
   type Client,
 } from './helpers'
 
@@ -517,11 +518,9 @@ describe('update_payment_allocation validacion (BR-F03, BR-F12, BR-F15)', () => 
     const ticketId = await assignFreshTicket(ctx.clients.ana.id)
     const paymentId = await pay(seller1, ctx.clients.ana.id, ticketId, 15_000)
 
-    const anulacion = await owner.rpc('void_payment', {
-      p_payment_id: paymentId,
-      p_reason: 'Anulacion para probar que no se edita',
-    })
-    expect(anulacion.error).toBeNull()
+    // D-198: `void_payment` quedo dormida; su cuerpo se ejecuta con la identidad
+    // del Dueño (ver `voidPaymentAs`).
+    await voidPaymentAs(ctx.ids.owner, paymentId, 'Anulacion para probar que no se edita')
 
     const { error } = await seller1.rpc('update_payment_allocation', {
       p_payment_id: paymentId,
@@ -592,17 +591,30 @@ describe('update_payment_allocation permisos y bitacora', () => {
     expect((await ticketState(ticketId)).paid_amount).toBe(11_000)
   })
 
-  it('el personal puede corregir el abono de un vendedor', async () => {
+  it('el personal ya no corrige el abono de un vendedor (D-198)', async () => {
     const ticketId = await assignFreshTicket(ctx.clients.ana.id)
     const paymentId = await pay(seller1, ctx.clients.ana.id, ticketId, 22_000)
 
+    // El mismo mensaje que recibe un vendedor ajeno: el rechazo no dice si el
+    // pago existe.
     const { error } = await owner.rpc('update_payment_allocation', {
       p_payment_id: paymentId,
       p_ticket_id: ticketId,
       p_amount: 35_000,
       p_expected_amount: 22_000,
     })
-    expect(error).toBeNull()
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/no existe o no tienes acceso/i)
+    expect((await ticketState(ticketId)).paid_amount).toBe(22_000)
+
+    // Su vendedor si puede.
+    const propio = await seller1.rpc('update_payment_allocation', {
+      p_payment_id: paymentId,
+      p_ticket_id: ticketId,
+      p_amount: 35_000,
+      p_expected_amount: 22_000,
+    })
+    expect(propio.error).toBeNull()
     expect((await ticketState(ticketId)).paid_amount).toBe(35_000)
   })
 

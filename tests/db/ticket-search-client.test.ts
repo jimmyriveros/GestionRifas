@@ -427,19 +427,37 @@ describe('search_tickets por nombre: hereda la RLS de quien busca', () => {
     expect(ids(ajena.data)).toContain(deSeller1)
   })
 
-  it('el personal si encuentra por nombre las boletas de cualquier vendedor suyo', async () => {
-    const { data, error } = await demoOwner.rpc('search_tickets', { p_search: apellido })
+  it('el personal NO encuentra boletas por el nombre del cliente (D-198)', async () => {
+    // Ni por la busqueda del vendedor, que hereda la RLS de `tickets`...
+    const vieja = await demoOwner.rpc('search_tickets', { p_search: apellido })
+    expect(vieja.error).toBeNull()
+    expect(vieja.data).toEqual([])
+
+    // ...ni por su proyeccion, que solo busca numeros: un nombre que existe
+    // responde exactamente lo mismo que uno que no existe.
+    const { data, error } = await demoOwner.rpc('admin_list_tickets', { p_search: apellido })
     expect(error).toBeNull()
-    expect(ids(data)).toEqual(expect.arrayContaining([deSeller1, deSeller2]))
+    expect(data).toEqual([])
+    const inexistente = await demoOwner.rpc('admin_list_tickets', { p_search: 'Zzqxnoexiste' })
+    expect(inexistente.error).toBeNull()
+    expect(inexistente.data).toEqual(data)
   })
 
   it('un nombre repetido en otra organizacion no se cruza', async () => {
-    const demo = await demoOwner.rpc('search_tickets', { p_search: apellido })
-    const control = await controlOwner.rpc('search_tickets', { p_search: apellido })
+    // Cada vendedor encuentra a SU cliente, y solo el suyo.
+    const otherOrgSeller = await signInAs(USERS.otherOrgSeller)
+    const demo = await seller1.rpc('search_tickets', { p_search: apellido })
+    const control = await otherOrgSeller.rpc('search_tickets', { p_search: apellido })
 
+    expect(ids(demo.data)).toContain(deSeller1)
     expect(ids(demo.data)).not.toContain(deOtraOrg)
     expect(ids(control.data)).toContain(deOtraOrg)
     expect(ids(control.data)).not.toContain(deSeller1)
+
+    // Y el personal de la otra organizacion tampoco encuentra nada por nombre.
+    const delPersonal = await controlOwner.rpc('search_tickets', { p_search: apellido })
+    expect(delPersonal.error).toBeNull()
+    expect(delPersonal.data).toEqual([])
   })
 
   it('los filtros acotan sin abrir nada: pedir otro vendedor no lo revela', async () => {

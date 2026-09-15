@@ -8,11 +8,7 @@ import {
   validateAllocations,
   type PayableTicket,
 } from '@/features/payments/allocation'
-import {
-  createPaymentSchema,
-  updatePaymentAllocationSchema,
-  voidPaymentSchema,
-} from '@/features/payments/schemas'
+import { createPaymentSchema, updatePaymentAllocationSchema } from '@/features/payments/schemas'
 
 /**
  * Logica pura del reparto de abonos y de la previsualizacion del estado de pago
@@ -310,22 +306,6 @@ describe('createPaymentSchema', () => {
       ],
     })
     expect(result.success).toBe(true)
-  })
-})
-
-describe('voidPaymentSchema (BR-F09)', () => {
-  it('exige un motivo de al menos 5 caracteres', () => {
-    expect(voidPaymentSchema.safeParse({ paymentId: UUID_A, reason: 'ups' }).success).toBe(false)
-    expect(
-      voidPaymentSchema.safeParse({ paymentId: UUID_A, reason: 'Cliente pidio devolucion' })
-        .success,
-    ).toBe(true)
-  })
-
-  it('recorta los espacios antes de medir el motivo', () => {
-    expect(voidPaymentSchema.safeParse({ paymentId: UUID_A, reason: '        ' }).success).toBe(
-      false,
-    )
   })
 })
 

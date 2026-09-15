@@ -1,6 +1,6 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-09-03. Para quien **opera el negocio** (Owner/Admin), no para quien
+**Actualizado:** 2026-09-14 (D-198: §4, §4.b y §4.c). Para quien **opera el negocio** (Owner/Admin), no para quien
 programa. Para desplegar la aplicación ver [`DEPLOYMENT.md`](DEPLOYMENT.md); para problemas
 frecuentes, [`RUNBOOK.md`](RUNBOOK.md).
 
@@ -85,21 +85,26 @@ hizo y cuándo (auditado en `audit_logs`).
 Desde el detalle de la boleta (`/owner/tickets/[id]`) → **"Anular boleta"** → campo obligatorio
 "Explica por que se anula esta boleta" → confirmar.
 
+**Desde el 2026-09-14 (D-198) solo se anulan las boletas que no se han vendido.** Una vendida sin
+abonos la libera primero su vendedor (§4.c) y después se anula; una con abonos en su historial, o de
+una rifa que ya no está activa, **no se anula desde la aplicación** (I-116).
+
 ### Pago
 
-Solo Owner/Admin — un vendedor no ve esta opción. Desde el detalle del pago (accesible desde
-`/owner/payments` o desde el historial del cliente/boleta) → **"Anular pago"** → campo obligatorio
-"Motivo de la anulacion" → confirmar. Efecto inmediato: las asignaciones de ese pago dejan de contar,
-los saldos y el estado de pago (Sin pagar / Abonada / Pagada) de cada boleta afectada se recalculan
-solos — nunca hay que ajustar nada a mano.
+**Suspendido desde el 2026-09-14 (D-198).** Nadie anula pagos desde la aplicación: `/owner/payments`
+ya no existe y `void_payment` no la ejecuta ninguna sesión. Si un abono se registró por error, **su
+vendedor** lo corrige —incluso a $0— desde el detalle de la boleta (BR-F16, BR-F17): queda en el
+historial, deja de contar y el saldo y el estado de pago se recalculan solos. Volver a anular pagos
+exige el procedimiento de reactivación de D-198.
 
 ---
 
 ## 4.b Corregir el cliente de una boleta vendida
 
 Cuando una boleta se le asignó a la persona equivocada, **no hay que anularla ni volver a venderla**.
-Desde el detalle de la boleta —`/seller/tickets/[id]` para el vendedor, `/owner/tickets/[id]` para el
-personal— hay un botón **«Cambiar cliente»** debajo de la tarjeta del cliente. Se elige el cliente
+Desde el detalle de la boleta en el portal del vendedor (`/seller/tickets/[id]`) hay un botón
+**«Cambiar cliente»** debajo de la tarjeta del cliente. **Desde D-198 lo hace solo el vendedor de la
+boleta**: el Dueño y los Administradores ya no ven su cliente. Se elige el cliente
 correcto (o se crea ahí mismo), se escribe el motivo y se confirma. Solo cambia el cliente: el
 precio, la fecha de venta, los números y el estado quedan igual, y el equipo **no** recibe otra vez
 el aviso de venta.
@@ -128,21 +133,21 @@ y se confirma. Al terminar, la boleta queda **Disponible**, sin cliente, sin pre
 venta, y se vende otra vez por el flujo normal —que vuelve a copiar el precio vigente de la rifa
 (BR-P03)—.
 
-Lo puede hacer **el vendedor dueño de la boleta** y también el Dueño o un Administrador. El botón
+Lo hace **el vendedor dueño de la boleta**; desde D-198, el Dueño y los Administradores no. El botón
 desaparece, con su explicación en pantalla, cuando no se puede:
 
 | Situación | Qué se ve | Qué hacer |
 |---|---|---|
-| La boleta tiene abonos en su historial —incluso anulados o corregidos a $0— | «Esta boleta tiene abonos en su historial: ya no puede cambiar de cliente ni liberarse.» | Si hubo dinero de por medio, la salida es **anular** la boleta (Dueño o Administrador), no liberarla |
+| La boleta tiene abonos en su historial —incluso anulados o corregidos a $0— | «Esta boleta tiene abonos en su historial: ya no puede cambiar de cliente ni liberarse.» | Desde D-198 **no hay salida desde la aplicación**: el personal ya no anula boletas vendidas. Si de verdad hay que retirarla, es una corrección de datos (I-116) |
 | La boleta ya salió en un resultado de lotería | «Esta boleta ya hace parte de un resultado registrado: no puede cambiar de cliente ni liberarse.» | Nada: la fotografía del sorteo es inmutable a propósito |
-| La rifa ya no está activa | «La rifa ya no está activa: esta boleta no se puede liberar.» | Ahí la única salida es **anularla**, y eso lo hace el Dueño o un Administrador |
+| La rifa ya no está activa | «La rifa ya no está activa: esta boleta no se puede liberar.» | Igual que la primera fila: una boleta vendida ya no se anula desde la aplicación (I-116) |
 
 **Liberar, anular y eliminar no son lo mismo**, y conviene tenerlo claro antes de tocar nada:
 
 | | Qué pasa con la boleta | Qué pasa con sus números | Quién |
 |---|---|---|---|
-| **Liberar** | Vuelve a Disponible y se puede vender otra vez | Siguen siendo suyos | Su vendedor, o el personal |
-| **Anular** | Queda Anulada para siempre | **Reservados**: no se reutilizan en esa rifa | Solo Dueño o Administrador |
+| **Liberar** | Vuelve a Disponible y se puede vender otra vez | Siguen siendo suyos | Su vendedor |
+| **Anular** | Queda Anulada para siempre | **Reservados**: no se reutilizan en esa rifa | Solo Dueño o Administrador, y desde D-198 solo si no se ha vendido |
 | **Eliminar** | Desaparece; solo si nunca se vendió ni tuvo abonos | Quedan libres | Solo Dueño o Administrador |
 
 Todo queda en la bitácora: quién liberó, cuándo, a quién estaba vendida, por cuánto, en qué fecha y

@@ -2,16 +2,21 @@ import { UsersIcon } from 'lucide-react'
 
 import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
-import { getCommissionContext } from '@/features/commissions/queries'
 import { SellersTable } from '@/features/sellers/components/SellersTable'
-import { listSellersWithTotals } from '@/features/sellers/queries'
+import { listSellersWithInventory } from '@/features/sellers/queries'
 import { CreateUserButton } from '@/features/users/components/CreateUserButton'
 import { requireStaff } from '@/lib/auth/guards'
 
+/**
+ * Vendedores de la organizacion.
+ *
+ * Desde D-198 la tabla dice cuantas boletas tiene cada uno, no cuanto dinero
+ * mueve: lo vendido, el saldo y la ganancia son de su cartera (BR-Q08).
+ */
 export default async function SellersPage() {
   const membership = await requireStaff()
 
-  const [sellers, comisiones] = await Promise.all([listSellersWithTotals(), getCommissionContext()])
+  const sellers = await listSellersWithInventory()
 
   // La estructura comercial, derivada de la misma lista: quien tiene equipo,
   // quien pertenece al de alguien y quien no (BR-E08). Sin consultas nuevas.
@@ -23,10 +28,6 @@ export default async function SellersPage() {
       teamSizes.set(seller.parentSellerId, (teamSizes.get(seller.parentSellerId) ?? 0) + 1)
     }
   }
-
-  const earnings = new Map<string, number>(
-    [...comisiones.bySeller.values()].map((row) => [row.sellerId, row.earned]),
-  )
 
   return (
     <div className="space-y-6">
@@ -50,7 +51,6 @@ export default async function SellersPage() {
           currentProfileId={membership.profileId}
           teamSizes={teamSizes}
           parentNames={parentNames}
-          earnings={earnings}
         />
       )}
     </div>

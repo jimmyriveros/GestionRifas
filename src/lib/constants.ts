@@ -118,6 +118,37 @@ export const TICKET_PAYMENT_STATUS_PLURAL_LABELS: Record<TicketPaymentStatus, st
 }
 
 /**
+ * El estado de pago de una boleta tal como lo ve el PORTAL ADMINISTRATIVO
+ * (D-198, BR-Q04).
+ *
+ * No es un estado nuevo de la base de datos: `ticket_payment_status` sigue
+ * teniendo sus tres valores y `partial` sigue existiendo. Es una presentacion
+ * que calcula SQL (`admin_list_tickets`, `admin_ticket_detail`): `paid` si la
+ * boleta esta pagada y `unpaid` si no lo esta, sea `unpaid` o `partial`. El
+ * personal no ve cuanto se abono, y «Abonada» se lo diria.
+ *
+ * Las palabras son las MISMAS del vendedor, tomadas de su constante: no se
+ * escribe un segundo «Sin pagar» (CLAUDE.md §27).
+ */
+export type AdminTicketPaymentState = 'unpaid' | 'paid'
+
+export const ADMIN_TICKET_PAYMENT_STATE_VALUES: readonly AdminTicketPaymentState[] = [
+  'unpaid',
+  'paid',
+]
+
+export const ADMIN_TICKET_PAYMENT_STATE_LABELS: Record<AdminTicketPaymentState, string> = {
+  unpaid: TICKET_PAYMENT_STATUS_LABELS.unpaid,
+  paid: TICKET_PAYMENT_STATUS_LABELS.paid,
+}
+
+/** Las mismas dos, encabezando un recuento: «Pagadas 12». */
+export const ADMIN_TICKET_PAYMENT_STATE_PLURAL_LABELS: Record<AdminTicketPaymentState, string> = {
+  unpaid: TICKET_PAYMENT_STATUS_PLURAL_LABELS.unpaid,
+  paid: TICKET_PAYMENT_STATUS_PLURAL_LABELS.paid,
+}
+
+/**
  * Estado de la cuenta de una persona (BR-E14).
  *
  * No se deriva de un solo dato, y por eso vive aqui y no en la base:
@@ -255,6 +286,12 @@ export const TICKET_PAYMENT_STATUS_TONES: Record<TicketPaymentStatus, StatusTone
   unpaid: 'neutral',
   partial: 'info',
   paid: 'success',
+}
+
+/** Los tonos de los dos estados administrativos, tomados de los del vendedor (D-198). */
+export const ADMIN_TICKET_PAYMENT_STATE_TONES: Record<AdminTicketPaymentState, StatusTone> = {
+  unpaid: TICKET_PAYMENT_STATUS_TONES.unpaid,
+  paid: TICKET_PAYMENT_STATUS_TONES.paid,
 }
 
 export const RAFFLE_STATUS_TONES: Record<RaffleStatus, StatusTone> = {

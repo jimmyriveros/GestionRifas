@@ -9,12 +9,23 @@
  *
  * Ninguna prueba usa la service role para el acto probado (D-043).
  *
+ * D-198: el personal ya no anula ni registra abonos. `void_payment` quedo
+ * dormida y su cuerpo se ejecuta con `voidPaymentAs` (ver `helpers.ts`).
+ *
  * Reglas cubiertas: BR-F02, BR-F03, BR-F05, BR-F06, BR-F07, BR-F08, BR-F09,
  * BR-F10, BR-F11, BR-F12, BR-F13, BR-I11, BR-I12.
  */
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { loadSeedContext, randomNumbers, signInAs, USERS, type Client } from './helpers'
+import {
+  asProfile,
+  loadSeedContext,
+  randomNumbers,
+  signInAs,
+  USERS,
+  voidPaymentAs,
+  type Client,
+} from './helpers'
 
 let ctx: Awaited<ReturnType<typeof loadSeedContext>>
 let seller1: Client
@@ -266,15 +277,32 @@ describe('F5-02 anulacion de pagos (BR-F09, BR-F10, BR-F11)', () => {
     return { ticketId: ticket.id, paymentId: paymentId as string, price: ticket.price }
   }
 
-  it('el Admin anula y el saldo se recalcula de inmediato', async () => {
+  it('desde D-198 ninguna sesion anula: ni el Dueño ni el Administrador', async () => {
+    const { ticketId, paymentId } = await paidTicket()
+
+    for (const staff of [owner, admin]) {
+      const { error } = await staff.rpc('void_payment', {
+        p_payment_id: paymentId,
+        p_reason: 'Intento desde el portal administrativo',
+      })
+      expect(error).not.toBeNull()
+      expect(error!.code).toBe('42501')
+    }
+
+    const { data } = await ctx.svc
+      .from('payments')
+      .select('voided_at, voided_by, void_reason')
+      .eq('id', paymentId)
+      .single()
+    expect(data).toEqual({ voided_at: null, voided_by: null, void_reason: null })
+    expect((await ticketState(ticketId)).paid_amount).toBe(30_000)
+  })
+
+  it('anular recalcula el saldo de inmediato', async () => {
     const { ticketId, paymentId } = await paidTicket()
     expect((await ticketState(ticketId)).paid_amount).toBe(30_000)
 
-    const { error } = await admin.rpc('void_payment', {
-      p_payment_id: paymentId,
-      p_reason: 'Cheque devuelto por el banco',
-    })
-    expect(error).toBeNull()
+    await voidPaymentAs(ctx.ids.admin, paymentId, 'Cheque devuelto por el banco')
 
     const state = await ticketState(ticketId)
     expect(state.paid_amount).toBe(0)
@@ -283,7 +311,7 @@ describe('F5-02 anulacion de pagos (BR-F09, BR-F10, BR-F11)', () => {
 
   it('el pago anulado NO se borra: sigue en el historial con su motivo', async () => {
     const { paymentId } = await paidTicket()
-    await owner.rpc('void_payment', { p_payment_id: paymentId, p_reason: 'Error de digitacion' })
+    await voidPaymentAs(ctx.ids.owner, paymentId, 'Error de digitacion')
 
     const { data } = await ctx.svc
       .from('payments')
@@ -292,7 +320,7 @@ describe('F5-02 anulacion de pagos (BR-F09, BR-F10, BR-F11)', () => {
       .single()
 
     expect(data!.voided_at).not.toBeNull()
-    expect(data!.voided_by).not.toBeNull()
+    expect(data!.voided_by).toBe(ctx.ids.owner)
     expect(data!.void_reason).toBe('Error de digitacion')
   })
 
@@ -311,21 +339,16 @@ describe('F5-02 anulacion de pagos (BR-F09, BR-F10, BR-F11)', () => {
   it('exige un motivo de al menos 5 caracteres', async () => {
     const { paymentId } = await paidTicket()
 
-    const { error } = await owner.rpc('void_payment', { p_payment_id: paymentId, p_reason: 'ups' })
-    expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/motivo/i)
+    await expect(voidPaymentAs(ctx.ids.owner, paymentId, 'ups')).rejects.toThrow(/motivo/i)
   })
 
   it('un pago anulado no se puede volver a anular (D-013)', async () => {
     const { paymentId } = await paidTicket()
-    await owner.rpc('void_payment', { p_payment_id: paymentId, p_reason: 'Primera anulacion' })
+    await voidPaymentAs(ctx.ids.owner, paymentId, 'Primera anulacion')
 
-    const { error } = await owner.rpc('void_payment', {
-      p_payment_id: paymentId,
-      p_reason: 'Segunda anulacion',
-    })
-    expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/ya esta anulado/i)
+    await expect(voidPaymentAs(ctx.ids.owner, paymentId, 'Segunda anulacion')).rejects.toThrow(
+      /ya esta anulado/i,
+    )
   })
 
   it('anular uno de dos pagos deja el saldo del otro intacto', async () => {
@@ -343,10 +366,7 @@ describe('F5-02 anulacion de pagos (BR-F09, BR-F10, BR-F11)', () => {
     })
     expect((await ticketState(ticket.id)).paid_amount).toBe(50_000)
 
-    await owner.rpc('void_payment', {
-      p_payment_id: first as string,
-      p_reason: 'Se anula solo el primero',
-    })
+    await voidPaymentAs(ctx.ids.owner, first as string, 'Se anula solo el primero')
 
     expect((await ticketState(ticket.id)).paid_amount).toBe(20_000)
   })
@@ -361,10 +381,7 @@ describe('F5-02 anulacion de pagos (BR-F09, BR-F10, BR-F11)', () => {
     })
     expect((await ticketState(ticket.id)).payment_status).toBe('paid')
 
-    await owner.rpc('void_payment', {
-      p_payment_id: paymentId as string,
-      p_reason: 'Pago revertido',
-    })
+    await voidPaymentAs(ctx.ids.owner, paymentId as string, 'Pago revertido')
 
     const { error } = await seller1.rpc('create_payment', {
       p_client_id: ctx.clients.ana.id,
@@ -377,15 +394,16 @@ describe('F5-02 anulacion de pagos (BR-F09, BR-F10, BR-F11)', () => {
 
   it('la anulacion queda auditada (BR-D01)', async () => {
     const { paymentId } = await paidTicket()
-    await owner.rpc('void_payment', { p_payment_id: paymentId, p_reason: 'Anulacion auditada' })
+    await voidPaymentAs(ctx.ids.owner, paymentId, 'Anulacion auditada')
 
     const { data: logs } = await ctx.svc
       .from('audit_logs')
-      .select('action, entity_id')
+      .select('action, entity_id, actor_profile_id')
       .eq('entity_id', paymentId)
       .eq('action', 'payment.void')
 
     expect(logs!.length).toBeGreaterThan(0)
+    expect(logs![0]!.actor_profile_id).toBe(ctx.ids.owner)
   })
 })
 
@@ -398,22 +416,38 @@ describe('F5-03 boletas con pagos activos (BR-I11, BR-I12)', () => {
       p_allocations: [{ ticket_id: ticket.id, amount: 10_000 }],
     })
 
+    // D-198: el personal ya no anula una boleta vendida, tenga o no abonos. Un
+    // rechazo distinto segun el abono dejaria adivinar la «Abonada» detras de
+    // «Sin pagar».
     const blocked = await owner.rpc('cancel_ticket', {
       p_ticket_id: ticket.id,
       p_reason: 'Intento con pagos activos',
     })
     expect(blocked.error).not.toBeNull()
-    expect(blocked.error!.message).toMatch(/pagos activos/i)
+    expect(blocked.error!.message).toMatch(/ya está vendida/i)
 
-    await owner.rpc('void_payment', {
-      p_payment_id: paymentId as string,
-      p_reason: 'Libera la boleta',
-    })
+    // BR-I11 sigue en el disparador: ni cambiando el estado a mano sale de
+    // «asignada» una boleta con pagos activos...
+    const anular = {
+      inventory_status: 'cancelled' as const,
+      cancelled_at: new Date().toISOString(),
+      cancel_reason: 'Directo, con la service role',
+    }
+    const directo = await ctx.svc.from('tickets').update(anular).eq('id', ticket.id)
+    expect(directo.error).not.toBeNull()
+    expect(directo.error!.message).toMatch(/pagos activos/i)
 
-    const allowed = await owner.rpc('cancel_ticket', {
+    await voidPaymentAs(ctx.ids.owner, paymentId as string, 'Libera la boleta')
+
+    // ...y con el pago anulado, si. Desde una sesion del personal sigue sin
+    // poder: la boleta continua vendida.
+    const staffAfter = await owner.rpc('cancel_ticket', {
       p_ticket_id: ticket.id,
-      p_reason: 'Ahora si se puede anular',
+      p_reason: 'Tras anular el pago',
     })
+    expect(staffAfter.error!.message).toMatch(/ya está vendida/i)
+
+    const allowed = await ctx.svc.from('tickets').update(anular).eq('id', ticket.id)
     expect(allowed.error).toBeNull()
     expect((await ticketState(ticket.id)).inventory_status).toBe('cancelled')
   })
@@ -497,12 +531,15 @@ describe('F5-04 historial de pagos: lo que alimenta la interfaz (BR-F13)', () =>
       p_total_amount: 15_000,
       p_allocations: [{ ticket_id: ticket.id, amount: 15_000 }],
     })
-    await owner.rpc('void_payment', {
-      p_payment_id: paymentId as string,
-      p_reason: 'Para comprobar el nombre de quien anula',
-    })
+    await voidPaymentAs(
+      ctx.ids.owner,
+      paymentId as string,
+      'Para comprobar el nombre de quien anula',
+    )
 
-    const { data } = await owner
+    // El nombre lo pone la VISTA: es un calculo, no un permiso, y se comprueba
+    // con la service role.
+    const { data } = await ctx.svc
       .from('v_payment_history')
       .select('voided_by_name, void_reason, is_active')
       .eq('payment_id', paymentId as string)
@@ -511,19 +548,49 @@ describe('F5-04 historial de pagos: lo que alimenta la interfaz (BR-F13)', () =>
     expect(data!.is_active).toBe(false)
     expect(data!.voided_by_name).toBe('Camila Restrepo')
     expect(data!.void_reason).toBe('Para comprobar el nombre de quien anula')
+
+    // Su vendedor lo sigue viendo anulado y con su motivo: es su cartera.
+    const { data: delVendedor } = await seller1
+      .from('v_payment_history')
+      .select('void_reason, is_active')
+      .eq('payment_id', paymentId as string)
+      .single()
+    expect(delVendedor).toEqual({
+      void_reason: 'Para comprobar el nombre de quien anula',
+      is_active: false,
+    })
+
+    // El Dueño ya no ve pagos de ningun vendedor, ni siquiera el que anulo (D-198).
+    const { data: delDueno } = await owner
+      .from('v_payment_history')
+      .select('payment_id')
+      .eq('payment_id', paymentId as string)
+    expect(delDueno).toEqual([])
   })
 
   it('I-015: el vendedor VE el pago que registro un administrador para su cliente', async () => {
     // Regresion. Con INNER JOIN sobre `profiles`, el perfil del administrador no
     // era visible para el vendedor y la fila ENTERA desaparecia de su historial,
     // aunque `payments_select` si le permitiera verla en la tabla base.
+    //
+    // Desde D-198 el personal ya no registra abonos, pero los que registro antes
+    // siguen en la base. El pago se deja con esa forma —`created_by` del
+    // Administrador— y en una sola transaccion, como lo escribia la RPC.
     const ticket = await assignedTicket(ctx.clients.ana.id)
-    const { data: paymentId, error } = await owner.rpc('create_payment', {
-      p_client_id: ctx.clients.ana.id,
-      p_total_amount: 12_000,
-      p_allocations: [{ ticket_id: ticket.id, amount: 12_000 }],
-    })
-    expect(error).toBeNull()
+    const { rows } = await asProfile<{ payment_id: string }>(
+      ctx.ids.admin,
+      `with pago as (
+         insert into payments
+           (organization_id, seller_id, client_id, total_amount, payment_method, created_by)
+         values ($1, $2, $3, 12000, 'cash', $4)
+         returning id, organization_id, client_id
+       )
+       insert into payment_allocations (payment_id, ticket_id, client_id, organization_id, amount)
+       select id, $5, client_id, organization_id, 12000 from pago
+       returning payment_id`,
+      [ctx.demoOrg.id, ctx.ids.seller1, ctx.clients.ana.id, ctx.ids.admin, ticket.id],
+    )
+    const paymentId = rows[0]!.payment_id
 
     const { data: inTable } = await seller1
       .from('payments')

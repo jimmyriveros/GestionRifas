@@ -5,10 +5,11 @@ import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
 import { RafflesTable } from '@/features/raffles/components/RafflesTable'
-import { listRaffleSummaries } from '@/features/raffles/queries'
+import { listAdminRaffleSummaries } from '@/features/raffles/queries'
 
 export default async function RafflesPage() {
-  const raffles = await listRaffleSummaries()
+  // Recuentos del personal, sin dinero (D-198).
+  const raffles = await listAdminRaffleSummaries()
 
   return (
     <div className="space-y-6">

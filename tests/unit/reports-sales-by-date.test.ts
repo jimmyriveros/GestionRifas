@@ -67,14 +67,14 @@ describe('resolveReport — predeterminado por portal, no global', () => {
     expect(resolveReport('sales-by-date', OWNER_REPORT_KEYS)).toBe('sellers')
   })
 
-  it('los reportes visibles para el personal no cambiaron', () => {
-    expect(OWNER_REPORT_KEYS).toEqual([
-      'sellers',
-      'ticket-status',
-      'raffles',
-      'client-balances',
-      'payments',
-    ])
+  it('el personal solo tiene los reportes de inventario (D-198)', () => {
+    // «Clientes con saldo» y «Pagos por fecha» hablan de la cartera y del dinero
+    // de cada vendedor: desde D-198 no se ofrecen al Dueño ni al Administrador.
+    expect(OWNER_REPORT_KEYS).toEqual(['sellers', 'ticket-status', 'raffles'])
+    expect(OWNER_REPORT_KEYS).not.toContain('client-balances')
+    expect(OWNER_REPORT_KEYS).not.toContain('payments')
+    expect(resolveReport('client-balances', OWNER_REPORT_KEYS)).toBe('sellers')
+    expect(resolveReport('payments', OWNER_REPORT_KEYS)).toBe('sellers')
   })
 
   it('cada rol recibe la lista de su portal', () => {

@@ -39,7 +39,7 @@ const PRECIO = 120_000
 /**
  * Fecha de los abonos de partida, deliberadamente antigua.
  *
- * «Pagos recientes» del panel administrativo enseña CINCO, ordenados por fecha
+ * «Pagos recientes» del panel administrativo enseñaba CINCO —hasta D-198, que lo retiró—, ordenados por fecha
  * de pago. Cinco abonos de hoy desplazaban el pago anulado del seed y hacían
  * fallar `reports.spec.ts`, que comprueba justo que un anulado se distingue por
  * texto. Aquí la fecha no es lo que se prueba, así que se aparta.
@@ -68,8 +68,9 @@ async function escenario(nombre: string, abono: number, precio = PRECIO): Promis
   boletas.push(ticket.id)
 
   if (abono > 0) {
-    const owner = await signedInClient(ACCOUNTS.owner)
-    const { error } = await owner.rpc('create_payment', {
+    // Lo cobra SU vendedor: desde D-198 el Dueño ya no registra abonos (BR-Q06).
+    const vendedor = await signedInClient(ACCOUNTS.seller)
+    const { error } = await vendedor.rpc('create_payment', {
       p_client_id: cliente.id,
       p_total_amount: abono,
       p_allocations: [{ ticket_id: ticket.id, amount: abono }],

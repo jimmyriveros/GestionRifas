@@ -3,7 +3,14 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-13 — **El mensaje propio de «Resultados de la semana»** (D-197, BR-H09,
+- **Actualizado:** 2026-09-14 — **La cartera es del vendedor** (D-198, BR-Q01..BR-Q10, migración
+  **`0057`**), ⚠️ **solo en local**: el Dueño y el Administrador dejan de leer y de tocar clientes,
+  precios, abonos, saldos, pagos y ganancias de los vendedores, **en la base y en el servidor**, no solo
+  en la pantalla. Administran el inventario por siete proyecciones de lista blanca: «Boletas» sin
+  cartera, búsqueda por número y pago en dos estados; sin «Clientes» ni «Pagos»; panel, vendedores,
+  rifas y reportes con recuentos. El portal del vendedor no cambia. Resultados finales y los seis
+  puntos de §34.3, en su sección de mantenimiento.
+  Antes, el 2026-09-13 — **El mensaje propio de «Resultados de la semana»** (D-197, BR-H09,
   BR-H10, migración **`0056`**), 🚀 **DESPLEGADO** el mismo día (`6dd23e5`), con `0056` aplicada al
   proyecto real: cada vendedor puede usar su propio mensaje junto a
   la imagen con «Usar mi propio mensaje», conservarlo entre visitas y semanas y volver al
@@ -4901,6 +4908,68 @@ si exige una variable que nadie ha creado (I-021).
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
 
 ---
+
+## Mantenimiento post-9 — la cartera es del vendedor: el personal sin acceso a la información comercial (D-198, `0057`, 2026-09-14)
+
+Encargo expreso del usuario, con el alcance **B · «Tampoco finanzas»**. **No es una fase nueva** y no
+lleva etiqueta `fase-*`. **Solo en local**: sin push, sin despliegue y sin tocar el proyecto real.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Base de datos (`0057`) | Las políticas de `tickets`, `clients`, `payments`, `payment_allocations`, `lottery_ticket_matches`, `seller_commissions` y `commission_ledger` son **solo del vendedor** —y del vendedor padre donde ya lo eran—; `audit_logs` se queda sin política de lectura. Lo que el personal administra le llega por **siete proyecciones `admin_*`** de lista blanca. Las RPC de venta y cobro autorizan solo al vendedor, con el mensaje de lo inexistente; anular una vendida se rechaza igual sin pagar, abonada y pagada; `void_payment` y la importación con clientes quedan **dormidas**; los avisos del personal pierden el precio y la bitácora se lee redactada |
+| «Boletas» del personal | Sin cliente, precio, abonado, saldo ni progreso; **búsqueda solo por número**; estado de pago **«Pagada» / «Sin pagar»**, con el filtro resuelto en SQL antes de contar; `paymentStatus=partial` y `clientId` antiguos, ignorados. El detalle, la selección y «Ver seleccionadas», con la misma lista blanca |
+| Rutas y menú | **Retiradas** `/owner/clients`, `/owner/clients/[clientId]` y `/owner/payments`, con sus entradas del menú lateral, de la barra inferior y del menú de usuario |
+| Panel, «Vendedores», ficha, «Rifas» y «Reportes» | Cuentan boletas —«Pagadas» y «Sin pagar» incluidas— y no enseñan vendido, recaudado, saldo ni ganancia. Tres reportes de recuentos, con el CSV sacado de las mismas lecturas |
+| Importación | Los **dos** portales importan solo boletas sin vender: una fila con cliente o abono se aparta con su frase y el servidor la rechaza |
+| Portal del vendedor | **Sin cambios de comportamiento**; sus Server Actions de clientes, pagos, venta, precio, cambio y liberación exigen `seller` |
+| Reversibilidad | Ningún dato borrado salvo la copia del precio en los avisos del personal; procedimiento de reactivación en D-198 |
+
+### 2. Pruebas ejecutadas y sus resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base: `test:db` y `verify` | ✅ **1.016/1.016** y **1.141/1.141** |
+| Primeras pasadas | ❌ `test:db` con 115 fallos y después 5; unitarias con 2 archivos en rojo; E2E sin arrancar (`webServer`) y detenida a propósito. Todo corregido, sin quitar aserciones (`TEST_RESULTS`, 2026-09-14) |
+| `db:reset` + `seed:local` + E2E dirigida, escritorio y móvil | **542/553**, con las 23 de privacidad en verde. Las que fallaron, repetidas: **41/41**, **110/112** y, corregidas dos pruebas y una ayuda de pruebas, **38/38** (`TEST_RESULTS`, 2026-09-14, d) |
+| Final: `db:reset` + `seed:local` y `npm run test:db` | ✅ **1.048/1.048** en 47 archivos |
+| Final: `npm run verify` | ✅ typecheck · lint (0 errores, 2 avisos preexistentes) · **1.155/1.155** unitarias en 66 archivos · `build` |
+| Final: E2E completa | **706/710** en 35,2 min. Los 4: dos de **I-090** y uno de **I-106**, que pasan solos, y `boleta-cliente.spec.ts:395`, una carrera con la hidratación que metió la conversión, ya corregida (**3/3** sola y su archivo **15/15**) |
+
+### 3. Migraciones que existen
+
+`0001`–`0056`, iguales en local y en el proyecto real. **`0057_admin_portfolio_privacy.sql`, solo en
+local**: políticas de la cartera solo del vendedor, siete proyecciones `admin_*`, las RPC de venta y
+cobro solo del vendedor, tres RPC dormidas, avisos del personal sin precio y bitácora redactada.
+Ninguna tabla, columna ni enumerado nuevos.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **I-118 — `0057` y su código, solo en local y dependientes** | Producción sigue dando al personal la lectura amplia. Desplegar una mitad sin la otra rompe el portal administrativo, y `verify:remote` falla hasta aplicar `0057` |
+| **I-116 — operaciones suspendidas** | Nadie anula pagos ni boletas vendidas desde la aplicación, y no se importan ventas. Una vendida con abonos en su historial o de una rifa ya no activa no tiene salida sin `service_role` |
+| **I-117 — residuo aceptado** | Una disponible con asignaciones heredadas no se elimina y el personal no ve por qué |
+| **I-119 — cobertura suspendida** | Los casos de éxito de la importación con clientes y abonos se convirtieron; hay que devolverlos al reactivar |
+| **I-120 — pruebas de loterías de madrugada** | Entre las 00:00 y la 01:00 de Bogotá, tres pruebas de `loterias-panel` fallan sin que falle nada: siembran un sorteo de hoy a la 01:00. **Ajeno a D-198**, visto durante su verificación |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Lee D-198 y `SECURITY` §4.19 antes de tocar cualquier lectura del personal.** Si una pantalla
+   administrativa necesita un dato, se añade a una proyección `admin_*` —y a su lista blanca y sus
+   pruebas—, **nunca** ampliando `tickets_select` ni leyendo las vistas del vendedor.
+2. **No despliegues sin autorización, y nunca una mitad**: `0057` y el código van juntos (I-118).
+3. **Las tres RPC dormidas no se ejecutan con sesión**: para probar su cuerpo, `asProfile` o
+   `voidPaymentAsStaff`, que no prueban RLS.
+4. **Una E2E del personal que busque la cartera en lo recibido** usa `privacidad-escenario.ts`: sus
+   cifras llevan límites y lo que la prueba escribe se excluye.
+5. **Reactivar** es una migración nueva y el procedimiento de D-198, con las pruebas convertidas de
+   vuelta (I-119).
 
 ## Mantenimiento post-9 — el mensaje propio de «Resultados de la semana» (D-197, `0056`, 2026-09-13)
 

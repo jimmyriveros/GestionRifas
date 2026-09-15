@@ -2,24 +2,28 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { PageHeader } from '@/components/data/PageHeader'
-import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/StatusBadge'
+import { AdminPaymentStateBadge, InventoryStatusBadge } from '@/components/data/StatusBadge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ClientEmptyCard, ClientLinkCard } from '@/features/clients/components/ClientLinkCard'
-import { listClientOptions } from '@/features/clients/queries'
-import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
-import { listClientPayments } from '@/features/payments/queries'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
-import { clearanceState } from '@/features/tickets/clearance-receipt'
-import { TicketActions } from '@/features/tickets/components/TicketActions'
+import { getAdminTicketDetail } from '@/features/tickets/admin-queries'
 import { ClearanceReceiptReadOnly } from '@/features/tickets/components/ClearanceReceiptReadOnly'
-import { TicketClientActions } from '@/features/tickets/components/TicketClientActions'
-import { TicketSalePrice } from '@/features/tickets/components/TicketSalePrice'
-import { getTicketDetail } from '@/features/tickets/queries'
-import { canReassignClient } from '@/features/tickets/reassign-client'
-import { hasTicketClientActions } from '@/features/tickets/release-ticket'
+import { TicketActions } from '@/features/tickets/components/TicketActions'
 import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
-import { formatCOP } from '@/lib/money'
 
+/**
+ * Detalle de una boleta en el portal administrativo.
+ *
+ * LA CARTERA ES DEL VENDEDOR (D-198, BR-Q03). Esta pantalla lee
+ * `admin_ticket_detail`, que no devuelve cliente, precio, abonado, saldo ni
+ * abonos, y por eso ya no hay tarjeta del cliente, ni resumen de cobro, ni
+ * historial de abonos, ni edicion del precio, ni cambiar o liberar el cliente:
+ * todo eso necesitaba ver lo que el personal ya no ve. Lo que se conserva son
+ * las acciones de inventario —aprobar, corregir los numeros, cambiar el
+ * vendedor, anular y eliminar—, cada una con las reglas de su RPC.
+ *
+ * Un id que no existe, uno de otra organizacion y uno que ni siquiera es un uuid
+ * responden igual: 404.
+ */
 export default async function TicketDetailPage({
   params,
 }: {
@@ -27,30 +31,11 @@ export default async function TicketDetailPage({
 }) {
   const { ticketId } = await params
   const [ticket, sellers] = await Promise.all([
-    getTicketDetail(ticketId),
+    getAdminTicketDetail(ticketId),
     listActiveSellerOptions(),
   ])
 
   if (!ticket) notFound()
-
-  // MISMO componente y MISMA regla que el portal del vendedor (D-168). Lo unico
-  // propio de aqui: la RLS deja al personal ver los clientes de toda la
-  // organizacion, asi que la lista se acota EXPRESAMENTE a la cartera del
-  // vendedor de la boleta — ofrecer los demas seria proponer opciones que la
-  // base va a rechazar (BR-C05).
-  const canReassign = canReassignClient(ticket)
-
-  const [payments, reassignClients] = await Promise.all([
-    ticket.clientId ? listClientPayments(ticket.clientId) : Promise.resolve([]),
-    canReassign
-      ? listClientOptions(undefined, undefined, { sellerId: ticket.sellerId })
-      : Promise.resolve([]),
-  ])
-
-  const canEditSalePrice =
-    ticket.inventoryStatus === 'assigned' &&
-    ticket.salePrice !== null &&
-    ticket.raffleStatus === 'active'
 
   return (
     <div className="space-y-6">
@@ -63,8 +48,16 @@ export default async function TicketDetailPage({
         title="Detalle boleta"
         backHref={`/owner/tickets?raffleId=${ticket.raffleId}`}
         actions={
+          // Al componente cliente viajan SOLO los cinco datos que usan sus
+          // acciones, no el detalle entero.
           <TicketActions
-            ticket={ticket}
+            ticket={{
+              id: ticket.id,
+              dailyNumber: ticket.dailyNumber,
+              weeklyNumber: ticket.weeklyNumber,
+              inventoryStatus: ticket.inventoryStatus,
+              sellerId: ticket.sellerId,
+            }}
             sellers={sellers.map((seller) => ({ id: seller.id, fullName: seller.fullName }))}
           />
         }
@@ -76,9 +69,6 @@ export default async function TicketDetailPage({
             <h2>Boleta</h2>
           </CardTitle>
         </CardHeader>
-        {/* `grid-cols-1` es obligatorio, por lo mismo que en el portal del
-            vendedor: una columna `auto` se estira hasta el minimo de su
-            contenido, y el nombre del cliente lleva `truncate` (I-076). */}
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Número diario">
             <span className="font-mono text-lg tabular-nums">{ticket.dailyNumber ?? '—'}</span>
@@ -90,10 +80,10 @@ export default async function TicketDetailPage({
             <InventoryStatusBadge status={ticket.inventoryStatus} />
           </Field>
           <Field label="Estado de pago">
-            {ticket.inventoryStatus === 'assigned' ? (
-              <PaymentStatusBadge status={ticket.paymentStatus} />
-            ) : (
+            {ticket.paymentState === null ? (
               <span className="text-muted-foreground">Sin venta</span>
+            ) : (
+              <AdminPaymentStateBadge state={ticket.paymentState} />
             )}
           </Field>
           <Field label="Vendedor">
@@ -110,55 +100,19 @@ export default async function TicketDetailPage({
               {`${ticket.raffleShortCode} — ${ticket.raffleName}`}
             </Link>
           </Field>
-          {/* El cliente ocupa su propia fila y es una tarjeta pulsable entera,
-              no un enlace escondido en una celda (D-101). Lleva a la MISMA
-              ficha de «Clientes», no a una version propia de esta pantalla. */}
-          <div className="sm:col-span-2 lg:col-span-4">
-            {ticket.clientId ? (
-              <ClientLinkCard
-                href={`/owner/clients/${ticket.clientId}`}
-                name={ticket.clientName ?? 'Cliente'}
-                phone={ticket.clientPhone}
-                action={
-                  hasTicketClientActions(ticket) ? (
-                    <TicketClientActions ticket={ticket} clients={reassignClients} />
-                  ) : undefined
-                }
-              />
-            ) : (
-              <ClientEmptyCard description="Esta boleta todavía no se ha vendido." />
-            )}
-          </div>
-          <Field label="Precio de venta">
-            {ticket.salePrice === null ? (
-              <span className="text-muted-foreground">
-                Sin vender (precio vigente {formatCOP(ticket.raffleTicketPrice)})
-              </span>
-            ) : (
-              <TicketSalePrice
-                ticketId={ticket.id}
-                salePrice={ticket.salePrice}
-                basePrice={ticket.basePrice}
-                minSalePrice={ticket.minSalePrice}
-                paidAmount={ticket.paidAmount}
-                canEdit={canEditSalePrice}
-              />
-            )}
-          </Field>
-          <Field label="Abonado">
-            {ticket.salePrice === null ? '—' : formatCOP(ticket.paidAmount)}
-          </Field>
           <Field label="Fecha de venta">
             {ticket.saleDate ? formatDateEs(ticket.saleDate) : '—'}
           </Field>
           {/* SOLO PARA MIRAR (D-170). El paz y salvo lo registra el vendedor
-              que lo entregó; el personal necesita consultarlo —para saber a
-              quién reclamarle un desprendible—, pero marcar una entrega que no
-              hizo no significaría nada. Por eso aquí no hay interruptor, y la
-              RPC tampoco se lo deja invocar. */}
-          {clearanceState(ticket) !== null ? (
+              que lo entregó; el personal lo consulta para saber a quién
+              reclamarle un desprendible. El estado llega ya resuelto por SQL,
+              sin el cliente (D-198). */}
+          {ticket.clearanceState !== null ? (
             <Field label="Paz y salvo">
-              <ClearanceReceiptReadOnly ticket={ticket} />
+              <ClearanceReceiptReadOnly
+                state={ticket.clearanceState}
+                deliveredAt={ticket.clearanceDeliveredAt}
+              />
             </Field>
           ) : null}
           <Field label="Creada">{formatDateTimeEs(ticket.createdAt)}</Field>
@@ -187,15 +141,6 @@ export default async function TicketDetailPage({
           </p>
         </CardContent>
       </Card>
-
-      {ticket.inventoryStatus === 'assigned' ? (
-        <TicketPaymentsCard
-          payments={payments}
-          ticketId={ticket.id}
-          salePrice={ticket.salePrice}
-          paidAmount={ticket.paidAmount}
-        />
-      ) : null}
 
       {ticket.cancelReason ? (
         <Card>

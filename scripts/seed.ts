@@ -392,12 +392,29 @@ async function seedDemoBusiness(orgId: string, ids: Record<string, string>) {
   })
   if (aAnular.error) throw aAnular.error
 
-  const ownerClient = await signInAs('owner@demo.test')
-  const anulacion = await ownerClient.rpc('void_payment', {
-    p_payment_id: aAnular.data as string,
-    p_reason: 'Registrado por error durante el seed de desarrollo',
-  })
+  // D-198: anular un pago dejo de ser algo que haga una SESION —el personal ya
+  // no ve pagos y `void_payment` no es ejecutable por `authenticated`—. El seed
+  // conserva su pago anulado de ejemplo haciendo lo mismo que esa RPC, con la
+  // clave de servicio: marcar el pago —el disparador `payments_recalc_on_void`
+  // recalcula la boleta— y dejar su fila `payment.void` en la bitacora (BR-D01).
+  const motivoAnulacion = 'Registrado por error durante el seed de desarrollo'
+  const anuladoEn = new Date().toISOString()
+  const anulacion = await admin
+    .from('payments')
+    .update({ voided_at: anuladoEn, voided_by: owner, void_reason: motivoAnulacion })
+    .eq('id', aAnular.data as string)
   if (anulacion.error) throw anulacion.error
+
+  const bitacoraAnulacion = await admin.from('audit_logs').insert({
+    organization_id: orgId,
+    actor_profile_id: owner,
+    action: 'payment.void',
+    entity_type: 'payment',
+    entity_id: aAnular.data as string,
+    old_values: { voided_at: null },
+    new_values: { voided_at: anuladoEn, voided_by: owner, void_reason: motivoAnulacion },
+  })
+  if (bitacoraAnulacion.error) throw bitacoraAnulacion.error
 
   console.log(
     '  pagos: 1 parcial ($40.000), 1 completo ($120.000), 1 repartido ($100.000 + $50.000), 1 anulado',

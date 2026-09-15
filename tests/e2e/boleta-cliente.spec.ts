@@ -216,20 +216,39 @@ test.describe('Buscar boletas por el nombre del cliente (BR-N13)', () => {
     await expect(page.getByText('Ninguna boleta coincide con los filtros')).toBeVisible()
   })
 
-  test('el personal encuentra por nombre las boletas de cualquiera de sus vendedores', async ({
+  /**
+   * Hasta D-198 el personal encontraba por nombre las boletas de cualquier
+   * vendedor. Desde D-198 el portal administrativo busca SOLO por número
+   * (BR-Q05): el nombre de un cliente real responde exactamente lo mismo que uno
+   * que no existe, así que la búsqueda no confirma nada de la cartera.
+   */
+  test('el personal NO encuentra boletas por el nombre del cliente, y la respuesta no lo delata (D-198)', async ({
     page,
   }) => {
     const nombre = unique(`${PREFIJO} DelOtro`)
     const { numeros } = await clienteConBoletas(nombre, 1, { sellerId: refs.otherSellerId })
+    const n = numeros[0]!
+    const enlace = page.getByRole('link', { name: `Ver la boleta ${n.daily} / ${n.weekly}` })
 
     await loginAs(page, ACCOUNTS.owner)
-    await page.goto('/owner/tickets')
-    await buscar(page, nombre)
+    const respuestaA = async (termino: string) => {
+      await page.goto(`/owner/tickets?q=${encodeURIComponent(termino)}`)
+      await expect(page.getByText('Ninguna boleta coincide con los filtros')).toBeVisible()
+      return page.locator('main').innerText()
+    }
 
-    const n = numeros[0]!
+    const conNombreReal = await respuestaA(nombre)
+    await expect(enlace).toHaveCount(0)
     await expect(
-      page.getByRole('link', { name: `Ver la boleta ${n.daily} / ${n.weekly}` }),
+      page.getByText('Escribe solo el número diario o el semanal de la boleta.').first(),
     ).toBeVisible()
+
+    const conNombreInventado = await respuestaA(`${PREFIJO} Nadie Zzyzx`)
+    expect(conNombreReal).toBe(conNombreInventado)
+
+    // Por su número, la misma boleta sí aparece.
+    await page.goto(`/owner/tickets?q=${n.daily}`)
+    await expect(enlace).toBeVisible()
   })
 
   test('un nombre sin resultados explica qué se puede buscar', async ({ page }) => {
@@ -368,20 +387,37 @@ test.describe('Del detalle de una boleta a la ficha del cliente (D-101)', () => 
     await expect(page.locator('a[href*="/seller/clients/"]')).toHaveCount(0)
   })
 
-  test('el mismo camino existe en el portal administrativo, hacia SU ficha', async ({ page }) => {
+  /**
+   * Hasta D-198 el detalle administrativo llevaba a la ficha del cliente en su
+   * propio portal. Desde D-198 esa ficha no existe y el detalle no trae cliente
+   * (BR-Q01): ni fila pulsable, ni nombre, ni enlace, ni su identificador.
+   */
+  test('el portal administrativo ya no lleva a ninguna ficha de cliente (D-198)', async ({
+    page,
+  }) => {
     const nombre = unique(`${PREFIJO} Admin`)
     const { clientId, numeros } = await clienteConBoletas(nombre, 1)
     const n = numeros[0]!
 
     await loginAs(page, ACCOUNTS.owner)
-    await page.goto('/owner/tickets')
-    await buscar(page, nombre)
-    await page.getByRole('link', { name: `Ver la boleta ${n.daily} / ${n.weekly}` }).click()
-    await page.waitForURL(/\/owner\/tickets\/[0-9a-f-]+$/)
+    await page.goto(`/owner/tickets?q=${n.daily}`)
 
-    await filaDelCliente(page, nombre).click()
-    await page.waitForURL(`**/owner/clients/${clientId}`)
-    await expect(page.getByRole('heading', { name: nombre })).toBeVisible()
+    // Reintento deliberado: aqui se pulsa nada mas cargar la lista —el personal ya
+    // no busca escribiendo un nombre, que era lo que daba tiempo—, y ese primer
+    // clic cae entre que el HTML esta pintado y que React lo hidrata, y no navega
+    // (TESTING.md 5.3). Visto el 2026-09-15 en la suite completa y aislada: el
+    // clic, 13 ms despues de «[HMR] connected», y ninguna peticion al detalle.
+    const enlace = page.getByRole('link', { name: `Ver la boleta ${n.daily} / ${n.weekly}` })
+    await expect(async () => {
+      await enlace.click()
+      await page.waitForURL(/\/owner\/tickets\/[0-9a-f-]+$/, { timeout: 3000 })
+    }).toPass({ timeout: 20_000 })
+    await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeVisible()
+
+    await expect(filaDelCliente(page, nombre)).toHaveCount(0)
+    await expect(page.getByText(nombre)).toHaveCount(0)
+    await expect(page.locator('a[href*="/clients/"]')).toHaveCount(0)
+    expect(await page.content()).not.toContain(clientId)
   })
 
   test('en el teléfono la fila del cliente es una diana cómoda', async ({ page }) => {

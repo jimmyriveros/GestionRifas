@@ -23,7 +23,14 @@
 import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { DB_URL, loadSeedContext, SEED_PASSWORD, signInAs, type Client } from './helpers'
+import {
+  DB_URL,
+  loadSeedContext,
+  SEED_PASSWORD,
+  signInAs,
+  voidPaymentAs,
+  type Client,
+} from './helpers'
 
 let db: PgClient
 let ctx: Awaited<ReturnType<typeof loadSeedContext>>
@@ -417,12 +424,9 @@ describe('E10 — el equipo reparte una sola mitad', () => {
       [rifaId, hijoId],
     )
 
-    const owner = await signInAs('owner@demo.test')
-    const { error } = await owner.rpc('void_payment', {
-      p_payment_id: rows[0].id,
-      p_reason: 'Prueba de anulacion del reparto de equipo',
-    })
-    expect(error).toBeNull()
+    // D-198: `void_payment` quedo dormida; su cuerpo se ejecuta con la identidad
+    // del Dueño (ver `voidPaymentAs`).
+    await voidPaymentAs(ctx.ids.owner, rows[0].id, 'Prueba de anulacion del reparto de equipo')
 
     // Vuelve a 20 boletas: el hijo baja de tramo y el padre sube de parte.
     const h = await comision(hijoId)

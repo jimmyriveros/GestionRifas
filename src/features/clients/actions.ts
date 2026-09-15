@@ -24,15 +24,17 @@ import {
  * Aunque llegara manipulado, la politica `clients_insert` solo deja al vendedor
  * crear clientes a su propio nombre, y su WITH CHECK impide ademas transferir
  * un cliente a otro vendedor (BR-C05, verificado: devuelve 42501).
+ *
+ * SOLO EL VENDEDOR, desde D-198: la cartera es suya (BR-Q01). El personal ya no
+ * busca, edita ni archiva clientes, y las politicas de `clients` se lo niegan
+ * aunque llegara hasta aqui.
  */
 
 function revalidateClients(clientId?: string) {
   revalidatePath('/seller/clients')
   revalidatePath('/seller/dashboard')
-  revalidatePath('/owner/clients')
   if (clientId) {
     revalidatePath(`/seller/clients/${clientId}`)
-    revalidatePath(`/owner/clients/${clientId}`)
   }
 }
 
@@ -72,7 +74,7 @@ export async function createClientRecord(
 }
 
 export async function updateClientRecord(input: unknown): Promise<ActionResult> {
-  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
   const parsed = updateClientSchema.safeParse(input)
@@ -105,7 +107,7 @@ export async function updateClientRecord(input: unknown): Promise<ActionResult> 
  * asignacion (BR-C07) pero sigue teniendo perfil.
  */
 export async function setClientArchived(input: unknown): Promise<ActionResult> {
-  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
   const parsed = setClientArchivedSchema.safeParse(input)
@@ -142,9 +144,8 @@ export async function setClientArchived(input: unknown): Promise<ActionResult> {
 export async function searchClientOptions(
   term: unknown,
 ): Promise<ActionResultWith<ClientOption[]>> {
-  // Cualquier rol con selector de cliente. La RLS decide QUE clientes ve cada
-  // uno: el vendedor los suyos, el personal los de su organizacion.
-  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  // Solo el vendedor, y la RLS le devuelve solo los suyos (D-198).
+  const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
   const parsed = searchTermSchema.safeParse(term)
@@ -161,7 +162,7 @@ export async function searchClientOptions(
 export async function searchClientsWithBalance(
   term: unknown,
 ): Promise<ActionResultWith<ClientWithBalance[]>> {
-  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
   const parsed = searchTermSchema.safeParse(term)

@@ -105,7 +105,7 @@ const CHECKS: Check[] = [
     //   * Se excluyen las funciones de extension (`pg_trgm`), que no son
     //     nuestras y no tocan datos.
     //   * Se excluye lo que la aplicacion SI debe poder llamar: la lista blanca
-    //     de abajo son las 27 RPC del codigo mas las siete funciones que usan
+    //     de abajo son las RPC del codigo mas las siete funciones que usan
     //     las POLITICAS de RLS —sin EXECUTE sobre ellas, toda lectura fallaria,
     //     porque la expresion de una politica se evalua como quien consulta—.
     //
@@ -123,11 +123,17 @@ const CHECKS: Check[] = [
               where d.objid = p.oid and d.deptype = 'e'
             )
             and p.proname not in (
+              -- 0057 (D-198): las proyecciones del portal administrativo. Solo
+              -- el personal obtiene filas y ninguna devuelve cliente, precio,
+              -- abonos ni saldo
+              'admin_audit_log', 'admin_list_tickets', 'admin_lottery_matches',
+              'admin_ticket_bulk_eligibility', 'admin_ticket_detail',
+              'admin_ticket_inventory', 'admin_update_ticket_numbers',
               -- Las RPC que llama la aplicacion
               'approve_tickets', 'bulk_assign_tickets', 'bulk_cancel_tickets',
               'bulk_change_ticket_seller', 'bulk_create_tickets', 'bulk_delete_tickets',
               'cancel_ticket', 'commission_summary', 'create_payment',
-              'import_tickets_with_clients', 'log_ticket_import', 'mark_profile_activated',
+              'log_ticket_import', 'mark_profile_activated',
               'reassign_ticket_client', 'release_ticket_client',
               'report_payment_totals', 'report_payments_by_day', 'report_sales_totals',
               'search_tickets', 'set_seller_whatsapp_settings', 'set_ticket_clearance_delivery',
@@ -150,7 +156,7 @@ const CHECKS: Check[] = [
               'team_max_fixed_commission', 'team_member_sales', 'team_sales_summary',
               'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
               'ticket_sale_price_limits', 'update_payment_allocation',
-              'update_ticket_sale_price', 'void_payment',
+              'update_ticket_sale_price',
               -- Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
               'current_org_ids', 'current_profile_id', 'current_profile_leads_team',
               'current_staff_org_ids', 'current_team_seller_ids', 'has_org_role',
@@ -158,7 +164,7 @@ const CHECKS: Check[] = [
               -- Auxiliares que si se llaman desde la aplicacion o desde una
               -- columna generada, y no dan acceso a ningun dato
               'assign_ticket', 'format_cop', 'search_normalize',
-              'match_ticket_import_clients', 'ticket_import_name_key', 'ticket_import_phone_key'
+              'ticket_import_name_key', 'ticket_import_phone_key'
             )`,
     esperado: 0,
   },
@@ -184,7 +190,7 @@ const CHECKS: Check[] = [
     nombre: 'Las RPC de negocio son ejecutables por authenticated',
     sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
           where n.nspname = 'public'
-            and p.proname in ('create_payment', 'void_payment', 'update_payment_allocation',
+            and p.proname in ('create_payment', 'update_payment_allocation',
                               'update_ticket_sale_price', 'reassign_ticket_client',
                               'release_ticket_client', 'set_ticket_clearance_delivery',
                               'set_seller_whatsapp_settings',
@@ -192,7 +198,41 @@ const CHECKS: Check[] = [
                               'assign_ticket', 'bulk_create_tickets', 'approve_tickets',
                               'cancel_ticket')
             and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
-    esperado: 13,
+    esperado: 12,
+  },
+  {
+    // D-198: las tres RPC con las que el personal administraba la cartera de un
+    // vendedor quedan dormidas. Solo `service_role` las ejecuta; reactivarlas es
+    // volver a concederlas (procedimiento en docs/DECISIONS.md D-198).
+    nombre: 'RPC de cartera del personal ejecutables desde una sesion (D-198)',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in ('void_payment', 'match_ticket_import_clients',
+                              'import_tickets_with_clients')
+            and (has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                 or has_function_privilege('anon', p.oid, 'EXECUTE'))`,
+    esperado: 0,
+  },
+  {
+    nombre: 'Proyecciones administrativas para authenticated y NO para anon (D-198)',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in ('admin_list_tickets', 'admin_ticket_detail',
+                              'admin_ticket_bulk_eligibility', 'admin_update_ticket_numbers',
+                              'admin_ticket_inventory', 'admin_lottery_matches',
+                              'admin_audit_log')
+            and p.prosecdef
+            and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+            and not has_function_privilege('anon', p.oid, 'EXECUTE')`,
+    esperado: 7,
+  },
+  {
+    // D-198: el personal lee la bitacora redactada por `admin_audit_log`; la
+    // tabla no tiene ninguna politica para `authenticated`.
+    nombre: 'Politicas sobre audit_logs (D-198)',
+    sql: `select policyname as x from pg_policies
+          where schemaname = 'public' and tablename = 'audit_logs'`,
+    esperado: 0,
   },
   {
     nombre: 'Las 3 funciones de reporte son ejecutables por authenticated',

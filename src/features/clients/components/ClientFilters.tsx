@@ -6,13 +6,6 @@ import { useTransition } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { SearchInput } from '@/features/search/components/SearchInput'
 import { useUrlSearch } from '@/features/search/use-url-search'
@@ -22,11 +15,11 @@ import { SEARCH_MIN_CHARS } from '@/lib/search'
 const ALL = 'all'
 
 /**
- * Filtros de clientes, compartidos por los dos portales. El selector de
- * vendedor solo aparece si se le pasan vendedores: en el portal del vendedor
- * todos los clientes son suyos y el filtro sobraria.
+ * Filtros de «Mis clientes». Sin selector de vendedor: todos los clientes son
+ * del vendedor que mira, y desde D-198 el portal administrativo no tiene
+ * clientes que filtrar.
  */
-export function ClientFilters({ sellers }: { sellers?: { value: string; label: string }[] }) {
+export function ClientFilters() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -45,7 +38,7 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
     startTransition(() => router.push(query ? `${pathname}?${query}` : pathname))
   }
 
-  const hasFilters = ['q', 'sellerId', 'archived'].some((key) => searchParams.get(key))
+  const hasFilters = ['q', 'archived'].some((key) => searchParams.get(key))
 
   return (
     <div
@@ -72,31 +65,6 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
       />
 
       <div className="flex flex-wrap items-end gap-4">
-        {sellers ? (
-          <div className="min-w-56 space-y-1.5">
-            <Label htmlFor="client-seller" className="text-xs">
-              Vendedor
-            </Label>
-            <Select
-              value={searchParams.get('sellerId') ?? ALL}
-              onValueChange={(value) => apply({ sellerId: value })}
-              disabled={isPending}
-            >
-              <SelectTrigger id="client-seller" size="touch" className="w-full">
-                <SelectValue placeholder="Todos los vendedores" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Todos los vendedores</SelectItem>
-                {sellers.map((seller) => (
-                  <SelectItem key={seller.value} value={seller.value}>
-                    {seller.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
-
         <div className="flex items-center gap-2 pb-2">
           <Switch
             id="client-archived"
@@ -115,7 +83,7 @@ export function ClientFilters({ sellers }: { sellers?: { value: string; label: s
             variant="ghost"
             size="sm"
             disabled={isPending}
-            onClick={() => apply({ q: null, sellerId: null, archived: null })}
+            onClick={() => apply({ q: null, archived: null })}
           >
             <XIcon className="size-4" aria-hidden />
             Limpiar filtros

@@ -724,6 +724,9 @@ de la misma transacción, pero impidiendo confirmar un estado descuadrado.
 Append-only: sin políticas de `UPDATE` ni `DELETE` para ningún rol. La escritura ocurre desde
 triggers y funciones `SECURITY DEFINER`. Eventos mínimos registrados: `docs/SECURITY.md` §6.
 
+**Lectura, desde `0057` (D-198):** sin política de `SELECT`. El personal la lee redactada por
+`admin_audit_log` (§6.g.8); la tabla completa solo la lee `service_role`.
+
 ### 4.10 `lottery_draw_schedules` (`0036`)
 
 Programación oficial de los seis sorteos ordinarios. **Nacional:** no tiene `organization_id`.
@@ -1543,6 +1546,39 @@ valor ya sea el actual, y la bitácora la deja `audit_memberships`, que no anota
 **El mensaje predeterminado no está aquí** ni en ninguna tabla: lleva la semana dentro y lo compone la
 aplicación (`weeklyResultsMessage`). La lectura de la pantalla es un `select` de las dos columnas sobre
 la membresía de la sesión (`getWeeklyResultsMessageSettings`), sujeto a `memberships_select`.
+
+### 6.g.8 Proyecciones del portal administrativo (migración `0057`, D-198)
+
+Desde `0057` las políticas de `tickets`, `clients`, `payments`, `payment_allocations`, `audit_logs`,
+`lottery_ticket_matches`, `seller_commissions` y `commission_ledger` ya no dejan leer al personal
+(`SECURITY.md` §4.19). Lo que el portal administrativo necesita llega por siete funciones
+`SECURITY DEFINER`, con `search_path` fijo y `EXECUTE` revocado de `public` y `anon` y concedido a
+`authenticated` y `service_role`. **Ninguna recibe organización**: sale de `current_staff_org_ids()`,
+y quien no es personal activo recibe un conjunto vacío, igual que un id que no existe.
+
+| Función | Devuelve | Consumidor |
+|---|---|---|
+| `admin_list_tickets(p_search, p_raffle_id, p_seller_id, p_inventory_status, p_payment_state, p_ticket_ids, p_limit, p_offset)` | `id`, `daily_number`, `weekly_number`, `inventory_status`, `payment_state`, `clearance_state`, `raffle_id`, `raffle_name`, `raffle_short_code`, `seller_id`, `total_count` | `listAdminTickets`, `listAdminTicketIds` y `listAdminTicketsByIds` (`/owner/tickets`) |
+| `admin_ticket_detail(p_ticket_id)` | `id`, `internal_code`, los dos números, `inventory_status`, `payment_state`, `sale_date`, `created_at`, `approved_at`, `cancelled_at`, `cancel_reason`, `raffle_id`, `raffle_name`, `raffle_short_code`, `raffle_status`, `seller_id`, `clearance_state`, `clearance_delivered_at` | `getAdminTicketDetail` (`/owner/tickets/[ticketId]`) |
+| `admin_ticket_bulk_eligibility(p_ticket_ids)` | `ticket_id`, los dos números, `inventory_status`, `seller_id`, `raffle_id`, `raffle_active`, `can_approve`, `can_cancel`, `can_change_seller`, `can_delete` | `listAdminTicketEligibility` (selección múltiple) |
+| `admin_update_ticket_numbers(p_ticket_id, p_daily_number, p_weekly_number)` | `void` | La edición de números del detalle. Sustituye al `UPDATE` directo que permitía `tickets_update_staff` |
+| `admin_ticket_inventory(p_raffle_id)` | Por rifa y vendedor: `tickets_total`, `tickets_available`, `tickets_assigned`, `tickets_pending_approval`, `tickets_draft`, `tickets_cancelled`, `tickets_paid`, `tickets_not_paid` | `readAdminTicketInventory`: panel, «Vendedores», ficha del vendedor, «Rifas» y reportes del personal |
+| `admin_lottery_matches(p_result_ids)` | `result_id`, `assignment_status`, `matched_number`, `ticket_id`, `raffle_name`, los dos números | El recuadro de loterías del panel administrativo |
+| `admin_audit_log(p_entity_type, p_entity_id, p_limit, p_offset)` | Las columnas de `audit_logs` sin `ip_address` ni `user_agent`, con `old_values` y `new_values` redactados | **Ninguna pantalla todavía**: la aplicación no tiene vista de bitácora. Existe para que consultarla no obligue a reabrir la tabla (BR-D04, BR-Q10) |
+
+| Regla | Valor |
+|---|---|
+| `payment_state` | `paid` si `payment_status = 'paid'`; `unpaid` si es `unpaid` **o `partial`**; `null` si la boleta no está `assigned`. **Nunca `partial`** |
+| `clearance_state` y `sale_date` | Solo de una boleta `assigned`; `clearance_delivered_at` se omite en una carga inicial (D-170) |
+| `p_search` | Vacío o `^[0-9]{1,4}$`, con coincidencia parcial en los dos números y el orden de relevancia de `search_tickets`. **Cualquier otro valor devuelve cero filas sin consultar** |
+| `p_payment_state` | `paid`, `unpaid` o `null`; otro valor lanza «El estado de pago no es válido.». Se aplica **antes** del recuento y la paginación |
+| Topes | `p_limit` de 0 a 1.000 (25 por omisión) y hasta 1.000 `p_ticket_ids`; 200 resultados en `admin_lottery_matches`; 500 filas por página en `admin_audit_log` |
+| `admin_update_ticket_numbers` | Rechaza una boleta anulada y números fuera de `^[0-9]{1,4}$`; completar un `draft` lo deja `available`; la auditoría la escribe `audit_tickets` |
+| `tickets_not_paid` | `assigned` y `payment_status <> 'paid'`: el «Sin pagar» administrativo |
+| `admin_audit_log` | Entidades `ticket`, `raffle`, `membership` y `user`; sin `ticket.assign_client`, `ticket.bulk_assign`, `ticket.update_sale_price`, `ticket.reassign_client` ni `ticket.release_client`; claves de la lista blanca de `admin_audit_redact` (interna, sin `EXECUTE` para ninguna sesión); una fila cuyos valores quedan vacíos no se devuelve |
+
+**Ninguna tabla, columna ni enumerado cambió**: `ticket_payment_status` sigue teniendo sus tres
+valores. Las vistas `security_invoker` (§6) heredan la RLS nueva y al personal le devuelven nada.
 
 ### 6.h Coincidencias de lotería (migración `0036`)
 

@@ -44,6 +44,9 @@ function revalidateTickets(ticketId?: string) {
  * Superficies que leen `sale_price` o un total que sale de el. El detalle se
  * nombra por patron Y por ruta literal: revalidar `/seller/tickets` no alcanza
  * a `[ticketId]` (D-133).
+ *
+ * Desde D-198 el portal administrativo no enseña precios; su lista y su detalle
+ * se revalidan igual, porque un precio corregido puede dejar la boleta Pagada.
  */
 function revalidateTicketPrice(ticketId: string, clientId?: string | null) {
   revalidatePath('/seller/tickets')
@@ -56,11 +59,8 @@ function revalidateTicketPrice(ticketId: string, clientId?: string | null) {
   revalidatePath('/owner/tickets/[ticketId]', 'page')
   revalidatePath(`/owner/tickets/${ticketId}`)
   revalidatePath('/owner/dashboard')
-  revalidatePath('/owner/payments')
-  revalidatePath('/owner/clients')
   if (clientId) {
     revalidatePath(`/seller/clients/${clientId}`)
-    revalidatePath(`/owner/clients/${clientId}`)
   }
 }
 
@@ -92,26 +92,29 @@ export async function createTicket(input: unknown): Promise<ActionResultWith<{ i
     return { error: 'La rifa está cerrada o anulada y no admite boletas nuevas.' }
   }
 
-  const { data, error } = await supabase
-    .from('tickets')
-    .insert({
-      organization_id: auth.membership.organizationId,
-      raffle_id: values.raffleId,
-      seller_id: values.sellerId,
-      daily_number: values.dailyNumber,
-      weekly_number: values.weeklyNumber,
-      // BR-I04: creada por el personal, con ambos numeros y sin cliente.
-      inventory_status: 'available',
-      created_by: auth.membership.profileId,
-      // internal_code lo genera un trigger (D-039).
-    })
-    .select('id')
-    .single()
+  // El id lo pone el servidor y NO se lee de vuelta (D-198). El personal ya no
+  // tiene lectura sobre `tickets`, asi que un `insert ... returning` fallaria:
+  // `tickets_insert_staff` le deja crear la boleta sin venta, y con el id ya
+  // decidido aqui se puede abrir su detalle sin volver a consultarla.
+  const id = crypto.randomUUID()
+
+  const { error } = await supabase.from('tickets').insert({
+    id,
+    organization_id: auth.membership.organizationId,
+    raffle_id: values.raffleId,
+    seller_id: values.sellerId,
+    daily_number: values.dailyNumber,
+    weekly_number: values.weeklyNumber,
+    // BR-I04: creada por el personal, con ambos numeros y sin cliente.
+    inventory_status: 'available',
+    created_by: auth.membership.profileId,
+    // internal_code lo genera un trigger (D-039).
+  })
 
   if (error) return { error: mapPgError(error) }
 
   revalidateTickets()
-  return { ok: true, data: { id: data.id } }
+  return { ok: true, data: { id } }
 }
 
 export async function updateTicketNumbers(input: unknown): Promise<ActionResult> {
@@ -124,32 +127,16 @@ export async function updateTicketNumbers(input: unknown): Promise<ActionResult>
   }
   const values = parsed.data
 
+  // D-198: por RPC y no por UPDATE directo. El personal ya no lee `tickets`, y
+  // `admin_update_ticket_numbers` hace lo mismo que hacia esta accion —rechaza
+  // una anulada (BR-I06, D-046) y deja disponible un borrador completo
+  // (CLAUDE.md 15)— con la fila bloqueada y sin devolver nada de la boleta.
   const supabase = await createClient()
-  const { data: ticket, error: readError } = await supabase
-    .from('tickets')
-    .select('id, inventory_status')
-    .eq('id', values.ticketId)
-    .maybeSingle()
-
-  if (readError) return { error: mapPgError(readError) }
-  if (!ticket) return { error: 'La boleta no existe o no tienes acceso a ella.' }
-
-  // BR-I06: una boleta anulada conserva sus numeros tal como quedaron; es
-  // historia y no se reescribe (D-046).
-  if (ticket.inventory_status === 'cancelled') {
-    return { error: 'La boleta está anulada y sus números ya no se pueden cambiar.' }
-  }
-
-  const { error } = await supabase
-    .from('tickets')
-    .update({
-      daily_number: values.dailyNumber,
-      weekly_number: values.weeklyNumber,
-      // CLAUDE.md 15: completar un borrador con sus dos numeros lo deja listo
-      // para vender. El resto de estados no cambia por editar los numeros.
-      ...(ticket.inventory_status === 'draft' ? { inventory_status: 'available' as const } : {}),
-    })
-    .eq('id', values.ticketId)
+  const { error } = await supabase.rpc('admin_update_ticket_numbers', {
+    p_ticket_id: values.ticketId,
+    p_daily_number: values.dailyNumber,
+    p_weekly_number: values.weeklyNumber,
+  })
 
   if (error) return { error: mapPgError(error) }
 
@@ -233,15 +220,16 @@ export async function cancelTicket(input: unknown): Promise<ActionResult> {
 /**
  * Corregir el precio de venta de una boleta ya asignada (BR-P13, D-137).
  *
- * El vendedor dueno de la boleta y el personal pueden. La RPC lo vuelve a
- * comprobar: no basta con ocultar el icono. Aqui no se resta ni se decide
- * estado: `update_ticket_sale_price` escribe el importe y los disparadores
- * vigentes recalculan saldo, estado de pago y ganancia.
+ * Solo el vendedor dueno de la boleta: desde D-198 el precio negociado es de su
+ * cartera y el personal no lo ve. La RPC lo vuelve a comprobar: no basta con
+ * ocultar el icono. Aqui no se resta ni se decide estado:
+ * `update_ticket_sale_price` escribe el importe y los disparadores vigentes
+ * recalculan saldo, estado de pago y ganancia.
  */
 export async function updateTicketSalePrice(
   input: unknown,
 ): Promise<ActionResultWith<{ id: string }>> {
-  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
   const parsed = updateTicketSalePriceSchema.safeParse(input)
@@ -295,15 +283,12 @@ function revalidateTicketClient(
   revalidatePath('/owner/tickets')
   revalidatePath('/owner/tickets/[ticketId]', 'page')
   revalidatePath(`/owner/tickets/${ticketId}`)
-  revalidatePath('/owner/clients')
-  revalidatePath('/owner/payments')
   revalidatePath('/owner/dashboard')
   revalidatePath('/owner/reports')
   revalidatePath('/seller/reports')
   for (const clientId of [previousClientId, nextClientId]) {
     if (!clientId) continue
     revalidatePath(`/seller/clients/${clientId}`)
-    revalidatePath(`/owner/clients/${clientId}`)
   }
 }
 
@@ -329,10 +314,8 @@ function revalidateTicketClearance(ticketId: string) {
 /**
  * Clientes elegibles para corregir el cliente de una boleta (BR-I13, D-168).
  *
- * Acota SIEMPRE a la cartera del vendedor de la boleta. En el portal del
- * vendedor esa cartera es la suya y la RLS ya lo haria; en el administrativo no,
- * porque el personal ve los clientes de toda la organizacion y ofrecerselos
- * todos seria proponer opciones que la base va a rechazar (BR-C05).
+ * Acota SIEMPRE a la cartera del vendedor de la boleta, que es la suya: desde
+ * D-198 solo el vendedor corrige el cliente, y la RLS ya se lo limitaria.
  *
  * Devuelve lista vacia en vez de error cuando el termino no sirve: un selector
  * que se queja de que escribiste una sola letra es mas molesto que util.
@@ -340,7 +323,7 @@ function revalidateTicketClearance(ticketId: string) {
 export async function searchTicketClientOptions(
   input: unknown,
 ): Promise<ActionResultWith<ClientOption[]>> {
-  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
   const parsed = ticketClientSearchSchema.safeParse(input)
@@ -374,13 +357,13 @@ export async function searchTicketClientOptions(
 /**
  * Corregir el cliente de una boleta vendida (BR-I13, D-168).
  *
- * El vendedor dueno de la boleta y el personal pueden. TODA la regla vive en
+ * Solo el vendedor dueno de la boleta (D-198). TODA la regla vive en
  * `reassign_ticket_client`: cartera, archivado, historial de abonos,
  * coincidencias de loteria y el bloqueo optimista con la fila bloqueada.
  * Ocultar el boton no autoriza nada.
  */
 export async function reassignTicketClient(input: unknown): Promise<ActionResult> {
-  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
   const parsed = reassignTicketClientSchema.safeParse(input)
@@ -412,13 +395,11 @@ export async function reassignTicketClient(input: unknown): Promise<ActionResult
  * CONSERVA. Es un dato legitimo que la persona acaba de capturar. El mensaje de
  * error lo dice explicitamente para que nadie lo escriba dos veces.
  *
- * `seller_id` NUNCA viene del navegador: sale de la boleta. En el portal del
- * vendedor coincide con su sesion; en el administrativo, el cliente nuevo nace
- * en la cartera del vendedor de la boleta, no a nombre de quien administra
- * (BR-C05).
+ * `seller_id` NUNCA viene del navegador: sale de la boleta, que desde D-198
+ * solo puede ser del vendedor que llama (BR-C05).
  */
 export async function reassignTicketToNewClient(input: unknown): Promise<ActionResult> {
-  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
   const parsed = reassignTicketToNewClientSchema.safeParse(input)
@@ -471,7 +452,7 @@ export async function reassignTicketToNewClient(input: unknown): Promise<ActionR
 /**
  * Liberar una boleta vendida que nadie ha abonado (BR-I14, D-169).
  *
- * El vendedor dueno de la boleta y el personal pueden. TODA la regla vive en
+ * Solo el vendedor dueno de la boleta (D-198). TODA la regla vive en
  * `release_ticket_client`: permisos, estado, rifa activa, historial de abonos,
  * coincidencias de loteria y el bloqueo optimista con la fila bloqueada.
  * Ocultar el boton no autoriza nada.
@@ -481,7 +462,7 @@ export async function reassignTicketToNewClient(input: unknown): Promise<ActionR
  * la llamada tuvo exito ese es, con certeza, el cliente que la tenia.
  */
 export async function releaseTicket(input: unknown): Promise<ActionResult> {
-  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
   const parsed = releaseTicketSchema.safeParse(input)

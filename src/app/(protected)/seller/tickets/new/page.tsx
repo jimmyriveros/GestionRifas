@@ -44,7 +44,6 @@ export default async function NewSellerTicketsPage() {
         raffles={allowed.map((raffle) => ({
           id: raffle.id,
           label: `${raffle.shortCode} — ${raffle.name}`,
-          ticketPrice: raffle.ticketPrice,
         }))}
       />
     </div>

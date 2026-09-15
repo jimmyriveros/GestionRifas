@@ -1,5 +1,6 @@
 import 'server-only'
 
+import type { AdminRaffleSummary } from '@/features/raffles/queries'
 import { RAFFLE_STATUS_LABELS, TICKET_PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import { toCsv, type CsvColumn } from '@/lib/csv'
 import { formatDateCsv } from '@/lib/dates'
@@ -12,12 +13,14 @@ import {
   getPaymentReport,
   getRaffleReport,
   getSalesByDateReport,
-  getSellerReport,
+  getStaffRaffleReport,
+  getStaffSellerReport,
+  getStaffTicketStatusReport,
   getTicketStatusReport,
   type ClientBalanceReportRow,
   type PaymentReportRow,
   type SalesByDateReportRow,
-  type SellerReportRow,
+  type StaffSellerReportRow,
   type TicketStatusReportRow,
 } from './queries'
 import { resolveSalesDateRange, type ReportFilters, type ReportKey } from './schemas'
@@ -28,6 +31,11 @@ import { resolveSalesDateRange, type ReportFilters, type ReportKey } from './sch
  * Las columnas se declaran una sola vez y describen exactamente lo que la
  * pantalla muestra: si la tabla y el archivo se separaran, tarde o temprano
  * dirian cosas distintas.
+ *
+ * DOS PUBLICOS, DOS JUEGOS DE COLUMNAS (D-198). El archivo del personal sale de
+ * las MISMAS lecturas que su pantalla —recuentos de `admin_ticket_inventory`—,
+ * asi que no puede traer una columna de dinero, de cliente ni de telefono: no
+ * la consulta. El del vendedor no cambia.
  *
  * MONEDA Y FECHAS. Los valores salen ya formateados —`$120.000`, `04/08/2026`—
  * porque el destinatario del archivo es una persona con Excel en configuracion
@@ -40,19 +48,34 @@ import { resolveSalesDateRange, type ReportFilters, type ReportKey } from './sch
  * Un CSV incompleto y sin aviso seria peor que no tener exportacion (I-011).
  */
 
-const sellerColumns: CsvColumn<SellerReportRow>[] = [
+export type ReportAudience = 'staff' | 'seller'
+
+// ---------------------------------------------------------------------------
+// Personal
+// ---------------------------------------------------------------------------
+
+const staffSellerColumns: CsvColumn<StaffSellerReportRow>[] = [
   { header: 'Vendedor', value: (row) => row.sellerName },
   { header: 'Alias', value: (row) => row.alias },
   { header: 'Estado', value: (row) => (row.isActive ? 'Activo' : 'Inactivo') },
   { header: 'Boletas', value: (row) => row.ticketsTotal },
   { header: 'Disponibles', value: (row) => row.ticketsAvailable },
   { header: 'Vendidas', value: (row) => row.ticketsAssigned },
-  { header: 'Sin pagar', value: (row) => row.ticketsUnpaid },
-  { header: 'Abonadas', value: (row) => row.ticketsPartial },
-  { header: 'Pagadas', value: (row) => row.ticketsPaid },
-  { header: 'Total vendido', value: (row) => formatCOP(row.totalSold) },
-  { header: 'Total recaudado', value: (row) => formatCOP(row.totalCollected) },
-  { header: 'Saldo pendiente', value: (row) => formatCOP(row.pendingAmount) },
+  { header: 'Por aprobar', value: (row) => row.ticketsPendingApproval },
+]
+
+const staffRaffleColumns: CsvColumn<AdminRaffleSummary>[] = [
+  { header: 'Código', value: (row) => row.shortCode },
+  { header: 'Rifa', value: (row) => row.name },
+  { header: 'Estado', value: (row) => RAFFLE_STATUS_LABELS[row.status] },
+  { header: 'Precio de boleta', value: (row) => formatCOP(row.ticketPrice) },
+  { header: 'Inicio', value: (row) => formatDateCsv(row.startDate) },
+  { header: 'Fin', value: (row) => formatDateCsv(row.endDate) },
+  { header: 'Boletas', value: (row) => row.ticketsTotal },
+  { header: 'Disponibles', value: (row) => row.ticketsAvailable },
+  { header: 'Vendidas', value: (row) => row.ticketsAssigned },
+  { header: 'Por aprobar', value: (row) => row.ticketsPendingApproval },
+  { header: 'Anuladas', value: (row) => row.ticketsCancelled },
 ]
 
 const ticketStatusColumns: CsvColumn<TicketStatusReportRow>[] = [
@@ -60,6 +83,10 @@ const ticketStatusColumns: CsvColumn<TicketStatusReportRow>[] = [
   { header: 'Estado', value: (row) => row.statusLabel },
   { header: 'Boletas', value: (row) => row.count },
 ]
+
+// ---------------------------------------------------------------------------
+// Vendedor
+// ---------------------------------------------------------------------------
 
 type RaffleReportRow = Awaited<ReturnType<typeof getRaffleReport>>['rows'][number]
 
@@ -155,18 +182,17 @@ function truncationNotice(): string {
 /**
  * Consulta el reporte completo —sin paginar— y lo serializa a CSV.
  *
- * El aislamiento no depende de este codigo: cada consulta pasa por vistas y
- * funciones `security_invoker`, de modo que un vendedor que descargue el
- * archivo obtiene sus propias filas y las de nadie mas (CLAUDE.md §24).
+ * `audience` sale de la SESION en el Route Handler, nunca de la URL. El Route
+ * Handler rechaza antes con 403 un reporte que ese portal no ofrece; aqui un
+ * reporte ajeno lanza en vez de devolver un archivo equivocado.
  */
-export async function buildReportCsv(filters: ReportFilters): Promise<string> {
+export async function buildReportCsv(
+  filters: ReportFilters,
+  audience: ReportAudience,
+): Promise<string> {
+  if (audience === 'staff') return buildStaffReportCsv(filters)
+
   switch (filters.report) {
-    // Los tres primeros no pueden truncarse: devuelven una fila por vendedor,
-    // por estado o por rifa, siempre muy por debajo del tope.
-    case 'sellers': {
-      const { rows } = await getSellerReport(filters)
-      return toCsv(sellerColumns, rows)
-    }
     case 'ticket-status': {
       const { rows } = await getTicketStatusReport(filters)
       return toCsv(ticketStatusColumns, rows)
@@ -198,5 +224,29 @@ export async function buildReportCsv(filters: ReportFilters): Promise<string> {
       })
       return toCsv(salesByDateColumns, rows) + (truncated ? truncationNotice() : '')
     }
+    case 'sellers':
+      throw new Error('Reporte no disponible en el portal del vendedor.')
+  }
+}
+
+async function buildStaffReportCsv(filters: ReportFilters): Promise<string> {
+  switch (filters.report) {
+    // Una fila por vendedor, por estado o por rifa: muy por debajo del tope.
+    case 'sellers': {
+      const { rows } = await getStaffSellerReport(filters)
+      return toCsv(staffSellerColumns, rows)
+    }
+    case 'ticket-status': {
+      const { rows } = await getStaffTicketStatusReport(filters)
+      return toCsv(ticketStatusColumns, rows)
+    }
+    case 'raffles': {
+      const { rows } = await getStaffRaffleReport()
+      return toCsv(staffRaffleColumns, rows)
+    }
+    case 'sales-by-date':
+    case 'client-balances':
+    case 'payments':
+      throw new Error('Reporte no disponible en el portal administrativo.')
   }
 }

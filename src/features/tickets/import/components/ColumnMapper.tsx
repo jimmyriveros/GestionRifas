@@ -23,6 +23,13 @@ import type { ColumnMapping } from '../columns'
  *
  * Se muestran las primeras filas del archivo junto a cada opcion para que se
  * pueda elegir mirando los datos, no el nombre de la columna.
+ *
+ * SOLO LOS NUMEROS, desde D-198 (BR-Q07). Ningun portal importa clientes ni
+ * abonos, asi que aqui ya no se ofrece elegir sus columnas: seria mandar a la
+ * persona por un camino que la vista previa rechaza. Las que el archivo ya traia
+ * reconocidas pasan TAL CUAL, para que sus filas se aparten con su motivo en vez
+ * de importarse sin avisar. Reactivar la importacion con clientes es devolver
+ * desde Git los tres selectores que habia aqui.
  */
 
 type ColumnMapperProps = {
@@ -45,30 +52,15 @@ export function ColumnMapper({
 }: ColumnMapperProps) {
   const [daily, setDaily] = useState(initial.daily >= 0 ? String(initial.daily) : SIN_ELEGIR)
   const [weekly, setWeekly] = useState(initial.weekly >= 0 ? String(initial.weekly) : SIN_ELEGIR)
-  const [clientName, setClientName] = useState(
-    initial.clientName >= 0 ? String(initial.clientName) : SIN_ELEGIR,
-  )
-  const [clientPhone, setClientPhone] = useState(
-    initial.clientPhone >= 0 ? String(initial.clientPhone) : SIN_ELEGIR,
-  )
-  const [abono, setAbono] = useState(initial.abono >= 0 ? String(initial.abono) : SIN_ELEGIR)
 
-  const selected = [daily, weekly, clientName, clientPhone, abono].filter(
-    (value) => value !== SIN_ELEGIR,
-  )
+  // Las columnas de cliente y de abono que se reconocieron solas cuentan para no
+  // repetir columna: un numero no puede salir de la misma columna que un nombre.
+  const reconocidas = [initial.clientName, initial.clientPhone, initial.abono]
+    .filter((index) => index >= 0)
+    .map(String)
+  const selected = [daily, weekly, ...reconocidas].filter((value) => value !== SIN_ELEGIR)
   const noRepeatedColumns = new Set(selected).size === selected.length
-  const completeClientPair =
-    (clientName === SIN_ELEGIR && clientPhone === SIN_ELEGIR) ||
-    (clientName !== SIN_ELEGIR && clientPhone !== SIN_ELEGIR)
-  // Un abono sin cliente no se puede registrar: la boleta no estaria vendida.
-  const abonoHasClient =
-    abono === SIN_ELEGIR || (clientName !== SIN_ELEGIR && clientPhone !== SIN_ELEGIR)
-  const listo =
-    daily !== SIN_ELEGIR &&
-    weekly !== SIN_ELEGIR &&
-    noRepeatedColumns &&
-    completeClientPair &&
-    abonoHasClient
+  const listo = daily !== SIN_ELEGIR && weekly !== SIN_ELEGIR && noRepeatedColumns
 
   /** «Columna A — 7607, 3929…»: el nombre y un par de valores de muestra. */
   function etiqueta(index: number): string {
@@ -119,74 +111,11 @@ export function ColumnMapper({
             </SelectContent>
           </Select>
         </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="map-client-name">¿Cuál columna es el nombre del cliente?</Label>
-          <Select value={clientName} onValueChange={setClientName}>
-            <SelectTrigger id="map-client-name" className="w-full">
-              <SelectValue placeholder="No incluir cliente" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SIN_ELEGIR}>No incluir cliente</SelectItem>
-              {headers.map((_, index) => (
-                <SelectItem key={index} value={String(index)}>
-                  {etiqueta(index)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="map-client-phone">¿Cuál columna es el celular del cliente?</Label>
-          <Select value={clientPhone} onValueChange={setClientPhone}>
-            <SelectTrigger id="map-client-phone" className="w-full">
-              <SelectValue placeholder="No incluir celular" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SIN_ELEGIR}>No incluir celular</SelectItem>
-              {headers.map((_, index) => (
-                <SelectItem key={index} value={String(index)}>
-                  {etiqueta(index)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="map-abono">¿Cuál columna es el abono?</Label>
-          <Select value={abono} onValueChange={setAbono}>
-            <SelectTrigger id="map-abono" className="w-full">
-              <SelectValue placeholder="No incluir abono" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SIN_ELEGIR}>No incluir abono</SelectItem>
-              {headers.map((_, index) => (
-                <SelectItem key={index} value={String(index)}>
-                  {etiqueta(index)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {!noRepeatedColumns ? (
         <p role="alert" className="text-destructive text-sm">
           Cada dato debe salir de una columna diferente.
-        </p>
-      ) : null}
-
-      {!completeClientPair ? (
-        <p role="alert" className="text-destructive text-sm">
-          Para incluir clientes, elige las columnas de nombre y celular.
-        </p>
-      ) : null}
-
-      {!abonoHasClient ? (
-        <p role="alert" className="text-destructive text-sm">
-          Para incluir abonos, elige también las columnas de nombre y celular del cliente.
         </p>
       ) : null}
 
@@ -198,9 +127,9 @@ export function ColumnMapper({
             onConfirm({
               daily: Number(daily),
               weekly: Number(weekly),
-              clientName: clientName === SIN_ELEGIR ? -1 : Number(clientName),
-              clientPhone: clientPhone === SIN_ELEGIR ? -1 : Number(clientPhone),
-              abono: abono === SIN_ELEGIR ? -1 : Number(abono),
+              clientName: initial.clientName,
+              clientPhone: initial.clientPhone,
+              abono: initial.abono,
             })
           }
         >

@@ -420,11 +420,18 @@ describe('E1 — visibilidad del equipo', () => {
     await ctx.svc.from('clients').delete().eq('id', cliente!.id)
   })
 
-  it('E1-15: el personal sigue viendo todo, con equipos o sin ellos', async () => {
-    const { data, error } = await owner.from('tickets').select('id').eq('id', memberTicketId)
+  it('E1-15: el personal sigue viendo todo el inventario, con equipos o sin ellos', async () => {
+    // D-198: por la proyeccion administrativa; la tabla ya no le devuelve filas.
+    const { data, error } = await owner.rpc('admin_ticket_detail', {
+      p_ticket_id: memberTicketId,
+    })
 
     expect(error).toBeNull()
     expect(data).toHaveLength(1)
+    expect(data![0]!.id).toBe(memberTicketId)
+
+    const { data: tabla } = await owner.from('tickets').select('id').eq('id', memberTicketId)
+    expect(tabla).toEqual([])
   })
 })
 

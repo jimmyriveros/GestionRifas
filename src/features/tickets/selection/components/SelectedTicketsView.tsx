@@ -5,9 +5,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { EmptyState } from '@/components/data/EmptyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TicketsList } from '@/features/tickets/components/TicketsList'
-import type { TicketListItem } from '@/features/tickets/queries'
 
-import { getSelectedTickets } from '../actions'
+import { getSelectedTickets, type SelectedTicketsResult } from '../actions'
 import { useTicketSelection } from '../TicketSelectionContext'
 
 /**
@@ -20,6 +19,10 @@ import { useTicketSelection } from '../TicketSelectionContext'
  *
  * LOS FILTROS NO SE TOCAN. Viven en la URL y esta vista no los cambia: al
  * volver, la busqueda sigue tal cual estaba.
+ *
+ * EL MODELO LO DECIDE EL SERVIDOR (D-198). `getSelectedTickets` devuelve las
+ * boletas del vendedor con su dinero, o las del personal con la proyeccion
+ * administrativa, segun la sesion. Esta vista solo pinta lo que le llega.
  */
 export function TicketListSlot({
   basePath,
@@ -41,7 +44,7 @@ export function TicketListSlot({
   return <SelectedTickets basePath={basePath} showSeller={showSeller} showRaffle={showRaffle} />
 }
 
-type Loaded = { key: string; rows: TicketListItem[]; error: string | null }
+type Loaded = { key: string; result: SelectedTicketsResult | null; error: string | null }
 
 function SelectedTickets({
   basePath,
@@ -68,16 +71,16 @@ function SelectedTickets({
     }
 
     let live = true
-    void getSelectedTickets({ ticketIds: idsKey.split(',') }).then((result) => {
+    void getSelectedTickets({ ticketIds: idsKey.split(',') }).then((response) => {
       if (!live) return
-      if ('error' in result) {
-        setLoaded({ key: idsKey, rows: [], error: result.error })
+      if ('error' in response) {
+        setLoaded({ key: idsKey, result: null, error: response.error })
         return
       }
-      setLoaded({ key: idsKey, rows: result.data, error: null })
+      setLoaded({ key: idsKey, result: response.data, error: null })
       // La casilla del encabezado debe referirse a lo que se ve aqui, no a la
       // pagina de resultados que quedo detras.
-      setVisibleIds(result.data.map((ticket) => ticket.id))
+      setVisibleIds(response.data.rows.map((ticket) => ticket.id))
     })
 
     return () => {
@@ -89,8 +92,9 @@ function SelectedTickets({
   // pagina. Solo limpieza: nada que ejecutar al montar.
   useEffect(() => () => setVisibleIds(null), [setVisibleIds])
 
-  const tickets = idsKey === '' ? [] : (current?.rows ?? null)
   const error = current?.error ?? null
+  const result = idsKey === '' ? null : (current?.result ?? null)
+  const count = idsKey === '' ? 0 : (result?.rows.length ?? null)
 
   if (error) {
     return (
@@ -100,7 +104,7 @@ function SelectedTickets({
     )
   }
 
-  if (tickets === null) {
+  if (count === null) {
     // El hueco tiene la altura de lo que va a aparecer: una tarjeta en el
     // telefono, una fila en escritorio. Si no, la lista da un salto al llegar.
     return (
@@ -112,7 +116,7 @@ function SelectedTickets({
     )
   }
 
-  if (tickets.length === 0) {
+  if (count === 0 || result === null) {
     return (
       <EmptyState
         title="No hay boletas seleccionadas"
@@ -126,12 +130,16 @@ function SelectedTickets({
       <p className="text-muted-foreground text-sm">
         Estás viendo solo las boletas seleccionadas. Tus filtros siguen guardados.
       </p>
-      <TicketsList
-        tickets={tickets}
-        basePath={basePath}
-        showSeller={showSeller}
-        showRaffle={showRaffle}
-      />
+      {result.audience === 'staff' ? (
+        <TicketsList audience="staff" tickets={result.rows} basePath={basePath} />
+      ) : (
+        <TicketsList
+          tickets={result.rows}
+          basePath={basePath}
+          showSeller={showSeller}
+          showRaffle={showRaffle}
+        />
+      )}
     </div>
   )
 }

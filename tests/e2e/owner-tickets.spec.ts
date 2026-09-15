@@ -239,7 +239,7 @@ test.describe('Boletas', () => {
     })
 
     await page.goto('/owner/tickets')
-    await page.getByPlaceholder('Número de boleta o cliente').fill('0007')
+    await page.getByPlaceholder('Número de boleta', { exact: true }).fill('0007')
     await page.getByRole('button', { name: 'Buscar' }).click()
     await page.waitForURL(/q=0007/)
 
@@ -260,13 +260,20 @@ test.describe('Boletas', () => {
     })
 
     await page.goto('/owner/tickets')
-    await page.getByPlaceholder('Número de boleta o cliente').fill(internalCode)
+    await page.getByPlaceholder('Número de boleta', { exact: true }).fill(internalCode)
     await page.getByRole('button', { name: 'Buscar' }).click()
     await page.waitForURL(/q=/)
 
     await expect(page.getByText('Ninguna boleta coincide con los filtros')).toBeVisible()
-    // Una lista vacia sin motivo se lee como «la aplicacion no funciona».
-    await expect(page.getByText(/El código interno no sirve para buscar/)).toBeVisible()
+    await expect(
+      page.getByRole('link', { name: `Ver la boleta ${numeros.daily} / ${numeros.weekly}` }),
+    ).toHaveCount(0)
+    // Una lista vacia sin motivo se lee como «la aplicacion no funciona». Desde
+    // D-198 el personal busca solo por numero, y la pista dice que escribir
+    // (BR-Q05): un codigo interno lleva letras y guion.
+    await expect(
+      page.getByText('Escribe solo el número diario o el semanal de la boleta.').first(),
+    ).toBeVisible()
   })
 
   test('las coincidencias del número diario van antes que las del semanal (BR-N11)', async ({

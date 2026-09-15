@@ -12,6 +12,7 @@ import {
   randomNumbers,
   signInAs,
   USERS,
+  voidPaymentAs,
   type Client,
 } from './helpers'
 
@@ -329,11 +330,9 @@ describe('anulacion y recalculo (BR-F09, BR-F11, D-013)', () => {
       .single()
     expect(antes!.payment_status).toBe('paid')
 
-    const { error } = await owner.rpc('void_payment', {
-      p_payment_id: paymentId as string,
-      p_reason: 'Anulacion de prueba automatizada',
-    })
-    expect(error).toBeNull()
+    // D-198: `void_payment` quedo dormida; su cuerpo se ejecuta con la identidad
+    // del Dueño (ver `voidPaymentAs`).
+    await voidPaymentAs(ctx.ids.owner, paymentId as string, 'Anulacion de prueba automatizada')
 
     const { data: despues } = await ctx.svc
       .from('tickets')
@@ -364,11 +363,17 @@ describe('anulacion y recalculo (BR-F09, BR-F11, D-013)', () => {
       .limit(1)
       .single()
 
+    // Desde una sesion ya ni se llega a la funcion (D-198)...
     const otra = await owner.rpc('void_payment', {
       p_payment_id: anulado!.id,
       p_reason: 'Segundo intento de anulacion',
     })
     expect(otra.error).not.toBeNull()
+    expect(otra.error!.code).toBe('42501')
+    // ...y la regla de D-013 sigue en su cuerpo.
+    await expect(
+      voidPaymentAs(ctx.ids.owner, anulado!.id, 'Segundo intento de anulacion'),
+    ).rejects.toThrow(/ya esta anulado/i)
 
     const reactivar = await owner
       .from('payments')
@@ -387,12 +392,7 @@ describe('anulacion y recalculo (BR-F09, BR-F11, D-013)', () => {
       .limit(1)
       .single()
 
-    const { error } = await owner.rpc('void_payment', {
-      p_payment_id: activo!.id,
-      p_reason: 'no',
-    })
-    expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/motivo/i)
+    await expect(voidPaymentAs(ctx.ids.owner, activo!.id, 'no')).rejects.toThrow(/motivo/i)
   })
 })
 
@@ -439,12 +439,26 @@ describe('proteccion de boletas con pagos activos (BR-I11, BR-I12, BR-P05)', () 
       p_allocations: [{ ticket_id: ticketId, amount: 20_000 }],
     })
 
+    // D-198: el personal ya no anula una boleta vendida, con o sin abonos...
     const { error } = await owner.rpc('cancel_ticket', {
       p_ticket_id: ticketId,
       p_reason: 'Intento de anulacion con pagos activos',
     })
     expect(error).not.toBeNull()
-    expect(error!.message).toMatch(/pagos activos/i)
+    expect(error!.message).toMatch(/ya está vendida/i)
+
+    // ...y BR-I11 sigue en el disparador: ni cambiando el estado a mano sale de
+    // «asignada» una boleta con pagos activos.
+    const directo = await ctx.svc
+      .from('tickets')
+      .update({
+        inventory_status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: 'Directo con pagos activos',
+      })
+      .eq('id', ticketId)
+    expect(directo.error).not.toBeNull()
+    expect(directo.error!.message).toMatch(/pagos activos/i)
   })
 })
 

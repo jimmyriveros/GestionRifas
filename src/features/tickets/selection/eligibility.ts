@@ -4,8 +4,9 @@ import type { TicketInventoryStatus } from '@/lib/constants'
  * Que se puede hacer con cada boleta seleccionada, y por que no cuando no se
  * puede (seccion 27 del encargo, BR-B06).
  *
- * Los datos vienen tal cual de `ticket_bulk_eligibility` (migracion 0020): las
- * REGLAS estan en SQL y no se repiten aqui. Este archivo solo agrupa, cuenta y
+ * Los datos vienen tal cual de SQL —`ticket_bulk_eligibility` para el vendedor
+ * (migracion 0020) y `admin_ticket_bulk_eligibility` para el personal (0057)—:
+ * las REGLAS estan alli y no se repiten aqui. Este archivo solo agrupa, cuenta y
  * pone en palabras lo que la base de datos ya decidio, para que la pantalla
  * pueda explicarlo en vez de limitarse a deshabilitar un boton.
  *
@@ -16,18 +17,23 @@ import type { TicketInventoryStatus } from '@/lib/constants'
 export const BULK_ACTIONS = ['approve', 'assign', 'cancel', 'changeSeller', 'delete'] as const
 export type BulkAction = (typeof BULK_ACTIONS)[number]
 
-export type TicketEligibility = {
+type EligibilityBase = {
   ticketId: string
   dailyNumber: string | null
   weeklyNumber: string | null
   inventoryStatus: TicketInventoryStatus
   sellerId: string
   raffleId: string
+  raffleActive: boolean
+  can: Record<BulkAction, boolean>
+}
+
+/** Lo que recibe el VENDEDOR: sabe si hay cliente, abonos y entre que precios vende. */
+export type SellerTicketEligibility = EligibilityBase & {
+  audience: 'seller'
   hasClient: boolean
   hasActivePayments: boolean
   hasPayments: boolean
-  raffleActive: boolean
-  can: Record<BulkAction, boolean>
   /** Precio oficial vigente de su rifa (BR-P10). */
   basePrice: number
   /** Lo mas barato que se puede vender esta boleta (BR-P11). Lo calcula SQL a
@@ -36,20 +42,32 @@ export type TicketEligibility = {
 }
 
 /**
+ * Lo que recibe el PERSONAL (D-198): sin cliente, sin abonos y sin precios.
+ *
+ * `admin_ticket_bulk_eligibility` no los devuelve y este tipo tampoco los
+ * declara, asi que ningun dialogo del portal administrativo los puede pintar.
+ */
+export type AdminTicketEligibility = EligibilityBase & { audience: 'staff' }
+
+export type TicketEligibility = SellerTicketEligibility | AdminTicketEligibility
+
+/**
  * El precio de venta que puede ofrecerse para TODO el lote (BR-P09, D-099).
  *
  * Solo existe si las boletas coinciden en las dos cifras: una seleccion que
  * mezcle rifas de precios distintos —o vendedores con formas de pago
  * distintas— no tiene un unico precio que proponer, y en ese caso la pantalla
- * no ofrece la casilla y cada boleta se vende al precio de su rifa.
+ * no ofrece la casilla y cada boleta se vende al precio de su rifa. Solo tiene
+ * sentido para el vendedor: el personal no vende.
  */
 export function commonPriceRange(
   rows: readonly TicketEligibility[],
 ): { basePrice: number; minSalePrice: number } | null {
-  const first = rows[0]
-  if (!first) return null
+  const sellerRows = rows.filter((row): row is SellerTicketEligibility => row.audience === 'seller')
+  const first = sellerRows[0]
+  if (!first || sellerRows.length !== rows.length) return null
 
-  const igual = rows.every(
+  const igual = sellerRows.every(
     (row) => row.basePrice === first.basePrice && row.minSalePrice === first.minSalePrice,
   )
 
@@ -89,6 +107,7 @@ export function allEligible(rows: readonly TicketEligibility[], action: BulkActi
  */
 export function whyNot(row: TicketEligibility, action: BulkAction): string {
   if (row.can[action]) return ''
+  if (row.audience === 'staff') return staffWhyNot(row, action)
 
   if (action === 'approve') {
     if (row.inventoryStatus === 'cancelled') return 'Está anulada.'
@@ -121,5 +140,39 @@ export function whyNot(row: TicketEligibility, action: BulkAction): string {
   if (row.inventoryStatus === 'cancelled') return 'Está anulada: sus números quedan reservados.'
   if (row.hasClient) return 'Ya está vendida a un cliente.'
   if (row.hasPayments) return 'Tiene abonos en su historial.'
+  return 'Ya entró en la operación: solo se puede anular.'
+}
+
+/**
+ * Por que el PERSONAL no puede (D-198, BR-Q07).
+ *
+ * Se explica con el estado de inventario, que es lo unico que el personal ve.
+ * Nunca «tiene abonos»: sobre una boleta que el personal ve «Sin pagar», eso le
+ * diria que esta abonada.
+ */
+function staffWhyNot(row: AdminTicketEligibility, action: BulkAction): string {
+  if (action === 'approve') {
+    if (row.inventoryStatus === 'cancelled') return 'Está anulada.'
+    if (row.inventoryStatus === 'draft') return 'Le faltan los números.'
+    return 'Ya está aprobada.'
+  }
+
+  if (action === 'assign') return 'Solo su vendedor puede asignarla a un cliente.'
+
+  if (action === 'cancel') {
+    if (row.inventoryStatus === 'cancelled') return 'Ya está anulada.'
+    if (row.inventoryStatus === 'assigned') return 'Ya está vendida y no se puede anular.'
+    return 'No se puede anular.'
+  }
+
+  if (action === 'changeSeller') {
+    if (row.inventoryStatus === 'assigned') return 'Ya está vendida: el cliente es de su vendedor.'
+    if (row.inventoryStatus === 'cancelled') return 'Está anulada.'
+    return 'No puede cambiar de vendedor.'
+  }
+
+  // delete
+  if (row.inventoryStatus === 'cancelled') return 'Está anulada: sus números quedan reservados.'
+  if (row.inventoryStatus === 'assigned') return 'Ya está vendida.'
   return 'Ya entró en la operación: solo se puede anular.'
 }

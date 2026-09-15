@@ -28,12 +28,14 @@ test.describe('Navegación en escritorio', () => {
       'Rifas',
       'Boletas',
       'Vendedores',
-      'Clientes',
-      'Pagos',
       'Reportes',
       'Administradores',
     ]) {
       await expect(lateral.getByRole('link', { name: nombre, exact: true })).toBeVisible()
+    }
+    // La cartera es de cada vendedor (D-198): ni «Clientes» ni «Pagos».
+    for (const nombre of ['Clientes', 'Pagos']) {
+      await expect(lateral.getByRole('link', { name: nombre, exact: true })).toHaveCount(0)
     }
 
     await expect(page.getByRole('navigation', { name: 'Navegación principal' })).toBeHidden()

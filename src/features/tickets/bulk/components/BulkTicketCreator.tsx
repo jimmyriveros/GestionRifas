@@ -28,11 +28,8 @@ import { comboKey, countErrors, selectSendableRows, validateBulkRows } from '../
 
 type Option = { id: string; label: string }
 
-/** La rifa lleva ademas su precio: el importador lo necesita para los abonos. */
-type RaffleOption = Option & { ticketPrice: number }
-
 type BulkTicketCreatorProps = {
-  raffles: RaffleOption[]
+  raffles: Option[]
   sellers: Option[]
   defaultRaffleId?: string
   defaultSellerId?: string
@@ -63,10 +60,6 @@ export function BulkTicketCreator({
   const router = useRouter()
   const [raffleId, setRaffleId] = useState(defaultRaffleId ?? raffles[0]?.id ?? '')
   const [sellerId, setSellerId] = useState(defaultSellerId ?? sellers[0]?.id ?? '')
-  // El precio de la rifa ELEGIDA, que es la que va a recibir las boletas. Cero
-  // solo mientras no hay ninguna elegida, y entonces el importador esta
-  // deshabilitado.
-  const ticketPrice = raffles.find((raffle) => raffle.id === raffleId)?.ticketPrice ?? 0
   const [quantity, setQuantity] = useState(50)
   const [rows, setRows] = useState<BulkTicketRow[]>([])
   const [existingCombos, setExistingCombos] = useState<ReadonlySet<string>>(new Set())
@@ -258,15 +251,14 @@ export function BulkTicketCreator({
 
       {/* La otra forma de llenar el lote: subir el archivo que ya se tiene en
           Excel. La rifa y el vendedor salen de los selectores de arriba, asi
-          que el archivo no aporta contexto. Cliente y celular son columnas
-          opcionales, pero siempre aparecen juntos (BR-N12). */}
+          que el archivo no aporta contexto: solo lleva los dos numeros de cada
+          boleta (BR-N12, D-198). */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed p-4">
         <p className="text-muted-foreground text-sm">
           ¿Ya tienes las boletas en un archivo? Súbelo y las revisamos antes de guardar.
         </p>
         <TicketImportDialog
           raffleId={raffleId}
-          ticketPrice={ticketPrice}
           sellerId={sellerId}
           disabled={isPending || !raffleId || !sellerId}
           successHref={`/owner/tickets?raffleId=${raffleId}&sellerId=${sellerId}`}

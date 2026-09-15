@@ -2777,6 +2777,12 @@ ocupando el sitio del icono, porque en la barra inferior no sobra un pixel al la
 izquierda, es decir **encima de «Panel»**, y se comía el toque. Se movió a `top-left` en
 `next.config.ts`. Solo existe en desarrollo y no llega a producción.
 
+> **Nota del 2026-09-15.** Arriba a la izquierda ya no está libre en escritorio: desde D-131, con la
+> barra lateral cerrada, ahí vive «Abrir el menú», y la «N» tapa su centro —medido, `[22, 22, 32, 32]`
+> sobre `[10, 10, 36, 36]`—. En `next dev` se pulsa por el borde del botón o con el teclado. No se
+> vuelve a mover: abajo tapa la barra del teléfono y arriba a la derecha, la campana y el menú de
+> usuario. Las E2E la ocultan con `hideNextDevUi` (`HANDOFF` §9, `TEST_RESULTS` 2026-09-14).
+
 **Fluid Compute pasa a `vercel.json`.** Al verificar el despliegue se vio que un requisito duro de
 `DEPLOYMENT.md` §3.1.b vivía **solo** como interruptor del panel: no aparecía en ninguna revisión y
 apagarlo no dejaba rastro. Se declara `{ "fluid": true }` en el repositorio, donde viaja con el
@@ -10450,6 +10456,182 @@ nuevas. `MASTER_SPEC` §9.6, `ARCHITECTURE` §8.25, `DATA_MODEL` §4.3 y §6.g.7
 `UX_COPY_GUIDELINES` y `TESTING` §4.9. Mantenimiento posterior a la Fase 9. **Promovido el mismo
 día**, con autorización expresa: `0056` aplicada al proyecto real —que pasa a 56 migraciones— y
 `6dd23e5` desplegado (`DEPLOYMENT` §2.2 y §3.2.i).
+
+---
+
+## D-198 — La cartera es del vendedor: el Dueño y el Administrador administran el inventario, no la venta
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «restricción del acceso administrativo a la
+información comercial de los vendedores», 2026-09-14)
+
+**Contexto.** Hasta `0056` el personal —Dueño y Administrador— veía y tocaba la cartera entera de cada
+vendedor: sus clientes con nombre y teléfono, el precio al que vendió cada boleta, lo abonado, el saldo,
+el historial de pagos y la ganancia; y podía asignar, cambiar o liberar clientes, corregir precios y
+abonos, anular pagos e importar ventas. El usuario pide que eso deje de existir **en el servidor y en la
+base de datos** —no basta con ocultarlo—, sin borrar datos, sin quitarle nada al vendedor y de forma
+**reversible**. En la única pregunta de alcance eligió **B, «Tampoco finanzas»**: el personal pierde
+también «Pagos», los reportes de dinero y toda cifra de dinero por vendedor, incluida la ganancia.
+
+**Sustituye en parte**, y solo en lo que dicen del personal: D-051 (pantallas compartidas), D-087 y D-129
+(importación administrativa con clientes y abonos), D-090 y D-182 (resumen de cobranza del panel), D-093
+(el precio en el aviso de venta al personal), D-100 (buscar por el cliente desde el portal
+administrativo), D-137, D-158, D-168 y D-169 (la rama del personal al corregir precio, abono y cliente, y
+al liberar), D-183 (el orden del resumen por vendedor), BR-F10 (anular pagos), BR-D04 (leer la
+bitácora), BR-E08 y BR-G12 (ver la ganancia de cualquier vendedor). **Lo del vendedor no cambia.** Se
+conservan y reutilizan D-092 —el patrón de proyección estrecha— y D-170 —el paz y salvo—.
+
+### Decisión 1 — la frontera
+
+| El personal SÍ ve (lista blanca) | El personal NO ve |
+|---|---|
+| Números diario y semanal, y el código interno | El cliente: nombre, alias, teléfono, correo, notas e identificador |
+| Rifa (nombre, código y estado) y vendedor | Precio de venta, precio base y límites de rebaja |
+| Estado de inventario | Abonado, saldo, porcentaje y barra de progreso |
+| Estado de pago en **dos** valores: «Pagada» o «Sin pagar» | «Abonada», ni nada que permita deducirla |
+| Paz y salvo, solo de una boleta vendida | Pagos, asignaciones e historial de abonos |
+| Creación, aprobación, anulación y su motivo; la fecha de venta solo de una vendida | Ganancia, comisiones y movimientos de cualquier vendedor |
+| Recuentos por estado, vendedor y rifa, con Pagadas y Sin pagar | Cualquier importe: vendido, recaudado o saldo pendiente |
+
+**«Abonada» sigue existiendo** en el enum, en `TICKET_PAYMENT_STATUS_LABELS`, en la insignia global y en
+todo el portal del vendedor. Para el personal una boleta con abonos parciales es **«Sin pagar»**, y una
+sin vender no tiene estado de pago («—»).
+
+### Decisión 2 — la restricción vive en la base: políticas de vendedor y proyecciones estrechas
+
+Migración **`0057`**. Las políticas de `tickets`, `clients`, `payments`, `payment_allocations`,
+`lottery_ticket_matches`, `seller_commissions` y `commission_ledger` pasan a **solo el vendedor** —el
+padre conserva lo de su equipo donde ya lo tenía—; `tickets_update_staff` y `payments_update_staff`
+desaparecen, y `audit_logs` se queda **sin política de lectura**. Como la RLS limita filas y no columnas,
+el personal no vuelve a leer `tickets`: lo que administra le llega por **siete funciones
+`SECURITY DEFINER`** con lista blanca, el patrón de D-092.
+
+| Función | Para qué |
+|---|---|
+| `admin_list_tickets` | Lista, búsqueda por número, filtros, recuento y «seleccionar todas» |
+| `admin_ticket_detail` | El detalle de una boleta |
+| `admin_ticket_bulk_eligibility` | Qué acciones de lote admite cada boleta |
+| `admin_update_ticket_numbers` | Editar los números, que antes era un `UPDATE` directo |
+| `admin_ticket_inventory` | Recuentos por rifa y vendedor, con Pagadas y Sin pagar |
+| `admin_lottery_matches` | Las coincidencias de lotería, sin cliente |
+| `admin_audit_log` | La bitácora, redactada por `admin_audit_redact` |
+
+Todas toman la organización de `current_staff_org_ids()` —ningún parámetro la recibe—, fijan
+`search_path`, no usan SQL dinámico, responden a un id ajeno como a uno inexistente y llevan `REVOKE` de
+`public` y `anon` y `GRANT` a `authenticated` y `service_role` (I-020, I-078, D-128). Las piezas internas
+—`admin_audit_redact` y el disparador `memberships_redact_staff_notifications`— no las ejecuta ninguna
+sesión.
+
+### Decisión 3 — «Sin pagar» se resuelve en SQL, antes de contar y paginar
+
+`p_payment_state` acepta `paid` o `unpaid`; `unpaid` es una boleta `assigned` con `payment_status`
+`unpaid` **o** `partial`, y se aplica **antes** del recuento, el orden, el límite y el desplazamiento.
+Cualquier otro valor —`partial` incluido— es un error. En la URL, un `paymentStatus=partial` antiguo se
+ignora sin decir «Abonada», y un `clientId` antiguo también.
+
+### Decisión 4 — el personal busca solo por número, y un nombre responde como algo que no existe
+
+Un término que no sea de 1 a 4 dígitos devuelve **cero filas sin consultar nada**: buscar el nombre de un
+cliente real responde exactamente lo mismo que buscar uno inventado. La pista dice «Escribe solo el
+número diario o el semanal de la boleta.».
+
+### Decisión 5 — ningún rechazo delata la cartera
+
+| Canal | Cómo se cierra |
+|---|---|
+| Las RPC de la cartera, llamadas por el personal | `assign_ticket_row`, `bulk_assign_tickets`, `create_payment`, `update_payment_allocation`, `update_ticket_sale_price`, `reassign_ticket_client` y `release_ticket_client` autorizan solo al vendedor, **con el mismo mensaje** que reciben un vendedor ajeno o un id inexistente |
+| Anular una boleta vendida | El personal ya no la anula, **tenga o no abonos**: un rechazo distinto para una abonada delataría la «Abonada» detrás de «Sin pagar». `cancel_ticket_row` y `bulk_cancel_tickets` lo rechazan antes de mirar los pagos |
+| Crear una boleta con su `id` | `tickets_insert_staff` solo admite boletas sin cliente, sin precio y sin venta; la aplicación pone el id y no pide la fila de vuelta |
+| Límites de precio | `ticket_sale_price_limits` solo responde al vendedor de la boleta |
+| Aviso de venta | `notify_ticket_sold` manda al personal el aviso **sin `sale_price`**; los antiguos se limpiaron y un disparador lo quita al ascender a alguien a Dueño o Administrador |
+| Bitácora | `admin_audit_log` omite las acciones de venta y de precio, deja de cada fila solo claves de lista blanca y **no enseña** la que se queda vacía |
+| Vistas y funciones `security_invoker` | Al personal le suman cero: `v_seller_summary`, `v_raffle_summary`, `v_client_balances`, `v_payment_history`, `v_ticket_balances`, `report_*`, `commission_summary`, `search_tickets` y `ticket_bulk_eligibility` |
+
+### Decisión 6 — lo que se suspende, y cómo
+
+| Acción del personal | Qué pasa ahora |
+|---|---|
+| Anular pagos | `void_payment` queda **dormida**: sin `EXECUTE` para `authenticated`, con el cuerpo intacto |
+| Importar boletas con cliente o abono | `match_ticket_import_clients` e `import_tickets_with_clients` quedan dormidas. **Los dos portales importan solo boletas sin vender**: la vista previa aparta esas filas con su frase y la acción las rechaza |
+| Asignar, cambiar o liberar clientes; corregir precios o abonos; editar o archivar clientes | Solo el vendedor de la boleta o del cliente |
+| Anular una boleta vendida | Nadie desde la aplicación. Una vendida **sin historial** la libera su vendedor y después la anula el personal; una con abonos en su historial ya no se anula |
+
+**Una dormida no se reactiva solo con volver a concederla.** `import_tickets_with_clients` vende por
+`assign_ticket_row` y abona por `create_payment`, cuyos cuerpos ya no dejan vender al personal: con la
+identidad del Dueño se detiene en la primera fila con cliente sin escribir nada, y así lo comprueban
+`tests/db/ticket-import.test.ts` y `sale-discount.test.ts`. Reactivarla exige restaurar también esas
+ramas (procedimiento abajo). `void_payment` sí conserva su cuerpo entero, y sus reglas se siguen
+probando con la identidad del Dueño (`voidPaymentAs`).
+
+### Decisión 7 — la aplicación: un modelo del personal, sin copiar componentes
+
+- **`src/features/tickets/admin-queries.ts`** es la lectura del personal, con tipos que **no declaran**
+  cliente, precio, abonado ni saldo: no se selecciona ningún campo para ocultarlo en JSX.
+- `TicketsList`, `TicketsTable`, `TicketCardList` y `TicketFilters` reciben una prop **`audience`** y
+  pintan la variante del personal con el mismo esqueleto, sin copiar las tablas. `whyNot` explica los
+  rechazos del personal sin nombrar la cartera, y la insignia de dos estados es `AdminPaymentStateBadge`.
+- Se **eliminan** `/owner/clients`, `/owner/clients/[clientId]` y `/owner/payments`, sus entradas del
+  menú y todo enlace a ellas, y con sus únicos consumidores `CollectionSummaryCard`, `PaymentFilters`,
+  `voidPayment` y su esquema. **Nada queda comentado ni escondido**: vuelven desde Git.
+- El panel, «Vendedores», la ficha del vendedor, «Rifas» y «Reportes» del personal leen
+  `admin_ticket_inventory`: cuentan boletas, no pesos. Sus reportes son tres —«Por vendedor», «Boletas
+  por estado» y «Boletas por rifa»—, y el CSV sale de las **mismas** lecturas, con el público tomado de la
+  sesión. El recuadro de loterías del personal lee `admin_lottery_matches`.
+- Las Server Actions de clientes, pagos, asignación, precio, cambio y liberación de cliente autorizan
+  `['seller']`. La importación rechaza cliente y abono en los dos portales, y su frase ya no manda al
+  vendedor a un portal administrativo que tampoco los importa. Su paso de mapeo pregunta **solo por los
+  números**: pedir el par del cliente, o un cliente para el abono, llevaba por un camino que la vista
+  previa rechaza.
+- **Se conserva a propósito** la revisión pura del importador con `allowClientAssignments`: reactivar la
+  importación con clientes no obligará a reescribir la lectura del archivo.
+
+### Decisión 8 — el residuo que se acepta
+
+Una boleta **disponible** con asignaciones **heredadas** —de antes de BR-I14, cuando se podía liberar
+con abonos anulados— sigue sin poder eliminarse, y el personal lee «Ya entró en la operación: solo se
+puede anular» sin saber por qué: decirlo delataría el historial.
+
+### Procedimiento para volver a dar acceso (si el negocio lo decide)
+
+**Una migración nueva —nunca editando `0057`— y cambios de aplicación explícitos:**
+
+1. **Políticas del personal:** recrear `tickets_select`, `tickets_update_staff`, `clients_select`,
+   `clients_update`, `clients_insert`, `payments_select`, `payments_insert`, `payments_update_staff`,
+   `payment_allocations_select`, `payment_allocations_insert` y `audit_logs_select_staff` con sus formas
+   de `0014`; `lottery_ticket_matches_select` con la de `0036`; `seller_commissions_select` y
+   `commission_ledger_select` con las de `0024`; y devolver `tickets_insert_staff` a la de `0014`.
+2. **Cuerpos anteriores:** volver a ejecutar `create_payment` (`0007`), `assign_ticket_row`,
+   `bulk_assign_tickets` y `ticket_sale_price_limits` (`0028`), `update_ticket_sale_price` (`0035`),
+   `update_payment_allocation` (`0042`), `reassign_ticket_client` (`0047`), `release_ticket_client`
+   (`0048`), `cancel_ticket_row` y `bulk_cancel_tickets` (`0020`) y `notify_ticket_sold` (`0032`); y
+   borrar `memberships_redact_staff_notifications` con su disparador. **Los precios quitados de los
+   avisos antiguos no vuelven.**
+3. **Grants:** `GRANT EXECUTE … TO authenticated` de `void_payment`, `match_ticket_import_clients` e
+   `import_tickets_with_clients`, y devolverlas a las dos listas blancas (`tests/db/catalog.test.ts` y
+   `scripts/verify-remote.ts`). Las proyecciones `admin_*` pueden quedarse.
+4. **Aplicación**, desde el commit anterior a D-198: rutas y menú de «Clientes» y «Pagos»,
+   `CollectionSummaryCard`, `PaymentFilters`, `voidPayment`, las lecturas con dinero del panel, los
+   vendedores, las rifas y los reportes, la importación con clientes y abonos, los roles de las Server
+   Actions y el recorrido «owner-payments».
+5. **Pruebas:** restaurar las que D-198 convirtió (`TEST_RESULTS`, 2026-09-14) y correr `test:db`,
+   `verify` y la E2E completa.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Ocultar columnas y enlaces en la interfaz | La RLS seguiría entregando la fila entera por PostgREST: el navegador no es la frontera (`CLAUDE.md` §26) |
+| Vistas nuevas en lugar de funciones | El catálogo exige `security_invoker` en toda vista (D-010), y así heredarían la RLS que se acaba de cerrar |
+| Mantener «Abonada» para el personal | Con «Abonada» y el precio de la rifa se aproxima cuánto abonó cada cliente |
+| Dejar al personal anular las vendidas sin abonos | El rechazo distinto para una con abonos delataría el estado |
+| Borrar `void_payment` y las RPC de importación | El usuario pidió no destruir funcionalidad y poder volver atrás |
+| Un interruptor en el navegador | No es una frontera, y el encargo lo prohíbe |
+
+### Consecuencia
+
+Migración **`0057`**. Reglas **BR-Q01..BR-Q10** (`BUSINESS_RULES` §12.h) y notas en las que acota.
+`SECURITY` §2 y **§4.19**, `DATA_MODEL` §4.9 y §6.g.8, `ARCHITECTURE` (rutas, §8.2 y §8.26),
+`MASTER_SPEC` §7, §8 y §9.1, `UX_COPY_GUIDELINES`, `TESTING`, `KNOWN_ISSUES`, `TEST_RESULTS`,
+`PHASE_STATUS` y `HANDOFF`. **Solo en local**: ni `0057` ni el código están en el proyecto real.
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

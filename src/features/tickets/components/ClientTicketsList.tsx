@@ -23,12 +23,8 @@ import type { TicketListItem } from '../queries'
 
 type ClientTicketsListProps = {
   tickets: TicketListItem[]
-  /** `/owner/tickets` o `/seller/tickets`. */
+  /** `/seller/tickets`: desde D-198 solo el vendedor ve la ficha de un cliente. */
   basePath: string
-  /** Solo el portal administrativo: un cliente puede comprar en varias rifas. */
-  showRaffle?: boolean
-  /** Solo el portal administrativo, que ve la cartera de toda la organizacion. */
-  showSeller?: boolean
   /** Se pasa a la tabla; la aplana cuando ya va dentro de una tarjeta. */
   className?: string
 }

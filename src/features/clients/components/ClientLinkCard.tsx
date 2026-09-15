@@ -12,8 +12,8 @@ import { cn } from '@/lib/utils'
  * fila ENTERA es el enlace, que es la diana mas grande posible, y la flecha de
  * la derecha dice a donde va sin gastar una linea de texto en decirlo.
  *
- * La ficha a la que lleva es la MISMA de «Clientes»: `href` cambia de portal
- * (`/owner/clients/...` o `/seller/clients/...`), no de pantalla. Volver desde
+ * La ficha a la que lleva es la MISMA de «Mis clientes» (`/seller/clients/...`):
+ * desde D-198 solo el vendedor ve clientes. Volver desde
  * ahi con la flecha del encabezado devuelve a esta boleta, porque `BackButton`
  * usa el historial real de la sesion (D-089).
  *

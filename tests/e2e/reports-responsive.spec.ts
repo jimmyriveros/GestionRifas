@@ -11,9 +11,17 @@ import { ACCOUNTS, loginAs } from './fixtures'
  * desde un telefono. Una tabla de reporte es lo primero que rompe eso: seis
  * columnas de cifras no caben en 412 px. Aqui se comprueba que el ancho lo
  * absorbe el contenedor de la tabla y no la pagina entera.
+ *
+ * Desde D-198 el personal tiene TRES reportes de recuentos; los de dinero y de
+ * clientes son del vendedor (BR-Q08). Las comprobaciones de esos dos se hacen en
+ * su portal, con las mismas aserciones.
  */
 
-const REPORTES = ['sellers', 'ticket-status', 'raffles', 'client-balances', 'payments'] as const
+/** Los del personal desde D-198. */
+const REPORTES = ['sellers', 'ticket-status', 'raffles'] as const
+
+/** Los que solo abre el vendedor. */
+const REPORTES_DEL_VENDEDOR = ['payments', 'client-balances'] as const
 
 test.describe('Reportes en movil', () => {
   test.beforeEach(async ({ page }) => {
@@ -49,9 +57,11 @@ test.describe('Reportes en movil', () => {
 
     const encabezados = page.getByRole('table').locator('thead th')
     await expect(encabezados.filter({ hasText: 'Vendedor' })).toBeVisible()
-    await expect(encabezados.filter({ hasText: 'Saldo' })).toBeVisible()
-    // «Boletas» y «Recaudado» estan marcadas como secundarias.
-    await expect(encabezados.filter({ hasText: 'Recaudado' })).toBeHidden()
+    await expect(encabezados.filter({ hasText: 'Vendidas' })).toBeVisible()
+    // Desde D-198 las secundarias son «Disponibles» y «Por aprobar»; ya no hay
+    // columnas de dinero que ocultar.
+    await expect(encabezados.filter({ hasText: 'Disponibles' })).toBeHidden()
+    await expect(encabezados.filter({ hasText: 'Por aprobar' })).toBeHidden()
   })
 
   /**
@@ -84,20 +94,36 @@ test.describe('Reportes en movil', () => {
     const nav = page.getByRole('navigation', { name: 'Reportes disponibles' })
     await expect(nav).toBeVisible()
 
-    // El ultimo reporte debe poder pulsarse aunque no quepa en pantalla.
-    const ultimo = nav.getByRole('link', { name: 'Pagos por fecha' })
+    // El ultimo reporte debe poder pulsarse aunque no quepa en pantalla. Desde
+    // D-198 el ultimo del personal es «Boletas por rifa».
+    const ultimo = nav.getByRole('link', { name: 'Boletas por rifa' })
     await ultimo.scrollIntoViewIfNeeded()
     await ultimo.click()
-    await page.waitForURL(/report=payments/)
+    await page.waitForURL(/report=raffles/)
+  })
+})
+
+test.describe('Los reportes de dinero en movil, en el portal del vendedor (D-198)', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+  })
+
+  test('tampoco desbordan horizontalmente la página', async ({ page }) => {
+    for (const reporte of REPORTES_DEL_VENDEDOR) {
+      await page.goto(`/seller/reports?report=${reporte}`)
+      await page.waitForLoadState('networkidle')
+
+      const desbordamiento = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )
+      expect(desbordamiento, `desbordamiento en el reporte ${reporte}`).toBeLessThanOrEqual(2)
+    }
   })
 })
 
 test.describe('Accesibilidad basica de los reportes (prueba 7)', () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAs(page, ACCOUNTS.owner)
-  })
-
   test('cada tabla tiene un titulo para lectores de pantalla', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
     for (const reporte of REPORTES) {
       await page.goto(`/owner/reports?report=${reporte}`)
       const caption = page.getByRole('table').locator('caption')
@@ -106,7 +132,18 @@ test.describe('Accesibilidad basica de los reportes (prueba 7)', () => {
     }
   })
 
+  test('las tablas de dinero del vendedor también tienen su titulo', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    for (const reporte of REPORTES_DEL_VENDEDOR) {
+      await page.goto(`/seller/reports?report=${reporte}`)
+      const caption = page.getByRole('table').first().locator('caption')
+      await expect(caption, `sin caption en ${reporte}`).toHaveCount(1)
+      expect((await caption.innerText()).trim().length).toBeGreaterThan(0)
+    }
+  })
+
   test('los encabezados de columna son <th> con scope', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/reports?report=sellers')
     // `count()` no auto-espera: sin esto se ejecutaria contra el esqueleto de
     // carga y contaria cero encabezados.
@@ -120,6 +157,7 @@ test.describe('Accesibilidad basica de los reportes (prueba 7)', () => {
   })
 
   test('el reporte activo se anuncia con aria-current', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
     await page.goto('/owner/reports?report=raffles')
 
     const activo = page
@@ -128,16 +166,32 @@ test.describe('Accesibilidad basica de los reportes (prueba 7)', () => {
     await expect(activo).toHaveAttribute('aria-current', 'page')
   })
 
+  /**
+   * Hasta D-198 se comprobaban juntos los cinco filtros del reporte de pagos del
+   * personal. Desde D-198 ese reporte es del vendedor —que no filtra por
+   * vendedor—, y el filtro «Vendedor» se comprueba donde el personal lo conserva.
+   */
   test('cada filtro tiene su etiqueta asociada', async ({ page }) => {
-    await page.goto('/owner/reports?report=payments')
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/reports?report=ticket-status')
+    for (const etiqueta of ['Rifa', 'Vendedor']) {
+      await expect(page.getByLabel(etiqueta)).toBeVisible()
+    }
+  })
 
-    for (const etiqueta of ['Vendedor', 'Desde', 'Hasta', 'Método', 'Estado del pago']) {
+  test('los filtros del reporte de pagos del vendedor tienen su etiqueta asociada', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/reports?report=payments')
+    for (const etiqueta of ['Desde', 'Hasta', 'Método', 'Estado del pago']) {
       await expect(page.getByLabel(etiqueta)).toBeVisible()
     }
   })
 
   test('los estados vacios explican que hacer, no solo que no hay nada', async ({ page }) => {
-    await page.goto('/owner/reports?report=payments&dateFrom=2000-01-01&dateTo=2000-12-31')
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/reports?report=payments&dateFrom=2000-01-01&dateTo=2000-12-31')
 
     await expect(page.getByText('Ningún pago en este rango')).toBeVisible()
     await expect(page.getByText(/ampliar las fechas/i)).toBeVisible()

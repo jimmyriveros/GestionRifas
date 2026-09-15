@@ -18,7 +18,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { loadSeedContext, SEED_PASSWORD, signInAs, type Client } from './helpers'
+import { loadSeedContext, SEED_PASSWORD, signInAs, voidPaymentAs, type Client } from './helpers'
 
 let ctx: Awaited<ReturnType<typeof loadSeedContext>>
 let sellerId: string
@@ -174,12 +174,9 @@ async function voidLastPayment(): Promise<number> {
     .single()
   if (error) throw error
 
-  const owner = await signInAs('owner@demo.test')
-  const { error: voidError } = await owner.rpc('void_payment', {
-    p_payment_id: data.id,
-    p_reason: 'Prueba de bajada de tramo',
-  })
-  if (voidError) throw new Error(`No se pudo anular: ${voidError.message}`)
+  // D-198: `void_payment` quedo dormida; su cuerpo se ejecuta con la identidad
+  // del Dueño (ver `voidPaymentAs`).
+  await voidPaymentAs(ctx.ids.owner, data.id, 'Prueba de bajada de tramo')
 
   const revertidas = data.payment_allocations.length
   paidCount -= revertidas

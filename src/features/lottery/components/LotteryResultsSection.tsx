@@ -123,7 +123,9 @@ async function LotteryResultsContent({
   variant,
   className,
 }: LotteryResultsSectionProps) {
-  const data = await getLotteryDashboard()
+  // El publico elige la lectura (D-198): el personal recibe las coincidencias
+  // sin cliente, por `admin_lottery_matches`.
+  const data = await getLotteryDashboard(new Date(), audience)
 
   return (
     <LotteryResultsCard

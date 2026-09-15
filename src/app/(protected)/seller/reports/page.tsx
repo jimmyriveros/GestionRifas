@@ -25,6 +25,7 @@ export default async function SellerReportsPage({ searchParams }: { searchParams
 
   return (
     <ReportsView
+      audience="seller"
       filters={filters}
       reports={SELLER_REPORT_KEYS}
       basePath="/seller/reports"

@@ -27,13 +27,27 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
+import type { TicketInventoryStatus } from '@/lib/constants'
+
 import { approveTickets, cancelTicket, reassignTicketSeller, updateTicketNumbers } from '../actions'
-import type { TicketDetail } from '../queries'
 import { cancelTicketSchema, updateTicketNumbersSchema } from '../schemas'
 import { bulkDeleteTickets } from '../selection/actions'
 
+/**
+ * Lo UNICO que estas acciones necesitan de la boleta (D-198). Es un componente
+ * cliente: lo que se le pase viaja al navegador, asi que no recibe el detalle
+ * entero.
+ */
+export type TicketActionsTicket = {
+  id: string
+  dailyNumber: string | null
+  weeklyNumber: string | null
+  inventoryStatus: TicketInventoryStatus
+  sellerId: string
+}
+
 type TicketActionsProps = {
-  ticket: TicketDetail
+  ticket: TicketActionsTicket
   sellers: { id: string; fullName: string }[]
 }
 
@@ -58,19 +72,23 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const isCancelled = ticket.inventoryStatus === 'cancelled'
-  const canChangeSeller = !isCancelled && ticket.inventoryStatus !== 'assigned'
   /**
-   * BR-B05: eliminar es para una boleta cargada por error, que nunca entro a la
-   * operacion. La base de datos lo vuelve a comprobar; esto solo evita ofrecer
-   * un boton que iba a fallar.
+   * Las tres acciones de inventario comparten el mismo conjunto: una boleta que
+   * todavia no se vendio ni se anulo. La base de datos lo vuelve a comprobar
+   * todo; esto solo evita ofrecer un boton que iba a fallar.
+   *
+   *   * Cambiar vendedor: una vendida arrastra a su cliente (BR-C05).
+   *   * Anular: una vendida ya no la anula el personal, porque el rechazo por
+   *     abonos delataria una Abonada detras de «Sin pagar» (D-198, BR-Q07).
+   *   * Eliminar: solo lo que nunca entro a la operacion (BR-B05).
    */
-  const canDelete =
-    ticket.clientId === null &&
-    ticket.salePrice === null &&
-    ticket.paidAmount === 0 &&
-    (ticket.inventoryStatus === 'draft' ||
-      ticket.inventoryStatus === 'pending_approval' ||
-      ticket.inventoryStatus === 'available')
+  const isUnsold =
+    ticket.inventoryStatus === 'draft' ||
+    ticket.inventoryStatus === 'pending_approval' ||
+    ticket.inventoryStatus === 'available'
+  const canChangeSeller = isUnsold
+  const canCancel = isUnsold
+  const canDelete = isUnsold
 
   function saveNumbers() {
     const parsed = updateTicketNumbersSchema.safeParse({
@@ -186,7 +204,7 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
         </Button>
       ) : null}
 
-      {!isCancelled ? (
+      {canCancel ? (
         <Button type="button" variant="destructive" onClick={() => setCancelOpen(true)}>
           Anular boleta
         </Button>

@@ -103,7 +103,11 @@ export function TicketSelectionToolbar({
   filters: TicketSelectionFiltersInput
   sellers?: { id: string; fullName: string }[]
   clients?: ClientOption[]
-  rafflePrices: Record<string, number>
+  /**
+   * Precio vigente de cada rifa, para el total de una venta en lote. Solo lo
+   * pasa el portal del vendedor: el personal no vende (D-198).
+   */
+  rafflePrices?: Record<string, number>
   /**
    * Configuracion de WhatsApp del vendedor (D-176). Solo la pasa el portal del
    * vendedor: en el administrativo no se crean clientes, asi que no hay a quien
@@ -421,7 +425,7 @@ export function TicketSelectionToolbar({
           open={dialog === 'assign'}
           onOpenChange={(open) => setDialog(open ? 'assign' : null)}
           clients={clients}
-          rafflePrices={rafflePrices}
+          rafflePrices={rafflePrices ?? {}}
           whatsappSettings={whatsappSettings}
         />
       ) : null}

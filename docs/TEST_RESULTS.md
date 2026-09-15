@@ -23,7 +23,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (mensaje propio de «Resultados de la semana», D-197, 2026-09-13)** | **1.141 ✅ en 65 archivos (+41)** | **1.016 ✅ en 46 archivos (+24; migración `0056`)** | **681/683**, con las 9 nuevas; los 2 son **I-090** y pasan **2/2** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`6dd23e5`, 2026-09-13) · `0056` aplicada al proyecto real · en vivo **25/25** en la segunda pasada |
+| **Post-9 vigente (la cartera es del vendedor, D-198, 2026-09-14)** | **1.155 ✅ en 66 archivos (+14)** | **1.048 ✅ en 47 archivos (+32; migración `0057`)** | **706/710**, con las 23 de privacidad; los 4 son **I-090** (2) e **I-106** (1), que pasan **3/3** solos, y `boleta-cliente.spec.ts:395`, corregida (**3/3** y su archivo **15/15**) | ✅ | ✅ **Sin desplegar**: `0057` y su código, solo en local y juntos (I-118) |
+| Post-9 anterior (mensaje propio de «Resultados de la semana», D-197, 2026-09-13) | **1.141 ✅** en 65 archivos (+41) | **1.016 ✅** en 46 archivos (+24; migración `0056`) | **681/683**, con las 9 nuevas; los 2 son **I-090** y pasan **2/2** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`6dd23e5`, 2026-09-13) · `0056` aplicada al proyecto real · en vivo **25/25** en la segunda pasada |
 | Post-9 anterior («Reintentar» de la página de error general, D-196, 2026-09-13) | **1.100 ✅** en 64 archivos (+3) | — (no se tocó la base) | **80/80** (`security.spec.ts` 22 · catálogo público 58) | ✅ | 🚀 **DESPLEGADO** (`787e420`, 2026-09-13) · en un navegador contra la base local, **8/8** · abre **I-115** |
 | Post-9 anterior (corte pasajero del catálogo público, I-114, D-196, 2026-09-13) | **1.097 ✅** en 62 archivos (+15) | — (no se tocó la base) | **58/58** | ✅ | 🚀 **DESPLEGADO** (`8767f9e`, 2026-09-13) |
 | Post-9 anterior (ajuste visual de la imagen semanal, 2026-09-13) | **1.082 ✅** en 60 archivos (+3) | — (no se tocó la base) | — (el cambio no llega a ninguna pantalla: solo al PNG) | ✅ | 🚀 **DESPLEGADO** (`1a6b4af`, 2026-09-13) |
@@ -11571,3 +11572,140 @@ publicado** —la otra, a las 17:50 del mismo día— y esta vez siguió en el r
 * **El editor en vivo con una cuenta de vendedor**: vive tras el inicio de sesión y un agente no
   introduce contraseñas.
 * **Un teléfono de verdad**, ni el editor en **modo oscuro**.
+
+---
+
+## La cartera es del vendedor: el personal sin acceso a la información comercial (`0057`, D-198) — 2026-09-14
+
+**Alcance:** encargo expreso del usuario, con el alcance **B · «Tampoco finanzas»** elegido en la única
+pregunta. **Solo en local**: sin push, sin despliegue y sin tocar el proyecto real. Reglas en
+`BUSINESS_RULES` §12.h (BR-Q01..BR-Q10), seguridad en `SECURITY` §4.19 y estrategia en `TESTING` §4.10.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base, antes de tocar nada: `npm run test:db` | ✅ **1.016/1.016** en 46 archivos (66,0 s) |
+| Línea base: `npm run verify` | ✅ typecheck, lint (0 errores y los 2 avisos preexistentes), unitarias **1.141** en 65 archivos y build (71 s) |
+| `db:reset` + `seed:local` con `0057` | ❌ el seed no pudo anular su pago de ejemplo → corregido (b) → ✅ |
+| `npm run typecheck` tras retirar las rutas | ❌ validadores viejos en `.next/types` → corregido (b) → ✅ |
+| Unitarias completas, primera pasada | ❌ 2 archivos en rojo (`lottery-dashboard`, `reports-sales-by-date`) → corregidos (b); `admin-privacy` **17/17** |
+| `npm run test:db`, primera pasada | ❌ **115 fallos**: las suites que usaban al personal para leer, vender, cobrar, anular o importar → adaptadas (c) |
+| `npm run test:db`, segunda pasada, sobre `db:reset` + `seed:local` | ❌ **1.014/1.019** en 46 archivos → los 5, corregidos (b) |
+| Dirigida: `admin-privacy`, `payments-phase5`, `sale-discount` y `ticket-import` | ✅ **106/106** en 4 archivos |
+| E2E dirigida, primer intento | ❌ **no llegó a correr ninguna prueba**: `webServer` agotó sus 180 s mientras compilaba `/login` (65 s en frío) → se arrancó el servidor local aparte y Playwright lo reutilizó |
+| E2E dirigida, segundo intento | ⏹️ **detenida a propósito** en 39/418, con 17 fallos de suites que todavía no estaban convertidas (c) |
+| `db:reset` + `seed:local` + E2E dirigida, escritorio y móvil: 37 grupos de archivos, las 23 de privacidad incluidas | **542/553** en 29,8 min. **Las 23 de privacidad, en verde.** Los 11 fallos, clasificados y corregidos en (b); repetición en (d) |
+| Repeticiones de las E2E que fallaron | Ver (d): **41/41**, una pasada interrumpida, **110/112** y, con dos pruebas y una ayuda corregidas, **38/38** |
+| Prettier sobre los 139 archivos de código tocados | ❌ **41** sin formatear → **37** formateados (b) → ✅. Los 4 restantes ya venían así de `HEAD` |
+| Final, sobre `db:reset` + `seed:local`: `npm run test:db` | ✅ **1.048/1.048** en 47 archivos (64,3 s): **+32** sobre la línea base, las 29 de `admin-privacy` y 3 más en las suites adaptadas |
+| Final: `npm run verify` | ✅ typecheck · lint con **0 errores** y los **2 avisos preexistentes** · unitarias **1.155/1.155** en 66 archivos (**+14**: las 17 de `admin-privacy` y 3 menos en las adaptadas) · `build`, sin `/owner/clients` ni `/owner/payments` |
+| Final, sobre `db:reset` + `seed:local`: E2E completa, escritorio y móvil | **706/710** en 35,2 min, con las **23 de privacidad** en verde. Los 4: `ventas-por-fecha` `:163` y `:247` (**I-090**) y `catalogo-publico-movil` `:103` (**I-106**), conocidos, que pasan **3/3** solos tras `db:reset` + `seed:local` (d); y `boleta-cliente.spec.ts:395`, de este trabajo, corregida (b): **3/3** sola y su archivo **15/15** |
+
+### b. Errores encontrados y corregidos
+
+| Qué pasó | Causa | Corrección |
+|---|---|---|
+| El seed falló al anular su pago de ejemplo | `void_payment` quedó sin `EXECUTE` para `authenticated` | El seed marca el pago con la service role —el disparador recalcula la boleta— y escribe su fila `payment.void` en la bitácora, lo mismo que hacía la RPC |
+| `typecheck` falló sobre rutas que ya no existen | Validadores generados por `next dev` en `.next/types` y `.next/dev/types` | Borrarlos y `npx next typegen` |
+| `seller/reports/page.tsx` no compilaba | `ReportsView` pide ahora `audience` | Añadido `audience="seller"` |
+| `ticket-selection.test.ts` no compilaba | La elegibilidad pasó a una unión discriminada por `audience` | `Extract<TicketEligibility, { audience: 'seller' }>` y `audience: 'seller'` |
+| `lottery-dashboard.test.ts` contaba dos `abortSignal` | La lectura del personal va por su proyección y lleva el suyo | Tres, y la prueba exige además la cadena `admin_lottery_matches` |
+| `reports-sales-by-date.test.ts` esperaba cinco reportes del personal | El personal tiene tres desde D-198 | Tres, y los retirados caen en `sellers` |
+| La comprobación estructural de los tipos administrativos no casaba | El tipo cabía en una línea | Se extrae `EligibilityBase` y se exige la línea exacta de `AdminTicketEligibility` |
+| I-015 (`payments-phase5`) no insertaba | La asignación de prueba no llevaba `client_id` ni `organization_id` | Añadidos |
+| Casos 14 y 15 de `ticket-import` y E8-19 de `sale-discount`, en rojo | `import_tickets_with_clients` vende por `assign_ticket_row` y abona por `create_payment`, ya solo del vendedor | Convertidos a «se detiene en la primera fila con cliente sin escribir nada» (I-119) |
+| El comentario de reversión de `0057` citaba `0023` para `notify_ticket_sold` | El último cuerpo anterior a `0057` es el de `0032` | Corregido antes del commit |
+| La E2E no arrancaba | Primera compilación de `/login` de 65 s en un disco que Next llama lento | Servidor local arrancado aparte y calentado; Playwright lo reutiliza (`reuseExistingServer`) |
+| E2E: la limpieza de `equipo.spec.ts` no pudo borrar la cuenta de un integrante (`deleteUser` con `{}`) | Desde D-198 el integrante registra su propio abono, así que la bitácora lo guarda como **actor**, y esa FK es `RESTRICT` | `purgeSellers` borra también los avisos y las filas de bitácora cuyo actor es una de esas cuentas de prueba |
+| E2E: el importador paraba en el mapeo con un archivo que traía «Abono» sin cliente, y su aviso mandaba a elegir las columnas del cliente | `needsManualMapping` exigía un cliente para el abono: **un camino que D-198 rechaza en la vista previa** | `ColumnMapper` pregunta solo por los números y deja pasar las columnas de cliente y abono reconocidas, cuyas filas se apartan con su frase; `needsManualMapping` se conserva para reactivar (D-198, Decisión 7) |
+| E2E: el mensaje del importador «no era visible» | La vista previa pinta la tabla y, oculta, la versión del teléfono: `.first()` escogía la oculta | `filter({ visible: true })` |
+| E2E: `payments.spec.ts` recibió `permission denied for function cancel_ticket_row` | La prueba llamaba a la pieza interna; la RPC pública es `cancel_ticket` | Corregida la prueba |
+| E2E: `seleccion-multiple.spec.ts` no encontró «Ya está vendida.» | Cada motivo va en su fila, con la boleta delante | Se compara la fila entera. **Al revisarlo apareció un texto que D-198 había dejado falso**: la explicación del diálogo de eliminar nombraba los abonos y mandaba a anular una boleta que «ya salió a la calle», también vendida → texto nuevo, que la prueba comprueba |
+| E2E: `boleta-estrecha-movil.spec.ts` buscaba la tarjeta del cliente en el detalle administrativo | Ya no existe (D-198) | Convertida: el detalle no desborda a 320 px y no enseña el nombre del cliente |
+| E2E: `menu-lateral.spec.ts:101` no pudo pulsar «Abrir el menú» | **Primero se atribuyó mal**, a haber editado el importador con la suite corriendo. La repetición (d) volvió a fallar **sin tocar `src/`**, y sola, **tres de tres**. Medido: el indicador de `next dev` —la «N», arriba a la izquierda desde D-106— ocupa `[22, 22, 32, 32]`, y con la barra cerrada el botón ocupa `[10, 10, 36, 36]`: el centro del botón es de la «N», **también en las pruebas que pasan**. Esas pulsan antes de que Next la dibuje; esta pulsa tras recargar, y perdió esa carrera en cuanto recarga «Reportes» en lugar de «Pagos». En producción no existe | La prueba oculta el indicador en todo el archivo con `hideNextDevUi` (`cabecera-helpers.ts`), la ayuda que la cabecera contextual ya usaba para lo mismo; los clics siguen siendo de ratón. `HANDOFF` §9, corregido |
+| E2E: tres de `loterias-panel.spec.ts` no vieron «Resultado pendiente» | Siembran un sorteo **de hoy a la 01:00** y la suite pasó por ellos a las 00:45: ese sorteo todavía no había jugado. **Ajeno a D-198** | Repetidas después de la 01:00 (d) |
+| E2E: `ventas-por-fecha.spec.ts:163` | **I-090**, conocido: cuenta las ventas de hoy que la suite acumula | Repetida en aislamiento tras `db:reset` + `seed:local` (d) |
+| E2E, repetición (d): `seleccion-multiple.spec.ts:284` —eliminar una boleta cargada por error— no encontró su explicación | Buscaba la frase de antes de D-198. La prueba de la vendida (`:311`) sí se había convertido; esta no | Compara la explicación nueva, la misma que la `:311` |
+| Prettier: **41** de los 139 archivos de código tocados no pasaban `prettier --check` | **34** estaban formateados en `HEAD` y **3** son nuevos: el descuadre era de este trabajo, con líneas de más de 100 columnas y finales de línea. Los otros **4** —`assign/actions.ts`, `database.types.ts`, `lottery-results.test.ts` y `sale-price-update.test.ts`— **ya venían sin formatear de `HEAD`** | `prettier --write` sobre los 37. Los 4 se dejan como estaban, para no meter cambios ajenos |
+| E2E, repetición (d): `menu-lateral.spec.ts:116` siguió cayendo con `hideNextDevUi` puesta | **La ayuda no ocultaba nada**: ponía `display: none` en línea al portal y, medido con ella puesta, el portal seguía con `style="--nextjs-dev-tools-scale: 1;"` y `display: block`. La cabecera contextual no lo notaba porque además pulsa con `activate` | La ayuda usa ahora una regla `!important` en una hoja adoptada. **38/38**: `menu-lateral` 15, `cabecera-contextual` 12 y `cabecera-contextual-movil` 11 |
+| E2E completa y aislada: `boleta-cliente.spec.ts:395` —el portal administrativo ya no lleva a ninguna ficha— agotó sus 60 s en `waitForURL` | **Una carrera que metió la conversión.** La prueba de antes buscaba escribiendo, y eso daba tiempo a que React hidratara; la nueva abre `/owner/tickets?q=…` y pulsa al instante. En la traza, el clic llega **13 ms** después de `[HMR] connected` y **no sale ninguna petición** al detalle: la trampa de `TESTING` §5.3. No es compilación en frío (I-075): `back-navigation`, que corre antes, ya había abierto esa ruta | El reintento de `equipo.spec.ts` (§5.3), con la misma aserción. **3/3** sola, su archivo **15/15** y `typecheck` ✅ después |
+
+### c. Suites adaptadas, y por qué ninguna aserción se debilitó
+
+Regla aplicada: **lo que el personal ya no puede hacer se convierte en una prueba de que no puede**
+—con la misma respuesta que algo inexistente cuando delatarlo importa—, y **lo que se sigue haciendo
+cambia de sesión, no de aserción**: si antes lo preparaba o lo ejecutaba el Dueño y ahora solo puede el
+vendedor, lo hace el vendedor y se afirma lo mismo.
+
+**Base de datos (25 archivos y `helpers.ts`):**
+
+| Archivo | Conversión |
+|---|---|
+| `helpers.ts` | `asProfile` y `voidPaymentAs`: ejecutan el cuerpo real de una RPC dormida con una identidad fijada en `request.jwt.claims`. Prueban la regla, **no la RLS** |
+| `payments-phase5` | F5-02 anula con `voidPaymentAs` y gana «ninguna sesión anula» (`42501`); F5-03: el personal no anula una vendida («ya está vendida») y la guarda del disparador se sigue probando con la service role; F5-04: las cuentas de la vista con la service role, el vendedor ve el motivo y el Dueño recibe `[]`; I-015 con `asProfile` |
+| `payments`, `payment-update`, `sale-price-update` | El personal rechazado con el mensaje de lo inexistente; el vendedor, con las aserciones de siempre |
+| `reassign-client`, `release-ticket` | Dueño y Administrador rechazados; los casos, con el vendedor 1 (cliente C para la pantalla vieja); las anuladas se preparan con la service role; la concurrencia, con dos sesiones del vendedor |
+| `rls-isolation`, `security-phase7` (F7-02), `seller-teams` (E1-15) | Las lecturas del personal por `admin_list_tickets` y `admin_ticket_detail`; DB-09 exige `42501` |
+| `phase3-admin`, `bulk-actions` | Crear con id propio sin leer de vuelta, `admin_update_ticket_numbers`, `bulk_change_ticket_seller`, el detalle, el inventario y `total_count`; la elegibilidad del vendedor y la del personal, cada una por su lectura |
+| `commission-modes`, `commissions`, `team-commission` (E10-05) | Una sesión por vendedor; E6-06 comprueba `commission_summary` por sesión y que el Dueño recibe `[]`; las anulaciones, con el helper |
+| `sale-discount` | E8-18 con la sesión del equipo; E8-19: la importación dormida da `42501` desde una sesión y, ejecutada, no escribe nada |
+| `ticket-clearance`, `reports-sales-by-date` | Anular boletas con la service role y pagos con el helper; los totales del personal, en cero |
+| `reports-phase6`, `volume-phase6`, `audit-phase9` | Los recuentos por `admin_ticket_inventory`; las cuentas de las vistas con conexión directa; las funciones de pago con el vendedor 1; el personal, en cero |
+| `lottery-results` | Las coincidencias del personal por `admin_lottery_matches`, sin cliente; las del vendedor, por la tabla |
+| `ticket-search`, `ticket-search-client` | El personal busca por `admin_list_tickets`; un nombre le responde vacío |
+| `catalog` | `audit_logs` sin políticas; lista blanca de ejecutables +7 y −3; 22 RPC de negocio; y una prueba nueva de las tres dormidas: sin `EXECUTE` para `authenticated` ni `anon`, con él para `service_role` |
+| `ticket-import` | Los casos de éxito con clientes y abonos pasan a «desde D-198 no vende, no reutiliza clientes ni registra abonos»: error de acceso y nada escrito. Vendedor y otra organización: `42501` desde la sesión y rechazo del cuerpo |
+
+**Unitarias (6):** `payment-status` (sin `voidPaymentSchema`), `ticket-import` (la regla de completitud
+con `allowClientAssignments`, y el contexto sin clientes exige la frase nueva), `ticket-import-abono`
+(las constantes nuevas, muestras de dos columnas y un bloque «sin clientes ni abonos»),
+`ticket-selection`, `lottery-dashboard` y `reports-sales-by-date` (b).
+
+**E2E (25 archivos y `db-setup.ts`):**
+
+| Archivo | Conversión |
+|---|---|
+| `db-setup.ts` | `voidPaymentAsStaff` (preparar un pago anulado con el cuerpo real) y `organizationSoldTotal` (lo vendido por la organización, leído sin RLS) |
+| `payments` | «El Admin anula» → nadie anula: 404 y `42501` con las dos sesiones, y el abono sigue contando; «el anulado sigue en el historial» → en el del vendedor, con su motivo; «boleta con pagos no se anula» → el personal no anula una vendida, **con el mismo mensaje con y sin abonos**; la consulta global → 404 y los totales siguen en «Mis pagos»; un vendedor en `/owner/payments` → 404 |
+| `dashboard-collection-summary` | El «Resumen de cobranza» → el panel sin importes ni enlaces a la cartera, y «Pagadas»/«Sin pagar» cuadran con la base |
+| `cambiar-cliente`, `liberar-boleta` | El diálogo del Dueño → sin botón ni cliente; la RPC responde al personal lo mismo que a una boleta inexistente; el personal no abre clientes |
+| `boleta-cliente` | «El personal encuentra por nombre» → **no** encuentra, y la pantalla es idéntica con un nombre inventado; «hacia SU ficha» → el detalle no lleva a ninguna |
+| `busqueda-hibrida`, `owner-tickets`, `back-navigation` | El nombre accesible y el texto de ejemplo del buscador del personal; el código interno se explica con la pista nueva |
+| `importar-boletas` | «Con y sin cliente» → las filas con cliente se apartan con su frase y solo se importan las otras; «Abono» → se aparta y ninguna boleta nace con pagos |
+| `reports`, `reports-responsive` | Tres reportes y encabezados CSV **exactos**; los de dinero, `403` para el personal y abiertos por la URL caen en «Por vendedor»; las pruebas de dinero corren con el vendedor, con las mismas aserciones; «menor que la organización» compara con la base |
+| `boletas-financiero`, `equipo` | El abono de partida lo registra el vendedor; la ficha del vendedor dice «Equipo» sin lo que gana |
+| `paz-y-salvo` | «La tabla administrativa no gana columna» → gana «Paz y salvo» y sigue sin cliente ni dinero |
+| `navegacion`, `menu-lateral`, `navegacion-movil`, `owner-responsive` | Seis entradas en el menú y dos en la barra inferior, **sin «Clientes» ni «Pagos»**; donde se navegaba a «Pagos», se navega a «Reportes». La prueba de las tarjetas de clientes del personal **se retiró**: esa lista no existe, la del vendedor la cubre `clientes-movil.spec.ts` y la dirección antigua, `privacidad-admin-movil.spec.ts` |
+| `back-navigation`, `back-navigation-movil` | Los casos del listado y la ficha de un cliente, en el portal del vendedor |
+| `owner-users`, `seleccion-multiple`, `seller-tickets`, `security`, `tour` | Indicadores de inventario sin dinero; el motivo de no eliminar una vendida ya no nombra al cliente; rutas reales en lugar de las retiradas; el paso del recorrido que obliga a bajar es «Cómo va cada vendedor» |
+
+**Nuevas:** `tests/db/admin-privacy.test.ts` (29), `tests/unit/admin-privacy.test.ts` (17),
+`tests/e2e/privacidad-admin.spec.ts` (18) y `privacidad-admin-movil.spec.ts` (5), con el escenario
+compartido de `privacidad-escenario.ts`.
+
+### d. Repeticiones de las E2E que fallaron
+
+| Pasada (2026-09-15, hora de Bogotá) | Resultado |
+|---|---|
+| `db:reset` + `seed:local` y, a las 01:02, `ventas-por-fecha` + `reports` en escritorio | ✅ **41/41** en 1,6 min, con `ventas-por-fecha.spec.ts:163` en verde: **I-090** confirmado |
+| Las demás, a las 01:03 | ⏹️ **Interrumpida en 22/112**: 21 en verde (`equipo` 14/14 e `importar-boletas` 7) y `importar-boletas.spec.ts:374` con `browserContext.newPage: Target crashed`, **antes de su primera línea**. El proceso terminó sin escribir su última línea. No fue una aserción: la misma prueba pasó en la pasada siguiente |
+| `db:reset` + `seed:local` y las mismas, de 07:55 a 08:02 | **110/112** en 7,0 min: `equipo` 14, `importar-boletas` 10, `loterias-panel` 14, `menu-lateral` 15, `payments` 36 y `seleccion-multiple` 19 en escritorio; `boleta-estrecha-movil` 2 y `loterias-panel-movil` 2 en móvil. Las tres de loterías, en verde pasada la 01:00 (**I-120**). Caen `menu-lateral.spec.ts:101` y `seleccion-multiple.spec.ts:284` (b) |
+| `menu-lateral.spec.ts:101` sola, tres veces | ❌ **0/3**, con `<nextjs-portal> intercepts pointer events`: no es intermitente |
+| Sonda temporal, ya borrada: qué hay bajo el centro de «Abrir el menú» en cada paso | La «N» de `next dev` en `[22, 22, 32, 32]` sobre el botón en `[10, 10, 36, 36]`, **también a 1.100 px**, donde las pruebas que pulsan ese botón pasan (b) |
+| `menu-lateral` + `seleccion-multiple`, con las dos pruebas corregidas | **33/34**: `seleccion-multiple` **19/19**; `menu-lateral.spec.ts:116` sigue cayendo con `hideNextDevUi` puesta |
+| Segunda sonda temporal, ya borrada, con la ayuda puesta | El portal, con `style="--nextjs-dev-tools-scale: 1;"` y `display: block`: la ayuda no ocultaba nada (b) |
+| `menu-lateral` + `cabecera-contextual` en escritorio y móvil, con la ayuda corregida | ✅ **38/38** en 1,5 min |
+| `db:reset` + `seed:local` y las 4 que cayeron en la E2E completa, solas | **3/4**: `ventas-por-fecha` `:163` y `:247` (**I-090**) y `catalogo-publico-movil` `:103` (**I-106**), en verde; `boleta-cliente.spec.ts:395`, **otra vez en rojo**, con el mismo clic perdido (b) |
+
+### e. Lo que NO se comprobó
+
+* **Con las cuentas reales del negocio**: el Dueño y un Administrador sin ningún dato de cliente ni de
+  dinero, y un vendedor con todo lo suyo. Vive tras el inicio de sesión y un agente no introduce
+  contraseñas; las pruebas lo recorren con las cuentas del seed.
+* **El proyecto real**: sin push, sin despliegue y sin `db push`. `verify:remote` fallaría hoy contra
+  producción, porque ya espera `0057` (I-118).
+* **Un teléfono de verdad** y el **modo oscuro**: la E2E emula un Pixel 7 y ninguna prueba mira el modo
+  oscuro.
+* **El rendimiento con volumen**: las siete proyecciones `admin_*` no se midieron contra la base de
+  300.000 boletas de D-102.

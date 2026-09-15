@@ -61,7 +61,6 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
         raffles={openRaffles.map((raffle) => ({
           id: raffle.id,
           label: `${raffle.shortCode} — ${raffle.name}`,
-          ticketPrice: raffle.ticketPrice,
         }))}
         sellers={sellers.map((seller) => ({ id: seller.id, label: seller.fullName }))}
         defaultRaffleId={single(params.raffleId)}

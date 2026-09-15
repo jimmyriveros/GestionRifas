@@ -5,6 +5,9 @@ import {
   accountStatus,
   ACCOUNT_STATUS_LABELS,
   ACCOUNT_STATUS_TONES,
+  ADMIN_TICKET_PAYMENT_STATE_LABELS,
+  ADMIN_TICKET_PAYMENT_STATE_TONES,
+  type AdminTicketPaymentState,
   CLIENT_STATUS_LABELS,
   CLIENT_STATUS_TONES,
   RAFFLE_STATUS_LABELS,
@@ -82,6 +85,22 @@ export function PaymentStatusBadge({ status }: { status: TicketPaymentStatus }) 
   return (
     <StatusBadge tone={TICKET_PAYMENT_STATUS_TONES[status]}>
       {TICKET_PAYMENT_STATUS_LABELS[status]}
+    </StatusBadge>
+  )
+}
+
+/**
+ * El estado de pago de una boleta en el portal ADMINISTRATIVO (D-198): dos
+ * valores, nunca «Abonada».
+ *
+ * Es otra insignia y no una variante de `PaymentStatusBadge` a proposito: su
+ * tipo no admite `partial`, asi que ningun componente del personal puede pasarle
+ * el estado real por descuido.
+ */
+export function AdminPaymentStateBadge({ state }: { state: AdminTicketPaymentState }) {
+  return (
+    <StatusBadge tone={ADMIN_TICKET_PAYMENT_STATE_TONES[state]}>
+      {ADMIN_TICKET_PAYMENT_STATE_LABELS[state]}
     </StatusBadge>
   )
 }

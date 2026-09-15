@@ -322,12 +322,20 @@ describe('F9-02 el aislamiento de pagos se cumple con datos en AMBOS vendedores 
     }
   })
 
-  it('el Owner sigue viendo el total completo de la organizacion', async () => {
+  it('desde D-198 ni el Dueño ni el Administrador ven el dinero de la organizacion', async () => {
     const totalOrg = await db.query(
-      `select coalesce(sum(total_amount), 0)::bigint as s from payments where organization_id = $1`,
+      `select count(*)::int as n, coalesce(sum(total_amount), 0)::bigint as s
+         from payments where organization_id = $1`,
       [ctx.demoOrg.id],
     )
-    const { data } = await owner.rpc('report_payment_totals', {})
-    expect(Number(data![0]!.total_amount)).toBe(Number(totalOrg.rows[0].s))
+    // Hay dinero de verdad: un cero aqui no puede ser una base vacia.
+    expect(Number(totalOrg.rows[0].s)).toBeGreaterThan(0)
+
+    for (const sesion of [owner, admin]) {
+      const { data, error } = await sesion.rpc('report_payment_totals', {})
+      expect(error).toBeNull()
+      expect(Number(data![0]!.payments_count)).toBe(0)
+      expect(Number(data![0]!.total_amount)).toBe(0)
+    }
   })
 })

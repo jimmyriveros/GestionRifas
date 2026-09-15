@@ -10,9 +10,9 @@ import { Button } from '@/components/ui/button'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 
-import type { RaffleSummary } from '../queries'
+import type { AdminRaffleSummary } from '../queries'
 
-const columns: ColumnDef<RaffleSummary>[] = [
+const columns: ColumnDef<AdminRaffleSummary>[] = [
   {
     accessorKey: 'shortCode',
     header: 'Código',
@@ -78,7 +78,7 @@ const columns: ColumnDef<RaffleSummary>[] = [
   },
 ]
 
-export function RafflesTable({ raffles }: { raffles: RaffleSummary[] }) {
+export function RafflesTable({ raffles }: { raffles: AdminRaffleSummary[] }) {
   return (
     <DataTable
       columns={columns}

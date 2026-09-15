@@ -453,7 +453,11 @@ describe('el Panel no espera por las loterias (D-155)', () => {
     // Un solo `deadline` compartido: dos plazos independientes permitirian que
     // la lectura entera tardase el doble de lo presupuestado.
     expect(queries.match(/AbortSignal\.timeout\(/g)).toHaveLength(1)
-    expect(queries.match(/\.abortSignal\(deadline\)/g)).toHaveLength(2)
+    // Tres usos del MISMO plazo: la programacion y las coincidencias, que desde
+    // D-198 tienen dos caminos —la proyeccion del personal y la tabla del
+    // vendedor— y cada uno lo lleva. Solo se recorre uno por lectura.
+    expect(queries.match(/\.abortSignal\(deadline\)/g)).toHaveLength(3)
+    expect(queries).toContain("rpc('admin_lottery_matches', { p_result_ids: resultIds })")
   })
 })
 

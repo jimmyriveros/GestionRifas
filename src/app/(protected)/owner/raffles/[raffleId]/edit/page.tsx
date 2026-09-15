@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 
 import { PageHeader } from '@/components/data/PageHeader'
 import { RaffleForm } from '@/features/raffles/components/RaffleForm'
-import { getRaffleDetail } from '@/features/raffles/queries'
+import { getAdminRaffleDetail } from '@/features/raffles/queries'
 
 export default async function EditRafflePage({
   params,
@@ -10,7 +10,8 @@ export default async function EditRafflePage({
   params: Promise<{ raffleId: string }>
 }) {
   const { raffleId } = await params
-  const raffle = await getRaffleDetail(raffleId)
+  // La lectura del personal: la rifa y sus recuentos, sin dinero (D-198).
+  const raffle = await getAdminRaffleDetail(raffleId)
 
   if (!raffle) notFound()
 

@@ -8,11 +8,15 @@ import { RaffleStatusBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { RaffleStatusActions } from '@/features/raffles/components/RaffleStatusActions'
-import { getRaffleDetail } from '@/features/raffles/queries'
+import { getAdminRaffleDetail } from '@/features/raffles/queries'
 import { requireStaff } from '@/lib/auth/guards'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 
+/**
+ * Detalle de una rifa. Sus datos y los recuentos de sus boletas; lo vendido, lo
+ * recaudado y el saldo ya no se ensenan al personal (D-198, BR-Q08).
+ */
 export default async function RaffleDetailPage({
   params,
 }: {
@@ -20,7 +24,7 @@ export default async function RaffleDetailPage({
 }) {
   const { raffleId } = await params
   const membership = await requireStaff()
-  const raffle = await getRaffleDetail(raffleId)
+  const raffle = await getAdminRaffleDetail(raffleId)
 
   if (!raffle) notFound()
 
@@ -82,15 +86,6 @@ export default async function RaffleDetailPage({
           <MetricCard label="Asignadas" value={raffle.ticketsAssigned} />
           <MetricCard label="Pendientes de aprobación" value={raffle.ticketsPendingApproval} />
           <MetricCard label="Anuladas" value={raffle.ticketsCancelled} />
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">Dinero</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <MetricCard label="Total vendido" value={formatCOP(raffle.totalSold)} />
-          <MetricCard label="Total recaudado" value={formatCOP(raffle.totalCollected)} />
-          <MetricCard label="Saldo pendiente" value={formatCOP(raffle.pendingAmount)} />
         </div>
       </div>
 

@@ -8,31 +8,31 @@ import { DataTable } from '@/components/data/DataTable'
 import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import { UserRowActions } from '@/features/users/components/UserRowActions'
 import type { AppRole } from '@/lib/constants'
-import { formatCOP } from '@/lib/money'
 
-import type { SellerWithTotals } from '../queries'
+import type { SellerWithInventory } from '../queries'
 
 type SellersTableProps = {
-  sellers: SellerWithTotals[]
+  sellers: SellerWithInventory[]
   currentRole: AppRole
   currentProfileId: string
   /** Cuantos integrantes tiene el equipo de cada vendedor (BR-E08). */
   teamSizes: Map<string, number>
   /** Nombre del vendedor a cargo, para quien pertenece al equipo de alguien. */
   parentNames: Map<string, string>
-  /** Ganancia acumulada por vendedor en la rifa actual, ya calculada en SQL. */
-  earnings: Map<string, number>
 }
 
+/**
+ * Vendedores con sus recuentos. Sin «Vendido», «Saldo pendiente» ni «Ganancia»
+ * desde D-198: son cifras de la cartera del vendedor, y la fila ya no las trae.
+ */
 export function SellersTable({
   sellers,
   currentRole,
   currentProfileId,
   teamSizes,
   parentNames,
-  earnings,
 }: SellersTableProps) {
-  const columns = useMemo<ColumnDef<SellerWithTotals>[]>(
+  const columns = useMemo<ColumnDef<SellerWithInventory>[]>(
     () => [
       {
         accessorKey: 'fullName',
@@ -107,35 +107,6 @@ export function SellersTable({
         ),
       },
       {
-        accessorKey: 'totalSold',
-        header: 'Vendido',
-        meta: { align: 'right', hideOnMobile: true },
-        cell: ({ row }) => (
-          <span className="tabular-nums">{formatCOP(row.original.totalSold)}</span>
-        ),
-      },
-      {
-        accessorKey: 'pendingAmount',
-        header: 'Saldo pendiente',
-        meta: { align: 'right', hideOnMobile: true },
-        cell: ({ row }) => (
-          <span className="tabular-nums">{formatCOP(row.original.pendingAmount)}</span>
-        ),
-      },
-      {
-        id: 'earned',
-        header: 'Ganancia',
-        meta: { align: 'right', hideOnMobile: true },
-        // Todos ganan; lo que cambia es CON QUE REGLA (BR-G13). El importe se
-        // muestra igual para los dos, y el detalle del vendedor explica cual se
-        // le aplica: aqui una raya seria esconder dinero que si se debe.
-        cell: ({ row }) => (
-          <span className="tabular-nums">
-            {formatCOP(earnings.get(row.original.profileId) ?? 0)}
-          </span>
-        ),
-      },
-      {
         id: 'actions',
         // Plural: esta columna abre un MENU con varias opciones, y «Acciones»
         // es la palabra que ya usa el propio boton (D-114).
@@ -151,7 +122,7 @@ export function SellersTable({
         ),
       },
     ],
-    [currentRole, currentProfileId, teamSizes, parentNames, earnings],
+    [currentRole, currentProfileId, teamSizes, parentNames],
   )
 
   return (

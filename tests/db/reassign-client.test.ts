@@ -6,6 +6,9 @@
  * la interfaz, y que un vendedor ajeno o de otra organización no puede ni
  * llamando a la función directamente.
  *
+ * Desde D-198 corrige SOLO el vendedor de la boleta: el Dueño y el
+ * Administrador reciben el mismo mensaje que un vendedor ajeno.
+ *
  * La red que ya existía NO se toca: el `UPDATE` directo de un vendedor sobre una
  * boleta asignada sigue bloqueado por `tickets_update_seller` (BR-I09) y el
  * disparador `tickets_protect_client_change` sigue rechazando el cambio con
@@ -27,6 +30,7 @@ import {
   randomNumbers,
   signInAs,
   USERS,
+  voidPaymentAs,
   type Client,
 } from './helpers'
 
@@ -41,6 +45,8 @@ let otherOrgSeller: Client
 /** Clientes propios de la suite, para no mover los del seed. */
 let clienteA: string
 let clienteB: string
+/** Un tercero de la misma cartera, para la pantalla desactualizada (E11-04). */
+let clienteC: string
 let clienteArchivado: string
 /** Cliente de vendedor2: la cartera equivocada. */
 let clienteDeOtroVendedor: string
@@ -235,6 +241,7 @@ beforeAll(async () => {
 
   clienteA = await crearCliente(ctx.ids.seller1, 'Reasign Cliente A', '3200000001')
   clienteB = await crearCliente(ctx.ids.seller1, 'Reasign Cliente B', '3200000002')
+  clienteC = await crearCliente(ctx.ids.seller1, 'Reasign Cliente C', '3200000005')
   clienteArchivado = await crearCliente(ctx.ids.seller1, 'Reasign Archivado', '3200000003')
   clienteDeOtroVendedor = await crearCliente(ctx.ids.seller2, 'Reasign Ajeno', '3200000004')
 
@@ -299,20 +306,23 @@ describe('E11-01 quién puede corregir el cliente (BR-I13)', () => {
     expect((await estado(ticketId)).client_id).toBe(clienteB)
   })
 
-  it('el Dueño puede sobre una boleta de su organización', async () => {
+  it('el Dueño ya no corrige el cliente de la boleta de un vendedor (D-198)', async () => {
     const ticketId = await boletaVendida(clienteA)
 
     const { error } = await reasignar(owner, ticketId, clienteA, clienteB)
-    expect(error).toBeNull()
-    expect((await estado(ticketId)).client_id).toBe(clienteB)
+    expect(error).not.toBeNull()
+    // El mismo mensaje que a un vendedor ajeno: la cartera es de su vendedor.
+    expect(error!.message).toMatch(/no existe o no tienes acceso/i)
+    expect((await estado(ticketId)).client_id).toBe(clienteA)
   })
 
-  it('el Administrador también puede', async () => {
+  it('el Administrador tampoco (D-198)', async () => {
     const ticketId = await boletaVendida(clienteA)
 
     const { error } = await reasignar(admin, ticketId, clienteA, clienteB)
-    expect(error).toBeNull()
-    expect((await estado(ticketId)).client_id).toBe(clienteB)
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/no existe o no tienes acceso/i)
+    expect((await estado(ticketId)).client_id).toBe(clienteA)
   })
 
   it('otro vendedor de la misma organización es rechazado', async () => {
@@ -345,10 +355,10 @@ describe('E11-01 quién puede corregir el cliente (BR-I13)', () => {
 })
 
 describe('E11-02 el cliente de destino (BR-C05, BR-C07)', () => {
-  it('un cliente de otro vendedor es rechazado, aunque lo pida el Dueño', async () => {
+  it('un cliente de otro vendedor es rechazado', async () => {
     const ticketId = await boletaVendida(clienteA)
 
-    const { error } = await reasignar(owner, ticketId, clienteA, clienteDeOtroVendedor)
+    const { error } = await reasignar(seller1, ticketId, clienteA, clienteDeOtroVendedor)
     expect(error).not.toBeNull()
     expect(error!.message).toMatch(/otro vendedor/i)
     expect((await estado(ticketId)).client_id).toBe(clienteA)
@@ -374,7 +384,7 @@ describe('E11-02 el cliente de destino (BR-C05, BR-C07)', () => {
   it('un cliente de otra organización es rechazado', async () => {
     const ticketId = await boletaVendida(clienteA)
 
-    const { error } = await reasignar(owner, ticketId, clienteA, ctx.clients.fabio.id)
+    const { error } = await reasignar(seller1, ticketId, clienteA, ctx.clients.fabio.id)
     expect(error).not.toBeNull()
     expect(error!.message).toMatch(/no existe o no pertenece/i)
     expect((await estado(ticketId)).client_id).toBe(clienteA)
@@ -405,11 +415,8 @@ describe('E11-03 el estado de la boleta y su historial (BR-I13)', () => {
     const ticketId = await boletaVendida(clienteA)
     const paymentId = await abonar(clienteA, ticketId, 10_000)
 
-    const { error: voidError } = await owner.rpc('void_payment', {
-      p_payment_id: paymentId,
-      p_reason: 'Anulado para la prueba',
-    })
-    expect(voidError).toBeNull()
+    // D-198: `void_payment` quedo dormida (ver `voidPaymentAs`).
+    await voidPaymentAs(ctx.ids.owner, paymentId, 'Anulado para la prueba')
     // El saldo vuelve a cero, pero la fila de la asignación sigue ahí.
     expect((await estado(ticketId)).paid_amount).toBe(0)
 
@@ -467,7 +474,7 @@ describe('E11-04 concurrencia: el cliente esperado (D-168)', () => {
     expect(primera.error).toBeNull()
 
     // La segunda pantalla todavía cree que la tiene A.
-    const segunda = await reasignar(owner, ticketId, clienteA, clienteDeOtroVendedor)
+    const segunda = await reasignar(seller1, ticketId, clienteA, clienteC)
     expect(segunda.error).not.toBeNull()
     expect(segunda.error!.message).toMatch(/ya cambió de cliente/i)
     expect((await estado(ticketId)).client_id).toBe(clienteB)

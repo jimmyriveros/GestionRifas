@@ -345,15 +345,27 @@ describe('search_tickets: hereda la RLS de quien busca (security invoker)', () =
     expect(ids(ajena.data)).toContain(deSeller1)
   })
 
-  it('el personal si encuentra las boletas de cualquier vendedor de su organizacion', async () => {
-    const { data, error } = await demoOwner.rpc('search_tickets', { p_search: numero })
+  it('el personal encuentra las boletas de cualquier vendedor, por su proyeccion (D-198)', async () => {
+    const { data, error } = await demoOwner.rpc('admin_list_tickets', {
+      p_search: numero,
+      p_limit: 1000,
+    })
     expect(error).toBeNull()
     expect(ids(data)).toEqual(expect.arrayContaining([deSeller1, deSeller2]))
+
+    // `search_tickets` hereda la RLS de `tickets`, que al personal ya no le
+    // devuelve ninguna fila.
+    const vieja = await demoOwner.rpc('search_tickets', { p_search: numero })
+    expect(vieja.error).toBeNull()
+    expect(vieja.data).toEqual([])
   })
 
   it('una combinacion repetida en otra organizacion no se cruza', async () => {
-    const demo = await demoOwner.rpc('search_tickets', { p_search: numero })
-    const control = await controlOwner.rpc('search_tickets', { p_search: numero })
+    const demo = await demoOwner.rpc('admin_list_tickets', { p_search: numero, p_limit: 1000 })
+    const control = await controlOwner.rpc('admin_list_tickets', {
+      p_search: numero,
+      p_limit: 1000,
+    })
 
     expect(ids(demo.data)).not.toContain(deOtraOrg)
     expect(ids(control.data)).toContain(deOtraOrg)

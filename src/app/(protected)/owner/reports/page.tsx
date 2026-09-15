@@ -10,6 +10,9 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>
  * Ofrece `OWNER_REPORT_KEYS`, no el catalogo entero: «Ventas por fecha» es del
  * portal del vendedor y no se anadio aqui (D-151). Su primer reporte sigue
  * siendo «Por vendedor», que es lo que se abre al entrar sin parametros.
+ *
+ * Desde D-198 son TRES y cuentan boletas, no dinero: «Clientes con saldo» y
+ * «Pagos por fecha» se retiraron, y los demas leen la proyeccion administrativa.
  */
 export default async function OwnerReportsPage({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff()
@@ -17,10 +20,10 @@ export default async function OwnerReportsPage({ searchParams }: { searchParams:
 
   return (
     <ReportsView
+      audience="staff"
       filters={filters}
       reports={OWNER_REPORT_KEYS}
       basePath="/owner/reports"
-      clientBasePath="/owner/clients"
       sellerBasePath="/owner/sellers"
       ticketBasePath="/owner/tickets"
       withSellerFilter

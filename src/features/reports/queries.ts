@@ -1,9 +1,21 @@
 import 'server-only'
 
-import { listRaffleSummaries, type RaffleSummary } from '@/features/raffles/queries'
-import { listSellersWithTotals } from '@/features/sellers/queries'
+import {
+  listAdminRaffleSummaries,
+  listRaffleSummaries,
+  type AdminRaffleSummary,
+  type RaffleSummary,
+} from '@/features/raffles/queries'
+import { listSellersWithInventory } from '@/features/sellers/queries'
+import {
+  addInventory,
+  readAdminTicketInventory,
+  ZERO_INVENTORY,
+  type InventoryCounts,
+} from '@/features/tickets/admin-queries'
 import { listOrgMembers } from '@/features/users/queries'
 import {
+  ADMIN_TICKET_PAYMENT_STATE_LABELS,
   PAGE_SIZE,
   TICKET_INVENTORY_STATUS_LABELS,
   TICKET_PAYMENT_STATUS_LABELS,
@@ -55,70 +67,105 @@ const ZERO_TOTALS: ReportTotals = {
 }
 
 // ---------------------------------------------------------------------------
-// Reporte 1-3 — ventas, recaudo y saldo por vendedor
+// Reportes del PERSONAL: solo recuentos (D-198, BR-Q08)
+//
+// Los reportes 1 a 3 de CLAUDE.md §24 —ventas, recaudo y saldo por vendedor—
+// y el 5 y el 6 —clientes con saldo y pagos por fecha— dejaron de estar al
+// alcance del Dueno y el Administrador: son la cartera y el dinero de cada
+// vendedor. Lo que el personal conserva son recuentos de boletas, que salen de
+// `admin_ticket_inventory` sin un solo importe.
 // ---------------------------------------------------------------------------
 
-export type SellerReportRow = {
+export type StaffSellerReportRow = {
   sellerId: string
   sellerName: string
   alias: string | null
   isActive: boolean
-  ticketsTotal: number
-  ticketsAvailable: number
-  ticketsAssigned: number
-  ticketsUnpaid: number
-  ticketsPartial: number
-  ticketsPaid: number
-  totalSold: number
-  totalCollected: number
-  pendingAmount: number
-}
+} & InventoryCounts
 
 /**
- * Los tres reportes «por vendedor» de CLAUDE.md §24 son columnas de una misma
- * tabla: ventas, recaudo y saldo pendiente. Separarlos en tres pantallas
- * obligaria a comparar tres veces lo mismo (D-055).
- *
- * Parte de la lista de vendedores, no de la de boletas: un vendedor sin una
- * sola boleta debe aparecer con ceros, porque «no ha vendido nada» es
- * justamente lo que el reporte tiene que dejar ver.
+ * Parte de la lista de vendedores, no de la de boletas: un vendedor sin una sola
+ * boleta aparece con ceros, porque «no tiene boletas» es justamente lo que el
+ * reporte tiene que dejar ver.
  */
-export async function getSellerReport(
+export async function getStaffSellerReport(
   filters: Pick<ReportFilters, 'raffleId'>,
-): Promise<{ rows: SellerReportRow[]; totals: ReportTotals }> {
-  const sellers = await listSellersWithTotals(filters.raffleId)
+): Promise<{ rows: StaffSellerReportRow[]; totals: InventoryCounts }> {
+  const sellers = await listSellersWithInventory(filters.raffleId)
 
-  const rows: SellerReportRow[] = sellers
-    .map((seller) => ({
-      sellerId: seller.profileId,
-      sellerName: seller.fullName,
-      alias: seller.alias,
-      isActive: seller.isActive,
+  const rows: StaffSellerReportRow[] = sellers
+    .map(({ profileId, fullName, alias, isActive, ...seller }) => ({
+      sellerId: profileId,
+      sellerName: fullName,
+      alias,
+      isActive,
       ticketsTotal: seller.ticketsTotal,
       ticketsAvailable: seller.ticketsAvailable,
       ticketsAssigned: seller.ticketsAssigned,
-      ticketsUnpaid: seller.ticketsUnpaid,
-      ticketsPartial: seller.ticketsPartial,
+      ticketsPendingApproval: seller.ticketsPendingApproval,
+      ticketsDraft: seller.ticketsDraft,
+      ticketsCancelled: seller.ticketsCancelled,
       ticketsPaid: seller.ticketsPaid,
-      totalSold: seller.totalSold,
-      totalCollected: seller.totalCollected,
-      pendingAmount: seller.pendingAmount,
+      ticketsNotPaid: seller.ticketsNotPaid,
     }))
-    // De mas a menos vendido: es el orden en el que se lee un reporte de ventas.
-    .sort((a, b) => b.totalSold - a.totalSold || a.sellerName.localeCompare(b.sellerName, 'es'))
+    // De mas a menos boletas vendidas, y por nombre para desempatar.
+    .sort(
+      (a, b) =>
+        b.ticketsAssigned - a.ticketsAssigned || a.sellerName.localeCompare(b.sellerName, 'es'),
+    )
 
-  const totals = rows.reduce<ReportTotals>(
-    (acc, row) => ({
-      ticketsTotal: acc.ticketsTotal + row.ticketsTotal,
-      ticketsAssigned: acc.ticketsAssigned + row.ticketsAssigned,
-      totalSold: acc.totalSold + row.totalSold,
-      totalCollected: acc.totalCollected + row.totalCollected,
-      pendingAmount: acc.pendingAmount + row.pendingAmount,
-    }),
-    { ...ZERO_TOTALS },
-  )
+  return { rows, totals: rows.reduce<InventoryCounts>(addInventory, { ...ZERO_INVENTORY }) }
+}
+
+/**
+ * «Boletas por estado» para el personal: los cinco estados de inventario y los
+ * DOS de pago administrativos. Nunca «Abonadas» (BR-Q04).
+ */
+export async function getStaffTicketStatusReport(
+  filters: Pick<ReportFilters, 'raffleId' | 'sellerId'>,
+): Promise<{ rows: TicketStatusReportRow[]; totals: InventoryCounts }> {
+  const inventory = await readAdminTicketInventory(filters.raffleId ?? null)
+  const totals = inventory
+    .filter((row) => !filters.sellerId || row.sellerId === filters.sellerId)
+    .reduce<InventoryCounts>(addInventory, { ...ZERO_INVENTORY })
+
+  const inventoryCounts: Record<TicketInventoryStatus, number> = {
+    draft: totals.ticketsDraft,
+    pending_approval: totals.ticketsPendingApproval,
+    available: totals.ticketsAvailable,
+    assigned: totals.ticketsAssigned,
+    cancelled: totals.ticketsCancelled,
+  }
+
+  const rows: TicketStatusReportRow[] = [
+    ...(['draft', 'pending_approval', 'available', 'assigned', 'cancelled'] as const).map(
+      (status) => ({
+        group: 'inventory' as const,
+        groupLabel: 'Inventario',
+        status,
+        statusLabel: TICKET_INVENTORY_STATUS_LABELS[status],
+        count: inventoryCounts[status],
+      }),
+    ),
+    ...(['unpaid', 'paid'] as const).map((state) => ({
+      group: 'payment' as const,
+      groupLabel: 'Pago',
+      status: state,
+      statusLabel: ADMIN_TICKET_PAYMENT_STATE_LABELS[state],
+      count: state === 'paid' ? totals.ticketsPaid : totals.ticketsNotPaid,
+    })),
+  ]
 
   return { rows, totals }
+}
+
+/** «Boletas por rifa» para el personal: las rifas con sus recuentos. */
+export async function getStaffRaffleReport(): Promise<{
+  rows: AdminRaffleSummary[]
+  totals: InventoryCounts
+}> {
+  const rows = await listAdminRaffleSummaries()
+  return { rows, totals: rows.reduce<InventoryCounts>(addInventory, { ...ZERO_INVENTORY }) }
 }
 
 // ---------------------------------------------------------------------------

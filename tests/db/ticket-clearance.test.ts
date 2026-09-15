@@ -30,6 +30,7 @@ import {
   loadSeedContext,
   randomNumbers,
   signInAs,
+  voidPaymentAs,
   USERS,
   type Client,
 } from './helpers'
@@ -343,10 +344,17 @@ describe('E13-02 solo sobre una boleta vendida (BR-I15)', () => {
     const ticketId = await boletaVendida(clienteA)
     const stamp = await entregar(ticketId)
 
-    const { error: cancelError } = await owner.rpc('cancel_ticket', {
-      p_ticket_id: ticketId,
-      p_reason: 'Prueba de anulación con paz y salvo entregado',
-    })
+    // D-198: el personal ya no anula una boleta vendida. La anulada se prepara
+    // como las que quedaron de antes, con la service role: sin abonos, el
+    // disparador de estados lo permite.
+    const { error: cancelError } = await ctx.svc
+      .from('tickets')
+      .update({
+        inventory_status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: 'Prueba de anulación con paz y salvo entregado',
+      })
+      .eq('id', ticketId)
     expect(cancelError).toBeNull()
 
     const anulada = await estado(ticketId)
@@ -586,11 +594,8 @@ describe('E13-05 la entrega es del cliente actual (BR-I15)', () => {
     expect(editError).toBeNull()
     expect((await estado(ticketId)).clearance_receipt_delivered_at).toBe(stamp)
 
-    const { error: voidError } = await owner.rpc('void_payment', {
-      p_payment_id: paymentId,
-      p_reason: 'Prueba de anulación con paz y salvo entregado',
-    })
-    expect(voidError).toBeNull()
+    // D-198: `void_payment` quedo dormida (ver `voidPaymentAs`).
+    await voidPaymentAs(ctx.ids.owner, paymentId, 'Prueba de anulación con paz y salvo entregado')
 
     const despues = await estado(ticketId)
     expect(despues.clearance_receipt_delivered_at).toBe(stamp)
@@ -797,10 +802,15 @@ describe('E13-09 la carga inicial de la migración 0049 (D-170)', () => {
     const disponible = await boletaDisponible()
     const borrador = await boletaDisponible({ inventoryStatus: 'draft' })
     const anulada = await boletaVendida(clienteA)
-    const { error: cancelError } = await owner.rpc('cancel_ticket', {
-      p_ticket_id: anulada,
-      p_reason: 'Prueba de alcance de la carga inicial',
-    })
+    // Anulada con la service role: desde D-198 el personal no anula vendidas.
+    const { error: cancelError } = await ctx.svc
+      .from('tickets')
+      .update({
+        inventory_status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: 'Prueba de alcance de la carga inicial',
+      })
+      .eq('id', anulada)
     expect(cancelError).toBeNull()
 
     const antes = {

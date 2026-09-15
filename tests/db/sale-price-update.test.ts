@@ -299,11 +299,12 @@ describe('update_ticket_sale_price permisos, restricciones y bitacora', () => {
     expect(error).not.toBeNull()
   })
 
-  it('el personal si puede editar una boleta de su organizacion', async () => {
+  it('el personal ya no edita el precio de una boleta de un vendedor (D-198)', async () => {
     const ticketId = await assignFreshTicket(ctx.clients.ana.id)
     const { error } = await editPrice(owner, ticketId, PRICE - 20_000, PRICE)
-    expect(error).toBeNull()
-    expect((await ticketState(ticketId)).sale_price).toBe(PRICE - 20_000)
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/no existe o no tienes acceso/i)
+    expect((await ticketState(ticketId)).sale_price).toBe(PRICE)
   })
 
   it('una boleta anulada no admite cambio de precio', async () => {
@@ -321,7 +322,7 @@ describe('update_ticket_sale_price permisos, restricciones y bitacora', () => {
       p_reason: 'Anulada para probar el precio',
     })
 
-    const { error } = await editPrice(owner, created.data!.id, PRICE - 20_000, PRICE)
+    const { error } = await editPrice(seller1, created.data!.id, PRICE - 20_000, PRICE)
     expect(error).not.toBeNull()
     expect(error!.message).toMatch(/asignada/i)
   })

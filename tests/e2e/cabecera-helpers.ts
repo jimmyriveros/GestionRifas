@@ -4,19 +4,20 @@ import { expect, type Locator, type Page } from '@playwright/test'
  * El indicador de desarrollo de Next.js (el «N» de la esquina) se pinta encima
  * de la flecha compacta y se come el clic. En produccion no existe. Se oculta
  * solo en estas pruebas.
+ *
+ * Con una REGLA de hoja de estilos, no con un estilo en linea. Hasta el
+ * 2026-09-15 se le ponia `display: none` en linea al portal, y no llegaba a
+ * quedarse: medido con la ayuda puesta, el portal seguia con
+ * `style="--nextjs-dev-tools-scale: 1;"` —el atributo que Next 16.3 le escribe
+ * al montarlo— y `display: block`, y seguia comiendose el clic de «Abrir el
+ * menú» (`menu-lateral.spec.ts`). Una regla `!important` en una hoja adoptada no
+ * depende de ese atributo.
  */
 export async function hideNextDevUi(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    const hide = () => {
-      const el = document.querySelector('nextjs-portal')
-      if (el instanceof HTMLElement) {
-        el.style.setProperty('display', 'none', 'important')
-        el.style.setProperty('pointer-events', 'none', 'important')
-      }
-    }
-    const observer = new MutationObserver(hide)
-    observer.observe(document.documentElement, { childList: true, subtree: true })
-    hide()
+    const hoja = new CSSStyleSheet()
+    hoja.replaceSync('nextjs-portal { display: none !important; pointer-events: none !important; }')
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, hoja]
   })
 }
 

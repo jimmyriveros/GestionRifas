@@ -61,6 +61,25 @@ export const REPORT_DESCRIPTIONS: Record<ReportKey, string> = {
 }
 
 /**
+ * El mismo reporte puede explicarse distinto en cada portal (D-198).
+ *
+ * «Por vendedor» es solo del personal y ya no habla de dinero; «Boletas por
+ * rifa» lo tienen los dos, pero solo el vendedor ve su dinero. Una descripcion
+ * que prometiera cifras que la pantalla no ensena se leeria como un fallo.
+ */
+const STAFF_REPORT_DESCRIPTIONS: Partial<Record<ReportKey, string>> = {
+  sellers: 'Cuántas boletas tiene cada vendedor, cuántas vendió y cuántas esperan aprobación.',
+  raffles: 'Cuántas boletas tiene cada rifa y en qué estado están.',
+}
+
+export function reportDescription(report: ReportKey, audience: 'staff' | 'seller'): string {
+  return (
+    (audience === 'staff' ? STAFF_REPORT_DESCRIPTIONS[report] : undefined) ??
+    REPORT_DESCRIPTIONS[report]
+  )
+}
+
+/**
  * Que reportes ofrece cada portal, y en que orden.
  *
  * EL PRIMERO DE LA LISTA ES EL PREDETERMINADO DE ESE PORTAL (`resolveReport`).
@@ -68,14 +87,12 @@ export const REPORT_DESCRIPTIONS: Record<ReportKey, string> = {
  * vendedor» para el personal —que compara a unos con otros— y «Ventas por
  * fecha» para el vendedor, que lo primero que necesita al entrar es lo que
  * vendio hoy (D-151, §12 del encargo).
+ *
+ * DESDE D-198 EL PERSONAL SOLO TIENE LOS DE INVENTARIO. «Clientes con saldo» y
+ * «Pagos por fecha» se retiran —hablan de la cartera y del dinero de cada
+ * vendedor— y los tres que quedan cuentan boletas, no pesos (BR-Q08).
  */
-export const OWNER_REPORT_KEYS: readonly ReportKey[] = [
-  'sellers',
-  'ticket-status',
-  'raffles',
-  'client-balances',
-  'payments',
-]
+export const OWNER_REPORT_KEYS: readonly ReportKey[] = ['sellers', 'ticket-status', 'raffles']
 
 /** Reportes disponibles en el portal del vendedor (CLAUDE.md §24: sin datos ajenos). */
 export const SELLER_REPORT_KEYS: readonly ReportKey[] = [

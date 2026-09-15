@@ -10,14 +10,14 @@ import {
 } from '@/features/tickets/import/columns'
 import { parseCsv } from '@/features/tickets/import/csv'
 import { parseJsonTickets } from '@/features/tickets/import/json'
-import { importableRows, reviewRows } from '@/features/tickets/import/review'
-import { tableToRows } from '@/features/tickets/import/rows'
 import {
-  SAMPLE_CSV,
-  SAMPLE_CSV_WITH_CLIENTS,
-  SAMPLE_JSON,
-  SAMPLE_JSON_WITH_CLIENTS,
-} from '@/features/tickets/import/sample'
+  IMPORT_ABONO_NOT_ALLOWED,
+  IMPORT_CLIENT_NOT_ALLOWED,
+  importableRows,
+  reviewRows,
+} from '@/features/tickets/import/review'
+import { tableToRows } from '@/features/tickets/import/rows'
+import { SAMPLE_CSV, SAMPLE_JSON } from '@/features/tickets/import/sample'
 
 /**
  * La columna «Abono» del importador (BR-N14, D-129).
@@ -475,10 +475,10 @@ describe('CSV y JSON pasan por el mismo sitio', () => {
 })
 
 describe('Los archivos de ejemplo que ofrece el importador', () => {
-  const opciones = { allowClientAssignments: true, ticketPrice: PRECIO }
-
   /**
-   * Se importan a si mismos.
+   * Se importan a si mismos, y en el contexto REAL de la aplicacion: sin
+   * clientes ni abonos, que es como importan los dos portales desde D-198. El
+   * ejemplo con clientes se retiro con esa decision.
    *
    * Es la prueba con menos aparato y la que mas vale: el ejemplo es lo primero
    * que descarga alguien que no ha importado nada nunca, y si no pasa su propia
@@ -486,33 +486,53 @@ describe('Los archivos de ejemplo que ofrece el importador', () => {
    * ejemplo a la lectura del archivo: anadir una columna al ejemplo sin
    * ensenarsela al importador rompe aqui.
    */
-  it('el CSV con clientes y abonos pasa su propia vista previa', () => {
-    const review = reviewRows(filasDe(SAMPLE_CSV_WITH_CLIENTS), opciones)
+  it('el ejemplo solo lleva los dos números y pasa su propia vista previa', () => {
+    const filas = filasDe(SAMPLE_CSV)
+    const review = reviewRows(filas)
 
-    expect(review.total).toBe(4)
-    expect(review.valid).toBe(4)
-    expect(review.invalid).toBe(0)
-    // Tres con cliente y una sin vender; dos de las tres traen abono.
-    expect(review).toMatchObject({ withClient: 3, withoutClient: 1, withAbono: 2 })
-    expect(review.rows.map((row) => row.expectedPaymentStatus)).toEqual([
-      'partial',
-      'paid',
-      'unpaid',
-      null,
+    expect(filas[0]).toEqual({ rowNumber: 1, dailyNumber: '3332', weeklyNumber: '7607' })
+    expect(review).toMatchObject({ total: 2, valid: 2, withClient: 0, withAbono: 0 })
+    expect(importableRows(reviewRows(parseJsonTickets(SAMPLE_JSON)))).toEqual(
+      importableRows(review),
+    )
+  })
+})
+
+describe('Sin clientes ni abonos: como importan los dos portales (D-198)', () => {
+  it('una fila con cliente y otra con abono se apartan, cada una con su frase', () => {
+    const review = reviewRows(
+      [
+        { rowNumber: 1, dailyNumber: '0046', weeklyNumber: '7821' },
+        {
+          rowNumber: 2,
+          dailyNumber: '0158',
+          weeklyNumber: '9014',
+          clientName: 'Carlos Gómez',
+          clientPhone: '3001234567',
+          abono: '20',
+        },
+        { rowNumber: 3, dailyNumber: '0389', weeklyNumber: '7720', abono: 'Cancelado' },
+      ],
+      { ticketPrice: PRECIO },
+    )
+
+    expect(review).toMatchObject({
+      valid: 1,
+      clientConflicts: 1,
+      invalid: 1,
+      withClient: 0,
+      withAbono: 0,
+      abonoTotal: 0,
+    })
+    expect(review.rows[1]).toMatchObject({
+      status: 'client-conflict',
+      problem: IMPORT_CLIENT_NOT_ALLOWED,
+      expectedPaymentStatus: null,
+    })
+    expect(review.rows[1]).not.toHaveProperty('abonoAmount')
+    expect(review.rows[2]).toMatchObject({ status: 'invalid', problem: IMPORT_ABONO_NOT_ALLOWED })
+    expect(importableRows(review)).toEqual([
+      { rowNumber: 1, dailyNumber: '0046', weeklyNumber: '7821' },
     ])
-  })
-
-  it('el JSON con clientes y abonos da exactamente lo mismo', () => {
-    const desdeJson = reviewRows(parseJsonTickets(SAMPLE_JSON_WITH_CLIENTS), opciones)
-    const desdeCsv = reviewRows(filasDe(SAMPLE_CSV_WITH_CLIENTS), opciones)
-
-    expect(importableRows(desdeJson)).toEqual(importableRows(desdeCsv))
-  })
-
-  it('el ejemplo de solo dos columnas sigue siendo de solo dos columnas', () => {
-    const review = reviewRows(filasDe(SAMPLE_CSV), opciones)
-
-    expect(review).toMatchObject({ valid: 2, withClient: 0, withAbono: 0 })
-    expect(reviewRows(parseJsonTickets(SAMPLE_JSON), opciones).valid).toBe(2)
   })
 })

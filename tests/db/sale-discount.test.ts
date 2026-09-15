@@ -30,7 +30,7 @@
 import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { DB_URL, loadSeedContext, SEED_PASSWORD, signInAs, type Client } from './helpers'
+import { asProfile, DB_URL, loadSeedContext, SEED_PASSWORD, signInAs, type Client } from './helpers'
 
 let db: PgClient
 let ctx: Awaited<ReturnType<typeof loadSeedContext>>
@@ -615,10 +615,9 @@ describe('E8 — compatibilidad con lo que ya existia', () => {
 
     const rebajasAntes = await rebajasCobradas(equipoId)
 
-    // El pago lo registra el Dueño: `create_payment` acepta al personal para
-    // cualquier cliente (BR-F02), y un vendedor solo para los suyos.
-    const owner = await signInAs('owner@demo.test')
-    const { error: pagoError } = await owner.rpc('create_payment', {
+    // El pago lo registra su vendedor: desde D-198 `create_payment` solo acepta
+    // al vendedor del cliente (BR-F02).
+    const { error: pagoError } = await equipo.rpc('create_payment', {
       p_client_id: clientes.get(equipoId)!,
       p_total_amount: PRECIO,
       p_allocations: [{ ticket_id: antigua!.id, amount: PRECIO }],
@@ -633,34 +632,49 @@ describe('E8 — compatibilidad con lo que ya existia', () => {
     expect(despues.earned).toBe(despues.n * despues.rate - rebajasAntes)
   })
 
-  it('E8-19: la importacion masiva sigue vendiendo al precio oficial', async () => {
+  it('E8-19: la importacion con clientes quedo dormida y no vende, ni al precio oficial (D-198)', async () => {
     // Seccion 16 del encargo: el contrato del CSV/JSON no cambia. La ausencia
     // de precio significa precio oficial, y eso lo garantiza el valor por
     // defecto del parametro, no una linea del importador.
+    //
+    // D-198: `import_tickets_with_clients` quedo dormida —ninguna sesion la
+    // ejecuta— y su cuerpo se comprueba con la identidad del Dueño (ver
+    // `asProfile`). Reactivarla no puede cambiar este contrato.
     const numero = await numeroLibre()
-    const owner = await signInAs('owner@demo.test')
+    const filas = [
+      {
+        daily_number: numero,
+        weekly_number: numero,
+        client_name: 'Importado Sin Precio',
+        client_phone: '3005554433',
+      },
+    ]
 
-    const { data, error } = await owner.rpc('import_tickets_with_clients', {
+    const owner = await signInAs('owner@demo.test')
+    const desdeSesion = await owner.rpc('import_tickets_with_clients', {
       p_raffle_id: rifaId,
       p_seller_id: sueltoId,
-      p_rows: [
-        {
-          daily_number: numero,
-          weekly_number: numero,
-          client_name: 'Importado Sin Precio',
-          client_phone: '3005554433',
-        },
-      ],
+      p_rows: filas,
     })
-    expect(error).toBeNull()
-    expect(data).toBeTruthy()
+    expect(desdeSesion.error).not.toBeNull()
+    expect(desdeSesion.error!.code).toBe('42501')
+
+    // El camino feliz ya no existe: su cuerpo vende por `assign_ticket_row`, que
+    // desde 0057 solo deja vender al vendedor de la boleta. Con la identidad del
+    // Dueño se detiene sin dejar nada; el precio oficial por defecto vuelve a
+    // probarse al reactivarla (procedimiento en D-198).
+    await expect(
+      asProfile(
+        ctx.ids.owner,
+        'select import_tickets_with_clients($1, $2, $3::jsonb) as resultado',
+        [rifaId, sueltoId, JSON.stringify(filas)],
+      ),
+    ).rejects.toThrow(/no existe o no tienes acceso/i)
 
     const { rows } = await db.query(
-      `select sale_price, base_price from tickets
-        where raffle_id = $1 and daily_number = $2`,
+      `select count(*)::int as n from tickets where raffle_id = $1 and daily_number = $2`,
       [rifaId, numero],
     )
-    expect(Number(rows[0].sale_price)).toBe(PRECIO)
-    expect(Number(rows[0].base_price)).toBe(PRECIO)
+    expect(rows[0].n).toBe(0)
   })
 })

@@ -29,6 +29,7 @@ export async function listTicketEligibility(
   if (error) throw error
 
   return (data ?? []).map((row) => ({
+    audience: 'seller' as const,
     ticketId: row.ticket_id,
     dailyNumber: row.daily_number,
     weeklyNumber: row.weekly_number,

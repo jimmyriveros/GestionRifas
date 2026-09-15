@@ -254,59 +254,57 @@ test.describe('Cambiar el cliente de una boleta — portal del vendedor', () => 
   })
 })
 
-test.describe('Cambiar el cliente de una boleta — portal administrativo', () => {
-  test('el Dueño usa el mismo dialogo y solo ve la cartera del vendedor de la boleta', async ({
-    page,
-  }) => {
+/**
+ * Hasta D-198 el Dueño usaba el mismo diálogo y podía crear el cliente correcto
+ * en la cartera del vendedor. Desde D-198 la cartera es del vendedor (BR-Q06):
+ * el detalle administrativo no enseña el cliente ni ofrece cambiarlo, la RPC le
+ * responde al personal lo mismo que a una boleta que no existe, y el personal
+ * no puede abrirle clientes a nadie. Las dos pruebas de antes son estas dos.
+ */
+test.describe('Cambiar el cliente de una boleta — portal administrativo (D-198)', () => {
+  test('el Dueño no ve el cliente ni el botón, y la boleta no cambia', async ({ page }) => {
     const antiguo = await clienteDe('Admin cambiar antiguo')
-    const nuevo = await clienteDe('Admin cambiar nuevo')
-    // Mismo prefijo de nombre, otra cartera: si la lista no estuviera acotada,
-    // saldria al buscar «Admin cambiar».
-    const ajeno = await clienteDe('Admin cambiar ajeno', refs.otherSellerId)
     const ticket = await ticketOf(antiguo.id)
 
     await loginAs(page, ACCOUNTS.owner)
     await page.goto(`/owner/tickets/${ticket.id}`)
-    await page.getByRole('button', { name: 'Cambiar cliente' }).click()
+    await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeVisible()
 
-    const dialogo = page.getByRole('dialog')
-    await expect(dialogo.getByText(antiguo.name)).toBeVisible()
-
-    await dialogo.getByLabel('Buscar').fill('Admin cambiar')
-    await expect(dialogo.getByRole('option', { name: nuevo.name })).toBeVisible()
-    await expect(dialogo.getByRole('option', { name: ajeno.name })).toHaveCount(0)
-
-    await dialogo.getByLabel('Motivo de la corrección').fill(MOTIVO)
-    await dialogo.getByRole('option', { name: nuevo.name }).click()
-    await dialogo.getByRole('button', { name: 'Cambiar cliente' }).click()
-
-    await expectToast(page, new RegExp(`quedó a nombre de ${nuevo.name}`))
-    expect(await ownerOf(ticket.id)).toBe(nuevo.id)
+    await expect(page.getByRole('button', { name: 'Cambiar cliente' })).toHaveCount(0)
+    await expect(page.getByText(antiguo.name)).toHaveCount(0)
+    expect(await ownerOf(ticket.id)).toBe(antiguo.id)
   })
 
-  test('el cliente que crea el personal nace en la cartera del vendedor de la boleta', async ({
-    page,
-  }) => {
-    const antiguo = await clienteDe('Admin crea antiguo')
-    const nombreNuevo = unique('Admin crea nuevo')
+  test('llamada a mano, el personal recibe la respuesta de una boleta que no existe', async () => {
+    const antiguo = await clienteDe('Admin cambiar RPC antiguo')
+    const nuevo = await clienteDe('Admin cambiar RPC nuevo')
     const ticket = await ticketOf(antiguo.id)
 
-    await loginAs(page, ACCOUNTS.owner)
-    await page.goto(`/owner/tickets/${ticket.id}`)
-    await page.getByRole('button', { name: 'Cambiar cliente' }).click()
+    for (const cuenta of [ACCOUNTS.owner, ACCOUNTS.admin]) {
+      const sesion = await signedInClient(cuenta)
+      const cambiar = (ticketId: string) =>
+        sesion.rpc('reassign_ticket_client', {
+          p_ticket_id: ticketId,
+          p_expected_client_id: antiguo.id,
+          p_new_client_id: nuevo.id,
+          p_reason: MOTIVO,
+        })
 
-    const dialogo = page.getByRole('dialog')
-    await dialogo.getByLabel('Motivo de la corrección').fill(MOTIVO)
-    await dialogo.getByRole('tab', { name: 'Cliente nuevo' }).click()
-    await dialogo.getByLabel('Nombre').fill(nombreNuevo)
-    await dialogo.getByLabel('Teléfono').fill('3007776655')
-    await dialogo.getByRole('button', { name: 'Crear cliente y cambiar' }).click()
+      const { error } = await cambiar(ticket.id)
+      const { error: inexistente } = await cambiar('00000000-0000-4000-8000-000000000000')
+      expect(error, cuenta).not.toBeNull()
+      expect(error?.message, cuenta).toBe(inexistente?.message)
+    }
+    expect(await ownerOf(ticket.id)).toBe(antiguo.id)
 
-    await expectToast(page, new RegExp(`${nombreNuevo} registrado`))
-
-    const creado = await clienteCreadoPorLaApp(nombreNuevo)
-    // El vendedor de la boleta, NO el Dueño que ejecuto la accion.
-    expect(creado.seller_id).toBe(refs.sellerId)
-    expect(await ownerOf(ticket.id)).toBe(creado.id)
+    // Y tampoco le abre un cliente a la cartera del vendedor.
+    const owner = await signedInClient(ACCOUNTS.owner)
+    const { error: alta } = await owner.from('clients').insert({
+      organization_id: refs.organizationId,
+      seller_id: refs.sellerId,
+      name: unique('Admin crea nuevo'),
+      phone: '3007776655',
+    })
+    expect(alta).not.toBeNull()
   })
 })

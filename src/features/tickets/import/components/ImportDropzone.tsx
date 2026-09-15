@@ -6,12 +6,7 @@ import { useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { BULK_TICKET_MAX } from '@/lib/constants'
 
-import {
-  SAMPLE_CSV,
-  SAMPLE_CSV_WITH_CLIENTS,
-  SAMPLE_JSON,
-  SAMPLE_JSON_WITH_CLIENTS,
-} from '../sample'
+import { SAMPLE_CSV, SAMPLE_JSON } from '../sample'
 
 /**
  * Primer paso: elegir el archivo.
@@ -21,6 +16,10 @@ import {
  * archivo, y un ejemplo descargable que ya trae los encabezados correctos. El
  * formato JSON existe pero se guarda detras de un enlace: quien lo necesita lo
  * busca, y a quien no, no le estorba.
+ *
+ * Desde D-198 el archivo solo lleva los dos numeros, en los dos portales, y se
+ * dice ANTES de elegirlo: quien antes importaba sus ventas con cliente y abono
+ * no tiene por que descubrirlo en la vista previa (BR-Q07).
  */
 
 type ImportDropzoneProps = {
@@ -28,7 +27,6 @@ type ImportDropzoneProps = {
   disabled?: boolean
   /** Mensaje del intento anterior, si el archivo no se pudo leer. */
   error?: string | null
-  allowClientAssignments?: boolean
 }
 
 /** 1 MB. Mil boletas ocupan unos 15 KB: nada legitimo se acerca a este tope. */
@@ -43,12 +41,7 @@ function descargar(nombre: string, contenido: string, tipo: string) {
   URL.revokeObjectURL(url)
 }
 
-export function ImportDropzone({
-  onFile,
-  disabled,
-  error,
-  allowClientAssignments,
-}: ImportDropzoneProps) {
+export function ImportDropzone({ onFile, disabled, error }: ImportDropzoneProps) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const [verJson, setVerJson] = useState(false)
@@ -73,19 +66,10 @@ export function ImportDropzone({
           Necesitamos dos columnas: <strong>Premio semanal</strong> y <strong>Premio diario</strong>
           . Hasta {BULK_TICKET_MAX} boletas por archivo.
         </p>
-        {allowClientAssignments ? (
-          <>
-            <p className="text-muted-foreground">
-              Puedes añadir <strong>Cliente</strong> y <strong>Celular</strong>. Si incluyes uno,
-              necesitas ambos.
-            </p>
-            <p className="text-muted-foreground">
-              Y una columna <strong>Abono</strong> con lo que ya te pagaron de esa boleta: escribe
-              20, 20.000 o 20000 para veinte mil, o «Cancelado» si ya está pagada. Déjala vacía si
-              no te han abonado nada.
-            </p>
-          </>
-        ) : null}
+        <p className="text-muted-foreground">
+          Solo los números: el cliente y los abonos se registran después, cuando se vende cada
+          boleta.
+        </p>
       </div>
 
       {/* El area de arrastre es una comodidad; el boton y el campo son lo que
@@ -152,13 +136,7 @@ export function ImportDropzone({
           type="button"
           variant="secondary"
           size="sm"
-          onClick={() =>
-            descargar(
-              'boletas-ejemplo.csv',
-              allowClientAssignments ? SAMPLE_CSV_WITH_CLIENTS : SAMPLE_CSV,
-              'text/csv;charset=utf-8',
-            )
-          }
+          onClick={() => descargar('boletas-ejemplo.csv', SAMPLE_CSV, 'text/csv;charset=utf-8')}
         >
           Descargar archivo de ejemplo
         </Button>
@@ -173,9 +151,7 @@ export function ImportDropzone({
             Opción avanzada. Escribe los números <strong>entre comillas</strong> para no perder los
             ceros de delante.
           </p>
-          <pre className="bg-muted overflow-x-auto rounded-md p-3 text-xs">
-            {allowClientAssignments ? SAMPLE_JSON_WITH_CLIENTS : SAMPLE_JSON}
-          </pre>
+          <pre className="bg-muted overflow-x-auto rounded-md p-3 text-xs">{SAMPLE_JSON}</pre>
         </div>
       ) : null}
     </div>

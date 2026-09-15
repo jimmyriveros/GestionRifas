@@ -16,7 +16,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { SearchInput } from '@/features/search/components/SearchInput'
-import { ticketSearchHint } from '@/features/search/hints'
+import { adminTicketSearchHint, ticketSearchHint } from '@/features/search/hints'
 import { useUrlSearch } from '@/features/search/use-url-search'
 import { tourTarget } from '@/features/tour/tours'
 import {
@@ -27,6 +27,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  ADMIN_TICKET_PAYMENT_STATE_LABELS,
+  ADMIN_TICKET_PAYMENT_STATE_VALUES,
   TICKET_INVENTORY_STATUS_LABELS,
   TICKET_INVENTORY_STATUS_VALUES,
   TICKET_PAYMENT_STATUS_LABELS,
@@ -34,9 +36,16 @@ import {
 } from '@/lib/constants'
 import { SEARCH_MIN_CHARS } from '@/lib/search'
 
+import { adminPaymentStateSchema } from '../schemas'
+
 type Option = { value: string; label: string }
 
 type TicketFiltersProps = {
+  /**
+   * `staff` es el portal administrativo (D-198, BR-Q05): se busca solo por
+   * numero y el estado de pago tiene dos valores. Sin indicar, el del vendedor.
+   */
+  audience?: 'seller' | 'staff'
   /** Se omite donde se opera una sola rifa: el portal del vendedor (D-088). */
   raffles?: Option[]
   /** Solo el portal administrativo filtra por vendedor. */
@@ -98,13 +107,30 @@ const FILTER_KEYS = [
  * La hoja solo existe en el DOM mientras esta abierta, y solo se puede abrir
  * bajo `md`: en escritorio no hay etiquetas duplicadas.
  */
-export function TicketFilters({ raffles, sellers, clients, secondaryAction }: TicketFiltersProps) {
+export function TicketFilters({
+  audience = 'seller',
+  raffles,
+  sellers,
+  clients,
+  secondaryAction,
+}: TicketFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const [sheetOpen, setSheetOpen] = useState(false)
   const search = useUrlSearch({ minChars: SEARCH_MIN_CHARS.tickets })
+  const staff = audience === 'staff'
+
+  // D-198: en el portal administrativo un `paymentStatus=partial` de un enlace
+  // antiguo no es un filtro —la consulta lo ignora—, asi que tampoco se pinta
+  // ni se cuenta: el desplegable nunca dice «Abonada».
+  const paymentParam = searchParams.get('paymentStatus')
+  const paymentValue = staff
+    ? adminPaymentStateSchema.safeParse(paymentParam).success
+      ? (paymentParam ?? ALL)
+      : ALL
+    : (paymentParam ?? ALL)
 
   function apply(changes: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString())
@@ -135,7 +161,15 @@ export function TicketFilters({ raffles, sellers, clients, secondaryAction }: Ti
   // `raffleId` sigue en la lista aunque el selector no se muestre: un enlace
   // compartido puede traerlo, y entonces «Limpiar filtros» tiene que aparecer y
   // saber quitarlo. Ocultar el control no deja el filtro sin salida (D-088).
-  const activeCount = FILTER_KEYS.filter((key) => searchParams.get(key)).length
+  const activeCount = FILTER_KEYS.filter((key) => {
+    if (!searchParams.get(key)) return false
+    if (!staff) return true
+    // El personal no filtra por cliente, y un estado de pago que no es de los
+    // suyos no esta aplicado.
+    if (key === 'clientId') return false
+    if (key === 'paymentStatus') return paymentValue !== ALL
+    return true
+  }).length
   const hasFilters = activeCount > 0 || Boolean(searchParams.get('q'))
 
   /**
@@ -193,12 +227,19 @@ export function TicketFilters({ raffles, sellers, clients, secondaryAction }: Ti
         <FilterSelect
           id={`${idPrefix}-payment`}
           label="Estado de pago"
-          value={searchParams.get('paymentStatus') ?? ALL}
+          value={paymentValue}
           onChange={(value) => apply({ paymentStatus: value })}
-          options={TICKET_PAYMENT_STATUS_VALUES.map((status) => ({
-            value: status,
-            label: TICKET_PAYMENT_STATUS_LABELS[status],
-          }))}
+          options={
+            staff
+              ? ADMIN_TICKET_PAYMENT_STATE_VALUES.map((state) => ({
+                  value: state,
+                  label: ADMIN_TICKET_PAYMENT_STATE_LABELS[state],
+                }))
+              : TICKET_PAYMENT_STATUS_VALUES.map((status) => ({
+                  value: status,
+                  label: TICKET_PAYMENT_STATUS_LABELS[status],
+                }))
+          }
           allLabel="Todos los pagos"
           disabled={isPending}
         />
@@ -217,12 +258,15 @@ export function TicketFilters({ raffles, sellers, clients, secondaryAction }: Ti
       {/* UN solo campo para las dos formas de llegar a una boleta: sus numeros
           (BR-N11) o el nombre del cliente que la tiene (BR-N13). Nunca por el
           codigo interno. Quien busca no elige entre las dos: escribe lo que
-          recuerda y la consulta distingue sola (D-100). */}
+          recuerda y la consulta distingue sola (D-100).
+
+          En el portal administrativo solo por numero (D-198): el personal no
+          ve clientes, y el texto no puede sugerir lo contrario. */}
       <SearchInput
         id="ticket-search"
-        label="Buscar por número de boleta o por cliente"
+        label={staff ? 'Buscar por número de boleta' : 'Buscar por número de boleta o por cliente'}
         hideLabel
-        placeholder="Número de boleta o cliente"
+        placeholder={staff ? 'Número de boleta' : 'Número de boleta o cliente'}
         value={search.value}
         onChange={search.onChange}
         onSubmit={search.submitNow}
@@ -230,7 +274,10 @@ export function TicketFilters({ raffles, sellers, clients, secondaryAction }: Ti
         loading={search.showSpinner}
         showSubmitButton
         size="touch"
-        hint={ticketSearchHint(search.value) ?? search.hint}
+        hint={
+          (staff ? adminTicketSearchHint(search.value) : ticketSearchHint(search.value)) ??
+          search.hint
+        }
       />
 
       {/* Telefono: las dos herramientas con las que se prepara la lista, en una

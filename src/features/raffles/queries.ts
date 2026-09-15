@@ -1,5 +1,11 @@
 import 'server-only'
 
+import {
+  addInventory,
+  readAdminTicketInventory,
+  ZERO_INVENTORY,
+  type InventoryCounts,
+} from '@/features/tickets/admin-queries'
 import { createClient } from '@/lib/supabase/server'
 import type { RaffleStatus } from '@/lib/constants'
 
@@ -29,12 +35,12 @@ export type RaffleSummary = {
   pendingAmount: number
 }
 
-export type RaffleDetail = RaffleSummary & {
-  description: string | null
-  createdAt: string
-  closedAt: string | null
-}
-
+/**
+ * Las rifas con su dinero, para el reporte «Boletas por rifa» del VENDEDOR.
+ *
+ * `v_raffle_summary` es `security_invoker`: a un vendedor le suma solo sus
+ * boletas. El personal ya no la usa (D-198); lee `listAdminRaffleSummaries`.
+ */
 export async function listRaffleSummaries(): Promise<RaffleSummary[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -47,33 +53,107 @@ export async function listRaffleSummaries(): Promise<RaffleSummary[]> {
   return (data ?? []).map(mapSummaryRow)
 }
 
-export async function getRaffleDetail(raffleId: string): Promise<RaffleDetail | null> {
-  const supabase = await createClient()
+/**
+ * Una rifa en el portal ADMINISTRATIVO (D-198, BR-Q08): sus datos y los
+ * recuentos de sus boletas, sin lo vendido, lo recaudado ni el saldo.
+ *
+ * El precio de la rifa si esta: es su configuracion, no lo que un vendedor
+ * negocio con un cliente.
+ */
+export type AdminRaffleSummary = {
+  id: string
+  shortCode: string
+  name: string
+  status: RaffleStatus
+  ticketPrice: number
+  startDate: string
+  endDate: string
+  allowSellerTicketCreation: boolean
+} & InventoryCounts
 
-  const [{ data: raffle, error: raffleError }, { data: summary, error: summaryError }] =
-    await Promise.all([
-      supabase.from('raffles').select('*').eq('id', raffleId).maybeSingle(),
-      supabase.from('v_raffle_summary').select('*').eq('raffle_id', raffleId).maybeSingle(),
-    ])
+export type AdminRaffleDetail = AdminRaffleSummary & {
+  description: string | null
+  createdAt: string
+  closedAt: string | null
+}
 
-  if (raffleError) throw raffleError
-  if (summaryError) throw summaryError
-  if (!raffle) return null
+const ADMIN_RAFFLE_COLUMNS =
+  'id, short_code, name, status, ticket_price, start_date, end_date, allow_seller_ticket_creation, description, created_at, closed_at'
 
-  return {
-    ...mapSummaryRow(summary ?? {}),
-    id: raffle.id,
-    shortCode: raffle.short_code,
-    name: raffle.name,
-    status: raffle.status,
-    ticketPrice: raffle.ticket_price,
-    startDate: raffle.start_date,
-    endDate: raffle.end_date,
-    allowSellerTicketCreation: raffle.allow_seller_ticket_creation,
-    description: raffle.description,
-    createdAt: raffle.created_at,
-    closedAt: raffle.closed_at,
+type AdminRaffleRow = {
+  id: string
+  short_code: string
+  name: string
+  status: RaffleStatus
+  ticket_price: number
+  start_date: string
+  end_date: string
+  allow_seller_ticket_creation: boolean
+  description: string | null
+  created_at: string
+  closed_at: string | null
+}
+
+function inventoryByRaffle(
+  rows: Awaited<ReturnType<typeof readAdminTicketInventory>>,
+): Map<string, InventoryCounts> {
+  const byRaffle = new Map<string, InventoryCounts>()
+  for (const row of rows) {
+    byRaffle.set(row.raffleId, addInventory(byRaffle.get(row.raffleId) ?? ZERO_INVENTORY, row))
   }
+  return byRaffle
+}
+
+function mapAdminRaffle(row: AdminRaffleRow, counts: InventoryCounts): AdminRaffleDetail {
+  return {
+    id: row.id,
+    shortCode: row.short_code,
+    name: row.name,
+    status: row.status,
+    ticketPrice: row.ticket_price,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    allowSellerTicketCreation: row.allow_seller_ticket_creation,
+    description: row.description,
+    createdAt: row.created_at,
+    closedAt: row.closed_at,
+    ...counts,
+  }
+}
+
+/**
+ * Las rifas con sus recuentos, para el personal. Dos lecturas fijas: la tabla
+ * de rifas —que el personal si lee— y el agregado de `admin_ticket_inventory`.
+ */
+export async function listAdminRaffleSummaries(): Promise<AdminRaffleSummary[]> {
+  const supabase = await createClient()
+  const [{ data, error }, inventory] = await Promise.all([
+    supabase.from('raffles').select(ADMIN_RAFFLE_COLUMNS).order('short_code', { ascending: false }),
+    readAdminTicketInventory(null),
+  ])
+
+  if (error) throw error
+
+  const byRaffle = inventoryByRaffle(inventory)
+  return ((data ?? []) as AdminRaffleRow[]).map((row) =>
+    mapAdminRaffle(row, byRaffle.get(row.id) ?? ZERO_INVENTORY),
+  )
+}
+
+export async function getAdminRaffleDetail(raffleId: string): Promise<AdminRaffleDetail | null> {
+  const supabase = await createClient()
+  const [{ data, error }, inventory] = await Promise.all([
+    supabase.from('raffles').select(ADMIN_RAFFLE_COLUMNS).eq('id', raffleId).maybeSingle(),
+    readAdminTicketInventory(raffleId),
+  ])
+
+  if (error) throw error
+  if (!data) return null
+
+  return mapAdminRaffle(
+    data as AdminRaffleRow,
+    inventoryByRaffle(inventory).get(raffleId) ?? ZERO_INVENTORY,
+  )
 }
 
 export type RaffleOption = {

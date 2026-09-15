@@ -37,8 +37,10 @@ test('un título largo no desborda ni empuja la flecha fuera de la pantalla', as
   const longName = 'María Fernanda Restrepo Ochoa de las Mercedes del Rosario'
   const client = await createClientFor(refs, longName)
 
-  await loginAs(page, ACCOUNTS.owner)
-  await page.goto(`/owner/clients/${client.id}`)
+  // La ficha del cliente es del vendedor desde D-198: es la pantalla de detalle
+  // con el título más largo que queda, y se prueba en su portal.
+  await loginAs(page, ACCOUNTS.seller)
+  await page.goto(`/seller/clients/${client.id}`)
 
   const back = page.getByRole('button', { name: 'Volver' })
   await expect(back).toBeVisible()
@@ -52,5 +54,5 @@ test('un título largo no desborda ni empuja la flecha fuera de la pantalla', as
   expect(overflow).toBeLessThanOrEqual(1)
 
   await back.tap()
-  await expect(page).toHaveURL('/owner/clients')
+  await expect(page).toHaveURL('/seller/clients')
 })

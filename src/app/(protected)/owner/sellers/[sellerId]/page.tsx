@@ -8,15 +8,21 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CatalogSettingsCard } from '@/features/catalog/components/CatalogSettingsCard'
 import { catalogPublicUrl, getCatalogSettings, isCatalogLive } from '@/features/catalog/queries'
-import { getCommissionContext } from '@/features/commissions/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
-import { getSellerWithTotals } from '@/features/sellers/queries'
+import { getSellerWithInventory } from '@/features/sellers/queries'
 import { listOrgMembers } from '@/features/users/queries'
 import { UserRowActions } from '@/features/users/components/UserRowActions'
 import { requireStaff } from '@/lib/auth/guards'
 import { formatDateEs } from '@/lib/dates'
-import { formatCOP } from '@/lib/money'
 
+/**
+ * Ficha de un vendedor en el portal administrativo.
+ *
+ * LA CARTERA ES SUYA (D-198, BR-Q08). La ficha ya no ensena su dinero —vendido,
+ * recaudado, saldo—, ni su ganancia con el total de rebajas, ni cuantos clientes
+ * tiene, ni un enlace a ellos. Conserva lo que el personal administra: sus
+ * datos, su inventario, su equipo, su catalogo y asignarle boletas.
+ */
 export default async function SellerDetailPage({
   params,
 }: {
@@ -24,21 +30,17 @@ export default async function SellerDetailPage({
 }) {
   const { sellerId } = await params
   const membership = await requireStaff()
-  const seller = await getSellerWithTotals(sellerId)
+  const seller = await getSellerWithInventory(sellerId)
 
   if (!seller) notFound()
 
-  // Su lugar en la estructura comercial y lo que lleva ganado (BR-E08, BR-G12),
-  // y su catalogo publico (BR-K12). Todo en la MISMA espera: son lecturas
-  // independientes y encadenarlas solo sumaria idas y vueltas.
-  const [comisiones, orgSellers, catalog, raffles] = await Promise.all([
-    getCommissionContext(),
+  // Su lugar en la estructura comercial (BR-E08) y su catalogo publico
+  // (BR-K12). En la MISMA espera: son lecturas independientes.
+  const [orgSellers, catalog, raffles] = await Promise.all([
     listOrgMembers(['seller']),
     getCatalogSettings(sellerId),
     listRaffleOptions(),
   ])
-  const raffle = comisiones.raffle
-  const commission = comisiones.bySeller.get(sellerId) ?? null
 
   const team = orgSellers.filter((member) => member.parentSellerId === sellerId)
   const parent = seller.parentSellerId
@@ -79,29 +81,19 @@ export default async function SellerDetailPage({
 
       <div>
         <h2 className="mb-3 text-lg font-semibold">Inventario</h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
           <MetricCard label="Boletas" value={seller.ticketsTotal} />
           <MetricCard label="Disponibles" value={seller.ticketsAvailable} />
           <MetricCard label="Asignadas" value={seller.ticketsAssigned} />
           <MetricCard label="Pendientes de aprobación" value={seller.ticketsPendingApproval} />
           <MetricCard label="Borradores" value={seller.ticketsDraft} />
-          <MetricCard label="Clientes" value={seller.clientsCount} />
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">Dinero</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <MetricCard label="Total vendido" value={formatCOP(seller.totalSold)} />
-          <MetricCard label="Total recaudado" value={formatCOP(seller.totalCollected)} />
-          <MetricCard label="Saldo pendiente" value={formatCOP(seller.pendingAmount)} />
         </div>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            <h2>Equipo y comisión</h2>
+            <h2>Equipo</h2>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -115,29 +107,9 @@ export default async function SellerDetailPage({
                 <span className="text-muted-foreground">Depende del Dueño o el Administrador</span>
               )}
             </Field>
-            <Field label={raffle ? `Ganancia en ${raffle.name}` : 'Ganancia'}>
-              {commission && commission.ticketsPaid > 0 ? (
-                <span>
-                  <span className="font-medium tabular-nums">{formatCOP(commission.earned)}</span>
-                  <span className="text-muted-foreground">
-                    {' '}
-                    · {commission.ticketsPaid} cobradas a {formatCOP(commission.rate)}
-                    {/* No es una métrica de rebajas (el encargo pide no
-                        añadirlas al portal administrativo): está para que la
-                        cuenta cuadre a la vista cuando el vendedor rebajó
-                        alguna boleta. La participación de la empresa no cambia. */}
-                    {commission.discounts > 0
-                      ? `, menos ${formatCOP(commission.discounts)} de rebajas`
-                      : ''}
-                  </span>
-                </span>
-              ) : (
-                <span className="text-muted-foreground">Todavía no ha cobrado ninguna boleta</span>
-              )}
-            </Field>
 
-            {/* BR-G13: dos formas de pago. Decirlo aquí evita que el Dueño tenga
-                que deducirla del número. */}
+            {/* BR-G13: dos formas de pago. Es la REGLA, no una cifra: lo que
+                lleva ganado es de su cartera y ya no se ensena aqui (D-198). */}
             <Field label="Cómo se le paga">
               {parent === null ? (
                 <span>La mitad del precio de cada boleta que cobre completa</span>
@@ -195,9 +167,6 @@ export default async function SellerDetailPage({
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline" size="touch">
           <Link href={`/owner/tickets?sellerId=${seller.profileId}`}>Ver sus boletas</Link>
-        </Button>
-        <Button asChild variant="outline" size="touch">
-          <Link href={`/owner/clients?sellerId=${seller.profileId}`}>Ver sus clientes</Link>
         </Button>
         <Button asChild variant="outline" size="touch">
           <Link href={`/owner/tickets/bulk?sellerId=${seller.profileId}`}>Asignarle boletas</Link>

@@ -7,6 +7,7 @@
  * navegador. Si una prueba pasara con service role, no probaria nada.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { Client as PgClient, type QueryResult, type QueryResultRow } from 'pg'
 import WebSocket from 'ws'
 
 import type { Database } from '../../src/types/database.types'
@@ -39,6 +40,48 @@ export function serviceClient(): Client {
     auth: { autoRefreshToken: false, persistSession: false },
     realtime,
   })
+}
+
+/**
+ * Ejecuta SQL con la IDENTIDAD de una persona del seed, pero conectado como
+ * superusuario, en una sola transaccion (D-198).
+ *
+ * SOLO para dos cosas. Una, las RPC que D-198 dejo DORMIDAS —`void_payment`,
+ * `match_ticket_import_clients` e `import_tickets_with_clients`—: ya no son
+ * ejecutables por `authenticated`, pero su cuerpo no cambio, porque
+ * reactivarlas es volver a conceder EXECUTE; estas pruebas comprueban que ese
+ * cuerpo sigue haciendo lo mismo. Otra, dejar datos con la forma que tenian
+ * antes de D-198, como un abono que registro el personal.
+ *
+ * NO prueba RLS ni permisos: el superusuario se salta los dos. Para eso estan
+ * las sesiones reales de `signInAs`.
+ */
+export async function asProfile<T extends QueryResultRow = QueryResultRow>(
+  profileId: string,
+  sql: string,
+  params: unknown[] = [],
+): Promise<QueryResult<T>> {
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    await db.query('begin')
+    await db.query(`select set_config('request.jwt.claims', $1, true)`, [
+      JSON.stringify({ sub: profileId, role: 'authenticated' }),
+    ])
+    const result = await db.query<T>(sql, params)
+    await db.query('commit')
+    return result
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  } finally {
+    await db.end()
+  }
+}
+
+/** Anula un pago con `void_payment`, con la identidad de quien anula (ver `asProfile`). */
+export async function voidPaymentAs(profileId: string, paymentId: string, reason: string) {
+  await asProfile(profileId, 'select void_payment($1, $2)', [paymentId, reason])
 }
 
 /** Cliente autenticado como un usuario real del seed. */

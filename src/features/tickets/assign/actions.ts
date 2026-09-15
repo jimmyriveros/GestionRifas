@@ -16,7 +16,7 @@ import { assignTicketsSchema, assignTicketsToNewClientSchema } from './schemas'
  * TODA la logica vive en la RPC `bulk_assign_tickets` (migracion 0020), que a
  * su vez aplica boleta por boleta las reglas de `assign_ticket_row` —las mismas
  * de siempre, extraidas de la Fase 2—: comprueba que la boleta sea del vendedor
- * (o que quien llama sea personal), que este `available`, que el cliente sea de
+ * que llama, que este `available`, que el cliente sea de
  * esa misma cartera y no este archivado, que la rifa este activa, fija
  * `sale_price` y audita el cambio.
  *
@@ -32,6 +32,10 @@ import { assignTicketsSchema, assignTicketsToNewClientSchema } from './schemas'
  *
  * Reimplementar cualquiera de esas reglas aqui seria duplicarlas y perder la
  * atomicidad. Estas acciones solo traducen el resultado a la interfaz.
+ *
+ * SOLO EL VENDEDOR, desde D-198: vender es parte de su cartera (BR-Q01). El
+ * personal ya no asigna boletas a clientes, y `assign_ticket_row` se lo niega
+ * con el mismo mensaje que a una boleta ajena aunque llegara hasta aqui.
  */
 
 function revalidateAssignment() {
@@ -51,7 +55,7 @@ function assignedMessage(count: number): string {
 export async function assignTickets(
   input: unknown,
 ): Promise<ActionResultWith<{ count: number; message: string }>> {
-  const auth = await authorizeAction(['owner', 'admin', 'seller'])
+  const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
   const parsed = assignTicketsSchema.safeParse(input)

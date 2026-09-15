@@ -81,6 +81,45 @@ export function ticketSearchEmptyDescription(
 }
 
 /**
+ * Pista del buscador de boletas del PORTAL ADMINISTRATIVO (D-198, BR-Q05).
+ *
+ * Alli se busca SOLO por numero: el personal no ve clientes, asi que una boleta
+ * ya no se encuentra por el nombre de quien la tiene. La pista dice lo que si
+ * sirve, y es la misma para cualquier texto: nunca «ese cliente no existe», que
+ * confirmaria algo sobre la cartera de un vendedor.
+ */
+export function adminTicketSearchHint(term: string): string | undefined {
+  const trimmed = term.trim()
+  if (trimmed === '') return undefined
+  if (/^[0-9]{5,}$/.test(trimmed)) {
+    return 'Los números de una boleta tienen 4 cifras como máximo.'
+  }
+  if (!/^[0-9]+$/.test(trimmed)) {
+    return 'Escribe solo el número diario o el semanal de la boleta.'
+  }
+  return undefined
+}
+
+/**
+ * Que decir cuando la lista administrativa sale vacia.
+ *
+ * Con un texto que no es un numero, lo mismo que dice la pista: no se consulto
+ * nada, y la respuesta no puede depender de si ese nombre existe.
+ */
+export function adminTicketSearchEmptyDescription(
+  term: string | undefined,
+  hasFilters: boolean,
+): string | undefined {
+  if (term) {
+    const hint = adminTicketSearchHint(term)
+    if (hint) return hint
+    return 'Revisa el número de la boleta. El código interno no sirve para buscar: está en el detalle de cada boleta.'
+  }
+  if (hasFilters) return 'Prueba a limpiar los filtros o a buscar por otro número.'
+  return undefined
+}
+
+/**
  * Pista del buscador del CATALOGO PUBLICO (BR-K08, D-159).
  *
  * Es otra pantalla y otra persona: aqui no hay clientes ni codigos internos,

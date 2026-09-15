@@ -393,8 +393,9 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
 
 // El vendedor de una boleta apunta a `memberships`, no a `profiles`, asi que no
 // puede incrustarse en la consulta. Los miembros de una organizacion son pocos:
-// se traen una vez y se cruzan en memoria (sin N+1).
-async function sellerNameMap(): Promise<Map<string, string>> {
+// se traen una vez y se cruzan en memoria (sin N+1). Lo reutiliza tambien la
+// lectura administrativa (`admin-queries.ts`).
+export async function sellerNameMap(): Promise<Map<string, string>> {
   const members = await listOrgMembers(['owner', 'admin', 'seller'])
   return new Map(members.map((member) => [member.profileId, member.fullName]))
 }

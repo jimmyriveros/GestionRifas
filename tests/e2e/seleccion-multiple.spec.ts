@@ -289,8 +289,9 @@ test.describe('Acciones masivas de Dueño y Administrador', () => {
 
     await page.getByRole('button', { name: /^Eliminar boletas/ }).click()
     const dialog = page.getByRole('dialog')
+    // La explicación de D-198, la misma que comprueba la prueba de la vendida.
     await expect(
-      dialog.getByText('Solo se pueden eliminar boletas que todavía no se vendieron', {
+      dialog.getByText('Solo se pueden eliminar las boletas que nunca entraron en la operación.', {
         exact: false,
       }),
     ).toBeVisible()
@@ -307,7 +308,10 @@ test.describe('Acciones masivas de Dueño y Administrador', () => {
     expect(count).toBe(0)
   })
 
-  test('no deja eliminar una boleta con cliente', async ({ page }) => {
+  // Desde D-198 el motivo no nombra al cliente: el personal no ve la cartera.
+  test('no deja eliminar una boleta vendida, y lo dice sin nombrar al cliente', async ({
+    page,
+  }) => {
     const numbers = randomTicketNumbers()
     const cliente = await createClientFor(refs, unique('Cliente selección'))
     clientesCreados.push(cliente.id)
@@ -325,7 +329,19 @@ test.describe('Acciones masivas de Dueño y Administrador', () => {
     await page.getByRole('button', { name: /^Eliminar boletas/ }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByText('No se puede continuar todavía.')).toBeVisible()
-    await expect(dialog.getByText('Ya está vendida a un cliente.')).toBeVisible()
+    // Cada motivo va en su fila, con la boleta delante: «1234 / 5678 — Ya está vendida.»
+    await expect(dialog.getByRole('listitem')).toHaveText([
+      `${numbers.daily} / ${numbers.weekly} — Ya está vendida.`,
+    ])
+    await expect(dialog.getByText('Ya está vendida a un cliente.')).toHaveCount(0)
+    // Y la explicación general tampoco nombra abonos ni manda a anular lo vendido,
+    // que el personal ya no puede anular (D-198).
+    await expect(
+      dialog.getByText('Solo se pueden eliminar las boletas que nunca entraron en la operación.', {
+        exact: false,
+      }),
+    ).toBeVisible()
+    await expect(dialog.getByText(/abono/i)).toHaveCount(0)
 
     await dialog.getByLabel('Motivo (obligatorio)').fill('Intento sobre una vendida')
     await expect(dialog.getByRole('button', { name: 'Eliminar 1 boleta' })).toBeDisabled()

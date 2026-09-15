@@ -8,7 +8,16 @@ import {
   clearanceLabel,
   clearanceState,
   type ClearanceEligibility,
+  type ClearanceState,
 } from '../clearance-receipt'
+
+/**
+ * La boleta del vendedor, o el estado y la fecha que ya resolvio SQL para el
+ * portal administrativo, cuyo modelo no lleva cliente (D-198).
+ */
+type ReadOnlySource =
+  | { ticket: ClearanceEligibility; state?: never; deliveredAt?: never }
+  | { state: ClearanceState; deliveredAt: string | null; ticket?: never }
 
 /**
  * El paz y salvo de una boleta, solo para mirar (BR-I15, D-170).
@@ -25,8 +34,11 @@ import {
  * cuándo fue. De una carga inicial escribe por qué no hay fecha; nunca la de la
  * migración, ni la de asignación, ni una calculada.
  */
-export function ClearanceReceiptReadOnly({ ticket }: { ticket: ClearanceEligibility }) {
-  const state = clearanceState(ticket)
+export function ClearanceReceiptReadOnly(source: ReadOnlySource) {
+  const state = source.ticket ? clearanceState(source.ticket) : (source.state ?? null)
+  const deliveredAt = source.ticket
+    ? source.ticket.clearanceDeliveredAt
+    : (source.deliveredAt ?? null)
   if (state === null) return null
 
   const delivered = state !== 'pending'
@@ -49,9 +61,9 @@ export function ClearanceReceiptReadOnly({ ticket }: { ticket: ClearanceEligibil
       {state === 'assumed' ? (
         <p className="text-muted-foreground text-xs">{CLEARANCE_COPY.assumedNote}</p>
       ) : null}
-      {state === 'delivered' && ticket.clearanceDeliveredAt !== null ? (
+      {state === 'delivered' && deliveredAt !== null ? (
         <p className="text-muted-foreground text-xs">
-          {clearanceDeliveredLabel(formatDateTimeEs(ticket.clearanceDeliveredAt))}
+          {clearanceDeliveredLabel(formatDateTimeEs(deliveredAt))}
         </p>
       ) : null}
     </div>

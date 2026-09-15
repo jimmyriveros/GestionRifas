@@ -86,14 +86,35 @@ test.describe('Vendedores', () => {
     await expect(page.getByText(alias)).toBeVisible()
   })
 
-  test('el detalle del vendedor muestra sus indicadores', async ({ page }) => {
+  /**
+   * Hasta D-198 los indicadores eran de dinero —«Total vendido», «Saldo
+   * pendiente»—. Desde D-198 (alcance B) la ficha cuenta boletas y no enseña
+   * ningún importe de la cartera del vendedor.
+   */
+  test('el detalle del vendedor muestra su inventario, sin dinero (D-198)', async ({ page }) => {
     await page.goto('/owner/sellers')
     await page.getByRole('link', { name: 'Julian Vargas' }).click()
 
     await page.waitForURL(/\/owner\/sellers\/[0-9a-f-]+$/)
     await expect(page.getByRole('heading', { name: 'Julian Vargas' })).toBeVisible()
-    await expect(page.getByText('Total vendido')).toBeVisible()
-    await expect(page.getByText('Saldo pendiente')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Inventario' })).toBeVisible()
+    for (const indicador of [
+      'Boletas',
+      'Disponibles',
+      'Asignadas',
+      'Pendientes de aprobación',
+      'Borradores',
+    ]) {
+      await expect(
+        page
+          .locator('[data-slot="card"]')
+          .filter({ has: page.getByText(indicador, { exact: true }) })
+          .first(),
+      ).toBeVisible()
+    }
+    for (const dinero of ['Total vendido', 'Saldo pendiente', 'Recaudado', 'Ganancia']) {
+      await expect(page.getByText(dinero)).toHaveCount(0)
+    }
     await expect(page.getByRole('link', { name: 'Ver sus boletas' })).toBeVisible()
   })
 })

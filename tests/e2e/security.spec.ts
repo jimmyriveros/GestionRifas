@@ -15,7 +15,9 @@ const RUTAS_PROTEGIDAS = [
   '/owner/dashboard',
   '/owner/raffles',
   '/owner/tickets',
-  '/owner/payments',
+  // `/owner/payments` y `/owner/clients` ya no existen (D-198): que respondan
+  // «no encontrada» con sesión lo comprueba `privacidad-admin.spec.ts`.
+  '/owner/sellers',
   '/owner/reports',
   '/owner/users',
   '/seller/dashboard',
@@ -134,7 +136,14 @@ test.describe('Cabeceras de seguridad', () => {
     })
 
     await loginAs(page, ACCOUNTS.owner)
-    await page.goto('/owner/reports?report=payments')
+    await page.goto('/owner/reports?report=ticket-status')
+    await expect(page.getByRole('heading', { name: 'Reportes' })).toBeVisible()
+
+    // El reporte de pagos —la pantalla con más cifras y tablas— es del vendedor
+    // desde D-198, así que se comprueba en su portal.
+    await logout(page)
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/reports?report=payments')
     await expect(page.getByRole('heading', { name: 'Reportes' })).toBeVisible()
 
     expect(violaciones).toEqual([])
@@ -150,8 +159,8 @@ test.describe('Proteccion de rutas sin sesión (prueba 25)', () => {
   })
 
   test('el destino se conserva para volver después de entrar', async ({ page }) => {
-    await page.goto('/owner/payments')
-    await expect(page).toHaveURL(/next=%2Fowner%2Fpayments/)
+    await page.goto('/owner/reports')
+    await expect(page).toHaveURL(/next=%2Fowner%2Freports/)
   })
 
   test('la descarga de reportes no entrega NADA sin sesión', async ({ playwright, baseURL }) => {
@@ -312,7 +321,8 @@ test.describe('Los errores no revelan estructura interna (prueba 25)', () => {
 
   test('un id con formato inválido tampoco', async ({ page }) => {
     await loginAs(page, ACCOUNTS.owner)
-    await page.goto('/owner/clients/no-es-un-uuid')
+    // Antes era la ficha de un cliente, que desde D-198 no existe en este portal.
+    await page.goto('/owner/tickets/no-es-un-uuid')
 
     const texto = await textoVisible(page)
     for (const fuga of FUGAS) {

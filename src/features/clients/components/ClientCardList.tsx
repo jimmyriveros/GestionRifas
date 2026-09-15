@@ -52,13 +52,11 @@ import type { ClientListItem } from '../queries'
 
 type ClientCardListProps = {
   clients: ClientListItem[]
-  /** `/owner/clients` o `/seller/clients`: la lista sirve a los dos portales. */
+  /** `/seller/clients`: solo el vendedor ve clientes, y solo los suyos (D-198). */
   basePath: string
-  /** El vendedor no necesita el nombre del vendedor: todos los clientes son suyos. */
-  showSeller?: boolean
 }
 
-export function ClientCardList({ clients, basePath, showSeller = false }: ClientCardListProps) {
+export function ClientCardList({ clients, basePath }: ClientCardListProps) {
   const router = useRouter()
 
   function activate(client: ClientListItem) {
@@ -103,9 +101,6 @@ export function ClientCardList({ clients, basePath, showSeller = false }: Client
                 </RowLink>
                 {client.alias ? (
                   <p className="text-muted-foreground text-xs break-words">{client.alias}</p>
-                ) : null}
-                {showSeller ? (
-                  <p className="text-muted-foreground truncate text-xs">{client.sellerName}</p>
                 ) : null}
                 {client.archivedAt ? (
                   <p className="text-muted-foreground text-xs">{CLIENT_STATUS_LABELS.archived}</p>

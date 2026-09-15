@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { hideNextDevUi } from './cabecera-helpers'
 import { ACCOUNTS, loginAs } from './fixtures'
 
 /**
@@ -43,6 +44,20 @@ async function esperarAncho(page: Page, esperado: number): Promise<void> {
   await expect.poll(() => anchoDeLaBarra(page)).toBeLessThanOrEqual(esperado + 2)
 }
 
+/**
+ * El indicador de `next dev` —la «N»— vive arriba a la izquierda (D-106), y con
+ * la barra cerrada eso es justo encima de «Abrir el menú»: medido, la «N» ocupa
+ * [22, 22, 32, 32] y el boton [10, 10, 36, 36], asi que el centro del boton es
+ * suyo. Un clic que llega antes de que Next la dibuje pasa y uno que llega
+ * despues se lo come ella: por eso «sigue cerrada…», que pulsa justo despues de
+ * recargar, empezo a caer siempre al recargar «Reportes» en lugar de «Pagos»
+ * (D-198). En produccion no existe. Se oculta en todo el archivo con la misma
+ * ayuda que la cabecera contextual, y los clics siguen siendo de raton.
+ */
+test.beforeEach(async ({ page }) => {
+  await hideNextDevUi(page)
+})
+
 test.describe('Menú lateral en escritorio', () => {
   test.use({ viewport: { width: 1600, height: 900 } })
 
@@ -52,18 +67,20 @@ test.describe('Menú lateral en escritorio', () => {
     const lateral = page.locator('[data-tour="nav-sidebar"]')
     await esperarAncho(page, ABIERTA_MAX)
 
-    // Las ocho entradas del portal administrativo, con su nombre a la vista.
+    // Las seis entradas del portal administrativo, con su nombre a la vista.
+    // «Clientes» y «Pagos» salieron con D-198: la cartera es de cada vendedor.
     for (const nombre of [
       'Panel',
       'Rifas',
       'Boletas',
       'Vendedores',
-      'Clientes',
-      'Pagos',
       'Reportes',
       'Administradores',
     ]) {
       await expect(lateral.getByRole('link', { name: nombre, exact: true })).toBeVisible()
+    }
+    for (const nombre of ['Clientes', 'Pagos']) {
+      await expect(lateral.getByRole('link', { name: nombre, exact: true })).toHaveCount(0)
     }
 
     const boton = lateral.getByRole('button', { name: 'Cerrar el menú' })
@@ -102,8 +119,8 @@ test.describe('Menú lateral en escritorio', () => {
     await esperarAncho(page, CERRADA)
 
     // Navegacion normal, por el propio menu.
-    await page.locator('[data-tour="nav-sidebar"]').getByRole('link', { name: 'Pagos' }).click()
-    await page.waitForURL(/\/owner\/payments/)
+    await page.locator('[data-tour="nav-sidebar"]').getByRole('link', { name: 'Reportes' }).click()
+    await page.waitForURL(/\/owner\/reports/)
     await esperarAncho(page, CERRADA)
 
     // Y una carga completa: la preferencia viaja en una cookie, asi que el HTML
@@ -242,8 +259,8 @@ test.describe('Menú lateral flotante donde no cabe abierto', () => {
     await page.getByRole('button', { name: 'Abrir el menú' }).click()
     await esperarAncho(page, ABIERTA_MIN)
 
-    await barra(page).getByRole('link', { name: 'Pagos', exact: true }).click()
-    await page.waitForURL(/\/owner\/payments/)
+    await barra(page).getByRole('link', { name: 'Reportes', exact: true }).click()
+    await page.waitForURL(/\/owner\/reports/)
     await esperarAncho(page, CERRADA)
     await expect(capa(page)).toBeHidden()
   })

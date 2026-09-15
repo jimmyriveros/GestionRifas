@@ -39,10 +39,8 @@ import type { ClientListItem } from '../queries'
 
 type ClientsListProps = {
   clients: ClientListItem[]
-  /** `/owner/clients` o `/seller/clients`: la lista sirve a los dos portales. */
+  /** `/seller/clients`: solo el vendedor ve clientes, y solo los suyos (D-198). */
   basePath: string
-  /** El vendedor no necesita una columna «Vendedor»: todos son suyos. */
-  showSeller?: boolean
 }
 
 export function ClientsList(props: ClientsListProps) {

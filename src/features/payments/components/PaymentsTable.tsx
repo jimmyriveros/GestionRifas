@@ -18,17 +18,13 @@ import { StatusBadge } from '@/components/data/StatusBadge'
 
 type PaymentsTableProps = {
   payments: PaymentListItem[]
-  /** `/owner/clients` o `/seller/clients`: enlaza al perfil del cliente. */
+  /** `/seller/clients`: enlaza al perfil del cliente (D-198: solo el vendedor ve pagos). */
   clientBasePath: string
-  /** El portal del vendedor no muestra la columna «Vendedor». */
-  showSeller?: boolean
   /**
    * Se apaga dentro de la ficha de UN cliente: ahi la columna repetiria el
    * mismo nombre en todas las filas, y ese nombre ya esta en el titulo.
    */
   showClient?: boolean
-  /** BR-F10: solo Owner y Admin pueden anular. */
-  canVoid?: boolean
   /** Se pasa a la tabla; sirve para aplanarla dentro de una `TableSection`. */
   className?: string
 }
@@ -36,27 +32,12 @@ type PaymentsTableProps = {
 export function PaymentsTable({
   payments,
   clientBasePath,
-  showSeller = false,
   showClient = true,
-  canVoid = false,
   className,
 }: PaymentsTableProps) {
   const [selected, setSelected] = useState<PaymentListItem | null>(null)
 
   const columns = useMemo<ColumnDef<PaymentListItem>[]>(() => {
-    const sellerColumn: ColumnDef<PaymentListItem>[] = showSeller
-      ? [
-          {
-            accessorKey: 'sellerName',
-            header: 'Vendedor',
-            meta: { hideOnMobile: true },
-            cell: ({ row }) => (
-              <span className="text-sm">{row.original.sellerName ?? 'Otro vendedor'}</span>
-            ),
-          },
-        ]
-      : []
-
     const clientColumn: ColumnDef<PaymentListItem>[] = showClient
       ? [
           {
@@ -85,7 +66,6 @@ export function PaymentsTable({
         ),
       },
       ...clientColumn,
-      ...sellerColumn,
       {
         accessorKey: 'totalAmount',
         header: 'Valor',
@@ -151,7 +131,7 @@ export function PaymentsTable({
         ),
       },
     ]
-  }, [clientBasePath, showSeller, showClient])
+  }, [clientBasePath, showClient])
 
   return (
     <>
@@ -169,7 +149,6 @@ export function PaymentsTable({
         onOpenChange={(open) => {
           if (!open) setSelected(null)
         }}
-        canVoid={canVoid}
       />
     </>
   )

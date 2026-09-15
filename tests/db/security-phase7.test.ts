@@ -127,10 +127,19 @@ describe('F7-02 el aislamiento sobrevive a la reescritura de politicas', () => {
     for (const fila of pagos ?? []) expect(fila.seller_id).toBe(ctx.ids.seller1)
   })
 
-  it('el personal sigue viendo toda su organizacion y solo la suya', async () => {
-    const { data } = await owner.from('tickets').select('organization_id').limit(1000)
+  it('el personal sigue viendo todo el inventario de su organizacion y solo el suyo', async () => {
+    // D-198: ya no por la tabla —que no le devuelve ninguna fila— sino por la
+    // proyeccion administrativa, que tampoco dice de que organizacion es cada
+    // boleta: se comprueba por su rifa.
+    const { data: tabla } = await owner.from('tickets').select('organization_id').limit(1000)
+    expect(tabla).toEqual([])
+
+    const { data, error } = await owner.rpc('admin_list_tickets', { p_limit: 1000 })
+    expect(error).toBeNull()
     expect(data!.length).toBeGreaterThan(0)
-    expect([...new Set(data!.map((t) => t.organization_id))]).toEqual([ctx.demoOrg.id])
+    const { data: rifas } = await ctx.svc.from('raffles').select('id, organization_id')
+    const orgDeRifa = new Map(rifas!.map((r) => [r.id, r.organization_id]))
+    expect([...new Set(data!.map((t) => orgDeRifa.get(t.raffle_id)))]).toEqual([ctx.demoOrg.id])
   })
 
   it('un vendedor no puede leer la bitacora', async () => {
