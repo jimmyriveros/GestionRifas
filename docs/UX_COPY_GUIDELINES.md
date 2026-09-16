@@ -1395,6 +1395,17 @@ palabra del botón y no la consecuencia.
 de {rifa} **para los próximos sorteos**.» Esa última parte es lo único que quien lee no puede deducir:
 un cambio no reescribe lo que ya se jugó (BR-J09).
 
+**Cuando una rifa que ya existía pasa a premios configurables, se avisa UNA vez** (D-204): «Cambiaron
+los premios de {rifa} para los próximos sorteos: ahora tiene 6 premios.». No seis avisos, uno por
+premio —serían seis líneas iguales en cada campana—, y con la misma coletilla de siempre, **«para los
+próximos sorteos»**, porque los que ya se jugaron quedan como los resolvió el sistema de siempre. No
+dice «transición», ni «configurable», ni «sistema nuevo»: son palabras del código.
+
+**La vista previa de esa transición la lee quien la ejecuta, y sigue la guía igual.** Dice «el sistema
+de premios de siempre», no `legacy`; «Vista previa: no se cambió nada.» antes que cualquier otra cosa;
+y ante un fallo, **«No se cambió nada: la transición se deshace entera cuando algo falla.»**, que es lo
+único que quien la lee necesita saber para no ir a revisar a mano qué quedó.
+
 **«Ganador» sigue prohibido, también aquí** (BR-L15). Un premio configurable dice con qué número y
 con cuántas cifras juega; quien acierta tiene una **coincidencia**. Hay una prueba unitaria que falla
 si cualquier texto del módulo escribe esa palabra, y por eso la forma de recompensa se llama
@@ -1649,6 +1660,9 @@ castigo donde solo había una espera.
 | Los mensajes de validación del formulario de un premio | `src/features/raffle-prizes/schemas.ts`, tomados de `PRIZE_COPY.form`: la pantalla y el servidor dicen lo mismo |
 | Lo que responde la base cuando un premio no se puede guardar | Los `raise` de las migraciones `0058` y `0059`, con las **mismas** frases que `PRIZE_COPY` donde la comprobación existe en las dos capas |
 | El aviso de que cambiaron las condiciones de un premio | `src/features/notifications/text.ts`, con los demás avisos (D-093, D-199). **No lleva enlace**: el vendedor todavía no tiene pantalla de premios |
+| El aviso ÚNICO de que una rifa existente pasó a premios configurables | `rafflePrizeMessage`, en ese mismo archivo, con `change = 'transitioned'` (D-204). Tampoco lleva enlace |
+| La vista previa y el resultado de la transición: encabezados, rótulos de cada premio, el aviso y «No se cambió nada» | `src/features/raffle-prizes/copy.ts` (`PRIZE_TRANSITION_COPY`), **todos juntos** (D-204). Los compone `transitionPreviewLines` (`transition.ts`); el script no escribe ninguno propio salvo los de uso y la negativa a trabajar fuera de local |
+| Lo que responde la base cuando la transición no se puede hacer | Los `raise` de la migración `0063`: nombran la rifa, la lotería, la fecha y el premio, nunca un cliente |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

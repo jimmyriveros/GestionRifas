@@ -1,6 +1,9 @@
 # ARQUITECTURA
 
-- **Versión:** 1.37 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27 y §8.27.a**: el
+- **Versión:** 1.38 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27.b**: la
+  transición de una rifa existente —operación interna con vista previa, módulo puro con los seis
+  premios confirmados y un script solo local—, D-204, migración `0063`, **solo en local**). Antes, ese
+  mismo día (**§8.27 y §8.27.a**: el
   corte de un sorteo se escribe una sola vez, `raffle_prize_draw_cutoff`, en la corrección de la
   Entrega 3 —D-203 Decisión 9, migración `0062`, I-125—). Antes, ese mismo día (**§8.27.a**: el motor
   de coincidencias de los premios configurables y la coexistencia `legacy` / `configurable` al
@@ -2065,6 +2068,10 @@ solo declara columnas desde `sm` es `auto` y no baja del texto más largo (D-125
 #### 8.27.a El motor de coincidencias: confirmar un resultado con dos motores (Entrega 3, `0061`, D-203)
 
 > ⚠️ **Solo en local.** Ninguna rifa real es configurable hasta la Entrega 4.
+>
+> **Nota (2026-09-16, D-204):** la Entrega 4 construyó la transición (§8.27.b) y **se niega** mientras
+> quede un sorteo de la ventana sin confirmar, que es la trampa de la fila «Con qué motor». La rifa
+> real sigue siendo heredada hasta la Entrega 5.
 
 El flujo **no cambia de forma**: el tick de loterías llama a `confirm_lottery_result`, que guarda el
 número mayor, llama a `match_lottery_result`, avisa y marca el sorteo `completed` en **una**
@@ -2106,6 +2113,54 @@ del vendedor no cambian; el Panel solo deja de contar dos veces una boleta.
 regla pura, y las pruebas de base de datos comparan el motor con ella **enlace por enlace** con 5.000
 boletas. Ninguna pantalla nueva: la ausencia de una interfaz de premios para vendedores y clientes es
 alcance de entregas posteriores.
+
+#### 8.27.b La transición de una rifa existente (Entrega 4, `0063`, D-204)
+
+> ⚠️ **Solo en local.** El mecanismo existe y está probado; **ninguna rifa real ha cambiado de modo**.
+> Identificarla y convertirla es la Entrega 5 (`RUNBOOK` §8).
+
+**No hay pantalla, a propósito.** Una rifa que ya existía pasa a premios configurables **una vez**, y
+lo hace un proceso con la service role. Tres piezas, cada una con un solo trabajo:
+
+```
+scripts/raffle-prize-transition.ts        (solo --local hasta la Entrega 5)
+  │  lee la programación oficial ─► confirmedPrizeStarts   primer sorteo pendiente, cancelados
+  │                               ─► confirmedRafflePrizes  los SEIS premios confirmados
+  │                                  (src/features/raffle-prizes/transition.ts, puro)
+  ├─ rpc transition_raffle_prize_mode(..., p_apply = false)  ── VISTA PREVIA
+  │        └─ raffle_prize_transition_apply dentro de un subbloque que se deshace (SQLSTATE RP204)
+  └─ rpc transition_raffle_prize_mode(..., p_apply = true)   ── TRANSICIÓN
+           └─ raffle_prize_transition_apply, en UNA transacción:
+                cerrojo de la fila de la rifa → raffle_prize_lock
+                → lo esperado (organización, nombre, estado, fechas)
+                → el estado (parcial, anterior, ya configurable, premios sueltos)
+                → configuración normalizada (las piezas de las RPC) y su huella → ¿reintento?
+                → rifa activa: raffle_prize_transition_pending_draws  (corte: raffle_prize_draw_cutoff)
+                → por premio: versión, período, alternativas → version_problem → ocurrencia jugada
+                              → cutoff_problem → raffle_prizes
+                → SET CONSTRAINTS … IMMEDIATE (las diferidas, ahora)
+                → raffle_prize_transitions (la puerta, con este xact_id)
+                → UPDATE raffles.prize_mode ─► raffles_guard_prize_config revalida por la puerta
+                → un aviso por membresía activa → una fila de bitácora
+  └─ transitionPreviewLines: la vista previa o el resultado, en español (PRIZE_TRANSITION_COPY)
+```
+
+| Pieza | Dónde | Qué decide |
+|---|---|---|
+| Qué premios, con qué recompensa, número, cifras, calendario y lotería | `confirmedRafflePrizes` (`transition.ts`) | La configuración confirmada, escrita **una vez**; la usan el script, las pruebas de base y la de navegador |
+| Desde cuándo juegan el diario y el de los sábados | `confirmedPrizeStarts`, con la programación oficial y un instante | El primer sorteo que no alcanzó su corte, desde hoy o desde el inicio de la rifa; salta y devuelve los cancelados, y `periodsAvoiding` parte los períodos a su alrededor |
+| Si la transición se puede hacer | `raffle_prize_transition_apply`, en la base | Todo lo de D-204: la aplicación no decide nada que la base no vuelva a comprobar |
+| Qué se ve antes de aplicar | La **misma** ejecución, deshecha | La vista previa no puede decir que sí donde la base dice que no |
+| Que ninguna otra vía cambie el modo | `raffles_guard_prize_config` + `raffle_prize_transitions` | Una sesión nunca; la service role, solo por la puerta de la transacción que escribió la fila |
+| Qué se lee después | Nada nuevo | El panel, la revisión, el historial, la campana y el motor usan lo de las entregas 1 a 3 sin un cambio |
+
+**Coste.** Proporcional a los **premios** —seis versiones, siete períodos y nueve alternativas— y a
+los **días de la ventana** de la rifa, que recorre una vez buscando sorteos pendientes con dos
+búsquedas por índice único. **No recorre boletas**, ni clientes, ni pagos.
+
+**Qué NO hace la aplicación.** No hay Server Action, Route Handler ni botón: la transición no es una
+operación del negocio, es un cambio de sistema que se hace una vez por rifa. El script no se ejecuta
+en ningún despliegue.
 
 ## 9. Configuración regional
 

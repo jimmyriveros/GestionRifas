@@ -563,3 +563,44 @@ export const RAFFLE_WIZARD_COPY = {
   /** La misma frase que responde el disparador de la migración `0060`. */
   noCapability: 'No tienes permiso para crear una rifa con premios configurables.',
 } as const
+
+/**
+ * Los textos de la TRANSICIÓN de una rifa existente a premios configurables
+ * (Entrega 4, D-204).
+ *
+ * Los lee quien ejecuta la transición, no un vendedor: son la vista previa y el
+ * resultado de `scripts/raffle-prize-transition.ts`. Siguen la guía igual —«el
+ * sistema de premios de siempre», no `legacy`— y dicen lo único que la
+ * operación no enseña sola: que una vista previa no cambió nada y que un fallo
+ * lo deshace todo.
+ */
+export const PRIZE_TRANSITION_COPY = {
+  preview: 'Vista previa: no se cambió nada.',
+  applied: 'La rifa pasó a premios configurables.',
+  alreadyApplied:
+    'Esta rifa ya había pasado a premios configurables con esta misma configuración. No se cambió nada.',
+  failed: 'No se cambió nada: la transición se deshace entera cuando algo falla.',
+
+  raffleHeading: 'Rifa',
+  name: 'Nombre',
+  id: 'Identificador',
+  organization: 'Organización',
+  transition: 'Transición',
+  status: (label: string) => `Estado: ${label} (no cambia)`,
+  dates: (from: string, to: string) => `Fechas: del ${from} al ${to}`,
+  mode: 'Sistema de premios: el de siempre → premios configurables',
+
+  prizesHeading: (count: number) => (count === 1 ? 'Premios (1)' : `Premios (${count})`),
+  reward: 'Entrega',
+  plays: 'Juega con',
+  schedule: 'Calendario',
+  validity: 'Vigencia',
+  lottery: 'Lotería',
+  draws: (count: number) => (count === 1 ? '1 sorteo' : `${count} sorteos`),
+
+  notices: (count: number) =>
+    count === 1
+      ? 'Aviso: lo recibe 1 persona activa de la organización.'
+      : `Aviso: lo reciben ${count} personas activas de la organización.`,
+  noNotices: 'Aviso: ninguno, porque la rifa está en borrador.',
+} as const

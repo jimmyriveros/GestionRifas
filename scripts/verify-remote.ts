@@ -390,6 +390,46 @@ const CHECKS: Check[] = [
             and privilege_type <> 'SELECT'`,
     esperado: 0,
   },
+  {
+    // 0063 (D-204): la transicion de una rifa existente la ejecuta SOLO la
+    // service role. Falla contra el proyecto real hasta que la 0063 se aplique.
+    nombre: 'transition_raffle_prize_mode existe solo para service_role',
+    sql: `select p.proname as x
+          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname = 'transition_raffle_prize_mode'
+            and has_function_privilege('service_role', p.oid, 'EXECUTE')
+            and not has_function_privilege('authenticated', p.oid, 'EXECUTE')
+            and not has_function_privilege('anon', p.oid, 'EXECUTE')`,
+    esperado: 1,
+  },
+  {
+    // 0063 (D-204): las piezas de la transicion no las ejecuta NADIE, ni la
+    // service role: solo la operacion, que es SECURITY DEFINER.
+    nombre: 'Piezas internas de la transicion ejecutables por alguien',
+    sql: `select p.proname as x
+          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in (
+              'raffle_prize_transition_apply', 'raffle_prize_transition_configuration',
+              'raffle_prize_transition_pending_draws', 'raffle_prize_transition_played_occurrence',
+              'raffle_prize_transition_open', 'raffle_prize_transitions_guard',
+              'raffle_prize_lottery_label', 'raffle_prize_raffle_status_phrase'
+            )
+            and (has_function_privilege('service_role', p.oid, 'EXECUTE')
+                 or has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                 or has_function_privilege('anon', p.oid, 'EXECUTE'))`,
+    esperado: 0,
+  },
+  {
+    // 0063 (D-204): la tabla de transiciones es la PUERTA del disparador de
+    // raffles. Si alguien pudiera escribirla, podria forjarla.
+    nombre: 'raffle_prize_transitions concede algun privilegio',
+    sql: `select grantee || ' ' || privilege_type as x from information_schema.role_table_grants
+          where table_schema = 'public' and table_name = 'raffle_prize_transitions'
+            and grantee in ('anon', 'authenticated', 'service_role')`,
+    esperado: 0,
+  },
 ]
 
 async function main(): Promise<void> {

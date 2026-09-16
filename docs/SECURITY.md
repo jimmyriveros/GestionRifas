@@ -1,6 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.19 · **Estado:** implementado · **Actualizado:** 2026-09-16 (§4.21: la `0062` añade
+- **Versión:** 2.20 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§4.22**: la
+  transición de una rifa existente —`0063`, D-204—: una función solo para la service role, una puerta
+  que no se puede forjar y ninguna vía nueva hacia la cartera). Antes, ese mismo día (§4.21: la `0062` añade
   una pieza interna más, `raffle_prize_draw_cutoff`, **sin cambiar la superficie**). Antes, ese mismo
   día (**§4.21**: el motor de
   premios configurables —`0061`, D-203—: la superficie interna no crece, los enlaces a premios solo se
@@ -1199,6 +1201,36 @@ motor o escribir un enlace.
 **Lo que no toca.** La cartera (D-198): ni una política, tabla o proyección del personal cambia, y una
 prueba comprueba que ninguna columna de la tabla nueva ni ningún retorno de las funciones nuevas
 nombra clientes, precios, abonos, pagos, alternativas o recompensas.
+
+### 4.22 La transición de una rifa existente (`0063`; BR-J13; D-204)
+
+> ⚠️ **Solo en local**, como §4.20. **Ninguna rifa real ha cambiado de modo**, y el script que la
+> ejecuta se niega a trabajar contra el proyecto real hasta la Entrega 5.
+
+**La superficie crece en una sola función, y solo para la service role.**
+`transition_raffle_prize_mode` es `SECURITY DEFINER` con `search_path` fijo; `EXECUTE` **solo** para
+`service_role`, revocado a `public`, `anon` y `authenticated`, y además **rechaza cualquier
+`auth.uid()`**: aunque alguien concediera `EXECUTE` por error, una sesión no la usaría. Las piezas
+internas —`raffle_prize_transition_apply`, `_configuration`, `_pending_draws`,
+`_played_occurrence`, `_open` y los dos espejos de texto— **no las ejecuta nadie**, ni la service
+role. Tener `raffles.prizes.manage` **no da ninguna puerta**: el Dueño tampoco puede.
+
+| Superficie | Cómo se cierra |
+|---|---|
+| Cambiar el modo de una rifa desde la aplicación | `raffles_guard_prize_config` sigue rechazando **cualquier sesión**, con cualquier rol; un vendedor, otra organización o un visitante ni siquiera ven la fila (RLS) |
+| Cambiar el modo de una rifa **activa** con la service role y un `UPDATE` suelto | El disparador sigue exigiendo el **borrador** fuera de la puerta |
+| Forjar la puerta | La puerta es una fila de `raffle_prize_transitions` con el `xact_id` de **esa** transacción. La tabla tiene RLS forzada **sin políticas** y **ningún privilegio** —tampoco para la service role—: solo la escribe la función. Es única por rifa, así que la puerta se abre **una vez**; una fila de otra transacción no abre nada |
+| Usar la puerta para algo más que el modo | Por la puerta no se cambia a la vez estado ni fechas, y la configuración tiene que estar completa y sin problemas |
+| Convertir la rifa equivocada | Se elige por identificador **y** se comprueban organización, nombre exacto, estado y fechas; un estado de otra organización responde como una rifa inexistente |
+| Dejar la rifa a medias | Una transacción: cualquier fallo deshace premios, versiones, períodos, alternativas, modo, aviso y bitácora. Las comprobaciones diferidas se fuerzan antes de escribir la fila de la puerta |
+| Duplicar premios con un reintento, o cambiar premios por esta vía | La huella de la configuración: igual, no escribe nada; distinta, se rechaza. Dos a la vez se serializan por el cerrojo de la fila de la rifa |
+| Que un sorteo jugado se resuelva con el motor equivocado | Se niega mientras quede en la ventana de una rifa activa un sorteo con el corte pasado y sin resultado confirmado, o de corte desconocido en una semana empezada (D-204, Decisión 4) |
+| Filtrar la cartera | La transición no lee boletas, clientes ni pagos. El aviso lleva rifa, nombre, cambio y número de premios; la bitácora, premios, fechas y cifras de la transición: **ni clientes, ni pagos, ni saldos, ni precios de venta** (prueba T2-10) |
+| Mensajes que exponen algo | Los errores nombran la rifa, fechas y loterías; el `detail` de los sorteos pendientes, fechas y loterías. Nada de clientes |
+| Ejecutarla contra producción por accidente | `scripts/raffle-prize-transition.ts` se niega sin `--local` **antes de leer ninguna credencial**, y por omisión solo muestra la vista previa |
+
+**Lo que no toca.** Ni una política, proyección, tabla de la cartera ni privilegio existente cambia.
+`raffles_guard_prize_config` conserva sus revocaciones.
 
 ## 5. Protección de Server Actions y Route Handlers
 

@@ -3,7 +3,8 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-16 — **Corrección de la ENTREGA 3 de premios configurables** (D-203
+- **Actualizado:** 2026-09-16 — **Premios configurables, ENTREGA 4 de 5: la transición de una rifa existente** (D-204, migración **`0063`**, **solo en local**): `transition_raffle_prize_mode` —solo la service role, entera o nada, con vista previa— convierte una rifa heredada sin tocar su cartera ni sus coincidencias, y se niega mientras quede un sorteo jugado sin confirmar (**I-127**, riesgo para la rifa real). Los **seis** premios confirmados están escritos una vez; el caso «semanal, un lunes, con Cundinamarca» era un ejemplo. **Ninguna rifa real cambió de modo.** Los seis puntos de §34.3, en su sección de mantenimiento. **No autoriza la Entrega 5.**
+  Antes, ese mismo día — **Corrección de la ENTREGA 3 de premios configurables** (D-203
   Decisiones 9 y 10, migración **`0062`**, **solo en local**): el corte de un sorteo es
   `least(original, oficial)`, escrito una sola vez en `raffle_prize_draw_cutoff` (**I-125, resuelta
   en local**), y los avisos dicen que una boleta «coincide con este resultado» (**I-126, resuelta en
@@ -4954,6 +4955,92 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — premios configurables, **ENTREGA 4 de 5**: la transición de una rifa existente (`0063`, D-204, 2026-09-16)
+
+Autorizada expresamente, **solo la Entrega 4**. **No es una Fase 10**, no lleva etiqueta `fase-*` y
+**no autoriza la Entrega 5**. Antes de programar se preguntó al dueño el nombre y las fechas de la rifa
+real —**no se dieron**, así que se preparó y probó con una rifa local equivalente— y desde cuándo
+juegan el diario y el de los sábados: **«Sí, desde el primer sorteo pendiente»** el día de la
+transición.
+
+> **SOLO EN LOCAL.** El proyecto real sigue en la `0057` y no se consultó. **Ninguna rifa real cambió
+> de `legacy` a `configurable`.** No hubo push, etiqueta ni despliegue.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| **La operación** | `transition_raffle_prize_mode`, **solo para la service role**: convierte **una** rifa elegida por identificador, con organización, nombre, estado y fechas comprobados, **entera o nada**, sin cambiar su estado ni sus fechas |
+| **La vista previa** | Por omisión: ejecuta la transición completa —con las comprobaciones diferidas— y la deshace, devolviendo lo que habría quedado |
+| **Lo que la detiene** | Sorteos de la ventana ya jugados sin resultado confirmado o de hora desconocida en una semana empezada (rifa activa); ocurrencias configuradas cuyo corte ya pasó; conflictos (BR-J08); fechas fuera de la rifa; estados parciales; otra configuración sobre una rifa ya convertida |
+| **La puerta** | `raffle_prize_transitions`, una por rifa, inmutable y sin privilegios para nadie; el disparador de `raffles` solo deja pasar a `configurable` fuera del borrador con la fila escrita **en la misma transacción** |
+| **Lo que deja** | Seis premios con versión «Sistema», **un** aviso por membresía activa (si la rifa está activa) y **una** fila `raffle.prize_mode_transition`; ni una fila de la cartera ni de las coincidencias |
+| **Los seis premios** | `confirmedRafflePrizes`: diario $500.000 hasta el 27 de noviembre, fin de semana $2.000.000 hasta el 28, principal con cuatro alternativas y tres cifras $1.000.000 el 21 de diciembre, especial semanal $1.000.000 del 1 al 5 y del 16 al 19, y $7.000.000 el 15 con Cruz Roja. `confirmedPrizeStarts` calcula el primer sorteo pendiente y esquiva los cancelados |
+| **La corrección previa** | Son **seis**: el caso «semanal, lunes 14, Cundinamarca, $400.000» sale de J13 y queda como ejemplo genérico identificado en J3-03 |
+| **El script** | `scripts/raffle-prize-transition.ts`: vista previa legible, `--apply`, y **se niega sin `--local`** antes de leer credenciales |
+| **El procedimiento de la Entrega 5** | `RUNBOOK` §8: datos, comprobaciones de solo lectura, aplicación, qué hacer si se niega y lo que nunca se hace |
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base en `e59d8de`: `db:reset`, `seed:local`, `test:db`, `verify` | ✅ `test:db` **1.192/1.192** en 49 archivos · ✅ `verify`: lint 0 errores y los 2 avisos preexistentes, **1.307/1.307** unitarias en 72 archivos, build |
+| `raffle-prize-transition.test.ts` unitaria | ✅ **30/30** a la primera |
+| `raffle-prize-transition.test.ts` de base · `raffle-prizes.test.ts` corregida | ❌ 34/37 → ✅ **38/38** (con T1-04b) · ✅ **94/94** |
+| Cuatro **mutaciones** de la `0063` —puerta sin `xact_id`, sin sorteos pendientes, corte solo con la hora original, reintento sin huella— | ❌ detectadas por **1, 4, 1 y 3** pruebas; restauradas desde la migración y la suite volvió a **37/37** |
+| Ensayo del script en local, con una rifa de 2026 | ✅ se negó sin programación (**10** pendientes, enumerados) y sin `--local`; vista previa con el primer sorteo pendiente el 16 y el 19 de septiembre; aplicó y el reintento no escribió nada. Datos borrados al terminar |
+| `npm run db:reset` · `npm run seed:local` | ✅ `0001`–`0063` |
+| `npm run test:db` | ✅ **1.230/1.230** en 50 archivos (**+38**, +1 archivo) |
+| `npm run verify` | ✅ typecheck · lint **0 errores** y los 2 avisos preexistentes · **1.337/1.337** unitarias en 73 archivos (**+30**, +1 archivo) · build |
+| E2E dirigida —rifas, premios (escritorio y móvil), lotería fija, **transición**, panel de loterías y tick, privacidad del personal, equipo y seguridad— | ✅ **119/119** en 9,0 min, 12 especificaciones |
+| `npm run test:e2e` completa, con base recién sembrada | **742/744** en 39,6 min: `ventas-por-fecha:163` («esperado < 26», **recibido 54**) y `:238` (modo estricto, copia oculta fuera de `main`), **I-090**. Relanzado el archivo **solo tres veces**, cada una tras `db:reset` + `seed:local`: `:163` **3/3**; `:238` y `:247` se alternan con su firma registrada (17/18 cada vez). `ReportsView.tsx` no se tocó |
+| `git diff --check` | ✅ también con los archivos nuevos |
+
+**Errores encontrados y corregidos** (detalle en `TEST_RESULTS`, 2026-09-16): la migración normalizaba la
+configuración antes de mirar el estado de la rifa —un estado parcial salía como error de fechas— y **se
+reordenó**; un escenario de la suite nueva contaminaba otro con una fecha compartida y se movió; la CLI
+de Supabase falló una vez al conectar y aplicó al reintentar; el `webServer` de Playwright agotó sus
+180 s y se levantó el servidor aparte; y seis archivos propios necesitaron `prettier --write`. **Solo el
+primero tocaba el producto**, y era el orden de un mensaje.
+
+### 3. Migraciones que existen
+
+**`0001`–`0063` en local; `0001`–`0057` en el proyecto real.** La **`0063`** crea
+`raffle_prize_transitions` y su guarda, `raffle_prize_transition_open`, la operación
+`transition_raffle_prize_mode` con sus piezas internas y dos espejos de texto, y vuelve a escribir
+`raffles_guard_prize_config` con el cuerpo de `0060` y **una** puerta más. No toca datos. **Las `0058`
+a `0062` no se editaron.**
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **I-127: la transición real puede quedar detenida** | Probable en producción: sorteos anteriores a los resultados automáticos y loterías que se confirman a mano. Decisión del dueño en la Entrega 5 |
+| **I-128: J13-06 depende del reloj** | Dejará de pasar desde el 2 de noviembre de 2026. Anterior a esta entrega; no se corrigió por alcance |
+| **La `0058` a la `0063` no están en producción** | Lo previsto: la Entrega 5 |
+| **El nombre y las fechas de la rifa real no se conocen** | La Entrega 5 los suministra (`RUNBOOK` §8.1); `HANDOFF` recuerda que el catálogo de producción mostraba «SORTEO CAMIONETA KIA 2026», y no se usa para elegir nada |
+| **I-090**, otra vez en la E2E completa | Pruebas que dependen de lo acumulado y de la llegada por streaming, no defectos del producto: `:163` pasa en aislamiento; `:238` y `:247` se alternan también aislados, como ya estaba registrado |
+| Todo lo demás | Sin cambios: I-024, I-021, I-023, I-030, I-059, I-060, I-090, I-106, I-117, I-119, I-120 e I-124 en producción |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Entrega 5.** Hace falta una autorización explícita nueva.
+2. **La transición no se hace a mano**: ni `UPDATE` de `prize_mode`, ni filas en
+   `raffle_prize_transitions`, ni el disparador apagado. Solo `transition_raffle_prize_mode`.
+3. **Los seis premios viven en `confirmedRafflePrizes`**: no se escriben otra vez en SQL, en pruebas ni en
+   el script.
+4. **Antes de convertir la rifa real, `RUNBOOK` §8** y la consulta de sorteos pendientes: si devuelve
+   filas, es **I-127** y decide el dueño.
+5. **El script se niega sin `--local`**: habilitarlo contra producción es parte de la Entrega 5, con
+   autorización.
+6. **La `0063` no se edita**: otra corrección sería una `0064`. Los documentos siguen en CRLF.
 
 ---
 

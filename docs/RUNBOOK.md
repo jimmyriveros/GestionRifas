@@ -1,6 +1,6 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-08-30. Guía de diagnóstico rápido para quien opera la aplicación en
+**Actualizado:** 2026-09-16 (§8: la transición de una rifa a premios configurables, preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
 producción. El detalle técnico de cada `I-0xx` citado está en
 [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) — aquí solo el síntoma y qué hacer.
 
@@ -262,3 +262,107 @@ repórtalo como error de código, no como comportamiento esperado.
 | `lottery_sync_runs` muestra `conflicto_entre_fuentes` | Dos números distintos con dos fuentes cada uno | **No se publica nada.** Revisar el acta oficial a mano. La evidencia completa está en `lottery_source_observations` |
 | Paga Todo sale siempre `source_blocked` | **I-093**: responde 403 de Cloudflare con cuerpo vacío | Normal y esperado. **No se elude.** El consenso se logra con las otras tres |
 | Un tick gasta 6 descargas y deja sorteos en `deferred` | Normal: el presupuesto es de seis por tick para las dos vías juntas | Se atienden en el tick siguiente, del más reciente al más antiguo. Con diez ticks al día se resuelve solo. **No se sube el tope** |
+
+---
+
+## 8. Transición de una rifa a premios configurables (Entrega 5, D-204)
+
+> ⚠️ **Nada de esta sección se ejecuta sin autorización expresa.** Es el procedimiento que dejó
+> preparado la Entrega 4 para convertir la rifa real. Hasta la Entrega 5, `scripts/raffle-prize-transition.ts`
+> **se niega** a trabajar contra el proyecto real, y habilitarlo es cambiar esa única comprobación,
+> revisada, dentro de la Entrega 5.
+
+La transición pasa **una** rifa del sistema de premios de siempre a los **seis** premios confirmados
+(`MASTER_SPEC` §9.7). Es **entera o nada**, no cambia el estado ni las fechas de la rifa, no toca
+boletas, clientes, pagos ni coincidencias, y repetirla con la misma configuración no escribe nada.
+
+### 8.1 Lo que hace falta antes
+
+| Dato o condición | De dónde | Por qué |
+|---|---|---|
+| Migraciones `0058`–`0063` aplicadas y el código desplegado | Promoción de la Entrega 5 | La operación y el panel son de esas migraciones |
+| Respaldo nuevo de la base | §5.1 | Antes de cualquier cambio sobre el proyecto real |
+| Identificador de la **organización** | Consulta de solo lectura en el proyecto real | La base lo compara con el de la rifa |
+| Identificador de la **rifa** | La misma consulta. **Nunca se elige por nombre** | Un nombre se repite o cambia |
+| **Nombre exacto**, **estado** (`active`) y **fechas** de inicio y fin | La misma consulta | La base los compara letra por letra: un identificador pegado mal no convierte otra rifa |
+| Que el **21 de diciembre** quede dentro de la rifa | Las fechas de arriba | Si termina antes, la base rechaza la transición. Cambiar la fecha de fin es una **decisión del dueño**, no del procedimiento |
+| **Ningún sorteo** de la ventana jugado **sin resultado confirmado** | §8.2 | Si lo hay, la transición se niega (**I-127**) |
+
+### 8.2 Comprobaciones de solo lectura
+
+En el editor SQL del proyecto real, con `<RIFA>` y `<ORG>` sustituidos:
+
+```sql
+-- La rifa, tal como se va a esperar.
+select id, organization_id, name, status, start_date, end_date, prize_mode
+  from raffles where id = '<RIFA>' and organization_id = '<ORG>';
+
+-- Que no haya ni transición ni premios anteriores (0 y 0).
+select (select count(*) from raffle_prize_transitions where raffle_id = '<RIFA>') as transiciones,
+       (select count(*) from raffle_prizes where raffle_id = '<RIFA>') as premios;
+
+-- Los sorteos que la detendrían: tiene que devolver CERO filas.
+select * from raffle_prize_transition_pending_draws(
+  (select r from raffles r where r.id = '<RIFA>'), now());
+
+-- Sorteos cancelados de aquí a diciembre: el script los salta, pero conviene verlos.
+select reference_date, lottery_code from lottery_draw_schedules
+ where schedule_status = 'cancelled' and reference_date between current_date and '2026-12-31';
+```
+
+Después, la **vista previa**, que ejecuta la transición entera y la deshace:
+
+```bash
+npx tsx scripts/raffle-prize-transition.ts <DESTINO> --organization <ORG> --raffle <RIFA> --name "<NOMBRE EXACTO>" --status active --start <AAAA-MM-DD> --end <AAAA-MM-DD>
+```
+
+Qué revisar en lo que imprime, línea por línea:
+
+| Línea | Tiene que decir |
+|---|---|
+| «Primer sorteo pendiente» | El primer lunes a viernes y el primer sábado que **todavía no se jugaron** hoy |
+| Estado | La rifa **activa**, «(no cambia)» |
+| Premios | **Seis**, con los importes, números, cifras, calendarios y loterías de `MASTER_SPEC` §9.7. Ninguno semanal un lunes con Cundinamarca |
+| Premio diario y de fin de semana | Terminan el **27** y el **28 de noviembre** |
+| Aviso | Tantas personas como membresías activas tenga la organización |
+
+### 8.3 Aplicar
+
+La misma orden con `--apply`. Debe decir «La rifa pasó a premios configurables.» con el identificador
+de la transición. Comprobación inmediata:
+
+```sql
+select prize_mode, status, start_date, end_date from raffles where id = '<RIFA>';           -- configurable, sin otro cambio
+select count(*) from raffle_prizes where raffle_id = '<RIFA>' and status = 'active';       -- 6
+select count(*) from raffle_prize_transitions where raffle_id = '<RIFA>';                  -- 1
+select count(*) from audit_logs where entity_id = '<RIFA>' and action = 'raffle.prize_mode_transition'; -- 1
+```
+
+Y en la aplicación, con la cuenta del dueño: `/owner/raffles/<RIFA>/prizes` enseña los seis premios, y
+la campana de un vendedor dice «Cambiaron los premios de … para los próximos sorteos: ahora tiene 6
+premios.».
+
+### 8.4 Si se niega
+
+**Nunca queda nada a medias**: cualquier rechazo deshace todo.
+
+| Mensaje | Qué significa | Qué hacer |
+|---|---|---|
+| «Hay N sorteos de la rifa sin resultado confirmado…» o «El sorteo de … ya se jugó y todavía no tiene el resultado confirmado» | **I-127**: la lista entera va debajo | Confirmar esos resultados por el camino de siempre, o **decisión del dueño**. No se relaja la comprobación |
+| «Todavía no conocemos la hora oficial del sorteo de …» | Falta la programación oficial de un sorteo de una semana ya empezada | Esperar a que el sincronizador la publique y repetir |
+| «La hora del sorteo de … ya pasó, así que el premio … no puede incluirlo» | Entre la vista previa y la aplicación se jugó un sorteo | Repetir el script: recalcula el primer sorteo pendiente |
+| «Las fechas del premio … tienen que quedar dentro de las fechas de la rifa» | La rifa termina antes de algún premio | Decisión del dueño sobre las fechas de la rifa |
+| «El sorteo del … está cancelado en la programación oficial…» o el script dice que un premio «ya no tiene ningún sorteo» | Un sorteo del calendario no se va a jugar, o la transición llegó tarde | Decisión del dueño |
+| «La rifa con ese identificador se llama…», «La rifa está … y se esperaba…», «Las fechas de la rifa son…» | Los datos esperados no son los de la rifa | Revisar §8.1. **No** ajustar a ciegas hasta que coincida |
+| «Esta rifa ya pasó a premios configurables con otra configuración» | Alguien ya la convirtió | Parar. Esta vía no cambia premios: eso es del panel |
+| «Esta rifa tiene una transición registrada, pero sigue con el sistema de premios de siempre» o «… ya tiene premios guardados» | Un estado parcial escrito a mano | Parar e investigar. **No** se completa a ciegas |
+
+### 8.5 Lo que NO se hace nunca
+
+* **No** se desactiva `raffles_guard_prize_config` ni ningún disparador.
+* **No** se escribe a mano en `raffle_prize_transitions`, ni se cambia `raffles.prize_mode` con un
+  `UPDATE`.
+* **No** se crean los premios con las RPC de la aplicación antes de la transición.
+* **No** se ejecuta la transición dentro de un despliegue ni de una migración.
+* **No** se reprocesan resultados anteriores: los sorteos que ya se jugaron quedan como los resolvió el
+  sistema de siempre.

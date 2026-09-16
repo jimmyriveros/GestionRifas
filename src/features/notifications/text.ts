@@ -212,6 +212,16 @@ function rafflePrizeMessage(data: NotificationData): string {
   const raffle = text(data, 'raffle_name') ?? 'la rifa'
 
   switch (text(data, 'change')) {
+    // La transicion de una rifa que ya existia a premios configurables (D-204):
+    // UN aviso para todos sus premios, no uno por premio. Dice para cuando vale
+    // —los proximos sorteos— y cuantos premios tiene ahora; los sorteos que ya
+    // se jugaron conservan lo que se resolvio con el sistema de siempre.
+    case 'transitioned': {
+      const total = count(data, 'prize_count')
+      const cuantos =
+        total === 1 ? ': ahora tiene 1 premio' : total > 1 ? `: ahora tiene ${total} premios` : ''
+      return `Cambiaron los premios de ${raffle} para los próximos sorteos${cuantos}.`
+    }
     case 'created':
       return `Hay un premio nuevo en ${raffle}: «${prize}».`
     case 'archived':

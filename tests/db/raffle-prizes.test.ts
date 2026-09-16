@@ -15,6 +15,7 @@
 import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { confirmedRafflePrizes } from '@/features/raffle-prizes/transition'
 import { ROLE_DEFAULT_CAPABILITIES, APP_CAPABILITIES } from '@/lib/auth/capabilities'
 import { hasCapability } from '@/lib/auth/capability-resolver'
 import type { ActiveMembership } from '@/lib/auth/session'
@@ -538,7 +539,11 @@ describe('J3 — el calendario, en la base (BR-J04, BR-J05)', () => {
     expect(error?.message).toContain('solo juega los sábados')
   })
 
-  it('J3-03: número SEMANAL un lunes con Cundinamarca es válido (el caso de la excepción)', async () => {
+  // EJEMPLO GENÉRICO, no un premio de la rifa real (D-204). El dueño lo dio para
+  // mostrar que el sistema admite excepciones a la plantilla —BR-J03: la
+  // categoría no decide nada—. Nunca dijo que entregara $400.000 ni que jugara el
+  // 14 de diciembre, y la rifa de diciembre tiene SEIS premios, ninguno así.
+  it('J3-03: EJEMPLO GENÉRICO —no es un premio de la rifa real—: número SEMANAL un lunes con Cundinamarca es válido', async () => {
     const premio = await prizeOf(owner, draftRaffle, {
       p_title: 'Premio semanal del lunes',
       p_category: 'special',
@@ -1429,6 +1434,17 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
     'raffle_prize_versions_require_reward',
     'raffle_prize_weekdays_valid',
     'raffles_guard_prize_config',
+    // 0063 (D-204): la transición de una rifa existente. La operación solo la
+    // ejecuta la service role; sus piezas, nadie.
+    'transition_raffle_prize_mode',
+    'raffle_prize_transition_apply',
+    'raffle_prize_transition_configuration',
+    'raffle_prize_transition_open',
+    'raffle_prize_transition_pending_draws',
+    'raffle_prize_transition_played_occurrence',
+    'raffle_prize_transitions_guard',
+    'raffle_prize_lottery_label',
+    'raffle_prize_raffle_status_phrase',
   ]
 
   it('J11-01: las seis RPC son ejecutables por una sesión', async () => {
@@ -1800,146 +1816,55 @@ describe('J12 — las opciones de recompensa, en la base (BR-J02, D-201)', () =>
 })
 
 // =============================================================================
-describe('J13 — la configuración de aceptación corregida, entera (D-201)', () => {
+describe('J13 — los seis premios confirmados, por las RPC de la aplicación (D-201, D-204)', () => {
   /**
-   * La rifa de diciembre de 2026 tal como el dueño la corrigió: el premio
+   * La rifa de diciembre de 2026 con los SEIS premios confirmados: el premio
    * diario cierra el **27 de noviembre** y el de fin de semana, el **28**, así
    * que ninguno alcanza los especiales de diciembre. El premio mayor del 21 es
    * UN premio con cuatro alternativas excluyentes, y el de tres cifras de ese
    * mismo día convive con él a propósito.
    *
-   * La FECHA INICIAL de los dos primeros no está informada: aquí se usa la de
-   * la rifa para poder probarlo, y la real se configura en la Entrega 4.
+   * La configuración NO se escribe aquí otra vez: es `confirmedRafflePrizes`,
+   * la misma que usa la transición (D-204). Hasta el 2026-09-16 esta prueba
+   * cargaba un SÉPTIMO premio —número semanal, lunes 14, Cundinamarca, $400.000—
+   * que fue solo un ejemplo del dueño; ese caso vive ahora en J3-03 como ejemplo
+   * genérico.
+   *
+   * El INICIO del diario y del de fin de semana es el primer sorteo pendiente el
+   * día de la transición. Esta rifa es un borrador que no la necesita: aquí
+   * empiezan el primer lunes y el primer sábado de noviembre.
    */
   let rifa: string
 
-  const ALTERNATIVAS_DEL_MAYOR = [
-    { description: 'Camioneta KIA', amount: null },
-    { description: 'Renault Alaskan 2023', amount: 20000000 },
-    { description: null, amount: 120000000 },
-    { description: 'Renault Logan Zen público 2023', amount: 70000000 },
-  ]
-
   const creados: Record<string, PrizeResult> = {}
+  const CLAVES = ['diario', 'finDeSemana', 'mayor', 'tresCifras', 'especialSemanal', 'quince']
 
-  it('J13-01: los siete premios se crean sin un solo conflicto', async () => {
+  it('J13-01: los seis premios confirmados se crean sin un solo conflicto', async () => {
     rifa = await newRaffle(`Premios aceptación ${Date.now().toString(36)}`, {
       start: '2026-11-01',
       end: '2026-12-31',
     })
 
-    creados.diario = await prizeOf(owner, rifa, {
-      p_title: 'Premio diario',
-      p_category: 'daily',
-      p_reward_options: dinero(500000),
-      p_number_field: 'daily_number',
-      p_rules: [
-        rule({ start_date: '2026-11-02', end_date: '2026-11-27', weekdays: [1, 2, 3, 4, 5] }),
-      ],
-    })
+    const premios = confirmedRafflePrizes({ dailyStart: '2026-11-02', saturdayStart: '2026-11-07' })
+    expect(premios).toHaveLength(6)
 
-    creados.finDeSemana = await prizeOf(owner, rifa, {
-      p_title: 'Premio fin de semana',
-      p_category: 'weekly',
-      p_reward_options: dinero(2000000),
-      p_number_field: 'weekly_number',
-      p_rules: [
-        rule({
-          start_date: '2026-11-07',
-          end_date: '2026-11-28',
-          weekdays: [6],
-          lottery_mode: 'fixed',
-          lottery_code: 'boyaca',
-        }),
-      ],
-    })
-
-    creados.mayor = await prizeOf(owner, rifa, {
-      p_title: 'Premio principal',
-      p_category: 'main',
-      p_reward_mode: 'winner_choice',
-      p_reward_options: ALTERNATIVAS_DEL_MAYOR,
-      p_number_field: 'daily_number',
-      p_rules: [
-        rule({
-          start_date: '2026-12-21',
-          end_date: '2026-12-21',
-          weekdays: [1],
-          lottery_mode: 'fixed',
-          lottery_code: 'cundinamarca',
-        }),
-      ],
-    })
-
-    creados.tresCifras = await prizeOf(owner, rifa, {
-      p_title: 'Premio especial de tres cifras',
-      p_category: 'special',
-      p_reward_options: dinero(1000000),
-      p_number_field: 'daily_number',
-      p_digits: 'last_three',
-      p_rules: [
-        rule({
-          start_date: '2026-12-21',
-          end_date: '2026-12-21',
-          weekdays: [1],
-          lottery_mode: 'fixed',
-          lottery_code: 'cundinamarca',
-        }),
-      ],
-    })
-
-    creados.especialSemanal = await prizeOf(owner, rifa, {
-      p_title: 'Premio especial semanal',
-      p_category: 'special',
-      p_reward_options: dinero(1000000),
-      p_number_field: 'weekly_number',
-      p_rules: [
-        // El 1 de diciembre es martes y el 5, sábado; el 16 es miércoles y el 19,
-        // sábado. Cada día elegido tiene que caer al menos una vez (BR-J04).
-        rule({ start_date: '2026-12-01', end_date: '2026-12-05', weekdays: [2, 3, 4, 5, 6] }),
-        rule({ start_date: '2026-12-16', end_date: '2026-12-19', weekdays: [3, 4, 5, 6] }),
-      ],
-    })
-
-    creados.cruzRoja = await prizeOf(owner, rifa, {
-      p_title: 'Premio especial semanal de Cruz Roja',
-      p_category: 'special',
-      p_reward_options: dinero(7000000),
-      p_number_field: 'weekly_number',
-      p_rules: [
-        rule({
-          start_date: '2026-12-15',
-          end_date: '2026-12-15',
-          weekdays: [2],
-          lottery_mode: 'fixed',
-          lottery_code: 'cruz_roja',
-        }),
-      ],
-    })
-
-    // El caso explícito del encargo: número SEMANAL, un lunes, cuatro cifras y
-    // Cundinamarca. Contradice la plantilla «semanal = sábado» y es válido.
-    creados.excepcion = await prizeOf(owner, rifa, {
-      p_title: 'Premio semanal de un lunes',
-      p_category: 'weekly',
-      p_reward_options: dinero(400000),
-      p_number_field: 'weekly_number',
-      p_rules: [
-        rule({
-          start_date: '2026-12-14',
-          end_date: '2026-12-14',
-          weekdays: [1],
-          lottery_mode: 'fixed',
-          lottery_code: 'cundinamarca',
-        }),
-      ],
-    })
+    for (const [index, premio] of premios.entries()) {
+      creados[CLAVES[index]!] = await prizeOf(owner, rifa, {
+        p_title: premio.title,
+        p_category: premio.category,
+        p_reward_mode: premio.reward_mode,
+        p_reward_options: premio.reward_options,
+        p_number_field: premio.number_field,
+        p_digits: premio.digits,
+        p_rules: premio.rules,
+      })
+    }
 
     const { rows } = await db.query<{ n: number }>(
       `select count(*)::int as n from raffle_prizes where raffle_id = $1 and status = 'active'`,
       [rifa],
     )
-    expect(rows[0]!.n).toBe(7)
+    expect(rows[0]!.n).toBe(6)
   })
 
   it('J13-02: la rifa se activa con esa configuración', async () => {

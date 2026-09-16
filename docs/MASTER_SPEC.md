@@ -391,7 +391,7 @@ propio no la cambia.
 
 ---
 
-### 9.7 Premios configurables por rifa — **ENTREGAS 1 A 3 DE 5: contrato, panel y motor, solo en local**
+### 9.7 Premios configurables por rifa — **ENTREGAS 1 A 4 DE 5: contrato, panel, motor y transición, solo en local**
 
 > Encargo «premios configurables por rifa», 2026-09-15 (D-199, D-200 y **D-201**; reglas
 > BR-J01..BR-J15; migraciones **`0058`** y **`0059`**). **No hay panel** (Entrega 2), **no hay motor
@@ -401,6 +401,33 @@ propio no la cambia.
 > **Estado al 2026-09-16:** existen el **panel** (Entrega 2, D-202, `0060`) y el **motor de
 > coincidencias** (Entrega 3, **D-203**, `0061`). Las rifas que ya existían siguen con el comparador
 > de siempre hasta la Entrega 4, y nada de esto está en el proyecto real.
+>
+> **Actualizado el mismo día (Entrega 4, D-204, `0063`):** existe **la transición** de una rifa que ya
+> existía, y la configuración de los **seis** premios confirmados está escrita y probada. **Ninguna
+> rifa real ha cambiado de sistema**: identificarla y convertirla es la Entrega 5.
+
+**Cómo pasa una rifa que ya existía a premios configurables (Entrega 4).** No lo hace nadie desde la
+aplicación: lo hace **una vez**, por rifa, un proceso interno, y o queda **entera** —premios, sistema
+nuevo, un aviso a cada persona activa de la organización y el registro en la bitácora— o no queda
+nada. La rifa **conserva su estado, sus fechas, sus boletas, sus clientes, sus pagos y sus
+coincidencias**: nada de eso se toca ni se recalcula. Antes se ve **exactamente** lo que va a quedar.
+Y **no se hace mientras haya un sorteo de la rifa ya jugado sin resultado confirmado**: ese sorteo se
+buscaría con los premios nuevos.
+
+**Los seis premios confirmados de la rifa de diciembre** (D-204). Todo juega con **cuatro cifras**
+salvo el que dice tres:
+
+| Premio | Qué entrega | Con qué número | Cuándo y con qué lotería |
+|---|---|---|---|
+| Premio diario | $500.000 | Diario | De lunes a viernes, **desde el primer sorteo pendiente el día de la transición hasta el 27 de noviembre**, con la lotería de cada día |
+| Premio fin de semana | $2.000.000 | Semanal | Los sábados, **desde el primer sábado pendiente hasta el 28 de noviembre**, con Boyacá |
+| Premio principal | **Una** de cuatro alternativas: Camioneta KIA · Renault Alaskan modelo 2023 y $20.000.000 · $120.000.000 · Renault Logan Zen público modelo 2023 y $70.000.000 | Diario | Lunes 21 de diciembre, con Cundinamarca |
+| Premio especial de tres cifras | $1.000.000 | Diario, **últimas tres cifras** | Lunes 21 de diciembre, con Cundinamarca. Quien acierta las cuatro no lo recibe además, por ninguna de sus boletas |
+| Premio especial semanal | $1.000.000 | Semanal | Del 1 al 5 y del 16 al 19 de diciembre, todos los días con lotería, sábados incluidos |
+| Premio especial del 15 de diciembre | $7.000.000 | Semanal | Martes 15 de diciembre, con la lotería de ese día: Cruz Roja |
+
+«Número semanal, un lunes, con Cundinamarca» **fue un ejemplo** de que el sistema admite excepciones:
+**no es un séptimo premio** y no está en la rifa.
 
 **Cuándo un premio le toca a una boleta (Entrega 3).** Al confirmarse el resultado de una lotería, se
 miran los premios que **de verdad juegan** ese sorteo —el día y la lotería están en su calendario—,
@@ -435,8 +462,8 @@ distintas y el de cuatro manda sobre el de tres.
 |---|---|
 | El modelo: identidad, versiones inmutables y períodos de calendario, con su historial completo | ~~La pantalla donde se crean y se editan (Entrega 2)~~ — existe desde D-202 |
 | Las seis RPC —crear, publicar, archivar, restaurar, reordenar e historial— con control optimista | ~~El motor que crea las coincidencias con estos premios (Entrega 3)~~ — existe desde D-203 |
-| La capacidad **`raffles.prizes.manage`**, en la aplicación y en PostgreSQL (D-200) | La configuración de la rifa de diciembre y la transición por rifa (Entrega 4) |
-| La auditoría semántica y el aviso a toda la organización cuando cambia una rifa activa | La promoción a producción (Entrega 5) |
+| La capacidad **`raffles.prizes.manage`**, en la aplicación y en PostgreSQL (D-200) | ~~La configuración de la rifa de diciembre y la transición por rifa (Entrega 4)~~ — existen desde D-204, **solo en local** |
+| La auditoría semántica y el aviso a toda la organización cuando cambia una rifa activa | La promoción a producción y la transición de la rifa real (Entrega 5) |
 
 **El calendario es lo que más se usa y por eso es lo más acotado:** un período son fechas, días de la
 semana y lotería; se admiten **varias ventanas separadas**; **el domingo no se programa** porque no

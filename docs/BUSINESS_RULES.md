@@ -1,6 +1,11 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.27 · **Estado:** normativo · **Actualizado:** 2026-09-16 (§12.i: **BR-J09 corta en
+- **Versión:** 1.28 · **Estado:** normativo · **Actualizado:** 2026-09-16 (§12.i: **BR-J13
+  implementada para transiciones controladas** —Entrega 4, D-204, migración `0063`—: una rifa que ya
+  existía pasa a premios configurables solo por la operación interna, entera o nada, y no mientras
+  quede un sorteo jugado sin confirmar; **BR-J03** precisa que el caso «semanal, un lunes, con
+  Cundinamarca» es un ejemplo genérico, no un premio de la rifa real); antes, ese mismo día (§12.i:
+  **BR-J09 corta en
   `least(original, oficial)`** —un sorteo adelantado ya no toma una versión publicada después de
   jugarse—, corrección de la Entrega 3, D-203 Decisión 9, migración `0062`, I-125); antes, ese mismo
   día (§12.i: **BR-J06 y BR-J07
@@ -26,8 +31,8 @@
   y en producción desde el 2026-09-12** (D-193, migraciones `0051`–`0055`): la columna es historia,
   no una advertencia.
 - La sección **12.i (BR-J)** es la única que describe algo que **todavía no está en el proyecto
-  real**: las migraciones `0058` a `0061` —contrato, panel y motor, entregas 1 a 3— viven **solo en
-  local**, y la transición de las rifas existentes es la Entrega 4.
+  real**: las migraciones `0058` a `0063` —contrato, panel, motor y transición, entregas 1 a 4— viven
+  **solo en local**. Promoverlas y convertir la rifa real es la Entrega 5.
 
 ---
 
@@ -882,18 +887,18 @@ lotería. Hasta aquí el único comparador era el fijo de BR-L06, que no se toca
 **La letra es `J`** de «**j**uega»: cada premio juega con un número y una lotería. `P`, `R` y `K` ya
 nombran precios, rifas y catálogo.
 
-> **ENTREGA 3 DE 5: el contrato, el panel y el motor, solo en local.** Existen el modelo, las
-> reglas, la autorización, la auditoría y los avisos (Entrega 1), el panel y el proceso de tres pasos
-> (Entrega 2) y **el motor de coincidencias** (Entrega 3, D-203): un resultado confirmado enlaza cada
-> coincidencia de una rifa configurable con su premio y la **versión** que le aplicaba. Las rifas que
-> ya existían siguen en modo heredado hasta la Entrega 4. La columna **Estado** dice qué entrega
-> construye cada regla.
+> **ENTREGA 4 DE 5: el contrato, el panel, el motor y la transición, solo en local.** Existen el
+> modelo, las reglas, la autorización, la auditoría y los avisos (Entrega 1), el panel y el proceso de
+> tres pasos (Entrega 2), **el motor de coincidencias** (Entrega 3, D-203) y **la transición de una
+> rifa que ya existía** (Entrega 4, D-204): una operación interna la pasa a premios configurables con
+> los seis premios confirmados. **Ninguna rifa real ha cambiado de modo**: eso, y la promoción, son la
+> Entrega 5. La columna **Estado** dice qué entrega construye cada regla.
 
 | ID | Regla | Capas | Estado |
 |----|-------|-------|--------|
 | BR-J01 | Un premio es una **identidad estable** con **versiones inmutables**: cada guardado inserta una versión nueva y ninguna anterior se reescribe. **Nada se borra**: un premio se archiva, y archivar y restaurar también son versiones. | S, D | ✅ Entrega 1 |
 | BR-J02 | Una versión define **título**, **categoría**, **recompensa**, **cuál de los dos números de la boleta juega**, **cuántas cifras**, su **calendario**, su **lotería** y sus **aclaraciones**. La **recompensa** son una o varias **alternativas** con **posición estable**: cada una lleva un componente **en especie**, un **importe en pesos**, o **los dos**, y al menos uno. El **modo es explícito** y no se deduce contando: **«Premio único»** lleva exactamente una alternativa y **«Alternativas a elegir»**, dos o más, excluyentes entre sí. La aplicación **no registra cuál alternativa se llevó quien acertó**. | C, S, D | ✅ Entrega 1 · corregida en D-201 |
-| BR-J03 | **La categoría es informativa.** Sirve para presentar y para plantillas; **nunca** decide el número, las cifras, el calendario ni la lotería. «Premio semanal, un lunes, cuatro cifras, con Cundinamarca» es válido. | C, S, D | ✅ Entrega 1 |
+| BR-J03 | **La categoría es informativa.** Sirve para presentar y para plantillas; **nunca** decide el número, las cifras, el calendario ni la lotería. «Premio semanal, un lunes, cuatro cifras, con Cundinamarca» es válido. **Es un ejemplo genérico** de que el sistema admite excepciones, **no un premio de la rifa real**, que tiene seis y ninguno así (D-204). | C, S, D | ✅ Entrega 1 · precisada en D-204 |
 | BR-J04 | El calendario son **períodos canónicos**: fecha inicial, fecha final y un conjunto de **días ISO 1..6**, ordenado y sin repetir. **El domingo no se programa** mientras no haya lotería ese día. Cada día elegido tiene que **caer al menos una vez** dentro del período, **dos períodos del mismo premio no pueden compartir un día** y todos quedan **dentro de las fechas de la rifa**. Máximo **10 períodos** por premio. | C, S, D | ✅ Entrega 1 |
 | BR-J05 | La lotería es **la correspondiente de cada día** (lunes Cundinamarca … sábado Boyacá, BR-L01) o una **fija**, que solo puede publicarse en **su** día nominal. Como la fecha de referencia **es** ese día (D-143), en una fecha válida las dos dan la misma lotería. Un sorteo **futuro** que la programación oficial da por **cancelado** se rechaza: no va a tener resultado. | C, S, D | ✅ Entrega 1 |
 | BR-J06 | **Cuatro cifras por defecto.** `four` es igualdad textual exacta con el número mayor; `last_three` compara las **tres últimas** y exige un número de al menos **tres caracteres**. `0046` ≠ `46`; `046` y `1046` sí participan en las tres últimas. Nunca se castea, ni se rellena con ceros, ni se recorta (BR-N03, BR-L06). El motor compara el número de la boleta **que dice la versión aplicable**, en la fecha y con la lotería **del resultado**. | C, S, D | ✅ Entrega 1 (regla) · ✅ Entrega 3 (motor, D-203) |
@@ -903,7 +908,7 @@ nombran precios, rifas y catálogo.
 | BR-J10 | Configurar premios exige la capacidad **`raffles.prizes.manage`**: el **Dueño** activo siempre la tiene, el **Administrador** activo la recibe por la política inicial y el **Vendedor nunca**. Se comprueba en la aplicación **y** en PostgreSQL, con la organización y el actor **de la sesión**. Las tres tablas **no admiten escritura directa**: las seis RPC son la única puerta. | C, S, D | ✅ Entrega 1 |
 | BR-J11 | En una rifa **activa**, un cambio **material** —recompensa, número, cifras, fechas o lotería efectivas, estado o aclaraciones— escribe **un aviso por membresía activa** de la organización, menos a quien lo hizo. El **nombre y la categoría no son materiales**, un borrador **no avisa** y **reordenar tampoco**. El aviso es **idempotente**, identifica la rifa y el premio, **no lleva clientes, pagos, saldos ni precios de venta** y **no enlaza a ninguna pantalla** mientras el vendedor no tenga una. | S, D | ✅ Entrega 1 |
 | BR-J12 | **Una acción semántica de bitácora por guardado** (`raffle_prize.create`, `.publish`, `.archive`, `.restore`, `.reorder`), con rifa, premio, versión anterior y nueva y un resumen seguro. El **historial funcional sale de las versiones**, no de `audit_logs`, se lee paginado y **solo con la capacidad**; un actor nulo se presenta como **«Sistema»**. | S, D | ✅ Entrega 1 |
-| BR-J13 | **La transición es por rifa.** Una rifa **nueva** nace `configurable` y **en borrador**, y solo puede crearla así quien tiene la capacidad `raffles.prizes.manage` (D-202). Las rifas que **ya existían** siguen en `legacy`: **ninguna sesión puede cambiar el modo de una rifa**, y esa transición es la Entrega 4. Activar una rifa configurable exige configuración válida **comprobada en PostgreSQL** —al menos un premio vigente y sin conflictos—, y **acortar las fechas** de una rifa no puede dejar el calendario de un premio fuera. | C, S, D | ✅ Entrega 1 · ampliada en Entrega 2 · Entrega 4 (rifas existentes) |
+| BR-J13 | **La transición es por rifa.** Una rifa **nueva** nace `configurable` y **en borrador**, y solo puede crearla así quien tiene la capacidad `raffles.prizes.manage` (D-202). **Ninguna sesión puede cambiar el modo de una rifa.** Una rifa que **ya existía** —en borrador o activa— pasa a `configurable` **solo** por la operación interna `transition_raffle_prize_mode`, que ejecuta la service role: elegida por su identificador y comprobados su organización, su nombre, su estado y sus fechas; **entera o nada** —premios, versiones, períodos, alternativas, modo, aviso y bitácora en una transacción—; **sin cambiar su estado ni sus fechas**; con las mismas validaciones que el panel (BR-J02, BR-J04, BR-J05, BR-J08); **sin incluir ningún sorteo cuyo corte ya pasó** (BR-J09); y, si la rifa está **activa**, **no mientras quede en su ventana un sorteo jugado sin resultado confirmado o con la hora oficial desconocida en una semana ya empezada**, que el motor buscaría después con los premios nuevos. No toca boletas, clientes, pagos ni coincidencias, y no reprocesa nada. Repetirla con la misma configuración no escribe nada; con otra, se rechaza. Deja **un** aviso por membresía activa si la rifa está activa (BR-J11) y **una** fila semántica de bitácora del «Sistema» (BR-J12). Activar una rifa configurable exige configuración válida **comprobada en PostgreSQL** —al menos un premio vigente y sin conflictos—, y **acortar las fechas** de una rifa no puede dejar el calendario de un premio fuera. | C, S, D | ✅ Entrega 1 · ampliada en Entrega 2 · ✅ **Entrega 4: transiciones controladas** (D-204, `0063`); la rifa real, en la Entrega 5 |
 | BR-J16 | **Una rifa se crea en tres pasos**: sus datos, sus premios y una revisión que la activa. El primer paso la deja en **borrador**, así que se puede salir y seguir después. La revisión **dice qué falta** —sin premios, con fechas fuera de la rifa o con un conflicto— y **no ofrece activar** hasta que no falte nada; activar es una acción explícita con confirmación, y **guardar el último premio no activa nada**. **La revisión es el único camino visible para activar un borrador configurable**: su detalle ofrece «Revisar y activar» en lugar de «Activar rifa», y una rifa heredada conserva la activación de siempre. | C, S, D | ✅ Entrega 2 (D-202) · corregida el 2026-09-16 |
 | BR-J14 | Los **miembros activos** de la organización **leen** los premios de sus rifas, como leen las rifas. Los límites son explícitos y los mismos en la aplicación y en la base: título 2–80, **descripción de una alternativa** 2–160, aclaraciones ≤ 1.000, **importe de una alternativa** 1–10.000.000.000, **6 alternativas** por premio, 10 períodos por premio y 50 premios vigentes por rifa. | C, S, D | ✅ Entrega 1 · ampliada en D-201 |
 | BR-J15 | Un premio dice **desde cuándo y hasta cuándo aplica**: el **primer y el último día en que juega de verdad**, no lo escrito en sus períodos —«los sábados del 1 al 31 de diciembre» empieza el 5—. **Varios períodos separados siguen siendo válidos** y el calendario detallado se conserva entero. Es lo que permite evitar un cruce (BR-J08) moviendo fechas en vez de adivinar. | C, S, D | ✅ Entrega 1 (D-201) |
@@ -924,6 +929,14 @@ sola definición** (`raffle_prize_draw_cutoff`) que usan el motor, la defensa de
 validación de publicaciones (I-125). Y los avisos de un resultado dicen que una boleta **coincide con
 este resultado**, nunca «con este número»: puede coincidir solo en las tres últimas cifras (I-126).
 Ninguna rifa cambió de modo y nada se reprocesó.
+
+**Lo que la Entrega 4 SÍ hace, y lo que sigue sin hacer (D-204, migración `0063`):** construye y
+prueba la transición de una rifa existente (BR-J13) y deja escrita, una sola vez, la configuración de
+los **seis** premios confirmados —diario hasta el 27 de noviembre, fin de semana hasta el 28, principal
+con cuatro alternativas y tres cifras el 21 de diciembre, el millón semanal del 1 al 5 y del 16 al 19
+de diciembre, y los siete millones del 15—. El diario y el de los sábados empiezan en el **primer sorteo
+pendiente el día de la transición** (respuesta del dueño). **No** convierte la rifa real, **no** toca
+el proyecto real y **no** reprocesa nada: eso es la Entrega 5.
 
 ---
 

@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.59 · **Actualizado:** 2026-09-16 (D-001 a D-203; **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.60 · **Actualizado:** 2026-09-16 (D-001 a D-204; **D-204** es la transición de una rifa existente a premios configurables —Entrega 4, migración `0063`—: una operación interna solo para la service role, atómica, con vista previa, que se niega mientras quede un sorteo jugado sin confirmar, y los **seis** premios confirmados —el caso «semanal, un lunes, con Cundinamarca» fue un ejemplo—; deja notas en D-199 Decisión 3 y D-201. Antes, **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -10688,6 +10688,9 @@ puede arreglar— para que reabrir una rifa cerrada no quede bloqueado para siem
 La categoría **no decide nada** (BR-J03): «Premio semanal, un lunes, cuatro cifras, con Cundinamarca»
 es válido, y hay una prueba con ese caso exacto.
 
+> **Nota del 2026-09-16 (D-204):** ese caso es un **ejemplo genérico** (J3-03), no un premio de la
+> rifa real. La rifa de diciembre tiene **seis** premios y ninguno es así.
+
 ### Decisión 4 — cuatro cifras por defecto, y las cuatro mandan sobre las tres
 
 `four` es igualdad textual exacta con el número mayor; `last_three` compara las tres últimas y exige
@@ -10874,6 +10877,9 @@ de cada premio. En la configuración de aceptación eso significa que el premio 
 juega **hasta el viernes 27 de noviembre** y el de fin de semana de $2.000.000 **hasta el sábado 28**,
 así que ninguno alcanza los especiales de diciembre. La **fecha inicial no está informada**: el
 sistema tiene que permitir configurarla y la rifa real se arma en la Entrega 4.
+
+> **Informada el 2026-09-16 (D-204):** los dos empiezan en el **primer sorteo pendiente el día de la
+> transición**; los anteriores quedan como los resolvió el sistema de siempre.
 
 La segunda es el **premio mayor del 21 de diciembre**. No son cuatro premios: es **uno** —número
 diario, cuatro cifras, Lotería de Cundinamarca— con **cuatro alternativas excluyentes** de las que se
@@ -11440,6 +11446,194 @@ del motor **40 → 50** (M12), `raffle-prizes` de base **93 → 94** (J8-03), un
 `MASTER_SPEC` §9.7, `UX_COPY_GUIDELINES`, `KNOWN_ISSUES` (I-125 e I-126 resueltas en local),
 `TESTING`, `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`. **Solo en local:** el proyecto real no tiene de
 la `0058` a la `0062`.
+
+---
+
+## D-204 — La transición de una rifa existente: una operación interna, atómica y con vista previa, y los seis premios confirmados
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa», Entrega 4
+de 5, 2026-09-16)
+
+**Contexto.** Las entregas 1 a 3 dejaron el contrato, el panel y el motor, pero **ninguna rifa que ya
+existía podía usarlos**: `raffles_guard_prize_config` solo deja cambiar el modo de una rifa **en
+borrador** y **sin sesión** (D-199, Decisión 8), y la rifa real está **activa**. D-203 (Decisión 3)
+dejó escrita la trampa: el motor lee el modo **al buscar coincidencias**, así que un sorteo jugado con
+el sistema de siempre y confirmado después de la transición se buscaría con los premios nuevos.
+
+**Preguntas al dueño antes de programar (2026-09-16):**
+
+| Pregunta | Respuesta | Cómo se aplicó |
+|---|---|---|
+| ¿Nombre exacto y fechas reales de la rifa que se transformará? | **No se dieron.** La respuesta repitió los premios | Esta entrega prepara y prueba el mecanismo con una **rifa local equivalente**. Identificar la rifa real —identificador, organización, nombre, estado y fechas— es de la **Entrega 5**. `HANDOFF` registra que el catálogo público de producción mostraba «SORTEO CAMIONETA KIA 2026» (D-159), y **no se usa para elegir nada** |
+| ¿Desde cuándo juegan el diario de $500.000 y el de los sábados de $2.000.000? | Primero repitió los finales —**27 y 28 de noviembre**—. A la repregunta: **«Sí, desde el primer sorteo pendiente»**: el primer sorteo que todavía no se haya jugado el día de la transición, y los anteriores quedan como los resolvió el sistema de siempre | `confirmedPrizeStarts` lo calcula de la programación oficial; la base rechaza cualquier sorteo ya jugado |
+
+La misma respuesta confirmó que **los únicos premios del mismo día para personas distintas** son los
+del lunes 21 de diciembre: el principal, con cuatro alternativas, y el de las tres últimas cifras.
+
+**Corrección previa: son SEIS premios, no siete.** El caso «número semanal, un lunes, con
+Cundinamarca» fue un **ejemplo** de que el sistema admite excepciones (BR-J03). La prueba J13 de la
+Entrega 1 lo cargaba como séptimo premio de la «configuración de aceptación», con **$400.000 y el 14
+de diciembre**, dos datos que nadie dio. Sale de J13, que ahora usa la configuración confirmada, y
+queda como ejemplo genérico **identificado** en J3-03.
+
+### Decisión 1 — una operación interna, por una sola rifa, solo para la service role
+
+`transition_raffle_prize_mode(organización, rifa, nombre, estado, inicio y fin esperados, premios,
+aplicar)`. `SECURITY DEFINER`, `search_path` fijo, `EXECUTE` **solo** para `service_role` y rechazo
+explícito de cualquier `auth.uid()`. La rifa se elige por **identificador**, y su organización, su
+nombre exacto, su estado y sus fechas tienen que ser los esperados: un identificador pegado mal **no
+convierte otra rifa**, y ninguna rifa se elige por nombre. Solo **borrador** o **activa**; cerrada o
+anulada se rechaza.
+
+### Decisión 2 — la puerta: una fila de transición escrita en la MISMA transacción
+
+`raffle_prize_transitions` guarda **una transición por rifa, para siempre**: estado y fechas
+comprobados, huella de la configuración, premios, `xact_id` y autor (`NULL` = «Sistema»). Es
+**inmutable**, tiene RLS forzada sin políticas y **ningún privilegio** para nadie, tampoco la service
+role. `raffles_guard_prize_config` conserva el cuerpo de `0060` línea por línea y abre **un solo
+camino**: `legacy` → `configurable` fuera del borrador, **sin sesión**, solo si existe la fila de esa
+rifa con el `xact_id` de la transacción actual, **sin cambiar a la vez estado ni fechas** y con la
+configuración **ya completa**. Todo lo demás sigue exigiendo el borrador: la service role no cambia el
+modo de una rifa activa con un `UPDATE` suelto.
+
+### Decisión 3 — todo o nada, y la vista previa es la misma ejecución
+
+En orden: cerrojo de **fila** de la rifa y después `raffle_prize_lock` —el mismo orden que el
+disparador—; lo esperado; el **estado** —transición parcial, anterior, rifa ya configurable o premios
+sueltos—; la configuración normalizada con las **mismas piezas que las RPC** y su huella; el reintento;
+los **sorteos pendientes**; cada premio —versión, `raffle_prize_version_problem` (BR-J08 y sorteos
+futuros cancelados), ocurrencia ya jugada y `raffle_prize_cutoff_problem`—; las **comprobaciones
+diferidas forzadas** con `SET CONSTRAINTS … IMMEDIATE`; la fila de transición; el cambio de modo, que
+el disparador vuelve a validar; el aviso y la bitácora.
+
+**Sin `p_apply` es una vista previa**: exactamente ese código, dentro de un subbloque que un
+`SQLSTATE` propio (`RP204`) deshace al final. Devuelve lo que habría quedado —premios, vigencias,
+sorteos por premio y cuántos avisos— con los identificadores en blanco. Cualquier otro error sale
+igual que al aplicar. Así la previsualización y la ejecución **no pueden separarse**.
+
+### Decisión 4 — lo que detiene la transición de una rifa activa
+
+**Sorteos pendientes**, en **toda la ventana de la rifa**: los que ya alcanzaron su corte efectivo
+(`raffle_prize_draw_cutoff`, nunca otro `least`) **sin resultado confirmado** —sin fila, `pending`,
+`conflict`—, y los de una semana ya empezada **cuyo corte no se conoce** —sin programación o sin
+alguna hora—. Un sorteo **cancelado** no cuenta. El error dice cuántos, el primero y, en el `detail`,
+**todos**. Es estricto a propósito: **no se limita al horizonte de 10 días del sincronizador**, porque
+una confirmación manual posterior también pasaría por el motor nuevo. Riesgo para la rifa real en
+**I-127**.
+
+**Ocurrencias ya jugadas**: una fecha configurada cuyo corte no es posterior a la publicación de su
+versión **nunca** le aplicaría (BR-J09, estricto), y configurarla sería anunciar un premio que no
+puede jugar. Se rechaza con la fecha, la lotería y el premio. Un sorteo **adelantado** corta en su
+hora oficial.
+
+Un **borrador** no mira los sorteos pendientes —nunca participó en el motor— pero sí las ocurrencias
+jugadas.
+
+### Decisión 5 — un segundo intento, estados parciales y concurrencia
+
+La **huella** es SHA-256 de la organización, la rifa y los premios **normalizados y en su orden**. La
+misma huella devuelve la transición existente **sin escribir nada**: ni premios, ni aviso, ni
+bitácora. Otra configuración se **rechaza**: esta puerta no sirve para cambiar premios después, eso es
+del panel. Dos estados parciales tienen mensaje propio y **no se completan a ciegas**: premios sueltos
+en una rifa heredada, y una transición registrada con la rifa todavía heredada. Dos transiciones a la
+vez: la segunda espera el cerrojo y encuentra la primera hecha.
+
+### Decisión 6 — un aviso y una fila semántica de bitácora
+
+**Un aviso por membresía activa** —Dueño, Administradores y Vendedores; ninguna inactiva, ninguna de
+otra organización—, **solo si la rifa está activa** (BR-J11). Reutiliza `raffle_prize.changed` con
+`change = 'transitioned'`, entidad `raffle_prize_transition` y el identificador de la transición:
+idempotente por `notifications_raffle_prize_once`, **sin cambiar el `CHECK` de tipos** y sin un
+segundo camino en la campana. Datos: rifa, nombre, cambio y número de premios. Texto (en
+`notifications/text.ts`): «Cambiaron los premios de {rifa} para los próximos sorteos: ahora tiene 6
+premios.». Sin enlace, sin WhatsApp, sin nada hacia fuera.
+
+**Bitácora:** `raffle.prize_mode_transition` sobre la rifa, con actor `NULL` —«Sistema»—, el modo de
+antes y el de después, estado, fechas, premios, avisos y huella; **ni clientes, ni pagos, ni saldos,
+ni precios de venta**. `audit_raffles` escribe sola el `raffle.update` del modo. **No** hay una fila
+`raffle_prize.create` por premio: el historial funcional sale de las versiones (BR-J12), publicadas
+por «Sistema».
+
+### Decisión 7 — los seis premios, escritos una sola vez en TypeScript
+
+`confirmedRafflePrizes` (`src/features/raffle-prizes/transition.ts`) es la **única** definición, y la
+usan el script, la suite de base, J13 y la prueba de navegador:
+
+| # | Premio | Categoría · recompensa | Número · cifras | Calendario · lotería |
+|---|---|---|---|---|
+| 1 | Premio diario | Diario · $500.000 | Diario · cuatro | Lunes a viernes, **desde el primer sorteo pendiente hasta el viernes 27 de noviembre** · correspondiente |
+| 2 | Premio fin de semana | Semanal · $2.000.000 | Semanal · cuatro | Sábados, **desde el primer sábado pendiente hasta el 28 de noviembre** · Boyacá fija |
+| 3 | Premio principal | Principal · **alternativas a elegir**: Camioneta KIA · Renault Alaskan modelo 2023 y $20.000.000 · $120.000.000 · Renault Logan Zen público modelo 2023 y $70.000.000 | Diario · cuatro | Lunes 21 de diciembre · Cundinamarca fija |
+| 4 | Premio especial de tres cifras | Especial · $1.000.000 | Diario · **últimas tres** | Lunes 21 de diciembre · Cundinamarca fija |
+| 5 | Premio especial semanal | Especial · $1.000.000 | Semanal · cuatro | Del 1 al 5 y del 16 al 19 de diciembre, **sábados incluidos** · correspondiente |
+| 6 | Premio especial del 15 de diciembre | Especial · $7.000.000 | Semanal · cuatro | Martes 15 de diciembre · **correspondiente**, que es Cruz Roja |
+
+El 15 de diciembre se escribe con la **lotería correspondiente** porque así llegó la instrucción; en
+una fecha válida la fija y la correspondiente dan lo mismo (BR-J05, D-143), y escribir las dos serían
+dos fuentes de verdad. Las alternativas llevan la redacción del encargo —«modelo 2023»— y la
+aplicación compone «y $20.000.000» a partir del importe (D-201).
+
+`confirmedPrizeStarts` calcula los dos inicios: el primer día **desde hoy o desde el inicio de la
+rifa** cuyo sorteo no alcanzó su corte, saltando los **cancelados**, que además se devuelven para que
+`periodsAvoiding` parta los períodos a su alrededor. Si un premio ya no tiene sorteos —una transición
+después del 27 de noviembre— o el 21 o el 15 de diciembre están cancelados, lanza
+`TransitionPlanError`: **eso lo decide el dueño**, no el código.
+
+### Decisión 8 — el script, solo local hasta la Entrega 5
+
+`scripts/raffle-prize-transition.ts`: sin `--apply`, **vista previa**; con `--apply`, la transición.
+Lee la programación oficial, calcula los inicios, imprime en español la rifa, el cambio de sistema y
+los seis premios con su recompensa, número, cifras, calendario, vigencia y lotería (textos en
+`PRIZE_TRANSITION_COPY`), y ante un fallo dice que **no se cambió nada**. **Sin `--local` se niega
+antes de leer ninguna credencial.** Ningún despliegue lo ejecuta y no elige rifas por nombre.
+
+### Decisión 9 — pruebas que no caducan
+
+La rifa equivalente vive en **2065**, que tiene **el calendario de 2026** —39 años son 2.035 semanas
+justas—, con la configuración real trasladada de año; la de navegador en **2071** (45 años, 2.348
+semanas). Los sorteos ya jugados, en **2018**. La clasificación de pendientes se prueba además con un
+**instante fijo**. Ninguna prueba nueva depende del día en que se ejecute.
+
+### Lo que NO hace
+
+* **No toca la rifa real** ni el proyecto real, y no hay ningún `UPDATE` de datos en la migración.
+* **No lee ni escribe boletas, clientes, pagos ni asignaciones**, no crea ni modifica fotografías ni
+  enlaces y **no reprocesa** resultados.
+* **No debilita** `raffles_guard_prize_config`: la puerta solo existe dentro de la transacción que
+  escribió su fila.
+* No crea pantallas para vendedores ni clientes, no registra la alternativa elegida y no cambia el
+  seed.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Una migración que convierta la rifa real | Ata el despliegue a un dato, y el identificador real no se conoce |
+| Elegir la rifa por nombre | Un nombre se repite o cambia; el encargo lo prohíbe |
+| Dejar que el disparador acepte cualquier cambio de modo sin sesión | La service role cambiaría el modo de una rifa activa con un `UPDATE` suelto, sin premios ni comprobaciones |
+| Una variable de sesión (`set_config`) como puerta | Cualquiera con SQL la escribe; una fila sin privilegios, única por rifa y atada al `xact_id` se puede comprobar |
+| `ALTER TABLE … DISABLE TRIGGER` durante la transición | Exige ser dueño de la tabla y apaga la protección para **todas** las sesiones mientras dura |
+| Crear los premios con las RPC de la aplicación | Exigen sesión y modo configurable, y una por premio no es atómica |
+| Mirar solo los sorteos pendientes de los últimos 10 días | Una confirmación manual de un sorteo más viejo pasaría por el motor nuevo |
+| Elegir el motor por fecha de corte frente a la transición | Cambia `match_lottery_result` y la regla de D-203; el encargo pide bloquear, no reprocesar |
+| Seis avisos, uno por premio | Seis veces lo mismo en la campana de cada persona |
+| Un tipo de aviso nuevo | Obliga a cambiar el `CHECK` de tipos; `change` ya distingue lo que pasó |
+| Escribir los seis premios en SQL o en la prueba | Dos fuentes de verdad; la configuración vive en un módulo puro y probado |
+| Una vista previa en TypeScript | Podría decir que sí donde la base dice que no; la vista previa es la misma ejecución |
+
+### Consecuencia
+
+Migración **`0063`**: `raffle_prize_transitions` y su guarda, `raffle_prize_transition_open`,
+`raffles_guard_prize_config` con la puerta, `raffle_prize_transition_pending_draws`,
+`raffle_prize_transition_played_occurrence`, `raffle_prize_transition_configuration`,
+`raffle_prize_transition_apply`, `transition_raffle_prize_mode` y dos espejos de texto. Las funciones
+son **generales** —por rifa— y quedan; tras la transición real, la Entrega 5 puede retirar el `EXECUTE`
+de la service role con una migración nueva si no se esperan más. `database.types.ts` gana la tabla y
+las funciones (+140 líneas, sin la regresión conocida de la CLI). `transition.ts`, `copy.ts`
+(`PRIZE_TRANSITION_COPY`), `schedule.ts` (exporta `isCalendarDate`), `notifications/text.ts` y el
+script. **BR-J13** implementada para transiciones controladas; `DATA_MODEL` §4.22, `SECURITY` §4.22,
+`ARCHITECTURE` §8.27.b, `MASTER_SPEC` §9.7, `TESTING` §4.11, `RUNBOOK` §8, `UX_COPY_GUIDELINES`,
+`KNOWN_ISSUES` (I-127, I-128), `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`. **Solo en local.**
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

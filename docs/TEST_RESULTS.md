@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (corrección de la Entrega 3: el corte efectivo y el texto de los avisos, `0062`, D-203 Decisiones 9 y 10, 2026-09-16)** | **1.307 ✅ en 72 archivos (+11)** | **1.192 ✅ en 49 archivos (+11; migración `0062`)** | **176/176** en la dirigida; completa **738/740**, y los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
+| **Post-9 vigente (premios configurables, Entrega 4: la transición de una rifa existente, `0063`, D-204, 2026-09-16)** | **1.337 ✅ en 73 archivos (+30)** | **1.230 ✅ en 50 archivos (+38; migración `0063`)** | **119/119** en la dirigida; completa **742/744**, y los 2 son **I-090** (`ventas-por-fecha:163` y `:238`), con su firma; aislado, `:163` pasa y `:238`/`:247` se alternan | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`; ninguna rifa real cambió de modo |
+| Post-9 anterior (corrección de la Entrega 3: el corte efectivo y el texto de los avisos, `0062`, D-203 Decisiones 9 y 10, 2026-09-16) | **1.307 ✅ en 72 archivos (+11)** | **1.192 ✅ en 49 archivos (+11; migración `0062`)** | **176/176** en la dirigida; completa **738/740**, y los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (premios configurables, Entrega 3: el motor, `0061`, D-203, 2026-09-16) | **1.296 ✅ en 72 archivos (+10)** | **1.181 ✅ en 49 archivos (+40; migración `0061`)** | **126/126** en la dirigida de loterías, privacidad, bloqueo de cambios y premios; la completa no se corrió, con el motivo escrito | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (cierre visual de la Entrega 2: I-123 e I-124, 2026-09-16) | **1.286 ✅ en 72 archivos (+1)** | — (no se repitió por indicación del usuario: no cambia la base) | **36/36** en la dirigida, con las **6** nuevas; la completa no se repitió por indicación del usuario | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (corrección de la Entrega 2 de premios, D-202, 2026-09-16) | **1.285 ✅ en 72 archivos (+42)** | **1.141 ✅ en 48 archivos (+1; sin migración)** | **732/734**; los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
@@ -11772,6 +11773,89 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
 * **Las pantallas con sesión en producción**, con las cuentas reales del Dueño, el Administrador y un
   vendedor: un agente no introduce contraseñas. La evidencia es la sonda de comportamiento sobre la
   base real, las pruebas locales y el CI.
+* **Un teléfono de verdad** y el **modo oscuro**.
+
+---
+
+## Premios configurables, Entrega 4 de 5: la transición de una rifa existente (`0063`, D-204) — 2026-09-16
+
+**Alcance:** encargo expreso del usuario, **solo la Entrega 4**: construir y probar la transición de una
+rifa existente de `legacy` a `configurable` y preparar la configuración exacta de los **seis** premios
+confirmados. Sin consultar ni modificar el proyecto real, sin convertir ninguna rifa real, sin push,
+etiqueta ni despliegue. **Las `0058` a `0062` no se editaron.**
+
+### a. Estado de partida y línea base
+
+| Comando | Resultado |
+|---|---|
+| `git status --short --branch` · `git rev-parse --short HEAD` | Rama `feature/premios-configurables` en **`e59d8de`**; solo `CorrecionesLoterias.txt` y `prueba-abono.csv` sin seguimiento. SHA-256: `4b5d893f…306840b` y `a096f61e…a97486` |
+| `npx supabase status` | Arriba; migraciones hasta `0062` |
+| `npm run db:reset` · `npm run seed:local` | ✅ · ✅ |
+| `npm run test:db` | ✅ **1.192/1.192** en 49 archivos (80 s) |
+| `npm run verify` | ✅ typecheck · lint **0 errores** y los 2 avisos preexistentes (`DataTable.tsx:149`, `BulkTicketCreator.tsx:77`) · **1.307/1.307** unitarias en 72 archivos · build |
+
+Ningún fallo preexistente.
+
+### b. Durante el desarrollo
+
+| Comando | Resultado | Errores y correcciones |
+|---|---|---|
+| `npx supabase migration up --local` | ✅ al segundo intento | El primero respondió `LegacyDbConnectError` («Connection terminated unexpectedly») con la base sana; reintentar lo aplicó. Transitorio de la CLI |
+| Prueba de humo en SQL, dentro de una transacción deshecha | ✅ | Vista previa sin escrituras; `UPDATE` de la service role rechazado en una rifa activa; aplicar dejó 2 premios, 36 avisos y 1 fila de bitácora; repetir no escribió nada |
+| `npx vitest run tests/unit/raffle-prize-transition.test.ts` | ✅ **30/30** a la primera | — |
+| `npx vitest run --config vitest.db.config.mts tests/db/raffle-prize-transition.test.ts` | ❌ **34/37** → ✅ **37/37** | **T1-06:** la migración normalizaba la configuración antes de mirar el estado de la rifa, y un estado parcial salía como un error de fechas. **Se reordenó la migración**: primero el estado, después la configuración. **T4-01 y T4-02:** el escenario del sorteo adelantado (T3-04) usaba el 7 de octubre de 2065, un día que las rifas de T4 configuran; se movió a junio. Ninguno era un defecto del producto salvo el orden de los mensajes |
+| `tests/db/raffle-prizes.test.ts` con J13 corregida | ✅ **94/94** | — |
+| `npx tsc --noEmit` · `npx eslint` de los archivos nuevos | ✅ · ✅ | — |
+| `npx supabase gen types typescript --local` a un archivo temporal | ✅ | Como en entregas anteriores, la CLI 2.111.0 quita `| null` en varias funciones: **solo se incorporaron los bloques nuevos** (+140 líneas, en CRLF) |
+| Sonda de `tsx` sobre `copy.ts` | ✅ | `tsx` 4.23.5 **sí resuelve el alias `@/`** de los módulos de `src`: el script reutiliza `transition.ts` y `copy.ts` |
+| `npx playwright test tests/e2e/premios-transicion.spec.ts` | ❌ → ✅ **4/4** | El `webServer` de Playwright agotó sus 180 s levantando `next dev` («Slow filesystem detected»). Se levantó el servidor aparte y Playwright lo reutilizó. Entorno, no código |
+| `npx prettier --check` de lo tocado | ⚠️ → ✅ | Seis archivos propios sin formatear —los cinco nuevos y `copy.ts`—; `prettier --write` sobre ellos. `text.ts` ya estaba fuera de formato en `e59d8de` en una línea ajena (`boletasAsignadas`) y **no se reformateó** |
+
+**Mutaciones de la `0063`**, cada una con `create or replace` sobre la base local y restaurada después
+con el cuerpo de la migración (la suite volvió a **37/37**):
+
+| Mutación | Detectada por |
+|---|---|
+| La puerta sin comparar `xact_id` | T1-06 |
+| `raffle_prize_transition_pending_draws` sin filas | T3-05, T3-06, T3-07, T3-08 |
+| La ocurrencia jugada con `original_scheduled_at` en vez de `raffle_prize_draw_cutoff` | T3-04 |
+| El reintento sin comparar la huella | T2-13, T4-01, T4-02 |
+
+La primera pasada del ayudante de mutaciones no aplicó la segunda: `$$` en una cadena de reemplazo de
+JavaScript es un patrón y se convirtió en `$`. Se rehízo con reemplazos por función.
+
+### c. Ensayo del procedimiento de la Entrega 5, en local
+
+Rifa «Ensayo transición Entrega 4», heredada y activa, del 9 de septiembre al 31 de diciembre de 2026,
+en «Rifas Demo»; borrada entera al terminar, con sus programaciones y resultados.
+
+| Paso | Resultado |
+|---|---|
+| Vista previa **sin programación** de la ventana | ❌ como debía: «Hay 10 sorteos de la rifa sin resultado confirmado…», con los diez en el `detail` y «No se cambió nada…» |
+| El mismo comando **sin `--local`** | ❌ como debía: «Hasta la Entrega 5 la transición solo se ejecuta contra la base local.» — **antes** de leer credenciales, tras moverse la comprobación |
+| Con los 6 sorteos jugados confirmados y los 4 siguientes programados | ✅ vista previa: primer sorteo pendiente **16/09/2026** (lunes a viernes) y **19/09/2026** (sábado); seis premios —diario 53 sorteos, fin de semana 11, principal 1, tres cifras 1, especial semanal 9, el 15 uno— y «lo reciben 4 personas» |
+| `--apply` | ✅ «La rifa pasó a premios configurables.»: activa, 6 premios, 4 avisos, 1 fila de bitácora |
+| `--apply` otra vez | ✅ «…con esta misma configuración. No se cambió nada.» |
+
+### d. Verificación final
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` · `npm run seed:local` | ✅ `0001`–`0063` · ✅ |
+| `npm run test:db` | ✅ **1.230/1.230** en 50 archivos (95 s): **+38** en `raffle-prize-transition.test.ts`; `raffle-prizes.test.ts` sigue en 94 |
+| `npm run verify` | ✅ typecheck · lint **0 errores** y los 2 avisos preexistentes · **1.337/1.337** unitarias en 73 archivos (**+30**) · build |
+| E2E dirigida: `owner-raffles`, `premios`, `premios-movil`, `premios-loteria-fija`, **`premios-transicion`**, `loterias-panel`, `loterias-panel-movil`, `loterias-cron`, `privacidad-admin`, `privacidad-admin-movil`, `equipo` y `security` | ✅ **119/119** en 9,0 min |
+| `npm run test:e2e` completa, tras `db:reset` + `seed:local` | **742/744** en 39,6 min |
+| Los 2 fallos | `ventas-por-fecha:163`: «esperado < 26», **recibido 54**. `ventas-por-fecha:238`: modo estricto, «No vendiste boletas en este período» resuelto a **dos** elementos, uno oculto fuera de `main`. **Las dos firmas de I-090** |
+| `ventas-por-fecha.spec.ts` solo, tres veces, cada una tras `db:reset` + `seed:local` | **17/18** las tres: `:163` **pasó las tres**; `:238` falló en la 1.ª y la 3.ª y **pasó en la 2.ª**; `:247` —verde en la completa— falló en la 2.ª con «Las fechas están al revés» duplicado y oculto. Es la alternancia que I-090 ya registraba, ahora también con el servidor caliente; los textos viven en `ReportsView.tsx`, que esta entrega no tocó. **No se trató como regresión**, y I-090 lleva la nota |
+| `git diff --check` (con los archivos nuevos en *intent-to-add*) | ✅ |
+| SHA-256 de `CorrecionesLoterias.txt` y `prueba-abono.csv` | ✅ `4b5d893f…306840b` y `a096f61e…a97486`, iguales al inicio |
+
+### e. Lo que NO se comprobó
+
+* **El proyecto real**: no se consultó. Ni el identificador, ni las fechas, ni los sorteos pendientes
+  de la rifa real (**I-127**).
+* La transición **con sesión en el navegador**: no existe pantalla para hacerla, a propósito.
 * **Un teléfono de verdad** y el **modo oscuro**.
 
 ---

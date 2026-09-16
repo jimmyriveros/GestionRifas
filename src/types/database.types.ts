@@ -1415,6 +1415,83 @@ export type Database = {
           },
         ]
       }
+      raffle_prize_transitions: {
+        Row: {
+          configuration_hash: string
+          from_mode: Database["public"]["Enums"]["raffle_prize_mode"]
+          id: string
+          organization_id: string
+          prize_ids: string[]
+          raffle_end_date: string
+          raffle_id: string
+          raffle_start_date: string
+          raffle_status: Database["public"]["Enums"]["raffle_status"]
+          to_mode: Database["public"]["Enums"]["raffle_prize_mode"]
+          transitioned_at: string
+          transitioned_by: string | null
+          xact_id: unknown
+        }
+        Insert: {
+          configuration_hash: string
+          from_mode?: Database["public"]["Enums"]["raffle_prize_mode"]
+          id?: string
+          organization_id: string
+          prize_ids: string[]
+          raffle_end_date: string
+          raffle_id: string
+          raffle_start_date: string
+          raffle_status: Database["public"]["Enums"]["raffle_status"]
+          to_mode?: Database["public"]["Enums"]["raffle_prize_mode"]
+          transitioned_at?: string
+          transitioned_by?: string | null
+          xact_id?: unknown
+        }
+        Update: {
+          configuration_hash?: string
+          from_mode?: Database["public"]["Enums"]["raffle_prize_mode"]
+          id?: string
+          organization_id?: string
+          prize_ids?: string[]
+          raffle_end_date?: string
+          raffle_id?: string
+          raffle_start_date?: string
+          raffle_status?: Database["public"]["Enums"]["raffle_status"]
+          to_mode?: Database["public"]["Enums"]["raffle_prize_mode"]
+          transitioned_at?: string
+          transitioned_by?: string | null
+          xact_id?: unknown
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raffle_prize_transitions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raffle_prize_transitions_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "raffle_prize_transitions_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "raffle_prize_transitions_transitioned_by_fkey"
+            columns: ["transitioned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       raffle_prize_versions: {
         Row: {
           category: Database["public"]["Enums"]["raffle_prize_category"]
@@ -3014,6 +3091,10 @@ export type Database = {
         Returns: boolean
       }
       raffle_prize_lock: { Args: { p_raffle_id: string }; Returns: undefined }
+      raffle_prize_lottery_label: {
+        Args: { p_code: Database["public"]["Enums"]["lottery_code"] }
+        Returns: string
+      }
       raffle_prize_manageable_raffle: {
         Args: { p_raffle_id: string }
         Returns: {
@@ -3070,6 +3151,10 @@ export type Database = {
         }
         Returns: number
       }
+      raffle_prize_raffle_status_phrase: {
+        Args: { p_status: Database["public"]["Enums"]["raffle_status"] }
+        Returns: string
+      }
       raffle_prize_reward_json: {
         Args: { p_version_id: string }
         Returns: Json
@@ -3086,6 +3171,48 @@ export type Database = {
         }[]
       }
       raffle_prize_rules_json: { Args: { p_version_id: string }; Returns: Json }
+      raffle_prize_transition_apply: {
+        Args: {
+          p_expected_end_date: string
+          p_expected_name: string
+          p_expected_start_date: string
+          p_expected_status: Database["public"]["Enums"]["raffle_status"]
+          p_organization_id: string
+          p_prizes: Json
+          p_raffle_id: string
+        }
+        Returns: Json
+      }
+      raffle_prize_transition_configuration: {
+        Args: {
+          p_prizes: Json
+          p_raffle: Database["public"]["Tables"]["raffles"]["Row"]
+        }
+        Returns: Json
+      }
+      raffle_prize_transition_open: {
+        Args: { p_raffle_id: string }
+        Returns: boolean
+      }
+      raffle_prize_transition_pending_draws: {
+        Args: {
+          p_now: string
+          p_raffle: Database["public"]["Tables"]["raffles"]["Row"]
+        }
+        Returns: {
+          draw_number: string
+          lottery_code: Database["public"]["Enums"]["lottery_code"]
+          reason: string
+          reference_date: string
+        }[]
+      }
+      raffle_prize_transition_played_occurrence: {
+        Args: { p_version_id: string }
+        Returns: {
+          lottery_code: Database["public"]["Enums"]["lottery_code"]
+          reference_date: string
+        }[]
+      }
       raffle_prize_validity: {
         Args: { p_version_id: string }
         Returns: {
@@ -3459,6 +3586,19 @@ export type Database = {
         }[]
       }
       today_bogota: { Args: never; Returns: string }
+      transition_raffle_prize_mode: {
+        Args: {
+          p_apply?: boolean
+          p_expected_end_date: string
+          p_expected_name: string
+          p_expected_start_date: string
+          p_expected_status: Database["public"]["Enums"]["raffle_status"]
+          p_organization_id: string
+          p_prizes: Json
+          p_raffle_id: string
+        }
+        Returns: Json
+      }
       try_acquire_lottery_sync_lock: {
         Args: { p_holder: string; p_stale_minutes?: number }
         Returns: boolean

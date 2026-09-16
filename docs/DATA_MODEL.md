@@ -1,6 +1,11 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.20 · **Estado:** implementado · **Actualizado:** 2026-09-16
+- **Versión:** 2.21 · **Estado:** implementado · **Actualizado:** 2026-09-16
+- **Nota (2026-09-16, Entrega 4):** la **`0063`** (D-204) crea **`raffle_prize_transitions`** —la
+  transición de una rifa que ya existía, una por rifa, §4.22— y la operación interna
+  `transition_raffle_prize_mode`, y vuelve a escribir `raffles_guard_prize_config` con **una** puerta
+  más (§6.g.9). **No toca datos**: ninguna rifa cambia de modo. El esquema ejecutable son
+  **`0001`–`0063`** en local y sigue siendo **`0001`–`0057`** en el proyecto real.
 - **Nota (2026-09-16, corrección de la Entrega 3):** la **`0062`** (D-203, Decisión 9, I-125) **no
   crea tablas ni toca datos**: añade `raffle_prize_draw_cutoff`, la única definición del corte de un
   sorteo —`least(original, oficial)`, NULL si falta una—, y vuelve a escribir `match_lottery_result`,
@@ -1251,6 +1256,39 @@ cuatro cifras usan `tickets_org_raffle_daily_idx` y `tickets_org_raffle_weekly_i
 últimas recorren las boletas de la rifa —5.000 en 33 ms con cuatro premios (`TEST_RESULTS`,
 2026-09-16)—.
 
+### 4.22 `raffle_prize_transitions` (`0063`, BR-J13, D-204)
+
+> ⚠️ **Solo en LOCAL**, como §4.20. Es la Entrega 4 de cinco: la transición de una rifa que ya
+> existía. **Ninguna rifa real ha cambiado de modo.**
+
+El registro de que una rifa pasó de `legacy` a `configurable`. **Una por rifa, para siempre.** Es a
+la vez la **huella** de la configuración aplicada —para que un segundo intento no duplique nada— y la
+**puerta** del disparador de `raffles` (§6.g.9).
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `organization_id` · `raffle_id` | `uuid` | FK compuesta `(raffle_id, organization_id)` → `raffles`; `raffle_id` **único** |
+| `from_mode` · `to_mode` | `raffle_prize_mode` | Siempre `legacy` → `configurable` (CHECK) |
+| `raffle_status` · `raffle_start_date` · `raffle_end_date` | `raffle_status` · `date` | Lo que se comprobó de la rifa. La transición no lo cambia. Estado solo `draft` o `active` |
+| `configuration_hash` | `text` | SHA-256 hexadecimal de la organización, la rifa y los premios **normalizados y en su orden** |
+| `prize_ids` | `uuid[]` | Los premios creados, en su posición; de 1 a 50, sin nulos |
+| `xact_id` | `xid8` | `pg_current_xact_id()` de la transacción que la escribió: **abre la puerta solo dentro de ella** |
+| `transitioned_at` · `transitioned_by` | `timestamptz` · `uuid` | `NULL` = un proceso del sistema, «Sistema» |
+
+**No lleva** clientes, boletas, pagos, precios ni resultados: la transición no los lee.
+
+| Invariante | Cómo |
+|---|---|
+| Una transición por rifa | `UNIQUE (raffle_id)` |
+| No cruza organizaciones | FK `(raffle_id, organization_id)` |
+| Nace antes que el cambio de modo, y solo para una rifa heredada | Disparador `raffle_prize_transitions_guard` (BEFORE INSERT) |
+| Nadie la reescribe ni la borra, tampoco la service role | El mismo disparador, en UPDATE y DELETE |
+| Solo la escribe la migración | RLS forzada **sin políticas** y `revoke all` a `public`, `anon`, `authenticated` **y** `service_role` |
+
+**Sin índices propios** más allá de la clave primaria y la única de `raffle_id`, que sirve a la
+puerta, al reintento y a la limpieza. La transición **no recorre boletas**: su costo depende de los
+premios, sus períodos y los días de la ventana de la rifa.
+
 ---
 
 ## 4.bis Lo que falta del encargo de cobro — **NADA: LAS CINCO TABLAS EXISTEN**
@@ -1790,6 +1828,36 @@ Entrega 3, y la prueban `tests/db` y `tests/unit`.
 
 `admin_audit_log` y `admin_audit_redact` (§6.g.8) se vuelven a escribir con **una entidad más**,
 `raffle_prize`, y su lista blanca de claves. Nada más de esas dos funciones cambia.
+
+> **Desde la `0063` (Entrega 4, D-204): la transición de una rifa que ya existía.**
+>
+> | Función | Devuelve | Quién la ejecuta |
+> |---|---|---|
+> | `transition_raffle_prize_mode(organización, rifa, nombre, estado, inicio y fin esperados, premios, aplicar = false)` | `jsonb`: rifa, modo de antes y de después, premios con vigencia y sorteos, avisos, huella; `applied` y `already_applied`. **Sin `aplicar` es una vista previa** que se deshace | **Solo `service_role`**; rechaza cualquier `auth.uid()` |
+>
+> Internas, **sin `EXECUTE` para nadie** —ni la service role—: `raffle_prize_transition_apply` (hace
+> la transición o devuelve la idéntica), `raffle_prize_transition_configuration` (valida y normaliza
+> los premios con `raffle_prize_clean_fields`, `raffle_prize_normalized_reward` y
+> `raffle_prize_normalized_rules`), `raffle_prize_transition_pending_draws(rifa, instante)` (los
+> sorteos de la ventana que ya alcanzaron su corte sin resultado confirmado, o de corte desconocido en
+> una semana empezada; los cancelados no cuentan), `raffle_prize_transition_played_occurrence(versión)`
+> (la primera fecha cuyo corte no es posterior a la publicación), `raffle_prize_transition_open(rifa)`
+> (la puerta), `raffle_prize_lottery_label` y `raffle_prize_raffle_status_phrase` (espejos de
+> `LOTTERY_LABELS` y `RAFFLE_STATUS_LABELS` para los mensajes). Todas usan `raffle_prize_draw_cutoff`:
+> ningún `least` nuevo.
+>
+> **`raffles_guard_prize_config`** conserva el cuerpo de `0060` y abre **un** camino: `legacy` →
+> `configurable` sin sesión y fuera del borrador **solo** si `raffle_prize_transition_open` —la fila de
+> §4.22 escrita en esta transacción—, sin cambiar a la vez estado ni fechas y con al menos un premio
+> vigente sin problemas. Cualquier otro cambio de modo sigue exigiendo el borrador.
+>
+> **Escrituras de la transición**, todas en una transacción: `raffle_prize_versions`,
+> `raffle_prize_schedule_rules`, `raffle_prize_reward_options` y `raffle_prizes` (autor `NULL`), la
+> fila de §4.22, `raffles.prize_mode`, **un** `notifications` por membresía activa si la rifa está
+> activa (`raffle_prize.changed`, `change = 'transitioned'`, entidad `raffle_prize_transition`) y
+> **un** `audit_logs` `raffle.prize_mode_transition` —más el `raffle.update` que escribe
+> `audit_raffles`—. Ninguna en `tickets`, `clients`, `payments`, `payment_allocations`,
+> `lottery_results`, `lottery_ticket_matches` ni `lottery_ticket_match_prizes`.
 
 ### 6.h Coincidencias de lotería (migración `0036`)
 
