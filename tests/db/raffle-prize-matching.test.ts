@@ -25,6 +25,7 @@ import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
+  prizeDrawCutoff,
   prizeNumberMatches,
   resolvePrizeLinks,
   type PrizeCandidate,
@@ -298,8 +299,10 @@ async function boletas(raffleId: string, filas: BoletaInput[]): Promise<string[]
 type SorteoOpciones = {
   /** `null` = sin hora original. Por omisión, la hora oficial. */
   original?: string | null
-  oficial?: string
-  estado?: 'scheduled' | 'rescheduled_later' | 'completed'
+  /** `null` = sin hora oficial, solo con `schedule_unverified`. Por omisión, las 22:30 del día. */
+  oficial?: string | null
+  estado?:
+    'scheduled' | 'rescheduled_later' | 'rescheduled_earlier' | 'completed' | 'schedule_unverified'
 }
 
 async function programacion(
@@ -309,7 +312,7 @@ async function programacion(
 ): Promise<{ scheduleId: string; drawNumber: string }> {
   secuencia += 1
   const drawNumber = `E3-${stamp}-${secuencia}`
-  const oficial = opciones.oficial ?? horaDe(fecha)
+  const oficial = opciones.oficial === undefined ? horaDe(fecha) : opciones.oficial
   const { rows } = await db.query<{ id: string }>(
     `insert into lottery_draw_schedules (lottery_code, draw_number, reference_date,
                                          original_scheduled_at, official_scheduled_at, schedule_status)
@@ -386,6 +389,51 @@ async function contar(sql: string, params: unknown[]): Promise<number> {
 
 function esperar(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** El instante exacto en que se publicó una versión, como lo guarda la base. */
+async function publicadaEn(versionId: string): Promise<string> {
+  const { rows } = await db.query<{ t: string }>(
+    `select published_at::text as t from raffle_prize_versions where id = $1`,
+    [versionId],
+  )
+  return rows[0]!.t
+}
+
+/** El instante que queda a mitad de camino entre dos. */
+async function entre(a: string, b: string): Promise<string> {
+  const { rows } = await db.query<{ t: string }>(
+    `select ($1::timestamptz + ($2::timestamptz - $1::timestamptz) / 2)::text as t`,
+    [a, b],
+  )
+  return rows[0]!.t
+}
+
+/** Un instante desplazado por un intervalo de PostgreSQL, p. ej. `'1 day'`. */
+async function desplazado(instante: string, intervalo: string): Promise<string> {
+  const { rows } = await db.query<{ t: string }>(
+    `select ($1::timestamptz + $2::interval)::text as t`,
+    [instante, intervalo],
+  )
+  return rows[0]!.t
+}
+
+/** El corte efectivo de una programación, calculado por la definición canónica. */
+async function corteDe(scheduleId: string): Promise<string | null> {
+  const { rows } = await db.query<{ t: string | null }>(
+    `select raffle_prize_draw_cutoff(s)::text as t from lottery_draw_schedules s where s.id = $1`,
+    [scheduleId],
+  )
+  return rows[0]!.t
+}
+
+/** Si dos instantes escritos de forma distinta son el mismo. */
+async function mismoInstante(a: string | null, b: string | null): Promise<boolean> {
+  const { rows } = await db.query<{ igual: boolean }>(
+    `select $1::timestamptz is not distinct from $2::timestamptz as igual`,
+    [a, b],
+  )
+  return rows[0]!.igual
 }
 
 // -----------------------------------------------------------------------------
@@ -1008,23 +1056,7 @@ describe('M3 — el calendario y la lotería (BR-J04, BR-J05)', () => {
 })
 
 // =============================================================================
-describe('M4 — la versión histórica: la última publicada antes del corte original (BR-J09)', () => {
-  async function publicadaEn(versionId: string): Promise<string> {
-    const { rows } = await db.query<{ t: string }>(
-      `select published_at::text as t from raffle_prize_versions where id = $1`,
-      [versionId],
-    )
-    return rows[0]!.t
-  }
-
-  async function entre(a: string, b: string): Promise<string> {
-    const { rows } = await db.query<{ t: string }>(
-      `select ($1::timestamptz + ($2::timestamptz - $1::timestamptz) / 2)::text as t`,
-      [a, b],
-    )
-    return rows[0]!.t
-  }
-
+describe('M4 — la versión histórica: la última publicada antes del corte (BR-J09)', () => {
   it('M4-01: la versión publicada antes del corte aplica, y un cambio publicado después no altera ese sorteo (14, 15)', async () => {
     const { lunes, desde, hasta } = semanas(2)
     const rifa = await nuevaRifa('version corte', desde, hasta)
@@ -1921,6 +1953,8 @@ describe('M8 — organizaciones, RLS, permisos e inmutabilidad (24, 25)', () => 
       'match_lottery_result',
       'confirm_lottery_result',
       'raffle_prize_applicable_version',
+      'raffle_prize_cutoff_problem',
+      'raffle_prize_draw_cutoff',
       'raffle_prize_draw_prizes',
       'raffle_prize_versions_at',
     ]
@@ -2302,5 +2336,412 @@ describe('M11 — el 21 de diciembre, completo (30)', () => {
       sold_count: 3,
       available_count: 1,
     })
+  })
+})
+
+// =============================================================================
+describe('M12 — el corte efectivo: la menor entre la hora original y la oficial (I-125, D-203 Decisión 9)', () => {
+  /**
+   * Una rifa activa con un premio de cuatro cifras (versión 1) que después pasa a
+   * tres cifras (versión 2). Devuelve el instante exacto de cada publicación:
+   * los cortes de cada prueba se colocan antes, entre o justo en esos instantes.
+   */
+  async function premioQueCambia(nombre: string, dias: string[], desde: string, hasta: string) {
+    const rifa = await nuevaRifa(nombre, desde, hasta)
+    const base: PremioInput = {
+      titulo: 'Cambia de cifras',
+      campo: 'daily_number',
+      cifras: 'four',
+      reglas: dias.map((dia) => unDia(dia)),
+    }
+    const premioCreado = await premio(owner, rifa, base)
+    await activar(rifa)
+    const v1 = premioCreado.versionId
+    const v2 = await publicar(premioCreado.prizeId, v1, { ...base, cifras: 'last_three' })
+    return {
+      rifa,
+      base,
+      prizeId: premioCreado.prizeId,
+      v1,
+      v2,
+      t1: await publicadaEn(v1),
+      t2: await publicadaEn(v2),
+    }
+  }
+
+  /** Una fotografía y su enlace en UNA sentencia, escritos a mano. */
+  const ENLACE_A_MANO = `
+    with m as (
+      insert into lottery_ticket_matches (result_id, ticket_id, organization_id, raffle_id, seller_id,
+        client_id, match_field, matched_number, assignment_status, inventory_status_at_draw,
+        assigned_at, ticket_created_at)
+      select $1, t.id, t.organization_id, t.raffle_id, t.seller_id, null, 'daily_number',
+             t.daily_number, 'available', 'available', null, t.created_at
+        from tickets t where t.id = $2
+      returning id, organization_id, raffle_id
+    )
+    insert into lottery_ticket_match_prizes (organization_id, raffle_id, result_id, match_id,
+      match_field, prize_id, prize_version_id)
+    select m.organization_id, m.raffle_id, $1, m.id, 'daily_number', $3, $4 from m`
+
+  it('M12-01: sin cambio de programación, el corte es la hora común (1)', async () => {
+    const { lunes, desde, hasta } = semanas()
+    const e = await premioQueCambia('corte normal', [lunes], desde, hasta)
+    const hora = await entre(e.t1, e.t2)
+    const [exacta, sufijo] = await boletas(e.rifa, [
+      { diario: '4040', semanal: '0001' },
+      { diario: '9040', semanal: '0002' },
+    ])
+    const { scheduleId, resultId } = await sorteo('cundinamarca', lunes, '4040', {
+      original: hora,
+      oficial: hora,
+    })
+
+    expect(await mismoInstante(await corteDe(scheduleId), hora)).toBe(true)
+    await buscarBien(resultId)
+    const filas = await enlacesDe(resultId)
+    expect(pares(filas)).toEqual([par(exacta!, e.prizeId)])
+    expect(filas[0]!.prize_version_id).toBe(e.v1)
+    expect(filas.map((f) => f.ticket_id)).not.toContain(sufijo)
+  })
+
+  it('M12-02: APLAZADO: aplica la versión anterior a la hora original y no la publicada entre la original y la oficial (2)', async () => {
+    const { lunes, desde, hasta } = semanas()
+    const fecha = diaDe(lunes, 'cruz_roja')
+    const e = await premioQueCambia('corte aplazado', [fecha], desde, hasta)
+    const original = await entre(e.t1, e.t2)
+    const oficial = await desplazado(e.t2, '1 day')
+    const [exacta, sufijo] = await boletas(e.rifa, [
+      { diario: '5151', semanal: '0001' },
+      { diario: '9151', semanal: '0002' },
+    ])
+    const { scheduleId, resultId } = await sorteo('cruz_roja', fecha, '5151', {
+      original,
+      oficial,
+      estado: 'rescheduled_later',
+    })
+
+    expect(await mismoInstante(await corteDe(scheduleId), original)).toBe(true)
+    await buscarBien(resultId)
+    const filas = await enlacesDe(resultId)
+    expect(pares(filas)).toEqual([par(exacta!, e.prizeId)])
+    expect(filas[0]!.prize_version_id).toBe(e.v1)
+    expect(filas.map((f) => f.ticket_id)).not.toContain(sufijo)
+  })
+
+  it('M12-03: ADELANTADO: aplica la versión anterior a la hora oficial y no la publicada entre la oficial y la original (3)', async () => {
+    const { lunes, desde, hasta } = semanas()
+    const fecha = diaDe(lunes, 'bogota')
+    const e = await premioQueCambia('corte adelantado', [fecha], desde, hasta)
+    const oficial = await entre(e.t1, e.t2)
+    const original = await desplazado(e.t2, '1 day')
+    const [exacta, sufijo] = await boletas(e.rifa, [
+      { diario: '6161', semanal: '0001' },
+      { diario: '9161', semanal: '0002' },
+    ])
+    const { scheduleId, resultId } = await sorteo('bogota', fecha, '6161', {
+      original,
+      oficial,
+      estado: 'rescheduled_earlier',
+    })
+
+    expect(await mismoInstante(await corteDe(scheduleId), oficial)).toBe(true)
+    await buscarBien(resultId)
+    const filas = await enlacesDe(resultId)
+    expect(pares(filas)).toEqual([par(exacta!, e.prizeId)])
+    expect(filas[0]!.prize_version_id).toBe(e.v1)
+    expect(filas.map((f) => f.ticket_id)).not.toContain(sufijo)
+  })
+
+  it('M12-04: I-125, regresión: un sorteo adelantado que ya se jugó no toma el cambio publicado después (10)', async () => {
+    // Lo reproducido el 2026-09-16: Bogotá adelantada, versión 1 de cuatro cifras, y
+    // una versión 2 de tres cifras publicada DESPUÉS de jugarse y antes de su hora
+    // original. Con la `0061` el motor enlazaba la versión 2 a las dos boletas.
+    const { lunes, desde, hasta } = semanas()
+    const fecha = diaDe(lunes, 'bogota')
+    const rifa = await nuevaRifa('I-125', desde, hasta)
+    const base: PremioInput = {
+      titulo: 'Adelantado',
+      campo: 'daily_number',
+      cifras: 'four',
+      reglas: [unDia(fecha)],
+    }
+    const creado = await premio(owner, rifa, base)
+    await activar(rifa)
+    const [cuatro, tres] = await boletas(rifa, [
+      { diario: '9876', semanal: '0001' },
+      { diario: '1876', semanal: '0002' },
+    ])
+
+    // Se juega AHORA, adelantado: su hora original era al día siguiente.
+    const { rows: reloj } = await db.query<{ t: string }>(`select clock_timestamp()::text as t`)
+    const jugado = reloj[0]!.t
+    const original = await desplazado(jugado, '1 day')
+    const { drawNumber, scheduleId } = await programacion('bogota', fecha, {
+      original,
+      oficial: jugado,
+      estado: 'rescheduled_earlier',
+    })
+
+    // Después de jugarse, el premio pasa a tres cifras.
+    const v2 = await publicar(creado.prizeId, creado.versionId, { ...base, cifras: 'last_three' })
+    const { rows: orden } = await db.query<{ despues: boolean; antes_original: boolean }>(
+      `select $1::timestamptz > $2::timestamptz as despues, $1::timestamptz < $3::timestamptz as antes_original`,
+      [await publicadaEn(v2), jugado, original],
+    )
+    expect(orden[0]).toEqual({ despues: true, antes_original: true })
+
+    const { data, error } = await ctx.svc.rpc('confirm_lottery_result', {
+      p_lottery_code: 'bogota',
+      p_draw_number: drawNumber,
+      p_winning_number: '9876',
+    })
+    expect(error).toBeNull()
+    const resultId = (data as unknown as { result_id: string }).result_id
+
+    expect(await mismoInstante(await corteDe(scheduleId), jugado)).toBe(true)
+    const filas = await enlacesDe(resultId)
+    expect(pares(filas)).toEqual([par(cuatro!, creado.prizeId)])
+    expect(filas[0]!.prize_version_id).toBe(creado.versionId)
+    expect(filas.map((f) => f.ticket_id)).not.toContain(tres)
+  })
+
+  it('M12-05: una versión publicada EXACTAMENTE en el corte efectivo no aplica, sin cambio y adelantado (4)', async () => {
+    const { lunes, desde, hasta } = semanas(2)
+    const normal = lunes
+    const adelantado = addDays(lunes, 7)
+    const e = await premioQueCambia('corte exacto', [normal, adelantado], desde, hasta)
+    const [exacta, sufijo] = await boletas(e.rifa, [
+      { diario: '7171', semanal: '0001' },
+      { diario: '9171', semanal: '0002' },
+    ])
+
+    const sinCambio = await sorteo('cundinamarca', normal, '7171', {
+      original: e.t2,
+      oficial: e.t2,
+    })
+    const conAdelanto = await sorteo('cundinamarca', adelantado, '7171', {
+      original: await desplazado(e.t2, '1 day'),
+      oficial: e.t2,
+      estado: 'rescheduled_earlier',
+    })
+
+    for (const { scheduleId, resultId } of [sinCambio, conAdelanto]) {
+      expect(await mismoInstante(await corteDe(scheduleId), e.t2)).toBe(true)
+      await buscarBien(resultId)
+      const filas = await enlacesDe(resultId)
+      expect(pares(filas)).toEqual([par(exacta!, e.prizeId)])
+      expect(filas[0]!.prize_version_id).toBe(e.v1)
+      expect(filas.map((f) => f.ticket_id)).not.toContain(sufijo)
+    }
+  })
+
+  it('M12-06: después de buscar, ni otra versión ni un cambio de programación alteran los enlaces, y reintentar tampoco (5, 6)', async () => {
+    const { lunes, desde, hasta } = semanas()
+    const fecha = diaDe(lunes, 'meta')
+    const e = await premioQueCambia('corte despues', [fecha], desde, hasta)
+    const oficial = await entre(e.t1, e.t2)
+    const original = await desplazado(e.t2, '1 day')
+    const [exacta] = await boletas(e.rifa, [
+      { diario: '8181', semanal: '0001' },
+      { diario: '9181', semanal: '0002' },
+    ])
+    const { scheduleId, resultId } = await sorteo('meta', fecha, '8181', {
+      original,
+      oficial,
+      estado: 'rescheduled_earlier',
+    })
+    await buscarBien(resultId)
+    const antes = await enlacesDe(resultId)
+    expect(pares(antes)).toEqual([par(exacta!, e.prizeId)])
+    expect(antes[0]!.prize_version_id).toBe(e.v1)
+
+    // Una versión 3 después del sorteo…
+    await publicar(e.prizeId, e.v2, { ...e.base, cifras: 'four' })
+    // …y la programación corregida a mano: la hora oficial, antes incluso de la versión 1.
+    await db.query(
+      `update lottery_draw_schedules
+          set official_scheduled_at = $2::timestamptz - interval '1 day'
+        where id = $1`,
+      [scheduleId, e.t1],
+    )
+    expect(await enlacesDe(resultId)).toEqual(antes)
+
+    expect(await buscarBien(resultId)).toMatchObject({ inserted: 0, prize_links: 0 })
+    const despues = await enlacesDe(resultId)
+    expect(despues).toEqual(antes)
+    expect(despues[0]!.prize_version_id).toBe(e.v1)
+  })
+
+  it('M12-07: la defensa rechaza un enlace escrito con una versión posterior al corte efectivo (7)', async () => {
+    const { lunes, desde, hasta } = semanas()
+    const fecha = diaDe(lunes, 'medellin')
+    const e = await premioQueCambia('corte defensa', [fecha], desde, hasta)
+    const oficial = await entre(e.t1, e.t2)
+    const original = await desplazado(e.t2, '1 day')
+    const [, sufijo] = await boletas(e.rifa, [
+      { diario: '3131', semanal: '0001' },
+      { diario: '9131', semanal: '0002' },
+    ])
+    const { resultId } = await sorteo('medellin', fecha, '3131', {
+      original,
+      oficial,
+      estado: 'rescheduled_earlier',
+    })
+    await buscarBien(resultId)
+
+    // Con la hora ORIGINAL como corte, la versión 2 sería la aplicable: por eso la
+    // defensa de la `0061` habría dejado pasar este enlace.
+    const { rows } = await db.query<{ con_original: string }>(
+      `select raffle_prize_applicable_version($1, $2::timestamptz) as con_original`,
+      [e.prizeId, original],
+    )
+    expect(rows[0]!.con_original).toBe(e.v2)
+
+    await expect(db.query(ENLACE_A_MANO, [resultId, sufijo, e.prizeId, e.v2])).rejects.toThrow(
+      /no es el que aplica a este sorteo/,
+    )
+    expect((await enlacesDe(resultId)).map((f) => f.ticket_id)).not.toContain(sufijo)
+  })
+
+  it('M12-08: la rama legacy no cambia: la venta la decide la hora oficial, sin enlaces, y no necesita la hora original (8)', async () => {
+    const { lunes, desde, hasta } = semanas(2)
+    const fecha = diaDe(lunes, 'cruz_roja')
+    const heredada = await nuevaRifa('corte heredada', desde, hasta, { modo: 'legacy' })
+    await activar(heredada)
+    const oficial = horaDe(fecha)
+    const original = horaDe(addDays(fecha, 2))
+    const [vendidaAntes, vendidaEntreHoras] = await boletas(heredada, [
+      { diario: '2323', semanal: '0001', cliente: ctx.clients.ana.id },
+      {
+        diario: '2323',
+        semanal: '0002',
+        cliente: ctx.clients.carlos.id,
+        vendidaEn: horaDe(addDays(fecha, 1)),
+      },
+    ])
+
+    const adelantado = await sorteo('cruz_roja', fecha, '2323', {
+      original,
+      oficial,
+      estado: 'rescheduled_earlier',
+    })
+    await buscarBien(adelantado.resultId)
+    const filas = await enlacesDe(adelantado.resultId)
+    expect(filas.find((f) => f.ticket_id === vendidaAntes)).toMatchObject({
+      assignment_status: 'sold',
+      client_id: ctx.clients.ana.id,
+      prize_id: null,
+    })
+    expect(filas.find((f) => f.ticket_id === vendidaEntreHoras)).toMatchObject({
+      assignment_status: 'late_assignment',
+      client_id: null,
+      prize_id: null,
+    })
+
+    // Sin hora original: la rama heredada nunca la necesitó y sigue igual.
+    const sinOriginal = await sorteo('cruz_roja', addDays(fecha, 7), '2323', { original: null })
+    const salida = await buscarBien(sinOriginal.resultId)
+    expect(salida).toMatchObject({ inserted: 2, prize_links: 0 })
+  })
+
+  it('M12-09: si no se puede calcular el corte no queda nada escrito: ni resultado, ni fotografías heredadas, ni enlaces (9)', async () => {
+    const { lunes, desde, hasta } = semanas()
+    const fecha = diaDe(lunes, 'boyaca')
+    const heredada = await nuevaRifa('sin corte heredada 2', desde, hasta, { modo: 'legacy' })
+    await activar(heredada)
+    const configurable = await nuevaRifa('sin corte configurable 2', desde, hasta)
+    await premio(owner, configurable, {
+      titulo: 'Semanal',
+      categoria: 'weekly',
+      campo: 'weekly_number',
+      cifras: 'four',
+      reglas: [unDia(fecha)],
+    })
+    await activar(configurable)
+    await boletas(heredada, [{ diario: '0001', semanal: '4545' }])
+    await boletas(configurable, [{ diario: '0001', semanal: '4545' }])
+    const { drawNumber, scheduleId } = await programacion('boyaca', fecha, { original: null })
+    expect(await corteDe(scheduleId)).toBeNull()
+
+    const { error } = await ctx.svc.rpc('confirm_lottery_result', {
+      p_lottery_code: 'boyaca',
+      p_draw_number: drawNumber,
+      p_winning_number: '4545',
+    })
+    expect(error?.code).toBe('22000')
+    expect(
+      await contar(`select count(*)::int as n from lottery_results where schedule_id = $1`, [
+        scheduleId,
+      ]),
+    ).toBe(0)
+    expect(
+      await contar(
+        `select count(*)::int as n from lottery_ticket_matches where raffle_id = any ($1::uuid[])`,
+        [[heredada, configurable]],
+      ),
+    ).toBe(0)
+  })
+
+  it('M12-10: la definición canónica dice lo mismo que `prizeDrawCutoff`, también sin hora oficial o sin programación', async () => {
+    const { lunes } = semanas()
+    const casos: Array<{
+      loteria: Loteria
+      original: string | null
+      oficial: string | null
+      estado: SorteoOpciones['estado']
+    }> = [
+      {
+        loteria: 'cundinamarca',
+        original: horaDe(lunes),
+        oficial: horaDe(lunes),
+        estado: 'scheduled',
+      },
+      {
+        loteria: 'cruz_roja',
+        original: horaDe(diaDe(lunes, 'cruz_roja')),
+        oficial: horaDe(diaDe(lunes, 'bogota')),
+        estado: 'rescheduled_later',
+      },
+      {
+        loteria: 'meta',
+        original: horaDe(diaDe(lunes, 'meta')),
+        oficial: horaDe(lunes),
+        estado: 'rescheduled_earlier',
+      },
+      {
+        loteria: 'bogota',
+        original: horaDe(diaDe(lunes, 'bogota')),
+        oficial: null,
+        estado: 'schedule_unverified',
+      },
+      {
+        loteria: 'medellin',
+        original: null,
+        oficial: horaDe(diaDe(lunes, 'medellin')),
+        estado: 'scheduled',
+      },
+    ]
+    for (const caso of casos) {
+      const { scheduleId } = await programacion(caso.loteria, diaDe(lunes, caso.loteria), {
+        original: caso.original,
+        oficial: caso.oficial,
+        estado: caso.estado,
+      })
+      const enLaBase = await corteDe(scheduleId)
+      const enTypeScript = prizeDrawCutoff({
+        originalScheduledAt: caso.original,
+        officialScheduledAt: caso.oficial,
+      })
+      expect(await mismoInstante(enLaBase, enTypeScript), `${caso.loteria} ${caso.estado}`).toBe(
+        true,
+      )
+    }
+
+    // Una programación que no existe llega como una fila nula: tampoco hay corte.
+    const { rows } = await db.query<{ t: string | null }>(
+      `select raffle_prize_draw_cutoff(null::lottery_draw_schedules)::text as t`,
+    )
+    expect(rows[0]!.t).toBeNull()
   })
 })

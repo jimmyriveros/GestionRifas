@@ -401,7 +401,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Sitio que republica resultados sin ser la autoridad | **Fuente** (a secas, o «otra fuente») | Agregador, espejo, tercero |
 | Que dos de esas fuentes digan el mismo número | **Verificado por 2 fuentes** | Consenso, validado, corroborado |
 | El primer premio de esa lotería, cuatro dígitos | **Número mayor** | Combinación ganadora, primer premio, hit |
-| Que una boleta tenga ese mismo número | **Coincidencia** | Ganador, premio ganado, acierto oficial |
+| Que una boleta coincida con ese resultado: con el número entero o, en un premio de tres cifras, con las tres últimas | **Coincidencia**, y se dice que la boleta **coincide con este resultado** (D-203, I-126) | Ganador, premio ganado, acierto oficial, «con este número» |
 | La serie que a veces publica la lotería | **Serie informativa** | Serie ganadora |
 | Sorteo de esa lotería, distinto de la rifa | **Sorteo** de la lotería X | No usar «sorteo» para la rifa |
 | Que aún no hay hora oficial | **Horario por confirmar** | Pendiente de scrape, sin schedule |
@@ -420,7 +420,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | La tarjeta del panel desde la que el vendedor lo reparte | **Comparte tu catálogo** (D-180) | «Mi catálogo público», que fue su título hasta el 2026-09-09 |
 | La sección del panel del vendedor con las loterías | **Loterías** (D-180) | «Resultados y próxima lotería», que es el título del recuadro **completo** y sigue siéndolo |
 | Ahí, el sorteo que va a jugarse y el que ya jugó | **Próxima** y **Último resultado** (D-180) | Próximo sorteo, Resultado más reciente |
-| Ahí, cuántas boletas del vendedor salieron con ese número | **Sin coincidencias**, **1 boleta coincidió**, **N boletas coincidieron** (D-180) | Aciertos, ganadoras, premiadas |
+| Ahí, cuántas boletas del vendedor coincidieron con ese resultado | **Sin coincidencias**, **1 boleta coincidió**, **N boletas coincidieron** (D-180) | Aciertos, ganadoras, premiadas |
 | Desplegar dentro de una tarjeta lo que no cabe en ella | **Ver detalle**, y **Ocultar detalle** cuando está abierto (D-180) | Ver más, Expandir, Mostrar todo |
 | Conversación de WhatsApp donde el vendedor reúne a sus clientes | **Grupo de WhatsApp**, o **tu grupo** (D-176) | Comunidad, canal, chat, lista de difusión |
 | Su dirección de invitación, que el vendedor pega en la configuración | **Enlace del grupo de WhatsApp** | **Link**, que este mismo anexo ya prohíbe; URL, invitación |
@@ -1093,6 +1093,28 @@ donde estaba, al pie del número.
 **coincidencia numérica** y no certifica ningún premio oficial. Lo usan además los avisos y el
 detalle de la boleta, y hay una prueba que falla si cualquier texto de este recuadro dice «ganador».
 Es la §35.2.4 de `CLAUDE.md` aplicada, igual que «SORTEO PÚBLICO» en D-163: se señala y se sigue.
+
+**Una boleta coincide con el RESULTADO, nunca «con este número»** (D-203, Decisión 10, I-126). Desde
+los premios configurables una boleta puede coincidir solo en las **tres últimas cifras**, y «Encontramos
+una boleta asignada con este número» le atribuía el número entero. Por eso los avisos nombran primero
+el resultado —«Resultado de Bogotá, sorteo 2840: 0046.»— y después dicen qué pasó con las boletas:
+
+| Caso | Texto |
+|---|---|
+| Una vendida | «Encontramos una boleta asignada que coincide con este resultado.» |
+| Una disponible | «Tenías una boleta disponible que coincide con este resultado.» |
+| Las dos cosas | «Encontramos una boleta asignada que coincide con este resultado y tenías otra disponible.» |
+| Ninguna, en el recuadro del vendedor | «Ninguna de tus boletas coincidió con este resultado.» |
+| Ninguna, en el del personal | «Ninguna boleta coincidió con este resultado.» |
+
+Con varias, **concuerda el plural** —«2 boletas asignadas que coinciden», «y tenías otras 3
+disponibles»— y el nombre del cliente se presenta como **el de una de ellas**: «Una de ellas es de Ana
+Torres.», porque el aviso solo trae un nombre y no se le pueden atribuir todas. El aviso del personal sigue
+contando: «Coinciden con este resultado 2 boletas asignadas antes del sorteo y 1 boleta disponible, en
+2 rifas.», y **calla el grupo que vale cero** en vez de escribir «0 boletas». Lo que **no** se escribe:
+«ganador», «ganadora», «premiada», que la boleta tiene **las cuatro cifras** o **el número exacto**, ni
+**qué premio** le tocó: la campana avisa de una coincidencia y no cuenta premios. Hay una prueba
+unitaria que falla si alguno de esos textos vuelve.
 
 **«Hoy» y «Ayer» se calculan, no se escriben fijos** (D-167). Cada tarjeta lleva el día en un rótulo
 —«Hoy», «Ayer», «Mañana» o el día de la semana— comparado contra el día de Bogotá, porque el último

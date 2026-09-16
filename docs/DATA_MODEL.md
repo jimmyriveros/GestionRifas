@@ -1,6 +1,12 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.19 · **Estado:** implementado · **Actualizado:** 2026-09-16
+- **Versión:** 2.20 · **Estado:** implementado · **Actualizado:** 2026-09-16
+- **Nota (2026-09-16, corrección de la Entrega 3):** la **`0062`** (D-203, Decisión 9, I-125) **no
+  crea tablas ni toca datos**: añade `raffle_prize_draw_cutoff`, la única definición del corte de un
+  sorteo —`least(original, oficial)`, NULL si falta una—, y vuelve a escribir `match_lottery_result`,
+  `lottery_ticket_match_prizes_check` y `raffle_prize_cutoff_problem` para que la usen (§4.21, §6.g.9,
+  §6.h). El esquema ejecutable son **`0001`–`0062`** en local y sigue siendo **`0001`–`0057`** en el
+  proyecto real.
 - **Nota (2026-09-16):** la **`0061`** (Entrega 3, D-203) crea **`lottery_ticket_match_prizes`** —con
   qué premio y con qué **versión** coincidió cada fotografía de una rifa configurable, §4.21— y
   vuelve a escribir `match_lottery_result` y `confirm_lottery_result` (§6.h, §6.i). El esquema
@@ -1213,7 +1219,7 @@ tabla solo añade la relación.
 | `match_id` | `uuid` | La fotografía |
 | `match_field` | `lottery_match_field` | El número de la boleta con el que jugó: el de la fotografía y el de la versión |
 | `prize_id` | `uuid` | El premio |
-| `prize_version_id` | `uuid` | La versión **aplicada**: la última publicada antes del corte original (BR-J09), nunca la vigente de hoy |
+| `prize_version_id` | `uuid` | La versión **aplicada**: la última publicada **estrictamente antes del corte** del sorteo —`raffle_prize_draw_cutoff`, la hora más temprana entre la original y la oficial desde la `0062`— (BR-J09), nunca la vigente de hoy |
 | `created_at` | `timestamptz` | |
 
 **No lleva** título, recompensa, alternativas ni calendario —están congelados en la versión
@@ -1224,7 +1230,7 @@ inmutable—, ni qué alternativa se eligió, ni nada de pago, entrega o reclama
 | Un enlace no cruza organizaciones, rifas, sorteos ni números | FK `(match_id, result_id, organization_id, raffle_id, match_field)` → `lottery_ticket_matches`; FK `(prize_id, raffle_id, organization_id)` → `raffle_prizes`; FK `(prize_version_id, prize_id)` → `raffle_prize_versions` |
 | Un reintento no duplica | `UNIQUE (match_id, prize_id)` y `on conflict do nothing` |
 | Nadie lo reescribe ni lo borra, tampoco la service role | Disparador `lottery_ticket_match_prizes_immutable` |
-| El enlace dice la verdad: rifa configurable, versión vigente, del mismo número, **aplicable al corte** y con el sorteo en su calendario | Disparador de sentencia `lottery_ticket_match_prizes_check`, con `raffle_prize_applicable_version` y la expansión canónica `raffle_prize_rule_dates` |
+| El enlace dice la verdad: rifa configurable, versión vigente, del mismo número, **aplicable al corte** y con el sorteo en su calendario | Disparador de sentencia `lottery_ticket_match_prizes_check`, con `raffle_prize_applicable_version` en el corte de `raffle_prize_draw_cutoff` (`0062`) y la expansión canónica `raffle_prize_rule_dates` |
 | Un cliente no conserva tres cifras si tiene cuatro en el mismo resultado y la misma rifa (BR-J07) | El mismo disparador, agrupando por cliente fotografiado —o por boleta si no había cliente— |
 | Una fotografía de una rifa configurable no queda sin su premio | Disparador de sentencia `lottery_ticket_matches_prize_links_check` sobre `lottery_ticket_matches` |
 
@@ -1774,6 +1780,14 @@ Entrega 3, y la prueban `tests/db` y `tests/unit`.
 > lotería, corte)` —los premios que **juegan** un sorteo: versión aplicable, vigente y con el sorteo en
 > su calendario—. Las dos son internas, sin `EXECUTE` para ninguna sesión.
 
+> **Desde la `0062` (D-203, Decisión 9, I-125) el corte que reciben ya no es la hora original.** Lo
+> calcula **solo** `raffle_prize_draw_cutoff(programación)`: la más temprana entre
+> `original_scheduled_at` y `official_scheduled_at`, y NULL si falta cualquiera de las dos —el `least`
+> de PostgreSQL ignora los NULL, por eso se comprueban antes—. La usan el motor, el disparador de los
+> enlaces y `raffle_prize_cutoff_problem`, que ahora rechaza publicar si el corte **efectivo** de una
+> ocurrencia de una semana empezada no se conoce. Las tres funciones de versión no cambian: comparan
+> `published_at < corte`, estricto. `raffle_prize_draw_cutoff` es interna, como las demás.
+
 `admin_audit_log` y `admin_audit_redact` (§6.g.8) se vuelven a escribir con **una entidad más**,
 `raffle_prize`, y su lista blanca de claves. Nada más de esas dos funciones cambia.
 
@@ -1796,6 +1810,11 @@ misma transacción.** La **heredada** es la consulta de siempre con `prize_mode 
 (`check_violation`, con los identificadores en `detail`), y en **una** sentencia busca las
 coincidencias de los premios que juegan, aplica la prioridad de cuatro cifras **por cliente** y
 escribe fotografías y enlaces (§4.21). Una coincidencia descartada por la prioridad no se fotografía.
+
+**Desde la `0062`** la rama configurable decide la versión en `raffle_prize_draw_cutoff` —la hora más
+temprana entre la original y la oficial— en vez de en `original_scheduled_at`. Falla igual si ese corte
+es NULL; como un sorteo sin hora oficial ya se rechazaba antes de llegar ahí, en la práctica sigue
+siendo el sorteo sin hora original. La firma, lo que devuelve y la rama heredada no cambian.
 
 ### 6.i Sincronización de lotería (migraciones `0037`, `0038`)
 

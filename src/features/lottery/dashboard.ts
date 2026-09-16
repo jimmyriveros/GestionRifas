@@ -107,8 +107,11 @@ export const LOTTERY_DASHBOARD_COPY = {
   // Se dice cuantas fuentes lo respaldan, con el numero real.
   consensusSource: (fuentes: number) => `Verificado por ${fuentes} fuentes`,
   weekChanges: 'Cambios de programación',
-  noMatchSeller: 'Ninguna de tus boletas coincidió con este número.',
-  noMatchStaff: 'Ninguna boleta coincidió con este número.',
+  // «Con este resultado» y no «con este numero»: desde los premios
+  // configurables una boleta puede coincidir solo en las tres ultimas cifras,
+  // y una frase sobre «el numero» le atribuiria el numero entero (I-126).
+  noMatchSeller: 'Ninguna de tus boletas coincidió con este resultado.',
+  noMatchStaff: 'Ninguna boleta coincidió con este resultado.',
   // ---------------------------------------------------------------------
   // Forma compacta del recuadro, en lo alto del panel del vendedor (D-180).
   //

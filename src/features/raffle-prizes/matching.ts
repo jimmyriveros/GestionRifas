@@ -126,14 +126,45 @@ export type PrizeVersionRef = {
   status: 'active' | 'archived'
 }
 
+/** Las dos horas de un sorteo que deciden su corte. */
+export type PrizeDrawTimes = {
+  originalScheduledAt: string | null
+  officialScheduledAt: string | null
+}
+
 /**
- * La version que le aplica a un sorteo: la ULTIMA publicada antes de su corte
- * (BR-J09).
+ * El CORTE EFECTIVO de un sorteo (BR-J09, D-203 Decision 9): la MENOR entre la
+ * hora original anunciada y la oficial.
  *
- * El corte es la hora ORIGINAL anunciada del sorteo, aunque despues se aplace.
- * Llegada esa hora la ocurrencia queda bloqueada, y por eso una version nueva
- * solo afecta a los sorteos que todavia no se jugaron: no hace falta reescribir
- * nada hacia atras.
+ * Sin cambio, las dos coinciden. Un sorteo APLAZADO conserva como corte la hora
+ * original; uno ADELANTADO corta en la hora oficial, que es cuando de verdad se
+ * juega. Asi nunca aplica una version publicada despues de que el sorteo ya
+ * debio jugarse.
+ *
+ * Si falta cualquiera de las dos horas —o no se puede leer— devuelve `null`: no
+ * se supone. Es el espejo de `raffle_prize_draw_cutoff` (migracion `0062`), que
+ * es la que decide en la base, y una prueba de base de datos compara las dos.
+ */
+export function prizeDrawCutoff(times: PrizeDrawTimes): string | null {
+  const { originalScheduledAt: original, officialScheduledAt: official } = times
+  if (!original || !official) return null
+
+  const originalAt = Date.parse(original)
+  const officialAt = Date.parse(official)
+  if (Number.isNaN(originalAt) || Number.isNaN(officialAt)) return null
+
+  return officialAt < originalAt ? official : original
+}
+
+/**
+ * La version que le aplica a un sorteo: la ULTIMA publicada ESTRICTAMENTE antes
+ * de su corte (BR-J09).
+ *
+ * El corte es el EFECTIVO, `prizeDrawCutoff`: la hora original, salvo que el
+ * sorteo se adelante, y entonces la oficial. Llegada esa hora la ocurrencia
+ * queda bloqueada, y por eso una version nueva solo afecta a los sorteos que
+ * todavia no se jugaron: no hace falta reescribir nada hacia atras. Una version
+ * publicada EXACTAMENTE en el corte ya no aplica.
  *
  * Si la version que sale es una ARCHIVADA, el premio no aplica a ese sorteo.
  * Devuelve `null` cuando ninguna version se publico antes del corte.

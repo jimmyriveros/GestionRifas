@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (premios configurables, Entrega 3: el motor, `0061`, D-203, 2026-09-16)** | **1.296 ✅ en 72 archivos (+10)** | **1.181 ✅ en 49 archivos (+40; migración `0061`)** | **126/126** en la dirigida de loterías, privacidad, bloqueo de cambios y premios; la completa no se corrió, con el motivo escrito | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
+| **Post-9 vigente (corrección de la Entrega 3: el corte efectivo y el texto de los avisos, `0062`, D-203 Decisiones 9 y 10, 2026-09-16)** | **1.307 ✅ en 72 archivos (+11)** | **1.192 ✅ en 49 archivos (+11; migración `0062`)** | **176/176** en la dirigida; completa **738/740**, y los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
+| Post-9 anterior (premios configurables, Entrega 3: el motor, `0061`, D-203, 2026-09-16) | **1.296 ✅ en 72 archivos (+10)** | **1.181 ✅ en 49 archivos (+40; migración `0061`)** | **126/126** en la dirigida de loterías, privacidad, bloqueo de cambios y premios; la completa no se corrió, con el motivo escrito | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (cierre visual de la Entrega 2: I-123 e I-124, 2026-09-16) | **1.286 ✅ en 72 archivos (+1)** | — (no se repitió por indicación del usuario: no cambia la base) | **36/36** en la dirigida, con las **6** nuevas; la completa no se repitió por indicación del usuario | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (corrección de la Entrega 2 de premios, D-202, 2026-09-16) | **1.285 ✅ en 72 archivos (+42)** | **1.141 ✅ en 48 archivos (+1; sin migración)** | **732/734**; los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (premios configurables, Entrega 2: el panel, D-202, 2026-09-15) | **1.243 ✅ en 68 archivos (+17)** | **1.140 ✅ en 48 archivos (+8; migración `0060`)** | **724/725**; el único fallo es **I-090**, conocido y ajeno, y su archivo pasa **18/18** en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
@@ -11772,6 +11773,86 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
   vendedor: un agente no introduce contraseñas. La evidencia es la sonda de comportamiento sobre la
   base real, las pruebas locales y el CI.
 * **Un teléfono de verdad** y el **modo oscuro**.
+
+---
+
+## Corrección de la Entrega 3 de premios: el corte efectivo y el texto de los avisos (`0062`, D-203 Decisiones 9 y 10) — 2026-09-16
+
+**Alcance:** encargo expreso del usuario, **antes de la Entrega 4 y sin iniciarla**: resolver I-125
+con la decisión del dueño —el corte es `least(original_scheduled_at, official_scheduled_at)`, una sola
+definición—, corregir el texto de I-126 y la contradicción de `HANDOFF`. Sin cambiar ninguna rifa de
+`legacy` a `configurable`, sin cargar los premios de la rifa actual, sin reprocesar, sin tocar el
+proyecto real y sin desplegar. **La `0061` no se editó.**
+
+### a. Estado de partida y línea base
+
+| Comando | Resultado |
+|---|---|
+| `git status --short --branch` · `git rev-parse HEAD` | Rama `feature/premios-configurables` en **`a00b52c`**; solo `CorrecionesLoterias.txt` y `prueba-abono.csv` sin seguimiento. SHA-256: `4b5d893f…306840b` y `a096f61e…a97486` |
+| Unitarias de premios, Panel y avisos: `raffle-prizes`, `raffle-prizes-panel`, `lottery-dashboard` y `lottery-notifications` | ✅ **138/138** en 4 archivos |
+| Base de datos relacionada: `raffle-prize-matching`, `raffle-prizes`, `lottery-results` y `catalog` | ✅ **183/183** en 4 archivos |
+
+Proporcional a lo que se iba a tocar; `test:db` y `verify` completos se corrieron al final desde base
+limpia. Ningún fallo preexistente.
+
+### b. Durante el desarrollo
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase migration up --local` (la `0062`) | ✅ aplicada sin errores |
+| Suites de base de datos relacionadas —motor, premios, `lottery-results`, `catalog`, `lottery-sync` y `lottery-consensus`— con la `0062` aplicada | ✅ **215/215** |
+| Comparación mecánica de la `0062` con la `0061` y la `0058` | ✅ en `match_lottery_result` solo cambian la variable `v_cutoff`, su cálculo con `raffle_prize_draw_cutoff`, la condición que falla sin corte, las dos llamadas que lo reciben y dos comentarios; en `lottery_ticket_match_prizes_check`, una expresión; en `raffle_prize_cutoff_problem`, la condición del `where`. **Los mensajes y los `errcode` no cambian**. Repetida sobre el archivo definitivo antes del commit |
+| `npx supabase gen types typescript --local` | ✅ solo se aplicó el bloque de `raffle_prize_draw_cutoff` (**+6**). La salida cruda vuelve a perder `\| null` en funciones que ya existían; eso **no se aplicó** (trampa conocida, `HANDOFF` §9) |
+| Unitarias de premios, Panel y avisos | ✅ **149/149** (84 + 17 + 36 + 12) |
+| `raffle-prize-matching` + `raffle-prizes` | ✅ **144/144** (50 + 94) |
+
+### c. Pruebas de mutación: que la suite detecte un corte roto
+
+Cada mutación se aplicó con `create or replace` sobre la base local, se corrieron las suites del motor
+y de premios, y se restauró el cuerpo de la `0062`, comprobado por `md5(pg_get_functiondef(...))`
+(`raffle_prize_draw_cutoff` `0d5ed306…`, `raffle_prize_versions_at` `c08e82d3…`).
+
+| Mutación | Detectada por |
+|---|---|
+| A. El corte vuelve a ser **solo la hora original** —la regla de la `0061`— | ❌ **7**: M12-03, M12-04, M12-05, M12-06, M12-07, M12-10 y J8-03 |
+| B. `least(original, oficial)` **sin tratar el NULL**, que devuelve la hora que sí existe | ❌ **4**: M4-04, M12-09, M12-10 y J8-03 |
+| C. `published_at <= corte` en `raffle_prize_versions_at`, **no estricto** | ❌ **1**: M12-05 |
+
+### d. Errores encontrados y corregidos
+
+| Qué pasó | Causa | Corrección |
+|---|---|---|
+| El ensamblado de la migración con un heredoc falló: «unexpected EOF while looking for matching `''» | Las comillas simples del SQL dentro del heredoc de la terminal | Cada pieza se escribió como archivo y se ensambló con un script que **comprueba** cada sustitución sobre los cuerpos de la `0061` y la `0058`; después, la comparación mecánica de (b) |
+| `tsc`: **TS2677** en `lottery-dashboard.test.ts` | Un predicado de tipo `filter((t): t is string => …)` sobre valores de una unión | Se leen los textos con `Object.values(LOTTERY_DASHBOARD_COPY).join(' ')` |
+| `prettier --check` marcó cuatro archivos | Dos pruebas nuevas con líneas largas; en `text.ts` y `loterias-panel.spec.ts` la diferencia **ya estaba en `HEAD`** | `prettier --write` sobre las dos pruebas, limpias en `HEAD`; en los otros dos, lo añadido ya cumple y la diferencia heredada —`text.ts:64-66` y una línea en blanco al final de la especificación— se dejó sin tocar para no reformatear código ajeno |
+
+**Ninguno fue un defecto del producto.**
+
+### e. Verificación final, desde base limpia
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` · `npm run seed:local` | ✅ `0001`–`0062`; las dos rifas del seed siguen `legacy` |
+| Privilegios después del reinicio | ✅ `match_lottery_result` y `confirm_lottery_result`: solo `service_role`; `raffle_prize_draw_cutoff`, `raffle_prize_cutoff_problem`, `lottery_ticket_match_prizes_check`, `raffle_prize_versions_at`, `raffle_prize_applicable_version` y `raffle_prize_draw_prizes`: nadie. `search_path = public, pg_temp` en todas; `SECURITY DEFINER` en todas menos `raffle_prize_draw_cutoff`, que es SQL inmutable y no lee tablas |
+| Unitarias de premios, Panel y avisos · suite del motor | ✅ **149/149** · ✅ **50/50** en 6 s |
+| `npm run test:db` | ✅ **1.192/1.192** en **49** archivos (**+11**), 72,5 s |
+| `npm run verify` | ✅ typecheck · lint **0 errores** y los **2 avisos preexistentes** (`DataTable`, `BulkTicketCreator`) · **1.307/1.307** unitarias en 72 archivos (**+11**) · build |
+| E2E dirigida: `loterias-panel`, `loterias-panel-movil`, `loterias-cron`, `cambiar-cliente`, `cambiar-cliente-movil`, `liberar-boleta`, `liberar-boleta-movil`, `privacidad-admin`, `privacidad-admin-movil`, `resultados-semana`, `resultados-semana-movil`, `premios`, `premios-movil`, `premios-loteria-fija` y, por los avisos visibles de la campana, `configuracion-cobro`, `equipo` y `cabecera-contextual-movil` | ✅ **176/176** en 10,3 min, de las 12:36 a las 12:47 de Bogotá —fuera de la franja de I-120—, después de `test:db` y `verify` |
+| `npm run test:e2e` completo, con base recién sembrada, servidor nuevo y **sin editar `src/` durante la corrida** | **738/740** en 37,1 min, de las 12:47 a las 13:25 de Bogotá (740 pruebas: las 734 de la última completa y las 6 de `premios-loteria-fija`). Los dos fallos son los conocidos: **I-090** (`ventas-por-fecha.spec.ts:163`: «esperado < 26», **recibido 54**, la misma cifra que en la completa anterior) e **I-106** (`catalogo-publico-movil.spec.ts:103`: la URL no llegó a `?q=0` en 15 s) |
+| Los dos, en aislamiento, tras `db:reset` + `seed:local` | `ventas-por-fecha` y `catalogo-publico-movil` juntos: **32/33** — `ventas-por-fecha.spec.ts` **18/18**, con `:163` en verde, y `:103` **volvió a caer** con la misma firma. Tras otro `db:reset` + `seed:local`, **`catalogo-publico-movil.spec.ts` solo: 15/15**. Coincide con lo que registran I-090 e I-106 —dependen del estado que deja lo que corre antes—, con un dato nuevo anotado en I-106: con solo `ventas-por-fecha` delante, `:103` también cayó. Ninguna de las dos aserciones mira algo que cambió esta corrección: la primera cuenta las ventas de hoy del seed y la segunda, la URL del buscador del catálogo público |
+| `git diff --check`, con la migración nueva marcada con `git add -N` | ✅ sin errores de espacios |
+| `prettier --check` y `eslint` sobre el código tocado · `tsc --noEmit` | ✅ · ✅ · ✅. `text.ts` y `loterias-panel.spec.ts` conservan solo la diferencia de formato que ya tenían en `HEAD` |
+| Tipos generados de nuevo, contra la base reiniciada | ✅ el bloque de `raffle_prize_draw_cutoff` es **idéntico** a la salida del generador y está en la misma posición; el resto de la salida cruda repite la trampa conocida y no se aplicó |
+| SHA-256 de `CorrecionesLoterias.txt` y `prueba-abono.csv` | ✅ idénticos a los del inicio, sin seguimiento |
+
+### f. Lo que NO se comprobó
+
+* **El proyecto real y el despliegue**: fuera de alcance. `verify:remote` **no se ejecutó**; su lista
+  ya conoce `raffle_prize_draw_cutoff` y fallará contra producción hasta la Entrega 5, que es lo
+  esperado.
+* **Un aviso de verdad en la campana con un premio de tres cifras**: los textos se prueban con la
+  función que los compone; ninguna rifa real es configurable.
+* **Reprocesar** resultados o enlaces: no se pidió y no se hizo.
 
 ---
 

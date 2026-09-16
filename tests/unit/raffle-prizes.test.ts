@@ -19,6 +19,7 @@ import {
 import {
   applicableVersion,
   prizeClaimantKey,
+  prizeDrawCutoff,
   prizeNumberMatches,
   PrizeSignatureConflictError,
   resolvePrizeLinks,
@@ -422,6 +423,65 @@ describe('la versión que aplica a un sorteo (BR-J09)', () => {
       },
     ]
     expect(applicableVersion(archivado, '2026-12-17T22:30:00-05:00')?.status).toBe('archived')
+  })
+})
+
+// =============================================================================
+describe('el corte efectivo: la menor entre la hora original y la oficial (BR-J09, D-203, I-125)', () => {
+  // v1 el 20 de noviembre; v2 el 10 de diciembre a las 9:00.
+  const versiones = [
+    {
+      id: 'v1',
+      versionNumber: 1,
+      publishedAt: '2026-11-20T10:00:00-05:00',
+      status: 'active' as const,
+    },
+    {
+      id: 'v2',
+      versionNumber: 2,
+      publishedAt: '2026-12-10T09:00:00-05:00',
+      status: 'active' as const,
+    },
+  ]
+
+  it('sin cambio de programación, el corte es la hora común', () => {
+    const hora = '2026-12-03T22:30:00-05:00'
+    expect(prizeDrawCutoff({ originalScheduledAt: hora, officialScheduledAt: hora })).toBe(hora)
+  })
+
+  it('un sorteo APLAZADO conserva la hora original: lo publicado después no aplica', () => {
+    const corte = prizeDrawCutoff({
+      originalScheduledAt: '2026-12-08T22:30:00-05:00',
+      officialScheduledAt: '2026-12-10T22:30:00-05:00',
+    })
+    expect(corte).toBe('2026-12-08T22:30:00-05:00')
+    // v2 se publicó entre la hora original y la oficial aplazada: no aplica.
+    expect(applicableVersion(versiones, corte!)?.id).toBe('v1')
+  })
+
+  it('un sorteo ADELANTADO corta en su hora oficial: lo publicado después de jugarse no aplica (I-125)', () => {
+    const corte = prizeDrawCutoff({
+      originalScheduledAt: '2026-12-12T22:30:00-05:00',
+      officialScheduledAt: '2026-12-09T22:30:00-05:00',
+    })
+    expect(corte).toBe('2026-12-09T22:30:00-05:00')
+    // v2 se publicó después de jugarse y antes de la hora original: no aplica.
+    expect(applicableVersion(versiones, corte!)?.id).toBe('v1')
+  })
+
+  it('una versión publicada EXACTAMENTE en el corte efectivo no aplica', () => {
+    const corte = prizeDrawCutoff({
+      originalScheduledAt: '2026-12-12T22:30:00-05:00',
+      officialScheduledAt: '2026-12-10T09:00:00-05:00',
+    })
+    expect(applicableVersion(versiones, corte!)?.id).toBe('v1')
+  })
+
+  it('sin una de las dos horas, o con una que no se puede leer, no hay corte', () => {
+    const hora = '2026-12-03T22:30:00-05:00'
+    expect(prizeDrawCutoff({ originalScheduledAt: null, officialScheduledAt: hora })).toBeNull()
+    expect(prizeDrawCutoff({ originalScheduledAt: hora, officialScheduledAt: null })).toBeNull()
+    expect(prizeDrawCutoff({ originalScheduledAt: 'mañana', officialScheduledAt: hora })).toBeNull()
   })
 })
 

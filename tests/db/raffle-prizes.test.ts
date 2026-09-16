@@ -1071,6 +1071,39 @@ describe('J8 — el corte de una rifa activa (BR-J09)', () => {
     })
     expect(error).toBeNull()
   })
+
+  it('J8-03: con la hora original pero sin la oficial, el corte efectivo no se conoce y no se guarda (D-203, I-125)', async () => {
+    const { rows: prizeRows } = await db.query<{ id: string; current_version_id: string }>(
+      `select id, current_version_id from raffle_prizes where raffle_id = $1 and status = 'active'`,
+      [activeRaffle],
+    )
+    const premio = prizeRows[0]!
+    const dia = addDays(pastMonday, 2) // miércoles: Meta
+
+    // Sin la hora oficial el sorteo pudo haberse adelantado y jugado ya: el corte
+    // es la menor de las dos horas, y con una sola no se decide (0062).
+    const { rows } = await db.query<{ id: string }>(
+      `insert into lottery_draw_schedules (lottery_code, draw_number, reference_date, schedule_status,
+         original_scheduled_at, official_scheduled_at)
+       values ('meta', $1, $2, 'schedule_unverified', $3::timestamptz, null)
+       returning id`,
+      [`PRZ-U-${Date.now()}`, dia, `${dia}T22:30:00-05:00`],
+    )
+    createdSchedules.push(rows[0]!.id)
+
+    const { error } = await owner.rpc('publish_raffle_prize_version', {
+      p_prize_id: premio.id,
+      p_expected_version_id: premio.current_version_id,
+      p_title: 'Premio de la rifa activa',
+      p_category: 'daily',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(500000),
+      p_number_field: 'daily_number',
+      p_digits: 'four',
+      p_rules: [rule({ start_date: dia, end_date: dia, weekdays: [3] })],
+    })
+    expect(error?.message).toContain('hora oficial del sorteo')
+  })
 })
 
 // =============================================================================
@@ -1376,6 +1409,8 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
     'raffle_prize_cutoff_problem',
     // 0061 (D-203): las piezas del motor de coincidencias.
     'raffle_prize_draw_prizes',
+    // 0062 (D-203, Decisión 9): la definición canónica del corte efectivo.
+    'raffle_prize_draw_cutoff',
     'raffle_prize_insert_version',
     'raffle_prize_is_material',
     'raffle_prize_lock',

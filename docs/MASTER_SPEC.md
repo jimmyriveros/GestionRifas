@@ -4,9 +4,12 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.11
+- **Versión del documento:** 1.12
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-16 (§9.7: premios configurables por rifa, **Entrega 3 de 5** —el
+- **Última actualización:** 2026-09-16 (§9.7, corrección de la Entrega 3: un sorteo **adelantado**
+  corta a su hora oficial, así que un cambio publicado después de jugarse nunca le aplica —D-203
+  Decisión 9, migración `0062`, **solo en local**—). Antes, ese mismo día (§9.7: premios
+  configurables por rifa, **Entrega 3 de 5** —el
   motor de coincidencias, D-203, migración `0061`, **solo en local**—, con la regla del dueño: quien
   acierta las cuatro cifras no recibe además un premio de tres cifras en el mismo sorteo). Antes, el
   2026-09-15 (§9.7: premios configurables por rifa, Entrega 1 de 5 —el
@@ -401,9 +404,12 @@ propio no la cambia.
 
 **Cuándo un premio le toca a una boleta (Entrega 3).** Al confirmarse el resultado de una lotería, se
 miran los premios que **de verdad juegan** ese sorteo —el día y la lotería están en su calendario—,
-con las condiciones **que tenían anunciadas antes de la hora original** del sorteo, aunque después se
-aplace. Se compara el número de la boleta que diga cada premio, con las cuatro cifras o con las tres
-últimas. **Si un cliente acierta las cuatro cifras, se queda con ese premio y no recibe además uno de
+con las condiciones **que tenían anunciadas antes del corte** del sorteo: su hora original, aunque
+después se aplace, o su **hora oficial si se adelantó**. Un cambio publicado cuando el sorteo ya debía
+haberse jugado **nunca** le aplica, tampoco a uno adelantado, y si falta cualquiera de las dos horas no
+se supone ninguna (corrección del 2026-09-16, D-203 Decisión 9). Se compara el número de la boleta
+que diga cada premio, con las cuatro cifras o con las tres últimas. **Si un cliente acierta las
+cuatro cifras, se queda con ese premio y no recibe además uno de
 tres cifras en el mismo sorteo, por ninguna de sus boletas**: ese premio queda para los demás clientes
 (respuesta del dueño, D-203). Lo que se guarda es **con qué premio y con qué versión** coincidió cada
 boleta, y **no cambia** si después se edita el premio. La aplicación **sigue sin registrar** qué

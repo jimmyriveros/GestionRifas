@@ -373,7 +373,9 @@ const CHECKS: Check[] = [
               -- 0061 (D-203): el motor de premios y sus defensas
               'raffle_prize_draw_prizes', 'raffle_prize_versions_at',
               'lottery_ticket_match_prizes_check', 'lottery_ticket_match_prizes_immutable',
-              'lottery_ticket_matches_prize_links_check'
+              'lottery_ticket_matches_prize_links_check',
+              -- 0062 (D-203, Decision 9): el corte efectivo, una sola definicion
+              'raffle_prize_draw_cutoff'
             )
             and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
     esperado: 0,

@@ -2920,6 +2920,12 @@ export type Database = {
         Args: { p_version_ids: string[] }
         Returns: string
       }
+      raffle_prize_draw_cutoff: {
+        Args: {
+          p_schedule: Database["public"]["Tables"]["lottery_draw_schedules"]["Row"]
+        }
+        Returns: string
+      }
       raffle_prize_draw_prizes: {
         Args: {
           p_cutoff: string

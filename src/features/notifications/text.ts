@@ -70,15 +70,29 @@ function boletasDisponibles(n: number): string {
   return n === 1 ? '1 boleta disponible' : `${n} boletas disponibles`
 }
 
+/**
+ * «Una boleta coincide con este resultado» (BR-L15, BR-L19, D-203, I-126).
+ *
+ * EL RESULTADO VA PRIMERO Y LA COINCIDENCIA SE REFIERE A EL, no a «este
+ * numero». Desde los premios configurables una boleta puede coincidir solo en
+ * las TRES ULTIMAS cifras, y una frase que dijera «con este numero» le
+ * atribuiria el numero entero. Nunca «ganador», «premiada» ni que tiene las
+ * cuatro cifras: la plataforma detecta una coincidencia, no certifica un premio.
+ *
+ * Las cifras son de BOLETAS distintas (`confirm_lottery_result`, D-203), y la
+ * frase concuerda con ellas: «una boleta que coincide», «2 boletas que
+ * coinciden». El nombre del cliente es el de UNA de las vendidas: con varias se
+ * dice asi, en vez de presentarlo como el dueno de todas.
+ */
 function lotteryResultMessage(data: NotificationData): string {
   const lottery = lotteryName(data)
-  const number = text(data, 'winning_number') ?? 'el número mayor'
+  const number = text(data, 'winning_number')
   const draw = text(data, 'draw_number')
   const sold = count(data, 'sold_count')
   const available = count(data, 'available_count')
   const client = text(data, 'client_name')
   const drawBit = draw ? `, sorteo ${draw}` : ''
-  const coincidence = `Coincidencia con el número mayor de ${lottery}${drawBit}: ${number}.`
+  const resultado = `Resultado de ${lottery}${drawBit}${number ? `: ${number}` : ''}.`
   const audience = text(data, 'audience')
 
   if (audience === 'staff') {
@@ -92,17 +106,38 @@ function lotteryResultMessage(data: NotificationData): string {
         : raffleCount > 1
           ? `, en ${raffleCount} rifas`
           : ''
-    return `${coincidence} ${boletasAsignadas(sold)} y ${boletasDisponibles(available)}${raffleBit}.`
+    const partes = [
+      sold > 0 ? boletasAsignadas(sold) : null,
+      available > 0 ? boletasDisponibles(available) : null,
+    ].filter((parte): parte is string => parte !== null)
+    if (partes.length === 0) return resultado
+    const verbo = sold + available === 1 ? 'Coincide' : 'Coinciden'
+    return `${resultado} ${verbo} con este resultado ${partes.join(' y ')}${raffleBit}.`
   }
 
-  const clientBit = client ? ` Cliente: ${client}.` : ''
+  const asignadas =
+    sold === 1 ? 'una boleta asignada que coincide' : `${sold} boletas asignadas que coinciden`
+  const clientBit = !client
+    ? ''
+    : sold === 1
+      ? ` Cliente: ${client}.`
+      : ` Una de ellas es de ${client}.`
+
   if (sold > 0 && available > 0) {
-    return `${coincidence} Encontramos una boleta asignada con este número y tenías otra disponible.${clientBit}`
+    const disponibles = available === 1 ? 'otra disponible' : `otras ${available} disponibles`
+    return `${resultado} Encontramos ${asignadas} con este resultado y tenías ${disponibles}.${clientBit}`
   }
   if (sold > 0) {
-    return `Encontramos una boleta asignada con este número. ${coincidence}${clientBit}`
+    return `${resultado} Encontramos ${asignadas} con este resultado.${clientBit}`
   }
-  return `Tenías una boleta disponible con este número. ${coincidence}`
+  if (available > 0) {
+    const disponibles =
+      available === 1
+        ? 'una boleta disponible que coincide'
+        : `${available} boletas disponibles que coinciden`
+    return `${resultado} Tenías ${disponibles} con este resultado.`
+  }
+  return resultado
 }
 
 function lotteryScheduleMessage(data: NotificationData): string {

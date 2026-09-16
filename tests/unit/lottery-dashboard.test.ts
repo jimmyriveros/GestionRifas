@@ -374,6 +374,15 @@ describe('coincidencias y textos (BR-L15, BR-L07)', () => {
     expect(matchSummaryText(draw, 'staff')).toBe(LOTTERY_DASHBOARD_COPY.noMatchStaff)
   })
 
+  it('sin coincidencias se dice con el RESULTADO, no con «este número» (I-126)', () => {
+    expect(LOTTERY_DASHBOARD_COPY.noMatchSeller).toBe(
+      'Ninguna de tus boletas coincidió con este resultado.',
+    )
+    expect(LOTTERY_DASHBOARD_COPY.noMatchStaff).toBe('Ninguna boleta coincidió con este resultado.')
+    const textos = Object.values(LOTTERY_DASHBOARD_COPY).join(' ')
+    expect(textos).not.toMatch(/con este número/)
+  })
+
   it('ningun texto del recuadro llama ganador a nadie', () => {
     const textos = Object.values(LOTTERY_DASHBOARD_COPY).join(' ')
     expect(textos.toLowerCase()).not.toMatch(/ganador/)

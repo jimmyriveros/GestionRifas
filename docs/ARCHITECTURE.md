@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.36 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27.a**: el motor
+- **Versión:** 1.37 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27 y §8.27.a**: el
+  corte de un sorteo se escribe una sola vez, `raffle_prize_draw_cutoff`, en la corrección de la
+  Entrega 3 —D-203 Decisión 9, migración `0062`, I-125—). Antes, ese mismo día (**§8.27.a**: el motor
   de coincidencias de los premios configurables y la coexistencia `legacy` / `configurable` al
   confirmar un resultado, D-203, migración `0061`, **solo en local**; §7.3). Antes, ese mismo día
   (**§8.27**: la corrección de la Entrega 2 —el **resolvedor central de capacidades**, el origen cerrado de la
@@ -2017,6 +2019,7 @@ vendedor, o si una Server Action de la cartera deja de exigir el rol `seller`.
 | `src/features/raffle-prizes/schedule.ts` | El calendario, **puro**: expansión, forma canónica, solapes, los tres modos de la pantalla y el payload de la RPC |
 | `src/features/raffle-prizes/matching.ts` | La semántica de las cifras, la prioridad de cuatro sobre tres **por cliente** y **qué versión aplica a un sorteo**. Es el espejo puro del motor de la `0061`, que es quien decide (§8.27.a) |
 | `supabase/migrations/0061_configurable_prize_matching.sql` | **El motor** (Entrega 3, D-203): `lottery_ticket_match_prizes`, las dos ramas de `match_lottery_result`, las defensas y los avisos que cuentan boletas (§8.27.a) |
+| `supabase/migrations/0062_raffle_prize_draw_cutoff.sql` | **El corte de un sorteo**, escrito una sola vez (corrección de la Entrega 3, D-203 Decisión 9, I-125): `raffle_prize_draw_cutoff` y las tres funciones que lo usan. Sin datos ni tablas (§8.27.a) |
 | `src/features/raffle-prizes/copy.ts` | **Todos** los textos: etiquetas, el resumen del calendario en español y la vista previa del premio |
 | `src/features/raffle-prizes/schemas.ts` | Zod para cliente y servidor, `PRIZE_LIMITS` y los mapeadores a los argumentos de las RPC |
 
@@ -2027,8 +2030,10 @@ vendedor, o si una Server Action de la cartera deja de exigir el rol `seller`.
    versión archivada.
 2. **El calendario se guarda canónico en filas**, nunca en JSON: el JSON solo es el parámetro de la
    RPC. Por eso se puede saber que un guardado **no cambió nada** comparando dos representaciones.
-3. **La versión que aplica a un sorteo se calcula**, no se escribe: es la última publicada antes de la
-   hora original anunciada. De ahí sale sola la regla de «solo afecta a lo que no se ha jugado».
+3. **La versión que aplica a un sorteo se calcula**, no se escribe: es la última publicada antes del
+   **corte** del sorteo. De ahí sale sola la regla de «solo afecta a lo que no se ha jugado». Desde la
+   `0062` el corte es la hora más temprana entre la original y la oficial, y lo calcula **solo**
+   `raffle_prize_draw_cutoff` (D-203, Decisión 9): no escribas `least` en otra función.
 4. **La recompensa son alternativas con posición**, y el modo (`fixed` / `winner_choice`) es
    **explícito**: no se deduce contando filas. Cada alternativa lleva especie, dinero o las dos
    cosas, y su texto **es** su componente en especie: no hay un título aparte que pueda
@@ -2070,7 +2075,8 @@ confirm_lottery_result ──► match_lottery_result(resultado)
                              │  cerrojo del resultado (FOR UPDATE)
                              ├─ A. rifas legacy       → comparador fijo de 0036 → fotografías, sin enlaces
                              └─ B. rifas configurable → cerrojo de su configuración (raffle_prize_lock)
-                                   │  falla si falta la hora original o hay dos premios con la misma firma
+                                   │  corte = raffle_prize_draw_cutoff(programación)   (0062)
+                                   │  falla si no hay corte o hay dos premios con la misma firma
                                    └─ UNA sentencia: premios que juegan (raffle_prize_draw_prizes)
                                         → boletas que coinciden (una rama por número y cifras)
                                         → elegibilidad de siempre → prioridad por cliente
@@ -2083,7 +2089,8 @@ confirm_lottery_result ──► match_lottery_result(resultado)
 |---|---|---|
 | Qué rifas participan y qué boletas son elegibles | Las dos ramas de `match_lottery_result`, **con las mismas expresiones** | BR-L05, BR-L09, BR-L10. No hay una segunda definición: una prueba compara las dos ramas lado a lado |
 | Con qué motor | `raffles.prize_mode`, **leído al buscar** | Una transición de rifa (Entrega 4) no debe dejar sorteos de su ventana sin confirmar |
-| Qué premios juegan un sorteo | `raffle_prize_draw_prizes` → `raffle_prize_versions_at` | La versión aplicable al **corte original** (BR-J09), vigente, con el sorteo en su calendario y su lotería |
+| Cuál es el corte de un sorteo | `raffle_prize_draw_cutoff` (`0062`); espejo puro `prizeDrawCutoff` | La hora más temprana entre la original y la oficial; NULL si falta una (BR-J09, D-203 Decisión 9). **La única definición**: la usan el motor, `lottery_ticket_match_prizes_check` y `raffle_prize_cutoff_problem` |
+| Qué premios juegan un sorteo | `raffle_prize_draw_prizes` → `raffle_prize_versions_at` | La versión publicada **estrictamente antes del corte** (BR-J09), vigente, con el sorteo en su calendario y su lotería |
 | Si un número coincide | Expresiones en línea del motor; espejo puro `prizeNumberMatches` | Cuatro cifras = igualdad textual; tres últimas = sufijo con al menos tres caracteres (BR-J06) |
 | Quién conserva qué | Ventana `bool_or` del motor; espejo puro `resolvePrizeLinks` + `prizeClaimantKey` | Cuatro cifras mandan sobre tres **por cliente fotografiado y rifa** (BR-J07, D-203) |
 | Que lo escrito sea verdad | `lottery_ticket_match_prizes_check` y `lottery_ticket_matches_prize_links_check` | Versión, número, calendario y prioridad contra las definiciones canónicas; ninguna fotografía configurable sin su premio |

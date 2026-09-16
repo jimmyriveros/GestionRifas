@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.58 · **Actualizado:** 2026-09-16 (D-001 a D-203; **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.59 · **Actualizado:** 2026-09-16 (D-001 a D-203; **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -10718,6 +10718,12 @@ empezó** cuyo corte no conocemos: ahí la publicación se rechaza y dice qué f
 empezado no puede haberse jugado, porque la fecha de referencia es el día nominal de la **misma
 semana** que el sorteo (D-143); suponerlo no es reinterpretar la regla, es aplicarla.
 
+> **Corregida el 2026-09-16 por D-203, Decisión 9** (`0062`, I-125). El corte ya no es solo la hora
+> original: es la **más temprana entre la original y la oficial**. Un sorteo aplazado conserva la
+> original, como dice el texto de arriba; uno **adelantado** corta a la hora oficial, y una versión
+> publicada después de esa hora ya no le aplica. Si falta cualquiera de las dos horas, el corte no se
+> conoce y la publicación en una semana empezada se rechaza. El resto de esta decisión sigue vigente.
+
 ### Decisión 6 — duplicados: se rechaza el exacto; dos premios distintos se suman
 
 > ⚠️ **Sustituida el 2026-09-15 por D-201, Decisión 3.** El dueño respondió A7: **los premios no se
@@ -11263,6 +11269,10 @@ El corte es `original_scheduled_at` y aplica la última versión publicada **est
 (BR-J09). Si esa versión está archivada, el premio no juega. **Sin hora original no se supone
 nada**: el motor falla (`data_exception`) y no escribe, porque no se sabe qué versión aplica.
 
+> **Corregida el mismo día por la Decisión 9** (`0062`, I-125). El corte pasó a ser
+> `least(original_scheduled_at, official_scheduled_at)`, calculado solo por `raffle_prize_draw_cutoff`,
+> y el motor falla si falta **cualquiera** de las dos horas. Lo demás de esta decisión sigue en pie.
+
 Antes de decidirlo toma `raffle_prize_lock` de cada rifa que participa, en orden: una publicación en
 curso termina antes, y una que llega después se publica tras el corte.
 
@@ -11306,6 +11316,9 @@ Desde esta entrega una boleta puede fotografiarse **dos veces** en un sorteo —
 rifa heredada cada boleta tiene como mucho una fotografía por sorteo: **ninguna cifra cambia**. Los
 **textos** de los avisos no cambian (ver I-126).
 
+> **Los textos cambiaron el mismo día por la Decisión 10** (I-126): las boletas coinciden «con este
+> resultado». Las cifras siguen contando boletas.
+
 ### Decisión 8 — la lectura de un enlace es la de su fotografía
 
 La política pregunta a la fotografía, y la RLS de esta se aplica dentro de la subconsulta: el
@@ -11333,7 +11346,7 @@ desde D-198; otra organización, ninguno. Nadie escribe desde una sesión, y la 
 | `prize_id` y `version_id` como columnas de `lottery_ticket_matches` | Columnas que las fotografías heredadas dejarían siempre vacías, y una fotografía no podría relacionarse con dos premios si mañana hiciera falta |
 | Elegir un premio ante una firma duplicada | «El valor económico no decide nada» (BR-J07), y cualquier otro criterio sería una regla que nadie pidió |
 | Enlazar la versión vigente | Reescribiría con qué condiciones se jugó un sorteo (BR-J09) |
-| Corte `least(original, oficial)` para un sorteo adelantado | BR-J09 fija la hora **original**; el hueco que eso deja en un sorteo adelantado se reporta como **I-125** en vez de cambiar la regla en silencio |
+| Corte `least(original, oficial)` para un sorteo adelantado | BR-J09 fija la hora **original**; el hueco que eso deja en un sorteo adelantado se reporta como **I-125** en vez de cambiar la regla en silencio. **Adoptada el mismo día por decisión del dueño** (Decisión 9, `0062`) |
 | Un disparador de restricción diferido por fotografía | Una consulta por fila al confirmar; el de sentencia con tabla de transición hace una por escritura |
 | Calcular las coincidencias en TypeScript | La base es la autoridad; el helper puro expresa la regla y las pruebas comparan los dos, enlace por enlace, con 5.000 boletas |
 | Una marca por (resultado, rifa) de «ya procesado» | Un reintento con los mismos datos ya no cambia nada; la marca sería otra tabla para un caso que nada ejecuta |
@@ -11348,6 +11361,85 @@ delegando. **BR-J06 y BR-J07** con su motor, **BR-J07** por cliente; nota en BR-
 `lottery/dashboard.ts`. `DATA_MODEL` §4.21, `SECURITY` §4.21, `ARCHITECTURE` §8.27, `MASTER_SPEC`
 §9.7, `TESTING` §4.11, `TEST_RESULTS`, `KNOWN_ISSUES` (I-125, I-126), `PHASE_STATUS` y `HANDOFF`.
 **Solo en local:** el proyecto real no tiene de la `0058` a la `0061`.
+
+### Corrección de la Entrega 3 (2026-09-16), antes de autorizar la Entrega 4
+
+**Contexto.** La Entrega 3 se cerró con dos problemas reportados y sin corregir: **I-125** —un sorteo
+adelantado tomaba una versión publicada después de jugarse, porque el corte era solo la hora
+original— e **I-126** —el aviso de un resultado decía «con este número» también cuando la boleta
+coincidía solo en las tres últimas cifras—. El dueño decidió I-125 y pidió corregir los dos antes de
+la Entrega 4. **Ninguna rifa cambió de modo, ningún resultado se reprocesó y el proyecto real no se
+tocó.**
+
+#### Decisión 9 — el corte es la hora más temprana entre la original y la oficial, escrita una sola vez
+
+**Respuesta del dueño (2026-09-16):** el corte de las reglas de un premio es
+`least(original_scheduled_at, official_scheduled_at)`.
+
+| Sorteo | Corte | Qué significa |
+|---|---|---|
+| Normal | Las dos horas, que coinciden | Nada cambia |
+| Aplazado | La **original** | Lo de siempre: aplazar un sorteo no abre la puerta a cambiarle las condiciones |
+| Adelantado | La **oficial** | Una versión publicada después de que el sorteo debía jugarse **nunca** aplica, aunque sea anterior a la hora original |
+| Versión publicada exactamente en el corte | — | **No** aplica: la comparación sigue siendo estricta |
+| Falta cualquiera de las dos horas | Ninguno | No se supone: el motor falla sin escribir nada, como antes sin hora original |
+
+**Una sola definición.** `raffle_prize_draw_cutoff(lottery_draw_schedules)` (migración `0062`) recibe
+la **fila** de la programación —así nadie se equivoca de columna— y es el único sitio donde se escribe
+`least`. La usan el motor (`match_lottery_result`), la defensa de los enlaces
+(`lottery_ticket_match_prizes_check`) y la validación de publicaciones (`raffle_prize_cutoff_problem`).
+`raffle_prize_versions_at`, `raffle_prize_applicable_version` y `raffle_prize_draw_prizes` **no
+cambian**: reciben el corte ya calculado. El nulo se trata **antes** del `least` porque el de
+PostgreSQL **ignora los NULL**: `least(original, null)` devolvería la original y reintroduciría la
+regla vieja en silencio. `prizeDrawCutoff` (`matching.ts`) es su espejo puro, y una prueba de base
+compara los dos.
+
+**La validación de publicaciones se endurece en un solo caso, que hoy no se produce.** Una ocurrencia
+de una semana ya empezada con hora original y **sin** oficial deja de tener corte conocido —pudo
+adelantarse y jugarse—, así que publicar se rechaza con el mismo mensaje de siempre. La sincronización
+no escribe esa fila: el parser de la programación entrega siempre las dos horas, y una fila
+`schedule_unverified` sembrada no tiene ninguna. Queda cerrado para quien la escriba a mano.
+
+**Lo que no cambia:** la rama heredada, las firmas, los privilegios, `SECURITY DEFINER`, `search_path`
+y ningún dato. Un enlace guardado **conserva su versión**: la `0062` no reescribe ni reprocesa, y
+volver a correr el motor sobre un resultado ya enlazado no cambia la versión enlazada, aunque la
+programación haya cambiado después.
+
+#### Decisión 10 — una boleta coincide con el RESULTADO, no «con este número»
+
+Los avisos nombran primero el resultado —«Resultado de Bogotá, sorteo 2840: 0046.»— y después dicen
+que la boleta **coincide con este resultado**; el recuadro del Panel dice «Ninguna de tus boletas
+coincidió con este resultado.» y «Ninguna boleta coincidió con este resultado.». Los plurales
+concuerdan, con varias boletas vendidas el cliente se presenta como el de **una de ellas**, y el aviso
+del personal calla el grupo que vale cero en vez de escribir «0 boletas». Es verdad para cualquier
+coincidencia, de cuatro o de tres cifras, así que **no hace falta ningún dato nuevo**: los avisos no
+llevan detalles de premios y no hay pantallas nuevas. Redacción completa en `UX_COPY_GUIDELINES`
+(Anexo A, «Coincidencia»).
+
+#### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Mantener la hora original y documentar el hueco | Es I-125: un sorteo adelantado aceptaba condiciones publicadas después de jugarse |
+| Solo la hora oficial | Un sorteo aplazado permitiría cambiar condiciones ya anunciadas para la hora original |
+| Escribir `least` en cada función que lo necesite | Tres interpretaciones que pueden separarse, y cada una tendría que acordarse de que `least` ignora el NULL |
+| Recibir dos instantes sueltos en vez de la fila | Un llamador podría pasar las columnas al revés o repetir una |
+| Suponer la hora nominal de la lotería si falta una | El dueño pidió fallar sin suponer |
+| Recalcular los enlaces guardados con el corte nuevo | La versión de un sorteo jugado no se reescribe jamás (BR-J09) |
+| Decir en el aviso qué premio o cuántas cifras | El encargo lo excluye: los avisos no llevan detalles de premios |
+
+#### Consecuencia
+
+Migración **`0062`**: `raffle_prize_draw_cutoff`, y `match_lottery_result`,
+`lottery_ticket_match_prizes_check` y `raffle_prize_cutoff_problem` reescritas con su cuerpo anterior
+y **solo** la expresión del corte cambiada —comparado mecánicamente con la `0061` y la `0058`—,
+comentarios y privilegios reafirmados; ningún dato. `database.types.ts` gana la función (+6).
+`matching.ts` (`prizeDrawCutoff`), `notifications/text.ts` y `lottery/dashboard.ts`. Pruebas: suite
+del motor **40 → 50** (M12), `raffle-prizes` de base **93 → 94** (J8-03), unitarias de premios
+**79 → 84**, avisos **7 → 12** y Panel **35 → 36**. BR-J09, `DATA_MODEL`, `ARCHITECTURE`, `SECURITY`,
+`MASTER_SPEC` §9.7, `UX_COPY_GUIDELINES`, `KNOWN_ISSUES` (I-125 e I-126 resueltas en local),
+`TESTING`, `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`. **Solo en local:** el proyecto real no tiene de
+la `0058` a la `0062`.
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

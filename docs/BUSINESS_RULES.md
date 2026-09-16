@@ -1,6 +1,9 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.26 · **Estado:** normativo · **Actualizado:** 2026-09-16 (§12.i: **BR-J06 y BR-J07
+- **Versión:** 1.27 · **Estado:** normativo · **Actualizado:** 2026-09-16 (§12.i: **BR-J09 corta en
+  `least(original, oficial)`** —un sorteo adelantado ya no toma una versión publicada después de
+  jugarse—, corrección de la Entrega 3, D-203 Decisión 9, migración `0062`, I-125); antes, ese mismo
+  día (§12.i: **BR-J06 y BR-J07
   tienen motor** —Entrega 3, D-203, migración `0061`— y **BR-J07 pasa a aplicarse por cliente**, por
   respuesta del dueño; nota en BR-L06); antes, ese mismo día (§12.i: **BR-J16**
   precisa que la revisión es el único camino visible para activar un borrador configurable, corrección
@@ -896,7 +899,7 @@ nombran precios, rifas y catálogo.
 | BR-J06 | **Cuatro cifras por defecto.** `four` es igualdad textual exacta con el número mayor; `last_three` compara las **tres últimas** y exige un número de al menos **tres caracteres**. `0046` ≠ `46`; `046` y `1046` sí participan en las tres últimas. Nunca se castea, ni se rellena con ceros, ni se recorta (BR-N03, BR-L06). El motor compara el número de la boleta **que dice la versión aplicable**, en la fecha y con la lotería **del resultado**. | C, S, D | ✅ Entrega 1 (regla) · ✅ Entrega 3 (motor, D-203) |
 | BR-J07 | **Las cuatro cifras mandan sobre las tres, POR CLIENTE.** Si un cliente tiene **al menos una** coincidencia elegible de cuatro cifras en un resultado, pierde **todas** sus coincidencias de tres cifras en ese resultado —las de sus otras boletas y las del otro número de la misma boleta—; otro cliente que solo coincide en las tres últimas **conserva** su premio. El cliente es el **fotografiado** por el motor (BR-L09); una boleta **sin cliente** en la fotografía es su propia unidad, y la prioridad **no cruza rifas**. Una coincidencia descartada **no se fotografía**. Varias de cuatro cifras con **números distintos** de la boleta conviven. El **valor económico no decide nada**. Por eso un premio de cuatro cifras y otro de tres **conviven a propósito** el mismo día: son especificidades distintas y BR-J08 no los considera un conflicto. Dos premios de la **misma** especificidad **no pueden coincidir** (BR-J08), y si aun así aparecen, el motor **falla sin escribir nada** en vez de elegir. | S, D | ✅ Entrega 1 (regla) · ✅ Entrega 3 (motor) · **por cliente desde D-203**, respuesta del dueño (antes, por boleta) |
 | BR-J08 | **Los premios no se acumulan.** Dos premios **vigentes** que, para una **misma fecha**, juegan con el **mismo número de la boleta**, las **mismas cifras** y la **misma lotería efectiva** son un **conflicto de configuración**: no se puede publicar ni activar esa rifa, y el mensaje nombra **los dos premios y el día**. La **recompensa no entra** en la comparación y el **nombre tampoco**; el cruce se corrige con las **fechas**. **Cuatro cifras y últimas tres sí conviven** (BR-J07), y dos premios con **números distintos** de la boleta tampoco chocan. | S, D | ✅ Entrega 1 · corregida en D-201 |
-| BR-J09 | **Una rifa en borrador se edita libremente.** En una **activa**, una versión nueva solo afecta a lo que todavía no se jugó: aplica **la última versión publicada antes del corte**, que es la **hora original anunciada** del sorteo, aunque después se aplace. La versión de una ocurrencia bloqueada **no se reescribe jamás**. Si el corte de una ocurrencia de una semana **ya empezada** no se conoce, la publicación **se rechaza** en vez de suponer. Una rifa **cerrada o anulada no se edita**, y una **activa** conserva al menos un premio vigente. | C, S, D | ✅ Entrega 1 |
+| BR-J09 | **Una rifa en borrador se edita libremente.** En una **activa**, una versión nueva solo afecta a lo que todavía no se jugó: aplica **la última versión publicada estrictamente antes del corte**. El corte es **la más temprana entre la hora original anunciada y la hora oficial** del sorteo: en un sorteo normal coinciden; uno **aplazado** conserva la hora original; uno **adelantado** corta a la hora oficial, así que una versión publicada después de que el sorteo debía jugarse **nunca** le aplica. Una versión publicada **exactamente** en el corte no aplica. Si falta cualquiera de las dos horas, **no se supone nada**. La versión de una ocurrencia bloqueada **no se reescribe jamás**. Si el corte de una ocurrencia de una semana **ya empezada** no se conoce, la publicación **se rechaza** en vez de suponer. Una rifa **cerrada o anulada no se edita**, y una **activa** conserva al menos un premio vigente. | C, S, D | ✅ Entrega 1 · corte efectivo el 2026-09-16 (D-203, Decisión 9, `0062`, I-125) |
 | BR-J10 | Configurar premios exige la capacidad **`raffles.prizes.manage`**: el **Dueño** activo siempre la tiene, el **Administrador** activo la recibe por la política inicial y el **Vendedor nunca**. Se comprueba en la aplicación **y** en PostgreSQL, con la organización y el actor **de la sesión**. Las tres tablas **no admiten escritura directa**: las seis RPC son la única puerta. | C, S, D | ✅ Entrega 1 |
 | BR-J11 | En una rifa **activa**, un cambio **material** —recompensa, número, cifras, fechas o lotería efectivas, estado o aclaraciones— escribe **un aviso por membresía activa** de la organización, menos a quien lo hizo. El **nombre y la categoría no son materiales**, un borrador **no avisa** y **reordenar tampoco**. El aviso es **idempotente**, identifica la rifa y el premio, **no lleva clientes, pagos, saldos ni precios de venta** y **no enlaza a ninguna pantalla** mientras el vendedor no tenga una. | S, D | ✅ Entrega 1 |
 | BR-J12 | **Una acción semántica de bitácora por guardado** (`raffle_prize.create`, `.publish`, `.archive`, `.restore`, `.reorder`), con rifa, premio, versión anterior y nueva y un resumen seguro. El **historial funcional sale de las versiones**, no de `audit_logs`, se lee paginado y **solo con la capacidad**; un actor nulo se presenta como **«Sistema»**. | S, D | ✅ Entrega 1 |
@@ -911,9 +914,16 @@ cambiaba ni una fila de `lottery_ticket_matches` y no activaba el motor configur
 
 **Lo que la Entrega 3 SÍ hace, y lo que sigue sin hacer (D-203):** busca las coincidencias de las
 rifas **configurables** al confirmar un resultado y guarda cada una con su premio y la **versión**
-aplicada al corte original (BR-J09). **No** reprocesa resultados anteriores, **no** enlaza
+aplicada al corte del sorteo (BR-J09). **No** reprocesa resultados anteriores, **no** enlaza
 fotografías viejas, **no** recalcula nada si después cambia un premio, **no** cambia el modo de
 ninguna rifa y **no** registra qué alternativa se eligió ni ningún pago o entrega de premios.
+
+**Corregida el mismo día, antes de la Entrega 4 (D-203, Decisiones 9 y 10, migración `0062`):** el
+corte de BR-J09 deja de ser solo la hora original y pasa a ser `least(original, oficial)`, con **una
+sola definición** (`raffle_prize_draw_cutoff`) que usan el motor, la defensa de los enlaces y la
+validación de publicaciones (I-125). Y los avisos de un resultado dicen que una boleta **coincide con
+este resultado**, nunca «con este número»: puede coincidir solo en las tres últimas cifras (I-126).
+Ninguna rifa cambió de modo y nada se reprocesó.
 
 ---
 

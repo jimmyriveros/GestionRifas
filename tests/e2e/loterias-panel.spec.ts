@@ -399,7 +399,7 @@ test.describe('El recuadro compacto del vendedor', () => {
     await expect(recuadro.getByLabel('Número mayor 1719')).toBeVisible()
     await expect(recuadro.getByText('Serie informativa 045')).toBeVisible()
     await expect(
-      recuadro.getByText('Ninguna de tus boletas coincidió con este número.'),
+      recuadro.getByText('Ninguna de tus boletas coincidió con este resultado.'),
     ).toBeVisible()
     await expect(recuadro.getByText('Actualizado automáticamente cada día')).toBeVisible()
 

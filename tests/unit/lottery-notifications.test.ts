@@ -13,9 +13,9 @@ describe('avisos de resultado (BR-L15, BR-L19)', () => {
       available_count: 0,
       client_name: 'Ana Pérez',
     })
-    expect(text).toContain('Encontramos una boleta asignada con este número')
-    expect(text).toContain('0046')
-    expect(text).toContain('Ana Pérez')
+    expect(text).toBe(
+      'Resultado de Bogotá, sorteo 2840: 0046. Encontramos una boleta asignada que coincide con este resultado. Cliente: Ana Pérez.',
+    )
     expect(text.toLowerCase()).not.toMatch(/ganador/)
   })
 
@@ -28,8 +28,9 @@ describe('avisos de resultado (BR-L15, BR-L19)', () => {
       sold_count: 0,
       available_count: 1,
     })
-    expect(text).toContain('Tenías una boleta disponible con este número')
-    expect(text).toContain('Cundinamarca')
+    expect(text).toBe(
+      'Resultado de Cundinamarca, sorteo 4815: 7700. Tenías una boleta disponible que coincide con este resultado.',
+    )
     expect(text.toLowerCase()).not.toMatch(/ganador/)
   })
 
@@ -44,10 +45,106 @@ describe('avisos de resultado (BR-L15, BR-L19)', () => {
       raffle_count: 2,
       raffle_names: ['Rifa A', 'Rifa B'],
     })
-    expect(text).toContain('2 boletas asignadas antes del sorteo')
-    expect(text).toContain('1 boleta disponible')
-    expect(text).toContain('en 2 rifas')
+    expect(text).toBe(
+      'Resultado de Medellín, sorteo 4829: 1234. Coinciden con este resultado 2 boletas asignadas antes del sorteo y 1 boleta disponible, en 2 rifas.',
+    )
     expect(text.toLowerCase()).not.toMatch(/ganador/)
+  })
+})
+
+describe('una coincidencia se dice con el RESULTADO, no con «este número» (I-126, D-203)', () => {
+  const resultado = { lottery_code: 'cundinamarca', draw_number: '4818', winning_number: '4818' }
+
+  it('varias vendidas: concuerda el plural y el cliente es de UNA de ellas', () => {
+    expect(
+      notificationMessage('lottery.result', {
+        ...resultado,
+        audience: 'seller',
+        sold_count: 2,
+        available_count: 0,
+        client_name: 'Ana Torres',
+      }),
+    ).toBe(
+      'Resultado de Cundinamarca, sorteo 4818: 4818. Encontramos 2 boletas asignadas que coinciden con este resultado. Una de ellas es de Ana Torres.',
+    )
+  })
+
+  it('vendidas y disponibles juntas, en singular y en plural', () => {
+    expect(
+      notificationMessage('lottery.result', {
+        ...resultado,
+        audience: 'seller',
+        sold_count: 1,
+        available_count: 1,
+        client_name: 'Ana Torres',
+      }),
+    ).toBe(
+      'Resultado de Cundinamarca, sorteo 4818: 4818. Encontramos una boleta asignada que coincide con este resultado y tenías otra disponible. Cliente: Ana Torres.',
+    )
+    expect(
+      notificationMessage('lottery.result', {
+        ...resultado,
+        audience: 'seller',
+        sold_count: 1,
+        available_count: 3,
+      }),
+    ).toBe(
+      'Resultado de Cundinamarca, sorteo 4818: 4818. Encontramos una boleta asignada que coincide con este resultado y tenías otras 3 disponibles.',
+    )
+    expect(
+      notificationMessage('lottery.result', {
+        ...resultado,
+        audience: 'seller',
+        sold_count: 2,
+        available_count: 1,
+      }),
+    ).toBe(
+      'Resultado de Cundinamarca, sorteo 4818: 4818. Encontramos 2 boletas asignadas que coinciden con este resultado y tenías otra disponible.',
+    )
+  })
+
+  it('varias disponibles, sin vendidas', () => {
+    expect(
+      notificationMessage('lottery.result', {
+        ...resultado,
+        audience: 'seller',
+        sold_count: 0,
+        available_count: 3,
+      }),
+    ).toBe(
+      'Resultado de Cundinamarca, sorteo 4818: 4818. Tenías 3 boletas disponibles que coinciden con este resultado.',
+    )
+  })
+
+  it('el personal concuerda el verbo con UNA sola boleta y no escribe «0 boletas»', () => {
+    const text = notificationMessage('lottery.result', {
+      ...resultado,
+      audience: 'staff',
+      sold_count: 1,
+      available_count: 0,
+      raffle_count: 1,
+      raffle_names: ['Rifa A'],
+    })
+    expect(text).toBe(
+      'Resultado de Cundinamarca, sorteo 4818: 4818. Coincide con este resultado 1 boleta asignada antes del sorteo, en Rifa A.',
+    )
+    expect(text).not.toContain('0 boletas')
+  })
+
+  it('ningún aviso de resultado dice «con este número», «ganador», «ganadora» ni «premiada»', () => {
+    const casos = [
+      { audience: 'seller', sold_count: 1, available_count: 0, client_name: 'Ana' },
+      { audience: 'seller', sold_count: 0, available_count: 1 },
+      { audience: 'seller', sold_count: 2, available_count: 2, client_name: 'Ana' },
+      { audience: 'staff', sold_count: 1, available_count: 1, raffle_names: ['Rifa A'] },
+      { audience: 'staff', sold_count: 0, available_count: 0 },
+    ]
+    for (const caso of casos) {
+      const text = notificationMessage('lottery.result', { ...resultado, ...caso }).toLowerCase()
+      expect(text, JSON.stringify(caso)).not.toMatch(
+        /con este número|ganador|ganadora|premiad|cuatro cifras|número exacto/,
+      )
+    }
   })
 })
 

@@ -1,6 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.18 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§4.21**: el motor de
+- **Versión:** 2.19 · **Estado:** implementado · **Actualizado:** 2026-09-16 (§4.21: la `0062` añade
+  una pieza interna más, `raffle_prize_draw_cutoff`, **sin cambiar la superficie**). Antes, ese mismo
+  día (**§4.21**: el motor de
   premios configurables —`0061`, D-203—: la superficie interna no crece, los enlaces a premios solo se
   leen y los lee quien lee la fotografía). Antes, ese mismo día (§4.20: el resolvedor
   central de capacidades y el origen cerrado de «Editar rifa», corrección de D-202, sin migración)
@@ -1176,7 +1178,10 @@ devuelve una columna de esa lista. El aviso que se escribe en la campana tampoco
 **La superficie no crece.** `match_lottery_result` y `confirm_lottery_result` siguen siendo proceso
 interno: **sin `EXECUTE` para `anon` ni `authenticated`**, solo `service_role`, igual que en
 `0036`–`0038`. Las piezas nuevas —`raffle_prize_versions_at`, `raffle_prize_draw_prizes` y los tres
-disparadores— tampoco son ejecutables desde una sesión. Tener la capacidad `raffles.prizes.manage`
+disparadores, y desde la `0062` `raffle_prize_draw_cutoff`, el corte de un sorteo (D-203, Decisión
+9)— tampoco son ejecutables desde una sesión. La `0062` vuelve a escribir los privilegios que ya
+tenían las funciones que reescribe —`match_lottery_result`, solo para `service_role`— sin conceder
+ninguno nuevo: **la superficie no cambia**. Tener la capacidad `raffles.prizes.manage`
 **no da ninguna puerta** hacia las coincidencias: ni el Dueño, que tiene todas, puede ejecutar el
 motor o escribir un enlace.
 

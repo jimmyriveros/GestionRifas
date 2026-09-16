@@ -3,7 +3,13 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-16 — **Premios configurables, ENTREGA 3 de 5: el motor de coincidencias**
+- **Actualizado:** 2026-09-16 — **Corrección de la ENTREGA 3 de premios configurables** (D-203
+  Decisiones 9 y 10, migración **`0062`**, **solo en local**): el corte de un sorteo es
+  `least(original, oficial)`, escrito una sola vez en `raffle_prize_draw_cutoff` (**I-125, resuelta
+  en local**), y los avisos dicen que una boleta «coincide con este resultado» (**I-126, resuelta en
+  local**). `test:db` **1.192/1.192**, `verify` **1.307/1.307**. Ninguna rifa cambió de modo. Los seis
+  puntos de §34.3, en su sección de mantenimiento. **No autoriza la Entrega 4.**
+  Antes, ese mismo día — **Premios configurables, ENTREGA 3 de 5: el motor de coincidencias**
   (D-203, migración **`0061`**, **solo en local**). Al confirmar un resultado, las rifas configurables
   enlazan cada coincidencia con su **premio y la versión** aplicada al corte original; **las cuatro
   cifras mandan sobre las tres por cliente**, por respuesta del dueño; las rifas heredadas siguen
@@ -4948,6 +4954,81 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — premios configurables, **corrección de la ENTREGA 3**: el corte efectivo y el texto de los avisos (`0062`, D-203 Decisiones 9 y 10, 2026-09-16)
+
+Autorizada expresamente, **solo esta corrección y antes de la Entrega 4**. **No es una Fase 10**, no
+lleva etiqueta `fase-*` y **no autoriza la Entrega 4**. El dueño decidió I-125 antes de empezar: el
+corte es `least(original, oficial)`.
+
+> **SOLO EN LOCAL.** El proyecto real sigue en la `0057`. **Ninguna rifa cambió de `legacy` a
+> `configurable`**, no se cargaron los premios de la rifa actual y no se reprocesó ningún resultado.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| **El corte efectivo (I-125)** | La versión de un premio que aplica a un sorteo es la última publicada **estrictamente antes de `least(original, oficial)`**: en un sorteo normal las dos horas coinciden; en uno aplazado manda la original; **en uno adelantado, la oficial**. Una versión publicada cuando el sorteo ya debía haberse jugado **nunca** aplica, y si falta una hora no hay corte y no se supone nada (BR-J09) |
+| **Una sola definición** | `raffle_prize_draw_cutoff(programación)`, que usan el motor, la defensa de los enlaces y la validación de publicaciones. Las tres funciones de versión reciben el corte ya calculado y no cambian |
+| **Lo guardado no cambia** | La migración no toca datos, y un enlace conserva su versión aunque después cambien los premios o la programación, también al reintentar |
+| **El espejo puro** | `prizeDrawCutoff` en `matching.ts`, comparado con la base en cinco casos y una programación inexistente |
+| **El texto de un resultado (I-126)** | Los avisos nombran el resultado y dicen que una boleta **coincide con este resultado**, con los plurales concordados; el recuadro del Panel dice «Ninguna de tus boletas coincidió con este resultado.» y «Ninguna boleta coincidió con este resultado.». Sin detalles de premios y sin pantallas nuevas |
+| **El estado documentado** | `HANDOFF` deja de contradecirse: tres entregas **solo en local**, las rifas existentes en `legacy` y la Entrega 4 **sin autorizar** |
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base proporcional, en `a00b52c` | ✅ unitarias de premios, Panel y avisos **138/138** · base de datos del motor, premios, loterías y catálogo **183/183** |
+| Tres **mutaciones** del corte —solo la hora original, `least` sin tratar el NULL y `<=`— | ❌ detectadas por **7**, **4** y **1** pruebas; los cuerpos se restauraron y se comprobaron por `md5` |
+| `npm run db:reset` · `npm run seed:local` | ✅ `0001`–`0062` |
+| Unitarias de premios, Panel y avisos · suite del motor | ✅ **149/149** · ✅ **50/50** |
+| `npm run test:db` | ✅ **1.192/1.192** en 49 archivos (**+11**) |
+| `npm run verify` | ✅ typecheck · lint **0 errores** y los 2 avisos preexistentes · **1.307/1.307** unitarias en 72 archivos (**+11**) · build |
+| E2E dirigida —loterías, tick, cambiar y liberar, privacidad del personal, resultados de la semana, premios y avisos de la campana— | ✅ **176/176** en 10,3 min, en 17 especificaciones |
+| `npm run test:e2e` completa, con base recién sembrada | **738/740** en 37,1 min. Los 2 son **I-090** (`ventas-por-fecha:163`, recibido 54) e **I-106** (`catalogo-publico-movil:103`), los mismos de la completa anterior: en aislamiento, `ventas-por-fecha` **18/18** y el catálogo móvil solo **15/15** |
+
+**Errores encontrados y corregidos** (detalle en `TEST_RESULTS`, 2026-09-16): el ensamblado de la
+migración con un heredoc de la terminal falló por las comillas y se rehízo por piezas con
+comprobaciones; `tsc` rechazó un predicado de tipo en una prueba nueva (TS2677); y dos archivos de
+prueba, con pruebas nuevas, necesitaron `prettier --write`. **Ninguno fue un defecto del producto.**
+
+### 3. Migraciones que existen
+
+**`0001`–`0062` en local; `0001`–`0057` en el proyecto real.** La **`0062`** crea
+`raffle_prize_draw_cutoff` y vuelve a escribir `match_lottery_result`,
+`lottery_ticket_match_prizes_check` y `raffle_prize_cutoff_problem` con su cuerpo anterior y **solo**
+el corte cambiado; reafirma sus privilegios y trae una nota de reversión manual. No crea tablas, no
+toca datos, no cambia firmas ni el modo de ninguna rifa. **La `0061` no se editó.**
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **I-125 e I-126, resueltas solo en local** | Pendientes de despliegue (Entrega 5); nada de premios configurables está en producción |
+| **Una configuración imposible bloquea la confirmación de ese resultado para todas las organizaciones** | Sin cambios desde la Entrega 3: es la defensa pedida |
+| **La `0058` a la `0062` no están en producción** | Lo previsto: la Entrega 5 |
+| **El modo de una rifa se lee al buscar coincidencias** | La transición de la Entrega 4 no debe dejar sorteos de su ventana sin confirmar |
+| **I-090 e I-106**, vistos otra vez en la E2E completa | Pruebas que dependen del orden, no defectos del producto; pasan en aislamiento. Con un dato nuevo en I-106: con solo `ventas-por-fecha` delante, `:103` también cayó |
+| Todo lo demás | Sin cambios: I-024, I-021, I-023, I-030, I-059, I-060, I-090, I-106, I-117, I-119, I-120 e I-124 en producción |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Entrega 4.** Hace falta una autorización explícita nueva.
+2. **El corte de un sorteo se pide a `raffle_prize_draw_cutoff`**: no escribas `least` ni compares
+   con `original_scheduled_at` en otra función.
+3. **La `0061` y la `0062` no se editan**: otra corrección sería una `0063`.
+4. **Ningún texto de un resultado dice «con este número»**, «ganador» ni que la boleta tiene las
+   cuatro cifras (`UX_COPY_GUIDELINES`, Anexo A).
+5. Lo de la Entrega 3 sigue en pie: la prioridad es por cliente, fotografía y enlace van en la misma
+   sentencia, las pruebas que confirmen resultados necesitan fechas propias y **los documentos están
+   en CRLF**.
 
 ---
 
