@@ -110,7 +110,7 @@ test.describe('Rifas', () => {
 
     await page.getByRole('button', { name: 'Cerrar rifa' }).click()
     await page.getByRole('button', { name: 'Cerrar rifa' }).last().click()
-    await expectToast(page, /cerrada/i)
+    await expectToast(page, 'La rifa quedó en estado cerrada.')
 
     // Cerrada: desaparece el boton de editar y aparece el de reabrir.
     await expect(page.getByRole('link', { name: 'Editar' })).toHaveCount(0)
@@ -132,7 +132,7 @@ test.describe('Rifas como Admin', () => {
 
     await page.getByRole('button', { name: 'Cerrar rifa' }).click()
     await page.getByRole('button', { name: 'Cerrar rifa' }).last().click()
-    await expectToast(page, /cerrada/i)
+    await expectToast(page, 'La rifa quedó en estado cerrada.')
 
     await page.context().clearCookies()
     await loginAs(page, ACCOUNTS.admin)

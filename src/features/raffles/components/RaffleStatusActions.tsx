@@ -84,7 +84,7 @@ export function RaffleStatusActions({
       if ('error' in result) {
         toast.error(result.error)
       } else {
-        toast.success(`La rifa quedo en estado ${RAFFLE_STATUS_LABELS[target].toLowerCase()}.`)
+        toast.success(`La rifa quedó en estado ${RAFFLE_STATUS_LABELS[target].toLowerCase()}.`)
         router.refresh()
       }
       setTarget(null)

@@ -30,8 +30,10 @@ const router = vi.hoisted(() => ({
 
 vi.mock('next/navigation', () => ({ useRouter: () => router }))
 vi.mock('@/features/raffles/actions', () => ({ changeRaffleStatus: vi.fn() }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const actions = await import('@/features/raffles/actions')
+const { toast } = await import('sonner')
 const { RaffleStatusActions } = await import('@/features/raffles/components/RaffleStatusActions')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -44,6 +46,8 @@ let container: HTMLDivElement
 
 beforeEach(() => {
   vi.mocked(actions.changeRaffleStatus).mockReset()
+  vi.mocked(toast.success).mockReset()
+  vi.mocked(toast.error).mockReset()
   router.refresh.mockReset()
   container = document.createElement('div')
   document.body.append(container)
@@ -149,6 +153,39 @@ describe('el detalle de la rifa (RaffleStatusActions)', () => {
 
     expect(actions.changeRaffleStatus).toHaveBeenCalledWith({ id: RAFFLE_ID, status: 'active' })
     expect(router.refresh).toHaveBeenCalled()
+    expect(toast.success).toHaveBeenCalledWith('La rifa quedó en estado activa.')
+  })
+
+  it('el aviso de cada transición dice «quedó», con tilde (I-124)', async () => {
+    vi.mocked(actions.changeRaffleStatus).mockResolvedValue({ ok: true })
+
+    async function transition(status: RaffleStatus, action: string, role: AppRole = 'owner') {
+      await render({ status, role })
+      const trigger = [...container.querySelectorAll('button')].find(
+        (button) => button.textContent?.trim() === action,
+      )!
+      await act(async () => trigger.click())
+      const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]')!
+      const confirm = [...dialog.querySelectorAll('button')].find(
+        (button) => button.textContent?.trim() !== 'Cancelar',
+      )!
+      await act(async () => confirm.click())
+    }
+
+    await transition('active', 'Cerrar rifa')
+    expect(toast.success).toHaveBeenLastCalledWith('La rifa quedó en estado cerrada.')
+
+    await transition('closed', 'Reabrir rifa')
+    expect(toast.success).toHaveBeenLastCalledWith('La rifa quedó en estado activa.')
+
+    await transition('active', 'Anular rifa', 'admin')
+    expect(toast.success).toHaveBeenLastCalledWith('La rifa quedó en estado anulada.')
+
+    // Ningún aviso vuelve a escribir la forma sin tilde (hasta el 2026-09-16, «quedo»).
+    expect(toast.success).toHaveBeenCalledTimes(3)
+    for (const [text] of vi.mocked(toast.success).mock.calls) {
+      expect(String(text)).not.toMatch(/\bquedo\b/)
+    }
   })
 
   it('sin la prop, el comportamiento de siempre', async () => {

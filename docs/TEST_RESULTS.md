@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (corrección de la Entrega 2 de premios, D-202, 2026-09-16)** | **1.285 ✅ en 72 archivos (+42)** | **1.141 ✅ en 48 archivos (+1; sin migración)** | **732/734**; los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
+| **Post-9 vigente (cierre visual de la Entrega 2: I-123 e I-124, 2026-09-16)** | **1.286 ✅ en 72 archivos (+1)** | — (no se repitió por indicación del usuario: no cambia la base) | **36/36** en la dirigida, con las **6** nuevas; la completa no se repitió por indicación del usuario | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
+| Post-9 anterior (corrección de la Entrega 2 de premios, D-202, 2026-09-16) | **1.285 ✅ en 72 archivos (+42)** | **1.141 ✅ en 48 archivos (+1; sin migración)** | **732/734**; los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (premios configurables, Entrega 2: el panel, D-202, 2026-09-15) | **1.243 ✅ en 68 archivos (+17)** | **1.140 ✅ en 48 archivos (+8; migración `0060`)** | **724/725**; el único fallo es **I-090**, conocido y ajeno, y su archivo pasa **18/18** en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (corrección de la Entrega 1 de premios, D-201, 2026-09-15) | **1.226 ✅ en 67 archivos (+21)** | **1.132 ✅ en 48 archivos (+20; migración `0059`)** | — (**no hay pantalla de premios**: es la Entrega 2, y el encargo no pedía E2E) | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (premios configurables, Entrega 1, D-199 y D-200, 2026-09-15) | **1.205 ✅** en 67 archivos (+50) | **1.112 ✅** en 48 archivos (+64; migración `0058`) | — (no hay pantalla de premios) | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables` |
@@ -11773,6 +11774,43 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
 
 ---
 
+## Cierre visual de la Entrega 2: I-123 e I-124 — 2026-09-16
+
+**Alcance:** encargo expreso del usuario, dos ajustes y nada más: que la instrucción de una lotería
+fija sin elegir se lea entera en seis anchos (I-123) y la tilde de «quedó» en el aviso de cambiar el
+estado de una rifa (I-124). Sin motor, sin migración, sin tocar el proyecto real ni desplegar. Por
+indicación del usuario **no se repitieron** `test:db` ni la suite E2E completa: no cambian base de
+datos, seguridad ni reglas, y la última corrida completa es la de la sección siguiente.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Estado de partida | Rama `feature/premios-configurables` en `0219aff`, árbol limpio salvo los dos archivos del usuario, intactos por hash |
+| Fusión de clases del desplegable con el `cn` real del proyecto | ✅ salen `w-fit`, `whitespace-nowrap`, `data-[size=touch]:h-11` y `sm:data-[size=touch]:h-9` del primitivo; se conservan `text-body-small` y `py-2`, y entran las del formulario |
+| `tests/unit/raffle-activation.test.tsx` | ✅ **11/11** (+1: el aviso de activar, cerrar, reabrir y anular dice «quedó», y ninguno «quedo») |
+| Unitarias relacionadas: `raffle-activation`, `raffle-prizes-panel`, `raffle-prizes` y `capabilities` | ✅ **116/116** |
+| `tests/e2e/premios-loteria-fija.spec.ts` (nuevo), con el arreglo | ✅ **6/6**: 320, 375, 390, 430, 768 y 1280 px |
+| **La misma prueba contra el `PrizeScheduleField` anterior** (`git stash` de ese archivo, restaurado) | ❌ **2/6**: 768 y 1280 px. Primera versión de la prueba: «queda texto escondido a lo ancho». Con la prueba afinada (b): «el texto se corta por la derecha». Los anchos de teléfono pasan: ya los había arreglado I-122 |
+| Capturas temporales a 320, 768 y 1280 px, borradas después | ✅ a 768 y 1280 la instrucción ocupa su fila en **una** línea con el mismo alto que «Del … al …», las fechas y el modo; a 320, dos líneas legibles |
+| E2E dirigida: `premios-loteria-fija` + `premios` + `owner-raffles` (escritorio) y `premios-movil` (teléfono) | ✅ **36/36** en 3,4 min: el formulario en los seis anchos y las transiciones de estado con el texto exacto |
+| `npm run verify` | ✅ typecheck · lint **0 errores** y los **2 avisos preexistentes** (`DataTable`, `BulkTicketCreator`) · **1.286/1.286** unitarias en 72 archivos (**+1**) · build |
+| `npx prettier --check` sobre lo tocado | ✅ |
+
+### b. Lo que se ajustó por el camino
+
+| Qué pasó | Causa | Corrección |
+|---|---|---|
+| Contra el componente anterior, la comprobación «el texto se sale por la derecha» **pasaba** y solo fallaba la de lo escondido | El texto cortado seguía **dentro del botón**: se metía bajo la flecha, y lo tapaba el `overflow` del valor | La prueba compara el texto con **su zona** —la del valor— y no con el botón entero. Ahora las dos comprobaciones lo delatan |
+| Los dos desplegables del período se llaman «Lotería» | El modo y la lotería fija comparten etiqueta desde D-202 | La prueba localiza cada desplegable por lo que enseña, no por su nombre |
+
+### c. Lo que NO se comprobó
+
+* `test:db` y la suite E2E completa, **por indicación del usuario**.
+* **Producción**: el aviso seguirá diciendo «quedo» allí hasta el despliegue de la Entrega 5.
+* Un teléfono de verdad y el modo oscuro.
+
+---
 ## Correcciones de la Entrega 2 de premios (D-202, Decisiones 7 a 11) — 2026-09-16
 
 **Alcance:** encargo expreso del usuario: corregir cinco defectos de la Entrega 2 **antes** de

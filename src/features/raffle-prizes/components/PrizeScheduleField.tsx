@@ -35,15 +35,21 @@ import {
 import { PRIZE_LIMITS, type PrizeFormInput } from '../schemas'
 
 /**
- * Los desplegables de un período viven dentro de dos cajas con relleno, y en el
- * teléfono su valor más largo no cabe en una línea: a 320 px «La que corresponde
- * a cada día» mide más que la caja. El primitivo no deja partirse el valor, así
- * que la rejilla se ensanchaba hasta él y el diálogo entero se desplazaba de lado
- * (D-202). Debajo de `sm` el valor se parte en líneas y el control crece en alto:
- * nunca baja de 44 px y nunca se recorta el texto.
+ * Los desplegables de un período viven dentro de dos cajas con relleno, y su
+ * valor puede no caber en una línea: a 320 px «La que corresponde a cada día»
+ * mide más que la caja, y la instrucción de una lotería fija sin elegir tampoco
+ * cabía a media fila en escritorio. El primitivo no deja partirse el valor, así
+ * que o ensanchaba la rejilla y el diálogo se desplazaba de lado (I-122), o se
+ * cortaba sin avisar (I-123).
+ *
+ * Aquí el valor SE PARTE EN LÍNEAS en cualquier ancho y el control crece en alto:
+ * nunca se recorta. El suelo es el de siempre —44 px en el teléfono y 36 desde
+ * `sm`— y, desde `sm`, el relleno de 6 px hace que una sola línea (20 px de
+ * altura de línea más el borde) mida exactamente esos 36: el mismo alto que sus
+ * vecinos de `h-9`, de modo que nada cambia mientras el valor quepa.
  */
 const PERIOD_SELECT_CLASS =
-  'w-full max-sm:data-[size=touch]:h-auto max-sm:min-h-11 max-sm:whitespace-normal max-sm:text-left'
+  'w-full whitespace-normal text-left data-[size=touch]:h-auto min-h-11 sm:data-[size=touch]:h-auto sm:min-h-9 sm:py-1.5'
 
 /**
  * El calendario de un premio (BR-J04, BR-J05, D-202).
@@ -339,7 +345,11 @@ export function PrizeScheduleField({
               </div>
 
               {rule.lotteryMode === 'fixed' ? (
-                <div className="space-y-1">
+                // Desde `sm` ocupa la fila entera: a media fila, la instrucción
+                // «Elige la lotería con la que juega el premio.» no cabía en una
+                // línea y el control la cortaba (I-123). Entera cabe, con el
+                // mismo alto que sus vecinos; en el teléfono ya ocupaba la fila.
+                <div className="space-y-1 sm:col-span-2">
                   <Label htmlFor={`lottery-${field.id}`}>{PRIZE_SCHEDULE_COPY.lotteryLabel}</Label>
                   <Select
                     value={rule.lotteryCode ?? ''}

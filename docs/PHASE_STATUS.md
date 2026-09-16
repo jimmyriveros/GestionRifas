@@ -3,7 +3,13 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-16 — **Correcciones de la Entrega 2 de premios** (D-202, Decisiones 7
+- **Actualizado:** 2026-09-16 — **Cierre visual de la Entrega 2** (**solo en local**, sin migración):
+  la instrucción de una lotería fija sin elegir **se lee entera** de 320 a 1280 px (**I-123,
+  resuelta**) y el aviso de cambiar el estado de una rifa dice **«quedó»** (**I-124, corregida en
+  local**; producción conserva «quedo» hasta la Entrega 5). `verify` **1.286/1.286** unitarias y E2E
+  dirigida **36/36**; `test:db` y la E2E completa no se repitieron, por indicación del usuario. **No
+  autoriza la Entrega 3.**
+  Antes, ese mismo día — **Correcciones de la Entrega 2 de premios** (D-202, Decisiones 7
   a 11; I-121 a I-124; **sin migración**, **solo en local**): «Reintentar» del historial vuelve a
   pedir la misma página; un borrador configurable **solo se activa desde la revisión**; corregir los
   datos desde los premios **vuelve a los premios**; **toda capacidad la decide un resolvedor central**
@@ -4938,7 +4944,63 @@ si exige una variable que nadie ha creado (I-021).
 
 ---
 
+## Mantenimiento post-9 — **cierre visual de la ENTREGA 2**: I-123 e I-124 (sin migración, 2026-09-16)
+
+Autorizado expresamente: **solo estos dos ajustes**. **No es una Fase 10**, no lleva etiqueta y **no
+autoriza la Entrega 3**.
+
+> **SOLO EN LOCAL.** Sin motor de coincidencias, sin migración y sin tocar el proyecto real.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| La lotería fija sin elegir se lee entera (I-123) | Los desplegables del período **parten su valor en cualquier ancho** y crecen en alto —44 px de suelo en el teléfono, 36 desde `sm`—, y desde `sm` la lotería fija **ocupa la fila entera**, donde «Elige la lotería con la que juega el premio.» cabe en una línea con el mismo alto que sus vecinos. Sin tocar `Select`, `SelectTrigger` ni `DialogContent` |
+| «La rifa quedó en estado…» (I-124) | El aviso de activar, cerrar, reabrir o anular una rifa lleva tilde. **Producción conserva «quedo» hasta el despliegue de la Entrega 5** |
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| Unitarias relacionadas | ✅ **116/116**; `raffle-activation` pasa a **11** |
+| `premios-loteria-fija.spec.ts` (nuevo, seis anchos) | ✅ **6/6**; **contra el componente anterior falla a 768 y 1280 px** |
+| E2E dirigida: formulario en los seis anchos y transiciones de estado | ✅ **36/36** |
+| `npm run verify` | ✅ lint 0 errores y 2 avisos preexistentes · **1.286/1.286** unitarias · build |
+| `test:db` y E2E completa | **No se repitieron**, por indicación del usuario: no cambian base, seguridad ni reglas. Las últimas cifras completas son las de la sección siguiente |
+
+**Ajuste encontrado por el camino** (detalle en `TEST_RESULTS`): el texto cortado seguía dentro del
+botón, bajo la flecha, así que la prueba compara el texto con su propia zona y no con el botón.
+
+### 3. Migraciones que existen
+
+**`0001`–`0060` en local; `0001`–`0057` en el proyecto real. Ninguna nueva.**
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **I-124 en producción** | El aviso seguirá diciendo «quedo» allí hasta que se despliegue la Entrega 5 |
+| **Las tres migraciones de premios no están en producción** | Es lo previsto: promoverlas es la Entrega 5 |
+| ~~I-123~~ | **Resuelta** |
+| Todo lo demás | Sin cambios: I-024, I-021, I-023, I-030, I-059, I-060, I-090, I-106, I-117, I-119, I-120 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Entrega 3.** Hace falta una autorización explícita nueva.
+2. **Un desplegable nuevo dentro de un período** usa `PERIOD_SELECT_CLASS`: parte el valor en vez de
+   recortarlo y conserva el alto de sus vecinos mientras quepa en una línea.
+3. **Las pruebas del aviso de estado esperan el texto exacto** «La rifa quedó en estado …».
+
+---
 ## Mantenimiento post-9 — **correcciones de la ENTREGA 2** de premios (D-202, sin migración, 2026-09-16)
+
+> **Nota posterior (2026-09-16, cierre visual).** De la tabla §5 de esta sección, **I-123 quedó
+> resuelta** e **I-124, corregida en el código local** —producción conserva «quedo» hasta la Entrega
+> 5—, en la sección anterior. Esta sección se conserva tal cual.
 
 Autorizada expresamente, **solo para corregir la Entrega 2** antes de autorizar la 3. **No es una Fase
 10** y no lleva etiqueta `fase-*`.

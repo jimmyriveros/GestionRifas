@@ -242,7 +242,7 @@ test.describe('Premios configurables', () => {
 
     await page.getByRole('button', { name: 'Cerrar rifa' }).click()
     await page.getByRole('button', { name: 'Cerrar rifa' }).last().click()
-    await expectToast(page, /cerrada/i)
+    await expectToast(page, 'La rifa quedó en estado cerrada.')
 
     await page.goto(`/owner/raffles/${raffleId}/prizes`)
     await expect(page.getByText('La rifa está cerrada o anulada')).toBeVisible()
@@ -332,13 +332,13 @@ test.describe('Activar una rifa configurable pasa por la revisión (D-202)', () 
       await expect(page.getByRole('alertdialog')).toBeVisible({ timeout: 2_000 })
     }).toPass({ timeout: 20_000 })
     await page.getByRole('alertdialog').getByRole('button', { name: 'Activar rifa' }).click()
-    await expectToast(page, /estado activa/i)
+    await expectToast(page, 'La rifa quedó en estado activa.')
     await expect(page.getByRole('button', { name: 'Cerrar rifa' })).toBeVisible()
 
     // Las demás transiciones siguen igual; se anula para dejarla inerte.
     await page.getByRole('button', { name: 'Anular rifa' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Anular rifa' }).click()
-    await expectToast(page, /estado anulada/i)
+    await expectToast(page, 'La rifa quedó en estado anulada.')
   })
 })
 
