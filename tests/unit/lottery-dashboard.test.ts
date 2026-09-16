@@ -336,6 +336,38 @@ describe('coincidencias y textos (BR-L15, BR-L07)', () => {
     expect(raffleSummaryText(draw.raffleNames)).toBe('en 2 rifas')
   })
 
+  it('una boleta que coincide con sus DOS números cuenta una sola vez (D-203)', () => {
+    const fotografia = {
+      ticketId: 't1',
+      assignmentStatus: 'sold' as const,
+      raffleName: 'Rifa configurable',
+      dailyNumber: '4321',
+      weeklyNumber: '4321',
+      clientName: 'Ana',
+    }
+    const draw = toDrawView(
+      confirmed('dos-numeros', {
+        matches: [
+          { ...fotografia, matchedNumber: '4321' },
+          { ...fotografia, matchedNumber: '4321' },
+          {
+            ticketId: 't2',
+            assignmentStatus: 'available',
+            matchedNumber: '4321',
+            raffleName: 'Rifa configurable',
+            dailyNumber: '4321',
+            weeklyNumber: '0007',
+            clientName: null,
+          },
+        ],
+      }),
+    )
+    expect(draw.matches.map((match) => match.ticketId)).toEqual(['t1', 't2'])
+    expect(draw.soldCount).toBe(1)
+    expect(draw.availableCount).toBe(1)
+    expect(compactMatchText(draw)).toBe(LOTTERY_DASHBOARD_COPY.matchCount(2))
+  })
+
   it('sin coincidencias distingue al vendedor del personal', () => {
     const draw = toDrawView(confirmed('none'))
     expect(matchSummaryText(draw, 'seller')).toBe(LOTTERY_DASHBOARD_COPY.noMatchSeller)

@@ -2,12 +2,12 @@ import type { LotteryMatchField } from '@/features/lottery/constants'
 
 /**
  * Como se compara el numero de una boleta con el numero mayor de una loteria
- * (BR-J06, BR-J07, D-199).
+ * (BR-J06, BR-J07, D-199, D-203).
  *
- * PURO Y SIN MOTOR. Aqui esta la REGLA; el motor que crea las coincidencias es
- * la Entrega 3 y no existe todavia. Se escribe ahora porque es el contrato del
- * que dependen la pantalla y la migracion, y porque es lo que hay que poder
- * probar antes de tocar `lottery_ticket_matches`.
+ * PURO. Aqui esta la REGLA, escrita para poder probarla; el motor que crea las
+ * coincidencias vive en PostgreSQL (`match_lottery_result`, migracion `0061`) y
+ * es el unico que decide lo que se guarda. Las pruebas de base de datos
+ * comprueban que el motor responde lo mismo que estas funciones.
  *
  * LOS NUMEROS SON TEXTO (BR-N01, BR-N03, BR-L06). Nunca se castean, ni se
  * rellenan con ceros, ni se recortan: `0046` no es `46`.
@@ -35,40 +35,87 @@ export function prizeNumberMatches(
   return ticketNumber.slice(-3) === winningNumber.slice(-3)
 }
 
-/** Un premio que podria aplicarle a una boleta en un resultado concreto. */
+/**
+ * Una coincidencia candidata en UN resultado: una boleta, con uno de sus dos
+ * numeros, contra un premio que juega ese sorteo.
+ */
 export type PrizeCandidate = {
   prizeId: string
   versionId: string
   numberField: LotteryMatchField
   digits: PrizeDigits
+  ticketId: string
+  /** La prioridad no cruza rifas: cada rifa es su propio juego de premios. */
+  raffleId: string
+  /**
+   * El cliente FOTOGRAFIADO por el motor: quien tenia la boleta vendida en el
+   * instante oficial del sorteo (BR-L09). `null` si no estaba vendida —libre o
+   * asignada despues—, y entonces la boleta es su propia unidad.
+   */
+  clientId: string | null
 }
 
 /**
- * Las cuatro cifras mandan sobre las tres (BR-J07).
+ * Quien reclama una coincidencia (D-203): el cliente fotografiado dentro de su
+ * rifa, o la boleta cuando no habia cliente. Dos clientes distintos nunca
+ * comparten clave, y dos boletas sin vender tampoco.
+ */
+export function prizeClaimantKey(
+  candidate: Pick<PrizeCandidate, 'raffleId' | 'clientId' | 'ticketId'>,
+): string {
+  return candidate.clientId
+    ? `${candidate.raffleId}:client:${candidate.clientId}`
+    : `${candidate.raffleId}:ticket:${candidate.ticketId}`
+}
+
+/**
+ * Dos premios que juegan el MISMO sorteo con el mismo numero de la boleta y las
+ * mismas cifras. BR-J08 lo impide al guardar, asi que no deberia existir; si
+ * aparece, no se elige ninguno (D-203).
+ */
+export class PrizeSignatureConflictError extends Error {
+  constructor(readonly prizeIds: [string, string]) {
+    super('Dos premios juegan este sorteo con el mismo número de la boleta y las mismas cifras.')
+    this.name = 'PrizeSignatureConflictError'
+  }
+}
+
+/**
+ * LAS CUATRO CIFRAS MANDAN SOBRE LAS TRES, POR CLIENTE (BR-J07, D-203).
  *
- * Para UNA boleta y UN resultado: si alguna coincidencia elegible es de cuatro
- * cifras, las de tres cifras de ese resultado no cuentan — ni siquiera las del
- * otro numero de la boleta. El valor economico NO decide nada.
+ * Recibe las candidatas de UN resultado. Si quien reclama —ver
+ * `prizeClaimantKey`— tiene al menos una coincidencia elegible de cuatro
+ * cifras, pierde TODAS sus coincidencias de tres cifras en ese resultado:
+ * las de sus otras boletas y las del otro numero de la misma boleta. Otro
+ * cliente que solo coincide en las tres ultimas cifras conserva su premio.
  *
- * VARIAS COINCIDENCIAS DE LA MISMA ESPECIFICIDAD SE CONSERVAN TODAS, y desde
- * D-201 eso ya no es una pregunta abierta: los premios NO se acumulan, asi que
- * dos premios vigentes no pueden compartir dia, numero de la boleta, cifras y
- * loteria —la configuracion se rechaza antes de guardarse (BR-J08)—. Lo unico
- * que puede quedar aqui con la misma especificidad son premios que juegan con
- * NUMEROS DISTINTOS de la boleta, que si conviven a proposito: una boleta cuyo
- * numero diario y cuyo numero semanal coincidan los dos se relaciona con los
- * dos premios, y eso no es un cruce.
+ * El valor economico, la categoria, el nombre y el orden NO deciden nada. Varias
+ * coincidencias de cuatro cifras con numeros distintos de la boleta se
+ * conservan todas: eso no es un cruce.
  *
- * ⚠️ PARA LA ENTREGA 3, y por eso esta escrito aqui: esta funcion no reordena
- * ni descarta por valor, y no tiene forma de saber si dos candidatos vienen de
- * una configuracion anterior a la `0059`. La regla de conflicto vive en la base
- * y protege lo que se guarda de ahora en adelante; el motor tendra que decidir
- * que hace si alguna vez recibe dos candidatos con el mismo numero y las mismas
- * cifras para un mismo sorteo. Hoy no existe ninguno.
+ * Si dos candidatas de la misma boleta y el mismo numero traen premios
+ * distintos con las mismas cifras, la configuracion es imposible (BR-J08) y se
+ * lanza `PrizeSignatureConflictError` en vez de escoger. El motor hace lo mismo
+ * a nivel de sorteo: falla aunque ninguna boleta coincida.
  */
 export function resolvePrizeLinks(candidates: PrizeCandidate[]): PrizeCandidate[] {
-  const hasFour = candidates.some((candidate) => candidate.digits === 'four')
-  return hasFour ? candidates.filter((candidate) => candidate.digits === 'four') : candidates
+  const bySignature = new Map<string, string>()
+  for (const candidate of candidates) {
+    const signature = `${candidate.ticketId}:${candidate.numberField}:${candidate.digits}`
+    const seen = bySignature.get(signature)
+    if (seen !== undefined && seen !== candidate.prizeId) {
+      throw new PrizeSignatureConflictError([seen, candidate.prizeId])
+    }
+    bySignature.set(signature, candidate.prizeId)
+  }
+
+  const claimantsWithFour = new Set(
+    candidates.filter((candidate) => candidate.digits === 'four').map(prizeClaimantKey),
+  )
+  return candidates.filter(
+    (candidate) =>
+      candidate.digits === 'four' || !claimantsWithFour.has(prizeClaimantKey(candidate)),
+  )
 }
 
 /** Una version de un premio, como la necesita el calculo de vigencia. */

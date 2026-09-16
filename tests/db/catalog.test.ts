@@ -70,6 +70,7 @@ describe('RLS habilitada y forzada en todas las tablas de negocio', () => {
       'clients',
       'lottery_draw_schedules',
       'lottery_results',
+      'lottery_ticket_match_prizes',
       'lottery_ticket_matches',
       'memberships',
       'organizations',

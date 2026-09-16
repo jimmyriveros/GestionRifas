@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.57 · **Actualizado:** 2026-09-16 (D-001 a D-202; **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.58 · **Actualizado:** 2026-09-16 (D-001 a D-203; **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -10699,6 +10699,12 @@ ningún premio de tres cifras** de ese resultado, ni siquiera por el otro númer
 **no decide** nada. Es una función pura probada (`resolvePrizeLinks`), lista para el motor de la
 Entrega 3.
 
+> **Ampliada el 2026-09-16 por D-203, Decisión 1.** Antes de construir el motor, el dueño respondió
+> que la unidad **no es la boleta sino el cliente**: si Ana tiene la `1234` de cuatro cifras, pierde
+> también el premio de tres cifras de su `9234`, que queda para otros clientes. Lo de arriba sigue
+> siendo cierto dentro de una boleta; D-203 lo extiende a todas las boletas del mismo cliente en el
+> mismo resultado y la misma rifa.
+
 ### Decisión 5 — la versión que aplica a un sorteo es la última publicada antes de su corte
 
 El corte de una ocurrencia es la **hora original anunciada** del sorteo (`original_scheduled_at`),
@@ -10922,6 +10928,11 @@ como regla propia: esta la contiene —dos premios idénticos comparten todos su
 **especificidad distinta**, con públicos distintos, y el 21 de diciembre conviven a propósito. La
 prioridad de BR-J07 —las cuatro mandan sobre las tres para una misma boleta y un mismo resultado—
 **no se toca**. Tampoco chocan dos premios que juegan con números distintos de la boleta.
+
+> **Nota del 2026-09-16 (D-203).** La prioridad de BR-J07 pasó a aplicarse **por cliente**, no por
+> boleta, por respuesta del dueño. La convivencia de cuatro cifras y últimas tres que describe esta
+> decisión no cambia: lo que cambia es a quién le quita el premio de tres cifras una coincidencia de
+> cuatro.
 
 ### Decisión 4 — cada premio dice desde cuándo y hasta cuándo aplica
 
@@ -11181,6 +11192,162 @@ páginas del proceso. Pruebas nuevas: `prize-history-retry`, `raffle-activation`
 `raffle-edit-origin` y `capabilities` (unitarias), J1-08 (base de datos) y diez de navegador: seis
 de escritorio y la comprobación parametrizada en 320, 375, 390 y 430 px, que sustituye a la que
 medía solo la revisión a 320 px. Detalle y cifras en `TEST_RESULTS` (2026-09-16).
+
+## D-203 — El motor de premios configurables: la versión del corte, las cuatro cifras mandan POR CLIENTE y nada se escribe a medias
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa»,
+Entrega 3 de 5, 2026-09-16)
+
+**Contexto.** Las entregas 1 y 2 dejaron el contrato (D-199, D-201) y el panel (D-202), pero
+`match_lottery_result` (0036) solo conocía el comparador fijo de BR-L06: ningún premio configurable
+producía coincidencias. Esta entrega construye el motor. Antes de programar quedaba una ambigüedad
+que cambiaba el motor: BR-J07 aplicaba la prioridad de cuatro cifras **por boleta**, y la indicación
+del dueño podía significar **por persona**. Se le preguntó, literalmente:
+
+> «Si Ana posee la boleta `1234`, ganadora de cuatro cifras, y también la boleta `9234`, que
+> coincide en las últimas tres cifras, ¿confirmas que Ana solo recibe el premio mayor y que el premio
+> de tres cifras debe quedar únicamente para otros clientes?»
+
+**Respuesta del dueño (2026-09-16): «Sí, por cliente».**
+
+### Decisión 1 — la prioridad es por cliente y resultado, dentro de cada rifa
+
+Si un cliente tiene **al menos una** coincidencia elegible de cuatro cifras en un resultado, pierde
+**todas** sus coincidencias de tres cifras en ese resultado: las de sus otras boletas y las del otro
+número de la misma boleta. Otro cliente que solo coincide en las tres últimas cifras **conserva** su
+premio. Varias coincidencias de cuatro cifras con números distintos de la boleta —el diario y el
+semanal— **conviven**. El valor, la categoría, el nombre y el orden no deciden nada.
+
+Lo que la respuesta no decía, y cómo se resolvió con la opción más segura:
+
+| Pregunta | Resolución | Por qué |
+|---|---|---|
+| ¿Qué es «el cliente»? | El `client_id` **fotografiado** por el motor: quien tenía la boleta vendida en el instante oficial (BR-L09) | Es la identidad que el motor congela. El nombre o el teléfono no identifican: dos fichas con el mismo nombre son dos clientes |
+| ¿Y una boleta sin cliente en la fotografía —libre o vendida después—? | Es **su propia unidad**: se aplica la prioridad dentro de esa boleta y no se mezcla con ninguna otra | Nadie la reclama; unirlas inventaría un dueño |
+| ¿Cruza rifas? | **No.** La unidad es cliente **y rifa** | Cada rifa es su propio juego de premios y BR-J08 compara dentro de la rifa. Hoy se opera una sola rifa a la vez (D-088), así que el caso no existe; queda escrito para que no se decida en silencio |
+| ¿Una coincidencia de tres cifras descartada es una coincidencia? | **No se fotografía.** No aparece en el Panel, no cuenta en los avisos y no bloquea un cambio de cliente ni una liberación | La respuesta dice que esas coincidencias «se eliminan». Guardarlas con una marca obligaría a filtrar en cada consumidor —el Panel, los avisos, el bloqueo de BR-I13 y BR-I14— |
+
+El helper puro (`resolvePrizeLinks`, con `prizeClaimantKey`) y el motor dicen lo mismo, y la base lo
+vigila: el disparador de comprobación rechaza que un mismo cliente conserve tres cifras teniendo
+cuatro en el mismo resultado.
+
+### Decisión 2 — una relación propia, no columnas en la fotografía
+
+`lottery_ticket_match_prizes`: organización, rifa, resultado, **fotografía**, número de la boleta,
+premio y **versión aplicada**. No sustituye a `lottery_ticket_matches`, que sigue siendo la foto
+autoritativa de boleta, cliente y vendedor y la que bloquea cambiar o liberar la boleta.
+
+* **Claves reales:** la FK a la fotografía incluye resultado, organización, rifa y número; la del
+  premio, rifa y organización; la de la versión, el premio. Un enlace entre organizaciones, rifas,
+  sorteos o números **no se puede escribir**, venga de donde venga.
+* **Idempotente:** `unique (match_id, prize_id)`, con `on conflict do nothing`.
+* **Inmutable:** ni `UPDATE` ni `DELETE`, tampoco con la service role.
+* **No copia** título, recompensa ni calendario: están congelados en la versión. **No registra** qué
+  alternativa se eligió ni nada de pago, entrega o reclamación.
+
+### Decisión 3 — dos motores en una transacción, y el modo se lee al buscar
+
+La rama heredada es **la consulta de 0036 sin tocar** con un filtro más, `prize_mode = 'legacy'`, y no
+crea enlaces. La configurable usa **la misma regla de participación** (BR-L05) y **los mismos filtros
+de elegibilidad** (BR-L09, BR-L10), copiados expresión por expresión; una prueba compara las dos
+ramas lado a lado con boletas vendidas, libres, tardías, pendientes, anuladas antes y después, y
+creadas después.
+
+El modo se lee **al buscar coincidencias**, no al jugarse el sorteo. ⚠️ **Para la Entrega 4:** la
+transición de una rifa no debe hacerse mientras quede un sorteo de su ventana sin confirmar, o ese
+sorteo se buscaría con el motor nuevo.
+
+### Decisión 4 — la versión del corte original, con el cerrojo de la configuración
+
+El corte es `original_scheduled_at` y aplica la última versión publicada **estrictamente antes**
+(BR-J09). Si esa versión está archivada, el premio no juega. **Sin hora original no se supone
+nada**: el motor falla (`data_exception`) y no escribe, porque no se sabe qué versión aplica.
+
+Antes de decidirlo toma `raffle_prize_lock` de cada rifa que participa, en orden: una publicación en
+curso termina antes, y una que llega después se publica tras el corte.
+
+**Una sola definición de cada regla:** `raffle_prize_versions_at` es la forma de conjunto de la
+versión aplicable, y `raffle_prize_applicable_version` pasa a llamarla. El calendario se evalúa con un
+predicado sobre los períodos —lo que permite hacerlo en una consulta—, y la defensa lo contrasta en
+cada escritura con la expansión canónica `raffle_prize_rule_dates`; además hay una prueba que compara
+los dos en 21 días × 6 loterías.
+
+### Decisión 5 — de conjunto, en una sola sentencia
+
+Premios que juegan → boletas que coinciden → elegibilidad → prioridad (una ventana `bool_or` por
+cliente) → fotografías → enlaces, en **una** sentencia con CTE. Las coincidencias se buscan con **una
+rama por número y cifras**, para que las cuatro cifras usen los índices `(organización, rifa,
+número)`. Ninguna función se llama por boleta. Medido con **5.000 boletas**: 107 enlaces en **33 ms**,
+y la función más llamada lo fue 12 veces —tres por premio que juega—.
+
+### Decisión 6 — tres defensas, y una configuración imposible falla entera
+
+1. **Una fotografía de una rifa configurable se guarda con su premio en la misma sentencia**, o no se
+   guarda (disparador de sentencia con tabla de transición: una consulta por escritura).
+2. **Cada enlace se valida con las definiciones canónicas** —rifa configurable, versión vigente, del
+   mismo número, aplicable al corte y con el sorteo en su calendario— y con la prioridad por cliente.
+3. **Dos premios que juegan el mismo sorteo con la misma firma** —número de la boleta y cifras; la
+   fecha y la lotería ya son las del sorteo— **no se resuelven**: el motor falla con `check_violation`,
+   un `detail` con la rifa, los premios, el número, las cifras y el sorteo —**ningún dato de clientes**—
+   y un `hint` que remite a BR-J08. No elige por importe, orden, nombre ni identificador. Falla aunque
+   ninguna boleta coincida: la duda es de la configuración.
+
+**Esto no describe un caso que exista.** BR-J08 impide guardar esa configuración desde la `0059`, y
+lo único que podría producirla es una escritura fuera de las RPC. Si ocurriera, la consecuencia es
+fuerte a propósito: confirmar ese resultado falla **para todas las organizaciones**, porque es una
+transacción, y el sincronizador lo registra como `rpc_error` y lo reintenta en su horizonte. Como la
+versión de un sorteo jugado ya no cambia, arreglarlo exige intervenir los datos a mano.
+
+### Decisión 7 — los avisos y el Panel cuentan boletas, no fotografías
+
+Desde esta entrega una boleta puede fotografiarse **dos veces** en un sorteo —diario y semanal—, y
+«2 boletas coincidieron» sería falso. `confirm_lottery_result` cuenta `count(distinct ticket_id)`
+(su cuerpo de 0038 con ese único cambio) y el Panel enseña cada boleta una vez (`toDrawView`). En una
+rifa heredada cada boleta tiene como mucho una fotografía por sorteo: **ninguna cifra cambia**. Los
+**textos** de los avisos no cambian (ver I-126).
+
+### Decisión 8 — la lectura de un enlace es la de su fotografía
+
+La política pregunta a la fotografía, y la RLS de esta se aplica dentro de la subconsulta: el
+vendedor lee los enlaces de sus coincidencias; el personal, ninguno, igual que no lee la fotografía
+desde D-198; otra organización, ninguno. Nadie escribe desde una sesión, y la service role solo
+**lee**. `match_lottery_result` y `confirm_lottery_result` siguen sin `EXECUTE` para `anon` y
+`authenticated`. `admin_lottery_matches` **no cambia**: la Entrega 3 no expone premios en pantalla.
+
+### Lo que NO hace, dicho para que no se lea de más
+
+* **No transiciona** ninguna rifa (Entrega 4), no carga la rifa real y no toca el proyecto real.
+* **No reprocesa** nada: la migración no enlaza fotografías anteriores, ningún disparador de premios
+  llama al motor, confirmar un resultado ya confirmado no lo repite (0045) y un cambio de premio
+  posterior no aplica a un sorteo jugado. Re-ejecutar el motor a mano con los mismos datos no cambia
+  nada; con datos cambiados solo podría **añadir** coincidencias —igual que el motor heredado—,
+  nunca modificar ni borrar las guardadas.
+* **No** crea pantallas, textos para el vendedor o el cliente, ni registra la alternativa elegida.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Prioridad por boleta (la BR-J07 anterior) | El dueño respondió por cliente |
+| Fotografiar las coincidencias descartadas con una marca | Cada consumidor —Panel, avisos, bloqueo de cambios— tendría que filtrarlas, y un olvido las contaría como premio |
+| `prize_id` y `version_id` como columnas de `lottery_ticket_matches` | Columnas que las fotografías heredadas dejarían siempre vacías, y una fotografía no podría relacionarse con dos premios si mañana hiciera falta |
+| Elegir un premio ante una firma duplicada | «El valor económico no decide nada» (BR-J07), y cualquier otro criterio sería una regla que nadie pidió |
+| Enlazar la versión vigente | Reescribiría con qué condiciones se jugó un sorteo (BR-J09) |
+| Corte `least(original, oficial)` para un sorteo adelantado | BR-J09 fija la hora **original**; el hueco que eso deja en un sorteo adelantado se reporta como **I-125** en vez de cambiar la regla en silencio |
+| Un disparador de restricción diferido por fotografía | Una consulta por fila al confirmar; el de sentencia con tabla de transición hace una por escritura |
+| Calcular las coincidencias en TypeScript | La base es la autoridad; el helper puro expresa la regla y las pruebas comparan los dos, enlace por enlace, con 5.000 boletas |
+| Una marca por (resultado, rifa) de «ya procesado» | Un reintento con los mismos datos ya no cambia nada; la marca sería otra tabla para un caso que nada ejecuta |
+
+### Consecuencia
+
+Migración **`0061`**: `lottery_ticket_match_prizes`, la clave compuesta nueva de
+`lottery_ticket_matches`, `raffle_prize_versions_at`, `raffle_prize_draw_prizes`, tres disparadores,
+`match_lottery_result` y `confirm_lottery_result` reescritas y `raffle_prize_applicable_version`
+delegando. **BR-J06 y BR-J07** con su motor, **BR-J07** por cliente; nota en BR-L06. `matching.ts`
+(`PrizeCandidate` con boleta, rifa y cliente; `prizeClaimantKey`; `PrizeSignatureConflictError`) y
+`lottery/dashboard.ts`. `DATA_MODEL` §4.21, `SECURITY` §4.21, `ARCHITECTURE` §8.27, `MASTER_SPEC`
+§9.7, `TESTING` §4.11, `TEST_RESULTS`, `KNOWN_ISSUES` (I-125, I-126), `PHASE_STATUS` y `HANDOFF`.
+**Solo en local:** el proyecto real no tiene de la `0058` a la `0061`.
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

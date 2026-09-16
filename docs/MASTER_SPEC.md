@@ -4,9 +4,12 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.10
+- **Versión del documento:** 1.11
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-15 (§9.7: premios configurables por rifa, Entrega 1 de 5 —el
+- **Última actualización:** 2026-09-16 (§9.7: premios configurables por rifa, **Entrega 3 de 5** —el
+  motor de coincidencias, D-203, migración `0061`, **solo en local**—, con la regla del dueño: quien
+  acierta las cuatro cifras no recibe además un premio de tres cifras en el mismo sorteo). Antes, el
+  2026-09-15 (§9.7: premios configurables por rifa, Entrega 1 de 5 —el
   contrato, D-199, D-200 y **D-201**, migraciones `0058` y `0059`, **solo en local**—; y §9.5, corregida: las siete etapas
   del cobro están **en producción** desde el 2026-09-12). Antes, el 2026-09-14 (§7 F5, F7, F8 y F9, §8 reglas 14 y 17 y §9.1: la cartera es
   del vendedor —D-198, migración `0057`, **en producción desde el 2026-09-15**—). Antes, el 2026-09-13 (§9.6: el mensaje propio de «Resultados de la semana», con la
@@ -385,12 +388,26 @@ propio no la cambia.
 
 ---
 
-### 9.7 Premios configurables por rifa — **ENTREGA 1 DE 5: el contrato, solo en local**
+### 9.7 Premios configurables por rifa — **ENTREGAS 1 A 3 DE 5: contrato, panel y motor, solo en local**
 
 > Encargo «premios configurables por rifa», 2026-09-15 (D-199, D-200 y **D-201**; reglas
 > BR-J01..BR-J15; migraciones **`0058`** y **`0059`**). **No hay panel** (Entrega 2), **no hay motor
 > de coincidencias** (Entrega 3), **ninguna rifa cambió de sistema** y las migraciones **no están en
 > el proyecto real**.
+>
+> **Estado al 2026-09-16:** existen el **panel** (Entrega 2, D-202, `0060`) y el **motor de
+> coincidencias** (Entrega 3, **D-203**, `0061`). Las rifas que ya existían siguen con el comparador
+> de siempre hasta la Entrega 4, y nada de esto está en el proyecto real.
+
+**Cuándo un premio le toca a una boleta (Entrega 3).** Al confirmarse el resultado de una lotería, se
+miran los premios que **de verdad juegan** ese sorteo —el día y la lotería están en su calendario—,
+con las condiciones **que tenían anunciadas antes de la hora original** del sorteo, aunque después se
+aplace. Se compara el número de la boleta que diga cada premio, con las cuatro cifras o con las tres
+últimas. **Si un cliente acierta las cuatro cifras, se queda con ese premio y no recibe además uno de
+tres cifras en el mismo sorteo, por ninguna de sus boletas**: ese premio queda para los demás clientes
+(respuesta del dueño, D-203). Lo que se guarda es **con qué premio y con qué versión** coincidió cada
+boleta, y **no cambia** si después se edita el premio. La aplicación **sigue sin registrar** qué
+alternativa se lleva quien acierta, ni pagos o entregas de premios.
 
 Cada rifa podrá definir **sus** premios en vez de depender del único comparador fijo de siempre
 (BR-L06). Un premio dice **qué se gana**, **con cuál de los dos números** de la boleta juega, **con
@@ -410,8 +427,8 @@ distintas y el de cuatro manda sobre el de tres.
 
 | Lo que ya existe (Entrega 1) | Lo que todavía no |
 |---|---|
-| El modelo: identidad, versiones inmutables y períodos de calendario, con su historial completo | La pantalla donde se crean y se editan (Entrega 2) |
-| Las seis RPC —crear, publicar, archivar, restaurar, reordenar e historial— con control optimista | El motor que crea las coincidencias con estos premios (Entrega 3) |
+| El modelo: identidad, versiones inmutables y períodos de calendario, con su historial completo | ~~La pantalla donde se crean y se editan (Entrega 2)~~ — existe desde D-202 |
+| Las seis RPC —crear, publicar, archivar, restaurar, reordenar e historial— con control optimista | ~~El motor que crea las coincidencias con estos premios (Entrega 3)~~ — existe desde D-203 |
 | La capacidad **`raffles.prizes.manage`**, en la aplicación y en PostgreSQL (D-200) | La configuración de la rifa de diciembre y la transición por rifa (Entrega 4) |
 | La auditoría semántica y el aviso a toda la organización cuando cambia una rifa activa | La promoción a producción (Entrega 5) |
 

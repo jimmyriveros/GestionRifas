@@ -1374,6 +1374,8 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
     'raffle_prize_audit_values',
     'raffle_prize_clean_fields',
     'raffle_prize_cutoff_problem',
+    // 0061 (D-203): las piezas del motor de coincidencias.
+    'raffle_prize_draw_prizes',
     'raffle_prize_insert_version',
     'raffle_prize_is_material',
     'raffle_prize_lock',
@@ -1388,6 +1390,7 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
     'raffle_prize_rules_json',
     'raffle_prize_validity',
     'raffle_prize_version_problem',
+    'raffle_prize_versions_at',
     'raffle_prize_versions_require_reward',
     'raffle_prize_weekdays_valid',
     'raffles_guard_prize_config',

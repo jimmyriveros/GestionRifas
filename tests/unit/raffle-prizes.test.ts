@@ -18,7 +18,9 @@ import {
 } from '@/features/raffle-prizes/copy'
 import {
   applicableVersion,
+  prizeClaimantKey,
   prizeNumberMatches,
+  PrizeSignatureConflictError,
   resolvePrizeLinks,
   type PrizeCandidate,
 } from '@/features/raffle-prizes/matching'
@@ -71,6 +73,29 @@ function rule(overrides: Partial<PrizeRule> = {}): PrizeRule {
     weekdays: [1, 2, 3, 4, 5],
     lotteryMode: 'corresponding',
     lotteryCode: null,
+    ...overrides,
+  }
+}
+
+/**
+ * Una coincidencia candidata. Por omisión, la MISMA boleta vendida a la misma
+ * clienta en la misma rifa: así se leen las pruebas de la prioridad por boleta,
+ * y las de D-203 dicen explícitamente qué boleta y qué cliente cambian.
+ */
+function candidata(
+  prizeId: string,
+  numberField: PrizeCandidate['numberField'],
+  digits: PrizeCandidate['digits'],
+  overrides: Partial<Pick<PrizeCandidate, 'ticketId' | 'clientId' | 'raffleId'>> = {},
+): PrizeCandidate {
+  return {
+    prizeId,
+    versionId: `${prizeId}-v1`,
+    numberField,
+    digits,
+    ticketId: 'boleta',
+    clientId: 'ana',
+    raffleId: 'rifa',
     ...overrides,
   }
 }
@@ -225,27 +250,131 @@ describe('las cifras: 0046, 046, 1046 y 46 (BR-J06, BR-J07)', () => {
 
   it('las cuatro cifras mandan sobre las tres para la misma boleta y resultado', () => {
     const candidatos: PrizeCandidate[] = [
-      { prizeId: 'p1', versionId: 'v1', numberField: 'daily_number', digits: 'four' },
-      { prizeId: 'p2', versionId: 'v2', numberField: 'daily_number', digits: 'last_three' },
-      { prizeId: 'p3', versionId: 'v3', numberField: 'weekly_number', digits: 'last_three' },
+      candidata('p1', 'daily_number', 'four'),
+      candidata('p2', 'daily_number', 'last_three'),
+      candidata('p3', 'weekly_number', 'last_three'),
     ]
     expect(resolvePrizeLinks(candidatos).map((c) => c.prizeId)).toEqual(['p1'])
   })
 
   it('sin coincidencia de cuatro cifras, las de tres se conservan', () => {
     const candidatos: PrizeCandidate[] = [
-      { prizeId: 'p2', versionId: 'v2', numberField: 'daily_number', digits: 'last_three' },
-      { prizeId: 'p3', versionId: 'v3', numberField: 'weekly_number', digits: 'last_three' },
+      candidata('p2', 'daily_number', 'last_three'),
+      candidata('p3', 'weekly_number', 'last_three'),
     ]
     expect(resolvePrizeLinks(candidatos)).toHaveLength(2)
   })
 
-  it('dos premios de la misma especificidad se conservan los dos', () => {
+  it('dos coincidencias de cuatro cifras con NÚMEROS DISTINTOS de la boleta se conservan las dos', () => {
     const candidatos: PrizeCandidate[] = [
-      { prizeId: 'p1', versionId: 'v1', numberField: 'weekly_number', digits: 'four' },
-      { prizeId: 'p5', versionId: 'v5', numberField: 'weekly_number', digits: 'four' },
+      candidata('p1', 'daily_number', 'four'),
+      candidata('p5', 'weekly_number', 'four'),
+    ]
+    expect(resolvePrizeLinks(candidatos).map((c) => c.prizeId)).toEqual(['p1', 'p5'])
+  })
+})
+
+// =============================================================================
+describe('la prioridad es POR CLIENTE, dentro de cada rifa (BR-J07, D-203)', () => {
+  it('Ana: su 1234 de cuatro cifras le quita el premio de tres cifras de su 9234', () => {
+    const candidatos: PrizeCandidate[] = [
+      candidata('mayor', 'daily_number', 'four', { ticketId: 'ana-1234', clientId: 'ana' }),
+      candidata('tres', 'daily_number', 'last_three', { ticketId: 'ana-1234', clientId: 'ana' }),
+      candidata('tres', 'daily_number', 'last_three', { ticketId: 'ana-9234', clientId: 'ana' }),
+    ]
+    const enlaces = resolvePrizeLinks(candidatos)
+    expect(enlaces.map((c) => `${c.ticketId}:${c.prizeId}`)).toEqual(['ana-1234:mayor'])
+  })
+
+  it('otro cliente que solo coincide en las tres últimas cifras conserva su premio', () => {
+    const candidatos: PrizeCandidate[] = [
+      candidata('mayor', 'daily_number', 'four', { ticketId: 'ana-1234', clientId: 'ana' }),
+      candidata('tres', 'daily_number', 'last_three', { ticketId: 'ana-9234', clientId: 'ana' }),
+      candidata('tres', 'daily_number', 'last_three', {
+        ticketId: 'carlos-5234',
+        clientId: 'carlos',
+      }),
+    ]
+    expect(resolvePrizeLinks(candidatos).map((c) => `${c.ticketId}:${c.prizeId}`)).toEqual([
+      'ana-1234:mayor',
+      'carlos-5234:tres',
+    ])
+  })
+
+  it('pierde también las de tres cifras del OTRO número de otra boleta suya', () => {
+    const candidatos: PrizeCandidate[] = [
+      candidata('mayor', 'daily_number', 'four', { ticketId: 'ana-1234', clientId: 'ana' }),
+      candidata('semanal', 'weekly_number', 'last_three', {
+        ticketId: 'ana-otra',
+        clientId: 'ana',
+      }),
+    ]
+    expect(resolvePrizeLinks(candidatos).map((c) => c.prizeId)).toEqual(['mayor'])
+  })
+
+  it('dos clientes distintos nunca se mezclan, aunque tengan el mismo vendedor y la misma boleta vecina', () => {
+    const candidatos: PrizeCandidate[] = [
+      candidata('mayor', 'daily_number', 'four', { ticketId: 't1', clientId: 'ana' }),
+      candidata('tres', 'daily_number', 'last_three', { ticketId: 't2', clientId: 'beatriz' }),
     ]
     expect(resolvePrizeLinks(candidatos)).toHaveLength(2)
+  })
+
+  it('una boleta sin cliente fotografiado es su propia unidad', () => {
+    const candidatos: PrizeCandidate[] = [
+      candidata('mayor', 'daily_number', 'four', { ticketId: 'libre-1234', clientId: null }),
+      candidata('tres', 'daily_number', 'last_three', { ticketId: 'libre-1234', clientId: null }),
+      candidata('tres', 'daily_number', 'last_three', { ticketId: 'libre-0234', clientId: null }),
+    ]
+    expect(resolvePrizeLinks(candidatos).map((c) => `${c.ticketId}:${c.prizeId}`)).toEqual([
+      'libre-1234:mayor',
+      'libre-0234:tres',
+    ])
+  })
+
+  it('la prioridad no cruza rifas: el mismo cliente en otra rifa conserva su premio de tres cifras', () => {
+    const candidatos: PrizeCandidate[] = [
+      candidata('mayor', 'daily_number', 'four', {
+        ticketId: 'a',
+        clientId: 'ana',
+        raffleId: 'r1',
+      }),
+      candidata('tres-r2', 'daily_number', 'last_three', {
+        ticketId: 'b',
+        clientId: 'ana',
+        raffleId: 'r2',
+      }),
+    ]
+    expect(resolvePrizeLinks(candidatos)).toHaveLength(2)
+  })
+
+  it('la clave de quien reclama distingue cliente de boleta y rifa de rifa', () => {
+    expect(prizeClaimantKey({ raffleId: 'r1', clientId: 'ana', ticketId: 't1' })).toBe(
+      prizeClaimantKey({ raffleId: 'r1', clientId: 'ana', ticketId: 't2' }),
+    )
+    expect(prizeClaimantKey({ raffleId: 'r1', clientId: null, ticketId: 't1' })).not.toBe(
+      prizeClaimantKey({ raffleId: 'r1', clientId: null, ticketId: 't2' }),
+    )
+    expect(prizeClaimantKey({ raffleId: 'r1', clientId: 'ana', ticketId: 't1' })).not.toBe(
+      prizeClaimantKey({ raffleId: 'r2', clientId: 'ana', ticketId: 't1' }),
+    )
+  })
+
+  it('el valor, el nombre y el orden no deciden: el resultado no depende del orden de entrada', () => {
+    const candidatos: PrizeCandidate[] = [
+      candidata('tres', 'daily_number', 'last_three', { ticketId: 'ana-9234', clientId: 'ana' }),
+      candidata('mayor', 'daily_number', 'four', { ticketId: 'ana-1234', clientId: 'ana' }),
+    ]
+    expect(resolvePrizeLinks(candidatos).map((c) => c.prizeId)).toEqual(['mayor'])
+    expect(resolvePrizeLinks([...candidatos].reverse()).map((c) => c.prizeId)).toEqual(['mayor'])
+  })
+
+  it('dos premios con la misma firma en la misma boleta NO se resuelven eligiendo uno (BR-J08)', () => {
+    const candidatos: PrizeCandidate[] = [
+      candidata('p1', 'daily_number', 'four'),
+      candidata('p2', 'daily_number', 'four'),
+    ]
+    expect(() => resolvePrizeLinks(candidatos)).toThrow(PrizeSignatureConflictError)
   })
 })
 
@@ -813,8 +942,8 @@ describe('dos premios que se cruzan son un conflicto, no una suma (BR-J08, D-201
 
     // Y la prioridad sigue siendo la de siempre: las cuatro dejan fuera las tres.
     const candidatos: PrizeCandidate[] = [
-      { prizeId: 'p1', versionId: 'v1', numberField: 'daily_number', digits: 'four' },
-      { prizeId: 'p2', versionId: 'v2', numberField: 'daily_number', digits: 'last_three' },
+      candidata('p1', 'daily_number', 'four'),
+      candidata('p2', 'daily_number', 'last_three'),
     ]
     expect(resolvePrizeLinks(candidatos).map((c) => c.prizeId)).toEqual(['p1'])
   })

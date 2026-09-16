@@ -336,14 +336,14 @@ const CHECKS: Check[] = [
     esperado: 5,
   },
   {
-    nombre: 'Tablas de loterias existen (0036, 0039)',
+    nombre: 'Tablas de loterias existen (0036, 0039, 0061)',
     sql: `select c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
           where n.nspname = 'public' and c.relkind = 'r'
             and c.relname in (
               'lottery_draw_schedules', 'lottery_results', 'lottery_ticket_matches',
-              'lottery_sync_runs', 'lottery_sync_lock'
+              'lottery_sync_runs', 'lottery_sync_lock', 'lottery_ticket_match_prizes'
             )`,
-    esperado: 5,
+    esperado: 6,
   },
   {
     nombre: 'RPC de loterias existen para service_role',
@@ -369,9 +369,23 @@ const CHECKS: Check[] = [
               'match_lottery_result', 'sync_lottery_schedules',
               'notify_lottery_schedule_changes', 'confirm_lottery_result',
               'try_acquire_lottery_sync_lock', 'release_lottery_sync_lock',
-              'lottery_results_protect_confirmed', 'lottery_ticket_matches_immutable'
+              'lottery_results_protect_confirmed', 'lottery_ticket_matches_immutable',
+              -- 0061 (D-203): el motor de premios y sus defensas
+              'raffle_prize_draw_prizes', 'raffle_prize_versions_at',
+              'lottery_ticket_match_prizes_check', 'lottery_ticket_match_prizes_immutable',
+              'lottery_ticket_matches_prize_links_check'
             )
             and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
+    esperado: 0,
+  },
+  {
+    // 0061 (D-203): los enlaces a premios solo se leen, y los lee quien lee la
+    // fotografia. Nadie escribe desde una sesion ni con la service role.
+    nombre: 'lottery_ticket_match_prizes concede algo mas que SELECT',
+    sql: `select grantee || ' ' || privilege_type as x from information_schema.role_table_grants
+          where table_schema = 'public' and table_name = 'lottery_ticket_match_prizes'
+            and grantee in ('anon', 'authenticated', 'service_role')
+            and privilege_type <> 'SELECT'`,
     esperado: 0,
   },
 ]

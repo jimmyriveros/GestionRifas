@@ -1,7 +1,9 @@
 # ARQUITECTURA
 
-- **Versión:** 1.35 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27**: la
-  corrección de la Entrega 2 —el **resolvedor central de capacidades**, el origen cerrado de la
+- **Versión:** 1.36 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27.a**: el motor
+  de coincidencias de los premios configurables y la coexistencia `legacy` / `configurable` al
+  confirmar un resultado, D-203, migración `0061`, **solo en local**; §7.3). Antes, ese mismo día
+  (**§8.27**: la corrección de la Entrega 2 —el **resolvedor central de capacidades**, el origen cerrado de la
   edición y la activación solo desde la revisión—, D-202, **sin migración**). Antes, el 2026-09-15
   (§7.3 y **§8.27**: premios configurables por rifa, su **panel** y la capacidad central, D-199 a
   **D-202**, migraciones `0058`, `0059` y `0060`, **solo en local**). Antes, el 2026-09-13 (§7.3 y §8.25: el mensaje
@@ -330,7 +332,7 @@ Definidas en Fase 2; su interfaz se congela aquí. Todas son `SECURITY DEFINER` 
 | `archive_raffle_prize(premio, versión esperada)` · `restore_raffle_prize(premio, versión esperada)` | post-9 | Archivan y restauran **con una versión nueva**. No borran nada; una rifa activa conserva al menos un premio vigente | Sí |
 | `reorder_raffle_prizes(rifa, premios)` | post-9 | Reordena los vigentes. **No crea versión y no avisa**: es presentación (BR-J11) | Sí |
 | `raffle_prize_history(premio, límite, desplazamiento)` | post-9 | Historial paginado desde las **versiones**, con actor, recompensa, períodos y **vigencia** (`starts_on`, `ends_on`). Solo con la capacidad; a los demás, cero filas | — |
-| `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142) | Sí — inserciones idempotentes |
+| `match_lottery_result(result_id)` | post-9 | Coincidencias set-based de un resultado confirmado. **Sin EXECUTE para `authenticated`** (D-141, D-142). Desde `0061`, dos ramas: el comparador fijo para rifas heredadas y los **premios configurables** con su versión y la prioridad por cliente, con sus enlaces (D-203) | Sí — inserciones idempotentes; falla entero ante una configuración imposible |
 | `sync_lottery_schedules` · `confirm_lottery_result` · `notify_lottery_schedule_changes` | post-9 | Sincronización, confirmación+matching+avisos y avisos de programación. **Sin EXECUTE para `authenticated`** (D-145, D-146) | Sí — upserts e inserciones idempotentes |
 | `try_acquire_lottery_sync_lock` · `release_lottery_sync_lock` | post-9 | Cerrojo de una fila del tick. **Sin EXECUTE para `authenticated`** (D-148) | Un UPDATE condicional |
 | `assign_ticket(p_ticket_id, p_client_id, p_sale_date)` | 2 / 4 | Valida disponibilidad y propiedad, copia `sale_price`, cambia estado, audita | Sí |
@@ -1991,6 +1993,10 @@ vendedor, o si una Server Action de la cartera deja de exigir el rol `seller`.
 > **ENTREGA 1 DE 5: el contrato.** Hay modelo, RPC, autorización, auditoría y avisos; **no hay
 > pantalla** (Entrega 2) ni **motor de coincidencias** (Entrega 3). Las migraciones están **solo en
 > local**, y ninguna rifa cambió de sistema.
+>
+> **Estado al 2026-09-16:** ya existen el panel (Entrega 2, D-202) y **el motor** (Entrega 3, D-203,
+> §8.27.a). Todo sigue **solo en local**, y las rifas que ya existían siguen en modo heredado hasta la
+> Entrega 4.
 
 **Lo que se añadió, y dónde vive:**
 
@@ -2009,7 +2015,8 @@ vendedor, o si una Server Action de la cartera deja de exigir el rol `seller`.
 | `authorizeCapability()` en `src/lib/auth/guards.ts` | `authorizeAction` con la pregunta cambiada: capacidad en vez de rol, resuelta por `hasCapability`. Admite `roles` —quién puede llegar a preguntar— y la frase para quien no la tiene. La usan las seis acciones de premios y `createRaffle` (personal **y** capacidad) |
 | `src/features/raffles/edit-origin.ts` | A dónde vuelve «Editar rifa»: el detalle o los premios del proceso, con `?from=` contrastado con una **lista cerrada** y el destino compuesto con el id de la rifa. Sin redirecciones abiertas (patrón de D-135) |
 | `src/features/raffle-prizes/schedule.ts` | El calendario, **puro**: expansión, forma canónica, solapes, los tres modos de la pantalla y el payload de la RPC |
-| `src/features/raffle-prizes/matching.ts` | La semántica de las cifras, la prioridad de cuatro sobre tres y **qué versión aplica a un sorteo**. Es el contrato que consumirá el motor |
+| `src/features/raffle-prizes/matching.ts` | La semántica de las cifras, la prioridad de cuatro sobre tres **por cliente** y **qué versión aplica a un sorteo**. Es el espejo puro del motor de la `0061`, que es quien decide (§8.27.a) |
+| `supabase/migrations/0061_configurable_prize_matching.sql` | **El motor** (Entrega 3, D-203): `lottery_ticket_match_prizes`, las dos ramas de `match_lottery_result`, las defensas y los avisos que cuentan boletas (§8.27.a) |
 | `src/features/raffle-prizes/copy.ts` | **Todos** los textos: etiquetas, el resumen del calendario en español y la vista previa del premio |
 | `src/features/raffle-prizes/schemas.ts` | Zod para cliente y servidor, `PRIZE_LIMITS` y los mapeadores a los argumentos de las RPC |
 
@@ -2049,6 +2056,49 @@ reintentar identifica **cada petición** con un objeto nuevo, y lo que se pinta 
 respuesta contesta a la vigente (`PrizeHistoryDialog`). Y en el teléfono, un desplegable metido en
 cajas con relleno **parte su valor** en vez de ensanchar la rejilla: la columna de un `grid` que
 solo declara columnas desde `sm` es `auto` y no baja del texto más largo (D-125, I-122).
+
+#### 8.27.a El motor de coincidencias: confirmar un resultado con dos motores (Entrega 3, `0061`, D-203)
+
+> ⚠️ **Solo en local.** Ninguna rifa real es configurable hasta la Entrega 4.
+
+El flujo **no cambia de forma**: el tick de loterías llama a `confirm_lottery_result`, que guarda el
+número mayor, llama a `match_lottery_result`, avisa y marca el sorteo `completed` en **una**
+transacción (D-145). Lo que cambia es lo que ocurre dentro del motor:
+
+```
+confirm_lottery_result ──► match_lottery_result(resultado)
+                             │  cerrojo del resultado (FOR UPDATE)
+                             ├─ A. rifas legacy       → comparador fijo de 0036 → fotografías, sin enlaces
+                             └─ B. rifas configurable → cerrojo de su configuración (raffle_prize_lock)
+                                   │  falla si falta la hora original o hay dos premios con la misma firma
+                                   └─ UNA sentencia: premios que juegan (raffle_prize_draw_prizes)
+                                        → boletas que coinciden (una rama por número y cifras)
+                                        → elegibilidad de siempre → prioridad por cliente
+                                        → fotografías + lottery_ticket_match_prizes
+                                        └─ disparadores de sentencia: validan con las definiciones canónicas
+                         ◄── avisos: cuentan boletas distintas
+```
+
+| Pieza | Dónde | Qué decide |
+|---|---|---|
+| Qué rifas participan y qué boletas son elegibles | Las dos ramas de `match_lottery_result`, **con las mismas expresiones** | BR-L05, BR-L09, BR-L10. No hay una segunda definición: una prueba compara las dos ramas lado a lado |
+| Con qué motor | `raffles.prize_mode`, **leído al buscar** | Una transición de rifa (Entrega 4) no debe dejar sorteos de su ventana sin confirmar |
+| Qué premios juegan un sorteo | `raffle_prize_draw_prizes` → `raffle_prize_versions_at` | La versión aplicable al **corte original** (BR-J09), vigente, con el sorteo en su calendario y su lotería |
+| Si un número coincide | Expresiones en línea del motor; espejo puro `prizeNumberMatches` | Cuatro cifras = igualdad textual; tres últimas = sufijo con al menos tres caracteres (BR-J06) |
+| Quién conserva qué | Ventana `bool_or` del motor; espejo puro `resolvePrizeLinks` + `prizeClaimantKey` | Cuatro cifras mandan sobre tres **por cliente fotografiado y rifa** (BR-J07, D-203) |
+| Que lo escrito sea verdad | `lottery_ticket_match_prizes_check` y `lottery_ticket_matches_prize_links_check` | Versión, número, calendario y prioridad contra las definiciones canónicas; ninguna fotografía configurable sin su premio |
+| Cuántas boletas coincidieron | `confirm_lottery_result` (avisos) y `toDrawView` (Panel) | Boletas distintas: una boleta configurable puede tener dos fotografías en un sorteo |
+
+**Coexistencia `legacy` / `configurable`.** Las dos ramas corren en la misma transacción y sobre la
+misma tabla de fotografías, y una rifa heredada **nunca** recibe enlaces. Si la rama configurable
+falla, **no queda nada escrito, tampoco lo heredado ni el resultado**: se prefiere un sorteo sin
+confirmar —que el tick vuelve a intentar— a un sorteo a medias. `admin_lottery_matches` y la lectura
+del vendedor no cambian; el Panel solo deja de contar dos veces una boleta.
+
+**Lo que TypeScript no hace.** No carga boletas ni premios para decidir nada: `matching.ts` es la
+regla pura, y las pruebas de base de datos comparan el motor con ella **enlace por enlace** con 5.000
+boletas. Ninguna pantalla nueva: la ausencia de una interfaz de premios para vendedores y clientes es
+alcance de entregas posteriores.
 
 ## 9. Configuración regional
 

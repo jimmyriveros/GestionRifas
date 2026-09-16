@@ -3,7 +3,14 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-16 — **Cierre visual de la Entrega 2** (**solo en local**, sin migración):
+- **Actualizado:** 2026-09-16 — **Premios configurables, ENTREGA 3 de 5: el motor de coincidencias**
+  (D-203, migración **`0061`**, **solo en local**). Al confirmar un resultado, las rifas configurables
+  enlazan cada coincidencia con su **premio y la versión** aplicada al corte original; **las cuatro
+  cifras mandan sobre las tres por cliente**, por respuesta del dueño; las rifas heredadas siguen
+  exactamente igual. `test:db` **1.181/1.181**, `verify` **1.296/1.296**. Abiertas **I-125** —hueco de
+  BR-J09 con sorteos adelantados, pendiente de decisión— e **I-126**. Los seis puntos de §34.3, en su
+  sección de mantenimiento. **No autoriza la Entrega 4.**
+  Antes, ese mismo día — **Cierre visual de la Entrega 2** (**solo en local**, sin migración):
   la instrucción de una lotería fija sin elegir **se lee entera** de 320 a 1280 px (**I-123,
   resuelta**) y el aviso de cambiar el estado de una rifa dice **«quedó»** (**I-124, corregida en
   local**; producción conserva «quedo» hasta la Entrega 5). `verify` **1.286/1.286** unitarias y E2E
@@ -4941,6 +4948,90 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — premios configurables, **ENTREGA 3 de 5**: el motor de coincidencias (`0061`, D-203, 2026-09-16)
+
+Autorizada expresamente, **solo la Entrega 3**. **No es una Fase 10** y no lleva etiqueta `fase-*`.
+Antes de programar se preguntó al dueño la unidad de la prioridad de cuatro cifras, y respondió
+**«Sí, por cliente»**.
+
+> **SOLO EN LOCAL.** El proyecto real no tiene de la `0058` a la `0061`. **Sin transición** de las
+> rifas que ya existían ni carga de la rifa de diciembre (Entrega 4), **sin desplegar** (Entrega 5).
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| Dos motores en una transacción | `match_lottery_result` busca las coincidencias de las rifas **heredadas** con el comparador de siempre —misma consulta, con `prize_mode = 'legacy'`— y las de las **configurables** con sus premios. Si la rama configurable falla, **no queda nada escrito**, tampoco lo heredado ni el resultado |
+| Qué premios juegan un sorteo | La versión **aplicable al corte original** (BR-J09), vigente, con la fecha y la lotería del sorteo en su calendario —correspondiente o fija—. Una versión archivada no juega; un sorteo aplazado conserva su corte; **sin hora original, falla** |
+| Cuatro cifras o las tres últimas | El número de la boleta que diga la versión, comparado como texto: igualdad exacta o sufijo con al menos tres caracteres (BR-J06) |
+| **La prioridad, por cliente** | Si un cliente acierta cuatro cifras en un resultado, **pierde todas sus coincidencias de tres cifras** en ese resultado —otras boletas y el otro número—; los demás clientes conservan las suyas. El cliente es el **fotografiado**; una boleta sin cliente es su propia unidad; no cruza rifas. La descartada **no se fotografía** (BR-J07, D-203) |
+| La relación histórica | `lottery_ticket_match_prizes`: fotografía, premio y **versión aplicada**, con claves compuestas que impiden cruzar organizaciones, rifas, sorteos o números; **inmutable** e **idempotente**; sin recompensa, calendario, alternativa elegida ni pagos |
+| Defensas | Una fotografía configurable se escribe **con** su premio en la misma sentencia; cada enlace se valida con las definiciones canónicas y la prioridad; **dos premios con la misma firma hacen fallar** la confirmación sin elegir |
+| Concurrencia | El cerrojo del resultado serializa dos ejecuciones; el de la configuración de cada rifa, las publicaciones |
+| Avisos y Panel | Cuentan **boletas**, no fotografías: una boleta configurable puede coincidir por sus dos números. En las heredadas ninguna cifra cambia |
+| Lectura y permisos | Lee un enlace quien lee su fotografía; **nadie escribe** —ni la service role—; el motor sigue sin `EXECUTE` para sesiones; `admin_lottery_matches` sin cambios |
+| La regla pura | `matching.ts`: `PrizeCandidate` con boleta, rifa y cliente, `prizeClaimantKey`, `resolvePrizeLinks` por cliente y `PrizeSignatureConflictError` |
+
+**Lo que NO trae, a propósito:** transición ni carga de la rifa real, backfill o reprocesamiento,
+pantallas o textos de premios para vendedores y clientes, registro de la alternativa elegida, pagos
+o entregas de premios, cambios al panel administrativo de premios y despliegue.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base `npm run test:db` / `npm run verify` | ✅ **1.141/1.141** · ✅ **1.286/1.286** unitarias; ningún fallo preexistente |
+| `tests/db/raffle-prize-matching.test.ts` (nuevo) | ✅ **40/40**, con los 30 criterios del encargo y los específicos de la decisión por cliente |
+| Cinco **mutaciones** del motor | 4 detectadas por la suite (6, 4, 1 y 1 pruebas); la quinta es un **mutante equivalente**, explicado en `TEST_RESULTS` |
+| `npm run test:db` final, desde base limpia | ✅ **1.181/1.181** en 49 archivos (**+40**) |
+| `npm run verify` final | ✅ typecheck · lint **0 errores** y los 2 avisos preexistentes · **1.296/1.296** unitarias en 72 archivos (**+10**) · build |
+| E2E dirigida —loterías, tick, cambiar y liberar, privacidad del personal, resultados de la semana y premios— | ✅ **126/126** en 8,0 min. La completa **no se corrió**: ninguna ruta, pantalla, acción ni dato del seed cambió, y las seis especificaciones que tocan loterías estaban en la dirigida (`TEST_RESULTS`) |
+| Volumen | 5.000 boletas, 107 enlaces en **33 ms**, ninguna función llamada por boleta, y **los enlaces coinciden uno a uno con la regla pura** |
+
+**Errores encontrados y corregidos** (detalle en `TEST_RESULTS`, 2026-09-16): a la primera versión de
+la suite **le faltaba comparar la elegibilidad** entre los dos motores —se añadió, y dos mutaciones lo
+confirmaron—; una expectativa sobre la boleta anulada después del sorteo estaba mal, porque el motor
+de siempre la deja fuera sin aprobación registrada; y tres fallos de la propia prueba, vistos al
+revisarla o por `tsc`. **Ninguno fue un defecto del motor.** Al construirlo apareció un **hueco real
+de la regla BR-J09** con los sorteos adelantados (I-125), reproducido y **no corregido en silencio**.
+
+### 3. Migraciones que existen
+
+**`0001`–`0061` en local; `0001`–`0057` en el proyecto real.** La **`0061`** crea
+`lottery_ticket_match_prizes` con su RLS, sus privilegios y tres disparadores; añade una clave única
+compuesta a `lottery_ticket_matches`; crea `raffle_prize_versions_at` y `raffle_prize_draw_prizes`;
+y vuelve a escribir `match_lottery_result`, `confirm_lottery_result` —solo los recuentos— y
+`raffle_prize_applicable_version` —que delega—. **No modifica migraciones anteriores**, no toca
+datos, no cambia el modo de ninguna rifa y no toca la cartera.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **I-125: un sorteo adelantado toma la versión publicada después de jugarse** | Hueco de BR-J09 tal como está escrita. Solo con un adelanto y un cambio de premio en esa ventana. **Necesita decisión del dueño antes de desplegar** |
+| **I-126: el aviso dice «con este número» también en una coincidencia de tres cifras** | Texto impreciso cuando la rifa real tenga su premio de tres cifras (Entrega 4). Las cifras sí son correctas |
+| **Una configuración imposible bloquea la confirmación de ese resultado para todas las organizaciones** | Es la defensa pedida: no elegir y no escribir a medias. Hoy no puede ocurrir desde la aplicación; si ocurriera, arreglarlo exige tocar datos a mano |
+| **La `0058` a la `0061` no están en producción** | Es lo previsto: la Entrega 5 |
+| **El modo de una rifa se lee al buscar coincidencias** | La transición de la Entrega 4 no debe dejar sorteos de la ventana sin confirmar |
+| Todo lo demás | Sin cambios: I-024, I-021, I-023, I-030, I-059, I-060, I-090, I-106, I-117, I-119, I-120, I-124 en producción |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Entrega 4.** Hace falta una autorización explícita nueva.
+2. **La prioridad es por cliente** (D-203): no vuelvas a escribirla por boleta.
+3. **I-125 espera una decisión del dueño**; no la resuelvas por tu cuenta.
+4. **Una fotografía configurable y su enlace van en la misma sentencia**; no insertes una a mano.
+5. **Las pruebas que confirmen resultados necesitan fechas propias**: el motor mira todas las rifas
+   que participan.
+6. Lo de siempre: **no escribas directo en las tablas de premios**, **no cambies el modo de una
+   rifa** para probar y **los documentos están en CRLF**.
 
 ---
 

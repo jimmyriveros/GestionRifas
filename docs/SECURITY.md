@@ -1,6 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.17 · **Estado:** implementado · **Actualizado:** 2026-09-16 (§4.20: el resolvedor
+- **Versión:** 2.18 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§4.21**: el motor de
+  premios configurables —`0061`, D-203—: la superficie interna no crece, los enlaces a premios solo se
+  leen y los lee quien lee la fotografía). Antes, ese mismo día (§4.20: el resolvedor
   central de capacidades y el origen cerrado de «Editar rifa», corrección de D-202, sin migración)
 - **§4.19** describe **la cartera del vendedor fuera del alcance del personal** (`0057`, D-198,
   BR-Q01..BR-Q10): el Dueño y el Administrador ya no leen clientes, precios, abonos, saldos, pagos ni
@@ -493,7 +495,8 @@ cero filas, no un error de privilegio.
 
 Las políticas usan conjuntos precalculados (I-019). Un `UPDATE` del número mayor confirmado no lo
 cambia: el disparador deja `conflict`. Las coincidencias no se actualizan ni se borran, tampoco con
-`service_role`.
+`service_role`. **Desde la `0061`** las de una rifa configurable llevan su premio en
+`lottery_ticket_match_prizes`, con la misma lectura que la fotografía y ninguna escritura (§4.21).
 
 La Etapa 2 añade una descarga de servidor (`fetchOfficialDocument`, `server-only`): solo HTTPS,
 allowlist de CNJSA/Coljuegos y de las seis loterías, timeout 15 s, tope 2 MB y como máximo 5
@@ -1165,6 +1168,32 @@ acuerda de hacer, son el único camino. Es el patrón de `0051`. `raffle_prize_r
 **Lo que no toca.** Ninguna política, tabla o función de la cartera (D-198): un premio no lleva
 cliente, precio de venta, abonos ni saldos, y una prueba comprueba que **ninguna función nueva**
 devuelve una columna de esa lista. El aviso que se escribe en la campana tampoco.
+
+### 4.21 El motor de premios configurables (`0061`; BR-J06, BR-J07, BR-J09; D-203)
+
+> ⚠️ **Solo en local**, como §4.20.
+
+**La superficie no crece.** `match_lottery_result` y `confirm_lottery_result` siguen siendo proceso
+interno: **sin `EXECUTE` para `anon` ni `authenticated`**, solo `service_role`, igual que en
+`0036`–`0038`. Las piezas nuevas —`raffle_prize_versions_at`, `raffle_prize_draw_prizes` y los tres
+disparadores— tampoco son ejecutables desde una sesión. Tener la capacidad `raffles.prizes.manage`
+**no da ninguna puerta** hacia las coincidencias: ni el Dueño, que tiene todas, puede ejecutar el
+motor o escribir un enlace.
+
+| Superficie | Cómo se cierra |
+|---|---|
+| Escribir un enlace a un premio desde una sesión | `lottery_ticket_match_prizes` no concede `INSERT`, `UPDATE` ni `DELETE` a nadie y no tiene políticas de escritura. **Tampoco la service role escribe**: solo lee. Escribe únicamente el motor (`SECURITY DEFINER`) |
+| Modificar o borrar un enlace o una fotografía | Disparadores de inmutabilidad, **también** con la service role y con PostgreSQL directo |
+| Un enlace entre organizaciones, rifas, sorteos o números | FK compuestas reales hacia la fotografía, el premio y la versión (§4.21 de `DATA_MODEL`). No depende de la aplicación ni del motor |
+| Un enlace que miente sobre la versión, el número, el calendario o la prioridad | Disparador de sentencia que lo valida con las definiciones canónicas y con la prioridad por cliente. Una fotografía de una rifa configurable sin su premio también se rechaza |
+| Leer los enlaces de otro vendedor | La política **pregunta a la fotografía**, y la RLS de esta se aplica dentro: el vendedor lee los enlaces de SUS coincidencias y nada más |
+| Que el personal lea clientes a través de los enlaces | Un enlace no lleva cliente, y el personal no lee ni la fotografía ni sus enlaces (D-198). Su lectura sigue siendo `admin_lottery_matches`, **sin cambios** y sin cliente |
+| Otra organización | `organization_id in current_org_ids()` y la RLS de la fotografía: cero filas |
+| Un resultado con dos premios imposibles | El motor **falla entero**, sin escribir nada. El `detail` lleva identificadores de rifa, premios y sorteo, **nunca** datos de clientes, y lo lee solo el proceso interno |
+
+**Lo que no toca.** La cartera (D-198): ni una política, tabla o proyección del personal cambia, y una
+prueba comprueba que ninguna columna de la tabla nueva ni ningún retorno de las funciones nuevas
+nombra clientes, precios, abonos, pagos, alternativas o recompensas.
 
 ## 5. Protección de Server Actions y Route Handlers
 

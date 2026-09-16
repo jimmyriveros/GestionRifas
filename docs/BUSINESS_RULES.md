@@ -1,6 +1,8 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.25 · **Estado:** normativo · **Actualizado:** 2026-09-16 (§12.i: **BR-J16**
+- **Versión:** 1.26 · **Estado:** normativo · **Actualizado:** 2026-09-16 (§12.i: **BR-J06 y BR-J07
+  tienen motor** —Entrega 3, D-203, migración `0061`— y **BR-J07 pasa a aplicarse por cliente**, por
+  respuesta del dueño; nota en BR-L06); antes, ese mismo día (§12.i: **BR-J16**
   precisa que la revisión es el único camino visible para activar un borrador configurable, corrección
   de D-202); antes, el 2026-09-15 (§12.i: premios
   configurables por rifa —BR-J01..BR-J16, D-199, D-200, **D-201** y **D-202**, migraciones `0058`,
@@ -21,7 +23,8 @@
   y en producción desde el 2026-09-12** (D-193, migraciones `0051`–`0055`): la columna es historia,
   no una advertencia.
 - La sección **12.i (BR-J)** es la única que describe algo que **todavía no está en el proyecto
-  real**: la migración `0058` vive **solo en local** y su panel y su motor son las entregas 2 y 3.
+  real**: las migraciones `0058` a `0061` —contrato, panel y motor, entregas 1 a 3— viven **solo en
+  local**, y la transición de las rifas existentes es la Entrega 4.
 
 ---
 
@@ -638,7 +641,7 @@ producción (D-149).
 | BR-L03 | `reference_date` es la fecha nominal del premio y no cambia si el sorteo se adelanta o se aplaza. | D | post-9 |
 | BR-L04 | `official_scheduled_at` es el instante vigente. Decide qué boletas ya existían y si estaban asignadas. Un festivo no fabrica por sí solo una fecha nueva. | D | post-9 |
 | BR-L05 | Participan las rifas `active` o `closed` cuya ventana (`start_date`–`end_date`) cubre `reference_date`. Todas, nunca «la activa más reciente» (D-140). | D | post-9 |
-| BR-L06 | La coincidencia es textual y exacta. El número mayor son cuatro dígitos. `0046` no coincide con `46`. Prohibido casteo, `lpad` o recorte de ceros. Lunes a viernes usan `daily_number`; Boyacá, `weekly_number`. | D | post-9 |
+| BR-L06 | La coincidencia es textual y exacta. El número mayor son cuatro dígitos. `0046` no coincide con `46`. Prohibido casteo, `lpad` o recorte de ceros. Lunes a viernes usan `daily_number`; Boyacá, `weekly_number`. **Desde D-203 esto describe las rifas heredadas (`prize_mode = 'legacy'`)**: en una rifa configurable, qué número juega, con cuántas cifras y qué día lo dicen sus premios (BR-J02, BR-J06, BR-J07), con la misma prohibición de castear o rellenar. | D | post-9 |
 | BR-L07 | La serie es informativa, nullable, y no participa en la coincidencia ni en los avisos. | D | post-9 |
 | BR-L08 | Un sorteo confirmado no admite un segundo número activo. Si una fuente trae otro, se marca `conflict` y no se sobrescribe. | D | post-9 |
 | BR-L09 | Vendida = asignada con `assigned_at ≤ official_scheduled_at`. `payment_status` no interviene. | D | post-9 |
@@ -876,10 +879,12 @@ lotería. Hasta aquí el único comparador era el fijo de BR-L06, que no se toca
 **La letra es `J`** de «**j**uega»: cada premio juega con un número y una lotería. `P`, `R` y `K` ya
 nombran precios, rifas y catálogo.
 
-> **ENTREGA 1 DE 5: el contrato.** Existen el modelo, las reglas, la autorización, la auditoría y los
-> avisos, **solo en local**. **No existe el panel** (Entrega 2) **ni el motor de coincidencias**
-> (Entrega 3): hoy ninguna coincidencia mira estos premios, y las rifas siguen todas en modo
-> heredado. La columna **Estado** dice qué entrega construye cada regla.
+> **ENTREGA 3 DE 5: el contrato, el panel y el motor, solo en local.** Existen el modelo, las
+> reglas, la autorización, la auditoría y los avisos (Entrega 1), el panel y el proceso de tres pasos
+> (Entrega 2) y **el motor de coincidencias** (Entrega 3, D-203): un resultado confirmado enlaza cada
+> coincidencia de una rifa configurable con su premio y la **versión** que le aplicaba. Las rifas que
+> ya existían siguen en modo heredado hasta la Entrega 4. La columna **Estado** dice qué entrega
+> construye cada regla.
 
 | ID | Regla | Capas | Estado |
 |----|-------|-------|--------|
@@ -888,8 +893,8 @@ nombran precios, rifas y catálogo.
 | BR-J03 | **La categoría es informativa.** Sirve para presentar y para plantillas; **nunca** decide el número, las cifras, el calendario ni la lotería. «Premio semanal, un lunes, cuatro cifras, con Cundinamarca» es válido. | C, S, D | ✅ Entrega 1 |
 | BR-J04 | El calendario son **períodos canónicos**: fecha inicial, fecha final y un conjunto de **días ISO 1..6**, ordenado y sin repetir. **El domingo no se programa** mientras no haya lotería ese día. Cada día elegido tiene que **caer al menos una vez** dentro del período, **dos períodos del mismo premio no pueden compartir un día** y todos quedan **dentro de las fechas de la rifa**. Máximo **10 períodos** por premio. | C, S, D | ✅ Entrega 1 |
 | BR-J05 | La lotería es **la correspondiente de cada día** (lunes Cundinamarca … sábado Boyacá, BR-L01) o una **fija**, que solo puede publicarse en **su** día nominal. Como la fecha de referencia **es** ese día (D-143), en una fecha válida las dos dan la misma lotería. Un sorteo **futuro** que la programación oficial da por **cancelado** se rechaza: no va a tener resultado. | C, S, D | ✅ Entrega 1 |
-| BR-J06 | **Cuatro cifras por defecto.** `four` es igualdad textual exacta con el número mayor; `last_three` compara las **tres últimas** y exige un número de al menos **tres caracteres**. `0046` ≠ `46`; `046` y `1046` sí participan en las tres últimas. Nunca se castea, ni se rellena con ceros, ni se recorta (BR-N03, BR-L06). | C, S, D | ✅ Entrega 1 (regla) · Entrega 3 (motor) |
-| BR-J07 | **Las cuatro cifras mandan sobre las tres.** Para una misma boleta y un mismo resultado, una coincidencia elegible de cuatro cifras deja fuera **todos** los premios de tres cifras de ese resultado. El **valor económico no decide nada**. Por eso un premio de cuatro cifras y otro de tres **conviven a propósito** el mismo día: son especificidades distintas y BR-J08 no los considera un conflicto. Dos premios de la **misma** especificidad **no pueden coincidir** (BR-J08). | S, D | ✅ Entrega 1 (regla) · Entrega 3 (motor) |
+| BR-J06 | **Cuatro cifras por defecto.** `four` es igualdad textual exacta con el número mayor; `last_three` compara las **tres últimas** y exige un número de al menos **tres caracteres**. `0046` ≠ `46`; `046` y `1046` sí participan en las tres últimas. Nunca se castea, ni se rellena con ceros, ni se recorta (BR-N03, BR-L06). El motor compara el número de la boleta **que dice la versión aplicable**, en la fecha y con la lotería **del resultado**. | C, S, D | ✅ Entrega 1 (regla) · ✅ Entrega 3 (motor, D-203) |
+| BR-J07 | **Las cuatro cifras mandan sobre las tres, POR CLIENTE.** Si un cliente tiene **al menos una** coincidencia elegible de cuatro cifras en un resultado, pierde **todas** sus coincidencias de tres cifras en ese resultado —las de sus otras boletas y las del otro número de la misma boleta—; otro cliente que solo coincide en las tres últimas **conserva** su premio. El cliente es el **fotografiado** por el motor (BR-L09); una boleta **sin cliente** en la fotografía es su propia unidad, y la prioridad **no cruza rifas**. Una coincidencia descartada **no se fotografía**. Varias de cuatro cifras con **números distintos** de la boleta conviven. El **valor económico no decide nada**. Por eso un premio de cuatro cifras y otro de tres **conviven a propósito** el mismo día: son especificidades distintas y BR-J08 no los considera un conflicto. Dos premios de la **misma** especificidad **no pueden coincidir** (BR-J08), y si aun así aparecen, el motor **falla sin escribir nada** en vez de elegir. | S, D | ✅ Entrega 1 (regla) · ✅ Entrega 3 (motor) · **por cliente desde D-203**, respuesta del dueño (antes, por boleta) |
 | BR-J08 | **Los premios no se acumulan.** Dos premios **vigentes** que, para una **misma fecha**, juegan con el **mismo número de la boleta**, las **mismas cifras** y la **misma lotería efectiva** son un **conflicto de configuración**: no se puede publicar ni activar esa rifa, y el mensaje nombra **los dos premios y el día**. La **recompensa no entra** en la comparación y el **nombre tampoco**; el cruce se corrige con las **fechas**. **Cuatro cifras y últimas tres sí conviven** (BR-J07), y dos premios con **números distintos** de la boleta tampoco chocan. | S, D | ✅ Entrega 1 · corregida en D-201 |
 | BR-J09 | **Una rifa en borrador se edita libremente.** En una **activa**, una versión nueva solo afecta a lo que todavía no se jugó: aplica **la última versión publicada antes del corte**, que es la **hora original anunciada** del sorteo, aunque después se aplace. La versión de una ocurrencia bloqueada **no se reescribe jamás**. Si el corte de una ocurrencia de una semana **ya empezada** no se conoce, la publicación **se rechaza** en vez de suponer. Una rifa **cerrada o anulada no se edita**, y una **activa** conserva al menos un premio vigente. | C, S, D | ✅ Entrega 1 |
 | BR-J10 | Configurar premios exige la capacidad **`raffles.prizes.manage`**: el **Dueño** activo siempre la tiene, el **Administrador** activo la recibe por la política inicial y el **Vendedor nunca**. Se comprueba en la aplicación **y** en PostgreSQL, con la organización y el actor **de la sesión**. Las tres tablas **no admiten escritura directa**: las seis RPC son la única puerta. | C, S, D | ✅ Entrega 1 |
@@ -900,9 +905,15 @@ nombran precios, rifas y catálogo.
 | BR-J14 | Los **miembros activos** de la organización **leen** los premios de sus rifas, como leen las rifas. Los límites son explícitos y los mismos en la aplicación y en la base: título 2–80, **descripción de una alternativa** 2–160, aclaraciones ≤ 1.000, **importe de una alternativa** 1–10.000.000.000, **6 alternativas** por premio, 10 períodos por premio y 50 premios vigentes por rifa. | C, S, D | ✅ Entrega 1 · ampliada en D-201 |
 | BR-J15 | Un premio dice **desde cuándo y hasta cuándo aplica**: el **primer y el último día en que juega de verdad**, no lo escrito en sus períodos —«los sábados del 1 al 31 de diciembre» empieza el 5—. **Varios períodos separados siguen siendo válidos** y el calendario detallado se conserva entero. Es lo que permite evitar un cruce (BR-J08) moviendo fechas en vez de adivinar. | C, S, D | ✅ Entrega 1 (D-201) |
 
-**Lo que esta entrega NO hace, dicho para que no se lea de más:** no busca coincidencias con estos
-premios, no reprocesa resultados, no reconstruye premios históricos a partir del comparador fijo, no
-cambia ni una fila de `lottery_ticket_matches` y no activa el motor configurable en ninguna rifa.
+**Lo que la Entrega 1 NO hacía, dicho para que no se lea de más:** no buscaba coincidencias con estos
+premios, no reprocesaba resultados, no reconstruía premios históricos a partir del comparador fijo, no
+cambiaba ni una fila de `lottery_ticket_matches` y no activaba el motor configurable en ninguna rifa.
+
+**Lo que la Entrega 3 SÍ hace, y lo que sigue sin hacer (D-203):** busca las coincidencias de las
+rifas **configurables** al confirmar un resultado y guarda cada una con su premio y la **versión**
+aplicada al corte original (BR-J09). **No** reprocesa resultados anteriores, **no** enlaza
+fotografías viejas, **no** recalcula nada si después cambia un premio, **no** cambia el modo de
+ninguna rifa y **no** registra qué alternativa se eligió ni ningún pago o entrega de premios.
 
 ---
 

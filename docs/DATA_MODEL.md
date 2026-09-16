@@ -1,6 +1,10 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.18 · **Estado:** implementado · **Actualizado:** 2026-09-15
+- **Versión:** 2.19 · **Estado:** implementado · **Actualizado:** 2026-09-16
+- **Nota (2026-09-16):** la **`0061`** (Entrega 3, D-203) crea **`lottery_ticket_match_prizes`** —con
+  qué premio y con qué **versión** coincidió cada fotografía de una rifa configurable, §4.21— y
+  vuelve a escribir `match_lottery_result` y `confirm_lottery_result` (§6.h, §6.i). El esquema
+  ejecutable son **`0001`–`0061`** en local y sigue siendo **`0001`–`0057`** en el proyecto real.
 - **Nota (2026-09-15):** la **`0060`** (Entrega 2, D-202) **no crea nada**: vuelve a escribir la
   rama de INSERT de `raffles_guard_prize_config` para que una rifa **nueva** pueda nacer
   `configurable` desde la aplicación, con la capacidad `raffles.prizes.manage` y en borrador.
@@ -798,6 +802,13 @@ Sin `UPDATE` ni `DELETE` (tampoco con `service_role`). FK compuestas con `organi
 
 `tickets` gana `UNIQUE (id, organization_id)` para esa FK. No cambia ninguna regla de boletas.
 
+**Desde la `0061` (D-203):** gana `UNIQUE (id, result_id, organization_id, raffle_id, match_field)`
+—redundante como restricción, porque `id` ya es único— para que un enlace a premios la referencie
+entera (§4.21), y un **disparador de sentencia** que exige que la fotografía de una rifa
+**configurable** se guarde con su premio en la misma sentencia. Las de una rifa heredada no cambian
+y no llevan enlaces. Con premios configurables una boleta puede tener **dos** fotografías en un
+sorteo —una por número—, cada una con su premio.
+
 ### 4.13 `lottery_sync_runs` (`0036`, ampliada en `0041`)
 
 Bitácora del proceso interno. RLS forzada **sin** política de `SELECT` para `authenticated`. No
@@ -1185,6 +1196,54 @@ fechas si dejaría el calendario de un premio fuera.
 **Desde la `0060` (D-202) una rifa NUEVA puede nacer `configurable` desde una sesión**, si quien la
 crea tiene la capacidad `raffles.prizes.manage`, y sigue naciendo **en borrador**. Es la única rama
 que cambió: convertir una rifa que ya existe sigue prohibido para cualquier sesión.
+
+---
+
+### 4.21 `lottery_ticket_match_prizes` (`0061`, BR-J06, BR-J07, BR-J09, D-203)
+
+> ⚠️ **Solo en LOCAL**, como §4.20. Es la Entrega 3 de cinco: el motor de coincidencias.
+
+Con qué **premio** y con qué **versión histórica** coincidió una fotografía de una rifa
+configurable. `lottery_ticket_matches` sigue siendo la fotografía de boleta, cliente y vendedor; esta
+tabla solo añade la relación.
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `organization_id` · `raffle_id` · `result_id` | `uuid` | Los de la fotografía y los del premio: las FK los atan a los dos |
+| `match_id` | `uuid` | La fotografía |
+| `match_field` | `lottery_match_field` | El número de la boleta con el que jugó: el de la fotografía y el de la versión |
+| `prize_id` | `uuid` | El premio |
+| `prize_version_id` | `uuid` | La versión **aplicada**: la última publicada antes del corte original (BR-J09), nunca la vigente de hoy |
+| `created_at` | `timestamptz` | |
+
+**No lleva** título, recompensa, alternativas ni calendario —están congelados en la versión
+inmutable—, ni qué alternativa se eligió, ni nada de pago, entrega o reclamación.
+
+| Invariante | Cómo |
+|---|---|
+| Un enlace no cruza organizaciones, rifas, sorteos ni números | FK `(match_id, result_id, organization_id, raffle_id, match_field)` → `lottery_ticket_matches`; FK `(prize_id, raffle_id, organization_id)` → `raffle_prizes`; FK `(prize_version_id, prize_id)` → `raffle_prize_versions` |
+| Un reintento no duplica | `UNIQUE (match_id, prize_id)` y `on conflict do nothing` |
+| Nadie lo reescribe ni lo borra, tampoco la service role | Disparador `lottery_ticket_match_prizes_immutable` |
+| El enlace dice la verdad: rifa configurable, versión vigente, del mismo número, **aplicable al corte** y con el sorteo en su calendario | Disparador de sentencia `lottery_ticket_match_prizes_check`, con `raffle_prize_applicable_version` y la expansión canónica `raffle_prize_rule_dates` |
+| Un cliente no conserva tres cifras si tiene cuatro en el mismo resultado y la misma rifa (BR-J07) | El mismo disparador, agrupando por cliente fotografiado —o por boleta si no había cliente— |
+| Una fotografía de una rifa configurable no queda sin su premio | Disparador de sentencia `lottery_ticket_matches_prize_links_check` sobre `lottery_ticket_matches` |
+
+**Los dos disparadores de comprobación son de SENTENCIA con tabla de transición**: una consulta por
+escritura, no una por fila. Se disparan al terminar la sentencia completa, con sus CTE, y por eso el
+motor escribe fotografías y enlaces **en la misma sentencia**. Quien escriba a mano una fotografía de
+una rifa configurable sin su enlace en esa sentencia recibe un error.
+
+**RLS y privilegios.** RLS activada y forzada; **una** política de `SELECT` que pregunta a la
+fotografía (`exists` sobre `lottery_ticket_matches`, cuya RLS se aplica dentro): lee quien lee la
+fotografía. `authenticated` y `service_role` **solo `SELECT`**; `anon`, nada. Escribe únicamente el
+motor, que es `SECURITY DEFINER`.
+
+**Índices.** Solo la clave única `(match_id, prize_id)`, que sirve a la idempotencia, a la
+comprobación de la fotografía y a la búsqueda desde una fotografía. Las lecturas por resultado del
+disparador entran por `lottery_ticket_matches (result_id, …)`. **Ninguno sobre `tickets`**: las
+cuatro cifras usan `tickets_org_raffle_daily_idx` y `tickets_org_raffle_weekly_idx`, y las tres
+últimas recorren las boletas de la rifa —5.000 en 33 ms con cuatro premios (`TEST_RESULTS`,
+2026-09-16)—.
 
 ---
 
@@ -1709,6 +1768,12 @@ activación de `raffles`.
 BR-J09 —la última versión publicada antes de la hora original del sorteo— para el motor de la
 Entrega 3, y la prueban `tests/db` y `tests/unit`.
 
+> **Desde la `0061` (D-203)** la llama el disparador de comprobación de los enlaces, y **delega** en
+> `raffle_prize_versions_at(premios, corte)`, su forma de conjunto, que es la que usa el motor: una
+> sola definición de la regla. La `0061` añade también `raffle_prize_draw_prizes(rifas, fecha,
+> lotería, corte)` —los premios que **juegan** un sorteo: versión aplicable, vigente y con el sorteo en
+> su calendario—. Las dos son internas, sin `EXECUTE` para ninguna sesión.
+
 `admin_audit_log` y `admin_audit_redact` (§6.g.8) se vuelven a escribir con **una entidad más**,
 `raffle_prize`, y su lista blanca de claves. Nada más de esas dos funciones cambia.
 
@@ -1724,6 +1789,14 @@ marca el sorteo como `completed`: eso lo hace `confirm_lottery_result` (Etapa 3)
 no esté `confirmed`, o una programación `suspended` / `cancelled` / `schedule_conflict` /
 `schedule_unverified`, se rechaza.
 
+**Desde la `0061` (D-203) devuelve `{ result_id, inserted, prize_links }` y tiene dos ramas en la
+misma transacción.** La **heredada** es la consulta de siempre con `prize_mode = 'legacy'`. La
+**configurable** toma el cerrojo de cada rifa que participa, falla si falta
+`original_scheduled_at` (`data_exception`) o si dos premios juegan el sorteo con la misma firma
+(`check_violation`, con los identificadores en `detail`), y en **una** sentencia busca las
+coincidencias de los premios que juegan, aplica la prioridad de cuatro cifras **por cliente** y
+escribe fotografías y enlaces (§4.21). Una coincidencia descartada por la prioridad no se fotografía.
+
 ### 6.i Sincronización de lotería (migraciones `0037`, `0038`)
 
 | Función | Devuelve | Consumidor |
@@ -1737,6 +1810,9 @@ persiste el número mayor, llama a `match_lottery_result`, crea avisos `lottery.
 sorteo `completed` en **una** transacción. `0038` sustituye el cuerpo para castear
 `validation_status` al enum en el `ON CONFLICT` (D-145). Los avisos de programación usan
 `lottery.schedule_change` y un índice único por destinatario, sorteo y `schedule_version`.
+**Desde la `0061`** los avisos `lottery.result` cuentan **boletas distintas** (`count(distinct
+ticket_id)`), porque una boleta configurable puede fotografiarse dos veces en un sorteo; en una rifa
+heredada las cifras son las mismas (D-203, Decisión 7).
 
 ### 6.j Cerrojo del tick (migración `0039`)
 
@@ -1843,6 +1919,11 @@ cadena), los **cuatro diferidos** `raffle_prize_versions_require_rules`,
 `raffle_prize_schedule_rules_check`, `raffle_prize_versions_require_reward` y
 `raffle_prize_reward_options_check` (calendario y recompensa), y `raffles_guard_prize_config` sobre
 `raffles` (modo, fechas y activación).
+
+**Los del motor de premios** (`0061`, §4.21): `lottery_ticket_match_prizes_immutable` (`BEFORE
+UPDATE OR DELETE`) y **dos de sentencia** con tabla de transición, `AFTER INSERT`:
+`lottery_ticket_match_prizes_check` sobre los enlaces y `lottery_ticket_matches_prize_links_check`
+sobre las fotografías. Valen también con la service role.
 
 ---
 

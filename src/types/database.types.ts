@@ -520,6 +520,90 @@ export type Database = {
           },
         ]
       }
+      lottery_ticket_match_prizes: {
+        Row: {
+          created_at: string
+          id: string
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          match_id: string
+          organization_id: string
+          prize_id: string
+          prize_version_id: string
+          raffle_id: string
+          result_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          match_id: string
+          organization_id: string
+          prize_id: string
+          prize_version_id: string
+          raffle_id: string
+          result_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_field?: Database["public"]["Enums"]["lottery_match_field"]
+          match_id?: string
+          organization_id?: string
+          prize_id?: string
+          prize_version_id?: string
+          raffle_id?: string
+          result_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lottery_ticket_match_prizes_match_fk"
+            columns: [
+              "match_id",
+              "result_id",
+              "organization_id",
+              "raffle_id",
+              "match_field",
+            ]
+            isOneToOne: false
+            referencedRelation: "lottery_ticket_matches"
+            referencedColumns: [
+              "id",
+              "result_id",
+              "organization_id",
+              "raffle_id",
+              "match_field",
+            ]
+          },
+          {
+            foreignKeyName: "lottery_ticket_match_prizes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_match_prizes_prize_fk"
+            columns: ["prize_id", "raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffle_prizes"
+            referencedColumns: ["id", "raffle_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_match_prizes_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lottery_ticket_match_prizes_version_fk"
+            columns: ["prize_version_id", "prize_id"]
+            isOneToOne: false
+            referencedRelation: "raffle_prize_versions"
+            referencedColumns: ["id", "prize_id"]
+          },
+        ]
+      }
       lottery_ticket_matches: {
         Row: {
           assigned_at: string | null
@@ -2836,6 +2920,22 @@ export type Database = {
         Args: { p_version_ids: string[] }
         Returns: string
       }
+      raffle_prize_draw_prizes: {
+        Args: {
+          p_cutoff: string
+          p_lottery: Database["public"]["Enums"]["lottery_code"]
+          p_raffle_ids: string[]
+          p_reference_date: string
+        }
+        Returns: {
+          digits: Database["public"]["Enums"]["raffle_prize_digits"]
+          number_field: Database["public"]["Enums"]["lottery_match_field"]
+          organization_id: string
+          prize_id: string
+          raffle_id: string
+          version_id: string
+        }[]
+      }
       raffle_prize_history: {
         Args: { p_limit?: number; p_offset?: number; p_prize_id: string }
         Returns: {
@@ -2990,6 +3090,13 @@ export type Database = {
       raffle_prize_version_problem: {
         Args: { p_end: string; p_start: string; p_version_id: string }
         Returns: string
+      }
+      raffle_prize_versions_at: {
+        Args: { p_cutoff: string; p_prize_ids: string[] }
+        Returns: {
+          prize_id: string
+          version_id: string
+        }[]
       }
       raffle_prize_weekdays_valid: {
         Args: { p_weekdays: number[] }

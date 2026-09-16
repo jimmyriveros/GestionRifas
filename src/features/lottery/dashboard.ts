@@ -342,8 +342,26 @@ function toMatchView(match: LotteryMatchSnapshot): LotteryMatchView {
   }
 }
 
+/**
+ * Una boleta por coincidencia, aunque tenga dos fotografias (D-203).
+ *
+ * En una rifa con premios configurables una misma boleta puede coincidir en un
+ * sorteo con su numero diario Y con su semanal, y cada uno deja su fila. El
+ * recuadro habla de BOLETAS —«2 boletas coincidieron»—, asi que se cuenta y se
+ * enlaza cada una una sola vez. En una rifa heredada no cambia nada: cada boleta
+ * tiene como mucho una fotografia por sorteo.
+ */
+function oneMatchPerTicket(matches: LotteryMatchSnapshot[]): LotteryMatchSnapshot[] {
+  const seen = new Set<string>()
+  return matches.filter((match) => {
+    if (seen.has(match.ticketId)) return false
+    seen.add(match.ticketId)
+    return true
+  })
+}
+
 export function toDrawView(row: LotteryScheduleSnapshot): LotteryDrawView {
-  const matches = row.matches.map(toMatchView)
+  const matches = oneMatchPerTicket(row.matches).map(toMatchView)
   const raffleNames = [
     ...new Set(
       matches.map((match) => match.raffleName).filter((name): name is string => Boolean(name)),
