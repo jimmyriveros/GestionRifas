@@ -170,6 +170,21 @@ const prizeFields = {
 }
 
 /**
+ * Lo que el FORMULARIO valida, sin identificadores: el mismo premio se crea o
+ * se publica como versión nueva, y los campos son exactamente los mismos. Las
+ * dos acciones añaden después lo suyo (la rifa, o el premio y su versión).
+ */
+export const prizeFormSchema = z
+  .strictObject({
+    digits: prizeDigitsSchema,
+    ...prizeFields,
+  })
+  .superRefine((value, ctx) => rejectOverlaps(value.rules, ctx))
+
+export type PrizeFormInput = z.input<typeof prizeFormSchema>
+export type PrizeFormValues = z.infer<typeof prizeFormSchema>
+
+/**
  * Al crear, las cifras son CUATRO si no se dice otra cosa (BR-J06). Al publicar
  * una versión nueva son obligatorias: omitirlas devolvería a cuatro cifras un
  * premio configurado con las tres últimas sin que nadie lo pidiera.
@@ -226,6 +241,15 @@ export type PrizeHistoryInput = z.infer<typeof prizeHistorySchema>
  * Los argumentos de las RPC. Están aquí, y no en cada acción, porque son parte
  * del contrato: si cambia un nombre de parámetro, cambia en un solo sitio.
  */
+/**
+ * Las aclaraciones vacías se OMITEN, no se mandan como `null`: los argumentos
+ * opcionales de las RPC llegan a los tipos generados como `string | undefined`
+ * y la RPC ya usa `null` por omisión (`HANDOFF` §9).
+ */
+function conditionsArg(conditions: string): { p_conditions?: string } {
+  return conditions === '' ? {} : { p_conditions: conditions }
+}
+
 /** Las alternativas, en su orden: la base guarda la posición tal como llega. */
 export function toRewardPayload(reward: PrizeRewardInput) {
   return reward.options.map((option) => ({
@@ -244,7 +268,7 @@ export function toCreatePrizeArgs(values: CreatePrizeValues) {
     p_number_field: values.numberField,
     p_rules: toRulePayload(values.rules),
     p_digits: values.digits,
-    p_conditions: values.conditions === '' ? null : values.conditions,
+    ...conditionsArg(values.conditions),
   }
 }
 
@@ -259,7 +283,7 @@ export function toPublishPrizeArgs(values: PublishPrizeVersionInput) {
     p_number_field: values.numberField,
     p_digits: values.digits,
     p_rules: toRulePayload(values.rules),
-    p_conditions: values.conditions === '' ? null : values.conditions,
+    ...conditionsArg(values.conditions),
   }
 }
 
@@ -283,11 +307,10 @@ export function prizeRulesProblem(
  * cifras. La alternativa existe desde el principio porque siempre hay al menos
  * una: lo que falta por escribir es su valor.
  */
-export const prizeFormDefaults: CreatePrizeInput = {
-  raffleId: '',
+export const prizeFormDefaults: PrizeFormInput = {
   title: '',
   category: 'daily',
-  reward: { mode: 'fixed', options: [{ description: null, amount: 0 }] },
+  reward: { mode: 'fixed', options: [{ description: null, amount: null }] },
   numberField: 'daily_number',
   digits: 'four',
   conditions: '',

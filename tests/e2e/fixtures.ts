@@ -153,3 +153,68 @@ export async function toggleCheckbox(box: Locator, expected: boolean): Promise<v
     await expect(box).toBeChecked({ checked: expected, timeout: 1500 })
   }).toPass({ timeout: 20_000 })
 }
+
+/**
+ * Crea una rifa con el proceso por pasos de D-202: datos, un premio y —si se
+ * pide— la revisión y la activación.
+ *
+ * Desde la Entrega 2 una rifa nueva nace en modo `configurable` y NO se puede
+ * activar sin al menos un premio válido (BR-J13), así que las pruebas que
+ * antes creaban y activaban en dos clics pasan por aquí.
+ *
+ * La fecha inicial NO puede caer en domingo: el período que trae el premio por
+ * omisión es ese día, y el domingo no tiene lotería (BR-J04).
+ */
+export async function createRaffleWithPrize(
+  page: Page,
+  options: {
+    name: string
+    startDate?: string
+    endDate?: string
+    prizeTitle?: string
+    amount?: string
+    activate?: boolean
+  },
+): Promise<string> {
+  const startDate = options.startDate ?? '2026-01-01'
+  const endDate = options.endDate ?? '2026-12-31'
+
+  await page.goto('/owner/raffles/new')
+  await page.getByLabel('Nombre de la rifa').fill(options.name)
+  await page.getByLabel('Fecha de inicio').fill(startDate)
+  await page.getByLabel('Fecha de fin').fill(endDate)
+  await page.getByRole('button', { name: 'Crear rifa' }).click()
+
+  await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
+  const raffleId = page.url().split('/owner/raffles/')[1]?.split('/')[0] ?? ''
+
+  await addPrize(page, {
+    title: options.prizeTitle ?? 'Premio diario',
+    amount: options.amount ?? '500000',
+    date: startDate,
+  })
+
+  if (options.activate) {
+    await page.getByRole('link', { name: 'Continuar a revisar' }).click()
+    await page.waitForURL(/\/review$/)
+    await page.getByRole('button', { name: 'Activar rifa' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Activar rifa' }).click()
+    await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+$/)
+  }
+
+  return raffleId
+}
+
+/** Agrega un premio único en dinero desde el panel de premios de una rifa. */
+export async function addPrize(
+  page: Page,
+  options: { title: string; amount: string; date: string },
+): Promise<void> {
+  await page.getByRole('button', { name: 'Agregar premio' }).first().click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Nombre del premio').fill(options.title)
+  await dialog.getByLabel('Dinero').fill(options.amount)
+  await dialog.getByLabel('Fecha', { exact: true }).fill(options.date)
+  await dialog.getByRole('button', { name: 'Guardar premio' }).click()
+  await expect(dialog).toBeHidden()
+}

@@ -356,3 +356,24 @@ export function prizeConflict(
     )[0] ?? null
   )
 }
+
+/** Las tres formas en que la pantalla presenta un periodo (D-202). */
+export type PrizeRuleKind = 'single' | 'range' | 'recurring'
+
+/**
+ * Que forma tiene un periodo ya guardado, para poder volver a pintarlo con el
+ * control con el que se escribio.
+ *
+ * Es la misma lectura que hace `summarizeRule`: un dia, un tramo seguido, o un
+ * tramo con dias elegidos.
+ */
+export function ruleKind(rule: PrizeRule): PrizeRuleKind {
+  if (rule.startDate === rule.endDate) return 'single'
+
+  const everyDay = rangeRule(rule.startDate, rule.endDate).weekdays
+  const sameDays =
+    everyDay.length === rule.weekdays.length &&
+    everyDay.every((day, index) => day === rule.weekdays[index])
+
+  return sameDays ? 'range' : 'recurring'
+}

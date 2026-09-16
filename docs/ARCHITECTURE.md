@@ -1,8 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.33 · **Estado:** implementado · **Actualizado:** 2026-09-15 (§7.3 y **§8.27**:
-  premios configurables por rifa y la capacidad central, D-199, D-200 y **D-201**, migraciones `0058`
-  y `0059`, **solo en
+- **Versión:** 1.34 · **Estado:** implementado · **Actualizado:** 2026-09-15 (§7.3 y **§8.27**:
+  premios configurables por rifa, su **panel** y la capacidad central, D-199 a **D-202**,
+  migraciones `0058`, `0059` y `0060`, **solo en
   local**). Antes, el 2026-09-13 (§7.3 y §8.25: el mensaje
   propio de «Resultados de la semana», D-197)
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
@@ -242,9 +242,11 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/account/password` | todos | 1 | Cambio de contraseña |
 | `/owner/dashboard` | owner, admin | 1 → 3 → **6 ✅** · post-9 | Inventario de la organización y resumen por vendedor, en boletas; **sin dinero** desde D-198 (§8.26) |
 | `/owner/raffles` | owner, admin | **3 ✅** | Listado de rifas |
-| `/owner/raffles/new` | owner, admin | **3 ✅** | Crear rifa |
-| `/owner/raffles/[raffleId]` | owner, admin | **3 ✅** · post-9 | Detalle con su inventario, sin la sección «Dinero» desde D-198 (la edición está en `/edit`) |
+| `/owner/raffles/new` | owner, admin | **3 ✅** · post-9 | **Paso 1 de 3**: los datos de la rifa. Desde D-202 la rifa nace en borrador y en modo `configurable`, y el proceso sigue en sus premios |
+| `/owner/raffles/[raffleId]` | owner, admin | **3 ✅** · post-9 | Detalle con su inventario, sin la sección «Dinero» desde D-198 (la edición está en `/edit`). Desde D-202 lleva sus **premios vigentes** cuando la rifa es configurable |
 | `/owner/raffles/[raffleId]/edit` | owner, admin | **3 ✅** | Edición (bloqueada en rifas cerradas o anuladas) |
+| `/owner/raffles/[raffleId]/prizes` | owner, admin **con la capacidad** | post-9 | **Paso 2 de 3** y panel de premios: crear, editar, archivar, restaurar, ordenar e historial (D-202) |
+| `/owner/raffles/[raffleId]/review` | owner, admin **con la capacidad** | post-9 | **Paso 3 de 3**: la configuración entera y la activación de la rifa (D-202) |
 | `/owner/users` | owner, admin | **3 ✅** | Administradores |
 | `/owner/sellers` | owner, admin | **3 ✅** | Vendedores |
 | `/owner/sellers/[sellerId]` | owner, admin | **3 ✅** · post-9 | Detalle del vendedor: contacto, inventario, su equipo y con qué regla se le paga (BR-E08). Sin lo vendido ni lo ganado desde D-198 |
@@ -1995,6 +1997,12 @@ vendedor, o si una Server Action de la cartera deja de exigir el rol `seller`.
 |---|---|
 | `supabase/migrations/0058_raffle_prizes.sql` | Tres tablas, seis RPC, la capacidad y los disparadores que protegen el modo, las fechas y la activación de una rifa |
 | `supabase/migrations/0059_raffle_prize_reward_options.sql` | La **recompensa normalizada** en alternativas, `reward_mode`, el **conflicto** entre dos premios y la **vigencia** de una versión. Retira las tres columnas de recompensa de la `0058` **sin reescribirla** (D-201) |
+| `supabase/migrations/0060_configurable_raffle_creation.sql` | **Solo el disparador**: una rifa NUEVA puede nacer `configurable` desde una sesión con la capacidad, y en borrador. Convertir una existente sigue prohibido (D-202) |
+| `src/features/raffle-prizes/queries.ts` | Las dos lecturas del panel, con `server-only`: los premios de una rifa **en una consulta embebida** y el contexto de la rifa. El historial **no** entra aquí |
+| `src/features/raffle-prizes/actions.ts` | Las cinco escrituras y la lectura del historial, todas con `authorizeCapability` |
+| `src/features/raffle-prizes/review.ts` | Lo que impide activar una rifa, **puro**. PostgreSQL vuelve a comprobarlo |
+| `src/features/raffle-prizes/components/` | `PrizeList` (tabla + tarjetas), `PrizeDialog` con `PrizeRewardField` y `PrizeScheduleField`, `PrizeHistoryDialog`, `RafflePrizesPanel` y `RaffleReview` |
+| `src/features/raffles/components/RaffleWizardSteps.tsx` | Los tres pasos de crear una rifa. Dice dónde estás; no navega |
 | `src/lib/auth/capabilities.ts` | El catálogo de capacidades y la política por rol. **Puro**: lo pueden leer las pantallas para decidir si pintan una acción |
 | `authorizeCapability()` en `src/lib/auth/guards.ts` | `authorizeAction` con la pregunta cambiada: capacidad en vez de rol. Las Server Actions de la Entrega 2 entran por aquí |
 | `src/features/raffle-prizes/schedule.ts` | El calendario, **puro**: expansión, forma canónica, solapes, los tres modos de la pantalla y el payload de la RPC |
@@ -2019,9 +2027,17 @@ vendedor, o si una Server Action de la cartera deja de exigir el rol `seller`.
    misma lotería se rechaza nombrando los dos y el día; cuatro cifras y últimas tres **sí** conviven
    (D-201).
 
-**Lo que la Entrega 2 tiene que usar tal cual:** los esquemas y los mapeadores de `schemas.ts`, la
-lectura por PostgREST del premio con su versión vigente y sus períodos en **una** consulta —hay una
-prueba de base de datos que fija ese contrato— y `authorizeCapability` en cada Server Action nueva.
+**Lo que la Entrega 2 usó tal cual, y la 3 debería seguir usando:** los esquemas y los mapeadores de
+`schemas.ts`, la lectura por PostgREST del premio con su versión vigente, su recompensa y sus
+períodos en **una** consulta —hay una prueba de base de datos que fija ese contrato— y
+`authorizeCapability` en cada Server Action nueva.
+
+**El panel, en una frase por pieza (D-202).** El listado tiene **dos caras** —tabla desde `md`,
+tarjetas debajo— y **una sola fuente**: `PrizeList`, que también pinta la revisión y el detalle de
+la rifa en modo lectura. El formulario es **uno** para crear y para publicar una versión nueva. El
+**historial se pide al abrirlo**, paginado, por una Server Action. Y **nada se vuelve a consultar
+desde el cliente**: lo que cambia lo refresca `revalidatePath` desde cada acción, más un
+`router.refresh()` al terminar.
 
 ## 9. Configuración regional
 

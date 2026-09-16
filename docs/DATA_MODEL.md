@@ -1,7 +1,11 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.17 · **Estado:** implementado · **Actualizado:** 2026-09-15
-- **Nota (2026-09-15):** el esquema ejecutable son **`0001`–`0059`** en local y **`0001`–`0057`** en
+- **Versión:** 2.18 · **Estado:** implementado · **Actualizado:** 2026-09-15
+- **Nota (2026-09-15):** la **`0060`** (Entrega 2, D-202) **no crea nada**: vuelve a escribir la
+  rama de INSERT de `raffles_guard_prize_config` para que una rifa **nueva** pueda nacer
+  `configurable` desde la aplicación, con la capacidad `raffles.prizes.manage` y en borrador.
+  Cambiar el modo de una rifa **existente** sigue prohibido para cualquier sesión.
+- **Nota (2026-09-15):** el esquema ejecutable son **`0001`–`0060`** en local y **`0001`–`0057`** en
   el proyecto real. La **`0058`** y la **`0059`** —premios configurables por rifa, §4.20 y §6.g.9—
   **no están aplicadas allí**: son la Entrega 1 de cinco y su promoción es la Entrega 5. La **`0059`**
   corrige la `0058` **sin reescribirla** (D-201): normaliza la recompensa en **opciones**, retira las
@@ -1177,6 +1181,10 @@ dispara la auditoría**, así que ninguna rifa existente cambió. Un disparador
 (`raffles_guard_prize_config`) impide que lo cambie **cualquier sesión**, exige borrador para
 cambiarlo, comprueba la configuración **al activar** una rifa configurable y rechaza acortar las
 fechas si dejaría el calendario de un premio fuera.
+
+**Desde la `0060` (D-202) una rifa NUEVA puede nacer `configurable` desde una sesión**, si quien la
+crea tiene la capacidad `raffles.prizes.manage`, y sigue naciendo **en borrador**. Es la única rama
+que cambió: convertir una rifa que ya existe sigue prohibido para cualquier sesión.
 
 ---
 

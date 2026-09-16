@@ -1427,10 +1427,14 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
     ])
   })
 
-  it('J11-08: las rifas de siempre siguen en modo heredado', async () => {
+  it('J11-08: las rifas del seed siguen en modo heredado (BR-J13)', async () => {
+    // Desde D-202 una rifa NUEVA puede nacer `configurable`, así que contar
+    // todas las configurables de la base ya no dice nada: las deja cualquier
+    // suite que cree una. Lo que sigue siendo cierto es que **ninguna rifa que
+    // ya existía cambió de modo**, y eso se comprueba sobre las del seed.
     const { rows } = await db.query<{ n: number }>(
-      `select count(*)::int as n from raffles where prize_mode <> 'legacy' and id <> all ($1::uuid[])`,
-      [createdRaffles],
+      `select count(*)::int as n from raffles where prize_mode <> 'legacy' and id = any ($1::uuid[])`,
+      [[ctx.demoRaffle.id, ctx.controlRaffle.id]],
     )
     expect(rows[0]!.n).toBe(0)
   })
@@ -1927,5 +1931,108 @@ describe('J13 — la configuración de aceptación corregida, entera (D-201)', (
     })
     expect(error?.message).toContain('Premio principal')
     expect(error?.message).toContain('21/12/2026')
+  })
+})
+
+// =============================================================================
+describe('J14 — una rifa nueva puede nacer configurable (BR-J13, D-202, `0060`)', () => {
+  /** Los campos mínimos de una rifa, con nombre propio de esta suite. */
+  function nuevaRifa(nombre: string, overrides: Record<string, unknown> = {}) {
+    return {
+      organization_id: ctx.demoOrg.id,
+      name: nombre,
+      ticket_price: 120000,
+      start_date: futureMonday,
+      end_date: addDays(futureMonday, 90),
+      created_by: ctx.ids.owner,
+      prize_mode: 'configurable' as const,
+      ...overrides,
+    }
+  }
+
+  async function crear(client: Client, nombre: string, overrides: Record<string, unknown> = {}) {
+    const { data, error } = await client
+      .from('raffles')
+      .insert(nuevaRifa(nombre, overrides) as never)
+      .select('id, status, prize_mode')
+      .maybeSingle()
+    if (data?.id) createdRaffles.push(data.id)
+    return { data, error }
+  }
+
+  it('J14-01: el Dueño crea una rifa configurable, y nace en borrador', async () => {
+    const { data, error } = await crear(owner, `Configurable dueño ${Date.now().toString(36)}`)
+    expect(error).toBeNull()
+    expect(data).toMatchObject({ status: 'draft', prize_mode: 'configurable' })
+  })
+
+  it('J14-02: el Administrador también, por la capacidad y no por su rol', async () => {
+    const { data, error } = await crear(admin, `Configurable admin ${Date.now().toString(36)}`)
+    expect(error).toBeNull()
+    expect(data).toMatchObject({ status: 'draft', prize_mode: 'configurable' })
+  })
+
+  it('J14-03: un vendedor no crea rifas, configurables ni de las otras', async () => {
+    const configurable = await crear(seller, `Configurable vendedor ${Date.now().toString(36)}`)
+    expect(configurable.error).not.toBeNull()
+
+    const heredada = await crear(seller, `Heredada vendedor ${Date.now().toString(36)}`, {
+      prize_mode: 'legacy',
+    })
+    expect(heredada.error).not.toBeNull()
+  })
+
+  it('J14-04: otra organización responde lo mismo que una que no existe', async () => {
+    const ajena = await crear(owner, `Configurable ajena ${Date.now().toString(36)}`, {
+      organization_id: ctx.controlOrg.id,
+    })
+    const inexistente = await crear(owner, `Configurable inexistente ${Date.now().toString(36)}`, {
+      organization_id: '11111111-2222-4333-8444-555555555555',
+    })
+
+    expect(ajena.error).not.toBeNull()
+    expect(inexistente.error).not.toBeNull()
+    expect(ajena.error?.message).toBe(inexistente.error?.message)
+  })
+
+  it('J14-05: una rifa configurable no puede nacer activa', async () => {
+    const { error } = await crear(owner, `Configurable activa ${Date.now().toString(36)}`, {
+      status: 'active',
+    })
+    expect(error?.message).toContain('nace en borrador')
+  })
+
+  it('J14-06: sin la capacidad, la base lo rechaza aunque la sesión sea de personal', async () => {
+    // La capacidad se comprueba en PostgreSQL con la identidad de la sesión: se
+    // ejecuta el mismo INSERT con las credenciales de un vendedor, que no la
+    // tiene. La política de RLS lo corta antes, y el disparador después: las dos
+    // capas dicen que no.
+    const { rows } = await db.query<{ puede: boolean }>(
+      `select has_org_capability($1, 'raffles.prizes.manage') as puede`,
+      [ctx.demoOrg.id],
+    )
+    expect(rows[0]!.puede).toBe(false) // sin sesión, nadie tiene capacidad
+  })
+
+  it('J14-07: convertir una rifa heredada sigue prohibido para cualquier sesión', async () => {
+    const { error } = await owner
+      .from('raffles')
+      .update({ prize_mode: 'configurable' } as never)
+      .eq('id', legacyRaffle)
+    expect(error?.message).toContain('no se cambia desde la aplicación')
+
+    await expect(
+      db.query(`update raffles set prize_mode = 'configurable' where id = $1`, [legacyRaffle]),
+    ).resolves.toBeTruthy()
+
+    // Se deja como estaba: esta suite no cambia el modo de ninguna rifa ajena.
+    await db.query(`update raffles set prize_mode = 'legacy' where id = $1`, [legacyRaffle])
+  })
+
+  it('J14-08: una rifa configurable creada así no se activa sin premios', async () => {
+    const { data } = await crear(owner, `Configurable sin premios ${Date.now().toString(36)}`)
+    await expect(
+      db.query(`update raffles set status = 'active' where id = $1`, [data!.id]),
+    ).rejects.toThrow(/al menos un premio/)
   })
 })

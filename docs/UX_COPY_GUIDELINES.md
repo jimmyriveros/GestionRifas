@@ -474,6 +474,10 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Con cuál de los dos números de la boleta juega | **Número diario** y **número semanal**, los de siempre | Campo, columna, tipo de número |
 | Con qué lotería juega cada día | **Lotería correspondiente** (la del día) o el nombre de la fija: **la lotería de Boyacá** | Lotería automática, por defecto, según el día |
 | Cada tramo de fechas del calendario de un premio | **Período**; el botón dice **«Agregar otro período»** | Ventana, rango, bloque, tramo |
+| Las tres formas de escribir un período | **Una fecha** · **Del … al …** · **Ciertos días de la semana** (D-202) | Fecha única, rango, recurrencia, RRULE |
+| Los tres pasos de crear una rifa | **Datos de la rifa** · **Premios** · **Revisar y activar** (D-202) | Asistente, wizard, configuración inicial |
+| Salir del proceso sin terminarlo | **Guardar y terminar después** | Guardar borrador, salir, cancelar |
+| Lo que la revisión dice cuando falta algo | **«Todavía no se puede activar»**, y debajo qué falta | Error, inválido, incompleto |
 | Sacar un premio de los próximos sorteos sin perder su historial | **Archivar** (el mismo verbo que un cliente o una cuenta) | Eliminar, desactivar, cancelar, retirar |
 | Devolverlo | **Restaurar** | Reactivar, recuperar, volver a activar |
 | Un premio que sí aplica a los próximos sorteos | **Vigente** | Activo, que es lo que dice una cuenta de persona (BR-E14), y aquí se leería como otra cosa |
@@ -1393,6 +1397,28 @@ número o las cifras de uno de los dos.»
 «Los sábados del 1 al 31 de diciembre» empieza el **5**, y es el 5 lo que se escribe: una vigencia
 que empieza un día en el que el premio no juega es una fecha que nadie puede comprobar.
 
+**El calendario se elige; la pantalla no enseña ni un concepto técnico** (D-202). No hay JSON, ni
+«regla», ni días ISO, ni marcadores: se elige entre **una fecha**, **del … al …** y **ciertos días
+de la semana**, y debajo se lee en español lo que va a jugar. Si algo no encaja —un domingo, una
+lotería fija fuera de su día, un período que no incluye los días elegidos— se dice **con la misma
+frase que responde la base**, no con un código.
+
+**Y una fecha que alguien escribió NO se mueve sola.** Al elegir una lotería fija, un período de
+«ciertos días» se queda con el día de esa lotería —y se explica por qué—, pero en «una fecha» la
+fecha se respeta y se avisa de que no encaja. Corregir en silencio un dato que la persona acaba de
+escribir es peor que decirle que está mal.
+
+**Un cambio en un premio se guarda como una versión nueva, y eso se dice antes** (BR-J09). El
+diálogo de editar abre con «Los cambios se guardan como una versión nueva. El historial conserva las
+anteriores.», y si no cambió nada el aviso lo dice tal cual: **«No cambiaste nada, así que no se
+guardó una versión nueva.»** Decir «Los cambios quedaron guardados» cuando no hubo ninguno es
+exactamente la clase de frase que esta guía prohíbe.
+
+**Activar una rifa nunca ocurre sola** (BR-J16). Guardar el último premio no la activa: hay una
+acción explícita, una confirmación que dice qué va a pasar —«Sus boletas podrán venderse y los
+premios quedarán anunciados con las condiciones que ves aquí.»— y, mientras no se pueda, el botón
+no se ofrece y la pantalla enumera qué falta.
+
 **Las aclaraciones de un premio las va a leer un cliente.** La pantalla lo dice antes de que alguien
 escriba: «Las aclaraciones se pueden compartir con los vendedores y con sus clientes: escríbelas
 pensando en ellos.» Es la §5 de esta guía —explicar qué ocurrirá— aplicada a un campo de texto libre.
@@ -1580,6 +1606,11 @@ castigo donde solo había una espera.
 | La semana en corto («17–22 AGO 2026») y en largo («del 17 al 22 de agosto de 2026») | `src/features/weekly-results/week.ts` (`formatWeekShort`, `formatWeekLong`), con los meses escritos a mano y no con `Intl` (D-195) |
 
 | Todos los textos de los premios configurables: categorías, recompensa, cifras, el resumen del calendario en español y la vista previa del premio | `src/features/raffle-prizes/copy.ts` (`PRIZE_COPY`), **todos juntos** (D-199) |
+| Los del **panel**: título, columnas, acciones, archivados, los dos avisos de estado de la rifa y las dos confirmaciones | `PRIZE_PANEL_COPY`, en ese mismo archivo (D-202) |
+| Los del **formulario** de un premio, incluidas las alternativas y la ayuda de las cifras | `PRIZE_FORM_COPY`, ahí mismo (D-202) |
+| Los del **selector de calendario**: las tres formas, los días, la lotería fija y la vista previa | `PRIZE_SCHEDULE_COPY`, ahí mismo (D-202) |
+| Los del **historial** de un premio | `PRIZE_HISTORY_COPY`, ahí mismo; qué pasó en cada versión, en `PRIZE_CHANGE_LABELS` (D-202) |
+| Los de los **tres pasos** de crear una rifa y de la revisión previa a activar | `RAFFLE_WIZARD_COPY`, ahí mismo. Los **pinta** `RaffleWizardSteps`, que no escribe ninguno (D-202) |
 | Los dos nombres de la forma de recompensa, «Premio único» y «Alternativas a elegir» | `PRIZE_REWARD_MODE_LABELS`, en ese mismo archivo (D-201). Sustituyen a `PRIZE_REWARD_TYPE_LABELS`, que ya no existe |
 | Cómo se lee una alternativa, y cómo se leen varias | `rewardOptionText` y `rewardOptionsText`, ahí mismo — se **componen** de los componentes de la opción, no se escriben sueltos (D-201) |
 | La vigencia de un premio | `validityText`, ahí mismo; la calcula `validityRange` en `schedule.ts` (D-201) |

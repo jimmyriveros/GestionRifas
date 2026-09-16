@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { RAFFLE_WIZARD_COPY } from '@/features/raffle-prizes/copy'
+import { roleHasCapability } from '@/lib/auth/capabilities'
 import { authorizeAction } from '@/lib/auth/guards'
 import { isOwnerOnlyRaffleTransition, RAFFLE_STATUS_TRANSITIONS } from '@/lib/constants'
 import { mapPgError } from '@/lib/errors'
@@ -18,9 +20,26 @@ import { changeRaffleStatusSchema, createRaffleSchema, updateRaffleSchema } from
  * un objeto recibido del cliente (sin mass assignment, CLAUDE.md 26).
  */
 
+/**
+ * Crear una rifa (BR-R01) — y, desde D-202, crearla con PREMIOS CONFIGURABLES.
+ *
+ * DOS COMPROBACIONES, y cada una dice algo distinto: crear rifas es del
+ * personal (BR-R01), y que la rifa nazca `configurable` exige la capacidad
+ * `raffles.prizes.manage` (D-200), porque quien la crea tiene que poder
+ * configurar sus premios para llegar a activarla. La que manda es el
+ * disparador `raffles_guard_prize_config` de la migración `0060`, que
+ * comprueba lo mismo en PostgreSQL y con las mismas palabras.
+ *
+ * LAS RIFAS QUE YA EXISTEN NO SE TOCAN: siguen en `legacy` y ninguna sesión
+ * puede cambiarlas de modo. Esa transición es la Entrega 4.
+ */
 export async function createRaffle(input: unknown): Promise<ActionResultWith<{ id: string }>> {
   const auth = await authorizeAction(['owner', 'admin'])
   if ('error' in auth) return auth
+
+  if (!roleHasCapability(auth.membership.role, 'raffles.prizes.manage')) {
+    return { error: RAFFLE_WIZARD_COPY.noCapability }
+  }
 
   const parsed = createRaffleSchema.safeParse(input)
   if (!parsed.success) {
@@ -40,8 +59,11 @@ export async function createRaffle(input: unknown): Promise<ActionResultWith<{ i
       end_date: values.endDate,
       allow_seller_ticket_creation: values.allowSellerTicketCreation,
       created_by: auth.membership.profileId,
-      // status queda en 'draft' (valor por defecto): una rifa se activa
-      // explicitamente desde su detalle (BR-R03).
+      // D-202: una rifa nueva define SUS premios. Las que ya existian siguen
+      // en `legacy` y ninguna sesion puede convertirlas (BR-J13).
+      prize_mode: 'configurable',
+      // status queda en 'draft' (valor por defecto): una rifa configurable se
+      // activa desde la revision, cuando sus premios estan listos (BR-J13).
       // short_code lo genera un trigger (D-039).
     })
     .select('id')

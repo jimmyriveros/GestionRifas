@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { RAFFLE_WIZARD_COPY } from '@/features/raffle-prizes/copy'
 import { DEFAULT_TICKET_PRICE } from '@/lib/constants'
 import { todayBogota } from '@/lib/dates'
 
@@ -58,8 +59,10 @@ export function RaffleForm({ raffle }: RaffleFormProps) {
           setServerError(result.error)
           return
         }
-        toast.success('Rifa creada. Actívala cuando esté lista para vender.')
-        router.push(`/owner/raffles/${result.data.id}`)
+        // La rifa nueva nace en BORRADOR y en modo configurable (D-202): el
+        // proceso sigue en sus premios, que es lo que le falta para activarse.
+        toast.success(RAFFLE_WIZARD_COPY.created)
+        router.push(`/owner/raffles/${result.data.id}/prizes`)
       }
       router.refresh()
     })

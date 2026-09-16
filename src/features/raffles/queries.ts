@@ -75,10 +75,12 @@ export type AdminRaffleDetail = AdminRaffleSummary & {
   description: string | null
   createdAt: string
   closedAt: string | null
+  /** BR-J13: `legacy` es el comparador de siempre; `configurable`, sus propios premios. */
+  prizeMode: 'legacy' | 'configurable'
 }
 
 const ADMIN_RAFFLE_COLUMNS =
-  'id, short_code, name, status, ticket_price, start_date, end_date, allow_seller_ticket_creation, description, created_at, closed_at'
+  'id, short_code, name, status, ticket_price, start_date, end_date, allow_seller_ticket_creation, description, created_at, closed_at, prize_mode'
 
 type AdminRaffleRow = {
   id: string
@@ -92,6 +94,7 @@ type AdminRaffleRow = {
   description: string | null
   created_at: string
   closed_at: string | null
+  prize_mode: 'legacy' | 'configurable'
 }
 
 function inventoryByRaffle(
@@ -117,6 +120,7 @@ function mapAdminRaffle(row: AdminRaffleRow, counts: InventoryCounts): AdminRaff
     description: row.description,
     createdAt: row.created_at,
     closedAt: row.closed_at,
+    prizeMode: row.prize_mode,
     ...counts,
   }
 }

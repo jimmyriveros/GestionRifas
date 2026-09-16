@@ -3,8 +3,13 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-15 — **Premios configurables por rifa, ENTREGA 1 de 5: el contrato**,
-  **corregido el mismo día** (D-199, D-200 y **D-201**, BR-J01..**BR-J15**, migraciones **`0058`** y
+- **Actualizado:** 2026-09-15 — **Premios configurables por rifa, ENTREGA 2 de 5: el panel**
+  (D-202, **BR-J16**, migración **`0060`**, **solo en local**). El Dueño y el Administrador con la
+  capacidad `raffles.prizes.manage` ya pueden configurar los premios de una rifa desde la
+  aplicación, y una rifa **nueva** se crea en **tres pasos** —datos, premios y una revisión que la
+  activa— naciendo en modo `configurable`. Las rifas que ya existían **siguen en `legacy`**. Antes,
+  ese mismo día: **ENTREGA 1 de 5: el contrato**,
+  **corregido** (D-199, D-200 y **D-201**, BR-J01..**BR-J15**, migraciones **`0058`** y
   **`0059`**, **solo en local**). La corrección cierra la ambigüedad **A7**: los premios **no se
   acumulan** —dos que se cruzan son un **error de configuración**—, la recompensa pasa a ser una o
   varias **alternativas excluyentes** y cada premio dice **desde cuándo y hasta cuándo** aplica. Cada
@@ -4925,6 +4930,83 @@ si exige una variable que nadie ha creado (I-021).
 
 ---
 
+## Mantenimiento post-9 — premios configurables, **ENTREGA 2 de 5**: el panel (`0060`, D-202, 2026-09-15)
+
+Autorizada expresamente, **solo la Entrega 2**. **No es una Fase 10** y no lleva etiqueta `fase-*`.
+
+> **SOLO EN LOCAL.** El proyecto real no tiene `0058`, `0059` ni `0060`. Sigue **sin motor de
+> coincidencias** (Entrega 3), **sin la rifa de diciembre** (Entrega 4) y **sin desplegar**
+> (Entrega 5): `match_lottery_result` no se tocó y **las rifas que ya existían siguen en `legacy`**.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| El panel | `/owner/raffles/[raffleId]/prizes`: crear, editar —publicando una versión nueva—, archivar, restaurar, ordenar y consultar el historial. **Tabla de seis columnas** en escritorio y **tarjetas** en el teléfono, con la misma información y el mismo orden |
+| Crear una rifa, en tres pasos | **Datos → Premios → Revisar y activar**. El primer paso la deja en **borrador**; se puede salir y seguir después. Las rifas **nuevas** nacen en modo `configurable` |
+| La puerta de la base | La `0060` reescribe **solo** la rama de INSERT de `raffles_guard_prize_config`: una rifa nueva puede nacer configurable **con la capacidad** `raffles.prizes.manage` y **en borrador**. Convertir una rifa existente sigue prohibido para cualquier sesión |
+| El formulario | Nombre, categoría informativa, **recompensa** —«Premio único» o «Alternativas a elegir», con especie, dinero o las dos cosas—, número de la boleta, cifras, calendario y aclaraciones, con **vista previa** de lo que se lee |
+| El calendario | Tres formas —**una fecha**, **del … al …**, **ciertos días de la semana**—, varios períodos, la lotería correspondiente o una **fija** que acota el día, y el resumen en español con la **vigencia** |
+| Conflictos | Al guardar, la base responde con **los dos premios y el día**; la revisión los enumera antes de ofrecer activar. **Cuatro cifras y últimas tres conviven** |
+| El historial | **Bajo demanda y paginado**: versión, fecha en hora de Bogotá, quién —o «Sistema»—, estado, recompensa, número, cifras, calendario, vigencia y aclaraciones, con la **versión vigente** distinguida |
+| La revisión | Resume los premios en el mismo formato de la tabla, **dice qué falta** y solo entonces ofrece **activar**, con confirmación. Guardar el último premio **no activa nada** |
+
+**Lo que NO trae, a propósito:** el motor de coincidencias, la conversión de las rifas que ya
+existen, la configuración de la rifa real de diciembre, el despliegue y cualquier pantalla para el
+vendedor: los premios se leen, pero todavía no hay dónde enseñárselos.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base `npm run test:db` / `npm run verify` | ✅ **1.132/1.132** · ✅ **1.226/1.226** unitarias |
+| `npm run verify` final | ✅ typecheck · lint **0 errores** y los 2 avisos preexistentes · **1.243/1.243** unitarias en 68 archivos (**+17**) · build |
+| `npm run test:db` final | ✅ **1.140/1.140** en 48 archivos (**+8**) |
+| `npm run test:e2e` | ✅ con las **15** nuevas de premios (11 de escritorio y 4 de teléfono) |
+| QA visual con sesión real | ✅ escritorio y **320 px**: tabla, tarjetas, formulario, calendario, revisión; **cero desbordamiento** |
+
+**Errores encontrados y corregidos** (detalle en `TEST_RESULTS`, 2026-09-15): la prueba estructural
+de Server Actions no conocía `authorizeCapability` y daba por no autorizadas las seis acciones de
+premios —se enseñó a la prueba, que ahora acepta **las dos** guardas—; `J11-08` contaba todas las
+rifas configurables de la base, algo que dejó de significar nada al poder crearlas; seis pruebas de
+navegador miraban la tarjeta del teléfono, que en escritorio existe pero está oculta; y el
+formulario de un premio nuevo abría **sin ningún período**, con un botón que decía «Agregar otro».
+
+### 3. Migraciones que existen
+
+**`0001`–`0060` en local; `0001`–`0057` en el proyecto real.** La **`0060`** no crea ni borra nada:
+vuelve a escribir `raffles_guard_prize_config` con una sola rama cambiada. No toca tablas, columnas,
+políticas, privilegios ni datos.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **Las tres migraciones no están en producción** | Es lo previsto: promoverlas es la Entrega 5 |
+| **Una rifa nueva no se puede activar sin premios** | Es la regla (BR-J16), pero cambia una costumbre: quien solo quería vender boletas ahora tiene que definir al menos un premio |
+| **«Volver a los datos de la rifa» sale del proceso** | Lleva a `/edit`, y al guardar ahí se vuelve al detalle de la rifa, no al paso 2. Desde el detalle se sigue con «Configurar premios»: se pierde el hilo, no el trabajo |
+| **El detalle de una rifa en borrador sigue ofreciendo «Activar rifa»** | Es el camino de siempre y funciona cuando la configuración es válida; si no lo es, la base responde con lo que falta —«La rifa necesita al menos un premio para activarse»— y el detalle tiene justo encima «Configurar premios». El camino guiado es la revisión |
+| **El vendedor todavía no ve ningún premio** | Se leen —la RLS lo permite— pero no hay pantalla suya. El aviso de la campana sigue sin enlace (BR-J11) |
+| Todo lo demás | Sin cambios: I-024, I-021, I-023, I-030, I-059, I-060, I-090, I-106, I-117, I-119, I-120 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Entrega 3.** Hace falta una autorización explícita nueva.
+2. **Una rifa nueva nace `configurable`.** Si una prueba o un guion crea una rifa y la activa, tiene
+   que darle un premio antes (`createRaffleWithPrize` en `tests/e2e/fixtures.ts`).
+3. **Las rifas que ya existían siguen en `legacy`** y nadie las convierte: eso es la Entrega 4.
+4. **El listado de premios tiene dos caras** y las dos están en el DOM. Una aserción por texto suelto
+   puede resolver a la que está oculta.
+5. **El motor de la Entrega 3 tiene una nota esperándolo** en `matching.ts`: `resolvePrizeLinks` no
+   sabe si dos candidatos vienen de una configuración anterior a la `0059`. Hoy no existe ninguno.
+6. Lo de siempre: **no escribas directo en las cuatro tablas**, usa `authorizeCapability` en vez de
+   mirar el rol, y **no cambies el modo de una rifa** para probar.
+
+---
 ## Mantenimiento post-9 — corrección de la Entrega 1 de premios: recompensa y conflicto (`0059`, D-201, 2026-09-15)
 
 Autorizada expresamente **antes** de la Entrega 2, y **solo** como corrección del contrato. **No es

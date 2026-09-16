@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { ACCOUNTS, expectToast, loginAs, unique } from './fixtures'
+import { ACCOUNTS, addPrize, createRaffleWithPrize, expectToast, loginAs, unique } from './fixtures'
 import { DEFAULT_TICKET_PRICE } from '../../src/lib/constants'
 import { formatCOP } from '../../src/lib/money'
 
@@ -31,14 +31,19 @@ test.describe('Rifas', () => {
 
     await page.getByRole('button', { name: 'Crear rifa' }).click()
 
+    // D-202: la rifa nueva nace en borrador y el proceso sigue en sus premios.
+    await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
+    await addPrize(page, { title: 'Premio E2E', amount: '500000', date: '2026-01-01' })
+
+    await page.getByRole('link', { name: 'Continuar a revisar' }).click()
+    await page.waitForURL(/\/review$/)
+
+    // BR-R03 + BR-J13: activar es explícito y exige confirmación.
+    await page.getByRole('button', { name: 'Activar rifa' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Activar rifa' }).click()
+    await expectToast(page, /activa/i)
     await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+$/)
     await expect(page.getByRole('heading', { name })).toBeVisible()
-    await expect(page.getByText('Borrador').first()).toBeVisible()
-
-    // BR-R03: draft -> active
-    await page.getByRole('button', { name: 'Activar rifa' }).click()
-    await page.getByRole('button', { name: 'Activar rifa' }).last().click()
-    await expectToast(page, /activa/i)
     await expect(page.getByText('Activa').first()).toBeVisible()
   })
 
@@ -66,7 +71,7 @@ test.describe('Rifas', () => {
       await page.getByRole('button', { name: 'Crear rifa' }).click()
 
       if (attempt === 1) {
-        await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+$/)
+        await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
       }
     }
 
@@ -80,12 +85,8 @@ test.describe('Rifas', () => {
   }) => {
     const name = unique('Rifa precio')
 
-    await page.goto('/owner/raffles/new')
-    await page.getByLabel('Nombre de la rifa').fill(name)
-    await page.getByLabel('Fecha de inicio').fill('2026-01-01')
-    await page.getByLabel('Fecha de fin').fill('2026-12-31')
-    await page.getByRole('button', { name: 'Crear rifa' }).click()
-    await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+$/)
+    const raffleId = await createRaffleWithPrize(page, { name })
+    await page.goto(`/owner/raffles/${raffleId}`)
 
     await page.getByRole('link', { name: 'Editar' }).click()
     await page.waitForURL(/\/edit$/)
@@ -104,17 +105,8 @@ test.describe('Rifas', () => {
   }) => {
     const name = unique('Rifa cierre')
 
-    await page.goto('/owner/raffles/new')
-    await page.getByLabel('Nombre de la rifa').fill(name)
-    await page.getByLabel('Fecha de inicio').fill('2026-01-01')
-    await page.getByLabel('Fecha de fin').fill('2026-12-31')
-    await page.getByRole('button', { name: 'Crear rifa' }).click()
-    await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+$/)
-    const raffleUrl = page.url()
-
-    await page.getByRole('button', { name: 'Activar rifa' }).click()
-    await page.getByRole('button', { name: 'Activar rifa' }).last().click()
-    await expectToast(page, /activa/i)
+    const raffleId = await createRaffleWithPrize(page, { name, activate: true })
+    const raffleUrl = `${new URL(page.url()).origin}/owner/raffles/${raffleId}`
 
     await page.getByRole('button', { name: 'Cerrar rifa' }).click()
     await page.getByRole('button', { name: 'Cerrar rifa' }).last().click()
@@ -135,17 +127,9 @@ test.describe('Rifas como Admin', () => {
     const name = unique('Rifa admin')
 
     await loginAs(page, ACCOUNTS.owner)
-    await page.goto('/owner/raffles/new')
-    await page.getByLabel('Nombre de la rifa').fill(name)
-    await page.getByLabel('Fecha de inicio').fill('2026-01-01')
-    await page.getByLabel('Fecha de fin').fill('2026-12-31')
-    await page.getByRole('button', { name: 'Crear rifa' }).click()
-    await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+$/)
-    const raffleUrl = page.url()
+    const raffleId = await createRaffleWithPrize(page, { name, activate: true })
+    const raffleUrl = `${new URL(page.url()).origin}/owner/raffles/${raffleId}`
 
-    await page.getByRole('button', { name: 'Activar rifa' }).click()
-    await page.getByRole('button', { name: 'Activar rifa' }).last().click()
-    await expectToast(page, /activa/i)
     await page.getByRole('button', { name: 'Cerrar rifa' }).click()
     await page.getByRole('button', { name: 'Cerrar rifa' }).last().click()
     await expectToast(page, /cerrada/i)

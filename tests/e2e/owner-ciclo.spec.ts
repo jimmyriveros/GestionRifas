@@ -1,7 +1,14 @@
 import { expect, test } from '@playwright/test'
 
 import { createTicket, loadSeedRefs, serviceClient, type SeedRefs } from './db-setup'
-import { ACCOUNTS, expectToast, loginAs, randomTicketNumbers, unique } from './fixtures'
+import {
+  ACCOUNTS,
+  createRaffleWithPrize,
+  expectToast,
+  loginAs,
+  randomTicketNumbers,
+  unique,
+} from './fixtures'
 
 /**
  * Criterio de finalizacion de la Fase 3:
@@ -28,15 +35,8 @@ test('ciclo completo del Owner: rifa, vendedor, 1.000 boletas y aprobación', as
 
   // ---------------------------------------------------------------- 1. Rifa
   const raffleName = unique('Rifa ciclo')
-  await page.goto('/owner/raffles/new')
-  await page.getByLabel('Nombre de la rifa').fill(raffleName)
-  await page.getByLabel('Fecha de inicio').fill('2026-01-01')
-  await page.getByLabel('Fecha de fin').fill('2026-12-31')
-  await page.getByRole('button', { name: 'Crear rifa' }).click()
-  await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+$/)
-
-  await page.getByRole('button', { name: 'Activar rifa' }).click()
-  await page.getByRole('button', { name: 'Activar rifa' }).last().click()
+  // D-202: una rifa nueva pasa por sus premios antes de poder activarse.
+  await createRaffleWithPrize(page, { name: raffleName, activate: true })
   await expectToast(page, /activa/i)
 
   // ------------------------------------------------------------ 2. Vendedor

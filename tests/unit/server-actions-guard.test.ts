@@ -106,6 +106,22 @@ function leerAcciones(): Accion[] {
 
 const ACCIONES = leerAcciones()
 
+/**
+ * Las DOS guardas validas de una Server Action de negocio.
+ *
+ * `authorizeCapability` (D-200) no es una excepcion ni una segunda puerta: es
+ * `authorizeAction(TODOS_LOS_ROLES)` con la pregunta cambiada —capacidad en vez
+ * de rol— y devuelve exactamente lo mismo. Una accion que la usa esta tan
+ * autorizada como cualquier otra, y el `if` que comprueba su resultado se le
+ * exige igual.
+ */
+const GUARDAS = ['authorizeAction(', 'authorizeCapability('] as const
+
+function guardaDe(cuerpo: string): number {
+  const posiciones = GUARDAS.map((guarda) => cuerpo.indexOf(guarda)).filter((pos) => pos !== -1)
+  return posiciones.length === 0 ? -1 : Math.min(...posiciones)
+}
+
 describe('F7-25 toda Server Action se autoriza a si misma', () => {
   it('se encontraron acciones que analizar', () => {
     // Si un cambio de estructura dejara la lista vacia, las comprobaciones de
@@ -126,11 +142,11 @@ describe('F7-25 toda Server Action se autoriza a si misma', () => {
     expect(modulos).toContain('tickets/seller')
   })
 
-  it('ninguna accion de negocio se salta `authorizeAction`', () => {
+  it('ninguna accion de negocio se salta su guarda', () => {
     const sinGuarda = ACCIONES.filter((accion) => {
       const clave = `${accion.modulo}/${accion.nombre}`
       if (clave in SIN_GUARDA_JUSTIFICADA) return false
-      return !accion.cuerpo.includes('authorizeAction(')
+      return guardaDe(accion.cuerpo) === -1
     }).map((accion) => `${accion.modulo}/${accion.nombre}`)
 
     expect(sinGuarda, 'acciones sin autorizacion').toEqual([])
@@ -143,7 +159,7 @@ describe('F7-25 toda Server Action se autoriza a si misma', () => {
       const clave = `${accion.modulo}/${accion.nombre}`
       if (clave in SIN_GUARDA_JUSTIFICADA) return false
 
-      const posGuarda = accion.cuerpo.indexOf('authorizeAction(')
+      const posGuarda = guardaDe(accion.cuerpo)
       if (posGuarda === -1) return false
 
       const posCliente = accion.cuerpo.search(/createClient\(\)|createAdminClient\(\)/)
@@ -157,7 +173,7 @@ describe('F7-25 toda Server Action se autoriza a si misma', () => {
     // `authorizeAction` devuelve `{ error }` en vez de lanzar: sin el `if` que
     // lo comprueba, la accion continuaria como si estuviera autorizada.
     const sinComprobar = ACCIONES.filter((accion) => {
-      if (!accion.cuerpo.includes('authorizeAction(')) return false
+      if (guardaDe(accion.cuerpo) === -1) return false
       return !/if \('error' in \w+\) return/.test(accion.cuerpo)
     }).map((accion) => `${accion.modulo}/${accion.nombre}`)
 

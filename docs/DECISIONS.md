@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.55 · **Actualizado:** 2026-09-15 (D-001 a D-201; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.56 · **Actualizado:** 2026-09-15 (D-001 a D-202; **D-202** es el panel de premios y la puerta para crear una rifa configurable; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -10962,6 +10962,110 @@ Migración **`0059`**. **BR-J02**, **BR-J07**, **BR-J08** y **BR-J14** corregida
 §8.27, `MASTER_SPEC` §9.7, `UX_COPY_GUIDELINES` (Anexos A y B), `TESTING` §4.11, `TEST_RESULTS`,
 `PHASE_STATUS` y `HANDOFF`. **Cierra A7.** **Solo en local:** el proyecto real no tiene ni la `0058`
 ni la `0059`. **Sin panel y sin motor**: siguen siendo las entregas 2 y 3.
+
+## D-202 — El panel de premios, y la puerta para que una rifa nazca configurable
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa»,
+Entrega 2 de 5, 2026-09-15)
+
+**Contexto.** El contrato existía (D-199, D-201) pero **no había pantalla**: un premio solo se
+podía crear llamando a la RPC desde `psql`. Y había una puerta cerrada a propósito: la `0058`
+rechazaba que **cualquier sesión** creara una rifa en modo `configurable`, porque en la Entrega 1
+no existía nadie que eligiera el modo. Esta entrega construye el panel y abre esa puerta lo justo.
+
+### Decisión 1 — la puerta se abre para CREAR, con la capacidad, y nada más
+
+La migración **`0060`** vuelve a escribir **solo la rama de INSERT** de
+`raffles_guard_prize_config`: una rifa **nueva** puede nacer `configurable` desde una sesión si
+quien la crea tiene la capacidad **`raffles.prizes.manage`** (D-200), y **nace en borrador**, como
+antes. La rama de UPDATE **no se toca ni una línea**: cambiar el modo de una rifa que ya existe
+sigue prohibido para cualquier sesión, y esa transición es la Entrega 4.
+
+La aplicación comprueba lo mismo antes: `createRaffle` sigue exigiendo personal (BR-R01) **y**
+además la capacidad, con **la misma frase** que responde la base. Son dos comprobaciones porque
+dicen dos cosas distintas: crear rifas es del personal; que la rifa nazca configurable es de quien
+va a poder configurar sus premios.
+
+| Alternativa | Por qué no |
+|---|---|
+| Una RPC `create_configurable_raffle` | Duplicaría `createRaffle` entera —nombre único, precio, fechas, autor, código corto— para cambiar una columna |
+| Usar `service_role` en el recorrido de la petición | Prohibido por el encargo, y perdería la identidad de quien crea |
+| Una marca en la sesión que el disparador mire | Un permiso que no se puede comprobar no es un permiso |
+| Dejar que cualquier personal la cree | La capacidad es el contrato de D-200; el día que se reparta de otra forma, esto la sigue |
+
+### Decisión 2 — crear una rifa es un proceso de tres pasos, y la rifa nueva nace configurable
+
+**Datos de la rifa → Premios → Revisar y activar.** El borrador se guarda al terminar el primer
+paso, así que salir no pierde nada y el listado de rifas lo conserva. `RaffleForm` **se reutiliza
+tal cual**: lo único que cambia es a dónde lleva al crear.
+
+**Todas las rifas nuevas nacen `configurable`**, sin un interruptor que elegir. Un interruptor
+obligaría a explicar dos sistemas a quien solo quiere crear una rifa, y dejaría rifas nuevas en el
+comparador de siempre justo cuando el producto se mueve al otro. **Las que ya existían siguen en
+`legacy`** y nadie las convierte (BR-J13).
+
+> **Consecuencia asumida, y es la que más se nota:** una rifa nueva **no se activa sin al menos un
+> premio válido**. Las pruebas de navegador que creaban y activaban en dos clics pasan ahora por el
+> proceso, con un ayudante compartido (`createRaffleWithPrize`).
+
+### Decisión 3 — una tabla de seis columnas en escritorio y tarjetas en el teléfono
+
+`PrizeList` es **una pieza con dos caras**, no dos pantallas: las dos reciben las mismas filas ya
+consultadas y las presentan en el mismo orden semántico. Debajo de `md` la tabla no se encoge —seis
+columnas en 320 px no se leen—: la información se reparte a lo alto, como ya hacía la lista de
+boletas (D-107). Las acciones las pone quien la usa, así que la misma pieza sirve para el panel,
+donde se edita, y para la revisión y el detalle de la rifa, donde solo se lee.
+
+**El orden se cambia con «Subir» y «Bajar»**, no arrastrando: es el patrón de las cuentas de cobro
+(D-188), funciona con el pulgar y con el teclado, y cada pulsación manda la lista completa, que es
+lo que hace la operación idempotente.
+
+### Decisión 4 — el calendario se ELIGE, no se escribe
+
+Tres formas y ningún concepto técnico a la vista: **una fecha**, **un tramo** o **ciertos días de la
+semana** dentro de un tramo, con «Agregar otro período» para las ventanas separadas. Debajo de cada
+período se lee en español lo que va a jugar, y debajo del calendario entero, **desde cuándo y hasta
+cuándo** (BR-J15). El JSON, los días ISO y la palabra «regla» no aparecen en ninguna pantalla.
+
+**La lotería fija acota el día** (BR-J05): al elegirla, un período recurrente se queda con su día
+nominal y se dice por qué. En «una fecha» **no se mueve la fecha que alguien escribió**: se explica
+que no encaja. Cambiar un dato que la persona acaba de escribir es peor que decirle que está mal.
+
+### Decisión 5 — el historial se pide al abrirlo
+
+El listado **no carga ni una versión antigua**: el historial entra por una Server Action —autorizada
+por la capacidad, y la RPC devuelve cero filas sin ella— y llega paginado. Es una lectura que hace
+un componente de cliente, así que autoriza como una escritura: una Server Action es un `POST`
+alcanzable directamente.
+
+### Decisión 6 — la revisión dice lo que falta ANTES de ofrecer el botón
+
+`raffleReviewProblems` es puro y enumera lo que impide activar: sin premios, con fechas fuera de la
+rifa o con dos premios que se cruzan. **No es la autoridad** —el disparador de PostgreSQL lo vuelve
+a comprobar al activar—, pero evita ofrecer un botón que va a fallar (`UX_COPY_GUIDELINES` §5). Y
+**activar nunca ocurre solo**: guardar el último premio no activa nada, hay una acción explícita y
+una confirmación que dice qué va a pasar.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| `DataTable` (TanStack) para la tabla de premios | Aporta ordenación y selección, y aquí el orden **significa algo**: ordenar por columna lo rompería. Se usan los primitivos `Table`, como `ReportTable` |
+| Arrastrar para reordenar | Compite con el desplazamiento en un teléfono y no tiene equivalente de teclado (D-188) |
+| Cargar el historial con el listado | Son N consultas para algo que casi nadie abre |
+| Un editor de calendario con texto libre o RRULE | Es justo lo que D-199 descartó en el modelo; en la pantalla sería peor |
+| Una pantalla de premios por rifa fuera del proceso de creación | Existe: es la misma. El proceso solo añade los pasos alrededor |
+| Deducir el paso del proceso de la URL anterior | El estado del proceso es el **estado de la rifa**: en borrador se ven los pasos, activa no |
+
+### Consecuencia
+
+Migración **`0060`** (solo el disparador). Rutas `/owner/raffles/[raffleId]/prizes` y `/review`.
+`src/features/raffle-prizes/{queries,actions,review}.ts` y sus seis componentes;
+`RaffleWizardSteps` en `features/raffles`. **BR-J13** ampliada y **BR-R01** con su nota.
+`ARCHITECTURE` §7.3 y §8.27, `SECURITY` §2 y §4.20, `DATA_MODEL` §4.20 y §6.g.9,
+`UX_COPY_GUIDELINES` (Anexos A y B), `TESTING` §4.11, `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`.
+**Solo en local:** el proyecto real no tiene `0058`, `0059` ni `0060`. **Sin motor de
+coincidencias** (Entrega 3), **sin la rifa real** (Entrega 4) y **sin desplegar** (Entrega 5).
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

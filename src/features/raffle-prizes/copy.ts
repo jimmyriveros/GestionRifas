@@ -319,6 +319,7 @@ export const PRIZE_COPY = {
     rulesTooMany: 'Un premio admite como máximo 10 períodos.',
     rulesOverlap:
       'Dos períodos del premio incluyen el mismo día. Deja cada día en un solo período.',
+    invalid: 'Revisa los datos del premio.',
     prizeRequired: 'Premio no válido.',
     raffleRequired: 'Rifa no válida.',
     versionRequired: 'Vuelve a abrir el premio para ver cómo quedó.',
@@ -327,4 +328,237 @@ export const PRIZE_COPY = {
     conditionsNotice:
       'Las aclaraciones se pueden compartir con los vendedores y con sus clientes: escríbelas pensando en ellos.',
   },
+} as const
+
+/** Qué pasó en una versión del historial (BR-J12). */
+export const PRIZE_CHANGE_LABELS = {
+  created: 'Premio creado',
+  updated: 'Condiciones cambiadas',
+  archived: 'Archivado',
+  restored: 'Restaurado',
+} as const
+
+export type PrizeChange = keyof typeof PRIZE_CHANGE_LABELS
+
+/**
+ * Los textos del PANEL de premios (Entrega 2, D-202).
+ *
+ * Van aquí y no dentro de los componentes, como el resto del módulo y como pide
+ * el Anexo B de `UX_COPY_GUIDELINES`. Las frases que también existen en la base
+ * —el tope, el conflicto, el control optimista— se escriben con las **mismas
+ * palabras**: quien las vea dos veces no tiene por qué entender que son dos
+ * sistemas distintos.
+ */
+export const PRIZE_PANEL_COPY = {
+  title: 'Premios de la rifa',
+  description:
+    'Define qué se gana, con qué número de la boleta juega, con cuántas cifras, qué días y con qué lotería.',
+
+  add: 'Agregar premio',
+  addBlocked:
+    'La rifa ya tiene 50 premios vigentes, que es el máximo. Archiva uno para agregar otro.',
+
+  empty: {
+    title: 'Todavía no hay premios',
+    description: 'Agrega el primer premio para poder activar la rifa.',
+  },
+
+  columns: {
+    prize: 'Premio',
+    number: 'Número',
+    digits: 'Cifras',
+    schedule: 'Calendario',
+    lottery: 'Lotería',
+    actions: 'Estado y acciones',
+  },
+
+  validity: 'Vigencia',
+  periods: 'Períodos',
+
+  edit: 'Editar',
+  history: 'Historial',
+  archive: 'Archivar',
+  restore: 'Restaurar',
+  moveUp: 'Subir',
+  moveDown: 'Bajar',
+  orderHelp:
+    'El orden es el que se usa para presentar los premios. Cámbialo con «Subir» y «Bajar».',
+
+  archivedTitle: 'Premios archivados',
+  archivedHelp:
+    'Un premio archivado ya no aplica para los próximos sorteos. Su historial se conserva.',
+
+  created: 'El premio quedó guardado.',
+  updated: 'Los cambios quedaron guardados.',
+  unchanged: 'No cambiaste nada, así que no se guardó una versión nueva.',
+  reordered: 'El orden quedó guardado.',
+  archived: 'El premio ya no aplica para los próximos sorteos.',
+  restored: 'El premio vuelve a aplicar para los próximos sorteos.',
+
+  archiveConfirm: {
+    title: 'Archivar este premio',
+    description:
+      'Dejará de aplicar para los próximos sorteos. Los que ya se jugaron conservan las condiciones con las que se anunciaron, y el historial del premio se conserva.',
+    confirm: 'Archivar premio',
+    pending: 'Archivando...',
+  },
+  restoreConfirm: {
+    title: 'Restaurar este premio',
+    description:
+      'Volverá a aplicar para los próximos sorteos con las condiciones que tenía. Antes se revisa que su calendario quepa en las fechas de la rifa y que no choque con otro premio.',
+    confirm: 'Restaurar premio',
+    pending: 'Restaurando...',
+  },
+
+  /** Lo único que la pantalla no enseña: hasta dónde llega un cambio (BR-J09). */
+  activeNotice:
+    'Esta rifa está activa: lo que cambies aplica a los sorteos que todavía no se han jugado. Los que ya jugaron conservan las condiciones con las que se anunciaron.',
+  readOnlyNotice:
+    'La rifa está cerrada o anulada, así que sus premios ya no se pueden cambiar. Reábrela antes de modificarlos.',
+  legacyNotice:
+    'Esta rifa usa el sistema de premios de siempre, así que aquí no hay nada que configurar. Los premios configurables se definen en las rifas nuevas.',
+  noCapability: 'No tienes permiso para configurar los premios de esta rifa.',
+} as const
+
+/** Los textos del formulario de un premio. */
+export const PRIZE_FORM_COPY = {
+  createTitle: 'Agregar premio',
+  editTitle: 'Editar premio',
+  createDescription: 'El premio queda vigente en cuanto lo guardes.',
+  editDescription:
+    'Los cambios se guardan como una versión nueva. El historial conserva las anteriores.',
+
+  titleLabel: 'Nombre del premio',
+  titlePlaceholder: 'Premio diario',
+  categoryLabel: 'Categoría',
+  categoryHelp:
+    'Sirve para presentar el premio. No decide con qué número, con cuántas cifras ni con qué lotería juega.',
+  conditionsLabel: 'Aclaraciones (opcional)',
+
+  rewardLegend: '¿Qué entrega el premio?',
+  rewardModeLabel: 'Forma del premio',
+  optionsLegend: 'Alternativas',
+  optionsHelp: 'Quien acierta se lleva una sola de estas alternativas.',
+  optionDescriptionLabel: 'Qué se entrega',
+  optionDescriptionPlaceholder: 'Camioneta KIA',
+  optionAmountLabel: 'Dinero',
+  optionHelp: 'Escribe el dinero, lo que se entrega, o las dos cosas.',
+  addOption: 'Agregar alternativa',
+  removeOption: 'Quitar alternativa',
+  optionUp: 'Subir alternativa',
+  optionDown: 'Bajar alternativa',
+  optionsMax: 'Un premio admite como máximo 6 alternativas.',
+  rewardPreview: 'Así se lee',
+
+  numberLegend: '¿Con qué número de la boleta juega?',
+  numberFieldLabel: 'Número de la boleta',
+  digitsLabel: 'Cifras',
+  digitsHelp:
+    'Con cuatro cifras el número tiene que ser idéntico. Los ceros iniciales cuentan: 0046 no es lo mismo que 46.',
+
+  lotteryLegend: 'Calendario y lotería',
+
+  submitCreate: 'Guardar premio',
+  submitEdit: 'Guardar cambios',
+  pending: 'Guardando...',
+  cancel: 'Cancelar',
+} as const
+
+/** Los textos del selector de calendario de un premio. */
+export const PRIZE_SCHEDULE_COPY = {
+  legend: 'Cuándo juega',
+  help: 'Agrega un período por cada tramo de fechas. Todos tienen que quedar dentro de las fechas de la rifa.',
+  raffleRange: (from: string, to: string) => `La rifa va del ${from} al ${to}.`,
+
+  kindLabel: 'Cuándo juega este período',
+  kinds: {
+    single: 'Una fecha',
+    range: 'Del … al …',
+    recurring: 'Ciertos días de la semana',
+  },
+
+  dateLabel: 'Fecha',
+  startLabel: 'Desde',
+  endLabel: 'Hasta',
+  weekdaysLabel: 'Días de la semana',
+  weekdaysHelp: 'El domingo no tiene lotería, así que no se puede elegir.',
+
+  lotteryModeLabel: 'Lotería',
+  lotteryModes: {
+    corresponding: 'La que corresponde a cada día',
+    fixed: 'Una lotería fija',
+  },
+  lotteryLabel: 'Lotería',
+  fixedHelp: (lottery: string, weekday: string) =>
+    `${lottery} solo juega los ${weekday}, así que ese período se queda con ese día.`,
+
+  addPeriod: 'Agregar otro período',
+  removePeriod: 'Quitar período',
+  periodTitle: (index: number) => `Período ${index}`,
+  previewLabel: 'Así queda',
+  empty: 'Agrega al menos un período al calendario del premio.',
+} as const
+
+/** Los textos del historial de un premio. */
+export const PRIZE_HISTORY_COPY = {
+  title: 'Historial del premio',
+  description: 'Cada cambio quedó guardado como una versión. Las anteriores no se reescriben.',
+  current: 'Versión vigente',
+  version: (number: number) => `Versión ${number}`,
+  by: 'Por',
+  loading: 'Buscando el historial…',
+  failed: 'No pudimos cargar el historial. Vuelve a intentarlo.',
+  retry: 'Reintentar',
+  previous: 'Anteriores',
+  next: 'Siguientes',
+  counter: (from: number, to: number, total: number) => `${from}–${to} de ${total} versiones`,
+  close: 'Cerrar',
+  reward: 'Premio',
+  number: 'Número',
+  digits: 'Cifras',
+  schedule: 'Calendario',
+  validity: 'Vigencia',
+  conditions: 'Aclaraciones',
+} as const
+
+/** Los textos del proceso de crear una rifa por pasos (D-202). */
+export const RAFFLE_WIZARD_COPY = {
+  steps: {
+    details: 'Datos de la rifa',
+    prizes: 'Premios',
+    review: 'Revisar y activar',
+  },
+  stepOf: (step: number, total: number) => `Paso ${step} de ${total}`,
+
+  detailsDescription:
+    'La rifa se guarda como borrador. Puedes salir y seguir configurándola después.',
+  created: 'La rifa quedó guardada como borrador. Ahora configura sus premios.',
+
+  prizesNext: 'Continuar a revisar',
+  prizesBack: 'Volver a los datos de la rifa',
+
+  reviewTitle: 'Revisa y activa la rifa',
+  reviewDescription:
+    'Así quedaron los premios. Cuando actives la rifa, sus boletas podrán venderse.',
+  reviewBack: 'Volver a los premios',
+  saveForLater: 'Guardar y terminar después',
+  savedForLater: 'La rifa quedó guardada como borrador.',
+
+  activate: 'Activar rifa',
+  activating: 'Activando...',
+  activateConfirm: {
+    title: 'Activar la rifa',
+    description:
+      'Sus boletas podrán venderse y los premios quedarán anunciados con las condiciones que ves aquí.',
+    confirm: 'Activar rifa',
+  },
+  activated: 'La rifa quedó activa.',
+
+  blockedTitle: 'Todavía no se puede activar',
+  blockedNoPrizes: 'Agrega al menos un premio para poder activar la rifa.',
+  blockedOutside: (title: string, from: string, to: string) =>
+    `Las fechas del premio «${title}» tienen que quedar dentro de las fechas de la rifa: del ${from} al ${to}.`,
+  alreadyActive: 'Esta rifa ya está activa.',
+  /** La misma frase que responde el disparador de la migración `0060`. */
+  noCapability: 'No tienes permiso para crear una rifa con premios configurables.',
 } as const

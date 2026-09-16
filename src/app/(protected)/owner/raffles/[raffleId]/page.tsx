@@ -7,8 +7,12 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { RaffleStatusBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PrizeList } from '@/features/raffle-prizes/components/PrizeList'
+import { PRIZE_PANEL_COPY } from '@/features/raffle-prizes/copy'
+import { listRafflePrizes } from '@/features/raffle-prizes/queries'
 import { RaffleStatusActions } from '@/features/raffles/components/RaffleStatusActions'
 import { getAdminRaffleDetail } from '@/features/raffles/queries'
+import { roleHasCapability } from '@/lib/auth/capabilities'
 import { requireStaff } from '@/lib/auth/guards'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
@@ -29,6 +33,13 @@ export default async function RaffleDetailPage({
   if (!raffle) notFound()
 
   const editable = raffle.status === 'draft' || raffle.status === 'active'
+
+  // Los premios SOLO se leen cuando la rifa los usa: una rifa heredada no
+  // gasta ni una consulta en algo que no tiene (BR-J13, D-202).
+  const canManagePrizes = roleHasCapability(membership.role, 'raffles.prizes.manage')
+  const showPrizes = raffle.prizeMode === 'configurable' && canManagePrizes
+  const prizes = showPrizes ? await listRafflePrizes(raffle.id) : []
+  const activePrizes = prizes.filter((prize) => prize.status === 'active')
 
   return (
     <div className="space-y-6">
@@ -88,6 +99,18 @@ export default async function RaffleDetailPage({
           <MetricCard label="Anuladas" value={raffle.ticketsCancelled} />
         </div>
       </div>
+
+      {showPrizes ? (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">{PRIZE_PANEL_COPY.title}</h2>
+            <Button asChild variant="outline">
+              <Link href={`/owner/raffles/${raffle.id}/prizes`}>Configurar premios</Link>
+            </Button>
+          </div>
+          <PrizeList prizes={activePrizes} />
+        </section>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">

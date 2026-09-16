@@ -115,7 +115,8 @@ test.describe('Boletas', () => {
     await page.getByLabel('Fecha de inicio').fill('2026-01-01')
     await page.getByLabel('Fecha de fin').fill('2026-12-31')
     await page.getByRole('button', { name: 'Crear rifa' }).click()
-    await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+$/)
+    // D-202: la rifa nueva sigue en sus premios; para esta prueba basta el borrador.
+    await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
 
     await page.goto('/owner/tickets/new')
     await page.getByLabel('Rifa').click()

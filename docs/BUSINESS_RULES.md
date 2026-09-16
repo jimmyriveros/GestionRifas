@@ -1,8 +1,9 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.23 · **Estado:** normativo · **Actualizado:** 2026-09-15 (§12.i: premios
-  configurables por rifa —BR-J01..BR-J15, D-199, D-200 y **D-201**, migraciones `0058` y `0059`,
-  **solo en local**; **BR-J02, BR-J07, BR-J08 y BR-J14 corregidas y BR-J15 nueva** al cerrarse A7—; antes,
+- **Versión:** 1.24 · **Estado:** normativo · **Actualizado:** 2026-09-15 (§12.i: premios
+  configurables por rifa —BR-J01..BR-J16, D-199, D-200, **D-201** y **D-202**, migraciones `0058`,
+  `0059` y `0060`, **solo en local**; **BR-J13 ampliada** y **BR-J16 nueva** con el panel y el
+  proceso de tres pasos; antes, **BR-J02, BR-J07, BR-J08 y BR-J14 corregidas y BR-J15 nueva** al cerrarse A7—; antes,
   el 2026-09-14, §12.h: la cartera es del
   vendedor —BR-Q01..BR-Q10 nuevas y notas de D-198 en las reglas que acota—; antes, el 2026-09-13,
   §12.g: el mensaje propio de
@@ -197,7 +198,7 @@ negocio. El motor conserva su rama de cambio de vendedor porque cubre las boleta
 
 | ID | Regla | Capas | Fase |
 |----|-------|-------|------|
-| BR-R01 | Una organización puede tener varias rifas. | D | 2 |
+| BR-R01 | Una organización puede tener varias rifas. **Crear una es del personal**, y desde D-202 además exige la capacidad `raffles.prizes.manage`: la rifa nueva nace con premios configurables y quien la crea tiene que poder configurarlos (BR-J13). | D | 2 · ampliada en la Entrega 2 de premios |
 | BR-R02 | Estados válidos: `draft`, `active`, `closed`, `cancelled`. | D | 2 |
 | BR-R03 | Transiciones permitidas: `draft → active`, `active → closed`, cualquiera → `cancelled`. `closed → active` solo por el Owner y queda auditado. | S, D | 3 |
 | BR-R04 | Una rifa nueva usa `120000` como precio predeterminado (D-098). | C, S, D | 3 · post-9 |
@@ -892,7 +893,8 @@ nombran precios, rifas y catálogo.
 | BR-J10 | Configurar premios exige la capacidad **`raffles.prizes.manage`**: el **Dueño** activo siempre la tiene, el **Administrador** activo la recibe por la política inicial y el **Vendedor nunca**. Se comprueba en la aplicación **y** en PostgreSQL, con la organización y el actor **de la sesión**. Las tres tablas **no admiten escritura directa**: las seis RPC son la única puerta. | C, S, D | ✅ Entrega 1 |
 | BR-J11 | En una rifa **activa**, un cambio **material** —recompensa, número, cifras, fechas o lotería efectivas, estado o aclaraciones— escribe **un aviso por membresía activa** de la organización, menos a quien lo hizo. El **nombre y la categoría no son materiales**, un borrador **no avisa** y **reordenar tampoco**. El aviso es **idempotente**, identifica la rifa y el premio, **no lleva clientes, pagos, saldos ni precios de venta** y **no enlaza a ninguna pantalla** mientras el vendedor no tenga una. | S, D | ✅ Entrega 1 |
 | BR-J12 | **Una acción semántica de bitácora por guardado** (`raffle_prize.create`, `.publish`, `.archive`, `.restore`, `.reorder`), con rifa, premio, versión anterior y nueva y un resumen seguro. El **historial funcional sale de las versiones**, no de `audit_logs`, se lee paginado y **solo con la capacidad**; un actor nulo se presenta como **«Sistema»**. | S, D | ✅ Entrega 1 |
-| BR-J13 | **La transición es por rifa.** `raffles.prize_mode` nace `legacy` para todas, también las existentes; **ninguna sesión puede cambiarlo** y solo cambia en **borrador**. Activar una rifa configurable exige configuración válida **comprobada en PostgreSQL**, y **acortar las fechas** de una rifa no puede dejar el calendario de un premio fuera. Cambiar una rifa real al motor configurable es una decisión posterior. | S, D | ✅ Entrega 1 · Entrega 4 (cambio real) |
+| BR-J13 | **La transición es por rifa.** Una rifa **nueva** nace `configurable` y **en borrador**, y solo puede crearla así quien tiene la capacidad `raffles.prizes.manage` (D-202). Las rifas que **ya existían** siguen en `legacy`: **ninguna sesión puede cambiar el modo de una rifa**, y esa transición es la Entrega 4. Activar una rifa configurable exige configuración válida **comprobada en PostgreSQL** —al menos un premio vigente y sin conflictos—, y **acortar las fechas** de una rifa no puede dejar el calendario de un premio fuera. | C, S, D | ✅ Entrega 1 · ampliada en Entrega 2 · Entrega 4 (rifas existentes) |
+| BR-J16 | **Una rifa se crea en tres pasos**: sus datos, sus premios y una revisión que la activa. El primer paso la deja en **borrador**, así que se puede salir y seguir después. La revisión **dice qué falta** —sin premios, con fechas fuera de la rifa o con un conflicto— y **no ofrece activar** hasta que no falte nada; activar es una acción explícita con confirmación, y **guardar el último premio no activa nada**. | C, S, D | ✅ Entrega 2 (D-202) |
 | BR-J14 | Los **miembros activos** de la organización **leen** los premios de sus rifas, como leen las rifas. Los límites son explícitos y los mismos en la aplicación y en la base: título 2–80, **descripción de una alternativa** 2–160, aclaraciones ≤ 1.000, **importe de una alternativa** 1–10.000.000.000, **6 alternativas** por premio, 10 períodos por premio y 50 premios vigentes por rifa. | C, S, D | ✅ Entrega 1 · ampliada en D-201 |
 | BR-J15 | Un premio dice **desde cuándo y hasta cuándo aplica**: el **primer y el último día en que juega de verdad**, no lo escrito en sus períodos —«los sábados del 1 al 31 de diciembre» empieza el 5—. **Varios períodos separados siguen siendo válidos** y el calendario detallado se conserva entero. Es lo que permite evitar un cruce (BR-J08) moviendo fechas en vez de adivinar. | C, S, D | ✅ Entrega 1 (D-201) |
 

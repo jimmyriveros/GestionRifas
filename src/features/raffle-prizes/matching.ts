@@ -50,9 +50,21 @@ export type PrizeCandidate = {
  * cifras, las de tres cifras de ese resultado no cuentan — ni siquiera las del
  * otro numero de la boleta. El valor economico NO decide nada.
  *
- * Varias coincidencias de la MISMA especificidad se conservan todas: una
- * fotografia puede relacionarse con varios premios. Es la parte que espera
- * confirmacion del dueno antes de la Entrega 3 (D-199, Decision 6).
+ * VARIAS COINCIDENCIAS DE LA MISMA ESPECIFICIDAD SE CONSERVAN TODAS, y desde
+ * D-201 eso ya no es una pregunta abierta: los premios NO se acumulan, asi que
+ * dos premios vigentes no pueden compartir dia, numero de la boleta, cifras y
+ * loteria —la configuracion se rechaza antes de guardarse (BR-J08)—. Lo unico
+ * que puede quedar aqui con la misma especificidad son premios que juegan con
+ * NUMEROS DISTINTOS de la boleta, que si conviven a proposito: una boleta cuyo
+ * numero diario y cuyo numero semanal coincidan los dos se relaciona con los
+ * dos premios, y eso no es un cruce.
+ *
+ * ⚠️ PARA LA ENTREGA 3, y por eso esta escrito aqui: esta funcion no reordena
+ * ni descarta por valor, y no tiene forma de saber si dos candidatos vienen de
+ * una configuracion anterior a la `0059`. La regla de conflicto vive en la base
+ * y protege lo que se guarda de ahora en adelante; el motor tendra que decidir
+ * que hace si alguna vez recibe dos candidatos con el mismo numero y las mismas
+ * cifras para un mismo sorteo. Hoy no existe ninguno.
  */
 export function resolvePrizeLinks(candidates: PrizeCandidate[]): PrizeCandidate[] {
   const hasFour = candidates.some((candidate) => candidate.digits === 'four')

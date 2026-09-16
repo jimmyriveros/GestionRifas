@@ -18,10 +18,11 @@
 - **§4.17** describe **la cola de avisos y su despachador** (`0054`, Etapa 5, D-191): una tabla que
   no lee nadie con sesión, un Route Handler que falla cerrado y un cifrado propio comprobado contra
   los vectores del RFC.
-- **§4.20** describe **los premios configurables por rifa y la capacidad central** (`0058` y `0059`,
-  D-199, D-200 y D-201, BR-J01..BR-J15): **cuatro** tablas sin escritura directa, seis RPC
-  autorizadas por `raffles.prizes.manage` y un resolvedor de capacidades con espejo en la
-  aplicación. ⚠️ **Solo en local**: el proyecto real no tiene ni la `0058` ni la `0059`.
+- **§4.20** describe **los premios configurables por rifa y la capacidad central** (`0058`, `0059`
+  y `0060`; D-199 a D-202; BR-J01..BR-J16): **cuatro** tablas sin escritura directa, seis RPC
+  autorizadas por `raffles.prizes.manage`, un resolvedor de capacidades con espejo en la
+  aplicación y la **puerta acotada** para que una rifa nueva nazca configurable.
+  ⚠️ **Solo en local**: el proyecto real no tiene ninguna de las tres.
 - ✅ `0051`, `0052`, `0053`, `0054` y `0055` están **en el proyecto real desde el 2026-09-12**
   (Etapa 7, D-193), con `verify:remote` 24/24.
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
@@ -107,11 +108,12 @@ defensas no se relajan: se duplican.
 | Cambiar estado de una rifa | ✓ | ✓ | ✗ |
 | Reabrir una rifa cerrada | ✓ | ✗ | ✗ |
 | Ver rifas | ✓ | ✓ | ✓ (lectura) |
-| **Premios configurables** (`0058` + `0059`, §4.20) |
+| **Premios configurables** (`0058` + `0059` + `0060`, §4.20) |
 | Crear, editar, archivar, restaurar y reordenar premios — por la **capacidad** `raffles.prizes.manage`, no por el rol (BR-J10) | ✓ | ✓ | ✗ |
 | Ver los premios de las rifas de su organización | ✓ | ✓ | ✓ (lectura) |
 | Ver el historial de un premio (BR-J12) | ✓ | ✓ | ✗ |
-| Cambiar el sistema de premios de una rifa (`prize_mode`, BR-J13) | ✗ | ✗ | ✗ — **ninguna sesión** |
+| Crear una rifa **nueva** con premios configurables (BR-J13, D-202) | ✓ | ✓ | ✗ — y solo con la capacidad, no por ser personal |
+| Cambiar el sistema de premios de una rifa **que ya existe** (`prize_mode`, BR-J13) | ✗ | ✗ | ✗ — **ninguna sesión** |
 | **Boletas** |
 | Ver todas las boletas de la organización — **sin cliente, precio ni cobros**, por las proyecciones de §4.19 | ✓ | ✓ | ✗ |
 | Ver boletas propias | ✓ | ✓ | P |
@@ -1116,7 +1118,7 @@ de dos vendedores y de otra organización— y `tests/e2e/privacidad-admin.spec.
 en el HTML, en la carga RSC ni en las respuestas de red. ✅ **En producción desde el 2026-09-15**:
 `0057` aplicada al proyecto real y `verify:remote` **27/27**.
 
-### 4.20 Premios configurables y la capacidad central (`0058` + `0059`; BR-J01..BR-J15; D-199, D-200, D-201)
+### 4.20 Premios configurables y la capacidad central (`0058` + `0059` + `0060`; BR-J01..BR-J16; D-199 a D-202)
 
 > ⚠️ **Solo en local.** El proyecto real no tiene ni la `0058` ni la `0059`.
 
@@ -1141,7 +1143,9 @@ acuerda de hacer, son el único camino. Es el patrón de `0051`. `raffle_prize_r
 |---|---|
 | Una rifa de otra organización, o sin la capacidad | El **mismo** mensaje que una rifa que no existe: no se distingue «no existe» de «no es tuya» |
 | El historial de un premio ajeno | `raffle_prize_history` devuelve **cero filas**, igual que para un id inexistente |
-| Cambiar el sistema de premios de una rifa | Un disparador lo rechaza para **cualquier sesión**, y solo lo permite en borrador desde un proceso sin sesión (BR-J13) |
+| Cambiar el sistema de premios de una rifa que ya existe | Un disparador lo rechaza para **cualquier sesión**, sin excepción (BR-J13) |
+| Crear una rifa nueva en modo `configurable` | El mismo disparador la admite **solo con la capacidad** `raffles.prizes.manage` y **solo en borrador** (`0060`, D-202). La aplicación lo comprueba antes, con la misma frase, y la base es la que manda |
+| Leer o cambiar los premios sin la capacidad | La pantalla lo explica en vez de pintar el panel, `raffle_prize_history` devuelve cero filas y las seis RPC rechazan. La frontera real sigue siendo la base |
 | Activar una rifa configurable sin configuración válida | El mismo disparador la valida **en PostgreSQL**, no en React |
 | Dos personas editando el mismo premio | Control optimista con la versión vigente, más un cerrojo de aviso por rifa: la segunda recibe una frase que dice qué hacer |
 | Reescribir una versión ya publicada, sus períodos o su recompensa | Imposible: disparadores de inmutabilidad, también con `service_role` |

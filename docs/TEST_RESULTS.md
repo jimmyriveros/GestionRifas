@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (corrección de la Entrega 1 de premios, D-201, 2026-09-15)** | **1.226 ✅ en 67 archivos (+21)** | **1.132 ✅ en 48 archivos (+20; migración `0059`)** | — (**no hay pantalla de premios**: es la Entrega 2, y el encargo no pedía E2E) | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
+| **Post-9 vigente (premios configurables, Entrega 2: el panel, D-202, 2026-09-15)** | **1.243 ✅ en 68 archivos (+17)** | **1.140 ✅ en 48 archivos (+8; migración `0060`)** | **724/725**; el único fallo es **I-090**, conocido y ajeno, y su archivo pasa **18/18** en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
+| Post-9 anterior (corrección de la Entrega 1 de premios, D-201, 2026-09-15) | **1.226 ✅ en 67 archivos (+21)** | **1.132 ✅ en 48 archivos (+20; migración `0059`)** | — (**no hay pantalla de premios**: es la Entrega 2, y el encargo no pedía E2E) | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (premios configurables, Entrega 1, D-199 y D-200, 2026-09-15) | **1.205 ✅** en 67 archivos (+50) | **1.112 ✅** en 48 archivos (+64; migración `0058`) | — (no hay pantalla de premios) | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables` |
 | 0 | — | — | — | — | ✅ (documental) |
 | 1 | 14 ✅ | — | — | ✅ | ✅ |
@@ -11771,6 +11772,76 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
 
 ---
 
+## Premios configurables, Entrega 2 de 5: el panel (`0060`, D-202) — 2026-09-15
+
+**Alcance:** encargo expreso del usuario, **solo la Entrega 2**. Sin motor de coincidencias, sin la
+rifa real, **sin desplegar** y sin tocar el proyecto real. Decisión en **D-202**, reglas en
+`BUSINESS_RULES` §12.i (**BR-J13** ampliada y **BR-J16** nueva), seguridad en `SECURITY` §4.20 y
+estrategia en `TESTING` §4.11.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base: `npm run db:reset` + `seed:local` + `test:db` + `verify` | ✅ 59 migraciones · **1.132/1.132** de base · **1.226/1.226** unitarias |
+| La migración `0060`, aplicada y probada a mano con `psql` | ✅ el Dueño crea una configurable en borrador; nacida activa, rechazada; un vendedor, rechazado; `legacy → configurable`, rechazado; activar sin premios, rechazado |
+| `npx tsc --noEmit` a lo largo de la construcción | ✅ en cada paso |
+| `tests/unit/raffle-prizes-panel.test.ts` | ✅ **17/17** (nuevo) |
+| `tests/db/raffle-prizes.test.ts` | ✅ **92/92** (**+8**: el grupo J14) |
+| `tests/e2e/premios.spec.ts`, primera pasada | ❌ **6 fallos**, todos de localizador o de datos de la propia suite (b) |
+| Segunda pasada | ✅ **11/11** |
+| `tests/e2e/premios-movil.spec.ts` | ✅ **4/4** a la primera |
+| `npm run verify`, primera pasada | ❌ **1 fallo**: la prueba estructural de Server Actions no conocía `authorizeCapability` (b) |
+| `npm run verify` final | ✅ typecheck · lint **0 errores** y los **2 avisos preexistentes** · **1.243/1.243** unitarias en 68 archivos · build |
+| `npm run test:db` final, con base recién sembrada | ✅ **1.140/1.140** en 48 archivos |
+| `npm run test:e2e` completo, con base recién sembrada | **724/725**; el único fallo es **I-090**, conocido y ajeno, y su archivo pasa **18/18** en aislamiento |
+| `npx prettier --check` sobre lo tocado | ✅ |
+
+**El único fallo de la suite completa fue `ventas-por-fecha.spec.ts:247` («Desde» posterior a
+«Hasta»), y es I-090**, no algo de esta entrega: su entrada en `KNOWN_ISSUES` nombra **esa misma
+prueba** como una de las que caen solo en la corrida completa y pasan sueltas. Se comprobó: el
+archivo entero, relanzado solo, da **18/18 ✅**. Dos apuntes honestos: la suite tardó **37,9 min** y
+durante ella se editó un archivo de `src/` —lo que fuerza una recompilación de Turbopack y puede
+agotar el tiempo de una navegación—, así que esta corrida **no es la más limpia posible** para
+juzgar a I-090; lo que sí es seguro es que ninguna de las 15 pruebas nuevas falló.
+
+### b. Errores encontrados y corregidos
+
+| Qué pasó | Causa | Corrección |
+|---|---|---|
+| `verify` en rojo: «acciones sin autorizacion: raffle-prizes/…» | La prueba estructural `F7-25` buscaba literalmente `authorizeAction(`, y las seis acciones de premios usan `authorizeCapability` —que **es** `authorizeAction` con la pregunta cambiada (D-200)— | La prueba acepta **las dos** guardas, y sigue exigiendo que sea lo primero y que se compruebe su resultado. No se añadió ninguna excepción |
+| `J11-08` contaba 32 rifas configurables «de más» | La prueba contaba **todas** las configurables de la base, y desde D-202 cualquier suite puede crear una. Lo que importa es que **ninguna rifa que ya existía cambió de modo** | Se comprueba sobre las rifas **del seed**, que es donde la afirmación significa algo |
+| **6 pruebas de navegador** veían el texto pero «oculto» | El listado tiene **dos caras** y las dos están en el DOM: en escritorio la tarjeta del teléfono existe pero está oculta, y `getByText(...).first()` resolvía a ella | Las aserciones de escritorio miran `getByRole('table')`; las del teléfono, `getByRole('article')` |
+| La prueba de la rifa heredada entraba en una rifa nueva | Pinchaba el primer enlace de la lista, que desde esta suite suele ser una rifa recién creada | Entra por el id de la rifa del seed |
+| El formulario de un premio nuevo abría **sin ningún período** | `prizeFormDefaults` trae `rules: []`, y el botón decía «Agregar **otro** período» sin haber ninguno | Un premio nuevo arranca con un período en la fecha inicial de la rifa |
+| Las aclaraciones vacías rompían el tipado de la RPC | Los argumentos opcionales llegan a los tipos generados como `string \| undefined`, y el mapeador mandaba `null` | Se **omiten** cuando están vacías (`HANDOFF` §9), con una prueba que lo fija |
+
+### c. Lo que se comprobó, en una línea
+
+Que el Dueño y el Administrador **con la capacidad** pueden crear una rifa en tres pasos, definir
+premios de las cuatro formas —dinero, especie, mixto y **cuatro alternativas excluyentes**—,
+editarlos publicando una versión nueva, archivarlos y restaurarlos, ordenarlos, leer el historial y
+activar la rifa solo cuando la configuración es válida; que un **conflicto** se rechaza nombrando
+los dos premios y el día mientras **cuatro cifras y últimas tres conviven**; que una rifa **cerrada**
+queda en solo lectura y una **heredada** no ofrece nada; que un vendedor no llega; y que en el
+teléfono cada premio es una **tarjeta** sin desbordamiento a 320, 375, 390 y 430 px.
+
+### d. Verificación visual, con sesión real
+
+Con el Dueño del seed y el servidor local: el proceso entero —datos, premios y revisión—, la tabla
+de seis columnas en escritorio, las tarjetas y el formulario a **320 px**, y el diálogo con sus tres
+secciones. `document.scrollWidth - clientWidth` medido **0** en las pantallas del panel y de la
+revisión.
+
+### e. Lo que NO se comprobó
+
+* **El motor de coincidencias** (Entrega 3): sigue sin existir, y `match_lottery_result` no se tocó.
+* **La transición de una rifa que ya existe** (Entrega 4): prohibida, y hay pruebas de que lo sigue
+  siendo.
+* **El proyecto real**: ni `0058`, ni `0059`, ni `0060`; `verify:remote` no se ejecutó.
+* **Un teléfono de verdad** y el **modo oscuro**.
+
+---
 ## Corrección de la Entrega 1: la recompensa y el conflicto (`0059`, D-201) — 2026-09-15
 
 **Alcance:** encargo expreso del usuario para **corregir el contrato** antes de autorizar la Entrega
