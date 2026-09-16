@@ -930,22 +930,26 @@ y se excluye a propósito.
 ⚠️ **Una ruta retirada responde 404 con sesión, y sin sesión redirige al login.** El proxy exige sesión
 antes de resolver la ruta, así que desde fuera no se distingue una que no existe.
 
-### 4.11 Premios configurables por rifa (BR-J01..BR-J14; D-199, D-200)
+### 4.11 Premios configurables por rifa (BR-J01..BR-J15; D-199, D-200, D-201)
 
 | Suite | Pruebas | Qué demuestra |
 |---|---|---|
-| `tests/db/raffle-prizes.test.ts` | **64** (nuevo) | Con sesiones reales del Dueño, del Administrador, de un vendedor y de otra organización. **BR-J10:** crea y modifica quien tiene la capacidad; el vendedor y otra organización reciben **el mismo mensaje** que ante una rifa inexistente; una cuenta desactivada deja de poder; la política de capacidades de PostgreSQL **se compara rol a rol con la de la aplicación**; una capacidad inventada es «no» hasta para el Dueño. **BR-J13:** ninguna sesión cambia `prize_mode`, una rifa heredada no admite premios, una configurable sin premios no se activa, acortar las fechas no deja un premio fuera y una rifa cerrada ya no se toca. **BR-J04/BR-J05:** domingo, lotería fija fuera de su día, el caso de la excepción —número semanal, lunes, Cundinamarca—, varias ventanas, días repetidos, fechas fuera de la rifa y períodos que no incluyen sus días. **BR-J02/BR-J06:** dinero contra especie —también con la service role—, cuatro cifras por defecto y los límites **en el borde**. **BR-J09:** versión nueva, inmutabilidad de la anterior, control optimista con **dos ediciones a la vez**, un guardado sin cambios que no escribe nada y la versión que aplica a un corte. **BR-J08:** duplicado exacto rechazado; el mismo calendario con otra recompensa, permitido. **BR-J11/BR-J12:** una fila de bitácora por guardado, historial con actor y fecha, borrador sin avisos, rifa activa que avisa **a cada membresía activa menos a quien lo hizo**, reordenar que no avisa y la bitácora del personal sin cartera. Y el catálogo: privilegios, RLS forzada, solo políticas de `SELECT`, índices y la **regresión de D-198** |
-| `tests/unit/raffle-prizes.test.ts` | **50** (nuevo) | El calendario puro —un día, un rango, una recurrencia, varias ventanas, forma canónica y solapes—, la semántica de `0046`, `046`, `1046` y `46`, la prioridad de cuatro cifras sobre tres, **qué versión aplica a un sorteo**, el resumen en español —incluida la frase exacta del encargo—, los esquemas **sin organización, actor ni rol** y con las cifras en cuatro por omisión, la capacidad por rol y el texto del aviso, que no lleva clientes ni precios y no enlaza a ninguna pantalla |
+| `tests/db/raffle-prizes.test.ts` | **84** | Con sesiones reales del Dueño, del Administrador, de un vendedor y de otra organización. **BR-J10:** crea y modifica quien tiene la capacidad; el vendedor y otra organización reciben **el mismo mensaje** que ante una rifa inexistente; una cuenta desactivada deja de poder; la política de capacidades de PostgreSQL **se compara rol a rol con la de la aplicación**; una capacidad inventada es «no» hasta para el Dueño. **BR-J13:** ninguna sesión cambia `prize_mode`, una rifa heredada no admite premios, una configurable sin premios no se activa, acortar las fechas no deja un premio fuera y una rifa cerrada ya no se toca. **BR-J04/BR-J05:** domingo, lotería fija fuera de su día, el caso de la excepción —número semanal, lunes, Cundinamarca—, varias ventanas, días repetidos, fechas fuera de la rifa y períodos que no incluyen sus días. **BR-J02/BR-J06:** dinero contra especie —también con la service role—, cuatro cifras por defecto y los límites **en el borde**. **BR-J09:** versión nueva, inmutabilidad de la anterior, control optimista con **dos ediciones a la vez**, un guardado sin cambios que no escribe nada y la versión que aplica a un corte. **BR-J08:** dos premios que juegan el mismo día con el mismo número, las mismas cifras y la misma lotería **se rechazan nombrando los dos y el día**; cuatro cifras y últimas tres **conviven**, y el otro número de la boleta tampoco choca. **BR-J02 (D-201):** premio único en dinero, en especie y con las dos cosas; **cuatro alternativas excluyentes** en su orden; `fixed` con más de una y `winner_choice` con una sola rechazados **por la RPC y por un disparador diferido**; alternativas repetidas y más de seis rechazadas; la recompensa de una versión anterior **inmutable**; archivar y restaurar la copian tal cual; cambiar una alternativa o su **orden** avisa. **BR-J15:** la vigencia en el historial. **La configuración de aceptación entera** —los cierres del 27 y el 28 de noviembre, el premio mayor con sus cuatro alternativas y el de tres cifras del mismo día—, que se crea, **activa la rifa** y rechaza los dos cruces si se alargan sus fechas. **BR-J11/BR-J12:** una fila de bitácora por guardado, historial con actor y fecha, borrador sin avisos, rifa activa que avisa **a cada membresía activa menos a quien lo hizo**, reordenar que no avisa y la bitácora del personal sin cartera. Y el catálogo: privilegios, RLS forzada, solo políticas de `SELECT`, índices y la **regresión de D-198** |
+| `tests/unit/raffle-prizes.test.ts` | **71** | El calendario puro —un día, un rango, una recurrencia, varias ventanas, forma canónica y solapes—, la semántica de `0046`, `046`, `1046` y `46`, la prioridad de cuatro cifras sobre tres, **qué versión aplica a un sorteo**, el resumen en español —incluida la frase exacta del encargo—, los esquemas **sin organización, actor ni rol** y con las cifras en cuatro por omisión, la capacidad por rol y el texto del aviso, que no lleva clientes ni precios y no enlaza a ninguna pantalla |
 
-**Dos trampas que costaron una pasada en rojo, y que valen para cualquier suite de premios:**
+**Tres trampas que costaron una pasada en rojo, y que valen para cualquier suite de premios:**
 
-1. **El detector de duplicados no mira el nombre.** Dos premios con las mismas condiciones y la misma
-   recompensa son el mismo premio, aunque se llamen distinto (BR-J08): una suite que crea varios
-   premios «iguales cambiando el título» se cae sola. Aquí cada premio vale un peso más que el
-   anterior, y las dos pruebas que necesitan un duplicado fijan el importe a mano.
+1. **Dos premios no pueden compartir un día con la misma regla de juego** (BR-J08, D-201). Y la
+   recompensa **ya no los distingue**: hasta la `0059` bastaba con cambiar el importe, y desde la
+   `0059` eso es exactamente lo mismo que un cruce. Aquí cada premio juega **su propio día** —un
+   contador los reparte a partir de `futureMonday + 70`, lejos de las fechas escritas a mano— y las
+   pruebas que necesitan el choque fijan el calendario. Cambiar esto rompe media suite de golpe.
 2. **La programación de loterías es NACIONAL.** Un sorteo sembrado como `cancelled` para probar
    BR-J05 afecta a **todas** las rifas, no solo a la de esa prueba: va en una fecha lejos de la
    ventana común y se borra en cuanto se comprueba.
+3. **Un disparador de restricción diferido no salta hasta el COMMIT.** La prueba que comprueba que
+   ni la service role puede dejar un «Premio único» con dos alternativas tiene que **confirmar la
+   transacción**: con un `rollback` la inserción parece haber pasado y la prueba miente.
 
 ⚠️ **La limpieza no puede ser un `delete` normal.** Las versiones y sus períodos son inmutables
 también para la service role, y no hay privilegio de `DELETE`: el `afterAll` borra por PostgreSQL con
@@ -958,7 +962,7 @@ avisos y bitácora.
 |---|---|
 | La pantalla de premios | No existe (Entrega 2). Habrá E2E cuando exista |
 | Que el motor use estos premios | No existe (Entrega 3). Lo que sí está probado es la **regla** —cifras, prioridad y versión aplicable— como funciones puras |
-| Que dos premios distintos se sumen en un mismo sorteo | **Sin decidir**: es la ambigüedad **A7**, y la Entrega 3 no se construye sin respuesta |
+| Que el motor respete que dos premios no se acumulan | **A7 quedó resuelta** (D-201): la configuración con un cruce ya no se puede guardar, así que el motor nunca la verá. Lo que falta por probar es el motor, que es la Entrega 3 |
 
 ### 5.3.b La diana táctil de un diálogo (`dialogos-diana-tactil.spec.ts`, 7 pruebas)
 

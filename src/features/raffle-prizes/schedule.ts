@@ -1,7 +1,9 @@
-import type { LotteryCode } from '@/features/lottery/constants'
+import type { LotteryCode, LotteryMatchField } from '@/features/lottery/constants'
 import { addIsoDays } from '@/features/lottery/dashboard'
 import { isoWeekday } from '@/features/lottery/parse/excel-date'
 import { LOTTERY_NOMINAL_WEEKDAY } from '@/features/lottery/sources'
+
+import type { PrizeDigits } from './matching'
 
 /**
  * El calendario de un premio configurable (BR-J04, BR-J05, D-199).
@@ -274,4 +276,83 @@ export function fromRulePayload(rules: PrizeRulePayload[]): PrizeRule[] {
     lotteryMode: rule.lottery_mode,
     lotteryCode: rule.lottery_code,
   }))
+}
+
+/**
+ * Desde cuando y hasta cuando aplica un premio: el PRIMER y el ULTIMO dia en
+ * que juega de verdad (D-201).
+ *
+ * No son la fecha inicial y la final de sus periodos: «los sabados del 1 al 31
+ * de diciembre» empieza el 5, no el 1, y es esa fecha la que hay que poder
+ * leer. Es el mismo calculo que `raffle_prize_validity` en la base.
+ */
+export function validityRange(rules: PrizeRule[]): { from: string; to: string } | null {
+  const occurrences = expandRules(rules)
+  const first = occurrences[0]
+  const last = occurrences[occurrences.length - 1]
+  return first && last ? { from: first.referenceDate, to: last.referenceDate } : null
+}
+
+/** Lo que hace falta de un premio vigente para saber si choca con otro. */
+export type PrizeScheduleSubject = {
+  title: string
+  numberField: LotteryMatchField
+  digits: PrizeDigits
+  rules: PrizeRule[]
+}
+
+/** El premio con el que choca y el dia del choque. */
+export type PrizeConflict = { other: string; referenceDate: string }
+
+/**
+ * El primer CONFLICTO de configuracion entre un premio y los demas vigentes de
+ * su rifa, o `null` (BR-J08, D-201).
+ *
+ * LOS PREMIOS NO SE ACUMULAN. Dos premios vigentes que un MISMO dia juegan con
+ * el mismo numero de la boleta, las mismas cifras y la misma loteria efectiva
+ * no se pueden resolver: es un error de configuracion, y se corrige con las
+ * fechas de uno de los dos.
+ *
+ * CUATRO CIFRAS Y ULTIMAS TRES NO CHOCAN: son especificidades distintas, y
+ * conviven a proposito. La prioridad de BR-J07 decide despues, en el motor.
+ *
+ * La recompensa NO entra: dos premios que pagan cosas distintas el mismo dia
+ * con la misma regla siguen sin poder resolverse.
+ *
+ * Es el espejo puro de `raffle_prize_version_problem`, que es la que manda.
+ */
+export function prizeConflict(
+  subject: PrizeScheduleSubject,
+  others: PrizeScheduleSubject[],
+): PrizeConflict | null {
+  const mine = new Map(
+    expandRules(subject.rules).map((occurrence) => [
+      `${occurrence.referenceDate}:${occurrence.lottery}`,
+      occurrence.referenceDate,
+    ]),
+  )
+
+  const conflicts: PrizeConflict[] = []
+
+  for (const other of others) {
+    if (other.numberField !== subject.numberField || other.digits !== subject.digits) continue
+    for (const occurrence of expandRules(other.rules)) {
+      const day = mine.get(`${occurrence.referenceDate}:${occurrence.lottery}`)
+      if (day) conflicts.push({ other: other.title, referenceDate: day })
+    }
+  }
+
+  return (
+    conflicts.sort((a, b) =>
+      a.referenceDate !== b.referenceDate
+        ? a.referenceDate < b.referenceDate
+          ? -1
+          : 1
+        : a.other < b.other
+          ? -1
+          : a.other > b.other
+            ? 1
+            : 0,
+    )[0] ?? null
+  )
 }

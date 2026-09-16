@@ -1,10 +1,12 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.16 · **Estado:** implementado · **Actualizado:** 2026-09-15
-- **Nota (2026-09-15):** el esquema ejecutable son **`0001`–`0058`** en local y **`0001`–`0057`** en
-  el proyecto real. La **`0058`** —premios configurables por rifa, §4.20 y §6.g.9— **no está
-  aplicada allí**: es la Entrega 1 de cinco y su promoción es la Entrega 5. La **`0057`** (la cartera
-  es del vendedor, §6.g.8) **sí**, desde el 2026-09-15.
+- **Versión:** 2.17 · **Estado:** implementado · **Actualizado:** 2026-09-15
+- **Nota (2026-09-15):** el esquema ejecutable son **`0001`–`0059`** en local y **`0001`–`0057`** en
+  el proyecto real. La **`0058`** y la **`0059`** —premios configurables por rifa, §4.20 y §6.g.9—
+  **no están aplicadas allí**: son la Entrega 1 de cinco y su promoción es la Entrega 5. La **`0059`**
+  corrige la `0058` **sin reescribirla** (D-201): normaliza la recompensa en **opciones**, retira las
+  tres columnas anteriores y convierte el duplicado exacto en una regla de **conflicto**. La
+  **`0057`** (la cartera es del vendedor, §6.g.8) **sí** está aplicada, desde el 2026-09-15.
 - **Nota (2026-09-13):** hoy el esquema ejecutable son **`0001`–`0056`**, **las 56 en local y en el
   proyecto real**. La **`0056`** —el mensaje propio de «Resultados de la semana», §4.3 y §6.g.7— se
   aplicó al proyecto real ese mismo día, con respaldo previo y una sonda de negocio idéntica antes y
@@ -24,8 +26,8 @@
   `seller_payment_reminders` con sus tres enumerados, sus restricciones, su RLS y ocho RPC.
   ✅ **Aplicada al proyecto real el 2026-09-12** con `0052`–`0055` (Etapa 7, D-193).
 - ⚠️ **Una sola sección describe algo que el proyecto real NO tiene todavía:** la **§4.20** (premios
-  configurables por rifa, `0058`). Lleva su propia advertencia. Todo lo demás está implementado y
-  desplegado.
+  configurables por rifa, `0058` y `0059`). Lleva su propia advertencia. Todo lo demás está
+  implementado y desplegado.
 
 ### Ajustes introducidos al implementar (Fase 2)
 
@@ -158,13 +160,15 @@ Los tipos de lotería nacen en `0036` (D-140..D-142). El número mayor es `text`
 nunca un entero.
 
 ```sql
--- Premios configurables por rifa (0058, D-199). Solo en local.
+-- Premios configurables por rifa (0058 y 0059, D-199 y D-201). Solo en local.
 CREATE TYPE raffle_prize_mode         AS ENUM ('legacy', 'configurable');
 CREATE TYPE raffle_prize_status       AS ENUM ('active', 'archived');
 CREATE TYPE raffle_prize_category     AS ENUM ('main', 'daily', 'weekly', 'special');
-CREATE TYPE raffle_prize_reward_type  AS ENUM ('cash', 'in_kind');
 CREATE TYPE raffle_prize_digits       AS ENUM ('four', 'last_three');
 CREATE TYPE raffle_prize_lottery_mode AS ENUM ('corresponding', 'fixed');
+CREATE TYPE raffle_prize_reward_mode  AS ENUM ('fixed', 'winner_choice');  -- 0059
+-- `raffle_prize_reward_type` existio en la 0058 y la 0059 lo RETIRA: la
+-- recompensa dejo de ser dinero O especie (D-201).
 ```
 
 El número de la boleta con el que juega un premio **reutiliza `lottery_match_field`** (`0036`): es
@@ -1111,24 +1115,27 @@ nacer fallada, y la campana ya está escrita.
 
 ---
 
-### 4.20 Premios configurables por rifa (`0058`, BR-J01..BR-J14, D-199)
+### 4.20 Premios configurables por rifa (`0058` + `0059`, BR-J01..BR-J15, D-199, D-201)
 
-> ⚠️ **Solo en LOCAL.** El proyecto real no tiene la `0058`. Es la Entrega 1 de cinco: hay modelo,
-> RPC, autorización, auditoría y avisos; **no hay pantalla ni motor de coincidencias**.
+> ⚠️ **Solo en LOCAL.** El proyecto real no tiene ni la `0058` ni la `0059`. Es la Entrega 1 de
+> cinco: hay modelo, RPC, autorización, auditoría y avisos; **no hay pantalla ni motor de
+> coincidencias**.
 
-Tres tablas encadenadas, y una columna en `raffles`:
+Cuatro tablas encadenadas, y una columna en `raffles`:
 
 ```
 raffles (prize_mode: legacy | configurable)
  └─ raffle_prizes              identidad, orden, estado y puntero a la version vigente
      └─ raffle_prize_versions  condiciones INMUTABLES, una fila por guardado
-         └─ raffle_prize_schedule_rules   periodos de esa version
+         ├─ raffle_prize_schedule_rules   periodos de esa version
+         └─ raffle_prize_reward_options   lo que entrega, una fila por alternativa
 ```
 
 | Tabla | Columnas que la explican |
 |---|---|
 | `raffle_prizes` | `organization_id`, `raffle_id`, `status`, `position` (solo la tiene un premio vigente), `current_version_id`, `created_by`, `archived_at`, `archived_by` |
-| `raffle_prize_versions` | `version_number`, `previous_version_id`, `status`, `title`, `category`, `reward_type` + `reward_amount` **o** `reward_description`, `number_field` (`lottery_match_field`), `digits`, `conditions`, `published_at`, `published_by` |
+| `raffle_prize_versions` | `version_number`, `previous_version_id`, `status`, `title`, `category`, `reward_mode` (`fixed` \| `winner_choice`), `number_field` (`lottery_match_field`), `digits`, `conditions`, `published_at`, `published_by` |
+| `raffle_prize_reward_options` | `version_id`, `position` (1..6), `description` (el componente en especie, que **es** el texto de la opción), `amount` (el componente en dinero, `bigint`) |
 | `raffle_prize_schedule_rules` | `position` (1..10), `start_date`, `end_date`, `weekdays smallint[]` (ISO 1..6), `lottery_mode`, `lottery_code` |
 
 **Lo que garantiza la forma de las tablas, sin ayuda de la aplicación:**
@@ -1142,19 +1149,28 @@ raffles (prize_mode: legacy | configurable)
 | Ningún período queda fuera de la rifa y **ningún día se repite** en una versión | Disparador de restricción **diferido** `raffle_prize_schedule_rules_check` |
 | Sin domingos, días ordenados y sin repetir, y cada día elegido **ocurre** | CHECK con `raffle_prize_weekdays_valid` y `raffle_prize_rule_covers_weekdays` |
 | Una **lotería fija** solo en su día nominal | CHECK con `lottery_nominal_weekday` |
-| Dinero **o** especie, nunca los dos, y los límites de texto | CHECK `raffle_prize_versions_reward_check`, `..._title_check` y `..._conditions_check` |
+| Toda versión cumple **su** semántica de recompensa: `fixed` exactamente una alternativa, `winner_choice` dos o más | **Dos** disparadores de restricción diferidos: `raffle_prize_versions_require_reward` (al crear la versión) y `raffle_prize_reward_options_check` (al añadir una opción después) |
+| Una alternativa **no puede estar vacía**, y sus límites de texto y de valor | CHECK `raffle_prize_reward_options_components_check`, `..._amount_check` y `..._description_check` |
+| Una recompensa **no se modifica ni se borra** | Disparador `raffle_prize_reward_options_immutable` |
+| Los límites de título y aclaraciones | CHECK `raffle_prize_versions_title_check` y `..._conditions_check` |
 | Un premio **vigente** ocupa una posición única en su rifa | `UNIQUE (raffle_id, position) DEFERRABLE` — por eso reordenar es **una** sentencia |
 | El ciclo premio ↔ versión se puede crear en una transacción | FK versión → premio **`DEFERRABLE INITIALLY DEFERRED`** |
 
-**RLS y privilegios.** Las tres tienen RLS activada y forzada, **una sola política y de `SELECT`**
-—los miembros activos de la organización—, y `authenticated` **solo** tiene `SELECT`. La escritura
-entra por las seis RPC (§6.g.9). `service_role` tampoco borra: tiene `SELECT, INSERT` en versiones y
-períodos, y `SELECT, INSERT, UPDATE` en los premios.
+**RLS y privilegios.** Las **cuatro** tienen RLS activada y forzada, **una sola política y de
+`SELECT`** —los miembros activos de la organización—, y `authenticated` **solo** tiene `SELECT`. La
+escritura entra por las seis RPC (§6.g.9). `service_role` tampoco borra: tiene `SELECT, INSERT` en
+versiones, períodos y recompensas, y `SELECT, INSERT, UPDATE` en los premios.
 
-**Índices.** Ninguno de más: las tres claves únicas —`(raffle_id, position)`,
-`(prize_id, version_number)` y `(version_id, position)`— son las que sirven al listado por rifa, al
-historial por premio y a los períodos de una versión. En `notifications`,
-`notifications_raffle_prize_once` es lo que hace idempotente el aviso.
+**Índices.** Ninguno de más: las cuatro claves únicas —`(raffle_id, position)`,
+`(prize_id, version_number)`, `(version_id, position)` de los períodos y `(version_id, position)` de
+las recompensas— son las que sirven al listado por rifa, al historial por premio, a los períodos y a
+las alternativas de una versión. En `notifications`, `notifications_raffle_prize_once` es lo que hace
+idempotente el aviso.
+
+**Desde cuándo y hasta cuándo aplica un premio** (BR-J15) **no es una columna**: se calcula con
+`raffle_prize_validity(version_id)`, que devuelve el primer y el último día en que juega de verdad.
+Guardarlo sería una segunda fuente de verdad del calendario, que es justo lo que la `0059` vino a
+quitar en la recompensa.
 
 **`raffles.prize_mode`** nace `legacy` con un valor por defecto constante: **no reescribe la tabla ni
 dispara la auditoría**, así que ninguna rifa existente cambió. Un disparador
@@ -1650,26 +1666,36 @@ y quien no es personal activo recibe un conjunto vacío, igual que un id que no 
 **Ninguna tabla, columna ni enumerado cambió**: `ticket_payment_status` sigue teniendo sus tres
 valores. Las vistas `security_invoker` (§6) heredan la RLS nueva y al personal le devuelven nada.
 
-### 6.g.9 Premios configurables por rifa (migración `0058`, D-199, D-200)
+### 6.g.9 Premios configurables por rifa (migraciones `0058` y `0059`; D-199, D-200, D-201)
 
 | Función | Devuelve | Quién la ejecuta |
 |---|---|---|
-| `create_raffle_prize(rifa, título, categoría, tipo, número, períodos, …)` | `(prize_id, version_id, version_number)` | Sesión con la capacidad |
+| `create_raffle_prize(rifa, título, categoría, modo de recompensa, alternativas, número, períodos, …)` | `(prize_id, version_id, version_number)` | Sesión con la capacidad |
 | `publish_raffle_prize_version(premio, versión esperada, …)` | lo mismo; sin cambios devuelve la vigente | Sesión con la capacidad |
 | `archive_raffle_prize(premio, versión esperada)` · `restore_raffle_prize(premio, versión esperada)` | lo mismo | Sesión con la capacidad |
 | `reorder_raffle_prizes(rifa, premios)` | `(prize_id, position)` de los vigentes | Sesión con la capacidad |
-| `raffle_prize_history(premio, límite, desplazamiento)` | versiones con períodos, actor y total | Sesión con la capacidad; a los demás, cero filas |
+| `raffle_prize_history(premio, límite, desplazamiento)` | versiones con recompensa, períodos, **vigencia** (`starts_on`, `ends_on`), actor y total | Sesión con la capacidad; a los demás, cero filas |
+
+La **`0059`** cambia la firma de las dos primeras y el tipo de retorno del historial, así que las
+**borra y las vuelve a crear**; `archive`, `restore` y `reorder` conservan la suya.
 
 **La capacidad** (D-200): `app_capability_catalog()`, `app_role_default_capabilities(role)` y
 `has_org_capability(org, capability)`. Internas: ninguna sesión las ejecuta, y su espejo en la
 aplicación es `src/lib/auth/capabilities.ts`.
 
 **Las piezas internas** —`raffle_prize_manageable_raffle`, `raffle_prize_clean_fields`,
-`raffle_prize_normalized_rules`, `raffle_prize_rules_json`, `raffle_prize_insert_version`,
+`raffle_prize_normalized_rules`, `raffle_prize_rules_json`, `raffle_prize_normalized_reward`,
+`raffle_prize_reward_json`, `raffle_prize_validity`, `raffle_prize_insert_version`,
 `raffle_prize_rule_dates`, `raffle_prize_version_problem`, `raffle_prize_cutoff_problem`,
 `raffle_prize_is_material`, `raffle_prize_notify`, `raffle_prize_audit_values`,
 `raffle_prize_applicable_version` y `raffle_prize_lock`— **no tienen `EXECUTE` para ninguna sesión**
 (I-078). Las cuatro auxiliares de los CHECK sí lo tienen para `service_role`, que inserta directo.
+
+**`raffle_prize_version_problem` es la que dice que no** (BR-J08): calendario vacío o fuera de la
+rifa, día repetido, sorteo futuro cancelado y **conflicto con otro premio vigente**. Desde la `0059`
+el conflicto sustituye al duplicado exacto: compara **fecha, número de la boleta, cifras y lotería
+efectiva**, y **no** la recompensa. La llaman las cuatro RPC que escriben y el disparador de
+activación de `raffles`.
 
 ⚠️ **`raffle_prize_applicable_version(premio, corte)` todavía no la llama nadie**: fija la regla de
 BR-J09 —la última versión publicada antes de la hora original del sorteo— para el motor de la
@@ -1802,11 +1828,13 @@ Las funciones de trigger declaran `SET search_path = public, pg_temp`.
 
 ---
 
-**Los de premios configurables** (`0058`, §4.20) son de forma, no de negocio, y por eso valen también
-con la service role: `raffle_prizes_guard`, `raffle_prize_versions_guard` y
-`raffle_prize_schedule_rules_immutable` (inmutabilidad y cadena), los dos **diferidos**
-`raffle_prize_versions_require_rules` y `raffle_prize_schedule_rules_check` (calendario), y
-`raffles_guard_prize_config` sobre `raffles` (modo, fechas y activación).
+**Los de premios configurables** (`0058` y `0059`, §4.20) son de forma, no de negocio, y por eso
+valen también con la service role: `raffle_prizes_guard`, `raffle_prize_versions_guard`,
+`raffle_prize_schedule_rules_immutable` y `raffle_prize_reward_options_immutable` (inmutabilidad y
+cadena), los **cuatro diferidos** `raffle_prize_versions_require_rules`,
+`raffle_prize_schedule_rules_check`, `raffle_prize_versions_require_reward` y
+`raffle_prize_reward_options_check` (calendario y recompensa), y `raffles_guard_prize_config` sobre
+`raffles` (modo, fechas y activación).
 
 ---
 

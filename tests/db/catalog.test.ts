@@ -76,6 +76,7 @@ describe('RLS habilitada y forzada en todas las tablas de negocio', () => {
       'payment_allocations',
       'payments',
       'profiles',
+      'raffle_prize_reward_options',
       'raffle_prize_schedule_rules',
       'raffle_prize_versions',
       'raffle_prizes',

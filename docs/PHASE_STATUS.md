@@ -3,8 +3,12 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-15 — **Premios configurables por rifa, ENTREGA 1 de 5: el contrato**
-  (D-199, D-200, BR-J01..BR-J14, migración **`0058`**, **solo en local**). Cada rifa podrá definir sus
+- **Actualizado:** 2026-09-15 — **Premios configurables por rifa, ENTREGA 1 de 5: el contrato**,
+  **corregido el mismo día** (D-199, D-200 y **D-201**, BR-J01..**BR-J15**, migraciones **`0058`** y
+  **`0059`**, **solo en local**). La corrección cierra la ambigüedad **A7**: los premios **no se
+  acumulan** —dos que se cruzan son un **error de configuración**—, la recompensa pasa a ser una o
+  varias **alternativas excluyentes** y cada premio dice **desde cuándo y hasta cuándo** aplica. Cada
+  rifa podrá definir sus
   premios —qué se gana, con qué número, con cuántas cifras, qué días y con qué lotería—, y esta
   entrega deja el **modelo persistente**: identidad, **versiones inmutables**, períodos de calendario
   canónicos, seis RPC transaccionales con control optimista, la capacidad central
@@ -4921,6 +4925,88 @@ si exige una variable que nadie ha creado (I-021).
 
 ---
 
+## Mantenimiento post-9 — corrección de la Entrega 1 de premios: recompensa y conflicto (`0059`, D-201, 2026-09-15)
+
+Autorizada expresamente **antes** de la Entrega 2, y **solo** como corrección del contrato. **No es
+una Fase 10** y no lleva etiqueta `fase-*`.
+
+> **SOLO EN LOCAL.** El proyecto real no tiene ni la `0058` ni la `0059`. Sigue **sin panel**
+> (Entrega 2) y **sin motor de coincidencias** (Entrega 3); `match_lottery_result` no se tocó y
+> **todas las rifas siguen en modo heredado**.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| La recompensa, normalizada | `raffle_prize_reward_options`: una fila por **alternativa**, con **posición estable**, componente **en especie**, importe **en pesos**, o **los dos**. Al menos un componente por alternativa, máximo **6** |
+| La semántica, explícita | `raffle_prize_versions.reward_mode`: **`fixed`** (exactamente una) o **`winner_choice`** (dos o más). **No se deduce contando filas**, y lo imponen **dos** disparadores diferidos: al crear la versión y al añadir una opción después |
+| La representación anterior, retirada | `reward_type`, `reward_amount` y `reward_description` **se borran**, después de convertir cada recompensa existente en su **única opción fija**. La migración **se comprueba a sí misma** antes de retirarlas: no quedan dos fuentes de verdad |
+| El cruce, prohibido | Dos premios vigentes que un mismo día juegan con el **mismo número, las mismas cifras y la misma lotería** son un **conflicto**: no se puede crear, publicar, restaurar ni activar, y el mensaje nombra **los dos premios y el día**. La recompensa **no** entra en la comparación |
+| Lo que **sí** convive | **Cuatro cifras y últimas tres** el mismo día, a propósito, con la prioridad de BR-J07 intacta; y dos premios con **números distintos** de la boleta |
+| La vigencia | Cada versión dice **desde cuándo y hasta cuándo aplica**: el primer y el último día en que juega **de verdad**. En la base, `raffle_prize_validity`; en el historial, `starts_on` y `ends_on`; en la aplicación, `validityRange` y `validityText` |
+| El contrato de la aplicación | `PrizeReward` con modo y alternativas, `rewardOptionText` / `rewardOptionsText` / `rewardText`, `prizeConflict` y `prizeConflictMessage` —con las **mismas palabras** que la base—, y `PRIZE_LIMITS.rewardOptionsMax` |
+
+**Lo que NO trae, a propósito:** panel, motor de coincidencias, cambio de una rifa real al motor
+nuevo, reprocesamiento, y **el registro de cuál alternativa se llevó quien acertó**, que no está
+pedido.
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| Migración de compatibilidad, con datos creados **de verdad** con la `0058` | ✅ el premio en dinero y el premio en especie quedaron con su **opción fija** equivalente, y las columnas viejas ya no existen |
+| `tests/unit/raffle-prizes.test.ts` | ✅ **71/71** (+21) |
+| `tests/db/raffle-prizes.test.ts` | ✅ **84/84** (+20) |
+| `npm run test:db` | ✅ **1.132/1.132** en 48 archivos |
+| `npm run verify` | ✅ typecheck · lint **0 errores** y los 2 avisos preexistentes · **1.226/1.226** unitarias en 67 archivos · build |
+| E2E | **No se ejecutó**: la corrección no toca ninguna pantalla, y el encargo no lo pedía |
+
+**Errores encontrados y corregidos** (detalle en `TEST_RESULTS`, 2026-09-15): cuatro pruebas se
+salieron de las fechas de la rifa al repartir una semana por premio —ahora se reparte **un día**—;
+una prueba de inmutabilidad hacía `rollback` y el disparador es **diferido**, así que no saltaba;
+un argumento de la forma anterior sobrevivió en una prueba; y dos ventanas de diciembre se
+escribieron con días que no contenían. **Ninguno fue un defecto del producto.** Sí apareció un
+**hueco real** —la semántica de la recompensa no se revalidaba al añadir una opción después— y se
+cerró con un disparador nuevo.
+
+### 3. Migraciones que existen
+
+**`0001`–`0059` en local; `0001`–`0057` en el proyecto real.** La **`0059`** añade un enumerado, una
+tabla, `raffle_prize_versions.reward_mode`, tres piezas internas y dos disparadores; **retira** tres
+columnas y el enumerado `raffle_prize_reward_type`; y vuelve a escribir dos RPC, el historial y cinco
+piezas internas, además de `admin_audit_redact`. **No reescribe la `0058`**, que ya estaba aplicada y
+en un commit. No toca cartera, ni resultados, ni `match_lottery_result`, y ninguna rifa cambió de
+modo.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **La `0058` y la `0059` no están en producción** | Es lo previsto: promoverlas es la Entrega 5 |
+| **La fecha inicial del premio diario y del de fin de semana no está informada** | No se inventó ninguna: el sistema permite configurarla y la rifa real se arma en la **Entrega 4** |
+| **`raffle_prize_applicable_version` no la llama nadie todavía** | Existe y está probada: fija la regla del corte para el motor |
+| **Revertir la `0059` pierde información si se usa `winner_choice`** | Una elección entre alternativas, o una alternativa con los dos componentes, **no cabe** en la forma anterior. La nota de reversión de la migración lo dice y manda comprobarlo antes |
+| Todo lo demás | Sin cambios: I-024, I-021, I-023, I-030, I-059, I-060, I-090, I-106, I-117, I-119, I-120 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Entrega 2.** Hace falta una autorización explícita nueva.
+2. **A7 está cerrada** (D-201): los premios **no se acumulan**. No vuelvas a abrirla ni escribas que
+   se suman.
+3. **Una prueba que cree dos premios parecidos en la misma rifa chocará**, y la recompensa **ya no**
+   los distingue: dales días distintos.
+4. **La recompensa vive en `raffle_prize_reward_options`**, nunca en columnas de la versión. Si ves
+   `reward_type` en algún sitio, es documentación histórica.
+5. Lo de siempre: **no escribas directo en las cuatro tablas**, **no borres versiones, períodos ni
+   recompensas**, usa `authorizeCapability` en vez de mirar el rol y **no cambies el modo de una
+   rifa** para probar.
+
+---
+
 ## Mantenimiento post-9 — premios configurables por rifa, **ENTREGA 1 de 5**: el contrato (`0058`, D-199, D-200, 2026-09-15)
 
 Autorizada expresamente, **solo la Entrega 1**. **No es una Fase 10** y no lleva etiqueta `fase-*`.
@@ -4976,7 +5062,7 @@ de modo.
 
 | Asunto | Impacto |
 |---|---|
-| **A7 sin respuesta** | ¿Dos premios distintos que caen en el mismo sorteo se suman o uno reemplaza al otro? Hoy **se suman**, que es lo único que el encargo define; **la Entrega 3 no se construye sin la respuesta del dueño** |
+| ~~**A7 sin respuesta**~~ | **Respondida el mismo día** (D-201): los premios **no se acumulan**, y un cruce es un error de configuración. Ya no bloquea la Entrega 3 |
 | **La `0058` no está en producción** | Es lo previsto: promoverla es la Entrega 5. Nada del código desplegado la necesita, así que no hay mitades que dependan entre sí (al revés que I-118) |
 | **`raffle_prize_applicable_version` no la llama nadie todavía** | Existe y está probada: fija la regla del corte para el motor. Si la Entrega 3 no la usa, habrá dos formas de decidir lo mismo |
 | Todo lo demás | Sin cambios: I-024, I-021, I-023, I-030, I-059, I-060, I-090, I-106, I-117, I-119, I-120 |
@@ -4984,7 +5070,7 @@ de modo.
 ### 6. Qué debe revisar el siguiente agente antes de comenzar
 
 1. **Esto NO autoriza la Entrega 2.** Hace falta una autorización explícita nueva.
-2. **Pregunta A7 antes de la Entrega 3.** Está en `DECISIONS`, en la tabla de ambigüedades.
+2. ~~Pregunta A7 antes de la Entrega 3.~~ **Respondida** el 2026-09-15 y aplicada en la `0059` (D-201).
 3. **No escribas en las tres tablas con `insert`**: solo conceden `SELECT`; las RPC son la única
    puerta, y es lo que hace inevitables el tope, la versión, la bitácora y el aviso.
 4. **No borres versiones ni períodos:** son inmutables incluso con la service role. La limpieza de las

@@ -7,7 +7,7 @@
 - **Versión del documento:** 1.10
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
 - **Última actualización:** 2026-09-15 (§9.7: premios configurables por rifa, Entrega 1 de 5 —el
-  contrato, D-199 y D-200, migración `0058`, **solo en local**—; y §9.5, corregida: las siete etapas
+  contrato, D-199, D-200 y **D-201**, migraciones `0058` y `0059`, **solo en local**—; y §9.5, corregida: las siete etapas
   del cobro están **en producción** desde el 2026-09-12). Antes, el 2026-09-14 (§7 F5, F7, F8 y F9, §8 reglas 14 y 17 y §9.1: la cartera es
   del vendedor —D-198, migración `0057`, **en producción desde el 2026-09-15**—). Antes, el 2026-09-13 (§9.6: el mensaje propio de «Resultados de la semana», con la
   migración `0056`, aplicada al proyecto real y desplegado ese mismo día en `6dd23e5`; antes, ese
@@ -387,14 +387,26 @@ propio no la cambia.
 
 ### 9.7 Premios configurables por rifa — **ENTREGA 1 DE 5: el contrato, solo en local**
 
-> Encargo «premios configurables por rifa», 2026-09-15 (D-199, D-200; reglas BR-J01..BR-J14;
-> migración **`0058`**). **No hay panel** (Entrega 2), **no hay motor de coincidencias** (Entrega 3),
-> **ninguna rifa cambió de sistema** y la migración **no está en el proyecto real**.
+> Encargo «premios configurables por rifa», 2026-09-15 (D-199, D-200 y **D-201**; reglas
+> BR-J01..BR-J15; migraciones **`0058`** y **`0059`**). **No hay panel** (Entrega 2), **no hay motor
+> de coincidencias** (Entrega 3), **ninguna rifa cambió de sistema** y las migraciones **no están en
+> el proyecto real**.
 
 Cada rifa podrá definir **sus** premios en vez de depender del único comparador fijo de siempre
-(BR-L06). Un premio dice **qué se gana** —dinero en pesos enteros o algo en especie, como una
-camioneta—, **con cuál de los dos números** de la boleta juega, **con cuántas cifras** —las cuatro, o
-las tres últimas—, **qué días** y **con qué lotería**, además de sus aclaraciones y su estado.
+(BR-L06). Un premio dice **qué se gana**, **con cuál de los dos números** de la boleta juega, **con
+cuántas cifras** —las cuatro, o las tres últimas—, **qué días** y **con qué lotería**, además de sus
+aclaraciones y su estado.
+
+**Lo que se gana puede ser una cosa o una elección.** Un premio entrega una sola recompensa —dinero,
+algo en especie, o las dos cosas juntas— o varias **alternativas excluyentes** de las que se lleva
+**una**: así se escribe el premio mayor del 21 de diciembre, que ofrece una camioneta, dos
+combinaciones de vehículo y dinero, o dinero solo. La aplicación **no registra cuál se llevó**.
+
+**Los premios no se acumulan.** Dos premios que el mismo día jugarían con el mismo número, las mismas
+cifras y la misma lotería no se pueden resolver: es un **error de configuración** y se dice cuáles y
+qué día. Los cruces se evitan **con las fechas** —por eso cada premio dice desde cuándo y hasta
+cuándo aplica—, y un premio de cuatro cifras y otro de tres **sí** conviven el mismo día: son cosas
+distintas y el de cuatro manda sobre el de tres.
 
 | Lo que ya existe (Entrega 1) | Lo que todavía no |
 |---|---|

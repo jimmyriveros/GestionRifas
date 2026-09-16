@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.53 · **Actualizado:** 2026-09-13 (D-001 a D-197; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.55 · **Actualizado:** 2026-09-15 (D-001 a D-201; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -10714,6 +10714,13 @@ semana** que el sorteo (D-143); suponerlo no es reinterpretar la regla, es aplic
 
 ### Decisión 6 — duplicados: se rechaza el exacto; dos premios distintos se suman
 
+> ⚠️ **Sustituida el 2026-09-15 por D-201, Decisión 3.** El dueño respondió A7: **los premios no se
+> acumulan**. Dos premios vigentes que un mismo día juegan con el mismo número, las mismas cifras y
+> la misma lotería son un **conflicto de configuración** y se rechazan. El duplicado exacto que
+> describe lo que sigue **ya no es una regla propia**: la de conflicto lo contiene. Sigue vigente que
+> **el nombre no cuenta**, y sigue vigente —ahora escrito a propósito— que **cuatro cifras y últimas
+> tres conviven**.
+
 Un **duplicado exacto** —mismo número, mismas cifras, misma recompensa y exactamente las mismas
 fechas que otro premio vigente de la rifa— se rechaza y se dice con cuál choca. El **nombre no
 cuenta**: dos premios que pagan lo mismo en los mismos sorteos son el mismo premio escrito dos veces.
@@ -10725,6 +10732,10 @@ y el encargo solo define una exclusión, la de cuatro cifras sobre tres. Esta en
 ninguna resolución** para ese cruce, porque no hay motor todavía; la pregunta —¿el premio diario se
 paga además del principal el 21 de diciembre?— es del dueño del producto y está en la tabla de
 ambigüedades como **A7**. Sin su respuesta no se construye la Entrega 3.
+
+> ✅ **A7 se respondió el 2026-09-15 y esto ya no está abierto.** Los premios **no se acumulan**, y
+> ese cruce de los sábados 5 y 19 **no llega a existir**: el premio de fin de semana cierra el 28 de
+> noviembre. Una coincidencia así, si se configurara, se rechaza. Ver **D-201**.
 
 ### Decisión 7 — seis RPC, y ninguna recibe organización ni actor
 
@@ -10772,6 +10783,10 @@ fila por cada inserción. El historial funcional sale de **las versiones**, no d
 Nombre 2–80, descripción en especie 2–160, aclaraciones ≤ 1.000, premio en dinero 1–10.000.000.000,
 **10 períodos** por premio y **50 premios vigentes** por rifa. Están en `PRIZE_LIMITS` y en los CHECK
 de la migración, y una prueba de base de datos los comprueba **en el borde**.
+
+> **Ampliada el 2026-09-15 (D-201).** Se añaden **6 alternativas** por premio, y los límites de texto
+> y de valor pasan a comprobarse **por alternativa**: la descripción y el importe ya no son campos de
+> la versión, sino componentes de cada opción.
 
 ### Alternativas descartadas
 
@@ -10833,6 +10848,121 @@ vuelta más para repetir lo que la RPC ya comprueba, y sin ganar defensa en prof
 **Consecuencia.** BR-J10. `SECURITY` §2 y §4.20, `ARCHITECTURE` §8.27. Hoy la usan las seis RPC de
 premios; la siguiente capacidad se añade al catálogo y a los dos espejos, no a una pantalla.
 
+## D-201 — Los premios no se acumulan: la recompensa se normaliza y un cruce es un error
+
+**Fase:** mantenimiento posterior a la Fase 9 (corrección de la Entrega 1 de «premios configurables
+por rifa», 2026-09-15)
+
+**Contexto.** La Entrega 1 dejó dos cosas sin resolver, y el dueño respondió a las dos.
+
+La primera es la ambigüedad **A7**: qué pasa cuando dos premios distintos caen en el mismo sorteo.
+D-199 la dejó abierta suponiendo que **se suman**, que era lo único que el encargo definía. La
+respuesta es la contraria: **no se acumulan**, y los cruces se evitan con las **fechas de vigencia**
+de cada premio. En la configuración de aceptación eso significa que el premio diario de $500.000
+juega **hasta el viernes 27 de noviembre** y el de fin de semana de $2.000.000 **hasta el sábado 28**,
+así que ninguno alcanza los especiales de diciembre. La **fecha inicial no está informada**: el
+sistema tiene que permitir configurarla y la rifa real se arma en la Entrega 4.
+
+La segunda es el **premio mayor del 21 de diciembre**. No son cuatro premios: es **uno** —número
+diario, cuatro cifras, Lotería de Cundinamarca— con **cuatro alternativas excluyentes** de las que se
+elige exactamente una: (1) Camioneta KIA; (2) Renault Alaskan 2023 **y** $20.000.000; (3)
+$120.000.000 en dinero; (4) Renault Logan Zen público 2023 **y** $70.000.000. Dos de ellas mezclan
+un vehículo **con** dinero, y el modelo de 0058 no lo admitía: una versión tenía `reward_type` de
+dinero **o** especie, con un CHECK que los hacía excluyentes.
+
+### Decisión 1 — la recompensa se normaliza en opciones, y el modo es explícito
+
+Cada versión pasa a tener sus **opciones** (`raffle_prize_reward_options`): posición estable,
+**componente en especie** opcional, **importe en pesos** opcional y **al menos uno de los dos**. Así
+caben los cuatro casos sin inventar tipos: dinero solo, especie sola, especie **y** dinero en la
+misma opción, y varias opciones excluyentes.
+
+La semántica va en la versión, en `reward_mode`, y **no se deduce contando filas**: `fixed` es
+exactamente una opción y `winner_choice`, dos o más. Un `fixed` con dos opciones es un error de quien
+escribe, no una alternativa que se descubre al contar; y un `winner_choice` con una sola no es «una
+elección», es una configuración a medias. Lo imponen **dos** disparadores diferidos —uno al insertar
+la versión y otro al insertar una opción—, así que ni la service role puede dejarla descuadrada.
+
+**No hay un título aparte.** El texto de una opción **es** su componente en especie; la frase
+«Renault Alaskan 2023 y $20.000.000» la compone la aplicación. Un título libre al lado sería una
+segunda fuente de verdad de la misma cosa, que es justo lo que esta migración viene a evitar.
+
+**El orden significa algo** —es el orden en que se anuncian las alternativas—, así que se guarda tal
+como llega y **no se ordena por contenido**. Cambiarlo es un cambio material y avisa.
+
+**El sistema no registra cuál alternativa se llevó quien acertó.** No hace falta todavía, y
+registrarlo es otra decisión: un dato que hoy nadie escribiría quedaría siempre vacío o siempre
+falso.
+
+### Decisión 2 — la representación anterior se retira; no hay dos fuentes de verdad
+
+`reward_type`, `reward_amount` y `reward_description` **se borran** de `raffle_prize_versions` en la
+misma migración, después de convertir cada recompensa existente en su **única opción fija**. La
+migración se comprueba a sí misma: si alguna versión quedara sin exactamente una opción, la
+transacción se cae **antes** de retirar las columnas viejas.
+
+Conservarlas «por compatibilidad» habría dejado dos sitios donde leer lo que paga un premio, que se
+separan en cuanto alguien escriba en uno solo. El precio es que la reversión solo es posible sin
+pérdida mientras ninguna versión use `winner_choice` ni una opción con los dos componentes: eso no
+cabe en la forma anterior, y la nota de reversión de `0059` lo dice.
+
+### Decisión 3 — un cruce es un CONFLICTO de configuración, no una acumulación
+
+Dos premios **vigentes** que, para una **misma fecha**, juegan con el **mismo número de la boleta**,
+las **mismas cifras** y la **misma lotería efectiva** no se pueden resolver: no hay forma de decir
+cuál se paga. Publicar o activar esa configuración **se rechaza**, con un mensaje que nombra **los dos
+premios y el día**.
+
+**La recompensa no entra en la comparación.** Antes, dos premios idénticos con importes distintos
+eran dos premios válidos que se sumaban; ahora siguen siendo un cruce, porque lo que no se puede
+resolver es la regla de juego, no lo que paga. Por eso el **duplicado exacto** de D-199 desaparece
+como regla propia: esta la contiene —dos premios idénticos comparten todos sus días—.
+
+**Cuatro cifras y últimas tres NO chocan**, y esto es intencional: son dos premios de
+**especificidad distinta**, con públicos distintos, y el 21 de diciembre conviven a propósito. La
+prioridad de BR-J07 —las cuatro mandan sobre las tres para una misma boleta y un mismo resultado—
+**no se toca**. Tampoco chocan dos premios que juegan con números distintos de la boleta.
+
+### Decisión 4 — cada premio dice desde cuándo y hasta cuándo aplica
+
+Si los cruces se evitan con las fechas, las fechas tienen que **verse**. La vigencia de una versión
+es el **primer y el último día en que juega de verdad**, no lo escrito en sus períodos: «los sábados
+del 1 al 31 de diciembre» empieza el **5**, no el 1. Lo calcula `raffle_prize_validity` en la base
+—y `validityRange` en la aplicación, con la misma regla— y el historial lo devuelve en `starts_on` y
+`ends_on`, para que la pantalla no lo recalcule.
+
+**Varios períodos separados siguen siendo válidos**: la vigencia es una sola desde el primero hasta
+el último, y el calendario detallado sigue estando entero.
+
+### Decisión 5 — migración nueva, la `0058` no se reescribe
+
+`0058` ya se aplicó y quedó en un commit, así que la corrección es la **`0059`**: crea el tipo y la
+tabla, añade `reward_mode`, migra lo existente, retira las columnas viejas y **vuelve a escribir** las
+piezas que cambian de forma —dos RPC, el historial, la inserción de versión, la limpieza de campos,
+el resumen de bitácora, la detección de cambios materiales, la de problemas y `admin_audit_redact`—.
+Las rifas siguen todas en `legacy`, no se reprocesa ningún resultado, `match_lottery_result` no se
+toca y la cartera tampoco.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Cuatro premios distintos para el 21 de diciembre | Se pagarían los cuatro, y son **excluyentes**: quien acierta se lleva uno. Además chocarían entre sí por la regla de conflicto, que es exactamente lo que dice que está mal escrito |
+| Deducir el modo del número de opciones | Un «Premio único» con dos alternativas dejaría de ser un error y pasaría a ser una elección silenciosa. El encargo pide lo contrario |
+| Un título libre por opción, además de sus componentes | Dos fuentes de verdad para la misma cosa: un título que dijera «camioneta» sobre una opción de solo dinero |
+| Conservar `reward_type` y compañía como columnas obsoletas | Lo mismo, pero peor: dos sitios donde leer lo que paga un premio |
+| Resolver el cruce eligiendo el premio «mayor» | Inventaría una regla que nadie pidió, y el valor económico **no decide nada** (BR-J07) |
+| Avisar del cruce sin bloquearlo | Un aviso que se puede ignorar deja la rifa en un estado que el motor no sabrá resolver |
+| Guardar qué alternativa eligió quien acertó | No está pedido, y un campo así quedaría vacío o falso mientras nadie lo escriba |
+
+### Consecuencia
+
+Migración **`0059`**. **BR-J02**, **BR-J07**, **BR-J08** y **BR-J14** corregidas y **BR-J15** nueva
+(`BUSINESS_RULES` §12.i). `DATA_MODEL` §3.3, §4.20 y §6.g.9, `SECURITY` §4.20, `ARCHITECTURE` §7.3 y
+§8.27, `MASTER_SPEC` §9.7, `UX_COPY_GUIDELINES` (Anexos A y B), `TESTING` §4.11, `TEST_RESULTS`,
+`PHASE_STATUS` y `HANDOFF`. **Cierra A7.** **Solo en local:** el proyecto real no tiene ni la `0058`
+ni la `0059`. **Sin panel y sin motor**: siguen siendo las entregas 2 y 3.
+
 ---
 ## Ambigüedades pendientes de confirmación del usuario
 
@@ -10846,4 +10976,10 @@ No bloquean ninguna fase; se resolvieron con la opción más segura y podrán aj
 | A4 | ¿Se notifica por correo al invitar usuarios? | Sí, mediante Supabase Auth; sin plantillas personalizadas en el MVP | Fase 3 |
 | A5 | ¿Cuántas rifas activas simultáneas? | Varias permitidas; el dashboard muestra la más reciente activa | Fase 6. Para **loterías**, D-140 no elige una: coinciden todas las `active`/`closed` cuya ventana cubre la fecha de referencia. Para el **catálogo público**, D-159 tampoco adivina: la rifa se configura (BR-K06). |
 | A6 | ¿La imagen de «Resultados de la semana» debe exigir que la semana caiga dentro de las fechas de la rifa del catálogo? | No se comprueba: enseña los resultados nacionales de la última semana terminada con el nombre de la rifa configurada. En la primera semana de una rifa nueva, sale la semana anterior con su nombre | D-194, Decisión 3 |
-| **A7** | **Dos premios distintos que caen en el mismo sorteo con las mismas cifras, ¿se pagan los dos o uno reemplaza al otro?** Pasa en la propia configuración de aceptación: el premio diario y el principal el lunes 21 de diciembre, y el de fin de semana y el especial semanal los sábados 5 y 19 | **Se suman**, que es lo único que el encargo define —«una fotografía puede relacionarse con varios premios»— y lo que deja válida esa configuración. La Entrega 1 **no implementa ninguna otra resolución** y tampoco bloquea el cruce: solo rechaza el duplicado exacto. **Bloqueante para la Entrega 3**: el motor no se construye sin esta respuesta | D-199, Decisión 6 |
+
+**A7 dejó de estar pendiente el 2026-09-15.** El dueño respondió que **los premios no se acumulan**:
+los cruces se evitan con las **fechas de vigencia** de cada premio —el diario cierra el 27 de
+noviembre y el de fin de semana el 28—, y dos premios vigentes que coinciden en día, número, cifras
+y lotería son un **conflicto de configuración** que se rechaza. **Cuatro cifras y últimas tres sí
+conviven**, con la prioridad de BR-J07 intacta. Está implementado en **D-201** y ya no bloquea la
+Entrega 3.

@@ -90,29 +90,50 @@ function rule(overrides: Partial<PrizeRulePayload> = {}): PrizeRulePayload {
 }
 
 /**
- * Cada premio de esta suite vale un peso más que el anterior.
+ * Cada premio de esta suite juega su PROPIO día.
  *
- * NO es un adorno: BR-J08 rechaza dos premios vigentes con las MISMAS
- * condiciones y la misma recompensa, y el nombre no cuenta a propósito. Sin esto
- * el segundo premio de cada rifa chocaría con el primero — que es justo lo que
- * comprueba J7-01, con dos importes iguales puestos a mano.
+ * NO es un adorno: desde D-201 dos premios vigentes que un mismo día juegan con
+ * el mismo número, las mismas cifras y la misma lotería son un CONFLICTO, y la
+ * recompensa ya no los distingue —antes bastaba con cambiar el importe—. Sin
+ * esto, el segundo premio de cada rifa chocaría con el primero, que es justo lo
+ * que comprueban J7-01 y J7-02 con dos calendarios puestos a mano.
+ *
+ * Los días automáticos empiezan LEJOS de la ventana que usan las pruebas de
+ * calendario, para que un premio con fechas escritas a mano nunca choque con uno
+ * repartido por este contador. Cada premio ocupa UN día —el domingo se salta,
+ * que no tiene lotería— y así la rifa no necesita durar años.
  */
-let siguienteImporte = 500000
+const PRIMER_DIA_LIBRE = 70
+let diasUsados = 0
+
+function diaLibre(): PrizeRulePayload {
+  diasUsados += 1
+  let dia = addDays(futureMonday, PRIMER_DIA_LIBRE + diasUsados)
+  if (isoWeekday(dia) === 7) {
+    diasUsados += 1
+    dia = addDays(futureMonday, PRIMER_DIA_LIBRE + diasUsados)
+  }
+  return rule({ start_date: dia, end_date: dia, weekdays: [isoWeekday(dia)] })
+}
+
+/** Una recompensa única en dinero, que es lo que lleva casi todo premio. */
+function dinero(amount: number) {
+  return [{ description: null, amount }]
+}
 
 async function createPrize(
   client: Client,
   raffleId: string,
   overrides: Record<string, unknown> = {},
 ) {
-  siguienteImporte += 1000
   return client.rpc('create_raffle_prize', {
     p_raffle_id: raffleId,
     p_title: 'Premio diario',
     p_category: 'daily',
-    p_reward_type: 'cash',
+    p_reward_mode: 'fixed',
+    p_reward_options: dinero(500000),
     p_number_field: 'daily_number',
-    p_rules: [rule()],
-    p_reward_amount: siguienteImporte,
+    p_rules: [diaLibre()],
     ...overrides,
   })
 }
@@ -136,7 +157,7 @@ async function newRaffle(
       ctx.demoOrg.id,
       name,
       options.start ?? pastMonday,
-      options.end ?? addDays(futureMonday, 60),
+      options.end ?? addDays(futureMonday, 500),
       ctx.ids.owner,
       options.mode ?? 'configurable',
     ],
@@ -205,6 +226,11 @@ afterAll(async () => {
     [createdRaffles],
   )
   await db.query(
+    `delete from raffle_prize_reward_options where version_id in (
+       select id from raffle_prize_versions where raffle_id = any ($1::uuid[]))`,
+    [createdRaffles],
+  )
+  await db.query(
     `delete from raffle_prize_schedule_rules where version_id in (
        select id from raffle_prize_versions where raffle_id = any ($1::uuid[]))`,
     [createdRaffles],
@@ -259,17 +285,21 @@ describe('J1 — quién puede configurar premios (BR-J10, D-200)', () => {
   })
 
   it('J1-02: el Administrador también, por la capacidad y no por su rol', async () => {
-    const premio = await prizeOf(admin, draftRaffle, { p_title: 'Premio del administrador' })
+    const dia = diaLibre()
+    const premio = await prizeOf(admin, draftRaffle, {
+      p_title: 'Premio del administrador',
+      p_rules: [dia],
+    })
     const publicado = await admin.rpc('publish_raffle_prize_version', {
       p_prize_id: premio.prize_id,
       p_expected_version_id: premio.version_id,
       p_title: 'Premio del administrador',
       p_category: 'daily',
-      p_reward_type: 'cash',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(600000),
       p_number_field: 'daily_number',
       p_digits: 'four',
-      p_rules: [rule()],
-      p_reward_amount: 600000,
+      p_rules: [dia],
     })
     expect(publicado.error).toBeNull()
     expect((publicado.data as unknown as PrizeResult[])[0]!.version_number).toBe(2)
@@ -450,7 +480,7 @@ describe('J3 — el calendario, en la base (BR-J04, BR-J05)', () => {
           lottery_code: 'cundinamarca',
         }),
       ],
-      p_reward_amount: 1000000,
+      p_reward_options: dinero(1000000),
     })
 
     const { rows } = await db.query<{ reference_date: string; lottery_code: string }>(
@@ -515,51 +545,58 @@ describe('J3 — el calendario, en la base (BR-J04, BR-J05)', () => {
 
 // =============================================================================
 describe('J4 — la recompensa y las cifras (BR-J02, BR-J06)', () => {
-  it('J4-01: un premio en dinero con descripción se rechaza', async () => {
+  it('J4-01: una alternativa sin dinero y sin especie se rechaza', async () => {
     const { error } = await createPrize(owner, draftRaffle, {
-      p_title: 'Premio incoherente',
-      p_reward_description: 'una camioneta',
+      p_title: 'Premio vacío',
+      p_reward_options: [{ description: null, amount: null }],
     })
-    expect(error?.message).toContain('no lleva descripción')
+    expect(error?.message).toContain('el dinero, lo que se entrega, o las dos cosas')
   })
 
-  it('J4-02: un premio en especie con valor en pesos se rechaza', async () => {
-    const { error } = await createPrize(owner, draftRaffle, {
-      p_title: 'Premio incoherente 2',
-      p_reward_type: 'in_kind',
-      p_reward_description: 'una camioneta',
-      p_reward_amount: 100,
+  it('J4-02: una alternativa puede entregar una cosa Y dinero a la vez', async () => {
+    const premio = await prizeOf(owner, draftRaffle, {
+      p_title: 'Camioneta con estreno',
+      p_category: 'main',
+      p_reward_options: [{ description: 'Renault Alaskan 2023', amount: 20000000 }],
     })
-    expect(error?.message).toContain('no lleva valor en pesos')
+    const { rows } = await db.query(
+      `select o.description, o.amount::bigint from raffle_prize_reward_options o where o.version_id = $1`,
+      [premio.version_id],
+    )
+    expect(rows[0]).toMatchObject({ description: 'Renault Alaskan 2023' })
+    expect(Number((rows[0] as { amount: string }).amount)).toBe(20000000)
   })
 
-  it('J4-03: ni la service role puede escribir una versión incoherente', async () => {
+  it('J4-03: ni la service role puede escribir una opción vacía', async () => {
+    const premio = await prizeOf(owner, draftRaffle, { p_title: `Premio con opción vacía` })
     await expect(
       db.query(
-        `insert into raffle_prize_versions (organization_id, raffle_id, prize_id, version_number, status,
-           title, category, reward_type, reward_amount, reward_description, number_field)
-         values ($1, $2, gen_random_uuid(), 1, 'active', 'Incoherente', 'daily', 'cash', null, null, 'daily_number')`,
-        [ctx.demoOrg.id, draftRaffle],
+        `insert into raffle_prize_reward_options (organization_id, version_id, position, description, amount)
+         values ($1, $2, 2, null, null)`,
+        [ctx.demoOrg.id, premio.version_id],
       ),
-    ).rejects.toThrow(/reward_check/)
+    ).rejects.toThrow(/components_check/)
   })
 
   it('J4-04: el premio en especie guarda su descripción y no tiene valor', async () => {
     const premio = await prizeOf(owner, draftRaffle, {
       p_title: 'Camioneta',
       p_category: 'main',
-      p_reward_type: 'in_kind',
-      p_reward_description: 'Una camioneta',
-      p_reward_amount: null,
+      p_reward_options: [{ description: 'Una camioneta', amount: null }],
     })
     const { rows } = await db.query(
-      `select reward_type, reward_amount, reward_description from raffle_prize_versions where id = $1`,
+      `select v.reward_mode, o.position, o.description, o.amount
+         from raffle_prize_versions v
+         join raffle_prize_reward_options o on o.version_id = v.id
+        where v.id = $1`,
       [premio.version_id],
     )
+    expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({
-      reward_type: 'in_kind',
-      reward_amount: null,
-      reward_description: 'Una camioneta',
+      reward_mode: 'fixed',
+      position: 1,
+      description: 'Una camioneta',
+      amount: null,
     })
   })
 
@@ -584,7 +621,7 @@ describe('J4 — la recompensa y las cifras (BR-J02, BR-J06)', () => {
 
     const carisimo = await createPrize(owner, draftRaffle, {
       p_title: 'Premio carísimo',
-      p_reward_amount: 10_000_000_001,
+      p_reward_options: dinero(10_000_000_001),
     })
     expect(carisimo.error?.message).toContain('$10.000.000.000')
 
@@ -599,9 +636,11 @@ describe('J4 — la recompensa y las cifras (BR-J02, BR-J06)', () => {
 // =============================================================================
 describe('J5 — versiones: inmutables, encadenadas y con control optimista (BR-J09)', () => {
   it('J5-01: publicar crea una versión nueva y deja la anterior intacta', async () => {
+    const dia = diaLibre()
     const premio = await prizeOf(owner, draftRaffle, {
       p_title: 'Premio que cambia',
-      p_reward_amount: 850000,
+      p_reward_options: dinero(850000),
+      p_rules: [dia],
     })
 
     const { data, error } = await owner.rpc('publish_raffle_prize_version', {
@@ -609,22 +648,25 @@ describe('J5 — versiones: inmutables, encadenadas y con control optimista (BR-
       p_expected_version_id: premio.version_id,
       p_title: 'Premio que cambia',
       p_category: 'daily',
-      p_reward_type: 'cash',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(900000),
       p_number_field: 'daily_number',
       p_digits: 'four',
-      p_rules: [rule()],
-      p_reward_amount: 900000,
+      p_rules: [dia],
     })
     expect(error).toBeNull()
 
     const nueva = (data as unknown as PrizeResult[])[0]!
     expect(nueva.version_number).toBe(2)
 
-    const { rows } = await db.query<{ version_number: number; reward_amount: string }>(
-      `select version_number, reward_amount from raffle_prize_versions where prize_id = $1 order by version_number`,
+    const { rows } = await db.query<{ version_number: number; amount: string }>(
+      `select v.version_number, o.amount
+         from raffle_prize_versions v
+         join raffle_prize_reward_options o on o.version_id = v.id
+        where v.prize_id = $1 order by v.version_number`,
       [premio.prize_id],
     )
-    expect(rows.map((r) => Number(r.reward_amount))).toEqual([850000, 900000])
+    expect(rows.map((r) => Number(r.amount))).toEqual([850000, 900000])
   })
 
   it('J5-02: una versión anterior no se modifica ni se borra, tampoco con la service role', async () => {
@@ -649,7 +691,11 @@ describe('J5 — versiones: inmutables, encadenadas y con control optimista (BR-
   })
 
   it('J5-03: la versión que la persona estaba viendo tiene que seguir siendo la vigente', async () => {
-    const premio = await prizeOf(owner, draftRaffle, { p_title: 'Premio con dos editores' })
+    const dia = diaLibre()
+    const premio = await prizeOf(owner, draftRaffle, {
+      p_title: 'Premio con dos editores',
+      p_rules: [dia],
+    })
 
     const publicar = (client: Client, amount: number) =>
       client.rpc('publish_raffle_prize_version', {
@@ -657,11 +703,11 @@ describe('J5 — versiones: inmutables, encadenadas y con control optimista (BR-
         p_expected_version_id: premio.version_id,
         p_title: 'Premio con dos editores',
         p_category: 'daily',
-        p_reward_type: 'cash',
+        p_reward_mode: 'fixed',
+        p_reward_options: dinero(amount),
         p_number_field: 'daily_number',
         p_digits: 'four',
-        p_rules: [rule()],
-        p_reward_amount: amount,
+        p_rules: [dia],
       })
 
     const [uno, dos] = await Promise.all([publicar(owner, 700000), publicar(admin, 800000)])
@@ -678,10 +724,12 @@ describe('J5 — versiones: inmutables, encadenadas y con control optimista (BR-
   })
 
   it('J5-04: guardar sin cambios no crea versión, ni bitácora, ni aviso', async () => {
-    // El importe se fija aquí para poder volver a enviar EXACTAMENTE lo mismo.
+    // Calendario y recompensa fijos aquí: hay que enviar EXACTAMENTE lo mismo.
+    const dia = diaLibre()
     const premio = await prizeOf(owner, draftRaffle, {
       p_title: 'Premio sin cambios',
-      p_reward_amount: 500000,
+      p_reward_options: dinero(500000),
+      p_rules: [dia],
     })
     const antes = await countAudit(premio.prize_id)
 
@@ -690,11 +738,11 @@ describe('J5 — versiones: inmutables, encadenadas y con control optimista (BR-
       p_expected_version_id: premio.version_id,
       p_title: 'Premio sin cambios',
       p_category: 'daily',
-      p_reward_type: 'cash',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(500000),
       p_number_field: 'daily_number',
       p_digits: 'four',
-      p_rules: [rule()],
-      p_reward_amount: 500000,
+      p_rules: [dia],
     })
 
     expect(error).toBeNull()
@@ -820,29 +868,53 @@ describe('J6 — archivar, restaurar y reordenar (BR-J01, BR-J11)', () => {
 })
 
 // =============================================================================
-describe('J7 — duplicados y sorteos sin resultado (BR-J05, BR-J08)', () => {
-  it('J7-01: un duplicado exacto se rechaza y dice con cuál choca', async () => {
-    const raffleId = await newRaffle(`Premios duplicado ${Date.now().toString(36)}`)
-    // El MISMO importe a propósito: lo que hace duplicado a un premio son sus
-    // condiciones y su recompensa, nunca su nombre (BR-J08).
-    await prizeOf(owner, raffleId, { p_title: 'Premio de los sábados', p_reward_amount: 300000 })
+describe('J7 — conflictos de configuración y sorteos sin resultado (BR-J05, BR-J08)', () => {
+  it('J7-01: dos premios que juegan el mismo día con la misma regla chocan', async () => {
+    const raffleId = await newRaffle(`Premios conflicto ${Date.now().toString(36)}`)
+    const dia = diaLibre()
+    await prizeOf(owner, raffleId, { p_title: 'Premio del día', p_rules: [dia] })
 
+    // Otra recompensa y otro nombre: desde D-201 eso ya no los distingue, porque
+    // los premios NO se acumulan y el cruce no se puede resolver.
     const { error } = await createPrize(owner, raffleId, {
-      p_title: 'El mismo, con otro nombre',
-      p_reward_amount: 300000,
+      p_title: 'El mismo día, con otro nombre',
+      p_reward_options: dinero(1000000),
+      p_rules: [dia],
     })
-    expect(error?.message).toContain('Ya existe un premio con las mismas condiciones')
-    expect(error?.message).toContain('Premio de los sábados')
+    expect(error?.message).toContain('juegan el')
+    expect(error?.message).toContain('Premio del día')
+    expect(error?.message).toContain('El mismo día, con otro nombre')
+
+    // El día del conflicto es el que comparten.
+    const [anio, mes, numero] = dia.start_date.split('-')
+    expect(error?.message).toContain(`${numero}/${mes}/${anio}`)
   })
 
-  it('J7-02: el mismo calendario con otra recompensa SÍ se puede (se suman)', async () => {
-    const raffleId = await newRaffle(`Premios suma ${Date.now().toString(36)}`)
-    await prizeOf(owner, raffleId, { p_title: 'Premio A', p_reward_amount: 300000 })
+  it('J7-02: cuatro cifras y últimas tres conviven el mismo día (BR-J07)', async () => {
+    const raffleId = await newRaffle(`Premios convivencia ${Date.now().toString(36)}`)
+    const dia = diaLibre()
+    await prizeOf(owner, raffleId, { p_title: 'Premio de cuatro cifras', p_rules: [dia] })
 
-    const { error } = await createPrize(owner, raffleId, {
-      p_title: 'Premio B',
-      p_reward_amount: 1000000,
+    const tres = await createPrize(owner, raffleId, {
+      p_title: 'Premio de las tres últimas',
+      p_digits: 'last_three',
+      p_rules: [dia],
     })
+    expect(tres.error).toBeNull()
+
+    // Y el otro número de la boleta tampoco choca.
+    const semanal = await createPrize(owner, raffleId, {
+      p_title: 'Premio del número semanal',
+      p_number_field: 'weekly_number',
+      p_rules: [dia],
+    })
+    expect(semanal.error).toBeNull()
+  })
+
+  it('J7-02b: sin días compartidos no hay conflicto, aunque todo lo demás sea igual', async () => {
+    const raffleId = await newRaffle(`Premios sin cruce ${Date.now().toString(36)}`)
+    await prizeOf(owner, raffleId, { p_title: `Premio de un día` })
+    const { error } = await createPrize(owner, raffleId, { p_title: `Premio de otro día` })
     expect(error).toBeNull()
   })
 
@@ -888,11 +960,11 @@ describe('J8 — el corte de una rifa activa (BR-J09)', () => {
       p_expected_version_id: premio.current_version_id,
       p_title: 'Premio de la rifa activa',
       p_category: 'daily',
-      p_reward_type: 'cash',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(500000),
       p_number_field: 'daily_number',
       p_digits: 'four',
       p_rules: [rule({ start_date: pastMonday, end_date: addDays(pastMonday, 4) })],
-      p_reward_amount: 500000,
     })
     expect(error?.message).toContain('hora oficial del sorteo')
   })
@@ -919,11 +991,11 @@ describe('J8 — el corte de una rifa activa (BR-J09)', () => {
       p_expected_version_id: premio.current_version_id,
       p_title: 'Premio de la rifa activa',
       p_category: 'daily',
-      p_reward_type: 'cash',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(500000),
       p_number_field: 'daily_number',
       p_digits: 'four',
       p_rules: [rule({ start_date: dia, end_date: dia, weekdays: [2] })],
-      p_reward_amount: 500000,
     })
     expect(error).toBeNull()
   })
@@ -955,18 +1027,22 @@ describe('J9 — auditoría, historial y avisos (BR-J11, BR-J12)', () => {
     }
   })
 
-  it('J9-02: el historial sale de las versiones, con actor y fecha', async () => {
-    const premio = await prizeOf(admin, draftRaffle, { p_title: 'Premio con historial' })
+  it('J9-02: el historial sale de las versiones, con actor, recompensa y vigencia', async () => {
+    const dia = diaLibre()
+    const premio = await prizeOf(admin, draftRaffle, {
+      p_title: 'Premio con historial',
+      p_rules: [dia],
+    })
     await admin.rpc('publish_raffle_prize_version', {
       p_prize_id: premio.prize_id,
       p_expected_version_id: premio.version_id,
       p_title: 'Premio con historial',
       p_category: 'special',
-      p_reward_type: 'cash',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(500000),
       p_number_field: 'daily_number',
       p_digits: 'last_three',
-      p_rules: [rule()],
-      p_reward_amount: 500000,
+      p_rules: [dia],
     })
 
     const { data, error } = await owner.rpc('raffle_prize_history', { p_prize_id: premio.prize_id })
@@ -984,6 +1060,13 @@ describe('J9 — auditoría, historial y avisos (BR-J11, BR-J12)', () => {
     expect(historial[0]!.published_by_name).toBeTruthy()
     expect(Number(historial[0]!.total_count)).toBe(2)
     expect(Array.isArray(historial[0]!.rules)).toBe(true)
+
+    // La recompensa viaja con su modo y sus opciones; la vigencia, con sus dos
+    // fechas: desde cuándo y hasta cuándo aplicaba esa versión (D-201).
+    expect(historial[0]!.reward_mode).toBe('fixed')
+    expect(historial[0]!.reward_options).toEqual([{ description: null, amount: 500000 }])
+    expect(historial[0]!.starts_on).toBe(dia.start_date)
+    expect(historial[0]!.ends_on).toBe(dia.end_date)
   })
 
   it('J9-03: el historial de otra organización y el de un vendedor vienen vacíos', async () => {
@@ -1050,8 +1133,8 @@ describe('J9 — auditoría, historial y avisos (BR-J11, BR-J12)', () => {
       p_rules: [
         rule({ start_date: addDays(futureMonday, 35), end_date: addDays(futureMonday, 39) }),
       ],
-      // Fijo: lo único que cambia en la primera publicación tiene que ser el nombre.
-      p_reward_amount: 500000,
+      // Fija: lo único que cambia en la primera publicación tiene que ser el nombre.
+      p_reward_options: dinero(500000),
     })
 
     const soloNombre = await owner.rpc('publish_raffle_prize_version', {
@@ -1059,13 +1142,13 @@ describe('J9 — auditoría, historial y avisos (BR-J11, BR-J12)', () => {
       p_expected_version_id: premio.version_id,
       p_title: 'Premio material, con otro nombre',
       p_category: 'daily',
-      p_reward_type: 'cash',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(500000),
       p_number_field: 'daily_number',
       p_digits: 'four',
       p_rules: [
         rule({ start_date: addDays(futureMonday, 35), end_date: addDays(futureMonday, 39) }),
       ],
-      p_reward_amount: 500000,
     })
     const v2 = (soloNombre.data as unknown as PrizeResult[])[0]!
     expect(await notificationsOf(v2.version_id)).toHaveLength(0)
@@ -1075,13 +1158,13 @@ describe('J9 — auditoría, historial y avisos (BR-J11, BR-J12)', () => {
       p_expected_version_id: v2.version_id,
       p_title: 'Premio material, con otro nombre',
       p_category: 'daily',
-      p_reward_type: 'cash',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(750000),
       p_number_field: 'daily_number',
       p_digits: 'four',
       p_rules: [
         rule({ start_date: addDays(futureMonday, 35), end_date: addDays(futureMonday, 39) }),
       ],
-      p_reward_amount: 750000,
     })
     const v3 = (conRecompensa.data as unknown as PrizeResult[])[0]!
     expect((await notificationsOf(v3.version_id)).length).toBeGreaterThan(0)
@@ -1135,7 +1218,7 @@ describe('J10 — lectura y escritura directa (BR-J14, BR-Q01)', () => {
     const { data, error } = await owner
       .from('raffle_prizes')
       .select(
-        'id, position, status, current:raffle_prize_versions!raffle_prizes_current_version_fk(title, digits, number_field, reward_type, reward_amount, rules:raffle_prize_schedule_rules(start_date, end_date, weekdays, lottery_mode, lottery_code))',
+        'id, position, status, current:raffle_prize_versions!raffle_prizes_current_version_fk(title, digits, number_field, reward_mode, reward:raffle_prize_reward_options(position, description, amount), rules:raffle_prize_schedule_rules(start_date, end_date, weekdays, lottery_mode, lottery_code))',
       )
       .eq('raffle_id', draftRaffle)
       .eq('status', 'active')
@@ -1143,10 +1226,11 @@ describe('J10 — lectura y escritura directa (BR-J14, BR-Q01)', () => {
 
     expect(error).toBeNull()
     const primero = (data ?? [])[0] as unknown as {
-      current: { title: string; rules: unknown[] } | null
+      current: { title: string; rules: unknown[]; reward: unknown[] } | null
     }
     expect(primero?.current?.title).toBeTruthy()
     expect(Array.isArray(primero?.current?.rules)).toBe(true)
+    expect((primero?.current?.reward ?? []).length).toBeGreaterThan(0)
   })
 
   it('J10-03: otra organización no ve ni un premio', async () => {
@@ -1161,6 +1245,7 @@ describe('J10 — lectura y escritura directa (BR-J14, BR-Q01)', () => {
       'raffle_prizes',
       'raffle_prize_versions',
       'raffle_prize_schedule_rules',
+      'raffle_prize_reward_options',
     ] as const) {
       const { data } = await visitante.from(tabla).select('id')
       expect(data ?? []).toEqual([])
@@ -1221,12 +1306,17 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
     'raffle_prize_is_material',
     'raffle_prize_lock',
     'raffle_prize_manageable_raffle',
+    'raffle_prize_normalized_reward',
     'raffle_prize_normalized_rules',
     'raffle_prize_notify',
+    'raffle_prize_reward_json',
+    'raffle_prize_reward_options_immutable',
     'raffle_prize_rule_covers_weekdays',
     'raffle_prize_rule_dates',
     'raffle_prize_rules_json',
+    'raffle_prize_validity',
     'raffle_prize_version_problem',
+    'raffle_prize_versions_require_reward',
     'raffle_prize_weekdays_valid',
     'raffles_guard_prize_config',
   ]
@@ -1263,22 +1353,24 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
     expect(rows.map((r) => r.proname)).toEqual([])
   })
 
-  it('J11-04: las tres tablas tienen RLS forzada y solo políticas de SELECT', async () => {
+  it('J11-04: las cuatro tablas tienen RLS forzada y solo políticas de SELECT', async () => {
     const { rows } = await db.query<{ relname: string; forzada: boolean }>(
       `select c.relname, c.relforcerowsecurity as forzada
          from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname = 'public'
-          and c.relname in ('raffle_prizes', 'raffle_prize_versions', 'raffle_prize_schedule_rules')`,
+          and c.relname in ('raffle_prizes', 'raffle_prize_versions', 'raffle_prize_schedule_rules',
+                            'raffle_prize_reward_options')`,
     )
-    expect(rows).toHaveLength(3)
+    expect(rows).toHaveLength(4)
     expect(rows.every((r) => r.forzada)).toBe(true)
 
     const { rows: politicas } = await db.query<{ cmd: string }>(
       `select cmd from pg_policies
         where schemaname = 'public'
-          and tablename in ('raffle_prizes', 'raffle_prize_versions', 'raffle_prize_schedule_rules')`,
+          and tablename in ('raffle_prizes', 'raffle_prize_versions', 'raffle_prize_schedule_rules',
+                            'raffle_prize_reward_options')`,
     )
-    expect(politicas).toHaveLength(3)
+    expect(politicas).toHaveLength(4)
     expect(politicas.every((p) => p.cmd === 'SELECT')).toBe(true)
   })
 
@@ -1286,7 +1378,8 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
     const { rows } = await db.query<{ grantee: string; privilege_type: string }>(
       `select grantee, privilege_type from information_schema.role_table_grants
         where table_schema = 'public'
-          and table_name in ('raffle_prizes', 'raffle_prize_versions', 'raffle_prize_schedule_rules')
+          and table_name in ('raffle_prizes', 'raffle_prize_versions', 'raffle_prize_schedule_rules',
+                             'raffle_prize_reward_options')
           and grantee in ('authenticated', 'anon')
           and privilege_type <> 'SELECT'`,
     )
@@ -1295,7 +1388,8 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
     const { rows: anon } = await db.query<{ n: number }>(
       `select count(*)::int as n from information_schema.role_table_grants
         where table_schema = 'public'
-          and table_name in ('raffle_prizes', 'raffle_prize_versions', 'raffle_prize_schedule_rules')
+          and table_name in ('raffle_prizes', 'raffle_prize_versions', 'raffle_prize_schedule_rules',
+                             'raffle_prize_reward_options')
           and grantee = 'anon'`,
     )
     expect(anon[0]!.n).toBe(0)
@@ -1320,11 +1414,13 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
       `select indexname from pg_indexes
         where schemaname = 'public'
           and indexname in ('raffle_prizes_position_key', 'raffle_prize_versions_number_key',
-                            'raffle_prize_schedule_rules_position_key', 'notifications_raffle_prize_once')
+                            'raffle_prize_schedule_rules_position_key', 'notifications_raffle_prize_once',
+                            'raffle_prize_reward_options_position_key')
         order by indexname`,
     )
     expect(rows.map((r) => r.indexname)).toEqual([
       'notifications_raffle_prize_once',
+      'raffle_prize_reward_options_position_key',
       'raffle_prize_schedule_rules_position_key',
       'raffle_prize_versions_number_key',
       'raffle_prizes_position_key',
@@ -1337,5 +1433,499 @@ describe('J11 — catálogo: privilegios, RLS y la regresión de D-198', () => {
       [createdRaffles],
     )
     expect(rows[0]!.n).toBe(0)
+  })
+})
+
+// =============================================================================
+describe('J12 — las opciones de recompensa, en la base (BR-J02, D-201)', () => {
+  /** Las cuatro alternativas del premio mayor del 21 de diciembre. */
+  const ALTERNATIVAS = [
+    { description: 'Camioneta KIA', amount: null },
+    { description: 'Renault Alaskan 2023', amount: 20000000 },
+    { description: null, amount: 120000000 },
+    { description: 'Renault Logan Zen público 2023', amount: 70000000 },
+  ]
+
+  async function opcionesDe(versionId: string) {
+    const { rows } = await db.query<{
+      position: number
+      description: string | null
+      amount: string | null
+    }>(
+      `select position, description, amount from raffle_prize_reward_options
+        where version_id = $1 order by position`,
+      [versionId],
+    )
+    return rows.map((r) => ({
+      position: r.position,
+      description: r.description,
+      amount: r.amount === null ? null : Number(r.amount),
+    }))
+  }
+
+  it('J12-01: un premio único en dinero guarda una sola opción', async () => {
+    const premio = await prizeOf(owner, draftRaffle, { p_title: 'Premio único en dinero' })
+    expect(await opcionesDe(premio.version_id)).toEqual([
+      { position: 1, description: null, amount: 500000 },
+    ])
+  })
+
+  it('J12-02: cuatro alternativas excluyentes, en su orden y sin reordenar', async () => {
+    const premio = await prizeOf(owner, draftRaffle, {
+      p_title: 'Premio mayor con alternativas',
+      p_category: 'main',
+      p_reward_mode: 'winner_choice',
+      p_reward_options: ALTERNATIVAS,
+    })
+
+    const { rows } = await db.query<{ reward_mode: string }>(
+      `select reward_mode from raffle_prize_versions where id = $1`,
+      [premio.version_id],
+    )
+    expect(rows[0]!.reward_mode).toBe('winner_choice')
+
+    expect(await opcionesDe(premio.version_id)).toEqual(
+      ALTERNATIVAS.map((option, index) => ({ ...option, position: index + 1 })),
+    )
+  })
+
+  it('J12-03: «Premio único» con más de una alternativa se rechaza', async () => {
+    const { error } = await createPrize(owner, draftRaffle, {
+      p_title: 'Premio único mal puesto',
+      p_reward_options: ALTERNATIVAS.slice(0, 2),
+    })
+    expect(error?.message).toContain('una sola recompensa')
+  })
+
+  it('J12-04: «Alternativas a elegir» con una sola se rechaza', async () => {
+    const { error } = await createPrize(owner, draftRaffle, {
+      p_title: 'Alternativa solitaria',
+      p_reward_mode: 'winner_choice',
+      p_reward_options: [ALTERNATIVAS[0]],
+    })
+    expect(error?.message).toContain('al menos dos')
+  })
+
+  it('J12-05: dos alternativas iguales se rechazan', async () => {
+    const { error } = await createPrize(owner, draftRaffle, {
+      p_title: 'Alternativas repetidas',
+      p_reward_mode: 'winner_choice',
+      p_reward_options: [ALTERNATIVAS[0], ALTERNATIVAS[0]],
+    })
+    expect(error?.message).toContain('dos alternativas iguales')
+  })
+
+  it('J12-06: más de seis alternativas se rechazan', async () => {
+    const { error } = await createPrize(owner, draftRaffle, {
+      p_title: 'Demasiadas alternativas',
+      p_reward_mode: 'winner_choice',
+      p_reward_options: Array.from({ length: 7 }, (_, index) => ({
+        description: null,
+        amount: (index + 1) * 1000,
+      })),
+    })
+    expect(error?.message).toContain('máximo 6 alternativas')
+  })
+
+  it('J12-07: la semántica la impone la base, no solo la RPC', async () => {
+    // Una versión `fixed` con dos opciones no puede existir ni escribiéndola
+    // directo: el disparador diferido la rechaza al COMMIT.
+    const premio = await prizeOf(owner, draftRaffle, { p_title: 'Premio con dos opciones' })
+
+    await db.query('begin')
+    // La inserción pasa: el disparador es DIFERIDO, como el de los períodos.
+    await db.query(
+      `insert into raffle_prize_reward_options (organization_id, version_id, position, description, amount)
+       values ($1, $2, 2, null, 999000)`,
+      [ctx.demoOrg.id, premio.version_id],
+    )
+    // Lo que no pasa es el COMMIT.
+    await expect(db.query('commit')).rejects.toThrow(/una sola recompensa/)
+
+    const { rows } = await db.query<{ n: number }>(
+      `select count(*)::int as n from raffle_prize_reward_options where version_id = $1`,
+      [premio.version_id],
+    )
+    expect(rows[0]!.n).toBe(1)
+  })
+
+  it('J12-08: las opciones de una versión anterior son inmutables, también para la service role', async () => {
+    const premio = await prizeOf(owner, draftRaffle, { p_title: 'Premio con recompensa inmutable' })
+
+    await expect(
+      db.query(`update raffle_prize_reward_options set amount = 1 where version_id = $1`, [
+        premio.version_id,
+      ]),
+    ).rejects.toThrow(/no se modifica ni se borra/)
+
+    await expect(
+      db.query(`delete from raffle_prize_reward_options where version_id = $1`, [
+        premio.version_id,
+      ]),
+    ).rejects.toThrow(/no se modifica ni se borra/)
+  })
+
+  it('J12-09: cambiar de recompensa única a alternativas guarda las dos versiones enteras', async () => {
+    const dia = diaLibre()
+    const premio = await prizeOf(owner, draftRaffle, {
+      p_title: 'Premio que gana alternativas',
+      p_rules: [dia],
+    })
+
+    const { data, error } = await owner.rpc('publish_raffle_prize_version', {
+      p_prize_id: premio.prize_id,
+      p_expected_version_id: premio.version_id,
+      p_title: 'Premio que gana alternativas',
+      p_category: 'daily',
+      p_reward_mode: 'winner_choice',
+      p_reward_options: ALTERNATIVAS,
+      p_number_field: 'daily_number',
+      p_digits: 'four',
+      p_rules: [dia],
+    })
+    expect(error).toBeNull()
+
+    const nueva = (data as unknown as PrizeResult[])[0]!
+    expect(await opcionesDe(premio.version_id)).toHaveLength(1)
+    expect(await opcionesDe(nueva.version_id)).toHaveLength(4)
+  })
+
+  it('J12-10: archivar y restaurar copian la recompensa tal cual', async () => {
+    const premio = await prizeOf(owner, draftRaffle, {
+      p_title: 'Premio que se archiva con alternativas',
+      p_reward_mode: 'winner_choice',
+      p_reward_options: ALTERNATIVAS,
+    })
+
+    const archivado = await owner.rpc('archive_raffle_prize', {
+      p_prize_id: premio.prize_id,
+      p_expected_version_id: premio.version_id,
+    })
+    const archivada = (archivado.data as unknown as PrizeResult[])[0]!
+    expect(await opcionesDe(archivada.version_id)).toEqual(await opcionesDe(premio.version_id))
+
+    const restaurado = await owner.rpc('restore_raffle_prize', {
+      p_prize_id: premio.prize_id,
+      p_expected_version_id: archivada.version_id,
+    })
+    const restaurada = (restaurado.data as unknown as PrizeResult[])[0]!
+    expect(await opcionesDe(restaurada.version_id)).toEqual(await opcionesDe(premio.version_id))
+  })
+
+  it('J12-11: cambiar una alternativa es material y avisa; el orden también', async () => {
+    const dia = rule({
+      start_date: addDays(futureMonday, 49),
+      end_date: addDays(futureMonday, 53),
+    })
+    const premio = await prizeOf(owner, activeRaffle, {
+      p_title: 'Premio con alternativas que cambian',
+      p_reward_mode: 'winner_choice',
+      p_reward_options: ALTERNATIVAS,
+      p_rules: [dia],
+    })
+
+    const { data } = await owner.rpc('publish_raffle_prize_version', {
+      p_prize_id: premio.prize_id,
+      p_expected_version_id: premio.version_id,
+      p_title: 'Premio con alternativas que cambian',
+      p_category: 'daily',
+      p_reward_mode: 'winner_choice',
+      p_reward_options: [...ALTERNATIVAS].reverse(),
+      p_number_field: 'daily_number',
+      p_digits: 'four',
+      p_rules: [dia],
+    })
+    const v2 = (data as unknown as PrizeResult[])[0]!
+    expect(v2.version_number).toBe(2)
+    expect((await notificationsOf(v2.version_id)).length).toBeGreaterThan(0)
+  })
+
+  it('J12-12: la bitácora del personal lleva el modo y las alternativas, y nada de cartera', async () => {
+    const premio = await prizeOf(owner, draftRaffle, {
+      p_title: 'Premio auditado con alternativas',
+      p_reward_mode: 'winner_choice',
+      p_reward_options: ALTERNATIVAS,
+    })
+
+    const { data, error } = await owner.rpc('admin_audit_log', {
+      p_entity_type: 'raffle_prize',
+      p_entity_id: premio.prize_id,
+    })
+    expect(error).toBeNull()
+
+    const filas = data as unknown as Array<{ new_values: Record<string, unknown> }>
+    expect(filas).toHaveLength(1)
+    expect(filas[0]!.new_values.reward_mode).toBe('winner_choice')
+    expect(filas[0]!.new_values.reward_options).toEqual(ALTERNATIVAS)
+
+    const texto = JSON.stringify(filas)
+    for (const prohibido of ['client_id', 'sale_price', 'paid_amount']) {
+      expect(texto).not.toContain(prohibido)
+    }
+  })
+
+  it('J12-13: no queda ninguna versión con una recompensa que no cuadre (la migración 0059)', async () => {
+    const { rows } = await db.query<{ rotas: number; viejas: number }>(
+      `select
+         (select count(*)::int from raffle_prize_versions v
+           where (select count(*) from raffle_prize_reward_options o where o.version_id = v.id)
+                 <> case v.reward_mode when 'fixed' then 1 else
+                      greatest((select count(*) from raffle_prize_reward_options o where o.version_id = v.id), 2)
+                    end
+              or (v.reward_mode = 'winner_choice'
+                  and (select count(*) from raffle_prize_reward_options o where o.version_id = v.id) < 2)
+         ) as rotas,
+         (select count(*)::int from information_schema.columns
+           where table_name = 'raffle_prize_versions'
+             and column_name in ('reward_type', 'reward_amount', 'reward_description')) as viejas`,
+    )
+    expect(rows[0]!.rotas).toBe(0)
+    // La representación anterior se retiró: no hay dos fuentes de verdad.
+    expect(rows[0]!.viejas).toBe(0)
+  })
+})
+
+// =============================================================================
+describe('J13 — la configuración de aceptación corregida, entera (D-201)', () => {
+  /**
+   * La rifa de diciembre de 2026 tal como el dueño la corrigió: el premio
+   * diario cierra el **27 de noviembre** y el de fin de semana, el **28**, así
+   * que ninguno alcanza los especiales de diciembre. El premio mayor del 21 es
+   * UN premio con cuatro alternativas excluyentes, y el de tres cifras de ese
+   * mismo día convive con él a propósito.
+   *
+   * La FECHA INICIAL de los dos primeros no está informada: aquí se usa la de
+   * la rifa para poder probarlo, y la real se configura en la Entrega 4.
+   */
+  let rifa: string
+
+  const ALTERNATIVAS_DEL_MAYOR = [
+    { description: 'Camioneta KIA', amount: null },
+    { description: 'Renault Alaskan 2023', amount: 20000000 },
+    { description: null, amount: 120000000 },
+    { description: 'Renault Logan Zen público 2023', amount: 70000000 },
+  ]
+
+  const creados: Record<string, PrizeResult> = {}
+
+  it('J13-01: los siete premios se crean sin un solo conflicto', async () => {
+    rifa = await newRaffle(`Premios aceptación ${Date.now().toString(36)}`, {
+      start: '2026-11-01',
+      end: '2026-12-31',
+    })
+
+    creados.diario = await prizeOf(owner, rifa, {
+      p_title: 'Premio diario',
+      p_category: 'daily',
+      p_reward_options: dinero(500000),
+      p_number_field: 'daily_number',
+      p_rules: [
+        rule({ start_date: '2026-11-02', end_date: '2026-11-27', weekdays: [1, 2, 3, 4, 5] }),
+      ],
+    })
+
+    creados.finDeSemana = await prizeOf(owner, rifa, {
+      p_title: 'Premio fin de semana',
+      p_category: 'weekly',
+      p_reward_options: dinero(2000000),
+      p_number_field: 'weekly_number',
+      p_rules: [
+        rule({
+          start_date: '2026-11-07',
+          end_date: '2026-11-28',
+          weekdays: [6],
+          lottery_mode: 'fixed',
+          lottery_code: 'boyaca',
+        }),
+      ],
+    })
+
+    creados.mayor = await prizeOf(owner, rifa, {
+      p_title: 'Premio principal',
+      p_category: 'main',
+      p_reward_mode: 'winner_choice',
+      p_reward_options: ALTERNATIVAS_DEL_MAYOR,
+      p_number_field: 'daily_number',
+      p_rules: [
+        rule({
+          start_date: '2026-12-21',
+          end_date: '2026-12-21',
+          weekdays: [1],
+          lottery_mode: 'fixed',
+          lottery_code: 'cundinamarca',
+        }),
+      ],
+    })
+
+    creados.tresCifras = await prizeOf(owner, rifa, {
+      p_title: 'Premio especial de tres cifras',
+      p_category: 'special',
+      p_reward_options: dinero(1000000),
+      p_number_field: 'daily_number',
+      p_digits: 'last_three',
+      p_rules: [
+        rule({
+          start_date: '2026-12-21',
+          end_date: '2026-12-21',
+          weekdays: [1],
+          lottery_mode: 'fixed',
+          lottery_code: 'cundinamarca',
+        }),
+      ],
+    })
+
+    creados.especialSemanal = await prizeOf(owner, rifa, {
+      p_title: 'Premio especial semanal',
+      p_category: 'special',
+      p_reward_options: dinero(1000000),
+      p_number_field: 'weekly_number',
+      p_rules: [
+        // El 1 de diciembre es martes y el 5, sábado; el 16 es miércoles y el 19,
+        // sábado. Cada día elegido tiene que caer al menos una vez (BR-J04).
+        rule({ start_date: '2026-12-01', end_date: '2026-12-05', weekdays: [2, 3, 4, 5, 6] }),
+        rule({ start_date: '2026-12-16', end_date: '2026-12-19', weekdays: [3, 4, 5, 6] }),
+      ],
+    })
+
+    creados.cruzRoja = await prizeOf(owner, rifa, {
+      p_title: 'Premio especial semanal de Cruz Roja',
+      p_category: 'special',
+      p_reward_options: dinero(7000000),
+      p_number_field: 'weekly_number',
+      p_rules: [
+        rule({
+          start_date: '2026-12-15',
+          end_date: '2026-12-15',
+          weekdays: [2],
+          lottery_mode: 'fixed',
+          lottery_code: 'cruz_roja',
+        }),
+      ],
+    })
+
+    // El caso explícito del encargo: número SEMANAL, un lunes, cuatro cifras y
+    // Cundinamarca. Contradice la plantilla «semanal = sábado» y es válido.
+    creados.excepcion = await prizeOf(owner, rifa, {
+      p_title: 'Premio semanal de un lunes',
+      p_category: 'weekly',
+      p_reward_options: dinero(400000),
+      p_number_field: 'weekly_number',
+      p_rules: [
+        rule({
+          start_date: '2026-12-14',
+          end_date: '2026-12-14',
+          weekdays: [1],
+          lottery_mode: 'fixed',
+          lottery_code: 'cundinamarca',
+        }),
+      ],
+    })
+
+    const { rows } = await db.query<{ n: number }>(
+      `select count(*)::int as n from raffle_prizes where raffle_id = $1 and status = 'active'`,
+      [rifa],
+    )
+    expect(rows[0]!.n).toBe(7)
+  })
+
+  it('J13-02: la rifa se activa con esa configuración', async () => {
+    await expect(
+      db.query(`update raffles set status = 'active' where id = $1`, [rifa]),
+    ).resolves.toBeTruthy()
+  })
+
+  it('J13-03: cada premio dice desde cuándo y hasta cuándo aplica', async () => {
+    const { data } = await owner.rpc('raffle_prize_history', {
+      p_prize_id: creados.diario!.prize_id,
+    })
+    const diario = (data as unknown as Array<Record<string, unknown>>)[0]!
+    expect(diario.starts_on).toBe('2026-11-02')
+    expect(diario.ends_on).toBe('2026-11-27')
+
+    const { data: fin } = await owner.rpc('raffle_prize_history', {
+      p_prize_id: creados.finDeSemana!.prize_id,
+    })
+    const finDeSemana = (fin as unknown as Array<Record<string, unknown>>)[0]!
+    expect(finDeSemana.starts_on).toBe('2026-11-07')
+    expect(finDeSemana.ends_on).toBe('2026-11-28')
+  })
+
+  it('J13-04: alargar el premio diario hasta diciembre choca con el principal el 21', async () => {
+    const { error } = await owner.rpc('publish_raffle_prize_version', {
+      p_prize_id: creados.diario!.prize_id,
+      p_expected_version_id: creados.diario!.version_id,
+      p_title: 'Premio diario',
+      p_category: 'daily',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(500000),
+      p_number_field: 'daily_number',
+      p_digits: 'four',
+      p_rules: [
+        rule({ start_date: '2026-11-02', end_date: '2026-12-31', weekdays: [1, 2, 3, 4, 5] }),
+      ],
+    })
+
+    expect(error?.message).toContain('Premio diario')
+    expect(error?.message).toContain('Premio principal')
+    expect(error?.message).toContain('21/12/2026')
+  })
+
+  it('J13-05: alargar el de fin de semana hasta diciembre choca el sábado 5', async () => {
+    const { error } = await owner.rpc('publish_raffle_prize_version', {
+      p_prize_id: creados.finDeSemana!.prize_id,
+      p_expected_version_id: creados.finDeSemana!.version_id,
+      p_title: 'Premio fin de semana',
+      p_category: 'weekly',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(2000000),
+      p_number_field: 'weekly_number',
+      p_digits: 'four',
+      p_rules: [
+        rule({
+          start_date: '2026-11-07',
+          end_date: '2026-12-26',
+          weekdays: [6],
+          lottery_mode: 'fixed',
+          lottery_code: 'boyaca',
+        }),
+      ],
+    })
+
+    expect(error?.message).toContain('Premio fin de semana')
+    expect(error?.message).toContain('Premio especial semanal')
+    expect(error?.message).toContain('05/12/2026')
+  })
+
+  it('J13-06: restaurar un premio que quedó en conflicto también se rechaza', async () => {
+    // Se archiva el principal, se alarga el diario hasta fin de año —ahora sí
+    // cabe— y al devolver el principal a vigente el cruce reaparece.
+    const archivado = await owner.rpc('archive_raffle_prize', {
+      p_prize_id: creados.mayor!.prize_id,
+      p_expected_version_id: creados.mayor!.version_id,
+    })
+    expect(archivado.error).toBeNull()
+    const archivada = (archivado.data as unknown as PrizeResult[])[0]!
+
+    const alargado = await owner.rpc('publish_raffle_prize_version', {
+      p_prize_id: creados.diario!.prize_id,
+      p_expected_version_id: creados.diario!.version_id,
+      p_title: 'Premio diario',
+      p_category: 'daily',
+      p_reward_mode: 'fixed',
+      p_reward_options: dinero(500000),
+      p_number_field: 'daily_number',
+      p_digits: 'four',
+      p_rules: [
+        rule({ start_date: '2026-11-02', end_date: '2026-12-31', weekdays: [1, 2, 3, 4, 5] }),
+      ],
+    })
+    expect(alargado.error).toBeNull()
+
+    const { error } = await owner.rpc('restore_raffle_prize', {
+      p_prize_id: creados.mayor!.prize_id,
+      p_expected_version_id: archivada.version_id,
+    })
+    expect(error?.message).toContain('Premio principal')
+    expect(error?.message).toContain('21/12/2026')
   })
 })

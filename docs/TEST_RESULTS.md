@@ -13,6 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
+| **Post-9 vigente (corrección de la Entrega 1 de premios, D-201, 2026-09-15)** | **1.226 ✅ en 67 archivos (+21)** | **1.132 ✅ en 48 archivos (+20; migración `0059`)** | — (**no hay pantalla de premios**: es la Entrega 2, y el encargo no pedía E2E) | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
+| Post-9 anterior (premios configurables, Entrega 1, D-199 y D-200, 2026-09-15) | **1.205 ✅** en 67 archivos (+50) | **1.112 ✅** en 48 archivos (+64; migración `0058`) | — (no hay pantalla de premios) | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables` |
 | 0 | — | — | — | — | ✅ (documental) |
 | 1 | 14 ✅ | — | — | ✅ | ✅ |
 | 2 | 14 ✅ | **111 ✅** | — | ✅ | ✅ |
@@ -23,7 +25,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | 7 | **162 ✅** | **253 ✅** | **142 ✅** | ✅ | ✅ |
 | 8 | **162 ✅** | **254 ✅** | **142 ✅** | ✅ | ✅ |
 | 9 | **163 ✅** | **266 ✅** | **142 ✅** | ✅ | ✅ |
-| **Post-9 vigente (la cartera es del vendedor, D-198, 2026-09-14)** | **1.155 ✅ en 66 archivos (+14)** | **1.048 ✅ en 47 archivos (+32; migración `0057`)** | **706/710**, con las 23 de privacidad; los 4 son **I-090** (2) e **I-106** (1), que pasan **3/3** solos, y `boleta-cliente.spec.ts:395`, corregida (**3/3** y su archivo **15/15**) | ✅ | 🚀 **DESPLEGADO** (`46b7cf0`, 2026-09-15) · `0057` aplicada al proyecto real · `verify:remote` **27/27** · en vivo **24/24** |
+| Post-9 anterior (la cartera es del vendedor, D-198, 2026-09-14) | **1.155 ✅ en 66 archivos (+14)** | **1.048 ✅ en 47 archivos (+32; migración `0057`)** | **706/710**, con las 23 de privacidad; los 4 son **I-090** (2) e **I-106** (1), que pasan **3/3** solos, y `boleta-cliente.spec.ts:395`, corregida (**3/3** y su archivo **15/15**) | ✅ | 🚀 **DESPLEGADO** (`46b7cf0`, 2026-09-15) · `0057` aplicada al proyecto real · `verify:remote` **27/27** · en vivo **24/24** |
 | Post-9 anterior (mensaje propio de «Resultados de la semana», D-197, 2026-09-13) | **1.141 ✅** en 65 archivos (+41) | **1.016 ✅** en 46 archivos (+24; migración `0056`) | **681/683**, con las 9 nuevas; los 2 son **I-090** y pasan **2/2** en aislamiento | ✅ | 🚀 **DESPLEGADO** (`6dd23e5`, 2026-09-13) · `0056` aplicada al proyecto real · en vivo **25/25** en la segunda pasada |
 | Post-9 anterior («Reintentar» de la página de error general, D-196, 2026-09-13) | **1.100 ✅** en 64 archivos (+3) | — (no se tocó la base) | **80/80** (`security.spec.ts` 22 · catálogo público 58) | ✅ | 🚀 **DESPLEGADO** (`787e420`, 2026-09-13) · en un navegador contra la base local, **8/8** · abre **I-115** |
 | Post-9 anterior (corte pasajero del catálogo público, I-114, D-196, 2026-09-13) | **1.097 ✅** en 62 archivos (+15) | — (no se tocó la base) | **58/58** | ✅ | 🚀 **DESPLEGADO** (`8767f9e`, 2026-09-13) |
@@ -11769,6 +11771,74 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
 
 ---
 
+## Corrección de la Entrega 1: la recompensa y el conflicto (`0059`, D-201) — 2026-09-15
+
+**Alcance:** encargo expreso del usuario para **corregir el contrato** antes de autorizar la Entrega
+2. Sin panel, sin motor de coincidencias, **sin desplegar** y sin tocar el proyecto real. Reglas en
+`BUSINESS_RULES` §12.i (BR-J02, BR-J07, BR-J08, BR-J14 y **BR-J15**), decisión en **D-201**,
+seguridad en `SECURITY` §4.20 y estrategia en `TESTING` §4.11.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Estado de partida: rama `feature/premios-configurables`, commit `73f0b9d`, migraciones `0001`–`0058` | ✅ y **0 premios** en la base local |
+| **Prueba real de la migración de compatibilidad**: crear con la `0058` un premio en dinero y otro en especie, y aplicar la `0059` encima | ✅ el de dinero quedó con una opción fija `amount = 500000` y `description` nula; el de especie, con `description = «Una camioneta KIA»` y `amount` nulo; los dos en `reward_mode = fixed`. Las tres columnas viejas y el tipo `raffle_prize_reward_type` **ya no existen** |
+| Sonda de humo de la forma nueva, con la identidad del Dueño | ✅ el premio mayor con sus **cuatro alternativas** en orden —una solo en especie, dos mixtas y una solo en dinero—; `fixed` con dos alternativas **rechazado**; un premio de **tres cifras el mismo día, aceptado**; y un segundo premio de cuatro cifras ese día **rechazado** nombrando los dos y la fecha |
+| `npm run db:reset` con la `0059` en su sitio | ✅ **59 migraciones** |
+| `npx supabase gen types typescript --local` + mezcla | ✅ **15 trozos aplicados**; los **25** de la deuda de la CLI (`\| null` y un `Args`) **no se aplicaron**, y el archivo conserva CRLF. `starts_on` y `ends_on` se añadieron a mano: el filtro por palabra no los reconocía como propios |
+| `tests/unit/raffle-prizes.test.ts` | ✅ **71/71** (+21) |
+| `tests/db/raffle-prizes.test.ts`, primera pasada | ❌ **6 fallos**, todos de diseño de la propia suite (b) |
+| Segunda pasada | ❌ **2 fallos** (b) |
+| Tercera pasada | ✅ **78/78** |
+| Con la configuración de aceptación entera (J13) | ✅ **84/84**, y la base queda **sin un solo resto** |
+| `npm run test:db` completo | ✅ **1.132/1.132** en 48 archivos (**+20**) |
+| `npm run verify` completo | ✅ typecheck · lint **0 errores** y los **2 avisos preexistentes** · unitarias **1.226/1.226** en 67 archivos (**+21**) · build |
+| `npx prettier --check` sobre lo tocado | ✅ sin cambios que hacer |
+
+### b. Errores encontrados y corregidos
+
+| Qué pasó | Causa | Corrección |
+|---|---|---|
+| **4 pruebas** de base de datos: «Las fechas del premio tienen que quedar dentro de las fechas de la rifa» | El ayudante repartía **una semana** por premio para esquivar el conflicto nuevo, y con 60 premios se salía de la rifa | Cada premio ocupa **un día**, saltando los domingos; la rifa de la suite dura lo suficiente y sobra margen |
+| J12-07 no fallaba al insertar una segunda alternativa en un «Premio único» | La prueba hacía `rollback`, y el disparador es **diferido**: no salta hasta el COMMIT | La prueba **confirma** la transacción y comprueba que es el `commit` el que se cae |
+| J3-03 seguía enviando `p_reward_amount` | Argumento de la forma anterior que sobrevivió al cambio masivo | Se pasó a `p_reward_options` |
+| J13-01 falló con «no incluye todos los días» | Escribí las dos ventanas de diciembre de lunes a sábado, y el 1 de diciembre es **martes** y el 16, **miércoles** | Los días de cada ventana son los que de verdad contiene |
+
+### c. Un hueco real que apareció al probar, y se cerró
+
+La semántica de la recompensa se comprobaba **solo al crear la versión**. Una inserción posterior de
+`service_role` podía dejar un «Premio único» con dos alternativas sin que nada lo notara —el mismo
+hueco que la `0058` ya había cerrado para los períodos con `raffle_prize_schedule_rules_check`—. Se
+añadió el disparador diferido **`raffle_prize_reward_options_check`**, que revalida por el otro lado.
+Lo cubre J12-07.
+
+### d. Lo que se comprobó de la corrección, en una línea
+
+Las **84** pruebas de base de datos y las **71** unitarias cubren los catorce puntos que pedía el
+encargo: recompensa fija en dinero, en especie y con las dos cosas; **cuatro alternativas
+excluyentes** en su orden; `fixed` con más de una y `winner_choice` con una sola **rechazadas en las
+dos capas**; inmutabilidad de las opciones históricas; la **migración de una recompensa anterior a
+opción fija**, probada con datos creados de verdad con la `0058`; el **conflicto** entre dos premios
+con la misma fecha, número, cifras y lotería; **sin conflicto** cuando los períodos no se tocan; la
+**convivencia** de cuatro cifras y últimas tres; la **prioridad** de cuatro sobre tres intacta; y sin
+regresiones en historial, bitácora, avisos, RLS, capacidad, rifas `legacy` y comparador fijo.
+
+La **configuración de aceptación corregida** se prueba entera (J13): los siete premios se crean, la
+rifa **se activa**, cada premio dice su vigencia, y alargar el diario o el de fin de semana hasta
+diciembre se rechaza nombrando los dos premios y el día —**21/12/2026** y **05/12/2026**—, que son
+exactamente los dos cruces que el dueño evitó cerrando el 27 y el 28 de noviembre.
+
+### e. Lo que NO se comprobó
+
+* **Ninguna pantalla**: sigue sin haber panel (Entrega 2), así que **no hay E2E** de premios. El
+  encargo tampoco lo pedía.
+* **El motor de coincidencias** (Entrega 3): lo probado es la **regla**, no una coincidencia creada.
+* **El proyecto real**: ni la `0058` ni la `0059` están aplicadas, y `verify:remote` no se ejecutó.
+* **La fecha inicial real** del premio diario y del de fin de semana: **no está informada** y no se
+  inventó. La configuración de aceptación usa la de la rifa, y la real es la Entrega 4.
+
+---
 ## Premios configurables por rifa, Entrega 1 de 5: el contrato (`0058`, D-199, D-200) — 2026-09-15
 
 **Alcance:** encargo expreso del usuario, **solo la Entrega 1**. Sin panel, sin motor de
@@ -11827,3 +11897,6 @@ PostgreSQL.
 * **El proyecto real**: la `0058` **no está aplicada** y `verify:remote` no se ejecutó.
 * **Si dos premios distintos se suman en un mismo sorteo** (ambigüedad **A7**): sin respuesta del
   dueño, la Entrega 3 no se construye.
+
+> **A7 se respondió el mismo día.** El dueño dijo que **no se acumulan**, y la corrección está en la
+> entrada de arriba (`0059`, D-201). Lo que esta sección decía era cierto cuando se escribió.

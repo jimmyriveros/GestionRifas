@@ -465,6 +465,11 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Lo que una rifa entrega a quien acierta | **Premio** (D-199) | Ganancia, plan, incentivo. Y ojo: **«premio» ya estaba prohibido para el resultado de una lotería**, que se llama **resultado** o **número mayor**. Son dos cosas distintas y las dos palabras se quedan como están |
 | Las cuatro clases con las que se presenta un premio | **Premio principal** · **Diario** · **Semanal** · **Especial** | Categoría mayor, tipo, clase. Son **informativas**: no deciden con qué número ni con qué lotería juega (BR-J03) |
 | Lo que se entrega: dinero o una cosa | **Premio en dinero** y **premio en especie** | Efectivo, físico, material, no monetario |
+| Que un premio entregue una sola cosa, o varias entre las que se elige una | **Premio único** y **Alternativas a elegir** (D-201) | «El ganador elige», que usa la palabra prohibida de BR-L15; opciones, variantes, modalidades |
+| Cada una de esas posibilidades | **Alternativa** | Opción, variante, premio (que ya es el conjunto) |
+| Una alternativa que entrega una cosa **y** dinero | Se escriben las dos con «y»: **«Renault Alaskan 2023 y $20.000.000»** | «+», «más», «incluye» |
+| Desde cuándo y hasta cuándo aplica un premio | **Vigencia**; en pantalla, **«Del 3 al 27 de noviembre»** o **«Solo el 21 de diciembre»** (D-201) | Vigente desde/hasta, período de validez, rango |
+| Que dos premios jugarían el mismo día con la misma regla | **Conflicto**; el texto lo dice entero: «El premio «X» y el premio «Y» juegan el 21/12/2026 con el mismo número de la boleta, las mismas cifras y la misma lotería.» | Duplicado, choque, colisión, se suman |
 | Con cuántas cifras juega | **4 cifras** en una columna estrecha; **Cuatro cifras** y **Últimas tres cifras** donde cabe entero (D-114) | Dígitos, exacto, aproximado, terminación |
 | Con cuál de los dos números de la boleta juega | **Número diario** y **número semanal**, los de siempre | Campo, columna, tipo de número |
 | Con qué lotería juega cada día | **Lotería correspondiente** (la del día) o el nombre de la fija: **la lotería de Boyacá** | Lotería automática, por defecto, según el día |
@@ -1366,7 +1371,27 @@ un cambio no reescribe lo que ya se jugó (BR-J09).
 
 **«Ganador» sigue prohibido, también aquí** (BR-L15). Un premio configurable dice con qué número y
 con cuántas cifras juega; quien acierta tiene una **coincidencia**. Hay una prueba unitaria que falla
-si cualquier texto del módulo escribe esa palabra.
+si cualquier texto del módulo escribe esa palabra, y por eso la forma de recompensa se llama
+**«Alternativas a elegir»** y no «el ganador elige» (D-201). En el código el valor se llama
+`winner_choice` —eso no lo lee nadie—, pero **ninguna pantalla lo escribe así**.
+
+**Un premio con alternativas dice que se lleva UNA** (D-201). Las alternativas se separan con «o»,
+nunca con «y»: «por una de estas alternativas: Camioneta KIA, Renault Alaskan 2023 y $20.000.000,
+$120.000.000 o Renault Logan Zen público 2023 y $70.000.000». La «y» queda para lo que va **junto**
+dentro de una misma alternativa —el vehículo y su dinero—, y esa diferencia es justo lo que la
+persona necesita entender.
+
+**Y no se dice cuál se llevó, porque no se sabe.** La aplicación no lo registra, así que ningún texto
+puede sugerir que sí: es la misma regla de siempre —no se afirma lo que no ocurrió (D-116)—.
+
+**Un cruce entre dos premios se explica nombrando los dos y el día** (BR-J08, D-201). No «hay un
+conflicto» a secas, ni «ya existe un premio parecido»: quien lo lee tiene que poder ir a arreglarlo
+sin abrir los demás premios uno por uno. Y la salida va en la misma frase: «Cambia las fechas, el
+número o las cifras de uno de los dos.»
+
+**Un premio dice desde cuándo y hasta cuándo aplica, con los días en que juega de verdad** (BR-J15).
+«Los sábados del 1 al 31 de diciembre» empieza el **5**, y es el 5 lo que se escribe: una vigencia
+que empieza un día en el que el premio no juega es una fecha que nadie puede comprobar.
 
 **Las aclaraciones de un premio las va a leer un cliente.** La pantalla lo dice antes de que alguien
 escriba: «Las aclaraciones se pueden compartir con los vendedores y con sus clientes: escríbelas
@@ -1555,8 +1580,12 @@ castigo donde solo había una espera.
 | La semana en corto («17–22 AGO 2026») y en largo («del 17 al 22 de agosto de 2026») | `src/features/weekly-results/week.ts` (`formatWeekShort`, `formatWeekLong`), con los meses escritos a mano y no con `Intl` (D-195) |
 
 | Todos los textos de los premios configurables: categorías, recompensa, cifras, el resumen del calendario en español y la vista previa del premio | `src/features/raffle-prizes/copy.ts` (`PRIZE_COPY`), **todos juntos** (D-199) |
+| Los dos nombres de la forma de recompensa, «Premio único» y «Alternativas a elegir» | `PRIZE_REWARD_MODE_LABELS`, en ese mismo archivo (D-201). Sustituyen a `PRIZE_REWARD_TYPE_LABELS`, que ya no existe |
+| Cómo se lee una alternativa, y cómo se leen varias | `rewardOptionText` y `rewardOptionsText`, ahí mismo — se **componen** de los componentes de la opción, no se escriben sueltos (D-201) |
+| La vigencia de un premio | `validityText`, ahí mismo; la calcula `validityRange` en `schedule.ts` (D-201) |
+| El mensaje de un conflicto entre dos premios | `prizeConflictMessage`, ahí mismo, con las **mismas palabras** que responde la migración `0059`: quien lo vea dos veces no tiene por qué entender que son dos sistemas |
 | Los mensajes de validación del formulario de un premio | `src/features/raffle-prizes/schemas.ts`, tomados de `PRIZE_COPY.form`: la pantalla y el servidor dicen lo mismo |
-| Lo que responde la base cuando un premio no se puede guardar | Los `raise` de la migración `0058`, con las **mismas** frases que `PRIZE_COPY` donde la comprobación existe en las dos capas |
+| Lo que responde la base cuando un premio no se puede guardar | Los `raise` de las migraciones `0058` y `0059`, con las **mismas** frases que `PRIZE_COPY` donde la comprobación existe en las dos capas |
 | El aviso de que cambiaron las condiciones de un premio | `src/features/notifications/text.ts`, con los demás avisos (D-093, D-199). **No lleva enlace**: el vendedor todavía no tiene pantalla de premios |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.

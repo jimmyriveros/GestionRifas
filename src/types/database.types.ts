@@ -1232,6 +1232,51 @@ export type Database = {
           },
         ]
       }
+      raffle_prize_reward_options: {
+        Row: {
+          amount: number | null
+          created_at: string
+          description: string | null
+          id: string
+          organization_id: string
+          position: number
+          version_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          organization_id: string
+          position: number
+          version_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          organization_id?: string
+          position?: number
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raffle_prize_reward_options_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raffle_prize_reward_options_version_fk"
+            columns: ["version_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffle_prize_versions"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
       raffle_prize_schedule_rules: {
         Row: {
           created_at: string
@@ -1299,9 +1344,7 @@ export type Database = {
           published_at: string
           published_by: string | null
           raffle_id: string
-          reward_amount: number | null
-          reward_description: string | null
-          reward_type: Database["public"]["Enums"]["raffle_prize_reward_type"]
+          reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
           status: Database["public"]["Enums"]["raffle_prize_status"]
           title: string
           version_number: number
@@ -1318,9 +1361,7 @@ export type Database = {
           published_at?: string
           published_by?: string | null
           raffle_id: string
-          reward_amount?: number | null
-          reward_description?: string | null
-          reward_type: Database["public"]["Enums"]["raffle_prize_reward_type"]
+          reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
           status: Database["public"]["Enums"]["raffle_prize_status"]
           title: string
           version_number: number
@@ -1337,9 +1378,7 @@ export type Database = {
           published_at?: string
           published_by?: string | null
           raffle_id?: string
-          reward_amount?: number | null
-          reward_description?: string | null
-          reward_type?: Database["public"]["Enums"]["raffle_prize_reward_type"]
+          reward_mode?: Database["public"]["Enums"]["raffle_prize_reward_mode"]
           status?: Database["public"]["Enums"]["raffle_prize_status"]
           title?: string
           version_number?: number
@@ -2553,9 +2592,8 @@ export type Database = {
           p_digits?: Database["public"]["Enums"]["raffle_prize_digits"]
           p_number_field: Database["public"]["Enums"]["lottery_match_field"]
           p_raffle_id: string
-          p_reward_amount?: number
-          p_reward_description?: string
-          p_reward_type: Database["public"]["Enums"]["raffle_prize_reward_type"]
+          p_reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
+          p_reward_options: Json
           p_rules: Json
           p_title: string
         }
@@ -2757,9 +2795,8 @@ export type Database = {
           p_expected_version_id: string
           p_number_field: Database["public"]["Enums"]["lottery_match_field"]
           p_prize_id: string
-          p_reward_amount?: number
-          p_reward_description?: string
-          p_reward_type: Database["public"]["Enums"]["raffle_prize_reward_type"]
+          p_reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
+          p_reward_options: Json
           p_rules: Json
           p_title: string
         }
@@ -2791,9 +2828,6 @@ export type Database = {
           p_conditions: string
           p_digits: Database["public"]["Enums"]["raffle_prize_digits"]
           p_number_field: Database["public"]["Enums"]["lottery_match_field"]
-          p_reward_amount: number
-          p_reward_description: string
-          p_reward_type: Database["public"]["Enums"]["raffle_prize_reward_type"]
           p_title: string
         }
         Returns: Record<string, unknown>
@@ -2809,15 +2843,16 @@ export type Database = {
           change: string
           conditions: string
           digits: Database["public"]["Enums"]["raffle_prize_digits"]
+          ends_on: string
           number_field: Database["public"]["Enums"]["lottery_match_field"]
           previous_version_id: string
           published_at: string
           published_by: string
           published_by_name: string
-          reward_amount: number
-          reward_description: string
-          reward_type: Database["public"]["Enums"]["raffle_prize_reward_type"]
+          reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
+          reward_options: Json
           rules: Json
+          starts_on: string
           status: Database["public"]["Enums"]["raffle_prize_status"]
           title: string
           total_count: number
@@ -2836,9 +2871,8 @@ export type Database = {
           p_previous_id: string
           p_prize_id: string
           p_raffle_id: string
-          p_reward_amount: number
-          p_reward_description: string
-          p_reward_type: Database["public"]["Enums"]["raffle_prize_reward_type"]
+          p_reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
+          p_reward_options: Json
           p_rules: Json
           p_status: Database["public"]["Enums"]["raffle_prize_status"]
           p_title: string
@@ -2857,9 +2891,7 @@ export type Database = {
           published_at: string
           published_by: string | null
           raffle_id: string
-          reward_amount: number | null
-          reward_description: string | null
-          reward_type: Database["public"]["Enums"]["raffle_prize_reward_type"]
+          reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
           status: Database["public"]["Enums"]["raffle_prize_status"]
           title: string
           version_number: number
@@ -2904,6 +2936,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      raffle_prize_normalized_reward: {
+        Args: {
+          p_options: Json
+          p_reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
+        }
+        Returns: Json
+      }
       raffle_prize_normalized_rules: {
         Args: {
           p_raffle: Database["public"]["Tables"]["raffles"]["Row"]
@@ -2925,6 +2964,10 @@ export type Database = {
         }
         Returns: number
       }
+      raffle_prize_reward_json: {
+        Args: { p_version_id: string }
+        Returns: Json
+      }
       raffle_prize_rule_covers_weekdays: {
         Args: { p_end: string; p_start: string; p_weekdays: number[] }
         Returns: boolean
@@ -2937,6 +2980,13 @@ export type Database = {
         }[]
       }
       raffle_prize_rules_json: { Args: { p_version_id: string }; Returns: Json }
+      raffle_prize_validity: {
+        Args: { p_version_id: string }
+        Returns: {
+          ends_on: string
+          starts_on: string
+        }[]
+      }
       raffle_prize_version_problem: {
         Args: { p_end: string; p_start: string; p_version_id: string }
         Returns: string
@@ -3475,7 +3525,7 @@ export type Database = {
       raffle_prize_digits: "four" | "last_three"
       raffle_prize_lottery_mode: "corresponding" | "fixed"
       raffle_prize_mode: "legacy" | "configurable"
-      raffle_prize_reward_type: "cash" | "in_kind"
+      raffle_prize_reward_mode: "fixed" | "winner_choice"
       raffle_prize_status: "active" | "archived"
       raffle_status: "draft" | "active" | "closed" | "cancelled"
       reminder_occurrence_status: "pending" | "attended" | "missed"
@@ -3669,7 +3719,7 @@ export const Constants = {
       raffle_prize_digits: ["four", "last_three"],
       raffle_prize_lottery_mode: ["corresponding", "fixed"],
       raffle_prize_mode: ["legacy", "configurable"],
-      raffle_prize_reward_type: ["cash", "in_kind"],
+      raffle_prize_reward_mode: ["fixed", "winner_choice"],
       raffle_prize_status: ["active", "archived"],
       raffle_status: ["draft", "active", "closed", "cancelled"],
       reminder_occurrence_status: ["pending", "attended", "missed"],

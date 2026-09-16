@@ -4,11 +4,17 @@ import { notificationHref, notificationMessage } from '@/features/notifications/
 import {
   PRIZE_CATEGORY_LABELS,
   PRIZE_DIGITS_LABELS,
+  PRIZE_REWARD_MODE_LABELS,
+  PRIZE_COPY,
   prizeActorLabel,
+  prizeConflictMessage,
   prizeLotteryLabel,
   prizePreviewSentence,
+  rewardOptionText,
+  rewardText,
   scheduleSummary,
   summarizeRule,
+  validityText,
 } from '@/features/raffle-prizes/copy'
 import {
   applicableVersion,
@@ -36,9 +42,12 @@ import {
   recurringRule,
   ruleProblem,
   rulesEqual,
+  prizeConflict,
   singleDateRule,
   toRulePayload,
+  validityRange,
   type PrizeRule,
+  type PrizeScheduleSubject,
 } from '@/features/raffle-prizes/schedule'
 import { APP_CAPABILITIES, roleHasCapability } from '@/lib/auth/capabilities'
 
@@ -295,7 +304,7 @@ describe('el resumen en español (D-199)', () => {
         rules: [rangeRule('2026-12-01', '2026-12-05'), rangeRule('2026-12-16', '2026-12-19')],
         numberField: 'weekly_number',
         digits: 'four',
-        reward: { type: 'cash', amount: 1_000_000 },
+        reward: { mode: 'fixed', options: [{ description: null, amount: 1_000_000 }] },
       }),
     ).toBe(
       'Del 1 al 5 de diciembre y del 16 al 19 de diciembre juega con las cuatro cifras del número semanal y la lotería correspondiente de cada día por $1.000.000.',
@@ -308,7 +317,7 @@ describe('el resumen en español (D-199)', () => {
         rules: [recurringRule('2026-12-01', '2026-12-31', [6])],
         numberField: 'weekly_number',
         digits: 'four',
-        reward: { type: 'cash', amount: 2_000_000 },
+        reward: { mode: 'fixed', options: [{ description: null, amount: 2_000_000 }] },
       }),
     ).toBe(
       'Los sábados del 1 al 31 de diciembre juega con las cuatro cifras del número semanal y la lotería de Boyacá por $2.000.000.',
@@ -321,7 +330,7 @@ describe('el resumen en español (D-199)', () => {
         rules: [singleDateRule('2026-12-21')],
         numberField: 'daily_number',
         digits: 'last_three',
-        reward: { type: 'in_kind', description: 'una camioneta' },
+        reward: { mode: 'fixed', options: [{ description: 'una camioneta', amount: null }] },
       }),
     ).toBe(
       'El 21 de diciembre juega con las tres últimas cifras del número diario y la lotería de Cundinamarca por una camioneta.',
@@ -354,12 +363,28 @@ describe('el resumen en español (D-199)', () => {
     const textos = [
       ...Object.values(PRIZE_CATEGORY_LABELS),
       ...Object.values(PRIZE_DIGITS_LABELS),
+      ...Object.values(PRIZE_REWARD_MODE_LABELS),
+      ...Object.values(PRIZE_COPY.ruleProblems),
+      ...Object.values(PRIZE_COPY.form),
       prizePreviewSentence({
         rules: [singleDateRule('2026-12-21')],
         numberField: 'daily_number',
         digits: 'four',
-        reward: { type: 'in_kind', description: 'una camioneta' },
+        reward: { mode: 'fixed', options: [{ description: 'una camioneta', amount: null }] },
       }),
+      prizePreviewSentence({
+        rules: [singleDateRule('2026-12-21')],
+        numberField: 'daily_number',
+        digits: 'four',
+        reward: {
+          mode: 'winner_choice',
+          options: [
+            { description: 'Camioneta KIA', amount: null },
+            { description: null, amount: 120_000_000 },
+          ],
+        },
+      }),
+      prizeConflictMessage('Premio diario', { other: 'Premio mayor', referenceDate: '2026-12-21' }),
     ]
     for (const texto of textos) expect(texto.toLowerCase()).not.toContain('ganador')
   })
@@ -371,7 +396,7 @@ describe('los esquemas: sin organización, sin actor y sin rol (BR-J10)', () => 
     raffleId: '11111111-2222-4333-8444-555555555555',
     title: 'Premio diario',
     category: 'daily' as const,
-    reward: { type: 'cash' as const, amount: 500_000 },
+    reward: { mode: 'fixed' as const, options: [{ description: null, amount: 500_000 }] },
     numberField: 'daily_number' as const,
     conditions: '',
     rules: [rule()],
@@ -432,15 +457,23 @@ describe('los esquemas: sin organización, sin actor y sin rol (BR-J10)', () => 
     expect(semanalEnCategoriaDiaria.success).toBe(true)
   })
 
-  it('un premio en dinero no lleva descripción y uno en especie no lleva valor', () => {
+  it('una alternativa lleva dinero, especie o las dos cosas, pero nunca nada (D-201)', () => {
+    for (const option of [
+      { description: null, amount: 500_000 },
+      { description: 'Camioneta KIA', amount: null },
+      { description: 'Renault Alaskan 2023', amount: 20_000_000 },
+    ]) {
+      expect(
+        createPrizeSchema.safeParse({ ...base, reward: { mode: 'fixed', options: [option] } })
+          .success,
+      ).toBe(true)
+    }
+
     expect(
       createPrizeSchema.safeParse({
         ...base,
-        reward: { type: 'cash', amount: 500_000, description: 'camioneta' },
+        reward: { mode: 'fixed', options: [{ description: null, amount: null }] },
       }).success,
-    ).toBe(false)
-    expect(
-      createPrizeSchema.safeParse({ ...base, reward: { type: 'in_kind', amount: 1 } }).success,
     ).toBe(false)
   })
 
@@ -455,7 +488,16 @@ describe('los esquemas: sin organización, sin actor y sin rol (BR-J10)', () => 
     expect(
       createPrizeSchema.safeParse({
         ...base,
-        reward: { type: 'cash', amount: PRIZE_LIMITS.cashMax + 1 },
+        reward: { mode: 'fixed', options: [{ description: null, amount: PRIZE_LIMITS.cashMax }] },
+      }).success,
+    ).toBe(true)
+    expect(
+      createPrizeSchema.safeParse({
+        ...base,
+        reward: {
+          mode: 'fixed',
+          options: [{ description: null, amount: PRIZE_LIMITS.cashMax + 1 }],
+        },
       }).success,
     ).toBe(false)
     expect(
@@ -557,5 +599,258 @@ describe('el aviso de un cambio de premio (BR-J11)', () => {
 
   it('no lleva a ninguna pantalla mientras el vendedor no tenga una (BR-J11)', () => {
     expect(notificationHref('raffle_prize.changed')).toBeNull()
+  })
+})
+
+// =============================================================================
+describe('la recompensa: una sola o varias alternativas (BR-J02, D-201)', () => {
+  const base = {
+    raffleId: '11111111-2222-4333-8444-555555555555',
+    title: 'Premio mayor',
+    category: 'main' as const,
+    numberField: 'daily_number' as const,
+    conditions: '',
+    rules: [singleDateRule('2026-12-21')],
+  }
+
+  /** Las cuatro alternativas del 21 de diciembre, tal como las pidió el dueño. */
+  const alternativas = [
+    { description: 'Camioneta KIA', amount: null },
+    { description: 'Renault Alaskan 2023', amount: 20_000_000 },
+    { description: null, amount: 120_000_000 },
+    { description: 'Renault Logan Zen público 2023', amount: 70_000_000 },
+  ]
+
+  it('un premio único en dinero', () => {
+    const parsed = createPrizeSchema.parse({
+      ...base,
+      reward: { mode: 'fixed', options: [{ description: null, amount: 500_000 }] },
+    })
+    expect(rewardText(parsed.reward)).toBe('$500.000')
+    expect(toCreatePrizeArgs(parsed).p_reward_mode).toBe('fixed')
+    expect(toCreatePrizeArgs(parsed).p_reward_options).toEqual([
+      { description: null, amount: 500_000 },
+    ])
+  })
+
+  it('un premio único en especie', () => {
+    const parsed = createPrizeSchema.parse({
+      ...base,
+      reward: { mode: 'fixed', options: [{ description: 'Camioneta KIA', amount: null }] },
+    })
+    expect(rewardText(parsed.reward)).toBe('Camioneta KIA')
+  })
+
+  it('un premio único que entrega una cosa Y dinero', () => {
+    const parsed = createPrizeSchema.parse({
+      ...base,
+      reward: {
+        mode: 'fixed',
+        options: [{ description: 'Renault Alaskan 2023', amount: 20_000_000 }],
+      },
+    })
+    expect(rewardText(parsed.reward)).toBe('Renault Alaskan 2023 y $20.000.000')
+  })
+
+  it('cuatro alternativas excluyentes, en su orden (el premio mayor del 21 de diciembre)', () => {
+    const parsed = createPrizeSchema.parse({
+      ...base,
+      reward: { mode: 'winner_choice', options: alternativas },
+    })
+
+    expect(toCreatePrizeArgs(parsed).p_reward_options).toEqual(alternativas)
+    expect(rewardText(parsed.reward)).toBe(
+      'una de estas alternativas: Camioneta KIA, Renault Alaskan 2023 y $20.000.000, $120.000.000 o Renault Logan Zen público 2023 y $70.000.000',
+    )
+  })
+
+  it('el orden de las alternativas se conserva tal como llega', () => {
+    const alReves = [...alternativas].reverse()
+    const parsed = createPrizeSchema.parse({
+      ...base,
+      reward: { mode: 'winner_choice', options: alReves },
+    })
+    expect(toCreatePrizeArgs(parsed).p_reward_options).toEqual(alReves)
+    expect(rewardOptionText(parsed.reward.options[0]!)).toBe(
+      'Renault Logan Zen público 2023 y $70.000.000',
+    )
+  })
+
+  it('«Premio único» con más de una alternativa se rechaza', () => {
+    const resultado = createPrizeSchema.safeParse({
+      ...base,
+      reward: { mode: 'fixed', options: alternativas.slice(0, 2) },
+    })
+    expect(resultado.success).toBe(false)
+    expect(JSON.stringify(resultado.error?.issues)).toContain('una sola recompensa')
+  })
+
+  it('«Alternativas a elegir» con una sola se rechaza', () => {
+    const resultado = createPrizeSchema.safeParse({
+      ...base,
+      reward: { mode: 'winner_choice', options: [alternativas[0]!] },
+    })
+    expect(resultado.success).toBe(false)
+    expect(JSON.stringify(resultado.error?.issues)).toContain('al menos dos')
+  })
+
+  it('dos alternativas iguales se rechazan', () => {
+    const resultado = createPrizeSchema.safeParse({
+      ...base,
+      reward: { mode: 'winner_choice', options: [alternativas[0]!, alternativas[0]!] },
+    })
+    expect(resultado.success).toBe(false)
+    expect(JSON.stringify(resultado.error?.issues)).toContain('dos alternativas iguales')
+  })
+
+  it('el tope de alternativas es el de la base', () => {
+    const muchas = Array.from({ length: PRIZE_LIMITS.rewardOptionsMax + 1 }, (_, index) => ({
+      description: null,
+      amount: (index + 1) * 1000,
+    }))
+    expect(
+      createPrizeSchema.safeParse({ ...base, reward: { mode: 'winner_choice', options: muchas } })
+        .success,
+    ).toBe(false)
+    expect(
+      createPrizeSchema.safeParse({
+        ...base,
+        reward: { mode: 'winner_choice', options: muchas.slice(0, PRIZE_LIMITS.rewardOptionsMax) },
+      }).success,
+    ).toBe(true)
+  })
+
+  it('la vista previa dice las alternativas con «o», no con «y»', () => {
+    expect(
+      prizePreviewSentence({
+        rules: [singleDateRule('2026-12-21')],
+        numberField: 'daily_number',
+        digits: 'four',
+        reward: { mode: 'winner_choice', options: alternativas },
+      }),
+    ).toBe(
+      'El 21 de diciembre juega con las cuatro cifras del número diario y la lotería de Cundinamarca por una de estas alternativas: Camioneta KIA, Renault Alaskan 2023 y $20.000.000, $120.000.000 o Renault Logan Zen público 2023 y $70.000.000.',
+    )
+  })
+})
+
+// =============================================================================
+describe('desde cuándo y hasta cuándo aplica un premio (D-201)', () => {
+  it('el primer y el último día que juega de verdad, no las fechas escritas', () => {
+    // Los sábados de diciembre: el período empieza el 1, pero el premio, el 5.
+    expect(validityRange([recurringRule('2026-12-01', '2026-12-31', [6])])).toEqual({
+      from: '2026-12-05',
+      to: '2026-12-26',
+    })
+    expect(validityText([recurringRule('2026-12-01', '2026-12-31', [6])])).toBe(
+      'Del 5 al 26 de diciembre',
+    )
+  })
+
+  it('varios períodos separados siguen teniendo una sola vigencia', () => {
+    const rules = [rangeRule('2026-12-01', '2026-12-05'), rangeRule('2026-12-16', '2026-12-19')]
+    expect(validityRange(rules)).toEqual({ from: '2026-12-01', to: '2026-12-19' })
+    expect(validityText(rules)).toBe('Del 1 al 19 de diciembre')
+  })
+
+  it('un solo día se dice como un solo día', () => {
+    expect(validityText([singleDateRule('2026-12-21')])).toBe('Solo el 21 de diciembre')
+  })
+
+  it('sin calendario no se inventa ninguna fecha', () => {
+    expect(validityRange([])).toBeNull()
+    expect(validityText([])).toBe('')
+  })
+})
+
+// =============================================================================
+describe('dos premios que se cruzan son un conflicto, no una suma (BR-J08, D-201)', () => {
+  const diario: PrizeScheduleSubject = {
+    title: 'Premio diario',
+    numberField: 'daily_number',
+    digits: 'four',
+    rules: [recurringRule('2026-11-02', '2026-11-27', [1, 2, 3, 4, 5])],
+  }
+
+  const mayor: PrizeScheduleSubject = {
+    title: 'Premio mayor',
+    numberField: 'daily_number',
+    digits: 'four',
+    rules: [singleDateRule('2026-12-21')],
+  }
+
+  it('el mismo día, el mismo número y las mismas cifras chocan', () => {
+    const diarioHastaDiciembre: PrizeScheduleSubject = {
+      ...diario,
+      rules: [recurringRule('2026-11-02', '2026-12-31', [1, 2, 3, 4, 5])],
+    }
+    const conflicto = prizeConflict(diarioHastaDiciembre, [mayor])
+    expect(conflicto).toEqual({ other: 'Premio mayor', referenceDate: '2026-12-21' })
+    expect(prizeConflictMessage(diarioHastaDiciembre.title, conflicto!)).toBe(
+      'El premio «Premio diario» y el premio «Premio mayor» juegan el 21/12/2026 con el mismo número de la boleta, las mismas cifras y la misma lotería. Cambia las fechas, el número o las cifras de uno de los dos.',
+    )
+  })
+
+  it('cerrando el premio diario el 27 de noviembre no queda ningún cruce', () => {
+    expect(prizeConflict(diario, [mayor])).toBeNull()
+    expect(prizeConflict(mayor, [diario])).toBeNull()
+  })
+
+  it('el premio de fin de semana cerrado el 28 de noviembre tampoco cruza con los sábados de diciembre', () => {
+    const finDeSemana: PrizeScheduleSubject = {
+      title: 'Premio fin de semana',
+      numberField: 'weekly_number',
+      digits: 'four',
+      rules: [recurringRule('2026-11-07', '2026-11-28', [6])],
+    }
+    const especialSemanal: PrizeScheduleSubject = {
+      title: 'Premio especial semanal',
+      numberField: 'weekly_number',
+      digits: 'four',
+      rules: [rangeRule('2026-12-01', '2026-12-05'), rangeRule('2026-12-16', '2026-12-19')],
+    }
+    expect(prizeConflict(finDeSemana, [especialSemanal])).toBeNull()
+  })
+
+  it('cuatro cifras y últimas tres conviven el mismo día a propósito (BR-J07)', () => {
+    const tresCifras: PrizeScheduleSubject = {
+      title: 'Premio de tres cifras',
+      numberField: 'daily_number',
+      digits: 'last_three',
+      rules: [singleDateRule('2026-12-21')],
+    }
+    expect(prizeConflict(mayor, [tresCifras])).toBeNull()
+    expect(prizeConflict(tresCifras, [mayor])).toBeNull()
+
+    // Y la prioridad sigue siendo la de siempre: las cuatro dejan fuera las tres.
+    const candidatos: PrizeCandidate[] = [
+      { prizeId: 'p1', versionId: 'v1', numberField: 'daily_number', digits: 'four' },
+      { prizeId: 'p2', versionId: 'v2', numberField: 'daily_number', digits: 'last_three' },
+    ]
+    expect(resolvePrizeLinks(candidatos).map((c) => c.prizeId)).toEqual(['p1'])
+  })
+
+  it('el otro número de la boleta no choca', () => {
+    const semanal: PrizeScheduleSubject = { ...mayor, numberField: 'weekly_number' }
+    expect(prizeConflict(mayor, [semanal])).toBeNull()
+  })
+
+  it('la recompensa no salva un cruce: se compara la regla de juego, no lo que paga', () => {
+    const otro: PrizeScheduleSubject = { ...mayor, title: 'Otro premio del 21' }
+    expect(prizeConflict(mayor, [otro])?.other).toBe('Otro premio del 21')
+  })
+
+  it('con varios cruces se dice el primero', () => {
+    const a: PrizeScheduleSubject = {
+      ...mayor,
+      title: 'Premio A',
+      rules: [rangeRule('2026-12-01', '2026-12-05')],
+    }
+    const b: PrizeScheduleSubject = {
+      ...mayor,
+      title: 'Premio B',
+      rules: [rangeRule('2026-12-03', '2026-12-10')],
+    }
+    expect(prizeConflict(b, [a])).toEqual({ other: 'Premio A', referenceDate: '2026-12-03' })
   })
 })

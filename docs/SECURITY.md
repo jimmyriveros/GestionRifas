@@ -18,10 +18,10 @@
 - **§4.17** describe **la cola de avisos y su despachador** (`0054`, Etapa 5, D-191): una tabla que
   no lee nadie con sesión, un Route Handler que falla cerrado y un cifrado propio comprobado contra
   los vectores del RFC.
-- **§4.20** describe **los premios configurables por rifa y la capacidad central** (`0058`, D-199 y
-  D-200, BR-J01..BR-J14): tres tablas sin escritura directa, seis RPC autorizadas por
-  `raffles.prizes.manage` y un resolvedor de capacidades con espejo en la aplicación.
-  ⚠️ **Solo en local**: el proyecto real no tiene la `0058`.
+- **§4.20** describe **los premios configurables por rifa y la capacidad central** (`0058` y `0059`,
+  D-199, D-200 y D-201, BR-J01..BR-J15): **cuatro** tablas sin escritura directa, seis RPC
+  autorizadas por `raffles.prizes.manage` y un resolvedor de capacidades con espejo en la
+  aplicación. ⚠️ **Solo en local**: el proyecto real no tiene ni la `0058` ni la `0059`.
 - ✅ `0051`, `0052`, `0053`, `0054` y `0055` están **en el proyecto real desde el 2026-09-12**
   (Etapa 7, D-193), con `verify:remote` 24/24.
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
@@ -107,7 +107,7 @@ defensas no se relajan: se duplican.
 | Cambiar estado de una rifa | ✓ | ✓ | ✗ |
 | Reabrir una rifa cerrada | ✓ | ✗ | ✗ |
 | Ver rifas | ✓ | ✓ | ✓ (lectura) |
-| **Premios configurables** (`0058`, §4.20) |
+| **Premios configurables** (`0058` + `0059`, §4.20) |
 | Crear, editar, archivar, restaurar y reordenar premios — por la **capacidad** `raffles.prizes.manage`, no por el rol (BR-J10) | ✓ | ✓ | ✗ |
 | Ver los premios de las rifas de su organización | ✓ | ✓ | ✓ (lectura) |
 | Ver el historial de un premio (BR-J12) | ✓ | ✓ | ✗ |
@@ -1116,9 +1116,9 @@ de dos vendedores y de otra organización— y `tests/e2e/privacidad-admin.spec.
 en el HTML, en la carga RSC ni en las respuestas de red. ✅ **En producción desde el 2026-09-15**:
 `0057` aplicada al proyecto real y `verify:remote` **27/27**.
 
-### 4.20 Premios configurables y la capacidad central (`0058`, BR-J01..BR-J14, D-199, D-200)
+### 4.20 Premios configurables y la capacidad central (`0058` + `0059`; BR-J01..BR-J15; D-199, D-200, D-201)
 
-> ⚠️ **Solo en local.** El proyecto real no tiene la `0058`.
+> ⚠️ **Solo en local.** El proyecto real no tiene ni la `0058` ni la `0059`.
 
 **La autorización deja de preguntar por el rol.** Las seis RPC preguntan
 `has_org_capability(org, 'raffles.prizes.manage')`, que comprueba la capacidad **y** que la
@@ -1130,10 +1130,12 @@ El espejo de la aplicación (`src/lib/auth/capabilities.ts` + `authorizeCapabili
 línea, nunca la única. **Una prueba de base de datos compara las dos tablas rol a rol**: si alguien
 toca una sola, falla.
 
-**Por qué las tablas no admiten escritura directa.** Ninguna de las tres tiene política de `INSERT`,
-`UPDATE` ni `DELETE`, y `authenticated` solo tiene `SELECT`. Así el tope de premios, la versión nueva,
-la bitácora y el aviso **no se pueden saltar**: no son cosas que la pantalla se acuerda de hacer, son
-el único camino. Es el patrón de `0051`.
+**Por qué las tablas no admiten escritura directa.** Ninguna de las **cuatro** tiene política de
+`INSERT`, `UPDATE` ni `DELETE`, y `authenticated` solo tiene `SELECT`. Así el tope de premios, la
+versión nueva, la bitácora y el aviso **no se pueden saltar**: no son cosas que la pantalla se
+acuerda de hacer, son el único camino. Es el patrón de `0051`. `raffle_prize_reward_options`
+(`0059`) entra con las mismas reglas: RLS forzada, una política de `SELECT`, y `service_role` con
+`SELECT, INSERT` y nada más.
 
 | Superficie | Cómo se cierra |
 |---|---|
@@ -1142,7 +1144,9 @@ el único camino. Es el patrón de `0051`.
 | Cambiar el sistema de premios de una rifa | Un disparador lo rechaza para **cualquier sesión**, y solo lo permite en borrador desde un proceso sin sesión (BR-J13) |
 | Activar una rifa configurable sin configuración válida | El mismo disparador la valida **en PostgreSQL**, no en React |
 | Dos personas editando el mismo premio | Control optimista con la versión vigente, más un cerrojo de aviso por rifa: la segunda recibe una frase que dice qué hacer |
-| Reescribir una versión ya publicada | Imposible: disparadores de inmutabilidad, también con `service_role` |
+| Reescribir una versión ya publicada, sus períodos o su recompensa | Imposible: disparadores de inmutabilidad, también con `service_role` |
+| Dejar una versión con una recompensa que no cuadra —un «Premio único» con dos alternativas, o una elección con una sola— | **Dos** disparadores de restricción diferidos, uno por cada lado: al crear la versión y al añadir una opción después. Ni la service role puede |
+| Publicar o activar una configuración con **dos premios que se cruzan** | `raffle_prize_version_problem` la rechaza nombrando los dos premios y el día (BR-J08). Se comprueba **en PostgreSQL**, también al activar la rifa y al restaurar un premio archivado |
 | Las piezas internas y los disparadores | Sin `EXECUTE` para `authenticated` ni `anon` (I-078, I-020) |
 
 **Lo que no toca.** Ninguna política, tabla o función de la cartera (D-198): un premio no lleva

@@ -1,7 +1,7 @@
 import { LOTTERY_LABELS } from '@/features/lottery/constants'
 import type { LotteryMatchField } from '@/features/lottery/constants'
 import { WEEKDAY_LABELS } from '@/lib/constants'
-import { longDatePartsEs } from '@/lib/dates'
+import { formatDateCsv, longDatePartsEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 
 import type { PrizeDigits } from './matching'
@@ -9,6 +9,8 @@ import {
   canonicalRules,
   expandRules,
   rangeRule,
+  validityRange,
+  type PrizeConflict,
   type PrizeRule,
   type PrizeRuleProblem,
 } from './schedule'
@@ -39,12 +41,24 @@ export const PRIZE_CATEGORY_VALUES = Object.keys(PRIZE_CATEGORY_LABELS) as [
   ...PrizeCategory[],
 ]
 
-export const PRIZE_REWARD_TYPE_LABELS = {
-  cash: 'Premio en dinero',
-  in_kind: 'Premio en especie',
+/**
+ * Las dos formas de recompensa (D-201).
+ *
+ * «Alternativas a elegir» y no «el ganador elige»: «ganador» es la palabra
+ * prohibida de BR-L15, y quien acierta tiene una **coincidencia**. La
+ * aplicación tampoco registra cuál alternativa se llevó: eso no existe todavía.
+ */
+export const PRIZE_REWARD_MODE_LABELS = {
+  fixed: 'Premio único',
+  winner_choice: 'Alternativas a elegir',
 } as const
 
-export type PrizeRewardType = keyof typeof PRIZE_REWARD_TYPE_LABELS
+export type PrizeRewardMode = keyof typeof PRIZE_REWARD_MODE_LABELS
+
+export const PRIZE_REWARD_MODE_VALUES = Object.keys(PRIZE_REWARD_MODE_LABELS) as [
+  PrizeRewardMode,
+  ...PrizeRewardMode[],
+]
 
 /** Lo que cabe en una columna estrecha; el término entero va en el `sr-only` (D-114). */
 export const PRIZE_DIGITS_LABELS: Record<PrizeDigits, string> = {
@@ -93,6 +107,13 @@ function joinEs(values: string[]): string {
   if (values.length === 0) return ''
   if (values.length === 1) return values[0] ?? ''
   return `${values.slice(0, -1).join(', ')} y ${values[values.length - 1]}`
+}
+
+/** Lo mismo con «o»: las alternativas son excluyentes, no una suma. */
+function joinEsOr(values: string[]): string {
+  if (values.length === 0) return ''
+  if (values.length === 1) return values[0] ?? ''
+  return `${values.slice(0, -1).join(', ')} o ${values[values.length - 1]}`
 }
 
 function isConsecutive(weekdays: number[]): boolean {
@@ -158,11 +179,69 @@ export function scheduleSummary(rules: PrizeRule[]): string {
   return capitalize(summarizeRules(rules))
 }
 
-export type PrizeReward =
-  { type: 'cash'; amount: number } | { type: 'in_kind'; description: string }
+/**
+ * Una alternativa: lo que se entrega si esa es la elegida (D-201).
+ *
+ * Los dos componentes son opcionales y al menos uno está: una camioneta, el
+ * dinero, o la camioneta **y** el dinero. No hay un título aparte, porque un
+ * título libre al lado podría contradecir lo que de verdad se entrega.
+ */
+export type PrizeRewardOption = { description: string | null; amount: number | null }
 
+export type PrizeReward = { mode: PrizeRewardMode; options: PrizeRewardOption[] }
+
+/** «Camioneta KIA», «$120.000.000», «Renault Alaskan 2023 y $20.000.000». */
+export function rewardOptionText(option: PrizeRewardOption): string {
+  const parts: string[] = []
+  if (option.description) parts.push(option.description)
+  if (option.amount !== null) parts.push(formatCOP(option.amount))
+  return joinEs(parts)
+}
+
+/** Las alternativas, separadas por «o»: son excluyentes y solo se lleva una. */
+export function rewardOptionsText(options: PrizeRewardOption[]): string {
+  return joinEsOr(options.map(rewardOptionText))
+}
+
+/**
+ * Lo que entrega un premio, en una frase. Con una sola recompensa se dice tal
+ * cual; con varias, que hay que elegir una.
+ */
 export function rewardText(reward: PrizeReward): string {
-  return reward.type === 'cash' ? formatCOP(reward.amount) : reward.description
+  if (reward.mode === 'fixed') {
+    const only = reward.options[0]
+    return only ? rewardOptionText(only) : ''
+  }
+  return `una de estas alternativas: ${rewardOptionsText(reward.options)}`
+}
+
+/**
+ * Desde cuándo y hasta cuándo aplica un premio: «Del 3 al 27 de noviembre»,
+ * «Solo el 21 de diciembre» (D-201).
+ *
+ * Son el primer y el último día en que juega **de verdad**, no las fechas
+ * escritas en sus períodos: «los sábados del 1 al 31 de diciembre» empieza el 5.
+ */
+export function validityText(rules: PrizeRule[]): string {
+  const range = validityRange(rules)
+  if (!range) return ''
+  if (range.from === range.to) {
+    const { day, month } = longDatePartsEs(range.from)
+    return `Solo el ${day} de ${month}`
+  }
+  return capitalize(rangeText(range.from, range.to))
+}
+
+/**
+ * El conflicto entre dos premios, con las MISMAS palabras que responde la base
+ * (`raffle_prize_version_problem`): quien lo vea dos veces no tiene por qué
+ * entender que son dos sistemas distintos.
+ *
+ * La fecha va en DD/MM/AAAA, que es lo que escribe la migración; `formatDateCsv`
+ * es el único ayudante que ya da ese formato.
+ */
+export function prizeConflictMessage(title: string, conflict: PrizeConflict): string {
+  return `El premio «${title}» y el premio «${conflict.other}» juegan el ${formatDateCsv(conflict.referenceDate)} con el mismo número de la boleta, las mismas cifras y la misma lotería. Cambia las fechas, el número o las cifras de uno de los dos.`
 }
 
 /**
@@ -219,10 +298,20 @@ export const PRIZE_COPY = {
     categoryRequired: 'Elige la categoría del premio.',
     numberFieldRequired: 'Elige con qué número de la boleta juega el premio.',
     digitsRequired: 'Elige con cuántas cifras juega el premio.',
-    rewardTypeRequired: 'Elige si el premio es en dinero o en especie.',
+    rewardModeRequired: 'Elige si el premio entrega una sola recompensa o varias alternativas.',
+    rewardRequired: 'Escribe qué entrega el premio.',
+    optionsTooMany: 'Un premio admite como máximo 6 alternativas.',
+    optionEmpty: 'En cada alternativa escribe el dinero, lo que se entrega, o las dos cosas.',
+    optionsRepeated:
+      'Hay dos alternativas iguales. Cada alternativa tiene que entregar algo distinto.',
+    /** Las dos frases que explican la semántica, con la salida en la misma línea. */
+    fixedNeedsOne:
+      'Un «Premio único» lleva una sola recompensa. Si quieres que se elija entre varias, cámbialo a «Alternativas a elegir».',
+    choiceNeedsTwo:
+      '«Alternativas a elegir» necesita al menos dos. Agrega otra alternativa o cámbialo a «Premio único».',
     amountRequired: 'Escribe el valor del premio en pesos.',
+    amountNotInteger: 'El valor del premio se escribe en pesos enteros.',
     amountTooHigh: 'El valor del premio no puede superar $10.000.000.000.',
-    descriptionRequired: 'Describe el premio en especie. Por ejemplo: una camioneta.',
     descriptionShort: 'La descripción del premio debe tener al menos 2 caracteres.',
     descriptionLong: 'La descripción del premio no puede superar 160 caracteres.',
     conditionsLong: 'Las aclaraciones no pueden superar 1.000 caracteres.',
