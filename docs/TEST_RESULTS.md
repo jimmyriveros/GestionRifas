@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (premios configurables, Entrega 2: el panel, D-202, 2026-09-15)** | **1.243 ✅ en 68 archivos (+17)** | **1.140 ✅ en 48 archivos (+8; migración `0060`)** | **724/725**; el único fallo es **I-090**, conocido y ajeno, y su archivo pasa **18/18** en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
+| **Post-9 vigente (corrección de la Entrega 2 de premios, D-202, 2026-09-16)** | **1.285 ✅ en 72 archivos (+42)** | **1.141 ✅ en 48 archivos (+1; sin migración)** | **732/734**; los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
+| Post-9 anterior (premios configurables, Entrega 2: el panel, D-202, 2026-09-15) | **1.243 ✅ en 68 archivos (+17)** | **1.140 ✅ en 48 archivos (+8; migración `0060`)** | **724/725**; el único fallo es **I-090**, conocido y ajeno, y su archivo pasa **18/18** en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (corrección de la Entrega 1 de premios, D-201, 2026-09-15) | **1.226 ✅ en 67 archivos (+21)** | **1.132 ✅ en 48 archivos (+20; migración `0059`)** | — (**no hay pantalla de premios**: es la Entrega 2, y el encargo no pedía E2E) | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (premios configurables, Entrega 1, D-199 y D-200, 2026-09-15) | **1.205 ✅** en 67 archivos (+50) | **1.112 ✅** en 48 archivos (+64; migración `0058`) | — (no hay pantalla de premios) | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables` |
 | 0 | — | — | — | — | ✅ (documental) |
@@ -11772,6 +11773,97 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
 
 ---
 
+## Correcciones de la Entrega 2 de premios (D-202, Decisiones 7 a 11) — 2026-09-16
+
+**Alcance:** encargo expreso del usuario: corregir cinco defectos de la Entrega 2 **antes** de
+autorizar la Entrega 3. Sin motor de coincidencias, sin tocar `match_lottery_result`, **sin
+migración**, sin tocar el proyecto real y sin desplegar. Decisiones en **D-202** (corrección),
+incidencias **I-121 a I-124** y estrategia en `TESTING` §4.11.
+
+### a. Comandos y resultados
+
+| Comando | Resultado |
+|---|---|
+| Estado de partida | Rama `feature/premios-configurables` en `e412a41`; `CorrecionesLoterias.txt` y `prueba-abono.csv` sin seguimiento, con su huella SHA-256 guardada antes de empezar |
+| Línea base: `db:reset` + `seed:local` + `test:db` + `verify` | ✅ **1.140/1.140** de base · ✅ lint 0 errores y 2 avisos · **1.243/1.243** unitarias · build |
+| `tests/unit/prize-history-retry.test.tsx` | ✅ **6/6** (nuevo). **Contra el componente anterior fallan 5**: la sexta, la de la respuesta vieja, ya estaba protegida |
+| `tests/unit/raffle-activation.test.tsx` | ✅ **10/10** (nuevo) |
+| `tests/unit/raffle-edit-origin.test.tsx`, primera pasada | ❌ **5/9**: `ResizeObserver is not defined` (b) |
+| Segunda pasada | ✅ **9/9** (nuevo) |
+| `capabilities.test.ts` + `raffle-prizes.test.ts` + `server-actions-guard.test.ts` | ✅ **96/96** (`capabilities.test.ts` nuevo, 18) |
+| `tests/db/raffle-prizes.test.ts` | ✅ **93/93** (+1: J1-08) |
+| `premios-movil.spec.ts`, la comprobación parametrizada, primera pasada | ❌ **4/4**: localizador ambiguo (b) |
+| Segunda pasada | ❌ **320 px: el formulario se desplaza de lado 61 px; 375 px: 6 px**; 390 y 430 ✅. **Defecto real**: I-122 (c) |
+| Tras arreglar solo la cabecera de las alternativas | ❌ **idéntico**: 61 y 6 px (c) |
+| Diagnóstico temporal en el navegador, borrado después | La causa medida: el desplegable «Lotería», con «La que corresponde a cada día» (≈239 px) |
+| Tras partir el valor de los desplegables del período | ✅ desbordamiento **0**; `premios-movil.spec.ts` **7/7** |
+| Capturas a 320 px, temporales | ✅ la fila de cada alternativa baja sus botones a otra línea y los desplegables parten su valor en dos |
+| `premios.spec.ts` en escritorio | ❌ **16/17**: la prueba del origen escrito a mano buscaba el texto en el HTML (b). Corregida: ✅ **7/7** las afectadas |
+| **Las pruebas nuevas contra el código anterior** (`git stash` de `src/`, restaurado después) | ❌ **4 de las 6 de escritorio** —las otras dos son de no regresión: la rifa heredada y el origen detalle— y ❌ la parametrizada a **320 px**; a 430 px, ✅ |
+| E2E dirigida: premios en escritorio y teléfono, `owner-raffles`, `back-navigation`, `owner-responsive`, `owner-ciclo`, `owner-tickets`, `security` y `privacidad-admin` | **99/100**; el único fallo, `back-navigation.spec.ts:127`, es ajeno (d) |
+| `back-navigation.spec.ts` sola, **sin restablecer la base** | **7/9**: `:25` y `:127` por colisión de datos acumulados (d) |
+| Medición temporal a 1280 y 768 px | El texto de ejemplo de una lotería fija sin elegir se ve **recortado** (258 px en 225): **I-123**, previo y fuera de los anchos pedidos |
+| `npx prettier --check` sobre lo tocado | ✅ |
+| `npm run verify` final | ✅ typecheck · lint **0 errores** y los **2 avisos preexistentes** (`DataTable`, `BulkTicketCreator`) · **1.285/1.285** unitarias en **72** archivos (**+42**) · build |
+| `npm run test:db` final, con base recién sembrada | ✅ **1.141/1.141** en 48 archivos (**+1**) |
+| `npm run test:e2e` completo, con base recién sembrada, servidor nuevo y **sin editar `src/` durante la corrida** | **732/734** en 37,2 min (734 pruebas: +6 de escritorio, +4 parametrizadas, −1 retirada). Los dos fallos son **I-090** (`ventas-por-fecha.spec.ts:163`: «esperado < 26», **recibido 54**) e **I-106** (`catalogo-publico-movil.spec.ts:103`: la URL no llegó a `?q=0`). **Las 24 de premios pasaron**: 17 de escritorio y 7 del teléfono (e) |
+| Primer intento de aislarlas | ❌ **no válido**: `seed:local` falló con `AuthRetryableFetchError` porque el servicio de autenticación aún arrancaba tras el `db:reset`, y las pruebas corrieron sin datos. Repetido esperando a que `/auth/v1/health` respondiera 200 |
+| `ventas-por-fecha.spec.ts` sola, tras `db:reset` + `seed:local`, **dos veces** | **17/18** y **17/18**: `:163` **pasa las dos veces**; cae `:238` la primera y `:247` la segunda, por **modo estricto con una copia oculta** del texto (e) |
+| `catalogo-publico-movil.spec.ts` sola, tras `db:reset` + `seed:local` | ✅ **15/15**, con el rastro de hidratación ya descrito en I-106 |
+
+### b. Errores encontrados y corregidos (de las pruebas y del proceso, no del producto)
+
+| Qué pasó | Causa | Corrección |
+|---|---|---|
+| `ResizeObserver is not defined` al montar `RaffleForm` | El `Switch` de Radix mide su caja y jsdom no trae `ResizeObserver` | Un sustituto mínimo dentro de esa prueba; no se toca ninguna configuración compartida |
+| «Período 3» resolvía a **dos** elementos | `getByText` busca por subcadena y también encontraba el texto oculto «Quitar período 3» | `{ exact: true }` |
+| La prueba del origen escrito a mano encontraba `evil.example` en la página | **Next guarda la URL de la propia página** en el estado del enrutador, dentro del HTML | Se comprueban los destinos: ningún enlace apunta ahí y cancelar lleva al detalle (`TESTING` §4.11, trampa 7) |
+| «Cancelar desde premios» **también pasaba con el código anterior** | `router.back()` volvía a premios porque era la página anterior | Se añadió una carga directa de `edit?from=prizes` viniendo del detalle, donde el comportamiento anterior volvía al detalle |
+| `git` veía `TESTING.md` como binario y marcaba sus 1.281 líneas cambiadas | Al editar la tabla con un guion, una celda arrastró su retorno de carro: en este checkout los documentos están en **CRLF** (`core.autocrlf`) y quedó un `\r` suelto. Además, dos líneas LF sueltas en `BUSINESS_RULES.md` | Corregido y comprobado carácter a carácter; el diff volvió a ser de 22 líneas. **Para editar documentos, mejor la herramienta de edición que un guion** |
+
+### c. El defecto real que encontró la verificación (I-122)
+
+La comprobación parametrizada midió lo que las pruebas de la Entrega 2 no podían ver: el
+desbordamiento **del diálogo**, no del documento —un diálogo fijo nunca desborda el documento—, y con
+el formulario **completo** —cuatro alternativas y tres períodos—, no con el de un premio nuevo.
+
+La primera hipótesis fue la fila «Alternativa N» con tres botones de 44 px, y el cálculo la
+respaldaba. Se arregló y **el desbordamiento siguió siendo exactamente el mismo**: había otra causa
+fijando el mismo ancho mínimo. Un diagnóstico en el navegador —limitar la columna del diálogo y listar
+qué seguía sin caber— la señaló: el valor del desplegable «Lotería». Hacían falta los dos arreglos.
+
+### d. Fallos ajenos
+
+**`back-navigation.spec.ts:127` y `:25`.** En la E2E dirigida `:127` agotó su tiempo esperando la
+navegación a una boleta del vendedor; relanzada sola, cayeron `:127` y `:25` por **modo estricto**: el
+enlace «Ver la boleta 4876» encontró **dos** boletas —`4876 / 0775`, la de la prueba, y `4876 / 0000`—.
+La base llevaba **9.497 boletas** sin restablecer: cada pasada de `owner-ciclo` crea mil con el
+semanal `0000`, y el número aleatorio de la prueba acaba chocando con uno. Es la familia de I-090:
+depende de lo acumulado, no del producto, y estas pantallas no se tocaron. **En la corrida completa,
+desde base limpia, `back-navigation` pasó entera.**
+
+### e. I-090 e I-106 en la corrida completa
+
+Las dos pantallas —«Ventas por fecha» y el catálogo público— **no están en el diff**. `:163` confirma
+lo que I-090 ya decía: con lo que acumulan las demás suites, las ventas de hoy de `vendedor1`
+llegaron a **54** y la prueba exige menos de 26; sola, pasa. Lo **nuevo** son `:238` y `:247`: I-090
+las describía como fallos de la corrida completa que pasan en aislamiento, y hoy **fallaron en
+aislamiento** —una en cada repetición— con la firma de 2026-09-13: el texto buscado aparece **dos
+veces**, una oculta fuera de `main`, mientras la pantalla llega por streaming a un servidor recién
+arrancado. En la corrida completa, con el servidor caliente, las dos pasaron. Queda precisado en
+I-090, con lo que haría falta para arreglarlas. I-106 se comportó exactamente como está descrito.
+
+### f. Lo que NO se comprobó
+
+* **El motor de coincidencias** (Entrega 3): no existe y `match_lottery_result` no se tocó.
+* **El proyecto real**: ni migraciones ni `verify:remote`; no hay migración nueva.
+* **Una persona del personal sin la capacidad, con sesión real**: hoy no existe —el Dueño y el
+  Administrador la tienen por la política—. Ese camino lo cubren las pruebas unitarias que
+  **reemplazan el resolvedor**.
+* **Tableta y escritorio en el formulario**: fuera de los cuatro anchos pedidos; lo visto quedó en I-123.
+* **Un teléfono de verdad** y el **modo oscuro**.
+
+---
 ## Premios configurables, Entrega 2 de 5: el panel (`0060`, D-202) — 2026-09-15
 
 **Alcance:** encargo expreso del usuario, **solo la Entrega 2**. Sin motor de coincidencias, sin la

@@ -10,9 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PrizeList } from '@/features/raffle-prizes/components/PrizeList'
 import { PRIZE_PANEL_COPY } from '@/features/raffle-prizes/copy'
 import { listRafflePrizes } from '@/features/raffle-prizes/queries'
+import { draftActivation } from '@/features/raffle-prizes/review'
 import { RaffleStatusActions } from '@/features/raffles/components/RaffleStatusActions'
+import { raffleEditHref } from '@/features/raffles/edit-origin'
 import { getAdminRaffleDetail } from '@/features/raffles/queries'
-import { roleHasCapability } from '@/lib/auth/capabilities'
+import { hasCapability } from '@/lib/auth/capability-resolver'
 import { requireStaff } from '@/lib/auth/guards'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
@@ -35,8 +37,9 @@ export default async function RaffleDetailPage({
   const editable = raffle.status === 'draft' || raffle.status === 'active'
 
   // Los premios SOLO se leen cuando la rifa los usa: una rifa heredada no
-  // gasta ni una consulta en algo que no tiene (BR-J13, D-202).
-  const canManagePrizes = roleHasCapability(membership.role, 'raffles.prizes.manage')
+  // gasta ni una consulta en algo que no tiene (BR-J13, D-202). La capacidad
+  // la decide el resolvedor central con la membresia completa, no el rol.
+  const canManagePrizes = await hasCapability(membership, 'raffles.prizes.manage')
   const showPrizes = raffle.prizeMode === 'configurable' && canManagePrizes
   const prizes = showPrizes ? await listRafflePrizes(raffle.id) : []
   const activePrizes = prizes.filter((prize) => prize.status === 'active')
@@ -52,16 +55,18 @@ export default async function RaffleDetailPage({
           <>
             {editable ? (
               <Button asChild variant="outline">
-                <Link href={`/owner/raffles/${raffle.id}/edit`}>
+                <Link href={raffleEditHref(raffle.id)}>
                   <PencilIcon className="size-4" aria-hidden />
                   Editar
                 </Link>
               </Button>
             ) : null}
+            {/* Un borrador configurable se activa desde la revisión (D-202). */}
             <RaffleStatusActions
               raffleId={raffle.id}
               status={raffle.status}
               role={membership.role}
+              draftActivation={draftActivation(raffle, canManagePrizes)}
             />
           </>
         }

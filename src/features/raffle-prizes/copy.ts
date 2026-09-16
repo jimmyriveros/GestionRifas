@@ -437,7 +437,8 @@ export const PRIZE_FORM_COPY = {
 
   rewardLegend: '¿Qué entrega el premio?',
   rewardModeLabel: 'Forma del premio',
-  optionsLegend: 'Alternativas',
+  /** El título de CADA alternativa, en singular: «Alternativa 2», como «Período 2». */
+  optionTitle: (index: number) => `Alternativa ${index}`,
   optionsHelp: 'Quien acierta se lleva una sola de estas alternativas.',
   optionDescriptionLabel: 'Qué se entrega',
   optionDescriptionPlaceholder: 'Camioneta KIA',

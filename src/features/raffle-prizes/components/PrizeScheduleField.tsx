@@ -35,6 +35,17 @@ import {
 import { PRIZE_LIMITS, type PrizeFormInput } from '../schemas'
 
 /**
+ * Los desplegables de un período viven dentro de dos cajas con relleno, y en el
+ * teléfono su valor más largo no cabe en una línea: a 320 px «La que corresponde
+ * a cada día» mide más que la caja. El primitivo no deja partirse el valor, así
+ * que la rejilla se ensanchaba hasta él y el diálogo entero se desplazaba de lado
+ * (D-202). Debajo de `sm` el valor se parte en líneas y el control crece en alto:
+ * nunca baja de 44 px y nunca se recorta el texto.
+ */
+const PERIOD_SELECT_CLASS =
+  'w-full max-sm:data-[size=touch]:h-auto max-sm:min-h-11 max-sm:whitespace-normal max-sm:text-left'
+
+/**
  * El calendario de un premio (BR-J04, BR-J05, D-202).
  *
  * AQUÍ NO SE VE NINGÚN CONCEPTO TÉCNICO: ni JSON, ni días ISO, ni «regla». Se
@@ -196,7 +207,11 @@ export function PrizeScheduleField({
                   onValueChange={(value) => changeKind(index, value as PrizeRuleKind)}
                   disabled={disabled}
                 >
-                  <SelectTrigger id={`kind-${field.id}`} size="touch" className="w-full">
+                  <SelectTrigger
+                    id={`kind-${field.id}`}
+                    size="touch"
+                    className={PERIOD_SELECT_CLASS}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -306,7 +321,11 @@ export function PrizeScheduleField({
                   }
                   disabled={disabled}
                 >
-                  <SelectTrigger id={`lottery-mode-${field.id}`} size="touch" className="w-full">
+                  <SelectTrigger
+                    id={`lottery-mode-${field.id}`}
+                    size="touch"
+                    className={PERIOD_SELECT_CLASS}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -327,7 +346,11 @@ export function PrizeScheduleField({
                     onValueChange={(value) => changeLottery(index, value)}
                     disabled={disabled}
                   >
-                    <SelectTrigger id={`lottery-${field.id}`} size="touch" className="w-full">
+                    <SelectTrigger
+                      id={`lottery-${field.id}`}
+                      size="touch"
+                      className={PERIOD_SELECT_CLASS}
+                    >
                       <SelectValue placeholder={PRIZE_COPY.ruleProblems.fixed_lottery_missing} />
                     </SelectTrigger>
                     <SelectContent>

@@ -16,6 +16,8 @@ import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { ROLE_DEFAULT_CAPABILITIES, APP_CAPABILITIES } from '@/lib/auth/capabilities'
+import { hasCapability } from '@/lib/auth/capability-resolver'
+import type { ActiveMembership } from '@/lib/auth/session'
 
 import {
   anonClient,
@@ -366,6 +368,76 @@ describe('J1 — quién puede configurar premios (BR-J10, D-200)', () => {
       [ctx.ids.owner, ctx.demoOrg.id],
     )
     expect(rows[0]!.puede).toBe(false)
+  })
+
+  it('J1-08: la aplicación resuelve la capacidad igual que PostgreSQL para Dueño, Administrador y Vendedor', async () => {
+    // D-202: las acciones y las páginas preguntan al resolvedor central con la
+    // MEMBRESÍA COMPLETA. Aquí se le da la de verdad —leída de la base— y se
+    // compara con lo que responde `has_org_capability` con la identidad de esa
+    // misma persona, que es la autoridad.
+    const personas = [
+      { rol: 'owner', id: ctx.ids.owner, espera: true },
+      { rol: 'admin', id: ctx.ids.admin, espera: true },
+      { rol: 'seller', id: ctx.ids.seller1, espera: false },
+    ] as const
+
+    for (const persona of personas) {
+      const { rows: filas } = await db.query<{
+        role: ActiveMembership['role']
+        organization_name: string
+        full_name: string
+        email: string
+        alias: string | null
+        activated_at: string | null
+      }>(
+        `select m.role, o.name as organization_name, p.full_name, p.email, p.alias,
+                p.activated_at::text as activated_at
+           from memberships m
+           join profiles p on p.id = m.profile_id
+           join organizations o on o.id = m.organization_id
+          where m.profile_id = $1 and m.organization_id = $2`,
+        [persona.id, ctx.demoOrg.id],
+      )
+      const fila = filas[0]!
+      expect(fila.role).toBe(persona.rol)
+
+      const membership: ActiveMembership = {
+        organizationId: ctx.demoOrg.id,
+        organizationName: fila.organization_name,
+        role: fila.role,
+        profileId: persona.id,
+        fullName: fila.full_name,
+        email: fila.email,
+        alias: fila.alias,
+        activatedAt: fila.activated_at,
+      }
+
+      for (const capability of APP_CAPABILITIES) {
+        // En una transacción explícita: con la identidad puesta en la misma
+        // sentencia, un «no» podría salir aunque no se hubiera aplicado.
+        await db.query('begin')
+        let puede: boolean
+        try {
+          await db.query(
+            `select set_config('request.jwt.claims', json_build_object('sub', $1::text, 'role', 'authenticated')::text, true)`,
+            [persona.id],
+          )
+          const { rows } = await db.query<{ puede: boolean }>(
+            `select has_org_capability($1, $2) as puede`,
+            [ctx.demoOrg.id, capability],
+          )
+          puede = rows[0]!.puede
+        } finally {
+          await db.query('rollback')
+        }
+
+        expect(puede, `PostgreSQL · ${persona.rol} · ${capability}`).toBe(persona.espera)
+        expect(
+          await hasCapability(membership, capability),
+          `aplicación · ${persona.rol} · ${capability}`,
+        ).toBe(puede)
+      }
+    }
   })
 })
 

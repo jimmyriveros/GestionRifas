@@ -3,7 +3,15 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-15 — **Premios configurables por rifa, ENTREGA 2 de 5: el panel**
+- **Actualizado:** 2026-09-16 — **Correcciones de la Entrega 2 de premios** (D-202, Decisiones 7
+  a 11; I-121 a I-124; **sin migración**, **solo en local**): «Reintentar» del historial vuelve a
+  pedir la misma página; un borrador configurable **solo se activa desde la revisión**; corregir los
+  datos desde los premios **vuelve a los premios**; **toda capacidad la decide un resolvedor central**
+  que recibe la membresía completa; y el formulario de un premio **ya no se desplaza de lado** en el
+  teléfono. `verify` **1.285/1.285** unitarias, `test:db` **1.141/1.141** y E2E **732/734**, con los
+  dos fallos conocidos de **I-090** e **I-106**, que pasan en aislamiento. Los seis
+  puntos de §34.3, en su sección de mantenimiento. **No autoriza la Entrega 3.**
+  Antes, el 2026-09-15 — **Premios configurables por rifa, ENTREGA 2 de 5: el panel**
   (D-202, **BR-J16**, migración **`0060`**, **solo en local**). El Dueño y el Administrador con la
   capacidad `raffles.prizes.manage` ya pueden configurar los premios de una rifa desde la
   aplicación, y una rifa **nueva** se crea en **tres pasos** —datos, premios y una revisión que la
@@ -4930,7 +4938,79 @@ si exige una variable que nadie ha creado (I-021).
 
 ---
 
+## Mantenimiento post-9 — **correcciones de la ENTREGA 2** de premios (D-202, sin migración, 2026-09-16)
+
+Autorizada expresamente, **solo para corregir la Entrega 2** antes de autorizar la 3. **No es una Fase
+10** y no lleva etiqueta `fase-*`.
+
+> **SOLO EN LOCAL y SIN MIGRACIÓN.** Sigue **sin motor de coincidencias** (Entrega 3):
+> `match_lottery_result` no se tocó, **las rifas heredadas siguen en `legacy`** y el proyecto real no
+> se tocó.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| «Reintentar» del historial | Vuelve a pedir **la misma página**: limpia el error, enseña la espera, no duplica y descarta la respuesta de una petición anterior. También cuando la acción **lanza**, que es lo que pasa sin conexión, y después de cambiar de página (I-121) |
+| Activar un borrador configurable | Su detalle **ya no ofrece «Activar rifa»**: ofrece **«Revisar y activar»**, que lleva a `/review`. La revisión es el único camino visible. Una rifa **heredada** conserva la activación de siempre, y cerrar, anular y reabrir —solo el Dueño— no cambian. La base sigue validando al activar y la Server Action sigue autorizándose sola |
+| Corregir los datos sin salir del proceso | «Volver a los datos de la rifa» abre `edit?from=prizes`: guardar y cancelar **vuelven a los premios**. Desde el detalle, al detalle. El origen es una **lista cerrada** y el destino se compone con el id de la rifa: sin redirecciones abiertas |
+| El resolvedor central de capacidades | `hasCapability(membership, capability)` decide **toda** capacidad con la membresía completa. `createRaffle` pasa por `authorizeCapability` (personal **y** capacidad, con la frase de la base) y las páginas de detalle, premios, revisión y **nueva rifa** llaman al resolvedor. El día del módulo de permisos solo cambian su cuerpo y el de `has_org_capability`. PostgreSQL sigue siendo la autoridad |
+| El formulario en el teléfono | A 320 y 375 px el formulario completo **se desplazaba de lado** (I-122): ahora los desplegables del período parten su valor y crecen en alto, y los botones de cada alternativa bajan de línea. La cabecera dice «Alternativa 1», no «Alternativas 1» |
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| Línea base `test:db` / `verify` | ✅ **1.140/1.140** · ✅ **1.243/1.243** unitarias, lint 0 errores, build |
+| `npm run verify` final | ✅ typecheck · lint **0 errores** y los 2 avisos preexistentes · **1.285/1.285** unitarias en 72 archivos (**+42**) · build |
+| `npm run test:db` final, base recién sembrada | ✅ **1.141/1.141** en 48 archivos (**+1**, J1-08) |
+| E2E dirigida (premios, rifas, flecha de volver, responsive, ciclo, boletas, seguridad y privacidad) | **99/100**; el fallo es ajeno (colisión de datos acumulados en `back-navigation`) |
+| `npm run test:e2e` completo, base recién sembrada y sin editar `src/` | **732/734** en 37,2 min. Los 2 fallos son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos: sus archivos solos pasan `:163` y **15/15**. Al aislarlos, `:238` y `:247` de «Ventas por fecha» fallaron **una vez cada una** por una copia oculta del texto; queda precisado en I-090 |
+| Las pruebas nuevas contra el código anterior | Fallan donde deben: 5 de 6 del historial, 4 de 6 de escritorio y la parametrizada a 320 px |
+
+**Errores encontrados y corregidos** (detalle en `TEST_RESULTS`, 2026-09-16): el defecto real I-122,
+cuya primera hipótesis resultó incompleta —arreglar la cabecera de las alternativas dejó el
+desbordamiento idéntico hasta arreglar también los desplegables—; y, de las pruebas y del proceso, un
+`ResizeObserver` que jsdom no trae, un localizador ambiguo, una aserción que buscaba en el HTML un
+texto que Next guarda ahí, una prueba de cancelar que también pasaba con el código anterior y un
+retorno de carro suelto en `TESTING.md`.
+
+### 3. Migraciones que existen
+
+**`0001`–`0060` en local; `0001`–`0057` en el proyecto real. Ninguna nueva.**
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **I-123**: en escritorio y tableta se recorta el texto de ejemplo de una lotería fija sin elegir | Menor y solo visual; previo a la corrección. En el teléfono ya no pasa |
+| **I-124**: «La rifa quedo en estado…» sin tilde | Menor; texto visible también en producción |
+| **Las tres migraciones de premios no están en producción** | Es lo previsto: promoverlas es la Entrega 5 |
+| **Una persona del personal sin la capacidad no se puede probar con una sesión real** | Hoy no existe; ese camino lo cubren las pruebas que reemplazan el resolvedor |
+| ~~«Volver a los datos de la rifa» sale del proceso~~ y ~~el detalle de un borrador ofrece «Activar rifa»~~ | **Resueltos** por esta corrección |
+| Todo lo demás | Sin cambios: I-024, I-021, I-023, I-030, I-059, I-060, I-090, I-106, I-117, I-119, I-120 |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto NO autoriza la Entrega 3.** Hace falta una autorización explícita nueva.
+2. **Una capacidad se pregunta a `hasCapability`** (páginas) o **`authorizeCapability`** (acciones).
+   Nunca a `ROLE_DEFAULT_CAPABILITIES`: una prueba estructural lo impide.
+3. **Un borrador configurable no tiene «Activar rifa» en su detalle**: se activa desde la revisión.
+4. **«Editar rifa» con otro origen** se añade a `RAFFLE_EDIT_ORIGINS`; nunca se pasa una dirección.
+5. **Un diálogo nuevo se mide por dentro**, no por el documento (I-122, `TESTING` §4.11).
+6. **Los documentos están en CRLF en este checkout**: edítalos con la herramienta de edición.
+
+---
 ## Mantenimiento post-9 — premios configurables, **ENTREGA 2 de 5**: el panel (`0060`, D-202, 2026-09-15)
+
+> **Nota posterior (2026-09-16).** Los dos primeros problemas de la tabla §5 de esta sección
+> —«Volver a los datos de la rifa» y «Activar rifa» en el detalle de un borrador— quedaron
+> **resueltos** por las correcciones de la sección anterior, junto con I-121 e I-122. Esta sección
+> se conserva tal cual.
 
 Autorizada expresamente, **solo la Entrega 2**. **No es una Fase 10** y no lleva etiqueta `fase-*`.
 

@@ -55,41 +55,74 @@ export function PrizeHistoryDialog({
           <DialogDescription>{PRIZE_HISTORY_COPY.description}</DialogDescription>
         </DialogHeader>
 
-        {prize ? <PrizeHistoryBody prize={prize} /> : null}
+        {/* Otro premio es otro historial: empieza en la página 1 y sin restos. */}
+        {prize ? <PrizeHistoryBody key={prize.id} prize={prize} /> : null}
       </DialogContent>
     </Dialog>
   )
 }
 
+/**
+ * Una lectura del historial. CADA PETICIÓN ES UN OBJETO NUEVO, también la que
+ * repite la misma página: por eso «Reintentar» vuelve a leer —cambiar `page` al
+ * mismo número no cambiaba nada y el efecto no se volvía a ejecutar—.
+ */
+type HistoryRequest = { page: number; attempt: number }
+
+/** La última respuesta que llegó, con la petición a la que contesta. */
+type HistorySettled = {
+  request: HistoryRequest
+  outcome: { ok: true; data: PrizeHistoryPage } | { ok: false }
+}
+
 function PrizeHistoryBody({ prize }: { prize: { id: string; title: string; versionId: string } }) {
-  const [page, setPage] = useState(1)
-  const [result, setResult] = useState<PrizeHistoryPage | null>(null)
-  const [failed, setFailed] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [request, setRequest] = useState<HistoryRequest>({ page: 1, attempt: 0 })
+  const [settled, setSettled] = useState<HistorySettled | null>(null)
+  const [, startTransition] = useTransition()
 
   useEffect(() => {
+    // Una respuesta que llega después de otra petición —o con el diálogo ya
+    // cerrado— se descarta: nunca pisa lo que se pidió después.
     let cancelled = false
     startTransition(async () => {
-      const response = await fetchPrizeHistory({ prizeId: prize.id, page })
-      if (cancelled) return
-      if ('error' in response) {
-        setFailed(response.error)
-        return
+      let outcome: HistorySettled['outcome']
+      try {
+        const response = await fetchPrizeHistory({ prizeId: prize.id, page: request.page })
+        outcome = 'error' in response ? { ok: false } : { ok: true, data: response.data }
+      } catch {
+        // Sin conexión la acción no responde con un error: lanza. Se trata igual,
+        // para que también se pueda reintentar.
+        outcome = { ok: false }
       }
-      setFailed(null)
-      setResult(response.data)
+      if (cancelled) return
+      setSettled({ request, outcome })
     })
     return () => {
       cancelled = true
     }
-  }, [prize.id, page])
+  }, [prize.id, request])
 
-  if (failed) {
+  // Lo que se ve SE DEDUCE de si la última respuesta contesta a la petición
+  // vigente. Pedir otra cosa limpia el error y enseña la carga en el mismo
+  // pintado, sin esperar a ningún efecto.
+  const answered = settled?.request === request ? settled : null
+  const loading = answered === null
+
+  function retry() {
+    setRequest((current) => ({ page: current.page, attempt: current.attempt + 1 }))
+  }
+
+  function goToPage(page: number) {
+    setRequest((current) => ({ page, attempt: current.attempt }))
+  }
+
+  if (answered && !answered.outcome.ok) {
     return (
       <Notice
         tone="warning"
+        live
         action={
-          <Button type="button" variant="outline" size="touch" onClick={() => setPage(page)}>
+          <Button type="button" variant="outline" size="touch" onClick={retry}>
             {PRIZE_HISTORY_COPY.retry}
           </Button>
         }
@@ -98,6 +131,11 @@ function PrizeHistoryBody({ prize }: { prize: { id: string; title: string; versi
       </Notice>
     )
   }
+
+  // Mientras llega otra página se deja a la vista la anterior, con los botones
+  // desactivados, para que la lista no salte. Después de un fallo no hay nada
+  // válido que enseñar: se pinta la espera.
+  const result = settled?.outcome.ok ? settled.outcome.data : null
 
   if (!result) {
     return (
@@ -113,7 +151,7 @@ function PrizeHistoryBody({ prize }: { prize: { id: string; title: string; versi
   const to = Math.min(result.page * result.pageSize, result.total)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" aria-busy={loading || undefined}>
       <ol className="space-y-3">
         {result.entries.map((entry) => (
           <li key={entry.versionId} className="space-y-2 rounded-lg border p-3">
@@ -164,8 +202,8 @@ function PrizeHistoryBody({ prize }: { prize: { id: string; title: string; versi
               type="button"
               variant="outline"
               size="touch"
-              disabled={isPending || result.page <= 1}
-              onClick={() => setPage(result.page - 1)}
+              disabled={loading || result.page <= 1}
+              onClick={() => goToPage(result.page - 1)}
             >
               {PRIZE_HISTORY_COPY.previous}
             </Button>
@@ -173,8 +211,8 @@ function PrizeHistoryBody({ prize }: { prize: { id: string; title: string; versi
               type="button"
               variant="outline"
               size="touch"
-              disabled={isPending || to >= result.total}
-              onClick={() => setPage(result.page + 1)}
+              disabled={loading || to >= result.total}
+              onClick={() => goToPage(result.page + 1)}
             >
               {PRIZE_HISTORY_COPY.next}
             </Button>

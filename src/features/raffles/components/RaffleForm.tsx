@@ -23,19 +23,27 @@ import { Textarea } from '@/components/ui/textarea'
 import { RAFFLE_WIZARD_COPY } from '@/features/raffle-prizes/copy'
 import { DEFAULT_TICKET_PRICE } from '@/lib/constants'
 import { todayBogota } from '@/lib/dates'
+import { hasInternalHistory } from '@/lib/navigation-history'
 
 import { createRaffle, updateRaffle } from '../actions'
 import { createRaffleSchema, raffleFormDefaults, type CreateRaffleInput } from '../schemas'
 
 type RaffleFormProps = {
   raffle?: CreateRaffleInput & { id: string }
+  /**
+   * A dónde se vuelve al guardar o cancelar una EDICIÓN: el detalle, o los
+   * premios si se abrió desde el proceso de crear la rifa (D-202). Lo compone la
+   * página con un origen cerrado (`edit-origin.ts`); el formulario no lee la URL.
+   */
+  returnHref?: string
 }
 
-export function RaffleForm({ raffle }: RaffleFormProps) {
+export function RaffleForm({ raffle, returnHref }: RaffleFormProps) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const isEdit = raffle !== undefined
+  const leaveHref = raffle ? (returnHref ?? `/owner/raffles/${raffle.id}`) : '/owner/raffles'
 
   const form = useForm<CreateRaffleInput>({
     resolver: zodResolver(createRaffleSchema),
@@ -52,7 +60,7 @@ export function RaffleForm({ raffle }: RaffleFormProps) {
           return
         }
         toast.success('Rifa actualizada.')
-        router.push(`/owner/raffles/${raffle.id}`)
+        router.push(leaveHref)
       } else {
         const result = await createRaffle(values)
         if ('error' in result) {
@@ -66,6 +74,16 @@ export function RaffleForm({ raffle }: RaffleFormProps) {
       }
       router.refresh()
     })
+  }
+
+  /**
+   * Cancelar hace lo mismo que la flecha de `PageHeader` (D-089): con historial
+   * interno vuelve atrás, que conserva el desplazamiento de la pantalla de la
+   * que se vino; sin él —recarga, enlace pegado—, va al origen cerrado.
+   */
+  function leaveWithoutSaving() {
+    if (hasInternalHistory()) router.back()
+    else router.push(leaveHref)
   }
 
   return (
@@ -207,7 +225,7 @@ export function RaffleForm({ raffle }: RaffleFormProps) {
             type="button"
             variant="outline"
             size="touch"
-            onClick={() => router.back()}
+            onClick={leaveWithoutSaving}
             disabled={isPending}
             className="w-full sm:w-auto"
           >

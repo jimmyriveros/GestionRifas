@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.56 · **Actualizado:** 2026-09-15 (D-001 a D-202; **D-202** es el panel de premios y la puerta para crear una rifa configurable; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.57 · **Actualizado:** 2026-09-16 (D-001 a D-202; **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -11066,6 +11066,121 @@ Migración **`0060`** (solo el disparador). Rutas `/owner/raffles/[raffleId]/pri
 `UX_COPY_GUIDELINES` (Anexos A y B), `TESTING` §4.11, `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`.
 **Solo en local:** el proyecto real no tiene `0058`, `0059` ni `0060`. **Sin motor de
 coincidencias** (Entrega 3), **sin la rifa real** (Entrega 4) y **sin desplegar** (Entrega 5).
+
+### Corrección de la Entrega 2 (2026-09-16), antes de autorizar la Entrega 3
+
+**Contexto.** Al revisar la entrega, el dueño señaló cinco defectos: «Reintentar» del historial no
+hacía nada; el detalle de un borrador configurable seguía ofreciendo «Activar rifa»; corregir los
+datos desde los premios sacaba del proceso; `createRaffle` y las páginas decidían la capacidad con
+la tabla por rol en vez de con una guarda central; y la verificación responsive del formulario, el
+historial y la revisión estaba a medias. **Ninguno toca el contrato de la base: no hay migración**, y
+`match_lottery_result`, las rifas heredadas y el proyecto real siguen como estaban.
+
+#### Decisión 7 — «Reintentar» repite la PETICIÓN, no el número de página
+
+El botón hacía `setPage(page)` con el mismo número: React no cambiaba nada y el efecto no volvía a
+correr. Ahora cada lectura es un objeto `{ page, attempt }` y reintentar crea uno nuevo con la misma
+página. La respuesta se guarda **junto a la petición que contesta**, y lo que se pinta se deduce de
+si contesta a la vigente: pedir otra cosa limpia el error y enseña la espera en el mismo pintado, sin
+fijar estado dentro de un efecto. La limpieza del efecto descarta la respuesta de una petición
+anterior —o de otro premio, que además monta un historial nuevo con `key`— y una acción que **lanza**,
+que es lo que pasa sin conexión, cuenta como fallo y también se reintenta. Mientras llega otra página
+se deja la anterior con los botones desactivados; después de un fallo no queda nada válido que
+enseñar y se pinta la espera.
+
+| Alternativa | Por qué no |
+|---|---|
+| Un contador de intentos suelto, junto a `page` | Dos estados que tienen que ir de la mano; la petición como objeto los ata |
+| Una bandera `loading` que se enciende en el clic | Otra fuente de verdad que puede quedarse encendida si la respuesta se descarta |
+| SWR o React Query | Una dependencia para una lectura que casi nadie abre |
+
+#### Decisión 8 — un borrador configurable se activa desde la revisión, y solo desde ahí
+
+El detalle pregunta a `draftActivation(rifa, puedeConfigurarPremios)`: una rifa **heredada**
+conserva «Activar rifa» con su confirmación; una **configurable** en borrador cambia ese botón por el
+enlace **«Revisar y activar»** a `/owner/raffles/[raffleId]/review`; y a quien no puede configurar
+los premios no se le ofrece ninguna de las dos, porque tampoco puede revisarlos. Solo afecta al
+borrador: cerrar, anular y la reapertura —que sigue siendo solo del Dueño— no cambian. La etiqueta
+es la del tercer paso del proceso y **viaja hecha desde el servidor** (el precedente de D-181): el
+componente del detalle es de cliente y no carga los textos ni el calendario del proceso.
+
+**No es una regla de permisos nueva.** `changeRaffleStatus` se sigue autorizando igual ante una
+invocación directa y el disparador de PostgreSQL sigue validando la configuración al activar. Si el
+módulo de permisos quisiera exigir la capacidad para ACTIVAR, sería una decisión suya, con su espejo
+en la base.
+
+| Alternativa | Por qué no |
+|---|---|
+| Dejar «Activar rifa» y mostrar el error de la base | Es el defecto: ofrece un botón que va a fallar |
+| Quitar la activación del detalle sin poner nada | Quien llega al detalle de un borrador se queda sin saber cómo seguir |
+| Exigir la capacidad dentro de `changeRaffleStatus` | Sería una regla nueva sin espejo en PostgreSQL; le corresponde al módulo de permisos |
+
+#### Decisión 9 — a dónde vuelve la edición es una lista cerrada
+
+«Volver a los datos de la rifa» abre `/owner/raffles/[raffleId]/edit?from=prizes`. La página contrasta
+`from` con una lista de dos valores (`edit-origin.ts`) —cualquier otra cosa es el detalle— y compone el
+destino con el id que RLS ya dejó leer: **guardar** vuelve ahí; **cancelar** hace lo mismo que la flecha
+de `PageHeader` (D-089), atrás si hay historial dentro de la aplicación y, si no, al destino compuesto;
+y la flecha tiene ese mismo destino de reserva. Desde el detalle nada cambia: sin `from`, se vuelve
+al detalle. Es el patrón de `payments/return-to.ts` (D-135).
+
+| Alternativa | Por qué no |
+|---|---|
+| Un `returnTo` con la dirección entera | Una redirección abierta: quien la escriba decide a dónde va la gente |
+| Recordar el origen en `sessionStorage` | Sobrevive a una carga dura y manda a sitios inesperados (D-089) |
+| Una segunda pantalla de edición dentro de `/prizes` | Duplica la página y el formulario para cambiar un destino |
+
+#### Decisión 10 — un solo resolvedor de capacidades, que recibe la membresía completa
+
+`hasCapability(membership, capability)`, en `lib/auth/capability-resolver.ts`, es **el único** sitio
+que decide una capacidad en la aplicación. Recibe la membresía entera —organización, persona y rol—
+y es asíncrono, aunque hoy solo delegue en la política predeterminada: el módulo de permisos por
+administrador necesitará consultar capacidades asignadas. La guarda `authorizeCapability` pregunta a
+él y admite acotar **quién** llega a preguntar (`roles`) y **qué frase** recibe quien no la tiene;
+`createRaffle` la usa con `roles: ['owner', 'admin']` y la misma frase que responde la base. Las
+páginas de detalle, premios, revisión y **nueva rifa** llaman al resolvedor. `roleHasCapability`
+desaparece, y `capabilities.ts` queda como lo que es: el catálogo y la política predeterminada, espejo
+de `app_capability_catalog` y `app_role_default_capabilities`, que **solo** lee el resolvedor —una
+prueba estructural lo vigila—.
+
+**El día del módulo de permisos se reescriben el cuerpo de `hasCapability` y el de
+`has_org_capability`, y nada más**: ni acciones, ni páginas. PostgreSQL sigue siendo la autoridad.
+
+| Alternativa | Por qué no |
+|---|---|
+| Conservar `roleHasCapability` para las páginas | Obligaría a tocar cada página el día del módulo de permisos |
+| Un resolvedor que reciba solo el rol | El módulo necesitará la organización y la persona |
+| El resolvedor dentro de `guards.ts` | No se podría sustituir por separado: la guarda lo llamaría desde dentro del mismo módulo |
+| Leer ya las capacidades con una RPC | No existe todavía nada asignable; sería una consulta por pantalla para responder lo mismo |
+
+#### Decisión 11 — en el teléfono el formulario de un premio se parte, no se ensancha
+
+La comprobación en los cuatro anchos encontró un defecto real: con cuatro alternativas y varios
+períodos, el diálogo **se desplazaba de lado 61 px a 320 px y 6 px a 375 px** (a 390 y 430, cero), con
+el contenido recortado. Dos causas, medidas: el valor de un desplegable de período no se puede partir
+—«La que corresponde a cada día» mide unos 239 px— y vive dentro de dos cajas con relleno en una
+rejilla cuya columna del teléfono es `auto` (la trampa de D-125); y la fila «Alternativa N» con tres
+botones de 44 px tampoco cabía. Debajo de `sm`, esos desplegables parten su valor en líneas y crecen en
+alto —nunca bajan de 44 px ni recortan el texto—, y la fila de cada alternativa baja sus botones a otra
+línea. **Los primitivos compartidos no se tocan** (D-172): el ajuste vive en las dos piezas del
+formulario. De paso se corrige un texto: la cabecera decía **«Alternativas 1»**; ahora
+**«Alternativa 1»**, como «Período 1».
+
+| Alternativa | Por qué no |
+|---|---|
+| Recortar el valor con puntos suspensivos | «La que corresponde a…» pierde justo lo que distingue la opción |
+| Quitar relleno a las cajas en el teléfono | Faltaban 59 px: no alcanza sin desarmar la agrupación visual |
+| Cambiar `Select` o `DialogContent` | Infraestructura compartida por decenas de pantallas, para un caso de este formulario |
+
+#### Consecuencia
+
+Sin migración. `features/raffles/edit-origin.ts` y `lib/auth/capability-resolver.ts` nuevos;
+`PrizeHistoryDialog`, `RaffleStatusActions`, `RaffleForm`, `PrizeRewardField`, `PrizeScheduleField`,
+`review.ts` (`draftActivation`), `raffles/actions.ts`, `guards.ts`, `capabilities.ts` y las cuatro
+páginas del proceso. Pruebas nuevas: `prize-history-retry`, `raffle-activation`,
+`raffle-edit-origin` y `capabilities` (unitarias), J1-08 (base de datos) y diez de navegador: seis
+de escritorio y la comprobación parametrizada en 320, 375, 390 y 430 px, que sustituye a la que
+medía solo la revisión a 320 px. Detalle y cifras en `TEST_RESULTS` (2026-09-16).
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

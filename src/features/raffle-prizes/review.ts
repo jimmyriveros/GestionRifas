@@ -52,3 +52,35 @@ export function raffleReviewProblems(prizes: ReviewPrize[], raffle: ReviewRaffle
 
   return problems
 }
+
+/**
+ * Cómo se ofrece ACTIVAR una rifa en borrador desde su detalle (D-202).
+ *
+ * Una rifa con premios configurables se activa pasando por la revisión, que es
+ * la que dice qué falta: su detalle no ofrece «Activar rifa», sino el enlace a
+ * «Revisar y activar». Quien no puede configurar los premios tampoco puede
+ * revisarlos, así que a esa persona no se le ofrece ninguna de las dos. Una
+ * rifa heredada conserva «Activar rifa», como siempre.
+ *
+ * SOLO DECIDE LO QUE SE PINTA. Activar sigue pasando por `changeRaffleStatus`,
+ * que se autoriza sola ante una invocación directa, y por el disparador de
+ * PostgreSQL, que valida la configuración venga de donde venga.
+ *
+ * El texto viaja hecho desde el servidor (el precedente de D-181): los textos
+ * del proceso no se cargan en el navegador de la pantalla de detalle.
+ */
+export type DraftActivation =
+  { kind: 'direct' } | { kind: 'review'; href: string; label: string } | { kind: 'none' }
+
+export function draftActivation(
+  raffle: { id: string; prizeMode: 'legacy' | 'configurable' },
+  canManagePrizes: boolean,
+): DraftActivation {
+  if (raffle.prizeMode === 'legacy') return { kind: 'direct' }
+  if (!canManagePrizes) return { kind: 'none' }
+  return {
+    kind: 'review',
+    href: `/owner/raffles/${raffle.id}/review`,
+    label: RAFFLE_WIZARD_COPY.steps.review,
+  }
+}

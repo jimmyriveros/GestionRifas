@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { loadSeedRefs, type SeedRefs } from './db-setup'
+import { loadSeedRefs, serviceClient, type SeedRefs } from './db-setup'
 import { ACCOUNTS, addPrize, createRaffleWithPrize, expectToast, loginAs, unique } from './fixtures'
 
 /**
@@ -257,6 +257,184 @@ test.describe('Premios configurables', () => {
 
     await page.goto(`/owner/raffles/${refs.raffleId}/prizes`)
     await expect(page.getByText('Esta rifa usa el sistema de premios de siempre')).toBeVisible()
+  })
+})
+
+/** Crea una rifa por el primer paso del proceso, sin premios, y devuelve su id. */
+async function createDraftRaffle(page: Page, name: string): Promise<string> {
+  await page.goto('/owner/raffles/new')
+  await page.getByLabel('Nombre de la rifa').fill(name)
+  await page.getByLabel('Fecha de inicio').fill('2026-01-01')
+  await page.getByLabel('Fecha de fin').fill('2026-12-31')
+  await page.getByRole('button', { name: 'Crear rifa' }).click()
+  await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
+  return page.url().split('/owner/raffles/')[1]?.split('/')[0] ?? ''
+}
+
+test.describe('Activar una rifa configurable pasa por la revisión (D-202)', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
+  })
+
+  test('borrador configurable: el detalle no activa directo y ofrece «Revisar y activar»', async ({
+    page,
+  }) => {
+    const name = unique('Rifa sin activar directo')
+    const raffleId = await createDraftRaffle(page, name)
+
+    await page.goto(`/owner/raffles/${raffleId}`)
+    await expect(page.getByRole('heading', { name })).toBeVisible()
+
+    // Sin activación directa, y con el camino a la revisión en su lugar.
+    await expect(page.getByRole('button', { name: 'Activar rifa' })).toHaveCount(0)
+    const revisar = page.getByRole('link', { name: 'Revisar y activar' })
+    await expect(revisar).toHaveAttribute('href', `/owner/raffles/${raffleId}/review`)
+    // Las demás transiciones de un borrador siguen donde estaban.
+    await expect(page.getByRole('button', { name: 'Anular rifa' })).toBeVisible()
+
+    await revisar.click()
+    await page.waitForURL(new RegExp(`/owner/raffles/${raffleId}/review$`))
+
+    // Y la revisión, sin premios, dice qué falta y no deja activar.
+    await expect(page.getByText('Todavía no se puede activar')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Activar rifa' })).toBeDisabled()
+  })
+
+  test('borrador heredado: conserva «Activar rifa», con su confirmación', async ({ page }) => {
+    // Una rifa heredada ya no se crea por la interfaz (D-202): se prepara con la
+    // service role, como las del seed. Fechas de 2019, para que no se cruce con
+    // ninguna rifa ni ningún sorteo de otra suite.
+    const name = unique('Rifa heredada borrador')
+    const { data: raffle, error } = await serviceClient()
+      .from('raffles')
+      .insert({
+        organization_id: refs.organizationId,
+        name,
+        ticket_price: 120_000,
+        start_date: '2019-01-01',
+        end_date: '2019-12-31',
+        created_by: refs.ownerId,
+      })
+      .select('id, prize_mode, status')
+      .single()
+    if (error) throw error
+    expect(raffle.prize_mode).toBe('legacy')
+    expect(raffle.status).toBe('draft')
+
+    await page.goto(`/owner/raffles/${raffle.id}`)
+    await expect(page.getByRole('heading', { name })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Revisar y activar' })).toHaveCount(0)
+
+    // Reintento deliberado: el primer clic puede caer antes de que React hidrate
+    // la página recién cargada (TESTING §5.3). Abrir la confirmación es inocuo.
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Activar rifa' }).click()
+      await expect(page.getByRole('alertdialog')).toBeVisible({ timeout: 2_000 })
+    }).toPass({ timeout: 20_000 })
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Activar rifa' }).click()
+    await expectToast(page, /estado activa/i)
+    await expect(page.getByRole('button', { name: 'Cerrar rifa' })).toBeVisible()
+
+    // Las demás transiciones siguen igual; se anula para dejarla inerte.
+    await page.getByRole('button', { name: 'Anular rifa' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Anular rifa' }).click()
+    await expectToast(page, /estado anulada/i)
+  })
+})
+
+test.describe('Corregir los datos de la rifa sin salir del proceso (D-202)', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
+  })
+
+  test('desde los premios, guardar vuelve a los premios', async ({ page }) => {
+    const name = unique('Rifa datos desde premios')
+    const raffleId = await createRaffleWithPrize(page, { name, prizeTitle: 'Premio del proceso' })
+
+    await page.getByRole('link', { name: 'Volver a los datos de la rifa' }).click()
+    await page.waitForURL(new RegExp(`/owner/raffles/${raffleId}/edit\\?from=prizes$`))
+
+    const corrected = `${name} corregida`
+    await page.getByLabel('Nombre de la rifa').fill(corrected)
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+
+    await page.waitForURL(new RegExp(`/owner/raffles/${raffleId}/prizes$`))
+    await expectToast(page, 'Rifa actualizada.')
+    // Sigue en el paso 2, con el nombre corregido y su premio.
+    await expect(page.getByText(corrected).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Continuar a revisar' })).toBeVisible()
+    await expect(prizesTable(page)).toContainText('Premio del proceso')
+  })
+
+  test('desde los premios, cancelar vuelve a los premios sin guardar', async ({ page }) => {
+    const name = unique('Rifa cancelar desde premios')
+    const raffleId = await createRaffleWithPrize(page, { name })
+
+    await page.getByRole('link', { name: 'Volver a los datos de la rifa' }).click()
+    await page.waitForURL(new RegExp(`/owner/raffles/${raffleId}/edit\\?from=prizes$`))
+    await page.getByLabel('Nombre de la rifa').fill(`${name} sin guardar`)
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+
+    await page.waitForURL(new RegExp(`/owner/raffles/${raffleId}/prizes$`))
+    await expect(page.getByRole('link', { name: 'Continuar a revisar' })).toBeVisible()
+    await expect(page.getByText(`${name} sin guardar`)).toHaveCount(0)
+
+    // Sin historial dentro de la aplicación —el enlace pegado en otra pestaña, o
+    // después de pasar por el detalle— manda el origen, no la página anterior.
+    await page.goto(`/owner/raffles/${raffleId}`)
+    await page.goto(`/owner/raffles/${raffleId}/edit?from=prizes`)
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Cancelar' }).click()
+      await page.waitForURL(new RegExp(`/owner/raffles/${raffleId}/prizes$`), { timeout: 3_000 })
+    }).toPass({ timeout: 20_000 })
+  })
+
+  test('desde el detalle, cancelar y guardar vuelven al detalle', async ({ page }) => {
+    const name = unique('Rifa datos desde detalle')
+    const raffleId = await createRaffleWithPrize(page, { name })
+    const detail = new RegExp(`/owner/raffles/${raffleId}$`)
+    const edit = new RegExp(`/owner/raffles/${raffleId}/edit$`)
+
+    await page.goto(`/owner/raffles/${raffleId}`)
+    await page.getByRole('link', { name: 'Editar' }).click()
+    await page.waitForURL(edit)
+
+    // Cancelar es inocuo: se reintenta por si cae antes de la hidratación (§5.3).
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Cancelar' }).click()
+      await page.waitForURL(detail, { timeout: 3_000 })
+    }).toPass({ timeout: 20_000 })
+
+    await page.getByRole('link', { name: 'Editar' }).click()
+    await page.waitForURL(edit)
+    await page.getByLabel('Precio de la boleta').fill('50000')
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+
+    await page.waitForURL(detail)
+    await expectToast(page, 'Rifa actualizada.')
+    await expect(page.getByText('$50.000').first()).toBeVisible()
+  })
+
+  test('un origen escrito a mano no decide el destino: se vuelve al detalle', async ({ page }) => {
+    const name = unique('Rifa origen escrito')
+    const raffleId = await createRaffleWithPrize(page, { name })
+    const detail = `/owner/raffles/${raffleId}`
+
+    for (const forged of ['https://evil.example', '//evil.example/owner', 'javascript:alert(1)']) {
+      // Carga dura, sin historial dentro de la aplicación: cancelar va al destino
+      // que compuso la página, que no puede ser lo que trae la URL.
+      await page.goto(`${detail}/edit?from=${encodeURIComponent(forged)}`)
+      await expect(page.getByLabel('Nombre de la rifa')).toHaveValue(name)
+      // El texto SÍ aparece en el HTML: Next guarda ahí la URL de la propia página.
+      // Lo que no puede pasar es que un destino lo use.
+      await expect(page.locator('a[href*="evil.example"], a[href^="javascript:"]')).toHaveCount(0)
+
+      await expect(async () => {
+        await page.getByRole('button', { name: 'Cancelar' }).click()
+        await page.waitForURL(new RegExp(`${detail}$`), { timeout: 3_000 })
+      }).toPass({ timeout: 20_000 })
+      expect(new URL(page.url()).host).toBe('localhost:3000')
+    }
   })
 })
 

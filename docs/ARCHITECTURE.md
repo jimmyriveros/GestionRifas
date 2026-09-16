@@ -1,9 +1,10 @@
 # ARQUITECTURA
 
-- **Versión:** 1.34 · **Estado:** implementado · **Actualizado:** 2026-09-15 (§7.3 y **§8.27**:
-  premios configurables por rifa, su **panel** y la capacidad central, D-199 a **D-202**,
-  migraciones `0058`, `0059` y `0060`, **solo en
-  local**). Antes, el 2026-09-13 (§7.3 y §8.25: el mensaje
+- **Versión:** 1.35 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27**: la
+  corrección de la Entrega 2 —el **resolvedor central de capacidades**, el origen cerrado de la
+  edición y la activación solo desde la revisión—, D-202, **sin migración**). Antes, el 2026-09-15
+  (§7.3 y **§8.27**: premios configurables por rifa, su **panel** y la capacidad central, D-199 a
+  **D-202**, migraciones `0058`, `0059` y `0060`, **solo en local**). Antes, el 2026-09-13 (§7.3 y §8.25: el mensaje
   propio de «Resultados de la semana», D-197)
 - Documentos relacionados: `docs/DATA_MODEL.md`, `docs/SECURITY.md`, `docs/IMPLEMENTATION_PLAN.md`
 - **§8.23** («Configuración» del vendedor con subrutas) está **implementada** desde el 2026-09-12
@@ -2003,8 +2004,10 @@ vendedor, o si una Server Action de la cartera deja de exigir el rol `seller`.
 | `src/features/raffle-prizes/review.ts` | Lo que impide activar una rifa, **puro**. PostgreSQL vuelve a comprobarlo |
 | `src/features/raffle-prizes/components/` | `PrizeList` (tabla + tarjetas), `PrizeDialog` con `PrizeRewardField` y `PrizeScheduleField`, `PrizeHistoryDialog`, `RafflePrizesPanel` y `RaffleReview` |
 | `src/features/raffles/components/RaffleWizardSteps.tsx` | Los tres pasos de crear una rifa. Dice dónde estás; no navega |
-| `src/lib/auth/capabilities.ts` | El catálogo de capacidades y la política por rol. **Puro**: lo pueden leer las pantallas para decidir si pintan una acción |
-| `authorizeCapability()` en `src/lib/auth/guards.ts` | `authorizeAction` con la pregunta cambiada: capacidad en vez de rol. Las Server Actions de la Entrega 2 entran por aquí |
+| `src/lib/auth/capabilities.ts` | El catálogo de capacidades y la **política predeterminada** por rol, espejo de PostgreSQL. **Solo lo lee el resolvedor** (y las pruebas que lo comparan con la base): ninguna pantalla ni acción mira esta tabla (D-202, corrección) |
+| `hasCapability()` en `src/lib/auth/capability-resolver.ts` | **El resolvedor central** (`server-only`, asíncrono). Recibe la **membresía completa** y decide si tiene una capacidad; hoy delega en la política predeterminada. Lo llaman la guarda y las páginas de detalle, premios, revisión y nueva rifa. El módulo de permisos por administrador reemplazará **su cuerpo** —y el de `has_org_capability`— y nada más |
+| `authorizeCapability()` en `src/lib/auth/guards.ts` | `authorizeAction` con la pregunta cambiada: capacidad en vez de rol, resuelta por `hasCapability`. Admite `roles` —quién puede llegar a preguntar— y la frase para quien no la tiene. La usan las seis acciones de premios y `createRaffle` (personal **y** capacidad) |
+| `src/features/raffles/edit-origin.ts` | A dónde vuelve «Editar rifa»: el detalle o los premios del proceso, con `?from=` contrastado con una **lista cerrada** y el destino compuesto con el id de la rifa. Sin redirecciones abiertas (patrón de D-135) |
 | `src/features/raffle-prizes/schedule.ts` | El calendario, **puro**: expansión, forma canónica, solapes, los tres modos de la pantalla y el payload de la RPC |
 | `src/features/raffle-prizes/matching.ts` | La semántica de las cifras, la prioridad de cuatro sobre tres y **qué versión aplica a un sorteo**. Es el contrato que consumirá el motor |
 | `src/features/raffle-prizes/copy.ts` | **Todos** los textos: etiquetas, el resumen del calendario en español y la vista previa del premio |
@@ -2038,6 +2041,14 @@ la rifa en modo lectura. El formulario es **uno** para crear y para publicar una
 **historial se pide al abrirlo**, paginado, por una Server Action. Y **nada se vuelve a consultar
 desde el cliente**: lo que cambia lo refresca `revalidatePath` desde cada acción, más un
 `router.refresh()` al terminar.
+
+**Tres reglas de la corrección del 2026-09-16 (D-202, Decisiones 7 a 11).** Un borrador
+**configurable** se activa **solo desde la revisión**: su detalle ofrece «Revisar y activar» en lugar
+de «Activar rifa» (`draftActivation`), y las heredadas siguen igual. Una lectura que se puede
+reintentar identifica **cada petición** con un objeto nuevo, y lo que se pinta se deduce de si la
+respuesta contesta a la vigente (`PrizeHistoryDialog`). Y en el teléfono, un desplegable metido en
+cajas con relleno **parte su valor** en vez de ensanchar la rejilla: la columna de un `grid` que
+solo declara columnas desde `sm` es `auto` y no baja del texto más largo (D-125, I-122).
 
 ## 9. Configuración regional
 

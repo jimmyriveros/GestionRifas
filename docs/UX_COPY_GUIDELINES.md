@@ -1419,6 +1419,14 @@ acción explícita, una confirmación que dice qué va a pasar —«Sus boletas 
 premios quedarán anunciados con las condiciones que ves aquí.»— y, mientras no se pueda, el botón
 no se ofrece y la pantalla enumera qué falta.
 
+**Y en el detalle de un borrador configurable no hay «Activar rifa»** (D-202, corrección del
+2026-09-16). En su sitio va **«Revisar y activar»** —el nombre del tercer paso, que lleva justo ahí—,
+porque es la revisión la que dice qué falta. Una rifa heredada conserva «Activar rifa», y ninguna de
+las dos acciones aparece para quien no puede configurar los premios.
+
+**Cada alternativa se titula en singular: «Alternativa 1», «Alternativa 2»**, como «Período 1».
+Hasta el 2026-09-16 decía «Alternativas 1».
+
 **Las aclaraciones de un premio las va a leer un cliente.** La pantalla lo dice antes de que alguien
 escriba: «Las aclaraciones se pueden compartir con los vendedores y con sus clientes: escríbelas
 pensando en ellos.» Es la §5 de esta guía —explicar qué ocurrirá— aplicada a un campo de texto libre.
@@ -1607,10 +1615,11 @@ castigo donde solo había una espera.
 
 | Todos los textos de los premios configurables: categorías, recompensa, cifras, el resumen del calendario en español y la vista previa del premio | `src/features/raffle-prizes/copy.ts` (`PRIZE_COPY`), **todos juntos** (D-199) |
 | Los del **panel**: título, columnas, acciones, archivados, los dos avisos de estado de la rifa y las dos confirmaciones | `PRIZE_PANEL_COPY`, en ese mismo archivo (D-202) |
-| Los del **formulario** de un premio, incluidas las alternativas y la ayuda de las cifras | `PRIZE_FORM_COPY`, ahí mismo (D-202) |
+| Los del **formulario** de un premio, incluidas las alternativas y la ayuda de las cifras | `PRIZE_FORM_COPY`, ahí mismo (D-202). El título de cada alternativa, «Alternativa N», es `optionTitle` |
 | Los del **selector de calendario**: las tres formas, los días, la lotería fija y la vista previa | `PRIZE_SCHEDULE_COPY`, ahí mismo (D-202) |
 | Los del **historial** de un premio | `PRIZE_HISTORY_COPY`, ahí mismo; qué pasó en cada versión, en `PRIZE_CHANGE_LABELS` (D-202) |
 | Los de los **tres pasos** de crear una rifa y de la revisión previa a activar | `RAFFLE_WIZARD_COPY`, ahí mismo. Los **pinta** `RaffleWizardSteps`, que no escribe ninguno (D-202) |
+| «Revisar y activar» en el detalle de un borrador configurable | `RAFFLE_WIZARD_COPY.steps.review`, que `draftActivation` (`raffle-prizes/review.ts`) entrega **hecho** a `RaffleStatusActions`: el componente de cliente no carga los textos del proceso (D-202, corrección) |
 | Los dos nombres de la forma de recompensa, «Premio único» y «Alternativas a elegir» | `PRIZE_REWARD_MODE_LABELS`, en ese mismo archivo (D-201). Sustituyen a `PRIZE_REWARD_TYPE_LABELS`, que ya no existe |
 | Cómo se lee una alternativa, y cómo se leen varias | `rewardOptionText` y `rewardOptionsText`, ahí mismo — se **componen** de los componentes de la opción, no se escriben sueltos (D-201) |
 | La vigencia de un premio | `validityText`, ahí mismo; la calcula `validityRange` en `schedule.ts` (D-201) |

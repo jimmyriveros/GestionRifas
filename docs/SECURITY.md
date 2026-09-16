@@ -1,6 +1,7 @@
 # SEGURIDAD
 
-- **Versión:** 2.16 · **Estado:** implementado · **Actualizado:** 2026-09-14
+- **Versión:** 2.17 · **Estado:** implementado · **Actualizado:** 2026-09-16 (§4.20: el resolvedor
+  central de capacidades y el origen cerrado de «Editar rifa», corrección de D-202, sin migración)
 - **§4.19** describe **la cartera del vendedor fuera del alcance del personal** (`0057`, D-198,
   BR-Q01..BR-Q10): el Dueño y el Administrador ya no leen clientes, precios, abonos, saldos, pagos ni
   ganancias por ninguna vía, y lo que administran les llega por siete proyecciones de lista blanca.
@@ -1128,9 +1129,16 @@ membresía, el perfil y la organización sigan activos (BR-A04). La política in
 tiene todas las capacidades del catálogo, el **Administrador** recibe esta por compatibilidad y el
 **Vendedor** ninguna. Una capacidad que no está en el catálogo es «no» **también para el Dueño**.
 
-El espejo de la aplicación (`src/lib/auth/capabilities.ts` + `authorizeCapability`) es la primera
-línea, nunca la única. **Una prueba de base de datos compara las dos tablas rol a rol**: si alguien
-toca una sola, falla.
+El espejo de la aplicación es la primera línea, nunca la única. **Un solo resolvedor**,
+`hasCapability` (`src/lib/auth/capability-resolver.ts`), recibe la membresía completa y decide; lo
+consultan la guarda `authorizeCapability` —que usan las seis acciones de premios y `createRaffle`,
+esta además acotada al personal— y las páginas del proceso para no ofrecer lo que la base va a
+rechazar. **Ocultar un botón no autoriza nada**: la acción se autoriza sola y la RPC o el disparador
+vuelven a preguntar a `has_org_capability`. La política por rol de `capabilities.ts` solo la lee el
+resolvedor, y una prueba estructural lo vigila (D-202, corrección del 2026-09-16). **Dos pruebas de
+base de datos comparan la aplicación con PostgreSQL**: la política rol a rol (J1-06) y la resolución
+con la membresía real del Dueño, del Administrador y de un vendedor (J1-08). Si alguien toca una
+sola mitad, fallan.
 
 **Por qué las tablas no admiten escritura directa.** Ninguna de las **cuatro** tiene política de
 `INSERT`, `UPDATE` ni `DELETE`, y `authenticated` solo tiene `SELECT`. Así el tope de premios, la
@@ -1144,7 +1152,8 @@ acuerda de hacer, son el único camino. Es el patrón de `0051`. `raffle_prize_r
 | Una rifa de otra organización, o sin la capacidad | El **mismo** mensaje que una rifa que no existe: no se distingue «no existe» de «no es tuya» |
 | El historial de un premio ajeno | `raffle_prize_history` devuelve **cero filas**, igual que para un id inexistente |
 | Cambiar el sistema de premios de una rifa que ya existe | Un disparador lo rechaza para **cualquier sesión**, sin excepción (BR-J13) |
-| Crear una rifa nueva en modo `configurable` | El mismo disparador la admite **solo con la capacidad** `raffles.prizes.manage` y **solo en borrador** (`0060`, D-202). La aplicación lo comprueba antes, con la misma frase, y la base es la que manda |
+| Crear una rifa nueva en modo `configurable` | El mismo disparador la admite **solo con la capacidad** `raffles.prizes.manage` y **solo en borrador** (`0060`, D-202). La aplicación lo comprueba antes, con la guarda central y la misma frase, y la base es la que manda |
+| Volver de «Editar rifa» a una dirección elegida por quien escribe la URL | `?from=` solo admite `prizes`; cualquier otro valor vuelve al detalle, y el destino se compone con el id de la rifa leída con RLS. **No hay redirección abierta** (D-202, corrección) |
 | Leer o cambiar los premios sin la capacidad | La pantalla lo explica en vez de pintar el panel, `raffle_prize_history` devuelve cero filas y las seis RPC rechazan. La frontera real sigue siendo la base |
 | Activar una rifa configurable sin configuración válida | El mismo disparador la valida **en PostgreSQL**, no en React |
 | Dos personas editando el mismo premio | Control optimista con la versión vigente, más un cerrojo de aviso por rifa: la segunda recibe una frase que dice qué hacer |

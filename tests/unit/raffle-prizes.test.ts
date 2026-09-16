@@ -49,14 +49,14 @@ import {
   type PrizeRule,
   type PrizeScheduleSubject,
 } from '@/features/raffle-prizes/schedule'
-import { APP_CAPABILITIES, roleHasCapability } from '@/lib/auth/capabilities'
 
 /**
  * Premios configurables por rifa, Entrega 1 (BR-J01..BR-J14, D-199, D-200).
  *
  * Lo que se prueba aquí es el CONTRATO: el calendario, la semántica de las
- * cifras, la capacidad, los esquemas y los textos. Quién puede escribir y qué
- * queda en la base lo prueba `tests/db/raffle-prizes.test.ts`.
+ * cifras, los esquemas y los textos. Quién puede escribir y qué queda en la base
+ * lo prueba `tests/db/raffle-prizes.test.ts`; la capacidad y su resolvedor,
+ * `capabilities.test.ts`.
  *
  * Diciembre de 2026, que es la configuración de aceptación: el 1 es martes, el 5
  * y el 19 son sábados, el 15 es martes, el 16 miércoles y el 21 LUNES.
@@ -538,17 +538,6 @@ describe('los esquemas: sin organización, sin actor y sin rol (BR-J10)', () => 
   it('el orden con repetidos se rechaza', () => {
     const id = '11111111-2222-4333-8444-555555555555'
     expect(reorderPrizesSchema.safeParse({ raffleId: id, prizeIds: [id, id] }).success).toBe(false)
-  })
-})
-
-// =============================================================================
-describe('la capacidad central (D-200, BR-J10)', () => {
-  it('el Dueño tiene todas; el Administrador, la de premios; el Vendedor, ninguna', () => {
-    for (const capability of APP_CAPABILITIES) {
-      expect(roleHasCapability('owner', capability)).toBe(true)
-      expect(roleHasCapability('seller', capability)).toBe(false)
-    }
-    expect(roleHasCapability('admin', 'raffles.prizes.manage')).toBe(true)
   })
 })
 

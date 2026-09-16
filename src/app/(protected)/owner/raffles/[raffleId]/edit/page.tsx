@@ -2,14 +2,19 @@ import { notFound, redirect } from 'next/navigation'
 
 import { PageHeader } from '@/components/data/PageHeader'
 import { RaffleForm } from '@/features/raffles/components/RaffleForm'
+import { parseRaffleEditOrigin, raffleEditReturnHref } from '@/features/raffles/edit-origin'
 import { getAdminRaffleDetail } from '@/features/raffles/queries'
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
 export default async function EditRafflePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ raffleId: string }>
+  searchParams: SearchParams
 }) {
-  const { raffleId } = await params
+  const [{ raffleId }, query] = await Promise.all([params, searchParams])
   // La lectura del personal: la rifa y sus recuentos, sin dinero (D-198).
   const raffle = await getAdminRaffleDetail(raffleId)
 
@@ -21,12 +26,17 @@ export default async function EditRafflePage({
     redirect(`/owner/raffles/${raffle.id}`)
   }
 
+  // D-202: se vuelve a donde se abrió —el detalle o los premios del proceso—.
+  // El origen es una lista cerrada y el destino se compone con el id que RLS ya
+  // dejó ver, nunca con lo que traiga la URL.
+  const returnHref = raffleEditReturnHref(raffle.id, parseRaffleEditOrigin(query.from))
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={`Editar ${raffle.name}`}
         description="Cambiar el precio no modifica las boletas que ya se vendieron."
-        backHref={`/owner/raffles/${raffle.id}`}
+        backHref={returnHref}
       />
       <RaffleForm
         raffle={{
@@ -38,6 +48,7 @@ export default async function EditRafflePage({
           endDate: raffle.endDate,
           allowSellerTicketCreation: raffle.allowSellerTicketCreation,
         }}
+        returnHref={returnHref}
       />
     </div>
   )

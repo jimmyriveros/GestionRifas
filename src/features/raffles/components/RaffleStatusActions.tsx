@@ -1,6 +1,7 @@
 'use client'
 
-import { PlayIcon, RotateCcwIcon } from 'lucide-react'
+import { ClipboardCheckIcon, PlayIcon, RotateCcwIcon } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -8,6 +9,7 @@ import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { CompactActionSlot } from '@/components/layout/CompactHeader'
 import { Button } from '@/components/ui/button'
+import type { DraftActivation } from '@/features/raffle-prizes/review'
 import {
   RAFFLE_STATUS_LABELS,
   RAFFLE_STATUS_TRANSITIONS,
@@ -22,6 +24,13 @@ type RaffleStatusActionsProps = {
   raffleId: string
   status: RaffleStatus
   role: AppRole
+  /**
+   * Cómo se activa un BORRADOR (D-202), decidido en el servidor por
+   * `draftActivation`. `direct` es «Activar rifa» con su confirmación, lo de
+   * siempre; `review` pone en su lugar el enlace a la revisión, y `none` no
+   * ofrece activarlo. Las demás transiciones no cambian.
+   */
+  draftActivation?: DraftActivation
 }
 
 const TRANSITION_COPY: Record<RaffleStatus, { action: string; description: string }> = {
@@ -43,18 +52,30 @@ const TRANSITION_COPY: Record<RaffleStatus, { action: string; description: strin
   },
 }
 
-export function RaffleStatusActions({ raffleId, status, role }: RaffleStatusActionsProps) {
+export function RaffleStatusActions({
+  raffleId,
+  status,
+  role,
+  draftActivation = { kind: 'direct' },
+}: RaffleStatusActionsProps) {
   const router = useRouter()
   const [target, setTarget] = useState<RaffleStatus | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  // D-202: el borrador de una rifa configurable se activa desde la revisión, que
+  // es la que dice qué falta. Aquí no se ofrece activarlo directamente.
+  const activatesElsewhere = status === 'draft' && draftActivation.kind !== 'direct'
+  const review = status === 'draft' && draftActivation.kind === 'review' ? draftActivation : null
+
   const available = RAFFLE_STATUS_TRANSITIONS[status].filter(
-    // BR-R03: el Admin no ve la accion de reabrir, y la Server Action vuelve a
-    // comprobarlo por si alguien la invoca directamente.
-    (next) => !(isOwnerOnlyRaffleTransition(status, next) && role !== 'owner'),
+    (next) =>
+      // BR-R03: el Admin no ve la accion de reabrir, y la Server Action vuelve a
+      // comprobarlo por si alguien la invoca directamente.
+      !(isOwnerOnlyRaffleTransition(status, next) && role !== 'owner') &&
+      !(activatesElsewhere && next === 'active'),
   )
 
-  if (available.length === 0) return null
+  if (available.length === 0 && !review) return null
 
   function confirm() {
     if (!target) return
@@ -72,6 +93,17 @@ export function RaffleStatusActions({ raffleId, status, role }: RaffleStatusActi
 
   return (
     <>
+      {review ? (
+        <CompactActionSlot>
+          <Button asChild>
+            <Link href={review.href}>
+              <ClipboardCheckIcon className="size-4" aria-hidden />
+              {review.label}
+            </Link>
+          </Button>
+        </CompactActionSlot>
+      ) : null}
+
       {available.map((next) => {
         const isPrimary = next === 'active'
         const label =

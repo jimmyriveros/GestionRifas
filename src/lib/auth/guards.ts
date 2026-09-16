@@ -3,12 +3,15 @@ import 'server-only'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
-import { roleHasCapability, type AppCapability } from '@/lib/auth/capabilities'
+import type { AppCapability } from '@/lib/auth/capabilities'
+import { hasCapability } from '@/lib/auth/capability-resolver'
 import type { AppRole } from '@/lib/constants'
 import { getActiveMembership, getAuthUser, type ActiveMembership } from '@/lib/auth/session'
 
 /** Los tres roles. `authorizeCapability` parte de cualquiera y decide por capacidad. */
-const ALL_ROLES: AppRole[] = ['owner', 'admin', 'seller']
+const ALL_ROLES: readonly AppRole[] = ['owner', 'admin', 'seller']
+
+const PERMISSION_DENIED = 'No tienes permiso para realizar esta acción.'
 
 export function dashboardPathForRole(role: AppRole): '/seller/dashboard' | '/owner/dashboard' {
   return role === 'seller' ? '/seller/dashboard' : '/owner/dashboard'
@@ -58,7 +61,7 @@ export async function requireStaff() {
  * de la base de datos siguen siendo la frontera real (docs/SECURITY.md 1).
  */
 export async function authorizeAction(
-  allowedRoles: AppRole[],
+  allowedRoles: readonly AppRole[],
 ): Promise<{ membership: ActiveMembership } | { error: string }> {
   const user = await getAuthUser()
   if (!user) {
@@ -71,7 +74,7 @@ export async function authorizeAction(
   }
 
   if (!allowedRoles.includes(membership.role)) {
-    return { error: 'No tienes permiso para realizar esta acción.' }
+    return { error: PERMISSION_DENIED }
   }
 
   return { membership }
@@ -80,20 +83,30 @@ export async function authorizeAction(
 /**
  * Como `authorizeAction`, pero por CAPACIDAD y no por rol (D-200, BR-J10).
  *
- * Es el unico punto de la aplicacion donde se decide si alguien puede hacer algo
- * que el rol por si solo no explica: quien la use no vuelve a escribir
- * `role === 'admin'`. El resolvedor vive en `lib/auth/capabilities.ts` y su
- * espejo, en PostgreSQL (`has_org_capability`, migracion `0058`), que es quien
- * de verdad autoriza la operacion.
+ * Es la guarda de toda Server Action que el rol por si solo no explica: quien la
+ * use no vuelve a escribir `role === 'admin'` ni lee la tabla por rol. Decide el
+ * resolvedor central (`hasCapability`, en `lib/auth/capability-resolver.ts`), que
+ * recibe la membresia completa; el dia que exista el modulo de permisos se
+ * reemplaza el resolvedor y esta guarda —y las acciones que la usan— no cambian
+ * (D-202). Quien de verdad autoriza la operacion es su espejo en PostgreSQL,
+ * `has_org_capability` (migracion `0058`).
+ *
+ * `roles` acota ademas QUIEN puede llegar a preguntar: crear una rifa es del
+ * personal (BR-R01) aunque algun dia un vendedor recibiera la capacidad. Un rol
+ * fuera de la lista recibe el rechazo de siempre, sin consultar la capacidad.
+ *
+ * `deniedMessage` es la frase para quien SI tiene el rol pero no la capacidad,
+ * cuando la base responde con una propia y conviene decir lo mismo.
  */
 export async function authorizeCapability(
   capability: AppCapability,
+  options: { roles?: readonly AppRole[]; deniedMessage?: string } = {},
 ): Promise<{ membership: ActiveMembership } | { error: string }> {
-  const auth = await authorizeAction(ALL_ROLES)
+  const auth = await authorizeAction(options.roles ?? ALL_ROLES)
   if ('error' in auth) return auth
 
-  if (!roleHasCapability(auth.membership.role, capability)) {
-    return { error: 'No tienes permiso para realizar esta acción.' }
+  if (!(await hasCapability(auth.membership, capability))) {
+    return { error: options.deniedMessage ?? PERMISSION_DENIED }
   }
 
   return auth

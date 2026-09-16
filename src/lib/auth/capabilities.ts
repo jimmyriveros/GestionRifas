@@ -3,21 +3,23 @@ import type { AppRole } from '@/lib/constants'
 /**
  * Capacidades de la aplicacion (D-200, BR-J10).
  *
- * UN SOLO SITIO donde se decide quien puede hacer algo que no se explica con el
- * rol a secas. Las pantallas y las Server Actions preguntan por la CAPACIDAD
- * —`authorizeCapability('raffles.prizes.manage')`—, nunca por el rol: el dia que
- * exista el modulo de permisos se cambia el resolvedor y no hay que tocar
- * ninguna accion.
+ * EL CATALOGO Y LA POLITICA PREDETERMINADA, nada mas. Quien necesita saber si
+ * una persona puede hacer algo NO lee esta tabla: pregunta al resolvedor central
+ * (`hasCapability`, en `lib/auth/capability-resolver.ts`), que recibe la
+ * membresia completa. Las Server Actions llegan a el por `authorizeCapability` y
+ * las paginas lo llaman directamente. Asi, el dia que exista el modulo de
+ * permisos por administrador se reemplaza el resolvedor y no hay que tocar
+ * ninguna accion ni ninguna pantalla (D-202). Una prueba estructural impide que
+ * alguien vuelva a leer esta tabla desde fuera de `lib/auth`.
  *
  * ESTE ARCHIVO ES EL ESPEJO DE LA BASE DE DATOS. En PostgreSQL viven
  * `app_capability_catalog()`, `app_role_default_capabilities(role)` y
  * `has_org_capability(org, capability)` (migracion `0058`), y las RPC se
- * autorizan alli: esta comprobacion es la primera linea, no la unica
- * (`docs/SECURITY.md` §1). Una prueba de base de datos compara las dos tablas
- * para que no puedan separarse.
+ * autorizan alli: la comprobacion de la aplicacion es la primera linea, no la
+ * unica (`docs/SECURITY.md` §1). Una prueba de base de datos compara las dos
+ * tablas para que no puedan separarse.
  *
- * PURO Y SIN `server-only`: lo necesitan tambien las pantallas para decidir si
- * pintan una accion. Lo que nunca decide una pantalla es si la operacion ocurre.
+ * PURO Y SIN `server-only`: lo importan el resolvedor y esas pruebas.
  */
 
 /** Catalogo cerrado. Una capacidad que no este aqui es «no» para todo el mundo. */
@@ -37,9 +39,4 @@ export const ROLE_DEFAULT_CAPABILITIES: Record<AppRole, readonly AppCapability[]
   owner: APP_CAPABILITIES,
   admin: ['raffles.prizes.manage'],
   seller: [],
-}
-
-/** Si un rol tiene una capacidad con la politica vigente. */
-export function roleHasCapability(role: AppRole, capability: AppCapability): boolean {
-  return ROLE_DEFAULT_CAPABILITIES[role].includes(capability)
 }

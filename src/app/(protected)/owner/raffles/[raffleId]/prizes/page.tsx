@@ -8,16 +8,17 @@ import { RafflePrizesPanel } from '@/features/raffle-prizes/components/RafflePri
 import { PRIZE_PANEL_COPY, RAFFLE_WIZARD_COPY } from '@/features/raffle-prizes/copy'
 import { getPrizeRaffleContext, listRafflePrizes } from '@/features/raffle-prizes/queries'
 import { RaffleWizardSteps } from '@/features/raffles/components/RaffleWizardSteps'
+import { raffleEditHref } from '@/features/raffles/edit-origin'
+import { hasCapability } from '@/lib/auth/capability-resolver'
 import { requireStaff } from '@/lib/auth/guards'
-import { roleHasCapability } from '@/lib/auth/capabilities'
 
 /**
  * Paso 2 de crear una rifa, y la pantalla de configuracion de sus premios
  * (D-202). Se llega desde el proceso y tambien desde el detalle de la rifa.
  *
- * QUIEN ENTRA: personal con la capacidad `raffles.prizes.manage` (D-200). Sin
- * ella se explica, no se pinta un panel que la base va a rechazar. La frontera
- * real siguen siendo la RLS y las RPC.
+ * QUIEN ENTRA: personal con la capacidad `raffles.prizes.manage` (D-200), segun
+ * el resolvedor central. Sin ella se explica, no se pinta un panel que la base
+ * va a rechazar. La frontera real siguen siendo la RLS y las RPC.
  */
 export default async function RafflePrizesPage({
   params,
@@ -30,7 +31,7 @@ export default async function RafflePrizesPage({
 
   if (!raffle) notFound()
 
-  const canManage = roleHasCapability(membership.role, 'raffles.prizes.manage')
+  const canManage = await hasCapability(membership, 'raffles.prizes.manage')
   const isDraft = raffle.status === 'draft'
 
   if (raffle.prizeMode === 'legacy') {
@@ -69,8 +70,9 @@ export default async function RafflePrizesPage({
                   {RAFFLE_WIZARD_COPY.prizesNext}
                 </Link>
               </Button>
+              {/* Corregir los datos no saca del proceso: se vuelve aquí (D-202). */}
               <Button asChild variant="outline" size="touch" className="w-full sm:w-auto">
-                <Link href={`/owner/raffles/${raffle.id}/edit`}>
+                <Link href={raffleEditHref(raffle.id, 'prizes')}>
                   {RAFFLE_WIZARD_COPY.prizesBack}
                 </Link>
               </Button>

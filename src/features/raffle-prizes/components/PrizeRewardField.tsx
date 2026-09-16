@@ -103,9 +103,14 @@ export function PrizeRewardField({ disabled }: { disabled?: boolean }) {
         {fields.map((field, index) => (
           <div key={field.id} className="space-y-3 rounded-md border p-3">
             {isChoice ? (
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-body-small font-medium">{`${PRIZE_FORM_COPY.optionsLegend} ${index + 1}`}</p>
-                <div className="flex items-center gap-1">
+              // A 320 px el título y los tres botones de 44 px no caben en una
+              // fila: se parte en dos en vez de ensanchar el diálogo, que se
+              // desplazaba de lado (D-202). Los botones siguen a la derecha.
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                <p className="text-body-small font-medium">
+                  {PRIZE_FORM_COPY.optionTitle(index + 1)}
+                </p>
+                <div className="ms-auto flex items-center gap-1">
                   <Button
                     type="button"
                     variant="ghost"

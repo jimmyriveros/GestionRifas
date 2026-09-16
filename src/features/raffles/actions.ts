@@ -3,8 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { RAFFLE_WIZARD_COPY } from '@/features/raffle-prizes/copy'
-import { roleHasCapability } from '@/lib/auth/capabilities'
-import { authorizeAction } from '@/lib/auth/guards'
+import { authorizeAction, authorizeCapability } from '@/lib/auth/guards'
 import { isOwnerOnlyRaffleTransition, RAFFLE_STATUS_TRANSITIONS } from '@/lib/constants'
 import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
@@ -26,7 +25,9 @@ import { changeRaffleStatusSchema, createRaffleSchema, updateRaffleSchema } from
  * DOS COMPROBACIONES, y cada una dice algo distinto: crear rifas es del
  * personal (BR-R01), y que la rifa nazca `configurable` exige la capacidad
  * `raffles.prizes.manage` (D-200), porque quien la crea tiene que poder
- * configurar sus premios para llegar a activarla. La que manda es el
+ * configurar sus premios para llegar a activarla. Las dos las hace la guarda
+ * central, que pregunta al resolvedor de capacidades con la membresía completa:
+ * aquí no se mira ningún rol ni ninguna tabla (D-202). La que manda es el
  * disparador `raffles_guard_prize_config` de la migración `0060`, que
  * comprueba lo mismo en PostgreSQL y con las mismas palabras.
  *
@@ -34,12 +35,11 @@ import { changeRaffleStatusSchema, createRaffleSchema, updateRaffleSchema } from
  * puede cambiarlas de modo. Esa transición es la Entrega 4.
  */
 export async function createRaffle(input: unknown): Promise<ActionResultWith<{ id: string }>> {
-  const auth = await authorizeAction(['owner', 'admin'])
+  const auth = await authorizeCapability('raffles.prizes.manage', {
+    roles: ['owner', 'admin'],
+    deniedMessage: RAFFLE_WIZARD_COPY.noCapability,
+  })
   if ('error' in auth) return auth
-
-  if (!roleHasCapability(auth.membership.role, 'raffles.prizes.manage')) {
-    return { error: RAFFLE_WIZARD_COPY.noCapability }
-  }
 
   const parsed = createRaffleSchema.safeParse(input)
   if (!parsed.success) {
