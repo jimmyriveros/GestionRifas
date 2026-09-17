@@ -1200,15 +1200,22 @@ devuelve una columna de esa lista. El aviso que se escribe en la campana tampoco
 > **Desde la `0066` (D-207, §4.23)** `match_lottery_result` tampoco es ejecutable por `service_role`: la
 > única entrada del motor es `confirm_lottery_result`.
 
-**La superficie no crece.** `match_lottery_result` y `confirm_lottery_result` siguen siendo proceso
-interno: **sin `EXECUTE` para `anon` ni `authenticated`**, solo `service_role`, igual que en
-`0036`–`0038`. Las piezas nuevas —`raffle_prize_versions_at`, `raffle_prize_draw_prizes` y los tres
-disparadores, y desde la `0062` `raffle_prize_draw_cutoff`, el corte de un sorteo (D-203, Decisión
-9)— tampoco son ejecutables desde una sesión. La `0062` vuelve a escribir los privilegios que ya
-tenían las funciones que reescribe —`match_lottery_result`, solo para `service_role`— sin conceder
-ninguno nuevo: **la superficie no cambia**. Tener la capacidad `raffles.prizes.manage`
-**no da ninguna puerta** hacia las coincidencias: ni el Dueño, que tiene todas, puede ejecutar el
-motor o escribir un enlace.
+**La superficie no crece.** `match_lottery_result` y `confirm_lottery_result` son proceso interno:
+**sin `EXECUTE` para `anon` ni `authenticated`**, igual que en `0036`–`0038`. Con `service_role` hay
+que distinguir dos momentos:
+
+| Momento | `match_lottery_result` | `confirm_lottery_result` |
+|---|---|---|
+| **Histórico, hasta la `0065`** | `EXECUTE` directo para `service_role` | `EXECUTE` directo para `service_role` |
+| **Definitivo, desde la `0066`** (D-207, §4.23) | **Interna**: no la ejecuta directamente ningún rol de la API —ni PUBLIC, ni `anon`, ni `authenticated`, ni `service_role`—; solo se alcanza dentro de `confirm_lottery_result` | **Conserva** `EXECUTE` para `service_role`, y es la única entrada del motor |
+
+Las piezas nuevas —`raffle_prize_versions_at`, `raffle_prize_draw_prizes` y los tres disparadores, y
+desde la `0062` `raffle_prize_draw_cutoff`, el corte de un sorteo (D-203, Decisión 9)— tampoco son
+ejecutables desde una sesión. La `0062` volvía a escribir el privilegio histórico de
+`match_lottery_result` —`EXECUTE` directo solo para `service_role`, que la `0064` repitió— sin conceder
+ninguno nuevo. **Ese permiso queda revocado y sustituido por la `0066`.** Tener la capacidad
+`raffles.prizes.manage` **no da ninguna puerta** hacia las coincidencias: ni el Dueño, que tiene todas,
+puede ejecutar el motor o escribir un enlace.
 
 | Superficie | Cómo se cierra |
 |---|---|
