@@ -11781,6 +11781,35 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
 
 ---
 
+## Premios configurables, Entrega 5 de 5: la puerta 2 en producción, con una desviación aceptada — 2026-09-17
+
+**Alcance:** la extensión de la fecha de fin de la rifa real (RUNBOOK §8.3), **después** de la puerta 1 —`0058`–`0066`
+aplicadas y `da81663` desplegado, `verify:remote` 41/41—. Todo lo que hizo el agente fue de **solo lectura**; la
+fecha la guardó una persona desde la pantalla de editar.
+
+| Paso (UTC) | Resultado |
+|---|---|
+| Primer turno del sincronizador con `da81663` (15:10:35) | Tomó y soltó el candado: **1** llamada a `/api/lottery/sync` con **200**, sin registros de error ni 5xx. **Sin trabajo**, reproducido con las funciones puras del código: la programación ya estaba sincronizada ese día y no había sorteos pendientes en el horizonte de 10 días. El motor (`confirm_lottery_result` → `match_lottery_result`) **todavía no se ejercitó en producción**. `verify:remote` 41/41 |
+| Preflight (15:16) | `da81663` servido y único despliegue; migraciones hasta `0066`; la rifa activa, del 2026-07-27 al 2026-11-01, `legacy`, 0 premios y 0 transiciones; **5** membresías activas; A1–A3 de §8.3 en verde; candado libre |
+| Guardado (15:21:19) | Fecha de fin **2026-12-21**, con la **misma huella** de A1: no cambió nada más |
+| Bitácora | 5908 `raffle.update` —solo `end_date`, 2026-11-01 → 2026-12-21— y 5909 `raffle.dates_change` —`notified` 5—, en la misma transacción |
+| Avisos | **5** `raffle.dates_changed` del mismo evento, uno por membresía activa —Dueño, Administrador y tres vendedores—, sin duplicados y solo con la rifa y sus fechas |
+| ❌ **Actor** | Las dos filas y los cinco avisos llevan a una **sesión de Administrador** de la organización, no al Dueño: B2 `con_otro_actor` = 5 y B3 `es_el_dueno` = false |
+| Fotografías (15:16:30 → 15:23:23) | Estructura igual. Propio del guardado: la fila de la rifa, las dos de bitácora y los cinco avisos. **Concurrente y normal:** un pago de $50.000 de un vendedor a las 15:19:57 (bitácora 5907), con su asignación y el saldo de su boleta. Con el Administrador aceptado como actor, las **12** filas quedan explicadas |
+| I-127 | Los **25** sorteos sin resultado confirmado, **idénticos fila a fila** a los de después de la puerta 1 |
+| `verify:remote` | ✅ **41/41** |
+
+**Desviación operativa, aceptada por el dueño el 2026-09-17:** se usó una sesión autorizada de **Administrador** en lugar
+de la sesión prevista del **Dueño**. El historial conserva quién hizo realmente la operación: **no** se revierte la fecha,
+**no** se repite el cambio y **no** se tocan la bitácora ni los avisos. La puerta 2 se da por completada.
+
+**Errores encontrados y corregidos (herramientas, fuera de Git):** el comparador de la puerta 1 esperaba las corridas a ±15
+min del minuto de `vercel.json`, cuando Vercel Hobby dispara en cualquier minuto de la hora, y no reconocía un turno que
+solo toca el candado ni un pago corregido segundos después de registrarlo; el de la puerta 2 compara por hora, y su primer
+ensayo local falló por comparar JSON sensible al orden de las claves. Todo se ensayó en local antes de usarlo en producción.
+
+---
+
 ## Premios configurables, Entrega 5 de 5: la Puerta 1 suspendida antes de escribir, y la `0066` — quién ejecuta cada función (D-207, I-132) — 2026-09-17
 
 **Alcance:** dos partes. **(1)** La Puerta 1 —aplicar `0058`–`0065` y desplegar `be26419`— se autorizó y

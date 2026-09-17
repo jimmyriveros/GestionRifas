@@ -288,7 +288,16 @@ usan solo los premios.
 | 2 | «¿Autorizas que el Dueño, con su sesión y desde Editar, extienda la fecha de fin de «<NOMBRE EXACTO>» hasta el <FECHA>, con el aviso a las <N> membresías activas, él incluido?» | **Lo escribe el Dueño**, no el agente: `raffles.end_date`, un aviso por membresía activa y la bitácora, a su nombre. El agente solo lee antes y después (§8.3) | La transición compara las fechas esperadas, y el premio principal juega el 21/12 |
 | 3 | «¿Autorizas transformar esta rifa específica y enviar el aviso a las membresías activas indicadas?» | La transición (§8.4) | Última: con la fecha ya extendida y la vista previa revisada |
 
-**Estado el 2026-09-17:** la puerta 1 se autorizó para `0058`–`0065` y `be26419`, y **se suspendió sin escribir
+**Estado el 2026-09-17, 15:24 UTC:** **puerta 1 hecha** —`0058`–`0066` aplicadas de 14:04:05 a 14:05:58 UTC con
+respaldo previo, `da81663` desplegado y `verify:remote` 41/41— y **puerta 2 completada** a las 15:21:19 UTC: la rifa
+termina el **21/12/2026**, sigue activa y en `legacy`, cada una de las **5** membresías activas recibió su aviso —el
+del Dueño incluido—, no hay premios ni transición y los 25 sorteos de I-127 siguen intactos. **Desviación operativa,
+aceptada por el dueño:** la fecha la guardó una **sesión autorizada de Administrador** de la organización, no la
+sesión del Dueño que prevé §8.3. La bitácora (5908 `raffle.update`, 5909 `raffle.dates_change`) y los cinco avisos
+**conservan a ese actor real**: no se corrigen, no se revierte la fecha y no se repite el cambio. **La puerta 3 no se
+ha autorizado.**
+
+**Estado el 2026-09-17, antes:** la puerta 1 se autorizó para `0058`–`0065` y `be26419`, y **se suspendió sin escribir
 nada**: ni respaldo, ni migraciones, ni push. El preflight vio primero un pago nuevo de un vendedor (aceptado
 como actividad normal) y, en solo lectura, que el privilegio por defecto del proyecto alojado concede `EXECUTE`
 a `service_role` en toda función nueva (I-132). Lo corrige la `0066` (D-207), y **la próxima puerta 1 tiene
@@ -362,6 +371,11 @@ inicia sesión en producción (Fase 8). Si no tiene una sesión autenticada y se
 **se detiene en esta puerta**, le da al dueño los pasos del punto 2, **espera a que confirme que guardó** y
 después hace **solo** la verificación de solo lectura del punto 3. No repite el cambio ni lo completa por
 otra vía.
+
+> **Registro del 2026-09-17 (desviación aceptada).** La extensión real la guardó una sesión autorizada de
+> **Administrador**, no la del Dueño. Por eso, al repetir las consultas del punto 3 sobre ese guardado, **B2**
+> da `con_otro_actor` = 5 y **B3** da `es_el_dueno` = false en las dos filas, con todo lo demás correcto. El dueño
+> lo aceptó así: la bitácora dice quién lo hizo de verdad y **no se corrige**.
 
 **1. Antes de que el Dueño guarde — solo lectura.** En el proyecto real, con `<RIFA>` y `<ORG>`
 sustituidos. El formulario vuelve a enviar **todos** sus campos —nombre, descripción, precio, fechas y el
