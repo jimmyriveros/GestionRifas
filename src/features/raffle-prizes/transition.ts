@@ -2,7 +2,7 @@ import type { LotteryCode, LotteryMatchField } from '@/features/lottery/constant
 import { addIsoDays } from '@/features/lottery/dashboard'
 import { isoWeekday } from '@/features/lottery/parse/excel-date'
 import { RAFFLE_STATUS_LABELS, type RaffleStatus } from '@/lib/constants'
-import { formatDateCsv, isoDateBogota } from '@/lib/dates'
+import { formatDateCsv, formatTimeEs, isoDateBogota } from '@/lib/dates'
 
 import {
   PRIZE_CATEGORY_LABELS,
@@ -44,9 +44,11 @@ import {
  *     dueno, 2026-09-16);
  *   * y las lineas de la vista previa, con los textos de `copy.ts`.
  *
- * LA AUTORIDAD ES `transition_raffle_prize_mode` (migracion `0063`): vuelve a
- * validar todo, rechaza un sorteo ya jugado y lo hace en una transaccion. Esto
- * solo prepara la peticion y la lee.
+ * LA AUTORIDAD ES `transition_raffle_prize_mode` (migraciones `0063` y `0064`):
+ * vuelve a validar todo, rechaza un premio que incluya un sorteo ya jugado, fija
+ * el instante efectivo y lo hace en una transaccion. Los sorteos cuyo corte llego
+ * antes de ese instante conservan el sistema de siempre (D-206). Esto solo
+ * prepara la peticion y la lee.
  *
  * NO ELIGE NINGUNA RIFA. La rifa real se identifica por su identificador, su
  * organizacion, su nombre, su estado y sus fechas, y eso lo suministra quien
@@ -434,7 +436,29 @@ export type TransitionResultPrize = {
   draws: number
 }
 
-/** La respuesta de `transition_raffle_prize_mode` (migracion `0063`). */
+/** Un sorteo que ya se jugo y todavia no tiene resultado confirmado (D-206). */
+export type TransitionUnconfirmedDraw = {
+  reference_date: string
+  lottery_code: LotteryCode
+  draw_number: string | null
+}
+
+/**
+ * Los sorteos de la ventana de la rifa que CONSERVAN el sistema de siempre
+ * (D-206): los que ya alcanzaron su corte en el instante efectivo, con resultado
+ * o sin el. Los que no lo tienen se enumeran: si se confirman despues, con
+ * evidencia, los resuelve el sistema de siempre.
+ */
+export type TransitionLegacyDraws = {
+  total: number
+  confirmed: number
+  unconfirmed: number
+  first_date: string | null
+  last_date: string | null
+  unconfirmed_draws: TransitionUnconfirmedDraw[]
+}
+
+/** La respuesta de `transition_raffle_prize_mode` (migraciones `0063` y `0064`). */
 export type TransitionResult = {
   applied: boolean
   already_applied: boolean
@@ -442,6 +466,12 @@ export type TransitionResult = {
   organization_id: string
   raffle_id: string
   raffle?: { name: string; status: RaffleStatus; start_date: string; end_date: string }
+  /**
+   * El instante efectivo (D-206): la publicacion de la ultima version inicial.
+   * `null` en la vista previa, porque esa transicion no va a existir.
+   */
+  effective_at?: string | null
+  legacy_draws?: TransitionLegacyDraws
   prize_ids: string[]
   prizes?: TransitionResultPrize[]
   notified: number
@@ -479,6 +509,31 @@ export function transitionPreviewLines(result: TransitionResult): string[] {
 
   if (result.transition_id) {
     lines.push(`  ${copy.transition}: ${result.transition_id}`)
+  }
+  if (result.effective_at) {
+    lines.push(
+      `  ${copy.effective(formatDateCsv(result.effective_at), formatTimeEs(result.effective_at))}`,
+    )
+  }
+
+  const legacy = result.legacy_draws
+  if (legacy) {
+    lines.push('')
+    lines.push(copy.legacyHeading(legacy.total))
+    if (legacy.total > 0) {
+      lines.push(`  ${copy.legacyConfirmed(legacy.confirmed)}`)
+      const pending = [...legacy.unconfirmed_draws].sort((a, b) =>
+        a.reference_date.localeCompare(b.reference_date),
+      )
+      const first = pending[0]
+      const last = pending[pending.length - 1]
+      lines.push(
+        first && last
+          ? `  ${copy.legacyUnconfirmed(legacy.unconfirmed, formatDateCsv(first.reference_date), formatDateCsv(last.reference_date))}`
+          : `  ${copy.legacyUnconfirmed(0)}`,
+      )
+      lines.push(`  ${copy.legacyExplanation}`)
+    }
   }
 
   const prizes = result.prizes ?? []

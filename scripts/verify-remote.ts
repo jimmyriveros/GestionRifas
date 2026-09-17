@@ -442,17 +442,21 @@ const CHECKS: Check[] = [
     esperado: 1,
   },
   {
-    // 0063 (D-204): las piezas de la transicion no las ejecuta NADIE, ni la
-    // service role: solo la operacion, que es SECURITY DEFINER.
+    // 0063 (D-204) y 0064 (D-206): las piezas de la transicion y de su frontera
+    // no las ejecuta NADIE, ni la service role: solo la operacion y el motor, que
+    // son SECURITY DEFINER.
     nombre: 'Piezas internas de la transicion ejecutables por alguien',
     sql: `select p.proname as x
           from pg_proc p join pg_namespace n on n.oid = p.pronamespace
           where n.nspname = 'public'
             and p.proname in (
               'raffle_prize_transition_apply', 'raffle_prize_transition_configuration',
-              'raffle_prize_transition_pending_draws', 'raffle_prize_transition_played_occurrence',
-              'raffle_prize_transition_open', 'raffle_prize_transitions_guard',
-              'raffle_prize_lottery_label', 'raffle_prize_raffle_status_phrase'
+              'raffle_prize_transition_played_occurrence', 'raffle_prize_transition_open',
+              'raffle_prize_transitions_guard', 'raffle_prize_lottery_label',
+              'raffle_prize_raffle_status_phrase', 'raffle_prize_transition_draw_mode',
+              'raffle_prize_draw_mode', 'raffle_prize_transition_window_draws',
+              'raffle_prize_transition_check_window', 'raffle_prize_transition_legacy_summary',
+              'raffles_notify_dates_changed'
             )
             and (has_function_privilege('service_role', p.oid, 'EXECUTE')
                  or has_function_privilege('authenticated', p.oid, 'EXECUTE')
@@ -467,6 +471,40 @@ const CHECKS: Check[] = [
           where table_schema = 'public' and table_name = 'raffle_prize_transitions'
             and grantee in ('anon', 'authenticated', 'service_role')`,
     esperado: 0,
+  },
+  {
+    // 0064 (D-206): cada transicion guarda su instante efectivo. Sin el, el
+    // motor no sabe que sorteos conservan el sistema de siempre. Falla contra el
+    // proyecto real hasta que la 0064 se aplique.
+    nombre: 'raffle_prize_transitions.effective_at existe y es obligatorio (0064)',
+    sql: `select column_name as x from information_schema.columns
+          where table_schema = 'public' and table_name = 'raffle_prize_transitions'
+            and column_name = 'effective_at' and is_nullable = 'NO'`,
+    esperado: 1,
+  },
+  {
+    // 0064 (D-206): la espera de 0063 por los sorteos jugados sin resultado ya
+    // no existe. Si reapareciera, alguien volvio a aplicar un cuerpo viejo.
+    nombre: 'La espera de 0063 por sorteos sin resultado sigue existiendo',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'raffle_prize_transition_pending_draws'`,
+    esperado: 0,
+  },
+  {
+    // 0064 (BR-R12): cambiar las fechas de una rifa activa avisa en la misma
+    // transaccion. Sin el disparador, extender la rifa real no avisaria.
+    nombre: 'Aviso de fechas de una rifa activa: disparador, tipo e indice (0064)',
+    sql: `select 'disparador' as x from pg_trigger t
+          where t.tgrelid = 'public.raffles'::regclass
+            and t.tgname = 'raffles_notify_dates_changed' and t.tgenabled = 'O'
+          union all
+          select 'tipo' from pg_constraint c
+          where c.conname = 'notifications_kind_check'
+            and pg_get_constraintdef(c.oid) like '%raffle.dates_changed%'
+          union all
+          select 'indice' from pg_indexes
+          where schemaname = 'public' and indexname = 'notifications_raffle_dates_once'`,
+    esperado: 3,
   },
 ]
 

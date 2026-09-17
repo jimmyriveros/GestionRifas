@@ -1406,6 +1406,27 @@ de premios de siempre», no `legacy`; «Vista previa: no se cambió nada.» ante
 y ante un fallo, **«No se cambió nada: la transición se deshace entera cuando algo falla.»**, que es lo
 único que quien la lee necesita saber para no ir a revisar a mano qué quedó.
 
+**Y cuenta los sorteos que conservan el sistema de siempre** (D-206). Es la pregunta que se hace quien
+va a aplicarla con sorteos ya jugados: **«Sorteos que ya se jugaron: 44, con el sistema de premios de
+siempre»**, debajo cuántos tienen resultado y cuántos no —«Sin resultado confirmado: 25, del 27/07/2026
+al 24/08/2026»— y la consecuencia en una frase: **«Si alguno se confirma después, se resuelve con el
+sistema de premios de siempre.»**. Aplicada, dice desde cuándo valen los premios nuevos, en hora de
+Bogotá: «Premios configurables desde: 16/09/2026, 10:32 p. m.». No se escribe «instante efectivo»,
+«frontera» ni `legacy`: son palabras del código, y la vista previa no lleva instante porque esa
+transición no va a existir.
+
+**Cuando cambian las fechas de una rifa activa, se avisa, y se dice la fecha nueva** (BR-R12, D-206):
+«Cambiaron las fechas de {rifa}: ahora termina el 21 de diciembre de 2026.». Si cambió solo el inicio,
+«ahora empieza el …»; si cambiaron las dos, «ahora va del 3 de agosto al 21 de diciembre de 2026», con
+el mes y el año escritos una vez. **La fecha anterior no se repite**: viaja en el aviso, pero una idea
+por aviso (§13). Y nada de la cartera, ni enlace.
+
+**La pantalla de editar lo anuncia ANTES de guardar, y solo cuando va a pasar** (misma regla que el
+aviso de recalcular la ganancia, D-127): con la rifa activa y alguna fecha distinta de la guardada,
+**«Al guardar, las demás personas de tu organización recibirán un aviso con las fechas nuevas.»**.
+«Las demás» porque quien guarda no recibe el suyo. Volver a la fecha guardada lo retira: ya no va a
+pasar. Un borrador no lo dice, porque no avisa.
+
 **«Ganador» sigue prohibido, también aquí** (BR-L15). Un premio configurable dice con qué número y
 con cuántas cifras juega; quien acierta tiene una **coincidencia**. Hay una prueba unitaria que falla
 si cualquier texto del módulo escribe esa palabra, y por eso la forma de recompensa se llama
@@ -1661,9 +1682,11 @@ castigo donde solo había una espera.
 | Lo que responde la base cuando un premio no se puede guardar | Los `raise` de las migraciones `0058` y `0059`, con las **mismas** frases que `PRIZE_COPY` donde la comprobación existe en las dos capas |
 | El aviso de que cambiaron las condiciones de un premio | `src/features/notifications/text.ts`, con los demás avisos (D-093, D-199). **No lleva enlace**: el vendedor todavía no tiene pantalla de premios |
 | El aviso ÚNICO de que una rifa existente pasó a premios configurables | `rafflePrizeMessage`, en ese mismo archivo, con `change = 'transitioned'` (D-204). Tampoco lleva enlace |
-| La vista previa y el resultado de la transición: encabezados, rótulos de cada premio, el aviso y «No se cambió nada» | `src/features/raffle-prizes/copy.ts` (`PRIZE_TRANSITION_COPY`), **todos juntos** (D-204). Los compone `transitionPreviewLines` (`transition.ts`); el script no escribe ninguno propio salvo la huella, cómo aplicar y el aviso de una respuesta incierta |
+| La vista previa y el resultado de la transición: encabezados, rótulos de cada premio, el aviso, «No se cambió nada», **los sorteos que conservan el sistema de siempre y «Premios configurables desde»** | `src/features/raffle-prizes/copy.ts` (`PRIZE_TRANSITION_COPY`), **todos juntos** (D-204, D-206). Los compone `transitionPreviewLines` (`transition.ts`); el script no escribe ninguno propio salvo la huella, cómo aplicar y el aviso de una respuesta incierta |
 | Las negativas de la puerta del script de transición —destino, opciones, huella, confirmación del identificador— y el texto de uso | `scripts/raffle-prize-transition-guard.ts`, **todas juntas** (D-205). Las lee quien opera, no una persona usuaria de la aplicación, y aun así dicen qué pasó y qué hacer |
-| Lo que responde la base cuando la transición no se puede hacer | Los `raise` de la migración `0063`: nombran la rifa, la lotería, la fecha y el premio, nunca un cliente |
+| Lo que responde la base cuando la transición no se puede hacer | Los `raise` de las migraciones `0063` y `0064`: nombran la rifa, la lotería, la fecha y el premio, nunca un cliente |
+| El aviso de que cambiaron las fechas de una rifa activa | `src/features/notifications/text.ts`, con los demás avisos (`raffleDatesMessage`, BR-R12, D-206). Sin enlace. La fecha larga y el rango salen de `formatLongDateEs` y `formatLongDateRangeEs` (`lib/dates.ts`) |
+| La frase que lo anuncia antes de guardar, en la pantalla de editar una rifa | `src/features/raffles/date-change.ts` (`RAFFLE_DATE_CHANGE_NOTICE`), junto con la regla de cuándo se enseña (`raffleDateChangeAnnounced`). La pinta `RaffleForm`, que no escribe la suya |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

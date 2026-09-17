@@ -591,9 +591,105 @@ describe('la vista previa y el resultado (D-204)', () => {
       copy.prizesHeading(1),
       copy.draws(1),
       copy.notices(1),
+      copy.effective('16/09/2026', '10:32 p. m.'),
+      copy.legacyHeading(0),
+      copy.legacyHeading(1),
+      copy.legacyHeading(25),
+      copy.legacyConfirmed(1),
+      copy.legacyUnconfirmed(0),
+      copy.legacyUnconfirmed(1, '27/07/2026', '27/07/2026'),
+      copy.legacyUnconfirmed(25, '27/07/2026', '24/08/2026'),
+      copy.legacyExplanation,
     ].join('\n')
     expect(textos.toLowerCase()).not.toContain('ganador')
-    expect(textos).not.toMatch(/\blegacy\b|\bwinner_choice\b|\bdaily_number\b/)
+    expect(textos).not.toMatch(/\blegacy\b|\bwinner_choice\b|\bdaily_number\b|\bconfigurable\b/)
+  })
+
+  it('P6: cuenta los sorteos que conservan el sistema de siempre y los que siguen sin resultado (D-206)', () => {
+    const conHistoricos = transitionPreviewLines(
+      result({
+        legacy_draws: {
+          total: 44,
+          confirmed: 19,
+          unconfirmed: 25,
+          first_date: '2026-07-27',
+          last_date: '2026-09-15',
+          // Desordenados a propósito: la vista previa los ordena.
+          unconfirmed_draws: [
+            { reference_date: '2026-08-24', lottery_code: 'cundinamarca', draw_number: '4817' },
+            { reference_date: '2026-07-27', lottery_code: 'cundinamarca', draw_number: '4813' },
+          ],
+        },
+      }),
+    )
+    expect(conHistoricos).toEqual(
+      expect.arrayContaining([
+        'Sorteos que ya se jugaron: 44, con el sistema de premios de siempre',
+        '  Con resultado confirmado: 19',
+        '  Sin resultado confirmado: 25, del 27/07/2026 al 24/08/2026',
+        '  Si alguno se confirma después, se resuelve con el sistema de premios de siempre.',
+      ]),
+    )
+    // La vista previa no fija ningún instante: esa transición no va a existir.
+    expect(conHistoricos.join('\n')).not.toContain('Premios configurables desde')
+
+    const uno = transitionPreviewLines(
+      result({
+        legacy_draws: {
+          total: 1,
+          confirmed: 0,
+          unconfirmed: 1,
+          first_date: '2026-09-15',
+          last_date: '2026-09-15',
+          unconfirmed_draws: [
+            { reference_date: '2026-09-15', lottery_code: 'cruz_roja', draw_number: null },
+          ],
+        },
+      }),
+    )
+    expect(uno).toContain('Sorteos que ya se jugaron: 1, con el sistema de premios de siempre')
+    expect(uno).toContain('  Sin resultado confirmado: 1, el 15/09/2026')
+
+    const ninguno = transitionPreviewLines(
+      result({
+        legacy_draws: {
+          total: 0,
+          confirmed: 0,
+          unconfirmed: 0,
+          first_date: null,
+          last_date: null,
+          unconfirmed_draws: [],
+        },
+      }),
+    ).join('\n')
+    expect(ninguno).toContain('Sorteos que ya se jugaron: ninguno')
+    expect(ninguno).not.toContain('Sin resultado confirmado')
+
+    const todosConfirmados = transitionPreviewLines(
+      result({
+        legacy_draws: {
+          total: 3,
+          confirmed: 3,
+          unconfirmed: 0,
+          first_date: '2026-09-14',
+          last_date: '2026-09-16',
+          unconfirmed_draws: [],
+        },
+      }),
+    )
+    expect(todosConfirmados).toContain('  Sin resultado confirmado: ninguno')
+  })
+
+  it('P7: aplicada, dice desde cuándo valen los premios nuevos, en hora de Bogotá (D-206)', () => {
+    const aplicada = transitionPreviewLines(
+      result({
+        applied: true,
+        transition_id: '33333333-2222-4333-8444-555555555555',
+        // 3:32 a. m. del 17 en UTC son las 10:32 p. m. del 16 en Bogotá.
+        effective_at: '2026-09-17T03:32:15.123456+00:00',
+      }),
+    )
+    expect(aplicada).toContain('  Premios configurables desde: 16/09/2026, 10:32 p. m.')
   })
 })
 

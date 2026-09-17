@@ -25,6 +25,15 @@
  * sorteos y resultados, y limpia al final con `session_replication_role =
  * replica`, porque premios, versiones, transiciones y fotografías son inmutables
  * también para la service role.
+ *
+ * EL INSTANTE EFECTIVO (D-206, migración `0064`). Un sorteo con corte hasta el
+ * instante efectivo de la transición conserva el sistema de siempre, y uno
+ * posterior usa los premios configurables. Con el reloj real todos los sorteos
+ * de 2065 y 2066 son posteriores, así que para ver el motor a los DOS lados la
+ * prueba traslada, como superusuario, el instante de esa transición a una fecha
+ * de su año —`trasladarInstante`—. Nadie más puede hacerlo: la tabla no concede
+ * nada y su disparador impide modificarla. T7 hace lo mismo sin trasladar nada,
+ * con sorteos de verdad ya jugados.
  */
 import { randomUUID } from 'node:crypto'
 
@@ -32,10 +41,14 @@ import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { LOTTERY_LABELS } from '@/features/lottery/constants'
+import { addIsoDays } from '@/features/lottery/dashboard'
+import { isoWeekday } from '@/features/lottery/parse/excel-date'
 import { prizeActorLabel } from '@/features/raffle-prizes/copy'
+import { lotteryForDate } from '@/features/raffle-prizes/schedule'
 import {
   confirmedPrizeStarts,
   confirmedRafflePrizes,
+  type TransitionLegacyDraws,
   type TransitionPrizePayload,
   type TransitionResult,
 } from '@/features/raffle-prizes/transition'
@@ -217,6 +230,61 @@ async function aplicar(r: Rifa, premios: TransitionPrizePayload[]): Promise<Tran
   const { data, error } = await transicion(svc, r, premios, { apply: true })
   if (error) throw new Error(`La transición falló: ${error.message}`)
   return data as unknown as TransitionResult
+}
+
+/**
+ * Traslada el instante efectivo de la transición de una rifa (D-206). SOLO para
+ * ver el motor a los dos lados de la frontera en un año de prueba: con el reloj
+ * real, todo sorteo de 2065 cae después. Como superusuario y con los
+ * disparadores apartados, porque la tabla no se modifica.
+ */
+async function trasladarInstante(raffleId: string, instante: string): Promise<void> {
+  await db.query('begin')
+  try {
+    await db.query(`set local session_replication_role = replica`)
+    const { rowCount } = await db.query(
+      `update raffle_prize_transitions set effective_at = $2::timestamptz where raffle_id = $1`,
+      [raffleId, instante],
+    )
+    expect(rowCount).toBe(1)
+    await db.query('commit')
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  }
+}
+
+/** Lo que devuelve la base para los sorteos que conservan el sistema de siempre. */
+async function sorteosDeSiempre(
+  raffleId: string,
+  instante: string,
+): Promise<TransitionLegacyDraws> {
+  const { rows } = await db.query<{ s: TransitionLegacyDraws }>(
+    `select raffle_prize_transition_legacy_summary(
+       (select r from raffles r where r.id = $1), $2::timestamptz) as s`,
+    [raffleId, instante],
+  )
+  return rows[0]!.s
+}
+
+/** Las fotografías de una rifa en un resultado, con el premio enlazado si lo hay. */
+async function fotografias(resultId: string, raffleId: string) {
+  const { rows } = await db.query<{
+    ticket_id: string
+    match_field: string
+    assignment_status: string
+    title: string | null
+  }>(
+    `select m.ticket_id, m.match_field::text as match_field,
+            m.assignment_status::text as assignment_status, v.title
+       from lottery_ticket_matches m
+       left join lottery_ticket_match_prizes l on l.match_id = m.id
+       left join raffle_prize_versions v on v.id = l.prize_version_id
+      where m.result_id = $1 and m.raffle_id = $2
+      order by m.ticket_id, v.title nulls first`,
+    [resultId, raffleId],
+  )
+  return rows
 }
 
 type Estado = {
@@ -560,6 +628,7 @@ describe('T1 — solo la operación interna cambia el modo, y su puerta es estre
       raffle_end_date: heredada.end_date,
       configuration_hash: 'a'.repeat(64),
       prize_ids: ['11111111-2222-4333-8444-555555555555'],
+      effective_at: new Date().toISOString(),
     })
     expect(insertar.error).not.toBeNull()
 
@@ -620,13 +689,48 @@ describe('T1 — solo la operación interna cambia el modo, y su puerta es estre
     sinTransicion(await estado(heredada.id))
   })
 
+  it('T1-05b: la frontera y las piezas nuevas de la 0064 tampoco las ejecuta nadie (D-206)', async () => {
+    const { rows } = await db.query<{ funcion: string; alguien: boolean; definer: boolean }>(
+      `select p.proname as funcion,
+              has_function_privilege('service_role', p.oid, 'EXECUTE')
+                or has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                or has_function_privilege('anon', p.oid, 'EXECUTE') as alguien,
+              p.prosecdef as definer
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public'
+          and p.proname in ('raffle_prize_transition_draw_mode', 'raffle_prize_draw_mode',
+                            'raffle_prize_transition_played_occurrence',
+                            'raffle_prize_transition_window_draws',
+                            'raffle_prize_transition_check_window',
+                            'raffle_prize_transition_legacy_summary',
+                            'raffles_notify_dates_changed',
+                            'raffle_prize_transition_pending_draws')
+        order by p.proname`,
+    )
+    // La espera de 0063 ya no existe: la sustituye `raffle_prize_transition_check_window`.
+    expect(rows.map((row) => row.funcion)).toEqual([
+      'raffle_prize_draw_mode',
+      'raffle_prize_transition_check_window',
+      'raffle_prize_transition_draw_mode',
+      'raffle_prize_transition_legacy_summary',
+      'raffle_prize_transition_played_occurrence',
+      'raffle_prize_transition_window_draws',
+      'raffles_notify_dates_changed',
+    ])
+    expect(rows.every((row) => !row.alguien)).toBe(true)
+    // La frontera pura no lee tablas; todo lo demás corre con el dueño.
+    expect(rows.filter((row) => !row.definer).map((row) => row.funcion)).toEqual([
+      'raffle_prize_transition_draw_mode',
+    ])
+  })
+
   it('T1-06: una fila de transición escrita en OTRA transacción no abre la puerta, y el estado parcial se rechaza', async () => {
     const otra = await nuevaRifa('puerta cerrada', '2065-01-05', '2065-02-28')
     // A mano, como superusuario: es el único que puede escribirla fuera de la migración.
     await db.query(
       `insert into raffle_prize_transitions (organization_id, raffle_id, raffle_status,
-         raffle_start_date, raffle_end_date, configuration_hash, prize_ids)
-       values ($1, $2, 'active', $3, $4, $5, array[gen_random_uuid()])`,
+         raffle_start_date, raffle_end_date, configuration_hash, prize_ids, effective_at)
+       values ($1, $2, 'active', $3, $4, $5, array[gen_random_uuid()], now())`,
       [otra.organization_id, otra.id, otra.start_date, otra.end_date, 'b'.repeat(64)],
     )
 
@@ -648,8 +752,8 @@ describe('T1 — solo la operación interna cambia el modo, y su puerta es estre
     const abrir = async () =>
       db.query(
         `insert into raffle_prize_transitions (organization_id, raffle_id, raffle_status,
-           raffle_start_date, raffle_end_date, configuration_hash, prize_ids)
-         values ($1, $2, 'active', $3, $4, $5, array[gen_random_uuid()])`,
+           raffle_start_date, raffle_end_date, configuration_hash, prize_ids, effective_at)
+         values ($1, $2, 'active', $3, $4, $5, array[gen_random_uuid()], now())`,
         [puerta.organization_id, puerta.id, puerta.start_date, puerta.end_date, 'c'.repeat(64)],
       )
 
@@ -685,12 +789,20 @@ describe('T1 — solo la operación interna cambia el modo, y su puerta es estre
 
 // =============================================================================
 describe('T2 — los seis premios confirmados en una rifa equivalente (2065)', () => {
+  /**
+   * El instante efectivo que se simula después de aplicar (D-206): el martes 1 de
+   * septiembre de 2065 a las 8:00 a. m., el día en que `configuracionReal` hace
+   * empezar el premio diario. Los sorteos de agosto quedan antes; los de
+   * noviembre y diciembre, después.
+   */
+  const INSTANTE_2065 = '2065-09-01T08:00:00-05:00'
   let equivalente: Rifa
   let otraHeredada: Rifa
   let antes: Huella
   let boleta: Record<string, string>
   let inactivo: string
   let historico: { agosto5: string; agosto8: string }
+  let sinResultado: { scheduleId: string; drawNumber: string }
   const sorteos: Record<string, { scheduleId: string; drawNumber: string }> = {}
 
   beforeAll(async () => {
@@ -750,6 +862,11 @@ describe('T2 — los seis premios confirmados en una rifa equivalente (2065)', (
       agosto8: await confirmar('boyaca', agosto8.drawNumber, '1357'),
     }
 
+    // Un sorteo que ya se habrá jugado el día de la transición y que llega SIN
+    // resultado: el equivalente de los 25 sorteos de I-127. Se confirma después
+    // de la transición, en T2-17.
+    sinResultado = await programacion('cundinamarca', '2065-08-24')
+
     // Sorteos FUTUROS con programación y sin resultado: no bloquean nada.
     for (const [clave, loteria, fecha] of [
       ['nov3', 'cruz_roja', '2065-11-03'],
@@ -790,7 +907,18 @@ describe('T2 — los seis premios confirmados en una rifa equivalente (2065)', (
       applied: false,
       already_applied: false,
       transition_id: null,
+      // La vista previa no fija ningún instante: esa transición no va a existir.
+      effective_at: null,
       prize_ids: [],
+    })
+    // Con el reloj real, ningún sorteo de 2065 se ha jugado todavía.
+    expect(vista.legacy_draws).toEqual({
+      total: 0,
+      confirmed: 0,
+      unconfirmed: 0,
+      first_date: null,
+      last_date: null,
+      unconfirmed_draws: [],
     })
     expect(
       vista.prizes!.map((p) => [p.position, p.title, p.starts_on, p.ends_on, p.draws]),
@@ -854,6 +982,30 @@ describe('T2 — los seis premios confirmados en una rifa equivalente (2065)', (
     expect(hecho).toMatchObject({ applied: true, already_applied: false })
     expect(hecho.transition_id).toMatch(/^[0-9a-f-]{36}$/)
     expect(hecho.prize_ids).toHaveLength(6)
+
+    // EL INSTANTE EFECTIVO (D-206) es la publicación de la ÚLTIMA versión inicial,
+    // y es el que queda guardado en la transición.
+    const { rows: instante } = await db.query<{
+      es_la_ultima: boolean
+      despues_de_empezar: boolean
+      respuesta_igual: boolean
+    }>(
+      `select t.effective_at = (select max(v.published_at) from raffle_prize_versions v
+                                  where v.raffle_id = $1) as es_la_ultima,
+              t.effective_at >= t.transitioned_at as despues_de_empezar,
+              t.effective_at = $2::timestamptz as respuesta_igual
+         from raffle_prize_transitions t where t.raffle_id = $1`,
+      [equivalente.id, hecho.effective_at],
+    )
+    expect(instante[0]).toEqual({
+      es_la_ultima: true,
+      despues_de_empezar: true,
+      respuesta_igual: true,
+    })
+    expect(hecho.legacy_draws).toMatchObject({ total: 0, unconfirmed: 0 })
+
+    // A partir de aquí, la transición se hizo el 1 de septiembre de 2065 a las 8:00.
+    await trasladarInstante(equivalente.id, INSTANTE_2065)
 
     expect(await estado(equivalente.id)).toMatchObject({
       modo: 'configurable',
@@ -1135,6 +1287,23 @@ describe('T2 — los seis premios confirmados en una rifa equivalente (2065)', (
     for (const repetida of [primera, segunda]) {
       expect(repetida).toMatchObject({ applied: false, already_applied: true, notified: 0 })
       expect(repetida.prize_ids).toHaveLength(6)
+      // Devuelve el instante guardado y, desde él, los sorteos de siempre: los dos
+      // de agosto ya resueltos y el del 24, todavía sin resultado.
+      expect(Date.parse(repetida.effective_at!)).toBe(Date.parse(INSTANTE_2065))
+      expect(repetida.legacy_draws).toEqual({
+        total: 3,
+        confirmed: 2,
+        unconfirmed: 1,
+        first_date: '2065-08-05',
+        last_date: '2065-08-24',
+        unconfirmed_draws: [
+          {
+            reference_date: '2065-08-24',
+            lottery_code: 'cundinamarca',
+            draw_number: sinResultado.drawNumber,
+          },
+        ],
+      })
     }
     const vista = await transicion(svc, equivalente, configuracionReal())
     expect(vista.data).toMatchObject({ applied: false, already_applied: true })
@@ -1247,6 +1416,47 @@ describe('T2 — los seis premios confirmados en una rifa equivalente (2065)', (
 
     expect(await fotos()).toEqual(antesDeConfirmar)
   })
+
+  it('T2-17: un sorteo ya jugado que se confirma DESPUÉS de la transición se resuelve con el sistema de siempre, sin enlaces, y avisa (D-206)', async () => {
+    const enlacesAntes = await db.query<{ n: number }>(
+      `select count(*)::int as n from lottery_ticket_match_prizes where raffle_id = $1`,
+      [equivalente.id],
+    )
+
+    // 24 de agosto: lunes, Cundinamarca, número diario. Con los premios nuevos no
+    // coincidiría nada —el diario empieza el 1 de septiembre—; con el sistema de
+    // siempre, la boleta 2468 de Ana.
+    const agosto24 = await confirmar('cundinamarca', sinResultado.drawNumber, '2468')
+    expect(await fotografias(agosto24, equivalente.id)).toEqual([
+      {
+        ticket_id: boleta.historicoDiario,
+        match_field: 'daily_number',
+        assignment_status: 'sold',
+        title: null,
+      },
+    ])
+
+    const { rows } = await db.query<{ enlaces: number; aviso: number }>(
+      `select (select count(*)::int from lottery_ticket_match_prizes where raffle_id = $1) as enlaces,
+              (select count(*)::int from notifications
+                where kind = 'lottery.result' and entity_id = $2
+                  and recipient_profile_id = $3) as aviso`,
+      [equivalente.id, agosto24, ctx.ids.seller1],
+    )
+    expect(rows[0]!.enlaces).toBe(enlacesAntes.rows[0]!.n)
+    // Confirmado con evidencia, avisa como siempre (D-206).
+    expect(rows[0]!.aviso).toBe(1)
+
+    // Volver a confirmarlo no duplica nada.
+    await confirmar('cundinamarca', sinResultado.drawNumber, '2468')
+    expect(await fotografias(agosto24, equivalente.id)).toHaveLength(1)
+    const { rows: repetido } = await db.query<{ aviso: number }>(
+      `select count(*)::int as aviso from notifications
+        where kind = 'lottery.result' and entity_id = $1 and recipient_profile_id = $2`,
+      [agosto24, ctx.ids.seller1],
+    )
+    expect(repetido[0]!.aviso).toBe(1)
+  })
 })
 
 // =============================================================================
@@ -1328,36 +1538,49 @@ describe('T3 — lo que impide la transición, y lo que no', () => {
     sinTransicion(await estado(adelantada.id))
   })
 
-  it('T3-05: un sorteo jugado sin resultado confirmado detiene la transición de una rifa activa', async () => {
+  it('T3-05: un sorteo jugado sin resultado confirmado YA NO detiene la transición: se queda con el sistema de siempre (D-206)', async () => {
     const pendiente = await nuevaRifa('pendiente', '2018-06-05', '2018-06-05')
-    const { scheduleId } = await programacion('cruz_roja', '2018-06-05')
+    const { scheduleId, drawNumber } = await programacion('cruz_roja', '2018-06-05')
     const premio = [premioDeUnDia('2018-06-05')]
+    // Lo único que falla es el PREMIO, que incluye ese sorteo. La espera de la
+    // 0063 —«Espera a que se confirme antes de la transición»— ya no existe.
     const mensaje =
-      'El sorteo de Cruz Roja del 05/06/2018 ya se jugó y todavía no tiene el resultado confirmado. Espera a que se confirme antes de la transición: si no, se buscaría con los premios nuevos.'
+      'La hora del sorteo de Cruz Roja del 05/06/2018 ya pasó, así que el premio «Premio de un día» no puede incluirlo. Haz que empiece en el siguiente sorteo.'
 
-    const sinResultado = await transicion(svc, pendiente, premio, { apply: true })
-    expect(sinResultado.error?.message).toBe(mensaje)
-    expect(sinResultado.error?.details).toBe(
-      'Sorteo pendiente: Cruz Roja del 05/06/2018 (resultado sin confirmar)',
-    )
-
+    expect((await transicion(svc, pendiente, premio, { apply: true })).error?.message).toBe(mensaje)
     await resultado(scheduleId, '1111', 'pending')
     expect((await transicion(svc, pendiente, premio, { apply: true })).error?.message).toBe(mensaje)
-
     await db.query(
       `update lottery_results set validation_status = 'conflict' where schedule_id = $1`,
       [scheduleId],
     )
     expect((await transicion(svc, pendiente, premio, { apply: true })).error?.message).toBe(mensaje)
+    sinTransicion(await estado(pendiente.id))
 
-    // Confirmado, la espera termina: lo que falla ahora es el premio, que incluye ese sorteo.
+    // Mirado desde hoy, ese sorteo cae del lado de siempre y sin resultado confirmado.
+    expect(await sorteosDeSiempre(pendiente.id, new Date().toISOString())).toEqual({
+      total: 1,
+      confirmed: 0,
+      unconfirmed: 1,
+      first_date: '2018-06-05',
+      last_date: '2018-06-05',
+      unconfirmed_draws: [
+        { reference_date: '2018-06-05', lottery_code: 'cruz_roja', draw_number: drawNumber },
+      ],
+    })
+
+    // Confirmado, cuenta como confirmado; el premio sigue sin poder incluirlo.
     await db.query(
       `update lottery_results set validation_status = 'confirmed', confirmed_at = now() where schedule_id = $1`,
       [scheduleId],
     )
-    expect((await transicion(svc, pendiente, premio, { apply: true })).error?.message).toContain(
-      'ya pasó, así que el premio',
-    )
+    expect((await transicion(svc, pendiente, premio, { apply: true })).error?.message).toBe(mensaje)
+    expect(await sorteosDeSiempre(pendiente.id, new Date().toISOString())).toMatchObject({
+      total: 1,
+      confirmed: 1,
+      unconfirmed: 0,
+      unconfirmed_draws: [],
+    })
     sinTransicion(await estado(pendiente.id))
   })
 
@@ -1378,11 +1601,13 @@ describe('T3 — lo que impide la transición, y lo que no', () => {
     sinTransicion(await estado(desconocida.id))
   })
 
-  it('T3-07: con varios sorteos pendientes dice cuántos, el primero, y los enumera todos', async () => {
+  it('T3-07: con varios sorteos sin hora conocida dice cuántos, el primero, y los enumera todos', async () => {
     const varios = await nuevaRifa('varios pendientes', '2018-06-11', '2018-06-16')
     const { error } = await transicion(svc, varios, [premioDeUnDia('2018-06-11')], { apply: true })
-    expect(error?.message).toContain('Hay 6 sorteos de la rifa sin resultado confirmado')
-    expect(error?.message).toContain('El primero es el de Cundinamarca del 11/06/2018.')
+    expect(error?.message).toBe(
+      'Todavía no conocemos la hora oficial de 6 sorteos de la rifa, así que no sabemos si ya se jugaron. ' +
+        'El primero es el de Cundinamarca del 11/06/2018. Vuelve a intentarlo cuando la programación oficial las publique.',
+    )
     expect(error?.details).toBe(
       '6 sorteos pendientes: Cundinamarca del 11/06/2018 (hora oficial desconocida); ' +
         'Cruz Roja del 12/06/2018 (hora oficial desconocida); Meta del 13/06/2018 (hora oficial desconocida); ' +
@@ -1392,45 +1617,95 @@ describe('T3 — lo que impide la transición, y lo que no', () => {
     sinTransicion(await estado(varios.id))
   })
 
-  it('T3-08: la clasificación de los sorteos pendientes, con un instante fijo', async () => {
+  it('T3-08: la clasificación de los sorteos de la ventana, con un instante fijo (D-206)', async () => {
     // Del lunes 2 al sábado 14 de marzo de 2065, mirado el miércoles 4 a las 11 p. m.
     const ventana = await nuevaRifa('clasificación', '2065-03-02', '2065-03-14')
     const lunes = await programacion('cundinamarca', '2065-03-02')
     await resultado(lunes.scheduleId, '1000')
-    await programacion('cruz_roja', '2065-03-03')
+    const martes = await programacion('cruz_roja', '2065-03-03')
     const miercoles = await programacion('meta', '2065-03-04')
     await resultado(miercoles.scheduleId, '3000', 'pending')
     // Jueves 5: sin programación. Viernes 6: todavía no juega.
-    await programacion('medellin', '2065-03-06')
+    const viernes = await programacion('medellin', '2065-03-06')
+    // Sábado 7: cancelado, no aparece.
     await programacion('boyaca', '2065-03-07', { estado: 'cancelled' })
-    // La semana siguiente no ha empezado: aunque no tenga programación, no cuenta.
+    // La semana siguiente no ha empezado y no tiene programación.
+    const instante = '2065-03-04T23:00:00-05:00'
 
     const { rows } = await db.query<{
       reference_date: string
       lottery_code: string
-      reason: string
+      draw_number: string | null
+      mode: string | null
+      confirmed: boolean
+      week_started: boolean
     }>(
-      `select reference_date::text, lottery_code::text, reason
-         from raffle_prize_transition_pending_draws(
-           (select r from raffles r where r.id = $1), '2065-03-04T23:00:00-05:00'::timestamptz)`,
-      [ventana.id],
+      `select reference_date::text, lottery_code::text, draw_number, mode::text, confirmed, week_started
+         from raffle_prize_transition_window_draws(
+           (select r from raffles r where r.id = $1), $2::timestamptz)`,
+      [ventana.id, instante],
     )
+    const fila = (
+      reference_date: string,
+      lottery_code: string,
+      draw_number: string | null,
+      mode: string | null,
+      confirmed: boolean,
+      week_started: boolean,
+    ) => ({ reference_date, lottery_code, draw_number, mode, confirmed, week_started })
     expect(rows).toEqual([
-      { reference_date: '2065-03-03', lottery_code: 'cruz_roja', reason: 'unconfirmed_result' },
-      { reference_date: '2065-03-04', lottery_code: 'meta', reason: 'unconfirmed_result' },
-      { reference_date: '2065-03-05', lottery_code: 'bogota', reason: 'unknown_schedule' },
+      fila('2065-03-02', 'cundinamarca', lunes.drawNumber, 'legacy', true, true),
+      fila('2065-03-03', 'cruz_roja', martes.drawNumber, 'legacy', false, true),
+      fila('2065-03-04', 'meta', miercoles.drawNumber, 'legacy', false, true),
+      fila('2065-03-05', 'bogota', null, null, false, true),
+      fila('2065-03-06', 'medellin', viernes.drawNumber, 'configurable', false, true),
+      fila('2065-03-09', 'cundinamarca', null, null, false, false),
+      fila('2065-03-10', 'cruz_roja', null, null, false, false),
+      fila('2065-03-11', 'meta', null, null, false, false),
+      fila('2065-03-12', 'bogota', null, null, false, false),
+      fila('2065-03-13', 'medellin', null, null, false, false),
+      fila('2065-03-14', 'boyaca', null, null, false, false),
     ])
+
+    // Los que conservan el sistema de siempre: los tres ya jugados, dos sin
+    // resultado confirmado —un pendiente no es un confirmado—.
+    expect(await sorteosDeSiempre(ventana.id, instante)).toEqual({
+      total: 3,
+      confirmed: 1,
+      unconfirmed: 2,
+      first_date: '2065-03-02',
+      last_date: '2065-03-04',
+      unconfirmed_draws: [
+        { reference_date: '2065-03-03', lottery_code: 'cruz_roja', draw_number: martes.drawNumber },
+        { reference_date: '2065-03-04', lottery_code: 'meta', draw_number: miercoles.drawNumber },
+      ],
+    })
+
+    // Lo único que IMPIDE la transición en ese instante: el jueves, sin hora conocida.
+    await expect(
+      db.query(
+        `select raffle_prize_transition_check_window(
+           (select r from raffles r where r.id = $1), $2::timestamptz)`,
+        [ventana.id, instante],
+      ),
+    ).rejects.toThrow(
+      'Todavía no conocemos la hora oficial del sorteo de Bogotá del 05/03/2065, así que no sabemos si ya se jugó.',
+    )
   })
 
-  it('T3-09: un sorteo cancelado no detiene la transición', async () => {
+  it('T3-09: un sorteo cancelado no aparece y no detiene la transición', async () => {
     const cancelada = await nuevaRifa('cancelado', '2018-06-18', '2018-06-18')
     await programacion('cundinamarca', '2018-06-18', { estado: 'cancelled' })
     const { rows } = await db.query<{ n: number }>(
-      `select count(*)::int as n from raffle_prize_transition_pending_draws(
+      `select count(*)::int as n from raffle_prize_transition_window_draws(
          (select r from raffles r where r.id = $1), now())`,
       [cancelada.id],
     )
     expect(rows[0]!.n).toBe(0)
+    await db.query(
+      `select raffle_prize_transition_check_window((select r from raffles r where r.id = $1), now())`,
+      [cancelada.id],
+    )
   })
 
   it('T3-10: una rifa cerrada o anulada no cambia de sistema, y una que nació configurable no la necesita', async () => {
@@ -1467,6 +1742,25 @@ describe('T3 — lo que impide la transición, y lo que no', () => {
       avisos: 0,
       bitacora: 1,
     })
+  })
+
+  it('T3-12: un borrador también espera a que se conozca la hora de un sorteo de una semana ya empezada (D-206)', async () => {
+    // Un borrador puede activarse después, y entonces su motor necesitaría saber
+    // de qué lado cae ese sorteo. Sin hora, no se supone.
+    const borrador = await nuevaRifa('borrador sin hora', '2018-06-25', '2018-06-26', {
+      estado: 'draft',
+    })
+    const { error } = await transicion(svc, borrador, [premioDeUnDia('2018-06-26')], {
+      apply: true,
+    })
+    expect(error?.message).toBe(
+      'Todavía no conocemos la hora oficial de 2 sorteos de la rifa, así que no sabemos si ya se jugaron. ' +
+        'El primero es el de Cundinamarca del 25/06/2018. Vuelve a intentarlo cuando la programación oficial las publique.',
+    )
+    expect(error?.details).toBe(
+      '2 sorteos pendientes: Cundinamarca del 25/06/2018 (hora oficial desconocida); Cruz Roja del 26/06/2018 (hora oficial desconocida)',
+    )
+    sinTransicion(await estado(borrador.id))
   })
 })
 
@@ -1531,6 +1825,74 @@ describe('T4 — reintentos y concurrencia', () => {
 
     expect(await estado(concurrida.id)).toMatchObject({ premios: 6, transiciones: 1, bitacora: 1 })
   })
+
+  it('T4-03: un resultado que se confirma mientras la transición no ha terminado la espera, y usa el motor que le toca (D-206)', async () => {
+    // Del lunes 7 al sábado 12 de marzo de 2067. El premio: el martes 8, con las
+    // tres últimas cifras del número diario.
+    const carrera = await nuevaRifa('carrera', '2067-03-07', '2067-03-12')
+    const [siete, mil] = await boletas(carrera.id, [
+      { diario: '7777', semanal: '8801', cliente: ctx.clients.ana.id },
+      { diario: '1777', semanal: '8802', cliente: ctx.clients.carlos.id },
+    ])
+    const martes = await programacion('cruz_roja', '2067-03-08')
+    const premio = [premioDeUnDia('2067-03-08', { digits: 'last_three' })]
+    const llamada = `select transition_raffle_prize_mode($1, $2, $3, 'active', $4, $5, $6::jsonb, true) as r`
+
+    const transicionEnCurso = new PgClient({ connectionString: DB_URL })
+    const motor = new PgClient({ connectionString: DB_URL })
+    await Promise.all([transicionEnCurso.connect(), motor.connect()])
+    let resultId = ''
+    try {
+      await transicionEnCurso.query('begin')
+      const hecho = await transicionEnCurso.query<{ r: TransitionResult }>(llamada, [
+        carrera.organization_id,
+        carrera.id,
+        carrera.name,
+        carrera.start_date,
+        carrera.end_date,
+        JSON.stringify(premio),
+      ])
+      expect(hecho.rows[0]!.r.applied).toBe(true)
+
+      // Sin el cerrojo, el motor leería la rifa todavía heredada y fotografiaría
+      // solo la 7777, sin enlace. Con él, espera.
+      let terminoAntes = false
+      const confirmacion = motor
+        .query<{ r: { result_id: string } }>(
+          `select confirm_lottery_result('cruz_roja'::lottery_code, $1, '7777') as r`,
+          [martes.drawNumber],
+        )
+        .then((respuesta) => {
+          terminoAntes = true
+          return respuesta
+        })
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      expect(terminoAntes).toBe(false)
+
+      await transicionEnCurso.query('commit')
+      resultId = (await confirmacion).rows[0]!.r.result_id
+    } finally {
+      await Promise.all([transicionEnCurso.end(), motor.end()])
+    }
+
+    // Después de la transición, con los premios: las dos boletas, con enlace.
+    expect(await fotografias(resultId, carrera.id)).toEqual(
+      [
+        {
+          ticket_id: siete!,
+          match_field: 'daily_number',
+          assignment_status: 'sold',
+          title: 'Premio de un día',
+        },
+        {
+          ticket_id: mil!,
+          match_field: 'daily_number',
+          assignment_status: 'sold',
+          title: 'Premio de un día',
+        },
+      ].sort((a, b) => (a.ticket_id < b.ticket_id ? -1 : 1)),
+    )
+  })
 })
 
 // =============================================================================
@@ -1548,5 +1910,498 @@ describe('T5 — los espejos de los textos', () => {
          from unnest(enum_range(null::raffle_status)) s`,
     )
     expect(rows[0]!.phrases).toEqual(['en borrador', 'activa', 'cerrada', 'anulada'])
+  })
+})
+
+// =============================================================================
+describe('T6 — el motor a los dos lados del instante efectivo (2066, D-206)', () => {
+  /** El instante efectivo simulado: el martes 9 de marzo de 2066 a las 10:30 p. m. */
+  const INSTANTE = '2066-03-09T22:30:00-05:00'
+  /** Un microsegundo después: el primer instante del lado configurable. */
+  const INSTANTE_MAS_UNO = '2066-03-09T22:30:00.000001-05:00'
+  const NUMERO = '1234'
+
+  let transformada: Rifa
+  let heredada: Rifa
+  let nativa: Rifa
+  const boleta: Record<string, string> = {}
+  const sorteo: Record<string, { scheduleId: string; drawNumber: string }> = {}
+  const resultados: Record<string, string> = {}
+
+  const porBoleta = <T extends { ticket_id: string }>(filas: T[]): T[] =>
+    [...filas].sort((a, b) => (a.ticket_id < b.ticket_id ? -1 : 1))
+
+  /** De lunes a viernes, todo marzo de 2066, con el número diario. */
+  const premioDeMarzo = (digits: 'four' | 'last_three'): TransitionPrizePayload => ({
+    title: digits === 'four' ? 'Premio de cuatro cifras' : 'Premio de tres cifras',
+    category: 'daily',
+    reward_mode: 'fixed',
+    reward_options: [{ description: null, amount: 100_000 }],
+    number_field: 'daily_number',
+    digits,
+    rules: [
+      {
+        start_date: '2066-03-01',
+        end_date: '2066-03-26',
+        weekdays: [1, 2, 3, 4, 5],
+        lottery_mode: 'corresponding',
+        lottery_code: null,
+      },
+    ],
+    conditions: null,
+  })
+
+  /** La 1234 de una rifa, fotografiada por el sistema de siempre: sin premio. */
+  const deSiempre = (rifaBoleta: string) => [
+    { ticket_id: rifaBoleta, match_field: 'daily_number', assignment_status: 'sold', title: null },
+  ]
+
+  /** La 1234 y la 9234 de la transformada, con el premio de tres cifras. */
+  const conPremios = () =>
+    porBoleta([
+      {
+        ticket_id: boleta.transformada1234!,
+        match_field: 'daily_number',
+        assignment_status: 'sold',
+        title: 'Premio de tres cifras',
+      },
+      {
+        ticket_id: boleta.transformada9234!,
+        match_field: 'daily_number',
+        assignment_status: 'sold',
+        title: 'Premio de tres cifras',
+      },
+    ])
+
+  beforeAll(async () => {
+    // Tres rifas con la misma ventana y las mismas boletas: una heredada que se
+    // transforma, una heredada que no, y una que NACIÓ configurable.
+    transformada = await nuevaRifa('frontera transformada', '2066-03-01', '2066-03-27')
+    heredada = await nuevaRifa('frontera heredada', '2066-03-01', '2066-03-27')
+    nativa = await nuevaRifa('frontera nativa', '2066-03-01', '2066-03-27', {
+      estado: 'draft',
+      modo: 'configurable',
+    })
+
+    const premioNativo = randomUUID()
+    await db.query('begin')
+    await db.query(
+      `select raffle_prize_insert_version($1, $2, $3, gen_random_uuid(), 1, null, 'active',
+         'Premio de cuatro cifras', 'daily', 'fixed', '[{"description": null, "amount": 100000}]'::jsonb,
+         'daily_number', 'four', null, $4::jsonb, null)`,
+      [
+        nativa.organization_id,
+        nativa.id,
+        premioNativo,
+        JSON.stringify(premioDeMarzo('four').rules),
+      ],
+    )
+    await db.query(
+      `insert into raffle_prizes (id, organization_id, raffle_id, status, position, current_version_id)
+       select $1, $2, $3, 'active', 1, v.id from raffle_prize_versions v where v.prize_id = $1`,
+      [premioNativo, nativa.organization_id, nativa.id],
+    )
+    await db.query('commit')
+    await db.query(`update raffles set status = 'active' where id = $1`, [nativa.id])
+
+    for (const [clave, r, semanal] of [
+      ['transformada', transformada, '501'],
+      ['heredada', heredada, '502'],
+      ['nativa', nativa, '503'],
+    ] as const) {
+      const ids = await boletas(r.id, [
+        { diario: NUMERO, semanal: `${semanal}1`, cliente: ctx.clients.ana.id },
+        { diario: '9234', semanal: `${semanal}2`, cliente: ctx.clients.carlos.id },
+      ])
+      boleta[`${clave}1234`] = ids[0]!
+      boleta[`${clave}9234`] = ids[1]!
+    }
+
+    // Aplazado a DESPUÉS del instante, pero anunciado antes: corta en la original.
+    sorteo.lun8 = await programacion('cundinamarca', '2066-03-08', {
+      original: '2066-03-08T22:30:00-05:00',
+      oficial: '2066-03-12T22:30:00-05:00',
+      estado: 'rescheduled_later',
+    })
+    // Corte IGUAL al instante.
+    sorteo.mar9 = await programacion('cruz_roja', '2066-03-09', {
+      original: INSTANTE,
+      oficial: INSTANTE,
+    })
+    // Un microsegundo después.
+    sorteo.mie10 = await programacion('meta', '2066-03-10', {
+      original: INSTANTE_MAS_UNO,
+      oficial: INSTANTE_MAS_UNO,
+    })
+    // Anunciado después, ADELANTADO a antes del instante: corta en la oficial.
+    sorteo.jue11 = await programacion('bogota', '2066-03-11', {
+      original: '2066-03-11T22:30:00-05:00',
+      oficial: '2066-03-09T20:00:00-05:00',
+      estado: 'rescheduled_earlier',
+    })
+    // Aplazado, con las dos horas después del instante.
+    sorteo.vie12 = await programacion('medellin', '2066-03-12', {
+      original: '2066-03-12T22:30:00-05:00',
+      oficial: '2066-03-15T22:30:00-05:00',
+      estado: 'rescheduled_later',
+    })
+    // Adelantado, pero todavía después del instante.
+    sorteo.lun15 = await programacion('cundinamarca', '2066-03-15', {
+      original: '2066-03-15T22:30:00-05:00',
+      oficial: '2066-03-12T10:00:00-05:00',
+      estado: 'rescheduled_earlier',
+    })
+    // Sin hora original: el corte no se conoce.
+    sorteo.mar16 = await programacion('cruz_roja', '2066-03-16', {
+      original: null,
+      oficial: '2066-03-16T22:30:00-05:00',
+    })
+    sorteo.mie17 = await programacion('meta', '2066-03-17')
+
+    // Con el reloj real todo marzo de 2066 está por jugar: la transición pasa, y
+    // después se traslada su instante al martes 9 a las 10:30 p. m.
+    const hecho = await aplicar(transformada, [premioDeMarzo('last_three')])
+    expect(hecho.applied).toBe(true)
+    await trasladarInstante(transformada.id, INSTANTE)
+  }, 120_000)
+
+  it('T6-01: la frontera, sorteo por sorteo, con el corte canónico', async () => {
+    const { rows } = await db.query<{
+      fecha: string
+      transformada: string | null
+      heredada: string | null
+      nativa: string | null
+    }>(
+      `select s.reference_date::text as fecha,
+              raffle_prize_draw_mode($1, s)::text as transformada,
+              raffle_prize_draw_mode($2, s)::text as heredada,
+              raffle_prize_draw_mode($3, s)::text as nativa
+         from lottery_draw_schedules s
+        where s.id = any ($4::uuid[])
+        order by s.reference_date`,
+      [transformada.id, heredada.id, nativa.id, Object.values(sorteo).map((s) => s.scheduleId)],
+    )
+    const lado = (fecha: string, transformadaLado: string | null) => ({
+      fecha,
+      transformada: transformadaLado,
+      // La heredada sin transición siempre usa el de siempre, y la nativa siempre
+      // sus premios: exactamente lo que hacían antes de la 0064.
+      heredada: 'legacy',
+      nativa: 'configurable',
+    })
+    expect(rows).toEqual([
+      lado('2066-03-08', 'legacy'),
+      lado('2066-03-09', 'legacy'),
+      lado('2066-03-10', 'configurable'),
+      lado('2066-03-11', 'legacy'),
+      lado('2066-03-12', 'configurable'),
+      lado('2066-03-15', 'configurable'),
+      lado('2066-03-16', null),
+      lado('2066-03-17', 'configurable'),
+    ])
+
+    // La frontera pura, alrededor del corte del martes 9: un microsegundo antes
+    // del corte el instante todavía no lo alcanza.
+    const { rows: martes } = await db.query<{ antes: string; igual: string; despues: string }>(
+      `select raffle_prize_transition_draw_mode($1::timestamptz - interval '1 microsecond', s)::text as antes,
+              raffle_prize_transition_draw_mode($1::timestamptz, s)::text as igual,
+              raffle_prize_transition_draw_mode($1::timestamptz + interval '1 microsecond', s)::text as despues
+         from lottery_draw_schedules s where s.id = $2`,
+      [INSTANTE, sorteo.mar9!.scheduleId],
+    )
+    expect(martes[0]).toEqual({ antes: 'configurable', igual: 'legacy', despues: 'legacy' })
+  })
+
+  it('T6-02: la frontera exacta: con el corte IGUAL al instante, el sistema de siempre; un microsegundo después, solo los premios', async () => {
+    resultados.mar9 = await confirmar('cruz_roja', sorteo.mar9!.drawNumber, NUMERO)
+    resultados.mie10 = await confirmar('meta', sorteo.mie10!.drawNumber, NUMERO)
+
+    // El de siempre compara el número entero: la 9234 no coincide y nada lleva enlace.
+    expect(await fotografias(resultados.mar9, transformada.id)).toEqual(
+      deSiempre(boleta.transformada1234!),
+    )
+    // Los premios: las tres últimas cifras, las dos boletas, con su enlace.
+    expect(await fotografias(resultados.mie10, transformada.id)).toEqual(conPremios())
+  })
+
+  it('T6-03: los sorteos aplazados y adelantados caen del lado que dice su corte efectivo', async () => {
+    for (const [clave, loteria] of [
+      ['lun8', 'cundinamarca'],
+      ['jue11', 'bogota'],
+      ['vie12', 'medellin'],
+      ['lun15', 'cundinamarca'],
+    ] as const) {
+      resultados[clave] = await confirmar(loteria, sorteo[clave]!.drawNumber, NUMERO)
+    }
+    // Aplazado a después, anunciado antes: corta en la original, el de siempre.
+    expect(await fotografias(resultados.lun8!, transformada.id)).toEqual(
+      deSiempre(boleta.transformada1234!),
+    )
+    // Adelantado a antes del instante: corta en la oficial, el de siempre.
+    expect(await fotografias(resultados.jue11!, transformada.id)).toEqual(
+      deSiempre(boleta.transformada1234!),
+    )
+    // Aplazado con las dos horas después, y adelantado sin llegar al instante: premios.
+    expect(await fotografias(resultados.vie12!, transformada.id)).toEqual(conPremios())
+    expect(await fotografias(resultados.lun15!, transformada.id)).toEqual(conPremios())
+
+    // Del lado de siempre no hay ni un enlace de la transformada.
+    const { rows } = await db.query<{ n: number }>(
+      `select count(*)::int as n from lottery_ticket_match_prizes
+        where raffle_id = $1 and result_id = any ($2::uuid[])`,
+      [transformada.id, [resultados.mar9, resultados.lun8, resultados.jue11]],
+    )
+    expect(rows[0]!.n).toBe(0)
+  })
+
+  it('T6-04: en esos mismos resultados, la heredada compara como siempre y la nativa usa sus premios, a los dos lados', async () => {
+    for (const clave of ['lun8', 'mar9', 'mie10', 'jue11', 'vie12', 'lun15']) {
+      expect(await fotografias(resultados[clave]!, heredada.id)).toEqual(
+        deSiempre(boleta.heredada1234!),
+      )
+      expect(await fotografias(resultados[clave]!, nativa.id)).toEqual([
+        {
+          ticket_id: boleta.nativa1234!,
+          match_field: 'daily_number',
+          assignment_status: 'sold',
+          title: 'Premio de cuatro cifras',
+        },
+      ])
+    }
+  })
+
+  it('T6-05: repetir las confirmaciones, o hacer dos a la vez, no duplica fotografías, enlaces ni avisos', async () => {
+    const conteo = async (ids: string[]) => {
+      const { rows } = await db.query<{
+        fotos: number
+        enlaces: number
+        avisos: number
+        repetidos: number
+      }>(
+        `select (select count(*)::int from lottery_ticket_matches where result_id = any ($1::uuid[])) as fotos,
+                (select count(*)::int from lottery_ticket_match_prizes where result_id = any ($1::uuid[])) as enlaces,
+                (select count(*)::int from notifications
+                  where kind = 'lottery.result' and entity_id = any ($1::uuid[])) as avisos,
+                (select count(*)::int from (
+                   select recipient_profile_id, entity_id from notifications
+                    where kind = 'lottery.result' and entity_id = any ($1::uuid[])
+                    group by 1, 2 having count(*) > 1) d) as repetidos`,
+        [ids],
+      )
+      return rows[0]!
+    }
+
+    const hechos = Object.values(resultados)
+    const antes = await conteo(hechos)
+    expect(antes.repetidos).toBe(0)
+    for (const [clave, loteria] of [
+      ['lun8', 'cundinamarca'],
+      ['mar9', 'cruz_roja'],
+      ['mie10', 'meta'],
+      ['jue11', 'bogota'],
+      ['vie12', 'medellin'],
+      ['lun15', 'cundinamarca'],
+    ] as const) {
+      await confirmar(loteria, sorteo[clave]!.drawNumber, NUMERO)
+    }
+    expect(await conteo(hechos)).toEqual(antes)
+
+    // Dos conexiones confirman a la vez el miércoles 17, del lado de los premios.
+    const una = new PgClient({ connectionString: DB_URL })
+    const otra = new PgClient({ connectionString: DB_URL })
+    await Promise.all([una.connect(), otra.connect()])
+    try {
+      const llamada = `select confirm_lottery_result('meta'::lottery_code, $1, $2) as r`
+      const [a, b] = await Promise.all([
+        una.query<{ r: { result_id: string } }>(llamada, [sorteo.mie17!.drawNumber, NUMERO]),
+        otra.query<{ r: { result_id: string } }>(llamada, [sorteo.mie17!.drawNumber, NUMERO]),
+      ])
+      expect(a.rows[0]!.r.result_id).toBe(b.rows[0]!.r.result_id)
+      resultados.mie17 = a.rows[0]!.r.result_id
+    } finally {
+      await Promise.all([una.end(), otra.end()])
+    }
+    // La transformada: 2 con premio; la heredada: 1 sin premio; la nativa: 1 con premio.
+    expect(await conteo([resultados.mie17])).toMatchObject({ fotos: 4, enlaces: 3, repetidos: 0 })
+  })
+
+  it('T6-06: sin hora original, el motor no supone de qué lado cae el sorteo y no guarda nada', async () => {
+    await expect(confirmar('cruz_roja', sorteo.mar16!.drawNumber, NUMERO)).rejects.toThrow(
+      'No se conoce la hora original anunciada de este sorteo',
+    )
+    const { rows } = await db.query<{ n: number }>(
+      `select count(*)::int as n from lottery_results where schedule_id = $1`,
+      [sorteo.mar16!.scheduleId],
+    )
+    expect(rows[0]!.n).toBe(0)
+  })
+
+  it('T6-07: si el corte de un sorteo ya resuelto cruza el instante, el motor no mezcla los dos sistemas', async () => {
+    const huellaDe = async (resultId: string) => {
+      const { rows } = await db.query<{ fotos: string; enlaces: number }>(
+        `select md5(string_agg(m::text, '|' order by m.id)) as fotos,
+                (select count(*)::int from lottery_ticket_match_prizes l where l.result_id = $1) as enlaces
+           from lottery_ticket_matches m where m.result_id = $1`,
+        [resultId],
+      )
+      return rows[0]!
+    }
+    const antes = await huellaDe(resultados.jue11!)
+
+    // Como si alguien corrigiera a mano la programación de ese jueves DESPUÉS de
+    // resolverlo: ya no se adelantó, y su corte queda después del instante.
+    await db.query(
+      `update lottery_draw_schedules set official_scheduled_at = '2066-03-11T22:30:00-05:00' where id = $1`,
+      [sorteo.jue11!.scheduleId],
+    )
+    try {
+      await expect(confirmar('bogota', sorteo.jue11!.drawNumber, NUMERO)).rejects.toThrow(
+        'Este resultado ya tiene coincidencias de una rifa guardadas con el otro sistema de premios',
+      )
+      expect(await huellaDe(resultados.jue11!)).toEqual(antes)
+    } finally {
+      await db.query(
+        `update lottery_draw_schedules set official_scheduled_at = '2066-03-09T20:00:00-05:00' where id = $1`,
+        [sorteo.jue11!.scheduleId],
+      )
+    }
+
+    // Con la programación de vuelta, confirmar otra vez no cambia nada.
+    await confirmar('bogota', sorteo.jue11!.drawNumber, NUMERO)
+    expect(await huellaDe(resultados.jue11!)).toEqual(antes)
+  })
+
+  it('T6-08: ninguna escritura directa enlaza un premio a un sorteo del lado de siempre', async () => {
+    const { rows: foto } = await db.query<{ id: string; organization_id: string }>(
+      `select id, organization_id from lottery_ticket_matches where result_id = $1 and raffle_id = $2`,
+      [resultados.mar9!, transformada.id],
+    )
+    const { rows: premio } = await db.query<{ prize_id: string; version_id: string }>(
+      `select p.id as prize_id, p.current_version_id as version_id from raffle_prizes p where p.raffle_id = $1`,
+      [transformada.id],
+    )
+    await expect(
+      db.query(
+        `insert into lottery_ticket_match_prizes (organization_id, raffle_id, result_id, match_id,
+           match_field, prize_id, prize_version_id)
+         values ($1, $2, $3, $4, 'daily_number', $5, $6)`,
+        [
+          foto[0]!.organization_id,
+          transformada.id,
+          resultados.mar9,
+          foto[0]!.id,
+          premio[0]!.prize_id,
+          premio[0]!.version_id,
+        ],
+      ),
+    ).rejects.toThrow('El premio enlazado no es el que aplica a este sorteo con esa versión.')
+  })
+})
+
+// =============================================================================
+describe('T7 — con el reloj de verdad: los sorteos ya jugados no esperan (D-206)', () => {
+  it('T7-01: la transición no espera a los sorteos jugados sin resultado, los deja con el sistema de siempre, y cada sorteo usa el motor de su lado', async () => {
+    // FECHAS DE VERDAD alrededor de hoy. La semana pasada y esta ya empezaron, y
+    // cada uno de sus sorteos tiene programación. Los de antes de hoy ya se
+    // jugaron; el de hoy se da por aplazado a mañana a las 6:00 a. m., para que
+    // la prueba no dependa de la hora a la que corre. Solo fallaría si corriera
+    // justo al pasar del domingo al lunes, cuando empieza otra semana.
+    const { rows: reloj } = await db.query<{ hoy: string }>(`select today_bogota()::text as hoy`)
+    const hoy = reloj[0]!.hoy
+    const lunes = addIsoDays(hoy, 1 - isoWeekday(hoy))
+    const desde = addIsoDays(lunes, -7)
+    const real = await nuevaRifa('reloj real', desde, addIsoDays(lunes, 13))
+
+    const [ana4040, carlos4040, ana4041] = await boletas(real.id, [
+      { diario: '4040', semanal: '6001', cliente: ctx.clients.ana.id },
+      { diario: '6002', semanal: '4040', cliente: ctx.clients.carlos.id },
+      { diario: '4041', semanal: '6003', cliente: ctx.clients.ana.id },
+    ])
+
+    const programados: Record<string, { scheduleId: string; drawNumber: string }> = {}
+    const jugados: string[] = []
+    for (let dia = desde; dia <= addIsoDays(lunes, 5); dia = addIsoDays(dia, 1)) {
+      if (isoWeekday(dia) === 7) continue
+      const hora = dia === hoy ? `${addIsoDays(dia, 1)}T06:00:00-05:00` : `${dia}T22:30:00-05:00`
+      programados[dia] = await programacion(lotteryForDate(dia)!, dia, {
+        original: hora,
+        oficial: hora,
+      })
+      if (dia < hoy) jugados.push(dia)
+    }
+    // El premio: el martes de la semana que viene, con el número SEMANAL.
+    const martesQueViene = addIsoDays(lunes, 8)
+    programados[martesQueViene] = await programacion('cruz_roja', martesQueViene)
+
+    // Antes de la transición, el lunes pasado ya se resolvió con el sistema de siempre.
+    const lunesPasado = await confirmar('cundinamarca', programados[desde]!.drawNumber, '4041')
+    const fotoPrevia = await fotografias(lunesPasado, real.id)
+    expect(fotoPrevia).toEqual([
+      { ticket_id: ana4041!, match_field: 'daily_number', assignment_status: 'sold', title: null },
+    ])
+
+    const { rows: antesDe } = await db.query<{ t: string }>(`select clock_timestamp()::text as t`)
+    const hecho = await aplicar(real, [
+      { ...premioDeUnDia(martesQueViene), number_field: 'weekly_number' },
+    ])
+    const { rows: despuesDe } = await db.query<{ t: string }>(`select clock_timestamp()::text as t`)
+    expect(hecho).toMatchObject({ applied: true, already_applied: false })
+
+    // El instante efectivo cae dentro de la llamada y es el que quedó guardado.
+    const { rows: instante } = await db.query<{ dentro: boolean; guardado: boolean }>(
+      `select $1::timestamptz between $2::timestamptz and $3::timestamptz as dentro,
+              (select t.effective_at = $1::timestamptz from raffle_prize_transitions t
+                where t.raffle_id = $4) as guardado`,
+      [hecho.effective_at, antesDe[0]!.t, despuesDe[0]!.t, real.id],
+    )
+    expect(instante[0]).toEqual({ dentro: true, guardado: true })
+
+    // Todos los sorteos anteriores a hoy conservan el sistema de siempre, y solo
+    // el lunes pasado tiene resultado.
+    const pendientes = jugados.slice(1).map((dia) => ({
+      reference_date: dia,
+      lottery_code: lotteryForDate(dia),
+      draw_number: programados[dia]!.drawNumber,
+    }))
+    const esperado = {
+      total: jugados.length,
+      confirmed: 1,
+      unconfirmed: jugados.length - 1,
+      first_date: desde,
+      last_date: jugados.at(-1),
+      unconfirmed_draws: pendientes,
+    }
+    expect(hecho.legacy_draws).toEqual(esperado)
+
+    // La bitácora lo dice igual, sin nada de la cartera.
+    const { rows: bitacora } = await db.query<{ v: Record<string, unknown> }>(
+      `select new_values as v from audit_logs
+        where entity_id = $1 and action = 'raffle.prize_mode_transition'`,
+      [real.id],
+    )
+    expect(bitacora).toHaveLength(1)
+    expect(bitacora[0]!.v.legacy_draws).toEqual(esperado)
+    expect(Date.parse(bitacora[0]!.v.effective_at as string)).toBe(Date.parse(hecho.effective_at!))
+
+    // Un sorteo de la semana pasada, confirmado AHORA: el sistema de siempre.
+    const martesPasado = addIsoDays(desde, 1)
+    const historico = await confirmar('cruz_roja', programados[martesPasado]!.drawNumber, '4040')
+    expect(await fotografias(historico, real.id)).toEqual([
+      { ticket_id: ana4040!, match_field: 'daily_number', assignment_status: 'sold', title: null },
+    ])
+
+    // El martes que viene: solo el premio, con el número semanal.
+    const futuro = await confirmar('cruz_roja', programados[martesQueViene]!.drawNumber, '4040')
+    expect(await fotografias(futuro, real.id)).toEqual([
+      {
+        ticket_id: carlos4040!,
+        match_field: 'weekly_number',
+        assignment_status: 'sold',
+        title: 'Premio de un día',
+      },
+    ])
+
+    // Y lo que ya estaba resuelto sigue idéntico.
+    expect(await fotografias(lunesPasado, real.id)).toEqual(fotoPrevia)
   })
 })

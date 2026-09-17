@@ -3,7 +3,8 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-16 — **Premios configurables, ENTREGA 5 de 5: DETENIDA en el preflight de solo lectura** (D-205, sin migración). La parte local está hecha —I-128 resuelta, la puerta de producción del script, `verify:remote` +3, `test:db` **1.230/1.230**, `verify` **1.363/1.363**, E2E **742/744** con I-075 e I-090 verdes en aislamiento— en **`7d80c18`**. El proyecto real, consultado **solo en lectura**, tiene dos bloqueos que decide el dueño: la rifa real **termina el 01/11/2026** y no contiene ningún premio (**I-129**) y tiene **25 sorteos jugados sin resultado confirmado** (**I-127**). **Nada se escribió en producción**: sigue en la `0057`, sin push ni despliegue, y la rifa sigue en el sistema de siempre. Los seis puntos de §34.3, en su sección de mantenimiento.
+- **Actualizado:** 2026-09-16 — **Premios configurables, ENTREGA 5 de 5: corrección local previa a producción** (D-206, migración **`0064`**, **solo en local**, sin completar la entrega): los sorteos cuyo corte llegó antes de la transición **conservan el sistema de siempre** —también si su resultado se confirma después, sin enlaces—, con el **instante efectivo** y una sola frontera; la transición ya no espera a los 25 sorteos de **I-127** y sí a un corte desconocido; y cambiar las fechas de una rifa activa **avisa** a su organización (BR-R12). `test:db` **1.254/1.254**, `verify` **1.375/1.375**, E2E dirigida **52/53** y la prueba nueva corregida, **9/9** en tres repeticiones. **Producción sin cambios** y la fecha real de la rifa sigue en el 01/11/2026. Los seis puntos de §34.3, en su sección de mantenimiento.
+  Antes, ese mismo día — **Premios configurables, ENTREGA 5 de 5: DETENIDA en el preflight de solo lectura** (D-205, sin migración). La parte local está hecha —I-128 resuelta, la puerta de producción del script, `verify:remote` +3, `test:db` **1.230/1.230**, `verify` **1.363/1.363**, E2E **742/744** con I-075 e I-090 verdes en aislamiento— en **`7d80c18`**. El proyecto real, consultado **solo en lectura**, tiene dos bloqueos que decide el dueño: la rifa real **termina el 01/11/2026** y no contiene ningún premio (**I-129**) y tiene **25 sorteos jugados sin resultado confirmado** (**I-127**). **Nada se escribió en producción**: sigue en la `0057`, sin push ni despliegue, y la rifa sigue en el sistema de siempre. Los seis puntos de §34.3, en su sección de mantenimiento.
   Antes, ese mismo día — **Premios configurables, ENTREGA 4 de 5: la transición de una rifa existente** (D-204, migración **`0063`**, **solo en local**): `transition_raffle_prize_mode` —solo la service role, entera o nada, con vista previa— convierte una rifa heredada sin tocar su cartera ni sus coincidencias, y se niega mientras quede un sorteo jugado sin confirmar (**I-127**, riesgo para la rifa real). Los **seis** premios confirmados están escritos una vez; el caso «semanal, un lunes, con Cundinamarca» era un ejemplo. **Ninguna rifa real cambió de modo.** Los seis puntos de §34.3, en su sección de mantenimiento. **No autoriza la Entrega 5.**
   Antes, ese mismo día — **Corrección de la ENTREGA 3 de premios configurables** (D-203
   Decisiones 9 y 10, migración **`0062`**, **solo en local**): el corte de un sorteo es
@@ -4956,6 +4957,88 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — premios configurables, **ENTREGA 5 de 5**: corrección local previa a producción, el instante efectivo y el aviso de fechas (`0064`, D-206, 2026-09-16)
+
+Encargo expreso después del preflight detenido: una **corrección local** con una migración nueva `0064`,
+sin tocar `0058`–`0063`, y **un solo commit local**. **No es una Fase 10**, no lleva etiqueta, **no
+completa la Entrega 5** y **no prepara todavía la primera puerta de producción**.
+
+> **PRODUCCIÓN SIN CAMBIOS.** Sigue en la `0057`, sirviendo `c48437a`. La fecha real de la rifa no se
+> cambió, la rifa sigue en `legacy`, no hubo push, etiqueta, despliegue ni transición.
+
+**Lo que decidió el dueño:** la rifa es `d64af684-1378-45b9-bb71-2141a58a5013`, de la organización
+«Rifas» (`ec88961d-7c81-4b27-ae03-d9bccc73eda6`), **«SORTEO CAMIONETA KIA 2027»**, con el «2027»; su fin se
+extiende **hasta el 21/12/2026 inclusive**, todavía no; y los 25 sorteos de I-127 **ni se quedan sin
+coincidencias para siempre ni reciben resultados inventados**: conservan el motor de siempre.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| **El instante efectivo** | `raffle_prize_transitions.effective_at`: la publicación de la última versión inicial, `NOT NULL` y `>= transitioned_at` |
+| **Una frontera** | `raffle_prize_transition_draw_mode(instante, programación)` con `raffle_prize_draw_cutoff`: corte `<=` instante, sistema de siempre; `>`, premios; desconocido, `NULL`. Y `raffle_prize_draw_mode(rifa, programación)`: heredada, siempre; configurable sin transición, premios —**como antes**—; transformada, la frontera |
+| **El motor** | Toma el cerrojo de configuración de **todas** las rifas del sorteo antes de decidir —espera a una transición en curso—, reparte las rifas entre las dos ramas sin cambiar lo que comparan, y **no mezcla sistemas** en un resultado ya procesado |
+| **Las defensas** | Una fotografía del lado de siempre no lleva enlace; **ningún enlace** entra del lado de siempre |
+| **La transición** | Ya **no espera** a los sorteos jugados sin resultado; **sigue esperando** a un corte desconocido en una semana empezada, ahora también en borrador; comprueba todo otra vez contra el instante; y la respuesta, la vista previa y la bitácora cuentan los sorteos que conservan el sistema de siempre |
+| **El aviso de fechas (BR-R12)** | Disparador general: cambiar inicio o fin de una rifa **activa** avisa a cada membresía activa —menos a quien lo hizo— en la misma transacción, sin cartera, idempotente, y deja su fila de bitácora. La pantalla de editar lo anuncia antes de guardar |
+| **Procedimiento de producción** | `RUNBOOK` §8 con **tres puertas** —migraciones y despliegue, extender la fecha con su aviso, la transición—, el bloque SQL comprobado de la extensión y qué pasa después con los sorteos de siempre |
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase migration up --local` | ✅ `0064` sobre la base con la semilla; privilegios comprobados |
+| `raffle-prize-transition.test.ts` antes de adaptarla | ❌ 16 fallos en cascada por dos inserciones a mano sin `effective_at` (T1-06, T1-07) → adaptada |
+| `raffle-prize-transition.test.ts` · `raffle-date-notices.test.ts` | ✅ **51/51** · ✅ **11/11** |
+| Cinco mutaciones de la frontera, el cerrojo, el enrutamiento y el aviso | ❌ detectadas todas; funciones y disparador restaurados con su `md5` |
+| `npm run test:db`, primera corrida | ❌ **M10-01**: la frontera se evaluaba por fotografía (114 llamadas); CTE `materialized` en la propia `0064` |
+| `db:reset` · `seed:local` · `npm run test:db` | ✅ **1.254/1.254** en 51 archivos |
+| Arnés de rendimiento con 5.000 boletas | Motor 4–16 ms a cada lado, transición 52–69 ms, aviso de fechas 4 ms |
+| `npm run verify` | ✅ **1.375/1.375** unitarias en 75 archivos, lint sin errores (2 avisos previos), build |
+| `verify:remote` contra la base local | ✅ **37/37** |
+| El bloque SQL de `RUNBOOK` §8.3, ejecutado en local | ✅ 36 avisos para 36 membresías; con otro nombre, nada |
+| E2E dirigida tras `db:reset` y `seed:local` —`rifa-fechas-aviso`, `premios-transicion`, `owner-raffles`, `premios`, `privacidad-admin` y su versión móvil— | ❌→✅ **52/53**: la prueba **nueva** del borrador escribía antes de la hidratación; corregida, **9/9** en tres repeticiones, y la mutación «anunciar también en borradores», detectada |
+| `git diff --check` · `0058`–`0063` · protegidos | ✅ · sin cambios · mismo SHA-256 |
+
+**Errores encontrados y corregidos:** el de M10-01, que era del producto y se corrigió en la migración
+antes del commit; y, de las pruebas y el procedimiento, las fechas de 2066 desplazadas un día, números
+semanales de cinco cifras, el reformateo ajeno de `prettier`, `form.watch`, la prueba E2E nueva que escribía antes de la hidratación y dos errores de formato en
+`TESTING` y en el borrador de `RUNBOOK` (`TEST_RESULTS`).
+
+### 3. Migraciones que existen
+
+**`0001`–`0064` en local; `0001`–`0057` en el proyecto real.** Nueva: **`0064_prize_transition_instant_raffle_date_notices.sql`**
+—`effective_at` y su relleno, la frontera, el motor y sus dos defensas, la transición sin la espera por
+resultados, el `kind` `raffle.dates_changed` con su índice y su disparador, y los privilegios—. Sustituye
+`raffle_prize_transition_pending_draws` y la ocurrencia jugada de un argumento.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **`0058`–`0064` y el código no están en producción** | La rifa real sigue en el sistema de siempre hasta pasar las tres puertas |
+| **I-129: la fecha real sigue en el 01/11/2026** | Decidida la extensión; se hace en la **puerta 2** |
+| **I-127: resuelta en local** | Se resuelve en producción con la `0064` y la transición |
+| **I-131 (info):** una corrección a mano de la hora de un sorteo ya resuelto que cruce el instante hace que el motor se niegue a completarlo | No lo hace la sincronización; `RUNBOOK` §8.6 dice qué hacer |
+| **I-130 (info)** | Sin cambios |
+| I-075 e I-090 en la E2E completa | Pruebas, no producto; la completa no se repitió en esta corrección |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto no completa la Entrega 5 ni autoriza ninguna puerta.** Hace falta una instrucción nueva.
+2. **Las tres puertas van en orden** (`RUNBOOK` §8.0): migraciones y despliegue; extender la fecha con su
+   aviso; la transición. La segunda **necesita** la `0064`: sin ella, extender no avisaría.
+3. **Repite el preflight de solo lectura y genera un respaldo nuevo** justo antes de la primera escritura.
+4. **La vista previa real** tiene que contar los sorteos que conservan el sistema de siempre, con los 25
+   de I-127 entre los que no tienen resultado.
+5. **No cargues resultados sin evidencia** ni corrijas a mano la hora de un sorteo ya resuelto (I-131).
 
 ---
 

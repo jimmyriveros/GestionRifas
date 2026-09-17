@@ -1,6 +1,13 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.21 · **Estado:** implementado · **Actualizado:** 2026-09-16
+- **Versión:** 2.22 · **Estado:** implementado · **Actualizado:** 2026-09-16
+- **Nota (2026-09-16, corrección de la Entrega 5):** la **`0064`** (D-206) añade
+  **`raffle_prize_transitions.effective_at`** —el instante efectivo de cada transición, §4.22—, la
+  frontera `raffle_prize_transition_draw_mode` y `raffle_prize_draw_mode`, que deciden con qué sistema
+  juega cada rifa cada sorteo (§6.g.9), y el aviso de las fechas de una rifa activa: el `kind`
+  **`raffle.dates_changed`**, su índice único y el disparador `raffles_notify_dates_changed` (§4.23).
+  **No toca datos** fuera de rellenar `effective_at` de las transiciones que ya existieran. El esquema
+  ejecutable son **`0001`–`0064`** en local y sigue siendo **`0001`–`0057`** en el proyecto real.
 - **Nota (2026-09-16, Entrega 4):** la **`0063`** (D-204) crea **`raffle_prize_transitions`** —la
   transición de una rifa que ya existía, una por rifa, §4.22— y la operación interna
   `transition_raffle_prize_mode`, y vuelve a escribir `raffles_guard_prize_config` con **una** puerta
@@ -1274,6 +1281,7 @@ la vez la **huella** de la configuración aplicada —para que un segundo intent
 | `prize_ids` | `uuid[]` | Los premios creados, en su posición; de 1 a 50, sin nulos |
 | `xact_id` | `xid8` | `pg_current_xact_id()` de la transacción que la escribió: **abre la puerta solo dentro de ella** |
 | `transitioned_at` · `transitioned_by` | `timestamptz` · `uuid` | `NULL` = un proceso del sistema, «Sistema» |
+| `effective_at` | `timestamptz` | **Instante efectivo** (`0064`, D-206): la publicación de la **última versión inicial**. `NOT NULL` y `>= transitioned_at`. Un sorteo con corte efectivo **hasta** este instante conserva el sistema de siempre para la rifa; uno posterior usa los premios |
 
 **No lleva** clientes, boletas, pagos, precios ni resultados: la transición no los lee.
 
@@ -1284,10 +1292,30 @@ la vez la **huella** de la configuración aplicada —para que un segundo intent
 | Nace antes que el cambio de modo, y solo para una rifa heredada | Disparador `raffle_prize_transitions_guard` (BEFORE INSERT) |
 | Nadie la reescribe ni la borra, tampoco la service role | El mismo disparador, en UPDATE y DELETE |
 | Solo la escribe la migración | RLS forzada **sin políticas** y `revoke all` a `public`, `anon`, `authenticated` **y** `service_role` |
+| El instante nunca es anterior al inicio de la transacción | CHECK `raffle_prize_transitions_effective_check` |
 
 **Sin índices propios** más allá de la clave primaria y la única de `raffle_id`, que sirve a la
 puerta, al reintento y a la limpieza. La transición **no recorre boletas**: su costo depende de los
 premios, sus períodos y los días de la ventana de la rifa.
+
+### 4.23 `notifications`: el `kind` `raffle.dates_changed` (`0064`, BR-R12, D-206)
+
+> ⚠️ **Solo en LOCAL**, como §4.22.
+
+Cambiar `start_date` o `end_date` de una rifa **activa** escribe, en el mismo `UPDATE`, **un aviso por
+membresía activa** de la organización —menos a quien hizo el cambio— desde el disparador
+`raffles_notify_dates_changed` (`AFTER UPDATE OF start_date, end_date`, con `WHEN` la rifa era y sigue
+activa y alguna fecha cambió).
+
+| Qué | Cómo |
+|---|---|
+| Tipo | `raffle.dates_changed`, añadido al CHECK `notifications_kind_check`, que se vuelve a crear con la lista completa |
+| Entidad | `entity_type = 'raffle_date_change'`; `entity_id` = un identificador **por cambio**, el mismo para todos sus avisos |
+| Datos | `raffle_id`, `raffle_name`, `previous_start_date`, `previous_end_date`, `start_date`, `end_date`. **Nada** de la cartera |
+| Idempotencia | `notifications_raffle_dates_once`: único `(recipient_profile_id, entity_id)` para ese `kind`. Guardar las mismas fechas no dispara nada |
+| Bitácora | `audit_logs` `raffle.dates_change` con las fechas, `change_id` y `notified`, además del `raffle.update` de `audit_raffles` |
+
+**El texto no vive en la base** (I-030): lo arma `src/features/notifications/text.ts`.
 
 ---
 
@@ -1840,8 +1868,8 @@ Entrega 3, y la prueban `tests/db` y `tests/unit`.
 > los premios con `raffle_prize_clean_fields`, `raffle_prize_normalized_reward` y
 > `raffle_prize_normalized_rules`), `raffle_prize_transition_pending_draws(rifa, instante)` (los
 > sorteos de la ventana que ya alcanzaron su corte sin resultado confirmado, o de corte desconocido en
-> una semana empezada; los cancelados no cuentan), `raffle_prize_transition_played_occurrence(versión)`
-> (la primera fecha cuyo corte no es posterior a la publicación), `raffle_prize_transition_open(rifa)`
+> una semana empezada; los cancelados no cuentan; **retirada en la `0064`**), `raffle_prize_transition_played_occurrence(versión)`
+> (la primera fecha cuyo corte no es posterior a la publicación; **desde la `0064`, con un instante**), `raffle_prize_transition_open(rifa)`
 > (la puerta), `raffle_prize_lottery_label` y `raffle_prize_raffle_status_phrase` (espejos de
 > `LOTTERY_LABELS` y `RAFFLE_STATUS_LABELS` para los mensajes). Todas usan `raffle_prize_draw_cutoff`:
 > ningún `least` nuevo.
@@ -1858,6 +1886,22 @@ Entrega 3, y la prueban `tests/db` y `tests/unit`.
 > **un** `audit_logs` `raffle.prize_mode_transition` —más el `raffle.update` que escribe
 > `audit_raffles`—. Ninguna en `tickets`, `clients`, `payments`, `payment_allocations`,
 > `lottery_results`, `lottery_ticket_matches` ni `lottery_ticket_match_prizes`.
+
+> **Desde la `0064` (D-206): el instante efectivo y la frontera.**
+>
+> | Función | Devuelve | Notas |
+> |---|---|---|
+> | `raffle_prize_transition_draw_mode(instante, programación)` | `legacy` si el corte (`raffle_prize_draw_cutoff`) es `<=` instante; `configurable` si es posterior; `NULL` si no se conoce | **La** frontera. `IMMUTABLE`, no lee tablas |
+> | `raffle_prize_draw_mode(rifa, programación)` | El motor de una rifa en un sorteo: heredada, `legacy`; configurable sin transición, `configurable`; transformada, la frontera con su `effective_at` | La usan `match_lottery_result` y las dos defensas de los enlaces |
+> | `raffle_prize_transition_window_draws(rifa, instante)` | Cada sorteo no cancelado de la ventana: lado, si tiene resultado confirmado y si su semana ya empezó | Sustituye a `raffle_prize_transition_pending_draws` |
+> | `raffle_prize_transition_check_window(rifa, instante)` | Nada, o el error: un corte desconocido en una semana ya empezada | Activa **y** borrador |
+> | `raffle_prize_transition_legacy_summary(rifa, instante)` | `jsonb`: total, con y sin resultado, primera y última fecha, y los sin resultado | Respuesta, vista previa y bitácora |
+> | `raffle_prize_transition_played_occurrence(versión, instante)` | La primera fecha de la versión del lado de siempre en ese instante | Con la publicación y con el instante efectivo |
+>
+> Todas internas, **sin `EXECUTE` para nadie**. `transition_raffle_prize_mode` devuelve además
+> `effective_at` —en blanco en la vista previa— y `legacy_draws`. `match_lottery_result` toma el
+> cerrojo de configuración de **todas** las rifas del sorteo antes de decidir, y se niega a completar un
+> resultado con fotografías de una rifa guardadas con el otro sistema.
 
 ### 6.h Coincidencias de lotería (migración `0036`)
 

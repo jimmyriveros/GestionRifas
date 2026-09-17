@@ -27,7 +27,12 @@
  * dueno del 2026-09-16— y que sorteos estan cancelados. Lo lee de la
  * programacion oficial y lo muestra. La configuracion de los seis premios es
  * `confirmedRafflePrizes`, y la autoridad es `transition_raffle_prize_mode`
- * (migracion 0063), que vuelve a comprobarlo todo.
+ * (migraciones 0063 y 0064), que vuelve a comprobarlo todo.
+ *
+ * LOS SORTEOS YA JUGADOS NO SE TOCAN (D-206). La vista previa dice cuantos
+ * conservan el sistema de siempre y cuales siguen sin resultado confirmado: si
+ * alguno se confirma despues, con evidencia oficial, lo resuelve el sistema de
+ * siempre. El script no confirma ni carga ningun resultado.
  *
  * LA RIFA NO SE ELIGE POR NOMBRE: se da su identificador y su organizacion, y
  * el nombre, el estado y las fechas son lo que se ESPERA de ella. Si algo no

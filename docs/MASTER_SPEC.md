@@ -391,7 +391,7 @@ propio no la cambia.
 
 ---
 
-### 9.7 Premios configurables por rifa — **ENTREGAS 1 A 4 DE 5: contrato, panel, motor y transición, solo en local**
+### 9.7 Premios configurables por rifa — **ENTREGAS 1 A 4 DE 5 y la corrección de la 5: contrato, panel, motor, transición y sorteos ya jugados, solo en local**
 
 > Encargo «premios configurables por rifa», 2026-09-15 (D-199, D-200 y **D-201**; reglas
 > BR-J01..BR-J15; migraciones **`0058`** y **`0059`**). **No hay panel** (Entrega 2), **no hay motor
@@ -405,14 +405,28 @@ propio no la cambia.
 > **Actualizado el mismo día (Entrega 4, D-204, `0063`):** existe **la transición** de una rifa que ya
 > existía, y la configuración de los **seis** premios confirmados está escrita y probada. **Ninguna
 > rifa real ha cambiado de sistema**: identificarla y convertirla es la Entrega 5.
+>
+> **Corregido antes de producción (D-206, `0064`, solo en local):** los sorteos que ya se jugaron cuando
+> una rifa cambia de sistema **conservan el sistema de siempre**, también si su resultado llega después, y
+> cambiar las fechas de una rifa activa **avisa** a su organización. La rifa real —«SORTEO CAMIONETA KIA
+> 2027»— se extenderá hasta el **21 de diciembre de 2026**, con su aviso, antes de la transición.
 
 **Cómo pasa una rifa que ya existía a premios configurables (Entrega 4).** No lo hace nadie desde la
 aplicación: lo hace **una vez**, por rifa, un proceso interno, y o queda **entera** —premios, sistema
 nuevo, un aviso a cada persona activa de la organización y el registro en la bitácora— o no queda
 nada. La rifa **conserva su estado, sus fechas, sus boletas, sus clientes, sus pagos y sus
 coincidencias**: nada de eso se toca ni se recalcula. Antes se ve **exactamente** lo que va a quedar.
-Y **no se hace mientras haya un sorteo de la rifa ya jugado sin resultado confirmado**: ese sorteo se
-buscaría con los premios nuevos.
+
+**Los sorteos que ya se jugaron siguen con el sistema de siempre** (D-206, respuesta del dueño). Un
+sorteo cuya hora ya había llegado cuando la rifa cambió de sistema se resuelve **con el comparador de
+siempre**, también si su resultado se confirma después; uno posterior, **solo con los premios nuevos**.
+No se inventan ni se cargan resultados: si un sorteo viejo nunca tuvo resultado, se queda así hasta que
+lo haya con evidencia oficial, y entonces avisa como cualquier otro. Lo único que detiene el cambio es un
+sorteo de una semana ya empezada **cuya hora no se conoce**: no se sabe de qué lado cae.
+
+**Cambiar las fechas de una rifa activa se avisa** (BR-R12): cada persona activa de la organización,
+menos quien lo hizo, recibe en la campana la fecha nueva, sin nada de clientes, ventas ni pagos. Guardar
+las mismas fechas no avisa, y la pantalla de editar lo dice antes de guardar.
 
 **Los seis premios confirmados de la rifa de diciembre** (D-204). Todo juega con **cuatro cifras**
 salvo el que dice tres:

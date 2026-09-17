@@ -48,6 +48,7 @@ export default async function EditRafflePage({
           endDate: raffle.endDate,
           allowSellerTicketCreation: raffle.allowSellerTicketCreation,
         }}
+        status={raffle.status}
         returnHref={returnHref}
       />
     </div>

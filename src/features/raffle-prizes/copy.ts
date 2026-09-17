@@ -589,6 +589,27 @@ export const PRIZE_TRANSITION_COPY = {
   status: (label: string) => `Estado: ${label} (no cambia)`,
   dates: (from: string, to: string) => `Fechas: del ${from} al ${to}`,
   mode: 'Sistema de premios: el de siempre → premios configurables',
+  // El instante efectivo (D-206). Solo cuando la transición existe: en la vista
+  // previa todavía no hay ninguno.
+  effective: (date: string, time: string) => `Premios configurables desde: ${date}, ${time}`,
+
+  // Los sorteos que conservan el sistema de siempre (D-206). Se dice cuántos y
+  // qué pasa con los que no tienen resultado, que es la pregunta de quien lee.
+  legacyHeading: (count: number) =>
+    count === 0
+      ? 'Sorteos que ya se jugaron: ninguno'
+      : count === 1
+        ? 'Sorteos que ya se jugaron: 1, con el sistema de premios de siempre'
+        : `Sorteos que ya se jugaron: ${count}, con el sistema de premios de siempre`,
+  legacyConfirmed: (count: number) => `Con resultado confirmado: ${count}`,
+  legacyUnconfirmed: (count: number, from?: string, to?: string) =>
+    count === 0 || !from || !to
+      ? 'Sin resultado confirmado: ninguno'
+      : from === to
+        ? `Sin resultado confirmado: ${count}, el ${from}`
+        : `Sin resultado confirmado: ${count}, del ${from} al ${to}`,
+  legacyExplanation:
+    'Si alguno se confirma después, se resuelve con el sistema de premios de siempre.',
 
   prizesHeading: (count: number) => (count === 1 ? 'Premios (1)' : `Premios (${count})`),
   reward: 'Entrega',

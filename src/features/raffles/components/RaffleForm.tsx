@@ -3,9 +3,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 
+import { Notice } from '@/components/feedback/Notice'
 import { MoneyInput } from '@/components/form/MoneyInput'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,15 +22,22 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { RAFFLE_WIZARD_COPY } from '@/features/raffle-prizes/copy'
-import { DEFAULT_TICKET_PRICE } from '@/lib/constants'
+import { DEFAULT_TICKET_PRICE, type RaffleStatus } from '@/lib/constants'
 import { todayBogota } from '@/lib/dates'
 import { hasInternalHistory } from '@/lib/navigation-history'
 
 import { createRaffle, updateRaffle } from '../actions'
+import { RAFFLE_DATE_CHANGE_NOTICE, raffleDateChangeAnnounced } from '../date-change'
 import { createRaffleSchema, raffleFormDefaults, type CreateRaffleInput } from '../schemas'
 
 type RaffleFormProps = {
   raffle?: CreateRaffleInput & { id: string }
+  /**
+   * El estado de la rifa que se EDITA. Con una activa, cambiar sus fechas avisa
+   * a las demás personas de la organización, y el formulario lo dice antes de
+   * guardar (BR-R12, D-206).
+   */
+  status?: RaffleStatus
   /**
    * A dónde se vuelve al guardar o cancelar una EDICIÓN: el detalle, o los
    * premios si se abrió desde el proceso de crear la rifa (D-202). Lo compone la
@@ -38,7 +46,7 @@ type RaffleFormProps = {
   returnHref?: string
 }
 
-export function RaffleForm({ raffle, returnHref }: RaffleFormProps) {
+export function RaffleForm({ raffle, status, returnHref }: RaffleFormProps) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -49,6 +57,14 @@ export function RaffleForm({ raffle, returnHref }: RaffleFormProps) {
     resolver: zodResolver(createRaffleSchema),
     defaultValues: raffle ?? { ...raffleFormDefaults, startDate: todayBogota() },
   })
+
+  // `useWatch` y no `form.watch()`, como en PaymentAccountDialog: el compilador de
+  // React no puede memorizar lo que devuelve el segundo.
+  const [startDate, endDate] = useWatch({ control: form.control, name: ['startDate', 'endDate'] })
+  const announcesDates =
+    raffle !== undefined &&
+    status !== undefined &&
+    raffleDateChangeAnnounced({ status, saved: raffle, current: { startDate, endDate } })
 
   function onSubmit(values: CreateRaffleInput) {
     setServerError(null)
@@ -179,6 +195,19 @@ export function RaffleForm({ raffle, returnHref }: RaffleFormProps) {
               </FormItem>
             )}
           />
+        </div>
+
+        {/*
+          La region vive siempre y el aviso entra y sale de ella, como el de
+          recalcular la ganancia (TeamCommissionDialog): una region que aparece ya
+          escrita no se anuncia de forma fiable.
+        */}
+        <div role="status" className="empty:sr-only">
+          {announcesDates ? (
+            <Notice tone="info" density="compact">
+              {RAFFLE_DATE_CHANGE_NOTICE}
+            </Notice>
+          ) : null}
         </div>
 
         <FormField

@@ -1418,6 +1418,7 @@ export type Database = {
       raffle_prize_transitions: {
         Row: {
           configuration_hash: string
+          effective_at: string
           from_mode: Database["public"]["Enums"]["raffle_prize_mode"]
           id: string
           organization_id: string
@@ -1433,6 +1434,7 @@ export type Database = {
         }
         Insert: {
           configuration_hash: string
+          effective_at: string
           from_mode?: Database["public"]["Enums"]["raffle_prize_mode"]
           id?: string
           organization_id: string
@@ -1448,6 +1450,7 @@ export type Database = {
         }
         Update: {
           configuration_hash?: string
+          effective_at?: string
           from_mode?: Database["public"]["Enums"]["raffle_prize_mode"]
           id?: string
           organization_id?: string
@@ -3003,6 +3006,13 @@ export type Database = {
         }
         Returns: string
       }
+      raffle_prize_draw_mode: {
+        Args: {
+          p_raffle_id: string
+          p_schedule: Database["public"]["Tables"]["lottery_draw_schedules"]["Row"]
+        }
+        Returns: Database["public"]["Enums"]["raffle_prize_mode"]
+      }
       raffle_prize_draw_prizes: {
         Args: {
           p_cutoff: string
@@ -3183,9 +3193,30 @@ export type Database = {
         }
         Returns: Json
       }
+      raffle_prize_transition_check_window: {
+        Args: {
+          p_instant: string
+          p_raffle: Database["public"]["Tables"]["raffles"]["Row"]
+        }
+        Returns: undefined
+      }
       raffle_prize_transition_configuration: {
         Args: {
           p_prizes: Json
+          p_raffle: Database["public"]["Tables"]["raffles"]["Row"]
+        }
+        Returns: Json
+      }
+      raffle_prize_transition_draw_mode: {
+        Args: {
+          p_effective_at: string
+          p_schedule: Database["public"]["Tables"]["lottery_draw_schedules"]["Row"]
+        }
+        Returns: Database["public"]["Enums"]["raffle_prize_mode"]
+      }
+      raffle_prize_transition_legacy_summary: {
+        Args: {
+          p_instant: string
           p_raffle: Database["public"]["Tables"]["raffles"]["Row"]
         }
         Returns: Json
@@ -3194,23 +3225,25 @@ export type Database = {
         Args: { p_raffle_id: string }
         Returns: boolean
       }
-      raffle_prize_transition_pending_draws: {
-        Args: {
-          p_now: string
-          p_raffle: Database["public"]["Tables"]["raffles"]["Row"]
-        }
+      raffle_prize_transition_played_occurrence: {
+        Args: { p_instant: string; p_version_id: string }
         Returns: {
-          draw_number: string
           lottery_code: Database["public"]["Enums"]["lottery_code"]
-          reason: string
           reference_date: string
         }[]
       }
-      raffle_prize_transition_played_occurrence: {
-        Args: { p_version_id: string }
+      raffle_prize_transition_window_draws: {
+        Args: {
+          p_instant: string
+          p_raffle: Database["public"]["Tables"]["raffles"]["Row"]
+        }
         Returns: {
+          confirmed: boolean
+          draw_number: string
           lottery_code: Database["public"]["Enums"]["lottery_code"]
+          mode: Database["public"]["Enums"]["raffle_prize_mode"]
           reference_date: string
+          week_started: boolean
         }[]
       }
       raffle_prize_validity: {

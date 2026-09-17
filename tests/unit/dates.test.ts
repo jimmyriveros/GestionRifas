@@ -4,6 +4,7 @@ import {
   formatDateCsv,
   formatDateEs,
   formatDateTimeEs,
+  formatLongDateRangeEs,
   formatTimeEs,
   formatWeekdayEs,
   isoDateBogota,
@@ -72,5 +73,33 @@ describe('fechas de dia calendario (columnas `date`)', () => {
   it('formatDateCsv sigue convirtiendo los timestamps a hora de Bogota', () => {
     // 04:30 UTC del 1 de febrero son las 23:30 del 31 de enero en Bogota.
     expect(formatDateCsv('2026-02-01T04:30:00Z')).toBe('31/01/2026')
+  })
+})
+
+/**
+ * El rango largo del aviso de las fechas de una rifa (BR-R12, D-206): el año al
+ * final, una sola vez si se repite, y los días calendario sin restar uno (I-017).
+ */
+describe('formatLongDateRangeEs', () => {
+  it('escribe el mes y el año una sola vez cuando se repiten', () => {
+    expect(formatLongDateRangeEs('2026-07-27', '2026-12-21')).toBe(
+      'del 27 de julio al 21 de diciembre de 2026',
+    )
+    expect(formatLongDateRangeEs('2026-11-03', '2026-11-27')).toBe(
+      'del 3 al 27 de noviembre de 2026',
+    )
+  })
+
+  it('escribe los dos años cuando el rango cruza de año, y un solo día sin «del … al»', () => {
+    expect(formatLongDateRangeEs('2026-12-01', '2027-01-15')).toBe(
+      'del 1 de diciembre de 2026 al 15 de enero de 2027',
+    )
+    expect(formatLongDateRangeEs('2026-12-21', '2026-12-21')).toBe('el 21 de diciembre de 2026')
+  })
+
+  it('no resta un día a una fecha sin hora, tampoco el primero del mes', () => {
+    expect(formatLongDateRangeEs('2026-03-01', '2026-04-01')).toBe(
+      'del 1 de marzo al 1 de abril de 2026',
+    )
   })
 })

@@ -1,6 +1,9 @@
 # ARQUITECTURA
 
-- **Versión:** 1.38 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27.b**: la
+- **Versión:** 1.39 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27.b**: el
+  **instante efectivo** y la frontera que decide con qué sistema juega cada rifa cada sorteo, y el
+  aviso de las fechas de una rifa activa —D-206, migración `0064`, **solo en local**—). Antes, ese
+  mismo día (**§8.27.b**: la
   transición de una rifa existente —operación interna con vista previa, módulo puro con los seis
   premios confirmados y un script solo local—, D-204, migración `0063`, **solo en local**). Antes, ese
   mismo día (**§8.27 y §8.27.a**: el
@@ -2135,11 +2138,14 @@ scripts/raffle-prize-transition.ts        (--local | --production; puerta en raf
                 → lo esperado (organización, nombre, estado, fechas)
                 → el estado (parcial, anterior, ya configurable, premios sueltos)
                 → configuración normalizada (las piezas de las RPC) y su huella → ¿reintento?
-                → rifa activa: raffle_prize_transition_pending_draws  (corte: raffle_prize_draw_cutoff)
+                → raffle_prize_transition_check_window (con el reloj): ¿corte desconocido en una
+                  semana ya empezada? (activa o borrador; desde la 0064 ya no espera resultados)
                 → por premio: versión, período, alternativas → version_problem → ocurrencia jugada
                               → cutoff_problem → raffle_prizes
                 → SET CONSTRAINTS … IMMEDIATE (las diferidas, ahora)
-                → raffle_prize_transitions (la puerta, con este xact_id)
+                → INSTANTE EFECTIVO = la última publicación → ocurrencias y check_window otra vez
+                → raffle_prize_transition_legacy_summary: los sorteos que conservan el de siempre
+                → raffle_prize_transitions (la puerta, con este xact_id y su effective_at)
                 → UPDATE raffles.prize_mode ─► raffles_guard_prize_config revalida por la puerta
                 → un aviso por membresía activa → una fila de bitácora
   └─ transitionPreviewLines: la vista previa o el resultado, en español (PRIZE_TRANSITION_COPY)
@@ -2153,7 +2159,7 @@ scripts/raffle-prize-transition.ts        (--local | --production; puerta en raf
 | Qué se ve antes de aplicar | La **misma** ejecución, deshecha | La vista previa no puede decir que sí donde la base dice que no |
 | Si una orden del script se ejecuta, y contra qué | `raffle-prize-transition-guard.ts` (puro, D-205) | Destino explícito y de verdad remoto para `--production`; para aplicar, huella de una vista previa anterior igual a la que se repite, `--apply` e identificador de la rifa escrito dos veces. Una respuesta incierta no se repite |
 | Que ninguna otra vía cambie el modo | `raffles_guard_prize_config` + `raffle_prize_transitions` | Una sesión nunca; la service role, solo por la puerta de la transacción que escribió la fila |
-| Qué se lee después | Nada nuevo | El panel, la revisión, el historial, la campana y el motor usan lo de las entregas 1 a 3 sin un cambio |
+| Qué se lee después | `raffle_prize_draw_mode` (D-206) | El motor elige, rifa por rifa y sorteo por sorteo, el sistema de siempre o los premios; el panel, la revisión, el historial y la campana usan lo de las entregas 1 a 3 sin un cambio |
 
 **Coste.** Proporcional a los **premios** —seis versiones, siete períodos y nueve alternativas— y a
 los **días de la ventana** de la rifa, que recorre una vez buscando sorteos pendientes con dos
@@ -2162,6 +2168,35 @@ búsquedas por índice único. **No recorre boletas**, ni clientes, ni pagos.
 **Qué NO hace la aplicación.** No hay Server Action, Route Handler ni botón: la transición no es una
 operación del negocio, es un cambio de sistema que se hace una vez por rifa. El script no se ejecuta
 en ningún despliegue.
+
+**Después de la transición: con qué sistema juega cada sorteo** (D-206, `0064`). Una rifa
+transformada juega con **los dos** sistemas, separados por el instante efectivo, y la decisión es de la
+base, en una sola definición:
+
+```
+confirm_lottery_result ─► match_lottery_result(resultado)
+  cerrojos: resultado → programación → raffle_prize_lock de TODAS las rifas del sorteo, en orden
+            (una transición en curso lo tiene: el motor espera y decide con ella confirmada)
+  por rifa: raffle_prize_draw_mode(rifa, programación)
+     heredada ─────────────────────────────────► sistema de siempre
+     configurable sin transición ──────────────► premios configurables (como antes de la 0064)
+     transformada ─► raffle_prize_transition_draw_mode(effective_at, programación)
+                        corte <= instante ─► sistema de siempre, SIN enlaces
+                        corte  > instante ─► premios configurables, con enlaces
+                        corte desconocido ─► falla sin escribir nada
+  defensa: ¿fotografías de esa rifa guardadas con el OTRO sistema? ─► falla sin escribir nada
+```
+
+El corte es siempre `raffle_prize_draw_cutoff`, así que un sorteo aplazado corta en su hora original y
+uno adelantado en la oficial. Las defensas de los enlaces preguntan a la misma función. **Coste:** una
+llamada por rifa del sorteo y otra por par resultado–rifa en la defensa —materializada, para que no sea
+una por fotografía—; 5.000 boletas se resuelven en 4–15 ms (`TEST_RESULTS`, 2026-09-16).
+
+**El aviso de las fechas de una rifa activa** (BR-R12) también vive en la base:
+`raffles_notify_dates_changed`, un disparador de `raffles`. Lo dispara igual la pantalla de editar
+—`updateRaffle`, con RLS— que un proceso con la service role, y es atómico con el cambio. La pantalla
+solo lo **anuncia** antes de guardar (`raffles/date-change.ts`); el texto de la campana está en
+`notifications/text.ts`.
 
 ## 9. Configuración regional
 

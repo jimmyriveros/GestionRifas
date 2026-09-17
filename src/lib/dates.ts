@@ -128,6 +128,27 @@ export function formatLongDateEs(value: string | Date): string {
 }
 
 /**
+ * Un rango de días en largo, con el año al final: «del 27 de julio al 21 de
+ * diciembre de 2026». El mes y el año se escriben una sola vez cuando se
+ * repiten —«del 3 al 27 de noviembre de 2026»—, y los dos años cuando el rango
+ * cruza de año. Un solo día es «el 21 de diciembre de 2026».
+ */
+export function formatLongDateRangeEs(from: string | Date, to: string | Date): string {
+  const a = longDatePartsEs(from)
+  const b = longDatePartsEs(to)
+  if (a.year !== b.year) {
+    return `del ${a.day} de ${a.month} de ${a.year} al ${b.day} de ${b.month} de ${b.year}`
+  }
+  if (a.month !== b.month) {
+    return `del ${a.day} de ${a.month} al ${b.day} de ${b.month} de ${b.year}`
+  }
+  if (a.day !== b.day) {
+    return `del ${a.day} al ${b.day} de ${b.month} de ${b.year}`
+  }
+  return `el ${b.day} de ${b.month} de ${b.year}`
+}
+
+/**
  * Una hora de RELOJ, no un instante: «19:00:00» → «7:00 p. m.» (D-188).
  *
  * `formatTimeEs` recibe una fecha completa y la traduce a Bogota; esto recibe

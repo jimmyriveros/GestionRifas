@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (premios configurables, Entrega 5: auditoría local, puerta de producción y preflight, D-205, 2026-09-16)** | **1.363 ✅ en 74 archivos (+26)** | **1.230 ✅ en 50 archivos** (sin migración; J13 en 2054, I-128) | Completa **742/744** en 43,1 min: `back-navigation:25` —la primera en frío, **I-075**— y `ventas-por-fecha:163` —«recibido 54», **I-090**—; aislados, **9/9** y **18/18** | ✅ | ⛔ **Detenida en el preflight de solo lectura**: la rifa real termina el 01/11/2026 (**I-129**) y tiene 25 sorteos sin resultado confirmado (**I-127**). Nada escrito en producción |
+| **Post-9 vigente (premios configurables, Entrega 5: corrección local previa a producción —el instante efectivo y el aviso de las fechas—, `0064`, D-206, 2026-09-16)** | **1.375 ✅ en 75 archivos (+12)** | **1.254 ✅ en 51 archivos (+24; migración `0064`)**, tras corregir **M10-01** en la propia migración | Dirigida **52/53** en 6,9 min: la que falló era la **nueva** del borrador, que escribía la fecha antes de que React hidratara el campo; corregida, `rifa-fechas-aviso` **9/9** en tres repeticiones. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057` y la fecha real de la rifa no cambió |
+| Post-9 anterior (premios configurables, Entrega 5: auditoría local, puerta de producción y preflight, D-205, 2026-09-16) | **1.363 ✅ en 74 archivos (+26)** | **1.230 ✅ en 50 archivos** (sin migración; J13 en 2054, I-128) | Completa **742/744** en 43,1 min: `back-navigation:25` —la primera en frío, **I-075**— y `ventas-por-fecha:163` —«recibido 54», **I-090**—; aislados, **9/9** y **18/18** | ✅ | ⛔ **Detenida en el preflight de solo lectura**: la rifa real termina el 01/11/2026 (**I-129**) y tiene 25 sorteos sin resultado confirmado (**I-127**). Nada escrito en producción |
 | Post-9 anterior (premios configurables, Entrega 4: la transición de una rifa existente, `0063`, D-204, 2026-09-16) | **1.337 ✅ en 73 archivos (+30)** | **1.230 ✅ en 50 archivos (+38; migración `0063`)** | **119/119** en la dirigida; completa **742/744**, y los 2 son **I-090** (`ventas-por-fecha:163` y `:238`), con su firma; aislado, `:163` pasa y `:238`/`:247` se alternan | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`; ninguna rifa real cambió de modo |
 | Post-9 anterior (corrección de la Entrega 3: el corte efectivo y el texto de los avisos, `0062`, D-203 Decisiones 9 y 10, 2026-09-16) | **1.307 ✅ en 72 archivos (+11)** | **1.192 ✅ en 49 archivos (+11; migración `0062`)** | **176/176** en la dirigida; completa **738/740**, y los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (premios configurables, Entrega 3: el motor, `0061`, D-203, 2026-09-16) | **1.296 ✅ en 72 archivos (+10)** | **1.181 ✅ en 49 archivos (+40; migración `0061`)** | **126/126** en la dirigida de loterías, privacidad, bloqueo de cambios y premios; la completa no se corrió, con el motivo escrito | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
@@ -11775,6 +11776,99 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
   vendedor: un agente no introduce contraseñas. La evidencia es la sonda de comportamiento sobre la
   base real, las pruebas locales y el CI.
 * **Un teléfono de verdad** y el **modo oscuro**.
+
+---
+
+## Premios configurables, Entrega 5 de 5: corrección local previa a producción — el instante efectivo y el aviso de fechas (`0064`, D-206) — 2026-09-16
+
+**Alcance:** encargo expreso del usuario tras el preflight detenido: el dueño confirmó la rifa
+(`d64af684-1378-45b9-bb71-2141a58a5013`, «SORTEO CAMIONETA KIA 2027»), decidió extender su fin al
+**21/12/2026** —todavía no en producción— y **no** aceptó ni dejar los 25 sorteos de I-127 sin
+coincidencias para siempre ni cargar resultados sin evidencia. **Todo en local**: migración nueva
+`0064`, sin tocar `0058`–`0063`, sin push, etiqueta, despliegue, cambio de fecha real ni transición.
+
+### a. Estado de partida
+
+| Comprobación | Resultado |
+|---|---|
+| `git status --short --branch` | `feature/premios-configurables` en **`eade96f`**; solo los dos archivos protegidos sin seguimiento. SHA-256 `4b5d893f…306840b` y `a096f61e…a97486` |
+| Base local | `0001`–`0063`, sin transiciones ni programación de loterías |
+
+### b. Pruebas nuevas y cambiadas
+
+| Suite | Resultado |
+|---|---|
+| `raffle-prize-transition.test.ts` antes de adaptarla, con la `0064` aplicada | ❌ **16 fallos y 16 omitidas**: T1-06 y T1-07 insertan a mano una transición **sin `effective_at`** y dejan la conexión en una transacción abortada, que arrastra el resto. Era la prueba, no el producto |
+| `raffle-prize-transition.test.ts` adaptada y ampliada | ✅ **51/51** (38 + 13 nuevas; T3-05, T3-07, T3-08 y T3-09 reescritas; T2 traslada el instante al 01/09/2065) |
+| `raffle-date-notices.test.ts` (nueva) | ✅ **11/11** |
+| `raffle-prize-transition.test.ts` unitaria · `raffle-dates-notification.test.ts` (nueva) · `dates.test.ts` | ✅ **50/50** en las tres, y **52/52** con las dos de la pantalla de editar |
+
+### c. Mutaciones, cada una restaurada después y comprobada por `md5` del cuerpo
+
+| Mutación en la base local | La detectan |
+|---|---|
+| La frontera con `<` en lugar de `<=` | **T6-01, T6-02**, T6-03 y T6-08 |
+| El motor sin el cerrojo de las rifas del sorteo | **T4-03** |
+| `raffle_prize_draw_mode` ignora la transición | **T2-16, T2-17**, T6-01, T6-02, T6-03, T6-07, T6-08 y **T7-01** |
+| El aviso de fechas no excluye a quien cambia | **R1-02** |
+| El disparador sin comparar las fechas (definición recreada y restaurada idéntica) | **R2-01** y **R3-02** |
+
+### d. Un fallo real encontrado por la batería completa
+
+| Paso | Resultado |
+|---|---|
+| `npm run test:db`, primera corrida | ❌ **1.253/1.254**: **M10-01** —5.000 boletas, «ninguna función se llama por boleta»— vio **114 llamadas** a `raffle_prize_draw_mode` con un presupuesto de 12 |
+| Causa | La defensa de las fotografías calculaba la frontera en una CTE; PostgreSQL la **integró** en la consulta y la evaluó **por fotografía** |
+| Corrección | Las dos CTE, `materialized`, **en la propia `0064`** —sin commit ni producción—, con el motivo en el comentario |
+| `db:reset` · `seed:local` · `npm run test:db` | ✅ **1.254/1.254 en 51 archivos** (84,6 s) |
+
+### e. Rendimiento, con 5.000 boletas (la mitad vendidas)
+
+Arnés `build/e5/perf-0064.mts`, fuera de Git: una rifa heredada activa con los seis premios confirmados
+trasladados a 2082, la transición con el reloj real, el instante trasladado al 01/09/2082 y un sorteo a
+cada lado. Se borró entera al terminar (0 rifas restantes).
+
+| Medida | Resultado |
+|---|---|
+| Transición: vista previa · aplicar · repetir | 69 · 52 · 8 ms (antes de la corrección: 61 · 39 · 8 ms) |
+| Motor, sorteo del lado de siempre (24/08) | 9 ms la primera, 4–5 ms al repetir; **1 fotografía, 0 enlaces** |
+| Motor, sorteo del lado de los premios (21/12) | 16 ms la primera, 7 ms al repetir; **5 fotografías y 5 enlaces** |
+| Extender la fecha de fin (aviso a 36 membresías locales) | 4 ms |
+| `raffle_prize_draw_mode` en un sorteo | 0,21 ms |
+
+Del mismo orden que la auditoría anterior —motor configurable 34–43 ms y heredado 20–31 ms, medidos
+entonces con otro arnés—: la frontera y los cerrojos no añaden un costo apreciable.
+
+### f. Los SQL del procedimiento de producción, ejecutados en local
+
+`build/e5/runbook-0064-check.mjs` toma el bloque `DO` de `RUNBOOK` §8.3 **del propio documento** y lo
+ejecuta sobre una rifa de prueba, dentro de transacciones que se deshacen:
+
+| Caso | Resultado |
+|---|---|
+| Rifa exacta | Fin cambiado, **36 avisos para 36 membresías activas**, 1 fila de bitácora, y el aviso «Fecha de fin cambiada. Avisos: 36.» |
+| Nombre equivocado | «La rifa no es la esperada: no se cambió nada.»; fin intacto y **0 avisos** |
+| Consultas de §8.2 y §8.6 | Se ejecutan con su firma; sin sorteos que bloqueen |
+
+### g. Verificación general
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase migration up --local` sobre la base con la semilla | ✅ `0064` aplicada; funciones nuevas sin `EXECUTE` para nadie; `match_lottery_result` y la operación, solo `service_role` |
+| `npm run test:db` | ✅ **1.254/1.254** en 51 archivos |
+| `npm run verify` | ✅ `tsc` sin errores; lint **0 errores** y los 2 avisos preexistentes (`DataTable.tsx`, `BulkTicketCreator.tsx`); **1.375/1.375** unitarias en 75 archivos (+12); build |
+| `verify:remote` contra la base **local** (copia temporal sin SSL, borrada) | ✅ **37/37** (+3 de la `0064`) |
+| E2E dirigida —`rifa-fechas-aviso`, `premios-transicion`, `owner-raffles`, `premios`, `privacidad-admin` y `privacidad-admin-movil`— tras `db:reset` y `seed:local` | ❌→✅ **52/53** en 6,9 min. La que falló era la **nueva** del borrador: escribía la fecha **antes de que React hidratara el campo** y la hidratación repuso la guardada («Received: 2063-11-01»). Corregida esperando la hidratación del campo, `rifa-fechas-aviso.spec.ts` pasa **9/9** en tres repeticiones, y una mutación que anuncia también en borradores la detecta esa misma prueba («Expected: 0, Received: 1»), con el archivo restaurado por SHA-256. Capturas a 1280 px y en un Pixel 7: la frase se lee entera |
+| `git diff --check` · migraciones `0058`–`0063` · archivos protegidos | ✅ · ✅ sin cambios · ✅ mismo SHA-256 |
+
+**Errores propios encontrados y corregidos:** las fechas de 2066 del escenario de frontera estaban
+desplazadas un día (el 02/03/2066 es martes), corregido antes de escribir la prueba; la prueba E2E nueva del borrador —y el guion de captura— escribían antes de la hidratación; semanas de boleta de
+cinco cifras en el primer borrador de T6; `prettier` reformateó dos funciones ajenas de `dates.ts` y
+`text.ts`, revertido; `form.watch` en el formulario, sustituido por `useWatch` por el aviso del
+compilador de React; dos filas de la tabla de `TESTING` con una columna de más; y una consulta de relleno
+sin sentido en el primer borrador de `RUNBOOK` §8.2, sustituida por la buena antes de insertarla.
+
+**Nada se escribió en producción.**
 
 ---
 

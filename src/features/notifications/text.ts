@@ -1,6 +1,6 @@
 import { LOTTERY_LABELS, type LotteryCode } from '@/features/lottery/constants'
 import { WEEKDAY_LABELS } from '@/lib/constants'
-import { formatClockEs } from '@/lib/dates'
+import { formatClockEs, formatLongDateEs, formatLongDateRangeEs } from '@/lib/dates'
 import { ticketLabel } from '@/lib/tickets'
 
 /**
@@ -25,6 +25,7 @@ export type NotificationKind =
   | 'lottery.schedule_change'
   | 'payment_reminder.due'
   | 'raffle_prize.changed'
+  | 'raffle.dates_changed'
 
 type NotificationData = Record<string, unknown>
 
@@ -233,6 +234,39 @@ function rafflePrizeMessage(data: NotificationData): string {
   }
 }
 
+function isoDate(data: NotificationData, key: string): string | null {
+  const value = text(data, key)
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
+}
+
+/**
+ * «Cambiaron las fechas de una rifa activa» (BR-R12, D-206).
+ *
+ * DICE LA RIFA Y LA FECHA NUEVA, que es lo que cambia para quien vende: hasta
+ * cuando se vende y desde cuando juega. Si cambio una sola de las dos, nombra
+ * esa; si cambiaron las dos, el periodo entero. Las fechas anteriores viajan en
+ * el aviso, pero la frase no las repite: una idea por aviso (§13 de la guia).
+ *
+ * NO LLEVA NADA DE LA CARTERA (D-198): ni clientes, ni ventas, ni pagos.
+ */
+function raffleDatesMessage(data: NotificationData): string {
+  const raffle = text(data, 'raffle_name') ?? 'la rifa'
+  const start = isoDate(data, 'start_date')
+  const end = isoDate(data, 'end_date')
+  const startChanged = start !== null && start !== isoDate(data, 'previous_start_date')
+  const endChanged = end !== null && end !== isoDate(data, 'previous_end_date')
+  const cambiaron = `Cambiaron las fechas de ${raffle}`
+
+  if (start && end && startChanged && endChanged) {
+    return start === end
+      ? `${cambiaron}: ahora es solo el ${formatLongDateEs(start)}.`
+      : `${cambiaron}: ahora va ${formatLongDateRangeEs(start, end)}.`
+  }
+  if (end && endChanged) return `${cambiaron}: ahora termina el ${formatLongDateEs(end)}.`
+  if (start && startChanged) return `${cambiaron}: ahora empieza el ${formatLongDateEs(start)}.`
+  return `${cambiaron}.`
+}
+
 /**
  * A donde lleva un aviso, o `null` si no lleva a ninguna parte.
  *
@@ -276,6 +310,9 @@ export function notificationMessage(kind: string, data: NotificationData): strin
 
     case 'raffle_prize.changed':
       return rafflePrizeMessage(data)
+
+    case 'raffle.dates_changed':
+      return raffleDatesMessage(data)
 
     default:
       // Un aviso de un tipo que esta version no conoce: se muestra algo
