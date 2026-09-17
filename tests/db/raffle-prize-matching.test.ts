@@ -32,7 +32,15 @@ import {
   type PrizeDigits,
 } from '@/features/raffle-prizes/matching'
 
-import { anonClient, DB_URL, loadSeedContext, signInAs, USERS, type Client } from './helpers'
+import {
+  anonClient,
+  DB_URL,
+  loadSeedContext,
+  runLotteryEngine,
+  signInAs,
+  USERS,
+  type Client,
+} from './helpers'
 
 type Campo = 'daily_number' | 'weekly_number'
 type Loteria = 'cundinamarca' | 'cruz_roja' | 'meta' | 'bogota' | 'medellin' | 'boyaca'
@@ -347,8 +355,9 @@ async function sorteo(
   return { scheduleId, resultId: rows[0]!.id, drawNumber }
 }
 
+/** El motor sobre un resultado insertado a mano: desde la `0066` es interno (D-207). */
 async function buscar(resultId: string) {
-  return ctx.svc.rpc('match_lottery_result', { p_result_id: resultId })
+  return runLotteryEngine(resultId)
 }
 
 async function buscarBien(resultId: string): Promise<{ inserted: number; prize_links: number }> {
@@ -1968,10 +1977,13 @@ describe('M8 — organizaciones, RLS, permisos e inmutabilidad (24, 25)', () => 
     )
     expect(ejecutables).toEqual([])
 
-    const { rows: motor } = await db.query<{ ok: boolean }>(
-      `select has_function_privilege('service_role', 'match_lottery_result(uuid)', 'EXECUTE') as ok`,
+    // Desde la `0066` (D-207) el motor es interno también para la service role:
+    // el sincronizador entra por `confirm_lottery_result`, que lo llama dentro.
+    const { rows: motor } = await db.query<{ motor: boolean; confirmar: boolean }>(
+      `select has_function_privilege('service_role', 'match_lottery_result(uuid)', 'EXECUTE') as motor,
+              has_function_privilege('service_role', to_regprocedure('public.confirm_lottery_result(lottery_code,text,text,text,text,text,text,jsonb,date,timestamp with time zone,timestamp with time zone)'), 'EXECUTE') as confirmar`,
     )
-    expect(motor[0]!.ok).toBe(true)
+    expect(motor[0]).toEqual({ motor: false, confirmar: true })
   })
 
   it('M8-06: la lectura del personal sigue sin cliente, y ninguna pieza nueva devuelve nada de la cartera (D-198)', async () => {

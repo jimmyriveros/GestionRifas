@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.62 · **Actualizado:** 2026-09-16 (D-001 a D-206; **D-206 corregida** —migración `0065`, respuesta del dueño—: el aviso de las fechas de una rifa activa llega a **todas** las membresías activas, **también a quien hizo el cambio**, que sigue figurando como actor, y la extensión real se hace **con la sesión del Dueño** por la pantalla de editar, nunca con SQL sin sesión, una RPC que reciba el actor ni la service role. Antes, ese mismo día, **D-206** —corrección local de la Entrega 5, migración `0064`— hace que los sorteos cuyo corte ya llegó cuando una rifa cambia de sistema **conserven el sistema de siempre**, con el **instante efectivo** de la transición y una sola frontera, sustituye la alternativa «25 sorteos sin coincidencias para siempre» (I-127) y crea el **aviso de las fechas de una rifa activa** (BR-R12); deja notas en D-204 Decisión 4 y D-205 Decisión 5. **D-205** es la puerta de producción del script y J13 en 2054. **D-204** es la transición de una rifa existente a premios configurables —Entrega 4, migración `0063`—: una operación interna solo para la service role, atómica, con vista previa, que se niega mientras quede un sorteo jugado sin confirmar, y los **seis** premios confirmados —el caso «semanal, un lunes, con Cundinamarca» fue un ejemplo—; deja notas en D-199 Decisión 3 y D-201. Antes, **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.63 · **Actualizado:** 2026-09-17 (D-001 a D-207; **D-207** —migración `0066`, corrección local antes de producción—: el preflight de la Puerta 1 vio, en solo lectura, que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva y la pila local no (I-132); la `0066` fija quién ejecuta cada una de las 62 funciones de premios —seis RPC de sesión, la proyección de D-198 y solo dos entradas de la service role, `transition_raffle_prize_mode` y `confirm_lottery_result`—, `match_lottery_result` pasa a interno y la migración se comprueba a sí misma; la Puerta 1 queda suspendida y deberá autorizar `0058`–`0066`. Antes, ese mismo día (2026-09-16): **D-206 corregida** —migración `0065`, respuesta del dueño—: el aviso de las fechas de una rifa activa llega a **todas** las membresías activas, **también a quien hizo el cambio**, que sigue figurando como actor, y la extensión real se hace **con la sesión del Dueño** por la pantalla de editar, nunca con SQL sin sesión, una RPC que reciba el actor ni la service role. Antes, ese mismo día, **D-206** —corrección local de la Entrega 5, migración `0064`— hace que los sorteos cuyo corte ya llegó cuando una rifa cambia de sistema **conserven el sistema de siempre**, con el **instante efectivo** de la transición y una sola frontera, sustituye la alternativa «25 sorteos sin coincidencias para siempre» (I-127) y crea el **aviso de las fechas de una rifa activa** (BR-R12); deja notas en D-204 Decisión 4 y D-205 Decisión 5. **D-205** es la puerta de producción del script y J13 en 2054. **D-204** es la transición de una rifa existente a premios configurables —Entrega 4, migración `0063`—: una operación interna solo para la service role, atómica, con vista previa, que se niega mientras quede un sorteo jugado sin confirmar, y los **seis** premios confirmados —el caso «semanal, un lunes, con Cundinamarca» fue un ejemplo—; deja notas en D-199 Decisión 3 y D-201. Antes, **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -4515,6 +4515,10 @@ Fase 2 y sobrevivió a la auditoría de endurecimiento de la Fase 7 y a la indep
 1. `alter default privileges in schema public revoke execute on functions from authenticated` — la
    causa. Sin esto, la próxima migración vuelve a crear el problema.
 2. Los **34 `revoke` explícitos**, uno por uno y con su firma completa.
+
+> **Nota posterior (2026-09-17, D-207):** para las funciones de premios configurables ya no vale «conserva
+> todo»: la `0066` fija una lista explícita y mínima para `service_role`. El privilegio por defecto no se tocó
+> (I-132).
 
 `service_role` conserva todo, también en el default: es el rol de los scripts de servidor y de la
 reparación operativa que `0024` habilita a propósito.
@@ -11333,6 +11337,9 @@ desde D-198; otra organización, ninguno. Nadie escribe desde una sesión, y la 
 **lee**. `match_lottery_result` y `confirm_lottery_result` siguen sin `EXECUTE` para `anon` y
 `authenticated`. `admin_lottery_matches` **no cambia**: la Entrega 3 no expone premios en pantalla.
 
+> **Nota posterior (2026-09-17, D-207):** desde la `0066` `match_lottery_result` tampoco es ejecutable por
+> `service_role`: el motor solo se alcanza por `confirm_lottery_result`.
+
 ### Lo que NO hace, dicho para que no se lea de más
 
 * **No transiciona** ninguna rifa (Entrega 4), no carga la rifa real y no toca el proyecto real.
@@ -11953,6 +11960,107 @@ nueva), `raffle-dates-notification.test.ts` (F7) y `rifa-fechas-aviso.spec.ts` (
 línea en **BR-J11**; `DATA_MODEL` §4.23, `SECURITY` §4.22, `ARCHITECTURE` §8.27.b, `MASTER_SPEC` §9.7,
 `RUNBOOK` §8 (puerta 2 con la sesión del Dueño), `UX_COPY_GUIDELINES`, `TESTING` §4.11, `KNOWN_ISSUES`
 (I-129), `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`. **Solo en local.**
+
+## D-207 — Quién ejecuta cada función de premios: una lista explícita y mínima (`0066`)
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa», Entrega 5
+de 5, corrección local antes de producción, 2026-09-17)
+
+**Contexto.** La Puerta 1 —aplicar `0058`–`0065` y desplegar `be26419`— se autorizó y **no llegó a
+escribir nada**. Mientras se preparaba, una foto de **solo lectura** de la estructura del proyecto real
+comparada con la pila local en `0057` mostró que los privilegios por defecto de `postgres` para las
+funciones de `public` **siguen sin ser iguales en los dos entornos**:
+
+```
+local        {postgres=X/postgres}
+producción   {postgres=X/postgres,service_role=X/postgres}
+```
+
+Es la misma familia de I-078 (D-128, con `authenticated`) e I-111 (tablas), ahora con `service_role`:
+D-128 quitó `authenticated` del privilegio por defecto y decidió que `service_role` «conserva todo».
+Con esa regla, **35 funciones de esta entrega** —casi todas internas y `SECURITY DEFINER`, algunas que
+escriben versiones, períodos, recompensas o avisos— habrían quedado ejecutables por la service role en
+producción, y **ninguna prueba local podía verlo**. Se abrió **I-132**.
+
+**Respuesta del dueño (2026-09-17):**
+
+| Pregunta | Respuesta |
+|---|---|
+| ¿Se acepta como delta esperado? | **No.** Es un bloqueo real de seguridad y queda fuera de la Puerta 1, que se **suspende**. No basta con que las piezas de la transición estén protegidas |
+| ¿Cómo se corrige? | Una migración nueva **`0066`**, sin tocar `0058`–`0065`, que deje una lista **explícita y mínima** de funciones ejecutables por `service_role`, justificada una por una |
+| ¿Y el privilegio por defecto del esquema? | **No se cambia** sin una auditoría separada. La `0066` corrige la superficie de esta entrega. **I-130 no se toca** aquí |
+| ¿Qué tiene que demostrarse? | La cadena desde `0057` con los privilegios por defecto locales **y** con los de producción, y el mismo catálogo efectivo en los dos; y que `verify:remote` exige la lista y falla si reaparece cualquiera de los 35 |
+
+### Decisión 1 — el inventario de la entrega: 62 funciones en tres clases
+
+Las que crean o redefinen `0058`–`0065`, leídas del catálogo y de los archivos:
+
+| Clase | Funciones | EXECUTE |
+|---|---|---|
+| **RPC de sesión** | `create_raffle_prize`, `publish_raffle_prize_version`, `archive_raffle_prize`, `restore_raffle_prize`, `reorder_raffle_prizes`, `raffle_prize_history` | Solo `authenticated` |
+| **Proyección de D-198** (redefinida) | `admin_audit_log` | `authenticated` y `service_role`: su contrato de D-198, sin cambios |
+| **Entradas de la service role** | `transition_raffle_prize_mode`, `confirm_lottery_result` (redefinida) | Solo `service_role` |
+| **Internas** | Las otras **53** | **Nadie**: ni PUBLIC, ni anon, ni authenticated, ni service_role |
+
+Las 53 internas, por familia: capacidades (3); calendario, normalización y validación (12, entre ellas
+las cuatro que usan los CHECK de los períodos); escritura de versiones, avisos y auditoría (7:
+`raffle_prize_insert_version`, `raffle_prize_notify`…); el motor y sus defensas (10, **con
+`match_lottery_result`**); los disparadores de las tablas de premios y de rifas (10); las piezas de la
+transición (10); y `admin_audit_redact` (redefinida). La lista vive **una sola vez** en
+`scripts/prize-function-grants.ts`.
+
+### Decisión 2 — la lista permitida, una por una
+
+| Función | Rol | Por qué |
+|---|---|---|
+| Las seis RPC del panel | `authenticated` | Las llama `features/raffle-prizes/actions.ts` con la sesión de quien configura; autorizan por la capacidad `raffles.prizes.manage` y por `auth.uid()` (D-200). **Pierden `service_role`**: sin sesión fallarían igual en su primera comprobación, y ningún proceso las llama así. Lo que `0058` decía —«`service_role` se nombra a propósito»— queda sustituido |
+| `admin_audit_log` | `authenticated`, `service_role` | Es de D-198, no de esta funcionalidad: la entrega solo la redefinió para leer `raffle_prize`. Su `grant` era explícito e idéntico en los dos entornos. Su revisión entra en la auditoría de I-132 |
+| `transition_raffle_prize_mode` | `service_role` | La única vía para que una rifa existente pase a premios configurables: `scripts/raffle-prize-transition.ts` con la clave de servicio, y rechaza cualquier `auth.uid()` (D-204, D-205) |
+| `confirm_lottery_result` | `service_role` | La entrada del sincronizador (`features/lottery/sync.ts`, D-145): confirma, busca coincidencias y avisa en una transacción |
+
+**`match_lottery_result` deja de ser ejecutable por la service role.** Tenía `EXECUTE` desde la `0036`,
+cuando era la entrada del motor; desde la `0037` la aplicación y el sincronizador entran por
+`confirm_lottery_result`, que lo llama dentro. Solo lo invocaban directamente las pruebas, que ahora lo
+corren como el dueño de la base (`runLotteryEngine`). Sustituye lo que decían D-203 (Decisión 8) y la
+prueba M8-05.
+
+### Decisión 3 — por qué las internas pueden quedarse sin nadie
+
+Las llaman funciones `SECURITY DEFINER`, que se ejecutan con los privilegios de su dueño; los
+disparadores no comprueban `EXECUTE` al dispararse; y los CHECK de los períodos se evalúan dentro de
+`raffle_prize_insert_version`. Ninguna política de RLS usa una función de la entrega. **Consecuencia
+buscada:** la service role ya no puede insertar períodos directamente —sus CHECK llaman a funciones que
+no ejecuta—; toda escritura de premios pasa por las RPC o por la transición.
+
+### Decisión 4 — la migración se comprueba a sí misma, y la misma lista la vigila en producción
+
+La `0066` quita `EXECUTE` a los cuatro roles en las 62, concede las nueve de arriba y termina con un
+bloque que **falla y no deja nada** si el `EXECUTE` efectivo de alguna no es exactamente el esperado o
+si aparece una sobrecarga sin clasificar. `verify:remote` corre **tres comprobaciones con la misma
+lista** —la matriz exacta, los 35 del hallazgo y las sobrecargas— y `prize-function-privileges.test.ts`
+las ejecuta en local y comprueba que fallan si reaparece cualquiera de los 35.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Aceptar los 35 como delta esperado del proyecto alojado | La descartó el dueño: funciones internas que escriben no pueden quedar al alcance de la clave de servicio |
+| Quitar `service_role` del privilegio por defecto del esquema | Cambia 166 funciones de producción de golpe; exige la auditoría separada de I-132 |
+| Revocar solo los 35 | Dejaría implícito lo que ya era explícito de más: las seis RPC, las cuatro auxiliares de los CHECK y el motor. La lista tiene que decir quién ejecuta **cada** una |
+| Mantener `service_role` en las seis RPC «por paridad» (lo que hacía `0058`) | Sin sesión no sirven; paridad no es necesidad |
+| Mantener `match_lottery_result` para la service role | Ningún proceso lo llama; el camino permitido es `confirm_lottery_result` |
+| Corregir I-130 en la misma migración | Es otra superficie (una secuencia) y otro encargo |
+| Revocar también los privilegios de tabla de la service role sobre las tablas de premios | No lo pidió el dueño; se registra en I-132 para decidirlo aparte |
+
+### Consecuencia
+
+Migración **`0066`** y `scripts/prize-function-grants.ts` (nuevo, fuente única). `verify-remote.ts`:
+**+3** comprobaciones y la de las RPC de loterías sin `match_lottery_result`. Pruebas:
+`prize-function-privileges.test.ts` (**15**, nueva), `helpers.ts` (`runLotteryEngine`),
+`lottery-results.test.ts` y `raffle-prize-matching.test.ts` (el motor por PostgreSQL directo; M8-05).
+Deja notas en **D-128** y **D-203**. `SECURITY` §4.23, `DATA_MODEL` §6.g.9 y §6.h, `KNOWN_ISSUES`
+(**I-132**), `TESTING` §4.11, `TEST_RESULTS`, `PHASE_STATUS`, `HANDOFF` y `RUNBOOK` §8. **La próxima Puerta 1 tiene
+que autorizar `0058`–`0066` y el commit nuevo.** Solo en local.
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

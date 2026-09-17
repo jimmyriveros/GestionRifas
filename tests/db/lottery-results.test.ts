@@ -18,6 +18,7 @@ import {
   DB_URL,
   loadSeedContext,
   randomNumbers,
+  runLotteryEngine,
   signInAs,
   USERS,
   type Client,
@@ -208,8 +209,12 @@ async function confirmResult(values: {
   return { scheduleId: schedule.id, resultId: result.id, referenceDate }
 }
 
+/**
+ * El motor sobre un resultado insertado a mano. Desde la `0066` es interno —solo
+ * lo alcanza `confirm_lottery_result`— y se invoca como el dueño de la base (D-207).
+ */
 async function match(resultId: string) {
-  return ctx.svc.rpc('match_lottery_result', { p_result_id: resultId })
+  return runLotteryEngine(resultId)
 }
 
 async function matchesOf(resultId: string) {

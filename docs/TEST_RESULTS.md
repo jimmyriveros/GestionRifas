@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (premios configurables, Entrega 5: el aviso de fechas llega también a quien las cambia y la puerta 2 con la sesión del Dueño, `0065`, D-206 corregida, 2026-09-16)** | **1.375 ✅ en 75 archivos** (sin cambio de número; F7 reescrita) | **1.255 ✅ en 51 archivos (+1; migración `0065`)** | Dirigida `rifa-fechas-aviso` **4/4** (+1), repetida al final sobre el código definitivo; volver a excluir al actor lo detectan la segunda y la tercera. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057`, la fecha real de la rifa no cambió y no se pidió ninguna puerta |
+| **Post-9 vigente (premios configurables, Entrega 5: Puerta 1 suspendida antes de escribir y la `0066`, quién ejecuta cada función, D-207, 2026-09-17)** | **1.375 ✅ en 75 archivos** (sin cambio) | **1.270 ✅ en 52 archivos (+15; migración `0066`)**; dirigidas **374/374** tras corregir DB-15; la cadena desde `0057` con los dos privilegios por defecto, **idéntica** | No se corrió: no cambia la interfaz | ✅ | ⛔→✅ **Puerta 1 suspendida sin escribir nada** (I-132); corrección local sin push ni despliegue; producción sigue en la `0057` y `c48437a` |
+| Post-9 anterior (premios configurables, Entrega 5: el aviso de fechas llega también a quien las cambia y la puerta 2 con la sesión del Dueño, `0065`, D-206 corregida, 2026-09-16) | **1.375 ✅ en 75 archivos** (sin cambio de número; F7 reescrita) | **1.255 ✅ en 51 archivos (+1; migración `0065`)** | Dirigida `rifa-fechas-aviso` **4/4** (+1), repetida al final sobre el código definitivo; volver a excluir al actor lo detectan la segunda y la tercera. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057`, la fecha real de la rifa no cambió y no se pidió ninguna puerta |
 | Post-9 anterior (premios configurables, Entrega 5: corrección local previa a producción —el instante efectivo y el aviso de las fechas—, `0064`, D-206, 2026-09-16) | **1.375 ✅ en 75 archivos (+12)** | **1.254 ✅ en 51 archivos (+24; migración `0064`)**, tras corregir **M10-01** en la propia migración | Dirigida **52/53** en 6,9 min: la que falló era la **nueva** del borrador, que escribía la fecha antes de que React hidratara el campo; corregida, `rifa-fechas-aviso` **9/9** en tres repeticiones. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057` y la fecha real de la rifa no cambió |
 | Post-9 anterior (premios configurables, Entrega 5: auditoría local, puerta de producción y preflight, D-205, 2026-09-16) | **1.363 ✅ en 74 archivos (+26)** | **1.230 ✅ en 50 archivos** (sin migración; J13 en 2054, I-128) | Completa **742/744** en 43,1 min: `back-navigation:25` —la primera en frío, **I-075**— y `ventas-por-fecha:163` —«recibido 54», **I-090**—; aislados, **9/9** y **18/18** | ✅ | ⛔ **Detenida en el preflight de solo lectura**: la rifa real termina el 01/11/2026 (**I-129**) y tiene 25 sorteos sin resultado confirmado (**I-127**). Nada escrito en producción |
 | Post-9 anterior (premios configurables, Entrega 4: la transición de una rifa existente, `0063`, D-204, 2026-09-16) | **1.337 ✅ en 73 archivos (+30)** | **1.230 ✅ en 50 archivos (+38; migración `0063`)** | **119/119** en la dirigida; completa **742/744**, y los 2 son **I-090** (`ventas-por-fecha:163` y `:238`), con su firma; aislado, `:163` pasa y `:238`/`:247` se alternan | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`; ninguna rifa real cambió de modo |
@@ -11777,6 +11778,69 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
   vendedor: un agente no introduce contraseñas. La evidencia es la sonda de comportamiento sobre la
   base real, las pruebas locales y el CI.
 * **Un teléfono de verdad** y el **modo oscuro**.
+
+---
+
+## Premios configurables, Entrega 5 de 5: la Puerta 1 suspendida antes de escribir, y la `0066` — quién ejecuta cada función (D-207, I-132) — 2026-09-17
+
+**Alcance:** dos partes. **(1)** La Puerta 1 —aplicar `0058`–`0065` y desplegar `be26419`— se autorizó y
+**no escribió nada en producción**: todo lo que se hizo contra el proyecto real fue de **solo lectura**.
+**(2)** Por el hallazgo de esas lecturas, el dueño suspendió la puerta y encargó la corrección local
+`0066`: una lista explícita y mínima de funciones ejecutables por `service_role`. Sin push, despliegue,
+respaldo remoto ni cambios en producción.
+
+### a. La Puerta 1, hasta su suspensión
+
+| Paso (UTC) | Resultado |
+|---|---|
+| Preflight de solo lectura (03:23) | `origin/main` = `c48437a`; producción sirve `c48437a` (`dpl_DDiadqkXLcyympoUppJcWSqcVXnE`); en vivo 28/28 rutas, 7/7 cabeceras, identificador de `c48437a` servido y 0 secretos; `migration list` `0001`–`0057`; `db push --dry-run` lista exactamente `0058`–`0065` |
+| Comparación con el último informe | ⛔ **Distinta**: un pago de **$120.000** de un vendedor a las 02:07:15, con una asignación a una boleta de la rifa real, que quedó pagada, un movimiento de comisión y su fila de bitácora. Nada más. **Detenido y reportado** |
+| Respuesta del dueño | El pago es actividad legítima; **Opción A** —seguir solo ante actividad normal demostrable fila a fila— y esperar al turno del sincronizador de las 06:00 |
+| Preparación, en local | Foto de solo lectura con huella por fila, comparador que clasifica cada fila con su bitácora y ensayo desde `0057`: una venta y un pago simulados, **13 filas explicadas**; cambios prohibidos —fecha de una rifa, un aviso leído, un saldo alterado, una membresía— **detectados** |
+| Estructura del proyecto real frente a la local en `0057` (03:46, solo lectura) | Tablas, columnas, restricciones, índices, disparadores, políticas y tipos **iguales**. **Distinto:** el privilegio por defecto de las funciones —`{postgres=X, service_role=X}` allí, `{postgres=X}` aquí— y, por él, **51 funciones** con `EXECUTE` para `service_role` solo en producción (37 `SECURITY DEFINER`; una, `admin_audit_redact`, la redefine la entrega y las otras **50** quedan en I-132); la secuencia de I-130; y 29 cuerpos que solo difieren en CRLF |
+| El delta de `0058`–`0065` con los privilegios de producción reproducidos en local | **35 funciones de la entrega** con `EXECUTE` para `service_role` solo por el privilegio por defecto (I-132) |
+| Vigilante del turno de las 06:00 | Terminó solo a las 03:53 (código 4) **antes de consultar nada**; ningún proceso quedó vivo |
+| El dueño | **Bloqueo real de seguridad**: Puerta 1 suspendida, corrección `0066` |
+| Producción al final | **Sin cambios**: `0057`, `c48437a`. Ni respaldo, ni migraciones, ni push, ni despliegue |
+
+### b. El inventario de la entrega
+
+| Clase | N | `EXECUTE` tras la `0066` |
+|---|---|---|
+| RPC del panel | 6 | `authenticated` |
+| Proyección de D-198 (`admin_audit_log`, redefinida) | 1 | `authenticated`, `service_role` |
+| Entradas de la service role (`transition_raffle_prize_mode`, `confirm_lottery_result`) | 2 | `service_role` |
+| Internas (con `match_lottery_result` y `admin_audit_redact`) | 53 | **Nadie** |
+| **Total** (58 nuevas y 4 redefinidas) | **62** | |
+
+### c. La cadena completa desde `0057`, en los dos escenarios
+
+`build/e5/p1/escenario.mjs`: `db reset --version 0057`, semilla, (B) privilegios del proyecto real
+reproducidos, `0058`–`0065` archivo a archivo, comprobaciones, `migration up` con la `0066`,
+comprobaciones otra vez y la suite de privilegios **en ese mismo estado**.
+
+| Escenario | Privilegio por defecto de funciones | `service_role` en la entrega antes de la `0066` | Comprobaciones antes | Después | Suite de privilegios |
+|---|---|---|---|---|---|
+| **A**, pila local | `{postgres=X}` | **14**: las que `0058`–`0064` conceden de forma explícita y `admin_audit_log`, que conserva el `grant` de D-198 | Matriz: ❌ 11 · los 35: ✅ 0 · sobrecargas: ✅ 0 | ✅ 0 · ✅ 0 · ✅ 0 | ✅ **15/15** |
+| **B**, como en producción | `{postgres=X, service_role=X}` | **49** (14 + los 35) | Matriz: ❌ 46 · los 35: ❌ 35 · sobrecargas: ✅ 0 | ✅ 0 · ✅ 0 · ✅ 0 | ✅ **15/15** |
+| **A frente a B** tras la `0066` | — | — | — | **Idénticos:** la matriz `EXECUTE` de las 62, sus definiciones, dueño y ACL, las seis tablas con su RLS y ACL, y sus políticas | — |
+
+### d. Pruebas y verificaciones
+
+| Comando | Resultado |
+|---|---|
+| `prize-function-privileges.test.ts` (nueva) | ✅ **15/15** |
+| Suites dirigidas: privilegios, catálogo, privacidad del personal, seguridad de la Fase 7, aislamiento RLS, premios, motor, transición, avisos de fechas, resultados, sincronizador y consenso | ❌→✅ **374/374** en 12 archivos: la primera corrida dio 373/374 —DB-15 exige «Nota de reversion» sin tilde— y se corrigió en la `0066` |
+| `db:reset` · `seed:local` · `npm run test:db` | ✅ **1.270/1.270** en 52 archivos (+15), con `0001`–`0066` aplicadas por la CLI |
+| `npm run verify` | ✅ `tsc` sin errores; lint 0 errores y los 2 avisos preexistentes; **1.375/1.375** unitarias en 75 archivos; build |
+| `verify:remote` contra la base **local** (copia temporal que no lee `.env.local`, borrada) | ✅ **41/41** (+3 de la `0066`) |
+
+**Errores encontrados y corregidos:** la nota de reversión de la `0066` llevaba tilde y DB-15 no la
+reconocía; los comentarios de la migración quedaron sin tildes, como los de las demás. Del arnés, fuera de
+Git: las claves primarias llegaban como texto de PostgreSQL y no como arreglo, y una orden con dos
+documentos incrustados no la aceptó la shell; los dos se rehicieron.
+
+**Nada se escribió en producción.**
 
 ---
 

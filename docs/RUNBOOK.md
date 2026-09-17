@@ -1,6 +1,6 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-09-16 (§8.3: **la puerta 2 la hace el Dueño con su sesión**, desde Editar, y el agente solo verifica en modo lectura; el aviso de fechas llega también al Dueño —`0065`, D-206 corregida—, y el bloque SQL sin sesión queda descartado porque dejaba la bitácora a nombre de «Sistema»; antes, ese mismo día, §8: el procedimiento de producción con **tres puertas** —migraciones y despliegue, extender la fecha de fin con su aviso, y la transición— y lo que pasa con los sorteos que conservan el sistema de siempre, D-206; antes, ese mismo día, la transición preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
+**Actualizado:** 2026-09-17 (§8.0 y §8.1: **la puerta 1 pasa a `0058`–`0066`** y a un commit nuevo; el primer intento, autorizado el 2026-09-17, **se suspendió antes de escribir** porque el preflight vio que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva (I-132, D-207); antes, el 2026-09-16, §8.3: **la puerta 2 la hace el Dueño con su sesión**, desde Editar, y el agente solo verifica en modo lectura; el aviso de fechas llega también al Dueño —`0065`, D-206 corregida—, y el bloque SQL sin sesión queda descartado porque dejaba la bitácora a nombre de «Sistema»; antes, ese mismo día, §8: el procedimiento de producción con **tres puertas** —migraciones y despliegue, extender la fecha de fin con su aviso, y la transición— y lo que pasa con los sorteos que conservan el sistema de siempre, D-206; antes, ese mismo día, la transición preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
 producción. El detalle técnico de cada `I-0xx` citado está en
 [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) — aquí solo el síntoma y qué hacer.
 
@@ -284,11 +284,17 @@ usan solo los premios.
 
 | # | Puerta —se pregunta tal cual y se espera un «sí»— | Qué escribe | Por qué va en ese orden |
 |---|---|---|---|
-| 1 | «¿Autorizas aplicar las migraciones `0058`–`0065` y desplegar este commit en producción?» | Respaldo nuevo (§5.1), `supabase db push`, despliegue y `npm run verify:remote` | La frontera y el aviso de fechas **son** de la `0064`, y que el aviso llegue también al Dueño, de la `0065`: sin ellas, extender la fecha no avisaría a todas |
+| 1 | «¿Autorizas aplicar las migraciones `0058`–`0066` y desplegar el commit <SHA> en producción?» | Respaldo nuevo (§5.1), `supabase db push`, despliegue y `npm run verify:remote` —**41/41**, con las tres de la `0066`— | La frontera y el aviso de fechas **son** de la `0064`, que el aviso llegue también al Dueño, de la `0065`, y quién ejecuta cada función de premios, de la `0066`: sin ella, 35 funciones internas quedarían ejecutables por la service role (I-132) |
 | 2 | «¿Autorizas que el Dueño, con su sesión y desde Editar, extienda la fecha de fin de «<NOMBRE EXACTO>» hasta el <FECHA>, con el aviso a las <N> membresías activas, él incluido?» | **Lo escribe el Dueño**, no el agente: `raffles.end_date`, un aviso por membresía activa y la bitácora, a su nombre. El agente solo lee antes y después (§8.3) | La transición compara las fechas esperadas, y el premio principal juega el 21/12 |
 | 3 | «¿Autorizas transformar esta rifa específica y enviar el aviso a las membresías activas indicadas?» | La transición (§8.4) | Última: con la fecha ya extendida y la vista previa revisada |
 
-**Estado el 2026-09-16:** ninguna de las tres se ha pedido. La rifa confirmada por el dueño es
+**Estado el 2026-09-17:** la puerta 1 se autorizó para `0058`–`0065` y `be26419`, y **se suspendió sin escribir
+nada**: ni respaldo, ni migraciones, ni push. El preflight vio primero un pago nuevo de un vendedor (aceptado
+como actividad normal) y, en solo lectura, que el privilegio por defecto del proyecto alojado concede `EXECUTE`
+a `service_role` en toda función nueva (I-132). Lo corrige la `0066` (D-207), y **la próxima puerta 1 tiene
+que autorizar `0058`–`0066` y el commit nuevo**. Las puertas 2 y 3 no se han pedido.
+
+**Estado el 2026-09-16:** ninguna de las tres se había pedido. La rifa confirmada por el dueño es
 `d64af684-1378-45b9-bb71-2141a58a5013`, de la organización `ec88961d-7c81-4b27-ae03-d9bccc73eda6`, con el
 nombre exacto «SORTEO CAMIONETA KIA 2027» —el «2027» se conserva—, activa, **del 27/07/2026 al
 01/11/2026**; el dueño decidió extenderla **hasta el 21/12/2026 inclusive** (I-129). Los identificadores
@@ -298,7 +304,7 @@ se escriben **en la orden**, nunca en el código.
 
 | Dato o condición | De dónde | Por qué |
 |---|---|---|
-| Migraciones `0058`–`0065` aplicadas y el código desplegado | Puerta 1 | La operación, la frontera, el aviso de fechas y el panel son de esas migraciones |
+| Migraciones `0058`–`0066` aplicadas y el código desplegado | Puerta 1 | La operación, la frontera, el aviso de fechas, el panel y quién ejecuta cada función son de esas migraciones |
 | Que el **Dueño** pueda entrar a producción **con su propia sesión** | El dueño | La puerta 2 la hace él desde la pantalla de editar: así la bitácora conserva quién cambió la fecha. El agente nunca escribe su contraseña |
 | Respaldo nuevo de la base | §5.1, **justo antes** de la puerta 1 | Antes de la primera escritura; uno viejo no sirve (D-205, Decisión 5) |
 | Identificadores de la **organización** y de la **rifa** | Consulta de solo lectura. **Nunca se elige por nombre** | La base los compara |

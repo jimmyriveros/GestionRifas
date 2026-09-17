@@ -1,6 +1,12 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.23 · **Estado:** implementado · **Actualizado:** 2026-09-16
+- **Versión:** 2.24 · **Estado:** implementado · **Actualizado:** 2026-09-17
+- **Nota (2026-09-17, D-207):** la **`0066`** fija quién ejecuta cada una de las 62 funciones de premios
+  configurables: las seis RPC, solo `authenticated`; `admin_audit_log`, `authenticated` y `service_role`;
+  `transition_raffle_prize_mode` y `confirm_lottery_result`, solo `service_role`; las otras 53 —las cuatro
+  auxiliares de los CHECK y `match_lottery_result` incluidas— **nadie** (§6.g.9, §6.h; `SECURITY` §4.23).
+  No toca datos ni tablas. El esquema ejecutable son **`0001`–`0066`** en local y sigue siendo **`0001`–`0057`**
+  en el proyecto real.
 - **Nota (2026-09-16, corrección de D-206):** la **`0065`** redefine solo el cuerpo de
   `raffles_notify_dates_changed`: el aviso de las fechas de una rifa activa llega a **todas** las membresías
   activas, **también a quien hizo el cambio**, que sigue siendo su `actor_profile_id` (§4.23). No toca datos,
@@ -1834,7 +1840,8 @@ aplicación es `src/lib/auth/capabilities.ts`.
 `raffle_prize_rule_dates`, `raffle_prize_version_problem`, `raffle_prize_cutoff_problem`,
 `raffle_prize_is_material`, `raffle_prize_notify`, `raffle_prize_audit_values`,
 `raffle_prize_applicable_version` y `raffle_prize_lock`— **no tienen `EXECUTE` para ninguna sesión**
-(I-078). Las cuatro auxiliares de los CHECK sí lo tienen para `service_role`, que inserta directo.
+(I-078). Las cuatro auxiliares de los CHECK lo tenían para `service_role`, que insertaba directo; **desde la
+`0066` no lo tiene nadie** y la service role ya no inserta períodos fuera de las RPC y de la transición (D-207).
 
 **`raffle_prize_version_problem` es la que dice que no** (BR-J08): calendario vacío o fuera de la
 rifa, día repetido, sorteo futuro cancelado y **conflicto con otro premio vigente**. Desde la `0059`
@@ -1913,7 +1920,7 @@ Entrega 3, y la prueban `tests/db` y `tests/unit`.
 
 | Función | Devuelve | Consumidor |
 |---|---|---|
-| `match_lottery_result(result_id)` | `{ result_id, inserted }` | Proceso interno (`service_role`). **No** la llama una sesión |
+| `match_lottery_result(result_id)` | `{ result_id, inserted }` | Interna: la llama `confirm_lottery_result`. Desde la `0066` no la ejecuta nadie directamente, **tampoco `service_role`** (D-207) |
 
 `SECURITY DEFINER`, sin `EXECUTE` para `authenticated` ni `anon`. Recorre rifas elegibles (D-140) y
 boletas con igualdad textual del número, inserta fotografías e ignora duplicados. No notifica y no

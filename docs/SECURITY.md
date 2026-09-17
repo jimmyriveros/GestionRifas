@@ -1,6 +1,11 @@
 # SEGURIDAD
 
-- **Versión:** 2.22 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§4.22**: la `0065`
+- **Versión:** 2.23 · **Estado:** implementado · **Actualizado:** 2026-09-17 (**§4.23**: la `0066` —D-207,
+  I-132— fija quién ejecuta cada una de las 62 funciones de premios configurables: el proyecto alojado concede
+  EXECUTE a `service_role` en toda función nueva y la pila local no, y el preflight de la Puerta 1 lo vio antes
+  de escribir nada. Solo dos entradas de la service role —`transition_raffle_prize_mode` y
+  `confirm_lottery_result`—, seis RPC de sesión, la proyección de D-198 y **53 internas que no ejecuta nadie**;
+  `match_lottery_result` pasa a interno). Antes, el 2026-09-16 (**§4.22**: la `0065`
   —D-206 corregida— hace que el aviso de las fechas llegue también a quien las cambia, **sin tocar
   privilegios**, y el actor sigue saliendo solo de la sesión: la extensión real se hace con la sesión del
   Dueño, nunca con SQL sin sesión, una RPC que reciba el actor ni la service role con sus `claims`). Antes,
@@ -416,6 +421,13 @@ local el comportamiento correcto ya era el vigente y **ninguna prueba podía det
 misma lista blanca, pero **pasaría igual si el problema volviera**. Si se toca esa lista, se toca en
 los dos sitios.
 
+⚠️ **Y la misma trampa, con `service_role` (I-132).** D-128 dejó en el privilegio por defecto
+`{postgres=X, service_role=X}`: en producción **toda función nueva nace ejecutable por la service
+role**, y en local no. Para las funciones de premios configurables la `0066` escribe la lista exacta
+(§4.23). **Regla para una función nueva:** `revoke execute … from public, anon, authenticated,
+service_role` y un `grant` explícito **solo** al rol que la llama de verdad; lo demás no lo ejecuta
+nadie. El privilegio por defecto no se tocó: queda para la auditoría de I-132.
+
 Las funciones de negocio que **mutan** datos además validan permisos internamente y auditan la
 acción. Los helpers de sesión/lectura (`current_*`, `has_org_role`, `taken_ticket_combinations`) no
 escriben una fila de auditoría por consulta; hacerlo convertiría cada lectura en una mutación.
@@ -500,8 +512,9 @@ OR (
 )
 ```
 
-`tickets_select` **no se toca**. `match_lottery_result` es `SECURITY DEFINER` y solo tiene `EXECUTE`
-para `service_role`. `lottery_sync_runs` tiene RLS forzada y **cero** políticas: una sesión recibe
+`tickets_select` **no se toca**. `match_lottery_result` es `SECURITY DEFINER` y solo tenía `EXECUTE`
+para `service_role`; **desde la `0066` (D-207) no lo ejecuta nadie directamente**: lo alcanza
+`confirm_lottery_result`. `lottery_sync_runs` tiene RLS forzada y **cero** políticas: una sesión recibe
 cero filas, no un error de privilegio.
 
 Las políticas usan conjuntos precalculados (I-019). Un `UPDATE` del número mayor confirmado no lo
@@ -1184,6 +1197,9 @@ devuelve una columna de esa lista. El aviso que se escribe en la campana tampoco
 
 > ⚠️ **Solo en local**, como §4.20.
 
+> **Desde la `0066` (D-207, §4.23)** `match_lottery_result` tampoco es ejecutable por `service_role`: la
+> única entrada del motor es `confirm_lottery_result`.
+
 **La superficie no crece.** `match_lottery_result` y `confirm_lottery_result` siguen siendo proceso
 interno: **sin `EXECUTE` para `anon` ni `authenticated`**, solo `service_role`, igual que en
 `0036`–`0038`. Las piezas nuevas —`raffle_prize_versions_at`, `raffle_prize_draw_prizes` y los tres
@@ -1255,6 +1271,47 @@ para ese relleno**. Las pruebas lo trasladan como superusuario para simular fech
 **La `0065` (D-206, corrección) tampoco.** Reemplaza solo el cuerpo de `raffles_notify_dates_changed` —quita
 la exclusión del actor— y repite sus revocaciones: sigue sin ejecutarla nadie, ni la service role, y
 `verify:remote` comprueba además que el cuerpo vigente ya no excluye a quien hizo el cambio.
+
+### 4.23 Quién ejecuta cada función de premios (`0066`; D-207; I-132)
+
+> ⚠️ **Solo en local**, como §4.20–§4.22.
+
+**El hallazgo, antes de escribir en producción.** El preflight de la Puerta 1 (2026-09-17) comparó, en
+solo lectura, la estructura del proyecto real con la pila local en `0057`: el privilegio por defecto de
+`postgres` para las funciones de `public` es `{postgres=X, service_role=X}` allí y `{postgres=X}` aquí.
+Con `0058`–`0065` aplicadas, **35 funciones de la entrega** habrían quedado ejecutables por la service
+role —casi todas internas y `SECURITY DEFINER`; entre ellas `raffle_prize_insert_version` y
+`raffle_prize_notify`, que escriben versiones y avisos—. La Puerta 1 se suspendió sin escribir nada.
+
+**La lista, una sola vez** (`scripts/prize-function-grants.ts`), para las 62 funciones que crean o
+redefinen `0058`–`0065`:
+
+| Clase | Funciones | PUBLIC | anon | authenticated | service_role |
+|---|---|---|---|---|---|
+| RPC del panel | Las seis de §4.20 | — | — | ✅ | — |
+| Proyección de D-198 | `admin_audit_log` (redefinida) | — | — | ✅ | ✅ |
+| Entradas de la service role | `transition_raffle_prize_mode` (el script, D-205) y `confirm_lottery_result` (el sincronizador, D-145) | — | — | — | ✅ |
+| Internas | Las otras **53**: capacidades, calendario y validación, escritura de versiones, avisos y auditoría, el motor —**con `match_lottery_result`**— y sus defensas, disparadores y piezas de la transición | — | — | — | — |
+
+| Superficie | Cómo se cierra |
+|---|---|
+| Llamar con la clave de servicio a una pieza que escribe (`raffle_prize_insert_version`, `raffle_prize_notify`…) | Sin `EXECUTE`: **42501**, por PostgreSQL y por la API (P2-01..P2-03) |
+| Correr el motor sobre un resultado sin confirmarlo | `match_lottery_result` ya no es ejecutable por nadie; el sincronizador entra por `confirm_lottery_result` (P2-05, P3-02) |
+| Usar las RPC del panel con la clave de servicio | Sin `EXECUTE` para `service_role`: autorizan por `auth.uid()` y no tienen uso sin sesión (P2-05) |
+| Insertar períodos directamente con la service role | Sus CHECK llaman a funciones internas: falla. Toda escritura de premios pasa por las RPC o por la transición |
+| Que el privilegio por defecto vuelva a abrir una función | La `0066` **se comprueba a sí misma** —si el EXECUTE efectivo de alguna de las 62 no es exactamente el de la lista, o aparece una sobrecarga sin clasificar, falla y no deja nada— y `verify:remote` corre tres comprobaciones con la misma lista, que fallan si reaparece **cualquiera** de los 35 (P1-04, P1-05) |
+| Que el catálogo dependa del entorno | La cadena desde `0057` se probó con los privilegios por defecto locales y con los de producción: **las 62 funciones, las seis tablas y sus políticas quedan idénticas** (`TEST_RESULTS`) |
+
+**Por qué las internas pueden no tener a nadie.** Las llaman funciones `SECURITY DEFINER` —que
+corren con los privilegios de su dueño—, los disparadores no comprueban `EXECUTE` al dispararse y los
+CHECK de los períodos se evalúan dentro de `raffle_prize_insert_version`. Ninguna política de RLS usa
+una función de la entrega.
+
+**Lo que no toca, y queda en I-132.** El privilegio por defecto del esquema; las **50 funciones
+anteriores a la entrega** que en producción tienen `EXECUTE` para `service_role` y en local no (37 de
+ellas `SECURITY DEFINER`); los privilegios de **tabla** de la service role sobre las tablas de premios
+(`SELECT` e `INSERT`, y `UPDATE` en `raffle_prizes`), explícitos desde `0058`/`0059` e iguales en los
+dos entornos; y la secuencia de I-130.
 
 ## 5. Protección de Server Actions y Route Handlers
 

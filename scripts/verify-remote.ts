@@ -22,6 +22,8 @@
 import { config } from 'dotenv'
 import { Client } from 'pg'
 
+import { PRIZE_FUNCTION_CHECKS } from './prize-function-grants'
+
 config({ path: '.env.local', quiet: true })
 
 type Check = {
@@ -346,17 +348,19 @@ const CHECKS: Check[] = [
     esperado: 6,
   },
   {
+    // Las entradas del sincronizador. `match_lottery_result` ya no esta: desde la
+    // 0066 (D-207) es interno y solo lo alcanza `confirm_lottery_result`.
     nombre: 'RPC de loterias existen para service_role',
     sql: `select distinct p.proname as x
           from pg_proc p join pg_namespace n on n.oid = p.pronamespace
           where n.nspname = 'public'
             and p.proname in (
-              'match_lottery_result', 'sync_lottery_schedules',
+              'sync_lottery_schedules',
               'notify_lottery_schedule_changes', 'confirm_lottery_result',
               'try_acquire_lottery_sync_lock', 'release_lottery_sync_lock'
             )
             and has_function_privilege('service_role', p.oid, 'EXECUTE')`,
-    esperado: 6,
+    esperado: 5,
   },
   {
     // I-078: el proyecto alojado concede EXECUTE a authenticated por defecto.
@@ -517,6 +521,9 @@ const CHECKS: Check[] = [
             and position('is distinct from v_actor' in p.prosrc) = 0`,
     esperado: 1,
   },
+  // 0066 (D-207, I-132): la lista blanca exacta de las funciones de premios.
+  // Son las MISMAS comprobaciones que corre tests/db/prize-function-privileges.test.ts.
+  ...PRIZE_FUNCTION_CHECKS,
 ]
 
 async function main(): Promise<void> {

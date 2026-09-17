@@ -3,7 +3,8 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-16 — **Premios configurables, ENTREGA 5 de 5: el aviso de fechas llega también a quien las cambia, y la puerta 2 con la sesión del Dueño** (D-206 corregida, migración **`0065`**, **solo en local**, sin completar la entrega): la frontera temporal y la protección de los 25 sorteos, **aprobadas por el dueño y sin tocar**; cada membresía activa recibe **exactamente un aviso**, también quien cambia las fechas, que sigue siendo su actor; y `RUNBOOK` §8.3 hace la extensión real **con la sesión del Dueño** desde Editar, con verificación de solo lectura antes y después. `test:db` **1.255/1.255**, `verify` **1.375/1.375**, E2E dirigida **4/4**, `verify:remote` local **38/38**. **Ninguna puerta pedida; nada en producción.**
+- **Actualizado:** 2026-09-17 — **Premios configurables, ENTREGA 5 de 5: la Puerta 1 suspendida antes de escribir, y quién ejecuta cada función de premios** (D-207, migración **`0066`**, **solo en local**, sin completar la entrega): el preflight de solo lectura vio que el privilegio por defecto de las funciones del proyecto real concede `EXECUTE` a `service_role` y el local no, y que con `0058`–`0065` **35 funciones de la entrega** habrían quedado ejecutables con la clave de servicio (**I-132**). El dueño **suspendió la Puerta 1**, que **no escribió nada**. La `0066` fija una lista explícita y mínima —seis RPC de sesión, `admin_audit_log`, y solo `transition_raffle_prize_mode` y `confirm_lottery_result` para la service role; las otras 53 no las ejecuta nadie— y se comprueba a sí misma; la cadena desde `0057` deja **el mismo catálogo** con los privilegios locales y con los de producción. `test:db` **1.270/1.270**, `verify` **1.375/1.375**, `verify:remote` local **41/41**. **Producción sin cambios**; la próxima Puerta 1 tiene que autorizar `0058`–`0066` y el commit nuevo.
+  Antes, el 2026-09-16 — **Premios configurables, ENTREGA 5 de 5: el aviso de fechas llega también a quien las cambia, y la puerta 2 con la sesión del Dueño** (D-206 corregida, migración **`0065`**, **solo en local**, sin completar la entrega): la frontera temporal y la protección de los 25 sorteos, **aprobadas por el dueño y sin tocar**; cada membresía activa recibe **exactamente un aviso**, también quien cambia las fechas, que sigue siendo su actor; y `RUNBOOK` §8.3 hace la extensión real **con la sesión del Dueño** desde Editar, con verificación de solo lectura antes y después. `test:db` **1.255/1.255**, `verify` **1.375/1.375**, E2E dirigida **4/4**, `verify:remote` local **38/38**. **Ninguna puerta pedida; nada en producción.**
   Antes, ese mismo día — **Premios configurables, ENTREGA 5 de 5: corrección local previa a producción** (D-206, migración **`0064`**, **solo en local**, sin completar la entrega): los sorteos cuyo corte llegó antes de la transición **conservan el sistema de siempre** —también si su resultado se confirma después, sin enlaces—, con el **instante efectivo** y una sola frontera; la transición ya no espera a los 25 sorteos de **I-127** y sí a un corte desconocido; y cambiar las fechas de una rifa activa **avisa** a su organización (BR-R12). `test:db` **1.254/1.254**, `verify` **1.375/1.375**, E2E dirigida **52/53** y la prueba nueva corregida, **9/9** en tres repeticiones. **Producción sin cambios** y la fecha real de la rifa sigue en el 01/11/2026. Los seis puntos de §34.3, en su sección de mantenimiento.
   Antes, ese mismo día — **Premios configurables, ENTREGA 5 de 5: DETENIDA en el preflight de solo lectura** (D-205, sin migración). La parte local está hecha —I-128 resuelta, la puerta de producción del script, `verify:remote` +3, `test:db` **1.230/1.230**, `verify` **1.363/1.363**, E2E **742/744** con I-075 e I-090 verdes en aislamiento— en **`7d80c18`**. El proyecto real, consultado **solo en lectura**, tiene dos bloqueos que decide el dueño: la rifa real **termina el 01/11/2026** y no contiene ningún premio (**I-129**) y tiene **25 sorteos jugados sin resultado confirmado** (**I-127**). **Nada se escribió en producción**: sigue en la `0057`, sin push ni despliegue, y la rifa sigue en el sistema de siempre. Los seis puntos de §34.3, en su sección de mantenimiento.
   Antes, ese mismo día — **Premios configurables, ENTREGA 4 de 5: la transición de una rifa existente** (D-204, migración **`0063`**, **solo en local**): `transition_raffle_prize_mode` —solo la service role, entera o nada, con vista previa— convierte una rifa heredada sin tocar su cartera ni sus coincidencias, y se niega mientras quede un sorteo jugado sin confirmar (**I-127**, riesgo para la rifa real). Los **seis** premios confirmados están escritos una vez; el caso «semanal, un lunes, con Cundinamarca» era un ejemplo. **Ninguna rifa real cambió de modo.** Los seis puntos de §34.3, en su sección de mantenimiento. **No autoriza la Entrega 5.**
@@ -4961,7 +4962,97 @@ si exige una variable que nadie ha creado (I-021).
 
 ---
 
+## Mantenimiento post-9 — premios configurables, **ENTREGA 5 de 5**: la Puerta 1 suspendida antes de escribir, y quién ejecuta cada función de premios (`0066`, D-207, 2026-09-17)
+
+Encargo expreso del dueño después de **suspender la Puerta 1**: una corrección local con una migración
+nueva `0066`, **sin tocar `0058`–`0065`**, y **un solo commit local sobre `be26419`**. **No completa la
+Entrega 5 y no pide ninguna puerta.**
+
+> **PRODUCCIÓN SIN CAMBIOS.** Sigue en la `0057`, sirviendo `c48437a`. La Puerta 1 se autorizó para
+> `0058`–`0065` y `be26419` y **no escribió nada**: no hubo respaldo, migración, push, etiqueta ni
+> despliegue. La espera del turno del sincronizador se canceló; su vigilante ya había terminado sin
+> consultar nada.
+
+**Lo que pasó:** el preflight de solo lectura encontró un pago de $120.000 que el dueño aceptó como
+actividad legítima (Opción A). Al preparar la línea base, la estructura del proyecto real mostró que el
+privilegio por defecto de sus funciones concede `EXECUTE` a `service_role`, y el de la pila local no:
+**el preflight detectó una diferencia real entre los privilegios por defecto de los dos entornos, y se
+corrige antes de escribir.** Con `0058`–`0065` aplicadas allí, **35 funciones de la entrega** habrían
+quedado ejecutables con la clave de servicio (**I-132**). El dueño lo declaró **bloqueo real de
+seguridad** y suspendió la autorización.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| **El inventario** | Las **62** funciones que crean o redefinen `0058`–`0065`, clasificadas **una sola vez** en `scripts/prize-function-grants.ts`, que usan la migración, `verify:remote` y las pruebas |
+| **La lista permitida** (D-207) | Las seis RPC del panel → solo `authenticated`; `admin_audit_log` → `authenticated` y `service_role`, su contrato de D-198; `transition_raffle_prize_mode` y `confirm_lottery_result` → **solo `service_role`**; las otras **53** → **nadie** |
+| **`match_lottery_result`** | Deja de ser ejecutable por la service role: el único camino es `confirm_lottery_result`, que lo llama dentro |
+| **La `0066`** | Quita `EXECUTE` a PUBLIC, anon, authenticated y service_role en las 62, concede las nueve y **se comprueba a sí misma**: si el `EXECUTE` efectivo de alguna no es exactamente el de la lista, o aparece una sobrecarga sin clasificar, falla y no deja nada |
+| **`verify:remote`** | **+3 (41)**: la matriz exacta de las 62, ninguna de las 35 ejecutable por `service_role` y ninguna sobrecarga sin clasificar. La de las RPC de loterías ya no pide `match_lottery_result` |
+| **Las pruebas del motor** | Lo corren como el dueño de la base (`runLotteryEngine`), no con la service role; M8-05 exige que la service role **no** lo ejecute |
+| **Lo que no toca** | El privilegio por defecto del esquema, las 50 funciones anteriores a la entrega, los privilegios de tabla, I-130 y los datos |
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `prize-function-privileges.test.ts` (nueva) | ✅ **15/15** |
+| Cadena desde `0057`, **escenario A** (privilegios locales) | Antes de la `0066`: 14 funciones con `service_role`, la matriz falla en 11. Después: ✅ las tres comprobaciones y la suite **15/15** |
+| Cadena desde `0057`, **escenario B** (privilegios de producción reproducidos) | Antes: **49**, la matriz falla en 46 y **aparecen los 35**. Después: ✅ las tres y **15/15** |
+| **A frente a B** después de la `0066` | **Idénticos**: la matriz `EXECUTE` de las 62, sus definiciones, dueño y ACL, las seis tablas con su RLS y ACL, y sus políticas |
+| Suites dirigidas: privilegios, catálogo, seguridad, RLS, premios, motor, transición, avisos, resultados, sincronizador y consenso | ❌→✅ **374/374** en 12 archivos |
+| `db:reset` · `seed:local` · `npm run test:db` | ✅ **1.270/1.270** en 52 archivos |
+| `npm run verify` | ✅ **1.375/1.375** unitarias en 75 archivos, lint sin errores (2 avisos previos), build |
+| `verify:remote` contra la base local | ✅ **41/41** |
+| E2E | No se corrió: no cambia la interfaz |
+| `git diff --check` · `0058`–`0065` · protegidos | ✅ · sin cambios · mismo SHA-256 |
+
+**Errores encontrados y corregidos:** DB-15 no reconocía la nota de reversión de la `0066` por la tilde;
+los comentarios de la migración quedaron sin tildes. Del procedimiento, fuera de Git: el vigilante del
+turno terminó con código 4 antes de consultar, y la foto de estructura leía mal las claves primarias
+(`TEST_RESULTS`).
+
+### 3. Migraciones que existen
+
+**`0001`–`0066` en local; `0001`–`0057` en el proyecto real.** Nueva:
+**`0066_prize_function_privileges.sql`** —revoca y concede `EXECUTE` sobre las 62 funciones de la entrega
+y se comprueba a sí misma—. No toca datos, tablas, secuencias, el privilegio por defecto ni `0058`–`0065`.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **`0058`–`0066` y el código no están en producción** | La rifa real sigue en el sistema de siempre. La autorización anterior **ya no vale**: la próxima Puerta 1 tiene que nombrar `0058`–`0066` y el commit nuevo |
+| **I-132, abierta para el resto del esquema** | En producción, **50 funciones anteriores** a la entrega tienen `EXECUTE` para `service_role` que en local no (37 `SECURITY DEFINER`), y toda función nueva nace así. Necesita una auditoría separada |
+| **I-129: la fecha real sigue en el 01/11/2026** | Se extiende en la **puerta 2**, con la sesión del Dueño |
+| I-127 resuelta en local · I-130 · I-131 | Sin cambios |
+| I-075 e I-090 en la E2E completa | Pruebas, no producto; la completa no se corrió |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **La Puerta 1 está suspendida.** Sin una autorización nueva que nombre `0058`–`0066` y el commit nuevo,
+   **no** se respalda, migra, empuja ni despliega nada.
+2. **El preflight se repite entero**, con línea base nueva, la Opción A —cada diferencia, explicada fila a
+   fila— y sin aplicar mientras corra un turno del sincronizador.
+3. **Cualquier comparación de estructura se ensaya con los privilegios de producción** (escenario B): la
+   pila local no los tiene, y fue justo eso lo que ocultó I-132.
+4. **`verify:remote` tiene que dar 41/41** después de aplicar; las tres últimas son las de la `0066`.
+5. **Una función nueva de premios no entra sola en la lista.** Hay que añadirla a
+   `scripts/prize-function-grants.ts` y fijar su `EXECUTE` en su migración: las comprobaciones solo detectan
+   sobrecargas de los nombres ya clasificados, y P1-01 lee `0058`–`0065`.
+6. **El motor, en las pruebas, se corre con `runLotteryEngine`**; con la service role responde `42501`.
+
+---
+
 ## Mantenimiento post-9 — premios configurables, **ENTREGA 5 de 5**: el aviso de fechas llega también a quien las cambia, y la puerta 2 con la sesión del Dueño (`0065`, D-206 corregida, 2026-09-16)
+
+> **Nota posterior (`0066`, sección de arriba):** la Puerta 1 que aplicaba `0058`–`0065` se **suspendió sin
+> escribir nada** (I-132), y `verify:remote` pasa a **41/41**. Lo de abajo se conserva como se entregó.
 
 Encargo expreso del dueño sobre `c32525d`: **la frontera temporal y la protección de los 25 sorteos quedan
 aprobadas y no se tocan**, y hay **dos correcciones obligatorias** antes de continuar. Migración nueva

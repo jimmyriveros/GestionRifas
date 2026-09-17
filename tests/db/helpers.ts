@@ -79,6 +79,39 @@ export async function asProfile<T extends QueryResultRow = QueryResultRow>(
   }
 }
 
+export type EngineError = { message: string; code?: string; details?: string; hint?: string }
+
+/**
+ * Corre el motor de coincidencias sobre un resultado ya guardado, como el dueño
+ * de la base.
+ *
+ * Desde la `0066` (D-207) `match_lottery_result` es interno: nadie lo ejecuta
+ * directamente —tampoco la service role— y solo lo alcanza
+ * `confirm_lottery_result`, que es el camino del sincronizador y el que
+ * prueban las suites con la service role. Las pruebas que insertan un
+ * resultado a mano para mirar el motor lo invocan aquí, con PostgreSQL directo,
+ * como hace la propia función que lo llama. Devuelve la misma forma que
+ * `rpc()`: `{ data, error }`, con el error de PostgreSQL en `code`, `message`,
+ * `details` y `hint`.
+ */
+export async function runLotteryEngine(
+  resultId: string,
+): Promise<{ data: unknown; error: EngineError | null }> {
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    const { rows } = await db.query<{ r: unknown }>('select match_lottery_result($1) as r', [
+      resultId,
+    ])
+    return { data: rows[0]!.r, error: null }
+  } catch (error) {
+    const e = error as { message: string; code?: string; detail?: string; hint?: string }
+    return { data: null, error: { message: e.message, code: e.code, details: e.detail, hint: e.hint } }
+  } finally {
+    await db.end()
+  }
+}
+
 /** Anula un pago con `void_payment`, con la identidad de quien anula (ver `asProfile`). */
 export async function voidPaymentAs(profileId: string, paymentId: string, reason: string) {
   await asProfile(profileId, 'select void_payment($1, $2)', [paymentId, reason])
