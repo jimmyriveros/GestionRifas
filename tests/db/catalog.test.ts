@@ -210,6 +210,13 @@ describe('funciones privilegiadas', () => {
       'admin_ticket_detail',
       'admin_ticket_inventory',
       'admin_update_ticket_numbers',
+      // 0067 (D-208): el historial de premios ganados. Las dos del vendedor
+      // devuelven SOLO sus coincidencias —tener equipo no concede ninguna mas—
+      // y las dos del personal no declaran ni un campo de cliente (BR-Q01).
+      'admin_prize_awards',
+      'admin_prize_award_totals',
+      'seller_prize_awards',
+      'seller_prize_award_totals',
       // Las RPC que llama la aplicacion
       'approve_tickets',
       // 0058 (D-199, D-200): las seis de premios configurables. Autorizan por la

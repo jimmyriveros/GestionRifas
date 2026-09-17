@@ -1,6 +1,13 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.31 · **Estado:** normativo · **Actualizado:** 2026-09-17 (§12.i y §4: las reglas de premios
+- **Versión:** 1.32 · **Estado:** normativo · **Actualizado:** 2026-09-17 (§12.i: **BR-J17..BR-J22**, el
+  **historial de premios ganados** —D-208, migración `0067`, **solo en local**—, y §7: **BR-I16**, los
+  números de una boleta con coincidencias no cambian por ninguna vía. Un premio ganado es una
+  coincidencia `sold` con su premio; el pago **no** interviene; un conflicto posterior **no borra**
+  historia; lo que el motor no puede premiar lo reconoce el negocio en una tabla aparte; los indicadores
+  son **cuatro**; cada vendedor ve **solo lo suyo** y el personal, **sin un solo dato de cliente**; y un
+  tramo sin resultados es **pendiente de información**, nunca cero premios. Llevan nota BR-L15 y BR-Q02);
+  antes, ese mismo día (§12.i y §4: las reglas de premios
   configurables y el aviso de fechas **rigen en producción** desde ese día —`0058`–`0066`, `da81663` y la
   rifa real convertida—); antes, el 2026-09-16 (§4: **BR-R12 avisa también
   a quien cambia las fechas** —D-206 corregida, migración `0065`—: cada membresía activa recibe exactamente
@@ -373,6 +380,7 @@ Ejemplos normativos:
 | BR-I13 | Una boleta vendida **puede** corregirse de cliente dentro de la cartera de su mismo vendedor, siempre que no tenga **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. **Desde el 2026-09-14 (D-198), solo la corrige su vendedor** (BR-Q06). | C, S, D | post-9 |
 | BR-I14 | Una boleta vendida **puede liberarse** —volver a `available`, sin cliente ni venta— cuando el cliente desiste antes de abonar nada: exige rifa **activa** y **ninguna** fila en `payment_allocations` ni en `lottery_ticket_matches`. **Desde el 2026-09-14 (D-198), solo la libera su vendedor** (BR-Q06). | C, S, D | post-9 |
 | BR-I15 | Una boleta vendida registra si su **paz y salvo** —el desprendible— ya se entregó físicamente al cliente. Lo marca **solo el vendedor dueño** de la boleta, es **independiente del pago** y vuelve a pendiente si la boleta cambia de cliente o se libera. | C, S, D | post-9 |
+| BR-I16 | **Los números de una boleta con coincidencias no cambian.** Una boleta que tenga cualquier fila en `lottery_ticket_matches` deja de admitir un cambio de `daily_number` o `weekly_number` **por ninguna vía**: ni la RPC del personal, ni una política de `UPDATE`, ni una RPC futura, ni la service role. Lo garantiza un **disparador** sobre `tickets`, no una comprobación dentro de una función, acompañado de uno **diferido** que vuelve a mirar al COMMIT. Es la misma condición que ya usan BR-I13 y BR-I14, aplicada a los números: una boleta que hace parte de un resultado registrado no se retoca. **Queda un hueco medido y documentado** (I-134): si el motor lee el número viejo y su escritura espera por la clave ajena, la fotografía puede entrar con un número que ya no es el de la boleta; eso **no se esconde**, el historial lo marca. | C, S, D | post-9 |
 
 **BR-I12 y BR-I13 no dicen lo mismo, y la diferencia importa.** BR-I12 es el disparador
 `tickets_protect_client_change` de `0004`: protege el **saldo**, así que mira los pagos **activos** y
@@ -668,7 +676,7 @@ producción (D-149).
 | BR-L12 | El matching es una operación de conjunto en PostgreSQL, idempotente. | D | post-9 |
 | BR-L13 | Programación y resultados son nacionales. Las coincidencias se aislan por organización. | D | post-9 |
 | BR-L14 | El vendedor solo ve coincidencias de sus boletas. `tickets_select` no se amplía (D-141, D-092). | D | post-9 |
-| BR-L15 | No se llama «ganador» al cliente ni a la boleta. La plataforma detecta coincidencia numérica; no certifica el premio oficial. | C | post-9 |
+| BR-L15 | No se llama «ganador» al cliente ni a la boleta. La plataforma detecta coincidencia numérica; no certifica el premio oficial. **Precisada por BR-J17 (D-208):** el historial habla de **premios**, que son de la rifa, mientras el **resultado** y la **coincidencia** siguen siendo de la lotería; la prohibición de «ganador», «ganadora» y «premiada» no se relaja, y una prueba unitaria la vigila. | C | post-9 |
 | BR-L16 | No se guarda HTML ni el documento externo. Se conservan URL, autoridad, versión, hash y campos extraídos. | D | post-9 |
 | BR-L17 | La consulta a una fuente oficial es HTTPS, allowlist, timeout y tope de tamaño. Un desafío anti-bot **no se elude** (D-144, I-081). **Sustituida en parte por BR-L26 (D-162, 2026-09-02):** desde entonces sí se consultan fuentes alternativas cuando la oficial no sirve, pero **solo bajo consenso de dos dominios**, nunca como sustituto directo de una autoridad. Lo que no cambia: no se resuelven CAPTCHA, no se usan proxies, no se falsifica un navegador y no se copian cookies de una sesión humana. | D | post-9 |
 | BR-L18 | La sincronización de programación es idempotente. Conserva `reference_date` y `original_scheduled_at`. Solo incrementa `schedule_version` cuando cambia la hora oficial, el estado o el motivo. Un hash nuevo del mismo contenido no avisa (D-145). | D | post-9 |
@@ -872,7 +880,7 @@ pantalla. Alcance **B**, elegido por el usuario: tampoco ven dinero ni ganancias
 | ID | Regla | Capas | Fase |
 |----|-------|-------|------|
 | BR-Q01 | **La cartera es del vendedor.** El Dueño y el Administrador no leen ni modifican, por ninguna vía —pantalla, URL, Server Action, PostgREST, RPC, vista, reporte, CSV, aviso o bitácora—, los clientes de un vendedor (nombre, alias, teléfono, correo, notas e identificador), el precio de venta ni el precio base de una boleta, lo abonado, el saldo, el porcentaje, los pagos ni sus asignaciones. Tampoco pidiéndolos por un identificador conocido. | C, S, D | post-9 |
-| BR-Q02 | **Lo que el personal sí ve de una boleta es una lista blanca**: números diario y semanal, código interno, rifa, vendedor, estado de inventario, estado de pago administrativo (BR-Q04), paz y salvo, fecha de venta —solo si está vendida— y las fechas y el motivo de creación, aprobación y anulación. Llega por las funciones `admin_*`, que no devuelven ningún otro campo, y los tipos de la aplicación tampoco los declaran. | S, D | post-9 |
+| BR-Q02 | **Lo que el personal sí ve de una boleta es una lista blanca**: números diario y semanal, código interno, rifa, vendedor, estado de inventario, estado de pago administrativo (BR-Q04), paz y salvo, fecha de venta —solo si está vendida— y las fechas y el motivo de creación, aprobación y anulación. **Ampliada por BR-J21 (D-208)** con los campos del historial de premios ganados —sorteo, número mayor, número que coincidió, premio e importe—, que **no son de la cartera** y llegan por su propia proyección, también sin un solo dato de cliente. Llega por las funciones `admin_*`, que no devuelven ningún otro campo, y los tipos de la aplicación tampoco los declaran. | S, D | post-9 |
 | BR-Q03 | **El inventario sigue siendo del personal**: crear boletas sin venta, editar números, aprobar, cambiar de vendedor, eliminar las que nunca entraron en la operación y anular las que no se han vendido. | C, S, D | post-9 |
 | BR-Q04 | **El personal ve dos estados de pago: «Pagada» y «Sin pagar».** «Sin pagar» incluye las boletas con abonos parciales, y una boleta sin vender no tiene estado de pago («—»). El filtro se resuelve en SQL **antes** de contar y paginar, y un `partial` recibido es un error, nunca «Abonada». El enum, `TICKET_PAYMENT_STATUS_LABELS` y la insignia global no cambian: «Abonada» sigue siendo del vendedor. | C, S, D | post-9 |
 | BR-Q05 | **El personal busca solo por número.** Un término que no sea de 1 a 4 dígitos no consulta nada y responde lo mismo que uno inexistente: buscar un nombre no confirma que ese cliente exista. No hay filtro por cliente, y un `clientId` en la URL se ignora. | C, S, D | post-9 |
@@ -958,6 +966,38 @@ el motor decide, rifa por rifa y sorteo por sorteo, con una sola frontera —cor
 sistema de siempre; corte `>` instante, los premios—. Una rifa configurable creada directamente y una
 heredada que no se transforma se comportan **exactamente igual que antes**. Nada se reprocesa ni se
 confirma.
+
+---
+
+### Historial de premios ganados (BR-J17..BR-J22)
+
+Mantenimiento posterior a la Fase 9 (2026-09-17, **D-208**, migración `0067`, **solo en local**). El
+vendedor ve los premios que ganaron sus clientes; el Dueño y el Administrador, los de su organización
+**sin un solo dato de cliente**. Se extiende `BR-J` porque es el mismo dominio —los premios de una
+rifa—, no una letra nueva.
+
+> **En local desde el 2026-09-17.** Existen la tabla, las cuatro lecturas, el cargador y el cerrojo de
+> los números; **no existe ninguna pantalla**, que es la Etapa 2. El proyecto real **no tiene la
+> `0067`**.
+
+| ID | Regla | Capas | Estado |
+|----|-------|-------|--------|
+| BR-J17 | **Un premio ganado es una coincidencia `sold` con su premio.** Entra en el historial cuando el resultado está `confirmed`, la fotografía de `lottery_ticket_matches` es `sold` —que ya implica cliente y `assigned_at <= official_scheduled_at`, BR-L09 y BR-L10— y existe **o** su enlace del motor con la **versión histórica** aplicada (BR-J09) **o** un reconocimiento vigente del negocio (BR-J19). Quedan fuera las boletas libres y las de asignación tardía, y las coincidencias que la prioridad de cuatro cifras descartó, que **no se fotografían** (D-203). **El pago no interviene**: una boleta sin pagar o a medias gana igual, y no se añade paz y salvo ni confirmación humana (respuesta H3 del dueño). El historial **no recalcula** nada: lee lo que el motor ya escribió. | C, S, D | ✅ Etapa 1 (local) |
+| BR-J18 | **Un resultado que entra en conflicto después NO borra historia.** La pertenencia la deciden la fotografía y su enlace, que son inmutables (BR-L11), nunca el estado actual del resultado: el registro se queda, los totales no se mueven y la fila queda **marcada** para que se verifique. Lo mismo con un número de boleta que ya no coincida con el fotografiado: se **marca**, no se esconde. | C, S, D | ✅ Etapa 1 (local) |
+| BR-J19 | **Un premio que el motor no puede producir lo reconoce el NEGOCIO, en una tabla aparte.** `declared_prize_awards` cuelga de una fotografía que ya existe y solo se admite donde el motor **nunca** podrá escribir un enlace: una fotografía `sold` de un sorteo que, para su rifa, se resuelve con el sistema de siempre (`raffle_prize_draw_mode` = `legacy`, D-206). Así el doble conteo es imposible por construcción. Guarda el **título declarado** —renombrar el premio no reescribe la historia—, el importe, su **respaldo de negocio** con el **rol** que lo confirmó, y el **actor técnico** de la carga, que es otra cosa y puede ser un proceso del sistema. **No lleva versión de premio**: a esos sorteos no les aplicó ninguna, y apuntar a una sería falso. Es **inmutable** salvo su anulación con motivo, y no se borra. La única puerta es `record_declared_prize_awards`, de la **service role**: vista previa por omisión, **entera o nada** e **idempotente**. | S, D | ✅ Etapa 1 (local) |
+| BR-J20 | **Los indicadores son cuatro, y ninguno se inventa**: cantidad de premios, cantidad de **clientes distintos** con premio, **total conocido del componente en dinero** y **cantidad de premios cuyo valor completo está pendiente**. Quien gana tres premios es **un** cliente y **tres** premios. Un importe es cierto solo con recompensa de **«Premio único»** y dinero en su única alternativa; con **«Alternativas a elegir»** no se suman, no se elige una y no se toma la de efectivo; un componente **en especie no se valora en cero** y deja el valor pendiente. Todo se calcula en **PostgreSQL**, en **pesos enteros**, sobre **todo el ámbito o filtro** y no sobre la página, y las alternativas **no multiplican filas ni importes**. | C, S, D | ✅ Etapa 1 (local) |
+| BR-J21 | **Cada vendedor ve solo lo suyo, y tener equipo no concede nada más**: el alcance es `seller_id = current_profile_id()`, como la política de `lottery_ticket_matches` desde `0057`. El **Dueño y el Administrador** ven el historial de su organización y el de cada vendedor —también de uno **inactivo**—, por una proyección `admin_*` de **lista blanca** cuyo tipo de retorno **no declara** nombre, identificador ni ningún otro dato de cliente (BR-Q01, BR-Q02); el recuento de clientes distintos se calcula **dentro** de la base y solo sale el número. El historial **no abre** cartera, pagos, saldos, precios de venta ni comisiones, y **conserva** rifas cerradas, clientes archivados y cuentas inactivas. Ninguna lectura recibe organización, vendedor ni actor: salen de la sesión. | C, S, D | ✅ Etapa 1 (local) |
+| BR-J22 | **La cobertura se dice, no se rellena.** El período empieza en el **inicio operativo de la plataforma en producción**, verificado: **2026-08-09**. Un tramo **sin resultados confirmados** —del 09/08 al 24/08/2026— es **pendiente de información**, nunca «cero premios», y su incorporación futura necesita autorización y evidencia propias (respuesta H2). **No se asignan al pasado los importes de hoy** (BR-J09), no se cargan resultados de loterías sin la evidencia que exige BR-L26, y una reconstrucción **no se presenta** como dato histórico comprobado (I-080). | C, S, D | ✅ Etapa 1 (local) |
+
+**Lo que el historial NO hace, dicho para que no se lea de más:** no construye otro motor, no recalcula
+ganadores desde las boletas de hoy, no reprocesa resultados, no cambia el modo de ninguna rifa, no
+registra qué alternativa se llevó quien acertó —eso sigue fuera (BR-J02)— y no registra entregas,
+desembolsos ni pagos de premios. **Son premios ganados.**
+
+**Nota sobre BR-L15.** El historial habla de **premios**, que es lo que una rifa entrega a quien acierta
+(D-199), y sigue sin llamar «ganador», «ganadora» ni «premiada» a una persona o a una boleta: el
+**resultado** y la **coincidencia** son de la lotería, el **premio** es de la rifa, y una prueba unitaria
+falla si esas palabras aparecen. BR-L15 no se relaja.
 
 ---
 

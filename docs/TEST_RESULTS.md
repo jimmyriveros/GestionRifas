@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Etapa 0 del historial de premios ganados, D-208 propuesta, 2026-09-17)** | **1.375 ✅ en 75 archivos** (sin cambio: la etapa no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ `verify:remote` **41/41** | 📋 **Diagnóstico**: 5 sondas de solo lectura en el proyecto real, validadas antes en local. Cobertura real: **2** coincidencias, **0** premios registrados, inicio operativo **2026-08-09**. Abre **I-133**, **I-134** e **I-135**. **Nada escrito en producción** |
+| **Post-9 vigente (Etapa 1 del historial de premios ganados, D-208, `0067`, solo en local, 2026-09-17)** | **1.381 ✅ en 76 archivos (+6)** | **1.305 ✅ en 53 archivos (+35; migración `0067`)** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: la `0067` no está promovida | ✅ **En local**: tabla, 4 lecturas, cargador y cerrojo de números. Los **dos** premios reconocidos ensayados de punta a punta: **$1.000.000**, idempotente. I-134 e I-135 resueltas en local; I-136 nueva. **Nada en producción** |
+| Post-9 anterior (Etapa 0 del historial de premios ganados, D-208 propuesta, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio: la etapa no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ `verify:remote` **41/41** | 📋 **Diagnóstico**: 5 sondas de solo lectura en el proyecto real, validadas antes en local. Cobertura real: **2** coincidencias, **0** premios registrados, inicio operativo **2026-08-09**. Abre **I-133**, **I-134** e **I-135**. **Nada escrito en producción** |
 | Post-9 anterior (premios configurables, Entrega 5 COMPLETA EN PRODUCCIÓN: puertas 1, 2 y 3, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio: el cierre no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ | 🚀 **En producción**: `0058`–`0066` aplicadas, `da81663` desplegado, la rifa real convertida y `verify:remote` **41/41** |
 | Post-9 anterior (premios configurables, Entrega 5: Puerta 1 suspendida antes de escribir y la `0066`, quién ejecuta cada función, D-207, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio) | **1.270 ✅ en 52 archivos (+15; migración `0066`)**; dirigidas **374/374** tras corregir DB-15; la cadena desde `0057` con los dos privilegios por defecto, **idéntica** | No se corrió: no cambia la interfaz | ✅ | ⛔→✅ **Puerta 1 suspendida sin escribir nada** (I-132); corrección local sin push ni despliegue; producción sigue en la `0057` y `c48437a` |
 | Post-9 anterior (premios configurables, Entrega 5: el aviso de fechas llega también a quien las cambia y la puerta 2 con la sesión del Dueño, `0065`, D-206 corregida, 2026-09-16) | **1.375 ✅ en 75 archivos** (sin cambio de número; F7 reescrita) | **1.255 ✅ en 51 archivos (+1; migración `0065`)** | Dirigida `rifa-fechas-aviso` **4/4** (+1), repetida al final sobre el código definitivo; volver a excluir al actor lo detectan la segunda y la tercera. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057`, la fecha real de la rifa no cambió y no se pidió ninguna puerta |
@@ -72,6 +73,87 @@ Un error corregido documentado es información; ocultarlo es deuda.
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
 ---
+## Etapa 1 del historial de premios ganados: base, lecturas y los dos premios reconocidos (D-208, `0067`) — 2026-09-17
+
+**Solo en local.** Ni una escritura en producción. La única lectura del proyecto real fue de **solo
+lectura**, para el punto A del encargo.
+
+| Verificación | Resultado |
+|---|---|
+| `npm run db:reset` + `npm run seed:local` | ✅ **67** migraciones, `0067` la última |
+| `npm run test:db` | ✅ **1.305/1.305** en 53 archivos (**+35**, el archivo nuevo), 87,7 s |
+| `npm run verify` | ✅ **exit 0**; unitarias **1.381/1.381** en 76 archivos (**+6**); lint con los 2 avisos preexistentes; build en verde |
+| `npm run verify:remote` | ⚠️ **41 en verde y 1 en rojo, y es lo correcto**: «Funciones del historial de premios con EXECUTE distinto de su lista (0067): 10 (esperado 0)», con las 10 como «no existe». La `0067` **no está promovida** |
+| Ensayo del cargador en local | ✅ vista previa → aplicar → repetir, con la constante de verdad |
+
+### El punto A del encargo, contrastado con el proyecto real (solo lectura)
+
+El **Premio principal** juega con **cuatro** cifras, no con las tres últimas. Las dos fuentes coinciden
+y **producción no difiere**: era un error de D-208.
+
+| Posición | Premio | Modo | Número | Cifras |
+|---|---|---|---|---|
+| 1 | Premio diario | `fixed` | diario | `four` |
+| 2 | Premio fin de semana | `fixed` | semanal | `four` |
+| **3** | **Premio principal** | `winner_choice` | diario | **`four`** |
+| 4 | Premio especial de tres cifras | `fixed` | diario | `last_three` |
+| 5 | Premio especial semanal | `fixed` | semanal | `four` |
+| 6 | Premio especial del 15 de diciembre | `fixed` | semanal | `four` |
+
+**Y el proyecto real cambió después de la fotografía de la Etapa 0**, todo explicable: 2 ventas y 1 pago
+—actividad normal—, y **dos versiones nuevas de premio** (22:37:45 y 22:37:58 UTC, con actor real) que
+amplían el período del **Premio diario** y del **Premio fin de semana** hacia atrás hasta el **27/07/2026**.
+**Eso no premia los dos casos históricos**: la versión 2 se publicó después de su corte (BR-J09) y esos
+sorteos están del lado del sistema de siempre (BR-J13, D-206). Siguen **0** filas en
+`lottery_ticket_match_prizes` y **0** resultados nuevos (**I-087**).
+
+### El ensayo del cargador, de punta a punta
+
+Con un fixture local que reproduce la situación de producción —las dos fechas y los dos pares de números
+**reales**, una rifa que ya existía transformada por el **mismo camino interno** que la transición de
+verdad, y las dos boletas vendidas antes de jugarse—, que deja **2 fotografías y 0 enlaces**, igual que
+producción:
+
+| Paso | Resultado |
+|---|---|
+| Vista previa | `se reconocería` × 2 · `$500.000` cada uno · **Dinero reconocido: $1.000.000** · «no se escribió nada» |
+| `--apply` | **`reconocido` × 2** · $1.000.000 |
+| `--apply` otra vez | **`ya estaba` × 2** · $1.000.000, y **2 filas** en la tabla, no 4 |
+| Sin `--local` | Se **niega** y dice que producción exige autorización propia y su puerta (D-205) |
+| El historial del vendedor | 2 filas `declared`, con cliente, `known_amount` $500.000 cada una, `value_pending` false, `result_conflict` false, `numbers_changed` false; totales **2 premios, 2 clientes, $1.000.000, 0 pendientes** |
+
+El fixture vive en `build/premios-historial/`, que **no se versiona**, y se borra con `--limpiar`.
+
+### Errores propios encontrados y corregidos por el camino
+
+| Qué | Cómo se vio | Corrección |
+|---|---|---|
+| `position` es palabra reservada en `returns table` | La migración no aplicaba: «syntax error at or near "position"» | La columna del plan se llama `entry_position` |
+| El informe del cargador decía **«ya estaba»** en la **primera** aplicación | El ensayo en local: había escrito bien, pero lo contaba mal | Lo que ya estaba se **captura antes** de insertar, en un array; si no, el plan recalculado dice que todo ya estaba. La `0067` se corrigió en su sitio —no está aplicada en ninguna parte salvo el local, que se reinició— |
+| La suite dejaba programación de 2026 al abortar, y bloqueaba la corrida siguiente por la unicidad de `(lotería, fecha)` | El segundo intento falló con `lottery_draw_schedules_reference_key` | Limpieza **por prefijo** —no por marca de tiempo— y **al empezar** además de al terminar |
+| Tres fixtures mal construidos | Una rifa configurable nace en **borrador** (BR-J16); la huella de una transición son 64 hex y sus `prize_ids` van de 1 a 50; `payment_status` **no se puede escribir**, lo calcula la base | Corregidos; el `payment_status` se dejó como lo pone la base, que además es el caso que interesa: una boleta **sin pagar** que gana |
+| Dos sondas de solo lectura nombraban columnas inexistentes | Validadas **en local antes** de tocar el proyecto real | `transitioned_at` y `actor_profile_id` |
+| Dos invariantes existentes se pusieron en rojo, con razón | `admin-privacy` exige la **lista exacta** de funciones `admin_*`; `catalog` exige que ninguna función interna sea ejecutable por `authenticated` | Las cuatro lecturas nuevas se añadieron a las **tres** listas blancas —`admin-privacy.test.ts`, `catalog.test.ts` y `scripts/verify-remote.ts`— y las 10 funciones, a `prize-function-grants.ts` en su **propia** lista, para no romper la de las 62 de D-207 |
+
+### Lo que se midió sobre la concurrencia, y no se supuso
+
+La hipótesis inicial era que un disparador **diferido** cazaría la carrera entre una edición de números y
+el motor. **Medido, no es así, y es mejor:** la **clave ajena** de la fotografía hace que la escritura del
+motor **espere** a que la edición termine —comprobado con dos conexiones y un `statement_timeout`—, así
+que las dos no se entrelazan. El diferido se conserva como segunda red, y la prueba dice lo que de verdad
+ocurre en vez de afirmar algo que no se reproduce. La **única** ordenación que queda abierta —el motor
+leyó el número viejo, esperó, y la edición confirmó— deja una fotografía con un número que ya no es el de
+la boleta, y el historial **lo marca** (H5-06). Está en **I-134**.
+
+### Lo que NO se verificó
+
+El motor configurable **sigue sin ejercitarse en producción** (**I-087**): no hay ni una fila de
+`lottery_ticket_match_prizes` real que observar, así que el origen `engine` del historial está probado
+**solo** con datos locales. Y no hay pantallas, así que **no se corrió la E2E**: nada de la interfaz
+cambia.
+
+---
+
 
 ## Etapa 0 del historial de premios ganados: diagnóstico de cobertura (D-208) — 2026-09-17
 

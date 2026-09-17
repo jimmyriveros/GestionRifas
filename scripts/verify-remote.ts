@@ -131,6 +131,11 @@ const CHECKS: Check[] = [
               'admin_audit_log', 'admin_list_tickets', 'admin_lottery_matches',
               'admin_ticket_bulk_eligibility', 'admin_ticket_detail',
               'admin_ticket_inventory', 'admin_update_ticket_numbers',
+              -- 0067 (D-208): el historial de premios ganados. Las dos del
+              -- vendedor solo devuelven lo suyo —sin equipo—; las dos del
+              -- personal no declaran ni un campo de cliente
+              'admin_prize_awards', 'admin_prize_award_totals',
+              'seller_prize_awards', 'seller_prize_award_totals',
               -- 0058 (D-199, D-200): las seis de premios configurables, que
               -- autorizan por la capacidad raffles.prizes.manage
               'archive_raffle_prize', 'create_raffle_prize',

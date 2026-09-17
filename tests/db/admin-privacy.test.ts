@@ -421,6 +421,10 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
       'admin_audit_redact',
       'admin_list_tickets',
       'admin_lottery_matches',
+      // 0067 (D-208): el historial de premios ganados del personal. Como el
+      // resto, su tipo de retorno no declara cliente, precio ni saldo.
+      'admin_prize_award_totals',
+      'admin_prize_awards',
       'admin_ticket_bulk_eligibility',
       'admin_ticket_detail',
       'admin_ticket_inventory',

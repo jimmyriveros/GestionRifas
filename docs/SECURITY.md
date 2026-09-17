@@ -1,6 +1,6 @@
 # SEGURIDAD
 
-- **Versión:** 2.23 · **Estado:** implementado · **Actualizado:** 2026-09-17 (**§4.23**: la `0066` —D-207,
+- **Versión:** 2.24 · **Estado:** implementado · **Actualizado:** 2026-09-17 (**§4.24**: el **historial de premios ganados** —`0067`, D-208, **solo en local**—: ninguna lectura recibe alcance, el personal no ve datos de cliente ni toca `clients`, el vendedor solo ve lo suyo **sin equipo**, la tabla nueva concede solo `SELECT` y su única puerta es de la service role, las 10 funciones están clasificadas con su matriz exacta (I-132), y los números de una boleta con coincidencias no cambian por ninguna vía (BR-I16). Antes, ese mismo día, **§4.23**: la `0066` —D-207,
   I-132— fija quién ejecuta cada una de las 62 funciones de premios configurables: el proyecto alojado concede
   EXECUTE a `service_role` en toda función nueva y la pila local no, y el preflight de la Puerta 1 lo vio antes
   de escribir nada. Solo dos entradas de la service role —`transition_raffle_prize_mode` y
@@ -1327,6 +1327,32 @@ anteriores a la entrega** que en producción tienen `EXECUTE` para `service_role
 ellas `SECURITY DEFINER`); los privilegios de **tabla** de la service role sobre las tablas de premios
 (`SELECT` e `INSERT`, y `UPDATE` en `raffle_prizes`), explícitos desde `0058`/`0059` e iguales en los
 dos entornos; y la secuencia de I-130.
+
+### 4.24 El historial de premios ganados (`0067`; BR-J17..BR-J22, BR-I16; D-208)
+
+**Solo en local**: el proyecto real no tiene la `0067`, y `verify:remote` lo dice —una comprobación en
+rojo, a propósito, hasta que se promueva—.
+
+**Ninguna lectura recibe organización, vendedor ni actor.** El alcance sale de la sesión, como en D-198
+y D-199: el vendedor, de `current_profile_id()` y `current_org_ids()`; el personal, de
+`current_staff_org_ids()`.
+
+| Frontera | Cómo se cierra |
+|---|---|
+| Un vendedor no ve lo de otro, ni lo de su equipo | El alcance es `seller_id = current_profile_id()`, **sin** `current_team_seller_ids`. Una prueba lee la definición de la función y falla si aparece |
+| Otra organización no ve nada | La organización sale de la sesión; un identificador ajeno responde como uno inexistente |
+| El personal no ve datos de cliente | El **tipo de retorno** de `admin_prize_awards` no declara cliente, y `prize_award_rows` no devuelve el nombre: la rama del personal **no toca `clients`**. El recuento de clientes distintos se calcula dentro de la base y sale como número. Lo vigilan `admin-privacy.test.ts` (la lista exacta de funciones `admin_*` y el barrido de columnas prohibidas) y una prueba que recorre las claves de cada fila |
+| La cartera no se abre | El historial no consulta ni devuelve precio de venta, abonado, saldo, pagos ni comisiones (BR-Q01) |
+| Nadie escribe la tabla desde una sesión | `declared_prize_awards` concede **solo `SELECT`**; la única puerta es `record_declared_prize_awards`, de la **service role**, como la transición (D-204). El vendedor y el personal reciben un error al llamarla |
+| `anon` no alcanza nada | `revoke` explícito en las cuatro lecturas y en el cargador |
+| Privilegios explícitos | Las **10** funciones de `0067` están clasificadas en `scripts/prize-function-grants.ts` —4 de sesión, 1 de service role y 5 internas que **no ejecuta nadie**— y su matriz exacta se comprueba en `verify:remote` y en `prize-award-history.test.ts`. Es la lección de **I-132**: en el proyecto alojado toda función nueva nace ejecutable por `service_role` |
+
+**Los números de una boleta con coincidencias (BR-I16).** Un **disparador** sobre `tickets` —no una
+comprobación dentro de una RPC— cubre todas las vías: `admin_update_ticket_numbers`,
+`tickets_update_seller`, cualquier RPC futura y la service role. Le acompaña uno **diferido**, que mira
+otra vez al COMMIT. **El hueco que queda está medido** (I-134): la clave ajena de la fotografía
+**serializa** la escritura del motor con la edición en vuelo —comprobado: el motor espera—, y si aun
+así una fotografía quedara con otro número, la lectura lo **marca** en vez de esconderlo.
 
 ## 5. Protección de Server Actions y Route Handlers
 

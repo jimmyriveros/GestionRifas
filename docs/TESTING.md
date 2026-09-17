@@ -1133,6 +1133,45 @@ en cuanto cambia una línea del texto de introducción.
 **devuelve la página al principio**. Cualquier prueba que baje y luego mida tiene que esperar a que
 esa navegación aterrice, o medirá el scroll deshecho.
 
+### 4.12 Historial de premios ganados (BR-J17..BR-J22, BR-I16; D-208)
+
+`tests/db/prize-award-history.test.ts` — **35** pruebas, migración `0067`, **solo en local**.
+
+**Dos rifas, porque los dos orígenes viven en lados distintos de la frontera de D-206.** `R_MOTOR` nace
+configurable y juega en **2087**, así que el motor escribe enlaces a premios. `R_HISTORICA` es una rifa
+que ya existía y pasa a configurable **por el mismo camino interno que la transición de verdad**
+(`raffle_prize_transition_apply`), con sorteos **ya jugados**: su corte es anterior al instante efectivo,
+conservan el sistema de siempre y el motor **no puede** premiarlos nunca. Es la situación exacta de los
+dos casos reales.
+
+**Las fechas se calculan, no se escriben.** `R_HISTORICA` necesita a la vez sorteos pasados —para que su
+corte quede del lado de siempre— y un premio que juegue en el futuro —la transición no admite un
+calendario con sorteos cuyo corte ya pasó—, así que su ventana son **tres semanas alrededor de hoy**, con
+sus 18 fechas programadas, recalculadas en cada corrida. Es la lección de **I-128**: una fecha escrita a
+mano caduca. Y la **limpieza es por prefijo y corre al empezar y al terminar**, porque
+`lottery_draw_schedules` es nacional y única por lotería y fecha: un resto de una corrida abortada
+bloquearía la siguiente.
+
+| Grupo | Qué comprueba |
+|---|---|
+| **H1** (3) | Una boleta vendida a tiempo con su enlace entra, con el importe de **su versión** y con la boleta **sin pagar**; una libre y una tardía **no entran** aunque el motor las fotografíe; las alternativas **no inventan importe** y **no multiplican filas** |
+| **H2** (8) | La vista previa dice qué se reconocería y **no escribe**; los dos premios de $500.000 suman **$1.000.000** y son **dos clientes**; repetirlo **no duplica**; el respaldo se guarda y el actor técnico queda en «Sistema»; **entera o nada** con una entrada mala; un sorteo que ya premió el motor se rechaza **y la defensa de la base lo impide aunque el cargador se equivoque**; un reconocimiento **no se modifica ni se borra** |
+| **H3** (3) | Los dos orígenes se **agregan** sin duplicarse; premios y clientes distintos se cuentan **por separado**; los filtros y la paginación **no recortan** los totales |
+| **H4** (4) | Cambiar el importe del premio de hoy **no mueve** el histórico; renombrarlo **no cambia** el título declarado; un resultado que entra en **conflicto** conserva el premio, no mueve los totales y queda **marcado**; anular un reconocimiento lo saca del historial **sin borrarlo** |
+| **H5** (6) | Los números no cambian por la RPC del personal ni con PostgreSQL directo; una boleta **sin** coincidencias sí se corrige; con una edición **en vuelo** la escritura del motor **espera** —la clave ajena las serializa, comprobado—; los **dos** disparadores existen y uno es **diferido**; y si aun así una fotografía quedara con otro número, el historial **lo marca** |
+| **H6** (7) | Otro vendedor de la misma organización **no ve nada**; tener equipo **no concede** el historial de los integrantes —se lee la definición de la función—; otra organización no ve ni una fila; el personal recibe el historial **sin un solo dato de cliente** —se recorren las claves de cada fila y se buscan el identificador y el nombre—; sí ve al vendedor y sus recuentos; ni el vendedor ni el personal pueden llamar al cargador; `anon` no alcanza ninguna de las cuatro lecturas |
+| **H7** (4) | Las **10** funciones de `0067` están clasificadas y su EXECUTE es **exactamente** el de la lista; toda función que crea la migración está en la lista **y ninguna más**; la tabla tiene RLS forzada y concede **solo `SELECT`**; y nada de la suite tocó abonos, asignaciones ni movimientos de comisión |
+
+`tests/unit/prize-awards-declared.test.ts` — **6** pruebas sobre los dos casos confirmados: son dos, del
+Premio diario, suman $1.000.000, ninguno tiene el valor pendiente, sus números son **texto** con sus
+cifras (BR-N03), el respaldo nombra el **rol** y dice que las versiones del 17/09 **no aplican hacia
+atrás**, y ningún texto dice «ganador» (BR-L15).
+
+**El cargador se ensayó de punta a punta en local** con un fixture que reproduce la situación de
+producción —las dos fechas y los dos pares de números reales— y la constante de verdad: vista previa →
+aplicar (`reconocido`, $1.000.000) → repetir (`ya estaba`, $1.000.000) → el historial del vendedor lo
+lee. El fixture vive en `build/`, que no se versiona. Detalle en `TEST_RESULTS` (2026-09-17, Etapa 1).
+
 ## 5. Pruebas unitarias clave
 
 | Módulo | Casos |

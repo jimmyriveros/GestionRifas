@@ -4,11 +4,16 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.65 · **Actualizado:** 2026-09-17 (D-001 a **D-208**; **D-208 es una PROPUESTA NO
-  APROBADA**, el entregable de la Etapa 0 del encargo «historial de premios ganados»: contrato,
-  permisos, contabilización, estrategia histórica y seis decisiones del dueño, con el diagnóstico de
-  cobertura verificado en el proyecto real en solo lectura. No autoriza nada y sus `BR-J17`+ **no
-  existen todavía**. Abre I-133, I-134 e I-135. Antes, ese mismo día: **cierre de la Entrega 5**: las tres
+- **Versión:** 1.66 · **Actualizado:** 2026-09-17 (D-001 a **D-208**; **D-208 cerrada y aprobada, con la
+  Etapa 1 implementada solo en local**: el dueño respondió H1 —los dos casos históricos ganaron el Premio
+  diario, $500.000 cada uno—, H2 —el tramo 09/08–24/08 queda **pendiente de información**, no en cero— y
+  H3 —el pago no condiciona el premio—, y confirmó los permisos. La corrección al final de la entrada
+  arregla cuatro cosas: el **Premio principal juega con CUATRO cifras** (error documental, producción no
+  difiere), los indicadores son **cuatro** y no «dos totales monetarios», la evidencia es **qué premio se
+  ganó y cuánto valía** —no qué se pagó— y BR-L26 exige consenso de dos dominios **solo** cuando la
+  fuente oficial no sirve. Migración **`0067`**, reglas **`BR-J17`..`BR-J22`** y **`BR-I15`**. I-134 e
+  I-135 resueltas en local; I-133 acotada. `verify:remote` falla en **una** comprobación a propósito,
+  hasta que `0067` se promueva. Antes, ese mismo día: **cierre de la Entrega 5**: las tres
   puertas de `RUNBOOK` §8 se ejecutaron ese día —`0058`–`0066` aplicadas, `da81663` desplegado y la rifa
   real convertida a premios configurables—, con notas posteriores en D-199, D-204, D-205, D-206 y D-207.
   Antes, ese mismo día (D-001 a D-207; **D-207** —migración `0066`, corrección local antes de producción—: el preflight de la Puerta 1 vio, en solo lectura, que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva y la pila local no (I-132); la `0066` fija quién ejecuta cada una de las 62 funciones de premios —seis RPC de sesión, la proyección de D-198 y solo dos entradas de la service role, `transition_raffle_prize_mode` y `confirm_lottery_result`—, `match_lottery_result` pasa a interno y la migración se comprueba a sí misma; la Puerta 1 queda suspendida y deberá autorizar `0058`–`0066`. Antes, ese mismo día (2026-09-16): **D-206 corregida** —migración `0065`, respuesta del dueño—: el aviso de las fechas de una rifa activa llega a **todas** las membresías activas, **también a quien hizo el cambio**, que sigue figurando como actor, y la extensión real se hace **con la sesión del Dueño** por la pantalla de editar, nunca con SQL sin sesión, una RPC que reciba el actor ni la service role. Antes, ese mismo día, **D-206** —corrección local de la Entrega 5, migración `0064`— hace que los sorteos cuyo corte ya llegó cuando una rifa cambia de sistema **conserven el sistema de siempre**, con el **instante efectivo** de la transición y una sola frontera, sustituye la alternativa «25 sorteos sin coincidencias para siempre» (I-127) y crea el **aviso de las fechas de una rifa activa** (BR-R12); deja notas en D-204 Decisión 4 y D-205 Decisión 5. **D-205** es la puerta de producción del script y J13 en 2054. **D-204** es la transición de una rifa existente a premios configurables —Entrega 4, migración `0063`—: una operación interna solo para la service role, atómica, con vista previa, que se niega mientras quede un sorteo jugado sin confirmar, y los **seis** premios confirmados —el caso «semanal, un lunes, con Cundinamarca» fue un ejemplo—; deja notas en D-199 Decisión 3 y D-201. Antes, **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
@@ -12102,13 +12107,20 @@ Entrega 3.
 
 ---
 
-## D-208 — ⚠️ PROPUESTA NO APROBADA: historial de premios ganados — contrato, cobertura y estabilidad
+## D-208 — Historial de premios ganados: contrato, cobertura y estabilidad
 
-> **Esto no es una decisión vigente.** Es el entregable de la **Etapa 0** del encargo «historial de
-> premios ganados» (2026-09-17) y **no autoriza nada**. Nada de lo que sigue se ha implementado: no hay
-> migración, ni consulta, ni pantalla, ni texto. Las reglas `BR-*` que propone **no existen todavía**, y
-> mientras el dueño no las apruebe **no se citan como si existieran**. Lo único **verificado** es el §0,
-> que es diagnóstico, no propuesta. La Etapa 1 necesita autorización propia.
+> **Estado (2026-09-17, cierre de la Etapa 1):** el contrato está **aprobado** —el dueño respondió H1,
+> H2 y H3 y confirmó los permisos— y la **Etapa 1 está implementada, solo en local**: migración `0067`,
+> `BR-J17`..`BR-J22`, `BR-I15`, y los dos premios históricos ensayados de punta a punta. **Nada se
+> escribió en producción**, y no hay ni una pantalla: eso es la Etapa 2, que necesita autorización
+> propia.
+>
+> **Cómo leer esta entrada.** Lo que sigue a continuación es el **entregable de la Etapa 0**, tal como se
+> escribió cuando era una propuesta: se conserva porque el §0 es el diagnóstico verificado y el resto
+> explica por qué el contrato quedó así. La **corrección y el cierre** están al final, e incluyen las
+> respuestas del dueño y las cuatro correcciones que pidió; **donde las dos partes digan cosas distintas,
+> manda la del final.** Las cifras del §0 son una fotografía de ese momento, **no constantes del
+> producto**.
 
 **Fase:** mantenimiento posterior a la Fase 9 (encargo «historial de premios ganados», Etapa 0 de 4)
 
@@ -12386,3 +12398,119 @@ Sin migración todavía. Tocaría: `BUSINESS_RULES` §12.i (`BR-J17`+ y notas en
 `DATA_MODEL`, `SECURITY`, `ARCHITECTURE`, `MASTER_SPEC`, `UX_COPY_GUIDELINES` (Anexos A y B),
 `TESTING`, y las etapas 1 a 4 del encargo. **Problemas abiertos por esta etapa:** **I-133** (cobertura),
 **I-134** (edición de números) e **I-135** (un resultado confirmado que pasa a conflicto).
+
+---
+
+### Corrección y cierre del contrato (2026-09-17, más tarde el mismo día): las respuestas del dueño y los cuatro puntos del encargo
+
+Lo que sigue **sustituye** lo que la propuesta de arriba dijera distinto. Tres grupos, y hay que
+distinguirlos para no leer de más: **reglas aprobadas** por el dueño, **decisiones técnicas** que tomó
+la Etapa 1 dentro de ellas, y lo que sigue **pendiente**.
+
+#### Reglas aprobadas por el dueño
+
+| # | Respuesta |
+|---|---|
+| **H1** | **Los dos casos históricos sí ganaron**, y los dos corresponden al **Premio diario**: **$500.000 cada uno, $1.000.000 entre ambos**. Bogotá 2862 (referencia 03/09/2026, boleta `3427 / 7702`) y Cundinamarca 4820 (referencia 14/09/2026, boleta `9019 / 3294`). La clasificación viene **de esa confirmación**, no de las versiones publicadas el 17/09, que **no aplican hacia atrás** a ningún sorteo. Se registran **premios ganados**: ni entrega, ni desembolso, ni comprobante de pago |
+| **H2** | **El tramo del 09/08 al 24/08 queda PENDIENTE DE INFORMACIÓN**, no en cero. El dueño todavía no sabe si hubo premios; más adelante podrá indicar la persona, la boleta y el premio. No se supone que no hubo, no se inventan registros, no se completan resultados de loterías, y no bloquea nada. Su incorporación tendrá autorización y evidencia propias. Lo anterior al inicio operativo sigue fuera del alcance |
+| **H3** | **El pago no condiciona el premio**: una boleta asignada a tiempo gana aunque esté sin pagar o a medias. No se añade paz y salvo ni confirmación humana a los premios automáticos. Un registro histórico sí exige su respaldo de negocio |
+| **Permisos** | Cada vendedor ve **solo lo suyo** —tener equipo no concede nada—; el Dueño y el Administrador ven el historial por vendedor y el de su organización, **sin nombre, identificador ni ningún otro dato de cliente**, y sin abrir cartera, pagos, saldos, precios de venta ni comisiones |
+
+#### A — el Premio principal juega con CUATRO cifras: era un error de esta documentación
+
+La tabla de la propuesta escribía «tres últimas» para el **Premio principal**, y estaba mal. Contrastado
+con las dos fuentes:
+
+| Fuente | Qué dice |
+|---|---|
+| `confirmedRafflePrizes` (`src/features/raffle-prizes/transition.ts`) | `digits: 'four'` para el principal; `last_three` solo para el «Premio especial de tres cifras» |
+| El proyecto real, en solo lectura (2026-09-17) | posición 3, `Premio principal`, `winner_choice`, `daily_number`, **`four`**; posición 4, `Premio especial de tres cifras`, `daily_number`, **`last_three`** |
+
+**No hay ninguna discrepancia con producción, y no se toca ni un premio.** El error era documental y se
+corrige aquí. También se corrige su origen: la línea de `PHASE_STATUS` que describía los seis premios
+juntaba en una sola frase «principal con cuatro alternativas» y «tres cifras $1.000.000», que son **dos
+premios distintos**, y así se leía como si el principal jugara con tres cifras.
+
+#### B — los indicadores son CUATRO, y cada uno dice qué cuenta
+
+No «dos totales monetarios». Son cuatro, y el historial los presenta juntos:
+
+| Indicador | Qué es |
+|---|---|
+| **Cantidad de premios** | Una fila del historial, un premio |
+| **Cantidad de clientes distintos con premio** | Quien gana tres premios cuenta como **un** cliente. Se calcula dentro de la base; para el personal **no sale ningún identificador de cliente** |
+| **Total conocido del componente en dinero** | La suma de los importes **ciertos**, en pesos enteros |
+| **Cantidad de premios cuyo valor completo está pendiente** | Los que todavía no tienen valor: alternativas excluyentes, o un componente en especie |
+
+Qué es un importe cierto, y qué no: la recompensa de modo **«Premio único»** tiene exactamente una
+alternativa, y si esa alternativa lleva dinero, ese dinero es cierto. Con **«Alternativas a elegir»** no
+hay nada cierto: **no se suman**, **no se elige una** y **no se toma la de efectivo por defecto**. Un
+componente en especie **no se valora en cero**: hace que el valor completo quede pendiente, y ahí sigue.
+La elección de alternativa y la valoración de bienes quedan **para después** (BR-J02 dice que la
+aplicación no las registra), y el historial **informa de los importes pendientes** en vez de callarlos.
+
+#### C — la evidencia es qué premio se ganó y cuánto valía, no qué se pagó
+
+Donde la propuesta decía «evidencia de qué se pagó», se lee **«qué premio se ganó y cuál era su
+importe»**: son premios **ganados**, y el pago del premio está fuera del encargo. Eso es lo que guarda
+el campo `basis` de cada reconocimiento, con el **rol** que lo confirmó.
+
+Y una precisión sobre **BR-L26**, que la propuesta citaba de más: exige **consenso de dos dominios
+distintos** cuando la fuente **oficial** no puede entregar un sorteo, y **no** impone dos fuentes
+alternativas cuando existe evidencia oficial válida. Aplicado aquí: si un día apareciera evidencia
+oficial de un sorteo del tramo del 09/08 al 24/08, bastaría esa —por el camino de siempre—; lo que no
+se hace es publicar un número con una sola fuente no oficial.
+
+#### D — las cifras de la Etapa 0 son una fotografía, y ya cambiaron
+
+Las cifras del §0 valían **el 2026-09-17 a las ~22:00 UTC** y **no son constantes del producto**. Una
+lectura del proyecto real más tarde ese mismo día encontró cambios, todos explicables:
+
+| Cambio | Qué era |
+|---|---|
+| 2 ventas y 1 pago nuevos | Actividad normal del vendedor |
+| **2 versiones nuevas de premio** (22:37:45 y 22:37:58 UTC, con actor real) | El Dueño amplió el período del **Premio diario** y del **Premio fin de semana** hacia atrás, hasta el **27/07/2026**, el inicio de la rifa |
+| 0 resultados, 0 coincidencias y 0 enlaces nuevos | El motor sigue sin ejercitarse (**I-087**) |
+
+**Ese cambio de fechas NO premia los dos casos históricos, y conviene decirlo porque parece que
+debería.** Dos razones independientes, cada una suficiente: la versión 2 se publicó **después** del
+corte de los dos sorteos, así que no les aplica (BR-J09); y el corte de los dos es **anterior al
+instante efectivo** de la transición, así que esos sorteos conservan el sistema de siempre para siempre
+(BR-J13, D-206). Sigue habiendo **0 filas** en `lottery_ticket_match_prizes`, y por diseño no puede
+haber ninguna para ellos.
+
+**El inicio operativo de referencia es el 09/08/2026**, verificado en la Etapa 0, y el tramo del 09/08
+al 24/08 **no se muestra como cero premios**: se muestra como pendiente de información.
+
+---
+
+### Lo que la Etapa 1 implementó (migración `0067`, solo en local)
+
+| Pieza | Qué hace |
+|---|---|
+| `declared_prize_awards` | El premio que reconoce el **negocio** sobre una coincidencia que el motor no puede premiar. Aditiva, **aparte** de `lottery_ticket_match_prizes`, que no se toca. Sin `prize_version_id`, a propósito: a esos sorteos no les aplicó ninguna versión, y apuntar a una sería falso. Guarda el **título declarado**, el importe, el **respaldo** con su rol, el **actor técnico** de la carga (NULL = un proceso, que no es quien confirmó) y su anulación con motivo |
+| Tres defensas de esa tabla | La fotografía tiene que estar **`sold`**; su sorteo tiene que resolverse con el **sistema de siempre** (`raffle_prize_draw_mode` = `legacy`), así que el motor **no puede** escribir un enlace para él y el doble conteo es imposible por construcción; y no puede existir ya un enlace del motor para esa fotografía y ese premio |
+| Inmutabilidad | Ni `UPDATE` —salvo la anulación— ni `DELETE`, tampoco con la service role |
+| `prize_award_rows` | **Una sola definición** de qué es un premio ganado: compone los enlaces del motor con los reconocimientos vigentes, sin duplicar. Las alternativas se agregan en subconsultas escalares, así que **no multiplican filas ni importes** |
+| `seller_prize_awards` / `seller_prize_award_totals` | El historial del vendedor de la sesión. **Solo sus coincidencias**: no usa `current_team_seller_ids` |
+| `admin_prize_awards` / `admin_prize_award_totals` | El del personal, con lista blanca. Su tipo de retorno **no declara** ni un campo de cliente, así que no hay nada que ocultar después |
+| `record_declared_prize_awards` | El cargador: **vista previa por omisión**, `--apply` escribe, **entera o nada**, idempotente. Solo la service role |
+| `tickets_guard_matched_numbers` | Los números de una boleta con coincidencias **no cambian por ninguna vía** (I-134) |
+
+**Un resultado que entra en conflicto no borra historia:** la pertenencia la deciden la fotografía y su
+enlace, que son inmutables, y el registro se queda **marcado** (`result_conflict`). Los totales no se
+mueven.
+
+**Los números editados se detectan, no se esconden:** si una fotografía quedara con un número que ya no
+es el de la boleta, la lectura lo marca (`numbers_changed`).
+
+**Reglas nuevas:** `BR-J17`..`BR-J22` (`BUSINESS_RULES` §12.i) y `BR-I15` (§7), con notas en BR-L15,
+BR-Q02 y BR-I13/BR-I14. Se extiende `BR-J` en vez de inventar una letra: es el mismo dominio.
+
+**Lo que la Etapa 1 NO hizo:** ni una pantalla, ni un componente, ni una lectura en TypeScript —eso es
+la Etapa 2, y escribirla ahora dejaría código sin consumidor (`CLAUDE.md` §29)—; ni una interfaz de
+carga manual; ni una sola escritura en producción; ni un cambio en abonos, saldos, precios o comisiones.
+
+**`verify:remote` falla en UNA comprobación, y es lo correcto:** las 10 funciones de `0067` «no existen»
+en el proyecto real porque la migración **no está promovida**. 41 en verde y esa una en rojo es el estado
+esperado hasta que se promueva, con su propia autorización.

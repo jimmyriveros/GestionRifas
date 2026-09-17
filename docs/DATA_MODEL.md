@@ -1923,6 +1923,51 @@ Entrega 3, y la prueban `tests/db` y `tests/unit`.
 > cerrojo de configuración de **todas** las rifas del sorteo antes de decidir, y se niega a completar un
 > resultado con fotografías de una rifa guardadas con el otro sistema.
 
+### 6.g.10 Historial de premios ganados (migración `0067`; D-208, BR-J17..BR-J22)
+
+**Solo en local**: el proyecto real no tiene la `0067`.
+
+`declared_prize_awards` es la **única tabla nueva**, y es aditiva: el premio que reconoce el **negocio**
+sobre una coincidencia que el motor no puede premiar. Cuelga de una fotografía que ya existe y **no
+toca** `lottery_ticket_matches` ni `lottery_ticket_match_prizes`, que siguen inmutables.
+
+| Columna | Por qué |
+|---|---|
+| `match_id`, `result_id`, `organization_id`, `raffle_id`, `match_field` | La FK compuesta a `lottery_ticket_matches (id, result_id, organization_id, raffle_id, match_field)`, la misma que usa el enlace del motor: un reconocimiento cruzado entre organizaciones, rifas, sorteos o números **no se puede escribir** |
+| `prize_id` + `declared_title` | La identidad del premio que el dueño nombró, y su título **tal como se declaró**: renombrar el premio no reescribe la historia |
+| — | **No hay `prize_version_id`, a propósito**: a esos sorteos no les aplicó ninguna versión (su corte es anterior al instante efectivo, D-206) y apuntar a una sería falso |
+| `amount`, `in_kind_description` | La recompensa reconocida, con la misma forma que una alternativa de una versión (`0059`): dinero, especie o los dos, y al menos uno. Límites de BR-J14 |
+| `basis` | El **respaldo de negocio**, con el **rol** que lo confirmó y nunca un nombre propio |
+| `recorded_by`, `recorded_at` | El **actor técnico** de la carga; NULL = un proceso del sistema. **No** es quien confirmó el premio |
+| `voided_at`, `voided_by`, `void_reason` | La anulación, que es lo **único** que se puede cambiar. Aquí no se borra nada (D-038) |
+| `unique (match_id, prize_id)` | Idempotencia: un reintento inserta con `on conflict do nothing` |
+
+**Tres defensas, en disparadores y no en el cargador** (`declared_prize_awards_check`): la fotografía
+tiene que estar **`sold`**; su sorteo tiene que resolverse con el **sistema de siempre** para su rifa
+—`raffle_prize_draw_mode` = `legacy`—, así que el motor **nunca** podrá escribir un enlace para él y el
+doble conteo es imposible por construcción; y no puede existir ya un enlace del motor para esa
+fotografía y ese premio. Más `declared_prize_awards_immutable`, que solo deja pasar la anulación.
+
+**RLS y privilegios**: `enable` + `force`, una política de `select` para el vendedor —su `exists` sobre
+`lottery_ticket_matches` se evalúa con la RLS del que pregunta, que desde `0057` es
+`seller_id = current_profile_id()` **sin equipo**— y `SELECT` para `authenticated` y `service_role`,
+nada más. El personal **no lee la tabla**: va por `admin_prize_awards`. Es el patrón de
+`lottery_ticket_match_prizes` (`0061`).
+
+| Función | Devuelve | Quién |
+|---|---|---|
+| `prize_award_rows(uuid[], uuid[], uuid, uuid, date, date)` | **La única definición** de qué es un premio ganado: compone los enlaces del motor con los reconocimientos vigentes, sin duplicar. Las alternativas se agregan en subconsultas escalares, así que no multiplican filas ni importes. Marca `result_conflict` y `numbers_changed` | Interna, **nadie** |
+| `declared_prize_award_plan(uuid, jsonb)` | Cómo se resuelve cada entrada del cargador: una definición para el recuento, la escritura y el informe. Rechaza una entrada que cuadre con **más de una** coincidencia | Interna, **nadie** |
+| `seller_prize_awards(...)` / `seller_prize_award_totals(...)` | El historial del vendedor de la sesión y sus cuatro indicadores | `authenticated` |
+| `admin_prize_awards(...)` / `admin_prize_award_totals(...)` | Los del personal. Su tipo de retorno **no declara** ni un campo de cliente; el recuento de clientes distintos sale como número | `authenticated` |
+| `record_declared_prize_awards(uuid, text, jsonb, boolean)` | El cargador: vista previa por omisión, **entera o nada**, idempotente | **`service_role`** |
+| `tickets_guard_matched_numbers()` | Los números de una boleta con coincidencias no cambian (BR-I16). Dos disparadores sobre `tickets`: uno inmediato y uno **diferido**, que mira otra vez al COMMIT | Interna, **nadie** |
+
+**Los cuatro indicadores** se calculan en PostgreSQL, en pesos enteros, sobre **todo el filtro**:
+cantidad de premios, **clientes distintos**, **dinero cierto** —solo de una recompensa de «Premio
+único» con importe— y **cuántos premios tienen el valor pendiente** —alternativas excluyentes, o un
+componente en especie, que **no se valora en cero**—.
+
 ### 6.h Coincidencias de lotería (migración `0036`)
 
 | Función | Devuelve | Consumidor |

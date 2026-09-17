@@ -253,6 +253,118 @@ export type Database = {
           },
         ]
       }
+      declared_prize_awards: {
+        Row: {
+          amount: number | null
+          basis: string
+          declared_title: string
+          id: string
+          in_kind_description: string | null
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          match_id: string
+          organization_id: string
+          prize_id: string
+          raffle_id: string
+          recorded_at: string
+          recorded_by: string | null
+          result_id: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount?: number | null
+          basis: string
+          declared_title: string
+          id?: string
+          in_kind_description?: string | null
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          match_id: string
+          organization_id: string
+          prize_id: string
+          raffle_id: string
+          recorded_at?: string
+          recorded_by?: string | null
+          result_id: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount?: number | null
+          basis?: string
+          declared_title?: string
+          id?: string
+          in_kind_description?: string | null
+          match_field?: Database["public"]["Enums"]["lottery_match_field"]
+          match_id?: string
+          organization_id?: string
+          prize_id?: string
+          raffle_id?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          result_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "declared_prize_awards_match_fk"
+            columns: [
+              "match_id",
+              "result_id",
+              "organization_id",
+              "raffle_id",
+              "match_field",
+            ]
+            isOneToOne: false
+            referencedRelation: "lottery_ticket_matches"
+            referencedColumns: [
+              "id",
+              "result_id",
+              "organization_id",
+              "raffle_id",
+              "match_field",
+            ]
+          },
+          {
+            foreignKeyName: "declared_prize_awards_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "declared_prize_awards_prize_fk"
+            columns: ["prize_id", "raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffle_prizes"
+            referencedColumns: ["id", "raffle_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "declared_prize_awards_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "declared_prize_awards_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "declared_prize_awards_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lottery_draw_schedules: {
         Row: {
           change_reason:
@@ -2487,6 +2599,55 @@ export type Database = {
           weekly_number: string | null
         }[]
       }
+      admin_prize_award_totals: {
+        Args: {
+          p_from?: string
+          p_raffle_id?: string
+          p_seller_id?: string
+          p_to?: string
+        }
+        Returns: {
+          clients_count: number
+          known_amount: number
+          prizes_count: number
+          value_pending_count: number
+        }[]
+      }
+      admin_prize_awards: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_raffle_id?: string
+          p_seller_id?: string
+          p_to?: string
+        }
+        Returns: {
+          award_key: string
+          daily_number: string | null
+          draw_number: string
+          known_amount: number | null
+          lottery_code: Database["public"]["Enums"]["lottery_code"]
+          matched_number: string
+          numbers_changed: boolean
+          origin: string
+          prize_category: Database["public"]["Enums"]["raffle_prize_category"]
+          prize_digits: Database["public"]["Enums"]["raffle_prize_digits"]
+          prize_title: string
+          raffle_id: string
+          raffle_name: string
+          raffle_short_code: string
+          reference_date: string
+          result_conflict: boolean
+          seller_id: string
+          seller_name: string | null
+          ticket_id: string
+          total_count: number
+          value_pending: boolean
+          weekly_number: string | null
+          winning_number: string | null
+        }[]
+      }
       admin_ticket_bulk_eligibility: {
         Args: { p_ticket_ids: string[] }
         Returns: {
@@ -3292,6 +3453,26 @@ export type Database = {
         Args: { p_ticket_id: string }
         Returns: undefined
       }
+      record_declared_prize_awards: {
+        Args: {
+          p_apply?: boolean
+          p_awards: Json
+          p_basis: string
+          p_organization_id: string
+        }
+        Returns: {
+          amount: number | null
+          daily_number: string | null
+          in_kind_description: string | null
+          lottery_code: string | null
+          matched_number: string | null
+          outcome: string
+          prize_title: string | null
+          problem: string | null
+          reference_date: string | null
+          weekly_number: string | null
+        }[]
+      }
       record_lottery_observations: {
         Args: { p_observations: Json; p_schedule_id: string }
         Returns: Json
@@ -3425,6 +3606,54 @@ export type Database = {
         Returns: boolean
       }
       search_normalize: { Args: { value: string }; Returns: string }
+      seller_prize_award_totals: {
+        Args: {
+          p_client_id?: string
+          p_from?: string
+          p_raffle_id?: string
+          p_to?: string
+        }
+        Returns: {
+          clients_count: number
+          known_amount: number
+          prizes_count: number
+          value_pending_count: number
+        }[]
+      }
+      seller_prize_awards: {
+        Args: {
+          p_client_id?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_raffle_id?: string
+          p_to?: string
+        }
+        Returns: {
+          award_key: string
+          client_id: string | null
+          client_name: string | null
+          daily_number: string | null
+          draw_number: string
+          known_amount: number | null
+          lottery_code: Database["public"]["Enums"]["lottery_code"]
+          matched_number: string
+          numbers_changed: boolean
+          origin: string
+          prize_category: Database["public"]["Enums"]["raffle_prize_category"]
+          prize_digits: Database["public"]["Enums"]["raffle_prize_digits"]
+          prize_title: string
+          raffle_id: string
+          raffle_name: string
+          reference_date: string
+          result_conflict: boolean
+          ticket_id: string
+          total_count: number
+          value_pending: boolean
+          weekly_number: string | null
+          winning_number: string | null
+        }[]
+      }
       search_tickets: {
         Args: {
           p_client_id?: string

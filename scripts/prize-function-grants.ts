@@ -158,6 +158,37 @@ export const PREFLIGHT_SERVICE_ROLE_FINDING = [
   'admin_audit_redact(text,jsonb)',
 ] as const
 
+// =============================================================================
+// El historial de premios ganados (D-208, migración `0067`)
+//
+// Va en una lista APARTE de las 62 de la entrega de premios: la prueba P1-01
+// comprueba que la lista de `0058`–`0065` es exactamente la de esas migraciones,
+// y meter aquí las de `0067` la rompería diciendo algo falso. Las dos listas se
+// comprueban igual, con la misma matriz.
+// =============================================================================
+
+/** Las cuatro lecturas del historial: una sesión, nunca la service role. */
+export const HISTORY_SESSION_RPCS = [
+  'admin_prize_award_totals(uuid,uuid,date,date)',
+  'admin_prize_awards(uuid,uuid,date,date,integer,integer)',
+  'seller_prize_award_totals(uuid,uuid,date,date)',
+  'seller_prize_awards(uuid,uuid,date,date,integer,integer)',
+] as const
+
+/** El cargador de premios reconocidos, como la transición: solo la service role. */
+export const HISTORY_SERVICE_ROLE_ENTRIES = [
+  'record_declared_prize_awards(uuid,text,jsonb,boolean)',
+] as const
+
+/** Lo que no ejecuta nadie directamente: la definición del historial y las defensas. */
+export const HISTORY_INTERNAL_FUNCTIONS = [
+  'declared_prize_award_plan(uuid,jsonb)',
+  'declared_prize_awards_check()',
+  'declared_prize_awards_immutable()',
+  'prize_award_rows(uuid[],uuid[],uuid,uuid,date,date)',
+  'tickets_guard_matched_numbers()',
+] as const
+
 export type ExecuteMatrix = {
   public: boolean
   anon: boolean
@@ -185,6 +216,25 @@ export const PRIZE_FUNCTION_GRANTS: ReadonlyArray<{ signature: string; expected:
   })),
 ]
 
+/** Las 10 funciones del historial de premios ganados (`0067`) con su EXECUTE esperado. */
+export const HISTORY_FUNCTION_GRANTS: ReadonlyArray<{
+  signature: string
+  expected: ExecuteMatrix
+}> = [
+  ...HISTORY_SESSION_RPCS.map((signature) => ({
+    signature,
+    expected: { public: false, anon: false, authenticated: true, service_role: false },
+  })),
+  ...HISTORY_SERVICE_ROLE_ENTRIES.map((signature) => ({
+    signature,
+    expected: { public: false, anon: false, authenticated: false, service_role: true },
+  })),
+  ...HISTORY_INTERNAL_FUNCTIONS.map((signature) => ({
+    signature,
+    expected: { public: false, anon: false, authenticated: false, service_role: false },
+  })),
+]
+
 /** Nombres de las funciones de la entrega (para detectar una sobrecarga sin clasificar). */
 export const PRIZE_FUNCTION_NAMES = [
   ...new Set(PRIZE_FUNCTION_GRANTS.map((f) => f.signature.slice(0, f.signature.indexOf('(')))),
@@ -199,10 +249,17 @@ export type RemoteCheck = {
 
 const literal = (texto: string) => `'${texto.replace(/'/g, "''")}'`
 
-const esperadoSql = PRIZE_FUNCTION_GRANTS.map(
-  ({ signature, expected: e }) =>
-    `(${literal(signature)}, ${e.public}, ${e.anon}, ${e.authenticated}, ${e.service_role})`,
-).join(',\n              ')
+const matrizSql = (
+  grants: ReadonlyArray<{ signature: string; expected: ExecuteMatrix }>,
+): string =>
+  grants
+    .map(
+      ({ signature, expected: e }) =>
+        `(${literal(signature)}, ${e.public}, ${e.anon}, ${e.authenticated}, ${e.service_role})`,
+    )
+    .join(',\n              ')
+
+const esperadoSql = matrizSql(PRIZE_FUNCTION_GRANTS)
 
 /**
  * Las comprobaciones de la `0066` que corre `npm run verify:remote`. Las mismas
@@ -259,6 +316,38 @@ export const PRIZE_FUNCTION_CHECKS: RemoteCheck[] = [
            where n.nspname = 'public'
              and p.proname = any (array[${PRIZE_FUNCTION_NAMES.map(literal).join(', ')}])
              and p.oid::regprocedure::text <> all (array[${PRIZE_FUNCTION_GRANTS.map((f) => literal(f.signature)).join(', ')}])`,
+    esperado: 0,
+  },
+  {
+    // 0067 (D-208): las 10 del historial de premios ganados, con la misma
+    // matriz exacta. En el proyecto alojado toda función nueva nace ejecutable
+    // por `service_role` (I-132), así que ninguna se queda sin comprobar.
+    nombre: 'Funciones del historial de premios con EXECUTE distinto de su lista (0067)',
+    sql: `with esperado (firma, publico, anonimo, autenticado, servicio) as (
+            values
+              ${matrizSql(HISTORY_FUNCTION_GRANTS)}
+          )
+          select e.firma || ' -> ' || case when r.oid is null then 'no existe' else concat_ws(', ',
+                   case when v.publico is distinct from e.publico then 'PUBLIC=' || v.publico end,
+                   case when v.anonimo is distinct from e.anonimo then 'anon=' || v.anonimo end,
+                   case when v.autenticado is distinct from e.autenticado then 'authenticated=' || v.autenticado end,
+                   case when v.servicio is distinct from e.servicio then 'service_role=' || v.servicio end) end as x
+            from esperado e
+            cross join lateral (select to_regprocedure('public.' || e.firma)::oid as oid) r
+            left join lateral (
+              select exists (
+                       select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                        where p.oid = r.oid and a.grantee = 0 and a.privilege_type = 'EXECUTE') as publico,
+                     has_function_privilege('anon', r.oid, 'EXECUTE') as anonimo,
+                     has_function_privilege('authenticated', r.oid, 'EXECUTE') as autenticado,
+                     has_function_privilege('service_role', r.oid, 'EXECUTE') as servicio
+               where r.oid is not null
+            ) v on true
+           where r.oid is null
+              or v.publico is distinct from e.publico
+              or v.anonimo is distinct from e.anonimo
+              or v.autenticado is distinct from e.autenticado
+              or v.servicio is distinct from e.servicio`,
     esperado: 0,
   },
 ]

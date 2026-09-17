@@ -3,8 +3,41 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-17 — **Historial de premios ganados, ETAPA 0 de 4: contrato propuesto y
-  cobertura medida** (**D-208**, marcada **PROPUESTA NO APROBADA**; sin migración y sin código).
+- **Actualizado:** 2026-09-17 — **Historial de premios ganados, ETAPA 1 de 4: base, lecturas y los dos
+  premios reconocidos** (**D-208** cerrada y aprobada, migración **`0067`**, **solo en local**). Los seis
+  puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades implementadas:** `declared_prize_awards` —el premio que reconoce el negocio sobre
+  una coincidencia que el motor no puede premiar— con sus tres defensas y su inmutabilidad;
+  `prize_award_rows` como **única definición** de qué es un premio ganado, que compone los enlaces del
+  motor con los reconocimientos sin duplicar y sin que las alternativas multipliquen importes; las
+  **cuatro lecturas** (`seller_prize_awards`, `seller_prize_award_totals`, `admin_prize_awards`,
+  `admin_prize_award_totals`) con los **cuatro indicadores** calculados en PostgreSQL sobre todo el
+  filtro; el cargador `record_declared_prize_awards` —vista previa por omisión, entera o nada,
+  idempotente, solo service role— con su script `scripts/record-prize-awards.ts`, que **se niega sin
+  `--local`**; y el cerrojo de **BR-I16**: los números de una boleta con coincidencias no cambian por
+  ninguna vía. Reglas **BR-J17..BR-J22** y **BR-I16**. **Sin pantallas**: la Etapa 2.
+  **(2) Pruebas ejecutadas:** `test:db` **1.305/1.305** en 53 archivos (**+35**), `verify` **exit 0** con
+  **1.381/1.381** unitarias (**+6**), y `verify:remote` **41 en verde y 1 en rojo a propósito** —las 10
+  funciones de `0067` «no existen» en el proyecto real porque no está promovida—. El cargador se ensayó
+  **de punta a punta en local** con un fixture que reproduce producción: vista previa → aplicar
+  (`reconocido`, **$1.000.000**) → repetir (`ya estaba`, sin duplicar). **Seis errores propios**
+  encontrados y corregidos por el camino, incluidos `position` como palabra reservada y un informe que
+  decía «ya estaba» en la primera aplicación; detalle en `TEST_RESULTS`.
+  **(3) Migraciones:** **67**. La nueva es **`0067`** —tabla, tres defensas, inmutabilidad, RLS, seis
+  funciones, dos disparadores sobre `tickets` y los privilegios de las 10—, **aplicada solo en local**.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-133 acotada** —el tramo 09/08–24/08 sigue **pendiente de
+  información**, por respuesta del dueño, y la `0067` falta en producción—; **I-134 e I-135 resueltas en
+  local** y pendientes de promoción, con el hueco residual de concurrencia **medido y marcado** en la
+  lectura; **I-136 nueva** e informativa: corregir un reconocimiento exige anular y volver a registrar, y
+  ninguna de las dos acciones tiene pantalla. Sigue **I-087**: el motor no se ha ejercitado en producción,
+  así que el origen `engine` está probado solo con datos locales.
+  **(6) Qué revisar antes de continuar:** D-208 **entera, empezando por su corrección final**, las nuevas
+  `BR-J17..BR-J22` y `BR-I16`, `TESTING` §4.12 y el §1.a de `HANDOFF`. **La Etapa 2 —las pantallas—
+  necesita autorización propia**, y promover la `0067` a producción es una puerta aparte que **nadie ha
+  pedido**. **Nada se escribió en producción.**
+  Antes, ese mismo día — **Historial de premios ganados, ETAPA 0 de 4: contrato propuesto y
+  cobertura medida** (**D-208**, entonces una propuesta sin aprobar; sin migración y sin código).
   Los seis puntos que exige `CLAUDE.md` §34.3:
   **(1) Funcionalidades implementadas: ninguna.** El entregable es el contrato propuesto —pantallas,
   rutas, permisos, contabilización y estrategia histórica— y el diagnóstico de cobertura. No se creó ni
@@ -503,8 +536,8 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) y **la cabecera contextual al hacer scroll** (D-150, 2026-08-30, **en producción**) y **el reporte «Ventas por fecha» del portal del vendedor** (D-151, BR-T05..BR-T07, migración `0040`, 2026-08-31, **ya en producción**) y **«Estado de cobro»: el dinero del panel del vendedor en una sola sección** (D-171, 2026-09-08, sin migración, **sin desplegar**) y **`I-099` resuelto en la raíz: `cn` distingue un rol tipográfico de un color** (D-172, 2026-09-08, sin migración, **sin desplegar**) y **el total explicado y el reparto demostrado** (D-173, 2026-09-08, sin migración, **sin desplegar**) y **`I-101` cerrado: lo elegido manda sobre el cursor** (D-174, 2026-09-08, sin migración, **sin desplegar**) |
 | **En curso** | **Corregir un abono a $0** (D-158, BR-F17, migración `0042`, 2026-09-01): editar un abono vigente admite el cero y deja la boleta como si no se hubiera registrado, sin borrar la fila ni anular el pago; crear un abono de $0 sigue prohibido. **Ya en producción** (`ef7bf62`; `0042` aplicada tras respaldo, CI 2/2, despliegue verificado por el identificador `a0c4bc43dcf3`). Antes: loterías, **etapa 6/6 de corrección** (D-157, 2026-09-01): **observación del ciclo real**, de solo lectura. Los tres números guardados coinciden dígito a dígito con lo que publican hoy sus fuentes; las tres bloqueadas fallan por su causa documentada; el Panel enseña lo correcto y no consulta internet. **Pendiente de demostrar: que un cron dispare el ciclo solo** — las 7 corridas siguen siendo las del tick manual. Nuevo: **I-092**. Antes, etapa 5/6 (D-156): promoción a producción. `0041` aplicada, `145feab` desplegado, los 10 cron reactivados y el **primer tick real** entrado: 312 programaciones oficiales y 3 resultados confirmados. Cundinamarca 4818 queda **pendiente** porque su acta es un escaneo, y el **Meta deja de confirmarse solo en producción** (I-091). Antes, etapa 4/6 (D-155): el recuadro pasa a su propio límite de Suspense y el Panel deja de esperarlo —primer byte de 1.628 a 131 ms con la consulta local retrasada 1,5 s—. Sin migración, sin índice nuevo, **sin desplegar**. Antes, etapa 3/6 (D-154): validación real de las seis fuentes oficiales. Cuatro confirmadas contra la fuente y contra el cronograma; tres defectos corregidos, uno de ellos un número mayor **inventado** (I-088). **Sin migración, sin desplegar.** Antes, etapa 2/6 (D-153): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **activo** desde el 2026-09-01 |
-| **Pendiente** | Ninguna fase. **Historial de premios ganados**: la **Etapa 0** está entregada (D-208, propuesta no aprobada) y las etapas 1 a 4 **esperan** que el dueño responda sus seis preguntas. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
-| **Bloqueada** | Ninguna fase. Fuera del plan de fases, la **Etapa 1 del historial de premios ganados** no puede empezar sin la aprobación de D-208 (H1 y H2 deciden si el período pedido se puede cubrir) |
+| **Pendiente** | Ninguna fase. **Historial de premios ganados**: las **etapas 0 y 1** están entregadas (D-208 aprobada, migración `0067` **solo en local**) y las **etapas 2 a 4** —pantallas, auditoría y producción— **esperan autorización**. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
+| **Bloqueada** | Ninguna fase. Fuera del plan de fases, la **Etapa 2 del historial de premios ganados** —las pantallas— necesita autorización expresa, y promover la `0067` a producción es una puerta aparte que nadie ha pedido |
 
 `Bloqueada` describe una fase autorizada que no puede avanzar. Los controles para operar con datos
 reales y los defectos sin tarea activa se muestran como pendientes y se detallan en
@@ -5410,7 +5443,7 @@ transición.
 | **Lo que la detiene** | Sorteos de la ventana ya jugados sin resultado confirmado o de hora desconocida en una semana empezada (rifa activa); ocurrencias configuradas cuyo corte ya pasó; conflictos (BR-J08); fechas fuera de la rifa; estados parciales; otra configuración sobre una rifa ya convertida |
 | **La puerta** | `raffle_prize_transitions`, una por rifa, inmutable y sin privilegios para nadie; el disparador de `raffles` solo deja pasar a `configurable` fuera del borrador con la fila escrita **en la misma transacción** |
 | **Lo que deja** | Seis premios con versión «Sistema», **un** aviso por membresía activa (si la rifa está activa) y **una** fila `raffle.prize_mode_transition`; ni una fila de la cartera ni de las coincidencias |
-| **Los seis premios** | `confirmedRafflePrizes`: diario $500.000 hasta el 27 de noviembre, fin de semana $2.000.000 hasta el 28, principal con cuatro alternativas y tres cifras $1.000.000 el 21 de diciembre, especial semanal $1.000.000 del 1 al 5 y del 16 al 19, y $7.000.000 el 15 con Cruz Roja. `confirmedPrizeStarts` calcula el primer sorteo pendiente y esquiva los cancelados |
+| **Los seis premios** | `confirmedRafflePrizes`: diario $500.000 hasta el 27 de noviembre, fin de semana $2.000.000 hasta el 28, principal con cuatro alternativas y **cuatro** cifras el 21 de diciembre, especial de **tres** cifras $1.000.000 ese mismo día, especial semanal $1.000.000 del 1 al 5 y del 16 al 19, y $7.000.000 el 15 con Cruz Roja. `confirmedPrizeStarts` calcula el primer sorteo pendiente y esquiva los cancelados |
 | **La corrección previa** | Son **seis**: el caso «semanal, lunes 14, Cundinamarca, $400.000» sale de J13 y queda como ejemplo genérico identificado en J3-03 |
 | **El script** | `scripts/raffle-prize-transition.ts`: vista previa legible, `--apply`, y **se niega sin `--local`** antes de leer credenciales |
 | **El procedimiento de la Entrega 5** | `RUNBOOK` §8: datos, comprobaciones de solo lectura, aplicación, qué hacer si se niega y lo que nunca se hace |
