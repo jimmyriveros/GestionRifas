@@ -4,7 +4,7 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.61 · **Actualizado:** 2026-09-16 (D-001 a D-206; **D-206** —corrección local de la Entrega 5, migración `0064`— hace que los sorteos cuyo corte ya llegó cuando una rifa cambia de sistema **conserven el sistema de siempre**, con el **instante efectivo** de la transición y una sola frontera, sustituye la alternativa «25 sorteos sin coincidencias para siempre» (I-127) y crea el **aviso de las fechas de una rifa activa** (BR-R12); deja notas en D-204 Decisión 4 y D-205 Decisión 5. **D-205** es la puerta de producción del script y J13 en 2054. **D-204** es la transición de una rifa existente a premios configurables —Entrega 4, migración `0063`—: una operación interna solo para la service role, atómica, con vista previa, que se niega mientras quede un sorteo jugado sin confirmar, y los **seis** premios confirmados —el caso «semanal, un lunes, con Cundinamarca» fue un ejemplo—; deja notas en D-199 Decisión 3 y D-201. Antes, **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.62 · **Actualizado:** 2026-09-16 (D-001 a D-206; **D-206 corregida** —migración `0065`, respuesta del dueño—: el aviso de las fechas de una rifa activa llega a **todas** las membresías activas, **también a quien hizo el cambio**, que sigue figurando como actor, y la extensión real se hace **con la sesión del Dueño** por la pantalla de editar, nunca con SQL sin sesión, una RPC que reciba el actor ni la service role. Antes, ese mismo día, **D-206** —corrección local de la Entrega 5, migración `0064`— hace que los sorteos cuyo corte ya llegó cuando una rifa cambia de sistema **conserven el sistema de siempre**, con el **instante efectivo** de la transición y una sola frontera, sustituye la alternativa «25 sorteos sin coincidencias para siempre» (I-127) y crea el **aviso de las fechas de una rifa activa** (BR-R12); deja notas en D-204 Decisión 4 y D-205 Decisión 5. **D-205** es la puerta de producción del script y J13 en 2054. **D-204** es la transición de una rifa existente a premios configurables —Entrega 4, migración `0063`—: una operación interna solo para la service role, atómica, con vista previa, que se niega mientras quede un sorteo jugado sin confirmar, y los **seis** premios confirmados —el caso «semanal, un lunes, con Cundinamarca» fue un ejemplo—; deja notas en D-199 Decisión 3 y D-201. Antes, **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -11854,20 +11854,60 @@ Las coincidencias ya guardadas no cambian.
 **No existía una regla equivalente**: `updateRaffle` cambiaba las fechas sin avisar, y `audit_raffles`
 solo dejaba el `raffle.update`. `raffle_prize_notify` (BR-J11) avisa de **versiones de premios** y su tipo
 diría «Cambiaron los premios…» de una rifa heredada que no tiene ninguno. Se reutiliza su forma —una fila
-por membresía activa, índice de idempotencia, texto fuera de la base (I-030)— y la exclusión del actor de
-`notify_profiles`. Se implementa **una vez, en la base**, para que extender la rifa real no dependa de
+por membresía activa, índice de idempotencia, texto fuera de la base (I-030)—, **no** la exclusión del
+actor de `notify_profiles`: la decisión del dueño es avisar a **todas** las membresías activas (corrección
+`0065`, abajo). Se implementa **una vez, en la base**, para que extender la rifa real no dependa de
 ningún script:
 
 | Qué | Cómo |
 |---|---|
 | Cuándo | Disparador `raffles_notify_dates_changed`, `AFTER UPDATE OF start_date, end_date`, solo si la rifa **era y sigue activa** y alguna fecha **cambió de verdad** |
-| A quién | Un aviso por membresía **activa** de la organización —Dueño, Administradores y Vendedores, con perfil y organización activos— **menos a quien hizo el cambio** (BR-J11). Un cambio del sistema, sin sesión, lo reciben todas |
+| A quién | **Exactamente un aviso** por membresía **activa** de la organización —Dueño, Administradores y Vendedores, con perfil y organización activos—, **incluida la de quien hizo el cambio** (`0065`). La exclusión del actor de BR-J11 es de los premios y no aplica aquí |
+| Actor | `actor_profile_id` es `auth.uid()` de la sesión que hizo el `UPDATE`: el mismo en todos los avisos del evento, también en el de quien lo hizo, y el mismo que firma el `raffle.update` y el `raffle.dates_change`. **Nunca es un parámetro.** Un cambio sin sesión —service role, SQL directo— avisa igual y queda sin actor: «Sistema» |
 | Atómico | Mismo `UPDATE`, misma transacción: si el cambio se rechaza —un premio fuera de las fechas nuevas, por ejemplo— o se deshace, no queda aviso |
 | Idempotente | Guardar las mismas fechas no dispara nada; dos cambios iguales a la vez: el segundo espera la fila y ya no cambia nada. Cada cambio real es un evento con su identificador, y `notifications_raffle_dates_once` impide dos avisos del mismo evento a la misma persona |
 | Tipo y datos | `raffle.dates_changed`, nuevo en el `CHECK`; entidad `raffle_date_change`. La rifa, su nombre y las fechas de antes y de después: **nada** de clientes, ventas, pagos ni cartera |
 | Bitácora | El `raffle.update` de siempre y una fila semántica `raffle.dates_change` con el evento y cuántos avisos salieron |
 | Texto | `notifications/text.ts`: «Cambiaron las fechas de {rifa}: ahora termina el 21 de diciembre de 2026.», o «ahora empieza el…», o «ahora va del … al …» |
-| Pantalla | Editar una rifa activa lo dice **antes de guardar y solo cuando cambió una fecha**: «Al guardar, las demás personas de tu organización recibirán un aviso con las fechas nuevas.» |
+| Pantalla | Editar una rifa activa lo dice **antes de guardar y solo cuando cambió una fecha**: «Al guardar, avisaremos de las fechas nuevas a todas las personas de tu organización, también a ti.» |
+
+### Corrección del 2026-09-16 — el aviso llega también a quien cambia las fechas (`0065`)
+
+La primera versión de la `0064` **excluía a quien hacía el cambio**, por analogía con BR-J11 y
+`notify_profiles`, y la pantalla decía «las demás personas». **Fue una reinterpretación**: la decisión
+explícita era avisar a todas las membresías activas.
+
+**Respuesta del dueño (2026-09-16):**
+
+| Pregunta | Respuesta |
+|---|---|
+| ¿Se aprueban la frontera temporal y la protección de los 25 sorteos? | **Sí**, y no se cambian |
+| ¿Quién recibe el aviso de las fechas? | **Cada membresía activa, exactamente una vez, incluida la de quien lo hizo.** BR-J11 puede seguir excluyendo al actor en los premios, pero **no reinterpreta BR-R12** |
+| ¿Se edita la `0064`? | **No**: ya está comprometida y aplicada en local. Una migración nueva, **`0065`**, redefine de forma mínima `raffles_notify_dates_changed()` |
+| ¿Cómo se extiende la rifa real (puerta 2)? | **El Dueño, con su sesión, por `Rifas → SORTEO CAMIONETA KIA 2027 → Editar`**, y después solo una verificación de solo lectura. **No** el bloque SQL sin sesión, que deja la bitácora a nombre de «Sistema» |
+
+| Qué | `0064` | `0065` |
+|---|---|---|
+| Destinatarios | Membresías activas **menos** `auth.uid()` | **Todas** las membresías activas: se quita `and m.profile_id is distinct from v_actor` |
+| `actor_profile_id` | `auth.uid()` | Igual: `auth.uid()`, también en el aviso de quien lo hizo |
+| Disparador, condición, atomicidad, evento, índice, datos, bitácora y privilegios | — | **Sin cambios**: la `0065` reemplaza solo el cuerpo de la función y no toca datos |
+| Texto previo de la pantalla | «las demás personas…» | «…a todas las personas de tu organización, también a ti.» |
+
+**Cómo se conserva quién lo hizo.** El actor sale **solo** de la sesión: la Server Action de editar usa el
+cliente con la sesión de quien guarda, el `UPDATE` corre con su JWT y la base lee `auth.uid()` en los tres
+sitios —el aviso, `audit_row_change` (`raffle.update`) y `write_audit_log` (`raffle.dates_change`)—. Por eso
+la extensión real **tiene** que hacerse con la sesión del Dueño:
+
+| Vía | Veredicto |
+|---|---|
+| **El Dueño, con su sesión, desde la pantalla de editar** | ✅ Avisos, `raffle.update` y `raffle.dates_change` a su nombre. Es el procedimiento de la puerta 2 (`RUNBOOK` §8.3) |
+| SQL sin sesión (`psql`, editor SQL, service role) | ❌ Avisa, pero todo queda a nombre de «Sistema»: se pierde quién cambió la configuración |
+| Una RPC que reciba el identificador del actor | ❌ Quien pueda llamarla puede atribuirle el cambio a otra persona |
+| Suplantar al Dueño con la service role (fijar sus `claims`) | ❌ Es falsificar la sesión: la bitácora diría que lo hizo quien no lo hizo |
+
+**Y si el agente no tiene una sesión autenticada segura del Dueño, se detiene en la puerta 2**, le da al
+dueño los pasos, espera su confirmación de que guardó y solo entonces hace la verificación de solo
+lectura. El agente nunca escribe una contraseña.
 
 ### Lo que NO hace
 
@@ -11889,9 +11929,11 @@ ningún script:
 | No tomar el cerrojo de las rifas heredadas | Un resultado confirmado durante la transición se resolvería con el sistema equivocado |
 | Impedir en `lottery_draw_schedules` que un corte cruce el instante | Una sola fila rara detendría toda la sincronización nacional; el motor ya se niega a mezclar |
 | Reutilizar `raffle_prize.changed` para las fechas | Diría «premios» de una rifa que puede no tenerlos |
-| Avisar desde la Server Action | El cambio hecho con la service role —el de la rifa real— no avisaría, y no sería atómico |
+| Avisar desde la Server Action | Un cambio que no pase por esa acción —SQL, otra pantalla futura— no avisaría, y no sería atómico |
 | Un script para extender la rifa real | Lo prohíbe el encargo: la regla es general |
-| Avisar también a quien cambió las fechas | Contradice BR-J11 y `notify_profiles`: nadie se avisa de lo que acaba de hacer |
+| Excluir del aviso a quien cambió las fechas, como BR-J11 | Fue la primera versión de la `0064` y **la descartó el dueño**: la decisión es avisar a todas las membresías activas, y BR-J11 no reinterpreta BR-R12 (`0065`) |
+| Extender la rifa real con un bloque SQL sin sesión | Descartada por el dueño: avisos y bitácora a nombre de «Sistema». Se hace con la sesión del Dueño |
+| Una RPC que reciba el actor, o la service role con los `claims` del Dueño | Permitirían atribuir el cambio a quien no lo hizo |
 
 ### Consecuencia
 
@@ -11904,6 +11946,13 @@ ya no existe. Código: `transition.ts`, `copy.ts`, `notifications/text.ts`, `lib
 `rifa-fechas-aviso.spec.ts` (nueva). **BR-J13** y **BR-R12**; `DATA_MODEL` §4.22, `SECURITY` §4.22,
 `ARCHITECTURE` §8.27.b, `RUNBOOK` §8, `UX_COPY_GUIDELINES`, `TESTING` §4.11, `KNOWN_ISSUES` (I-127, I-129,
 I-131), `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`. **Solo en local.**
+
+**Corrección: migración `0065`**, sin tocar la `0064`. Código: `raffles/date-change.ts` (el texto previo), el
+comentario de `RaffleForm` y `verify-remote.ts` (+1: que el cuerpo vigente ya no excluya al actor). Pruebas: `raffle-date-notices.test.ts` (**12**: R1-02 reescrita, R1-04
+nueva), `raffle-dates-notification.test.ts` (F7) y `rifa-fechas-aviso.spec.ts` (**4**). **BR-R12** y una
+línea en **BR-J11**; `DATA_MODEL` §4.23, `SECURITY` §4.22, `ARCHITECTURE` §8.27.b, `MASTER_SPEC` §9.7,
+`RUNBOOK` §8 (puerta 2 con la sesión del Dueño), `UX_COPY_GUIDELINES`, `TESTING` §4.11, `KNOWN_ISSUES`
+(I-129), `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`. **Solo en local.**
 
 ---
 ## Ambigüedades pendientes de confirmación del usuario

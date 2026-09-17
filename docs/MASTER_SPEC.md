@@ -6,7 +6,10 @@
 
 - **Versión del documento:** 1.12
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-16 (§9.7, corrección de la Entrega 3: un sorteo **adelantado**
+- **Última actualización:** 2026-09-16 (§9.7, correcciones de D-206 antes de producción: los sorteos
+  ya jugados conservan el sistema de siempre y cambiar las fechas de una rifa activa avisa —`0064`—, **a
+  todas las personas activas, también a quien las cambia**, y la rifa real la extiende **el Dueño con su
+  sesión** —`0065`—, **solo en local**). Antes, ese mismo día (§9.7, corrección de la Entrega 3: un sorteo **adelantado**
   corta a su hora oficial, así que un cambio publicado después de jugarse nunca le aplica —D-203
   Decisión 9, migración `0062`, **solo en local**—). Antes, ese mismo día (§9.7: premios
   configurables por rifa, **Entrega 3 de 5** —el
@@ -410,6 +413,10 @@ propio no la cambia.
 > una rifa cambia de sistema **conservan el sistema de siempre**, también si su resultado llega después, y
 > cambiar las fechas de una rifa activa **avisa** a su organización. La rifa real —«SORTEO CAMIONETA KIA
 > 2027»— se extenderá hasta el **21 de diciembre de 2026**, con su aviso, antes de la transición.
+>
+> **Corregido otra vez (D-206, `0065`, solo en local):** ese aviso llega a **todas** las personas activas,
+> **también a quien cambió las fechas**, y la extensión la hace **el Dueño con su sesión**, desde la
+> pantalla de editar, para que quede a su nombre.
 
 **Cómo pasa una rifa que ya existía a premios configurables (Entrega 4).** No lo hace nadie desde la
 aplicación: lo hace **una vez**, por rifa, un proceso interno, y o queda **entera** —premios, sistema
@@ -424,9 +431,10 @@ No se inventan ni se cargan resultados: si un sorteo viejo nunca tuvo resultado,
 lo haya con evidencia oficial, y entonces avisa como cualquier otro. Lo único que detiene el cambio es un
 sorteo de una semana ya empezada **cuya hora no se conoce**: no se sabe de qué lado cae.
 
-**Cambiar las fechas de una rifa activa se avisa** (BR-R12): cada persona activa de la organización,
-menos quien lo hizo, recibe en la campana la fecha nueva, sin nada de clientes, ventas ni pagos. Guardar
-las mismas fechas no avisa, y la pantalla de editar lo dice antes de guardar.
+**Cambiar las fechas de una rifa activa se avisa** (BR-R12): cada persona activa de la organización
+—**también quien lo hizo**— recibe **un** aviso en la campana con la fecha nueva, sin nada de clientes,
+ventas ni pagos, y el aviso y la bitácora dicen quién hizo el cambio. Guardar las mismas fechas no avisa, y
+la pantalla de editar lo dice antes de guardar.
 
 **Los seis premios confirmados de la rifa de diciembre** (D-204). Todo juega con **cuatro cifras**
 salvo el que dice tres:

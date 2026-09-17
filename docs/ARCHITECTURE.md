@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.39 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27.b**: el
+- **Versión:** 1.40 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27.b**: el aviso de
+  las fechas de una rifa activa llega **también a quien las cambia**, y su actor sale solo de la sesión
+  —D-206 corregida, migración `0065`, **solo en local**—). Antes, ese mismo día (**§8.27.b**: el
   **instante efectivo** y la frontera que decide con qué sistema juega cada rifa cada sorteo, y el
   aviso de las fechas de una rifa activa —D-206, migración `0064`, **solo en local**—). Antes, ese
   mismo día (**§8.27.b**: la
@@ -2194,9 +2196,12 @@ una por fotografía—; 5.000 boletas se resuelven en 4–15 ms (`TEST_RESULTS`,
 
 **El aviso de las fechas de una rifa activa** (BR-R12) también vive en la base:
 `raffles_notify_dates_changed`, un disparador de `raffles`. Lo dispara igual la pantalla de editar
-—`updateRaffle`, con RLS— que un proceso con la service role, y es atómico con el cambio. La pantalla
-solo lo **anuncia** antes de guardar (`raffles/date-change.ts`); el texto de la campana está en
-`notifications/text.ts`.
+—`updateRaffle`, con RLS— que un proceso con la service role, y es atómico con el cambio. Avisa a **cada
+membresía activa, también a quien hizo el cambio** (`0065`), y el actor de los avisos y de la bitácora es
+`auth.uid()`: con la sesión de `updateRaffle` queda la persona; con la service role, «Sistema». **No hay
+parámetro de actor**, así que un cambio que deba quedar a nombre de alguien se hace con su sesión
+(`RUNBOOK` §8.3). La pantalla solo lo **anuncia** antes de guardar (`raffles/date-change.ts`); el texto de
+la campana está en `notifications/text.ts`.
 
 ## 9. Configuración regional
 

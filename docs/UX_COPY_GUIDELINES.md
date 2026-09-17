@@ -1423,9 +1423,10 @@ por aviso (§13). Y nada de la cartera, ni enlace.
 
 **La pantalla de editar lo anuncia ANTES de guardar, y solo cuando va a pasar** (misma regla que el
 aviso de recalcular la ganancia, D-127): con la rifa activa y alguna fecha distinta de la guardada,
-**«Al guardar, las demás personas de tu organización recibirán un aviso con las fechas nuevas.»**.
-«Las demás» porque quien guarda no recibe el suyo. Volver a la fecha guardada lo retira: ya no va a
-pasar. Un borrador no lo dice, porque no avisa.
+**«Al guardar, avisaremos de las fechas nuevas a todas las personas de tu organización, también a
+ti.»**. «También a ti» porque quien guarda recibe el suyo (BR-R12, `0065`): la primera versión decía «las
+demás personas», y era falso. Volver a la fecha guardada lo retira: ya no va a pasar. Un borrador no lo
+dice, porque no avisa.
 
 **«Ganador» sigue prohibido, también aquí** (BR-L15). Un premio configurable dice con qué número y
 con cuántas cifras juega; quien acierta tiene una **coincidencia**. Hay una prueba unitaria que falla

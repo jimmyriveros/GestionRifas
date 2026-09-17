@@ -1,6 +1,6 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-09-16 (§8: el procedimiento de producción con **tres puertas** —migraciones y despliegue, extender la fecha de fin con su aviso, y la transición— y lo que pasa con los sorteos que conservan el sistema de siempre, D-206; antes, ese mismo día, la transición preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
+**Actualizado:** 2026-09-16 (§8.3: **la puerta 2 la hace el Dueño con su sesión**, desde Editar, y el agente solo verifica en modo lectura; el aviso de fechas llega también al Dueño —`0065`, D-206 corregida—, y el bloque SQL sin sesión queda descartado porque dejaba la bitácora a nombre de «Sistema»; antes, ese mismo día, §8: el procedimiento de producción con **tres puertas** —migraciones y despliegue, extender la fecha de fin con su aviso, y la transición— y lo que pasa con los sorteos que conservan el sistema de siempre, D-206; antes, ese mismo día, la transición preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
 producción. El detalle técnico de cada `I-0xx` citado está en
 [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) — aquí solo el síntoma y qué hacer.
 
@@ -284,8 +284,8 @@ usan solo los premios.
 
 | # | Puerta —se pregunta tal cual y se espera un «sí»— | Qué escribe | Por qué va en ese orden |
 |---|---|---|---|
-| 1 | «¿Autorizas aplicar las migraciones `0058`–`0064` y desplegar este commit en producción?» | Respaldo nuevo (§5.1), `supabase db push`, despliegue y `npm run verify:remote` | El aviso de fechas y la frontera **son** de la `0064`: sin ella, extender la fecha no avisaría |
-| 2 | «¿Autorizas extender la fecha de fin de «<NOMBRE EXACTO>» hasta el <FECHA> y enviar el aviso a las membresías activas indicadas?» | `raffles.end_date`, un aviso por membresía activa y la bitácora (§8.3) | La transición compara las fechas esperadas, y el premio principal juega el 21/12 |
+| 1 | «¿Autorizas aplicar las migraciones `0058`–`0065` y desplegar este commit en producción?» | Respaldo nuevo (§5.1), `supabase db push`, despliegue y `npm run verify:remote` | La frontera y el aviso de fechas **son** de la `0064`, y que el aviso llegue también al Dueño, de la `0065`: sin ellas, extender la fecha no avisaría a todas |
+| 2 | «¿Autorizas que el Dueño, con su sesión y desde Editar, extienda la fecha de fin de «<NOMBRE EXACTO>» hasta el <FECHA>, con el aviso a las <N> membresías activas, él incluido?» | **Lo escribe el Dueño**, no el agente: `raffles.end_date`, un aviso por membresía activa y la bitácora, a su nombre. El agente solo lee antes y después (§8.3) | La transición compara las fechas esperadas, y el premio principal juega el 21/12 |
 | 3 | «¿Autorizas transformar esta rifa específica y enviar el aviso a las membresías activas indicadas?» | La transición (§8.4) | Última: con la fecha ya extendida y la vista previa revisada |
 
 **Estado el 2026-09-16:** ninguna de las tres se ha pedido. La rifa confirmada por el dueño es
@@ -298,7 +298,8 @@ se escriben **en la orden**, nunca en el código.
 
 | Dato o condición | De dónde | Por qué |
 |---|---|---|
-| Migraciones `0058`–`0064` aplicadas y el código desplegado | Puerta 1 | La operación, la frontera, el aviso de fechas y el panel son de esas migraciones |
+| Migraciones `0058`–`0065` aplicadas y el código desplegado | Puerta 1 | La operación, la frontera, el aviso de fechas y el panel son de esas migraciones |
+| Que el **Dueño** pueda entrar a producción **con su propia sesión** | El dueño | La puerta 2 la hace él desde la pantalla de editar: así la bitácora conserva quién cambió la fecha. El agente nunca escribe su contraseña |
 | Respaldo nuevo de la base | §5.1, **justo antes** de la puerta 1 | Antes de la primera escritura; uno viejo no sirve (D-205, Decisión 5) |
 | Identificadores de la **organización** y de la **rifa** | Consulta de solo lectura. **Nunca se elige por nombre** | La base los compara |
 | **Nombre exacto**, **estado** (`active`) y **fechas** | La misma consulta | La base los compara letra por letra |
@@ -339,65 +340,153 @@ real. La consulta de sorteos pendientes de la `0063` —la réplica que usó el 
 
 ### 8.3 Extender la fecha de fin (puerta 2)
 
-El aviso lo escribe la base (BR-R12): **cualquier** cambio de fechas de una rifa activa avisa a cada
-membresía activa, menos a quien lo hizo. Hay dos caminos, y se usa **uno**:
+La fecha la cambia **el Dueño, con su sesión**, por el flujo normal de la aplicación. En la misma
+transacción, la base escribe **un aviso por membresía activa —el Dueño incluido—**, todos con el Dueño como
+actor, y la bitácora a su nombre (BR-R12, D-206 corregida por la `0065`). **Quién hizo el cambio sale de la
+sesión** (`auth.uid()`), nunca de un dato que alguien pueda escribir, así que ninguna otra vía lo conserva:
 
-* **Recomendado —comprobado y atómico—**, en el editor SQL. Sin sesión, avisa a **todas** las membresías
-  activas y la bitácora dice «Sistema». Si la rifa no es exactamente la esperada, o no salen tantos
-  avisos como membresías activas, **no cambia nada**:
+| Vía | ¿Se usa? |
+|---|---|
+| **El Dueño, con su sesión, desde Rifas → la rifa → Editar** | ✅ **La única.** Avisos, `raffle.update` y `raffle.dates_change` a su nombre |
+| Un `UPDATE` o un bloque SQL sin sesión —editor SQL, `psql`, service role— | ❌ Avisa, pero todo queda a nombre de «Sistema»: se pierde quién cambió la configuración |
+| Una RPC que reciba el identificador del actor, o la service role con los `claims` del Dueño | ❌ Atribuye el cambio a quien no lo hizo. **No se crea ni se usa** |
 
-  ```sql
-  do $$
-  declare
-    v_filas   integer;
-    v_activas integer;
-    v_avisos  integer;
-  begin
-    update raffles
-       set end_date = date '<FECHA NUEVA>'
-     where id = '<RIFA>' and organization_id = '<ORG>' and name = '<NOMBRE EXACTO>'
-       and status = 'active' and start_date = date '<INICIO>' and end_date = date '<FIN ACTUAL>';
-    get diagnostics v_filas = row_count;
-    if v_filas <> 1 then
-      raise exception 'La rifa no es la esperada: no se cambió nada.';
-    end if;
+**Quién hace qué.** El agente **no escribe contraseñas ni entra con la cuenta del Dueño**: un agente no
+inicia sesión en producción (Fase 8). Si no tiene una sesión autenticada y segura del Dueño —lo normal—,
+**se detiene en esta puerta**, le da al dueño los pasos del punto 2, **espera a que confirme que guardó** y
+después hace **solo** la verificación de solo lectura del punto 3. No repite el cambio ni lo completa por
+otra vía.
 
-    select count(*) into v_activas
-      from memberships m
-      join profiles p on p.id = m.profile_id
-      join organizations o on o.id = m.organization_id
-     where m.organization_id = '<ORG>' and m.role in ('owner', 'admin', 'seller')
-       and m.is_active and p.is_active and o.is_active;
-
-    select count(*) into v_avisos
-      from notifications
-     where kind = 'raffle.dates_changed'
-       and (data ->> 'raffle_id')::uuid = '<RIFA>'
-       and created_at = now();
-    if v_avisos <> v_activas then
-      raise exception 'Se esperaban % avisos y salieron %: no se cambió nada.', v_activas, v_avisos;
-    end if;
-
-    raise notice 'Fecha de fin cambiada. Avisos: %.', v_avisos;
-  end $$;
-  ```
-
-* **Desde la aplicación**, con la cuenta del **Dueño**: Rifas → la rifa → Editar → «Fecha de fin». La
-  pantalla dice antes de guardar «Al guardar, las demás personas de tu organización recibirán un aviso
-  con las fechas nuevas.». El Dueño **no** recibe el suyo.
-
-Comprobación inmediata, con cualquiera de los dos:
+**1. Antes de que el Dueño guarde — solo lectura.** En el proyecto real, con `<RIFA>` y `<ORG>`
+sustituidos. El formulario vuelve a enviar **todos** sus campos —nombre, descripción, precio, fechas y el
+permiso de crear boletas—, así que primero se comprueba que guardar solo puede cambiar la fecha:
 
 ```sql
-select start_date, end_date, status, prize_mode from raffles where id = '<RIFA>';   -- la fecha nueva, sin otro cambio
-select count(*) from notifications
- where kind = 'raffle.dates_changed' and (data ->> 'raffle_id')::uuid = '<RIFA>';  -- las membresías activas (o una menos)
-select old_values, new_values from audit_logs
- where entity_id = '<RIFA>' and action = 'raffle.dates_change';                    -- una fila, con «notified»
+begin transaction read only;
+
+-- A1. La rifa y la HUELLA de todo lo que no debe cambiar: se anota. «nombre_estable» y
+--     «descripcion_estable» tienen que dar true: el formulario devuelve el nombre y la descripción
+--     sin espacios en los extremos, y una descripción vacía como NULL. Con un false, guardar cambiaría
+--     algo más que la fecha: se para y se avisa al dueño.
+with espacio as (
+  select '[\s\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]' as c
+)
+select r.name, r.status, r.prize_mode, r.start_date, r.end_date,
+       md5((to_jsonb(r) - 'end_date' - 'updated_at' - 'ticket_counter')::text) as huella,
+       r.name !~ ('^' || e.c || '|' || e.c || '$') as nombre_estable,
+       (r.description is null
+        or (r.description <> '' and r.description !~ ('^' || e.c || '|' || e.c || '$'))) as descripcion_estable
+  from raffles r, espacio e
+ where r.id = '<RIFA>' and r.organization_id = '<ORG>';
+
+-- A2. Las membresías activas, por rol: son los avisos que tienen que salir.
+select m.role, count(*) as personas
+  from memberships m
+  join profiles p on p.id = m.profile_id
+  join organizations o on o.id = m.organization_id
+ where m.organization_id = '<ORG>' and m.role in ('owner', 'admin', 'seller')
+   and m.is_active and p.is_active and o.is_active
+ group by m.role
+ order by m.role;
+
+-- A3. Todavía ningún aviso ni bitácora de fechas de esta rifa: 0 y 0.
+select (select count(*) from notifications
+         where kind = 'raffle.dates_changed' and data ->> 'raffle_id' = '<RIFA>') as avisos,
+       (select count(*) from audit_logs
+         where entity_id = '<RIFA>' and action = 'raffle.dates_change') as bitacora;
+
+rollback;
 ```
 
-Y en la campana de un vendedor: «Cambiaron las fechas de «<NOMBRE>»: ahora termina el 21 de diciembre de
-2026.». **Repetir el cambio con la misma fecha no escribe nada.**
+| Resultado | Tiene que decir | Si no |
+|---|---|---|
+| A1 | La rifa esperada, `active` y `legacy`, del **2026-07-27** al **2026-11-01**, y `true` en las dos columnas «estable». **Se anota la huella**: deja fuera la fecha de fin, `updated_at` y el contador de boletas, que se mueve si alguien crea una mientras tanto | Parar: no se le pide al Dueño que guarde |
+| A2 | Las membresías activas por rol. El 2026-09-16 se esperan **5** en total | Se le dice al dueño antes de seguir: es el número de avisos que van a salir |
+| A3 | `0` y `0` | Parar: alguien ya cambió las fechas |
+
+**2. El cambio — lo hace el Dueño.** Los pasos que se le dan, tal cual:
+
+1. Entra a Rifas **con tu cuenta de Dueño**. Nadie más escribe tu contraseña.
+2. Abre **Rifas → SORTEO CAMIONETA KIA 2027 → Editar**.
+3. En **«Fecha de fin»** elige o escribe **21/12/2026**. **No cambies ningún otro campo.**
+4. Antes de guardar tiene que aparecer: «Al guardar, avisaremos de las fechas nuevas a todas las personas de
+   tu organización, también a ti.». Si no aparece, **no guardes** y avísame.
+5. Toca **«Guardar cambios» una sola vez**. Tiene que salir «Rifa actualizada.». Si sale un error, no
+   insistas: copia el mensaje y avísame. **No se guardó nada.**
+6. Avísame de que guardaste. En tu campana verás: «Cambiaron las fechas de SORTEO CAMIONETA KIA 2027: ahora
+   termina el 21 de diciembre de 2026.».
+
+**3. Después de que el Dueño confirme — solo lectura.** Es lo único que hace el agente en esta puerta:
+
+```sql
+begin transaction read only;
+
+-- B1. La fecha nueva y nada más: la fecha de fin nueva, el mismo inicio, estado y sistema de premios,
+--     y la MISMA huella que en A1.
+select r.name, r.status, r.prize_mode, r.start_date, r.end_date,
+       md5((to_jsonb(r) - 'end_date' - 'updated_at' - 'ticket_counter')::text) as huella
+  from raffles r
+ where r.id = '<RIFA>' and r.organization_id = '<ORG>';
+
+-- B2. Los avisos. membresias_activas = avisos = personas, del_dueno = 1, eventos = 1, y CERO en
+--     sin_aviso, de_mas, con_otro_actor y de_otra_organizacion.
+with activas as (
+  select m.profile_id, m.role
+    from memberships m
+    join profiles p on p.id = m.profile_id
+    join organizations o on o.id = m.organization_id
+   where m.organization_id = '<ORG>' and m.role in ('owner', 'admin', 'seller')
+     and m.is_active and p.is_active and o.is_active
+), avisos as (
+  select recipient_profile_id, actor_profile_id, entity_id, organization_id
+    from notifications
+   where kind = 'raffle.dates_changed' and data ->> 'raffle_id' = '<RIFA>'
+)
+select (select count(*) from activas) as membresias_activas,
+       (select count(*) from avisos) as avisos,
+       (select count(distinct recipient_profile_id) from avisos) as personas,
+       (select count(*) from avisos a join activas x on x.profile_id = a.recipient_profile_id
+         where x.role = 'owner') as del_dueno,
+       (select count(distinct entity_id) from avisos) as eventos,
+       (select count(*) from activas x
+         where not exists (select 1 from avisos a where a.recipient_profile_id = x.profile_id)) as sin_aviso,
+       (select count(*) from avisos a
+         where not exists (select 1 from activas x where x.profile_id = a.recipient_profile_id)) as de_mas,
+       (select count(*) from avisos a
+         where a.actor_profile_id is distinct from (select profile_id from activas where role = 'owner')) as con_otro_actor,
+       (select count(*) from avisos a where a.organization_id <> '<ORG>') as de_otra_organizacion;
+
+-- B3. La bitácora de ESE guardado: las filas de su transacción, las dos del Dueño. raffle.update con
+--     old_values y new_values que solo traen end_date; raffle.dates_change con el evento de B2
+--     (mismo_evento = true) y notified = membresías activas.
+select l.action,
+       l.actor_profile_id = (select m.profile_id from memberships m
+                              where m.organization_id = '<ORG>' and m.role = 'owner'
+                                and m.is_active) as es_el_dueno,
+       l.old_values, l.new_values,
+       l.new_values ->> 'change_id' = (select distinct n.entity_id::text from notifications n
+                                        where n.kind = 'raffle.dates_changed'
+                                          and n.data ->> 'raffle_id' = '<RIFA>') as mismo_evento
+  from audit_logs l
+ where l.entity_id = '<RIFA>'
+   and l.created_at = (select created_at from audit_logs
+                        where entity_id = '<RIFA>' and action = 'raffle.dates_change')
+ order by l.action desc;
+
+rollback;
+```
+
+| Resultado | Tiene que decir |
+|---|---|
+| B1 | `end_date` **2026-12-21**; `start_date` **2026-07-27**, `active` y `legacy`, como en A1; y **la misma huella** que A1: no cambió nada más |
+| B2 | `membresias_activas` = `avisos` = `personas` —**5** el 2026-09-16—, `del_dueno` **1**, `eventos` **1**, y **0** en `sin_aviso`, `de_mas`, `con_otro_actor` y `de_otra_organizacion` |
+| B3 | **Dos filas**, las dos con `es_el_dueno` **true**: `raffle.update` con `old_values` `{"end_date": "2026-11-01"}` y `new_values` `{"end_date": "2026-12-21"}`, sin más claves; `raffle.dates_change` con `mismo_evento` **true** y `notified` igual a las membresías activas |
+
+**Si algo no cuadra, no se corrige**: se para y se le cuenta al dueño con estos resultados. `con_otro_actor`
+distinto de 0 o `es_el_dueno` vacío quieren decir que el cambio **no** se hizo con la sesión del Dueño.
+Guardar otra vez la misma fecha no escribe nada, y las consultas dan lo mismo. Las tres comprobaciones se
+ensayaron en local el 2026-09-16 con la sesión del Dueño, con un segundo guardado igual y con un cambio sin
+sesión, que B2 y B3 delatan (`TEST_RESULTS`).
 
 ### 8.4 La vista previa y la transición (puerta 3)
 
@@ -481,6 +570,9 @@ select raffle_prize_draw_mode('<RIFA>', s), raffle_prize_draw_cutoff(s)
 ### 8.7 Lo que NO se hace nunca
 
 * **No** se desactiva `raffles_guard_prize_config`, `raffles_notify_dates_changed` ni ningún disparador.
+* **No** se cambian las fechas de la rifa real con SQL sin sesión, con la service role ni con una RPC que
+  reciba el actor, y **no** se suplanta al Dueño: ni con sus `claims`, ni escribiendo su contraseña. Lo hace
+  el Dueño, con su sesión (§8.3).
 * **No** se escribe a mano en `raffle_prize_transitions` —tampoco `effective_at`—, ni se cambia
   `raffles.prize_mode` con un `UPDATE`.
 * **No** se crean los premios con las RPC de la aplicación antes de la transición.

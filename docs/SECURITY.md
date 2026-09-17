@@ -1,6 +1,10 @@
 # SEGURIDAD
 
-- **Versión:** 2.21 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§4.22**: la `0064`
+- **Versión:** 2.22 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§4.22**: la `0065`
+  —D-206 corregida— hace que el aviso de las fechas llegue también a quien las cambia, **sin tocar
+  privilegios**, y el actor sigue saliendo solo de la sesión: la extensión real se hace con la sesión del
+  Dueño, nunca con SQL sin sesión, una RPC que reciba el actor ni la service role con sus `claims`). Antes,
+  ese mismo día (**§4.22**: la `0064`
   —D-206— añade la frontera del instante efectivo y el aviso de las fechas de una rifa activa: **seis
   piezas internas más, ninguna ejecutable por nadie**, el motor espera a una transición en curso y no
   mezcla sistemas, y el aviso no lleva nada de la cartera). Antes, ese mismo día (**§4.22**: la
@@ -1230,7 +1234,8 @@ role. Tener `raffles.prizes.manage` **no da ninguna puerta**: el Dueño tampoco 
 | Que un sorteo jugado se resuelva con el motor equivocado | **Desde la `0064` (D-206)** no se espera: cada transición guarda su **instante efectivo** y el motor decide rifa por rifa con **una** frontera (`raffle_prize_draw_mode`): corte hasta el instante, el sistema de siempre; posterior, los premios. La transición solo se niega con un sorteo de **corte desconocido** en una semana empezada, activa o en borrador. Antes, `0063` se negaba también con un sorteo jugado sin resultado confirmado (D-204, Decisión 4) |
 | Resolver un sorteo con el sistema de siempre mientras su rifa está cambiando de sistema | `match_lottery_result` toma el cerrojo de configuración de **todas** las rifas del sorteo —también las heredadas— antes de decidir; la transición lo tiene tomado, y el motor espera a que termine (prueba T4-03) |
 | Mezclar los dos sistemas en un resultado | El motor se niega a completar un resultado con fotografías de una rifa guardadas con el otro sistema, y las dos defensas usan la misma frontera: **ningún enlace** apunta a un sorteo del lado de siempre, venga de donde venga la escritura (T6-07, T6-08) |
-| Cambiar las fechas de una rifa activa sin que nadie se entere, o avisar con datos de la cartera | `raffles_notify_dates_changed` avisa en la **misma transacción** a cada membresía activa —menos a quien lo hizo— con la rifa y sus fechas y **nada** de clientes, ventas, pagos ni cartera; cada persona lee solo el suyo (RLS de `notifications`). Guardar las mismas fechas no avisa. La función es interna y el disparador la invoca con el dueño (BR-R12) |
+| Cambiar las fechas de una rifa activa sin que nadie se entere, o avisar con datos de la cartera | `raffles_notify_dates_changed` avisa en la **misma transacción** a cada membresía activa —**también a quien lo hizo**, desde la `0065`— con la rifa y sus fechas y **nada** de clientes, ventas, pagos ni cartera; cada persona lee solo el suyo (RLS de `notifications`). Guardar las mismas fechas no avisa. La función es interna y el disparador la invoca con el dueño (BR-R12) |
+| Atribuir el cambio de fechas a quien no lo hizo | El actor del aviso y de la bitácora es **`auth.uid()` de la sesión** que hace el `UPDATE`: no hay parámetro que lo diga ni RPC que lo reciba, y el disparador no se ejecuta aparte. Sin sesión queda «Sistema», no otra persona. Por eso la fecha real la cambia **el Dueño con su sesión** (`RUNBOOK` §8.3): el SQL sin sesión perdería quién fue, y fijar sus `claims` con la service role sería suplantarlo (D-206, corrección) |
 | Filtrar la cartera | La transición no lee boletas, clientes ni pagos. El aviso lleva rifa, nombre, cambio y número de premios; la bitácora, premios, fechas y cifras de la transición: **ni clientes, ni pagos, ni saldos, ni precios de venta** (prueba T2-10) |
 | Mensajes que exponen algo | Los errores nombran la rifa, fechas y loterías; el `detail` de los sorteos pendientes, fechas y loterías. Nada de clientes |
 | Ejecutarla contra producción por accidente | Desde la Entrega 5 (D-205), `scripts/raffle-prize-transition.ts` consulta una **puerta pura** antes de resolver el destino: el destino se dice siempre (`--local` o `--production`, nunca los dos); con `--production` el destino resuelto tiene que ser **de verdad remoto** (`https`, `*.supabase.co`, sin `SUPABASE_TARGET=local`); y **aplicar** exige a la vez la huella de una **vista previa anterior** —que tiene que coincidir con la que el script repite justo antes—, `--apply` y el identificador de la rifa **escrito otra vez**. Una opción desconocida o repetida se rechaza. Por omisión es una vista previa. **Ningún identificador de producción vive en el código**, y el script no imprime claves ni la dirección completa del proyecto |
@@ -1246,6 +1251,10 @@ service role (T1-05b y `verify:remote`); `raffle_prize_transition_pending_draws`
 frontera pura no es `SECURITY DEFINER`, porque no lee tablas. `effective_at` vive en una tabla sin
 privilegios, y solo la escribe la transición; la migración la rellena con el disparador apartado **solo
 para ese relleno**. Las pruebas lo trasladan como superusuario para simular fechas: nadie más puede.
+
+**La `0065` (D-206, corrección) tampoco.** Reemplaza solo el cuerpo de `raffles_notify_dates_changed` —quita
+la exclusión del actor— y repite sus revocaciones: sigue sin ejecutarla nadie, ni la service role, y
+`verify:remote` comprueba además que el cuerpo vigente ya no excluye a quien hizo el cambio.
 
 ## 5. Protección de Server Actions y Route Handlers
 

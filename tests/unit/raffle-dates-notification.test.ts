@@ -123,10 +123,12 @@ describe('lo que dice la pantalla de editar ANTES de guardar (BR-R12, D-206)', (
     }
   })
 
-  it('F7: la frase dice qué va a pasar, a quién, y no habla el idioma del código', () => {
+  it('F7: la frase dice qué va a pasar y a quién —a todas las personas, también a quien guarda— sin hablar el idioma del código', () => {
     expect(RAFFLE_DATE_CHANGE_NOTICE).toBe(
-      'Al guardar, las demás personas de tu organización recibirán un aviso con las fechas nuevas.',
+      'Al guardar, avisaremos de las fechas nuevas a todas las personas de tu organización, también a ti.',
     )
+    // BR-R12 avisa también a quien cambia las fechas (0065): «las demás» mentiría.
+    expect(RAFFLE_DATE_CHANGE_NOTICE).not.toMatch(/demás|menos a/i)
     expect(RAFFLE_DATE_CHANGE_NOTICE).not.toMatch(/notific|trigger|membres|start_date|end_date/i)
   })
 })

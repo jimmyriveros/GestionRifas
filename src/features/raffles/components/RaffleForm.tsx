@@ -34,8 +34,8 @@ type RaffleFormProps = {
   raffle?: CreateRaffleInput & { id: string }
   /**
    * El estado de la rifa que se EDITA. Con una activa, cambiar sus fechas avisa
-   * a las demás personas de la organización, y el formulario lo dice antes de
-   * guardar (BR-R12, D-206).
+   * a todas las personas de la organización —también a quien guarda—, y el
+   * formulario lo dice antes de guardar (BR-R12, D-206).
    */
   status?: RaffleStatus
   /**

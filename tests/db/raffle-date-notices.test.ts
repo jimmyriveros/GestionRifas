@@ -1,21 +1,24 @@
 /**
- * El aviso de las fechas de una rifa activa (BR-R12, D-206, migración `0064`).
+ * El aviso de las fechas de una rifa activa (BR-R12, D-206, migraciones `0064`
+ * y `0065`).
  *
  * Cambiar la fecha de inicio o la de fin de una rifa ACTIVA avisa, en la MISMA
- * transacción, a cada membresía activa de su organización —menos a quien hizo
- * el cambio— y deja una fila semántica en la bitácora. Lo que se prueba es lo
- * que solo la base puede garantizar: a quién llega y a quién no, que el aviso y
+ * transacción, a cada membresía activa de su organización —INCLUIDA la de quien
+ * hizo el cambio, que queda como actor de cada aviso (`0065`)— y deja una fila
+ * semántica en la bitácora. Lo que se prueba es lo que solo la base puede
+ * garantizar: a quién llega y a quién no, quién queda como autor, que el aviso y
  * el cambio van juntos o no van, que un reintento o dos cambios iguales a la vez
  * no duplican nada, que guardar las mismas fechas no avisa y que el aviso no
  * lleva nada de la cartera.
  *
- * Es el camino que usará la rifa real para extender su fin al 21/12/2026: el
- * aviso no depende de ningún script, sale de la base venga el cambio de donde
- * venga.
+ * La rifa real extenderá su fin al 21/12/2026 por ese camino: el DUEÑO, con su
+ * sesión, desde la pantalla de editar (R1-02). El aviso no depende de ningún
+ * script: sale de la base venga el cambio de donde venga, y el actor sale de la
+ * sesión, nunca de un parámetro.
  *
  * Las rifas son propias (2064) y se borran al final. La service role hace el
- * cambio «del sistema»; el Dueño, con su sesión, el de la pantalla de editar; y
- * cada persona lee su campana con la suya.
+ * cambio «del sistema», sin actor (R1-01); el Dueño y el Administrador, con su
+ * sesión, el de la pantalla de editar; y cada persona lee su campana con la suya.
  */
 import { randomUUID } from 'node:crypto'
 
@@ -258,7 +261,7 @@ describe('R1 — a quién llega el aviso', () => {
     expect(rows[0]!.n).toBe(1)
   })
 
-  it('R1-02: desde la pantalla, con la sesión del Dueño: avisa a todos menos a él, y cada quien lee solo el suyo', async () => {
+  it('R1-02: desde la pantalla, con la sesión del Dueño: avisa a TODAS las membresías activas, también a él, con él como actor, y cada quien lee solo el suyo', async () => {
     const rifa = await nuevaRifa('dueño')
     const { error } = await owner
       .from('raffles')
@@ -266,21 +269,49 @@ describe('R1 — a quién llega el aviso', () => {
       .eq('id', rifa)
     expect(error).toBeNull()
 
+    // Todas las membresías activas, el Dueño incluido: una vez cada una.
     const recibidos = await avisos(rifa)
-    const esperadas = (await membresiasActivas()).filter((id) => id !== ctx.ids.owner)
+    const esperadas = await membresiasActivas()
+    expect(esperadas).toContain(ctx.ids.owner)
     expect(recibidos.map((a) => a.recipient_profile_id)).toEqual(esperadas)
+    expect(new Set(recibidos.map((a) => a.recipient_profile_id)).size).toBe(recibidos.length)
+    expect(recibidos.map((a) => a.recipient_profile_id)).not.toContain(inactivo)
+    expect(recibidos.map((a) => a.recipient_profile_id)).not.toContain(ctx.ids.otherOrgSeller)
+    // UN evento, y el actor es el Dueño en todos, también en el suyo.
+    expect(new Set(recibidos.map((a) => a.entity_id)).size).toBe(1)
     expect(recibidos.every((a) => a.actor_profile_id === ctx.ids.owner)).toBe(true)
-    expect((await bitacoraDeFechas(rifa))[0]).toMatchObject({
-      actor_profile_id: ctx.ids.owner,
-      new_values: { start_date: '2064-08-03', notified: esperadas.length },
-    })
 
-    // La campana de cada uno, con su propia sesión (RLS): el Administrador y el
-    // vendedor ven el suyo; el Dueño, que lo hizo, y otra organización, nada.
+    // La bitácora: la fila semántica y el `raffle.update`, las dos del Dueño.
+    expect(await bitacoraDeFechas(rifa)).toEqual([
+      {
+        actor_profile_id: ctx.ids.owner,
+        old_values: { start_date: '2064-07-27', end_date: '2064-11-01' },
+        new_values: {
+          start_date: '2064-08-03',
+          end_date: '2064-11-01',
+          change_id: recibidos[0]!.entity_id,
+          notified: esperadas.length,
+        },
+      },
+    ])
+    const { rows: cambio } = await db.query<{
+      actor_profile_id: string | null
+      new_values: Record<string, unknown>
+    }>(
+      `select actor_profile_id, new_values from audit_logs
+        where entity_id = $1 and action = 'raffle.update' and new_values ? 'start_date'`,
+      [rifa],
+    )
+    expect(cambio).toEqual([
+      { actor_profile_id: ctx.ids.owner, new_values: { start_date: '2064-08-03' } },
+    ])
+
+    // La campana de cada uno, con su propia sesión (RLS): el Dueño que lo hizo,
+    // el Administrador y el vendedor ven el suyo; otra organización, nada.
     for (const [cliente, cuantos] of [
       [admin, 1],
       [seller1, 1],
-      [owner, 0],
+      [owner, 1],
       [otherOrgOwner, 0],
     ] as const) {
       const { data, error: lectura } = await cliente
@@ -304,6 +335,25 @@ describe('R1 — a quién llega el aviso', () => {
     await seller1.from('raffles').update({ end_date: '2064-12-21' }).eq('id', rifa)
     expect(await fechas(rifa)).toEqual({ desde: '2064-07-27', hasta: '2064-11-01' })
     expect(await avisos(rifa)).toEqual([])
+  })
+
+  it('R1-04: si las cambia el Administrador, él también recibe el suyo y queda como actor', async () => {
+    const rifa = await nuevaRifa('administrador')
+    const { error } = await admin.from('raffles').update({ end_date: '2064-12-21' }).eq('id', rifa)
+    expect(error).toBeNull()
+
+    const recibidos = await avisos(rifa)
+    expect(recibidos.map((a) => a.recipient_profile_id)).toEqual(await membresiasActivas())
+    expect(recibidos.map((a) => a.recipient_profile_id)).toContain(ctx.ids.admin)
+    expect(recibidos.every((a) => a.actor_profile_id === ctx.ids.admin)).toBe(true)
+    expect((await bitacoraDeFechas(rifa))[0]!.actor_profile_id).toBe(ctx.ids.admin)
+
+    const { data } = await admin
+      .from('notifications')
+      .select('recipient_profile_id, actor_profile_id')
+      .eq('kind', KIND)
+      .eq('data->>raffle_id', rifa)
+    expect(data).toEqual([{ recipient_profile_id: ctx.ids.admin, actor_profile_id: ctx.ids.admin }])
   })
 })
 

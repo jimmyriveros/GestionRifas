@@ -506,6 +506,17 @@ const CHECKS: Check[] = [
           where schemaname = 'public' and indexname = 'notifications_raffle_dates_once'`,
     esperado: 3,
   },
+  {
+    // 0065 (BR-R12, D-206 corregida): el aviso llega tambien a quien cambia las
+    // fechas. Con el cuerpo de la 0064, el Dueño que extienda la rifa real se
+    // quedaria sin el suyo. Falla contra el proyecto real hasta que la 0065 se
+    // aplique.
+    nombre: 'El aviso de fechas llega también a quien hizo el cambio (0065)',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'raffles_notify_dates_changed'
+            and position('is distinct from v_actor' in p.prosrc) = 0`,
+    esperado: 1,
+  },
 ]
 
 async function main(): Promise<void> {

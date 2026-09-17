@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (premios configurables, Entrega 5: corrección local previa a producción —el instante efectivo y el aviso de las fechas—, `0064`, D-206, 2026-09-16)** | **1.375 ✅ en 75 archivos (+12)** | **1.254 ✅ en 51 archivos (+24; migración `0064`)**, tras corregir **M10-01** en la propia migración | Dirigida **52/53** en 6,9 min: la que falló era la **nueva** del borrador, que escribía la fecha antes de que React hidratara el campo; corregida, `rifa-fechas-aviso` **9/9** en tres repeticiones. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057` y la fecha real de la rifa no cambió |
+| **Post-9 vigente (premios configurables, Entrega 5: el aviso de fechas llega también a quien las cambia y la puerta 2 con la sesión del Dueño, `0065`, D-206 corregida, 2026-09-16)** | **1.375 ✅ en 75 archivos** (sin cambio de número; F7 reescrita) | **1.255 ✅ en 51 archivos (+1; migración `0065`)** | Dirigida `rifa-fechas-aviso` **4/4** (+1), repetida al final sobre el código definitivo; volver a excluir al actor lo detectan la segunda y la tercera. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057`, la fecha real de la rifa no cambió y no se pidió ninguna puerta |
+| Post-9 anterior (premios configurables, Entrega 5: corrección local previa a producción —el instante efectivo y el aviso de las fechas—, `0064`, D-206, 2026-09-16) | **1.375 ✅ en 75 archivos (+12)** | **1.254 ✅ en 51 archivos (+24; migración `0064`)**, tras corregir **M10-01** en la propia migración | Dirigida **52/53** en 6,9 min: la que falló era la **nueva** del borrador, que escribía la fecha antes de que React hidratara el campo; corregida, `rifa-fechas-aviso` **9/9** en tres repeticiones. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057` y la fecha real de la rifa no cambió |
 | Post-9 anterior (premios configurables, Entrega 5: auditoría local, puerta de producción y preflight, D-205, 2026-09-16) | **1.363 ✅ en 74 archivos (+26)** | **1.230 ✅ en 50 archivos** (sin migración; J13 en 2054, I-128) | Completa **742/744** en 43,1 min: `back-navigation:25` —la primera en frío, **I-075**— y `ventas-por-fecha:163` —«recibido 54», **I-090**—; aislados, **9/9** y **18/18** | ✅ | ⛔ **Detenida en el preflight de solo lectura**: la rifa real termina el 01/11/2026 (**I-129**) y tiene 25 sorteos sin resultado confirmado (**I-127**). Nada escrito en producción |
 | Post-9 anterior (premios configurables, Entrega 4: la transición de una rifa existente, `0063`, D-204, 2026-09-16) | **1.337 ✅ en 73 archivos (+30)** | **1.230 ✅ en 50 archivos (+38; migración `0063`)** | **119/119** en la dirigida; completa **742/744**, y los 2 son **I-090** (`ventas-por-fecha:163` y `:238`), con su firma; aislado, `:163` pasa y `:238`/`:247` se alternan | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`; ninguna rifa real cambió de modo |
 | Post-9 anterior (corrección de la Entrega 3: el corte efectivo y el texto de los avisos, `0062`, D-203 Decisiones 9 y 10, 2026-09-16) | **1.307 ✅ en 72 archivos (+11)** | **1.192 ✅ en 49 archivos (+11; migración `0062`)** | **176/176** en la dirigida; completa **738/740**, y los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
@@ -11776,6 +11777,76 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
   vendedor: un agente no introduce contraseñas. La evidencia es la sonda de comportamiento sobre la
   base real, las pruebas locales y el CI.
 * **Un teléfono de verdad** y el **modo oscuro**.
+
+---
+
+## Premios configurables, Entrega 5 de 5: el aviso de fechas llega también a quien las cambia, y la puerta 2 con la sesión del Dueño (`0065`, D-206 corregida) — 2026-09-16
+
+**Alcance:** encargo expreso del dueño sobre `c32525d`. **La frontera temporal y la protección de los 25
+sorteos quedan aprobadas y no se tocan.** Dos correcciones obligatorias: el aviso de las fechas llega
+**también a quien las cambia**, y la extensión real **conserva quién la hizo** —con la sesión del Dueño, no
+con el bloque SQL sin sesión, que dejaba la bitácora a nombre de «Sistema»—. **Todo en local**: migración
+nueva `0065`, sin editar la `0064`, sin push, etiqueta, respaldo, migración remota, despliegue ni cambios en
+producción.
+
+### a. Estado de partida
+
+| Comprobación | Resultado |
+|---|---|
+| `git status --short --branch` | `feature/premios-configurables` en **`c32525d`**; solo los dos archivos protegidos sin seguimiento. SHA-256 `4b5d893f…306840b` y `a096f61e…a97486` |
+| Base local | `0001`–`0064`; `raffles_notify_dates_changed` con la condición `m.profile_id is distinct from v_actor` |
+
+### b. La corrección y sus pruebas
+
+| Paso | Resultado |
+|---|---|
+| `npx supabase migration up --local` | ✅ `0065` aplicada: el cuerpo ya no excluye al actor, **nadie** tiene `EXECUTE` —tampoco la service role— y el disparador sigue activo |
+| `raffle-date-notices.test.ts` | ✅ **12/12**: R1-02 reescrita —con la sesión del Dueño, todas las membresías activas, él incluido, con él como actor y la bitácora a su nombre— y **R1-04** nueva, con el Administrador |
+| `raffle-dates-notification.test.ts`, `raffle-prize-transition.test.ts` y `dates.test.ts` (unitarias) | ✅ **52/52**, con F7 exigiendo «todas las personas…, también a ti» y rechazando «las demás» |
+| Suites de base de la transición y de los avisos, juntas | ✅ **63/63** (51 + 12) en 5,5 s |
+| `rifa-fechas-aviso.spec.ts` | ✅ **4/4**: la nueva comprueba en la base, después de guardar como Dueño, un aviso por membresía activa —Dueño, Administrador y vendedores activos—, ninguno a la inactiva que crea la prueba ni a otra organización, un solo evento, el Dueño como actor y `raffle.update` y `raffle.dates_change` a su nombre. **Repetida al final** sobre el código definitivo: **4/4** en 17,1 s; el servidor de desarrollo escribió `The destination stream closed early` entre la tercera y la cuarta —el síntoma de I-075— sin que fallara nada |
+
+### c. Mutación, restaurada después y comprobada por `md5` del cuerpo (`1e22e434…c964719`)
+
+| Mutación en la base local | La detectan |
+|---|---|
+| Volver a excluir a quien cambia las fechas (`and m.profile_id is distinct from v_actor`) | **R1-02** y **R1-04**; la **segunda** y la **tercera** de `rifa-fechas-aviso` («Expected: 1, Received: 0»); y la comprobación nueva de `verify:remote` (cero filas) |
+
+La fila «El aviso de fechas no excluye a quien cambia → R1-02» de la sección de la `0064`, más abajo,
+probaba la regla **anterior**, y el bloque `DO` de su apartado f ya no está en el `RUNBOOK`; las dos se
+conservan como estaban.
+
+### d. Las consultas de la puerta 2, ensayadas en local
+
+`build/e5/runbook-0065-check.mjs`, fuera de Git, ejecuta los dos bloques de solo lectura de `RUNBOOK` §8.3
+—comprobado que están en el documento **tal cual**— sobre rifas de 2062 de la organización de la semilla:
+
+| Caso | Resultado |
+|---|---|
+| Lo que normaliza el formulario, en 10 rifas: espacio final, tabulador inicial, espacio ideográfico, espacio duro, descripción vacía, solo espacios, marca de orden de bytes, salto final y espacios internos | Las columnas `nombre_estable` y `descripcion_estable` dicen lo mismo que el `trim` de JavaScript y el «vacía → NULL» de `updateRaffle` en los 10 |
+| Con la sesión del Dueño, enviando lo mismo que `updateRaffle` | A3 `0` y `0`; B1 con el fin nuevo y **la misma huella**; B2 **36 = 36 = 36**, `del_dueno` 1, `eventos` 1 y ceros; B3 dos filas del Dueño, `raffle.update` solo con `end_date`, `mismo_evento` true y `notified` 36 |
+| Guardar otra vez la misma fecha | B1, B2 y B3 idénticos |
+| La vía descartada: un `UPDATE` sin sesión | B2 `con_otro_actor` **36** y B3 `es_el_dueno` vacío: la verificación lo delata |
+
+### e. Verificación general
+
+| Comando | Resultado |
+|---|---|
+| `db:reset` · `seed:local` · `npm run test:db` | ✅ **1.255/1.255** en 51 archivos (84,2 s) |
+| `npm run verify` | ✅ `tsc` sin errores; lint **0 errores** y los 2 avisos preexistentes (`DataTable.tsx`, `BulkTicketCreator.tsx`); **1.375/1.375** unitarias en 75 archivos; build |
+| `verify:remote` contra la base **local** —copia temporal que no lee `.env.local`, sin SSL, borrada— | ✅ **38/38** (+1 de la `0065`) |
+| Capturas de la frase a 1280 px y en un Pixel 7 | Una línea en escritorio y dos en el teléfono, sin cortes |
+| `git diff --check` · migraciones `0058`–`0064` · archivos protegidos | ✅ · ✅ sin cambios · ✅ mismo SHA-256 |
+
+**Errores propios encontrados y corregidos:** el borrador del SQL de §8.3 se escribió con los escapes
+Unicode de la clase de espacios convertidos en caracteres invisibles; se regeneró con los escapes visibles y
+se volvió a ensayar. La primera inserción de §8.3 en el `RUNBOOK` pasó el SQL como texto de reemplazo a
+`String.replace`, y su `$'` —«lo que sigue»— duplicó trozos del documento; se rehízo con una función y se
+comprobó que los dos bloques están tal cual. Y una corrida del ensayo cortada con `head` murió antes de su
+limpieza y dejó en la base **local** 12 rifas de 2062, 36 avisos y 14 filas de bitácora; borradas, y
+comprobado que no queda nada de ninguna de las pruebas.
+
+**Nada se escribió en producción.**
 
 ---
 

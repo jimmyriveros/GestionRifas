@@ -3,7 +3,8 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-16 — **Premios configurables, ENTREGA 5 de 5: corrección local previa a producción** (D-206, migración **`0064`**, **solo en local**, sin completar la entrega): los sorteos cuyo corte llegó antes de la transición **conservan el sistema de siempre** —también si su resultado se confirma después, sin enlaces—, con el **instante efectivo** y una sola frontera; la transición ya no espera a los 25 sorteos de **I-127** y sí a un corte desconocido; y cambiar las fechas de una rifa activa **avisa** a su organización (BR-R12). `test:db` **1.254/1.254**, `verify` **1.375/1.375**, E2E dirigida **52/53** y la prueba nueva corregida, **9/9** en tres repeticiones. **Producción sin cambios** y la fecha real de la rifa sigue en el 01/11/2026. Los seis puntos de §34.3, en su sección de mantenimiento.
+- **Actualizado:** 2026-09-16 — **Premios configurables, ENTREGA 5 de 5: el aviso de fechas llega también a quien las cambia, y la puerta 2 con la sesión del Dueño** (D-206 corregida, migración **`0065`**, **solo en local**, sin completar la entrega): la frontera temporal y la protección de los 25 sorteos, **aprobadas por el dueño y sin tocar**; cada membresía activa recibe **exactamente un aviso**, también quien cambia las fechas, que sigue siendo su actor; y `RUNBOOK` §8.3 hace la extensión real **con la sesión del Dueño** desde Editar, con verificación de solo lectura antes y después. `test:db` **1.255/1.255**, `verify` **1.375/1.375**, E2E dirigida **4/4**, `verify:remote` local **38/38**. **Ninguna puerta pedida; nada en producción.**
+  Antes, ese mismo día — **Premios configurables, ENTREGA 5 de 5: corrección local previa a producción** (D-206, migración **`0064`**, **solo en local**, sin completar la entrega): los sorteos cuyo corte llegó antes de la transición **conservan el sistema de siempre** —también si su resultado se confirma después, sin enlaces—, con el **instante efectivo** y una sola frontera; la transición ya no espera a los 25 sorteos de **I-127** y sí a un corte desconocido; y cambiar las fechas de una rifa activa **avisa** a su organización (BR-R12). `test:db` **1.254/1.254**, `verify` **1.375/1.375**, E2E dirigida **52/53** y la prueba nueva corregida, **9/9** en tres repeticiones. **Producción sin cambios** y la fecha real de la rifa sigue en el 01/11/2026. Los seis puntos de §34.3, en su sección de mantenimiento.
   Antes, ese mismo día — **Premios configurables, ENTREGA 5 de 5: DETENIDA en el preflight de solo lectura** (D-205, sin migración). La parte local está hecha —I-128 resuelta, la puerta de producción del script, `verify:remote` +3, `test:db` **1.230/1.230**, `verify` **1.363/1.363**, E2E **742/744** con I-075 e I-090 verdes en aislamiento— en **`7d80c18`**. El proyecto real, consultado **solo en lectura**, tiene dos bloqueos que decide el dueño: la rifa real **termina el 01/11/2026** y no contiene ningún premio (**I-129**) y tiene **25 sorteos jugados sin resultado confirmado** (**I-127**). **Nada se escribió en producción**: sigue en la `0057`, sin push ni despliegue, y la rifa sigue en el sistema de siempre. Los seis puntos de §34.3, en su sección de mantenimiento.
   Antes, ese mismo día — **Premios configurables, ENTREGA 4 de 5: la transición de una rifa existente** (D-204, migración **`0063`**, **solo en local**): `transition_raffle_prize_mode` —solo la service role, entera o nada, con vista previa— convierte una rifa heredada sin tocar su cartera ni sus coincidencias, y se niega mientras quede un sorteo jugado sin confirmar (**I-127**, riesgo para la rifa real). Los **seis** premios confirmados están escritos una vez; el caso «semanal, un lunes, con Cundinamarca» era un ejemplo. **Ninguna rifa real cambió de modo.** Los seis puntos de §34.3, en su sección de mantenimiento. **No autoriza la Entrega 5.**
   Antes, ese mismo día — **Corrección de la ENTREGA 3 de premios configurables** (D-203
@@ -4960,7 +4961,93 @@ si exige una variable que nadie ha creado (I-021).
 
 ---
 
+## Mantenimiento post-9 — premios configurables, **ENTREGA 5 de 5**: el aviso de fechas llega también a quien las cambia, y la puerta 2 con la sesión del Dueño (`0065`, D-206 corregida, 2026-09-16)
+
+Encargo expreso del dueño sobre `c32525d`: **la frontera temporal y la protección de los 25 sorteos quedan
+aprobadas y no se tocan**, y hay **dos correcciones obligatorias** antes de continuar. Migración nueva
+`0065`, **sin editar la `0064`**, y **un solo commit local**. **No completa la Entrega 5 y no pide ninguna
+puerta.**
+
+> **PRODUCCIÓN SIN CAMBIOS.** Sigue en la `0057`, sirviendo `c48437a`. La fecha real de la rifa no se
+> cambió; no hubo push, etiqueta, respaldo, migración remota, despliegue ni transición.
+
+**Lo que corrigió el dueño:** la regla fue avisar a **todas** las membresías activas —BR-J11 puede seguir
+excluyendo al actor en los premios, pero **no reinterpreta BR-R12**—, y la fecha real se extiende **con la
+sesión del Dueño**, porque el bloque SQL sin sesión dejaba la bitácora a nombre de «Sistema».
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| **El aviso llega a todas** (BR-R12) | La `0065` redefine **solo** el cuerpo de `raffles_notify_dates_changed`: cada membresía activa recibe **exactamente un aviso, incluida la de quien cambió las fechas** |
+| **El actor se conserva** | `actor_profile_id` sigue siendo `auth.uid()` de la sesión, también en el aviso de quien lo hizo, y la bitácora —`raffle.update` y `raffle.dates_change`— sale de la misma sesión. **Sin parámetro de actor ni RPC nueva** |
+| **Lo que no cambia** | El disparador y su condición, la atomicidad, el evento, el índice, los datos sin cartera, la bitácora y los privilegios |
+| **La pantalla** | «Al guardar, avisaremos de las fechas nuevas a todas las personas de tu organización, también a ti.» |
+| **La puerta 2** | `RUNBOOK` §8.3: **el Dueño, con su sesión**, desde Rifas → SORTEO CAMIONETA KIA 2027 → Editar. El agente —que no inicia sesión en producción— lee antes, le da los pasos, **espera su confirmación** y verifica en lectura: la fecha y la misma huella, un aviso por membresía activa con el Dueño como actor, y la bitácora a su nombre. **Retirado** el bloque SQL sin sesión |
+| **`verify:remote`** | **+1**: que el cuerpo vigente ya no excluya a quien hizo el cambio |
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase migration up --local` | ✅ `0065`; sin `EXECUTE` para nadie, disparador activo |
+| `raffle-date-notices.test.ts` | ✅ **12/12** (R1-02 reescrita, R1-04 nueva) |
+| Unitarias relacionadas | ✅ **52/52** (F7 reescrita) |
+| Suites de base de la transición y de los avisos | ✅ **63/63** (51 + 12) |
+| `rifa-fechas-aviso.spec.ts` | ✅ **4/4**, y otra vez **4/4** al final sobre el código definitivo |
+| Mutación: volver a excluir al actor | ❌ detectada por R1-02, R1-04, la segunda y la tercera de la E2E y `verify:remote`; restaurada con su `md5` |
+| `db:reset` · `seed:local` · `npm run test:db` | ✅ **1.255/1.255** en 51 archivos |
+| `npm run verify` | ✅ **1.375/1.375** unitarias en 75 archivos, lint sin errores (2 avisos previos), build |
+| `verify:remote` contra la base local | ✅ **38/38** |
+| Consultas de `RUNBOOK` §8.3, en local | ✅ con la sesión del Dueño; guardar lo mismo no cambia nada; un cambio sin sesión, delatado; 10 casos de lo que normaliza el formulario |
+| Capturas de la frase | Una línea en escritorio y dos en el teléfono |
+| `git diff --check` · `0058`–`0064` · protegidos | ✅ · sin cambios · mismo SHA-256 |
+
+**Errores encontrados y corregidos:** ninguno del producto. Del procedimiento: el borrador del SQL con los
+escapes Unicode convertidos en caracteres invisibles, una inserción en el `RUNBOOK` rota por el `$'` de
+`String.replace`, y una corrida del ensayo cortada que dejó datos de prueba en la base local, borrados
+(`TEST_RESULTS`).
+
+### 3. Migraciones que existen
+
+**`0001`–`0065` en local; `0001`–`0057` en el proyecto real.** Nueva:
+**`0065_raffle_date_notices_include_actor.sql`** —el cuerpo de `raffles_notify_dates_changed` sin la
+exclusión del actor, su comentario y sus revocaciones—. No toca datos, tablas, índices, el disparador ni la
+`0064`.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **`0058`–`0065` y el código no están en producción** | La rifa real sigue en el sistema de siempre hasta pasar las tres puertas |
+| **I-129: la fecha real sigue en el 01/11/2026** | Se extiende en la **puerta 2**, con la sesión del Dueño |
+| **I-127: resuelta en local** | Sin cambios respecto de la `0064` |
+| **I-131 (info)** · **I-130 (info)** | Sin cambios |
+| I-075 e I-090 en la E2E completa | Pruebas, no producto; la completa no se corrió |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Esto no completa la Entrega 5 ni autoriza ninguna puerta.** Hace falta una instrucción nueva.
+2. **La puerta 2 la hace el Dueño con su sesión** (`RUNBOOK` §8.3). Sin una sesión segura suya, **detente**,
+   dale los pasos y espera su confirmación; después, **solo lectura**. **Nunca** SQL sin sesión, service
+   role, una RPC que reciba el actor ni su contraseña.
+3. **La puerta 1 aplica `0058`–`0065`**, y `verify:remote` tiene que dar **38/38**: la última comprueba la
+   `0065`.
+4. **Con 5 membresías activas salen 5 avisos**, el del Dueño incluido.
+5. Sigue valiendo lo de la sección de la `0064`: preflight y respaldo nuevos, la vista previa con los 25
+   sorteos entre los «sin resultado», y ningún resultado sin evidencia.
+
+---
+
 ## Mantenimiento post-9 — premios configurables, **ENTREGA 5 de 5**: corrección local previa a producción, el instante efectivo y el aviso de fechas (`0064`, D-206, 2026-09-16)
+
+> **Nota posterior (`0065`, sección de arriba):** el aviso de fechas **ya no excluye** a quien las cambia, y
+> la puerta 2 **ya no usa** el bloque SQL de §8.3: la hace el Dueño con su sesión. Lo de abajo se conserva
+> como se entregó.
 
 Encargo expreso después del preflight detenido: una **corrección local** con una migración nueva `0064`,
 sin tocar `0058`–`0063`, y **un solo commit local**. **No es una Fase 10**, no lleva etiqueta, **no

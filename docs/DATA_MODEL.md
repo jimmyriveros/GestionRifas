@@ -1,6 +1,11 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.22 · **Estado:** implementado · **Actualizado:** 2026-09-16
+- **Versión:** 2.23 · **Estado:** implementado · **Actualizado:** 2026-09-16
+- **Nota (2026-09-16, corrección de D-206):** la **`0065`** redefine solo el cuerpo de
+  `raffles_notify_dates_changed`: el aviso de las fechas de una rifa activa llega a **todas** las membresías
+  activas, **también a quien hizo el cambio**, que sigue siendo su `actor_profile_id` (§4.23). No toca datos,
+  tablas, índices ni el disparador. El esquema ejecutable son **`0001`–`0065`** en local y sigue siendo
+  **`0001`–`0057`** en el proyecto real.
 - **Nota (2026-09-16, corrección de la Entrega 5):** la **`0064`** (D-206) añade
   **`raffle_prize_transitions.effective_at`** —el instante efectivo de cada transición, §4.22—, la
   frontera `raffle_prize_transition_draw_mode` y `raffle_prize_draw_mode`, que deciden con qué sistema
@@ -1298,12 +1303,12 @@ la vez la **huella** de la configuración aplicada —para que un segundo intent
 puerta, al reintento y a la limpieza. La transición **no recorre boletas**: su costo depende de los
 premios, sus períodos y los días de la ventana de la rifa.
 
-### 4.23 `notifications`: el `kind` `raffle.dates_changed` (`0064`, BR-R12, D-206)
+### 4.23 `notifications`: el `kind` `raffle.dates_changed` (`0064` y `0065`, BR-R12, D-206)
 
 > ⚠️ **Solo en LOCAL**, como §4.22.
 
 Cambiar `start_date` o `end_date` de una rifa **activa** escribe, en el mismo `UPDATE`, **un aviso por
-membresía activa** de la organización —menos a quien hizo el cambio— desde el disparador
+membresía activa** de la organización —**incluida la de quien hizo el cambio**, desde la `0065`— desde el disparador
 `raffles_notify_dates_changed` (`AFTER UPDATE OF start_date, end_date`, con `WHEN` la rifa era y sigue
 activa y alguna fecha cambió).
 
@@ -1311,6 +1316,7 @@ activa y alguna fecha cambió).
 |---|---|
 | Tipo | `raffle.dates_changed`, añadido al CHECK `notifications_kind_check`, que se vuelve a crear con la lista completa |
 | Entidad | `entity_type = 'raffle_date_change'`; `entity_id` = un identificador **por cambio**, el mismo para todos sus avisos |
+| Actor | `actor_profile_id` = `auth.uid()` de la sesión que hizo el `UPDATE`, el mismo en todos los avisos del cambio —también en el de quien lo hizo— y en su bitácora. **Nunca llega como parámetro**; sin sesión queda `NULL` («Sistema») |
 | Datos | `raffle_id`, `raffle_name`, `previous_start_date`, `previous_end_date`, `start_date`, `end_date`. **Nada** de la cartera |
 | Idempotencia | `notifications_raffle_dates_once`: único `(recipient_profile_id, entity_id)` para ese `kind`. Guardar las mismas fechas no dispara nada |
 | Bitácora | `audit_logs` `raffle.dates_change` con las fechas, `change_id` y `notified`, además del `raffle.update` de `audit_raffles` |
