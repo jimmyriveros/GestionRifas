@@ -11636,6 +11636,95 @@ script. **BR-J13** implementada para transiciones controladas; `DATA_MODEL` §4.
 `KNOWN_ISSUES` (I-127, I-128), `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`. **Solo en local.**
 
 ---
+## D-205 — Entrega 5: la puerta de producción del script, una respuesta incierta no se repite y J13 en fechas propias
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa», Entrega 5
+de 5, 2026-09-16)
+
+**Contexto.** La Entrega 5 lleva la transición al proyecto real. Hasta aquí
+`scripts/raffle-prize-transition.ts` **se negaba sin `--local`** (D-204, Decisión 8), y el encargo pide
+expresamente **no** quitar esa protección sin más, sino sustituirla por una difícil de accionar por
+accidente. Antes de preparar producción había además que cerrar **I-128**: J13-06 iba a empezar a fallar
+el 2 de noviembre de 2026 solo por el reloj.
+
+### Decisión 1 — contra producción, aplicar exige seis cosas A LA VEZ
+
+`scripts/raffle-prize-transition-guard.ts` es un módulo **puro** —sin `.env.local`, red ni reloj— que el
+script consulta **antes de resolver el destino** y otra vez después. Una orden que aplica en producción
+necesita, simultáneamente:
+
+| # | Qué | Por qué |
+|---|---|---|
+| 1 | `--production`, nunca junto a `--local` | El destino se dice siempre; sin ninguno de los dos no se ejecuta nada |
+| 2 | Un destino **de verdad remoto**: `https`, un proyecto `*.supabase.co`, ni `127.0.0.1`/`localhost` ni `SUPABASE_TARGET=local` | Que `--production` no pueda acabar en la base local, ni al revés |
+| 3 | Organización y rifa **por identificador**, y nombre, estado y fechas **esperados** | Los compara la base (D-204, Decisión 1) |
+| 4 | **La huella de una vista previa ANTERIOR** con `--preview-hash` | Antes de aplicar, el script repite la vista previa y exige la **misma** huella. Si entre las dos se jugó un sorteo o cambió la programación, la configuración es otra, la huella también, y **no se aplica nada** |
+| 5 | `--apply` | Sin él es una vista previa, contra cualquier destino |
+| 6 | `--confirm-raffle` con **el mismo identificador**, carácter por carácter | Escribir el identificador dos veces obliga a mirarlo |
+
+Además: **una opción desconocida o repetida se rechaza** —`--aply` no se convierte en una vista previa
+silenciosa—, `--preview-hash` y `--confirm-raffle` sin `--apply` también, y **ningún identificador de
+producción vive en el código** (lo vigila `raffle-prize-transition-guard.test.ts`, G7). El script no
+imprime claves, tokens, contraseñas, cadenas de conexión **ni la dirección completa del proyecto**:
+«PRODUCCIÓN (proyecto abcd…)». En local, aplicar no exige huella ni confirmación, pero las comprueba si
+llegan.
+
+### Decisión 2 — una respuesta incierta no se da por fallida ni se repite
+
+Al **aplicar**, solo un rechazo de PostgreSQL —un código SQLSTATE fuera de la clase `08`— garantiza que
+la transacción se deshizo y que «no se cambió nada». La red, un tiempo de espera o una pasarela dejan la
+respuesta **incierta**: la transacción pudo confirmarse sin que la respuesta llegara. Ahí el script lo
+dice —«No sabemos si la transición se aplicó… No la repitas»— y manda a consultar el estado
+(`RUNBOOK` §8.4). La vista previa nunca deja nada, así que en ella cualquier fallo sigue diciendo «No se
+cambió nada».
+
+### Decisión 3 — J13 vive en 2054, que tiene el calendario de 2026 (I-128)
+
+J13 carga los seis premios confirmados en una rifa que **activa**, y en una rifa activa publicar,
+archivar y restaurar comprueban el corte de las **semanas ya empezadas** (BR-J09), que la base local no
+conoce. Con las fechas reales, J13-06 fallaba desde el 2 de noviembre de 2026. Se traslada **de año**, sin
+tocar la regla ni la comprobación de horarios: **2054** —28 años son 1.461 semanas justas, así que el 21
+de diciembre también es lunes— y `confirmedRafflePrizes` sigue siendo la única configuración, trasladada.
+
+**Por qué 2054 y no 2065**, que era la sugerencia de I-128: 2065 es de `raffle-prize-transition.test.ts`,
+que **confirma resultados justo en esas fechas**, y el motor es nacional. 2037 y 2043 también están libres,
+pero más cerca.
+
+**Cómo se demostró que ya no depende del reloj**, sin tocar producción: en la base **local**,
+`today_bogota()` —la única lectura del reloj de esa comprobación— se sustituyó temporalmente por una
+fecha fija, se corrió J13 y se restauró su cuerpo comprobando su `md5`. La prueba **anterior** pasó el
+01/11/2026 y **falló** el 02/11, el 21/12 y el 01/03/2027 (I-128 reproducido); la **nueva** pasó **6/6** en
+esas fechas y también el 27/11, el 15/12 y el 22/12.
+
+### Decisión 4 — `verify:remote` comprueba también las tablas y las RPC de premios
+
+Tres comprobaciones más, de solo lectura: las **cinco tablas** de premios existen; las **seis RPC**
+son `SECURITY DEFINER`, ejecutables por `authenticated` y **no** por `anon`; y ninguna tabla de premios
+concede a `authenticated` o `anon` **nada más que `SELECT`**. La lista blanca de I-078 ya impedía que
+sobrara un permiso; faltaba la cara positiva, la que avisa si el panel se queda sin puerta.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Quitar la comprobación de `--local` | Es lo que el encargo prohíbe: una orden contra producción no puede depender de acordarse de una bandera |
+| Una variable de entorno (`TRANSITION_PRODUCTION=1`) | Se queda puesta en la terminal y abre la puerta a la orden siguiente |
+| Una pregunta interactiva («escribe SÍ») | No existe en una ejecución no interactiva, y un «sí» se teclea sin leer |
+| Confirmar con `--yes` | Una bandera fija se copia de una orden a otra; el identificador y la huella no |
+| Exigir la huella sin repetir la vista previa | Aplicaría una configuración que ya no es la revisada si entre medias se jugó un sorteo |
+| Reintentar la transición ante un error de red | Puede estar aplicada; el reintento con la misma huella no escribiría nada, pero con otra se rechazaría y confundiría el diagnóstico |
+| J13 en 2065 | Comparte fechas con la suite de la transición, que confirma resultados en ellas |
+| Relajar BR-J09 o sembrar programación de 2026 para J13 | Lo primero cambia una regla del dueño; lo segundo mete datos nacionales en fechas que otras suites leen |
+
+### Consecuencia
+
+`scripts/raffle-prize-transition-guard.ts` (nuevo) y `scripts/raffle-prize-transition.ts`;
+`tests/unit/raffle-prize-transition-guard.test.ts` (**26**, nuevo) y J13 en
+`tests/db/raffle-prizes.test.ts`; `scripts/verify-remote.ts` (+3). **Sin migración y sin cambios en
+`src/`.** `RUNBOOK` §8, `SECURITY` §4.22, `ARCHITECTURE` §8.27.b, `TESTING` §4.11, `UX_COPY_GUIDELINES`
+(Anexo B), `KNOWN_ISSUES` (**I-128 resuelta**), `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`.
+
+---
 ## Ambigüedades pendientes de confirmación del usuario
 
 No bloquean ninguna fase; se resolvieron con la opción más segura y podrán ajustarse.

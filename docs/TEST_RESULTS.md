@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (premios configurables, Entrega 4: la transición de una rifa existente, `0063`, D-204, 2026-09-16)** | **1.337 ✅ en 73 archivos (+30)** | **1.230 ✅ en 50 archivos (+38; migración `0063`)** | **119/119** en la dirigida; completa **742/744**, y los 2 son **I-090** (`ventas-por-fecha:163` y `:238`), con su firma; aislado, `:163` pasa y `:238`/`:247` se alternan | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`; ninguna rifa real cambió de modo |
+| **Post-9 vigente (premios configurables, Entrega 5: auditoría local y puerta de producción, D-205, 2026-09-16)** | **1.363 ✅ en 74 archivos (+26)** | **1.230 ✅ en 50 archivos** (sin migración; J13 en 2054, I-128) | Completa **742/744** en 43,1 min: `back-navigation:25` —la primera en frío, **I-075**— y `ventas-por-fecha:163` —«recibido 54», **I-090**—; aislados, **9/9** y **18/18** | ✅ | ✅ Preparado — la parte de producción, en su propia sección |
+| Post-9 anterior (premios configurables, Entrega 4: la transición de una rifa existente, `0063`, D-204, 2026-09-16) | **1.337 ✅ en 73 archivos (+30)** | **1.230 ✅ en 50 archivos (+38; migración `0063`)** | **119/119** en la dirigida; completa **742/744**, y los 2 son **I-090** (`ventas-por-fecha:163` y `:238`), con su firma; aislado, `:163` pasa y `:238`/`:247` se alternan | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`; ninguna rifa real cambió de modo |
 | Post-9 anterior (corrección de la Entrega 3: el corte efectivo y el texto de los avisos, `0062`, D-203 Decisiones 9 y 10, 2026-09-16) | **1.307 ✅ en 72 archivos (+11)** | **1.192 ✅ en 49 archivos (+11; migración `0062`)** | **176/176** en la dirigida; completa **738/740**, y los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (premios configurables, Entrega 3: el motor, `0061`, D-203, 2026-09-16) | **1.296 ✅ en 72 archivos (+10)** | **1.181 ✅ en 49 archivos (+40; migración `0061`)** | **126/126** en la dirigida de loterías, privacidad, bloqueo de cambios y premios; la completa no se corrió, con el motivo escrito | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (cierre visual de la Entrega 2: I-123 e I-124, 2026-09-16) | **1.286 ✅ en 72 archivos (+1)** | — (no se repitió por indicación del usuario: no cambia la base) | **36/36** en la dirigida, con las **6** nuevas; la completa no se repitió por indicación del usuario | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
@@ -11774,6 +11775,109 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
   vendedor: un agente no introduce contraseñas. La evidencia es la sonda de comportamiento sobre la
   base real, las pruebas locales y el CI.
 * **Un teléfono de verdad** y el **modo oscuro**.
+
+---
+
+## Premios configurables, Entrega 5 de 5: auditoría local y preparación de producción (D-205) — 2026-09-16
+
+**Alcance:** encargo expreso del usuario, **Entrega 5**: correcciones finales locales y auditoría, y
+después —cada paso con su puerta— el proyecto real. Esta sección registra la **parte local**, hecha
+**antes** de consultar producción. Sin push, etiqueta ni despliegue en esta parte.
+
+### a. Estado de partida
+
+| Comando | Resultado |
+|---|---|
+| `git status --short --branch` · `git rev-parse HEAD` | Rama `feature/premios-configurables` en **`83d351a`**; solo `CorrecionesLoterias.txt` y `prueba-abono.csv` sin seguimiento. SHA-256 `4b5d893f…306840b` y `a096f61e…a97486` |
+| Inmutabilidad de `0058`–`0063` | ✅ cada archivo aparece **solo** en el commit que lo creó; ninguna migración anterior tocada desde `c48437a` |
+| Remoto y despliegue | `origin/main` = `main` = **`c48437a`**, ancestro de `HEAD` (8 commits por delante: fast-forward posible). `main` sin protección de rama. CI: los 4 últimos runs de `main` en ✅. Vercel: producción sirve **`c48437a`** (`dpl_DDiadqkXLcyympoUppJcWSqcVXnE`, READY) |
+| Configuración y dependencias en `c48437a..83d351a` | **Sin cambios** en `package.json`, `package-lock.json`, `vercel.json`, `next.config.ts`, `.github/`, `.env.example` ni `src/proxy.ts` |
+| `npm run db:reset` · `npm run seed:local` | ✅ `0001`–`0063` · ✅ |
+
+### b. I-128, reproducido y corregido
+
+`today_bogota()` es la única lectura del reloj de `raffle_prize_cutoff_problem`. En la base **local** se
+sustituyó temporalmente por una fecha fija, se corrió **solo** el bloque J13
+(`-t "J13 — los seis premios confirmados"`) y se restauró el cuerpo original comprobando su `md5`
+(`b75ca702…fbda56`) después de **cada** corrida.
+
+| Reloj simulado | J13 anterior (2026) | J13 corregida (2054) |
+|---|---|---|
+| Real, 16/09/2026 | ✅ 6/6 | ✅ 6/6 |
+| 01/11/2026 | ✅ 6/6 | ✅ 6/6 |
+| **02/11/2026** | ❌ **J13-06** (`23514` en el `publish`) | ✅ 6/6 |
+| 27/11/2026 | — | ✅ 6/6 |
+| 15/12/2026 | — | ✅ 6/6 |
+| **21/12/2026** | ❌ **J13-06** (ya en el `archive`) | ✅ 6/6 |
+| 22/12/2026 | — | ✅ 6/6 |
+| 01/03/2027 | ❌ **J13-06** | ✅ 6/6 |
+
+**Error propio encontrado:** la primera corrida filtraba con `-t "J13"` y arrastró **J2-04** —su
+descripción dice «(BR-J13)»—, que falló porque depende de premios que crean pruebas anteriores del mismo
+archivo. Artefacto del filtro, no del producto: con el filtro exacto y con el archivo entero (**94/94**)
+pasa.
+
+### c. La puerta del script
+
+| Comprobación | Resultado |
+|---|---|
+| `raffle-prize-transition-guard.test.ts` | ✅ **26/26** |
+| Cuatro mutaciones de la puerta —sin exigir `--confirm-raffle`, sin exigir `supabase.co`, sin comparar la huella y toda respuesta cierta—, restaurada después por SHA-256 | ❌ detectadas por **1** prueba cada una (G3-03, G4-03, G5-02 y G6-02) |
+| `tsc` | ❌ → ✅: `assertTransitionTarget(…, process.env)` daba TS2559 (tipo «débil»); se pasa solo `SUPABASE_TARGET` |
+
+**Ensayo del script en local**, con una rifa heredada **activa** del 17/09 al 31/12/2026 y la
+programación de los tres sorteos de la semana ya empezada; todo se borró al terminar:
+
+| Orden | Resultado |
+|---|---|
+| Sin destino · `--production --apply` sin huella · `--production` con `SUPABASE_TARGET=local` · `--aply` | ❌ las cuatro, **antes de tocar la base**, con su mensaje |
+| `--local` (vista previa) | ✅ primer sorteo pendiente 17/09 y 19/09; seis premios —diario 52 sorteos, fin de semana 11, principal 1 con «Renault Logan Zen **público** modelo 2023 y $70.000.000», tres cifras 1, especial semanal 9, el 15 uno con Cruz Roja—; 4 avisos; huella `5c044e3c…3377779` |
+| `--apply` con otra huella · con `--confirm-raffle` en mayúsculas · con el nombre esperado con tilde | ❌ los tres; **0** transiciones, **0** premios, **0** avisos y **0** filas de bitácora después de cada uno |
+| `--apply --preview-hash <huella> --confirm-raffle <rifa>` | ✅ «La rifa pasó a premios configurables.»: `configurable`, **activa**, 1 transición, 6 premios, 4 avisos, 1 fila `raffle.prize_mode_transition` |
+| La misma orden otra vez | ✅ «…con esta misma configuración. No se cambió nada.» y los mismos recuentos |
+| Contenido | Aviso con rifa, nombre, `transitioned` y 6 premios; bitácora con modo, estado, fechas, premios, avisos y huella, **sin** `client`, `sale_price`, `paid_amount` ni `payment`; versiones y transición del «Sistema»; alternativas del principal en su orden |
+
+### d. Auditoría de la base local
+
+| Qué | Resultado |
+|---|---|
+| RLS y `FORCE RLS` de las seis tablas nuevas | ✅ las seis |
+| Políticas | Una de `SELECT` por tabla; **ninguna** en `raffle_prize_transitions` |
+| Privilegios de tabla | `authenticated`: solo `SELECT`; `anon`: nada; `raffle_prize_transitions`: **nada para nadie**. `service_role`: `INSERT` en premios, versiones, períodos y alternativas y `UPDATE` en `raffle_prizes`, **escrito a propósito en `0058`/`0059`**; los disparadores de inmutabilidad le impiden reescribir o borrar |
+| Funciones de `0058`–`0063` (57) | ✅ todas con `search_path`; `EXECUTE` para `authenticated` **solo** las seis RPC de premios y `admin_audit_log`; `transition_raffle_prize_mode`, `match_lottery_result` y `confirm_lottery_result`, **solo** `service_role`; las piezas de la transición, **nadie**; ninguna para `anon` ni `PUBLIC` |
+| `verify:remote` contra la base local (copia temporal sin SSL, borrada) | ✅ **34/34**, con las tres comprobaciones nuevas |
+| Escrituras directas o cambios de modo desde `src/` | ✅ ninguno: la única lectura de `raffle_prizes` es un `select`; `prize_mode` solo se escribe al **crear** una rifa (D-202); nadie llama a la transición |
+| Compatibilidad del código de producción con `0058`–`0063` | ✅ ninguna función existente cambia de firma ni se retira (107 → 147, **+40** nuevas) y ninguna tabla o vista existente pierde o cambia columnas: solo `raffles.prize_mode`, **opcional** al insertar y `legacy` por omisión. Las sentencias sobre tablas con datos son `add column` con valor constante, el `CHECK` de `notifications.kind` —un superconjunto— y una clave única que incluye `id` en `lottery_ticket_matches`. Ningún `INSERT`/`UPDATE`/`DELETE` sobre datos existentes |
+| Disparadores que podría mover la transición | `raffles_sync_commission` solo reacciona a `ticket_price`; `notifications` no tiene disparadores (el aviso no encola nada al teléfono) |
+| **Observación ajena a esta entrega** | `audit_logs_id_seq` concede `UPDATE` a `anon` y `authenticated` por un privilegio por defecto del esquema (`postgres` en `public`, secuencias: `anon=w`, `authenticated=w`). PostgREST no expone funciones de secuencias, así que no es alcanzable desde la API. Pendiente de mirar en el proyecto real |
+
+### e. Rendimiento, con 5.000 boletas (≈2.500 vendidas)
+
+Banco en SQL dentro de **una transacción que se deshace**, con `track_functions` y `auto_explain`.
+
+| Medida | Resultado |
+|---|---|
+| Transición (vista previa · aplicar · repetir) sin boletas | 30–54 ms · 36 ms · 3 ms |
+| Transición con 5.000 boletas en la rifa | 44–50 ms (no las lee) |
+| Motor, rifa configurable con los seis premios, sorteo del 21 de diciembre | **34–43 ms**; 102–103 fotografías y el mismo número de enlaces; la función más llamada, **4 veces** (`raffle_prize_versions_at`) |
+| Motor, rifa heredada | **20–31 ms** en una tanda y 52–73 ms en otra con la máquina cargada; con la defensa nueva desactivada dentro de la transacción, 52–70 ms: **la diferencia no sale del ruido** |
+| Plan del motor en un sorteo solo de rifas heredadas | La rama configurable encuentra **0** rifas en 0,16 ms y **no lee boletas**; ningún `Seq Scan` sobre tablas de negocio; las boletas se leen por índice |
+| Panel e historial | El historial se pide paginado (`raffle_prize_history(p_limit, p_offset)`); el panel lee los premios de **una** rifa, con tope de 50 vigentes |
+
+### f. Verificación final local
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` · `npm run seed:local` | ✅ `0001`–`0063` · ✅ |
+| `npm run test:db` | ✅ **1.230/1.230** en 50 archivos (81 s); `raffle-prizes.test.ts` sigue en 94 |
+| `npm run verify` | ❌ → ✅ La primera pasada paró en `tsc` (TS2559, ver c). Después: typecheck · lint **0 errores** y los 2 avisos preexistentes · **1.363/1.363** unitarias en 74 archivos (**+26**) · build. `SERVICE_ROLE` en `.next/static`: **0** archivos |
+| `npm run test:e2e` completa, tras `db:reset` + `seed:local`, con el servidor levantado aparte | **742/744** en 43,1 min |
+| Los 2 fallos | `back-navigation.spec.ts:25` —la **[1/744]**, primera del proyecto `escritorio`, `waitForURL` agotó los 60 s compilando en frío—: la firma de **I-075**. `ventas-por-fecha.spec.ts:163` —«esperado < 26», **recibido 54**, la misma cifra que en la Entrega 4—: la firma de **I-090** |
+| Cada archivo solo, tras `db:reset` + `seed:local` y con el servidor caliente | ✅ `back-navigation` **9/9** · ✅ `ventas-por-fecha` **18/18**, esta vez con `:238` y `:247` en verde. **No se trataron como regresión**: coinciden con su evidencia registrada y pasan aislados |
+| Sonda de verificación posterior a la transición (`build/e5/verificacion.mts`) contra una rifa de ensayo local convertida con el script | ✅ **en verde**: rifa, transición, los seis premios contra `confirmedRafflePrizes`, «público», aviso por membresía activa, bitácora sin cartera, nada reprocesado y las lecturas con la identidad de Dueño, Administrador, vendedor y otra organización. Datos del ensayo borrados |
+| Réplica en SQL de `raffle_prize_transition_pending_draws` para mirar I-127 en un proyecto sin la `0063` (`build/e5/pending-draws.sql.mjs`) | ✅ **idéntica** a la función en un escenario de 20 filas con confirmado, pendiente, conflicto, cancelado, sin hora, sin programación, adelantado jugado y futuros, dentro de una transacción deshecha |
+| `git diff --check` | ✅ |
+| SHA-256 de `CorrecionesLoterias.txt` y `prueba-abono.csv` | ✅ `4b5d893f…306840b` y `a096f61e…a97486`, iguales al inicio |
 
 ---
 

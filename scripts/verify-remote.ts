@@ -391,6 +391,44 @@ const CHECKS: Check[] = [
     esperado: 0,
   },
   {
+    // 0058..0063 (D-199, D-201, D-204): las cinco tablas de premios existen. Sin
+    // ellas el panel de premios y el motor configurable fallarian.
+    nombre: 'Tablas de premios configurables existen (0058, 0059, 0063)',
+    sql: `select c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'public' and c.relkind = 'r'
+            and c.relname in ('raffle_prizes', 'raffle_prize_versions',
+                              'raffle_prize_schedule_rules', 'raffle_prize_reward_options',
+                              'raffle_prize_transitions')`,
+    esperado: 5,
+  },
+  {
+    // La cara positiva de la lista blanca de I-078 para premios (D-199, D-200):
+    // si dejaran de ser ejecutables, el panel fallaria sin que nada mas lo dijera.
+    nombre: 'Las 6 RPC de premios son ejecutables por authenticated y NO por anon',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in ('create_raffle_prize', 'publish_raffle_prize_version',
+                              'archive_raffle_prize', 'restore_raffle_prize',
+                              'reorder_raffle_prizes', 'raffle_prize_history')
+            and p.prosecdef
+            and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+            and not has_function_privilege('anon', p.oid, 'EXECUTE')`,
+    esperado: 6,
+  },
+  {
+    // Las seis RPC son la unica puerta de escritura (BR-J10): una sesion solo lee.
+    nombre: 'Tablas de premios conceden algo mas que SELECT a authenticated o anon',
+    sql: `select table_name || ' ' || grantee || ' ' || privilege_type as x
+          from information_schema.role_table_grants
+          where table_schema = 'public'
+            and table_name in ('raffle_prizes', 'raffle_prize_versions',
+                               'raffle_prize_schedule_rules', 'raffle_prize_reward_options',
+                               'raffle_prize_transitions')
+            and grantee in ('authenticated', 'anon')
+            and privilege_type <> 'SELECT'`,
+    esperado: 0,
+  },
+  {
     // 0063 (D-204): la transicion de una rifa existente la ejecuta SOLO la
     // service role. Falla contra el proyecto real hasta que la 0063 se aplique.
     nombre: 'transition_raffle_prize_mode existe solo para service_role',

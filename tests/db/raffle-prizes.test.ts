@@ -1833,20 +1833,50 @@ describe('J13 — los seis premios confirmados, por las RPC de la aplicación (D
    * El INICIO del diario y del de fin de semana es el primer sorteo pendiente el
    * día de la transición. Esta rifa es un borrador que no la necesita: aquí
    * empiezan el primer lunes y el primer sábado de noviembre.
+   *
+   * FECHAS PROPIAS, EN 2054 (I-128). La rifa se ACTIVA en J13-02, y en una rifa
+   * activa publicar, archivar y restaurar comprueban el corte de las semanas ya
+   * empezadas (BR-J09), que la base local no conoce porque no tiene
+   * programación de esas fechas. Con las fechas reales de 2026, J13-06 empezaba
+   * a fallar el 2 de noviembre de 2026 solo por el reloj. 2054 tiene el mismo
+   * calendario que 2026 —28 años son 1.461 semanas justas: el 21 de diciembre
+   * también es lunes— y **ninguna otra suite lo usa**: 2065 es de
+   * `raffle-prize-transition.test.ts`, que confirma resultados justo en estas
+   * fechas, y el motor es nacional. La configuración sigue siendo
+   * `confirmedRafflePrizes`, trasladada de año; la comprobación de horarios no
+   * se toca.
    */
   let rifa: string
 
   const creados: Record<string, PrizeResult> = {}
   const CLAVES = ['diario', 'finDeSemana', 'mayor', 'tresCifras', 'especialSemanal', 'quince']
 
+  /** 2026 → 2054: el mismo calendario, día por día. */
+  const J13_ANIOS = 28
+  const j13 = (fecha: string) => `${Number(fecha.slice(0, 4)) + J13_ANIOS}${fecha.slice(4)}`
+  /** «21/12/2026» → «21/12/2054», como lo escriben los mensajes de la base. */
+  const j13Texto = (fecha: string) => j13(fecha).split('-').reverse().join('/')
+
   it('J13-01: los seis premios confirmados se crean sin un solo conflicto', async () => {
     rifa = await newRaffle(`Premios aceptación ${Date.now().toString(36)}`, {
-      start: '2026-11-01',
-      end: '2026-12-31',
+      start: j13('2026-11-01'),
+      end: j13('2026-12-31'),
     })
 
-    const premios = confirmedRafflePrizes({ dailyStart: '2026-11-02', saturdayStart: '2026-11-07' })
+    const premios = confirmedRafflePrizes({
+      dailyStart: '2026-11-02',
+      saturdayStart: '2026-11-07',
+    }).map((premio) => ({
+      ...premio,
+      rules: premio.rules.map((regla) => ({
+        ...regla,
+        start_date: j13(regla.start_date),
+        end_date: j13(regla.end_date),
+      })),
+    }))
     expect(premios).toHaveLength(6)
+    // Ninguna fecha se quedó en 2026: si una se escapara, volvería a depender del reloj.
+    expect(JSON.stringify(premios)).not.toContain('2026-')
 
     for (const [index, premio] of premios.entries()) {
       creados[CLAVES[index]!] = await prizeOf(owner, rifa, {
@@ -1878,15 +1908,15 @@ describe('J13 — los seis premios confirmados, por las RPC de la aplicación (D
       p_prize_id: creados.diario!.prize_id,
     })
     const diario = (data as unknown as Array<Record<string, unknown>>)[0]!
-    expect(diario.starts_on).toBe('2026-11-02')
-    expect(diario.ends_on).toBe('2026-11-27')
+    expect(diario.starts_on).toBe(j13('2026-11-02'))
+    expect(diario.ends_on).toBe(j13('2026-11-27'))
 
     const { data: fin } = await owner.rpc('raffle_prize_history', {
       p_prize_id: creados.finDeSemana!.prize_id,
     })
     const finDeSemana = (fin as unknown as Array<Record<string, unknown>>)[0]!
-    expect(finDeSemana.starts_on).toBe('2026-11-07')
-    expect(finDeSemana.ends_on).toBe('2026-11-28')
+    expect(finDeSemana.starts_on).toBe(j13('2026-11-07'))
+    expect(finDeSemana.ends_on).toBe(j13('2026-11-28'))
   })
 
   it('J13-04: alargar el premio diario hasta diciembre choca con el principal el 21', async () => {
@@ -1900,13 +1930,17 @@ describe('J13 — los seis premios confirmados, por las RPC de la aplicación (D
       p_number_field: 'daily_number',
       p_digits: 'four',
       p_rules: [
-        rule({ start_date: '2026-11-02', end_date: '2026-12-31', weekdays: [1, 2, 3, 4, 5] }),
+        rule({
+          start_date: j13('2026-11-02'),
+          end_date: j13('2026-12-31'),
+          weekdays: [1, 2, 3, 4, 5],
+        }),
       ],
     })
 
     expect(error?.message).toContain('Premio diario')
     expect(error?.message).toContain('Premio principal')
-    expect(error?.message).toContain('21/12/2026')
+    expect(error?.message).toContain(j13Texto('2026-12-21'))
   })
 
   it('J13-05: alargar el de fin de semana hasta diciembre choca el sábado 5', async () => {
@@ -1921,8 +1955,8 @@ describe('J13 — los seis premios confirmados, por las RPC de la aplicación (D
       p_digits: 'four',
       p_rules: [
         rule({
-          start_date: '2026-11-07',
-          end_date: '2026-12-26',
+          start_date: j13('2026-11-07'),
+          end_date: j13('2026-12-26'),
           weekdays: [6],
           lottery_mode: 'fixed',
           lottery_code: 'boyaca',
@@ -1932,7 +1966,7 @@ describe('J13 — los seis premios confirmados, por las RPC de la aplicación (D
 
     expect(error?.message).toContain('Premio fin de semana')
     expect(error?.message).toContain('Premio especial semanal')
-    expect(error?.message).toContain('05/12/2026')
+    expect(error?.message).toContain(j13Texto('2026-12-05'))
   })
 
   it('J13-06: restaurar un premio que quedó en conflicto también se rechaza', async () => {
@@ -1955,7 +1989,11 @@ describe('J13 — los seis premios confirmados, por las RPC de la aplicación (D
       p_number_field: 'daily_number',
       p_digits: 'four',
       p_rules: [
-        rule({ start_date: '2026-11-02', end_date: '2026-12-31', weekdays: [1, 2, 3, 4, 5] }),
+        rule({
+          start_date: j13('2026-11-02'),
+          end_date: j13('2026-12-31'),
+          weekdays: [1, 2, 3, 4, 5],
+        }),
       ],
     })
     expect(alargado.error).toBeNull()
@@ -1965,7 +2003,7 @@ describe('J13 — los seis premios confirmados, por las RPC de la aplicación (D
       p_expected_version_id: archivada.version_id,
     })
     expect(error?.message).toContain('Premio principal')
-    expect(error?.message).toContain('21/12/2026')
+    expect(error?.message).toContain(j13Texto('2026-12-21'))
   })
 })
 

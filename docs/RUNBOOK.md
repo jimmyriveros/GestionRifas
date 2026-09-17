@@ -268,9 +268,11 @@ repórtalo como error de código, no como comportamiento esperado.
 ## 8. Transición de una rifa a premios configurables (Entrega 5, D-204)
 
 > ⚠️ **Nada de esta sección se ejecuta sin autorización expresa.** Es el procedimiento que dejó
-> preparado la Entrega 4 para convertir la rifa real. Hasta la Entrega 5, `scripts/raffle-prize-transition.ts`
-> **se niega** a trabajar contra el proyecto real, y habilitarlo es cambiar esa única comprobación,
-> revisada, dentro de la Entrega 5.
+> preparado la Entrega 4 para convertir la rifa real. Desde la Entrega 5 (D-205),
+> `scripts/raffle-prize-transition.ts` trabaja contra el proyecto real **solo con `--production`**, y
+> **aplicar** exige además la huella de una vista previa anterior (`--preview-hash`), `--apply` y el
+> identificador de la rifa escrito otra vez (`--confirm-raffle`). Sin `--apply` es siempre una vista
+> previa.
 
 La transición pasa **una** rifa del sistema de premios de siempre a los **seis** premios confirmados
 (`MASTER_SPEC` §9.7). Es **entera o nada**, no cambia el estado ni las fechas de la rifa, no toca
@@ -313,8 +315,12 @@ select reference_date, lottery_code from lottery_draw_schedules
 Después, la **vista previa**, que ejecuta la transición entera y la deshace:
 
 ```bash
-npx tsx scripts/raffle-prize-transition.ts <DESTINO> --organization <ORG> --raffle <RIFA> --name "<NOMBRE EXACTO>" --status active --start <AAAA-MM-DD> --end <AAAA-MM-DD>
+npx tsx scripts/raffle-prize-transition.ts --production --organization <ORG> --raffle <RIFA> --name "<NOMBRE EXACTO>" --status active --start <AAAA-MM-DD> --end <AAAA-MM-DD>
 ```
+
+Termina con **«Huella de la configuración: …»**, 64 caracteres. Es lo que se pasa al aplicar: si
+entre la vista previa y la aplicación cambia algo —se juega un sorteo, cambia la programación—, la huella
+es otra y **no se aplica nada**. Contra la base local, `--local` en lugar de `--production`.
 
 Qué revisar en lo que imprime, línea por línea:
 
@@ -328,8 +334,15 @@ Qué revisar en lo que imprime, línea por línea:
 
 ### 8.3 Aplicar
 
-La misma orden con `--apply`. Debe decir «La rifa pasó a premios configurables.» con el identificador
-de la transición. Comprobación inmediata:
+La **misma** orden, con lo que exige la puerta (D-205):
+
+```bash
+npx tsx scripts/raffle-prize-transition.ts --production --organization <ORG> --raffle <RIFA> --name "<NOMBRE EXACTO>" --status active --start <AAAA-MM-DD> --end <AAAA-MM-DD> --apply --preview-hash <HUELLA> --confirm-raffle <RIFA>
+```
+
+El script repite la vista previa, compara la huella y solo entonces aplica. Se ejecuta **una vez**. Debe
+decir «La rifa pasó a premios configurables.» con el identificador de la transición. Comprobación
+inmediata:
 
 ```sql
 select prize_mode, status, start_date, end_date from raffles where id = '<RIFA>';           -- configurable, sin otro cambio
@@ -356,6 +369,9 @@ premios.».
 | «La rifa con ese identificador se llama…», «La rifa está … y se esperaba…», «Las fechas de la rifa son…» | Los datos esperados no son los de la rifa | Revisar §8.1. **No** ajustar a ciegas hasta que coincida |
 | «Esta rifa ya pasó a premios configurables con otra configuración» | Alguien ya la convirtió | Parar. Esta vía no cambia premios: eso es del panel |
 | «Esta rifa tiene una transición registrada, pero sigue con el sistema de premios de siempre» o «… ya tiene premios guardados» | Un estado parcial escrito a mano | Parar e investigar. **No** se completa a ciegas |
+| «La configuración cambió desde la vista previa que revisaste…» | Entre la vista previa y la aplicación cambió el primer sorteo pendiente o la programación. **No se aplicó nada** | Ejecutar otra vez la vista previa, **revisarla** y aplicar con la huella nueva |
+| «Indica el destino…», «No reconozco…», «… está repetido», «--confirm-raffle no coincide…», «Para aplicar en producción hace falta una vista previa anterior…» o «Se pidió --production, pero…» | La puerta del script rechazó la orden **antes de tocar la base** | Corregir la orden. Ninguna de estas se esquiva: son la protección contra una orden accidental (D-205) |
+| **«No sabemos si la transición se aplicó…»** | Al aplicar, la respuesta no llegó completa —red, tiempo de espera, pasarela—. **Pudo aplicarse** | **No repetir la orden.** Consultar primero: `select prize_mode from raffles where id = '<RIFA>'` y `select id, configuration_hash from raffle_prize_transitions where raffle_id = '<RIFA>'`. Si hay transición y la huella es la de la vista previa, **está aplicada**: seguir con las comprobaciones de §8.3. Si no hay transición y el modo es `legacy`, no se aplicó: investigar la causa antes de reintentar. Cualquier otra combinación es un estado parcial: parar |
 
 ### 8.5 Lo que NO se hace nunca
 

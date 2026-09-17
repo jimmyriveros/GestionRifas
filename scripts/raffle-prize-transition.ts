@@ -1,16 +1,26 @@
 /**
- * Transicion de UNA rifa existente a premios configurables (Entrega 4, D-204).
+ * Transicion de UNA rifa existente a premios configurables (Entrega 4, D-204;
+ * puerta de produccion en la Entrega 5, D-205).
  *
- *   npx tsx scripts/raffle-prize-transition.ts --local \
+ *   npx tsx scripts/raffle-prize-transition.ts (--local | --production) \
  *     --organization <uuid> --raffle <uuid> --name "Nombre exacto de la rifa" \
- *     --status active --start AAAA-MM-DD --end AAAA-MM-DD [--apply]
+ *     --status active --start AAAA-MM-DD --end AAAA-MM-DD \
+ *     [--apply --preview-hash <huella> --confirm-raffle <uuid de la rifa>]
  *
- * SIN --apply ES UNA VISTA PREVIA. La base ejecuta la transicion entera
- * —validaciones, premios, aviso y bitacora— dentro de un bloque que se deshace,
- * y devuelve lo que habria quedado. No cambia nada.
+ * SIN --apply ES UNA VISTA PREVIA, contra cualquier destino. La base ejecuta la
+ * transicion entera —validaciones, premios, aviso y bitacora— dentro de un
+ * bloque que se deshace, y devuelve lo que habria quedado, con su HUELLA. No
+ * cambia nada.
  *
  * CON --apply la hace, en UNA transaccion: si cualquier comprobacion falla, no
  * queda nada escrito. Repetirla con la misma configuracion no escribe nada.
+ * Antes de aplicar repite la vista previa y, si se paso `--preview-hash`, exige
+ * que su huella sea la misma.
+ *
+ * CONTRA PRODUCCION, aplicar exige TODO a la vez (`raffle-prize-transition-guard.ts`):
+ * `--production`, un destino que de verdad es remoto, la huella de una vista
+ * previa anterior, `--apply` y el identificador de la rifa escrito otra vez con
+ * `--confirm-raffle`. Ningun identificador de produccion vive en el codigo.
  *
  * LO QUE CALCULA ESTE SCRIPT, y nada mas: desde que sorteo empiezan el premio
  * diario y el de los sabados —el primero que todavia no se jugo, respuesta del
@@ -23,13 +33,25 @@
  * el nombre, el estado y las fechas son lo que se ESPERA de ella. Si algo no
  * coincide, la base lo rechaza.
  *
- * SOLO LOCAL HASTA LA ENTREGA 5. Ejecutarla contra el proyecto real necesita
- * autorizacion expresa, y habilitarlo es cambiar esa unica comprobacion
- * (docs/RUNBOOK.md, «Transicion de una rifa a premios configurables»).
+ * UNA RESPUESTA INCIERTA NO SE REPITE. Si aplicar falla sin un rechazo claro de
+ * la base —la red, un tiempo de espera—, el script lo dice y termina: primero se
+ * consulta el estado (docs/RUNBOOK.md §8.4).
+ *
+ * Nunca imprime claves, tokens, contrasenas ni la direccion completa del proyecto.
  */
 import { createClient } from '@supabase/supabase-js'
 import WebSocket from 'ws'
 
+import {
+  assertPreviewUnchanged,
+  assertTransitionTarget,
+  parseTransitionArgs,
+  TRANSITION_USAGE,
+  TransitionGateError,
+  transitionErrorIsCertain,
+  transitionTargetLabel,
+  type TransitionRequest,
+} from './raffle-prize-transition-guard'
 import { resolveTarget } from './supabase-target'
 import { PRIZE_TRANSITION_COPY } from '../src/features/raffle-prizes/copy'
 import {
@@ -50,92 +72,40 @@ import type { Database, Json } from '../src/types/database.types'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const realtime = { transport: WebSocket as any }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
-const STATUSES = ['draft', 'active', 'closed', 'cancelled'] as const
-type RaffleStatus = (typeof STATUSES)[number]
-
-type TransitionInput = {
-  organizationId: string
-  raffleId: string
-  name: string
-  status: RaffleStatus
-  startDate: string
-  endDate: string
-  apply: boolean
-}
-
-function readArg(name: string): string | undefined {
-  const index = process.argv.indexOf(`--${name}`)
-  return index === -1 ? undefined : process.argv[index + 1]
-}
-
 function fail(message: string): never {
   console.error(`\nError: ${message}`)
   process.exit(1)
 }
 
-function usage(): never {
-  console.error(
-    'Uso: npx tsx scripts/raffle-prize-transition.ts --local ' +
-      '--organization <uuid> --raffle <uuid> --name "Nombre exacto de la rifa" ' +
-      '--status active --start AAAA-MM-DD --end AAAA-MM-DD [--apply]',
-  )
-  process.exit(1)
-}
-
-function parseArgs(): TransitionInput {
-  const organizationId = readArg('organization')?.trim()
-  const raffleId = readArg('raffle')?.trim()
-  const name = readArg('name')
-  const status = readArg('status')?.trim()
-  const startDate = readArg('start')?.trim()
-  const endDate = readArg('end')?.trim()
-
-  if (!organizationId || !raffleId || name === undefined || !status || !startDate || !endDate) {
-    usage()
-  }
-  if (!UUID.test(organizationId))
-    fail('--organization debe ser el identificador de la organización.')
-  if (!UUID.test(raffleId)) fail('--raffle debe ser el identificador de la rifa.')
-  if (!(STATUSES as readonly string[]).includes(status)) {
-    fail('--status debe ser draft, active, closed o cancelled: el estado que se espera de la rifa.')
-  }
-  if (!ISO_DATE.test(startDate) || !ISO_DATE.test(endDate)) {
-    fail('--start y --end son las fechas que se esperan de la rifa, en formato AAAA-MM-DD.')
-  }
-
-  return {
-    organizationId,
-    raffleId,
-    name,
-    status: status as RaffleStatus,
-    startDate,
-    endDate,
-    apply: process.argv.includes('--apply'),
+/** Una negativa de la puerta termina el script con su mensaje; cualquier otro error sigue. */
+function gate<T>(check: () => T, usage = false): T {
+  try {
+    return check()
+  } catch (error) {
+    if (error instanceof TransitionGateError) {
+      if (usage) console.error(TRANSITION_USAGE)
+      fail(error.message)
+    }
+    throw error
   }
 }
 
 async function main() {
-  // La unica puerta hacia el proyecto real, cerrada a proposito hasta la
-  // Entrega 5: se abre con autorizacion expresa, no con un argumento. Se mira
-  // ANTES de resolver el destino, para no leer ni una credencial remota.
-  if (!process.argv.includes('--local')) {
-    fail('Hasta la Entrega 5 la transición solo se ejecuta contra la base local. Agrega --local.')
-  }
+  // LA PUERTA, antes de resolver el destino: una orden mal formada no llega a
+  // crear ningún cliente ni a usar ninguna credencial.
+  const input: TransitionRequest = gate(() => parseTransitionArgs(process.argv.slice(2)), true)
 
-  const input = parseArgs()
   const target = resolveTarget()
-  if (!target.isLocal) {
-    fail('Hasta la Entrega 5 la transición solo se ejecuta contra la base local. Agrega --local.')
-  }
+  gate(() =>
+    assertTransitionTarget(input, target, { SUPABASE_TARGET: process.env.SUPABASE_TARGET }),
+  )
 
   const supabase = createClient<Database>(target.url, target.serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
     realtime,
   })
 
-  console.log(`Transición de premios · ${target.label}`)
+  console.log(`Transición de premios · ${transitionTargetLabel(input, target)}`)
 
   const now = new Date()
   const today = isoDateBogota(now)
@@ -200,7 +170,14 @@ async function main() {
     if (error) {
       console.error(`\n${error.message}`)
       if (error.details) console.error(error.details)
-      fail(PRIZE_TRANSITION_COPY.failed)
+      // Una vista previa nunca deja nada. Al aplicar, solo un rechazo claro de la
+      // base garantiza que no se cambió nada; lo demás es incierto.
+      if (!apply || transitionErrorIsCertain(error)) fail(PRIZE_TRANSITION_COPY.failed)
+      fail(
+        'No sabemos si la transición se aplicó: la respuesta no llegó completa. No la repitas: ' +
+          'consulta primero si la rifa tiene su fila en raffle_prize_transitions y en qué modo ' +
+          'está (docs/RUNBOOK.md §8.4).',
+      )
     }
     return data as unknown as TransitionResult
   }
@@ -208,22 +185,33 @@ async function main() {
   const preview = await run(false)
   console.log('')
   console.log(transitionPreviewLines(preview).join('\n'))
+  console.log(`\nHuella de la configuración: ${preview.configuration_hash}`)
 
   if (!input.apply) {
     if (!preview.already_applied) {
-      console.log('\nPara aplicarla, repite el comando con --apply.')
+      console.log(
+        input.target === 'production'
+          ? '\nPara aplicarla en producción, repite la MISMA orden con --apply ' +
+              `--preview-hash ${preview.configuration_hash} --confirm-raffle <identificador de la rifa>.`
+          : '\nPara aplicarla, repite el comando con --apply.',
+      )
     }
     return
   }
 
   if (preview.already_applied) return
 
+  // La vista previa que se acaba de repetir tiene que ser la que se revisó.
+  gate(() => assertPreviewUnchanged(input, preview.configuration_hash))
+
   const applied = await run(true)
   console.log('')
   console.log(transitionPreviewLines(applied).join('\n'))
+  console.log(`\nHuella de la configuración: ${applied.configuration_hash}`)
 }
 
 main().catch((error: unknown) => {
-  console.error(error)
+  // Solo el mensaje: un error inesperado podría arrastrar la dirección del proyecto.
+  console.error(error instanceof Error ? error.message : 'Error inesperado.')
   process.exit(1)
 })

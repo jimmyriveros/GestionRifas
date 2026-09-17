@@ -2123,7 +2123,7 @@ alcance de entregas posteriores.
 lo hace un proceso con la service role. Tres piezas, cada una con un solo trabajo:
 
 ```
-scripts/raffle-prize-transition.ts        (solo --local hasta la Entrega 5)
+scripts/raffle-prize-transition.ts        (--local | --production; puerta en raffle-prize-transition-guard.ts, D-205)
   │  lee la programación oficial ─► confirmedPrizeStarts   primer sorteo pendiente, cancelados
   │                               ─► confirmedRafflePrizes  los SEIS premios confirmados
   │                                  (src/features/raffle-prizes/transition.ts, puro)
@@ -2151,6 +2151,7 @@ scripts/raffle-prize-transition.ts        (solo --local hasta la Entrega 5)
 | Desde cuándo juegan el diario y el de los sábados | `confirmedPrizeStarts`, con la programación oficial y un instante | El primer sorteo que no alcanzó su corte, desde hoy o desde el inicio de la rifa; salta y devuelve los cancelados, y `periodsAvoiding` parte los períodos a su alrededor |
 | Si la transición se puede hacer | `raffle_prize_transition_apply`, en la base | Todo lo de D-204: la aplicación no decide nada que la base no vuelva a comprobar |
 | Qué se ve antes de aplicar | La **misma** ejecución, deshecha | La vista previa no puede decir que sí donde la base dice que no |
+| Si una orden del script se ejecuta, y contra qué | `raffle-prize-transition-guard.ts` (puro, D-205) | Destino explícito y de verdad remoto para `--production`; para aplicar, huella de una vista previa anterior igual a la que se repite, `--apply` e identificador de la rifa escrito dos veces. Una respuesta incierta no se repite |
 | Que ninguna otra vía cambie el modo | `raffles_guard_prize_config` + `raffle_prize_transitions` | Una sesión nunca; la service role, solo por la puerta de la transacción que escribió la fila |
 | Qué se lee después | Nada nuevo | El panel, la revisión, el historial, la campana y el motor usan lo de las entregas 1 a 3 sin un cambio |
 

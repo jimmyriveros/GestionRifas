@@ -1661,7 +1661,8 @@ castigo donde solo había una espera.
 | Lo que responde la base cuando un premio no se puede guardar | Los `raise` de las migraciones `0058` y `0059`, con las **mismas** frases que `PRIZE_COPY` donde la comprobación existe en las dos capas |
 | El aviso de que cambiaron las condiciones de un premio | `src/features/notifications/text.ts`, con los demás avisos (D-093, D-199). **No lleva enlace**: el vendedor todavía no tiene pantalla de premios |
 | El aviso ÚNICO de que una rifa existente pasó a premios configurables | `rafflePrizeMessage`, en ese mismo archivo, con `change = 'transitioned'` (D-204). Tampoco lleva enlace |
-| La vista previa y el resultado de la transición: encabezados, rótulos de cada premio, el aviso y «No se cambió nada» | `src/features/raffle-prizes/copy.ts` (`PRIZE_TRANSITION_COPY`), **todos juntos** (D-204). Los compone `transitionPreviewLines` (`transition.ts`); el script no escribe ninguno propio salvo los de uso y la negativa a trabajar fuera de local |
+| La vista previa y el resultado de la transición: encabezados, rótulos de cada premio, el aviso y «No se cambió nada» | `src/features/raffle-prizes/copy.ts` (`PRIZE_TRANSITION_COPY`), **todos juntos** (D-204). Los compone `transitionPreviewLines` (`transition.ts`); el script no escribe ninguno propio salvo la huella, cómo aplicar y el aviso de una respuesta incierta |
+| Las negativas de la puerta del script de transición —destino, opciones, huella, confirmación del identificador— y el texto de uso | `scripts/raffle-prize-transition-guard.ts`, **todas juntas** (D-205). Las lee quien opera, no una persona usuaria de la aplicación, y aun así dicen qué pasó y qué hacer |
 | Lo que responde la base cuando la transición no se puede hacer | Los `raise` de la migración `0063`: nombran la rifa, la lotería, la fecha y el premio, nunca un cliente |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
