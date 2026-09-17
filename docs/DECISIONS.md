@@ -4,7 +4,11 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.64 · **Actualizado:** 2026-09-17 (D-001 a D-207; **cierre de la Entrega 5**: las tres
+- **Versión:** 1.65 · **Actualizado:** 2026-09-17 (D-001 a **D-208**; **D-208 es una PROPUESTA NO
+  APROBADA**, el entregable de la Etapa 0 del encargo «historial de premios ganados»: contrato,
+  permisos, contabilización, estrategia histórica y seis decisiones del dueño, con el diagnóstico de
+  cobertura verificado en el proyecto real en solo lectura. No autoriza nada y sus `BR-J17`+ **no
+  existen todavía**. Abre I-133, I-134 e I-135. Antes, ese mismo día: **cierre de la Entrega 5**: las tres
   puertas de `RUNBOOK` §8 se ejecutaron ese día —`0058`–`0066` aplicadas, `da81663` desplegado y la rifa
   real convertida a premios configurables—, con notas posteriores en D-199, D-204, D-205, D-206 y D-207.
   Antes, ese mismo día (D-001 a D-207; **D-207** —migración `0066`, corrección local antes de producción—: el preflight de la Puerta 1 vio, en solo lectura, que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva y la pila local no (I-132); la `0066` fija quién ejecuta cada una de las 62 funciones de premios —seis RPC de sesión, la proyección de D-198 y solo dos entradas de la service role, `transition_raffle_prize_mode` y `confirm_lottery_result`—, `match_lottery_result` pasa a interno y la migración se comprueba a sí misma; la Puerta 1 queda suspendida y deberá autorizar `0058`–`0066`. Antes, ese mismo día (2026-09-16): **D-206 corregida** —migración `0065`, respuesta del dueño—: el aviso de las fechas de una rifa activa llega a **todas** las membresías activas, **también a quien hizo el cambio**, que sigue figurando como actor, y la extensión real se hace **con la sesión del Dueño** por la pantalla de editar, nunca con SQL sin sesión, una RPC que reciba el actor ni la service role. Antes, ese mismo día, **D-206** —corrección local de la Entrega 5, migración `0064`— hace que los sorteos cuyo corte ya llegó cuando una rifa cambia de sistema **conserven el sistema de siempre**, con el **instante efectivo** de la transición y una sola frontera, sustituye la alternativa «25 sorteos sin coincidencias para siempre» (I-127) y crea el **aviso de las fechas de una rifa activa** (BR-R12); deja notas en D-204 Decisión 4 y D-205 Decisión 5. **D-205** es la puerta de producción del script y J13 en 2054. **D-204** es la transición de una rifa existente a premios configurables —Entrega 4, migración `0063`—: una operación interna solo para la service role, atómica, con vista previa, que se niega mientras quede un sorteo jugado sin confirmar, y los **seis** premios confirmados —el caso «semanal, un lunes, con Cundinamarca» fue un ejemplo—; deja notas en D-199 Decisión 3 y D-201. Antes, **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
@@ -12095,3 +12099,290 @@ noviembre y el de fin de semana el 28—, y dos premios vigentes que coinciden e
 y lotería son un **conflicto de configuración** que se rechaza. **Cuatro cifras y últimas tres sí
 conviven**, con la prioridad de BR-J07 intacta. Está implementado en **D-201** y ya no bloquea la
 Entrega 3.
+
+---
+
+## D-208 — ⚠️ PROPUESTA NO APROBADA: historial de premios ganados — contrato, cobertura y estabilidad
+
+> **Esto no es una decisión vigente.** Es el entregable de la **Etapa 0** del encargo «historial de
+> premios ganados» (2026-09-17) y **no autoriza nada**. Nada de lo que sigue se ha implementado: no hay
+> migración, ni consulta, ni pantalla, ni texto. Las reglas `BR-*` que propone **no existen todavía**, y
+> mientras el dueño no las apruebe **no se citan como si existieran**. Lo único **verificado** es el §0,
+> que es diagnóstico, no propuesta. La Etapa 1 necesita autorización propia.
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo «historial de premios ganados», Etapa 0 de 4)
+
+**Contexto.** El dueño quiere que el vendedor vea el historial de los premios que ganaron sus clientes,
+que su ficha de cliente lo resuma, y que el Dueño y el Administrador lo consulten por vendedor y en una
+lista general **sin ver ningún dato del cliente** (D-198). El período pedido empieza en el **inicio
+operativo de la plataforma en producción**, que el encargo ordena verificar y no confundir con el
+lanzamiento del módulo de loterías ni con la transición a premios configurables. Esta etapa no escribe
+código: cierra el contrato y mide qué se puede cubrir de verdad.
+
+---
+
+### §0 — Diagnóstico de cobertura, verificado en el proyecto real (solo lectura, 2026-09-17)
+
+Cinco sondas en `begin transaction read only`, validadas antes contra la instancia local, sin leer
+nombres, teléfonos ni correos. Evidencia completa en `TEST_RESULTS` (2026-09-17, Etapa 0 del historial
+de premios).
+
+| Hecho | Valor verificado |
+|---|---|
+| Organización real | `ec88961d-7c81-4b27-ae03-d9bccc73eda6`, creada el **2026-08-03 02:51:58 UTC** |
+| Bloque de semilla dentro de la organización real | **2026-08-03 15:15 UTC**: `raffle.create` ×1, `client.create` ×5, `ticket.create` ×30, `ticket.update` ×8, `ticket.assign_client` ×8, `payment.create` ×4, `payment.void` ×1 — la forma exacta que `scripts/seed.ts` produce. La rifa real **es esa fila**, renombrada después; sus fechas de inicio (27/07) son las que calculó el seed |
+| **Inicio operativo real** | **2026-08-09 (Bogotá)**: primer día con inventario y venta de verdad —118 boletas, 44 clientes, **57 ventas**—. El 2026-08-03 y el 2026-08-08 solo hay semilla y verificación |
+| Volumen hoy | 1.182 boletas, 653 clientes, 505 pagos; **0** clientes archivados y **0** vendedores inactivos |
+| Programación oficial | **312** sorteos, 2026-01-02 → 2026-12-31, **todos** con hora original y oficial |
+| Resultados **confirmados** | **20**, referencia **2026-08-25 → 2026-09-16**. **Ninguno antes**: el módulo entró en producción el 2026-09-01 (D-156) y solo mira 10 días atrás (BR-L22) |
+| Sorteos jugados sin resultado confirmado | **201** en total (2026-01-02 → 2026-08-24); **25** dentro de la ventana de la rifa (27/07 → 24/08), los de **I-127** |
+| Coincidencias fotografiadas (`lottery_ticket_matches`) | **2**, las dos `sold` y `daily_number`, 1 vendedor, 2 clientes, 1 rifa |
+| — Bogotá 2862, referencia 2026-09-03, mayor `3427` | boleta `3427 / 7702`, hoy `assigned` y **`unpaid`** |
+| — Cundinamarca 4820, referencia 2026-09-14, mayor `9019` | boleta `9019 / 3294`, hoy `assigned` y `paid` |
+| Enlaces a premios (`lottery_ticket_match_prizes`) | **0** |
+| Los dos sorteos con coincidencia | corte 2026-09-04 04:15 y 2026-09-15 04:15 UTC, **≤** instante efectivo **2026-09-17 17:40:12.566** → **conservan el sistema de siempre para siempre** (BR-J13, D-206) |
+| Premios configurables de la rifa real | **6** vigentes, primera versión 17:40:12.377 |
+| Integridad de la fotografía | recalcular hoy las boletas vendidas contra los 20 resultados confirmados da **2** elegibles por BR-L09: **exactamente las dos fotografiadas**. El motor no se dejó ninguna |
+
+**La ventana de la rifa (127 sorteos) en cuatro tramos:**
+
+| Tramo | Sorteos | Qué hay |
+|---|---|---|
+| 27/07 → 08/08 (antes del inicio operativo) | 12 | **Fuera del encargo** |
+| 09/08 → 24/08 | **13** | Sin resultado confirmado → **ninguna coincidencia puede existir** |
+| 25/08 → 16/09 | **20** | 20 resultados, **2 coincidencias**, **0 premios**: el comparador de siempre no conoce premios |
+| 17/09 → 21/12 | **82** | Motor configurable: coincidencia + premio + versión inmutable. El primero es Bogotá 2864 del 17/09, pendiente |
+
+**El hallazgo que manda sobre todo lo demás.** Hoy el historial de premios ganados, definido como
+«coincidencia con su premio», **está vacío**, y no por un defecto: los dos únicos premios que la
+operación ya generó pertenecen a sorteos que se resuelven con el sistema de siempre, que **no tiene
+premios como dato**. Cuánto valían esos dos premios es conocimiento del negocio que **no está en la
+base**. El período que pide el encargo **no se puede cubrir con los datos del motor**, y confirmarlo
+costaría cargar resultados sin evidencia, que está prohibido (BR-L26, D-156(c)). Por eso la Etapa 1 no
+puede «traer la historia»: puede dejar la pantalla que dirá la verdad —qué hay, qué falta y por qué— y,
+si el dueño lo aprueba, un camino auditado para registrar a mano lo que sí se sabe.
+
+---
+
+### Decisión A propuesta — cuándo una coincidencia es un premio ganado
+
+Un registro entra en el historial cuando se cumplen las **tres** condiciones, y ninguna más:
+
+1. el resultado del sorteo está **`confirmed`**;
+2. existe una fotografía en `lottery_ticket_matches` con **`assignment_status = 'sold'`** —que ya
+   implica cliente y `assigned_at ≤ official_scheduled_at` por el CHECK de `0036` (BR-L09, BR-L10)—;
+3. existe su fila en **`lottery_ticket_match_prizes`**, con el premio y la **versión histórica**
+   aplicada (BR-J09).
+
+Quedan fuera, por construcción: las boletas libres y las de asignación tardía (no son `sold`), y las
+coincidencias descartadas por la prioridad de cuatro cifras sobre tres, que **no se fotografían**
+(D-203, Decisión 1).
+
+**No se añade ningún requisito de pago, de paz y salvo ni de confirmación humana**, y hay que decirlo
+en voz alta porque el caso es real y no teórico: **una de las dos coincidencias de producción está
+`unpaid`**. El motor no mira `payment_status` a propósito (BR-L09, D-142). Si el negocio considera que
+un premio solo se gana con la boleta pagada, **eso es una regla nueva del dueño** y no se puede deducir
+del código; hasta que la decida, el historial incluye la boleta sin pagar y la pantalla **no** insinúa
+que el premio esté condicionado.
+
+**Precisión que hace falta en BR-L15, no cambio.** BR-L15 prohíbe llamar «ganador» al cliente y a la
+boleta, y que la plataforma certifique el premio oficial de una lotería. El historial **no la
+contradice** si se distingue lo que ya distingue el glosario: el **resultado** y la **coincidencia** son
+de la lotería, y el **premio** es de la rifa —lo que la organización ofrece a quien acierta (D-199)—.
+Así que la sección puede llamarse «Premios ganados» y hablar de premios, mientras **ningún texto** llame
+«ganador», «ganadora» o «premiada» a una persona o a una boleta, ni presente una coincidencia como un
+premio certificado por la lotería. La prueba que ya barre esas palabras en los avisos (I-126) se amplía
+al módulo nuevo. El recuadro de resultados oficiales **no se toca**.
+
+**Un resultado confirmado que entra en conflicto después no borra historia.** Verificado en el código:
+`lottery_results_protect_confirmed` (`0036`) **cambia la fila** a `validation_status = 'conflict'`,
+conserva el número confirmado y guarda el otro en `conflicting_winning_number`. Consecuencia: un
+historial que filtrara por `confirmed` **haría desaparecer registros y movería los totales en
+silencio**, que es justo lo que el encargo prohíbe. Por eso la pertenencia al historial la deciden la
+**fotografía y su enlace**, que son inmutables, y **no** el estado actual del resultado: el registro se
+queda, se marca, y la pantalla dice cuántos registros están afectados reutilizando el texto que ya
+existe —«La fuente oficial publicó otro número. Requiere verificación.»—. Hoy, **0** resultados en
+conflicto en producción.
+
+### Decisión B propuesta — cobertura histórica: se dice qué falta, no se rellena
+
+1. **El corte es el inicio operativo, y está verificado: 2026-08-09** (§0). No es el 2026-08-03 —eso es
+   la semilla— ni el 2026-09-01 —el módulo de loterías— ni el 2026-09-17 —la transición—.
+2. **Ningún tramo se presenta como «cero premios».** La pantalla separa lo que **no ocurrió** de lo que
+   **no se sabe**, con las cifras del §0: 13 sorteos del período operativo sin resultado, 20 con
+   resultado y sin premio registrado, 82 ya cubiertos por el motor.
+3. **No se asignan al pasado los importes de hoy.** Los seis premios actuales se publicaron el
+   2026-09-17 y **no aplicaban** a ningún sorteo anterior (BR-J09); usarlos para valorar las dos
+   coincidencias de septiembre sería inventar historia.
+4. **La incorporación histórica, si el dueño la aprueba, es aditiva y no toca nada inmutable.**
+   `lottery_ticket_matches` y `lottery_ticket_match_prizes` no admiten `UPDATE` ni `DELETE` ni con la
+   service role, y el disparador de comprobación de los enlaces los valida contra el motor
+   configurable: **es imposible, por diseño, enlazar un premio a un sorteo del lado del sistema de
+   siempre**, y no se va a intentar. Un registro manual viviría en una **tabla propia**, con su
+   evidencia, su actor y su idempotencia, y el historial **compondría las dos fuentes** diciendo de
+   cuál viene cada fila. La Etapa 1 deja la lectura preparada para una segunda fuente; **no la crea ni
+   carga nada** mientras no haya aprobación de sus reglas e importes.
+5. **Lo que no se puede reconstruir se dice.** I-080 sigue vigente: no hay historial de inventario, y la
+   fotografía de un sorteo anterior al motor no existe. Una reconstrucción **nunca** se presenta como
+   dato histórico comprobado.
+
+### Decisión C propuesta — dinero, alternativas y bienes: dos cifras, nunca una
+
+Verificado en producción, los seis premios de la rifa real:
+
+| # | Premio | Modo | Cifras | Número | Recompensa |
+|---|---|---|---|---|---|
+| 1 | Premio diario | `fixed` | cuatro | diario | $500.000 |
+| 2 | Premio fin de semana | `fixed` | cuatro | semanal | $2.000.000 |
+| 3 | **Premio principal** | **`winner_choice`** | tres últimas | diario | **4 alternativas**: especie sola · especie + $20.000.000 · $120.000.000 · especie + $70.000.000 |
+| 4 | Premio especial de tres cifras | `fixed` | tres últimas | diario | $1.000.000 |
+| 5 | Premio especial semanal | `fixed` | cuatro | semanal | $1.000.000 |
+| 6 | Premio especial del 15 de diciembre | `fixed` | cuatro | semanal | $7.000.000 |
+
+Regla propuesta:
+
+* **Importe determinado** solo cuando el modo es `fixed` **y** su única alternativa tiene importe. Si
+  esa alternativa mezcla especie y dinero, el dinero **sí** se debe —no hay elección— pero **no es el
+  valor del premio**: se presenta como su componente en dinero, y el premio cuenta como **valor
+  pendiente de definir**.
+* **`winner_choice`**: no se suman las alternativas, no se elige una, no se toma la de efectivo por
+  defecto. El premio cuenta **una vez** y su valor es **pendiente de definir**.
+* **Los totales son dos y van juntos**: «Premios» y «Clientes con premio» (recuentos) y «Premio en
+  dinero» (suma de los importes determinados), con la línea que dice **cuántos premios tienen valor
+  pendiente de definir**. Un total único que callara los pendientes sería falso; uno que los valorara,
+  inventado.
+* Los recuentos **no se confunden**: quien gana tres premios es **un** cliente y **tres** premios. El
+  recuento de clientes distintos se calcula **dentro** de la base y, para el personal, **sin devolver
+  ningún identificador de cliente**.
+* Los totales corresponden **a todo el ámbito o filtro**, no a la página visible: se calculan en
+  PostgreSQL, en **pesos enteros**.
+
+**Registrar qué alternativa se llevó quien acertó, y valorarla, queda FUERA de esta entrega.** BR-J02
+dice expresamente que la aplicación no lo registra; cambiarlo es una regla nueva, una tabla nueva y una
+pantalla nueva, y además es distinto de registrar la entrega física, que también queda fuera. Mientras
+no exista, el «Premio principal» del 21 de diciembre será siempre un premio con valor pendiente.
+
+### Decisión D propuesta — estabilidad histórica: se cierra el hueco, no se copia el pasado
+
+Qué guarda hoy la fotografía y qué no, verificado en el esquema: guarda organización, rifa, **vendedor**,
+**cliente**, el **número que coincidió** (`matched_number`, con sus ceros), el campo, el estado de
+asignación, el inventario al sorteo y `assigned_at`. **No guarda los dos números de la boleta ni el
+nombre del cliente.**
+
+* **La atribución sale de la fotografía**, nunca del propietario actual: organización, rifa, vendedor y
+  cliente se leen de `lottery_ticket_matches` (encargo §Etapa 1). Ya está protegida: BR-I13 y BR-I14
+  impiden cambiar de cliente y liberar una boleta con cualquier fila de coincidencias, y
+  `bulk_change_ticket_seller` (`0020`) solo toca boletas que no están `assigned`, así que una
+  coincidencia `sold` no cambia de vendedor.
+* **Los dos números y el nombre del cliente se leen de la fila de hoy**, y ahí está el hueco:
+  `admin_update_ticket_numbers` (`0057`) **solo** rechaza una boleta anulada, así que el personal
+  **puede** editar los números de una boleta que ya salió en un sorteo y reescribir el pasado visible.
+  En la organización real ha habido **4** ediciones de números, ninguna sobre las dos boletas con
+  coincidencia —el único `ticket.update` posterior a una fotografía fue la carga inicial del paz y
+  salvo de `0049`, con claves `clearance_receipt_*` y sin actor—. El riesgo es real y todavía no ha
+  ocurrido.
+* **Propuesta: cerrar el hueco en vez de duplicar el dato.** Una migración aditiva añade a
+  `admin_update_ticket_numbers` la misma condición que ya usan BR-I13 y BR-I14 —ninguna fila en
+  `lottery_ticket_matches`— con su mensaje propio. Es el cambio mínimo, encaja en una familia de reglas
+  que ya existe («una boleta que hace parte de un resultado registrado no se toca») y **elimina** la
+  divergencia en lugar de registrarla. La alternativa —una tabla que copie el par de números en cada
+  fotografía— añade persistencia para un hecho que ya está representado en `tickets` y no arregla las
+  ediciones anteriores.
+* **El nombre del cliente no es histórico y no se finge que lo sea.** No está en ninguna fuente
+  autoritativa; el historial muestra el nombre **actual** y ningún texto dice que sea el de entonces.
+  `audit_logs` no es fuente funcional (BR-J12) y para el personal va redactada (BR-Q10).
+* **El premio y su valor sí son históricos**, y no hace falta persistencia nueva: viven congelados en
+  `raffle_prize_versions` y sus alternativas, y el enlace apunta a la versión aplicada, no a la vigente.
+
+---
+
+### Contrato funcional propuesto
+
+**Pantallas y rutas.**
+
+| Quién | Ruta | Qué |
+|---|---|---|
+| Vendedor | `/seller/prizes` | «Premios ganados»: historial completo de los premios de **sus** clientes, con filtros y paginación en la URL |
+| Vendedor | `/seller/clients/[clientId]` | Resumen: si ha ganado, cuántos premios y su importe acumulado cuando se pueda determinar, con enlace al historial **filtrado por ese cliente** |
+| Personal | `/owner/prizes` | «Premios ganados» de **todos** los vendedores de la organización, con **filtro por vendedor** |
+| Personal | `/owner/sellers/[sellerId]` | Acceso al historial **filtrado por ese vendedor** |
+
+La configuración de premios sigue en `/owner/raffles/[raffleId]/prizes` y no se toca: está anidada bajo
+su rifa, así que no se confunde con la lista de premios ganados. En el menú del vendedor la entrada va
+en la barra lateral y el cajón; **la barra inferior del teléfono no cambia** —tiene cuatro sitios y
+están ocupados (D-106)—.
+
+**Qué muestra cada fila.** Fecha del sorteo (`reference_date`), lotería, número del sorteo, número
+mayor, números diario y semanal de la boleta con sus ceros, **el número con el que coincidió**, el
+premio y su importe cuando esté determinado. El vendedor ve además el **cliente**; el personal, el
+**vendedor**. **Ninguna respuesta del personal transporta datos de cliente**, ni siquiera sin pintarse.
+
+**Permisos.**
+
+| Regla | Cómo se cumple |
+|---|---|
+| El vendedor ve solo su ámbito, y tener equipo no añade nada | La política `lottery_ticket_matches_select` de `0057` ya es `seller_id = current_profile_id()`, **sin equipo**. No se amplía ni se crea otra |
+| El personal no ve clientes | Una proyección `admin_*` con lista blanca, el patrón de D-092 y D-198: organización de `current_staff_org_ids()`, `search_path` fijo, sin SQL dinámico, un id ajeno responde como uno inexistente, `REVOKE` de `public` y `anon`. **Por qué no sirve `admin_lottery_matches`, que ya existe:** recibe un conjunto de identificadores de resultado para pintar el recuadro del Panel, y no tiene premio, ni importe, ni filtro por vendedor, ni paginación, ni recuentos. **Se extiende el patrón, no la función**: cambiarle la firma rompería el recuadro de loterías del personal |
+| Nada de cartera se abre | El historial no consulta ni devuelve precio de venta, abonado, saldo, pagos ni ganancias (BR-Q01) |
+| Privilegios explícitos | Cada función nueva declara quién la ejecuta, y `verify:remote` lo comprueba: en el proyecto real toda función nace ejecutable por `service_role` (**I-132**, D-207) |
+
+**Contabilización.** Premios **ganados**, no entregados. Registrar entregas, pagos de premios y cuentas
+posteriores queda fuera. No se toca ni una comisión, ni un recaudo, ni un saldo, ni una obligación.
+Rifas cerradas y clientes archivados se conservan en el historial, y el personal puede consultar los
+premios de un vendedor inactivo. El historial **no se limita** a la rifa del catálogo.
+
+**Reglas que habría que escribir si se aprueba.** Se propone **extender `BR-J`** —la familia de premios—
+con `BR-J17` y siguientes, en vez de inventar una letra nueva: es el mismo dominio y el proyecto prefiere
+extender antes que crear. Llevarían nota de lo que acotan: **BR-L15** (la precisión de arriba), **BR-Q02**
+(la lista blanca del personal gana campos de premio) y **BR-I** (el nuevo cerrojo de los números).
+
+---
+
+### Decisiones que necesita resolver el dueño
+
+| # | Pregunta | Recomendación |
+|---|---|---|
+| H1 | Los **dos premios ya generados** (Bogotá 2862 del 03/09 y Cundinamarca 4820 del 14/09) no tienen premio ni importe en la base, y por diseño no pueden tenerlo. ¿Se registran a mano con su importe real, o el historial empieza en el 17/09 y explica el tramo anterior? | **Registrarlos a mano**, en una tabla propia y con la evidencia de qué se pagó: son dos filas, el dueño sabe cuánto fueron, y es la única forma de que el período pedido no salga vacío. Si no se aprueba, la pantalla lo explica y no miente |
+| H2 | Del **09/08 al 24/08** hay 13 sorteos sin resultado en la plataforma. ¿Hubo premios en ese tramo? ¿Con qué evidencia se podrían registrar? | **Preguntar y no suponer.** Sin número mayor no hay coincidencia que calcular, así que solo cabría registrar el premio como hecho del negocio, con su evidencia. No se cargan resultados de loterías sin las dos fuentes de BR-L26 |
+| H3 | ¿Una boleta **sin pagar** gana premio? Una de las dos ya lo está | **Sí**, porque es lo que hace el motor hoy (BR-L09) y cambiarlo es una regla nueva. Si la respuesta es «no», hay que decidir qué pasa con una boleta que se paga **después** del sorteo |
+| H4 | ¿La **selección de alternativa** del Premio principal y su valoración entran en esta entrega? | **No.** Quedan pendientes: BR-J02 dice que la aplicación no lo registra, y el 21 de diciembre está lejos. El historial dirá «Valor pendiente de definir» |
+| H5 | ¿Se cierra el hueco de la **edición de números** de una boleta con coincidencia? | **Sí**, con una migración aditiva en la Etapa 1. Es barato y sin él el pasado visible se puede reescribir |
+| H6 | La sección se llamaría **«Premios ganados»** en los dos portales | **De acuerdo**, con la precisión de BR-L15: ningún texto llama «ganador» a nadie |
+
+---
+
+
+### Etapas siguientes, ajustadas al diagnóstico real
+
+El plan del encargo suponía una historia que en su mayor parte **no existe**. Con el §0 medido, las
+etapas cambian de peso: la Etapa 1 es pequeña y la Etapa 2 es la mayor.
+
+| Etapa | Lo que el plan suponía | Lo que de verdad toca, con el §0 en la mano |
+|---|---|---|
+| **1 — Base de datos y cobertura** | Migraciones, consultas, agregaciones **y** una carga histórica ensayada | **Mucho menos de base y ningún dato que cargar.** Las tablas del motor ya guardan todo lo que hace falta —fotografía, premio y versión— así que no hay tabla nueva **salvo** que se aprueben H1 o H2, y entonces es **una** tabla aditiva de premios registrados a mano, con evidencia, actor e idempotencia. Lo que sí hay: **dos lecturas** —la del vendedor, que hereda la RLS de `0057`, y una proyección `admin_*` de lista blanca—, las **agregaciones en PostgreSQL** en pesos enteros con los dos totales de dinero, los **privilegios explícitos** de cada función nueva comprobados en `verify:remote` (I-132) y, si se aprueba H5, el **cerrojo de los números** (I-134). Las pruebas de importes y de alternativas se escriben con **datos de prueba**, porque producción no tiene ni un premio registrado |
+| **2 — Interfaz** | Construir las vistas | **La etapa mayor, y su parte difícil es decir la verdad.** Las cuatro pantallas se montan sobre componentes que ya existen, pero los **estados de cobertura incompleta** son trabajo de redacción y de diseño, no de relleno: hoy las cuatro saldrían **vacías**, y un «Todavía no hay premios» a secas sería falso. Hace falta distinguir, con las cifras del §0, «no ha ganado nadie» de «ese tramo no tiene resultados en la plataforma», y marcar sin borrar un registro cuyo resultado entró en conflicto (I-135) |
+| **3 — Auditoría** | Comprobar el contrato con volumen representativo | **El volumen no existe en producción y no se puede fabricar allí.** Se comprueba en local con datos sembrados —aislamiento entre vendedores y organizaciones, personal sin datos de cliente, premios frente a clientes distintos, boletas libres y tardías, prioridad de cuatro cifras sobre tres, versiones y cambios posteriores, alternativas y valores desconocidos, resultados en conflicto, rifas cerradas y cuentas inactivas, paginación y totales completos— y se contrasta con las **2** coincidencias reales, que son el único caso vivo |
+| **4 — Producción** | Migraciones, cargas y despliegue autorizados | **Sin cambios de forma, pero con un orden que el §0 impone:** si se aprueba H1, la carga histórica va **después** del despliegue, no antes, porque sus filas no se pueden ver hasta que exista la pantalla que las explica. Y la **comparación antes/después** tiene una ventaja inusual: los números de partida son 2 coincidencias y 0 premios, así que cualquier diferencia se explica fila a fila |
+
+**Lo que no cambia de peso:** el motor configurable sigue sin ejercitarse en producción (**I-087**), así
+que la primera prueba real del historial llegará con el primer resultado confirmado posterior al
+2026-09-17 17:40:12.566, y **no depende de este encargo**.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Recalcular el historial al leerlo, comparando boletas de hoy contra resultados confirmados | Reconstruye en vez de leer la historia: cambiaría con cada venta, cada cambio de cliente y cada edición de números, y contradice D-142 y el encargo |
+| Guardar premio e importe copiados en una columna de `lottery_ticket_match_prizes` | Está inmutable y sería una segunda fuente de verdad del valor, que ya vive congelado en la versión (D-201) |
+| Enlazar los dos premios del sistema de siempre creando filas en `lottery_ticket_match_prizes` | Imposible por diseño: el disparador de comprobación las valida contra el motor configurable, y esos sorteos están del otro lado de la frontera (D-206) |
+| Una letra `BR-*` nueva para el historial | Es el dominio de los premios: se extiende `BR-J` |
+| Dar al personal la lectura del vendedor con las columnas ocultas en la pantalla | La RLS limita filas, no columnas; el navegador no es la frontera (D-198) |
+| Un único «total monetario» | Con un premio de alternativas excluyentes, cualquier cifra única es inventada |
+| Ampliar `lottery_ticket_matches_select` para que un vendedor con equipo vea a los suyos | El dueño lo excluyó expresamente, y la política actual ya lo cumple |
+
+### Consecuencia si se aprueba
+
+Sin migración todavía. Tocaría: `BUSINESS_RULES` §12.i (`BR-J17`+ y notas en BR-L15, BR-Q02 y BR-I),
+`DATA_MODEL`, `SECURITY`, `ARCHITECTURE`, `MASTER_SPEC`, `UX_COPY_GUIDELINES` (Anexos A y B),
+`TESTING`, y las etapas 1 a 4 del encargo. **Problemas abiertos por esta etapa:** **I-133** (cobertura),
+**I-134** (edición de números) e **I-135** (un resultado confirmado que pasa a conflicto).

@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (premios configurables, Entrega 5 COMPLETA EN PRODUCCIÓN: puertas 1, 2 y 3, 2026-09-17)** | **1.375 ✅ en 75 archivos** (sin cambio: el cierre no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ | 🚀 **En producción**: `0058`–`0066` aplicadas, `da81663` desplegado, la rifa real convertida y `verify:remote` **41/41** |
+| **Post-9 vigente (Etapa 0 del historial de premios ganados, D-208 propuesta, 2026-09-17)** | **1.375 ✅ en 75 archivos** (sin cambio: la etapa no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ `verify:remote` **41/41** | 📋 **Diagnóstico**: 5 sondas de solo lectura en el proyecto real, validadas antes en local. Cobertura real: **2** coincidencias, **0** premios registrados, inicio operativo **2026-08-09**. Abre **I-133**, **I-134** e **I-135**. **Nada escrito en producción** |
+| Post-9 anterior (premios configurables, Entrega 5 COMPLETA EN PRODUCCIÓN: puertas 1, 2 y 3, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio: el cierre no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ | 🚀 **En producción**: `0058`–`0066` aplicadas, `da81663` desplegado, la rifa real convertida y `verify:remote` **41/41** |
 | Post-9 anterior (premios configurables, Entrega 5: Puerta 1 suspendida antes de escribir y la `0066`, quién ejecuta cada función, D-207, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio) | **1.270 ✅ en 52 archivos (+15; migración `0066`)**; dirigidas **374/374** tras corregir DB-15; la cadena desde `0057` con los dos privilegios por defecto, **idéntica** | No se corrió: no cambia la interfaz | ✅ | ⛔→✅ **Puerta 1 suspendida sin escribir nada** (I-132); corrección local sin push ni despliegue; producción sigue en la `0057` y `c48437a` |
 | Post-9 anterior (premios configurables, Entrega 5: el aviso de fechas llega también a quien las cambia y la puerta 2 con la sesión del Dueño, `0065`, D-206 corregida, 2026-09-16) | **1.375 ✅ en 75 archivos** (sin cambio de número; F7 reescrita) | **1.255 ✅ en 51 archivos (+1; migración `0065`)** | Dirigida `rifa-fechas-aviso` **4/4** (+1), repetida al final sobre el código definitivo; volver a excluir al actor lo detectan la segunda y la tercera. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057`, la fecha real de la rifa no cambió y no se pidió ninguna puerta |
 | Post-9 anterior (premios configurables, Entrega 5: corrección local previa a producción —el instante efectivo y el aviso de las fechas—, `0064`, D-206, 2026-09-16) | **1.375 ✅ en 75 archivos (+12)** | **1.254 ✅ en 51 archivos (+24; migración `0064`)**, tras corregir **M10-01** en la propia migración | Dirigida **52/53** en 6,9 min: la que falló era la **nueva** del borrador, que escribía la fecha antes de que React hidratara el campo; corregida, `rifa-fechas-aviso` **9/9** en tres repeticiones. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057` y la fecha real de la rifa no cambió |
@@ -69,6 +70,59 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+---
+
+## Etapa 0 del historial de premios ganados: diagnóstico de cobertura (D-208) — 2026-09-17
+
+**Qué se ejecutó y qué NO.** La Etapa 0 no cambia código ni base de datos, así que no hay pruebas
+nuevas. Se comprobó que el entorno está sano y se midió la cobertura real con **cinco sondas de solo
+lectura**, validadas antes contra la instancia local.
+
+| Verificación | Resultado |
+|---|---|
+| `npm run test:db` (local) | ✅ **1.270/1.270** en 52 archivos, 85,5 s |
+| `npm run verify` (typecheck + lint + unitarias + build) | ✅ **exit 0**; unitarias **1.375/1.375** en 75 archivos |
+| `npm run verify:remote` (proyecto real, solo lectura) | ✅ **41/41**, «Todas las verificaciones en verde» |
+| Migraciones aplicadas | **66** en local y **66** en el proyecto real, última `0066` en los dos |
+| Sondas de solo lectura | 5, en `begin transaction read only` + `rollback`, con `savepoint` por consulta y `statement_timeout` de 30 s. Sin nombres, teléfonos ni correos: solo recuentos, fechas, identificadores técnicos y claves de bitácora. **Ninguna escritura** |
+
+Las sondas viven en `build/premios-historial/` (carpeta ignorada por Git, el mismo sitio que los
+comparadores de las puertas de la Entrega 5). Se ejecutaron **primero contra local**, donde una de ellas
+falló por nombrar `raffle_prize_transitions.created_at`, que no existe —la columna es
+`transitioned_at`—, y otra por `audit_logs.user_id`, que es `actor_profile_id`: las dos se corrigieron
+antes de tocar el proyecto real. Es la razón de validar en local primero.
+
+### Lo que midieron
+
+| Sonda | Hallazgo |
+|---|---|
+| 1 — arranque y volumen | Organización real creada el **2026-08-03 02:51:58 UTC**; 1.182 boletas, 653 clientes, 505 pagos; una segunda organización de control con 3 boletas |
+| 1 — loterías | **312** programaciones (2026-01-02 → 12-31), **todas** con hora original y oficial; **20** resultados `confirmed` (referencia 2026-08-25 → 09-16) y **ninguno** antes; **201** sorteos jugados sin resultado confirmado, de 2026-01-02 a 2026-08-24 |
+| 1 — coincidencias | **2** filas en `lottery_ticket_matches`, las dos `sold` + `daily_number`; **0** filas en `lottery_ticket_match_prizes`; **6** avisos `lottery.result` |
+| 2 — premios de la rifa real | **6** vigentes: cinco `fixed` en dinero ($500.000, $2.000.000, $1.000.000, $1.000.000, $7.000.000) y el **Premio principal** en `winner_choice` con **4 alternativas** —una solo en especie, dos de especie + dinero ($20.000.000 y $70.000.000) y una solo de dinero ($120.000.000)—. Primera versión 17:40:12.377 |
+| 2 — frontera | Los dos sorteos con coincidencia cortan el **04/09 04:15** y el **15/09 04:15 UTC**, los dos **≤** el instante efectivo **17:40:12.566 del 17/09**: conservan el sistema de siempre. De los **127** sorteos de la ventana de la rifa, **45** están de ese lado (20 con resultado, 25 sin) y **82** del lado de los premios |
+| 2 — estado hoy de las dos coincidencias | Mismo cliente y mismo vendedor que en la fotografía; las dos `assigned`, una `unpaid` y la otra `paid`; ningún cliente archivado ni vendedor inactivo |
+| 3 — inicio operativo | El **2026-08-03 15:15 UTC** hay un bloque con la forma exacta del seed dentro de la organización real (`raffle.create` ×1, `client.create` ×5, `ticket.create` ×30, `ticket.update` ×8, `ticket.assign_client` ×8, `payment.create` ×4, `payment.void` ×1). La operación real empieza el **2026-08-09**: 118 boletas, 44 clientes y **57 ventas** en un día. Owner, Admin y 2 de los 3 vendedores tienen correo `@demo.test` (**I-021**) |
+| 4 — integridad de la fotografía | Recalcular hoy las boletas vendidas contra los 20 resultados confirmados da **2** coincidencias y, filtrando por `assigned_at ≤ official_scheduled_at` (BR-L09), **2**: exactamente las dos fotografiadas. El motor no se dejó ninguna |
+| 4 — tramos de la ventana | **12** sorteos antes del inicio operativo · **13** del 09/08 al 24/08 sin resultado · **20** del 25/08 al 16/09 con resultado · **82** desde el 17/09 |
+| 4 — conflictos | **0** resultados en `conflict` o `rejected`, y **0** con número en conflicto |
+| 5 — estabilidad | En la organización real hay **4** filas `ticket.update` que cambiaron `daily_number` o `weekly_number`, **ninguna** sobre las dos boletas con coincidencia. El único `ticket.update` posterior a una fotografía cambió claves `clearance_receipt_*` **sin actor**: es la carga inicial del paz y salvo de `0049` (D-170), no una edición de números |
+
+### Errores encontrados en el código existente (ninguno introducido aquí)
+
+| Qué | Dónde | Registro |
+|---|---|---|
+| `admin_update_ticket_numbers` solo rechaza una boleta anulada: no mira las coincidencias, así que editar los números de una boleta que ya salió en un sorteo reescribe el pasado visible | `0057` | **I-134** |
+| `lottery_results_protect_confirmed` **cambia la fila** a `conflict` cuando llega otro número: un historial que filtrara por `confirmed` borraría registros y movería los totales | `0036` | **I-135** |
+| El período que pide el encargo no se puede cubrir con los datos del motor | — | **I-133** |
+
+**Lo que no se verificó.** El motor configurable **no se ha ejercitado** en producción: el primer sorteo
+posterior al instante efectivo es Bogotá 2864 del 17/09 y su resultado está pendiente (**I-087**), así
+que no hay ni una fila de `lottery_ticket_match_prizes` que observar. Nada de este encargo tiene código,
+así que **no hay pruebas nuevas**: `verify` y `test:db` se corrieron para dejar constancia de que el
+entorno está sano, no porque hubiera algo que probar, y **la E2E no se corrió** porque no cambia ni una
+pantalla.
 
 ---
 
