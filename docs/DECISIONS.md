@@ -11703,6 +11703,18 @@ son `SECURITY DEFINER`, ejecutables por `authenticated` y **no** por `anon`; y n
 concede a `authenticated` o `anon` **nada más que `SELECT`**. La lista blanca de I-078 ya impedía que
 sobrara un permiso; faltaba la cara positiva, la que avisa si el panel se queda sin puerta.
 
+### Decisión 5 — el preflight mira I-127 con una réplica probada, y el respaldo espera a la primera escritura
+
+La comprobación de sorteos pendientes de `RUNBOOK` §8.2 llama a `raffle_prize_transition_pending_draws`,
+que **nace en la `0063`**: en un proyecto que todavía no la tiene no se puede ejecutar tal cual, y crearla
+«para mirar» sería escribir en producción antes de la puerta. Se usa una **réplica en SQL** con el corte de
+`raffle_prize_draw_cutoff` en línea, **comprobada idéntica** a la función en local sobre un escenario con
+todos los casos, dentro de una transacción deshecha. Después de la `0063` se usa la función.
+
+Y el **respaldo se genera justo antes de la primera escritura**, no durante el preflight: el encargo lo
+sitúa después de I-127, y si el preflight se detiene —como el 2026-09-16, por I-127 e I-129— un volcado
+hecho entonces estaría viejo cuando el dueño decida.
+
 ### Alternativas descartadas
 
 | Alternativa | Por qué no |
@@ -11715,6 +11727,8 @@ sobrara un permiso; faltaba la cara positiva, la que avisa si el panel se queda 
 | Reintentar la transición ante un error de red | Puede estar aplicada; el reintento con la misma huella no escribiría nada, pero con otra se rechazaría y confundiría el diagnóstico |
 | J13 en 2065 | Comparte fechas con la suite de la transición, que confirma resultados en ellas |
 | Relajar BR-J09 o sembrar programación de 2026 para J13 | Lo primero cambia una regla del dueño; lo segundo mete datos nacionales en fechas que otras suites leen |
+| Aplicar solo la `0063` —o crear la función en una transacción deshecha— para mirar I-127 | Es escribir en el proyecto real antes de la primera puerta |
+| Relajar I-127 o alargar la fecha de la rifa para seguir | Las dos son decisiones del dueño (D-204, Decisión 4; `RUNBOOK` §8.1) |
 
 ### Consecuencia
 

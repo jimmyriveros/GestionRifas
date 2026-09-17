@@ -287,8 +287,8 @@ boletas, clientes, pagos ni coincidencias, y repetirla con la misma configuraci�
 | Identificador de la **organización** | Consulta de solo lectura en el proyecto real | La base lo compara con el de la rifa |
 | Identificador de la **rifa** | La misma consulta. **Nunca se elige por nombre** | Un nombre se repite o cambia |
 | **Nombre exacto**, **estado** (`active`) y **fechas** de inicio y fin | La misma consulta | La base los compara letra por letra: un identificador pegado mal no convierte otra rifa |
-| Que el **21 de diciembre** quede dentro de la rifa | Las fechas de arriba | Si termina antes, la base rechaza la transición. Cambiar la fecha de fin es una **decisión del dueño**, no del procedimiento |
-| **Ningún sorteo** de la ventana jugado **sin resultado confirmado** | §8.2 | Si lo hay, la transición se niega (**I-127**) |
+| Que el **21 de diciembre** quede dentro de la rifa | Las fechas de arriba | Si termina antes, la base rechaza la transición. Cambiar la fecha de fin es una **decisión del dueño**, no del procedimiento. **El 2026-09-16 la rifa real terminaba el 01/11/2026 (I-129)** |
+| **Ningún sorteo** de la ventana jugado **sin resultado confirmado** | §8.2 | Si lo hay, la transición se niega (**I-127**). **El 2026-09-16 había 25**, del 27/07 al 24/08 |
 
 ### 8.2 Comprobaciones de solo lectura
 
@@ -310,6 +310,39 @@ select * from raffle_prize_transition_pending_draws(
 -- Sorteos cancelados de aquí a diciembre: el script los salta, pero conviene verlos.
 select reference_date, lottery_code from lottery_draw_schedules
  where schedule_status = 'cancelled' and reference_date between current_date and '2026-12-31';
+```
+
+**Antes de aplicar la `0063`** la función de sorteos pendientes no existe. La consulta equivalente, con el
+corte de `raffle_prize_draw_cutoff` escrito en línea, se comprobó **idéntica** a la función en local
+(`TEST_RESULTS`, 2026-09-16, Entrega 5) y es la que se usó en el preflight. **Solo sirve antes de la
+`0063`**: después, la de arriba.
+
+```sql
+with r as (select id, start_date, end_date from raffles where id = '<RIFA>'),
+days as (
+  select g.d::date as reference_date,
+         (case extract(isodow from g.d)::int when 1 then 'cundinamarca' when 2 then 'cruz_roja'
+            when 3 then 'meta' when 4 then 'bogota' when 5 then 'medellin' when 6 then 'boyaca'
+          end)::lottery_code as lottery_code
+    from r, generate_series(r.start_date::timestamp, r.end_date::timestamp, interval '1 day') as g(d)
+   where extract(isodow from g.d) <> 7),
+draws as (
+  select d.reference_date, d.lottery_code, s.id as schedule_id, s.draw_number, s.schedule_status,
+         case when s.original_scheduled_at is null or s.official_scheduled_at is null then null
+              else least(s.original_scheduled_at, s.official_scheduled_at) end as cutoff
+    from days d left join lottery_draw_schedules s
+      on s.lottery_code = d.lottery_code and s.reference_date = d.reference_date)
+select reference_date, lottery_code, draw_number, schedule_status,
+       case when cutoff is null then 'unknown_schedule' else 'unconfirmed_result' end as reason
+  from draws dr
+ where (dr.schedule_id is null or dr.schedule_status <> 'cancelled')
+   and not exists (select 1 from lottery_results lr
+                    where lr.schedule_id = dr.schedule_id and lr.validation_status = 'confirmed')
+   and ((dr.cutoff is not null and dr.cutoff <= now())
+        or (dr.cutoff is null
+            and dr.reference_date - (extract(isodow from dr.reference_date::timestamp)::int - 1)
+                <= (now() at time zone 'America/Bogota')::date))
+ order by dr.reference_date;
 ```
 
 Después, la **vista previa**, que ejecuta la transición entera y la deshace:

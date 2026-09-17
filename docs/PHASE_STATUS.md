@@ -3,7 +3,8 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-16 — **Premios configurables, ENTREGA 4 de 5: la transición de una rifa existente** (D-204, migración **`0063`**, **solo en local**): `transition_raffle_prize_mode` —solo la service role, entera o nada, con vista previa— convierte una rifa heredada sin tocar su cartera ni sus coincidencias, y se niega mientras quede un sorteo jugado sin confirmar (**I-127**, riesgo para la rifa real). Los **seis** premios confirmados están escritos una vez; el caso «semanal, un lunes, con Cundinamarca» era un ejemplo. **Ninguna rifa real cambió de modo.** Los seis puntos de §34.3, en su sección de mantenimiento. **No autoriza la Entrega 5.**
+- **Actualizado:** 2026-09-16 — **Premios configurables, ENTREGA 5 de 5: DETENIDA en el preflight de solo lectura** (D-205, sin migración). La parte local está hecha —I-128 resuelta, la puerta de producción del script, `verify:remote` +3, `test:db` **1.230/1.230**, `verify` **1.363/1.363**, E2E **742/744** con I-075 e I-090 verdes en aislamiento— en **`7d80c18`**. El proyecto real, consultado **solo en lectura**, tiene dos bloqueos que decide el dueño: la rifa real **termina el 01/11/2026** y no contiene ningún premio (**I-129**) y tiene **25 sorteos jugados sin resultado confirmado** (**I-127**). **Nada se escribió en producción**: sigue en la `0057`, sin push ni despliegue, y la rifa sigue en el sistema de siempre. Los seis puntos de §34.3, en su sección de mantenimiento.
+  Antes, ese mismo día — **Premios configurables, ENTREGA 4 de 5: la transición de una rifa existente** (D-204, migración **`0063`**, **solo en local**): `transition_raffle_prize_mode` —solo la service role, entera o nada, con vista previa— convierte una rifa heredada sin tocar su cartera ni sus coincidencias, y se niega mientras quede un sorteo jugado sin confirmar (**I-127**, riesgo para la rifa real). Los **seis** premios confirmados están escritos una vez; el caso «semanal, un lunes, con Cundinamarca» era un ejemplo. **Ninguna rifa real cambió de modo.** Los seis puntos de §34.3, en su sección de mantenimiento. **No autoriza la Entrega 5.**
   Antes, ese mismo día — **Corrección de la ENTREGA 3 de premios configurables** (D-203
   Decisiones 9 y 10, migración **`0062`**, **solo en local**): el corte de un sorteo es
   `least(original, oficial)`, escrito una sola vez en `raffle_prize_draw_cutoff` (**I-125, resuelta
@@ -4955,6 +4956,79 @@ si exige una variable que nadie ha creado (I-021).
    términos de pantalla todavía no existen.
 5. **Los argumentos opcionales de las RPC son `string | undefined`**: omítelos, no mandes `null`.
 6. **La rama sigue siendo `feature/cuentas-y-recordatorios`**, sin fusionar a `main`.
+
+---
+
+## Mantenimiento post-9 — premios configurables, **ENTREGA 5 de 5**: auditoría local y preflight, DETENIDA (D-205, 2026-09-16)
+
+Autorizada expresamente, **la Entrega 5 completa** con dos puertas. **No es una Fase 10** y no lleva
+etiqueta `fase-*`. Se hizo la parte local entera y el preflight de **solo lectura** del proyecto real, y
+ahí se detuvo: **las dos condiciones de parada del encargo se cumplen** y ninguna se puede resolver sin el
+dueño. **La primera puerta no se alcanzó.**
+
+> **PRODUCCIÓN SIN CAMBIOS.** Sigue en la `0057`, sirviendo `c48437a`. Sin respaldo nuevo, sin migraciones,
+> sin push, sin despliegue y sin vista previa de la transición. La rifa real sigue en `legacy`.
+
+### 1. Funcionalidades implementadas
+
+| Bloque | Qué hay |
+|---|---|
+| **I-128, resuelta** | J13 en **2054**, con el calendario de 2026 y sin compartir fechas con otra suite; demostrado con el reloj de la base local simulado antes, durante y después de noviembre y diciembre de 2026 |
+| **La puerta de producción del script** | `raffle-prize-transition-guard.ts`: destino explícito y de verdad remoto; para aplicar en producción, la huella de una vista previa anterior —que el script repite y compara—, `--apply` y el identificador de la rifa escrito dos veces. Una respuesta incierta no se da por fallida ni se repite. Sin identificadores de producción en el código |
+| **`verify:remote`** | +3 comprobaciones de solo lectura: las cinco tablas de premios, las seis RPC para `authenticated` y no para `anon`, y nada más que `SELECT` para las sesiones. **34/34** contra la base local |
+| **El preflight de producción** | Sondas de solo lectura (`build/e5/`, fuera de Git): inventario, la rifa candidata por identificador y organización, sus conteos de control y huellas, la programación, los resultados, las membresías que recibirían el aviso y la réplica de la comprobación de I-127, probada idéntica a la función de la `0063` |
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comando | Resultado |
+|---|---|
+| `db:reset` · `seed:local` | ✅ `0001`–`0063` |
+| J13 con el reloj simulado (8 fechas) | La anterior falla desde el 02/11/2026; la nueva, **6/6** en las ocho. Archivo completo **94/94** |
+| `raffle-prize-transition-guard.test.ts` y cuatro mutaciones de la puerta | ✅ **26/26**; cada mutación, detectada por **una** prueba |
+| Ensayo local del script —rechazos, vista previa, aplicación y reintento— y de la sonda de verificación posterior | ✅ sin escribir nada en los rechazos; 1 transición, 6 premios, 4 avisos y 1 fila de bitácora al aplicar; nada al repetir; sonda en verde |
+| Banco de rendimiento con 5.000 boletas, en una transacción deshecha | Transición 44–50 ms; motor configurable 34–43 ms (102 enlaces, 4 llamadas como máximo por función); heredado 20–73 ms, sin diferencia medible con la defensa nueva |
+| `npm run test:db` | ✅ **1.230/1.230** en 50 archivos (81 s) |
+| `npm run verify` | ❌ → ✅ `tsc` TS2559 en el script, corregido; lint **0 errores** (2 avisos preexistentes), **1.363/1.363** unitarias en 74 archivos, build |
+| `npm run test:e2e` completa | **742/744** en 43,1 min: `back-navigation:25` (**I-075**) y `ventas-por-fecha:163` (**I-090**, «recibido 54»); aislados **9/9** y **18/18** |
+| Preflight: `migration list`, `db push --dry-run` y las dos sondas | `0058`–`0063` pendientes y nada más; la rifa termina el **01/11/2026**; **25** sorteos sin resultado confirmado |
+| `git diff --check` · SHA-256 de los dos archivos protegidos | ✅ · ✅ iguales al inicio |
+
+**Errores encontrados y corregidos:** TS2559 al pasar `process.env` entero a la puerta; un filtro `-t "J13"`
+que arrastraba J2-04 en la simulación; y tres fallos del banco de medición —escapes de `psql` perdidos,
+rutas convertidas por Git Bash y `auto_explain` solo para `supabase_admin`—. **Ninguno era del producto.**
+
+### 3. Migraciones que existen
+
+**`0001`–`0063` en local; `0001`–`0057` en el proyecto real**, comprobado con `migration list`. **Esta
+entrega no crea ninguna.** `db push --dry-run` lista exactamente `0058`–`0063`, y cada una aparece solo en
+el commit que la creó.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **I-129: la rifa real termina el 01/11/2026** | Bloquea la transición: ningún premio cabe en sus fechas. Decisión del dueño |
+| **I-127: 25 sorteos jugados sin resultado confirmado**, del 27/07 al 24/08/2026 | Bloquea la transición. Esperar no lo resuelve (horizonte de 10 días). Decisión del dueño |
+| **I-130: privilegios de `audit_logs_id_seq` más amplios en el proyecto real** | Info: no alcanzable desde la API. Una migración futura con autorización |
+| `0058`–`0063` y el código no están en producción | Lo previsto hasta pasar la primera puerta |
+| I-075 e I-090 en la E2E completa | Pruebas, no producto; verdes en aislamiento |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **Las decisiones del dueño sobre I-129 e I-127**, antes que nada. Sin ellas no hay nada que aplicar.
+2. **Repetir el preflight de solo lectura** (`RUNBOOK` §8.2, la réplica si la `0063` aún no está) justo antes
+   de la primera puerta: los conteos y la lista de sorteos cambian con la operación.
+3. **Respaldo nuevo** antes de la primera escritura, no el de hoy: no se generó.
+4. **La rifa se elige por identificador y organización**: `d64af684-1378-45b9-bb71-2141a58a5013` de
+   `ec88961d-7c81-4b27-ae03-d9bccc73eda6`, hoy «SORTEO CAMIONETA KIA 2027».
+5. **No se relaja I-127 ni se cambian fechas** sin decisión expresa; una regla nueva para los sorteos
+   anteriores a los resultados automáticos sería una migración `0064` con sus pruebas.
+6. **El script contra producción** exige `--production`, la huella de una vista previa anterior y
+   `--confirm-raffle` (`RUNBOOK` §8.3).
 
 ---
 

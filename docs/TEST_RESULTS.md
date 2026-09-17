@@ -13,7 +13,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (premios configurables, Entrega 5: auditoría local y puerta de producción, D-205, 2026-09-16)** | **1.363 ✅ en 74 archivos (+26)** | **1.230 ✅ en 50 archivos** (sin migración; J13 en 2054, I-128) | Completa **742/744** en 43,1 min: `back-navigation:25` —la primera en frío, **I-075**— y `ventas-por-fecha:163` —«recibido 54», **I-090**—; aislados, **9/9** y **18/18** | ✅ | ✅ Preparado — la parte de producción, en su propia sección |
+| **Post-9 vigente (premios configurables, Entrega 5: auditoría local, puerta de producción y preflight, D-205, 2026-09-16)** | **1.363 ✅ en 74 archivos (+26)** | **1.230 ✅ en 50 archivos** (sin migración; J13 en 2054, I-128) | Completa **742/744** en 43,1 min: `back-navigation:25` —la primera en frío, **I-075**— y `ventas-por-fecha:163` —«recibido 54», **I-090**—; aislados, **9/9** y **18/18** | ✅ | ⛔ **Detenida en el preflight de solo lectura**: la rifa real termina el 01/11/2026 (**I-129**) y tiene 25 sorteos sin resultado confirmado (**I-127**). Nada escrito en producción |
 | Post-9 anterior (premios configurables, Entrega 4: la transición de una rifa existente, `0063`, D-204, 2026-09-16) | **1.337 ✅ en 73 archivos (+30)** | **1.230 ✅ en 50 archivos (+38; migración `0063`)** | **119/119** en la dirigida; completa **742/744**, y los 2 son **I-090** (`ventas-por-fecha:163` y `:238`), con su firma; aislado, `:163` pasa y `:238`/`:247` se alternan | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`; ninguna rifa real cambió de modo |
 | Post-9 anterior (corrección de la Entrega 3: el corte efectivo y el texto de los avisos, `0062`, D-203 Decisiones 9 y 10, 2026-09-16) | **1.307 ✅ en 72 archivos (+11)** | **1.192 ✅ en 49 archivos (+11; migración `0062`)** | **176/176** en la dirigida; completa **738/740**, y los 2 son **I-090** (`ventas-por-fecha:163`) e **I-106** (`catalogo-publico-movil:103`), conocidos y ajenos, y pasan en aislamiento | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
 | Post-9 anterior (premios configurables, Entrega 3: el motor, `0061`, D-203, 2026-09-16) | **1.296 ✅ en 72 archivos (+10)** | **1.181 ✅ en 49 archivos (+40; migración `0061`)** | **126/126** en la dirigida de loterías, privacidad, bloqueo de cambios y premios; la completa no se corrió, con el motivo escrito | ✅ | ✅ **Sin desplegar** — rama `feature/premios-configurables`, **solo en local** |
@@ -11775,6 +11775,75 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
   vendedor: un agente no introduce contraseñas. La evidencia es la sonda de comportamiento sobre la
   base real, las pruebas locales y el CI.
 * **Un teléfono de verdad** y el **modo oscuro**.
+
+---
+
+## Premios configurables, Entrega 5 de 5: preflight del proyecto real, DETENIDO (solo lectura, D-205) — 2026-09-16
+
+**Alcance:** las consultas de **solo lectura** que el encargo pide después de la auditoría local y antes
+de cualquier escritura. Todo con la cadena del session pooler leída de `.env.local` sin imprimirla, y las
+sondas —`build/e5/probe.mjs`, fuera de Git— dentro de **una** transacción `read only` con instantánea
+repetible que se deshace al final. **Nada se escribió en producción**: ni respaldo, ni migraciones, ni push,
+ni despliegue, ni vista previa de la transición.
+
+### a. Comandos y resultados
+
+| Paso (UTC) | Resultado |
+|---|---|
+| `npx supabase migration list` | `0001`–`0057` en los dos entornos; `0058`–`0063` **solo en local** |
+| `npx supabase db push --dry-run` | Solo `0058`, `0059`, `0060`, `0061`, `0062` y `0063`. **No aplica nada** |
+| Sonda de inventario (00:15:11) | PostgreSQL 17.6, sin réplica; 57 migraciones; **ningún** objeto de `0058`–`0063`. 2 organizaciones —«Rifas», 5 membresías activas, y «Rifas Control», 2— y **2 rifas** |
+| Rifa candidata, elegida por **identificador y organización** | `d64af684-1378-45b9-bb71-2141a58a5013` de «Rifas» (`ec88961d-7c81-4b27-ae03-d9bccc73eda6`): **«SORTEO CAMIONETA KIA 2027»**, **activa**, **del 27/07/2026 al 01/11/2026**, $120.000, código R001. La otra es «Rifa Control 2026», de la organización de control, con 3 boletas |
+| ¿Contiene el 21/12/2026? | ⛔ **No**: termina el **01/11/2026** (**I-129**). Tampoco el 27/11 ni el 28/11 |
+| Sonda de la rifa (00:15:29) | 1.177 boletas —927 vendidas: 284 pagadas, 187 con abonos y 456 sin pagar—, 634 clientes con boleta, 482 pagos y 534 asignaciones por $43.985.000, **2** coincidencias históricas, 2 catálogos publicados con esta rifa y **5** membresías activas —1 Dueño, 1 Administrador y 3 vendedores— que recibirían el aviso; 0 inactivas |
+| Programación de la ventana | 84 sorteos, **0** días sin programación, **0** con alguna hora vacía: 59 `scheduled`, 19 `completed` y 6 `rescheduled_later`. **Ningún cancelado** hasta diciembre. Programados el 27/11 (Medellín 4863), 28/11 (Boyacá 4652), 15/12 (Cruz Roja 3184) y 21/12 (Cundinamarca 4834) |
+| Resultados de la ventana | **19**, todos `confirmed`, del 25/08 al 15/09 |
+| **I-127** —réplica de `raffle_prize_transition_pending_draws`, probada idéntica en local— | ⛔ **25 filas**, todas `unconfirmed_result`: los 25 sorteos jugados del 27/07 al 24/08 (b) |
+| Extensiones y tareas | `pg_cron` 1.6.4, `pg_net` 0.20.4, `pg_trgm`, `pgcrypto`, `supabase_vault`… Los tres `pg_cron` activos, última corrida `succeeded`. Sincronizador, últimas 48 h: `schedule` 2 `success`; `results` 2 `success` y 4 `failed` |
+| Secuencias | `audit_logs_id_seq` con `anon=rwU` y `authenticated=rwU` (**I-130**, info) |
+| Conteos de control globales | 2 organizaciones · 2 rifas · 1.180 boletas (927 vendidas, $109.900.000) · 638 clientes · 482 pagos (0 anulados, $43.985.000) · 534 asignaciones · 2 coincidencias · 19 resultados confirmados · 312 programaciones · 1.181 avisos · 5.837 filas de bitácora · 7 membresías · 7 perfiles |
+| Huellas (md5) | `tickets` `e5cb4482…` · `clients` `a01910f5…` · `payments` `d0d7699f…` · `payment_allocations` `542443b5…` · `lottery_ticket_matches` `50e066ee…` · `lottery_results` `ab835af1…` · `raffles` `b9ddbb00…` · `memberships` `11ea5722…` · `seller_commissions` `619df983…` |
+| Tipos de aviso existentes | `lottery.result`, `payment_reminder.due`, `team.member_added` y `team.sale`: todos caben en el `CHECK` que escribe la `0058` |
+
+### b. Los 25 sorteos que detienen la transición (I-127)
+
+| Fecha | Lotería | Sorteo | Programación | Corte (Bogotá) | Resultado | Motivo |
+|---|---|---|---|---|---|---|
+| 27/07/2026 (lun) | Cundinamarca | 4813 | `scheduled` | 23:15 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 28/07/2026 (mar) | Cruz Roja | 3164 | `scheduled` | 22:55 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 29/07/2026 (mié) | Meta | 3309 | `scheduled` | 22:30 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 30/07/2026 (jue) | Bogotá | 2857 | `scheduled` | 23:15 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 31/07/2026 (vie) | Medellín | 4846 | `scheduled` | 23:00 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 01/08/2026 (sáb) | Boyacá | 4635 | `scheduled` | 22:30 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 03/08/2026 (lun) | Cundinamarca | 4814 | `scheduled` | 23:15 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 04/08/2026 (mar) | Cruz Roja | 3165 | `scheduled` | 22:55 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 05/08/2026 (mié) | Meta | 3310 | `scheduled` | 22:30 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 06/08/2026 (jue) | Bogotá | 2858 | `scheduled` | 23:15 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 07/08/2026 (vie) | Medellín | 4847 | `rescheduled_later` | 23:00 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 08/08/2026 (sáb) | Boyacá | 4636 | `scheduled` | 22:30 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 10/08/2026 (lun) | Cundinamarca | 4815 | `rescheduled_later` | 20:00 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 11/08/2026 (mar) | Cruz Roja | 3166 | `rescheduled_later` | 22:55 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 12/08/2026 (mié) | Meta | 3311 | `rescheduled_later` | 22:30 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 13/08/2026 (jue) | Bogotá | 2859 | `scheduled` | 23:15 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 14/08/2026 (vie) | Medellín | 4848 | `scheduled` | 23:00 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 15/08/2026 (sáb) | Boyacá | 4637 | `scheduled` | 22:30 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 17/08/2026 (lun) | Cundinamarca | 4816 | `rescheduled_later` | 23:15 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 18/08/2026 (mar) | Cruz Roja | 3167 | `scheduled` | 22:55 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 19/08/2026 (mié) | Meta | 3312 | `scheduled` | 22:30 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 20/08/2026 (jue) | Bogotá | 2860 | `scheduled` | 23:15 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 21/08/2026 (vie) | Medellín | 4849 | `scheduled` | 23:00 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 22/08/2026 (sáb) | Boyacá | 4638 | `scheduled` | 22:30 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+| 24/08/2026 (lun) | Cundinamarca | 4817 | `scheduled` | 23:15 | Sin resultado | Ya se jugó y no tiene resultado confirmado (`unconfirmed_result`) |
+
+Ninguno tiene fila en `lottery_results`: ni `pending`, ni `conflict`. Son **anteriores** a los resultados
+automáticos, y el sincronizador solo consulta los últimos 10 días (BR-L22): **esperar no los resuelve**.
+
+### c. Lo que NO se hizo, a propósito
+
+* **El respaldo**: el encargo lo sitúa después de I-127, y uno generado ahora habría quedado viejo antes de
+  que el dueño decida. Se genera nuevo justo antes de la primera escritura.
+* **Migraciones, push, despliegue y la vista previa de la transición**: la primera puerta no se alcanzó.
+* **Ninguna fecha, resultado ni regla cambió.**
 
 ---
 
