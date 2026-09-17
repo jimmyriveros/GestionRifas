@@ -41,7 +41,8 @@
   y `0060`; D-199 a D-202; BR-J01..BR-J16): **cuatro** tablas sin escritura directa, seis RPC
   autorizadas por `raffles.prizes.manage`, un resolvedor de capacidades con espejo en la
   aplicación y la **puerta acotada** para que una rifa nueva nazca configurable.
-  ⚠️ **Solo en local**: el proyecto real no tiene ninguna de las tres.
+  ✅ Las tres están **en el proyecto real desde el 2026-09-17** —`0058`–`0066`, puerta 1 de `RUNBOOK` §8—, con
+  `verify:remote` **41/41**.
 - ✅ `0051`, `0052`, `0053`, `0054` y `0055` están **en el proyecto real desde el 2026-09-12**
   (Etapa 7, D-193), con `verify:remote` 24/24.
 - **Estado:** las políticas y sus refuerzos viven en las migraciones `0005`, `0011`, `0014`,
@@ -1148,7 +1149,8 @@ en el HTML, en la carga RSC ni en las respuestas de red. ✅ **En producción de
 
 ### 4.20 Premios configurables y la capacidad central (`0058` + `0059` + `0060`; BR-J01..BR-J16; D-199 a D-202)
 
-> ⚠️ **Solo en local.** El proyecto real no tiene ni la `0058` ni la `0059`.
+> ✅ **En producción desde el 2026-09-17:** `0058`–`0066` aplicadas y el código desplegado en `da81663`
+> (puertas 1 a 3 de `RUNBOOK` §8), con `verify:remote` **41/41** y la matriz de privilegios comprobada.
 
 **La autorización deja de preguntar por el rol.** Las seis RPC preguntan
 `has_org_capability(org, 'raffles.prizes.manage')`, que comprueba la capacidad **y** que la
@@ -1195,7 +1197,10 @@ devuelve una columna de esa lista. El aviso que se escribe en la campana tampoco
 
 ### 4.21 El motor de premios configurables (`0061`; BR-J06, BR-J07, BR-J09; D-203)
 
-> ⚠️ **Solo en local**, como §4.20.
+> ✅ **En producción desde el 2026-09-17**, como §4.20. La rifa «SORTEO CAMIONETA KIA 2027» es configurable
+> desde las **17:40:12.566 UTC** de ese día: el motor resuelve con premios configurables los sorteos cuyo
+> corte llega después de ese instante, y con el sistema de siempre los 45 anteriores (D-206). Todavía no ha
+> resuelto ninguno: el primero es el de Bogotá del 17/09, sin resultado confirmado.
 
 > **Desde la `0066` (D-207, §4.23)** `match_lottery_result` tampoco es ejecutable por `service_role`: la
 > única entrada del motor es `confirm_lottery_result`.
@@ -1234,8 +1239,10 @@ nombra clientes, precios, abonos, pagos, alternativas o recompensas.
 
 ### 4.22 La transición de una rifa existente (`0063`; BR-J13; D-204)
 
-> ⚠️ **Solo en local**, como §4.20. **Ninguna rifa real ha cambiado de modo**, y el script que la
-> ejecuta se niega a trabajar contra el proyecto real hasta la Entrega 5.
+> ✅ **Ejecutada en producción el 2026-09-17** (puerta 3 de `RUNBOOK` §8): «SORTEO CAMIONETA KIA 2027» pasó a
+> premios configurables con la transición `af9cdbe2-0d50-43db-b12a-42ded57b1cae`, huella
+> `43880580…3557` e instante efectivo **17:40:12.566 UTC**. Es la **única** rifa convertida, y la vía sigue
+> siendo el script con la clave de servicio, nunca la aplicación.
 
 **La superficie crece en una sola función, y solo para la service role.**
 `transition_raffle_prize_mode` es `SECURITY DEFINER` con `search_path` fijo; `EXECUTE` **solo** para
@@ -1281,7 +1288,8 @@ la exclusión del actor— y repite sus revocaciones: sigue sin ejecutarla nadie
 
 ### 4.23 Quién ejecuta cada función de premios (`0066`; D-207; I-132)
 
-> ⚠️ **Solo en local**, como §4.20–§4.22.
+> ✅ **En producción desde el 2026-09-17**, como §4.20–§4.22. La matriz de las 62 funciones se comprobó contra
+> el proyecto real después de aplicar las migraciones y después de la transición: exacta las dos veces.
 
 **El hallazgo, antes de escribir en producción.** El preflight de la Puerta 1 (2026-09-17) comparó, en
 solo lectura, la estructura del proyecto real con la pila local en `0057`: el privilegio por defecto de

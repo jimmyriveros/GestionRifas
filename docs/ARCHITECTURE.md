@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.40 · **Estado:** implementado · **Actualizado:** 2026-09-16 (**§8.27.b**: el aviso de
+- **Versión:** 1.41 · **Estado:** implementado · **Actualizado:** 2026-09-17 (**§8.27.a** y **§8.27.b**:
+  premios configurables **en producción** —`0058`–`0066` aplicadas, `da81663` desplegado y la rifa real
+  convertida, con sus seis premios—). Antes, el 2026-09-16 (**§8.27.b**: el aviso de
   las fechas de una rifa activa llega **también a quien las cambia**, y su actor sale solo de la sesión
   —D-206 corregida, migración `0065`, **solo en local**—). Antes, ese mismo día (**§8.27.b**: el
   **instante efectivo** y la frontera que decide con qué sistema juega cada rifa cada sorteo, y el
@@ -2007,6 +2009,9 @@ vendedor, o si una Server Action de la cartera deja de exigir el rol `seller`.
 > **Estado al 2026-09-16:** ya existen el panel (Entrega 2, D-202) y **el motor** (Entrega 3, D-203,
 > §8.27.a). Todo sigue **solo en local**, y las rifas que ya existían siguen en modo heredado hasta la
 > Entrega 4.
+>
+> **Estado al 2026-09-17:** todo está **en producción** —`0058`–`0066` y `da81663`— y la rifa real «SORTEO
+> CAMIONETA KIA 2027» es **configurable** desde las 17:40:12.566 UTC (§8.27.b).
 
 **Lo que se añadió, y dónde vive:**
 
@@ -2072,7 +2077,8 @@ solo declara columnas desde `sm` es `auto` y no baja del texto más largo (D-125
 
 #### 8.27.a El motor de coincidencias: confirmar un resultado con dos motores (Entrega 3, `0061`, D-203)
 
-> ⚠️ **Solo en local.** Ninguna rifa real es configurable hasta la Entrega 4.
+> ✅ **En producción desde el 2026-09-17.** La rifa real es configurable desde las 17:40:12.566 UTC de ese
+> día; el motor **todavía no ha resuelto** ningún sorteo posterior a ese instante.
 >
 > **Nota (2026-09-16, D-204):** la Entrega 4 construyó la transición (§8.27.b) y **se niega** mientras
 > quede un sorteo de la ventana sin confirmar, que es la trampa de la fila «Con qué motor». La rifa
@@ -2121,8 +2127,9 @@ alcance de entregas posteriores.
 
 #### 8.27.b La transición de una rifa existente (Entrega 4, `0063`, D-204)
 
-> ⚠️ **Solo en local.** El mecanismo existe y está probado; **ninguna rifa real ha cambiado de modo**.
-> Identificarla y convertirla es la Entrega 5 (`RUNBOOK` §8).
+> ✅ **Ejecutada en producción el 2026-09-17** (`RUNBOOK` §8, puerta 3): transición `af9cdbe2-0d50-43db-b12a-42ded57b1cae`
+> de «SORTEO CAMIONETA KIA 2027», con seis premios, instante efectivo 17:40:12.566 UTC y **45** sorteos
+> anteriores que conservan el sistema de siempre.
 
 **No hay pantalla, a propósito.** Una rifa que ya existía pasa a premios configurables **una vez**, y
 lo hace un proceso con la service role. Tres piezas, cada una con un solo trabajo:

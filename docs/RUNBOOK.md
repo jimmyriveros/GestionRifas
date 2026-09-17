@@ -288,6 +288,14 @@ usan solo los premios.
 | 2 | «¿Autorizas que el Dueño, con su sesión y desde Editar, extienda la fecha de fin de «<NOMBRE EXACTO>» hasta el <FECHA>, con el aviso a las <N> membresías activas, él incluido?» | **Lo escribe el Dueño**, no el agente: `raffles.end_date`, un aviso por membresía activa y la bitácora, a su nombre. El agente solo lee antes y después (§8.3) | La transición compara las fechas esperadas, y el premio principal juega el 21/12 |
 | 3 | «¿Autorizas transformar esta rifa específica y enviar el aviso a las membresías activas indicadas?» | La transición (§8.4) | Última: con la fecha ya extendida y la vista previa revisada |
 
+**Estado el 2026-09-17, cierre:** **las tres puertas están hechas.** Puerta 1: `0058`–`0066` aplicadas de
+14:04:05 a 14:05:58 UTC con respaldo previo y `da81663` desplegado (`verify:remote` 41/41). Puerta 2: la rifa
+termina el **21/12/2026** desde las 15:21:19 UTC, con 5 avisos —el del Dueño incluido— y la desviación aceptada
+de abajo. Puerta 3: vista previa a las 17:39:28 y transición aplicada de 17:40:09 a 17:40:13 UTC —`af9cdbe2-0d50-43db-b12a-42ded57b1cae`,
+huella `43880580a641…`, instante efectivo **17:40:12.566 UTC**—, con 6 premios, 5 avisos, 2 filas de
+bitácora de «Sistema» y **45** sorteos anteriores con el sistema de siempre. **Lo único pendiente** es observar el
+primer sorteo posterior al instante (§8.6).
+
 **Estado el 2026-09-17, 15:24 UTC:** **puerta 1 hecha** —`0058`–`0066` aplicadas de 14:04:05 a 14:05:58 UTC con
 respaldo previo, `da81663` desplegado y `verify:remote` 41/41— y **puerta 2 completada** a las 15:21:19 UTC: la rifa
 termina el **21/12/2026**, sigue activa y en `legacy`, cada una de las **5** membresías activas recibió su aviso —el
@@ -535,6 +543,14 @@ Contra la base local, `--local` en lugar de `--production`.
 npx tsx scripts/raffle-prize-transition.ts --production --organization <ORG> --raffle <RIFA> --name "<NOMBRE EXACTO>" --status active --start <AAAA-MM-DD> --end <AAAA-MM-DD> --apply --preview-hash <HUELLA> --confirm-raffle <RIFA>
 ```
 
+> **Ejecutada el 2026-09-17** (puerta 3). Vista previa **una sola vez** a las 17:39:28 UTC, idéntica línea por
+> línea al ensayo local, con huella `43880580a6419fa4a97fa8808f13978d72653f7b17bab760d268307a8d683557`.
+> Aplicada de 17:40:09 a 17:40:13 UTC: transición `af9cdbe2-0d50-43db-b12a-42ded57b1cae`, instante efectivo
+> **17:40:12.566 UTC**, 6 premios, 6 versiones, 7 períodos, 9 alternativas, 5 avisos y 2 filas de bitácora de
+> «Sistema» (5943 y 5944) — **37** filas propias, y ninguna boleta, pago, cliente, comisión ni coincidencia
+> tocada. La vista previa y la que repite el aplicar consumieron los identificadores **5939–5942** de la
+> secuencia de `audit_logs`: quedan sin fila, y **no se rellenan ni se reutilizan**.
+
 El script repite la vista previa, compara la huella y solo entonces aplica. Se ejecuta **una vez**. Debe
 decir «La rifa pasó a premios configurables.», el identificador de la transición y «Premios configurables
 desde: …», el **instante efectivo**. Comprobación inmediata:
@@ -571,6 +587,14 @@ premios.».
 | **«No sabemos si la transición se aplicó…»** | Al aplicar, la respuesta no llegó completa. **Pudo aplicarse** | **No repetir la orden.** Consultar `select prize_mode from raffles where id = '<RIFA>'` y `select id, configuration_hash, effective_at from raffle_prize_transitions where raffle_id = '<RIFA>'`. Transición con la huella de la vista previa: **está aplicada**, seguir con §8.4. Sin transición y en `legacy`: no se aplicó, investigar antes de reintentar. Cualquier otra combinación: parar |
 
 ### 8.6 Después: los sorteos que conservan el sistema de siempre
+
+> **Al 2026-09-17, tras la transición.** El primer sorteo posterior al instante efectivo es **Bogotá 2864 del
+> 17/09**, con corte a las **04:15 UTC del 18/09**, y su **único premio aplicable es el Premio diario de
+> $500.000** (número diario, cuatro cifras). Su observación **está pendiente**: el vigilante de solo lectura se
+> detuvo a las 20:20 UTC por orden del dueño y se reiniciará antes del corte. **El motor todavía no se ha
+> ejercitado con un resultado confirmado en producción**, y que Bogotá no se confirme sola —I-087, mitigada por
+> consenso desde D-162— **no es, por sí solo, un fallo del motor**. Si no se confirma, el siguiente sorteo que
+> puede confirmarse solo es **Medellín del 18/09** (corte 04:00 UTC del 19/09).
 
 | Situación | Qué pasa | Qué hacer |
 |---|---|---|

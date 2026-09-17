@@ -143,6 +143,23 @@ por separado (I-118). Respaldo previo en `Rifas-backups/2026-09-15-antes-0057/`.
 | Sonda de comportamiento (identidad fijada como PostgREST, solo lectura) | ✅ El Dueño y el Administrador leen **0 filas** de las 8 tablas de la cartera; sus proyecciones traen exactamente sus claves y cuadran (1.171 de 1.171 boletas, 906 de 906 vendidas); buscar el nombre de un cliente real responde igual que uno inventado, y `partial` se rechaza. Un vendedor sigue leyendo sus boletas, clientes y pagos, y ninguna boleta ajena |
 | Ventana | **~62 s** con la migración nueva y el código anterior (17:36:48 → 17:37:50 UTC). Ningún error de ejecución registrado |
 
+#### Promoción de `0058`–`0066` — 2026-09-17 (Entrega 5, puerta 1 de `RUNBOOK` §8)
+
+**La base de producción pasa de 57 a 66 migraciones**, con autorización expresa del dueño y los tres pasos de
+arriba. Respaldo previo en `Rifas-backups/2026-09-17-antes-0058-0066/`, **validado restaurándolo en la base
+local** (RUNBOOK §5.2): mismas cifras que la línea base.
+
+| Qué | Resultado |
+|---|---|
+| Respaldo | `roles.sql` (370 B), `schema.sql` (429 KB) y `data.sql` (4,8 MB, 24 tablas). **0** nombres `"auth".` cualificados, **0** `INSERT INTO "auth"` y **0** líneas con credenciales |
+| `db push --dry-run` | Exactamente `0058`–`0066`, en orden (13:58 y otra vez 14:03:50 UTC) |
+| `db push --yes` | Aplicadas de **14:04:05 a 14:05:58 UTC**; `migration list` con `0001`–`0066` iguales en los dos entornos |
+| `npm run verify:remote` | ✅ **41/41**, con las tres comprobaciones de la `0066` |
+| Matriz de privilegios (D-207) | ✅ Las 62 funciones de premios con su `EXECUTE` exacto: seis RPC y `admin_audit_log` para `authenticated`; `transition_raffle_prize_mode`, `confirm_lottery_result` y `admin_audit_log` para `service_role`; las otras 53, nadie |
+| Delta de estructura | **Idéntico al ensayado en local con los privilegios del proyecto alojado**: +6 tablas (vacías), +67 columnas, +67 restricciones (y 1 modificada), +20 índices, +15 disparadores, +5 políticas, +58 funciones (y 4 redefinidas) y +6 tipos |
+| Datos | **Ninguna fila de negocio cambió**: las dos rifas quedaron en `legacy` con sus fechas, sin premios, sin transición y sin avisos nuevos |
+| CI | ✅ 2/2 (run `35231507321`), incluido el job que aplica las 66 migraciones desde cero |
+
 ---
 
 ## 3. Vercel
@@ -622,6 +639,29 @@ por nonce; **0 secretos** en 945 KB. **Errores de ejecución** desde las 17:30 U
 > (§2.2), las pruebas locales y el CI. Tampoco un teléfono de verdad ni el modo oscuro. **Revertir el
 > código obliga a pensar en la base**: el código anterior lee tablas que `0057` cerró al personal, así
 > que volver atrás de verdad es el procedimiento de D-198, con una migración nueva.
+
+### 3.2.k Release de premios configurables — 2026-09-17
+
+**Nueve migraciones y el código de la Entrega 5, con la rifa real convertida el mismo día (puertas 1 a 3).**
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`da81663a2a5fe19db53ec0002e74a8a4af3f7137`**. El código y la `0066` van en `1d194dc`; `da81663` solo corrige documentación |
+| Commit anterior en producción | `c48437a0f7ff3ecadf23264a66aa03616a959e48` |
+| Integración | **fast-forward** `c48437a..da81663`, 14 commits, sin merge, sin force y sin etiqueta (push de 14:07:21 a 14:07:34 UTC) |
+| Despliegue Vercel | `dpl_7uUohsc1foH9FHaoY8s2hZKJpRQo` — READY a las **14:08:53 UTC**, alias `gestion-rifas.vercel.app`, `aliasError: null` |
+| Despliegue anterior (**punto de reversión del código**) | `dpl_DDiadqkXLcyympoUppJcWSqcVXnE` (`c48437a`). El código anterior solo usa `confirm_lottery_result` de las 62 funciones, que conserva su permiso: puede convivir con la base migrada |
+| **Migraciones** | `0058`–`0066`, aplicadas **antes** del código (§2.2) |
+| Variables de entorno, dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `vercel.json`, ni `next.config.ts`, ni `.github/`, ni `.env.example` |
+
+**Verificación en vivo:** identificador **`9c2d9748c2e7`** servido (1 de 15 fragmentos) desde las 14:09:02 UTC y
+el anterior (`95c3e4a0b3a2`) **desaparecido**; **28/28** rutas como se esperaba —las de premios cerradas sin
+sesión— y **ningún 5xx**; las cuatro exportaciones de reportes sin CSV sin sesión; **7/7** cabeceras con CSP por
+nonce; **0 secretos** en 950 KB. Autenticación básica sin iniciar sesión: `/login` con sus campos, las rutas
+protegidas redirigidas y el Auth de Supabase respondiendo. **Errores de ejecución:** ninguno.
+
+> **Lo que este release NO verificó:** las pantallas **con sesión** —un agente no introduce contraseñas—. Lo que
+> ve cada rol está comprobado con las pruebas locales, el CI y las sondas de solo lectura sobre la base real.
 
 ### 3.3 Despliegues futuros
 

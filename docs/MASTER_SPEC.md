@@ -6,7 +6,9 @@
 
 - **Versión del documento:** 1.12
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-16 (§9.7, correcciones de D-206 antes de producción: los sorteos
+- **Última actualización:** 2026-09-17 (§9.7: **premios configurables EN PRODUCCIÓN** —`0058`–`0066`
+  aplicadas, `da81663` desplegado y la rifa real «SORTEO CAMIONETA KIA 2027» convertida, con sus seis
+  premios, hasta el 21/12/2026—). Antes, el 2026-09-16 (§9.7, correcciones de D-206 antes de producción: los sorteos
   ya jugados conservan el sistema de siempre y cambiar las fechas de una rifa activa avisa —`0064`—, **a
   todas las personas activas, también a quien las cambia**, y la rifa real la extiende **el Dueño con su
   sesión** —`0065`—, **solo en local**). Antes, ese mismo día (§9.7, corrección de la Entrega 3: un sorteo **adelantado**
@@ -394,7 +396,13 @@ propio no la cambia.
 
 ---
 
-### 9.7 Premios configurables por rifa — **ENTREGAS 1 A 4 DE 5 y la corrección de la 5: contrato, panel, motor, transición y sorteos ya jugados, solo en local**
+### 9.7 Premios configurables por rifa — **EN PRODUCCIÓN: contrato, panel, motor, transición y la rifa real convertida**
+
+> **Estado al 2026-09-17 (Entrega 5 cerrada).** `0058`–`0066` están en el proyecto real, el código va
+> desplegado en `da81663` y la rifa **«SORTEO CAMIONETA KIA 2027»** —activa, del 27/07/2026 al
+> **21/12/2026**— es **configurable** desde las **17:40:12.566 UTC**, con sus **seis** premios y la
+> transición `af9cdbe2-0d50-43db-b12a-42ded57b1cae`. Las tres puertas de `RUNBOOK` §8 se ejecutaron ese
+> día. Lo de abajo se conserva como historia de cada entrega.
 
 > Encargo «premios configurables por rifa», 2026-09-15 (D-199, D-200 y **D-201**; reglas
 > BR-J01..BR-J15; migraciones **`0058`** y **`0059`**). **No hay panel** (Entrega 2), **no hay motor

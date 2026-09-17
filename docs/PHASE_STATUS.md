@@ -3,7 +3,14 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-17 — **Premios configurables, ENTREGA 5 de 5: la Puerta 1 suspendida antes de escribir, y quién ejecuta cada función de premios** (D-207, migración **`0066`**, **solo en local**, sin completar la entrega): el preflight de solo lectura vio que el privilegio por defecto de las funciones del proyecto real concede `EXECUTE` a `service_role` y el local no, y que con `0058`–`0065` **35 funciones de la entrega** habrían quedado ejecutables con la clave de servicio (**I-132**). El dueño **suspendió la Puerta 1**, que **no escribió nada**. La `0066` fija una lista explícita y mínima —seis RPC de sesión, `admin_audit_log`, y solo `transition_raffle_prize_mode` y `confirm_lottery_result` para la service role; las otras 53 no las ejecuta nadie— y se comprueba a sí misma; la cadena desde `0057` deja **el mismo catálogo** con los privilegios locales y con los de producción. `test:db` **1.270/1.270**, `verify` **1.375/1.375**, `verify:remote` local **41/41**. **Producción sin cambios**; la próxima Puerta 1 tiene que autorizar `0058`–`0066` y el commit nuevo.
+- **Actualizado:** 2026-09-17 — **Premios configurables, ENTREGA 5 de 5: COMPLETA EN PRODUCCIÓN** (D-204 a
+  D-207; las tres puertas de `RUNBOOK` §8 el mismo día): `0058`–`0066` aplicadas de 14:04:05 a 14:05:58 UTC con
+  respaldo validado, `da81663` desplegado y servido, la rifa **«SORTEO CAMIONETA KIA 2027»** extendida hasta el
+  **21/12/2026** a las 15:21:19 —con 5 avisos y una desviación aceptada: la guardó una sesión de Administrador— y
+  convertida a **premios configurables** a las 17:40:12.566 UTC, con sus **seis** premios, **37** filas propias y
+  los **45** sorteos anteriores en el sistema de siempre. `verify:remote` **41/41** y matriz exacta en cada pasada.
+  **Pendiente solo la observación**, de solo lectura, del primer sorteo posterior al instante efectivo.
+  Antes, ese mismo día — **Premios configurables, ENTREGA 5 de 5: la Puerta 1 suspendida antes de escribir, y quién ejecuta cada función de premios** (D-207, migración **`0066`**, **solo en local**, sin completar la entrega): el preflight de solo lectura vio que el privilegio por defecto de las funciones del proyecto real concede `EXECUTE` a `service_role` y el local no, y que con `0058`–`0065` **35 funciones de la entrega** habrían quedado ejecutables con la clave de servicio (**I-132**). El dueño **suspendió la Puerta 1**, que **no escribió nada**. La `0066` fija una lista explícita y mínima —seis RPC de sesión, `admin_audit_log`, y solo `transition_raffle_prize_mode` y `confirm_lottery_result` para la service role; las otras 53 no las ejecuta nadie— y se comprueba a sí misma; la cadena desde `0057` deja **el mismo catálogo** con los privilegios locales y con los de producción. `test:db` **1.270/1.270**, `verify` **1.375/1.375**, `verify:remote` local **41/41**. **Producción sin cambios**; la próxima Puerta 1 tiene que autorizar `0058`–`0066` y el commit nuevo.
   Antes, el 2026-09-16 — **Premios configurables, ENTREGA 5 de 5: el aviso de fechas llega también a quien las cambia, y la puerta 2 con la sesión del Dueño** (D-206 corregida, migración **`0065`**, **solo en local**, sin completar la entrega): la frontera temporal y la protección de los 25 sorteos, **aprobadas por el dueño y sin tocar**; cada membresía activa recibe **exactamente un aviso**, también quien cambia las fechas, que sigue siendo su actor; y `RUNBOOK` §8.3 hace la extensión real **con la sesión del Dueño** desde Editar, con verificación de solo lectura antes y después. `test:db` **1.255/1.255**, `verify` **1.375/1.375**, E2E dirigida **4/4**, `verify:remote` local **38/38**. **Ninguna puerta pedida; nada en producción.**
   Antes, ese mismo día — **Premios configurables, ENTREGA 5 de 5: corrección local previa a producción** (D-206, migración **`0064`**, **solo en local**, sin completar la entrega): los sorteos cuyo corte llegó antes de la transición **conservan el sistema de siempre** —también si su resultado se confirma después, sin enlaces—, con el **instante efectivo** y una sola frontera; la transición ya no espera a los 25 sorteos de **I-127** y sí a un corte desconocido; y cambiar las fechas de una rifa activa **avisa** a su organización (BR-R12). `test:db` **1.254/1.254**, `verify` **1.375/1.375**, E2E dirigida **52/53** y la prueba nueva corregida, **9/9** en tres repeticiones. **Producción sin cambios** y la fecha real de la rifa sigue en el 01/11/2026. Los seis puntos de §34.3, en su sección de mantenimiento.
   Antes, ese mismo día — **Premios configurables, ENTREGA 5 de 5: DETENIDA en el preflight de solo lectura** (D-205, sin migración). La parte local está hecha —I-128 resuelta, la puerta de producción del script, `verify:remote` +3, `test:db` **1.230/1.230**, `verify` **1.363/1.363**, E2E **742/744** con I-075 e I-090 verdes en aislamiento— en **`7d80c18`**. El proyecto real, consultado **solo en lectura**, tiene dos bloqueos que decide el dueño: la rifa real **termina el 01/11/2026** y no contiene ningún premio (**I-129**) y tiene **25 sorteos jugados sin resultado confirmado** (**I-127**). **Nada se escribió en producción**: sigue en la `0057`, sin push ni despliegue, y la rifa sigue en el sistema de siempre. Los seis puntos de §34.3, en su sección de mantenimiento.
@@ -4962,7 +4969,74 @@ si exige una variable que nadie ha creado (I-021).
 
 ---
 
+## Mantenimiento post-9 — premios configurables, **ENTREGA 5 de 5: COMPLETA EN PRODUCCIÓN**, las tres puertas (`0058`–`0066`, `da81663`, D-204 a D-207, 2026-09-17)
+
+Encargo del dueño, autorizado puerta por puerta el mismo día. **La Entrega 5 queda cerrada**: las migraciones de
+premios configurables están en el proyecto real, el código va desplegado y la rifa real usa los seis premios.
+
+> **EN PRODUCCIÓN.** `0001`–`0066` aplicadas, `da81663` servido y «SORTEO CAMIONETA KIA 2027» en modo
+> `configurable` desde las **17:40:12.566 UTC** del 2026-09-17. Sin etiqueta, sin fusionar la rama y sin tocar
+> ningún dato de negocio.
+
+### 1. Funcionalidades implementadas
+
+| Puerta | Qué quedó |
+|---|---|
+| **1 · migraciones y despliegue** | `0058`–`0066` aplicadas de 14:04:05 a 14:05:58 UTC con respaldo previo validado; `c48437a..da81663` en avance rápido y `dpl_7uUohsc1foH9FHaoY8s2hZKJpRQo` READY a las 14:08:53; identificador `9c2d9748c2e7` servido |
+| **2 · la fecha de fin** | La rifa termina el **21/12/2026** desde las 15:21:19 UTC, con **5** avisos —uno por membresía activa, el del Dueño incluido— y su bitácora. La guardó una **sesión autorizada de Administrador**, no la del Dueño: **desviación aceptada por el dueño**, con el actor real conservado (`RUNBOOK` §8.3) |
+| **3 · la transición** | Vista previa única a las 17:39:28 y aplicación de 17:40:09 a 17:40:13 UTC: transición `af9cdbe2-0d50-43db-b12a-42ded57b1cae`, huella `43880580a641…`, instante efectivo 17:40:12.566 UTC, **6 premios, 6 versiones, 7 períodos y 9 alternativas**, 5 avisos y 2 filas de bitácora de «Sistema» — **37** filas propias |
+| **Los seis premios** | Diario $500.000 (número diario, 4 cifras, lunes a viernes del 17/09 al 27/11, lotería correspondiente) · Fin de semana $2.000.000 (semanal, sábados del 19/09 al 28/11, Boyacá) · Principal (diario, 21/12, Cundinamarca) con una de: Camioneta KIA, Renault Alaskan modelo 2023 y $20.000.000, $120.000.000, **Renault Logan Zen público modelo 2023** y $70.000.000 · Tres cifras $1.000.000 (últimas tres, 21/12, Cundinamarca) · Especial semanal $1.000.000 (semanal, 1–5 y 16–19 de diciembre) · 15 de diciembre $7.000.000 (semanal, Cruz Roja) |
+| **La frontera temporal** | Los **45** sorteos anteriores al instante —los **25** de I-127 incluidos— conservan el sistema de siempre; los **82** posteriores usan solo los premios configurables |
+
+### 2. Pruebas ejecutadas y resultados
+
+| Comprobación | Resultado |
+|---|---|
+| `verify:remote` | ✅ **41/41** después de migrar, después del despliegue, después de la transición y en el cierre |
+| Matriz de privilegios de las 62 funciones (D-207) | ✅ Exacta en cada una de esas pasadas |
+| Delta de estructura de `0058`–`0066` | ✅ **Idéntico** al ensayado en local con los privilegios del proyecto alojado |
+| Fotografías fila a fila | ✅ La puerta 1 no cambió ninguna fila de negocio; la puerta 2 dejó la rifa, 2 filas de bitácora y 5 avisos; la puerta 3, **37** filas propias y nada más |
+| Actividad concurrente | Clasificada aparte con su bitácora: ventas, abonos —uno corregido a los 30 s—, una boleta creada y aprobada, la corrección del nombre de un cliente y los turnos del sincronizador |
+| Respaldos | Dos, `2026-09-17-antes-0058-0066` y `2026-09-17-antes-puerta-3`, los dos **validados restaurándolos en local** |
+| Primer turno con el código nuevo (15:10:35) | ✅ 200, sin trabajo y sin errores; reproducido con las funciones puras del código |
+| Suites locales | Sin cambios: **1.375** unitarias en 75 archivos y **1.270** de base en 52 (el cierre no toca código) |
+
+**Errores encontrados:** ninguno del producto. Los del procedimiento y de las herramientas están en `TEST_RESULTS`.
+
+### 3. Migraciones que existen
+
+**`0001`–`0066`, ahora también en el proyecto real.** Ninguna nueva en este cierre: `0058`–`0066` se promovieron
+tal como estaban, byte a byte.
+
+### 4. Variables de entorno requeridas
+
+**Ninguna nueva.**
+
+### 5. Problemas reales que permanecen
+
+| Asunto | Impacto |
+|---|---|
+| **El motor no se ha ejercitado en producción** | El primer sorteo posterior al instante efectivo es **Bogotá 2864 del 17/09** (corte 04:15 UTC del 18), y su único premio aplicable es el **Premio diario**. La observación está pendiente; que Bogotá no se confirme sola (**I-087**) no es, por sí solo, un fallo del motor |
+| **I-132, acotada** | En producción, las funciones **anteriores** a esta entrega siguen naciendo con `EXECUTE` para `service_role`. Necesita una auditoría separada |
+| **I-130 (info)** | Sin cambios |
+| I-075 e I-090 en la E2E completa | Pruebas, no producto |
+| Puerta 2 con sesión de Administrador | Registrado como desviación aceptada; el historial conserva quién la hizo |
+
+### 6. Qué debe revisar el siguiente agente antes de comenzar
+
+1. **La rifa real ya es configurable.** No se repite la transición, no se cambia su configuración desde el script y los premios se editan **solo** por el panel (BR-J09).
+2. **Observar el primer resultado posterior al instante** es lo único pendiente de la Entrega 5, y es de **solo lectura**.
+3. **Los 25 sorteos de I-127** se resuelven con el sistema de siempre si algún día se confirman: no se cargan resultados sin evidencia oficial.
+4. **`verify:remote` tiene que dar 41/41** y la matriz de las 62 funciones, exacta.
+5. **La rama sigue sin fusionar** y `main` lleva el código de producción.
+
+---
+
 ## Mantenimiento post-9 — premios configurables, **ENTREGA 5 de 5**: la Puerta 1 suspendida antes de escribir, y quién ejecuta cada función de premios (`0066`, D-207, 2026-09-17)
+
+> **Nota posterior (2026-09-17, cierre):** la Puerta 1 se autorizó otra vez ese mismo día y se ejecutó con
+> `0058`–`0066` y `da81663`, seguida de las puertas 2 y 3 (sección de arriba). Lo de abajo se conserva como se
+> entregó.
 
 Encargo expreso del dueño después de **suspender la Puerta 1**: una corrección local con una migración
 nueva `0066`, **sin tocar `0058`–`0065`**, y **un solo commit local sobre `be26419`**. **No completa la

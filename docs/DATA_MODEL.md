@@ -1,6 +1,10 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.24 · **Estado:** implementado · **Actualizado:** 2026-09-17
+- **Versión:** 2.25 · **Estado:** implementado · **Actualizado:** 2026-09-17
+- **Nota de cierre (2026-09-17):** el esquema ejecutable del **proyecto real** son ahora `0001`–`0066` —eso
+  corrige la última frase de la nota siguiente, escrita antes de la puerta 1—, el código va desplegado en
+  `da81663` y la rifa «SORTEO CAMIONETA KIA 2027» es **configurable** desde las 17:40:12.566 UTC: seis
+  premios, una transición y cinco avisos (§4.20–§4.23, §6.g.9; `RUNBOOK` §8).
 - **Nota (2026-09-17, D-207):** la **`0066`** fija quién ejecuta cada una de las 62 funciones de premios
   configurables: las seis RPC, solo `authenticated`; `admin_audit_log`, `authenticated` y `service_role`;
   `transition_raffle_prize_mode` y `confirm_lottery_result`, solo `service_role`; las otras 53 —las cuatro
@@ -197,7 +201,7 @@ Los tipos de lotería nacen en `0036` (D-140..D-142). El número mayor es `text`
 nunca un entero.
 
 ```sql
--- Premios configurables por rifa (0058 y 0059, D-199 y D-201). Solo en local.
+-- Premios configurables por rifa (0058 y 0059, D-199 y D-201). En produccion desde el 2026-09-17.
 CREATE TYPE raffle_prize_mode         AS ENUM ('legacy', 'configurable');
 CREATE TYPE raffle_prize_status       AS ENUM ('active', 'archived');
 CREATE TYPE raffle_prize_category     AS ENUM ('main', 'daily', 'weekly', 'special');
@@ -1161,9 +1165,8 @@ nacer fallada, y la campana ya está escrita.
 
 ### 4.20 Premios configurables por rifa (`0058` + `0059`, BR-J01..BR-J15, D-199, D-201)
 
-> ⚠️ **Solo en LOCAL.** El proyecto real no tiene ni la `0058` ni la `0059`. Es la Entrega 1 de
-> cinco: hay modelo, RPC, autorización, auditoría y avisos; **no hay pantalla ni motor de
-> coincidencias**.
+> ✅ **En producción desde el 2026-09-17** (`0058`–`0066`). Fue la Entrega 1 de cinco —modelo, RPC,
+> autorización, auditoría y avisos—; la pantalla llegó en la 2 y el motor, en la 3.
 
 Cuatro tablas encadenadas, y una columna en `raffles`:
 
@@ -1230,7 +1233,9 @@ que cambió: convertir una rifa que ya existe sigue prohibido para cualquier ses
 
 ### 4.21 `lottery_ticket_match_prizes` (`0061`, BR-J06, BR-J07, BR-J09, D-203)
 
-> ⚠️ **Solo en LOCAL**, como §4.20. Es la Entrega 3 de cinco: el motor de coincidencias.
+> ✅ **En producción desde el 2026-09-17**, como §4.20. Fue la Entrega 3 de cinco: el motor de coincidencias.
+> **Todavía sin filas**: el primer sorteo posterior al instante efectivo de la rifa real es el de Bogotá del
+> 17/09 y su resultado no se ha confirmado.
 
 Con qué **premio** y con qué **versión histórica** coincidió una fotografía de una rifa
 configurable. `lottery_ticket_matches` sigue siendo la fotografía de boleta, cliente y vendedor; esta
@@ -1276,8 +1281,9 @@ cuatro cifras usan `tickets_org_raffle_daily_idx` y `tickets_org_raffle_weekly_i
 
 ### 4.22 `raffle_prize_transitions` (`0063`, BR-J13, D-204)
 
-> ⚠️ **Solo en LOCAL**, como §4.20. Es la Entrega 4 de cinco: la transición de una rifa que ya
-> existía. **Ninguna rifa real ha cambiado de modo.**
+> ✅ **En producción desde el 2026-09-17**, como §4.20. Fue la Entrega 4 de cinco. **Tiene una fila**: la
+> transición `af9cdbe2-0d50-43db-b12a-42ded57b1cae` de «SORTEO CAMIONETA KIA 2027», con instante
+> efectivo 17:40:12.566 UTC y seis premios.
 
 El registro de que una rifa pasó de `legacy` a `configurable`. **Una por rifa, para siempre.** Es a
 la vez la **huella** de la configuración aplicada —para que un segundo intento no duplique nada— y la
@@ -1311,7 +1317,8 @@ premios, sus períodos y los días de la ventana de la rifa.
 
 ### 4.23 `notifications`: el `kind` `raffle.dates_changed` (`0064` y `0065`, BR-R12, D-206)
 
-> ⚠️ **Solo en LOCAL**, como §4.22.
+> ✅ **En producción desde el 2026-09-17**, como §4.22. Tiene **5** filas: los avisos de la extensión de la
+> fecha de fin de la rifa real hasta el 21/12/2026 (puerta 2 de `RUNBOOK` §8).
 
 Cambiar `start_date` o `end_date` de una rifa **activa** escribe, en el mismo `UPDATE`, **un aviso por
 membresía activa** de la organización —**incluida la de quien hizo el cambio**, desde la `0065`— desde el disparador

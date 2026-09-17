@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (premios configurables, Entrega 5: Puerta 1 suspendida antes de escribir y la `0066`, quién ejecuta cada función, D-207, 2026-09-17)** | **1.375 ✅ en 75 archivos** (sin cambio) | **1.270 ✅ en 52 archivos (+15; migración `0066`)**; dirigidas **374/374** tras corregir DB-15; la cadena desde `0057` con los dos privilegios por defecto, **idéntica** | No se corrió: no cambia la interfaz | ✅ | ⛔→✅ **Puerta 1 suspendida sin escribir nada** (I-132); corrección local sin push ni despliegue; producción sigue en la `0057` y `c48437a` |
+| **Post-9 vigente (premios configurables, Entrega 5 COMPLETA EN PRODUCCIÓN: puertas 1, 2 y 3, 2026-09-17)** | **1.375 ✅ en 75 archivos** (sin cambio: el cierre no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ | 🚀 **En producción**: `0058`–`0066` aplicadas, `da81663` desplegado, la rifa real convertida y `verify:remote` **41/41** |
+| Post-9 anterior (premios configurables, Entrega 5: Puerta 1 suspendida antes de escribir y la `0066`, quién ejecuta cada función, D-207, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio) | **1.270 ✅ en 52 archivos (+15; migración `0066`)**; dirigidas **374/374** tras corregir DB-15; la cadena desde `0057` con los dos privilegios por defecto, **idéntica** | No se corrió: no cambia la interfaz | ✅ | ⛔→✅ **Puerta 1 suspendida sin escribir nada** (I-132); corrección local sin push ni despliegue; producción sigue en la `0057` y `c48437a` |
 | Post-9 anterior (premios configurables, Entrega 5: el aviso de fechas llega también a quien las cambia y la puerta 2 con la sesión del Dueño, `0065`, D-206 corregida, 2026-09-16) | **1.375 ✅ en 75 archivos** (sin cambio de número; F7 reescrita) | **1.255 ✅ en 51 archivos (+1; migración `0065`)** | Dirigida `rifa-fechas-aviso` **4/4** (+1), repetida al final sobre el código definitivo; volver a excluir al actor lo detectan la segunda y la tercera. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057`, la fecha real de la rifa no cambió y no se pidió ninguna puerta |
 | Post-9 anterior (premios configurables, Entrega 5: corrección local previa a producción —el instante efectivo y el aviso de las fechas—, `0064`, D-206, 2026-09-16) | **1.375 ✅ en 75 archivos (+12)** | **1.254 ✅ en 51 archivos (+24; migración `0064`)**, tras corregir **M10-01** en la propia migración | Dirigida **52/53** en 6,9 min: la que falló era la **nueva** del borrador, que escribía la fecha antes de que React hidratara el campo; corregida, `rifa-fechas-aviso` **9/9** en tres repeticiones. La completa no se corrió | ✅ | ✅ **Sin desplegar ni push** — rama `feature/premios-configurables`, **solo en local**; producción sigue en la `0057` y la fecha real de la rifa no cambió |
 | Post-9 anterior (premios configurables, Entrega 5: auditoría local, puerta de producción y preflight, D-205, 2026-09-16) | **1.363 ✅ en 74 archivos (+26)** | **1.230 ✅ en 50 archivos** (sin migración; J13 en 2054, I-128) | Completa **742/744** en 43,1 min: `back-navigation:25` —la primera en frío, **I-075**— y `ventas-por-fecha:163` —«recibido 54», **I-090**—; aislados, **9/9** y **18/18** | ✅ | ⛔ **Detenida en el preflight de solo lectura**: la rifa real termina el 01/11/2026 (**I-129**) y tiene 25 sorteos sin resultado confirmado (**I-127**). Nada escrito en producción |
@@ -11778,6 +11779,66 @@ deshizo al final, en la organización con más boletas. Solo recuentos, claves y
   vendedor: un agente no introduce contraseñas. La evidencia es la sonda de comportamiento sobre la
   base real, las pruebas locales y el CI.
 * **Un teléfono de verdad** y el **modo oscuro**.
+
+---
+
+## Premios configurables, Entrega 5 de 5: **COMPLETA EN PRODUCCIÓN** — puertas 1 y 3 (D-204 a D-207) — 2026-09-17
+
+**Alcance:** la promoción de `0058`–`0066`, el despliegue de `da81663` y la transición de la rifa real. La puerta 2
+—la fecha de fin— tiene su propia sección, debajo. Todo lo que hizo el agente fuera de esos tres pasos autorizados
+fue de **solo lectura**.
+
+### a. Puerta 1 — migraciones y despliegue
+
+| Paso (UTC) | Resultado |
+|---|---|
+| Preflight | `origin/main` = `c48437a`, servido en vivo; `migration list` `0001`–`0057`; `db push --dry-run` exactamente `0058`–`0066`; ninguno de los objetos de la entrega existía y los 5 redefinidos partían del estado ensayado; árbol limpio salvo los dos protegidos |
+| Respaldo (14:01:36–14:03:24) | Tres archivos, 0 `auth` y 0 credenciales; **validado restaurándolo en local**, con las mismas cifras que la línea base |
+| Migraciones (14:04:05–14:05:58) | `0058`–`0066` en orden, código 0; `migration list` `0001`–`0066` iguales en los dos entornos |
+| Verificación de base | `verify:remote` **41/41**; matriz de las 62 funciones exacta; delta de estructura **idéntico al ensayo local con los privilegios del proyecto alojado**; **ninguna fila de negocio cambiada** |
+| Push y despliegue (14:07:21–14:08:53) | `c48437a..da81663` en avance rápido; `dpl_7uUohsc1foH9FHaoY8s2hZKJpRQo` READY; identificador `9c2d9748c2e7` servido a las 14:09:02 y el anterior desaparecido |
+| Humo en vivo | 28/28 rutas, 0 5xx, 7/7 cabeceras con CSP por nonce, 0 secretos, autenticación básica en verde |
+| CI | ✅ 2/2 (run `35231507321`), con las 66 migraciones desde cero |
+
+### b. Primer turno del sincronizador con el código nuevo (15:10:35)
+
+Tocó y soltó el candado, con **una** llamada a `/api/lottery/sync` y respuesta **200**, sin errores ni 5xx. **Sin
+trabajo**, reproducido con las funciones puras del propio código: la programación ya se había sincronizado ese día y
+no había sorteos pendientes en el horizonte de 10 días. `verify:remote` 41/41.
+
+### c. Puerta 3 — la transición
+
+| Paso (UTC) | Resultado |
+|---|---|
+| Preflight (17:35–17:36) | `da81663` servido y único despliegue; migraciones hasta `0066`; rifa activa del 27/07 al 21/12 en `legacy`, con huella `0aec45d8…`; 0 premios, transiciones, avisos de premios y enlaces; 5 membresías activas; ningún sorteo de la semana sin hora; 45 sorteos conservarían el sistema de siempre (20 + 25); 0 cancelados; los 13 sorteos fijos con hora; candado libre |
+| Respaldo (17:37:30–17:39:06) | `Rifas-backups/2026-09-17-antes-puerta-3/`; 0 `auth`, 0 credenciales y 0 filas de premios o transiciones. **Validado en local**: 30 tablas, 40 políticas, 225 funciones y las mismas cifras que la línea base |
+| Vista previa (17:39:28–17:39:32) | **Una sola**, **idéntica al ensayo local en sus 62 líneas**; huella `43880580a6419fa4a97fa8808f13978d72653f7b17bab760d268307a8d683557`; diario desde el 17/09 con 52 sorteos y fin de semana desde el 19/09 con 11; 45 sorteos con el sistema de siempre (20 + 25); 6 premios; aviso para 5 personas; «Renault Logan Zen público modelo 2023» literal. No dejó ninguna fila |
+| Aplicación (17:40:09–17:40:13) | **Una sola vez**, con la misma huella y `--confirm-raffle`: transición `af9cdbe2-0d50-43db-b12a-42ded57b1cae`, instante efectivo **17:40:12.566 UTC** |
+| Verificación del estado | Rifa `configurable` con la misma huella; 1 transición con esa huella; `effective_at` = última publicación; **6 premios, 6 versiones, 7 períodos y 9 alternativas** iguales a la configuración confirmada; 5 avisos `raffle_prize.changed` sin actor; bitácora 5943 `raffle.update` y 5944 `raffle.prize_mode_transition`, de «Sistema»; 45 sorteos anteriores en `legacy` —los 25 de I-127 incluidos, idénticos fila a fila— y 82 posteriores en `configurable`; 0 enlaces de premios |
+| Comparación de fotografías | **37 filas propias** explicadas una por una y **ninguna otra**: ni boletas, ni pagos, ni clientes, ni comisiones, ni coincidencias, ni estructura |
+| Secuencia de bitácora | Los identificadores **5939–5942** quedaron consumidos y sin fila: 2 de la vista previa y 2 de la que repite el aplicar. Autorizados por el dueño; no se rellenan ni se reutilizan |
+| Controles finales | `verify:remote` **41/41**, matriz correcta, candado libre y ningún error de ejecución en Vercel |
+
+### d. Ensayo local previo, sobre una copia con la forma real de los datos
+
+El respaldo de las 14:01 se restauró en local, se le aplicaron `0058`–`0066` y se reprodujo la fecha del 21/12: la
+huella de la rifa salió **idéntica a la de producción**. Allí se ejecutaron la vista previa y la aplicación con el
+script real —37 filas, verificación y comparador en verde—, y dos pruebas negativas quedaron detectadas: una
+alternativa alterada y un cliente modificado sin bitácora. Una orden con la huella mal extraída la rechazó la puerta
+del script **antes de tocar la base**. La base local volvió después a la semilla de desarrollo.
+
+### e. Lo que queda pendiente de observar
+
+El primer sorteo posterior al instante efectivo es **Bogotá 2864 del 17/09**, con corte a las 04:15 UTC del 18, y su
+**único premio aplicable es el Premio diario de $500.000**. **El motor todavía no se ha ejercitado con un resultado
+confirmado en producción.** El vigilante de solo lectura se detuvo a las 20:20 UTC por orden del dueño y se
+reiniciará antes del corte; que Bogotá no se confirme sola —I-087— no es, por sí solo, un fallo del motor.
+
+**Errores encontrados y corregidos:** ninguno del producto. De las herramientas, fuera de Git: el comparador de la
+puerta 1 esperaba las corridas a ±15 min del minuto de `vercel.json` —Vercel Hobby dispara en cualquier minuto de la
+hora— y no reconocía un turno que solo toca el candado ni un pago corregido segundos después; el de la puerta 2
+comparaba JSON sensible al orden de las claves; y una extracción mía de la huella tomó la palabra equivocada, que la
+puerta del script rechazó.
 
 ---
 

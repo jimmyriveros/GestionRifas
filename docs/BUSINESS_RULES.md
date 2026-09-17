@@ -1,6 +1,8 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.30 · **Estado:** normativo · **Actualizado:** 2026-09-16 (§4: **BR-R12 avisa también
+- **Versión:** 1.31 · **Estado:** normativo · **Actualizado:** 2026-09-17 (§12.i y §4: las reglas de premios
+  configurables y el aviso de fechas **rigen en producción** desde ese día —`0058`–`0066`, `da81663` y la
+  rifa real convertida—); antes, el 2026-09-16 (§4: **BR-R12 avisa también
   a quien cambia las fechas** —D-206 corregida, migración `0065`—: cada membresía activa recibe exactamente
   un aviso, incluida la de quien lo hizo, que sigue figurando como su actor; la exclusión del actor de
   **BR-J11** queda solo para los premios); antes, ese mismo día (§12.i: **BR-J13 con el
@@ -895,12 +897,14 @@ lotería. Hasta aquí el único comparador era el fijo de BR-L06, que no se toca
 **La letra es `J`** de «**j**uega»: cada premio juega con un número y una lotería. `P`, `R` y `K` ya
 nombran precios, rifas y catálogo.
 
-> **ENTREGA 4 DE 5: el contrato, el panel, el motor y la transición, solo en local.** Existen el
+> **EN PRODUCCIÓN desde el 2026-09-17: el contrato, el panel, el motor, la transición y la rifa real
+> convertida.** Existen el
 > modelo, las reglas, la autorización, la auditoría y los avisos (Entrega 1), el panel y el proceso de
 > tres pasos (Entrega 2), **el motor de coincidencias** (Entrega 3, D-203) y **la transición de una
 > rifa que ya existía** (Entrega 4, D-204): una operación interna la pasa a premios configurables con
-> los seis premios confirmados. **Ninguna rifa real ha cambiado de modo**: eso, y la promoción, son la
-> Entrega 5. La columna **Estado** dice qué entrega construye cada regla.
+> los seis premios confirmados. La **Entrega 5** promovió `0058`–`0066`, desplegó `da81663` y convirtió la
+> rifa real «SORTEO CAMIONETA KIA 2027» el 2026-09-17 (`RUNBOOK` §8). La columna **Estado** dice qué entrega
+> construye cada regla.
 
 | ID | Regla | Capas | Estado |
 |----|-------|-------|--------|

@@ -4,7 +4,10 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.63 · **Actualizado:** 2026-09-17 (D-001 a D-207; **D-207** —migración `0066`, corrección local antes de producción—: el preflight de la Puerta 1 vio, en solo lectura, que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva y la pila local no (I-132); la `0066` fija quién ejecuta cada una de las 62 funciones de premios —seis RPC de sesión, la proyección de D-198 y solo dos entradas de la service role, `transition_raffle_prize_mode` y `confirm_lottery_result`—, `match_lottery_result` pasa a interno y la migración se comprueba a sí misma; la Puerta 1 queda suspendida y deberá autorizar `0058`–`0066`. Antes, ese mismo día (2026-09-16): **D-206 corregida** —migración `0065`, respuesta del dueño—: el aviso de las fechas de una rifa activa llega a **todas** las membresías activas, **también a quien hizo el cambio**, que sigue figurando como actor, y la extensión real se hace **con la sesión del Dueño** por la pantalla de editar, nunca con SQL sin sesión, una RPC que reciba el actor ni la service role. Antes, ese mismo día, **D-206** —corrección local de la Entrega 5, migración `0064`— hace que los sorteos cuyo corte ya llegó cuando una rifa cambia de sistema **conserven el sistema de siempre**, con el **instante efectivo** de la transición y una sola frontera, sustituye la alternativa «25 sorteos sin coincidencias para siempre» (I-127) y crea el **aviso de las fechas de una rifa activa** (BR-R12); deja notas en D-204 Decisión 4 y D-205 Decisión 5. **D-205** es la puerta de producción del script y J13 en 2054. **D-204** es la transición de una rifa existente a premios configurables —Entrega 4, migración `0063`—: una operación interna solo para la service role, atómica, con vista previa, que se niega mientras quede un sorteo jugado sin confirmar, y los **seis** premios confirmados —el caso «semanal, un lunes, con Cundinamarca» fue un ejemplo—; deja notas en D-199 Decisión 3 y D-201. Antes, **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
+- **Versión:** 1.64 · **Actualizado:** 2026-09-17 (D-001 a D-207; **cierre de la Entrega 5**: las tres
+  puertas de `RUNBOOK` §8 se ejecutaron ese día —`0058`–`0066` aplicadas, `da81663` desplegado y la rifa
+  real convertida a premios configurables—, con notas posteriores en D-199, D-204, D-205, D-206 y D-207.
+  Antes, ese mismo día (D-001 a D-207; **D-207** —migración `0066`, corrección local antes de producción—: el preflight de la Puerta 1 vio, en solo lectura, que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva y la pila local no (I-132); la `0066` fija quién ejecuta cada una de las 62 funciones de premios —seis RPC de sesión, la proyección de D-198 y solo dos entradas de la service role, `transition_raffle_prize_mode` y `confirm_lottery_result`—, `match_lottery_result` pasa a interno y la migración se comprueba a sí misma; la Puerta 1 queda suspendida y deberá autorizar `0058`–`0066`. Antes, ese mismo día (2026-09-16): **D-206 corregida** —migración `0065`, respuesta del dueño—: el aviso de las fechas de una rifa activa llega a **todas** las membresías activas, **también a quien hizo el cambio**, que sigue figurando como actor, y la extensión real se hace **con la sesión del Dueño** por la pantalla de editar, nunca con SQL sin sesión, una RPC que reciba el actor ni la service role. Antes, ese mismo día, **D-206** —corrección local de la Entrega 5, migración `0064`— hace que los sorteos cuyo corte ya llegó cuando una rifa cambia de sistema **conserven el sistema de siempre**, con el **instante efectivo** de la transición y una sola frontera, sustituye la alternativa «25 sorteos sin coincidencias para siempre» (I-127) y crea el **aviso de las fechas de una rifa activa** (BR-R12); deja notas en D-204 Decisión 4 y D-205 Decisión 5. **D-205** es la puerta de producción del script y J13 en 2054. **D-204** es la transición de una rifa existente a premios configurables —Entrega 4, migración `0063`—: una operación interna solo para la service role, atómica, con vista previa, que se niega mientras quede un sorteo jugado sin confirmar, y los **seis** premios confirmados —el caso «semanal, un lunes, con Cundinamarca» fue un ejemplo—; deja notas en D-199 Decisión 3 y D-201. Antes, **D-203** es el motor de coincidencias de los premios configurables —Entrega 3, migración `0061`— y la **respuesta del dueño**: las cuatro cifras mandan sobre las tres **por cliente**, no por boleta; deja notas en D-199 Decisión 4 y D-201 Decisión 3. **Su corrección del mismo día** —Decisiones 9 y 10, migración `0062`— fija el corte en `least(original, oficial)` con una sola definición (I-125) y los avisos dicen «coincide con este resultado» (I-126); deja notas en D-199 Decisión 5 y en las Decisiones 4 y 7 de D-203. Antes, **D-202** es el panel de premios y la puerta para crear una rifa configurable, **con su corrección del 2026-09-16** —Decisiones 7 a 11: reintento del historial, activación solo desde la revisión, origen cerrado de la edición, resolvedor central de capacidades y formulario en el teléfono—; **D-201** corrige D-199 —Decisiones 6 y 10— y **cierra la ambigüedad A7**; D-194, Decisión 6, sustituida por D-197; D-185, D-186, D-187 y D-188 con notas de etapa)
 
 Una decisión se presume vigente salvo que una entrada posterior la marque como sustituida, el usuario
 solicite cambiarla, exista evidencia de obsolescencia o haga falta corregir un defecto real. Las notas
@@ -10641,6 +10644,8 @@ Migración **`0057`**. Reglas **BR-Q01..BR-Q10** (`BUSINESS_RULES` §12.h) y not
 
 ## D-199 — Premios configurables por rifa: identidad, versiones inmutables y un calendario canónico
 
+> **Nota posterior (2026-09-17, cierre de la Entrega 5):** todo lo de esta decisión y de las que la siguen (D-200 a D-207) está **en producción** desde el 2026-09-17: `0058`–`0066` aplicadas, `da81663` desplegado y la rifa «SORTEO CAMIONETA KIA 2027» convertida. Donde estas entradas dicen «solo en local», hablan de su propio momento.
+
 **Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa», Entrega 1 de
 5, 2026-09-15)
 
@@ -11458,6 +11463,8 @@ la `0058` a la `0062`.
 
 ## D-204 — La transición de una rifa existente: una operación interna, atómica y con vista previa, y los seis premios confirmados
 
+> **Nota posterior (2026-09-17, cierre de la Entrega 5):** ejecutada en producción el 2026-09-17 a las 17:40 UTC (puerta 3): transición `af9cdbe2-0d50-43db-b12a-42ded57b1cae`, huella `43880580a641…`, instante efectivo **17:40:12.566 UTC** y los **seis** premios de `MASTER_SPEC` §9.7 tal como estaban escritos, «Renault Logan Zen público modelo 2023» incluido. Dejó **37** filas propias y **45** sorteos anteriores con el sistema de siempre.
+
 **Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa», Entrega 4
 de 5, 2026-09-16)
 
@@ -11649,6 +11656,8 @@ script. **BR-J13** implementada para transiciones controladas; `DATA_MODEL` §4.
 ---
 ## D-205 — Entrega 5: la puerta de producción del script, una respuesta incierta no se repite y J13 en fechas propias
 
+> **Nota posterior (2026-09-17, cierre de la Entrega 5):** la puerta del script funcionó tal como se diseñó: una orden con la huella mal extraída se rechazó **antes de tocar la base**, y la aplicación exigió `--production`, la huella de la vista previa, `--apply` y `--confirm-raffle`. La vista previa en producción se ejecutó **una sola vez** y consumió 2 identificadores de la secuencia de `audit_logs`; la que repite el aplicar, otros 2 (5939–5942, sin fila y sin rellenar).
+
 **Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa», Entrega 5
 de 5, 2026-09-16)
 
@@ -11756,6 +11765,8 @@ hecho entonces estaría viejo cuando el dueño decida.
 
 ---
 ## D-206 — Los sorteos ya jugados conservan el sistema de siempre: el instante efectivo de la transición, y el aviso de las fechas de una rifa activa
+
+> **Nota posterior (2026-09-17, cierre de la Entrega 5):** las dos piezas se usaron en producción el 2026-09-17. La **puerta 2** extendió la rifa hasta el **21/12/2026** a las 15:21:19 UTC y escribió **5** avisos, uno por membresía activa, el del Dueño incluido; la guardó una **sesión autorizada de Administrador** y no la del Dueño, desviación que el dueño aceptó y que la bitácora conserva con su actor real (`RUNBOOK` §8.3). La **frontera temporal** dejó los **45** sorteos anteriores —los **25** de I-127 incluidos— con el sistema de siempre.
 
 **Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa», Entrega 5
 de 5, corrección local antes de producción, 2026-09-16)
@@ -11962,6 +11973,8 @@ línea en **BR-J11**; `DATA_MODEL` §4.23, `SECURITY` §4.22, `ARCHITECTURE` §8
 (I-129), `TEST_RESULTS`, `PHASE_STATUS` y `HANDOFF`. **Solo en local.**
 
 ## D-207 — Quién ejecuta cada función de premios: una lista explícita y mínima (`0066`)
+
+> **Nota posterior (2026-09-17, cierre de la Entrega 5):** la `0066` se aplicó en producción el 2026-09-17 (14:04:05–14:05:58 UTC) y la matriz de las 62 funciones se comprobó contra el proyecto real después de migrar, después de la transición y en el cierre: exacta las tres veces, con `verify:remote` **41/41**. I-132 queda abierta **solo** para las funciones anteriores a esta entrega.
 
 **Fase:** mantenimiento posterior a la Fase 9 (encargo «premios configurables por rifa», Entrega 5
 de 5, corrección local antes de producción, 2026-09-17)
