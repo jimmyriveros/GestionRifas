@@ -1,6 +1,6 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-09-18 (§9 nueva: **el procedimiento de promoción del historial de premios ganados**, preparado en la Etapa 3 de D-208 y **no ejecutado** —`0067`–`0071`, el cargador de los dos premios reconocidos y el despliegue, en cuatro puertas—; antes, el 2026-09-17, §8.0 y §8.1: **la puerta 1 pasa a `0058`–`0066`** y a un commit nuevo; el primer intento, autorizado el 2026-09-17, **se suspendió antes de escribir** porque el preflight vio que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva (I-132, D-207); antes, el 2026-09-16, §8.3: **la puerta 2 la hace el Dueño con su sesión**, desde Editar, y el agente solo verifica en modo lectura; el aviso de fechas llega también al Dueño —`0065`, D-206 corregida—, y el bloque SQL sin sesión queda descartado porque dejaba la bitácora a nombre de «Sistema»; antes, ese mismo día, §8: el procedimiento de producción con **tres puertas** —migraciones y despliegue, extender la fecha de fin con su aviso, y la transición— y lo que pasa con los sorteos que conservan el sistema de siempre, D-206; antes, ese mismo día, la transición preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
+**Actualizado:** 2026-09-18 (§9 nueva: **el procedimiento de promoción del historial de premios ganados**, preparado en la Etapa 3 de D-208 y **no ejecutado** —`0067`–`0072`, el cargador de los dos premios reconocidos y el despliegue, en cuatro puertas, con la línea base por fila y la «Opción A» de la Entrega 5—; antes, el 2026-09-17, §8.0 y §8.1: **la puerta 1 pasa a `0058`–`0066`** y a un commit nuevo; el primer intento, autorizado el 2026-09-17, **se suspendió antes de escribir** porque el preflight vio que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva (I-132, D-207); antes, el 2026-09-16, §8.3: **la puerta 2 la hace el Dueño con su sesión**, desde Editar, y el agente solo verifica en modo lectura; el aviso de fechas llega también al Dueño —`0065`, D-206 corregida—, y el bloque SQL sin sesión queda descartado porque dejaba la bitácora a nombre de «Sistema»; antes, ese mismo día, §8: el procedimiento de producción con **tres puertas** —migraciones y despliegue, extender la fecha de fin con su aviso, y la transición— y lo que pasa con los sorteos que conservan el sistema de siempre, D-206; antes, ese mismo día, la transición preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
 producción. El detalle técnico de cada `I-0xx` citado está en
 [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) — aquí solo el síntoma y qué hacer.
 
@@ -632,8 +632,9 @@ select raffle_prize_draw_mode('<RIFA>', s), raffle_prize_draw_cutoff(s)
 > **2026-09-17** —`0001`–`0066` aplicadas y `da81663` desplegado— y **no se ha vuelto a comprobar**: la
 > Etapa 3 no leyó ni escribió nada en producción. La primera acción de la Etapa 4 es comprobarlo (§9.1).
 
-Lo que se promueve: las migraciones **`0067`–`0071`** —el historial, sus correcciones, la cobertura, la
-lectura de quién aparece como vendedor y el inicio operativo que no se pliega— y el código de las pantallas
+Lo que se promueve: las migraciones **`0067`–`0072`** —el historial, sus correcciones, la cobertura, la
+lectura de quién aparece como vendedor, el inicio operativo que no se pliega y el permiso de
+`current_seller_org_ids()` que no depende del privilegio por defecto (I-143)— y el código de las pantallas
 `/seller/prizes`, `/owner/prizes` y los dos resúmenes de ficha; y, con su propia puerta, **los dos premios
 reconocidos por el dueño** (H1): Bogotá 2862 del 03/09/2026, boleta `3427 / 7702`, y Cundinamarca 4820 del
 14/09/2026, boleta `9019 / 3294`, **Premio diario de $500.000 cada uno, $1.000.000 entre los dos**.
@@ -643,13 +644,26 @@ reconocidos por el dueño** (H1): Bogotá 2862 del 03/09/2026, boleta `3427 / 77
 | # | Puerta —se pregunta tal cual y se espera un «sí»— | Qué escribe | Por qué en ese orden |
 |---|---|---|---|
 | 0 | «¿Autorizas las comprobaciones de solo lectura del proyecto real de §9.1?» | Nada | Lo que se sabe de producción es del 2026-09-17 |
-| 1 | «¿Autorizas aplicar las migraciones `0067`–`0071` en producción, con respaldo previo?» | Respaldo (§5.1), `db push`, `verify:remote` | **Antes que el código**: las pantallas llaman a funciones que solo existen desde esas migraciones; con el código primero, las cuatro superficies mostrarían «No pudimos cargar los premios ganados». Al revés no hay riesgo: el código desplegado hoy no usa nada de lo nuevo (§9.3) |
+| 1 | «¿Autorizas aplicar las migraciones `0067`–`0072` en producción, con respaldo previo?» | Respaldo (§5.1), `db push`, `verify:remote` | **Antes que el código**: las pantallas llaman a funciones que solo existen desde esas migraciones; con el código primero, las cuatro superficies mostrarían «No pudimos cargar los premios ganados». Al revés no hay riesgo: el código desplegado hoy no usa nada de lo nuevo (§9.3) |
 | 2 | «¿Autorizas reconocer en producción los dos premios confirmados, $1.000.000, con el cargador: vista previa y, si coincide, aplicar?» | Dos filas en `declared_prize_awards` y una en `audit_logs` | **Después de las migraciones y antes del código**: así la pantalla nace con los dos premios, y si algo no cuadra se corrige antes de que nadie la vea. Exige preparar antes el cargador (§9.4) |
 | 3 | «¿Autorizas desplegar el commit <SHA> en producción?» | El despliegue | Último: con la base lista y conciliada |
 
 La Etapa 0 de D-208 proponía cargar **después** del despliegue; se cambia el orden porque la carga no depende
 del código y cargar antes evita que la pantalla se vea sin los dos premios. Si el dueño prefiere verlos
 aparecer, las puertas 2 y 3 se pueden invertir sin más cambios: el cargador no toca ninguna pantalla.
+
+**Cómo se compara antes y después de cada puerta que escribe.** Es la práctica que el dueño fijó en la Puerta 1
+de la Entrega 5 (`PHASE_STATUS`, Entrega 5, punto 6; `TEST_RESULTS`, «La Puerta 1, hasta su suspensión»), y
+**no se sustituye por recuentos**:
+
+| Qué | Cómo |
+|---|---|
+| Línea base | De solo lectura (`repeatable read`), con **huella por fila** de las tablas de negocio y de loterías, justo antes de la puerta y otra vez después. Los recuentos de §9.1 son una referencia, no la comparación |
+| Cada fila distinta | Se clasifica con su evidencia —identificadores, horas, relaciones y bitácora—: o la causa la puerta autorizada, o es **actividad normal demostrable** (la «Opción A»): ventas y asignaciones de boletas, pagos y asignaciones con su saldo y estado derivados, movimientos de comisión derivados, sus filas de bitácora y sus avisos, y los turnos **programados** del sincronizador con sus programaciones, observaciones, resultados, fotografías y avisos |
+| Se detiene, y se reporta antes de seguir | Un cambio de organización, nombre, estado, fechas o `prize_mode` de una rifa; membresías, roles o capacidades; configuración de premios o filas de transición; estructura o migraciones distintas de las autorizadas; resultados o programaciones fuera de un turno identificable; cualquier fila sin causa normal demostrable; secretos, permisos, RLS o funciones distintos de lo esperado; un commit desplegado distinto; tablas relacionadas que no cuadran. **Nada se corrige en producción** |
+| Cuándo no | Ni migraciones ni carga mientras pueda correr un turno del sincronizador: Vercel Hobby lo dispara en cualquier minuto de su hora, y un turno sin nada que hacer solo toca `lottery_sync_lock.updated_at`. Se mira `lottery_sync_lock` y se elige una hora sin turno |
+| La estructura esperada | Se ensaya en local con el **privilegio por defecto de producción** («escenario B», I-132). **Hecho en la Etapa 3** para `0067`–`0072`: las 15 funciones y la tabla, idénticas al escenario normal, y `verify-remote` contra esa base, 44/44 (I-143) |
+| Las consultas de solo lectura | Se validan antes en local. **Hecho en la Etapa 3** para las de §9.1 y §9.6 |
 
 ### 9.1 Comprobaciones de solo lectura (puerta 0)
 
@@ -680,7 +694,7 @@ select p.id, v.title, p.status from raffle_prizes p
   join raffle_prize_versions v on v.id = p.current_version_id
  where p.raffle_id = '<RIFA>' and v.title = 'Premio diario';
 
--- 4. La fotografía de negocio para comparar después (mismo patrón que la 0049 y la 0057).
+-- 4. Recuentos de referencia. La comparación de verdad es la línea base por fila (§9.0).
 select (select count(*) from tickets) boletas, (select count(*) from clients) clientes,
        (select count(*) from payments) pagos, (select count(*) from audit_logs) bitacora,
        (select count(*) from lottery_ticket_matches) fotografias,
@@ -690,20 +704,20 @@ select (select count(*) from tickets) boletas, (select count(*) from clients) cl
 
 Y fuera de la base: el despliegue vigente en Vercel tiene que ser `da81663`, y `npm run verify:remote` tiene que
 dar **todo en verde salvo las tres comprobaciones del historial**, que están en rojo a propósito hasta la puerta 1:
-la matriz de las 15 funciones (`0067`, `0068`, `0070`), el cuerpo de la cobertura (`0069`) y el inicio operativo
-que no se pliega (`0071`).
+la matriz de las 15 funciones (`0067`, `0068`, `0070`, `0072`), el cuerpo de la cobertura (`0069`) y el inicio
+operativo que no se pliega (`0071`).
 
 ### 9.2 Respaldo
 
-Respaldo lógico nuevo **justo antes** de la puerta 1, por §5.1, en `Rifas-backups/<fecha>-antes-0067-0071/`,
+Respaldo lógico nuevo **justo antes** de la puerta 1, por §5.1, en `Rifas-backups/<fecha>-antes-0067-0072/`,
 comprobando que no guarda identidades de Auth. Uno viejo no sirve.
 
 ### 9.3 Las migraciones (puerta 1)
 
 ```bash
-npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"   # tiene que listar EXACTAMENTE 0067..0071, en orden
+npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"   # tiene que listar EXACTAMENTE 0067..0072, en orden
 npx supabase db push --yes --db-url "$SUPABASE_DB_URL"
-npx supabase migration list --db-url "$SUPABASE_DB_URL"        # 0001..0071 iguales en los dos entornos
+npx supabase migration list --db-url "$SUPABASE_DB_URL"        # 0001..0072 iguales en los dos entornos
 npm run verify:remote                                          # todo en verde, las tres del historial incluidas
 ```
 
@@ -715,10 +729,11 @@ Qué cambian para lo que YA está en producción, y por qué es seguro aplicarla
 | `0068` | Las políticas de `lottery_ticket_matches` y `declared_prize_awards` exigen **rol de vendedor activo** (I-137). Un vendedor activo no pierde nada; quien fue vendedor y hoy es del personal deja de leer esas fotografías, que es la corrección |
 | `0069`, `0071` | Cuerpos de dos funciones nuevas. Nada más |
 | `0070` | Una función nueva de lectura para el personal |
+| `0072` | Repite el permiso de `current_seller_org_ids()` nombrando a `service_role` y **comprueba la matriz exacta de las 15 funciones del historial**: si en el proyecto real algo no cuadra, **falla y no deja nada**. Ese fallo no se arregla relajando la comprobación: dice que el proyecto no está como se esperaba (I-143) |
 
 **Si una falla**, `db push` se detiene en esa: las anteriores quedan aplicadas y cada una tiene su nota de
 reversión al final. **No se improvisa**: se lee el error, se compara con la migración y se decide. Revertir la
-`0068` **amplía** el acceso (vuelve I-137) y no se hace sin decidirlo. Ninguna de las cinco escribe datos de
+`0068` **amplía** el acceso (vuelve I-137) y no se hace sin decidirlo. Ninguna de las seis escribe datos de
 negocio: el respaldo es para una recuperación que no debería hacer falta.
 
 ### 9.4 Preparar el cargador para producción (antes de la puerta 2, en local)
@@ -786,7 +801,7 @@ select count(*), sum(amount) from declared_prize_awards where organization_id = 
 -- Esperado: 2 y 1000000.
 ```
 
-Y la fotografía de negocio de §9.1 repetida: solo cambian la bitácora (+1) y `declared_prize_awards`.
+Y la línea base por fila de §9.0, repetida: la puerta solo explica `declared_prize_awards` (+2) y la bitácora (+1); cualquier otra fila distinta tiene que ser actividad normal demostrable, o se detiene.
 
 ### 9.7 Si la respuesta es incierta, parcial o discrepa
 

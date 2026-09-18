@@ -2216,7 +2216,7 @@ la campana está en `notifications/text.ts`.
 
 ### 8.28 «Premios ganados»: una pantalla, dos públicos, y la base cuenta todo (D-208, Etapas 2 y 3)
 
-> **Solo en local** hasta que se promuevan `0067`–`0071` y se despliegue el código (`RUNBOOK` §9).
+> **Solo en local** hasta que se promuevan `0067`–`0072` y se despliegue el código (`RUNBOOK` §9).
 
 ```
 /seller/prizes ──► readSellerPrizeAwards ─┬─ seller_prize_awards        (la página, con su cliente)

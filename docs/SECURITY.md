@@ -1,6 +1,6 @@
 # SEGURIDAD
 
-- **Versión:** 2.26 · **Estado:** implementado · **Actualizado:** 2026-09-18 (**§4.24**, Etapa 3 del historial —la auditoría, D-208, **solo en local**—: la matriz de acceso medida por PostgREST con nueve personas, lo ajeno respondiendo como lo inexistente, la `0070` —el personal elige a quien ya no vende, sin cliente— y la `0071` —`anon` obtenía el inicio operativo por un plan reutilizado, I-141—). Antes, ese mismo día (**§4.24**, Etapa 2 del historial —D-208, `0069`, **solo en local**—: las pantallas leen con la sesión por las cuatro funciones, el personal no recibe ni envía un dato de cliente y la `0069` no cambia ningún privilegio). Antes, ese mismo día (**§4.24**: el **historial de premios ganados** —`0067`, D-208, **solo en local**—: ninguna lectura recibe alcance, el personal no ve datos de cliente ni toca `clients`, el vendedor solo ve lo suyo **sin equipo**, la tabla nueva concede solo `SELECT` y su única puerta es de la service role, las 10 funciones están clasificadas con su matriz exacta (I-132), y los números de una boleta con coincidencias no cambian por ninguna vía (BR-I16). Antes, ese mismo día, **§4.23**: la `0066` —D-207,
+- **Versión:** 2.26 · **Estado:** implementado · **Actualizado:** 2026-09-18 (**§4.24**, Etapa 3 del historial —la auditoría, D-208, **solo en local**—: la matriz de acceso medida por PostgREST con nueve personas, lo ajeno respondiendo como lo inexistente, la `0070` —el personal elige a quien ya no vende, sin cliente— la `0071` —`anon` obtenía el inicio operativo por un plan reutilizado, I-141— y la `0072` —con el privilegio por defecto del proyecto alojado, `current_seller_org_ids()` habría nacido ejecutable por `service_role`, I-143—). Antes, ese mismo día (**§4.24**, Etapa 2 del historial —D-208, `0069`, **solo en local**—: las pantallas leen con la sesión por las cuatro funciones, el personal no recibe ni envía un dato de cliente y la `0069` no cambia ningún privilegio). Antes, ese mismo día (**§4.24**: el **historial de premios ganados** —`0067`, D-208, **solo en local**—: ninguna lectura recibe alcance, el personal no ve datos de cliente ni toca `clients`, el vendedor solo ve lo suyo **sin equipo**, la tabla nueva concede solo `SELECT` y su única puerta es de la service role, las 10 funciones están clasificadas con su matriz exacta (I-132), y los números de una boleta con coincidencias no cambian por ninguna vía (BR-I16). Antes, ese mismo día, **§4.23**: la `0066` —D-207,
   I-132— fija quién ejecuta cada una de las 62 funciones de premios configurables: el proyecto alojado concede
   EXECUTE a `service_role` en toda función nueva y la pila local no, y el preflight de la Puerta 1 lo vio antes
   de escribir nada. Solo dos entradas de la service role —`transition_raffle_prize_mode` y
@@ -1328,11 +1328,17 @@ ellas `SECURITY DEFINER`); los privilegios de **tabla** de la service role sobre
 (`SELECT` e `INSERT`, y `UPDATE` en `raffle_prizes`), explícitos desde `0058`/`0059` e iguales en los
 dos entornos; y la secuencia de I-130.
 
-### 4.24 El historial de premios ganados (`0067`–`0071`; BR-J17..BR-J23, BR-I16; D-208)
+### 4.24 El historial de premios ganados (`0067`–`0072`; BR-J17..BR-J23, BR-I16; D-208)
 
-**Solo en local**: el proyecto real no tiene ninguna de las cinco, y `verify:remote` lo dice —**tres**
+**Solo en local**: el proyecto real no tiene ninguna de las seis, y `verify:remote` lo dice —**tres**
 comprobaciones en rojo, a propósito, hasta que se promuevan: la matriz de las 15 funciones de
-`0067`/`0068`/`0070`, el cuerpo de la cobertura de `0069` y el inicio operativo de `0071`—.
+`0067`/`0068`/`0070`/`0072`, el cuerpo de la cobertura de `0069` y el inicio operativo de `0071`—.
+
+**La matriz no depende del privilegio por defecto** (`0072`, I-143). En el proyecto alojado toda función nueva
+nace ejecutable por `service_role` (I-132), así que cada función que la lista le niega tiene un `revoke` que
+la nombra después de su última creación —lo comprueba H7-05, estática— y la `0072` verifica la matriz de las
+15 al aplicarse. Ensayado en local con ese privilegio reproducido: idéntica al escenario normal, y
+`verify-remote` contra esa base, 44/44.
 
 **Ninguna lectura recibe organización, vendedor ni actor.** El alcance sale de la sesión, como en D-198
 y D-199: el vendedor, de `current_profile_id()` y `current_org_ids()`; el personal, de

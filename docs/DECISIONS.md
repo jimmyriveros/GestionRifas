@@ -7,9 +7,11 @@ documentos.
 - **Versión:** 1.69 · **Actualizado:** 2026-09-18 (D-001 a **D-208**; **D-208 con la Etapa 3 —la
   auditoría— hecha en local**: el aviso de cobertura ya no desmiente un premio conservado cuyo resultado
   entró en conflicto, el personal puede elegir desde su pantalla a quien vendió y hoy es Administrador
-  (**`0070`**), `anon` ya no obtiene el inicio operativo por un plan reutilizado (**`0071`**, I-141), dos
-  pruebas de concurrencia observan el bloqueo en vez de adivinarlo, y el procedimiento de promoción queda
-  escrito en `RUNBOOK` §9 **sin ejecutar**. Antes, el 2026-09-17, **D-208 con la Etapa 2 —las
+  (**`0070`**), `anon` ya no obtiene el inicio operativo por un plan reutilizado (**`0071`**, I-141),
+  `current_seller_org_ids()` ya no depende del privilegio por defecto para no ser de `service_role` en el
+  proyecto alojado —ensayado con ese privilegio— (**`0072`**, I-143), dos pruebas de concurrencia observan
+  el bloqueo en vez de adivinarlo, y el procedimiento de promoción queda escrito en `RUNBOOK` §9 **sin
+  ejecutar**. Antes, el 2026-09-17, **D-208 con la Etapa 2 —las
   pantallas— implementada, solo en local**: `/seller/prizes`, `/owner/prizes` y los resúmenes de las fichas
   del cliente y del vendedor, sobre las cuatro lecturas de la base y **una migración nueva, `0069`**: la
   cobertura contaba como pendientes los sorteos cancelados o suspendidos y los de rifas en borrador o
@@ -12127,8 +12129,8 @@ Entrega 3.
 
 ## D-208 — Historial de premios ganados: contrato, cobertura y estabilidad
 
-> **Estado (2026-09-18, Etapa 3 —auditoría— hecha, solo en local):** seis hallazgos reproducidos antes de
-> corregirlos, dos migraciones nuevas —**`0070`** y **`0071`**— y el procedimiento de la Etapa 4 escrito en
+> **Estado (2026-09-18, Etapa 3 —auditoría— hecha, solo en local):** siete hallazgos demostrados antes de
+> corregirlos, tres migraciones nuevas —**`0070`**, **`0071`** y **`0072`**— y el procedimiento de la Etapa 4 escrito en
 > `RUNBOOK` §9, **sin ejecutar**. La sección «Etapa 3» del final lo detalla. Nada de esto está en producción.
 >
 > **Estado (2026-09-17, Etapa 2 implementada, solo en local):** las pantallas existen —`/seller/prizes`,
@@ -12758,10 +12760,10 @@ código de estas pantallas.
 
 ---
 
-### Etapa 3 (2026-09-18): la auditoría en local —y dos migraciones nuevas, `0070` y `0071`—
+### Etapa 3 (2026-09-18): la auditoría en local —y tres migraciones nuevas, `0070`, `0071` y `0072`—
 
 Lo que sigue son **decisiones técnicas** tomadas dentro del contrato aprobado; ninguna es una regla nueva del
-dueño. **Cada hallazgo se reprodujo antes de corregirse**, y ninguno se cerró cambiando una expectativa para
+dueño. **Cada hallazgo se demostró antes de corregirse** —con una prueba que fallaba, con un ensayo o leyendo la prueba y midiendo su tiempo—, y ninguno se cerró cambiando una expectativa para
 que coincidiera con un comportamiento incorrecto. La evidencia de antes y después está en `TEST_RESULTS`
 (2026-09-18, Etapa 3).
 
@@ -12775,6 +12777,7 @@ que coincidiera con un comportamiento incorrecto. La evidencia de antes y despu�
 | D | **H5-04** deducía que el motor esperaba porque se agotaba un `statement_timeout` de 3 s | 3.091 ms por diseño; no miraba ningún bloqueo | Observa el bloqueo con `pg_blocking_pids` y deja terminar al motor | 92 ms, con el estado final de las dos operaciones |
 | E | **H8-08** lanzaba las dos cargas a la vez y confiaba en que coincidieran | Sin el cerrojo fallaba 5/5, **por coincidencia de tiempos** | La primera deja su transacción abierta y se **observa** que la segunda la espera | Sin el cerrojo falla 5/5 **por construcción** |
 | F | **`anon` obtenía el inicio operativo por PostgREST** aunque su `EXECUTE` estaba revocado (I-141) | `200` con `"2026-08-09"`; reproducido con `prepare`/`execute` sin PostgREST | **`0071`**: `stable security definer` | `401` en seis llamadas seguidas; **H13-06** |
+| G | **`current_seller_org_ids()` habría nacido ejecutable por `service_role` en el proyecto alojado** (I-143). La `0068` la crea y solo le revoca `EXECUTE` a `public`; allí el privilegio por defecto de las funciones incluye a `service_role` (I-132) | Ensayo local con ese privilegio («escenario B»): 14 funciones y la tabla idénticas, `current_seller_org_ids()` con `service_role=X`, y `verify-remote` contra esa base **1** en rojo. **H7-05**, nueva, falla con `['current_seller_org_ids()']` | **`0072`**: repite el permiso nombrando a `service_role` y **se comprueba a sí misma** como la `0066` | Escenario B idéntico al normal; `verify-remote` contra esa base **44/44**; H7-05 en verde. En local, las 240 funciones con la misma ACL antes y después |
 
 #### 2 — Decisiones técnicas
 
@@ -12789,6 +12792,9 @@ que coincidiera con un comportamiento incorrecto. La evidencia de antes y despu�
 | 7 | **Ningún índice nuevo** | Con 3.000 boletas y más de 300 premios, las cinco lecturas quedan entre 4 y 14 ms de mediana por PostgREST y crecen de forma lineal (~16 µs por premio). Sin un problema demostrado no se toca el esquema |
 | 8 | **Orden de la promoción: migraciones → cargador → código** (`RUNBOOK` §9) | Sustituye la propuesta de la Etapa 0 —cargar después del despliegue—: la carga no depende del código, y hecha antes la pantalla nace con los dos premios y se corrige cualquier cosa antes de que alguien la vea. Las puertas 2 y 3 se pueden invertir si el dueño lo prefiere |
 | 9 | **El cargador sigue siendo solo local** | Su puerta de producción se describe (`RUNBOOK` §9.4) y se construye en la Etapa 4, con pruebas. Retirar ahora `--local` sería quitar una protección sin autorización |
+| 10 | **La matriz de privilegios se ensaya con el privilegio por defecto de producción antes de declarar lista la promoción** | Es la lección de I-132, escrita en la Entrega 5 como condición para cualquier comparación de estructura, y encontró G. Las pruebas locales miden la matriz con el privilegio local y no pueden verlo; H7-05 cubre la causa —un `revoke` que no nombra a `service_role`— sin necesitar ese privilegio |
+| 11 | **La `0072` se comprueba a sí misma, como la `0066`** | Si en el proyecto real la matriz de las 15 no cuadra por cualquier otra causa, la migración falla entera en vez de dejar un estado a medias; ese fallo se investiga, no se relaja |
+| 12 | **`RUNBOOK` §9 adopta la práctica de puerta de la Entrega 5** | Línea base por fila y «Opción A», lo que detiene, ninguna escritura durante un turno del sincronizador. La primera versión de §9 comparaba recuentos, y el dueño ya había dicho que los totales no bastan |
 
 #### 3 — Lo que se auditó y no tenía defecto
 
@@ -12804,11 +12810,12 @@ que coincidiera con un comportamiento incorrecto. La evidencia de antes y despu�
 
 **I-136** y la auditoría general de **I-137**, fuera de este encargo; **I-140**, una prueba de privacidad ajena
 que depende del orden; **I-142**, una limitación sin casos hoy; e **I-133**, el tramo del 09/08 al 24/08,
-pendiente del dueño. **Ninguno compromete la privacidad ni la integridad del historial.**
+pendiente del dueño. **Ninguno compromete la privacidad ni la integridad del historial.** I-143 queda resuelta
+en local con la `0072`, pendiente de promoción como las demás.
 
 #### Consecuencia
 
-Migraciones **`0070`** y **`0071`**. **BR-J21** y **BR-J22** precisadas. **I-140**, **I-141** e **I-142**.
+Migraciones **`0070`**, **`0071`** y **`0072`**. **BR-J21** y **BR-J22** precisadas. **I-140**, **I-141**, **I-142** e **I-143**.
 `RUNBOOK` §9, `ARCHITECTURE` §8.28, `DATA_MODEL` §6.g.10, `SECURITY` §4.24, `UX_COPY_GUIDELINES` (Anexos A
 y B), `TESTING` §4.12, `TEST_RESULTS`, `KNOWN_ISSUES`, `PHASE_STATUS` y `HANDOFF`. **Solo en local.** La
 promoción queda **preparada**: lo que falta antes de la puerta 1 es comprobar el estado real (`RUNBOOK` §9.1),

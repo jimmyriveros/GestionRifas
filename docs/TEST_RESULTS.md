@@ -13,7 +13,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Etapa 3 del historial de premios ganados: la auditoría, D-208, `0070` y `0071`, solo en local, 2026-09-18)** | **1.422 ✅ en 78 archivos (+4)** | **1.346 ✅ y 1 omitida a propósito, en 54 archivos (+16; migraciones `0070` y `0071`)**: la suite del historial pasa de 61 a **69** y nace la de volumen (**8**, la medición solo a petición) | **768/771** en 41,7 min, sobre base recién sembrada y servidor recién arrancado: los 3 son **I-090** (`ventas-por-fecha` `:163` y `:247`) e **I-106** (`catalogo-publico-movil:103`), ajenos al historial, y sus dos archivos solos dan **33/33**; las **23** del historial, en verde | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe cualquier lectura de producción | ✅ **Seis hallazgos** reproducidos antes de corregirlos —el aviso que desmentía un premio conservado, el antiguo vendedor que no se podía elegir, una expectativa que se comparaba consigo misma, dos pruebas de concurrencia que no observaban el bloqueo y el inicio operativo al alcance de `anon`— y **I-140** e **I-142** registradas. **Nada en producción**; el procedimiento de la Etapa 4, en `RUNBOOK` §9 |
+| **Post-9 vigente (Etapa 3 del historial de premios ganados: la auditoría, D-208, `0070`, `0071` y `0072`, solo en local, 2026-09-18)** | **1.422 ✅ en 78 archivos (+4)** | **1.347 ✅ y 1 omitida a propósito, en 54 archivos (+17; migraciones `0070`, `0071` y `0072`)**: la suite del historial pasa de 61 a **70** y nace la de volumen (**8**, la medición solo a petición) | **768/771** en 45,2 min, sobre base recién sembrada y servidor recién arrancado: los 3 son **I-075** (`back-navigation` `:25` y `:127`) e **I-090** (`ventas-por-fecha:163`), ajenos al historial, y sus dos archivos solos dan **27/27**; las **23** del historial, en verde. La completa del primer cierre también dio 768/771 (I-090 e I-106) | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe cualquier lectura de producción | ✅ **Siete hallazgos** demostrados antes de corregirlos —el aviso que desmentía un premio conservado, el antiguo vendedor que no se podía elegir, una expectativa que se comparaba consigo misma, dos pruebas de concurrencia que no observaban el bloqueo, el inicio operativo al alcance de `anon` y, **ensayando con el privilegio por defecto de producción**, `current_seller_org_ids()` ejecutable por `service_role` (I-143)— y **I-140** e **I-142** registradas. **Nada en producción**; el procedimiento de la Etapa 4, en `RUNBOOK` §9 |
 | Post-9 anterior (Etapa 2 del historial de premios ganados: las pantallas, D-208, `0069`, solo en local, 2026-09-17) | **1.418 ✅ en 78 archivos (+37)** | **1.331 ✅ en 53 archivos (+2; migración `0069`)**: la suite del historial pasa de 59 a **61** | Completa **764/765** en 42,6 min: el fallo era `equipo.spec.ts:89`, una prueba existente que buscaba «ganados» en toda la página y encontró el menú y la sección nueva; corregida sin aflojarla, **1/1**, y el archivo **14/14**. Las **17** nuevas, a la primera | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe pruebas contra producción | ✅ **Las cuatro superficies, en local**, y el personal sin un solo dato de cliente. **I-138** —la cobertura contaba sorteos que no podían dar premio— reproducida con la `0068` y corregida con la `0069`; **I-139** —9 px de desplazamiento lateral a 320 px en la barra de filtros compartida— corregida. **Nada en producción** |
 | Post-9 anterior (corrección de la Etapa 1 del historial de premios, D-208, `0068`, solo en local, 2026-09-17) | **1.381 ✅ en 76 archivos** (sin cambio) | **1.329 ✅ en 53 archivos (+24; migración `0068`)**: la suite del historial pasa de 35 a **59** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: `0067` y `0068` no están promovidas | ✅ **Siete hallazgos reproducidos y corregidos**, incluida la carrera de **I-134**, que no estaba cerrada. **I-137 nueva** y anterior a este encargo. Dos errores de método corregidos: medir RLS como `postgres` no mide nada, y una serialización que solo retrasa no es una garantía |
 | Post-9 anterior (Etapa 1 del historial de premios ganados, D-208, `0067`, solo en local, 2026-09-17) | **1.381 ✅ en 76 archivos (+6)** | **1.305 ✅ en 53 archivos (+35; migración `0067`)** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: la `0067` no está promovida | ✅ **En local**: tabla, 4 lecturas, cargador y cerrojo de números. Los **dos** premios reconocidos ensayados de punta a punta: **$1.000.000**, idempotente. I-134 e I-135 resueltas en local; I-136 nueva. **Nada en producción** |
@@ -75,7 +75,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
-## Etapa 3 del historial de premios ganados: la auditoría en local (D-208, `0070` y `0071`) — 2026-09-18
+## Etapa 3 del historial de premios ganados: la auditoría en local (D-208, `0070`, `0071` y `0072`) — 2026-09-18
 
 **Solo en local.** Ni una lectura ni una escritura en producción: `verify:remote` **no se corrió**, porque el
 encargo prohíbe también leer el proyecto real. Rama `feature/premios-configurables` sobre `4ef53eb`.
@@ -99,6 +99,7 @@ encargo prohíbe también leer el proyecto real. Rama `feature/premios-configura
 | D | **H5-04** deducía el bloqueo de un `statement_timeout` de 3 s | **3.091 ms** por diseño | Observa `pg_blocking_pids` y deja terminar al motor: **92 ms**, con el estado final de las dos operaciones |
 | E | **H8-08** no observaba el bloqueo | Sin el cerrojo del cargador fallaba **5/5**, pero por coincidencia de tiempos | La segunda carga **espera** a la primera, observado: sin el cerrojo falla **5/5 por construcción** (clave duplicada); con él pasa |
 | F | **`anon` obtenía el inicio operativo** por PostgREST pese a su `REVOKE` (I-141) | `POST /rest/v1/rpc/prize_award_history_start` con la clave anónima: **200** `"2026-08-09"`; y sin PostgREST, `prepare` con `authenticated` y `force_generic_plan`, `execute` con `anon`: la fecha. **H13-06** falla | `0071` —`stable security definer`—. Seis llamadas anónimas: **401**; H13-06 pasa. Probadas antes, en una transacción deshecha, las variantes que **no** bastan: inmutable con `security definer` y con `set search_path` |
+| G | **`current_seller_org_ids()` habría nacido ejecutable por `service_role` en producción** (I-143): la `0068` la crea y solo le revoca `EXECUTE` a `public`, y el privilegio por defecto del proyecto alojado incluye a `service_role` (I-132). **Se encontró después del primer cierre**, al ensayar lo que la Entrega 5 exige | Ensayo local con ese privilegio («escenario B»): 14 funciones y la tabla **idénticas** al escenario normal; `current_seller_org_ids()` con `service_role=X`; `verify-remote` contra esa base, **1** en rojo y 43 en verde. **H7-05**, nueva, **falla** con `['current_seller_org_ids()']` | `0072`, que repite el permiso y se comprueba a sí misma. En local, las 240 funciones con la misma ACL antes y después. Escenario B con `0067`–`0072`: **idéntico**; `verify-remote` contra esa base, **44/44**; H7 **5/5** |
 
 **Un fallo previo, ajeno al encargo, registrado sin corregir (I-140):** `admin-privacy.test.ts` «la
 bitácora que ve el personal…» falló al repetir suites sobre la base de la línea base —`expected [ 'ticket',
@@ -147,6 +148,10 @@ permiso se compruebe al ejecutar.
 | `let modelo` en la suite de volumen: `verify` salió con exit 1 por `prefer-const` | `const` |
 | La E2E de lo ajeno para el vendedor buscaba `main` en la página «no encontrada», que es la global y no lo tiene | Se compara `body` |
 | La medición V5 cargó `auto_explain` como `postgres`, que en Supabase no es superusuario: `42501` | Conexión de `supabase_admin` **local**, solo para medir |
+| **El primer cierre (`7bc1cf9`) daba la promoción por preparada sin el ensayo con el privilegio de producción** que la Entrega 5 dejó como condición | Ensayado después: encontró **I-143**, corregida con la `0072` |
+| La primera versión de `RUNBOOK` §9 comparaba **recuentos**, cuando el dueño ya había fijado la línea base por fila y la «Opción A» | §9.0 con esa práctica, y §9.1 y §9.6 remiten a ella |
+| **H12-03** elegía su sorteo con `limit 1` y sin orden | Ver arriba: orden fijo, un sorteo que la cobertura cuenta y la precondición demostrada |
+| El diagnóstico temporal de H12-03 rompió una vez la sintaxis de la suite —un `\n` escrito como salto de línea real— y `test:db` dio el archivo en rojo sin ejecutarlo | Corregido y retirado; no está en el commit |
 
 ### Dos tropiezos del entorno, no del código
 
@@ -155,7 +160,7 @@ permiso se compruebe al ejecutar.
 | Tras un `db:reset`, el seed recibió **502** de Auth y `test:db` corrió sobre una base sin sembrar (54 archivos en rojo) | Es **I-028**, con una vuelta: Auth estaba sano, pero **Kong** —que el reset no reinicia— seguía con su dirección vieja. Reiniciar Kong y esperar a Auth antes del seed lo resolvió; así se hizo en cada reinicio posterior |
 | Mailpit sin puerto publicado | El proxy local temporal de la línea base, solo mientras corrió `test:db` |
 
-### Verificación final, sobre el código definitivo
+### Primer cierre, el commit `7bc1cf9`
 
 | Verificación | Resultado |
 |---|---|
@@ -166,6 +171,38 @@ permiso se compruebe al ejecutar.
 | E2E completa | ⚠️ **768/771** en 41,7 min. **Los 3 fallos son conocidos y ajenos al historial:** `ventas-por-fecha.spec.ts:163` —«esperado < 26», **recibido 54**, la misma cifra que I-090 registró el 2026-09-16: a esa altura `vendedor1` tenía 54 ventas de hoy, 6 del seed y 48 de las suites de abonos, precio de venta y teléfono, **ninguna de las pruebas del historial**—; `:247` —modo estricto: «Las fechas están al revés» resolvió a dos elementos, uno oculto fuera de `main`; también I-090—; y `catalogo-publico-movil.spec.ts:103` —la URL no llegó a `q=0` en 15 s, **I-106**—. **Relanzados sus dos archivos solos**, tras `db:reset` + `seed:local` y con el mismo servidor: **33/33 ✅**. Las **23** E2E del historial —18 de escritorio y 5 de móvil—, **en verde** dentro de la completa. **No se tocó ninguna de las tres pruebas**: corregirlas no es de este encargo, y cada entrada dice ya qué haría falta |
 | Al terminar | ✅ `db:reset` + `seed:local` otra vez; el servidor de desarrollo y el proxy temporal de Mailpit, **detenidos** |
 | `verify:remote` | **No se corrió**. Contra el proyecto real tendrá **tres** comprobaciones en rojo a propósito hasta la puerta 1 de `RUNBOOK` §9: la matriz de las 15 funciones, el cuerpo de la cobertura (`0069`) y el inicio operativo (`0071`) |
+
+### Después del primer cierre: el ensayo con el privilegio de producción (I-143)
+
+Antes de escribir el prompt de la Etapa 4, la práctica de puerta de la Entrega 5 (`PHASE_STATUS`, Entrega 5,
+punto 6) recordó dos cosas que el primer cierre no había hecho: comparar **fila por fila** —§9 comparaba
+recuentos— y ensayar la estructura con el **privilegio por defecto de producción**. La primera se corrigió en
+`RUNBOOK` §9.0; la segunda encontró el hallazgo G.
+
+| Paso | Resultado |
+|---|---|
+| Escenario normal («A»), la matriz de las 15 funciones y la tabla | Referencia |
+| `db reset --local --version 0066 --no-seed`, `alter default privileges for role postgres in schema public grant execute on functions to service_role` y `migration up --local` (`0067`–`0071`) | Privilegio por defecto de las funciones: `{postgres=X, service_role=X}`, el del proyecto alojado |
+| Matriz del escenario B frente a la del A | ❌ **Una diferencia**: `current_seller_org_ids()` con `service_role=X` |
+| `verify-remote` contra esa base **local** (`SUPABASE_DB_URL` apuntando a `127.0.0.1`; dotenv no la sobrescribe) | ❌ **43 OK y 1 FALLA**: «current_seller_org_ids() -> service_role=true» |
+| **H7-05** escrita primero, sobre `0067`–`0071` | ❌ `expected [ 'current_seller_org_ids()' ] to deeply equal []` |
+| `0072` aplicada en local, con foto de las ACL de las **240** funciones del esquema antes y después | ✅ Idénticas: en local no cambia nada, y su comprobación pasa |
+| H7 entera | ✅ **5/5** |
+| Escenario B otra vez, con `0067`–`0072` | ✅ **Idéntico** al A, y `verify-remote` contra esa base, **44/44** |
+| `db:reset` + `seed:local` + `test:db` | ❌ **1.346 y 1 fallo**: **H12-03** —«expected 8 to be 9»—, una prueba **mía** de esta etapa. Elegía su sorteo con `limit 1` y **sin orden**; la cobertura solo cuenta sorteos programados, jugados y cubiertos por una rifa que participa, y entre los candidatos estaban los que H12-01 crea para **no** contar. El «+1» que falta solo se da si eligió uno de esos. **No se pudo ver cuál eligió**: la suite borra sus datos al terminar. Con un diagnóstico temporal —retirado—, en la corrida siguiente la consulta anterior eligió uno que **sí** cuenta (Bogotá, 10/09): el resultado dependía del orden físico de las filas |
+| H12-03 corregida | Elige un sorteo que la cobertura **cuenta**, en un orden fijo, y **demuestra** que lo cuenta —al confirmarse, deja de estar pendiente— antes de seguir. No se aflojó ninguna comprobación: se añadió una |
+
+### Verificación final, sobre el código definitivo
+
+| Verificación | Resultado |
+|---|---|
+| `db:reset` + `seed:local` | ✅ **72** migraciones desde cero y el seed |
+| `npm run test:db` | ✅ **1.347 y 1 omitida** —V5-01— en 54 archivos: **0 fallos**. La suite del historial, **70**; la de volumen, **8**. Mailpit, con el proxy temporal |
+| `npm run verify` | ✅ **exit 0**; unitarias **1.422/1.422** en 78 archivos; lint **0 errores** y las 2 advertencias de siempre; `next build` ✅ |
+| `db:reset` + `seed:local` antes de la E2E, y un servidor de desarrollo **recién arrancado** | ✅ |
+| E2E completa, otra vez | ⚠️ **768/771** en 45,2 min. **Los 3 fallos son conocidos y ajenos al historial:** `back-navigation.spec.ts:25` y `:127` —**I-075**: agotan su minuto esperando la **primera** navegación a `/owner/tickets/[id]` y a `/seller/tickets/[id]` con el servidor recién arrancado. `.next/dev` estaba presente, del 12/09: el `next build` de `verify` no lo borró— y `ventas-por-fecha.spec.ts:163` —**I-090**, **recibido 54** otra vez—. Esta vez `:247` e I-106 pasaron. **Relanzados sus dos archivos solos**, tras `db:reset` + `seed:local` y con el servidor ya caliente: **27/27 ✅**. Las **23** E2E del historial, en verde. **No se tocó ninguna de las tres pruebas** |
+| Al terminar | ✅ `db:reset` + `seed:local` (72 migraciones); el servidor de desarrollo y el proxy temporal de Mailpit, **detenidos** |
+| `verify:remote` | **No se corrió** contra el proyecto real. Contra la base **local** del escenario B, **44/44** (arriba) |
 
 ---
 

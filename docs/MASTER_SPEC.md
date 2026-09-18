@@ -530,7 +530,7 @@ sobre todo el filtro; unas alternativas a elegir o un premio en especie **no se 
 como valor pendiente. Lo que la plataforma no sabe —sorteos jugados con el resultado sin confirmar o por verificar— se dice en
 un aviso, que advierte que puede haber premios que no aparecen, y nunca como «cero premios». La Etapa 3 lo
 auditó en local —aislamiento, volumen, rendimiento e interfaz— y dejó escrito cómo promoverlo (`RUNBOOK` §9).
-Nada de esto está en producción: promover `0067`–`0071`, reconocer los dos premios y desplegar son puertas
+Nada de esto está en producción: promover `0067`–`0072`, reconocer los dos premios y desplegar son puertas
 aparte.
 
 ---

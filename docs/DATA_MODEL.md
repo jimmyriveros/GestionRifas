@@ -2,8 +2,9 @@
 
 - **Versión:** 2.27 · **Estado:** implementado · **Actualizado:** 2026-09-18 (§6.g.10: la Etapa 3 de D-208,
   **solo en local** —la `0070` añade `admin_prize_award_sellers()`, quién aparece como vendedor en el
-  historial, y la `0071` hace `prize_award_history_start()` `stable security definer` para que un plan
-  reutilizado no se la entregue a `anon`—). Antes, el 2026-09-17 (§6.g.10: la `0069` —D-208,
+  historial, la `0071` hace `prize_award_history_start()` `stable security definer` para que un plan
+  reutilizado no se la entregue a `anon`, y la `0072` repite el permiso de `current_seller_org_ids()`
+  nombrando a `service_role`, I-143—). Antes, el 2026-09-17 (§6.g.10: la `0069` —D-208,
   Etapa 2, **solo en local**— hace que `prize_award_coverage()` cuente solo los sorteos que pudieron dar un
   premio, I-138)
 - **Nota de cierre (2026-09-17):** el esquema ejecutable del **proyecto real** son ahora `0001`–`0066` —eso
@@ -1928,12 +1929,13 @@ Entrega 3, y la prueban `tests/db` y `tests/unit`.
 > cerrojo de configuración de **todas** las rifas del sorteo antes de decidir, y se niega a completar un
 > resultado con fotografías de una rifa guardadas con el otro sistema.
 
-### 6.g.10 Historial de premios ganados (migraciones `0067` a `0071`; D-208, BR-J17..BR-J23)
+### 6.g.10 Historial de premios ganados (migraciones `0067` a `0072`; D-208, BR-J17..BR-J23)
 
-**Solo en local**: el proyecto real no tiene ninguna de las cinco. La `0069` (Etapa 2) solo redefine el
-cuerpo de `prize_award_coverage()`; la `0070` (Etapa 3) añade una lectura del personal, y la `0071` (Etapa 3)
-rehace `prize_award_history_start()` con el mismo valor y los mismos privilegios. Ninguna tabla ni columna
-cambia después de la `0068`.
+**Solo en local**: el proyecto real no tiene ninguna de las seis. La `0069` (Etapa 2) solo redefine el
+cuerpo de `prize_award_coverage()`; la `0070` (Etapa 3) añade una lectura del personal, la `0071` (Etapa 3)
+rehace `prize_award_history_start()` con el mismo valor y los mismos privilegios, y la `0072` (Etapa 3) solo
+repite un permiso y comprueba la matriz de las 15 funciones (I-143). Ninguna tabla ni columna cambia después
+de la `0068`.
 
 `declared_prize_awards` es la **única tabla nueva**, y es aditiva: el premio que reconoce el **negocio**
 sobre una coincidencia que el motor no puede premiar. Cuelga de una fotografía que ya existe y **no

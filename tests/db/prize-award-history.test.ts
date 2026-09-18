@@ -1300,6 +1300,16 @@ describe('H6 — quién ve qué', () => {
 })
 
 // =============================================================================
+/** Las migraciones del historial, en orden: H7-02 y H7-05 las leen. */
+const MIGRACIONES_HISTORIAL = [
+  'supabase/migrations/0067_prize_award_history.sql',
+  'supabase/migrations/0068_prize_award_history_fixes.sql',
+  'supabase/migrations/0069_prize_award_coverage_participating.sql',
+  'supabase/migrations/0070_prize_award_sellers.sql',
+  'supabase/migrations/0071_prize_award_history_start_not_folded.sql',
+  'supabase/migrations/0072_prize_award_seller_scope_privileges.sql',
+]
+
 describe('H7 — privilegios y efectos laterales', () => {
   it('H7-01: las 15 funciones de la 0067, la 0068 y la 0070 están clasificadas, y su EXECUTE es exactamente el de la lista', async () => {
     expect(HISTORY_FUNCTION_GRANTS).toHaveLength(15)
@@ -1339,16 +1349,10 @@ describe('H7 — privilegios y efectos laterales', () => {
     for (const { firma, ...real } of rows) expect(real, firma).toEqual(esperado[firma])
   })
 
-  it('H7-02: toda función que crean la 0067 a la 0071 está en la lista, y ninguna más', async () => {
+  it('H7-02: toda función que crean la 0067 a la 0072 está en la lista, y ninguna más', async () => {
     const { readFile } = await import('node:fs/promises')
     const nombres = new Set<string>()
-    for (const archivo of [
-      'supabase/migrations/0067_prize_award_history.sql',
-      'supabase/migrations/0068_prize_award_history_fixes.sql',
-      'supabase/migrations/0069_prize_award_coverage_participating.sql',
-      'supabase/migrations/0070_prize_award_sellers.sql',
-      'supabase/migrations/0071_prize_award_history_start_not_folded.sql',
-    ]) {
+    for (const archivo of MIGRACIONES_HISTORIAL) {
       const contenido = await readFile(archivo, 'utf8')
       for (const m of contenido
         .replace(/--.*$/gm, '')
@@ -1360,6 +1364,53 @@ describe('H7 — privilegios y efectos laterales', () => {
       HISTORY_FUNCTION_GRANTS.map((f) => f.signature.slice(0, f.signature.indexOf('('))),
     )
     expect([...nombres].sort()).toEqual([...clasificadas].sort())
+  })
+
+  it('H7-05: ninguna función del historial depende del privilegio por defecto para no ser de `service_role` (I-132)', async () => {
+    // En el proyecto alojado toda función NUEVA nace ejecutable por
+    // `service_role` (I-132); en la pila local no, así que H7-01 no puede verlo.
+    // Lo que sí se comprueba aquí es que cada función que la lista le niega a
+    // `service_role` tiene, DESPUÉS de su última creación, un `revoke` explícito
+    // que lo nombra. Ensayado en la Etapa 3 con el privilegio de producción:
+    // `current_seller_org_ids()` nacía con `service_role=X` (I-143).
+    const { readFile } = await import('node:fs/promises')
+    const fuentes: string[] = []
+    for (const archivo of MIGRACIONES_HISTORIAL) {
+      fuentes.push((await readFile(archivo, 'utf8')).replace(/--.*$/gm, ''))
+    }
+
+    const sinRevocar: string[] = []
+    for (const f of HISTORY_FUNCTION_GRANTS.filter((g) => !g.expected.service_role)) {
+      const nombre = f.signature.slice(0, f.signature.indexOf('('))
+      const creacion = new RegExp(
+        `create\\s+(?:or\\s+replace\\s+)?function\\s+(?:public\\.)?${nombre}\\s*\\(`,
+        'gi',
+      )
+      const revocacion = new RegExp(
+        `revoke\\s+execute\\s+on\\s+function\\s+(?:public\\.)?${nombre}\\s*\\([^)]*\\)\\s+from\\s+([^;]+);`,
+        'gi',
+      )
+
+      // La ÚLTIMA creación manda: una función recreada nace otra vez con el
+      // privilegio por defecto, y un `revoke` anterior ya no cuenta.
+      let ultima: { archivo: number; posicion: number } | undefined
+      for (const [i, sql] of fuentes.entries()) {
+        for (const m of sql.matchAll(creacion)) ultima = { archivo: i, posicion: m.index ?? -1 }
+      }
+      expect(ultima, `${f.signature} no se crea en ninguna migración del historial`).toBeDefined()
+      if (!ultima) continue
+
+      let revocada = false
+      for (const [i, sql] of fuentes.entries()) {
+        if (i < ultima.archivo) continue
+        for (const m of sql.matchAll(revocacion)) {
+          const despues = i > ultima.archivo || (m.index ?? -1) > ultima.posicion
+          if (despues && /\bservice_role\b/i.test(m[1]!)) revocada = true
+        }
+      }
+      if (!revocada) sinRevocar.push(f.signature)
+    }
+    expect(sinRevocar).toEqual([])
   })
 
   it('H7-03: la tabla no concede escritura a ninguna sesión y tiene RLS forzada', async () => {
@@ -2368,17 +2419,35 @@ describe('H12 — la cobertura cuenta solo lo que pudo dar un premio (`0069`)', 
       [{ diario: '9711', semanal: '9712', cliente: ctx.clients.beatriz.id }],
       `${boletasCreadas}T08:00:00-05:00`,
     )
+    // Un sorteo que la cobertura CUENTA: jugado, programado —no cancelado ni
+    // suspendido— y cubierto por una rifa que participa. Elegirlo «el primero
+    // que salga» cogía a veces uno de los que H12-01 crea precisamente para NO
+    // contar, y la prueba fallaba sin que nada estuviera mal (2026-09-18).
     const { rows: prog } = await db.query<{ id: string; lottery_code: Loteria; d: string }>(
       `select s.id, s.lottery_code, s.reference_date::text as d from lottery_draw_schedules s
         where s.draw_number like 'E1H-%'
           and s.reference_date < (now() at time zone 'America/Bogota')::date
+          and s.reference_date >= prize_award_history_start()
+          and s.schedule_status = 'scheduled'
+          and s.official_scheduled_at < now()
           and not exists (select 1 from lottery_results r where r.schedule_id = s.id)
+          and exists (select 1 from raffles ra
+                       where ra.organization_id = $1 and ra.status in ('active', 'closed')
+                         and s.reference_date between ra.start_date and ra.end_date)
+        order by s.reference_date, s.lottery_code, s.draw_number
         limit 1`,
+      [ctx.demoOrg.id],
     )
+    expect(prog, 'no queda ningún sorteo jugado que la cobertura cuente').toHaveLength(1)
+    const antesDeConfirmar = await pendientes()
     const { rows: res } = await db.query<{ id: string }>(
       `insert into lottery_results (schedule_id, winning_number, validation_status, source_kind, confirmed_at)
        values ($1, '9711', 'confirmed', 'official_page', now()) returning id`,
       [prog[0]!.id],
+    )
+    // La prueba de que la cobertura lo cuenta: al confirmarse, deja de estar pendiente.
+    expect(await pendientes(), 'el sorteo elegido tiene que contar en la cobertura').toBe(
+      antesDeConfirmar - 1,
     )
     await fotografiar(res[0]!.id, ticket!, 'daily_number', '9711')
     const { rows: carga } = await db.query<{ outcome: string }>(
