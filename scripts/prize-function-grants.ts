@@ -160,7 +160,9 @@ export const PREFLIGHT_SERVICE_ROLE_FINDING = [
 
 // =============================================================================
 // El historial de premios ganados (D-208, migraciones `0067` y `0068`; la `0069`
-// solo redefine el cuerpo de `prize_award_coverage()` con los mismos privilegios)
+// solo redefine el cuerpo de `prize_award_coverage()` con los mismos privilegios,
+// la `0070` añade `admin_prize_award_sellers()`, de sesión, y la `0071` rehace
+// `prize_award_history_start()` con los mismos privilegios)
 //
 // Va en una lista APARTE de las 62 de la entrega de premios: la prueba P1-01
 // comprueba que la lista de `0058`–`0065` es exactamente la de esas migraciones,
@@ -170,6 +172,7 @@ export const PREFLIGHT_SERVICE_ROLE_FINDING = [
 
 /** Las lecturas del historial y el alcance del vendedor: una sesión, nunca la service role. */
 export const HISTORY_SESSION_RPCS = [
+  'admin_prize_award_sellers()',
   'admin_prize_award_totals(uuid,uuid,date,date)',
   'admin_prize_awards(uuid,uuid,date,date,integer,integer)',
   'seller_prize_award_totals(uuid,uuid,date,date)',
@@ -221,7 +224,7 @@ export const PRIZE_FUNCTION_GRANTS: ReadonlyArray<{ signature: string; expected:
   })),
 ]
 
-/** Las 14 funciones del historial de premios ganados (0067 a 0069) con su EXECUTE esperado. */
+/** Las 15 funciones del historial de premios ganados (0067 a 0070) con su EXECUTE esperado. */
 export const HISTORY_FUNCTION_GRANTS: ReadonlyArray<{
   signature: string
   expected: ExecuteMatrix
@@ -324,10 +327,11 @@ export const PRIZE_FUNCTION_CHECKS: RemoteCheck[] = [
     esperado: 0,
   },
   {
-    // 0067 y 0068 (D-208): las 14 del historial de premios ganados, con la misma
-    // matriz exacta. En el proyecto alojado toda función nueva nace ejecutable
-    // por `service_role` (I-132), así que ninguna se queda sin comprobar.
-    nombre: 'Funciones del historial de premios con EXECUTE distinto de su lista (0067, 0068)',
+    // 0067, 0068 y 0070 (D-208): las 15 del historial de premios ganados, con la
+    // misma matriz exacta. En el proyecto alojado toda función nueva nace
+    // ejecutable por `service_role` (I-132), así que ninguna se queda sin
+    // comprobar. Falla contra el proyecto real hasta que se promuevan.
+    nombre: 'Funciones del historial de premios con EXECUTE distinto de su lista (0067, 0068, 0070)',
     sql: `with esperado (firma, publico, anonimo, autenticado, servicio) as (
             values
               ${matrizSql(HISTORY_FUNCTION_GRANTS)}

@@ -1,6 +1,6 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-09-17 (§8.0 y §8.1: **la puerta 1 pasa a `0058`–`0066`** y a un commit nuevo; el primer intento, autorizado el 2026-09-17, **se suspendió antes de escribir** porque el preflight vio que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva (I-132, D-207); antes, el 2026-09-16, §8.3: **la puerta 2 la hace el Dueño con su sesión**, desde Editar, y el agente solo verifica en modo lectura; el aviso de fechas llega también al Dueño —`0065`, D-206 corregida—, y el bloque SQL sin sesión queda descartado porque dejaba la bitácora a nombre de «Sistema»; antes, ese mismo día, §8: el procedimiento de producción con **tres puertas** —migraciones y despliegue, extender la fecha de fin con su aviso, y la transición— y lo que pasa con los sorteos que conservan el sistema de siempre, D-206; antes, ese mismo día, la transición preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
+**Actualizado:** 2026-09-18 (§9 nueva: **el procedimiento de promoción del historial de premios ganados**, preparado en la Etapa 3 de D-208 y **no ejecutado** —`0067`–`0071`, el cargador de los dos premios reconocidos y el despliegue, en cuatro puertas—; antes, el 2026-09-17, §8.0 y §8.1: **la puerta 1 pasa a `0058`–`0066`** y a un commit nuevo; el primer intento, autorizado el 2026-09-17, **se suspendió antes de escribir** porque el preflight vio que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva (I-132, D-207); antes, el 2026-09-16, §8.3: **la puerta 2 la hace el Dueño con su sesión**, desde Editar, y el agente solo verifica en modo lectura; el aviso de fechas llega también al Dueño —`0065`, D-206 corregida—, y el bloque SQL sin sesión queda descartado porque dejaba la bitácora a nombre de «Sistema»; antes, ese mismo día, §8: el procedimiento de producción con **tres puertas** —migraciones y despliegue, extender la fecha de fin con su aviso, y la transición— y lo que pasa con los sorteos que conservan el sistema de siempre, D-206; antes, ese mismo día, la transición preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
 producción. El detalle técnico de cada `I-0xx` citado está en
 [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) — aquí solo el síntoma y qué hacer.
 
@@ -623,3 +623,212 @@ select raffle_prize_draw_mode('<RIFA>', s), raffle_prize_draw_cutoff(s)
 * **No** se ejecuta la transición dentro de un despliegue ni de una migración.
 * **No** se reprocesan resultados anteriores, **no** se cargan resultados sin evidencia oficial y **no** se
   corrige a mano la hora de un sorteo ya resuelto.
+
+## 9. Promoción del historial de premios ganados (Etapa 4 de D-208)
+
+> ⚠️ **PREPARADO EN LA ETAPA 3 (2026-09-18), NO EJECUTADO.** Nada de esta sección se ejecuta sin
+> autorización expresa, y **cada puerta se autoriza por separado**. Preparar el procedimiento no autoriza
+> ejecutarlo. El estado de producción que se cita aquí es el que dejó documentado la Entrega 5 el
+> **2026-09-17** —`0001`–`0066` aplicadas y `da81663` desplegado— y **no se ha vuelto a comprobar**: la
+> Etapa 3 no leyó ni escribió nada en producción. La primera acción de la Etapa 4 es comprobarlo (§9.1).
+
+Lo que se promueve: las migraciones **`0067`–`0071`** —el historial, sus correcciones, la cobertura, la
+lectura de quién aparece como vendedor y el inicio operativo que no se pliega— y el código de las pantallas
+`/seller/prizes`, `/owner/prizes` y los dos resúmenes de ficha; y, con su propia puerta, **los dos premios
+reconocidos por el dueño** (H1): Bogotá 2862 del 03/09/2026, boleta `3427 / 7702`, y Cundinamarca 4820 del
+14/09/2026, boleta `9019 / 3294`, **Premio diario de $500.000 cada uno, $1.000.000 entre los dos**.
+
+### 9.0 El orden y las puertas
+
+| # | Puerta —se pregunta tal cual y se espera un «sí»— | Qué escribe | Por qué en ese orden |
+|---|---|---|---|
+| 0 | «¿Autorizas las comprobaciones de solo lectura del proyecto real de §9.1?» | Nada | Lo que se sabe de producción es del 2026-09-17 |
+| 1 | «¿Autorizas aplicar las migraciones `0067`–`0071` en producción, con respaldo previo?» | Respaldo (§5.1), `db push`, `verify:remote` | **Antes que el código**: las pantallas llaman a funciones que solo existen desde esas migraciones; con el código primero, las cuatro superficies mostrarían «No pudimos cargar los premios ganados». Al revés no hay riesgo: el código desplegado hoy no usa nada de lo nuevo (§9.3) |
+| 2 | «¿Autorizas reconocer en producción los dos premios confirmados, $1.000.000, con el cargador: vista previa y, si coincide, aplicar?» | Dos filas en `declared_prize_awards` y una en `audit_logs` | **Después de las migraciones y antes del código**: así la pantalla nace con los dos premios, y si algo no cuadra se corrige antes de que nadie la vea. Exige preparar antes el cargador (§9.4) |
+| 3 | «¿Autorizas desplegar el commit <SHA> en producción?» | El despliegue | Último: con la base lista y conciliada |
+
+La Etapa 0 de D-208 proponía cargar **después** del despliegue; se cambia el orden porque la carga no depende
+del código y cargar antes evita que la pantalla se vea sin los dos premios. Si el dueño prefiere verlos
+aparecer, las puertas 2 y 3 se pueden invertir sin más cambios: el cargador no toca ninguna pantalla.
+
+### 9.1 Comprobaciones de solo lectura (puerta 0)
+
+En el editor SQL del proyecto real o con `SUPABASE_DB_URL`, `begin transaction read only`. Ningún dato de
+cliente sale de aquí: solo recuentos, estados y los números de boleta que el dueño ya confirmó.
+
+```sql
+-- 1. Qué migraciones tiene: tiene que terminar en 0066 (si no, se detiene todo).
+select version from supabase_migrations.schema_migrations order by version desc limit 3;
+
+-- 2. Las dos coincidencias reales siguen ahí, vendidas, del sistema de siempre y sin premio.
+select s.lottery_code, s.reference_date, t.daily_number, t.weekly_number,
+       m.match_field, m.matched_number, m.assignment_status,
+       raffle_prize_draw_mode(m.raffle_id, s) as modo,
+       r.validation_status,
+       (select count(*) from lottery_ticket_match_prizes lp where lp.match_id = m.id) as enlaces
+  from lottery_ticket_matches m
+  join lottery_results r on r.id = m.result_id
+  join lottery_draw_schedules s on s.id = r.schedule_id
+  join tickets t on t.id = m.ticket_id
+ where (s.lottery_code, s.reference_date, t.daily_number, t.weekly_number) in
+       (('bogota', date '2026-09-03', '3427', '7702'), ('cundinamarca', date '2026-09-14', '9019', '3294'));
+-- Esperado: 2 filas, `sold`, `daily_number`, número fotografiado = el diario de la boleta,
+-- modo `legacy`, `confirmed` y 0 enlaces. Cualquier otra cosa detiene la puerta 2.
+
+-- 3. El premio que el cargador va a nombrar: UNO vigente llamado exactamente «Premio diario».
+select p.id, v.title, p.status from raffle_prizes p
+  join raffle_prize_versions v on v.id = p.current_version_id
+ where p.raffle_id = '<RIFA>' and v.title = 'Premio diario';
+
+-- 4. La fotografía de negocio para comparar después (mismo patrón que la 0049 y la 0057).
+select (select count(*) from tickets) boletas, (select count(*) from clients) clientes,
+       (select count(*) from payments) pagos, (select count(*) from audit_logs) bitacora,
+       (select count(*) from lottery_ticket_matches) fotografias,
+       (select count(*) from lottery_ticket_match_prizes) enlaces,
+       (select count(*) from lottery_results where validation_status = 'conflict') conflictos;
+```
+
+Y fuera de la base: el despliegue vigente en Vercel tiene que ser `da81663`, y `npm run verify:remote` tiene que
+dar **todo en verde salvo las tres comprobaciones del historial**, que están en rojo a propósito hasta la puerta 1:
+la matriz de las 15 funciones (`0067`, `0068`, `0070`), el cuerpo de la cobertura (`0069`) y el inicio operativo
+que no se pliega (`0071`).
+
+### 9.2 Respaldo
+
+Respaldo lógico nuevo **justo antes** de la puerta 1, por §5.1, en `Rifas-backups/<fecha>-antes-0067-0071/`,
+comprobando que no guarda identidades de Auth. Uno viejo no sirve.
+
+### 9.3 Las migraciones (puerta 1)
+
+```bash
+npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"   # tiene que listar EXACTAMENTE 0067..0071, en orden
+npx supabase db push --yes --db-url "$SUPABASE_DB_URL"
+npx supabase migration list --db-url "$SUPABASE_DB_URL"        # 0001..0071 iguales en los dos entornos
+npm run verify:remote                                          # todo en verde, las tres del historial incluidas
+```
+
+Qué cambian para lo que YA está en producción, y por qué es seguro aplicarlas con el código de hoy. No es el caso de la `0057` (`DEPLOYMENT` §3.3): la `0068` **estrecha** una política, pero el código desplegado solo la usa desde el portal del vendedor, con un vendedor activo, que no pierde nada:
+
+| Migración | Efecto sobre lo desplegado |
+|---|---|
+| `0067` | Tabla nueva y funciones nuevas: nadie las usa todavía. **Y el cerrojo de BR-I16**: los números de una boleta con coincidencias ya no se pueden cambiar; hoy son **dos** boletas, y el personal recibe el mensaje de la base si lo intenta |
+| `0068` | Las políticas de `lottery_ticket_matches` y `declared_prize_awards` exigen **rol de vendedor activo** (I-137). Un vendedor activo no pierde nada; quien fue vendedor y hoy es del personal deja de leer esas fotografías, que es la corrección |
+| `0069`, `0071` | Cuerpos de dos funciones nuevas. Nada más |
+| `0070` | Una función nueva de lectura para el personal |
+
+**Si una falla**, `db push` se detiene en esa: las anteriores quedan aplicadas y cada una tiene su nota de
+reversión al final. **No se improvisa**: se lee el error, se compara con la migración y se decide. Revertir la
+`0068` **amplía** el acceso (vuelve I-137) y no se hace sin decidirlo. Ninguna de las cinco escribe datos de
+negocio: el respaldo es para una recuperación que no debería hacer falta.
+
+### 9.4 Preparar el cargador para producción (antes de la puerta 2, en local)
+
+Hoy `scripts/record-prize-awards.ts` **se niega sin `--local`**, a propósito, y **esa protección no se retira**:
+se añade, en la Etapa 4 y con pruebas, un modo de producción con la misma puerta que la transición
+(`scripts/raffle-prize-transition-guard.ts`, D-205):
+
+| Condición | Cómo |
+|---|---|
+| Destino explícito | `--production` obligatorio; con él, el destino tiene que resolver al proyecto de `.env.local` y **no** a `127.0.0.1`; sin él, solo local |
+| Organización escrita dos veces | `--organization <uuid>` y `--confirm-organization <uuid>`, iguales |
+| Aplicar exige una vista previa | `--apply` solo con `--preview-hash <huella>`: la huella de la salida de una vista previa con **las mismas entradas y el mismo destino**, que el script recalcula |
+| Nada se imprime que no deba | Ni claves, ni tokens, ni contraseñas; solo el destino por su etiqueta |
+| La lista no cambia | Las dos entradas siguen en `src/features/prize-awards/declared.ts`, una sola vez |
+
+Con sus pruebas unitarias —las negativas de la puerta, como `raffle-prize-transition-guard`— y el ensayo local
+de punta a punta que ya hizo la Etapa 1, repetido con el modo nuevo contra la base local.
+
+### 9.5 Vista previa y aplicación (puerta 2)
+
+```bash
+npx tsx scripts/record-prize-awards.ts --production --organization <ORG> --confirm-organization <ORG>
+```
+
+**Salida esperada de la vista previa** —y ninguna otra—:
+
+```
+se reconocería  3427 / 7702    bogota 2026-09-03         Premio diario    $500.000
+se reconocería  9019 / 3294    cundinamarca 2026-09-14   Premio diario    $500.000
+Premios: 2 de 2
+Dinero reconocido: $1.000.000
+```
+
+Una fila `rechazado` **detiene la puerta**: su frase dice por qué (no hay coincidencia, el modo del sorteo, la
+ambigüedad del título, el suelo del historial) y se resuelve antes de volver a empezar. Con la vista previa
+correcta, se aplica con la huella que imprimió:
+
+```bash
+npx tsx scripts/record-prize-awards.ts --production --organization <ORG> --confirm-organization <ORG> \
+  --apply --preview-hash <HUELLA>
+```
+
+Esperado: las dos filas en `reconocido`, **$1.000.000**, y el script termina en 0 (si el dinero no fuera
+$1.000.000, termina en 1 y no se sigue).
+
+**Cambio de datos esperado, y ninguno más:** `declared_prize_awards` +2 (vigentes, con `recorded_by` nulo
+—«Sistema»— y el respaldo del dueño en `basis`) y `audit_logs` +1 (`prize_award.record`). Ni boletas, ni
+clientes, ni pagos, ni fotografías, ni enlaces, ni avisos.
+
+### 9.6 Conciliación (después de la puerta 2, solo lectura)
+
+```sql
+select d.declared_title, d.amount, d.in_kind_description, d.voided_at,
+       s.lottery_code, s.reference_date, t.daily_number, t.weekly_number
+  from declared_prize_awards d
+  join lottery_ticket_matches m on m.id = d.match_id
+  join lottery_results r on r.id = m.result_id
+  join lottery_draw_schedules s on s.id = r.schedule_id
+  join tickets t on t.id = m.ticket_id
+ where d.organization_id = '<ORG>';
+-- Esperado: 2 filas vigentes, «Premio diario», $500.000 cada una, sin especie, en los dos sorteos de arriba.
+
+select count(*), sum(amount) from declared_prize_awards where organization_id = '<ORG>' and voided_at is null;
+-- Esperado: 2 y 1000000.
+```
+
+Y la fotografía de negocio de §9.1 repetida: solo cambian la bitácora (+1) y `declared_prize_awards`.
+
+### 9.7 Si la respuesta es incierta, parcial o discrepa
+
+| Situación | Qué se hace |
+|---|---|
+| **Respuesta incierta** (se cortó la conexión, un tiempo agotado) | **No se repite a ciegas.** Primero la consulta de §9.6. Si las dos filas están, ya se aplicó. Si no hay ninguna, no se aplicó. Repetir con las mismas entradas es seguro —responde «ya estaba» y no duplica—, pero se hace después de mirar |
+| **Ejecución parcial** —una fila de dos— | No puede ocurrir por el cargador: es **entero o nada**, en una transacción. Si se ve, algo distinto escribió: **se detiene todo** y se investiga; no se completa a mano |
+| **Importe discrepante** —«Ese premio ya está reconocido con … y la petición trae …»— | Hay un reconocimiento **vigente** con otro importe. **No se escribe nada** y no se edita el importe (es inmutable). Se confirma con el dueño cuál es el correcto; corregir exige **anular** el vigente —`voided_at`, `voided_by`, `void_reason`, lo único que los disparadores dejan cambiar— y volver a reconocer, con autorización expresa. Esa anulación hoy no tiene RPC ni pantalla (**I-136**) |
+| La vista previa rechaza una entrada | No se aplica nada. Se lee la frase del rechazo |
+
+### 9.8 El despliegue (puerta 3)
+
+Por el camino de siempre (`DEPLOYMENT` §3.3): el commit autorizado a `main`, CI en verde y Vercel en READY, con
+las comprobaciones en vivo de las promociones anteriores —cabeceras, rutas protegidas en 307, `0` secretos en lo
+servido y el identificador de versión nuevo—.
+
+**Deshacer el código** es seguro: *Instant Rollback* de Vercel al despliegue anterior (`DEPLOYMENT` §4.1). Las pantallas desaparecen
+y la base se queda como está; las funciones nuevas no las usa nadie más.
+
+### 9.9 Después: qué se comprueba y con quién
+
+`npm run verify:remote` **todo en verde**. Y los recorridos, **cada uno con la sesión de su dueño**: el agente
+no entra con cuentas de otros ni escribe contraseñas (Fase 8); da los pasos, espera la confirmación y verifica
+en solo lectura.
+
+| Quién | Qué tiene que ver |
+|---|---|
+| Dueño y Administrador | «Premios ganados» en el menú; **2** premios, **2** clientes, **$1.000.000**, **0** con valor pendiente; el vendedor de cada uno; **ningún** nombre de cliente; el aviso de cobertura con los sorteos del 09/08 al 24/08 (**I-133**) y los que falten entonces, «con el resultado sin confirmar o por verificar» |
+| El vendedor de las dos boletas | Sus dos premios con el nombre de cada cliente; la ficha de cada cliente con «1 premio · $500.000 en dinero» y «Ver premios» |
+| Otro vendedor | «Todavía no hay premios registrados» y el mismo aviso de cobertura |
+| `anon` | `401` en las cinco lecturas y en la cobertura |
+
+Y queda en observación lo que ya estaba: el **primer sorteo configurable posterior al 17/09** (I-087), que
+escribirá sus premios solo, y el tramo del **09/08 al 24/08**, que sigue pendiente de información del dueño.
+
+### 9.10 Lo que NO se hace nunca
+
+* **No** se reconocen premios del tramo 09/08–24/08: no hay fotografía que reconocer, y hacerlo exige una
+  ampliación autorizada aparte (D-208).
+* **No** se fabrica ninguna fotografía, **no** se escribe a mano en `declared_prize_awards` y **no** se borra
+  nada: lo que sobra se anula.
+* **No** se editan migraciones aplicadas ni se retiran las comprobaciones de `verify:remote` para que pasen.
+* **No** se lee el historial con la clave de servicio desde la aplicación.
+* **No** se confirma el resultado de un sorteo antiguo sin evidencia oficial; y si un día se confirma uno del
+  sistema de siempre con coincidencias vendidas, **su premio no aparece solo**: hay que reconocerlo (I-142).

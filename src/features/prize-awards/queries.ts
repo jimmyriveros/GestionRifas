@@ -369,6 +369,26 @@ export async function readAdminPrizeAwards(
   }
 }
 
+/**
+ * Quiénes aparecen como VENDEDOR en el historial de la organización (`0070`,
+ * Etapa 3): también quien está desactivado y quien hoy es Dueño o
+ * Administrador, que el rol actual no delata. Solo su identificador de perfil y
+ * su nombre —los mismos que ya trae cada fila de `admin_prize_awards`—.
+ *
+ * Es la fuente del desplegable «Vendedor», así que un fallo NO se convierte en
+ * una lista más corta: se lanza, como `listOrgMembers`, y la pantalla dice que
+ * no pudo cargar. Un desplegable incompleto sin aviso haría creer que esa
+ * persona no tiene premios.
+ */
+export async function listAdminPrizeAwardSellers(): Promise<
+  Array<{ sellerId: string; sellerName: string | null }>
+> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('admin_prize_award_sellers')
+  if (error) throw error
+  return (data ?? []).map((row) => ({ sellerId: row.seller_id, sellerName: row.seller_name }))
+}
+
 /** Los cuatro indicadores de UN vendedor —también inactivo—, para su ficha. */
 export async function readAdminSellerPrizeTotals(
   sellerId: string,

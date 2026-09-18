@@ -491,6 +491,8 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Un premio cuyo valor completo todavía no se sabe | **Valor pendiente**; el recuento, **Con valor pendiente** | Sin valor, por definir, «$0» |
 | Un premio que el negocio reconoció sobre un sorteo que el sistema no podía premiar | **Reconocido por la organización** | Manual, declarado, importado, histórico |
 | Las dos fechas del filtro de ese historial | **Sorteos desde** y **Sorteos hasta** | «Desde» y «Hasta» a secas, que ahí no dicen de qué fecha se trata |
+| En el aviso de cobertura, un sorteo sin resultado o con el resultado en conflicto | **«con el resultado sin confirmar o por verificar»**; «por verificar» es la misma familia que «Requiere verificación» de la fila | «En revisión», «con problemas», «en conflicto» —que en premios ya nombra otra cosa— |
+| Quien vendió, tiene premios en el historial y hoy tiene otro rol, en el desplegable «Vendedor» del personal | **«Nombre (ya no vende)»**, como **«Nombre (inactivo)»** para un vendedor desactivado (Etapa 3) | Exvendedor, ascendido, antiguo vendedor, «(administrador)» |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -1517,14 +1519,25 @@ pendiente de valorar»: es la suma de lo cierto, y el cuarto indicador —**«Co
 cuenta cuántos premios faltan por valorar. Un premio único en dinero **no repite** su importe en la
 columna del premio: ya lo dice su valor, a un centímetro.
 
-**El aviso de cobertura dice lo que la consulta puede afirmar, y nada más** (BR-J22, `0069`). Cuántos
-sorteos ya jugados no tienen resultado confirmado, **entre** qué fechas caen —«entre el 1 y el 16 de
-septiembre de 2026», nunca «del … al …», que prometería que todos los de en medio están igual— y que
-**mientras tanto no se sabe si hubo premios en ellos**. No dice «cero premios», no presenta el resto
-como completo y no cuenta los sorteos cancelados ni los de rifas que no participan. Su cuenta es de
-**toda la organización**, así que con un filtro de rifa o de fechas añade «La cuenta es de todas las
-rifas, no solo de este filtro.»; si las fechas del filtro no tocan el tramo pendiente, el aviso se
-calla.
+**El aviso de cobertura dice lo que la consulta puede afirmar, y nada más** (BR-J22, `0069`; corregido
+en la Etapa 3). Cuántos sorteos ya jugados tienen **el resultado sin confirmar o por verificar**, **entre**
+qué fechas caen —«entre el 1 y el 16 de septiembre de 2026», nunca «del … al …», que prometería que todos
+los de en medio están igual— y que **puede que esos sorteos tengan premios que no aparecen aquí**:
+
+> «Hay 15 sorteos ya jugados con el resultado sin confirmar o por verificar, entre el 1 y el 17 de
+> septiembre de 2026. Puede que esos sorteos tengan premios que no aparecen aquí.»
+
+**Por qué esas palabras.** La cuenta incluye un sorteo cuyo resultado entró en conflicto **después** de
+confirmarse, y ese sorteo puede tener ya un premio en la lista, conservado y marcado con «Requiere
+verificación». La frase anterior —«Mientras tanto, no sabemos si hubo premios en esos sorteos»— lo
+desmentía a un centímetro. Tampoco se escribe «mientras tanto»: prometía que, al confirmarse, se sabría, y
+un sorteo del sistema de siempre se confirma sin que su premio aparezca solo (I-142).
+
+No dice «cero premios», no presenta el resto como completo y no cuenta los sorteos cancelados ni los de
+rifas que no participan. Su cuenta es de **toda la organización**, así que con **cualquier** filtro —rifa,
+fechas, vendedor o cliente— añade «La cuenta es de toda la organización, no solo de este filtro.»; si las
+fechas del filtro no tocan el tramo pendiente, el aviso se calla. Las pruebas del aviso comparan con
+**frases escritas a mano**, nunca con la misma función que lo produce.
 
 **Cuatro situaciones que no se confunden.** Un fallo de lectura dice «No pudimos cargar los premios
 ganados» con «Suele ser algo pasajero. Vuelve a intentarlo en unos segundos.» y «Reintentar», y **no

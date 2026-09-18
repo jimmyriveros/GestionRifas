@@ -144,8 +144,10 @@ describe('los cuatro estados que no se pueden confundir', () => {
     )
     expect(salida).toContain(COPY.empty.title)
     expect(salida).toContain('data-slot="prize-coverage-notice"')
-    expect(salida).toContain('Hay 13 sorteos ya jugados sin resultado confirmado')
-    // Sin filtros de rifa ni fechas, no hace falta aclarar el alcance.
+    expect(salida).toContain(
+      'Hay 13 sorteos ya jugados con el resultado sin confirmar o por verificar, entre el 10 y el 24 de agosto de 2026.',
+    )
+    // Sin ningún filtro, lo que se ve ya es toda la organización: no se aclara.
     expect(salida).not.toContain('no solo de este filtro')
   })
 
@@ -297,5 +299,116 @@ describe('los dos públicos', () => {
     expect(salida).toContain(COPY.row.conflict)
     expect(salida).toContain(COPY.row.numbersChanged)
     expect(salida).toContain('$500.000')
+  })
+})
+
+describe('el aviso de cobertura frente a lo que ya se ve (Etapa 3, punto A)', () => {
+  /** El sorteo de Bogotá del 3 de septiembre: el único pendiente, y ya tiene un premio. */
+  const SOLO_ESE_SORTEO: PrizeAwardCoverageResult = {
+    kind: 'ready',
+    coverage: {
+      historyStart: '2026-08-09',
+      pendingDraws: 1,
+      pendingFrom: '2026-09-03',
+      pendingTo: '2026-09-03',
+    },
+  }
+
+  it('P3V-01: un premio conservado con su resultado en conflicto no queda desmentido por el aviso', () => {
+    // El premio reconocido de ese sorteo: su resultado entró en conflicto
+    // DESPUÉS de confirmarse, así que la base cuenta el sorteo como pendiente
+    // (`0069`) y a la vez conserva el premio con su importe (BR-J18).
+    const conservado: SellerPrizeAward = {
+      ...BASE,
+      key: 'declared:1',
+      origin: 'declared',
+      referenceDate: '2026-09-03',
+      drawNumber: '2862',
+      winningNumber: '3427',
+      resultConflict: true,
+      dailyNumber: '3427',
+      weeklyNumber: '7702',
+      matchedNumber: '3427',
+      prizeCategory: null,
+      prizeDigits: null,
+      rewardMode: null,
+      clientId: 'c1',
+      clientName: 'Ana Torres',
+    }
+    const salida = html(
+      <PrizeAwardsView
+        audience="seller"
+        filters={SIN_FILTROS}
+        result={{
+          kind: 'ready',
+          rows: [conservado],
+          total: 1,
+          page: 1,
+          pageSize: 25,
+          totals: { prizes: 1, clients: 1, knownAmount: 500_000, valuePending: 0 },
+        }}
+        coverage={SOLO_ESE_SORTEO}
+        client={null}
+        raffles={RIFAS}
+      />,
+    )
+    // El premio se queda, con su importe y su marca.
+    expect(salida).toContain('3427 / 7702')
+    expect(salida).toContain('$500.000')
+    expect(salida).toContain('La fuente oficial publicó otro número. Requiere verificación.')
+    // Y el aviso dice lo que de verdad pasa con ese sorteo, sin negar el premio.
+    expect(salida).toContain(
+      'Hay 1 sorteo ya jugado con el resultado sin confirmar o por verificar, el 3 de septiembre de 2026. Puede que ese sorteo tenga premios que no aparecen aquí.',
+    )
+    expect(salida).not.toMatch(/no sabemos si hubo premios/i)
+  })
+
+  it('P3V-02: con cualquier filtro —también el de vendedor o el de cliente— dice que la cuenta es de la organización', () => {
+    const ALCANCE = 'La cuenta es de toda la organización, no solo de este filtro.'
+    const vacio = {
+      kind: 'ready' as const,
+      rows: [],
+      total: 0,
+      page: 1,
+      pageSize: 25,
+      totals: CERO,
+    }
+
+    const porVendedor = html(
+      <PrizeAwardsView
+        audience="staff"
+        filters={{ page: 1, sellerId: 'v1' }}
+        result={vacio}
+        coverage={COBERTURA}
+        raffles={RIFAS}
+        sellers={[{ value: 'v1', label: 'Julian Vargas' }]}
+        linkableSellerIds={['v1']}
+      />,
+    )
+    expect(porVendedor).toContain(ALCANCE)
+
+    const porCliente = html(
+      <PrizeAwardsView
+        audience="seller"
+        filters={{ page: 1, clientId: 'c1' }}
+        result={vacio}
+        coverage={COBERTURA}
+        client={{ id: 'c1', name: 'Ana Torres' }}
+        raffles={RIFAS}
+      />,
+    )
+    expect(porCliente).toContain(ALCANCE)
+
+    const porRifa = html(
+      <PrizeAwardsView
+        audience="seller"
+        filters={{ page: 1, raffleId: 'rifa' }}
+        result={vacio}
+        coverage={COBERTURA}
+        client={null}
+        raffles={RIFAS}
+      />,
+    )
+    expect(porRifa).toContain(ALCANCE)
   })
 })

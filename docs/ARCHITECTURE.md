@@ -1,6 +1,6 @@
 # ARQUITECTURA
 
-- **Versión:** 1.42 · **Estado:** implementado · **Actualizado:** 2026-09-17 (**§6** y **§8.28**: «Premios
+- **Versión:** 1.43 · **Estado:** implementado · **Actualizado:** 2026-09-18 (**§8.28**: la Etapa 3 del historial —el desplegable del personal lee también `admin_prize_award_sellers` (`0070`) y el aviso de cobertura aclara el alcance con cualquier filtro—). Antes, el 2026-09-17 (**§6** y **§8.28**: «Premios
   ganados» en los dos portales y los resúmenes de las fichas —D-208, Etapa 2, migración `0069`, **solo en
   local**—). Antes, ese mismo día (**§8.27.a** y **§8.27.b**:
   premios configurables **en producción** —`0058`–`0066` aplicadas, `da81663` desplegado y la rifa real
@@ -2214,15 +2214,16 @@ parámetro de actor**, así que un cambio que deba quedar a nombre de alguien se
 (`RUNBOOK` §8.3). La pantalla solo lo **anuncia** antes de guardar (`raffles/date-change.ts`); el texto de
 la campana está en `notifications/text.ts`.
 
-### 8.28 «Premios ganados»: una pantalla, dos públicos, y la base cuenta todo (D-208, Etapa 2)
+### 8.28 «Premios ganados»: una pantalla, dos públicos, y la base cuenta todo (D-208, Etapas 2 y 3)
 
-> **Solo en local** hasta que se promuevan `0067`–`0069` y se despliegue el código.
+> **Solo en local** hasta que se promuevan `0067`–`0071` y se despliegue el código (`RUNBOOK` §9).
 
 ```
 /seller/prizes ──► readSellerPrizeAwards ─┬─ seller_prize_awards        (la página, con su cliente)
                                           └─ seller_prize_award_totals  (los cuatro indicadores)
 /owner/prizes  ──► readAdminPrizeAwards  ─┬─ admin_prize_awards         (la página, SIN cliente)
                                           └─ admin_prize_award_totals
+               ──► listAdminPrizeAwardSellers ── admin_prize_award_sellers (quién puede elegirse, 0070)
 las dos        ──► readPrizeAwardCoverage ── prize_award_coverage       (de la organización)
                               │
                               ▼
@@ -2250,6 +2251,10 @@ las dos        ──► readPrizeAwardCoverage ── prize_award_coverage     
 * **La celda de `ReportTable` no parte líneas** (`whitespace-nowrap` del primitivo). Las columnas del
   historial vuelven a `whitespace-normal` en su contenido: sin eso, un nombre largo se montaba sobre la
   columna siguiente.
+* **El desplegable «Vendedor» del personal no sale solo del rol de hoy** (Etapa 3, `0070`): suma a quien
+  aparece como vendedor en el historial y hoy tiene otro rol, como «Nombre (ya no vende)», sin enlace a una
+  ficha. Si esa lectura falla, la página falla —como `listOrgMembers`—: un desplegable más corto sin aviso
+  haría creer que esa persona no tiene premios.
 * **La rejilla de `ReportFilters` declara su columna del teléfono** (`grid-cols-[minmax(0,1fr)]`, D-125).
   Sin ella, el nombre de la rifa elegida estiraba la columna implícita y la pantalla se desplazaba 9 px a
   320 (I-139).

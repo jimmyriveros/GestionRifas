@@ -1,16 +1,16 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { signedInClient } from './db-setup'
+import { serviceClient } from './db-setup'
 import { ACCOUNTS, loginAs } from './fixtures'
 import {
   borrarEscenarioPremios,
+  coberturaIndependiente,
   crearEscenarioPremios,
   ESPERADO,
   secretosDeClientes,
   type PremiosEscenario,
 } from './premios-ganados-escenario'
 import { registrarRespuestas } from './privacidad-escenario'
-import { coverageNotice } from '../../src/features/prize-awards/copy'
 import { TOURS } from '../../src/features/tour/tours'
 import { formatCOP } from '../../src/lib/money'
 
@@ -26,6 +26,9 @@ import { formatCOP } from '../../src/lib/money'
  */
 
 let esc: PremiosEscenario
+
+/** Un identificador bien formado que no existe en ninguna parte. */
+const INEXISTENTE = '5b9d7c1e-2f4a-4c3b-9d8e-7a6f5e4d3c2b'
 
 test.beforeAll(async () => {
   test.setTimeout(180_000)
@@ -49,6 +52,55 @@ async function expectResumen(page: Page, esperado: Totales): Promise<void> {
   await expect(tarjeta('Con valor pendiente')).toContainText(String(esperado.valuePending))
 }
 
+/**
+ * El aviso de cobertura, ESCRITO AQUÍ a mano (Etapa 3, punto A): no se usa
+ * `coverageNotice()` para calcular lo que se espera, porque comparar el texto
+ * consigo mismo no demuestra que diga lo correcto. La cuenta y las fechas salen
+ * de `coberturaIndependiente`, otra consulta que no es la de la base.
+ */
+const MESES = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+]
+
+function entreFechas(desde: string, hasta: string): string {
+  const [a1, m1, d1] = desde.split('-').map(Number)
+  const [a2, m2, d2] = hasta.split('-').map(Number)
+  if (desde === hasta) return `el ${d1} de ${MESES[m1! - 1]} de ${a1}`
+  if (a1 !== a2)
+    return `entre el ${d1} de ${MESES[m1! - 1]} de ${a1} y el ${d2} de ${MESES[m2! - 1]} de ${a2}`
+  if (m1 !== m2)
+    return `entre el ${d1} de ${MESES[m1! - 1]} y el ${d2} de ${MESES[m2! - 1]} de ${a2}`
+  return `entre el ${d1} y el ${d2} de ${MESES[m2! - 1]} de ${a2}`
+}
+
+function avisoEsperado(
+  c: { n: number; desde: string | null; hasta: string | null },
+  filtrado: boolean,
+): string {
+  const cuando = c.desde && c.hasta ? `, ${entreFechas(c.desde, c.hasta)}` : ''
+  const primera =
+    c.n === 1
+      ? `Hay 1 sorteo ya jugado con el resultado sin confirmar o por verificar${cuando}.`
+      : `Hay ${c.n} sorteos ya jugados con el resultado sin confirmar o por verificar${cuando}.`
+  const segunda =
+    c.n === 1
+      ? 'Puede que ese sorteo tenga premios que no aparecen aquí.'
+      : 'Puede que esos sorteos tengan premios que no aparecen aquí.'
+  const alcance = filtrado ? ' La cuenta es de toda la organización, no solo de este filtro.' : ''
+  return `${primera} ${segunda}${alcance}`
+}
+
 function fila(page: Page, texto: string) {
   return page.getByRole('row').filter({ hasText: texto })
 }
@@ -68,20 +120,12 @@ test.describe('el vendedor', () => {
     await expect(page.getByText(/desde el 9 de agosto de 2026\./)).toBeVisible()
     await expect(page.getByText('La entrega de los premios no se registra aquí.')).toBeVisible()
 
-    // El aviso dice exactamente lo que la base puede afirmar ahora mismo.
-    const vendedor = await signedInClient(ACCOUNTS.seller)
-    const { data } = await vendedor.rpc('prize_award_coverage')
-    const c = data![0]!
+    // El aviso dice lo que se puede afirmar, contado por una consulta que no es
+    // la de la base y escrito a mano en `avisoEsperado`.
+    const cobertura = await coberturaIndependiente(esc.refs.organizationId)
+    expect(cobertura.n, 'el escenario deja sorteos ya jugados sin confirmar').toBeGreaterThan(0)
     await expect(page.locator('[data-slot="prize-coverage-notice"]')).toHaveText(
-      coverageNotice(
-        {
-          historyStart: c.history_start,
-          pendingDraws: c.pending_draws,
-          pendingFrom: c.pending_from,
-          pendingTo: c.pending_to,
-        },
-        false,
-      ),
+      avisoEsperado(cobertura, false),
     )
 
     await expectResumen(page, ESPERADO.vendedorTodo)
@@ -215,6 +259,33 @@ test.describe('el vendedor', () => {
     }
   })
 
+  test('un premio conservado cuyo resultado entró en conflicto: el aviso no lo desmiente (punto A)', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/prizes?raffleId=${esc.rifaHistorica.id}`)
+    // El premio sigue, con su importe: los totales de la rifa no se mueven.
+    await expectResumen(page, ESPERADO.vendedorHistorica)
+    const fabio = fila(page, esc.clientes.fabio.nombre)
+    await expect(fabio).toContainText('$500.000')
+    await expect(fabio).toContainText('Reconocido por la organización')
+    await expect(fabio).toContainText(
+      'La fuente oficial publicó otro número. Requiere verificación.',
+    )
+    // Conserva el número confirmado, no el de la fuente posterior.
+    await expect(fabio).toContainText('Número mayor 3427')
+
+    // Y el aviso, que cuenta ese sorteo entre los pendientes, dice que el
+    // resultado está por verificar y que PUEDE haber premios que no aparecen:
+    // no que no se sepa si hubo alguno, que es lo que decía antes.
+    const cobertura = await coberturaIndependiente(esc.refs.organizationId)
+    expect(cobertura.desde! <= esc.fechas.historicaBogota).toBe(true)
+    expect(esc.fechas.historicaBogota <= cobertura.hasta!).toBe(true)
+    const aviso = page.locator('[data-slot="prize-coverage-notice"]')
+    await expect(aviso).toHaveText(avisoEsperado(cobertura, true))
+    await expect(aviso).not.toContainText(/no sabemos si hubo premios|mientras tanto/i)
+  })
+
   test('la ficha del cliente resume y lleva a su historial filtrado; uno archivado conserva lo suyo', async ({
     page,
   }) => {
@@ -288,8 +359,117 @@ test.describe('lo ajeno no se ve', () => {
   })
 })
 
+test.describe('lo ajeno se ve igual que lo inexistente (Etapa 3)', () => {
+  test.use({ viewport: { width: 1440, height: 900 } })
+
+  test('para el vendedor, el cliente de otro y uno que no existe dan la misma respuesta', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.otherSeller)
+    const ajeno = await page.goto(`/seller/prizes?clientId=${esc.clientes.aurora.id}`)
+    // La página «no encontrada» es la global: no tiene `main`, se compara todo.
+    const textoAjeno = await page.locator('body').innerText()
+    const inexistente = await page.goto(`/seller/prizes?clientId=${INEXISTENTE}`)
+    const textoInexistente = await page.locator('body').innerText()
+    expect(ajeno!.status()).toBe(inexistente!.status())
+    expect(textoAjeno).toBe(textoInexistente)
+    await expect(page.getByRole('heading', { name: 'Página no encontrada' })).toBeVisible()
+  })
+})
+
 test.describe('el personal', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
+
+  test('con parámetros manipulados no recibe clientes, y lo de otra organización se ve igual que lo inexistente', async ({
+    page,
+  }) => {
+    const svc = serviceClient()
+    const { data: otraRifa } = await svc
+      .from('raffles')
+      .select('id')
+      .eq('name', 'Rifa Control 2026')
+      .single()
+    const { data: otroVendedor } = await svc
+      .from('profiles')
+      .select('id')
+      .eq('email', 'vendedor@control.test')
+      .single()
+
+    await loginAs(page, ACCOUNTS.owner)
+    const red = registrarRespuestas(page)
+
+    const principal = async (ruta: string) => {
+      const respuesta = await page.goto(ruta)
+      await expect(page.getByRole('heading', { name: 'Premios ganados', level: 1 })).toBeVisible()
+      return { estado: respuesta!.status(), texto: await page.locator('main').innerText() }
+    }
+
+    // Un vendedor y una rifa de OTRA organización responden como unos que no
+    // existen: ni un nombre, ni un recuento, ni un estado distinto.
+    expect(await principal(`/owner/prizes?sellerId=${otroVendedor!.id}`)).toEqual(
+      await principal(`/owner/prizes?sellerId=${INEXISTENTE}`),
+    )
+    expect(await principal(`/owner/prizes?raffleId=${otraRifa!.id}`)).toEqual(
+      await principal(`/owner/prizes?raffleId=${INEXISTENTE}`),
+    )
+
+    // Valores que no son lo que dicen ser: se descartan sin romper la pantalla.
+    for (const ruta of [
+      `/owner/prizes?clientId=${esc.clientes.aurora.id}&sellerId=${esc.refs.sellerId}`,
+      '/owner/prizes?sellerId=no-es-un-uuid&raffleId=%27%3Bdrop%20table',
+      '/owner/prizes?page=-3',
+      '/owner/prizes?page=abc',
+      '/owner/prizes?page=99999',
+      '/owner/prizes?dateFrom=2026-13-45&dateTo=ayer',
+    ]) {
+      expect((await principal(ruta)).estado, ruta).toBe(200)
+    }
+
+    // Y una navegación del lado del cliente, que viaja por la carga RSC.
+    await page.goto('/owner/prizes')
+    await page.getByRole('combobox', { name: 'Rifa' }).click()
+    await page.getByRole('option', { name: new RegExp(esc.rifaMotor.nombre) }).click()
+    await page.waitForURL(new RegExp(`raffleId=${esc.rifaMotor.id}`))
+    await expectResumen(page, ESPERADO.personalMotor)
+
+    const recibido = (await red.texto()) + (await page.content())
+    for (const secreto of secretosDeClientes(esc)) {
+      // El identificador que escribió la prueba vuelve en la dirección; nada más.
+      if (secreto === esc.clientes.aurora.id) continue
+      expect(recibido, `«${secreto}» llegó al Dueño`).not.toContain(secreto)
+    }
+  })
+
+  test('combina rifa, vendedor y fechas: cambiar uno vuelve a la página 1, y recargar y Atrás lo conservan', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto(`/owner/prizes?raffleId=${esc.rifaMotor.id}&page=2`)
+    await expect(page.getByText('26–40 de 40 premios')).toBeVisible()
+
+    await page.getByRole('combobox', { name: 'Vendedor' }).click()
+    await page.getByRole('option', { name: esc.vendedor1Nombre, exact: true }).click()
+    await page.waitForURL(new RegExp(`sellerId=${esc.refs.sellerId}`))
+    await expect(page).not.toHaveURL(/page=/)
+    await expect(page).toHaveURL(new RegExp(`raffleId=${esc.rifaMotor.id}`))
+    await expectResumen(page, ESPERADO.vendedorMotor)
+
+    // Desde el sábado de la primera semana del motor (2088-03-06): la moto, las
+    // alternativas y el televisor. Tres premios, tres clientes, $2.000.000
+    // ciertos y los tres con valor pendiente, calculado a mano del escenario.
+    await page.getByLabel('Sorteos desde').fill('2088-03-06')
+    await page.waitForURL(/dateFrom=2088-03-06/)
+    const combinado = { prizes: 3, clients: 3, knownAmount: 2_000_000, valuePending: 3 }
+    await expectResumen(page, combinado)
+    await expect(page).toHaveURL(new RegExp(`sellerId=${esc.refs.sellerId}`))
+
+    await page.reload()
+    await expectResumen(page, combinado)
+
+    await page.goBack()
+    await expect(page).not.toHaveURL(/dateFrom=/)
+    await expectResumen(page, ESPERADO.vendedorMotor)
+  })
 
   for (const { rol, email } of [
     { rol: 'Dueño', email: ACCOUNTS.owner },
@@ -301,7 +481,10 @@ test.describe('el personal', () => {
       await loginAs(page, email)
       const red = registrarRespuestas(page)
 
-      await page.locator('[data-tour="nav-sidebar"]').getByRole('link', { name: 'Premios ganados' }).click()
+      await page
+        .locator('[data-tour="nav-sidebar"]')
+        .getByRole('link', { name: 'Premios ganados' })
+        .click()
       await page.waitForURL('**/owner/prizes')
       await expectResumen(page, {
         prizes: 42,
@@ -321,7 +504,12 @@ test.describe('el personal', () => {
 
       // Un `clientId` en la dirección del personal se descarta: no filtra.
       await page.goto(`/owner/prizes?clientId=${esc.clientes.aurora.id}`)
-      await expectResumen(page, { prizes: 42, clients: 9, knownAmount: 22_000_000, valuePending: 3 })
+      await expectResumen(page, {
+        prizes: 42,
+        clients: 9,
+        knownAmount: 22_000_000,
+        valuePending: 3,
+      })
 
       await page.goto(`/owner/sellers/${esc.refs.sellerId}`)
       await expect(page.locator('[data-slot="seller-prize-summary"]')).toBeVisible()
@@ -354,6 +542,41 @@ test.describe('el personal', () => {
     await resumen.getByRole('link', { name: 'Ver sus premios' }).click()
     await page.waitForURL(new RegExp(`/owner/prizes\\?sellerId=${esc.inactivo.id}`))
     await expectResumen(page, { prizes: 1, clients: 1, knownAmount: 500_000, valuePending: 0 })
+  })
+
+  test('el personal elige desde el menú a quien vendía y pasó a Administrador, sin escribir su identificador (punto B)', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.owner)
+    const red = registrarRespuestas(page)
+
+    // Desde el menú, como lo haría el Dueño: nada se escribe en la dirección.
+    await page
+      .locator('[data-tour="nav-sidebar"]')
+      .getByRole('link', { name: 'Premios ganados' })
+      .click()
+    await page.waitForURL('**/owner/prizes')
+    await page.getByRole('combobox', { name: 'Vendedor' }).click()
+    await page.getByRole('option', { name: `${esc.ascendido.nombre} (ya no vende)` }).click()
+    await page.waitForURL(new RegExp(`sellerId=${esc.ascendido.id}`))
+
+    // Sus totales, los del premio que ganó su cliente cuando vendía.
+    await expectResumen(page, { prizes: 1, clients: 1, knownAmount: 500_000, valuePending: 0 })
+    const suya = fila(page, '4141 / 1414')
+    await expect(suya).toContainText(esc.ascendido.nombre)
+    // No tiene ficha de vendedor: su nombre no lleva a ninguna parte.
+    await expect(suya.getByRole('link', { name: esc.ascendido.nombre })).toHaveCount(0)
+    // El desplegable sigue diciendo a quién se está mirando.
+    await expect(page.getByRole('combobox', { name: 'Vendedor' })).toContainText(
+      `${esc.ascendido.nombre} (ya no vende)`,
+    )
+
+    // Y ni el HTML ni la red traen un dato de su cliente.
+    const recibido = (await red.texto()) + (await page.content())
+    for (const secreto of secretosDeClientes(esc)) {
+      if (secreto === esc.clientes.aurora.id) continue
+      expect(recibido, `«${secreto}» llegó al Dueño`).not.toContain(secreto)
+    }
   })
 
   test('quien vendía y pasó a Administrador ve lo suyo por el portal del personal, sin cliente', async ({

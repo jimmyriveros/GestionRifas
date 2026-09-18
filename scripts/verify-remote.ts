@@ -135,6 +135,10 @@ const CHECKS: Check[] = [
               -- vendedor solo devuelven lo suyo —sin equipo—; las dos del
               -- personal no declaran ni un campo de cliente
               'admin_prize_awards', 'admin_prize_award_totals',
+              -- 0070 (D-208, Etapa 3): quién aparece como vendedor en el
+              -- historial, para el desplegable del personal. Solo su perfil y
+              -- su nombre; un vendedor no obtiene ninguna fila
+              'admin_prize_award_sellers',
               'current_seller_org_ids', 'prize_award_coverage',
               'prize_award_history_start',
               'seller_prize_awards', 'seller_prize_award_totals',
@@ -539,6 +543,18 @@ const CHECKS: Check[] = [
           where n.nspname = 'public' and p.proname = 'prize_award_coverage'
             and position('ra.status in (''active'', ''closed'')' in p.prosrc) > 0
             and position('not in (''cancelled'', ''suspended'')' in p.prosrc) > 0`,
+    esperado: 1,
+  },
+  {
+    // 0071 (D-208, Etapa 3): el inicio operativo ya no es `immutable`. Una
+    // funcion inmutable que devuelve una constante se pliega en el plan, y un
+    // plan reutilizado por PostgREST le entregaba la fecha a `anon` aunque su
+    // EXECUTE estuviera revocado. Falla contra el proyecto real hasta que la
+    // 0071 se aplique.
+    nombre: 'El inicio operativo del historial no se pliega en un plan reutilizado (0071)',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'prize_award_history_start'
+            and p.provolatile = 's' and p.prosecdef`,
     esperado: 1,
   },
   // 0066 (D-207, I-132): la lista blanca exacta de las funciones de premios.

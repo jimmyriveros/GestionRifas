@@ -4,9 +4,11 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.13
+- **Versión del documento:** 1.14
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-17 (§9.8: **Premios ganados** en los dos portales —D-208, Etapa 2,
+- **Última actualización:** 2026-09-18 (§9.8: la **Etapa 3** del historial —auditoría en local, D-208—: el aviso
+  habla de sorteos «sin confirmar o por verificar» y el personal elige también a quien ya no vende; antes, el
+  2026-09-17, §9.8: **Premios ganados** en los dos portales —D-208, Etapa 2,
   migraciones `0067`–`0069`, **solo en local**—). Antes, ese mismo día (§9.7: **premios configurables EN PRODUCCIÓN** —`0058`–`0066`
   aplicadas, `da81663` desplegado y la rifa real «SORTEO CAMIONETA KIA 2027» convertida, con sus seis
   premios, hasta el 21/12/2026—). Antes, el 2026-09-16 (§9.7, correcciones de D-206 antes de producción: los sorteos
@@ -512,22 +514,24 @@ guarda** y se dice por qué.
 rol; lo **leen** todos los miembros de la organización, porque son condiciones hechas para contarle a
 un cliente. Nada de esto toca la cartera del vendedor (D-198).
 
-### 9.8 Premios ganados — **Etapa 2 hecha, SOLO EN LOCAL** (D-208, BR-J17..BR-J23)
+### 9.8 Premios ganados — **Etapas 2 y 3 hechas, SOLO EN LOCAL** (D-208, BR-J17..BR-J23)
 
 El vendedor ve, en **«Premios ganados»** (`/seller/prizes`), los premios que ganaron **sus** clientes:
 fecha del sorteo, lotería y sorteo, número mayor, cliente, los dos números de la boleta con sus ceros, el
 número que jugó, el premio y su valor. Filtra por rifa —también cerradas— y por fechas del sorteo, y la
 ficha de cada cliente resume sus premios con un enlace al historial filtrado. El **Dueño y el
 Administrador** ven lo mismo de toda la organización (`/owner/prizes`), con el **vendedor** en lugar del
-cliente, un filtro por vendedor —también desactivado— y el resumen en la ficha de cada vendedor. **Ningún
+cliente, un filtro por vendedor —también desactivado, y también quien vendió y hoy tiene otro rol, que aparece como «(ya no vende)»— y el resumen en la ficha de cada vendedor. **Ningún
 dato de un cliente llega al personal**: el recuento de clientes con premio es un número.
 
 **Son premios GANADOS**: la aplicación no registra entregas ni pagos de premios. Los cuatro indicadores
 —premios, clientes con premio, total conocido en dinero y premios con valor pendiente— los calcula la base
 sobre todo el filtro; unas alternativas a elegir o un premio en especie **no se valoran en cero** y quedan
-como valor pendiente. Lo que la plataforma no sabe —sorteos jugados sin resultado confirmado— se dice en
-un aviso y nunca como «cero premios». Nada de esto está en producción: promover `0067`–`0069` y desplegar
-son puertas aparte.
+como valor pendiente. Lo que la plataforma no sabe —sorteos jugados con el resultado sin confirmar o por verificar— se dice en
+un aviso, que advierte que puede haber premios que no aparecen, y nunca como «cero premios». La Etapa 3 lo
+auditó en local —aislamiento, volumen, rendimiento e interfaz— y dejó escrito cómo promoverlo (`RUNBOOK` §9).
+Nada de esto está en producción: promover `0067`–`0071`, reconocer los dos premios y desplegar son puertas
+aparte.
 
 ---
 

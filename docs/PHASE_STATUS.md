@@ -3,7 +3,51 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-17 — **Historial de premios ganados, ETAPA 2: las pantallas** (**D-208**, migración
+- **Actualizado:** 2026-09-18 — **Historial de premios ganados, ETAPA 3: auditoría independiente en local**
+  (**D-208**, migraciones **`0070`** y **`0071`**, **solo en local**; **nada leído ni escrito en producción**).
+  Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades implementadas:** ninguna nueva: **correcciones mínimas de seis hallazgos reproducidos**
+  y el **procedimiento de promoción** (`RUNBOOK` §9, preparado y **no ejecutado**). (A) El aviso de cobertura
+  **desmentía un premio conservado** cuyo resultado entró en conflicto: ahora dice «con el resultado sin
+  confirmar o por verificar» y «Puede que esos sorteos tengan premios que no aparecen aquí», con el alcance de
+  la organización ante cualquier filtro. (B) El personal **no podía elegir** en «Vendedor» a quien vendió y hoy
+  es Administrador: `0070` —`admin_prize_award_sellers()`— y la opción «Nombre (ya no vende)», sin enlace a
+  ficha y sin ampliar el portal del vendedor. (C) La E2E del aviso calculaba su expectativa con la misma
+  función que lo produce: ahora cuenta con su propia consulta y escribe el texto a mano. (D, E) **H5-04** y
+  **H8-08** observan el bloqueo con `pg_blocking_pids` en vez de deducirlo del tiempo. (F) **I-141**: `anon`
+  obtenía el inicio operativo por PostgREST pese a su `REVOKE`, porque la función inmutable se plegaba en un
+  plan reutilizado: `0071` la hace `stable security definer`.
+  **(2) Pruebas ejecutadas:** línea base `verify` exit 0 (1.418) y `test:db` **1.328/1.331** —los 3 fallos,
+  Mailpit sin puerto publicado por el entorno; con un proxy local temporal, **22/22**—. Cada hallazgo se **demostró
+  antes** de corregirse —A, B y F con una prueba que fallaba; C, D y E leyendo la prueba y midiendo su
+  tiempo— (el detalle, en `TEST_RESULTS`). Auditado **sin defecto**: la matriz de acceso por
+  PostgREST de nueve personas (**H13**), lo ajeno igual a lo inexistente, los parámetros manipulados y el RSC
+  sin un dato de cliente, las correcciones de la Etapa 1, el **volumen** —3.000 boletas, 328 premios, un
+  modelo del motor en TypeScript como expectativa independiente, suite nueva de **8**— y **42** pantallas a seis
+  anchos. Rendimiento: medianas de **4 a 14 ms** por lectura; el plan crece lineal; **ningún índice**. Al
+  cierre: `verify` **exit 0** con **1.422/1.422** unitarias en 78 archivos (**+4**), `test:db` **1.346 y 1 omitida
+  a propósito en 54 archivos (+16)** y la E2E completa **768/771**: los 3 son **I-090** e **I-106**, ajenos al historial, y sus dos archivos
+  solos dan **33/33**; las **23** del historial, en verde. Cuatro errores propios y dos tropiezos
+  del entorno, corregidos y registrados. `verify:remote` **no se corrió**: el encargo prohíbe leer producción.
+  **(3) Migraciones:** **71**. Nuevas, **solo en local**: **`0070`** —`admin_prize_award_sellers()`, quién
+  aparece como vendedor en el historial del personal, solo perfil y nombre— y **`0071`** —`prize_award_history_start()`
+  pasa a `stable security definer`, mismo valor y privilegios—. `0067`–`0069` **no se tocaron**.
+  **(4) Variables de entorno:** ninguna nueva para la aplicación. `PREMIOS_EXPLAIN=<archivo>` es **opcional y
+  solo de pruebas**: enciende la medición V5-01.
+  **(5) Problemas que permanecen:** **I-141** resuelta en local y, con **I-138** e **I-139**, pendiente de
+  promoción; **I-140**, nueva —una prueba de privacidad que solo pasa en la primera pasada; defecto de la
+  prueba, anterior al encargo, **no** es una fuga—; **I-142**, nueva —limitación: una coincidencia del sistema de
+  siempre que se confirme después no aparece hasta reconocerla; hoy sin casos—; **I-133** —el tramo 09/08–24/08
+  sigue **pendiente de información**, sin inventar premios ni leerlo como cero—; **I-136** y la **auditoría
+  general de I-137**, fuera del alcance a propósito; **I-087**. `verify:remote` tendrá **tres** comprobaciones en
+  rojo a propósito hasta la puerta 1. **Ningún problema de privacidad o integridad del historial queda abierto.**
+  **(6) Qué revisar antes de continuar:** D-208, **sección «Etapa 3»**, `RUNBOOK` **§9** —el orden, las cuatro
+  puertas y lo que no se hace nunca—, I-140..I-142, BR-J21/BR-J22, `TESTING` §4.12 y el §1.a de `HANDOFF`. **La
+  promoción está preparada, no autorizada**: la Etapa 4 empieza por comprobar en solo lectura el estado real
+  (§9.1) y, antes de la puerta 2, construye y prueba el modo de producción del cargador (§9.4). **Nada se
+  escribió en producción.**
+
+  Antes, el 2026-09-17 — **Historial de premios ganados, ETAPA 2: las pantallas** (**D-208**, migración
   **`0069`**, **solo en local**). Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades implementadas:** `/seller/prizes` —los premios de los clientes del vendedor, con
   rifas cerradas y clientes archivados, filtros de rifa, fechas del sorteo y cliente en la URL, los cuatro
@@ -603,8 +647,8 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 |---|---|
 | **Completada** | Fases 0 a 9, y el mantenimiento posterior: equipos, avisos y comisiones (2026-08-12), dos formas de pago (2026-08-13), corregir a un integrante pendiente (2026-08-14), el precio de la boleta a $120.000 (2026-08-15), la rebaja del vendedor (2026-08-17), buscar boletas por el cliente (2026-08-21), la auditoría de rendimiento con volumen real y la navegación medida desde el clic (2026-08-22), el **rediseño del detalle de boleta** (2026-08-22), la navegación y las pantallas del teléfono (2026-08-23 y 2026-08-24, D-106 a D-111) , el **rediseño del panel del vendedor** (2026-08-25, D-112), el **rediseño de la ficha del cliente** (2026-08-25, D-113), la **aplicación instalable** con su logo y su ofrecimiento de instalación (2026-08-26, D-115 a D-123), el **dinero fuera de los anillos** y el desbordamiento a 320 px (2026-08-26, D-124 y D-125) y los **tres ajustes de presentación** — el negocio deja de llamarse «Rifas Demo», la flecha de volver se alinea con su título y el detalle de una boleta se titula «Detalle boleta» — (2026-08-27, D-126), el **reparto del equipo** (2026-08-27, D-127), el cierre de **I-078** (2026-08-27, D-128), la **columna «Abono» del importador** (2026-08-27, D-129), **el dinero de cada boleta en la lista** (2026-08-27, D-130), **volver al detalle de la boleta tras registrar un abono** (2026-08-28, D-133), **editar el valor de un abono vigente** (2026-08-28, D-134, **en producción** el 2026-08-29), **volver al origen tras registrar un abono** (2026-08-29, D-135, **en producción** el 2026-08-29) y **las tarjetas de «Mis clientes» en el teléfono** (2026-08-29, D-136, **en producción** el 2026-08-29) y **editar el precio de venta de una boleta asignada** (D-137, BR-P13, migración `0035`, **en producción** el 2026-08-29) y **el rediseño de «Registrar abono» en el teléfono** (D-138, **en producción** el 2026-08-29) y **Fecha ya no tapa Método en ese formulario** (D-139, I-079, **en producción** el 2026-08-29) y **la cabecera contextual al hacer scroll** (D-150, 2026-08-30, **en producción**) y **el reporte «Ventas por fecha» del portal del vendedor** (D-151, BR-T05..BR-T07, migración `0040`, 2026-08-31, **ya en producción**) y **«Estado de cobro»: el dinero del panel del vendedor en una sola sección** (D-171, 2026-09-08, sin migración, **sin desplegar**) y **`I-099` resuelto en la raíz: `cn` distingue un rol tipográfico de un color** (D-172, 2026-09-08, sin migración, **sin desplegar**) y **el total explicado y el reparto demostrado** (D-173, 2026-09-08, sin migración, **sin desplegar**) y **`I-101` cerrado: lo elegido manda sobre el cursor** (D-174, 2026-09-08, sin migración, **sin desplegar**) |
 | **En curso** | **Corregir un abono a $0** (D-158, BR-F17, migración `0042`, 2026-09-01): editar un abono vigente admite el cero y deja la boleta como si no se hubiera registrado, sin borrar la fila ni anular el pago; crear un abono de $0 sigue prohibido. **Ya en producción** (`ef7bf62`; `0042` aplicada tras respaldo, CI 2/2, despliegue verificado por el identificador `a0c4bc43dcf3`). Antes: loterías, **etapa 6/6 de corrección** (D-157, 2026-09-01): **observación del ciclo real**, de solo lectura. Los tres números guardados coinciden dígito a dígito con lo que publican hoy sus fuentes; las tres bloqueadas fallan por su causa documentada; el Panel enseña lo correcto y no consulta internet. **Pendiente de demostrar: que un cron dispare el ciclo solo** — las 7 corridas siguen siendo las del tick manual. Nuevo: **I-092**. Antes, etapa 5/6 (D-156): promoción a producción. `0041` aplicada, `145feab` desplegado, los 10 cron reactivados y el **primer tick real** entrado: 312 programaciones oficiales y 3 resultados confirmados. Cundinamarca 4818 queda **pendiente** porque su acta es un escaneo, y el **Meta deja de confirmarse solo en producción** (I-091). Antes, etapa 4/6 (D-155): el recuadro pasa a su propio límite de Suspense y el Panel deja de esperarlo —primer byte de 1.628 a 131 ms con la consulta local retrasada 1,5 s—. Sin migración, sin índice nuevo, **sin desplegar**. Antes, etapa 3/6 (D-154): validación real de las seis fuentes oficiales. Cuatro confirmadas contra la fuente y contra el cronograma; tres defectos corregidos, uno de ellos un número mayor **inventado** (I-088). **Sin migración, sin desplegar.** Antes, etapa 2/6 (D-153): Cundinamarca se lee del **acta oficial en PDF** y el verificador de billetes queda retirado. Antes, etapa 1/6 (D-152, `0041`): horizonte de 10 días, tope de 6 descargas por tick, orden determinista y reintentos por sorteo, también **solo local**. Etapas 1 a 6 de construcción entregadas (D-140..D-149); el programador está **activo** desde el 2026-09-01 |
-| **Pendiente** | Ninguna fase. **Historial de premios ganados**: las **etapas 0, 1 y 2** están entregadas —la 1 corregida y la 2 con sus pantallas— (D-208 aprobada, migraciones `0067`–`0069` **solo en local**) y las **etapas 3 y 4** —auditoría y producción— **esperan autorización**. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
-| **Bloqueada** | Ninguna fase. Fuera del plan de fases, la **Etapa 3 del historial de premios ganados** —la auditoría— necesita autorización expresa, y promover `0067`–`0069` y desplegar las pantallas es una puerta aparte que nadie ha pedido |
+| **Pendiente** | Ninguna fase. **Historial de premios ganados**: las **etapas 0 a 3** están entregadas —la 1 corregida, la 2 con sus pantallas y la 3 con la auditoría y el procedimiento de promoción— (D-208 aprobada, migraciones `0067`–`0071` **solo en local**) y la **Etapa 4** —producción, por puertas (`RUNBOOK` §9)— **espera autorización**. Mantenimiento no activo I-030, I-037 e I-046–I-052; prerrequisitos operativos I-021, I-023 e I-024 |
+| **Bloqueada** | Ninguna fase. Fuera del plan de fases, la **Etapa 4 del historial de premios ganados** —promover `0067`–`0071`, reconocer los dos premios y desplegar las pantallas— necesita autorización expresa, **una por puerta** (`RUNBOOK` §9.0) |
 
 `Bloqueada` describe una fase autorizada que no puede avanzar. Los controles para operar con datos
 reales y los defectos sin tarea activa se muestran como pendientes y se detallan en

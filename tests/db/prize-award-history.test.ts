@@ -1008,7 +1008,7 @@ describe('H5 — los números de una boleta con coincidencias no cambian (I-134)
     expect(error).toBeNull()
   })
 
-  it('H5-04: con una edición en vuelo, la escritura de la coincidencia ESPERA: la clave ajena las serializa', async () => {
+  it('H5-04: con una edición en vuelo, la escritura de la coincidencia ESPERA: se observa el bloqueo, no se adivina con un tiempo', async () => {
     const [ticket] = await boletas(
       rMotor,
       [{ diario: '6101', semanal: '6102', cliente: ctx.clients.beatriz.id }],
@@ -1020,41 +1020,68 @@ describe('H5 — los números de una boleta con coincidencias no cambian (I-134)
     // números y no confirma: el disparador inmediato no ve ninguna coincidencia
     // —todavía no existe— y la deja pasar. El motor, en otra transacción, no
     // puede adelantarla: su INSERT comprueba la clave ajena contra la boleta y
-    // se queda ESPERANDO a que la edición termine. Eso es lo que impide que las
-    // dos escrituras se entrelacen.
+    // se queda ESPERANDO a que la edición termine.
+    //
+    // Etapa 3: antes se DEDUCÍA la espera de un `statement_timeout` de 3 s —la
+    // prueba tardaba 3 s por diseño y no miraba ningún bloqueo—. Ahora se
+    // OBSERVA con `pg_blocking_pids` (`esperarBloqueo`, el de H10-01) y se deja
+    // al motor terminar: su resultado final es parte de lo que se comprueba.
     const edicion = new PgClient({ connectionString: DB_URL })
+    const motorConexion = new PgClient({ connectionString: DB_URL })
     await edicion.connect()
+    await motorConexion.connect()
+    let edicionAbierta = false
+    let fin: Error | 'ok' | null = null
+    let enMarcha: Promise<{ rows: Array<{ r: { inserted: number } }> }> | null = null
     try {
+      const pid = async (c: PgClient) =>
+        (await c.query<{ pid: number }>('select pg_backend_pid() as pid')).rows[0]!.pid
+      const pidEdicion = await pid(edicion)
+      const pidMotor = await pid(motorConexion)
+
       await edicion.query('begin')
+      edicionAbierta = true
       await edicion.query(`update tickets set daily_number = '6111' where id = $1`, [ticket])
 
-      const motorLento = new PgClient({ connectionString: DB_URL })
-      await motorLento.connect()
-      let espero = false
-      try {
-        await motorLento.query('set statement_timeout = 3000')
-        await motorLento.query('select match_lottery_result($1)', [resultId])
-      } catch (error) {
-        espero = /statement timeout/.test((error as Error).message)
-      } finally {
-        await motorLento.end()
-      }
-      expect(espero, 'el motor debería quedarse esperando la edición').toBe(true)
-    } finally {
-      // Se deshace la edición: la boleta conserva sus números.
+      enMarcha = motorConexion
+        .query<{ r: { inserted: number } }>('select match_lottery_result($1) as r', [resultId])
+        .then(
+          (respuesta) => {
+            fin = 'ok'
+            return respuesta
+          },
+          (error: unknown) => {
+            fin = error as Error
+            throw error
+          },
+        )
+      await esperarBloqueo(db, pidMotor, pidEdicion, () => fin)
+
+      // Se deshace la edición: el motor, que la estaba esperando, sigue y
+      // fotografía con el número de siempre.
       await edicion.query('rollback')
+      edicionAbierta = false
+      const salida = await enMarcha
+      expect(salida.rows[0]!.r.inserted).toBe(1)
+    } finally {
+      if (edicionAbierta) await edicion.query('rollback').catch(() => {})
+      if (enMarcha) await enMarcha.catch(() => {})
       await edicion.end()
+      await motorConexion.end()
     }
 
+    // El estado final de las DOS operaciones: la boleta conserva sus números y
+    // la fotografía es coherente con ellos.
     const { rows } = await db.query<{ daily_number: string }>(
       'select daily_number from tickets where id = $1',
       [ticket],
     )
     expect(rows[0]!.daily_number).toBe('6101')
-
-    // Y con la edición deshecha, el motor fotografía con el número de siempre.
-    const resumen = await motor(resultId)
-    expect(resumen.inserted).toBe(1)
+    const { rows: fotos } = await db.query<{ matched_number: string }>(
+      'select matched_number from lottery_ticket_matches where result_id = $1',
+      [resultId],
+    )
+    expect(fotos).toEqual([{ matched_number: '6101' }])
 
     // A partir de aquí la boleta ya no admite un cambio de números por ninguna
     // vía: es el disparador inmediato de H5-01 y H5-02.
@@ -1274,9 +1301,9 @@ describe('H6 — quién ve qué', () => {
 
 // =============================================================================
 describe('H7 — privilegios y efectos laterales', () => {
-  it('H7-01: las 14 funciones de la 0067 y la 0068 están clasificadas, y su EXECUTE es exactamente el de la lista', async () => {
-    expect(HISTORY_FUNCTION_GRANTS).toHaveLength(14)
-    expect(HISTORY_SESSION_RPCS).toHaveLength(7)
+  it('H7-01: las 15 funciones de la 0067, la 0068 y la 0070 están clasificadas, y su EXECUTE es exactamente el de la lista', async () => {
+    expect(HISTORY_FUNCTION_GRANTS).toHaveLength(15)
+    expect(HISTORY_SESSION_RPCS).toHaveLength(8)
     expect(HISTORY_INTERNAL_FUNCTIONS).toHaveLength(6)
 
     const { rows } = await db.query<{
@@ -1297,7 +1324,7 @@ describe('H7 — privilegios y efectos laterales', () => {
         order by f.firma`,
       [HISTORY_FUNCTION_GRANTS.map((f) => f.signature)],
     )
-    expect(rows).toHaveLength(14)
+    expect(rows).toHaveLength(15)
     const esperado = Object.fromEntries(
       HISTORY_FUNCTION_GRANTS.map((f) => [
         f.signature,
@@ -1312,13 +1339,15 @@ describe('H7 — privilegios y efectos laterales', () => {
     for (const { firma, ...real } of rows) expect(real, firma).toEqual(esperado[firma])
   })
 
-  it('H7-02: toda función que crean la 0067, la 0068 y la 0069 está en la lista, y ninguna más', async () => {
+  it('H7-02: toda función que crean la 0067 a la 0071 está en la lista, y ninguna más', async () => {
     const { readFile } = await import('node:fs/promises')
     const nombres = new Set<string>()
     for (const archivo of [
       'supabase/migrations/0067_prize_award_history.sql',
       'supabase/migrations/0068_prize_award_history_fixes.sql',
       'supabase/migrations/0069_prize_award_coverage_participating.sql',
+      'supabase/migrations/0070_prize_award_sellers.sql',
+      'supabase/migrations/0071_prize_award_history_start_not_folded.sql',
     ]) {
       const contenido = await readFile(archivo, 'utf8')
       for (const m of contenido
@@ -1573,7 +1602,7 @@ describe('H8 — reconocer, anular y volver a reconocer (`0068`)', () => {
     expect(archivado.error).toBeNull()
   })
 
-  it('H8-08: dos ejecuciones a la vez se serializan: una reconoce y la otra ve lo escrito', async () => {
+  it('H8-08: dos ejecuciones a la vez se serializan: la segunda ESPERA a la primera y ve lo escrito', async () => {
     const [ticket] = await boletas(
       rHistorica,
       [{ diario: '9601', semanal: '9602', cliente: ctx.clients.beatriz.id }],
@@ -1604,22 +1633,57 @@ describe('H8 — reconocer, anular y volver a reconocer (`0068`)', () => {
       },
     ]
 
-    // Dos conexiones que llaman al cargador a la vez. El cerrojo por
-    // organización las ordena: la segunda ve lo que escribió la primera.
+    // Dos conexiones que llaman al cargador. El cerrojo por organización las
+    // ordena: la segunda ESPERA a la primera y ve lo que escribió.
+    //
+    // Etapa 3: antes las dos se lanzaban con `Promise.all` y se confiaba en que
+    // coincidieran. Sin el cerrojo fallaba 5 de 5 veces en esta máquina, pero la
+    // prueba no MIRABA ningún bloqueo: si una terminaba antes de que empezara la
+    // otra, habría pasado igual. Ahora la primera deja su transacción abierta
+    // —con el reconocimiento escrito y el cerrojo tomado—, la segunda arranca,
+    // se OBSERVA que espera a la primera, y solo entonces la primera confirma.
     const uno = new PgClient({ connectionString: DB_URL })
     const dos = new PgClient({ connectionString: DB_URL })
     await uno.connect()
     await dos.connect()
+    let unoAbierta = false
+    let fin: Error | 'ok' | null = null
+    let enMarcha: Promise<{ rows: Array<{ outcome: string }> }> | null = null
     try {
+      const pid = async (c: PgClient) =>
+        (await c.query<{ pid: number }>('select pg_backend_pid() as pid')).rows[0]!.pid
+      const pidUno = await pid(uno)
+      const pidDos = await pid(dos)
       const llamar = (c: PgClient) =>
         c.query<{ outcome: string }>(
           `select outcome from record_declared_prize_awards($1, $2, $3::jsonb, true)`,
           [ctx.demoOrg.id, RESPALDO, JSON.stringify(peticion)],
         )
-      const [a, b] = await Promise.all([llamar(uno), llamar(dos)])
-      const resultados = [a.rows[0]!.outcome, b.rows[0]!.outcome].sort()
-      expect(resultados).toEqual(['reconocido', 'ya estaba'])
+
+      await uno.query('begin')
+      unoAbierta = true
+      const primera = await llamar(uno)
+      expect(primera.rows[0]!.outcome).toBe('reconocido')
+
+      enMarcha = llamar(dos).then(
+        (respuesta) => {
+          fin = 'ok'
+          return respuesta
+        },
+        (error: unknown) => {
+          fin = error as Error
+          throw error
+        },
+      )
+      await esperarBloqueo(db, pidDos, pidUno, () => fin)
+
+      await uno.query('commit')
+      unoAbierta = false
+      const segunda = await enMarcha
+      expect(segunda.rows[0]!.outcome).toBe('ya estaba')
     } finally {
+      if (unoAbierta) await uno.query('rollback').catch(() => {})
+      if (enMarcha) await enMarcha.catch(() => {})
       await uno.end()
       await dos.end()
     }
@@ -1839,6 +1903,48 @@ describe('H9 — el rol, no solo el perfil (`0068`, I-137)', () => {
 
     const hijo = await comoSesion(hijoEmail)
     expect(hijo.fotos).toBe(1)
+  })
+
+  it('H9-07: el personal puede ELEGIR a quien vendió y hoy es Administrador (`0070`, Etapa 3), y nadie más recibe esa lista', async () => {
+    // Después de H9-02, «Historial Propio» es Administrador y conserva su premio
+    // reconocido. El rol de hoy no lo delata: la lista sale del historial.
+    type Fila = { seller_id: string; seller_name: string | null }
+    const lista = async (sesion: Client) => {
+      const { data, error } = await sesion.rpc('admin_prize_award_sellers')
+      return { filas: (data as unknown as Fila[] | null) ?? [], error }
+    }
+
+    for (const email of [USERS.owner, USERS.admin, propioEmail]) {
+      const { filas, error } = await lista(await signInAs(email))
+      expect(error, email).toBeNull()
+      // Solo el vendedor: identificador y nombre, nada del cliente.
+      for (const fila of filas)
+        expect(Object.keys(fila).sort()).toEqual(['seller_id', 'seller_name'])
+      expect(JSON.stringify(filas)).not.toContain('Cliente del')
+      // Quien vendió y hoy es Administrador, con su nombre.
+      expect(filas).toContainEqual({ seller_id: propioId, seller_name: 'Historial Propio' })
+      // Una fotografía SIN premio no pone a nadie en la lista: el integrante
+      // tiene su coincidencia y ningún premio reconocido.
+      expect(filas.map((f) => f.seller_id)).not.toContain(hijoId)
+      // Y un vendedor de verdad con premios también está.
+      expect(filas.map((f) => f.seller_id)).toContain(ctx.ids.seller1)
+    }
+
+    // Un vendedor, aunque tenga premios, no obtiene la lista del personal.
+    const vendedor = await lista(seller1)
+    expect(vendedor.error).toBeNull()
+    expect(vendedor.filas).toEqual([])
+
+    // Otra organización no ve a nadie de esta.
+    const ajena = await lista(otherOrgOwner)
+    expect(ajena.error).toBeNull()
+    expect(ajena.filas.map((f) => f.seller_id)).not.toContain(propioId)
+    expect(ajena.filas.map((f) => f.seller_id)).not.toContain(ctx.ids.seller1)
+
+    // Y `anon` no la alcanza.
+    const anonimo = await lista(anonClient())
+    expect(anonimo.error).not.toBeNull()
+    expect(anonimo.filas).toEqual([])
   })
 
   it('H9-06: otra organización no ve nada, ni por la función ni por la tabla', async () => {
@@ -2250,5 +2356,520 @@ describe('H12 — la cobertura cuenta solo lo que pudo dar un premio (`0069`)', 
       [rows[0]!.id],
     )
     expect(await pendientes()).toBe(antes - 1)
+  })
+
+  it('H12-03: un sorteo ya jugado cuyo resultado entra en conflicto vuelve a contar, y su premio se queda con su importe (Etapa 3, punto A)', async () => {
+    // El caso que el aviso de la pantalla tiene que poder explicar: un premio
+    // reconocido de $500.000 en un sorteo YA JUGADO, cuyo resultado entra en
+    // conflicto después. La base lo cuenta como pendiente —el resultado ya no
+    // está `confirmed`— y el premio NO se retira ni cambia de importe (BR-J18).
+    const [ticket] = await boletas(
+      rHistorica,
+      [{ diario: '9711', semanal: '9712', cliente: ctx.clients.beatriz.id }],
+      `${boletasCreadas}T08:00:00-05:00`,
+    )
+    const { rows: prog } = await db.query<{ id: string; lottery_code: Loteria; d: string }>(
+      `select s.id, s.lottery_code, s.reference_date::text as d from lottery_draw_schedules s
+        where s.draw_number like 'E1H-%'
+          and s.reference_date < (now() at time zone 'America/Bogota')::date
+          and not exists (select 1 from lottery_results r where r.schedule_id = s.id)
+        limit 1`,
+    )
+    const { rows: res } = await db.query<{ id: string }>(
+      `insert into lottery_results (schedule_id, winning_number, validation_status, source_kind, confirmed_at)
+       values ($1, '9711', 'confirmed', 'official_page', now()) returning id`,
+      [prog[0]!.id],
+    )
+    await fotografiar(res[0]!.id, ticket!, 'daily_number', '9711')
+    const { rows: carga } = await db.query<{ outcome: string }>(
+      `select outcome from record_declared_prize_awards($1, $2, $3::jsonb, true)`,
+      [
+        ctx.demoOrg.id,
+        RESPALDO,
+        JSON.stringify([
+          {
+            daily_number: '9711',
+            weekly_number: '9712',
+            lottery_code: prog[0]!.lottery_code,
+            reference_date: prog[0]!.d,
+            prize_title: await tituloVigente(rHistorica),
+            amount: 500_000,
+          },
+        ]),
+      ],
+    )
+    expect(carga[0]!.outcome).toBe('reconocido')
+
+    const totales = async () => {
+      const { data, error } = await seller1.rpc('seller_prize_award_totals', {
+        p_raffle_id: rHistorica,
+      })
+      if (error) throw new Error(error.message)
+      const t = (data as unknown as Array<{ prizes_count: number; known_amount: number }>)[0]!
+      return { prizes: Number(t.prizes_count), money: Number(t.known_amount) }
+    }
+    const antesPendientes = await pendientes()
+    const antesTotales = await totales()
+
+    // Una fuente posterior trae otro número: el disparador lo marca (BR-L08).
+    await db.query(`update lottery_results set winning_number = '9713' where id = $1`, [res[0]!.id])
+    const { rows: estado } = await db.query<{ validation_status: string; winning_number: string }>(
+      `select validation_status::text, winning_number from lottery_results where id = $1`,
+      [res[0]!.id],
+    )
+    expect(estado[0]).toEqual({ validation_status: 'conflict', winning_number: '9711' })
+
+    // Cuenta como pendiente…
+    expect(await pendientes()).toBe(antesPendientes + 1)
+    // …y el premio sigue, con su importe, marcado: los totales no se mueven.
+    expect(await totales()).toEqual(antesTotales)
+    const { data: filas, error } = await seller1.rpc('seller_prize_awards', {
+      p_raffle_id: rHistorica,
+      p_limit: 1000,
+    })
+    if (error) throw new Error(error.message)
+    const suya = (
+      filas as unknown as Array<{
+        daily_number: string
+        result_conflict: boolean
+        known_amount: number
+        origin: string
+      }>
+    ).find((f) => f.daily_number === '9711')
+    expect(suya).toMatchObject({ result_conflict: true, origin: 'declared' })
+    expect(Number(suya!.known_amount)).toBe(500_000)
+  })
+})
+
+// =============================================================================
+// H13 — la matriz de acceso, por PostgREST y con sesiones reales (Etapa 3)
+// =============================================================================
+
+describe('H13 — la matriz de acceso, por PostgREST y con sesiones reales (Etapa 3)', () => {
+  // CADA PERSONA CONTRA CADA SUPERFICIE del historial, todo por PostgREST con la
+  // sesión de esa persona: es lo que puede hacer un navegador que conoce las
+  // direcciones. Nada se mide como `postgres`, que se salta la RLS; `db` solo
+  // prepara el escenario y calcula, aparte, lo que cada uno DEBERÍA recibir.
+  //
+  // Sus propias cuentas —un vendedor que se desactiva y otro que pasa a
+  // Administrador—, cada una con un premio reconocido de su cliente, por lo
+  // mismo que H9: ascender a una cuenta del seed es irreversible en sus avisos.
+  const inactivoEmail = `hist-aud-inactivo-${stamp}@demo.test`
+  const ascendidoEmail = `hist-aud-ascendido-${stamp}@demo.test`
+  let inactivoId = ''
+  let ascendidoId = ''
+  const ALEATORIO = '5b9d7c1e-2f4a-4c3b-9d8e-7a6f5e4d3c2b'
+
+  async function vendedorConPremio(
+    email: string,
+    nombre: string,
+    cliente: string,
+    diario: string,
+    semanal: string,
+  ): Promise<string> {
+    const { data, error } = await svc.auth.admin.createUser({
+      email,
+      password: SEED_PASSWORD,
+      email_confirm: true,
+      user_metadata: { full_name: nombre, phone: '3001234567' },
+    })
+    if (error) throw new Error(`No se pudo crear ${email}: ${error.message}`)
+    const id = data.user.id
+    const { error: membresia } = await svc
+      .from('memberships')
+      .insert({ organization_id: ctx.demoOrg.id, profile_id: id, role: 'seller' })
+    if (membresia) throw membresia
+
+    const { rows: c } = await db.query<{ id: string }>(
+      `insert into clients (organization_id, seller_id, name, phone)
+       values ($1, $2, $3, '3009990101') returning id`,
+      [ctx.demoOrg.id, id, cliente],
+    )
+    const { rows: tk } = await db.query<{ id: string }>(
+      `insert into tickets (organization_id, raffle_id, seller_id, created_by, daily_number,
+                            weekly_number, inventory_status, created_at)
+       values ($1, $2, $3, $4, $5, $6, 'available', $7) returning id`,
+      [
+        ctx.demoOrg.id,
+        rHistorica,
+        id,
+        ctx.ids.owner,
+        diario,
+        semanal,
+        `${boletasCreadas}T08:00:00-05:00`,
+      ],
+    )
+    await db.query(
+      `update tickets set client_id = $2, inventory_status = 'assigned', sale_price = $3,
+              sale_date = $4::date, assigned_at = $5 where id = $1`,
+      [tk[0]!.id, c[0]!.id, PRECIO, boletasCreadas, `${boletasCreadas}T08:00:00-05:00`],
+    )
+    const { rows: prog } = await db.query<{ id: string; lottery_code: Loteria; d: string }>(
+      `select s.id, s.lottery_code, s.reference_date::text as d from lottery_draw_schedules s
+        where s.draw_number like 'E1H-%'
+          and s.reference_date < (now() at time zone 'America/Bogota')::date
+          and not exists (select 1 from lottery_results r where r.schedule_id = s.id)
+        limit 1`,
+    )
+    const { rows: res } = await db.query<{ id: string }>(
+      `insert into lottery_results (schedule_id, winning_number, validation_status, source_kind, confirmed_at)
+       values ($1, $2, 'confirmed', 'official_page', now()) returning id`,
+      [prog[0]!.id, diario],
+    )
+    await fotografiar(res[0]!.id, tk[0]!.id, 'daily_number', diario)
+    const { error: carga } = await reconocer([
+      {
+        daily_number: diario,
+        weekly_number: semanal,
+        lottery_code: prog[0]!.lottery_code,
+        reference_date: prog[0]!.d,
+        prize_title: await tituloVigente(rHistorica),
+        amount: 500_000,
+      },
+    ])
+    if (carga) throw new Error(carga.message)
+    return id
+  }
+
+  beforeAll(async () => {
+    inactivoId = await vendedorConPremio(
+      inactivoEmail,
+      'Auditoría Inactivo',
+      `Cliente auditoria inactivo ${stamp}`,
+      '9621',
+      '9622',
+    )
+    ascendidoId = await vendedorConPremio(
+      ascendidoEmail,
+      'Auditoría Ascendido',
+      `Cliente auditoria ascendido ${stamp}`,
+      '9631',
+      '9632',
+    )
+    await db.query(
+      `update memberships set is_active = false where profile_id = $1 and organization_id = $2`,
+      [inactivoId, ctx.demoOrg.id],
+    )
+    await db.query(
+      `update memberships set role = 'admin' where profile_id = $1 and organization_id = $2`,
+      [ascendidoId, ctx.demoOrg.id],
+    )
+  })
+
+  type Respuesta = { data: unknown; error: { message: string; code?: string } | null }
+  type Filas = Array<Record<string, unknown>>
+  const filas = (r: Respuesta): Filas => (Array.isArray(r.data) ? (r.data as Filas) : [])
+
+  /** Todo lo que una sesión puede pedir del historial, en una pasada. */
+  async function barrido(c: Client) {
+    return {
+      sellerFilas: await c.rpc('seller_prize_awards', { p_limit: 1000 }),
+      sellerTotales: await c.rpc('seller_prize_award_totals', {}),
+      adminFilas: await c.rpc('admin_prize_awards', { p_limit: 1000 }),
+      adminTotales: await c.rpc('admin_prize_award_totals', {}),
+      adminVendedores: await c.rpc('admin_prize_award_sellers'),
+      cobertura: await c.rpc('prize_award_coverage'),
+      inicio: await c.rpc('prize_award_history_start'),
+      fotos: await c
+        .from('lottery_ticket_matches')
+        .select('id, seller_id, client_id, organization_id'),
+      enlaces: await c.from('lottery_ticket_match_prizes').select('id, match_id, organization_id'),
+      declarados: await c.from('declared_prize_awards').select('id, match_id, organization_id'),
+    } satisfies Record<string, Respuesta>
+  }
+
+  /** Lo que la base TIENE, leído aparte como `postgres`, para comparar. */
+  async function verdad() {
+    const { rows: premios } = await db.query<{
+      award_key: string
+      seller_id: string
+      client_id: string
+    }>(`select award_key, seller_id, client_id from prize_award_rows(array[$1::uuid])`, [
+      ctx.demoOrg.id,
+    ])
+    const { rows: fotos } = await db.query<{ id: string; seller_id: string }>(
+      `select id, seller_id from lottery_ticket_matches where organization_id = $1`,
+      [ctx.demoOrg.id],
+    )
+    const { rows: clientes } = await db.query<{ id: string; name: string }>(
+      `select id, name from clients where id = any ($1::uuid[])`,
+      [[...new Set(premios.map((p) => p.client_id))]],
+    )
+    return { premios, fotos, clientes }
+  }
+
+  const claves = (r: Respuesta) => filas(r).map((f) => String(f.award_key))
+
+  it('H13-01: cada persona recibe lo suyo por cada lectura y cada tabla, y nada más', async () => {
+    const v = await verdad()
+    const premiosDe = (sellerId: string) =>
+      v.premios
+        .filter((p) => p.seller_id === sellerId)
+        .map((p) => p.award_key)
+        .sort()
+    const fotosDe = (sellerId: string) =>
+      v.fotos.filter((f) => f.seller_id === sellerId).map((f) => f.id)
+    const todasLasClaves = v.premios.map((p) => p.award_key).sort()
+    const todasLasFotos = new Set(v.fotos.map((f) => f.id))
+    expect(
+      premiosDe(ctx.ids.seller1).length,
+      'el vendedor 1 tiene premios en esta suite',
+    ).toBeGreaterThan(0)
+
+    // El vendedor PROPIO: todo lo suyo por su lectura, nada por la del personal,
+    // y por las tablas solo sus fotografías.
+    const propio = await barrido(seller1)
+    expect(claves(propio.sellerFilas).sort()).toEqual(premiosDe(ctx.ids.seller1))
+    expect(filas(propio.adminFilas)).toEqual([])
+    expect(Number(filas(propio.adminTotales)[0]?.prizes_count ?? -1)).toBe(0)
+    expect(filas(propio.adminVendedores)).toEqual([])
+    expect(propio.cobertura.error).toBeNull()
+    expect(filas(propio.fotos).map((f) => f.seller_id)).toEqual(
+      filas(propio.fotos).map(() => ctx.ids.seller1),
+    )
+    expect(
+      filas(propio.fotos)
+        .map((f) => f.id)
+        .sort(),
+    ).toEqual(fotosDe(ctx.ids.seller1).sort())
+    const fotosPropias = new Set(fotosDe(ctx.ids.seller1))
+    for (const e of [...filas(propio.enlaces), ...filas(propio.declarados)]) {
+      expect(fotosPropias.has(String(e.match_id))).toBe(true)
+    }
+
+    // OTRO vendedor de la misma organización: ni un premio ni una fotografía del
+    // vendedor 1.
+    const otro = await barrido(seller2)
+    expect(claves(otro.sellerFilas).sort()).toEqual(premiosDe(ctx.ids.seller2))
+    for (const f of filas(otro.fotos)) expect(f.seller_id).toBe(ctx.ids.seller2)
+    for (const e of [...filas(otro.enlaces), ...filas(otro.declarados)]) {
+      expect(fotosPropias.has(String(e.match_id))).toBe(false)
+    }
+
+    // El PERSONAL —Dueño, Administrador y quien pasó a Administrador—: el
+    // historial entero por su proyección, sin cliente, y NADA por las tablas ni
+    // por la lectura del vendedor.
+    const administrador = await signInAs(USERS.admin)
+    const ascendido = await signInAs(ascendidoEmail)
+    for (const [quien, sesion] of [
+      ['Dueño', owner],
+      ['Administrador', administrador],
+      ['ascendido', ascendido],
+    ] as const) {
+      const b = await barrido(sesion)
+      expect(claves(b.adminFilas).sort(), quien).toEqual(todasLasClaves)
+      expect(Number(filas(b.adminTotales)[0]!.prizes_count), quien).toBe(todasLasClaves.length)
+      expect(filas(b.sellerFilas), quien).toEqual([])
+      expect(Number(filas(b.sellerTotales)[0]?.prizes_count ?? 0), quien).toBe(0)
+      expect(filas(b.fotos), quien).toEqual([])
+      expect(filas(b.enlaces), quien).toEqual([])
+      expect(filas(b.declarados), quien).toEqual([])
+      const vendedores = filas(b.adminVendedores).map((f) => f.seller_id)
+      expect(vendedores, quien).toEqual(
+        expect.arrayContaining([ctx.ids.seller1, inactivoId, ascendidoId]),
+      )
+      // Ni el identificador ni el nombre de un cliente con premio, en NINGUNA
+      // de las respuestas: ni en las filas, ni en los totales, ni en los errores.
+      const texto = JSON.stringify(b)
+      for (const c of v.clientes) {
+        expect(texto, `${quien} recibió el cliente ${c.name}`).not.toContain(c.id)
+        expect(texto, `${quien} recibió el cliente ${c.name}`).not.toContain(c.name)
+      }
+      for (const fila of filas(b.adminFilas)) {
+        expect(
+          Object.keys(fila).filter((k) => /client/i.test(k)),
+          quien,
+        ).toEqual([])
+      }
+    }
+
+    // OTRA organización, y las cuentas que ya no pueden: nada de ésta.
+    const otraOrgVendedor = await signInAs(USERS.otherOrgSeller)
+    const inactivo = await signInAs(inactivoEmail)
+    for (const [quien, sesion] of [
+      ['otra organización (Dueño)', otherOrgOwner],
+      ['otra organización (vendedor)', otraOrgVendedor],
+      ['vendedor desactivado', inactivo],
+    ] as const) {
+      const b = await barrido(sesion)
+      const recibidas = [...claves(b.sellerFilas), ...claves(b.adminFilas)]
+      expect(
+        recibidas.filter((k) => todasLasClaves.includes(k)),
+        quien,
+      ).toEqual([])
+      for (const tabla of [b.fotos, b.enlaces, b.declarados]) {
+        expect(
+          filas(tabla).filter(
+            (f) => todasLasFotos.has(String(f.id)) || todasLasFotos.has(String(f.match_id)),
+          ),
+          quien,
+        ).toEqual([])
+        for (const f of filas(tabla)) expect(f.organization_id, quien).not.toBe(ctx.demoOrg.id)
+      }
+      const vendedores = filas(b.adminVendedores).map((f) => f.seller_id)
+      expect(
+        vendedores.filter((id) => [ctx.ids.seller1, inactivoId, ascendidoId].includes(String(id))),
+        quien,
+      ).toEqual([])
+      const texto = JSON.stringify(b)
+      for (const c of v.clientes) expect(texto, `${quien} recibió ${c.name}`).not.toContain(c.id)
+    }
+    // El desactivado, además, no ve NADA de ninguna lectura.
+    const b = await barrido(inactivo)
+    expect(filas(b.sellerFilas)).toEqual([])
+    expect(filas(b.adminFilas)).toEqual([])
+    expect(filas(b.fotos)).toEqual([])
+  })
+
+  it('H13-02: `anon` no alcanza ninguna lectura ni ninguna tabla del historial', async () => {
+    const b = await barrido(anonClient())
+    for (const [superficie, r] of Object.entries(b)) {
+      expect(r.error, `anon alcanzó ${superficie}`).not.toBeNull()
+      expect(filas(r), superficie).toEqual([])
+    }
+  })
+
+  it('H13-03: las funciones internas y el cargador no se alcanzan desde ninguna sesión', async () => {
+    const administrador = await signInAs(USERS.admin)
+    const { rows: res } = await db.query<{ id: string }>(
+      `select r.id from lottery_results r
+         join lottery_ticket_matches m on m.result_id = r.id
+        where m.organization_id = $1 limit 1`,
+      [ctx.demoOrg.id],
+    )
+    const llamadas: Array<[string, Record<string, unknown>]> = [
+      ['prize_award_rows', { p_org_ids: [ctx.demoOrg.id] }],
+      ['declared_prize_award_plan', { p_organization_id: ctx.demoOrg.id, p_awards: [] }],
+      [
+        'record_declared_prize_awards',
+        { p_organization_id: ctx.demoOrg.id, p_basis: RESPALDO, p_awards: [], p_apply: false },
+      ],
+      ['match_lottery_result', { p_result_id: res[0]!.id }],
+    ]
+    for (const [quien, sesion] of [
+      ['vendedor', seller1],
+      ['Dueño', owner],
+      ['Administrador', administrador],
+      ['anon', anonClient()],
+    ] as const) {
+      for (const [funcion, argumentos] of llamadas) {
+        const { data, error } = await sesion.rpc(funcion as never, argumentos as never)
+        expect(error, `${quien} ejecutó ${funcion}`).not.toBeNull()
+        expect(data, `${quien} recibió datos de ${funcion}`).toBeNull()
+      }
+    }
+  })
+
+  it('H13-04: ninguna sesión escribe las tablas del historial, ni siquiera el personal', async () => {
+    const cuenta = async () =>
+      (
+        await db.query<{ t: string; n: number }>(
+          `select 'm' as t, count(*)::int as n from lottery_ticket_matches
+           union all select 'p', count(*)::int from lottery_ticket_match_prizes
+           union all select 'd', count(*)::int from declared_prize_awards
+           union all select 'dv', count(*)::int from declared_prize_awards where voided_at is not null`,
+        )
+      ).rows
+    const antes = await cuenta()
+    const { rows: una } = await db.query<{ id: string; match_id: string; organization_id: string }>(
+      `select id, match_id, organization_id from declared_prize_awards where organization_id = $1 limit 1`,
+      [ctx.demoOrg.id],
+    )
+    const d = una[0]!
+    for (const [quien, sesion] of [
+      ['vendedor', seller1],
+      ['Dueño', owner],
+    ] as const) {
+      const intentos = [
+        await sesion.from('declared_prize_awards').insert({
+          organization_id: d.organization_id,
+          match_id: d.match_id,
+        } as never),
+        await sesion
+          .from('declared_prize_awards')
+          .update({ voided_at: new Date().toISOString(), void_reason: 'intento' } as never)
+          .eq('id', d.id),
+        await sesion.from('declared_prize_awards').delete().eq('id', d.id),
+        await sesion.from('lottery_ticket_matches').delete().eq('id', d.match_id),
+        await sesion
+          .from('lottery_ticket_matches')
+          .update({ matched_number: '0000' } as never)
+          .eq('id', d.match_id),
+        await sesion.from('lottery_ticket_match_prizes').delete().eq('match_id', d.match_id),
+      ]
+      for (const intento of intentos) expect(intento.error, quien).not.toBeNull()
+    }
+    expect(await cuenta()).toEqual(antes)
+  })
+
+  it('H13-05: un identificador ajeno responde EXACTAMENTE como uno que no existe', async () => {
+    const { rows: ajenos } = await db.query<{ cliente: string }>(
+      `select id as cliente from clients where organization_id = $1 and seller_id = $2 limit 1`,
+      [ctx.demoOrg.id, ctx.ids.seller2],
+    )
+    const clienteDeOtro = ajenos[0]!.cliente
+    const igual = async (a: PromiseLike<Respuesta>, b: PromiseLike<Respuesta>, que: string) => {
+      const [x, y] = await Promise.all([a, b])
+      expect(JSON.stringify({ d: x.data, e: x.error }), que).toBe(
+        JSON.stringify({ d: y.data, e: y.error }),
+      )
+    }
+    // El vendedor, pidiendo el cliente de OTRO vendedor, la rifa de OTRA
+    // organización.
+    await igual(
+      seller1.rpc('seller_prize_awards', { p_client_id: clienteDeOtro }),
+      seller1.rpc('seller_prize_awards', { p_client_id: ALEATORIO }),
+      'cliente ajeno en la lista del vendedor',
+    )
+    await igual(
+      seller1.rpc('seller_prize_award_totals', { p_client_id: clienteDeOtro }),
+      seller1.rpc('seller_prize_award_totals', { p_client_id: ALEATORIO }),
+      'cliente ajeno en los totales del vendedor',
+    )
+    await igual(
+      seller1.rpc('seller_prize_awards', { p_raffle_id: ctx.controlRaffle.id }),
+      seller1.rpc('seller_prize_awards', { p_raffle_id: ALEATORIO }),
+      'rifa de otra organización para el vendedor',
+    )
+    // El personal, pidiendo al vendedor y la rifa de OTRA organización.
+    await igual(
+      owner.rpc('admin_prize_awards', { p_seller_id: ctx.ids.otherOrgSeller }),
+      owner.rpc('admin_prize_awards', { p_seller_id: ALEATORIO }),
+      'vendedor de otra organización en la lista del personal',
+    )
+    await igual(
+      owner.rpc('admin_prize_award_totals', { p_seller_id: ctx.ids.otherOrgSeller }),
+      owner.rpc('admin_prize_award_totals', { p_seller_id: ALEATORIO }),
+      'vendedor de otra organización en los totales del personal',
+    )
+    await igual(
+      owner.rpc('admin_prize_awards', { p_raffle_id: ctx.controlRaffle.id }),
+      owner.rpc('admin_prize_awards', { p_raffle_id: ALEATORIO }),
+      'rifa de otra organización para el personal',
+    )
+  })
+
+  it('H13-06: un plan reutilizado no le abre `prize_award_history_start` a `anon` (`0071`)', async () => {
+    // Lo que hacía PostgREST con sus sentencias preparadas, reproducido sin él:
+    // un plan GENÉRICO preparado por una sesión con permiso y ejecutado después
+    // como `anon`. Con la función inmutable, el plan ya traía la fecha plegada y
+    // nadie volvía a comprobar el permiso.
+    const conexion = new PgClient({ connectionString: DB_URL })
+    await conexion.connect()
+    try {
+      await conexion.query('set plan_cache_mode = force_generic_plan')
+      await conexion.query('begin')
+      await conexion.query('set local role authenticated')
+      await conexion.query('prepare inicio_h13 as select prize_award_history_start()::text as d')
+      const { rows } = await conexion.query<{ d: string }>('execute inicio_h13')
+      expect(rows[0]!.d).toBe('2026-08-09')
+      await conexion.query('set local role anon')
+      await expect(conexion.query('execute inicio_h13')).rejects.toThrow(
+        /permission denied for function prize_award_history_start/,
+      )
+    } finally {
+      await conexion.query('rollback').catch(() => {})
+      await conexion.end()
+    }
   })
 })

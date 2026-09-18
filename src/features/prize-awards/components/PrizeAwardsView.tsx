@@ -138,13 +138,14 @@ function CoverageNotice({
   }
   if (!coverageApplies(coverage.coverage, filters)) return null
 
-  // La cuenta es de la organización: con un filtro de rifa o de fechas, el
-  // aviso lo aclara. Un filtro de vendedor o de cliente no cambia los sorteos.
-  const filteredByScope = Boolean(filters.raffleId ?? filters.dateFrom ?? filters.dateTo)
+  // La cuenta es de toda la organización. Con CUALQUIER filtro —rifa, fechas,
+  // vendedor o cliente— lo que se ve es menos que eso, y el aviso lo aclara: un
+  // vendedor o un cliente juegan solo en las rifas donde tienen boletas, así que
+  // tampoco esos filtros dejan la cuenta igual a lo que se está mirando.
   return (
     <Notice tone="info" icon={<InfoIcon />}>
       <span data-slot="prize-coverage-notice">
-        {coverageNotice(coverage.coverage, filteredByScope)}
+        {coverageNotice(coverage.coverage, prizeAwardHasFilters(filters))}
       </span>
     </Notice>
   )

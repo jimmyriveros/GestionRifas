@@ -1,6 +1,6 @@
 # SEGURIDAD
 
-- **Versión:** 2.25 · **Estado:** implementado · **Actualizado:** 2026-09-17 (**§4.24**, Etapa 2 del historial —D-208, `0069`, **solo en local**—: las pantallas leen con la sesión por las cuatro funciones, el personal no recibe ni envía un dato de cliente y la `0069` no cambia ningún privilegio). Antes, ese mismo día (**§4.24**: el **historial de premios ganados** —`0067`, D-208, **solo en local**—: ninguna lectura recibe alcance, el personal no ve datos de cliente ni toca `clients`, el vendedor solo ve lo suyo **sin equipo**, la tabla nueva concede solo `SELECT` y su única puerta es de la service role, las 10 funciones están clasificadas con su matriz exacta (I-132), y los números de una boleta con coincidencias no cambian por ninguna vía (BR-I16). Antes, ese mismo día, **§4.23**: la `0066` —D-207,
+- **Versión:** 2.26 · **Estado:** implementado · **Actualizado:** 2026-09-18 (**§4.24**, Etapa 3 del historial —la auditoría, D-208, **solo en local**—: la matriz de acceso medida por PostgREST con nueve personas, lo ajeno respondiendo como lo inexistente, la `0070` —el personal elige a quien ya no vende, sin cliente— y la `0071` —`anon` obtenía el inicio operativo por un plan reutilizado, I-141—). Antes, ese mismo día (**§4.24**, Etapa 2 del historial —D-208, `0069`, **solo en local**—: las pantallas leen con la sesión por las cuatro funciones, el personal no recibe ni envía un dato de cliente y la `0069` no cambia ningún privilegio). Antes, ese mismo día (**§4.24**: el **historial de premios ganados** —`0067`, D-208, **solo en local**—: ninguna lectura recibe alcance, el personal no ve datos de cliente ni toca `clients`, el vendedor solo ve lo suyo **sin equipo**, la tabla nueva concede solo `SELECT` y su única puerta es de la service role, las 10 funciones están clasificadas con su matriz exacta (I-132), y los números de una boleta con coincidencias no cambian por ninguna vía (BR-I16). Antes, ese mismo día, **§4.23**: la `0066` —D-207,
   I-132— fija quién ejecuta cada una de las 62 funciones de premios configurables: el proyecto alojado concede
   EXECUTE a `service_role` en toda función nueva y la pila local no, y el preflight de la Puerta 1 lo vio antes
   de escribir nada. Solo dos entradas de la service role —`transition_raffle_prize_mode` y
@@ -1328,11 +1328,11 @@ ellas `SECURITY DEFINER`); los privilegios de **tabla** de la service role sobre
 (`SELECT` e `INSERT`, y `UPDATE` en `raffle_prizes`), explícitos desde `0058`/`0059` e iguales en los
 dos entornos; y la secuencia de I-130.
 
-### 4.24 El historial de premios ganados (`0067`–`0069`; BR-J17..BR-J23, BR-I16; D-208)
+### 4.24 El historial de premios ganados (`0067`–`0071`; BR-J17..BR-J23, BR-I16; D-208)
 
-**Solo en local**: el proyecto real no tiene ninguna de las tres, y `verify:remote` lo dice —dos
-comprobaciones en rojo, a propósito, hasta que se promuevan: la matriz de las funciones de `0067`/`0068`
-y el cuerpo de la cobertura de `0069`—.
+**Solo en local**: el proyecto real no tiene ninguna de las cinco, y `verify:remote` lo dice —**tres**
+comprobaciones en rojo, a propósito, hasta que se promuevan: la matriz de las 15 funciones de
+`0067`/`0068`/`0070`, el cuerpo de la cobertura de `0069` y el inicio operativo de `0071`—.
 
 **Ninguna lectura recibe organización, vendedor ni actor.** El alcance sale de la sesión, como en D-198
 y D-199: el vendedor, de `current_profile_id()` y `current_org_ids()`; el personal, de
@@ -1346,8 +1346,8 @@ y D-199: el vendedor, de `current_profile_id()` y `current_org_ids()`; el person
 | El personal no ve datos de cliente | El **tipo de retorno** de `admin_prize_awards` no declara cliente, y `prize_award_rows` no devuelve el nombre: la rama del personal **no toca `clients`**. El recuento de clientes distintos se calcula dentro de la base y sale como número. Lo vigilan `admin-privacy.test.ts` (la lista exacta de funciones `admin_*` y el barrido de columnas prohibidas) y una prueba que recorre las claves de cada fila |
 | La cartera no se abre | El historial no consulta ni devuelve precio de venta, abonado, saldo, pagos ni comisiones (BR-Q01) |
 | Nadie escribe la tabla desde una sesión | `declared_prize_awards` concede **solo `SELECT`**; la única puerta es `record_declared_prize_awards`, de la **service role**, como la transición (D-204). El vendedor y el personal reciben un error al llamarla |
-| `anon` no alcanza nada | `revoke` explícito en las cuatro lecturas y en el cargador |
-| Privilegios explícitos | Las **14** funciones de `0067` y `0068` están clasificadas en `scripts/prize-function-grants.ts` —7 de sesión, 1 de service role y 6 internas que **no ejecuta nadie**— y su matriz exacta se comprueba en `verify:remote` y en `prize-award-history.test.ts`. Es la lección de **I-132**: en el proyecto alojado toda función nueva nace ejecutable por `service_role` |
+| `anon` no alcanza nada | `revoke` explícito en las cuatro lecturas, en el cargador y en cada función de sesión. **Y frente a un plan reutilizado** (`0071`, I-141): una función que PostgreSQL puede plegar o insertar en el plan no queda protegida por su `REVOKE` cuando PostgREST reutiliza una sentencia preparada por otra sesión; por eso `prize_award_history_start()` es `stable security definer`. Medido con H13-02 y H13-06 |
+| Privilegios explícitos | Las **15** funciones de `0067`, `0068` y `0070` están clasificadas en `scripts/prize-function-grants.ts` —8 de sesión, 1 de service role y 6 internas que **no ejecuta nadie**— y su matriz exacta se comprueba en `verify:remote` y en `prize-award-history.test.ts`. Es la lección de **I-132**: en el proyecto alojado toda función nueva nace ejecutable por `service_role` |
 
 **Los números de una boleta con coincidencias (BR-I16).** Un **disparador** sobre `tickets` —no una
 comprobación dentro de una RPC— cubre todas las vías: `admin_update_ticket_numbers`,
@@ -1372,6 +1372,16 @@ clave de servicio— por las cuatro funciones y `prize_award_coverage()`, y no t
 | Un rol equivocado no ve la pantalla | Cada página exige su rol además de su layout (`requireRole(['seller'])`, `requireStaff()`); aun sin eso, la base devuelve cero filas: `seller_prize_awards` exige vendedor activo y `admin_prize_awards`, personal |
 | Quien dejó de vender y hoy es Administrador | Deja de ver su historial por el portal del vendedor (`/denied`) y ve sus premios por el del personal **sin cliente**; su nombre no se enlaza a una ficha de vendedor que ya no existe |
 | La `0069` | `create or replace` del cuerpo de `prize_award_coverage()` con la misma firma, el mismo tipo y los **mismos privilegios**, repetidos: `authenticated` sí; `public`, `anon` y `service_role`, no. `verify:remote` comprueba el cuerpo |
+| Quien vendió y hoy es del personal, en el desplegable (`0070`) | `admin_prize_award_sellers()` devuelve solo `seller_id` y `seller_name` —los que ya trae cada fila—, con el alcance de `current_staff_org_ids()`: un vendedor, otra organización y `anon` no obtienen nada (H9-07). La persona aparece como «Nombre (ya no vende)» y **no se enlaza** a una ficha que ya no tiene |
+
+**La auditoría (Etapa 3).** Medido, no supuesto:
+
+| Qué | Cómo | Resultado |
+|---|---|---|
+| La matriz de acceso | **H13-01** por PostgREST: vendedor propio, otro vendedor, Dueño, Administrador, quien pasó a Administrador, otra organización (Dueño y vendedor) y un vendedor desactivado, contra las cinco lecturas, la cobertura, el inicio y las tablas `lottery_ticket_matches`, `lottery_ticket_match_prizes` y `declared_prize_awards` | Cada uno recibe lo suyo y nada más; el personal, **0** filas de las tablas y ni un identificador ni un nombre de cliente en ninguna respuesta; `lottery_ticket_match_prizes` hereda la corrección de I-137 por su `EXISTS` |
+| `anon`, lo interno y la escritura | **H13-02**, **H13-03** y **H13-04**: `anon` contra todo; `prize_award_rows`, `declared_prize_award_plan`, el cargador y el motor desde cuatro sesiones; `INSERT`, `UPDATE` y `DELETE` sobre las tres tablas | Todo rechazado, y ni una fila cambia |
+| Lo ajeno frente a lo inexistente | **H13-05** —seis pares: cliente de otro vendedor, rifa y vendedor de otra organización, en listas y totales— y la E2E —estado HTTP y texto de la página— | Respuestas **idénticas** |
+| El navegador del personal | La E2E con siete direcciones manipuladas y una navegación RSC, capturando HTML, carga RSC y red | Ni un dato de cliente |
 
 ## 5. Protección de Server Actions y Route Handlers
 

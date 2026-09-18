@@ -1,6 +1,10 @@
 import { PRIZE_AWARDS_COPY } from '@/features/prize-awards/copy'
 import { PrizeAwardsView } from '@/features/prize-awards/components/PrizeAwardsView'
-import { readAdminPrizeAwards, readPrizeAwardCoverage } from '@/features/prize-awards/queries'
+import {
+  listAdminPrizeAwardSellers,
+  readAdminPrizeAwards,
+  readPrizeAwardCoverage,
+} from '@/features/prize-awards/queries'
 import { parsePrizeAwardFilters, prizeAwardDatesReversed } from '@/features/prize-awards/schemas'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { listOrgMembers } from '@/features/users/queries'
@@ -21,39 +25,54 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>
  *
  * EL VENDEDOR ES UN FILTRO, NO UN ALCANCE. El alcance es la organización de la
  * sesión, dentro de la base. El desplegable ofrece también a los vendedores
- * DESACTIVADOS: su historial se conserva y el personal lo consulta.
+ * DESACTIVADOS y a quien VENDIÓ y hoy tiene otro rol —pasó a Administrador—:
+ * su historial se conserva y el personal lo elige sin escribir su
+ * identificador (Etapa 3, `0070`). A este último no se le enlaza ninguna ficha
+ * de vendedor, porque ya no la tiene.
  */
 export default async function OwnerPrizesPage({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff()
   const filters = parsePrizeAwardFilters(await searchParams, 'staff')
   const reversed = prizeAwardDatesReversed(filters)
 
-  const [result, coverage, raffles, members] = await Promise.all([
+  const [result, coverage, raffles, members, prizeSellers] = await Promise.all([
     reversed ? Promise.resolve(null) : readAdminPrizeAwards(filters),
     readPrizeAwardCoverage(),
     listRaffleOptions(),
     // Una sola lectura de miembros, memoizada por petición (D-104).
     listOrgMembers(['owner', 'admin', 'seller']),
+    // Quién aparece como vendedor en el historial, sea cual sea su rol de hoy.
+    listAdminPrizeAwardSellers(),
   ])
 
   // Activos primero, luego los desactivados, cada grupo en el orden de alta.
   const sellers = members
     .filter((member) => member.role === 'seller')
     .sort((a, b) => Number(b.isActive) - Number(a.isActive))
+  const sellerIds = new Set(sellers.map((member) => member.profileId))
 
-  // Quien dejó de vender —pasó a Administrador— conserva sus premios con su
-  // nombre. Si el filtro apunta a esa persona, el desplegable la nombra en vez
-  // de quedarse en blanco; no tiene ficha de vendedor, así que no se enlaza.
-  const formerSeller =
-    filters.sellerId && !sellers.some((member) => member.profileId === filters.sellerId)
-      ? members.find((member) => member.profileId === filters.sellerId)
-      : undefined
+  // Quien vendió, tiene premios y hoy tiene otro rol: se puede elegir desde el
+  // desplegable, con su nombre y la aclaración de que ya no vende (`0070`).
+  const formerSellers = prizeSellers.filter((person) => !sellerIds.has(person.sellerId))
 
   const options = sellers.map((member) => ({
     value: member.profileId,
     label: member.isActive ? member.fullName : PRIZE_AWARDS_COPY.inactiveSeller(member.fullName),
   }))
-  if (formerSeller) options.push({ value: formerSeller.profileId, label: formerSeller.fullName })
+  for (const person of formerSellers) {
+    const name =
+      person.sellerName ??
+      members.find((member) => member.profileId === person.sellerId)?.fullName ??
+      PRIZE_AWARDS_COPY.row.unnamedSeller
+    options.push({ value: person.sellerId, label: PRIZE_AWARDS_COPY.formerSeller(name) })
+  }
+
+  // Un filtro que apunta a alguien de la organización que no vende ni tiene
+  // premios: el desplegable lo nombra en vez de quedarse en blanco.
+  if (filters.sellerId && !options.some((option) => option.value === filters.sellerId)) {
+    const member = members.find((m) => m.profileId === filters.sellerId)
+    if (member) options.push({ value: member.profileId, label: member.fullName })
+  }
 
   return (
     <PrizeAwardsView

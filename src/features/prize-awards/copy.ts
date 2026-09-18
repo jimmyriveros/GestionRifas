@@ -150,6 +150,12 @@ export const PRIZE_AWARDS_COPY = {
 
   /** Un vendedor desactivado, en el desplegable del personal. */
   inactiveSeller: (name: string) => `${name} (inactivo)`,
+  /**
+   * Quien vendió, tiene premios en el historial y hoy tiene otro rol —pasó a
+   * Administrador, por ejemplo—. No se dice cuál: lo que importa al elegirlo es
+   * que esos premios son de cuando vendía (Etapa 3).
+   */
+  formerSeller: (name: string) => `${name} (ya no vende)`,
 } as const
 
 // -----------------------------------------------------------------------------
@@ -194,15 +200,23 @@ export function coverageApplies(
 }
 
 /**
- * El aviso, con lo que la consulta PUEDE afirmar y nada más: cuántos sorteos ya
- * jugados no tienen resultado confirmado, entre qué fechas CAEN —no que llenen
- * el tramo—, y que mientras tanto no se sabe si dieron premios (BR-J22). No
- * dice «cero premios» ni que el resto esté completo.
+ * El aviso, con lo que la consulta PUEDE afirmar y nada más (BR-J22): cuántos
+ * sorteos ya jugados tienen el resultado sin confirmar o POR VERIFICAR, entre
+ * qué fechas CAEN —no que llenen el tramo— y que puede haber premios de esos
+ * sorteos que no aparecen. No dice «cero premios» ni que el resto esté completo.
  *
- * Su alcance es TODA la organización, no el filtro: cuando hay uno de rifa o de
- * fechas, la tercera frase lo aclara.
+ * POR QUÉ «POR VERIFICAR» (Etapa 3, punto A). La base cuenta como pendiente
+ * también un sorteo cuyo resultado entró en conflicto después de confirmarse
+ * (`0069`), y ese sorteo puede tener ya un premio en la lista, conservado y
+ * marcado (BR-J18). «No sabemos si hubo premios» lo desmentía a un centímetro;
+ * «puede que tenga premios que no aparecen» es cierto en los dos casos. Tampoco
+ * se dice «mientras tanto»: confirmar un sorteo del sistema de siempre no hace
+ * aparecer su premio, que el negocio tiene que reconocer (BR-J19).
+ *
+ * Su alcance es TODA la organización: con cualquier filtro —rifa, fechas,
+ * vendedor o cliente—, la tercera frase lo aclara.
  */
-export function coverageNotice(coverage: PrizeAwardCoverage, filteredByScope: boolean): string {
+export function coverageNotice(coverage: PrizeAwardCoverage, filtered: boolean): string {
   const n = coverage.pendingDraws
   const when =
     coverage.pendingFrom && coverage.pendingTo
@@ -210,13 +224,13 @@ export function coverageNotice(coverage: PrizeAwardCoverage, filteredByScope: bo
       : ''
   const first =
     n === 1
-      ? `Hay 1 sorteo ya jugado sin resultado confirmado${when}.`
-      : `Hay ${n} sorteos ya jugados sin resultado confirmado${when}.`
+      ? `Hay 1 sorteo ya jugado con el resultado sin confirmar o por verificar${when}.`
+      : `Hay ${n} sorteos ya jugados con el resultado sin confirmar o por verificar${when}.`
   const second =
     n === 1
-      ? 'Mientras tanto, no sabemos si hubo premios en ese sorteo.'
-      : 'Mientras tanto, no sabemos si hubo premios en esos sorteos.'
-  const third = filteredByScope ? ' La cuenta es de todas las rifas, no solo de este filtro.' : ''
+      ? 'Puede que ese sorteo tenga premios que no aparecen aquí.'
+      : 'Puede que esos sorteos tengan premios que no aparecen aquí.'
+  const third = filtered ? ' La cuenta es de toda la organización, no solo de este filtro.' : ''
   return `${first} ${second}${third}`
 }
 

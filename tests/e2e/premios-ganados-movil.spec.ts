@@ -144,3 +144,32 @@ test('el personal en el teléfono: tarjetas con el vendedor y sin un solo client
   await expect(page.locator('[data-slot="seller-prize-summary"]')).toContainText('$500.000')
   await sinDesbordamiento(page, 'ficha del vendedor inactivo a 320 px')
 })
+
+test('a 375 px tampoco se sale nada: historial y ficha del cliente, historial y ficha del vendedor (Etapa 3)', async ({
+  page,
+}) => {
+  // 320 y 412 ya se miden arriba; 375 es el ancho de muchos iPhone y faltaba.
+  await page.setViewportSize({ width: 375, height: 812 })
+  await loginAs(page, ACCOUNTS.seller)
+  for (const ruta of [
+    '/seller/prizes',
+    `/seller/prizes?clientId=${esc.clientes.dona.id}`,
+    `/seller/clients/${esc.clientes.dona.id}`,
+  ]) {
+    await page.goto(ruta)
+    await expect(page.locator('main h1').first()).toBeVisible()
+    await sinDesbordamiento(page, `${ruta} a 375 px`)
+  }
+
+  await page.context().clearCookies()
+  await loginAs(page, ACCOUNTS.owner)
+  for (const ruta of [
+    '/owner/prizes',
+    `/owner/prizes?sellerId=${esc.ascendido.id}`,
+    `/owner/sellers/${esc.inactivo.id}`,
+  ]) {
+    await page.goto(ruta)
+    await expect(page.locator('main h1').first()).toBeVisible()
+    await sinDesbordamiento(page, `${ruta} a 375 px`)
+  }
+})

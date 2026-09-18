@@ -2599,6 +2599,13 @@ export type Database = {
           weekly_number: string | null
         }[]
       }
+      admin_prize_award_sellers: {
+        Args: never
+        Returns: {
+          seller_id: string
+          seller_name: string | null
+        }[]
+      }
       admin_prize_award_totals: {
         Args: {
           p_from?: string

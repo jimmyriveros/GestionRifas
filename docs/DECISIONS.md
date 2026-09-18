@@ -4,7 +4,12 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.68 · **Actualizado:** 2026-09-17 (D-001 a **D-208**; **D-208 con la Etapa 2 —las
+- **Versión:** 1.69 · **Actualizado:** 2026-09-18 (D-001 a **D-208**; **D-208 con la Etapa 3 —la
+  auditoría— hecha en local**: el aviso de cobertura ya no desmiente un premio conservado cuyo resultado
+  entró en conflicto, el personal puede elegir desde su pantalla a quien vendió y hoy es Administrador
+  (**`0070`**), `anon` ya no obtiene el inicio operativo por un plan reutilizado (**`0071`**, I-141), dos
+  pruebas de concurrencia observan el bloqueo en vez de adivinarlo, y el procedimiento de promoción queda
+  escrito en `RUNBOOK` §9 **sin ejecutar**. Antes, el 2026-09-17, **D-208 con la Etapa 2 —las
   pantallas— implementada, solo en local**: `/seller/prizes`, `/owner/prizes` y los resúmenes de las fichas
   del cliente y del vendedor, sobre las cuatro lecturas de la base y **una migración nueva, `0069`**: la
   cobertura contaba como pendientes los sorteos cancelados o suspendidos y los de rifas en borrador o
@@ -12122,6 +12127,10 @@ Entrega 3.
 
 ## D-208 — Historial de premios ganados: contrato, cobertura y estabilidad
 
+> **Estado (2026-09-18, Etapa 3 —auditoría— hecha, solo en local):** seis hallazgos reproducidos antes de
+> corregirlos, dos migraciones nuevas —**`0070`** y **`0071`**— y el procedimiento de la Etapa 4 escrito en
+> `RUNBOOK` §9, **sin ejecutar**. La sección «Etapa 3» del final lo detalla. Nada de esto está en producción.
+>
 > **Estado (2026-09-17, Etapa 2 implementada, solo en local):** las pantallas existen —`/seller/prizes`,
 > `/owner/prizes` y los resúmenes de las dos fichas— y la cobertura se corrigió con la migración **`0069`**
 > (I-138). La sección «Etapa 2» del final lo detalla. Nada de esto está en producción, y la Etapa 3 —la
@@ -12746,3 +12755,61 @@ nuevas y resueltas en local. `ARCHITECTURE` §6 y §8.28, `DATA_MODEL` §6.g.10,
 `UX_COPY_GUIDELINES` (Anexos A y B), `TESTING` §4.12, `TEST_RESULTS`, `KNOWN_ISSUES`, `PHASE_STATUS` y
 `HANDOFF`. **Solo en local**: el proyecto real no tiene ni la `0067`, ni la `0068`, ni la `0069`, ni el
 código de estas pantallas.
+
+---
+
+### Etapa 3 (2026-09-18): la auditoría en local —y dos migraciones nuevas, `0070` y `0071`—
+
+Lo que sigue son **decisiones técnicas** tomadas dentro del contrato aprobado; ninguna es una regla nueva del
+dueño. **Cada hallazgo se reprodujo antes de corregirse**, y ninguno se cerró cambiando una expectativa para
+que coincidiera con un comportamiento incorrecto. La evidencia de antes y después está en `TEST_RESULTS`
+(2026-09-18, Etapa 3).
+
+#### 1 — Los hallazgos
+
+| # | Hallazgo | Antes | Corrección | Después |
+|---|---|---|---|---|
+| A | **El aviso de cobertura desmentía un premio conservado.** La `0069` cuenta como pendiente un sorteo cuyo resultado entró en conflicto, y el aviso decía «no sabemos si hubo premios en esos sorteos» mientras la lista enseñaba el premio de ese mismo sorteo | E2E con el premio reconocido de Fabio en conflicto: «Hay 15 sorteos ya jugados sin resultado confirmado… Mientras tanto, no sabemos si hubo premios…» junto a su fila de $500.000 | **Solo el texto**: «con el resultado sin confirmar o por verificar» y «Puede que esos sorteos tengan premios que no aparecen aquí»; y la aclaración del alcance —ahora **«toda la organización»**— con **cualquier** filtro | Unitarias con frases escritas a mano, la vista con el premio y el aviso juntos, la E2E con una cuenta propia; **H12-03** fija en la base que el sorteo cuenta y el premio se queda con su importe |
+| B | **El personal no podía elegir a quien vendió y pasó a Administrador.** El desplegable se armaba con el rol de HOY; sus premios solo se alcanzaban escribiendo su identificador | E2E desde el menú: 60 s esperando una opción que no existía | **`0070`**: `admin_prize_award_sellers()`, y el desplegable añade a esas personas como «Nombre (ya no vende)», sin enlace a una ficha que ya no tienen | E2E 3/3 —elegir, totales, sin un dato de cliente— y **H9-07** por PostgREST |
+| C | La E2E del aviso calculaba su expectativa con la **misma** `coverageNotice()` que la pantalla | Lectura del código | Una consulta propia de la prueba y el texto escrito a mano | — |
+| D | **H5-04** deducía que el motor esperaba porque se agotaba un `statement_timeout` de 3 s | 3.091 ms por diseño; no miraba ningún bloqueo | Observa el bloqueo con `pg_blocking_pids` y deja terminar al motor | 92 ms, con el estado final de las dos operaciones |
+| E | **H8-08** lanzaba las dos cargas a la vez y confiaba en que coincidieran | Sin el cerrojo fallaba 5/5, **por coincidencia de tiempos** | La primera deja su transacción abierta y se **observa** que la segunda la espera | Sin el cerrojo falla 5/5 **por construcción** |
+| F | **`anon` obtenía el inicio operativo por PostgREST** aunque su `EXECUTE` estaba revocado (I-141) | `200` con `"2026-08-09"`; reproducido con `prepare`/`execute` sin PostgREST | **`0071`**: `stable security definer` | `401` en seis llamadas seguidas; **H13-06** |
+
+#### 2 — Decisiones técnicas
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 1 | **A se corrige en el texto, no en la base** | El recuento es literalmente cierto, y la frase nueva lo es en los tres casos: sin resultado, en conflicto antes de confirmarse y en conflicto después. Separarlos en la base exigiría saber si el motor corrió, y `confirmed_at` no lo dice: `confirm_lottery_result` lo rellena también cuando el resultado nace en conflicto |
+| 2 | **Sin «mientras tanto»** | Prometía que, al confirmarse, se sabría. Un sorteo del sistema de siempre se confirma y su premio **no aparece solo**: lo reconoce el negocio (BR-J19, I-142) |
+| 3 | **El alcance se aclara con cualquier filtro**, también el de vendedor y el de cliente, y dice «organización» | Un vendedor o un cliente juegan solo en las rifas donde tienen boletas, así que ningún filtro deja la cuenta igual a lo que se mira |
+| 4 | **B necesitaba la base** | El rol de hoy no dice quién tiene premios, y las lecturas del personal son paginadas o solo cuentan. Una lectura del patrón `admin_*`: alcance de la sesión, solo el identificador y el nombre del vendedor —los que ya trae cada fila—, ni un dato de cliente ni un recuento |
+| 5 | **Si esa lectura falla, la página falla** | Como `listOrgMembers`: un desplegable más corto sin aviso haría creer que esa persona no tiene premios |
+| 6 | **`0071` cuesta 2–3 ms y se acepta** | Medido con el mismo escenario: la función queda en el plan y se evalúa por fila. Es inherente a que el permiso se compruebe al ejecutar; dejarla inmutable y aceptar la exposición contradiría D-207 |
+| 7 | **Ningún índice nuevo** | Con 3.000 boletas y más de 300 premios, las cinco lecturas quedan entre 4 y 14 ms de mediana por PostgREST y crecen de forma lineal (~16 µs por premio). Sin un problema demostrado no se toca el esquema |
+| 8 | **Orden de la promoción: migraciones → cargador → código** (`RUNBOOK` §9) | Sustituye la propuesta de la Etapa 0 —cargar después del despliegue—: la carga no depende del código, y hecha antes la pantalla nace con los dos premios y se corrige cualquier cosa antes de que alguien la vea. Las puertas 2 y 3 se pueden invertir si el dueño lo prefiere |
+| 9 | **El cargador sigue siendo solo local** | Su puerta de producción se describe (`RUNBOOK` §9.4) y se construye en la Etapa 4, con pruebas. Retirar ahora `--local` sería quitar una protección sin autorización |
+
+#### 3 — Lo que se auditó y no tenía defecto
+
+| Qué | Cómo | Resultado |
+|---|---|---|
+| Aislamiento y privacidad | **H13** por PostgREST: vendedor propio, otro vendedor, Dueño, Administrador, quien pasó a Administrador, otra organización (Dueño y vendedor), vendedor desactivado y `anon`, contra las cinco lecturas, la cobertura, el inicio y las tres tablas; funciones internas y cargador; escrituras; y seis pares ajeno/inexistente | Cada uno recibe lo suyo y nada más; `lottery_ticket_match_prizes` hereda la corrección de I-137; nada interno ni de escritura se alcanza; lo ajeno responde byte a byte como lo inexistente |
+| La interfaz del personal con parámetros manipulados | E2E: siete direcciones manipuladas y una navegación RSC, capturando HTML, RSC y red | Ni un dato de cliente; vendedor y rifa de otra organización se ven igual que un identificador inexistente |
+| Cifras con volumen | `prize-award-volume.test.ts`: 3.000 boletas, 600 clientes, 78 sorteos y un modelo del motor escrito en TypeScript —versiones, prioridad por cliente, valores— | Filas idénticas a las del modelo, totales con nueve filtros, paginación sin huecos ni repetidos y en orden estable |
+| Las correcciones de la Etapa 1 | Anular y volver a reconocer, importe discrepante, duplicados internos, reintento idéntico, concurrencia, número fotografiado y origen declarado | Siguen en verde (H2, H4, H5, H8, H10, H11) |
+| Interfaz | Siete pantallas a 320, 375, 412, 1.024, 1.280 y 1.440 px; tabulador y nombres accesibles | Sin desplazamiento lateral ni controles sin nombre; foco visible y orden lógico |
+
+#### 4 — Lo que queda abierto
+
+**I-136** y la auditoría general de **I-137**, fuera de este encargo; **I-140**, una prueba de privacidad ajena
+que depende del orden; **I-142**, una limitación sin casos hoy; e **I-133**, el tramo del 09/08 al 24/08,
+pendiente del dueño. **Ninguno compromete la privacidad ni la integridad del historial.**
+
+#### Consecuencia
+
+Migraciones **`0070`** y **`0071`**. **BR-J21** y **BR-J22** precisadas. **I-140**, **I-141** e **I-142**.
+`RUNBOOK` §9, `ARCHITECTURE` §8.28, `DATA_MODEL` §6.g.10, `SECURITY` §4.24, `UX_COPY_GUIDELINES` (Anexos A
+y B), `TESTING` §4.12, `TEST_RESULTS`, `KNOWN_ISSUES`, `PHASE_STATUS` y `HANDOFF`. **Solo en local.** La
+promoción queda **preparada**: lo que falta antes de la puerta 1 es comprobar el estado real (`RUNBOOK` §9.1),
+y antes de la puerta 2, construir y probar la puerta del cargador (`RUNBOOK` §9.4).

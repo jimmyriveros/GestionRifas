@@ -1,6 +1,9 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.26 · **Estado:** implementado · **Actualizado:** 2026-09-17 (§6.g.10: la `0069` —D-208,
+- **Versión:** 2.27 · **Estado:** implementado · **Actualizado:** 2026-09-18 (§6.g.10: la Etapa 3 de D-208,
+  **solo en local** —la `0070` añade `admin_prize_award_sellers()`, quién aparece como vendedor en el
+  historial, y la `0071` hace `prize_award_history_start()` `stable security definer` para que un plan
+  reutilizado no se la entregue a `anon`—). Antes, el 2026-09-17 (§6.g.10: la `0069` —D-208,
   Etapa 2, **solo en local**— hace que `prize_award_coverage()` cuente solo los sorteos que pudieron dar un
   premio, I-138)
 - **Nota de cierre (2026-09-17):** el esquema ejecutable del **proyecto real** son ahora `0001`–`0066` —eso
@@ -1925,10 +1928,12 @@ Entrega 3, y la prueban `tests/db` y `tests/unit`.
 > cerrojo de configuración de **todas** las rifas del sorteo antes de decidir, y se niega a completar un
 > resultado con fotografías de una rifa guardadas con el otro sistema.
 
-### 6.g.10 Historial de premios ganados (migraciones `0067`, `0068` y `0069`; D-208, BR-J17..BR-J23)
+### 6.g.10 Historial de premios ganados (migraciones `0067` a `0071`; D-208, BR-J17..BR-J23)
 
-**Solo en local**: el proyecto real no tiene ninguna de las tres. La `0069` (Etapa 2) solo redefine el
-cuerpo de `prize_award_coverage()`; ninguna tabla, columna ni privilegio cambia.
+**Solo en local**: el proyecto real no tiene ninguna de las cinco. La `0069` (Etapa 2) solo redefine el
+cuerpo de `prize_award_coverage()`; la `0070` (Etapa 3) añade una lectura del personal, y la `0071` (Etapa 3)
+rehace `prize_award_history_start()` con el mismo valor y los mismos privilegios. Ninguna tabla ni columna
+cambia después de la `0068`.
 
 `declared_prize_awards` es la **única tabla nueva**, y es aditiva: el premio que reconoce el **negocio**
 sobre una coincidencia que el motor no puede premiar. Cuelga de una fotografía que ya existe y **no
@@ -1963,11 +1968,12 @@ nada más. El personal **no lee la tabla**: va por `admin_prize_awards`. Es el p
 | `declared_prize_award_plan(uuid, jsonb)` | Cómo se resuelve cada entrada del cargador: una definición para el recuento, la escritura y el informe. Rechaza una entrada que cuadre con **más de una** coincidencia | Interna, **nadie** |
 | `seller_prize_awards(...)` / `seller_prize_award_totals(...)` | El historial del vendedor de la sesión y sus cuatro indicadores | `authenticated` |
 | `admin_prize_awards(...)` / `admin_prize_award_totals(...)` | Los del personal. Su tipo de retorno **no declara** ni un campo de cliente; el recuento de clientes distintos sale como número | `authenticated` |
+| `admin_prize_award_sellers()` | **Desde la `0070`.** Quién aparece como **vendedor** en el historial de la organización del personal —también desactivado o con otro rol hoy—: `seller_id` y `seller_name`, nada más. Lee `prize_award_rows`, así que una coincidencia sin premio no pone a nadie en la lista. La usa el desplegable «Vendedor» de `/owner/prizes` | `authenticated` |
 | `record_declared_prize_awards(uuid, text, jsonb, boolean)` | El cargador: vista previa por omisión, **entera o nada**, idempotente | **`service_role`** |
 | `tickets_guard_matched_numbers()` | Los números de una boleta con coincidencias no cambian (BR-I16). Dos disparadores sobre `tickets`: uno inmediato y uno **diferido** | Interna, **nadie** |
 | `lottery_ticket_matches_number_check()` | **La defensa de la fotografía** (`0068`, I-134): disparador de restricción **diferido** sobre `lottery_ticket_matches` que exige, al COMMIT, que `matched_number` sea el número de la boleta en `match_field`. Cierra la carrera con una edición de números **sin tocar el motor** | Interna, **nadie** |
 | `current_seller_org_ids()` | Las organizaciones donde quien pregunta es vendedor **activo**. La forma de conjunto de `current_staff_org_ids()`; la usan las dos lecturas del vendedor y las **políticas** de `lottery_ticket_matches` y `declared_prize_awards` (I-137) | `authenticated` |
-| `prize_award_history_start()` | El inicio operativo, **en la base**: `date 2026-08-09` (BR-J22). Suelo de la lectura, no un filtro | `authenticated` |
+| `prize_award_history_start()` | El inicio operativo, **en la base**: `date 2026-08-09` (BR-J22). Suelo de la lectura, no un filtro. **Desde la `0071`** es `stable security definer`: inmutable se plegaba a una constante y un plan reutilizado no volvía a comprobar su permiso (I-141). Se evalúa por fila, unos 2–3 ms más con 328 premios | `authenticated` |
 | `prize_award_coverage()` | Qué tramo está **pendiente de información** —sorteos jugados sin resultado confirmado desde el inicio operativo— y qué tramo está cubierto. El alcance sale de la sesión y es la **organización**, no un filtro. **Desde la `0069`** cuenta solo los sorteos que **pudieron** dar un premio: los de rifas `active` o `closed` —las que mira el motor— y sin los `cancelled` ni `suspended`, que no se jugaron (I-138). `covered_from`/`covered_to` son el primer y el último sorteo con resultado: **no** demuestran continuidad entre ambos, y la pantalla no los usa | `authenticated` |
 
 **Los cuatro indicadores** se calculan en PostgreSQL, en pesos enteros, sobre **todo el filtro**:

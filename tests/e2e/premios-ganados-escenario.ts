@@ -121,7 +121,8 @@ export type PremiosEscenario = {
  *   Emilio    30 × diario $500.000 = $15.000.000
  *   Ximena    diario $500.000 (vendedor desactivado)
  *   Yago      diario $500.000 (vendedor que ahora es Administrador)
- *   Fabio     reconocido $500.000 · Gloria reconocido $500.000
+ *   Fabio     reconocido $500.000 (su sorteo YA JUGADO entra en conflicto: se queda)
+ *   Gloria    reconocido $500.000
  */
 export const ESPERADO = {
   /** El vendedor 1, filtrando por la rifa del motor. */
@@ -188,9 +189,10 @@ export async function borrarEscenarioPremios(): Promise<void> {
       `delete from notifications where entity_id in (select id from raffles where name like $1)`,
       [rifas],
     )
-    await db.query(`delete from tickets where raffle_id in (select id from raffles where name like $1)`, [
-      rifas,
-    ])
+    await db.query(
+      `delete from tickets where raffle_id in (select id from raffles where name like $1)`,
+      [rifas],
+    )
     await db.query(
       `delete from raffle_prize_schedule_rules where version_id in
          (select v.id from raffle_prize_versions v join raffles r on r.id = v.raffle_id where r.name like $1)`,
@@ -201,9 +203,10 @@ export async function borrarEscenarioPremios(): Promise<void> {
          (select v.id from raffle_prize_versions v join raffles r on r.id = v.raffle_id where r.name like $1)`,
       [rifas],
     )
-    await db.query(`delete from raffle_prizes where raffle_id in (select id from raffles where name like $1)`, [
-      rifas,
-    ])
+    await db.query(
+      `delete from raffle_prizes where raffle_id in (select id from raffles where name like $1)`,
+      [rifas],
+    )
     await db.query(
       `delete from raffle_prize_versions where raffle_id in (select id from raffles where name like $1)`,
       [rifas],
@@ -244,7 +247,10 @@ export async function borrarEscenarioPremios(): Promise<void> {
   }
 
   const svc = serviceClient()
-  const { data: cuentas } = await svc.from('profiles').select('id').like('email', `${CORREO_PREFIJO}%`)
+  const { data: cuentas } = await svc
+    .from('profiles')
+    .select('id')
+    .like('email', `${CORREO_PREFIJO}%`)
   for (const cuenta of cuentas ?? []) {
     const { error } = await svc.auth.admin.deleteUser(cuenta.id)
     if (error) throw new Error(`No se pudo borrar la cuenta ${cuenta.id}: ${error.message}`)
@@ -354,7 +360,15 @@ export async function crearEscenarioPremios(): Promise<PremiosEscenario> {
         `insert into tickets (organization_id, raffle_id, seller_id, created_by, daily_number,
                               weekly_number, inventory_status, created_at)
          values ($1, $2, $3, $4, $5, $6, 'available', $7) returning id`,
-        [refs.organizationId, raffleId, sellerId, refs.ownerId, diario, semanal, `${creada}T08:00:00-05:00`],
+        [
+          refs.organizationId,
+          raffleId,
+          sellerId,
+          refs.ownerId,
+          diario,
+          semanal,
+          `${creada}T08:00:00-05:00`,
+        ],
       )
       await q(
         `update tickets set client_id = $2, inventory_status = 'assigned', sale_price = $3,
@@ -375,7 +389,14 @@ export async function crearEscenarioPremios(): Promise<PremiosEscenario> {
       `insert into raffles (organization_id, name, ticket_price, start_date, end_date,
                             created_by, prize_mode, status)
        values ($1, $2, $3, $4, $5, $6, 'configurable', 'draft') returning id`,
-      [refs.organizationId, rifaMotorNombre, PRECIO, masDias(lunes, -7), masDias(lunes, 40), refs.ownerId],
+      [
+        refs.organizationId,
+        rifaMotorNombre,
+        PRECIO,
+        masDias(lunes, -7),
+        masDias(lunes, 40),
+        refs.ownerId,
+      ],
     )
     const rMotor = rifaMotor!.id
 
@@ -620,6 +641,11 @@ export async function crearEscenarioPremios(): Promise<PremiosEscenario> {
     // Un resultado confirmado que entra en conflicto: una fuente posterior trae
     // otro número y el disparador lo marca (BR-L08). El premio se queda (BR-J18).
     await q(`update lottery_results set winning_number = '5152' where id = $1`, [resultados[2]])
+    // Y uno que el aviso de cobertura no puede desmentir (Etapa 3, punto A): el
+    // sorteo YA JUGADO de un premio reconocido —el de Fabio— entra en conflicto.
+    // La base lo cuenta como pendiente (`0069`) y el premio se queda, con su
+    // importe y marcado.
+    await q(`update lottery_results set winning_number = '3428' where id = $1`, [historicos.bogota])
 
     // Un número de boleta que cambió después del sorteo. Hoy ninguna vía puede
     // hacerlo (BR-I16): se fabrica apartando los disparadores, como H5-07.
@@ -647,6 +673,41 @@ export async function crearEscenarioPremios(): Promise<PremiosEscenario> {
       boletas: { auroraDiaria, donaCambiada },
       fechas: { historicaBogota, historicaCundinamarca },
     }
+  } finally {
+    await db.end()
+  }
+}
+
+/**
+ * La cobertura calculada AQUÍ, con su propia consulta y sin
+ * `prize_award_coverage()`: sorteos ya jugados desde el inicio operativo, que
+ * caen en la ventana de una rifa activa o cerrada de la organización, sin
+ * cancelar ni suspender y sin un resultado `confirmed` —un conflicto no lo es—.
+ * Es BR-J22 escrita otra vez, para que la prueba no compare el aviso con la
+ * misma cuenta que lo produce (Etapa 3, punto A).
+ */
+export async function coberturaIndependiente(
+  organizationId: string,
+): Promise<{ n: number; desde: string | null; hasta: string | null }> {
+  const db = await conectar()
+  try {
+    const { rows } = await db.query<{ n: number; desde: string | null; hasta: string | null }>(
+      `select count(*)::int as n,
+              min(s.reference_date)::text as desde,
+              max(s.reference_date)::text as hasta
+         from lottery_draw_schedules s
+        where s.official_scheduled_at < now()
+          and s.reference_date >= date '2026-08-09'
+          and s.schedule_status not in ('cancelled', 'suspended')
+          and exists (select 1 from raffles ra
+                       where ra.organization_id = $1
+                         and ra.status in ('active', 'closed')
+                         and s.reference_date between ra.start_date and ra.end_date)
+          and not exists (select 1 from lottery_results r
+                           where r.schedule_id = s.id and r.validation_status = 'confirmed')`,
+      [organizationId],
+    )
+    return rows[0]!
   } finally {
     await db.end()
   }

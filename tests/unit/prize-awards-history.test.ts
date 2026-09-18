@@ -238,9 +238,12 @@ describe('la cobertura: solo lo que la consulta puede afirmar (BR-J22)', () => {
     pendingTo: '2026-08-24',
   }
 
-  it('P2-13: dice cuántos, entre qué fechas CAEN y que no se sabe si hubo premios', () => {
+  // Las expectativas son FRASES ESCRITAS A MANO, no llamadas a otra función de
+  // `copy.ts`: comparar el texto consigo mismo no demuestra que diga lo correcto
+  // (Etapa 3, punto A).
+  it('P2-13: dice cuántos, entre qué fechas CAEN, y que puede haber premios que no aparecen', () => {
     expect(coverageNotice(pendiente, false)).toBe(
-      'Hay 13 sorteos ya jugados sin resultado confirmado, entre el 10 y el 24 de agosto de 2026. Mientras tanto, no sabemos si hubo premios en esos sorteos.',
+      'Hay 13 sorteos ya jugados con el resultado sin confirmar o por verificar, entre el 10 y el 24 de agosto de 2026. Puede que esos sorteos tengan premios que no aparecen aquí.',
     )
     expect(
       coverageNotice(
@@ -248,16 +251,44 @@ describe('la cobertura: solo lo que la consulta puede afirmar (BR-J22)', () => {
         false,
       ),
     ).toBe(
-      'Hay 1 sorteo ya jugado sin resultado confirmado, el 24 de agosto de 2026. Mientras tanto, no sabemos si hubo premios en ese sorteo.',
+      'Hay 1 sorteo ya jugado con el resultado sin confirmar o por verificar, el 24 de agosto de 2026. Puede que ese sorteo tenga premios que no aparecen aquí.',
     )
   })
 
-  it('P2-14: con un filtro de rifa o fechas, aclara que la cuenta es de todas las rifas', () => {
-    expect(coverageNotice(pendiente, true)).toMatch(
-      /La cuenta es de todas las rifas, no solo de este filtro\.$/,
+  it('P2-14: con un filtro, aclara que la cuenta es de toda la organización', () => {
+    expect(coverageNotice(pendiente, true)).toBe(
+      'Hay 13 sorteos ya jugados con el resultado sin confirmar o por verificar, entre el 10 y el 24 de agosto de 2026. Puede que esos sorteos tengan premios que no aparecen aquí. La cuenta es de toda la organización, no solo de este filtro.',
     )
     // Nunca dice «cero premios» ni que el resto esté completo.
     expect(coverageNotice(pendiente, true)).not.toMatch(/cero|ningún premio|completo|cubierto/i)
+  })
+
+  it('P3-01: un resultado POR VERIFICAR no se presenta como «no sabemos si hubo premios»', () => {
+    // El sorteo cuenta como pendiente también cuando su resultado entró en
+    // conflicto después de confirmarse (`0069`), y ese sorteo puede tener ya un
+    // premio en la lista. El aviso no puede negarlo: dice que el resultado está
+    // por verificar y que PUEDE haber premios que no aparecen, no que no se sepa
+    // si hubo alguno.
+    const texto = coverageNotice(
+      { ...pendiente, pendingDraws: 1, pendingFrom: '2026-09-03', pendingTo: '2026-09-03' },
+      false,
+    )
+    expect(texto).toBe(
+      'Hay 1 sorteo ya jugado con el resultado sin confirmar o por verificar, el 3 de septiembre de 2026. Puede que ese sorteo tenga premios que no aparecen aquí.',
+    )
+    expect(texto).not.toMatch(/no sabemos si hubo premios/i)
+  })
+
+  it('P3-02: no promete que lo demás esté completo, ni que confirmar lo complete', () => {
+    for (const filtrado of [false, true]) {
+      const texto = coverageNotice(pendiente, filtrado)
+      // «Mientras tanto» prometía que, al confirmarse, se sabría: un sorteo del
+      // sistema de siempre se confirma y su premio sigue necesitando que el
+      // negocio lo reconozca (BR-J19).
+      expect(texto).not.toMatch(/mientras tanto|todos los premios|completo|cubierto|del \d+ al/i)
+      // «entre … y …», nunca «del … al …»: los sorteos CAEN en ese tramo, no lo llenan.
+      expect(texto).toContain('entre el 10 y el 24 de agosto de 2026')
+    }
   })
 
   it('P2-15: se calla cuando no hay pendientes o el filtro de fechas no toca el tramo', () => {
