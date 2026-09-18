@@ -77,6 +77,8 @@ export const LIST_ITEM_LABELS = {
   payments: { one: 'pago', many: 'pagos' },
   /** El reporte de recaudo pagina DIAS, no pagos: una fila es un dia. */
   days: { one: 'día', many: 'días' },
+  /** «Premios ganados» pagina PREMIOS: una fila es un premio, no una boleta (D-208). */
+  prizes: { one: 'premio', many: 'premios' },
 } as const
 
 export type ListItemKind = keyof typeof LIST_ITEM_LABELS

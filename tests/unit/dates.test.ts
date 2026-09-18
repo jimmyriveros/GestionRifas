@@ -4,6 +4,7 @@ import {
   formatDateCsv,
   formatDateEs,
   formatDateTimeEs,
+  formatLongDateBetweenEs,
   formatLongDateRangeEs,
   formatTimeEs,
   formatWeekdayEs,
@@ -95,6 +96,24 @@ describe('formatLongDateRangeEs', () => {
       'del 1 de diciembre de 2026 al 15 de enero de 2027',
     )
     expect(formatLongDateRangeEs('2026-12-21', '2026-12-21')).toBe('el 21 de diciembre de 2026')
+  })
+})
+
+describe('formatLongDateBetweenEs (D-208)', () => {
+  it('dice que las fechas CAEN en el tramo, con el mes y el año una sola vez', () => {
+    expect(formatLongDateBetweenEs('2026-08-09', '2026-08-24')).toBe(
+      'entre el 9 y el 24 de agosto de 2026',
+    )
+    expect(formatLongDateBetweenEs('2026-08-09', '2026-09-16')).toBe(
+      'entre el 9 de agosto y el 16 de septiembre de 2026',
+    )
+    expect(formatLongDateBetweenEs('2026-12-30', '2027-01-02')).toBe(
+      'entre el 30 de diciembre de 2026 y el 2 de enero de 2027',
+    )
+  })
+
+  it('un solo día es ese día, sin «entre»', () => {
+    expect(formatLongDateBetweenEs('2026-08-24', '2026-08-24')).toBe('el 24 de agosto de 2026')
   })
 
   it('no resta un día a una fecha sin hora, tampoco el primero del mes', () => {

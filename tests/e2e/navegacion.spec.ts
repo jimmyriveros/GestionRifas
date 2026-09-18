@@ -28,6 +28,8 @@ test.describe('Navegación en escritorio', () => {
       'Rifas',
       'Boletas',
       'Vendedores',
+      // D-208: los premios que ganaron los clientes de cada vendedor, sin cliente.
+      'Premios ganados',
       'Reportes',
       'Administradores',
     ]) {

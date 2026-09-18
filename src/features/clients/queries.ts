@@ -140,6 +140,26 @@ export async function getClientDetail(clientId: string): Promise<ClientDetail | 
   }
 }
 
+/**
+ * Solo el NOMBRE de un cliente, para rotular un filtro —«Solo los premios de Ana
+ * Torres», D-208— sin traer su saldo ni su historial, que `getClientDetail`
+ * lee en tres consultas. Incluye a un cliente archivado: su historial se
+ * conserva. Por RLS, uno ajeno responde `null`, igual que uno inexistente.
+ */
+export async function getClientName(
+  clientId: string,
+): Promise<{ id: string; name: string } | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, name')
+    .eq('id', clientId)
+    .maybeSingle()
+
+  if (error) throw error
+  return data ? { id: data.id, name: data.name } : null
+}
+
 export type ClientOption = {
   id: string
   name: string

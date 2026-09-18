@@ -4,7 +4,13 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.67 · **Actualizado:** 2026-09-17 (D-001 a **D-208**; **D-208 con la Etapa 1 CORREGIDA,
+- **Versión:** 1.68 · **Actualizado:** 2026-09-17 (D-001 a **D-208**; **D-208 con la Etapa 2 —las
+  pantallas— implementada, solo en local**: `/seller/prizes`, `/owner/prizes` y los resúmenes de las fichas
+  del cliente y del vendedor, sobre las cuatro lecturas de la base y **una migración nueva, `0069`**: la
+  cobertura contaba como pendientes los sorteos cancelados o suspendidos y los de rifas en borrador o
+  anuladas, reproducido antes de tocarlo (**I-138**). Abre también **I-139** —la barra de filtros de los
+  reportes se desbordaba a 320 px con el nombre de una rifa elegida—, resuelta. Antes, ese mismo día,
+  **D-208 con la Etapa 1 CORREGIDA,
   migración `0068`, solo en local**: siete hallazgos de revisión, los siete reproducidos antes de
   tocarlos —la unicidad de un reconocimiento contaba los anulados e impedía anular y volver a registrar;
   el informe del cargador hablaba de la entrada y no de lo almacenado; las lecturas del vendedor no
@@ -12116,6 +12122,11 @@ Entrega 3.
 
 ## D-208 — Historial de premios ganados: contrato, cobertura y estabilidad
 
+> **Estado (2026-09-17, Etapa 2 implementada, solo en local):** las pantallas existen —`/seller/prizes`,
+> `/owner/prizes` y los resúmenes de las dos fichas— y la cobertura se corrigió con la migración **`0069`**
+> (I-138). La sección «Etapa 2» del final lo detalla. Nada de esto está en producción, y la Etapa 3 —la
+> auditoría— necesita autorización propia.
+>
 > **Estado (2026-09-17, Etapa 1 CORREGIDA):** el contrato está **aprobado** —el dueño respondió H1,
 > H2 y H3 y confirmó los permisos— y la **Etapa 1 está implementada, solo en local**: migración `0067`,
 > `BR-J17`..`BR-J23`, `BR-I16`, y los dos premios históricos ensayados de punta a punta. **Nada se
@@ -12665,3 +12676,73 @@ lectura y qué respalda cada dato), **BR-I16** cerrada del todo. **I-134 resuelt
 `PHASE_STATUS` y `HANDOFF`. **Solo en local**: el proyecto real no tiene ni la `0067` ni la `0068`, y
 `verify:remote` lo dice con una comprobación en rojo —41 en verde y esa una—, que es el estado correcto
 hasta que se promuevan con su propia autorización.
+
+---
+
+### Etapa 2 (2026-09-17): las pantallas, sobre el contrato de lectura —y una migración nueva, `0069`—
+
+Lo que sigue son **decisiones técnicas** tomadas dentro del contrato aprobado; ninguna es una regla nueva
+del dueño.
+
+#### 1 — Qué se entregó
+
+| Pantalla | Qué hace | Lee |
+|---|---|---|
+| `/seller/prizes` | «Premios ganados» del vendedor: sus clientes y nada más, con rifa, fechas del sorteo y cliente en la URL | `seller_prize_awards` + `seller_prize_award_totals` + `prize_award_coverage` |
+| `/owner/prizes` | «Premios ganados» del Dueño y el Administrador: toda la organización, con rifa, vendedor —también desactivado— y fechas | `admin_prize_awards` + `admin_prize_award_totals` + `prize_award_coverage` |
+| `/seller/clients/[clientId]` | Un resumen de una línea y «Ver premios», que lleva al historial filtrado por ese cliente | `seller_prize_award_totals(p_client_id)` |
+| `/owner/sellers/[sellerId]` | Los cuatro indicadores de ese vendedor y «Ver sus premios» | `admin_prize_award_totals(p_seller_id)` |
+
+**Ninguna** lectura usa la clave de servicio ni consulta tablas a mano, **ninguna** política se amplió, y
+el personal **no recibe ni envía** un solo dato de cliente: su tipo de fila no lo declara, su mapeo copia
+columna a columna y su filtro de cliente se descarta al leer la URL.
+
+#### 2 — Decisiones técnicas
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 1 | **Una pantalla, dos públicos** (`PrizeAwardsView`), con dos contratos de datos | El patrón de `ReportsView` (D-051). Cada página lee lo suyo y se lo pasa ya leído: la vista no pregunta nada a la base, y `audience` no es un permiso |
+| 2 | **Se extendió `ReportFilters`** en vez de escribir otra barra | Filtra igual —rifa, vendedor y fechas en la URL, y cambiar un filtro borra la página—. Gana `fields` (lista explícita en lugar de un reporte), `dateLabels` («Sorteos desde»/«Sorteos hasta») y `extraKeys` (el `clientId` cuenta y se limpia). Los reportes no cambian |
+| 3 | **Tabla desde `xl`, tarjetas por debajo** | La tabla necesita sus seis columnas enteras (~1.100 px). A 1.024 con la barra lateral abierta se salía de la pantalla; las tarjetas no esconden nada |
+| 4 | **Un error es un error**: `{ kind: 'error' }` en cada lectura | Nunca «sin premios» ni «$0» cuando no se pudo preguntar. La lista y la cobertura fallan por separado: una no tumba a la otra |
+| 5 | **Una página fuera de rango** enseña los totales del conjunto y dice cuántas páginas hay | El recuento de la paginación sale de la misma consulta que las filas; sin filas, del de los indicadores, que es el del mismo filtro |
+| 6 | **Unas fechas al revés** no se consultan | La misma regla de «Ventas por fecha» (D-151): cero no es la respuesta a un filtro que no tiene sentido |
+| 7 | **El cliente del filtro** se lee con `getClientName` (RLS) y uno ajeno responde «no encontrado» | Sin distinguir «no existe» de «no es tuyo» (T15). `getClientDetail` lo leía en tres consultas para usar solo el nombre |
+| 8 | **El desplegable de vendedores del personal** incluye a los desactivados, marcados «(inactivo)», y a quien dejó de vender si el filtro lo nombra | Su historial se conserva (BR-J21). Quien pasó a Administrador conserva su nombre en sus premios pero **no se enlaza**: su ficha de vendedor ya no existe |
+| 9 | **«Premios ganados» no es `primary`** en ningún portal | La barra inferior conserva sus cuatro (D-106). En el teléfono se llega desde el menú de usuario |
+| 10 | **La cobertura se presenta como de la organización, con lo que puede afirmar**: cuántos, entre qué fechas caen y que no se sabe si hubo premios | La función no recibe el filtro (BR-J23). `covered_from`/`covered_to` **no se leen**: no demuestran continuidad ni que cada premio de entonces esté reconocido. Si las fechas del filtro no tocan el tramo pendiente, el aviso se calla |
+
+#### 3 — El defecto de la cobertura, y por qué hizo falta una migración (`0069`, I-138)
+
+`prize_award_coverage()` contaba **todos** los sorteos jugados sin resultado dentro de la ventana de
+**cualquier** rifa de la organización. El motor, en cambio, solo busca coincidencias en rifas `active` o
+`closed` (0036, 0061) y rechaza los sorteos `cancelled` y `suspended`. **Reproducido antes de tocarlo**
+con H12-01: seis sorteos nuevos sin resultado —uno jugado en una rifa activa, uno cancelado, uno
+suspendido, uno en una rifa en borrador, uno en una anulada y uno en una cerrada— subían el recuento en
+**seis**; pendientes de verdad hay **dos**. La pantalla habría dicho que faltaba información de sorteos
+que no se jugaron o que no podían premiar a nadie.
+
+La corrección es mínima y no se podía hacer en la interfaz —el recuento es un agregado de la base—:
+`create or replace` del cuerpo con los dos filtros, **misma firma, mismo tipo de retorno y mismos
+privilegios**, repetidos en la migración. No reescribe `0067` ni `0068`. `verify:remote` gana una
+comprobación del cuerpo, que falla contra el proyecto real hasta que la `0069` se promueva.
+
+**Lo que se decidió NO cambiar:** un resultado en **conflicto** sigue contando como «sin resultado
+confirmado». Es literalmente cierto y el aviso lo dice así; distinguir un conflicto posterior a la
+confirmación exigiría saber si el motor corrió, y un conflicto puede nacer antes de confirmar
+(`lottery_results_protect_confirmed` mira el número observado, no el confirmado).
+
+#### 4 — Dos ajustes del relevo anterior
+
+| Ajuste | Qué se hizo |
+|---|---|
+| `HANDOFF` decía que la `0068` «se puede editar todavía» | Corregido: la `0068` está comiteada y aplicada; **cualquier cambio de esquema o de función va en una migración nueva**, como la `0069` |
+| H10-01 esperaba **800 ms fijos** a que el motor se bloqueara | Ahora espera, con plazo de 10 s, a que `pg_blocking_pids` diga que la conexión del motor está **bloqueada por la de la edición**, y falla con su error si el motor termina antes. La limpieza suelta la edición, espera la consulta del motor y cierra las dos conexiones pase lo que pase. El estado final de **las dos** operaciones se sigue comprobando |
+
+#### Consecuencia
+
+Migración **`0069`**. **BR-J22** precisada (qué sorteos cuentan como pendientes). **I-138** e **I-139**,
+nuevas y resueltas en local. `ARCHITECTURE` §6 y §8.28, `DATA_MODEL` §6.g.10, `SECURITY` §4.24,
+`UX_COPY_GUIDELINES` (Anexos A y B), `TESTING` §4.12, `TEST_RESULTS`, `KNOWN_ISSUES`, `PHASE_STATUS` y
+`HANDOFF`. **Solo en local**: el proyecto real no tiene ni la `0067`, ni la `0068`, ni la `0069`, ni el
+código de estas pantallas.

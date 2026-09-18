@@ -483,6 +483,14 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Un premio que sí aplica a los próximos sorteos | **Vigente** | Activo, que es lo que dice una cuenta de persona (BR-E14), y aquí se leería como otra cosa |
 | Lo que pasa con un sorteo que ya se jugó cuando se cambia un premio | **Los próximos sorteos**; el que ya jugó **conserva las condiciones con las que se anunció** | Retroactivo, histórico, congelado |
 | La lista de cambios de un premio | **Historial** (del premio) | **Versiones**, que en esta aplicación es el código nuevo servido tras un despliegue |
+| La sección de los dos portales con los premios que ganaron los clientes | **Premios ganados** (D-208) | Premios entregados, premios pagados, ganadores, «Mis premios» |
+| La fecha de un premio en ese historial: la del sorteo, no la de un registro ni la de una entrega | **Fecha del sorteo** | Fecha del premio, fecha de registro, fecha de entrega |
+| El número de la boleta que participó en ese sorteo | **Jugó con** «Número diario 0046 · Cuatro cifras»; en la misma línea que «Jugó con», en minúscula | Acertó con, ganó con, «coincidió con este número» |
+| Cuántas personas distintas tienen premio en lo que se está viendo | **Clientes con premio**, con «Cada cliente cuenta una vez» debajo | Ganadores, premiados |
+| La suma de los importes que se conocen con certeza | **Total conocido en dinero**, con «No incluye lo que está pendiente de valorar» debajo | Total pagado, dinero entregado, desembolsado, total de premios |
+| Un premio cuyo valor completo todavía no se sabe | **Valor pendiente**; el recuento, **Con valor pendiente** | Sin valor, por definir, «$0» |
+| Un premio que el negocio reconoció sobre un sorteo que el sistema no podía premiar | **Reconocido por la organización** | Manual, declarado, importado, histórico |
+| Las dos fechas del filtro de ese historial | **Sorteos desde** y **Sorteos hasta** | «Desde» y «Hasta» a secas, que ahí no dicen de qué fecha se trata |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -1486,6 +1494,59 @@ Hasta el 2026-09-16 decía «Alternativas 1».
 escriba: «Las aclaraciones se pueden compartir con los vendedores y con sus clientes: escríbelas
 pensando en ellos.» Es la §5 de esta guía —explicar qué ocurrirá— aplicada a un campo de texto libre.
 
+**«Premios ganados» dice lo que se GANÓ, no lo que se entregó** (D-208, Etapa 2). La aplicación no
+registra entregas, desembolsos ni pagos de premios, así que ningún texto de esa sección dice
+«entregado», «pagado» ni «desembolsado», y nadie es «ganador», «ganadora» ni «premiada» (BR-L15). La
+cabecera lo avisa con una frase, porque es lo único que quien mira las cifras no puede deducir: «Los
+premios que ganaron tus clientes desde el 9 de agosto de 2026. La entrega de los premios no se
+registra aquí.». **La fecha sale de la base** (`prize_award_history_start`, BR-J22): si no se pudo
+leer, la frase se queda sin fecha y no inventa una. Hay una prueba unitaria que barre el módulo.
+
+**Lo cierto y lo pendiente se dicen por separado, y un bien nunca vale «$0»** (BR-J20). Cada premio
+enseña su valor con una de cuatro formas, y ninguna suma alternativas ni elige una:
+
+| Premio | Se lee |
+|---|---|
+| Único, en dinero | «$500.000» |
+| Dinero y algo en especie | «$2.000.000 en dinero» · «Valor pendiente: también incluye un premio en especie.» |
+| Solo en especie | «Valor pendiente» · «Es un premio en especie.» |
+| Alternativas a elegir | «Valor pendiente» · «Se elige una de las alternativas.», y las alternativas separadas por «o» |
+
+Arriba, el indicador se llama **«Total conocido en dinero»** y lleva debajo «No incluye lo que está
+pendiente de valorar»: es la suma de lo cierto, y el cuarto indicador —**«Con valor pendiente»**—
+cuenta cuántos premios faltan por valorar. Un premio único en dinero **no repite** su importe en la
+columna del premio: ya lo dice su valor, a un centímetro.
+
+**El aviso de cobertura dice lo que la consulta puede afirmar, y nada más** (BR-J22, `0069`). Cuántos
+sorteos ya jugados no tienen resultado confirmado, **entre** qué fechas caen —«entre el 1 y el 16 de
+septiembre de 2026», nunca «del … al …», que prometería que todos los de en medio están igual— y que
+**mientras tanto no se sabe si hubo premios en ellos**. No dice «cero premios», no presenta el resto
+como completo y no cuenta los sorteos cancelados ni los de rifas que no participan. Su cuenta es de
+**toda la organización**, así que con un filtro de rifa o de fechas añade «La cuenta es de todas las
+rifas, no solo de este filtro.»; si las fechas del filtro no tocan el tramo pendiente, el aviso se
+calla.
+
+**Cuatro situaciones que no se confunden.** Un fallo de lectura dice «No pudimos cargar los premios
+ganados» con «Suele ser algo pasajero. Vuelve a intentarlo en unos segundos.» y «Reintentar», y **no
+pinta ni un cero**; sin premios, «Todavía no hay premios registrados» (o «No hay premios con estos
+filtros»); lo pendiente de información, el aviso de cobertura; y lo pendiente de valorar, el cuarto
+indicador. «Este cliente todavía no tiene premios registrados» se dice **solo** cuando el cliente es el
+único filtro: con una rifa o unas fechas además, puede tenerlos fuera de ellas, y lo cierto es «No hay
+premios con estos filtros». Una página que no existe se explica con las cifras del conjunto —«Con estos filtros hay 38
+premios en 2 páginas.»— y los indicadores siguen siendo los del historial entero.
+
+**Lo que requiere verificación se dice con palabras y el premio se queda** (BR-J18). Un resultado en
+conflicto reutiliza la frase de siempre —«La fuente oficial publicó otro número. Requiere
+verificación.»—; un número de boleta que cambió después del sorteo dice «El número de esta boleta ya no
+es el que jugó en este sorteo. Requiere verificación.». Ninguno de los dos cambia el valor ni esconde
+la fila.
+
+**El personal lee «clientes» solo como recuento.** «Clientes con premio» es un número que calcula la
+base; en su portal no hay columna, nombre ni enlace de cliente, y un filtro de cliente en la dirección
+se descarta. El vendedor, en cambio, filtra por su cliente desde la ficha con **«Ver premios»**, cuyo
+nombre accesible **empieza por lo que se ve** —«Ver premios de Ana Torres»—, y el historial lo dice
+arriba: «Solo los premios de Ana Torres.», con «Ver todos los premios» al lado.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, las dos de un
@@ -1688,6 +1749,12 @@ castigo donde solo había una espera.
 | Lo que responde la base cuando la transición no se puede hacer | Los `raise` de las migraciones `0063` y `0064`: nombran la rifa, la lotería, la fecha y el premio, nunca un cliente |
 | El aviso de que cambiaron las fechas de una rifa activa | `src/features/notifications/text.ts`, con los demás avisos (`raffleDatesMessage`, BR-R12, D-206). Sin enlace. La fecha larga y el rango salen de `formatLongDateEs` y `formatLongDateRangeEs` (`lib/dates.ts`) |
 | La frase que lo anuncia antes de guardar, en la pantalla de editar una rifa | `src/features/raffles/date-change.ts` (`RAFFLE_DATE_CHANGE_NOTICE`), junto con la regla de cuándo se enseña (`raffleDateChangeAnnounced`). La pinta `RaffleForm`, que no escribe la suya |
+| Todos los textos de «Premios ganados»: la cabecera, los cuatro indicadores, los filtros de fecha, los estados vacíos, de error y de página inexistente, el aviso de cobertura, los rótulos y avisos de cada premio y los dos resúmenes de ficha | `src/features/prize-awards/copy.ts` (`PRIZE_AWARDS_COPY` y sus funciones), **todos juntos** (D-208, Etapa 2). Los pintan `PrizeAwardsView`, `PrizeAwardsList`, `PrizeAwardsSummary`, `ClientPrizeSummary` y `SellerPrizeSummary`, que no escriben ninguno |
+| La frase de un resultado en conflicto dentro de ese historial | **Reutiliza** `LOTTERY_DASHBOARD_COPY.conflict` (`features/lottery/dashboard.ts`): es la misma frase del recuadro de loterías, no una segunda |
+| Cómo se leen la recompensa de un premio y sus alternativas | `rewardOptionText` y `rewardOptionsText` de `features/raffle-prizes/copy.ts`, que el historial **reutiliza** |
+| «Sorteos desde» y «Sorteos hasta» | `PRIZE_AWARDS_COPY.filters`, que `PrizeAwardsView` pasa a `ReportFilters` en `dateLabels`. En los reportes la barra sigue diciendo «Desde» y «Hasta» |
+| «premio» y «premios» en la paginación | `LIST_ITEM_LABELS.prizes`, en `src/lib/constants.ts` (D-111) |
+| «entre el 9 y el 24 de agosto de 2026» | `formatLongDateBetweenEs` (`lib/dates.ts`), hermana de `formatLongDateRangeEs`: comparten el cálculo y cambian solo las palabras |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 

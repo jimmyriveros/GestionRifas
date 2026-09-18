@@ -4,9 +4,10 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.12
+- **Versión del documento:** 1.13
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-17 (§9.7: **premios configurables EN PRODUCCIÓN** —`0058`–`0066`
+- **Última actualización:** 2026-09-17 (§9.8: **Premios ganados** en los dos portales —D-208, Etapa 2,
+  migraciones `0067`–`0069`, **solo en local**—). Antes, ese mismo día (§9.7: **premios configurables EN PRODUCCIÓN** —`0058`–`0066`
   aplicadas, `da81663` desplegado y la rifa real «SORTEO CAMIONETA KIA 2027» convertida, con sus seis
   premios, hasta el 21/12/2026—). Antes, el 2026-09-16 (§9.7, correcciones de D-206 antes de producción: los sorteos
   ya jugados conservan el sistema de siempre y cambiar las fechas de una rifa activa avisa —`0064`—, **a
@@ -273,14 +274,16 @@ Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
 Panel de inventario · Rifas · Administradores · Vendedores · Boletas (tabla global sin cartera, búsqueda
 por número, detalle, creación individual, masiva y por archivo sin vender; selección, aprobación,
 anulación de las no vendidas, cambio de vendedor y eliminación controlada) · Reportes de recuentos con
-exportación CSV. **Sin «Clientes» ni «Pagos» desde el 2026-09-14** (D-198, BR-Q08).
+exportación CSV. **Sin «Clientes» ni «Pagos» desde el 2026-09-14** (D-198, BR-Q08). **Premios ganados**
+de la organización, sin un solo dato de cliente (§9.8, D-208, solo en local).
 
 ### 9.2 Portal Seller (`/seller/*`)
 Dashboard propio · Boletas propias (búsqueda parcial por número diario o semanal; filtros por estado y
 cliente; creación manual o por archivo cuando la rifa lo permite; selección y venta múltiple) ·
 Clientes propios (crear, editar, archivar, perfil con historial) · Asignación de boletas · Registro de
 abonos y pagos · Consulta de saldos e historial · Reportes propios con exportación CSV, sin el que
-compara vendedores (D-059, D-080 a D-085).
+compara vendedores (D-059, D-080 a D-085) · **Premios ganados** de sus clientes, con su resumen en la
+ficha de cada cliente (§9.8, D-208, solo en local).
 
 
 ### 9.3 Catálogo público (`/catalogo/<slug>`)
@@ -508,6 +511,23 @@ guarda** y se dice por qué.
 **Quién lo ve y quién lo cambia:** lo cambian el Dueño y el Administrador, por capacidad y no por
 rol; lo **leen** todos los miembros de la organización, porque son condiciones hechas para contarle a
 un cliente. Nada de esto toca la cartera del vendedor (D-198).
+
+### 9.8 Premios ganados — **Etapa 2 hecha, SOLO EN LOCAL** (D-208, BR-J17..BR-J23)
+
+El vendedor ve, en **«Premios ganados»** (`/seller/prizes`), los premios que ganaron **sus** clientes:
+fecha del sorteo, lotería y sorteo, número mayor, cliente, los dos números de la boleta con sus ceros, el
+número que jugó, el premio y su valor. Filtra por rifa —también cerradas— y por fechas del sorteo, y la
+ficha de cada cliente resume sus premios con un enlace al historial filtrado. El **Dueño y el
+Administrador** ven lo mismo de toda la organización (`/owner/prizes`), con el **vendedor** en lugar del
+cliente, un filtro por vendedor —también desactivado— y el resumen en la ficha de cada vendedor. **Ningún
+dato de un cliente llega al personal**: el recuento de clientes con premio es un número.
+
+**Son premios GANADOS**: la aplicación no registra entregas ni pagos de premios. Los cuatro indicadores
+—premios, clientes con premio, total conocido en dinero y premios con valor pendiente— los calcula la base
+sobre todo el filtro; unas alternativas a elegir o un premio en especie **no se valoran en cero** y quedan
+como valor pendiente. Lo que la plataforma no sabe —sorteos jugados sin resultado confirmado— se dice en
+un aviso y nunca como «cero premios». Nada de esto está en producción: promover `0067`–`0069` y desplegar
+son puertas aparte.
 
 ---
 

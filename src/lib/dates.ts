@@ -134,16 +134,36 @@ export function formatLongDateEs(value: string | Date): string {
  * cruza de año. Un solo día es «el 21 de diciembre de 2026».
  */
 export function formatLongDateRangeEs(from: string | Date, to: string | Date): string {
+  return longDateSpanEs(from, to, 'del', 'al')
+}
+
+/**
+ * Lo mismo, pero diciendo que unas fechas CAEN dentro del tramo, no que lo
+ * llenan: «entre el 9 y el 24 de agosto de 2026» (D-208). Es la forma de hablar
+ * de unos sorteos sueltos cuyo primero y último se conocen, sin prometer que
+ * todos los días de en medio estén en el mismo caso. Un solo día es «el 24 de
+ * agosto de 2026».
+ */
+export function formatLongDateBetweenEs(from: string | Date, to: string | Date): string {
+  return longDateSpanEs(from, to, 'entre el', 'y el')
+}
+
+function longDateSpanEs(
+  from: string | Date,
+  to: string | Date,
+  opening: string,
+  joiner: string,
+): string {
   const a = longDatePartsEs(from)
   const b = longDatePartsEs(to)
   if (a.year !== b.year) {
-    return `del ${a.day} de ${a.month} de ${a.year} al ${b.day} de ${b.month} de ${b.year}`
+    return `${opening} ${a.day} de ${a.month} de ${a.year} ${joiner} ${b.day} de ${b.month} de ${b.year}`
   }
   if (a.month !== b.month) {
-    return `del ${a.day} de ${a.month} al ${b.day} de ${b.month} de ${b.year}`
+    return `${opening} ${a.day} de ${a.month} ${joiner} ${b.day} de ${b.month} de ${b.year}`
   }
   if (a.day !== b.day) {
-    return `del ${a.day} al ${b.day} de ${b.month} de ${b.year}`
+    return `${opening} ${a.day} ${joiner} ${b.day} de ${b.month} de ${b.year}`
   }
   return `el ${b.day} de ${b.month} de ${b.year}`
 }

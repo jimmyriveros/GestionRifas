@@ -1,4 +1,5 @@
 import {
+  AwardIcon,
   BarChart3Icon,
   LayoutDashboardIcon,
   ShieldCheckIcon,
@@ -32,6 +33,10 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/owner/raffles', label: 'Rifas', icon: <TrophyIcon /> },
   { href: '/owner/tickets', label: 'Boletas', icon: <TicketIcon />, primary: true },
   { href: '/owner/sellers', label: 'Vendedores', icon: <UsersIcon /> },
+  // Los premios que ganaron los clientes de cada vendedor, sin un solo dato de
+  // cliente (D-208). No confundir con los premios de una rifa, que se
+  // configuran dentro de «Rifas».
+  { href: '/owner/prizes', label: 'Premios ganados', icon: <AwardIcon /> },
   { href: '/owner/reports', label: 'Reportes', icon: <BarChart3Icon /> },
   { href: '/owner/users', label: 'Administradores', icon: <ShieldCheckIcon /> },
 ]

@@ -326,3 +326,52 @@ describe('D-198 — ninguna puerta nueva a la cartera (invariantes estructurales
     expect(ruta).toMatch(/membership\.role === 'seller' \? 'seller' : 'staff'/)
   })
 })
+
+describe('D-208 — «Premios ganados» del personal, sin un solo dato de cliente (BR-J21)', () => {
+  it('el tipo del personal no declara cliente, y la base común tampoco', () => {
+    const consultas = leer('src/features/prize-awards/queries.ts')
+    for (const tipo of ['PrizeAwardBase', 'AdminPrizeAward']) {
+      const bloque = new RegExp(`export type ${tipo} = [^{]*\\{([\\s\\S]*?)\\n\\}`).exec(consultas)
+      expect(bloque, tipo).not.toBeNull()
+      expect(bloque![1], tipo).not.toMatch(/\bclient\w*/i)
+    }
+  })
+
+  it('la lectura del personal pide SOLO sus dos proyecciones y copia columna a columna', () => {
+    const consultas = leer('src/features/prize-awards/queries.ts')
+    const inicio = consultas.indexOf('export async function readAdminPrizeAwards(')
+    const fin = consultas.indexOf('export async function readAdminSellerPrizeTotals(')
+    expect(inicio).toBeGreaterThan(0)
+    expect(fin).toBeGreaterThan(inicio)
+    const cuerpo = consultas.slice(inicio, fin)
+    expect(cuerpo).toContain("rpc('admin_prize_awards'")
+    expect(cuerpo).toContain("rpc('admin_prize_award_totals'")
+    expect(cuerpo).not.toMatch(/seller_prize_award|\.from\(/)
+    // Ni un `...row`: lo que la base añadiera no llegaría solo a la pantalla.
+    expect(cuerpo).not.toMatch(/\.\.\.row\b/)
+    expect(cuerpo).not.toMatch(/client_(id|name)|clientId|clientName/)
+  })
+
+  it('las pantallas del personal no importan la lectura del vendedor ni la de clientes', () => {
+    const PROHIBIDO = [
+      /\breadSellerPrizeAwards\b/,
+      /\breadClientPrizeTotals\b/,
+      /seller_prize_award/,
+      /@\/features\/clients\//,
+    ]
+    for (const archivo of [
+      'src/app/(protected)/owner/prizes/page.tsx',
+      'src/app/(protected)/owner/sellers/[sellerId]/page.tsx',
+      'src/features/prize-awards/components/SellerPrizeSummary.tsx',
+    ]) {
+      const fuente = leer(archivo)
+      for (const patron of PROHIBIDO) expect(fuente, `${archivo}: ${patron}`).not.toMatch(patron)
+    }
+  })
+
+  it('el filtro de cliente no existe en el portal del personal', () => {
+    const filtros = leer('src/features/prize-awards/schemas.ts')
+    expect(filtros).toMatch(/clientId: audience === 'seller' \? parsed\.clientId : undefined/)
+    expect(filtros).toMatch(/sellerId: audience === 'staff' \? parsed\.sellerId : undefined/)
+  })
+})

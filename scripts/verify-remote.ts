@@ -528,6 +528,19 @@ const CHECKS: Check[] = [
             and position('is distinct from v_actor' in p.prosrc) = 0`,
     esperado: 1,
   },
+  {
+    // 0069 (D-208, Etapa 2, BR-J22): la cobertura del historial cuenta solo los
+    // sorteos que PUDIERON dar un premio —rifas activas o cerradas, sin sorteos
+    // cancelados ni suspendidos—. Con el cuerpo de la 0068, la pantalla diria
+    // que falta informacion de sorteos que no se jugaron. Falla contra el
+    // proyecto real hasta que la 0069 se aplique, igual que las de 0067 y 0068.
+    nombre: 'La cobertura del historial cuenta solo sorteos que pudieron dar premio (0069)',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'prize_award_coverage'
+            and position('ra.status in (''active'', ''closed'')' in p.prosrc) > 0
+            and position('not in (''cancelled'', ''suspended'')' in p.prosrc) > 0`,
+    esperado: 1,
+  },
   // 0066 (D-207, I-132): la lista blanca exacta de las funciones de premios.
   // Son las MISMAS comprobaciones que corre tests/db/prize-function-privileges.test.ts.
   ...PRIZE_FUNCTION_CHECKS,

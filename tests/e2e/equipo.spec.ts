@@ -151,7 +151,18 @@ test.describe('El portal administrativo ve la estructura comercial', () => {
     await page.goto(`/owner/sellers/${jefeId}`)
     // Desde D-198 la tarjeta es «Equipo»: la estructura y la regla, sin lo que gana.
     await expect(page.getByRole('heading', { name: 'Equipo', exact: true })).toBeVisible()
-    await expect(page.getByText(/Ganancia|ganados/)).toHaveCount(0)
+    // Lo que gana el vendedor no aparece en NINGUNA parte de la página.
+    await expect(page.getByText(/Ganancia/)).toHaveCount(0)
+    // «Premios ganados» (D-208) es OTRA cosa —lo que ganaron sus clientes, sin
+    // un dato de ellos—: la nombran el menú y su propia sección. Se aparta esa
+    // sección y el resto de la ficha sigue sin poder decir «ganados».
+    await expect(page.locator('[data-slot="seller-prize-summary"]')).toBeVisible()
+    const fichaSinPremios = await page.locator('main').evaluate((main) => {
+      const copia = main.cloneNode(true) as HTMLElement
+      copia.querySelector('[data-slot="seller-prize-summary"]')?.remove()
+      return copia.textContent ?? ''
+    })
+    expect(fichaSinPremios).not.toMatch(/ganados/)
     await expect(page.getByRole('link', { name: integranteNombre })).toBeVisible()
 
     // BR-G13: la ficha dice CON QUÉ REGLA se le paga a cada quien, para que el

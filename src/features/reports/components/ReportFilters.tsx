@@ -35,8 +35,22 @@ const METHODS: PaymentMethod[] = ['cash', 'transfer', 'other']
 
 type Option = { value: string; label: string }
 
-type ReportFiltersProps = {
-  report: ReportKey
+type FilterField = (typeof REPORT_FILTER_FIELDS)[ReportKey][number]
+
+/** Las claves de la URL que estos filtros escriben, y que «Limpiar filtros» quita. */
+const FILTER_KEYS = ['raffleId', 'sellerId', 'dateFrom', 'dateTo', 'method', 'status'] as const
+
+/**
+ * Qué campos se pintan: los de un reporte, o una lista explícita.
+ *
+ * La lista explícita existe para «Premios ganados» (D-208), que no es un
+ * reporte pero filtra igual —rifa, vendedor y fechas en la URL—. Reutilizar
+ * esta barra en vez de copiarla deja una sola forma de filtrar un historial.
+ */
+type FieldSource =
+  { report: ReportKey; fields?: never } | { report?: never; fields: readonly FilterField[] }
+
+type ReportFiltersProps = FieldSource & {
   raffles?: Option[]
   /** Ausente en el portal del vendedor: alli solo hay un vendedor posible. */
   sellers?: Option[]
@@ -54,15 +68,36 @@ type ReportFiltersProps = {
    * aparece —no hay nada que limpiar— y volver a entrar sigue mostrando hoy.
    */
   dateDefaults?: { from: string; to: string }
+  /**
+   * Los rótulos de las dos fechas, cuando «Desde» y «Hasta» a secas no dicen de
+   * qué fecha se trata. En «Premios ganados» son las del SORTEO, no las de la
+   * venta ni las de un registro (D-208).
+   */
+  dateLabels?: { from: string; to: string }
+  /**
+   * Otras claves de la URL que también son filtros aunque esta barra no las
+   * pinte —el cliente de «Premios ganados», que llega desde su ficha—: cuentan
+   * para ofrecer «Limpiar filtros» y ese botón también las quita.
+   */
+  extraKeys?: readonly string[]
 }
 
-export function ReportFilters({ report, raffles, sellers, dateDefaults }: ReportFiltersProps) {
+export function ReportFilters({
+  report,
+  fields: explicitFields,
+  raffles,
+  sellers,
+  dateDefaults,
+  dateLabels,
+  extraKeys = [],
+}: ReportFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
-  const fields = REPORT_FILTER_FIELDS[report]
+  const fields: readonly FilterField[] =
+    explicitFields ?? (report ? REPORT_FILTER_FIELDS[report] : [])
   const showRaffle = fields.includes('raffle') && raffles !== undefined
   const showSeller = fields.includes('seller') && sellers !== undefined
   const showDates = fields.includes('dates')
@@ -83,13 +118,15 @@ export function ReportFilters({ report, raffles, sellers, dateDefaults }: Report
     startTransition(() => router.push(query ? `${pathname}?${query}` : pathname))
   }
 
-  const activeKeys = ['raffleId', 'sellerId', 'dateFrom', 'dateTo', 'method', 'status'].filter(
-    (key) => searchParams.get(key),
-  )
+  const activeKeys = [...FILTER_KEYS, ...extraKeys].filter((key) => searchParams.get(key))
 
   return (
     <div className="space-y-3 rounded-lg border p-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* La columna del teléfono se DECLARA (D-125). Sin ella la rejilla crea
+          una implícita `auto`, que no baja del ancho mínimo de su contenido: el
+          nombre de una rifa elegida en el desplegable la estiraba y, a 320 px,
+          la pantalla se desplazaba de lado (D-208, Etapa 2). */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {showRaffle ? (
           <div className="space-y-1.5">
             <Label htmlFor="report-raffle" className="text-xs">
@@ -144,7 +181,7 @@ export function ReportFilters({ report, raffles, sellers, dateDefaults }: Report
           <>
             <div className="space-y-1.5">
               <Label htmlFor="report-date-from" className="text-xs">
-                Desde
+                {dateLabels?.from ?? 'Desde'}
               </Label>
               <Input
                 id="report-date-from"
@@ -157,7 +194,7 @@ export function ReportFilters({ report, raffles, sellers, dateDefaults }: Report
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="report-date-to" className="text-xs">
-                Hasta
+                {dateLabels?.to ?? 'Hasta'}
               </Label>
               <Input
                 id="report-date-to"
@@ -226,14 +263,7 @@ export function ReportFilters({ report, raffles, sellers, dateDefaults }: Report
           size="sm"
           disabled={isPending}
           onClick={() =>
-            apply({
-              raffleId: null,
-              sellerId: null,
-              dateFrom: null,
-              dateTo: null,
-              method: null,
-              status: null,
-            })
+            apply(Object.fromEntries([...FILTER_KEYS, ...extraKeys].map((key) => [key, null])))
           }
         >
           <XIcon className="size-4" aria-hidden />

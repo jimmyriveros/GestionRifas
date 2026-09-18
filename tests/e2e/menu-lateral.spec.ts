@@ -67,13 +67,15 @@ test.describe('Menú lateral en escritorio', () => {
     const lateral = page.locator('[data-tour="nav-sidebar"]')
     await esperarAncho(page, ABIERTA_MAX)
 
-    // Las seis entradas del portal administrativo, con su nombre a la vista.
+    // Las siete entradas del portal administrativo, con su nombre a la vista.
     // «Clientes» y «Pagos» salieron con D-198: la cartera es de cada vendedor.
+    // «Premios ganados» entró con D-208.
     for (const nombre of [
       'Panel',
       'Rifas',
       'Boletas',
       'Vendedores',
+      'Premios ganados',
       'Reportes',
       'Administradores',
     ]) {

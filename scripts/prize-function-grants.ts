@@ -159,7 +159,8 @@ export const PREFLIGHT_SERVICE_ROLE_FINDING = [
 ] as const
 
 // =============================================================================
-// El historial de premios ganados (D-208, migración `0067`)
+// El historial de premios ganados (D-208, migraciones `0067` y `0068`; la `0069`
+// solo redefine el cuerpo de `prize_award_coverage()` con los mismos privilegios)
 //
 // Va en una lista APARTE de las 62 de la entrega de premios: la prueba P1-01
 // comprueba que la lista de `0058`–`0065` es exactamente la de esas migraciones,
@@ -220,7 +221,7 @@ export const PRIZE_FUNCTION_GRANTS: ReadonlyArray<{ signature: string; expected:
   })),
 ]
 
-/** Las 14 funciones del historial de premios ganados (0067 y 0068) con su EXECUTE esperado. */
+/** Las 14 funciones del historial de premios ganados (0067 a 0069) con su EXECUTE esperado. */
 export const HISTORY_FUNCTION_GRANTS: ReadonlyArray<{
   signature: string
   expected: ExecuteMatrix

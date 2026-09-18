@@ -1,6 +1,6 @@
 # SEGURIDAD
 
-- **Versión:** 2.24 · **Estado:** implementado · **Actualizado:** 2026-09-17 (**§4.24**: el **historial de premios ganados** —`0067`, D-208, **solo en local**—: ninguna lectura recibe alcance, el personal no ve datos de cliente ni toca `clients`, el vendedor solo ve lo suyo **sin equipo**, la tabla nueva concede solo `SELECT` y su única puerta es de la service role, las 10 funciones están clasificadas con su matriz exacta (I-132), y los números de una boleta con coincidencias no cambian por ninguna vía (BR-I16). Antes, ese mismo día, **§4.23**: la `0066` —D-207,
+- **Versión:** 2.25 · **Estado:** implementado · **Actualizado:** 2026-09-17 (**§4.24**, Etapa 2 del historial —D-208, `0069`, **solo en local**—: las pantallas leen con la sesión por las cuatro funciones, el personal no recibe ni envía un dato de cliente y la `0069` no cambia ningún privilegio). Antes, ese mismo día (**§4.24**: el **historial de premios ganados** —`0067`, D-208, **solo en local**—: ninguna lectura recibe alcance, el personal no ve datos de cliente ni toca `clients`, el vendedor solo ve lo suyo **sin equipo**, la tabla nueva concede solo `SELECT` y su única puerta es de la service role, las 10 funciones están clasificadas con su matriz exacta (I-132), y los números de una boleta con coincidencias no cambian por ninguna vía (BR-I16). Antes, ese mismo día, **§4.23**: la `0066` —D-207,
   I-132— fija quién ejecuta cada una de las 62 funciones de premios configurables: el proyecto alojado concede
   EXECUTE a `service_role` en toda función nueva y la pila local no, y el preflight de la Puerta 1 lo vio antes
   de escribir nada. Solo dos entradas de la service role —`transition_raffle_prize_mode` y
@@ -1328,10 +1328,11 @@ ellas `SECURITY DEFINER`); los privilegios de **tabla** de la service role sobre
 (`SELECT` e `INSERT`, y `UPDATE` en `raffle_prizes`), explícitos desde `0058`/`0059` e iguales en los
 dos entornos; y la secuencia de I-130.
 
-### 4.24 El historial de premios ganados (`0067` y `0068`; BR-J17..BR-J23, BR-I16; D-208)
+### 4.24 El historial de premios ganados (`0067`–`0069`; BR-J17..BR-J23, BR-I16; D-208)
 
-**Solo en local**: el proyecto real no tiene ninguna de las dos, y `verify:remote` lo dice —una
-comprobación en rojo, a propósito, hasta que se promuevan—.
+**Solo en local**: el proyecto real no tiene ninguna de las tres, y `verify:remote` lo dice —dos
+comprobaciones en rojo, a propósito, hasta que se promuevan: la matriz de las funciones de `0067`/`0068`
+y el cuerpo de la cobertura de `0069`—.
 
 **Ninguna lectura recibe organización, vendedor ni actor.** El alcance sale de la sesión, como en D-198
 y D-199: el vendedor, de `current_profile_id()` y `current_org_ids()`; el personal, de
@@ -1359,6 +1360,18 @@ La corrección mínima es un **disparador de restricción diferido** sobre `lott
 exige, al COMMIT, que `matched_number` sea el número de la boleta en `match_field`. **El motor no se
 tocó**: la defensa vive en su tabla, y en esa carrera el motor falla sin escribir nada, como ya hace
 ante un conflicto de configuración (D-203).
+
+**Las pantallas (Etapa 2).** La interfaz no añade ninguna puerta: lee con la **sesión** —nunca con la
+clave de servicio— por las cuatro funciones y `prize_award_coverage()`, y no toca ninguna política.
+
+| Frontera | Cómo se cierra en la interfaz |
+|---|---|
+| El personal no recibe datos de cliente | `readAdminPrizeAwards` llama **solo** a `admin_prize_awards` y `admin_prize_award_totals`; `AdminPrizeAward` no declara cliente y el mapeo copia columna a columna, sin esparcir la fila. Una prueba estructural (`admin-privacy.test.ts`) lo vigila, y la E2E busca nombres, alias, teléfonos, correos, notas e identificadores de clientes en el HTML, la carga RSC y cada respuesta de red del Dueño y del Administrador: cero |
+| El personal no envía un identificador de cliente | `parsePrizeAwardFilters(…, 'staff')` descarta el `clientId` de la dirección antes de consultar; `/owner/prizes?clientId=…` responde lo mismo que sin él |
+| El vendedor no enumera clientes ajenos | El nombre del cliente del filtro se lee con la RLS del vendedor (`getClientName`); uno ajeno o inexistente responde **«no encontrada»**, sin distinguirlos (T15) |
+| Un rol equivocado no ve la pantalla | Cada página exige su rol además de su layout (`requireRole(['seller'])`, `requireStaff()`); aun sin eso, la base devuelve cero filas: `seller_prize_awards` exige vendedor activo y `admin_prize_awards`, personal |
+| Quien dejó de vender y hoy es Administrador | Deja de ver su historial por el portal del vendedor (`/denied`) y ve sus premios por el del personal **sin cliente**; su nombre no se enlaza a una ficha de vendedor que ya no existe |
+| La `0069` | `create or replace` del cuerpo de `prize_award_coverage()` con la misma firma, el mismo tipo y los **mismos privilegios**, repetidos: `authenticated` sí; `public`, `anon` y `service_role`, no. `verify:remote` comprueba el cuerpo |
 
 ## 5. Protección de Server Actions y Route Handlers
 

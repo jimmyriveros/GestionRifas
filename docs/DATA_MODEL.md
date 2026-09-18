@@ -1,6 +1,8 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.25 · **Estado:** implementado · **Actualizado:** 2026-09-17
+- **Versión:** 2.26 · **Estado:** implementado · **Actualizado:** 2026-09-17 (§6.g.10: la `0069` —D-208,
+  Etapa 2, **solo en local**— hace que `prize_award_coverage()` cuente solo los sorteos que pudieron dar un
+  premio, I-138)
 - **Nota de cierre (2026-09-17):** el esquema ejecutable del **proyecto real** son ahora `0001`–`0066` —eso
   corrige la última frase de la nota siguiente, escrita antes de la puerta 1—, el código va desplegado en
   `da81663` y la rifa «SORTEO CAMIONETA KIA 2027» es **configurable** desde las 17:40:12.566 UTC: seis
@@ -1923,9 +1925,10 @@ Entrega 3, y la prueban `tests/db` y `tests/unit`.
 > cerrojo de configuración de **todas** las rifas del sorteo antes de decidir, y se niega a completar un
 > resultado con fotografías de una rifa guardadas con el otro sistema.
 
-### 6.g.10 Historial de premios ganados (migraciones `0067` y `0068`; D-208, BR-J17..BR-J23)
+### 6.g.10 Historial de premios ganados (migraciones `0067`, `0068` y `0069`; D-208, BR-J17..BR-J23)
 
-**Solo en local**: el proyecto real no tiene ninguna de las dos.
+**Solo en local**: el proyecto real no tiene ninguna de las tres. La `0069` (Etapa 2) solo redefine el
+cuerpo de `prize_award_coverage()`; ninguna tabla, columna ni privilegio cambia.
 
 `declared_prize_awards` es la **única tabla nueva**, y es aditiva: el premio que reconoce el **negocio**
 sobre una coincidencia que el motor no puede premiar. Cuelga de una fotografía que ya existe y **no
@@ -1965,7 +1968,7 @@ nada más. El personal **no lee la tabla**: va por `admin_prize_awards`. Es el p
 | `lottery_ticket_matches_number_check()` | **La defensa de la fotografía** (`0068`, I-134): disparador de restricción **diferido** sobre `lottery_ticket_matches` que exige, al COMMIT, que `matched_number` sea el número de la boleta en `match_field`. Cierra la carrera con una edición de números **sin tocar el motor** | Interna, **nadie** |
 | `current_seller_org_ids()` | Las organizaciones donde quien pregunta es vendedor **activo**. La forma de conjunto de `current_staff_org_ids()`; la usan las dos lecturas del vendedor y las **políticas** de `lottery_ticket_matches` y `declared_prize_awards` (I-137) | `authenticated` |
 | `prize_award_history_start()` | El inicio operativo, **en la base**: `date 2026-08-09` (BR-J22). Suelo de la lectura, no un filtro | `authenticated` |
-| `prize_award_coverage()` | Qué tramo está **pendiente de información** —sorteos jugados sin resultado confirmado desde el inicio operativo— y qué tramo está cubierto. El alcance sale de la sesión | `authenticated` |
+| `prize_award_coverage()` | Qué tramo está **pendiente de información** —sorteos jugados sin resultado confirmado desde el inicio operativo— y qué tramo está cubierto. El alcance sale de la sesión y es la **organización**, no un filtro. **Desde la `0069`** cuenta solo los sorteos que **pudieron** dar un premio: los de rifas `active` o `closed` —las que mira el motor— y sin los `cancelled` ni `suspended`, que no se jugaron (I-138). `covered_from`/`covered_to` son el primer y el último sorteo con resultado: **no** demuestran continuidad entre ambos, y la pantalla no los usa | `authenticated` |
 
 **Los cuatro indicadores** se calculan en PostgreSQL, en pesos enteros, sobre **todo el filtro**:
 cantidad de premios, **clientes distintos**, **dinero cierto** —solo de una recompensa de «Premio

@@ -227,15 +227,22 @@ async function boletas(raffleId: string, filas: BoletaInput[], creada: string): 
   return ids
 }
 
-/** Solo la programación oficial, con sus dos horas conocidas. */
-async function programacion(loteria: Loteria, fecha: string): Promise<string> {
+/**
+ * Solo la programación oficial, con sus dos horas conocidas. El estado es
+ * `scheduled` salvo que la prueba necesite un sorteo cancelado o suspendido.
+ */
+async function programacion(
+  loteria: Loteria,
+  fecha: string,
+  estado: 'scheduled' | 'cancelled' | 'suspended' = 'scheduled',
+): Promise<string> {
   secuencia += 1
   const { rows } = await db.query<{ id: string }>(
     `insert into lottery_draw_schedules (lottery_code, draw_number, reference_date,
                                          original_scheduled_at, official_scheduled_at, schedule_status)
-     values ($1, $2, $3, $4, $4, 'scheduled')
+     values ($1, $2, $3, $4, $4, $5)
      returning id`,
-    [loteria, `E1H-${stamp}-${secuencia}`, fecha, `${fecha}T22:30:00-05:00`],
+    [loteria, `E1H-${stamp}-${secuencia}`, fecha, `${fecha}T22:30:00-05:00`, estado],
   )
   return rows[0]!.id
 }
@@ -1305,12 +1312,13 @@ describe('H7 — privilegios y efectos laterales', () => {
     for (const { firma, ...real } of rows) expect(real, firma).toEqual(esperado[firma])
   })
 
-  it('H7-02: toda función que crean la 0067 y la 0068 está en la lista, y ninguna más', async () => {
+  it('H7-02: toda función que crean la 0067, la 0068 y la 0069 está en la lista, y ninguna más', async () => {
     const { readFile } = await import('node:fs/promises')
     const nombres = new Set<string>()
     for (const archivo of [
       'supabase/migrations/0067_prize_award_history.sql',
       'supabase/migrations/0068_prize_award_history_fixes.sql',
+      'supabase/migrations/0069_prize_award_coverage_participating.sql',
     ]) {
       const contenido = await readFile(archivo, 'utf8')
       for (const m of contenido
@@ -1844,6 +1852,45 @@ describe('H9 — el rol, no solo el perfil (`0068`, I-137)', () => {
   })
 })
 
+/**
+ * Espera a que la conexión `pid` esté BLOQUEADA por la conexión `bloqueador`,
+ * según `pg_blocking_pids`: es la comprobación de que la carrera llegó
+ * exactamente al punto que la prueba necesita, no una pausa a ojo.
+ *
+ * Tiene PLAZO. Si la conexión termina antes de bloquearse —el motor falló por
+ * otra razón—, se dice con su error en vez de esperar a que venza.
+ */
+async function esperarBloqueo(
+  observador: PgClient,
+  pid: number,
+  bloqueador: number,
+  terminado: () => Error | 'ok' | null,
+  plazoMs = 10_000,
+): Promise<void> {
+  const limite = Date.now() + plazoMs
+  for (;;) {
+    const { rows } = await observador.query<{ bloqueado: boolean }>(
+      `select $2::int = any (pg_blocking_pids($1::int)) as bloqueado`,
+      [pid, bloqueador],
+    )
+    if (rows[0]?.bloqueado) return
+
+    const fin = terminado()
+    if (fin !== null) {
+      throw new Error(
+        `La conexión ${pid} terminó sin llegar a esperar a la ${bloqueador}: ${
+          fin === 'ok' ? 'respondió sin bloquearse' : fin.message
+        }`,
+      )
+    }
+    if (Date.now() > limite) {
+      throw new Error(`La conexión ${pid} no quedó esperando a la ${bloqueador} en ${plazoMs} ms`)
+    }
+    // Un sondeo corto, no una espera: la condición es el bloqueo, no el reloj.
+    await new Promise((r) => setTimeout(r, 20))
+  }
+}
+
 describe('H10 — la carrera de los números, determinista (`0068`, I-134)', () => {
   it('H10-01: con la edición confirmada primero, el motor NO deja una fotografía incoherente', async () => {
     const [ticket] = await boletas(
@@ -1858,36 +1905,63 @@ describe('H10 — la carrera de los números, determinista (`0068`, I-134)', () 
     await edicion.connect()
     await motorLento.connect()
     let errorMotor: Error | null = null
+    let edicionAbierta = false
+    let motorAbierto = false
+    // El estado del motor mientras la prueba espera su bloqueo: `null` sigue
+    // en marcha; `ok` o un error, ya terminó.
+    let finMotor: Error | 'ok' | null = null
+    let enMarcha: Promise<unknown> | null = null
     try {
+      const [{ rows: pidEdicion }, { rows: pidMotor }] = await Promise.all([
+        edicion.query<{ pid: number }>('select pg_backend_pid() as pid'),
+        motorLento.query<{ pid: number }>('select pg_backend_pid() as pid'),
+      ])
+
       // T1 cambia el número y NO confirma: el disparador inmediato pasa, porque
       // todavía no hay fotografía.
       await edicion.query('begin')
+      edicionAbierta = true
       await edicion.query(`update tickets set daily_number = '8642' where id = $1`, [ticket])
 
       // T2 arranca el motor, que lee el número VIEJO y se queda esperando por
       // la clave ajena. No se espera su promesa todavía.
       await motorLento.query('begin')
-      const enMarcha = motorLento
-        .query('select match_lottery_result($1) as r', [resultId])
-        .catch((error: Error) => {
+      motorAbierto = true
+      enMarcha = motorLento.query('select match_lottery_result($1) as r', [resultId]).then(
+        () => {
+          finMotor = 'ok'
+        },
+        (error: Error) => {
+          finMotor = error
           errorMotor = error
-          return null
-        })
-      await new Promise((r) => setTimeout(r, 800))
+        },
+      )
+
+      // Se sigue SOLO cuando T2 está bloqueada por T1: es el orden que la
+      // carrera necesita, comprobado, no supuesto.
+      await esperarBloqueo(db, pidMotor[0]!.pid, pidEdicion[0]!.pid, () => finMotor)
 
       // T1 confirma. La boleta ya tiene el número nuevo.
       await edicion.query('commit')
+      edicionAbierta = false
       await enMarcha
 
       // Y T2 no puede confirmar: al COMMIT, el número fotografiado ya no es el
       // de la boleta.
       if (!errorMotor) {
+        // Un COMMIT que falla también cierra la transacción.
         await motorLento.query('commit').catch((error: Error) => {
           errorMotor = error
         })
+        motorAbierto = false
       }
     } finally {
-      await motorLento.query('rollback').catch(() => {})
+      // LIMPIEZA GARANTIZADA, en este orden: soltar la edición desbloquea al
+      // motor; esperar su consulta evita cerrar una conexión a mitad; después
+      // se deshace lo que el motor tuviera abierto y se cierran las dos.
+      if (edicionAbierta) await edicion.query('rollback').catch(() => {})
+      if (enMarcha) await enMarcha
+      if (motorAbierto) await motorLento.query('rollback').catch(() => {})
       await edicion.end()
       await motorLento.end()
     }
@@ -2072,5 +2146,109 @@ describe('H11 — el contrato de lectura de la Etapa 2 (`0068`)', () => {
     // «pendiente de información», no «cero premios».
     expect(Number(cobertura.pending_draws)).toBeGreaterThan(0)
     expect(cobertura.pending_from).toBeTruthy()
+  })
+})
+
+// =============================================================================
+describe('H12 — la cobertura cuenta solo lo que pudo dar un premio (`0069`)', () => {
+  // UNA SEMANA DEL TRAMO ENTRE EL INICIO OPERATIVO Y LAS DEMÁS VENTANAS. El
+  // 10/08/2026 es lunes y la semana ya se jugó en cualquier corrida posterior;
+  // la rifa del seed empieza siete días antes de HOY y la histórica de esta
+  // suite, dos lunes antes, así que ninguna de las dos la cubre. La prueba lo
+  // comprueba en vez de suponerlo.
+  const SEMANA = {
+    lunes: '2026-08-10',
+    martes: '2026-08-11',
+    miercoles: '2026-08-12',
+    jueves: '2026-08-13',
+    viernes: '2026-08-14',
+    sabado: '2026-08-15',
+  } as const
+
+  async function rifaConEstado(
+    nombre: string,
+    desde: string,
+    hasta: string,
+    estado: 'draft' | 'active' | 'closed' | 'cancelled',
+  ): Promise<string> {
+    const { rows } = await db.query<{ id: string }>(
+      `insert into raffles (organization_id, name, ticket_price, start_date, end_date,
+                            created_by, prize_mode, status)
+       values ($1, $2, $3, $4, $5, $6, 'legacy', $7)
+       returning id`,
+      [
+        ctx.demoOrg.id,
+        `${PREFIJO} cobertura ${nombre} ${stamp}`,
+        PRECIO,
+        desde,
+        hasta,
+        ctx.ids.owner,
+        estado,
+      ],
+    )
+    return rows[0]!.id
+  }
+
+  async function pendientes(): Promise<number> {
+    const { data, error } = await seller1.rpc('prize_award_coverage')
+    if (error) throw new Error(error.message)
+    return Number((data as unknown as Array<{ pending_draws: number }>)[0]!.pending_draws)
+  }
+
+  it('H12-01: sorteos cancelados o suspendidos, y rifas que no participan, no son información pendiente', async () => {
+    // Precondición: ninguna rifa de la organización que PARTICIPE —activa o
+    // cerrada— cubre ya esa semana. Si alguna la cubriera, la prueba no podría
+    // distinguir un recuento de otro y lo dice.
+    const { rows: ajenas } = await db.query<{ name: string }>(
+      `select name from raffles
+        where organization_id = $1 and status in ('active', 'closed')
+          and start_date <= $3 and end_date >= $2`,
+      [ctx.demoOrg.id, SEMANA.lunes, SEMANA.sabado],
+    )
+    expect(
+      ajenas.map((r) => r.name),
+      'otra rifa cubre la semana de la prueba',
+    ).toEqual([])
+
+    const antes = await pendientes()
+
+    // Una rifa ACTIVA de lunes a miércoles: el lunes se jugó y no tiene
+    // resultado —eso SÍ es pendiente—; el martes se canceló y el miércoles se
+    // suspendió: ninguno de los dos se jugó, así que no pudo dar ningún premio.
+    await rifaConEstado('activa', SEMANA.lunes, SEMANA.miercoles, 'active')
+    await programacion('cundinamarca', SEMANA.lunes)
+    await programacion('cruz_roja', SEMANA.martes, 'cancelled')
+    await programacion('meta', SEMANA.miercoles, 'suspended')
+
+    // El jueves solo lo cubre una rifa en BORRADOR, y el viernes una ANULADA: el
+    // motor no mira ninguna de las dos (0036, 0061), así que sus sorteos no
+    // pueden dar un premio a nadie.
+    await rifaConEstado('borrador', SEMANA.jueves, SEMANA.jueves, 'draft')
+    await programacion('bogota', SEMANA.jueves)
+    await rifaConEstado('anulada', SEMANA.viernes, SEMANA.viernes, 'cancelled')
+    await programacion('medellin', SEMANA.viernes)
+
+    // El sábado lo cubre una rifa CERRADA: participó mientras estaba activa, y
+    // su sorteo sin resultado SÍ es pendiente.
+    await rifaConEstado('cerrada', SEMANA.sabado, SEMANA.sabado, 'closed')
+    await programacion('boyaca', SEMANA.sabado)
+
+    // Seis sorteos nuevos y sin resultado; pendientes de verdad, dos.
+    expect(await pendientes()).toBe(antes + 2)
+  })
+
+  it('H12-02: un sorteo jugado con resultado confirmado deja de estar pendiente', async () => {
+    const antes = await pendientes()
+    const { rows } = await db.query<{ id: string }>(
+      `select id from lottery_draw_schedules
+        where lottery_code = 'cundinamarca' and reference_date = $1`,
+      [SEMANA.lunes],
+    )
+    await db.query(
+      `insert into lottery_results (schedule_id, winning_number, validation_status, source_kind, confirmed_at)
+       values ($1, '0101', 'confirmed', 'official_page', now())`,
+      [rows[0]!.id],
+    )
+    expect(await pendientes()).toBe(antes - 1)
   })
 })

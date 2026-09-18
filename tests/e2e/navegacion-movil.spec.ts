@@ -174,7 +174,13 @@ test.describe('Reportes en el teléfono', () => {
     await loginAs(page, ACCOUNTS.owner)
 
     await page.getByRole('button', { name: /Menú de usuario/ }).tap()
-    for (const nombre of ['Rifas', 'Vendedores', 'Reportes', 'Administradores']) {
+    for (const nombre of [
+      'Rifas',
+      'Vendedores',
+      'Premios ganados',
+      'Reportes',
+      'Administradores',
+    ]) {
       await expect(page.getByRole('menuitem', { name: nombre })).toBeVisible()
     }
     // Y la cartera tampoco se cuela por aquí (D-198).

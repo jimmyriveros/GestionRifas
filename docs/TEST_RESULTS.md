@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (corrección de la Etapa 1 del historial de premios, D-208, `0068`, solo en local, 2026-09-17)** | **1.381 ✅ en 76 archivos** (sin cambio) | **1.329 ✅ en 53 archivos (+24; migración `0068`)**: la suite del historial pasa de 35 a **59** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: `0067` y `0068` no están promovidas | ✅ **Siete hallazgos reproducidos y corregidos**, incluida la carrera de **I-134**, que no estaba cerrada. **I-137 nueva** y anterior a este encargo. Dos errores de método corregidos: medir RLS como `postgres` no mide nada, y una serialización que solo retrasa no es una garantía |
+| **Post-9 vigente (Etapa 2 del historial de premios ganados: las pantallas, D-208, `0069`, solo en local, 2026-09-17)** | **1.418 ✅ en 78 archivos (+37)** | **1.331 ✅ en 53 archivos (+2; migración `0069`)**: la suite del historial pasa de 59 a **61** | Completa **764/765** en 42,6 min: el fallo era `equipo.spec.ts:89`, una prueba existente que buscaba «ganados» en toda la página y encontró el menú y la sección nueva; corregida sin aflojarla, **1/1**, y el archivo **14/14**. Las **17** nuevas, a la primera | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe pruebas contra producción | ✅ **Las cuatro superficies, en local**, y el personal sin un solo dato de cliente. **I-138** —la cobertura contaba sorteos que no podían dar premio— reproducida con la `0068` y corregida con la `0069`; **I-139** —9 px de desplazamiento lateral a 320 px en la barra de filtros compartida— corregida. **Nada en producción** |
+| Post-9 anterior (corrección de la Etapa 1 del historial de premios, D-208, `0068`, solo en local, 2026-09-17) | **1.381 ✅ en 76 archivos** (sin cambio) | **1.329 ✅ en 53 archivos (+24; migración `0068`)**: la suite del historial pasa de 35 a **59** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: `0067` y `0068` no están promovidas | ✅ **Siete hallazgos reproducidos y corregidos**, incluida la carrera de **I-134**, que no estaba cerrada. **I-137 nueva** y anterior a este encargo. Dos errores de método corregidos: medir RLS como `postgres` no mide nada, y una serialización que solo retrasa no es una garantía |
 | Post-9 anterior (Etapa 1 del historial de premios ganados, D-208, `0067`, solo en local, 2026-09-17) | **1.381 ✅ en 76 archivos (+6)** | **1.305 ✅ en 53 archivos (+35; migración `0067`)** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: la `0067` no está promovida | ✅ **En local**: tabla, 4 lecturas, cargador y cerrojo de números. Los **dos** premios reconocidos ensayados de punta a punta: **$1.000.000**, idempotente. I-134 e I-135 resueltas en local; I-136 nueva. **Nada en producción** |
 | Post-9 anterior (Etapa 0 del historial de premios ganados, D-208 propuesta, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio: la etapa no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ `verify:remote` **41/41** | 📋 **Diagnóstico**: 5 sondas de solo lectura en el proyecto real, validadas antes en local. Cobertura real: **2** coincidencias, **0** premios registrados, inicio operativo **2026-08-09**. Abre **I-133**, **I-134** e **I-135**. **Nada escrito en producción** |
 | Post-9 anterior (premios configurables, Entrega 5 COMPLETA EN PRODUCCIÓN: puertas 1, 2 y 3, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio: el cierre no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ | 🚀 **En producción**: `0058`–`0066` aplicadas, `da81663` desplegado, la rifa real convertida y `verify:remote` **41/41** |
@@ -72,6 +73,86 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+## Etapa 2 del historial de premios ganados: las pantallas (D-208, `0069`) — 2026-09-17
+
+**Solo en local.** Ni una escritura en producción, ni una prueba ni un fixture contra el proyecto real
+(`verify:remote` **no se corrió** en esta etapa por esa razón). Rama `feature/premios-configurables`
+sobre `65c52bf`.
+
+### Línea base, antes de tocar nada
+
+| Verificación | Resultado |
+|---|---|
+| `npx supabase start` | ✅ ya en marcha (`supabase_vector` reiniciándose: es el contenedor de registros, no afecta) |
+| `npm run db:reset` + `npm run seed:local` | ✅ **68** migraciones y el seed de siempre |
+| `npm run test:db` | ✅ **1.329/1.329** en 53 archivos |
+| `npm run verify` | ✅ **exit 0**; unitarias **1.381/1.381** en 76 archivos; lint 0 errores y las 2 advertencias de siempre |
+
+### El defecto de la cobertura, reproducido antes de corregirlo (I-138)
+
+| Paso | Resultado |
+|---|---|
+| H12-01 escrita contra la `0068` | ❌ **esperado 8, recibido 12**: seis sorteos nuevos sin resultado —activa, cancelado, suspendido, borrador, anulada y cerrada— subieron el recuento en **6**; pendientes de verdad, **2** |
+| `0069` aplicada con `supabase migration up --local` | ✅ |
+| La suite del historial | ✅ **61/61** (H12-01 y H12-02 incluidas) |
+| La comprobación nueva de `verify:remote`, **ejecutada contra la base LOCAL** | ✅ 1 fila; privilegios de `prize_award_coverage()`: `authenticated` sí, `anon` y `service_role` no |
+
+### H10-01 sin espera fija
+
+Pasó en las cuatro corridas de la suite de esta etapa. La prueba sigue **solo** cuando `pg_blocking_pids`
+dice que la conexión del motor está bloqueada por la de la edición; la edición se confirma y el motor
+falla al confirmar con «Los números de la boleta cambiaron…», y el estado final sigue siendo boleta con
+`8642` y **cero** fotografías.
+
+### Revisión visual (Playwright contra `dev:local`, capturas en `build/premios-historial/capturas/`)
+
+La sesión se inició **por código** con las cuentas del seed, como la suite E2E: no se escribió ninguna
+contraseña a mano en un navegador.
+
+| Hallazgo | Causa | Corrección |
+|---|---|---|
+| A 1.440 px la tabla **no cabía**: la columna «Valor» quedaba fuera y un nombre largo se montaba sobre «Boleta» | La celda base de la tabla lleva `whitespace-nowrap` y las celdas del historial tenían mínimos anchos | Cada celda vuelve a `whitespace-normal`, anchos más cortos, y la tabla solo desde `xl` (tarjetas por debajo). Después: las seis columnas a la vista a 1.440 px |
+| A 320 px la pantalla se desplazaba **9 px** de lado (**I-139**) | La rejilla de `ReportFilters` no declaraba su columna del teléfono (D-125): el nombre de la rifa elegida la estiraba a 296 px | `grid-cols-[minmax(0,1fr)]`. Una sonda que lista los elementos que pasan del borde queda **vacía** en los dos portales |
+| «Jugó con Número diario 8008» en la tabla | La frase se escribía con mayúscula a media línea | Variante en minúscula para la tabla (`inSentence`) |
+| En la tarjeta, el valor iba antes que lo que el premio entrega; en el resumen del cliente y en «Jugó con», el «·» abría la línea siguiente | Orden de lectura y separador partible | Premio → lo que entrega → valor; el separador lleva un espacio de no separación **escrito como escape** (un primer intento dejó el carácter invisible en el código y se corrigió) |
+
+Comprobado a la vista, en escritorio y a 412 y 320 px: el aviso de cobertura, los cuatro indicadores
+(38 · 5 · $20.000.000 · 3 en la rifa del motor, **iguales en la página 2**), alternativas, dinero y
+especie, solo especie, tres cifras, ceros a la izquierda, el conflicto y el número cambiado con su
+importe, los dos reconocidos sin cifras y con **$1.000.000**, la ficha del cliente y su historial
+filtrado, y el portal del personal con «Vendedor», sin clientes, el vendedor desactivado y su ficha.
+
+### Las cifras del escenario, contrastadas con la base antes de escribir las pruebas
+
+Con sesiones reales: vendedor 1 en la rifa del motor **38 / 5 / $20.000.000 / 3**; en la histórica
+**2 / 2 / $1.000.000 / 0**; sin filtro **40 / 7 / $21.000.000 / 3**; el personal en la del motor
+**40 / 7 / $21.000.000 / 3** y sin filtro **42 / 9 / $22.000.000 / 3**. Las cinco coinciden con lo
+calculado a mano en `ESPERADO`.
+
+### Pruebas nuevas
+
+| Suite | Resultado |
+|---|---|
+| `tests/unit/prize-awards-history.test.ts` | ✅ **22/22** |
+| `tests/unit/prize-awards-view.test.tsx` | ✅ **9/9**; entre ellas el **error de lectura**, que el navegador no puede provocar. **Un error propio encontrado al releer el código:** con el filtro de un cliente **y** otro de rifa o fechas sin resultados, el estado vacío decía «Este cliente todavía no tiene premios registrados», falso si los tiene fuera de ese filtro. Corregido —esa frase solo con el cliente como único filtro— y cubierto con P2V-09 |
+| `tests/unit/admin-privacy.test.ts` | ✅ **+4** invariantes del personal. **Un error propio**: una expresión regular dentro de un `RegExp` de plantilla perdió sus barras al escribirse con un heredoc de la terminal y no encontraba el tipo; corregida |
+| `tests/unit/dates.test.ts` | ✅ **+2** (`formatLongDateBetweenEs`) |
+| `tests/e2e/premios-ganados.spec.ts` y `premios-ganados-movil.spec.ts` | ✅ **17/17 a la primera** (13 de escritorio y 4 del teléfono). Tras la corrida, **cero restos**: ni rifas, ni sorteos, ni clientes, ni cuentas, ni fotografías huérfanas |
+
+### Verificación final, sobre el código definitivo
+
+| Verificación | Resultado |
+|---|---|
+| `npm run test:db` | ✅ **1.331/1.331** en 53 archivos (**+2**: H12-01 y H12-02); la suite del historial, **61/61**. La base no volvió a cambiar después |
+| `npm run db:reset` + `npm run seed:local` | ✅ **69** migraciones desde cero y el seed, antes de la E2E y otra vez al terminarla, para dejar la base local como la encuentra la siguiente sesión |
+| E2E completa (`npx playwright test`) | ❌ **764/765** en 42,6 min. **El fallo era de una prueba existente, no de la aplicación**: `equipo.spec.ts:89` comprueba que la ficha de un vendedor en el portal del personal no habla de lo que gana (D-198), y buscaba «Ganancia» **o «ganados»** en **toda la página**, así que encontró el menú y la sección nueva «Premios ganados», que nombran otra cosa |
+| La corrección de esa prueba | **Un error propio al corregirla.** La primera versión apartaba la sección y buscaba las dos palabras en el resto de `main`: pasaba (el archivo entero, **14/14**), pero **dejaba de buscar «Ganancia» en el resto de la página**, que la original sí cubría. Se restituyó: «Ganancia» se busca otra vez en **toda** la página y solo «ganados» se limita a la ficha sin la sección. Después: **1/1** |
+| `equipo.spec.ts` entero, justo después de la completa | ⚠️ **12/14**: las dos de «Corregir a un integrante» recibieron «Demasiados intentos. Espera 25 minutos e intenta de nuevo.». Es el límite **en memoria** de 5 invitaciones de equipo por vendedor y hora (`RATE_LIMITS.teamInvitation`, D-062), que la corrida completa acababa de gastar **en el mismo servidor**. No es del cambio y no se tocó el límite: con `dev:local` reiniciado —el contador vive en el proceso—, **14/14** |
+| `npm run verify` | ✅ **exit 0**; unitarias **1.418/1.418** en 78 archivos (**+37**: 22 + 9 de los dos archivos nuevos, +4 de `admin-privacy` y +2 de `dates`); lint **0 errores** y las 2 advertencias de siempre; `next build` ✅ |
+| `verify:remote` | **No se corrió**: el encargo prohíbe pruebas contra producción. Tendrá **dos** comprobaciones en rojo a propósito —la matriz de las funciones del historial y el cuerpo de la cobertura— hasta promover `0067`–`0069` |
+
+---
 
 ## Corrección de la Etapa 1 del historial de premios ganados (D-208, `0068`) — 2026-09-17
 

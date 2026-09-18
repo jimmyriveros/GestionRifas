@@ -1,4 +1,5 @@
 import {
+  AwardIcon,
   BarChart3Icon,
   LayoutDashboardIcon,
   TicketIcon,
@@ -48,6 +49,9 @@ const NAV_ITEMS: NavItem[] = [
     icon: <WalletIcon />,
     primary: true,
   },
+  // No es `primary`: la barra inferior sigue con sus cuatro (D-106). En el
+  // teléfono se llega desde el menú de usuario, como a «Mi equipo» (D-208).
+  { href: '/seller/prizes', label: 'Premios ganados', icon: <AwardIcon /> },
   { href: '/seller/reports', label: 'Reportes', icon: <BarChart3Icon /> },
 ]
 

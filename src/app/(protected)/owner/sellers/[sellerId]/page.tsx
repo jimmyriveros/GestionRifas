@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CatalogSettingsCard } from '@/features/catalog/components/CatalogSettingsCard'
 import { catalogPublicUrl, getCatalogSettings, isCatalogLive } from '@/features/catalog/queries'
+import { SellerPrizeSummary } from '@/features/prize-awards/components/SellerPrizeSummary'
+import { readAdminSellerPrizeTotals } from '@/features/prize-awards/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { getSellerWithInventory } from '@/features/sellers/queries'
 import { listOrgMembers } from '@/features/users/queries'
@@ -22,6 +24,11 @@ import { formatDateEs } from '@/lib/dates'
  * recaudado, saldo—, ni su ganancia con el total de rebajas, ni cuantos clientes
  * tiene, ni un enlace a ellos. Conserva lo que el personal administra: sus
  * datos, su inventario, su equipo, su catalogo y asignarle boletas.
+ *
+ * Desde D-208 ensena ademas sus PREMIOS GANADOS: cuantos, cuanto dinero cierto,
+ * cuantos con el valor pendiente y a cuantos clientes DISTINTOS les tocaron.
+ * Ese ultimo es un recuento que calcula la base; ningun dato de esos clientes
+ * llega, y no es el numero de clientes de su cartera (BR-J21).
  */
 export default async function SellerDetailPage({
   params,
@@ -34,12 +41,14 @@ export default async function SellerDetailPage({
 
   if (!seller) notFound()
 
-  // Su lugar en la estructura comercial (BR-E08) y su catalogo publico
-  // (BR-K12). En la MISMA espera: son lecturas independientes.
-  const [orgSellers, catalog, raffles] = await Promise.all([
+  // Su lugar en la estructura comercial (BR-E08), su catalogo publico (BR-K12)
+  // y sus premios ganados (D-208). En la MISMA espera: son lecturas
+  // independientes.
+  const [orgSellers, catalog, raffles, prizes] = await Promise.all([
     listOrgMembers(['seller']),
     getCatalogSettings(sellerId),
     listRaffleOptions(),
+    readAdminSellerPrizeTotals(sellerId),
   ])
 
   const team = orgSellers.filter((member) => member.parentSellerId === sellerId)
@@ -89,6 +98,10 @@ export default async function SellerDetailPage({
           <MetricCard label="Borradores" value={seller.ticketsDraft} />
         </div>
       </div>
+
+      {/* También de un vendedor desactivado: sus premios se conservan. Los
+          clientes con premio son un NÚMERO; ningún dato suyo llega (D-208). */}
+      <SellerPrizeSummary sellerId={seller.profileId} result={prizes} />
 
       <Card>
         <CardHeader>

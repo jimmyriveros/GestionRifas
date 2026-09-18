@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.41 · **Estado:** implementado · **Actualizado:** 2026-09-17 (**§8.27.a** y **§8.27.b**:
+- **Versión:** 1.42 · **Estado:** implementado · **Actualizado:** 2026-09-17 (**§6** y **§8.28**: «Premios
+  ganados» en los dos portales y los resúmenes de las fichas —D-208, Etapa 2, migración `0069`, **solo en
+  local**—). Antes, ese mismo día (**§8.27.a** y **§8.27.b**:
   premios configurables **en producción** —`0058`–`0066` aplicadas, `da81663` desplegado y la rifa real
   convertida, con sus seis premios—). Antes, el 2026-09-16 (**§8.27.b**: el aviso de
   las fechas de una rifa activa llega **también a quien las cambia**, y su actor sale solo de la sesión
@@ -264,7 +266,7 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/owner/raffles/[raffleId]/review` | owner, admin **con la capacidad** | post-9 | **Paso 3 de 3**: la configuración entera y la activación de la rifa (D-202) |
 | `/owner/users` | owner, admin | **3 ✅** | Administradores |
 | `/owner/sellers` | owner, admin | **3 ✅** | Vendedores |
-| `/owner/sellers/[sellerId]` | owner, admin | **3 ✅** · post-9 | Detalle del vendedor: contacto, inventario, su equipo y con qué regla se le paga (BR-E08). Sin lo vendido ni lo ganado desde D-198 |
+| `/owner/sellers/[sellerId]` | owner, admin | **3 ✅** · post-9 | Detalle del vendedor: contacto, inventario, su equipo y con qué regla se le paga (BR-E08). Sin lo vendido ni lo ganado desde D-198. Desde D-208, sus **premios ganados** —cuatro indicadores, sin un dato de cliente— y «Ver sus premios», también de un vendedor desactivado (§8.28) |
 | `/owner/tickets` | owner, admin | **3 ✅** · post-9 | Tabla global de boletas por `admin_list_tickets`: sin cliente ni dinero, búsqueda solo por número y pago en dos estados (D-198) |
 | `/owner/tickets/new` | owner, admin | **3 ✅** | Creación individual |
 | `/owner/tickets/bulk` | owner, admin | **3 ✅** | Creación masiva (1–1.000) |
@@ -272,6 +274,7 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | ~~`/owner/clients`~~ | — | 3 → **retirada post-9** | La cartera es del vendedor (D-198): la ruta ya no existe |
 | ~~`/owner/clients/[clientId]`~~ | — | 3 → **retirada post-9** | Ídem |
 | ~~`/owner/payments`~~ | — | 5 → **retirada post-9** | Ídem: sin consulta global de pagos ni anulación |
+| `/owner/prizes` | owner, admin | post-9 (local) | **Premios ganados** de la organización (D-208, §8.28): rifa, vendedor y fechas del sorteo en la URL, los cuatro indicadores y la lista **sin un solo dato de cliente**. Un `clientId` en la dirección se descarta |
 | `/owner/reports` | owner, admin | **6 ✅** · post-9 | Tres reportes de recuentos —por vendedor, por estado y por rifa— con filtros y CSV; sin dinero ni clientes (D-198) |
 | `/seller/dashboard` | seller | 1 → 4 → **6 ✅** | Métricas propias (`CLAUDE.md` §23 completo) |
 | `/seller/tickets` | seller | **4 ✅** | Boletas propias |
@@ -279,12 +282,13 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/seller/tickets/[ticketId]` | seller | **4 ✅** | Detalle y asignación |
 | `/seller/clients` | seller | **4 ✅** | Clientes propios |
 | `/seller/clients/new` | seller | **4 ✅** | Crear cliente |
-| `/seller/clients/[clientId]` | seller | **4 ✅** | Perfil con boletas |
+| `/seller/clients/[clientId]` | seller | **4 ✅** · post-9 | Perfil con boletas. Desde D-208, un resumen de sus **premios ganados** y «Ver premios» (§8.28) |
 | `/seller/clients/[clientId]/edit` | seller | **4 ✅** | Edición del cliente |
 | `/seller/team` | seller | post-9 ✅ | **Mi equipo.** Siempre en el menú, tenga equipo o no (BR-E01) |
 | `/seller/team/[sellerId]` | seller | post-9 ✅ | Detalle de un integrante y sus ventas. Un id ajeno responde «no encontrada», no «denegado» (BR-E05) |
 | `/seller/payments` | seller | **5 ✅** | Historial de pagos |
 | `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?from=` (D-135) dice a dónde volver (`ticket`, `client`, `payments`, `dashboard`); `?ticketId=` marca la boleta del reparto y, sin `from`, también el destino (D-133) |
+| `/seller/prizes` | seller | post-9 (local) | **Premios ganados** de sus clientes (D-208, §8.28): rifa —también cerradas—, fechas del sorteo y cliente en la URL; `?clientId=` llega desde la ficha, y uno ajeno responde «no encontrada» |
 | `/seller/reports` | seller | **6 ✅** · post-9 | Sus reportes, sin el que compara vendedores (D-059). Abre en **«Ventas por fecha»** con las ventas de hoy, sin redirección (D-151) |
 | `/seller/settings` | seller | post-9 ✅ | **Configuración.** Un resumen con cuatro tarjetas —cuentas para recibir pagos, grupo de WhatsApp, recordatorios de pago y resultados de la semana (D-176, D-188, D-194)—, cada una con su subruta (§8.23). Se entra por el menú del avatar, que **solo la ofrece al vendedor**; el personal que escriba la ruta cae en `/denied` por el layout del portal |
 | `/seller/settings/weekly-results` | seller | post-9 ✅ | **Resultados de la semana** (D-194, §8.25): los seis números mayores de la última semana terminada, la imagen para el grupo y su mensaje. La imagen la pide el navegador a `/api/weekly-results/image` |
@@ -2209,6 +2213,46 @@ membresía activa, también a quien hizo el cambio** (`0065`), y el actor de los
 parámetro de actor**, así que un cambio que deba quedar a nombre de alguien se hace con su sesión
 (`RUNBOOK` §8.3). La pantalla solo lo **anuncia** antes de guardar (`raffles/date-change.ts`); el texto de
 la campana está en `notifications/text.ts`.
+
+### 8.28 «Premios ganados»: una pantalla, dos públicos, y la base cuenta todo (D-208, Etapa 2)
+
+> **Solo en local** hasta que se promuevan `0067`–`0069` y se despliegue el código.
+
+```
+/seller/prizes ──► readSellerPrizeAwards ─┬─ seller_prize_awards        (la página, con su cliente)
+                                          └─ seller_prize_award_totals  (los cuatro indicadores)
+/owner/prizes  ──► readAdminPrizeAwards  ─┬─ admin_prize_awards         (la página, SIN cliente)
+                                          └─ admin_prize_award_totals
+las dos        ──► readPrizeAwardCoverage ── prize_award_coverage       (de la organización)
+                              │
+                              ▼
+                PrizeAwardsView (audience) ─┬─ ReportFilters (fields, dateLabels, extraKeys)
+                                            ├─ PrizeAwardsSummary (MetricCard ×4)
+                                            ├─ PrizeAwardsList ─┬─ tarjetas  (< xl)
+                                            │                   └─ ReportTable (≥ xl)
+                                            └─ DataTablePagination (items="prizes")
+```
+
+| Pieza | Qué decide |
+|---|---|
+| `src/features/prize-awards/queries.ts` | Las lecturas, con `server-only`: dos fijas por página —filas e indicadores, en paralelo— y la cobertura. Cada una devuelve `{ kind: 'error' }` en vez de ceros. `AdminPrizeAward` no declara cliente y su mapeo copia columna a columna |
+| `src/features/prize-awards/schemas.ts` | La URL, **pura**: el vendedor acepta `clientId` y nunca `sellerId`; el personal, al revés. Una fecha que no existe se descarta. `prizeAwardsHref` arma cada enlace |
+| `src/features/prize-awards/copy.ts` | **Todos** los textos y el valor de cada premio —cierto o pendiente—, **puro**. Reutiliza `rewardOptionText` de los premios configurables y la frase de conflicto del recuadro de loterías |
+| `components/PrizeAwardsView` | La pantalla entera; las páginas le pasan lo ya leído. Distingue error, vacío, cobertura pendiente, fechas al revés y página inexistente |
+| `components/PrizeAwardsList` | Una consulta, dos presentaciones (el patrón de D-107). Server Component, sin orden en el navegador (D-058) y con enlaces sin precarga (D-104) |
+| `components/ClientPrizeSummary` y `SellerPrizeSummary` | Los resúmenes de las fichas: una línea y un enlace; los cuatro indicadores y un enlace |
+
+**Tres reglas que no se ven en el diagrama:**
+
+* **La interfaz no suma.** Totales, recuento de clientes distintos, importe conocido y pendientes los
+  calcula PostgreSQL sobre todo el filtro (BR-J20). Rehacerlos con la página visible daría las cifras de
+  veinticinco filas.
+* **La celda de `ReportTable` no parte líneas** (`whitespace-nowrap` del primitivo). Las columnas del
+  historial vuelven a `whitespace-normal` en su contenido: sin eso, un nombre largo se montaba sobre la
+  columna siguiente.
+* **La rejilla de `ReportFilters` declara su columna del teléfono** (`grid-cols-[minmax(0,1fr)]`, D-125).
+  Sin ella, el nombre de la rifa elegida estiraba la columna implícita y la pantalla se desplazaba 9 px a
+  320 (I-139).
 
 ## 9. Configuración regional
 

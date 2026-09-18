@@ -14,6 +14,8 @@ import { getClientDetail } from '@/features/clients/queries'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
 import { listClientPayments } from '@/features/payments/queries'
 import { paymentNewHref } from '@/features/payments/return-to'
+import { ClientPrizeSummary } from '@/features/prize-awards/components/ClientPrizeSummary'
+import { readClientPrizeTotals } from '@/features/prize-awards/queries'
 import { ClientTicketsList } from '@/features/tickets/components/ClientTicketsList'
 import { listTickets } from '@/features/tickets/queries'
 
@@ -29,9 +31,12 @@ export default async function SellerClientDetailPage({
   // «no existe» de «no es tuyo» (BR-U07, docs/SECURITY.md T15).
   if (!client) notFound()
 
-  const [{ rows: tickets }, payments] = await Promise.all([
+  // En la MISMA espera: las boletas, los abonos y el resumen de premios son
+  // lecturas independientes (D-208).
+  const [{ rows: tickets }, payments, prizes] = await Promise.all([
     listTickets({ clientId, pageSize: 100 }),
     listClientPayments(clientId),
+    readClientPrizeTotals(clientId),
   ])
 
   const archived = client.archivedAt !== null
@@ -107,6 +112,10 @@ export default async function SellerClientDetailPage({
         totalPaid={client.totalPaid}
         pendingAmount={client.pendingAmount}
       />
+
+      {/* Un resumen y un enlace, no el historial: la lista vive en «Premios
+          ganados» y llega allí ya filtrada por este cliente (D-208). */}
+      <ClientPrizeSummary clientId={client.id} clientName={client.name} result={prizes} />
 
       {/* Ni la rifa ni el cliente: la una es siempre la misma en el portal del
           vendedor (D-088) y el otro es el dueño de esta ficha. Quitarlas deja
