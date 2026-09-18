@@ -136,7 +136,7 @@ calculado a mano en `ESPERADO`.
 |---|---|
 | `tests/unit/prize-awards-history.test.ts` | ✅ **22/22** |
 | `tests/unit/prize-awards-view.test.tsx` | ✅ **9/9**; entre ellas el **error de lectura**, que el navegador no puede provocar. **Un error propio encontrado al releer el código:** con el filtro de un cliente **y** otro de rifa o fechas sin resultados, el estado vacío decía «Este cliente todavía no tiene premios registrados», falso si los tiene fuera de ese filtro. Corregido —esa frase solo con el cliente como único filtro— y cubierto con P2V-09 |
-| `tests/unit/admin-privacy.test.ts` | ✅ **+4** invariantes del personal. **Un error propio**: una expresión regular dentro de un `RegExp` de plantilla perdió sus barras al escribirse con un heredoc de la terminal y no encontraba el tipo; corregida |
+| `tests/unit/admin-privacy.test.ts` | ✅ **+4** invariantes del personal. **Un error propio**: una expresión regular dentro de un `RegExp` de plantilla perdió sus barras al escribirse con un heredoc de la terminal y no encontraba el tipo; corregida. **Y otro**: la primera versión de la invariante de `readAdminPrizeAwards` buscaba `/client/i` y encontraba `createClient`, que es el cliente de Supabase; ahora busca los nombres de los campos —`client_id`, `client_name`, `clientId`, `clientName`— |
 | `tests/unit/dates.test.ts` | ✅ **+2** (`formatLongDateBetweenEs`) |
 | `tests/e2e/premios-ganados.spec.ts` y `premios-ganados-movil.spec.ts` | ✅ **17/17 a la primera** (13 de escritorio y 4 del teléfono). Tras la corrida, **cero restos**: ni rifas, ni sorteos, ni clientes, ni cuentas, ni fotografías huérfanas |
 

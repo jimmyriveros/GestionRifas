@@ -20,8 +20,8 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   `verify` **exit 0** con **1.418/1.418** unitarias en 78 archivos (**+37**), `test:db` **1.331/1.331 en 53 archivos (+2, H12)**, y la E2E
   completa **764/765: el fallo era una prueba existente, equipo.spec.ts:89, que buscaba «ganados» en toda la página; corregida sin aflojarla, 1/1, y el archivo 14/14**; las **17** nuevas pasaron a la primera. La revisión visual encontró **tres defectos**
   —la tabla no cabía a 1.440 px, un nombre largo se montaba sobre la columna siguiente y 9 px de
-  desplazamiento lateral a 320 px en la barra de filtros compartida (I-139)— y los tres se corrigieron. Dos
-  errores propios registrados en `TEST_RESULTS`. `verify:remote` **no se corrió**: el encargo prohíbe
+  desplazamiento lateral a 320 px en la barra de filtros compartida (I-139)— y los tres se corrigieron. Cinco
+  errores propios, todos corregidos y registrados en `TEST_RESULTS`. `verify:remote` **no se corrió**: el encargo prohíbe
   pruebas contra producción.
   **(3) Migraciones:** **69**. La nueva es **`0069`**: redefine el cuerpo de `prize_award_coverage()` con
   la misma firma, el mismo tipo y los mismos privilegios, **solo en local**. `0067` y `0068` **no se
