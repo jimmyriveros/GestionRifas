@@ -4,7 +4,13 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.69 · **Actualizado:** 2026-09-18 (D-001 a **D-208**; **D-208 con la Etapa 3 —la
+- **Versión:** 1.70 · **Actualizado:** 2026-09-18 (D-001 a **D-208**; **D-208 con la Etapa 4 —la preparación de la
+  promoción— hecha**: el estado real de producción, leído sin escribir, coincide con el relevo en todo lo esencial
+  salvo el despliegue servido —`6da9bcb`, solo documentación sobre `da81663`—; el cargador de los dos premios tiene
+  su modo de producción, que reutiliza la puerta de la transición y exige el proyecto esperado, la organización dos
+  veces y la huella de una vista previa en los dos destinos; las herramientas de puerta se versionan, y la
+  conciliación compara con los totales de antes más el cambio esperado. Sin migración: el contrato de la base no
+  hacía falta tocarlo. Antes, ese mismo día, **D-208 con la Etapa 3 —la
   auditoría— hecha en local**: el aviso de cobertura ya no desmiente un premio conservado cuyo resultado
   entró en conflicto, el personal puede elegir desde su pantalla a quien vendió y hoy es Administrador
   (**`0070`**), `anon` ya no obtiene el inicio operativo por un plan reutilizado (**`0071`**, I-141),
@@ -12129,6 +12135,12 @@ Entrega 3.
 
 ## D-208 — Historial de premios ganados: contrato, cobertura y estabilidad
 
+> **Estado (2026-09-18, Etapa 4 —preparación de la promoción— hecha, sin escribir en producción):** el estado
+> real se comprobó en solo lectura —igual que el relevo en todo lo esencial, salvo el despliegue servido,
+> `6da9bcb` y no `da81663`, solo documentación—; el cargador tiene su modo de producción, probado con el script
+> de verdad contra la situación reproducida; las herramientas de puerta están versionadas, y `RUNBOOK` §9 está
+> rehecho. **Ninguna puerta que escribe está autorizada.** La sección «Etapa 4» del final lo detalla.
+>
 > **Estado (2026-09-18, Etapa 3 —auditoría— hecha, solo en local):** siete hallazgos demostrados antes de
 > corregirlos, tres migraciones nuevas —**`0070`**, **`0071`** y **`0072`**— y el procedimiento de la Etapa 4 escrito en
 > `RUNBOOK` §9, **sin ejecutar**. La sección «Etapa 3» del final lo detalla. Nada de esto está en producción.
@@ -12820,3 +12832,64 @@ Migraciones **`0070`**, **`0071`** y **`0072`**. **BR-J21** y **BR-J22** precisa
 y B), `TESTING` §4.12, `TEST_RESULTS`, `KNOWN_ISSUES`, `PHASE_STATUS` y `HANDOFF`. **Solo en local.** La
 promoción queda **preparada**: lo que falta antes de la puerta 1 es comprobar el estado real (`RUNBOOK` §9.1),
 y antes de la puerta 2, construir y probar la puerta del cargador (`RUNBOOK` §9.4).
+
+---
+
+### Etapa 4 (2026-09-18): la preparación de la promoción —solo lectura en producción, sin migración—
+
+Autorizada: comprobaciones de **solo lectura** en producción, preparar y probar en local el cargador y corregir el
+procedimiento. **No** autorizada, y no hecha: aplicar migraciones, cargar premios, empujar o desplegar. Tres grupos,
+como en las etapas anteriores: lo **comprobado**, las **decisiones técnicas** que se tomaron dentro del contrato
+aprobado y lo que sigue **pendiente del dueño**. La evidencia está en `TEST_RESULTS` (Etapa 4) y el procedimiento, en
+`RUNBOOK` §9, rehecho.
+
+#### 1 — Lo comprobado en producción
+
+| Qué | Resultado |
+|---|---|
+| Proyecto | El de `.env.local`, confirmado por la CSP que sirve el dominio y por la cadena de la base (`zqwu…`) |
+| Migraciones | `0001`–`0066`; pendientes, exactamente **`0067`–`0072`** |
+| Despliegue | ⚠️ **`6da9bcb`** (`dpl_CE4VvypDjs3nueph1g39Je9Lsya1`), **no `da81663`** como decía el relevo: dos commits solo de documentación encima. El código servido es el mismo; cambia el punto de reversión de la puerta 3 |
+| Estructura | En `0066`, idéntica a una base local con los privilegios de producción, salvo los 2 secretos del Vault y un esquema local. `verify:remote`: 41 en verde y las 3 del historial en rojo, las esperadas |
+| Los dos premios | Las dos coincidencias, exactamente como las confirmó el dueño —sorteo, fecha, números, campo fotografiado, venta, modo `legacy`, resultado `confirmed` y 0 enlaces— y un único «Premio diario» vigente. **Ningún dato esencial cambió** |
+| Lo demás del historial | 0 premios hoy; ninguna otra coincidencia vendida del sistema de siempre; cobertura pendiente, 13 sorteos del 10/08 al 24/08; el primer sorteo del lado configurable (Bogotá 2864) no dio coincidencias |
+
+#### 2 — Decisiones técnicas
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 1 | **La puerta del cargador reutiliza las comprobaciones de destino de la transición** —las importa, no las copia— y añade el **proyecto esperado** (`--project-ref`), la **organización escrita dos veces** también en la vista previa y la **huella exigida en los dos destinos** | «Sin arquitectura paralela»: la transición ya sabe decir si un destino es local o un proyecto remoto. Lo que añade es lo que no tenía: comprobar que el remoto es **ese** proyecto. Exigir la huella también en local hace que el ensayo recorra el mismo camino que la puerta 2 |
+| 2 | **La huella** es SHA-256 de una representación estable —claves ordenadas, nulos explícitos, un formato con versión— del destino con su proyecto, la organización, el respaldo, las entradas y **todo** lo que respondió la vista previa | Cualquier cosa que cambie lo que se va a escribir cambia la huella: otra ejecución que se adelanta, un premio archivado, otro proyecto. El orden de las claves que devuelve la API no la cambia |
+| 3 | **Si todo «ya estaba», el script no llama a aplicar** | La función de la base escribe una fila de bitácora en cada aplicación, aunque no inserte nada. Repetir después de una respuesta incierta no debe ensuciar la bitácora; así la repetición deja la base **exactamente** igual (S5) |
+| 4 | **Cuatro códigos de salida** —0, 1 nada escrito, 2 escrito sin cuadrar, 3 incierto— | Quien opera decide con eso qué hacer después (`RUNBOOK` §9.7); «falló» no distingue un rechazo limpio de una respuesta perdida |
+| 5 | **`resolveTarget` recibe `argv` y `env` opcionales** | Para probar el resolvedor aislado, sin tocar el entorno del proceso ni leer `.env.local`. Los demás scripts lo siguen llamando igual |
+| 6 | **Las herramientas de puerta se versionan** (`scripts/gate-*.ts`, `scripts/prize-awards-probe.ts`) | Hasta ahora vivían en `build/e5/`, sin versionar: otra sesión en otro equipo no podía repetir el procedimiento. Se generalizan: un turno de Hobby en cualquier minuto de su hora, los enlaces del motor como parte de un turno, la configuración de premios que ya existe |
+| 7 | **La foto guarda la clave de un cliente como md5** y la **huella del cuerpo de una función sin retornos de carro** | Ni la foto ni el informe llevan un identificador de cliente. Y la copia de trabajo de Windows tiene 7 migraciones con CRLF: sin normalizar, 29 funciones idénticas parecen distintas (I-132) |
+| 8 | **El delta esperado de la puerta 1 se ensaya con TODOS los privilegios de producción**, no solo el de funciones, y se compara con el de los privilegios locales | La lección de I-132 e I-143. Salen **idénticos**: el efecto de `0067`–`0072` no depende del entorno |
+| 9 | **La conciliación compara con T0 más el cambio esperado**, con los clientes **recalculados** por la sonda; no exige que el historial tenga exactamente dos premios ni que otro vendedor tenga cero | Puede haber actividad posterior legítima —un premio del motor—, y un cliente con dos premios cuenta una vez |
+| 10 | **Una coincidencia vendida del sistema de siempre que no confirmó el dueño se identifica como pendiente**, nunca se reconoce ni se le pone importe | Es la regla H1/H2: el negocio confirma, la aplicación no deduce. Hoy no hay ninguna |
+| 11 | **No hace falta tocar el contrato de la base** | La respuesta de la vista previa basta para la huella; la bitácora de una aplicación vacía la evita el script (decisión 3); el separador de miles del mensaje de discrepancia es de operador y cosmético (I-144). Una migración nueva habría ampliado el alcance de la puerta 1 sin necesidad |
+| 12 | **La diferencia del despliegue no bloquea la puerta 1** | Es solo de documentación y el código servido es el mismo, compatible con `0067`–`0072` (`RUNBOOK` §9.3). Sí cambia la puerta 3 —su punto de reversión—, y por eso se le pide al dueño que la acepte al autorizarla |
+
+**Alternativas descartadas.** Pasar `--project-ref` a una constante del código (viviría en un repositorio público y
+dejaría de ser una confirmación); exigir la huella solo en producción, como la transición (el ensayo local no habría
+recorrido el camino real); una migración para el mensaje en pesos colombianos (cosmético, fuera de alcance); y ampliar
+la lista de actividad normal a crear o aprobar boletas por ser frecuentes (es del dueño).
+
+#### 3 — Pendiente del dueño
+
+| Qué | Por qué es suyo |
+|---|---|
+| **Autorizar la puerta 1** —`0067`–`0072`, con respaldo nuevo— | Escribe en producción |
+| **Aceptar la diferencia del despliegue** (`6da9bcb`) al autorizar la puerta 3 | Cambia lo que el relevo decía del estado real |
+| **Qué hacer con la actividad frecuente que la «Opción A» no cubre** —crear y aprobar boletas, editar clientes, marcar avisos, la configuración de premios— si ocurre dentro de una puerta: pausarla en la ventana, o aceptar que la puerta se detenga | Solo el dueño amplía esa lista |
+| El tramo **10/08–24/08** (I-133, H2) | Sigue pendiente de información |
+
+#### Consecuencia
+
+Sin migración. Código: `scripts/record-prize-awards-guard.ts` (nueva), `scripts/record-prize-awards.ts` (su modo de
+producción), `scripts/supabase-target.ts` (inyectable), `scripts/gate-db.ts`, `gate-diff.ts`, `gate-snapshot.ts`,
+`gate-compare.ts`, `gate-mirror-privileges.ts` y `prize-awards-probe.ts` (nuevas), y tres suites: 52 y 14 unitarias y
+11 de base. **I-144** nueva; notas en **I-087**, **I-132** e **I-142**. `RUNBOOK` §9 rehecho, `DEPLOYMENT` §3.2.k,
+`SECURITY` §4.24, `TESTING` §4.12, `UX_COPY_GUIDELINES` (Anexo B), `TEST_RESULTS`, `KNOWN_ISSUES`, `PHASE_STATUS` y
+`HANDOFF`. **Nada se escribió en producción.**

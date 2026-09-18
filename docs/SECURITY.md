@@ -1332,7 +1332,8 @@ dos entornos; y la secuencia de I-130.
 
 **Solo en local**: el proyecto real no tiene ninguna de las seis, y `verify:remote` lo dice —**tres**
 comprobaciones en rojo, a propósito, hasta que se promuevan: la matriz de las 15 funciones de
-`0067`/`0068`/`0070`/`0072`, el cuerpo de la cobertura de `0069` y el inicio operativo de `0071`—.
+`0067`/`0068`/`0070`/`0072`, el cuerpo de la cobertura de `0069` y el inicio operativo de `0071`—. **Comprobado
+en producción el 2026-09-18** (Etapa 4, solo lectura): 41 en verde y exactamente esas 3 en rojo.
 
 **La matriz no depende del privilegio por defecto** (`0072`, I-143). En el proyecto alojado toda función nueva
 nace ejecutable por `service_role` (I-132), así que cada función que la lista le niega tiene un `revoke` que
@@ -1388,6 +1389,25 @@ clave de servicio— por las cuatro funciones y `prize_award_coverage()`, y no t
 | `anon`, lo interno y la escritura | **H13-02**, **H13-03** y **H13-04**: `anon` contra todo; `prize_award_rows`, `declared_prize_award_plan`, el cargador y el motor desde cuatro sesiones; `INSERT`, `UPDATE` y `DELETE` sobre las tres tablas | Todo rechazado, y ni una fila cambia |
 | Lo ajeno frente a lo inexistente | **H13-05** —seis pares: cliente de otro vendedor, rifa y vendedor de otra organización, en listas y totales— y la E2E —estado HTTP y texto de la página— | Respuestas **idénticas** |
 | El navegador del personal | La E2E con siete direcciones manipuladas y una navegación RSC, capturando HTML, carga RSC y red | Ni un dato de cliente |
+
+**La promoción (Etapa 4).** El cargador escribe con la **service role** en producción, así que su puerta
+(`scripts/record-prize-awards-guard.ts`) protege la orden antes de que llegue a la base, que sigue siendo la
+autoridad:
+
+| Riesgo | Cómo se cierra |
+|---|---|
+| Escribir contra el proyecto equivocado | `--production` exige `--project-ref` y que el host resuelto sea **exactamente** ese proyecto; nunca un destino local —ni por la URL, ni por `http`, ni por `SUPABASE_TARGET=local`—. Las comprobaciones de destino son las de la transición (D-205), **importadas**, no copiadas |
+| La organización equivocada | `--organization` y `--confirm-organization` idénticas, también en la vista previa, y la organización tiene que existir en el destino |
+| Aplicar algo distinto de lo revisado | Aplicar exige la **huella** de una vista previa anterior, en los dos destinos, y se compara con una vista previa repetida justo antes de escribir |
+| Una errata que cambia la orden | Opciones desconocidas, repetidas, sin valor o contradictorias se rechazan |
+| Filtrar secretos o datos de cliente | Ni claves, ni la dirección del proyecto —solo `zqwu…`—, ni un dato de cliente: la base no devuelve ninguno. Un error inesperado imprime solo su mensaje |
+| Repetir a ciegas tras una respuesta perdida | Salida **3**, y el procedimiento obliga a mirar lo almacenado antes de repetir (`RUNBOOK` §9.7); repetir con todo reconocido no escribe nada |
+
+**Las herramientas de puerta** (`scripts/gate-*.ts`, `scripts/prize-awards-probe.ts`) leen producción en **una
+transacción `repeatable read read only`** y se niegan si `SUPABASE_DB_URL` no nombra el proyecto esperado. No
+imprimen la cadena de conexión, y ni la foto ni sus informes guardan un identificador de cliente: la clave de
+`clients` se guarda como md5 y la sonda cuenta los clientes distintos dentro de la base. `gate-mirror-privileges.ts`
+solo puede escribir en la base **local**: su dirección está escrita en el código.
 
 ## 5. Protección de Server Actions y Route Handlers
 

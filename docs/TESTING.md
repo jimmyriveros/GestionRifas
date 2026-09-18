@@ -1199,6 +1199,20 @@ El escenario E2E se **limpia por prefijo al empezar y al terminar** y crea sus d
 vendedor que se desactiva y el que pasa a Administrador—: ascender a una cuenta del seed tiene efectos
 irreversibles sobre sus avisos (Etapa 1).
 
+**La preparación de la promoción (Etapa 4).** El modo de producción del cargador **no se ensaya contra
+producción**: sus condiciones se prueban aisladas, sin red, y el flujo entero —el mismo para los dos destinos— se
+ensaya con `--local` y el script de verdad. Las herramientas de puerta (`RUNBOOK` §9.0) se prueban igual: lo puro,
+aislado; la clasificación con evidencia, contra la base local.
+
+| Archivo | Qué comprueba |
+|---|---|
+| `tests/unit/record-prize-awards-guard.test.ts` (52) | **A1–A5**: destino explícito y uno solo, opciones desconocidas, repetidas o sin valor, la organización escrita dos veces **también en la vista previa** —idéntica, carácter por carácter—, `--project-ref` obligatorio con `--production` y prohibido con `--local`, y la huella exigida para aplicar **en los dos destinos**. **A6–A7**: `--production` rechaza cualquier destino local —por la URL, por `http`, por un host ajeno o por `SUPABASE_TARGET=local`— y cualquier proyecto que no sea el esperado; el **resolvedor** (`resolveTarget`) se prueba **aislado**, con `dotenv` simulado y sin leer `.env.local`. **A8–A10**: las entradas se validan antes de la red; el informe de la base se lee con su forma o no se lee; y se contrasta fila por fila —otra fila, otro importe, un número fotografiado ajeno, un resultado imposible en su momento—. **A11–A12**: la huella es estable y cambia con el destino, el proyecto, la organización, el respaldo y cualquier campo de las entradas o de la vista previa. **A13–A14**: qué error es incierto, los cuatro códigos de salida, ningún identificador de producción en el código y el orden de la puerta dentro del script |
+| `tests/unit/gate-tools.test.ts` (14) | Las herramientas de puerta sin base: la orden, el proyecto esperado leído de la **propia cadena** de conexión —y ningún mensaje que la escriba—, el delta de estructura y su contraste con el ensayado en las tres direcciones, los cambios por fila —incluida una tabla nueva que no nace vacía—, las horas UTC de `vercel.json` y las sentencias que llevan un ACL local al de producción |
+| `tests/db/record-prize-awards-script.test.ts` (11) | El **script de verdad**, como proceso aparte y con un entorno que **nunca ve una credencial de producción**, contra la situación real reproducida —una rifa transformada con su instante efectivo después de los dos sorteos, las dos boletas vendidas y las dos fotografías del motor—. **S1**: las negativas desde fuera, también `--production` contra la base local, sin escribir nada. **S2–S5**: la vista previa **no escribe** y su huella se repite; una huella ajena no escribe; aplicar reconoce los dos, con **una** fila de bitácora y $1.000.000 conciliados; repetirlo no duplica **ni escribe bitácora**. **S6**: con otro importe vigente, la vista previa lo rechaza nombrando las dos cifras y nada cambia. **S7**: otra ejecución se adelanta entre dos vistas previas —la huella cambia, no se escribe nada, y la vista previa nueva distingue «ya estaba» de lo que falta—. **S2b y S4b**: la **sonda** de la puerta, antes y después, con los totales esperados iguales a los que lee después la definición única y sin un identificador de cliente. **S8**: el **comparador** —una carga autorizada con una venta y un abono hechos con la sesión real del vendedor da CONTINUAR; la misma diferencia sin autorizar la carga, o renombrar la rifa y marcar un aviso como leído, DETENER— |
+
+Limpia por prefijo al empezar y al terminar, también lo que deja S8 (pagos, asignaciones, comisiones, avisos,
+bitácora y el cliente de ensayo). Dura unos 25 s: cada escenario arranca procesos de `tsx`.
+
 ## 5. Pruebas unitarias clave
 
 | Módulo | Casos |

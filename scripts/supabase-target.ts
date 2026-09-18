@@ -31,8 +31,15 @@ export type SupabaseTarget = {
   label: string
 }
 
-export function resolveTarget(): SupabaseTarget {
-  const isLocal = process.argv.includes('--local') || process.env.SUPABASE_TARGET === 'local'
+/**
+ * `argv` y `env` son los del proceso salvo en las pruebas, que los pasan para
+ * comprobar el resolvedor sin tocar el entorno ni leer `.env.local`.
+ */
+export function resolveTarget(
+  argv: readonly string[] = process.argv,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): SupabaseTarget {
+  const isLocal = argv.includes('--local') || env.SUPABASE_TARGET === 'local'
 
   if (isLocal) {
     return {
@@ -45,10 +52,10 @@ export function resolveTarget(): SupabaseTarget {
     }
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const seedPassword = process.env.SEED_DEFAULT_PASSWORD
+  const url = env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
+  const seedPassword = env.SEED_DEFAULT_PASSWORD
 
   if (!url || !anonKey || !serviceRoleKey || !seedPassword) {
     console.error(

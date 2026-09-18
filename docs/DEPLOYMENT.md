@@ -663,6 +663,13 @@ protegidas redirigidas y el Auth de Supabase respondiendo. **Errores de ejecuci�
 > **Lo que este release NO verificó:** las pantallas **con sesión** —un agente no introduce contraseñas—. Lo que
 > ve cada rol está comprobado con las pruebas locales, el CI y las sondas de solo lectura sobre la base real.
 
+> **Nota posterior (2026-09-18, Etapa 4 de D-208, solo lectura):** el despliegue vigente **ya no es este**. A las
+> **20:33:25 UTC** del 17/09, el push del cierre documental de la Entrega 5 desplegó **`6da9bcb`**
+> (`dpl_CE4VvypDjs3nueph1g39Je9Lsya1`, READY): dos commits **solo de documentación** sobre `da81663`
+> —`git diff da81663 6da9bcb` fuera de `docs/`, vacío—, y el dominio sirve su identificador, **`c3d720898c56`**
+> (el de `da81663`, `9c2d9748c2e7`, ya no aparece). El código servido es el mismo; lo que cambia es el **punto de
+> reversión** de la próxima promoción, que pasa a ser `dpl_CE4VvypDjs3nueph1g39Je9Lsya1` (`RUNBOOK` §9.8).
+
 ### 3.3 Despliegues futuros
 
 Cada `git push` a `main` que se decida subir dispara un build y despliegue a producción automático

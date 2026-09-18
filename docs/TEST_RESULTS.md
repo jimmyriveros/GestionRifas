@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Etapa 3 del historial de premios ganados: la auditoría, D-208, `0070`, `0071` y `0072`, solo en local, 2026-09-18)** | **1.422 ✅ en 78 archivos (+4)** | **1.347 ✅ y 1 omitida a propósito, en 54 archivos (+17; migraciones `0070`, `0071` y `0072`)**: la suite del historial pasa de 61 a **70** y nace la de volumen (**8**, la medición solo a petición) | **768/771** en 45,2 min, sobre base recién sembrada y servidor recién arrancado: los 3 son **I-075** (`back-navigation` `:25` y `:127`) e **I-090** (`ventas-por-fecha:163`), ajenos al historial, y sus dos archivos solos dan **27/27**; las **23** del historial, en verde. La completa del primer cierre también dio 768/771 (I-090 e I-106) | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe cualquier lectura de producción | ✅ **Siete hallazgos** demostrados antes de corregirlos —el aviso que desmentía un premio conservado, el antiguo vendedor que no se podía elegir, una expectativa que se comparaba consigo misma, dos pruebas de concurrencia que no observaban el bloqueo, el inicio operativo al alcance de `anon` y, **ensayando con el privilegio por defecto de producción**, `current_seller_org_ids()` ejecutable por `service_role` (I-143)— y **I-140** e **I-142** registradas. **Nada en producción**; el procedimiento de la Etapa 4, en `RUNBOOK` §9 |
+| **Post-9 vigente (Etapa 4 del historial de premios ganados: la preparación de la promoción, D-208, sin migración, 2026-09-18)** | **1.488 ✅ en 80 archivos (+66)**: la puerta del cargador y el resolvedor aislado (52) y las herramientas de puerta (14) | **1.358 ✅ y 1 omitida, en 55 archivos (+11)**: el ensayo del cargador con el script de verdad, la sonda y el comparador de la «Opción A» | **No se repitió**: la etapa no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · ⚠️ `verify:remote` **en producción, 41 + 3 en rojo a propósito**: las tres del historial, hasta la puerta 1 | 🔎 **Solo lectura en producción**: el estado real, igual al relevo en lo esencial —el despliegue servido es `6da9bcb`, solo documentación sobre `da81663`—; las dos coincidencias, como las confirmó el dueño; el delta de la puerta 1 ensayado con **todos** los privilegios de producción. **Nada escrito en producción** |
+| Post-9 anterior (Etapa 3 del historial de premios ganados: la auditoría, D-208, `0070`, `0071` y `0072`, solo en local, 2026-09-18) | **1.422 ✅ en 78 archivos (+4)** | **1.347 ✅ y 1 omitida a propósito, en 54 archivos (+17; migraciones `0070`, `0071` y `0072`)**: la suite del historial pasa de 61 a **70** y nace la de volumen (**8**, la medición solo a petición) | **768/771** en 45,2 min, sobre base recién sembrada y servidor recién arrancado: los 3 son **I-075** (`back-navigation` `:25` y `:127`) e **I-090** (`ventas-por-fecha:163`), ajenos al historial, y sus dos archivos solos dan **27/27**; las **23** del historial, en verde. La completa del primer cierre también dio 768/771 (I-090 e I-106) | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe cualquier lectura de producción | ✅ **Siete hallazgos** demostrados antes de corregirlos —el aviso que desmentía un premio conservado, el antiguo vendedor que no se podía elegir, una expectativa que se comparaba consigo misma, dos pruebas de concurrencia que no observaban el bloqueo, el inicio operativo al alcance de `anon` y, **ensayando con el privilegio por defecto de producción**, `current_seller_org_ids()` ejecutable por `service_role` (I-143)— y **I-140** e **I-142** registradas. **Nada en producción**; el procedimiento de la Etapa 4, en `RUNBOOK` §9 |
 | Post-9 anterior (Etapa 2 del historial de premios ganados: las pantallas, D-208, `0069`, solo en local, 2026-09-17) | **1.418 ✅ en 78 archivos (+37)** | **1.331 ✅ en 53 archivos (+2; migración `0069`)**: la suite del historial pasa de 59 a **61** | Completa **764/765** en 42,6 min: el fallo era `equipo.spec.ts:89`, una prueba existente que buscaba «ganados» en toda la página y encontró el menú y la sección nueva; corregida sin aflojarla, **1/1**, y el archivo **14/14**. Las **17** nuevas, a la primera | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe pruebas contra producción | ✅ **Las cuatro superficies, en local**, y el personal sin un solo dato de cliente. **I-138** —la cobertura contaba sorteos que no podían dar premio— reproducida con la `0068` y corregida con la `0069`; **I-139** —9 px de desplazamiento lateral a 320 px en la barra de filtros compartida— corregida. **Nada en producción** |
 | Post-9 anterior (corrección de la Etapa 1 del historial de premios, D-208, `0068`, solo en local, 2026-09-17) | **1.381 ✅ en 76 archivos** (sin cambio) | **1.329 ✅ en 53 archivos (+24; migración `0068`)**: la suite del historial pasa de 35 a **59** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: `0067` y `0068` no están promovidas | ✅ **Siete hallazgos reproducidos y corregidos**, incluida la carrera de **I-134**, que no estaba cerrada. **I-137 nueva** y anterior a este encargo. Dos errores de método corregidos: medir RLS como `postgres` no mide nada, y una serialización que solo retrasa no es una garantía |
 | Post-9 anterior (Etapa 1 del historial de premios ganados, D-208, `0067`, solo en local, 2026-09-17) | **1.381 ✅ en 76 archivos (+6)** | **1.305 ✅ en 53 archivos (+35; migración `0067`)** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: la `0067` no está promovida | ✅ **En local**: tabla, 4 lecturas, cargador y cerrojo de números. Los **dos** premios reconocidos ensayados de punta a punta: **$1.000.000**, idempotente. I-134 e I-135 resueltas en local; I-136 nueva. **Nada en producción** |
@@ -74,6 +75,101 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+## Etapa 4 del historial de premios ganados: la preparación de la promoción (D-208, sin migración) — 2026-09-18
+
+**Solo lectura en producción; ninguna escritura.** Autorizado: comprobaciones de solo lectura en producción,
+preparar y probar en local el cargador y corregir el procedimiento. No autorizado y no hecho: aplicar migraciones,
+cargar premios, empujar o desplegar. Rama `feature/premios-configurables` sobre `b96237e`. Ningún dato de cliente
+salió de las lecturas.
+
+### Línea base, antes de tocar nada
+
+| Verificación | Resultado |
+|---|---|
+| Git | `b96237e`, limpio salvo `CorrecionesLoterias.txt` y `prueba-abono.csv`, sin seguimiento e intactos |
+| Mailpit | Sin puerto publicado, como en la Etapa 3. Esta vez el puerto 54324 estaba libre: **`docker restart supabase_inbucket_Rifas`** lo publicó, sin proxy |
+| `db:reset` + Kong + `seed:local` | ✅ 72 migraciones y el seed (I-028: Kong reiniciado y Auth esperada antes del seed) |
+| `test:db` | ✅ **1.347 y 1 omitida** en 54 archivos, 116 s: **idéntico** al cierre de la Etapa 3 |
+| `verify` | ✅ exit 0; **1.422/1.422** en 78 archivos; lint 0 errores y las 2 advertencias de siempre; build |
+
+### El cargador en modo de producción, construido y probado
+
+| Prueba | Resultado |
+|---|---|
+| `tests/unit/record-prize-awards-guard.test.ts` | ✅ **52/52**. La primera corrida, **51/52**: A3-03 fallaba porque el identificador de ejemplo solo tenía cifras, y en mayúsculas era **idéntico** —defecto de la prueba, no de la puerta—; se cambió por uno con letras |
+| `tests/unit/gate-tools.test.ts` | ✅ **14/14** a la primera |
+| `tests/db/record-prize-awards-script.test.ts` | ✅ **11/11** en 23 s, con el **script de verdad** como proceso aparte: S1 (negativas desde fuera, también `--production` contra la base local, sin escribir), S2 (vista previa sin escrituras y huella repetible), S2b (la sonda antes), S3 (huella ajena), S4 (aplicación completa: 2 `reconocido`, **1** fila de bitácora, $1.000.000 conciliados), S4b (la sonda después: los totales esperados = los que lee `prize_award_rows`), S5 (repetir: nada que escribir, **ni bitácora**), S6 (otro importe vigente: rechazado con las dos cifras, nada cambia), S7 (otra ejecución se adelanta: la huella cambia y no se escribe; la vista previa nueva distingue «ya estaba»), S8 (el comparador, abajo) |
+
+**Cómo llegó a 11/11**, con cada tropiezo:
+
+| Tropiezo | Qué era | Qué se hizo |
+|---|---|---|
+| El fixture no pasaba de la transición: «Todavía no conocemos la hora oficial de 16 sorteos de la rifa» | La transición exige la programación de **toda** la ventana de la rifa (D-206), como hacía el fixture de la Etapa 1 | La suite crea la programación entera de la ventana, con los dos sorteos reales en su día nominal |
+| S6 esperaba «$400.000» y la base dijo «$400,000» | El mensaje de la base formatea con `to_char` y el separador de la configuración regional de PostgreSQL | **I-144**, nueva y menor; la prueba acepta los dos separadores |
+| S2b: la comprobación de privacidad se disparó | Buscaba «email» en todo el informe y encontró la **acción** de bitácora `user.email_change` | Se busca como **clave** (`"email":`), y además se buscan los identificadores reales de los dos clientes: no aparecen |
+| S4b: las filas del historial no casaban | `pg` convierte una columna `date` en `Date` y un `bigint` en texto | La sonda devuelve las fechas como texto; la prueba espera los importes como texto |
+
+**La salida esperada en producción**, calculada con el mismo formato del script:
+
+```
+se reconocería  3427 / 7702    bogota 2026-09-03          Premio diario    $500.000
+se reconocería  9019 / 3294    cundinamarca 2026-09-14    Premio diario    $500.000
+```
+
+### Producción, en solo lectura (2026-09-18)
+
+| Hora (UTC) | Lectura | Resultado |
+|---|---|---|
+| 19:0x | **Qué sirve el dominio** (lectura pública de `/login` y sus 15 fragmentos) | Identificador **`c3d720898c56`** = sha256 de **`6da9bcb`**, no de `da81663` (`9c2d9748c2e7`, 0 fragmentos) |
+| 19:0x | **Vercel** (MCP, lectura) | `dpl_CE4VvypDjs3nueph1g39Je9Lsya1`, `6da9bcb`, READY, producción, creado 2026-09-17 **20:33:25 UTC**; el anterior, `dpl_7uUohsc1foH9FHaoY8s2hZKJpRQo` (`da81663`). `git diff da81663 6da9bcb` fuera de `docs/`: **vacío** |
+| 19:1x | **Proyecto** | La CSP servida nombra **1** proyecto, el de `.env.local` (`zqwu…`); `SUPABASE_DB_URL` es del mismo |
+| 19:1x | `npm run verify:remote` | **41 OK y 3 FALLA**, exactamente las del historial: `0069` (0, esperado 1), `0071` (0, esperado 1) y la matriz de las 15 funciones (15, todas «no existe») |
+| 19:14:59 | Foto `e4-preflight` | 66 migraciones (`0066`); 36 relaciones, 225 funciones, 40 políticas, 64 disparadores, 131 índices; 1.227 boletas, 658 clientes, 511 pagos, 2 coincidencias, 0 enlaces del motor, 21 resultados; 2 recordatorios activos |
+| 19:15:21 | Sonda `e4-preflight` | Las dos coincidencias, **campo por campo como las confirmó el dueño**; un único «Premio diario» vigente (`9468104e…`, versión 2, `fixed`, $500.000, diario, cuatro cifras) y 0 archivados con ese nombre; historial **0**; ninguna otra coincidencia vendida del sistema de siempre; esperados tras la carga **2 · 2 · $1.000.000 · 0**; cobertura **13** pendientes del 10/08 al 24/08 y 21 confirmados; desde el 17/09 22:00 UTC, 10 ventas, 6 abonos, 5 clientes, 42 boletas creadas y aprobadas y un resultado, Bogotá 2864 = `0181`, **sin coincidencias** |
+| 19:2x | Cuerpos de 29 funciones, local frente a producción | **29/29 idénticos sin retornos de carro**; producción, 0 con `\r`; la base local, 29 —de los 7 archivos con CRLF de la copia de trabajo— (I-132) |
+| 19:27:04 | Foto `e4-preflight-2`, ya con la huella del cuerpo sin `\r` | Base del ensayo de abajo |
+| 19:30:56 | Foto `e4-preflight-3` y comparación `e4-preflight-2` → `-3`, `--operation none` | **CONTINUAR**: ni estructura ni filas |
+| 19:3x | **La «Opción A» sobre actividad real**: la última foto de la Entrega 5 (`p3-despues`, 2026-09-17 17:40:45, con las claves de cliente convertidas a md5) → `e4-preflight-3` | **534 filas explicadas** —19 ventas, 19 abonos con asignaciones y comisiones, 3 turnos programados y uno sin trabajo, 312 programaciones, 1 resultado, 2 observaciones— y **DETENER** por lo que la lista no cubre: 46 boletas **creadas y aprobadas** (con su bitácora), la **ampliación de dos premios** del Dueño (versiones, reglas, opciones y 8 avisos), 2 clientes nuevos de esas ventas y 1 editado; la fila de la rifa cambió **solo** en columnas que la bitácora no registra. Las 4 funciones «cambiadas» son el artefacto de la huella antigua: son las 4 que en producción **sí** tienen `\r` |
+| 19:3x | Actividad por hora (bitácora con actor, 14 días, solo recuentos) | La franja más tranquila, **07–10 UTC** (0–4 filas); la de más actividad, 14–18 y 22–23 UTC |
+
+### El «escenario B» completo: el delta esperado de la puerta 1
+
+| Paso | Resultado |
+|---|---|
+| `db reset --local --version 0066` y `gate-mirror-privileges.ts` con la foto de producción | **55** sentencias: 50 ACL de funciones, 2 de secuencias y 3 privilegios por defecto (funciones para `service_role`; secuencias `select, usage` para `anon` y `authenticated`) |
+| Foto `e4-b-l0` frente a `e4-preflight-2`, solo estructura | **Idénticas** salvo los 2 secretos del Vault (solo producción, D-193) y 3 privilegios por defecto del esquema local `supabase_functions` |
+| `migration up --local` | `0067`–`0072` aplicadas; la autocomprobación de la `0072` pasa con los privilegios de producción |
+| Foto `e4-b-l1` (con `--base e4-b-l0`) y delta | **+1 tabla, +16 columnas, +15 restricciones, +4 índices, +5 disparadores, +1 política y 1 modificada (`lottery_ticket_matches_select`), +15 funciones y +6 migraciones**; nada quitado |
+| Comparación `e4-b-l0` → `e4-b-l1`, `--operation migrations` | **CONTINUAR**: 0 filas tocadas; `declared_prize_awards` nace vacía |
+| `verify-remote` contra esa base local | ✅ **44/44** |
+| El mismo ensayo con los privilegios **locales** (escenario A) | Delta **idéntico** |
+| Restaurar | `db reset` (72), Kong, Auth y `seed:local` |
+
+### Errores propios, encontrados y corregidos
+
+| Error | Corrección |
+|---|---|
+| La prueba A3-03 con un identificador sin letras | Uno con letras (arriba) |
+| `resolveTarget(argv, env)` tipado con `NodeJS.ProcessEnv`, que en este proyecto exige `NODE_ENV` | `Readonly<Record<string, string \| undefined>>` |
+| Exportar funciones puras desde un script que ejecuta su `main` al importarse | Lo puro pasó a `scripts/gate-diff.ts`; las constantes compartidas, a `gate-db.ts` |
+| Un `sed` con `\\s` que perdió la barra, y otro con `$1` que no sustituyó | Corregidos con el editor |
+| Comillas invertidas dentro de un `node -e "…"`: bash las ejecutó y **borró cuatro fragmentos** del encabezado de `RUNBOOK` | Restaurados con el editor; desde ahí, las ediciones van en un archivo de script |
+| Un guion de lectura temporal con `await` de primer nivel en `.ts` | Como `.mts`; y borrado |
+| La primera comparación de producción cambió la **fórmula** de la huella entre las dos fotos | Se repitió con dos fotos de la misma fórmula: CONTINUAR |
+
+### Verificación final, sobre el código definitivo
+
+| Verificación | Resultado |
+|---|---|
+| `npm run verify` | ✅ **exit 0**; unitarias **1.488/1.488** en 80 archivos (**+66**); lint **0 errores** y las 2 advertencias de siempre; `next build` ✅ |
+| `npm run test:db` (tras `db:reset` + `seed:local`) | ✅ **1.358 y 1 omitida** —V5-01— en 55 archivos (**+11**), 134 s |
+| E2E | **No se repitió**: esta etapa no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con sus 3 fallos conocidos —**I-075** (`back-navigation` `:25` y `:127`) e **I-090** (`ventas-por-fecha:163`)— y las 23 del historial en verde |
+| `verify:remote` contra producción | 41 + **3 en rojo a propósito**, hasta la puerta 1 |
+| Lo que no se corrió | Nada que escriba en producción; `db push --dry-run`, que queda como primer paso de la puerta 1 |
+
+---
+
 
 ## Etapa 3 del historial de premios ganados: la auditoría en local (D-208, `0070`, `0071` y `0072`) — 2026-09-18
 
