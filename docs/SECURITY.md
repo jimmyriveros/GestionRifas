@@ -1328,10 +1328,10 @@ ellas `SECURITY DEFINER`); los privilegios de **tabla** de la service role sobre
 (`SELECT` e `INSERT`, y `UPDATE` en `raffle_prizes`), explícitos desde `0058`/`0059` e iguales en los
 dos entornos; y la secuencia de I-130.
 
-### 4.24 El historial de premios ganados (`0067`; BR-J17..BR-J22, BR-I16; D-208)
+### 4.24 El historial de premios ganados (`0067` y `0068`; BR-J17..BR-J23, BR-I16; D-208)
 
-**Solo en local**: el proyecto real no tiene la `0067`, y `verify:remote` lo dice —una comprobación en
-rojo, a propósito, hasta que se promueva—.
+**Solo en local**: el proyecto real no tiene ninguna de las dos, y `verify:remote` lo dice —una
+comprobación en rojo, a propósito, hasta que se promuevan—.
 
 **Ninguna lectura recibe organización, vendedor ni actor.** El alcance sale de la sesión, como en D-198
 y D-199: el vendedor, de `current_profile_id()` y `current_org_ids()`; el personal, de
@@ -1339,20 +1339,26 @@ y D-199: el vendedor, de `current_profile_id()` y `current_org_ids()`; el person
 
 | Frontera | Cómo se cierra |
 |---|---|
-| Un vendedor no ve lo de otro, ni lo de su equipo | El alcance es `seller_id = current_profile_id()`, **sin** `current_team_seller_ids`. Una prueba lee la definición de la función y falla si aparece |
+| Un vendedor no ve lo de otro, ni lo de su equipo | El alcance es `current_seller_org_ids()` —vendedor **activo**— más `seller_id = current_profile_id()`, **sin** `current_team_seller_ids`. Una prueba lee la definición de la función y falla si aparece |
+| Quien deja de ser vendedor deja de leer por esa vía | Exigir el **rol** y no solo el perfil es la corrección de **I-137**, que era un hueco **anterior** a este encargo: la política de `0057` dejaba a un ex vendedor ya Administrador leer las fotografías de sus antiguas ventas **con el `client_id` dentro** (BR-Q01). Las dos políticas —`lottery_ticket_matches` y `declared_prize_awards`— lo exigen ahora, y **acotan**: nadie gana acceso. Medido con `set role authenticated`, porque como `postgres` la RLS no se aplica |
 | Otra organización no ve nada | La organización sale de la sesión; un identificador ajeno responde como uno inexistente |
 | El personal no ve datos de cliente | El **tipo de retorno** de `admin_prize_awards` no declara cliente, y `prize_award_rows` no devuelve el nombre: la rama del personal **no toca `clients`**. El recuento de clientes distintos se calcula dentro de la base y sale como número. Lo vigilan `admin-privacy.test.ts` (la lista exacta de funciones `admin_*` y el barrido de columnas prohibidas) y una prueba que recorre las claves de cada fila |
 | La cartera no se abre | El historial no consulta ni devuelve precio de venta, abonado, saldo, pagos ni comisiones (BR-Q01) |
 | Nadie escribe la tabla desde una sesión | `declared_prize_awards` concede **solo `SELECT`**; la única puerta es `record_declared_prize_awards`, de la **service role**, como la transición (D-204). El vendedor y el personal reciben un error al llamarla |
 | `anon` no alcanza nada | `revoke` explícito en las cuatro lecturas y en el cargador |
-| Privilegios explícitos | Las **10** funciones de `0067` están clasificadas en `scripts/prize-function-grants.ts` —4 de sesión, 1 de service role y 5 internas que **no ejecuta nadie**— y su matriz exacta se comprueba en `verify:remote` y en `prize-award-history.test.ts`. Es la lección de **I-132**: en el proyecto alojado toda función nueva nace ejecutable por `service_role` |
+| Privilegios explícitos | Las **14** funciones de `0067` y `0068` están clasificadas en `scripts/prize-function-grants.ts` —7 de sesión, 1 de service role y 6 internas que **no ejecuta nadie**— y su matriz exacta se comprueba en `verify:remote` y en `prize-award-history.test.ts`. Es la lección de **I-132**: en el proyecto alojado toda función nueva nace ejecutable por `service_role` |
 
 **Los números de una boleta con coincidencias (BR-I16).** Un **disparador** sobre `tickets` —no una
 comprobación dentro de una RPC— cubre todas las vías: `admin_update_ticket_numbers`,
-`tickets_update_seller`, cualquier RPC futura y la service role. Le acompaña uno **diferido**, que mira
-otra vez al COMMIT. **El hueco que queda está medido** (I-134): la clave ajena de la fotografía
-**serializa** la escritura del motor con la edición en vuelo —comprobado: el motor espera—, y si aun
-así una fotografía quedara con otro número, la lectura lo **marca** en vez de esconderlo.
+`tickets_update_seller`, cualquier RPC futura y la service role. Le acompaña uno **diferido**.
+
+**Y la carrera con el motor está CERRADA** (I-134, `0068`). La conclusión anterior —«la clave ajena
+serializa las escrituras»— era equivocada: solo hace **esperar** al motor. Reproducido con dos
+conexiones, las dos operaciones confirmaban y dejaban la boleta con un número y la fotografía con otro.
+La corrección mínima es un **disparador de restricción diferido** sobre `lottery_ticket_matches` que
+exige, al COMMIT, que `matched_number` sea el número de la boleta en `match_field`. **El motor no se
+tocó**: la defensa vive en su tabla, y en esa carrera el motor falla sin escribir nada, como ya hace
+ante un conflicto de configuración (D-203).
 
 ## 5. Protección de Server Actions y Route Handlers
 

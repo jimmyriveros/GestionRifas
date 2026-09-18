@@ -214,6 +214,11 @@ describe('funciones privilegiadas', () => {
       // devuelven SOLO sus coincidencias —tener equipo no concede ninguna mas—
       // y las dos del personal no declaran ni un campo de cliente (BR-Q01).
       'admin_prize_awards',
+      // 0068 (D-208): el alcance del vendedor con su rol, el suelo del historial
+      // y la cobertura pendiente. Ninguna recibe alcance: sale de la sesion.
+      'current_seller_org_ids',
+      'prize_award_coverage',
+      'prize_award_history_start',
       'admin_prize_award_totals',
       'seller_prize_awards',
       'seller_prize_award_totals',

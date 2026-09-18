@@ -167,11 +167,14 @@ export const PREFLIGHT_SERVICE_ROLE_FINDING = [
 // comprueban igual, con la misma matriz.
 // =============================================================================
 
-/** Las cuatro lecturas del historial: una sesión, nunca la service role. */
+/** Las lecturas del historial y el alcance del vendedor: una sesión, nunca la service role. */
 export const HISTORY_SESSION_RPCS = [
   'admin_prize_award_totals(uuid,uuid,date,date)',
   'admin_prize_awards(uuid,uuid,date,date,integer,integer)',
   'seller_prize_award_totals(uuid,uuid,date,date)',
+  'current_seller_org_ids()',
+  'prize_award_coverage()',
+  'prize_award_history_start()',
   'seller_prize_awards(uuid,uuid,date,date,integer,integer)',
 ] as const
 
@@ -183,6 +186,7 @@ export const HISTORY_SERVICE_ROLE_ENTRIES = [
 /** Lo que no ejecuta nadie directamente: la definición del historial y las defensas. */
 export const HISTORY_INTERNAL_FUNCTIONS = [
   'declared_prize_award_plan(uuid,jsonb)',
+  'lottery_ticket_matches_number_check()',
   'declared_prize_awards_check()',
   'declared_prize_awards_immutable()',
   'prize_award_rows(uuid[],uuid[],uuid,uuid,date,date)',
@@ -216,7 +220,7 @@ export const PRIZE_FUNCTION_GRANTS: ReadonlyArray<{ signature: string; expected:
   })),
 ]
 
-/** Las 10 funciones del historial de premios ganados (`0067`) con su EXECUTE esperado. */
+/** Las 14 funciones del historial de premios ganados (0067 y 0068) con su EXECUTE esperado. */
 export const HISTORY_FUNCTION_GRANTS: ReadonlyArray<{
   signature: string
   expected: ExecuteMatrix
@@ -319,10 +323,10 @@ export const PRIZE_FUNCTION_CHECKS: RemoteCheck[] = [
     esperado: 0,
   },
   {
-    // 0067 (D-208): las 10 del historial de premios ganados, con la misma
+    // 0067 y 0068 (D-208): las 14 del historial de premios ganados, con la misma
     // matriz exacta. En el proyecto alojado toda función nueva nace ejecutable
     // por `service_role` (I-132), así que ninguna se queda sin comprobar.
-    nombre: 'Funciones del historial de premios con EXECUTE distinto de su lista (0067)',
+    nombre: 'Funciones del historial de premios con EXECUTE distinto de su lista (0067, 0068)',
     sql: `with esperado (firma, publico, anonimo, autenticado, servicio) as (
             values
               ${matrizSql(HISTORY_FUNCTION_GRANTS)}

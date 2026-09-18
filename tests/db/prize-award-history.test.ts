@@ -45,6 +45,7 @@ import {
   DB_URL,
   loadSeedContext,
   runLotteryEngine,
+  SEED_PASSWORD,
   serviceClient,
   signInAs,
   USERS,
@@ -303,6 +304,14 @@ async function limpiar(): Promise<void> {
                     (select id from raffles where name like $1)`, [rifas])
   await db.query(`delete from notifications where entity_type = 'raffle_prize'
                     and entity_id in (select id from raffles where name like $1)`, [rifas])
+  // Los vendedores que crea H9 son suyos: se van con su clientela. Ascender a
+  // alguien a Administrador tiene efectos irreversibles, así que esta suite no
+  // toca a los del seed (ver TEST_RESULTS, corrección de la Etapa 1).
+  await db.query(`delete from clients where seller_id in
+                    (select id from profiles where email like 'hist-%@demo.test')`)
+  await db.query(`delete from memberships where profile_id in
+                    (select id from profiles where email like 'hist-%@demo.test')`)
+  await db.query(`delete from auth.users where email like 'hist-%@demo.test'`)
   await db.query(`delete from raffles where name like $1`, [rifas])
   await db.query(`set session_replication_role = origin`)
 }
@@ -345,6 +354,35 @@ async function reconocer(entradas: Entrada[], apply = true) {
     p_awards: entradas as unknown as never,
     p_apply: apply,
   })
+}
+
+/** Escribe una fotografía a mano, para reproducir lo que el motor haría. */
+async function fotografiar(
+  resultId: string,
+  ticketId: string,
+  campo: 'daily_number' | 'weekly_number',
+  numero: string,
+): Promise<void> {
+  await db.query(
+    `insert into lottery_ticket_matches
+       (result_id, ticket_id, organization_id, raffle_id, seller_id, client_id, match_field,
+        matched_number, assignment_status, inventory_status_at_draw, assigned_at, ticket_created_at)
+     select $1, t.id, t.organization_id, t.raffle_id, t.seller_id, t.client_id,
+            $3::lottery_match_field, $4, 'sold', 'assigned', t.assigned_at, t.created_at
+       from tickets t where t.id = $2`,
+    [resultId, ticketId, campo, numero],
+  )
+}
+
+/** El título con el que se llama HOY el único premio de una rifa. */
+async function tituloVigente(raffleId: string): Promise<string> {
+  const { rows } = await db.query<{ t: string }>(
+    `select v.title as t from raffle_prizes p
+       join raffle_prize_versions v on v.id = p.current_version_id
+      where p.raffle_id = $1 limit 1`,
+    [raffleId],
+  )
+  return rows[0]!.t
 }
 
 /** Los totales del vendedor 1, acotados a una rifa para no mezclar escenarios. */
@@ -694,10 +732,15 @@ describe('H2 — los dos premios reconocidos por el negocio', () => {
         amount: 500_000,
       },
     ]
+    // Desde `0068` la vista previa anticipa el MODO del sorteo, que es una
+    // razón anterior y más precisa: ese sorteo lo resuelven los premios
+    // configurables, así que su premio no se reconoce a mano. La razón del
+    // enlace ya existente sigue en el plan, detrás de esta.
     const previa = await reconocer(yaPremiada, false)
     expect((previa.data as unknown as Array<Record<string, unknown>>)[0]).toMatchObject({
       outcome: 'rechazado',
-      problem: 'Esa coincidencia ya tiene ese premio registrado por el sistema.',
+      problem:
+        'Ese sorteo se resuelve con los premios configurables de la rifa, así que su premio lo registra el sistema y no se puede reconocer a mano.',
     })
 
     const aplicada = await reconocer(yaPremiada)
@@ -1027,12 +1070,10 @@ describe('H5 — los números de una boleta con coincidencias no cambian (I-134)
     ])
   })
 
-  it('H5-06: si aun así una fotografía quedara con otro número, el historial LO MARCA', async () => {
-    // El hueco que queda abierto (I-134): el motor lee el número viejo, espera
-    // por la clave ajena, la edición confirma y la fotografía entra con un
-    // número que ya no es el de la boleta. Aquí se escribe esa situación a
-    // propósito —en un sorteo del sistema de siempre, donde cabe una fotografía
-    // sin premio— para comprobar que la lectura no la esconde.
+  it('H5-06: una fotografía INCOHERENTE no se puede escribir (`0068`)', async () => {
+    // Antes de `0068` esta escritura entraba y el historial solo podía marcarla.
+    // Ahora el disparador de restricción diferido la rechaza al COMMIT: el
+    // número fotografiado tiene que ser el de la boleta en su campo.
     const [ticket] = await boletas(
       rHistorica,
       [{ diario: '8001', semanal: '8002', cliente: ctx.clients.carlos.id }],
@@ -1050,51 +1091,88 @@ describe('H5 — los números de una boleta con coincidencias no cambian (I-134)
        values ($1, '8009', 'confirmed', 'official_page', now()) returning id`,
       [prog[0]!.id],
     )
-    await db.query(
-      `insert into lottery_ticket_matches
-         (result_id, ticket_id, organization_id, raffle_id, seller_id, client_id, match_field,
-          matched_number, assignment_status, inventory_status_at_draw, assigned_at, ticket_created_at)
-       select $1, t.id, t.organization_id, t.raffle_id, t.seller_id, t.client_id, 'daily_number',
-              '8009', 'sold', 'assigned', t.assigned_at, t.created_at
-         from tickets t where t.id = $2`,
-      [res[0]!.id, ticket],
+    await expect(
+      fotografiar(res[0]!.id, ticket!, 'daily_number', '8009'),
+    ).rejects.toThrow(/Los números de la boleta cambiaron/)
+
+    const { rows } = await db.query<{ n: string }>(
+      `select count(*)::text as n from lottery_ticket_matches where result_id = $1`,
+      [res[0]!.id],
     )
+    expect(rows[0]!.n).toBe('0')
+  })
+
+  it('H5-07: `numbers_changed` sigue marcando una fotografía HEREDADA incoherente', async () => {
+    // `numbers_changed` no sobra: protege lo que se escribió ANTES de `0068`.
+    // Para reproducir una fila así hay que desactivar los disparadores, que es
+    // exactamente lo que no puede hacer ninguna sesión.
+    const [ticket] = await boletas(
+      rHistorica,
+      [{ diario: '8101', semanal: '8102', cliente: ctx.clients.carlos.id }],
+      `${boletasCreadas}T08:00:00-05:00`,
+    )
+    const { rows: prog } = await db.query<{ id: string; lottery_code: Loteria; d: string }>(
+      `select s.id, s.lottery_code, s.reference_date::text as d from lottery_draw_schedules s
+        where s.draw_number like 'E1H-%'
+          and s.reference_date < (now() at time zone 'America/Bogota')::date
+          and not exists (select 1 from lottery_results r where r.schedule_id = s.id)
+        limit 1`,
+    )
+    const { rows: res } = await db.query<{ id: string }>(
+      `insert into lottery_results (schedule_id, winning_number, validation_status, source_kind, confirmed_at)
+       values ($1, '8109', 'confirmed', 'official_page', now()) returning id`,
+      [prog[0]!.id],
+    )
+    await db.query(`set session_replication_role = replica`)
+    await fotografiar(res[0]!.id, ticket!, 'daily_number', '8109')
+    await db.query(`set session_replication_role = origin`)
+
     const { error } = await reconocer([
       {
-        daily_number: '8001',
-        weekly_number: '8002',
-        lottery_code: (
-          await db.query<{ c: Loteria }>(
-            'select lottery_code as c from lottery_draw_schedules where id = $1',
-            [prog[0]!.id],
-          )
-        ).rows[0]!.c,
-        reference_date: (
-          await db.query<{ d: string }>(
-            `select reference_date::text as d from lottery_draw_schedules where id = $1`,
-            [prog[0]!.id],
-          )
-        ).rows[0]!.d,
-        // El título VIGENTE, que H4-02 ya cambió: el cargador busca el premio
-        // por el nombre con el que se llama hoy.
-        prize_title: (
-          await db.query<{ t: string }>(
-            `select v.title as t from raffle_prizes p
-               join raffle_prize_versions v on v.id = p.current_version_id
-              where p.raffle_id = $1`,
-            [rHistorica],
-          )
-        ).rows[0]!.t,
+        daily_number: '8101',
+        weekly_number: '8102',
+        lottery_code: prog[0]!.lottery_code,
+        reference_date: prog[0]!.d,
+        prize_title: await tituloVigente(rHistorica),
         amount: 500_000,
       },
     ])
     expect(error).toBeNull()
 
-    const fila = (await filasVendedor(rHistorica, 100)).find((f) => f.matched_number === '8009')!
+    const fila = (await filasVendedor(rHistorica, 100)).find((f) => f.matched_number === '8109')!
     expect(fila).toMatchObject({
       numbers_changed: true,
-      daily_number: '8001',
-      weekly_number: '8002',
+      daily_number: '8101',
+      weekly_number: '8102',
+      match_field: 'daily_number',
+    })
+  })
+
+  it('H5-08: el número viejo movido al OTRO campo no esconde la discrepancia', async () => {
+    // El caso que el `numbers_changed` de la `0067` no veía: comparaba contra
+    // los dos números, así que mover el viejo al otro campo lo silenciaba.
+    const { rows } = await db.query<{ ticket_id: string; matched_number: string }>(
+      `select m.ticket_id, m.matched_number from lottery_ticket_matches m
+        where m.raffle_id = $1 and m.match_field = 'daily_number'
+          and m.matched_number = '3427' limit 1`,
+      [rHistorica],
+    )
+    await db.query(`set session_replication_role = replica`)
+    await db.query(`update tickets set daily_number = '0001', weekly_number = $2 where id = $1`, [
+      rows[0]!.ticket_id,
+      rows[0]!.matched_number,
+    ])
+    await db.query(`set session_replication_role = origin`)
+
+    const fila = (await filasVendedor(rHistorica, 100)).find(
+      (f) => f.ticket_id === rows[0]!.ticket_id,
+    )!
+    expect(fila).toMatchObject({
+      match_field: 'daily_number',
+      matched_number: '3427',
+      daily_number: '0001',
+      weekly_number: '3427',
+      numbers_changed: true,
     })
   })
 })
@@ -1189,10 +1267,10 @@ describe('H6 — quién ve qué', () => {
 
 // =============================================================================
 describe('H7 — privilegios y efectos laterales', () => {
-  it('H7-01: las 10 funciones de la 0067 están clasificadas, y su EXECUTE es exactamente el de la lista', async () => {
-    expect(HISTORY_FUNCTION_GRANTS).toHaveLength(10)
-    expect(HISTORY_SESSION_RPCS).toHaveLength(4)
-    expect(HISTORY_INTERNAL_FUNCTIONS).toHaveLength(5)
+  it('H7-01: las 14 funciones de la 0067 y la 0068 están clasificadas, y su EXECUTE es exactamente el de la lista', async () => {
+    expect(HISTORY_FUNCTION_GRANTS).toHaveLength(14)
+    expect(HISTORY_SESSION_RPCS).toHaveLength(7)
+    expect(HISTORY_INTERNAL_FUNCTIONS).toHaveLength(6)
 
     const { rows } = await db.query<{
       firma: string
@@ -1212,7 +1290,7 @@ describe('H7 — privilegios y efectos laterales', () => {
         order by f.firma`,
       [HISTORY_FUNCTION_GRANTS.map((f) => f.signature)],
     )
-    expect(rows).toHaveLength(10)
+    expect(rows).toHaveLength(14)
     const esperado = Object.fromEntries(
       HISTORY_FUNCTION_GRANTS.map((f) => [
         f.signature,
@@ -1227,16 +1305,19 @@ describe('H7 — privilegios y efectos laterales', () => {
     for (const { firma, ...real } of rows) expect(real, firma).toEqual(esperado[firma])
   })
 
-  it('H7-02: toda función que crea la 0067 está en la lista, y ninguna más', async () => {
-    const sql = (
-      await import('node:fs/promises')
-    ).readFile
-    const contenido = await sql('supabase/migrations/0067_prize_award_history.sql', 'utf8')
+  it('H7-02: toda función que crean la 0067 y la 0068 está en la lista, y ninguna más', async () => {
+    const { readFile } = await import('node:fs/promises')
     const nombres = new Set<string>()
-    for (const m of (contenido as string)
-      .replace(/--.*$/gm, '')
-      .matchAll(/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-z_][a-z0-9_]*)\s*\(/gi)) {
-      nombres.add(m[1]!.toLowerCase())
+    for (const archivo of [
+      'supabase/migrations/0067_prize_award_history.sql',
+      'supabase/migrations/0068_prize_award_history_fixes.sql',
+    ]) {
+      const contenido = await readFile(archivo, 'utf8')
+      for (const m of contenido
+        .replace(/--.*$/gm, '')
+        .matchAll(/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-z_][a-z0-9_]*)\s*\(/gi)) {
+        nombres.add(m[1]!.toLowerCase())
+      }
     }
     const clasificadas = new Set(
       HISTORY_FUNCTION_GRANTS.map((f) => f.signature.slice(0, f.signature.indexOf('('))),
@@ -1292,5 +1373,704 @@ describe('H7 — privilegios y efectos laterales', () => {
       [`${PREFIJO}%`],
     )
     expect(sinPagos[0]!.n).toBe('0')
+  })
+})
+
+// =============================================================================
+describe('H8 — reconocer, anular y volver a reconocer (`0068`)', () => {
+  let entrada: Entrada
+  let matchId = ''
+  let prizeId = ''
+
+  beforeAll(async () => {
+    const [ticket] = await boletas(
+      rHistorica,
+      [{ diario: '9501', semanal: '9502', cliente: ctx.clients.beatriz.id }],
+      `${boletasCreadas}T08:00:00-05:00`,
+    )
+    const { rows: prog } = await db.query<{ id: string; lottery_code: Loteria; d: string }>(
+      `select s.id, s.lottery_code, s.reference_date::text as d from lottery_draw_schedules s
+        where s.draw_number like 'E1H-%'
+          and s.reference_date < (now() at time zone 'America/Bogota')::date
+          and not exists (select 1 from lottery_results r where r.schedule_id = s.id)
+        limit 1`,
+    )
+    const { rows: res } = await db.query<{ id: string }>(
+      `insert into lottery_results (schedule_id, winning_number, validation_status, source_kind, confirmed_at)
+       values ($1, '9501', 'confirmed', 'official_page', now()) returning id`,
+      [prog[0]!.id],
+    )
+    await fotografiar(res[0]!.id, ticket!, 'daily_number', '9501')
+    const { rows } = await db.query<{ id: string }>(
+      `select id from lottery_ticket_matches where result_id = $1`,
+      [res[0]!.id],
+    )
+    matchId = rows[0]!.id
+    prizeId = premioHistorico.prizeId
+    entrada = {
+      daily_number: '9501',
+      weekly_number: '9502',
+      lottery_code: prog[0]!.lottery_code,
+      reference_date: prog[0]!.d,
+      prize_title: await tituloVigente(rHistorica),
+      amount: 300_000,
+    }
+  })
+
+  it('H8-01: la unicidad es de lo VIGENTE, no de la historia', async () => {
+    const { rows } = await db.query<{ indexdef: string }>(
+      `select indexdef from pg_indexes
+        where tablename = 'declared_prize_awards' and indexname = 'declared_prize_awards_live_key'`,
+    )
+    expect(rows[0]!.indexdef).toMatch(/WHERE \(voided_at IS NULL\)/)
+    const { rows: viejas } = await db.query(
+      `select conname from pg_constraint
+        where conrelid = 'declared_prize_awards'::regclass and contype = 'u'`,
+    )
+    expect(viejas).toHaveLength(0)
+  })
+
+  it('H8-02: se reconoce, se anula y se vuelve a reconocer con otro importe', async () => {
+    const primera = await reconocer([entrada])
+    expect(primera.error).toBeNull()
+    expect((primera.data as unknown as Array<Record<string, unknown>>)[0]).toMatchObject({
+      outcome: 'reconocido',
+      amount: 300_000,
+    })
+
+    // La anulación, con su motivo. Es lo único que la tabla deja cambiar.
+    await db.query(
+      `update declared_prize_awards set voided_at = now(), void_reason = 'Importe equivocado'
+        where match_id = $1 and prize_id = $2 and voided_at is null`,
+      [matchId, prizeId],
+    )
+
+    const segunda = await reconocer([{ ...entrada, amount: 450_000 }])
+    expect(segunda.error).toBeNull()
+    expect((segunda.data as unknown as Array<Record<string, unknown>>)[0]).toMatchObject({
+      outcome: 'reconocido',
+      amount: 450_000,
+    })
+
+    // La historia entera se conserva: el anulado y el vigente.
+    const { rows } = await db.query<{ amount: string; anulado: boolean }>(
+      `select amount::text, (voided_at is not null) as anulado
+         from declared_prize_awards where match_id = $1 and prize_id = $2
+        order by recorded_at`,
+      [matchId, prizeId],
+    )
+    expect(rows).toEqual([
+      { amount: '300000', anulado: true },
+      { amount: '450000', anulado: false },
+    ])
+
+    // Y el historial cuenta UNO, el vigente.
+    const fila = (await filasVendedor(rHistorica, 100)).filter((f) => f.matched_number === '9501')
+    expect(fila).toHaveLength(1)
+    expect(fila[0]!.known_amount).toBe(450_000)
+  })
+
+  it('H8-03: dos reconocimientos vigentes del mismo premio son imposibles', async () => {
+    await expect(
+      db.query(
+        `insert into declared_prize_awards (organization_id, raffle_id, result_id, match_id,
+                                            match_field, prize_id, declared_title, amount, basis)
+         select organization_id, raffle_id, result_id, match_id, match_field, prize_id,
+                declared_title, 111111, $2
+           from declared_prize_awards
+          where match_id = $1 and voided_at is null`,
+        [matchId, RESPALDO],
+      ),
+    ).rejects.toThrow(/declared_prize_awards_live_key/)
+  })
+
+  it('H8-04: un reintento idéntico no duplica ni reescribe, y el informe dice «ya estaba»', async () => {
+    const { data, error } = await reconocer([{ ...entrada, amount: 450_000 }])
+    expect(error).toBeNull()
+    expect((data as unknown as Array<Record<string, unknown>>)[0]).toMatchObject({
+      outcome: 'ya estaba',
+      amount: 450_000,
+    })
+    const { rows } = await db.query<{ n: string }>(
+      `select count(*)::text as n from declared_prize_awards
+        where match_id = $1 and voided_at is null`,
+      [matchId],
+    )
+    expect(rows[0]!.n).toBe('1')
+  })
+
+  it('H8-05: una petición con OTRO importe se rechaza y dice la discrepancia, sin escribir', async () => {
+    const previa = await reconocer([{ ...entrada, amount: 900_000 }], false)
+    expect((previa.data as unknown as Array<Record<string, unknown>>)[0]).toMatchObject({
+      outcome: 'rechazado',
+      // El informe habla de lo ALMACENADO, no de lo pedido.
+      amount: 450_000,
+      problem:
+        'Ese premio ya está reconocido con $450,000 y la petición trae $900,000. Anúlalo antes de registrar otro.',
+    })
+
+    const aplicada = await reconocer([{ ...entrada, amount: 900_000 }])
+    expect(aplicada.error?.message).toMatch(/No se reconoció ningún premio/)
+
+    const { rows } = await db.query<{ amount: string }>(
+      `select amount::text from declared_prize_awards where match_id = $1 and voided_at is null`,
+      [matchId],
+    )
+    expect(rows[0]!.amount).toBe('450000')
+  })
+
+  it('H8-06: un duplicado DENTRO de la petición se rechaza', async () => {
+    const otra: Entrada = { ...entrada, amount: 450_000 }
+    const { data } = await reconocer([otra, otra], false)
+    const filas = data as unknown as Array<Record<string, unknown>>
+    expect(filas).toHaveLength(2)
+    expect(filas[0]!.outcome).toBe('ya estaba')
+    expect(filas[1]).toMatchObject({
+      outcome: 'rechazado',
+      problem: 'Esa misma boleta, ese sorteo y ese premio ya vienen en otra entrada de esta petición.',
+    })
+  })
+
+  it('H8-07: la vista previa anticipa importe fuera de límites y ambigüedad por título', async () => {
+    const fuera = await reconocer([{ ...entrada, amount: 0 }], false)
+    expect((fuera.data as unknown as Array<Record<string, unknown>>)[0]!.problem).toMatch(
+      /entre \$1 y \$10\.000\.000\.000/,
+    )
+
+    // Un segundo premio con el MISMO título: el cargador no elige.
+    const titulo = await tituloVigente(rHistorica)
+    const gemelo = await owner.rpc('create_raffle_prize', {
+      p_raffle_id: rHistorica,
+      p_title: titulo,
+      p_category: 'daily',
+      p_reward_mode: 'fixed',
+      p_reward_options: [{ description: null, amount: 500_000 }],
+      p_number_field: 'weekly_number',
+      p_digits: 'four',
+      p_rules: reglasHistorico,
+    })
+    expect(gemelo.error).toBeNull()
+
+    const ambigua = await reconocer([{ ...entrada, amount: 450_000 }], false)
+    expect((ambigua.data as unknown as Array<Record<string, unknown>>)[0]!.problem).toBe(
+      'La rifa tiene más de un premio con ese nombre, así que no se puede saber cuál es.',
+    )
+
+    // Se archiva el gemelo para no contaminar lo que sigue.
+    const creado = (gemelo.data as unknown as Array<{ prize_id: string; version_id: string }>)[0]!
+    const archivado = await owner.rpc('archive_raffle_prize', {
+      p_prize_id: creado.prize_id,
+      p_expected_version_id: creado.version_id,
+    })
+    expect(archivado.error).toBeNull()
+  })
+
+  it('H8-08: dos ejecuciones a la vez se serializan: una reconoce y la otra ve lo escrito', async () => {
+    const [ticket] = await boletas(
+      rHistorica,
+      [{ diario: '9601', semanal: '9602', cliente: ctx.clients.beatriz.id }],
+      `${boletasCreadas}T08:00:00-05:00`,
+    )
+    const { rows: prog } = await db.query<{ id: string; lottery_code: Loteria; d: string }>(
+      `select s.id, s.lottery_code, s.reference_date::text as d from lottery_draw_schedules s
+        where s.draw_number like 'E1H-%'
+          and s.reference_date < (now() at time zone 'America/Bogota')::date
+          and not exists (select 1 from lottery_results r where r.schedule_id = s.id)
+        limit 1`,
+    )
+    const { rows: res } = await db.query<{ id: string }>(
+      `insert into lottery_results (schedule_id, winning_number, validation_status, source_kind, confirmed_at)
+       values ($1, '9601', 'confirmed', 'official_page', now()) returning id`,
+      [prog[0]!.id],
+    )
+    await fotografiar(res[0]!.id, ticket!, 'daily_number', '9601')
+
+    const peticion = [
+      {
+        daily_number: '9601',
+        weekly_number: '9602',
+        lottery_code: prog[0]!.lottery_code,
+        reference_date: prog[0]!.d,
+        prize_title: await tituloVigente(rHistorica),
+        amount: 500_000,
+      },
+    ]
+
+    // Dos conexiones que llaman al cargador a la vez. El cerrojo por
+    // organización las ordena: la segunda ve lo que escribió la primera.
+    const uno = new PgClient({ connectionString: DB_URL })
+    const dos = new PgClient({ connectionString: DB_URL })
+    await uno.connect()
+    await dos.connect()
+    try {
+      const llamar = (c: PgClient) =>
+        c.query<{ outcome: string }>(
+          `select outcome from record_declared_prize_awards($1, $2, $3::jsonb, true)`,
+          [ctx.demoOrg.id, RESPALDO, JSON.stringify(peticion)],
+        )
+      const [a, b] = await Promise.all([llamar(uno), llamar(dos)])
+      const resultados = [a.rows[0]!.outcome, b.rows[0]!.outcome].sort()
+      expect(resultados).toEqual(['reconocido', 'ya estaba'])
+    } finally {
+      await uno.end()
+      await dos.end()
+    }
+
+    const { rows } = await db.query<{ n: string }>(
+      `select count(*)::text as n from declared_prize_awards
+        where match_id in (select id from lottery_ticket_matches where result_id = $1)
+          and voided_at is null`,
+      [res[0]!.id],
+    )
+    expect(rows[0]!.n).toBe('1')
+  })
+})
+
+// =============================================================================
+describe('H9 — el rol, no solo el perfil (`0068`, I-137)', () => {
+  // SUS PROPIOS VENDEDORES, y no los del seed. Ascender a alguien a
+  // Administrador tiene un efecto IRREVERSIBLE: el disparador de D-198 le quita
+  // el precio a los avisos que ya tenia, y eso no vuelve. Con un vendedor del
+  // seed, esta suite rompia `admin-privacy` en la corrida siguiente, porque la
+  // base guarda el estado entre corridas. La lección quedó en TEST_RESULTS.
+  let propioId = ''
+  let padreId = ''
+  let hijoId = ''
+  const propioEmail = `hist-propio-${stamp}@demo.test`
+  const padreEmail = `hist-padre-${stamp}@demo.test`
+  const hijoEmail = `hist-hijo-${stamp}@demo.test`
+  let clienteId = ''
+  let clienteHijoId = ''
+
+  async function nuevoVendedor(email: string, nombre: string, padre: string | null) {
+    const { data, error } = await svc.auth.admin.createUser({
+      email,
+      password: SEED_PASSWORD,
+      email_confirm: true,
+      user_metadata: { full_name: nombre, phone: '3001234567' },
+    })
+    if (error) throw new Error(`No se pudo crear ${email}: ${error.message}`)
+    const { error: membresia } = await svc.from('memberships').insert({
+      organization_id: ctx.demoOrg.id,
+      profile_id: data.user.id,
+      role: 'seller',
+      parent_seller_id: padre,
+    })
+    if (membresia) throw membresia
+    return data.user.id
+  }
+
+  /** Un cliente de ese vendedor, con su boleta vendida y su coincidencia. */
+  async function conPremio(sellerId: string, clientId: string, diario: string, semanal: string) {
+    const { rows: tk } = await db.query<{ id: string }>(
+      `insert into tickets (organization_id, raffle_id, seller_id, created_by, daily_number,
+                            weekly_number, inventory_status, created_at)
+       values ($1, $2, $3, $4, $5, $6, 'available', $7) returning id`,
+      [
+        ctx.demoOrg.id,
+        rHistorica,
+        sellerId,
+        ctx.ids.owner,
+        diario,
+        semanal,
+        `${boletasCreadas}T08:00:00-05:00`,
+      ],
+    )
+    await db.query(
+      `update tickets set client_id = $2, inventory_status = 'assigned', sale_price = $3,
+              sale_date = $4::date, assigned_at = $5 where id = $1`,
+      [tk[0]!.id, clientId, PRECIO, boletasCreadas, `${boletasCreadas}T08:00:00-05:00`],
+    )
+    const { rows: prog } = await db.query<{ id: string; lottery_code: Loteria; d: string }>(
+      `select s.id, s.lottery_code, s.reference_date::text as d from lottery_draw_schedules s
+        where s.draw_number like 'E1H-%'
+          and s.reference_date < (now() at time zone 'America/Bogota')::date
+          and not exists (select 1 from lottery_results r where r.schedule_id = s.id)
+        limit 1`,
+    )
+    const { rows: res } = await db.query<{ id: string }>(
+      `insert into lottery_results (schedule_id, winning_number, validation_status, source_kind, confirmed_at)
+       values ($1, $2, 'confirmed', 'official_page', now()) returning id`,
+      [prog[0]!.id, diario],
+    )
+    await fotografiar(res[0]!.id, tk[0]!.id, 'daily_number', diario)
+    return { resultId: res[0]!.id, ticketId: tk[0]!.id }
+  }
+
+  beforeAll(async () => {
+    propioId = await nuevoVendedor(propioEmail, 'Historial Propio', null)
+    padreId = await nuevoVendedor(padreEmail, 'Historial Padre', null)
+    hijoId = await nuevoVendedor(hijoEmail, 'Historial Integrante', padreId)
+
+    const { rows: c1 } = await db.query<{ id: string }>(
+      `insert into clients (organization_id, seller_id, name, phone)
+       values ($1, $2, 'Cliente del propio', '3009990001') returning id`,
+      [ctx.demoOrg.id, propioId],
+    )
+    clienteId = c1[0]!.id
+    const { rows: c2 } = await db.query<{ id: string }>(
+      `insert into clients (organization_id, seller_id, name, phone)
+       values ($1, $2, 'Cliente del integrante', '3009990002') returning id`,
+      [ctx.demoOrg.id, hijoId],
+    )
+    clienteHijoId = c2[0]!.id
+
+    await conPremio(propioId, clienteId, '9801', '9802')
+    await conPremio(hijoId, clienteHijoId, '9901', '9902')
+  })
+
+  /** Lo que ve una SESIÓN real: pasa por PostgREST y por la RLS. */
+  async function comoSesion(email: string) {
+    const sesion = await signInAs(email)
+    const historial = await sesion.rpc('seller_prize_awards', { p_raffle_id: rHistorica })
+    const totales = await sesion.rpc('seller_prize_award_totals', { p_raffle_id: rHistorica })
+    const fotos = await sesion.from('lottery_ticket_matches').select('id, client_id')
+    const declarados = await sesion
+      .from('declared_prize_awards')
+      .select('id', { count: 'exact', head: true })
+    return {
+      historial: (historial.data as unknown as Array<Record<string, unknown>> | null) ?? [],
+      totales: (totales.data as unknown as Array<Record<string, number>> | null)?.[0] ?? null,
+      fotos: (fotos.data ?? []).length,
+      fotosConCliente: (fotos.data ?? []).filter((f) => f.client_id !== null).length,
+      declarados: declarados.count ?? 0,
+    }
+  }
+
+  it('H9-01: el vendedor activo ve lo suyo por la función y por la tabla', async () => {
+    const visto = await comoSesion(propioEmail)
+    expect(visto.fotos).toBe(1)
+    expect(visto.fotosConCliente).toBe(1)
+    // Todavía no tiene premio reconocido: la fotografía sola no es un premio.
+    expect(visto.historial).toHaveLength(0)
+
+    const { error } = await reconocer([
+      {
+        daily_number: '9801',
+        weekly_number: '9802',
+        lottery_code: (
+          await db.query<{ c: Loteria }>(
+            `select s.lottery_code as c from lottery_draw_schedules s
+               join lottery_results r on r.schedule_id = s.id
+               join lottery_ticket_matches m on m.result_id = r.id
+               join tickets t on t.id = m.ticket_id
+              where t.daily_number = '9801' limit 1`,
+          )
+        ).rows[0]!.c,
+        reference_date: (
+          await db.query<{ d: string }>(
+            `select s.reference_date::text as d from lottery_draw_schedules s
+               join lottery_results r on r.schedule_id = s.id
+               join lottery_ticket_matches m on m.result_id = r.id
+               join tickets t on t.id = m.ticket_id
+              where t.daily_number = '9801' limit 1`,
+          )
+        ).rows[0]!.d,
+        prize_title: await tituloVigente(rHistorica),
+        amount: 500_000,
+      },
+    ])
+    expect(error).toBeNull()
+
+    const conPremioVisto = await comoSesion(propioEmail)
+    expect(conPremioVisto.historial).toHaveLength(1)
+    expect(conPremioVisto.historial[0]!.client_name).toBe('Cliente del propio')
+    expect(Number(conPremioVisto.totales!.prizes_count)).toBe(1)
+  })
+
+  it('H9-02: el MISMO perfil, ya Administrador, no ve NADA por ninguna de las dos vías', async () => {
+    await db.query(
+      `update memberships set role = 'admin' where profile_id = $1 and organization_id = $2`,
+      [propioId, ctx.demoOrg.id],
+    )
+    const visto = await comoSesion(propioEmail)
+    expect(visto.historial).toHaveLength(0)
+    expect(Number(visto.totales!.prizes_count)).toBe(0)
+    // Lo importante: ni una fotografía, así que tampoco un `client_id` (BR-Q01).
+    expect(visto.fotos).toBe(0)
+    expect(visto.fotosConCliente).toBe(0)
+    expect(visto.declarados).toBe(0)
+  })
+
+  it('H9-03: y como Administrador ve el historial por su propia proyección, sin cliente', async () => {
+    const sesion = await signInAs(propioEmail)
+    const { data, error } = await sesion.rpc('admin_prize_awards', { p_raffle_id: rHistorica })
+    expect(error).toBeNull()
+    const filas = data as unknown as Array<Record<string, unknown>>
+    expect(filas.length).toBeGreaterThan(0)
+    for (const fila of filas) {
+      expect(Object.keys(fila).join(',')).not.toMatch(/client/i)
+      expect(JSON.stringify(fila)).not.toContain('Cliente del propio')
+    }
+    // Y su premio sigue estando: lo que cambió es por dónde lo lee.
+    expect(filas.some((f) => f.matched_number === '9801')).toBe(true)
+  })
+
+  it('H9-04: un vendedor DESACTIVADO no ve nada', async () => {
+    await db.query(
+      `update memberships set is_active = false where profile_id = $1 and organization_id = $2`,
+      [hijoId, ctx.demoOrg.id],
+    )
+    try {
+      const visto = await comoSesion(hijoEmail)
+      expect(visto.historial).toHaveLength(0)
+      expect(visto.fotos).toBe(0)
+    } finally {
+      await db.query(
+        `update memberships set is_active = true where profile_id = $1 and organization_id = $2`,
+        [hijoId, ctx.demoOrg.id],
+      )
+    }
+  })
+
+  it('H9-05: el vendedor PADRE no ve el historial de su equipo', async () => {
+    const padre = await comoSesion(padreEmail)
+    // El integrante tiene su coincidencia; el padre no ve ninguna.
+    expect(padre.fotos).toBe(0)
+    expect(padre.historial).toHaveLength(0)
+
+    const hijo = await comoSesion(hijoEmail)
+    expect(hijo.fotos).toBe(1)
+  })
+
+  it('H9-06: otra organización no ve nada, ni por la función ni por la tabla', async () => {
+    const ajena = await signInAs(USERS.otherOrgSeller)
+    const { data } = await ajena.rpc('seller_prize_awards', {})
+    expect((data as unknown[] | null)?.length ?? 0).toBe(0)
+    const declarados = await ajena
+      .from('declared_prize_awards')
+      .select('id', { count: 'exact', head: true })
+    expect(declarados.count ?? 0).toBe(0)
+  })
+})
+
+describe('H10 — la carrera de los números, determinista (`0068`, I-134)', () => {
+  it('H10-01: con la edición confirmada primero, el motor NO deja una fotografía incoherente', async () => {
+    const [ticket] = await boletas(
+      rMotor,
+      [{ diario: '7531', semanal: '7532', cliente: ctx.clients.ana.id }],
+      '2086-01-01T08:00:00-05:00',
+    )
+    const { resultId } = await sorteo('bogota', '2087-03-27', '7531')
+
+    const edicion = new PgClient({ connectionString: DB_URL })
+    const motorLento = new PgClient({ connectionString: DB_URL })
+    await edicion.connect()
+    await motorLento.connect()
+    let errorMotor: Error | null = null
+    try {
+      // T1 cambia el número y NO confirma: el disparador inmediato pasa, porque
+      // todavía no hay fotografía.
+      await edicion.query('begin')
+      await edicion.query(`update tickets set daily_number = '8642' where id = $1`, [ticket])
+
+      // T2 arranca el motor, que lee el número VIEJO y se queda esperando por
+      // la clave ajena. No se espera su promesa todavía.
+      await motorLento.query('begin')
+      const enMarcha = motorLento
+        .query('select match_lottery_result($1) as r', [resultId])
+        .catch((error: Error) => {
+          errorMotor = error
+          return null
+        })
+      await new Promise((r) => setTimeout(r, 800))
+
+      // T1 confirma. La boleta ya tiene el número nuevo.
+      await edicion.query('commit')
+      await enMarcha
+
+      // Y T2 no puede confirmar: al COMMIT, el número fotografiado ya no es el
+      // de la boleta.
+      if (!errorMotor) {
+        await motorLento.query('commit').catch((error: Error) => {
+          errorMotor = error
+        })
+      }
+    } finally {
+      await motorLento.query('rollback').catch(() => {})
+      await edicion.end()
+      await motorLento.end()
+    }
+
+    expect(errorMotor).not.toBeNull()
+    expect(errorMotor!.message).toMatch(/Los números de la boleta cambiaron/)
+
+    // El estado final de LAS DOS operaciones: la edición quedó, el motor no
+    // escribió nada, y no hay ninguna fotografía incoherente.
+    const { rows } = await db.query<{ daily_number: string; fotos: string }>(
+      `select t.daily_number,
+              (select count(*)::text from lottery_ticket_matches m where m.ticket_id = t.id) as fotos
+         from tickets t where t.id = $1`,
+      [ticket],
+    )
+    expect(rows[0]).toEqual({ daily_number: '8642', fotos: '0' })
+  })
+
+  it('H10-02: sin edición de por medio, el motor fotografía con normalidad', async () => {
+    const [ticket] = await boletas(
+      rMotor,
+      [{ diario: '7631', semanal: '7632', cliente: ctx.clients.ana.id }],
+      '2086-01-01T08:00:00-05:00',
+    )
+    // Miércoles: ese día la lotería correspondiente es Meta, y el premio diario
+    // juega de lunes a viernes con la del día.
+    const { resultId } = await sorteo('meta', '2087-03-26', '7631')
+    const resumen = await motor(resultId)
+    expect(resumen.inserted).toBe(1)
+    const { rows } = await db.query<{ matched_number: string }>(
+      `select matched_number from lottery_ticket_matches where ticket_id = $1`,
+      [ticket],
+    )
+    expect(rows[0]!.matched_number).toBe('7631')
+  })
+})
+
+// =============================================================================
+describe('H11 — el contrato de lectura de la Etapa 2 (`0068`)', () => {
+  it('H11-01: la lectura del vendedor trae todo lo que hay que mostrar, sin condiciones de hoy', async () => {
+    const filas = await filasVendedor(rMotor, 100)
+    const delMotor = filas.find((f) => f.origin === 'engine')!
+    expect(Object.keys(delMotor)).toEqual(
+      expect.arrayContaining([
+        'match_field',
+        'matched_number',
+        'prize_title',
+        'prize_category',
+        'prize_digits',
+        'reward_mode',
+        'reward_options',
+        'known_amount',
+        'value_pending',
+      ]),
+    )
+    // El origen del MOTOR sí trae categoría y cifras: son las de su versión.
+    expect(delMotor.prize_category).toBeTruthy()
+    expect(delMotor.prize_digits).toBeTruthy()
+    expect(Array.isArray(delMotor.reward_options)).toBe(true)
+  })
+
+  it('H11-02: el origen DECLARADO no presenta las condiciones de hoy como históricas', async () => {
+    const declarado = (await filasVendedor(rHistorica, 100)).find((f) => f.origin === 'declared')!
+    expect(declarado.prize_category).toBeNull()
+    expect(declarado.prize_digits).toBeNull()
+    expect(declarado.reward_mode).toBeNull()
+    // Lo que SÍ está respaldado: el título declarado y su recompensa.
+    expect(declarado.prize_title).toBeTruthy()
+    expect(declarado.reward_options).toEqual([
+      { position: 1, description: null, amount: declarado.known_amount },
+    ])
+  })
+
+  it('H11-03: un premio de alternativas trae las suyas y no multiplica filas ni importes', async () => {
+    const filas = (await filasVendedor(rMotor, 100)).filter((f) => f.matched_number === '4301')
+    expect(filas).toHaveLength(1)
+    const opciones = filas[0]!.reward_options as Array<Record<string, unknown>>
+    expect(opciones).toHaveLength(2)
+    expect(filas[0]!.reward_mode).toBe('winner_choice')
+    expect(filas[0]!.known_amount).toBeNull()
+    expect(filas[0]!.value_pending).toBe(true)
+  })
+
+  it('H11-04: el personal recibe lo mismo, sin un solo dato de cliente', async () => {
+    const { data, error } = await owner.rpc('admin_prize_awards', { p_raffle_id: rMotor })
+    expect(error).toBeNull()
+    const filas = data as unknown as Array<Record<string, unknown>>
+    expect(filas.length).toBeGreaterThan(0)
+    expect(Object.keys(filas[0]!)).toEqual(
+      expect.arrayContaining(['match_field', 'matched_number', 'reward_options', 'known_amount']),
+    )
+    for (const fila of filas) {
+      expect(Object.keys(fila).join(',')).not.toMatch(/client/i)
+    }
+  })
+
+  it('H11-05: el inicio operativo lo garantiza la BASE, no un filtro de la URL', async () => {
+    const { rows } = await db.query<{ d: string }>(
+      `select prize_award_history_start()::text as d`,
+    )
+    expect(rows[0]!.d).toBe('2026-08-09')
+
+    // Una coincidencia REAL anterior al inicio operativo: la boleta, el sorteo
+    // y su fotografía, que es coherente y entra sin más.
+    // En la rifa TRANSFORMADA: su sorteo del 06/08 queda del lado del sistema
+    // de siempre, donde cabe una fotografía sin premio (la rifa nacida
+    // configurable exige el enlace en la misma operación, 0061).
+    const [ticket] = await boletas(
+      rHistorica,
+      [{ diario: '1201', semanal: '1202', cliente: ctx.clients.ana.id }],
+      '2026-06-01T08:00:00-05:00',
+    )
+    const { rows: prog } = await db.query<{ id: string }>(
+      `insert into lottery_draw_schedules (lottery_code, draw_number, reference_date,
+                                           original_scheduled_at, official_scheduled_at, schedule_status)
+       values ('bogota', $1, '2026-08-06', '2026-08-07T04:15:00Z', '2026-08-07T04:15:00Z', 'scheduled')
+       returning id`,
+      [`E1H-${stamp}-suelo`],
+    )
+    const { rows: res } = await db.query<{ id: string }>(
+      `insert into lottery_results (schedule_id, winning_number, validation_status, source_kind, confirmed_at)
+       values ($1, '1201', 'confirmed', 'official_page', now()) returning id`,
+      [prog[0]!.id],
+    )
+    await fotografiar(res[0]!.id, ticket!, 'daily_number', '1201')
+
+    // El CARGADOR lo dice antes de escribir: hay coincidencia, pero el sorteo
+    // es anterior al inicio operativo.
+    const antesDelInicio = await reconocer(
+      [
+        {
+          daily_number: '1201',
+          weekly_number: '1202',
+          lottery_code: 'bogota',
+          reference_date: '2026-08-06',
+          prize_title: await tituloVigente(rHistorica),
+          amount: 500_000,
+        },
+      ],
+      false,
+    )
+    const fila = (antesDelInicio.data as unknown as Array<Record<string, unknown>>)[0]!
+    expect(fila.outcome).toBe('rechazado')
+    expect(fila.problem).toMatch(/anterior al inicio operativo/)
+
+    // Y la LECTURA tampoco la devuelve, ni con un filtro que pida más atrás.
+    // Para que fuera una fila mostrable le falta su enlace al premio, y
+    // fabricarlo exige desactivar los disparadores: ninguna sesión puede.
+    await db.query(`set session_replication_role = replica`)
+    await db.query(
+      `insert into lottery_ticket_match_prizes (organization_id, raffle_id, result_id, match_id,
+                                                match_field, prize_id, prize_version_id)
+       select m.organization_id, m.raffle_id, m.result_id, m.id, m.match_field, $2, $3
+         from lottery_ticket_matches m where m.result_id = $1`,
+      [res[0]!.id, premioHistorico.prizeId, premioHistorico.versionId],
+    )
+    await db.query(`set session_replication_role = origin`)
+
+    // La fila existe y es de las que el historial mostraría...
+    const { rows: existe } = await db.query<{ n: string }>(
+      `select count(*)::text as n from lottery_ticket_match_prizes lp
+         join lottery_ticket_matches m on m.id = lp.match_id where m.ticket_id = $1`,
+      [ticket],
+    )
+    expect(existe[0]!.n).toBe('1')
+
+    // ...y no sale, ni pidiendo desde 2020.
+    const conFiltroAmplio = await seller1.rpc('seller_prize_awards', {
+      p_raffle_id: rHistorica,
+      p_from: '2020-01-01',
+    })
+    const devueltas = (conFiltroAmplio.data as unknown as Array<Record<string, unknown>>) ?? []
+    expect(devueltas.some((f) => f.matched_number === '1201')).toBe(false)
+  })
+
+  it('H11-06: la cobertura pendiente la calcula la base, y no es cero premios', async () => {
+    const { data, error } = await seller1.rpc('prize_award_coverage')
+    expect(error).toBeNull()
+    const cobertura = (data as unknown as Array<Record<string, unknown>>)[0]!
+    expect(cobertura.history_start).toBe('2026-08-09')
+    // En el escenario hay sorteos jugados sin resultado confirmado: eso es
+    // «pendiente de información», no «cero premios».
+    expect(Number(cobertura.pending_draws)).toBeGreaterThan(0)
+    expect(cobertura.pending_from).toBeTruthy()
   })
 })

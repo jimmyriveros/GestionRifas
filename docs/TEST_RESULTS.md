@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Etapa 1 del historial de premios ganados, D-208, `0067`, solo en local, 2026-09-17)** | **1.381 ✅ en 76 archivos (+6)** | **1.305 ✅ en 53 archivos (+35; migración `0067`)** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: la `0067` no está promovida | ✅ **En local**: tabla, 4 lecturas, cargador y cerrojo de números. Los **dos** premios reconocidos ensayados de punta a punta: **$1.000.000**, idempotente. I-134 e I-135 resueltas en local; I-136 nueva. **Nada en producción** |
+| **Post-9 vigente (corrección de la Etapa 1 del historial de premios, D-208, `0068`, solo en local, 2026-09-17)** | **1.381 ✅ en 76 archivos** (sin cambio) | **1.329 ✅ en 53 archivos (+24; migración `0068`)**: la suite del historial pasa de 35 a **59** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: `0067` y `0068` no están promovidas | ✅ **Siete hallazgos reproducidos y corregidos**, incluida la carrera de **I-134**, que no estaba cerrada. **I-137 nueva** y anterior a este encargo. Dos errores de método corregidos: medir RLS como `postgres` no mide nada, y una serialización que solo retrasa no es una garantía |
+| Post-9 anterior (Etapa 1 del historial de premios ganados, D-208, `0067`, solo en local, 2026-09-17) | **1.381 ✅ en 76 archivos (+6)** | **1.305 ✅ en 53 archivos (+35; migración `0067`)** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: la `0067` no está promovida | ✅ **En local**: tabla, 4 lecturas, cargador y cerrojo de números. Los **dos** premios reconocidos ensayados de punta a punta: **$1.000.000**, idempotente. I-134 e I-135 resueltas en local; I-136 nueva. **Nada en producción** |
 | Post-9 anterior (Etapa 0 del historial de premios ganados, D-208 propuesta, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio: la etapa no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ `verify:remote` **41/41** | 📋 **Diagnóstico**: 5 sondas de solo lectura en el proyecto real, validadas antes en local. Cobertura real: **2** coincidencias, **0** premios registrados, inicio operativo **2026-08-09**. Abre **I-133**, **I-134** e **I-135**. **Nada escrito en producción** |
 | Post-9 anterior (premios configurables, Entrega 5 COMPLETA EN PRODUCCIÓN: puertas 1, 2 y 3, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio: el cierre no toca código) | **1.270 ✅ en 52 archivos** (sin cambio) | No se corrió: no cambia la interfaz | ✅ | 🚀 **En producción**: `0058`–`0066` aplicadas, `da81663` desplegado, la rifa real convertida y `verify:remote` **41/41** |
 | Post-9 anterior (premios configurables, Entrega 5: Puerta 1 suspendida antes de escribir y la `0066`, quién ejecuta cada función, D-207, 2026-09-17) | **1.375 ✅ en 75 archivos** (sin cambio) | **1.270 ✅ en 52 archivos (+15; migración `0066`)**; dirigidas **374/374** tras corregir DB-15; la cadena desde `0057` con los dos privilegios por defecto, **idéntica** | No se corrió: no cambia la interfaz | ✅ | ⛔→✅ **Puerta 1 suspendida sin escribir nada** (I-132); corrección local sin push ni despliegue; producción sigue en la `0057` y `c48437a` |
@@ -71,6 +72,86 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+## Corrección de la Etapa 1 del historial de premios ganados (D-208, `0068`) — 2026-09-17
+
+**Solo en local.** Ni una escritura en producción. Los siete hallazgos de la revisión **se reprodujeron
+antes de tocar nada**, y ninguno se cerró cambiando el informe o la expectativa de una prueba.
+
+| Verificación | Resultado |
+|---|---|
+| `npm run db:reset` + `npm run seed:local` | ✅ **68** migraciones, `0068` la última |
+| `npm run test:db` | ✅ **1.329/1.329** en 53 archivos (**+24** en la suite del historial: 35 → **59**) |
+| `npm run verify` | ✅ **exit 0**; unitarias **1.381/1.381** en 76 archivos |
+| `npm run verify:remote` | ⚠️ **41 en verde y 1 en rojo, y es lo correcto**: las **14** funciones de `0067` y `0068` «no existen» en el proyecto real porque **no están promovidas** |
+| Ensayo del cargador | ✅ previa → aplicar (`reconocido`) → repetir (`ya estaba`), **$1.000.000** estable |
+
+### La evidencia de cada hallazgo, antes y después
+
+| Hallazgo | Antes (reproducido) | Después de `0068` |
+|---|---|---|
+| **1.a** anular y volver a registrar | `duplicate key value violates unique constraint "declared_prize_awards_match_prize_key"` | Se registra, y quedan las dos filas: la anulada y la vigente |
+| **1.b** el informe y lo almacenado | Guardado $500.000, petición $900.000 → informe **«ya estaba» con $900.000** y nada escrito | **«rechazado»**, con «Ese premio ya está reconocido con $450.000 y la petición trae $900.000. Anúlalo antes de registrar otro.», el importe **almacenado** en el informe y, con `--apply`, negativa total |
+| **1.c** duplicado interno | Dos entradas idénticas: **las dos sin problema** | La segunda: «Esa misma boleta, ese sorteo y ese premio ya vienen en otra entrada de esta petición.» |
+| **2** el rol del vendedor | El mismo perfil ya Administrador leía `client_id` y **nombre** por `seller_prize_awards` | **0 filas** por la función y por la tabla; su historial le llega por `admin_prize_awards`, sin cliente |
+| **2.bis** el antecedente (**I-137**) | Con la política de `0057` y la RLS **aplicada**: **2 fotografías con `client_id`** y 3 reconocimientos para un ex vendedor ya Administrador | **0 y 0** |
+| **3.a** `numbers_changed` | Número diario fotografiado movido al **semanal**: `numbers_changed = false` | `true`, porque compara contra el número que dice `match_field` |
+| **3.b** el origen declarado | `prize_category` y `prize_digits` de la versión **vigente** | **NULL** las dos, y en su lugar viaja lo respaldado: el título declarado y su recompensa |
+| **4** la carrera de I-134 | Las dos operaciones confirmaban: boleta con **`8642`**, fotografía con **`7531`** | El motor **falla al confirmar** —«Los números de la boleta cambiaron mientras se buscaban las coincidencias de este sorteo. No se guardó ninguna.»— y **no escribe nada**; la boleta queda con `8642` y **0** fotografías |
+
+### Dos errores de método, corregidos
+
+| Qué | Cómo se vio | Lección |
+|---|---|---|
+| **La primera medición del hallazgo 2 fue inválida** | Se midió la lectura directa de las tablas con una conexión de `postgres` y `request.jwt.claims`, y daba filas «de más» tanto antes como después: **`postgres` tiene `BYPASSRLS`**, así que la RLS no se aplicaba. La conclusión habría sido falsa en los dos sentidos | Para medir RLS, **`set role authenticated`** o una sesión real. Lo dice el propio `tests/db/helpers.ts` en `asProfile`, y aun así se cayó en ello |
+| **La conclusión sobre la carrera era equivocada** | «La clave ajena serializa las escrituras» describía que el motor **espera**, y de ahí se dedujo que la carrera estaba contenida. La reproducción con dos conexiones y un orden fijo demostró lo contrario | Una serialización que solo **retrasa** no es una garantía. La prueba anterior (H5-04) terminaba por tiempo de espera y volvía a correr el motor **después** de deshacer la edición, así que no examinaba la intercalación en la que ambas confirman |
+
+### Errores propios encontrados al corregir
+
+| Qué | Cómo se vio | Corrección |
+|---|---|---|
+| La vista previa dejó de decir el importe | Al hacer que el informe saliera de lo almacenado, una vista previa —donde todavía no hay fila— mostraba `null` | El informe usa la fila **si existe**; si no, lo que se escribiría, que es lo que «se reconocería» anuncia |
+| Un premio **archivado** hacía ambigua la resolución por título | H8-08 falló: el gemelo archivado en H8-07 seguía contando | Solo los premios **vigentes** son candidatos |
+| La suite **rompía otra suite en la corrida siguiente** | `admin-privacy` pasaba en aislamiento y fallaba en la corrida completa: promover un vendedor del seed a Administrador dispara el redactado de D-198, que **quita el precio de sus avisos y no vuelve**, y la base guarda el estado entre corridas | H9 **crea sus propios vendedores** y los borra al final. Tres pruebas de `seller-teams` fallaban por lo mismo: el `parent_seller_id` que la suite cambiaba sin devolverlo |
+| Dos fechas mal elegidas en el escenario | Un sorteo de Bogotá en miércoles no tiene premio aplicable —la lotería correspondiente de ese día es Meta—, y una entrada anterior al inicio operativo sin coincidencia recibe «no hay coincidencia» y no la frase del suelo | Se corrigieron el día y el escenario, no la expectativa |
+
+### Dos fallos que aparecieron y no eran del cambio (I-035, cuarta aparición)
+
+Durante la corrección, dos corridas completas dieron **1 fallo cada una, y distinto**:
+`admin-privacy` «encuentra la boleta por su número diario y por el semanal», y
+`ticket-search-client` «el nombre exacto va primero…», al que le faltaban **dos filas** de su propio
+escenario. **No eran del cambio**, y se comprobó en vez de suponerlo:
+
+| Prueba | Resultado |
+|---|---|
+| `ticket-search-client` con la `0068` **fuera** de `supabase/migrations` y base recién reiniciada | ✅ 21/21 |
+| La misma, con la `0068` puesta y base recién reiniciada | ✅ 21/21 |
+| `test:db` completa, base recién reiniciada | ✅ **1.329/1.329** |
+| `test:db` **otra vez, sobre esa misma base** | ✅ **1.329/1.329** |
+
+**Qué era:** la base local **guarda el estado entre corridas**, y durante el desarrollo hubo varias
+corridas abortadas a mitad —la suite del historial se cayó en su `beforeAll` cinco o seis veces
+mientras se afinaba el escenario— que dejaron boletas con números aleatorios en la rifa del seed. Las
+dos pruebas que fallaron son de la familia **I-035**: afirman un conjunto **exacto** de resultados de
+búsqueda sobre datos compartidos, así que cualquier resto ajeno las mueve. Con la base limpia no
+reproducen, ni una vez ni dos seguidas.
+
+**Qué se hizo con eso:** nada en esas dos pruebas —no son de este encargo y endurecerlas es otro
+trabajo— y **sí** en la suite propia, que ahora **limpia por prefijo al empezar y al terminar** para no
+ser ella la que deje restos.
+
+### Lo que NO se hizo, a propósito
+
+* **No se tocó el motor.** La defensa de la fotografía es un disparador sobre `lottery_ticket_matches`;
+  `match_lottery_result` está byte a byte como estaba, con sus reglas de elegibilidad, su prioridad por
+  cliente y su versión del corte.
+* **No se reescribió la `0067`**, que ya estaba aplicada y comiteada: la corrección es la `0068`.
+* **No se añadió ninguna interfaz de corrección** (I-136 sigue describiendo lo que falta).
+* **No se promovió ninguna migración** para poner verde `verify:remote`.
+* **No se auditaron las demás políticas** con el patrón «organización + perfil, sin rol»: queda dicho en
+  I-137 como auditoría aparte, para no ampliar el alcance de esta corrección.
+
+---
 
 ---
 ## Etapa 1 del historial de premios ganados: base, lecturas y los dos premios reconocidos (D-208, `0067`) — 2026-09-17

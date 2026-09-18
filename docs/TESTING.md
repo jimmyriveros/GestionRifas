@@ -1133,9 +1133,9 @@ en cuanto cambia una línea del texto de introducción.
 **devuelve la página al principio**. Cualquier prueba que baje y luego mida tiene que esperar a que
 esa navegación aterrice, o medirá el scroll deshecho.
 
-### 4.12 Historial de premios ganados (BR-J17..BR-J22, BR-I16; D-208)
+### 4.12 Historial de premios ganados (BR-J17..BR-J23, BR-I16; D-208)
 
-`tests/db/prize-award-history.test.ts` — **35** pruebas, migración `0067`, **solo en local**.
+`tests/db/prize-award-history.test.ts` — **59** pruebas, migraciones `0067` y `0068`, **solo en local**.
 
 **Dos rifas, porque los dos orígenes viven en lados distintos de la frontera de D-206.** `R_MOTOR` nace
 configurable y juega en **2087**, así que el motor escribe enlaces a premios. `R_HISTORICA` es una rifa
@@ -1158,16 +1158,22 @@ bloquearía la siguiente.
 | **H2** (8) | La vista previa dice qué se reconocería y **no escribe**; los dos premios de $500.000 suman **$1.000.000** y son **dos clientes**; repetirlo **no duplica**; el respaldo se guarda y el actor técnico queda en «Sistema»; **entera o nada** con una entrada mala; un sorteo que ya premió el motor se rechaza **y la defensa de la base lo impide aunque el cargador se equivoque**; un reconocimiento **no se modifica ni se borra** |
 | **H3** (3) | Los dos orígenes se **agregan** sin duplicarse; premios y clientes distintos se cuentan **por separado**; los filtros y la paginación **no recortan** los totales |
 | **H4** (4) | Cambiar el importe del premio de hoy **no mueve** el histórico; renombrarlo **no cambia** el título declarado; un resultado que entra en **conflicto** conserva el premio, no mueve los totales y queda **marcado**; anular un reconocimiento lo saca del historial **sin borrarlo** |
-| **H5** (6) | Los números no cambian por la RPC del personal ni con PostgreSQL directo; una boleta **sin** coincidencias sí se corrige; con una edición **en vuelo** la escritura del motor **espera** —la clave ajena las serializa, comprobado—; los **dos** disparadores existen y uno es **diferido**; y si aun así una fotografía quedara con otro número, el historial **lo marca** |
+| **H5** (8) | Los números no cambian por la RPC del personal ni con PostgreSQL directo; una boleta **sin** coincidencias sí se corrige; con una edición **en vuelo** la escritura del motor **espera**; los **dos** disparadores existen y uno es **diferido**; una fotografía **incoherente no se puede escribir** (`0068`); `numbers_changed` sigue marcando una fotografía **heredada** incoherente; y el número viejo movido al **otro campo** ya no esconde la discrepancia |
 | **H6** (7) | Otro vendedor de la misma organización **no ve nada**; tener equipo **no concede** el historial de los integrantes —se lee la definición de la función—; otra organización no ve ni una fila; el personal recibe el historial **sin un solo dato de cliente** —se recorren las claves de cada fila y se buscan el identificador y el nombre—; sí ve al vendedor y sus recuentos; ni el vendedor ni el personal pueden llamar al cargador; `anon` no alcanza ninguna de las cuatro lecturas |
-| **H7** (4) | Las **10** funciones de `0067` están clasificadas y su EXECUTE es **exactamente** el de la lista; toda función que crea la migración está en la lista **y ninguna más**; la tabla tiene RLS forzada y concede **solo `SELECT`**; y nada de la suite tocó abonos, asignaciones ni movimientos de comisión |
+| **H7** (4) | Las **14** funciones de `0067` y `0068` están clasificadas y su EXECUTE es **exactamente** el de la lista; toda función que crean las dos migraciones está en la lista **y ninguna más**; la tabla tiene RLS forzada y concede **solo `SELECT`**; y nada de la suite tocó abonos, asignaciones ni movimientos de comisión |
+| **H8** (8) | La corrección de la Etapa 1: la unicidad es de lo **vigente** y no de la historia; se reconoce, se **anula** y se vuelve a reconocer con otro importe, quedando las dos filas y **un** premio en el historial; dos vigentes del mismo premio son imposibles; un reintento idéntico dice «ya estaba» y no duplica; una petición con **otro importe** se rechaza nombrando **las dos cifras** y no escribe; un **duplicado dentro de la petición** se rechaza; la vista previa anticipa **límites** y **ambigüedad por título** —solo cuentan los premios vigentes—; y **dos ejecuciones a la vez** se serializan: una reconoce, la otra ve lo escrito, y queda **una** fila |
+| **H9** (6) | La autorización, con **sesiones reales**: el vendedor activo ve lo suyo por la función **y** por la tabla; el **mismo perfil ya Administrador** no ve nada por ninguna de las dos, y lee su historial por la proyección del personal **sin cliente**; un vendedor **desactivado** no ve nada; el **padre** no ve el historial de su equipo; y otra **organización** tampoco. **Crea sus propios vendedores**, porque ascender a alguien tiene un efecto irreversible sobre sus avisos |
+| **H10** (2) | La **carrera determinista** de I-134: con la edición confirmada primero, el motor **no deja una fotografía incoherente** —falla al confirmar y no escribe—, y se comprueba el estado final de **las dos** operaciones; y sin edición de por medio, el motor fotografía con normalidad |
+| **H11** (6) | El **contrato de lectura** de la Etapa 2: la lectura trae campo, número fotografiado, premio, recompensa y alternativas; el origen **declarado** no presenta las condiciones de hoy como históricas; un premio de alternativas **no multiplica filas**; el personal recibe lo mismo **sin cliente**; el **inicio operativo** lo garantiza la base y no un filtro de la URL; y la **cobertura pendiente** la calcula la base |
 
 `tests/unit/prize-awards-declared.test.ts` — **6** pruebas sobre los dos casos confirmados: son dos, del
 Premio diario, suman $1.000.000, ninguno tiene el valor pendiente, sus números son **texto** con sus
 cifras (BR-N03), el respaldo nombra el **rol** y dice que las versiones del 17/09 **no aplican hacia
 atrás**, y ningún texto dice «ganador» (BR-L15).
 
-**El cargador se ensayó de punta a punta en local** con un fixture que reproduce la situación de
+**La corrección de la Etapa 1 (`0068`) reprodujo sus siete hallazgos antes de tocarlos**, incluida la
+carrera de I-134 con dos conexiones y un orden fijo, y la evidencia de cada uno está en `TEST_RESULTS`
+(2026-09-17). **El cargador se ensayó de punta a punta en local** con un fixture que reproduce la situación de
 producción —las dos fechas y los dos pares de números reales— y la constante de verdad: vista previa →
 aplicar (`reconocido`, $1.000.000) → repetir (`ya estaba`, $1.000.000) → el historial del vendedor lo
 lee. El fixture vive en `build/`, que no se versiona. Detalle en `TEST_RESULTS` (2026-09-17, Etapa 1).

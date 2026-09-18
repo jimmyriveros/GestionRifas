@@ -4,8 +4,15 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.66 · **Actualizado:** 2026-09-17 (D-001 a **D-208**; **D-208 cerrada y aprobada, con la
-  Etapa 1 implementada solo en local**: el dueño respondió H1 —los dos casos históricos ganaron el Premio
+- **Versión:** 1.67 · **Actualizado:** 2026-09-17 (D-001 a **D-208**; **D-208 con la Etapa 1 CORREGIDA,
+  migración `0068`, solo en local**: siete hallazgos de revisión, los siete reproducidos antes de
+  tocarlos —la unicidad de un reconocimiento contaba los anulados e impedía anular y volver a registrar;
+  el informe del cargador hablaba de la entrada y no de lo almacenado; las lecturas del vendedor no
+  exigían su rol, y **el mismo hueco era anterior a este encargo** (I-137); `numbers_changed` miraba los
+  dos números; el origen declarado presentaba las condiciones de hoy como históricas; y **la carrera de
+  I-134 no estaba cerrada**, con «la clave ajena serializa» como conclusión equivocada—. Añade
+  `BR-J23`, cierra **I-134**, abre **I-137** y precisa I-136. Antes, ese mismo día, **D-208 cerrada y
+  aprobada, con la Etapa 1 implementada solo en local**: el dueño respondió H1 —los dos casos históricos ganaron el Premio
   diario, $500.000 cada uno—, H2 —el tramo 09/08–24/08 queda **pendiente de información**, no en cero— y
   H3 —el pago no condiciona el premio—, y confirmó los permisos. La corrección al final de la entrada
   arregla cuatro cosas: el **Premio principal juega con CUATRO cifras** (error documental, producción no
@@ -12109,11 +12116,16 @@ Entrega 3.
 
 ## D-208 — Historial de premios ganados: contrato, cobertura y estabilidad
 
-> **Estado (2026-09-17, cierre de la Etapa 1):** el contrato está **aprobado** —el dueño respondió H1,
+> **Estado (2026-09-17, Etapa 1 CORREGIDA):** el contrato está **aprobado** —el dueño respondió H1,
 > H2 y H3 y confirmó los permisos— y la **Etapa 1 está implementada, solo en local**: migración `0067`,
-> `BR-J17`..`BR-J22`, `BR-I15`, y los dos premios históricos ensayados de punta a punta. **Nada se
+> `BR-J17`..`BR-J23`, `BR-I16`, y los dos premios históricos ensayados de punta a punta. **Nada se
 > escribió en producción**, y no hay ni una pantalla: eso es la Etapa 2, que necesita autorización
-> propia.
+> propia. **Corregida el mismo día** con la migración **`0068`**: siete hallazgos de revisión,
+> todos reproducidos antes de tocarlos —la unicidad contaba los anulados, el informe del cargador
+> hablaba de la entrada y no de lo almacenado, las lecturas del vendedor no exigían su rol,
+> `numbers_changed` miraba los dos números, el origen declarado presentaba las condiciones de hoy como
+> históricas y la carrera de **I-134 no estaba cerrada**—. La sección del final lo detalla, con su
+> evidencia.
 >
 > **Cómo leer esta entrada.** Lo que sigue a continuación es el **entregable de la Etapa 0**, tal como se
 > escribió cuando era una propuesta: se conserva porque el §0 es el diagnóstico verificado y el resto
@@ -12514,3 +12526,142 @@ carga manual; ni una sola escritura en producción; ni un cambio en abonos, sald
 **`verify:remote` falla en UNA comprobación, y es lo correcto:** las 10 funciones de `0067` «no existen»
 en el proyecto real porque la migración **no está promovida**. 41 en verde y esa una en rojo es el estado
 esperado hasta que se promueva, con su propia autorización.
+
+---
+
+### Corrección de la Etapa 1 (2026-09-17, migración `0068`): siete hallazgos, todos reproducidos antes de tocarlos
+
+La revisión encontró siete cosas. **Las siete se reprodujeron primero**, con su evidencia, y ninguna se
+cerró cambiando el informe o la expectativa de una prueba. Una de ellas era anterior a este encargo y va
+aparte (**I-137**).
+
+| # | Hallazgo | Estado |
+|---|---|---|
+| 1.a | `unique (match_id, prize_id)` contaba los **anulados**, así que anular y volver a registrar era imposible —lo contrario de lo que decía I-136— | ✅ **Confirmado y corregido** |
+| 1.b | El cargador respondía **«ya estaba» con el importe pedido** ante un reconocimiento vigente de otro importe, y no escribía nada: el informe hablaba de la **entrada**, no de lo almacenado | ✅ **Confirmado y corregido** |
+| 1.c | Un **duplicado dentro de la misma petición** pasaba sin aviso | ✅ **Confirmado y corregido** |
+| 2 | `seller_prize_awards` y `seller_prize_award_totals` **no exigían rol `seller`**: quien vendía y pasa a Administrador seguía recibiendo nombre e identificador de clientes | ✅ **Confirmado y corregido** |
+| 2.bis | **El mismo hueco es anterior a este encargo**: la política `lottery_ticket_matches_select` de `0057` tampoco pedía el rol | ✅ **Confirmado y corregido** → **I-137** |
+| 3.a | `numbers_changed` comparaba contra **los dos** números, así que mover el viejo al otro campo escondía la discrepancia | ✅ **Confirmado y corregido** |
+| 3.b | En el origen **declarado**, `prize_category` y `prize_digits` salían de la **versión vigente**: condiciones de hoy presentadas como históricas | ✅ **Confirmado y corregido** |
+| 4 | La carrera de I-134 **no estaba cerrada**, y «la clave ajena serializa las escrituras» era una conclusión equivocada | ✅ **Confirmado y corregido** |
+
+#### 1 — reconocimientos, correcciones e idempotencia
+
+| Qué pasa ahora | Cómo |
+|---|---|
+| La historia de anulaciones y sustituciones se conserva | El índice único es **parcial**: `(match_id, prize_id) where voided_at is null`. Solo uno **vigente**; los anulados se quedan |
+| Un reintento idéntico no duplica ni reescribe | El plan ve la fila vigente y el informe dice **«ya estaba»** |
+| Una petición **incompatible** se rechaza y lo dice | «Ese premio ya está reconocido con $450.000 y la petición trae $900.000. Anúlalo antes de registrar otro.» Con `p_apply`, **entera o nada**: no se escribe nada |
+| El informe corresponde a lo **almacenado** | Cuando hay fila, el importe y la especie salen de ella. En una vista previa todavía no hay fila, y entonces se muestra lo que se escribiría, que es lo que «se reconocería» anuncia |
+| Un duplicado **dentro** de la petición se rechaza | Una ventana por boleta, sorteo y premio marca la segunda y las siguientes |
+| Dos ejecuciones a la vez se serializan | Un cerrojo de transacción por organización: la segunda ve lo que escribió la primera y responde «ya estaba» |
+| La vista previa anticipa lo que la aplicación va a comprobar | El **modo** del sorteo, los **límites** del importe, la **ambigüedad** al resolver el premio por su título —y solo cuentan los premios **vigentes**: uno archivado no es candidato— y el **suelo** del historial |
+
+**No se añadió ninguna interfaz de corrección** (el encargo lo prohíbe). El procedimiento sigue siendo
+interno y auditado: el cargador escribe, la anulación es un `UPDATE` de sus tres columnas —lo único que
+los disparadores dejan cambiar—, y cada carga deja su fila de bitácora. Lo que falta para que eso sea
+cómodo está en **I-136**.
+
+#### 2 — autorización del vendedor, y el antecedente
+
+Reproducido con la RLS **aplicada de verdad** (`set role authenticated`; como `postgres` no se aplica,
+porque tiene `BYPASSRLS`, y la primera medición de este hallazgo fue inválida por eso):
+
+| Situación | Política anterior | Con `0068` |
+|---|---|---|
+| Vendedor **activo** | 2 fotografías con cliente, 3 reconocimientos | **igual**: no pierde nada |
+| El **mismo perfil ya Administrador** | **2 fotografías con `client_id`** y 3 reconocimientos | **0 y 0** |
+| Vendedor **desactivado** | 0 y 0 | 0 y 0 (ya lo cerraba `current_org_ids`) |
+
+La corrección es `current_seller_org_ids()` —vendedor **activo**, la forma de conjunto de
+`current_staff_org_ids()`— en las dos lecturas del vendedor y en las **dos políticas**. Las dos
+**acotan**: nadie gana acceso. Quien pasó a Dueño o Administrador deja de leer por esas vías las
+coincidencias que dejó atrás y ve lo que le corresponde por `admin_lottery_matches` y
+`admin_prize_awards`, **sin un solo dato de cliente**.
+
+**El antecedente se distingue y se registra**: la política de `0057` llevaba con ese hueco desde el
+2026-09-15, y su alcance es **una persona que fue vendedora y hoy es del personal**, en su propia
+organización, leyendo por PostgREST las fotografías de sus antiguas ventas **con `client_id`** —no el
+nombre—. Es una violación de BR-Q01 y se corrige aquí porque acota y porque su único consumidor es el
+portal del vendedor. Queda en **I-137**.
+
+#### 3 — qué respalda cada dato, y por eso el tipo lo distingue
+
+| Respaldado por | Qué |
+|---|---|
+| La **fotografía** | Organización, rifa, vendedor, cliente, **campo** que participó y **número fotografiado**, y el estado de la venta al instante del sorteo |
+| La **versión aplicada** (solo origen del motor) | Título, categoría, cifras y recompensa con sus alternativas |
+| La **declaración** (solo origen reconocido) | Título declarado y su recompensa. **No** categoría ni cifras: a ese sorteo no le aplicó ninguna versión, y las de hoy no son las de entonces. Van en **NULL** |
+| La boleta y el cliente de **hoy** | Los dos números actuales y el nombre, que la lectura **no** presenta como históricos |
+
+`numbers_changed` compara contra el número que dice **`match_field`**, no contra los dos, así que mover
+el viejo al otro campo ya no lo esconde. **No se inventó ninguna versión histórica** ni se copió
+retroactivamente nada.
+
+#### 4 — la carrera de los números, cerrada de verdad
+
+**La conclusión anterior era equivocada.** Reproducido con dos conexiones y un orden fijo:
+
+```
+T1  begin; cambia el número      (el disparador de `tickets` pasa: aún no hay fotografía)
+T2  begin; corre el motor        (lee el número VIEJO; su INSERT espera por la clave ajena)
+T1  commit                       (el diferido de `tickets` no ve fotografía)
+T2  commit                       (la fotografía entra con el número viejo)
+```
+
+Resultado medido **antes** de corregir: la boleta con `8642` y la fotografía con `7531`, las dos
+operaciones confirmadas. La clave ajena solo hace **esperar** a T2; no impide nada.
+
+**La corrección mínima es un disparador de restricción DIFERIDO sobre `lottery_ticket_matches`**, no un
+cambio en el motor: al COMMIT, `matched_number` tiene que ser el número de la boleta en `match_field`.
+La invariante es exacta porque **las dos ramas del motor guardan ahí el número de la boleta** en el
+campo fotografiado —también cuando el premio compara las tres últimas cifras—, así que toda escritura
+legítima la cumple.
+
+**Qué parte del motor NO se tocó, y por qué importa:** ni las reglas de elegibilidad (BR-L09, BR-L10),
+ni la prioridad de cuatro cifras por cliente, ni la versión aplicable al corte, ni una línea de
+`match_lottery_result`. **Consecuencia:** en esa carrera el motor **falla al confirmar y no escribe
+nada**, que es lo que ya hace ante un conflicto de configuración (D-203); el sincronizador lo reintenta
+y, en cuanto exista la fotografía, BR-I16 impide volver a cambiar el número. Medido después de
+corregir: el motor no escribió, la boleta quedó con su número nuevo y **no hay ninguna fotografía
+incoherente**.
+
+`numbers_changed` **se conserva** porque sigue protegiendo lo que se escribió **antes** de `0068`, y hay
+una prueba que lo demuestra con una fila fabricada con los disparadores desactivados.
+
+#### 5 — el contrato de lectura de la Etapa 2
+
+Las dos lecturas traen lo que hay que mostrar **sin consultar condiciones de hoy para reconstruir el
+pasado**: `match_field`, `matched_number`, `prize_title`, `prize_category` y `prize_digits` —solo del
+motor—, `reward_mode`, `reward_options`, `known_amount` y `value_pending`. Las **alternativas** viajan en
+un **jsonb ordenado** armado en una subconsulta escalar, así que **no multiplican filas ni importes**. El
+personal sigue sin recibir nombre, identificador ni ningún otro dato de cliente: su tipo de retorno no
+los declara y su rama **no toca `clients`**.
+
+**El inicio operativo se garantiza en la BASE**, no con un filtro: `prize_award_history_start()` es el
+suelo de `prize_award_rows`, así que un `p_from` anterior no saca ni una fila más, y el cargador rechaza
+una entrada anterior con su frase. **La cobertura pendiente la calcula `prize_award_coverage()`** —los
+sorteos jugados sin resultado confirmado desde el inicio operativo, con su rango—, con el alcance de la
+sesión y sin depender de ningún parámetro del navegador.
+
+#### 6 — lo que sigue pendiente, dicho con precisión
+
+**El tramo del 09/08 al 24/08 sigue pendiente de información**, y la promesa anterior era **incorrecta**:
+`HANDOFF` decía que bastaría añadir esos casos a `CONFIRMED_PRIZE_AWARDS` y volver a ejecutar el
+cargador. **No basta**: el cargador exige una **fotografía existente**, y en ese tramo no hay ni un
+resultado confirmado, así que no hay coincidencias sobre las que colgar nada. Reconocer un premio de ese
+período necesitaría una **ampliación futura, autorizada aparte**, que decida cómo se representa un premio
+sin fotografía. **No se fabrica ninguna fotografía y no se construye esa funcionalidad ahora.**
+
+Lo que **no** cambia: los dos premios diarios de **$500.000 cada uno**, **$1.000.000** entre ambos, y que
+el **pago de la boleta no condiciona el premio** (respuesta H3).
+
+#### Consecuencia
+
+Migración **`0068`**. Reglas **BR-J19** y **BR-J21** precisadas, **BR-J23** nueva (el contrato de
+lectura y qué respalda cada dato), **BR-I16** cerrada del todo. **I-134 resuelta**; **I-136** precisada;
+**I-137 nueva**. `DATA_MODEL` §6.g.10, `SECURITY` §4.24, `TESTING` §4.12, `TEST_RESULTS`, `KNOWN_ISSUES`,
+`PHASE_STATUS` y `HANDOFF`. **Solo en local**: el proyecto real no tiene ni la `0067` ni la `0068`, y
+`verify:remote` lo dice con una comprobación en rojo —41 en verde y esa una—, que es el estado correcto
+hasta que se promuevan con su propia autorización.

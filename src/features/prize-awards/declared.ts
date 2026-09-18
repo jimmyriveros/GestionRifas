@@ -41,7 +41,12 @@ export type DeclaredPrizeAwardInput = {
   prize_title: string
   /** El componente en dinero reconocido, en pesos enteros. */
   amount?: number
-  /** Lo que se entregó, cuando no es dinero. Al menos uno de los dos. */
+  /**
+   * Lo que se GANÓ, cuando no es dinero. Al menos uno de los dos.
+   *
+   * No dice nada de la entrega: son premios **ganados**, y registrar entregas,
+   * desembolsos o comprobantes queda fuera del encargo.
+   */
   in_kind_description?: string
 }
 

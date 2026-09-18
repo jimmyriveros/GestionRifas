@@ -1923,9 +1923,9 @@ Entrega 3, y la prueban `tests/db` y `tests/unit`.
 > cerrojo de configuración de **todas** las rifas del sorteo antes de decidir, y se niega a completar un
 > resultado con fotografías de una rifa guardadas con el otro sistema.
 
-### 6.g.10 Historial de premios ganados (migración `0067`; D-208, BR-J17..BR-J22)
+### 6.g.10 Historial de premios ganados (migraciones `0067` y `0068`; D-208, BR-J17..BR-J23)
 
-**Solo en local**: el proyecto real no tiene la `0067`.
+**Solo en local**: el proyecto real no tiene ninguna de las dos.
 
 `declared_prize_awards` es la **única tabla nueva**, y es aditiva: el premio que reconoce el **negocio**
 sobre una coincidencia que el motor no puede premiar. Cuelga de una fotografía que ya existe y **no
@@ -1940,7 +1940,7 @@ toca** `lottery_ticket_matches` ni `lottery_ticket_match_prizes`, que siguen inm
 | `basis` | El **respaldo de negocio**, con el **rol** que lo confirmó y nunca un nombre propio |
 | `recorded_by`, `recorded_at` | El **actor técnico** de la carga; NULL = un proceso del sistema. **No** es quien confirmó el premio |
 | `voided_at`, `voided_by`, `void_reason` | La anulación, que es lo **único** que se puede cambiar. Aquí no se borra nada (D-038) |
-| `unique (match_id, prize_id)` | Idempotencia: un reintento inserta con `on conflict do nothing` |
+| `(match_id, prize_id) where voided_at is null` | Índice único **parcial** (`0068`): solo un reconocimiento **VIGENTE** por coincidencia y premio. Los anulados se quedan, así que **anular y volver a registrar es posible** y la historia de sustituciones se conserva (I-136) |
 
 **Tres defensas, en disparadores y no en el cargador** (`declared_prize_awards_check`): la fotografía
 tiene que estar **`sold`**; su sorteo tiene que resolverse con el **sistema de siempre** para su rifa
@@ -1948,20 +1948,24 @@ tiene que estar **`sold`**; su sorteo tiene que resolverse con el **sistema de s
 doble conteo es imposible por construcción; y no puede existir ya un enlace del motor para esa
 fotografía y ese premio. Más `declared_prize_awards_immutable`, que solo deja pasar la anulación.
 
-**RLS y privilegios**: `enable` + `force`, una política de `select` para el vendedor —su `exists` sobre
-`lottery_ticket_matches` se evalúa con la RLS del que pregunta, que desde `0057` es
-`seller_id = current_profile_id()` **sin equipo**— y `SELECT` para `authenticated` y `service_role`,
+**RLS y privilegios**: `enable` + `force`, una política de `select` para el vendedor —que desde `0068`
+exige **rol de vendedor activo** además del perfil, igual que la de `lottery_ticket_matches` (I-137), y
+sigue **sin equipo**— y `SELECT` para `authenticated` y `service_role`,
 nada más. El personal **no lee la tabla**: va por `admin_prize_awards`. Es el patrón de
 `lottery_ticket_match_prizes` (`0061`).
 
 | Función | Devuelve | Quién |
 |---|---|---|
-| `prize_award_rows(uuid[], uuid[], uuid, uuid, date, date)` | **La única definición** de qué es un premio ganado: compone los enlaces del motor con los reconocimientos vigentes, sin duplicar. Las alternativas se agregan en subconsultas escalares, así que no multiplican filas ni importes. Marca `result_conflict` y `numbers_changed` | Interna, **nadie** |
+| `prize_award_rows(uuid[], uuid[], uuid, uuid, date, date)` | **La única definición** de qué es un premio ganado, con lo que respalda cada dato (BR-J23): campo y número **fotografiados**; título, categoría, cifras y recompensa de la **versión aplicada** en el origen del motor; título y recompensa **declarados**, con categoría y cifras en **NULL**, en el reconocido. Las alternativas se agregan en un **jsonb ordenado**, así que no multiplican filas ni importes. `numbers_changed` compara contra el número que dice **`match_field`**. Su **suelo** es `prize_award_history_start()` | Interna, **nadie** |
 | `declared_prize_award_plan(uuid, jsonb)` | Cómo se resuelve cada entrada del cargador: una definición para el recuento, la escritura y el informe. Rechaza una entrada que cuadre con **más de una** coincidencia | Interna, **nadie** |
 | `seller_prize_awards(...)` / `seller_prize_award_totals(...)` | El historial del vendedor de la sesión y sus cuatro indicadores | `authenticated` |
 | `admin_prize_awards(...)` / `admin_prize_award_totals(...)` | Los del personal. Su tipo de retorno **no declara** ni un campo de cliente; el recuento de clientes distintos sale como número | `authenticated` |
 | `record_declared_prize_awards(uuid, text, jsonb, boolean)` | El cargador: vista previa por omisión, **entera o nada**, idempotente | **`service_role`** |
-| `tickets_guard_matched_numbers()` | Los números de una boleta con coincidencias no cambian (BR-I16). Dos disparadores sobre `tickets`: uno inmediato y uno **diferido**, que mira otra vez al COMMIT | Interna, **nadie** |
+| `tickets_guard_matched_numbers()` | Los números de una boleta con coincidencias no cambian (BR-I16). Dos disparadores sobre `tickets`: uno inmediato y uno **diferido** | Interna, **nadie** |
+| `lottery_ticket_matches_number_check()` | **La defensa de la fotografía** (`0068`, I-134): disparador de restricción **diferido** sobre `lottery_ticket_matches` que exige, al COMMIT, que `matched_number` sea el número de la boleta en `match_field`. Cierra la carrera con una edición de números **sin tocar el motor** | Interna, **nadie** |
+| `current_seller_org_ids()` | Las organizaciones donde quien pregunta es vendedor **activo**. La forma de conjunto de `current_staff_org_ids()`; la usan las dos lecturas del vendedor y las **políticas** de `lottery_ticket_matches` y `declared_prize_awards` (I-137) | `authenticated` |
+| `prize_award_history_start()` | El inicio operativo, **en la base**: `date 2026-08-09` (BR-J22). Suelo de la lectura, no un filtro | `authenticated` |
+| `prize_award_coverage()` | Qué tramo está **pendiente de información** —sorteos jugados sin resultado confirmado desde el inicio operativo— y qué tramo está cubierto. El alcance sale de la sesión | `authenticated` |
 
 **Los cuatro indicadores** se calculan en PostgreSQL, en pesos enteros, sobre **todo el filtro**:
 cantidad de premios, **clientes distintos**, **dinero cierto** —solo de una recompensa de «Premio

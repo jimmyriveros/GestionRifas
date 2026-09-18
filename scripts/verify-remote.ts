@@ -135,6 +135,8 @@ const CHECKS: Check[] = [
               -- vendedor solo devuelven lo suyo —sin equipo—; las dos del
               -- personal no declaran ni un campo de cliente
               'admin_prize_awards', 'admin_prize_award_totals',
+              'current_seller_org_ids', 'prize_award_coverage',
+              'prize_award_history_start',
               'seller_prize_awards', 'seller_prize_award_totals',
               -- 0058 (D-199, D-200): las seis de premios configurables, que
               -- autorizan por la capacidad raffles.prizes.manage

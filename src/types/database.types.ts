@@ -2629,10 +2629,13 @@ export type Database = {
           known_amount: number | null
           lottery_code: Database["public"]["Enums"]["lottery_code"]
           matched_number: string
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"] | null
+          reward_options: Json | null
           numbers_changed: boolean
           origin: string
-          prize_category: Database["public"]["Enums"]["raffle_prize_category"]
-          prize_digits: Database["public"]["Enums"]["raffle_prize_digits"]
+          prize_category: Database["public"]["Enums"]["raffle_prize_category"] | null
+          prize_digits: Database["public"]["Enums"]["raffle_prize_digits"] | null
           prize_title: string
           raffle_id: string
           raffle_name: string
@@ -3449,6 +3452,21 @@ export type Database = {
         }
         Returns: undefined
       }
+      prize_award_coverage: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          covered_from: string | null
+          covered_to: string | null
+          history_start: string
+          pending_draws: number
+          pending_from: string | null
+          pending_to: string | null
+        }[]
+      }
+      prize_award_history_start: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       recalc_ticket_paid_amount: {
         Args: { p_ticket_id: string }
         Returns: undefined
@@ -3638,10 +3656,13 @@ export type Database = {
           known_amount: number | null
           lottery_code: Database["public"]["Enums"]["lottery_code"]
           matched_number: string
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"] | null
+          reward_options: Json | null
           numbers_changed: boolean
           origin: string
-          prize_category: Database["public"]["Enums"]["raffle_prize_category"]
-          prize_digits: Database["public"]["Enums"]["raffle_prize_digits"]
+          prize_category: Database["public"]["Enums"]["raffle_prize_category"] | null
+          prize_digits: Database["public"]["Enums"]["raffle_prize_digits"] | null
           prize_title: string
           raffle_id: string
           raffle_name: string
