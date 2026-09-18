@@ -44,11 +44,26 @@ export const HASHED_KEY_TABLES = new Set(['clients'])
 
 type SnapshotRow = Record<string, unknown>
 
-/** Lo que guarda `scripts/gate-snapshot.ts` y leen el comparador y el ensayo de privilegios. */
+/**
+ * Lo que guarda `scripts/gate-snapshot.ts` y leen el comparador y el ensayo de privilegios.
+ *
+ * `formato`, `captura`, `proyecto`, `huella` y la captura y la huella de `base` existen
+ * desde `gate-snapshot/v2` (I-145). Una foto sin ellos es ANTERIOR: no dice de qué
+ * proyecto es, sirve como evidencia histórica y como estructura de un ensayo, y nunca
+ * para un veredicto de puerta (`provenanceProblems`, en `gate-diff.ts`).
+ */
 export type Snapshot = {
+  formato?: string
+  /** Identificador único de esta captura: dos fotos nunca lo comparten. */
+  captura?: string
   etiqueta: string
   entorno: 'local' | 'produccion'
-  base: { etiqueta: string; ahora: string } | null
+  /**
+   * La referencia del proyecto con la que se CONECTÓ la foto —`readOnly` no conecta si
+   * `SUPABASE_DB_URL` nombra otro—; `null` en local. Nunca una credencial.
+   */
+  proyecto?: string | null
+  base: { etiqueta: string; ahora: string; captura?: string; huella?: string } | null
   meta: {
     ahora: string
     reloj: string
@@ -69,6 +84,8 @@ export type Snapshot = {
     }
   >
   hechos: Record<string, unknown>
+  /** SHA-256 de la representación estable de todo lo anterior (`snapshotDigest`). */
+  huella?: string
 }
 
 export type GateTarget = { kind: 'local' | 'production'; projectRef: string | null }

@@ -8,6 +8,11 @@
  * versionar). Todo va dentro de UNA transacción `repeatable read read only`, así que
  * la foto es un único instante de la base. Guarda en `build/gate/`:
  *
+ *   procedencia (formato `gate-snapshot/v2`, I-145) una captura única, el entorno y el
+ *               PROYECTO con el que se conectó —`readOnly` no conecta si
+ *               `SUPABASE_DB_URL` nombra otro—, la captura y la huella de la foto base,
+ *               y la huella de la foto entera. Ninguna credencial. Sin esto, una foto
+ *               no puede dar un veredicto de puerta (`provenanceProblems`)
  *   meta        hora de la transacción, snapshot, versión y usuario
  *   migraciones versión y nombre de cada una
  *   estructura  del esquema public: tablas (RLS, ACL), columnas, restricciones,
@@ -27,6 +32,7 @@
  * No imprime datos personales, identificadores de clientes ni la cadena de conexión.
  * La comparan `scripts/gate-compare.ts` y `scripts/gate-mirror-privileges.ts`.
  */
+import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
 import {
@@ -39,9 +45,11 @@ import {
   HASHED_KEY_TABLES,
   runGateTool,
   writeGateFile,
+  type GateTarget,
   type Query,
   type Snapshot,
 } from './gate-db'
+import { foreignTarget, SNAPSHOT_FORMAT, snapshotDigest, snapshotProblems } from './gate-diff'
 
 const USAGE =
   'Uso: npx tsx scripts/gate-snapshot.ts <etiqueta> (--local | --production --project-ref <ref>) ' +
@@ -284,6 +292,30 @@ async function facts(query: Query): Promise<Snapshot['hechos']> {
   return h
 }
 
+/**
+ * La foto de `--base`, comprobada ANTES de conectar: completa, de este formato, sin tocar
+ * y del MISMO destino que la que se va a tomar. Una foto anterior no sirve de base.
+ */
+function readBase(file: string, target: GateTarget): Snapshot {
+  let base: unknown
+  try {
+    base = JSON.parse(readFileSync(file, 'utf8'))
+  } catch {
+    throw new Error(`No se pudo leer la foto base «${file}»: no existe o no es un JSON completo.`)
+  }
+  const problems = snapshotProblems(base, 'base')
+  if (problems.length > 0) throw new Error(problems.join('\n'))
+  const b = base as Snapshot
+  const foreign = foreignTarget(b, target)
+  if (foreign) {
+    throw new Error(
+      `La foto base («${b.etiqueta}») es de ${foreign} y esta foto es de ${gateTargetLabel(target)}: ` +
+        'una foto se toma con --base de otra del mismo destino. No se conectó nada.',
+    )
+  }
+  return b
+}
+
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2), {
     switches: [],
@@ -296,13 +328,25 @@ async function main(): Promise<void> {
   }
   const target = gateTarget(parsed)
   const basePath = parsed.values.get('--base')
-  const base = basePath ? (JSON.parse(readFileSync(basePath, 'utf8')) as Snapshot) : null
+  const base = basePath ? readBase(basePath, target) : null
 
   const snapshot = await readOnly(target, async (query) => {
     const s = {
+      formato: SNAPSHOT_FORMAT,
+      captura: randomUUID(),
       etiqueta,
       entorno: target.kind === 'local' ? 'local' : 'produccion',
-      base: base ? { etiqueta: base.etiqueta, ahora: base.meta.ahora } : null,
+      // El proyecto con el que se conectó: `readOnly` no llega hasta aquí si
+      // `SUPABASE_DB_URL` nombra otro distinto de `--project-ref`.
+      proyecto: target.projectRef,
+      base: base
+        ? {
+            etiqueta: base.etiqueta,
+            ahora: base.meta.ahora,
+            captura: base.captura!,
+            huella: base.huella!,
+          }
+        : null,
     } as Snapshot
     const [meta] =
       await query(`select now() as ahora, clock_timestamp() as reloj, pg_current_snapshot()::text as snapshot,
@@ -324,9 +368,13 @@ async function main(): Promise<void> {
     return s
   })
 
+  // La huella se calcula sobre exactamente lo que se escribe: la foto ya pasada a JSON.
+  const written = JSON.parse(JSON.stringify(snapshot)) as Snapshot
+  const huella = snapshotDigest(written)
+  written.huella = huella
   const file = writeGateFile(
     `foto-${etiqueta}-${snapshot.entorno}-${fileStamp(snapshot.meta.ahora)}.json`,
-    JSON.stringify(snapshot),
+    JSON.stringify(written),
   )
 
   // Resumen imprimible: recuentos y huellas, sin un dato de nadie.
@@ -341,6 +389,10 @@ async function main(): Promise<void> {
       .digest('hex')
   console.log(
     `Foto «${etiqueta}» · ${gateTargetLabel(target)} · ${snapshot.meta.ahora} · snapshot ${snapshot.meta.snapshot}`,
+  )
+  console.log(
+    `Procedencia: ${SNAPSHOT_FORMAT} · captura ${written.captura} · huella ${huella.slice(0, 12)}…` +
+      (written.base ? ` · base «${written.base.etiqueta}» (${written.base.ahora})` : ''),
   )
   console.log(
     `Migraciones: ${snapshot.migraciones.length}, última ${snapshot.migraciones.at(-1)?.version ?? '—'}`,

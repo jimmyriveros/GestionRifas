@@ -4,7 +4,10 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.70 · **Actualizado:** 2026-09-18 (D-001 a **D-208**; **D-208 con la Etapa 4 —la preparación de la
+- **Versión:** 1.71 · **Actualizado:** 2026-09-18 (D-001 a **D-208**; **D-208, «Etapa 4», decisión 13 —I-145,
+  corregido en local antes de la puerta 1—**: las fotos de puerta registran de qué proyecto son y ningún veredicto
+  sale sin comprobarlo, también cuando no hay diferencias; y el dueño decidió aceptar que una puerta se detenga por
+  actividad fuera de lo permitido. Antes, ese mismo día, **D-208 con la Etapa 4 —la preparación de la
   promoción— hecha**: el estado real de producción, leído sin escribir, coincide con el relevo en todo lo esencial
   salvo el despliegue servido —`6da9bcb`, solo documentación sobre `da81663`—; el cargador de los dos premios tiene
   su modo de producción, que reutiliza la puerta de la transición y exige el proyecto esperado, la organización dos
@@ -12870,6 +12873,7 @@ aprobado y lo que sigue **pendiente del dueño**. La evidencia está en `TEST_RE
 | 10 | **Una coincidencia vendida del sistema de siempre que no confirmó el dueño se identifica como pendiente**, nunca se reconoce ni se le pone importe | Es la regla H1/H2: el negocio confirma, la aplicación no deduce. Hoy no hay ninguna |
 | 11 | **No hace falta tocar el contrato de la base** | La respuesta de la vista previa basta para la huella; la bitácora de una aplicación vacía la evita el script (decisión 3); el separador de miles del mensaje de discrepancia es de operador y cosmético (I-144). Una migración nueva habría ampliado el alcance de la puerta 1 sin necesidad |
 | 12 | **La diferencia del despliegue no bloquea la puerta 1** | Es solo de documentación y el código servido es el mismo, compatible con `0067`–`0072` (`RUNBOOK` §9.3). Sí cambia la puerta 3 —su punto de reversión—, y por eso se le pide al dueño que la acepte al autorizarla |
+| 13 | **Una foto de puerta dice de qué proyecto es, y sin comprobarlo no hay veredicto** (I-145; corrección en local del 2026-09-18, antes de la puerta 1, sin migración) | El dueño reprodujo CONTINUAR, exit 0, con dos fotos **locales** presentadas como de producción y con la misma foto en los dos extremos. **Formato `gate-snapshot/v2`**: una captura única, el proyecto con el que se conectó la foto —el que `connectionStringFor` comprobó contra `SUPABASE_DB_URL`—, la base nombrada por su captura y su huella, y una huella SHA-256 de la foto entera con el mismo `stableJson` de la huella del cargador; ninguna credencial. Toda comparación con veredicto comprueba **primero, haya o no diferencias**, formato, integridad, mismo destino y el pedido, capturas distintas, orden y base, y pasa **siempre** por la conexión comprobada del proyecto. **Sin veredicto es la salida 1**, que no deja seguir. `--structure-only` y `gate-mirror-privileges.ts` aceptan fotos anteriores porque no dan veredicto. **Descartado:** reetiquetar o convertir las fotos de la Etapa 4 —nada dentro de ellas demuestra su proyecto—; identificar la base por `pg_control_system()` —su permiso en el proyecto alojado no está comprobado, y comprobarlo exigía leer producción—; y seguir sin conectar cuando no hay diferencias, que es el defecto. La «Opción A», las migraciones y las reglas del historial no cambian |
 
 **Alternativas descartadas.** Pasar `--project-ref` a una constante del código (viviría en un repositorio público y
 dejaría de ser una confirmación); exigir la huella solo en producción, como la transición (el ensayo local no habría
@@ -12882,7 +12886,7 @@ la lista de actividad normal a crear o aprobar boletas por ser frecuentes (es de
 |---|---|
 | **Autorizar la puerta 1** —`0067`–`0072`, con respaldo nuevo— | Escribe en producción |
 | **Aceptar la diferencia del despliegue** (`6da9bcb`) al autorizar la puerta 3 | Cambia lo que el relevo decía del estado real |
-| **Qué hacer con la actividad frecuente que la «Opción A» no cubre** —crear y aprobar boletas, editar clientes, marcar avisos, la configuración de premios— si ocurre dentro de una puerta: pausarla en la ventana, o aceptar que la puerta se detenga | Solo el dueño amplía esa lista |
+| ~~**Qué hacer con la actividad frecuente que la «Opción A» no cubre**~~ —crear y aprobar boletas, editar clientes, marcar avisos, la configuración de premios— si ocurre dentro de una puerta | ✅ **Decidido por el dueño el 2026-09-18:** acepta que una puerta se detenga si ocurre actividad fuera de lo permitido. **No** autoriza a suspender cuentas, bloquear ventas, desactivar recordatorios ni modificar tareas programadas. La lista no cambia (`RUNBOOK` §9.0) |
 | El tramo **10/08–24/08** (I-133, H2) | Sigue pendiente de información |
 
 #### Consecuencia

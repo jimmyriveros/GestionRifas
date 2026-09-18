@@ -632,6 +632,11 @@ select raffle_prize_draw_mode('<RIFA>', s), raffle_prize_draw_cutoff(s)
 > un punto —el despliegue servido es `6da9bcb`, no `da81663`— y la diferencia está explicada. La primera versión
 > de esta sección (Etapa 3) exigía que todo el historial tuviera dos premios, comparaba recuentos y no tenía el
 > cargador de producción: esta la sustituye entera.
+>
+> **Corregido el 2026-09-18, antes de la puerta 1 (I-145).** El comparador daba **CONTINUAR** con dos fotos
+> locales presentadas como de producción y con la misma foto en los dos extremos. Las fotos son ahora
+> `gate-snapshot/v2` y ningún veredicto sale sin comprobar su **procedencia** (§9.0). **Las fotos de la Etapa 4 no
+> sirven para un veredicto:** son evidencia histórica, y en cada puerta se toman de nuevo.
 
 Lo que se promueve: las migraciones **`0067`–`0072`** —el historial, sus correcciones, la cobertura, quién aparece
 como vendedor para el personal, el inicio operativo que no se pliega y el permiso de `current_seller_org_ids()`
@@ -667,16 +672,28 @@ se pueden invertir sin más cambios.
 
 | Herramienta | Para qué |
 |---|---|
-| `scripts/gate-snapshot.ts <etiqueta> --production --project-ref <REF>` | La **foto**: estructura completa y una **huella por fila** de cada tabla de `public` —nunca su contenido; la clave de un cliente, en md5—, más los hechos: rifas, avisos por tipo, cifras de control, sincronizador, cron y recordatorios |
-| `scripts/gate-compare.ts <antes> <después> --production --project-ref <REF> --operation none\|migrations\|awards` | La **comparación fila por fila** con la «Opción A» (abajo). Termina en 0 con CONTINUAR y en 2 con DETENER |
+| `scripts/gate-snapshot.ts <etiqueta> --production --project-ref <REF>` | La **foto** (`gate-snapshot/v2`): su **procedencia** —una captura única, el proyecto con el que se conectó y, con `--base`, la captura y la huella de su base—, la estructura completa y una **huella por fila** de cada tabla de `public` —nunca su contenido; la clave de un cliente, en md5—, más los hechos: rifas, avisos por tipo, cifras de control, sincronizador, cron y recordatorios; y la **huella de la foto entera**. Ninguna credencial |
+| `scripts/gate-compare.ts <antes> <después> --production --project-ref <REF> --operation none\|migrations\|awards` | La **comparación fila por fila** con la «Opción A» (abajo), **después** de comprobar la procedencia de las dos fotos (abajo). Termina en **0** con CONTINUAR, en **2** con DETENER y en **1** sin veredicto —una orden mal formada, fotos que no sirven o la conexión sin comprobar—. **Solo el 0 deja seguir** |
+| `scripts/gate-compare.ts <a> <b> --structure-only [--save-delta <delta.json>]` | Solo la **estructura**, también entre producción y local y con fotos anteriores, para los **ensayos**. Dice **SIN VEREDICTO**, no se conecta y no admite destino, operación ni informe: **no autoriza continuar ninguna puerta** |
 | `scripts/prize-awards-probe.ts <etiqueta> --production --project-ref <REF> --organization <ORG>` | La **sonda del historial**: las dos coincidencias campo por campo, el premio que resuelve el título, los premios que ya hay, las otras coincidencias vendidas del sistema de siempre, los totales esperados, la cobertura, la actividad y el sincronizador. Sin un dato de cliente |
-| `scripts/gate-mirror-privileges.ts <foto de producción>` | **Solo local**: deja en la base local los privilegios de producción, para ensayar el delta de una migración (I-132, I-143) |
+| `scripts/gate-mirror-privileges.ts <foto de producción>` | **Solo local**: deja en la base local los privilegios de producción, para ensayar el delta de una migración (I-132, I-143). Es un insumo del ensayo y no da veredicto; en la puerta 1 se le pasa `p1-base`, recién tomada (§9.3) |
 
 `<REF>` es la referencia de 20 letras del proyecto real (empieza por `zqwu`); `<ORG>` es
 `ec88961d-7c81-4b27-ae03-d9bccc73eda6`. Las herramientas se niegan si `SUPABASE_DB_URL` no nombra ese proyecto, y el
 cargador, si la URL de la API no es la suya. Antes de usar `<REF>` se confirma contra lo que sirve el dominio: la
 cabecera `Content-Security-Policy` de `https://gestion-rifas.vercel.app/login` nombra un único proyecto, y tiene que
 ser ese (§9.1).
+
+**La procedencia de las fotos (I-145).** Una comparación que da veredicto comprueba esto **antes de mirar ninguna
+diferencia, y aunque no haya ninguna**. Si algo falla, termina en **1**, sin veredicto, y **tampoco se sigue**:
+
+| Comprobación | Por qué |
+|---|---|
+| Las dos fotos son `gate-snapshot/v2`, completas y con su huella intacta | Una foto anterior no dice de qué proyecto es. **No se reetiqueta**: es evidencia histórica, su estructura se puede comparar con `--structure-only`, y para una puerta se vuelve a tomar |
+| Las dos son del **mismo destino** y del que se pidió: el mismo proyecto que `--project-ref` | Dos fotos locales no dicen nada de producción, ni dos de otro proyecto de este |
+| Son **dos capturas distintas** y la de después es **posterior** | La misma foto dos veces, o al revés, no demuestra nada |
+| Si la de después se tomó con `--base`, su base es **esa misma** foto de antes | Las huellas de las columnas nuevas se calcularon contra ella |
+| La **conexión** con el proyecto pedido se comprueba, también sin filas que explicar | Una foto sola no basta para decir CONTINUAR de un proyecto al que la orden no puede conectarse |
 
 **La «Opción A»: qué explica una fila distinta, y qué detiene.** Es la práctica que el dueño fijó en la Puerta 1 de
 la Entrega 5, y **no se sustituye por recuentos**. El comparador la aplica fila por fila, con evidencia leída de la
@@ -698,8 +715,10 @@ autorizadas, relaciones que no cuadran o cualquier fila sin causa demostrable. *
 > explicó **534 filas** —19 ventas, 19 abonos, 3 turnos y uno sin trabajo— y habría detenido una puerta por **46
 > boletas creadas por vendedores y aprobadas por el personal**, por la ampliación de los períodos de dos premios
 > que hizo el Dueño y por dos ediciones de clientes. Esas actividades son **frecuentes** y no están en la lista:
-> si ocurren durante una puerta, la detienen. Se acuerda con el dueño antes de cada puerta —pausarlas en la
-> ventana, o aceptar que una puerta pueda detenerse— y **no** se amplía la lista por analogía.
+> si ocurren durante una puerta, la detienen. **El dueño lo decidió el 2026-09-18: acepta que una puerta se detenga
+> si ocurre actividad fuera de lo permitido.** Esa preferencia **no** autoriza a suspender cuentas, bloquear
+> ventas, desactivar recordatorios ni modificar tareas programadas para evitarlo, y **no** se amplía la lista por
+> analogía.
 
 **Cuándo no.** Ni migraciones ni carga ni despliegue durante un turno del sincronizador (horas UTC **3, 4, 5, 6,
 12, 13, 15 y 16**, en cualquier minuto), con un recordatorio activo que venza en la media hora siguiente, con
@@ -715,6 +734,7 @@ Se conservan **tal como salieron**; ningún fallo conocido se presenta como apro
 |---|---|
 | Etapa 3 (2026-09-18, `b96237e`) | `verify` exit 0 con **1.422/1.422** unitarias; `test:db` **1.347 aprobadas y 1 omitida** (la medición V5-01, que solo corre con `PREMIOS_EXPLAIN`); E2E completa **768/771**, con las **23** del historial aprobadas. Los 3 fallos son **I-075** (`back-navigation` `:25` y `:127`) e **I-090** (`ventas-por-fecha:163`, «recibido 54»), ajenos al historial; sus dos archivos solos, **27/27** (`TEST_RESULTS`, Etapa 3) |
 | Etapa 4 (2026-09-18, preparación) | Línea base idéntica a la de la Etapa 3. Nuevas: la puerta del cargador y el resolvedor, **52** unitarias; las herramientas de puerta, **14**; el ensayo del cargador con el script de verdad, la sonda y el comparador, **11** de base. La E2E **no se repitió**: esta etapa no cambia ninguna pantalla, y su referencia sigue siendo la de la Etapa 3 con sus 3 fallos (`TEST_RESULTS`, Etapa 4) |
+| Corrección I-145 (2026-09-18, antes de la puerta 1) | La procedencia de las fotos: **15** de base con las herramientas de verdad —**las 15 fallaban antes**— y **9** unitarias; `verify` **1.497/1.497** y `test:db` **1.373 y 1 omitida**. El ensayo de las seis migraciones, repetido con fotos nuevas: **el mismo delta, byte a byte**, y CONTINUAR. La E2E no se repitió (`TEST_RESULTS`, I-145) |
 
 ### 9.1 Estado real, comprobado en solo lectura (puerta 0, 2026-09-18, 19:14–19:31 UTC)
 
@@ -776,8 +796,9 @@ Un respaldo viejo no sirve.
    migraciones**; nada quitado. Con los privilegios locales sale **idéntico**. Después, la base local vuelve a la
    normalidad: `npx supabase db reset`, reiniciar Kong, esperar a Auth y `npm run seed:local` (I-028).
 2. **La ventana** (§9.0) y la **línea base**: `gate-snapshot.ts p1-antes`, `prize-awards-probe.ts p1-antes` y la
-   comparación de `p1-antes` con la última foto conocida, `--operation none`. Si dice DETENER, se reporta antes de
-   seguir.
+   comparación de `p1-base` → `p1-antes`, `--production --project-ref <REF> --operation none`: las dos son de hoy y
+   `gate-snapshot/v2`; **las de la Etapa 4 no sirven para un veredicto** (I-145). Si dice DETENER, se reporta
+   antes de seguir; si termina en 1, no hay veredicto y tampoco se sigue.
 3. **El respaldo** (§9.2).
 
 **La operación:**
@@ -851,8 +872,8 @@ organización y con el informe de **lo almacenado**. Probado así (`TESTING` §4
 ### 9.5 Puerta 2 — reconocer los dos premios
 
 **Antes, inmediatamente:** la ventana, `gate-snapshot.ts p2-antes`, `prize-awards-probe.ts p2-antes` —que ya lee con
-`prize_award_rows`: son los **totales T0** y los **esperados** de la carga— y la comparación de `p2-antes` con la
-última foto, `--operation none`. La sonda tiene que repetir §9.1: las dos coincidencias con los mismos campos, **0**
+`prize_award_rows`: son los **totales T0** y los **esperados** de la carga— y la comparación de `p1-despues` →
+`p2-antes`, `--operation none`. La sonda tiene que repetir §9.1: las dos coincidencias con los mismos campos, **0**
 reconocidas, un único «Premio diario» vigente y, entre las coincidencias vendidas del sistema de siempre, las dos y
 —si aparece alguna más— **identificada como pendiente**, sin reconocerla ni ponerle importe: eso exige confirmación
 del dueño y autorización propia.
@@ -933,6 +954,7 @@ select count(*) as premios, count(distinct client_id) as clientes,
 | **`db push` cortado o fallido** | `migration list` y una foto dicen qué entró; no se relanza sin comparar con el delta esperado (§9.3) |
 | **El despliegue no llega a READY o su respuesta es incierta** | Se mira el estado del despliegue en Vercel antes de volver a empujar nada; un segundo empuje no arregla un primero dudoso |
 | **La comparación dice DETENER** | Se reporta al dueño con su clasificación, antes de seguir. Nada se corrige en producción |
+| **La comparación termina en 1, sin veredicto** | Las fotos no sirven —de otro destino o proyecto, de un formato anterior, incompletas, la misma captura, al revés o con otra base— o la conexión con el proyecto no se pudo comprobar (I-145). **No es un CONTINUAR**: no se sigue. Se corrige la orden o se vuelven a tomar las fotos; nada se toca en producción |
 
 ### 9.8 Puerta 3 — el despliegue
 

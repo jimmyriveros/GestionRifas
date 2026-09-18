@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Etapa 4 del historial de premios ganados: la preparación de la promoción, D-208, sin migración, 2026-09-18)** | **1.488 ✅ en 80 archivos (+66)**: la puerta del cargador y el resolvedor aislado (52) y las herramientas de puerta (14) | **1.358 ✅ y 1 omitida, en 55 archivos (+11)**: el ensayo del cargador con el script de verdad, la sonda y el comparador de la «Opción A» | **No se repitió**: la etapa no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · ⚠️ `verify:remote` **en producción, 41 + 3 en rojo a propósito**: las tres del historial, hasta la puerta 1 | 🔎 **Solo lectura en producción**: el estado real, igual al relevo en lo esencial —el despliegue servido es `6da9bcb`, solo documentación sobre `da81663`—; las dos coincidencias, como las confirmó el dueño; el delta de la puerta 1 ensayado con **todos** los privilegios de producción. **Nada escrito en producción** |
+| **Post-9 vigente (I-145: la procedencia de las fotos de puerta, corregida en local antes de la puerta 1, sin migración, 2026-09-18)** | **1.497 ✅ en 80 archivos (+9)**: T6, de dónde viene una foto y si sirve para una puerta | **1.373 ✅ y 1 omitida, en 56 archivos (+15)**: `gate-provenance.test.ts`, con las herramientas de verdad; **las 15 fallaban antes** de corregir | **No se repitió**: no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · `verify:remote` no se ejecutó: la corrección no lee producción | 🔧 **Solo local**: las dos órdenes del dueño daban CONTINUAR con fotos locales presentadas como de producción; ahora, **sin veredicto**. El ensayo de las seis migraciones, repetido: el mismo delta, byte a byte, y CONTINUAR. **Nada en producción** |
+| Post-9 anterior (Etapa 4 del historial de premios ganados: la preparación de la promoción, D-208, sin migración, 2026-09-18) | **1.488 ✅ en 80 archivos (+66)**: la puerta del cargador y el resolvedor aislado (52) y las herramientas de puerta (14) | **1.358 ✅ y 1 omitida, en 55 archivos (+11)**: el ensayo del cargador con el script de verdad, la sonda y el comparador de la «Opción A» | **No se repitió**: la etapa no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · ⚠️ `verify:remote` **en producción, 41 + 3 en rojo a propósito**: las tres del historial, hasta la puerta 1 | 🔎 **Solo lectura en producción**: el estado real, igual al relevo en lo esencial —el despliegue servido es `6da9bcb`, solo documentación sobre `da81663`—; las dos coincidencias, como las confirmó el dueño; el delta de la puerta 1 ensayado con **todos** los privilegios de producción. **Nada escrito en producción** |
 | Post-9 anterior (Etapa 3 del historial de premios ganados: la auditoría, D-208, `0070`, `0071` y `0072`, solo en local, 2026-09-18) | **1.422 ✅ en 78 archivos (+4)** | **1.347 ✅ y 1 omitida a propósito, en 54 archivos (+17; migraciones `0070`, `0071` y `0072`)**: la suite del historial pasa de 61 a **70** y nace la de volumen (**8**, la medición solo a petición) | **768/771** en 45,2 min, sobre base recién sembrada y servidor recién arrancado: los 3 son **I-075** (`back-navigation` `:25` y `:127`) e **I-090** (`ventas-por-fecha:163`), ajenos al historial, y sus dos archivos solos dan **27/27**; las **23** del historial, en verde. La completa del primer cierre también dio 768/771 (I-090 e I-106) | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe cualquier lectura de producción | ✅ **Siete hallazgos** demostrados antes de corregirlos —el aviso que desmentía un premio conservado, el antiguo vendedor que no se podía elegir, una expectativa que se comparaba consigo misma, dos pruebas de concurrencia que no observaban el bloqueo, el inicio operativo al alcance de `anon` y, **ensayando con el privilegio por defecto de producción**, `current_seller_org_ids()` ejecutable por `service_role` (I-143)— y **I-140** e **I-142** registradas. **Nada en producción**; el procedimiento de la Etapa 4, en `RUNBOOK` §9 |
 | Post-9 anterior (Etapa 2 del historial de premios ganados: las pantallas, D-208, `0069`, solo en local, 2026-09-17) | **1.418 ✅ en 78 archivos (+37)** | **1.331 ✅ en 53 archivos (+2; migración `0069`)**: la suite del historial pasa de 59 a **61** | Completa **764/765** en 42,6 min: el fallo era `equipo.spec.ts:89`, una prueba existente que buscaba «ganados» en toda la página y encontró el menú y la sección nueva; corregida sin aflojarla, **1/1**, y el archivo **14/14**. Las **17** nuevas, a la primera | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe pruebas contra producción | ✅ **Las cuatro superficies, en local**, y el personal sin un solo dato de cliente. **I-138** —la cobertura contaba sorteos que no podían dar premio— reproducida con la `0068` y corregida con la `0069`; **I-139** —9 px de desplazamiento lateral a 320 px en la barra de filtros compartida— corregida. **Nada en producción** |
 | Post-9 anterior (corrección de la Etapa 1 del historial de premios, D-208, `0068`, solo en local, 2026-09-17) | **1.381 ✅ en 76 archivos** (sin cambio) | **1.329 ✅ en 53 archivos (+24; migración `0068`)**: la suite del historial pasa de 35 a **59** | No se corrió: no hay pantallas | ✅ `verify` exit 0 · ⚠️ `verify:remote` **41 verde + 1 rojo a propósito**: `0067` y `0068` no están promovidas | ✅ **Siete hallazgos reproducidos y corregidos**, incluida la carrera de **I-134**, que no estaba cerrada. **I-137 nueva** y anterior a este encargo. Dos errores de método corregidos: medir RLS como `postgres` no mide nada, y una serialización que solo retrasa no es una garantía |
@@ -75,6 +76,91 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+## I-145: la procedencia de las fotos de puerta, corregida en local — 2026-09-18
+
+**Sin migración y sin tocar producción.** Autorizado: corregir en local la validación de procedencia de las
+fotos antes de autorizar la puerta 1. No autorizado y no hecho: aplicar migraciones, cargar premios, empujar o
+desplegar; tampoco se leyó producción. Rama `feature/premios-configurables` sobre `8506980`, con
+`CorrecionesLoterias.txt` y `prueba-abono.csv` sin seguimiento e intactos (mismos hashes). El defecto lo
+encontró **el dueño** al revisar la Etapa 4 (I-145).
+
+### Antes: el defecto, reproducido con las órdenes del dueño
+
+| Orden | Resultado antes de corregir |
+|---|---|
+| `gate-compare.ts foto-e4-b-l0-local-… foto-e4-b-l1-local-… --production --project-ref aaaaaaaaaaaaaaaaaaaa --operation migrations --migrations 0067,…,0072 --expected-delta …` | ❌ «destino»: «PRODUCCIÓN (proyecto aaaa…)», **CONTINUAR**, **exit 0**, con dos fotos **locales** y un proyecto inventado |
+| La misma foto local en los dos extremos, `--production --project-ref aaaaaaaaaaaaaaaaaaaa --operation none` | ❌ **CONTINUAR**, **exit 0** |
+
+Ninguna de las dos se conectó a nada: sin filas cambiadas, el comparador no abría conexión, y por eso nunca
+pasaba por la comprobación del proyecto.
+
+### Las pruebas de regresión, escritas antes de corregir
+
+`tests/db/gate-provenance.test.ts` toma fotos **reales** de la base local y ejecuta `gate-snapshot.ts` y
+`gate-compare.ts` como procesos aparte. Las fotos «de producción» son esas mismas, **reetiquetadas** con un
+proyecto ficticio y su huella recalculada: el entorno de los procesos apunta a 127.0.0.1 y ninguna llega a
+producción. Se ejecutó **contra las herramientas sin corregir** y fallaron **las 15**:
+
+| Prueba | Lo que respondían las herramientas sin corregir |
+|---|---|
+| P1-01: la foto registra formato, captura, destino y huella | La foto no tenía ninguno |
+| P2-01: dos fotos locales con `--production` y un proyecto inventado | **CONTINUAR**, exit 0, «PRODUCCIÓN (proyecto aaaa…)» |
+| P2-02: la misma foto en los dos extremos, con los dos destinos | **CONTINUAR**, exit 0 |
+| P3-01: fotos de dos proyectos distintos | **CONTINUAR**, exit 0 |
+| P3-02: fotos de un proyecto, pedidas con la referencia de otro | **CONTINUAR**, exit 0 |
+| P3-03: fotos de producción pedidas con `--local` | **CONTINUAR**, exit 0 |
+| P4-01: fotos anteriores al formato, como las de la Etapa 4 | **CONTINUAR**, exit 0 |
+| P4-02: una foto tocada después de tomarla, o sin sus filas | DETENER (exit 2) por una «fila modificada»: se detenía, pero por un motivo equivocado |
+| P4-03: el orden invertido | **CONTINUAR**, exit 0 |
+| P4-04: una foto de después tomada con `--base` de otra foto | La base no registraba ni captura ni huella |
+| P4-05: `--base` con una foto anterior o de otro destino | La foto se tomaba igual (exit 0) |
+| P5-01: dos fotos válidas sin cambios, con su procedencia en el informe | CONTINUAR, pero el informe no decía de qué capturas |
+| P5-02: fotos coherentes de un proyecto al que la orden no puede conectarse, sin cambios | **CONTINUAR**, exit 0, sin comprobar la conexión |
+| P6-01: producción frente a local con `--structure-only` | Sin rótulo: no se distinguía de una comparación con veredicto |
+| P6-02: `--structure-only` con destino, operación o informe | Los aceptaba en silencio (exit 0) |
+
+Errores propios mientras se escribían: un heredoc de bash no aceptó el bloque T6 —se anexó con un script—, y
+la primera redacción de los motivos decía «falta las filas» y «otro….»: cada motivo lleva ahora su verbo, y
+el comienzo de una referencia ya no cierra una frase.
+
+### Después: la corrección
+
+| Verificación | Resultado |
+|---|---|
+| `tests/db/gate-provenance.test.ts` | ✅ **15/15**, 20 s. Sin fotos sueltas en `build/gate/` |
+| `tests/unit/gate-tools.test.ts` | ✅ **23/23**: las 14 de antes y **9** nuevas (T6), con la huella comprobada contra su definición escrita a mano |
+| `tests/db/record-prize-awards-script.test.ts` | ✅ **11/11**: S8 compara fotos nuevas con la «Opción A» sin cambios |
+| Las dos órdenes del dueño, con las mismas fotos antiguas | ✅ **Sin veredicto, exit 1**: «La foto de antes («e4-b-l0») es de un formato anterior a gate-snapshot/v2: no registra de qué proyecto es. Se conserva como evidencia histórica; para una puerta, vuelve a tomarla…» |
+| La primera orden con fotos **nuevas** del mismo ensayo | ✅ **Sin veredicto, exit 1**: «Se pidió PRODUCCIÓN (proyecto aaaa…) y las dos fotos son de LOCAL (127.0.0.1:54322).» |
+| La misma foto nueva en los dos extremos | ✅ **Sin veredicto, exit 1**: «Las dos fotos son la misma captura…» |
+| Las dos fotos nuevas al revés, `--local` | ✅ **Sin veredicto, exit 1**: «…no es posterior a la de antes…: el orden está invertido.» |
+
+### El ensayo de las seis migraciones, repetido con las herramientas nuevas
+
+El mismo «escenario B» de la Etapa 4, solo en local:
+
+| Paso | Resultado |
+|---|---|
+| `db reset --local --version 0066` y `gate-mirror-privileges.ts` con la foto de producción `e4-preflight-2` —histórica, usada **solo** como insumo del ensayo, nunca para un veredicto— | **55** sentencias: 50 de funciones, 2 de secuencias y 3 privilegios por defecto, como en la Etapa 4 |
+| Foto `e4f-b-l0` (v2) y `--structure-only` frente a `e4-preflight-2` | «SIN VEREDICTO»; la foto de producción aparece como «formato anterior: no registra su proyecto», **sin atribuirle ninguno**; solo difieren los 2 secretos del Vault y 3 privilegios de `supabase_functions`, como en la Etapa 4 |
+| `migration up --local` y foto `e4f-b-l1` con `--base e4f-b-l0` | `0067`–`0072` aplicadas; la foto registra la captura y la huella de su base |
+| El delta regenerado | **Idéntico byte a byte** al de la Etapa 4: SHA-256 `936c0f45…` en los dos archivos |
+| `e4f-b-l0` → `e4f-b-l1`, `--local --operation migrations --migrations 0067,…,0072 --expected-delta delta-esperado-0067-0072.json` | ✅ **CONTINUAR**, exit 0: 0 diferencias con lo ensayado, 0 filas tocadas y `declared_prize_awards` nace vacía; el informe nombra las dos capturas |
+| Restaurar | `db reset` (72), Kong, Auth y `seed:local`; Mailpit con su puerto |
+
+### Verificación final, sobre el código definitivo
+
+| Verificación | Resultado |
+|---|---|
+| `npm run verify` | ✅ **exit 0**; unitarias **1.497/1.497** en 80 archivos (**+9**); lint **0 errores** y las 2 advertencias de siempre (`DataTable.tsx` y `BulkTicketCreator.tsx`); `next build` ✅ |
+| `npm run test:db` (tras restaurar la base) | ✅ **1.373 y 1 omitida** —V5-01— en **56** archivos (**+15**, **+1** archivo), 128 s |
+| E2E | **No se repitió**: la corrección no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con sus 3 fallos conocidos —**I-075** (`back-navigation` `:25` y `:127`) e **I-090** (`ventas-por-fecha:163`)— |
+| `verify:remote` contra producción | **No se ejecutó**: esta corrección no lee producción. Su referencia sigue siendo la del 2026-09-18, **41 + 3 en rojo a propósito**, hasta la puerta 1 |
+| Lo que no se corrió | Nada contra producción: ni fotos, ni comparaciones, ni el cargador |
+
+---
+
 
 ## Etapa 4 del historial de premios ganados: la preparación de la promoción (D-208, sin migración) — 2026-09-18
 

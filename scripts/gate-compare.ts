@@ -40,11 +40,23 @@
  *   filas borradas, relaciones que no cuadran o cualquier fila sin causa demostrable.
  *   Nada se corrige en producción.
  *
- * Con `--structure-only` no se conecta a ninguna base: compara la estructura de dos fotos
- * —por ejemplo, producción y la base local del ensayo— y puede guardar ese delta.
+ * ANTES DE NADA, LA PROCEDENCIA (I-145), haya o no diferencias: las dos fotos tienen que
+ * ser `gate-snapshot/v2`, completas y sin tocar (su huella), del MISMO destino y del que se
+ * pidió —el mismo proyecto—, dos capturas distintas, la de después posterior a la de antes
+ * y, si la de después se tomó con `--base`, con esa misma foto de antes. Si algo falla, no
+ * hay veredicto. Y el veredicto pasa SIEMPRE por la conexión comprobada del destino
+ * pedido, aunque no haya ninguna fila que explicar: una foto no basta para decir CONTINUAR
+ * de un proyecto al que esta orden no puede conectarse. Las fotos anteriores al formato
+ * v2 no registran su proyecto: son evidencia histórica y hay que volver a tomarlas.
+ *
+ * Con `--structure-only` no hay veredicto ni conexión: compara la estructura de dos fotos
+ * —también de entornos distintos, como producción y la base local de un ensayo, y también
+ * fotos anteriores— y puede guardar ese delta. No admite destino, operación ni informe,
+ * para que nunca pueda leerse como una puerta superada.
  *
  * El informe no lleva ningún dato de cliente: las claves de `clients` ya vienen como md5
- * en la foto. Termina en 0 si el veredicto es CONTINUAR y en 2 si es DETENER.
+ * en la foto. Termina en 0 si el veredicto es CONTINUAR, en 2 si es DETENER y en 1 si no
+ * hay veredicto: una orden mal formada, fotos que no sirven o una conexión sin comprobar.
  */
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -58,7 +70,11 @@ import {
   compareDeltas,
   cronHours,
   deltaSummary,
+  provenanceProblems,
   rowChanges,
+  SNAPSHOT_FORMAT,
+  snapshotProblems,
+  snapshotTargetLabel,
   structureDelta,
   type Delta,
   type Operation,
@@ -66,6 +82,7 @@ import {
 } from './gate-diff'
 import {
   AUDIT_IGNORED_COLUMNS,
+  GateArgsError,
   gateTarget,
   gateTargetLabel,
   parseArgs,
@@ -610,6 +627,81 @@ async function classify(q: Query, ctx: Context): Promise<Outcome> {
 
 // -----------------------------------------------------------------------------
 
+/** Una foto del disco, sin suponer nada de ella: lo comprueba `provenanceProblems`. */
+function readSnapshot(file: string): Snapshot {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8')) as Snapshot
+  } catch {
+    throw new Error(`No se pudo leer la foto «${file}»: no existe o no es un JSON completo.`)
+  }
+}
+
+/** Lo que da o encamina un veredicto de puerta: `--structure-only` no admite nada de esto. */
+const VERDICT_OPTIONS = [
+  '--local',
+  '--production',
+  '--project-ref',
+  '--operation',
+  '--organization',
+  '--migrations',
+  '--expected-delta',
+  '--report',
+]
+
+/** Cómo se presenta una foto en una comparación de estructura, sin atribuirle nada. */
+function describeForStructure(snapshot: Snapshot): string {
+  const origin =
+    snapshot.formato === SNAPSHOT_FORMAT
+      ? snapshotTargetLabel(snapshot)
+      : `${String(snapshot.entorno)}, formato anterior: no registra su proyecto`
+  return `«${snapshot.etiqueta}» · ${origin} · ${snapshot.meta?.ahora ?? '—'}`
+}
+
+/**
+ * `--structure-only`: la estructura de dos fotos, de cualquier destino y formato, para
+ * ensayar. Sin conexión y SIN VEREDICTO.
+ */
+function structureOnly(
+  parsed: ReturnType<typeof parseArgs>,
+  beforeFile: string,
+  afterFile: string,
+): void {
+  const verdictOptions = VERDICT_OPTIONS.filter(
+    (o) => parsed.switches.has(o) || parsed.values.has(o),
+  )
+  if (verdictOptions.length > 0) {
+    throw new GateArgsError(
+      `--structure-only compara solo la estructura y no da veredicto: no admite ${verdictOptions.join(', ')}. ` +
+        'Para una puerta, compara sin --structure-only.',
+    )
+  }
+  const before = readSnapshot(beforeFile)
+  const after = readSnapshot(afterFile)
+  const delta = structureDelta(before, after)
+  const saveDelta = parsed.values.get('--save-delta')
+  if (saveDelta) writeGateFile(saveDelta.replace(/^.*[\\/]/, ''), delta)
+
+  console.log(
+    'COMPARACIÓN DE ESTRUCTURA, SIN VEREDICTO: sirve para ensayar y no autoriza continuar ninguna puerta.',
+  )
+  console.log(`Antes:   ${describeForStructure(before)}`)
+  console.log(`Después: ${describeForStructure(after)}`)
+  for (const [name, s] of [
+    ['de antes', before],
+    ['de después', after],
+  ] as const) {
+    if (s.formato === SNAPSHOT_FORMAT)
+      for (const p of snapshotProblems(s, name)) console.log(`Aviso: ${p}`)
+  }
+  console.log(JSON.stringify(deltaSummary(delta)))
+  for (const [category, d] of Object.entries(delta)) {
+    for (const k of Object.keys(d.agregados)) console.log(`  + ${category} ${k}`)
+    for (const k of d.quitados) console.log(`  − ${category} ${k}`)
+    for (const k of Object.keys(d.cambiados)) console.log(`  ~ ${category} ${k}`)
+  }
+  if (saveDelta) console.log(`Delta guardado en build/gate/${saveDelta.replace(/^.*[\\/]/, '')}`)
+}
+
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2), {
     switches: ['--structure-only'],
@@ -625,23 +717,8 @@ async function main(): Promise<void> {
   })
   const [beforeFile, afterFile] = parsed.positional
   if (!beforeFile || !afterFile) throw new Error(`Faltan las dos fotos.\n\n${USAGE}`)
-  const before = JSON.parse(readFileSync(beforeFile, 'utf8')) as Snapshot
-  const after = JSON.parse(readFileSync(afterFile, 'utf8')) as Snapshot
-  const delta = structureDelta(before, after)
-  const saveDelta = parsed.values.get('--save-delta')
-  if (saveDelta) writeGateFile(saveDelta.replace(/^.*[\\/]/, ''), delta)
-
   if (parsed.switches.has('--structure-only')) {
-    console.log(
-      `Estructura: «${before.etiqueta}» (${before.entorno}) → «${after.etiqueta}» (${after.entorno})`,
-    )
-    console.log(JSON.stringify(deltaSummary(delta)))
-    for (const [category, d] of Object.entries(delta)) {
-      for (const k of Object.keys(d.agregados)) console.log(`  + ${category} ${k}`)
-      for (const k of d.quitados) console.log(`  − ${category} ${k}`)
-      for (const k of Object.keys(d.cambiados)) console.log(`  ~ ${category} ${k}`)
-    }
-    if (saveDelta) console.log(`Delta guardado en build/gate/${saveDelta.replace(/^.*[\\/]/, '')}`)
+    structureOnly(parsed, beforeFile, afterFile)
     return
   }
 
@@ -653,6 +730,20 @@ async function main(): Promise<void> {
   const organization = parsed.values.get('--organization') ?? null
   if (operation === 'awards' && !organization)
     throw new Error('--operation awards necesita --organization.')
+
+  // La procedencia, siempre y antes de mirar ninguna diferencia (I-145).
+  const before = readSnapshot(beforeFile)
+  const after = readSnapshot(afterFile)
+  const provenance = provenanceProblems(before, after, target)
+  if (provenance.length > 0) {
+    throw new Error(
+      `No hay veredicto: estas fotos no sirven para una comparación en ${gateTargetLabel(target)}.\n` +
+        provenance.map((p) => `  · ${p}`).join('\n'),
+    )
+  }
+  const delta = structureDelta(before, after)
+  const saveDelta = parsed.values.get('--save-delta')
+  if (saveDelta) writeGateFile(saveDelta.replace(/^.*[\\/]/, ''), delta)
 
   const detener: string[] = []
   const alto = (reason: string) => detener.push(reason)
@@ -691,29 +782,36 @@ async function main(): Promise<void> {
     }
   }
 
-  // Filas
+  // Filas. Por la conexión comprobada del destino pedido SIEMPRE, también sin ninguna
+  // fila que explicar: sin ella no hay veredicto (I-145).
   const rows = rowChanges(before, after)
   rows.problemas.forEach(alto)
   const hasChanges = Object.keys(rows.cambios).length > 0
-  const outcome = hasChanges
-    ? await readOnly(target, (q) =>
-        classify(q, {
+  const outcome = await readOnly(target, async (q) =>
+    hasChanges
+      ? classify(q, {
           before,
           after,
           cambios: rows.cambios,
           operation,
           organization,
           hours: cronHours(readFileSync('vercel.json', 'utf8')),
-        }),
-      )
-    : { detener: [], explicadas: new Map<string, string>(), operaciones: [] }
+        })
+      : { detener: [], explicadas: new Map<string, string>(), operaciones: [] },
+  )
   detener.push(...outcome.detener)
 
   const report = {
     destino: gateTargetLabel(target),
+    formato: SNAPSHOT_FORMAT,
     operacion: operation,
-    antes: { etiqueta: before.etiqueta, ahora: before.meta.ahora },
-    despues: { etiqueta: after.etiqueta, ahora: after.meta.ahora, con_base: after.base !== null },
+    antes: { etiqueta: before.etiqueta, ahora: before.meta.ahora, captura: before.captura },
+    despues: {
+      etiqueta: after.etiqueta,
+      ahora: after.meta.ahora,
+      captura: after.captura,
+      con_base: after.base !== null,
+    },
     migraciones_nuevas: added,
     estructura: deltaSummary(delta),
     diferencias_con_lo_ensayado: differences.length,

@@ -36,12 +36,9 @@ import {
 
 import {
   DB_URL,
-  LOCAL_ANON_KEY,
-  LOCAL_SERVICE_ROLE_KEY,
-  LOCAL_URL,
   loadSeedContext,
+  localScriptEnv,
   runLotteryEngine,
-  SEED_PASSWORD,
   serviceClient,
   signInAs,
   USERS,
@@ -62,19 +59,7 @@ let org = ''
 let rifa = ''
 
 /** El entorno del proceso: SOLO la base local, pase lo que pase con `.env.local`. */
-function entorno(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    NEXT_PUBLIC_SUPABASE_URL: LOCAL_URL,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: LOCAL_ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: LOCAL_SERVICE_ROLE_KEY,
-    SEED_DEFAULT_PASSWORD: SEED_PASSWORD,
-    SUPABASE_DB_URL: DB_URL,
-    ...extra,
-  }
-  if (!('SUPABASE_TARGET' in extra)) delete env.SUPABASE_TARGET
-  return env
-}
+const entorno = localScriptEnv
 
 type Corrida = { code: number | null; salida: string }
 

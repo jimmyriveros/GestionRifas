@@ -1,10 +1,14 @@
 /**
- * Lo PURO de las herramientas de puerta (Etapa 4 de D-208, `RUNBOOK` §9.0): cómo se
- * comparan dos fotos —estructura y filas— y cómo se lee un ACL. Sin base, sin red y
- * sin reloj, para poder probarlo aislado (`tests/unit/gate-diff.test.ts`). Lo usan
+ * Lo PURO de las herramientas de puerta (Etapa 4 de D-208, `RUNBOOK` §9.0): de dónde
+ * viene una foto y si sirve para una puerta, cómo se comparan dos fotos —estructura y
+ * filas— y cómo se lee un ACL. Sin base, sin red y sin reloj, para poder probarlo
+ * aislado (`tests/unit/gate-tools.test.ts`). Lo usan `scripts/gate-snapshot.ts`,
  * `scripts/gate-compare.ts` y `scripts/gate-mirror-privileges.ts`.
  */
-import type { Snapshot } from './gate-db'
+import { createHash } from 'node:crypto'
+
+import { gateTargetLabel, type GateTarget, type Snapshot } from './gate-db'
+import { stableJson } from './record-prize-awards-guard'
 
 type Row = Record<string, unknown>
 export type CategoryDelta = {
@@ -14,6 +18,243 @@ export type CategoryDelta = {
 }
 export type Delta = Record<string, CategoryDelta>
 export type Operation = 'none' | 'migrations' | 'awards'
+
+// -----------------------------------------------------------------------------
+// Procedencia de una foto (puro) — I-145
+// -----------------------------------------------------------------------------
+
+/**
+ * El formato de las fotos que registran de qué destino son. Una foto sin `formato` es
+ * anterior: evidencia histórica y estructura para un ensayo, nunca un veredicto.
+ */
+export const SNAPSHOT_FORMAT = 'gate-snapshot/v2'
+
+/** Las categorías de estructura de toda foto. `cron` y `vault` pueden guardar `{ error }`. */
+const STRUCTURE_CATEGORIES = [
+  'tablas',
+  'columnas',
+  'restricciones',
+  'indices',
+  'disparadores',
+  'politicas',
+  'funciones',
+  'tipos',
+  'vistas',
+  'extensiones',
+  'publicaciones',
+  'privilegios_por_defecto',
+  'esquema_public',
+]
+const MAYBE_FAILED_CATEGORIES = ['cron', 'vault']
+
+const PROJECT_REF = /^[a-z]{20}$/
+const CAPTURE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+const DIGEST = /^[0-9a-f]{64}$/
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+const isInstant = (value: unknown) => typeof value === 'string' && !Number.isNaN(Date.parse(value))
+
+/**
+ * La huella de una foto: SHA-256 de su representación estable —claves ordenadas, la
+ * misma que usa la huella de la vista previa del cargador— sin la propia huella.
+ * Cambia si cambia cualquier cosa: una fila, la hora o el destino.
+ */
+export function snapshotDigest(snapshot: Snapshot): string {
+  const rest: Record<string, unknown> = { ...snapshot }
+  delete rest.huella
+  return createHash('sha256').update(stableJson(rest)).digest('hex')
+}
+
+/** El destino de una foto, como se nombra en pantalla: sin la referencia entera. */
+export function snapshotTargetLabel(snapshot: Pick<Snapshot, 'entorno' | 'proyecto'>): string {
+  if (snapshot.entorno !== 'produccion') return gateTargetLabel({ kind: 'local', projectRef: null })
+  return typeof snapshot.proyecto === 'string'
+    ? gateTargetLabel({ kind: 'production', projectRef: snapshot.proyecto })
+    : 'PRODUCCIÓN (sin proyecto registrado)'
+}
+
+const projectPrefix = (snapshot: Pick<Snapshot, 'proyecto'>) =>
+  `${String(snapshot.proyecto).slice(0, 4)}…`
+
+/**
+ * De qué destino es una foto cuando NO es el pedido; `null` si lo es. Dos referencias
+ * pueden empezar igual y aquí nunca se escriben enteras, así que la de otro proyecto se
+ * nombra como «otro proyecto», no solo por su comienzo.
+ */
+export function foreignTarget(
+  snapshot: Pick<Snapshot, 'entorno' | 'proyecto'>,
+  target: GateTarget,
+): string | null {
+  if (target.kind === 'local') {
+    return snapshot.entorno === 'local' ? null : snapshotTargetLabel(snapshot)
+  }
+  if (snapshot.entorno !== 'produccion') return snapshotTargetLabel(snapshot)
+  return snapshot.proyecto === target.projectRef
+    ? null
+    : `otro proyecto de producción (${projectPrefix(snapshot)})`
+}
+
+/**
+ * Lo que impide usar UNA foto en una puerta: un formato anterior, partes que faltan, un
+ * destino incoherente o una huella que ya no coincide. Vacío = se puede usar. Nunca
+ * atribuye un proyecto a una foto que no lo registró: solo dice que hay que tomarla otra vez.
+ */
+export function snapshotProblems(value: unknown, name: string): string[] {
+  if (!isObject(value)) return [`La foto ${name} no es una foto de la puerta.`]
+  const s = value
+  const who = typeof s.etiqueta === 'string' ? `${name} («${s.etiqueta}»)` : name
+  if (s.formato === undefined) {
+    return [
+      `La foto ${who} es de un formato anterior a ${SNAPSHOT_FORMAT}: no registra de qué proyecto es. ` +
+        'Se conserva como evidencia histórica; para una puerta, vuelve a tomarla con scripts/gate-snapshot.ts.',
+    ]
+  }
+  if (s.formato !== SNAPSHOT_FORMAT) {
+    return [`La foto ${who} tiene un formato desconocido («${String(s.formato)}»).`]
+  }
+
+  const missing: string[] = []
+  if (typeof s.etiqueta !== 'string' || s.etiqueta === '') missing.push('falta la etiqueta')
+  if (typeof s.captura !== 'string' || !CAPTURE_ID.test(s.captura)) missing.push('falta la captura')
+  if (s.entorno === 'produccion') {
+    if (typeof s.proyecto !== 'string' || !PROJECT_REF.test(s.proyecto))
+      missing.push('falta el proyecto de producción')
+  } else if (s.entorno === 'local') {
+    if (s.proyecto !== null) missing.push('nombra un proyecto y una foto local no nombra ninguno')
+  } else missing.push('falta el destino')
+  const base = s.base
+  if (
+    base !== null &&
+    !(
+      isObject(base) &&
+      typeof base.etiqueta === 'string' &&
+      isInstant(base.ahora) &&
+      typeof base.captura === 'string' &&
+      CAPTURE_ID.test(base.captura) &&
+      typeof base.huella === 'string' &&
+      DIGEST.test(base.huella)
+    )
+  ) {
+    missing.push('falta la referencia completa de su foto base (o null, si no se tomó con --base)')
+  }
+  const meta = s.meta
+  if (
+    !isObject(meta) ||
+    !isInstant(meta.ahora) ||
+    !isInstant(meta.reloj) ||
+    typeof meta.snapshot !== 'string' ||
+    typeof meta.version !== 'string' ||
+    typeof meta.usuario !== 'string' ||
+    typeof meta.replica !== 'boolean'
+  ) {
+    missing.push('faltan los datos del instante (meta)')
+  }
+  if (!Array.isArray(s.migraciones)) missing.push('faltan las migraciones')
+  const structure = s.estructura
+  if (!isObject(structure)) missing.push('falta la estructura')
+  else {
+    for (const category of STRUCTURE_CATEGORIES) {
+      if (!Array.isArray(structure[category])) missing.push(`falta la estructura «${category}»`)
+    }
+    for (const category of MAYBE_FAILED_CATEGORIES) {
+      const c = structure[category]
+      if (!Array.isArray(c) && !(isObject(c) && typeof c.error === 'string'))
+        missing.push(`falta la estructura «${category}»`)
+    }
+  }
+  const rows = s.filas
+  if (!isObject(rows) || Object.keys(rows).length === 0) missing.push('faltan las filas')
+  else {
+    for (const [table, t] of Object.entries(rows)) {
+      if (
+        !isObject(t) ||
+        !Array.isArray(t.pk) ||
+        t.pk.length === 0 ||
+        !Array.isArray(t.columnas_nuevas) ||
+        !isObject(t.filas) ||
+        t.n !== Object.keys(t.filas).length
+      ) {
+        missing.push(`faltan o no cuadran las filas de ${table}`)
+      }
+    }
+  }
+  if (!isObject(s.hechos)) missing.push('faltan los hechos')
+  if (typeof s.huella !== 'string' || !DIGEST.test(s.huella)) missing.push('falta su huella')
+  if (missing.length > 0) {
+    return [`La foto ${who} está incompleta: ${missing.join('; ')}. Vuelve a tomarla.`]
+  }
+  if (snapshotDigest(s as Snapshot) !== s.huella) {
+    return [
+      `La foto ${who} no coincide con su huella: está incompleta o cambió después de tomarla. Vuelve a tomarla.`,
+    ]
+  }
+  return []
+}
+
+/**
+ * Lo que impide que DOS fotos den un veredicto de puerta (I-145). Se comprueba siempre,
+ * antes de mirar si hay diferencias: las dos completas y de este formato, del MISMO
+ * destino y del que se pidió, dos capturas distintas, la de después posterior a la de
+ * antes y, si la de después se tomó con `--base`, que su base sea esa misma foto de antes.
+ */
+export function provenanceProblems(before: unknown, after: unknown, target: GateTarget): string[] {
+  const problems = [
+    ...snapshotProblems(before, 'de antes'),
+    ...snapshotProblems(after, 'de después'),
+  ]
+  if (problems.length > 0) return problems
+  const a = before as Snapshot
+  const b = after as Snapshot
+
+  if (a.captura === b.captura) {
+    return [
+      `Las dos fotos son la misma captura («${a.etiqueta}», ${a.meta.ahora}): una comparación necesita un antes y un después.`,
+    ]
+  }
+  if (a.entorno !== b.entorno || a.proyecto !== b.proyecto) {
+    problems.push(
+      a.entorno === 'produccion' && b.entorno === 'produccion'
+        ? `Las dos fotos son de proyectos distintos (${projectPrefix(a)} y ${projectPrefix(b)}): una comparación se hace entre dos fotos del mismo proyecto.`
+        : `Las dos fotos son de destinos distintos: la de antes, de ${snapshotTargetLabel(a)}; la de después, de ${snapshotTargetLabel(b)}.`,
+    )
+    for (const [name, s] of [
+      ['de antes', a],
+      ['de después', b],
+    ] as const) {
+      const foreign = foreignTarget(s, target)
+      if (foreign)
+        problems.push(
+          `Se pidió ${gateTargetLabel(target)} y la foto ${name} («${s.etiqueta}») es de ${foreign}.`,
+        )
+    }
+  } else {
+    const foreign = foreignTarget(a, target)
+    if (foreign)
+      problems.push(`Se pidió ${gateTargetLabel(target)} y las dos fotos son de ${foreign}.`)
+  }
+  const from = Date.parse(a.meta.ahora)
+  const to = Date.parse(b.meta.ahora)
+  if (to <= from) {
+    problems.push(
+      `La foto de después («${b.etiqueta}», ${b.meta.ahora}) no es posterior a la de antes («${a.etiqueta}», ${a.meta.ahora}): ` +
+        (to < from ? 'el orden está invertido.' : 'se tomaron en el mismo instante.'),
+    )
+  }
+  const base = b.base
+  if (
+    base !== null &&
+    (base.captura !== a.captura ||
+      base.huella !== a.huella ||
+      base.etiqueta !== a.etiqueta ||
+      base.ahora !== a.meta.ahora)
+  ) {
+    problems.push(
+      `La foto de después («${b.etiqueta}») se tomó con --base de otra foto («${base.etiqueta}», ${base.ahora}), no de la de antes («${a.etiqueta}»).`,
+    )
+  }
+  return problems
+}
 
 // -----------------------------------------------------------------------------
 // Estructura (puro)

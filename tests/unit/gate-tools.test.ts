@@ -2,11 +2,14 @@
  * Las herramientas de puerta, sin base (Etapa 4 de D-208, `RUNBOOK` §9.0).
  *
  * `gate-db.ts` decide a qué base se conecta una foto o una sonda y exige que sea el
- * proyecto esperado; `gate-diff.ts` decide qué cambió entre dos fotos. Las dos cosas se
- * prueban aquí sin red: `dotenv` está simulado y ninguna prueba lee `.env.local`. La
- * clasificación con evidencia de la base —la «Opción A»— se ensaya de verdad contra la
- * base local en `tests/db/record-prize-awards-script.test.ts` (S8).
+ * proyecto esperado; `gate-diff.ts` decide si dos fotos sirven para una puerta (T6,
+ * I-145) y qué cambió entre ellas. Todo se prueba aquí sin red: `dotenv` está simulado
+ * y ninguna prueba lee `.env.local`. La clasificación con evidencia de la base —la
+ * «Opción A»— se ensaya contra la base local en `tests/db/record-prize-awards-script.test.ts`
+ * (S8), y la procedencia con las herramientas de verdad en `tests/db/gate-provenance.test.ts`.
  */
+import { createHash } from 'node:crypto'
+
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('dotenv', () => ({ config: vi.fn(), default: { config: vi.fn() } }))
@@ -27,9 +30,14 @@ import {
   compareDeltas,
   cronHours,
   normalizeAcl,
+  provenanceProblems,
   rowChanges,
+  SNAPSHOT_FORMAT,
+  snapshotDigest,
+  snapshotProblems,
   structureDelta,
 } from '../../scripts/gate-diff'
+import { stableJson } from '../../scripts/record-prize-awards-guard'
 
 const REF = 'proyectoficticioabcd'
 const POOLER = `postgresql://postgres.${REF}:secreto-ficticio@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`
@@ -117,11 +125,20 @@ describe('T2 — la cadena de conexión tiene que ser la del proyecto esperado',
   })
 })
 
-/** Una foto mínima, con la estructura y las filas que diga cada prueba. */
+const CAPTURA_A = '0a0a0a0a-0000-4000-8000-00000000000a'
+const CAPTURA_B = '0b0b0b0b-0000-4000-8000-00000000000b'
+
+/**
+ * Una foto mínima y válida del formato actual, con la estructura y las filas que diga
+ * cada prueba, y su huella calculada al final.
+ */
 function foto(parcial: Partial<Snapshot> = {}): Snapshot {
-  return {
+  const s: Snapshot = {
+    formato: SNAPSHOT_FORMAT,
+    captura: CAPTURA_A,
     etiqueta: 'prueba',
     entorno: 'local',
+    proyecto: null,
     base: null,
     meta: {
       ahora: '2026-09-18T20:00:00.000Z',
@@ -145,8 +162,19 @@ function foto(parcial: Partial<Snapshot> = {}): Snapshot {
       columnas: [
         { tabla: 'tickets', columna: 'id', tipo: 'uuid', no_nulo: true, defecto: null, acl: null },
       ],
+      restricciones: [],
+      indices: [],
+      disparadores: [],
+      politicas: [],
       funciones: [],
+      tipos: [],
+      vistas: [],
+      extensiones: [],
+      cron: [],
+      vault: [],
+      publicaciones: [],
       privilegios_por_defecto: [],
+      esquema_public: [],
     },
     filas: {
       tickets: {
@@ -159,6 +187,19 @@ function foto(parcial: Partial<Snapshot> = {}): Snapshot {
     hechos: {},
     ...parcial,
   }
+  return { ...s, huella: snapshotDigest(s) }
+}
+
+/** La foto de después: otra captura, un minuto más tarde y del mismo destino, salvo que se diga otra cosa. */
+function despuesDe(antes: Snapshot, parcial: Partial<Snapshot> = {}): Snapshot {
+  return foto({
+    entorno: antes.entorno,
+    proyecto: antes.proyecto,
+    captura: CAPTURA_B,
+    etiqueta: 'prueba-despues',
+    meta: { ...antes.meta, ahora: '2026-09-18T20:01:00.000Z', reloj: '2026-09-18T20:01:00.000Z' },
+    ...parcial,
+  })
 }
 
 describe('T3 — qué cambió en la estructura', () => {
@@ -331,5 +372,166 @@ describe('T5 — horas del sincronizador y ACL', () => {
         'postgres',
       ),
     ).toEqual([])
+  })
+})
+
+describe('T6 — de dónde viene una foto, y si sirve para una puerta (I-145)', () => {
+  const LOCAL = { kind: 'local', projectRef: null } as const
+  const PROD = { kind: 'production', projectRef: REF } as const
+  const INVENTADO = 'aaaaaaaaaaaaaaaaaaaa'
+  const OTRO = 'otroproyectoficticio'
+  const enProduccion = (proyecto: string, parcial: Partial<Snapshot> = {}) =>
+    foto({ entorno: 'produccion', proyecto, ...parcial })
+
+  it('T6-01: una foto completa no tiene problemas, y su huella es el SHA-256 de su representación estable', () => {
+    const f = foto()
+    expect(snapshotProblems(f, 'de antes')).toEqual([])
+    const { huella, ...resto } = f
+    expect(huella).toBe(createHash('sha256').update(stableJson(resto)).digest('hex'))
+    // Cualquier cambio posterior la delata: una fila, el destino o la etiqueta.
+    const otraFila = {
+      ...f,
+      filas: {
+        tickets: { ...f.filas.tickets!, filas: { a: ['otra', 'c1', null], b: ['h2', 'c2', null] } },
+      },
+    }
+    for (const tocada of [
+      otraFila,
+      { ...f, entorno: 'produccion' as const, proyecto: REF },
+      { ...f, etiqueta: 'otra' },
+    ]) {
+      expect(snapshotProblems(tocada, 'de antes')).toEqual([
+        expect.stringMatching(/no coincide con su huella/),
+      ])
+    }
+  })
+
+  it('T6-02: una foto anterior al formato se rechaza, sin atribuirle ningún proyecto', () => {
+    const antigua: Record<string, unknown> = { ...enProduccion(REF) }
+    for (const campo of ['formato', 'captura', 'proyecto', 'huella']) delete antigua[campo]
+    const [motivo, ...resto] = snapshotProblems(antigua, 'de antes')
+    expect(resto).toEqual([])
+    expect(motivo).toMatch(/formato anterior a gate-snapshot\/v2: no registra de qué proyecto es/)
+    expect(motivo).toMatch(/evidencia histórica; para una puerta, vuelve a tomarla/)
+    expect(motivo).not.toMatch(/PRODUCCIÓN|proy…/)
+    expect(snapshotProblems({ ...foto(), formato: 'gate-snapshot/v3' }, 'de antes')[0]).toMatch(
+      /formato desconocido/,
+    )
+  })
+
+  it('T6-03: una foto incompleta o incoherente se rechaza diciendo qué le falta', () => {
+    const sinFilas: Record<string, unknown> = { ...foto() }
+    delete sinFilas.filas
+    const casos: Array<[unknown, RegExp]> = [
+      [null, /no es una foto de la puerta/],
+      [sinFilas, /está incompleta: faltan las filas/],
+      [foto({ entorno: 'produccion', proyecto: null }), /falta el proyecto de producción/],
+      [foto({ proyecto: REF }), /nombra un proyecto y una foto local no nombra ninguno/],
+      [foto({ captura: 'no' }), /falta la captura/],
+      [foto({ meta: { ...foto().meta, ahora: 'ayer' } }), /faltan los datos del instante/],
+      [
+        foto({ base: { etiqueta: 'a', ahora: '2026-09-18T19:00:00.000Z' } }),
+        /falta la referencia completa de su foto base/,
+      ],
+      [foto({ estructura: { tablas: [] } }), /falta la estructura «columnas»/],
+      [
+        foto({ filas: { tickets: { pk: ['id'], columnas_nuevas: [], n: 3, filas: {} } } }),
+        /faltan o no cuadran las filas de tickets/,
+      ],
+    ]
+    for (const [f, motivo] of casos) {
+      const problemas = snapshotProblems(f, 'de antes')
+      expect(problemas).toHaveLength(1)
+      expect(problemas[0]).toMatch(motivo)
+    }
+  })
+
+  it('T6-04: el defecto — dos fotos locales pedidas como de producción no dan veredicto', () => {
+    const a = foto()
+    const b = despuesDe(a)
+    expect(provenanceProblems(a, b, { kind: 'production', projectRef: INVENTADO })).toEqual([
+      'Se pidió PRODUCCIÓN (proyecto aaaa…) y las dos fotos son de LOCAL (127.0.0.1:54322).',
+    ])
+    expect(provenanceProblems(a, b, LOCAL)).toEqual([])
+  })
+
+  it('T6-05: fotos de destinos o de proyectos distintos', () => {
+    const a = enProduccion(REF)
+    expect(provenanceProblems(a, despuesDe(a, { proyecto: OTRO }), PROD)).toEqual([
+      'Las dos fotos son de proyectos distintos (proy… y otro…): una comparación se hace entre dos fotos del mismo proyecto.',
+      'Se pidió PRODUCCIÓN (proyecto proy…) y la foto de después («prueba-despues») es de otro proyecto de producción (otro…).',
+    ])
+    const local = foto()
+    expect(
+      provenanceProblems(local, despuesDe(local, { entorno: 'produccion', proyecto: REF }), PROD),
+    ).toEqual([
+      'Las dos fotos son de destinos distintos: la de antes, de LOCAL (127.0.0.1:54322); la de después, de PRODUCCIÓN (proyecto proy…).',
+      'Se pidió PRODUCCIÓN (proyecto proy…) y la foto de antes («prueba») es de LOCAL (127.0.0.1:54322).',
+    ])
+  })
+
+  it('T6-06: fotos de un proyecto pedidas con la referencia de otro, o con --local', () => {
+    const a = enProduccion(REF)
+    const b = despuesDe(a)
+    expect(provenanceProblems(a, b, { kind: 'production', projectRef: OTRO })).toEqual([
+      'Se pidió PRODUCCIÓN (proyecto otro…) y las dos fotos son de otro proyecto de producción (proy…).',
+    ])
+    expect(provenanceProblems(a, b, LOCAL)).toEqual([
+      'Se pidió LOCAL (127.0.0.1:54322) y las dos fotos son de PRODUCCIÓN (proyecto proy…).',
+    ])
+    expect(provenanceProblems(a, b, PROD)).toEqual([])
+  })
+
+  it('T6-07: la misma captura en los dos extremos, el orden invertido o el mismo instante', () => {
+    const a = foto()
+    const b = despuesDe(a)
+    expect(provenanceProblems(a, a, LOCAL)).toEqual([expect.stringMatching(/misma captura/)])
+    expect(provenanceProblems(a, structuredClone(a), LOCAL)).toEqual([
+      expect.stringMatching(/misma captura/),
+    ])
+    expect(provenanceProblems(b, a, LOCAL)).toEqual([
+      expect.stringMatching(/no es posterior a la de antes .*: el orden está invertido\.$/),
+    ])
+    expect(provenanceProblems(a, despuesDe(a, { meta: a.meta }), LOCAL)).toEqual([
+      expect.stringMatching(/se tomaron en el mismo instante\.$/),
+    ])
+  })
+
+  it('T6-08: con --base, la foto de después tiene que haberse tomado sobre ESA foto de antes', () => {
+    const a = foto()
+    const referencia = (s: Snapshot, huella = s.huella!) => ({
+      etiqueta: s.etiqueta,
+      ahora: s.meta.ahora,
+      captura: s.captura!,
+      huella,
+    })
+    expect(provenanceProblems(a, despuesDe(a, { base: referencia(a) }), LOCAL)).toEqual([])
+    const otra = foto({
+      captura: 'cccccccc-0000-4000-8000-00000000000c',
+      etiqueta: 'otra',
+      meta: { ...a.meta, ahora: '2026-09-18T19:00:00.000Z' },
+    })
+    expect(provenanceProblems(a, despuesDe(a, { base: referencia(otra) }), LOCAL)).toEqual([
+      expect.stringMatching(/se tomó con --base de otra foto \(«otra»/),
+    ])
+    // La misma captura con otra huella: la foto de antes cambió después de servir de base.
+    expect(
+      provenanceProblems(a, despuesDe(a, { base: referencia(a, '0'.repeat(64)) }), LOCAL),
+    ).toEqual([expect.stringMatching(/--base de otra foto/)])
+  })
+
+  it('T6-09: ningún motivo escribe una referencia de proyecto entera', () => {
+    const a = enProduccion(REF)
+    const motivos = [
+      ...provenanceProblems(a, despuesDe(a, { proyecto: OTRO }), PROD),
+      ...provenanceProblems(a, despuesDe(a), { kind: 'production', projectRef: OTRO }),
+      ...provenanceProblems(a, despuesDe(a), LOCAL),
+      ...provenanceProblems(foto(), despuesDe(foto()), PROD),
+    ]
+    expect(motivos.length).toBeGreaterThan(4)
+    for (const m of motivos) {
+      expect(m).not.toContain(REF)
+      expect(m).not.toContain(OTRO)
+    }
   })
 })

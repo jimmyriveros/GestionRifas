@@ -1407,7 +1407,10 @@ autoridad:
 transacción `repeatable read read only`** y se niegan si `SUPABASE_DB_URL` no nombra el proyecto esperado. No
 imprimen la cadena de conexión, y ni la foto ni sus informes guardan un identificador de cliente: la clave de
 `clients` se guarda como md5 y la sonda cuenta los clientes distintos dentro de la base. `gate-mirror-privileges.ts`
-solo puede escribir en la base **local**: su dirección está escrita en el código.
+solo puede escribir en la base **local**: su dirección está escrita en el código. **Un veredicto de puerta exige la
+procedencia comprobada** (I-145): las dos fotos, `gate-snapshot/v2`, íntegras, del mismo proyecto y del que se pidió,
+distintas y en orden, y la conexión con ese proyecto comprobada aunque no haya diferencias; si no, no hay veredicto.
+Las fotos guardan el proyecto con el que se conectaron, nunca una credencial.
 
 ## 5. Protección de Server Actions y Route Handlers
 

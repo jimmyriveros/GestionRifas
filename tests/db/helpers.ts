@@ -21,6 +21,26 @@ export const SEED_PASSWORD = 'DesarrolloLocal2026'
 
 export const DB_URL = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
 
+/**
+ * El entorno de un SCRIPT que una prueba ejecuta como proceso aparte: SOLO la base
+ * local, pase lo que pase con `.env.local`. Las variables de Supabase apuntan a
+ * 127.0.0.1 y `dotenv` no sobrescribe las que ya existen, así que ni `--production`
+ * puede salir de ahí (lo demuestra S1 del ensayo del cargador).
+ */
+export function localScriptEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    NEXT_PUBLIC_SUPABASE_URL: LOCAL_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: LOCAL_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: LOCAL_SERVICE_ROLE_KEY,
+    SEED_DEFAULT_PASSWORD: SEED_PASSWORD,
+    SUPABASE_DB_URL: DB_URL,
+    ...extra,
+  }
+  if (!('SUPABASE_TARGET' in extra)) delete env.SUPABASE_TARGET
+  return env
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const realtime = { transport: WebSocket as any }
 
@@ -106,7 +126,10 @@ export async function runLotteryEngine(
     return { data: rows[0]!.r, error: null }
   } catch (error) {
     const e = error as { message: string; code?: string; detail?: string; hint?: string }
-    return { data: null, error: { message: e.message, code: e.code, details: e.detail, hint: e.hint } }
+    return {
+      data: null,
+      error: { message: e.message, code: e.code, details: e.detail, hint: e.hint },
+    }
   } finally {
     await db.end()
   }
