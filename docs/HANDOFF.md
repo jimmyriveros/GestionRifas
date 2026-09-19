@@ -29,7 +29,8 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
-| **Alineación de campos en la misma fila (SOLO EN LOCAL, 2026-09-19, D-210)** | **`FormItem` empaqueta hacia arriba** (`content-start`): Día y Hora, y el resto de filas con ayuda o error, dejan de desnivelarse. Medido **14 px** antes, 0 después. Sin migración, sin push. Relevo en §1.a |
+| **Prueba de oscuro de D-210, corregida (SOLO EN LOCAL, 2026-09-19)** | La E2E «en oscuro» **no activaba `.dark`** en `73f3e83`. Ahora la clase se pone después de abrir el diálogo y se exige el token `#0a0a0a`. `FormItem` no se tocó. Relevo en §1.a |
+| **Alineación de campos en la misma fila (SOLO EN LOCAL, 2026-09-19, D-210)** | **`FormItem` empaqueta hacia arriba** (`content-start`): Día y Hora, y el resto de filas con ayuda o error, dejan de desnivelarse. Medido **14 px** antes, 0 después. Sin migración, sin push. ⚠️ La casilla «oscuro» de esa entrega se corrigió después |
 | **Bre-B y «Otros» en las cuentas para recibir pagos — EN PRODUCCIÓN desde el 2026-09-19 (D-209), con I-140 corregida** | **Producción tiene `0073` y `0074`** (aplicadas de 17:53:21 a 17:53:39 UTC, con respaldo validado y **CONTINUAR** en cada comparación por fila: 0 filas tocadas) **y sirve `6401bd0`** (`dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y`, READY a las 17:57:44 UTC): en vivo en verde, `verify:remote` **46/46**, sin errores de ejecución y el CI **2/2** en el PR y en `main`. **I-140 corregida en la prueba**: ya no pone en rojo el CI. Punto de reversión del código: `dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE` (`318357c`), usable **solo mientras no haya cuentas Bre-B ni «Otros»** (`DEPLOYMENT` §2.2). **Pendiente del dueño:** las comprobaciones con sesión. Relevo en §1.a |
 | **Bre-B y «Otros» en las cuentas para recibir pagos (SOLO EN LOCAL, 2026-09-19, D-209 — antes de la promoción)** | **Dos formas más en «Configuración» → «Cuentas para recibir pagos»**, con su columna `identifier` —la llave de Bre-B o el número o identificador de «Otros»—, guardada **tal cual** y sin espacios exteriores (BR-M10). Duplicados: las formas de siempre, por dígitos; las nuevas, por el identificador **entero y con mayúsculas** (BR-M08). Migraciones **`0073`** (solo el enumerado) y **`0074`** (columna, CHECK, índice, dos funciones de la regla y las dos RPC con `p_identifier`), **solo en local**. **Producción no se tocó ni se leyó**: sigue en `0072` y `318357c`. `test:db` **1.402 + 1**, `verify` **1.522**, E2E **775/779** con las 8 nuevas en verde —los 4 fallos, conocidos o anteriores a D-209: I-090, I-106 e I-148—; ensayo sobre datos existentes **12/12**, escenario B idéntico y `verify-remote` local **46/46**. Relevo en §1.a; orden de promoción, **sin ejecutar**, en `DEPLOYMENT` §2.2 |
 | Historial de premios ganados (EN PRODUCCIÓN desde el 2026-09-19 — puertas 1 y 2 hechas; puerta 3 desplegada y detenida por el CI, I-140) | **Producción tiene `0067`–`0072`, los dos premios reconocidos y `318357c` servido.** Puerta 1: respaldo validado, delta idéntico al aprobado, `verify:remote` 44/44, CONTINUAR. Puerta 2: Bogotá 2862 y Cundinamarca 4820, «Premio diario», $500.000 cada uno, por el cargador con su huella; T1 = T0 + 2 premios + $1.000.000, 2 clientes. Puerta 3: `dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE` READY, `76a253b25ca1` servido, en verde en vivo, 44/44, CONTINUAR, sin errores de ejecución, **pero el CI de `318357c` en rojo por I-140** (1 de 1.374): no cerrada, **sin revertir**. Pendiente del dueño: I-140 y los recorridos con sesión. Relevo en §1.a |
@@ -154,18 +155,28 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — alineación de campos en la misma fila (D-210, **solo en local**, 2026-09-19)
+## 1.a Último relevo significativo — la prueba de oscuro de D-210 no activaba el tema (**solo en local**, 2026-09-19)
 
 | Campo | Estado |
 |---|---|
-| Resultado | **Los controles de una misma fila quedan alineados por arriba.** `FormItem` pasa a `grid content-start gap-2`: una ayuda o un error ya no bajan el control vecino. Medido antes: **14 px** entre Día y Hora. Después: 0 px. Interruptores horizontales, composiciones con `space-y-*` y etiquetas completas, intactos. **Fuera, a propósito:** rediseño, Figma (solo lectura; queda pendiente reflejar la regla en `Pattern / Form`), push y producción |
-| Archivos | `src/components/ui/form.tsx`; `tests/e2e/formularios-alineacion.spec.ts` y `formularios-alineacion-movil.spec.ts`. Documentación: `ARCHITECTURE` §8.2.c, `DECISIONS` D-210, `TESTING`, `TEST_RESULTS`, `PHASE_STATUS` y este archivo. **Sin tocar:** `DesignFix.txt`, `prueba-abono.csv` |
-| Reutilización | El `FormItem` de shadcn, `cn`, las pruebas de geometría de D-177/D-178 (`getComputedStyle` + esperar `zoom-in-95`) y las rejillas `sm:grid-cols-2` de cada pantalla |
-| Decisiones | **D-210**: corregir la causa en el contenedor compartido, no pantalla por pantalla. No se usó subgrid: las etiquetas de cada pareja real caben en una línea |
-| Verificación | La E2E de Día/Hora **falló con 14 px** antes de la clase y pasó después. Escritorio **15/15**, teléfono **3/3**. Relacionadas: crear recordatorio y crear rifa configurable, en verde. Pantallas medidas: recordatorios (claro, oscuro, 640 y 390/320), premios, rifas, boletas, abono, cliente, login, cuenta de cobro, invitar administrador, creación masiva. `verify` **1.522/1.522**; `test:db` **1.402 + 1** |
-| Advertencias | **1)** Para medir un diálogo, espera a que termine `zoom-in-95` y usa posiciones relativas a la etiqueta, no el `top` de viewport: el diálogo se recentra y puede desplazarse hasta el campo inválido. **2)** No hay push ni despliegue. **3)** `DesignFix.txt` y `prueba-abono.csv` siguen sin seguimiento |
-| Pendiente | Reflejar la regla en Figma `Pattern / Form` (nodo `130:6282`), sin otra fuente. Siguen los de siempre: I-147, I-150, I-090, I-106, I-148, I-149 |
-| Git | Rama `feature/premios-configurables`. El SHA de este cierre, en el reporte. Sin push. Sin etiqueta |
+| Resultado | **La E2E «en oscuro» ahora enciende `.dark` de verdad y lo comprueba antes de medir.** El `addInitScript` de `73f3e83` corría con `documentElement` nulo y no añadía la clase; la alineación se medía en claro. `FormItem` y D-210 no se tocaron. **Fuera:** push, producción, Figma |
+| Archivos | `tests/e2e/formularios-alineacion.spec.ts`. Nota posterior en `TEST_RESULTS` (D-210); `TESTING`; este archivo y `PHASE_STATUS`. **Sin tocar:** `form.tsx`, `DesignFix.txt`, `prueba-abono.csv` |
+| Reutilización | El token `--ds-background-default` de `globals.css` (`.dark` `#0a0a0a`, `:root` `#ffffff`); `openReminderDialog` ya espera `zoom-in-95` |
+| Decisiones | Activar el tema con `page.evaluate` **después** de que el diálogo exista. No basta `emulateMedia` ni un init script al nacer la página |
+| Verificación | Con el código de `73f3e83`, exigir `.dark` recibió `false`. Corregida: oscuro **1/1**; sin activar, la sonda ve claro **1/1**; alineación **16/16** escritorio y **3/3** teléfono. eslint de las specs, 0 errores |
+| Advertencias | **1)** El portal no tiene selector de tema: `.dark` hay que ponerla. **2)** `addInitScript` que toca `documentElement` al cargar lanza y no aplica la clase. **3)** `DesignFix.txt` y `prueba-abono.csv` siguen sin seguimiento |
+| Pendiente | El de D-210: reflejar la regla de alineación en Figma `Pattern / Form`. Siguen I-147, I-150, I-090, I-106, I-148, I-149 |
+| Git | Rama `feature/premios-configurables`, un commit encima de `73f3e83`. El SHA, en el reporte. Sin push |
+
+---
+
+## 1.a.0 Relevo anterior — alineación de campos en la misma fila (D-210, **solo en local**, 2026-09-19)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Los controles de una misma fila quedan alineados por arriba.** `FormItem` pasa a `grid content-start gap-2`. Medido antes: **14 px** entre Día y Hora. ⚠️ La casilla «oscuro» de esa entrega **no activaba `.dark`**; se corrigió en el relevo vigente |
+| Archivos | `src/components/ui/form.tsx`; las dos specs de alineación; `ARCHITECTURE` §8.2.c, D-210, `TESTING`, `TEST_RESULTS`, `PHASE_STATUS` |
+| Git | `73f3e83`. Sin push |
 
 ---
 

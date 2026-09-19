@@ -1,6 +1,7 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.33 · **Actualizado:** 2026-09-19, más tarde (**alineación de campos**, D-210: `formularios-alineacion.spec.ts`
+- **Versión:** 2.34 · **Actualizado:** 2026-09-19, más tarde (la prueba de oscuro de D-210 exige `.dark` y el token
+  `#0a0a0a`; un `addInitScript` al nacer la página no enciende el tema). Antes, ese mismo día (**alineación de campos**, D-210: `formularios-alineacion.spec.ts`
   y `formularios-alineacion-movil.spec.ts` miden el `top` de controles hermanos, no la presencia de una clase). Antes,
   ese mismo día (**§4.10**, I-140: la prueba de la bitácora del personal trae su
   propio premio y ya no depende del orden de las suites; y **I-150**, una E2E de la disposición de «Recordatorios» que
@@ -876,7 +877,7 @@ final en el teléfono— se comprobó con un servidor levantado con una **clave 
 y sus estados forzados en el navegador (`TEST_RESULTS`, misma fecha). Tampoco es infraestructura de
 interfaz compartida (`HANDOFF` §1.b): no se tocó ningún primitivo.
 
-#### Alineación de campos en la misma fila ✅ (D-210; `formularios-alineacion.spec.ts`, 15 · `formularios-alineacion-movil.spec.ts`, 3)
+#### Alineación de campos en la misma fila ✅ (D-210; `formularios-alineacion.spec.ts`, 16 · `formularios-alineacion-movil.spec.ts`, 3)
 
 Mantenimiento **solo de presentación**. Mide geometría real, no que exista `content-start`.
 
@@ -888,6 +889,7 @@ Mantenimiento **solo de presentación**. Mide geometría real, no que exista `co
 | Interruptores horizontales | Etiqueta a la izquierda, control a la derecha, misma franja |
 | Teléfono: las filas se apilan y no se recortan | A 390 y 320 px, Hora debajo de Día; `scrollWidth − clientWidth ≤ 0`; diana 44 px |
 | Desde `sm`, dos columnas | A 640 px, Hora a la derecha de Día y el mismo `top` |
+| Oscuro de verdad | Se añade `.dark` **después** de que el diálogo exista. Antes de medir: `html` lleva la clase y `--ds-background-default` es `#0a0a0a`. Sin activar, la misma sonda ve el token claro. Un `addInitScript` al nacer la página **no** enciende el tema |
 
 La prueba de Día/Hora **tiene que fallar** si se quita `content-start`: antes medía **14 px**.
 

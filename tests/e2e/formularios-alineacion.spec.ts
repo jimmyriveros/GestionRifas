@@ -60,6 +60,57 @@ function expectSameTop(a: Box, b: Box, label: string) {
   expect(Math.abs(a.top - b.top), label).toBeLessThanOrEqual(1)
 }
 
+/**
+ * Fondo de `globals.css`: `:root` `#ffffff`, `.dark` `#0a0a0a`. El portal no
+ * enciende `.dark` solo: no hay selector de tema (`manifest.ts`). Emular
+ * `prefers-color-scheme` no basta.
+ */
+const DARK_BACKGROUND_DEFAULT = '#0a0a0a'
+const LIGHT_BACKGROUND_DEFAULT = '#ffffff'
+
+type ThemeSnapshot = {
+  hasDarkClass: boolean
+  backgroundDefault: string
+}
+
+async function themeSnapshot(page: Page): Promise<ThemeSnapshot> {
+  return page.evaluate(() => {
+    const raw = getComputedStyle(document.documentElement)
+      .getPropertyValue('--ds-background-default')
+      .trim()
+      .toLowerCase()
+    const backgroundDefault =
+      raw.length === 4 && raw.startsWith('#')
+        ? `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`
+        : raw
+    return {
+      hasDarkClass: document.documentElement.classList.contains('dark'),
+      backgroundDefault,
+    }
+  })
+}
+
+/**
+ * Enciende `.dark` cuando el documento YA existe. Un `addInitScript` que toca
+ * `document.documentElement` al nacer la página lanza
+ * `Cannot read properties of null (reading 'classList')` y no añade la clase.
+ */
+async function activateDarkTheme(page: Page) {
+  await page.evaluate(() => {
+    const root = document.documentElement
+    if (!root) throw new Error('No hay documentElement: el documento todavía no existe.')
+    root.classList.add('dark')
+  })
+}
+
+async function expectDarkTheme(page: Page) {
+  const tema = await themeSnapshot(page)
+  expect(tema.hasDarkClass, 'html lleva .dark').toBe(true)
+  expect(tema.backgroundDefault, 'el token --ds-background-default es el del tema oscuro').toBe(
+    DARK_BACKGROUND_DEFAULT,
+  )
+}
+
 async function openReminderDialog(page: Page): Promise<Locator> {
   await page.goto('/seller/settings/reminders')
   await page.getByRole('button', { name: 'Crear recordatorio' }).click()
@@ -155,16 +206,28 @@ test.describe('Recordatorios: Día y Hora', () => {
   })
 
   test('en oscuro, Día y Hora siguen alineados', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'dark' })
-    await page.addInitScript(() => {
-      document.documentElement.classList.add('dark')
-    })
     await loginAs(page, ACCOUNTS.seller)
     const dialog = await openReminderDialog(page)
+    await activateDarkTheme(page)
+    await expectDarkTheme(page)
     expectSameTop(
       await boxOf(dialog.getByLabel('Día')),
       await boxOf(dialog.getByLabel('Hora')),
       'Día y Hora alinean también en oscuro',
+    )
+  })
+
+  test('sin activar .dark, la comprobación del tema oscuro no se cumple', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    const dialog = await openReminderDialog(page)
+    await expect(dialog).toBeVisible()
+    const tema = await themeSnapshot(page)
+    expect(tema.hasDarkClass, 'sin activar, html no lleva .dark').toBe(false)
+    expect(tema.backgroundDefault, 'sin activar, el token sigue siendo el claro').toBe(
+      LIGHT_BACKGROUND_DEFAULT,
+    )
+    expect(tema.backgroundDefault, 'sin activar, el token no es el oscuro').not.toBe(
+      DARK_BACKGROUND_DEFAULT,
     )
   })
 })

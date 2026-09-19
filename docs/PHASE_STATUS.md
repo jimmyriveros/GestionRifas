@@ -3,13 +3,27 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-19, más tarde — **alineación de campos en la misma fila, SOLO EN LOCAL** (D-210,
+- **Actualizado:** 2026-09-19, más tarde — **la prueba de oscuro de D-210, corregida, SOLO EN LOCAL**
+  (mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas).
+  Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades implementadas:** las mismas de D-210; `FormItem` no se tocó. La E2E de oscuro añade `.dark`
+  después de abrir el diálogo y exige el token `#0a0a0a`.
+  **(2) Pruebas ejecutadas:** con `73f3e83`, exigir `.dark` recibió `false`. Corregida: escritorio **16/16**, teléfono
+  **3/3**. Detalle en `TEST_RESULTS`.
+  **(3) Migraciones:** ninguna. Siguen **74**.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** los de D-210 (Figma) e I-147, I-150, I-090, I-106, I-148 e I-149.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; no volver a encender el tema con un `addInitScript` al nacer
+  la página.
+
+  Antes, ese mismo día — **alineación de campos en la misma fila, SOLO EN LOCAL** (D-210,
   mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas).
   Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades implementadas:** cuando dos campos comparten fila, sus controles quedan alineados por arriba;
   la ayuda y el error siguen debajo de su campo. Una sola clase en `FormItem`: `content-start`.
   **(2) Pruebas ejecutadas:** la E2E de Día/Hora **falló con 14 px** antes y pasó después; escritorio **15/15**,
-  teléfono **3/3**. `verify` **1.522/1.522**; `test:db` **1.402 + 1**. Detalle en `TEST_RESULTS`.
+  teléfono **3/3**. `verify` **1.522/1.522**; `test:db` **1.402 + 1**. ⚠️ La casilla «oscuro» de esa pasada no
+  activaba `.dark`. Detalle en `TEST_RESULTS`.
   **(3) Migraciones:** ninguna. Siguen **74** en local y en producción.
   **(4) Variables de entorno:** ninguna nueva.
   **(5) Problemas que permanecen:** Figma `Pattern / Form` aún no declara la regla entre campos contiguos; el contrato
