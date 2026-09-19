@@ -1,6 +1,8 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.31 · **Actualizado:** 2026-09-19 (**§4.8**, Bre-B y «Otros» —D-209, **solo en local**—:
+- **Versión:** 2.32 · **Actualizado:** 2026-09-19 (**§4.10**, I-140: la prueba de la bitácora del personal trae su
+  propio premio y ya no depende del orden de las suites; y **I-150**, una E2E de la disposición de «Recordatorios» que
+  mide durante la animación de la barra lateral —anterior, sin corregir—). Antes, ese mismo día (**§4.8**, Bre-B y «Otros» —D-209, **solo en local**—:
   `payment-account-identifiers.test.ts` con **29** pruebas —entre ellas la BMP recorrida entera y la concurrencia con
   dos transacciones reales—, +25 unitarias que leen la migración para comparar frases, tope y clases de caracteres, y
   +8 E2E de escritorio y teléfono). Antes, el 2026-09-18 (**§4.12**, Etapa 3 del historial de premios —la auditoría, D-208, `0070`, `0071` y `0072`—: `prize-award-history.test.ts` pasa a **70** —H5-04 y H8-08 observan el bloqueo, H7-05, H9-07, H12-03 y la matriz **H13** por PostgREST—, nace `prize-award-volume.test.ts` (**8**, con un modelo del motor en TypeScript y la medición de rendimiento a petición), las expectativas del aviso de cobertura se escriben a mano, y la E2E gana el punto A, el punto B, lo ajeno frente a lo inexistente, los parámetros manipulados, la combinación de filtros y los 375 px). Antes, el 2026-09-17 (**§4.12**, Etapa 2 del historial de premios —D-208, `0069`—: H10-01 sin espera fija, **H12** para la cobertura, `prize-awards-history.test.ts` (22), `prize-awards-view.test.tsx` (9), cuatro invariantes nuevas en `admin-privacy.test.ts` y **17** pruebas E2E en `premios-ganados.spec.ts` y `premios-ganados-movil.spec.ts`). Antes, ese mismo día (**§4.11**: D-207, `0066` —quién ejecuta cada función de premios—: `prize-function-privileges.test.ts` nueva (**15**) con la lista exacta de las 62 funciones, las comprobaciones de `verify:remote` y su fallo si reaparece cualquiera de los 35 permisos del preflight; el motor pasa a interno y `lottery-results` y `raffle-prize-matching` lo corren con `runLotteryEngine`; M8-05 exige que la service role no lo ejecute). Antes, el 2026-09-16 (**§4.11**: la corrección de D-206, `0065` —el aviso de fechas llega también a quien las cambia—: `raffle-date-notices.test.ts` pasa a **12** con R1-02 reescrita y R1-04 nueva, `rifa-fechas-aviso.spec.ts` a **4**, con la comprobación en la base después de guardar como Dueño, y F7 exige «todas las personas, también a ti»; volver a excluir al actor lo detectan las dos). Antes, ese mismo día (**§4.11**: la corrección local de la Entrega 5, D-206 —`raffle-prize-transition.test.ts` pasa a **51** con la frontera del instante efectivo en 2066, el reloj real y la carrera con el motor; `raffle-date-notices.test.ts` (**11**) y `rifa-fechas-aviso.spec.ts` (**3**) nuevas; cinco mutaciones detectadas—). Antes, ese mismo día (**§4.11**: la Entrega 4 —`raffle-prize-transition.test.ts` de base (38) y unitaria (30), `premios-transicion.spec.ts` (4), J13 con los seis premios confirmados y J3-03 como ejemplo genérico, D-204—). Antes, ese mismo día (**§4.11**: la corrección de la Entrega 3 —M12 y
@@ -954,6 +956,15 @@ de texto comparten nombre accesible. Las pruebas buscan el campo con `getByRole(
 | `tests/e2e/privacidad-admin-movil.spec.ts` | **5** (nuevo) | Lo mismo en el teléfono: tarjeta y detalle, barra inferior de dos opciones, menú de usuario y direcciones retiradas; y la tarjeta del vendedor |
 | `tests/e2e/privacidad-escenario.ts` | — | No es una suite: el escenario compartido —un cliente con todos sus datos, una boleta rebajada y un abono parcial— y la búsqueda de sus valores en lo recibido |
 | Suites adaptadas | — | Las que usaban al personal para leer, vender, cobrar, anular o importar pasaron a la sesión del vendedor —o a comprobar que el personal ya no puede— **sin quitar aserciones**. La lista, con el motivo de cada conversión, en `TEST_RESULTS` (2026-09-14) |
+
+**La bitácora del personal, corregida el 2026-09-19 (I-140).** «La bitácora que ve el personal no trae ni un dato de
+la venta» solo admitía cuatro tipos, y `admin_audit_log` devuelve también `raffle_prize` desde la `0058`: pasaba o no
+según lo que hubiera corrido antes, y ponía en rojo el CI. Ahora **trae su propio premio** —con la RPC de verdad, la
+sesión del Dueño y una rifa propia que borra al terminar—, exige ver **esa** entrada con sus 16 claves exactas, admite
+`raffle_prize` con la lista blanca de `admin_audit_redact` y la de cada alternativa (`amount`, `description`), y busca en
+**toda** la respuesta los datos del cliente, el precio de venta y el abono de la suite. **Sin quitar ninguna aserción.**
+Aguanta cualquier orden y dos pasadas completas seguidas sobre la misma base, y detecta cuatro mutaciones del producto
+(`KNOWN_ISSUES` I-140).
 
 **Lo que estas suites no pueden ver, y cómo se cubrió:**
 

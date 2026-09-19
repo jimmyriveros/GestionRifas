@@ -3,7 +3,10 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-19 — **Bre-B y «Otros» en las cuentas para recibir pagos, SOLO EN LOCAL** (D-209,
+- **Actualizado:** 2026-09-19, más tarde — **la promoción de D-209 está AUTORIZADA** por el dueño para una sola
+  ejecución (D-209 §7), con **I-140 corregida en la prueba** antes de publicar; su resultado se registra al cerrarla.
+
+  Antes, ese mismo día — **Bre-B y «Otros» en las cuentas para recibir pagos, SOLO EN LOCAL** (D-209,
   migraciones `0073` y `0074`; mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas).
   Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades implementadas:** dos formas más en «Configuración» → «Cuentas para recibir pagos»: **Bre-B**

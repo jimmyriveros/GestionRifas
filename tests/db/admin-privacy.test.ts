@@ -109,6 +109,97 @@ function contieneNumero(texto: string, numero: number): boolean {
   return new RegExp(`([:\\[,]\\s*${numero}(?![0-9.])|"${numero}")`).test(texto)
 }
 
+/**
+ * I-140: una rifa PROPIA en modo configurable, para que la bitacora del
+ * personal traiga SIEMPRE una entrada de premio que revisar, haya corrido antes
+ * lo que haya corrido. Se crea sin sesion —el modo no se elige desde la
+ * aplicacion, igual que en `raffle-prizes.test.ts`— y en borrador: ni se vende
+ * ni avisa a nadie.
+ */
+async function rifaConPremios(): Promise<string> {
+  const { rows } = await db.query<{ id: string }>(
+    `insert into raffles (organization_id, name, ticket_price, start_date, end_date, created_by, prize_mode)
+     values ($1, $2, 120000, today_bogota() - 7, today_bogota() + 60, $3, 'configurable')
+     returning id`,
+    [ctx.demoOrg.id, `Privacidad premios ${STAMP}`, ctx.ids.owner],
+  )
+  return rows[0]!.id
+}
+
+/**
+ * El premio, con la RPC de verdad y la sesion del Dueño: su entrada en la
+ * bitacora es la que escribe el producto, no una copia de su forma. Juega un
+ * martes de dentro de dos semanas, dentro de la rifa y lejos de hoy.
+ */
+async function premioDe(rifaId: string, titulo: string, importe: number) {
+  const { rows } = await db.query<{ dia: string }>(
+    `select (date_trunc('week', today_bogota()::timestamp) + interval '15 days')::date::text as dia`,
+  )
+  const dia = rows[0]!.dia
+  const { data, error } = await owner.rpc('create_raffle_prize', {
+    p_raffle_id: rifaId,
+    p_title: titulo,
+    p_category: 'daily',
+    p_reward_mode: 'fixed',
+    p_reward_options: [{ description: null, amount: importe }],
+    p_number_field: 'daily_number',
+    p_rules: [
+      {
+        start_date: dia,
+        end_date: dia,
+        weekdays: [2],
+        lottery_mode: 'corresponding',
+        lottery_code: null,
+      },
+    ],
+  })
+  if (error) throw new Error(`No se pudo crear el premio: ${error.message}`)
+  return (data as unknown as { prize_id: string; version_id: string }[])[0]!
+}
+
+/**
+ * Borra la rifa del premio y todo lo que dejo, con su bitacora. Las versiones y
+ * sus periodos son inmutables tambien para la service role: la limpieza va por
+ * PostgreSQL con los disparadores desactivados, en una transaccion, como la de
+ * `raffle-prizes.test.ts`.
+ */
+async function borrarRifaConPremios(rifaId: string) {
+  await db.query('begin')
+  try {
+    await db.query(`set local session_replication_role = replica`)
+    await db.query(
+      `delete from notifications where kind = 'raffle_prize.changed'
+         and (data ->> 'raffle_id')::uuid = $1`,
+      [rifaId],
+    )
+    await db.query(
+      `delete from audit_logs where entity_type = 'raffle_prize'
+         and (coalesce(new_values, old_values) ->> 'raffle_id')::uuid = $1`,
+      [rifaId],
+    )
+    await db.query(
+      `delete from raffle_prize_reward_options where version_id in (
+         select id from raffle_prize_versions where raffle_id = $1)`,
+      [rifaId],
+    )
+    await db.query(
+      `delete from raffle_prize_schedule_rules where version_id in (
+         select id from raffle_prize_versions where raffle_id = $1)`,
+      [rifaId],
+    )
+    await db.query(`delete from raffle_prizes where raffle_id = $1`, [rifaId])
+    await db.query(`delete from raffle_prize_versions where raffle_id = $1`, [rifaId])
+    await db.query(`delete from audit_logs where entity_type = 'raffle' and entity_id = $1`, [
+      rifaId,
+    ])
+    await db.query(`delete from raffles where id = $1`, [rifaId])
+    await db.query('commit')
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  }
+}
+
 beforeAll(async () => {
   db = new PgClient({ connectionString: DB_URL })
   await db.connect()
@@ -518,28 +609,129 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
         'public_whatsapp_number',
         'public_raffle_id',
       ],
+      // Desde la 0058 (D-199) el personal configura los premios y ve su
+      // bitacora. Es la lista blanca de `admin_audit_redact` en la 0059: ni
+      // cliente, ni precio de venta, ni abonos (I-140).
+      raffle_prize: [
+        'raffle_id',
+        'prize_id',
+        'prize_ids',
+        'version_id',
+        'version_number',
+        'previous_version_id',
+        'change',
+        'status',
+        'title',
+        'category',
+        'reward_mode',
+        'reward_options',
+        'number_field',
+        'digits',
+        'rules_count',
+        'material',
+        'notified',
+        'position',
+        'count',
+      ],
     }
+    /** Lo unico que lleva cada alternativa de un premio (`raffle_prize_reward_json`). */
+    const CLAVES_DE_ALTERNATIVA = ['amount', 'description']
 
-    const { data, error } = await owner.rpc('admin_audit_log', { p_limit: 500 })
-    expect(error).toBeNull()
-    expect(data!.length).toBeGreaterThan(0)
+    // Una entrada de premio que revisar EN CADA PASADA. Antes el tipo solo
+    // aparecia si otra suite habia dejado alguno, y la prueba dependia del
+    // orden en que corrieran los archivos (I-140).
+    const titulo = `Premio privacidad ${STAMP}`
+    const importe = 250_000
+    const rifa = await rifaConPremios()
+    try {
+      const premio = await premioDe(rifa, titulo, importe)
 
-    for (const fila of data!) {
-      expect(['ticket', 'raffle', 'membership', 'user']).toContain(fila.entity_type)
-      expect([
-        'ticket.assign_client',
-        'ticket.bulk_assign',
-        'ticket.update_sale_price',
-        'ticket.reassign_client',
-        'ticket.release_client',
-      ]).not.toContain(fila.action)
+      const { data, error } = await owner.rpc('admin_audit_log', { p_limit: 500 })
+      expect(error).toBeNull()
+      expect(data!.length).toBeGreaterThan(0)
 
-      const permitidas = PERMITIDAS[fila.entity_type]
-      if (!permitidas) continue
-      for (const valores of [fila.old_values, fila.new_values]) {
-        const claves = Object.keys((valores ?? {}) as Record<string, unknown>)
-        for (const clave of claves) expect(permitidas, `${fila.action}: ${clave}`).toContain(clave)
+      const propia = data!.find(
+        (fila) => fila.entity_type === 'raffle_prize' && fila.entity_id === premio.prize_id,
+      )
+      expect(propia, 'la entrada del premio de esta prueba').toBeDefined()
+      expect(propia!.action).toBe('raffle_prize.create')
+      expect(propia!.old_values).toBeNull()
+      // Entera y con sus valores: lo que escribe `raffle_prize_audit_values`.
+      expect(Object.keys(propia!.new_values as Record<string, unknown>).sort()).toEqual([
+        'category',
+        'change',
+        'digits',
+        'material',
+        'notified',
+        'number_field',
+        'previous_version_id',
+        'prize_id',
+        'raffle_id',
+        'reward_mode',
+        'reward_options',
+        'rules_count',
+        'status',
+        'title',
+        'version_id',
+        'version_number',
+      ])
+      expect(propia!.new_values).toMatchObject({
+        raffle_id: rifa,
+        prize_id: premio.prize_id,
+        version_id: premio.version_id,
+        title: titulo,
+        reward_options: [{ description: null, amount: importe }],
+      })
+
+      for (const fila of data!) {
+        expect(['ticket', 'raffle', 'membership', 'user', 'raffle_prize']).toContain(
+          fila.entity_type,
+        )
+        expect([
+          'ticket.assign_client',
+          'ticket.bulk_assign',
+          'ticket.update_sale_price',
+          'ticket.reassign_client',
+          'ticket.release_client',
+        ]).not.toContain(fila.action)
+
+        const permitidas = PERMITIDAS[fila.entity_type]
+        if (!permitidas) continue
+        for (const valores of [fila.old_values, fila.new_values]) {
+          const claves = Object.keys((valores ?? {}) as Record<string, unknown>)
+          for (const clave of claves)
+            expect(permitidas, `${fila.action}: ${clave}`).toContain(clave)
+
+          // Y dentro de cada alternativa del premio, tampoco nada mas.
+          if (fila.entity_type !== 'raffle_prize') continue
+          const alternativas = (valores as Record<string, unknown> | null)?.reward_options
+          if (alternativas === undefined) continue
+          expect(Array.isArray(alternativas), `${fila.action}: reward_options`).toBe(true)
+          for (const alternativa of alternativas as Record<string, unknown>[]) {
+            for (const clave of Object.keys(alternativa)) {
+              expect(CLAVES_DE_ALTERNATIVA, `${fila.action}: reward_options.${clave}`).toContain(
+                clave,
+              )
+            }
+          }
+        }
       }
+
+      // Ni un valor de la venta de esta suite, en ninguna entrada ni en ningun tipo.
+      const texto = JSON.stringify(data)
+      for (const valor of [
+        SECRETO.nombre,
+        SECRETO.alias,
+        SECRETO.telefono,
+        SECRETO.correo,
+        clienteSecreto,
+      ]) {
+        expect(texto, `el personal recibio «${valor}»`).not.toContain(valor)
+      }
+      expect(contieneNumero(texto, precioRebajado), 'el precio de venta').toBe(false)
+      expect(contieneNumero(texto, ABONO), 'el abono').toBe(false)
+    } finally {
+      await borrarRifaConPremios(rifa)
     }
   })
 })

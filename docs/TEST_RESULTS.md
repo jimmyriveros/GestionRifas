@@ -79,6 +79,60 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
 
+## La promoción de Bre-B y «Otros» (D-209, `0073` y `0074`) e I-140 — 2026-09-19
+
+**Con autorización expresa del dueño** para esta ejecución (`DEPLOYMENT` §2.2): corregir I-140, integrar en `main` el
+candidato con el CI en verde, respaldo y comprobaciones de producción, aplicar exactamente `0073` y `0074` y desplegar su
+código. **No** autoriza datos del negocio, cargas de premios, rifas, permisos ni otras migraciones. Rama
+`feature/premios-configurables`, sobre `94eaa4d`. Lo local, contra `127.0.0.1:54322`; lo de producción, en solo lectura
+salvo los pasos autorizados, y cada uno con su hora.
+
+### La comprobación del dueño
+
+| Quién | Qué | Resultado |
+|---|---|---|
+| **El dueño**, a mano | Introdujo una llave con «@» en una cuenta Bre-B | **Se guardó correctamente** (lo declara el dueño; no se le atribuye ninguna otra prueba) |
+| El agente, en solo lectura y sin imprimir la llave | La base **local** —la única con Bre-B en ese momento— | Una cuenta Bre-B **activa**, creada a las 16:16 UTC, con «@» en la llave, sin espacios en los bordes y con su fila de bitácora. Después se borró con el `db:reset` del protocolo |
+
+### I-140: reproducida, corregida y comprobada
+
+| Paso | Resultado |
+|---|---|
+| Las cinco suites que crean premios —`prize-award-history`, `raffle-prize-matching`, `raffle-prize-transition`, `raffle-prizes` y `prize-award-volume`— y **después** `admin-privacy.test.ts`, en dos invocaciones | ✅ 272 + 1 omitida; ❌ **1 fallida de 29**: «expected [ 'ticket', 'raffle', …(2) ] to include 'raffle_prize'», **el mensaje del CI**. Quedan **12** entradas `raffle_prize` en la organización de prueba: 8 `create`, 3 `publish` y 1 `archive`, todas con las **16** claves de `raffle_prize_audit_values`, dentro de la lista blanca de la `0059` |
+| La prueba corregida, sobre esa misma base | ✅ **29/29**, dos veces seguidas; no queda ninguna rifa suya y las entradas de premio vuelven a ser 12 |
+| Mutaciones **temporales** de las funciones del producto en la base local, cada una restaurada con su `pg_get_functiondef` —definiciones y ACL idénticas al terminar— | **M1** el cliente dentro de la entrada del premio, con la lista blanca ampliada: ❌ **detectada** (las 16 claves exactas). **M2** un precio de venta dentro de una alternativa: ❌ **detectada** («reward_options.sale_price»). **M3b** pagos y clientes sin redactar: ❌ **detectada** («to include 'payment'»). **M4** el personal deja de ver la bitácora de premios: ❌ **detectada** («la entrada del premio de esta prueba: expected undefined»). **M3** ampliar solo el filtro de tipos a pagos y clientes: **no** se detecta, y es correcto —la redacción los deja sin claves y la función los descarta: no llega nada—. Sin mutaciones: ✅ |
+| `db:reset` + Kong + `seed:local` y `admin-privacy.test.ts` **sola, primero**, con **0** entradas de premio | ✅ **29/29**: la entrada que revisa la trae ella |
+| `npm run test:db` completo | ✅ **1.402 + 1 omitida** (la V5-01, solo con `PREMIOS_EXPLAIN`), 57 archivos, 134,4 s |
+| **Otra pasada completa sobre la misma base**, sin `db:reset`, con 12 entradas de premio ya dentro | ✅ **1.402 + 1 omitida**, 148,4 s. La suite de base aguanta dos pasadas seguidas, que es lo que I-140 contradecía |
+| Formato | La prueba cumplía Prettier en `HEAD` y una línea mía la sacó —una aserción que ahora cae dentro del `try`—: ajustada; Prettier, ESLint y `tsc` en verde y la prueba otra vez **29/29** |
+
+### La reversión, medida con el código anterior
+
+`318357c` servido en `:3100` desde un *worktree* —con una copia de `node_modules`, porque Turbopack no acepta un enlace— y
+contra la base **local** en la `0074`. Vendedor 2 del seed crea, con las RPC nuevas, una Nequi, una Bre-B (`@maria.torres`)
+y una «Otros» (`0012-AbC/#`), y un recordatorio. Un guion de Playwright con la cuenta del seed, como las E2E, lee las dos
+pantallas; ninguna contraseña en el navegador integrado.
+
+| Qué | Resultado |
+|---|---|
+| «Cuentas para recibir pagos» (HTTP 200) | «Nequi · 3001234567 · Ana Torres», y las otras dos **«· Ana Torres»** |
+| La vista previa del recordatorio: el bloque que lee el **cliente** (HTTP 200) | «Puedes pagar aquí:» · «• Nequi · 3001234567 · Ana Torres» · **«•  · Ana Torres»** dos veces |
+| Errores de la página | Ninguno |
+| `update_seller_payment_account` con lo que manda el código anterior —`p_id`, titular y teléfono— sobre la Bre-B | **Rechazada** con «Escribe tu llave.»; la fila, **idéntica** en todas sus columnas y la llave, conservada |
+| Al terminar | Servidor detenido, *worktree* retirado y el `node_modules` del repositorio intacto (400 carpetas) |
+
+De ahí los dos escenarios de `DEPLOYMENT` §2.2: sin cuentas nuevas, *Instant Rollback* al despliegue anterior y la base
+como está; con alguna, corregir hacia delante y no volver a ciegas.
+
+### El candidato, en local
+
+| Verificación | Resultado |
+|---|---|
+| `npm run verify` | ✅ exit 0: lint **0 errores y los 2 avisos** de siempre, **1.522/1.522**, `next build` |
+| `db:reset` + `seed:local` y las E2E de cuentas y recordatorios —`configuracion-cobro`, `configuracion-cobro-movil` y `push-dispatch`— | ⚠️ **46/47**: falla `configuracion-cobro.spec.ts:744` a **1024 px** («esperado > 608, recibido 591»); la captura enseña la pantalla bien. Las **8** de Bre-B y «Otros», en verde |
+| Esa prueba, **10 veces** con el candidato | ⚠️ **3 de 10**, siempre con la misma cifra |
+| La misma, **10 veces** en un *worktree* de `318357c`, sin D-209, contra la misma base | ⚠️ **3 de 10**, la misma cifra. **Anterior a D-209**: mide mientras la barra lateral anima su ancho (**I-150**, nueva) |
+
 ## Bre-B y «Otros» en las cuentas para recibir pagos (D-209, `0073` y `0074`, solo en local) — 2026-09-19
 
 Rama `feature/premios-configurables`, sobre `735eb67`. Todo contra la base **local** (`127.0.0.1:54322`) y el

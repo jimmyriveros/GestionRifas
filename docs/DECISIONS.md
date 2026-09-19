@@ -4,7 +4,9 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.72 · **Actualizado:** 2026-09-19 (D-001 a **D-209**; **D-209 — Bre-B y «Otros» en las cuentas para
+- **Versión:** 1.73 · **Actualizado:** 2026-09-19 (**D-209 §7**: la promoción, autorizada por el dueño para una sola
+  ejecución, con I-140 corregida en la prueba y la reversión medida con el código anterior). Antes, ese mismo día
+  (D-001 a **D-209**; **D-209 — Bre-B y «Otros» en las cuentas para
   recibir pagos, solo en local** (`0073` y `0074`): una columna `identifier` de texto, guardada tal cual y sin espacios
   exteriores, de 1 a 100 caracteres, en una línea y sin invisibles; duplicados por el identificador entero y por
   dígitos en las formas de siempre; separa lo que decidió el dueño de lo que decidió el agente y deja escrito, sin
@@ -12921,6 +12923,9 @@ etiqueta `fase-*`.
 > leído producción para hacerla: el encargo autorizó implementación, migraciones y pruebas locales, documentación y un
 > commit local, y **no** autorizó push, despliegue ni cambios en Supabase de producción. El orden para una futura
 > promoción está al final de esta entrada, **sin ejecutar**.
+>
+> **Actualizado el 2026-09-19, más tarde: la promoción está AUTORIZADA** por el dueño para una sola ejecución (§7). Esta
+> nota manda sobre la de arriba y sobre §5 y §6, que se conservan como estaban.
 
 **Alcance.** Dos formas nuevas en «Configuración» → «Cuentas para recibir pagos», dentro del modelo de D-185 y de la
 pantalla de D-188: **Bre-B** y **«Otros»**. Crear, editar, listar, ordenar, archivar, volver a usar y aparecer en el
@@ -12991,7 +12996,7 @@ I-106 e I-148); y la revisión visual a 320, 390, 1280 y 1440 px.
 
 | Qué | Por qué es suyo |
 |---|---|
-| **Autorizar la promoción** de `0073`, `0074` y el código | Escribe en producción |
+| **Autorizar la promoción** de `0073`, `0074` y el código | Escribe en producción. ✅ **Autorizada el 2026-09-19** (§7) |
 | **I-147** —dos altas simultáneas eligen la misma posición— | Es anterior a este encargo y cambiarlo toca cómo se asigna la posición, que D-209 no toca |
 
 ### 6 — Orden para una futura promoción (NO ejecutado, NO autorizado)
@@ -13007,3 +13012,34 @@ vendedor**.
 **Consecuencia.** BR-M03, BR-M04 y BR-M08 precisadas; **BR-M10** nueva. Migraciones `0073` y `0074`. `DATA_MODEL`
 §4.15 y §6.g.6, `SECURITY` §4.15, `ARCHITECTURE` §8.23, `MASTER_SPEC` §9.5, `UX_COPY_GUIDELINES` (Anexo A y B),
 `TESTING` §4.8, `TEST_RESULTS`, `KNOWN_ISSUES` (**I-146** e **I-147**), `PHASE_STATUS` y `HANDOFF`.
+
+### 7 — La promoción (2026-09-19)
+
+**Lo que decidió el dueño** —autorización expresa, para una sola ejecución y con las verificaciones previas cumplidas—:
+
+| Autorizado | No autorizado |
+|---|---|
+| Correcciones locales mínimas para esta entrega, **I-140** incluida, **sin** borrar, omitir ni debilitar la prueba, filtrar sus entradas ni cambiar permisos o reglas del producto | Tocar datos del negocio |
+| Pruebas locales y la documentación | Cargar premios |
+| Commits, publicar la rama y abrir un PR para obtener el CI | Cambiar rifas |
+| Integrar en `main` el candidato verificado, sin `force` ni desactivar protecciones | Alterar permisos de personas |
+| Respaldo y comprobaciones de producción | Promover otras migraciones |
+| Aplicar `0073` y `0074`, **antes** del código | Borrar cuentas o llaves para poder volver atrás |
+| Desplegar su código y comprobarlo | Revertir la base o restaurar un respaldo como respuesta automática a un fallo |
+
+Y además: I-147 queda fuera salvo evidencia nueva; las comprobaciones **con sesión** las hace el dueño; y la comprobación
+de una llave con «@», **hecha por él**, se registra como suya y sin atribuirle otras.
+
+**Lo que decidió el agente dentro de eso:**
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 1 | La prueba de I-140 **trae su propio premio**, con la RPC de verdad y la sesión del Dueño, en una rifa propia que borra en un `finally`; exige ver **esa** entrada con sus 16 claves, admite `raffle_prize` con la lista blanca del producto y la de cada alternativa, y busca en toda la respuesta los datos del cliente, el precio y el abono | Sin una entrada propia, la rama `raffle_prize` solo se ejercía si otra suite había dejado alguna: la prueba dependía del orden. Una copia a mano de la forma de la entrada no habría probado lo que escribe el producto |
+| 2 | La reversión se **midió** con el código anterior servido contra la base nueva, en vez de deducirla | Leyendo el código se predecía «· Ana Torres»; la medida lo confirmó en la lista **y** en el mensaje que lee el cliente, sin errores de página, y que la base rechaza la edición vieja sin perder la llave |
+| 3 | Dos escenarios: sin cuentas nuevas, *Instant Rollback* sin tocar la base; con alguna, **corregir hacia delante**, y volver al código anterior solo como decisión del dueño con las cifras delante | Volver a ciegas dejaría a los clientes leyendo una cuenta sin llave en el grupo |
+| 4 | **I-150** se registra y **no** se corrige | Es anterior (3 de 10 también en `318357c`), no está en el CI (D-069) y no hace falta para esta entrega |
+| 5 | El commit de documentación **posterior** a la promoción se publica en la rama y **no** en `main` | Empujarlo desplegaría otra versión y, en Hobby, movería el *Instant Rollback* lejos de `318357c`, que es el punto de vuelta de esta entrega. Su fusión es una decisión posterior del dueño |
+| 6 | Las puertas que escriben se hacen **fuera** de las horas del sincronizador y de un recordatorio que venza en la media hora siguiente | La práctica de `RUNBOOK` §9.0, que el dueño fijó para las promociones anteriores |
+
+**Pendiente del dueño:** las comprobaciones con sesión de `DEPLOYMENT` §2.2, paso 8; decidir sobre **I-147** e
+**I-150**; y fusionar en `main`, cuando le convenga, el commit de documentación que queda en la rama.

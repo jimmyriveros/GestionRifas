@@ -1,7 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-19 (§2: `0073` y `0074`, D-209, **solo en local**, con su orden de promoción). Antes,
-2026-08-09. Procedimiento de despliegue y reversión. Para el manual de
+**Actualizado:** 2026-09-19 (§2.2: la promoción de `0073` y `0074` **autorizada**, y su reversión **comprobada** en
+local con el código anterior; §4.1: antes de volver a un despliegue, comprobar que sabe leer los datos nuevos). Antes,
+ese mismo día (§2: `0073` y `0074`, D-209, **solo en local**, con su orden de promoción) y 2026-08-09. Procedimiento de despliegue y reversión. Para el manual de
 operación del negocio ver [`OPERATIONS.md`](OPERATIONS.md); para problemas frecuentes,
 [`RUNBOOK.md`](RUNBOOK.md).
 
@@ -30,7 +31,7 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 |---|---|
 | Migraciones (**72** aplicadas, hasta `0072`, desde el 2026-09-18; esta fila decía «50» hasta entonces) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03), `0047` (09-03, D-168) y **`0048` (09-05, D-169)**, esta última con la migración aplicada **antes** del despliegue. y **`0049` (09-05, D-170)**, también con la migración por delante del despliegue. **`0049` es la primera desde `0027` que ESCRIBE DATOS** —la carga inicial del paz y salvo—, y por eso se promovió con el procedimiento reforzado que conviene repetir en cualquier migración con sentencias de datos: sonda de **solo lectura antes** (boletas, asignadas, cuántas recibirán el cambio, distribución por estado y totales de ventas, abonos, pagos y comisiones), `db push --dry-run` comprobando que **solo** aparece la migración nueva, aplicarla **antes** del despliegue, y **repetir la misma sonda después comparando bloque a bloque**: cambiaron exactamente dos cosas, la bitácora (+750, una por boleta) y el número de migración |
 | **`0050` aplicada el 2026-09-08** (D-176) | La invitación al grupo de WhatsApp. **Aditiva y sin una sola sentencia de datos**: tres columnas nuevas en `memberships` que nacen nulas o en `false`, tres CHECK y una RPC; no toca ninguna tabla, política, función ni restricción existente. Promovida con el procedimiento completo: respaldo en `Rifas-backups/2026-09-08-pre-0050/` (4,1 MB, 19 tablas, **0** identidades de Auth), sonda de solo lectura **antes**, `db push --dry-run` confirmando que **solo** aparecía `0050`, aplicación **antes** del despliegue y la **misma sonda después**. **Las 30 cifras de negocio salieron idénticas** —981 boletas, 540 clientes, 352 pagos, $32.780.000 abonados, 4.816 de bitácora— y lo único que se movió fue el número de migración, las tres columnas y la RPC. Comprobado además que `memberships_update_staff` **sigue siendo la única política de escritura**, que la RPC **no es ejecutable por `anon`** y que **0 filas** tienen algo escrito en las columnas nuevas |
-| **`0073` y `0074`: SOLO EN LOCAL** (D-209, 2026-09-19) | Bre-B y «Otros» en las cuentas para recibir pagos. **No aplicadas ni autorizadas.** Van en ese orden y en dos archivos —un valor de enumerado no se usa en la transacción que lo añade (`55P04`)—, **antes** del código: el código desplegado funciona con la base nueva (medido) y el nuevo no funciona con la vieja. La `0074` no escribe datos: una columna nula, dos CHECK, un índice reconstruido, dos funciones y dos RPC con firma nueva, y se comprueba a sí misma. `verify:remote` tendrá **dos comprobaciones en rojo a propósito** hasta aplicarlas. Orden completo en §2.2 |
+| **`0073` y `0074`: AUTORIZADAS el 2026-09-19** (D-209) | Bre-B y «Otros» en las cuentas para recibir pagos. **Autorizadas para una sola ejecución** con el procedimiento de §2.2; si se aplicaron y cuándo, en `TEST_RESULTS` y `HANDOFF` —esta fila se escribió antes de aplicarlas—. Van en ese orden y en dos archivos —un valor de enumerado no se usa en la transacción que lo añade (`55P04`)—, **antes** del código: el código desplegado funciona con la base nueva (medido) y el nuevo no funciona con la vieja. La `0074` no escribe datos: una columna nula, dos CHECK, un índice reconstruido, dos funciones y dos RPC con firma nueva, y se comprueba a sí misma. `verify:remote` tendrá **dos comprobaciones en rojo a propósito** hasta aplicarlas. Orden completo en §2.2 |
 | RLS, RPC, vistas, auditoría | Igual que en local (mismo código, mismas migraciones), salvo `0073` y `0074` |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 
@@ -178,23 +179,44 @@ en `TEST_RESULTS` («la promoción en producción»).
 | `npm run verify:remote` | ✅ **44/44**, con las tres del historial que estaban en rojo a propósito |
 | Comparación por fila (`--operation migrations`) | **CONTINUAR**: 0 diferencias con el delta ensayado, `declared_prize_awards` vacía, **ninguna fila de negocio tocada** |
 
-#### `0073` y `0074` — Bre-B y «Otros» (D-209): PREPARADA, **NO AUTORIZADA NI EJECUTADA**
+#### `0073` y `0074` — Bre-B y «Otros» (D-209): **AUTORIZADA el 2026-09-19**
 
-El orden que hará falta el día que el dueño la autorice. **Nada de esto se ha hecho**: el encargo del 2026-09-19 solo
-autorizó trabajo local. Las comprobaciones de «medido» se hicieron **en la base local**.
+**Autorización expresa del dueño, el 2026-09-19, para una sola ejecución** y con las verificaciones previas cumplidas:
+corregir I-140, integrar en `main` el candidato con el CI en verde, respaldo y comprobaciones de producción, aplicar
+**exactamente** `0073` y `0074` y desplegar su código. **No** autoriza tocar datos del negocio, cargar premios, cambiar
+rifas ni permisos de personas, ni promover otras migraciones. Sustituye a la nota anterior, que decía «preparada, no
+autorizada». Lo que salió de cada paso, en `TEST_RESULTS` y `HANDOFF`. Las comprobaciones de «medido» de esta tabla se
+hicieron **en la base local**.
 
 | Paso | Qué | Por qué |
 |---|---|---|
-| 0 | **Autorización expresa**, con su franja | Escribe en producción |
-| 1 | **Solo lectura**: producción en `0001`–`0072`, el despliegue servido y fotos de puerta `gate-snapshot/v2` con su procedencia | Partir del estado real, no del documentado (`RUNBOOK` §9 como referencia) |
+| 0 | **Autorización expresa**, con su franja | Escribe en producción. ✅ 2026-09-19 |
+| 1 | **Solo lectura**: producción en `0001`–`0072`, el despliegue servido y fotos de puerta `gate-snapshot/v2` con su procedencia; **fuera** de las horas del sincronizador (UTC 3, 4, 5, 6, 12, 13, 15 y 16) y de un recordatorio que venza en la media hora siguiente | Partir del estado real, no del documentado (`RUNBOOK` §9 como referencia) |
 | 2 | **Respaldo lógico validado** (`RUNBOOK` §5) | Plan Free sin copias automáticas (I-024) |
 | 3 | **Ensayar el delta con los privilegios de producción** (`gate-mirror-privileges.ts` con esa foto) | Esperado: `create_…`/`update_seller_payment_account` con `postgres`, `authenticated` y `service_role`; `payment_account_identifier_trim`/`_problem` con `postgres` y `service_role`. Medido así en local, en el escenario B |
 | 4 | **`db push --dry-run`**: exactamente `0073` y `0074` | Un valor de enumerado no se usa en la transacción que lo añade (`55P04`): dos archivos, dos transacciones |
 | 5 | **`db push --yes`**, **antes** del código | El código desplegado funciona con la base nueva —medido: altas, ediciones, archivar, volver a usar y reordenar con la firma de la `0051`—; el nuevo con la vieja dejaría vacía la lista de cuentas. La `0074` se comprueba a sí misma y, si la matriz de EXECUTE no cuadra, **no deja nada** |
 | 6 | **`npm run verify:remote`** | Sus dos comprobaciones de D-209 —«Cuentas de cobro: Bre-B, «Otros»…» y «Funciones de la regla del identificador…»— están **en rojo a propósito** hasta este paso |
 | 7 | **Comparación por fila con `--base`** | La `0074` **añade una columna** a `seller_payment_accounts`, que es una tabla congelada para las puertas: con la línea base, ninguna fila existente puede cambiar. No escribe datos |
-| 8 | **El código**, y la comprobación en vivo **con la sesión del vendedor** —el agente no inicia sesión—: una Bre-B con «@» y otra sin él, una «Otros» con ceros, un duplicado con su frase y el mensaje de un recordatorio | Lo que solo se ve con una sesión real |
-| — | **Revertir** | El código, al despliegue anterior. La base, con la nota de la `0074`, **solo** si no existe ninguna cuenta `breb` ni `other`; un valor de enumerado no se quita, así que la `0073` se quedaría |
+| 8 | **El código**: CI en verde **sobre el mismo SHA**, `main` por **avance rápido** —sin `force`—, **el** despliegue que dispara ese empuje —ninguno más— y la comprobación en vivo técnica. La comprobación **con la sesión del vendedor** es del dueño —el agente no inicia sesión—: una Bre-B con «@» y otra sin él, una «Otros» con ceros, un duplicado con su frase y el mensaje de un recordatorio | Lo que solo se ve con una sesión real |
+| — | **Revertir** | Abajo: depende de si ya existen cuentas `breb` u `other` |
+
+**La reversión, comprobada en local el 2026-09-19 —sin ejecutarla—.** El código anterior (`318357c`) **no sabe
+enseñar** una cuenta Bre-B ni «Otros», así que volver a él no es una reversión completa en cuanto existe una. Medido
+sirviendo `318357c` contra una base local en la `0074`, con una Nequi, una Bre-B y una «Otros» del mismo vendedor:
+
+| Qué | Con el código anterior |
+|---|---|
+| «Cuentas para recibir pagos» | La Nequi, bien; la Bre-B y la «Otros» se leen **«· Ana Torres»**: sin forma y sin llave |
+| El mensaje del recordatorio, el que lee el **cliente** | **«•  · Ana Torres»** por cada una: el cliente no ve a dónde pagar |
+| Errores | Ninguno: las páginas responden 200 y la consola del navegador queda limpia |
+| Editar una Bre-B con lo que manda el código anterior (`p_id`, titular y teléfono) | **La base lo rechaza** con «Escribe tu llave.» y la fila queda **idéntica**: la llave no se pierde. Archivar, volver a usar y ordenar son funciones de la `0051`, anteriores a la columna: no la nombran |
+
+| Situación | Cómo se vuelve |
+|---|---|
+| **A. No existe ninguna cuenta `breb` ni `other`** —se comprueba justo antes, en solo lectura: `select count(*) from seller_payment_accounts where kind in ('breb', 'other')`— | *Instant Rollback* al despliegue **inmediatamente anterior**, el único que permite Hobby: `dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE` (`318357c`). **La base no se toca**: `0073` y `0074` se quedan, porque el código anterior funciona con ellas —altas, ediciones, archivar, volver a usar y ordenar, medido—. La pantalla del código anterior no ofrece esas dos formas, así que desde ella el recuento no crece |
+| **B. Existe al menos una** | **No se vuelve a ciegas.** Se corrige **hacia delante**: un commit nuevo sobre el código de D-209, con su CI y su despliegue, que conserva las cuentas y sus llaves. Si un fallo obliga a detener la versión nueva antes de tener esa corrección, volver a `318357c` es **una decisión del dueño** con estas cifras delante: cuántas cuentas y de cuántos vendedores se verían sin llave —la misma consulta, agrupada por `seller_id`— y el aviso a esos vendedores de que no peguen el recordatorio hasta que vuelva la versión nueva. Las llaves siguen en la base y reaparecen enteras con ella |
+| **Siempre** | **No** se borran cuentas ni llaves para poder volver; **no** se revierte la `0074` —su nota exige **cero** cuentas `breb` y `other`— y un valor de enumerado no se quita, así que la `0073` se queda siempre; **no** se restaura un respaldo sobre producción como respuesta automática a un fallo (`RUNBOOK` §5.2). Si la recuperación exige algo destructivo, se detiene y se consulta |
 
 ---
 
@@ -761,6 +783,12 @@ Dos formas, de más rápida a más prolija:
 2. **`git revert`** del commit problemático + push a `main`: más lento (dispara un build), pero dejа
    el historial de git como fuente de verdad de lo que corre en producción. Preferible si el rollback
    va a durar más que unas horas.
+
+**Antes de volver a un despliegue anterior, comprueba que su código sabe leer lo que la base ya tiene** (D-209). Las
+migraciones se quedan, y un código viejo puede no fallar y aun así enseñar mal un dato nuevo: `318357c` pinta una
+cuenta Bre-B como «· Ana Torres», sin forma ni llave, también en el mensaje que lee el cliente (§2.2). En Hobby, además,
+solo se puede volver al despliegue **inmediatamente anterior**, así que cualquier despliegue nuevo a producción mueve ese
+punto.
 
 ### 4.2 Base de datos
 
