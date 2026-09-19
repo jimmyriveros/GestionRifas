@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (alineación de campos, D-210, y la prueba de oscuro corregida, solo en local, 2026-09-19)** | sin cambio | sin cambio | **19/19** (`formularios-alineacion` 16, `formularios-alineacion-movil` 3). La de oscuro **falló** en `73f3e83` al exigir `.dark` (`false`); con la clase aplicada después del diálogo, pasa, y sin activarla la sonda ve el token claro | eslint de las specs ✅ | ✅ **Solo local.** La evidencia «oscuro» de `73f3e83` no valía; detalle en la nota posterior de D-210 |
+| **Post-9 vigente (D-210 EN PRODUCCIÓN, `9acbfa8`, 2026-09-19)** | sin cambio de número | sin cambio de esquema | Previas: **19/19** de alineación. PR #2 CI **2/2**; `main` CI **2/2**. En vivo **27/27** rutas, 7/7 cabeceras, 0 secretos, `484ebe210458` servido | `verify:remote` **46/46** | ✅ **En producción.** Avance rápido `6401bd0..9acbfa8`. Reversión: `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y`. Pendiente del dueño: sesión |
+| Post-9 anterior (alineación de campos, D-210, y la prueba de oscuro corregida, solo en local, 2026-09-19) | sin cambio | sin cambio | **19/19** (`formularios-alineacion` 16, `formularios-alineacion-movil` 3). La de oscuro **falló** en `73f3e83` al exigir `.dark` (`false`); con la clase aplicada después del diálogo, pasa, y sin activarla la sonda ve el token claro | eslint de las specs ✅ | ✅ **Solo local.** La evidencia «oscuro» de `73f3e83` no valía; detalle en la nota posterior de D-210 |
 | Post-9 anterior (alineación de campos en la misma fila, D-210, solo en local, 2026-09-19) | **1.522 ✅** en 80 archivos (sin cambio de número) | **1.402 ✅ y 1 omitida** en 57 archivos (sin cambio de esquema) | **18/18** nuevas (`formularios-alineacion` 15, `formularios-alineacion-movil` 3). La de Día/Hora **falló con 14 px** antes de `content-start` y pasó después. Relacionadas: crear recordatorio ✅, crear rifa configurable ✅. ⚠️ La casilla «oscuro» de esa pasada **no activaba `.dark`** | ✅ `verify` exit 0 · lint 0 errores y los 2 avisos de siempre | ✅ **Solo local.** Causa corroborada: `FormItem` en `grid` repartía el hueco extra. Figma no se tocó |
 | Post-9 anterior (la promoción de Bre-B y «Otros» e I-140 corregida: EN PRODUCCIÓN, D-209, 2026-09-19) | **1.522 ✅** sin cambios; CI **2/2** en el PR (`35457272858`) y en `main` (`35459633957`) | **1.402 ✅ y 1 omitida**, también en **dos pasadas seguidas sobre la misma base**; en el CI, con `admin-privacy` después de las suites de premios, ✅. I-140: reproducida, corregida y cuatro mutaciones detectadas | ⚠️ **778/779** en 46,1 min: la fallida es **I-090** (`:163`, recibido 54); las 8 de Bre-B y «Otros», en verde. Las E2E de cuentas y recordatorios, **46/47** con I-150 (3 de 10 también en `318357c`) | ✅ `verify` exit 0 · `verify:remote` **44 + 2 en rojo** antes y **46/46** después, en producción | ✅ **En producción**: `0073` y `0074` a las 17:53 UTC con respaldo validado y CONTINUAR en cada comparación; `6401bd0` servido a las 17:57 UTC, en vivo en verde y sin errores de ejecución. **Pendiente del dueño:** las comprobaciones con sesión |
 | Post-9 anterior (Bre-B y «Otros» en las cuentas para recibir pagos, D-209, `0073` y `0074`, solo en local, 2026-09-19) | **1.522 ✅ en 80 archivos (+25)**: la regla en Zod, cómo se escriben, y la migración leída como texto | **1.402 ✅ y 1 omitida, en 57 archivos (+29)**: `payment-account-identifiers.test.ts`, con la BMP entera y dos transacciones reales | ⚠️ **775/779** en 42,6 min, con las **8 nuevas** en verde. Los 4: **I-090** (`ventas-por-fecha` `:163` y `:247`) e **I-106** (`catalogo-publico-movil:103`), con su firma de siempre, y `premios-ganados:383` (**I-148**). Relanzados sus archivos y los de «Configuración» tras `db:reset` + `seed:local`: **92/93**, y el que falló es otro de «Premios ganados», `:443`, **reproducido en `735eb67` sin D-209** (4 de 5) | ✅ `verify` exit 0 · `verify-remote` **contra la base local**: en la `0072`, 44 OK y **las 2 nuevas en rojo**, lo que dará producción hasta promover; en el escenario B con la `0074`, **46/46**. Contra producción **no se corrió**: el encargo no autoriza leerla | ✅ **Solo local.** Ensayo sobre datos existentes **12/12** (6/6 filas idénticas); escenario B con las 242 funciones idénticas; tres mutaciones detectadas. **I-146** encontrada y corregida; **I-147** registrada. **Nada en producción** |
@@ -113,6 +114,27 @@ alineación que medía era la del tema claro.
 Corrección: se añade `.dark` con `page.evaluate` **después** de abrir el diálogo; antes de medir se exige la clase y el
 token `--ds-background-default` `#0a0a0a`. Sin activar, la misma sonda ve `.dark` ausente y el token claro (`#ffffff`).
 Escritorio **16/16** (la de oscuro y la que demuestra la ausencia) y teléfono **3/3**. `FormItem` no se tocó.
+
+## Publicación de D-210 en producción — 2026-09-19
+
+Autorización expresa para rama, PR, `main` y el despliegue automático. **Sin migración.**
+
+| Paso | Resultado |
+|---|---|
+| Diff vs `origin/main` (`6401bd0`) | 16 archivos: `form.tsx`, 2 E2E, 13 docs. `2c82a01` es solo markdown de D-209. Cero `supabase/`, cero `package.json` |
+| Producción antes | `6401bd0` / `73db0e617455` servido (1 de 15). Rollback previsto: `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y`, **no** `318357c` |
+| Rama | `feature/premios-configurables` empujada `2c82a01..9acbfa8` |
+| PR | **#2** https://github.com/jimmyriveros/GestionRifas/pull/2 |
+| CI del PR | run **`35469232380`** ✅ 2/2 (verify 2m23s; db 6m13s). Preview de Vercel en rojo por `check:env` (D-066) |
+| Integración | Avance rápido `6401bd0..9acbfa8` a las **21:09:36 UTC**, sin `force` |
+| CI de `main` | run **`35469563720`** (21:09:37–21:15:36 UTC) ✅ **2/2** |
+| Despliegue | GitHub Production 6545741433, success **21:10:11 UTC**; alias `gestion-rifas-dkeif5tbg-jimmyriveros-projects.vercel.app` |
+| Identificador servido | **`484ebe210458`** (1 de 15); `73db0e617455` **0**. CSS con `content-start` (2 hojas) |
+| Rutas | **27/27**: públicas 200, protegidas 307, `/api/lottery/sync` y `/api/push/dispatch` 401, catálogo inexistente 404 |
+| Cabeceras | **7/7** (HSTS, CSP con nonce, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, X-Dns-Prefetch-Control) |
+| Secretos | **0** en 1.128 KB de JS/CSS |
+| `verify:remote` | **46/46** |
+| Con sesión | **No se hizo.** Pendiente del dueño |
 
 ## La promoción de Bre-B y «Otros» (D-209, `0073` y `0074`) e I-140 — 2026-09-19
 

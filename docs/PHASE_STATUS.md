@@ -3,7 +3,20 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-19, más tarde — **la prueba de oscuro de D-210, corregida, SOLO EN LOCAL**
+- **Actualizado:** 2026-09-19, más tarde — **D-210 EN PRODUCCIÓN** (`9acbfa8`, mantenimiento posterior a la Fase 9,
+  sin fase ni etiqueta nuevas; autorización expresa para publicar).
+  Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades implementadas:** la alineación de campos **servida**: `FormItem` con `content-start`.
+  **(2) Pruebas ejecutadas:** PR #2 CI **2/2** (`35469232380`); `main` CI **2/2** (`35469563720`); en vivo 27/27 rutas,
+  7/7 cabeceras, 0 secretos, identificador `484ebe210458`, `verify:remote` **46/46**.
+  **(3) Migraciones:** ninguna. Siguen **74**.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** comprobación **con sesión** pendiente del dueño; Figma; I-147, I-150, I-090, I-106,
+  I-148, I-149.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; `DEPLOYMENT` §3.2.n; el punto de reversión es **`6401bd0`**,
+  no `318357c`. El commit de este cierre está en la rama.
+
+  Antes, ese mismo día — **la prueba de oscuro de D-210, corregida, SOLO EN LOCAL**
   (mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas).
   Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades implementadas:** las mismas de D-210; `FormItem` no se tocó. La E2E de oscuro añade `.dark`

@@ -1,6 +1,6 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-19, más tarde (§2 y §2.2: `0073` y `0074` **aplicadas** a las 17:53 UTC; §3.2.m: `6401bd0`
+**Actualizado:** 2026-09-19, más tarde (§3.2.n: D-210 **desplegado**, `9acbfa8` servido). Antes, ese mismo día (§2 y §2.2: `0073` y `0074` **aplicadas** a las 17:53 UTC; §3.2.m: `6401bd0`
 **desplegado** a las 17:57 UTC y comprobado técnicamente; §3.2.l: el CI en rojo era I-140, ya corregida). Antes, ese
 mismo día (§2.2: la promoción de `0073` y `0074` **autorizada**, y su reversión **comprobada** en
 local con el código anterior; §4.1: antes de volver a un despliegue, comprobar que sabe leer los datos nuevos). Antes,
@@ -805,6 +805,28 @@ error de ejecución** desde el despliegue, y en sus registros ni un 5xx ni una l
 > y otra sin él, una «Otros» con ceros, un duplicado con su frase y el mensaje de un recordatorio— son del dueño (§2.2,
 > paso 8). **El commit de documentación posterior** a esta promoción se queda en la rama y **no** se empuja a `main`:
 > desplegaría otra versión y, en Hobby, movería el punto de reversión lejos de `318357c` (D-209 §7).
+
+### 3.2.n Release de alineación de campos (D-210) — 2026-09-19
+
+**Sin migración.** Un cambio de aplicación: `FormItem` pasa a `grid content-start gap-2`. Autorización expresa para
+publicar esta corrección, incluyendo rama, PR, `main` y el despliegue automático.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`9acbfa85b84806c157dc75d828b6aba5e6e622e3`**, el verificado: el mismo SHA del PR #2 con el CI en verde |
+| Commit anterior en producción | `6401bd0276ee74094e27634f688bdd9e50d65bea` |
+| Integración | **Avance rápido** `6401bd0..9acbfa8`, 3 commits —`2c82a01` (cierre documental de D-209), `73f3e83` (D-210) y `9acbfa8` (prueba de oscuro)—, sin fusión, sin `force` y sin etiqueta (push de `9acbfa8` a `main` a las **21:09:36 UTC**). El PR #2 sirvió para el CI; GitHub lo marca fusionado por ese avance rápido |
+| Despliegue Vercel | GitHub Production **6545741433**, alias `gestion-rifas-dkeif5tbg-jimmyriveros-projects.vercel.app`, inspector `7zSzWDRhCKFaiDvbUoJB9A89VPrT` — creado y **success a las 21:10:11 UTC**, el único de producción que disparó ese empuje. La CLI de Vercel no estaba autenticada en esta sesión, así que el `dpl_` no se leyó aquí |
+| Despliegue anterior (**punto de reversión**) | `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y` (`6401bd0`): el **inmediatamente anterior**, D-209, que **sí** enseña Bre-B y «Otros». **No** es `318357c`. Instant Rollback de Hobby, **sin tocar la base** |
+| **Migraciones** | **NINGUNA.** `supabase/` y `scripts/` con 0 líneas de diferencia. Siguen **74** |
+| Variables de entorno, dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `vercel.json`, ni `next.config.ts`, ni `.github/`, ni `.env.example` |
+| CI | En el PR, run **`35469232380`** sobre `9acbfa8`: ✅ 2/2. En `main`, run **`35469563720`** (21:09:37–21:15:36 UTC): ✅ **2/2** |
+
+**Verificación en vivo:** identificador **`484ebe210458`** servido (1 de 15 fragmentos) y el anterior (`73db0e617455`) **desaparecido**; la CSS servida trae **`content-start`** (2 hojas); **27/27** rutas —públicas 200, protegidas 307, APIs 401, catálogo inexistente 404— y **ningún 5xx**; **7/7** cabeceras con CSP por nonce; **0 secretos** en 1.128 KB. `verify:remote` **46/46**.
+
+> **Lo que este release NO verificó:** las pantallas **con sesión** (Día/Hora y filas equivalentes). Un agente no
+> introduce contraseñas. Quedan pendientes del dueño. **El commit de documentación posterior** se queda en la rama y
+> **no** se empuja a `main`: desplegaría otra versión y, en Hobby, movería el punto de reversión lejos de `6401bd0`.
 
 ### 3.3 Despliegues futuros
 
